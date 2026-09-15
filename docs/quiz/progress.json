@@ -5,48 +5,48 @@
   "focus": "ARCHITECTURE ONLY \u2014 how the game is coded/structured. NEVER ask game-rules questions (see daily-prompt.md).",
   "difficulty": 1,
   "difficultyScale": "1 = gentlest (what is a function, what is a package). 5 = deep (trace an event through the architecture). Ramp only per the rules in daily-prompt.md.",
-  "totalQuizzes": 33,
+  "totalQuizzes": 34,
   "recentScores": [],
   "topics": {
     "what-is-a-function": {
-      "asked": 16,
-      "lastAsked": "2026-09-13"
+      "asked": 17,
+      "lastAsked": "2026-09-15"
     },
     "deterministic-sim": {
-      "asked": 16,
-      "lastAsked": "2026-09-13"
+      "asked": 17,
+      "lastAsked": "2026-09-15"
     },
     "seeded-rng": {
-      "asked": 16,
-      "lastAsked": "2026-09-13"
+      "asked": 17,
+      "lastAsked": "2026-09-15"
     },
     "sim-ui-decoupling": {
-      "asked": 16,
-      "lastAsked": "2026-09-13"
+      "asked": 17,
+      "lastAsked": "2026-09-15"
     },
     "monorepo-packages": {
-      "asked": 16,
-      "lastAsked": "2026-09-13"
+      "asked": 17,
+      "lastAsked": "2026-09-15"
     },
     "pure-functions": {
-      "asked": 16,
-      "lastAsked": "2026-09-13"
+      "asked": 17,
+      "lastAsked": "2026-09-15"
     },
     "data-vs-code": {
-      "asked": 16,
-      "lastAsked": "2026-09-13"
+      "asked": 17,
+      "lastAsked": "2026-09-15"
     },
     "event-log-replay": {
-      "asked": 16,
-      "lastAsked": "2026-09-13"
+      "asked": 17,
+      "lastAsked": "2026-09-15"
     },
     "eslint-rules": {
-      "asked": 15,
-      "lastAsked": "2026-09-13"
+      "asked": 16,
+      "lastAsked": "2026-09-15"
     },
     "performance-memo": {
-      "asked": 15,
-      "lastAsked": "2026-09-13"
+      "asked": 16,
+      "lastAsked": "2026-09-15"
     },
     "reducer-run-state": {
       "asked": 16,
@@ -826,6 +826,25 @@
       ],
       "scored": null,
       "note": "Still no score ever reported by Mike, so mastery/difficulty untouched (difficulty held at 1). Picked the 10 topics with the oldest lastAsked (2026-09-12, asked=15) since the what-is-a-function/... group (lastAsked 2026-09-13) is now more recent. Drafted an initial 10 questions from direct reads of types.ts, events.ts, store.ts, sets.ts, minion.ts, reducer.ts, recruit.ts, each package.json, and rng.test.ts/simulate.test.ts, then grepped every prior archived HTML for each chosen fact BEFORE publishing and found 7 of the 10 initial drafts were near-duplicates of already-used angles on the same topic (TriggerFamily-literal-union-vs-typo x2 already used 08-19/08-21; instantiate()-clone-because-CardDef-is-shared already used 08-27; reducer's next===prev rejected-action reference-equality already used 08-27/09-04 nearly verbatim; CombatBus [...list] snapshot-copy already used 08-19; core/content/sim package.json dependency-layering already used 08-22; SET3_SHARED_SPELL_IDS throw-on-missing already used 09-07; EffectFactoryId-as-data-not-classes already used 08-17; recruit-bakes-into-stats-before-combat already used 08-17) -- replaced all 7 with genuinely fresh facts, re-verified against live source, and re-checked each replacement against the archive before finalizing: types.ts's Alignment union + alignAllows()'s `have === 'eclipse' || have === effect.align` (eclipse satisfying both gates from one OR), a fresh types-basics angle distinct from the prior Record<Side,...>/TriggerFamily/Tier-literal-union/EffectDef.align-optional-marker questions; minion.ts's module-level `reAttackCache` Map memoizing a per-card boolean forever with no invalidation, safe specifically because CardDefs never mutate -- a fresh immutability angle (immutability enabling a permanent cache) distinct from every prior instantiate()-clone-safety/keywords-vs-effects-array-sharing question; reducer.ts's `reduce()` wrapper diffing `state.board` before vs. after reduceCore to fire Hunter's onGainAttack reactor for an Attack rise from ANY source, a fresh reducer-run-state angle (a before/after diff as a single choke point vs. instrumenting every buff call site) distinct from the prior next!==state/structuredClone/spendGold/weldFxBaseSeq/COMBAT_FLOW_ACTIONS/??=/switch-narrowing/deserialize-merge/handCap/combatSettled/settleCombat-guard questions; store.ts's writeSave() opening with `if (run.sandbox) return`, reasoned through via the real 2026-07-22 owner-hit comment (a sandbox run clobbering the real save), a fresh zustand-store angle distinct from the prior create()/persist-middleware-absence/CareerFocus/toggleCompact/get()/selector/Math.random-exemption/actionSfx/localStorage-try-catch/getState() questions; simulate.test.ts's Mineral Master test filtering `ev.type === 'buff' && ev.ruby === true` -- a Ruby buff riding the SAME 'buff' CombatEvent tagged with an extra flag instead of a new event type -- a fresh event-bus angle (tagging an existing variant vs. proliferating event types) distinct from the prior on/emit/[...list]-snapshot/payload-unknown/GameEvent-vs-CombatEvent/private-handlers/bidirectional-emit questions; cardPool.ts's `poolOf` defaulting `state.setId ?? 'set1'` specifically (not 'whichever set is enabled') so a pre-sets save resolves to the pool it was historically played under, a fresh cards-in-sets angle distinct from the prior poolFor-cycle-guard/dedup-first-wins/memoized-Map/three-list-derivation/throw-on-missing/tribes-scoping/Karwind-opt-in questions; apps/web/vite.config.ts's `resolve.alias` pointing each `@game/*` import at that package's own src/index.ts (not an internal file), with the real risk being ONE repointed alias silently widening the boundary for every import of that package app-wide, a fresh package-boundaries angle (the bundler-config half of boundary enforcement, distinct from the exports-field half already covered many times) distinct from the prior exports-field(x4)/dependency-layering/ownership-map/typecheck-split/worktree-symlinks questions; the EffectFactoryId union's dated `// --- 2026-07-05 content batch ---`-style comment headers with new ids appended below the matching date, a fresh effects-as-subscriptions angle (append-only chronological organization reducing merge conflicts + doubling as a free changelog) distinct from the prior data-not-classes/COMBAT_REPLAYABLE_BATTLECRIES-derived-Set/EffectFactoryIdSchema/FACTORIES-Partial/params-purpose questions; recruit.ts's own comment that buffOnSummon needs TWO separate implementations (recruit.ts for shop summons, core for combat summons) because 'a minion was summoned' is two genuinely different runtime contexts, a fresh effect-timing-pipeline angle (one effect id, two execution surfaces) distinct from the prior bake-before-combat/FACTORIES-vs-RECRUIT_FACTORIES/echoes-in-shop/two-dispatch-tables questions; and rng.test.ts's 'fork() yields a stream independent of the parent' test (advancing a fork must not perturb the parent's own next draw), reasoned through to what a determinism break would look like if this specific property failed, a fresh testing-vitest angle distinct from the prior seqA/seqB-reproducibility/vitest.config-define/poolDeterminism questions. Verified the embedded QUESTIONS array parses as valid JS (10 questions, 4 choices each, in-range answer index, all 10 topicIds present and unique) via a node script before publishing. Published as an interactive Artifact and archived to docs/quiz/archive/2026-09-14.html."
+    },
+    {
+      "date": "2026-09-15",
+      "quizNumber": 34,
+      "difficulty": 1,
+      "topics": [
+        "what-is-a-function",
+        "deterministic-sim",
+        "seeded-rng",
+        "sim-ui-decoupling",
+        "monorepo-packages",
+        "pure-functions",
+        "data-vs-code",
+        "event-log-replay",
+        "eslint-rules",
+        "performance-memo"
+      ],
+      "scored": null,
+      "note": "Still no score ever reported by Mike, so mastery/difficulty untouched (difficulty held at 1). Picked the 10 topics with the oldest lastAsked (2026-09-13, asked=15-16) since the types-basics/... group (lastAsked 2026-09-14) is now more recent. Used a subagent to extract every question/explanation angle already used per topic across all 16 prior archived HTML files on this exact topic set (2026-08-14 partial, 08-16/18/20/22/24/26/28/30, and 09-01/03/05/07/09/11/13), then read and verified a genuinely new 17th angle per topic (16th for eslint-rules/performance-memo) directly against live source before writing the final questions -- I independently re-verified every claimed fact myself (not just trusting the subagent) via direct reads/greps: factories.ts's `combatCastable(def): boolean` predicate, gating the pricier real cast logic behind a cheap up-front check, a fresh what-is-a-function angle (question-shaped naming + a boolean gate) distinct from all 16 prior default-param/closure/positional-footgun/options-object/void-return/mergeBuffs/HOF-callback-args/HOF-passed-run/export-privacy/rest-parameter/generic-type-parameter questions; simulate.ts's THREE separate iteration guards (ITERATION_GUARD=300 whole-combat loop, REATTACK_GUARD=50 recursive re-attack depth, IMMEDIATE_ATTACK_GUARD=64 a while-loop Whelp-chain drain), reasoned through as bounding three structurally different cascades rather than sharing one cap, a fresh deterministic-sim angle (termination as part of the determinism contract) distinct from the prior harness/servedBoards/ITERATION_GUARD-alone/JSON-round-trip/same-seed-different-choices/UI-object-pool-determinism/replay-harness-action-log questions; recruit.ts's `shopArena()` building its own `cursorRng: Rng` that re-derives `makeRng(state.rngCursor)` fresh on every call and writes the position back, a second real Rng implementation distinct from `makeRng`'s closure-based one, reasoned through via RunState needing to stay plain serializable data -- a fresh seeded-rng angle (multiple implementations of one interface, chosen for serializability) distinct from the prior fork()/state()/int()/pick()/imul/bitwise-coercion/mixSeed-statelessness/rng.ts-is-a-plain-function questions; packages/core/src/presentation/types.ts's `PresentationPolicy` ('ownBeat'/'foldedCue'/'passive'/'intentionallySilent') living in core as a deterministic per-effect classification the UI must obey, a fresh sim-ui-decoupling angle (presentation-sounding DATA still belongs in core because the classification itself is deterministic) distinct from the prior who-decides/beats-pacing/audio-channel/odds-preview/replay-speed/recruit-phase-reduce/grep-level-proof questions; every packages/*/package.json's `\"private\": true`, reasoned through as an npm-publish accident-guard independent of workspace linking, a fresh monorepo-packages angle distinct from the prior exports-field/dependencies-list/wildcard-versions/workspaces-glob/tools-deps/tsconfig-project-split/no-devDependencies questions; odds.ts's `computeCombatOdds()` mutating local `let win/draw/lose/lossDamageTotal` accumulators inside its own loop while its doc comment calls it 'Pure + deterministic,' a fresh pure-functions angle (local mutation contained within a call is compatible with purity; only externally-visible effects aren't) distinct from the prior same-output/Date.now/no-mocks/filter-map/substitution/rng-self-mutation/mkUid-hidden-side-effect/mkUid-reference-vs-value questions; types.ts's single shared `CardDef` interface used for every tribe with no per-tribe subclass, reasoned through via `tribe` being just a string field rather than a type distinction, a fresh data-vs-code angle distinct from the prior .strict()/GameEventSchema-enum/CARD_INDEX/heroes-kind-switch/quests-same-pattern/params-validation-depth/revisions-art-not-in-def questions; the `CombatEvent` union's trailing `& { step?, avenge?, key?, srcCard? }` intersection sitting outside the closing parenthesis of the ~25-variant union, a fresh event-log-replay angle (intersecting a union with a shared shape to avoid repeating optional fields in every branch) distinct from the prior array-vs-single-winner/serializable/uid-not-object-ref/step-tagging/two-event-mechanisms/discriminated-union-narrowing questions; eslint.config.mjs's `apps/desktop/release/**` ignore entry (Electron's own packaged output, a copy of main.cjs plus the bundled runtime) with its own distinct inline rationale from the neighboring `.claude/**`/`supabase/**` entries, a fresh eslint-rules angle distinct from the prior Math.random-ban/supabase-Deno-exclusion/desktop-cjs-require-override/.claude-per-machine-tooling(x2) questions; and docs/performance.md's `task: 0` blind spot on an otherwise-slow frame (the Long Tasks API doesn't attribute style/layout/paint/decode/GC time), a fresh performance-memo angle (a profiling-tool limitation, not a paint-property/layout-thrash/object-pooling/refresh-rate pattern) distinct from the prior React.memo/paint-property/layout-thrash/shader-pooling/canvas-laziness/turnClock-isolated-state/perf-harness-loose-tripwire questions. All ten facts were independently re-verified by me against live source (packages/core/src/effects/factories.ts:547, packages/core/src/combat/simulate.ts:27-29, packages/sim/src/recruit.ts:58-65, packages/core/src/presentation/types.ts, all five packages/*/package.json, packages/sim/src/odds.ts, packages/core/src/types.ts:595 + :1809, eslint.config.mjs, docs/performance.md), not just trusted from the subagent's report. Verified the embedded QUESTIONS array parses as valid JS (10 questions, 4 choices each, in-range answer index, all 10 topicIds present and unique) via a node script before publishing. Published as an interactive Artifact and archived to docs/quiz/archive/2026-09-15.html."
     }
   ],
   "notes": "2026-08-15: refocused to ARCHITECTURE ONLY per Mike \u2014 removed game-rules topics (shop-vs-combat, auto-battler-loop) and expanded the code-architecture curriculum. Do not quiz on game rules; see the hard constraint in daily-prompt.md."

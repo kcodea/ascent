@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent Quiz #34</title>
+<style>
+  :root {
+    --bg: #f6f4ef;
+    --panel: #ffffff;
+    --panel-border: #e2ddd0;
+    --ink: #2a2620;
+    --ink-dim: #6b6555;
+    --accent: #a8712f;
+    --accent-ink: #ffffff;
+    --good: #2f7a4f;
+    --good-bg: #e5f4ea;
+    --bad: #b13d3d;
+    --bad-bg: #fbe9e9;
+    --track: #ece7da;
+    --choice-bg: #fbfaf6;
+    --choice-border: #ddd6c4;
+    --choice-hover: #f1ead9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1b1913;
+      --panel: #242018;
+      --panel-border: #3a3527;
+      --ink: #eee8d8;
+      --ink-dim: #a89d84;
+      --accent: #d69a4e;
+      --accent-ink: #1b1913;
+      --good: #6fce93;
+      --good-bg: #1e3327;
+      --bad: #e28080;
+      --bad-bg: #3a2222;
+      --track: #2f2b1f;
+      --choice-bg: #2b271c;
+      --choice-border: #423c2b;
+      --choice-hover: #352f22;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1b1913;
+    --panel: #242018;
+    --panel-border: #3a3527;
+    --ink: #eee8d8;
+    --ink-dim: #a89d84;
+    --accent: #d69a4e;
+    --accent-ink: #1b1913;
+    --good: #6fce93;
+    --good-bg: #1e3327;
+    --bad: #e28080;
+    --bad-bg: #3a2222;
+    --track: #2f2b1f;
+    --choice-bg: #2b271c;
+    --choice-border: #423c2b;
+    --choice-hover: #352f22;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding-block: 28px;
+  }
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding-inline: 16px;
+  }
+  header.top {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  header.top .kicker {
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  header.top h1 {
+    font-size: 22px;
+    margin: 0 0 4px;
+  }
+  header.top p {
+    color: var(--ink-dim);
+    font-size: 13px;
+    margin: 0;
+  }
+  .progressRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .track {
+    flex: 1;
+    height: 8px;
+    background: var(--track);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 999px;
+    transition: width 0.35s ease;
+    width: 0%;
+  }
+  .progLabel {
+    font-size: 12px;
+    color: var(--ink-dim);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px;
+    padding: 22px;
+  }
+  .topicTag {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border-radius: 999px;
+    padding: 3px 10px;
+    margin-bottom: 12px;
+    font-weight: 700;
+  }
+  .qtext {
+    font-size: 16px;
+    line-height: 1.5;
+    margin: 0 0 16px;
+  }
+  .choices {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .choice {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    text-align: left;
+    background: var(--choice-bg);
+    border: 1px solid var(--choice-border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--ink);
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .choice:hover:not(:disabled) {
+    background: var(--choice-hover);
+  }
+  .choice:disabled {
+    cursor: default;
+  }
+  .choice .letter {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--track);
+    color: var(--ink-dim);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .choice.correct {
+    background: var(--good-bg);
+    border-color: var(--good);
+  }
+  .choice.correct .letter {
+    background: var(--good);
+    color: #fff;
+  }
+  .choice.incorrect {
+    background: var(--bad-bg);
+    border-color: var(--bad);
+  }
+  .choice.incorrect .letter {
+    background: var(--bad);
+    color: #fff;
+  }
+  .explain {
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: 10px;
+    background: var(--track);
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--ink);
+    display: none;
+  }
+  .explain.show { display: block; }
+  .explain b { color: var(--accent); }
+  .footerRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 18px;
+  }
+  .scoreLabel {
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+  button.next {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    border-radius: 999px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: none;
+  }
+  button.next.show { display: inline-block; }
+  .final {
+    display: none;
+    text-align: center;
+  }
+  .final.show { display: block; }
+  .final .big {
+    font-size: 44px;
+    font-weight: 800;
+    margin: 6px 0;
+    color: var(--accent);
+  }
+  .final .line {
+    font-size: 15px;
+    color: var(--ink-dim);
+    margin-bottom: 18px;
+  }
+  .final .bits {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .final .bit {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .final .bit.ok { background: var(--good); }
+  .final .bit.no { background: var(--bad); }
+  .quizBody { display: block; }
+  .quizBody.hide { display: none; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="kicker">Daily Ascent Code Quiz</div>
+    <h1>Quiz #34</h1>
+    <p>2026-09-15 · How Ascent is coded, ten questions</p>
+  </header>
+
+  <div class="progressRow">
+    <div class="track"><div class="fill" id="fill"></div></div>
+    <div class="progLabel" id="progLabel">1 / 10</div>
+  </div>
+
+  <div class="card">
+    <div class="quizBody" id="quizBody">
+      <div class="topicTag" id="topicTag"></div>
+      <p class="qtext" id="qtext"></p>
+      <div class="choices" id="choices"></div>
+      <div class="explain" id="explain"></div>
+      <div class="footerRow">
+        <div class="scoreLabel" id="scoreLabel">Score: 0 / 10</div>
+        <button class="next" id="nextBtn">Next →</button>
+      </div>
+    </div>
+
+    <div class="final" id="final">
+      <div class="big" id="finalScore"></div>
+      <div class="line" id="finalLine"></div>
+      <div class="bits" id="finalBits"></div>
+      <div class="line" style="font-size:13px;">Reply to Mike's chat with your score so tomorrow's quiz can adapt — e.g. "8/10, missed the RNG one."</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var QUESTIONS = [
+    {
+      topicId: "what-is-a-function",
+      question: "packages/core/src/effects/factories.ts defines `export function combatCastable(def: CardDef): boolean`, with a doc comment reading \"Would resolveCombatSpellCast do anything with this spell? Pure — safe to gate on before castInCombat.\" It's called to check a spell BEFORE the real (more expensive) cast logic runs. What design idea is this an example of?",
+      choices: [
+        "The name reads like a yes/no question and the function returns a plain boolean, so callers can use it as a cheap up-front CHECK (\"is this even castable?\") before paying for the real work — a common convention where a question-shaped function name signals a true/false return",
+        "Function names ending in '-able' are a TypeScript keyword that automatically makes the compiler treat the return type as boolean",
+        "It has to be named this way because ESLint enforces a specific naming pattern for every function that returns a boolean",
+        "The name is cosmetic — combatCastable actually performs the full spell cast itself, it doesn't 'check' anything first"
+      ],
+      answer: 0,
+      explanation: "combatCastable is a predicate: a function whose whole job is answering one true/false question, named so the question is obvious at the call site, letting simulate() skip the real (pricier) cast machinery entirely when the answer is 'no.' There's no TypeScript keyword tied to '-able' names and no ESLint rule enforcing this convention — it's just a widely-used naming habit for boolean-returning functions. And the real casting logic lives in castInCombat/resolveCombatSpellCast, not here; this function only checks. See packages/core/src/effects/factories.ts."
+    },
+    {
+      topicId: "deterministic-sim",
+      question: "packages/core/src/combat/simulate.ts defines THREE separate numeric caps near the top: `ITERATION_GUARD = 300` (bounds the whole combat's event loop), `REATTACK_GUARD = 50` (bounds how deep a Gnasher-style re-attack-on-kill chain can recurse), and `IMMEDIATE_ATTACK_GUARD = 64` (bounds a while-loop draining attack-on-summon Whelp chains). Why three separate constants instead of one shared MAX_ITERATIONS used everywhere a loop could run long?",
+      choices: [
+        "Each guard bounds a structurally different kind of unbounded cascade (a whole fight's event loop, a single recursive call chain, a while-loop queue) — sizing each to what its own pattern actually needs keeps the sim provably terminating, which determinism requires just as much as reproducibility does, without forcing one pattern to fit another's arbitrary limit",
+        "It's an oversight — the three should be consolidated into one shared constant in a future refactor",
+        "TypeScript doesn't allow the same numeric constant to be referenced from more than one function in a file",
+        "Only ITERATION_GUARD actually matters for determinism; the other two exist purely to keep frame rates smooth in the UI"
+      ],
+      answer: 0,
+      explanation: "A whole-combat event loop, a recursive re-attack chain, and a while-loop drain of queued summons are three genuinely different shapes of 'this could in principle run forever' — a Gnasher chain naturally needs far fewer iterations than a full fight's event loop, so capping both at the same number would either be needlessly tight on one or needlessly loose on the other. Determinism isn't just 'same seed, same output' — it also requires the sim to actually HALT, since an infinite loop breaks reproducibility as surely as true randomness would, and all three guards serve that same requirement in their own corner of the engine. See packages/core/src/combat/simulate.ts."
+    },
+    {
+      topicId: "seeded-rng",
+      question: "packages/sim/src/recruit.ts's shopArena() builds its own `cursorRng: Rng` object for shop-phase effects. Instead of holding one long-lived RNG like rng.ts's makeRng() does, every method re-derives fresh state: `next: () => { const r = makeRng(state.rngCursor); const v = r.next(); state.rngCursor = r.state(); return v; }` — creating a throwaway RNG from `state.rngCursor`, drawing once, and writing the new position straight back. Why does the shop phase need a different Rng implementation instead of just holding one instance?",
+      choices: [
+        "RunState has to stay plain, JSON-serializable data (for autosave/replay) — a closure holding a private mutable variable can't be serialized, but `state.rngCursor` is an ordinary number field, so re-deriving from it on every call keeps the run's RNG position as plain data instead of a live, unsaveable object",
+        "It's a bug: cursorRng should just call makeRng() once at shop-open and reuse that one object, like every other caller does",
+        "The Rng interface can only be implemented once per file, so recruit.ts is forced to duplicate the shape rather than import rng.ts's version",
+        "Shop effects need a faster RNG than combat does, so cursorRng skips the mulberry32 math combat's Rng performs"
+      ],
+      answer: 0,
+      explanation: "makeRng()'s implementation keeps its position in a closed-over local variable — fine for a single combat, which is thrown away when it ends, but wrong for a shop RunState that has to survive an autosave and reload mid-turn. cursorRng satisfies the exact same Rng interface, but stores its position in `state.rngCursor`, an ordinary number the reducer can serialize; rebuilding a fresh makeRng() from that number each call and writing the result back keeps the SAME mulberry32 stream going without ever needing a live, unsaveable closure to survive between calls. Nothing here is about speed, and TypeScript interfaces can be implemented by as many objects as you like. See packages/sim/src/recruit.ts and packages/core/src/rng.ts.",
+    },
+    {
+      topicId: "sim-ui-decoupling",
+      question: "packages/core/src/presentation/types.ts defines `PresentationPolicy = 'ownBeat' | 'foldedCue' | 'passive' | 'intentionallySilent'` — a classification of HOW an automatic effect should be presented (its own paced beat, folded silently into another beat, a standing rule announced only on acquisition, or deliberately silent). This lives in packages/core, the engine package whose whole job is to 'never compute outcomes' for the UI. Doesn't presentation belong entirely in packages/ui?",
+      choices: [
+        "No — WHICH policy an effect gets is still a deterministic classification, declared once per effect and identical for every player, so it belongs in core as DATA the UI reads and obeys; core still never decides the actual pacing/timing/animation itself, it only names the category, keeping the sim/UI split intact at a finer grain than just 'combat vs. shop'",
+        "It's a boundary violation — anything with 'presentation' in its name should never live in packages/core, and this module should be moved to packages/ui",
+        "PresentationPolicy values are exported from core purely by historical accident; only packages/ui ever reads them, with no real reason they live here",
+        "This is a sanctioned one-off exception where core is allowed to directly control combat animation timing"
+      ],
+      answer: 0,
+      explanation: "The sim/UI split isn't 'core never says the word presentation' — it's 'core never decides outcomes, and never performs the actual animation.' A PresentationPolicy value is authored once per effect as a fixed classification (like a card's tribe or attack stat), so it's exactly the kind of deterministic fact that belongs in core; the UI still owns every actual decision about pacing, easing, and visuals, it just has to respect which category an effect was declared as. That's the boundary staying intact, not a violation of it. See packages/core/src/presentation/types.ts."
+    },
+    {
+      topicId: "monorepo-packages",
+      question: "Every one of the five packages/*/package.json files (core, content, sim, ui, tools) includes `\"private\": true`, even though none of them are ever meant to be published to the public npm registry. What does that field actually guard against, given npm workspaces already keeps them internal to this repo?",
+      choices: [
+        "It makes `npm publish` refuse to run inside any of these folders — a safety net against someone accidentally running the publish command on an internal workspace package (e.g. muscle memory from a different project), independent of whatever workspace wiring already keeps them from being consumed externally",
+        "It's required syntax for any package referenced via npm workspaces — without it, `npm install` would fail to create the local symlinks",
+        "It hides a package's source from other packages in the same workspace, which is what actually enforces the public-entrypoint-only import rule",
+        "It's dead configuration left over from before the monorepo adopted workspaces, with no effect today"
+      ],
+      answer: 0,
+      explanation: "`\"private\": true` is npm's own accident-guard: with it set, `npm publish` refuses outright, no matter who runs it or why. Workspaces already keep these packages internal for dependency resolution, but that's a separate mechanism from publishing — `private` is the belt-and-suspenders check against the one command that would actually leak an internal package onto the public registry. It has nothing to do with import boundaries (that's the `exports` field's job) and workspace symlinking works with or without it. See any packages/*/package.json.",
+    },
+    {
+      topicId: "pure-functions",
+      question: "packages/sim/src/odds.ts's computeCombatOdds() opens with `let win = 0, draw = 0, lose = 0, lossDamageTotal = 0;`, then mutates those four variables inside a 200-iteration loop before bundling them into one returned object — and its own doc comment calls it 'Pure + deterministic.' A function that literally reassigns local variables with `let` — is that 'pure' label accurate?",
+      choices: [
+        "Yes — purity is about whether a function's OUTSIDE-visible behavior depends only on its inputs and produces no effects outside itself; mutating local variables that exist only for the duration of the call, and are never observed outside it, doesn't violate that at all. It would only become impure if it mutated something the caller could see changing — an argument, a module-level variable, the DOM, and so on",
+        "No — using `let` and reassignment anywhere inside a function's body disqualifies it from being called pure, no matter the scope",
+        "It's pure only because the loop happens to run exactly 200 times every call; a variable-length loop would make it impure",
+        "The comment is simply wrong — computeCombatOdds should be considered impure because it calls simulate(), which consumes an Rng"
+      ],
+      answer: 0,
+      explanation: "Purity is a statement about a function's relationship to the OUTSIDE world (same inputs → same output, nothing else touched), not a ban on ordinary local bookkeeping. win/draw/lose/lossDamageTotal are scratch space that lives and dies inside one call to computeCombatOdds — nothing outside the function can see them change mid-loop, and the function's result depends only on its own arguments (seed, wave, the boards). An Rng consumed as an explicit input parameter is exactly the pattern CLAUDE.md and the engine treat as compatible with purity elsewhere (simulate() itself works the same way). See packages/sim/src/odds.ts."
+    },
+    {
+      topicId: "data-vs-code",
+      question: "packages/core/src/types.ts declares one single `export interface CardDef { id, name, tribe: Tribe, tier, attack, health, keywords, effects, ... }` used for every card in the game — a Dragon card and a Beast card are literally the same TypeScript type. There's no `class DragonCard extends CardDef` or separate `BeastCardDef` interface anywhere. So how does a Dragon end up behaving differently from a Beast, if they share one identical shape?",
+      choices: [
+        "Purely through the VALUES stored in that one shared shape — `tribe` is just a string ('dragon' vs. 'beast') and `effects` is just a different array of effect-factory entries; nothing about a card's TYPE changes per tribe, only its DATA does, which is exactly CLAUDE.md's 'cards are data + effect subscriptions, never bespoke classes' rule in practice",
+        "Each tribe secretly generates its own hidden subclass of CardDef at build time",
+        "The `tribe` field is purely cosmetic (art/color only); real tribe-specific behavior is hardcoded with scattered `if (card.id === ...)` checks through the engine",
+        "CardDef is an abstract base type, and every individual card file defines its own concrete class that implements it"
+      ],
+      answer: 0,
+      explanation: "This is 'data, not classes' made concrete: every card, regardless of tribe, is the exact same TypeScript shape — what differs is only what's stored in the fields. A Dragon's `tribe` value and its `effects` array point at different factory ids than a Beast's; TypeScript's structural typing means there's nothing to subclass because there's only ever been one shape to begin with. There is no per-tribe class hierarchy, no build-time code generation, and tribe absolutely does drive real behavior (tribe checks throughout the effect factories), just never through a scattered per-id special case. See packages/core/src/types.ts."
+    },
+    {
+      topicId: "event-log-replay",
+      question: "packages/core/src/types.ts defines `export type CombatEvent = ( | {type:'sc', ...} | {type:'attack', ...} | ... roughly 25 variants ... ) & { step?: number; avenge?: true; key?: string; srcCard?: string };` — note the `&` sitting OUTSIDE the closing parenthesis of that whole big union. What does intersecting the entire union with one extra object type accomplish?",
+      choices: [
+        "It gives EVERY variant in the union those four optional replay-only fields (step/avenge/key/srcCard) automatically, without repeating `step?: number; avenge?: true; ...` inside each of the ~25 individual branches — one intersection at the end instead of duplicating the same lines 25 times over",
+        "It restricts the union so that only events which explicitly set all four of those fields are allowed to type-check",
+        "The `&` outside a union like this is a TypeScript syntax error that happens to be tolerated only because every field on the right side is optional, but it has no real effect",
+        "It merges all ~25 variants into one flat object type, discarding the per-variant `type`-based discrimination that consumers rely on to narrow the union"
+      ],
+      answer: 0,
+      explanation: "`(A | B | C) & D` distributes D onto every member of the union — so each of CombatEvent's ~25 branches ends up with step/avenge/key/srcCard as optional fields, without a single one of those branches having to spell them out itself. This is a real, load-bearing TypeScript pattern (intersecting a union with a shared shape) for keeping a large discriminated union DRY, not a syntax quirk that happens to be tolerated — and it changes nothing about each variant's own `type`-based narrowing, which still works exactly as before. See the CombatEvent definition in packages/core/src/types.ts.",
+    },
+    {
+      topicId: "eslint-rules",
+      question: "eslint.config.mjs's `ignores` array lists `'apps/desktop/release/**'` right alongside `.claude/**` and `supabase/**`, but for a different stated reason — the inline comment calls it \"packaged build output (a copy of main.cjs plus the whole Electron runtime)... linting it reports the same findings twice and would fail on vendored code.\" Why call this folder out by name instead of trusting the existing `**/dist/**` ignore to already cover it?",
+      choices: [
+        "`release/**` is Electron's OWN packaging output living under apps/desktop — a different location and shape than a generic `dist/` build folder — so without its own explicit ignore entry, ESLint would walk straight into it and re-report every finding already caught in the real source files, this time on a copy nobody hand-edits and no PR could ever fix",
+        "`apps/desktop/release/**` is just an alias for `**/dist/**` — the two ignore entries are redundant and either one could be deleted",
+        "It's ignored because Electron's main process uses `require()`, and ESLint is fundamentally incapable of parsing any CommonJS syntax",
+        "The folder is ignored only temporarily, until the desktop app's build pipeline is migrated to ESM"
+      ],
+      answer: 0,
+      explanation: "The config's own `**/dist/**` glob is generic and wouldn't necessarily match Electron's packaging output folder, which lives at a different path under apps/desktop and has its own shape (a copied main.cjs plus the bundled Electron runtime, not a typical Vite dist/). Listing it explicitly avoids ESLint double-reporting the exact same violations that already show up in the real source — on a vendored copy that no pull request could ever meaningfully fix. ESLint CAN parse CommonJS just fine (the separate apps/desktop/**/*.cjs override even turns a specific rule off for it, rather than skipping the whole language); this ignore is about not linting generated/vendored output, a permanent architectural fact, not a migration-in-progress workaround. See eslint.config.mjs.",
+    },
+    {
+      topicId: "performance-memo",
+      question: "docs/performance.md's perf HUD section says: \"If the frame is slow but no hotspot is: the time is not in instrumented JS. Check task — a long frame with task: 0 means the main thread never blocked,\" attributing that combination to style/layout/paint/decode/GC, \"which the Long Tasks API does not attribute.\" What's the practical lesson for reading `task: 0` on an otherwise slow frame?",
+      choices: [
+        "It's not proof the frame was actually fine — it means the slowness is happening somewhere the Long Tasks API and JS-level hotspot instrumentation simply can't see (style recalc, layout, paint, image decode, or GC), so the investigation has to move into DevTools' Performance panel rather than trusting `task: 0` as a clean bill of health",
+        "`task: 0` always means the reported frame time itself was measured incorrectly by the perf HUD and should be thrown out",
+        "It means the slow frame was caused entirely by network latency, since network requests are the only cost the Long Tasks API doesn't cover",
+        "It's a sign the perf HUD is silently disabled for that second — a genuinely slow real frame can never report zero task time"
+      ],
+      answer: 0,
+      explanation: "The Long Tasks API only attributes blocked JAVASCRIPT time on the main thread; it has a documented blind spot for style recalculation, layout, paint, decode, and garbage collection — all real, common causes of a slow frame that never show up as a 'task.' So `task: 0` on a slow frame isn't reassuring, it's a pointer: the culprit is in one of those un-instrumented categories, and docs/performance.md's own next step is exactly to switch tools (Chrome DevTools' Performance panel, §3) rather than conclude nothing is wrong. It's unrelated to network requests, and the HUD reporting `task: 0` is a normal, expected reading in this scenario, not a sign it's off. See docs/performance.md."
+    }
+  ];
+
+  var idx = 0, score = 0, answered = false;
+  var results = [];
+
+  var topicLabels = {
+    "what-is-a-function": "What a function is",
+    "deterministic-sim": "Deterministic sim",
+    "seeded-rng": "Seeded RNG",
+    "sim-ui-decoupling": "Sim / UI decoupling",
+    "monorepo-packages": "Monorepo packages",
+    "pure-functions": "Pure functions",
+    "data-vs-code": "Data vs. code",
+    "event-log-replay": "Event log + replay",
+    "eslint-rules": "Lint rules",
+    "performance-memo": "Performance"
+  };
+
+  var fill = document.getElementById("fill");
+  var progLabel = document.getElementById("progLabel");
+  var topicTag = document.getElementById("topicTag");
+  var qtext = document.getElementById("qtext");
+  var choicesEl = document.getElementById("choices");
+  var explainEl = document.getElementById("explain");
+  var scoreLabel = document.getElementById("scoreLabel");
+  var nextBtn = document.getElementById("nextBtn");
+  var quizBody = document.getElementById("quizBody");
+  var finalEl = document.getElementById("final");
+  var finalScore = document.getElementById("finalScore");
+  var finalLine = document.getElementById("finalLine");
+  var finalBits = document.getElementById("finalBits");
+
+  var letters = ["A", "B", "C", "D"];
+
+  function render() {
+    var q = QUESTIONS[idx];
+    answered = false;
+    fill.style.width = (idx / QUESTIONS.length * 100) + "%";
+    progLabel.textContent = (idx + 1) + " / " + QUESTIONS.length;
+    topicTag.textContent = topicLabels[q.topicId] || q.topicId;
+    qtext.textContent = q.question;
+    scoreLabel.textContent = "Score: " + score + " / " + QUESTIONS.length;
+    explainEl.className = "explain";
+    explainEl.innerHTML = "";
+    nextBtn.className = "next";
+    choicesEl.innerHTML = "";
+
+    q.choices.forEach(function (choiceText, i) {
+      var btn = document.createElement("button");
+      btn.className = "choice";
+      btn.innerHTML = '<span class="letter">' + letters[i] + '</span><span>' + choiceText + '</span>';
+      btn.addEventListener("click", function () { pick(i, btn); });
+      choicesEl.appendChild(btn);
+    });
+  }
+
+  function pick(i, btn) {
+    if (answered) return;
+    answered = true;
+    var q = QUESTIONS[idx];
+    var correct = i === q.answer;
+    if (correct) score++;
+    results.push(correct);
+
+    var btns = choicesEl.querySelectorAll(".choice");
+    btns.forEach(function (b, bi) {
+      b.disabled = true;
+      if (bi === q.answer) b.classList.add("correct");
+      else if (bi === i) b.classList.add("incorrect");
+    });
+
+    explainEl.innerHTML = (correct ? "✅ Correct. " : "❌ Not quite. ") + q.explanation;
+    explainEl.className = "explain show";
+    scoreLabel.textContent = "Score: " + score + " / " + QUESTIONS.length;
+    nextBtn.className = "next show";
+    nextBtn.textContent = idx === QUESTIONS.length - 1 ? "See results →" : "Next →";
+  }
+
+  nextBtn.addEventListener("click", function () {
+    idx++;
+    if (idx >= QUESTIONS.length) {
+      showFinal();
+    } else {
+      render();
+    }
+  });
+
+  function showFinal() {
+    fill.style.width = "100%";
+    progLabel.textContent = QUESTIONS.length + " / " + QUESTIONS.length;
+    quizBody.className = "quizBody hide";
+    finalEl.className = "final show";
+    finalScore.textContent = score + " / " + QUESTIONS.length;
+    var pct = score / QUESTIONS.length;
+    var line;
+    if (pct === 1) line = "Perfect score! You've got a real handle on how this thing is built.";
+    else if (pct >= 0.8) line = "Great run — you're reading the architecture like a regular.";
+    else if (pct >= 0.5) line = "Solid effort — a few of these will click once you skim the files they point to.";
+    else line = "Rough one today — no worries, these get revisited. Go peek at the files named above when you get a chance.";
+    finalLine.textContent = line;
+    finalBits.innerHTML = "";
+    results.forEach(function (ok, i) {
+      var d = document.createElement("div");
+      d.className = "bit " + (ok ? "ok" : "no");
+      d.textContent = (i + 1);
+      finalBits.appendChild(d);
+    });
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

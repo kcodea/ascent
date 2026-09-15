@@ -32,7 +32,9 @@ import type { CombatResult } from '@game/core';
 import type { SetId } from '@game/content';
 import { HERO_INDEX, playableHeroes } from '../heroes';
 import { DEFAULT_LOBBY_RULES } from '../lobby/lobby';
-import { createLobbyRun, driverFor, settleRunLobbyRound, type LobbySeatState, type RunLobby } from '../lobby/runLobby';
+import { boardIntel, createLobbyRun, driverFor, playerOpponent, settleRunLobbyRound, type LobbySeatState, type RunLobby } from '../lobby/runLobby';
+import { lossDamageCap } from '../reducer';
+import type { ScoutedBoard, ScoutedSeat } from '../productionBots/scout';
 import { playerRunByKey } from '../lobby/snapshotSeats';
 import type { LobbyEncounter } from '../lobby/types';
 import { reduce } from '../reducer';
@@ -40,7 +42,7 @@ import { runTribesForSeed, type RunState } from '../state';
 import { snapshotBoard } from '../snapshot';
 import { playRecruitTurn } from './seatRunner';
 import { DEFAULT_MAX_ACTIONS_PER_TURN } from './selfPlayLobby';
-import type { BalanceRecorder, ExperimentIdentity, ExperimentManifest, LobbyRecord, RoundRecord, RunRecord, SeatPilot } from './types';
+import type { BalanceRecorder, ExperimentIdentity, ExperimentManifest, LobbyRecord, RoundRecord, RunRecord, SeatContext, SeatPilot } from './types';
 
 /** The `policyId` a recorded seat carries: its placements are the POPULATION's, never a pilot's decisions. */
 export const RECORDING_POLICY_ID = 'recording';
@@ -85,6 +87,31 @@ function recordedBoard(seat: LobbySeatState, round: number, setId: SetId | undef
   const d = driverFor(seat, setId);
   const b = d?.prepare(round) ?? d?.finalBoard?.() ?? null;
   return b ? { ids: b.minions.map((m) => m.cardId), tier: b.tier } : { ids: [], tier: 1 };
+}
+
+/**
+ * THE PILOT'S SCOUT for this round — exactly what the shipped rail shows a player while shopping (the rule, with
+ * its file:line sources, is documented in `productionBots/scout.ts`):
+ *  - the NEXT opponent (`playerOpponent`, LobbyPanel.tsx:87) with the intel of the board it brings THIS round
+ *    (LobbyPanel.tsx:89-91 — tier / triples / dominant tribe / quests / runes, never its bodies);
+ *  - every other living seat with the intel RECORDED AT SETTLE from its last fielded board (runLobby.ts:584-586)
+ *    and its live Resolve / Armor;
+ *  - the pilot's own combat memory: the board a seat fielded the last time the pilot FOUGHT it (`memory`, written
+ *    only after that fight resolved — never a board from a wave the pilot has not met).
+ * `seatedRecordings` is the fairness guard for the pool panel, not player information.
+ */
+export function pinnedScout(run: RunState, lobby: RunLobby, round: number, memory: ReadonlyMap<string, ScoutedBoard>): Pick<SeatContext, 'nextOpponent' | 'field' | 'myHealth' | 'myArmor' | 'lossCap' | 'seatedRecordings'> {
+  const view = (s: LobbySeatState): ScoutedSeat => ({
+    seatId: s.id, heroId: s.heroId, alive: s.alive, health: Math.max(0, s.resolve), armor: Math.max(0, s.armor),
+    intel: s.intel ?? null, lastFought: memory.get(s.id) ?? null,
+  });
+  const next = playerOpponent(lobby);
+  return {
+    nextOpponent: next ? { ...view(next.seat), intel: boardIntel(next.board, round), ...(next.ghost ? { ghost: true } : {}) } : null,
+    field: lobby.seats.filter((s) => s.id !== 's0' && s.alive).map(view),
+    myHealth: run.resolve, myArmor: run.armor, lossCap: lossDamageCap(round),
+    seatedRecordings: lobby.seats.filter((s) => s.runKey).map((s) => s.runKey!),
+  };
 }
 
 /** A result nobody reads: `settleRunLobbyRound` takes the player's result, and the player's seat is dead. */
@@ -165,16 +192,29 @@ export function runPinnedLobby(
   };
 
   // ── the rounds ─────────────────────────────────────────────────────────────────────────────────────────────
+  /** The pilot's combat memory: seat id → the board it fielded the last time the pilot fought it. */
+  const memory = new Map<string, ScoutedBoard>();
   while (!failure && run && run.phase === 'recruit') {
     const lobby = run.lobby!;
     const round = lobby.round;
     if (round > rules.maxRounds) { fail(`round ${round} exceeds maxRounds ${rules.maxRounds} with the run still in recruit`); break; }
     const living = lobby.seats.filter((s) => s.alive).map((s) => s.id);
-    const turn = playRecruitTurn(run, pilot, { seatId: 's0', round, scoutedOpponent: null }, rec, { maxActionsPerTurn, lobbyId, deferFight: false });
+    const scout = pinnedScout(run, lobby, round, memory);
+    // The board the paired seat brings — the very one `faceOmen` will serve (`lobbyOpponentBoard` makes the same
+    // call). Remembered only AFTER the fight resolves, below.
+    const foe = playerOpponent(lobby);
+    const turn = playRecruitTurn(run, pilot, { seatId: 's0', round, scoutedOpponent: null, ...scout }, rec, { maxActionsPerTurn, lobbyId, deferFight: false });
     run = turn.run;
     if (turn.failure) { fail(turn.failure); break; }
     if (run.phase !== 'combat' || !run.lastCombat) { fail(`round ${round}: End Turn did not resolve a fight (phase ${run.phase})`); break; }
     const fought = run; // the run as it entered the fight: board, hand, Gold, and the served enemy
+    if (foe) {
+      memory.set(foe.seat.id, {
+        minions: foe.board.minions.map((m) => ({ ...m, keywords: [...(m.keywords ?? [])] })),
+        ...(foe.board.snapshot ? { snapshot: foe.board.snapshot } : {}),
+        tier: foe.board.tier, round,
+      });
+    }
     // The SHIPPED settle: the run's carry-backs and the whole table's round, from that one result.
     const next = reduce(run, { type: 'resolveCombat' });
     if (next === run) { fail(`round ${round}: the engine refused resolveCombat`); break; }

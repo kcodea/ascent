@@ -23,6 +23,9 @@ export const PilotBudgetSchema = z.object({
   beam: z.number().int().min(1),
   maxNodes: z.number().int().min(1),
   positionCandidates: z.number().int().min(1),
+  // Scouting (2026-09-15, `productionBots/scout.ts`): off / inert unless the manifest says so.
+  scouting: z.boolean().optional(),
+  survivalWeight: z.number().min(0).optional(),
 }).strict();
 
 export const ExperimentManifestSchema = z.object({
@@ -67,7 +70,7 @@ export function describeManifest(m: ResolvedManifest): string {
     ['mode', m.mode],
     ['setId', m.setId],
     ['heroes', m.heroes.length ? m.heroes.join(', ') : '(every enabled hero eligible in the set)'],
-    ['policy', `${m.policy.id}  depth=${m.policy.budget.depth} beam=${m.policy.budget.beam} maxNodes=${m.policy.budget.maxNodes} positionCandidates=${m.policy.budget.positionCandidates}`],
+    ['policy', `${m.policy.id}  depth=${m.policy.budget.depth} beam=${m.policy.budget.beam} maxNodes=${m.policy.budget.maxNodes} positionCandidates=${m.policy.budget.positionCandidates}${m.policy.budget.scouting ? ` scouting survivalWeight=${m.policy.budget.survivalWeight ?? 0}` : ''}`],
     ['seeds', `${m.seeds.start} … ${m.seeds.start + m.seeds.count - 1}  (${m.seeds.count})`],
     ['maxRounds', String(m.maxRounds)],
     ['maxActionsPerTurn', String(m.maxActionsPerTurn)],

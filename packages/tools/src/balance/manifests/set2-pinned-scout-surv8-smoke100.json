@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "name": "set2-pinned-scout-surv8-smoke100",
+  "mode": "pinnedLobby",
+  "setId": "set2",
+  "policy": {
+    "id": "generalist",
+    "budget": {
+      "depth": 1,
+      "beam": 1,
+      "maxNodes": 40,
+      "positionCandidates": 2,
+      "scouting": true,
+      "survivalWeight": 8
+    }
+  },
+  "seeds": {
+    "start": 1,
+    "count": 100
+  },
+  "corpus": {
+    "name": "set2-players-v1",
+    "digest": "87909308f9c0a30b"
+  },
+  "fightRules": "shipped",
+  "notes": "Generalist smoke budget + scouting + survival term at weight 8.",
+  "heroes": [],
+  "maxRounds": 60,
+  "maxActionsPerTurn": 60
+}

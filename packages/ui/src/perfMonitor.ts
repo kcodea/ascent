@@ -531,6 +531,9 @@ class PerfMonitor {
     this.warm = null;
     const n = this.nWarmFrames;
     this.nWarmFrames = 0;
+    // A warm-up that saw no frames (a StrictMode start/stop/start, a stop() right after start()) is not a
+    // spike; recording it would list a 0-frame "startup" at the top of every dev session.
+    if (n === 0) return;
     const intervals = Array.from(this.warmFrames.subarray(0, n));
     // Warm-up frames are safe evidence for the refresh estimate — load can only LENGTHEN an interval, and the
     // estimator reads the low decile — and they are the first frames of the session, so without them the

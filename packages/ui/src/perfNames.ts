@@ -1,5 +1,5 @@
 import { CARD_INDEX } from '@game/content';
-import type { Subject } from './perfDiagnose';
+import type { Subject, SubjectNamer } from './perfDiagnose';
 
 /**
  * IN-GAME NAMES FOR THE PERF HUD (owner ask 2026-08-30: *"id love the performance hud to use in-game names
@@ -89,7 +89,33 @@ export function isKnownLabel(label: string): boolean {
  * can afford "**Packstrider** (b2_packstrider, on playing a card)". A HUD row has about twenty characters
  * before it wraps, so it gets "Packstrider · play" and nothing else.
  */
+/** HUD-width names for the engine's own blocks — a narrow row has ~20 characters, so `CODE_NAMES`' prose
+ *  ("the board re-layout — animating (FLIP write)") is for the report, and this is for the panel. */
+const SHORT_NAMES: Record<string, string> = {
+  'view:board': 'board view',
+  'view:hand': 'hand view',
+  'layout:flip': 'flip',
+  'layout:flip:write': 'flip · animate',
+  'layout:flip:read': 'flip · capture',
+  'layout:handglide': 'hand glide',
+  'drag:flushMove': 'drag move',
+  'odds:deferred': 'odds probe',
+  autosave: 'autosave',
+  'store:set': 'store update',
+  'recruit:moment cues': 'moment cues',
+  'fx:weldBatch': 'weld batch fx',
+  'fx:tick': 'FX ticker pass',
+  'fx:sim': 'FX sim',
+  'fx:render': 'FX render',
+  'render:recruit': 'shop render',
+  'render:combat': 'combat render',
+  'choreo:step': 'beat cues',
+  'choreo:frame': 'beat frame',
+};
+
 export function shortName(label: string): string {
+  const short = SHORT_NAMES[label];
+  if (short) return short;
   if (label.startsWith('discover ')) return `Discover · ${shortName(label.slice(9))}`;
   if (label.startsWith('fx:def:')) return `${effectName(label.slice(7))} fx/frame`;
   if (label.startsWith('fx:')) {
@@ -154,6 +180,10 @@ export function displaySubject(sub: Subject, rawLabel: string): string {
   const named = CODE_NAMES[sub.id];
   return named ? `**${named}** (\`${sub.id}\`)` : sub.label;
 }
+
+/** The HUD's namer: plain text, no markdown, panel-width — `whatIsSlow` on the live panel uses this where
+ *  the report uses `displaySubject`. */
+export const plainSubject: SubjectNamer = (_sub, rawLabel) => shortName(rawLabel);
 
 /** The phase names players use, for the by-phase table and the spike annotations. */
 const PHASE_NAMES: Record<string, string> = {

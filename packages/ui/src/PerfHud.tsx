@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { perfMonitor, perfThresholds, type PerfBucket, type FrameThresholds } from './perfMonitor';
 import { captureStats, graphColumns, rollingStats, topOffenders, type Offender } from './perfLive';
-import { displaySubject, phaseName, shortName } from './perfNames';
+import { displaySubject, phaseName, plainSubject, shortName } from './perfNames';
 import { DevPanelContext, useDraggablePanel } from './useDraggablePanel';
 import { diagnose, whatIsSlow, type Diagnosis } from './perfDiagnose';
 import { buildReport } from './perfReport';
@@ -107,8 +107,11 @@ function PerfHudPanel() {
    * from the frame ring; the fps / worst / warm-up / rolling-stats / counter texts update at 4 Hz. Nothing
    * in here touches React state.
    */
+  // Not gated on `perfMonitor.isRunning`: this is a CHILD of `Game`, so its effects run before the parent's
+  // `perfMonitor.start()` — a guard here saw a stopped monitor at mount and the HUD came up frozen at "– fps".
+  // The loop is cheap and the HUD is opt-in; while it is open, it runs.
   useEffect(() => {
-    if (!perfMonitor.isRunning || min) return undefined;
+    if (min) return undefined;
     let raf = 0;
     let lastDraw = 0;
     let lastStats = 0;
@@ -257,7 +260,7 @@ function PerfHudPanel() {
     [b, scope],
   );
   const verdict = useMemo(
-    () => whatIsSlow(scope === 'window' ? histRef.current : perfMonitor.history(), displaySubject),
+    () => whatIsSlow(scope === 'window' ? histRef.current : perfMonitor.history(), plainSubject),
     [b, scope],
   );
   const startups = perfMonitor.startups();

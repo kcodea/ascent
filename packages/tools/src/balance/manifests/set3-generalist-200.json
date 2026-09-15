@@ -16,5 +16,9 @@
     "start": 1,
     "count": 200
   },
-  "notes": "Set 3 development experiment: 200 eight-seat self-play lobbies, generalist pilot at the smoke budget (1600 runs)."
+  "notes": "Set 3 development experiment: 200 eight-seat self-play lobbies, generalist pilot at the smoke budget (1600 runs).",
+  "opponentPool": {
+    "name": "set3-gen-v1",
+    "digest": "5e95b0376930c13a"
+  }
 }

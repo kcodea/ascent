@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
-import { dragonTamerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, buyoutCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
+import { dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
 import { equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
@@ -64,13 +64,8 @@ function usesPerGame(n: number): string {
  * 1:1 second power (2026-08-24). Everything a readout needs is run-global EXCEPT the firing slot's own
  * activation state, threaded in as `spent` / `uses` (Void keeps `heroPowerSpent2` / `heroPowerUses2`).
  */
-function heroPowerCostOf(power: HeroPower, run: RunState, uses: number): number | undefined {
-  if (power.kind === 'dynamiteDig') return uses; // Jenkins — escalates on the FIRING slot's use count
-  if (power.kind === 'dragonTamer') return dragonTamerCostOf(run);
-  if (power.kind === 'roundedSpellbook') return roundedSpellbookCostOf(run);
-  if (power.kind === 'buyout') return buyoutCostOf(run);
-  return power.cost;
-}
+// The cost coin reads `heroPowerCostOf` from @game/sim — the SAME helper the reducer charges — so the price a
+// slot prints is provably the price it pays (a local copy of the fallback chain is exactly how the two drift).
 function heroPowerCenterOf(power: HeroPower, run: RunState, combatEnemyDeaths: number): string | null {
   switch (power.kind) {
     case 'exhibition': return `+${exhibitionGrantOf(run)}/+${exhibitionGrantOf(run)}`; // Odelle
@@ -315,9 +310,7 @@ export function StatusBar() {
   // Hunch's Rounded Spellbook also shrinks — 3, −1 per turn since the last use (shared helper, so the coin
   // shows exactly what the reducer charges).
   const bookCost = power.kind === 'roundedSpellbook' ? roundedSpellbookCostOf(run) : undefined;
-  // Harlan's Buyout shrinks 1 a turn and re-bases on use — the coin reads the SAME helper the reducer charges,
-  // so the price shown can never drift from the price paid (the dynamiteDig / dragonTamer / Hunch pattern).
-  const buyCost = power.kind === 'buyout' ? buyoutCostOf(run) : undefined;
+  // (Harlan's Buyout and every other price ride `liveCost` below — the shared `heroPowerCostOf`.)
   // CROUPIER CIA: her power art is the SUIT that will pay next, not one fixed image — the button is how the
   // player sees which reward they are working toward. Falls back to her plain portrait art if a suit image is
   // ever missing, so a half-wired art folder degrades instead of rendering nothing.
@@ -461,7 +454,7 @@ export function StatusBar() {
     : 0;
   // The price this power ACTUALLY costs right now: a per-hero override when it has one, else the printed cost.
   // Rendered by the coin below and checked by `canHero` — the two must read the same value or they drift.
-  const liveCost = digCost ?? tamerCost ?? bookCost ?? buyCost ?? power.cost;
+  const liveCost = heroPowerCostOf(power, run, run.heroPowerUses ?? 0);
   const canHero =
     !isPassive &&
     unlocked &&

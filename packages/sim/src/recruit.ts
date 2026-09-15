@@ -7,7 +7,7 @@ import { alignmentOf } from './alignment';
 import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
-import { getHero, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool } from './heroes';
+import { getHero, type HeroPower, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool } from './heroes';
 import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 export { ALE_IDS };
 import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
@@ -668,6 +668,24 @@ export function heroOfferPrice(state: RunState, offer: { cardId: string }): numb
 export function roundedSpellbookCostOf(state: RunState): number {
   const base = state.hunchResetWave ?? 1; // runs open on wave 1
   return Math.max(0, 3 - Math.max(0, state.wave - base));
+}
+
+/**
+ * THE price a hero power costs right now — the ONE helper the reducer charges and the StatusBar coin prints
+ * (CLAUDE.md's live-text rule applies to hero-power coins too: the number shown is the number paid). The four
+ * moving prices route to their own helpers; everything else is the printed `cost` (0 when free).
+ *
+ * `uses` is the FIRING SLOT's whole-game use count (`heroPowerUses` / `heroPowerUses2`) — Jenkins's Dynamite
+ * Dig escalates on it, so a Void wielding Dig in slot 1 prices off slot 1's count, never slot 0's.
+ */
+export function heroPowerCostOf(power: HeroPower, state: RunState, uses: number): number {
+  switch (power.kind) {
+    case 'dynamiteDig': return uses; // Jenkins — the first dig is free, then 1, 2, …
+    case 'dragonTamer': return dragonTamerCostOf(state); // Tiff
+    case 'roundedSpellbook': return roundedSpellbookCostOf(state); // Hunch
+    case 'buyout': return buyoutCostOf(state); // Harlan
+    default: return power.cost ?? 0;
+  }
 }
 
 /**

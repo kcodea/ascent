@@ -19,7 +19,7 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, roundedSpellbookCostOf, buyoutCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe, handCardLocked} from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe, handCardLocked} from './recruit';
 import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
@@ -35,10 +35,17 @@ function spendGold(s: RunState, amount: number): void {
   s.embers -= amount;
   s.goldSpent = (s.goldSpent ?? 0) + amount; // career/post-run stat
   s.goldSpentThisTurn = (s.goldSpentThisTurn ?? 0) + amount; // per-turn (Patch Job); reset each wave
-  // Indy: the (spent) Gild charge recharges after every 40 Gold spent — un-spend it the moment the threshold lands.
-  if (s.heroId === 'indy' && s.heroPowerSpent && s.indyGildRearmAt != null && s.goldSpent >= s.indyGildRearmAt) {
-    s.heroPowerSpent = false;
-    s.indyGildRearmAt = undefined;
+  // Indy: the (spent) Gild charge recharges after INDY_GILD_RECHARGE_GOLD more Gold spent — un-spend it the
+  // moment the threshold lands. Keyed off the WIELDED power, not `heroId === 'indy'`, and off the slot that
+  // holds it: a Void / Mimic / Power Shifter adopter used to arm the recharge (`indyGildRearmAt`) and print
+  // the recharge pill, then never rearm — the gate only ever looked at Indy himself (owner report 2026-09-15).
+  if (s.indyGildRearmAt != null && s.goldSpent >= s.indyGildRearmAt) {
+    const slot = activePowers(s).findIndex((p) => p.kind === 'gild');
+    const spent = slot === 1 ? s.heroPowerSpent2 : s.heroPowerSpent;
+    if (slot >= 0 && spent) {
+      if (slot === 1) s.heroPowerSpent2 = false; else s.heroPowerSpent = false;
+      s.indyGildRearmAt = undefined;
+    }
   }
   applyGoldSpent(s, amount);
   advanceQuestsBy(s, (o) => o.event === 'spendGold', amount); // Coin Hoard: "Spend N Gold"
@@ -2852,7 +2859,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else if (power.kind === 'dynamiteDig') {
         // Jensen: Discover a minion of your CURRENT tier — the FIRST dig is free, then the cost climbs 1
         // each use (0, 1, 2, …). Untargeted; cost + use count handled here (not the shared block).
-        const digCost = heroUses;
+        const digCost = heroPowerCostOf(power, s, heroUses);
         if (s.embers < digCost) return state; // can't afford this use → no charge spent
         spendGold(s, digCost);
         if (slot === 1) s.heroPowerUses2 = heroUses + 1; else s.heroPowerUses = heroUses + 1; // escalate the FIRING slot's next cost (a Void slot-1 Dig must not tax slot 0)
@@ -2862,7 +2869,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Tiff: Discover a Dragon for 5 Gold, reduced 1 per Dragon/spell bought since the last use
         // (`tiffDiscount` via dragonTamerCostOf, floor 0). Untargeted; the shrinking cost is charged here
         // (not the shared block) and the discount bank resets on use.
-        const tamerCost = dragonTamerCostOf(s);
+        const tamerCost = heroPowerCostOf(power, s, heroUses);
         if (s.embers < tamerCost) return state; // can't afford → no charge spent
         spendGold(s, tamerCost);
         s.tiffDiscount = 0;
@@ -2943,7 +2950,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         const spellId = s.lastSpellCastId;
         const def = spellId ? CARD_INDEX[spellId] : undefined;
         if (!def?.spell || s.hand.length >= handCap(s)) return state;
-        const bookCost = roundedSpellbookCostOf(s);
+        const bookCost = heroPowerCostOf(power, s, heroUses);
         if (s.embers < bookCost) return state; // can't afford → no charge spent
         spendGold(s, bookCost);
         s.hunchResetWave = s.wave;
@@ -3019,7 +3026,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else if (power.kind === 'buyout') {
         // Harlan: take the WHOLE Shop, then reroll it. The price falls 1 a turn and re-bases on use, so it is
         // charged here rather than by the shared block (the dragonTamer/roundedSpellbook pattern).
-        const price = buyoutCostOf(s);
+        const price = heroPowerCostOf(power, s, heroUses);
         if (s.embers < price) return state; // can't afford → no charge spent
         spendGold(s, price);
         s.harlanResetWave = s.wave;
@@ -3252,24 +3259,24 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (s.voidPowerIds?.length) s.voidPowerIds = [heroId, ...s.voidPowerIds.slice(1)];
         else s.adoptedPowerId = heroId;
         s.heroReady = true; // a new power arrives charged, whatever the old one had spent
-        seedAdoptedPower(s, heroId);
+        seedAdoptedPower(s, heroId, 0);
       } else if (offer.slot === 'mimic') {
         s.adoptedPowerId = heroId;
         // A fresh disguise is a fresh charge: the adopted power arms now even when the previous one was
         // spent this same turn (each turn's power is its own).
         s.heroReady = true;
-        seedAdoptedPower(s, heroId);
+        seedAdoptedPower(s, heroId, 0);
       } else if (offer.slot === 'void1') {
         s.voidPowerIds = [heroId];
         s.heroReady = true;
-        seedAdoptedPower(s, heroId);
+        seedAdoptedPower(s, heroId, 0);
         // Chain straight into the second pick — the two are one turn-4 ceremony. The pool re-derives with the
         // first pick excluded, so the same power can never be held twice.
         mintPowerOffer(s, 'void2');
       } else {
         (s.voidPowerIds ??= []).push(heroId);
         s.heroReady2 = true;
-        seedAdoptedPower(s, heroId);
+        seedAdoptedPower(s, heroId, 1);
       }
       // An adopted power can GRANT cards (Yirin's Reflector, Chaos' token) and can change the Gild threshold
       // itself (Midas' Touch: 3 → 2), so copies already held may combine the moment it lands — check like buy /
@@ -5526,12 +5533,38 @@ function mintPowerOffer(s: RunState, slot: 'mimic' | 'void1' | 'void2'): void {
  * a few passives normally get set up at `createRun` — without this a mimicked Lucky Seat would pay its prize
  * off an unset suit and show a blank suit card.
  */
-function seedAdoptedPower(s: RunState, heroId: string): void {
+function seedAdoptedPower(s: RunState, heroId: string, slot: 0 | 1): void {
+  const power = getHero(heroId).power;
+  const kind = power.kind;
+  // PRICE CLOCKS — re-based on EVERY adoption, before the once-per-run guard below. The shrinking-cost powers
+  // (Hunch's Rounded Spellbook, Harlan's Buyout) and Rascal's climbing All In key their countdown off a
+  // `*ResetWave` that a NATIVE hero implicitly starts at wave 1 (`?? 1`); an adopter never set it, so a Void
+  // picking Rounded Spellbook on turn 4 was already at 3 − (4 − 1) = 0 Gold — the coin vanished and the power
+  // was free from the moment it landed (owner report 2026-09-15). Adoption IS this wielder's run start, so the
+  // clock starts here: 3 on the pick turn, 2 the next, as Hunch himself sees on turns 1 and 2. Not guarded:
+  // re-basing only ever moves a price UP (or a payout DOWN), so a Mimic re-adopting can't farm it.
+  if (kind === 'roundedSpellbook') s.hunchResetWave = s.wave;
+  if (kind === 'buyout') s.harlanResetWave = s.wave;
+  if (kind === 'allIn') s.rascalResetWave = s.wave;
+  // Tiff's discount bank counts Dragons/spells bought SINCE THE LAST USE — a fresh wielder starts at the full
+  // 5, exactly as Tiff does at wave 1 (the bank only ever fills while the power is held, so this only matters
+  // to a Mimic who held it before; a fresh clock there keeps every adoption reading the same way).
+  if (kind === 'dragonTamer') s.tiffDiscount = 0;
   // ONCE per hero per run. Mimic re-picks every turn, so an unguarded seed turns every creation-time grant
   // into a faucet — re-adopting Brackus was a Tier-7 Discover per turn.
   if (s.seededPowers?.includes(heroId)) return;
   (s.seededPowers ??= []).push(heroId);
-  const kind = getHero(heroId).power.kind;
+  // The firing slot's whole-game counters belong to the power that arrives: Jenkins's Dynamite Dig prices its
+  // next dig off the slot's use count (a Power Shifter after two Gildmaster uses started at 2 Gold instead of
+  // free), and a once-per-game power (Indy's Gild) must not inherit a `spent` flag from the power it replaced
+  // (it would be dead on arrival, with no recharge ever armed). Inside the guard so a Mimic re-adopting
+  // Jenkins or Indy does not get a fresh free dig / fresh Gild every turn — the second visit is the native
+  // hero's own recharge rule.
+  if (kind === 'dynamiteDig' || power.maxUses) { if (slot === 1) s.heroPowerUses2 = 0; else s.heroPowerUses = 0; }
+  if (power.oncePerGame) {
+    if (slot === 1) s.heroPowerSpent2 = false; else s.heroPowerSpent = false;
+    if (kind === 'gild') s.indyGildRearmAt = undefined;
+  }
   if (kind === 'luckySeat') {
     if (!s.ciaSuit) {
       const rng = makeRng(s.rngCursor);

@@ -62,6 +62,22 @@ export const PATCH_NOTES: PatchNote[] = [
     ],
   },
   {
+    date: '2026-09-15',
+    label: 'Adopted hero-power prices',
+    changes: [
+      {
+        category: 'Hero Change',
+        text: "A hero power you pick up mid-run (Void's turn-4 picks, Mimic's disguises, Power Shifter) now starts its price clock the turn you take it — Rounded Spellbook costs 3 on the turn you pick it, not 0.",
+        details: [
+          "Rounded Spellbook and Buyout used to count their discount from turn 1 even when you adopted them later, so a Void picking Rounded Spellbook on turn 4 got it free from the start and its cost coin was blank. They now start at their full price (3 / 11) on the pick turn and fall 1 a turn from there, exactly like Hunch and Harlan do from turn 1.",
+          "All In pays out from 1 Gold on the pick turn (it used to arrive with several turns already banked). Dragon Tamer starts at its full 5.",
+          "Dynamite Dig's first dig is free for a new wielder, whatever the power it replaced had spent. Gild arrives ready even if the power it replaced was used, and its 75-Gold recharge now works for a Void, a Mimic or a Power Shifter — not only for Indy.",
+        ],
+      },
+      { category: 'UI / Info', text: "Both of Void's hero-power buttons show the cost coin for any power that costs Gold, and the coin reads exactly what the power will charge. Passives (Empowering Vines and kin) still show their passive badge instead of a coin." },
+    ],
+  },
+  {
     date: '2026-09-14',
     label: 'Starform creation',
     changes: [

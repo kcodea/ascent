@@ -34,6 +34,8 @@
     "board:train": "tsx packages/tools/src/board-train.ts",
     "art:wire": "tsx packages/tools/src/wire-art.ts",
     "text:audit": "tsx packages/tools/src/text-audit.ts",
+    "balance:manifest": "tsx packages/tools/src/balance/manifest.ts",
+    "balance:census": "tsx packages/tools/src/balance/census.ts",
     "docbot": "tsx packages/tools/src/docbot.ts",
     "docbot:scenario": "tsx packages/tools/src/qa-scenario-run.ts",
     "docbot:corpus": "tsx packages/tools/src/qa-corpus-build.ts",

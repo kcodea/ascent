@@ -1,4 +1,4 @@
-import type { PerfBucket } from './perfMonitor';
+import type { PerfBucket, PerfStartup } from './perfMonitor';
 
 /**
  * PERF RUN STORE — recorded sessions, kept on this machine.
@@ -51,6 +51,8 @@ export interface PerfRunMeta {
 
 export interface PerfRun extends PerfRunMeta {
   buckets: PerfBucket[];
+  /** The phase-start spikes the warm-up diverted (2026-09-15). Absent on recordings from before it. */
+  startups?: PerfStartup[];
 }
 
 function open(): Promise<IDBDatabase | null> {
@@ -127,6 +129,7 @@ export async function clearRuns(): Promise<void> {
 export function toRun(
   buckets: readonly PerfBucket[],
   meta: { id: string; startedAt: number; build: string; mode?: string; heroId?: string; note?: string },
+  startups?: readonly PerfStartup[],
 ): PerfRun {
   const live = buckets.filter((b) => !b.hidden);
   const fps = live.map((b) => b.fps).sort((a, b) => a - b);
@@ -139,5 +142,6 @@ export function toRun(
     jankFrames: live.reduce((a, b) => a + b.jank, 0),
     fpsMed: fps.length ? +fps[Math.floor(fps.length / 2)]!.toFixed(1) : 0,
     buckets: [...buckets],
+    ...(startups && startups.length ? { startups: [...startups] } : {}),
   };
 }

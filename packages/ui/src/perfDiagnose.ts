@@ -1,4 +1,5 @@
 import type { PerfBucket } from './perfMonitor';
+import { counterPeak, topOffenders } from './perfLive';
 import { thresholdsFor, type FrameThresholds } from './refreshRate';
 
 /**
@@ -495,6 +496,75 @@ export function diagnose(buckets: readonly PerfBucket[], namer: SubjectNamer = r
   const rank: Record<Severity, number> = { critical: 0, warn: 1, info: 2 };
   base.verdicts = v.sort((a, b) => rank[a.severity] - rank[b.severity]);
   return base;
+}
+
+// ── WHAT IS SLOW — the one line (owner 2026-09-15: "we're currently BLIND to what's causing it") ──────────
+
+export interface SlowVerdict {
+  severity: Severity;
+  /** One sentence. Who owns the dropped frames, and how much of them. */
+  title: string;
+  /** The supporting numbers: the runners-up and the peak counter, when there is one. */
+  detail: string;
+}
+
+/** Counters worth naming in the verdict, in the order they are tried. Levels (peaks), not rates. */
+const VERDICT_COUNTERS = ['fx:particles', 'fx:filters', 'fx:layers', 'particles', 'weld rings'];
+
+/**
+ * A plain-English answer to "what is slow" for a window of buckets — the live HUD's headline and the
+ * report's opener. Built from the top offenders (self time inside dropped frames — `perfLive.ts`), so it
+ * names the code that RAN in the frames that dropped, not the code with the single worst call and not a
+ * mark that happened to co-occur. When frames dropped and nothing instrumented ran in them, it says so —
+ * that is the render / paint / GC case, and "no offenders" would read as "fine".
+ *
+ * Returns `null` for an empty window. The counters are named where they peaked, because "fx:particles
+ * peaked at 2,340 during combat" is the number that turns a label into a fix.
+ */
+export function whatIsSlow(buckets: readonly PerfBucket[], namer: SubjectNamer = rawNamer): SlowVerdict | null {
+  const live = buckets.filter((b) => !b.hidden);
+  if (live.length === 0) return null;
+  const hz = runHz(live);
+  const th = thresholdsFor(hz);
+  const budgetMs = round(1000 / hz / BUDGET_FRAMES, 2);
+  const long = live.reduce((a, b) => a + b.long, 0);
+  const worst = live.reduce((a, b) => Math.max(a, b.worst), 0);
+  const frames = live.reduce((a, b) => a + Math.round(b.fps), 0);
+  const name = (label: string): string => namer(subjectOf(label), label);
+  const peaks = VERDICT_COUNTERS
+    .map((k) => ({ k, ...counterPeak(live, k) }))
+    .filter((p) => p.peak > 0)
+    .map((p) => `${p.k} peaked at ${p.peak.toLocaleString()}${p.phase ? ` during ${p.phase}` : ''}`);
+
+  if (long === 0) {
+    return {
+      severity: 'info',
+      title: `No dropped frames across ${live.length}s — worst ${round(worst)} ms against a ${round(th.longFrameMs)} ms line`,
+      detail: worst > budgetMs
+        ? `${frames} frames; the worst went ${round(worst / budgetMs)}× over the ${budgetMs} ms budget without dropping. ${peaks[0] ?? ''}`.trim()
+        : `Every frame fit the ${budgetMs} ms budget.`,
+    };
+  }
+
+  const off = topOffenders(live, 3);
+  if (off.length === 0) {
+    return {
+      severity: 'warn',
+      title: `${long} frame(s) dropped and nothing instrumented ran in them`,
+      detail: `The cost is in render, paint, style recalc or GC — not in any timed block. ${peaks.length ? `${peaks.join('; ')}.` : ''} Profile in DevTools (docs/performance.md §3) and check for a paint property animating in a loop.`.trim(),
+    };
+  }
+  const top = off[0]!;
+  const share = Math.round(top.share * 100);
+  const rest = off.slice(1).map((o) => `${name(o.label)} ${Math.round(o.share * 100)}% · ${round(o.avgMs)} ms`).join(', ');
+  return {
+    severity: top.share >= 0.5 && top.avgMs > budgetMs ? 'critical' : 'warn',
+    title: `${name(top.label)} owned ${share}% of the ${long} dropped frames — ${round(top.avgMs)} ms per frame, worst call ${round(top.maxMs)} ms`,
+    detail: [
+      peaks.length ? peaks.join('; ') : null,
+      rest ? `then ${rest}` : null,
+    ].filter(Boolean).join('. '),
+  };
 }
 
 // ── Run-over-run comparison ────────────────────────────────────────────────────────────────────────────────

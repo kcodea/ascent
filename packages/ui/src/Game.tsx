@@ -125,7 +125,7 @@ export function Game() {
   useEffect(() => {
     perfMonitor.registerContext(() => {
       const s = useGame.getState().run;
-      return { phase: s.phase, wave: s.wave };
+      return { phase: s.phase, wave: s.wave, ...(s.runeforgeOffer ? { overlay: 'runeforge' } : {}) };
     });
     // Input RATE. A high-polling-rate mouse delivers pointermove far above the frame rate; when a handler
     // turns each one into a state update, the render cost is invisible without this number next to it.

@@ -6675,7 +6675,7 @@ svg { width: 18px; height: 18px; }
    a readout, not chrome, and it was sized like chrome. */
 .perfhud {
   position: fixed; right: calc(var(--bar-x) + 16px); bottom: calc(var(--bar-y) + 64px); z-index: 200;
-  width: 320px; box-sizing: border-box;
+  width: 360px; box-sizing: border-box;
   background: #0b0c10; border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 12px;
   box-shadow: 0 18px 48px -10px rgba(0, 0, 0, 0.75);
   font-family: var(--font-ui); color: #f1ece2;
@@ -6716,8 +6716,32 @@ svg { width: 18px; height: 18px; }
 .perfhud-x:hover { background: rgba(255, 255, 255, 0.14); color: #fff; border-color: var(--acc); }
 /* Close reads as destructive on hover, so it is never confused with the fold beside it. */
 .perfhud-x.close:hover { background: var(--threat); border-color: var(--threat); color: #fff; }
-/* Full-bleed under the header; height is fixed in JS (SPARK_H), width follows the resize grip. */
-.perfhud-spark { display: block; width: 100%; height: 34px; flex: 0 0 auto; background: #05060a; }
+/* THE LIVE MONITOR (2026-09-15). The rolling graph is full-bleed under the header; its height is fixed in
+   JS (GRAPH_H) and its width follows the resize grip through a ResizeObserver, never a layout read. */
+.perfhud-graph { display: block; width: 100%; height: 78px; flex: 0 0 auto; background: #05060a; }
+.perfhud-legend { display: flex; align-items: center; gap: 9px; padding: 4px 11px 0; font-size: 10px; font-weight: 700;
+  color: #8f9099; text-transform: uppercase; letter-spacing: 0.06em; flex: 0 0 auto; }
+.perfhud-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.perfhud-legend i { display: inline-block; width: 9px; height: 5px; border-radius: 2px; }
+.perfhud-legend-budget { margin-left: auto; text-transform: none; letter-spacing: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.perfhud-stats { padding: 4px 11px 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); flex: 0 0 auto; }
+.perfhud-sub-tabs { display: flex; align-items: center; gap: 4px; }
+.perfhud-sub-tabs > span { flex: 1; }
+.perfhud-sub-tabs button { font-family: var(--font-ui); font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18); background: rgba(255, 255, 255, 0.06); color: #cfd2da; letter-spacing: 0.04em; }
+.perfhud-sub-tabs button.on { background: var(--acc); border-color: var(--acc); color: #1a1208; }
+/* Offender rows: a share bar behind the text, then name · share · ms per dropped frame · worst call. */
+.perfhud-off { display: flex; flex-direction: column; gap: 2px; }
+.perfhud-off-row { position: relative; display: grid; grid-template-columns: 1fr 38px 58px 58px; gap: 6px; align-items: baseline;
+  padding: 3px 6px; border-radius: 5px; font-size: 12.5px; overflow: hidden; }
+.perfhud-off-row > i { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(229, 68, 107, 0.16); border-radius: 5px; pointer-events: none; }
+.perfhud-off-row > span { position: relative; color: #e7e3d9; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.perfhud-off-row > b { position: relative; color: #fff; font-weight: 800; text-align: right; white-space: nowrap;
+  font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.perfhud-off-row > b small { font-size: 9px; font-weight: 700; color: #8f9099; margin-left: 2px; font-family: var(--font-ui); }
+.perfhud-counters { font-size: 12.5px; color: #fff; font-weight: 800; font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; padding: 2px 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.perfhud-verdict.sev-warn { border-left-color: var(--acc); }
 .perfhud-body { padding: 9px 11px 11px; overflow: auto; flex: 1 1 auto; min-height: 0; }
 .perfhud-sub {
   font-weight: 800; font-size: 11px; color: var(--acc); text-transform: uppercase; letter-spacing: 0.08em;
@@ -6752,7 +6776,7 @@ svg { width: 18px; height: 18px; }
 
 .perfhud-btns { display: flex; gap: 4px; margin-top: 9px; }
 .perfhud-btns button {
-  flex: 1; padding: 5px 4px; cursor: pointer; font-family: var(--font-ui); font-size: 10.5px; font-weight: 800;
+  flex: 1; padding: 5px 4px; font-family: var(--font-ui); font-size: 10.5px; font-weight: 800;
   border: 1px solid var(--line); border-radius: 7px; background: var(--bg2); color: var(--ink2);
 }
 .perfhud-btns button:hover { background: color-mix(in srgb, var(--acc) 14%, var(--card)); color: var(--acc-dk); border-color: var(--acc); }

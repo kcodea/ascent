@@ -1,49 +1,65 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { perfMonitor, perfThresholds, type PerfBucket, type FrameThresholds } from './perfMonitor';
+import { captureStats, graphColumns, rollingStats, topOffenders, type Offender } from './perfLive';
 import { displaySubject, phaseName, shortName } from './perfNames';
-import { thresholdsFor } from './refreshRate';
 import { DevPanelContext, useDraggablePanel } from './useDraggablePanel';
-import { diagnose, type Diagnosis } from './perfDiagnose';
+import { diagnose, whatIsSlow, type Diagnosis } from './perfDiagnose';
 import { buildReport } from './perfReport';
 import { saveRun, toRun } from './perfStore';
 import { useGame } from './store';
 
 /**
- * PERF HUD — the frame-health readout (owner ask 2026-07-19: "track slowdowns and what is causing it, and
- * log performance so we can triage over a game's length").
+ * PERF HUD — the LIVE MONITOR (owner ask 2026-09-15: *"our performance HUD and analytics are not
+ * functioning well. Take a deep pass at improving them so there is a LIVE MONITORING screen … we're
+ * currently BLIND to what's causing it"*). Earlier asks it still honours: 2026-07-19 ("track slowdowns and
+ * what is causing it"), 2026-08-29 ("point at cards or mechanics or effects"), 2026-08-30 (in-game names).
  *
- * Ships in the production build, dormant. Opt in with `?perf=1` (sticky), `localStorage.ascent.perf`, or
- * the dev menu. That's deliberate: `performance.md` requires confirming slowness against the prod build,
- * so a dev-only HUD would measure the wrong binary.
+ * A floating panel the owner leaves open while playing. Top to bottom:
  *
- * Styled as one of the game's own floating panels (the `.sfxmix` language — parchment card, 2px `--line`
- * border, `--acc` orange accent, Outfit for chrome and tabular mono for numbers) and dragged/resized by the
- * shared `useDraggablePanel` hook, so position and size persist exactly like every tuner.
+ *   · **the rolling graph** — the last ten seconds at FRAME resolution (one pixel column = ~10 s / width),
+ *     each column the WORST frame in it (§0: a dropped frame must never be averaged away), against the
+ *     per-frame budget line and the long-frame line, with dropped-frame ticks along the top, warm-up
+ *     stretches shaded, and a phase strip (shop / combat / runeforge) along the bottom;
+ *   · **two stat rows** — the rolling window and the whole capture, each `worst · p95 · long · jank`;
+ *   · **top offenders** — labels ranked by their SELF time inside the frames that dropped (`perfLive.ts`),
+ *     for the window or the capture. This list is the answer to "what is slow";
+ *   · **the verdict** — `whatIsSlow`'s one plain-English line from those offenders;
+ *   · **the counter strip** — particles, def layers, filters, sprite pool, unit renders;
+ *   · details (calibration, longest task, heap, DOM, context, marks) and the capture / share buttons.
  *
- * **The HUD must not distort what it measures**, which shapes the component:
- * - It re-renders **once per second** (one bucket), not per frame. The big fps number is the exception and
- *   it's written via `textContent` on a ref — no React work.
- * - The sparkline is a `<canvas>` redrawn once per bucket, sized to the panel. 60 DOM nodes with animated
- *   heights would repaint every second for nothing.
- * - Everything is `transform`/`opacity` only, per the project perf rules.
+ * Ships in the production build, dormant — `?perf=1`, `localStorage.ascent.perf`, or the dev menu — because
+ * `docs/performance.md` requires judging slowness on the prod build. Recording is independent of the HUD.
  *
- * Reading it: **fps is a ceiling, not a score** — rAF is capped at the display refresh, so 60 means
- * "nothing dropped", not "fast". The numbers that find problems are worst-frame, the jank count, and
- * HOTSPOTS, which is measured time attributed to named code rather than correlation.
- *
- * The long/jank thresholds are DERIVED from the measured refresh (see `refreshRate.ts`), so they are read
- * fresh from `perfThresholds()` on each bucket render rather than imported as constants — a 240 Hz display
- * warns at 8.33 ms where a 60 Hz one warns at 33.3. The `display` row shows which calibration is in force.
+ * **THE HUD MUST COST NOTHING MEASURABLE**, which shapes every line below:
+ * - No React render per frame. React renders ONCE PER SECOND (one bucket) for the offenders list and the
+ *   details; the header numbers and the stat rows are `textContent` writes on refs at 4 Hz.
+ * - The graph is a `<canvas>` redrawn at ≤ 30 Hz from the monitor's frame ring, read in place (no copy).
+ * - No layout reads per frame: the canvas width comes from a `ResizeObserver`, never `clientWidth` in the
+ *   loop. Nothing here animates.
+ * - Styled as one of the game's floating panels and dragged / resized by `useDraggablePanel`.
  */
-const SPARK_H = 34;
-/** How often (in closed buckets) the live diagnosis re-runs while the panel is open. See `live` below. */
+const GRAPH_H = 78;
+/** The rolling window the graph and the "10 s" row cover. */
+const WINDOW_MS = 10_000;
+/** Redraw cap for the graph and the text-write cadence for the numbers. */
+const DRAW_MS = 33;
+const STATS_MS = 250;
+/** How often (in closed buckets) the whole-capture diagnosis re-runs while the details are open. */
 const DIAGNOSE_EVERY = 5;
+/** Buckets kept for the rolling offenders window (~10 s). */
+const WINDOW_BUCKETS = 10;
+/** Phase strip colours by `PHASE_CODES` (0 none, 1 shop, 2 combat, 3 runeforge, 4 end). */
+const PHASE_COLORS = ['transparent', '#3d7ad6', '#e5446b', '#b784f0', '#8f9099'];
+const PHASE_LABELS = ['', 'shop', 'combat', 'runeforge', 'end'];
 
-function color(worst: number, th: FrameThresholds): string {
-  if (worst > th.jankMs) return '#e5446b'; // --threat
-  if (worst > th.longFrameMs) return '#f0902e'; // --acc
-  return '#1f9d6b'; // --tier-2 green
+function color(ms: number, th: FrameThresholds): string {
+  if (ms > th.jankMs) return '#e5446b';      // --threat
+  if (ms > th.longFrameMs) return '#f0902e'; // --acc
+  if (ms > th.frameMs) return '#c8922e';     // over budget, not yet a dropped frame
+  return '#1f9d6b';                          // --tier-2 green
 }
+const fmt = (n: number): string => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+const ms1 = (n: number): string => n.toFixed(1);
 
 /**
  * The panel proper. It carries NO close of its own: the ✕ is the one `useDraggablePanel` injects, wired
@@ -52,102 +68,106 @@ function color(worst: number, th: FrameThresholds): string {
 function PerfHudPanel() {
   const [bucket, setBucket] = useState<PerfBucket | null>(perfMonitor.latest());
   const [open, setOpen] = useState(true);
-  /** MINIMIZED folds the panel to its title bar — sparkline and body both go. Distinct from `open`, which
-   *  only collapses the detail rows: minimized is "get out of the way", collapsed is "just the graph". */
+  /** MINIMIZED folds the panel to its title bar — graph and body both go. Distinct from `open`, which only
+   *  collapses the detail rows: minimized is "get out of the way", collapsed is "just the monitor". */
   const [min, setMin] = useState(false);
+  const [scope, setScope] = useState<'window' | 'capture'>('window');
   const [copied, setCopied] = useState(false);
   const fpsRef = useRef<HTMLSpanElement>(null);
+  const worstRef = useRef<HTMLSpanElement>(null);
   const warmRef = useRef<HTMLSpanElement>(null);
+  const rollRef = useRef<HTMLElement>(null);
+  const countersRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  /** The canvas's CSS width, kept by a ResizeObserver so the draw loop never reads layout. */
+  const canvasWRef = useRef(0);
   const histRef = useRef<PerfBucket[]>([]);
   const { panelRef, panelElRef, headerPointerDown, panelStyle } = useDraggablePanel('perfhud');
 
-  // One re-render per closed bucket (1/s). The sparkline redraw rides the same tick.
+  // One re-render per closed bucket (1/s). The offenders list, the capture row and the details ride it.
   useEffect(() => perfMonitor.subscribe((b) => {
     histRef.current.push(b);
-    if (histRef.current.length > 600) histRef.current.shift();
+    if (histRef.current.length > WINDOW_BUCKETS) histRef.current.shift();
     setBucket(b);
   }), []);
 
-  // The live fps digit updates faster than the bucket rate, but WITHOUT a React render — a direct
-  // textContent write on a ref. Re-rendering the HUD 4×/s to move one number would be self-defeating.
+  // Canvas width without a per-frame layout read: observed once, on resize only.
   useEffect(() => {
-    if (!perfMonitor.isRunning) return;
+    const cv = canvasRef.current;
+    if (!cv || min) return undefined;
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) canvasWRef.current = Math.max(40, Math.floor(e.contentRect.width));
+    });
+    ro.observe(cv);
+    return () => { ro.disconnect(); };
+  }, [min]);
+
+  /**
+   * THE LIVE LOOP. One rAF while the monitor runs; two throttles inside it. The graph redraws at ≤ 30 Hz
+   * from the frame ring; the fps / worst / warm-up / rolling-stats / counter texts update at 4 Hz. Nothing
+   * in here touches React state.
+   */
+  useEffect(() => {
+    if (!perfMonitor.isRunning || min) return undefined;
     let raf = 0;
-    let last = performance.now();
+    let lastDraw = 0;
+    let lastStats = 0;
     let frames = 0;
     const loop = (now: number): void => {
       frames++;
-      if (now - last >= 250) {
-        if (fpsRef.current) fpsRef.current.textContent = ((frames / (now - last)) * 1000).toFixed(0);
-        // The warm-up state rides the same 4 Hz write: "warm-up · combat 1.2s" while frames are being diverted,
-        // cleared the moment they count again. A textContent write, never a render.
+      if (now - lastDraw >= DRAW_MS) {
+        lastDraw = now;
+        drawGraph(canvasRef.current, canvasWRef.current, now);
+      }
+      if (now - lastStats >= STATS_MS) {
+        const span = now - lastStats;
+        lastStats = now;
+        const th = perfThresholds();
+        const roll = rollingStats(perfMonitor.frameRing(), now - WINDOW_MS, th);
+        if (fpsRef.current) fpsRef.current.textContent = ((frames / span) * 1000).toFixed(0);
+        frames = 0;
+        if (worstRef.current) {
+          // The worst frame of the LAST SECOND, so the header number moves with what you just felt.
+          const last = rollingStats(perfMonitor.frameRing(), now - 1000, th);
+          worstRef.current.textContent = `${last.worst.toFixed(1)}ms`;
+          worstRef.current.style.color = color(last.worst, th);
+        }
         if (warmRef.current) {
           const w = perfMonitor.warmupState();
           warmRef.current.textContent = w.active
             ? `warm-up · ${w.reason} ${w.remainingMs > 0 ? `${(w.remainingMs / 1000).toFixed(1)}s` : `${w.framesLeft}f`}`
             : '';
         }
-        frames = 0;
-        last = now;
+        if (rollRef.current) {
+          rollRef.current.textContent = roll.frames === 0
+            ? '–'
+            : `${ms1(roll.worst)} · ${ms1(roll.p95)} · ${roll.long} · ${roll.jank}${roll.warm ? ` (${roll.warm}f warm)` : ''}`;
+          rollRef.current.style.color = roll.jank > 0 ? '#ff7a90' : roll.long > 0 ? '#f0902e' : '#fff';
+        }
+        if (countersRef.current) {
+          const c = perfMonitor.counterSnapshot();
+          const parts: string[] = [];
+          const add = (key: string, label: string): void => { if (c[key] !== undefined) parts.push(`${label} ${fmt(c[key]!)}`); };
+          add('fx:particles', 'particles');
+          add('fx:layers', 'layers');
+          add('fx:filters', 'filters');
+          add('sprite pool', 'sprites');
+          add('weld rings', 'welds');
+          countersRef.current.textContent = parts.length ? parts.join(' · ') : 'no FX counters registered';
+        }
       }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, []);
-
-  // Sparkline of worst-frame-time per second — the shape that shows where the run got rough. Sized from
-  // the canvas's own laid-out width so it follows the panel's resize grip instead of a fixed constant.
-  useEffect(() => {
-    const cv = canvasRef.current;
-    const ctx = cv?.getContext('2d');
-    if (!cv || !ctx) return;
-    const w = Math.max(40, Math.floor(cv.clientWidth));
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    if (cv.width !== w * dpr || cv.height !== SPARK_H * dpr) {
-      cv.width = w * dpr;
-      cv.height = SPARK_H * dpr;
-    }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, w, SPARK_H);
-    const hist = histRef.current.slice(-w); // one column per pixel — the panel's width IS the time window
-    const th = perfThresholds();
-    // Scale to the worst frame in view, floored at the jank threshold so a calm stretch doesn't amplify
-    // ordinary noise into alarming peaks.
-    const peak = Math.max(th.jankMs, ...hist.map((b) => b.worst));
-    ctx.strokeStyle = 'rgba(42,32,23,0.22)'; // --ink at low alpha: the "dropped a frame" reference line
-    ctx.setLineDash([2, 3]);
-    ctx.beginPath();
-    const yLong = SPARK_H - (th.longFrameMs / peak) * SPARK_H;
-    ctx.moveTo(0, yLong);
-    ctx.lineTo(w, yLong);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    const x0 = w - hist.length; // right-aligned: newest at the grip edge
-    hist.forEach((b, i) => {
-      const h = Math.max(1, (b.worst / peak) * SPARK_H);
-      // Each column is coloured against the calibration that was in force WHEN IT WAS RECORDED — if the
-      // detected refresh moved mid-session, recolouring the history to the new one would be a lie.
-      ctx.fillStyle = b.hidden ? 'rgba(156,139,113,0.35)' : color(b.worst, thresholdsFor(b.hz));
-      ctx.fillRect(x0 + i, SPARK_H - h, 1, h);
-    });
-  }, [bucket, open]);
+  }, [min]);
 
   /**
-   * THE LIVE VERDICT — the top finding for the session so far, on the HUD face.
-   *
-   * The old HUD showed only the CURRENT second, so reading it meant holding a minute of numbers in your head
-   * and doing the diagnosis yourself. This runs the same engine the perf screen uses and prints its worst
-   * finding in one line.
-   *
-   * Deliberately throttled and gated: `diagnose` walks every bucket, and a 40-minute session is 2400 of them.
-   * It runs only while the panel is EXPANDED, and only every `DIAGNOSE_EVERY` buckets — so the collapsed HUD
-   * costs exactly what it did before, and the expanded one pays a linear pass every few seconds rather than
-   * every frame. A perf tool that shows up in its own measurements is worthless.
+   * THE SESSION FINDING for the whole capture — the top finding from the same engine the perf screen uses.
+   * Throttled and gated as before: only while the panel is EXPANDED, and only every `DIAGNOSE_EVERY` buckets,
+   * because `diagnose` walks every bucket and a 40-minute session is 2400 of them.
    */
   const [live, setLive] = useState<Diagnosis | null>(null);
-  /** Buckets seen at the last diagnosis. A ref, not state, so throttling never re-runs the effect it gates. */
   const lastDiagRef = useRef(-1);
   useEffect(() => {
     if (!open || !bucket) return;
@@ -170,7 +190,7 @@ function PerfHudPanel() {
       mode: st.run?.mode,
       heroId: st.run?.heroId,
       note: note || undefined,
-    })).then((ok) => {
+    }, perfMonitor.startups())).then((ok) => {
       setSaved(ok ? '✓ saved' : 'storage unavailable');
       window.setTimeout(() => { setSaved(''); }, 2500);
     });
@@ -182,6 +202,7 @@ function PerfHudPanel() {
     const text = buildReport({
       buckets: perfMonitor.history(),
       meta: { build: `${__APP_VERSION__}+${__BUILD_SHA__}`, mode: st.run?.mode, heroId: st.run?.heroId },
+      startups: perfMonitor.startups(),
     });
     void navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
@@ -190,25 +211,9 @@ function PerfHudPanel() {
   }, []);
 
   /**
-   * THE FOLD, done imperatively — because the size is owned imperatively.
-   *
-   * `useDraggablePanel` restores a saved size by writing `el.style.height` directly (so the browser's native
-   * resize grip owns it with no React style fighting), and a `ResizeObserver` writes back whatever height it
-   * observes. Setting `height: auto` from React therefore folded the panel AND persisted 44px as its size —
-   * so expanding restored a 44px panel, and reopening later got the same (owner report 2026-08-29:
-   * "minimizing it doesnt actually dock it").
-   *
-   * So the pre-fold height is stashed here and written back on expand, at the same level the hook works at.
-   * It is also restored on unmount: closing while minimized would otherwise save the folded height and the
-   * HUD would come back as a sliver.
-   */
-  /**
-   * HEAL A FOLDED HEIGHT SAVED BY THE BROKEN BUILD.
-   *
-   * Before the fix above, minimizing let the ResizeObserver persist the folded 44px as the panel's SIZE — so
-   * anyone who minimized once has a saved height that reopens the HUD as a sliver, and would read the fix as
-   * "still broken". The stored value is dropped when it is too short to be a real panel; the hook then falls
-   * back to the CSS size. One-way and cheap: nobody deliberately resizes this to less than a header.
+   * HEAL A FOLDED HEIGHT SAVED BY THE BROKEN BUILD (2026-08-29). Minimizing used to let the ResizeObserver
+   * persist the folded 44px as the panel's SIZE, so anyone who minimized once reopened the HUD as a sliver.
+   * A stored height too short to be a real panel is dropped; the hook then falls back to the CSS size.
    */
   useEffect(() => {
     const el = panelElRef.current;
@@ -225,6 +230,7 @@ function PerfHudPanel() {
     }
   }, [panelElRef]);
 
+  /** THE FOLD, done imperatively, because `useDraggablePanel` owns the size imperatively (see 2026-08-29). */
   const heightBeforeMin = useRef<string>('');
   useEffect(() => {
     const el = panelElRef.current;
@@ -243,8 +249,20 @@ function PerfHudPanel() {
   const th = perfThresholds();
   const { detected } = perfMonitor.display;
   const marks = b ? Object.entries(b.marks).sort((x, y) => y[1] - x[1]) : [];
-  // Measured spans this second, worst single call first — the attribution the marks alone can't give.
-  const hot = b ? Object.entries(b.timings ?? {}).sort((x, y) => y[1].max - x[1].max).slice(0, 5) : [];
+  // Whole-capture numbers and the offenders, once a second. `capture` scope walks every bucket; the window
+  // scope walks ten. Both are O(buckets × labels) and happen at 1 Hz only while the panel is open.
+  const cap = useMemo(() => captureStats(perfMonitor.history()), [b]);
+  const offenders = useMemo<Offender[]>(
+    () => topOffenders(scope === 'window' ? histRef.current : perfMonitor.history(), 6),
+    [b, scope],
+  );
+  const verdict = useMemo(
+    () => whatIsSlow(scope === 'window' ? histRef.current : perfMonitor.history(), displaySubject),
+    [b, scope],
+  );
+  const startups = perfMonitor.startups();
+  const lastStartup = startups[startups.length - 1];
+  const windowLong = histRef.current.reduce((a, x) => a + (x.hidden ? 0 : x.long), 0);
 
   return (
     <div
@@ -254,17 +272,13 @@ function PerfHudPanel() {
     >
       <div className="perfhud-h drag" onPointerDown={headerPointerDown}>
         <span className="perfhud-title">◆ Perf</span>
+        <span className="perfhud-warm" ref={warmRef} title="Frames after a phase start are diverted to a startup record until the warm-up passes (docs/performance.md)" />
         <span className="perfhud-fps" ref={fpsRef}>–</span>
         <span className="perfhud-unit">fps</span>
-        <span className="perfhud-worst" style={{ color: color(b?.worst ?? 0, th) }}>
-          {b ? `${b.worst.toFixed(0)}ms` : '–'}
-        </span>
-        <span className="perfhud-warm" ref={warmRef} title="Frames after a phase start are diverted to a startup record until the warm-up passes (docs/performance.md)" />
+        <span className="perfhud-worst" ref={worstRef} title="Worst frame in the last second">–</span>
         {/* THE CONTROLS SIT INSIDE THE DRAG HANDLE, so each one has to stop `pointerdown` reaching it (owner
-            report 2026-08-29: "make it so the X actually closes the window"). The header captures the pointer
-            to drag the panel, and a captured pointer never delivers the click that follows — so the buttons
-            looked live, highlighted on hover, and did nothing. Moving them out of the header would cost the
-            whole top edge as a drag target; stopping propagation keeps both. */}
+            report 2026-08-29): the header captures the pointer to drag the panel, and a captured pointer never
+            delivers the click that follows. */}
         <button
           className="perfhud-x"
           onPointerDown={(e) => { e.stopPropagation(); }}
@@ -279,76 +293,101 @@ function PerfHudPanel() {
           title={open ? 'Collapse the details' : 'Show the details'}
           aria-label={open ? 'Collapse details' : 'Show details'}
         >{open ? '▾' : '▸'}</button>
-        {/* NO ✕ HERE. `useDraggablePanel` injects a `.devpanel-close` button into every dev panel it
-            manages, pinned to the panel's top-right — so adding one to the header produced TWO (owner report
-            2026-08-29: "the ui bar too it has 2 x's"), and the prominent one was the injected one, which did
-            nothing because this panel was mounted outside any `DevPanelContext.Provider`. The provider below
-            wires that button to the real close instead. */}
+        {/* NO ✕ HERE — `useDraggablePanel` injects one, wired through the provider in `PerfHud`. */}
       </div>
 
-      {!min && <canvas className="perfhud-spark" ref={canvasRef} height={SPARK_H} />}
+      {!min && (
+        <>
+          <canvas className="perfhud-graph" ref={canvasRef} height={GRAPH_H} title="Last 10 s, one column per pixel = the worst frame in that slice. Dashed: per-frame budget. Dotted: dropped-frame line. Ticks on top: a dropped frame. Shaded: warm-up." />
+          <div className="perfhud-legend">
+            <span><i style={{ background: PHASE_COLORS[1] }} />{PHASE_LABELS[1]}</span>
+            <span><i style={{ background: PHASE_COLORS[2] }} />{PHASE_LABELS[2]}</span>
+            <span><i style={{ background: PHASE_COLORS[3] }} />{PHASE_LABELS[3]}</span>
+            <span className="perfhud-legend-budget">budget {th.frameMs.toFixed(2)} · long {ms1(th.longFrameMs)} · jank {ms1(th.jankMs)} ms</span>
+          </div>
+          <div className="perfhud-stats">
+            <div className="perfhud-row" title="Rolling window: worst · p95 · frames over the long line · frames over the jank line">
+              <span>10 s · worst · p95 · long · jank</span><b ref={rollRef}>–</b>
+            </div>
+            <div className="perfhud-row" title="Whole capture (warm-ups excluded): worst · p95 (median of per-second p95s) · long · jank">
+              <span>capture {cap.seconds}s</span>
+              <b style={{ color: cap.jank > 0 ? '#ff7a90' : cap.long > 0 ? '#f0902e' : '#fff' }}>
+                {cap.seconds ? `${ms1(cap.worst)} · ${ms1(cap.p95)} · ${cap.long} · ${cap.jank}` : '–'}
+              </b>
+            </div>
+          </div>
+        </>
+      )}
 
       {open && !min && (
         <div className="perfhud-body">
-          {/* The calibration everything below is measured against — the thresholds are meaningless without
-              it, and "60 Hz (assumed)" is the tell that no window has been measured yet. */}
+          {/* TOP OFFENDERS — who owns the dropped frames. Self time inside long frames, ranked. */}
+          <div className="perfhud-sub perfhud-sub-tabs">
+            <span>Top offenders · self time in dropped frames</span>
+            <button className={scope === 'window' ? 'on' : ''} onClick={() => { setScope('window'); }}>10 s</button>
+            <button className={scope === 'capture' ? 'on' : ''} onClick={() => { setScope('capture'); }}>capture</button>
+          </div>
+          {offenders.length === 0
+            ? (
+              <div className="perfhud-empty">
+                {(scope === 'window' ? windowLong : cap.long) === 0
+                  ? `no dropped frames in the ${scope === 'window' ? 'last 10 s' : 'capture'}`
+                  : 'frames dropped, but nothing instrumented ran in them — the cost is in render / paint / GC (docs/performance.md §3)'}
+              </div>
+            )
+            : (
+              <div className="perfhud-off">
+                {offenders.map((o) => (
+                  <div key={o.label} className="perfhud-off-row" title={`${o.label} — ${o.ms.toFixed(1)} ms self time across ${o.frames} dropped frame(s); ${o.n} call(s); worst call ${o.maxMs.toFixed(1)} ms`}>
+                    <i style={{ width: `${Math.round(o.share * 100)}%` }} />
+                    <span>{shortName(o.label)}</span>
+                    <b>{Math.round(o.share * 100)}%</b>
+                    <b>{ms1(o.avgMs)}<small>ms/f</small></b>
+                    <b>{ms1(o.maxMs)}<small>max</small></b>
+                  </div>
+                ))}
+              </div>
+            )}
+          {/* THE VERDICT — the one line that answers "what is slow", from the offenders + counters. */}
+          {verdict && (
+            <div className={`perfhud-verdict sev-${verdict.severity}`}>
+              <b>{verdict.title}</b>
+              {verdict.detail && <i>{verdict.detail}</i>}
+            </div>
+          )}
+
+          <div className="perfhud-sub">Scene</div>
+          <div className="perfhud-counters" ref={countersRef}>–</div>
+          {b && (
+            <Row
+              k="renders this second"
+              v={`units ${b.counts['unit renders'] ?? 0} · recruit ${b.counts['recruit renders'] ?? 0} · moves ${b.counts.pointermoves ?? 0}`}
+            />
+          )}
+          {lastStartup && (
+            <Row
+              k={`last startup · ${lastStartup.reason}`}
+              v={`${ms1(lastStartup.worst)} ms worst · ${lastStartup.frames}f · ${lastStartup.long} long`}
+              title="The most recent warm-up's diverted spike — recorded, but excluded from the graph and the verdict"
+            />
+          )}
+
+          <div className="perfhud-sub">Details</div>
           <Row
             k="display · budget"
             v={`${th.refreshHz.toFixed(0)} Hz${detected ? '' : ' (assumed)'} · ${th.frameMs.toFixed(2)} ms`}
           />
-          <Row k="frame med / p95" v={b ? `${b.med.toFixed(1)} / ${b.p95.toFixed(1)} ms` : '–'} />
-          <Row k="worst frame" v={b ? `${b.worst.toFixed(1)} ms` : '–'} warn={(b?.worst ?? 0) > th.longFrameMs} />
-          <Row k={`long / jank (>${th.longFrameMs}/${th.jankMs}ms)`} v={b ? `${b.long} / ${b.jank}` : '–'} warn={(b?.jank ?? 0) > 0} />
           <Row k="longest task" v={b?.task ? `${b.task.toFixed(0)} ms` : '–'} warn={(b?.task ?? 0) > th.jankMs} />
-
-          {/* THE HEADLINE. What the whole tool is for: one sentence naming the worst thing, and whether it is
-              measured or merely correlated — a distinction that decides whether it is worth an afternoon. */}
           {live && !live.thin && live.verdicts[0] && (
-            <div className={`perfhud-verdict sev-${live.verdicts[0].severity}`}>
-              <b>{live.verdicts[0].title}</b>
-              <span className={`perfhud-conf ${live.verdicts[0].confidence}`}>
-                {live.verdicts[0].confidence === 'measured' ? 'measured' : 'lead'}
-              </span>
-              <i>{live.verdicts[0].suggestion}</i>
-            </div>
+            <Row k="session finding" v={live.verdicts[0].title} warn={live.verdicts[0].severity !== 'info'} title={live.verdicts[0].suggestion} />
           )}
-          {live && !live.thin && (
-            <Row
-              k="session"
-              v={`${live.seconds}s · worst ${live.worstFrame.toFixed(1)}ms · ${live.jankFrames} dropped`}
-              warn={live.worstFrame > th.jankMs}
-            />
-          )}
-          {/* Where the run's pain actually is. Two lines, worst phase first — the full table is on the screen. */}
-          {live && live.phases.filter((p) => p.seconds >= 3).length > 1 && (
-            <>
-              <div className="perfhud-sub">Worst phases</div>
-              {live.phases.filter((p) => p.seconds >= 3).slice(0, 2).map((p) => (
-                <Row key={p.phase} k={p.phase} v={`${p.jankRate}/s dropped · worst ${p.worst.toFixed(1)}ms`}
-                  warn={p.overBudget} />
-              ))}
-            </>
-          )}
-
-          <div className="perfhud-sub">Hotspots · measured</div>
-          {hot.length === 0
-            ? <div className="perfhud-empty">nothing measured this second</div>
-            : hot.map(([k, v]) => (
-              // In-game names, not internal addresses (owner ask 2026-08-30). `title` keeps the raw label
-              // one hover away, so a row stays greppable once you want to go and find it in the source.
-              <Row key={k} k={`${shortName(k)}${v.n > 1 ? ` ×${v.n}` : ''}`} v={`${v.max.toFixed(1)} ms`}
-                   warn={v.max > th.longFrameMs} title={k} />
-            ))}
-
-          <div className="perfhud-sub">Scene</div>
-          {b && Object.entries(b.counts).map(([k, v]) => <Row key={k} k={k} v={String(v)} />)}
           <Row k="heap" v={b?.heapMb ? `${b.heapMb.toFixed(0)} MB` : 'n/a'} />
           <Row k="dom nodes" v={b ? String(b.nodes) : '–'} />
           <Row k="context" v={b ? `${b.phase ? phaseName(b.phase) : '–'}${b.wave !== undefined ? ` · wave ${b.wave}` : ''}` : '–'} />
           <Row k="marks" v={marks.length ? marks.map(([k, v]) => `${shortName(k)}×${v}`).join(' ') : '–'} />
 
           <div className="perfhud-btns">
-            <button onClick={copy} title="Copy a markdown report — findings, phases and worst moments — ready to paste to Claude">
+            <button onClick={copy} title="Copy a markdown report — offenders, findings, phases, worst moments — ready to paste to Claude">
               {copied ? '✓ copied' : '📋 report'}
             </button>
             <button onClick={save} title="Save this recording so the Perf Analytics screen can compare it against later ones">
@@ -356,12 +395,77 @@ function PerfHudPanel() {
             </button>
             <button onClick={() => { useGame.getState().openPerf(); }} title="Open Perf Analytics — findings, phases, timeline, comparison">📈</button>
             <button onClick={() => perfMonitor.exportLog()} title="Download the full timeline as JSON">⬇</button>
-            <button onClick={() => { perfMonitor.clear(); histRef.current = []; setLive(null); lastDiagRef.current = -1; }} title="Clear the timeline">↺</button>
+            <button onClick={() => { perfMonitor.clear(); histRef.current = []; setLive(null); lastDiagRef.current = -1; setBucket(null); }} title="Clear the timeline">↺</button>
           </div>
         </div>
       )}
     </div>
   );
+}
+
+/**
+ * The rolling graph. Reads the monitor's frame ring in place, folds it into one column per CSS pixel, and
+ * paints: warm-up shading, the bars (worst frame per column, coloured against the thresholds in force), the
+ * budget and long-frame reference lines, the dropped-frame ticks, and the phase strip. Runs at ≤ 30 Hz.
+ *
+ * The vertical scale is clamped: `[2× jank … 8× jank]`, tracking the worst frame in view. Without the cap a
+ * single 300 ms stall would flatten ten seconds of 6 ms frames into a green floor; with it the stall is
+ * clipped and drawn with a bright cap so it is still unmistakably there.
+ */
+function drawGraph(cv: HTMLCanvasElement | null, cssW: number, now: number): void {
+  if (!cv || cssW <= 0) return;
+  const ctx = cv.getContext('2d');
+  if (!ctx) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  if (cv.width !== cssW * dpr || cv.height !== GRAPH_H * dpr) {
+    cv.width = cssW * dpr;
+    cv.height = GRAPH_H * dpr;
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssW, GRAPH_H);
+  const th = perfThresholds();
+  const cols = graphColumns(perfMonitor.frameRing(), now, WINDOW_MS, cssW, th);
+  const STRIP = 4; // phase strip height
+  const TICK = 3;  // dropped-frame tick row
+  const top = TICK + 1;
+  const area = GRAPH_H - STRIP - top;
+  let viewMax = 0;
+  for (let i = 0; i < cssW; i++) if (cols.max[i]! > viewMax) viewMax = cols.max[i]!;
+  const scaleMax = Math.max(th.jankMs * 2, Math.min(viewMax, th.jankMs * 8));
+  const yOf = (v: number): number => top + area - Math.min(1, v / scaleMax) * area;
+
+  // Warm-up shading first, under everything.
+  ctx.fillStyle = 'rgba(240, 192, 90, 0.16)';
+  for (let i = 0; i < cssW; i++) if (cols.warm[i]) ctx.fillRect(i, top, 1, area);
+
+  // Bars. One fillRect per non-empty column; colour by the threshold band the column's worst frame is in.
+  for (let i = 0; i < cssW; i++) {
+    const v = cols.max[i]!;
+    if (v <= 0) continue;
+    const y = yOf(v);
+    ctx.fillStyle = cols.warm[i] ? 'rgba(240, 192, 90, 0.55)' : color(v, th);
+    ctx.fillRect(i, y, 1, top + area - y);
+    if (v > scaleMax) { ctx.fillStyle = '#fff'; ctx.fillRect(i, top, 1, 2); } // clipped: a bright cap
+  }
+
+  // Reference lines: the per-frame budget (dashed) and the long-frame line (dotted).
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath(); ctx.moveTo(0, yOf(th.frameMs) + 0.5); ctx.lineTo(cssW, yOf(th.frameMs) + 0.5); ctx.stroke();
+  ctx.strokeStyle = 'rgba(240,144,46,0.7)';
+  ctx.setLineDash([1, 3]);
+  ctx.beginPath(); ctx.moveTo(0, yOf(th.longFrameMs) + 0.5); ctx.lineTo(cssW, yOf(th.longFrameMs) + 0.5); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Dropped-frame ticks along the top and the phase strip along the bottom.
+  ctx.fillStyle = '#ff7a90';
+  for (let i = 0; i < cssW; i++) if (cols.long[i]) ctx.fillRect(i, 0, 1, TICK);
+  for (let i = 0; i < cssW; i++) {
+    const p = cols.phase[i]!;
+    if (p === 0) continue;
+    ctx.fillStyle = PHASE_COLORS[p] ?? PHASE_COLORS[0]!;
+    ctx.fillRect(i, GRAPH_H - STRIP, 1, STRIP);
+  }
 }
 
 /** `title` carries the RAW measured label behind a friendly name, so a row stays greppable on hover. */
@@ -375,11 +479,8 @@ function Row({ k, v, warn, title }: { k: string; v: string; warn?: boolean; titl
 
 /**
  * `useDraggablePanel` injects a ✕ into every panel it manages and wires it to `DevPanelContext`'s `close`.
- * This panel was mounted outside any provider, so that button — the prominent one, pinned to the panel's
- * top-right — called a no-op, which is why closing appeared broken (owner report 2026-08-29). It now gets a
- * provider whose `close` is the real one, the way `SceneBuilder` already does it.
- *
- * That also removes the second ✕: with the injected button working, the header does not need its own.
+ * This panel was once mounted outside any provider, so that button called a no-op (owner report 2026-08-29).
+ * The provider here makes it the real close.
  */
 export function PerfHud({ onClose }: { onClose?: () => void }): JSX.Element {
   return (

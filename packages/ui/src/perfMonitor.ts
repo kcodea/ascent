@@ -101,6 +101,29 @@ export interface PerfStartup {
 /** The live warm-up state, for the HUD. `remainingMs` / `framesLeft` are what still has to elapse. */
 export interface WarmupState { active: boolean; reason: string; remainingMs: number; framesLeft: number }
 
+/**
+ * THE FRAME RING — the last `RING_FRAMES` presented frames at FRAME resolution, for the live monitor's
+ * rolling graph. The 1 s buckets are the right grain for a 40-minute log and the wrong one for "what just
+ * happened": a 10 s window of per-second worst bars is ten bars. 4096 frames is 11 s at 360 Hz, 17 s at 240,
+ * and costs 52 kB, allocated once in `start()`. Per frame it is three typed-array stores.
+ *
+ * Read in place by the HUD (no copy): `head` is the NEXT slot to write, so the newest frame is `head - 1`.
+ * `flag` carries whether the frame was diverted by a warm-up (bit 0) and the phase it was presented in
+ * (`PHASE_CODES`, bits 1+), so the graph can shade warm-ups and draw the phase strip without a lookup.
+ */
+export const RING_FRAMES = 4096;
+export const FLAG_WARM = 1;
+/** Phase → small code for `FrameRing.flag`. Unknown is 0. */
+export const PHASE_CODES: Record<string, number> = { recruit: 1, combat: 2, runeforge: 3, gameover: 4, victory: 4 };
+export interface FrameRing {
+  dt: Float32Array;
+  t: Float64Array;
+  flag: Uint8Array;
+  head: number;
+  /** Frames written so far, capped at the ring size. */
+  n: number;
+}
+
 /** The thresholds in force. Re-derived when the refresh estimate moves; read once per bucket close, never
  *  per frame. Exposed through `perfThresholds()` so consumers (the HUD) can't cache a stale copy. */
 let thresholds: FrameThresholds = thresholdsFor(DEFAULT_REFRESH_HZ);
@@ -158,7 +181,8 @@ export interface PerfBucket {
 }
 
 type CounterFn = () => number;
-type ContextFn = () => { phase?: string; wave?: number };
+/** `overlay` names a phase-like state that is not a `RunState.phase` — the Runeforge — for the phase strip. */
+type ContextFn = () => { phase?: string; wave?: number; overlay?: string };
 
 /** Frame-time stats for one bucket. Pure + exported so the maths is unit-testable — the sampler itself is
  *  rAF- and DOM-bound and can't be exercised headlessly. `th` defaults to the 60 Hz calibration so the
@@ -300,6 +324,11 @@ class PerfMonitor {
   private warmThisBucket = 0;
   private readonly startupList: PerfStartup[] = [];
 
+  // ── The frame ring (see `FrameRing`) ───────────────────────────────────────────────────────────────────
+  private ring: FrameRing = { dt: new Float32Array(0), t: new Float64Array(0), flag: new Uint8Array(0), head: 0, n: 0 };
+  /** The phase code stamped on each frame — refreshed at bucket close and at every phase start, never per frame. */
+  private phaseCode = 0;
+
   /**
    * Should the monitor be running?
    *
@@ -350,6 +379,20 @@ class PerfMonitor {
 
   /** Register the game-context provider (phase / wave), so buckets carry what was happening. */
   registerContext(fn: ContextFn): void { this.context = fn; }
+
+  private refreshPhaseCode(ctx: ReturnType<ContextFn>): void {
+    this.phaseCode = PHASE_CODES[ctx.overlay ?? ctx.phase ?? ''] ?? 0;
+  }
+
+  /** The last frames at frame resolution — see `FrameRing`. Read in place; never mutate. */
+  frameRing(): FrameRing { return this.ring; }
+
+  /** Every registered counter's value RIGHT NOW — for the live strip. A handful of `.length` reads. */
+  counterSnapshot(): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const [name, fn] of this.counters) { try { out[name] = fn(); } catch { /* a counter must never break the HUD */ } }
+    return out;
+  }
 
   /** Annotate the timeline: `perfMonitor.mark('weld')` when an FX fires. No-op when not running, so call
    *  sites don't need to guard. This is what turns "a spike at t=412s" into "a spike on 7 batched welds". */
@@ -468,6 +511,7 @@ class PerfMonitor {
     const now = performance.now();
     if (this.warm) this.closeWarmup(now);
     const ctx = this.context();
+    this.refreshPhaseCode(ctx);
     this.warm = {
       reason, startedAt: now,
       until: now + this.warmupCfg.ms,
@@ -535,6 +579,12 @@ class PerfMonitor {
     if (this.running || typeof window === 'undefined') return;
     if (this.frames.length !== MAX_FRAMES_PER_BUCKET) this.frames = new Float32Array(MAX_FRAMES_PER_BUCKET);
     if (this.warmFrames.length !== MAX_WARMUP_FRAMES) this.warmFrames = new Float32Array(MAX_WARMUP_FRAMES);
+    if (this.ring.dt.length !== RING_FRAMES) {
+      this.ring = { dt: new Float32Array(RING_FRAMES), t: new Float64Array(RING_FRAMES), flag: new Uint8Array(RING_FRAMES), head: 0, n: 0 };
+    } else {
+      this.ring.head = 0;
+      this.ring.n = 0;
+    }
     this.loadWarmupConfig();
     this.running = true;
     this.nFrames = 0;
@@ -581,6 +631,13 @@ class PerfMonitor {
     const dt = now - this.lastFrame;
     this.lastFrame = now;
     const w = this.warm;
+    // The frame ring: three stores and a masked increment. See `FrameRing`.
+    const r = this.ring;
+    r.dt[r.head] = dt;
+    r.t[r.head] = now;
+    r.flag[r.head] = (w ? FLAG_WARM : 0) | (this.phaseCode << 1);
+    r.head = (r.head + 1) & (RING_FRAMES - 1);
+    if (r.n < RING_FRAMES) r.n++;
     if (w) {
       // Warming up: the frame goes to the startup record, not the bucket. One extra branch per frame.
       if (this.nWarmFrames < this.warmFrames.length) this.warmFrames[this.nWarmFrames++] = dt;
@@ -683,6 +740,7 @@ class PerfMonitor {
     this.tallies.clear();
     const mem = (performance as { memory?: { usedJSHeapSize: number } }).memory;
     const ctx = this.context();
+    this.refreshPhaseCode(ctx);
 
     const bucket: PerfBucket = {
       t: Math.round(now - this.t0),

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { perfMonitor } from './perfMonitor';
 import gsap from 'gsap';
 import type { CombatEvent, CombatResult, Keyword, MinionBuff, MinionSnapshot, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { triggerCounts } from './choreo/triggerCounts';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
 import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig';
-import { fireSpellBuffOnHandSpells, fireSpellBuffOnHandRubies } from './spellBuffFx';
+import { fireHandBuff, fireHandBuffOnHandSpells, fireHandBuffOnHandRubies } from './handBuffFx';
 import { useGame } from './store'; // `useGame.getState()` — read the live hand for the mid-combat spell/Ruby buff cue
 import { pixiFx } from './pixiFx';
 import { sfx } from './sfx';
@@ -35,7 +36,7 @@ import { isDeathrattleBufferCard } from './deathrattleBuffers';
 import { fireBuffFx } from './buffFxRender';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
-import { authoredBuffDefFor, bindingFor, labelBuffFxFor, sourceBuffDefFor } from './choreo/bindings';
+import { authoredBuffDefFor, bindingFor, heroPowerBuffLabelFor, labelBuffFxFor, sourceBuffDefFor } from './choreo/bindings';
 import { isRuneBuffSource, hasPower } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { getDef } from './fx/fxDefs';
@@ -266,6 +267,20 @@ export function handBuffsShownThrough(events: CombatEvent[], beats: Beat[], beat
     if (e.type !== 'handBuff' || e.side !== 'player') continue;
     const cur = out[e.uid] ?? { attack: 0, health: 0 };
     out[e.uid] = { attack: cur.attack + e.attack, health: cur.health + e.health };
+  }
+  return out;
+}
+
+/**
+ * The player-side hand cards a beat's `handBuff` events land on, in event order, one entry PER EVENT — the
+ * cue's fan-out for the combat surface (the shop's is `diffHandBuffs` in `handBuffFx.ts`). Only `start`/`end`
+ * are read off the beat.
+ */
+export function handBuffUidsIn(beat: { start: number; end: number }, events: readonly CombatEvent[]): string[] {
+  const out: string[] = [];
+  for (let i = beat.start; i < beat.end; i++) {
+    const e = events[i];
+    if (e?.type === 'handBuff' && e.side === 'player') out.push(e.uid);
   }
   return out;
 }
@@ -1157,7 +1172,7 @@ export function useCombatReplay(
     // reacted at combat RESOLUTION (owner report): the hand-card cue is driven by a diff of the rendered live
     // text, and run state doesn't change until settle — so mid-fight there is nothing for that diff to see.
     // Firing from the narration beat puts it on the moment the gain actually happens.
-    fireSpellBuffOnHandSpells(useGame.getState().run.hand);
+    fireHandBuffOnHandSpells(useGame.getState().run.hand);
   }, []);
   /** The card-frame bloom alone (nonce → remount → the animation restarts), so a Shout's owner can bloom once
    *  PER FIRE — the beat-level `sccast` flash class fires once per beat and cannot repeat within it. */
@@ -1561,27 +1576,43 @@ export function useCombatReplay(
       // pair is a point above the card → the card itself, which is what `fireBuffFx` draws generically and what
       // a `travel`-anchored ribbon reads as coming down onto the minion that earned it.
       const labelFx = sourceless ? labelBuffFxFor(c.source) : null;
-      if (labelFx) {
-        // FROM THE HERO POWER BUTTON (owner report 2026-09-01: *"gorun's hero power trail isn't originating
-        // from the hero power button"*). A hero power has no body on the board, but it DOES have a control on
-        // screen, and that is where the player watches it charge — so a `travel`-anchored ribbon should leave
-        // from there rather than from a point in space above the card, which is what a generic descend uses.
-        //
-        // The ENEMY's power lives in its own corner (`.opp-power`), so the side is picked from where the
-        // buffed body actually is. If neither button is on screen the descend is the fallback: an effect
-        // slightly out of place beats no effect at all, and that was the pre-existing behaviour.
+      // FROM THE HERO POWER BUTTON (owner report 2026-09-01: *"gorun's hero power trail isn't originating
+      // from the hero power button"*). A hero power has no body on the board, but it DOES have a control on
+      // screen, and that is where the player watches it charge — so a `travel`-anchored ribbon should leave
+      // from there rather than from a point in space above the card, which is what a generic descend uses.
+      //
+      // The ENEMY's power lives in its own corner (`.opp-power`), so the side is picked from where the
+      // buffed body actually is. If neither button is on screen the descend is the fallback: an effect
+      // slightly out of place beats no effect at all, and that was the pre-existing behaviour.
+      const heroPowerFrom = (): { x: number; y: number } => {
         const onEnemy = !frameRef.current?.player.some((u) => u.uid === c.target);
         const powerEl = document.querySelector<HTMLElement>(
           onEnemy ? '.heropowerbtn.opp-power' : '.statusbar .heropanel:not(.heropanel2):not(.equipslot) .heropowerbtn',
         ) ?? document.querySelector<HTMLElement>(onEnemy ? '.opp-power' : '.statusbar .heropowerbtn');
         const pr = powerEl?.getBoundingClientRect();
-        const from = pr && (pr.width > 0 || pr.height > 0)
+        return pr && (pr.width > 0 || pr.height > 0)
           ? { x: pr.left + pr.width / 2, y: pr.top + pr.height / 2 }
           : { x: tc.x, y: tc.y - tr.height };
-        playDef(labelFx.def, { source: from, target: tc, cursor: tc, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
+      };
+      if (labelFx) {
+        playDef(labelFx.def, { source: heroPowerFrom(), target: tc, cursor: tc, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
           { uids: { source: c.target, target: c.target } });
         if (labelFx.heroId) sfx.heroPower(labelFx.heroId);
         if (!perTarget.has(c.target)) perTarget.set(c.target, AUTHORED_BUFF_ROLL_MS);
+        continue;
+      }
+      // A HERO POWER with no authored def (Emissary's United Front — owner ask 2026-09-15): the GENERIC buff
+      // tendril, from the hero-power button to each recipient, through the one shared `fireBuffFx` path so the
+      // roll lands on the ribbon's arrival like every minion-sourced buff. Base ribbon (a hero is tribeless).
+      // Before this the grant was sourceless with nothing authored — it landed with no cue at all.
+      const heroFx = sourceless ? heroPowerBuffLabelFor(c.source) : null;
+      if (heroFx) {
+        const strikeMs = fireBuffFx({
+          source: heroPowerFrom(), target: tc, cardId: '', tribe: 'neutral', sourceless: false,
+          uids: { source: null, target: c.target },
+        });
+        sfx.heroPower(heroFx.heroId);
+        if (!perTarget.has(c.target)) perTarget.set(c.target, strikeMs);
         continue;
       }
       // AUTHORED REPLACES STOCK, for a SOURCE MINION whose own on-attack buff has no spell behind it (Paragon's
@@ -1804,7 +1835,7 @@ export function useCombatReplay(
   // buff/aura, Rally, Avenge, Sergeant's HP-grant, Reborn), its trigger icon releases a ring of energy.
   // We tag the acting unit's uid, then clear it after the pulse animation so it always completes (and a
   // re-trigger restarts it). Held a fixed ~1.15s (glow flash + delayed ring) regardless of combat speed.
-  useEffect(() => {
+  useEffect(() => perfMonitor.measure('choreo:step', () => {
     if (!active || beatIdx === 0) return;
     const beat = beats[beatIdx - 1];
     if (!beat) return;
@@ -1908,6 +1939,11 @@ export function useCombatReplay(
         if (e?.type === 'questTrigger' && e.flag === 'bladeMastery' && e.side === 'player') useGame.getState().dispatch({ type: 'combatBladeAttackPreview' });
       }
     }
+    // A HAND CARD BUFFED mid-combat (owner ask 2026-09-15): every player-side `handBuff` event — Nurturer's
+    // Echo, Shared Spirit, a Rising Tide proc — plays the owner-authored `hand-buff` def on THAT hand card, on
+    // the same beat R-HAND-02 grows its badge (`handBuffsShownThrough`). One play per event, so a card hit
+    // twice in a beat pops twice; the cascade inside `fireHandBuff` spaces several cards hit by one effect.
+    fireHandBuff(handBuffUidsIn(beat, events));
     // FRONT TO BACK improving itself mid-combat (owner ask 2026-08-07): the resolver narrates each
     // improvement, and this moves the HELD card's printed value live via the display-only preview action.
     // Player-side only — `side` is stamped on the narration, so an enemy Quil's casts don't touch your hand.
@@ -1917,7 +1953,7 @@ export function useCombatReplay(
       const m = /improves \+(\d+)\/\+(\d+)$/.exec(e.text);
       if (!m) continue;
       useGame.getState().dispatch({ type: 'combatEscalationPreview', attack: Number(m[1]), health: Number(m[2]) });
-      fireSpellBuffOnHandSpells(useGame.getState().run.hand); // pop the held spells, same cue as spell power
+      fireHandBuffOnHandSpells(useGame.getState().run.hand); // pop the held spells, same cue as spell power
     }
     // RUBY POWER gained mid-combat (owner ask 2026-07-24) — Veinbreaker's Avenge and friends. `gainRubyBonus`
     // used to accumulate silently and only surface at settle, so there was nothing to hang a cue on at the
@@ -1939,7 +1975,7 @@ export function useCombatReplay(
       floatRubyPowerNumber(cx, cy - h * 0.3, gA, gH);
       // …and pop the held Rubies themselves, so the player sees WHICH cards the gain lands on. The spell-buff
       // bus is callable from here precisely because it no longer lives in Recruit's state.
-      fireSpellBuffOnHandRubies(useGame.getState().run.hand);
+      fireHandBuffOnHandRubies(useGame.getState().run.hand);
     }
     // PROC CRIT (Karwind's 20% double trigger). Unlike the two gains above this carries its own `source` uid
     // on a dedicated event, so no text-matching and no side-gating heuristic is needed — an enemy Karwind's
@@ -2055,13 +2091,13 @@ export function useCombatReplay(
     }
     // `seekNonce`: re-seeking the beat you are already on leaves `beatIdx` identical, so without it this
     // per-beat cue would not re-run and the pulse would never replay. Constant during normal playback.
-  }, [active, beatIdx, seekNonce, beats, events, cardIds]);
+  }), [active, beatIdx, seekNonce, beats, events, cardIds]);
 
   // Combat cues — sfx (choreo/channels/sfx.ts) + floats (choreo/channels/float.ts) for the moment just
   // resolved, dispatched via the Score's channel registry (choreo/score.ts). The melee smack/impact-FX/
   // recoil for an attack's OWN contact fire separately, from the lunge's GSAP timeline (see the layout
   // effect below) — anchored at the real `contact` position instead of this beat-boundary effect.
-  useEffect(() => {
+  useEffect(() => perfMonitor.measure('choreo:step', () => {
     if (!active || beatIdx === 0) return; // only during the live replay (avoids a phantom cue at shop swap-in)
     const beat = beats[beatIdx - 1];
     if (!beat) return;
@@ -2352,7 +2388,7 @@ export function useCombatReplay(
       stop();
     };
     // `seekNonce`: see the trigger-pulse effect above — a re-seek to the same beat must re-fire these cues.
-  }, [active, beatIdx, seekNonce, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
+  }), [active, beatIdx, seekNonce, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
 
   // Verdict sting when the replay finishes.
   useEffect(() => {
@@ -2363,7 +2399,7 @@ export function useCombatReplay(
 
   // Measure lunge + SC projectiles AFTER the beat commits, so positions reflect the
   // frame on screen (not the previous one). Runs synchronously before paint.
-  useLayoutEffect(() => {
+  useLayoutEffect(() => perfMonitor.measure('choreo:step', () => {
     const cur = beatIdx > 0 ? beats[beatIdx - 1] : undefined;
     const center = (uid: string): { x: number; y: number } | null => {
       const el = findEl(uid);
@@ -2635,7 +2671,7 @@ export function useCombatReplay(
     // that per-beat clearing was the Task 6 bug. They now live in the combat-lifetime roll registry (see
     // `scheduleRoll`/`cancelPendingRolls` near `resetTo`), which this effect never reaches into.
     // `seekNonce`: see the trigger-pulse effect above — a re-seek to the same beat must re-measure + re-lunge.
-  }, [beatIdx, seekNonce, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
+  }), [beatIdx, seekNonce, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
 
   const names = useMemo(() => {
     const m = new Map<string, string>();
@@ -2666,8 +2702,10 @@ export function useCombatReplay(
   // Mid-replay, keep the current beat's dying minions one beat; once done, drop
   // every dead minion so the result shows only survivors.
   const beatStart = done ? processedEnd : beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.start ?? 0);
+  // `choreo:frame` — the fold of the event log into this beat's board (perf). `choreo:step` is the cue
+  // effects that fire on the beat (the five per-beat effects below); together they are a combat beat's JS.
   const frame = useMemo(
-    () => (combat ? computeFrame(combat.initial, events, processedEnd, beatStart, names) : { player: [], enemy: [] }),
+    () => perfMonitor.measure('choreo:frame', () => (combat ? computeFrame(combat.initial, events, processedEnd, beatStart, names) : { player: [], enemy: [] })),
     [combat, events, processedEnd, beatStart, names],
   );
   frameRef.current = frame;
@@ -2704,7 +2742,7 @@ export function useCombatReplay(
   // fresh 24 held again totals 36 held against a 49-attack unit, printing 13 for a frame: BELOW the 25
   // pre-buff floor, a number the minion never had. Releasing this beat's own uids unconditionally (not just
   // `combatHeldRef`'s) closes that gap: `holdStat` always sees a clean slate for a uid it's about to place.
-  useLayoutEffect(() => {
+  useLayoutEffect(() => perfMonitor.measure('choreo:step', () => {
     // Release last beat's leftover holds — see THE INVARIANT above. On every pass through this effect,
     // including the inactive/beat-0 early-out just below: skipping it would leave a stale hold live into the
     // next real beat, and `holdStat` ACCUMULATES same-origin deltas onto a live hold rather than replacing
@@ -2808,7 +2846,7 @@ export function useCombatReplay(
     // re-seek. Without `seekNonce` the badge shows the POST-buff number for the whole replayed beat instead
     // of holding pre-buff and rolling up at the tendril — the up-then-down-then-up artifact this effect
     // exists to kill.
-  }, [active, beatIdx, seekNonce, beats, events, frame, cancelRollForUid]);
+  }), [active, beatIdx, seekNonce, beats, events, frame, cancelRollForUid]);
 
   // ── Summon HOLDS, installed in the same pre-paint window and for the same reason ───────────────────────
   //
@@ -2823,7 +2861,7 @@ export function useCombatReplay(
   // Cleared wholesale first, so a hold whose release timer was lost (a skip, a seek, a mid-flight speed
   // change) can never outlive its beat and strand a live minion off the board. The module's TTL is the
   // backstop for a replay that stops re-rendering entirely; this is the ordinary path.
-  useLayoutEffect(() => {
+  useLayoutEffect(() => perfMonitor.measure('choreo:step', () => {
     releaseAllSummons();
     if (!active || beatIdx === 0) return;
     const beat = beats[beatIdx - 1];
@@ -2845,7 +2883,7 @@ export function useCombatReplay(
       }
     }
     return () => { if (impReveal !== undefined) clearTimeout(impReveal); };
-  }, [active, beatIdx, seekNonce, beats, events, cardIds]);
+  }), [active, beatIdx, seekNonce, beats, events, cardIds]);
 
   // The board as it should be DRAWN: `frame` minus anything an effect is still holding back. Kept separate
   // from `frame` rather than filtered in place because `frame` is the TRUTH — the loss-damage tally counts

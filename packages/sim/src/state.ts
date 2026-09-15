@@ -1,5 +1,5 @@
 import { makeRng } from '@game/core';
-import type { BoardMinion, CombatConfig, CombatOutcome, CombatResult, CombatSideState, EffectDef, Keyword, QuestObjectiveEvent, Rng, Tribe } from '@game/core';
+import type { BoardMinion, BounceKind, CombatConfig, CombatOutcome, CombatResult, CombatSideState, EffectDef, Keyword, QuestObjectiveEvent, Rng, Tribe } from '@game/core';
 import { CARD_INDEX, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { CONFIG, HENCHMEN_ARCHIVED, RIFT_BONUS_ARMOR, activeRift, type RiftId } from './config';
 import { DEFAULT_HERO_ID, getHero, powerDiscoverPool } from './heroes';
@@ -470,6 +470,26 @@ export interface ShopDeathFx {
 }
 
 export interface RubyLandedFx { uid: string; count: number; }
+
+/**
+ * One BOUNCE hop for the UI's `spell-bounce` / `ruby-bounce` defs (owner ask 2026-09-15): a spell or Ruby was
+ * RE-CAST onto a DIFFERENT body as a consequence of the cast that landed on `fromUid` — Star Crash's random
+ * friend, Crash Course's two Celestials, Reflector's spread, Rune of Distillation (a Shop offer → your left-most),
+ * Rune of Redirection (left-most → right-most), Rune of the Conduit / Candle Conduit / Resonance Idol's extra Ruby.
+ * ONE entry per (from → to) cast, never batched, so a doubled hop is countable at the signal. `fromUid` may be
+ * a SHOP offer's uid (Distillation, Star Crash on the Starform token); `toUid` is always a board minion.
+ * Presentation only — nothing in the sim reads it back; cleared per action, seq-bumped per record. A same-target
+ * recast (Mirrorwing, Resonance, Prismcaster) is NOT a bounce and records nothing here (owner ruling).
+ */
+export interface BounceFx { kind: BounceKind; fromUid: string; toUid: string; }
+
+/** Record one bounce hop on the per-action `bounceFx` channel. A no-op when both ends are the same body — the
+ *  bounce cue is CROSS-TARGET ONLY (owner ruling 2026-09-15); same-target recasts get their own cue later. */
+export function recordBounceFx(s: RunState, kind: BounceKind, fromUid: string, toUid: string): void {
+  if (fromUid === toUid) return;
+  s.bounceFx = [...(s.bounceFx ?? []), { kind, fromUid, toUid }];
+  s.bounceFxSeq = (s.bounceFxSeq ?? 0) + 1;
+}
 
 /** Which tavern offers VEINSTORM gemmed this action, and whether it was the cast or a refresh re-stamp.
  *  Distinct from `rubyLandedFx` on purpose: Veinstorm gems the whole shop as ONE event (a spanning volley, a
@@ -1191,6 +1211,11 @@ export interface RunState {
   collapseExtraTargets?: number;
   /** Bumps each time a Starform pull is recorded — the UI keys the `starform-pull` play off this. */
   starformFxSeq: number;
+  /** The bounce hops recorded this action (see `BounceFx`). Cleared at the top of `reduce`, like `starformFx`. */
+  bounceFx?: BounceFx[];
+  /** Bumps per recorded bounce hop — the UI keys the `spell-bounce` / `ruby-bounce` plays off this. Optional:
+   *  a save from before the field existed restores without it (`?? 0` at every read). */
+  bounceFxSeq?: number;
   /** Wolvie's borrowed Echo (`deathrattleBuffNextSummon`): buff the NEXT minion summoned in the shop of this
    *  tribe, then clear. One-shot; also cleared at End of Turn so it never leaks into the next shop. */
   pendingSummonBuff?: { tribe: Tribe; attack: number; health: number; source: string };

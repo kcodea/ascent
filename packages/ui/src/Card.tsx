@@ -9,8 +9,6 @@ import {
   beginEditCardArt, cardArtVars, cardArtVersion, editingCardArt, isPickingCardArt, subscribeCardArt,
 } from './cardArtConfig';
 import { CardArtEditor } from './CardArtEditor';
-import { getSpellBuffFxConfig, makeSpellBuffSparks, sparkEaseCss, growEaseCss, shrinkEaseCss } from './spellBuffFxConfig';
-import { subscribeSpellBuff, getSpellBuffSeq } from './spellBuffFx';
 import { heldFor, holdStat, statHoldKey, subscribeStatHolds } from './fx/statHold';
 import { resolveMechIcon } from './mechIcon';
 
@@ -481,15 +479,8 @@ export const Card = memo(function Card({
   autoRoll?: boolean;
 }) {
   const inspectCard = useGame((s) => s.inspectCard);
-  // Spell-buff cue: build this burst's motes (and read its timing/shape dials) at FIRE TIME, so a ✨ Spell Buff
-  // tuner edit shows on the NEXT burst without a reload. Re-keyed on `spellBuffed` so each burst gets fresh
-  // jitter and the same burst never re-randomises mid-animation.
-  // The SPELL-buff burst id comes from a module-level store rather than a prop, so ANY surface or phase can
-  // start the cue (end of turn, start of combat, a mid-combat Echo/Avenge) without this card's renderer having
-  // to thread state down — see `spellBuffFx.ts`. `undefined` = not bursting; the number INCREASES on every
-  // retrigger so a buff landing mid-burst restarts the cue instead of being swallowed (owner 2026-07-24: each
-  // trigger must read as its own hit, and cutting the previous one off is fine).
-  const spellBuffSeq = useSyncExternalStore(subscribeSpellBuff, () => (uid ? getSpellBuffSeq(uid) : undefined), () => undefined);
+  // A hand card getting stronger plays the owner-authored `hand-buff` def ON the card (`handBuffFx.ts`, 2026-09-15)
+  // — a `react` layer pops this element through `unitSelector`, so the card itself carries no cue state.
   // A stat change can be WITHHELD from the badge until an effect delivers it (see `fx/statHold.ts`): the
   // cue holds the delta, a `react` layer with "carries the number" releases it at its peak, so the digits
   // change on the effect's clock instead of the reducer's. Subscribed per-uid so a card with nothing held
@@ -553,20 +544,6 @@ export const Card = memo(function Card({
   // Each badge pops independently, so a buff that only moves attack leaves the health badge alone.
   const atkPopRef = useBadgePop(shownAttack);
   const hpPopRef = useBadgePop(shownHealth);
-  const spellSparks = useMemo(() => (spellBuffSeq !== undefined ? makeSpellBuffSparks() : []), [spellBuffSeq]);
-  const spellBuffed = spellBuffSeq !== undefined;
-  const sbCfg = spellBuffed ? getSpellBuffFxConfig() : null;
-  // Restart the card's grow/shrink on EVERY new burst id. Re-applying a class that's already on does not replay
-  // a CSS animation, so without this a second buff landing mid-cue would show sparks but a motionless card.
-  // cancel() + play() rewinds both phases (delay included) — deliberately cutting the previous pop short.
-  const sbRootRef = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    if (spellBuffSeq === undefined) return;
-    for (const a of sbRootRef.current?.getAnimations() ?? []) {
-      const name = (a as Animation & { animationName?: string }).animationName;
-      if (name === 'sbgrow' || name === 'sbshrink') { a.cancel(); a.play(); }
-    }
-  }, [spellBuffSeq]);
   // The arched frame is universal now. `showText` = also render the drop-down text drawer (the "full"
   // card): on a force-full card (hover reveal / hand / right-click inspect) or when the player turns the
   // compact tiles off. At rest (compact tiles on, not force-full) it's a pure arched art tile.
@@ -760,8 +737,7 @@ export const Card = memo(function Card({
   const useStdFrame = !spellLike && !isTaunt && sframeOk;
   return (
     <div
-      ref={sbRootRef}
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${spellBuffed ? ' spellbuff' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
       data-uid={uid}
       data-choose-both={card.chooseBothKey}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
@@ -771,8 +747,6 @@ export const Card = memo(function Card({
         // Framed under the BRANCH's key when a resolved Choose One is wearing branch art, falling back to
         // the card's own entry — the base and the branch are different pictures (owner ask 2026-08-28).
         ...(cardArtVars(card.cardId ? artVariantKey(card.cardId, card.chosenOption) : undefined, card.cardId) ?? {}),
-        // Spell-buff cue dials (✨ Spell Buff tuner) — only while the burst is on, so nothing else pays for them.
-        ...(sbCfg ? { '--sb-grow': sbCfg.growScale, '--sb-grow-ms': `${sbCfg.growMs}ms`, '--sb-grow-ease': growEaseCss(sbCfg), '--sb-shrink-ms': `${sbCfg.shrinkMs}ms`, '--sb-shrink-ease': shrinkEaseCss(sbCfg), '--sb-ms': `${sbCfg.sparkMs}ms`, '--sb-alpha': sbCfg.sparkAlpha, '--sb-glow': `${sbCfg.sparkGlow}px`, '--sb-grav': `${sbCfg.sparkGravity}px`, '--sb-oy': `${sbCfg.blastOriginY}%`, '--sb-ease': sparkEaseCss(sbCfg) } : {}),
         transform: handSlidePx
           ? `translateX(${handSlidePx}px) translateY(var(--hand-tuck, 0px)) rotate(var(--fan-rot, 0deg))` /* hand reorder: keep the tuck + fan tilt while parting */
           : slideDir ? `translateX(calc((var(--ccw) + 22px) * ${slideDir}))` : undefined } as CSSProperties}
@@ -1163,21 +1137,6 @@ export const Card = memo(function Card({
           </div>
         )}
       </div>}
-      {/* Spell buff — this hand spell / Ruby just got stronger: coloured sparks blast outward off it (the three
-          hues are tuner dials). Pairs with the `.spellbuff` grow/shrink on the card itself. */}
-      {spellBuffed && (
-        /* Keyed on the burst id so a retrigger REMOUNTS the motes: new jitter, and every animation restarts
-           from zero rather than continuing the previous burst's flight. */
-        <span className="sbsparks" key={spellBuffSeq} aria-hidden="true">
-          {spellSparks.map((s, i) => (
-            <span
-              key={i}
-              className="sbspark"
-              style={{ animationDelay: s.delay, '--sb-size': s.size, '--sb-ang': s.angle, '--sb-dist': s.dist, '--sb-hue': s.hue, '--sb-tail': s.tail } as CSSProperties}
-            />
-          ))}
-        </span>
-      )}
       {/* Karwind — a Dragon just got Karwind's battlecry-triggered buff: flames sweep up the card
           (on top of the normal green buff flash), marking it as Karwind's doing. */}
       {karwind === 'flame' && (

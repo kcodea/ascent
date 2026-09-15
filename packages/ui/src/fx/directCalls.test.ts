@@ -152,13 +152,17 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // buff cue is being replaced by an authored pixi effect); the number float carries the read now.
       'ale-bubbles', 'auctioneer-hp', 'choose-one-both', 'cia-hp', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
       'equipment-spark', 'equipment-used-up',
-      'freeze-blast', 'hero-power-spark', 'hero-power-target', 'impact-dust', 'landing-dust', 'ruby-gem-apply',
+      // 'hand-buff' joined on 2026-09-15: the owner-authored hand-card buff cue, fired from `handBuffFx.ts`
+      // (replacing the CSS spell-buff grow/shrink + mote blast, which never reached the def pipeline).
+      // 'ruby-bounce' + 'spell-bounce' joined on 2026-09-15: the cross-target re-cast ribbon, fired from the `bounceFx`
+      // watcher in `Recruit.tsx` (shop) and the `bounceFx` channel in `choreo/score.ts` (combat).
+      'freeze-blast', 'hand-buff', 'hero-power-spark', 'hero-power-target', 'impact-dust', 'landing-dust', 'ruby-bounce', 'ruby-gem-apply',
       // 'tendril-trail' joined on 2026-09-02: the owner-authored buff-other ribbon, fired from `buffFxRender.ts`.
       // 'shop-buff-purple' joined the same day: the mid-combat Shop-buff bloom, fired from `useCombatReplay.ts`.
       // 'ward-lost-blast' joined on 2026-09-09: the owner-authored Ward-loss burst, fired from `choreo/channels/aura.ts`.
       // 'starform-pull' joined on 2026-09-12: the owner-authored Starform consume / collapse pull, fired from `Recruit.tsx`.
       // 'starform-create' joined on 2026-09-14: the owner-authored Starform creation cue, fired from `Recruit.tsx`.
-      'rune-buff-unit', 'rune-select-implosion', 'rune-slot-break', 'shop-buff-purple', 'shop-tier-up', 'starform-create', 'starform-pull', 'strike-impact', 'tallyanimation1', 'tendril-trail', 'ward-lost-blast', 'watcher-pulse',
+      'rune-buff-unit', 'rune-select-implosion', 'rune-slot-break', 'shop-buff-purple', 'shop-tier-up', 'spell-bounce', 'starform-create', 'starform-pull', 'strike-impact', 'tallyanimation1', 'tendril-trail', 'ward-lost-blast', 'watcher-pulse',
     ]);
   });
 

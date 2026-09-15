@@ -5,6 +5,7 @@ import { Card, type CardView } from './Card';
 import { stepProgress } from './cardText';
 import { liveCardText } from './instView';
 import { useGame } from './store';
+import { perfMonitor } from './perfMonitor';
 import type { UnitFrame } from './useCombatReplay';
 
 /* Floats (damage numbers, keyword glyphs) used to render HERE, as siblings of the `<Card>`. They now live in
@@ -32,6 +33,9 @@ const sameKeywords = (a: string[], b: string[]): boolean =>
 
 /** A combat unit — the same Card as recruit, wrapped for animations and the DS ring. */
 function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePulse }: UnitProps) {
+  // How many units actually re-rendered this second — the memo above is supposed to keep this at 1–3 per
+  // beat; a number near the board size means the comparator is missing. One branch when the monitor is off.
+  perfMonitor.count('unit renders');
   const cls = ['unit', side, u.divineShield ? 'ds' : '', anim ?? ''].filter(Boolean).join(' ');
   const def = CARD_INDEX[u.cardId];
   const goldMul = u.golden ? 2 : 1;

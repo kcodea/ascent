@@ -94,11 +94,11 @@ import { playDef, canPlayDefs } from './fx/playDef';
 import { getShopDeathFxConfig } from './shopDeathFxConfig';
 import { getEquipFxConfig } from './equipFxConfig';
 import { anchorsForUnits } from './fx/combatAnchors';
-import { rubyLandHolds } from './choreo/channels/rubyLanded';
+import { rubyLandHolds, RUBY_BEAT_MS, RUBY_GAP_MS } from './choreo/channels/rubyLanded';
 import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shieldGainMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
 import { bindingFor } from './choreo/bindings';
-import { scheduleLands, waves as asWaves } from './fx/land';
+import { cascade, scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat, releaseStat } from './fx/statHold';
 import { fodderGainHolds, type FodderGain } from './fx/fodderGains';
 import { applyFloatSpeed, getFloatConfig, splashImgSrc } from './floatConfig';
@@ -4994,6 +4994,57 @@ export function Recruit() {
     return () => { if (raf) cancelAnimationFrame(raf); };
     // Keyed on the seq ONLY (see the fodder watcher above): the array ref changes every action.
   }, [run.starformFxSeq]);
+
+  // THE BOUNCE (owner-authored `ruby-bounce` + the placeholder `spell-bounce`, 2026-09-15): a spell or Ruby was
+  // RE-CAST onto a DIFFERENT body because of where the original cast landed — Star Crash's random friend, Crash
+  // Course's two Celestials, Reflector's spread, Rune of Distillation (a Shop offer → your left-most), Rune of
+  // Redirection, Rune of the Conduit. The def's ribbon travels FROM the body the original cast landed on TO the
+  // bounce recipient. Keyed on `run.bounceFxSeq`, the sim's per-action channel (see `RunState.bounceFx`); one
+  // play per HOP, walked as the same cascade-of-stacks the Ruby sweep uses (`gap` between distinct pairs,
+  // `beat` within a doubled one) so a multiplied hop is countable. Same-target recasts never reach this channel
+  // (the sim drops them — cross-target only, owner ruling).
+  //
+  // ANCHORS: `anchorsForUnits` reads both rows, so a Shop-offer source (Distillation, Star Crash on the Starform
+  // token) resolves like a board one. The recipient can land a frame late (a spell resolving in the same commit
+  // that mounts a body) — retry briefly like the Starform pull above rather than dropping the play.
+  const prevBounceFxSeq = useRef(run.bounceFxSeq ?? 0);
+  useEffect(() => {
+    const seq = run.bounceFxSeq ?? 0;
+    if (seq === prevBounceFxSeq.current) return;
+    prevBounceFxSeq.current = seq;
+    if (!canPlayDefs()) return;
+    // Group identical hops into stacks, first-appearance order — the signal is one entry per cast.
+    const hops: { kind: 'spell' | 'ruby'; from: string; to: string; count: number }[] = [];
+    for (const ev of run.bounceFx ?? []) {
+      const cur = hops.find((h) => h.kind === ev.kind && h.from === ev.fromUid && h.to === ev.toUid);
+      if (cur) cur.count += 1;
+      else hops.push({ kind: ev.kind, from: ev.fromUid, to: ev.toUid, count: 1 });
+    }
+    if (hops.length === 0) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let raf = 0, tries = 0;
+    const fireAll = (): void => {
+      // Wait until every end is measurable (max ~40 frames), then walk the whole schedule at once so the
+      // cascade's rhythm is not stretched by a straggling mount.
+      const ready = hops.every((h) => anchorsForUnits(h.from, h.to) !== null);
+      if (!ready && tries++ < 40) { raf = requestAnimationFrame(fireAll); return; }
+      for (const land of scheduleLands(cascade(hops.map((h) => ({ uid: `${h.from}>${h.to}`, count: h.count }))), { gap: RUBY_GAP_MS, beat: RUBY_BEAT_MS })) {
+        const hop = hops[land.group]!;
+        const fire = (): void => {
+          const anchors = anchorsForUnits(hop.from, hop.to);
+          if (!anchors) return; // sold / moved mid-sweep — skip rather than launching from an empty slot
+          // Two literal ids (not a lookup) so the direct-call scan sees both — see `directCalls.ts`.
+          if (hop.kind === 'ruby') playDef('ruby-bounce', anchors, { uids: { source: hop.from, target: hop.to }, index: land.group });
+          else playDef('spell-bounce', anchors, { uids: { source: hop.from, target: hop.to }, index: land.group });
+        };
+        if (land.at <= 0) fire();
+        else timers.push(setTimeout(fire, land.at));
+      }
+    };
+    fireAll();
+    return () => { if (raf) cancelAnimationFrame(raf); for (const t of timers) clearTimeout(t); };
+    // Keyed on the seq ONLY (see the Starform watcher above): the array ref changes every action.
+  }, [run.bounceFxSeq]);
 
   // RELEASE the held consumed slots (see `heldConsume` above) once the ghost has been pulled into the eater —
   // matched to the taffy pull's own clock (`getConsumeFxConfig().durationMs`). Dropping them here changes

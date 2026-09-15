@@ -11,6 +11,16 @@
       "port": 5173
     },
     {
+      "name": "web-5173",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:active"
+      ],
+      "port": 5173,
+      "url": "http://localhost:5173"
+    },
+    {
       "name": "web-verify",
       "runtimeExecutable": "npm",
       "runtimeArgs": [

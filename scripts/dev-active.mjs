@@ -38,6 +38,8 @@ const sha = (() => { try { return cap(['rev-parse', '--short', 'HEAD'], { cwd: r
 if (!existsSync(join(root, 'node_modules'))) console.warn(`⚠ ${root} has no node_modules — run \`npm install\` there (docs/concurrency.md) or the tree resolves deps through the primary checkout.`);
 console.log(`\n▶ 5173 → ${branch} @ ${sha}\n  ${root}\n  (${why})\n`);
 
+// Any args the launcher appends (the desktop app adds its own `--port NNNNN`) are deliberately NOT forwarded:
+// 5173 is the working-branch host and must stay 5173 (owner 2026-09-14 — the `web` row drifted to :51575).
 const child = spawn('npm', ['run', 'dev', '-w', 'apps/web', '--', '--port', PORT, '--strictPort'], {
   cwd: root, stdio: 'inherit', shell: process.platform === 'win32',
 });

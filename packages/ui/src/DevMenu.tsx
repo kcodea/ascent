@@ -24,7 +24,6 @@ import { TitleVeilTuner } from './TitleVeilTuner';
 import { BoardEdgeTuner } from './BoardEdgeTuner';
 import { SecondPowerTuner } from './SecondPowerTuner';
 import { CombatRampTuner } from './CombatRampTuner';
-import { SpellBuffFxTuner } from './SpellBuffFxTuner';
 import { StepProcFxTuner } from './StepProcFxTuner';
 import { QuestTendrilTuner } from './QuestTendrilTuner';
 import { HeroBuffFxTuner } from './HeroBuffFxTuner';
@@ -193,7 +192,6 @@ const GROUPS: Group[] = [
     title: 'Buffs & Auras',
     items: [
       { key: 'bufffx', icon: '⬆️', label: 'Buff', C: BuffFxTuner, hint: 'What plays on a minion when something buffs it', alt: 'stat gain' },
-      { key: 'spellbufffx', icon: '🔮', label: 'Spell Buff', C: SpellBuffFxTuner, hint: "The cue when a spell or Ruby's printed value goes up" },
       { key: 'spellpowerfx', icon: '✨', label: 'Spell Power', C: SpellPowerFxTuner, hint: 'The flourish when a spell resolves' },
       { key: 'rubypowerfx', icon: '♦️', label: 'Ruby Power', C: RubyPowerFxTuner, hint: 'The Ruby-strength flourish', alt: 'gem' },
       { key: 'herobufffx', icon: '🎆', label: 'Hero Buff Flash', C: HeroBuffFxTuner, hint: 'The shard blast and ripple over the hero portrait' },

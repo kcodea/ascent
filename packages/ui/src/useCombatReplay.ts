@@ -5,7 +5,7 @@ import { CARD_INDEX } from '@game/content';
 import { triggerCounts } from './choreo/triggerCounts';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
 import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig';
-import { fireSpellBuffOnHandSpells, fireSpellBuffOnHandRubies } from './spellBuffFx';
+import { fireHandBuff, fireHandBuffOnHandSpells, fireHandBuffOnHandRubies } from './handBuffFx';
 import { useGame } from './store'; // `useGame.getState()` — read the live hand for the mid-combat spell/Ruby buff cue
 import { pixiFx } from './pixiFx';
 import { sfx } from './sfx';
@@ -266,6 +266,20 @@ export function handBuffsShownThrough(events: CombatEvent[], beats: Beat[], beat
     if (e.type !== 'handBuff' || e.side !== 'player') continue;
     const cur = out[e.uid] ?? { attack: 0, health: 0 };
     out[e.uid] = { attack: cur.attack + e.attack, health: cur.health + e.health };
+  }
+  return out;
+}
+
+/**
+ * The player-side hand cards a beat's `handBuff` events land on, in event order, one entry PER EVENT — the
+ * cue's fan-out for the combat surface (the shop's is `diffHandBuffs` in `handBuffFx.ts`). Only `start`/`end`
+ * are read off the beat.
+ */
+export function handBuffUidsIn(beat: { start: number; end: number }, events: readonly CombatEvent[]): string[] {
+  const out: string[] = [];
+  for (let i = beat.start; i < beat.end; i++) {
+    const e = events[i];
+    if (e?.type === 'handBuff' && e.side === 'player') out.push(e.uid);
   }
   return out;
 }
@@ -1157,7 +1171,7 @@ export function useCombatReplay(
     // reacted at combat RESOLUTION (owner report): the hand-card cue is driven by a diff of the rendered live
     // text, and run state doesn't change until settle — so mid-fight there is nothing for that diff to see.
     // Firing from the narration beat puts it on the moment the gain actually happens.
-    fireSpellBuffOnHandSpells(useGame.getState().run.hand);
+    fireHandBuffOnHandSpells(useGame.getState().run.hand);
   }, []);
   /** The card-frame bloom alone (nonce → remount → the animation restarts), so a Shout's owner can bloom once
    *  PER FIRE — the beat-level `sccast` flash class fires once per beat and cannot repeat within it. */
@@ -1908,6 +1922,11 @@ export function useCombatReplay(
         if (e?.type === 'questTrigger' && e.flag === 'bladeMastery' && e.side === 'player') useGame.getState().dispatch({ type: 'combatBladeAttackPreview' });
       }
     }
+    // A HAND CARD BUFFED mid-combat (owner ask 2026-09-15): every player-side `handBuff` event — Nurturer's
+    // Echo, Shared Spirit, a Rising Tide proc — plays the owner-authored `hand-buff` def on THAT hand card, on
+    // the same beat R-HAND-02 grows its badge (`handBuffsShownThrough`). One play per event, so a card hit
+    // twice in a beat pops twice; the cascade inside `fireHandBuff` spaces several cards hit by one effect.
+    fireHandBuff(handBuffUidsIn(beat, events));
     // FRONT TO BACK improving itself mid-combat (owner ask 2026-08-07): the resolver narrates each
     // improvement, and this moves the HELD card's printed value live via the display-only preview action.
     // Player-side only — `side` is stamped on the narration, so an enemy Quil's casts don't touch your hand.
@@ -1917,7 +1936,7 @@ export function useCombatReplay(
       const m = /improves \+(\d+)\/\+(\d+)$/.exec(e.text);
       if (!m) continue;
       useGame.getState().dispatch({ type: 'combatEscalationPreview', attack: Number(m[1]), health: Number(m[2]) });
-      fireSpellBuffOnHandSpells(useGame.getState().run.hand); // pop the held spells, same cue as spell power
+      fireHandBuffOnHandSpells(useGame.getState().run.hand); // pop the held spells, same cue as spell power
     }
     // RUBY POWER gained mid-combat (owner ask 2026-07-24) — Veinbreaker's Avenge and friends. `gainRubyBonus`
     // used to accumulate silently and only surface at settle, so there was nothing to hang a cue on at the
@@ -1939,7 +1958,7 @@ export function useCombatReplay(
       floatRubyPowerNumber(cx, cy - h * 0.3, gA, gH);
       // …and pop the held Rubies themselves, so the player sees WHICH cards the gain lands on. The spell-buff
       // bus is callable from here precisely because it no longer lives in Recruit's state.
-      fireSpellBuffOnHandRubies(useGame.getState().run.hand);
+      fireHandBuffOnHandRubies(useGame.getState().run.hand);
     }
     // PROC CRIT (Karwind's 20% double trigger). Unlike the two gains above this carries its own `source` uid
     // on a dedicated event, so no text-matching and no side-gating heuristic is needed — an enemy Karwind's

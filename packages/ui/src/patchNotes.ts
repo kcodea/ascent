@@ -78,6 +78,13 @@ export const PATCH_NOTES: PatchNote[] = [
     ],
   },
   {
+    date: '2026-09-15',
+    label: 'Hand buff cue',
+    changes: [
+      { category: 'UI / Info', text: 'A card in your hand getting stronger — a minion gaining stats, or a spell, Ruby or token whose printed value goes up — now bursts and pops in place with a new effect, in the Shop, at End of Turn and mid-combat alike. It replaces the old grow-and-sparkle on spells, and hand minions finally get a cue too.' },
+    ],
+  },
+  {
     date: '2026-09-14',
     label: 'Starform creation',
     changes: [

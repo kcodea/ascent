@@ -49,8 +49,7 @@ import { captureRuneLockIn } from './runeLockInCapture';
 import { getRuneLockInConfig, stretchLockIn } from './runeLockInConfig';
 import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
-import { getSpellBuffFxConfig } from './spellBuffFxConfig';
-import { fireSpellBuff, fireSpellBuffOnHandSpells, fireSpellBuffOnHandRubies } from './spellBuffFx';
+import { diffHandBuffs, fireHandBuff, fireHandBuffOnHandSpells, fireHandBuffOnHandRubies } from './handBuffFx';
 import { HudBar } from './HudBar';
 import { LobbyPanel } from './LobbyPanel';
 import { CombatOpponent } from './CombatOpponent';
@@ -975,17 +974,15 @@ export function Recruit() {
   // it re-runs the animation and nothing else, and the shared exits all resolve a combat.
   const sandboxReplay = useGame((s) => s.sandboxReplay) && run.sandbox === true;
   const exitReplay = useGame((s) => s.exitReplay);
-  // Hand spells / Rubies whose printed value just went up — they play the grow/shrink + spark blast (see the
-  // spell-buff watcher below). `prevSpellSigRef` is the last rendered value signature per hand-card uid.
-  // The burst state itself lives in `spellBuffFx.ts`, NOT here — any phase or surface has to be able to start
-  // this cue (end of turn, start of combat, a mid-combat Echo/Avenge), and state owned by Recruit could only
-  // ever be started by Recruit. Cards subscribe to that store directly; this component just detects the buffs
-  // it can see and calls `fireSpellBuff`.
-  const prevSpellSigRef = useRef<Map<string, string>>(new Map());
-  // Last phase the spell-buff watcher saw — lets it skip the single render where the phase flips (see below).
+  // Hand cards that just got stronger play the owner-authored `hand-buff` def (see the hand-buff watcher
+  // below). `prevHandSigRef` is the last rendered value signature per hand-card uid. The cue itself lives in
+  // `handBuffFx.ts`, NOT here — any phase or surface has to be able to start it (end of turn, start of combat,
+  // a mid-combat Echo/Avenge); this component just detects the buffs it can see and calls `fireHandBuff`.
+  const prevHandSigRef = useRef<Map<string, string>>(new Map());
+  // Last phase the hand-buff watcher saw — lets it skip the single render where the phase flips (see below).
   // Named apart from the stat-diff watcher's own `prevPhaseRef`, which exists lower down for the same class of
   // reason (suppressing a spurious flash across the combat↔recruit transition) but tracks its own cadence.
-  const spellBuffPhaseRef = useRef(run.phase);
+  const handBuffPhaseRef = useRef(run.phase);
   // Last weld seq the stat-diff watcher has seen — lets it suppress the generic buff cues for the minions a
   // FRESH weld just landed on (the weld has its own ring + wiggle), without touching any other buff.
   const weldStatSeqRef = useRef<number | undefined>(undefined);
@@ -1162,9 +1159,9 @@ export function Recruit() {
       const y = r.top + r.height / 2;
       pixiFx.rubyPower(x, y, getRubyPowerFxConfig());
       floatRubyPowerNumber(x, y - r.height * 0.3, gainA, gainH);
-      // The held Rubies themselves also play the spell-buff cue, so the "these cards got stronger" read is on
+      // The held Rubies themselves also play the hand-buff cue, so the "these cards got stronger" read is on
       // the cards and not only in the flourish. Fires through the shared bus, hence any phase.
-      fireSpellBuffOnHandRubies(useGame.getState().run.hand);
+      fireHandBuffOnHandRubies(useGame.getState().run.hand);
     });
     return () => cancelAnimationFrame(raf);
   }, [run.rubyPowerFxSeq, run.rubyPowerFxAtk, run.rubyPowerFxHp, run.rubyPowerFxUid]);
@@ -3379,27 +3376,26 @@ export function Recruit() {
     // `handStatOverride` is a per-render closure over `eotAnimStats` + `combatHandBuffs`; both are listed below.
     [run.hand, run.tier, eotAnimStats, combatHandBuffs, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live, run.board, run.nextSpellExtraCasts],
   );
-  // SPELL BUFF cue (owner 2026-07-23): when a hand SPELL or Ruby gets stronger, grow/shrink it and blast
-  // sparks outward, so the player sees exactly which cards a spell buff touched. A spell's stats never
-  // change (it's a 0/1 card) — its printed VALUE is the thing that moves — so we diff the rendered live text
-  // (plus stats, which is what moves on a Ruby) per uid. That catches every scaling source at once (spell power,
-  // Front to Back's escalation, the Ruby stat line, Rune of Pillaging's pouch, …) without enumerating them, and
-  // picks up future ones for free. Only cards ALREADY in hand can fire it, so drawing a card never flashes.
+  // HAND BUFF cue (owner 2026-09-15, replacing the 2026-07-23 spell-buff grow/shrink + spark blast): when ANY
+  // hand card gets stronger — a minion gaining stats, or a spell / Ruby / Clue / token whose printed value
+  // went up — the owner-authored `hand-buff` def plays on that card, so the player sees exactly which cards
+  // a buff touched. `diffHandBuffs` owns the read: a spell's stats never change (it's a 0/1 card), its
+  // printed VALUE is what moves, so value cards diff the rendered live text plus stats — every scaling source
+  // at once (spell power, Front to Back's escalation, the Ruby stat line, a "next Shop spell" grant, …) without
+  // enumerating them; a minion diffs its stats and fires only on a GAIN. Only cards ALREADY in hand can fire
+  // it, so drawing a card never flashes. Before this a minion buffed in hand played NOTHING in the shop.
   useEffect(() => {
-    const next = new Map<string, string>();
-    const changed: string[] = [];
-    for (const [uid, v] of handViews) {
-      if (!v.spell && !v.ruby) continue; // minions keep the existing green buff flash
-      const sig = `${v.text}|${v.attack}/${v.health}`;
-      next.set(uid, sig);
-      const prev = prevSpellSigRef.current.get(uid);
-      if (prev !== undefined && prev !== sig) changed.push(uid);
-    }
-    prevSpellSigRef.current = next;
+    const { next, changed } = diffHandBuffs(
+      prevHandSigRef.current,
+      [...handViews].map(([uid, v]) => ({ uid, spell: v.spell, ruby: v.ruby, text: v.text, attack: v.attack, health: v.health })),
+    );
+    prevHandSigRef.current = next;
     // This watcher owns SHOP-PHASE buffs only. End of Turn and mid-combat are driven from their BEATS instead
-    // (the EoT beat runner below, and the `sc` narration handler in `useCombatReplay`), because run state
-    // doesn't move at the moment those buffs happen — it moves at the commit, which is too late to read as
-    // "this card just got stronger".
+    // (the EoT beat runner below, and the `handBuff` / `sc` narration handlers in `useCombatReplay`), because
+    // run state doesn't move at the moment those buffs happen — it moves at the commit, which is too late to
+    // read as "this card just got stronger". (A hand MINION buffed at End of Turn is the one exception that
+    // needs no presenter: the EoT projection's `handStats` ride `handStatOverride` into `handViews` on the
+    // beat, while the phase is still `recruit`, so this diff sees the gain exactly when it lands.)
     //
     // That split is what fixes the double-play (owner report 2026-07-24: "cards play an additional buffed
     // animation at the end of combat if they were buffed mid-combat"). A mid-combat gain is announced once, on
@@ -3410,21 +3406,18 @@ export function Recruit() {
     // a card's printed text can legitimately differ between phases, so diffing across a flip would flash the
     // whole hand for no buff at all. Signatures above are recorded on every render regardless, so the baseline
     // stays current and a real shop buff on the very next render fires normally.
-    const phaseFlipped = spellBuffPhaseRef.current !== run.phase;
-    spellBuffPhaseRef.current = run.phase;
+    const phaseFlipped = handBuffPhaseRef.current !== run.phase;
+    handBuffPhaseRef.current = run.phase;
     if (phaseFlipped || run.phase !== 'recruit' || changed.length === 0) return;
-    fireSpellBuff(changed);
+    fireHandBuff(changed);
   }, [handViews, run.phase]);
-  // DEV: the ✨ Spell Buff tuner's Test button fires the cue on every spell / Ruby currently in hand, so the
-  // effect can be dialed without waiting for a real buff. It goes through the SAME `fireSpellBuff` the real
-  // watcher uses, so mashing Test exercises the retrigger/restart path exactly as a rapid buff chain would.
+  // DEV: `window.__handBuffTest()` fires the cue on every card currently in hand, so the def can be checked
+  // without waiting for a real buff. It goes through the SAME `fireHandBuff` the real watcher uses.
   useEffect(() => {
     if (!import.meta.env.DEV) return undefined;
-    const w = window as { __spellBuffTest?: () => void };
-    w.__spellBuffTest = (): void => {
-      fireSpellBuff([...handViews].filter(([, v]) => v.spell || v.ruby).map(([uid]) => uid));
-    };
-    return () => { delete w.__spellBuffTest; };
+    const w = window as { __handBuffTest?: () => void };
+    w.__handBuffTest = (): void => { fireHandBuff([...handViews.keys()]); };
+    return () => { delete w.__handBuffTest; };
   }, [handViews]);
   // `render:recruit` (perf export): render body + React reconciliation + DOM commit for THIS render — the delta
   // from `renderStart` (top of the component) to this earliest post-commit layout effect. No deps → every commit.
@@ -5589,7 +5582,7 @@ export function Recruit() {
           pixiFx.spellPower(at.x, at.y, getSpellPowerFxConfig());
           floatSpellPowerNumber(at.x, at.y - 30, attack, health);
         }
-        fireSpellBuffOnHandSpells(runRef.current.hand); // the held spells whose printed values just rose
+        fireHandBuffOnHandSpells(runRef.current.hand); // the held spells whose printed values just rose
       },
       impAura: () => fireAuraWave('demon'),
       rubyAura: (sourceUid, attack, health) => {
@@ -5607,7 +5600,7 @@ export function Recruit() {
           pixiFx.rubyPower(x, y, getRubyPowerFxConfig());
           floatRubyPowerNumber(x, y - r.height * 0.3, attack, health);
         }
-        fireSpellBuffOnHandRubies(runRef.current.hand);
+        fireHandBuffOnHandRubies(runRef.current.hand);
       },
       cardGranted: (cardId, _uid, sourceUid) => {
         // The hand preview is driven by the projection; arrival FX lands with the commit. The one thing that
@@ -5954,7 +5947,7 @@ export function Recruit() {
             pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
             floatSpellPowerNumber(cx, cy - r.height * 0.3, spGain.attack, spGain.health);
             // …and pop the held SPELLS, whose printed values this proc just raised.
-            fireSpellBuffOnHandSpells(run.hand);
+            fireHandBuffOnHandSpells(run.hand);
           }
         }
         // IMP AURA washed on this beat (Void Curator). The action-level wash watcher is gated on the run still
@@ -5974,7 +5967,7 @@ export function Recruit() {
           const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
           pixiFx.rubyPower(cx, cy, getRubyPowerFxConfig());
           floatRubyPowerNumber(cx, cy - r.height * 0.3, gA, gH);
-          fireSpellBuffOnHandRubies(run.hand);
+          fireHandBuffOnHandRubies(run.hand);
         }
       }
       // QUEST TENDRIL — fired from the BEAT, not from reducer state. The End-of-Turn commit (`faceOmen`)

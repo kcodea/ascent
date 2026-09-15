@@ -1846,6 +1846,24 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* stats above base read green, below base read red */
 .atk.up > .plate, .hp.up > .plate { background: #1aa86f; }
 .atk.down > .plate, .hp.down > .plate { background: #d23b2b; }
+/* ── MILESTONE FRAMES ────────────────────────────────────────────────────────────────────────────────────
+   A tiered frame the badge sits in, driven by `data-milestone` (0..5 = tierOf(value); see choreo/
+   statMilestones.ts). Pure STATIC paint — no looping animation of paint properties (perf north star). The
+   number's roll and the one-shot `useBadgePop` are untouched; this only restyles the `.plate` shape.
+   NOTE: `data-milestone`/`--ms-N` are milestone tiers — DISTINCT from the unit's shop tier (`--tier-N`). */
+:root {
+  --ms-1: #b87333; /* bronze  */
+  --ms-2: #c0c0c0; /* silver  */
+  --ms-3: #ffd54a; /* gold    */
+  --ms-4: #4fd1ff; /* diamond */
+  --ms-5: #ff5edb; /* mythic  */
+}
+.badge[data-milestone='1'] > .plate { border-color: var(--ms-1); box-shadow: 0 0 6px var(--ms-1), 0 2px 6px rgba(0,0,0,0.3); }
+.badge[data-milestone='2'] > .plate { border-color: var(--ms-2); box-shadow: 0 0 7px var(--ms-2), 0 2px 6px rgba(0,0,0,0.3); }
+.badge[data-milestone='3'] > .plate { border-color: var(--ms-3); box-shadow: 0 0 9px var(--ms-3), 0 2px 6px rgba(0,0,0,0.3); }
+.badge[data-milestone='4'] > .plate { border-color: var(--ms-4); box-shadow: 0 0 11px var(--ms-4), 0 2px 8px rgba(0,0,0,0.35); }
+.badge[data-milestone='5'] > .plate { border-color: var(--ms-5); box-shadow: 0 0 14px var(--ms-5), 0 2px 8px rgba(0,0,0,0.4); }
+/* Art-swap seam: a later per-tier PNG points a plate background at `--ms-plate-<tier>` with no markup change. */
 /* A buff just landed here → the changed stat badge pops once (transform/opacity only — no paint props, per the
    60fps rule). Combat used to run its own `.statflash` cue for this; retired (Task 3 of the combat/shop
    stat-hold unification) now that combat's badge reads the same shared hold store the shop does, so Card's own

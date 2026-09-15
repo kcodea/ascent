@@ -13,6 +13,7 @@ import { getSpellBuffFxConfig, makeSpellBuffSparks, sparkEaseCss, growEaseCss, s
 import { subscribeSpellBuff, getSpellBuffSeq } from './spellBuffFx';
 import { heldFor, holdStat, statHoldKey, subscribeStatHolds } from './fx/statHold';
 import { resolveMechIcon } from './mechIcon';
+import { tierOf } from './choreo/statMilestones';
 
 /** The badge's scale-pop: how far it swells and over how long. See `useBadgePop`. */
 const BADGE_POP_SCALE = 1.35;
@@ -1111,11 +1112,11 @@ export const Card = memo(function Card({
             {/* Stat badges — three nodes each so FX can target them separately (docs/fx-vocabulary.md):
                 the `.badge` wrapper seats the pair, `.plate` is the shape, `.value` is the digit. Plate and
                 value are SIBLINGS, not nested, so the plate can scale without dragging the number. */}
-            <span ref={atkPopRef} className={`badge atk${statCls(shownAttack, card.baseAttack, card.floorAttack)}`}>
+            <span ref={atkPopRef} data-milestone={tierOf('attack', card.attack)} className={`badge atk${statCls(shownAttack, card.baseAttack, card.floorAttack)}`}>
               <span className="plate" aria-hidden="true" />
               <span className="value">{formatStat(shownAttack)}</span>
             </span>
-            <span ref={hpPopRef} className={`badge hp${statCls(shownHealth, card.baseHealth, card.floorHealth)}`}>
+            <span ref={hpPopRef} data-milestone={tierOf('health', card.health)} className={`badge hp${statCls(shownHealth, card.baseHealth, card.floorHealth)}`}>
               <span className="plate" aria-hidden="true" />
               <span className="value">{formatStat(shownHealth)}</span>
             </span>

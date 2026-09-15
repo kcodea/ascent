@@ -45,6 +45,7 @@ export const PilotBudgetSchema = z.object({
   macroPivotWave: z.number().int().min(1).optional(),
   macroSeeds: z.number().int().min(1).max(6).optional(),
   macroCommitGain: z.number().min(0).optional(),
+  macroCommitOn: z.enum(['payoff', 'piece']).optional(),
 }).strict();
 
 export const ExperimentManifestSchema = z.object({

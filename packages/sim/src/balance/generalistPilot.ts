@@ -242,6 +242,10 @@ export interface MacroOptions {
    *  the expected gain of the completed engine over the held board.) A payoff the ordinary search fielded commits
    *  the seat only when this says so; an assemble step the re-ranking chose always does. */
   worth: (combo: EngineCombo, v: BotVisibleState) => boolean;
+  /** What a seat may commit on: `payoff` (default — the payoff held) or `piece` (any piece held while the payoff
+   *  is drawable at the current Shop tier: a Hank at Tier 3 commits to rolling for Blart, the way the recorded
+   *  darah runs opened). */
+  commitOn?: 'payoff' | 'piece';
 }
 
 /** How far below the current utility a forced hand play may fall before it is left in hand (see `forcedSpend`). */
@@ -492,10 +496,16 @@ export function createGeneralistPilot(budget: PilotBudget, seed: number, opts: G
       }
       if (macros && !commitment) {
         // A payoff fielded by the ordinary search commits the seat too (its feeders are worth looking for).
+        const stake = (p: ComboProgress): boolean => {
+          if (p.payoffFielded) return true;
+          if (macros.commitOn !== 'piece') return false;
+          const payoff = p.pieces.find((x) => x.piece.role === 'payoff');
+          return p.heldPieces > 0 && !!payoff && payoff.piece.ids.some((id) => (CARD_INDEX[id]?.tier ?? 99) <= visible.economy.tier);
+        };
         const ready = combos
           .filter((c) => !pivoted.get(seatKey)?.has(c.id))
           .map((c) => comboProgress(c, visible))
-          .filter((p) => p.payoffFielded && !p.complete && macros.worth(p.combo, visible))
+          .filter((p) => stake(p) && !p.complete && macros.worth(p.combo, visible))
           .sort((a, b) => b.heldPieces - a.heldPieces)[0];
         if (ready) { commitment = { comboId: ready.combo.id, since: round, wave: round, rolls: 0 }; commitments.set(seatKey, commitment); }
       }
@@ -556,7 +566,9 @@ export function createGeneralistPilot(budget: PilotBudget, seed: number, opts: G
         // A commitment needs the PAYOFF in hand or on the board: an assemble step that only took a feeder (a Hank, an
         // Echo body) is a good buy, not a plan to roll for (the first build committed on a lone Hank and rolled).
         const prog = comboProgress(combo, after);
-        if (!prog.pieces.some((p) => p.piece.role === 'payoff' && p.held > 0)) return;
+        const payoffHeld = prog.pieces.some((p) => p.piece.role === 'payoff' && p.held > 0);
+        const payoffDrawable = prog.pieces.some((p) => p.piece.role === 'payoff' && p.piece.ids.some((id) => (CARD_INDEX[id]?.tier ?? 99) <= after.economy.tier));
+        if (!payoffHeld && !(macros.commitOn === 'piece' && payoffDrawable)) return;
         if (!macros.worth(combo, after) && !prog.payoffFielded) return;
         const cur = commitments.get(seatKey);
         if (cur && cur.comboId !== combo.id) {

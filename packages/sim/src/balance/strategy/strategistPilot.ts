@@ -78,6 +78,8 @@ export interface StrategistOptions {
    *  (default `MACRO_COMMIT_GAIN`). */
   macroSeeds?: number;
   macroCommitGain?: number;
+  /** B11: `payoff` (default) or `piece` — see `MacroOptions.commitOn`. */
+  macroCommitOn?: 'payoff' | 'piece';
 }
 
 export interface StrategistPilot extends SeatPilot {
@@ -115,6 +117,7 @@ export function createStrategistPilot(budget: PilotBudget, seed: number, opts: S
   const macroPivotWave = opts.macroPivotWave ?? budget.macroPivotWave ?? MACRO_PIVOT_WAVE;
   const macroSeeds = opts.macroSeeds ?? budget.macroSeeds ?? MACRO_SEEDS;
   const macroCommitGain = opts.macroCommitGain ?? budget.macroCommitGain ?? MACRO_COMMIT_GAIN;
+  const macroCommitOn = opts.macroCommitOn ?? budget.macroCommitOn ?? 'payoff';
   const macrosOn = macroWeight > 0;
   const horizonOn = horizonWeight > 0 || horizonFightWeight > 0;
   // The horizon probe's panel seed for the decision in flight (set by `wrap`, read by `horizon`).
@@ -212,6 +215,7 @@ export function createStrategistPilot(budget: PilotBudget, seed: number, opts: S
     commitTo: macroCommitTo,
     pivotWave: macroPivotWave,
     worth: (combo, v) => (comboGain(combo, v, value(horizonTermOf(v, horizonSeed, macroSeeds))) ?? -Infinity) >= macroCommitGain,
+    commitOn: macroCommitOn,
   } : undefined;
   // eslint-disable-next-line prefer-const
   let inner: GeneralistPilot | undefined;

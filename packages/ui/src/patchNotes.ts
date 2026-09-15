@@ -95,6 +95,8 @@ export const PATCH_NOTES: PatchNote[] = [
           "Plays for Star Crash's second landing, Crash Course's extra Star Crashes, Reflector's spread, Rune of Distillation (a Shop minion to your left-most), Rune of Redirection (left-most to right-most), Rune of the Conduit, and Trouble in combat.",
           'Rubies get a red ribbon; spells get a first-pass purple-and-blue one that will be tuned later.',
           'A spell that simply casts AGAIN on the same minion (Mirrorwing, Nimbus, Yazzus, Prismcaster) does not use this cue — it will get its own.',
+        ],
+      },
     ],
   },
   {

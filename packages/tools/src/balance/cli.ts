@@ -5,7 +5,8 @@
  *   npm run balance:compare -- --baseline <id> --candidate <id> [--allow-diff contentDigest,manifestDigest]   (a data patch)
  *                              [--target hero:warden] [--out <file>]
  *   npm run balance:synth   -- --set set3 --seeds 20 [--start 1] [--out <jobId>] [--heroes a,b,c] [--nerf <heroId>=<bias>] [--fail-rate 0.1]
- *   npm run balance:run     -- --manifest <experiment.json>      (STUB — errors until the runner (B1) is integrated)
+ *   npm run balance:run     -- --manifest <experiment.json> [--out <jobId>] [--budget <profile>]
+ *   npm run balance:corpus  -- --set set2 --out set2-players-v1 [--patch 0.1.0+]   (the recorded player corpus a pinnedLobby job names)
  *
  * Reports print to stdout unless `--out` names a file. Jobs live under packages/tools/src/balance/out/<jobId>/.
  */
@@ -17,8 +18,9 @@ import { completedSeeds, createJob, listJobs, loadJob, writeLobby, writeSummary 
 import { loadManifest } from './manifest';
 import { computeNodeIdentity } from './identity';
 import { buildPool, registerPool } from './pool';
+import { buildCorpus, describeCorpus, fetchCorpusBoards, registerCorpus, supabaseConfig, writeCorpus } from './corpus';
 import { applyContentOverlay } from '@game/sim/balance/overlay';
-import { createRecorder, pilotFor, runSelfPlayLobby, synthesizeLobby, syntheticIdentity, syntheticManifest, type ExperimentIdentity, type SyntheticOptions } from './deps';
+import { createRecorder, pilotFor, runPinnedLobby, runSelfPlayLobby, synthesizeLobby, syntheticIdentity, syntheticManifest, type ExperimentIdentity, type SyntheticOptions } from './deps';
 import type { SetId } from '@game/content';
 
 type Args = Record<string, string | true>;
@@ -42,9 +44,22 @@ function emit(text: string, out: string | undefined): void {
   if (out) { writeFileSync(out, text, 'utf8'); console.log(`wrote ${out} (${text.length} chars)`); } else console.log(text);
 }
 
-export function main(argv: readonly string[] = process.argv.slice(2)): void {
+export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<void> {
   const { cmd, args } = parseArgs(argv);
   switch (cmd) {
+    case 'corpus': {
+      // THE RECORDED PLAYER CORPUS (corpus.ts): every real board of one set from the shared pool, pinned by digest.
+      const setId = (str(args, 'set', 'set2') as SetId);
+      const name = str(args, 'out') ?? `${setId}-players`;
+      const patchPrefix = str(args, 'patch');
+      const { url, key } = supabaseConfig();
+      const { boards, rows } = await fetchCorpusBoards({ url, key, setId, ...(patchPrefix ? { patchPrefix } : {}) });
+      const file = buildCorpus(name, setId, boards, patchPrefix ? { patchPrefix } : {});
+      const path = writeCorpus(file);
+      console.log(`fetched ${rows} rows for ${setId}; ${boards.length} eligible (non-synthetic, non-empty${patchPrefix ? `, patch ${patchPrefix}*` : ''}), ${file.boards.length} unique → ${path}`);
+      console.log(describeCorpus(file));
+      return;
+    }
     case 'report': {
       const job = loadJob(need(args, 'job'));
       const agg = aggregate(job.lobbies, { minSupport: num(args, 'min-support', 20), bootstrapReps: num(args, 'reps', 1000), seed: num(args, 'seed', 1) });
@@ -97,13 +112,21 @@ export function main(argv: readonly string[] = process.argv.slice(2)): void {
       // lobby per seed (B1's runner, B5's recorder) → resumable job files → summary. A lobby that fails is written
       // as a censored record, never dropped, so the coverage ledger sees it.
       const manifest = loadManifest(need(args, 'manifest'));
-      if (manifest.mode !== 'selfPlayLobby') throw new Error(`balance:run — mode "${manifest.mode}" is not runnable yet (only selfPlayLobby is wired)`);
+      if (manifest.mode !== 'selfPlayLobby' && manifest.mode !== 'pinnedLobby') throw new Error(`balance:run — mode "${manifest.mode}" is not runnable yet (selfPlayLobby and pinnedLobby are wired)`);
+      if (manifest.mode === 'pinnedLobby' && !manifest.corpus) throw new Error('balance:run — a pinnedLobby manifest must name its corpus ({ name, digest } from balance:corpus)');
       // The CANDIDATE OVERLAY (overlay.ts) goes on BEFORE the identity, so contentDigest tells the truth about the build.
       for (const d of applyContentOverlay(manifest.overlay)) console.log(`overlay ${d.cardId}: ${d.before}  →  ${d.after}`);
       const identity = computeNodeIdentity(manifest);
+      // The RECORDED CORPUS (balance:corpus) — the pinned lobby's seven other seats AND the pilot's panel — goes in
+      // FIRST, before any lobby is built, and only the digest the manifest names.
+      if (manifest.corpus) {
+        const c = registerCorpus(manifest.corpus);
+        console.log(`corpus "${manifest.corpus.name}": ${c.registered} boards registered (${c.file.boards.length} in the file; the rest were already registered or reference cards this build lacks), ${c.runs} runs / ${c.authors} authors seatable for ${c.file.setId}`);
+        if (c.file.setId !== manifest.setId) throw new Error(`balance:run — corpus "${manifest.corpus.name}" is ${c.file.setId}; the manifest is ${manifest.setId}`);
+      }
       // The opponent PANEL (balance:pool): registered once, before any lobby, and only the digest the manifest names.
       if (manifest.opponentPool) console.log(`opponent pool "${manifest.opponentPool.name}": ${registerPool(manifest.opponentPool)} boards registered`);
-      else console.log('no opponent pool named — the pilot scores against the procedural threat curve (flagged on every fightScore)');
+      else if (!manifest.corpus) console.log('no opponent pool named — the pilot scores against the procedural threat curve (flagged on every fightScore)');
       const jobId = str(args, 'out') ?? `${manifest.name}-${identity.manifestDigest.slice(0, 8)}`;
       createJob(jobId, manifest, identity);
       const done = completedSeeds(jobId, manifest, identity);
@@ -114,7 +137,9 @@ export function main(argv: readonly string[] = process.argv.slice(2)): void {
         const lobbyId = `${manifest.mode}:${manifest.setId}:${manifest.policy.id}:${seed}`;
         const recorder = createRecorder(lobbyId, seed, manifest, identity);
         const pilot = pilotFor(budgetOverride ? `${manifest.policy.id}:${budgetOverride}` : manifest.policy.id, manifest.policy.budget);
-        const record = runSelfPlayLobby(manifest, seed, () => pilot, recorder, identity);
+        const record = manifest.mode === 'pinnedLobby'
+          ? runPinnedLobby(manifest, seed, pilot, recorder, identity)
+          : runSelfPlayLobby(manifest, seed, () => pilot, recorder, identity);
         writeLobby(jobId, record);
         ran++; if (record.failure) failed++;
         if (ran % 5 === 0 || record.failure) console.log(`  seed ${seed}: ${record.failure ? 'FAILED — ' + record.failure : record.roundsPlayed + ' rounds'} (${Math.round((Date.now() - t0) / ran)} ms/lobby avg)`);
@@ -127,8 +152,8 @@ export function main(argv: readonly string[] = process.argv.slice(2)): void {
       return;
     }
     default:
-      console.log('usage: balance <report|compare|synth|list|run> [--flags]  (see packages/tools/src/balance/cli.ts)');
+      console.log('usage: balance <report|compare|synth|list|run|pool|corpus> [--flags]  (see packages/tools/src/balance/cli.ts)');
   }
 }
 
-main();
+main().catch((e) => { console.error(e instanceof Error ? e.message : e); process.exit(1); });

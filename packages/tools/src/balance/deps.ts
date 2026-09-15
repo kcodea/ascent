@@ -10,5 +10,6 @@ export type {
 export { synthesizeJob, synthesizeLobby, syntheticIdentity, syntheticManifest, type SyntheticOptions } from '@game/sim/balance/fixtures/syntheticLobby';
 // The RUNNER (B1) and RECORDER (B5), joined here by the integrator for `balance:run`.
 export { runSelfPlayLobby } from '@game/sim/balance/selfPlayLobby';
+export { runPinnedLobby, RECORDING_POLICY_ID } from '@game/sim/balance/pinnedLobby';
 export { createRecorder } from '@game/sim/balance/recorder';
 export { pilotFor } from '@game/sim/balance/pilots';

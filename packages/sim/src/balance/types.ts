@@ -53,6 +53,12 @@ export interface ExperimentManifest {
    *  (its name + digest are part of the manifest digest, so two jobs on different panels never compare). Absent =
    *  no pool registered = the procedural threat curve, which the pilot flags. */
   opponentPool?: { name: string; digest: string };
+  /** `pinnedLobby` ONLY (required there): the RECORDED PLAYER CORPUS the seven other seats are filled from — a
+   *  corpus file built by `balance:corpus` from the shared pool (real, non-synthetic boards of one set, grouped
+   *  back into runs by `playerRunsFrom`). `balance:run` registers it before anything else, so it is ALSO the panel
+   *  the pilot's `fightScore` samples. Name + digest ride the manifest digest: two jobs on different corpora never
+   *  compare as equals, and a job never runs on a corpus other than the one it names. */
+  corpus?: { name: string; digest: string };
   /** A candidate DATA patch applied in-process before the identity is computed (see `overlay.ts`): card id →
    *  stat / tier / cost / per-effect param changes. The baseline job omits it; `compare --allow-diff
    *  contentDigest,manifestDigest` is then exactly the declared difference. */
@@ -179,6 +185,10 @@ export interface RunRecord {
   failure?: string;
   runesOwned: readonly string[];
   finalBoard: readonly string[];
+  /** `pinnedLobby` (additive): set on a seat driven by a RECORDED player run (`policyId: 'recording'`) — the
+   *  recording's provenance, so the report can describe the opponent POPULATION (runs, authors, patches) without
+   *  ever treating its placements as decisions a pilot made. */
+  recording?: { key: string; author: string; patch?: string; waves: number };
 }
 
 export interface LobbyRecord {

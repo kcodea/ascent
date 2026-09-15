@@ -13,7 +13,7 @@
  * (placement, top-half, lift) but still counted in coverage and in the funnels (what the pilots saw and did is
  * still real). A `capped` run has no placement and is excluded from placement statistics only.
  */
-import { CARD_INDEX, HEROES, RUNE_INDEX, type LobbyRecord, type RoundRecord } from './deps';
+import { CARD_INDEX, HEROES, RUNE_INDEX, RECORDING_POLICY_ID, type LobbyRecord, type RoundRecord, type RunRecord } from './deps';
 import { bootstrapMean, keyedRng, shrink, type CI, type LobbyPartial, EMPTY_CI, mean, herfindahl, fnv1a } from './stats';
 
 export interface AggregateOptions {
@@ -145,11 +145,33 @@ export interface Problem {
   note: string;
 }
 
+/**
+ * The RECORDED OPPONENT POPULATION of a pinned lobby (`policyId: 'recording'` seats). Descriptive of the field
+ * the pilot sat in — never a table of decisions, so no funnels, no problems. `recordingsPlacement` is what the
+ * recordings averaged in the pilot's lobbies (mechanically the complement of the pilot's placement over eight
+ * seats — printed so the two read side by side, not as an independent signal).
+ */
+export interface RecordedPopulation {
+  seats: number;
+  runs: number;
+  authors: number;
+  patches: Record<string, number>;
+  heroes: Record<string, number>;
+  /** Mean recorded waves per seated run. */
+  wavesPerRun: number | undefined;
+  recordingsPlacement: CI;
+  pilotPlacement: CI;
+  /** Pilot rounds against the recordings: wins / losses / ties / byes. */
+  pilotResults: Record<RoundRecord['result'], number>;
+}
+
 export interface Aggregate {
   schemaVersion: 1;
   options: Required<AggregateOptions>;
   coverage: Coverage;
   populationPlacement: CI;
+  /** Present when any record carries recorded seats (a pinned lobby). */
+  recorded?: RecordedPopulation;
   heroes: HeroRow[];
   runes: RuneRow[];
   minions: MinionRow[];
@@ -182,7 +204,15 @@ export function aggregate(records: readonly LobbyRecord[], opts: AggregateOption
   const lobbyFailed = (L: LobbyRecord): boolean => L.failure !== undefined;
   const lobbyCensored = (L: LobbyRecord): boolean => lobbyFailed(L) || L.seats.some((s) => s.termination === 'failed');
   const outcomeLobbies = usable.filter((L) => !lobbyCensored(L));
-  const allRuns = usable.flatMap((L) => L.seats);
+  // PILOT seats only, everywhere a table describes what a policy DID: a recorded seat (`policyId: 'recording'`,
+  // the pinned lobby's opponent population) made no decisions, so its placement is not evidence about a hero,
+  // a rune or a card. The population is summarised separately in `recorded`.
+  const isPilot = (r: RunRecord): boolean => r.policyId !== RECORDING_POLICY_ID;
+  const pilotSeats = (L: LobbyRecord): RunRecord[] => L.seats.filter(isPilot);
+  const pilotSeatIds = new Map(usable.map((L) => [L.lobbyId, new Set(pilotSeats(L).map((s) => s.seatId))]));
+  const pilotRound = (r: RoundRecord): boolean => pilotSeatIds.get(r.lobbyId)?.has(r.seatId) ?? true;
+  const allRuns = usable.flatMap(pilotSeats);
+  const recordedRuns = usable.flatMap((L) => L.seats.filter((s) => !isPilot(s)));
   const byHero: Coverage['failureByHero'] = {};
   const byPolicy: Coverage['failureByPolicy'] = {};
   for (const r of allRuns) {
@@ -212,7 +242,7 @@ export function aggregate(records: readonly LobbyRecord[], opts: AggregateOption
   if (!usable.length) { coverage.roundsPlayed = { mean: undefined, min: 0, max: 0 }; }
 
   // ── indices over outcome lobbies ────────────────────────────────────────────────────────────────────────────
-  const placedRuns = outcomeLobbies.flatMap((L) => L.seats.filter((s) => s.placement !== undefined && s.termination === 'placed'));
+  const placedRuns = outcomeLobbies.flatMap((L) => pilotSeats(L).filter((s) => s.placement !== undefined && s.termination === 'placed'));
   const placementOf = new Map(placedRuns.map((r) => [runKey(r), r.placement!]));
   const lobbyOfRun = new Map(placedRuns.map((r) => [runKey(r), r.lobbyId]));
   const populationPlacement = ci(perLobby(placedRuns, (r) => r.placement!), 'population');
@@ -237,7 +267,7 @@ export function aggregate(records: readonly LobbyRecord[], opts: AggregateOption
   const eligibleCount = new Map<string, number>();
   for (const L of usable) {
     const roster = L.manifest.heroes?.length ? L.manifest.heroes : eligibleHeroes(L.seats[0]?.tribes ?? []);
-    for (const id of roster) eligibleCount.set(id, (eligibleCount.get(id) ?? 0) + L.seats.length);
+    for (const id of roster) eligibleCount.set(id, (eligibleCount.get(id) ?? 0) + pilotSeats(L).length);
   }
   for (const id of [...heroIds, ...eligibleCount.keys()].filter((v, i, a) => a.indexOf(v) === i).sort()) {
     const runs = allRuns.filter((r) => r.heroId === id);
@@ -272,7 +302,7 @@ export function aggregate(records: readonly LobbyRecord[], opts: AggregateOption
       runePicked.set(e.sourceId, (runePicked.get(e.sourceId) ?? 0) + 1);
       (runeRounds.get(e.sourceId) ?? runeRounds.set(e.sourceId, []).get(e.sourceId)!).push(e.round);
     }
-    for (const s of L.seats) for (const id of s.runesOwned) (runeOwners.get(id) ?? runeOwners.set(id, new Set()).get(id)!).add(runKey(s));
+    for (const s of pilotSeats(L)) for (const id of s.runesOwned) (runeOwners.get(id) ?? runeOwners.set(id, new Set()).get(id)!).add(runKey(s));
   }
   const runeRows: RuneRow[] = [];
   for (const id of [...new Set([...runeOffered.keys(), ...runeOwners.keys()])].sort()) {
@@ -334,8 +364,8 @@ export function aggregate(records: readonly LobbyRecord[], opts: AggregateOption
         default: break;
       }
     }
-    for (const r of L.rounds) for (const id of new Set([...r.board, ...r.hand])) if (CARD_INDEX[id]) bump(F(id).held, runKey(r));
-    for (const s of L.seats) for (const id of s.finalBoard) if (CARD_INDEX[id]) F(id).finalBoard++;
+    for (const r of L.rounds) if (pilotRound(r)) for (const id of new Set([...r.board, ...r.hand])) if (CARD_INDEX[id]) bump(F(id).held, runKey(r));
+    for (const s of pilotSeats(L)) for (const id of s.finalBoard) if (CARD_INDEX[id]) F(id).finalBoard++;
   }
   const minionRows: MinionRow[] = []; const spellRows: SpellRow[] = [];
   for (const id of [...funnels.keys()].sort()) {
@@ -377,6 +407,7 @@ export function aggregate(records: readonly LobbyRecord[], opts: AggregateOption
     for (let r = 1; r <= L.roundsPlayed; r++) { for (const arr of [tierBy, unspentBy, turnBy]) (arr[r] ??= []); }
     const tp = new Map<number, LobbyPartial>(); const up = new Map<number, LobbyPartial>(); const tu = new Map<number, LobbyPartial>();
     for (const rr of L.rounds) {
+      if (!pilotRound(rr)) continue;
       results[rr.result]++;
       add(tp, rr.round, rr.tier); add(up, rr.round, rr.goldUnspent);
       const prev = prevBoard.get(rr.seatId);
@@ -397,6 +428,28 @@ export function aggregate(records: readonly LobbyRecord[], opts: AggregateOption
     earlyCardRetention: finalSlots.length ? finalSlots.filter((id) => Number(CARD_INDEX[id].tier) <= 2).length / finalSlots.length : undefined,
   };
 
+  // ── the recorded population (pinned lobbies) ────────────────────────────────────────────────────────────────
+  let recorded: RecordedPopulation | undefined;
+  if (recordedRuns.length) {
+    const placedRec = outcomeLobbies.flatMap((L) => L.seats.filter((s) => !isPilot(s) && s.placement !== undefined && s.termination === 'placed'));
+    const keys = new Set<string>(); const authors = new Set<string>(); const patches: Record<string, number> = {}; const heroes: Record<string, number> = {}; const waves: number[] = [];
+    for (const r of recordedRuns) {
+      heroes[r.heroId] = (heroes[r.heroId] ?? 0) + 1;
+      if (!r.recording) continue;
+      keys.add(r.recording.key); authors.add(r.recording.author); waves.push(r.recording.waves);
+      const p = r.recording.patch ?? '(none)'; patches[p] = (patches[p] ?? 0) + 1;
+    }
+    const pilotResults: Pacing['results'] = { win: 0, loss: 0, tie: 0, bye: 0 };
+    for (const L of usable) for (const rr of L.rounds) if (pilotRound(rr)) pilotResults[rr.result]++;
+    recorded = {
+      seats: recordedRuns.length, runs: keys.size, authors: authors.size, patches: sortedRecord(patches), heroes: sortedRecord(heroes),
+      wavesPerRun: mean(waves),
+      recordingsPlacement: ci(perLobby(placedRec, (r) => r.placement!), 'recorded:placement'),
+      pilotPlacement: populationPlacement,
+      pilotResults,
+    };
+  }
+
   // ── likely problems: CI excludes the population mean, ranked by effect size ─────────────────────────────────
   const problems: Problem[] = [];
   for (const h of heroRows) if (!h.suppressed && h.placement.est !== undefined && h.placement.lobbies >= 2 && (h.placement.lo! > popMean || h.placement.hi! < popMean)) {
@@ -414,7 +467,7 @@ export function aggregate(records: readonly LobbyRecord[], opts: AggregateOption
   problems.sort((a, b) => Math.abs(b.effect) - Math.abs(a.effect) || a.id.localeCompare(b.id));
 
   return {
-    schemaVersion: 1, options, coverage, populationPlacement, heroes: heroRows, runes: runeRows, minions: minionRows, spells: spellRows, pacing, problems,
+    schemaVersion: 1, options, coverage, populationPlacement, ...(recorded ? { recorded } : {}), heroes: heroRows, runes: runeRows, minions: minionRows, spells: spellRows, pacing, problems,
     recordsDigest: fnv1a(records.map((L) => `${L.lobbyId}#${L.seed}#${L.roundsPlayed}#${L.failure ?? ''}`).sort().join('|')),
   };
 }

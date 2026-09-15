@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "name": "set2-pinned-smoke",
+  "mode": "pinnedLobby",
+  "setId": "set2",
+  "policy": {
+    "id": "generalist",
+    "budget": {
+      "depth": 1,
+      "beam": 1,
+      "maxNodes": 40,
+      "positionCandidates": 2
+    }
+  },
+  "seeds": {
+    "start": 1,
+    "count": 20
+  },
+  "corpus": {
+    "name": "set2-players-v1",
+    "digest": "87909308f9c0a30b"
+  },
+  "fightRules": "shipped",
+  "notes": "Shipped asynchronous lobby: the generalist (smoke budget) plays seat 0 of the SHIPPED eight-seat lobby whose other seven seats are real recorded set-2 player runs from the pinned corpus. 20 lobbies, hero rotated by seed."
+}

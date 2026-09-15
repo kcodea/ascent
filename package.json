@@ -28,6 +28,7 @@
     "balance:corpus": "tsx packages/tools/src/balance/cli.ts corpus",
     "balance:matrix": "tsx packages/tools/src/balance/cli.ts matrix",
     "balance:findings": "tsx packages/tools/src/balance/cli.ts findings",
+    "balance:gap": "tsx packages/tools/src/balance/cli.ts gap",
     "balance:value:dataset": "tsx packages/tools/src/balance/value/cli.ts dataset",
     "balance:value:fit": "tsx packages/tools/src/balance/value/cli.ts fit",
     "balance:value:report": "tsx packages/tools/src/balance/value/cli.ts report",

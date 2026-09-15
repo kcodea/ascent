@@ -20,7 +20,19 @@ npm run balance:corpus  -- --set set2 --out set2-players-v1 [--patch 0.1.0+]   #
 npm run balance:run     -- --manifest packages/tools/src/balance/manifests/set2-pinned-smoke.json --out set2-pinned-smoke
 npm run balance:matrix  -- --manifest packages/tools/src/balance/manifests/set2-generalist-200.json --runs-per-hero 30 --out set2-matrix [--heroes a,b] [--exploration-rotate] [--workers 8]
 npm run balance:findings -- --job set2-matrix --out findings.md [--format json] [--q 0.1] [--margin 0.25] [--min-support 20]
+npm run balance:gap     -- --job set2-pinned-gen-dev100 [--corpus set2-players-v1] [--out gap.md] [--format json]   # the pilot ↔ real players measuring stick
 ```
+
+**`balance:gap`** is the shared measuring stick for "how far is the pilot from real players" (2026-09-15). For a
+job's PILOT seats (any seat whose `policyId` is not `recording`) against a recorded corpus (default: the one the job
+names) it prints, per wave 1..16, `n`, board stat total (Σ attack + health) median and p80, minion count, golden
+count, mean tier and largest-tribe share for pilot / corpus side by side; the growth multiplier (median stat total at
+W ÷ W−1) per side; the top-25 card frequencies at wave ≥ 10 (share of boards holding the card) side by side; and the
+pilot's placement histogram, mean with a lobby-level bootstrap 95% CI, firsts, top-3 and the **pass line** (owner
+2026-09-15: **< 4.0 pass, < 3.0 strong, < 2.0 phenomenal**). The pilot side reads each `RoundRecord.snapshot` (the
+served board at the end of the recruit turn; an empty board counts as 0); the corpus side groups boards into runs by
+`author | hero | seed` as `playerRunsFrom` does. Descriptive (evidence level 1): a recorded board carries no
+placement, so the corpus is board shape only.
 
 A **manifest** names the game being measured: mode (`selfPlayLobby` and `pinnedLobby` are wired), set, policy +
 search budget, seed schedule, round cap, per-turn action cap, and `fightRules` (`corrected` = every seat fights
@@ -244,9 +256,9 @@ one-turn evaluator values a body by the fight it wins THIS turn against a panel 
 capped at a few utility points steers which of two equal moves is taken; it cannot make the search see a
 compounding payoff three turns out. The next lever is the evaluator / search horizon (short multi-turn
 rollouts for setup decisions, as the roadmap's B3 already lists), then re-tune the prior against measured
-placement. Also surfaced: the pinned report's minion funnel prints `bought 0` for every card (`offered → bought
-→ played`) — the buy attribution does not reach the pinned runner's records; the numbers above were
-reconstructed from `cardGained` effect events.
+placement. Also surfaced (and FIXED the same day, see below): the pinned report's minion funnel printed `bought 0`
+for every card — the pinned runner omitted the per-seat `lineage`, so its effects fell through to the runner's
+retired lean diff; the numbers above were reconstructed from `cardGained` effect events at the time.
 
 ## What the first real jobs showed (2026-09-15)
 
@@ -274,6 +286,10 @@ reconstructed from `cardGained` effect events.
   the self-play runner emitted its own lean effect diff (`cardGained` keyed by `targetId`) while the aggregate read
   the recorder's attributer (`sourceId`, lineage routes), so every REAL job's minion / spell funnel read "bought 0" —
   `playRecruitTurn` now takes a per-seat `lineage` and derives effects through `effectsFromTransition.ts`.
+- The same defect recurred in the PINNED runner (`pinnedLobby.ts` never passed a `lineage`, so it kept falling
+  through to the lean `targetId` diff): fixed 2026-09-15 — the pinned lobby keeps one lineage per run, and the lean
+  fallback is RETIRED (`playRecruitTurn` always attributes through `effectsFromTransition.ts`, with a throwaway map
+  when a caller passes none). `pinnedLobby.test.ts` + `tools/balance/pinnedFunnel.test.ts` pin the funnel.
 
 ## The bar (owner, 2026-09-15)
 
@@ -364,6 +380,6 @@ What each layer proves today, and what it does not. Check the boxes as the gates
 4. ~~B4 strategy specialists (package manifests + curricula)~~ — shipped as the strategist pilot, which beats the
    generalist in self-play but plateaus at 6.4 against the recorded players. Next, in order: (a) give the search a
    horizon the prior cannot fake — short multi-turn rollouts for setup / replace decisions and an evaluator gradient
-   that survives losing (B3); (b) fix the pinned report's buy attribution; (c) THEN tune the prior's weights against
+   that survives losing (B3); (b) ~~fix the pinned report's buy attribution~~ (done 2026-09-15); (c) THEN tune the prior's weights against
    pinned placement (`bot:tune`-style search, never hand-feel) and run a `strategist:rotate` job per hero.
 5. B7 workers + nightly entry point once throughput matters.

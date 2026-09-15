@@ -9,6 +9,7 @@
  *   npm run balance:corpus  -- --set set2 --out set2-players-v1 [--patch 0.1.0+]   (the recorded player corpus a pinnedLobby job names)
  *   npm run balance:matrix  -- --manifest <base.json> --runs-per-hero 30 --out <jobId> [--heroes a,b] [--exploration-rotate] [--workers 4]
  *   npm run balance:findings -- --job <jobId> [--out findings.md] [--format md|json] [--min-support 20] [--q 0.1] [--margin 0.25]
+ *   npm run balance:gap     -- --job <jobId> [--corpus set2-players-v1] [--out gap.md] [--format md|json]   (pilot vs the recorded players)
  *
  * Reports print to stdout unless `--out` names a file. Jobs live under packages/tools/src/balance/out/<jobId>/.
  */
@@ -25,6 +26,8 @@ import { applyContentOverlay } from '@game/sim/balance/overlay';
 import { createRecorder, pilotFor, runPinnedLobby, runSelfPlayLobby, synthesizeLobby, syntheticIdentity, syntheticManifest, type ExperimentIdentity, type SyntheticOptions } from './deps';
 import { matrixProgress, planMatrix, runMatrix, runWorkers, runnerFor, fmtDuration } from './matrix';
 import { computeFindings, renderFindings } from './findings';
+import { computeGap, renderGap } from './gap';
+import { loadCorpus } from './corpus';
 import type { SetId } from '@game/content';
 
 type Args = Record<string, string | true>;
@@ -123,6 +126,18 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
       emit(renderFindings(f, { format, jobId: job.jobId, identity: job.identity, maxRows: num(args, 'max-rows', 25) }), str(args, 'out'));
       return;
     }
+    case 'gap': {
+      const job = loadJob(need(args, 'job'));
+      if (job.rejected.length) console.error(`note: ${job.rejected.length} lobby file(s) rejected: ${job.rejected.map((r) => `${r.key} (${r.reason})`).join('; ')}`);
+      // The corpus defaults to the one the job NAMES (a pinned job); a self-play job must say which players to measure against.
+      const corpusName = str(args, 'corpus') ?? job.manifest.corpus?.name;
+      if (!corpusName) throw new Error(`gap: job "${job.jobId}" names no corpus — pass --corpus <name> (see out/corpus/)`);
+      const corpus = loadCorpus(corpusName);
+      if (job.manifest.corpus && job.manifest.corpus.name === corpusName && job.manifest.corpus.digest !== corpus.digest) console.error(`note: corpus "${corpusName}" on disk (digest ${corpus.digest}) is not the one the job ran on (${job.manifest.corpus.digest})`);
+      const g = computeGap(job.jobId, job.lobbies, corpus, { maxWave: num(args, 'max-wave', 16), cardWaveMin: num(args, 'card-wave', 10), topCards: num(args, 'top', 25), bootstrapReps: num(args, 'reps', 1000), seed: num(args, 'seed', 1) });
+      emit(renderGap(g, { format: str(args, 'format', 'md') as 'md' | 'json' }), str(args, 'out'));
+      return;
+    }
     case 'report': {
       const job = loadJob(need(args, 'job'));
       const agg = aggregate(job.lobbies, { minSupport: num(args, 'min-support', 20), bootstrapReps: num(args, 'reps', 1000), seed: num(args, 'seed', 1) });
@@ -215,7 +230,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
       return;
     }
     default:
-      console.log('usage: balance <report|compare|synth|list|run|pool|corpus|matrix|findings> [--flags]  (see packages/tools/src/balance/cli.ts)');
+      console.log('usage: balance <report|compare|synth|list|run|pool|corpus|matrix|findings|gap> [--flags]  (see packages/tools/src/balance/cli.ts)');
   }
 }
 

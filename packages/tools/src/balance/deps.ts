@@ -3,7 +3,7 @@
  * surface (and the `@game/sim/balance/*` subpath the contract lives under) is crossed in exactly one file.
  */
 export { CARD_INDEX, RUNE_INDEX, RUNES, EPIC_RUNES, SETS, poolFor } from '@game/content';
-export { HEROES, playableHeroes, registerOpponents } from '@game/sim';
+export { HEROES, playableHeroes, registerOpponents, type BoardSnapshot } from '@game/sim';
 export type {
   AcceptedActionEvent, BalanceRecorder, EffectEvent, ExperimentIdentity, ExperimentManifest, LobbyRecord, RoundRecord, RunRecord, SeatPilot,
 } from '@game/sim/balance/types';

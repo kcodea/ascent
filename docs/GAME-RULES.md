@@ -144,9 +144,14 @@ in; the shop never rolls it. Engine: `packages/sim/src/starform.ts`; every rule 
    at all still gets the token (appended — the one case the row overflows by one, until the next roll).
 2. **Only one at a time.** A second create is a no-op (cards that say "give it +2/+2 instead" handle that
    themselves).
-3. **It persists through refreshes in its OWN slot** — the token never moves when the row rebuilds (kept
-   Layaway offers still pull left around it) — and across turns and combat, and under Freeze, until it is
-   consumed, collapsed or destroyed. It takes a slot: a tier's row is one draw shorter while it is out.
+3. **It persists through refreshes at the RIGHT-MOST slot** (owner 2026-09-14) — the player may drag it
+   anywhere in the row during a turn, but every rebuild (a roll, a Muster, a spell shop, a restock) puts it
+   back at the far right, past any spell offers (kept Layaway offers still pull left) — and across turns and
+   combat, and under Freeze, until it is consumed, collapsed or destroyed. It takes a slot: a tier's row is one
+   draw shorter while it is out. **Creating into a full row is silent on screen**: the eaten right-most
+   minion simply leaves and the token takes its slot in place — no pull, no row shift — while the owner's
+   `starform-create` cue plays on the token (it plays on every creation, open slot or not). Mechanically the
+   meal is still a real Shop consume.
 4. **Refresh-time slot buffs land on it ONCE.** Market Tormentor's right-most enchant, Rune of the Embers'
    doubling, the Display Case's left-most enchant and Veinstorm's per-refresh Ruby stamp each land on a
    Starform the first refresh it sits in the slot and **never again** on later refreshes (they are gated,

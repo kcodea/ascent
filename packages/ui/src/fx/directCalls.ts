@@ -72,6 +72,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // `shopEaten` ghost, in place of `consume-pull`), a Celestial consuming the token, and the Collapse — one
   // play per receiver. Fired from the two `shopEaten` / `starformFxSeq` watchers in Recruit.tsx.
   'starform-pull': ['Recruit.tsx'],
+  'starform-create': ['Recruit.tsx'], // the token's creation cue (owner def 2026-09-14) — on the token's slot, every creator
   'strike-impact': ['choreo/channels/impact.ts'],
   // A consumed / death-lost Ward (owner-authored 2026-09-09, replacing the `shatterAt('shield')` shard-burst;
   // the `sfx.shieldBreak` sound is unchanged). Fired from the aura channel's two Ward-loss sites.

@@ -56,6 +56,14 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-14',
+    label: 'Starform creation',
+    changes: [
+      { category: 'Card Change', text: 'The Starform always returns to the right-most Shop slot on a refresh. You can still drag it around during the turn.' },
+      { category: 'UI / Info', text: 'A Starform being created has its own burst-and-ring cue on its slot. Forming one in a full Shop no longer pulls the eaten minion across the row or shuffles the other offers — it simply appears where that minion stood.' },
+    ],
+  },
+  {
+    date: '2026-09-14',
     label: 'Tendril aim fix',
     changes: [
       { category: 'UI / Info', text: 'A buff ribbon aimed at a minion you just dropped now lands on its slot on the board, not on the spot where you let go of it (Aspect buffing the Spirit you played showed it).' },

@@ -16,6 +16,7 @@ live here; Node workers, storage and the CLI live in `packages/tools/src/balance
 | `recorder.ts` | the `BalanceRecorder` that builds a `LobbyRecord` (`createRecorder` → `observeTransition` / `finalize`) | B5 |
 | `effectsFromTransition.ts` | `effectEventsOf(before, after, action, ctx, lineage)` — attributed `EffectEvent`s read off the sim's per-action channels (the channel table is in the file header) | B5 |
 | `fixtures/syntheticLobby.ts` | deterministic SYNTHETIC `LobbyRecord[]` from a seed (real ids, plausible streams) so the report/compare are testable before the runner lands; `heroBias` is the positive control | B5 |
+| `value/` | **learned value (2026-09-15)** — `features.ts` (the ONE feature function: `featuresOf(visibleState)` / `featuresOfSnapshot`, mechanic buckets from the effect vocabulary), `model.ts` (deterministic per-band ridge, per-wave standardisation, `fit` / `predict`), `term.ts` (`valueTermOf`), `models/set2-v1.json` (the committed fit + its provenance and validation); the dataset builder / fit / report CLI live in `tools/src/balance/value` — see docs/balance-bot.md "Learned value" | — |
 | `generalistPilot.ts` | `createGeneralistPilot(budget, seed)` + `GENERALIST_BUDGETS` — the competent generalist through `productionBots/` (search in `productionBots/pilotSearch.ts`, repaired `fightScore`, `combatContext.ts` friendly prep) | B3 |
 
 ## Where the Node-only parts live (B0 decision)

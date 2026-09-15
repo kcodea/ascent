@@ -24,6 +24,7 @@ import type { EvaluationPrior } from '../../productionBots/evaluate';
 import { packageById, runeAffinity, runeIsRecurring, type StrategyPackage } from './packages';
 import type { LineChoice } from './lines';
 import { valueTermOf, type ValueModel } from '../value';
+import { imitationTermOf, type ImitationModel } from '../imitation';
 
 /** The prior's weight in utility units per normalized point. Sized so a full line on the board (~1.5) is worth
  *  about half of `fightStrength`'s range — enough to steer construction, never enough to lose a fight for it. */
@@ -75,11 +76,19 @@ export function runePayoff(runeId: string, wave: number): number {
   return runeIsRecurring(rune) ? Math.min(1, remaining / 8) : 0.6;
 }
 
-export interface PriorBreakdown { cards: number; runes: number; timing: number; pairs: number; hero: number; mass: number; investment: number; clutter: number; value: number; total: number }
+export interface PriorBreakdown { cards: number; runes: number; timing: number; pairs: number; hero: number; mass: number; investment: number; clutter: number; value: number; imitation: number; total: number }
 
 /** The learned value term's weight in UTILITY units per unit of the model's output (the coordinator's ceiling is
  *  30 on the evaluator's scale; heavier makes the pilot tier on the real curve but die earlier at depth 1). */
 export const VALUE_WEIGHT = 20;
+
+/** The IMITATION term's weight (B7) in UTILITY units per log-odds point of `balance/imitation` — 0 = off (the
+ *  shipped strategist default until a pinned job says otherwise; see docs/balance-bot.md "Imitation term (B7)"). */
+export const IMITATION_WEIGHT = 0;
+
+/** The models the prior may blend (both optional). */
+export interface PriorModels { value?: ValueModel | null; imitation?: ImitationModel | null }
+export interface PriorWeights { value?: number; imitation?: number }
 
 /**
  * A wave's board-mass reference — the procedural enemy curve's "healthy board" (`8 + 7·wave`, as `evaluate.ts`
@@ -92,7 +101,10 @@ export const VALUE_WEIGHT = 20;
 export const massReference = (wave: number): number => Math.max(20, 8 + 7 * wave);
 
 /** The prior's terms for one visible state (exported for traces and the curricula). */
-export function linePriorBreakdown(v: BotVisibleState, line: LineChoice, pk: LinePackages = packagesOf(line), model: ValueModel | null = null, valueWeight = VALUE_WEIGHT): PriorBreakdown {
+export function linePriorBreakdown(v: BotVisibleState, line: LineChoice, pk: LinePackages = packagesOf(line), models: PriorModels = {}, weights: PriorWeights = {}): PriorBreakdown {
+  const model = models.value ?? null;
+  const valueWeight = weights.value ?? VALUE_WEIGHT;
+  const imitationWeight = weights.imitation ?? IMITATION_WEIGHT;
   // CARDS. Board at full value (golden 1.5×); a MINION in hand at 0.6 (a line body not yet fielded). Spells and
   // Rubies in hand count for nothing: their value is in the cast, and crediting them held made the pilot hoard
   // its own payoff spells (measured 2026-09-15: a tempo line sat on Spirit Fire rather than cast it).
@@ -180,11 +192,19 @@ export function linePriorBreakdown(v: BotVisibleState, line: LineChoice, pk: Lin
   const learned = model ? valueTermOf(v, model) : null;
   const value = learned === null ? 0 : learned * (valueWeight / PRIOR_WEIGHT);
 
-  return { cards, runes, timing, pairs, hero, mass, investment, clutter, value, total: cards + runes + timing + pairs + hero + mass + investment + clutter + value };
+  // IMITATION (B7, `balance/imitation`): the log-odds that this board is one the recorded players who went on to
+  // survive held at this wave — per-card weights, goldens and board size against the survivors' means, hand
+  // minions at half credit while the board has room. A TARGET-BOARD signal: it names the cards (Bob Blart,
+  // Brakka, Echohorn, Storm Chaser …) where the value model only sees shape. Blended at `imitationWeight` utility
+  // per log-odds point (0 = off); null (no band) contributes nothing.
+  const imitated = models.imitation && imitationWeight !== 0 ? imitationTermOf(v, models.imitation) : null;
+  const imitation = imitated === null ? 0 : imitated * (imitationWeight / PRIOR_WEIGHT);
+
+  return { cards, runes, timing, pairs, hero, mass, investment, clutter, value, imitation, total: cards + runes + timing + pairs + hero + mass + investment + clutter + value + imitation };
 }
 
-/** The installable prior for a line. `model` blends the learned value term (null = none). */
-export function linePrior(line: LineChoice, model: ValueModel | null = null, valueWeight = VALUE_WEIGHT): EvaluationPrior {
+/** The installable prior for a line. `models` blends the learned value term and the imitation term (absent = none). */
+export function linePrior(line: LineChoice, models: PriorModels = {}, weights: PriorWeights = {}): EvaluationPrior {
   const pk = packagesOf(line);
-  return (v) => linePriorBreakdown(v, line, pk, model, valueWeight).total;
+  return (v) => linePriorBreakdown(v, line, pk, models, weights).total;
 }

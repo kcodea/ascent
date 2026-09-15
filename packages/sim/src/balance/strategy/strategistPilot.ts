@@ -25,9 +25,10 @@ import type { Action, RunState } from '../../state';
 import { withEvaluationPrior } from '../../productionBots/evaluate';
 import { createGeneralistPilot, type GeneralistPilot } from '../generalistPilot';
 import type { PilotBudget, SeatContext, SeatPilot } from '../types';
-import { pickLineForRun, viableLineCount, type LineChoice } from './lines';
-import { linePrior, PRIOR_WEIGHT, VALUE_WEIGHT } from './prior';
+import { pickLineForRun, viableLineCount, type LineChoice, type LineImitation } from './lines';
+import { IMITATION_WEIGHT, linePrior, PRIOR_WEIGHT, VALUE_WEIGHT } from './prior';
 import { loadDefaultValueModel, type ValueModel } from '../value';
+import { loadDefaultImitationModel, type ImitationModel } from '../imitation';
 
 export interface StrategistOptions {
   /** 0 = best fit; k = k-th best viable line; 'rotate' = k from the run seed (a per-seed rotation). */
@@ -39,6 +40,12 @@ export interface StrategistOptions {
   /** Weight of the learned value term (`balance/value`, the survival model fit on recorded players) in utility
    *  units; 0 disables it. Default `VALUE_WEIGHT`. The model is the set's committed one (`loadDefaultValueModel`). */
   valueWeight?: number;
+  /** B7: weight of the IMITATION term (`balance/imitation`, the per-card survivor table fit on the recorded players)
+   *  in utility units per log-odds point; 0 disables it. Default `IMITATION_WEIGHT`. */
+  imitationWeight?: number;
+  /** B7: how much the survivors' card table shapes LINE choice (`lines.ts`: fit × (1 + weight × affinity)); 0 = the
+   *  content-derived fit alone. Default 0. */
+  imitationLineWeight?: number;
 }
 
 export interface StrategistPilot extends SeatPilot {
@@ -59,11 +66,19 @@ export function createStrategistPilot(budget: PilotBudget, seed: number, opts: S
   const lines = new Map<string, LineChoice>();
   const weight = opts.priorWeight ?? budget.priorWeight ?? PRIOR_WEIGHT;
   const valueWeight = opts.valueWeight ?? budget.valueWeight ?? VALUE_WEIGHT;
+  const imitationWeight = opts.imitationWeight ?? budget.imitationWeight ?? IMITATION_WEIGHT;
+  const imitationLineWeight = opts.imitationLineWeight ?? budget.imitationLineWeight ?? 0;
   const models = new Map<string, ValueModel | null>();
   const modelFor = (setId: string): ValueModel | null => {
     if (valueWeight === 0) return null;
     if (!models.has(setId)) models.set(setId, loadDefaultValueModel(setId));
     return models.get(setId) ?? null;
+  };
+  const imitationModels = new Map<string, ImitationModel | null>();
+  const imitationFor = (setId: string): ImitationModel | null => {
+    if (imitationWeight === 0 && imitationLineWeight === 0) return null;
+    if (!imitationModels.has(setId)) imitationModels.set(setId, loadDefaultImitationModel(setId));
+    return imitationModels.get(setId) ?? null;
   };
   const id = opts.id ?? strategistId(opts.exploration);
 
@@ -74,7 +89,9 @@ export function createStrategistPilot(budget: PilotBudget, seed: number, opts: S
     const k = opts.exploration === 'rotate'
       ? Math.abs(run.seed) % viableLineCount(run.heroId, run.tribes, setId)
       : opts.exploration;
-    const line = pickLineForRun(run.heroId, run.tribes, run.seed ^ seed, k, setId);
+    const im = imitationFor(setId);
+    const imitation: LineImitation | undefined = im && imitationLineWeight > 0 ? { model: im, weight: imitationLineWeight } : undefined;
+    const line = pickLineForRun(run.heroId, run.tribes, run.seed ^ seed, k, setId, imitation);
     lines.set(seatId, line);
     return line;
   };
@@ -85,7 +102,8 @@ export function createStrategistPilot(budget: PilotBudget, seed: number, opts: S
     handDiscipline: true,
     wrap: (run: RunState, ctx: SeatContext, decide: () => Action | null): Action | null => {
       const line = lineFor(run, ctx.seatId);
-      return withEvaluationPrior(linePrior(line, modelFor(run.setId ?? 'set2'), valueWeight), weight, decide);
+      const setId = run.setId ?? 'set2';
+      return withEvaluationPrior(linePrior(line, { value: modelFor(setId), imitation: imitationFor(setId) }, { value: valueWeight, imitation: imitationWeight }), weight, decide);
     },
   });
 

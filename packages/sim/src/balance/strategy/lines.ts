@@ -14,6 +14,11 @@ import type { SetId } from '@game/content';
 import { makeRng } from '@game/core';
 import { mixSeed } from '../../state';
 import { STRATEGY_PACKAGES, packageMembers, type StrategyPackage } from './packages';
+import { lineSurvivorAffinity, type ImitationModel } from '../imitation';
+
+/** B7: let the recorded survivors' card table reshape the ranking — fit × (1 + weight × affinity), affinity in
+ *  [0, 2] (`lineSurvivorAffinity`). Viability is still the content-derived fit alone. */
+export interface LineImitation { model: ImitationModel; weight: number }
 
 export interface LineChoice {
   primary: string;
@@ -27,6 +32,8 @@ export interface LineChoice {
 export interface PackageFit {
   id: string;
   fit: number;
+  /** B7: the survivors' affinity for the package's core (0 without an imitation model). */
+  survivorAffinity: number;
   tribeAvailability: number;
   heroAffinity: number;
   poolDepth: number;
@@ -52,19 +59,23 @@ export function poolDepth(pkg: StrategyPackage, setId: SetId): number {
   return payoffs > 0 ? base : base * 0.5;
 }
 
-export function packageFits(heroId: string, tribes: readonly Tribe[], setId: SetId): PackageFit[] {
+export function packageFits(heroId: string, tribes: readonly Tribe[], setId: SetId, imitation?: LineImitation): PackageFit[] {
   return STRATEGY_PACKAGES.map((pkg) => {
     const tribeAvail = tribeAvailability(pkg, tribes);
     const heroAffinity = pkg.heroes[heroId] ?? 1;
     const depth = poolDepth(pkg, setId);
-    return { id: pkg.id, fit: tribeAvail * heroAffinity * depth, tribeAvailability: tribeAvail, heroAffinity, poolDepth: depth };
+    const survivorAffinity = imitation ? lineSurvivorAffinity(pkg, setId, imitation.model) : 0;
+    const base = tribeAvail * heroAffinity * depth;
+    // The survivors' table only RESHAPES a viable fit: a line the run cannot field (base 0) stays 0.
+    const fit = imitation ? base * (1 + imitation.weight * survivorAffinity) : base;
+    return { id: pkg.id, fit, survivorAffinity, tribeAvailability: tribeAvail, heroAffinity, poolDepth: depth };
   });
 }
 
 /** Fits, best first; exact ties broken by a private RNG seeded from `seed` (never the run's RNG). */
-export function rankPackages(heroId: string, tribes: readonly Tribe[], setId: SetId, seed: number): PackageFit[] {
+export function rankPackages(heroId: string, tribes: readonly Tribe[], setId: SetId, seed: number, imitation?: LineImitation): PackageFit[] {
   const rng = makeRng(mixSeed(seed, 0x51e, heroId.length) >>> 0);
-  const keyed = packageFits(heroId, tribes, setId).map((f) => ({ f, key: rng.next() }));
+  const keyed = packageFits(heroId, tribes, setId, imitation).map((f) => ({ f, key: rng.next() }));
   keyed.sort((a, b) => b.f.fit - a.f.fit || a.key - b.key);
   return keyed.map((k) => k.f);
 }
@@ -77,8 +88,8 @@ export const VIABLE_FIT = 0.15;
  * a playable line; the secondary is the next viable package that shares a tribe with the primary or is
  * tribe-agnostic — a complement the primary's shop will also offer, never a second unrelated tribe.
  */
-export function pickLineForRun(heroId: string, tribes: readonly Tribe[], seed: number, exploration: number, setId: SetId = 'set2'): LineChoice {
-  const ranked = rankPackages(heroId, tribes, setId, seed);
+export function pickLineForRun(heroId: string, tribes: readonly Tribe[], seed: number, exploration: number, setId: SetId = 'set2', imitation?: LineImitation): LineChoice {
+  const ranked = rankPackages(heroId, tribes, setId, seed, imitation);
   const viable = ranked.filter((f) => f.fit >= VIABLE_FIT);
   const pool = viable.length > 0 ? viable : ranked.slice(0, 1);
   const k = Math.max(0, Math.floor(exploration)) % pool.length;

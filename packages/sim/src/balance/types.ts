@@ -45,6 +45,10 @@ export interface PilotBudget {
    *  default `VALUE_WEIGHT` = 20; 0 disables the blend). Ignored by the generalist. */
   priorWeight?: number;
   valueWeight?: number;
+  /** B7 (additive): the IMITATION term's weight (utility per log-odds point of `balance/imitation`; default 0 = off)
+   *  and how much the survivors' card table reshapes LINE choice (default 0). Ignored by the generalist. */
+  imitationWeight?: number;
+  imitationLineWeight?: number;
 }
 
 export interface ExperimentManifest {

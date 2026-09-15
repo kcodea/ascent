@@ -334,44 +334,104 @@ function markRightmost(armer: RunState, foe: BoardMinion[]): void {
 /**
  * The `enemy` seat's view of the one authoritative result.
  *
- * PRODUCTION DISCREPANCY (the largest one B1 found — core/src/combat/simulate.ts, the return block): the
- * simulator emits ~45 `player*` carry-backs and exactly ONE enemy-side number, `enemyDamage`. Its trackers are
- * gated `side === 'player'` throughout (74 sites) — enemy Deathrattles are not even counted (`enemyDeathrattles`
- * is the snapshot's frozen value). So the seat that fought as `enemy` can be told its outcome, its damage, its
- * deaths and who survived (folded from the event log), and NOTHING it earned: no Engraved gains, no
- * Kennelmaster/Sergeant/Guel/Tara progress, no hand grants, no Reinvestment payout, no quest tallies. In the
- * shipped table this is invisible because no non-player seat progresses at all; here it is a documented loss
- * on the `enemy` side of every pair. The fix is a symmetric carry-back surface in `simulate` (core, shared
- * boundary — its own PR); this function is the seam it plugs into, and every field below is named so the gap
- * is auditable rather than implied.
+ * B1 found the simulator's carry-backs were player-only (~45 `player*` fields, 74 `side === 'player'` gates,
+ * enemy Deathrattles not even counted) — the largest production discrepancy on the roadmap. `simulate` now
+ * computes the SAME carry-backs for both sides and reports the enemy's on `CombatResult.enemyCarry`
+ * (core `CombatCarryBacks`, 2026-09-15); this mirror lifts that object onto the `player*` fields the real
+ * `resolveCombat` path reads, so the `enemy` seat settles with everything it earned: Engraved gains,
+ * Kennelmaster / Sergeant / Guel / Tara progress, hand grants, Reinvestment, quest tallies, ….
+ *
+ * THE MAPPING IS EXPLICIT, FIELD BY FIELD, in both directions: every `player*` field on the mirrored result is
+ * written from `enemyCarry` and nothing else (the fight's own `player*` fields — the OTHER seat's earnings —
+ * are stripped first, so a new `player*` field can never leak across the table by default, and a new
+ * `CombatCarryBacks` field is silently dropped here until it is mapped — the leak test names the contract).
+ *
+ * WHAT IS STILL NOT MIRRORED — the simulator's known, kept asymmetries (see `CombatCarryBacks`): Pack
+ * Mentality's live growth, Blood Trail's mark, and the resolution-bearing live reads (an enemy Grim reads its
+ * frozen tally this fight; enemy spell power / Imp aura / per-card stacks stay static this fight even though
+ * their gains DO carry back). A result without `enemyCarry` (a hand-built fixture) mirrors damage, outcome,
+ * deaths and survivors only — deathrattles recorded as 0, never estimated.
  */
 export function mirrorForEnemySeat(result: CombatResult): CombatResult {
   const clone = structuredClone(result);
-  // Strip EVERY player-perspective carry-back: they belong to the other seat. (Explicit, key by key, so a new
-  // `player*` field added to `CombatResult` can never leak across the table by default.)
+  // Strip EVERY player-perspective carry-back: they belong to the other seat.
   for (const key of Object.keys(clone) as (keyof CombatResult)[]) {
     if (key.startsWith('player')) delete clone[key];
   }
   delete clone.damageBreakdown;
   delete clone.enemyScalers;
   delete clone.oddsInput;
+  delete clone.enemyCarry; // consumed here — the mirrored view must not carry the other seat's mirror of it
   const outcome = result.result === 'win' ? 'lose' : result.result === 'lose' ? 'win' : 'draw';
-  const survivors = enemySurvivorCardIds(result);
+  const c = result.enemyCarry;
+  const survivors = c ? (c.survivorCardIds ?? []) : enemySurvivorCardIds(result);
+  const defined = <T extends object>(o: T): Partial<T> =>
+    Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as Partial<T>;
+  const carried: Partial<CombatResult> = c ? defined({
+    playerDeathrattles: c.deathrattles,
+    playerRallies: c.rallies,
+    playerImpsSummoned: c.impsSummoned,
+    playerFirstKill: c.firstKill,
+    playerLastKill: c.lastKill,
+    playerQuestTally: c.questTally,
+    playerQuestEvents: c.questEvents,
+    playerBeastBuyAtkGain: c.beastBuyAtkGain,
+    playerBeastBuyHpGain: c.beastBuyHpGain,
+    playerBeastScaleProgress: c.beastScaleProgress,
+    playerSummonBonus: c.summonBonus,
+    playerHpGrantBonus: c.hpGrantBonus,
+    playerSpellProgress: c.spellProgress,
+    playerAscendCount: c.ascendCount,
+    playerPermaBuffs: c.permaBuffs,
+    playerHandGrants: c.handGrants,
+    playerHandBuffs: c.handBuffs,
+    playerRubyGrants: c.rubyGrants,
+    playerNextTurnSpellCopies: c.nextTurnSpellCopies,
+    playerRubyBonusGain: c.rubyBonusGain,
+    playerRubyMints: c.rubyMints,
+    playerHandSummoned: c.handSummoned,
+    playerBeastExtraGain: c.beastExtraGain,
+    playerTavernBuyGain: c.tavernBuyGain,
+    playerTavernBuyGainSources: c.tavernBuyGainSources,
+    playerWildHuntGrown: c.wildHuntGrown,
+    playerSpellPower: c.spellPower,
+    playerCardBuffs: c.cardBuffs,
+    playerFodderGrants: c.fodderGrants,
+    playerFodderSchedule: c.fodderSchedule,
+    playerDeferredBattlecries: c.deferredBattlecries,
+    playerMaxGoldGain: c.maxGoldGain,
+    playerBonusGold: c.bonusGold,
+    playerFreeRolls: c.freeRolls,
+    playerGuaranteedAttachments: c.guaranteedAttachments,
+    playerSpellsCast: c.spellsCast,
+    playerSpellEscalationGain: c.spellEscalationGain,
+    playerDiscoverCasts: c.discoverCasts,
+    playerNextShopBuff: c.nextShopBuff,
+    playerUndeadBuyAtkGain: c.undeadBuyAtkGain,
+    playerSlaughterCopy: c.slaughterCopy,
+    playerUndeadAuraGain: c.undeadAuraGain,
+    playerImpBuffGain: c.impBuffGain,
+    playerHoardGain: c.hoardGain,
+    playerRightmostSlotBuff: c.rightmostSlotBuff,
+    playerBeastialSwarmLevel: c.beastialSwarmLevel,
+    playerBoardBuffGain: c.boardBuffGain,
+    playerMagneticBuffGain: c.magneticBuffGain,
+    playerFodderBuffGain: c.fodderBuffGain,
+  }) : { playerDeathrattles: 0 }; // UNKNOWN without the symmetric surface — recorded as 0, never estimated
   return {
     ...clone,
     result: outcome,
     playerDamage: result.enemyDamage ?? 0,
     enemyDamage: result.playerDamage,
-    // UNKNOWN in the shipped simulator (player-side tracker only) — recorded as 0, never estimated.
-    playerDeathrattles: 0,
-    playerDeaths: result.enemyDeaths,
-    enemyDeaths: result.playerDeaths ?? 0,
+    playerDeaths: c ? c.deaths : result.enemyDeaths,
+    enemyDeaths: c ? c.foeDeaths : (result.playerDeaths ?? 0),
     ...(survivors.length ? { playerSurvivorCardIds: survivors } : {}),
     initial: { player: clone.initial.enemy, enemy: clone.initial.player },
-  };
+    ...carried,
+  } as CombatResult;
 }
 
-/** The enemy-side bodies alive at the end, folded from the log: the opening roster + summons − real deaths. */
+/** The enemy survivors folded from the event log — the fallback for a result without `enemyCarry`. */
 function enemySurvivorCardIds(result: CombatResult): string[] {
   const alive = new Map<string, string>(result.initial.enemy.map((m) => [m.uid, m.cardId]));
   for (const e of result.events) {

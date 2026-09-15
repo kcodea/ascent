@@ -2563,9 +2563,90 @@ export interface EnemyScalers {
   rubyBonus: { attack: number; health: number };
 }
 
+/**
+ * ONE side's settle-time carry-backs, side-agnostic — the SAME computation `simulate` runs for the player
+ * (spread onto the legacy `player*` fields, field for field: `deathrattles` → `playerDeathrattles`,
+ * `handGrants` → `playerHandGrants`, …) and, mirrored, for the enemy (`CombatResult.enemyCarry`). Added
+ * 2026-09-15 for eight-seat self-play, where BOTH sides of a pair are live runs and the `enemy` seat must
+ * settle with what it earned. The shipped run loop keeps reading the `player*` fields; nothing there moved.
+ *
+ * THE ENEMY HALF IS A PURE ACCUMULATION: it never emits an event, never draws the fight's RNG and never
+ * changes a live read the resolution consults, so every shipped fight is byte-identical. KNOWN, KEPT
+ * ASYMMETRIES read as absent on the enemy side rather than estimated: Pack Mentality's live growth
+ * (`beastScaleProgress` / its aura gains), Blood Trail (its Start-of-Combat mark exists only on the player
+ * board), and the resolution-bearing live reads (enemy Grim reads its frozen tally, enemy spell power / Imp
+ * aura / per-card stacks stay static this fight even though their gains ARE carried back).
+ */
+export interface CombatCarryBacks {
+  /** Deathrattles this side fired this combat (doubler re-fires included) — `playerDeathrattles`. */
+  deathrattles: number;
+  /** Rally triggers this side fired, doubler re-fires included — `playerRallies`. */
+  rallies?: number;
+  /** Imps this side summoned — `playerImpsSummoned`. */
+  impsSummoned?: number;
+  /** This side's minions that DIED (raw entity deaths; a Rise re-slot does not count) — `playerDeaths`. */
+  deaths: number;
+  /** cardIds of this side's minions still alive at combat end — `playerSurvivorCardIds`. */
+  survivorCardIds?: string[];
+  /** The OTHER side's minions this side put down — the mirror of `enemyDeaths` (for the player) . */
+  foeDeaths: number;
+  /** Flash: the first / last foe body this side killed — `playerFirstKill` / `playerLastKill`. */
+  firstKill?: string;
+  lastKill?: string;
+  questTally?: CombatResult['playerQuestTally'];
+  questEvents?: CombatResult['playerQuestEvents'];
+  beastBuyAtkGain?: number;
+  beastBuyHpGain?: number;
+  /** Player-only by construction (Pack Mentality's live growth is player-side) — always absent for the enemy. */
+  beastScaleProgress?: number;
+  summonBonus: NonNullable<CombatResult['playerSummonBonus']>;
+  hpGrantBonus?: CombatResult['playerHpGrantBonus'];
+  spellProgress?: CombatResult['playerSpellProgress'];
+  ascendCount?: CombatResult['playerAscendCount'];
+  permaBuffs?: CombatResult['playerPermaBuffs'];
+  handGrants?: string[];
+  handBuffs?: CombatResult['playerHandBuffs'];
+  rubyGrants?: number;
+  nextTurnSpellCopies?: number;
+  rubyBonusGain?: { attack: number; health: number };
+  rubyMints?: number;
+  handSummoned?: readonly string[];
+  beastExtraGain?: { hunt: number; ritual: number };
+  tavernBuyGain?: { attack: number; health: number };
+  tavernBuyGainSources?: Record<string, { attack: number; health: number }>;
+  wildHuntGrown?: number;
+  spellPower?: { attack: number; health: number };
+  cardBuffs?: { cardId: string; attack: number; health: number }[];
+  fodderGrants?: number;
+  fodderSchedule?: number[];
+  deferredBattlecries?: { cardId: string; golden: boolean }[];
+  maxGoldGain?: number;
+  bonusGold?: number;
+  freeRolls?: number;
+  guaranteedAttachments?: number;
+  spellsCast?: number;
+  spellEscalationGain?: { attack: number; health: number };
+  discoverCasts?: string[];
+  nextShopBuff?: { attack: number; health: number };
+  undeadBuyAtkGain?: number;
+  slaughterCopy?: string;
+  undeadAuraGain?: { attack: number; health: number };
+  impBuffGain?: { attack: number; health: number };
+  hoardGain?: { attack: number; health: number };
+  rightmostSlotBuff?: { attack: number; health: number };
+  beastialSwarmLevel?: number;
+  boardBuffGain?: { attack: number; health: number };
+  magneticBuffGain?: { attack: number; health: number };
+  fodderBuffGain?: { attack: number; health: number };
+}
+
 export interface CombatResult {
   events: CombatEvent[];
   result: CombatOutcome;
+  /** The ENEMY side's carry-backs, mirrored from the same computation that fills the `player*` fields (see
+   *  `CombatCarryBacks`). Optional like every non-core field (hand-built test fixtures). The shipped run loop
+   *  ignores it; the balance bot's seat runner settles the `enemy` seat from it. */
+  enemyCarry?: CombatCarryBacks;
   /** The enemy board's run-level scalers at combat start (from its snapshot) — so the UI can render an ENEMY
    *  Grim / Taragosa / Pack Leader / Runescale / Vaultkeeper / Chef Raag / … card at the OPPONENT's value, not
    *  the current player's. Absent for the procedural threat / when nothing scaled. Mirrors the values threaded

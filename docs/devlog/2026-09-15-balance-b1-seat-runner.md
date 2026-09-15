@@ -34,7 +34,9 @@ onto `feat/balance-bot-base`. Engine + sim only; no player-facing change (no pat
    Deathrattles are not even counted. The seat that fights as `enemy` therefore keeps its outcome, damage, deaths
    and survivors (`mirrorForEnemySeat`) and none of what it earned. In the shipped table this is invisible because
    no non-player seat progresses; here it is an explicit, auditable loss on the enemy side of every pair. Fix =
-   a symmetric carry-back surface in `simulate` (core, shared boundary — its own PR).
+   a symmetric carry-back surface in `simulate` (core, shared boundary — its own PR). **RESOLVED the same day:**
+   `CombatResult.enemyCarry` (one `carryBacksFor(side)` path for both sides) + `mirrorForEnemySeat` lifting it —
+   see `2026-09-15-balance-symmetric-carry-backs.md` for the gate classification and the kept asymmetries.
 2. **Non-player seats enter combat with less than the player** — `runLobby.ts` `settleRunLobbyRound` fights
    seat-vs-seat with a bare `combatSide({ tier })`; the player-vs-seat path uses `sideFromSnapshot`, which lacks
    `firstSpellThisTurnId`, `spellhide`, `pendingQuests`, every pending Start-of-Combat bank (Fleeting Vigor,

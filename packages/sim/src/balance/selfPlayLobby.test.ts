@@ -16,19 +16,22 @@ const manifest = (setId: 'set2' | 'set3', extra: Partial<ExperimentManifest> = {
 });
 const greedy = (): SeatPilot => pilotFor('greedy');
 
-/** Placements form a valid competition ranking (shared placements for simultaneous knockouts skip the next ranks). */
+/** Placements form a valid ranking under the SHIPPED rule (`closeRunLobbyRound`: seats knocked out in the same
+ *  round share the WORST of the ranks they vacate — `remaining + eliminated.length` — so two seats falling from
+ *  seven alive are both 7th, and the ranks above them stay contiguous). */
 function expectCompetitionRanking(rec: LobbyRecord): void {
   const placements = rec.seats.map((s) => s.placement!).sort((a, b) => a - b);
   expect(placements.every((p) => p >= 1 && p <= 8)).toBe(true);
   expect(placements[0]).toBe(1);
-  // Competition ranking: the k-th best (0-based) has placement ≤ k + 1, and equal placements are contiguous.
-  for (let k = 0; k < placements.length; k++) expect(placements[k]).toBeLessThanOrEqual(k + 1);
-  const counts = new Map<number, number>();
-  for (const p of placements) counts.set(p, (counts.get(p) ?? 0) + 1);
-  for (const [p, n] of counts) {
-    // the next occupied placement after p is p + n (nothing in between)
-    const next = placements.find((q) => q > p);
-    if (next !== undefined) expect(next).toBe(p + n);
+  // Walk the sorted list in tie groups: a group of n seats occupying sorted indices [i, i + n) vacated ranks
+  // i+1 … i+n and carries the worst of them, i + n. (A lobby with no simultaneous knockouts is simply 1…8.)
+  for (let i = 0; i < placements.length;) {
+    const p = placements[i]!;
+    let n = 0;
+    while (i + n < placements.length && placements[i + n] === p) n++;
+    // The survivors share 1st (a `maxRounds` cap can leave several); every knocked-out group carries its worst rank.
+    if (p !== 1) expect(p).toBe(i + n);
+    i += n;
   }
 }
 

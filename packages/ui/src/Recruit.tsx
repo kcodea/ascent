@@ -4348,12 +4348,17 @@ export function Recruit() {
       if (bindingFor(ev.sourceCardId, 'minionBuffed')) return;
       const tEl = findEl(ev.targetUid);
       if (!tEl) return;
-      const tr = tEl.getBoundingClientRect();
-      const target = { x: tr.left + tr.width / 2, y: tr.top + tr.height / 2 };
+      // RESTING centres, not raw rects (owner report 2026-09-14): a minion that was JUST DROPPED is still mid-FLIP
+      // — its element sits at the pointer's drop point under a transform — so a reaction that buffs the played
+      // card itself (Aspect: "whenever you play a Spirit, 3 random friendly Spirits +1/+1" can draw the new
+      // Spirit) sent its ribbon to the cursor. `restingCenterOf` reads the slot the card is settling into; the
+      // Ward-gain cue above already measures this way.
+      const target = restingCenterOf(tEl as HTMLElement);
+      if (!target) return;
       const sEl = ev.sourceUid ? findEl(ev.sourceUid) : null;
-      const sr = sEl?.getBoundingClientRect();
+      const source = sEl ? restingCenterOf(sEl as HTMLElement) ?? undefined : undefined;
       fireBuffFx({
-        source: sr ? { x: sr.left + sr.width / 2, y: sr.top + sr.height / 2 } : undefined,
+        source,
         target,
         cardId: ev.sourceCardId, tribe: ev.sourceTribe,
         sourceless: ev.kind !== 'minion' || !sEl,

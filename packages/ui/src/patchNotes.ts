@@ -56,6 +56,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-14',
+    label: 'Tendril aim fix',
+    changes: [
+      { category: 'UI / Info', text: 'A buff ribbon aimed at a minion you just dropped now lands on its slot on the board, not on the spot where you let go of it (Aspect buffing the Spirit you played showed it).' },
+    ],
+  },
+  {
+    date: '2026-09-14',
     label: 'Rocket Power + counters + Spirit tendril',
     changes: [
       { category: 'Card Change', text: 'Rocket Power: Shout — give this shop +3/+3, then repeat it for every Shop spell you cast this turn (it used to do nothing with no spell cast).' },

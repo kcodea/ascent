@@ -24,7 +24,7 @@ import type { EvaluationPrior } from '../../productionBots/evaluate';
 import { packageById, runeAffinity, runeIsRecurring, type StrategyPackage } from './packages';
 import type { LineChoice } from './lines';
 import { valueTermOf, type ValueModel } from '../value';
-import { imitationTermOf, type ImitationModel } from '../imitation';
+import { imitationTermOf, type ImitationModel, type ScoreOptions } from '../imitation';
 
 /** The prior's weight in utility units per normalized point. Sized so a full line on the board (~1.5) is worth
  *  about half of `fightStrength`'s range — enough to steer construction, never enough to lose a fight for it. */
@@ -88,7 +88,7 @@ export const IMITATION_WEIGHT = 0;
 
 /** The models the prior may blend (both optional). */
 export interface PriorModels { value?: ValueModel | null; imitation?: ImitationModel | null }
-export interface PriorWeights { value?: number; imitation?: number }
+export interface PriorWeights { value?: number; imitation?: number; imitationOptions?: ScoreOptions }
 
 /**
  * A wave's board-mass reference — the procedural enemy curve's "healthy board" (`8 + 7·wave`, as `evaluate.ts`
@@ -197,7 +197,7 @@ export function linePriorBreakdown(v: BotVisibleState, line: LineChoice, pk: Lin
   // minions at half credit while the board has room. A TARGET-BOARD signal: it names the cards (Bob Blart,
   // Brakka, Echohorn, Storm Chaser …) where the value model only sees shape. Blended at `imitationWeight` utility
   // per log-odds point (0 = off); null (no band) contributes nothing.
-  const imitated = models.imitation && imitationWeight !== 0 ? imitationTermOf(v, models.imitation) : null;
+  const imitated = models.imitation && imitationWeight !== 0 ? imitationTermOf(v, models.imitation, weights.imitationOptions ?? {}) : null;
   const imitation = imitated === null ? 0 : imitated * (imitationWeight / PRIOR_WEIGHT);
 
   return { cards, runes, timing, pairs, hero, mass, investment, clutter, value, imitation, total: cards + runes + timing + pairs + hero + mass + investment + clutter + value + imitation };

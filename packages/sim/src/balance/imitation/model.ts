@@ -235,6 +235,16 @@ export interface BoardScore {
   total: number;
 }
 
+/** Inference-time variants (the model is unchanged): `positiveOnly` drops every negative card / pair weight (pull toward
+ *  the survivors' cards, never push away from a body the pilot holds); `cardsOnly` drops the golden / size / focus
+ *  terms. Parsed from a budget's `imitationVariant` ("positive,cardsOnly"). */
+export interface ScoreOptions { positiveOnly?: boolean; cardsOnly?: boolean }
+
+export function parseScoreOptions(variant: string | undefined): ScoreOptions {
+  const flags = new Set((variant ?? '').split(',').map((s) => s.trim()).filter(Boolean));
+  return { positiveOnly: flags.has('positive'), cardsOnly: flags.has('cardsOnly') };
+}
+
 export interface ScoreInput {
   wave: number;
   board: readonly { cardId: string; golden: boolean }[];
@@ -246,14 +256,15 @@ export interface ScoreInput {
 export const HAND_CREDIT = 0.5;
 
 /** The imitation log-odds of `input` at its wave: null when the model has no band for the wave. Pure. */
-export function scoreBoard(model: ImitationModel, input: ScoreInput): BoardScore | null {
+export function scoreBoard(model: ImitationModel, input: ScoreInput, opts: ScoreOptions = {}): BoardScore | null {
   const band = bandOf(input.wave, model.bands);
   if (!band) return null;
   const id = band.id;
   const cards: ScoredCard[] = [];
   let total = 0;
+  const sign = (w: number): number => (opts.positiveOnly && w < 0 ? 0 : w);
   for (const c of input.board) {
-    const w = model.cards[c.cardId]?.[id]?.weight ?? 0;
+    const w = sign(model.cards[c.cardId]?.[id]?.weight ?? 0);
     cards.push({ cardId: c.cardId, golden: c.golden, weight: w, inHand: false });
     total += w;
   }
@@ -262,7 +273,7 @@ export function scoreBoard(model: ImitationModel, input: ScoreInput): BoardScore
     let credited = 0;
     for (const c of input.hand) {
       if (credited >= room) break;
-      const w = (model.cards[c.cardId]?.[id]?.weight ?? 0) * HAND_CREDIT;
+      const w = sign(model.cards[c.cardId]?.[id]?.weight ?? 0) * HAND_CREDIT;
       if (w === 0) continue;
       cards.push({ cardId: c.cardId, golden: c.golden, weight: w, inHand: true });
       total += w;
@@ -273,9 +284,10 @@ export function scoreBoard(model: ImitationModel, input: ScoreInput): BoardScore
   const pairs: { key: string; weight: number }[] = [];
   for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) {
     const k = `${ids[i]}|${ids[j]}`;
-    const w = model.pairs[k]?.[id]?.weight;
+    const w = sign(model.pairs[k]?.[id]?.weight ?? 0);
     if (w) { pairs.push({ key: k, weight: w }); total += w; }
   }
+  if (opts.cardsOnly) return { band: id, cards, pairs, goldenTerm: 0, focusTerm: 0, sizeTerm: 0, total };
   const goldens = input.board.filter((c) => c.golden).length;
   const goldenTerm = goldens * (model.golden[id]?.perGolden ?? 0);
   const share = dominantShareOf(input.board);

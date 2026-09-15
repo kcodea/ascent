@@ -12,18 +12,18 @@
  */
 import { CARD_INDEX } from '@game/content';
 import type { BotVisibleState } from '../../productionBots/types';
-import { scoreBoard, type BoardScore, type ImitationModel } from './model';
+import { scoreBoard, type BoardScore, type ImitationModel, type ScoreOptions } from './model';
 
-export function imitationScoreOf(v: BotVisibleState, model: ImitationModel): BoardScore | null {
+export function imitationScoreOf(v: BotVisibleState, model: ImitationModel, opts: ScoreOptions = {}): BoardScore | null {
   const hand: { cardId: string; golden: boolean }[] = [];
   for (const c of v.hand) {
     const def = CARD_INDEX[c.cardId];
     if (!def || def.spell || def.ruby) continue;
     hand.push({ cardId: c.cardId, golden: c.golden });
   }
-  return scoreBoard(model, { wave: v.wave, board: v.board.map((c) => ({ cardId: c.cardId, golden: c.golden })), hand, boardMax: 7 });
+  return scoreBoard(model, { wave: v.wave, board: v.board.map((c) => ({ cardId: c.cardId, golden: c.golden })), hand, boardMax: 7 }, opts);
 }
 
-export function imitationTermOf(v: BotVisibleState, model: ImitationModel): number | null {
-  return imitationScoreOf(v, model)?.total ?? null;
+export function imitationTermOf(v: BotVisibleState, model: ImitationModel, opts: ScoreOptions = {}): number | null {
+  return imitationScoreOf(v, model, opts)?.total ?? null;
 }

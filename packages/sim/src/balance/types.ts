@@ -49,6 +49,8 @@ export interface PilotBudget {
    *  and how much the survivors' card table reshapes LINE choice (default 0). Ignored by the generalist. */
   imitationWeight?: number;
   imitationLineWeight?: number;
+  /** B7: inference variant flags for the imitation term, comma-separated ("positive", "cardsOnly"). */
+  imitationVariant?: string;
 }
 
 export interface ExperimentManifest {

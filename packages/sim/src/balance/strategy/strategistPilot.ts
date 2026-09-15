@@ -28,7 +28,7 @@ import type { PilotBudget, SeatContext, SeatPilot } from '../types';
 import { pickLineForRun, viableLineCount, type LineChoice, type LineImitation } from './lines';
 import { IMITATION_WEIGHT, linePrior, PRIOR_WEIGHT, VALUE_WEIGHT } from './prior';
 import { loadDefaultValueModel, type ValueModel } from '../value';
-import { loadDefaultImitationModel, type ImitationModel } from '../imitation';
+import { loadDefaultImitationModel, parseScoreOptions, type ImitationModel } from '../imitation';
 
 export interface StrategistOptions {
   /** 0 = best fit; k = k-th best viable line; 'rotate' = k from the run seed (a per-seed rotation). */
@@ -46,6 +46,8 @@ export interface StrategistOptions {
   /** B7: how much the survivors' card table shapes LINE choice (`lines.ts`: fit × (1 + weight × affinity)); 0 = the
    *  content-derived fit alone. Default 0. */
   imitationLineWeight?: number;
+  /** B7: inference variant flags for the imitation term ("positive", "cardsOnly"; see `parseScoreOptions`). */
+  imitationVariant?: string;
 }
 
 export interface StrategistPilot extends SeatPilot {
@@ -68,6 +70,7 @@ export function createStrategistPilot(budget: PilotBudget, seed: number, opts: S
   const valueWeight = opts.valueWeight ?? budget.valueWeight ?? VALUE_WEIGHT;
   const imitationWeight = opts.imitationWeight ?? budget.imitationWeight ?? IMITATION_WEIGHT;
   const imitationLineWeight = opts.imitationLineWeight ?? budget.imitationLineWeight ?? 0;
+  const imitationOptions = parseScoreOptions(opts.imitationVariant ?? budget.imitationVariant);
   const models = new Map<string, ValueModel | null>();
   const modelFor = (setId: string): ValueModel | null => {
     if (valueWeight === 0) return null;
@@ -103,7 +106,7 @@ export function createStrategistPilot(budget: PilotBudget, seed: number, opts: S
     wrap: (run: RunState, ctx: SeatContext, decide: () => Action | null): Action | null => {
       const line = lineFor(run, ctx.seatId);
       const setId = run.setId ?? 'set2';
-      return withEvaluationPrior(linePrior(line, { value: modelFor(setId), imitation: imitationFor(setId) }, { value: valueWeight, imitation: imitationWeight }), weight, decide);
+      return withEvaluationPrior(linePrior(line, { value: modelFor(setId), imitation: imitationFor(setId) }, { value: valueWeight, imitation: imitationWeight, imitationOptions }), weight, decide);
     },
   });
 

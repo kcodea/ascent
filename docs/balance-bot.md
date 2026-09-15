@@ -21,6 +21,8 @@ npm run balance:run     -- --manifest packages/tools/src/balance/manifests/set2-
 npm run balance:matrix  -- --manifest packages/tools/src/balance/manifests/set2-generalist-200.json --runs-per-hero 30 --out set2-matrix [--heroes a,b] [--exploration-rotate] [--workers 8]
 npm run balance:findings -- --job set2-matrix --out findings.md [--format json] [--q 0.1] [--margin 0.25] [--min-support 20]
 npm run balance:gap     -- --job set2-pinned-gen-dev100 [--corpus set2-players-v1] [--out gap.md] [--format json]   # the pilot ↔ real players measuring stick
+npm run balance:imitation:study -- --corpus set2-players-v1 --out docs/balance-bot-player-study.md   # B7: the recorded-player study
+npm run balance:imitation:fit   -- --corpus set2-players-v1 --out set2-v1                          # B7: the per-card survivor table the strategist can blend (imitationWeight)
 ```
 
 **`balance:gap`** is the shared measuring stick for "how far is the pilot from real players" (2026-09-15). For a
@@ -355,6 +357,82 @@ recovers from. The term knows what survivors look like; it does not know how to 
 the strategist (B4), not a drop-in weight: blend it small (≤ 30), or use it to choose BETWEEN plans of equal fight
 strength, and pair it with a tempo plan that fields a fight-winning board the round after a tier-up.
 
+## Imitation term (B7, 2026-09-15)
+
+The other lever beside the evaluator: learn a TARGET-BOARD signal directly from the recorded players instead of
+from a hand-written proxy, and blend it into the strategist's prior. It lives in `packages/sim/src/balance/imitation/`
+(trajectories → study → model → term → line fit, plus the committed `models/set2-v1.json`) and
+`packages/tools/src/balance/imitation/cli.ts`:
+
+```bash
+npm run balance:imitation:study  -- --corpus set2-players-v1 --out docs/balance-bot-player-study.md   # the player study (regenerates; keeps the hand-written Findings block)
+npm run balance:imitation:fit    -- --corpus set2-players-v1 --out set2-v1 [--prior 8] [--min-boards 8] [--mode after|odds] [--off focus,pairs]
+npm run balance:imitation:report -- --model set2-v1 [--top 25]
+```
+
+**The study first.** [`docs/balance-bot-player-study.md`](balance-bot-player-study.md) groups the 796 boards back into
+70 run trajectories (author | hero | seed) and prints the per-wave curve (stats p20 / median / p80, goldens, bodies,
+tier, tribe focus, survivor and win rates), per band the cards on the most boards with their survivor rate against the
+band's base and the waves their holders' runs went on for, the common card pairs, the end-game vs early-out final
+boards, and the hero → tribe → core-card lines. Its five findings are at the top of that file; the one that matters for
+the pilot: **the cards that predict survival are engines that the owner feeds every turn** (Bob Blart holders at waves
+5–7 went on 9.8 more waves vs 5.5, Storm Chaser, Kennelmaster, Brakka, Echohorn), and the field's growth from wave 7
+is ×1.6–1.9 per wave with no change in body count.
+
+**The model** (`model.ts`) is a per-card table, one weight per wave band (open 1–4 / build 5–7 / scale 8–10 / late
+11+): the mean waves-survived-after of the boards holding the card, shrunk toward the band mean with 8 pseudo-boards,
+minus the non-holders', in band standard deviations (`mode: after`; the binary log-odds `odds` mode is kept), plus a
+per-golden term (survivors' vs others' goldens per board, log rate ratio), a per-body term, and pair interactions beyond
+the two singles (≥ 8 boards, shrunk twice as hard). A dominant-tribe-share term exists and is OFF (noise). The label is
+**survival with a floor**: a board is a survivor when its run went on ≥ 3 more waves AND reached wave 12 (the median
+finish) or reached 14+ — without the floor the early bands read 100% survivors (the corpus holds no run that ends before
+wave 7) and learn nothing. Every weight is a sentence (`balance:imitation:report`: "players who kept X at waves 8–10
+survived 5.1 vs 3.4 waves, +51%"). `scoreBoard` sums the terms for a board (+ hand minions at half credit while the
+board has room); `imitationTermOf(visibleState)` is the evaluator hook; `lineSurvivorAffinity(package)` averages the
+best five engine / payoff members' weights over the build + scale bands.
+
+**Held out (5-fold by run, `set2-v1`): AUC 0.61 / 0.63 / 0.60 / 0.47 at open / build / scale / late (null 0.50),
+Spearman vs waves-survived 0.22 / 0.28 / 0.27 / −0.13.** A modest predictor: the corpus is 70 runs, two authors wrote
+87% of it, and card membership is a coarse view of a board. The sweep behind the defaults: `after` beat `odds` in the
+open / build bands (0.61 / 0.65 vs 0.57 / 0.63); golden + size alone score 0.66 at scale; focus alone 0.45–0.54 (off);
+pairs add ~0.03 at scale; prior 4–32 and min-boards 4–8 move AUC by ≤ 0.02. The late band is not predictive — read its
+rows as description.
+
+**Wired as an opt-in** through the existing `withEvaluationPrior` hook (`strategy/prior.ts`, the `imitation` term of
+`linePriorBreakdown`; `evaluate.ts` untouched): `imitationWeight` (utility per log-odds point, default `IMITATION_WEIGHT`
+= 0 = off), `imitationLineWeight` (line ranking becomes fit × (1 + w × survivor affinity); default 0) and
+`imitationVariant` ("positive" = never push away from a held card, "cardsOnly" = no golden / size terms) are budget fields
+on the manifest. The generalist is untouched.
+
+**Measured (100 pinned set-2 lobbies each, seeds 1–100, smoke budget, `fightRules: shipped`, paired against the
+baseline on the same seeds; the baseline reproduces the B4 number exactly):**
+
+| variant | mean placement [95% CI] | firsts | top-3 | paired Δ vs baseline [95% CI] | board stats w8 / w10 / w12 (players 139 / 432 / 1,109) | goldens w10 |
+|---|---|---|---|---|---|---|
+| baseline `set2-pinned-strategist-b7-base` (= B4 strategist) | **6.44 [6.12, 6.76]** | 0 | 7 | — | 83 / 133 / 253 | 0.69 |
+| imitationWeight 3 | 6.63 [6.35, 6.91] | 0 | 2 | +0.19 [−0.01, 0.39] | 79 / 124 / 228 | 0.73 |
+| imitationWeight 6 | 6.63 [6.36, 6.90] | 0 | 2 | +0.19 [−0.06, 0.44] | 74 / 140 / 320 | 0.82 |
+| imitationWeight 10 | 6.63 [6.35, 6.91] | 0 | 2 | +0.19 [−0.07, 0.45] | 81 / 118 / 178 | 0.88 |
+| imitationWeight 6 + imitationLineWeight 1 | 6.71 [6.45, 6.97] | 0 | 1 | +0.27 [0.01, 0.53] | 76 / 140 / 211 | 0.79 |
+| imitationWeight 6, `positive,cardsOnly` | 6.57 [6.29, 6.85] | 0 | 3 | +0.13 [−0.11, 0.37] | 82 / 129 / 233 | 0.75 |
+| imitationWeight 3, `positive` | 6.56 [6.28, 6.84] | 0 | 3 | +0.12 [−0.07, 0.31] | 83 / 138 / 209 | 0.88 |
+| imitationWeight 6, `cardsOnly` | 6.62 [6.34, 6.90] | 0 | 1 | +0.18 [−0.07, 0.43] | 83 / 142 / 298 | 0.57 |
+| imitationLineWeight 1 only | 6.62 [6.34, 6.90] | 0 | 5 | +0.18 [−0.05, 0.41] | 83 / 132 / 194 | 0.78 |
+
+**It does not move placement** (every variant within noise of the baseline or slightly worse; none better). It DOES
+move the boards: at round 8 the pilot's boards under weight 6 hold Cinderchef 45% (30% baseline), Bob Blart 21% (0%),
+Storm Chaser 18% (0%), Imp Overseer 24%, Standard Bearer 16%, and Embermouth Whelp drops from 15% to 0; goldens per
+board at wave 10 rise from 0.69 to 0.82–0.88 under the heavier weights. Stat totals do not follow: the pilot holds the
+survivors' engine cards and does not run them — Bob Blart with nothing consumed into it, Storm Chaser with no spells
+cast, is a below-curve body. Line shaping is worse for a visible reason: at weight 1 the survivors' table sends 29 of
+51 heroes into `demonConsume` (25 heroes change primary), because Bob Blart is the single strongest weight in the
+corpus, and the pilot cannot operate that line either. The conclusion is the same one the value model reached from the
+other side: **the recordings can say what a surviving board holds; they cannot teach a one-turn search how to feed it.**
+`IMITATION_WEIGHT` stays 0. What the lever leaves behind: the study, a readable per-card survival table, a line
+affinity that names the corpus' real lines (Demon consume, Kobold spell, Beast echo — and the finding that the
+`ale` package's members are NOT the Dwarf cards the survivors held: Brakka sits in `tempo`, Gangplank scores < 2),
+and the sweep infrastructure (`b7-*` manifests).
+
 ## Trust ledger
 
 What each layer proves today, and what it does not. Check the boxes as the gates in the roadmap's
@@ -369,6 +447,7 @@ What each layer proves today, and what it does not. Check the boxes as the gates
 | Recorder / report (B5) | accepted-action reconciliation (pre/post state hash), offer → buy → play funnels per surface, spell casts by route, sold cards visible, failed/censored runs separated, lobby-level bootstrap CIs, deterministic regeneration | causal claims | everything in the report is evidence level 1 until a `compare` job exists for the change. |
 | Compare (B6) | A/A = zero effect; synthetic positive control registers | a real candidate | no real patch experiment has been run yet — the first one is the next step. |
 | Learned value (`sim/balance/value`) | what SURVIVING recorded boards look like at waves 1–10 (run-split held-out R² 0.31 early / 0.51 mid vs a wave-mean null of 0.09 / 0.07; the weight table is readable) | placement (recordings have none), the late game (11+ not predictive), and using it as a SEARCH TARGET on its own (measured: W 300 → 7.64, worse than the 6.80 baseline) | survival is the label; the pilot's rows dominate the dataset 2.4:1; a linear model of visible board shape cannot see the tempo needed to survive a tier-up. |
+| Imitation (`sim/balance/imitation`, B7) | what the recorded SURVIVORS' boards hold, card by card and per wave band (run-split AUC 0.61 / 0.63 / 0.60 at open / build / scale, every weight readable as "holders survived X vs Y waves"); the player study's per-wave curve, goldens, tribe and line tables | placement (no variant moved it: 6.56–6.71 vs 6.44 baseline over 100 paired pinned lobbies), the late band (AUC 0.47), per-hero claims (≤ 4 runs per hero), and line choice (weight 1 sends 29 of 51 heroes into Demon consume) | card membership is not engine operation: the pilot fields Bob Blart / Storm Chaser and never feeds them; two authors wrote 87% of the corpus. |
 | Pinned lobby (`pinnedLobby` + `balance:corpus`) | the pilot's placement in the game **as shipped** against a **frozen, digest-pinned population of real player recordings** (the seat fill, the served boards, the settlement and the placements are the client's own code paths; determinism; a thin corpus censors rather than pads) | any claim that a patch changes how *players* fare, or hero/card strength beyond the pilot's own play | recordings do not adapt: a pinned job measures the PILOT against the population as it was recorded, under the CURRENT rules — a card change moves the pilot's boards and the fights, never the recorded boards' build orders, so a placement shift is "the pilot vs yesterday's players", not a new meta. The recordings' own placements are the complement of the pilot's over eight seats and are printed only for reading. Recording-vs-recording fights are the shipped tier-only path (`runLobby.ts` `settleRunLobbyRound`), the same as the live game. A corpus mixes patches (35 stamps in `set2-players-v1`); `--patch <prefix>` narrows it, at the cost of runs. |
 
 ## Next steps, in order
@@ -378,8 +457,12 @@ What each layer proves today, and what it does not. Check the boxes as the gates
 2b. The pilot places ~7th against real set-2 recordings: raise pilot competence (B3/B4) and re-run the pinned smoke — a pinned job is the held-out benchmark the roadmap asks for ("human-run groups").
 3. Run the first REAL patch experiment (a bounded content change, paired seeds) and read the comparison.
 4. ~~B4 strategy specialists (package manifests + curricula)~~ — shipped as the strategist pilot, which beats the
-   generalist in self-play but plateaus at 6.4 against the recorded players. Next, in order: (a) give the search a
-   horizon the prior cannot fake — short multi-turn rollouts for setup / replace decisions and an evaluator gradient
-   that survives losing (B3); (b) ~~fix the pinned report's buy attribution~~ (done 2026-09-15); (c) THEN tune the prior's weights against
-   pinned placement (`bot:tune`-style search, never hand-feel) and run a `strategist:rotate` job per hero.
+   generalist in self-play but plateaus at 6.4 against the recorded players. ~~B7 imitation term~~ — built and
+   measured (above): a target-board prior learned from the recordings moves the pilot's boards toward the survivors'
+   cards and moves placement not at all, because the pilot does not OPERATE the engines it now holds. Next, in order:
+   (a) an engine-operation model — score a candidate turn by how much it FEEDS the engines on the board (consumes into
+   Blart, spells past Storm Chaser / Chorus Drake, summons past Kennelmaster, Ales past Brakka) and give the search the
+   horizon to see the payoff (short multi-turn rollouts for setup / replace decisions, B3); the study's finding 2 is
+   the spec; (b) ~~fix the pinned report's buy attribution~~ (done 2026-09-15; still owed: record the strategist's line on pinned seats); (c) THEN
+   tune the prior's weights against pinned placement (`bot:tune`-style search, never hand-feel).
 5. B7 workers + nightly entry point once throughput matters.

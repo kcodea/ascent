@@ -8,11 +8,11 @@
  * The study is Markdown (committed as docs/balance-bot-player-study.md — regenerate, never hand-edit); fitted models
  * are written to packages/sim/src/balance/imitation/models/<name>.json (COMMITTED — the sim ships them).
  */
-import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadCorpus } from '../corpus';
-import { renderStudy, studyCorpus } from '@game/sim/balance/imitation/study';
+import { findingsOf, renderStudy, studyCorpus } from '@game/sim/balance/imitation/study';
 import { DEFAULT_FIT, fitImitation, renderImitationReport, validateImitationModel, crossValidateImitation, type FitOptions, type ImitationModel } from '@game/sim/balance/imitation/model';
 
 export const MODELS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../sim/src/balance/imitation/models');
@@ -42,10 +42,11 @@ export function main(argv: readonly string[] = process.argv.slice(2)): void {
     case 'study': {
       const corpus = loadCorpus(corpusName);
       const study = studyCorpus(corpus.boards, { setId: corpus.setId, horizon: num(args, 'horizon', 3) });
-      const md = renderStudy(study, { corpusName: corpus.name, digest: corpus.digest, date: new Date().toISOString().slice(0, 10) });
       const out = str(args, 'out');
-      if (out) {
-        const path = resolve(REPO_ROOT, out);
+      const path = out ? resolve(REPO_ROOT, out) : null;
+      const existing = path && existsSync(path) ? readFileSync(path, 'utf8') : null;
+      const md = renderStudy(study, { corpusName: corpus.name, digest: corpus.digest, date: new Date().toISOString().slice(0, 10), findings: findingsOf(existing) });
+      if (path) {
         mkdirSync(dirname(path), { recursive: true });
         writeFileSync(path, md + '\n');
         console.log(`wrote ${path}`);

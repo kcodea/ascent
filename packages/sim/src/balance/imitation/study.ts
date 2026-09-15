@@ -282,7 +282,19 @@ const f2 = (x: number): string => (Number.isFinite(x) ? x.toFixed(2) : '—');
 const pct = (x: number): string => (Number.isFinite(x) ? `${(x * 100).toFixed(0)}%` : '—');
 const signed = (x: number): string => (Number.isFinite(x) ? `${x >= 0 ? '+' : ''}${x.toFixed(1)}` : '—');
 
-export function renderStudy(s: CorpusStudy, opts: { corpusName?: string; digest?: string; date?: string; topCards?: number; topPairs?: number } = {}): string {
+/** Markers around the ONE hand-written block of the study (the findings) that regeneration preserves. */
+export const FINDINGS_START = '<!-- findings:start -->';
+export const FINDINGS_END = '<!-- findings:end -->';
+
+/** The hand-written findings block of an existing study file, or null. */
+export function findingsOf(existing: string | null): string | null {
+  if (!existing) return null;
+  const a = existing.indexOf(FINDINGS_START);
+  const b = existing.indexOf(FINDINGS_END);
+  return a >= 0 && b > a ? existing.slice(a + FINDINGS_START.length, b).trim() : null;
+}
+
+export function renderStudy(s: CorpusStudy, opts: { corpusName?: string; digest?: string; date?: string; topCards?: number; topPairs?: number; findings?: string | null } = {}): string {
   const top = opts.topCards ?? 18;
   const topPairs = opts.topPairs ?? 12;
   const out: string[] = [];
@@ -292,6 +304,12 @@ export function renderStudy(s: CorpusStudy, opts: { corpusName?: string; digest?
     `${s.boards} boards, ${s.runs} runs (≥ 4 waves), ${s.authors} authors. Regenerate it; do not hand-edit. ` +
     `A board is a **survivor** when its run went on for ≥ ${s.horizon} more waves AND reached at least wave 12 (the median finish), or reached wave 14+ (the end-game); ` +
     `"survived after" is the number of waves the run played after that board fought. A recording carries no placement, so survival is the label throughout.`);
+  out.push('');
+  out.push('## Findings (hand-written; the generator preserves this block)');
+  out.push('');
+  out.push(FINDINGS_START);
+  out.push(opts.findings ?? '_No findings written yet — edit between the markers; everything else is regenerated._');
+  out.push(FINDINGS_END);
   out.push('');
   out.push('## How far the runs got');
   out.push('');

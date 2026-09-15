@@ -2569,7 +2569,16 @@ function reduceCore(state: RunState, action: Action): RunState {
       const fireSelf = eqBranch ? { ...self, golden: false } : self;
       // The turn clock's reading rides the action (the store fills it from `turnClock.get()`), so a
       // clock-window Equipment (Thymepiece) can anchor to it without the engine ever reading a clock.
-      if (!fireEquipmentTriggers(s, fireDef, granted.version, fireSelf, target, triggers, action.clockSeconds)) return state;
+      // BUFF CAPTURE (owner report 2026-09-14: "Spiritbinder isn't playing the effect at all"): an Equipment's grants
+      // to OTHER board minions are recorded like any minion's, attributed to the SOURCE body when it still stands
+      // (the Shaman → a Spirit tendril) — only for an Equipment with NO authored `useFxId`: one that has its own
+      // def (Bloodpot, Titan Hammer, …) already draws the moment, and a tendril on top would be two cues for one
+      // press. A stand-in source (the granter was sold) is not a living minion → the descend plays instead.
+      let fired = true;
+      const fire = (): void => { fired = fireEquipmentTriggers(s, fireDef, granted.version, fireSelf, target, triggers, action.clockSeconds); };
+      if (fireDef.useFxId) fire();
+      else captureBuffFx(s, src, src ? 'minion' : 'spell', fire);
+      if (!fired) return state;
       // ONE use cue per ACTIVATION, not per trigger — the handoff's rule for repeats is that they "communicate
       // repetition without replaying the full animation", so a three-trigger Bloodpot is one travel, not three.
       stampEquipFx(s, {

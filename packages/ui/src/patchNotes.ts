@@ -56,6 +56,14 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-14',
+    label: 'Tendrils: Celestial + Equipment',
+    changes: [
+      { category: 'UI / Info', text: 'Celestials have their own buff ribbon (a moonlit periwinkle) instead of the generic one — Wishing Star and friends.' },
+      { category: 'UI / Info', text: 'Equipment that buffs your minions without its own effect (Spiritbinder, the Stellar Lens’s board half) now draws the buff ribbon from the minion that granted it, like any minion-to-minion buff.' },
+    ],
+  },
+  {
+    date: '2026-09-14',
     label: 'Starform creation',
     changes: [
       { category: 'Card Change', text: 'The Starform always returns to the right-most Shop slot on a refresh. You can still drag it around during the turn.' },

@@ -13,9 +13,10 @@ import { tunedDescend } from './buffFxConfig';
 const TENDRIL_TRAIL_TRAVEL_MS: number =
   tendrilTrail.layers.find((l) => l.primitive === 'ribbon')?.travelMs ?? 384;
 
-/** Tribes with a per-tribe `tendril-trail-<tribe>` variant (a palette-swap of the generic). `neutral` and the
- *  archived `celestial` are absent — they keep the generic ribbon, as does any tribe not listed here. */
-const TENDRIL_TRIBES = new Set<Tribe>(['beast', 'demon', 'dragon', 'dwarf', 'kobold', 'mech', 'undead', 'spirit']);
+/** Tribes with a per-tribe `tendril-trail-<tribe>` variant (a palette-swap of the generic). `neutral` alone keeps
+ *  the generic ribbon. `celestial` joined 2026-09-14 (owner report: Wishing Star drew the default) with a
+ *  moonlit-periwinkle palette swap of the generic — a PLACEHOLDER for the owner to retune in the workbench. */
+const TENDRIL_TRIBES = new Set<Tribe>(['beast', 'celestial', 'demon', 'dragon', 'dwarf', 'kobold', 'mech', 'undead', 'spirit']);
 
 /**
  * Fire ONE generic buff-other effect and return the strike/landing time (ms) so the caller can schedule the

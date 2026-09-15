@@ -18,6 +18,7 @@
 import type { Action, RunState } from '../state';
 import { stateHash } from './hash';
 import { effectEventsOf, type CardLineage } from './effectsFromTransition';
+import { visibleOffersFor } from './seatRunner';
 import type {
   AcceptedActionEvent, BalanceRecorder, EffectEvent, ExperimentIdentity, ExperimentManifest, LobbyRecord,
   RoundRecord, RunRecord,
@@ -73,10 +74,7 @@ export function createRecorder(lobbyId: string, seed: number, manifest: Experime
       // Visible offers at decision time — the SURFACE the action chooses from: the Runeforge's rune ids for a
       // runeforge action, the quest shop for `buyQuest`, the open Discover's options for `discover`, otherwise
       // the tavern row + the spell slot. The aggregate's offer → pick funnels read these per surface.
-      const offers = action.type === 'buyRune' || action.type === 'skipRuneforge' || action.type === 'rerollRuneforge' ? [...(before.runeforgeOffer ?? [])]
-        : action.type === 'buyQuest' ? [...(before.questOffer ?? [])]
-        : action.type === 'discover' ? [...(before.discover ?? [])]
-        : [...before.shop.map((o) => o.cardId), ...(before.spell ? [before.spell.cardId] : [])];
+      const offers = visibleOffersFor(before, action); // the ONE surface helper (seatRunner.ts)
       rec.onAction({
         lobbyId, seatId, round, index, action,
         goldBefore: before.embers, goldAfter: after.embers,

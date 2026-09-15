@@ -8,3 +8,7 @@ export type {
   AcceptedActionEvent, EffectEvent, ExperimentIdentity, ExperimentManifest, LobbyRecord, RoundRecord, RunRecord,
 } from '@game/sim/balance/types';
 export { synthesizeJob, synthesizeLobby, syntheticIdentity, syntheticManifest, type SyntheticOptions } from '@game/sim/balance/fixtures/syntheticLobby';
+// The RUNNER (B1) and RECORDER (B5), joined here by the integrator for `balance:run`.
+export { runSelfPlayLobby } from '@game/sim/balance/selfPlayLobby';
+export { createRecorder } from '@game/sim/balance/recorder';
+export { pilotFor } from '@game/sim/balance/pilots';

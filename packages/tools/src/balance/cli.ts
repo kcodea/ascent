@@ -13,8 +13,10 @@ import { writeFileSync } from 'node:fs';
 import { aggregate } from './aggregate';
 import { renderReport } from './report';
 import { compareJobs, renderComparison, type CompareOptions } from './compare';
-import { createJob, listJobs, loadJob, writeLobby, writeSummary } from './store';
-import { synthesizeLobby, syntheticIdentity, syntheticManifest, type ExperimentIdentity, type SyntheticOptions } from './deps';
+import { completedSeeds, createJob, listJobs, loadJob, writeLobby, writeSummary } from './store';
+import { loadManifest } from './manifest';
+import { computeNodeIdentity } from './identity';
+import { createRecorder, pilotFor, runSelfPlayLobby, synthesizeLobby, syntheticIdentity, syntheticManifest, type ExperimentIdentity, type SyntheticOptions } from './deps';
 import type { SetId } from '@game/content';
 
 type Args = Record<string, string | true>;
@@ -78,10 +80,35 @@ export function main(argv: readonly string[] = process.argv.slice(2)): void {
       return;
     }
     case 'list': { for (const j of listJobs()) console.log(j); return; }
-    case 'run':
-      // Left for the integrator: when the runner (B1's `selfPlayLobby`) lands, this reads the manifest, builds the
-      // identity, opens the job, skips `completedSeeds`, drives one recorder per seed and `writeLobby`s each result.
-      throw new Error('balance:run — runner not integrated (B1 selfPlayLobby is not on this branch). Use balance:synth to exercise the report.');
+    case 'run': {
+      // THE LEVER (roadmap "The day-to-day balance lever"): manifest → identity → job → one authoritative self-play
+      // lobby per seed (B1's runner, B5's recorder) → resumable job files → summary. A lobby that fails is written
+      // as a censored record, never dropped, so the coverage ledger sees it.
+      const manifest = loadManifest(need(args, 'manifest'));
+      if (manifest.mode !== 'selfPlayLobby') throw new Error(`balance:run — mode "${manifest.mode}" is not runnable yet (only selfPlayLobby is wired)`);
+      const identity = computeNodeIdentity(manifest);
+      const jobId = str(args, 'out') ?? `${manifest.name}-${identity.manifestDigest.slice(0, 8)}`;
+      createJob(jobId, manifest, identity);
+      const done = completedSeeds(jobId, manifest, identity);
+      const budgetOverride = str(args, 'budget');
+      let ran = 0, skipped = 0, failed = 0; const t0 = Date.now();
+      for (let seed = manifest.seeds.start; seed < manifest.seeds.start + manifest.seeds.count; seed++) {
+        if (done.has(seed)) { skipped++; continue; }
+        const lobbyId = `${manifest.mode}:${manifest.setId}:${manifest.policy.id}:${seed}`;
+        const recorder = createRecorder(lobbyId, seed, manifest, identity);
+        const pilot = pilotFor(budgetOverride ? `${manifest.policy.id}:${budgetOverride}` : manifest.policy.id, manifest.policy.budget);
+        const record = runSelfPlayLobby(manifest, seed, () => pilot, recorder, identity);
+        writeLobby(jobId, record);
+        ran++; if (record.failure) failed++;
+        if (ran % 5 === 0 || record.failure) console.log(`  seed ${seed}: ${record.failure ? 'FAILED — ' + record.failure : record.roundsPlayed + ' rounds'} (${Math.round((Date.now() - t0) / ran)} ms/lobby avg)`);
+      }
+      const job = loadJob(jobId);
+      const agg = aggregate(job.lobbies, { minSupport: num(args, 'min-support', 20), bootstrapReps: num(args, 'reps', 1000), seed: num(args, 'seed', 1) });
+      writeSummary(jobId, agg.coverage);
+      console.log(`job "${jobId}": ${ran} lobbies run (${failed} failed), ${skipped} resumed, ${Math.round((Date.now() - t0) / 1000)}s → ${job.dir}`);
+      console.log(`report: npm run balance:report -- --job ${jobId}`);
+      return;
+    }
     default:
       console.log('usage: balance <report|compare|synth|list|run> [--flags]  (see packages/tools/src/balance/cli.ts)');
   }

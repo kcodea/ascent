@@ -61,7 +61,17 @@ function openModalName(s: RunState): string {
 }
 
 /** Visible shop offers (card ids) at decision time — the minion row plus the right-hand spell slot. */
-function visibleOffers(s: RunState): string[] {
+/**
+ * The offers the action CHOSE FROM — the surface, not always the tavern (integration fix 2026-09-15: the runner
+ * recorded the shop row for every action, so a `skipRuneforge` carried minion ids and the report's Runes table
+ * listed Starforms as "runes offered"). The Runeforge's rune ids for a runeforge action, the quest shop for
+ * `buyQuest`, the open Discover's options for `discover`, otherwise the tavern row + the spell slot. ONE helper —
+ * the recorder's `observeTransition` reads the same one.
+ */
+export function visibleOffersFor(s: RunState, action?: Action): string[] {
+  if (action?.type === 'buyRune' || action?.type === 'skipRuneforge' || action?.type === 'rerollRuneforge') return [...(s.runeforgeOffer ?? [])];
+  if (action?.type === 'buyQuest') return [...(s.questOffer ?? [])];
+  if (action?.type === 'discover') return [...(s.discover ?? [])];
   const out = s.shop.map((o) => o.cardId);
   if (s.spell) out.push(s.spell.cardId);
   return out;
@@ -95,7 +105,7 @@ export function playRecruitTurn(
       action,
       goldBefore: before.embers,
       goldAfter: after.embers,
-      offers: visibleOffers(before),
+      offers: visibleOffersFor(before, action),
       preHash,
       postHash: stateHash(after),
     });

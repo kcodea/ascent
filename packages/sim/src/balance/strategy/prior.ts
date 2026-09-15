@@ -23,6 +23,7 @@ import type { BotVisibleState } from '../../productionBots/types';
 import type { EvaluationPrior } from '../../productionBots/evaluate';
 import { packageById, runeAffinity, runeIsRecurring, type StrategyPackage } from './packages';
 import type { LineChoice } from './lines';
+import { valueTermOf, type ValueModel } from '../value';
 
 /** The prior's weight in utility units per normalized point. Sized so a full line on the board (~1.5) is worth
  *  about half of `fightStrength`'s range — enough to steer construction, never enough to lose a fight for it. */
@@ -74,7 +75,11 @@ export function runePayoff(runeId: string, wave: number): number {
   return runeIsRecurring(rune) ? Math.min(1, remaining / 8) : 0.6;
 }
 
-export interface PriorBreakdown { cards: number; runes: number; timing: number; pairs: number; hero: number; mass: number; investment: number; total: number }
+export interface PriorBreakdown { cards: number; runes: number; timing: number; pairs: number; hero: number; mass: number; investment: number; clutter: number; value: number; total: number }
+
+/** The learned value term's weight in UTILITY units per unit of the model's output (the coordinator's ceiling is
+ *  30 on the evaluator's scale; heavier makes the pilot tier on the real curve but die earlier at depth 1). */
+export const VALUE_WEIGHT = 20;
 
 /**
  * A wave's board-mass reference — the procedural enemy curve's "healthy board" (`8 + 7·wave`, as `evaluate.ts`
@@ -87,16 +92,22 @@ export interface PriorBreakdown { cards: number; runes: number; timing: number; 
 export const massReference = (wave: number): number => Math.max(20, 8 + 7 * wave);
 
 /** The prior's terms for one visible state (exported for traces and the curricula). */
-export function linePriorBreakdown(v: BotVisibleState, line: LineChoice, pk: LinePackages = packagesOf(line)): PriorBreakdown {
+export function linePriorBreakdown(v: BotVisibleState, line: LineChoice, pk: LinePackages = packagesOf(line), model: ValueModel | null = null, valueWeight = VALUE_WEIGHT): PriorBreakdown {
   // CARDS. Board at full value (golden 1.5×); a MINION in hand at 0.6 (a line body not yet fielded). Spells and
   // Rubies in hand count for nothing: their value is in the cast, and crediting them held made the pilot hoard
   // its own payoff spells (measured 2026-09-15: a tempo line sat on Spirit Fire rather than cast it).
   let cardSum = 0;
   for (const c of v.board) cardSum += cardAffinity(CARD_INDEX[c.cardId], pk) * (c.golden ? 1.5 : 1);
-  for (const c of v.hand) {
-    const def = CARD_INDEX[c.cardId];
-    if (!def || def.spell || def.ruby) continue;
-    cardSum += cardAffinity(def, pk) * 0.6;
+  const boardFull = v.board.length >= 7;
+  // HAND DISCIPLINE: a line minion in hand is credited only while the board has room for it — a card that cannot
+  // be fielded this turn is not progress (measured 2026-09-15: the pilot's hand grew to 9.1 unplayed cards from
+  // round 6 while its board never changed). Unplayable, non-pair hand minions are PENALISED below.
+  if (!boardFull) {
+    for (const c of v.hand) {
+      const def = CARD_INDEX[c.cardId];
+      if (!def || def.spell || def.ruby) continue;
+      cardSum += cardAffinity(def, pk) * 0.6;
+    }
   }
   // Engines matter MORE as the game goes on: real set-2 boards scale exponentially from wave ~8 (measured
   // 2026-09-15: total board stats 21 @ w4 → 162 @ w8 → 1,442 @ w12), and that growth comes from per-turn engines,
@@ -150,11 +161,30 @@ export function linePriorBreakdown(v: BotVisibleState, line: LineChoice, pk: Lin
     (a.magneticBuy.attack + a.magneticBuy.health) / 8;
   const investment = Math.min(1.5, channels) * Math.min(1, remaining / 6);
 
-  return { cards, runes, timing, pairs, hero, mass, investment, total: cards + runes + timing + pairs + hero + mass + investment };
+  // UNPLAYED HAND: with a full board, every hand minion that is not half of a pair is dead weight — Gold that
+  // bought nothing and a slot that blocks the next buy. −0.15 each, capped.
+  let clutterCount = 0;
+  if (boardFull) {
+    for (const c of v.hand) {
+      const def = CARD_INDEX[c.cardId];
+      if (!def || def.spell || def.ruby || c.golden) continue;
+      if ((copies.get(c.cardId) ?? 0) >= 2) continue;
+      clutterCount++;
+    }
+  }
+  const clutter = -Math.min(0.9, 0.15 * clutterCount);
+
+  // LEARNED VALUE (the survival model fit on the recorded set-2 players, `balance/value`): what a board that
+  // SURVIVES looks like at this wave. Blended at `valueWeight` utility per unit (≈ [0, 1]); null (no band / drift)
+  // contributes nothing. Expressed in the prior's units, so `PRIOR_WEIGHT × (valueWeight / PRIOR_WEIGHT)`.
+  const learned = model ? valueTermOf(v, model) : null;
+  const value = learned === null ? 0 : learned * (valueWeight / PRIOR_WEIGHT);
+
+  return { cards, runes, timing, pairs, hero, mass, investment, clutter, value, total: cards + runes + timing + pairs + hero + mass + investment + clutter + value };
 }
 
-/** The installable prior for a line. */
-export function linePrior(line: LineChoice): EvaluationPrior {
+/** The installable prior for a line. `model` blends the learned value term (null = none). */
+export function linePrior(line: LineChoice, model: ValueModel | null = null, valueWeight = VALUE_WEIGHT): EvaluationPrior {
   const pk = packagesOf(line);
-  return (v) => linePriorBreakdown(v, line, pk).total;
+  return (v) => linePriorBreakdown(v, line, pk, model, valueWeight).total;
 }

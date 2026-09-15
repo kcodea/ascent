@@ -33,12 +33,15 @@ and strategies so that I can sim it 30 times for every hero where it picks diffe
   players' tier curve (T2 by 2–3, T3 ~5, T4 ~8, T5 ~10, T6 ~12).
 - The REPLACE macro (`sell weakest → buy → field`) is opt-in on the generalist and on for the strategist: depth-1
   search never turns a full board over, because the sell alone reads as a lost body.
-- **Against the recorded players the strategist plateaus at 6.72 / 8** (100 pinned lobbies; generalist 6.80; the
-  owner's bar is < 4.0) while beating the generalist in self-play (4.05 vs 5.33, +1.27 [0.42, 2.13]). Four
-  iterations (prior only 6.89 → replace macro 6.67 → mass + investment terms 6.63 → pairs 6.72) moved tiering,
-  turnover and the gradient, not the placement: the players' boards grow exponentially on goldens and per-turn
-  engines that a one-turn evaluator cannot see, and a capped prior cannot fake a horizon. Numbers and the
-  diagnosis are in `docs/balance-bot.md`.
+- **Against the recorded players the strategist plateaus at 6.44 / 8** (100 pinned lobbies; generalist 6.80; the
+  owner's bar is < 4.0) while beating the generalist in self-play. Six iterations (prior only 6.89 → replace
+  macro 6.67 → mass + investment terms 6.63 → pairs 6.72 → hand discipline + learned value 6.44; value weight 0 /
+  20 / 30 all within noise) moved tiering, turnover, hand size and the gradient, not the placement: the players'
+  boards grow exponentially on goldens and per-turn engines that a one-turn evaluator cannot see, and a capped
+  prior cannot fake a horizon. Numbers, the per-round turnover / hand table and the diagnosis are in
+  `docs/balance-bot.md`.
+- Positioning could loop (A → B → A, each edge move reading as an improvement from the other side — pinned seed
+  66 hit the 60-action cap). The arrangement pass now never re-enters a fingerprint it visited this turn.
 - The seat runner charged the table's STALE health when a recruit-phase effect changed it (Mend set Armor to 5;
   `hitSeat` charged Armor 0 → the seat/run assertion failed the lobby, benchmark seed 101). The lobby now mirrors
   the run's resolve / armor onto the seat after every recruit turn.

@@ -26,7 +26,8 @@ import { withEvaluationPrior } from '../../productionBots/evaluate';
 import { createGeneralistPilot, type GeneralistPilot } from '../generalistPilot';
 import type { PilotBudget, SeatContext, SeatPilot } from '../types';
 import { pickLineForRun, viableLineCount, type LineChoice } from './lines';
-import { linePrior, PRIOR_WEIGHT } from './prior';
+import { linePrior, PRIOR_WEIGHT, VALUE_WEIGHT } from './prior';
+import { loadDefaultValueModel, type ValueModel } from '../value';
 
 export interface StrategistOptions {
   /** 0 = best fit; k = k-th best viable line; 'rotate' = k from the run seed (a per-seed rotation). */
@@ -35,6 +36,9 @@ export interface StrategistOptions {
   priorWeight?: number;
   /** Record label; defaults to `strategist` / `strategist:explore<k>` / `strategist:rotate`. */
   id?: string;
+  /** Weight of the learned value term (`balance/value`, the survival model fit on recorded players) in utility
+   *  units; 0 disables it. Default `VALUE_WEIGHT`. The model is the set's committed one (`loadDefaultValueModel`). */
+  valueWeight?: number;
 }
 
 export interface StrategistPilot extends SeatPilot {
@@ -53,7 +57,14 @@ export function strategistId(exploration: number | 'rotate'): string {
 
 export function createStrategistPilot(budget: PilotBudget, seed: number, opts: StrategistOptions): StrategistPilot {
   const lines = new Map<string, LineChoice>();
-  const weight = opts.priorWeight ?? PRIOR_WEIGHT;
+  const weight = opts.priorWeight ?? budget.priorWeight ?? PRIOR_WEIGHT;
+  const valueWeight = opts.valueWeight ?? budget.valueWeight ?? VALUE_WEIGHT;
+  const models = new Map<string, ValueModel | null>();
+  const modelFor = (setId: string): ValueModel | null => {
+    if (valueWeight === 0) return null;
+    if (!models.has(setId)) models.set(setId, loadDefaultValueModel(setId));
+    return models.get(setId) ?? null;
+  };
   const id = opts.id ?? strategistId(opts.exploration);
 
   const lineFor = (run: RunState, seatId: string): LineChoice => {
@@ -71,9 +82,10 @@ export function createStrategistPilot(budget: PilotBudget, seed: number, opts: S
   const inner = createGeneralistPilot(budget, seed, {
     id,
     replaceMacro: true,
+    handDiscipline: true,
     wrap: (run: RunState, ctx: SeatContext, decide: () => Action | null): Action | null => {
       const line = lineFor(run, ctx.seatId);
-      return withEvaluationPrior(linePrior(line), weight, decide);
+      return withEvaluationPrior(linePrior(line, modelFor(run.setId ?? 'set2'), valueWeight), weight, decide);
     },
   });
 

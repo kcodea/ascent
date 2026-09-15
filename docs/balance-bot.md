@@ -173,14 +173,19 @@ tier-4 next foe; the pick moved from a buy to fielding a body) but by then the p
   `withEvaluationPrior` (an additive hook in `productionBots/evaluate.ts`; weight 0 in the shipped config, so
   the generalist's numbers are untouched): card affinity on the board (and minions in hand — never spells, which
   are valued by casting), owned-rune affinity × expected payoff over the REMAINING rounds (a per-turn rune is
-  worth more early), tier timing against the profile (behind < on-curve > ahead), held pairs of line cards, and
-  a tiny bias to have used an affine hero power. Capped at ~1.5 normalized points × weight 10 beside
-  `fightStrength`'s 26 — it steers construction; the fight decides.
+  worth more early), tier timing against the profile (behind < on-curve > ahead), held pairs (any pair is
+  two-thirds of a golden), a tiny bias to have used an affine hero power, a linear BOARD-MASS term (the gradient
+  the fight terms lose once the field outgrows the pilot), an INVESTMENT term (the permanent Shop buff, Spell
+  Power and the auras × rounds left), a CLUTTER penalty (unplayable non-pair hand minions on a full board), and
+  the learned VALUE term (`balance/value`, `valueWeight`, default 20 utility). Weight 10 per normalized point
+  (`priorWeight`); both dials are manifest fields on the budget. It steers construction; the fight decides.
 
-The strategist also turns on the generalist's opt-in **replace macro** (`GeneralistOptions.replaceMacro`:
-`sell <weakest board minion> → buy <offer> → field it`, or `sell → field <hand minion>`, scored as one candidate
-beside the search's best plan and queued with fingerprints) — depth-1 search never turns a full board over
-on its own. It is off for `generalist`, so the generalist's play is unchanged.
+The strategist also turns on two opt-in generalist behaviours (`GeneralistOptions`, both OFF for `generalist`
+so its play is unchanged): the **replace macro** (`sell <weakest board minion> → buy <offer> → field it`, or
+`sell → field <hand minion>`, scored as one candidate beside the search's best plan and queued with
+fingerprints — depth-1 search never turns a full board over on its own) and **hand discipline** in the forced
+spend (with a full board buy only a triple piece, a spell, or a body that beats the worst one by ≥ 2 stats;
+refresh ahead of a marginal buy).
 
 Variants: `strategist` (best-fit line every run — the natural population), `strategist:rotate` (line index
 from the run seed — the **exploration** population; a forced line is never a natural pick rate),
@@ -197,19 +202,20 @@ for the strategist too.
 **Benchmark** (`strategy/benchmark.test.ts`, `npm run balance:strategist-bench`): mixed set-2 lobbies, four
 strategist + four generalist seats alternating by seat and seed, smoke budget, placement compared per LOBBY
 (paired advantage = generalist − strategist mean placement, 95% interval). The gate is "not worse beyond
-noise" (the interval reaches 0). Measured 2026-09-15, seeds 100–119: strategist mean placement **4.05 [3.62,
-4.48]** vs generalist **5.33 [4.89, 5.76]**; paired advantage **+1.27 [0.42, 2.13]** (n=20 lobbies); firsts 17
-vs 3; top-half 47 vs 30 of 80 seats. Line diversity for the exploration population is printed alongside
+noise" (the interval reaches 0). Measured 2026-09-15 on the final build, seeds 100–119: strategist mean
+placement **3.34 [3.04, 3.63]** vs generalist **6.17 [5.85, 6.50]**; paired advantage **+2.84 [2.23, 3.44]**
+(n=20 lobbies); firsts 20 vs 0; top-half 59 vs 13 of 80 seats. (Before hand discipline + the replace macro the
+same seeds read 4.05 vs 5.33, +1.27 [0.42, 2.13] — the turnover fixes are what widened it.) Line diversity for the exploration population is printed alongside
 (9–10 distinct primaries per hero over 30 seeds for Fibbsy / Flint / Tiff, 10 viable).
 
 **Against the real set-2 players (the owner's scale: < 4.0 solid, < 3.0 great, < 2.0 phenomenal; 4.4 is a
 below-average player).** In the pinned lobby (`set2-pinned-strategist-smoke100.json`: seat 0 vs seven recorded
 player runs from `set2-players-v1`, 100 lobbies, smoke budget, `fightRules: 'shipped'`) the strategist places
-**6.72 [6.44, 6.99]** (first-place 0/100) against the generalist's **6.80 [6.56, 7.05]** on the same seeds —
-a PLATEAU, not a pass. The self-play advantage does not transfer: both pilots lose to the recorded field from
-wave 5 (pilot total board stats 33 / 46 / 62 / 76 at waves 5 / 6 / 7 / 8 against the players' 36 / 60 / 97 /
-162; win rate 46% → 35% → 27% → 18%; eliminated at a median round 9). What the strategist's iterations moved and
-what they did not (each a 100-lobby pinned job):
+**6.44 [6.12, 6.76]** (first-place 0/100, 0 failed lobbies) against the generalist's **6.80 [6.56, 7.05]** on the
+same seeds — a PLATEAU, not a pass. The self-play advantage does not transfer: both pilots lose to the recorded
+field from wave 5 (strategist total board stats 32 / 47 / 64 / 86 / 157 at waves 5 / 6 / 7 / 8 / 10 against the
+players' 36 / 60 / 97 / 162 / 456; win rate 41% → 36% → 27% → 18% → 13%). What each iteration moved and what it
+did not (each a 100-lobby pinned job on the same seeds):
 
 | change | pinned placement | note |
 |---|---|---|
@@ -217,6 +223,19 @@ what they did not (each a 100-lobby pinned job):
 | + the REPLACE macro (`sell weakest → buy → field`, opt-in on the generalist) | 6.67 | the pilot finally turns its board over from wave 7 (~1 sell per turn); bought-card tier still 2.5 at a shop tier of 3.9 |
 | + board-MASS term (linear stats vs the wave reference) + INVESTMENT term (permanent Shop buff / Spell Power / auras × rounds left) | 6.63 | the evaluator's `fightStrength` reads 0 for every candidate once the field outgrows the pilot and `boardPower` is log-saturated — the prior restores a gradient, but +7 stats a turn does not catch an exponential curve |
 | + PAIRS valued for every card (a golden = double stats + a tier-up Discover; players hold 0.5–1.1 goldens per board from wave 8) | 6.72 | within noise of the previous two |
+| + HAND DISCIPLINE (a hand minion is credited only while the board has room; unplayable non-pair hand minions penalised; the forced spend with a full board buys only triple pieces / spells / a body that beats the worst one, refresh ahead of a marginal buy) + the LEARNED VALUE term at weight 20 | **6.44** | the board finally turns over (below); the value weight is inert within noise (0 → 6.55, 20 → 6.44, 30 → 6.48) |
+
+Board turnover and unplayed hand by round, the two numbers the diagnosis named (strategist, final build, 100 pinned
+lobbies; the generalist's hand grew 3.6 → 9.1 unplayed cards from round 6 with a board that never changed):
+
+| round | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 |
+|---|---|---|---|---|---|---|---|---|---|
+| tier | 2.20 | 2.76 | 2.99 | 3.39 | 3.93 | 4.13 | 4.83 | 5.44 | 5.80 |
+| board turnover (share of the board replaced since last round) | 36% | 20% | 21% | 24% | 19% | 19% | 13% | 13% | 19% |
+| hand size at end of turn | 0.9 | 1.3 | 1.8 | 2.7 | 3.7 | 4.4 | 4.7 | 5.2 | 4.4 |
+| unspent Gold | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.4 | 0.5 |
+| total board stats (players) | 23 (21) | 32 (36) | 47 (60) | 64 (97) | 86 (162) | 116 (265) | 157 (456) | 204 (793) | 253 (1,442) |
+| win rate | 59% | 41% | 36% | 27% | 18% | 12% | 13% | 13% | 33% |
 
 Diagnosis (for B3, not hidden here): the recorded players' boards grow 21 → 60 → 162 → 456 → 1,442 total stats
 over waves 4 → 12 through goldens and per-turn engines — the Demon Shop-buff line (Demon Horse / Hank / Blart /
@@ -330,7 +349,7 @@ What each layer proves today, and what it does not. Check the boxes as the gates
 | Runner (B1) | recruit turns are real reducer transitions; one `simulate()` per pair; armor-first settlement; eliminations, byes, ghosts, placement per the shipped lobby rules; determinism; **both seats keep their combat carry-backs** (#1491: `CombatResult.enemyCarry`, ≈70 of 96 side-gates made symmetric, shipped result byte-identical over 1,278 captured fights) | six documented `KNOWN ASYMMETRY` groups | the enemy's Grim-style tally stays the snapshot's frozen value mid-fight; enemy spell power / Imp aura / hand-buff snapshots are static for the fight (gains still carry back); Pack Mentality live growth, mid-combat quest completion, Blood Trail / Soulbind / Echo Warden / Rallying Offensive extras and telegraph events are player-only. Listed in `simulate.ts` by name. |
 | Fight context | `corrected` rules give every seat the player's full context (spell power, Ruby casts, Reveler values, banked Start-of-Combat effects, alignments) | claims about the game **as shipped** | the shipped non-player fight is tier-only (`lobby/runLobby.ts:590`, `:629`) and served boards carry no alignment; run with `fightRules: 'shipped'` to measure that, and read the discrepancy list in `seatRunner.ts`. |
 | Pilot (B3) | buying, playing, tiering, selling, refreshing, freezing, targeted Shouts, Choose One, Discover, triples, hero powers, Equipment, Starform; no illegal actions; decisions are player-legal (reveal-by-effect, hidden future never read) | **strategy competence** at the level of a good player; late-game spending (unspent Gold climbs past round 12); no strategy specialists yet (B4) | single-turn benchmark vs the legacy greedy: set2 +0.85 [0.69, 1.01], set3 +0.70 [0.38, 1.02]; deeper budgets show no measurable single-turn gain (dev vs smoke 0.00 [−0.38, 0.38]) — multi-turn value unproven. Unsupported content must be labelled, not ranked as weak. |
-| Strategist (B4) | plays a declared line (primary + secondary package) with the generalist's legality and information boundary; takes affine runes, engine pieces and profile-timed tiers in the curricula; BEATS the generalist in mixed self-play (4.05 vs 5.33, paired +1.27 [0.42, 2.13], 20 lobbies); line diversity 9–10 primaries per hero over 30 seeds under `strategist:rotate` | **competence against real players** — 6.72 [6.44, 6.99] in 100 pinned set-2 lobbies (owner scale: < 4.0 passes); a claim that a line is STRONG or WEAK (fit is a construction prior, not a strength estimate); packages a set cannot field (labelled unsupported) | the prior is capped and one-turn: it cannot see compounding engines; the evaluator's fight terms lose all gradient once the field outgrows the pilot (B3 work); the hero intent manifest is hand-maintained design intent, not measured. |
+| Strategist (B4) | plays a declared line (primary + secondary package) with the generalist's legality and information boundary; takes affine runes, engine pieces and profile-timed tiers in the curricula; turns its board over from wave 4 (13–36% per round) with a hand that stays under 5; BEATS the generalist in mixed self-play (the 20-seed numbers are in the B4 section); line diversity 9–10 primaries per hero over 30 seeds under `strategist:rotate` | **competence against real players** — 6.44 [6.12, 6.76] in 100 pinned set-2 lobbies (owner scale: < 4.0 passes); a claim that a line is STRONG or WEAK (fit is a construction prior, not a strength estimate); packages a set cannot field (labelled unsupported) | the prior is capped and one-turn: it cannot see compounding engines; the evaluator's fight terms lose all gradient once the field outgrows the pilot (B3 work); the learned value term is inert within noise at any weight tried; the hero intent manifest is hand-maintained design intent, not measured. |
 | Recorder / report (B5) | accepted-action reconciliation (pre/post state hash), offer → buy → play funnels per surface, spell casts by route, sold cards visible, failed/censored runs separated, lobby-level bootstrap CIs, deterministic regeneration | causal claims | everything in the report is evidence level 1 until a `compare` job exists for the change. |
 | Compare (B6) | A/A = zero effect; synthetic positive control registers | a real candidate | no real patch experiment has been run yet — the first one is the next step. |
 | Learned value (`sim/balance/value`) | what SURVIVING recorded boards look like at waves 1–10 (run-split held-out R² 0.31 early / 0.51 mid vs a wave-mean null of 0.09 / 0.07; the weight table is readable) | placement (recordings have none), the late game (11+ not predictive), and using it as a SEARCH TARGET on its own (measured: W 300 → 7.64, worse than the 6.80 baseline) | survival is the label; the pilot's rows dominate the dataset 2.4:1; a linear model of visible board shape cannot see the tempo needed to survive a tier-up. |
@@ -343,7 +362,7 @@ What each layer proves today, and what it does not. Check the boxes as the gates
 2b. The pilot places ~7th against real set-2 recordings: raise pilot competence (B3/B4) and re-run the pinned smoke — a pinned job is the held-out benchmark the roadmap asks for ("human-run groups").
 3. Run the first REAL patch experiment (a bounded content change, paired seeds) and read the comparison.
 4. ~~B4 strategy specialists (package manifests + curricula)~~ — shipped as the strategist pilot, which beats the
-   generalist in self-play but plateaus at 6.7 against the recorded players. Next, in order: (a) give the search a
+   generalist in self-play but plateaus at 6.4 against the recorded players. Next, in order: (a) give the search a
    horizon the prior cannot fake — short multi-turn rollouts for setup / replace decisions and an evaluator gradient
    that survives losing (B3); (b) fix the pinned report's buy attribution; (c) THEN tune the prior's weights against
    pinned placement (`bot:tune`-style search, never hand-feel) and run a `strategist:rotate` job per hero.

@@ -8,7 +8,7 @@ import { evaluate, offerAppeal } from '../productionBots/evaluate';
 import { lastFightResult, withScout } from '../productionBots/fightScore';
 import { scoutFromContext, survivalTerm, type SeatScout } from '../productionBots/scout';
 import { pilotSearch, type PlannedStep, type PilotSearchResult } from '../productionBots/pilotSearch';
-import type { BotVisibleState, PlanningStateHandle } from '../productionBots/types';
+import type { BotOfferView, BotVisibleState, PlanningStateHandle } from '../productionBots/types';
 import type { PilotBudget, SeatContext, SeatPilot } from './types';
 
 /**
@@ -65,11 +65,13 @@ function accepted(run: RunState, action: Action): boolean {
 }
 
 /** Best of a set of candidates by full evaluation from `root`, seeded tie-break. Never null when one is legal. */
-function bestOf(root: PlanningStateHandle, cands: Candidate[], rng: Rng, current?: number, score: (v: BotVisibleState) => number = (v) => evaluate(v).total): { action: Action; utility: number } | null {
+function bestOf(root: PlanningStateHandle, cands: Candidate[], rng: Rng, current?: number, score: (v: BotVisibleState) => number = (v) => evaluate(v).total, visited?: Set<string>): { action: Action; utility: number } | null {
   let best: { action: Action; utility: number; key: number } | null = null;
   for (const c of cands) {
     const t = applyCandidate(root, c.action);
-    const ok = t.changed;
+    // An arrangement already visited this turn is never re-entered (the A → B → A loop hit on 2026-09-15,
+    // pinned seed 66: two edge moves each read as an improvement from the other side and the turn never ended).
+    const ok = t.changed && !(visited?.has(t.fingerprint));
     const utility = ok ? score(t.visible) : -Infinity;
     release(t.child);
     if (!ok) continue;
@@ -85,19 +87,35 @@ function bestOf(root: PlanningStateHandle, cands: Candidate[], rng: Rng, current
  * The best use of Gold that would otherwise be destroyed at end of turn: field a hand minion, tier up, buy the
  * most appealing affordable offer, refresh. Each is validated; `null` only when Gold genuinely buys nothing.
  */
-function forcedSpend(run: RunState, v: BotVisibleState): Action | null {
+function forcedSpend(run: RunState, v: BotVisibleState, handDiscipline = false): Action | null {
   const boardFull = v.board.length >= 7;
   const options: Action[] = [];
   if (!boardFull) for (const c of v.hand) options.push({ type: 'play', uid: c.uid, toIndex: v.board.length });
   if (v.economy.upgradeCost <= v.economy.gold && v.economy.tier < 6) options.push({ type: 'upgrade' });
+  // HAND DISCIPLINE (B4, opt-in): with a full board, a bought minion sits in hand — measured 2026-09-15 (100 pinned
+  // set-2 lobbies): the hand grew from 3.6 to 9.1 UNPLAYED cards from round 6 while the board never changed. So
+  // only buy what can matter: a triple piece (a copy of a non-golden card held), a minion that beats the worst
+  // board body by a margin (the replace macro fields it next decision), or a spell (cast, not held). Otherwise
+  // a refresh is the better use of the Gold.
+  const worstBody = boardFull ? Math.min(...v.board.map((c) => c.attack + c.health)) : 0;
+  const held = new Set([...v.board, ...v.hand].filter((c) => !c.golden).map((c) => c.cardId));
+  const worthHolding = (o: BotOfferView): boolean => {
+    if (!handDiscipline || !boardFull) return true;
+    if (o.spell) return true;
+    if (held.has(o.cardId)) return true;
+    return o.attack + o.health >= worstBody + 2;
+  };
+  const buys: Action[] = [];
   if (v.hand.length < 10) {
     for (const o of [...v.shop, ...(v.spellOffer ? [v.spellOffer] : [])]
-      .filter((x) => x.cost <= v.economy.gold)
+      .filter((x) => x.cost <= v.economy.gold && worthHolding(x))
       .sort((a, b) => offerAppeal(b.cardId, b.attack, b.health, b.keywords) - offerAppeal(a.cardId, a.attack, a.health, a.keywords))) {
-      options.push({ type: 'buy', uid: o.uid });
+      buys.push({ type: 'buy', uid: o.uid });
     }
   }
-  if (v.economy.refreshCost <= v.economy.gold && v.economy.gold >= 2 && v.board.length < 7) options.push({ type: 'roll' });
+  const roll: Action[] = v.economy.refreshCost <= v.economy.gold && v.economy.gold >= 2 && (v.board.length < 7 || handDiscipline) ? [{ type: 'roll' }] : [];
+  // Disciplined and full: a refresh (new offers for the replace macro) ahead of a marginal buy.
+  options.push(...(handDiscipline && boardFull ? [...roll, ...buys] : [...buys, ...roll]));
   for (const action of options) if (accepted(run, action)) return action;
   return null;
 }
@@ -138,6 +156,9 @@ export interface GeneralistOptions {
    * rest is queued with fingerprints like any plan step.
    */
   replaceMacro?: boolean;
+  /** B4 (opt-in): HAND DISCIPLINE in the forced spend — with a full board buy only triple pieces, spells, or a
+   *  minion that beats the worst body (see `forcedSpend`); refresh ahead of a marginal buy. Off for the generalist. */
+  handDiscipline?: boolean;
 }
 
 /** Board minions a replace macro may sell: the weakest few by printed body, never a golden. */
@@ -207,6 +228,8 @@ function bestReplaceChain(root: PlanningStateHandle, v: BotVisibleState, rootFp:
 export function createGeneralistPilot(budget: PilotBudget, seed: number, opts: GeneralistOptions = {}): GeneralistPilot {
   const queues = new Map<string, PlannedStep[]>();
   const counters = new Map<string, number>();
+  /** Arrangement fingerprints visited during the current turn's positioning pass (one turn at a time). */
+  const arranged = new Map<string, Set<string>>();
   const traces = new Map<string, GeneralistTrace>();
   const samples = budget.depth >= 3 ? 4 : 3;
   // SCOUTING (additive, 2026-09-15 — `productionBots/scout.ts`). Off unless the budget says so, so a job without
@@ -281,12 +304,17 @@ export function createGeneralistPilot(budget: PilotBudget, seed: number, opts: G
       }
 
       // 4) Spend what would be destroyed.
-      const spend = forcedSpend(run, visible);
+      const spend = forcedSpend(run, visible, opts.handDiscipline === true);
       if (spend) return trace('forcedSpend', spend, result);
 
-      // 5) Final arrangement — one improving move at a time; the runner calls again.
+      // 5) Final arrangement — one improving move at a time; the runner calls again. Arrangements seen this turn
+      // are never revisited.
       const current = score(visible);
-      const move = bestOf(root, orderedPositionCandidates(visible, budget.positionCandidates), rng, current, score);
+      const seenKey = `${seatKey}|${round}`;
+      if (!arranged.has(seenKey)) { arranged.clear(); arranged.set(seenKey, new Set()); }
+      const visited = arranged.get(seenKey)!;
+      visited.add(liveFp);
+      const move = bestOf(root, orderedPositionCandidates(visible, budget.positionCandidates), rng, current, score, visited);
       if (move && accepted(run, move.action)) return trace('position', move.action, result);
 
       // 6) Nothing left worth doing.

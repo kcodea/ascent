@@ -40,6 +40,11 @@ export interface PilotBudget {
    *  the round-capped hit expected from the scouted next opponent × how lethal it is at the pilot's live health.
    *  Default 0 (inert). Needs `scouting`. */
   survivalWeight?: number;
+  /** B4 (additive): the STRATEGIST's dials, so a manifest can sweep them — `priorWeight` (utility per normalized
+   *  prior point, default `PRIOR_WEIGHT` = 10) and `valueWeight` (utility per unit of the learned value term,
+   *  default `VALUE_WEIGHT` = 20; 0 disables the blend). Ignored by the generalist. */
+  priorWeight?: number;
+  valueWeight?: number;
 }
 
 export interface ExperimentManifest {

@@ -3574,10 +3574,10 @@ export function Recruit() {
     const wbRect = zoneRects.find((z) => z.zone === 'warband')?.r;
     const tvRect = zoneRects.find((z) => z.zone === 'tavern')?.r;
     const handRect = zoneRects.find((z) => z.zone === 'hand')?.r;
-    // A hand MINION plays (and the warband opens a slot to make room) once its centre clears this line. Like
-    // the spell line below, slide it from the warband's bottom (playLine 0) DOWN toward the hand's top
-    // (playLine 1) — higher = the warband reacts sooner (less drag up). Falls back to the old "10% up into the
-    // play area" line only when the hand is unmeasured.
+    // A hand MINION plays (and the warband opens a slot to make room) once its centre clears this line. It
+    // rides `getDragFeel().playLine` off the warband/hand rects; LOWER playLine = the warband reacts sooner
+    // (opens the slot with less drag up). Falls back to the old "10% up into the play area" line only when the
+    // hand is unmeasured.
     playFloorRef.current = wbRect && handRect
       ? wbRect.bottom + getDragFeel().playLine * (handRect.top - wbRect.bottom)
       : wbRect

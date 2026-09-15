@@ -141,6 +141,62 @@ phenomenal**; 4.4 is a below-average player and does not pass. The generalist ba
 **6.80 [6.56, 7.05]**; search depth alone did not move it (6.76 at depth 2 / beam 3). Balance findings from a
 pilot below the bar are leads about the *pilot*, not the game.
 
+## Learned value (2026-09-15)
+
+The pinned lobbies diagnosed a STRATEGIC gap (placement 6.80/8 at depth 1, 6.76 at depth 2): real players tier a
+full level earlier, hold 1–2 bodies at waves 2–3, and scale exponentially from wave 8 because they build engines;
+the pilot fills seven slots with bodies by wave 7 and wins 5% of fights from wave 9. The learned value model is the
+piece that lets the pilot learn what surviving boards look like FROM THE RECORDINGS instead of from a hand-written
+proxy. It lives in `packages/sim/src/balance/value/` (features, model, the term, the committed model) and
+`packages/tools/src/balance/value/` (dataset builder, fit, report).
+
+```bash
+npm run balance:value:dataset -- --corpus set2-players-v1 --jobs set2-pinned-gen-smoke100,set2-pinned-gen-dev100 --out set2-v1
+npm run balance:value:fit     -- --dataset set2-v1 --out set2-v1 [--lambda 100] [--pinned-weight 1] [--sweep 10,30,100,300]
+npm run balance:value:report  -- --model set2-v1 [--dataset set2-v1]
+```
+
+**The label is SURVIVAL, not placement.** A recording carries no placement, so a board at wave *w* of a run whose
+last recorded wave is *L* is labelled `(L − w) / (maxWave − w)` (`maxWave` = the corpus' last recorded wave, 18 for
+`set2-players-v1`); `reachedTop` (`L ≥ 14`) is kept as the top-finish proxy. A run that reached the end-game scores
+1 whether it won or lost the final — late survival means "reached the end-game", never "won". Pinned-lobby PILOT
+rounds are rows too (same label; the recorded seats are the corpus again), and they additionally carry the pilot's
+final placement (`(8 − placement) / 7`) and that round's fight result as EVALUATION columns (rank-correlation
+targets), never as fitted labels.
+
+**Leakage rules.** Features come from ONE function (`featuresOfInput`, reached by `featuresOf(visibleState)` at
+inference and `featuresOfSnapshot` in the dataset builder, so training and inference cannot drift) and read only
+what the player sees at the end of a recruit turn: wave, tier, tier − expected(wave) (the diagnosis curve), Gold
+unspent, board and hand size, stat totals / maxima, goldens, mean/max minion tier, pairs held, own Resolve + Armor,
+keyword counts, tribe counts + dominant-tribe share, and twelve MECHANIC buckets derived from the effect vocabulary
+(`packages/content/src/schema.ts`: per-turn scalers, on-play, death, summon, spell synergy, Ruby, Ale, Consume,
+attachment, combat-time, shop buffs, card generation — the rules print at the bottom of the report). Nothing from
+the opponent, the served board, the future shop, the seed or the fight result. A recorded snapshot has no Gold, so
+that column is `null` and imputed to the wave mean — never faked as 0. Validation splits by ORIGINATING RUN (the
+row's `group`: corpus run key, or job + lobby + seat), never by board; the null model is the training fold's
+per-wave mean.
+
+**The model** is a deterministic ridge regression (closed form, no RNG), one weight vector per wave band (early
+1–5 / mid 6–10 / late 11+), on features standardised PER WAVE (shrunk toward the band for thin waves, clipped at
+±6) so a weight reads "one wave-σ more of this than the typical board at that wave". `set2-v1` (λ 100, chosen by
+the run-split sweep) on 2,716 rows (794 corpus / 70 runs + 1,922 pilot rounds / 200 lobbies): held-out R² 0.483
+vs null 0.250 overall; on the recordings alone 0.195 vs −0.201 (Spearman 0.48 vs 0.24); early band R² 0.31 (null
+0.09), mid 0.51 (null 0.07), **late 11+ is NOT predictive (−0.05, 218 rows)** — treat the late band as the
+intercept. What the weights say: at every band the strongest board predictor of survival is mean minion tier for
+the wave (+ tier gap), then per-turn scalers (`mech_perTurn`), Consume and Kobold engines; at waves 6–10 an
+unspent hand, Wards and Taunts on the board, and a Demon/Dragon/Dwarf-heavy board predict elimination; at 11+
+card generation and tribe concentration help. `valueTermOf(visibleState, model)` returns the expected normalised
+survival (`null` = no opinion); `loadDefaultValueModel('set2')` returns the committed model.
+
+**Standalone worth, measured (50 pinned lobbies, seeds 1–50, smoke budget, the term added to the evaluator's total
+at weight W, paired against the same seeds of the 6.80 baseline):** W 30 → 6.70 (Δ −0.14 ± 0.20, 10 better / 5
+worse); W 100 → 7.10 (Δ +0.17 ± 0.31); W 300 → 7.64 (Δ +0.80 ± 0.34). The heavier the term the faster the pilot
+tiers (mean tier 3.0 at round 4 under W 300 vs 1.7 baseline — exactly the recorded curve) and the EARLIER it dies
+(24 of 50 eliminated in round 8), because the depth-1 search cashes the tier-up as an immediate fight loss it never
+recovers from. The term knows what survivors look like; it does not know how to get there. It is a direction for
+the strategist (B4), not a drop-in weight: blend it small (≤ 30), or use it to choose BETWEEN plans of equal fight
+strength, and pair it with a tempo plan that fields a fight-winning board the round after a tier-up.
+
 ## Trust ledger
 
 What each layer proves today, and what it does not. Check the boxes as the gates in the roadmap's
@@ -153,6 +209,7 @@ What each layer proves today, and what it does not. Check the boxes as the gates
 | Pilot (B3) | buying, playing, tiering, selling, refreshing, freezing, targeted Shouts, Choose One, Discover, triples, hero powers, Equipment, Starform; no illegal actions; decisions are player-legal (reveal-by-effect, hidden future never read) | **strategy competence** at the level of a good player; late-game spending (unspent Gold climbs past round 12); no strategy specialists yet (B4) | single-turn benchmark vs the legacy greedy: set2 +0.85 [0.69, 1.01], set3 +0.70 [0.38, 1.02]; deeper budgets show no measurable single-turn gain (dev vs smoke 0.00 [−0.38, 0.38]) — multi-turn value unproven. Unsupported content must be labelled, not ranked as weak. |
 | Recorder / report (B5) | accepted-action reconciliation (pre/post state hash), offer → buy → play funnels per surface, spell casts by route, sold cards visible, failed/censored runs separated, lobby-level bootstrap CIs, deterministic regeneration | causal claims | everything in the report is evidence level 1 until a `compare` job exists for the change. |
 | Compare (B6) | A/A = zero effect; synthetic positive control registers | a real candidate | no real patch experiment has been run yet — the first one is the next step. |
+| Learned value (`sim/balance/value`) | what SURVIVING recorded boards look like at waves 1–10 (run-split held-out R² 0.31 early / 0.51 mid vs a wave-mean null of 0.09 / 0.07; the weight table is readable) | placement (recordings have none), the late game (11+ not predictive), and using it as a SEARCH TARGET on its own (measured: W 300 → 7.64, worse than the 6.80 baseline) | survival is the label; the pilot's rows dominate the dataset 2.4:1; a linear model of visible board shape cannot see the tempo needed to survive a tier-up. |
 | Pinned lobby (`pinnedLobby` + `balance:corpus`) | the pilot's placement in the game **as shipped** against a **frozen, digest-pinned population of real player recordings** (the seat fill, the served boards, the settlement and the placements are the client's own code paths; determinism; a thin corpus censors rather than pads) | any claim that a patch changes how *players* fare, or hero/card strength beyond the pilot's own play | recordings do not adapt: a pinned job measures the PILOT against the population as it was recorded, under the CURRENT rules — a card change moves the pilot's boards and the fights, never the recorded boards' build orders, so a placement shift is "the pilot vs yesterday's players", not a new meta. The recordings' own placements are the complement of the pilot's over eight seats and are printed only for reading. Recording-vs-recording fights are the shipped tier-only path (`runLobby.ts` `settleRunLobbyRound`), the same as the live game. A corpus mixes patches (35 stamps in `set2-players-v1`); `--patch <prefix>` narrows it, at the cost of runs. |
 
 ## Next steps, in order

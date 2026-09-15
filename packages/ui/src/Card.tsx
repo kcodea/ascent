@@ -185,6 +185,12 @@ const tierPlateSrc = (golden: boolean): string =>
 /** The dark shape seated behind the rules-text panel (see `.descbox`). Owner art, a full card-body silhouette. */
 const DESC_BOX_SRC = `${import.meta.env.BASE_URL}frames/desc-backbox.webp`;
 const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.webp`;
+// Milestone frame art — the disc a stat badge sits in once it crosses a value tier (see choreo/statMilestones.ts).
+// One per stat (`atk` sword motif / `hp` heart motif) per tier 1..5; tier 0 (below the first threshold) has no
+// frame and keeps the flat plate. BASE_URL-relative like every other public/frames asset (itch serves from a CDN
+// sub-path where a root-absolute '/frames/…' 404s — see the note on TAUNT_FRAME_SRC).
+const msFrameSrc = (stat: 'atk' | 'hp', tier: number): string =>
+  `${import.meta.env.BASE_URL}frames/milestone-${stat}-${tier}.webp`;
 // Per-tribe plates — same stone/gold body as the neutral plate, tribe-coloured gem accents, same 800×1244
 // dims so the geometry vars are unchanged. Keyed on the PRIMARY tribe only (owner 2026-07-25): a Beast/Dragon
 // shows the neutral plate, only a Beast-PRIMARY card gets the beast one. Add a tribe here + drop its webp in
@@ -566,6 +572,10 @@ export const Card = memo(function Card({
   // allowed to print a negative stat.
   const shownAttack = held ? Math.max(0, card.attack - held.attack) : card.attack;
   const shownHealth = held ? Math.max(0, card.health - held.health) : card.health;
+  // Milestone tier of each SETTLED stat (0 = below the first threshold → no frame; 1..5 → a frame disc). Drives
+  // the badge frame art AND the data-milestone attribute below.
+  const atkMs = tierOf('attack', card.attack);
+  const hpMs = tierOf('health', card.health);
   // Each badge pops independently, so a buff that only moves attack leaves the health badge alone.
   const atkPopRef = useBadgePop(shownAttack);
   const hpPopRef = useBadgePop(shownHealth);
@@ -1127,11 +1137,13 @@ export const Card = memo(function Card({
             {/* Stat badges — three nodes each so FX can target them separately (docs/fx-vocabulary.md):
                 the `.badge` wrapper seats the pair, `.plate` is the shape, `.value` is the digit. Plate and
                 value are SIBLINGS, not nested, so the plate can scale without dragging the number. */}
-            <span ref={atkPopRef} data-milestone={tierOf('attack', card.attack)} className={`badge atk${statCls(shownAttack, card.baseAttack, card.floorAttack)}`}>
+            <span ref={atkPopRef} data-milestone={atkMs} className={`badge atk${statCls(shownAttack, card.baseAttack, card.floorAttack)}`}>
+              {atkMs >= 1 && <img decoding="sync" className="msframe" src={msFrameSrc('atk', atkMs)} alt="" aria-hidden="true" />}
               <span className="plate" aria-hidden="true" />
               <span className="value">{formatStat(shownAttack)}</span>
             </span>
-            <span ref={hpPopRef} data-milestone={tierOf('health', card.health)} className={`badge hp${statCls(shownHealth, card.baseHealth, card.floorHealth)}`}>
+            <span ref={hpPopRef} data-milestone={hpMs} className={`badge hp${statCls(shownHealth, card.baseHealth, card.floorHealth)}`}>
+              {hpMs >= 1 && <img decoding="sync" className="msframe" src={msFrameSrc('hp', hpMs)} alt="" aria-hidden="true" />}
               <span className="plate" aria-hidden="true" />
               <span className="value">{formatStat(shownHealth)}</span>
             </span>

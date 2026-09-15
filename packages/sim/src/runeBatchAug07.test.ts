@@ -32,7 +32,7 @@ describe('the 15 remaining defs exist at sheet costs', () => {
     }
   });
   it('the set-2 three are scoped; the rest are shared', () => {
-    for (const id of ['rune_engraving', 'rune_flagship', 'rune_brew']) expect(rune(id).sets).toEqual(['set2']);
+    for (const id of ['rune_engraving', 'rune_flagship', 'rune_brew']) expect(rune(id).sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
     for (const [id] of want) {
       if (['rune_engraving', 'rune_flagship', 'rune_brew'].includes(id)) continue;
       expect(rune(id).sets, `${id} should be shared`).toBeUndefined();

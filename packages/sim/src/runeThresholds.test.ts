@@ -115,7 +115,7 @@ describe('the seven runes', () => {
 
   it('Ale and Ruby runes are set-2 scoped', () => {
     // An Ale/Ruby payout is unreachable in set 1 — offering the rune there is a dead Runeforge slot.
-    expect(byName('Rune of Overtime')!.sets).toEqual(['set2']);
+    expect(byName('Rune of Overtime')!.sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
     expect(byName('Rune of the Cindergem')!.sets).toEqual(['set2']);
   });
 });

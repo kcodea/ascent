@@ -264,6 +264,19 @@ export interface SetDef {
   tribes: readonly Tribe[];
 }
 
+/**
+ * SET FORKS (rune roster handoff 2026-09-14, rule 7): a card a RUNE grants by id resolves to the pinned set's FORK
+ * of that card when one exists. Rune of Yazzus / Rune of Frontline Glory name the legacy `yazzus`; set 3 plays
+ * `n3_yazzus` (its Tier-7 fork with the wider Ruby / Ale scope), and granting the legacy body in a set-3 run would
+ * put two indistinguishable "Yazzus" outcomes on the table. Only the GRANT path consults this — a card already in
+ * a run's pool is never rewritten.
+ */
+export const SET_FORKS: Partial<Record<SetId, Readonly<Record<string, string>>>> = {
+  set3: { yazzus: 'n3_yazzus' },
+};
+/** The id a rune / quest grant should actually deliver in `setId`. */
+export const forkedCardId = (setId: SetId, cardId: string): string => SET_FORKS[setId]?.[cardId] ?? cardId;
+
 export const SETS: Record<SetId, SetDef> = {
   set1: {
     id: 'set1',

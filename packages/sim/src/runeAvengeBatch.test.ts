@@ -88,7 +88,7 @@ describe('the three runes ship as specced', () => {
   });
 
   it('only Last Call is set-2 scoped — the other two use set-1 mechanics too', () => {
-    expect(byName('Rune of Last Call')!.sets).toEqual(['set2']); // Ales
+    expect(byName('Rune of Last Call')!.sets).toEqual(['set2', 'set3']); // Ales // + set3 2026-09-14 (rune roster carryover)
     expect(byName('Rune of the Cinder Ledger')!.sets).toBeUndefined(); // Imps exist in both sets
     expect(byName('Rune of the Procession')!.sets).toBeUndefined();
   });

@@ -56,6 +56,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-14',
+    label: 'Set 3 rune roster',
+    changes: [
+      {
+        category: 'Rune Change',
+        text: 'Set 3 Runeforges now draw from 115 Basic and 98 Epic runes: 64 runes from Sets 1 and 2 whose mechanics Set 3 has — the Ruby, Dwarven Ale, Dwarf, Kobold, Undead and Shop-consume packages — join the pool. Sets 1 and 2 are unchanged.',
+        details: [
+          'Basic (30): Gemcutting, Overtime, Distillation, Last Call, Basic Dwarves, Basic Kobolds, Engraving, Investment, Recollection, Resonance, Ruby Resonance, Shared Pour, Shifting Facets, the Flagship, the Gem Dividend, Compounding Wages, Facetwright, Full Measure, Heavy Payroll, Kegheart, Refraction, Shared Spoils, the Brew, the Living Geode, Mountain Trade, the First Round, the Gem Sage, the Unbroken Vein, the Warden, Contraband.',
+          'Epic (34): Rising Graves, Gemstorm, Runic Exchange, the Open Market, Epic Dwarves, Epic Kobolds, the Shared Table, the Spellstone, Attacking Gems, Engraving Gems, Gemscript, Gemspam, Living Treasure, Mykel, Profit Sharing, Redirection, the Gem Golem, the High King, Yazzus, Lazarus, Ruby Shrapnel, the Bottomless Cask, the Conduit, the Deepening Vein, the Lapidary, the Motherlode, Baal, Double Fisting, Kobold Bebes, the Chef, Bucky, Mastery, the Spearline, Frontline Glory.',
+          'In Set 3, Rune of Yazzus and Rune of Frontline Glory grant the Set 3 Yazzus (Tier 7). A Starform eating a Shop minion counts as your first Shop consume for Rune of the Open Market.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-14',
     label: 'Celestial + Spirit batch',
     changes: [
       {

@@ -31,10 +31,10 @@ describe('the 14 defs ship as specced', () => {
       expect(r.epic, `${id} should be Epic`).toBe(true);
     }
   });
-  it('only the Lapidary and the Gem Golem are set-2 scoped', () => {
+  it('only the Lapidary and the Gem Golem are set-2 scoped (both carried into set 3, 2026-09-14)', () => {
     for (const [id] of want) {
       const scoped = ['rune_lapidary', 'rune_gem_golem'].includes(id);
-      expect(rune(id).sets, id).toEqual(scoped ? ['set2'] : undefined);
+      expect(rune(id).sets, id).toEqual(scoped ? ['set2', 'set3'] : undefined);
     }
   });
 });

@@ -23,7 +23,28 @@ export type HudBindingKind = 'runeTriggered' | 'epicRuneTriggered';
 export const HUD_BINDING_KINDS: readonly HudBindingKind[] = ['runeTriggered', 'epicRuneTriggered'];
 
 /**
- * Every key a binding can hang off — a COMBAT moment kind, a SHOP one, or a HUD one.
+ * A binding key for a STAT MILESTONE — a badge crossing a fixed value tier (see `choreo/statMilestones.ts`).
+ * One key per tier so each tier's celebration is an independently workbench-rebindable slot.
+ *
+ * Its own family, sibling to `HudBindingKind`, for the same reason: these kinds are fired DIRECTLY from the
+ * badge DOM (`fx/statMilestone.ts`), have no combat cue list in `SCORE_DEFAULTS`, and are NOT emitted through
+ * `recruitMoments.ts` — so folding them into `MomentKind` or `RecruitMomentKind` would break those modules'
+ * invariants (an exhaustive score row / "every declared kind has an emitter") with a kind they can never produce.
+ */
+export type StatMilestoneBindingKind =
+  | 'statMilestone1' | 'statMilestone2' | 'statMilestone3' | 'statMilestone4' | 'statMilestone5';
+
+export const STAT_MILESTONE_BINDING_KINDS: readonly StatMilestoneBindingKind[] =
+  ['statMilestone1', 'statMilestone2', 'statMilestone3', 'statMilestone4', 'statMilestone5'];
+
+/** The binding kind for a milestone tier (1..5). Clamped so an out-of-range tier resolves to a real key. */
+export function statMilestoneKind(tier: number): StatMilestoneBindingKind {
+  const n = Math.min(STAT_MILESTONE_BINDING_KINDS.length, Math.max(1, Math.round(tier)));
+  return STAT_MILESTONE_BINDING_KINDS[n - 1];
+}
+
+/**
+ * Every key a binding can hang off — a COMBAT moment kind, a SHOP one, a HUD one, or a STAT MILESTONE one.
  *
  * One table across both phases is the point: "which def plays when X happens" should be one question with
  * one answer, and the shop half used to have no way to ask it at all (see `recruitMoments.ts`). Kept as a
@@ -32,7 +53,7 @@ export const HUD_BINDING_KINDS: readonly HudBindingKind[] = ['runeTriggered', 'e
  * A shop kind has no combat cues and never should, and widening would have forced a meaningless row per
  * kind and made the exhaustive-score test lie.
  */
-export type BindingKind = MomentKind | RecruitMomentKind | HudBindingKind;
+export type BindingKind = MomentKind | RecruitMomentKind | HudBindingKind | StatMilestoneBindingKind;
 import rawBindings from './bindings.json';
 
 /**

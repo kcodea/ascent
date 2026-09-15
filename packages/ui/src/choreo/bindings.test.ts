@@ -13,6 +13,7 @@ import {
   setBinding,
   unbindJson,
   HUD_BINDING_KINDS,
+  STAT_MILESTONE_BINDING_KINDS,
 } from './bindings';
 import { CARD_INDEX } from '@game/content';
 import { SCORE_DEFAULTS } from './score';
@@ -307,10 +308,13 @@ describe('binding integrity', () => {
   });
 
   it('every key is a real moment kind and a real card id', () => {
-    // Both phases plus the HUD: combat kinds come from the score table, shop kinds from the recruit
-    // vocabulary, and HUD kinds (a rune badge firing) from their own list — they have neither a combat cue
-    // row nor a recruit emitter, by design (see `HudBindingKind`).
-    const kinds = new Set<string>([...Object.keys(SCORE_DEFAULTS), ...RECRUIT_MOMENT_KINDS, ...HUD_BINDING_KINDS]);
+    // Both phases plus the HUD and stat-milestone families: combat kinds come from the score table, shop
+    // kinds from the recruit vocabulary, HUD kinds (a rune badge firing) and stat-milestone kinds (a badge
+    // crossing a tier) from their own lists — they have neither a combat cue row nor a recruit emitter, by
+    // design (see `HudBindingKind` / `StatMilestoneBindingKind`).
+    const kinds = new Set<string>([
+      ...Object.keys(SCORE_DEFAULTS), ...RECRUIT_MOMENT_KINDS, ...HUD_BINDING_KINDS, ...STAT_MILESTONE_BINDING_KINDS,
+    ]);
     const t = effectiveTables();
     const bad: string[] = [];
     for (const kind of Object.keys(t.kinds)) if (!kinds.has(kind)) bad.push(`kinds.${kind}`);

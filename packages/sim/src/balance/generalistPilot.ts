@@ -253,6 +253,8 @@ const REPLACE_SELL_CANDIDATES = 3;
 const MACRO_FEED_STEPS = 6;
 /** Mandatory follow-ups (an aim, a Choose One) an assemble chain resolves after one play. */
 const MACRO_PROMPT_GUARD = 3;
+/** Gold a commit-and-roll refresh must leave behind (a body's price). */
+const MACRO_ROLL_FLOOR = 3;
 
 /**
  * Enumerate replace macros from `root`: for each of the weakest board minions, sell it, then either buy an
@@ -513,10 +515,14 @@ export function createGeneralistPilot(budget: PilotBudget, seed: number, opts: G
           // An unaffordable missing piece is frozen for next turn.
           const unaffordable = missing.some((p) => visible.shop.some((o) => !o.spell && !o.ruby && p.piece.ids.includes(o.cardId) && o.cost > visible.economy.gold));
           if (unaffordable && !visible.frozen && accepted(run, { type: 'freeze' })) return trace('macroFreeze', { type: 'freeze' });
-          // COMMIT-AND-ROLL: the reserve goes into refreshes looking for the piece before the search spends the rest.
+          // COMMIT-AND-ROLL: the reserve goes into refreshes looking for the piece before the search spends the rest —
+          // only for a piece the CURRENT Shop tier can draw (measured 2026-09-15: the first build rolled 4 Gold a turn
+          // at Tier 2 for a Tier-3 Blart through waves 4–6 and never tiered up — 6.60 vs 6.37), and never below a
+          // body's price (a roll that leaves nothing to buy what it finds is a roll wasted).
           const cost = visible.economy.freeRolls > 0 ? 0 : visible.economy.refreshCost;
           const spent = commitment.rolls * Math.max(1, visible.economy.refreshCost);
-          if (!visible.frozen && spent + cost <= macros.reserve && visible.economy.gold >= cost && accepted(run, { type: 'roll' })) {
+          const drawable = missing.some((p) => p.piece.ids.some((id) => (CARD_INDEX[id]?.tier ?? 99) <= visible.economy.tier));
+          if (drawable && !visible.frozen && spent + cost <= macros.reserve && visible.economy.gold - cost >= MACRO_ROLL_FLOOR && accepted(run, { type: 'roll' })) {
             commitment.rolls++;
             return trace('macroRoll', { type: 'roll' });
           }
@@ -545,8 +551,13 @@ export function createGeneralistPilot(budget: PilotBudget, seed: number, opts: G
           if (a) assembles.push(a);
         }
       }
-      const commitTo = (combo: EngineCombo): void => {
+      const commitTo = (combo: EngineCombo, after: BotVisibleState): void => {
         if (!macros || pivoted.get(seatKey)?.has(combo.id)) return;
+        // A commitment needs the PAYOFF in hand or on the board: an assemble step that only took a feeder (a Hank, an
+        // Echo body) is a good buy, not a plan to roll for (the first build committed on a lone Hank and rolled).
+        const prog = comboProgress(combo, after);
+        if (!prog.pieces.some((p) => p.piece.role === 'payoff' && p.held > 0)) return;
+        if (!macros.worth(combo, after) && !prog.payoffFielded) return;
         const cur = commitments.get(seatKey);
         if (cur && cur.comboId !== combo.id) {
           const curCombo = comboOf(cur.comboId);
@@ -575,7 +586,7 @@ export function createGeneralistPilot(budget: PilotBudget, seed: number, opts: G
           else if (choice.route !== 'assemble') chosenCombo = null;
         }
         if (choice.steps.length > 0 && accepted(run, choice.steps[0]!.action)) {
-          if (choice.route === 'assemble' && chosenCombo) commitTo(chosenCombo);
+          if (choice.route === 'assemble' && chosenCombo) commitTo(chosenCombo, assembles.find((a) => a.combo === chosenCombo)?.visible ?? visible);
           queues.set(seatKey, choice.steps.slice(1));
           return trace(choice.route, choice.steps[0]!.action, result);
         }
@@ -584,7 +595,7 @@ export function createGeneralistPilot(budget: PilotBudget, seed: number, opts: G
         const bestAssemble = assembles.sort((a, b) => b.utility - a.utility)[0];
         const bar = Math.max(result.utility, result.rootUtility, chain?.utility ?? -Infinity);
         if (bestAssemble && bestAssemble.utility > bar + 1e-9 && accepted(run, bestAssemble.steps[0]!.action)) {
-          commitTo(bestAssemble.combo);
+          commitTo(bestAssemble.combo, bestAssemble.visible);
           queues.set(seatKey, bestAssemble.steps.slice(1));
           return trace('assemble', bestAssemble.steps[0]!.action, result);
         }

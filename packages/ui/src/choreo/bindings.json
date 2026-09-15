@@ -66,6 +66,21 @@
     },
     "shout": {
       "def": "shout-icon-effect"
+    },
+    "statMilestone1": {
+      "def": "self-buff-burst"
+    },
+    "statMilestone2": {
+      "def": "self-buff-burst"
+    },
+    "statMilestone3": {
+      "def": "self-buff-burst"
+    },
+    "statMilestone4": {
+      "def": "self-buff-burst"
+    },
+    "statMilestone5": {
+      "def": "self-buff-burst"
     }
   },
   "cards": {

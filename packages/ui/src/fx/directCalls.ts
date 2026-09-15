@@ -141,6 +141,12 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // same shape as a binding, keyed on the source's tribe instead of a `bindings.json` row. The generic
   // `tendril-trail` fallback in the sibling branch stays a literal and remains in `DIRECT_CALL_SITES`.
   'buffFxRender.ts': 1,
+  // STAT MILESTONE (2026-09-14). One `playDef(binding.def, …)` in `fireStatMilestone`: which def plays for a
+  // badge crossing a tier is resolved via `bindingFor(cardId, statMilestoneKind(tier))`, the same binding path
+  // as score.ts/recruitCues.ts/runeTriggerFx.ts — a fourth resolver, keyed on the `statMilestoneN` family
+  // instead of a `RecruitMoment`/`CombatEvent` kind because there is no event to hang a moment off (see that
+  // file's header).
+  'fx/statMilestone.ts': 1,
 };
 
 /** The files that fire `id` from code, or an empty array. Never null — callers render a list either way. */

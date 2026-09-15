@@ -184,6 +184,13 @@ const BINDINGS: Record<string, { def: string }> = {
   spellProgress: { def: 'spell-progress' },
   questTrigger: { def: 'quest-trigger' }, questComplete: { def: 'quest-complete' },
   // NB: `rally` is absent from this table on purpose — it is a committed TOMBSTONE, asserted below.
+  // Stat-milestone tiers 1-5 (badge crossing a fixed Attack/Health value) — all five PLACEHOLDER-bound to the
+  // same `self-buff-burst` def until the owner authors 5 distinct tier defs and rebinds them in the workbench.
+  statMilestone1: { def: 'self-buff-burst' },
+  statMilestone2: { def: 'self-buff-burst' },
+  statMilestone3: { def: 'self-buff-burst' },
+  statMilestone4: { def: 'self-buff-burst' },
+  statMilestone5: { def: 'self-buff-burst' },
 };
 
 /**

@@ -48,6 +48,10 @@ export interface ExperimentManifest {
   maxRounds?: number;
   /** Per-seat guard against a stuck pilot: recruit actions per turn before the seat is FAILED (never silently ended). */
   maxActionsPerTurn?: number;
+  /** Which combat rules the self-play fights resolve under (B1, `seatRunner.ts` `FightRules`): `corrected` (default)
+   *  prepares EVERY seat through the player's full combat builder; `shipped` reproduces the served-board path a seat
+   *  takes against the live player today. Labelled on the record, never inferred. */
+  fightRules?: 'corrected' | 'shipped';
   notes?: string;
 }
 

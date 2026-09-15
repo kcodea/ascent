@@ -4,6 +4,7 @@ import type { BotCardView, BotVisibleState } from './types';
 import { fightScore } from './fightScore';
 import { boardStrength } from '../boardModel';
 import { predictWinsAfter } from '../runModel';
+import { activeGrowth, growthTermOf } from './growth';
 
 /**
  * STATE EVALUATION — decomposed, normalized, and explainable.
@@ -56,6 +57,13 @@ export interface EvaluationBreakdown {
    * terms) stay the dominant term by construction: a prior is capped at a few utility points.
    */
   prior: number;
+  /**
+   * B6 (balance roadmap): ENGINE GROWTH — what the board will GENERATE next turn, MEASURED by running the engine
+   * forward on a private clone through one scripted turn (`growth.ts`), net of the bodies bought, relative to a
+   * healthy board at this wave and credited by the turns left. Zero unless a `withGrowth` scope is installed
+   * (the strategist installs one per decision at its `growthWeight`); weighted ZERO in the shipped config.
+   */
+  growth: number;
   total: number;
 }
 
@@ -131,6 +139,9 @@ export const EVALUATION_CONFIG_V1: EvaluationConfig = {
     // ZERO: the shipped evaluator carries no strategy prior. The strategist installs one per decision through
     // `withEvaluationPrior`, whose own weight applies while it is installed.
     prior: 0,
+    // ZERO: the shipped evaluator runs no growth probe. The strategist installs one per decision through
+    // `withGrowth`, whose own weight applies while it is installed.
+    growth: 0,
   },
   dangerHealthFraction: 0.35,
   // Two archetypes mid-search. Five is more accurate but triples the cost of every node, and the node budget
@@ -280,7 +291,12 @@ export function evaluate(v: BotVisibleState, cfg: EvaluationConfig = ACTIVE_CONF
   const prior = ACTIVE_PRIOR ? ACTIVE_PRIOR(v) : 0;
   const priorWeight = ACTIVE_PRIOR ? ACTIVE_PRIOR_WEIGHT : w.prior;
 
-  const parts = { fightStrength, learnedStrength, tierDensity, tribeFocus, pairsHeld, tripleReady, futureWins, boardPower, economy, tierProgress, handValue, survivalUrgency, wastedGoldPenalty, prior };
+  // ENGINE GROWTH (B6). Only non-zero inside `withGrowth`; its weight is the installer's.
+  const growthScope = activeGrowth();
+  const growth = growthScope ? growthTermOf(v, growthScope.panelSeed, fight.carryBack) : 0;
+  const growthWeight = growthScope ? growthScope.weight : w.growth;
+
+  const parts = { fightStrength, learnedStrength, tierDensity, tribeFocus, pairsHeld, tripleReady, futureWins, boardPower, economy, tierProgress, handValue, survivalUrgency, wastedGoldPenalty, prior, growth };
   const total =
     parts.fightStrength * w.fightStrength +
     parts.learnedStrength * w.learnedStrength +
@@ -295,7 +311,8 @@ export function evaluate(v: BotVisibleState, cfg: EvaluationConfig = ACTIVE_CONF
     parts.handValue * w.handValue +
     parts.survivalUrgency * w.survivalUrgency +
     parts.wastedGoldPenalty * w.wastedGoldPenalty +
-    parts.prior * priorWeight;
+    parts.prior * priorWeight +
+    parts.growth * growthWeight;
 
   return { ...parts, total };
 }

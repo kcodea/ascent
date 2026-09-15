@@ -45,6 +45,10 @@ export interface PilotBudget {
    *  default `VALUE_WEIGHT` = 20; 0 disables the blend). Ignored by the generalist. */
   priorWeight?: number;
   valueWeight?: number;
+  /** B6 (additive): weight of the ENGINE-GROWTH term (`productionBots/growth.ts` — one probed turn's engine yield,
+   *  normalised) in utility units; 0 disables the probe entirely (no cost). The strategist's default is
+   *  `GROWTH_WEIGHT`; the generalist ignores it. */
+  growthWeight?: number;
 }
 
 export interface ExperimentManifest {

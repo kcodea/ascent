@@ -81,6 +81,11 @@ export interface PriorBreakdown { cards: number; runes: number; timing: number; 
  *  30 on the evaluator's scale; heavier makes the pilot tier on the real curve but die earlier at depth 1). */
 export const VALUE_WEIGHT = 20;
 
+/** B6: the ENGINE-GROWTH term's weight in UTILITY units per normalised point (`productionBots/growth.ts`: one probed
+ *  turn's engine yield ÷ the wave's healthy-board reference, × the turns left to cash it). Sized so an engine that
+ *  pays half a healthy board per turn (+32 stats at wave 8) outweighs a vanilla +4 body (≈ 0.6 utility of mass). */
+export const GROWTH_WEIGHT = 12;
+
 /**
  * A wave's board-mass reference — the procedural enemy curve's "healthy board" (`8 + 7·wave`, as `evaluate.ts`
  * uses for `boardPower`), kept LINEAR here so a stat is worth the same at wave 9 as at wave 4. The evaluator's

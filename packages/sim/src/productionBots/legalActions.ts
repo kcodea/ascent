@@ -159,7 +159,11 @@ export function recruitCandidates(v: BotVisibleState): Candidate[] {
   // economy and the board-wide buffs that are how human boards compound (94 -> 387 -> 9,680 power).
   for (const c of v.hand) {
     const def = CARD_INDEX[c.cardId];
-    if (def?.spell) {
+    // A RUBY (set 2) is `ruby: true`, not `spell: true` — a spell-like token cast on a minion or an offer. It used
+    // to fall through to the MINION branch here (a seat index, gated on a full board), which the reducer refuses
+    // (a Ruby needs a target), so the pilot could never cast one: the recorded pinned lobbies show hands of six
+    // Rubies held to elimination (B6, 2026-09-15). It is generated like the `any`-target spell it plays as.
+    if (def?.spell || def?.ruby) {
       if (def.chooseOne?.length) {
         // A Choose One spell opens its prompt first (choose → target → resolve); the pick and the aim are
         // generated as mandatory follow-ups, so the play itself carries no target.

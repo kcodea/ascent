@@ -25,11 +25,18 @@ const STORE = new Map<string, RunState>();
 /** The projection of a stored state, computed once. Safe: a stored state is never mutated after insertion —
  *  every expansion clones first — so its projection cannot go stale. */
 const VISIBLE = new Map<string, BotVisibleState>();
+/**
+ * The state BEHIND a projection this module produced (a stored handle's, or a sampled future's). Read by
+ * `probeFuture` alone, which clones it before anything touches it. A `WeakMap` so a projection the caller drops
+ * takes its state with it; keyed by the projection object, so a visible state built anywhere else (a test, a
+ * hand-made view) has no state behind it and a probe of it returns null rather than guessing.
+ */
+const STATE_OF = new WeakMap<BotVisibleState, RunState>();
 let nextId = 0;
 
 function visibleFor(id: string, s: RunState): BotVisibleState {
   let v = VISIBLE.get(id);
-  if (!v) { v = toBotVisibleState(s); VISIBLE.set(id, v); }
+  if (!v) { v = toBotVisibleState(s); VISIBLE.set(id, v); STATE_OF.set(v, s); }
   return v;
 }
 
@@ -262,9 +269,61 @@ export function sampleCandidate(parent: PlanningStateHandle, action: Action, pan
     own.seed = mixSeed(panelSeed, i, 0x0bad) >>> 0;
     const next = reduce(own, action);
     if (next === own) continue;
-    out.push(toBotVisibleState(next));
+    const v = toBotVisibleState(next);
+    STATE_OF.set(v, next);
+    out.push(v);
   }
   return out;
+}
+
+// ───────────────────────────────────────────── the future probe (B6) ─────────────────────────────────────────────
+
+/** A private, throwaway state a probe drives through the reducer. Never handed out; released when `probeFuture` returns. */
+export interface ProbeSession {
+  /** Apply one action to the probe's state. False when the reducer refused it (the state is unchanged). */
+  apply(action: Action): boolean;
+  /** The probe state's redacted projection, rebuilt on every call (the state moves under it). */
+  visible(): BotVisibleState;
+}
+
+/**
+ * RUN THE ENGINE FORWARD ON A PRIVATE CLONE — the mechanism behind the ENGINE-GROWTH term (`growth.ts`).
+ *
+ * The evaluator cannot see what a card will DO next turn from its stats; the reducer can show it. `fn` receives a
+ * session over a clone of the state behind `v` and drives it through ordinary actions — `faceOmen { deferFight }`
+ * (End of Turn fires, the side is prepared, NO fight is resolved), `resolveCombat { fight }` with a neutral
+ * result the caller fabricates (a 0-damage draw — the probe never knows how the real fight goes), then a scripted
+ * recruit turn — and reads back projections only. Four things make it honest:
+ *
+ *  1. THE HIDDEN FUTURE IS REPLACED, exactly as `sampleCandidate` does: seed + cursor mixed from `panelSeed`, so
+ *     the imagined next shop is a draw from the same distribution a player faces, never the run's real one. One
+ *     `panelSeed` per decision → every candidate is probed against the SAME imagined future (comparability).
+ *  2. THE TABLE IS STRIPPED. `s.lobby` is deleted from the clone, so ending the turn settles no lobby round: the
+ *     other seats' boards (a recorded seat's FUTURE boards, in a pinned job) are never touched.
+ *  3. THE SERVED OPPONENT IS PINNED TO NONE for this wave, so `faceOmen` consults no pool and no served board.
+ *  4. THE CLONE IS PRIVATE and dies with the call — nothing it does reaches the live run or a planning handle.
+ *
+ * Null when `v` is not a projection this module produced (there is no state to clone).
+ */
+export function probeFuture<T>(v: BotVisibleState, panelSeed: number, fn: (p: ProbeSession) => T): T | null {
+  const base = STATE_OF.get(v);
+  if (!base) return null;
+  let own = clonePlanning(base);
+  own.rngCursor = mixSeed(panelSeed, 0x6f07, 0x5eed) >>> 0;
+  own.seed = mixSeed(panelSeed, 0x6f07, 0x0bad) >>> 0;
+  delete (own as { lobby?: unknown }).lobby;
+  own.lobbySettledRound = undefined;
+  own.servedBoards = { [own.wave]: null };
+  const session: ProbeSession = {
+    apply(action: Action): boolean {
+      const next = reduce(own, action);
+      if (next === own) return false;
+      own = next;
+      return true;
+    },
+    visible: () => toBotVisibleState(own),
+  };
+  return fn(session);
 }
 
 /** Drop a handle's state. Safe to call twice. */

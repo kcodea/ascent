@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "name": "set2-pinned-strategist-b6-g16-smoke100",
+  "mode": "pinnedLobby",
+  "setId": "set2",
+  "policy": {
+    "id": "strategist",
+    "budget": {
+      "depth": 1,
+      "beam": 1,
+      "maxNodes": 40,
+      "positionCandidates": 2,
+      "growthWeight": 16
+    }
+  },
+  "seeds": {
+    "start": 1,
+    "count": 100
+  },
+  "corpus": {
+    "name": "set2-players-v1",
+    "digest": "87909308f9c0a30b"
+  },
+  "fightRules": "shipped",
+  "notes": "B6 ENGINE GROWTH: the strategist with the growth term at weight 16 (0 = probe off; the Ruby-cast fix applies to every weight). Same seeds, corpus and budget as set2-pinned-strategist-smoke100."
+}

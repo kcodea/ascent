@@ -19,9 +19,15 @@ several tiers at once (a big buff) still reports only the top tier, so it fires 
 `Card.tsx` sets `data-milestone={tierOf(stat, value)}` on the Attack and Health badge spans directly from
 `card.attack` / `card.health` — no stored per-unit state, no uid gate. The frame is just what the current
 value implies, so it's correct in the shop, in hand, on the board, and in combat, and it re-derives on every
-render (buff up, buff down, a Rune scaling a stat mid-game — all just work). Tier styling lives in CSS as
-`--ms-plate-<tier>` custom properties, deliberately a seam for the owner to swap in authored PNG frames per
-tier later without touching the derivation logic.
+render (buff up, buff down, a Rune scaling a stat mid-game — all just work).
+
+Tiers 1–5 render authored art discs — `public/frames/milestone-{atk,hp}-{1..5}.webp` (Attack = a sword motif,
+Health = a heart, escalating silver → gold → magenta → blue) — as an `overflow-visible` `<img.msframe>` per
+badge, with the flat plate hidden underneath and the number kept centered on the disc. The art overflows the
+60px badge box, so the frame grows around a fixed digit. Per-tier `--msf-scale`/`--msf-dx`/`--msf-dy` knobs seat
+each frame's disc on the number (bigger frames have a smaller disc-to-image ratio). Tier 0 (below 50) shows no
+frame and keeps the original flat plate. Source PNGs were downscaled to ~16–42 KB webp (from ~1 MB) for the
+perf budget.
 
 ## The celebration — shop-only today, phase-agnostic mechanism
 

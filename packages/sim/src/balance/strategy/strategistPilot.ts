@@ -23,11 +23,11 @@
  */
 import { mixSeed, type Action, type RunState } from '../../state';
 import { withEvaluationPrior } from '../../productionBots/evaluate';
-import { withGrowth } from '../../productionBots/growth';
+import { horizonTermOf, withGrowth } from '../../productionBots/growth';
 import { createGeneralistPilot, type GeneralistPilot } from '../generalistPilot';
 import type { PilotBudget, SeatContext, SeatPilot } from '../types';
 import { pickLineForRun, viableLineCount, type LineChoice, type LineImitation } from './lines';
-import { GROWTH_WEIGHT, IMITATION_WEIGHT, linePrior, PRIOR_WEIGHT, VALUE_WEIGHT } from './prior';
+import { GROWTH_WEIGHT, HORIZON_FIGHT_WEIGHT, HORIZON_WEIGHT, IMITATION_WEIGHT, linePrior, PRIOR_WEIGHT, VALUE_WEIGHT } from './prior';
 import { loadDefaultValueModel, type ValueModel } from '../value';
 import { loadDefaultImitationModel, parseScoreOptions, type ImitationModel } from '../imitation';
 
@@ -52,6 +52,11 @@ export interface StrategistOptions {
   /** B6: weight of the ENGINE-GROWTH term (`productionBots/growth.ts`) in utility units; 0 turns the probe off.
    *  Default `GROWTH_WEIGHT`. */
   growthWeight?: number;
+  /** B6 round 2: the horizon re-ranking's weights (see `PilotBudget`); 0 / 0 = no horizon probe. Defaults
+   *  `HORIZON_WEIGHT` / `HORIZON_FIGHT_WEIGHT`. */
+  horizonWeight?: number;
+  horizonFightWeight?: number;
+  horizonTop?: number;
 }
 
 export interface StrategistPilot extends SeatPilot {
@@ -76,6 +81,12 @@ export function createStrategistPilot(budget: PilotBudget, seed: number, opts: S
   const imitationLineWeight = opts.imitationLineWeight ?? budget.imitationLineWeight ?? 0;
   const imitationOptions = parseScoreOptions(opts.imitationVariant ?? budget.imitationVariant);
   const growthWeight = opts.growthWeight ?? budget.growthWeight ?? GROWTH_WEIGHT;
+  const horizonWeight = opts.horizonWeight ?? budget.horizonWeight ?? HORIZON_WEIGHT;
+  const horizonFightWeight = opts.horizonFightWeight ?? budget.horizonFightWeight ?? HORIZON_FIGHT_WEIGHT;
+  const horizonTop = opts.horizonTop ?? budget.horizonTop ?? 3;
+  const horizonOn = horizonWeight > 0 || horizonFightWeight > 0;
+  // The horizon probe's panel seed for the decision in flight (set by `wrap`, read by `horizon`).
+  let horizonSeed = 0;
   const models = new Map<string, ValueModel | null>();
   const modelFor = (setId: string): ValueModel | null => {
     if (valueWeight === 0) return null;
@@ -108,12 +119,20 @@ export function createStrategistPilot(budget: PilotBudget, seed: number, opts: S
     id,
     replaceMacro: true,
     handDiscipline: true,
+    ...(horizonOn ? {
+      horizonTop,
+      horizon: (v) => {
+        const h = horizonTermOf(v, horizonSeed);
+        return h ? h.growth2 * horizonWeight + h.fight2 * horizonFightWeight : null;
+      },
+    } : {}),
     wrap: (run: RunState, ctx: SeatContext, decide: () => Action | null): Action | null => {
       const line = lineFor(run, ctx.seatId);
       const setId = run.setId ?? 'set2';
       // B6: one growth panel seed per (pilot, round) — every candidate of every decision this turn is probed
       // against the same imagined future, and the probe cache carries across the turn's decisions.
-      const growth = growthWeight > 0 ? { weight: growthWeight, panelSeed: mixSeed(seed, run.wave, 0x6f07) >>> 0 } : null;
+      horizonSeed = mixSeed(seed, run.wave, 0x6f07) >>> 0;
+      const growth = growthWeight > 0 ? { weight: growthWeight, panelSeed: horizonSeed } : null;
       return withGrowth(growth, () => withEvaluationPrior(linePrior(line, { value: modelFor(setId), imitation: imitationFor(setId) }, { value: valueWeight, imitation: imitationWeight, imitationOptions }), weight, decide));
     },
   });

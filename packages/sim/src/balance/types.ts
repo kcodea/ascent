@@ -55,6 +55,13 @@ export interface PilotBudget {
    *  normalised) in utility units; 0 disables the probe entirely (no cost). The strategist's default is
    *  `GROWTH_WEIGHT`; the generalist ignores it. */
   growthWeight?: number;
+  /** B6 round 2 (additive): the HORIZON re-ranking — `horizonWeight` (utility per normalised point of the two-turn
+   *  probe's SECOND-turn yield), `horizonFightWeight` (utility per point of the horizon board's fight strength
+   *  against the wave + 2 panel), `horizonTop` (search end states re-ranked besides the root and the replace chain,
+   *  default 3). Both weights default 0 on a manifest that omits them = no horizon probe. */
+  horizonWeight?: number;
+  horizonFightWeight?: number;
+  horizonTop?: number;
 }
 
 export interface ExperimentManifest {

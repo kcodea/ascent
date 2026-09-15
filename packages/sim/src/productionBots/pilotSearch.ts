@@ -47,6 +47,13 @@ export interface PilotSearchResult {
   expandedNodes: number;
   /** Root-level alternatives, best first, for traces. */
   alternatives: { tag: string; utility: number; reveal: string | null }[];
+  /**
+   * B6 round 2 (additive): the search's best `topK` NON-terminal end states, best first, with their plans and end
+   * projections — for a pilot that re-ranks a few candidates with something too expensive to be an evaluator term
+   * (the two-turn horizon probe). A sampled (terminal) node is never listed: its handle's projection is the REAL
+   * child's, which nothing may read. Empty unless `topK > 0`.
+   */
+  top: { plan: PlannedStep[]; utility: number; visible: ReturnType<typeof visibleOf> }[];
 }
 
 interface Node {
@@ -172,6 +179,8 @@ export function pilotSearch(
   /** Optional (additive, 2026-09-15): the utility of a visible state. Defaults to `evaluate(v).total`; the
    *  generalist passes a version with its survival term folded in when scouting is on. */
   score: (v: ReturnType<typeof visibleOf>) => number = (v) => evaluate(v).total,
+  /** How many non-terminal end states to return in `top` (0 = none). */
+  topK = 0,
 ): PilotSearchResult {
   const rootVisible = visibleOf(root);
   const rootUtility = score(rootVisible);
@@ -180,6 +189,7 @@ export function pilotSearch(
   let beam: Node[] = [{ handle: root, plan: [], fp: rootFp, utility: rootUtility, key: 0, terminal: false }];
   let best: Node | null = null;
   const alternatives: PilotSearchResult['alternatives'] = [];
+  const all: Node[] = [];
 
   for (let depth = 0; depth < Math.max(1, budget.depth); depth++) {
     const next: Node[] = [];
@@ -210,6 +220,7 @@ export function pilotSearch(
           terminal: scored.terminal,
         };
         next.push(child);
+        if (topK > 0 && !child.terminal) all.push(child);
         if (!best || child.utility > best.utility || (child.utility === best.utility && child.key < best.key)) best = child;
         }
       }
@@ -222,12 +233,18 @@ export function pilotSearch(
   }
 
   alternatives.sort((a, b) => b.utility - a.utility);
+  // The projections are read BEFORE the handles are released (a released handle's projection is gone from the
+  // store); the returned objects stay valid on their own.
+  const top = topK > 0
+    ? all.sort((a, b) => b.utility - a.utility || a.key - b.key).slice(0, topK).map((n) => ({ plan: n.plan, utility: n.utility, visible: visibleOf(n.handle) }))
+    : [];
   const result: PilotSearchResult = {
     plan: best ? best.plan : [],
     utility: best ? best.utility : rootUtility,
     rootUtility,
     expandedNodes: ctx.expanded,
     alternatives: alternatives.slice(0, 10),
+    top,
   };
   for (const h of ctx.owned) release(h);
   return result;

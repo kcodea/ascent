@@ -185,6 +185,15 @@ export interface GeneralistOptions {
   /** B4 (opt-in): HAND DISCIPLINE in the forced spend — with a full board buy only triple pieces, spells, or a
    *  minion that beats the worst body (see `forcedSpend`); refresh ahead of a marginal buy. Off for the generalist. */
   handDiscipline?: boolean;
+  /**
+   * B6 round 2 (opt-in): a HORIZON re-ranking of the search step. After the beam search, the root, its best
+   * `horizonTop` non-terminal end states and the replace chain's end state are each given `horizon(visible)` (a
+   * utility adjustment, or null when the state cannot be probed — treated as 0) and the best of `utility +
+   * adjustment` is committed. A sampled plan (a refresh) is not in the list; it keeps competing on its base utility
+   * with the root's adjustment, so a board-preserving reveal is neither favoured nor punished by the horizon.
+   */
+  horizon?: (v: BotVisibleState) => number | null;
+  horizonTop?: number;
 }
 
 /** How far below the current utility a forced hand play may fall before it is left in hand (see `forcedSpend`). */
@@ -198,15 +207,15 @@ const REPLACE_SELL_CANDIDATES = 3;
  * affordable offer and field it, or field a hand minion. A chain that crosses a reveal (a Shout that discovers, a
  * random grant) is dropped rather than scored on the real future. Returns the best chain's steps + utility.
  */
-function bestReplaceChain(root: PlanningStateHandle, v: BotVisibleState, rootFp: string, score: (v: BotVisibleState) => number): { steps: PlannedStep[]; utility: number } | null {
+function bestReplaceChain(root: PlanningStateHandle, v: BotVisibleState, rootFp: string, score: (v: BotVisibleState) => number): { steps: PlannedStep[]; utility: number; visible: BotVisibleState } | null {
   if (v.board.length < 7 || v.mandatoryDecision) return null;
   const sellable = [...v.board]
     .filter((c) => !c.golden)
     .sort((a, b) => a.attack + a.health - (b.attack + b.health))
     .slice(0, REPLACE_SELL_CANDIDATES);
-  let best: { steps: PlannedStep[]; utility: number } | null = null;
-  const consider = (steps: PlannedStep[], utility: number): void => {
-    if (!best || utility > best.utility) best = { steps, utility };
+  let best: { steps: PlannedStep[]; utility: number; visible: BotVisibleState } | null = null;
+  const consider = (steps: PlannedStep[], utility: number, visible: BotVisibleState): void => {
+    if (!best || utility > best.utility) best = { steps, utility, visible };
   };
   for (const m of sellable) {
     const sellAction: Action = { type: 'sell', uid: m.uid };
@@ -224,7 +233,7 @@ function bestReplaceChain(root: PlanningStateHandle, v: BotVisibleState, rootFp:
         const played = applyCandidate(sold.child, playAction);
         try {
           if (!played.changed || played.reveal || played.visible.mandatoryDecision) continue;
-          consider([sellStep, { action: playAction, tag: `field ${h.cardId}`, fromFingerprint: sold.fingerprint }], score(played.visible));
+          consider([sellStep, { action: playAction, tag: `field ${h.cardId}`, fromFingerprint: sold.fingerprint }], score(played.visible), played.visible);
         } finally { release(played.child); }
       }
       // Buy an offer and field it.
@@ -245,7 +254,7 @@ function bestReplaceChain(root: PlanningStateHandle, v: BotVisibleState, rootFp:
               sellStep,
               { action: buyAction, tag: `buy ${o.cardId}`, fromFingerprint: sold.fingerprint },
               { action: playAction, tag: `field ${o.cardId}`, fromFingerprint: bought.fingerprint },
-            ], score(played.visible));
+            ], score(played.visible), played.visible);
           } finally { release(played.child); }
         } finally { release(bought.child); }
       }
@@ -318,18 +327,36 @@ export function createGeneralistPilot(budget: PilotBudget, seed: number, opts: G
       }
 
       // 3) Search — and, when enabled, the replace macro scored beside its best plan.
-      const result = pilotSearch(root, budget, panelSeed, rng, samples, score);
-      if (opts.replaceMacro) {
-        const chain = bestReplaceChain(root, visible, liveFp, score);
+      const topK = opts.horizon ? Math.max(1, opts.horizonTop ?? 3) : 0;
+      const result = pilotSearch(root, budget, panelSeed, rng, samples, score, topK);
+      const chain = opts.replaceMacro ? bestReplaceChain(root, visible, liveFp, score) : null;
+      if (opts.horizon) {
+        // B6 round 2 — THE HORIZON RE-RANKING. Root, the search's top end states and the replace chain, each at
+        // utility + horizon; the sampled best plan (a reveal) competes at its utility + the root's horizon.
+        const adj = (v: BotVisibleState): number => opts.horizon!(v) ?? 0;
+        const rootAdj = adj(visible);
+        let bestScore = result.rootUtility + rootAdj;
+        const choice: { steps: PlannedStep[]; route: GeneralistTrace['route'] } = { steps: [], route: 'search' };
+        const consider = (steps: PlannedStep[], total: number, route: GeneralistTrace['route']): void => {
+          if (steps.length > 0 && total > bestScore + 1e-9) { bestScore = total; choice.steps = steps; choice.route = route; }
+        };
+        for (const t of result.top) consider(t.plan, t.utility + adj(t.visible), 'search');
+        if (result.plan.length > 0 && !result.top.some((t) => t.plan === result.plan)) consider(result.plan, result.utility + rootAdj, 'search');
+        if (chain) consider(chain.steps, chain.utility + adj(chain.visible), 'replace');
+        if (choice.steps.length > 0 && accepted(run, choice.steps[0]!.action)) {
+          queues.set(seatKey, choice.steps.slice(1));
+          return trace(choice.route, choice.steps[0]!.action, result);
+        }
+      } else {
         if (chain && chain.utility > Math.max(result.utility, result.rootUtility) + 1e-9 && accepted(run, chain.steps[0]!.action)) {
           queues.set(seatKey, chain.steps.slice(1));
           return trace('replace', chain.steps[0]!.action, result);
         }
-      }
-      const head = result.plan[0];
-      if (head && result.utility > result.rootUtility + 1e-9 && accepted(run, head.action)) {
-        queues.set(seatKey, result.plan.slice(1));
-        return trace('search', head.action, result);
+        const head = result.plan[0];
+        if (head && result.utility > result.rootUtility + 1e-9 && accepted(run, head.action)) {
+          queues.set(seatKey, result.plan.slice(1));
+          return trace('search', head.action, result);
+        }
       }
 
       // 4) Spend what would be destroyed.

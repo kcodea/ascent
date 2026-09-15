@@ -2,6 +2,7 @@ import { CARD_INDEX, poolFor } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatResult, type CombatSideState } from '@game/core';
 import type { Action } from '../state';
 import { probeFuture, type ProbeSession } from './transition';
+import { fightScore, type FightResult } from './fightScore';
 import type { BotCardView, BotMandatoryDecision, BotVisibleState } from './types';
 
 /**
@@ -54,13 +55,13 @@ export const CREDIT_TURNS = 6;
 export const growthReference = (wave: number): number => Math.max(20, 8 + 7 * wave);
 
 export interface GrowthProbe {
-  /** Stats the engines generated over the probed turn: `after − before − bought`. */
+  /** Stats the engines generated over the probed turn: `after − before`, the bought bodies left out of `after`. */
   delta: number;
   /** Total board + hand-minion stats at the probed state. */
   before: number;
   /** The same total at the end of the scripted turn. */
   after: number;
-  /** Printed base stats of the bodies the script bought (golden ×2), subtracted so a body is not its own growth. */
+  /** Printed base stats of the bodies the script bought (golden ×2) — informational; they are excluded from `after`. */
   bought: number;
   buys: number;
   casts: number;
@@ -68,6 +69,11 @@ export interface GrowthProbe {
   steps: number;
   /** The Rally trial's permanent gain (`rallyTrial`), measured on the probed state. */
   trial: number;
+  /** The projection at the END of the scripted turn (next wave, recruit phase when the turn ran) — the horizon
+   *  probe scripts its second turn from here. */
+  end: BotVisibleState;
+  /** The uids of the bodies the script bought this turn (left out of the after-mass and of the horizon's trial). */
+  boughtUids: ReadonlySet<string>;
 }
 
 /** The neutral fight the probe lands: a 0-damage draw with no events — the probe never learns how the real fight goes. */
@@ -81,11 +87,12 @@ const isBody = (c: Pick<BotCardView, 'cardId'>): boolean => {
   return !!def && !def.spell && !def.ruby;
 };
 
-/** Total stats of the board plus the minions in hand (a hand body is fielded by the script, so it counts in full). */
-export function massOf(v: BotVisibleState): number {
+/** Total stats of the board plus the minions in hand (a hand body is fielded by the script, so it counts in full).
+ *  `except` (uids) leaves out the bodies the script itself bought — see `script`. */
+export function massOf(v: BotVisibleState, except?: ReadonlySet<string>): number {
   let n = 0;
-  for (const c of v.board) n += c.attack + c.health;
-  for (const c of v.hand) if (isBody(c)) n += c.attack + c.health;
+  for (const c of v.board) if (!except?.has(c.uid)) n += c.attack + c.health;
+  for (const c of v.hand) if (isBody(c) && !except?.has(c.uid)) n += c.attack + c.health;
   return n;
 }
 
@@ -115,7 +122,7 @@ export function dominantTribe(v: BotVisibleState): string | null {
 }
 
 /** Drive one scripted turn on the session. Returns null when the turn could not even be ended. */
-function script(p: ProbeSession, root: BotVisibleState): GrowthProbe | null {
+function script(p: ProbeSession, root: BotVisibleState, carried: ReadonlySet<string> = new Set()): GrowthProbe | null {
   let steps = 0;
   const step = (a: Action): boolean => {
     if (steps >= MAX_STEPS) return false;
@@ -136,11 +143,17 @@ function script(p: ProbeSession, root: BotVisibleState): GrowthProbe | null {
     return !v.mandatoryDecision;
   };
 
-  const before = massOf(root);
+  const before = massOf(root, carried);
   const rootHand = new Set(root.hand.map((c) => c.uid));
   let casts = 0;
   let buys = 0;
   let bought = 0;
+  /** The bodies the script bought. They are LEFT OUT of the after-mass entirely (not merely their printed stats):
+   *  their own buffs and Shouts are the imagined SHOP's doing, and counting them made an emptier board read as
+   *  a better engine (more room → more imagined bodies fielded → more yield), so the horizon rewarded SELLING
+   *  (measured 2026-09-15: "sell Venom" scored +24 second-turn stats over keeping it). What still counts: the
+   *  buffs the board's engines put on its existing bodies when those buys and plays happen. */
+  const boughtUids = new Set<string>(carried);
   if (root.phase !== 'recruit') return null;
   if (!unblock()) return null;
   // A FROZEN shop never carries into the imagined turn: the probe would otherwise read the REAL current offers as
@@ -198,9 +211,10 @@ function script(p: ProbeSession, root: BotVisibleState): GrowthProbe | null {
     bought += def ? (def.attack + def.health) * (o.golden ? 2 : 1) : o.attack + o.health;
     refresh();
     if (!unblock()) return finish();
-    if (v.board.length >= 7) continue;
     const inHand = v.hand.find((c) => !beforeHand.has(c.uid) && isBody(c));
     if (!inHand) continue; // a triple combined it away, or it was not a body
+    boughtUids.add(inHand.uid);
+    if (v.board.length >= 7) continue;
     if (step({ type: 'play', uid: inHand.uid, toIndex: v.board.length })) { refresh(); if (!unblock()) return finish(); }
   }
 
@@ -234,8 +248,9 @@ function script(p: ProbeSession, root: BotVisibleState): GrowthProbe | null {
     return false;
   }
   function finish(): GrowthProbe {
-    const after = massOf(p.visible());
-    return { delta: after - before - bought, before, after, bought, buys, casts, steps, trial: rallyTrial(root) };
+    const end = p.visible();
+    const after = massOf(end, boughtUids);
+    return { delta: after - before, before, after, bought, buys, casts, steps, trial: rallyTrial(root), end, boughtUids };
   }
 }
 
@@ -261,7 +276,7 @@ let HITS = 0;
 
 /** Counters for the performance gate (probes actually run vs. cache hits). */
 export const growthStats = (): { probes: number; hits: number; cached: number } => ({ probes: PROBES, hits: HITS, cached: CACHE.size });
-export function resetGrowthCache(): void { CACHE.clear(); PROBES = 0; HITS = 0; }
+export function resetGrowthCache(): void { CACHE.clear(); PROBES = 0; HITS = 0; HCACHE.clear(); HPROBES = 0; }
 
 /**
  * Measure `v`'s growth over one probed turn under `panelSeed`. Null when the state cannot be probed (no state
@@ -321,9 +336,11 @@ export function carryBackOf(r: CombatResult, v: BotVisibleState): number {
  */
 const WALL_ROUNDS = 2;
 const WALL_SEED = 0x7a11;
-export function rallyTrial(v: BotVisibleState): number {
-  if (v.friendly.bodies.length === 0) return 0;
-  const bodies: BoardMinion[] = v.friendly.bodies.map((m) => ({ ...m, keywords: [...(m.keywords ?? [])] }));
+export function rallyTrial(v: BotVisibleState, except?: ReadonlySet<string>): number {
+  const bodies: BoardMinion[] = v.friendly.bodies
+    .filter((m) => !(except && m.sourceUid && except.has(m.sourceUid)))
+    .map((m) => ({ ...m, keywords: [...(m.keywords ?? [])] }));
+  if (bodies.length === 0) return 0;
   const totalAttack = bodies.reduce((n, m) => n + Math.max(0, m.attack), 0);
   if (totalAttack === 0) return 0;
   const hp = Math.max(1, Math.ceil((WALL_ROUNDS * totalAttack) / 7));
@@ -350,6 +367,95 @@ export function growthTermOf(v: BotVisibleState, panelSeed: number, carryBack = 
   const remaining = Math.max(1, Math.min(CREDIT_TURNS, GROWTH_HORIZON - v.wave));
   const perTurn = Math.max(-0.5, Math.min(2.5, delta / growthReference(v.wave)));
   return perTurn * (remaining / CREDIT_TURNS);
+}
+
+// ───────────────────────────────────────────── the horizon (B6 round 2) ─────────────────────────────────────────────
+
+/**
+ * THE TWO-TURN PROBE — compounding, which one turn cannot see.
+ *
+ * The recorded players' curve triples every two waves because their engines' yield GROWS turn over turn (a
+ * Gourmand eats a bigger shop every End of Turn; a Standard Bearer under Engraved Dwarves keeps every Rally).
+ * A one-turn yield credited linearly prices that as a constant. So the horizon probe scripts TWO turns on the
+ * clone — the second on the first's outcome (the hand fielded again, so an engine the first turn could not seat
+ * is seated and counted here, at the discount of the body it displaced) — and credits the SECOND turn's yield.
+ * The horizon board (the clone is now at wave + 2) is then fought with `fightScore`, whose pool panel samples
+ * the corpus at the clone's wave — i.e. the boards the pilot will actually meet two rounds from now, not today's.
+ *
+ * Costs two scripted turns and five fights, so it is not an evaluator term: the pilot applies it to the ROOT and
+ * the search's top few end states only (`GeneralistOptions.horizon`), as a re-ranking.
+ */
+export interface HorizonProbe {
+  /** The first turn's engine yield (as `probeGrowth` measures it). */
+  d1: number;
+  /** The SECOND turn's engine yield — the credited number. */
+  d2: number;
+  /** The Rally trial on the end-of-turn-1 board (the board that fights at wave + 1). */
+  trial2: number;
+  /** The horizon board (after both turns) fought against the panel at wave + 2. */
+  fight2: FightResult;
+  /** The horizon board's total board + hand mass. */
+  mass2: number;
+  wave2: number;
+}
+
+const HCACHE = new Map<string, HorizonProbe | null>();
+let HPROBES = 0;
+export const horizonStats = (): { probes: number; cached: number } => ({ probes: HPROBES, cached: HCACHE.size });
+
+/** Imagined futures the horizon probe averages over. The scripted buys follow the board's dominant tribe, so two
+ *  candidates that differ in tribe mix buy different imagined cards; one future is a coin flip between them
+ *  (measured 2026-09-15: a Packstrider lost to a stat-identical vanilla by 0.03 utility on one seed's Consume). */
+export const HORIZON_SEEDS = 3;
+
+export function probeHorizon(v: BotVisibleState, panelSeed: number): HorizonProbe | null {
+  const key = `h|${panelSeed}|${growthKey(v)}`;
+  const hit = HCACHE.get(key);
+  if (hit !== undefined) return hit;
+  if (HCACHE.size >= CACHE_LIMIT) HCACHE.clear();
+  HPROBES++;
+  const runs: HorizonProbe[] = [];
+  for (let i = 0; i < HORIZON_SEEDS; i++) {
+    const one = probeFuture(v, (panelSeed + i * 0x9e37) >>> 0, (p) => {
+      const t1 = script(p, v);
+      if (!t1 || t1.end.phase !== 'recruit') return null;
+      const t2 = script(p, t1.end, t1.boughtUids);
+      if (!t2) return null;
+      const fight2 = fightScore(t2.end);
+      // The trial reads the board the pilot BUILT, not the bodies the first imagined turn happened to buy.
+      return { d1: t1.delta, d2: t2.delta, trial2: rallyTrial(t1.end, t1.boughtUids), fight2, mass2: massOf(t2.end, t2.boughtUids), wave2: t2.end.wave };
+    });
+    if (one) runs.push(one);
+  }
+  let probe: HorizonProbe | null = null;
+  if (runs.length > 0) {
+    const avg = (f: (h: HorizonProbe) => number): number => runs.reduce((n, h) => n + f(h), 0) / runs.length;
+    const fight2: FightResult = {
+      winRate: avg((h) => h.fight2.winRate), margin: avg((h) => h.fight2.margin), averageDamage: avg((h) => h.fight2.averageDamage),
+      fights: runs[0]!.fight2.fights, panel: runs[0]!.fight2.panel, carryBack: avg((h) => h.fight2.carryBack),
+    };
+    probe = { d1: avg((h) => h.d1), d2: avg((h) => h.d2), trial2: avg((h) => h.trial2), fight2, mass2: avg((h) => h.mass2), wave2: runs[0]!.wave2 };
+  }
+  HCACHE.set(key, probe);
+  return probe;
+}
+
+export interface HorizonTerm {
+  /** The second turn's yield (plus the larger of its carry-back and Rally trial), normalised like `growthTermOf`. */
+  growth2: number;
+  /** `fightStrength` of the horizon board against the wave + 2 panel, in the evaluator's blend. */
+  fight2: number;
+}
+
+/** The horizon probe's two terms for the pilot's re-ranking; null when the state cannot be probed two turns out. */
+export function horizonTermOf(v: BotVisibleState, panelSeed: number): HorizonTerm | null {
+  const h = probeHorizon(v, panelSeed);
+  if (!h) return null;
+  const combat = Math.max(h.fight2.carryBack, h.trial2);
+  const remaining = Math.max(1, Math.min(CREDIT_TURNS, GROWTH_HORIZON - v.wave));
+  const growth2 = Math.max(-0.5, Math.min(2.5, (h.d2 + combat) / growthReference(v.wave + 1))) * (remaining / CREDIT_TURNS);
+  const fight2 = h.fight2.winRate * 0.55 + ((h.fight2.margin + 1) / 2) * 0.30 + (1 - h.fight2.averageDamage) * 0.15;
+  return { growth2, fight2 };
 }
 
 // ───────────────────────────────────────────── the scope ─────────────────────────────────────────────

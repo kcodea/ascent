@@ -7,8 +7,10 @@ import { __unsafeStateForTests, applyCandidate, createPlanningRoot, liveHandleCo
 import { toBotVisibleState } from './visibleState';
 import { evaluate } from './evaluate';
 import { recruitCandidates } from './legalActions';
-import { activeGrowth, carryBackOf, CHANNEL_USES, rallyTrial, CREDIT_TURNS, GROWTH_HORIZON, growthKey, growthReference, growthStats, growthTermOf, massOf, probeGrowth, resetGrowthCache, withGrowth } from './growth';
+import { activeGrowth, carryBackOf, CHANNEL_USES, horizonStats, horizonTermOf, probeHorizon, rallyTrial, CREDIT_TURNS, GROWTH_HORIZON, growthKey, growthReference, growthStats, growthTermOf, massOf, probeGrowth, resetGrowthCache, withGrowth } from './growth';
 import { GENERALIST_BUDGETS } from '../balance/generalistPilot';
+import { pilotSearch } from './pilotSearch';
+import { makeRng } from '@game/core';
 import { createStrategistPilot } from '../balance/strategy/strategistPilot';
 import { linePriorBreakdown } from '../balance/strategy/prior';
 import { pickLineForRun } from '../balance/strategy/lines';
@@ -55,13 +57,14 @@ describe('growth probe — measures engine yield by running the engine', () => {
     release(ra); release(rv);
   });
 
-  it('a bought body is not its own growth: the script subtracts the printed stats of what it buys', () => {
+  it('a bought body is not its own growth: what the script buys is left out of the after-mass', () => {
     const s = run({ wave: 6, tier: 3, embers: 8, maxEmbers: 8, board: [body('b0', 'stray')] });
     const root = createPlanningRoot(s);
     const p = probeGrowth(visibleOf(root), PANEL)!;
     expect(p.buys).toBeGreaterThan(0);
     expect(p.bought).toBeGreaterThan(0);
-    expect(p.after - p.before - p.bought).toBe(p.delta);
+    expect(p.after - p.before).toBe(p.delta);
+    expect(p.after).toBeLessThan(p.before + p.bought + 1); // the bought printed stats never entered `after`
     release(root);
   });
 
@@ -253,6 +256,62 @@ describe('growth term — the evaluator wiring', () => {
     const off = createStrategistPilot(GENERALIST_BUDGETS.smoke, 7, { exploration: 0, growthWeight: 0 });
     off.decide(s, { seatId: 'seat', round: s.wave, scoutedOpponent: null });
     expect(growthStats().probes).toBe(0);
+  });
+});
+
+describe('the horizon (B6 round 2) — two scripted turns, the second turn credited, the horizon board fought at wave + 2', () => {
+  it('scripts two turns on the clone and fights the horizon board two waves out; an engine outscores its vanilla twin', () => {
+    const arnold = createPlanningRoot(run({ wave: 8, tier: 4, embers: 8, maxEmbers: 8, board: [body('b0', 'dw_arnold'), body('b1', 'stray'), body('b2', 'stray')] }));
+    const vanilla = createPlanningRoot(run({ wave: 8, tier: 4, embers: 8, maxEmbers: 8, board: [vanillaLike('b0', 'dw_arnold'), body('b1', 'stray'), body('b2', 'stray')] }));
+    const ha = probeHorizon(visibleOf(arnold), PANEL)!;
+    const hv = probeHorizon(visibleOf(vanilla), PANEL)!;
+    expect(ha.wave2).toBe(10);
+    expect(hv.wave2).toBe(10);
+    expect(ha.fight2.fights).toBeGreaterThan(0);
+    expect(ha.d2, `arnold ${JSON.stringify(ha)} vs vanilla ${JSON.stringify(hv)}`).toBeGreaterThan(hv.d2);
+    expect(horizonTermOf(visibleOf(arnold), PANEL)!.growth2).toBeGreaterThan(horizonTermOf(visibleOf(vanilla), PANEL)!.growth2);
+    // Memoised on the composition; the root is untouched.
+    const before = horizonStats().probes;
+    expect(probeHorizon(visibleOf(arnold), PANEL)).toBe(ha);
+    expect(horizonStats().probes).toBe(before);
+    expect(visibleOf(arnold).wave).toBe(8);
+    release(arnold); release(vanilla);
+  });
+
+  it('a state that cannot be probed two turns out reads null, and a foreign projection too', () => {
+    expect(probeHorizon(toBotVisibleState(run()), PANEL)).toBeNull();
+    expect(horizonTermOf(toBotVisibleState(run()), PANEL)).toBeNull();
+  });
+
+  it('pilotSearch returns its top non-terminal end states with plans and projections when asked', () => {
+    const s = run({ wave: 5, tier: 2, embers: 6, maxEmbers: 6, board: [body('b0', 'stray')] });
+    const root = createPlanningRoot(s);
+    const r = pilotSearch(root, GENERALIST_BUDGETS.smoke, 1, makeRng(1), 3, undefined, 3);
+    expect(r.top.length).toBeGreaterThan(0);
+    expect(r.top.length).toBeLessThanOrEqual(3);
+    for (let i = 1; i < r.top.length; i++) expect(r.top[i - 1]!.utility).toBeGreaterThanOrEqual(r.top[i]!.utility);
+    for (const t of r.top) { expect(t.plan.length).toBeGreaterThan(0); expect(t.visible.wave).toBe(5); }
+    expect(pilotSearch(root, GENERALIST_BUDGETS.smoke, 1, makeRng(1), 3).top).toEqual([]);
+    release(root);
+  });
+
+  it('the strategist re-ranks with the horizon at its weights and plays a legal turn; no horizon probe at weight 0', () => {
+    const s = run({ wave: 6, tier: 3, embers: 8, maxEmbers: 8, board: [body('b0', 'dw_brunni'), body('b1', 'stray')] });
+    resetGrowthCache();
+    const pilot = createStrategistPilot(GENERALIST_BUDGETS.smoke, 7, { exploration: 0, growthWeight: 20, horizonWeight: 20, horizonFightWeight: 13 });
+    let cur = s;
+    for (let i = 0; i < 40; i++) {
+      const a = pilot.decide(cur, { seatId: 'seat', round: cur.wave, scoutedOpponent: null });
+      if (!a) break;
+      const next = reduce(cur, a);
+      expect(next, `refused ${JSON.stringify(a)}`).not.toBe(cur);
+      cur = next;
+    }
+    expect(horizonStats().probes).toBeGreaterThan(0);
+    resetGrowthCache();
+    const off = createStrategistPilot(GENERALIST_BUDGETS.smoke, 7, { exploration: 0, growthWeight: 20, horizonWeight: 0, horizonFightWeight: 0 });
+    off.decide(s, { seatId: 'seat', round: s.wave, scoutedOpponent: null });
+    expect(horizonStats().probes).toBe(0);
   });
 });
 

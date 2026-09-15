@@ -94,6 +94,13 @@ export interface PriorWeights { value?: number; imitation?: number; imitationOpt
  *  pays half a healthy board per turn (+32 stats at wave 8) outweighs a vanilla +4 body (≈ 0.6 utility of mass). */
 export const GROWTH_WEIGHT = 20;
 
+/** B6 round 2: the HORIZON re-ranking's weights — the two-turn probe's SECOND-turn yield (normalised like the growth
+ *  term) and the horizon board's fight strength against the wave + 2 corpus panel. Applied to the root, the
+ *  search's top end states and the replace chain only (`GeneralistOptions.horizon`). Both ZERO by default — the
+ *  probe runs only when a manifest names a weight (measured 2026-09-15; docs/balance-bot.md "Engine growth (B6)"). */
+export const HORIZON_WEIGHT = 0;
+export const HORIZON_FIGHT_WEIGHT = 0;
+
 /**
  * A wave's board-mass reference — the procedural enemy curve's "healthy board" (`8 + 7·wave`, as `evaluate.ts`
  * uses for `boardPower`), kept LINEAR here so a stat is worth the same at wave 9 as at wave 4. The evaluator's

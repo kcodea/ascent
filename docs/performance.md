@@ -103,9 +103,57 @@ Two layers, and the difference matters:
   call and a cheap thing called 10,000 times will out-total the 58ms stall that actually dropped the frame.
   **Read hotspots before suspects.**
 
-Currently measured: `reduce:<action>` (every run-logic dispatch — shop rolls, combat resolution, end of
-turn) and `autosave` (the whole run serialized to JSON on every state change). Wrap anything else with
-`perfMonitor.measure()`; it's a transparent passthrough when the monitor is off.
+Every measured span records its **self time** — the span minus the spans it nested — so a wrapper is never
+charged for what it wraps (`store:set` nests `reduce:<action>`; `fx:tick` nests `fx:sim` and `fx:render`).
+`perfMonitor.begin(label)` / `end()` open a span across two callbacks (the Pixi ticker brackets); `measure()`
+is the same thing with a callback. Off, every one of them is a single `running` branch. Every frame over the
+long line is charged to the labels that ran inside it (`bucket.longAttrib`) — that is what the live monitor's
+top-offenders list is built from.
+
+### What is measured (2026-09-15 — the labels, and where they live)
+
+| label | what | where |
+|---|---|---|
+| `reduce:<action>` / `reduce:<action>:<cardId>` | one run-logic dispatch, per card where one is named | `store.ts` |
+| `store:set` | the Zustand update + every synchronous subscriber (nests the reduce) | `store.ts` |
+| `autosave` | the run serialized to localStorage at a phase boundary | `store.ts` |
+| `render:recruit` / `render:combat` | React render + commit of the shop / combat screen (phase-aware) | `Recruit.tsx` |
+| `view:board` / `view:hand` | building the card views | `Recruit.tsx` |
+| `layout:flip` → `layout:flip:write` + `layout:flip:read` | the FLIP effect: the animation half (Flip.from / manual tweens + forced reflows) and the capture half (Flip.getState + the offsetLeft sweep) | `Recruit.tsx` |
+| `drag:flushMove`, `layout:handglide`, `odds:deferred`, `recruit:moment cues` | drag / hand / odds / cue paths | `Recruit.tsx` |
+| `fx:tick` | the whole Pixi ticker pass of the board FX layer (HIGH → UTILITY priority) | `pixiFx.ts` |
+| `fx:sim` | the particle / tendril / aura / shield sim and every def player (`update`) | `pixiFx.ts` |
+| `fx:render` | the Pixi render pass — batching, filter passes, the GL submit (LOW+1 → UTILITY) | `pixiFx.ts` |
+| `fx:<defId>` | a def's SPAWN cost (shader link, texture upload, allocation) | `fx/playDef.ts` |
+| `fx:def:<defId>` | a def's PER-FRAME cost while alive | `fx/playDef.ts` |
+| `fx:weldBatch` | the weld batch | `Recruit.tsx` |
+| `choreo:step` / `choreo:frame` | the five per-beat cue effects / the event-log fold into the beat's board | `useCombatReplay.ts` |
+| `discover fx:…` | the Discover overlay's own controller, same brackets | `pixiFx.ts` |
+
+Counters (levels, peak-sampled at 20 Hz): `fx:particles` (the WHOLE population — the def runtime's
+ParticleContainers plus the sprite particles; the older `particles` counter is the sprite pool alone),
+`fx:layers` (acquired def layers), `fx:filters` (filters applied across live `FilterStack`s), `sprite pool`,
+`weld rings`, `spell arrows`. Rates (per second): `unit renders`, `recruit renders`, `pointermoves`.
+
+**Every static label must be registered in `perfNames.ts`** (`CODE_NAMES`, or a family prefix in
+`LABEL_FAMILIES`) — `perfNames.test.ts` scans the source and fails on an unregistered one, because the HUD
+speaks in-game names and an address is what the owner asked it to stop showing.
+
+### Warm-up: phase-start spikes are recorded apart, never in the graph
+
+Owner report 2026-09-15: *"Performance always spikes when a game starts, which destroys the graph."* After
+any **phase start** — monitor start, run start, shop open, combat start, Runeforge open (`perfWarmup.ts`,
+wired in `Game.tsx`) — frames are diverted to a **startup record** until BOTH limits pass: at least 2 s of
+wall clock AND at least 120 presented frames (`DEFAULT_WARMUP`; `perfMonitor.setWarmup({ ms, frames })`
+persists a different rule in `ascent.perf.warmup`). Two limits, because a frame count alone ends early on a
+fast panel and a time limit alone expires in a throttled tab with nothing presented.
+
+The spike is not lost: `perfMonitor.startups()` keeps each one's worst / p95 / long / jank and the spans that
+landed inside it (the shader link, the first `layout:flip`); the export, the saved recording, the report and
+the analytics screen ("Phase-start spikes") all carry them. Buckets closed during a warm-up carry
+`warmup: <frames diverted>`. The HUD header shows `WARM-UP · combat 1.2s` while it runs and the graph shades
+the stretch. What the warm-up buys: a capture answers "how does the game PLAY", and `worst` no longer belongs
+to the shop opening in every single verdict.
 
 **If the frame is slow but no hotspot is:** the time is not in instrumented JS. Check `task` — a long frame
 with `task: 0` means the main thread never blocked, so it went to style/layout/paint/decode/GC, which the
@@ -117,6 +165,38 @@ From the console: `__perf.summary()`, `__perf.exportLog()`, `__perfHud(true)`.
 Add a mark anywhere with `perfMonitor.mark('label')` — it's a no-op when the monitor is off, so call sites
 don't need a guard.
 
+
+## The live monitor (reading it while you play — 2026-09-15)
+
+The HUD is a **live monitoring panel** meant to stay open through a game (dev menu 📊, `?perf=1`). Top to
+bottom, and how to read each part:
+
+- **The rolling graph** — the last 10 s at *frame* resolution. One pixel column = one time slice, drawn as the
+  **worst** frame in it (§0: a dropped frame is never averaged away). The dashed white line is the per-frame
+  budget (4.17 ms at 240 Hz), the dotted orange line the long-frame line; a **red tick along the top** is a
+  dropped frame in that column; a **shaded** stretch is a warm-up (recorded apart, see above); the strip
+  along the bottom is the phase (blue shop, red combat, purple Runeforge). The vertical scale tracks the
+  worst frame in view but is clamped at 8× the jank line — a 300 ms stall is clipped and drawn with a white
+  cap rather than flattening ten seconds of 6 ms frames into a floor.
+- **`10 s · worst · p95 · long · jank`** and **`capture Ns`** — the same four numbers for the rolling window
+  and for everything recorded (warm-ups excluded). Read them in that order.
+- **Top offenders · self time in dropped frames** — THE list. Labels ranked by their self time inside the
+  frames that went over the long line, with their **share** of those frames, **ms per dropped frame**, and
+  their single **worst call**. `10 s` / `capture` switches the window. A label with a high share and a
+  per-frame cost near the budget is a steady per-frame drain (fix the loop); a label with a low share and a
+  big worst call is a stall (fix the one call). "frames dropped, but nothing instrumented ran in them" means
+  the cost is render / paint / GC — go to §3.
+- **The verdict** — `whatIsSlow` in one sentence: *"FX sim owned 71% of the 120 dropped frames — 3.2 ms per
+  frame, worst call 9.8 ms; fx:particles peaked at 2,340 during combat; then beat cues 22% · 1.1 ms"*.
+- **Scene** — the live counters (`particles · layers · filters · sprites · welds`), render rates, and the
+  last startup spike.
+- **Details** — calibration, longest task, the whole-session rule-based finding, heap, DOM, context, marks.
+
+**What the HUD costs:** React renders once a second; the header numbers, the stat rows and the counters are
+`textContent` writes at 4 Hz; the graph is a canvas redrawn at ≤ 30 Hz from the monitor's frame ring (4096
+frames, three typed-array stores per frame, read in place); the canvas width comes from a `ResizeObserver`,
+so nothing in the loop reads layout. To confirm on your machine: note `capture worst / long` over a minute
+with the HUD open, close it (✕ — recording continues), play the same minute, and compare in Perf Analytics.
 
 ## The Perf Analytics screen (reading a session after the fact)
 
@@ -132,6 +212,7 @@ only we use.
 
 | | |
 |---|---|
+| **What is slow** | The `whatIsSlow` verdict and the top-offenders table for the whole recording (self time inside dropped frames), then the phase-start spikes the warm-up kept apart. This is the answer; the findings below are its context. |
 | **Findings** | Plain English, worst first, each with a next step. `plateGild took 96 ms in its worst call` — not a table of percentiles you have to interpret. |
 | **By phase** | Frame health split by shop / combat / End of Turn, compared by dropped frames **per second** so a long shop phase does not out-rank a short combat one on volume. |
 | **Timeline** | One column per second, coloured against the budget. Click any second for what fired in it — marks, measured timings, live FX counts. |

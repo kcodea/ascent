@@ -5,6 +5,8 @@ import { applyCandidate, createPlanningRoot, release, visibleOf } from '../produ
 import { fingerprint, toBotVisibleState } from '../productionBots/visibleState';
 import { candidatesFor, positionCandidates, type Candidate } from '../productionBots/legalActions';
 import { evaluate, offerAppeal } from '../productionBots/evaluate';
+import { lastFightResult, withScout } from '../productionBots/fightScore';
+import { scoutFromContext, survivalTerm, type SeatScout } from '../productionBots/scout';
 import { pilotSearch, type PlannedStep, type PilotSearchResult } from '../productionBots/pilotSearch';
 import type { BotVisibleState, PlanningStateHandle } from '../productionBots/types';
 import type { PilotBudget, SeatContext, SeatPilot } from './types';
@@ -63,12 +65,12 @@ function accepted(run: RunState, action: Action): boolean {
 }
 
 /** Best of a set of candidates by full evaluation from `root`, seeded tie-break. Never null when one is legal. */
-function bestOf(root: PlanningStateHandle, cands: Candidate[], rng: Rng, current?: number): { action: Action; utility: number } | null {
+function bestOf(root: PlanningStateHandle, cands: Candidate[], rng: Rng, current?: number, score: (v: BotVisibleState) => number = (v) => evaluate(v).total): { action: Action; utility: number } | null {
   let best: { action: Action; utility: number; key: number } | null = null;
   for (const c of cands) {
     const t = applyCandidate(root, c.action);
     const ok = t.changed;
-    const utility = ok ? evaluate(t.visible).total : -Infinity;
+    const utility = ok ? score(t.visible) : -Infinity;
     release(t.child);
     if (!ok) continue;
     const key = rng.next();
@@ -146,7 +148,7 @@ const REPLACE_SELL_CANDIDATES = 3;
  * affordable offer and field it, or field a hand minion. A chain that crosses a reveal (a Shout that discovers, a
  * random grant) is dropped rather than scored on the real future. Returns the best chain's steps + utility.
  */
-function bestReplaceChain(root: PlanningStateHandle, v: BotVisibleState, rootFp: string): { steps: PlannedStep[]; utility: number } | null {
+function bestReplaceChain(root: PlanningStateHandle, v: BotVisibleState, rootFp: string, score: (v: BotVisibleState) => number): { steps: PlannedStep[]; utility: number } | null {
   if (v.board.length < 7 || v.mandatoryDecision) return null;
   const sellable = [...v.board]
     .filter((c) => !c.golden)
@@ -172,7 +174,7 @@ function bestReplaceChain(root: PlanningStateHandle, v: BotVisibleState, rootFp:
         const played = applyCandidate(sold.child, playAction);
         try {
           if (!played.changed || played.reveal || played.visible.mandatoryDecision) continue;
-          consider([sellStep, { action: playAction, tag: `field ${h.cardId}`, fromFingerprint: sold.fingerprint }], evaluate(played.visible).total);
+          consider([sellStep, { action: playAction, tag: `field ${h.cardId}`, fromFingerprint: sold.fingerprint }], score(played.visible));
         } finally { release(played.child); }
       }
       // Buy an offer and field it.
@@ -193,7 +195,7 @@ function bestReplaceChain(root: PlanningStateHandle, v: BotVisibleState, rootFp:
               sellStep,
               { action: buyAction, tag: `buy ${o.cardId}`, fromFingerprint: sold.fingerprint },
               { action: playAction, tag: `field ${o.cardId}`, fromFingerprint: bought.fingerprint },
-            ], evaluate(played.visible).total);
+            ], score(played.visible));
           } finally { release(played.child); }
         } finally { release(bought.child); }
       }
@@ -207,8 +209,24 @@ export function createGeneralistPilot(budget: PilotBudget, seed: number, opts: G
   const counters = new Map<string, number>();
   const traces = new Map<string, GeneralistTrace>();
   const samples = budget.depth >= 3 ? 4 : 3;
+  // SCOUTING (additive, 2026-09-15 — `productionBots/scout.ts`). Off unless the budget says so, so a job without
+  // the flag reproduces the pre-scouting numbers. When on, every `fightScore` inside this decision fights the
+  // scouted panel (`withScout`), and the utility folds in the survival term at `survivalWeight`.
+  const scouting = budget.scouting === true;
+  const survivalWeight = budget.survivalWeight ?? 0;
+  const scoreWith = (scout: SeatScout | null) => (v: BotVisibleState): number => {
+    const total = evaluate(v).total;
+    if (!scout || survivalWeight === 0) return total;
+    const dmg = lastFightResult(v)?.expectedDamageTaken;
+    return dmg === undefined ? total : total + survivalWeight * survivalTerm(scout, dmg);
+  };
 
   const decideCore = (run: RunState, ctx: SeatContext): Action | null => {
+    const scout = scouting ? scoutFromContext(ctx) : null;
+    return withScout(scout, () => decideInner(run, ctx, scoreWith(scout)));
+  };
+
+  const decideInner = (run: RunState, ctx: SeatContext, score: (v: BotVisibleState) => number): Action | null => {
     if (run.phase !== 'recruit') return null;
     const seatKey = ctx.seatId;
     const round = run.wave;
@@ -240,7 +258,7 @@ export function createGeneralistPilot(budget: PilotBudget, seed: number, opts: G
 
       // 2) A blocked run is answered, never skipped.
       if (visible.mandatoryDecision) {
-        const result = pilotSearch(root, { ...budget, depth: 1 }, panelSeed, rng, samples);
+        const result = pilotSearch(root, { ...budget, depth: 1 }, panelSeed, rng, samples, score);
         const fromSearch = result.plan[0]?.action;
         if (fromSearch && accepted(run, fromSearch)) return trace('mandatory', fromSearch, result);
         const first = candidatesFor(visible).map((c) => c.action).find((a) => accepted(run, a));
@@ -248,9 +266,9 @@ export function createGeneralistPilot(budget: PilotBudget, seed: number, opts: G
       }
 
       // 3) Search — and, when enabled, the replace macro scored beside its best plan.
-      const result = pilotSearch(root, budget, panelSeed, rng, samples);
+      const result = pilotSearch(root, budget, panelSeed, rng, samples, score);
       if (opts.replaceMacro) {
-        const chain = bestReplaceChain(root, visible, liveFp);
+        const chain = bestReplaceChain(root, visible, liveFp, score);
         if (chain && chain.utility > Math.max(result.utility, result.rootUtility) + 1e-9 && accepted(run, chain.steps[0]!.action)) {
           queues.set(seatKey, chain.steps.slice(1));
           return trace('replace', chain.steps[0]!.action, result);
@@ -267,8 +285,8 @@ export function createGeneralistPilot(budget: PilotBudget, seed: number, opts: G
       if (spend) return trace('forcedSpend', spend, result);
 
       // 5) Final arrangement — one improving move at a time; the runner calls again.
-      const current = evaluate(visible).total;
-      const move = bestOf(root, orderedPositionCandidates(visible, budget.positionCandidates), rng, current);
+      const current = score(visible);
+      const move = bestOf(root, orderedPositionCandidates(visible, budget.positionCandidates), rng, current, score);
       if (move && accepted(run, move.action)) return trace('position', move.action, result);
 
       // 6) Nothing left worth doing.

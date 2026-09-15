@@ -18,7 +18,9 @@
 import type { SetId } from '@game/content';
 import { HERO_INDEX, playableHeroes } from '../heroes';
 import { DEFAULT_LOBBY_RULES } from '../lobby/lobby';
-import { closeRunLobbyRound, hitSeat, knockOutIfDead, pairRunLobby, type LobbySeatState, type RunLobby } from '../lobby/runLobby';
+import { boardIntel, closeRunLobbyRound, hitSeat, knockOutIfDead, pairRunLobby, type LobbySeatState, type RunLobby, type SeatIntel } from '../lobby/runLobby';
+import { lossDamageCap } from '../reducer';
+import type { ScoutedBoard, ScoutedSeat } from '../productionBots/scout';
 import type { LobbyEncounter } from '../lobby/types';
 import { makeRng } from '@game/core';
 import { createRun, mixSeed, runTribesForSeed, type RunState } from '../state';
@@ -26,7 +28,7 @@ import { snapshotBoard } from '../snapshot';
 import type { CardLineage } from './effectsFromTransition';
 import { prepareAndFight, prepareAndFightGhost, type FightRules, type GhostSide } from './seatRunner';
 import { playRecruitTurn } from './seatRunner';
-import type { BalanceRecorder, ExperimentIdentity, ExperimentManifest, LobbyRecord, RoundRecord, SeatPilot } from './types';
+import type { BalanceRecorder, ExperimentIdentity, ExperimentManifest, LobbyRecord, RoundRecord, SeatContext, SeatPilot } from './types';
 
 /** Recruit actions a seat may take per turn before it is failed, when the manifest does not say. */
 export const DEFAULT_MAX_ACTIONS_PER_TURN = 200;
@@ -41,6 +43,12 @@ interface Seat {
   /** Per-round bookkeeping for the RoundRecord. */
   turnGoldSpent: number;
   turnGoldUnspent: number;
+  /** Scout-card intel of the board this seat fielded THIS round — committed to `state.intel` only when the round
+   *  settles (the shipped rail records intel at settle, runLobby.ts:584-586), so a seat shopping later in the
+   *  same round cannot read it. */
+  pendingIntel?: SeatIntel;
+  /** This seat's combat memory: foe seat id → the board that seat fielded the last time these two fought. */
+  memory: Map<string, ScoutedBoard>;
   /** uid → acquisition route, across turns (the recorder's attributer reads it — see `RecruitTurnOptions.lineage`). */
   lineage: CardLineage;
 }
@@ -112,6 +120,35 @@ function ghostOf(seats: Seat[], round: number): Seat | null {
   return fallen[0] ?? null;
 }
 
+/** `me` fought `foe` this round and watched the replay: remember the board `foe` fielded. */
+function remember(me: Seat, foe: Seat, round: number): void {
+  const lf = foe.lastFought;
+  if (!lf) return;
+  me.memory.set(foe.state.id, {
+    minions: lf.prep.board.map((m) => ({ ...m, keywords: [...(m.keywords ?? [])] })),
+    side: lf.prep.state, tier: lf.prep.state.tier, round,
+  });
+}
+
+/**
+ * A seat's SCOUT for this round, self-play flavour (rule + sources in `productionBots/scout.ts`): the paired
+ * opponent (the pairing is a pure function of the table, so it is known while shopping), every living seat's
+ * intel as RECORDED AT SETTLE of the previous round (`state.intel`), live health, own combat memory. Unlike the
+ * shipped table, the next opponent's THIS-round intel cannot be shown — its board does not exist yet — so the
+ * next foe reads its last-round intel like everyone else (strictly past information).
+ */
+function selfPlayScout(me: Seat, foe: Seat | null, ghost: Seat | null, living: readonly Seat[], round: number): Pick<SeatContext, 'nextOpponent' | 'field' | 'myHealth' | 'myArmor' | 'lossCap'> {
+  const view = (s: Seat): ScoutedSeat => ({
+    seatId: s.state.id, heroId: s.state.heroId, alive: s.state.alive, health: Math.max(0, s.state.resolve), armor: Math.max(0, s.state.armor),
+    intel: s.state.intel ?? null, lastFought: me.memory.get(s.state.id) ?? null,
+  });
+  return {
+    nextOpponent: foe ? { ...view(foe), ...(foe === ghost ? { ghost: true } : {}) } : null,
+    field: living.filter((s) => s !== me).map(view),
+    myHealth: me.state.resolve, myArmor: me.state.armor, lossCap: lossDamageCap(round),
+  };
+}
+
 export function runSelfPlayLobby(
   manifest: ExperimentManifest,
   seed: number,
@@ -143,6 +180,7 @@ export function runSelfPlayLobby(
       pilot: pilotFor(idx),
       turnGoldSpent: 0,
       turnGoldUnspent: 0,
+      memory: new Map(),
       lineage: new Map(),
     };
   });
@@ -183,7 +221,7 @@ export function runSelfPlayLobby(
       const foe = opponentOf.get(seat.state.id) ?? null;
       const before = seat.run;
       const line = seat.pilot.lineOf?.(seat.state.id);
-      const turn = playRecruitTurn(seat.run, seat.pilot, { seatId: seat.state.id, round, scoutedOpponent: foe?.run.lastCombat ?? null, ...(line ? { line } : {}) }, rec, { maxActionsPerTurn, lobbyId, lineage: seat.lineage });
+      const turn = playRecruitTurn(seat.run, seat.pilot, { seatId: seat.state.id, round, scoutedOpponent: foe?.run.lastCombat ?? null, ...(line ? { line } : {}), ...selfPlayScout(seat, foe, ghost, living, round) }, rec, { maxActionsPerTurn, lobbyId, lineage: seat.lineage });
       seat.run = turn.run;
       if (turn.failure) { fail(turn.failure); break; }
       // Gold spent this turn is the run's own counter (reset by the turn rollover, so read it now); unspent is
@@ -199,6 +237,7 @@ export function runSelfPlayLobby(
       const prep = seat.run.pendingCombatSide;
       if (!prep) { fail(`seat ${seat.state.id} round ${round}: ended the turn without a deferred fight pending`); break; }
       seat.lastFought = { prep: { board: prep.board, state: prep.state }, run: seat.run };
+      seat.pendingIntel = boardIntel({ minions: prep.board, tier: seat.run.tier, snapshot: snapshotBoard(seat.run) }, round);
     }
     if (failure) break;
 
@@ -234,6 +273,8 @@ export function runSelfPlayLobby(
       knockOutIfDead(sb, round, eliminated);
       const enc: LobbyEncounter = { round, a: sa.id, b: sb.id, outcome: fight.result.result, damageToA: fight.damageToA, damageToB: fight.damageToB, fought: true };
       table.encounters.push(enc);
+      remember(a, b, round);
+      remember(b, a, round);
       roundRecord(a, round, b, { taken: fight.damageToA, dealt: fight.damageToB, result: outcomeOf(fight.result.result) });
       roundRecord(b, round, a, { taken: fight.damageToB, dealt: fight.damageToA, result: outcomeOf(invert(fight.result.result)) });
     }
@@ -258,10 +299,13 @@ export function runSelfPlayLobby(
       if (Math.max(0, bye.resolve) !== me.run.resolve || bye.armor !== me.run.armor) { fail(`round ${round} ${bye.id}: seat/run health diverged after the ghost fight`); break; }
       knockOutIfDead(bye, round, eliminated);
       table.encounters.push({ round, a: bye.id, b: ghost.state.id, outcome: fight.result.result, damageToA: fight.damageToA, damageToB: 0, bye: bye.id, fought: true });
+      remember(me, ghost, round);
       roundRecord(me, round, ghost, { taken: fight.damageToA, dealt: 0, result: 'bye' });
     }
 
     closeRunLobbyRound(table, eliminated, hpBefore);
+    // SETTLE: the intel every seat fielded this round becomes visible to the table, as the shipped rail records it.
+    for (const seat of living) if (seat.pendingIntel) { seat.state.intel = seat.pendingIntel; delete seat.pendingIntel; }
     record.roundsPlayed = round;
   }
 

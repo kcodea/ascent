@@ -14,6 +14,7 @@
 import type { SetId } from '@game/content';
 import type { Action, RunState } from '../state';
 import type { BoardSnapshot } from '../snapshot';
+import type { ScoutedSeat } from '../productionBots/scout';
 
 // ───────────────────────────────────────────── manifest + identity ─────────────────────────────────────────────
 
@@ -31,6 +32,14 @@ export interface PilotBudget {
   maxNodes: number;
   /** Positioning candidates tried before combat. */
   positionCandidates: number;
+  /** SCOUTING (additive, 2026-09-15): let the pilot score its boards against the player-legal scout of the table
+   *  (`SeatContext.nextOpponent` / `field`, see `productionBots/scout.ts`) instead of the generic wave panel.
+   *  Default OFF so a job without the flag reproduces the pre-scouting numbers. */
+  scouting?: boolean;
+  /** Weight of the SURVIVAL term (`productionBots/scout.ts::survivalTerm`, in [-1, 0]) added to the evaluation:
+   *  the round-capped hit expected from the scouted next opponent × how lethal it is at the pilot's live health.
+   *  Default 0 (inert). Needs `scouting`. */
+  survivalWeight?: number;
 }
 
 export interface ExperimentManifest {
@@ -109,6 +118,20 @@ export interface SeatContext {
   /** B4 (additive): the LINE the seat's pilot declared for this run (`SeatPilot.lineOf`), echoed back by the
    *  runner once known — a pilot's own choice, never something the runner imposes. Absent for line-less pilots. */
   line?: LineRecord;
+  // ── PLAYER-LEGAL SCOUTING (additive, 2026-09-15 — the rule and its file:line sources live in
+  //    `productionBots/scout.ts`). Absent on a runner that does not scout; the pilot then plays as before. ──
+  /** Who the pilot meets this round (the rail's NEXT chip), with its scout-card intel and the board the pilot
+   *  last fought from that seat. `null` = a bye with no ghost; absent = not scouted. */
+  nextOpponent?: ScoutedSeat | null;
+  /** The other living seats as the rail lists them (next opponent included). */
+  field?: ScoutedSeat[];
+  /** The pilot's own live Resolve / Armor (the HUD) and this round's printed loss cap. */
+  myHealth?: number;
+  myArmor?: number;
+  lossCap?: number;
+  /** Fairness guard, NOT player information: the `author|hero|seed` keys of the recordings seated at this
+   *  table, so a pool panel never samples a seated recording's (future) boards. */
+  seatedRecordings?: readonly string[];
 }
 
 /** B4: the strategy line a pilot committed a run to — the primary package, an optional secondary, and where the

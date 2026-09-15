@@ -108,6 +108,48 @@ still alive at the round it acquired the entity, and never held it — "owners v
 survivorship. Everything is evidence level 1; the suggestion list is the bridge to a level-3 `compare`.
 `--format json` carries the full lists the markdown truncates.
 
+## Scouting — the pilot sees what a player sees (2026-09-15)
+
+The roadmap asks that "legally revealed scout information should be available under the same conditions as
+for a player". The rule, read off the shipped lobby and pinned with file:line in `productionBots/scout.ts`: while
+shopping, a player knows **who they meet next** (`LobbyPanel.tsx:87` → `playerOpponent`, the NEXT chip — the
+pairing is a pure function of the table) and can hover **every seat's scout card** (`LobbyPanel.tsx:205`): hero,
+live Resolve/Armor, alive/placement, and `SeatIntel` — tavern **tier, triples, dominant tribe + count, completed
+quests, owned runes** — recorded **at settle** from the board each seat last fielded (`runLobby.ts:584-586`); for
+the next foe alone the card reads the board it brings **this** round (`LobbyPanel.tsx:89-91`), which only a
+recorded seat can show. A player **never** sees another seat's minion list; the only bodies they have seen are the
+boards they **themselves fought**. Both runners now hand the pilot exactly that as additive `SeatContext` fields
+(`nextOpponent`, `field`, `myHealth` / `myArmor` / `lossCap`): the pinned lobby from the real table (this-round
+intel for the next foe, settle intel for the rest, the pilot's own combat memory of boards it fought); the
+self-play lobby from each seat's settled state (there the next foe's intel is last round's — its board does not
+exist yet). A test (`balance/scoutContext.test.ts`) proves no context ever carries a board from a wave the pilot has
+not met. The runners also pass `seatedRecordings` — a **fairness guard, not player information** — so the pool
+panel never samples a seated recording (its future boards would be the exact boards to come).
+
+Turned on per manifest (`policy.budget.scouting: true`, default off so old jobs reproduce), `fightScore` fights a
+**scouted panel** (`panel: 'scouted'`): the next opponent's stand-ins take ≥ 60% of the weight — the board the
+pilot last fought from that seat when ≤ 3 rounds old, then pool boards **of its scouted shape** (tier + dominant
+tribe near this wave) — the rest of the living field follows at half weight, the plain pool fills. The result
+carries `expectedDamageTaken` (the round-capped hit expected from the next foe: the engine's own tier + surviving
+tiers). `survivalWeight` (default 0) adds `survivalTerm` = −(capped hit ÷ cap) × `lethalRisk` (0 under 40% of
+your Resolve+Armor, 1 at all of it) to the utility, so a seat one loss from elimination prefers the safe board and
+a comfortable one stays greedy. **Measured** against the owner's bar (under 4.0 passes):
+
+| job (100 pinned set-2 lobbies, smoke budget) | mean placement [95% CI] | 1st | top-4 | elim. median | win% by round 5 / 6 / 7 / 8 |
+|---|---|---|---|---|---|
+| baseline `set2-pinned-gen-smoke100` | 6.80 [6.55, 7.05] | 0% | 6% | r9 | 56 / 36 / 20 / 12 |
+| + scouting (`set2-pinned-scout-smoke100`) | 6.87 [6.62, 7.11] | 0% | 6% | r9 | 59 / 42 / 19 / 17 |
+| + scouting + survival 8 | 6.87 [6.62, 7.11] | 0% | 6% | r9 | 59 / 42 / 19 / 17 |
+| + scouting + survival 20 | 6.84 [6.58, 7.09] | 0% | 7% | r9 | 59 / 42 / 19 / 18 |
+
+Scouting does not move the pilot, and the round logs say why: it wins rounds 1–5 (real players are tiering), then
+from round 6 the board is full (6.8–7.0 bodies, tier 1–2) and stays that way while the hand grows from 3.6 to 9
+unplayed cards; tier keeps pace with the recordings by round 10 but the bodies never change. At the smoke budget a
+sell reads as pure loss, `forcedSpend` keeps buying into a full board, and there is no sell → play replacement
+chain — a B3/B4 competence defect (sell-to-replace, tiering, hand discipline), not an information defect. The
+survival term is verified to change decisions at lethal health (probe: root utility 28.2 → 6.2 at 9 Resolve vs a
+tier-4 next foe; the pick moved from a buy to fielding a body) but by then the placement is decided.
+
 ## The strategist pilot (B4, 2026-09-15)
 
 `policy.id: strategist` is the generalist's search with a **line prior** in candidate scoring

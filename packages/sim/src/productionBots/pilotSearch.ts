@@ -87,6 +87,8 @@ interface Ctx {
   rng: Rng;
   expanded: number;
   owned: PlanningStateHandle[];
+  /** The utility of a visible state — `evaluate(v).total` unless the caller folds its own terms in. */
+  score: (v: ReturnType<typeof visibleOf>) => number;
 }
 
 /**
@@ -106,7 +108,7 @@ function expand(ctx: Ctx, parent: PlanningStateHandle, parentFp: string, cand: C
     const samples = sampleCandidate(parent, cand.action, ctx.panelSeed, ctx.samples);
     ctx.expanded += samples.length;
     if (samples.length === 0) return null;
-    const mean = samples.reduce((n, v) => n + evaluate(v).total, 0) / samples.length;
+    const mean = samples.reduce((n, v) => n + ctx.score(v), 0) / samples.length;
     return { parent, transition: { ...t, action: cand.action }, utility: mean + bonus, end: t.child, endFp: t.fingerprint, steps: [step], terminal: true };
   }
   // MANDATORY CONTINUATION — the child is blocked on a decision the pilot itself will make. Extend through it.
@@ -115,7 +117,7 @@ function expand(ctx: Ctx, parent: PlanningStateHandle, parentFp: string, cand: C
   let endFp = t.fingerprint;
   const steps = [step];
   let terminal = false;
-  let utility = evaluate(endVisible).total;
+  let utility = ctx.score(endVisible);
   for (let guard = 0; guard < 4 && endVisible.mandatoryDecision; guard++) {
     let best: Scored | null = null;
     for (const mc of mandatoryCandidates(endVisible)) {
@@ -165,10 +167,15 @@ function chainField(ctx: Ctx, buy: Scored): Scored | null {
  * Plan from `root`. The caller owns `root`; every handle the search creates is released before it returns.
  * `panelSeed` fixes the sampled-future panel for the decision; `rng` breaks ties.
  */
-export function pilotSearch(root: PlanningStateHandle, budget: PilotBudget, panelSeed: number, rng: Rng, samples = 3): PilotSearchResult {
+export function pilotSearch(
+  root: PlanningStateHandle, budget: PilotBudget, panelSeed: number, rng: Rng, samples = 3,
+  /** Optional (additive, 2026-09-15): the utility of a visible state. Defaults to `evaluate(v).total`; the
+   *  generalist passes a version with its survival term folded in when scouting is on. */
+  score: (v: ReturnType<typeof visibleOf>) => number = (v) => evaluate(v).total,
+): PilotSearchResult {
   const rootVisible = visibleOf(root);
-  const rootUtility = evaluate(rootVisible).total;
-  const ctx: Ctx = { budget, panelSeed, samples, rng, expanded: 0, owned: [] };
+  const rootUtility = score(rootVisible);
+  const ctx: Ctx = { budget, panelSeed, samples, rng, expanded: 0, owned: [], score };
   const rootFp = JSON.stringify(rootVisible);
   let beam: Node[] = [{ handle: root, plan: [], fp: rootFp, utility: rootUtility, key: 0, terminal: false }];
   let best: Node | null = null;

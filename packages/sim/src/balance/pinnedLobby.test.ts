@@ -7,6 +7,9 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { registerOpponents } from '../opponents';
 import { playerRunsFrom } from '../lobby/snapshotSeats';
 import { HERO_INDEX } from '../heroes';
+import { createLobbyRun } from '../lobby/runLobby';
+import { DEFAULT_LOBBY_RULES } from '../lobby/lobby';
+import { lossDamageCap } from '../reducer';
 import { pilotFor } from './pilots';
 import { pilotHeroFor, RECORDING_POLICY_ID, runPinnedLobby } from './pinnedLobby';
 import { NOOP_RECORDER, type ExperimentIdentity, type ExperimentManifest, type LobbyRecord, type SeatPilot } from './types';
@@ -179,5 +182,63 @@ describe('the pinned lobby', () => {
     const ids = new Set([1, 2, 3, 4].map((s) => pilotHeroFor(manifest(), s).heroId));
     expect(ids.size).toBe(4);
     expect(pilotHeroFor(manifest({ heroes: ['warden'] }), 7).heroId).toBe('warden');
+  });
+});
+
+/**
+ * FAIRNESS TRIPWIRES (B10 audit, 2026-09-15 — docs/balance-bot.md "Pinned-lobby fairness audit"). The audit found no
+ * handicap on the pilot relative to a real player; these pin the facts it rested on, so a later change to either the
+ * runner or the shipped table trips here rather than quietly re-opening the question.
+ */
+describe('the pinned lobby is the client’s table (B10 fairness tripwires)', () => {
+  let rec: LobbyRecord;
+  beforeAll(() => { rec = run(1); });
+
+  it('seats the SAME table the client seats on hero select — same seeds, same runs, same pools', () => {
+    // The client (`store.pickHero`) calls `createLobbyRun(seed, heroId, {}, 'lobby')`; the runner adds only the
+    // default `maxRounds`. Same seat ids, heroes, recordings, and starting pools — the pilot's from its hero, every
+    // recording's from the lobby rules.
+    const hero = pilotHeroFor(manifest(), 1).heroId!;
+    const client = createLobbyRun(1, hero, {}, 'lobby', undefined, 'set2').lobby!;
+    expect(client.seats.map((s) => [s.id, s.kind, s.heroId, s.runKey ?? null, s.resolve, s.armor]))
+      .toEqual(rec.seats.map((s) => [s.seatId, s.seatId === 's0' ? 'player' : 'snapshot', s.heroId, s.recording?.key ?? null,
+        s.seatId === 's0' ? HERO_INDEX[hero]!.resolve : DEFAULT_LOBBY_RULES.startingResolve,
+        s.seatId === 's0' ? HERO_INDEX[hero]!.armor : DEFAULT_LOBBY_RULES.startingArmor]));
+  });
+
+  it('charges every fought encounter by ONE formula: the loser takes min(cap, winner tier + survivors), the winner 0 — pilot and recordings alike', () => {
+    const byKey = new Map(rec.rounds.map((r) => [`${r.round}|${r.seatId}`, r]));
+    let pilotLosses = 0, recordingLosses = 0;
+    for (const r of rec.rounds) {
+      if (r.result === 'bye' || !r.opponentSeatId) continue;
+      const q = byKey.get(`${r.round}|${r.opponentSeatId}`);
+      if (!q || q.opponentSeatId !== r.seatId) continue; // a ghost fight: the fallen seat has no round record
+      const cap = lossDamageCap(r.round);
+      if (r.result === 'win') { expect(r.damageTaken).toBe(0); expect(q.result).toBe('loss'); }
+      if (r.result === 'tie') { expect(r.damageTaken).toBe(0); expect(q.damageTaken).toBe(0); }
+      if (r.result === 'loss') {
+        // ≥ the winner's tier (the formula's floor), ≤ the round cap — whichever seat lost.
+        expect(r.damageTaken).toBeGreaterThanOrEqual(Math.min(cap, q.tier));
+        expect(r.damageTaken).toBeLessThanOrEqual(cap);
+        expect(q.damageTaken).toBe(0);
+        if (r.seatId === 's0') pilotLosses++; else if (q.seatId !== 's0') recordingLosses++;
+      }
+    }
+    // Both populations of fights were actually exercised.
+    expect(pilotLosses).toBeGreaterThan(0);
+    expect(recordingLosses).toBeGreaterThan(0);
+  });
+
+  it('places every seat by the shipped rule — simultaneous knockouts share the WORSE placement, survivors share 1st', () => {
+    for (const s of rec.seats) {
+      if (s.eliminatedRound === undefined) { expect(s.placement).toBe(1); continue; }
+      const fellBefore = rec.seats.filter((x) => x.eliminatedRound !== undefined && x.eliminatedRound < s.eliminatedRound!).length;
+      expect(s.placement).toBe(8 - fellBefore);
+    }
+    // So with one winner the table's placement SUM is ≥ 36 (a tie pushes every tied seat to the worse place), and
+    // the recordings' mean placement is (sum − pilot) / 7 — NOT (36 − pilot) / 7. The audit's 100-lobby job summed
+    // to 37.8 on average: 4.49 for the recordings beside the pilot's 6.39, exactly the complement.
+    const sum = rec.seats.reduce((a, s) => a + s.placement!, 0);
+    if (rec.seats.filter((s) => s.placement === 1).length === 1) expect(sum).toBeGreaterThanOrEqual(36);
   });
 });

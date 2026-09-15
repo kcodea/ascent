@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "name": "set2-pinned-strategist-b11-m40-r6-p8",
+  "mode": "pinnedLobby",
+  "setId": "set2",
+  "policy": {
+    "id": "strategist",
+    "budget": {
+      "depth": 1,
+      "beam": 1,
+      "maxNodes": 40,
+      "positionCandidates": 2,
+      "growthWeight": 20,
+      "macroWeight": 40,
+      "macroFightWeight": 13,
+      "macroReserve": 6,
+      "macroCommitFrom": 3,
+      "macroCommitTo": 6,
+      "macroPivotWave": 8,
+      "horizonTop": 0,
+      "macroCommitGain": 0
+    }
+  },
+  "seeds": {
+    "start": 1,
+    "count": 100
+  },
+  "maxActionsPerTurn": 120,
+  "corpus": {
+    "name": "set2-players-v1",
+    "digest": "87909308f9c0a30b"
+  },
+  "fightRules": "shipped",
+  "notes": "B11 arm 2: macroWeight 40, reserve 6 Gold a turn, pivot at 8, commit on any fielded payoff (commitGain 0)."
+}

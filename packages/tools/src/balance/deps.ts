@@ -15,3 +15,5 @@ export { runSelfPlayLobby } from '@game/sim/balance/selfPlayLobby';
 export { runPinnedLobby, RECORDING_POLICY_ID } from '@game/sim/balance/pinnedLobby';
 export { createRecorder } from '@game/sim/balance/recorder';
 export { pilotFor } from '@game/sim/balance/pilots';
+// B11: the engine-combo roster, for the gap report's "full engine by wave" metric.
+export { ENGINE_COMBOS, type EngineCombo } from '@game/sim/balance/strategy/combos';

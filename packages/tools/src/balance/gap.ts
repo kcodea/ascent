@@ -21,7 +21,7 @@
  * nothing — that is a fact about the pilot, not a missing row). A corpus run with two uploads of one wave keeps the
  * last one in file order.
  */
-import { CARD_INDEX, RECORDING_POLICY_ID, type BoardSnapshot, type LobbyRecord, type RoundRecord } from './deps';
+import { CARD_INDEX, ENGINE_COMBOS, RECORDING_POLICY_ID, type BoardSnapshot, type EngineCombo, type LobbyRecord, type RoundRecord } from './deps';
 import type { CorpusFile } from './corpus';
 import { bootstrapMean, keyedRng, mean, median, type CI } from './stats';
 import { fmt } from './aggregate';
@@ -64,6 +64,21 @@ export interface CardFrequencyRow {
 
 export type Verdict = 'phenomenal' | 'strong' | 'pass' | 'fail' | 'unmeasured';
 
+/** B11: how often a run holds a FULL engine combo (every piece on the board) by a wave, per side. */
+export interface EngineAssembly {
+  /** Runs on each side (a pilot seat; a corpus run). */
+  pilotRuns: number;
+  corpusRuns: number;
+  /** Share of runs holding at least one full combo on the board by wave 6 / by wave 8 / ever. */
+  byWave6: { pilot: number | undefined; corpus: number | undefined };
+  byWave8: { pilot: number | undefined; corpus: number | undefined };
+  ever: { pilot: number | undefined; corpus: number | undefined };
+  /** Per combo: runs that completed it by wave 6, by wave 8, ever; and the median wave it was first complete. */
+  combos: { id: string; pilot6: number; corpus6: number; pilot8: number; corpus8: number; pilotEver: number; corpusEver: number; pilotFirstWave: number | undefined; corpusFirstWave: number | undefined }[];
+  /** Pilot seats' mean placement split by "held a full engine by wave 6" (a descriptive split, not a cause). */
+  placementSplit: { withEngine: { n: number; mean: number | undefined }; without: { n: number; mean: number | undefined } };
+}
+
 export interface GapReport {
   jobId: string;
   policyIds: string[];
@@ -80,6 +95,8 @@ export interface GapReport {
     /** The corpus' top-N (with the pilot share beside each). */
     corpusTop: CardFrequencyRow[];
   };
+  /** B11 (additive): engine assembly, pilot vs corpus. */
+  assembly: EngineAssembly;
   placement: {
     /** index 0 = 1st … index 7 = 8th. */
     histogram: number[];
@@ -161,6 +178,51 @@ function cardShares(boards: readonly Board[]): Map<string, number> {
   return held;
 }
 
+// ───────────────────────────────────────────── engine assembly (B11) ─────────────────────────────────────────────
+
+/** Is every piece of `combo` on this board (one copy each; alternatives count)? */
+function comboComplete(combo: EngineCombo, board: Board): boolean {
+  const held = new Set(board.minions.map((m) => m.cardId));
+  return combo.pieces.every((p) => p.ids.some((id) => held.has(id)));
+}
+
+/** For one run's boards (any order): per combo, the first wave it was complete on the board. */
+function firstCompleteWaves(boards: readonly Board[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const b of [...boards].sort((x, y) => x.wave - y.wave)) {
+    for (const c of ENGINE_COMBOS) if (!out.has(c.id) && comboComplete(c, b)) out.set(c.id, b.wave);
+  }
+  return out;
+}
+
+export function computeAssembly(pilotRuns: readonly { boards: Board[]; placement?: number }[], corpusRuns: readonly Board[][]): EngineAssembly {
+  const pilotFirst = pilotRuns.map((r) => firstCompleteWaves(r.boards));
+  const corpusFirst = corpusRuns.map((b) => firstCompleteWaves(b));
+  const share = (list: readonly Map<string, number>[], by: number): number | undefined =>
+    list.length ? list.filter((m) => [...m.values()].some((w) => w <= by)).length / list.length : undefined;
+  const combos = ENGINE_COMBOS.map((c) => {
+    const p = pilotFirst.map((m) => m.get(c.id)).filter((w): w is number => w !== undefined);
+    const q = corpusFirst.map((m) => m.get(c.id)).filter((w): w is number => w !== undefined);
+    return {
+      id: c.id,
+      pilot6: p.filter((w) => w <= 6).length, corpus6: q.filter((w) => w <= 6).length,
+      pilot8: p.filter((w) => w <= 8).length, corpus8: q.filter((w) => w <= 8).length,
+      pilotEver: p.length, corpusEver: q.length,
+      pilotFirstWave: median([...p].sort((a, b) => a - b)), corpusFirstWave: median([...q].sort((a, b) => a - b)),
+    };
+  }).filter((c) => c.pilotEver + c.corpusEver > 0);
+  const withEngine = pilotRuns.filter((r, i) => r.placement !== undefined && [...pilotFirst[i]!.values()].some((w) => w <= 6)).map((r) => r.placement!);
+  const without = pilotRuns.filter((r, i) => r.placement !== undefined && ![...pilotFirst[i]!.values()].some((w) => w <= 6)).map((r) => r.placement!);
+  return {
+    pilotRuns: pilotRuns.length, corpusRuns: corpusRuns.length,
+    byWave6: { pilot: share(pilotFirst, 6), corpus: share(corpusFirst, 6) },
+    byWave8: { pilot: share(pilotFirst, 8), corpus: share(corpusFirst, 8) },
+    ever: { pilot: share(pilotFirst, Infinity), corpus: share(corpusFirst, Infinity) },
+    combos,
+    placementSplit: { withEngine: { n: withEngine.length, mean: mean(withEngine) }, without: { n: without.length, mean: mean(without) } },
+  };
+}
+
 // ───────────────────────────────────────────── the two populations ─────────────────────────────────────────────
 
 /** The pilot's served board at the end of each recruit turn. An empty board (no snapshot) is a real 0-stat board. */
@@ -170,7 +232,7 @@ function pilotBoardOf(r: RoundRecord): Board {
 }
 
 /** The corpus' boards, one per run-wave (`author | hero | seed`, the lobby's own run key; the last upload wins). */
-export function corpusBoards(file: Pick<CorpusFile, 'boards'>): { boards: Board[]; runs: number; authors: number; maxWave: number } {
+export function corpusBoards(file: Pick<CorpusFile, 'boards'>): { boards: Board[]; runs: number; authors: number; maxWave: number; byRun: Board[][] } {
   const byRunWave = new Map<string, BoardSnapshot>();
   const authors = new Set<string>();
   for (const b of file.boards) {
@@ -178,15 +240,18 @@ export function corpusBoards(file: Pick<CorpusFile, 'boards'>): { boards: Board[
     byRunWave.set(key, b);
     authors.add(b.author ?? 'anon');
   }
-  const runs = new Set<string>();
+  const runs = new Map<string, Board[]>();
   let maxWave = 0;
   const boards: Board[] = [];
   for (const b of byRunWave.values()) {
-    runs.add(`${b.author ?? 'anon'}|${b.heroId}|${b.seed}`);
+    const key = `${b.author ?? 'anon'}|${b.heroId}|${b.seed}`;
     if (b.wave > maxWave) maxWave = b.wave;
-    boards.push({ wave: b.wave, tier: b.tier, minions: b.minions });
+    const board: Board = { wave: b.wave, tier: b.tier, minions: b.minions };
+    boards.push(board);
+    if (!runs.has(key)) runs.set(key, []);
+    runs.get(key)!.push(board);
   }
-  return { boards, runs: runs.size, authors: authors.size, maxWave };
+  return { boards, runs: runs.size, authors: authors.size, maxWave, byRun: [...runs.values()] };
 }
 
 export function computeGap(jobId: string, lobbies: readonly LobbyRecord[], corpus: CorpusFile, opts: GapOptions = {}): GapReport {
@@ -199,6 +264,7 @@ export function computeGap(jobId: string, lobbies: readonly LobbyRecord[], corpu
   // ── the pilot: every non-recording seat, rounds of completed (non-censored) lobbies ──────────────────────────
   const policyIds = new Set<string>();
   const pilotBoards: Board[] = [];
+  const pilotRuns: { boards: Board[]; placement?: number }[] = [];
   const placements: { lobbyId: string; placement: number }[] = [];
   let lobbiesWithPilot = 0, placed = 0, failed = 0;
   for (const L of lobbies) {
@@ -213,6 +279,9 @@ export function computeGap(jobId: string, lobbies: readonly LobbyRecord[], corpu
       else if (s.termination === 'failed') failed++;
     }
     for (const r of L.rounds) if (pilotSeatIds.has(r.seatId)) pilotBoards.push(pilotBoardOf(r));
+    for (const s of pilots) {
+      pilotRuns.push({ boards: L.rounds.filter((r) => r.seatId === s.seatId).map(pilotBoardOf), ...(s.termination === 'placed' && s.placement !== undefined ? { placement: s.placement } : {}) });
+    }
   }
 
   // ── the corpus ──────────────────────────────────────────────────────────────────────────────────────────────
@@ -258,6 +327,7 @@ export function computeGap(jobId: string, lobbies: readonly LobbyRecord[], corpu
     pilot: { lobbies: lobbiesWithPilot, boards: pilotBoards.length, placed, failed },
     waves,
     cards: { waveMin: cardWaveMin, pilotBoards: pLate.length, corpusBoards: cLate.length, pilotTop: top(pHeld), corpusTop: top(cHeld) },
+    assembly: computeAssembly(pilotRuns, C.byRun),
     placement: {
       histogram, n: placements.length, mean: meanCI, firsts, top3,
       firstRate: placements.length ? firsts / placements.length : undefined, top3Rate: placements.length ? top3 / placements.length : undefined,
@@ -318,6 +388,23 @@ export function renderGap(g: GapReport, opts: GapRenderOptions): string {
   o.push('|---|' + g.waves.map(() => '---').join('|') + '|');
   o.push('| pilot | ' + g.waves.map((w) => x(w.pilot.growth)).join(' | ') + ' |');
   o.push('| corpus | ' + g.waves.map((w) => x(w.corpus.growth)).join(' | ') + ' |');
+  o.push('');
+
+  o.push('## Engine assembly (B11) — runs holding a FULL engine combo on the board');
+  o.push('');
+  const A = g.assembly;
+  o.push(`Combos from \`strategy/combos.ts\` (every piece on the board at once; alternatives count). Runs: pilot ${A.pilotRuns}, corpus ${A.corpusRuns}.`);
+  o.push('');
+  o.push('| | by wave 6 | by wave 8 | ever |');
+  o.push('|---|---|---|---|');
+  o.push(`| pilot | ${pct(A.byWave6.pilot)} | ${pct(A.byWave8.pilot)} | ${pct(A.ever.pilot)} |`);
+  o.push(`| corpus | ${pct(A.byWave6.corpus)} | ${pct(A.byWave8.corpus)} | ${pct(A.ever.corpus)} |`);
+  o.push('');
+  o.push(`Pilot placement, split by a full engine by wave 6: with ${fmt(A.placementSplit.withEngine.mean)} (n=${A.placementSplit.withEngine.n}) · without ${fmt(A.placementSplit.without.mean)} (n=${A.placementSplit.without.n}) — a descriptive split, not a cause.`);
+  o.push('');
+  o.push('| combo | pilot: by w6 / by w8 / ever (median first wave) | corpus: by w6 / by w8 / ever (median first wave) |');
+  o.push('|---|---|---|');
+  for (const c of A.combos) o.push(`| ${c.id} | ${c.pilot6} / ${c.pilot8} / ${c.pilotEver} (${fmt(c.pilotFirstWave, 0)}) | ${c.corpus6} / ${c.corpus8} / ${c.corpusEver} (${fmt(c.corpusFirstWave, 0)}) |`);
   o.push('');
 
   o.push(`## Card frequency at wave ≥ ${g.cards.waveMin} (share of boards holding the card)`);

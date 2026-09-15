@@ -42,6 +42,8 @@ import type { BotCardView, BotMandatoryDecision, BotVisibleState } from './types
 export const MAX_BUYS = 3;
 /** Spells / Rubies / Ales the probe casts from what the turn GENERATED (never what the pilot already held). */
 const MAX_GENERATED_CASTS = 6;
+/** Board bodies the script may SELL to field a body the pilot already holds when the board is full. */
+const MAX_REPLACEMENTS = 2;
 /** Hard cap on reducer dispatches per probe, whatever the script wants. */
 export const MAX_STEPS = 24;
 /** The wave past which growth stops being credited (the lobby is ending); credit is linear in the turns left, capped at `CREDIT_TURNS`. */
@@ -141,6 +143,10 @@ function script(p: ProbeSession, root: BotVisibleState): GrowthProbe | null {
   let bought = 0;
   if (root.phase !== 'recruit') return null;
   if (!unblock()) return null;
+  // A FROZEN shop never carries into the imagined turn: the probe would otherwise read the REAL current offers as
+  // next turn's shop and score "freeze" above "buy" whenever the shop holds an engine (measured 2026-09-15: a
+  // freeze → forced refresh → freeze loop that burned 8 Gold on rolls in one turn). Freezing is the search's call.
+  if (v.frozen && step({ type: 'freeze' })) refresh();
   // END OF TURN — fires the board's End-of-Turn engines and prepares the side; no fight is resolved.
   if (!step({ type: 'faceOmen', deferFight: true })) return null;
   // NEXT TURN — the neutral draw lands, start-of-turn grants fire, Gold refills, an imagined shop is drawn.
@@ -149,11 +155,24 @@ function script(p: ProbeSession, root: BotVisibleState): GrowthProbe | null {
   if (!unblock()) return finish();
   if (v.phase !== 'recruit') return finish();
 
-  // FIELD THE HAND — every body while there is room (on-play / on-summon / tribe engines fire here).
+  // FIELD THE HAND — every body the pilot holds (on-play / on-summon / tribe engines fire here). With a FULL board
+  // the weakest printed body is sold to make room (at most `MAX_REPLACEMENTS`), the way a competent player fields
+  // the engine they just bought: a bought engine then reads as its yield MINUS the body it displaces, and a bought
+  // vanilla as minus that body alone — so a buy into a full hand must earn its seat.
+  let replacements = 0;
+  const fielded = new Set<string>();
   for (const c of [...v.hand]) {
-    if (v.board.length >= 7) break;
     if (!isBody(c)) continue;
+    if (v.board.length >= 7) {
+      if (replacements >= MAX_REPLACEMENTS) break;
+      const weakest = [...v.board].filter((b) => !b.golden && !fielded.has(b.uid)).sort((a, b) => a.attack + a.health - (b.attack + b.health))[0];
+      if (!weakest || !step({ type: 'sell', uid: weakest.uid })) break;
+      replacements++;
+      refresh();
+      if (!unblock()) return finish();
+    }
     if (!step({ type: 'play', uid: c.uid, toIndex: v.board.length })) continue;
+    fielded.add(c.uid);
     refresh();
     if (!unblock()) return finish();
   }
@@ -222,15 +241,15 @@ function script(p: ProbeSession, root: BotVisibleState): GrowthProbe | null {
 
 /**
  * The composition the probe depends on — everything that changes what the engines do next turn, and nothing
- * that does not (Gold this turn, positions, the current shop unless frozen). Two states with the same key share
- * one probe.
+ * that does not (Gold this turn, the current shop — frozen or not, the probe always imagines a fresh one). Two
+ * states with the same key share one probe.
  */
 export function growthKey(v: BotVisibleState): string {
   const card = (c: BotCardView): unknown[] => [c.cardId, c.golden ? 1 : 0, c.attack, c.health, c.summonBonus ?? 0, c.spellProgress ?? 0, c.hpGrantBonus ?? 0, c.soldProgress ?? 0, c.attachments ?? 0];
   return JSON.stringify([
     v.wave, v.economy.tier, v.economy.maxGold, v.hero.heroId, v.hero.powerReady,
     v.board.map(card), v.hand.map(card), v.runes, v.auras, v.runCounters,
-    v.quests, v.equipment.map((e) => e.equipmentId), v.frozen ? v.shop.map((o) => o.cardId) : 0,
+    v.quests, v.equipment.map((e) => e.equipmentId),
   ]);
 }
 

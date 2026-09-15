@@ -93,9 +93,9 @@ describe('growth probe — measures engine yield by running the engine', () => {
     const c = probeGrowth(visibleOf(twin), PANEL);
     expect(c).toEqual(a);
     expect(growthStats().probes).toBe(before.probes);
-    // A frozen shop IS part of the composition (it carries into the probed turn).
+    // A frozen shop is NOT part of the composition: the probe always imagines a fresh shop (never the real offers).
     const frozen = applyCandidate(root, { type: 'freeze' });
-    expect(growthKey(frozen.visible)).not.toBe(growthKey(v));
+    expect(growthKey(frozen.visible)).toBe(growthKey(v));
     // Board ORDER is part of the composition (adjacency engines read neighbours), as is what is on it.
     const moved = applyCandidate(root, { type: 'reposition', uid: 'b1', toIndex: 0 });
     expect(growthKey(moved.visible)).not.toBe(growthKey(v));

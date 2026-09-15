@@ -114,8 +114,12 @@ function forcedSpend(run: RunState, v: BotVisibleState, handDiscipline = false):
     }
   }
   const roll: Action[] = v.economy.refreshCost <= v.economy.gold && v.economy.gold >= 2 && (v.board.length < 7 || handDiscipline) ? [{ type: 'roll' }] : [];
-  // Disciplined and full: a refresh (new offers for the replace macro) ahead of a marginal buy.
-  options.push(...(handDiscipline && boardFull ? [...roll, ...buys] : [...buys, ...roll]));
+  // Disciplined and full: `buys` already holds only the non-marginal offers (a triple piece, a spell, a body that
+  // beats the worst one), so they come first and the refresh is the fallback when nothing qualifies. The first
+  // version put the roll FIRST here, which read as "refresh ahead of a marginal buy" but meant "refresh ahead of
+  // EVERY buy": with a full board the pilot rolled its whole turn away (B6, 2026-09-15: 8 rolls and one buy on
+  // 10 Gold at wave 8, past a Standard Bearer, a Chorus Drake and a Gangplank it never took).
+  options.push(...buys, ...roll);
   for (const action of options) if (accepted(run, action)) return action;
   return null;
 }

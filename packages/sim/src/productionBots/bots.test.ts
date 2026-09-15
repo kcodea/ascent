@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createRun, reduce, type Action, type RunState } from '../index';
+import { DEFAULT_BOT } from '../bots/index';
 import { createController, decide, type BotControllerState } from './controller';
 import { DIFFICULTIES, DIFFICULTY_IDS, type BotDifficultyId } from './difficulties';
 import { ACTION_CATALOG } from './actionCatalog';
@@ -172,23 +173,29 @@ describe('difficulty is budget, never information', () => {
     expect(nodes, 'no nodes were expanded at all').toBeGreaterThan(0);
   });
 
-  it('every difficulty is far stronger than the legacy greedy policy', () => {
-    // ASSERT THE EFFECT THIS SAMPLE SIZE CAN ACTUALLY RESOLVE. The previous version asserted hard > easy over
-    // 12 seeds, and that difference is smaller than the noise at 12 seeds — measured at 40 seeds the ordering
-    // holds (4.78 vs 4.35), but at 12 it flips often enough to fail the suite at random. A test that fails on
-    // variance teaches nothing; `npm run bot:ladder -- --seeds 40` is where fine-grained ladder claims belong.
-    //
-    // What IS resolvable here is the large effect: production bots roughly double legacy. That is the claim
-    // worth defending against regression.
-    const seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-    const mean = (d: BotDifficultyId | 'legacy'): number =>
-      seeds.map((s) => winsOf(playOut(s, d === 'legacy' ? 'easy' : d, d === 'legacy' ? 5000 : 5000).run))
-        .reduce((a, b) => a + b, 0) / seeds.length;
-    const easy = mean('easy');
-    const expert = mean('expert');
-    expect(easy, 'easy collapsed').toBeGreaterThan(2.5);
-    expect(expert, 'expert collapsed').toBeGreaterThan(2.5);
-  }, 120_000);
+  it('expert is far stronger than the legacy greedy policy — measured against it, not against a threshold', () => {
+    // The previous version of this test carried this title but never ran the legacy policy: it checked easy and
+    // expert against an absolute wins floor (2.5) and called that "far stronger than legacy". Now the legacy
+    // greedy bot (`bots/index.ts`, the balance report's default) plays the SAME seeds and the claim is the
+    // comparison itself. Six seeds resolve only a LARGE effect — measured 2026-09-15 over 8 seeds: legacy 2.63
+    // wins, expert 8.75 — so the assertion is a wide gap, not a fine ordering (`npm run bot:ladder` is where
+    // fine-grained claims belong). A regression that halves expert would still trip it.
+    const seeds = [1, 2, 3, 4, 5, 6];
+    const legacy = (seed: number): number => {
+      let s: RunState = createRun(seed, 'drakko');
+      let guard = 0;
+      while (s.phase !== 'gameover' && s.phase !== 'victory' && guard++ < 5000) {
+        const next = reduce(s, DEFAULT_BOT.act(s));
+        if (next === s) break;
+        s = next;
+      }
+      return winsOf(s);
+    };
+    const mean = (xs: number[]): number => xs.reduce((a, b) => a + b, 0) / xs.length;
+    const legacyMean = mean(seeds.map(legacy));
+    const expertMean = mean(seeds.map((s) => winsOf(playOut(s, 'expert').run)));
+    expect(expertMean, `expert ${expertMean.toFixed(2)} vs legacy ${legacyMean.toFixed(2)} — the gap collapsed`).toBeGreaterThan(legacyMean + 2);
+  }, 240_000);
 });
 
 describe('the evaluator explains itself', () => {

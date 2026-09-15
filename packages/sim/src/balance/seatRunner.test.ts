@@ -156,7 +156,7 @@ describe('B1 — one authoritative fight, settled on both seats', () => {
     expect(t.failure).toMatch(/5 accepted actions without ending the turn/);
   });
 
-  it('mirrorForEnemySeat inverts the fight and strips every player-side carry-back (the documented gap)', () => {
+  it('mirrorForEnemySeat inverts the fight and lifts ONLY the enemy seat’s own ledger — the other seat’s player-side fields never leak', () => {
     const { a, b } = fixture();
     const ta = playRecruitTurn(a, PASS, ctx('s0', 1), NOOP_RECORDER, opts);
     const tb = playRecruitTurn(b, PASS, ctx('s1', 1), NOOP_RECORDER, opts);
@@ -169,17 +169,57 @@ describe('B1 — one authoritative fight, settled on both seats', () => {
     expect(m.enemyDeaths).toBe(f.result.playerDeaths ?? 0);
     expect(m.playerSurvivorCardIds).toEqual(['n2_spellsword', 'n2_spellsword']);
     expect(m.initial.player.map((x) => x.cardId)).toEqual(f.result.initial.enemy.map((x) => x.cardId));
-    // The player-side carry-backs belong to the other seat: none may leak across the table.
+    // A's carry-backs (Hank's Echo) belong to A: none may leak across the table.
+    expect(f.result.playerRightmostSlotBuff).toEqual({ attack: 3, health: 2 });
     expect(m.playerRightmostSlotBuff).toBeUndefined();
-    expect(m.playerDeathrattles).toBe(0);
-    for (const key of Object.keys(m)) {
-      if (key.startsWith('player') && !['playerDamage', 'playerDeathrattles', 'playerDeaths', 'playerSurvivorCardIds'].includes(key)) {
-        throw new Error(`player-side field leaked into the enemy seat's view: ${key}`);
-      }
+    expect(m.enemyCarry).toBeUndefined(); // consumed, not re-mirrored
+    // THE CONTRACT: every `player*` field on the mirrored view is exactly what `enemyCarry` says — no more, no less.
+    const c = f.result.enemyCarry!;
+    const fromCarry: Record<string, unknown> = {
+      playerDeathrattles: c.deathrattles, playerDeaths: c.deaths, playerSurvivorCardIds: c.survivorCardIds,
+      playerFirstKill: c.firstKill, playerLastKill: c.lastKill, playerQuestTally: c.questTally, playerQuestEvents: c.questEvents,
+      playerSummonBonus: c.summonBonus, playerPermaBuffs: c.permaBuffs, playerHandGrants: c.handGrants,
+    };
+    for (const [key, value] of Object.entries(m)) {
+      if (!key.startsWith('player') || key === 'playerDamage') continue;
+      if (!(key in fromCarry)) throw new Error(`player-side field on the enemy seat's view with no enemyCarry source: ${key}`);
+      expect(value, key).toEqual(fromCarry[key]);
     }
+    expect(m.playerDeathrattles).toBe(0); // the Spellswords have no Echo — a real count, not a placeholder
     // The mirror never touches the original.
     expect(f.result.result).toBe('lose');
-    expect(f.result.playerRightmostSlotBuff).toEqual({ attack: 3, health: 2 });
+  });
+
+  it('the ENEMY seat settles with what it earned: an Engraved gain, a hand grant and a quest tally land in its next recruit phase', () => {
+    // B (the `enemy` side of the pair) fields three Sporelings (Echo: +1/+1 to your minions), a fat Engraved Tara
+    // and a fat Totality (Avenge (3): a Star Crash to hand). A is a single fat Taunt: every swing has one target.
+    const a = createRun(21, 'warden', 'lobby', undefined, SET);
+    const b = createRun(22, 'warden', 'lobby', undefined, SET);
+    place(a, 'sandbag', { attack: 9, health: 60 }).keywords.push('T');
+    place(b, 'spore'); place(b, 'spore'); place(b, 'spore');
+    const tara = place(b, 'tara', { attack: 4, health: 40 });
+    place(b, 'ce3_eclipsewarden', { attack: 3, health: 60 });
+    const ta = playRecruitTurn(a, PASS, ctx('s0', 1), NOOP_RECORDER, opts);
+    const tb = playRecruitTurn(b, PASS, ctx('s1', 1), NOOP_RECORDER, opts);
+    expect(ta.failure).toBeUndefined();
+    expect(tb.failure).toBeUndefined();
+    const f = prepareAndFight(ta.run, tb.run, 7, { round: 1 });
+    const c = f.result.enemyCarry!;
+    expect(c.deathrattles).toBe(3);
+    expect(c.handGrants).toEqual(['starcrash']);
+    expect(c.permaBuffs?.find((p) => p.sourceUid === tara.uid)).toMatchObject({ attack: 3, health: 3, engraved: true });
+    expect(c.questTally?.attack).toBeGreaterThan(0);
+    // …and B's NEXT RECRUIT PHASE holds all of it, settled through the real `resolveCombat` path.
+    expect(f.bAfter.phase).toBe('recruit');
+    expect(f.bAfter.deathrattlesTriggered).toBe(b.deathrattlesTriggered + 3);
+    expect(f.bAfter.hand.filter((h) => h.cardId === 'starcrash')).toHaveLength(1);
+    const taraAfter = f.bAfter.board.find((x) => x.uid === tara.uid)!;
+    expect(taraAfter.attack).toBe(4 + 3);
+    expect(taraAfter.health).toBe(40 + 3);
+    expect(taraAfter.ascendProgress ?? 0).toBe(3);
+    // A, the `player` side, earned nothing of B's: no Star Crash, no Echo count.
+    expect(f.aAfter.hand.some((h) => h.cardId === 'starcrash')).toBe(false);
+    expect(f.aAfter.deathrattlesTriggered).toBe(a.deathrattlesTriggered);
   });
 
   it('`corrected` vs `shipped` is a real, labelled difference: the enemy seat’s banked Start-of-Combat keyword lands only under `corrected`', () => {

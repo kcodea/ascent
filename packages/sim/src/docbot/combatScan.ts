@@ -145,6 +145,12 @@ function fight(subject: BoardMinion, variant: Variant, maskIds: ReadonlySet<stri
   // mask by).
   delete r.playerDeathrattles; delete r.enemyDeathrattles;
   delete r.playerQuestEvents; delete r.enemyQuestEvents;
+  // The enemy side's mirrored ledger (`enemyCarry`, 2026-09-15) gets the same treatment — plus its
+  // `firstKill` / `lastKill`, which name the first/last PLAYER body the enemy felled: a bare card-id string
+  // (no `cardId` key for `maskDeep` to catch) that would otherwise leak the subject's identity and mark every
+  // card active by name alone. (`playerFirstKill` names ENEMY bodies, never the subject, so it stays.)
+  const ec = r.enemyCarry as Record<string, unknown> | undefined;
+  if (ec) { delete ec.deathrattles; delete ec.questEvents; delete ec.firstKill; delete ec.lastKill; }
   return JSON.stringify(maskDeep(r, maskIds));
 }
 

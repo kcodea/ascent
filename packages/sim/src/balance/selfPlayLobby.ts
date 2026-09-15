@@ -196,6 +196,12 @@ export function runSelfPlayLobby(
     if (failure) break;
 
     const eliminated: LobbySeatState[] = [];
+    // RE-SEED every seat from its run before anyone is charged (the shipped reducer does this for seat 0 at
+    // `resolveCombat`, owner report 2026-09-10: "Mend's Armor falls off after a turn"): the seat was seeded once at
+    // creation and only ever LOSES, so a Resolve / Armor gain during the shop (Mend, a hero power — Merrin, Ayse,
+    // Darah, the Void seat) lived on the run alone and `hitSeat` charged a stale number, which the divergence
+    // assert below then caught as a censored lobby (the matrix smoke: 7 of 265). Same fix, every seat.
+    for (const seat of seats) if (seat.state.alive) { seat.state.resolve = seat.run.resolve; seat.state.armor = seat.run.armor; }
     const hpBefore = new Map(table.seats.map((s) => [s.id, s.armor + s.resolve]));
     let pairIdx = 0;
     for (const [sa, sb] of pairs) {

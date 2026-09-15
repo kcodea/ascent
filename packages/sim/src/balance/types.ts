@@ -126,6 +126,10 @@ export interface EffectEvent {
   health?: number;
   gold?: number;
   route?: 'shop' | 'generated' | 'discover' | 'rune' | 'quest' | 'equipment' | 'hero' | 'triple' | 'other';
+  /** B5 (additive): a free-form qualifier the aggregate can split on — a Starform pull's kind
+   *  (`consumeShop` / `consumed` / `collapse` / `created`), `repeat` on an extra spell cast, a hero power's
+   *  commission, a summon's origin (`battlecry` / `hand`). Never load-bearing for a table's headline count. */
+  detail?: string;
 }
 
 export interface RoundRecord {

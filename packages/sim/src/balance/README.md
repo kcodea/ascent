@@ -12,7 +12,9 @@ live here; Node workers, storage and the CLI live in `packages/tools/src/balance
 | `seatRunner.ts` | **shipped (B1, 2026-09-15)** — `playRecruitTurn` drives ONE seat's recruit turn through the real reducer with a `SeatPilot` (rejections / open modals / the action budget FAIL the seat); `prepareAndFight` resolves a pair with ONE `simulate()` and lands it on both runs through `resolveCombat { fight }`; `mirrorForEnemySeat` is the documented enemy-side seam | B1 |
 | `selfPlayLobby.ts` | **shipped (B1)** — `runSelfPlayLobby`: eight living seats, the shipped `pairRunLobby` / `hitSeat` / `knockOutIfDead` / `closeRunLobbyRound`, one authoritative fight per pair, ghosts for the odd seat, real settlement carried into the next recruit; a seat failure censors the lobby | B1 |
 | `pilots.ts` | the `SeatPilot` registry — `greedy` (B1's test baseline: first option / cheapest minion / end turn); the generalist is B3's | B3 |
-| `recorder.ts` | the `BalanceRecorder` that builds a `LobbyRecord` | B5 |
+| `recorder.ts` | the `BalanceRecorder` that builds a `LobbyRecord` (`createRecorder` → `observeTransition` / `finalize`) | B5 |
+| `effectsFromTransition.ts` | `effectEventsOf(before, after, action, ctx, lineage)` — attributed `EffectEvent`s read off the sim's per-action channels (the channel table is in the file header) | B5 |
+| `fixtures/syntheticLobby.ts` | deterministic SYNTHETIC `LobbyRecord[]` from a seed (real ids, plausible streams) so the report/compare are testable before the runner lands; `heroBias` is the positive control | B5 |
 
 ## Where the Node-only parts live (B0 decision)
 

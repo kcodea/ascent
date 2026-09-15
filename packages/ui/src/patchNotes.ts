@@ -95,6 +95,19 @@ export const PATCH_NOTES: PatchNote[] = [
           "Plays for Star Crash's second landing, Crash Course's extra Star Crashes, Reflector's spread, Rune of Distillation (a Shop minion to your left-most), Rune of Redirection (left-most to right-most), Rune of the Conduit, and Trouble in combat.",
           'Rubies get a red ribbon; spells get a first-pass purple-and-blue one that will be tuned later.',
           'A spell that simply casts AGAIN on the same minion (Mirrorwing, Nimbus, Yazzus, Prismcaster) does not use this cue — it will get its own.',
+    ],
+  },
+  {
+    date: '2026-09-15',
+    label: 'Start of Combat / End of Turn buffs show their source',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Start of Combat and End of Turn buffs now show where they come from: every minion that gets stats from another minion, a rune or a hero power gets its own ribbon (or rune sparkle) from that source.',
+        details: [
+          "Old Timber's Start of Combat gift to your Spirits now streams a Spirit ribbon to each one (it used to land with no effect at all).",
+          "Emissary's United Front and Aevor's Tempest now draw a ribbon from the hero-power button to each minion they pay (both used to land silently).",
+          'End of Turn ribbons (Kringle, Striker, Mother Moss…) aim at the slot each card is settling into, not wherever it is drawn mid-bounce.',
         ],
       },
     ],

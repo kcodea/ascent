@@ -1327,7 +1327,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (n <= 0) return;
     const a = num(params.attack, 1) * n, h = num(params.health, 1) * n;
     const arena = combatArena(ctx, self);
-    for (const m of ctx.living(self.side)) if (arena.isTribe(m, tribe as Tribe)) ctx.buff(m, a, h, self.name);
+    // `self.uid`, not `self.name` (2026-09-15): the buff event's `source` is what the combat replay draws the
+    // tribe tendril FROM. A NAME is a label source — the replay treats it as bodiless (a hero power, a rune) and
+    // draws nothing — so Old Timber's Start of Combat paid its Spirits invisibly. Presentation metadata only;
+    // the grant is unchanged.
+    for (const m of ctx.living(self.side)) if (arena.isTribe(m, tribe as Tribe)) ctx.buff(m, a, h, self.uid);
   },
   /* ── SET 3 SPIRITS (tranche 2) — the hand-summon cards ──────────────────────────────────────────── */
 

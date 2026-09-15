@@ -11507,12 +11507,15 @@ export function applyEndOfTurn(state: RunState): void {
   if (tempest > 0 && hasPower(state, 'tempest') && state.board.length > 0) {
     const ends = new Set([state.board[0]!, state.board[state.board.length - 1]!]);
     const fire = (): void => { for (const c of ends) addBuff(c, 'Tempest', tempest, tempest); };
-    if (collector.enabled) {
-      collector.withTrigger(
-        { phase: 'endOfTurn', source: beatSource('hero', 'aevor', 'Tempest'), trigger: 'endOfTurn', ...beatIdentity('hero:aevor:tempest') },
-        fire,
-      );
-    } else fire();
+    // `withRecruitTrigger` — the DIFFING scope — not a plain `collector.withTrigger` (2026-09-15): the plain
+    // scope opened a hero beat that emitted NO consequences, so the two grants landed silently at commit with
+    // nothing to present. Diffed, each end minion's gain is its own `statsChanged`, which the presenter draws
+    // as the tendril from the hero-power button (one per recipient). A no-op on the NOOP collector.
+    withRecruitTrigger(
+      ctx,
+      { phase: 'endOfTurn', source: beatSource('hero', 'aevor', 'Tempest'), trigger: 'endOfTurn', ...beatIdentity('hero:aevor:tempest') },
+      fire,
+    );
     fires++;
   }
   // Accumulate for the same reason as `lastShoutFires` — the reducer zeroes it per action, and an action can

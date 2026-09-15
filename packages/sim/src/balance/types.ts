@@ -67,6 +67,19 @@ export interface ExperimentManifest {
    *  prepares EVERY seat through the player's full combat builder; `shipped` reproduces the served-board path a seat
    *  takes against the live player today. Labelled on the record, never inferred. */
   fightRules?: 'corrected' | 'shipped';
+  /** MATRIX (additive, `balance:matrix`): seat 0's hero, PINNED for this lobby. The other seats rotate from the
+   *  roster minus it (a hero sits at most once per lobby). A tribe-gated pinned hero whose gate the seat's rolled
+   *  tribes do not meet is a lobby FAILURE (reported, never padded). Runners that seat only one pilot (`pinnedLobby`)
+   *  read it as the pilot's hero. */
+  pinnedHero?: string;
+  /** MATRIX (additive): an exploration index the strategist pilot may fold into its line choice so one hero plays
+   *  different lines across a job (`balance:matrix --exploration-rotate` sets `(seed − start) mod K`). 0 / absent =
+   *  natural play. A pilot without lines ignores it; the record still carries it so a report can split on it. */
+  exploration?: number;
+  /** MATRIX (additive): present on the job's BASE manifest only — the schedule `balance:matrix` planned from it.
+   *  Per-lobby manifests derive from the base (`pinnedHero`, `exploration`, `seeds`, `name` differ; everything
+   *  else is identical) and never carry this field. */
+  matrix?: { runsPerHero: number; heroes: readonly string[]; explorationK?: number };
   notes?: string;
 }
 
@@ -159,6 +172,10 @@ export interface EffectEvent {
    *  (`consumeShop` / `consumed` / `collapse` / `created`), `repeat` on an extra spell cast, a hero power's
    *  commission, a summon's origin (`battlecry` / `hand`). Never load-bearing for a table's headline count. */
   detail?: string;
+  /** MATRIX (additive): set by a strategist pilot on a `runePicked` / `cardGained` whose choice its line FORCED
+   *  (a rotation exploring a package, not a natural pick). `balance:findings` reports offered / picked / forced
+   *  separately; a job with no event carrying this field prints "forced exposure unknown". */
+  forced?: boolean;
 }
 
 export interface RoundRecord {
@@ -203,8 +220,9 @@ export interface RunRecord {
    *  recording's provenance, so the report can describe the opponent POPULATION (runs, authors, patches) without
    *  ever treating its placements as decisions a pilot made. */
   recording?: { key: string; author: string; patch?: string; waves: number };
-  /** B4 (additive): the strategy line the pilot declared for this run (strategist seats only). */
-  line?: LineRecord;
+  /** B4 (additive): the LINE a strategist pilot played — its primary package, an optional secondary, and how well
+   *  the line fit the run (`fitRank`: 0 = its best fit). Absent for pilots without lines (greedy, generalist). */
+  line?: { primary: string; secondary?: string; fitRank: number };
 }
 
 export interface LobbyRecord {

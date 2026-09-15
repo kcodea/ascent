@@ -39,6 +39,9 @@ export const ExperimentManifestSchema = z.object({
   corpus: z.object({ name: z.string().min(1), digest: z.string().min(1) }).strict().optional(),
   fightRules: z.enum(['corrected', 'shipped']).optional(),
   overlay: z.record(z.string(), z.object({ attack: z.number().optional(), health: z.number().optional(), tier: z.number().optional(), cost: z.number().optional(), params: z.record(z.string(), z.record(z.string(), z.union([z.number(), z.string(), z.boolean()]))).optional() }).strict()).optional(),
+  pinnedHero: z.string().min(1).optional(),
+  exploration: z.number().int().min(0).optional(),
+  matrix: z.object({ runsPerHero: z.number().int().min(1), heroes: z.array(z.string().min(1)), explorationK: z.number().int().min(1).optional() }).strict().optional(),
   notes: z.string().optional(),
 }).strict();
 

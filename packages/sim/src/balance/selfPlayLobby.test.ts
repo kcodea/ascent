@@ -139,6 +139,23 @@ describe('B1 — the eight-seat self-play lobby', () => {
     expect(short.failure).toMatch(/no eligible hero for seat 2/);
   });
 
+  it('MATRIX: `pinnedHero` sits in seat 0, the rotated seats are a per-(seed, hero) shuffle of the roster, and a pinned lobby id names the hero', () => {
+    const p1 = rotateHeroes(manifest('set2', { pinnedHero: 'warden' }), 1, 8);
+    expect(p1.failure).toBeUndefined();
+    expect(p1.heroIds[0]).toBe('warden');
+    expect(new Set(p1.heroIds).size).toBe(8);
+    expect(rotateHeroes(manifest('set2', { pinnedHero: 'warden' }), 1, 8).heroIds).toEqual(p1.heroIds); // deterministic
+    expect(rotateHeroes(manifest('set2', { pinnedHero: 'drakko' }), 1, 8).heroIds.slice(1)).not.toEqual(p1.heroIds.slice(1)); // keyed by hero too
+    // Five paired seeds × two pinned heroes seat far more than the dozen heroes a plain `seed + i` walk would.
+    const seen = new Set<string>();
+    for (const h of ['warden', 'drakko']) for (let seed = 1; seed <= 5; seed++) for (const id of rotateHeroes(manifest('set2', { pinnedHero: h }), seed, 8).heroIds.slice(1)) seen.add(id);
+    expect(seen.size).toBeGreaterThan(30);
+    expect(() => rotateHeroes(manifest('set2', { pinnedHero: 'nobody' }), 1, 8)).toThrow(/unknown hero/);
+    const rec = runSelfPlayLobby(manifest('set2', { pinnedHero: 'warden', maxRounds: 1 }), 1, greedy, NOOP_RECORDER, identity);
+    expect(rec.lobbyId).toBe('selfPlayLobby:set2:greedy:warden:1');
+    expect(rec.seats[0].heroId).toBe('warden');
+  });
+
   it('a seat failure censors the LOBBY: every run terminates `failed`, nothing is recorded as a loss', () => {
     // Seat 3 goes silent on round 2 with a Discover-like modal it will not answer: it proposes an illegal move forever.
     const stuck: SeatPilot = { id: 'stuck', decide: (run, ctx) => (ctx.round >= 2 ? { type: 'upgrade' } : GREEDY_PILOT.decide(run, ctx)) };

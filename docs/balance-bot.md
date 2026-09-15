@@ -18,6 +18,8 @@ npm run balance:manifest -- <manifest.json>   # print the resolved manifest + id
 npm run balance:synth   -- --set set3 --seeds 20 --out synth   # a synthetic job to exercise the report
 npm run balance:corpus  -- --set set2 --out set2-players-v1 [--patch 0.1.0+]   # the recorded PLAYER corpus a pinnedLobby job names
 npm run balance:run     -- --manifest packages/tools/src/balance/manifests/set2-pinned-smoke.json --out set2-pinned-smoke
+npm run balance:matrix  -- --manifest packages/tools/src/balance/manifests/set2-generalist-200.json --runs-per-hero 30 --out set2-matrix [--heroes a,b] [--exploration-rotate] [--workers 8]
+npm run balance:findings -- --job set2-matrix --out findings.md [--format json] [--q 0.1] [--margin 0.25] [--min-support 20]
 ```
 
 A **manifest** names the game being measured: mode (`selfPlayLobby` and `pinnedLobby` are wired), set, policy +
@@ -64,6 +66,47 @@ with `--allow-diff contentDigest,manifestDigest`; read the seven questions the c
 the target move; rules or policy; acquisition consistency; dominant combos; pacing / diversity; early cards;
 unsupported). The A/A self-check (`compare x x`) reports zero effect; the synthetic positive control (`synth
 --nerf <hero>=1.5`) registers with a CI excluding zero.
+
+### The hero matrix + the findings report (owner ask 2026-09-15)
+
+"Sim it 30 times for every hero where it picks different lines and runes and cards … catch the outliers on both
+overpowered and underpowered cards / runes / heroes." Two commands:
+
+**`balance:matrix`** plans a SCHEDULE from a base manifest: every playable hero of the set (production eligibility
+— `playableHeroes()`, minus a tribe-gated hero no tribe of the set can seat) × N runs. Each run is one lobby with
+seat 0 PINNED to the hero (`manifest.pinnedHero`, honoured by `rotateHeroes`; the other seven rotate from the roster
+minus it) on a PAIRED seed schedule — the same N seeds for every hero, so heroes are compared on identical seat-0
+run seeds, shop draws and fight RNG. `--exploration-rotate` sets `manifest.exploration = (seed − start) mod K`
+(K default 4) so a strategist pilot plays different lines across a hero's runs; today's pilots ignore it and the
+record still carries it. One job holds every lobby (`lobbies/<hero>-<seed>.json`; the job's `manifest.json` is the
+base plus a `matrix` plan, each record carries its derived per-lobby manifest), it resumes like `balance:run`,
+prints progress + ETA, and `--workers N` shards it across N child processes. The runner follows the base
+manifest's `mode` — `selfPlayLobby` today; `pinnedLobby` is loaded dynamically and reports "not on this branch"
+until `feat/balance-pinned` merges. A lobby whose seat 0 did not get its hero is FAILED, never accepted.
+
+**`balance:findings`** is the owner-facing report, in this order: **coverage** (heroes × planned / complete /
+failed, lines played per hero when the pilot has lines, paired-seed check, and the UNEXERCISED list — content never
+offered / never bought / never played is *unmeasured, not weak*); **outlier scans** for heroes (mean placement
+over every seat the hero sat in, lobby-level bootstrap CI, top-half rate, elimination-round median, plus the
+pinned-seat mean), runes (owner lift paired within lobbies that hold both sides, pick rate WHEN OFFERED,
+acquisition round, `forced` picks reported separately or "forced exposure unknown"), minions and spells
+(offer → buy → play/cast funnel, held-vs-not lift shrunk with k = 10, triple rate, held-never-played rate, and the
+**always-bought (≥ 90%) / never-bought (≤ 5%)** lists); **interactions** (hero × rune, rune × line, minion × minion
+on winning boards — sparse cells suppressed); **pacing + strategy concentration** (tier / unspent / turnover
+curve, winner Herfindahl, line prevalence); and **what to test next** — the top 5 OP and top 5 UP entities each
+turned into a bounded candidate patch (an `overlay` snippet for a card; a named `HeroDef.armor` / `RuneDef.cost`
+parameter for a hero / rune) with the `balance:compare` line to run.
+
+How to read a flag: an entity is **OVERPOWERED / UNDERPOWERED** only when (1) it has at least `--min-support`
+placed runs (default 20 — a matrix at 5 runs/hero flags nothing on the pinned seat alone; the all-seat sample
+is what carries the support), (2) its two-sided bootstrap p-value survives **Benjamini–Hochberg at q = 0.1**
+within its family (all heroes; all runes; all minions; all spells — each family is one scan), and (3) its 95% CI
+clears the population mean (heroes) or zero (lifts) by `--margin` (default 0.25 placements). "sig., inside margin"
+means BH passed but the effect is too small to act on. Rune and card lifts are **matched**: the control for an
+owner is the seats of the same lobby that had the same exposure (reached a Runeforge / saw the card offered), were
+still alive at the round it acquired the entity, and never held it — "owners vs everyone" would be mostly
+survivorship. Everything is evidence level 1; the suggestion list is the bridge to a level-3 `compare`.
+`--format json` carries the full lists the markdown truncates.
 
 ## The strategist pilot (B4, 2026-09-15)
 
@@ -161,8 +204,79 @@ reconstructed from `cardGained` effect events.
   the first measurement against real players and it says the smoke-budget generalist is well below the recorded
   field — a pilot-competence finding, not a balance signal.
 - Two instrument defects surfaced and were fixed on the integration branch: the runner recorded the shop row as
+- **Set 2 hero matrix smoke (53 heroes × 5 paired seeds, generalist, 8 workers):** see the matrix PR's devlog
+  entry (`docs/devlog/2026-09-15-balance-matrix-findings.md`) for the coverage, timings and the leads that
+  survived support + FDR.
+- Three instrument defects surfaced and were fixed on the integration branch: the runner recorded the shop row as
   the "offers" of a Runeforge action (the Runes table listed Starforms as runes offered); and the legacy
-  `fightScore` fallback was retired (a missing opponent pool now yields `panel: 'procedural'` on the result).
+  `fightScore` fallback was retired (a missing opponent pool now yields `panel: 'procedural'` on the result); and
+  the self-play runner emitted its own lean effect diff (`cardGained` keyed by `targetId`) while the aggregate read
+  the recorder's attributer (`sourceId`, lineage routes), so every REAL job's minion / spell funnel read "bought 0" —
+  `playRecruitTurn` now takes a per-seat `lineage` and derives effects through `effectsFromTransition.ts`.
+
+## The bar (owner, 2026-09-15)
+
+Pilot strength is measured as **mean placement over ≥ 100 pinned lobbies against the real set-2 recorded
+population**: **under 4.0 = solid (the minimum to pass)**, **under 3.0 = great (the target)**, **under 2.0 =
+phenomenal**; 4.4 is a below-average player and does not pass. The generalist baseline (smoke budget) is
+**6.80 [6.56, 7.05]**; search depth alone did not move it (6.76 at depth 2 / beam 3). Balance findings from a
+pilot below the bar are leads about the *pilot*, not the game.
+
+## Learned value (2026-09-15)
+
+The pinned lobbies diagnosed a STRATEGIC gap (placement 6.80/8 at depth 1, 6.76 at depth 2): real players tier a
+full level earlier, hold 1–2 bodies at waves 2–3, and scale exponentially from wave 8 because they build engines;
+the pilot fills seven slots with bodies by wave 7 and wins 5% of fights from wave 9. The learned value model is the
+piece that lets the pilot learn what surviving boards look like FROM THE RECORDINGS instead of from a hand-written
+proxy. It lives in `packages/sim/src/balance/value/` (features, model, the term, the committed model) and
+`packages/tools/src/balance/value/` (dataset builder, fit, report).
+
+```bash
+npm run balance:value:dataset -- --corpus set2-players-v1 --jobs set2-pinned-gen-smoke100,set2-pinned-gen-dev100 --out set2-v1
+npm run balance:value:fit     -- --dataset set2-v1 --out set2-v1 [--lambda 100] [--pinned-weight 1] [--sweep 10,30,100,300]
+npm run balance:value:report  -- --model set2-v1 [--dataset set2-v1]
+```
+
+**The label is SURVIVAL, not placement.** A recording carries no placement, so a board at wave *w* of a run whose
+last recorded wave is *L* is labelled `(L − w) / (maxWave − w)` (`maxWave` = the corpus' last recorded wave, 18 for
+`set2-players-v1`); `reachedTop` (`L ≥ 14`) is kept as the top-finish proxy. A run that reached the end-game scores
+1 whether it won or lost the final — late survival means "reached the end-game", never "won". Pinned-lobby PILOT
+rounds are rows too (same label; the recorded seats are the corpus again), and they additionally carry the pilot's
+final placement (`(8 − placement) / 7`) and that round's fight result as EVALUATION columns (rank-correlation
+targets), never as fitted labels.
+
+**Leakage rules.** Features come from ONE function (`featuresOfInput`, reached by `featuresOf(visibleState)` at
+inference and `featuresOfSnapshot` in the dataset builder, so training and inference cannot drift) and read only
+what the player sees at the end of a recruit turn: wave, tier, tier − expected(wave) (the diagnosis curve), Gold
+unspent, board and hand size, stat totals / maxima, goldens, mean/max minion tier, pairs held, own Resolve + Armor,
+keyword counts, tribe counts + dominant-tribe share, and twelve MECHANIC buckets derived from the effect vocabulary
+(`packages/content/src/schema.ts`: per-turn scalers, on-play, death, summon, spell synergy, Ruby, Ale, Consume,
+attachment, combat-time, shop buffs, card generation — the rules print at the bottom of the report). Nothing from
+the opponent, the served board, the future shop, the seed or the fight result. A recorded snapshot has no Gold, so
+that column is `null` and imputed to the wave mean — never faked as 0. Validation splits by ORIGINATING RUN (the
+row's `group`: corpus run key, or job + lobby + seat), never by board; the null model is the training fold's
+per-wave mean.
+
+**The model** is a deterministic ridge regression (closed form, no RNG), one weight vector per wave band (early
+1–5 / mid 6–10 / late 11+), on features standardised PER WAVE (shrunk toward the band for thin waves, clipped at
+±6) so a weight reads "one wave-σ more of this than the typical board at that wave". `set2-v1` (λ 100, chosen by
+the run-split sweep) on 2,716 rows (794 corpus / 70 runs + 1,922 pilot rounds / 200 lobbies): held-out R² 0.483
+vs null 0.250 overall; on the recordings alone 0.195 vs −0.201 (Spearman 0.48 vs 0.24); early band R² 0.31 (null
+0.09), mid 0.51 (null 0.07), **late 11+ is NOT predictive (−0.05, 218 rows)** — treat the late band as the
+intercept. What the weights say: at every band the strongest board predictor of survival is mean minion tier for
+the wave (+ tier gap), then per-turn scalers (`mech_perTurn`), Consume and Kobold engines; at waves 6–10 an
+unspent hand, Wards and Taunts on the board, and a Demon/Dragon/Dwarf-heavy board predict elimination; at 11+
+card generation and tribe concentration help. `valueTermOf(visibleState, model)` returns the expected normalised
+survival (`null` = no opinion); `loadDefaultValueModel('set2')` returns the committed model.
+
+**Standalone worth, measured (50 pinned lobbies, seeds 1–50, smoke budget, the term added to the evaluator's total
+at weight W, paired against the same seeds of the 6.80 baseline):** W 30 → 6.70 (Δ −0.14 ± 0.20, 10 better / 5
+worse); W 100 → 7.10 (Δ +0.17 ± 0.31); W 300 → 7.64 (Δ +0.80 ± 0.34). The heavier the term the faster the pilot
+tiers (mean tier 3.0 at round 4 under W 300 vs 1.7 baseline — exactly the recorded curve) and the EARLIER it dies
+(24 of 50 eliminated in round 8), because the depth-1 search cashes the tier-up as an immediate fight loss it never
+recovers from. The term knows what survivors look like; it does not know how to get there. It is a direction for
+the strategist (B4), not a drop-in weight: blend it small (≤ 30), or use it to choose BETWEEN plans of equal fight
+strength, and pair it with a tempo plan that fields a fight-winning board the round after a tier-up.
 
 ## Trust ledger
 
@@ -177,6 +291,7 @@ What each layer proves today, and what it does not. Check the boxes as the gates
 | Strategist (B4) | plays a declared line (primary + secondary package) with the generalist's legality and information boundary; takes affine runes, engine pieces and profile-timed tiers in the curricula; BEATS the generalist in mixed self-play (4.05 vs 5.33, paired +1.27 [0.42, 2.13], 20 lobbies); line diversity 9–10 primaries per hero over 30 seeds under `strategist:rotate` | **competence against real players** — 6.72 [6.44, 6.99] in 100 pinned set-2 lobbies (owner scale: < 4.0 passes); a claim that a line is STRONG or WEAK (fit is a construction prior, not a strength estimate); packages a set cannot field (labelled unsupported) | the prior is capped and one-turn: it cannot see compounding engines; the evaluator's fight terms lose all gradient once the field outgrows the pilot (B3 work); the hero intent manifest is hand-maintained design intent, not measured. |
 | Recorder / report (B5) | accepted-action reconciliation (pre/post state hash), offer → buy → play funnels per surface, spell casts by route, sold cards visible, failed/censored runs separated, lobby-level bootstrap CIs, deterministic regeneration | causal claims | everything in the report is evidence level 1 until a `compare` job exists for the change. |
 | Compare (B6) | A/A = zero effect; synthetic positive control registers | a real candidate | no real patch experiment has been run yet — the first one is the next step. |
+| Learned value (`sim/balance/value`) | what SURVIVING recorded boards look like at waves 1–10 (run-split held-out R² 0.31 early / 0.51 mid vs a wave-mean null of 0.09 / 0.07; the weight table is readable) | placement (recordings have none), the late game (11+ not predictive), and using it as a SEARCH TARGET on its own (measured: W 300 → 7.64, worse than the 6.80 baseline) | survival is the label; the pilot's rows dominate the dataset 2.4:1; a linear model of visible board shape cannot see the tempo needed to survive a tier-up. |
 | Pinned lobby (`pinnedLobby` + `balance:corpus`) | the pilot's placement in the game **as shipped** against a **frozen, digest-pinned population of real player recordings** (the seat fill, the served boards, the settlement and the placements are the client's own code paths; determinism; a thin corpus censors rather than pads) | any claim that a patch changes how *players* fare, or hero/card strength beyond the pilot's own play | recordings do not adapt: a pinned job measures the PILOT against the population as it was recorded, under the CURRENT rules — a card change moves the pilot's boards and the fights, never the recorded boards' build orders, so a placement shift is "the pilot vs yesterday's players", not a new meta. The recordings' own placements are the complement of the pilot's over eight seats and are printed only for reading. Recording-vs-recording fights are the shipped tier-only path (`runLobby.ts` `settleRunLobbyRound`), the same as the live game. A corpus mixes patches (35 stamps in `set2-players-v1`); `--patch <prefix>` narrows it, at the cost of runs. |
 
 ## Next steps, in order

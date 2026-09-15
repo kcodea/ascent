@@ -7,6 +7,8 @@
  *   npm run balance:synth   -- --set set3 --seeds 20 [--start 1] [--out <jobId>] [--heroes a,b,c] [--nerf <heroId>=<bias>] [--fail-rate 0.1]
  *   npm run balance:run     -- --manifest <experiment.json> [--out <jobId>] [--budget <profile>]
  *   npm run balance:corpus  -- --set set2 --out set2-players-v1 [--patch 0.1.0+]   (the recorded player corpus a pinnedLobby job names)
+ *   npm run balance:matrix  -- --manifest <base.json> --runs-per-hero 30 --out <jobId> [--heroes a,b] [--exploration-rotate] [--workers 4]
+ *   npm run balance:findings -- --job <jobId> [--out findings.md] [--format md|json] [--min-support 20] [--q 0.1] [--margin 0.25]
  *
  * Reports print to stdout unless `--out` names a file. Jobs live under packages/tools/src/balance/out/<jobId>/.
  */
@@ -21,6 +23,8 @@ import { buildPool, registerPool } from './pool';
 import { buildCorpus, describeCorpus, fetchCorpusBoards, registerCorpus, supabaseConfig, writeCorpus } from './corpus';
 import { applyContentOverlay } from '@game/sim/balance/overlay';
 import { createRecorder, pilotFor, runPinnedLobby, runSelfPlayLobby, synthesizeLobby, syntheticIdentity, syntheticManifest, type ExperimentIdentity, type SyntheticOptions } from './deps';
+import { matrixProgress, planMatrix, runMatrix, runWorkers, runnerFor, fmtDuration } from './matrix';
+import { computeFindings, renderFindings } from './findings';
 import type { SetId } from '@game/content';
 
 type Args = Record<string, string | true>;
@@ -39,6 +43,16 @@ function parseArgs(argv: readonly string[]): { cmd: string; args: Args } {
 const str = (args: Args, k: string, d?: string): string | undefined => (typeof args[k] === 'string' ? (args[k] as string) : d);
 const num = (args: Args, k: string, d: number): number => { const v = str(args, k); return v === undefined ? d : Number(v); };
 const need = (args: Args, k: string): string => { const v = str(args, k); if (!v) throw new Error(`missing --${k}`); return v; };
+/** Drop `--name [value]` pairs from a raw argv (so a parent can re-invoke the CLI for its workers). */
+function stripFlags(argv: readonly string[], names: readonly string[]): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a.startsWith('--') && names.includes(a.slice(2))) { if (argv[i + 1] !== undefined && !argv[i + 1].startsWith('--')) i++; continue; }
+    out.push(a);
+  }
+  return out;
+}
 
 function emit(text: string, out: string | undefined): void {
   if (out) { writeFileSync(out, text, 'utf8'); console.log(`wrote ${out} (${text.length} chars)`); } else console.log(text);
@@ -58,6 +72,55 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
       const path = writeCorpus(file);
       console.log(`fetched ${rows} rows for ${setId}; ${boards.length} eligible (non-synthetic, non-empty${patchPrefix ? `, patch ${patchPrefix}*` : ''}), ${file.boards.length} unique → ${path}`);
       console.log(describeCorpus(file));
+      return;
+    }
+    case 'matrix': {
+      // THE HERO MATRIX (matrix.ts): every playable hero × N paired seeds, seat 0 pinned, one resumable job.
+      const base = loadManifest(need(args, 'manifest'));
+      for (const d of applyContentOverlay(base.overlay)) console.log(`overlay ${d.cardId}: ${d.before}  →  ${d.after}`);
+      const heroes = (str(args, 'heroes') ?? '').split(',').map((h) => h.trim()).filter(Boolean);
+      const plan = planMatrix(base, { runsPerHero: num(args, 'runs-per-hero', 30), ...(heroes.length ? { heroes } : {}), explorationRotate: args['exploration-rotate'] === true, explorationK: num(args, 'exploration-k', 4) });
+      const identity = computeNodeIdentity(plan.base);
+      if (plan.base.mode === 'pinnedLobby' && !plan.base.corpus) throw new Error('balance:matrix — a pinnedLobby manifest must name its corpus ({ name, digest } from balance:corpus)');
+      if (plan.base.corpus) { const c = registerCorpus(plan.base.corpus); console.log(`corpus "${plan.base.corpus.name}": ${c.registered} boards registered, ${c.runs} runs / ${c.authors} authors`); if (c.file.setId !== plan.base.setId) throw new Error(`balance:matrix — corpus is ${c.file.setId}; the manifest is ${plan.base.setId}`); }
+      if (plan.base.opponentPool) console.log(`opponent pool "${plan.base.opponentPool.name}": ${registerPool(plan.base.opponentPool)} boards registered`);
+      const jobId = str(args, 'out') ?? `${base.name}-matrix-${identity.manifestDigest.slice(0, 8)}`;
+      createJob(jobId, plan.base, identity);
+      const shardArg = str(args, 'shard');
+      const workers = num(args, 'workers', 1);
+      const t0 = Date.now();
+      if (workers > 1 && !shardArg) {
+        console.log(`job "${jobId}": ${plan.heroes.length} heroes × ${plan.seeds.length} seeds (${plan.seeds[0]}…${plan.seeds[plan.seeds.length - 1]}, paired) = ${plan.entries.length} lobbies across ${workers} workers`);
+        const passthrough = stripFlags(argv.slice(1), ['workers', 'out']);
+        const codes = await runWorkers([...passthrough, '--out', jobId], workers);
+        const bad = codes.filter((c) => c !== 0).length;
+        if (bad) console.error(`${bad} of ${workers} workers exited non-zero — the job is partial; re-run the same command to resume`);
+      } else {
+        const runner = await runnerFor(plan.base.mode);
+        const budgetOverride = str(args, 'budget');
+        const shard = shardArg ? { index: Number(shardArg.split('/')[0]), count: Number(shardArg.split('/')[1]) } : undefined;
+        runMatrix(plan, {
+          jobId, identity, runner, shard,
+          pilotFor: (m) => pilotFor(budgetOverride ? `${m.policy.id}:${budgetOverride}` : m.policy.id, m.policy.budget),
+          recorderFor: createRecorder,
+        });
+      }
+      if (shardArg) return; // a worker: the parent prints the summary
+      const progress = matrixProgress(jobId, plan);
+      const job = loadJob(jobId);
+      const agg = aggregate(job.lobbies, { minSupport: num(args, 'min-support', 20), bootstrapReps: num(args, 'reps', 1000), seed: num(args, 'seed', 1) });
+      writeSummary(jobId, agg.coverage);
+      console.log(`job "${jobId}": ${progress.complete} complete, ${progress.failed} failed, ${progress.missing.length} missing of ${plan.entries.length} planned — ${fmtDuration((Date.now() - t0) / 1000)} this invocation → ${job.dir}`);
+      if (progress.missing.length) console.log(`  missing: ${progress.missing.slice(0, 12).join(', ')}${progress.missing.length > 12 ? ` … (+${progress.missing.length - 12})` : ''} — re-run the same command to resume`);
+      console.log(`findings: npm run balance:findings -- --job ${jobId} --out findings.md`);
+      return;
+    }
+    case 'findings': {
+      const job = loadJob(need(args, 'job'));
+      if (job.rejected.length) console.error(`note: ${job.rejected.length} lobby file(s) rejected: ${job.rejected.map((r) => `${r.key} (${r.reason})`).join('; ')}`);
+      const f = computeFindings(job.lobbies, { minSupport: num(args, 'min-support', 20), bootstrapReps: num(args, 'reps', 1000), seed: num(args, 'seed', 1), q: num(args, 'q', 0.1), margin: num(args, 'margin', 0.25), baseManifest: job.manifest });
+      const format = (str(args, 'format', 'md') as 'md' | 'json');
+      emit(renderFindings(f, { format, jobId: job.jobId, identity: job.identity, maxRows: num(args, 'max-rows', 25) }), str(args, 'out'));
       return;
     }
     case 'report': {
@@ -152,7 +215,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
       return;
     }
     default:
-      console.log('usage: balance <report|compare|synth|list|run|pool|corpus> [--flags]  (see packages/tools/src/balance/cli.ts)');
+      console.log('usage: balance <report|compare|synth|list|run|pool|corpus|matrix|findings> [--flags]  (see packages/tools/src/balance/cli.ts)');
   }
 }
 

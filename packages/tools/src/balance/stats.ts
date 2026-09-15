@@ -122,3 +122,87 @@ export const herfindahl = (counts: readonly number[]): number | undefined => {
   if (!t) return undefined;
   return counts.reduce((a, c) => a + (c / t) * (c / t), 0);
 };
+
+// ── findings (balance:findings): p-values + false-discovery control ─────────────────────────────────────────
+
+export interface TestedCI extends CI {
+  /** Two-sided bootstrap p-value against the null (the share of resampled statistics on the far side of it,
+   *  doubled, floored at 1/reps). Undefined when the CI is empty or degenerate (< 2 lobbies). */
+  p: number | undefined;
+}
+
+/** Two-sided p from sorted bootstrap draws vs a null value: 2·min(P(draw ≤ null), P(draw ≥ null)). */
+function pFromDraws(draws: readonly number[], nullValue: number): number | undefined {
+  if (!draws.length) return undefined;
+  let le = 0, ge = 0;
+  for (const d of draws) { if (d <= nullValue) le++; if (d >= nullValue) ge++; }
+  const p = 2 * Math.min(le, ge) / draws.length;
+  return Math.max(1 / draws.length, Math.min(1, p));
+}
+
+/** `bootstrapMean` plus a two-sided p-value against `nullValue` (e.g. the population mean placement). */
+export function bootstrapMeanTest(partials: readonly LobbyPartial[], nullValue: number, reps: number, rng: Rng): TestedCI {
+  const xs = partials.filter((p) => p.n > 0);
+  const n = xs.reduce((a, p) => a + p.n, 0);
+  if (!xs.length || n === 0) return { ...EMPTY_CI, p: undefined };
+  const est = xs.reduce((a, p) => a + p.sum, 0) / n;
+  if (xs.length < 2) return { est, lo: est, hi: est, n, lobbies: xs.length, p: undefined };
+  const draws: number[] = [];
+  for (let r = 0; r < reps; r++) {
+    let s = 0, c = 0;
+    for (let i = 0; i < xs.length; i++) { const p = xs[rng.int(xs.length)]; s += p.sum; c += p.n; }
+    if (c > 0) draws.push(s / c);
+  }
+  draws.sort((a, b) => a - b);
+  const [lo, hi] = quantiles(draws);
+  return { est, lo, hi, n, lobbies: xs.length, p: pFromDraws(draws, nullValue) };
+}
+
+/**
+ * Difference of two means (a − b) where both groups live in the SAME lobbies (owners vs non-owners of a rune, runs
+ * that held a card vs runs that did not): each lobby carries an `a` and a `b` partial and is resampled as a unit —
+ * a lobby holding both sides is a PAIRED observation (the seed's shared randomness cancels), a lobby holding one
+ * side contributes to that side's pooled mean only. `paired` counts the lobbies with both. p is two-sided vs 0.
+ */
+export function pairedDiffTest(perLobby: readonly { a: LobbyPartial; b: LobbyPartial }[], reps: number, rng: Rng): TestedCI & { paired: number } {
+  const L = perLobby.filter((x) => x.a.n > 0 || x.b.n > 0);
+  const paired = L.filter((x) => x.a.n > 0 && x.b.n > 0).length;
+  const tot = (sel: (x: { a: LobbyPartial; b: LobbyPartial }) => LobbyPartial): LobbyPartial => L.reduce((acc, x) => ({ sum: acc.sum + sel(x).sum, n: acc.n + sel(x).n }), { sum: 0, n: 0 });
+  const A = tot((x) => x.a), B = tot((x) => x.b);
+  if (!A.n || !B.n) return { ...EMPTY_CI, p: undefined, paired };
+  const est = A.sum / A.n - B.sum / B.n;
+  const n = A.n + B.n;
+  if (L.length < 2) return { est, lo: est, hi: est, n, lobbies: L.length, p: undefined, paired };
+  const draws: number[] = [];
+  for (let r = 0; r < reps; r++) {
+    let as = 0, an = 0, bs = 0, bn = 0;
+    for (let i = 0; i < L.length; i++) { const x = L[rng.int(L.length)]; as += x.a.sum; an += x.a.n; bs += x.b.sum; bn += x.b.n; }
+    if (an && bn) draws.push(as / an - bs / bn);
+  }
+  draws.sort((x, y) => x - y);
+  const [lo, hi] = quantiles(draws);
+  return { est, lo, hi, n, lobbies: L.length, p: pFromDraws(draws, 0), paired };
+}
+
+/**
+ * Benjamini–Hochberg: which of `pvals` survive false-discovery control at level `q`. Sort ascending, find the
+ * largest k with p(k) ≤ (k / m)·q, reject all of rank ≤ k. Entries with an undefined p are never rejected and do
+ * not count toward m. Returns one boolean per input, in input order.
+ */
+export function benjaminiHochberg(pvals: readonly (number | undefined)[], q: number): boolean[] {
+  const idx = pvals.map((p, i) => ({ p, i })).filter((x): x is { p: number; i: number } => x.p !== undefined).sort((a, b) => a.p - b.p);
+  const m = idx.length;
+  let k = 0;
+  for (let r = 1; r <= m; r++) if (idx[r - 1].p <= (r / m) * q) k = r;
+  const out = pvals.map(() => false);
+  for (let r = 0; r < k; r++) out[idx[r].i] = true;
+  return out;
+}
+
+/** Median of a list (undefined when empty). */
+export const median = (xs: readonly number[]): number | undefined => {
+  if (!xs.length) return undefined;
+  const s = [...xs].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+};

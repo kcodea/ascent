@@ -72,6 +72,8 @@ export interface PilotBudget {
   macroCommitFrom?: number;
   macroCommitTo?: number;
   macroPivotWave?: number;
+  macroSeeds?: number;
+  macroCommitGain?: number;
 }
 
 export interface ExperimentManifest {

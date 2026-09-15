@@ -437,14 +437,14 @@ export const horizonStats = (): { probes: number; cached: number } => ({ probes:
  *  (measured 2026-09-15: a Packstrider lost to a stat-identical vanilla by 0.03 utility on one seed's Consume). */
 export const HORIZON_SEEDS = 3;
 
-export function probeHorizon(v: BotVisibleState, panelSeed: number): HorizonProbe | null {
-  const key = `h|${panelSeed}|${growthKey(v)}`;
+export function probeHorizon(v: BotVisibleState, panelSeed: number, seeds = HORIZON_SEEDS): HorizonProbe | null {
+  const key = `h|${panelSeed}|${seeds}|${growthKey(v)}`;
   const hit = HCACHE.get(key);
   if (hit !== undefined) return hit;
   if (HCACHE.size >= CACHE_LIMIT) HCACHE.clear();
   HPROBES++;
   const runs: HorizonProbe[] = [];
-  for (let i = 0; i < HORIZON_SEEDS; i++) {
+  for (let i = 0; i < seeds; i++) {
     const one = probeFuture(v, (panelSeed + i * 0x9e37) >>> 0, (p) => {
       const t1 = script(p, v);
       if (!t1 || t1.end.phase !== 'recruit') return null;
@@ -473,15 +473,15 @@ export function probeHorizon(v: BotVisibleState, panelSeed: number): HorizonProb
  * untouched, and the macro weights the answer by the CHANCE of finding the piece (`combos.ts::findChance`).
  * Pieces still missing after turn one are planted again for turn two. Memoised beside the horizon probe.
  */
-export function probeCompletion(v: BotVisibleState, panelSeed: number, plant: readonly string[]): HorizonProbe | null {
-  if (plant.length === 0) return probeHorizon(v, panelSeed);
-  const key = `c|${panelSeed}|${[...plant].sort().join(',')}|${growthKey(v)}`;
+export function probeCompletion(v: BotVisibleState, panelSeed: number, plant: readonly string[], seeds = HORIZON_SEEDS): HorizonProbe | null {
+  if (plant.length === 0) return probeHorizon(v, panelSeed, seeds);
+  const key = `c|${panelSeed}|${seeds}|${[...plant].sort().join(',')}|${growthKey(v)}`;
   const hit = HCACHE.get(key);
   if (hit !== undefined) return hit;
   if (HCACHE.size >= CACHE_LIMIT) HCACHE.clear();
   HPROBES++;
   const runs: HorizonProbe[] = [];
-  for (let i = 0; i < HORIZON_SEEDS; i++) {
+  for (let i = 0; i < seeds; i++) {
     const one = probeFuture(v, (panelSeed + i * 0x9e37) >>> 0, (p) => {
       const t1 = script(p, v, new Set(), { plant });
       if (!t1 || t1.end.phase !== 'recruit') return null;
@@ -516,13 +516,13 @@ export interface HorizonTerm {
 }
 
 /** The horizon probe's two terms for the pilot's re-ranking; null when the state cannot be probed two turns out. */
-export function horizonTermOf(v: BotVisibleState, panelSeed: number): HorizonTerm | null {
-  return termOf(v, probeHorizon(v, panelSeed));
+export function horizonTermOf(v: BotVisibleState, panelSeed: number, seeds = HORIZON_SEEDS): HorizonTerm | null {
+  return termOf(v, probeHorizon(v, panelSeed, seeds));
 }
 
 /** B11: the completion probe's terms — the same two numbers for the board WITH `plant` found and fielded. */
-export function completionTermOf(v: BotVisibleState, panelSeed: number, plant: readonly string[]): HorizonTerm | null {
-  return termOf(v, probeCompletion(v, panelSeed, plant));
+export function completionTermOf(v: BotVisibleState, panelSeed: number, plant: readonly string[], seeds = HORIZON_SEEDS): HorizonTerm | null {
+  return termOf(v, probeCompletion(v, panelSeed, plant, seeds));
 }
 
 function termOf(v: BotVisibleState, h: HorizonProbe | null): HorizonTerm | null {

@@ -69,7 +69,10 @@ describe('combos — the roster is derived from the content', () => {
           // finding: Gangplank is a Dwarf core the `ale` predicate scores 1).
           const score = Math.max(...combo.packages.map((p) => packageById(p).member(def!)));
           const want = combo.line === 'none' ? 0 : (OPERATORS[combo.line].roles[id]?.want ?? 0);
-          expect(Math.max(score, want), `${combo.id}: ${id} scores ${score} in ${combo.packages.join('/')} and wants ${want} in the ${combo.line} operator`).toBeGreaterThanOrEqual(2);
+          // A PAYOFF must be an engine / payoff member; a feeder or enabler may be a supporting member (a plain
+          // Rally body is what Paragon cashes; an Echo body is what Echohorn re-fires).
+          const bar = piece.role === 'payoff' ? 2 : 1;
+          expect(Math.max(score, want), `${combo.id}: ${id} scores ${score} in ${combo.packages.join('/')} and wants ${want} in the ${combo.line} operator`).toBeGreaterThanOrEqual(bar);
         }
       }
       expect(combo.pieces.some((p) => p.role === 'payoff'), `${combo.id} has no payoff`).toBe(true);

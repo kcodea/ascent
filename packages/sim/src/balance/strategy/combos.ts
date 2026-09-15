@@ -134,11 +134,6 @@ export const ENGINE_COMBOS: readonly EngineCombo[] = [
     pieces: [P('b2_echohorn', 'payoff'), P('sylus', 'enabler', { fromWave: 8 }), P(ECHO_BODIES, 'feeder')],
     note: 'Sylus: every Echo once more (the study: 21 boards, 90%)',
   },
-  {
-    id: 'beast-kennel-echo', line: 'beast', packages: ['beastSummon'], tribe: 'beast', fromWave: 2,
-    pieces: [P('kennel', 'payoff'), P(['b2_trex', 'b2_armadiyo', 'b2_bullseye', 'b2_mammoth'], 'feeder')],
-    note: 'Kennelmaster\'s Beast Aura on every summoned Beast (Kennelmaster holders survived +41%)',
-  },
   // ── Kobold Rubies: improve the Rubies, then a payoff that casts them ──
   {
     id: 'kobold-kobe-improvers', line: 'none', packages: ['ruby'], tribe: 'kobold', fromWave: 5,

@@ -114,6 +114,10 @@ export const MACRO_RESERVE = 4;
 export const MACRO_COMMIT_FROM = 3;
 export const MACRO_COMMIT_TO = 6;
 export const MACRO_PIVOT_WAVE = 7;
+export const MACRO_SEEDS = 2;
+export const MACRO_COMMIT_GAIN = 3;
+/** Combos probed per candidate state (the most advanced ones; the committed combo always). */
+export const MACRO_PROBED = 2;
 
 /**
  * A wave's board-mass reference — the procedural enemy curve's "healthy board" (`8 + 7·wave`, as `evaluate.ts`

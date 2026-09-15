@@ -32,7 +32,7 @@ import { OPERATORS } from './operators/operatorPilot';
 import { operatorFeedActions } from './operators/feedSteps';
 import type { PilotBudget, SeatContext, SeatPilot } from '../types';
 import { pickLineForRun, viableLineCount, type LineChoice, type LineImitation } from './lines';
-import { GROWTH_WEIGHT, HORIZON_FIGHT_WEIGHT, HORIZON_WEIGHT, IMITATION_WEIGHT, linePrior, MACRO_COMMIT_FROM, MACRO_COMMIT_TO, MACRO_FIGHT_WEIGHT, MACRO_PIVOT_WAVE, MACRO_RESERVE, MACRO_WEIGHT, PRIOR_WEIGHT, VALUE_WEIGHT } from './prior';
+import { GROWTH_WEIGHT, HORIZON_FIGHT_WEIGHT, HORIZON_WEIGHT, IMITATION_WEIGHT, linePrior, MACRO_COMMIT_FROM, MACRO_COMMIT_GAIN, MACRO_COMMIT_TO, MACRO_FIGHT_WEIGHT, MACRO_PIVOT_WAVE, MACRO_PROBED, MACRO_RESERVE, MACRO_SEEDS, MACRO_WEIGHT, PRIOR_WEIGHT, VALUE_WEIGHT } from './prior';
 import { loadDefaultValueModel, type ValueModel } from '../value';
 import { loadDefaultImitationModel, parseScoreOptions, type ImitationModel } from '../imitation';
 
@@ -73,6 +73,11 @@ export interface StrategistOptions {
   macroCommitFrom?: number;
   macroCommitTo?: number;
   macroPivotWave?: number;
+  /** B11: imagined futures per completion / horizon probe under the macros (default `MACRO_SEEDS` = 2 — the
+   *  runtime budget; 3 is the horizon's own default) and the expected utility gain that commits the reserve
+   *  (default `MACRO_COMMIT_GAIN`). */
+  macroSeeds?: number;
+  macroCommitGain?: number;
 }
 
 export interface StrategistPilot extends SeatPilot {
@@ -108,12 +113,15 @@ export function createStrategistPilot(budget: PilotBudget, seed: number, opts: S
   const macroCommitFrom = opts.macroCommitFrom ?? budget.macroCommitFrom ?? MACRO_COMMIT_FROM;
   const macroCommitTo = opts.macroCommitTo ?? budget.macroCommitTo ?? MACRO_COMMIT_TO;
   const macroPivotWave = opts.macroPivotWave ?? budget.macroPivotWave ?? MACRO_PIVOT_WAVE;
+  const macroSeeds = opts.macroSeeds ?? budget.macroSeeds ?? MACRO_SEEDS;
+  const macroCommitGain = opts.macroCommitGain ?? budget.macroCommitGain ?? MACRO_COMMIT_GAIN;
   const macrosOn = macroWeight > 0;
   const horizonOn = horizonWeight > 0 || horizonFightWeight > 0;
   // The horizon probe's panel seed for the decision in flight (set by `wrap`, read by `horizon`).
   let horizonSeed = 0;
   // B11: the run in flight (player-visible facts the macro term needs: tribes, set) — set by `wrap`.
   let current: { tribes: readonly string[]; setId: string; combos: readonly EngineCombo[] } | null = null;
+  let currentSeat = 'seat';
   const comboCache = new Map<string, readonly EngineCombo[]>();
   const combosOf = (run: RunState, line: LineChoice): readonly EngineCombo[] => {
     const key = `${run.setId ?? 'set2'}|${[...run.tribes].sort().join(',')}|${line.primary}|${line.secondary ?? ''}`;
@@ -131,22 +139,39 @@ export function createStrategistPilot(budget: PilotBudget, seed: number, opts: S
    * missing pieces found, weighted by the chance of drawing them over the commit window, else the plain horizon.
    * The best combo wins; a state with no stake in any combo reads the plain horizon.
    */
-  const macroTerm = (v: BotVisibleState): number | null => {
-    const value = (h: HorizonTerm | null): number | null => (h ? h.growth2 * macroWeight + h.fight2 * macroFightWeight : null);
-    const plain = value(horizonTermOf(v, horizonSeed));
-    if (!current) return plain;
-    let best = plain;
+  const value = (h: HorizonTerm | null): number | null => (h ? h.growth2 * macroWeight + h.fight2 * macroFightWeight : null);
+  /** The expected gain (utility) of assembling `combo` from `v` over holding what `v` holds: p × (completed − held). */
+  const comboGain = (combo: EngineCombo, v: BotVisibleState, plain: number | null): number | null => {
+    if (!current || v.wave < combo.fromWave) return null;
+    const prog = comboProgress(combo, v);
+    if (prog.heldPieces === 0 || prog.missing.length === 0) return null;
+    const completed = value(completionTermOf(v, horizonSeed, prog.missing, macroSeeds));
+    if (completed === null) return null;
     const inWindow = v.wave >= macroCommitFrom && v.wave <= macroCommitTo;
     const rollsPerTurn = 1 + (inWindow ? Math.floor(macroReserve / Math.max(1, v.economy.refreshCost)) : 0);
     const turns = Math.max(1, macroPivotWave - v.wave);
-    for (const combo of current.combos) {
-      if (v.wave < combo.fromWave) continue;
-      const prog = comboProgress(combo, v);
-      if (prog.heldPieces === 0 || prog.missing.length === 0) continue;
-      const completed = value(completionTermOf(v, horizonSeed, prog.missing));
-      if (completed === null) continue;
-      const p = completionChance(current.setId as SetId, current.tribes, prog.missing, v.economy.tier, { rollsPerTurn, turns });
-      const term = p * completed + (1 - p) * (plain ?? 0);
+    const p = completionChance(current.setId as SetId, current.tribes, prog.missing, v.economy.tier, { rollsPerTurn, turns });
+    return p * (completed - (plain ?? 0));
+  };
+  /** The combos worth probing from `v`, most advanced first (the committed one leads), capped at `MACRO_PROBED`
+   *  — the dragon roster alone has five combos sharing Chorus Drake, and each probe is two imagined futures. */
+  const stakes = (v: BotVisibleState, committedId: string | undefined): EngineCombo[] => {
+    if (!current) return [];
+    return current.combos
+      .map((combo, rank) => ({ combo, rank, prog: comboProgress(combo, v) }))
+      .filter((x) => v.wave >= x.combo.fromWave && x.prog.heldPieces > 0 && x.prog.missing.length > 0)
+      .sort((a, b) => (b.combo.id === committedId ? 1 : 0) - (a.combo.id === committedId ? 1 : 0) || b.prog.heldPieces - a.prog.heldPieces || a.rank - b.rank)
+      .slice(0, MACRO_PROBED)
+      .map((x) => x.combo);
+  };
+  const macroTerm = (v: BotVisibleState): number | null => {
+    const plain = value(horizonTermOf(v, horizonSeed, macroSeeds));
+    if (!current) return plain;
+    let best = plain;
+    for (const combo of stakes(v, inner?.commitmentOf(currentSeat)?.comboId)) {
+      const gain = comboGain(combo, v, plain);
+      if (gain === null) continue;
+      const term = (plain ?? 0) + gain;
       if (best === null || term > best) best = term;
     }
     return best;
@@ -186,12 +211,15 @@ export function createStrategistPilot(budget: PilotBudget, seed: number, opts: S
     commitFrom: macroCommitFrom,
     commitTo: macroCommitTo,
     pivotWave: macroPivotWave,
+    worth: (combo, v) => (comboGain(combo, v, value(horizonTermOf(v, horizonSeed, macroSeeds))) ?? -Infinity) >= macroCommitGain,
   } : undefined;
-  const inner = createGeneralistPilot(budget, seed, {
+  // eslint-disable-next-line prefer-const
+  let inner: GeneralistPilot | undefined;
+  inner = createGeneralistPilot(budget, seed, {
     id,
     replaceMacro: true,
     handDiscipline: true,
-    ...(macrosOn ? { horizonTop, horizon: macroTerm, macros: macroOptions } : horizonOn ? {
+    ...(macrosOn ? { horizonTop: opts.horizonTop ?? budget.horizonTop ?? 0, horizon: macroTerm, macros: macroOptions } : horizonOn ? {
       horizonTop,
       horizon: (v) => {
         const h = horizonTermOf(v, horizonSeed);
@@ -201,7 +229,7 @@ export function createStrategistPilot(budget: PilotBudget, seed: number, opts: S
     wrap: (run: RunState, ctx: SeatContext, decide: () => Action | null): Action | null => {
       const line = lineFor(run, ctx.seatId);
       const setId = run.setId ?? 'set2';
-      if (macrosOn) current = { tribes: run.tribes, setId, combos: combosOf(run, line) };
+      if (macrosOn) { current = { tribes: run.tribes, setId, combos: combosOf(run, line) }; currentSeat = ctx.seatId; }
       // B6: one growth panel seed per (pilot, round) — every candidate of every decision this turn is probed
       // against the same imagined future, and the probe cache carries across the turn's decisions.
       horizonSeed = mixSeed(seed, run.wave, 0x6f07) >>> 0;

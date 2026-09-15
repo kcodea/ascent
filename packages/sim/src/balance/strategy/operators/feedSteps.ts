@@ -63,8 +63,10 @@ export function operatorFeedActions(op: LineOperator, v: BotVisibleState, run: R
     const t = op.spellTarget(v, ruby.cardId, mem) ?? [...v.board].sort((a, b) => stats(b) - stats(a))[0];
     if (t) push({ type: 'play', uid: ruby.uid, targetUid: t.uid });
   }
-  const move = lineArrangementMove(op, v);
-  if (move) push(move);
+  // The line's ARRANGEMENT is deliberately not a feed step: the generalist's positioning pass (fight-scored) runs
+  // after every chain, and a chain that only repositions would fight it move for move (hit in the Dwarf curriculum:
+  // the champion seated left, the pass moving it back, the turn never ending). `lineArrangementMove` stays exported
+  // for a caller that pins seats the way the operator skeleton does.
   return out;
 }
 

@@ -238,6 +238,10 @@ export interface MacroOptions {
   commitTo: number;
   /** From this wave an incomplete commitment is abandoned. */
   pivotWave: number;
+  /** Is assembling `combo` from `v` worth committing the reserve to? (The strategist reads the completion probe:
+   *  the expected gain of the completed engine over the held board.) A payoff the ordinary search fielded commits
+   *  the seat only when this says so; an assemble step the re-ranking chose always does. */
+  worth: (combo: EngineCombo, v: BotVisibleState) => boolean;
 }
 
 /** How far below the current utility a forced hand play may fall before it is left in hand (see `forcedSpend`). */
@@ -394,7 +398,8 @@ export function assembleChain(root: PlanningStateHandle, rootFp: string, run: Ru
       if (!apply(next, `assemble ${combo.id}: feed ${next.type}`)) { refused.add(key); if (next.type === 'play') refused.add(`play:${next.uid}`); if (next.type === 'reposition') refused.add(`seat:${next.uid}`); continue; }
       if (!settle()) break;
     }
-    if (v.mandatoryDecision || steps.length === 0) return null;
+    // A chain is a plan only when it MOVES the engine (a buy, a play, a cast, a sell) — never repositions alone.
+    if (v.mandatoryDecision || !steps.some((st) => st.action.type !== 'reposition')) return null;
     return { combo, steps, utility: score(v), visible: v, progress: comboProgress(combo, v) };
   } finally {
     for (const h of owned) release(h);
@@ -488,7 +493,7 @@ export function createGeneralistPilot(budget: PilotBudget, seed: number, opts: G
         const ready = combos
           .filter((c) => !pivoted.get(seatKey)?.has(c.id))
           .map((c) => comboProgress(c, visible))
-          .filter((p) => p.payoffFielded && !p.complete)
+          .filter((p) => p.payoffFielded && !p.complete && macros.worth(p.combo, visible))
           .sort((a, b) => b.heldPieces - a.heldPieces)[0];
         if (ready) { commitment = { comboId: ready.combo.id, since: round, wave: round, rolls: 0 }; commitments.set(seatKey, commitment); }
       }
@@ -519,7 +524,11 @@ export function createGeneralistPilot(budget: PilotBudget, seed: number, opts: G
       }
 
       // 3) Search — and, when enabled, the replace macro scored beside its best plan.
-      const topK = opts.horizon ? Math.max(1, opts.horizonTop ?? 3) : 0;
+      // `horizonTop` 0 (the macros' default) probes the root and the assemble chains ONLY: the search plan and the
+      // replace chain compete at their utility + the root's adjustment, which keeps the horizon's cost to the
+      // question it is there to answer (assemble, or not) — the B6 round-2 re-ranking of search plans measured
+      // within noise and each probed state is two imagined futures.
+      const topK = opts.horizon ? Math.max(0, opts.horizonTop ?? 3) : 0;
       const result = pilotSearch(root, budget, panelSeed, rng, samples, score, topK);
       const committedCombo = commitment ? comboOf(commitment.comboId) : undefined;
       const protect = macros
@@ -557,7 +566,7 @@ export function createGeneralistPilot(budget: PilotBudget, seed: number, opts: G
         };
         for (const t of result.top) consider(t.plan, t.utility + adj(t.visible), 'search');
         if (result.plan.length > 0 && !result.top.some((t) => t.plan === result.plan)) consider(result.plan, result.utility + rootAdj, 'search');
-        if (chain) consider(chain.steps, chain.utility + adj(chain.visible), 'replace');
+        if (chain) consider(chain.steps, chain.utility + (topK > 0 ? adj(chain.visible) : rootAdj), 'replace');
         let chosenCombo: EngineCombo | null = null;
         for (const a of assembles) {
           const before = bestScore;

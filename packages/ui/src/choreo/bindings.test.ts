@@ -184,13 +184,7 @@ const BINDINGS: Record<string, { def: string }> = {
   spellProgress: { def: 'spell-progress' },
   questTrigger: { def: 'quest-trigger' }, questComplete: { def: 'quest-complete' },
   // NB: `rally` is absent from this table on purpose — it is a committed TOMBSTONE, asserted below.
-  // Stat-milestone tiers 1-5 (badge crossing a fixed Attack/Health value) — all five PLACEHOLDER-bound to the
-  // same `self-buff-burst` def until the owner authors 5 distinct tier defs and rebinds them in the workbench.
-  statMilestone1: { def: 'self-buff-burst' },
-  statMilestone2: { def: 'self-buff-burst' },
-  statMilestone3: { def: 'self-buff-burst' },
-  statMilestone4: { def: 'self-buff-burst' },
-  statMilestone5: { def: 'self-buff-burst' },
+  // NB: the stat-milestone kinds carry an `sfx`, so they live in SFX_BINDINGS below, not here.
 };
 
 /**
@@ -249,9 +243,22 @@ const FANOUT_BINDINGS: Record<string, { def: string; fanOut: string }> = {
   attackExchange: { def: 'self-buff-burst', fanOut: 'selfBuffed' },
 };
 
+/** Kind bindings that carry an `sfx`. Stat-milestone tiers 1-5 (a badge crossing a fixed Attack/Health value)
+ *  all reuse the rune-arrival beat — the same `rune-select-implosion` def and `runeSelectImplosion` sound — so a
+ *  milestone celebration reads like a rune landing in its slot (owner ask 2026-09-15). The per-tier FRAME art is
+ *  separate (public/frames/milestone-*.webp); the def here is the burst, not the frame. */
+const SFX_BINDINGS: Record<string, { def: string; sfx: string }> = {
+  statMilestone1: { def: 'rune-select-implosion', sfx: 'runeSelectImplosion' },
+  statMilestone2: { def: 'rune-select-implosion', sfx: 'runeSelectImplosion' },
+  statMilestone3: { def: 'rune-select-implosion', sfx: 'runeSelectImplosion' },
+  statMilestone4: { def: 'rune-select-implosion', sfx: 'runeSelectImplosion' },
+  statMilestone5: { def: 'rune-select-implosion', sfx: 'runeSelectImplosion' },
+};
+
 describe('the bound kinds', () => {
   it('binds exactly the intended kind → def pairs, and nothing else', () => {
-    const expected: Record<string, { def: string; fanOut?: string }> = { ...BINDINGS, ...FANOUT_BINDINGS };
+    const expected: Record<string, { def: string; fanOut?: string; sfx?: string }> =
+      { ...BINDINGS, ...FANOUT_BINDINGS, ...SFX_BINDINGS };
     expect(effectiveTables().kinds).toEqual(expected);
   });
 

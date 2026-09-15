@@ -68,19 +68,24 @@
       "def": "shout-icon-effect"
     },
     "statMilestone1": {
-      "def": "self-buff-burst"
+      "def": "rune-select-implosion",
+      "sfx": "runeSelectImplosion"
     },
     "statMilestone2": {
-      "def": "self-buff-burst"
+      "def": "rune-select-implosion",
+      "sfx": "runeSelectImplosion"
     },
     "statMilestone3": {
-      "def": "self-buff-burst"
+      "def": "rune-select-implosion",
+      "sfx": "runeSelectImplosion"
     },
     "statMilestone4": {
-      "def": "self-buff-burst"
+      "def": "rune-select-implosion",
+      "sfx": "runeSelectImplosion"
     },
     "statMilestone5": {
-      "def": "self-buff-burst"
+      "def": "rune-select-implosion",
+      "sfx": "runeSelectImplosion"
     }
   },
   "cards": {

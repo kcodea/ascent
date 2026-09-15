@@ -1874,6 +1874,23 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .badge[data-milestone='3'] > .msframe { --msf-scale: 1.80; }
 .badge[data-milestone='4'] > .msframe { --msf-scale: 1.86; }
 .badge[data-milestone='5'] > .msframe { --msf-scale: 1.92; }
+/* State tint — a translucent disc OVER the frame's leather, recolouring it by stat state (owner ask 2026-09-15):
+   yellow at base, green when buffed above base, red when below base/floor. `mix-blend-mode: color` keeps the
+   leather texture and just swaps the hue. Sits above the frame art, below the number. Follows the same per-tier
+   offset as the frame so it stays on the disc. Tunable: --mstint-frac (disc coverage), the three colours. */
+.badge > .mstint {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: calc(60px * var(--msf-scale, 1.72) * var(--mstint-frac, 0.5));
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%) translate(var(--msf-dx, -1px), var(--msf-dy, -6px));
+  border-radius: 50%;
+  pointer-events: none;
+  mix-blend-mode: color;
+  background: #f2c33d;   /* neutral — yellow */
+}
+.badge.up > .mstint { background: #21c17a; }    /* buffed above base — green */
+.badge.down > .mstint { background: #e2452f; }  /* below base/floor — red */
 /* A buff just landed here → the changed stat badge pops once (transform/opacity only — no paint props, per the
    60fps rule). Combat used to run its own `.statflash` cue for this; retired (Task 3 of the combat/shop
    stat-hold unification) now that combat's badge reads the same shared hold store the shop does, so Card's own

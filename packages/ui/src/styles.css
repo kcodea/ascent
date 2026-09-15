@@ -1901,6 +1901,15 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   transform: translate(var(--msnum-dx, 0px), var(--msnum-dy, 0px));
   -webkit-text-stroke: var(--msnum-stroke-w, 0px) var(--msnum-stroke-color, #000);
 }
+/* MILESTONE TUNER PREVIEW — the 🏅 Milestone Badges panel renders the real badge markup for all ten tiers so it
+   tracks the CSS vars live. The badges are normally absolute at a card's corners; here they lay out in rows, so
+   their positioning is neutralised and the row leaves generous room for the frame overflow (sword/heart). */
+.msprev { background: rgba(0, 0, 0, 0.28); border-radius: 8px; padding: 4px 6px 10px; }
+.msprev-states { display: flex; gap: 6px; justify-content: center; padding: 8px 0 2px; }
+.msprev-states .btn.on { outline: 2px solid var(--kw, #ffd54a); }
+.msprev-label { font: 600 11px/1.6 var(--font-ui); opacity: 0.7; text-align: center; margin-top: 4px; }
+.msprev-row { display: flex; gap: 26px; justify-content: center; align-items: center; padding: 20px 10px; }
+.msprev .badge.atk, .msprev .badge.hp { position: relative; inset: auto; bottom: auto; left: auto; right: auto; }
 /* A buff just landed here → the changed stat badge pops once (transform/opacity only — no paint props, per the
    60fps rule). Combat used to run its own `.statflash` cue for this; retired (Task 3 of the combat/shop
    stat-hold unification) now that combat's badge reads the same shared hold store the shop does, so Card's own

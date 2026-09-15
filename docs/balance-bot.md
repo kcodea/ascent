@@ -83,6 +83,14 @@ unsupported). The A/A self-check (`compare x x`) reports zero effect; the synthe
   the "offers" of a Runeforge action (the Runes table listed Starforms as runes offered); and the legacy
   `fightScore` fallback was retired (a missing opponent pool now yields `panel: 'procedural'` on the result).
 
+## The bar (owner, 2026-09-15)
+
+Pilot strength is measured as **mean placement over ≥ 100 pinned lobbies against the real set-2 recorded
+population**: **under 4.0 = solid (the minimum to pass)**, **under 3.0 = great (the target)**, **under 2.0 =
+phenomenal**; 4.4 is a below-average player and does not pass. The generalist baseline (smoke budget) is
+**6.80 [6.56, 7.05]**; search depth alone did not move it (6.76 at depth 2 / beam 3). Balance findings from a
+pilot below the bar are leads about the *pilot*, not the game.
+
 ## Trust ledger
 
 What each layer proves today, and what it does not. Check the boxes as the gates in the roadmap's

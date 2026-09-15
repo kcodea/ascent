@@ -783,7 +783,7 @@ export function simulate(
       const allow = new Set(ids);
       return Object.values(cards).filter((c) => allow.has(c.id));
     },
-    buff: (target, attack, health, source, ruby) => {
+    buff: (target, attack, health, source, ruby, bounce) => {
       // TRANSCENDANT: Engraved as a LIVE ADJACENCY AURA rather than a one-shot grant (owner respec
       // 2026-08-17). Resolved HERE, at the moment stats are gained, which is what makes "while alive and
       // adjacent" literally true: gains made beside a living Transcendant carry back, and gains made after it
@@ -815,7 +815,9 @@ export function simulate(
       // `castingSpellId` is set for the duration of a named-spell cast (see `castNamedSpellInCombat`), so a
       // buff produced BY that spell says so. Presentation reads it to attribute the whole wave to the spell
       // rather than to the caster's body — which is what lets a spell's authored def replace the stock tendril.
-      emit({ type: 'buff', target: target.uid, attack, health, source, ...(ruby ? { ruby } : {}), ...(ctx.castingSpellId !== undefined ? { spellId: ctx.castingSpellId } : {}) });
+      // `bounce` is spread the same way: only a cross-target re-cast carries it, so every other buff event is
+      // byte-identical to before (see the `buff` event's note in types.ts).
+      emit({ type: 'buff', target: target.uid, attack, health, source, ...(ruby ? { ruby } : {}), ...(ctx.castingSpellId !== undefined ? { spellId: ctx.castingSpellId } : {}), ...(bounce ? { bounce } : {}) });
       // "Give <tribe> N total stats" (Skybound Pact / Taragosa's Inheritance): every positive combat stat gain on
       // a PLAYER minion counts toward its tribe(s), so combat buffs advance the `tribeStats` quest like recruit
       // ones (owner: Skybound Pact stats in combat should count). Uses the post-gainMult value actually applied.

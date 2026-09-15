@@ -7,6 +7,7 @@ import { spawnFloats, type Float, type DeathFloat } from './channels/float';
 import { groupBuffCasts } from './channels/buffCast';
 import { groupSelfBuffs } from './channels/buffSelf';
 import { rubiedLandsIn, RUBY_BEAT_MS, RUBY_GAP_MS } from './channels/rubyLanded';
+import { bouncesIn } from './channels/bounce';
 import {
   ralliesFiredIn, rallyLeadMs, RALLY_GAP_MS, RALLY_PROC_STRIDE_MS, RALLY_PULSE_READ_MS,
   type RallyFired,
@@ -33,7 +34,7 @@ import { bindingFor } from './bindings';
  * instead by `engine.ts`'s `runAttackExchangeCues` from a `useLayoutEffect` — this file still owns the score
  * DATA for both.
  */
-export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx' | 'rallyFx' | 'shoutFx';
+export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx' | 'rallyFx' | 'shoutFx' | 'bounceFx';
 /** When a cue fires within its moment. `start`/`contact` are used today; `landed`/`end` are reserved for
  *  phase 3c (aura bursts) and phase 4 (authoring). */
 export type Anchor = 'start' | 'contact' | 'landed' | 'end';
@@ -111,6 +112,7 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
     // carries an fxDef row at all. (The binding itself is in `bindings.json`.)
     { ch: 'fxDef', at: 'start', offset: 0 },
     { ch: 'rubyFx', at: 'start', offset: 0 },
+    { ch: 'bounceFx', at: 'start', offset: 0 },
     // The kind a Rally actually arrives in — every Rally is an `onAttack` trigger, so `absorbIntoWindup` folds
     // its event into this exchange. If `rallyFx` were on only one kind, this would be the one.
     { ch: 'rallyFx', at: 'start', offset: 0 },
@@ -130,7 +132,7 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   // `scNarrate` and stays unbound so a spell-power line is silent.
   scCast: [...BASE], scNarrate: [...BASE],
   // A Shout re-fire's own moment: what a buff wave / a summon show, plus `shoutFx` (in BASE) for the fire itself.
-  shout: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }, { ch: 'buffSelf', at: 'start', offset: 0 }, { ch: 'rubyFx', at: 'start', offset: 0 }, { ch: 'summonFx', at: 'start', offset: 250 }],
+  shout: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }, { ch: 'buffSelf', at: 'start', offset: 0 }, { ch: 'rubyFx', at: 'start', offset: 0 }, { ch: 'bounceFx', at: 'start', offset: 0 }, { ch: 'summonFx', at: 'start', offset: 250 }],
   // `summonFx` = a dust poof at the arriving unit, at +250ms (scaled) to land on the `summonpop` overshoot (the
   // "bounce") — by then the scale-in has grown the unit to a measurable, full size.
   summon: [...BASE, { ch: 'summonFx', at: 'start', offset: 250 }],
@@ -140,7 +142,10 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   // a per-card authored flourish. `attackExchange` is on the list for the same reason it carries `fxDef`:
   // `absorbIntoWindup` folds a Ruby played mid-swing (Crownvein's Rally) into the exchange, where a
   // `buffWave`-only cue would never see it.
-  buffWave: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }, { ch: 'buffSelf', at: 'start', offset: 0 }, { ch: 'rubyFx', at: 'start', offset: 0 }],
+  // `bounceFx` = the cross-target RE-CAST ribbon (`ruby-bounce` / `spell-bounce`), on exactly the kinds `rubyFx`
+  // is: a combat bounce is always a Ruby buff event carrying `bounce` provenance, so it surfaces wherever a
+  // Ruby does (owner ask 2026-09-15). See `channels/bounce.ts`.
+  buffWave: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }, { ch: 'buffSelf', at: 'start', offset: 0 }, { ch: 'rubyFx', at: 'start', offset: 0 }, { ch: 'bounceFx', at: 'start', offset: 0 }],
   reborn: withReform(),
   ascend: [...BASE, { ch: 'ascendFx', at: 'start', offset: 0 }],
   rally: [...BASE], toHand: [...BASE], handBuff: [...BASE],
@@ -512,6 +517,33 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
             if (rubyAnchors) playDef('ruby-gem-apply', rubyAnchors, { uids: { source: land.uid, target: land.uid }, index: land.group }); // literal, not the constant — see RUBY_LANDED_DEF
             // One play per GEM, not per moment — the ear carries the same count the eye does.
             sfx.gemApply();
+          };
+          if (land.at <= 0) fire();
+          else timers.push(setTimeout(fire, land.at));
+        }
+      });
+    }
+    // A BOUNCE landed inside this moment — a spell/Ruby RE-CAST onto a different body off where the original
+    // cast landed (Trouble, Candle Conduit, a Resonance Idol / Reflector spread). One ribbon per hop, walked as
+    // the same cascade-of-stacks the Ruby sweep uses: `gap` between distinct (from → to) pairs, `beat` within
+    // one. Guarded before `at()` exactly like `rubyFx`: with no defs ready this allocates nothing.
+    else if (cue.ch === 'bounceFx') {
+      if (!canPlayDefs()) continue;
+      at(cue, () => {
+        const hops = bouncesIn(moment, ctx.events);
+        if (!hops.length) return;
+        for (const land of scheduleLands(cascade(hops.map((h) => ({ uid: `${h.from}>${h.to}`, count: h.count }))), {
+          gap: RUBY_GAP_MS, beat: RUBY_BEAT_MS, speed: ctx.combatSpeed,
+        })) {
+          const hop = hops[land.group]!;
+          // Anchors resolve INSIDE the timer, like the Ruby sweep: a body that died mid-sweep skips its ribbon
+          // rather than launching it from an empty slot. Two literal ids (not `BOUNCE_DEF[kind]`) so the
+          // direct-call scan sees both — see `directCalls.ts`.
+          const fire = (): void => {
+            const anchors = anchorsForUnits(hop.from, hop.to);
+            if (!anchors) return;
+            if (hop.kind === 'ruby') playDef('ruby-bounce', anchors, { uids: { source: hop.from, target: hop.to }, index: land.group });
+            else playDef('spell-bounce', anchors, { uids: { source: hop.from, target: hop.to }, index: land.group });
           };
           if (land.at <= 0) fire();
           else timers.push(setTimeout(fire, land.at));

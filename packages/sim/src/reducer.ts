@@ -20,7 +20,7 @@ import {
   selectEquipment, selectedEquipment,
 } from './equipment';
 import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe, handCardLocked} from './recruit';
-import { handCap, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
+import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
@@ -1317,6 +1317,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   s.fodderEaten = [];
   s.shopEaten = []; // Set 2's shop-minion consume swirl — same per-action contract, separate channel
   s.starformFx = []; // Set 3's Starform pulls (consume-shop / consumed / collapse) — same per-action contract
+  s.bounceFx = []; // the cross-target re-cast hops (spell-bounce / ruby-bounce) — same per-action contract
   s.gainCardFiredUids = []; // per-action: which hand arrivals already fired onGainCard (see the hand diff in `reduce`)
   s.gainAttackFiredUids = []; // per-action: Attack gains already dispatched inside the action (per-card EoT waves)
   s.starformGainFired = undefined; // per-action: Starform growth already dispatched as `starformGained` (see the diff in `reduce`)
@@ -1725,6 +1726,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             // One extra landing per copy held (owner 2026-08-27, unique-engine doubling).
             for (let n = 0; n < casts * runeStacksOf(s, 'rune_redirection'); n++) {
               addBuff(tail, 'Ruby', card.attack, card.health);
+              recordBounceFx(s, 'ruby', boardTarget.uid, tail.uid); // the hop: left-most → right-most
               fireOnRubyPlayed(s, tail, card.attack, card.health);
             }
           }
@@ -1742,6 +1744,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           // One extra landing per copy held (owner 2026-08-27, unique-engine doubling).
           if (lead) for (let n = 0; n < casts * runeStacksOf(s, 'rune_distillation'); n++) {
             addBuff(lead, 'Ruby', card.attack, card.health);
+            recordBounceFx(s, 'ruby', offer.uid, lead.uid); // the hop: the Shop offer → your left-most
             fireOnRubyPlayed(s, lead, card.attack, card.health);
           }
         }
@@ -1909,7 +1912,10 @@ function reduceCore(state: RunState, action: Action): RunState {
             const lead = s.runeDistillation ? s.board[0] : undefined;
             if (lead) procRune(s, 'runeDistillation');
             // One extra cast per copy held (owner 2026-08-27, unique-engine doubling).
-            if (lead) for (let n = 0; n < casts * runeStacksOf(s, 'rune_distillation'); n++) castSpell(s, def, lead);
+            if (lead) for (let n = 0; n < casts * runeStacksOf(s, 'rune_distillation'); n++) {
+              recordBounceFx(s, 'spell', offer.uid, lead.uid); // the hop: the Shop offer → your left-most
+              castSpell(s, def, lead);
+            }
           }
           else return state; // a valid target is required (a friendly minion, or a tavern offer for `any`)
         } else {

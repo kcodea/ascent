@@ -1,4 +1,4 @@
-import type { CardDef, CombatContext, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
+import type { BounceProvenance, CardDef, CombatContext, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
 import { defIsTribe } from '../combat/tribe';
 import { ARENA_EFFECTS, type ArenaBody, type EffectArena } from './arena';
 import { ALE_IDS, extraTriggerFires } from '../types';
@@ -149,7 +149,8 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
       for (let b = 0; b < bounces; b++) {
         const others = ctx.living(self.side).filter((x) => x !== target && !x.dead);
         if (others.length === 0) break;
-        applyRubyStats(ctx, self, ctx.rng.pick(others), a, h, permanent);
+        // A cross-target hop off the Ruby that landed on `target` — stamped for the UI's `ruby-bounce` ribbon.
+        applyRubyStats(ctx, self, ctx.rng.pick(others), a, h, permanent, { from: target.uid, kind: 'ruby' });
       }
     }
   }
@@ -175,7 +176,9 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
       if (reps <= 0) continue;
       // Its own Rubies are worth what any Ruby is worth right now — same strength, same Paragon multiplier —
       // so it can never be quietly weaker than the Ruby that triggered it.
-      applyRubyStats(ctx, m, m, (1 + rb.attack) * reps * mult, (1 + rb.health) * reps * mult, engraved);
+      // Stamped as a bounce FROM the body the triggering Ruby landed on: the UI draws the `ruby-bounce` ribbon
+      // `target` → Trouble (owner ask 2026-09-15). Presentation only — the stats above are unchanged.
+      applyRubyStats(ctx, m, m, (1 + rb.attack) * reps * mult, (1 + rb.health) * reps * mult, engraved, { from: target.uid, kind: 'ruby' });
     }
   }
   // Rune of the Spellstone: this Ruby ALSO counts as a spell cast — fire the trigger so per-spell improvers
@@ -236,8 +239,8 @@ function livingNeighbours(ctx: CombatContext, self: Minion): Minion[] {
   return [...before, ...after];
 }
 
-function applyRubyStats(ctx: CombatContext, self: Minion, target: Minion, a: number, h: number, permanent = false): void {
-  ctx.buff(target, a, h, self.uid, true); // `true` = tag the log event as a Ruby, for the UI's Ruby-landed cue
+function applyRubyStats(ctx: CombatContext, self: Minion, target: Minion, a: number, h: number, permanent = false, bounce?: BounceProvenance): void {
+  ctx.buff(target, a, h, self.uid, true, bounce); // `true` = tag the log event as a Ruby, for the UI's Ruby-landed cue; `bounce` = a cross-target re-cast's provenance
   // Remember these as RUBIES, not just stats — Gemheart Carver's Echo scales off "the Rubies on this minion",
   // and a plain `ctx.buff` is indistinguishable from any other combat buff. Combat-local (see `rubyGain`);
   // the recruit-phase equivalent is the `Ruby` entry in `buffs`.
@@ -322,7 +325,9 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     buffHand: (t, a, h) => ctx.buffHand(t.uid, a, h, self.side, self.uid),
     grantRandomSpells: (count) => ctx.grantRandomSpell(count, self.side, self.uid),
     playRubiesOn: (t, per, permanent) => playRubyOn(ctx, self, t as Minion, per, permanent === true),
-    gainRubyStats: (t, a, h) => applyRubyStats(ctx, self, t as Minion, a, h),
+    // The bounce primitive (Resonance Idol): `self` is the body the original Ruby landed on, `t` the hop's
+    // destination — stamped so the UI's `ruby-bounce` ribbon travels self → t.
+    gainRubyStats: (t, a, h) => applyRubyStats(ctx, self, t as Minion, a, h, false, { from: self.uid, kind: 'ruby' }),
     neighboursOf: (t) => livingNeighbours(ctx, t as Minion),
     grantMaxGold: (amount) => {
       ctx.grantMaxGold(amount, self.side);
@@ -1862,7 +1867,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (others.length === 0) return;
     for (let r = 0; r < num(params.count, 1) * mul(self); r++) {
       const t = others[ctx.rng.int(others.length)]!;
-      ctx.buff(t, a, h, self.name);
+      // Stamped as a Ruby bounce self → t for the UI's `ruby-bounce` ribbon (presentation only; the stat call
+      // is otherwise untouched — it deliberately stays a plain buff, not `applyRubyStats`).
+      ctx.buff(t, a, h, self.name, undefined, { from: self.uid, kind: 'ruby' });
     }
     flagged.reflectorSpread = true;
   },

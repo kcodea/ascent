@@ -642,7 +642,7 @@ interface ShopViewOpts {
  *  player does NOT own yet (hand-grant fly-ins, Discover options). One builder so no surface can drop a
  *  field again: the 2026-08-06 audit found the grant previews passing NOTHING (static def text until combat
  *  settled — the owner's report) and Discover passing 11 of 30 params. */
-function liveOptsFromRun(run: RunState): ShopViewOpts {
+export function liveOptsFromRun(run: RunState): ShopViewOpts { // exported for the Scene Builder's hover preview (same live-text chain as the shop)
   return {
     cardBuffs: run.cardBuffs, undeadBuyAtk: run.undeadBuyAtk, deathrattlesTriggered: run.deathrattlesTriggered,
     spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold,

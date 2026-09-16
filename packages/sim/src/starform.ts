@@ -56,10 +56,11 @@
  */
 import { makeRng, type CardDef } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import type { BoardCard, RunState, ShopCard } from './state';
-import { addBuff, addOfferBuff, consumeShopOffer, fireStarformGained, fireStarformRemoved, isTribe, offerBuyStats, rightmostShopMinion } from './recruit';
+import { procRuneId, type BoardCard, type RunState, type ShopCard } from './state';
+import { addBuff, addOfferBuff, conjureToHand, consumeShopOffer, fireStarformGained, fireStarformRemoved, isTribe, offerBuyStats, rightmostShopMinion, grantMinionToHandOrBoard } from './recruit';
 import { syncStarDestroyer } from './equipment';
 import { tierSlots } from './shop';
+import { runeStacksOf } from './runeDup';
 
 export const STARFORM_ID = 'ce3_starform';
 /** Rule 5: the price a fresh token spawns at. */
@@ -169,7 +170,32 @@ export function withStarformPinned(state: RunState, rebuild: (slots: number) => 
  *  body). Same uid as the offer, so a record keyed by it (`shopEaten.eaterUid`) points back at the token. */
 export function starformStandIn(state: RunState, sf: ShopCard): BoardCard {
   const st = offerBuyStats(state, sf);
-  return { uid: sf.uid, cardId: STARFORM_ID, tribe: 'celestial', attack: st.attack, health: st.health, keywords: [], golden: false };
+  // RUNE OF SOUL SCRIPT (set 3 batch 2, 2026-09-16): the token COUNTS AS UNDEAD — carried as a spell-added tribe
+  // so every `isTribe` reader (consume watchers, tribe predicates, Undead filters) sees it without a card-by-card
+  // special case. Celestial stays its printed tribe.
+  return { uid: sf.uid, cardId: STARFORM_ID, tribe: 'celestial', attack: st.attack, health: st.health, keywords: [], golden: false, ...(state.runeSoulScript ? { addedTribes: ['undead' as const] } : {}) };
+}
+
+/** Rune of Soul Script: does the Starform currently count as Undead? The one predicate the shop-side tribe
+ *  readers (spell aim, the aura wash, the Undead Aura, "your Undead" Shop buffs) ask. */
+export function starformIsUndead(state: Pick<RunState, 'runeSoulScript'>): boolean {
+  return !!state.runeSoulScript;
+}
+
+/**
+ * Rune of Soul Script — bake the run's standing Undead ATTACK Aura (`undeadBuyAtk`, Lantern / Deathswarmer) onto
+ * the token ONCE, under the aura's own ledger line: "they now inherit all Undead buffs, and aura buffs". A fresh
+ * Undead body receives the aura at creation (`undeadBuyBonus`); the token receives it here — at rune acquisition
+ * and at token creation — and every LATER aura increase lands through `buffUndeadAttackEverywhere`. Latched per
+ * token (`soulScriptAuraBaked`) so neither path pays twice. No-op without the rune, a token, or an aura.
+ */
+export function starformSoulScriptBake(state: RunState): void {
+  if (!state.runeSoulScript) return;
+  const sf = starformOf(state);
+  if (!sf || sf.soulScriptAuraBaked) return;
+  sf.soulScriptAuraBaked = true;
+  const aura = state.undeadBuyAtk ?? 0;
+  if (aura > 0) buffStarform(state, aura, 0, 'Undead Aura');
 }
 
 /**
@@ -181,6 +207,28 @@ export function starformStandIn(state: RunState, sf: ShopCard): BoardCard {
 function recordStarformFx(state: RunState, kind: 'consumeShop' | 'consumed' | 'collapse' | 'created', fromUid: string, toUids: string[]): void {
   state.starformFx = [...(state.starformFx ?? []), { kind, fromUid, toUids }];
   state.starformFxSeq = (state.starformFxSeq ?? 0) + 1;
+}
+
+/**
+ * RUNE OF ACCRETION (Set 3 batch 2, 2026-09-16): the multiplier every Starform Shop consume lands with — the one
+ * chokepoint for Black Hole, the Attractor, Roundabout AND the full-row creation meal. ×(1 + copies held): one
+ * copy doubles ("twice their stats"), a second copy triples (engine-doubling family, owner 2026-08-27).
+ */
+export function starformConsumeTimes(state: RunState): number {
+  return state.runeAccretion ? 1 + runeStacksOf(state, 'rune_accretion') : 1;
+}
+
+/** After the Starform ATE `cardId` (any Shop consume of its own): Accretion's badge (it just paid) and Rune of
+ *  Stolen Constellations' plain copy to hand — one per copy held, overflow-safe like every rune grant. */
+function afterStarformAte(state: RunState, cardId: string): void {
+  if (state.runeAccretion) procRuneId(state, 'rune_accretion');
+  if (state.runeStolenConstellations) {
+    const def = CARD_INDEX[cardId];
+    if (def && !def.spell && !def.ruby) {
+      procRuneId(state, 'rune_stolen_constellations');
+      for (let k = 0; k < runeStacksOf(state, 'rune_stolen_constellations'); k++) grantMinionToHandOrBoard(state, def, false, true);
+    }
+  }
 }
 
 /**
@@ -207,7 +255,8 @@ export function createStarform(state: RunState, source: { cardId: string; name: 
     const eaterStandIn: BoardCard = { uid: sf.uid, cardId: STARFORM_ID, tribe: 'celestial', attack: 1, health: 1, keywords: [], golden: false };
     // Insert first, then eat: the consume splices by index, and the token must take the VICTIM'S slot.
     state.shop.splice(victim + 1, 0, sf);
-    consumeShopOffer(state, eaterStandIn, victim, 1, (a, h) => { banked.attack += a; banked.health += h; }, sf.uid);
+    const victimId = state.shop[victim]!.cardId;
+    consumeShopOffer(state, eaterStandIn, victim, starformConsumeTimes(state), (a, h) => { banked.attack += a; banked.health += h; }, sf.uid);
     // The creation's meal is SILENT on screen (owner 2026-09-14): the victim simply leaves and the token takes its
     // slot in place — no ghost, no pull, no held slot, no row shift. The owner-authored `starform-create` cue
     // (below) is the whole moment. Mechanically it is still a real Shop consume (Open Market, the meter, the
@@ -215,6 +264,7 @@ export function createStarform(state: RunState, source: { cardId: string; name: 
     const meal = state.shopEaten?.[state.shopEaten.length - 1];
     if (meal && meal.uid !== sf.uid) meal.silent = true;
     buffStarform(state, banked.attack, banked.health, 'Consume');
+    afterStarformAte(state, victimId);
   } else {
     state.shop.push(sf); // an open slot — or a full row of nothing but spells (rule 1: it still appears)
   }
@@ -237,6 +287,15 @@ export function createStarform(state: RunState, source: { cardId: string; name: 
   const turn = state.tavernBuyBonusTurn;
   if (turn && (turn.atk > 0 || turn.hp > 0)) buffStarform(state, turn.atk, turn.hp, 'Shop Enchant');
   syncStarDestroyer(state); // rule 9: the token brings its Equipment
+  starformSoulScriptBake(state); // Rune of Soul Script: a new token inherits the standing Undead Aura
+  // RUNE OF FIRST LIGHT (Set 3 batch 2): "Starforms you create this game start with +8/+8" — EVERY creator, this
+  // rune's own Start of Turn included; +8/+8 per copy held. Banked after the shop channels so the ledger reads
+  // the rune's line beside them.
+  if (state.runeFirstLight) {
+    const fl = 8 * runeStacksOf(state, 'rune_first_light');
+    procRuneId(state, 'rune_first_light');
+    buffStarform(state, fl, fl, 'Rune of First Light');
+  }
   void source; // the creator is presentation metadata today (the content PR names it on the create cue)
   return sf;
 }
@@ -253,9 +312,42 @@ export function starformConsumeShopMinion(state: RunState, offerIndex: number, t
   const target = state.shop[offerIndex];
   if (!target || target.starform) return false;
   const standIn = starformStandIn(state, sf);
-  const ate = consumeShopOffer(state, standIn, offerIndex, times, (a, h) => { buffStarform(state, a, h, 'Consume'); }, sf.uid);
-  if (ate) recordStarformFx(state, 'consumeShop', target.uid, [sf.uid]);
+  const ate = consumeShopOffer(state, standIn, offerIndex, times * starformConsumeTimes(state), (a, h) => { buffStarform(state, a, h, 'Consume'); }, sf.uid);
+  if (ate) { recordStarformFx(state, 'consumeShop', target.uid, [sf.uid]); afterStarformAte(state, target.cardId); redGiantSpellBite(state, sf); }
   return ate;
+}
+
+/**
+ * RUNE OF THE RED GIANT (Epic; set 3 batch 2, 2026-09-16): every time the Starform Consumes a Shop minion it has a
+ * 50% chance to ALSO Consume a Shop spell — the spell slot first, else the right-most spell offer in the row.
+ * The offer leaves (nothing returns to a pool — spells are not pooled), you get a COPY of that spell (through
+ * `conjureToHand`, the grant chokepoint: hand cap, `onGainCard`, the Runic Hoard hook), and the token gains
+ * +8/+8 under the rune's name (a gain — Twin Star hears it). SEEDED: one `rngCursor` advance per consume
+ * opportunity, rolled whether or not a spell is there, so a replay draws the same numbers regardless of the row.
+ */
+export const RED_GIANT_CHANCE = 0.5;
+export const RED_GIANT_GAIN = { attack: 8, health: 8 } as const;
+function redGiantSpellBite(state: RunState, sf: ShopCard): void {
+  if (!state.runeRedGiant) return;
+  const rng = makeRng(state.rngCursor);
+  const roll = rng.next();
+  state.rngCursor = rng.state();
+  if (roll >= RED_GIANT_CHANCE) return;
+  let eaten: ShopCard | undefined;
+  if (state.spell) { eaten = state.spell; state.spell = null; }
+  else {
+    for (let i = state.shop.length - 1; i >= 0; i--) {
+      const o = state.shop[i]!;
+      const d = CARD_INDEX[o.cardId];
+      if (!o.starform && d?.spell && !d.ruby) { eaten = state.shop.splice(i, 1)[0]; break; }
+    }
+  }
+  if (!eaten) return;
+  const def = CARD_INDEX[eaten.cardId];
+  procRuneId(state, 'rune_red_giant');
+  if (def) conjureToHand(state, [def], 1);
+  buffStarform(state, RED_GIANT_GAIN.attack, RED_GIANT_GAIN.health, 'Rune of the Red Giant');
+  recordStarformFx(state, 'consumeShop', eaten.uid, [sf.uid]);
 }
 
 /** Remove the token and tell the board why. Returns its full stats (base included) for the caller to spend. */
@@ -285,9 +377,18 @@ export function destroyStarform(state: RunState): boolean {
  *  consume path (`starformRemoved('consume')` — Zenith re-creates, Twin Star hears the buy like a Devotee's). The
  *  reducer's `buy` case owns the Gold + the "counts as a minion bought" half. Returns the receiver (null = none)
  *  and the stats that moved; null with no Starform. */
+/** Can `c` receive the Starform's stats (a buy-consume receiver, a Collapse hit)? A Celestial — or, under Rune of
+ *  Soul Script, an Undead as well (the generic tribe predicate, so an added-tribe body counts). ONE predicate for
+ *  every receiver pick, so the rune can never reach one path and miss another. */
+export function starformReceives(state: Pick<RunState, 'runeSoulScript'>, c: BoardCard): boolean {
+  return isTribe(c, 'celestial') || (!!state.runeSoulScript && isTribe(c, 'undead'));
+}
+
 export function buyStarform(state: RunState): { receiver: BoardCard | null; stats: { attack: number; health: number } } | null {
   if (!hasStarform(state)) return null;
-  const receiver = state.board.find((c) => isTribe(c, 'celestial')) ?? null;
+  // The left-most eligible receiver — a Celestial, or under Rune of Soul Script an Undead too (owner report
+  // 2026-09-16: the buy-consume fell through to the plain removal on an all-Undead board while the Collapse worked).
+  const receiver = state.board.find((c) => starformReceives(state, c)) ?? null;
   const stats = receiver ? consumeStarform(state, receiver) : removeStarform(state, 'consume');
   if (!stats) return null;
   if (receiver) addBuff(receiver, 'Starform', stats.attack, stats.health);
@@ -311,11 +412,18 @@ export function collapseExtraTargetsOf(state: RunState): number {
  *  pool is smaller), then `extras` picks WITH replacement — an extra may repeat an original or another extra.
  *  Empty with no Celestial. One rng cursor advance, in this order, so a seeded replay reproduces it. */
 export function collapseHits(state: RunState, originals = 2, extras = collapseExtraTargetsOf(state)): BoardCard[] {
-  const pool = state.board.filter((c) => isTribe(c, 'celestial'));
+  // RUNE OF SOUL SCRIPT (owner 2026-09-16: "Undead should be able to consume [the Starform], AND be targets for a
+  // Collapse"): your Undead are Collapse receivers beside your Celestials — the originals, the extras, and the
+  // Supernova's "all your Celestials" alike. The generic tribe predicate, so an added-tribe Undead counts too.
+  const pool = state.board.filter((c) => starformReceives(state, c));
   if (pool.length === 0) return [];
+  // RUNE OF THE SUPERNOVA (Set 3 batch 2): "half its stats to ALL your Celestials instead of two" — every friendly
+  // Celestial is an original (board order, no draw), and the extras still land on top with replacement.
+  if (state.runeSupernova) { procRuneId(state, 'rune_supernova'); originals = pool.length; }
   const rng = makeRng(state.rngCursor);
   const avail = [...pool];
   const hits: BoardCard[] = [];
+  if (state.runeSupernova) hits.push(...avail.splice(0, avail.length));
   for (let i = 0; i < originals && avail.length > 0; i++) hits.push(avail.splice(rng.int(avail.length), 1)[0]!);
   for (let i = 0; i < extras; i++) hits.push(pool[rng.int(pool.length)]!);
   state.rngCursor = rng.state();
@@ -355,8 +463,10 @@ export function collapseStarform(state: RunState, receivers: () => BoardCard[] =
  *  castable on the Starform"). A plain `friendly` spell keeps its board-only aim (rule 5: never gilded, never
  *  transformed — those are `friendly` spells too); an `any` spell already reaches every offer. Read by the
  *  reducer's cast path AND the UI's aim, so the reticle and the rule cannot disagree. */
-export function starformSpellAimsToken(def: Pick<CardDef, 'spell' | 'target' | 'targetTribe'>): boolean {
-  return !!def.spell && def.target === 'friendly' && def.targetTribe === 'celestial';
+export function starformSpellAimsToken(def: Pick<CardDef, 'spell' | 'target' | 'targetTribe'>, state?: Pick<RunState, 'runeSoulScript'>): boolean {
+  if (!def.spell || def.target !== 'friendly') return false;
+  // Rune of Soul Script: the token counts as Undead, so an Undead-aimed friendly spell may aim it too.
+  return def.targetTribe === 'celestial' || (def.targetTribe === 'undead' && !!state && starformIsUndead(state));
 }
 
 /**

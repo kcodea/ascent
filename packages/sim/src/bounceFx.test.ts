@@ -56,7 +56,7 @@ describe('bounceFx — the per-hop shop signal', () => {
   });
 
   it('Crash Course under a cast doubler records the doubled hop TWICE (countable at the signal)', () => {
-    let s = run({ hand: [spell('s', 'starcrash')], board: [body('a', 'ce3_adept'), body('x', 'ce3_courier'), body('y', 'ce3_vendor'), body('z', 'n3_yazzus')] });
+    let s = run({ hand: [spell('s', 'starcrash')], board: [body('a', 'ce3_adept'), body('x', 'ce3_courier'), body('y', 'ce3_vendor'), body('z', 'yazzus')] });
     s = play(s, 's', { targetUid: 'a' });
     // Each spread is a FULL doubled cast, so the Adept → x and Adept → y hops appear at least twice each. (Star
     // Crash's own random half can add further a>x / a>y hops on top — those are real hops too, so ≥ not =.)

@@ -129,6 +129,19 @@ minion alive. Duplicates collapse into one entry; a single Gilded source upgrade
   Starform's live price included), every discounted coin shows green, the slot counts it down, and it ends on its own expiry
   action, at combat entry, or at the turn flip. A Continue whose saved clock is already past the window
   resumes without it; the engine never reads a clock (`RunState.cardDiscountWindow`).
+- **Amplified** (owner design 2026-09-16, Set 3 batch 2): a per-Equipment STATE. *"Equipment you do not
+  activate becomes Amplified. Amplified Equipment triggers twice the next time you activate it. Maximum 1 per
+  Equipment."* An Amplified Equipment's next activation runs **twice** — the whole activation, extra triggers
+  included, so `(1 + extra) × 2` — and the stack is **consumed** by it. One stack per Equipment, never more.
+  Written by **Rune of Amplification** (Basic 4: at End of Turn every held Equipment you did not activate this
+  turn — through the pool or its own charge — gains a stack) and **Rune of the Grand Workshop** (Epic 6: every
+  held Equipment now, and again every Start of Turn). The stack **survives the Start-of-Turn rebuild** for every
+  Equipment still held (it is the one piece of Equipment state meant to carry) and is pruned for one whose
+  sources all left. Presentation: the Equipment's **charge number turns BLUE** while Amplified (over the pool's
+  green), the tooltip says so, and the tally carries `data-fx="equipment-amplified"` as the binding point for
+  the owner's future authored cue. Engine: `PlayerEquipmentState.amplified` + `sim/equipment.ts`
+  (`amplifyEquipment` / `amplifyUnactivated` / `amplifyAllHeld` / `consumeAmplified`), pinned in
+  `set3RunesTrancheC.test.ts`.
 
 ### The Starform — the Celestials' shop token (owner design 2026-09-12; rules v2 2026-09-13)
 
@@ -181,7 +194,9 @@ in; the shop never rolls it. Engine: `packages/sim/src/starform.ts`; every rule 
    `collapseExtraTargets` counter, 0 today and reserved for future cards) are drawn **with replacement** —
    an extra may land on a Celestial that already took a hit, so with two Celestials one can take 3 and the
    other 1. One Celestial: 1 original + every extra on it. None: the token still collapses and the stats go
-   nowhere. With no Starform both do nothing.
+   nowhere. With no Starform both do nothing. **Under Rune of Soul Script** (owner 2026-09-16) your **Undead are
+   Collapse receivers beside your Celestials** — originals, extras and the Supernova's "all your Celestials" alike —
+   and any Undead whose text Consumes may eat the token (the shared Shop-consume chokepoint takes any eater).
 8. Two board-wide watcher moments: **"whenever your Starform gains stats"** (the gain's amount rides along)
    and **"when your Starform leaves the Shop"** (consumed — the buy, a Demon, or a card — or collapsed,
    with its full stats). The Star Destroyer's exit (below) fires **neither**.
@@ -326,17 +341,41 @@ objective.
 
 **Set scoping (`sets`) is MECHANICAL COMPATIBILITY, not set of origin.** A rune with no `sets` is offered in
 every set; a scoped rune is offered only where its mechanics exist. Since the **Set 3 rune roster handoff
-(2026-09-14)** set 3 draws **115 Basic / 98 Epic**: the 85 + 64 unscoped baseline plus 64 carryovers (30
-Basic + 34 Epic) from sets 1/2 — the Ruby, Ale, Dwarf, Kobold, Undead and Shop-consume packages — each of
-which KEPT its original scope (set 1 = 105/90 and set 2 = 135/126 are unchanged). Attachment, Mech, Fodder and
+(2026-09-14)** set 3 draws **115 Basic / 97 Epic** from carryovers: the 85 + 64 unscoped baseline plus 63
+carryovers (30 Basic + 33 Epic) from sets 1/2 — the Ruby, Ale, Dwarf, Kobold, Undead and Shop-consume packages —
+each of which KEPT its original scope (set 1 = 105/90 and set 2 = 135/126 are unchanged). (98 Epic at the
+handoff; Rune of Frontline Glory was dropped from set 3 by the owner on 2026-09-16 and is a set-1 rune again.) Attachment, Mech, Fodder and
 absent-tribe packages stay off set 3. Rune of the Night Market and Rune of Baal are deliberate off-tribe
 bridges (a rune-exclusive body that supplies its own function). The rolled-tribe gate still applies on top:
 a "your Dwarves" rune reaches a set-3 run only when Dwarf rolled.
 
+**Set 3-original runes (batch 2, 2026-09-16).** Set 3 now also has runes of its own — `sets: ['set3']` alone,
+no origin scope — starting with tranche A's 24 Spirit / Celestial / Undead runes (11 Basic + 13 Epic, taking the
+set-3 static pool to **126 Basic / 111 Epic**), plus the rune-exclusive **Handy Flame** token. The two combat-side
+runes of that sheet shipped in tranche D: **Rune of the Open Hand** (Epic 5 — when you summon a minion from your
+hand, another random friendly minion gains its current stats; every landed hand-summon, both phases) and **Rune of
+the Waking Reserve** (Epic 6 — Start of Combat: a copy of your highest-stat hand minion when the board has room;
+the hand card is NOT marked, so a Spirit may still summon it later that fight; it IS a hand-summon for Dreamed
+Graves / the Open Hand). Neither is tribe-gated: the text names no tribe (the 2026-09-10 rule). The tribe
+faucets (Rune of Basic/Epic Spirits, Celestials, Undead) are capped at the shop tier by the engine, like the
+Dwarf/Kobold ones. See `docs/devlog/2026-09-16-set3-runes-tranche-a.md` and `…-tranche-d.md` for the rulings and
+interpretations. **Rune of the Traveling Festival**'s "+2/+2 more" is applied ONCE per Reveler trigger (owner
+2026-09-16: *"the 2/2 is 1 time"*) — a second copy pays its Reveler drip again but never raises the extra.
+
+**Set 3-original runes (batch 2, 2026-09-16).** On top of the carryovers, set 3 now draws its OWN runes, scoped
+`sets: ['set3']` alone: tranche B ships 8 Basic + 11 Epic Starform / Equipment / Undead runes (see
+`docs/devlog/2026-09-16-set3-runes-tranche-b.md` for where each fires). Two engine facts they rest on: a
+**grafted Echo** (`grantedEffects` — Contract Rewrite, Rune of Rebirth, Rune of the Last Tool) fires on a SHOP
+death exactly as it does in combat; and a Starform rune is gated on Celestials (the token IS Celestial content),
+the way an Imp rune is gated on Demons.
+
 **Set forks.** A card a rune grants BY ID resolves to the pinned set's fork when one exists
-(`SET_FORKS` in `packages/content/src/sets.ts`): Rune of Yazzus / Rune of Frontline Glory hand a set-3 run
-`n3_yazzus` (the Tier-7 fork), never the legacy `yazzus` beside it. The Open Market's "first Shop consume
-each turn" hears the Starform's consumes (they ride the one Shop-consume chokepoint).
+(`SET_FORKS` in `packages/content/src/sets.ts`). The map is EMPTY today: its one entry, the set-3 Yazzus fork,
+went when the owner ruled there is **one Yazzus** (2026-09-16) — `yazzus` (Tier 7, 4/8, "your targeted spells
+cast an additional time": Shop spells, Rubies, Tower Shields and Clues alike) is the same card in every set that
+carries him, and the retired `n3_yazzus` id still resolves to it for saved runs and replays (`LEGACY_CARD_IDS`).
+The Open Market's "first Shop consume each turn" hears the Starform's consumes (they ride the one Shop-consume
+chokepoint).
 
 **Duplicates always do something** (owner rulings 2026-08-27, decisions `q-runedup-*`). Rune ownership is
 COUNTED (`RunState.runeStacks`; combat boolean flags use `flagCopies`), and a second copy stacks per family:
@@ -457,6 +496,46 @@ hear **wherever it happens**:
 **How it is enforced.** One trigger, `onRise`, from the single Rise site of each phase (`bus.emit` in
 `simulate.ts`, `fireOnRise` off the shop's `riseReturn`), with the risen body in the payload. Pinned in
 `set3Undead.test.ts` for both phases and for the enemy case.
+
+### Rebirth — a NEW keyword, distinct from Rise (owner ruling 2026-09-16)
+
+**Rebirth** (`RB`): when the minion dies it returns **once with its FULL current body** — stats (Health refilled
+to its max), granted buffs, keywords, effects and every per-instance counter. *"A Warded 50/50 dies and comes
+back a Warded 50/50."* **Rise**, by contrast, returns the **printed** body at 1 Health. Not the Rise → Rebirth
+rename (that stays reserved); a second keyword beside it. Granted by **Rune of Rebirth** (Basic 3, changed: Start
+of Combat — a random friendly minion gains Rebirth) and **Rune of Dreamed Graves** (Epic 4: the first minion
+summoned from your hand each combat gains Rebirth).
+
+**Rebirth acts like Rise** (owner 2026-09-16: *"it acts like rise, so copy that"*). Its combat rules are
+Rise's rules, step for step, with ONE intended difference — nothing is rebuilt from the printed card (`killOrReborn`
+in `simulate.ts`, mirrored by `rebirthReturn` in the shop; pinned in `core/src/combat/rebirth.test.ts`, including
+a Rise-vs-Rebirth parity fixture whose flow of deaths, returns and Avenge payouts must be identical):
+
+- **The Echo fires on the Rebirth death** exactly as on a Rise death: die → Echo → the body returns to the
+  RIGHT of what its Echo summoned. The death is a **real death** (Avenge, the death tallies, on-death watchers,
+  kill credit) and is flagged like a Rise death for the replay (`death { rise: true }`).
+- **A Ward the body carried at any point this combat is restored** on the return (in practice a Warded body
+  has lost its Ward by the time it dies — the owner's example wants it back). Taunt, Flurry and every other
+  keyword come back with the body. Rebirth itself is **spent**; nothing re-arms it unless something re-grants
+  it.
+- **Its Avenge progress restarts** on the return, as a Rise's does (*"1/3 should reset to 0/3"*) and as any
+  body placed mid-combat: the deaths tally is side-level state, not part of the body it keeps.
+- **A body that dies to retaliation on its own swing and returns is next to attack again** — the Rise rewind
+  in the attack rotation applies to a Rebirth return too.
+- **NOT a Rise:** the Rise watchers (Revenant, Rising Tide — `onRise`) stay quiet, and Rune of the Deathtouched
+  Apple (a Rise re-arm) does not touch it — those two are Rise's own.
+- **It IS a summon in full** (the owner's Rise ruling 2026-08-12): the summon-entry suite runs on the return.
+- **A full board at the return = an overflow**; the body stays dead (the Rise rule). A rebirthing body holds
+  its slot through its Echo, as a rising one does.
+- **A body holding BOTH keywords: Rebirth resolves first.** Rise has no precedence rule of its own (it is one
+  keyword), so the stronger return goes first and the buffs are not thrown away; its Rise stays armed, so its
+  NEXT death Rises the printed body.
+- **In the shop** (a destroy, Cage Breaker, the Deathfibrillator) the same body returns — buffs, keywords
+  (Rebirth spent), counters — with a fresh uid for the departure diff; Rise's `onRise` payout does not fire.
+- **Snapshot fidelity:** a Rebirth granted mid-combat is a plain `keyword` event, folded into the SoC board like
+  any keyword grant.
+- **Presentation:** the return reuses the Rise beat and FX (`reborn { rebirth: true }`; the Card's Rise dome and
+  the `rise` glyph) as PLACEHOLDERS until the owner authors a Rebirth cue.
 
 ---
 

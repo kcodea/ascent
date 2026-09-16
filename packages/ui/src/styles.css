@@ -3532,6 +3532,9 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
    2026-09-11) — reads GREEN, the same cue a discounted price uses. Colour only; the layered shadow and the
    one-shot `stepbump` are inherited, so nothing here repaints per frame. */
 .hpwrap .hpb-tally.boosted { color: #8ff0a4; }
+/* AMPLIFIED (owner design 2026-09-16): the Equipment's next activation triggers twice — the charge reads BLUE.
+   Colour only (no per-frame paint); the owner's authored cue will bind on `[data-fx="equipment-amplified"]`. */
+.hpwrap .hpb-tally.amplified { color: #7fc4ff; }
 .equipslot .hplabel {
   transform: translate(calc(var(--eqn-x, 0) * 1px), calc(var(--eqn-y, 0) * 1px)) scale(var(--eqn-scale, 1)); }
 /* THE CLOCK-WINDOW READOUT (Thymepiece, 2026-09-12): a second pill under the name — "−1 Gold · 6s" — in the

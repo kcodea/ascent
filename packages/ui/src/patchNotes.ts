@@ -56,6 +56,148 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-16',
+    label: 'Undead Aura surge',
+    changes: [
+      { category: 'UI / Info', text: 'Every rise of your Undead Aura now plays its own surge effect over the board — in the Shop and mid-combat alike. The minions it buffs keep their tendrils.' },
+      { category: 'UI / Info', text: 'The "New Undead arrive +X Attack" line no longer appears on Deathswarmer, Forsaken Weaver and Karthus.' },
+    ],
+  },
+  {
+    date: '2026-09-16',
+    label: 'Two more Set 3 Runes, Rebirth tidy-up, Soul Script Collapse',
+    changes: [
+      {
+        category: 'New Rune',
+        text: 'Rune of the Open Hand (Epic, 5): when you summon a minion from your hand, another friendly minion gains its stats.',
+        details: [
+          'Fires on every minion summoned from your hand that finds room — in combat and in the Shop — and gives the summoned minion\'s current Attack and Health to a random other friendly minion.',
+        ],
+      },
+      {
+        category: 'New Rune',
+        text: 'Rune of the Waking Reserve (Epic, 6): at Start of Combat, summon a copy of your highest-stat minion in hand when you have room.',
+        details: [
+          'Highest Attack + Health in hand; the copy keeps that card\'s stats, keywords and gilding.',
+          'The hand card is not marked as summoned, so a Spirit can still summon it later in the same fight.',
+        ],
+      },
+      {
+        category: 'Rune Change',
+        text: 'Rebirth now follows Rise exactly, apart from bringing back the full minion: a reborn minion\'s Avenge progress restarts, and one that dies on its own attack and returns is next to attack again.',
+      },
+      {
+        category: 'Rune Change',
+        text: 'Rune of Soul Script: your Undead are now Collapse targets alongside your Celestials (the Supernova\'s "all your Celestials" includes them), and any Undead whose text Consumes can eat the Starform.',
+      },
+      {
+        category: 'Rune Change',
+        text: 'Rune of the Traveling Festival: the extra +2/+2 is paid once per Reveler trigger — holding a second copy still brings a second Reveler each turn but does not raise the bonus.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-16',
+    label: 'One Yazzus',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'Yazzus is one card again, in every set: your targeted spells cast an additional time (a Gilded Yazzus: two additional times).',
+        details: [
+          'Every targeted spell counts — Shop spells, Rubies, Tower Shields and Clues — not just Shop spells.',
+          'He is a Tier 7 4/8 everywhere; the separate "Set 3 Yazzus" is gone, and a saved run or replay that had one now shows the one Yazzus.',
+          'Rune of Yazzus and Rune of Frontline Glory grant this Yazzus.',
+        ],
+      },
+      {
+        category: 'Rune Change',
+        text: 'Rune of Frontline Glory leaves Set 3 (it stays a Set 1 rune).',
+      },
+    ],
+  },
+  {
+    date: '2026-09-16',
+    label: 'Rebirth, Amplified Equipment + six Set 3 Runes',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'New keyword: Rebirth. When a minion with Rebirth dies it returns once with everything it had — its full stats, buffs, keywords and effects. (Rise still brings back the printed card at 1 Health.)',
+        details: [
+          'Rebirth resolves before Rise: a minion holding both comes back whole first, and its Rise is still there for the next death.',
+          'Its Echo fires on the Rebirth death, and the death counts for Avenge and death-watchers, just like a Rise.',
+          'A Ward the minion carried at any point this combat comes back with it.',
+          'The returned minion no longer has Rebirth unless something grants it again.',
+        ],
+      },
+      {
+        category: 'Rune Change',
+        text: 'Rune of Rebirth now gives a random friendly minion Rebirth at Start of Combat (it no longer grants the exact-copy Echo).',
+      },
+      {
+        category: 'New Rune',
+        text: 'Amplified Equipment: Rune of Amplification (4) — Equipment you do not activate becomes Amplified; Amplified Equipment triggers twice the next time you activate it (max 1 per Equipment). Rune of the Grand Workshop (Epic, 6) Amplifies all your Equipment now and every Start of Turn.',
+      },
+      {
+        category: 'New Rune',
+        text: 'Rune of Soul Script (5, Undead + Celestial): Starforms count as Undead — Undead Consumes, buffs and Auras reach them.',
+      },
+      {
+        category: 'New Rune',
+        text: 'Rune of the Red Giant (Epic, 5, Celestial): your Starform has a 50% chance to also Consume a Shop spell when it feeds — you get a copy of that spell and the Starform gains +8/+8.',
+      },
+      {
+        category: 'New Rune',
+        text: 'Rune of the Final Gate (Epic, 6, Undead): the first time each combat your board becomes empty, three random Undead that died this combat return.',
+      },
+      {
+        category: 'New Rune',
+        text: 'Rune of Dreamed Graves (Epic, 4, Undead): the first minion summoned from your hand each combat gains Rebirth.',
+      },
+      {
+        category: 'UI / Info',
+        text: 'The Equipment charge number turns blue while that Equipment is Amplified, and its tooltip says so.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-16',
+    label: 'Set 3 runes — Spirits and Celestials',
+    changes: [
+      {
+        category: 'New Rune',
+        text: 'Twenty-four new Set 3 Runes for Spirit, Celestial and Undead runs — eleven in the Runeforge and thirteen in the Epic Runeforge.',
+        details: [
+          'Tribe faucets: Rune of Basic / Epic Spirits, Celestials and Undead — a minion of that type (two for the Epic) now and every Start of Turn, never above your Shop Tier.',
+          'Spirit play-offs: Rune of the Full Hand (every 3rd Spirit played buffs your hand +4/+4), the Chosen Vessel (each Spirit played gives your left-most hand minion +2/+2), Deep Currents (each Spirit played gives 2 random friendly Spirits +2/+2), the Spirit Crown (every 3 Spirits played improve your Shop spells +1/+1).',
+          'Reveler runes: the Traveling Festival (a random Reveler every turn, and Revelers pay +2 more), the Growing Chorus (play all three Reveler types: board + hand +5/+5 and your Reveler value +2), Festival Wages (your first Reveler sold each turn makes your next card free), Shared Revelry (the first Flame, Tide and Grove sold each turn trigger twice), the Grand Procession (the first 2 Revelers played each turn return a plain copy), the Festival Circuit (the first 3 Revelers sold each turn each give a random Celestial).',
+          'Celestial spell runes: Charted Skies (your 3rd Shop spell each turn Discovers a Shop spell), Falling Embers (a Star Crash every turn, and every Star Crash gives +2/+2 more — the card shows the new value), the Meteor Shower (your first Star Crash each turn gives another), the Astral Refrain (your 3rd Shop spell each turn hands you copies of that turn\'s 1st and 3rd), the Astral Draft (Start of Turn: Discover a Shop spell that casts an additional time).',
+          'Hand runes: the Dream Mirror (the first time a hand minion gains stats each turn, a random friendly minion gains the same) and Waking Dreams (whenever a hand minion gains stats, your minions +4/+3).',
+          'Rune of the Handy Flame hands you a new rune-only Spirit: Handy Flame (Tier 5, 2/13) — whenever it gains stats, a random other minion in your hand gets +6/+4.',
+          'Every metered rune shows its live progress on its badge, and the "improves" runes show their current bonus.',
+        ],
+      },
+      { category: 'New Card', text: 'Handy Flame — a Tier 5 Spirit token reached only through its rune. No art yet.' },
+    ],
+  },
+  {
+    date: '2026-09-16',
+    label: 'Set 3 runes — Starform, Equipment, Undead',
+    changes: [
+      {
+        category: 'New Rune',
+        text: 'Nineteen new Set 3 Runes: eight Basic and eleven Epic, built around the Starform, Equipment and the Undead.',
+        details: [
+          'Starform (Basic): Rune of First Light creates a Starform that starts +8/+8 — as does every one you create after — and seeds a new one each Start of Turn if you have none; Rune of Accretion doubles what your Starform gains from the Shop minions it Consumes; Rune of Eventide pays 2 Shop spells and +1/+1 spell power the first time you Consume or Collapse a Starform each turn.',
+          "Starform (Epic): Rune of the Open Constellation re-creates a Starform with the consumed one's stats after your first Consume each turn; Rune of the Supernova makes a Collapse reach ALL your Celestials; Rune of Stolen Constellations hands you a copy of every minion your Starform Consumes; Rune of Spellweaving feeds your first 3 stat-granting Shop spells each turn to your Starform too.",
+          'Equipment (Basic): Rune of Efficient Tooling takes 2 Gold off your first Equipment activation each turn; Rune of Quick Release makes your next activation free after you sell an Equip minion; Rune of Resonant Arms gives your minions +8/+5 after every third Equipment effect you trigger (the badge counts toward it).',
+          "Equipment (Epic): Rune of Overcharge makes your first activation each turn free and charge-less; Rune of Dismantling fires a sold Equip minion's Equipment for free before it leaves (once per turn, at a random friendly minion); Rune of Counterrotation re-triggers three different Equipment once you have activated all three; Rune of Empty Hands Discovers an Equip minion whose Equipment costs 0 for the rest of the run; Rune of the Last Tool gives your Equip minions \"Echo: this minion's Equipment costs 0 next turn\".",
+          'Undead: Rune of Last Rites returns a plain copy of the first Undead you destroy in the Shop each turn; Rune of the Crowded Crypt gives your minions +1/+1 permanently whenever a summon does not fit (twice in the Shop); Rune of the Endless March summons a 1/1 Skeleton after a friendly Undead Rises; Rune of the Grave Orbit gives your Starform +15/+15 after combat for each friendly Undead that Rose.',
+          'A grafted Echo (Rune of the Last Tool, Contract Rewrite, Rune of Rebirth) now fires on a Shop death as it already did in combat.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-16',
     label: 'Echo buffs show their source',
     changes: [
       {

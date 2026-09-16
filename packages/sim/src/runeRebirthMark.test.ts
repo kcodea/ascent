@@ -1,9 +1,10 @@
 /**
- * Rune of Rebirth stamps `grantsEcho` on exactly ONE minion's Start-of-Combat event.
+ * Rune of Rebirth grants REBIRTH (`RB`) to exactly ONE minion at Start of Combat — as a `keyword` event.
  *
- * That marker is what lets the UI print the granted Echo on the body that actually has it. The text used to
- * be driven by the run-wide rune flag, so every minion the player controlled claimed the rule (owner report
- * 2026-08-22). This pins the engine half: one grant, one marked uid, and it names a real friendly body.
+ * History: the rune used to graft an exact-copy Echo and mark it with `sc.grantsEcho`, which the UI printed as a
+ * per-body text tag (owner report 2026-08-22: the run-flag-driven text had tagged all seven bodies). Since
+ * 2026-09-16 the rune grants a KEYWORD, so the per-instance read is the pill itself — one `keyword` event, one
+ * body. This pins the engine half: one grant, one uid, and it names a real friendly body.
  */
 import { describe, expect, it } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent } from '@game/core';
@@ -21,22 +22,21 @@ const fight = (rebirth: boolean) => simulate(
   combatSide({ tier: 1 }),
 );
 
-const marked = (evs: CombatEvent[]): string[] =>
-  evs.filter((e): e is Extract<CombatEvent, { type: 'sc' }> => e.type === 'sc' && !!(e as { grantsEcho?: true }).grantsEcho)
-    .map((e) => e.source);
+const granted = (evs: CombatEvent[]): string[] =>
+  evs.filter((e): e is Extract<CombatEvent, { type: 'keyword' }> => e.type === 'keyword' && e.keyword === 'RB').map((e) => e.target);
 
-describe('Rune of Rebirth marks its one recipient', () => {
-  it('marks exactly one minion', () => {
-    expect(marked(fight(true).events)).toHaveLength(1);
+describe('Rune of Rebirth grants Rebirth to its one recipient', () => {
+  it('grants exactly one minion', () => {
+    expect(granted(fight(true).events)).toHaveLength(1);
   });
 
-  it('the marked uid is a real friendly body on the board', () => {
+  it('the granted uid is a real friendly body on the board', () => {
     const r = fight(true);
     const uids = r.initial.player.map((m) => m.uid);
-    expect(uids).toContain(marked(r.events)[0]);
+    expect(uids).toContain(granted(r.events)[0]);
   });
 
-  it('without the rune nothing is marked — so nothing prints the tag', () => {
-    expect(marked(fight(false).events)).toHaveLength(0);
+  it('without the rune nothing is granted — so no pill appears', () => {
+    expect(granted(fight(false).events)).toHaveLength(0);
   });
 });

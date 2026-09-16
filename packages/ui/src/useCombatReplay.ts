@@ -136,9 +136,6 @@ export interface UnitFrame {
   keywords: Keyword[];
   divineShield: boolean;
   alive: boolean;
-  /** Rune of Rebirth handed THIS body the exact-copy Echo at Start of Combat. Per-instance on purpose: the
-   *  rune picks ONE random friendly minion, so the granted rule belongs on that card and nowhere else. */
-  grantedEcho?: boolean;
   /** A DEAD unit kept on the board ONLY to anchor its own still-playing FX (a Deathrattle whose Echo fires a
    *  beat after the body left — Fel Spikes' spike volley). Rendered INVISIBLE, but it holds its slot so the
    *  board doesn't reflow into the gap until the effect finishes. Set by `computeFrame`'s damage-source
@@ -372,12 +369,6 @@ export function computeFrame(
     } else if (e.type === 'reveal') {
       const u = find(e.target);
       if (u) u.keywords = u.keywords.filter((k) => k !== 'ST'); // Stealth lost on attack
-    } else if (e.type === 'sc' && e.grantsEcho) {
-      // Rune of Rebirth's Start-of-Combat pick. From this beat on, THIS card prints the Echo it was handed —
-      // the rune grants it to one random friendly minion, so tagging every minion the player controls (which
-      // is what the run-flag-driven text did) claimed a rule 6 of 7 bodies do not have.
-      const u = find(e.source);
-      if (u) u.grantedEcho = true;
     } else if (e.type === 'keyword') {
       // A combat effect granted a keyword (Mumi → Rise, a Ryme-replayed keyword battlecry) — the
       // pill appears on the card from this beat on. DS also raises the shield flag (bubble).
@@ -557,7 +548,7 @@ function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string;
     case 'shieldUp': return { text: `${n(e.target)} gains a Ward.`, kind: 'shield' };
     case 'poison': return { text: `Execute destroys ${n(e.target)}.`, kind: 'poison' };
     case 'venomLost': return { text: `${n(e.target)}'s Execute is spent.`, kind: 'poison' };
-    case 'reborn': return { text: `${n(e.target)} rises at ${e.hp} HP.`, kind: 'reborn' };
+    case 'reborn': return { text: e.rebirth ? `${n(e.target)} is reborn at ${e.attack}/${e.hp}.` : `${n(e.target)} rises at ${e.hp} HP.`, kind: 'reborn' };
     case 'reveal': return { text: `${n(e.target)} breaks Stealth.`, kind: 'reveal' };
     case 'death': return { text: `${n(e.target)} is destroyed.`, kind: 'death' };
     case 'summon': return { text: `${e.minion.name} (${e.minion.attack}/${e.minion.health}) is summoned.`, kind: 'summon' };
@@ -582,7 +573,7 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
     case 'shield': return 'A Ward absorbs the blow!';
     case 'shieldUp': return `${n(e.target)} gains a Ward.`;
     case 'poison': return `Execute! ${n(e.target)} is destroyed.`;
-    case 'reborn': return `${n(e.target)} rises at 1 Health.`;
+    case 'reborn': return e.rebirth ? `${n(e.target)} is reborn, whole.` : `${n(e.target)} rises at 1 Health.`;
     case 'death': return `${n(e.target)} falls.`;
     case 'summon': return `${e.minion.name} joins the fray.`;
     case 'buff': return `${n(e.target)} grows +${e.attack}/+${e.health}.`;
@@ -1064,11 +1055,16 @@ export function useCombatReplay(
   // Bloom the board aura-wash for a run-wide tribe aura that rose mid-combat — the same cue the recruit phase
   // shows off `auraFxSeq`, anchored to the player's board region. `'any'` (a board-wide aura) uses the neutral
   // palette. Mirrors Recruit.fireAuraWave 1:1 so the two phases read identically (owner ask 2026-07-21).
-  const fireCombatAuraWave = (_tribe: string): void => {
+  const fireCombatAuraWave = (tribe: string): void => {
     // GENERIC AURA-WAVE VISUAL REMOVED 2026-09-02 (owner ask: replace every stock buff cue with an authored
     // pixi effect). The run-wide tribe-aura MOMENT still fires this on the beat it rose (see the `tribeAura`
     // loop below) with the tribe in hand — so a replacement effect anchored to the board region drops straight
-    // in here. Draws nothing in the meantime.
+    // in here.
+    // UNDEAD AURA (owner-authored `undead-aura-buff`, wired 2026-09-16): the same surge the recruit phase plays
+    // off `auraFxSeq`, so an Undead Aura rising mid-combat (Ryme-style replays, Lantern of Souls) reads identically.
+    if (tribe === 'undead' && canPlayDefs()) {
+      playDef('undead-aura-buff', { camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } });
+    }
   };
   // User-controlled replay speed (in-combat slider). 1 = the tuned default; >1 faster, <1 slower. Every
   // beat delay / float lifetime / final hold is divided by it, and each lunge is timeScaled to match.

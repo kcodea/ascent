@@ -57,6 +57,40 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_wheel' && run.shopAuraGrow?.per) {
     return `${Math.min(run.shopAuraGrow.tick, run.shopAuraGrow.per)}/${run.shopAuraGrow.per}`;
   }
+  // ── Set 3 batch 2 (2026-09-16) — tranche A. `x/N` in the same language as the rest; the "improves" runes
+  //    print the CURRENT bonus beside the meter (card-text live-accuracy rule).
+  // Rune of the Growing Chorus: Reveler TYPES played toward the three that pay out.
+  if (runeId === 'rune_growing_chorus' && run.runeGrowingChorus) {
+    return `${Math.min(run.runeGrowingChorus.played.length, 3)}/3`;
+  }
+  // Rune of Charted Skies / the Astral Refrain: Shop spells cast this turn toward the one that fires.
+  if (runeId === 'rune_charted_skies' && run.runeChartedSkies) {
+    return `${Math.min((run.shopSpellIdsThisTurn ?? []).length, run.runeChartedSkies.at)}/${run.runeChartedSkies.at}`;
+  }
+  if (runeId === 'rune_astral_refrain' && run.runeAstralRefrain) {
+    return `${Math.min((run.shopSpellIdsThisTurn ?? []).length, run.runeAstralRefrain.at)}/${run.runeAstralRefrain.at}`;
+  }
+  // Rune of the Traveling Festival: what a Reveler sale pays RIGHT NOW (the shared value + this rune's extra).
+  if (runeId === 'rune_traveling_festival' && run.revelerExtra) {
+    const x = Math.max(1, run.revelerX ?? 1);
+    return `+${x + run.revelerExtra.attack}/+${x + run.revelerExtra.health}`;
+  }
+  // Rune of Falling Embers: what a Star Crash grants right now, beyond its printed base.
+  if (runeId === 'rune_falling_embers' && run.starCrashBonus) {
+    return `+${run.starCrashBonus.attack}/+${run.starCrashBonus.health}`;
+  }
+  // Rune of the Grand Procession (Epic) / the Festival Circuit: Revelers played / sold this turn toward the cap.
+  if (runeId === 'rune_grand_procession' && run.runeProcessionPlay) {
+    return `${Math.min(run.processionPlayedThisTurn ?? 0, run.runeProcessionPlay)}/${run.runeProcessionPlay}`;
+  }
+  if (runeId === 'rune_festival_circuit' && run.runeFestivalCircuit) {
+    const cap = run.runeFestivalCircuit * runeStacksOf(run, 'rune_festival_circuit');
+    return `${Math.min(run.circuitSoldThisTurn ?? 0, cap)}/${cap}`;
+  }
+  // Rune of Festival Wages: an armed free card is the whole point — say so while it is held.
+  if (runeId === 'rune_festival_wages' && (run.nextCardFree ?? 0) > 0) {
+    return `next card free`;
+  }
   // Rune of Spellslinging keeps its own Gold meter rather than joining `runeThresholds`.
   if (runeId === 'rune_spellslinging' && run.spellDripPer) {
     return `${Math.min(run.spellDripTick ?? 0, run.spellDripPer)}/${run.spellDripPer}g`;
@@ -65,6 +99,19 @@ export function runeTally(run: RunState, runeId: string): string | null {
   // counted x/2 against a fires-every-3rd implementation, so it read 1/2 on the turn it actually fired).
   if (runeId === 'rune_summit' && run.runeSummitTick != null) {
     return `${run.runeSummitTick % 3}/3`;
+  }
+  // ── Set 3 batch 2, tranche B (2026-09-16) ──
+  // Rune of Resonant Arms: Equipment TRIGGERS banked toward the next +8/+5 (a run-wide meter).
+  if (runeId === 'rune_resonant_arms' && run.runeResonantArms) {
+    return `${Math.min(run.runeResonantArms.tick, run.runeResonantArms.per)}/${run.runeResonantArms.per}`;
+  }
+  // Rune of Spellweaving: stat-granting Shop spells fed to the Starform so far THIS turn, of the turn's allowance.
+  if (runeId === 'rune_spellweaving' && run.runeSpellweaving) {
+    return `${Math.min(run.spellweavingCastsThisTurn ?? 0, run.runeSpellweaving)}/${run.runeSpellweaving}`;
+  }
+  // Rune of Counterrotation: DIFFERENT Equipment activated this turn, toward the 3 that re-fire.
+  if (runeId === 'rune_counterrotation' && run.runeCounterrotation) {
+    return `${Math.min((run.counterrotationIds ?? []).length, run.runeCounterrotation)}/${run.runeCounterrotation}`;
   }
   // Rune of the Collector: distinct minion TYPES bought this turn, toward the 3 that fire the Discover.
   if (runeId === 'rune_collector' && run.runeCollector) {

@@ -100,7 +100,7 @@ describe('Runeforge — framework', () => {
     // (Set 2 rune batch 2026-07-29). The epic list grew by 6 in the same batch — see the sibling assertion.
     // A hardcoded total is a tripwire, not a spec: it fires whenever runes are added so the addition gets a
     // deliberate look. Bump it with the count. +10 (2026-07-30): Recollection, the First Round, six threshold runes, the Stampede, the Hatchery, Resonance, Investment, Last Call, Hunger, Blood and Coin, the Remains, Reinvestment the Hunting Bell, the Brood + the War Chorus. (Epics are counted separately.)
-    expect(RUNES.length).toBe(142); // 141 → 142 on 2026-08-26: Happy Birthday (the Basic half of the Gift pair)
+    expect(RUNES.length).toBe(163); // 141 → 142 on 2026-08-26: Happy Birthday; 142 → 163 on 2026-09-16: Set 3 batch 2 (A 11 + B 8 + C 2 Basic)
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 

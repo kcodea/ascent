@@ -810,6 +810,16 @@ export const ARENA_EFFECTS = {
     for (const c of arena.handMinions()) arena.buffHand(c, a, h);
   },
 
+  /** Rune of the Endless March (set 3 batch 2) — a GRAFT on every friendly Undead: when THIS body Rises, summon
+   *  `count` copies of `tokenId` (a 1/1 Skeleton) beside it. The caller has already checked the riser is `self`;
+   *  the arena's `summonToken` places it next to the riser in both phases (board full → nothing, as any summon). */
+  onRiseSelfSummonToken(arena: EffectArena, params: Record<string, unknown>): void {
+    const id = typeof params.tokenId === 'string' ? params.tokenId : '';
+    if (!id) return;
+    const count = typeof params.count === 'number' ? params.count : 1;
+    for (let i = 0; i < count; i++) arena.summonToken(id);
+  },
+
   /** Squatimus — a summon that does not fit: your minions +a/+h PERMANENTLY. `buffPermanent` is the arena's
    *  carry-back verb (combat records it as an Engrave-style gain; a shop buff is permanent already). */
   overflowBuffAllPermanent(arena: EffectArena, params: Record<string, unknown>): void {

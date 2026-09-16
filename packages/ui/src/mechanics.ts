@@ -122,6 +122,8 @@ export const MECHANICS: Mechanic[] = [
   { id: 'flurry', term: 'Flurry', glyph: 'windfury', def: 'Attacks twice each turn.', detect: kwMatch('W'), kw: 'W', termRe: /windfury|flurr(?:y|ies)/i, order: 33 },
   { id: 'crit', term: 'Critical Strike', glyph: 'target', def: 'Each attack has a chance to deal double damage.', detect: kwMatch('CR'), kw: 'CR', termRe: /critical strike/i, order: 34 },
   { id: 'rise', term: 'Rise', glyph: 'rise', def: 'The first time it dies, it returns once with 1 Health.', detect: kwMatch('R'), kw: 'R', termRe: /reborn|\brises?\b/i, order: 35 },
+  // REBIRTH (owner 2026-09-16): a new keyword, not the Rise rename. Reuses the Rise glyph as a PLACEHOLDER until one is authored.
+  { id: 'rebirth', term: 'Rebirth', glyph: 'rise', def: 'The first time it dies, it returns once with its full stats, buffs and keywords.', detect: kwMatch('RB'), kw: 'RB', termRe: /\brebirth\b/i, order: 36 },
   { id: 'cleave', term: 'Cleave', glyph: 'cleave', def: 'Also damages the minions beside its target.', detect: kwMatch('C'), kw: 'C', termRe: /\bcleaves?\b/i, order: 36 },
   { id: 'immune', term: 'Immune', glyph: 'immune', def: "Can't take damage.", detect: kwMatch('IMM'), kw: 'IMM', termRe: /\bimmune\b/i, order: 37 },
   { id: 'stealth', term: 'Stealth', glyph: 'stealth', def: "Can't be attacked until it has attacked once.", detect: kwMatch('ST'), kw: 'ST', termRe: /\bstealth\b/i, order: 38 },

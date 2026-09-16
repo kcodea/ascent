@@ -5,7 +5,7 @@ import { Card, mdBold } from './Card';
 import { instView } from './instView';
 import { dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
-import { equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
+import { equipmentAmplifiedOf, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
 import { equipmentArtFor } from './art';
 import { heroArt, heroPowerArt, questArt, runeArt } from './art';
@@ -171,6 +171,9 @@ export function StatusBar() {
   // 2026-09-11). The pool is what makes the number read GREEN — it is above the Equipment's own baseline.
   const equipUses = equipmentUsesLeft(run);
   const equipPool = equipmentPool(run);
+  // AMPLIFIED (owner design 2026-09-16): the selected Equipment holds an Amplified stack — its next activation
+  // triggers twice. The charge indicator turns BLUE while it does (Rune of Amplification / the Grand Workshop).
+  const equipAmplified = selectedEquipDef ? equipmentAmplifiedOf(run, selectedEquipDef.id) : 0;
   const equipCost = selectedEquipDef ? equipmentCostOf(run, selectedEquipDef) : 0;
   // Visible but DISABLED when unaffordable or spent — the handoff is explicit that the slot keeps showing the
   // Equipment and explains why it cannot be used, rather than vanishing.
@@ -1025,7 +1028,13 @@ export function StatusBar() {
               {/* THIS Equipment's charges — its own + the shared bonus pool. GREEN (`boosted`) while the pool is
                   above zero: the number is modified above the Equipment's own baseline of 1, and spending the
                   pool through ANY Equipment drops every one of them back to plain. */}
-              <span className={`hpb-tally${equipPool > 0 ? ' boosted' : ''}`}>{equipUses}</span>
+              {/* AMPLIFIED wins the colour: BLUE says "the next press triggers twice", which matters more than the
+                  pool's green. `data-fx="equipment-amplified"` is the BINDING POINT for the owner's future Amplified
+                  cue (an authored def can anchor on it; nothing plays yet — the colour is the whole tell today). */}
+              <span
+                className={`hpb-tally${equipAmplified > 0 ? ' amplified' : equipPool > 0 ? ' boosted' : ''}`}
+                data-fx={equipAmplified > 0 ? 'equipment-amplified' : undefined}
+              >{equipUses}</span>
             </div>
             <div className="hplabel">{selectedEquipDef.name}</div>
             {/* A clock-window discount in flight (Thymepiece): "−1 Gold · 6s", counting on the turn clock. Its own
@@ -1039,6 +1048,7 @@ export function StatusBar() {
                   ? `${equipUses} charge${equipUses === 1 ? '' : 's'} left for ${selectedEquipDef.name}${equipPool > 0 ? ` (${equipPool} shared bonus)` : ''}`
                   : `No charges left for ${selectedEquipDef.name} this turn`}
                 {equipCost > 0 && run.embers < equipCost ? ' · not enough Gold' : ''}
+                {equipAmplified > 0 ? ' · Amplified: triggers twice on its next activation' : ''}
               </span>
             </div>
             {/* THE SELECTOR — a rail that slides out to the RIGHT on hover (owner ask 2026-08-28: "when i

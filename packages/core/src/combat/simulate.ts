@@ -305,6 +305,23 @@ export function simulate(
     { player: [], enemy: [] };
   /** Rune of the Second Litter: has the once-per-combat copy already fired, per side? */
   const secondLitterUsed: Record<Side, boolean> = { player: false, enemy: false };
+  // ── Set 3 batch 2 (2026-09-16), tranche C ──
+  /** Rune of the Final Gate: every friendly Undead that REALLY died this combat (printed body: cardId + golden),
+   *  in death order, per side. A Rise / Rebirth death whose body came back is not a corpse and is not recorded;
+   *  one whose return overflowed IS (it stayed dead). Read once, when the side's board becomes empty. */
+  const finalGateGraves: Record<Side, { cardId: string; golden: boolean }[]> = { player: [], enemy: [] };
+  /** Rune of the Final Gate: has this side's once-per-combat gate already opened? */
+  const finalGateUsed: Record<Side, boolean> = { player: false, enemy: false };
+  /** Rune of Dreamed Graves: has this side's first hand-summon already taken its Rebirth? */
+  const dreamedGravesUsed: Record<Side, boolean> = { player: false, enemy: false };
+  /** The NEXT body this side places came FROM THE HAND (a Spirit hand-summon, Rope Wrangler's Echo). Set by the
+   *  two hand-summon ctx paths, consumed by `placeSummon` — success or overflow — so it can never leak onto an
+   *  unrelated summon. */
+  const pendingHandSummon: Record<Side, boolean> = { player: false, enemy: false };
+  /** REBIRTH's Ward restore: uids whose Ward BROKE this combat. A Warded body that dies has, in practice, lost
+   *  its Ward first — and the owner's example ("a Warded 50/50 dies and comes back a Warded 50/50") wants it
+   *  back, so the return restores a Ward the body carried at any point this fight. */
+  const wardBroken = new Set<string>();
   /** Wolvie (Echo): one-shot buffs queued for the next tribe minion each side summons (FIFO). */
   const nextSummonBuffs: Record<Side, { tribe: Tribe; attack: number; health: number; sourceUid?: string }[]> = { player: [], enemy: [] };
   /** Wolvie's Echoes STACK onto the NEXT matching summon (owner 2026-08-12): four queued Echoes all land on the
@@ -1007,6 +1024,7 @@ export function simulate(
       const def = cards[h.cardId];
       if (!def || def.spell) return undefined;
       const kws = [...h.keywords, ...(ward && !h.keywords.includes('DS') ? (['DS'] as Keyword[]) : [])];
+      pendingHandSummon[side] = true; // Rune of Dreamed Graves reads this at placement
       const copy = summonMinion(side, def, nearUid, kws, h.golden, false,
         { attack: h.attack, health: h.health, maxHealth: h.health, divineShield: !!ward || h.keywords.includes('DS') });
       // A FULL board: `placeSummon` overflowed (the overflow payoffs fired) and the copy never landed — so the
@@ -1016,8 +1034,12 @@ export function simulate(
       if (!boards[side].includes(copy)) return undefined;
       handCopiedUids.add(uid); // once per combat; the card itself stays in hand and keeps taking buffs
       // Stamp the hand origin onto the summon event just emitted — the replay greys that hand card for the fight.
-      const ev = events[events.length - 1];
-      if (ev && ev.type === 'summon' && ev.minion.uid === copy.uid) ev.fromHandUid = uid;
+      // Found by uid, scanning back: a grant that lands ON the placed body (Rune of Dreamed Graves' Rebirth) emits
+      // after the summon, so "the last event" is no longer guaranteed to be it.
+      for (let i = events.length - 1; i >= 0; i--) {
+        const ev = events[i]!;
+        if (ev.type === 'summon' && ev.minion.uid === copy.uid) { ev.fromHandUid = uid; break; }
+      }
       return copy;
     },
     buffHand: (uid, attack, health, side, sourceUid) => {
@@ -1077,6 +1099,7 @@ export function simulate(
       const pick = left[Math.floor(rng.next() * left.length)]!;
       handSummonedUids.add(pick.uid);
       handSummoned[side].push(pick.uid); // settle removes it from the run hand
+      pendingHandSummon[side] = true; // the caller summons it next — Rune of Dreamed Graves reads this at placement
       return pick;
     },
     mintRubies: (count, side, sourceUid) => {
@@ -1551,6 +1574,8 @@ export function simulate(
     // Board cap of 7 (handoff A.2): a full board can't receive summons — but Flowing Monk pays off
     // on the wasted body (the combat half of its recruit overflow buff). `occupied`, not `living`: a body
     // mid-Rise still holds its slot (owner 2026-09-09).
+    const fromHand = pendingHandSummon[side];
+    pendingHandSummon[side] = false; // consumed by THIS placement, landed or not
     if (occupied(side) >= 7) {
       bus.emit('summonOverflow', { side });
       // Rune of Overflow: a summon that does not fit buffs your whole board PERMANENTLY. Buffed live here so it
@@ -1611,6 +1636,28 @@ export function simulate(
     }
     registerEffects(minion);
     emit({ type: 'summon', minion: snapshot(minion), side, index, source: nearUid });
+    // RUNE OF DREAMED GRAVES (set 3 batch 2, 2026-09-16): the FIRST minion summoned from the hand each combat
+    // gains Rebirth. Granted on the placed body, as a foldable `keyword` grant on its own beat, once per fight.
+    if (fromHand && !dreamedGravesUsed[side] && modsFor(side).runeDreamedGraves && !minion.keywords.includes('RB')) {
+      dreamedGravesUsed[side] = true;
+      nextStep(); fireTrigger('runeDreamedGraves', side);
+      minion.keywords.push('RB');
+      emit({ type: 'keyword', target: minion.uid, keyword: 'RB' });
+    }
+    // RUNE OF THE OPEN HAND (set 3 batch 2, tranche D, 2026-09-16): EVERY minion summoned from the hand that lands
+    // gives its CURRENT stats to another random friendly minion. Read at the same `pendingHandSummon` moment as
+    // Dreamed Graves (a Spirit hand-summon, Rope Wrangler's Echo, the Waking Reserve's copy), after the keyword
+    // grant above so the Rebirth pill and the gift sit on separate beats. One grant per copy held (boolean-flag
+    // family, owner 2026-08-27), each to a fresh random receiver; nothing with no other living friendly.
+    if (fromHand && modsFor(side).runeOpenHand) {
+      for (let k = 0; k < flagCopiesOf(side, 'runeOpenHand'); k++) {
+        const others = boards[side].filter((m) => m !== minion && !m.dead && m.health > 0);
+        if (others.length === 0) break;
+        const t = others[ctx.rng.int(others.length)]!;
+        nextStep(); fireTrigger('runeOpenHand', side);
+        ctx.buff(t, minion.attack, minion.health, 'Rune of the Open Hand');
+      }
+    }
     summonEntryEffects(minion, side);
     // Attack-on-summon (Whelp) / `attackNow` (Spear Warden): the immediate strike is NOT queued here. We only
     // reach placeSummon for these tokens from flushImmediateAttacks (they defer in summonMinion), which strikes
@@ -2123,6 +2170,77 @@ export function simulate(
     // So a 7/8 buffed to a 13/10 body comes back a 7/1.
     // Undead carry-through + run-wide auras are still re-applied on top (Lantern/buy-time "everywhere" + the
     // Eternal-Knight enchant); general stat / Imp / Fodder buffs do NOT carry.
+    // ── REBIRTH (new keyword, owner 2026-09-16) — resolved BEFORE Rise ────────────────────────────────────
+    // The body returns ONCE with its FULL current body: stats (Health refilled to its max), granted buffs,
+    // keywords (Rebirth itself spent; a Ward it carried at any point this fight restored), effects and every
+    // per-instance counter — nothing is rebuilt from the def. Ordering rules, chosen here and pinned in tests:
+    //   · Rebirth before Rise. A body holding both comes back whole first (its Rise stays armed, so its NEXT
+    //     death Rises the printed body). The stronger return goes first so the buffs are not thrown away.
+    //   · Echo fires on the Rebirth death exactly as on a Rise death (die → Echo → return to the RIGHT of what
+    //     the Echo summoned), and the death is a REAL death (Avenge, tallies, on-death watchers, kill credit).
+    //   · Taunt / Ward / Flurry / every other keyword comes back with the body (Rise sheds granted ones).
+    //   · NOT a Rise: `onRise` watchers (Revenant, Rising Tide) stay quiet — Rebirth is its own keyword.
+    //   · It IS a summon in full (the owner's Rise ruling 2026-08-12): the summon-entry suite runs, so Savagery /
+    //     Jungle / onSummon watchers fire on the return.
+    //   · A full board (7 living) at the return = an overflow; the body stays dead (Rise's rule).
+    //   · Not re-armed: the returned body has no Rebirth unless something re-grants it.
+    //   · Avenge progress restarts on the return (Rise's rule; a side-level tally is not part of the "body").
+    //   · A body that dies to retaliation on its own swing and returns is NEXT TO ATTACK AGAIN (the Rise rewind
+    //     in the main loop applies to a Rebirth return too).
+    // Re-aligned with the Rise branch on 2026-09-16 (owner: "it acts like rise, so copy that"): every step below
+    // is the Rise branch's step in the same order — death (rise-flagged) → reservation → tally → own Echo →
+    // on-death watchers → kill credit → Avenge → overflow check → return → re-slot → `reborn` → summon-entry —
+    // with the ONE intended difference that nothing is rebuilt from the def. Rise's Apple re-arm and `onRise`
+    // are Rise-only by design.
+    if (minion.keywords.includes('RB')) {
+      minion.keywords = minion.keywords.filter((k) => k !== 'RB');
+      if (minion.effects.some((e) => e.on === 'onDeath')) bumpDeathrattles(1, minion.side);
+      const arr = boards[minion.side];
+      const before = new Set(arr.map((m) => m.uid));
+      const slot = arr.indexOf(minion);
+      const body = { attack: minion.attack, maxHealth: Math.max(1, minion.maxHealth), keywords: [...minion.keywords] };
+      minion.dead = true;
+      minion.health = 0;
+      emit({ type: 'death', target: minion.uid, side: minion.side, rise: true });
+      nextStep();
+      risingReserved[minion.side] += 1;
+      deaths[minion.side] += 1; // counted before the Echo (R-AVWIN-02), as for a Rise
+      fireOwnDeathrattles(minion, killer);
+      bus.emit('onDeath', { minion, side: minion.side, killer, ownAlreadyFired: true });
+      if (minion.side === 'enemy') enemyDeaths++;
+      noteKill(minion.cardId, minion.uid, minion.side);
+      questEventsFor[minion.side].push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
+      emitAvenge(minion.side, deaths[minion.side], minion);
+      risingReserved[minion.side] -= 1;
+      if (living(minion.side).length >= 7) {
+        bus.emit('summonOverflow', { side: minion.side });
+        if (isUndeadMinion(minion)) finalGateGraves[minion.side].push({ cardId: minion.cardId, golden: !!minion.golden }); // it stayed dead
+        return;
+      }
+      minion.dead = false;
+      minion.attack = body.attack;
+      minion.maxHealth = body.maxHealth;
+      minion.health = body.maxHealth;
+      minion.keywords = body.keywords;
+      if (wardBroken.has(minion.uid) && !minion.keywords.includes('DS')) minion.keywords.push('DS');
+      wardBroken.delete(minion.uid);
+      minion.divineShield = minion.keywords.includes('DS');
+      minion.rebornAvailable = minion.keywords.includes('R');
+      // Its AVENGE progress restarts, exactly as on a Rise (owner: "1/3 should reset to 0/3") and as on any body
+      // placed mid-combat (`placeSummon` stamps the same baseline). Avenge progress is a side-level deaths tally,
+      // not a buff, keyword or effect — so it is NOT part of the "full body" Rebirth keeps (owner 2026-09-16:
+      // "it acts like rise, so copy that"). Stamped after its own death was tallied, so that death is no progress.
+      minion.avengeBaseline = deaths[minion.side];
+      let at = arr.indexOf(minion);
+      arr.splice(at, 1);
+      while (at < arr.length && !before.has(arr[at]!.uid)) at++;
+      arr.splice(at, 0, minion);
+      const after = at > slot ? arr[at - 1]!.uid : undefined;
+      nextStep();
+      emit({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords], ...(after ? { after } : {}), rebirth: true });
+      summonEntryEffects(minion, minion.side);
+      return;
+    }
     if (minion.rebornAvailable) {
       minion.rebornAvailable = false;
       // It really died: proc the unit's own Deathrattle / on-death effects (each death procs them) BEFORE the
@@ -2170,6 +2288,7 @@ export function simulate(
       // real. Its (rise-flagged) death was already emitted and tallied above, so nothing is pushed twice.
       if (living(minion.side).length >= 7) {
         bus.emit('summonOverflow', { side: minion.side });
+        if (isUndeadMinion(minion)) finalGateGraves[minion.side].push({ cardId: minion.cardId, golden: !!minion.golden }); // Final Gate: it stayed dead
         return;
       }
       // Rise: revive the SAME body (keeps its uid → "reborn attacks again" + every per-instance carry-back
@@ -2250,6 +2369,8 @@ export function simulate(
     minion.dead = true;
     minion.health = 0;
     emit({ type: 'death', target: minion.uid, side: minion.side });
+    // RUNE OF THE FINAL GATE's graveyard: every Undead that really dies, printed body, in death order.
+    if (isUndeadMinion(minion)) finalGateGraves[minion.side].push({ cardId: minion.cardId, golden: !!minion.golden });
     // MOSSMEMORY COLOSSUS's graveyard: every Beast that dies is recorded in DEATH ORDER, so its Echo can bring
     // back the three that fell earliest. The PRINTED body is what's recorded (cardId + golden), matching the
     // Rise precedent — "Rise resummons the PRINTED body" — rather than whatever the corpse had grown into.
@@ -2457,6 +2578,25 @@ export function simulate(
             { attack: b.attack, health: b.health, maxHealth: b.health });
         }
       }
+      // RUNE OF THE FINAL GATE (set 3 batch 2, 2026-09-16): the FIRST time each combat the side's board becomes
+      // EMPTY, summon three random Undead that died this combat — printed bodies (the Rise / Colossus precedent),
+      // drawn without replacement from the death list, seeded. Mirrors the Crucible's wipe check above and runs
+      // AFTER it: a Crucible return that refills the board means the wipe was not real, and the gate stays armed.
+      // Once per fight, whatever it found (an empty graveyard still spends it — the board WAS empty).
+      if (modsFor(minion.side).runeFinalGate && !finalGateUsed[minion.side]
+          && boards[minion.side].every((m) => m.dead || m.health <= 0)) {
+        finalGateUsed[minion.side] = true;
+        const pool = [...finalGateGraves[minion.side]];
+        if (pool.length > 0) {
+          nextStep(); fireTrigger('runeFinalGate', minion.side);
+          for (let i = 0; i < 3 && pool.length > 0; i++) {
+            const g = pool.splice(ctx.rng.int(pool.length), 1)[0]!;
+            const def = cards[g.cardId];
+            if (!def) continue;
+            summonMinion(minion.side, def, undefined, undefined, g.golden, false);
+          }
+        }
+      }
       // Echo doublers re-proc the dying minion's own Deathrattle extra times — Sylus + Funeral Engine + the
       // first-echo-each-combat bonus, all folded additively in `playerEchoExtras` (see its note). Only for a
       // minion that actually has a Deathrattle (so the first-echo bonus isn't spent on a rattle-less body).
@@ -2595,6 +2735,7 @@ export function simulate(
     if (!bypassShield && target.divineShield) {
       target.divineShield = false;
       target.keywords = target.keywords.filter((k) => k !== 'DS');
+      wardBroken.add(target.uid); // Rebirth restores it (see `killOrReborn`)
       emit({ type: 'shield', target: target.uid });
       bus.emit('onLoseDivineShield', { minion: target, side: target.side });
       return;
@@ -3466,6 +3607,31 @@ export function simulate(
         }
       }
     }
+    // RUNE OF THE WAKING RESERVE (set 3 batch 2, tranche D, 2026-09-16): with room on the board, summon a COPY of
+    // the highest-stat (Attack + Health; ties → the left-most in hand) minion in hand — current hand stats,
+    // keywords and gilding, the Mirror March `copyStats` path. It IS a hand-summon (`pendingHandSummon`: Dreamed
+    // Graves / the Open Hand hear it) but the card is NOT marked — neither `handCopiedUids` nor `fromHandUid`
+    // — so a Spirit may still summon it later this fight and the replay does not grey it. One copy per rune copy
+    // held, room re-checked each time. `occupied`, not length: a slot held through a Rise is not room.
+    if (rmods.runeWakingReserve && occupied(rside) < 7) {
+      const rawHand = (rside === 'player' ? playerState.handMinions : enemyState.handMinions) ?? [];
+      const pool = ctx.handMinionsFor(rside).filter((h) => !h.locked && !cards[h.cardId]?.spell);
+      if (pool.length > 0) {
+        const top = pool.reduce((a, b) => (b.attack + b.health > a.attack + a.health ? b : a));
+        const raw = rawHand.find((h) => h.uid === top.uid);
+        const def = cards[top.cardId];
+        if (raw && def) {
+          nextStep();
+          fireTrigger('runeWakingReserve', rside);
+          for (let k = 0; k < flagCopiesOf(rside, 'runeWakingReserve') && occupied(rside) < 7; k++) {
+            pendingHandSummon[rside] = true; // a hand-summon for Dreamed Graves / the Open Hand — the card itself stays unmarked
+            summonMinion(rside, def, undefined, [...raw.keywords], raw.golden, false,
+              { attack: raw.attack, health: raw.health, maxHealth: raw.health, divineShield: raw.keywords.includes('DS') });
+            pendingHandSummon[rside] = false; // consumed by the placement; cleared here too in case it never placed
+          }
+        }
+      }
+    }
     // Rune of Twilight: Start-of-Combat effects trigger an ADDITIONAL time — extra SoC pass(es) for this
     // board. The pass count comes from `socTwilightExtraFires`, THE shared definition the shop End-of-Turn
     // replay (Rune of Combat Prowess) also consults — owner reversal 2026-08-20: the two runes STACK, so the
@@ -3842,18 +4008,19 @@ export function simulate(
     // the same Rise-vs-copy distinction Living Treasure hit (Rise returns the printed body; the Echo copies
     // current stats). Registered explicitly: the initial board's effects were already registered before
     // Start of Combat, so the normal registration pass will not see this graft.
+    // RUNE OF REBIRTH (owner 2026-09-16, replacing the 2026-07-31 exact-copy Echo): Start of Combat — ONE random
+    // friendly minion gains REBIRTH (`RB`, the new keyword: it returns once with its full body). A foldable
+    // `keyword` grant on its own beat; the id is unchanged.
     if (rmods.runeRebirth) {
       // One grant per copy held (boolean-flag family, owner 2026-08-27) — each lands on a fresh eligible body.
       for (let k = 0; k < flagCopiesOf(rside, 'runeRebirth'); k++) {
-        const eligible = boards[rside].filter((m) => !m.dead && m.health > 0 && !m.effects.some((e) => e.do === 'echoSummonCopyNoEcho'));
+        const eligible = boards[rside].filter((m) => !m.dead && m.health > 0 && !m.keywords.includes('RB'));
         if (eligible.length === 0) break;
         const m = eligible[ctx.rng.int(eligible.length)]!;
         nextStep(); // step FIRST so the badge pulse lands on the grant's own beat
         fireTrigger('runeRebirth', rside);
-        const eff: EffectDef = { on: 'onDeath', do: 'echoSummonCopyNoEcho', params: {} };
-        m.effects = [...m.effects, eff];
-        registerEffect(m, eff);
-        emit({ type: 'sc', source: m.uid, text: `${m.name} gains an Echo`, cast: true, grantsEcho: true });
+        m.keywords.push('RB');
+        emit({ type: 'keyword', target: m.uid, keyword: 'RB' });
       }
     }
     // Rune of Rising Graves: give the two left-most Undead Rise (Reborn) — a foldable `keyword` R grant.
@@ -4154,10 +4321,15 @@ export function simulate(
       continue;
     }
     const rebornBefore = attacker.rebornAvailable;
+    const rebirthBefore = attacker.keywords.includes('RB');
     performAttack(attacker, defenderSide, 0);
     // Reborn-on-attack: a minion that died to retaliation and Reborned keeps its place — it's next to
     // attack again for its side (rewind the pointer to just before it) rather than going to the back.
-    if (rebornBefore && !attacker.rebornAvailable && !attacker.dead && attacker.health > 0) {
+    // A REBIRTH return gets the same rewind (owner 2026-09-16: "it acts like rise, so copy that" — pinned by
+    // the Rise/Rebirth parity test in `rebirth.test.ts`): `RB` was on the body before the swing and is spent
+    // by the return, so a body standing without it came back this swing.
+    if ((rebornBefore && !attacker.rebornAvailable && !attacker.dead && attacker.health > 0)
+      || (rebirthBefore && !attacker.keywords.includes('RB') && !attacker.dead && attacker.health > 0)) {
       const arr = boards[turn];
       lastAttacker[turn] = arr[arr.indexOf(attacker) - 1] ?? null;
     }

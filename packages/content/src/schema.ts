@@ -7,7 +7,7 @@ import { z } from 'zod';
  */
 export const TribeSchema = z.enum(['beast', 'undead', 'mech', 'dragon', 'demon', 'neutral', 'kobold', 'dwarf', 'celestial', 'spirit']);
 
-export const KeywordSchema = z.enum(['T', 'DS', 'V', 'W', 'R', 'C', 'M', 'SC', 'CN', 'FD', 'IMM', 'ST', 'RL', 'SL', 'CR', 'EG']);
+export const KeywordSchema = z.enum(['T', 'DS', 'V', 'W', 'R', 'C', 'M', 'SC', 'CN', 'FD', 'IMM', 'ST', 'RL', 'SL', 'CR', 'EG', 'RB']);
 
 export const GameEventSchema = z.enum([
   'onPlay',
@@ -16,6 +16,7 @@ export const GameEventSchema = z.enum([
   'onRise',
   'onAttack',
   'onGainAttack',
+  'onGainStats',
   'onDamaged',
   'friendlyDemonDealtDamage',
   'onLoseDivineShield',
@@ -429,6 +430,7 @@ export const EffectFactoryIdSchema = z.enum([
   // set 3 Spirits (tranche 2 — the hand-summon cards)
   'deathrattleSummonHighestHealthFromHand', 'rallySummonRandomTribeFromHand', 'scGainStatsOfHighestHealthHand',
   'rallyGiveTribeAttackOfHighestAttackHand', 'onDamagedBuffRandomHand', 'tribePlayedBuffSelfInHand',
+  'onGainStatsBuffRandomHand', // Set 3 batch 2 (2026-09-16) — tranche A: Handy Flame
   'battlecryBuffMagnetics',
   'battlecryBuffImps',
   'goldSpentBuffFodder',
@@ -537,6 +539,8 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleBuffHandTribe', // R-HAND-02 (2026-09-09): buff hand minions of a tribe — permanent in both phases
   // Set 3 Undead (2026-09-09)
   'onRiseBuffSelfWard', 'onRiseBuffBoardAndHand', 'overflowBuffAllPermanent', 'deathrattleBuffRandomTribe',
+  // Set 3 batch 2, tranche B (2026-09-16) — rune grafts
+  'onRiseSelfSummonToken', 'deathrattleEquipmentFreeNextTurn',
   'battlecryDestroyForDiscover', 'equipmentRiseThenDestroy', 'avengeCastTribeAttack',
   'impInheritOnDeath', 'impInheritOnSummon', 'echoCastRememberedSpells', 'echoResummonDeadBeasts',
   'setArmor',
@@ -670,7 +674,7 @@ export const CardDefSchema = z.object({
       exactTier: z.number().int().positive().optional(),
       exactCurrentTier: z.boolean().optional(),
       tierOffset: z.number().int().optional(),
-      filter: z.enum(['battlecry', 'deathrattle']).optional(),
+      filter: z.enum(['battlecry', 'deathrattle', 'equip']).optional(),
       tribe: z.union([TribeSchema, z.literal('dominant')]).optional(),
       topTierFirst: z.boolean().optional(),
       spell: z.boolean().optional(),
@@ -702,7 +706,11 @@ export const QuestObjectiveEventSchema = z.enum([
 ]);
 export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy', 'emptyGraves', 'assemblyLine', 'crateringMissive', 'passingSpears', 'runeWarding', 'runeFury', 'runeSlaying', 'runeForthcoming', 'runeRallying', 'runeRisingGraves', 'runeBroodpit', 'runeSpearline', 'runeAppraisal', 'runeSoulTaxes', 'runeFirstClaws', 'runePackcraft', 'runeInheritance', 'runeSalvage', 'runeTwilight', 'runeWarden', 'runeRebirth', 'runeAftershocks', 'runeEngraving', 'runeUnderdog', 'runeGemGolem', 'runeChef', 'runeCarrionCoin', 'runeFiveBanners', 'runeCenterline', 'runeSecondLitter', 'runeDragonscale', 'runeTemperedTime', 'runeSavagery', 'runeCrucible', 'runeHerald', 'runeUndertow', 'runeMirrorMarch', 'runeTrophy', 'avengeFirstDouble', 'candlelightToll', 'gemheartCharge', 'burningLegion', 'runeVanguard', 'runeFinality', 'runeHatchery', 'runeLastCall', 'runeCinderLedger', 'runeProcession', 'runeGemstorm', 'runeBloodAndCoin', 'runeWildHunt', 'runeLivingTreasure', 'runeRemains', 'runeReinvestment', 'runeHuntingBell', 'runeBrood', 'runeLivingEchoes', 'runeWarChorus', 'runeFoodChain', 'runeAttackingGems', 'runeOverflow', 'runeCounterpoint', 'runeMammoth', 'runeWarpath', 'runeEmberline', 'runeAshenPayroll', 'runeBackbeat', 'runeSpareChair', 'runeAncestralRoar', 'runeRubyShrapnel', 'runeSharedScripture', 'runeMoonhowl', 'runeFloodedVault', 'runeBattleRefraction', 'runeWrangler', 'runeLivingGeode', 'runeDawnclaw', 'runeSylus', 'oldPack', 'runeJungle', 'runeBurrow', 'runeBeastialSwarm', 'runeZoo', 'runeRuins', 'runeGolems', 'runeEngravingGems', 'runeHerdingHorn', 'runeDeathtouchedApple', 'runeStokedMenagerie',
   // 2026-08-20 rune batch
-  'runeReturningPack', 'runeGraveRefreshment', 'runeShiftingFacets', 'runeDeepeningVein']);
+  'runeReturningPack', 'runeGraveRefreshment', 'runeShiftingFacets', 'runeDeepeningVein',
+  // Set 3 batch 2 (2026-09-16), tranche C
+  'runeFinalGate', 'runeDreamedGraves',
+  // Set 3 batch 2 (2026-09-16), tranche D
+  'runeOpenHand', 'runeWakingReserve']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -799,6 +807,28 @@ z.object({ kind: z.literal('runeAftermarket') }).strict(),
   z.object({ kind: z.literal('runeMountainTrade') }).strict(),
   z.object({ kind: z.literal('runeOpenAppetite') }).strict(),
   z.object({ kind: z.literal('runeBroodmaster') }).strict(),
+  // ── Set 3 batch 2 (2026-09-16), tranche C ──
+  z.object({ kind: z.literal('runeAmplification') }).strict(),
+  z.object({ kind: z.literal('runeGrandWorkshop') }).strict(),
+  z.object({ kind: z.literal('runeRedGiant') }).strict(),
+  z.object({ kind: z.literal('runeSoulScript') }).strict(),
+  // ── Set 3 batch 2 (2026-09-16) — tranche A ──
+  z.object({ kind: z.literal('runeChosenVessel'), attack: z.number().int(), health: z.number().int() }).strict(),
+  z.object({ kind: z.literal('runeDeepCurrents'), count: z.number().int().positive(), attack: z.number().int(), health: z.number().int() }).strict(),
+  z.object({ kind: z.literal('runeRevelerDrip'), count: z.number().int().positive() }).strict(),
+  z.object({ kind: z.literal('runeRevelerExtra'), attack: z.number().int(), health: z.number().int() }).strict(),
+  z.object({ kind: z.literal('runeGrowingChorus'), attack: z.number().int(), health: z.number().int(), improve: z.number().int().nonnegative() }).strict(),
+  z.object({ kind: z.literal('runeChartedSkies'), at: z.number().int().positive() }).strict(),
+  z.object({ kind: z.literal('runeStarCrashBonus'), attack: z.number().int(), health: z.number().int() }).strict(),
+  z.object({ kind: z.literal('runeFestivalWages') }).strict(),
+  z.object({ kind: z.literal('runeMeteorShower') }).strict(),
+  z.object({ kind: z.literal('runeAstralRefrain'), at: z.number().int().positive() }).strict(),
+  z.object({ kind: z.literal('runeAstralDraft') }).strict(),
+  z.object({ kind: z.literal('runeDreamMirror') }).strict(),
+  z.object({ kind: z.literal('runeWakingDreams'), attack: z.number().int(), health: z.number().int() }).strict(),
+  z.object({ kind: z.literal('runeSharedRevelry') }).strict(),
+  z.object({ kind: z.literal('runeProcessionPlay'), count: z.number().int().positive() }).strict(),
+  z.object({ kind: z.literal('runeFestivalCircuit'), count: z.number().int().positive() }).strict(),
   z.object({ kind: z.literal('runeSecondLife') }).strict(),
   z.object({ kind: z.literal('runeSharedReflection') }).strict(),
   z.object({ kind: z.literal('runeUnbrokenVein') }).strict(),
@@ -816,11 +846,11 @@ z.object({ kind: z.literal('runeTranscription'), count: z.number().int().positiv
 z.object({ kind: z.literal('runeTreasureMap'), turns: z.number().int().positive(), gold: z.number().int().positive() }).strict(),
 z.object({ kind: z.literal('runeGoldenSplinter'), at: z.number().int().positive(), tier: z.number().int().min(1).max(7) }).strict(),
 z.object({ kind: z.literal('endlessVerse'), per: z.number().int().positive() }).strict(),
-z.object({ kind: z.literal('runeThreshold'), meter: z.enum(['gold', 'spellCast', 'spellCastNonAle', 'castRuby', 'cardsBought', 'cardsPlayed', 'playDragon', 'shout', 'consume']), per: z.number().int().positive(),
+z.object({ kind: z.literal('runeThreshold'), meter: z.enum(['gold', 'spellCast', 'spellCastNonAle', 'castRuby', 'cardsBought', 'cardsPlayed', 'playDragon', 'shout', 'consume', 'playSpirit']), per: z.number().int().positive(),
   grantSpell: z.number().int().positive().optional(), grantAle: z.number().int().positive().optional(), grantRuby: z.number().int().positive().optional(),
   grantCards: z.array(z.string().min(1)).min(1).optional(),
   castStatSpell: z.number().int().positive().optional(),
-  buff: z.object({ target: z.enum(['imps', 'shop', 'shopRightmost', 'shopTurn', 'spells', 'tribe']), tribe: TribeSchema.optional(), attack: z.number().int(), health: z.number().int(), step: z.object({ attack: z.number().int(), health: z.number().int() }).strict().optional() }).strict().optional(),
+  buff: z.object({ target: z.enum(['imps', 'shop', 'shopRightmost', 'shopTurn', 'spells', 'tribe', 'hand']), tribe: TribeSchema.optional(), attack: z.number().int(), health: z.number().int(), step: z.object({ attack: z.number().int(), health: z.number().int() }).strict().optional() }).strict().optional(),
   rubyAll: z.boolean().optional(),
   grantGoldNextTurn: z.number().int().positive().optional(),
   resetEachTurn: z.boolean().optional(),
@@ -905,6 +935,26 @@ z.object({ kind: z.literal('consumeDoubleFirstEachTurn') }).strict(),
   z.object({ kind: z.literal('runeSummit') }).strict(),
   z.object({ kind: z.literal('runeMastery') }).strict(),
   z.object({ kind: z.literal('runeEmpowerment') }).strict(),
+  // ── Set 3 batch 2 (2026-09-16) — tranche B ──
+  z.object({ kind: z.literal('runeFirstLight') }).strict(),
+  z.object({ kind: z.literal('runeAccretion') }).strict(),
+  z.object({ kind: z.literal('runeEventide') }).strict(),
+  z.object({ kind: z.literal('runeEfficientTooling'), less: z.number().int().positive() }).strict(),
+  z.object({ kind: z.literal('runeQuickRelease') }).strict(),
+  z.object({ kind: z.literal('runeResonantArms'), per: z.number().int().positive(), attack: z.number().int().nonnegative(), health: z.number().int().nonnegative() }).strict(),
+  z.object({ kind: z.literal('runeLastRites') }).strict(),
+  z.object({ kind: z.literal('runeCrowdedCrypt'), attack: z.number().int().nonnegative(), health: z.number().int().nonnegative(), times: z.number().int().positive() }).strict(),
+  z.object({ kind: z.literal('runeOpenConstellation') }).strict(),
+  z.object({ kind: z.literal('runeSupernova') }).strict(),
+  z.object({ kind: z.literal('runeStolenConstellations') }).strict(),
+  z.object({ kind: z.literal('runeSpellweaving'), count: z.number().int().positive() }).strict(),
+  z.object({ kind: z.literal('runeOvercharge') }).strict(),
+  z.object({ kind: z.literal('runeDismantling') }).strict(),
+  z.object({ kind: z.literal('runeCounterrotation'), count: z.number().int().positive() }).strict(),
+  z.object({ kind: z.literal('runeEmptyHands') }).strict(),
+  z.object({ kind: z.literal('runeLastTool') }).strict(),
+  z.object({ kind: z.literal('runeEndlessMarch') }).strict(),
+  z.object({ kind: z.literal('runeGraveOrbit'), attack: z.number().int().nonnegative(), health: z.number().int().nonnegative() }).strict(),
   z.object({ kind: z.literal('openEpicRuneforge') }).strict(),
   z.object({ kind: z.literal('scheduleRuneforge'), forge: z.enum(['basic', 'epic']), onWave: z.number().int().positive().optional(), gold: z.number().int().nonnegative().optional() }).strict(),
   z.object({ kind: z.literal('multi'), rewards: z.array(QuestRewardSchema).min(1) }).strict(),

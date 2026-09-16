@@ -1,6 +1,6 @@
 import { makeRng } from '@game/core';
 import type { BoardMinion, BounceKind, CombatConfig, CombatOutcome, CombatResult, CombatSideState, EffectDef, Keyword, QuestObjectiveEvent, Rng, Tribe } from '@game/core';
-import { CARD_INDEX, SETS, activeSet, poolFor, type SetId } from '@game/content';
+import { CARD_INDEX, LEGACY_CARD_IDS, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { CONFIG, HENCHMEN_ARCHIVED, RIFT_BONUS_ARMOR, activeRift, type RiftId } from './config';
 import { DEFAULT_HERO_ID, getHero, powerDiscoverPool } from './heroes';
 import { generateQuestOffer, questOfferPlan } from './quests';
@@ -77,6 +77,9 @@ export interface ShopCard {
    *  THE STARFORM reuses this field as its LIVE PRICE (owner rules 2026-09-13): 6 at creation, −1 per refresh
    *  (floor 0), carried across turns, reset to 6 on a fresh token — see `starform.ts`. */
   cost?: number;
+  /** Rune of Soul Script: the standing Undead Aura was baked onto THIS token (`starformSoulScriptBake`) — a
+   *  per-token latch so rune acquisition and token creation cannot both pay it. */
+  soulScriptAuraBaked?: boolean;
   /** Displacement: a board minion stashed here when swapped to the tavern — restored INTACT (all buffs /
    *  stats / progression) when re-bought or swapped back, rather than re-instantiated from base. */
   held?: BoardCard;
@@ -129,6 +132,9 @@ export interface BoardCard {
   health: number;
   /** Rune of the Bargain Bin: an overridden sell value (0) — read by `sellValueOf` ahead of the normal calc. */
   sellOverride?: number;
+  /** A HAND SPELL that casts this many extra times (Rune of the Astral Draft's Discover pick). Read by `spellCasts`
+   *  when the cast site passes the instance, so the x N badge previews it. Absent = 0. */
+  extraCasts?: number;
   keywords: Keyword[];
   golden: boolean;
   /** Anomaly Reactor: extra tribes granted to THIS instance beyond its printed tribe(s) (a spell-added Mech
@@ -392,8 +398,8 @@ export const DEFAULT_PRACTICE_CONFIG: PracticeConfig = {
 };
 
 export type DiscoverSpec =
-  | { kind: 'spell' }
-  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number; lockGold?: number; golden?: boolean; maxTier?: number; lockWave?: number; borrowed?: boolean; setStats?: { attack: number; health: number } }
+  | { kind: 'spell'; extraCasts?: number } // `extraCasts` (Rune of the Astral Draft): the pick is stamped to cast that many more times
+  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle' | 'equip'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number; lockGold?: number; golden?: boolean; maxTier?: number; lockWave?: number; borrowed?: boolean; setStats?: { attack: number; health: number } }
   // A Discover from an EXPLICIT card-id pool (Rune of the Second Path's Greater-Quest reward minions; Rival's Reflection).
   | { kind: 'pool'; ids: string[]; borrowed?: boolean };
 
@@ -765,7 +771,7 @@ export interface RunState {
      *  specific badge — several threshold runes can be held at once, so a flat list alone can't say which
      *  belongs to which (owner ask 2026-08-03: "runes/quests should all have tally trackers"). */
     sourceId?: string;
-    meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume'; per: number; tick: number;
+    meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit'; per: number; tick: number;
     grantGoldNextTurn?: number; resetEachTurn?: boolean;
     grantSpell?: number; grantAle?: number; grantRuby?: number;
     /** Rune of the Deep Feast: exact card ids handed over when the meter trips. */
@@ -776,7 +782,7 @@ export interface RunState {
     rubyAll?: boolean;
     /** `step` (Compounding Wages) ESCALATES the payout: the grant grows by `step` after every payout, so the
      *  buff written here is mutated in place and the badge prints the CURRENT size. */
-    buff?: { target: 'imps' | 'shop' | 'shopRightmost' | 'shopTurn' | 'spells' | 'tribe'; tribe?: Tribe; attack: number; health: number; step?: { attack: number; health: number } };
+    buff?: { target: 'imps' | 'shop' | 'shopRightmost' | 'shopTurn' | 'spells' | 'tribe' | 'hand'; tribe?: Tribe; attack: number; health: number; step?: { attack: number; health: number } };
     oncePerTurn?: boolean; usedThisTurn?: boolean;
     /** Bubble Crown: a ONE-SHOT threshold — `once` declares it, `spent` records that it has paid. */
     once?: boolean; spent?: boolean;
@@ -1103,6 +1109,62 @@ export interface RunState {
    *  while the repeats resolve — a repeat must not reproduce the modifier that created it. No content grants
    *  this yet; it exists so "your Equipment triggers an additional time" is card DATA when it arrives. */
   equipmentExtraTriggers?: number;
+  /**
+   * ── Set 3 batch 2 (2026-09-16) — tranche B rune state (Starform / Equipment / Undead runes) ────────────
+   * Arming fields are set by the reward cases in `applyQuestRewardInner`; the `…UsedThisTurn` / `…ThisTurn`
+   * latches reset in the turn advance beside the other per-turn rune latches.
+   */
+  /** Rune of First Light: every created Starform starts +8/+8 (× copies); Start of Turn seeds one when none. */
+  runeFirstLight?: boolean;
+  /** Rune of Accretion: the Starform's Shop consumes land ×(1 + copies) (`starformConsumeTimes`). */
+  runeAccretion?: boolean;
+  /** Rune of Eventide: the first Starform Consume / Collapse each turn → 2 Shop spells + spell power +1/+1. */
+  runeEventide?: boolean;
+  eventideUsedThisTurn?: boolean;
+  /** Rune of Efficient Tooling: Gold off the FIRST Equipment activation each turn (accumulates per copy). */
+  runeEfficientTooling?: number;
+  /** Rune of Quick Release: armed by selling an Equip minion; the next activation this turn costs 0. */
+  runeQuickRelease?: boolean;
+  quickReleaseArmed?: boolean;
+  /** Rune of Resonant Arms: a run-wide meter over Equipment TRIGGERS; pays +attack/+health every `per`. */
+  runeResonantArms?: { per: number; attack: number; health: number; tick: number };
+  /** Rune of Last Rites: the first Undead destroyed in the Shop each turn returns a plain copy to hand. */
+  runeLastRites?: boolean;
+  lastRitesUsedThisTurn?: boolean;
+  /** Rune of the Crowded Crypt (shop half): an overflowed shop summon buffs your minions `times` times. */
+  runeCrowdedCrypt?: { attack: number; health: number; times: number };
+  /** Rune of the Open Constellation: the first Starform Consume each turn re-creates a token with its stats. */
+  runeOpenConstellation?: boolean;
+  openConstellationUsedThisTurn?: boolean;
+  /** Rune of the Supernova: a Collapse hits every friendly Celestial instead of two. */
+  runeSupernova?: boolean;
+  /** Rune of Stolen Constellations: every minion the Starform Consumes hands a plain copy to hand. */
+  runeStolenConstellations?: boolean;
+  /** Rune of Spellweaving: how many stat-granting Shop spells per turn also feed the Starform (3 × copies). */
+  runeSpellweaving?: number;
+  spellweavingCastsThisTurn?: number;
+  /** Rune of Overcharge: how many activations per turn are free + charge-less (1 × copies). */
+  runeOvercharge?: number;
+  /** Rune of Dismantling: the first Equip minion sold each turn fires its Equipment free before leaving. */
+  runeDismantling?: boolean;
+  dismantlingUsedThisTurn?: boolean;
+  /** Rune of Counterrotation: distinct Equipment activated this turn → at `runeCounterrotation` they re-fire. */
+  runeCounterrotation?: number;
+  counterrotationIds?: string[];
+  /** Rune of Empty Hands: the pending Discover's pick joins `equipmentFreeCards` (its Equipment costs 0 by CARD). */
+  runeEmptyHands?: boolean;
+  discoverEquipFree?: boolean;
+  equipmentFreeCards?: string[];
+  /** Rune of the Last Tool: the graft's Echo banks an Equipment id for NEXT turn; the turn advance promotes it. */
+  runeLastTool?: boolean;
+  equipmentFreeNextTurn?: string[];
+  equipmentFreeThisTurn?: string[];
+  /** Rune of the Endless March: every friendly Undead carries the "when this Rises, summon a Skeleton" graft. */
+  runeEndlessMarch?: boolean;
+  /** Rune of the Grave Orbit: after combat the Starform gains +a/+h per friendly Undead that Rose. */
+  runeGraveOrbit?: { attack: number; health: number };
+  /** Equipment activations resolved this turn (Efficient Tooling / Overcharge read "first"). */
+  equipmentActivationsThisTurn?: number;
   heroReady2?: boolean;
   /** The SECOND power's once-per-game latch (`heroPowerSpent`'s sibling). */
   heroPowerSpent2?: boolean;
@@ -1295,7 +1357,7 @@ export interface RunState {
   /** Run-wide combat modifiers armed by completed quests (Blood Trail / Echoing Coop / Law of Teeth / The Old
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */
-  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; crateringMissive?: boolean; passingSpears?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean; runeRebirth?: boolean; runeAftershocks?: boolean; runeEngraving?: boolean; runeUnderdog?: boolean; runeGemGolem?: boolean; runeChef?: boolean; runeCarrionCoin?: number; runeFiveBanners?: boolean; runeCenterline?: boolean; runeSecondLitter?: boolean; runeDragonscale?: number; runeTemperedTime?: boolean; runeSavagery?: boolean; runeCrucible?: number; runeHerald?: boolean; runeUndertow?: number | boolean; runeMirrorMarch?: boolean; runeTrophy?: boolean; avengeFirstDouble?: boolean; candlelightToll?: boolean; gemheartCharge?: boolean; burningLegion?: number; runeVanguard?: boolean; runeFinality?: number; runeHatchery?: boolean; runeLastCall?: boolean; runeCinderLedger?: number; runeProcession?: boolean; runeGemstorm?: number; runeBloodAndCoin?: number; runeWildHunt?: number; runeLivingTreasure?: boolean; runeRemains?: number; runeReinvestment?: number; runeHuntingBell?: boolean; runeBrood?: number; runeLivingEchoes?: number; runeWarChorus?: boolean; runeFoodChain?: boolean; runeAttackingGems?: number; runeOverflow?: number; runeCounterpoint?: boolean; runeMammoth?: boolean; runeWarpath?: boolean; runeEmberline?: boolean; runeAshenPayroll?: number; runeBackbeat?: boolean; runeSpareChair?: boolean; runeAncestralRoar?: boolean; runeRubyShrapnel?: boolean; runeSharedScripture?: boolean; runeMoonhowl?: boolean; runeFloodedVault?: boolean; runeBattleRefraction?: boolean; runeWrangler?: boolean; runeLivingGeode?: boolean; runeDawnclaw?: boolean; runeSylus?: boolean; oldPack?: boolean; runeJungle?: boolean; runeBurrow?: boolean; runeBeastialSwarm?: boolean; runeZoo?: boolean; runeRuins?: boolean; runeGolems?: boolean; runeEngravingGems?: boolean; runeHerdingHorn?: boolean; runeDeathtouchedApple?: boolean; runeStokedMenagerie?: boolean; runeReturningPack?: number; runeGraveRefreshment?: number; runeShiftingFacets?: boolean; runeDeepeningVein?: boolean };
+  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; crateringMissive?: boolean; passingSpears?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean; runeRebirth?: boolean; runeAftershocks?: boolean; runeEngraving?: boolean; runeUnderdog?: boolean; runeGemGolem?: boolean; runeChef?: boolean; runeCarrionCoin?: number; runeFiveBanners?: boolean; runeCenterline?: boolean; runeSecondLitter?: boolean; runeDragonscale?: number; runeTemperedTime?: boolean; runeSavagery?: boolean; runeCrucible?: number; runeHerald?: boolean; runeUndertow?: number | boolean; runeMirrorMarch?: boolean; runeTrophy?: boolean; avengeFirstDouble?: boolean; candlelightToll?: boolean; gemheartCharge?: boolean; burningLegion?: number; runeVanguard?: boolean; runeFinality?: number; runeHatchery?: boolean; runeLastCall?: boolean; runeCinderLedger?: number; runeProcession?: boolean; runeGemstorm?: number; runeBloodAndCoin?: number; runeWildHunt?: number; runeLivingTreasure?: boolean; runeRemains?: number; runeReinvestment?: number; runeHuntingBell?: boolean; runeBrood?: number; runeLivingEchoes?: number; runeWarChorus?: boolean; runeFoodChain?: boolean; runeAttackingGems?: number; runeOverflow?: number; runeCounterpoint?: boolean; runeMammoth?: boolean; runeWarpath?: boolean; runeEmberline?: boolean; runeAshenPayroll?: number; runeBackbeat?: boolean; runeSpareChair?: boolean; runeAncestralRoar?: boolean; runeRubyShrapnel?: boolean; runeSharedScripture?: boolean; runeMoonhowl?: boolean; runeFloodedVault?: boolean; runeBattleRefraction?: boolean; runeWrangler?: boolean; runeLivingGeode?: boolean; runeDawnclaw?: boolean; runeSylus?: boolean; oldPack?: boolean; runeJungle?: boolean; runeBurrow?: boolean; runeBeastialSwarm?: boolean; runeZoo?: boolean; runeRuins?: boolean; runeGolems?: boolean; runeEngravingGems?: boolean; runeHerdingHorn?: boolean; runeDeathtouchedApple?: boolean; runeStokedMenagerie?: boolean; runeReturningPack?: number; runeGraveRefreshment?: number; runeShiftingFacets?: boolean; runeDeepeningVein?: boolean; runeFinalGate?: boolean; runeDreamedGraves?: boolean; runeOpenHand?: boolean; runeWakingReserve?: boolean };
   // ── Runeforge (Runesmith) ──
   /** The Runeforge is open (turn 6): a pending offer of rune ids to buy for their Gold cost. Like `questOffer`,
    *  while set the reducer blocks every non-`buyRune`/`skipRuneforge` action and the UI pauses the timer; buying
@@ -1500,6 +1562,59 @@ export interface RunState {
   runeEnchantment?: boolean;
   /** Rune of the Crown: once `spellsCast` reaches `per`, your spells give +attack/+health extra. */
   runeCrown?: { per: number; attack: number; health: number };
+  // ── Set 3 batch 2 (2026-09-16) — tranche A (Spirit / Celestial runes). Amount-carrying fields ACCUMULATE per
+  //    copy (a duplicate doubles the output); boolean flags fire once per copy via `runeStacksOf` at the site. ──
+  /** Rune of the Chosen Vessel: whenever you play a Spirit, your LEFT-MOST minion in hand +a/+h. */
+  runeChosenVessel?: { attack: number; health: number };
+  /** Rune of Deep Currents: whenever you play a Spirit, `count` random friendly board Spirits +a/+h. */
+  runeDeepCurrents?: { count: number; attack: number; health: number };
+  /** Rune of the Traveling Festival: random Revelers conjured at every turn setup (the count = copies held). */
+  runeRevelerDrip?: number;
+  /** Rune of the Traveling Festival: the extra a Reveler SALE pays on the stat(s) it grants, on top of the shared
+   *  value (Flame → +attack more Attack, Tide → +health more Health, Grove → both). Read by `revelerSell`. */
+  revelerExtra?: { attack: number; health: number };
+  /** Rune of the Growing Chorus: the Reveler ids PLAYED since the last reset (one per type); when all three are
+   *  in, board + hand gain +a/+h, `revelerX` rises by `improve` and the list resets. */
+  runeGrowingChorus?: { attack: number; health: number; improve: number; played: string[] };
+  /** Rune of Charted Skies: after the `at`-th Shop spell each turn, Discover a Shop spell. */
+  runeChartedSkies?: { at: number };
+  /** Rune of Falling Embers: the extra every Star Crash cast in the shop grants (both landings). Read by the
+   *  Star Crash factory AND its live text (`spellDisplayText`), so the card prints the value it grants. */
+  starCrashBonus?: { attack: number; health: number };
+  /** Rune of Festival Wages: after the turn's first Reveler sale, the next card bought costs 0. */
+  runeFestivalWages?: boolean;
+  festivalWagesUsedThisTurn?: boolean;
+  /** Free-card charges (Festival Wages): the next `n` Shop buys — minion OR spell, either row — cost 0.
+   *  Spent one per buy; carries across turns until spent. */
+  nextCardFree?: number;
+  /** Rune of the Meteor Shower: the turn's first Star Crash cast hands over another. */
+  runeMeteorShower?: boolean;
+  meteorShowerUsedThisTurn?: boolean;
+  /** Rune of the Astral Refrain: after the `at`-th SHOP spell each turn, copies of the 1st and `at`-th land. */
+  runeAstralRefrain?: { at: number };
+  /** SHOP spells cast this turn, by id, in cast order — Gifts and reward tokens excluded (they are spell casts,
+   *  never Shop spells). Feeds Charted Skies / the Astral Refrain and their `x/3` tallies. Reset each wave. */
+  shopSpellIdsThisTurn?: string[];
+  /** Rune of the Astral Draft: a Shop-spell Discover at every turn setup whose pick casts an additional time. */
+  runeAstralDraft?: boolean;
+  /** The OPEN Discover's extra-cast stamp (Astral Draft): the pick arrives with `extraCasts` set to this.
+   *  Cleared with the other per-offer Discover modifiers when the pick is taken. */
+  discoverExtraCasts?: number;
+  /** Rune of the Dream Mirror: the turn's first hand-minion stat gain is mirrored onto a random board minion. */
+  runeDreamMirror?: boolean;
+  dreamMirrorUsedThisTurn?: boolean;
+  /** Rune of Waking Dreams: every hand-minion stat gain gives your board minions +a/+h. */
+  runeWakingDreams?: { attack: number; health: number };
+  /** Rune of Shared Revelry: the first Flame / Tide / Grove Reveler SOLD each turn fires its sell effect twice. */
+  runeSharedRevelry?: boolean;
+  /** …the Reveler ids already doubled this turn (one per type). Reset each wave. */
+  revelryDoubledThisTurn?: string[];
+  /** Rune of the Grand Procession (Epic): the first `n` Revelers PLAYED each turn return a plain copy to hand. */
+  runeProcessionPlay?: number;
+  processionPlayedThisTurn?: number;
+  /** Rune of the Festival Circuit: the first `n` Revelers SOLD each turn each hand over a random Celestial. */
+  runeFestivalCircuit?: number;
+  circuitSoldThisTurn?: number;
   /** Rune of the Lapidary (owner rework 2026-08-11): End of Turn, play a Ruby on a random minion for every
    *  card played this turn. Runs as a VIRTUAL recurring-EoT entry (see `recurringEotEffects`). */
   runeLapidary?: boolean;
@@ -1544,6 +1659,19 @@ export interface RunState {
   runeMountainTrade?: boolean;
   /** Rune of Open Appetite: Appetite Agent's aim loses its Demon-only restriction. */
   runeOpenAppetite?: boolean;
+  // ── Set 3 batch 2 (2026-09-16), tranche C ──
+  /** Rune of Amplification: Equipment you do not activate this turn becomes AMPLIFIED at End of Turn (its next
+   *  activation triggers twice; max 1 stack per Equipment — see `PlayerEquipmentState.amplified`). */
+  runeAmplification?: boolean;
+  /** Rune of the Grand Workshop (Epic): Amplify every held Equipment now, and again every Start of Turn. */
+  runeGrandWorkshop?: boolean;
+  /** Rune of the Red Giant (Epic): whenever the Starform Consumes a Shop minion it has a 50% chance to ALSO
+   *  Consume a Shop spell — you get a copy of that spell, the token gains +8/+8. Seeded (`rngCursor`). */
+  runeRedGiant?: boolean;
+  /** Rune of Soul Script: the Starform COUNTS AS UNDEAD — the token's stand-in carries `addedTribes: ['undead']`
+   *  (every `isTribe` watcher / consume sees an Undead), Undead-aimed friendly spells may aim it, the Undead
+   *  Aura (`undeadBuyAtk`) and "your Undead +X" Shop buffs land on it. */
+  runeSoulScript?: boolean;
   /** Rune of the Broodmaster: a Broodwright's Imp buff also lands on the Broodwright. */
   runeBroodmaster?: boolean;
   /** Rune of the Second Life: your Scavvers carry Taunt + Rise. */
@@ -2105,10 +2233,16 @@ export interface GrantedEquipment {
   sourceUids: string[];
   /** The wave it was granted on — diagnostic, and the tell for "granted this turn" vs "re-equipped". */
   grantedTurn: number;
+  /** The CARD ids of every source (parallel to `sourceUids`, deduped) — Rune of Empty Hands prices an
+   *  Equipment at 0 by the granting CARD, and the source body may already be sold this turn. */
+  sourceCardIds?: string[];
   /** Has THIS Equipment's own once-per-turn charge been spent? Every Equipment carries its own (owner ruling
    *  2026-09-11); the Start-of-Turn rebuild starts every entry fresh. Spent only once the shared bonus pool is
    *  empty — see `equipment.ts`. */
   ownChargeSpent: boolean;
+  /** Was this Equipment ACTIVATED this turn (through the pool OR its own charge)? Rune of Amplification reads it
+   *  at End of Turn — "Equipment you do not activate" — and the End-of-Turn expiry clears it. */
+  usedThisTurn?: boolean;
 }
 
 /**
@@ -2130,6 +2264,15 @@ export interface PlayerEquipmentState {
   bonusSpent: number;
   /** Gold off the next activation. Additive, floored at 0 by `equipmentCostOf`, expires at End of Turn. */
   temporaryCostReduction: number;
+  /**
+   * AMPLIFIED (owner design 2026-09-16) — per EQUIPMENT (keyed by id), the stack count (0 or 1: "Maximum 1 per
+   * Equipment"). An Amplified Equipment TRIGGERS TWICE the next time it is activated, and the stack is consumed by
+   * that activation. Written by Rune of Amplification (End of Turn: every Equipment you did not activate) and Rune
+   * of the Grand Workshop (now + every Start of Turn: all of them). Deliberately SURVIVES the Start-of-Turn
+   * rebuild (that is the whole point of Amplification: it is what carries over), pruned to the Equipment still
+   * held after the rebuild. The UI paints the charge indicator BLUE while > 0 (`equipmentAmplifiedOf`).
+   */
+  amplified?: Record<string, number>;
 }
 
 /**
@@ -2510,6 +2653,11 @@ export function serialize(state: RunState): string {
  */
 export function deserialize(json: string, opts: { turnRemaining?: number } = {}): RunState {
   const parsed = JSON.parse(json) as RunState & { pendingSpellDiscovers?: number; bonusTurnSeconds?: number; bonusTurnSecondsNextTurn?: number };
+  // LEGACY CARD IDS: a save written under an id that has since been folded into another card (`n3_yazzus` →
+  // `yazzus`, 2026-09-16) is rewritten to the CURRENT id everywhere a `cardId` appears — board, hand, shop, the
+  // served / recorded boards, history — so id-keyed engine reads (`c.cardId === 'yazzus'`) see a resumed run
+  // exactly as a fresh one. `CARD_INDEX` also aliases the old id, so anything missed here still resolves.
+  healLegacyCardIds(parsed);
   // Heal-by-construction (review 2026-07-03): merge the save over a freshly-created run for the SAME
   // seed/hero/mode, so every field added since the save was written gets its fresh-run zero value
   // automatically. The old hand-maintained ??=-list drifted — it healed `pool`/`line`/`armor` but missed
@@ -2587,6 +2735,22 @@ export function deserialize(json: string, opts: { turnRemaining?: number } = {})
     state.cardDiscountWindow = undefined;
   }
   return state;
+}
+
+/** Walk a parsed save and rewrite every `cardId` that names a legacy id (see `LEGACY_CARD_IDS`) to its current id.
+ *  One pass at load time, never per action; a no-op walk when the map is empty is skipped outright. */
+function healLegacyCardIds(root: unknown): void {
+  if (Object.keys(LEGACY_CARD_IDS).length === 0) return;
+  const seen = new Set<object>();
+  const walk = (node: unknown): void => {
+    if (!node || typeof node !== 'object' || seen.has(node)) return;
+    seen.add(node);
+    if (Array.isArray(node)) { for (const v of node) walk(v); return; }
+    const rec = node as Record<string, unknown>;
+    if (typeof rec.cardId === 'string' && LEGACY_CARD_IDS[rec.cardId]) rec.cardId = LEGACY_CARD_IDS[rec.cardId];
+    for (const v of Object.values(rec)) walk(v);
+  };
+  walk(root);
 }
 
 /**

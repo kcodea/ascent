@@ -340,4 +340,22 @@ export const SET3_SPIRITS: readonly CardDef[] = [
     text: 'The first **Flame**, **Tide** and **Grove Reveler** you sell each turn return a plain copy to your hand.',
     goldenText: 'The first **Flame**, **Tide** and **Grove Reveler** you sell each turn return **2** plain copies to your hand.',
   },
+  {
+    // RUNE-EXCLUSIVE TOKEN (Rune of the Handy Flame, Set 3 batch 2 — owner 2026-09-16). `token: true` keeps it out
+    // of every draw pool; the rune is the only way in. "Whenever this gains stats" is the SHOP-phase `onGainStats`
+    // trigger, dispatched by the reducer's per-action stat diff — in hand or on the board — and pays a random
+    // OTHER minion in your hand (a Handy Flame never feeds itself, and two Handy Flames feed each other once per
+    // action, so the chain is bounded). Combat does not emit `onGainStats` yet (no combat half). No art yet.
+    id: 'sp3_handyflame',
+    name: 'Handy Flame',
+    tribe: 'spirit',
+    tier: 5,
+    attack: 2,
+    health: 13,
+    keywords: [],
+    token: true,
+    effects: [{ on: 'onGainStats', do: 'onGainStatsBuffRandomHand', params: { attack: 6, health: 4 } }],
+    text: 'Whenever this gains stats, give a random minion in your hand **+6/+4**.',
+    goldenText: 'Whenever this gains stats, give a random minion in your hand **+12/+8**.',
+  },
 ];

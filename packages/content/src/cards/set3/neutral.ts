@@ -6,9 +6,10 @@ import type { CardDef } from '@game/core';
  * definitions exactly like the Kobolds, Dwarves and Undead before them.
  *
  * Tranche 1 (this file's first cut): Blaster (restored from the archive — a set-3 card again, id unchanged so
- * every old save / replay still resolves it), Splitboon Adept (new) and the set-3 Yazzus (a FORK — set 1's
- * `yazzus` stays T7 5/7 and "Shop spells"; this one is T6 4/8 and doubles EVERY targeted spell, Rubies
- * included — owner 2026-09-09). Still to come: Defender + Tower Shields, Inspector Pell + Clues, Highway
+ * every old save / replay still resolves it) and Splitboon Adept (new). The set-3 Yazzus FORK (`n3_yazzus`,
+ * 2026-09-09) that opened here is gone: it BECAME the one permanent `yazzus` (owner 2026-09-16 — "there is no
+ * legacy or new Yazzus"), a shared definition in `cards/set1/neutral.ts` that set 3 opts in by id like every
+ * other carry-over. Still to come: Defender + Tower Shields, Inspector Pell + Clues, Highway
  * Hustler + Whiplass-o, Warband Recruiter, Equipment Inspector + Start of Turn.
  */
 export const SET3_NEUTRAL: readonly CardDef[] = [
@@ -125,23 +126,5 @@ export const SET3_NEUTRAL: readonly CardDef[] = [
     ],
     text: '**Choose One:** give a friendly minion **+6/+6**, or give adjacent minions **+3/+3**.',
     goldenText: '**Choose One:** give a friendly minion **+12/+12**, or give adjacent minions **+6/+6**.',
-  },
-  {
-    // Set 3's Yazzus — a FORK of set 1's `yazzus` (T7 5/7, "targeted SHOP spells"), not an edit: set 2 keeps
-    // the original untouched (owner 2026-09-09). This one sits at T7 (owner 2026-09-11, "as he is in set 2"; it
-    // opened at T6) on a 4/8 and widens the doubling to EVERY
-    // targeted spell — Shop spells, Rubies, and the hand spells set 3 adds (Tower Shield, Clue). Resolved in
-    // @game/sim: `spellCastMult` (aimed Shop spells) and `rubyCastCount` (Rubies) both read it. Best single
-    // copy wins, like the original — golden = 2 additional casts. No combat factory; a sturdy body in a fight.
-    id: 'n3_yazzus',
-    name: 'Yazzus',
-    tribe: 'neutral',
-    tier: 7,
-    attack: 4,
-    health: 8,
-    keywords: [],
-    effects: [],
-    text: 'Your **targeted** spells cast **an additional** time.',
-    goldenText: 'Your **targeted** spells cast **2 additional** times.',
   },
 ];

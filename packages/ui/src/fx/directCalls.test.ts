@@ -162,7 +162,10 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // 'ward-lost-blast' joined on 2026-09-09: the owner-authored Ward-loss burst, fired from `choreo/channels/aura.ts`.
       // 'starform-pull' joined on 2026-09-12: the owner-authored Starform consume / collapse pull, fired from `Recruit.tsx`.
       // 'starform-create' joined on 2026-09-14: the owner-authored Starform creation cue, fired from `Recruit.tsx`.
-      'rune-buff-unit', 'rune-select-implosion', 'rune-slot-break', 'shop-buff-purple', 'shop-tier-up', 'spell-bounce', 'starform-create', 'starform-pull', 'strike-impact', 'tallyanimation1', 'tendril-trail', 'ward-lost-blast', 'watcher-pulse',
+      'rune-buff-unit', 'rune-select-implosion', 'rune-slot-break', 'shop-buff-purple', 'shop-tier-up', 'spell-bounce', 'starform-create', 'starform-pull', 'strike-impact', 'tallyanimation1', 'tendril-trail',
+      // 'undead-aura-buff' joined on 2026-09-16: the owner-authored Undead Aura surge, fired on every rise of the run-wide
+      // Undead Aura from `Recruit.tsx` (shop) and `useCombatReplay.ts` (combat).
+      'undead-aura-buff', 'ward-lost-blast', 'watcher-pulse',
     ]);
   });
 

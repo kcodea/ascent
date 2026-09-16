@@ -216,6 +216,14 @@ export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   spellhideUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of Spellhide\'s per-turn RECORD latch; recording happens on the shop cast, the recorded re-casts ride spellhidePending' },
   spellhidePending: { kind: 'needs-triage', why: 'threaded (combatSide.spellhide) but the SoC consumer matches combat `m.uid` against the RUN uid, which the reducer bridge carries on sourceUid — the re-cast can never land through the real bridge (scan finding 2026-08-26). Rune archived 2026-08-12, so no live impact; fix the match or retire the lane, with a ruling' },
   lastWordUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of the Last Word\'s per-turn sold-Dragon latch; selling is a shop action' },
+  // ── Set 3 batch 2 (2026-09-16) — tranche A per-turn gates: every one is a SHOP latch (sells, buys, casts, plays) ──
+  festivalWagesUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of Festival Wages\' per-turn sold-Reveler latch; selling is a shop action and the free card it arms is a shop price' },
+  meteorShowerUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of the Meteor Shower\'s per-turn first-Star-Crash latch; keyed at noteSpellCast, a shop cast' },
+  shopSpellIdsThisTurn: { kind: 'no-combat-meaning', why: 'the turn\'s Shop-spell cast list (Charted Skies / Astral Refrain); shop casts only, and the runes pay in the shop' },
+  dreamMirrorUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of the Dream Mirror\'s per-turn first-hand-gain latch; the hook is the reducer\'s shop-action stat diff — combat does not emit hand gains to it' },
+  revelryDoubledThisTurn: { kind: 'no-combat-meaning', why: 'Rune of Shared Revelry: which Reveler types already fired twice this turn — a per-turn sell latch' },
+  processionPlayedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of the Grand Procession: Revelers PLAYED this turn toward its cap; playing is a shop action' },
+  circuitSoldThisTurn: { kind: 'no-combat-meaning', why: 'Rune of the Festival Circuit: Revelers SOLD this turn toward its cap; selling is a shop action' },
   rubyCastsThisTurn: { kind: 'no-combat-meaning', why: 'per-turn shop Ruby-cast tally for threshold runes; combat Ruby casts ride the arena lane' },
 
   // ── threaded into the side, but only a specific consumer reads it and the fixture stages none ──
@@ -224,4 +232,15 @@ export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   soldThisTurn: { kind: 'no-combat-meaning', why: 'Voicekeeper reads it during the SHOP phase; not threaded into the combat side' },
   alesCastThisTurn: { kind: 'needs-staging', why: 'threaded (combatSide.alesLastTurn) for Bucky\'s payout; the fixture stages no Bucky' },
   fodderConsumedThisTurn: { kind: 'needs-staging', why: 'threaded (combatSide.fodderConsumedAtk/Hp) for Abhorrent Horror\'s SoC window; the fixture stages none' },
+  // ── Set 3 batch 2, tranche B (2026-09-16): shop-only rune latches (Starform / Equipment runes) ──
+  eventideUsedThisTurn: { kind: 'no-combat-meaning', why: "Rune of Eventide's per-turn latch on the first Starform Consume/Collapse; both are shop moments" },
+  openConstellationUsedThisTurn: { kind: 'no-combat-meaning', why: "Rune of the Open Constellation's per-turn latch on the first Starform Consume; a shop moment" },
+  lastRitesUsedThisTurn: { kind: 'no-combat-meaning', why: "Rune of Last Rites' per-turn latch on the first SHOP destroy of an Undead; a combat death is not a destroy" },
+  dismantlingUsedThisTurn: { kind: 'no-combat-meaning', why: "Rune of Dismantling's per-turn sell latch; selling is a shop action" },
+  quickReleaseArmed: { kind: 'no-combat-meaning', why: "Rune of Quick Release's armed 0-cost activation; Equipment activates only in the shop, so the arm is spent or expired before any fight" },
+  spellweavingCastsThisTurn: { kind: 'no-combat-meaning', why: "Rune of Spellweaving's per-turn Shop-spell cast count; the Starform it feeds is a shop offer" },
+  counterrotationIds: { kind: 'no-combat-meaning', why: "Rune of Counterrotation's distinct-Equipment set for this turn; Equipment activates only in the shop" },
+  equipmentActivationsThisTurn: { kind: 'no-combat-meaning', why: 'the per-turn Equipment activation count (Efficient Tooling / Overcharge read "first"); activation is a shop action' },
+  equipmentFreeThisTurn: { kind: 'no-combat-meaning', why: "Rune of the Last Tool's free-Equipment list for THIS turn — a shop price; promoted from the bank at the rollover" },
+  equipmentFreeNextTurn: { kind: 'no-combat-meaning', why: "Rune of the Last Tool's bank for NEXT turn — written by a shop Echo now and by settleCombat from the combat Echo's questTrigger carry-back; only a shop price reads it" },
 };

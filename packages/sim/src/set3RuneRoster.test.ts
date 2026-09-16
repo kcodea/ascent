@@ -1,21 +1,21 @@
 /**
  * SET 3 RUNE ROSTER — the 2026-09-14 handoff's acceptance checks, verbatim.
  *
- *  - Set 3's static pool resolves to 115 Basic / 98 Epic before any Set 3-original rune: the 85 + 64 unscoped
- *    baseline plus 30 Basic + 34 Epic set-1/set-2 carryovers whose mechanics Set 3 has (Rubies, Ales, Dwarves,
- *    Kobolds, Undead, Shop consume).
+ *  - Set 3's static pool resolved to 115 Basic / 97 Epic before any Set 3-original rune: the 85 + 64 unscoped
+ *    baseline plus 30 Basic + 33 Epic set-1/set-2 carryovers whose mechanics Set 3 has (Rubies, Ales, Dwarves,
+ *    Kobolds, Undead, Shop consume). (98 Epic at the handoff; Rune of Frontline Glory left set 3 on 2026-09-16.)
  *  - Set 1 and Set 2 pools keep exactly their previous scoped runes (the carryovers ADD set3, never move).
  *  - A Set 3 Dwarf/Kobold run can be offered Contraband, Gemscript and Spellstone.
  *  - A Starform consume (the Celestial token eating a Shop minion) trips Rune of the Open Market exactly once per
  *    turn — it rides the one `consumeShopOffer` chokepoint every Shop consume uses.
  *  - Set 3 never offers an Attachment / Fodder-only rune.
- *  - The Yazzus-granting runes hand a Set 3 run `n3_yazzus` (the set's Tier-7 fork), never the legacy `yazzus`
- *    beside it — one Yazzus, no duplicate-name ambiguity.
+ *  - Rune of Yazzus hands a Set 3 run THE `yazzus` — one card in every set since the owner unified the set-3 fork
+ *    into it (2026-09-16); `SET_FORKS` is empty and Frontline Glory is a set-1 rune again.
  */
 import { describe, expect, it } from 'vitest';
 import { CARD_INDEX, EPIC_RUNES, RUNES, RUNE_INDEX, SET_FORKS, forkedCardId, poolFor, type SetId } from '@game/content';
 import { runeforgePool } from './reducer';
-import { createRun, reduce, type Action, type RunState } from './index';
+import { createRun, deserialize, reduce, serialize, type Action, type RunState } from './index';
 import { createStarform, starformOf } from './starform';
 import { starformConsumeShopMinion } from './starform';
 
@@ -25,15 +25,26 @@ const S3 = ['kobold', 'dwarf', 'undead', 'spirit', 'celestial'] as const;
 const staticPool = (setId: SetId, tribes: readonly string[]) =>
   [...RUNES, ...EPIC_RUNES].filter((r) => (!r.sets || r.sets.includes(setId)) && (!r.tribes || r.tribes.some((t) => tribes.includes(t))));
 
+/** A Set 3 ORIGINAL (batch 2, 2026-09-16 onward): scoped to set3 alone. The carryover pins below exclude these. */
+const isOriginal = (r: { sets?: readonly string[] }): boolean => r.sets?.length === 1 && r.sets[0] === 'set3';
+const originals = (epic: boolean): number => [...RUNES, ...EPIC_RUNES].filter((r) => isOriginal(r) && !!r.epic === epic).length;
+
 describe('the Set 3 static rune pool (handoff 2026-09-14)', () => {
-  it('resolves to 115 Basic / 98 Epic before any Set 3-original rune', () => {
-    const pool = staticPool('set3', S3);
+  it('resolves to 115 Basic / 97 Epic before any Set 3-original rune (98 Epic at the handoff; Frontline Glory dropped 2026-09-16)', () => {
+    const pool = staticPool('set3', S3).filter((r) => !isOriginal(r));
     expect(pool.filter((r) => !r.epic)).toHaveLength(115);
-    expect(pool.filter((r) => r.epic)).toHaveLength(98);
+    expect(pool.filter((r) => r.epic)).toHaveLength(97);
+    expect(pool.some((r) => r.id === 'rune_frontline_glory')).toBe(false);
+    expect(RUNE_INDEX['rune_frontline_glory']!.sets).toEqual(['set1']);
+  });
+  it('the Set 3-original runes (batch 2: tranche A 11/13, B 8/11, C 2/4, D 0/2) join on top', () => {
+    const own = staticPool('set3', S3).filter(isOriginal);
+    expect(own.filter((r) => !r.epic)).toHaveLength(21);
+    expect(own.filter((r) => r.epic)).toHaveLength(30);
   });
   it('Set 1 and Set 2 pools keep their previous scoped runes — a carryover only ADDS set3', () => {
     for (const r of [...RUNES, ...EPIC_RUNES]) {
-      if (r.sets?.includes('set3')) expect(r.sets.some((x) => x === 'set1' || x === 'set2'), `${r.id} kept its origin scope`).toBe(true);
+      if (r.sets?.includes('set3') && !isOriginal(r)) expect(r.sets.some((x) => x === 'set1' || x === 'set2'), `${r.id} kept its origin scope`).toBe(true);
     }
     // The set-1 / set-2 static pools as measured on origin/main BEFORE the carryover pass (2026-09-14) — unchanged.
     const s1 = staticPool('set1', ['beast', 'dragon', 'mech', 'undead', 'demon']);
@@ -63,8 +74,8 @@ describe('a Set 3 Dwarf / Kobold run at the forge', () => {
     const basic = forge(false), epic = forge(true);
     // the Wishbone is hero-conditional (requiresDoublePower) — the Warden's power does not double, so one Basic fewer
     const wishbone = RUNE_INDEX['rune_wishbone'] ? 1 : 0;
-    expect(basic.length).toBe(115 - wishbone);
-    expect(epic.length).toBe(98);
+    expect(basic.length).toBe(115 - wishbone + originals(false));
+    expect(epic.length).toBe(97 + originals(true));
   });
 });
 
@@ -86,26 +97,38 @@ describe('Rune of the Open Market hears the Starform', () => {
   });
 });
 
-describe('the Yazzus runes in Set 3', () => {
-  it('SET_FORKS maps yazzus → n3_yazzus in set 3 only; both bodies share the display name', () => {
-    expect(SET_FORKS.set3).toEqual({ yazzus: 'n3_yazzus' });
-    expect(forkedCardId('set3', 'yazzus')).toBe('n3_yazzus');
+describe('the Yazzus runes — ONE Yazzus (owner 2026-09-16)', () => {
+  const buy = (setId: SetId, rune: string) => reduce({ ...createRun(4), setId, phase: 'recruit', embers: 40, tier: 6, hand: [], board: [], runeforgeOffer: [rune] } as RunState, { type: 'buyRune', index: 0 } as Action) as RunState;
+  it('SET_FORKS is empty: no set forks a card any more, and n3_yazzus is no longer a card of its own', () => {
+    expect(SET_FORKS).toEqual({});
+    expect(forkedCardId('set3', 'yazzus')).toBe('yazzus');
     expect(forkedCardId('set2', 'yazzus')).toBe('yazzus');
-    expect(forkedCardId('set3', 'alley')).toBe('alley');
-    expect(CARD_INDEX['yazzus']!.name).toBe(CARD_INDEX['n3_yazzus']!.name);
+    expect(Object.keys(CARD_INDEX)).not.toContain('n3_yazzus');
+    expect(CARD_INDEX['yazzus']!.text).toBe('Your **targeted** spells cast **an additional** time.');
   });
-  it('Rune of Yazzus grants n3_yazzus in a set-3 run and the legacy yazzus in set 2', () => {
-    const buy = (setId: SetId, rune: string) => reduce({ ...createRun(4), setId, phase: 'recruit', embers: 40, tier: 6, hand: [], board: [], runeforgeOffer: [rune] } as RunState, { type: 'buyRune', index: 0 } as Action) as RunState;
+  it('the old n3_yazzus id still RESOLVES (saved runs / replays) — to the one Yazzus, without being a second card', () => {
+    expect(CARD_INDEX['n3_yazzus']).toBe(CARD_INDEX['yazzus']);
+    expect(Object.values(CARD_INDEX).filter((c) => c.id === 'yazzus')).toHaveLength(1);
+  });
+  it('a save written with n3_yazzus on the board / in hand resumes with THE yazzus (deserialize heals the id)', () => {
+    const y = { uid: 'y', cardId: 'n3_yazzus', tribe: 'neutral', attack: 4, health: 8, keywords: [], golden: true } as RunState['board'][number];
+    const saved = serialize({ ...createRun(4), setId: 'set3', board: [y], hand: [{ ...y, uid: 'h', golden: false }] } as RunState);
+    const s = deserialize(saved);
+    expect(s.board.map((c) => [c.cardId, c.golden])).toEqual([['yazzus', true]]);
+    expect(s.hand.map((c) => c.cardId)).toEqual(['yazzus']);
+  });
+  it('Rune of Yazzus grants yazzus in a set-3 run and in a set-2 run alike', () => {
     const s3 = buy('set3', 'rune_yazzus');
-    expect([...s3.hand, ...s3.board].map((c) => c.cardId)).toEqual(['n3_yazzus']);
+    expect([...s3.hand, ...s3.board].map((c) => c.cardId)).toEqual(['yazzus']);
     const s2 = buy('set2', 'rune_yazzus');
     expect([...s2.hand, ...s2.board].map((c) => c.cardId)).toEqual(['yazzus']);
   });
-  it('Rune of Frontline Glory: a GILDED n3_yazzus + Front to Back in set 3 — one Yazzus outcome, never two', () => {
-    const s = reduce({ ...createRun(4), setId: 'set3', phase: 'recruit', embers: 40, tier: 6, hand: [], board: [], runeforgeOffer: ['rune_frontline_glory'] } as RunState, { type: 'buyRune', index: 0 } as Action) as RunState;
-    const cards = [...s.hand, ...s.board];
-    const yaz = cards.filter((c) => c.cardId === 'n3_yazzus' || c.cardId === 'yazzus');
-    expect(yaz.map((c) => [c.cardId, c.golden])).toEqual([['n3_yazzus', true]]);
+  it('Rune of Frontline Glory is out of the set-3 forge; in set 1 it still hands a GILDED yazzus + Front to Back', () => {
+    const s3 = { ...createRun(5, 'warden'), setId: 'set3', tribes: [...S3], runeforgeEpic: true } as RunState;
+    expect(runeforgePool(s3)).not.toContain('rune_frontline_glory');
+    const s1 = buy('set1', 'rune_frontline_glory');
+    const cards = [...s1.hand, ...s1.board];
+    expect(cards.filter((c) => c.cardId === 'yazzus').map((c) => c.golden)).toEqual([true]);
     expect(cards.some((c) => c.cardId === 'fronttoback')).toBe(true);
   });
 });

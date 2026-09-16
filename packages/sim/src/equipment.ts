@@ -90,16 +90,89 @@ export function equipmentUsesLeft(run: Pick<RunState, 'equipment'>): number {
  */
 export function spendEquipmentCharge(run: RunState, equipmentId: string): boolean {
   const e = ensure(run);
-  if (e.bonusActivations - e.bonusSpent > 0) { e.bonusSpent += 1; return true; }
   const g = e.available.find((x) => x.equipmentId === equipmentId);
+  if (e.bonusActivations - e.bonusSpent > 0) { e.bonusSpent += 1; if (g) g.usedThisTurn = true; return true; }
   if (!g || g.ownChargeSpent) return false;
   g.ownChargeSpent = true;
+  g.usedThisTurn = true; // Rune of Amplification: this Equipment WAS activated this turn
   return true;
 }
 
-/** What this Equipment costs RIGHT NOW: base minus every stacked reduction, floored at 0. */
-export function equipmentCostOf(run: Pick<RunState, 'equipment'>, def: EquipmentDefinition): number {
-  return Math.max(0, def.baseCost - equipmentState(run).temporaryCostReduction);
+// ── AMPLIFIED (owner design 2026-09-16; set 3 batch 2, tranche C) ───────────────────────────────────────
+// "Equipment you do not activate becomes Amplified. Amplified Equipment triggers twice the next time you
+// activate it. Maximum 1 per Equipment." One stack per Equipment id, kept on `PlayerEquipmentState.amplified`
+// so it SURVIVES the Start-of-Turn rebuild (it is the one piece of Equipment state that is meant to carry).
+
+/** The cap: one stack per Equipment. */
+export const EQUIPMENT_AMPLIFY_MAX = 1;
+
+/** How many Amplified stacks this Equipment holds (0 or 1). The UI paints the charge indicator BLUE while > 0. */
+export function equipmentAmplifiedOf(run: Pick<RunState, 'equipment'>, equipmentId: string): number {
+  return equipmentState(run).amplified?.[equipmentId] ?? 0;
+}
+
+/** Add one Amplified stack to a HELD Equipment, capped at `EQUIPMENT_AMPLIFY_MAX`. Returns true when a stack was
+ *  actually added (an Equipment already at the cap, or one not held, changes nothing). */
+export function amplifyEquipment(run: RunState, equipmentId: string): boolean {
+  const e = ensure(run);
+  if (!e.available.some((g) => g.equipmentId === equipmentId)) return false;
+  const cur = e.amplified?.[equipmentId] ?? 0;
+  if (cur >= EQUIPMENT_AMPLIFY_MAX) return false;
+  e.amplified = { ...(e.amplified ?? {}), [equipmentId]: cur + 1 };
+  return true;
+}
+
+/** Rune of the Grand Workshop: Amplify EVERY held Equipment. Returns the ids that gained a stack. */
+export function amplifyAllHeld(run: RunState): string[] {
+  return equipmentState(run).available.map((g) => g.equipmentId).filter((id) => amplifyEquipment(run, id));
+}
+
+/** Rune of Amplification (End of Turn): every held Equipment NOT activated this turn gains a stack. Returns the
+ *  ids that gained one. Read before `expireEquipmentTurn` clears the per-turn `usedThisTurn` marks. */
+export function amplifyUnactivated(run: RunState): string[] {
+  return equipmentState(run).available.filter((g) => !g.usedThisTurn).map((g) => g.equipmentId).filter((id) => amplifyEquipment(run, id));
+}
+
+/** CONSUME the Amplified stack for an activation of `equipmentId`. Returns true when one was spent — the caller
+ *  doubles the trigger count for THIS activation. */
+export function consumeAmplified(run: RunState, equipmentId: string): boolean {
+  const e = ensure(run);
+  const cur = e.amplified?.[equipmentId] ?? 0;
+  if (cur <= 0) return false;
+  const next = { ...e.amplified };
+  if (cur - 1 > 0) next[equipmentId] = cur - 1; else delete next[equipmentId];
+  e.amplified = next;
+  return true;
+}
+
+/** The run fields the price reads — the same helper the rail prints, so a rune discount is what the slot shows. */
+export type EquipmentCostRun = Pick<RunState,
+  'equipment' | 'runeEfficientTooling' | 'equipmentActivationsThisTurn' | 'quickReleaseArmed' | 'runeOvercharge'
+  | 'equipmentFreeCards' | 'equipmentFreeThisTurn'>;
+
+/** Is `equipmentId` priced at 0 by a run-long rune right now? Rune of Empty Hands (by the granting CARD — sold and
+ *  re-bought included) or Rune of the Last Tool (the Echo banked it free for this turn). */
+export function equipmentIsFree(run: EquipmentCostRun, equipmentId: string): boolean {
+  if (run.equipmentFreeThisTurn?.includes(equipmentId)) return true;
+  const free = run.equipmentFreeCards;
+  if (!free?.length) return false;
+  const g = equipmentState(run).available.find((x) => x.equipmentId === equipmentId);
+  return !!g?.sourceCardIds?.some((c) => free.includes(c));
+}
+
+/** Rune of Overcharge: is the NEXT activation one of this turn's free, charge-less ones? */
+export function overchargeFree(run: Pick<RunState, 'runeOvercharge' | 'equipmentActivationsThisTurn'>): boolean {
+  return (run.runeOvercharge ?? 0) > (run.equipmentActivationsThisTurn ?? 0);
+}
+
+/** What this Equipment costs RIGHT NOW: base minus every stacked reduction, floored at 0 — the temporary
+ *  reduction, then the tranche-B rune prices (Set 3 batch 2, 2026-09-16): Efficient Tooling's first-activation
+ *  discount, Quick Release's armed 0, Overcharge's free first activation, Empty Hands / the Last Tool's 0. */
+export function equipmentCostOf(run: EquipmentCostRun, def: EquipmentDefinition): number {
+  let cost = def.baseCost - equipmentState(run).temporaryCostReduction;
+  if ((run.equipmentActivationsThisTurn ?? 0) === 0 && run.runeEfficientTooling) cost -= run.runeEfficientTooling;
+  if (run.quickReleaseArmed || overchargeFree(run) || equipmentIsFree(run, def.id)) cost = 0;
+  return Math.max(0, cost);
 }
 
 /** The params one TRIGGER resolves with — the Gilded set when this entry's version is gilded. */
@@ -162,6 +235,7 @@ export function grantEquipment(run: RunState, source: BoardCard, def: EquipmentD
   const existing = e.available.find((g) => g.equipmentId === def.id);
   if (existing) {
     if (!existing.sourceUids.includes(source.uid)) existing.sourceUids.push(source.uid);
+    if (!(existing.sourceCardIds ??= []).includes(source.cardId)) existing.sourceCardIds.push(source.cardId);
     // A single Gilded source upgrades the shared entry; a plain one never downgrades it mid-turn.
     if (version === 'gilded') existing.version = 'gilded';
     return existing;
@@ -170,6 +244,7 @@ export function grantEquipment(run: RunState, source: BoardCard, def: EquipmentD
     equipmentId: def.id,
     version,
     sourceUids: [source.uid],
+    sourceCardIds: [source.cardId],
     grantedTurn: run.wave,
     ownChargeSpent: false, // a freshly granted Equipment arrives with its own charge ready
   };
@@ -245,6 +320,7 @@ export interface ReequipCue { uid: string; cardId: string; equipmentId: string }
  */
 export function rebuildEquipment(run: RunState): ReequipCue[] {
   const lastUsed = equipmentState(run).lastUsedEquipmentId;
+  const amplified = equipmentState(run).amplified; // Amplified stacks CARRY across the rebuild (pruned below)
   // A fresh collection every turn — every re-granted entry arrives with its own charge unspent — and the
   // shared pool back to zero. Bonus charges and cost reductions are per-turn by definition, so they reset
   // here as well as at End of Turn — whichever runs first.
@@ -271,6 +347,13 @@ export function rebuildEquipment(run: RunState): ReequipCue[] {
   // The Starform's own Equipment rides the token, not a body: re-granted here when the token survived the turn.
   syncStarDestroyer(run);
   const e = run.equipment;
+  // Amplified stacks survive the turn boundary for every Equipment the player STILL holds; a stack on an
+  // Equipment whose every source left the board goes with it.
+  if (amplified) {
+    const kept: Record<string, number> = {};
+    for (const g of e.available) if ((amplified[g.equipmentId] ?? 0) > 0) kept[g.equipmentId] = Math.min(EQUIPMENT_AMPLIFY_MAX, amplified[g.equipmentId]!);
+    if (Object.keys(kept).length > 0) e.amplified = kept;
+  }
   // DEFAULT SELECTION: the last-used Equipment when a valid source survived, else the left-most — which is
   // already `available[0]`, because the scan above ran in board order.
   e.selectedEquipmentId = lastUsed && e.available.some((g) => g.equipmentId === lastUsed)
@@ -286,7 +369,7 @@ export function expireEquipmentTurn(run: RunState): void {
   run.equipment.bonusActivations = 0;
   run.equipment.bonusSpent = 0;
   run.equipment.temporaryCostReduction = 0;
-  for (const g of run.equipment.available) g.ownChargeSpent = false;
+  for (const g of run.equipment.available) { g.ownChargeSpent = false; g.usedThisTurn = false; }
 }
 
 /** Swap what the slot shows. Free by contract: no Gold, no activation, no cooldown change. */

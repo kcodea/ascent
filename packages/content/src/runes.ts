@@ -480,12 +480,13 @@ export const RUNES: RuneDef[] = [
   },
   // ── Batch 7a additions (owner designs 2026-07-17) ──
   {
-    // Owner sheet 2026-07-31: ONE random minion gains the exact-copy Echo (was: 2 random gain Rise — the
-    // same Rise-vs-exact-copy distinction Living Treasure hit; Rise returns the printed body).
+    // Owner 2026-09-16: grants the NEW **Rebirth** keyword (the body returns once with its FULL current body —
+    // stats, buffs, keywords, effects; Rise returns the printed body). Was the exact-copy Echo (2026-07-31), and
+    // before that "2 random gain Rise". Id kept through every rework.
     id: 'rune_rebirth',
     name: 'Rune of Rebirth',
     cost: 3, // owner balance 2026-08-11
-    text: '**Start of Combat:** give a random friendly minion **Echo:** summon an exact copy of this without Echo.',
+    text: '**Start of Combat:** give a random friendly minion **Rebirth**.',
     reward: { kind: 'combatFlag', flag: 'runeRebirth' },
   },
   {
@@ -1255,6 +1256,242 @@ export const RUNES: RuneDef[] = [
     text: 'Every **7 Gold** spent, cast a random **stat-granting Shop spell**.',
     reward: { kind: 'runeThreshold', meter: 'gold', per: 7, castStatSpell: 1 },
   },
+  // ── Set 3 batch 2 (2026-09-16) — tranche C ──
+  {
+    // AMPLIFIED is a new Equipment STATE (owner design 2026-09-16): the charge indicator turns BLUE while an
+    // Equipment holds a stack; the stack is spent by the next activation, which then triggers twice. The End-of-Turn
+    // pass marks every held Equipment the player did not activate (`amplifyUnactivated`).
+    id: 'rune_amplification',
+    name: 'Rune of Amplification',
+    cost: 4,
+    text: 'Equipment you do not activate becomes **Amplified**. Amplified Equipment triggers **twice** the next time you activate it. Maximum **1** per Equipment.',
+    reward: { kind: 'runeAmplification' },
+    sets: ['set3'],
+  },
+  {
+    // The token counts as Undead (`starformStandIn` carries `addedTribes: ['undead']`): Undead consume watchers and
+    // tribe predicates see an Undead, Undead-aimed friendly spells may aim it, and the Undead Aura + "your Undead"
+    // Shop buffs land on it (designer note: "they now inherit all Undead buffs, and aura buffs").
+    id: 'rune_soul_script',
+    tribes: ['undead', 'celestial'], // TRIBE GATE: the text names both tribes
+    name: 'Rune of Soul Script',
+    cost: 5,
+    text: '**Starforms** count as **Undead** and can be **Consumed** by Undead.',
+    previewCards: ['ce3_starform'],
+    reward: { kind: 'runeSoulScript' },
+    sets: ['set3'],
+  },
+
+  // ── Set 3 batch 2 (2026-09-16) — tranche A ──────────────────────────────────────────────────────────────
+  // Spirit / Celestial / Undead runes from the owner's sheet. Every one is SET 3 ONLY. Tribe drips reuse
+  // `runeTribeDrip` (tier-capped at the shop tier by `payTribeDrip`, so the text never says "up to your Shop
+  // Tier" — the Dwarf/Kobold verbiage). Tallies for the metered ones live in `runeTally.ts`.
+  {
+    id: 'rune_basic_spirit',
+    tribes: ['spirit'], // TRIBE GATE: the text names Spirits
+    name: 'Rune of Basic Spirits',
+    cost: 3,
+    text: 'Get a **Spirit**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'spirit', count: 1 },
+    sets: ['set3'],
+  },
+  {
+    id: 'rune_basic_celestial',
+    tribes: ['celestial'], // TRIBE GATE: the text names Celestials
+    name: 'Rune of Basic Celestials',
+    cost: 3,
+    text: 'Get a **Celestial**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'celestial', count: 1 },
+    sets: ['set3'],
+  },
+  {
+    id: 'rune_basic_undead',
+    tribes: ['undead'], // TRIBE GATE: the text names Undead
+    name: 'Rune of Basic Undead',
+    cost: 3,
+    text: 'Get an **Undead**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'undead', count: 1 },
+    sets: ['set3'],
+  },
+  {
+    // "After every third Spirit you play" = the threshold engine on a `playSpirit` meter (progress carries across
+    // turns, like the Dragon's Pantry), paying the HAND (`target: 'hand'`).
+    id: 'rune_full_hand',
+    tribes: ['spirit'],
+    name: 'Rune of the Full Hand',
+    cost: 4,
+    text: 'After every **3rd** Spirit you play, give the minions in your hand **+4/+4**.',
+    reward: { kind: 'runeThreshold', meter: 'playSpirit', per: 3, buff: { target: 'hand', attack: 4, health: 4 } },
+    sets: ['set3'],
+  },
+  {
+    id: 'rune_chosen_vessel',
+    tribes: ['spirit'],
+    name: 'Rune of the Chosen Vessel',
+    cost: 3,
+    text: 'Whenever you play a Spirit, give your **left-most** minion in hand **+2/+2**.',
+    reward: { kind: 'runeChosenVessel', attack: 2, health: 2 },
+    sets: ['set3'],
+  },
+  {
+    id: 'rune_deep_currents',
+    tribes: ['spirit'],
+    name: 'Rune of Deep Currents',
+    cost: 4,
+    text: 'Whenever you play a Spirit, give **2** random friendly Spirits **+2/+2**.',
+    reward: { kind: 'runeDeepCurrents', count: 2, attack: 2, health: 2 },
+    sets: ['set3'],
+  },
+  {
+    // A random Reveler now + every Start of Turn (the tribe-drip shape, Reveler-scoped), and the shared Reveler
+    // payout grows: Flame pays +2 more Attack, Tide +2 more Health, Grove +2/+2 more (`revelerExtra`).
+    id: 'rune_traveling_festival',
+    tribes: ['spirit'],
+    name: 'Rune of the Traveling Festival',
+    cost: 4,
+    text: 'Get a random **Reveler**. Repeat every **Start of Turn**. Your Revelers grant an additional **+2/+2**.',
+    previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
+    reward: { kind: 'multi', rewards: [{ kind: 'runeRevelerDrip', count: 1 }, { kind: 'runeRevelerExtra', attack: 2, health: 2 }] },
+    sets: ['set3'],
+  },
+  {
+    // Tracks which Reveler TYPES have been played since the last reset; the third distinct one pays out and resets.
+    // "Improve your Reveler values by +2/+2" = the shared Reveler value (one number, both stats) rises by 2.
+    id: 'rune_growing_chorus',
+    tribes: ['spirit'],
+    name: 'Rune of the Growing Chorus',
+    cost: 4,
+    text: 'After you play a **Flame**, **Tide** and **Grove Reveler**, give your board and hand **+5/+5**, improve your Reveler value by **+2/+2**, then reset this.',
+    previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
+    reward: { kind: 'runeGrowingChorus', attack: 5, health: 5, improve: 2 },
+    sets: ['set3'],
+  },
+  {
+    // No `tribes` gate: the text names no tribe (a generic Shop-spell rune; Celestial-FLAVOURED on the sheet, not tribe-locked).
+    id: 'rune_charted_skies',
+    name: 'Rune of Charted Skies',
+    cost: 4,
+    text: 'After you cast your **3rd** Shop spell each turn, **Discover** a Shop spell.',
+    reward: { kind: 'runeChartedSkies', at: 3 },
+    sets: ['set3'],
+  },
+  {
+    // The Hoardflame shape: a named spell now + every Start of Turn (`recurringGrant` pays the first copy at once),
+    // plus a per-spell power bump the Star Crash factory and its live text both read (`starCrashBonus`).
+    id: 'rune_falling_embers',
+    tribes: ['celestial'],
+    name: 'Rune of Falling Embers',
+    cost: 4,
+    text: 'Get a **Star Crash**. Repeat every **Start of Turn**. Your Star Crashes give an additional **+2/+2**.',
+    reward: { kind: 'multi', rewards: [{ kind: 'recurringGrant', cards: ['starcrash'] }, { kind: 'runeStarCrashBonus', attack: 2, health: 2 }] },
+    sets: ['set3'],
+  },
+  {
+    // "Your next card costs 0": the next minion OR spell bought from the Shop (either row) is free — one card per
+    // Reveler sale, one sale per turn.
+    id: 'rune_festival_wages',
+    tribes: ['spirit'],
+    name: 'Rune of Festival Wages',
+    cost: 3,
+    text: 'After you sell your first **Reveler** each turn, your next card costs **0**.',
+    previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
+    reward: { kind: 'runeFestivalWages' },
+    sets: ['set3'],
+  },
+
+  // ── Set 3 batch 2 (2026-09-16) — tranche B ──────────────────────────────────────────────────────────────
+  // Starform / Equipment / Undead runes from the owner's sheet. Every one is `sets: ['set3']`; a rune whose text
+  // names a tribe on the board carries the `tribes` gate (owner rulings 2026-09-16).
+  {
+    // Creates the token on purchase; every Starform created from here on (any creator — Star Seed, the Peddler,
+    // Zenith's rebirth, this rune's own Start of Turn) arrives +8/+8 (`createStarform`); Start of Turn re-seeds one
+    // when none is out. +8/+8 per copy held (engine family, owner 2026-08-27).
+    id: 'rune_first_light',
+    name: 'Rune of First Light',
+    cost: 4,
+    tribes: ['celestial'],
+    text: 'Create a **Starform**. Starforms you create this game start with **+8/+8**. **Start of Turn:** if you do not have one, create one.',
+    previewCards: ['ce3_starform'],
+    reward: { kind: 'runeFirstLight' },
+    sets: ['set3'],
+  },
+  {
+    // The Starform's own Shop consumes (Black Hole, the Attractor, Roundabout, the full-row creation meal) land
+    // ×2 — `starformConsumeTimes` folds the multiplier at the one Starform-consume chokepoint. ×(1+copies).
+    id: 'rune_accretion',
+    name: 'Rune of Accretion',
+    cost: 5,
+    tribes: ['celestial'],
+    text: 'Minions **Consumed** by your **Starform** grant it **twice** their stats.',
+    previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
+    reward: { kind: 'runeAccretion' },
+    sets: ['set3'],
+  },
+  {
+    // Hooked on `fireStarformRemoved` — the one exit every consume (the buy, a Demon, a card) and collapse rides —
+    // latched once per turn. 2 spells + the +1/+1 spell-power bump per copy held.
+    id: 'rune_eventide',
+    name: 'Rune of Eventide',
+    cost: 4,
+    tribes: ['celestial'],
+    text: 'After you first **Consume** or **Collapse** a Starform each turn, get **2** random Shop spells and improve Shop spells by **+1/+1**.',
+    previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
+    reward: { kind: 'runeEventide' },
+    sets: ['set3'],
+  },
+  {
+    // Read by `equipmentCostOf` (the same helper the rail prints), so the discounted price is what the slot shows.
+    // −2 per copy held on that first activation.
+    id: 'rune_efficient_tooling',
+    name: 'Rune of Efficient Tooling',
+    cost: 3,
+    text: 'Your first **Equipment** activation each turn costs **2** less.',
+    reward: { kind: 'runeEfficientTooling', less: 2 },
+    sets: ['set3'],
+  },
+  {
+    // Armed by the sell path, spent by the next activation, expires with the turn. Idempotent → sweetener duplicate.
+    id: 'rune_quick_release',
+    name: 'Rune of Quick Release',
+    cost: 4,
+    text: 'After you sell an **Equip** minion, your next Equipment activation costs **0** this turn.',
+    reward: { kind: 'runeQuickRelease' },
+    sets: ['set3'],
+  },
+  {
+    // A run-wide meter over Equipment TRIGGERS (a repeat, a Dismantling or Counterrotation re-fire each count);
+    // the badge prints x/3. +8/+5 per copy held at each trip (meter family: one meter, doubled payout).
+    id: 'rune_resonant_arms',
+    name: 'Rune of Resonant Arms',
+    cost: 5,
+    text: 'After every third **Equipment** effect you trigger, give your minions **+8/+5**.',
+    reward: { kind: 'runeResonantArms', per: 3, attack: 8, health: 5 },
+    sets: ['set3'],
+  },
+  {
+    // Hooked at `destroyMinionInShop` — the one shop-destroy chokepoint (Cage Breaker, Graverobber, the
+    // Deathfibrillator …). A PLAIN copy (base card, never gilded), one per copy held, latched once per turn.
+    id: 'rune_last_rites',
+    name: 'Rune of Last Rites',
+    cost: 4,
+    tribes: ['undead'],
+    text: 'The first **Undead** you destroy during the Shop phase each turn returns a plain copy to your hand.',
+    reward: { kind: 'runeLastRites' },
+    sets: ['set3'],
+  },
+  {
+    // The Basic +1/+1 sibling of Rune of Overflow (Epic, +4/+4). Combat: the SAME `runeOverflow` flag (amounts
+    // add, so both held = +5/+5 per overflow). Shop: `fireSummonOverflow` pays the +1/+1 TWICE per copy held.
+    id: 'rune_crowded_crypt',
+    name: 'Rune of the Crowded Crypt',
+    cost: 4,
+    text: 'Whenever a summoned minion does not **fit**, give your minions **+1/+1 permanently**. Triggers **twice** in the Shop.',
+    reward: { kind: 'multi', rewards: [
+      { kind: 'combatFlag', flag: 'runeOverflow', amount: 1 },
+      { kind: 'runeCrowdedCrypt', attack: 1, health: 1, times: 2 },
+    ] },
+    sets: ['set3'],
+  },
 ];
 
 /**
@@ -1373,7 +1610,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_frontline_glory',
-    sets: ['set1', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set1'], // carried into set 3 on 2026-09-14; DROPPED from set 3 again by the owner 2026-09-16
     name: 'Rune of Frontline Glory',
     cost: 8,
     epic: true,
@@ -2654,6 +2891,375 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Get an **Arcane Behemoth**.',
     reward: { kind: 'grant', cards: ['dm_behemoth'] },
   },
+  // ── Set 3 batch 2 (2026-09-16) — tranche C ──
+  {
+    // Amplify = the Amplified state Rune of Amplification introduces (one stack per Equipment; triggers twice).
+    id: 'rune_grand_workshop',
+    name: 'Rune of the Grand Workshop',
+    cost: 6,
+    epic: true,
+    text: '**Amplify** your Equipment. **Start of Turn:** repeat this.',
+    reward: { kind: 'runeGrandWorkshop' },
+    sets: ['set3'],
+  },
+  {
+    // Rolled per Starform consume opportunity (seeded `rngCursor`); the spell slot first, else the right-most spell
+    // offer in the row — see `redGiantSpellBite` in `sim/starform.ts`.
+    id: 'rune_red_giant',
+    tribes: ['celestial'], // TRIBE GATE: the Starform is the Celestials' token
+    name: 'Rune of the Red Giant',
+    cost: 5,
+    epic: true,
+    text: 'Your **Starform** has a **50%** chance to also **Consume** Shop spells. When it does, get a copy of that spell and give your Starform **+8/+8**.',
+    previewCards: ['ce3_starform'],
+    reward: { kind: 'runeRedGiant' },
+    sets: ['set3'],
+  },
+  {
+    // Printed bodies, drawn at random (without replacement) from this combat's Undead death list; once per fight.
+    id: 'rune_final_gate',
+    tribes: ['undead'], // TRIBE GATE: the text names Undead on the board
+    name: 'Rune of the Final Gate',
+    cost: 6,
+    epic: true,
+    text: 'The first time each combat your board becomes empty, summon **three** random **Undead** that died this combat.',
+    reward: { kind: 'combatFlag', flag: 'runeFinalGate' },
+    sets: ['set3'],
+  },
+  {
+    // "Summoned from your hand" = a Spirit hand-summon or Rope Wrangler's Echo in combat (`pendingHandSummon`).
+    id: 'rune_dreamed_graves',
+    // NOT tribe-gated: the owner's sheet files it under Undead, but the codified rule (owner 2026-09-10, `tribeGate.test.ts`)
+    // gates only where the TEXT names a tribe on the board — and this text names none. Flagged in the tranche-C PR.
+    name: 'Rune of Dreamed Graves',
+    cost: 4,
+    epic: true,
+    text: 'The first minion summoned from your hand each combat gains **Rebirth**.',
+    reward: { kind: 'combatFlag', flag: 'runeDreamedGraves' },
+    sets: ['set3'],
+  },
+
+  // ── Set 3 batch 2 (2026-09-16) — tranche A ──────────────────────────────────────────────────────────────
+  // The Epic half of the tranche. SET 3 ONLY, every one. Two runes from the owner's sheet were deferred here
+  // because their effect lives in combat — Rune of the Open Hand and Rune of the Waking Reserve — and shipped
+  // in tranche D (the end of this array).
+  {
+    id: 'rune_epic_celestial',
+    tribes: ['celestial'],
+    name: 'Rune of Epic Celestials',
+    cost: 3,
+    epic: true,
+    text: 'Get **2 Celestials**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'celestial', count: 2 },
+    sets: ['set3'],
+  },
+  {
+    id: 'rune_epic_spirit',
+    tribes: ['spirit'],
+    name: 'Rune of Epic Spirits',
+    cost: 3,
+    epic: true,
+    text: 'Get **2 Spirits**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'spirit', count: 2 },
+    sets: ['set3'],
+  },
+  {
+    id: 'rune_epic_undead',
+    tribes: ['undead'],
+    name: 'Rune of Epic Undead',
+    cost: 3,
+    epic: true,
+    text: 'Get **2 Undead**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'undead', count: 2 },
+    sets: ['set3'],
+  },
+  {
+    id: 'rune_meteor_shower',
+    tribes: ['celestial'],
+    name: 'Rune of the Meteor Shower',
+    cost: 2,
+    epic: true,
+    text: 'After you cast your first **Star Crash** each turn, get another **Star Crash**.',
+    previewCards: ['starcrash'],
+    reward: { kind: 'runeMeteorShower' },
+    sets: ['set3'],
+  },
+  {
+    // Counts SHOP spells only (a Gift or a reward token is a spell cast, not a Shop spell — the standing rule), and
+    // hands over copies of the turn's 1st and 3rd Shop spells the moment the 3rd resolves.
+    // No `tribes` gate: names no tribe (see Charted Skies).
+    id: 'rune_astral_refrain',
+    name: 'Rune of the Astral Refrain',
+    cost: 5,
+    epic: true,
+    text: 'After your **3rd** Shop spell each turn, get copies of the **first** and **third** Shop spells you cast that turn.',
+    reward: { kind: 'runeAstralRefrain', at: 3 },
+    sets: ['set3'],
+  },
+  {
+    // The Discover pick arrives stamped `extraCasts: 1` (read by `spellCasts`, so the x N badge previews it).
+    // No `tribes` gate: names no tribe (see Charted Skies).
+    id: 'rune_astral_draft',
+    name: 'Rune of the Astral Draft',
+    cost: 6,
+    epic: true,
+    text: '**Start of Turn:** **Discover** a Shop spell. It casts an additional time.',
+    reward: { kind: 'runeAstralDraft' },
+    sets: ['set3'],
+  },
+  {
+    // "A minion in your hand gains stats" = the reducer's per-action HAND stat diff (shop phase; every source).
+    // No `tribes` gate: "a minion in your hand" names no tribe — any hand buff pays it (Spirit-flavoured on the sheet).
+    id: 'rune_dream_mirror',
+    name: 'Rune of the Dream Mirror',
+    cost: 5,
+    epic: true,
+    text: 'The first time a minion in your hand gains stats each turn, give the same stats to a random friendly minion.',
+    reward: { kind: 'runeDreamMirror' },
+    sets: ['set3'],
+  },
+  {
+    // No `tribes` gate: names no tribe (see the Dream Mirror).
+    id: 'rune_waking_dreams',
+    name: 'Rune of Waking Dreams',
+    cost: 5,
+    epic: true,
+    text: 'When a minion in your hand gains stats, give your minions **+4/+3**.',
+    reward: { kind: 'runeWakingDreams', attack: 4, health: 3 },
+    sets: ['set3'],
+  },
+  {
+    id: 'rune_shared_revelry',
+    tribes: ['spirit'],
+    name: 'Rune of Shared Revelry',
+    cost: 5,
+    epic: true,
+    text: 'The first **Flame**, **Tide** and **Grove Reveler** you sell each turn trigger twice.',
+    previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
+    reward: { kind: 'runeSharedRevelry' },
+    sets: ['set3'],
+  },
+  {
+    // Shares its name with the Tier-7 Spirit (Grand Procession), which is allowed — rune names are unique among
+    // RUNES, and the card's own return is on SELL where this one is on PLAY.
+    id: 'rune_grand_procession',
+    tribes: ['spirit'],
+    name: 'Rune of the Grand Procession',
+    cost: 6,
+    epic: true,
+    text: 'The first **2 Revelers** you play each turn return a plain copy to your hand.',
+    previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
+    reward: { kind: 'runeProcessionPlay', count: 2 },
+    sets: ['set3'],
+  },
+  {
+    // Spirit + Celestial: `tribes` is an ANY-OF gate, so a Spirit-only run can still be offered this (the granted
+    // Celestial resolves from the set pool regardless of the rolled tribes).
+    id: 'rune_festival_circuit',
+    tribes: ['spirit', 'celestial'],
+    name: 'Rune of the Festival Circuit',
+    cost: 5,
+    epic: true,
+    text: 'The first **3 Revelers** you sell each turn each give you a random **Celestial**.',
+    previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
+    reward: { kind: 'runeFestivalCircuit', count: 3 },
+    sets: ['set3'],
+  },
+  {
+    // RENAMED from the owner's "Rune of the Crown" (2026-09-16) — Rune of the Crown already exists (the Epic
+    // "after 6 Shop spells, spells give +4/+4"). Same engine as the Bubble Crown: a `playSpirit` meter raising
+    // the run's spell power (`spellBonus`), which every stat spell's live text already prints.
+    id: 'rune_spirit_crown',
+    tribes: ['spirit'], // the sheet tagged Spirit + Celestial; the text names only Spirits, so only Spirit gates it (owner rule)
+    name: 'Rune of the Spirit Crown',
+    cost: 6,
+    epic: true,
+    text: 'When you play **3** Spirits, improve your Shop spells by **+1/+1**.',
+    reward: { kind: 'runeThreshold', meter: 'playSpirit', per: 3, buff: { target: 'spells', attack: 1, health: 1 } },
+    sets: ['set3'],
+  },
+  {
+    // No `tribes` gate: "Get a Handy Flame" names no tribe (the sheet tagged Spirit; the token pays off any hand minion).
+    id: 'rune_handy_flame',
+    name: 'Rune of the Handy Flame',
+    cost: 5,
+    epic: true,
+    text: 'Get a **Handy Flame**.',
+    reward: { kind: 'grant', cards: ['sp3_handyflame'] },
+    sets: ['set3'],
+  },
+
+  // ── Set 3 batch 2 (2026-09-16) — tranche B ──────────────────────────────────────────────────────────────
+  {
+    // Rides `fireStarformRemoved('consume')`: the first Consume each turn (the buy, a Demon, a card) re-creates a
+    // token and tops it up to EXACTLY the consumed stats (a Zenith rebirth in the same moment is topped up, not
+    // stacked). Latched once per turn; a duplicate re-arms a second Consume.
+    id: 'rune_open_constellation',
+    name: 'Rune of the Open Constellation',
+    cost: 6,
+    epic: true,
+    tribes: ['celestial'],
+    text: "After you **Consume** your first Starform each turn, create another Starform with the consumed Starform's stats.",
+    previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
+    reward: { kind: 'runeOpenConstellation' },
+    sets: ['set3'],
+  },
+  {
+    // `collapseHits`: the "2 unique originals" become EVERY friendly Celestial; Nova Herald's extras still land
+    // on top. A rules change already fully on → sweetener duplicate.
+    id: 'rune_supernova',
+    name: 'Rune of the Supernova',
+    cost: 6,
+    epic: true,
+    tribes: ['celestial'],
+    text: 'When you **Collapse** a Starform, grant half its stats to **all** your Celestials instead of two.',
+    previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
+    reward: { kind: 'runeSupernova' },
+    sets: ['set3'],
+  },
+  {
+    // Every Starform Shop consume (Black Hole's three, the Attractor, Roundabout, the creation meal) hands a
+    // PLAIN copy of the eaten minion to hand — overflow-safe like every rune grant. One copy per copy held.
+    id: 'rune_stolen_constellations',
+    name: 'Rune of Stolen Constellations',
+    cost: 6,
+    epic: true,
+    tribes: ['celestial'],
+    text: 'Whenever your Starform **Consumes** a minion, get a plain copy of that minion.',
+    previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
+    reward: { kind: 'runeStolenConstellations' },
+    sets: ['set3'],
+  },
+  {
+    // Measured at the cast (`castSpell`): the DELTA a stat spell actually granted its board target (spell power
+    // included) is what the Starform receives — a Rune of the Spellmarket shape. 3 casts per copy held per turn.
+    id: 'rune_spellweaving',
+    name: 'Rune of Spellweaving',
+    cost: 3,
+    epic: true,
+    tribes: ['celestial'],
+    text: 'The first **3** stat-granting Shop spells you cast each turn also give their stats to your Starform.',
+    previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
+    reward: { kind: 'runeSpellweaving', count: 3 },
+    sets: ['set3'],
+  },
+  {
+    // `equipmentCostOf` prices the first activation at 0 and the reducer skips `spendEquipmentCharge` for it.
+    // One free activation per copy held each turn.
+    id: 'rune_overcharge',
+    name: 'Rune of Overcharge',
+    cost: 5,
+    epic: true,
+    text: "Your first **Equipment** activation each turn is **free** and doesn't consume its charge.",
+    reward: { kind: 'runeOvercharge' },
+    sets: ['set3'],
+  },
+  {
+    // The sell path fires the sold minion's Equipment through `fireEquipmentTriggers` — no Gold, no charge — a
+    // targeted one at a random OTHER friendly minion, a Choose One at a random branch (owner note 2026-09-16).
+    // The Star Destroyer never counts (it has no minion to sell). Latched once per turn.
+    id: 'rune_dismantling',
+    name: 'Rune of Dismantling',
+    cost: 4,
+    epic: true,
+    text: 'The first time you sell an **Equip** minion each turn, activate its Equipment for free before selling it.',
+    reward: { kind: 'runeDismantling' },
+    sets: ['set3'],
+  },
+  {
+    // Distinct Equipment ids activated THIS turn; at 3 they all re-trigger (targeted → a random friendly minion,
+    // Star Destroyer excluded) and the set resets. Badge prints x/3.
+    id: 'rune_counterrotation',
+    name: 'Rune of Counterrotation',
+    cost: 5,
+    epic: true,
+    text: 'After activating **3** different Equipment, trigger them again.',
+    reward: { kind: 'runeCounterrotation', count: 3 },
+    sets: ['set3'],
+  },
+  {
+    // The Discover is filtered to Equip minions; the PICK's card id joins `equipmentFreeCards`, so that card's
+    // Equipment costs 0 for the run — sold and re-bought included (owner note 2026-09-16: by CARD).
+    id: 'rune_empty_hands',
+    name: 'Rune of Empty Hands',
+    cost: 4,
+    epic: true,
+    text: '**Discover** an Equip minion. Its Equipment costs **0** permanently.',
+    reward: { kind: 'runeEmptyHands' },
+    sets: ['set3'],
+  },
+  {
+    // A GRAFT (`grantedEffects`, like Contract Rewrite / Rune of Rebirth): every Equip minion on the board carries
+    // the Echo — a real Echo in both phases (multipliers and strips apply). Idempotent → sweetener duplicate.
+    id: 'rune_last_tool',
+    name: 'Rune of the Last Tool',
+    cost: 5,
+    epic: true,
+    text: "Your **Equip** minions gain \"**Echo:** this minion's Equipment costs **0** next turn.\"",
+    reward: { kind: 'runeLastTool' },
+    sets: ['set3'],
+  },
+  {
+    // A GRAFT on every friendly Undead: "when THIS body Rises, summon a 1/1 Skeleton" — fired off the shared
+    // `onRise` moment in both phases (the riser hears its own return), so a Rune of Rebirth Rise counts too.
+    // One Skeleton per copy held.
+    id: 'rune_endless_march',
+    name: 'Rune of the Endless March',
+    cost: 5,
+    epic: true,
+    tribes: ['undead'],
+    text: 'After a friendly **Undead** Rises, summon a **1/1 Skeleton**.',
+    previewCards: ['u3_skeleton'],
+    reward: { kind: 'runeEndlessMarch' },
+    sets: ['set3'],
+  },
+  {
+    // Settled at combat carry-back off the `reborn` events of friendly Undead (the Rise that returned; a
+    // board-full Rise that stayed dead is not a Rise). Needs a Starform standing after the fight. +15/+15 per
+    // Rise per copy held. `tribes` is any-of: offered when EITHER tribe rolled.
+    id: 'rune_grave_orbit',
+    name: 'Rune of the Grave Orbit',
+    cost: 5,
+    epic: true,
+    tribes: ['undead', 'celestial'],
+    text: 'After combat, give your Starform **+15/+15** for each friendly **Undead** that Rose.',
+    previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
+    reward: { kind: 'runeGraveOrbit', attack: 15, health: 15 },
+    sets: ['set3'],
+  },
+
+  // ── Set 3 batch 2 (2026-09-16) — tranche D: the two combat-side runes tranche A deferred ────────────────
+  // Both fire off the hand-summon machinery in `packages/core/src/combat/simulate.ts` (the Spirit hand-summons,
+  // Rope Wrangler's Echo) with a shop twin in `recruit.ts`. NOT tribe-gated: the owner's sheet files both under
+  // Spirits, but the codified rule (owner 2026-09-10, `tribeGate.test.ts`) gates only where the TEXT names a
+  // tribe on the board — and neither text names one (the Dreamed Graves precedent). Flagged in the tranche-D PR.
+  {
+    // "Summon a minion from your hand" = the same `pendingHandSummon` moment Rune of Dreamed Graves reads (a Spirit
+    // hand-summon, Rope Wrangler's Echo, the Waking Reserve's copy) — every one, landed. The receiver is a random
+    // OTHER friendly minion; the grant is the summoned body's CURRENT Attack/Health. One grant per copy held.
+    // Shop half: the shop hand-summons (Tide Caller / Seedling Spirit / Rope Wrangler fired in the shop) pay it
+    // permanently.
+    id: 'rune_open_hand',
+    name: 'Rune of the Open Hand',
+    cost: 5,
+    epic: true,
+    text: 'When you summon a minion from your hand, give its stats to another friendly minion.',
+    reward: { kind: 'combatFlag', flag: 'runeOpenHand' },
+    sets: ['set3'],
+  },
+  {
+    // Highest Attack + Health in hand (ties → the left-most); only when the board has room; the copy is a real
+    // summon (Undertow / Packcraft / Hatchery apply) and counts as a hand-summon for Dreamed Graves / the Open
+    // Hand — but the hand card is NOT marked as summoned, so a Spirit may still summon it later this fight.
+    // One copy per rune copy held. Shop twin: the Start-of-Combat replays (Combat Prowess / Lasting Cadence).
+    id: 'rune_waking_reserve',
+    name: 'Rune of the Waking Reserve',
+    cost: 6,
+    epic: true,
+    text: 'Start of Combat: summon a copy of your highest-stat minion in hand when you have room. This does not mark that hand card as summoned.',
+    reward: { kind: 'combatFlag', flag: 'runeWakingReserve' },
+    sets: ['set3'],
+  },
 ];
 
 /**
@@ -2862,6 +3468,9 @@ export function validateRunes(runes: RuneDef[] = [...RUNES, ...EPIC_RUNES, ...AR
 export const RUNE_DUP_SWEETENER: ReadonlySet<string> = new Set([
   'rune_twin_gilding', 'rune_spellstone', 'rune_trophy', 'rune_engraving_gems', 'rune_centerline',
   'rune_vanguard', 'rune_living_treasure', 'rune_chef', 'rune_ancestral_roar', 'rune_moonhowl',
+  // Set 3 batch 2, tranche B (2026-09-16): a rules change already fully on (Supernova), an idempotent graft
+  // (the Last Tool), an idempotent 0-cost arm (Quick Release).
+  'rune_supernova', 'rune_last_tool', 'rune_quick_release',
 ]);
 
 /** Duplicates that do NOTHING — owner ruled unique ("rune of the ornate clock should do nothing if

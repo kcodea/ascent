@@ -91,7 +91,7 @@ const SUBJECTS = Object.values(CARD_INDEX)
 
 /** Every scaler hot, every counter mid-run, values distinctive (nothing 0/1) — same design as
  *  `docbotLiveText.test.ts`'s RICH bag. Per-card because `cardBuffs` keys by card id.
- *  Deliberately ABSENT: `taughtSpellId`, `chosenOption`, `rebirthOwner` — those early-return/append for ANY
+ *  Deliberately ABSENT: `taughtSpellId`, `chosenOption` — those early-return/append for ANY
  *  card and would rewrite every subject's text instead of arming its own scaler. */
 const richBag = (id: string): LiveTextParams => ({
   tier: 5, golden: false,

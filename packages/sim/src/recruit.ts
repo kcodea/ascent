@@ -1,6 +1,6 @@
 import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { runSpells } from './spellPool';
-import { REVELER_IDS, CARD_INDEX, EQUIPMENT_INDEX, recurringEotOwner, type EquipmentDefinition } from '@game/content';
+import { REVELER_IDS, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer } from './equipment';
 import { currentCollector } from './activeCollector';
 import { alignmentOf } from './alignment';
@@ -606,6 +606,8 @@ export function buffUndeadAttackEverywhere(state: RunState, amount: number, sour
     if (isTribe(card, 'undead')) addBuff(card, source, amount, 0);
   }
   state.undeadBuyAtk = (state.undeadBuyAtk ?? 0) + amount;
+  // Rune of Soul Script: the Starform counts as Undead, so the Aura reaches the token too (a gain — rule 8).
+  if (state.runeSoulScript && hasStarform(state)) buffStarform(state, amount, 0, source);
 }
 
 /** Run-wide HEALTH aura baked at creation — Magnetic minions (Scrap Herald) + Beasts (Pack Mentality quest).
@@ -1125,7 +1127,8 @@ export function auraFxTargets(state: RunState, tribe: AuraFxTribe): string[] {
     const def = CARD_INDEX[o.cardId];
     if (!def) continue;
     const hit = tribe === 'mech' ? def.keywords.includes('M')
-      : def.tribe === tribe || def.tribe2 === tribe || !!def.universalTribe;
+      : def.tribe === tribe || def.tribe2 === tribe || !!def.universalTribe
+        || (tribe === 'undead' && !!o.starform && !!state.runeSoulScript); // Rune of Soul Script: the token is Undead
     if (hit) uids.push(o.uid);
   }
   return uids;
@@ -1274,17 +1277,16 @@ export function buffCardTypeRunWide(state: RunState, cardId: string, a: number, 
  * UI's cast-spark replay) use `spellCasts`, which also applies the aimed-spell / singleCast exemptions.
  */
 function spellCastMult(state: RunState): number {
-  // Set 3's Yazzus (`n3_yazzus`, 2026-09-09) is a FORK with the same doubling here; its wider scope (Rubies and
-  // hand spells too) lives in `rubyCastCount` / the hand-spell path. Either id counts; best single copy wins.
-  const yazzus = state.board.filter((c) => c.cardId === 'yazzus' || c.cardId === 'n3_yazzus');
-  if (yazzus.some((c) => c.golden)) return 3;
-  return yazzus.length > 0 ? 2 : 1;
+  // ONE Yazzus (owner 2026-09-16): the former set-3 fork (`n3_yazzus`) IS `yazzus` now, in every set; a resumed run
+  // saved under the old id is rewritten to `yazzus` by `deserialize`. Best single copy wins.
+  return 1 + yazzusExtraCasts(state);
 }
 
-/** The set-3 Yazzus' extra casts for a NON-Shop targeted spell (a Ruby, a Tower Shield, a Clue): 2 if a golden
- *  copy is on board, 1 for a plain one, else 0. Set 1's Yazzus says "Shop spells" and stays out of this. */
+/** Yazzus' extra casts for ANY targeted spell — a Shop spell, a Ruby, a Tower Shield, a Clue: 2 if a golden copy
+ *  is on board, 1 for a plain one, else 0. "Your targeted spells cast an additional time" (owner 2026-09-16: one
+ *  Yazzus, every targeted spell — no Shop-only body any more). */
 export function yazzusExtraCasts(state: RunState): number {
-  const y = state.board.filter((c) => c.cardId === 'n3_yazzus');
+  const y = state.board.filter((c) => c.cardId === 'yazzus');
   if (y.some((c) => c.golden)) return 2;
   return y.length > 0 ? 1 : 0;
 }
@@ -1329,7 +1331,8 @@ export function rubyCastCount(state: RunState): number {
   // shadowing the other. `firstEachTurn` is read-only here for the same reason `spellCasts` is: the freebie is
   // spent by the real cast path bumping `rubyCastsThisTurn`, so the UI can preview the badge without consuming it.
   extra += state.rubyExtraCasts ?? 0;
-  // Set 3's Yazzus: "your TARGETED spells cast an additional time" — a Ruby is a targeted spell (owner 2026-09-09).
+  // Yazzus: "your TARGETED spells cast an additional time" — a Ruby is a targeted spell (owner 2026-09-09; one
+  // Yazzus for every set since 2026-09-16).
   extra += yazzusExtraCasts(state);
   // First-N gate: `rubyCastsThisTurn` counts Ruby PLAYS (not resolved casts — a doubled first Ruby must not
   // eat the second slot of Resonance's 2-Ruby window), reset each turn.
@@ -1337,7 +1340,7 @@ export function rubyCastCount(state: RunState): number {
   return (1 + extra) * grimoireMultActive(state);
 }
 
-export function spellCasts(state: RunState, def: CardDef): number {
+export function spellCasts(state: RunState, def: CardDef, card?: Pick<BoardCard, 'extraCasts'>): number {
   if (def.singleCast) return 1; // Channeling the Devourer never multiplies
   let mult = def.target ? spellCastMult(state) : 1; // Yazzus multiplies aimed spells; untargeted = 1
   if (state.spellDoubleAlways) mult *= 2; // Ancient Runes: every spell casts twice
@@ -1377,7 +1380,9 @@ export function spellCasts(state: RunState, def: CardDef): number {
   // Nimbus is ADDED LAST, and added rather than multiplied, because it reads "casts an ADDITIONAL time"
   // (owner 2026-07-24). It also applies to untargeted spells, unlike Yazzus — the charge is a flat bonus on
   // whatever the spell would otherwise do.
-  return mult + (state.nextSpellExtraCasts ?? 0);
+  // …and a per-INSTANCE extra (Rune of the Astral Draft stamps its Discover pick `extraCasts: 1`) — added, like
+  // Nimbus, because it reads "casts an additional time". Only the cast sites that hold the hand card pass it.
+  return mult + (state.nextSpellExtraCasts ?? 0) + (card?.extraCasts ?? 0);
 }
 
 /** Implosion's cast count: once by default, plus one more per Demon you control (so 1 + your Demons). Shared by
@@ -1497,7 +1502,7 @@ export function applyShoutsForShopBuff(state: RunState, n: number): void {
  * separate hooks would drift on the parts that must NOT differ — banking the remainder, and paying every
  * threshold a single large transaction crosses (a 12-Gold buy pays a 5-Gold rune twice).
  */
-export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume', amount: number): void {
+export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit', amount: number): void {
   if (amount <= 0 || !state.runeThresholds?.length) return;
   for (const t of state.runeThresholds) {
     if (t.meter !== meter) continue;
@@ -1577,6 +1582,13 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
   // stat-granting spell from here on is bigger, and `spellDisplayText` greens the printed value automatically.
   else if (b.target === 'spells') {
     state.spellBonus = { attack: (state.spellBonus?.attack ?? 0) + b.attack, health: (state.spellBonus?.health ?? 0) + b.health };
+  }
+  // `hand` (Rune of the Full Hand): every MINION in your hand +A/+H — permanent, as every hand buff is (R-HAND-02).
+  // Doubled per copy held (threshold family: same meter, doubled payoff). Spells in hand have no stats to take.
+  else if (b.target === 'hand') {
+    const reps = runeStacksOf(state, t.sourceId ?? '');
+    for (const c of state.hand) if (!CARD_INDEX[c.cardId]?.spell) addBuff(c, 'Rune of the Full Hand', b.attack * reps, b.health * reps);
+    grow();
   }
   else if (b.target === 'shop') applyRunShopBuff(state, b.attack, b.health, 'Rune');
   // `shopTurn` (Merchant's Chorus): the SAME shop-wide grant, but banked in the per-turn layer so it stacks
@@ -2216,7 +2228,9 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
   if (minion.echoStripped) return;
   // A Gravetwin's Echo lives in `copiedEcho` (not its def) — fold it in so triggering "this minion's Echo"
   // (Ossuary Rite / Deathsayer / Reliquary) fires the copied effect too, not nothing (owner bug 2026-07-13).
-  const effects = effectsOverride ?? [...(CARD_INDEX[minion.cardId]?.effects ?? []), ...(minion.copiedEcho ?? [])];
+  // …and a GRAFTED Echo (`grantedEffects` — Contract Rewrite, Rune of Rebirth, Rune of the Last Tool) is as real in
+  // the shop as a printed one (the `instanceEffects` contract; combat folds the same list at instantiate).
+  const effects = effectsOverride ?? [...(CARD_INDEX[minion.cardId]?.effects ?? []), ...(minion.copiedEcho ?? []), ...(minion.grantedEffects ?? [])];
   if (!effects.length) return;
   const hasDR = effects.some((e) => e.on === 'onDeath');
   // THE ECHO CUE (owner ask 2026-08-28): "the echo animation ... should play ANYTIME an echo is triggered".
@@ -2318,8 +2332,54 @@ export function fireEquipmentTriggers(
     withEquipmentTriggerBeat(state, def.id, t, () => {
       fn(ctx, self, params, { minion: self, ...(target ? { target } : {}), ...(clockSeconds !== undefined ? { clockSeconds } : {}) });
     });
+    tickResonantArms(state);
   }
   return true;
+}
+
+/**
+ * RUNE OF RESONANT ARMS (Set 3 batch 2, 2026-09-16): "after every third Equipment effect you trigger" — a run-wide
+ * meter ticked once per TRIGGER at the one place every Equipment trigger resolves (an activation's repeats, a
+ * Dismantling or Counterrotation re-fire and the Star Destroyer all count). At `per` it pays your minions
+ * +attack/+health × copies held (meter family: one meter, doubled payout) and keeps the remainder.
+ */
+function tickResonantArms(state: RunState): void {
+  const ra = state.runeResonantArms;
+  if (!ra) return;
+  ra.tick += 1;
+  if (ra.tick < ra.per) return;
+  ra.tick -= ra.per;
+  procRuneId(state, 'rune_resonant_arms');
+  const reps = runeStacksOf(state, 'rune_resonant_arms');
+  captureBuffFx(state, undefined, 'spell', () => {
+    for (const c of state.board) addBuff(c, 'Rune of Resonant Arms', ra.attack * reps, ra.health * reps);
+  });
+}
+
+/**
+ * Fire one Equipment OUTSIDE the slot — no Gold, no charge — for Rune of Dismantling (the sold Equip minion's
+ * own Equipment) and Rune of Counterrotation (the three re-fires). A targeted Equipment aims at a RANDOM friendly
+ * board minion (`exclude` = the body being sold; nothing legal → no activation, the reducer's own rule); a Choose
+ * One fires a random branch (owner note 2026-09-16: no prompt outside the slot); the Star Destroyer never counts.
+ * Returns whether anything fired.
+ */
+export function fireEquipmentFree(state: RunState, def: EquipmentDefinition, version: 'plain' | 'gilded', self: BoardCard, exclude?: string): boolean {
+  if (def.id === STAR_DESTROYER.id) return false;
+  const rng = makeRng(state.rngCursor);
+  let fireDef = def;
+  if (def.chooseOne?.length) {
+    const branch = def.chooseOne[rng.int(def.chooseOne.length)]!;
+    fireDef = { ...def, effectId: branch.effectId, params: branch.params, gildedParams: branch.gildedParams };
+  }
+  let target: BoardCard | undefined;
+  if (def.targetMode === 'friendly') {
+    const pool = state.board.filter((c) => c.uid !== exclude);
+    if (pool.length === 0) { state.rngCursor = rng.state(); return false; }
+    target = pool[rng.int(pool.length)];
+  }
+  state.rngCursor = rng.state();
+  const fireSelf = fireDef !== def ? { ...self, golden: false } : self; // one gilding channel (see the reducer's activate case)
+  return fireEquipmentTriggers(state, fireDef, version, fireSelf, target, 1);
 }
 
 /**
@@ -2362,14 +2422,18 @@ export function destroyMinionInShop(
   const idx = state.board.indexOf(target);
   if (idx < 0) return;
   const def = CARD_INDEX[target.cardId];
-  const willRise = opts?.rise !== false && target.keywords.includes('R');
+  // REBIRTH (owner 2026-09-16) resolves BEFORE Rise, exactly as combat's `killOrReborn` orders them: a body holding
+  // both comes back whole (its Rise still armed for the next death). A shop Rebirth returns the SAME body —
+  // buffs, keywords (Rebirth spent), per-instance state — see `rebirthReturn`.
+  const willRebirth = opts?.rise !== false && target.keywords.includes('RB');
+  const willRise = !willRebirth && opts?.rise !== false && target.keywords.includes('R');
   // Tell the beat collector's departure diff this body is coming back, so the death plays without the slot
   // reading as freed for good.
   // Set FRESH per destroy, never cleared in a `finally`: the beat collector's departure diff runs AFTER this
   // whole function returns (it diffs around `run()`), so clearing on the way out would hide the flag from the
   // one reader it exists for. Each destroy resets it, so nothing can go stale.
-  RISING = willRise ? new Set([target.uid]) : null;
-  stampShopFx(state, { kind: 'death', uid: target.uid, cardId: target.cardId, ...(willRise ? { rise: true } : {}) });
+  RISING = willRise || willRebirth ? new Set([target.uid]) : null;
+  stampShopFx(state, { kind: 'death', uid: target.uid, cardId: target.cardId, ...(willRise || willRebirth ? { rise: true } : {}) });
   const wasVacating = state.vacatingUid;
   try {
     // 1. The body STAYS in its slot while its Echo fires, marked VACATING — the same mechanism Funeral on
@@ -2392,11 +2456,28 @@ export function destroyMinionInShop(
     if (gone >= 0) state.board.splice(gone, 1);
     // 5. Rise returns into the space it just left — `summonedFrom - 1` discounts the body itself, which was
     //    still on the board when the baseline was taken.
-    if (willRise) riseReturn(state, target, gone >= 0 ? gone : idx, Math.max(0, summonedFrom - 1));
+    if (willRebirth) rebirthReturn(state, target, gone >= 0 ? gone : idx, Math.max(0, summonedFrom - 1));
+    else if (willRise) riseReturn(state, target, gone >= 0 ? gone : idx, Math.max(0, summonedFrom - 1));
   } finally {
     state.vacatingUid = wasVacating;
     /* RISING is reset by the next destroy — see above */
   }
+  afterShopDestroy(state, target);
+}
+
+/**
+ * RUNE OF LAST RITES (Set 3 batch 2, 2026-09-16): the first UNDEAD you destroy during the Shop phase each turn
+ * returns a PLAIN copy to your hand (the printed card — never gilded, never its buffs), one per copy held,
+ * overflow-safe like every rune grant. Fired from BOTH shop-destroy paths — the immediate one here and the
+ * deferred `pendingDeath` settle — so every destroyer (Cage Breaker, a Deathfibrillator, Graverobber …) counts.
+ */
+export function afterShopDestroy(state: RunState, destroyed: BoardCard): void {
+  if (!state.runeLastRites || state.lastRitesUsedThisTurn || !isTribe(destroyed, 'undead')) return;
+  const def = CARD_INDEX[destroyed.cardId];
+  if (!def) return;
+  state.lastRitesUsedThisTurn = true;
+  procRuneId(state, 'rune_last_rites');
+  for (let k = 0; k < runeStacksOf(state, 'rune_last_rites'); k++) grantMinionToHandOrBoard(state, def, false, true);
 }
 
 /**
@@ -2446,6 +2527,9 @@ function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFr
   const grew = state.board.length - summonedFrom;
   const at = Math.min(state.board.length, slot + Math.max(0, grew));
   state.board.splice(at, 0, risen);
+  // Set 3 batch 2: the risen body is built fresh, so the rune grafts are re-stamped BEFORE `fireOnRise` runs —
+  // Rune of the Endless March's "when THIS Rises" lives on the riser itself.
+  applyRuneGrafts(state, risen);
   // The RETURN is its own beat (owner 2026-09-09: "show the minion rise again, just as if it had happened in
   // combat"): the UI plays combat's reborn re-form on the new body once it has mounted.
   stampShopFx(state, { kind: 'rise', uid: risen.uid, cardId: risen.cardId });
@@ -2453,10 +2537,38 @@ function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFr
 }
 
 /**
+ * THE REBIRTH RETURN (owner 2026-09-16) — the shop twin of combat's Rebirth branch in `killOrReborn`: the body
+ * comes back as it WAS — every buff, every granted keyword (Rebirth itself spent), every per-instance counter —
+ * with nothing rebuilt from the def. A FRESH uid for the same reason `riseReturn` takes one (the departure diff
+ * needs to see the body leave). The board cap gates it as a Rise: the Echo resolved first, and no room means an
+ * overflow and no return. NOT a Rise — the Rise watchers (`fireOnRise`) stay quiet.
+ */
+function rebirthReturn(state: RunState, target: BoardCard, slot: number, summonedFrom: number): BoardCard | undefined {
+  if (state.board.length >= CONFIG.boardMax) { fireSummonOverflow(state); return undefined; }
+  const reborn: BoardCard = { ...target, uid: `r${state.uidSeq++}`, keywords: target.keywords.filter((k) => k !== 'RB') };
+  const grew = state.board.length - summonedFrom;
+  const at = Math.min(state.board.length, slot + Math.max(0, grew));
+  state.board.splice(at, 0, reborn);
+  // The same re-form beat a Rise plays — a placeholder until the owner authors a Rebirth cue.
+  stampShopFx(state, { kind: 'rise', uid: reborn.uid, cardId: reborn.cardId });
+  return reborn;
+}
+
+/**
  * A summon (or a Rise return — owner 2026-09-09) found no room: the board's `summonOverflow` watchers pay off
  * (Flowing Monk, Squatimus). The one shop dispatcher for the event, shared by the summon path and `riseReturn`.
  */
 export function fireSummonOverflow(state: RunState): void {
+  // RUNE OF THE CROWDED CRYPT (Set 3 batch 2): the shop half — "+1/+1 permanently … triggers TWICE in the Shop",
+  // `times` × copies held. The combat half is the `runeOverflow` flag (amount 1) the simulator already reads.
+  const cc = state.runeCrowdedCrypt;
+  if (cc) {
+    procRuneId(state, 'rune_crowded_crypt');
+    const reps = cc.times * runeStacksOf(state, 'rune_crowded_crypt');
+    captureBuffFx(state, undefined, 'spell', () => {
+      for (const c of state.board) addBuff(c, 'Rune of the Crowded Crypt', cc.attack * reps, cc.health * reps);
+    });
+  }
   const ctx = makeContext(state);
   for (const c of [...state.board]) {
     const def = CARD_INDEX[c.cardId];
@@ -3337,7 +3449,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   revelerSell: (ctx, self, params) => {
     const x = revelerValue(ctx.state) * gold(self);
     const stat = str(params.stat);
-    const a = stat === 'health' ? 0 : x, h = stat === 'attack' ? 0 : x;
+    // Rune of the Traveling Festival: "your Revelers grant an additional +A/+H" — on the stat(s) this Reveler pays
+    // (Flame → Attack only, Tide → Health only, Grove → both). Accumulated per copy at the dispatcher.
+    const ex = ctx.state.revelerExtra ?? { attack: 0, health: 0 };
+    const a = stat === 'health' ? 0 : x + ex.attack, h = stat === 'attack' ? 0 : x + ex.health;
     const all = stat === 'both';
     for (const c of ctx.state.board) {
       if (!all && !isTribe(c, 'spirit')) continue;
@@ -3495,6 +3610,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   tribePlayedBuffSelfInHand: (ctx, self, params) => {
     if (!ctx.state.hand.includes(self)) return;
     addBuff(self, nameOf(self), num(params.attack, 4) * gold(self), num(params.health, 4) * gold(self));
+  },
+
+  /** Handy Flame (rune token, Set 3 batch 2): whenever this gains stats — in hand or on the board — a random OTHER
+   *  minion in your hand +a/+h (× golden). Never itself: a Handy Flame feeding itself would loop, and "a random
+   *  minion in your hand" read from a hand card means another card. Permanent, as every hand buff is. */
+  onGainStatsBuffRandomHand: (ctx, self, params) => {
+    const pool = ctx.state.hand.filter((c) => c.uid !== self.uid && !CARD_INDEX[c.cardId]?.spell);
+    for (const t of pickRandom(ctx.state, pool, 1)) addBuff(t, nameOf(self), num(params.attack, 6) * gold(self), num(params.health, 4) * gold(self));
   },
 
   /** Set 3 — Equipment Charger (Start of Turn): `count` bonus Equipment charges THIS turn (× golden) into the
@@ -4169,6 +4292,25 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ARENA_EFFECTS.onRiseBuffBoardAndHand(shopArena(ctx.state, self), params);
   },
 
+  /** Rune of the Endless March graft (shop half): only the body that ROSE answers (`fireOnRise` offers the return
+   *  to every watcher; the riser carries the graft, re-stamped by `riseReturn`). Summons beside itself. */
+  onRiseSelfSummonToken: (ctx, self, params, payload) => {
+    if ((payload as { minion?: BoardCard })?.minion !== self) return;
+    if (!ctx.state.board.some((c) => c.uid === self.uid)) return;
+    procRuneId(ctx.state, 'rune_endless_march');
+    ARENA_EFFECTS.onRiseSelfSummonToken(shopArena(ctx.state, self), params);
+  },
+
+  /** Rune of the Last Tool graft (shop half): a shop Echo banks THIS minion's Equipment free for NEXT turn (the
+   *  turn advance promotes the bank; `equipmentCostOf` reads it). Own-death guarded like every shop Echo. */
+  deathrattleEquipmentFreeNextTurn: (ctx, self, _params, payload) => {
+    if ((payload as { minion?: BoardCard })?.minion !== self) return; // `fireOnFriendDeath` offers every shop death to every watcher
+    const eq = equipmentOf(CARD_INDEX[self.cardId]);
+    if (!eq) return;
+    procRuneId(ctx.state, 'rune_last_tool');
+    if (!(ctx.state.equipmentFreeNextTurn ??= []).includes(eq.id)) ctx.state.equipmentFreeNextTurn.push(eq.id);
+  },
+
   /** Squatimus (shop half): a shop summon that found no room → your minions +a/+h. A shop buff is permanent. */
   overflowBuffAllPermanent: (ctx, self, params) => {
     ARENA_EFFECTS.overflowBuffAllPermanent(shopArena(ctx.state, self), params);
@@ -4512,6 +4654,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryBuffTribe: (ctx, self, params) => {
     ARENA_EFFECTS.battlecryBuffTribe(shopArena(ctx.state, self), params);
+    // RUNE OF SOUL SCRIPT (set 3 batch 2, 2026-09-16): the Starform counts as Undead, so a "your Undead +a/+h"
+    // Shop buff lands on the token too — at the one tribe-buff chokepoint, never per card. Golden doubles as
+    // the arena body does. A gain (rule 8): Twin Star hears it.
+    if (str(params.tribe) === 'undead' && ctx.state.runeSoulScript && hasStarform(ctx.state)) {
+      buffStarform(ctx.state, num(params.attack, 0) * gold(self), num(params.health, 0) * gold(self), nameOf(self));
+    }
   },
 
   /** Alleycur: Battlecry summon `count` copies of a token beside self. */
@@ -6026,6 +6174,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       state.hand.splice(state.hand.indexOf(pick), 1);
       state.board.push(pick);
       fireSummonBuffs(state, pick);
+      fireOpenHandShop(state, pick); // a hand-summon: Rune of the Open Hand pays here too
     }
   },
 
@@ -7732,7 +7881,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellBuffTargetAndRandomFriendly: (ctx, _self, params, payload) => {
     const target = payload.target;
     if (!target) return;
-    const a = num(params.attack, 0) + spellAttackBonus(ctx.state), h = num(params.health, 0) + spellHealthBonus(ctx.state);
+    // Rune of Falling Embers: "your Star Crashes give an additional +A/+H" — folded into BOTH landings (the aimed
+    // one and the random friend), the same way spell power is; the live text prints the same total.
+    const sc = params._spellId === 'starcrash' ? (ctx.state.starCrashBonus ?? { attack: 0, health: 0 }) : { attack: 0, health: 0 };
+    const a = num(params.attack, 0) + spellAttackBonus(ctx.state) + sc.attack, h = num(params.health, 0) + spellHealthBonus(ctx.state) + sc.health;
     // Constellation Prime: "your Star Crashes cast an additional time" = the PRIMARY lands once more per Prime on
     // the chosen target; the secondary random-friendly half fires ONCE per cast (owner 2026-09-12).
     const lands = 1 + (params._spellId === 'starcrash' ? primeExtraPrimaryLands(ctx.state) : 0);
@@ -8495,10 +8647,16 @@ export function hasDeathrattle(c: CardDef): boolean {
 }
 
 /** Resolve a `DiscoverSpec`'s string filter id back to a card predicate (closures aren't serializable). */
-function discoverFilter(id: 'battlecry' | 'deathrattle'): (c: CardDef) => boolean {
+function discoverFilter(id: 'battlecry' | 'deathrattle' | 'equip'): (c: CardDef) => boolean {
   if (id === 'battlecry') return hasBattlecry;
   if (id === 'deathrattle') return hasDeathrattle;
+  if (id === 'equip') return hasEquip; // Rune of Empty Hands: an Equip minion
   return () => true;
+}
+
+/** A minion that GRANTS Equipment (carries an `equip` effect). */
+export function hasEquip(c: CardDef | undefined): boolean {
+  return !!c && !c.spell && c.effects.some((e) => e.on === 'equip');
 }
 
 /**
@@ -8587,6 +8745,9 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
   }
   if (spec.kind === 'spell') {
     offerSpellDiscover(state);
+    // Rune of the Astral Draft: the pick will cast an additional time — stamped on the OPEN offer and consumed by
+    // `takeDiscoverPick`, the same per-offer channel `discoverKeywords` uses.
+    state.discoverExtraCasts = spec.extraCasts;
   } else if (spec.kind === 'pool') {
     // Discover from an explicit card-id pool (Second Path). Offer up to 3 distinct, real cards.
     // Spells are excluded because the pool Discover was built for MINIONS — except GIFTS (owner design
@@ -8890,7 +9051,7 @@ export function spellHealthBonus(state: RunState): number {
  * base text for non-stat spells or a zero bonus. Convention: a stat spell's text shows "+A/+B" matching
  * its `spellBuffTarget` params, so it can be substituted.
  */
-export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; clueBonus?: number; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number; juggler?: boolean; anySpellsThisTurn?: number }): string {
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; clueBonus?: number; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number; juggler?: boolean; anySpellsThisTurn?: number; starCrashBonus?: { attack: number; health: number } }): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
   // Set 3 — a FLAT hand spell (Tower Shield: every cast effect opts out of spell power via `flat`) prints exactly
@@ -8900,6 +9061,16 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   if (def.id === 'clue') {
     const cb = extra?.clueBonus ?? 0;
     return cb > 0 ? def.text.replace('**+1/+1**', `**{{+${1 + cb}/+${1 + cb}}}**`) : def.text;
+  }
+  // Star Crash (set 3): base +5/+7 + spell power + Rune of Falling Embers' `starCrashBonus` — the exact total the
+  // cast lands on both its targets, printed IN PLACE (owner standard 2026-09-12: never a "Now +X/+Y" appendix).
+  if (def.id === 'starcrash') {
+    const eff = def.effects.find((e) => e.on === 'cast');
+    const baseA = Number(eff?.params?.attack ?? 5), baseH = Number(eff?.params?.health ?? 7);
+    const sc = extra?.starCrashBonus ?? { attack: 0, health: 0 };
+    const a = baseA + bonusA + sc.attack, h = baseH + bonusH + sc.health;
+    // The bold spans "Celestial +5/+7", so only the number is swapped (the `{{ }}` greens it like every other live value).
+    return a !== baseA || h !== baseH ? def.text.replace(`+${baseA}/+${baseH}`, `{{+${a}/+${h}}}`) : def.text;
   }
   // A RUBY itself reads live: base 1/1 + the run's `rubyBonus`. Needed since hovering any card that mentions
   // Rubies now previews the Ruby (owner 2026-07-25) — a preview promising "+1/+1" while the real Ruby grants
@@ -9365,11 +9536,22 @@ export function fireOnSell(state: RunState, card: BoardCard): void {
   const def = CARD_INDEX[card.cardId];
   if (!def || !def.effects.some((e) => e.on === 'onSell')) return;
   const ctx = makeContext(state);
-  for (const eff of def.effects) {
-    if (eff.on !== 'onSell') continue;
-    // Captured (2026-09-16): a Reveler's sell pays the board, and the tendril streams from the slot the sold
-    // card just left (the UI's departure cache) — before this the grant landed silently.
-    captureBuffFx(state, card, 'minion', () => RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card }));
+  // RUNE OF SHARED REVELRY (Set 3 batch 2, 2026-09-16): the first Flame, Tide and Grove Reveler you sell each
+  // turn TRIGGER TWICE — one extra full fire of the sell effect per copy held (repeat family), keyed per Reveler
+  // TYPE per turn exactly like Grand Procession's return. A second Flame this turn fires once.
+  let reps = 1;
+  if (state.runeSharedRevelry && REVELER_IDS.includes(card.cardId) && !(state.revelryDoubledThisTurn ?? []).includes(card.cardId)) {
+    state.revelryDoubledThisTurn = [...(state.revelryDoubledThisTurn ?? []), card.cardId];
+    reps += runeStacksOf(state, 'rune_shared_revelry');
+    procRuneId(state, 'rune_shared_revelry');
+  }
+  for (let rep = 0; rep < reps; rep++) {
+    for (const eff of def.effects) {
+      if (eff.on !== 'onSell') continue;
+      // Captured (2026-09-16): a Reveler's sell pays the board, and the tendril streams from the slot the sold
+      // card just left (the UI's departure cache) — before this the grant landed silently.
+      captureBuffFx(state, card, 'minion', () => RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card }));
+    }
   }
 }
 
@@ -9405,6 +9587,26 @@ export function fireStarformRemoved(state: RunState, reason: 'consume' | 'collap
       const fn = RECRUIT_FACTORIES[effect.do];
       if (fn) captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, starformReason: reason, starformAttack: stats.attack, starformHealth: stats.health }));
     }
+  }
+  // ── Set 3 batch 2 (2026-09-16) rune hooks — this is the ONE exit every consume (the buy, a Demon, a card) and
+  // every collapse rides, so the runes listen here rather than at each remover.
+  // RUNE OF EVENTIDE: the first Consume OR Collapse each turn → 2 random Shop spells + spell power +1/+1, × copies.
+  if (state.runeEventide && !state.eventideUsedThisTurn) {
+    state.eventideUsedThisTurn = true;
+    procRuneId(state, 'rune_eventide');
+    const ev = runeStacksOf(state, 'rune_eventide');
+    conjureToHand(state, runSpells(state).filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id)), 2 * ev, true);
+    state.spellBonus = { attack: (state.spellBonus?.attack ?? 0) + ev, health: (state.spellBonus?.health ?? 0) + ev };
+  }
+  // RUNE OF THE OPEN CONSTELLATION: the first CONSUME each turn re-creates a token carrying the consumed one's
+  // stats — created, then topped up to EXACTLY those stats (a Zenith rebirth that fired in the watcher loop above
+  // already made the token; it is topped up, never doubled). Latched once per turn.
+  if (reason === 'consume' && state.runeOpenConstellation && !state.openConstellationUsedThisTurn) {
+    state.openConstellationUsedThisTurn = true;
+    procRuneId(state, 'rune_open_constellation');
+    const sf = createStarform(state, { cardId: 'rune_open_constellation', name: 'Rune of the Open Constellation' });
+    const cur = offerBuyStats(state, sf);
+    buffStarform(state, Math.max(0, stats.attack - cur.attack), Math.max(0, stats.health - cur.health), 'Rune of the Open Constellation');
   }
 }
 
@@ -9507,6 +9709,28 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
  * leaving. The sold card is passed as `target` so a watcher can inspect what it was.
  */
 export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
+  // ── Set 3 batch 2 (2026-09-16): the REVELER-SOLD runes. Both key on the sold body being a Reveler. ──
+  if (REVELER_IDS.includes(sold.cardId)) {
+    // RUNE OF FESTIVAL WAGES: the turn's FIRST Reveler sale arms a free card — the next Shop buy (minion or spell,
+    // either row) costs 0. One charge per copy held (repeat family); the charges carry until spent.
+    if (state.runeFestivalWages && !state.festivalWagesUsedThisTurn) {
+      state.festivalWagesUsedThisTurn = true;
+      state.nextCardFree = (state.nextCardFree ?? 0) + runeStacksOf(state, 'rune_festival_wages');
+      procRuneId(state, 'rune_festival_wages');
+    }
+    // RUNE OF THE FESTIVAL CIRCUIT: the first `n` Reveler sales each turn each hand over a random Celestial from the
+    // run's pool (≤ shop tier). The window doubles per copy held; a set whose pool has no Celestial grants nothing.
+    const circuit = state.runeFestivalCircuit ?? 0;
+    if (circuit > 0) {
+      const done = state.circuitSoldThisTurn ?? 0;
+      if (done < circuit * runeStacksOf(state, 'rune_festival_circuit')) {
+        state.circuitSoldThisTurn = done + 1;
+        // `defIsTribe` — the shared helper, so an All-types body counts as a Celestial here as it does everywhere else.
+        const pool = poolOf(state).buyable.filter((c) => !c.spell && !c.token && !c.ruby && c.tier <= state.tier && defIsTribe(c, 'celestial'));
+        if (pool.length > 0) { procRuneId(state, 'rune_festival_circuit'); conjureToHand(state, pool, 1, true); }
+      }
+    }
+  }
   // RUNE OF THE LAST WORD: the turn's first Dragon-with-a-Shout you sell fires its Shout on the way out — one
   // more use from a body you were cashing in anyway. `replayBattlecry` is the same path Myra's hero power and
   // every other Shout re-fire uses, so a targeted Shout auto-picks exactly as it does there.
@@ -9601,6 +9825,7 @@ function makeContext(state: RunState): RecruitContext {
       };
       const near = state.board.findIndex((x) => x.uid === nearUid);
       state.board.splice(near >= 0 ? near + 1 : state.board.length, 0, minion);
+      applyRuneGrafts(state, minion); // Set 3 batch 2: a summoned Undead / Equip body carries the rune grafts
       // Wolvie's borrowed Echo (`deathrattleBuffNextSummon`): the next matching-tribe minion summoned in the
       // shop takes the pending buff, then it clears. Applied before `onSummon` so watchers see the buffed body.
       const psb = state.pendingSummonBuff;
@@ -10072,6 +10297,30 @@ export function applySecondLife(state: RunState, card: BoardCard): void {
   for (const kw of ['T', 'R'] as Keyword[]) if (!card.keywords.includes(kw)) card.keywords.push(kw);
 }
 
+/**
+ * TRANCHE-B RUNE GRAFTS (Set 3 batch 2, 2026-09-16) — Rune of the Endless March ("when THIS Undead Rises, summon
+ * a 1/1 Skeleton") and Rune of the Last Tool ("Echo: this minion's Equipment costs 0 next turn") ride the
+ * per-instance `grantedEffects` channel, the same graft Contract Rewrite / Rune of Rebirth use: a grafted trigger
+ * is as real as a printed one in the shop (`instanceEffects`), crosses into combat (`minion.ts`) and is served
+ * on the snapshot. Idempotent per `do` (a re-sweep updates the params in place), stamped on the INSTANCE — never
+ * the shared def. Called on purchase (board + hand sweep), at every board arrival (buy, summon, Rise return) and
+ * as a tripwire at the action boundary in `reduce`.
+ */
+export function applyRuneGrafts(state: RunState, card: BoardCard): void {
+  if (!state.runeEndlessMarch && !state.runeLastTool) return;
+  const def = CARD_INDEX[card.cardId];
+  if (!def || def.spell || def.ruby) return;
+  const graft = (effect: EffectDef): void => {
+    const cur = card.grantedEffects?.find((e) => e.do === effect.do);
+    if (cur) { cur.params = effect.params; return; }
+    (card.grantedEffects ??= []).push(effect);
+  };
+  if (state.runeEndlessMarch && isTribe(card, 'undead')) {
+    graft({ on: 'onRise', do: 'onRiseSelfSummonToken', params: { tokenId: 'u3_skeleton', count: runeStacksOf(state, 'rune_endless_march') } });
+  }
+  if (state.runeLastTool && hasEquip(def)) graft({ on: 'onDeath', do: 'deathrattleEquipmentFreeNextTurn', params: {} });
+}
+
 /** The tribe a card's Battlecry aim is restricted to, AFTER runes. Rune of Open Appetite drops the Appetite
  *  Agent's Demon-only rule, so every enforcement point — the reducer's target check, the "is there a legal
  *  target at all?" probe, the auto-pick pool, and the aim UI — has to ask this rather than read `targetTribe`
@@ -10084,6 +10333,7 @@ export function effectiveTargetTribe(state: RunState, def: CardDef | undefined):
 
 export function applyOnBuy(state: RunState, bought: BoardCard): void {
   applySecondLife(state, bought); // Rune of the Second Life: a Scavver arrives already carrying Taunt + Rise
+  applyRuneGrafts(state, bought); // Set 3 batch 2: the Endless March / Last Tool grafts ride the bought body
   const ctx = makeContext(state);
   // RUNE OF THE BANQUET HALL: the turn's first SHOP-BUFFED buy hands its bonus stats to one friendly minion of
   // each type. "Bonus" means what the tavern put on it (the offer's `atk`/`hp`, which the buy path bakes into
@@ -10537,7 +10787,8 @@ export function settlePendingDeath(state: RunState): void {
   state.pendingDeath = undefined;
   const card = state.board.find((c) => c.uid === pending.uid);
   if (!card) return; // already gone (a save round-trip, an odd path) — nothing owed
-  const willRise = card.keywords.includes('R');
+  const willRebirth = card.keywords.includes('RB'); // Rebirth before Rise (combat's order)
+  const willRise = !willRebirth && card.keywords.includes('R');
   // Where the body was and how big the board was, captured inside the death beat for the Rise beat that follows.
   let gone = -1;
   let summonedFrom = 0;
@@ -10551,14 +10802,14 @@ export function settlePendingDeath(state: RunState): void {
       policyKey: 'system:destroy:shopDeath',
     },
     () => {
-      RISING = willRise ? new Set([card.uid]) : null;
+      RISING = willRise || willRebirth ? new Set([card.uid]) : null;
       // The body is dying: the authored dissolve plays for it (suppressed when it is rising — it re-forms).
-      stampShopFx(state, { kind: 'death', uid: card.uid, cardId: card.cardId, ...(willRise ? { rise: true } : {}) });
+      stampShopFx(state, { kind: 'death', uid: card.uid, cardId: card.cardId, ...(willRise || willRebirth ? { rise: true } : {}) });
       const wasVacating = state.vacatingUid;
       // A body that will NOT rise vacates its slot for its Echo's summons ("in the place of the minion dying").
       // A RISING body HOLDS its slot (owner ruling 2026-09-09): its Echo resolves first, and on a full board the
       // summon overflows — Squatimus / Flowing Monk pay off on it — while the body itself returns.
-      if (!willRise) state.vacatingUid = card.uid;
+      if (!willRise && !willRebirth) state.vacatingUid = card.uid;
       summonedFrom = state.board.length;
       try {
         if (pending.kind === 'loan') triggerBorrowedEcho(state, card);
@@ -10566,6 +10817,7 @@ export function settlePendingDeath(state: RunState): void {
         // A destroy is a real death for watchers (owner ruling 2026-08-26). A loan EXPIRY still is not —
         // whether it should be is an open design question, deliberately unchanged here.
         if (pending.kind === 'destroy') fireOnFriendDeath(state, card);
+        if (pending.kind === 'destroy') afterShopDestroy(state, card); // Rune of Last Rites (Set 3 batch 2)
       } finally {
         state.vacatingUid = wasVacating;
         gone = state.board.findIndex((c) => c.uid === card.uid);
@@ -10594,6 +10846,21 @@ export function settlePendingDeath(state: RunState): void {
       },
     );
   }
+  // REBIRTH (owner 2026-09-16): the same its-own-beat shape as the Rise, reusing the Rise beat identity as a
+  // placeholder presentation; NOT a Rise, so the Rise watchers stay quiet.
+  if (willRebirth && gone >= 0) {
+    withRecruitTrigger(
+      makeContext(state),
+      {
+        phase: 'recruit',
+        source: { kind: 'minion', id: card.cardId, uid: card.uid, side: 'player', label: CARD_INDEX[card.cardId]?.name },
+        trigger: 'onRise',
+        policy: 'ownBeat',
+        policyKey: 'system:destroy:shopRise',
+      },
+      () => { rebirthReturn(state, card, gone, Math.max(0, summonedFrom - 1)); },
+    );
+  }
 }
 
 /** Fire a BOARD minion's Echo in the shop, as Ossuary Rite / Deathsayer / Rune of the Reliquary do.
@@ -10610,12 +10877,32 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   // when the target actually ended up bigger. Snapshot each stat before, diff after.
   const preAtk = target?.attack ?? 0;
   const preHp = target?.health ?? 0;
+  // RUNE OF SPELLWEAVING (Set 3 batch 2): the first N stat-granting Shop spells each turn also feed the Starform
+  // what they ACTUALLY granted — a targeted spell's delta on its target, an untargeted one's biggest per-minion
+  // delta (its printed per-minion grant, spell power included). Snapshot only while the rune is live.
+  const weave = !!state.runeSpellweaving && (state.spellweavingCastsThisTurn ?? 0) < state.runeSpellweaving
+    && !spellDef.ruby && !spellDef.gift && isStatSpell(spellDef) && hasStarform(state);
+  const weaveBefore = weave ? new Map(state.board.map((c) => [c.uid, [c.attack, c.health] as const])) : undefined;
   // Starpath Vendor's next-SHOP-spell bonus: a Gift (Tower Shield, Clue) neither reads it nor spends it, so it
   // is lifted out for the duration of a Gift's cast and put back after.
   const heldNextBonus = spellDef.gift ? state.nextSpellBonus : undefined;
   if (heldNextBonus) state.nextSpellBonus = undefined;
   applyCastEffects(ctx, spellDef, target); // board-wide spells (Growth) run without a target
   if (heldNextBonus) state.nextSpellBonus = heldNextBonus;
+  if (weaveBefore) {
+    let wa = 0, wh = 0;
+    const bodies = target && state.board.includes(target) ? [target] : state.board;
+    for (const c of bodies) {
+      const b = weaveBefore.get(c.uid);
+      if (!b) continue;
+      wa = Math.max(wa, c.attack - b[0]); wh = Math.max(wh, c.health - b[1]);
+    }
+    if (wa > 0 || wh > 0) {
+      state.spellweavingCastsThisTurn = (state.spellweavingCastsThisTurn ?? 0) + 1;
+      procRuneId(state, 'rune_spellweaving');
+      buffStarform(state, wa, wh, 'Rune of Spellweaving');
+    }
+  }
   if (target && state.board.includes(target)) {
     const dAtk = target.attack - preAtk;
     const dHp = target.health - preHp;
@@ -10741,6 +11028,38 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   state.spellsCast += 1;
   state.spellsThisTurn += 1;
   advanceRuneThresholds(state, 'spellCast', 1);
+  // ── Set 3 batch 2 (2026-09-16): the CELESTIAL spell-count runes. They count SHOP spells only — a Gift is a spell
+  //    cast but never a Shop spell (the standing rule above), so it neither advances nor is copied by them. ──
+  if (!spellDef.gift) {
+    const ids = state.shopSpellIdsThisTurn = [...(state.shopSpellIdsThisTurn ?? []), spellDef.id];
+    const n = ids.length;
+    // RUNE OF CHARTED SKIES: the `at`-th Shop spell of the turn opens a Shop-spell Discover (one per copy held).
+    const skies = state.runeChartedSkies;
+    if (skies && n === skies.at) {
+      procRuneId(state, 'rune_charted_skies');
+      for (let k = 0; k < runeStacksOf(state, 'rune_charted_skies'); k++) queueDiscover(state, { kind: 'spell' });
+    }
+    // RUNE OF THE ASTRAL REFRAIN: when the `at`-th Shop spell resolves, copies of the turn's FIRST and `at`-th
+    // Shop spells land in hand (overflow-safe: an earned reward is never dropped). Uncopyable spells are skipped,
+    // the same guard the echo runes use. One set of copies per copy held.
+    const refrain = state.runeAstralRefrain;
+    if (refrain && n === refrain.at) {
+      procRuneId(state, 'rune_astral_refrain');
+      for (let k = 0; k < runeStacksOf(state, 'rune_astral_refrain'); k++) {
+        for (const id of [ids[0]!, ids[refrain.at - 1]!]) {
+          const d = CARD_INDEX[id];
+          if (d && !NO_COPY_SPELLS.has(d.id)) conjureToHand(state, [d], 1, true);
+        }
+      }
+    }
+    // RUNE OF THE METEOR SHOWER: the turn's first Star Crash hands over another (one per copy held).
+    if (state.runeMeteorShower && spellDef.id === 'starcrash' && !state.meteorShowerUsedThisTurn) {
+      state.meteorShowerUsedThisTurn = true;
+      procRuneId(state, 'rune_meteor_shower');
+      const sc = CARD_INDEX['starcrash'];
+      if (sc) conjureToHand(state, [sc], runeStacksOf(state, 'rune_meteor_shower'), true);
+    }
+  }
   // Rune of Runic Exchange pays out in Ales, so counting Ales would let it feed itself — its meter excludes them.
   if (!ALE_IDS.includes(spellDef.id)) advanceRuneThresholds(state, 'spellCastNonAle', 1);
   // Living Grimoire's charge is spent by this cast (consumed here at the real cast, not in the read-only
@@ -11183,6 +11502,22 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
     copy.attack = lead.attack; copy.health = lead.health;
     copy.golden = lead.golden; copy.keywords = [...lead.keywords];
   } });
+  // Rune of the Waking Reserve (tranche D): with room, a COPY of the highest-stat (Attack + Health, ties → left-most)
+  // hand minion — the card stays in hand, unmarked. The shop twin of the combat Start-of-Combat summon, so the
+  // Combat Prowess / Lasting Cadence replays read the same; a hand-summon, so the Open Hand pays on it.
+  if (f?.runeWakingReserve) out.push({ id: 'rune_waking_reserve', kind: 'rune', label: 'Rune of the Waking Reserve', fire: (st) => {
+    if (st.board.length >= CONFIG.boardMax) return;
+    const pool = st.hand.filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby && !handCardLocked(st, c); });
+    if (pool.length === 0) return;
+    const top = pool.reduce((a, b) => (b.attack + b.health > a.attack + a.health ? b : a));
+    const def = CARD_INDEX[top.cardId];
+    if (!def) return;
+    const copy = makeContext(st).summon(def, ''); // no anchor → appended right-most
+    if (!copy) return;
+    copy.attack = top.attack; copy.health = top.health;
+    copy.golden = top.golden; copy.keywords = [...top.keywords];
+    fireOpenHandShop(st, copy);
+  } });
   // Shared Circuit: up to N leftmost unshielded Mechs gain Ward (permanent; the break-transfer half is
   // combat-only — shields don't break in a shop).
   if ((state.sharedCircuitWard ?? 0) > 0) out.push({ id: 'sharedCircuit', kind: 'quest', label: 'Shared Circuit', fire: (st) => {
@@ -11294,15 +11629,15 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
     const front = st.board[0];
     if (front) grantKw(front, 'DS');
   } });
-  // Rune of Rebirth: a random eligible minion PERMANENTLY gains the exact-copy Echo (seeded pick; the
-  // eligibility filter keeps it from stacking a second copy on the same body).
+  // Rune of Rebirth (owner 2026-09-16): a random minion without Rebirth PERMANENTLY gains it (seeded pick) — the
+  // shop twin of the Start-of-Combat `RB` grant, so Combat Prowess / Lasting Cadence replays read the same.
   if (f?.runeRebirth) out.push({ id: 'rune_rebirth', kind: 'rune', label: 'Rune of Rebirth', fire: (st) => {
-    const eligible = st.board.filter((m) => !instanceEffects(m).some((e) => e.do === 'echoSummonCopyNoEcho'));
+    const eligible = st.board.filter((m) => !m.keywords.includes('RB'));
     if (eligible.length === 0) return;
     const rng = makeRng(st.rngCursor);
     const m = eligible[rng.int(eligible.length)]!;
     st.rngCursor = rng.state();
-    (m.grantedEffects ??= []).push({ on: 'onDeath', do: 'echoSummonCopyNoEcho', params: {} });
+    grantKw(m, 'RB');
   } });
   // Rune of Rising Graves: the two leftmost Undead without Rise gain it (permanent, idempotent).
   if (f?.runeRisingGraves) out.push({ id: 'rune_rising_graves', kind: 'rune', label: 'Rune of Rising Graves', fire: (st) => {
@@ -11650,6 +11985,121 @@ export function handCardLocked(state: RunState, card: BoardCard): boolean {
   return false;
 }
 
+/**
+ * SET 3 BATCH 2 (2026-09-16) — the "whenever you play a Spirit" / "Reveler played" RUNES. Fired from `playCard`,
+ * the single "played from hand" chokepoint, beside `fireOnTribePlayed` — so a summoned token or a Discover pick
+ * sitting in hand never trips them, exactly like the Demon play runes. Every payout is wrapped for FX so the
+ * gains descend onto the board rather than the numbers jumping.
+ */
+export function fireSpiritPlayRunes(state: RunState, played: BoardCard): void {
+  if (isTribe(played, 'spirit')) {
+    // RUNE OF THE CHOSEN VESSEL: your LEFT-MOST minion in hand +A/+H (spells skipped — they have no stats).
+    const vessel = state.runeChosenVessel;
+    if (vessel) {
+      const left = state.hand.find((c) => !CARD_INDEX[c.cardId]?.spell);
+      if (left) { procRuneId(state, 'rune_chosen_vessel'); addBuff(left, 'Rune of the Chosen Vessel', vessel.attack, vessel.health); }
+    }
+    // RUNE OF DEEP CURRENTS: `count` random friendly board Spirits +A/+H — the played body is eligible (it is a
+    // friendly Spirit on the board by now), matching Aspect's "3 random friendly Spirits".
+    const currents = state.runeDeepCurrents;
+    if (currents) {
+      const pool = state.board.filter((c) => isTribe(c, 'spirit'));
+      if (pool.length > 0) {
+        procRuneId(state, 'rune_deep_currents');
+        captureBuffFx(state, undefined, 'spell', () => {
+          for (const t of pickRandom(state, pool, currents.count)) addBuff(t, 'Rune of Deep Currents', currents.attack, currents.health);
+        });
+      }
+    }
+  }
+  if (!REVELER_IDS.includes(played.cardId)) return;
+  // RUNE OF THE GROWING CHORUS: one entry per Reveler TYPE played; the third distinct type pays board + hand
+  // +A/+H, raises the shared Reveler value by `improve` (× Improve reps under Rune of Mastery) and resets.
+  const chorus = state.runeGrowingChorus;
+  if (chorus && !chorus.played.includes(played.cardId)) {
+    chorus.played = [...chorus.played, played.cardId];
+    if (REVELER_IDS.every((id) => chorus.played.includes(id))) {
+      chorus.played = [];
+      procRuneId(state, 'rune_growing_chorus');
+      captureBuffFx(state, undefined, 'spell', () => {
+        for (const c of state.board) addBuff(c, 'Rune of the Growing Chorus', chorus.attack, chorus.health);
+        for (const c of state.hand) if (!CARD_INDEX[c.cardId]?.spell) addBuff(c, 'Rune of the Growing Chorus', chorus.attack, chorus.health);
+      });
+      state.revelerX = revelerValue(state) + chorus.improve * improveReps(state);
+    }
+  }
+  // RUNE OF THE GRAND PROCESSION (Epic): the first `n` Revelers PLAYED each turn return a PLAIN copy (base stats,
+  // never golden) to hand — the card's own Grand Procession returns on SELL; this one pays on the way in.
+  const procession = state.runeProcessionPlay ?? 0;
+  if (procession > 0) {
+    const done = state.processionPlayedThisTurn ?? 0;
+    if (done < procession) {
+      state.processionPlayedThisTurn = done + 1;
+      const def = CARD_INDEX[played.cardId];
+      if (def) {
+        procRuneId(state, 'rune_grand_procession');
+        for (let k = 0; k < runeStacksOf(state, 'rune_grand_procession'); k++) grantMinionToHandOrBoard(state, def, false);
+      }
+    }
+  }
+}
+
+/**
+ * SET 3 BATCH 2 (2026-09-16) — "a minion in your HAND gains stats" + the `onGainStats` trigger, dispatched from
+ * the reducer's per-action stat diff (the same boundary the `onGainAttack` board diff and the Gangplank hand
+ * diff use, for the same reason: stats have a dozen writers, and a hook at the boundary cannot miss one).
+ *
+ * `gainers` = every card present before AND after the action whose Attack or Health rose, with its delta. Order:
+ *   1. `onGainStats` reactors (Handy Flame) — in hand or on the board — each fires ONCE per action.
+ *   2. The hand-gain runes, over the hand gainers INCLUDING anything step 1 just grew: Dream Mirror (the
+ *      turn's first hand gain, mirrored onto a random board minion) and Waking Dreams (board +A/+H per gainer).
+ * Anything step 2 grows on the BOARD is not re-diffed, so the chain is bounded by construction.
+ */
+export function fireStatGainReactors(state: RunState, before: Map<string, { attack: number; health: number }>): void {
+  const gained = (c: BoardCard): { attack: number; health: number } | null => {
+    const p = before.get(c.uid);
+    if (!p) return null;
+    const da = Math.max(0, c.attack - p.attack), dh = Math.max(0, c.health - p.health);
+    return da > 0 || dh > 0 ? { attack: da, health: dh } : null;
+  };
+  // 1. `onGainStats` reactors (hand + board). Resolved before any reactor runs, so a reactor's own payout cannot
+  //    re-enter this pass (bounded, deterministic).
+  const reactors = [...state.hand, ...state.board].filter((c) => gained(c) && CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onGainStats'));
+  if (reactors.length > 0) {
+    const ctx = makeContext(state);
+    for (const c of reactors) {
+      for (const eff of CARD_INDEX[c.cardId]?.effects ?? []) {
+        if (eff.on !== 'onGainStats') continue;
+        const fn = RECRUIT_FACTORIES[eff.do];
+        if (fn) captureBuffFx(state, c, 'minion', () => fn(ctx, c, eff.params ?? {}, { minion: c }));
+      }
+    }
+  }
+  // 2. The hand-gain runes.
+  if (!state.runeDreamMirror && !state.runeWakingDreams) return;
+  const handGainers = state.hand.filter((c) => !CARD_INDEX[c.cardId]?.spell).map((c) => ({ card: c, d: gained(c) })).filter((g): g is { card: BoardCard; d: { attack: number; health: number } } => !!g.d);
+  if (handGainers.length === 0) return;
+  // RUNE OF THE DREAM MIRROR: the FIRST hand gain each turn is mirrored — the same +A/+H — onto a random friendly
+  // board minion (× copies held). A gain with nobody on the board is not "used": the mirror waits for one.
+  if (state.runeDreamMirror && !state.dreamMirrorUsedThisTurn && state.board.length > 0) {
+    const first = handGainers[0]!;
+    state.dreamMirrorUsedThisTurn = true;
+    procRuneId(state, 'rune_dream_mirror');
+    const mult = runeStacksOf(state, 'rune_dream_mirror');
+    captureBuffFx(state, undefined, 'spell', () => {
+      for (const t of pickRandom(state, [...state.board], 1)) addBuff(t, 'Rune of the Dream Mirror', first.d.attack * mult, first.d.health * mult);
+    });
+  }
+  // RUNE OF WAKING DREAMS: every hand minion that gained this action pays your board +A/+H (accumulated per copy).
+  const waking = state.runeWakingDreams;
+  if (waking && state.board.length > 0) {
+    procRuneId(state, 'rune_waking_dreams', handGainers.length);
+    captureBuffFx(state, undefined, 'spell', () => {
+      for (let i = 0; i < handGainers.length; i++) for (const c of state.board) addBuff(c, 'Rune of Waking Dreams', waking.attack, waking.health);
+    });
+  }
+}
+
 export function summonCopyFromHandShop(state: RunState, uid: string, near: BoardCard | undefined, ward: boolean): BoardCard | undefined {
   const h = state.hand.find((c) => c.uid === uid);
   const def = h ? CARD_INDEX[h.cardId] : undefined;
@@ -11665,7 +12115,27 @@ export function summonCopyFromHandShop(state: RunState, uid: string, near: Board
   const at = near ? state.board.indexOf(near) : -1;
   state.board.splice(at < 0 ? state.board.length : at + 1, 0, copy);
   fireSummonBuffs(state, copy);
+  fireOpenHandShop(state, copy);
   return copy;
+}
+
+/**
+ * RUNE OF THE OPEN HAND, shop half (Set 3 batch 2, tranche D, 2026-09-16): a minion summoned FROM THE HAND in the
+ * shop (a Spirit hand-summon fired here, Rope Wrangler's Echo on a shop death) gives its current stats to another
+ * random friendly minion — permanently, as every shop grant is. The one shop dispatcher, called from the two
+ * shop hand-summon sites; combat's twin sits in `placeSummon`. One grant per copy held, each to a fresh receiver.
+ */
+export function fireOpenHandShop(state: RunState, summoned: BoardCard): void {
+  if (!state.questFlags?.runeOpenHand) return;
+  const copies = Math.max(1, state.flagCopies?.runeOpenHand ?? 1);
+  for (let k = 0; k < copies; k++) {
+    const others = state.board.filter((c) => c.uid !== summoned.uid);
+    if (others.length === 0) return;
+    procRuneId(state, 'rune_open_hand');
+    captureBuffFx(state, undefined, 'spell', () => {
+      for (const t of pickRandom(state, others, 1)) addBuff(t, 'Rune of the Open Hand', summoned.attack, summoned.health);
+    });
+  }
 }
 
 /** A drawable minion with a Rally — the pool Warband Recruiter summons from, in both phases. */
@@ -12664,6 +13134,10 @@ export function playCard(state: RunState, played: BoardCard): void {
   // DRAGON'S PANTRY: a Dragon played is one tick of the `playDragon` meter. The threshold engine owns the
   // banking, so "progress carries between turns" is free.
   if (isTribe(played, 'dragon')) advanceRuneThresholds(state, 'playDragon', 1);
+  // Set 3 batch 2 (2026-09-16): a Spirit played is one tick of the `playSpirit` meter (Rune of the Full Hand,
+  // Rune of the Spirit Crown) — same engine, same cross-turn banking.
+  if (isTribe(played, 'spirit')) advanceRuneThresholds(state, 'playSpirit', 1);
+  fireSpiritPlayRunes(state, played); // Chosen Vessel / Deep Currents / Growing Chorus / the Grand Procession rune
   // ECHOED ARRIVAL: every `per`-th ECHO minion played fires its Echo on arrival. Counted per ECHO BODY (not
   // per play), which is what "every 5th Echo minion" says; the fire itself is the shop-side Echo path
   // Gravetwin / the Reliquary use, so nothing about it is bespoke.

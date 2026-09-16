@@ -24,7 +24,8 @@ export type Keyword =
   | 'RL' // Rally — triggers an effect each time this attacks
   | 'SL' // Slaughter — triggers an effect each time this kills an enemy minion
   | 'CR' // Critical Strike — a chance (see CardDef.critChance) to deal double damage on attack
-  | 'EG'; // Engraved — stat gains during combat carry back to the run board (permanent)
+  | 'EG' // Engraved — stat gains during combat carry back to the run board (permanent)
+  | 'RB'; // Rebirth (owner 2026-09-16) — when this dies it returns ONCE with its FULL current body: stats, granted buffs, keywords, effects (Rise, by contrast, returns the PRINTED body at 1 Health). Spent on the return; not re-armed unless something re-grants it.
 // NB: Transcendant grants Engraved as a LIVE ADJACENCY AURA rather than the keyword — see `engravedByAura`.
 
 /**
@@ -184,6 +185,7 @@ export type GameEvent =
   | 'onRise' // a FRIENDLY minion returned via Rise — BOTH phases (owner 2026-09-09: Rise watchers fire on a shop Rise too, and a recruit-phase payout is permanent). Payload `{ minion, side }` = the risen body
   | 'onAttack'
   | 'onGainAttack' // a minion's Attack rose mid-combat (emitted by ctx.buff when the delta > 0) — Hunter
+  | 'onGainStats' // Set 3 (2026-09-16): this minion gained Attack and/or Health in the SHOP, in hand or on the board (Handy Flame). Dispatched by the reducer's per-action stat diff; combat does not emit it yet.
   | 'onDamaged' // a minion took damage that landed (emitted by dealDamage) — Gryphon
   | 'friendlyDemonDealtDamage' // Set 2: a FRIENDLY Demon dealt combat damage (attack, retaliation, or incidental) — Impossible Todd / Leech / Axeman. A Ward-absorbed (0-damage) hit never reaches the emit, so it doesn't count.
   | 'onLoseDivineShield'
@@ -287,6 +289,8 @@ export type EffectFactoryId =
   | 'onRiseBuffBoardAndHand' // Set 3 Undead — Rising Tide: when a friendly minion Rises, your minions on board AND in hand +a/+h
   | 'overflowBuffAllPermanent' // Set 3 Undead — Squatimus: a summon that does not fit → your minions +a/+h PERMANENTLY (both phases)
   | 'deathrattleBuffRandomTribe' // Set 3 Undead — Noggin: Echo — a random friendly <tribe> +a/+h (both phases)
+  | 'onRiseSelfSummonToken' // Set 3 batch 2 — Rune of the Endless March graft: when THIS body Rises, summon a token (both phases)
+  | 'deathrattleEquipmentFreeNextTurn' // Set 3 batch 2 — Rune of the Last Tool graft: Echo — this minion's Equipment costs 0 next turn (shop: run field; combat: a `questTrigger` carry-back)
   | 'battlecryDestroyForDiscover' // Set 3 Undead — Cage Breaker: Shout — destroy a friendly <tribe> (its Echo + Rise fire) to Discover a <tribe>; combat grants a random one
   | 'equipmentRiseThenDestroy' // Set 3 Undead — Deathfibrillator: give the target Rise, then destroy it (it returns)
   | 'avengeCastTribeAttack' // Set 3 Undead — Soul-Lantern Hierophant: Avenge (N) — cast Lantern of Souls (the Rally body, avenge-windowed)
@@ -645,6 +649,7 @@ export type EffectFactoryId =
   | 'rallyGiveTribeAttackOfHighestAttackHand' // Flamebanner Marshal: Rally — `count` friendly `tribe` minions gain the highest-Attack hand minion's Attack
   | 'onDamagedBuffRandomHand' // Hearth Whisperer: whenever this takes damage, a random hand minion +atk/+hp (permanent)
   | 'tribePlayedBuffSelfInHand' // Slumbering Colossus (hand watcher): whenever you play a `tribe`, this grows in hand
+  | 'onGainStatsBuffRandomHand' // Handy Flame (rune token, 2026-09-16): whenever this gains stats, a random OTHER minion in your hand +a/+h
   | 'battlecryConductorAdjacent' // Conductor: Shout — give adjacent minions +2N/+3N; N snowballs per Conductor played (×2 gilded)
   | 'battlecryBuffMagnetics' // Scrap Herald: Battlecry — give your Magnetic minions +atk/+hp wherever they are; stacks into future buys
   | 'battlecryBuffImps' // Imp Overseer: Battlecry — give your Imps +atk/+hp run-wide (shared impBuff enchant)
@@ -1235,7 +1240,7 @@ export type QuestReward =
    * The remainder BANKS across transactions, like every other threshold in the game. `oncePerTurn` caps payouts
    * at one per turn (the Merchant's Chorus).
    */
-  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume'; per: number;
+  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit'; per: number;
       grantSpell?: number; grantAle?: number; grantRuby?: number;
       /** Rune of the Deep Feast: hand over these exact card ids when the meter trips (the `grant` reward's
        *  `cards`, on a meter). Overflow-safe like every other earned reward. */
@@ -1244,7 +1249,7 @@ export type QuestReward =
       castStatSpell?: number;
       /** `tribe` targets a tribe wherever it is (board + hand) — Compounding Wages' Dwarves. `step` makes the
        *  payout ESCALATE: every payout adds `step` to the grant, so the rune improves itself. */
-      buff?: { target: 'imps' | 'shop' | 'shopRightmost' | 'shopTurn' | 'spells' | 'tribe'; tribe?: Tribe; attack: number; health: number; step?: { attack: number; health: number } };
+      buff?: { target: 'imps' | 'shop' | 'shopRightmost' | 'shopTurn' | 'spells' | 'tribe' | 'hand'; tribe?: Tribe; attack: number; health: number; step?: { attack: number; health: number } };
       /** Rune of the Bubble Crown: pay ONCE ever, then the meter stops (its x/N counter stops with it). */
       once?: boolean;
       /** Rune of Gemspam: play a Ruby on EVERY friendly minion when the meter trips. */
@@ -1377,7 +1382,29 @@ export type QuestReward =
   | { kind: 'runeFullMeasure' } // Baby Gastrid also grants Attack, 1:1 with the Health
   | { kind: 'runeMountainTrade' } // a Mountainbond Ruby play also hands over an Ale
   | { kind: 'runeOpenAppetite' } // Appetite Agent's aim loses its Demon restriction
+  // ── Set 3 batch 2 (2026-09-16), tranche C ──
+  | { kind: 'runeAmplification' } // Equipment you do not activate becomes Amplified (triggers twice next activation; max 1 per Equipment)
+  | { kind: 'runeGrandWorkshop' } // Amplify all your Equipment now, and again every Start of Turn
+  | { kind: 'runeRedGiant' } // the Starform has a 50% chance to also Consume a Shop spell (a copy to hand, +8/+8)
+  | { kind: 'runeSoulScript' } // the Starform counts as Undead (Undead consumes, buffs and auras reach it)
   | { kind: 'runeBroodmaster' } // a Broodwright's Imp buff also lands on itself
+  // ── Set 3 batch 2 (2026-09-16) — tranche A (Spirit / Celestial runes) ──
+  | { kind: 'runeChosenVessel'; attack: number; health: number } // whenever you play a Spirit: your LEFT-MOST minion in hand +a/+h
+  | { kind: 'runeDeepCurrents'; count: number; attack: number; health: number } // whenever you play a Spirit: `count` random friendly Spirits +a/+h
+  | { kind: 'runeRevelerDrip'; count: number } // a random Reveler now + every Start of Turn
+  | { kind: 'runeRevelerExtra'; attack: number; health: number } // your Revelers' sell payout grows by +a/+h on the stat(s) they pay
+  | { kind: 'runeGrowingChorus'; attack: number; health: number; improve: number } // after you play a Flame, Tide AND Grove Reveler: board + hand +a/+h, Reveler value +improve, reset
+  | { kind: 'runeChartedSkies'; at: number } // after your `at`-th Shop spell each turn: Discover a Shop spell
+  | { kind: 'runeStarCrashBonus'; attack: number; health: number } // your Star Crashes give an extra +a/+h (shop casts)
+  | { kind: 'runeFestivalWages' } // after your first Reveler sold each turn, your next card costs 0
+  | { kind: 'runeMeteorShower' } // after your first Star Crash each turn, get another
+  | { kind: 'runeAstralRefrain'; at: number } // after your `at`-th Shop spell each turn: copies of the 1st and `at`-th Shop spells cast this turn
+  | { kind: 'runeAstralDraft' } // Start of Turn: Discover a Shop spell that casts an additional time
+  | { kind: 'runeDreamMirror' } // the first time a hand minion gains stats each turn, a random friendly board minion gains the same
+  | { kind: 'runeWakingDreams'; attack: number; health: number } // whenever a hand minion gains stats, your board +a/+h
+  | { kind: 'runeSharedRevelry' } // the first Flame, Tide and Grove Reveler you sell each turn trigger twice
+  | { kind: 'runeProcessionPlay'; count: number } // the first `count` Revelers you PLAY each turn return a plain copy to hand
+  | { kind: 'runeFestivalCircuit'; count: number } // the first `count` Revelers you sell each turn each give a random Celestial
   | { kind: 'runeSecondLife' } // your Scavvers carry Taunt + Rise
   | { kind: 'runeSharedReflection' } // Mirrorwing's first spell each turn also casts on adjacent Dragons
   | { kind: 'runeUnbrokenVein' } // Veinbreaker applies both Choose One options
@@ -1415,6 +1442,47 @@ export type QuestReward =
   // Rune of Empowerment (Epic): your hero power's effect triggers twice (only offered to heroes whose power
   // benefits — see the sim's DOUBLEABLE_POWERS gate).
   | { kind: 'runeEmpowerment' }
+  // ── Set 3 batch 2 (2026-09-16) — tranche B (Starform / Equipment / Undead runes) ──────────────────────
+  /** Rune of First Light: create a Starform now; every Starform created from here on starts +8/+8; Start of
+   *  Turn: create one if none exists. */
+  | { kind: 'runeFirstLight' }
+  /** Rune of Accretion: minions the Starform Consumes grant it twice their stats (×(1+copies)). */
+  | { kind: 'runeAccretion' }
+  /** Rune of Eventide: the first Starform Consume/Collapse each turn → 2 random Shop spells + spell power +1/+1. */
+  | { kind: 'runeEventide' }
+  /** Rune of Efficient Tooling: the first Equipment activation each turn costs `less` less. */
+  | { kind: 'runeEfficientTooling'; less: number }
+  /** Rune of Quick Release: selling an Equip minion arms a 0-cost next activation this turn. */
+  | { kind: 'runeQuickRelease' }
+  /** Rune of Resonant Arms: every `per`-th Equipment trigger → your minions +attack/+health. */
+  | { kind: 'runeResonantArms'; per: number; attack: number; health: number }
+  /** Rune of Last Rites: the first Undead destroyed in the Shop each turn returns a plain copy to hand. */
+  | { kind: 'runeLastRites' }
+  /** Rune of the Crowded Crypt: the SHOP half — an overflowed summon buffs your minions +a/+h, `times` times.
+   *  (The combat half rides the existing `runeOverflow` combat flag with `amount: 1`.) */
+  | { kind: 'runeCrowdedCrypt'; attack: number; health: number; times: number }
+  /** Rune of the Open Constellation: the first Starform Consume each turn re-creates a token with its stats. */
+  | { kind: 'runeOpenConstellation' }
+  /** Rune of the Supernova: a Collapse hits EVERY friendly Celestial (plus the extras) instead of two. */
+  | { kind: 'runeSupernova' }
+  /** Rune of Stolen Constellations: every minion the Starform Consumes hands a plain copy to hand. */
+  | { kind: 'runeStolenConstellations' }
+  /** Rune of Spellweaving: the first `count` stat-granting Shop spells each turn also feed the Starform. */
+  | { kind: 'runeSpellweaving'; count: number }
+  /** Rune of Overcharge: the first Equipment activation each turn costs 0 and spends no charge. */
+  | { kind: 'runeOvercharge' }
+  /** Rune of Dismantling: the first Equip minion sold each turn fires its Equipment free before leaving. */
+  | { kind: 'runeDismantling' }
+  /** Rune of Counterrotation: after `count` DIFFERENT Equipment activate (per turn), re-trigger them all. */
+  | { kind: 'runeCounterrotation'; count: number }
+  /** Rune of Empty Hands: Discover an Equip minion; that CARD's Equipment costs 0 for the run. */
+  | { kind: 'runeEmptyHands' }
+  /** Rune of the Last Tool: grafts "Echo: this minion's Equipment costs 0 next turn" onto every Equip minion. */
+  | { kind: 'runeLastTool' }
+  /** Rune of the Endless March: grafts "when THIS rises, summon a 1/1 Skeleton" onto every friendly Undead. */
+  | { kind: 'runeEndlessMarch' }
+  /** Rune of the Grave Orbit: after combat, the Starform gains +a/+h per friendly Undead that Rose. */
+  | { kind: 'runeGraveOrbit'; attack: number; health: number }
   // Open the EPIC Runeforge — a quest reward that presents the Epic runeset (a random few of `EPIC_RUNES`) to
   // buy ONE, exactly like the Runesmith's forge but reachable by any hero via a quest.
   | { kind: 'openEpicRuneforge' }
@@ -1443,7 +1511,7 @@ export type QuestReward =
   | { kind: 'gainMaxGold'; amount: number }
   // `discover` opens a minion Discover — at your current tavern tier, or at `tier` when given (Rune of the Scout →
   // Tier 5, Rune of the Champion → Tier 6).
-  | { kind: 'discover'; tier?: number; /** Rune of the Catacomb: narrow the offer to Echo (Deathrattle) minions. */ filter?: 'battlecry' | 'deathrattle'; /** Rune of Rising Echoes: the pick arrives carrying these keywords. */ grantKeywords?: Keyword[] }
+  | { kind: 'discover'; tier?: number; /** Rune of the Catacomb: narrow the offer to Echo (Deathrattle) minions; `equip` (Rune of Empty Hands) to Equip minions. */ filter?: 'battlecry' | 'deathrattle' | 'equip'; /** Rune of Rising Echoes: the pick arrives carrying these keywords. */ grantKeywords?: Keyword[] }
   // Rune of the Second Path: Discover one of the minions that Greater Quests grant as rewards (a fixed pool).
   | { kind: 'discoverGreaterQuest' }
   | { kind: 'dupeFirstBuy' }
@@ -1587,7 +1655,15 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // graveRefreshment = every 2 friendly Echoes triggered banks a free Shop refresh;
   // shiftingFacets = Avenge (3) improves your Rubies on ONE axis, alternating every turn;
   // deepeningVein = Avenge (3) improves your Rubies +1/+1 AND plays a Ruby on every friendly Kobold;
-  | 'runeReturningPack' | 'runeGraveRefreshment' | 'runeShiftingFacets' | 'runeDeepeningVein';
+  | 'runeReturningPack' | 'runeGraveRefreshment' | 'runeShiftingFacets' | 'runeDeepeningVein'
+  // ── Set 3 batch 2 (2026-09-16), tranche C ──
+  // finalGate = the first time each combat your board becomes empty, summon three random Undead that died this
+  // combat; dreamedGraves = the first minion summoned from your hand each combat gains Rebirth.
+  | 'runeFinalGate' | 'runeDreamedGraves'
+  // ── Set 3 batch 2 (2026-09-16), tranche D — the two combat-side runes tranche A deferred ──
+  // openHand = when you summon a minion from your hand, another friendly minion gains its stats;
+  // wakingReserve = Start of Combat: summon a copy of your highest-stat hand minion (the card is NOT marked).
+  | 'runeOpenHand' | 'runeWakingReserve';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -1759,6 +1835,21 @@ export interface QuestCombatMods {
   runeShiftingFacets?: 'attack' | 'health';
   /** Rune of the Deepening Vein: Avenge (3) improves Rubies +1/+1 and plays a Ruby on every friendly Kobold. */
   runeDeepeningVein?: boolean;
+  // ── Set 3 batch 2 (2026-09-16), tranche C ──
+  /** Rune of the Final Gate: the first time each combat this side's board becomes EMPTY, summon three random
+   *  Undead (printed bodies) that died this combat. Once per fight. */
+  runeFinalGate?: boolean;
+  /** Rune of Dreamed Graves: the first minion summoned FROM THE HAND each combat (a Spirit hand-summon, Rope
+   *  Wrangler's Echo) gains Rebirth. Once per fight. */
+  runeDreamedGraves?: boolean;
+  // ── Set 3 batch 2 (2026-09-16), tranche D ──
+  /** Rune of the Open Hand: whenever a minion is summoned FROM THE HAND (the same `pendingHandSummon` moment
+   *  Dreamed Graves reads), another random friendly minion gains its current Attack/Health. Every hand-summon,
+   *  one grant per copy held. */
+  runeOpenHand?: boolean;
+  /** Rune of the Waking Reserve: Start of Combat — summon a COPY of the highest-stat (Attack + Health) minion in
+   *  hand when the board has room. The hand card is NOT marked as summoned. One copy per rune copy held. */
+  runeWakingReserve?: boolean;
   /** Rune of the War Drum's UNSPENT shop charge (owner ruling 2026-08-26: "1/1 use, resets at start of turn —
    *  if it is not used in shop, the first shout triggered in combat should work"). Present ONLY when the
    *  per-turn charge went unspent; the FIRST Shout triggered in combat on this side fires this many extra
@@ -1816,7 +1907,7 @@ export interface QuestCombatMods {
   runeTwilight?: boolean;
   /** Rune of the Warden: at Start of Combat, if your board has room, summon a Spear Warden. */
   runeWarden?: boolean;
-  /** Rune of Rebirth: your minions Rise (Reborn) with FULL Health instead of 1. */
+  /** Rune of Rebirth (owner 2026-09-16): Start of Combat — a random friendly minion gains REBIRTH (`RB`). */
   runeRebirth?: boolean;
   /** Rune of Aftershocks: minions summoned by your Echoes (Deathrattles) gain +4/+4. */
   runeAftershocks?: boolean;
@@ -2344,7 +2435,7 @@ export interface MinionSnapshot {
  *  metadata — it never affects outcomes — letting the UI's moment compiler know true simultaneity instead
  *  of inferring it. Optional so synthetic fixtures (tests) can omit it; real sim output always carries it. */
 export type CombatEvent = (
-  | { type: 'sc'; source: string; text: string; cast?: true; side?: Side; grantsEcho?: true; spellId?: string } // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only. `side` is stamped on side-scoped gain telegraphs (Ruby Power — BOTH sides can gain it) so the Buffs drawer counts only the player's; player-only channels (Spell Power) never emit for an enemy and need no tag. `grantsEcho` marks the ONE minion a Start-of-Combat grant handed an exact-copy Echo (Rune of Rebirth), so the UI can print the rule on THAT body instead of on every minion you control. `spellId` is the CARD ID of the spell this cast resolved, stamped by every "X casts Y" emit: without it a cast is identified only by the BODY that cast it, so an authored spell effect had to be bound to each caster and a new caster arrived silently unanimated (owner ask 2026-09-01: Dragonflame's animation must play "anytime dragonflame is played … anything").
+  | { type: 'sc'; source: string; text: string; cast?: true; side?: Side; spellId?: string } // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only. `side` is stamped on side-scoped gain telegraphs (Ruby Power — BOTH sides can gain it) so the Buffs drawer counts only the player's; player-only channels (Spell Power) never emit for an enemy and need no tag. (`grantsEcho`, the old Rune of Rebirth marker, retired 2026-09-16 — the rune grants the Rebirth KEYWORD now, a plain `keyword` event.) `spellId` is the CARD ID of the spell this cast resolved, stamped by every "X casts Y" emit: without it a cast is identified only by the BODY that cast it, so an authored spell effect had to be bound to each caster and a new caster arrived silently unanimated (owner ask 2026-09-01: Dragonflame's animation must play "anytime dragonflame is played … anything").
   | { type: 'attack'; attacker: string; defender: string; swing: number; crit?: boolean }
   | { type: 'dmg'; target: string; amount: number; remainingHp: number; source?: string } // `source` = the uid that dealt this hit (attacker, poisoner, an AoE's caster). Optional: truly sourceless damage omits it. Lets presentation attribute a sourceless-looking damage MOMENT to its actor — e.g. Fel Spikes' Echo volley fires FROM the dying body (source→target FX), the way an `sc` event carries a Start-of-Combat cast's source.
   | { type: 'proccrit'; source: string; mult: number }
@@ -2352,7 +2443,7 @@ export type CombatEvent = (
   | { type: 'shield'; target: string }
   | { type: 'shieldUp'; target: string }
   | { type: 'poison'; target: string }
-  | { type: 'reborn'; target: string; hp: number; attack: number; keywords: Keyword[]; after?: string } // returns at base stats; `after` = the uid the Rise re-slots to the RIGHT of (a Rise whose Deathrattle summoned tokens into its old slot)
+  | { type: 'reborn'; target: string; hp: number; attack: number; keywords: Keyword[]; after?: string; rebirth?: true } // returns at base stats; `after` = the uid the Rise re-slots to the RIGHT of (a Rise whose Deathrattle summoned tokens into its old slot). `rebirth` = a REBIRTH return (full body, not the printed one) — the UI reuses the Rise beat/FX for it (placeholder until the owner authors one)
   | { type: 'death'; target: string; side: Side; rise?: true } // `side` lets the UI count enemy kills (Cassen) without uid-matching; `rise` marks a Rise's FIRST death — shown (the body vacates its slot) but NOT counted as a kill, since it returns
   | { type: 'reveal'; target: string } // a Stealth minion attacked and lost Stealth
   | { type: 'tribeAura'; side: Side; tribe: Tribe | 'any'; attack?: number; health?: number; aura?: string } // a run-wide aura rose in combat (Ryme / Lantern / Imp King / Fodder Feeder …). UI blooms the board wash (by `tribe`) AND ticks the matching Buffs-panel row live (by `aura` key + amounts), mirroring recruit-phase `auraFxSeq`

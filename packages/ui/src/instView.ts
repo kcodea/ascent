@@ -7,7 +7,7 @@ import {
   cryptDrakeText, drunkenOafText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText, shootingStarText,
   ancientWandererText, musterTrooperText,
-  taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText, withImpStats, spiritText } from './cardText';
+  taughtSpellText, trailForagerText, transformProgressText, watcherText, withImpStats, spiritText } from './cardText';
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
  *  (0) for a not-yet-owned shop / Discover preview — those helpers then fall back to the printed text. */
@@ -18,9 +18,6 @@ export interface LiveTextParams {
   runeMammoth?: boolean;
   /** Runes that change a specific card's printed RULE — surfaced as a green note on that card. */
   runeFlags?: RuneTextFlags;
-  /** Rune of Rebirth handed THIS body the exact-copy Echo (combat only — the replay sets it from
-   *  `sc.grantsEcho`). Per-instance: the rune picks one random friendly minion, so only that card prints it. */
-  rebirthOwner?: boolean;
   spellBonus: number; spellBonusH: number; frontToBackBonus: number; frontToBackBonusH?: number; growthBonus?: number; juggler?: boolean;
   spellsThisTurn: number; spellsCast: number; deathrattlesTriggered: number;
   /** Starpath Vendor's banked next-SHOP-spell bonus. `spellBonus` already folds it (it rides `spellAttackBonus`);
@@ -85,6 +82,8 @@ export interface LiveTextParams {
   rubyBonus?: { attack: number; health: number };
   /** Set 3 — the run's Clue value above base (a held Clue prints `1 + clueBonus`). */
   clueBonus?: number;
+  /** Set 3 — Rune of Falling Embers' extra on every Star Crash (a held Star Crash prints base + power + this). */
+  starCrashBonus?: { attack: number; health: number };
   /** Sunmane Herald's live escalating rally value (combat-only) — its printed "+3" is only the opening rung. */
   rallySpreadAtk?: number;
   /** Mage-Pup: the spell Moonhowl Mentor taught THIS token, so its Shout line can print that spell's actual
@@ -133,7 +132,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
     const taught = taughtSpellText(c.id, p.taughtSpellId, spellDisplayText(
       p.taughtSpellId, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0,
       p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0,
-      { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier, anySpellsThisTurn: p.anySpellsThisTurn },
+      { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, starCrashBonus: p.starCrashBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier, anySpellsThisTurn: p.anySpellsThisTurn },
     ));
     if (taught) return { text: taught, goldenText: taught };
   }
@@ -141,7 +140,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(p.maxTier ?? CONFIG.maxTier, (p.grantedTier ?? p.tier) + 1)}** minion.` // frozen at grant tier
       : c.spell
-        ? spellDisplayText(c.id, p.spellBonus - (c.gift ? (p.nextSpellBonus?.attack ?? 0) : 0), p.frontToBackBonus, p.spellBonusH - (c.gift ? (p.nextSpellBonus?.health ?? 0) : 0), p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier, topTribe: p.topTribe as never, growthBonus: p.growthBonus, anySpellsThisTurn: p.anySpellsThisTurn })
+        ? spellDisplayText(c.id, p.spellBonus - (c.gift ? (p.nextSpellBonus?.attack ?? 0) : 0), p.frontToBackBonus, p.spellBonusH - (c.gift ? (p.nextSpellBonus?.health ?? 0) : 0), p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, starCrashBonus: p.starCrashBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier, topTribe: p.topTribe as never, growthBonus: p.growthBonus, anySpellsThisTurn: p.anySpellsThisTurn })
         : transformProgressText(c.id, p.spellProgress ?? 0) ??
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
             cryptDrakeText(c.id, p.golden, p.attackSeen ?? 0, p.summonBonus ?? 0) ?? // live grant + combat countdown
@@ -198,7 +197,6 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             c.text;
   const metric =
     soulsmanText(c.id, p.soulsmanGold) ??
-    undeadBuyAtkText(c.id, p.undeadBuyAtk) ??
     cardTypeTallyText(c.id, p.cardBuffs?.[c.id]) ??
     '';
   // Golden card whose live text resolved (differs from the printed fallback) → that IS the golden-aware live
@@ -213,20 +211,11 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
   // phrase, ON TOP of whatever the scaling chain produced. A no-op for non-summoners. Both variants carry it.
   const impText = withImpStats(cardId, noted, p.impAura);
   const impGolden = notedGolden !== undefined ? withImpStats(cardId, notedGolden, p.impAura) : undefined;
-  // RUNE OF REBIRTH — the "Rebirth" word in BLUE (the `[[…]]` marker; Card renders `.descrune`).
-  //
-  // PER-INSTANCE, not run-wide (owner report 2026-08-22: "it is putting the rebirth text on all my minions I
-  // control, not the single one it triggers on"). The rune gives the exact-copy Echo to ONE random friendly
-  // minion at Start of Combat, so keying the tag off the run flag printed a rule on all seven bodies that
-  // only one of them would ever have. `rebirthOwner` is set by the combat replay for the body the grant
-  // actually landed on (`sc.grantsEcho`).
-  //
-  // Nothing carries it in the SHOP by design: before the fight begins no minion has been chosen yet, so there
-  // is no true card to put it on — the rune's own badge is what says you hold it.
-  const rebirthTag = p.rebirthOwner && !c.spell && !c.ruby && c.id !== 'discoverspell' ? ' [[Rebirth]]' : '';
+  // (The old Rune of Rebirth `[[Rebirth]]` text tag is gone — 2026-09-16 the rune grants the REBIRTH KEYWORD,
+  // so the granted body wears the `RB` pill like any other keyword grant, per instance by construction.)
   return {
-    text: impText + metric + rebirthTag,
-    goldenText: impGolden !== undefined ? impGolden + metric + rebirthTag : undefined,
+    text: impText + metric,
+    goldenText: impGolden !== undefined ? impGolden + metric : undefined,
   };
 }
 
@@ -253,7 +242,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { nextSpellBonus?: { attack: number; health: number }; undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; revelerX?: number; spiritDiscount?: number; spiritsPlayed?: number; anySpellsThisTurn?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean } },
+  live?: { nextSpellBonus?: { attack: number; health: number }; undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; starCrashBonus?: { attack: number; health: number }; revelerX?: number; spiritDiscount?: number; spiritsPlayed?: number; anySpellsThisTurn?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean } },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -280,7 +269,7 @@ export function instView(
     topTribe: live?.topTribe,
     runeMammoth: live?.runeMammoth,
     runeFlags: live?.runeFlags,
-    rubyBonus: live?.rubyBonus, clueBonus: live?.clueBonus, revelerX: live?.revelerX, spiritDiscount: live?.spiritDiscount, spiritsPlayed: live?.spiritsPlayed, anySpellsThisTurn: live?.anySpellsThisTurn,
+    rubyBonus: live?.rubyBonus, clueBonus: live?.clueBonus, starCrashBonus: live?.starCrashBonus, revelerX: live?.revelerX, spiritDiscount: live?.spiritDiscount, spiritsPlayed: live?.spiritsPlayed, anySpellsThisTurn: live?.anySpellsThisTurn,
     tier7Access: live?.tier7Access,
     chosenOption: inst.chosenOption, // a resolved Choose One prints only the branch it became
     chooseBoth, // (Both) — no choice to print
@@ -370,7 +359,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
       rememberedSpellNames: (run.rememberedSpellIds ?? []).map((id) => CARD_INDEX[id]?.name).filter((n): n is string => !!n),
       firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined,
       lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined,
-      topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run), tier7Access: hasTier7Access(run),
+      topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run), tier7Access: hasTier7Access(run),
       runeMammoth: !!run.questFlags?.runeMammoth,
       runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure },
       chooseBothState: { runeFacetwright: run.runeFacetwright, runeUnbrokenVein: run.runeUnbrokenVein },

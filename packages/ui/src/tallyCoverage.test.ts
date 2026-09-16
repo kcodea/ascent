@@ -58,6 +58,7 @@ const NOT_A_METER: Record<string, string> = {
   rune_returning_pack: 'combat-local — the Beast-summon count ticks during the replay, not across turns',
   rune_grave_refreshment: 'combat-local — the Echo count ticks during the replay, not across turns',
   rune_heavy_payroll: 'fires on EVERY Dwarf gained; the digits are the +12/+12 grant, not a count-up',
+  rune_deep_currents: 'fires on EVERY Spirit played; the digits are the 2-target +2/+2 grant, not a count-up',
 };
 
 /** A run with every meter armed, so `questTally` has something to report for each quest under test. */
@@ -91,6 +92,10 @@ const armedRun = (): RunState => ({
   ],
   runeSeasonedLedger: { attack: 1, health: 1, per: 5, played: 2 },
   runeEchoedArrival: { per: 5, tick: 2 },
+  // Set 3 batch 2 (2026-09-16): the two Shop-spell counters share one per-turn list.
+  runeChartedSkies: { at: 3 },
+  runeAstralRefrain: { at: 3 },
+  shopSpellIdsThisTurn: ['growth'],
   runeThresholds: [],
 } as unknown as RunState);
 

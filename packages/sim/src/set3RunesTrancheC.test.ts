@@ -3,7 +3,7 @@ import { combatSide, makeRng, simulate, type BoardMinion, type CardDef } from '@
 import { CARD_INDEX, EPIC_RUNES, RUNES, RUNE_INDEX } from '@game/content';
 import {
   createRun, reduce, createStarform, starformOf, starformStats, starformStandIn, starformSpellAimsToken, starformConsumeShopMinion,
-  starformSoulScriptBake, RED_GIANT_GAIN,
+  starformSoulScriptBake, RED_GIANT_GAIN, buyStarform,
   equipmentAmplifiedOf, equipmentState, amplifyEquipment, consumeAmplified, EQUIPMENT_AMPLIFY_MAX,
   type Action, type BoardCard, type RunState, type ShopCard,
 } from './index';

@@ -102,7 +102,12 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   // row; the rect is read once per hover, never per frame. Cleared on leave / blur.
   const [preview, setPreview] = useState<SbPreviewTarget | null>(null);
   const previewRow = useCallback((kind: 'card' | 'rune', id: string, el: HTMLElement): void => {
-    setPreview({ kind, id, anchor: el.getBoundingClientRect() });
+    // Anchor: the row's top, but the PANEL's right edge (the row ends inside the panel's padding + scrollbar,
+    // and the preview must clear the frame, not overlap it). One rect read per hover.
+    const row = el.getBoundingClientRect();
+    const panel = el.closest('.scenebuilder')?.getBoundingClientRect();
+    const right = Math.max(row.right, panel?.right ?? 0);
+    setPreview({ kind, id, anchor: new DOMRect(row.left, row.top, right - row.left, row.height) });
   }, []);
   const clearPreview = useCallback((): void => setPreview(null), []);
   // ↑/↓ walk the result rows (real DOM focus, so the focused row previews and ↵ on it adds it); ↑ off the
@@ -248,8 +253,10 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   [setId]);
 
   const terms = useMemo(() => query.trim().toLowerCase().split(/\s+/).filter(Boolean), [query]);
-  const minionResults = useMemo(() => all.filter((c) => !c.spell && matches(c.hay, terms)).slice(0, 80), [all, terms]);
-  const spellResults = useMemo(() => all.filter((c) => c.spell && matches(c.hay, terms)).slice(0, 80), [all, terms]);
+  // EVERY match is listed (owner 2026-09-16: no row cap — it's a scrolling list, and a few hundred plain
+  // buttons is cheap); the tab counts are the same numbers.
+  const minionResults = useMemo(() => all.filter((c) => !c.spell && matches(c.hay, terms)), [all, terms]);
+  const spellResults = useMemo(() => all.filter((c) => c.spell && matches(c.hay, terms)), [all, terms]);
   const runeResults = useMemo(() => allRunes.filter((r) => matches(r.hay, terms)), [allRunes, terms]);
   const cardResults = lib === 'minions' ? minionResults : spellResults;
   const activeCount = lib === 'runes' ? runeResults.length : cardResults.length;
@@ -444,11 +451,13 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
               2026-09-16). ↵ adds the active tab's top match (shop for a card, grant for a rune). Hovering or
               focusing a row floats the REAL card / rune beside it (`SceneBuilderPreview`). */}
           <Sec id="library" title="Library" folded={folded} onFold={fold}
-            right={<div className="sb-tabs" role="tablist">
+            right={<span className="sb-count">{activeCount}</span>}>
+            {/* Three tabs as a segmented row of their own (they no longer fit the heading's right slot). */}
+            <div className="sb-seg sb-seg-3" role="tablist" aria-label="Library">
               {([['minions', 'minions', minionResults.length], ['spells', 'spells', spellResults.length], ['runes', 'runes', runeResults.length]] as const).map(([id, label, n]) => (
-                <button key={id} type="button" role="tab" aria-selected={lib === id} className={`sb-tab${lib === id ? ' on' : ''}`} onClick={() => { setLib(id); clearPreview(); }}>{label} <em>{n}</em></button>
+                <button key={id} type="button" role="tab" aria-selected={lib === id} className={`sb-seg-btn sb-tab${lib === id ? ' on' : ''}`} onClick={() => { setLib(id); clearPreview(); }}>{label} <em>{n}</em></button>
               ))}
-            </div>}>
+            </div>
             <input
               ref={searchRef}
               className="sb-search"
@@ -474,16 +483,18 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
               }}
               title="Matches name, id, tribe, keywords, rules text and effect ids. Space-separated terms must ALL match. ↵ adds the top match (again for another copy). ↓ walks the list."
             />
+            {/* No native `title` on rows (owner 2026-09-16): the browser tooltip popped over the preview and
+                covered the art. The hover preview is the only hover UI here. */}
             <div className="sb-results" ref={resultsRef} onMouseLeave={clearPreview}>
               {lib !== 'runes' ? cardResults.map((c) => (
-                <button key={c.id} className="sb-card" onClick={() => addToShop(c.id)} title={`Add ${c.name} (Tier ${c.tier}) to the shop`}
+                <button key={c.id} className="sb-card" onClick={() => addToShop(c.id)} aria-label={`Add ${c.name} (Tier ${c.tier}) to the shop`}
                   onMouseEnter={(e) => previewRow('card', c.id, e.currentTarget)} onFocus={(e) => previewRow('card', c.id, e.currentTarget)} onBlur={clearPreview} onKeyDown={rowKeyNav}>
                   <span className={`sb-t sb-t${c.tier}`}>{c.tier}</span>
                   <span className="sb-name">{c.name}</span>
                 </button>
               )) : runeResults.map((r) => (
                 // Granting a rune applies its reward for the run, exactly like buying it in the Runeforge.
-                <button key={r.id} className="sb-card" onClick={() => grantRune(r.id)} title={`Grant ${r.name} — its reward applies for the run (free here)`}
+                <button key={r.id} className="sb-card" onClick={() => grantRune(r.id)} aria-label={`Grant ${r.name} — its reward applies for the run (free here)`}
                   onMouseEnter={(e) => previewRow('rune', r.id, e.currentTarget)} onFocus={(e) => previewRow('rune', r.id, e.currentTarget)} onBlur={clearPreview} onKeyDown={rowKeyNav}>
                   <span className="sb-name">{r.name}</span>
                   {r.epic && <span className="sb-tag">epic</span>}

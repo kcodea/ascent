@@ -10510,3 +10510,8 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 .sb-preview-inner.rune { zoom: 1.05; }
 .sb-preview .card.plated { margin-inline: calc(var(--ccw) * (var(--plate-scale, 1.5) - 1) / 2); }
 @keyframes sbprevin { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+/* The Library's three tabs as a segmented row (they outgrew the heading's right slot with a third tab). */
+.scenebuilder .sb-seg-3 { grid-template-columns: repeat(3, 1fr); }
+.scenebuilder .sb-seg-btn.sb-tab { border-radius: 0; padding: calc(4 * var(--u)) calc(4 * var(--u)); text-transform: uppercase; letter-spacing: 0.06em; font-size: calc(10 * var(--u)); }
+.scenebuilder .sb-seg-btn.sb-tab.on { border-color: transparent; }
+.scenebuilder .sb-seg-btn.sb-tab em { opacity: 0.7; }

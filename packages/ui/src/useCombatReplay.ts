@@ -20,7 +20,7 @@ import { replayBeats, replayOrder } from './choreo/replayOrder';
 import { rallyDeliveredUids, runMomentCues } from './choreo/score';
 import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, releaseSummons, subscribeSummonHolds, summonHoldVersion } from './fx/summonHold';
 import { notifyTutorialPresented } from './tutorial/presentationBus';
-import { attackSummonUids, rallyProcsFor } from './choreo/channels/rallyFired';
+import { attackSummonUids, ownStrikeAt, rallyProcsFor, strikeFollowsWindup } from './choreo/channels/rallyFired';
 import { shoutsAheadOf } from './choreo/channels/shoutFired';
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
@@ -922,8 +922,9 @@ function parkedCommitLead(next: Moment, events: CombatEvent[]): number {
   const held = parkedCommitRef.uid;
   if (!held) return 0;
   for (let i = next.start; i < next.end; i++) {
-    const e = events[i];
-    if (e?.type === 'dmg' && e.source === held && e.wave === undefined) return PARKED_COMMIT_LEAD_MS;
+    // Its non-wave `dmg`, OR its blow absorbed by the defender's Ward — a `shield` is a landed strike too
+    // (the 2026-09-16 freeze: a Warded strike had no `dmg`, so the park was never released).
+    if (ownStrikeAt(events, i, held, parkedCommitRef.defender)) return PARKED_COMMIT_LEAD_MS;
   }
   return 0;
 }
@@ -933,7 +934,7 @@ const PARKED_COMMIT_LEAD_MS = 260;
 
 /** Who is currently parked, for `parkedCommitLead`. Module-scoped so the lead helper can sit beside its
  *  siblings instead of the beat effect threading a ref through every one of them. */
-const parkedCommitRef: { uid: string | null } = { uid: null };
+const parkedCommitRef: { uid: string | null; defender: string | null } = { uid: null, defender: null };
 
 /**
  * What a PARKED swing's contact does — bound at RESUME time (see the beat clock), read by the lunge's
@@ -2325,7 +2326,7 @@ export function useCombatReplay(
         const e = events[i];
         if (e?.type === 'death' && e.target === held.uid) died = true;
         if (e?.type === 'death' && e.target === held.defender) targetGone = true;
-        if (e?.type === 'dmg' && e.source === held.uid && e.wave === undefined) struck = true;
+        if (ownStrikeAt(events, i, held.uid, held.defender)) struck = true; // its `dmg`, or a Ward absorbing its blow
       }
       if (held.resumed && (struck || died)) {
         // The beat clock already resumed this strike and its contact (or the fallback) brought us here: the
@@ -2572,6 +2573,16 @@ export function useCombatReplay(
         // `heldLungeRef` release (struck / died / target gone). Owner call 2026-09-01, after the absorbed
         // version — every fire committing at once, then a frozen pause — was rejected.
         if (!heldWindup && shoutsAheadOf(cur, events, atkUid)) heldWindup = true;
+        // A forced Echo that resolved ENTIRELY inside this moment (a Mammoth's summons, an Armadiyo's tribe buff
+        // — every absorbed type) has no later beat for a park to span: the next event IS the attacker's own
+        // strike. Parking it advanced the clock straight into that damage beat with the body still frozen, so
+        // the numbers committed before the lunge moved and the strike replayed after the fact (owner report
+        // 2026-09-16: *"it will hang in the pause state and then never actually complete the lunge attack
+        // because it misses its beat / happens immediately"*). It is the ABSORBED case described above — a
+        // longer wind-up, then an ordinary strike whose contact advances the clock — with the parked swing's
+        // post-Echo stillness folded into the hold so the sparkles and arrivals finish reading first.
+        let absorbedEcho = false;
+        if (heldWindup && strikeFollowsWindup(cur, events, atkUid)) { heldWindup = false; absorbedEcho = true; }
         const advance = () => setBeatIdx((k) => k + 1);
         const tl = runAttackExchangeCues(cur, atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y, {
           combatSpeed: combatSpeedRef.current, advance,
@@ -2585,6 +2596,8 @@ export function useCombatReplay(
           // How many procs this swing carries — the wind-up stretches to fit their pulse→sparkle pairs.
           // Only Echohorn can exceed 1 today (see `rallyProcsFor`).
           rallyProcs: rallyProcsFor(cur, events, atkUid),
+          // The absorbed forced Echo's stillness before the strike — the parked swing's lead, on the wind-up.
+          windupSettleMs: absorbedEcho ? PARKED_COMMIT_LEAD_MS : 0,
           // Supplying this does two things: it fires the stock buff cues at the top of the wind-up, AND it is
           // what switches the wind-up PAUSE on (see `windupPauseS` in `channels/lunge.ts`). For a Ruby or an
           // aura both lists are empty and the callback fires nothing — the gem and the board wash are told by
@@ -2616,6 +2629,7 @@ export function useCombatReplay(
         if (heldWindup && tl !== null) {
           heldLungeRef.current = { uid: atkUid, defender: cur.primary.defender, tl, resumed: false };
           parkedCommitRef.uid = atkUid;
+          parkedCommitRef.defender = cur.primary.defender;
         } else if (heldLungeRef.current?.uid === atkUid) {
           heldLungeRef.current = null;
         parkedCommitRef.uid = null; // this attacker is swinging again, un-parked — its old park is void

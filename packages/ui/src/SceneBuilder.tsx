@@ -26,7 +26,7 @@ import { addEnemy, stagedBoard, foeSnapshotOf, MAX_BOARD } from './sandboxEdit';
  * panels' slate (`.scenebuilder` in styles.css). Stripped from production with the rest of the dev tooling.
  */
 type CardRow = { id: string; name: string; tier: number; spell: boolean; tribe: string; hay: string };
-type RuneRow = { id: string; name: string; cost: number; epic: boolean; hay: string };
+type RuneRow = { id: string; name: string; cost: number; epic: boolean; isNew: boolean; hay: string };
 
 /** Everything a row can be matched on, lowercased once at module load. Searching the card's TEXT (not just
  *  its name/tribe) is what makes keyword queries work — "avenge", "deathrattle", "taunt", "magnetic" all live
@@ -202,14 +202,23 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
       .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name)),
   [pool]);
 
+  // SET SCOPING (owner ask 2026-09-16): only the runes THIS set can forge — the same `sets` rule the Runeforge
+  // applies (`runeforgePool`: absent = every set) — so a Set 3-only rune never shows up in a Set 2 sandbox. The
+  // tribe gate is deliberately NOT applied here: a tribe-gated rune of the set is exactly what you come here to
+  // test without rolling the tribe first. `isNew` marks the Set 3-original batch (`sets: ['set3']` alone, the
+  // 2026-09-16 sheet) with a NEW tag; searching "new" lists them.
   const allRunes = useMemo<RuneRow[]>(() =>
     [...RUNES, ...EPIC_RUNES]
-      .map((r) => ({
-        id: r.id, name: r.name, cost: r.cost, epic: !!r.epic,
-        hay: hay(r.name, r.id, r.text, r.reward?.kind, r.epic ? 'epic' : 'basic'),
-      }))
+      .filter((r) => !r.sets || r.sets.includes(setId))
+      .map((r) => {
+        const isNew = !!r.sets && r.sets.length === 1 && r.sets[0] === 'set3';
+        return {
+          id: r.id, name: r.name, cost: r.cost, epic: !!r.epic, isNew,
+          hay: hay(r.name, r.id, r.text, r.reward?.kind, r.epic ? 'epic' : 'basic', isNew ? 'new' : ''),
+        };
+      })
       .sort((a, b) => Number(a.epic) - Number(b.epic) || a.name.localeCompare(b.name)),
-  []);
+  [setId]);
 
   const terms = useMemo(() => query.trim().toLowerCase().split(/\s+/).filter(Boolean), [query]);
   const results = useMemo(() => all.filter((c) => matches(c.hay, terms)).slice(0, 80), [all, terms]);
@@ -432,6 +441,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
                 <button key={r.id} className="sb-card" onClick={() => grantRune(r.id)} title={`Grant ${r.name} — its reward applies for the run (free here)`}>
                   <span className="sb-name">{r.name}</span>
                   {r.epic && <span className="sb-tag">epic</span>}
+                  {r.isNew && <span className="sb-tag new">new</span>}
                 </button>
               ))}
               {(lib === 'cards' ? results : runeResults).length === 0 && <div className="sb-empty">no matches</div>}

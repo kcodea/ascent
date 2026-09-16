@@ -7590,6 +7590,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .sb-t4 { background: #b79ae0; } .sb-t5 { background: #e0a866; } .sb-t6 { background: #e08a8a; } .sb-t7 { background: #f4be35; }
 .sb-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sb-tag { font-size: calc(9 * var(--u)); color: #b98fe0; text-transform: uppercase; letter-spacing: 0.04em; flex: none; }
+.sb-tag.new { color: #7fe0a8; }
 .sb-empty { color: #8a7d5e; font-size: calc(12 * var(--u)); padding: calc(8 * var(--u)); text-align: center; }
 /* A quest row is TWO buttons in one card shell: the body completes the quest (pays its reward now), the
    trailing ◷ adds it un-started so its bar can be watched filling. The shell keeps `.sb-card`'s frame, so

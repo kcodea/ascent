@@ -13,6 +13,24 @@ import type { CardDef } from '@game/core';
  */
 export const ARCHIVED_CARDS: CardDef[] = [
   {
+    // ARCHIVED 2026-09-16 (owner: "archive Second Calling gift from all sets" — the second-hero-power mechanic is
+    // off for now, with Void). Moved verbatim from gifts.ts; `gift: true` kept so a held copy still resolves and casts.
+    // Owner clarification 2026-08-26: REPLACES an existing second power rather than being skipped.
+    id: 'gift_second_calling',
+    name: 'Second Calling',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    gift: true,
+    singleCast: true,
+    cost: 0,
+    effects: [{ on: 'cast', do: 'giftSecondCalling', params: {} }],
+    text: 'Get a random **second hero power**.',
+  },
+  {
     // ARCHIVED 2026-08-19 (owner). Moved verbatim from set2/dwarves.ts.
     // Owner add 2026-08-14. The Ale package's cheap payoff: one +2/+2 on a dry turn, one MORE per Ale you brewed,
     // each rep re-rolling its target (owner ruling). Owner balance 2026-08-15: +2/+2 → +3/+3 per Ale.

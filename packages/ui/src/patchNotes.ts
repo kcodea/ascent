@@ -56,6 +56,14 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-16',
+    label: 'Second hero power retired',
+    changes: [
+      { category: 'Hero Change', text: 'Void is out of the hero roster for now (Play and Practice) — the second-hero-power mechanic is on hold.' },
+      { category: 'Card Change', text: 'The Second Calling Gift is retired: Happy Birthday and Merry Christmas no longer hand it out. A copy already in hand still casts.' },
+    ],
+  },
+  {
+    date: '2026-09-16',
     label: 'Undead Aura surge',
     changes: [
       { category: 'UI / Info', text: 'Every rise of your Undead Aura now plays its own surge effect over the board — in the Shop and mid-combat alike. The minions it buffs keep their tendrils.' },

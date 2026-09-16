@@ -237,22 +237,6 @@ export const GIFTS: CardDef[] = [
     text: 'Get a random minion from the **tier above** you.',
   },
   {
-    // Owner clarification 2026-08-26: REPLACES an existing second power rather than being skipped.
-    id: 'gift_second_calling',
-    name: 'Second Calling',
-    tribe: 'neutral',
-    tier: 1,
-    attack: 0,
-    health: 1,
-    keywords: [],
-    spell: true,
-    gift: true,
-    singleCast: true,
-    cost: 0,
-    effects: [{ on: 'cast', do: 'giftSecondCalling', params: {} }],
-    text: 'Get a random **second hero power**.',
-  },
-  {
     id: 'gift_parting_gifts',
     name: 'Parting Gifts',
     tribe: 'neutral',

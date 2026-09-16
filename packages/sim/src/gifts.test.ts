@@ -12,7 +12,7 @@ import { HEROES } from './heroes';
 
 describe('the Gift class', () => {
   it('every Gift is a free, single-cast spell flagged as a Gift', () => {
-    expect(GIFTS.length).toBe(15);
+    expect(GIFTS.length).toBe(14); // 15 → 14 on 2026-09-16: Second Calling archived (second hero power off)
     for (const g of GIFTS) {
       expect([g.id, g.spell], `${g.id} must be a spell`).toEqual([g.id, true]);
       expect(g.gift, `${g.id} must carry the gift flag`).toBe(true);

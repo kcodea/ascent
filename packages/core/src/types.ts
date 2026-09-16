@@ -1659,7 +1659,11 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // ── Set 3 batch 2 (2026-09-16), tranche C ──
   // finalGate = the first time each combat your board becomes empty, summon three random Undead that died this
   // combat; dreamedGraves = the first minion summoned from your hand each combat gains Rebirth.
-  | 'runeFinalGate' | 'runeDreamedGraves';
+  | 'runeFinalGate' | 'runeDreamedGraves'
+  // ── Set 3 batch 2 (2026-09-16), tranche D — the two combat-side runes tranche A deferred ──
+  // openHand = when you summon a minion from your hand, another friendly minion gains its stats;
+  // wakingReserve = Start of Combat: summon a copy of your highest-stat hand minion (the card is NOT marked).
+  | 'runeOpenHand' | 'runeWakingReserve';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -1838,6 +1842,14 @@ export interface QuestCombatMods {
   /** Rune of Dreamed Graves: the first minion summoned FROM THE HAND each combat (a Spirit hand-summon, Rope
    *  Wrangler's Echo) gains Rebirth. Once per fight. */
   runeDreamedGraves?: boolean;
+  // ── Set 3 batch 2 (2026-09-16), tranche D ──
+  /** Rune of the Open Hand: whenever a minion is summoned FROM THE HAND (the same `pendingHandSummon` moment
+   *  Dreamed Graves reads), another random friendly minion gains its current Attack/Health. Every hand-summon,
+   *  one grant per copy held. */
+  runeOpenHand?: boolean;
+  /** Rune of the Waking Reserve: Start of Combat — summon a COPY of the highest-stat (Attack + Health) minion in
+   *  hand when the board has room. The hand card is NOT marked as summoned. One copy per rune copy held. */
+  runeWakingReserve?: boolean;
   /** Rune of the War Drum's UNSPENT shop charge (owner ruling 2026-08-26: "1/1 use, resets at start of turn —
    *  if it is not used in shop, the first shout triggered in combat should work"). Present ONLY when the
    *  per-turn charge went unspent; the FIRST Shout triggered in combat on this side fires this many extra

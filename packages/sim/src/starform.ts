@@ -403,7 +403,10 @@ export function collapseExtraTargetsOf(state: RunState): number {
  *  pool is smaller), then `extras` picks WITH replacement — an extra may repeat an original or another extra.
  *  Empty with no Celestial. One rng cursor advance, in this order, so a seeded replay reproduces it. */
 export function collapseHits(state: RunState, originals = 2, extras = collapseExtraTargetsOf(state)): BoardCard[] {
-  const pool = state.board.filter((c) => isTribe(c, 'celestial'));
+  // RUNE OF SOUL SCRIPT (owner 2026-09-16: "Undead should be able to consume [the Starform], AND be targets for a
+  // Collapse"): your Undead are Collapse receivers beside your Celestials — the originals, the extras, and the
+  // Supernova's "all your Celestials" alike. The generic tribe predicate, so an added-tribe Undead counts too.
+  const pool = state.board.filter((c) => isTribe(c, 'celestial') || (!!state.runeSoulScript && isTribe(c, 'undead')));
   if (pool.length === 0) return [];
   // RUNE OF THE SUPERNOVA (Set 3 batch 2): "half its stats to ALL your Celestials instead of two" — every friendly
   // Celestial is an original (board order, no draw), and the extras still land on top with replacement.

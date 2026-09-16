@@ -6628,7 +6628,9 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       payRevelerDrip(s, r.count);
       break;
     }
-    case 'runeRevelerExtra': s.revelerExtra = { attack: (s.revelerExtra?.attack ?? 0) + r.attack, health: (s.revelerExtra?.health ?? 0) + r.health }; break;
+    // Rune of the Traveling Festival's "+2/+2 more" is applied ONCE per Reveler trigger (owner 2026-09-16: "the 2/2 is
+    // 1 time") — it never accumulates per copy held or across triggers. A second copy still pays its drip half.
+    case 'runeRevelerExtra': s.revelerExtra = { attack: Math.max(s.revelerExtra?.attack ?? 0, r.attack), health: Math.max(s.revelerExtra?.health ?? 0, r.health) }; break;
     case 'runeGrowingChorus': s.runeGrowingChorus = { attack: (s.runeGrowingChorus?.attack ?? 0) + r.attack, health: (s.runeGrowingChorus?.health ?? 0) + r.health, improve: (s.runeGrowingChorus?.improve ?? 0) + r.improve, played: s.runeGrowingChorus?.played ?? [] }; break;
     case 'runeChartedSkies': s.runeChartedSkies = { at: r.at }; break;
     case 'runeStarCrashBonus': s.starCrashBonus = { attack: (s.starCrashBonus?.attack ?? 0) + r.attack, health: (s.starCrashBonus?.health ?? 0) + r.health }; break;
@@ -7114,6 +7116,9 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     // ── Set 3 batch 2 (2026-09-16), tranche C ──
     runeFinalGate: f?.runeFinalGate,           // Rune of the Final Gate: first board wipe → 3 random dead Undead return
     runeDreamedGraves: f?.runeDreamedGraves,   // Rune of Dreamed Graves: the first hand-summon gains Rebirth
+    // ── Set 3 batch 2 (2026-09-16), tranche D ──
+    runeOpenHand: f?.runeOpenHand,             // Rune of the Open Hand: every hand-summon gives its stats to another friendly minion
+    runeWakingReserve: f?.runeWakingReserve,   // Rune of the Waking Reserve: SoC — a copy of the highest-stat hand minion (card not marked)
     // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): "war drum should have a 1/1 use, and that use resets
     // at start of turn, therefore if it is not used in shop, then the first shout triggered in combat should
     // work." Present only while the per-turn charge is UNSPENT; combat consumes it on the first triggered

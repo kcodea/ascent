@@ -6172,6 +6172,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       state.hand.splice(state.hand.indexOf(pick), 1);
       state.board.push(pick);
       fireSummonBuffs(state, pick);
+      fireOpenHandShop(state, pick); // a hand-summon: Rune of the Open Hand pays here too
     }
   },
 
@@ -11494,6 +11495,22 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
     copy.attack = lead.attack; copy.health = lead.health;
     copy.golden = lead.golden; copy.keywords = [...lead.keywords];
   } });
+  // Rune of the Waking Reserve (tranche D): with room, a COPY of the highest-stat (Attack + Health, ties → left-most)
+  // hand minion — the card stays in hand, unmarked. The shop twin of the combat Start-of-Combat summon, so the
+  // Combat Prowess / Lasting Cadence replays read the same; a hand-summon, so the Open Hand pays on it.
+  if (f?.runeWakingReserve) out.push({ id: 'rune_waking_reserve', kind: 'rune', label: 'Rune of the Waking Reserve', fire: (st) => {
+    if (st.board.length >= CONFIG.boardMax) return;
+    const pool = st.hand.filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby && !handCardLocked(st, c); });
+    if (pool.length === 0) return;
+    const top = pool.reduce((a, b) => (b.attack + b.health > a.attack + a.health ? b : a));
+    const def = CARD_INDEX[top.cardId];
+    if (!def) return;
+    const copy = makeContext(st).summon(def, ''); // no anchor → appended right-most
+    if (!copy) return;
+    copy.attack = top.attack; copy.health = top.health;
+    copy.golden = top.golden; copy.keywords = [...top.keywords];
+    fireOpenHandShop(st, copy);
+  } });
   // Shared Circuit: up to N leftmost unshielded Mechs gain Ward (permanent; the break-transfer half is
   // combat-only — shields don't break in a shop).
   if ((state.sharedCircuitWard ?? 0) > 0) out.push({ id: 'sharedCircuit', kind: 'quest', label: 'Shared Circuit', fire: (st) => {
@@ -12091,7 +12108,27 @@ export function summonCopyFromHandShop(state: RunState, uid: string, near: Board
   const at = near ? state.board.indexOf(near) : -1;
   state.board.splice(at < 0 ? state.board.length : at + 1, 0, copy);
   fireSummonBuffs(state, copy);
+  fireOpenHandShop(state, copy);
   return copy;
+}
+
+/**
+ * RUNE OF THE OPEN HAND, shop half (Set 3 batch 2, tranche D, 2026-09-16): a minion summoned FROM THE HAND in the
+ * shop (a Spirit hand-summon fired here, Rope Wrangler's Echo on a shop death) gives its current stats to another
+ * random friendly minion — permanently, as every shop grant is. The one shop dispatcher, called from the two
+ * shop hand-summon sites; combat's twin sits in `placeSummon`. One grant per copy held, each to a fresh receiver.
+ */
+export function fireOpenHandShop(state: RunState, summoned: BoardCard): void {
+  if (!state.questFlags?.runeOpenHand) return;
+  const copies = Math.max(1, state.flagCopies?.runeOpenHand ?? 1);
+  for (let k = 0; k < copies; k++) {
+    const others = state.board.filter((c) => c.uid !== summoned.uid);
+    if (others.length === 0) return;
+    procRuneId(state, 'rune_open_hand');
+    captureBuffFx(state, undefined, 'spell', () => {
+      for (const t of pickRandom(state, others, 1)) addBuff(t, 'Rune of the Open Hand', summoned.attack, summoned.health);
+    });
+  }
 }
 
 /** A drawable minion with a Rally — the pool Warband Recruiter summons from, in both phases. */

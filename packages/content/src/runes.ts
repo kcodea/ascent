@@ -2940,9 +2940,9 @@ export const EPIC_RUNES: RuneDef[] = [
   },
 
   // ── Set 3 batch 2 (2026-09-16) — tranche A ──────────────────────────────────────────────────────────────
-  // The Epic half of the tranche. SET 3 ONLY, every one. Two runes from the owner's sheet are NOT here because
-  // their effect lives in combat (`packages/core/src/combat/simulate.ts`, reserved for a sibling tranche):
-  // Rune of the Open Hand (a combat hand-summon hook) and Rune of the Waking Reserve (a Start-of-Combat summon).
+  // The Epic half of the tranche. SET 3 ONLY, every one. Two runes from the owner's sheet were deferred here
+  // because their effect lives in combat — Rune of the Open Hand and Rune of the Waking Reserve — and shipped
+  // in tranche D (the end of this array).
   {
     id: 'rune_epic_celestial',
     tribes: ['celestial'],
@@ -3225,6 +3225,39 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'After combat, give your Starform **+15/+15** for each friendly **Undead** that Rose.',
     previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
     reward: { kind: 'runeGraveOrbit', attack: 15, health: 15 },
+    sets: ['set3'],
+  },
+
+  // ── Set 3 batch 2 (2026-09-16) — tranche D: the two combat-side runes tranche A deferred ────────────────
+  // Both fire off the hand-summon machinery in `packages/core/src/combat/simulate.ts` (the Spirit hand-summons,
+  // Rope Wrangler's Echo) with a shop twin in `recruit.ts`. NOT tribe-gated: the owner's sheet files both under
+  // Spirits, but the codified rule (owner 2026-09-10, `tribeGate.test.ts`) gates only where the TEXT names a
+  // tribe on the board — and neither text names one (the Dreamed Graves precedent). Flagged in the tranche-D PR.
+  {
+    // "Summon a minion from your hand" = the same `pendingHandSummon` moment Rune of Dreamed Graves reads (a Spirit
+    // hand-summon, Rope Wrangler's Echo, the Waking Reserve's copy) — every one, landed. The receiver is a random
+    // OTHER friendly minion; the grant is the summoned body's CURRENT Attack/Health. One grant per copy held.
+    // Shop half: the shop hand-summons (Tide Caller / Seedling Spirit / Rope Wrangler fired in the shop) pay it
+    // permanently.
+    id: 'rune_open_hand',
+    name: 'Rune of the Open Hand',
+    cost: 5,
+    epic: true,
+    text: 'When you summon a minion from your hand, give its stats to another friendly minion.',
+    reward: { kind: 'combatFlag', flag: 'runeOpenHand' },
+    sets: ['set3'],
+  },
+  {
+    // Highest Attack + Health in hand (ties → the left-most); only when the board has room; the copy is a real
+    // summon (Undertow / Packcraft / Hatchery apply) and counts as a hand-summon for Dreamed Graves / the Open
+    // Hand — but the hand card is NOT marked as summoned, so a Spirit may still summon it later this fight.
+    // One copy per rune copy held. Shop twin: the Start-of-Combat replays (Combat Prowess / Lasting Cadence).
+    id: 'rune_waking_reserve',
+    name: 'Rune of the Waking Reserve',
+    cost: 6,
+    epic: true,
+    text: 'Start of Combat: summon a copy of your highest-stat minion in hand when you have room. This does not mark that hand card as summoned.',
+    reward: { kind: 'combatFlag', flag: 'runeWakingReserve' },
     sets: ['set3'],
   },
 ];

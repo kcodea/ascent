@@ -708,7 +708,9 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   // 2026-08-20 rune batch
   'runeReturningPack', 'runeGraveRefreshment', 'runeShiftingFacets', 'runeDeepeningVein',
   // Set 3 batch 2 (2026-09-16), tranche C
-  'runeFinalGate', 'runeDreamedGraves']);
+  'runeFinalGate', 'runeDreamedGraves',
+  // Set 3 batch 2 (2026-09-16), tranche D
+  'runeOpenHand', 'runeWakingReserve']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [

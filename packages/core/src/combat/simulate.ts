@@ -1641,6 +1641,20 @@ export function simulate(
       minion.keywords.push('RB');
       emit({ type: 'keyword', target: minion.uid, keyword: 'RB' });
     }
+    // RUNE OF THE OPEN HAND (set 3 batch 2, tranche D, 2026-09-16): EVERY minion summoned from the hand that lands
+    // gives its CURRENT stats to another random friendly minion. Read at the same `pendingHandSummon` moment as
+    // Dreamed Graves (a Spirit hand-summon, Rope Wrangler's Echo, the Waking Reserve's copy), after the keyword
+    // grant above so the Rebirth pill and the gift sit on separate beats. One grant per copy held (boolean-flag
+    // family, owner 2026-08-27), each to a fresh random receiver; nothing with no other living friendly.
+    if (fromHand && modsFor(side).runeOpenHand) {
+      for (let k = 0; k < flagCopiesOf(side, 'runeOpenHand'); k++) {
+        const others = boards[side].filter((m) => m !== minion && !m.dead && m.health > 0);
+        if (others.length === 0) break;
+        const t = others[ctx.rng.int(others.length)]!;
+        nextStep(); fireTrigger('runeOpenHand', side);
+        ctx.buff(t, minion.attack, minion.health, 'Rune of the Open Hand');
+      }
+    }
     summonEntryEffects(minion, side);
     // Attack-on-summon (Whelp) / `attackNow` (Spear Warden): the immediate strike is NOT queued here. We only
     // reach placeSummon for these tokens from flushImmediateAttacks (they defer in summonMinion), which strikes
@@ -2167,6 +2181,12 @@ export function simulate(
     //     Jungle / onSummon watchers fire on the return.
     //   · A full board (7 living) at the return = an overflow; the body stays dead (Rise's rule).
     //   · Not re-armed: the returned body has no Rebirth unless something re-grants it.
+    //   · Avenge progress restarts on the return (Rise's rule; a side-level tally is not part of the "body").
+    // Re-aligned with the Rise branch on 2026-09-16 (owner: "it acts like rise, so copy that"): every step below
+    // is the Rise branch's step in the same order — death (rise-flagged) → reservation → tally → own Echo →
+    // on-death watchers → kill credit → Avenge → overflow check → return → re-slot → `reborn` → summon-entry —
+    // with the ONE intended difference that nothing is rebuilt from the def. Rise's Apple re-arm and `onRise`
+    // are Rise-only by design.
     if (minion.keywords.includes('RB')) {
       minion.keywords = minion.keywords.filter((k) => k !== 'RB');
       if (minion.effects.some((e) => e.on === 'onDeath')) bumpDeathrattles(1, minion.side);
@@ -2201,6 +2221,11 @@ export function simulate(
       wardBroken.delete(minion.uid);
       minion.divineShield = minion.keywords.includes('DS');
       minion.rebornAvailable = minion.keywords.includes('R');
+      // Its AVENGE progress restarts, exactly as on a Rise (owner: "1/3 should reset to 0/3") and as on any body
+      // placed mid-combat (`placeSummon` stamps the same baseline). Avenge progress is a side-level deaths tally,
+      // not a buff, keyword or effect — so it is NOT part of the "full body" Rebirth keeps (owner 2026-09-16:
+      // "it acts like rise, so copy that"). Stamped after its own death was tallied, so that death is no progress.
+      minion.avengeBaseline = deaths[minion.side];
       let at = arr.indexOf(minion);
       arr.splice(at, 1);
       while (at < arr.length && !before.has(arr[at]!.uid)) at++;
@@ -3574,6 +3599,31 @@ export function simulate(
             attack: lead.attack, health: lead.health, maxHealth: lead.maxHealth,
             divineShield: lead.divineShield, rebornAvailable: lead.rebornAvailable,
           });
+        }
+      }
+    }
+    // RUNE OF THE WAKING RESERVE (set 3 batch 2, tranche D, 2026-09-16): with room on the board, summon a COPY of
+    // the highest-stat (Attack + Health; ties → the left-most in hand) minion in hand — current hand stats,
+    // keywords and gilding, the Mirror March `copyStats` path. It IS a hand-summon (`pendingHandSummon`: Dreamed
+    // Graves / the Open Hand hear it) but the card is NOT marked — neither `handCopiedUids` nor `fromHandUid`
+    // — so a Spirit may still summon it later this fight and the replay does not grey it. One copy per rune copy
+    // held, room re-checked each time. `occupied`, not length: a slot held through a Rise is not room.
+    if (rmods.runeWakingReserve && occupied(rside) < 7) {
+      const rawHand = (rside === 'player' ? playerState.handMinions : enemyState.handMinions) ?? [];
+      const pool = ctx.handMinionsFor(rside).filter((h) => !h.locked && !cards[h.cardId]?.spell);
+      if (pool.length > 0) {
+        const top = pool.reduce((a, b) => (b.attack + b.health > a.attack + a.health ? b : a));
+        const raw = rawHand.find((h) => h.uid === top.uid);
+        const def = cards[top.cardId];
+        if (raw && def) {
+          nextStep();
+          fireTrigger('runeWakingReserve', rside);
+          for (let k = 0; k < flagCopiesOf(rside, 'runeWakingReserve') && occupied(rside) < 7; k++) {
+            pendingHandSummon[rside] = true; // a hand-summon for Dreamed Graves / the Open Hand — the card itself stays unmarked
+            summonMinion(rside, def, undefined, [...raw.keywords], raw.golden, false,
+              { attack: raw.attack, health: raw.health, maxHealth: raw.health, divineShield: raw.keywords.includes('DS') });
+            pendingHandSummon[rside] = false; // consumed by the placement; cleared here too in case it never placed
+          }
         }
       }
     }

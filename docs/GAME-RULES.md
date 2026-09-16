@@ -346,6 +346,13 @@ absent-tribe packages stay off set 3. Rune of the Night Market and Rune of Baal 
 bridges (a rune-exclusive body that supplies its own function). The rolled-tribe gate still applies on top:
 a "your Dwarves" rune reaches a set-3 run only when Dwarf rolled.
 
+**Set 3-original runes (batch 2, 2026-09-16).** Set 3 now also has runes of its own — `sets: ['set3']` alone,
+no origin scope — starting with tranche A's 24 Spirit / Celestial / Undead runes (11 Basic + 13 Epic, taking the
+set-3 static pool to **126 Basic / 111 Epic**), plus the rune-exclusive **Handy Flame** token. Two of that
+sheet's runes (Rune of the Open Hand, Rune of the Waking Reserve) are combat-side and still owed. The tribe
+faucets (Rune of Basic/Epic Spirits, Celestials, Undead) are capped at the shop tier by the engine, like the
+Dwarf/Kobold ones. See `docs/devlog/2026-09-16-set3-runes-tranche-a.md` for the rulings and interpretations.
+
 **Set forks.** A card a rune grants BY ID resolves to the pinned set's fork when one exists
 (`SET_FORKS` in `packages/content/src/sets.ts`): Rune of Yazzus / Rune of Frontline Glory hand a set-3 run
 `n3_yazzus` (the Tier-7 fork), never the legacy `yazzus` beside it. The Open Market's "first Shop consume

@@ -1,7 +1,7 @@
 /**
  * SET 3 RUNE ROSTER — the 2026-09-14 handoff's acceptance checks, verbatim.
  *
- *  - Set 3's static pool resolves to 115 Basic / 98 Epic before any Set 3-original rune: the 85 + 64 unscoped
+ *  - Set 3's static pool resolved to 115 Basic / 98 Epic before any Set 3-original rune: the 85 + 64 unscoped
  *    baseline plus 30 Basic + 34 Epic set-1/set-2 carryovers whose mechanics Set 3 has (Rubies, Ales, Dwarves,
  *    Kobolds, Undead, Shop consume).
  *  - Set 1 and Set 2 pools keep exactly their previous scoped runes (the carryovers ADD set3, never move).

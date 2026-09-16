@@ -100,6 +100,26 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-16',
+    label: 'Set 3 runes — Spirits and Celestials',
+    changes: [
+      {
+        category: 'New Rune',
+        text: 'Twenty-four new Set 3 Runes for Spirit, Celestial and Undead runs — eleven in the Runeforge and thirteen in the Epic Runeforge.',
+        details: [
+          'Tribe faucets: Rune of Basic / Epic Spirits, Celestials and Undead — a minion of that type (two for the Epic) now and every Start of Turn, never above your Shop Tier.',
+          'Spirit play-offs: Rune of the Full Hand (every 3rd Spirit played buffs your hand +4/+4), the Chosen Vessel (each Spirit played gives your left-most hand minion +2/+2), Deep Currents (each Spirit played gives 2 random friendly Spirits +2/+2), the Spirit Crown (every 3 Spirits played improve your Shop spells +1/+1).',
+          'Reveler runes: the Traveling Festival (a random Reveler every turn, and Revelers pay +2 more), the Growing Chorus (play all three Reveler types: board + hand +5/+5 and your Reveler value +2), Festival Wages (your first Reveler sold each turn makes your next card free), Shared Revelry (the first Flame, Tide and Grove sold each turn trigger twice), the Grand Procession (the first 2 Revelers played each turn return a plain copy), the Festival Circuit (the first 3 Revelers sold each turn each give a random Celestial).',
+          'Celestial spell runes: Charted Skies (your 3rd Shop spell each turn Discovers a Shop spell), Falling Embers (a Star Crash every turn, and every Star Crash gives +2/+2 more — the card shows the new value), the Meteor Shower (your first Star Crash each turn gives another), the Astral Refrain (your 3rd Shop spell each turn hands you copies of that turn\'s 1st and 3rd), the Astral Draft (Start of Turn: Discover a Shop spell that casts an additional time).',
+          'Hand runes: the Dream Mirror (the first time a hand minion gains stats each turn, a random friendly minion gains the same) and Waking Dreams (whenever a hand minion gains stats, your minions +4/+3).',
+          'Rune of the Handy Flame hands you a new rune-only Spirit: Handy Flame (Tier 5, 2/13) — whenever it gains stats, a random other minion in your hand gets +6/+4.',
+          'Every metered rune shows its live progress on its badge, and the "improves" runes show their current bonus.',
+        ],
+      },
+      { category: 'New Card', text: 'Handy Flame — a Tier 5 Spirit token reached only through its rune. No art yet.' },
+    ],
+  },
+  {
+    date: '2026-09-16',
     label: 'Echohorn strikes on time',
     changes: [
       {

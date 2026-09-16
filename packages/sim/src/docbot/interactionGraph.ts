@@ -91,6 +91,7 @@ export const CHANNEL_OF_TRIGGER: Readonly<Record<string, string>> = {
   onConsume: 'consume',
   onAttack: 'attack',
   onGainAttack: 'stat-change',
+  onGainStats: 'stat-change', // Set 3 batch 2 (2026-09-16): Handy Flame's shop-side gain trigger
   onDamaged: 'damage',
   friendlyDemonDealtDamage: 'damage',
   onLoseDivineShield: 'shield-break',

@@ -216,6 +216,14 @@ export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   spellhideUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of Spellhide\'s per-turn RECORD latch; recording happens on the shop cast, the recorded re-casts ride spellhidePending' },
   spellhidePending: { kind: 'needs-triage', why: 'threaded (combatSide.spellhide) but the SoC consumer matches combat `m.uid` against the RUN uid, which the reducer bridge carries on sourceUid — the re-cast can never land through the real bridge (scan finding 2026-08-26). Rune archived 2026-08-12, so no live impact; fix the match or retire the lane, with a ruling' },
   lastWordUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of the Last Word\'s per-turn sold-Dragon latch; selling is a shop action' },
+  // ── Set 3 batch 2 (2026-09-16) — tranche A per-turn gates: every one is a SHOP latch (sells, buys, casts, plays) ──
+  festivalWagesUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of Festival Wages\' per-turn sold-Reveler latch; selling is a shop action and the free card it arms is a shop price' },
+  meteorShowerUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of the Meteor Shower\'s per-turn first-Star-Crash latch; keyed at noteSpellCast, a shop cast' },
+  shopSpellIdsThisTurn: { kind: 'no-combat-meaning', why: 'the turn\'s Shop-spell cast list (Charted Skies / Astral Refrain); shop casts only, and the runes pay in the shop' },
+  dreamMirrorUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of the Dream Mirror\'s per-turn first-hand-gain latch; the hook is the reducer\'s shop-action stat diff — combat does not emit hand gains to it' },
+  revelryDoubledThisTurn: { kind: 'no-combat-meaning', why: 'Rune of Shared Revelry: which Reveler types already fired twice this turn — a per-turn sell latch' },
+  processionPlayedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of the Grand Procession: Revelers PLAYED this turn toward its cap; playing is a shop action' },
+  circuitSoldThisTurn: { kind: 'no-combat-meaning', why: 'Rune of the Festival Circuit: Revelers SOLD this turn toward its cap; selling is a shop action' },
   rubyCastsThisTurn: { kind: 'no-combat-meaning', why: 'per-turn shop Ruby-cast tally for threshold runes; combat Ruby casts ride the arena lane' },
 
   // ── threaded into the side, but only a specific consumer reads it and the fixture stages none ──

@@ -185,6 +185,7 @@ export type GameEvent =
   | 'onRise' // a FRIENDLY minion returned via Rise — BOTH phases (owner 2026-09-09: Rise watchers fire on a shop Rise too, and a recruit-phase payout is permanent). Payload `{ minion, side }` = the risen body
   | 'onAttack'
   | 'onGainAttack' // a minion's Attack rose mid-combat (emitted by ctx.buff when the delta > 0) — Hunter
+  | 'onGainStats' // Set 3 (2026-09-16): this minion gained Attack and/or Health in the SHOP, in hand or on the board (Handy Flame). Dispatched by the reducer's per-action stat diff; combat does not emit it yet.
   | 'onDamaged' // a minion took damage that landed (emitted by dealDamage) — Gryphon
   | 'friendlyDemonDealtDamage' // Set 2: a FRIENDLY Demon dealt combat damage (attack, retaliation, or incidental) — Impossible Todd / Leech / Axeman. A Ward-absorbed (0-damage) hit never reaches the emit, so it doesn't count.
   | 'onLoseDivineShield'
@@ -646,6 +647,7 @@ export type EffectFactoryId =
   | 'rallyGiveTribeAttackOfHighestAttackHand' // Flamebanner Marshal: Rally — `count` friendly `tribe` minions gain the highest-Attack hand minion's Attack
   | 'onDamagedBuffRandomHand' // Hearth Whisperer: whenever this takes damage, a random hand minion +atk/+hp (permanent)
   | 'tribePlayedBuffSelfInHand' // Slumbering Colossus (hand watcher): whenever you play a `tribe`, this grows in hand
+  | 'onGainStatsBuffRandomHand' // Handy Flame (rune token, 2026-09-16): whenever this gains stats, a random OTHER minion in your hand +a/+h
   | 'battlecryConductorAdjacent' // Conductor: Shout — give adjacent minions +2N/+3N; N snowballs per Conductor played (×2 gilded)
   | 'battlecryBuffMagnetics' // Scrap Herald: Battlecry — give your Magnetic minions +atk/+hp wherever they are; stacks into future buys
   | 'battlecryBuffImps' // Imp Overseer: Battlecry — give your Imps +atk/+hp run-wide (shared impBuff enchant)
@@ -1236,7 +1238,7 @@ export type QuestReward =
    * The remainder BANKS across transactions, like every other threshold in the game. `oncePerTurn` caps payouts
    * at one per turn (the Merchant's Chorus).
    */
-  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume'; per: number;
+  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit'; per: number;
       grantSpell?: number; grantAle?: number; grantRuby?: number;
       /** Rune of the Deep Feast: hand over these exact card ids when the meter trips (the `grant` reward's
        *  `cards`, on a meter). Overflow-safe like every other earned reward. */
@@ -1245,7 +1247,7 @@ export type QuestReward =
       castStatSpell?: number;
       /** `tribe` targets a tribe wherever it is (board + hand) — Compounding Wages' Dwarves. `step` makes the
        *  payout ESCALATE: every payout adds `step` to the grant, so the rune improves itself. */
-      buff?: { target: 'imps' | 'shop' | 'shopRightmost' | 'shopTurn' | 'spells' | 'tribe'; tribe?: Tribe; attack: number; health: number; step?: { attack: number; health: number } };
+      buff?: { target: 'imps' | 'shop' | 'shopRightmost' | 'shopTurn' | 'spells' | 'tribe' | 'hand'; tribe?: Tribe; attack: number; health: number; step?: { attack: number; health: number } };
       /** Rune of the Bubble Crown: pay ONCE ever, then the meter stops (its x/N counter stops with it). */
       once?: boolean;
       /** Rune of Gemspam: play a Ruby on EVERY friendly minion when the meter trips. */
@@ -1384,6 +1386,23 @@ export type QuestReward =
   | { kind: 'runeRedGiant' } // the Starform has a 50% chance to also Consume a Shop spell (a copy to hand, +8/+8)
   | { kind: 'runeSoulScript' } // the Starform counts as Undead (Undead consumes, buffs and auras reach it)
   | { kind: 'runeBroodmaster' } // a Broodwright's Imp buff also lands on itself
+  // ── Set 3 batch 2 (2026-09-16) — tranche A (Spirit / Celestial runes) ──
+  | { kind: 'runeChosenVessel'; attack: number; health: number } // whenever you play a Spirit: your LEFT-MOST minion in hand +a/+h
+  | { kind: 'runeDeepCurrents'; count: number; attack: number; health: number } // whenever you play a Spirit: `count` random friendly Spirits +a/+h
+  | { kind: 'runeRevelerDrip'; count: number } // a random Reveler now + every Start of Turn
+  | { kind: 'runeRevelerExtra'; attack: number; health: number } // your Revelers' sell payout grows by +a/+h on the stat(s) they pay
+  | { kind: 'runeGrowingChorus'; attack: number; health: number; improve: number } // after you play a Flame, Tide AND Grove Reveler: board + hand +a/+h, Reveler value +improve, reset
+  | { kind: 'runeChartedSkies'; at: number } // after your `at`-th Shop spell each turn: Discover a Shop spell
+  | { kind: 'runeStarCrashBonus'; attack: number; health: number } // your Star Crashes give an extra +a/+h (shop casts)
+  | { kind: 'runeFestivalWages' } // after your first Reveler sold each turn, your next card costs 0
+  | { kind: 'runeMeteorShower' } // after your first Star Crash each turn, get another
+  | { kind: 'runeAstralRefrain'; at: number } // after your `at`-th Shop spell each turn: copies of the 1st and `at`-th Shop spells cast this turn
+  | { kind: 'runeAstralDraft' } // Start of Turn: Discover a Shop spell that casts an additional time
+  | { kind: 'runeDreamMirror' } // the first time a hand minion gains stats each turn, a random friendly board minion gains the same
+  | { kind: 'runeWakingDreams'; attack: number; health: number } // whenever a hand minion gains stats, your board +a/+h
+  | { kind: 'runeSharedRevelry' } // the first Flame, Tide and Grove Reveler you sell each turn trigger twice
+  | { kind: 'runeProcessionPlay'; count: number } // the first `count` Revelers you PLAY each turn return a plain copy to hand
+  | { kind: 'runeFestivalCircuit'; count: number } // the first `count` Revelers you sell each turn each give a random Celestial
   | { kind: 'runeSecondLife' } // your Scavvers carry Taunt + Rise
   | { kind: 'runeSharedReflection' } // Mirrorwing's first spell each turn also casts on adjacent Dragons
   | { kind: 'runeUnbrokenVein' } // Veinbreaker applies both Choose One options

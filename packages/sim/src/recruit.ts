@@ -7710,13 +7710,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Apples — cast: buff every minion currently in the tavern by +atk/+hp (rides on each offer's `atk`/`hp`,
    *  so a buy bakes it in). Lost on a refresh (fresh offers), kept on a freeze (same offers). Flat. */
   spellBuffTavern: (ctx, _self, params) => {
-    const a = num(params.attack, 2);
-    const h = num(params.health, 3);
+    // Spell power folds in on BOTH of Apples' ends (owner report 2026-09-16: "apples isn't getting shop spell buffs
+    // on both ends") — this branch was documented flat since 2026-07; the random-friendlies branch always scaled.
+    const a = num(params.attack, 2) + spellAttackBonus(ctx.state);
+    const h = num(params.health, 3) + spellHealthBonus(ctx.state);
     for (const offer of ctx.state.shop) addOfferBuff(offer, 'Apples', a, h); // the only card using this factory
   },
 
-  /** Apples (Choose One, second option) — bank a buff for the NEXT tavern roll: it's folded onto that shop's
-   *  offers in `refreshTavern`, then cleared. Flat (no spell-power scaling), like the current-shop option. */
+  /** Apples' former second option (no card uses it today) — bank a buff for the NEXT tavern roll: it's folded onto
+   *  that shop's offers in `refreshTavern`, then cleared. Still flat; the live current-shop option scales. */
   spellBuffNextShop: (ctx, _self, params) => {
     ctx.state.nextShopBuff ??= { attack: 0, health: 0 };
     ctx.state.nextShopBuff.attack += num(params.attack, 2);
@@ -9255,18 +9257,25 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   // token ("+4 Health" / "+4 Attack") that becomes the full live "+A/+H" pair, like Lantern of Souls below.
   // `allEffectsOf`, not `def.effects`: Apples' scaling grant lives in a Choose One BRANCH, and reading the
   // top-level list alone is why its printed "+1/+1" never moved with spell power. The replace below targets
-  // that branch's OWN printed numbers, so a card whose other branch is flat (Apples' "+2/+4" shop buff, which
-  // takes no spell power by design) keeps that half exactly as authored.
+  // that branch's OWN printed numbers; Apples' OTHER branch (the "+2/+4" shop buff, `spellBuffTavern`) folds
+  // spell power too since 2026-09-16 (owner: "shop spell buffs on both ends"), so its token goes live as well.
   const aleLeft = allEffectsOf(def).find((e) => e.do === 'spellBuffLeftmost');
   const aleRand = allEffectsOf(def).find((e) => e.do === 'spellBuffRandomFriendlies');
   const ale = aleLeft ?? aleRand;
   if (ale) {
     const pa = Number((ale.params as { attack?: number } | undefined)?.attack ?? 0);
     const ph = Number((ale.params as { health?: number } | undefined)?.health ?? 0);
-    if (pa > 0 && ph > 0) return def.text.replace(`+${pa}/+${ph}`, `{{+${pa + bonusA}/+${ph + bonusH}}}`);
-    if (pa > 0) return def.text.replace(`+${pa} Attack`, `{{+${pa + bonusA}/+${bonusH}}}`);
-    if (ph > 0) return def.text.replace(`+${ph} Health`, `{{+${bonusA}/+${ph + bonusH}}}`);
-    return def.text;
+    let out = def.text;
+    if (pa > 0 && ph > 0) out = out.replace(`+${pa}/+${ph}`, `{{+${pa + bonusA}/+${ph + bonusH}}}`);
+    else if (pa > 0) out = out.replace(`+${pa} Attack`, `{{+${pa + bonusA}/+${bonusH}}}`);
+    else if (ph > 0) out = out.replace(`+${ph} Health`, `{{+${bonusA}/+${ph + bonusH}}}`);
+    const tavern = allEffectsOf(def).find((e) => e.do === 'spellBuffTavern');
+    if (tavern) {
+      const ta = Number((tavern.params as { attack?: number } | undefined)?.attack ?? 2);
+      const th = Number((tavern.params as { health?: number } | undefined)?.health ?? 3);
+      out = out.replace(`+${ta}/+${th}`, `{{+${ta + bonusA}/+${th + bonusH}}}`);
+    }
+    return out;
   }
   // Dragonflame: its per-buff "+A/+B" folds spell power (the repeat count is relational, not greened).
   const dragonflame = def.effects.find((e) => e.do === 'spellBuffRandomPerTribe');

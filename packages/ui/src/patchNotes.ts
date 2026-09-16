@@ -192,6 +192,8 @@ export const PATCH_NOTES: PatchNote[] = [
           "Equipment (Epic): Rune of Overcharge makes your first activation each turn free and charge-less; Rune of Dismantling fires a sold Equip minion's Equipment for free before it leaves (once per turn, at a random friendly minion); Rune of Counterrotation re-triggers three different Equipment once you have activated all three; Rune of Empty Hands Discovers an Equip minion whose Equipment costs 0 for the rest of the run; Rune of the Last Tool gives your Equip minions \"Echo: this minion's Equipment costs 0 next turn\".",
           'Undead: Rune of Last Rites returns a plain copy of the first Undead you destroy in the Shop each turn; Rune of the Crowded Crypt gives your minions +1/+1 permanently whenever a summon does not fit (twice in the Shop); Rune of the Endless March summons a 1/1 Skeleton after a friendly Undead Rises; Rune of the Grave Orbit gives your Starform +15/+15 after combat for each friendly Undead that Rose.',
           'A grafted Echo (Rune of the Last Tool, Contract Rewrite, Rune of Rebirth) now fires on a Shop death as it already did in combat.',
+        ],
+      },
     ],
   },
   {

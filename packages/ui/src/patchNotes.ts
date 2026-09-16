@@ -60,7 +60,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: "Milestone badge frames now change at new values: plain silver below 50, the silver dagger at 50, gold at 150, pink at 500, and the top blue frame at 2000.",
+        text: "Milestone badge frames now change at new values: plain silver below 50, the silver dagger at 50, gold at 150, pink at 500, blue at 2000, and a new top crystal frame at 5000.",
       },
       {
         category: 'UI / Info',

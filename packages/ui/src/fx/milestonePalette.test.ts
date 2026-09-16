@@ -28,15 +28,15 @@ describe('milestoneTierPalette', () => {
     const cfg = getMilestoneFrameConfig();
     expect(milestoneTierPalette(1)).toEqual(rampFromColor(hexToNum(cfg.glow1)));
     expect(milestoneTierPalette(3)).toEqual(rampFromColor(hexToNum(cfg.glow3)));
-    expect(milestoneTierPalette(5)).toEqual(rampFromColor(hexToNum(cfg.glow5)));
+    expect(milestoneTierPalette(6)).toEqual(rampFromColor(hexToNum(cfg.glow6)));
   });
 
-  it('gives different tiers different colours when their glows differ (T3 gold vs T5 blue)', () => {
-    expect(milestoneTierPalette(3)).not.toEqual(milestoneTierPalette(5));
+  it('gives different tiers different colours when their glows differ (T3 gold vs T6 crystal)', () => {
+    expect(milestoneTierPalette(3)).not.toEqual(milestoneTierPalette(6));
   });
 
   it('is undefined for an out-of-range tier (no recolor → the def plays its own colours)', () => {
     expect(milestoneTierPalette(0)).toBeUndefined();
-    expect(milestoneTierPalette(6)).toBeUndefined();
+    expect(milestoneTierPalette(7)).toBeUndefined();
   });
 });

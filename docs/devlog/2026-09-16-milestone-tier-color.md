@@ -7,8 +7,8 @@ Approach A).
 
 ## Retuned tier schedule (owner ask 2026-09-16)
 
-The milestone thresholds went from `[50, 100, 500, 1000, 5000]` to `[0, 50, 150, 500, 2000]`, keeping all five
-frames but changing where each lights up:
+The milestone thresholds went from `[50, 100, 500, 1000, 5000]` to `[0, 50, 150, 500, 2000, 5000]`, and a
+sixth "final" crystal frame was added:
 
 | Tier | Frame | Range |
 |------|-------|-------|
@@ -16,13 +16,16 @@ frames but changing where each lights up:
 | 2 | silver dagger | 50–149 |
 | 3 | gold | 150–499 |
 | 4 | pink | 500–1999 |
-| 5 | blue/black | 2000+ |
+| 5 | blue | 2000–4999 |
+| 6 | blue crystal (dual swords / heart) | 5000+ |
 
 Tier 1's threshold is `0`, so the plain-silver frame is now the baseline every minion wears (the flat `.plate`
-only shows for a negative stat); a stat "earns" its first *celebrated* frame at 50. Only the numbers moved —
-the five frame arts, the glow colours (`glow1/2` silver, `glow3` gold, `glow4` pink, `glow5` blue), and the
-config structure are unchanged; the tuner threshold labels and preview digits were updated to match. The
-recolor below reads `glow1..5`, so the celebration colours follow this schedule automatically.
+only shows for a negative stat); a stat "earns" its first *celebrated* frame at 50. Tier 6's art
+(`milestone-{atk,hp}-6.webp`, converted from the owner's PNGs to 512² webp via sharp, ~43–53 KB) has a
+TRANSPARENT centre — no leather disc — so its number sits on the `.mstint` disc alone. Both tier 5 and tier 6
+carry a blue glow (`glow5`/`glow6` = `#4fd1ff`). The other five frame arts, glow colours and config structure
+are unchanged; the tuner threshold labels and preview digits were updated to match. The recolor below reads
+`glow1..6`, so the celebration colours follow this schedule automatically.
 
 ## The design question, and why per-call recolor
 
@@ -62,11 +65,11 @@ cloud with a white-hot centre.
 
 ## Notes / interactions
 
-- Tiers 1 and 2 share the same silver glow (plain silver / dagger), so they celebrate identically; tiers 3–5
-  are gold / pink / blue. Tier 1 sits at threshold 0, so in practice its celebration never fires (a stat
-  starts there rather than crossing up into it) — it's the baseline look. Tier 3's derived gold (from
-  `glow3 #ffd54a`) reads slightly yellower than the def's original orange-ember ramp, since it derives from
-  the glow rather than the def's own palette.
+- Tiers 1 and 2 share the same silver glow (plain silver / dagger), so they celebrate identically; tiers 3–6
+  are gold / pink / blue / blue-crystal (tiers 5 and 6 share the same blue glow). Tier 1 sits at threshold 0,
+  so in practice its celebration never fires (a stat starts there rather than crossing up into it) — it's the
+  baseline look. Tier 3's derived gold (from `glow3 #ffd54a`) reads slightly yellower than the def's original
+  orange-ember ramp, since it derives from the glow rather than the def's own palette.
 - The recolor applies to whatever def is bound, including a future per-card milestone override. If a bespoke
   milestone def ever wants its own fixed colours, give it `tintMode: 'texture'` layers (which `recolorDef`
   skips) or add an opt-out then.

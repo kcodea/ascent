@@ -4,7 +4,7 @@ import { TunerPanel } from './TunerPanel';
 
 /** The digit shown on each tier's preview badge — the threshold that lights it, so the 4-digit tiers show how
  *  a big number fits the disc. */
-const TIER_NUM: Record<number, string> = { 1: '10', 2: '50', 3: '150', 4: '500', 5: '2000' };
+const TIER_NUM: Record<number, string> = { 1: '10', 2: '50', 3: '150', 4: '500', 5: '2000', 6: '5000' };
 const src = (stat: 'atk' | 'hp', tier: number): string =>
   `${import.meta.env.BASE_URL}frames/milestone-${stat}-${tier}.webp`;
 
@@ -17,7 +17,7 @@ function MilestonePreview(): JSX.Element {
   const [state, setState] = useState<'' | 'up' | 'down'>('up');
   const row = (stat: 'atk' | 'hp'): JSX.Element => (
     <div className="msprev-row">
-      {[1, 2, 3, 4, 5].map((t) => (
+      {[1, 2, 3, 4, 5, 6].map((t) => (
         <span key={t} className={`badge ${stat}${state ? ` ${state}` : ''}`} data-milestone={t}>
           <span className="msglow" aria-hidden="true" />
           <img decoding="sync" className="msframe" src={src(stat, t)} alt="" aria-hidden="true" />
@@ -44,8 +44,8 @@ function MilestonePreview(): JSX.Element {
 
 /**
  * DEV-only tuner for the STAT MILESTONE BADGES (owner ask 2026-09-15) — the per-tier frame art discs, the state
- * tint over them, and the number's size / position / colour. The panel carries a live preview of all ten tiers
- * (owner ask: "put the number value display in the tuner"), so every tier is visible while tuning.
+ * tint over them, and the number's size / position / colour. The panel carries a live preview of all twelve tiers
+ * (six per stat: plain silver / dagger / gold / pink / blue / crystal), so every tier is visible while tuning.
  */
 export function MilestoneFrameTuner(): JSX.Element {
   return <TunerPanel spec={{ ...SPEC, readout: () => <MilestonePreview /> }} />;

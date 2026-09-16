@@ -37,10 +37,10 @@ export function rampFromColor(hex: number): [number, number, number, number] {
   return [mul(RIM), mul(OUTER), (r << 16) | (g << 8) | b, toWhite(CORE_TO_WHITE)];
 }
 
-const GLOW_KEYS = ['glow1', 'glow2', 'glow3', 'glow4', 'glow5'] as const;
+const GLOW_KEYS = ['glow1', 'glow2', 'glow3', 'glow4', 'glow5', 'glow6'] as const;
 
 /**
- * The recolor palette for a milestone tier (1..5), or `undefined` for a tier with no glow entry — which
+ * The recolor palette for a milestone tier (1..6), or `undefined` for a tier with no glow entry — which
  * `playDef` treats as "no recolor", so the def plays its own authored colours. Reads the LIVE config, so an
  * owner-retuned `glowN` recolours the celebration with no code change.
  */

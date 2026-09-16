@@ -3,8 +3,8 @@ import { crossedUp, MILESTONE_TIERS, tierOf } from './statMilestones';
 
 describe('MILESTONE_TIERS', () => {
   it('is the owner-set schedule, per stat', () => {
-    expect(MILESTONE_TIERS.attack).toEqual([0, 50, 150, 500, 2000]);
-    expect(MILESTONE_TIERS.health).toEqual([0, 50, 150, 500, 2000]);
+    expect(MILESTONE_TIERS.attack).toEqual([0, 50, 150, 500, 2000, 5000]);
+    expect(MILESTONE_TIERS.health).toEqual([0, 50, 150, 500, 2000, 5000]);
   });
 });
 
@@ -22,9 +22,11 @@ describe('tierOf', () => {
     expect(tierOf('attack', 500)).toBe(4);
     expect(tierOf('attack', 1999)).toBe(4);
     expect(tierOf('attack', 2000)).toBe(5);
+    expect(tierOf('attack', 4999)).toBe(5);
+    expect(tierOf('attack', 5000)).toBe(6);
   });
   it('caps at the top tier for anything above the last threshold', () => {
-    expect(tierOf('attack', 999999)).toBe(5);
+    expect(tierOf('attack', 999999)).toBe(6);
   });
   it('never returns a tier for a negative value', () => {
     expect(tierOf('health', -10)).toBe(0);
@@ -35,6 +37,7 @@ describe('crossedUp', () => {
   it('returns the tier reached on a single-step up-cross', () => {
     expect(crossedUp('attack', 49, 50)).toBe(2);
     expect(crossedUp('attack', 149, 150)).toBe(3);
+    expect(crossedUp('attack', 4999, 5000)).toBe(6);
   });
   it('returns the HIGHEST tier when a jump vaults several at once', () => {
     expect(crossedUp('attack', 40, 600)).toBe(4);

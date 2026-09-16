@@ -77,6 +77,9 @@ export interface ShopCard {
    *  THE STARFORM reuses this field as its LIVE PRICE (owner rules 2026-09-13): 6 at creation, −1 per refresh
    *  (floor 0), carried across turns, reset to 6 on a fresh token — see `starform.ts`. */
   cost?: number;
+  /** Rune of Soul Script: the standing Undead Aura was baked onto THIS token (`starformSoulScriptBake`) — a
+   *  per-token latch so rune acquisition and token creation cannot both pay it. */
+  soulScriptAuraBaked?: boolean;
   /** Displacement: a board minion stashed here when swapped to the tavern — restored INTACT (all buffs /
    *  stats / progression) when re-bought or swapped back, rather than re-instantiated from base. */
   held?: BoardCard;
@@ -1294,7 +1297,7 @@ export interface RunState {
   /** Run-wide combat modifiers armed by completed quests (Blood Trail / Echoing Coop / Law of Teeth / The Old
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */
-  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; crateringMissive?: boolean; passingSpears?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean; runeRebirth?: boolean; runeAftershocks?: boolean; runeEngraving?: boolean; runeUnderdog?: boolean; runeGemGolem?: boolean; runeChef?: boolean; runeCarrionCoin?: number; runeFiveBanners?: boolean; runeCenterline?: boolean; runeSecondLitter?: boolean; runeDragonscale?: number; runeTemperedTime?: boolean; runeSavagery?: boolean; runeCrucible?: number; runeHerald?: boolean; runeUndertow?: number | boolean; runeMirrorMarch?: boolean; runeTrophy?: boolean; avengeFirstDouble?: boolean; candlelightToll?: boolean; gemheartCharge?: boolean; burningLegion?: number; runeVanguard?: boolean; runeFinality?: number; runeHatchery?: boolean; runeLastCall?: boolean; runeCinderLedger?: number; runeProcession?: boolean; runeGemstorm?: number; runeBloodAndCoin?: number; runeWildHunt?: number; runeLivingTreasure?: boolean; runeRemains?: number; runeReinvestment?: number; runeHuntingBell?: boolean; runeBrood?: number; runeLivingEchoes?: number; runeWarChorus?: boolean; runeFoodChain?: boolean; runeAttackingGems?: number; runeOverflow?: number; runeCounterpoint?: boolean; runeMammoth?: boolean; runeWarpath?: boolean; runeEmberline?: boolean; runeAshenPayroll?: number; runeBackbeat?: boolean; runeSpareChair?: boolean; runeAncestralRoar?: boolean; runeRubyShrapnel?: boolean; runeSharedScripture?: boolean; runeMoonhowl?: boolean; runeFloodedVault?: boolean; runeBattleRefraction?: boolean; runeWrangler?: boolean; runeLivingGeode?: boolean; runeDawnclaw?: boolean; runeSylus?: boolean; oldPack?: boolean; runeJungle?: boolean; runeBurrow?: boolean; runeBeastialSwarm?: boolean; runeZoo?: boolean; runeRuins?: boolean; runeGolems?: boolean; runeEngravingGems?: boolean; runeHerdingHorn?: boolean; runeDeathtouchedApple?: boolean; runeStokedMenagerie?: boolean; runeReturningPack?: number; runeGraveRefreshment?: number; runeShiftingFacets?: boolean; runeDeepeningVein?: boolean };
+  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; crateringMissive?: boolean; passingSpears?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean; runeRebirth?: boolean; runeAftershocks?: boolean; runeEngraving?: boolean; runeUnderdog?: boolean; runeGemGolem?: boolean; runeChef?: boolean; runeCarrionCoin?: number; runeFiveBanners?: boolean; runeCenterline?: boolean; runeSecondLitter?: boolean; runeDragonscale?: number; runeTemperedTime?: boolean; runeSavagery?: boolean; runeCrucible?: number; runeHerald?: boolean; runeUndertow?: number | boolean; runeMirrorMarch?: boolean; runeTrophy?: boolean; avengeFirstDouble?: boolean; candlelightToll?: boolean; gemheartCharge?: boolean; burningLegion?: number; runeVanguard?: boolean; runeFinality?: number; runeHatchery?: boolean; runeLastCall?: boolean; runeCinderLedger?: number; runeProcession?: boolean; runeGemstorm?: number; runeBloodAndCoin?: number; runeWildHunt?: number; runeLivingTreasure?: boolean; runeRemains?: number; runeReinvestment?: number; runeHuntingBell?: boolean; runeBrood?: number; runeLivingEchoes?: number; runeWarChorus?: boolean; runeFoodChain?: boolean; runeAttackingGems?: number; runeOverflow?: number; runeCounterpoint?: boolean; runeMammoth?: boolean; runeWarpath?: boolean; runeEmberline?: boolean; runeAshenPayroll?: number; runeBackbeat?: boolean; runeSpareChair?: boolean; runeAncestralRoar?: boolean; runeRubyShrapnel?: boolean; runeSharedScripture?: boolean; runeMoonhowl?: boolean; runeFloodedVault?: boolean; runeBattleRefraction?: boolean; runeWrangler?: boolean; runeLivingGeode?: boolean; runeDawnclaw?: boolean; runeSylus?: boolean; oldPack?: boolean; runeJungle?: boolean; runeBurrow?: boolean; runeBeastialSwarm?: boolean; runeZoo?: boolean; runeRuins?: boolean; runeGolems?: boolean; runeEngravingGems?: boolean; runeHerdingHorn?: boolean; runeDeathtouchedApple?: boolean; runeStokedMenagerie?: boolean; runeReturningPack?: number; runeGraveRefreshment?: number; runeShiftingFacets?: boolean; runeDeepeningVein?: boolean; runeFinalGate?: boolean; runeDreamedGraves?: boolean };
   // ── Runeforge (Runesmith) ──
   /** The Runeforge is open (turn 6): a pending offer of rune ids to buy for their Gold cost. Like `questOffer`,
    *  while set the reducer blocks every non-`buyRune`/`skipRuneforge` action and the UI pauses the timer; buying
@@ -1543,6 +1546,19 @@ export interface RunState {
   runeMountainTrade?: boolean;
   /** Rune of Open Appetite: Appetite Agent's aim loses its Demon-only restriction. */
   runeOpenAppetite?: boolean;
+  // ── Set 3 batch 2 (2026-09-16), tranche C ──
+  /** Rune of Amplification: Equipment you do not activate this turn becomes AMPLIFIED at End of Turn (its next
+   *  activation triggers twice; max 1 stack per Equipment — see `PlayerEquipmentState.amplified`). */
+  runeAmplification?: boolean;
+  /** Rune of the Grand Workshop (Epic): Amplify every held Equipment now, and again every Start of Turn. */
+  runeGrandWorkshop?: boolean;
+  /** Rune of the Red Giant (Epic): whenever the Starform Consumes a Shop minion it has a 50% chance to ALSO
+   *  Consume a Shop spell — you get a copy of that spell, the token gains +8/+8. Seeded (`rngCursor`). */
+  runeRedGiant?: boolean;
+  /** Rune of Soul Script: the Starform COUNTS AS UNDEAD — the token's stand-in carries `addedTribes: ['undead']`
+   *  (every `isTribe` watcher / consume sees an Undead), Undead-aimed friendly spells may aim it, the Undead
+   *  Aura (`undeadBuyAtk`) and "your Undead +X" Shop buffs land on it. */
+  runeSoulScript?: boolean;
   /** Rune of the Broodmaster: a Broodwright's Imp buff also lands on the Broodwright. */
   runeBroodmaster?: boolean;
   /** Rune of the Second Life: your Scavvers carry Taunt + Rise. */
@@ -2108,6 +2124,9 @@ export interface GrantedEquipment {
    *  2026-09-11); the Start-of-Turn rebuild starts every entry fresh. Spent only once the shared bonus pool is
    *  empty — see `equipment.ts`. */
   ownChargeSpent: boolean;
+  /** Was this Equipment ACTIVATED this turn (through the pool OR its own charge)? Rune of Amplification reads it
+   *  at End of Turn — "Equipment you do not activate" — and the End-of-Turn expiry clears it. */
+  usedThisTurn?: boolean;
 }
 
 /**
@@ -2129,6 +2148,15 @@ export interface PlayerEquipmentState {
   bonusSpent: number;
   /** Gold off the next activation. Additive, floored at 0 by `equipmentCostOf`, expires at End of Turn. */
   temporaryCostReduction: number;
+  /**
+   * AMPLIFIED (owner design 2026-09-16) — per EQUIPMENT (keyed by id), the stack count (0 or 1: "Maximum 1 per
+   * Equipment"). An Amplified Equipment TRIGGERS TWICE the next time it is activated, and the stack is consumed by
+   * that activation. Written by Rune of Amplification (End of Turn: every Equipment you did not activate) and Rune
+   * of the Grand Workshop (now + every Start of Turn: all of them). Deliberately SURVIVES the Start-of-Turn
+   * rebuild (that is the whole point of Amplification: it is what carries over), pruned to the Equipment still
+   * held after the rebuild. The UI paints the charge indicator BLUE while > 0 (`equipmentAmplifiedOf`).
+   */
+  amplified?: Record<string, number>;
 }
 
 /**

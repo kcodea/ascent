@@ -45,6 +45,7 @@ export const KEYWORD_LEXICON: Readonly<Record<Keyword, KeywordLexeme>> = {
   SL: { canonical: 'Slaughter', alternates: [] },
   CR: { canonical: 'Critical Strike', alternates: [] },
   EG: { canonical: 'Engraved', alternates: [] },
+  RB: { canonical: 'Rebirth', alternates: [] }, // NEW keyword (owner 2026-09-16) — distinct from Rise; the Rise→Rebirth RENAME stays reserved above
 };
 
 /** Every printed keyword name (canonical + alternates) → its letter. Longest names first so

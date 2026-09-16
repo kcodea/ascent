@@ -480,12 +480,13 @@ export const RUNES: RuneDef[] = [
   },
   // ── Batch 7a additions (owner designs 2026-07-17) ──
   {
-    // Owner sheet 2026-07-31: ONE random minion gains the exact-copy Echo (was: 2 random gain Rise — the
-    // same Rise-vs-exact-copy distinction Living Treasure hit; Rise returns the printed body).
+    // Owner 2026-09-16: grants the NEW **Rebirth** keyword (the body returns once with its FULL current body —
+    // stats, buffs, keywords, effects; Rise returns the printed body). Was the exact-copy Echo (2026-07-31), and
+    // before that "2 random gain Rise". Id kept through every rework.
     id: 'rune_rebirth',
     name: 'Rune of Rebirth',
     cost: 3, // owner balance 2026-08-11
-    text: '**Start of Combat:** give a random friendly minion **Echo:** summon an exact copy of this without Echo.',
+    text: '**Start of Combat:** give a random friendly minion **Rebirth**.',
     reward: { kind: 'combatFlag', flag: 'runeRebirth' },
   },
   {
@@ -1254,6 +1255,30 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: 'Every **7 Gold** spent, cast a random **stat-granting Shop spell**.',
     reward: { kind: 'runeThreshold', meter: 'gold', per: 7, castStatSpell: 1 },
+  },
+  // ── Set 3 batch 2 (2026-09-16) — tranche C ──
+  {
+    // AMPLIFIED is a new Equipment STATE (owner design 2026-09-16): the charge indicator turns BLUE while an
+    // Equipment holds a stack; the stack is spent by the next activation, which then triggers twice. The End-of-Turn
+    // pass marks every held Equipment the player did not activate (`amplifyUnactivated`).
+    id: 'rune_amplification',
+    name: 'Rune of Amplification',
+    cost: 4,
+    text: 'Equipment you do not activate becomes **Amplified**. Amplified Equipment triggers **twice** the next time you activate it. Maximum **1** per Equipment.',
+    reward: { kind: 'runeAmplification' },
+    sets: ['set3'],
+  },
+  {
+    // The token counts as Undead (`starformStandIn` carries `addedTribes: ['undead']`): Undead consume watchers and
+    // tribe predicates see an Undead, Undead-aimed friendly spells may aim it, and the Undead Aura + "your Undead"
+    // Shop buffs land on it (designer note: "they now inherit all Undead buffs, and aura buffs").
+    id: 'rune_soul_script',
+    tribes: ['undead', 'celestial'], // TRIBE GATE: the text names both tribes
+    name: 'Rune of Soul Script',
+    cost: 5,
+    text: '**Starforms** count as **Undead** and can be **Consumed** by Undead.',
+    reward: { kind: 'runeSoulScript' },
+    sets: ['set3'],
   },
 ];
 
@@ -2653,6 +2678,51 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get an **Arcane Behemoth**.',
     reward: { kind: 'grant', cards: ['dm_behemoth'] },
+  },
+  // ── Set 3 batch 2 (2026-09-16) — tranche C ──
+  {
+    // Amplify = the Amplified state Rune of Amplification introduces (one stack per Equipment; triggers twice).
+    id: 'rune_grand_workshop',
+    name: 'Rune of the Grand Workshop',
+    cost: 6,
+    epic: true,
+    text: '**Amplify** your Equipment. **Start of Turn:** repeat this.',
+    reward: { kind: 'runeGrandWorkshop' },
+    sets: ['set3'],
+  },
+  {
+    // Rolled per Starform consume opportunity (seeded `rngCursor`); the spell slot first, else the right-most spell
+    // offer in the row — see `redGiantSpellBite` in `sim/starform.ts`.
+    id: 'rune_red_giant',
+    tribes: ['celestial'], // TRIBE GATE: the Starform is the Celestials' token
+    name: 'Rune of the Red Giant',
+    cost: 5,
+    epic: true,
+    text: 'Your **Starform** has a **50%** chance to also **Consume** Shop spells. When it does, get a copy of that spell and give your Starform **+8/+8**.',
+    reward: { kind: 'runeRedGiant' },
+    sets: ['set3'],
+  },
+  {
+    // Printed bodies, drawn at random (without replacement) from this combat's Undead death list; once per fight.
+    id: 'rune_final_gate',
+    tribes: ['undead'], // TRIBE GATE: the text names Undead on the board
+    name: 'Rune of the Final Gate',
+    cost: 6,
+    epic: true,
+    text: 'The first time each combat your board becomes empty, summon **three** random **Undead** that died this combat.',
+    reward: { kind: 'combatFlag', flag: 'runeFinalGate' },
+    sets: ['set3'],
+  },
+  {
+    // "Summoned from your hand" = a Spirit hand-summon or Rope Wrangler's Echo in combat (`pendingHandSummon`).
+    id: 'rune_dreamed_graves',
+    tribes: ['undead'], // TRIBE GATE (owner: tribe-gated where the text names a tribe; Rebirth is the Undead package)
+    name: 'Rune of Dreamed Graves',
+    cost: 4,
+    epic: true,
+    text: 'The first minion summoned from your hand each combat gains **Rebirth**.',
+    reward: { kind: 'combatFlag', flag: 'runeDreamedGraves' },
+    sets: ['set3'],
   },
 ];
 

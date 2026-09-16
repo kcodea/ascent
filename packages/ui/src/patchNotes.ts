@@ -56,6 +56,50 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-16',
+    label: 'Rebirth, Amplified Equipment + six Set 3 Runes',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'New keyword: Rebirth. When a minion with Rebirth dies it returns once with everything it had — its full stats, buffs, keywords and effects. (Rise still brings back the printed card at 1 Health.)',
+        details: [
+          'Rebirth resolves before Rise: a minion holding both comes back whole first, and its Rise is still there for the next death.',
+          'Its Echo fires on the Rebirth death, and the death counts for Avenge and death-watchers, just like a Rise.',
+          'A Ward the minion carried at any point this combat comes back with it.',
+          'The returned minion no longer has Rebirth unless something grants it again.',
+        ],
+      },
+      {
+        category: 'Rune Change',
+        text: 'Rune of Rebirth now gives a random friendly minion Rebirth at Start of Combat (it no longer grants the exact-copy Echo).',
+      },
+      {
+        category: 'New Rune',
+        text: 'Amplified Equipment: Rune of Amplification (4) — Equipment you do not activate becomes Amplified; Amplified Equipment triggers twice the next time you activate it (max 1 per Equipment). Rune of the Grand Workshop (Epic, 6) Amplifies all your Equipment now and every Start of Turn.',
+      },
+      {
+        category: 'New Rune',
+        text: 'Rune of Soul Script (5, Undead + Celestial): Starforms count as Undead — Undead Consumes, buffs and Auras reach them.',
+      },
+      {
+        category: 'New Rune',
+        text: 'Rune of the Red Giant (Epic, 5, Celestial): your Starform has a 50% chance to also Consume a Shop spell when it feeds — you get a copy of that spell and the Starform gains +8/+8.',
+      },
+      {
+        category: 'New Rune',
+        text: 'Rune of the Final Gate (Epic, 6, Undead): the first time each combat your board becomes empty, three random Undead that died this combat return.',
+      },
+      {
+        category: 'New Rune',
+        text: 'Rune of Dreamed Graves (Epic, 4, Undead): the first minion summoned from your hand each combat gains Rebirth.',
+      },
+      {
+        category: 'UI / Info',
+        text: 'The Equipment charge number turns blue while that Equipment is Amplified, and its tooltip says so.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-16',
     label: 'Echohorn strikes on time',
     changes: [
       {

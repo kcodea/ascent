@@ -44,6 +44,7 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   { id: 'execute', name: 'Execute', aliases: ['Venomous'], badge: 'V', def: 'Any damage it deals to a minion destroys that minion. Lost after use.' },
   { id: 'flurry', name: 'Flurry', aliases: ['Windfury'], badge: 'W', def: 'When attacking in combat, attacks twice.' },
   { id: 'rise', name: 'Rise', aliases: ['Reborn'], badge: 'R', def: 'Returns with 1 health when destroyed.' },
+  { id: 'rebirth', name: 'Rebirth', aliases: [], badge: 'RB', def: 'Returns once when destroyed with all of its stats, buffs and keywords.' },
   { id: 'cleave', name: 'Cleave', aliases: [], badge: 'C', def: 'Its attack also strikes the minions on both sides of its target.' },
   { id: 'crit', name: 'Critical Strike', aliases: ['Crit', 'Critical'], badge: 'CR', def: 'Its attack has a chance to deal double damage.' },
   { id: 'attachment', name: 'Attachment', aliases: ['Magnetic', 'Magnetize', 'Attach'], badge: 'M', def: 'When played to the left of a mech, it can fuse to it, adding its stats and keywords.' },

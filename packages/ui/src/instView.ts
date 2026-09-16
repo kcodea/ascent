@@ -18,9 +18,6 @@ export interface LiveTextParams {
   runeMammoth?: boolean;
   /** Runes that change a specific card's printed RULE — surfaced as a green note on that card. */
   runeFlags?: RuneTextFlags;
-  /** Rune of Rebirth handed THIS body the exact-copy Echo (combat only — the replay sets it from
-   *  `sc.grantsEcho`). Per-instance: the rune picks one random friendly minion, so only that card prints it. */
-  rebirthOwner?: boolean;
   spellBonus: number; spellBonusH: number; frontToBackBonus: number; frontToBackBonusH?: number; growthBonus?: number; juggler?: boolean;
   spellsThisTurn: number; spellsCast: number; deathrattlesTriggered: number;
   /** Starpath Vendor's banked next-SHOP-spell bonus. `spellBonus` already folds it (it rides `spellAttackBonus`);
@@ -213,20 +210,11 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
   // phrase, ON TOP of whatever the scaling chain produced. A no-op for non-summoners. Both variants carry it.
   const impText = withImpStats(cardId, noted, p.impAura);
   const impGolden = notedGolden !== undefined ? withImpStats(cardId, notedGolden, p.impAura) : undefined;
-  // RUNE OF REBIRTH — the "Rebirth" word in BLUE (the `[[…]]` marker; Card renders `.descrune`).
-  //
-  // PER-INSTANCE, not run-wide (owner report 2026-08-22: "it is putting the rebirth text on all my minions I
-  // control, not the single one it triggers on"). The rune gives the exact-copy Echo to ONE random friendly
-  // minion at Start of Combat, so keying the tag off the run flag printed a rule on all seven bodies that
-  // only one of them would ever have. `rebirthOwner` is set by the combat replay for the body the grant
-  // actually landed on (`sc.grantsEcho`).
-  //
-  // Nothing carries it in the SHOP by design: before the fight begins no minion has been chosen yet, so there
-  // is no true card to put it on — the rune's own badge is what says you hold it.
-  const rebirthTag = p.rebirthOwner && !c.spell && !c.ruby && c.id !== 'discoverspell' ? ' [[Rebirth]]' : '';
+  // (The old Rune of Rebirth `[[Rebirth]]` text tag is gone — 2026-09-16 the rune grants the REBIRTH KEYWORD,
+  // so the granted body wears the `RB` pill like any other keyword grant, per instance by construction.)
   return {
-    text: impText + metric + rebirthTag,
-    goldenText: impGolden !== undefined ? impGolden + metric + rebirthTag : undefined,
+    text: impText + metric,
+    goldenText: impGolden !== undefined ? impGolden + metric : undefined,
   };
 }
 

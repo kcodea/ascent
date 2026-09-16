@@ -24,7 +24,8 @@ export type Keyword =
   | 'RL' // Rally — triggers an effect each time this attacks
   | 'SL' // Slaughter — triggers an effect each time this kills an enemy minion
   | 'CR' // Critical Strike — a chance (see CardDef.critChance) to deal double damage on attack
-  | 'EG'; // Engraved — stat gains during combat carry back to the run board (permanent)
+  | 'EG' // Engraved — stat gains during combat carry back to the run board (permanent)
+  | 'RB'; // Rebirth (owner 2026-09-16) — when this dies it returns ONCE with its FULL current body: stats, granted buffs, keywords, effects (Rise, by contrast, returns the PRINTED body at 1 Health). Spent on the return; not re-armed unless something re-grants it.
 // NB: Transcendant grants Engraved as a LIVE ADJACENCY AURA rather than the keyword — see `engravedByAura`.
 
 /**
@@ -1377,6 +1378,11 @@ export type QuestReward =
   | { kind: 'runeFullMeasure' } // Baby Gastrid also grants Attack, 1:1 with the Health
   | { kind: 'runeMountainTrade' } // a Mountainbond Ruby play also hands over an Ale
   | { kind: 'runeOpenAppetite' } // Appetite Agent's aim loses its Demon restriction
+  // ── Set 3 batch 2 (2026-09-16), tranche C ──
+  | { kind: 'runeAmplification' } // Equipment you do not activate becomes Amplified (triggers twice next activation; max 1 per Equipment)
+  | { kind: 'runeGrandWorkshop' } // Amplify all your Equipment now, and again every Start of Turn
+  | { kind: 'runeRedGiant' } // the Starform has a 50% chance to also Consume a Shop spell (a copy to hand, +8/+8)
+  | { kind: 'runeSoulScript' } // the Starform counts as Undead (Undead consumes, buffs and auras reach it)
   | { kind: 'runeBroodmaster' } // a Broodwright's Imp buff also lands on itself
   | { kind: 'runeSecondLife' } // your Scavvers carry Taunt + Rise
   | { kind: 'runeSharedReflection' } // Mirrorwing's first spell each turn also casts on adjacent Dragons
@@ -1587,7 +1593,11 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // graveRefreshment = every 2 friendly Echoes triggered banks a free Shop refresh;
   // shiftingFacets = Avenge (3) improves your Rubies on ONE axis, alternating every turn;
   // deepeningVein = Avenge (3) improves your Rubies +1/+1 AND plays a Ruby on every friendly Kobold;
-  | 'runeReturningPack' | 'runeGraveRefreshment' | 'runeShiftingFacets' | 'runeDeepeningVein';
+  | 'runeReturningPack' | 'runeGraveRefreshment' | 'runeShiftingFacets' | 'runeDeepeningVein'
+  // ── Set 3 batch 2 (2026-09-16), tranche C ──
+  // finalGate = the first time each combat your board becomes empty, summon three random Undead that died this
+  // combat; dreamedGraves = the first minion summoned from your hand each combat gains Rebirth.
+  | 'runeFinalGate' | 'runeDreamedGraves';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -1759,6 +1769,13 @@ export interface QuestCombatMods {
   runeShiftingFacets?: 'attack' | 'health';
   /** Rune of the Deepening Vein: Avenge (3) improves Rubies +1/+1 and plays a Ruby on every friendly Kobold. */
   runeDeepeningVein?: boolean;
+  // ── Set 3 batch 2 (2026-09-16), tranche C ──
+  /** Rune of the Final Gate: the first time each combat this side's board becomes EMPTY, summon three random
+   *  Undead (printed bodies) that died this combat. Once per fight. */
+  runeFinalGate?: boolean;
+  /** Rune of Dreamed Graves: the first minion summoned FROM THE HAND each combat (a Spirit hand-summon, Rope
+   *  Wrangler's Echo) gains Rebirth. Once per fight. */
+  runeDreamedGraves?: boolean;
   /** Rune of the War Drum's UNSPENT shop charge (owner ruling 2026-08-26: "1/1 use, resets at start of turn —
    *  if it is not used in shop, the first shout triggered in combat should work"). Present ONLY when the
    *  per-turn charge went unspent; the FIRST Shout triggered in combat on this side fires this many extra
@@ -1816,7 +1833,7 @@ export interface QuestCombatMods {
   runeTwilight?: boolean;
   /** Rune of the Warden: at Start of Combat, if your board has room, summon a Spear Warden. */
   runeWarden?: boolean;
-  /** Rune of Rebirth: your minions Rise (Reborn) with FULL Health instead of 1. */
+  /** Rune of Rebirth (owner 2026-09-16): Start of Combat — a random friendly minion gains REBIRTH (`RB`). */
   runeRebirth?: boolean;
   /** Rune of Aftershocks: minions summoned by your Echoes (Deathrattles) gain +4/+4. */
   runeAftershocks?: boolean;
@@ -2344,7 +2361,7 @@ export interface MinionSnapshot {
  *  metadata — it never affects outcomes — letting the UI's moment compiler know true simultaneity instead
  *  of inferring it. Optional so synthetic fixtures (tests) can omit it; real sim output always carries it. */
 export type CombatEvent = (
-  | { type: 'sc'; source: string; text: string; cast?: true; side?: Side; grantsEcho?: true; spellId?: string } // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only. `side` is stamped on side-scoped gain telegraphs (Ruby Power — BOTH sides can gain it) so the Buffs drawer counts only the player's; player-only channels (Spell Power) never emit for an enemy and need no tag. `grantsEcho` marks the ONE minion a Start-of-Combat grant handed an exact-copy Echo (Rune of Rebirth), so the UI can print the rule on THAT body instead of on every minion you control. `spellId` is the CARD ID of the spell this cast resolved, stamped by every "X casts Y" emit: without it a cast is identified only by the BODY that cast it, so an authored spell effect had to be bound to each caster and a new caster arrived silently unanimated (owner ask 2026-09-01: Dragonflame's animation must play "anytime dragonflame is played … anything").
+  | { type: 'sc'; source: string; text: string; cast?: true; side?: Side; spellId?: string } // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only. `side` is stamped on side-scoped gain telegraphs (Ruby Power — BOTH sides can gain it) so the Buffs drawer counts only the player's; player-only channels (Spell Power) never emit for an enemy and need no tag. (`grantsEcho`, the old Rune of Rebirth marker, retired 2026-09-16 — the rune grants the Rebirth KEYWORD now, a plain `keyword` event.) `spellId` is the CARD ID of the spell this cast resolved, stamped by every "X casts Y" emit: without it a cast is identified only by the BODY that cast it, so an authored spell effect had to be bound to each caster and a new caster arrived silently unanimated (owner ask 2026-09-01: Dragonflame's animation must play "anytime dragonflame is played … anything").
   | { type: 'attack'; attacker: string; defender: string; swing: number; crit?: boolean }
   | { type: 'dmg'; target: string; amount: number; remainingHp: number; source?: string } // `source` = the uid that dealt this hit (attacker, poisoner, an AoE's caster). Optional: truly sourceless damage omits it. Lets presentation attribute a sourceless-looking damage MOMENT to its actor — e.g. Fel Spikes' Echo volley fires FROM the dying body (source→target FX), the way an `sc` event carries a Start-of-Combat cast's source.
   | { type: 'proccrit'; source: string; mult: number }
@@ -2352,7 +2369,7 @@ export type CombatEvent = (
   | { type: 'shield'; target: string }
   | { type: 'shieldUp'; target: string }
   | { type: 'poison'; target: string }
-  | { type: 'reborn'; target: string; hp: number; attack: number; keywords: Keyword[]; after?: string } // returns at base stats; `after` = the uid the Rise re-slots to the RIGHT of (a Rise whose Deathrattle summoned tokens into its old slot)
+  | { type: 'reborn'; target: string; hp: number; attack: number; keywords: Keyword[]; after?: string; rebirth?: true } // returns at base stats; `after` = the uid the Rise re-slots to the RIGHT of (a Rise whose Deathrattle summoned tokens into its old slot). `rebirth` = a REBIRTH return (full body, not the printed one) — the UI reuses the Rise beat/FX for it (placeholder until the owner authors one)
   | { type: 'death'; target: string; side: Side; rise?: true } // `side` lets the UI count enemy kills (Cassen) without uid-matching; `rise` marks a Rise's FIRST death — shown (the body vacates its slot) but NOT counted as a kill, since it returns
   | { type: 'reveal'; target: string } // a Stealth minion attacked and lost Stealth
   | { type: 'tribeAura'; side: Side; tribe: Tribe | 'any'; attack?: number; health?: number; aura?: string } // a run-wide aura rose in combat (Ryme / Lantern / Imp King / Fodder Feeder …). UI blooms the board wash (by `tribe`) AND ticks the matching Buffs-panel row live (by `aura` key + amounts), mirroring recruit-phase `auraFxSeq`

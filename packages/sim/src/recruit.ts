@@ -604,6 +604,8 @@ export function buffUndeadAttackEverywhere(state: RunState, amount: number, sour
     if (isTribe(card, 'undead')) addBuff(card, source, amount, 0);
   }
   state.undeadBuyAtk = (state.undeadBuyAtk ?? 0) + amount;
+  // Rune of Soul Script: the Starform counts as Undead, so the Aura reaches the token too (a gain — rule 8).
+  if (state.runeSoulScript && hasStarform(state)) buffStarform(state, amount, 0, source);
 }
 
 /** Run-wide HEALTH aura baked at creation — Magnetic minions (Scrap Herald) + Beasts (Pack Mentality quest).
@@ -1123,7 +1125,8 @@ export function auraFxTargets(state: RunState, tribe: AuraFxTribe): string[] {
     const def = CARD_INDEX[o.cardId];
     if (!def) continue;
     const hit = tribe === 'mech' ? def.keywords.includes('M')
-      : def.tribe === tribe || def.tribe2 === tribe || !!def.universalTribe;
+      : def.tribe === tribe || def.tribe2 === tribe || !!def.universalTribe
+        || (tribe === 'undead' && !!o.starform && !!state.runeSoulScript); // Rune of Soul Script: the token is Undead
     if (hit) uids.push(o.uid);
   }
   return uids;
@@ -2360,14 +2363,18 @@ export function destroyMinionInShop(
   const idx = state.board.indexOf(target);
   if (idx < 0) return;
   const def = CARD_INDEX[target.cardId];
-  const willRise = opts?.rise !== false && target.keywords.includes('R');
+  // REBIRTH (owner 2026-09-16) resolves BEFORE Rise, exactly as combat's `killOrReborn` orders them: a body holding
+  // both comes back whole (its Rise still armed for the next death). A shop Rebirth returns the SAME body —
+  // buffs, keywords (Rebirth spent), per-instance state — see `rebirthReturn`.
+  const willRebirth = opts?.rise !== false && target.keywords.includes('RB');
+  const willRise = !willRebirth && opts?.rise !== false && target.keywords.includes('R');
   // Tell the beat collector's departure diff this body is coming back, so the death plays without the slot
   // reading as freed for good.
   // Set FRESH per destroy, never cleared in a `finally`: the beat collector's departure diff runs AFTER this
   // whole function returns (it diffs around `run()`), so clearing on the way out would hide the flag from the
   // one reader it exists for. Each destroy resets it, so nothing can go stale.
-  RISING = willRise ? new Set([target.uid]) : null;
-  stampShopFx(state, { kind: 'death', uid: target.uid, cardId: target.cardId, ...(willRise ? { rise: true } : {}) });
+  RISING = willRise || willRebirth ? new Set([target.uid]) : null;
+  stampShopFx(state, { kind: 'death', uid: target.uid, cardId: target.cardId, ...(willRise || willRebirth ? { rise: true } : {}) });
   const wasVacating = state.vacatingUid;
   try {
     // 1. The body STAYS in its slot while its Echo fires, marked VACATING — the same mechanism Funeral on
@@ -2390,7 +2397,8 @@ export function destroyMinionInShop(
     if (gone >= 0) state.board.splice(gone, 1);
     // 5. Rise returns into the space it just left — `summonedFrom - 1` discounts the body itself, which was
     //    still on the board when the baseline was taken.
-    if (willRise) riseReturn(state, target, gone >= 0 ? gone : idx, Math.max(0, summonedFrom - 1));
+    if (willRebirth) rebirthReturn(state, target, gone >= 0 ? gone : idx, Math.max(0, summonedFrom - 1));
+    else if (willRise) riseReturn(state, target, gone >= 0 ? gone : idx, Math.max(0, summonedFrom - 1));
   } finally {
     state.vacatingUid = wasVacating;
     /* RISING is reset by the next destroy — see above */
@@ -2448,6 +2456,24 @@ function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFr
   // combat"): the UI plays combat's reborn re-form on the new body once it has mounted.
   stampShopFx(state, { kind: 'rise', uid: risen.uid, cardId: risen.cardId });
   return risen;
+}
+
+/**
+ * THE REBIRTH RETURN (owner 2026-09-16) — the shop twin of combat's Rebirth branch in `killOrReborn`: the body
+ * comes back as it WAS — every buff, every granted keyword (Rebirth itself spent), every per-instance counter —
+ * with nothing rebuilt from the def. A FRESH uid for the same reason `riseReturn` takes one (the departure diff
+ * needs to see the body leave). The board cap gates it as a Rise: the Echo resolved first, and no room means an
+ * overflow and no return. NOT a Rise — the Rise watchers (`fireOnRise`) stay quiet.
+ */
+function rebirthReturn(state: RunState, target: BoardCard, slot: number, summonedFrom: number): BoardCard | undefined {
+  if (state.board.length >= CONFIG.boardMax) { fireSummonOverflow(state); return undefined; }
+  const reborn: BoardCard = { ...target, uid: `r${state.uidSeq++}`, keywords: target.keywords.filter((k) => k !== 'RB') };
+  const grew = state.board.length - summonedFrom;
+  const at = Math.min(state.board.length, slot + Math.max(0, grew));
+  state.board.splice(at, 0, reborn);
+  // The same re-form beat a Rise plays — a placeholder until the owner authors a Rebirth cue.
+  stampShopFx(state, { kind: 'rise', uid: reborn.uid, cardId: reborn.cardId });
+  return reborn;
 }
 
 /**
@@ -4510,6 +4536,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases.
   battlecryBuffTribe: (ctx, self, params) => {
     ARENA_EFFECTS.battlecryBuffTribe(shopArena(ctx.state, self), params);
+    // RUNE OF SOUL SCRIPT (set 3 batch 2, 2026-09-16): the Starform counts as Undead, so a "your Undead +a/+h"
+    // Shop buff lands on the token too — at the one tribe-buff chokepoint, never per card. Golden doubles as
+    // the arena body does. A gain (rule 8): Twin Star hears it.
+    if (str(params.tribe) === 'undead' && ctx.state.runeSoulScript && hasStarform(ctx.state)) {
+      buffStarform(ctx.state, num(params.attack, 0) * gold(self), num(params.health, 0) * gold(self), nameOf(self));
+    }
   },
 
   /** Alleycur: Battlecry summon `count` copies of a token beside self. */
@@ -10530,7 +10562,8 @@ export function settlePendingDeath(state: RunState): void {
   state.pendingDeath = undefined;
   const card = state.board.find((c) => c.uid === pending.uid);
   if (!card) return; // already gone (a save round-trip, an odd path) — nothing owed
-  const willRise = card.keywords.includes('R');
+  const willRebirth = card.keywords.includes('RB'); // Rebirth before Rise (combat's order)
+  const willRise = !willRebirth && card.keywords.includes('R');
   // Where the body was and how big the board was, captured inside the death beat for the Rise beat that follows.
   let gone = -1;
   let summonedFrom = 0;
@@ -10544,14 +10577,14 @@ export function settlePendingDeath(state: RunState): void {
       policyKey: 'system:destroy:shopDeath',
     },
     () => {
-      RISING = willRise ? new Set([card.uid]) : null;
+      RISING = willRise || willRebirth ? new Set([card.uid]) : null;
       // The body is dying: the authored dissolve plays for it (suppressed when it is rising — it re-forms).
-      stampShopFx(state, { kind: 'death', uid: card.uid, cardId: card.cardId, ...(willRise ? { rise: true } : {}) });
+      stampShopFx(state, { kind: 'death', uid: card.uid, cardId: card.cardId, ...(willRise || willRebirth ? { rise: true } : {}) });
       const wasVacating = state.vacatingUid;
       // A body that will NOT rise vacates its slot for its Echo's summons ("in the place of the minion dying").
       // A RISING body HOLDS its slot (owner ruling 2026-09-09): its Echo resolves first, and on a full board the
       // summon overflows — Squatimus / Flowing Monk pay off on it — while the body itself returns.
-      if (!willRise) state.vacatingUid = card.uid;
+      if (!willRise && !willRebirth) state.vacatingUid = card.uid;
       summonedFrom = state.board.length;
       try {
         if (pending.kind === 'loan') triggerBorrowedEcho(state, card);
@@ -10585,6 +10618,21 @@ export function settlePendingDeath(state: RunState): void {
         const risen = riseReturn(state, card, gone, Math.max(0, summonedFrom - 1));
         if (risen) fireOnRise(state, risen);
       },
+    );
+  }
+  // REBIRTH (owner 2026-09-16): the same its-own-beat shape as the Rise, reusing the Rise beat identity as a
+  // placeholder presentation; NOT a Rise, so the Rise watchers stay quiet.
+  if (willRebirth && gone >= 0) {
+    withRecruitTrigger(
+      makeContext(state),
+      {
+        phase: 'recruit',
+        source: { kind: 'minion', id: card.cardId, uid: card.uid, side: 'player', label: CARD_INDEX[card.cardId]?.name },
+        trigger: 'onRise',
+        policy: 'ownBeat',
+        policyKey: 'system:destroy:shopRise',
+      },
+      () => { rebirthReturn(state, card, gone, Math.max(0, summonedFrom - 1)); },
     );
   }
 }
@@ -11287,15 +11335,15 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
     const front = st.board[0];
     if (front) grantKw(front, 'DS');
   } });
-  // Rune of Rebirth: a random eligible minion PERMANENTLY gains the exact-copy Echo (seeded pick; the
-  // eligibility filter keeps it from stacking a second copy on the same body).
+  // Rune of Rebirth (owner 2026-09-16): a random minion without Rebirth PERMANENTLY gains it (seeded pick) — the
+  // shop twin of the Start-of-Combat `RB` grant, so Combat Prowess / Lasting Cadence replays read the same.
   if (f?.runeRebirth) out.push({ id: 'rune_rebirth', kind: 'rune', label: 'Rune of Rebirth', fire: (st) => {
-    const eligible = st.board.filter((m) => !instanceEffects(m).some((e) => e.do === 'echoSummonCopyNoEcho'));
+    const eligible = st.board.filter((m) => !m.keywords.includes('RB'));
     if (eligible.length === 0) return;
     const rng = makeRng(st.rngCursor);
     const m = eligible[rng.int(eligible.length)]!;
     st.rngCursor = rng.state();
-    (m.grantedEffects ??= []).push({ on: 'onDeath', do: 'echoSummonCopyNoEcho', params: {} });
+    grantKw(m, 'RB');
   } });
   // Rune of Rising Graves: the two leftmost Undead without Rise gain it (permanent, idempotent).
   if (f?.runeRisingGraves) out.push({ id: 'rune_rising_graves', kind: 'rune', label: 'Rune of Rising Graves', fire: (st) => {

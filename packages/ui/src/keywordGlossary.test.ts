@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { Keyword } from '@game/core';
 import { KEYWORD_GLOSSARY } from './keywordGlossary';
 
-const ALL_BADGES: Keyword[] = ['T', 'DS', 'V', 'W', 'R', 'C', 'M', 'SC', 'CN', 'FD', 'IMM', 'ST', 'RL', 'SL', 'CR', 'EG'];
+const ALL_BADGES: Keyword[] = ['T', 'DS', 'V', 'W', 'R', 'C', 'M', 'SC', 'CN', 'FD', 'IMM', 'ST', 'RL', 'SL', 'CR', 'EG', 'RB'];
 
 describe('KEYWORD_GLOSSARY', () => {
   it('has unique ids', () => {

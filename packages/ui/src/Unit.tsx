@@ -137,8 +137,6 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         // Set 3 Spirits: the shared Reveler value + Spirits played this turn, frozen for the fight (Kindled Sprite's
         // Rally, Nurturer, the Revelers, Luminary). Player-side only, like the other run-scoped scalers.
         revelerX: foe ? enemyScalers?.revelerX : run.revelerX, spiritsPlayed: foe ? enemyScalers?.spiritsPlayed : spiritsPlayedThisTurn(run),
-        // Rune of Rebirth: only the body the Start-of-Combat grant actually landed on prints the Echo.
-        rebirthOwner: u.grantedEcho,
       })
     : { text: '', goldenText: undefined };
   const view: CardView = {

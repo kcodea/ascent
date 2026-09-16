@@ -17,14 +17,14 @@ import type { BoardSnapshot } from './snapshot';
 import { EQUIPMENT_INDEX, forkedCardId } from '@game/content';
 import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
-  selectEquipment, selectedEquipment,
+  selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
 } from './equipment';
 import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe, handCardLocked} from './recruit';
 import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
-import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSpellAimsToken, starformStandIn, withStarformPinned } from './starform';
+import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned } from './starform';
 import { syncStarDestroyer } from './equipment';
 import { fireOnBuyWatchers } from './recruit';
 import { MATCHMAKING } from './matchmaking';
@@ -1902,7 +1902,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           // offer is not "friendly", and a plain `friendly` spell (a gild, a destroy, a transform) keeps its board-
           // only aim — rule 5 (never gilded / transformed) stays whole. `starformSpellAimsToken` is the one gate the
           // UI's aim reads too, so the reticle and the reducer cannot disagree.
-          const starformTarget = starformSpellAimsToken(def) ? s.shop.find((o) => o.uid === action.targetUid && o.starform) : undefined;
+          const starformTarget = starformSpellAimsToken(def, s) ? s.shop.find((o) => o.uid === action.targetUid && o.starform) : undefined;
           const offer = def.target === 'any' ? s.shop.find((o) => o.uid === action.targetUid) : starformTarget;
           if (boardTarget) for (let n = 0; n < casts; n++) castSpell(s, def, boardTarget);
           else if (offer) {
@@ -2565,7 +2565,15 @@ function reduceCore(state: RunState, action: Action): RunState {
       eq.lastUsedEquipmentId = def.id; // "last used" means last successfully ACTIVATED, not last viewed
       // Additional triggers stack ADDITIVELY, and the count is SNAPSHOT here rather than re-read per trigger —
       // a repeat must never reproduce the modifier that created it (handoff).
-      const triggers = 1 + (s.equipmentExtraTriggers ?? 0);
+      // AMPLIFIED (owner design 2026-09-16): an Amplified Equipment TRIGGERS TWICE — the whole activation, extra
+      // triggers included — and the stack is consumed by this activation (one stack max, so ×2 at most). Credited
+      // to whichever amplifying rune is held (both, when both are).
+      const amplified = consumeAmplified(s, def.id);
+      if (amplified) {
+        if (s.runeAmplification) procRuneId(s, 'rune_amplification');
+        if (s.runeGrandWorkshop) procRuneId(s, 'rune_grand_workshop');
+      }
+      const triggers = (1 + (s.equipmentExtraTriggers ?? 0)) * (amplified ? 2 : 1);
       // The SOURCE body for attribution, when one survives — a grant outlives its source within a turn, so a
       // stand-in carries the Equipment's own name for buff itemisation when the source has been sold.
       const src = s.board.find((c) => granted.sourceUids.includes(c.uid));
@@ -3865,6 +3873,12 @@ function endRecruitTurn(s: RunState): void {
   }
   // End-of-turn triggers fire first and bake into the board's stats (handoff C.5).
   applyEndOfTurn(s);
+  // RUNE OF AMPLIFICATION (set 3 batch 2, 2026-09-16): every Equipment you did NOT activate this turn becomes
+  // Amplified — read BEFORE the expiry below clears the per-turn activation marks. One proc per Equipment amplified.
+  if (s.runeAmplification) {
+    const amped = amplifyUnactivated(s);
+    if (amped.length > 0) procRuneId(s, 'rune_amplification', amped.length);
+  }
   // Unused Equipment activations and any temporary cost reduction expire with the turn (handoff).
   // The COLLECTION is deliberately left intact — it is cleared by the next Start-of-Turn rebuild,
   // which is also what keeps an activated combat effect's provenance readable through the fight.
@@ -5192,6 +5206,12 @@ function advanceCombat(s: RunState): void {
   for (const cue of rebuildEquipment(s)) {
     stampEquipFx(s, { kind: 'reequip', uid: cue.uid, cardId: cue.cardId, equipmentId: cue.equipmentId });
   }
+  // RUNE OF THE GRAND WORKSHOP (Epic; set 3 batch 2, 2026-09-16): "Start of Turn: repeat this" — Amplify every
+  // Equipment the rebuild just handed back (capped at one stack each, so a stack that carried over is untouched).
+  if (s.runeGrandWorkshop) {
+    const amped = amplifyAllHeld(s);
+    if (amped.length > 0) procRuneId(s, 'rune_grand_workshop', amped.length);
+  }
   // Rune of Copies (Epic): each turn setup, copy a random board minion to hand (the immediate copy fired on
   // buy) — one copy per rune copy held (recurring family, owner 2026-08-27).
   if (s.runeCopies && s.board.length > 0) procRuneId(s, 'rune_copies');
@@ -6427,6 +6447,20 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
     case 'runeFullMeasure': s.runeFullMeasure = true; break;
     case 'runeMountainTrade': s.runeMountainTrade = true; break;
     case 'runeOpenAppetite': s.runeOpenAppetite = true; break;
+    // ── Set 3 batch 2 (2026-09-16), tranche C ──
+    case 'runeAmplification': s.runeAmplification = true; break; // pays at End of Turn (`amplifyUnactivated`)
+    case 'runeGrandWorkshop': {
+      // "Amplify your equipment" NOW, then every Start of Turn (the rebuild site).
+      s.runeGrandWorkshop = true;
+      const amped = amplifyAllHeld(s);
+      if (amped.length > 0) procRuneId(s, 'rune_grand_workshop', amped.length);
+      break;
+    }
+    case 'runeRedGiant': s.runeRedGiant = true; break; // pays per Starform consume (`redGiantSpellBite`)
+    case 'runeSoulScript':
+      s.runeSoulScript = true;
+      starformSoulScriptBake(s); // a token already out inherits the standing Undead Aura at once
+      break;
     case 'runeBroodmaster': s.runeBroodmaster = true; break;
     case 'runeSharedReflection': s.runeSharedReflection = true; break;
     case 'runeUnbrokenVein': s.runeUnbrokenVein = true; break;
@@ -6854,6 +6888,9 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     // printed Health half, odd are Attack, so the fight resolves whatever the shop was advertising.
     runeShiftingFacets: f?.runeShiftingFacets ? ((s.runeShiftingFacetsTick ?? 0) % 2 === 0 ? 'health' : 'attack') : undefined,
     runeDeepeningVein: f?.runeDeepeningVein,   // Avenge (3): Rubies +1/+1 and a Ruby on every friendly Kobold
+    // ── Set 3 batch 2 (2026-09-16), tranche C ──
+    runeFinalGate: f?.runeFinalGate,           // Rune of the Final Gate: first board wipe → 3 random dead Undead return
+    runeDreamedGraves: f?.runeDreamedGraves,   // Rune of Dreamed Graves: the first hand-summon gains Rebirth
     // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): "war drum should have a 1/1 use, and that use resets
     // at start of turn, therefore if it is not used in shop, then the first shout triggered in combat should
     // work." Present only while the per-turn charge is UNSPENT; combat consumes it on the first triggered

@@ -10483,14 +10483,15 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
    and radius are the card's rules. No cursor overrides (the gauntlet paints), no looping animation. */
 .sb-stats { display: inline-flex; align-items: center; gap: 6px; flex: none; }
 .sb-stats .badge { position: relative; inset: auto; width: 40px; height: 40px; z-index: 0; }
-.sb-stats .badge > .plate { border-width: 2px; border-radius: 11px; border-color: #100d08; }
+/* The COMPACT card's plate look (`.card.compact .badge > .plate`): a circle, cream rim, bronze ring — at 40px. */
+.sb-stats .badge > .plate { border-radius: 50%; border: 2px solid #f6e3ad; box-shadow: 0 0 0 1px #9c6f24, 0 2px 4px rgba(0, 0, 0, 0.4); }
 .sb-stats .badge > .value {
   width: 100%; height: 100%; padding: 0; margin: 0; background: transparent; border: 0; outline: 0; text-align: center;
   color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: 19px; line-height: 1; caret-color: #fff;
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45); appearance: textfield; -moz-appearance: textfield;
 }
 .sb-stats .badge > .value::selection { background: rgba(255, 255, 255, 0.35); }
-.sb-stats .badge:focus-within > .plate { box-shadow: 0 0 0 2px var(--sb-brass, #c8a45c), 0 2px 6px rgba(0, 0, 0, 0.3); }
+.sb-stats .badge:focus-within > .plate { box-shadow: 0 0 0 1px #9c6f24, 0 0 0 3px var(--sb-brass, #c8a45c), 0 2px 4px rgba(0, 0, 0, 0.4); }
 /* The count (`‹ ×5 ›`) — a brass pill stepper in the badges' language; the number is typeable. */
 .sb-countstep { display: inline-flex; align-items: center; height: 26px; flex: none; border: 1px solid #443a2c; border-radius: 999px; background: var(--sb-well, #100d08); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6); color: var(--sb-ink2, #c9bda6); transition: border-color 0.12s ease; }
 .sb-countstep:focus-within { border-color: var(--sb-brass, #c8a45c); }

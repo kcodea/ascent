@@ -9,10 +9,13 @@ import { useEffect, useRef, useState } from 'react';
  * number you read IS the field you type into. A `.sb-stat` wrapper (styles.css) un-absolutes the badge and
  * shrinks it to panel scale; nothing about the badge's own rules changes.
  *
- * Editing: click to type; ↑/↓ and the mouse wheel step by 1 (Shift = 5); ↵ / blur commit; Esc reverts. The
+ * Editing: click to type; ↑/↓ and the mouse wheel step by 1 (Shift = 5); ↵ / blur / Esc settle (drop the draft). The
  * draft is a local STRING so clearing the field to retype never fights you (see the note in `UnitEditor`'s
- * old NumField); only a real number is reported up, and the floor (`min`) is applied on commit so 0 health
- * settles to 1 and a stray minus sign settles to the floor rather than NaN.
+ * old NumField); every keystroke that parses to a real number is reported up AT ONCE (clamped to the floor
+ * `min`, so 0 health settles to 1 and a stray minus sign to the floor rather than NaN) — so an edit can never
+ * be lost when the popover holding the field closes before a blur (Chrome fires no blur on removal). An
+ * empty / unparsable draft ('' or '-' mid-typing) commits nothing; blur drops the draft and the badge shows
+ * the value the rules settled on.
  *
  * Used by the Scene Builder's dummies row and by the sandbox `UnitEditor` (owner ask 2026-09-16 — the
  * Windows number spinners looked nothing like the game).
@@ -28,10 +31,15 @@ export function StatBadgeField({ stat, value, min, max, onCommit, title }: {
   const [draft, setDraft] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const clamp = (n: number): number => Math.max(min, max === undefined ? n : Math.min(max, n));
-  const commit = (text: string): void => {
+  const parse = (text: string): number | null => {
     const n = Number(text);
-    if (text.trim() !== '' && Number.isFinite(n)) onCommit(clamp(Math.round(n)));
-    setDraft(null); // invalid / empty → the badge shows the committed value again
+    return text.trim() !== '' && Number.isFinite(n) ? clamp(Math.round(n)) : null;
+  };
+  /** Live: report every valid keystroke; the draft keeps showing what was typed until blur settles it. */
+  const edit = (text: string): void => {
+    setDraft(text);
+    const n = parse(text);
+    if (n !== null) onCommit(n);
   };
   const step = (delta: number): void => {
     const cur = draft !== null && draft.trim() !== '' && Number.isFinite(Number(draft)) ? Number(draft) : value;
@@ -54,7 +62,9 @@ export function StatBadgeField({ stat, value, min, max, onCommit, title }: {
   }, []);
 
   return (
-    <span className={`badge ${stat}`} title={title} data-testid={`sb-badge-${stat}`}>
+    // `data-milestone="0"` = the card's unframed tier: without it the milestone rule
+    // (`.badge:not([data-milestone='0']) > .plate { display: none }`) hides the plate.
+    <span className={`badge ${stat}`} data-milestone={0} title={title} data-testid={`sb-badge-${stat}`}>
       <span className="plate" aria-hidden="true" />
       <input
         ref={inputRef}
@@ -64,8 +74,8 @@ export function StatBadgeField({ stat, value, min, max, onCommit, title }: {
         value={draft ?? String(value)}
         size={Math.max(1, String(draft ?? value).length)}
         onFocus={(e) => e.currentTarget.select()}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={(e) => commit(e.target.value)}
+        onChange={(e) => edit(e.target.value)}
+        onBlur={() => setDraft(null)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
           else if (e.key === 'Escape') { e.preventDefault(); setDraft(null); e.currentTarget.blur(); }
@@ -87,10 +97,10 @@ export function CountStepper({ value, min, max, onCommit, title }: {
   const [draft, setDraft] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const clamp = (n: number): number => Math.max(min, Math.min(max, n));
-  const commit = (text: string): void => {
+  const edit = (text: string): void => {
+    setDraft(text);
     const n = Number(text);
     if (text.trim() !== '' && Number.isFinite(n)) onCommit(clamp(Math.round(n)));
-    setDraft(null);
   };
   const step = (delta: number): void => {
     const cur = draft !== null && draft.trim() !== '' && Number.isFinite(Number(draft)) ? Number(draft) : value;
@@ -120,8 +130,8 @@ export function CountStepper({ value, min, max, onCommit, title }: {
         aria-label="How many"
         value={draft ?? String(value)}
         onFocus={(e) => e.currentTarget.select()}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={(e) => commit(e.target.value)}
+        onChange={(e) => edit(e.target.value)}
+        onBlur={() => setDraft(null)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
           else if (e.key === 'Escape') { e.preventDefault(); setDraft(null); e.currentTarget.blur(); }

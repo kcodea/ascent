@@ -952,6 +952,10 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'voidhero',
+    // ARCHIVED 2026-09-16 (owner: "archive the hero Void from all sets — I don't want the second-hero-power mechanic
+    // active right now"). `wip` = out of Play, Practice and the Mimic / Power-Shifter Discover pools while the def
+    // stays in HEROES so old saves and replays resolve. Restore by deleting the flag.
+    wip: true,
     name: 'Void',
     blurb: 'It reached into the space between heroes and pulled out two.',
     resolve: 30,

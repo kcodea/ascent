@@ -21,8 +21,8 @@ describe('liveCardText — the single source of truth shared by shop + combat', 
   });
 
   it('resolves Shooting Star’s this-shop total from the turn’s spell tally (set 3 Celestials) — one chain for shop AND combat', () => {
-    expect(liveCardText('ce3_shootingstar', { ...base, spellsThisTurn: 2 }).text).toContain('{{+6/+6}}');
-    expect(liveCardText('ce3_shootingstar', { ...base, spellsThisTurn: 3, golden: true }).goldenText).toContain('{{+18/+18}}');
+    expect(liveCardText('ce3_shootingstar', { ...base, spellsThisTurn: 2 }).text).toContain('{{+9/+9}}'); // base + 2 repeats (Rocket Power, owner 2026-09-14)
+    expect(liveCardText('ce3_shootingstar', { ...base, spellsThisTurn: 3, golden: true }).goldenText).toContain('{{+24/+24}}');
     expect(liveCardText('ce3_shootingstar', base).text).toBe(CARD_INDEX['ce3_shootingstar']!.text); // nothing cast → base
   });
 

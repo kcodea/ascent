@@ -84,7 +84,8 @@ export async function uploadRun(run: PerfRun, author: string): Promise<CloudResu
       jank_frames: run.jankFrames,
       fps_med: run.fpsMed,
       buckets: run.buckets,
-      summary: { verdicts: d.verdicts, phases: d.phases, budgetMs: d.budgetMs, attribution: d.attribution },
+      // `startups` rides in the summary JSON (no schema change): the warm-up's diverted phase-start spikes.
+      summary: { verdicts: d.verdicts, phases: d.phases, budgetMs: d.budgetMs, attribution: d.attribution, ...(run.startups ? { startups: run.startups } : {}) },
     }]).select('id').single();
     if (error) return isMissingTable(error.message) ? { kind: 'notReady' } : { kind: 'failed', error: error.message };
     return { kind: 'ok', id: String((data as { id?: string } | null)?.id ?? '') };

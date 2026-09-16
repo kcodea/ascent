@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 // under / above canvases, each against the renderer it was handed. The custom-program warms are mocked out:
 // they need a GL context, and their own contracts live with their modules.
 vi.mock('../shapeTextures', () => ({ prewarmShapeTextures: vi.fn(), SHAPE_NAMES: ['circle'] }));
-vi.mock('../particleLayerPool', () => ({ prewarmParticleLayers: vi.fn(), linkParticleMaterialOn: vi.fn(() => ({ id: 'particle' })), particleLayerPoolSize: () => 0, resetParticleLayerPool: vi.fn() }));
+vi.mock('../particleLayerPool', () => ({ prewarmParticleLayers: vi.fn(), linkParticleMaterialOn: vi.fn(() => ({ id: 'particle' })), particleLayerPoolSize: () => 0, resetParticleLayerPool: vi.fn(), liveParticleCount: () => 0, liveLayerCount: () => 0 }));
 vi.mock('./ribbon', () => ({ prewarmRibbonShaders: vi.fn(), linkRibbonShaderOn: vi.fn(() => ({ id: 'ribbon' })) }));
 vi.mock('./lightning', () => ({ prewarmLightningShaders: vi.fn(), linkLightningShaderOn: vi.fn(() => ({ id: 'lightning' })) }));
 vi.mock('./beam', () => ({ prewarmBeamShaders: vi.fn(), linkBeamShaderOn: vi.fn(() => ({ id: 'beam' })) }));

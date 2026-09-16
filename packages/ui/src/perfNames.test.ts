@@ -60,6 +60,38 @@ describe('perf subjects read as the game, not as the code', () => {
   });
 });
 
+/**
+ * EVERY STATIC LABEL IN THE SOURCE IS REGISTERED (owner ask 2026-09-15: register every new label in
+ * `perfNames.ts`). A `perfMonitor.measure('…')` / `record('…')` / `begin('…')` whose label is neither in
+ * `CODE_NAMES` nor in a known family shows up on the HUD as a raw address — which is exactly the thing the
+ * owner asked the HUD to stop doing. Template-literal labels (`fx:${id}`) are families and are checked by
+ * prefix; this walks the tree for the literal ones.
+ */
+describe('every static perf label in the source is registered', () => {
+  it('names or families every measure/record/begin label', async () => {
+    const { readdirSync, readFileSync, statSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const { isKnownLabel } = await import('./perfNames');
+    const files: string[] = [];
+    const walk = (dir: string): void => {
+      for (const name of readdirSync(dir)) {
+        const p = join(dir, name);
+        if (statSync(p).isDirectory()) { if (name !== 'node_modules') walk(p); continue; }
+        // The monitor and the names module document the API with example labels in comments; neither calls it.
+        if (/\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name) && name !== 'perfMonitor.ts' && name !== 'perfNames.ts') files.push(p);
+      }
+    };
+    walk(__dirname);
+    const re = /perfMonitor\.(?:measure|record|begin)\(\s*'([^']+)'/g;
+    const unknown: string[] = [];
+    for (const f of files) {
+      const src = readFileSync(f, 'utf8');
+      for (const m of src.matchAll(re)) if (!isKnownLabel(m[1]!)) unknown.push(`${m[1]} (${f.slice(__dirname.length + 1)})`);
+    }
+    expect(unknown, 'register these in perfNames.ts CODE_NAMES (or a LABEL_FAMILIES prefix)').toEqual([]);
+  });
+});
+
 describe('diagnose stays pure unless a namer is supplied', () => {
   // The real PerfBucket shape: `timings` / `marks` / `counts` are RECORDS, not arrays.
   const bucket = (i: number) => ({

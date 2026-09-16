@@ -33,6 +33,9 @@ const withStarform = (over: Partial<RunState> = {}): RunState => {
   s.shop = [offer(s, 'ce3_seer')];
   createStarform(s, SRC);
   buffStarform(s, 4, 6, 'test'); // 5/7
+  // The fixture's creation records its own `created` cue (2026-09-14); the scenarios below assert the NEXT
+  // action's channel, so start them clean — `reduce` would have cleared it anyway on the next action.
+  s.starformFx = undefined; s.starformFxSeq = 0;
   return s;
 };
 
@@ -43,7 +46,7 @@ describe('starformFx — the per-action pull channel', () => {
     expect(s.starformFx).toBeUndefined();
   });
 
-  it('(1) the token EATS a Shop minion: consumeShop from the eaten offer to the token — Accretion Warden, and the creation-time meal', () => {
+  it('(1) the token EATS a Shop minion: consumeShop from the eaten offer to the token — The Great Attractor; a CREATION records `created` (its meal is silent)', () => {
     let s = withStarform({ hand: [body('w', 'ce3_accretionwarden')] });
     const meal = s.shop[0]!.uid, token = starformOf(s)!.uid;
     s = play(s, 'w');
@@ -54,12 +57,24 @@ describe('starformFx — the per-action pull channel', () => {
     // the def, rather than playing two pulls.
     expect(s.shopEaten).toMatchObject([{ uid: meal, eaterUid: token }]);
 
-    // The creation-time consume (a full row): the same record, from the victim to the new token.
+    // A CREATION (owner 2026-09-14): the `created` cue on the token — into a full row (the meal is a real consume
+    // on `shopEaten`, flagged `silent` so the UI draws no ghost / pull / held slot and the row never shifts) …
     const c = run();
     c.shop = Array.from({ length: tierSlots(c.tier) }, () => offer(c, 'ce3_seer'));
     const victim = c.shop[c.shop.length - 1]!.uid;
+    const victimIdx = c.shop.length - 1;
     const sf = createStarform(c, SRC);
-    expect(c.starformFx).toEqual([{ kind: 'consumeShop', fromUid: victim, toUids: [sf.uid] }]);
+    expect(c.starformFx).toEqual([{ kind: 'created', fromUid: sf.uid, toUids: [sf.uid] }]);
+    expect(c.shopEaten).toMatchObject([{ uid: victim, eaterUid: sf.uid, silent: true }]);
+    expect(c.shop.indexOf(sf), 'the token took the victim\'s slot in place').toBe(victimIdx);
+    // … and into an OPEN slot alike (no meal, no shopEaten).
+    const o = run();
+    o.shop = [offer(o, 'ce3_seer')];
+    const sf2 = createStarform(o, SRC);
+    expect(o.starformFx).toEqual([{ kind: 'created', fromUid: sf2.uid, toUids: [sf2.uid] }]);
+    expect(o.shopEaten ?? []).toEqual([]);
+    // A non-creation meal (The Great Attractor above) is NOT silent — its ghost and pull still play.
+    expect(s.shopEaten![0]!.silent).toBeUndefined();
 
     // The helper directly, with a target that is not a minion → nothing recorded.
     const n = withStarform();

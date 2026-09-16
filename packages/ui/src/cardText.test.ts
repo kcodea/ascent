@@ -161,10 +161,10 @@ describe('cardText helpers', () => {
     expect(stepProgress('ce3_spellcore', { spellProgress: 4 })).toEqual({ current: 1, total: 3 });
   });
 
-  it('shootingStarText (Shooting Star, set 3 Celestials) greens the CURRENT this-shop total = +3/+3 × spells cast this turn', () => {
-    expect(shootingStarText('ce3_shootingstar', 0, false)).toBeNull(); // nothing cast → the printed per-spell rate is the whole truth
-    expect(shootingStarText('ce3_shootingstar', 2, false)).toContain('{{+6/+6}}');
-    expect(shootingStarText('ce3_shootingstar', 3, true)).toContain('{{+18/+18}}'); // gilded +6/+6 per spell
+  it('shootingStarText (Rocket Power, set 3 Celestials) greens the CURRENT this-shop total = +3/+3 × (1 + spells cast this turn)', () => {
+    expect(shootingStarText('ce3_shootingstar', 0, false)).toBeNull(); // nothing cast → the printed base is the whole truth
+    expect(shootingStarText('ce3_shootingstar', 2, false)).toContain('{{+9/+9}}'); // base + two repeats (owner 2026-09-14)
+    expect(shootingStarText('ce3_shootingstar', 3, true)).toContain('{{+24/+24}}'); // gilded +6/+6 × (1 + 3)
     expect(shootingStarText('ce3_twinstar', 3, false)).toBeNull(); // not the scaler
   });
 

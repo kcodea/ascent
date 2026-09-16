@@ -3,7 +3,10 @@ import { useGame } from './store';
 import { perfMonitor } from './perfMonitor';
 import { displaySubject, phaseName } from './perfNames';
 import type { PerfBucket } from './perfMonitor';
-import { compareRuns, diagnose, type Diagnosis, type Severity, type Spike } from './perfDiagnose';
+import { compareRuns, diagnose, whatIsSlow, type Diagnosis, type Severity, type Spike } from './perfDiagnose';
+import { topOffenders } from './perfLive';
+import { shortName } from './perfNames';
+import type { PerfStartup } from './perfMonitor';
 import { buildReport } from './perfReport';
 import { clearRuns, deleteRun, listRuns, loadRun, toRun, type PerfRunMeta } from './perfStore';
 import { deleteCloudRun, listCloudRuns, loadCloudRun, uploadRun, type CloudRunMeta } from './perfCloud';
@@ -36,8 +39,8 @@ const SEV_ICON: Record<Severity, string> = { critical: '🔴', warn: '🟠', inf
 const fmtTime = (ms: number): string => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`;
 const fmtDate = (t: number): string => new Date(t).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-/** A loaded recording: its metadata, its buckets, and the diagnosis drawn from them. */
-interface Loaded { meta: PerfRunMeta | null; buckets: PerfBucket[]; d: Diagnosis }
+/** A loaded recording: its metadata, its buckets, the diagnosis drawn from them, and its startup spikes. */
+interface Loaded { meta: PerfRunMeta | null; buckets: PerfBucket[]; d: Diagnosis; startups?: readonly PerfStartup[] }
 
 /**
  * The jank timeline. One column per second, height = worst frame in that second, colour = severity against
@@ -166,7 +169,7 @@ export function PerfScreen(): JSX.Element | null {
     // The LIVE recording is offered first when one is in progress: the most common reason to open this is
     // "that felt bad just now", and making you stop and save first would lose the moment.
     const liveBuckets = [...perfMonitor.history()];
-    if (liveBuckets.length > 0) setCur({ meta: null, buckets: liveBuckets, d: diagnose(liveBuckets, displaySubject) });
+    if (liveBuckets.length > 0) setCur({ meta: null, buckets: liveBuckets, d: diagnose(liveBuckets, displaySubject), startups: [...perfMonitor.startups()] });
   }, [open, refresh, refreshCloud]);
 
   useEffect(() => { if (!open) { setPicked(null); setCopied(''); } }, [open]);
@@ -174,7 +177,7 @@ export function PerfScreen(): JSX.Element | null {
   const pick = useCallback(async (id: string, into: 'cur' | 'prev') => {
     const run = await loadRun(id);
     if (!run) return;
-    const loaded: Loaded = { meta: run, buckets: run.buckets, d: diagnose(run.buckets, displaySubject) };
+    const loaded: Loaded = { meta: run, buckets: run.buckets, d: diagnose(run.buckets, displaySubject), startups: run.startups };
     if (into === 'cur') { setCur(loaded); setPicked(null); } else setPrev(loaded);
   }, []);
 
@@ -186,8 +189,8 @@ export function PerfScreen(): JSX.Element | null {
     const run = cur.meta ?? toRun(cur.buckets, {
       id: `${Date.now()}`, startedAt: Date.now() - cur.buckets.length * 1000,
       build: `${__APP_VERSION__}+${__BUILD_SHA__}`, mode: st.run?.mode, heroId: st.run?.heroId,
-    });
-    void uploadRun({ ...run, buckets: cur.buckets }, st.playerName || 'dev').then((r) => {
+    }, cur.startups);
+    void uploadRun({ ...run, buckets: cur.buckets, ...(cur.startups?.length ? { startups: [...cur.startups] } : {}) }, st.playerName || 'dev').then((r) => {
       setBusy(r.kind === 'ok' ? '✓ shared'
         : r.kind === 'notReady' ? 'Supabase table not created yet — see docs/performance.md'
         : `Share failed: ${r.error}`);
@@ -212,6 +215,7 @@ export function PerfScreen(): JSX.Element | null {
       buckets: cur.buckets,
       meta: cur.meta ?? { build: undefined },
       previous: prev?.meta ? { meta: prev.meta, buckets: prev.buckets } : undefined,
+      startups: cur.startups,
     });
     void navigator.clipboard.writeText(text).then(
       () => { setCopied('Copied — paste it to Claude'); },
@@ -222,6 +226,8 @@ export function PerfScreen(): JSX.Element | null {
 
   const live = useMemo(() => (cur ? cur.buckets.filter((b) => !b.hidden) : []), [cur]);
   const regs = useMemo(() => (cur && prev ? compareRuns(prev.d, cur.d) : []), [cur, prev]);
+  const slow = useMemo(() => (cur ? whatIsSlow(cur.buckets, displaySubject) : null), [cur]);
+  const offenders = useMemo(() => (cur ? topOffenders(cur.buckets, 10) : []), [cur]);
 
   if (!open) return null;
 
@@ -285,7 +291,7 @@ export function PerfScreen(): JSX.Element | null {
               ))
             ) : null}
             {tab === 'local' && cur && !cur.meta && (
-              <button className="perfsc-run on" onClick={() => { setCur({ meta: null, buckets: [...perfMonitor.history()], d: diagnose([...perfMonitor.history()], displaySubject) }); }}>
+              <button className="perfsc-run on" onClick={() => { setCur({ meta: null, buckets: [...perfMonitor.history()], d: diagnose([...perfMonitor.history()], displaySubject), startups: [...perfMonitor.startups()] }); }}>
                 <b>Live recording</b>
                 <span>{cur.d.seconds}s · in progress</span>
               </button>
@@ -340,6 +346,43 @@ export function PerfScreen(): JSX.Element | null {
                   </div>
                 </section>
 
+                {/* WHAT IS SLOW (2026-09-15) — the offenders behind the dropped frames, before the rule-based
+                    findings: this is the table that answers the question, the findings are its context. */}
+                {slow && (
+                  <section>
+                    <h4>What is slow</h4>
+                    <div className={`perfsc-verdict sev-${slow.severity}`}>
+                      <div className="perfsc-verdict-t">
+                        <span aria-hidden="true">{SEV_ICON[slow.severity]}</span>
+                        <b>{slow.title}</b>
+                        <span className="perfsc-conf measured">measured</span>
+                      </div>
+                      {slow.detail ? <p>{slow.detail}</p> : null}
+                    </div>
+                    {offenders.length > 0 && (
+                      <table className="perfsc-table">
+                        <thead>
+                          <tr><th>label</th><th>share of dropped frames</th><th>ms / dropped frame</th><th>worst call</th><th>calls</th></tr>
+                        </thead>
+                        <tbody>
+                          {offenders.map((o) => (
+                            <tr key={o.label} title={o.label}>
+                              <td>{shortName(o.label)} <small style={{ color: '#6c5d48' }}>{o.label}</small></td>
+                              <td>
+                                <span className="perfsc-bar" style={{ '--w': `${Math.round(o.share * 100)}%` } as React.CSSProperties} />
+                                {Math.round(o.share * 100)}%
+                              </td>
+                              <td className={o.avgMs > cur.d.budgetMs ? 'bad' : 'ok'}>{o.avgMs.toFixed(1)}</td>
+                              <td>{o.maxMs.toFixed(1)}</td>
+                              <td>{o.n}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </section>
+                )}
+
                 <section>
                   <h4>Findings</h4>
                   {cur.d.verdicts.map((v) => (
@@ -378,6 +421,31 @@ export function PerfScreen(): JSX.Element | null {
                             </td>
                           </tr>
                         ))}
+                      </tbody>
+                    </table>
+                  </section>
+                )}
+
+                {cur.startups && cur.startups.length > 0 && (
+                  <section>
+                    <h4>Phase-start spikes <small>— diverted by the warm-up; not in the numbers above</small></h4>
+                    <table className="perfsc-table">
+                      <thead><tr><th>at</th><th>start</th><th>frames</th><th>worst</th><th>long</th><th>jank</th><th>top measured</th></tr></thead>
+                      <tbody>
+                        {cur.startups.map((s, i) => {
+                          const top = Object.entries(s.timings).sort((a, b) => b[1].max - a[1].max)[0];
+                          return (
+                            <tr key={i}>
+                              <td>{fmtTime(s.t)}</td>
+                              <td>{s.reason}{s.phase ? ` · ${phaseName(s.phase)}${s.wave !== undefined ? ` w${s.wave}` : ''}` : ''}</td>
+                              <td>{s.frames}</td>
+                              <td className={s.worst > cur.d.thresholds.jankMs ? 'bad' : 'ok'}>{s.worst.toFixed(1)}</td>
+                              <td>{s.long}</td>
+                              <td>{s.jank}</td>
+                              <td>{top ? `${top[0]} ${top[1].max.toFixed(1)}ms` : '—'}</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </section>

@@ -3,6 +3,7 @@ import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { CARD_INDEX, REVELER_IDS, poolFor } from '@game/content';
 import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
 import { handCardLocked, revelerValue, spiritsPlayedThisTurn, summonCopyFromHandShop } from './recruit';
+import { equipmentState } from './equipment';
 
 /**
  * SET 3 — SPIRITS, tranche 1 (owner roster + rulings 2026-09-09). The roster order is pinned by
@@ -205,6 +206,24 @@ describe('board-and-hand recipients', () => {
     expect(stats(inHand(s, 'h'))).toEqual([2 + 6, 6 + 6]);
     expect(stats(at(s, 'v')), 'non-Spirit on board').toEqual([1, 1]);
     expect(stats(inHand(s, 'w')), 'non-Spirit in hand').toEqual([1, 1]);
+  });
+
+  it('Spiritbinder records a buff-FX event from the Shaman to the board Spirit it buffed (the generic tendril); an Equipment with its own use-def records none', () => {
+    let s = run({ board: [body('x', 'sp3_kindled')], hand: [body('bw', 'sp3_bondweaver')], embers: 10 });
+    s = play(s, 'bw');
+    s = reduce(s, { type: 'activateEquipment' } as Action);
+    const ev = (s.recruitBuffFx ?? []).filter((e) => e.targetUid === 'x' || e.targetUid === 'bw');
+    expect(ev, 'one event for the one board Spirit that gained (the Shaman or the Kindled — a random draw)').toHaveLength(1);
+    expect(ev[0]).toMatchObject({ sourceUid: 'bw', sourceCardId: 'sp3_bondweaver', sourceTribe: 'spirit', kind: 'minion', attack: 6, health: 6 });
+    // Bloodpot has an authored `useFxId`: its own def is the cue, so the capture is skipped (no double).
+    let b = run({ board: [body('t', 'stray')], hand: [body('c', 'e3_frank')], embers: 10 });
+    b = play(b, 'c');
+    expect(equipmentState(b).available.map((g) => g.equipmentId)).toContain('bloodpot');
+    b = reduce(b, { type: 'selectEquipment', equipmentId: 'bloodpot' } as Action);
+    const before = stats(at(b, 't'));
+    b = reduce(b, { type: 'activateEquipment', targetUid: 't' } as Action);
+    expect(stats(at(b, 't')), 'the Bloodpot did land').not.toEqual(before);
+    expect((b.recruitBuffFx ?? []).filter((e) => e.targetUid === 't')).toHaveLength(0);
   });
 
   it('Spiritbinder ignores a targetUid — it can no longer be aimed at a non-Spirit', () => {

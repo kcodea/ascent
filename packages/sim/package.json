@@ -6,7 +6,8 @@
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./semanticRevision": "./src/semanticRevision.ts"
+    "./semanticRevision": "./src/semanticRevision.ts",
+    "./balance/*": "./src/balance/*.ts"
   },
   "dependencies": {
     "@game/core": "*",

@@ -2366,7 +2366,12 @@ export type CombatEvent = (
   // outcomes. It exists because `applyRubyStats` routes through the same `ctx.buff` as every other stat gain,
   // leaving a Ruby indistinguishable in the log; the UI needs to tell them apart to play the Ruby cue on the
   // minion that received it (`ruby-gem-apply`) without firing on all 40-odd other buff sources.
-  | { type: 'buff'; target: string; attack: number; health: number; source: string; ruby?: true; spellId?: string } // `spellId` = the spell whose cast produced this buff, when one did. Same purpose as the field on `sc`: a buff WAVE is its own presentation moment (the tendril channel lives there), so without this the wave is attributed to the BODY that cast — and an authored spell effect could not replace the stock tendril for the spell that caused it (owner report 2026-09-01: Dragonflame's casters "are triggering tendrils instead").
+  // `bounce` (2026-09-15): this buff is a RE-CAST onto a DIFFERENT body as a consequence of a cast that landed on
+  // `bounce.from` — Trouble's self-Ruby off a Ruby cast elsewhere, Candle Conduit's extra landing, a Resonance
+  // Idol / Reflector spread. Presentation-only provenance like `ruby`: the UI plays the `ruby-bounce` /
+  // `spell-bounce` ribbon from `bounce.from` to `target`. Only stamped for CROSS-target hops (a same-target
+  // recast — Mirrorwing, Resonance's extra Ruby — carries none; owner ruling 2026-09-15). Never read by the sim.
+  | { type: 'buff'; target: string; attack: number; health: number; source: string; ruby?: true; spellId?: string; bounce?: BounceProvenance } // `spellId` = the spell whose cast produced this buff, when one did. Same purpose as the field on `sc`: a buff WAVE is its own presentation moment (the tendril channel lives there), so without this the wave is attributed to the BODY that cast — and an authored spell effect could not replace the stock tendril for the spell that caused it (owner report 2026-09-01: Dragonflame's casters "are triggering tendrils instead").
   | { type: 'improve'; target: string; amount: number; display?: number } // an Improve accrual ticked: `amount` = the accrual-field delta (what the replay folds into `summonBonus`); `display` = the magnitude to NARRATE when it differs (Mammoth: amount 1 proc, display +3)
   | { type: 'shout'; source: string; target: string } // a combat Shout RE-FIRE — one per FIRE, so Drakko's repeats are countable at the signal: `source` = the re-triggering unit (Dawnclaw / Ryme / Thunderous Sovereign / Chorus Drake / Embercrest…), `target` = the Shout's owner. Mirrors `rally` (2026-09-01: three Drakko-repeated fires read as one on screen because they were narration).
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle
@@ -2390,6 +2395,12 @@ export type CombatEvent = (
 // `step`/`avenge`. Pure presentation metadata: never read by resolution, so outcomes cannot depend on it.
 // This is what makes minion combat triggers (Oona's onSummon, every onAttack/onDeath/avenge) ADDRESSABLE as
 // a class instead of identity-less moments the Beat Lab can only display. // `avenge`: this event was emitted by an Avenge handler (payoff for the death count hitting a threshold). Pure presentation metadata (like `step`) — never affects outcomes — so the replay can defer Avenge beats until AFTER the death's summons have deployed.
+
+/** Which family a bounce re-cast belongs to — picks the UI def (`spell-bounce` / `ruby-bounce`). */
+export type BounceKind = 'spell' | 'ruby';
+/** Presentation-only provenance for a buff that is a cross-target re-cast: `from` = the uid the ORIGINAL cast
+ *  landed on (the hop's source), `kind` = spell or Ruby. Optional and additive on the `buff` event. */
+export interface BounceProvenance { from: string; kind: BounceKind }
 
 export type CombatOutcome = 'win' | 'lose' | 'draw';
 
@@ -2563,9 +2574,90 @@ export interface EnemyScalers {
   rubyBonus: { attack: number; health: number };
 }
 
+/**
+ * ONE side's settle-time carry-backs, side-agnostic — the SAME computation `simulate` runs for the player
+ * (spread onto the legacy `player*` fields, field for field: `deathrattles` → `playerDeathrattles`,
+ * `handGrants` → `playerHandGrants`, …) and, mirrored, for the enemy (`CombatResult.enemyCarry`). Added
+ * 2026-09-15 for eight-seat self-play, where BOTH sides of a pair are live runs and the `enemy` seat must
+ * settle with what it earned. The shipped run loop keeps reading the `player*` fields; nothing there moved.
+ *
+ * THE ENEMY HALF IS A PURE ACCUMULATION: it never emits an event, never draws the fight's RNG and never
+ * changes a live read the resolution consults, so every shipped fight is byte-identical. KNOWN, KEPT
+ * ASYMMETRIES read as absent on the enemy side rather than estimated: Pack Mentality's live growth
+ * (`beastScaleProgress` / its aura gains), Blood Trail (its Start-of-Combat mark exists only on the player
+ * board), and the resolution-bearing live reads (enemy Grim reads its frozen tally, enemy spell power / Imp
+ * aura / per-card stacks stay static this fight even though their gains ARE carried back).
+ */
+export interface CombatCarryBacks {
+  /** Deathrattles this side fired this combat (doubler re-fires included) — `playerDeathrattles`. */
+  deathrattles: number;
+  /** Rally triggers this side fired, doubler re-fires included — `playerRallies`. */
+  rallies?: number;
+  /** Imps this side summoned — `playerImpsSummoned`. */
+  impsSummoned?: number;
+  /** This side's minions that DIED (raw entity deaths; a Rise re-slot does not count) — `playerDeaths`. */
+  deaths: number;
+  /** cardIds of this side's minions still alive at combat end — `playerSurvivorCardIds`. */
+  survivorCardIds?: string[];
+  /** The OTHER side's minions this side put down — the mirror of `enemyDeaths` (for the player) . */
+  foeDeaths: number;
+  /** Flash: the first / last foe body this side killed — `playerFirstKill` / `playerLastKill`. */
+  firstKill?: string;
+  lastKill?: string;
+  questTally?: CombatResult['playerQuestTally'];
+  questEvents?: CombatResult['playerQuestEvents'];
+  beastBuyAtkGain?: number;
+  beastBuyHpGain?: number;
+  /** Player-only by construction (Pack Mentality's live growth is player-side) — always absent for the enemy. */
+  beastScaleProgress?: number;
+  summonBonus: NonNullable<CombatResult['playerSummonBonus']>;
+  hpGrantBonus?: CombatResult['playerHpGrantBonus'];
+  spellProgress?: CombatResult['playerSpellProgress'];
+  ascendCount?: CombatResult['playerAscendCount'];
+  permaBuffs?: CombatResult['playerPermaBuffs'];
+  handGrants?: string[];
+  handBuffs?: CombatResult['playerHandBuffs'];
+  rubyGrants?: number;
+  nextTurnSpellCopies?: number;
+  rubyBonusGain?: { attack: number; health: number };
+  rubyMints?: number;
+  handSummoned?: readonly string[];
+  beastExtraGain?: { hunt: number; ritual: number };
+  tavernBuyGain?: { attack: number; health: number };
+  tavernBuyGainSources?: Record<string, { attack: number; health: number }>;
+  wildHuntGrown?: number;
+  spellPower?: { attack: number; health: number };
+  cardBuffs?: { cardId: string; attack: number; health: number }[];
+  fodderGrants?: number;
+  fodderSchedule?: number[];
+  deferredBattlecries?: { cardId: string; golden: boolean }[];
+  maxGoldGain?: number;
+  bonusGold?: number;
+  freeRolls?: number;
+  guaranteedAttachments?: number;
+  spellsCast?: number;
+  spellEscalationGain?: { attack: number; health: number };
+  discoverCasts?: string[];
+  nextShopBuff?: { attack: number; health: number };
+  undeadBuyAtkGain?: number;
+  slaughterCopy?: string;
+  undeadAuraGain?: { attack: number; health: number };
+  impBuffGain?: { attack: number; health: number };
+  hoardGain?: { attack: number; health: number };
+  rightmostSlotBuff?: { attack: number; health: number };
+  beastialSwarmLevel?: number;
+  boardBuffGain?: { attack: number; health: number };
+  magneticBuffGain?: { attack: number; health: number };
+  fodderBuffGain?: { attack: number; health: number };
+}
+
 export interface CombatResult {
   events: CombatEvent[];
   result: CombatOutcome;
+  /** The ENEMY side's carry-backs, mirrored from the same computation that fills the `player*` fields (see
+   *  `CombatCarryBacks`). Optional like every non-core field (hand-built test fixtures). The shipped run loop
+   *  ignores it; the balance bot's seat runner settles the `enemy` seat from it. */
+  enemyCarry?: CombatCarryBacks;
   /** The enemy board's run-level scalers at combat start (from its snapshot) — so the UI can render an ENEMY
    *  Grim / Taragosa / Pack Leader / Runescale / Vaultkeeper / Chef Raag / … card at the OPPONENT's value, not
    *  the current player's. Absent for the procedural threat / when nothing scaled. Mirrors the values threaded
@@ -2881,7 +2973,8 @@ export interface CombatContext {
   poolCards(side: Side): CardDef[];
   /** `ruby`: tag the emitted `buff` event as a Ruby landing (presentation only — see the `buff` event's own
    *  note). Only `applyRubyStats` passes it; every other caller leaves it off and behaves exactly as before. */
-  buff(target: Minion, attack: number, health: number, source: string, ruby?: true): void;
+  /** `bounce`: stamp the buff as a cross-target re-cast off `bounce.from` (see the `buff` event's note). */
+  buff(target: Minion, attack: number, health: number, source: string, ruby?: true, bounce?: BounceProvenance): void;
   /** Register a tribe buff that persists for the rest of combat: a friend of `tribe` on `side`
    *  summoned *after* this also gains +atk/+hp (Grim's Deathrattle). Current friends are buffed by the caller. */
   addTribeAura(side: Side, tribe: Tribe | 'any', attack: number, health: number, source: string): void;

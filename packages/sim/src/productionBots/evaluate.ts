@@ -4,6 +4,7 @@ import type { BotCardView, BotVisibleState } from './types';
 import { fightScore } from './fightScore';
 import { boardStrength } from '../boardModel';
 import { predictWinsAfter } from '../runModel';
+import { activeGrowth, growthTermOf } from './growth';
 
 /**
  * STATE EVALUATION — decomposed, normalized, and explainable.
@@ -32,6 +33,15 @@ export interface EvaluationBreakdown {
   tribeFocus: number;
   /** Non-golden duplicates held across board+hand — each pair is two-thirds of a triple. */
   pairsHeld: number;
+  /**
+   * AN UNOPENED DISCOVER: a golden minion still in hand (its Triple Reward spell arrives when it is played), a
+   * Discover spell in hand (the Triple Reward itself, or any spell that discovers), or a Discover offer the run
+   * is blocked on. Each is a card from the tier above that the fight-grounded terms cannot see at all — a triple
+   * pulls two bodies OFF the board to make one golden, so `fightStrength` reads the combine as a plain loss.
+   * Measured 2026-09-15: without this term the depth-1 pilot bought a filler body over the third copy of a
+   * triple at wave 1.
+   */
+  tripleReady: number;
   /** Learned prediction of wins still to come, from mass self-play vs the real pool (`bot:learn`). */
   futureWins: number;
   boardPower: number;
@@ -40,7 +50,43 @@ export interface EvaluationBreakdown {
   handValue: number;
   survivalUrgency: number;
   wastedGoldPenalty: number;
+  /**
+   * B4 (balance roadmap): a STRATEGY PRIOR — the strategist pilot's line affinity (card / rune / tier timing),
+   * supplied through `withEvaluationPrior` for the duration of one decision. Zero unless a prior is installed,
+   * and weighted ZERO in the shipped config, so the generalist's numbers never move. Engine outcomes (the fight
+   * terms) stay the dominant term by construction: a prior is capped at a few utility points.
+   */
+  prior: number;
+  /**
+   * B6 (balance roadmap): ENGINE GROWTH — what the board will GENERATE next turn, MEASURED by running the engine
+   * forward on a private clone through one scripted turn (`growth.ts`), net of the bodies bought, relative to a
+   * healthy board at this wave and credited by the turns left. Zero unless a `withGrowth` scope is installed
+   * (the strategist installs one per decision at its `growthWeight`); weighted ZERO in the shipped config.
+   */
+  growth: number;
   total: number;
+}
+
+/** A prior over the visible state, in the evaluator's normalized scale (roughly [-1.5, 1.5]). */
+export type EvaluationPrior = (v: BotVisibleState) => number;
+let ACTIVE_PRIOR: EvaluationPrior | null = null;
+let ACTIVE_PRIOR_WEIGHT = 0;
+/**
+ * Run `fn` with `prior` installed at `weight`. Scoped (restored on exit, exceptions included) so a pilot's search
+ * sees its prior everywhere `evaluate()` is called — `pilotSearch`, sampled futures, positioning — and nothing
+ * outside the call does. Synchronous by design: the planning boundary never yields mid-decision.
+ */
+export function withEvaluationPrior<T>(prior: EvaluationPrior, weight: number, fn: () => T): T {
+  const prevPrior = ACTIVE_PRIOR;
+  const prevWeight = ACTIVE_PRIOR_WEIGHT;
+  ACTIVE_PRIOR = prior;
+  ACTIVE_PRIOR_WEIGHT = weight;
+  try {
+    return fn();
+  } finally {
+    ACTIVE_PRIOR = prevPrior;
+    ACTIVE_PRIOR_WEIGHT = prevWeight;
+  }
 }
 
 export interface EvaluationConfig {
@@ -74,6 +120,9 @@ export const EVALUATION_CONFIG_V1: EvaluationConfig = {
     tierDensity: 0,
     tribeFocus: 0,
     pairsHeld: 0,
+    // A golden in hand is a fielded double body plus a tier-up Discover — see the breakdown's note. Weighted
+    // beside `tierProgress`: taking the triple must beat holding two 1/1s on the board through one fight.
+    tripleReady: 10,
     // ZERO, MEASURED. The learned run-state value was fit on 61,020 end-of-turn states from 6,000 self-play
     // runs and reaches only held-out r=0.288 — and at weight 18 it cost the bot 4.63 -> 3.40 wins against real
     // player boards. A weak predictor used as a search target is worse than no predictor, because search
@@ -87,6 +136,12 @@ export const EVALUATION_CONFIG_V1: EvaluationConfig = {
     handValue: 5,
     survivalUrgency: 16,
     wastedGoldPenalty: -10,
+    // ZERO: the shipped evaluator carries no strategy prior. The strategist installs one per decision through
+    // `withEvaluationPrior`, whose own weight applies while it is installed.
+    prior: 0,
+    // ZERO: the shipped evaluator runs no growth probe. The strategist installs one per decision through
+    // `withGrowth`, whose own weight applies while it is installed.
+    growth: 0,
   },
   dangerHealthFraction: 0.35,
   // Two archetypes mid-search. Five is more accurate but triples the cost of every node, and the node budget
@@ -205,11 +260,26 @@ export function evaluate(v: BotVisibleState, cfg: EvaluationConfig = ACTIVE_CONF
 
   // Pairs: duplicate non-golden cardIds across board AND hand. Held pairs are how triples happen, and triples
   // are how high-tier cards arrive early — humans averaged 0.9 goldens at wave 10 against our 0.4.
+  // Minions only — a spell or a Ruby never triples (B6, 2026-09-15).
   const copies = new Map<string, number>();
-  for (const c of [...v.board, ...v.hand]) if (!c.golden) copies.set(c.cardId, (copies.get(c.cardId) ?? 0) + 1);
+  for (const c of [...v.board, ...v.hand]) {
+    const def = CARD_INDEX[c.cardId];
+    if (c.golden || !def || def.spell || def.ruby) continue;
+    copies.set(c.cardId, (copies.get(c.cardId) ?? 0) + 1);
+  }
   let pairCount = 0;
   for (const n of copies.values()) pairCount += Math.floor(n / 2);
   const pairsHeld = norm(pairCount, 2);
+  // A golden in hand, or a Discover the run is blocked on (the golden's reward, mid-resolution in a sampled
+  // future): both are an unopened tier-up card the fight terms cannot see.
+  const unopened = v.hand.filter((c) => {
+    const def = CARD_INDEX[c.cardId];
+    if (!def) return false;
+    if (c.golden && !def.spell) return true; // a golden minion: its Triple Reward arrives when it is played
+    if (def.discoverOnPlay) return true; // the Triple Reward token itself (a Discover on play)
+    return !!def.spell && def.effects.some((e) => /discover/i.test(e.do)); // any Discover spell
+  }).length;
+  const tripleReady = norm(unopened + (v.mandatoryDecision?.kind === 'discover' ? 1 : 0), 1);
 
   // LEARNED FUTURE VALUE — predicted wins still to come, squashed to [0, 1.5] (winsAfter tops out ~12). Null
   // (no model band / stub data / schema drift) reads 0, so the term is inert until `bot:learn` has run.
@@ -222,20 +292,32 @@ export function evaluate(v: BotVisibleState, cfg: EvaluationConfig = ACTIVE_CONF
   });
   const futureWins = predicted === null ? 0 : Math.max(0, Math.min(1.5, predicted / 8));
 
-  const parts = { fightStrength, learnedStrength, tierDensity, tribeFocus, pairsHeld, futureWins, boardPower, economy, tierProgress, handValue, survivalUrgency, wastedGoldPenalty };
+  // THE STRATEGY PRIOR (B4). Only non-zero inside `withEvaluationPrior`; its weight is the installer's.
+  const prior = ACTIVE_PRIOR ? ACTIVE_PRIOR(v) : 0;
+  const priorWeight = ACTIVE_PRIOR ? ACTIVE_PRIOR_WEIGHT : w.prior;
+
+  // ENGINE GROWTH (B6). Only non-zero inside `withGrowth`; its weight is the installer's.
+  const growthScope = activeGrowth();
+  const growth = growthScope ? growthTermOf(v, growthScope.panelSeed, fight.carryBack) : 0;
+  const growthWeight = growthScope ? growthScope.weight : w.growth;
+
+  const parts = { fightStrength, learnedStrength, tierDensity, tribeFocus, pairsHeld, tripleReady, futureWins, boardPower, economy, tierProgress, handValue, survivalUrgency, wastedGoldPenalty, prior, growth };
   const total =
     parts.fightStrength * w.fightStrength +
     parts.learnedStrength * w.learnedStrength +
     parts.tierDensity * w.tierDensity +
     parts.tribeFocus * w.tribeFocus +
     parts.pairsHeld * w.pairsHeld +
+    parts.tripleReady * w.tripleReady +
     parts.futureWins * w.futureWins +
     parts.boardPower * w.boardPower +
     parts.economy * w.economy +
     parts.tierProgress * w.tierProgress +
     parts.handValue * w.handValue +
     parts.survivalUrgency * w.survivalUrgency +
-    parts.wastedGoldPenalty * w.wastedGoldPenalty;
+    parts.wastedGoldPenalty * w.wastedGoldPenalty +
+    parts.prior * priorWeight +
+    parts.growth * growthWeight;
 
   return { ...parts, total };
 }

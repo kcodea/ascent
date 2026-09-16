@@ -48,3 +48,6 @@ balance-export/
 packages/ui/src/art/**/*.png
 # the 5173 "working branch" pointer (scripts/dev-active.mjs) — per machine, never shared
 .claude/active-worktree
+
+# Balance bot job output (`npm run balance:synth` / `balance:run`) — regenerable records, never committed.
+packages/tools/src/balance/out/

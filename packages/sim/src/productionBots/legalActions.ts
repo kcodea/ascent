@@ -14,6 +14,15 @@ import type { BotVisibleState } from './types';
  * index is thousands of candidates per node, nearly all of them equivalent; a search that expands them all
  * spends its whole budget on permutations of the same idea. So positions and targets are curated down to the
  * ones that can differ in outcome.
+ *
+ * B2 (balance roadmap, 2026-09-15) — every mechanic in scope has a generator here: buy (Starform included, at
+ * its live price), sell, play (minions at curated seats, spells at every friendly target and — for `any` — at
+ * every non-spell offer), freeze / roll, upgrade, every wielded hero power with its target shape (board, shop,
+ * commission, flash pick, Void's second slot), Equipment select + activate (with targets), and the whole
+ * mandatory family (Discover, Choose One, aim, quest, power offer, Runeforge, scout). A targeted MINION Shout
+ * is a two-step in this engine — `play` opens the aim, `battlecryTarget` answers it — so the play carries no
+ * `targetUid` (the reducer ignores one on a minion) and the target is generated as the mandatory follow-up;
+ * search resolves that continuation before scoring the play (see `pilotSearch.ts`).
  */
 
 /** A candidate, with the tags search and tracing need. */
@@ -42,7 +51,7 @@ export function mandatoryCandidates(v: BotVisibleState): Candidate[] {
     case 'discover':
       return m.options.map((cardId, index) => ({ action: { type: 'discover', index }, tag: `discover ${cardId}` }));
     case 'chooseOne':
-      return m.options.map((_, index) => ({ action: { type: 'chooseOne', index }, tag: `chooseOne #${index}` }));
+      return m.options.map((_, index) => ({ action: { type: 'chooseOne', index }, tag: `chooseOne #${index}${m.equipmentId ? ` (${m.equipmentId})` : ''}` }));
     case 'battlecryTarget':
       return m.legalTargets.map((targetUid) => ({ action: { type: 'battlecryTarget', targetUid }, tag: `target ${targetUid}` }));
     case 'quest':
@@ -60,6 +69,62 @@ export function mandatoryCandidates(v: BotVisibleState): Candidate[] {
   }
 }
 
+const COMMISSIONS = ['discover', 'gold', 'spell', 'citadel', 'fortress'] as const;
+
+/** Every activation of every wielded power that is ready, shaped by its targeting. */
+export function heroPowerCandidates(v: BotVisibleState): Candidate[] {
+  const out: Candidate[] = [];
+  for (const p of v.hero.powers) {
+    if (!p.ready) continue;
+    const slot = p.slot === 1 ? { slot: 1 as const } : {};
+    const label = `power ${p.kind}${p.slot === 1 ? '#2' : ''}`;
+    switch (p.targeting) {
+      case 'passive':
+        break;
+      case 'untargeted':
+        out.push({ action: { type: 'heroPower', ...slot }, tag: label });
+        break;
+      case 'commission':
+        for (const commission of COMMISSIONS) out.push({ action: { type: 'heroPower', commission, ...slot }, tag: `${label} ${commission}` });
+        break;
+      case 'flashPick':
+        for (const flashPick of ['first', 'last'] as const) out.push({ action: { type: 'heroPower', flashPick, ...slot }, tag: `${label} ${flashPick}` });
+        break;
+      case 'friendlyOrShop':
+        for (const o of v.shop) out.push({ action: { type: 'heroPower', uid: o.uid, ...slot }, tag: `${label} @shop ${o.cardId}` });
+        for (const c of v.board) out.push({ action: { type: 'heroPower', uid: c.uid, ...slot }, tag: `${label} @${c.cardId}` });
+        break;
+      case 'friendly':
+        for (const c of v.board) out.push({ action: { type: 'heroPower', uid: c.uid, ...slot }, tag: `${label} @${c.cardId}` });
+        break;
+    }
+  }
+  return out;
+}
+
+/**
+ * Equipment: activate the SELECTED one (with every friendly target when it aims), and SELECT any other held
+ * Equipment that could then be activated — a swap is free, so it is only worth a node as a step toward a use.
+ */
+export function equipmentCandidates(v: BotVisibleState): Candidate[] {
+  const out: Candidate[] = [];
+  const usable = v.equipment.filter((e) => e.charges > 0 && e.cost <= v.economy.gold);
+  const selected = usable.find((e) => e.selected);
+  if (selected) {
+    if (selected.targetMode === 'friendly') {
+      for (const c of v.board) out.push({ action: { type: 'activateEquipment', targetUid: c.uid }, tag: `use ${selected.equipmentId} on ${c.cardId}` });
+    } else {
+      out.push({ action: { type: 'activateEquipment' }, tag: `use ${selected.equipmentId}` });
+    }
+  }
+  for (const e of usable) {
+    if (e.selected) continue;
+    if (e.targetMode === 'friendly' && v.board.length === 0) continue;
+    out.push({ action: { type: 'selectEquipment', equipmentId: e.equipmentId }, tag: `select ${e.equipmentId}` });
+  }
+  return out;
+}
+
 /**
  * Ordinary shop-phase candidates.
  *
@@ -73,7 +138,8 @@ export function recruitCandidates(v: BotVisibleState): Candidate[] {
   const boardFull = v.board.length >= 7;
   const handFull = v.hand.length >= 10;
 
-  // BUY — every affordable offer there is room for.
+  // BUY — every affordable offer there is room for (the Starform token is an ordinary offer here, at its live
+  // ticking price).
   for (const o of v.shop) {
     if (o.cost > v.economy.gold) continue;
     if (handFull) continue;
@@ -93,12 +159,27 @@ export function recruitCandidates(v: BotVisibleState): Candidate[] {
   // economy and the board-wide buffs that are how human boards compound (94 -> 387 -> 9,680 power).
   for (const c of v.hand) {
     const def = CARD_INDEX[c.cardId];
-    if (def?.spell) {
-      if (def.target === 'friendly' || def.target === 'any') {
+    // A RUBY (set 2) is `ruby: true`, not `spell: true` — a spell-like token cast on a minion or an offer. It used
+    // to fall through to the MINION branch here (a seat index, gated on a full board), which the reducer refuses
+    // (a Ruby needs a target), so the pilot could never cast one: the recorded pinned lobbies show hands of six
+    // Rubies held to elimination (B6, 2026-09-15). It is generated like the `any`-target spell it plays as.
+    if (def?.spell || def?.ruby) {
+      if (def.chooseOne?.length) {
+        // A Choose One spell opens its prompt first (choose → target → resolve); the pick and the aim are
+        // generated as mandatory follow-ups, so the play itself carries no target.
+        out.push({ action: { type: 'play', uid: c.uid }, tag: `cast ${c.cardId} (choose)` });
+      } else if (def.target === 'friendly' || def.target === 'any') {
         // One candidate per friendly target. The board caps at 7, spells in hand are rare, and which minion
         // a buff lands on is exactly the decision search exists to make — don't pre-curate it.
         for (const t of v.board) {
           out.push({ action: { type: 'play', uid: c.uid, targetUid: t.uid }, tag: `cast ${c.cardId} on ${t.cardId}` });
+        }
+        // An `any` spell (a Ruby, Apples) can also land on a tavern offer — buffing it before the buy.
+        if (def.target === 'any') {
+          for (const o of v.shop) {
+            if (o.spell) continue;
+            out.push({ action: { type: 'play', uid: c.uid, targetUid: o.uid }, tag: `cast ${c.cardId} on offer ${o.cardId}` });
+          }
         }
       } else {
         out.push({ action: { type: 'play', uid: c.uid }, tag: `cast ${c.cardId}` });
@@ -127,7 +208,8 @@ export function recruitCandidates(v: BotVisibleState): Candidate[] {
   if (!v.frozen && v.shop.length > 0) out.push({ action: { type: 'freeze' }, tag: 'freeze shop' });
   else if (v.frozen) out.push({ action: { type: 'freeze' }, tag: 'unfreeze shop' });
 
-  if (v.hero.powerReady) out.push({ action: { type: 'heroPower' }, tag: 'hero power' });
+  out.push(...heroPowerCandidates(v));
+  out.push(...equipmentCandidates(v));
 
   return out;
 }

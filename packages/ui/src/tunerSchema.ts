@@ -72,7 +72,6 @@ export const PANEL_EMBLEMS: Record<string, string> = {
   executefx: '🩸',
   bufffx: '⬆️',
   gustfx: '💨',
-  spellbufffx: '🔮',
   spellpowerfx: '✨',
   rubypowerfx: '♦️',
   herobufffx: '🎆',

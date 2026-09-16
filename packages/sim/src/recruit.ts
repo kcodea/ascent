@@ -7,8 +7,8 @@ import { alignmentOf } from './alignment';
 import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
-import { getHero, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool } from './heroes';
-import { handCap, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
+import { getHero, type HeroPower, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool } from './heroes';
+import { handCap, recordBounceFx, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 export { ALE_IDS };
 import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
 import { runeStacksOf } from './runeDup';
@@ -128,7 +128,9 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     },
     targetTribe: () => CARD_INDEX[self.cardId]?.targetTribe,
     isTribe: (t, tribe) => isTribe(t as BoardCard, tribe as Tribe),
-    gainRubyStats: (t, a, h) => addBuff(t as BoardCard, 'Ruby', a, h), // NO fireOnRubyPlayed - the no-rebounce guard
+    // The bounce primitive (Resonance Idol): `self` is the body the original Ruby landed on, `t` the hop's
+    // destination — recorded for the UI's `ruby-bounce` ribbon (self → t). NO fireOnRubyPlayed - the no-rebounce guard.
+    gainRubyStats: (t, a, h) => { addBuff(t as BoardCard, 'Ruby', a, h); recordBounceFx(state, 'ruby', self.uid, t.uid); },
     neighboursOf: (t) => {
       const idx = state.board.findIndex((c) => c.uid === t.uid);
       if (idx < 0) return [];
@@ -668,6 +670,24 @@ export function heroOfferPrice(state: RunState, offer: { cardId: string }): numb
 export function roundedSpellbookCostOf(state: RunState): number {
   const base = state.hunchResetWave ?? 1; // runs open on wave 1
   return Math.max(0, 3 - Math.max(0, state.wave - base));
+}
+
+/**
+ * THE price a hero power costs right now — the ONE helper the reducer charges and the StatusBar coin prints
+ * (CLAUDE.md's live-text rule applies to hero-power coins too: the number shown is the number paid). The four
+ * moving prices route to their own helpers; everything else is the printed `cost` (0 when free).
+ *
+ * `uses` is the FIRING SLOT's whole-game use count (`heroPowerUses` / `heroPowerUses2`) — Jenkins's Dynamite
+ * Dig escalates on it, so a Void wielding Dig in slot 1 prices off slot 1's count, never slot 0's.
+ */
+export function heroPowerCostOf(power: HeroPower, state: RunState, uses: number): number {
+  switch (power.kind) {
+    case 'dynamiteDig': return uses; // Jenkins — the first dig is free, then 1, 2, …
+    case 'dragonTamer': return dragonTamerCostOf(state); // Tiff
+    case 'roundedSpellbook': return roundedSpellbookCostOf(state); // Hunch
+    case 'buyout': return buyoutCostOf(state); // Harlan
+    default: return power.cost ?? 0;
+  }
 }
 
 /**
@@ -5727,7 +5747,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (let n = num(params.count, 2) * gold(self); n > 0 && others.length > 0; n--) picks.push(others.splice(rng.int(others.length), 1)[0]!);
     ctx.state.rngCursor = rng.state();
     const reps = spellCasts(ctx.state, spellDef);
-    for (const pick of picks) for (let r = 0; r < reps; r++) castSpell(ctx.state, spellDef, pick);
+    // One bounce hop per cast (self → pick), recorded BEFORE the cast so the hop reads as causing what lands.
+    for (const pick of picks) for (let r = 0; r < reps; r++) { recordBounceFx(ctx.state, 'spell', self.uid, pick.uid); castSpell(ctx.state, spellDef, pick); }
   },
 
   /** Set 3 Celestials — Comet (Orrery Artificer's Equipment): bank `extra` additional casts for the next Shop
@@ -5798,9 +5819,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  Worgen read; a multiplied cast counts each time, as for every spells-this-turn scaler). Zero spells → nothing.
    *  The live text (`shootingStarText`) prints the same product. Golden doubles the per-spell rate. */
   battlecryBuffThisShopPerSpellsThisTurn: (ctx, self, params) => {
+    // Rocket Power (owner 2026-09-14): the base +a/+h lands ONCE regardless, then REPEATS per Shop spell cast this
+    // turn — (1 + n) × the rate. Zero spells → the base alone (it used to do nothing).
     const n = ctx.state.spellsThisTurn;
-    if (n <= 0) return;
-    const a = num(params.attack, 3) * gold(self) * n, h = num(params.health, 3) * gold(self) * n;
+    const a = num(params.attack, 3) * gold(self) * (1 + n), h = num(params.health, 3) * gold(self) * (1 + n);
     buffThisShopOffers(ctx.state, nameOf(self), a, h);
   },
 
@@ -6542,6 +6564,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const pick = others[rng.int(others.length)]!;
     ctx.state.rngCursor = rng.state();
     for (let r = 0; r < num(params.count, 1) * gold(self) * spellCasts(ctx.state, spellDef); r++) {
+      recordBounceFx(ctx.state, 'spell', self.uid, pick.uid); // the hop: Reflector → its random friend
       castSpell(ctx.state, spellDef, pick);
     }
   },
@@ -6566,6 +6589,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     );
     for (const n of neighbours) {
       for (let r = 0; r < num(params.count, 1) * gold(self) * spellCasts(ctx.state, spellDef); r++) {
+        recordBounceFx(ctx.state, 'spell', self.uid, n.uid); // the hop: Runefire → its neighbour
         castSpell(ctx.state, spellDef, n);
       }
     }
@@ -6596,6 +6620,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.rngCursor = rng.state();
     for (let r = 0; r < num(params.count, 1) * gold(self); r++) {
       addBuff(pick, 'Ruby', a, h);
+      recordBounceFx(ctx.state, 'ruby', self.uid, pick.uid); // the hop: Reflector → its random friend
       fireOnRubyPlayed(ctx.state, pick, a, h);
     }
   },
@@ -6615,6 +6640,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const n of neighbours) {
       for (let r = 0; r < num(params.count, 1) * gold(self); r++) {
         addBuff(n, 'Ruby', a, h);
+        recordBounceFx(ctx.state, 'ruby', self.uid, n.uid); // the hop: Runefire → its neighbour
         fireOnRubyPlayed(ctx.state, n, a, h);
       }
     }
@@ -7709,7 +7735,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // the chosen target; the secondary random-friendly half fires ONCE per cast (owner 2026-09-12).
     const lands = 1 + (params._spellId === 'starcrash' ? primeExtraPrimaryLands(ctx.state) : 0);
     for (let i = 0; i < lands; i++) addBuff(target, 'Star Crash', a, h);
-    for (const t of pickRandom(ctx.state, [...ctx.state.board], 1)) addBuff(t, 'Star Crash', a, h);
+    // "It also casts on a random friendly minion" — a bounce hop target → friend. `recordBounceFx` drops the
+    // same-body case (the random friend CAN be the target; that is a same-target recast, not a bounce). The
+    // target may be the Starform token (a Shop uid) — the hop then travels from the token's slot to the board.
+    for (const t of pickRandom(ctx.state, [...ctx.state.board], 1)) { addBuff(t, 'Star Crash', a, h); recordBounceFx(ctx.state, 'spell', target.uid, t.uid); }
   },
   /** Grave Robbery (cast, aimed): DESTROY the friendly target — the two-step death Graverobber / Cage Breaker use, so
    *  its Echo, its departure and any Rise get their beats — then get `count` random Shop spells (tier-eligible,
@@ -9453,6 +9482,7 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
     const pick = others[rng.int(others.length)]!;
     state.rngCursor = rng.state();
     addBuff(pick, 'Ruby', rubyAttack, rubyHealth);
+    recordBounceFx(state, 'ruby', card.uid, pick.uid); // the hop: the landed-on body → the extra recipient
     if (b === 0 && state.runeConduit) procRuneId(state, 'rune_conduit');
   }
   const def = CARD_INDEX[card.cardId];
@@ -9518,7 +9548,7 @@ export function fireOnSpellCastOnThis(state: RunState, card: BoardCard, spellDef
       const nd = CARD_INDEX[nb.cardId];
       if (nd?.tribe !== 'dragon' && nd?.tribe2 !== 'dragon') continue;
       procRuneId(state, 'rune_shared_reflection');
-      for (let r = 0; r < spellCasts(state, spellDef); r++) castSpell(state, spellDef, nb);
+      for (let r = 0; r < spellCasts(state, spellDef); r++) { recordBounceFx(state, 'spell', card.uid, nb.uid); castSpell(state, spellDef, nb); }
     }
   }
   const def = CARD_INDEX[card.cardId];
@@ -11477,12 +11507,15 @@ export function applyEndOfTurn(state: RunState): void {
   if (tempest > 0 && hasPower(state, 'tempest') && state.board.length > 0) {
     const ends = new Set([state.board[0]!, state.board[state.board.length - 1]!]);
     const fire = (): void => { for (const c of ends) addBuff(c, 'Tempest', tempest, tempest); };
-    if (collector.enabled) {
-      collector.withTrigger(
-        { phase: 'endOfTurn', source: beatSource('hero', 'aevor', 'Tempest'), trigger: 'endOfTurn', ...beatIdentity('hero:aevor:tempest') },
-        fire,
-      );
-    } else fire();
+    // `withRecruitTrigger` — the DIFFING scope — not a plain `collector.withTrigger` (2026-09-15): the plain
+    // scope opened a hero beat that emitted NO consequences, so the two grants landed silently at commit with
+    // nothing to present. Diffed, each end minion's gain is its own `statsChanged`, which the presenter draws
+    // as the tendril from the hero-power button (one per recipient). A no-op on the NOOP collector.
+    withRecruitTrigger(
+      ctx,
+      { phase: 'endOfTurn', source: beatSource('hero', 'aevor', 'Tempest'), trigger: 'endOfTurn', ...beatIdentity('hero:aevor:tempest') },
+      fire,
+    );
     fires++;
   }
   // Accumulate for the same reason as `lastShoutFires` — the reducer zeroes it per action, and an action can

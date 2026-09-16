@@ -379,12 +379,13 @@ export function shootingStarText(cardId: string, spellsThisTurn: number, golden:
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'battlecryBuffThisShopPerSpellsThisTurn');
   if (!def || !eff) return null;
-  if (spellsThisTurn <= 0) return null;
+  if (spellsThisTurn <= 0) return null; // the printed base IS the current value
+  // Rocket Power (owner 2026-09-14): the base lands once and repeats per spell — the live total is (1 + n) × rate.
   const g = golden ? 2 : 1;
   const a = Number((eff.params as { attack?: number })?.attack ?? 3) * g;
   const h = Number((eff.params as { health?: number })?.health ?? 3) * g;
   const src = golden ? (def.goldenText ?? def.text) : def.text;
-  return src.replace(`+${a}/+${h}`, `{{+${a * spellsThisTurn}/+${h * spellsThisTurn}}}`);
+  return src.replace(`+${a}/+${h}`, `{{+${a * (1 + spellsThisTurn)}/+${h * (1 + spellsThisTurn)}}}`);
 }
 
 /**

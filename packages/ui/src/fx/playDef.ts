@@ -514,10 +514,15 @@ function playDefInner(
     onDone: opts.onDone,
   });
 
+  // `fx:def:<id>` — the def's PER-FRAME cost (its layers' sims + filter retunes), as distinct from the spawn
+  // cost `fx:<id>` above. One label per def id, so the offenders list can say WHICH effect is eating frames
+  // rather than "something in fx:sim". A passthrough when the monitor is off; two clock reads when it is on.
+  const frameLabel = `fx:def:${def.id}`;
   removeUpdater = pixiFx.addUpdater((dtMs) => {
     if (retired()) return; // same-frame snapshot re-entry — see `FxRetire.retired`
     wallMs += dtMs;
-    player.update(dtMs);
+    perfMonitor.begin(frameLabel);
+    try { player.update(dtMs); } finally { perfMonitor.end(); }
     const overdue = !opts.loop && wallMs >= PLAY_TIMEOUT_MS; // a loop is caller-owned (see PlayDefOptions.loop)
     if (!player.isPlaying() || overdue) {
       if (overdue && import.meta.env.DEV) {

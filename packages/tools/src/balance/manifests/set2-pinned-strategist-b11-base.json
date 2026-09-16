@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "name": "set2-pinned-strategist-b11-base",
+  "mode": "pinnedLobby",
+  "setId": "set2",
+  "policy": {
+    "id": "strategist",
+    "budget": {
+      "depth": 1,
+      "beam": 1,
+      "maxNodes": 40,
+      "positionCandidates": 2,
+      "growthWeight": 20
+    }
+  },
+  "seeds": {
+    "start": 1,
+    "count": 100
+  },
+  "maxActionsPerTurn": 120,
+  "corpus": {
+    "name": "set2-players-v1",
+    "digest": "87909308f9c0a30b"
+  },
+  "fightRules": "shipped",
+  "notes": "B11 BASELINE: the strategist with the B6 growth term at weight 20 and no horizon, no macros (macroWeight 0). Same seeds, corpus and budget as set2-pinned-strategist-smoke100; maxActionsPerTurn 120 as the round-2 manifests."
+}

@@ -55,6 +55,98 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-15',
+    label: 'Runeforge commits',
+    changes: [
+      { category: 'UI / Info', text: 'The Runeforge no longer offers a way to leave without a rune — pick one of the offered Runes (the free re-roll is still there).' },
+    ],
+  },
+  {
+    date: '2026-09-15',
+    label: 'Adopted hero-power prices',
+    changes: [
+      {
+        category: 'Hero Change',
+        text: "A hero power you pick up mid-run (Void's turn-4 picks, Mimic's disguises, Power Shifter) now starts its price clock the turn you take it — Rounded Spellbook costs 3 on the turn you pick it, not 0.",
+        details: [
+          "Rounded Spellbook and Buyout used to count their discount from turn 1 even when you adopted them later, so a Void picking Rounded Spellbook on turn 4 got it free from the start and its cost coin was blank. They now start at their full price (3 / 11) on the pick turn and fall 1 a turn from there, exactly like Hunch and Harlan do from turn 1.",
+          "All In pays out from 1 Gold on the pick turn (it used to arrive with several turns already banked). Dragon Tamer starts at its full 5.",
+          "Dynamite Dig's first dig is free for a new wielder, whatever the power it replaced had spent. Gild arrives ready even if the power it replaced was used, and its 75-Gold recharge now works for a Void, a Mimic or a Power Shifter — not only for Indy.",
+        ],
+      },
+      { category: 'UI / Info', text: "Both of Void's hero-power buttons show the cost coin for any power that costs Gold, and the coin reads exactly what the power will charge. Passives (Empowering Vines and kin) still show their passive badge instead of a coin." },
+    ],
+  },
+  {
+    date: '2026-09-15',
+    label: 'Hand buff cue',
+    changes: [
+      { category: 'UI / Info', text: 'A card in your hand getting stronger — a minion gaining stats, or a spell, Ruby or token whose printed value goes up — now bursts and pops in place with a new effect, in the Shop, at End of Turn and mid-combat alike. It replaces the old grow-and-sparkle on spells, and hand minions finally get a cue too.' },
+    ],
+  },
+  {
+    date: '2026-09-15',
+    label: 'Bounce cue',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'When a spell or Ruby bounces onto a different minion because of where it first landed, a ribbon now streaks from the first target to the second — one per bounce, so a doubled bounce reads as two.',
+        details: [
+          "Plays for Star Crash's second landing, Crash Course's extra Star Crashes, Reflector's spread, Rune of Distillation (a Shop minion to your left-most), Rune of Redirection (left-most to right-most), Rune of the Conduit, and Trouble in combat.",
+          'Rubies get a red ribbon; spells get a first-pass purple-and-blue one that will be tuned later.',
+          'A spell that simply casts AGAIN on the same minion (Mirrorwing, Nimbus, Yazzus, Prismcaster) does not use this cue — it will get its own.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-15',
+    label: 'Start of Combat / End of Turn buffs show their source',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Start of Combat and End of Turn buffs now show where they come from: every minion that gets stats from another minion, a rune or a hero power gets its own ribbon (or rune sparkle) from that source.',
+        details: [
+          "Old Timber's Start of Combat gift to your Spirits now streams a Spirit ribbon to each one (it used to land with no effect at all).",
+          "Emissary's United Front and Aevor's Tempest now draw a ribbon from the hero-power button to each minion they pay (both used to land silently).",
+          'End of Turn ribbons (Kringle, Striker, Mother Moss…) aim at the slot each card is settling into, not wherever it is drawn mid-bounce.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-14',
+    label: 'Tendrils: Celestial + Equipment',
+    changes: [
+      { category: 'UI / Info', text: 'Celestials have their own buff ribbon (a moonlit periwinkle) instead of the generic one — Wishing Star and friends.' },
+      { category: 'UI / Info', text: 'Equipment that buffs your minions without its own effect (Spiritbinder, the Stellar Lens’s board half) now draws the buff ribbon from the minion that granted it, like any minion-to-minion buff.' },
+    ],
+  },
+  {
+    date: '2026-09-14',
+    label: 'Starform creation',
+    changes: [
+      { category: 'Card Change', text: 'The Starform always returns to the right-most Shop slot on a refresh. You can still drag it around during the turn.' },
+      { category: 'UI / Info', text: 'A Starform being created has its own burst-and-ring cue on its slot. Forming one in a full Shop no longer pulls the eaten minion across the row or shuffles the other offers — it simply appears where that minion stood.' },
+    ],
+  },
+  {
+    date: '2026-09-14',
+    label: 'Tendril aim fix',
+    changes: [
+      { category: 'UI / Info', text: 'A buff ribbon aimed at a minion you just dropped now lands on its slot on the board, not on the spot where you let go of it (Aspect buffing the Spirit you played showed it).' },
+    ],
+  },
+  {
+    date: '2026-09-14',
+    label: 'Rocket Power + counters + Spirit tendril',
+    changes: [
+      { category: 'Card Change', text: 'Rocket Power: Shout — give this shop +3/+3, then repeat it for every Shop spell you cast this turn (it used to do nothing with no spell cast).' },
+      { category: 'UI / Info', text: "The step counter on a hovered card no longer sits on top of the card name — it now rides just under the plate's bottom gem." },
+      { category: 'UI / Info', text: 'Spirits have their own buff ribbon: when a Spirit buffs another minion, a warm gold-and-green tendril streams between them.' },
+    ],
+  },
+  {
     date: '2026-09-14',
     label: 'Milestone badges',
     changes: [

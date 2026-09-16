@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, Sprite, Texture, type BLEND_MODES, type Renderer, type Ticker } from 'pixi.js';
+import { Application, Container, Graphics, Sprite, Texture, UPDATE_PRIORITY, type BLEND_MODES, type Renderer, type Ticker } from 'pixi.js';
 import { getSmokeConfig } from './smokeConfig';
 import { perfMonitor } from './perfMonitor';
 import { getCritFxConfig, type CritFxConfig } from './critFxConfig';
@@ -10,7 +10,7 @@ import {
 import { getCleaveFxConfig, type CleaveFxConfig } from './cleaveFxConfig';
 import { getTrailConfig } from './trailConfig';
 import { sfx } from './sfx';
-import { resetFxPools } from './fx/fxRuntime';
+import { fxActiveFilters, fxLiveLayers, fxLiveParticles, resetFxPools } from './fx/fxRuntime';
 import type { FxSlot, FxLayer } from './fx/def';
 // Phase 2 aim driver: the live targeting line is now an FX DEF (the `spell-target` composition), whose
 // primitives are spawned from the registry at runtime (never statically imported — that would pull the
@@ -472,6 +472,11 @@ class FxController {
   /** Externally-mounted per-frame updaters (the FX workbench player). Kept deliberately small: this is the
    *  only seam through which code outside this file draws on the overlay canvas. */
   private extraUpdaters: ((dtMs: number) => void)[] = [];
+  /** The perf brackets around the ticker pass — see `attach`. Held so `detach` can remove them. */
+  private perfTickStart: (() => void) | null = null;
+  private perfRenderStart: (() => void) | null = null;
+  private perfTickEnd: (() => void) | null = null;
+  private simLabel = 'fx:sim';
   /** Containers passed to `mountLayer` before `init()` has created `this.layer`; flushed once it exists. */
   private pendingMounts: Container[] = [];
 
@@ -766,9 +771,30 @@ class FxController {
     this.crescentTex = this.makeCrescentTexture(app);
     this.buildSkullTex(); // the Echo skull: ☠ rendered purple with its glow baked into the texture
     app.ticker.maxFPS = this.maxFps;
+    // PER-FRAME ATTRIBUTION OF THE FX LAYER (owner 2026-09-15: "we're blind to what's causing it"). The two
+    // captures analysed on 2026-09-11 put ~98% of combat frame cost in UNINSTRUMENTED code that tracked the
+    // particle count — this file had no `perfMonitor.measure` at all. Three brackets, by ticker priority
+    // (listeners run highest first; Pixi's own `app.render` sits at LOW):
+    //   `fx:tick`   HIGH → UTILITY   the whole ticker pass, sim + render, i.e. what the FX layer costs a frame
+    //   `fx:sim`    inside `update`  the particle / tendril / aura / shield sim and every def player
+    //   `fx:render` LOW+1 → UTILITY  the Pixi render pass (batching, filter passes, the GL submit)
+    // Open-span brackets (`begin` / `end`), so the three NEST: `fx:tick`'s self time is the pass minus sim
+    // and render, and the offenders list never charges the same millisecond twice. Two `performance.now()`
+    // reads per bracket per frame while the monitor runs, one branch when it is off. No FX behaviour, order
+    // or timing is touched.
+    const ns = this.label ? `${this.label} ` : '';
+    const tickLabel = `${ns}fx:tick`;
+    const renderLabel = `${ns}fx:render`;
+    this.simLabel = `${ns}fx:sim`;
+    this.perfTickStart = () => { perfMonitor.begin(tickLabel); };
+    this.perfRenderStart = () => { perfMonitor.begin(renderLabel); };
+    this.perfTickEnd = () => { perfMonitor.end(); perfMonitor.end(); };
+    app.ticker.add(this.perfTickStart, undefined, UPDATE_PRIORITY.HIGH);
     app.ticker.add(this.update);
     app.ticker.add(this.renderUnder); // one clock for every canvas — see the UNDER slot notes above
     app.ticker.add(this.renderAbove);
+    app.ticker.add(this.perfRenderStart, undefined, UPDATE_PRIORITY.LOW + 1);
+    app.ticker.add(this.perfTickEnd, undefined, UPDATE_PRIORITY.UTILITY);
     if (this.autoIdle) app.ticker.stop(); // idle controller (discoverFx): don't render an empty stage until a burst
     // Expose the live FX counts to the perf HUD. Read once per 1s bucket, never per frame — these are the
     // numbers that explain a spike ("400 particles alive" / "7 rings converging"), so a hitch in the log
@@ -779,11 +805,19 @@ class FxController {
     // layer's arrays: `particles` logged 0 for a whole 448-second session, including all 66 buckets that
     // fired an aura wave (owner capture 2026-08-22). The counter that exists to explain an FX spike was the
     // one counter blind to it.
-    const ns = this.label ? `${this.label} ` : '';
     perfMonitor.registerCounter(`${ns}particles`, () => this.live.length);
     perfMonitor.registerCounter(`${ns}sprite pool`, () => this.pool.length);
     perfMonitor.registerCounter(`${ns}weld rings`, () => this.weldRings.length);
     perfMonitor.registerCounter(`${ns}spell arrows`, () => this.spellArrows.length);
+    // The WHOLE particle population, not just this controller's own sprite particles: the def runtime's
+    // ParticleContainers (bursts, emitters, smoke) are where a combat's thousands live, and `particles`
+    // above never saw them. Registered by the board layer only — the pools are module-global, so the
+    // Discover controller would report the same numbers twice.
+    if (!this.label) {
+      perfMonitor.registerCounter('fx:particles', () => this.live.length + fxLiveParticles());
+      perfMonitor.registerCounter('fx:layers', fxLiveLayers);
+      perfMonitor.registerCounter('fx:filters', fxActiveFilters);
+    }
     this.ready = true;
     this.fireRendererReady(app.renderer, 'over');
   }
@@ -848,6 +882,9 @@ class FxController {
     this.app.ticker.remove(this.update);
     this.app.ticker.remove(this.renderUnder);
     this.app.ticker.remove(this.renderAbove);
+    if (this.perfTickStart) this.app.ticker.remove(this.perfTickStart);
+    if (this.perfRenderStart) this.app.ticker.remove(this.perfRenderStart);
+    if (this.perfTickEnd) this.app.ticker.remove(this.perfTickEnd);
     this.app.destroy({ removeView: true, releaseGlobalResources: true }, { children: true });
     if (this.underApp) {
       // `releaseGlobalResources` is FALSE here, unlike the main app above: the under canvas shares Pixi's
@@ -2753,8 +2790,14 @@ class FxController {
     });
   }
 
-  /** Per-frame: advance every live particle, recycle the dead. Bound method for ticker.add/remove. */
+  /** Per-frame: advance every live particle, recycle the dead. Bound method for ticker.add/remove.
+   *  Wrapped as `fx:sim` for the perf monitor (a passthrough when it is off) — see `attach`. */
   private update = (ticker: Ticker): void => {
+    perfMonitor.begin(this.simLabel);
+    try { this.updateInner(ticker); } finally { perfMonitor.end(); }
+  };
+
+  private updateInner(ticker: Ticker): void {
     const dtMs = ticker.deltaMS;
     if (this.extraUpdaters.length > 0) {
       // Sandboxed: a workbench updater plays hand-authored, frequently-malformed effect data, and PixiJS's
@@ -2984,7 +3027,7 @@ class FxController {
     // Idle controller (discoverFx): the instant nothing is left to draw, release the ticker so this second
     // full-viewport context stops clearing + presenting an empty stage every frame. A spawn restarts it.
     if (this.autoIdle && !this.hasLiveWork()) this.app?.ticker.stop();
-  };
+  }
 
   /** A small bright dot with a soft edge — the spark. Generated once, tinted per particle. */
   private makeSparkTexture(app: Application): Texture {

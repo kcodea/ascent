@@ -150,10 +150,11 @@ export function starformRefreshLand(offer: ShopCard, key: 'tormentor' | 'embers'
 
 /**
  * Rule 3's mechanism. Lift the Starform out of the row, let `rebuild` rewrite `state.shop` however it likes
- * (a roll, a Muster, a spell shop, a Membrance restock), then put the token back at its previous index —
- * clamped to the new row's length, so a shorter row never strands it. `slots` tells the rebuild how many
- * offers it may draw: one fewer than the tier allows while a Starform holds a slot (it takes a slot, rule 1).
- * Its latches ride along untouched, which is what makes rule 4's "once" survive a roll.
+ * (a roll, a Muster, a spell shop, a Membrance restock), then put the token back at the RIGHT-MOST slot
+ * (owner 2026-09-14: "players may drag it in shop, but upon a refresh it should be the right-most minion" —
+ * until then it kept whatever index it had been dragged to). `slots` tells the rebuild how many offers it may
+ * draw: one fewer than the tier allows while a Starform holds a slot (it takes a slot, rule 1). Its latches
+ * ride along untouched, which is what makes rule 4's "once" survive a roll.
  */
 export function withStarformPinned(state: RunState, rebuild: (slots: number) => void): void {
   const idx = starformIndex(state);
@@ -161,7 +162,7 @@ export function withStarformPinned(state: RunState, rebuild: (slots: number) => 
   if (idx < 0) { rebuild(full); return; }
   const [sf] = state.shop.splice(idx, 1);
   rebuild(Math.max(0, full - 1));
-  state.shop.splice(Math.min(idx, state.shop.length), 0, sf!);
+  state.shop.push(sf!);
 }
 
 /** The BoardCard-shaped stand-in a Starform presents to watcher payloads (`onConsume`'s eater, `onBuy`'s bought
@@ -177,7 +178,7 @@ export function starformStandIn(state: RunState, sf: ShopCard): BoardCard {
  * nothing reads it back in the sim; `reduce` clears it per action. `?? 0` on the seq: a save from before the
  * field existed restores without it, and `undefined + 1` would poison the UI's seq compare with NaN.
  */
-function recordStarformFx(state: RunState, kind: 'consumeShop' | 'consumed' | 'collapse', fromUid: string, toUids: string[]): void {
+function recordStarformFx(state: RunState, kind: 'consumeShop' | 'consumed' | 'collapse' | 'created', fromUid: string, toUids: string[]): void {
   state.starformFx = [...(state.starformFx ?? []), { kind, fromUid, toUids }];
   state.starformFxSeq = (state.starformFxSeq ?? 0) + 1;
 }
@@ -206,13 +207,21 @@ export function createStarform(state: RunState, source: { cardId: string; name: 
     const eaterStandIn: BoardCard = { uid: sf.uid, cardId: STARFORM_ID, tribe: 'celestial', attack: 1, health: 1, keywords: [], golden: false };
     // Insert first, then eat: the consume splices by index, and the token must take the VICTIM'S slot.
     state.shop.splice(victim + 1, 0, sf);
-    const victimUid = state.shop[victim]!.uid; // read before the splice — the pull plays from where it sat
     consumeShopOffer(state, eaterStandIn, victim, 1, (a, h) => { banked.attack += a; banked.health += h; }, sf.uid);
-    recordStarformFx(state, 'consumeShop', victimUid, [sf.uid]);
+    // The creation's meal is SILENT on screen (owner 2026-09-14): the victim simply leaves and the token takes its
+    // slot in place — no ghost, no pull, no held slot, no row shift. The owner-authored `starform-create` cue
+    // (below) is the whole moment. Mechanically it is still a real Shop consume (Open Market, the meter, the
+    // watchers all heard it); only its animation is replaced.
+    const meal = state.shopEaten?.[state.shopEaten.length - 1];
+    if (meal && meal.uid !== sf.uid) meal.silent = true;
     buffStarform(state, banked.attack, banked.health, 'Consume');
   } else {
     state.shop.push(sf); // an open slot — or a full row of nothing but spells (rule 1: it still appears)
   }
+  // The CREATE cue (owner-authored `starform-create`, 2026-09-14) plays on the token's slot whenever a Starform
+  // is formed — into an open slot or over a meal alike (every creator: Star Seed, the Peddler, Roundabout, the
+  // Lens, a Zenith rebirth). `fromUid` = `toUids` = the token: the def anchors both layers on the target.
+  recordStarformFx(state, 'created', sf.uid, [sf.uid]);
   // The standing shop channels every other offer already wears (rule 6: banked, never read live).
   const perm = state.tavernBuyBonus;
   if (perm && (perm.atk > 0 || perm.hp > 0)) {

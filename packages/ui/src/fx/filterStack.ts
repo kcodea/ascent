@@ -122,8 +122,14 @@ const curveOf = (p: P, k: string): ReadonlyArray<CurvePoint> => (Array.isArray(p
  * builds each filter the frame it's first enabled, retimes amounts by their curves, and only rewrites
  * `container.filters` when the ACTIVE SET changes (adding/removing) — a plain retune touches no array.
  */
+/** Filters applied across every live stack right now — the perf monitor's `fx:filters` counter. Each
+ *  stack adds its delta when its active set changes, so the FX path pays one addition on a set change only. */
+let activeFilterTotal = 0;
+export function activeFilterCount(): number { return activeFilterTotal; }
+
 export class FilterStack {
   private readonly instances = new Map<string, Filter>();
+  private activeCount = 0;
   private coreBlur: BlurFilter | null = null;
   private activeKey = ''; // identity of the current container.filters set, to skip no-op rewrites
   // The resolved application order (core blur + registry, as ids), recomputed only when the stored
@@ -188,12 +194,16 @@ export class FilterStack {
     if (key !== this.activeKey) {
       this.container.filters = active.length ? active : [];
       this.activeKey = key;
+      activeFilterTotal += active.length - this.activeCount;
+      this.activeCount = active.length;
     }
   }
 
   destroy(): void {
     this.container.filters = [];
     this.activeKey = '';
+    activeFilterTotal -= this.activeCount;
+    this.activeCount = 0;
     if (this.coreBlur) { this.coreBlur.destroy(); this.coreBlur = null; }
     for (const inst of this.instances.values()) inst.destroy();
     this.instances.clear();

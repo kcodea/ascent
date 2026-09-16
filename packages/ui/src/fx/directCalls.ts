@@ -52,6 +52,10 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // slot is where the allowance is shown — there is no board unit to hang it on.
   'equipment-used-up': ['StatusBar.tsx'],
   'freeze-blast': ['FreezeButton.tsx'],
+  // A HAND card getting stronger — minion, spell, Ruby or token (owner-authored 2026-09-15, replacing the CSS
+  // spell-buff grow/shrink + mote blast). Fired from the one `playHandBuffOn` every surface's fan-out lands on:
+  // the shop's hand diff, the End-of-Turn presenters and the combat replay's `handBuff` beat scan.
+  'hand-buff': ['handBuffFx.ts'],
   'hero-power-spark': ['StatusBar.tsx'],
   'hero-power-target': ['Recruit.tsx'],
   'impact-dust': ['EndTurnButton.tsx', 'RefreshButton.tsx', 'choreo/channels/impact.ts'],
@@ -60,6 +64,12 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // `bindings.json` row (`rubyLanded`) by the recruit cue runner, not by a hardcoded id. The combat
   // half in score.ts is still a literal — see RUBY_LANDED_DEF.
   'ruby-gem-apply': ['choreo/score.ts'],
+  // The cross-target RE-CAST ribbon (owner-authored 2026-09-15): a spell / Ruby landing a second time on a
+  // DIFFERENT body because of where the first cast landed. The shop half fires from the `bounceFx` watcher in
+  // Recruit.tsx (Star Crash, Crash Course, Reflector, Distillation, Redirection, the Conduit); the combat half
+  // from the `bounceFx` channel in score.ts (Trouble, Candle Conduit, a Resonance Idol / Reflector spread).
+  // `spell-bounce` is a PLACEHOLDER palette-swap of `ruby-bounce` until the owner tunes it in the workbench.
+  'ruby-bounce': ['Recruit.tsx', 'choreo/score.ts'],
   'rune-buff-unit': ['Recruit.tsx', 'useCombatReplay.ts'],
   // The implosion on a rune's BADGE as the lock-in ceremony hands it over (owner ask 2026-08-31).
   'rune-select-implosion': ['useRuneArrivalFx.ts'],
@@ -68,10 +78,12 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // shop-row play goes through the `shopBuffAll` binding instead — see `runShopBuffAllFire`.
   'shop-buff-purple': ['useCombatReplay.ts'],
   'shop-tier-up': ['TavernUpButton.tsx'],
+  'spell-bounce': ['Recruit.tsx', 'choreo/score.ts'], // see `ruby-bounce` above — the spell family's placeholder twin
   // The Starform's pulls (owner-authored 2026-09-12): the token eating a Shop minion (from the meal's
   // `shopEaten` ghost, in place of `consume-pull`), a Celestial consuming the token, and the Collapse — one
   // play per receiver. Fired from the two `shopEaten` / `starformFxSeq` watchers in Recruit.tsx.
   'starform-pull': ['Recruit.tsx'],
+  'starform-create': ['Recruit.tsx'], // the token's creation cue (owner def 2026-09-14) — on the token's slot, every creator
   'strike-impact': ['choreo/channels/impact.ts'],
   // A consumed / death-lost Ward (owner-authored 2026-09-09, replacing the `shatterAt('shield')` shard-burst;
   // the `sfx.shieldBreak` sound is unchanged). Fired from the aura channel's two Ward-loss sites.

@@ -216,3 +216,54 @@ describe('Rune of Dreamed Graves: the first minion summoned from your hand each 
     expect(kwGrants(fightH({}).events, 'RB')).toHaveLength(0);
   });
 });
+
+describe('Rebirth acts like Rise (owner 2026-09-16: "it acts like rise, so copy that") — the ordering parity pin', () => {
+  // A printed-body probe: def 0/5 Taunt, Avenge (2) → summon a Spear Warden. With NO granted buffs or keywords,
+  // Rise and Rebirth return the same body (Rise at 1 Health, Rebirth at its full 5; both die to the 5-Attack
+  // foe) — so every OTHER difference between the two branches would show up as a difference in the flow of
+  // deaths, summons and returns. Nobody on the player side can attack, so every death is an enemy swing into
+  // a random Taunt; seed 8 has the foe kill the probe first, then two fodder before it is hit again.
+  CARD_INDEX['dbg_avenge_probe'] = { id: 'dbg_avenge_probe', name: 'Avenge probe', tribe: 'neutral', tier: 1, attack: 0, health: 5, keywords: ['T'],
+    effects: [{ on: 'avenge', do: 'avengeSummon', params: { count: 2, cardId: 'knit' } }], text: '' };
+  const flow = (kw: Keyword) => {
+    const fodder = () => bm('u3_poochy', { attack: 0, health: 1, keywords: ['T'] });
+    const r = fight([bm('dbg_avenge_probe', { keywords: ['T', kw] }), fodder(), fodder(), fodder(), fodder()],
+      [{ cardId: 'sandbag', attack: 5, health: 500, keywords: [] } as unknown as BoardMinion], {}, 8);
+    return r.events
+      .filter((e) => e.type === 'death' || e.type === 'summon' || e.type === 'reborn' || e.type === 'questTrigger')
+      .map((e) => e.type === 'death' ? `death:${e.target}${(e as { rise?: true }).rise ? ':rise' : ''}` : e.type === 'summon' ? `summon:${e.minion.cardId}` : e.type === 'reborn' ? `reborn:${e.target}` : `trigger:${e.flag}`);
+  };
+
+  it('the flow of deaths, returns and Avenge payouts is IDENTICAL under Rise and Rebirth', () => {
+    const rise = flow('R'), rebirth = flow('RB');
+    expect(rise[0], 'the probe died first').toBe('death:m0:rise');
+    expect(rise[1], '…and rose').toBe('reborn:m0');
+    expect(rise, 'its Avenge paid out after the return').toContain('summon:knit');
+    expect(rebirth).toEqual(rise);
+  });
+
+  it('…including that its AVENGE PROGRESS restarts on the return (Rise: "1/3 should reset to 0/3"): the probe\'s own death is not progress', () => {
+    // Order (seed 8): the foe kills the probe (death 1) → it returns; a fodder dies (death 2) → progress 1,
+    // nothing; another fodder dies (death 3) → progress 2 → the Warden. Without the reset the Warden would
+    // follow death 2 (its own death counted as progress).
+    const f = flow('RB');
+    const knightAt = f.indexOf('summon:knit');
+    expect(knightAt).toBeGreaterThan(0);
+    expect(f.slice(0, knightAt).filter((x) => x.startsWith('death:')), 'three friendly deaths precede the first Warden').toHaveLength(3);
+    expect(f.findIndex((x) => x.startsWith('reborn:')), 'and the return came first').toBeLessThan(knightAt);
+  });
+
+  it('a body that dies to retaliation on its OWN swing and returns is next to attack again — under Rebirth as under Rise', () => {
+    // A 1/5 probe swings into a 5-Attack Taunt foe, dies, returns; the Rise rewind puts it next in line, so its
+    // side's next swing is the probe's again (not the 1/1 fodder's). Rebirth gets the identical rewind.
+    CARD_INDEX['dbg_swing_probe'] = { id: 'dbg_swing_probe', name: 'Swing probe', tribe: 'neutral', tier: 1, attack: 1, health: 5, keywords: [], effects: [], text: '' };
+    const order = (kw: Keyword) => {
+      const taunt = () => bm('u3_poochy', { attack: 1, health: 1, keywords: ['T'] });
+      const r = fight([bm('dbg_swing_probe', { keywords: [kw] }), taunt(), taunt(), taunt()],
+        [{ cardId: 'sandbag', attack: 5, health: 500, keywords: ['T'] } as unknown as BoardMinion, { cardId: 'sandbag', attack: 1, health: 500, keywords: [] } as unknown as BoardMinion], {}, 3);
+      return r.events.filter((e) => e.type === 'attack' && e.attacker.startsWith('m') && ['m0', 'm1', 'm2', 'm3'].includes(e.attacker)).map((e) => (e as { attacker: string }).attacker);
+    };
+    expect(order('R').slice(0, 2), 'Rise: the probe swings, dies, returns — and swings again').toEqual(['m0', 'm0']);
+    expect(order('RB'), 'Rebirth: the same rotation').toEqual(order('R'));
+  });
+});

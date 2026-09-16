@@ -10,9 +10,9 @@ import { runeTally } from '../../ui/src/runeTally';
  * Handy Flame rune token. Every rune is bought through the REAL Runeforge path and then driven with the real
  * `reduce`, so a rune that forgets a link fails here rather than shipping inert.
  *
- * Two sheet runes are deliberately ABSENT — Rune of the Open Hand and Rune of the Waking Reserve — because their
- * effect lives in combat (`packages/core/src/combat/simulate.ts`, reserved for a sibling tranche). Pinned below
- * so a later tranche adding them updates this roster on purpose.
+ * Two sheet runes were deferred from this tranche — Rune of the Open Hand and Rune of the Waking Reserve — because
+ * their effect lives in combat. Tranche D shipped them (`set3RunesTrancheD.test.ts`, core + sim); the roster below
+ * is still tranche A's own 11 + 13.
  */
 
 const body = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
@@ -57,10 +57,10 @@ const EPIC: [string, number, string[] | undefined][] = [
 ];
 
 describe('tranche A — pool membership, cost, scope and tribe gates', () => {
-  it('the sweep sees 11 Basic + 13 Epic (the two combat-side sheet runes are deferred)', () => {
+  it('the sweep sees 11 Basic + 13 Epic; the two combat-side sheet runes shipped in tranche D', () => {
     expect(BASIC).toHaveLength(11);
     expect(EPIC).toHaveLength(13);
-    expect(Object.values(RUNE_INDEX).some((r) => /Open Hand|Waking Reserve/.test(r.name)), 'deferred runes must not ship half-built').toBe(false);
+    expect(Object.values(RUNE_INDEX).filter((r) => /Open Hand|Waking Reserve/.test(r.name)), 'tranche D landed both').toHaveLength(2);
   });
   it.each(BASIC)('%s is BASIC, set 3 only, gated to %s', (id, cost, tribes) => {
     const r = RUNE_INDEX[id]!;

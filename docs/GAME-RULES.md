@@ -194,7 +194,9 @@ in; the shop never rolls it. Engine: `packages/sim/src/starform.ts`; every rule 
    `collapseExtraTargets` counter, 0 today and reserved for future cards) are drawn **with replacement** —
    an extra may land on a Celestial that already took a hit, so with two Celestials one can take 3 and the
    other 1. One Celestial: 1 original + every extra on it. None: the token still collapses and the stats go
-   nowhere. With no Starform both do nothing.
+   nowhere. With no Starform both do nothing. **Under Rune of Soul Script** (owner 2026-09-16) your **Undead are
+   Collapse receivers beside your Celestials** — originals, extras and the Supernova's "all your Celestials" alike —
+   and any Undead whose text Consumes may eat the token (the shared Shop-consume chokepoint takes any eater).
 8. Two board-wide watcher moments: **"whenever your Starform gains stats"** (the gain's amount rides along)
    and **"when your Starform leaves the Shop"** (consumed — the buy, a Demon, or a card — or collapsed,
    with its full stats). The Star Destroyer's exit (below) fires **neither**.
@@ -348,10 +350,16 @@ a "your Dwarves" rune reaches a set-3 run only when Dwarf rolled.
 
 **Set 3-original runes (batch 2, 2026-09-16).** Set 3 now also has runes of its own — `sets: ['set3']` alone,
 no origin scope — starting with tranche A's 24 Spirit / Celestial / Undead runes (11 Basic + 13 Epic, taking the
-set-3 static pool to **126 Basic / 111 Epic**), plus the rune-exclusive **Handy Flame** token. Two of that
-sheet's runes (Rune of the Open Hand, Rune of the Waking Reserve) are combat-side and still owed. The tribe
+set-3 static pool to **126 Basic / 111 Epic**), plus the rune-exclusive **Handy Flame** token. The two combat-side
+runes of that sheet shipped in tranche D: **Rune of the Open Hand** (Epic 5 — when you summon a minion from your
+hand, another random friendly minion gains its current stats; every landed hand-summon, both phases) and **Rune of
+the Waking Reserve** (Epic 6 — Start of Combat: a copy of your highest-stat hand minion when the board has room;
+the hand card is NOT marked, so a Spirit may still summon it later that fight; it IS a hand-summon for Dreamed
+Graves / the Open Hand). Neither is tribe-gated: the text names no tribe (the 2026-09-10 rule). The tribe
 faucets (Rune of Basic/Epic Spirits, Celestials, Undead) are capped at the shop tier by the engine, like the
-Dwarf/Kobold ones. See `docs/devlog/2026-09-16-set3-runes-tranche-a.md` for the rulings and interpretations.
+Dwarf/Kobold ones. See `docs/devlog/2026-09-16-set3-runes-tranche-a.md` and `…-tranche-d.md` for the rulings and
+interpretations. **Rune of the Traveling Festival**'s "+2/+2 more" is applied ONCE per Reveler trigger (owner
+2026-09-16: *"the 2/2 is 1 time"*) — a second copy pays its Reveler drip again but never raises the extra.
 
 **Set 3-original runes (batch 2, 2026-09-16).** On top of the carryovers, set 3 now draws its OWN runes, scoped
 `sets: ['set3']` alone: tranche B ships 8 Basic + 11 Epic Starform / Equipment / Undead runes (see
@@ -494,11 +502,11 @@ rename (that stays reserved); a second keyword beside it. Granted by **Rune of R
 of Combat — a random friendly minion gains Rebirth) and **Rune of Dreamed Graves** (Epic 4: the first minion
 summoned from your hand each combat gains Rebirth).
 
-The ordering rules (`killOrReborn` in `simulate.ts`, mirrored by `rebirthReturn` in the shop; pinned in
-`core/src/combat/rebirth.test.ts`):
+**Rebirth acts like Rise** (owner 2026-09-16: *"it acts like rise, so copy that"*). Its combat rules are
+Rise's rules, step for step, with ONE intended difference — nothing is rebuilt from the printed card (`killOrReborn`
+in `simulate.ts`, mirrored by `rebirthReturn` in the shop; pinned in `core/src/combat/rebirth.test.ts`, including
+a Rise-vs-Rebirth parity fixture whose flow of deaths, returns and Avenge payouts must be identical):
 
-- **Rebirth resolves BEFORE Rise.** A body holding both comes back whole first; its Rise stays armed, so its
-  NEXT death Rises the printed body. The stronger return goes first so the buffs are not thrown away.
 - **The Echo fires on the Rebirth death** exactly as on a Rise death: die → Echo → the body returns to the
   RIGHT of what its Echo summoned. The death is a **real death** (Avenge, the death tallies, on-death watchers,
   kill credit) and is flagged like a Rise death for the replay (`death { rise: true }`).
@@ -506,10 +514,18 @@ The ordering rules (`killOrReborn` in `simulate.ts`, mirrored by `rebirthReturn`
   has lost its Ward by the time it dies — the owner's example wants it back). Taunt, Flurry and every other
   keyword come back with the body. Rebirth itself is **spent**; nothing re-arms it unless something re-grants
   it.
-- **NOT a Rise:** the Rise watchers (Revenant, Rising Tide — `onRise`) stay quiet.
+- **Its Avenge progress restarts** on the return, as a Rise's does (*"1/3 should reset to 0/3"*) and as any
+  body placed mid-combat: the deaths tally is side-level state, not part of the body it keeps.
+- **A body that dies to retaliation on its own swing and returns is next to attack again** — the Rise rewind
+  in the attack rotation applies to a Rebirth return too.
+- **NOT a Rise:** the Rise watchers (Revenant, Rising Tide — `onRise`) stay quiet, and Rune of the Deathtouched
+  Apple (a Rise re-arm) does not touch it — those two are Rise's own.
 - **It IS a summon in full** (the owner's Rise ruling 2026-08-12): the summon-entry suite runs on the return.
 - **A full board at the return = an overflow**; the body stays dead (the Rise rule). A rebirthing body holds
   its slot through its Echo, as a rising one does.
+- **A body holding BOTH keywords: Rebirth resolves first.** Rise has no precedence rule of its own (it is one
+  keyword), so the stronger return goes first and the buffs are not thrown away; its Rise stays armed, so its
+  NEXT death Rises the printed body.
 - **In the shop** (a destroy, Cage Breaker, the Deathfibrillator) the same body returns — buffs, keywords
   (Rebirth spent), counters — with a fresh uid for the departure diff; Rise's `onRise` payout does not fire.
 - **Snapshot fidelity:** a Rebirth granted mid-combat is a plain `keyword` event, folded into the SoC board like

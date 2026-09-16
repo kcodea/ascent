@@ -14,6 +14,12 @@ Keyword union + the combat simulator, the Equipment **Amplified** state, and fou
    death; a Ward carried at any point this fight is restored (`wardBroken` set); Taunt etc. retained; NOT a
    Rise (`onRise` silent); IS a summon in full; full board = overflow; not re-armed. Presentation reuses the Rise
    beat / FX (`reborn { rebirth: true }`, the Card dome, the `rise` glyph) as placeholders.
+   **Re-aligned with Rise in tranche D** (owner 2026-09-16: *"it acts like rise, so copy that"*): the ordering
+   above already matched Rise's step for step, and two Rise rules the branch had NOT copied were added — the
+   returned body's **Avenge progress restarts** (`avengeBaseline` re-stamped, as on a Rise and on any placed
+   summon), and a body that dies to retaliation on its own swing and returns is **next to attack again** (the
+   Rise rewind in the attack rotation now covers a Rebirth return). Pinned by a Rise-vs-Rebirth parity fixture
+   whose flow of deaths / returns / Avenge payouts must be identical. See `…-tranche-d.md`.
 2. **Rune of Rebirth** (`rune_rebirth`, id kept) now grants Rebirth to one random friendly minion at Start of
    Combat (a `keyword RB` event on its own beat). The old exact-copy Echo graft, its `sc.grantsEcho` marker and
    the UI's per-body `[[Rebirth]]` text tag (`rebirthOwner` / `grantedEcho` / `rebirthTag.test.ts`) are retired —

@@ -56,6 +56,39 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-16',
+    label: 'Two more Set 3 Runes, Rebirth tidy-up, Soul Script Collapse',
+    changes: [
+      {
+        category: 'New Rune',
+        text: 'Rune of the Open Hand (Epic, 5): when you summon a minion from your hand, another friendly minion gains its stats.',
+        details: [
+          'Fires on every minion summoned from your hand that finds room — in combat and in the Shop — and gives the summoned minion\'s current Attack and Health to a random other friendly minion.',
+        ],
+      },
+      {
+        category: 'New Rune',
+        text: 'Rune of the Waking Reserve (Epic, 6): at Start of Combat, summon a copy of your highest-stat minion in hand when you have room.',
+        details: [
+          'Highest Attack + Health in hand; the copy keeps that card\'s stats, keywords and gilding.',
+          'The hand card is not marked as summoned, so a Spirit can still summon it later in the same fight.',
+        ],
+      },
+      {
+        category: 'Rune Change',
+        text: 'Rebirth now follows Rise exactly, apart from bringing back the full minion: a reborn minion\'s Avenge progress restarts, and one that dies on its own attack and returns is next to attack again.',
+      },
+      {
+        category: 'Rune Change',
+        text: 'Rune of Soul Script: your Undead are now Collapse targets alongside your Celestials (the Supernova\'s "all your Celestials" includes them), and any Undead whose text Consumes can eat the Starform.',
+      },
+      {
+        category: 'Rune Change',
+        text: 'Rune of the Traveling Festival: the extra +2/+2 is paid once per Reveler trigger — holding a second copy still brings a second Reveler each turn but does not raise the bonus.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-16',
     label: 'Rebirth, Amplified Equipment + six Set 3 Runes',
     changes: [
       {

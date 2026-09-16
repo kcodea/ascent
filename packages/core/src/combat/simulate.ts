@@ -2182,6 +2182,8 @@ export function simulate(
     //   · A full board (7 living) at the return = an overflow; the body stays dead (Rise's rule).
     //   · Not re-armed: the returned body has no Rebirth unless something re-grants it.
     //   · Avenge progress restarts on the return (Rise's rule; a side-level tally is not part of the "body").
+    //   · A body that dies to retaliation on its own swing and returns is NEXT TO ATTACK AGAIN (the Rise rewind
+    //     in the main loop applies to a Rebirth return too).
     // Re-aligned with the Rise branch on 2026-09-16 (owner: "it acts like rise, so copy that"): every step below
     // is the Rise branch's step in the same order — death (rise-flagged) → reservation → tally → own Echo →
     // on-death watchers → kill credit → Avenge → overflow check → return → re-slot → `reborn` → summon-entry —
@@ -4316,10 +4318,15 @@ export function simulate(
       continue;
     }
     const rebornBefore = attacker.rebornAvailable;
+    const rebirthBefore = attacker.keywords.includes('RB');
     performAttack(attacker, defenderSide, 0);
     // Reborn-on-attack: a minion that died to retaliation and Reborned keeps its place — it's next to
     // attack again for its side (rewind the pointer to just before it) rather than going to the back.
-    if (rebornBefore && !attacker.rebornAvailable && !attacker.dead && attacker.health > 0) {
+    // A REBIRTH return gets the same rewind (owner 2026-09-16: "it acts like rise, so copy that" — pinned by
+    // the Rise/Rebirth parity test in `rebirth.test.ts`): `RB` was on the body before the swing and is spent
+    // by the return, so a body standing without it came back this swing.
+    if ((rebornBefore && !attacker.rebornAvailable && !attacker.dead && attacker.health > 0)
+      || (rebirthBefore && !attacker.keywords.includes('RB') && !attacker.dead && attacker.health > 0)) {
       const arr = boards[turn];
       lastAttacker[turn] = arr[arr.indexOf(attacker) - 1] ?? null;
     }

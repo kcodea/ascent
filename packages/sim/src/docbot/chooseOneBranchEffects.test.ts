@@ -66,7 +66,7 @@ describe('Doc Bot — a Choose One branch is still an effect', () => {
       + '`allEffectsOf`').toEqual([]);
   });
 
-  it('and BOTH of Apples' branches scale — but nothing is invented at zero power', () => {
+  it("and BOTH of Apples' branches scale — but nothing is invented at zero power", () => {
     // Since 2026-09-16 (owner: "shop spell buffs on both ends") `spellBuffTavern` folds spell power like the
     // random-friendlies branch, so the shop half greens too. The guard that matters is the other direction: with no
     // spell power the authored numbers stand exactly as printed — a number must never claim to have grown when the

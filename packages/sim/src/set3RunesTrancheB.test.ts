@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { combatSide, makeRng, simulate, type BoardMinion, type CardDef } from '@game/core';
+import { combatSide, makeRng, simulate, type BoardMinion, type CardDef, type EffectDef } from '@game/core';
 import { BLOODPOT, CARD_INDEX, EPIC_RUNES, EQUIPMENT_INDEX, RUNES, RUNE_INDEX, RUNE_DUP_SWEETENER, TITAN_HAMMER } from '@game/content';
 import {
   CONFIG, createRun, reduce, createStarform, destroyStarform, hasStarform, starformOf, starformStats, buffStarform,
@@ -370,7 +370,7 @@ describe('Rune of the Crowded Crypt', () => {
     const s = armed('rune_crowded_crypt', { board: full });
     expect(s.questFlags?.runeOverflow).toBe(1);
     expect(s.runeCrowdedCrypt).toEqual({ attack: 1, health: 1, times: 2 });
-    makeContext(s).summon(CARD_INDEX['u3_skeleton']!, undefined);
+    makeContext(s).summon(CARD_INDEX['u3_skeleton']!, '');
     expect(s.board).toHaveLength(7);
     for (const c of s.board) expect([c.attack, c.health]).toEqual([1 + 2, 20 + 2]);
     expect(procs(s, 'rune_crowded_crypt')).toBe(1);
@@ -390,7 +390,7 @@ describe('Rune of the Endless March', () => {
     expect(procs(s, 'rune_endless_march')).toBe(1);
   });
   it('COMBAT: the riser itself summons the Skeleton after its Rise; its neighbours stay quiet', () => {
-    const graft = [{ on: 'onRise' as const, do: 'onRiseSelfSummonToken', params: { tokenId: 'u3_skeleton', count: 1 } }];
+    const graft: EffectDef[] = [{ on: 'onRise', do: 'onRiseSelfSummonToken', params: { tokenId: 'u3_skeleton', count: 1 } }];
     const pup: BoardMinion = { cardId: 'u3_poochy', attack: 1, health: 1, sourceUid: 'p', keywords: ['R'], grantedEffects: graft };
     const other: BoardMinion = { cardId: 'u3_poochy', attack: 0, health: 40, sourceUid: 'o', keywords: [], grantedEffects: graft };
     const r = simulate([pup, other], [{ cardId: 'sandbag', attack: 5, health: 3 }], makeRng(3), CARD_INDEX, combatSide({ tier: 6, tribes: ['undead'] }), combatSide({ tier: 1 }));

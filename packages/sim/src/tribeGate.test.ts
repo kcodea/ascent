@@ -14,7 +14,10 @@ import { createRun, runTribesForSeed, type RunState } from './state';
 const WORD: Record<Exclude<Tribe, 'neutral'>, RegExp> = {
   // Imps and Fodder ARE Demon content (owner 2026-09-10), so an Imp rune counts as naming Demons.
   dragon: /\bDragons?\b/i, beast: /\bBeasts?\b/i, demon: /\bDemons?\b|\bImps?\b|\bFodder\b/i, mech: /\bMechs?\b/i, undead: /\bUndead\b/i,
-  dwarf: /\bDwarv(?:es)?\b|\bDwarf\b/i, kobold: /\bKobolds?\b/i, spirit: /\bSpirits?\b/i, celestial: /\bCelestials?\b/i,
+  dwarf: /\bDwarv(?:es)?\b|\bDwarf\b/i, kobold: /\bKobolds?\b/i, spirit: /\bSpirits?\b/i,
+  // The Starform IS Celestial content (a 1/1 Celestial token only Celestials create — owner design 2026-09-12), so a
+  // Starform rune counts as naming Celestials, exactly as an Imp rune names Demons.
+  celestial: /\bCelestials?\b|\bStarforms?\b/i,
 };
 /** Owner ruling 2026-09-10: a rune that only GRANTS a tribe body (Kegheart, High King) is gated like one that reads
  *  the board — so this allowlist is empty on purpose. Adding an id here needs an owner call. */

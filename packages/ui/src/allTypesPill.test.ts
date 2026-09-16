@@ -74,6 +74,8 @@ const ART_PENDING = new Set<string>([
   // Sentinel, Accretion Warden, Eclipse Warden, Orbit Keeper, Corona Devotee, Lens Grinder, Nova Herald, the
   // Starform token and the Accretion spell; the rest are still authored ahead of their art.
   'ce3_peddler', 'ce3_wishingstar', 'ce3_shootingstar', 'ce3_starcharter', 'ce3_lodestar', 'ce3_twinstar', 'ce3_zenith', 'ce3_constellationprime',
+  // Set 3 batch 2 (2026-09-16): the Skeleton token Rune of the Endless March summons — art owed.
+  'u3_skeleton',
 ]);
 
 describe('art coverage for live cards', () => {

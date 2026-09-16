@@ -56,6 +56,24 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-16',
+    label: 'Set 3 runes — Starform, Equipment, Undead',
+    changes: [
+      {
+        category: 'New Rune',
+        text: 'Nineteen new Set 3 Runes: eight Basic and eleven Epic, built around the Starform, Equipment and the Undead.',
+        details: [
+          'Starform (Basic): Rune of First Light creates a Starform that starts +8/+8 — as does every one you create after — and seeds a new one each Start of Turn if you have none; Rune of Accretion doubles what your Starform gains from the Shop minions it Consumes; Rune of Eventide pays 2 Shop spells and +1/+1 spell power the first time you Consume or Collapse a Starform each turn.',
+          "Starform (Epic): Rune of the Open Constellation re-creates a Starform with the consumed one's stats after your first Consume each turn; Rune of the Supernova makes a Collapse reach ALL your Celestials; Rune of Stolen Constellations hands you a copy of every minion your Starform Consumes; Rune of Spellweaving feeds your first 3 stat-granting Shop spells each turn to your Starform too.",
+          'Equipment (Basic): Rune of Efficient Tooling takes 2 Gold off your first Equipment activation each turn; Rune of Quick Release makes your next activation free after you sell an Equip minion; Rune of Resonant Arms gives your minions +8/+5 after every third Equipment effect you trigger (the badge counts toward it).',
+          "Equipment (Epic): Rune of Overcharge makes your first activation each turn free and charge-less; Rune of Dismantling fires a sold Equip minion's Equipment for free before it leaves (once per turn, at a random friendly minion); Rune of Counterrotation re-triggers three different Equipment once you have activated all three; Rune of Empty Hands Discovers an Equip minion whose Equipment costs 0 for the rest of the run; Rune of the Last Tool gives your Equip minions \"Echo: this minion's Equipment costs 0 next turn\".",
+          'Undead: Rune of Last Rites returns a plain copy of the first Undead you destroy in the Shop each turn; Rune of the Crowded Crypt gives your minions +1/+1 permanently whenever a summon does not fit (twice in the Shop); Rune of the Endless March summons a 1/1 Skeleton after a friendly Undead Rises; Rune of the Grave Orbit gives your Starform +15/+15 after combat for each friendly Undead that Rose.',
+          'A grafted Echo (Rune of the Last Tool, Contract Rewrite, Rune of Rebirth) now fires on a Shop death as it already did in combat.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-16',
     label: 'Echohorn strikes on time',
     changes: [
       {

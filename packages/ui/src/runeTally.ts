@@ -66,6 +66,19 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_summit' && run.runeSummitTick != null) {
     return `${run.runeSummitTick % 3}/3`;
   }
+  // ── Set 3 batch 2, tranche B (2026-09-16) ──
+  // Rune of Resonant Arms: Equipment TRIGGERS banked toward the next +8/+5 (a run-wide meter).
+  if (runeId === 'rune_resonant_arms' && run.runeResonantArms) {
+    return `${Math.min(run.runeResonantArms.tick, run.runeResonantArms.per)}/${run.runeResonantArms.per}`;
+  }
+  // Rune of Spellweaving: stat-granting Shop spells fed to the Starform so far THIS turn, of the turn's allowance.
+  if (runeId === 'rune_spellweaving' && run.runeSpellweaving) {
+    return `${Math.min(run.spellweavingCastsThisTurn ?? 0, run.runeSpellweaving)}/${run.runeSpellweaving}`;
+  }
+  // Rune of Counterrotation: DIFFERENT Equipment activated this turn, toward the 3 that re-fire.
+  if (runeId === 'rune_counterrotation' && run.runeCounterrotation) {
+    return `${Math.min((run.counterrotationIds ?? []).length, run.runeCounterrotation)}/${run.runeCounterrotation}`;
+  }
   // Rune of the Collector: distinct minion TYPES bought this turn, toward the 3 that fire the Discover.
   if (runeId === 'rune_collector' && run.runeCollector) {
     return `${Math.min((run.typesBoughtThisTurn ?? []).length, 3)}/3`;

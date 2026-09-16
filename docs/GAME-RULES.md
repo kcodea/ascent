@@ -333,6 +333,13 @@ absent-tribe packages stay off set 3. Rune of the Night Market and Rune of Baal 
 bridges (a rune-exclusive body that supplies its own function). The rolled-tribe gate still applies on top:
 a "your Dwarves" rune reaches a set-3 run only when Dwarf rolled.
 
+**Set 3-original runes (batch 2, 2026-09-16).** On top of the carryovers, set 3 now draws its OWN runes, scoped
+`sets: ['set3']` alone: tranche B ships 8 Basic + 11 Epic Starform / Equipment / Undead runes (see
+`docs/devlog/2026-09-16-set3-runes-tranche-b.md` for where each fires). Two engine facts they rest on: a
+**grafted Echo** (`grantedEffects` — Contract Rewrite, Rune of Rebirth, Rune of the Last Tool) fires on a SHOP
+death exactly as it does in combat; and a Starform rune is gated on Celestials (the token IS Celestial content),
+the way an Imp rune is gated on Demons.
+
 **Set forks.** A card a rune grants BY ID resolves to the pinned set's fork when one exists
 (`SET_FORKS` in `packages/content/src/sets.ts`): Rune of Yazzus / Rune of Frontline Glory hand a set-3 run
 `n3_yazzus` (the Tier-7 fork), never the legacy `yazzus` beside it. The Open Market's "first Shop consume

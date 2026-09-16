@@ -148,6 +148,10 @@ export const SYSTEM_SURFACE: SurfaceEntry[] = [
   // Funeral on Loan's borrowed body ARRIVING and taking its slot — a beat of its own, so the board is seen
   // to hold it before the death beat takes it away again.
   { key: 'system:destroy:shopArrival', users: ['funeralonloan'] },
+  // Set 3 batch 2 rune GRAFTS (`grantedEffects`) — no printed card carries these factories, so the scan above
+  // cannot see them; the rune that grafts them is the user.
+  { key: 'factory:onRiseSelfSummonToken:onRise', users: ['rune_endless_march'] },
+  { key: 'factory:deathrattleEquipmentFreeNextTurn:onDeath', users: ['rune_last_tool'] },
   // EQUIPMENT (owner handoff 2026-08-28): the grant as a body enters play / re-equips, and one beat per
   // Equipment TRIGGER (repeats included, each carrying its index).
   { key: 'system:equipment:equip', users: ['e3_frank'] },

@@ -1280,6 +1280,7 @@ export const RUNES: RuneDef[] = [
     cost: 5,
     tribes: ['celestial'],
     text: 'Minions **Consumed** by your **Starform** grant it **twice** their stats.',
+    previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
     reward: { kind: 'runeAccretion' },
     sets: ['set3'],
   },
@@ -1291,6 +1292,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     tribes: ['celestial'],
     text: 'After you first **Consume** or **Collapse** a Starform each turn, get **2** random Shop spells and improve Shop spells by **+1/+1**.',
+    previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
     reward: { kind: 'runeEventide' },
     sets: ['set3'],
   },
@@ -2758,6 +2760,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     tribes: ['celestial'],
     text: "After you **Consume** your first Starform each turn, create another Starform with the consumed Starform's stats.",
+    previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
     reward: { kind: 'runeOpenConstellation' },
     sets: ['set3'],
   },
@@ -2770,6 +2773,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     tribes: ['celestial'],
     text: 'When you **Collapse** a Starform, grant half its stats to **all** your Celestials instead of two.',
+    previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
     reward: { kind: 'runeSupernova' },
     sets: ['set3'],
   },
@@ -2782,6 +2786,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     tribes: ['celestial'],
     text: 'Whenever your Starform **Consumes** a minion, get a plain copy of that minion.',
+    previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
     reward: { kind: 'runeStolenConstellations' },
     sets: ['set3'],
   },
@@ -2794,6 +2799,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     tribes: ['celestial'],
     text: 'The first **3** stat-granting Shop spells you cast each turn also give their stats to your Starform.',
+    previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
     reward: { kind: 'runeSpellweaving', count: 3 },
     sets: ['set3'],
   },
@@ -2877,6 +2883,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     tribes: ['undead', 'celestial'],
     text: 'After combat, give your Starform **+15/+15** for each friendly **Undead** that Rose.',
+    previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
     reward: { kind: 'runeGraveOrbit', attack: 15, health: 15 },
     sets: ['set3'],
   },

@@ -18,11 +18,12 @@ const summonsBy = (r: ReturnType<typeof simulate>, uid: string) =>
 describe('Wolvie — Echo buffs the next summoned Beast', () => {
   it('the next Beast summoned after Wolvie dies gets +2/+4 (gilded +4/+8)', () => {
     // Wolvie (Taunt, 1 hp) dies first; then a Pack Leader dies and its Echo summons a Pup — the Pup takes the
-    // queued buff. Asserted via the 'Wolvie' buff on the summoned Pup.
+    // queued buff. Asserted via the buff on the summoned Pup sourced by the fallen Wolvie's uid (2026-09-16:
+    // was the 'Wolvie' label — a uid lets the replay stream the tendril from the slot it fell in).
     const run = (golden: boolean) => sim([bm('b2_wolvie', 'W', 3, 1, golden ? { golden: true } : {}), bm('pack', 'P', 2, 1)]);
     const pupBuff = (r: ReturnType<typeof simulate>) => {
       const pup = (r.events.filter((e) => e.type === 'summon') as { minion: { uid: string; cardId: string } }[]).find((e) => e.minion.cardId === 'pup');
-      return pup ? buffsOn(r, pup.minion.uid, 'Wolvie').map((b) => [b.attack, b.health]) : [];
+      return pup ? buffsOn(r, pup.minion.uid, uidOf(r, 'b2_wolvie')).map((b) => [b.attack, b.health]) : [];
     };
     expect(pupBuff(run(false)), 'the next Beast got +2/+4').toContainEqual([2, 4]);
     expect(pupBuff(run(true)), 'gilded Wolvie +4/+8').toContainEqual([4, 8]);
@@ -32,7 +33,7 @@ describe('Wolvie — Echo buffs the next summoned Beast', () => {
     // Regression (owner report 2026-08-12): Wolvie with Rise dies → its Echo queues +2/+4 → the risen body IS
     // the next Beast summoned, so it must take the buff. The Rise re-slot used to bypass the summon chokepoint.
     const r = sim([bm('b2_wolvie', 'W', 3, 2, { keywords: ['R'] })]);
-    expect(buffsOn(r, uidOf(r, 'b2_wolvie'), 'Wolvie').map((b) => [b.attack, b.health]), 'the risen Wolvie got +2/+4')
+    expect(buffsOn(r, uidOf(r, 'b2_wolvie'), uidOf(r, 'b2_wolvie')).map((b) => [b.attack, b.health]), 'the risen Wolvie got +2/+4')
       .toContainEqual([2, 4]);
   });
 
@@ -42,7 +43,8 @@ describe('Wolvie — Echo buffs the next summoned Beast', () => {
     const r = sim([bm('b2_wolvie', 'W1', 3, 1, { keywords: ['T'] }), bm('b2_wolvie', 'W2', 3, 1, { keywords: ['T'] }), bm('pack', 'P', 2, 1)]);
     const pup = (r.events.filter((e) => e.type === 'summon') as { minion: { uid: string; cardId: string } }[]).find((e) => e.minion.cardId === 'pup');
     expect(pup, 'a Pup spawned').toBeDefined();
-    expect(buffsOn(r, pup!.minion.uid, 'Wolvie').map((b) => [b.attack, b.health]), 'both Echoes on one Pup').toContainEqual([4, 8]);
+    // ONE summed buff, attributed to the FIRST Wolvie that queued (W1).
+    expect(buffsOn(r, pup!.minion.uid, r.initial.player[0]!.uid).map((b) => [b.attack, b.health]), 'both Echoes on one Pup').toContainEqual([4, 8]);
   });
 });
 

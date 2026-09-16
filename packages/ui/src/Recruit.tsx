@@ -84,6 +84,7 @@ import { playPlateCoalesce } from './plateCoalesce';
 import { playPlateGild } from './plateGild';
 import { playBuySlide, type BuyFrom } from './buySlide';
 import { fireBuffFx } from './buffFxRender';
+import { resolveBuffSource } from './choreo/buffSource';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { getDragFeel } from './dragFeel';
 import { getLayout } from './layoutConfig';
@@ -2145,6 +2146,8 @@ export function Recruit() {
    * effect (declared after it, so it runs after) overwrites it with the new layout.
    */
   const lastCentreRef = useRef<Map<string, { x: number; y: number; w: number }>>(new Map());
+  /** The board cards that LEFT in the latest commit, with the centre they last stood at — see the refresh effect. */
+  const departedCentreRef = useRef<Map<string, { x: number; y: number; w: number }>>(new Map());
   const prevShopFxSeq = useRef(run.shopFxSeq);
   useLayoutEffect(() => {
     const seq = run.shopFxSeq;
@@ -2201,6 +2204,13 @@ export function Recruit() {
       const r = el.getBoundingClientRect();
       next.set(uid, { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width });
     }
+    // WHO LEFT THIS COMMIT (2026-09-16): a board card that was measured last render and is gone now — a
+    // destroyed / sold / borrowed body. Its Echo's buff-others are replayed by the post-paint `recruitFxSeq`
+    // effect below, which runs AFTER this layout effect in the same commit and needs the slot the card fell
+    // from to stream the tendril. Rebuilt every render, so it only ever holds this commit's departures.
+    const departed = new Map<string, { x: number; y: number; w: number }>();
+    for (const [uid, c] of lastCentreRef.current) if (!next.has(uid)) departed.set(uid, c);
+    departedCentreRef.current = departed;
     lastCentreRef.current = next;
   });
 
@@ -4324,6 +4334,9 @@ export function Recruit() {
   // not one simultaneous burst. Rects are measured at fire time (inside the timeout) so a late strike
   // still lands on the card's current position.
   const replayBuffFxEvents = useCallback((events: RunState['recruitBuffFx'], staggerMs = 0): void => {
+    // Pinned NOW: the departure cache is rebuilt every render, and a staggered wave fires from a timeout after
+    // later renders have already replaced it.
+    const departedAtReplay = departedCentreRef.current;
     // Itemized per-z rewards tag their events with `fxWave` — every event in a wave fires TOGETHER (so all
     // the Mechs pulse at once) and the stagger applies only BETWEEN waves. Untagged events keep the old
     // per-event behaviour.
@@ -4350,13 +4363,21 @@ export function Recruit() {
       // Ward-gain cue above already measures this way.
       const target = restingCenterOf(tEl as HTMLElement);
       if (!target) return;
-      const sEl = ev.sourceUid ? findEl(ev.sourceUid) : null;
-      const source = sEl ? restingCenterOf(sEl as HTMLElement) ?? undefined : undefined;
+      // A FALLEN ECHO STREAMS FROM WHERE IT FELL (owner report 2026-09-16, Dawn Sentinel — `choreo/buffSource.ts`).
+      // A `deathrattle` capture's body has already left the board — a shop destroy (Cage Breaker, Graverobber,
+      // EMS), a Funeral on Loan return, a Reveler's sell — so `findEl` finds nothing; the departure cache still
+      // holds the slot it stood in, and the tribe ribbon leaves from there. An Echo fired on a LIVING body
+      // (Ossuary Rite, Deathsayer, the Reliquary) simply measures the body. Only a `spell` capture is sourceless.
+      const src = resolveBuffSource({
+        label: ev.kind === 'spell' || !ev.sourceUid,
+        live: () => { const el = ev.sourceUid ? findEl(ev.sourceUid) : null; return el ? restingCenterOf(el as HTMLElement) : null; },
+        lastSlot: () => { const d = ev.sourceUid ? departedAtReplay.get(ev.sourceUid) : undefined; return d ? { x: d.x, y: d.y } : null; },
+      });
       fireBuffFx({
-        source,
+        source: src.center,
         target,
         cardId: ev.sourceCardId, tribe: ev.sourceTribe,
-        sourceless: ev.kind !== 'minion' || !sEl,
+        sourceless: src.sourceless,
         uids: { source: ev.sourceUid, target: ev.targetUid },
       });
     };

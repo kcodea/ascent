@@ -51,7 +51,7 @@ const DEFAULTS: MilestoneFrameConfig = {
   tintFrac: 0.7, tintOpacity: 1, tintDx: -1.5, tintDy: -0.5,
   tintNeutral: '#be8c04', tintUp: '#00992e', tintDown: '#bd311f',
 
-  numSize: 33, numDx: -0.5, numDy: 0, numColor: '#ffffff', numStrokeW: 0, numStrokeColor: '#000000',
+  numSize: 30, numDx: -0.5, numDy: 0, numColor: '#ffffff', numStrokeW: 0, numStrokeColor: '#000000',
 };
 
 const RANGES: Record<Exclude<keyof MilestoneFrameConfig, 'tintNeutral' | 'tintUp' | 'tintDown' | 'numColor' | 'numStrokeColor'>, [number, number, number]> = {

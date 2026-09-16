@@ -1901,7 +1901,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   transform: translate(-50%, -50%) translate(var(--msnum-dx, -0.5px), var(--msnum-dy, 0px));
   text-align: center;
   white-space: nowrap;
-  font-size: var(--msnum-size, 33px);
+  font-size: var(--msnum-size, 30px);
   color: var(--msnum-color, #fff);
   -webkit-text-stroke: var(--msnum-stroke-w, 0px) var(--msnum-stroke-color, #000);
 }

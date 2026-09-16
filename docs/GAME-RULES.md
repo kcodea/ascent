@@ -129,6 +129,19 @@ minion alive. Duplicates collapse into one entry; a single Gilded source upgrade
   Starform's live price included), every discounted coin shows green, the slot counts it down, and it ends on its own expiry
   action, at combat entry, or at the turn flip. A Continue whose saved clock is already past the window
   resumes without it; the engine never reads a clock (`RunState.cardDiscountWindow`).
+- **Amplified** (owner design 2026-09-16, Set 3 batch 2): a per-Equipment STATE. *"Equipment you do not
+  activate becomes Amplified. Amplified Equipment triggers twice the next time you activate it. Maximum 1 per
+  Equipment."* An Amplified Equipment's next activation runs **twice** — the whole activation, extra triggers
+  included, so `(1 + extra) × 2` — and the stack is **consumed** by it. One stack per Equipment, never more.
+  Written by **Rune of Amplification** (Basic 4: at End of Turn every held Equipment you did not activate this
+  turn — through the pool or its own charge — gains a stack) and **Rune of the Grand Workshop** (Epic 6: every
+  held Equipment now, and again every Start of Turn). The stack **survives the Start-of-Turn rebuild** for every
+  Equipment still held (it is the one piece of Equipment state meant to carry) and is pruned for one whose
+  sources all left. Presentation: the Equipment's **charge number turns BLUE** while Amplified (over the pool's
+  green), the tooltip says so, and the tally carries `data-fx="equipment-amplified"` as the binding point for
+  the owner's future authored cue. Engine: `PlayerEquipmentState.amplified` + `sim/equipment.ts`
+  (`amplifyEquipment` / `amplifyUnactivated` / `amplifyAllHeld` / `consumeAmplified`), pinned in
+  `set3RunesTrancheC.test.ts`.
 
 ### The Starform — the Celestials' shop token (owner design 2026-09-12; rules v2 2026-09-13)
 
@@ -457,6 +470,38 @@ hear **wherever it happens**:
 **How it is enforced.** One trigger, `onRise`, from the single Rise site of each phase (`bus.emit` in
 `simulate.ts`, `fireOnRise` off the shop's `riseReturn`), with the risen body in the payload. Pinned in
 `set3Undead.test.ts` for both phases and for the enemy case.
+
+### Rebirth — a NEW keyword, distinct from Rise (owner ruling 2026-09-16)
+
+**Rebirth** (`RB`): when the minion dies it returns **once with its FULL current body** — stats (Health refilled
+to its max), granted buffs, keywords, effects and every per-instance counter. *"A Warded 50/50 dies and comes
+back a Warded 50/50."* **Rise**, by contrast, returns the **printed** body at 1 Health. Not the Rise → Rebirth
+rename (that stays reserved); a second keyword beside it. Granted by **Rune of Rebirth** (Basic 3, changed: Start
+of Combat — a random friendly minion gains Rebirth) and **Rune of Dreamed Graves** (Epic 4: the first minion
+summoned from your hand each combat gains Rebirth).
+
+The ordering rules (`killOrReborn` in `simulate.ts`, mirrored by `rebirthReturn` in the shop; pinned in
+`core/src/combat/rebirth.test.ts`):
+
+- **Rebirth resolves BEFORE Rise.** A body holding both comes back whole first; its Rise stays armed, so its
+  NEXT death Rises the printed body. The stronger return goes first so the buffs are not thrown away.
+- **The Echo fires on the Rebirth death** exactly as on a Rise death: die → Echo → the body returns to the
+  RIGHT of what its Echo summoned. The death is a **real death** (Avenge, the death tallies, on-death watchers,
+  kill credit) and is flagged like a Rise death for the replay (`death { rise: true }`).
+- **A Ward the body carried at any point this combat is restored** on the return (in practice a Warded body
+  has lost its Ward by the time it dies — the owner's example wants it back). Taunt, Flurry and every other
+  keyword come back with the body. Rebirth itself is **spent**; nothing re-arms it unless something re-grants
+  it.
+- **NOT a Rise:** the Rise watchers (Revenant, Rising Tide — `onRise`) stay quiet.
+- **It IS a summon in full** (the owner's Rise ruling 2026-08-12): the summon-entry suite runs on the return.
+- **A full board at the return = an overflow**; the body stays dead (the Rise rule). A rebirthing body holds
+  its slot through its Echo, as a rising one does.
+- **In the shop** (a destroy, Cage Breaker, the Deathfibrillator) the same body returns — buffs, keywords
+  (Rebirth spent), counters — with a fresh uid for the departure diff; Rise's `onRise` payout does not fire.
+- **Snapshot fidelity:** a Rebirth granted mid-combat is a plain `keyword` event, folded into the SoC board like
+  any keyword grant.
+- **Presentation:** the return reuses the Rise beat and FX (`reborn { rebirth: true }`; the Card's Rise dome and
+  the `rise` glyph) as PLACEHOLDERS until the owner authors a Rebirth cue.
 
 ---
 

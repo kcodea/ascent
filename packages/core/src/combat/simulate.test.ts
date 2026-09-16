@@ -4242,18 +4242,19 @@ describe('Batch 7a combat runes (Rebirth / Aftershocks / Undertow / Mirror March
   const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
     simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }), combatSide());
 
-  it('Rune of Rebirth: SoC grants ONE random minion the exact-copy Echo (owner sheet 2026-07-31)', () => {
-    // A fragile body: when the Echo lands on it and it dies, an exact copy (current stats) re-summons.
-    // Rise is gone from this rune — Rise returned the PRINTED body, the same defect Living Treasure had.
+  it('Rune of Rebirth: SoC grants ONE random minion REBIRTH (owner 2026-09-16; the exact-copy Echo is gone)', () => {
+    // A fragile body: with Rebirth it dies and returns WHOLE (its current 3/4, not a printed copy, not a summon).
     const p: BoardMinion[] = [{ cardId: 'drummer', attack: 3, health: 4 }];
     const e: BoardMinion[] = [{ cardId: 'drummer', attack: 5, health: 40 }];
     const r = simMods(p, e, 1, { runeRebirth: true });
-    expect(r.events.some((ev) => ev.type === 'sc' && /gains an Echo/.test(ev.text ?? ''))).toBe(true);
-    // The body dies → the grafted Echo re-summons a copy of it.
-    const resummon = r.events.filter((ev) => ev.type === 'summon' && ev.minion?.cardId === 'drummer');
-    expect(resummon.length, 'the Echo should re-summon the body once').toBe(1);
+    expect(r.events.filter((ev) => ev.type === 'keyword' && ev.keyword === 'RB'), 'one keyword grant').toHaveLength(1);
+    expect(r.events.some((ev) => ev.type === 'sc' && /gains an Echo/.test(ev.text ?? '')), 'no Echo graft any more').toBe(false);
+    const back = r.events.filter((ev) => ev.type === 'reborn');
+    expect(back, 'the body returns once, via Rebirth').toHaveLength(1);
+    expect(back[0]).toMatchObject({ rebirth: true, attack: 3, hp: 4 });
+    expect(r.events.some((ev) => ev.type === 'summon'), 'nothing is summoned — the SAME body comes back').toBe(false);
     const without = simMods(p, e, 1, {});
-    expect(without.events.some((ev) => ev.type === 'summon')).toBe(false);
+    expect(without.events.some((ev) => ev.type === 'reborn')).toBe(false);
   });
 
   it('Rune of Aftershocks: TRIGGERING an Echo buffs your board +4/+4', () => {

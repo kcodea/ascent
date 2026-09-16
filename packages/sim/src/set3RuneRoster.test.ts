@@ -25,15 +25,19 @@ const S3 = ['kobold', 'dwarf', 'undead', 'spirit', 'celestial'] as const;
 const staticPool = (setId: SetId, tribes: readonly string[]) =>
   [...RUNES, ...EPIC_RUNES].filter((r) => (!r.sets || r.sets.includes(setId)) && (!r.tribes || r.tribes.some((t) => tribes.includes(t))));
 
+/** A Set 3 ORIGINAL (batch 2, 2026-09-16 onward): scoped to set3 alone. The carryover pins below exclude these. */
+const isOriginal = (r: { sets?: readonly string[] }): boolean => r.sets?.length === 1 && r.sets[0] === 'set3';
+const originals = (epic: boolean): number => [...RUNES, ...EPIC_RUNES].filter((r) => isOriginal(r) && !!r.epic === epic).length;
+
 describe('the Set 3 static rune pool (handoff 2026-09-14)', () => {
   it('resolves to 115 Basic / 98 Epic before any Set 3-original rune', () => {
-    const pool = staticPool('set3', S3);
+    const pool = staticPool('set3', S3).filter((r) => !isOriginal(r));
     expect(pool.filter((r) => !r.epic)).toHaveLength(115);
     expect(pool.filter((r) => r.epic)).toHaveLength(98);
   });
   it('Set 1 and Set 2 pools keep their previous scoped runes — a carryover only ADDS set3', () => {
     for (const r of [...RUNES, ...EPIC_RUNES]) {
-      if (r.sets?.includes('set3')) expect(r.sets.some((x) => x === 'set1' || x === 'set2'), `${r.id} kept its origin scope`).toBe(true);
+      if (r.sets?.includes('set3') && !isOriginal(r)) expect(r.sets.some((x) => x === 'set1' || x === 'set2'), `${r.id} kept its origin scope`).toBe(true);
     }
     // The set-1 / set-2 static pools as measured on origin/main BEFORE the carryover pass (2026-09-14) — unchanged.
     const s1 = staticPool('set1', ['beast', 'dragon', 'mech', 'undead', 'demon']);
@@ -63,8 +67,8 @@ describe('a Set 3 Dwarf / Kobold run at the forge', () => {
     const basic = forge(false), epic = forge(true);
     // the Wishbone is hero-conditional (requiresDoublePower) — the Warden's power does not double, so one Basic fewer
     const wishbone = RUNE_INDEX['rune_wishbone'] ? 1 : 0;
-    expect(basic.length).toBe(115 - wishbone);
-    expect(epic.length).toBe(98);
+    expect(basic.length).toBe(115 - wishbone + originals(false));
+    expect(epic.length).toBe(98 + originals(true));
   });
 });
 

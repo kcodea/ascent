@@ -119,7 +119,7 @@ const det = (o: Record<string, string | number | boolean | undefined>): Record<s
 function project(e: CombatEvent): Pick<CombatSemanticEvent, 'source' | 'target' | 'amount' | 'after' | 'detail'> {
   switch (e.type) {
     case 'sc':
-      return defined({ source: { uid: e.source }, detail: det({ cast: e.cast, side: e.side, grantsEcho: e.grantsEcho }) });
+      return defined({ source: { uid: e.source }, detail: det({ cast: e.cast, side: e.side }) });
     case 'attack':
       return defined({ source: { uid: e.attacker }, target: { uid: e.defender }, amount: e.swing, detail: det({ crit: e.crit }) });
     case 'dmg':

@@ -1031,8 +1031,12 @@ export function simulate(
       if (!boards[side].includes(copy)) return undefined;
       handCopiedUids.add(uid); // once per combat; the card itself stays in hand and keeps taking buffs
       // Stamp the hand origin onto the summon event just emitted — the replay greys that hand card for the fight.
-      const ev = events[events.length - 1];
-      if (ev && ev.type === 'summon' && ev.minion.uid === copy.uid) ev.fromHandUid = uid;
+      // Found by uid, scanning back: a grant that lands ON the placed body (Rune of Dreamed Graves' Rebirth) emits
+      // after the summon, so "the last event" is no longer guaranteed to be it.
+      for (let i = events.length - 1; i >= 0; i--) {
+        const ev = events[i]!;
+        if (ev.type === 'summon' && ev.minion.uid === copy.uid) { ev.fromHandUid = uid; break; }
+      }
       return copy;
     },
     buffHand: (uid, attack, health, side, sourceUid) => {

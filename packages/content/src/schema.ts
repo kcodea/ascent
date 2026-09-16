@@ -702,7 +702,9 @@ export const QuestObjectiveEventSchema = z.enum([
 ]);
 export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy', 'emptyGraves', 'assemblyLine', 'crateringMissive', 'passingSpears', 'runeWarding', 'runeFury', 'runeSlaying', 'runeForthcoming', 'runeRallying', 'runeRisingGraves', 'runeBroodpit', 'runeSpearline', 'runeAppraisal', 'runeSoulTaxes', 'runeFirstClaws', 'runePackcraft', 'runeInheritance', 'runeSalvage', 'runeTwilight', 'runeWarden', 'runeRebirth', 'runeAftershocks', 'runeEngraving', 'runeUnderdog', 'runeGemGolem', 'runeChef', 'runeCarrionCoin', 'runeFiveBanners', 'runeCenterline', 'runeSecondLitter', 'runeDragonscale', 'runeTemperedTime', 'runeSavagery', 'runeCrucible', 'runeHerald', 'runeUndertow', 'runeMirrorMarch', 'runeTrophy', 'avengeFirstDouble', 'candlelightToll', 'gemheartCharge', 'burningLegion', 'runeVanguard', 'runeFinality', 'runeHatchery', 'runeLastCall', 'runeCinderLedger', 'runeProcession', 'runeGemstorm', 'runeBloodAndCoin', 'runeWildHunt', 'runeLivingTreasure', 'runeRemains', 'runeReinvestment', 'runeHuntingBell', 'runeBrood', 'runeLivingEchoes', 'runeWarChorus', 'runeFoodChain', 'runeAttackingGems', 'runeOverflow', 'runeCounterpoint', 'runeMammoth', 'runeWarpath', 'runeEmberline', 'runeAshenPayroll', 'runeBackbeat', 'runeSpareChair', 'runeAncestralRoar', 'runeRubyShrapnel', 'runeSharedScripture', 'runeMoonhowl', 'runeFloodedVault', 'runeBattleRefraction', 'runeWrangler', 'runeLivingGeode', 'runeDawnclaw', 'runeSylus', 'oldPack', 'runeJungle', 'runeBurrow', 'runeBeastialSwarm', 'runeZoo', 'runeRuins', 'runeGolems', 'runeEngravingGems', 'runeHerdingHorn', 'runeDeathtouchedApple', 'runeStokedMenagerie',
   // 2026-08-20 rune batch
-  'runeReturningPack', 'runeGraveRefreshment', 'runeShiftingFacets', 'runeDeepeningVein']);
+  'runeReturningPack', 'runeGraveRefreshment', 'runeShiftingFacets', 'runeDeepeningVein',
+  // Set 3 batch 2 (2026-09-16), tranche C
+  'runeFinalGate', 'runeDreamedGraves']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -799,6 +801,11 @@ z.object({ kind: z.literal('runeAftermarket') }).strict(),
   z.object({ kind: z.literal('runeMountainTrade') }).strict(),
   z.object({ kind: z.literal('runeOpenAppetite') }).strict(),
   z.object({ kind: z.literal('runeBroodmaster') }).strict(),
+  // ── Set 3 batch 2 (2026-09-16), tranche C ──
+  z.object({ kind: z.literal('runeAmplification') }).strict(),
+  z.object({ kind: z.literal('runeGrandWorkshop') }).strict(),
+  z.object({ kind: z.literal('runeRedGiant') }).strict(),
+  z.object({ kind: z.literal('runeSoulScript') }).strict(),
   z.object({ kind: z.literal('runeSecondLife') }).strict(),
   z.object({ kind: z.literal('runeSharedReflection') }).strict(),
   z.object({ kind: z.literal('runeUnbrokenVein') }).strict(),

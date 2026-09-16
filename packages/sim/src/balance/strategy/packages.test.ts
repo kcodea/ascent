@@ -37,10 +37,10 @@ describe('strategy packages — set-2 census', () => {
       ruby: '30/12/14/11',
       ale: '31/5/4/32',
       demonConsume: '32/12/7/18',
-      beastSummon: '30/7/5/14',
+      beastSummon: '30/7/5/13', // 14 → 13 on 2026-09-16: Rune of Rebirth grants the Rebirth keyword now (no longer an Echo-summon text match)
       dragon: '33/16/10/15',
       spellEngine: '106/16/13/22',
-      echo: '39/14/9/7',
+      echo: '39/14/9/6', // 7 → 6 on 2026-09-16: same Rune of Rebirth rework
       mechAttach: '2/0/0/0',
       rally: '26/7/11/6',
       tempo: '37/5/20/35',

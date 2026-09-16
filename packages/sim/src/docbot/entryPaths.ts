@@ -110,6 +110,7 @@ export const ENTRY_SITES: Readonly<Record<string, EntrySiteEntry>> = {
   'recruit.ts#mintRubies#hand': { kind: 'hand-mint', why: 'Rubies minted to hand (Kobolds, Gemcutting)' },
   'recruit.ts#mintHandSpells#hand': { kind: 'hand-mint', why: 'card-minted hand spells (Tower Shield, Clue)' },
   'recruit.ts#riseReturn#board': { kind: 'token-summon', why: 'a shop-phase Rise brings the body back to its slot' },
+  'recruit.ts#rebirthReturn#board': { kind: 'token-summon', why: 'a shop-phase Rebirth brings the SAME body (buffs, keywords, counters) back to its slot' },
   'recruit.ts#giftGrandLarceny#hand': { kind: 'hand-mint', why: "the Grand Larceny Gift steals the shop's offers into hand" },
   'recruit.ts#rallySummonAndGetRally#board': { kind: 'token-summon', why: 'Recruiter: a shop Rally summons a body beside it' },
   'recruit.ts#startOfTurnGetSpellImproveRubies#hand': { kind: 'hand-mint', why: 'a start-of-turn spell grant' },

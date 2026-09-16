@@ -1277,6 +1277,7 @@ export const RUNES: RuneDef[] = [
     name: 'Rune of Soul Script',
     cost: 5,
     text: '**Starforms** count as **Undead** and can be **Consumed** by Undead.',
+    previewCards: ['ce3_starform'],
     reward: { kind: 'runeSoulScript' },
     sets: ['set3'],
   },
@@ -2699,6 +2700,7 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 5,
     epic: true,
     text: 'Your **Starform** has a **50%** chance to also **Consume** Shop spells. When it does, get a copy of that spell and give your Starform **+8/+8**.',
+    previewCards: ['ce3_starform'],
     reward: { kind: 'runeRedGiant' },
     sets: ['set3'],
   },
@@ -2716,7 +2718,8 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     // "Summoned from your hand" = a Spirit hand-summon or Rope Wrangler's Echo in combat (`pendingHandSummon`).
     id: 'rune_dreamed_graves',
-    tribes: ['undead'], // TRIBE GATE (owner: tribe-gated where the text names a tribe; Rebirth is the Undead package)
+    // NOT tribe-gated: the owner's sheet files it under Undead, but the codified rule (owner 2026-09-10, `tribeGate.test.ts`)
+    // gates only where the TEXT names a tribe on the board — and this text names none. Flagged in the tranche-C PR.
     name: 'Rune of Dreamed Graves',
     cost: 4,
     epic: true,

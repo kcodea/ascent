@@ -6,7 +6,8 @@ import { detectCardKeywords } from './detectCardKeywords';
 // Terms that are real game vocabulary but never appear inside a single card's own body text:
 // 'gilded' is a display STATE of a card, not a word a card prints about itself.
 // 'stealth' is a mechanic not yet implemented on any cards in the current pool.
-const EXEMPT = new Set(['gilded', 'stealth']);
+// `rebirth` (2026-09-16): a rune-granted keyword (Rune of Rebirth / Dreamed Graves) — no printed card carries it yet.
+const EXEMPT = new Set(['gilded', 'stealth', 'rebirth']);
 
 describe('keyword glossary coverage', () => {
   it('every glossary term is detected on at least one real card', () => {

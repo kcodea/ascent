@@ -1863,7 +1863,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   left: 50%; top: 50%;
   width: calc(60px * var(--msf-scale, 1.5));
   height: auto;
-  transform: translate(-50%, -50%) translate(var(--msf-dx, 0px), var(--msf-dy, 4.5px));
+  transform: translate(-50%, -50%) translate(var(--msf-dx, -0.5px), var(--msf-dy, 4.5px));
   pointer-events: none;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
 }
@@ -1882,7 +1882,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .badge > .mstint {
   position: absolute;
   left: 50%; top: 50%;
-  width: calc(60px * var(--msf-scale, 1.5) * var(--mstint-frac, 0.68));
+  width: calc(60px * var(--msf-scale, 1.5) * var(--mstint-frac, 0.7));
   aspect-ratio: 1;
   transform: translate(-50%, -50%) translate(var(--mstint-dx, -1.5px), var(--mstint-dy, -0.5px));
   border-radius: 50%;

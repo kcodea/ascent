@@ -46,9 +46,9 @@ export interface MilestoneFrameConfig {
 /** Shipped values — the current authored look. Frame scales seat each tier's disc; tint/number match today. */
 const DEFAULTS: MilestoneFrameConfig = {
   scale1: 1.5, scale2: 1.5, scale3: 1.5, scale4: 1.5, scale5: 1.5,
-  frameDx: 0, frameDy: 4.5,
+  frameDx: -0.5, frameDy: 4.5,
 
-  tintFrac: 0.68, tintOpacity: 1, tintDx: -1.5, tintDy: -0.5,
+  tintFrac: 0.7, tintOpacity: 1, tintDx: -1.5, tintDy: -0.5,
   tintNeutral: '#be8c04', tintUp: '#00992e', tintDown: '#bd311f',
 
   numSize: 33, numDx: -0.5, numDy: 0, numColor: '#ffffff', numStrokeW: 0, numStrokeColor: '#000000',

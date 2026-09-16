@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ALL_CARDS, CARD_INDEX } from '@game/content';
-import { abhorrentHorrorText, cadenceProgressText, drunkenOafText, cardSummonsImp, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonFlatZooText, summonImproveText, summonScalingText, shootingStarText, spellThresholdText, tallyBuffText, undeadBuyAtkText, watcherText, shopBuffImproveText, perCardPlayedText, withImpStats } from './cardText';
+import { abhorrentHorrorText, cadenceProgressText, drunkenOafText, cardSummonsImp, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonFlatZooText, summonImproveText, summonScalingText, shootingStarText, spellThresholdText, tallyBuffText, watcherText, shopBuffImproveText, perCardPlayedText, withImpStats } from './cardText';
 
 describe('stepProgress — Gemgorge Fiend’s cast meter (owner ask 2026-08-08)', () => {
   it('reads 0/3 on a fresh body and climbs with the casts IT witnessed', () => {
@@ -123,17 +123,11 @@ describe('cardText helpers', () => {
     expect(tallyBuffText('sandbag', 5)).toBeNull(); // not a tally-buff card
   });
 
-  it('run-wide metric helpers surface live values (Soulsman gold, undeadBuyAtk contributors, Eternal Knight tally)', () => {
+  it('run-wide metric helpers surface live values (Soulsman gold, Eternal Knight tally)', () => {
     // Soulsman: total max-Gold earned this run.
     expect(soulsmanText('soulsman', 5)).toContain('{{Gained 5 Gold this run.}}');
     expect(soulsmanText('soulsman', 0)).toBeNull();
     expect(soulsmanText('grim', 5)).toBeNull();
-    // The undeadBuyAtk contributors show what a freshly-acquired Undead will inherit.
-    for (const id of ['deathswarmer', 'forsakenweaver', 'karthus']) {
-      expect(undeadBuyAtkText(id, 4)).toContain('{{New Undead arrive +4 Attack.}}');
-    }
-    expect(undeadBuyAtkText('deathswarmer', 0)).toBeNull();
-    expect(undeadBuyAtkText('spore', 4)).toBeNull(); // not a contributor
     // Eternal Knight: run-wide card-type enchant accrued from deaths.
     expect(cardTypeTallyText('knit', { attack: 9, health: 6 })).toContain('{{Now +9/+6 this run.}}');
     expect(cardTypeTallyText('knit', { attack: 0, health: 0 })).toBeNull();

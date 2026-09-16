@@ -38,6 +38,8 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // from the ONE shared buff-other path so the combat replay and the shop draw the same trail; a card's own
   // authored def still takes precedence upstream of it (see `fireBuffFx`).
   'tendril-trail': ['buffFxRender.ts'],
+  // The owner-authored Undead Aura surge (2026-09-16): every rise of the run-wide Undead Aura, both phases.
+  'undead-aura-buff': ['Recruit.tsx', 'useCombatReplay.ts'],
   coin: ['Recruit.tsx'],
   coins: ['useCombatReplay.ts'],
   'consume-pull': ['Recruit.tsx'],

@@ -1054,11 +1054,16 @@ export function useCombatReplay(
   // Bloom the board aura-wash for a run-wide tribe aura that rose mid-combat — the same cue the recruit phase
   // shows off `auraFxSeq`, anchored to the player's board region. `'any'` (a board-wide aura) uses the neutral
   // palette. Mirrors Recruit.fireAuraWave 1:1 so the two phases read identically (owner ask 2026-07-21).
-  const fireCombatAuraWave = (_tribe: string): void => {
+  const fireCombatAuraWave = (tribe: string): void => {
     // GENERIC AURA-WAVE VISUAL REMOVED 2026-09-02 (owner ask: replace every stock buff cue with an authored
     // pixi effect). The run-wide tribe-aura MOMENT still fires this on the beat it rose (see the `tribeAura`
     // loop below) with the tribe in hand — so a replacement effect anchored to the board region drops straight
-    // in here. Draws nothing in the meantime.
+    // in here.
+    // UNDEAD AURA (owner-authored `undead-aura-buff`, wired 2026-09-16): the same surge the recruit phase plays
+    // off `auraFxSeq`, so an Undead Aura rising mid-combat (Ryme-style replays, Lantern of Souls) reads identically.
+    if (tribe === 'undead' && canPlayDefs()) {
+      playDef('undead-aura-buff', { camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } });
+    }
   };
   // User-controlled replay speed (in-combat slider). 1 = the tuned default; >1 faster, <1 slower. Every
   // beat delay / float lifetime / final hold is divided by it, and each lunge is timeScaled to match.

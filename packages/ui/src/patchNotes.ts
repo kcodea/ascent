@@ -56,6 +56,14 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-16',
+    label: 'Undead Aura surge',
+    changes: [
+      { category: 'UI / Info', text: 'Every rise of your Undead Aura now plays its own surge effect over the board — in the Shop and mid-combat alike. The minions it buffs keep their tendrils.' },
+      { category: 'UI / Info', text: 'The "New Undead arrive +X Attack" line no longer appears on Deathswarmer, Forsaken Weaver and Karthus.' },
+    ],
+  },
+  {
+    date: '2026-09-16',
     label: 'Two more Set 3 Runes, Rebirth tidy-up, Soul Script Collapse',
     changes: [
       {

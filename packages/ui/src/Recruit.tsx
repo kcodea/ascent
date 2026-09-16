@@ -4421,11 +4421,17 @@ export function Recruit() {
   // over the board region regardless of which cards match (the old per-card wash showed nothing when no matching
   // card was on screen). Full board width from the zone, vertical band hugging the card row. Colors come from the
   // tribe's tendril palette so the aura language matches the tribe's buff language.
-  const fireAuraWave = useCallback((_tribe: NonNullable<RunState['auraFx']>[number]['tribe']): void => {
+  const fireAuraWave = useCallback((tribe: NonNullable<RunState['auraFx']>[number]['tribe']): void => {
     // GENERIC AURA-WAVE VISUAL REMOVED 2026-09-02 (owner ask: replace every stock buff cue with an authored
     // pixi effect). The run-wide tribe-aura channel (`auraFxSeq` / `auraFx`) still bumps and fires this on the
     // action it rose — so the moment + its tribe are preserved and a replacement effect anchored to the board
-    // region drops straight in here. Draws nothing in the meantime.
+    // region drops straight in here.
+    // UNDEAD AURA (owner-authored `undead-aura-buff`, wired 2026-09-16): every rise of the run-wide Undead Aura —
+    // Deathswarmer's Shout, Forsaken Weaver, Karthus, Anubis's Lantern, a Soul Script bake — plays the
+    // camera-anchored surge over the board. Per-card tendrils on the bodies it buffs stay as they are.
+    if (tribe === 'undead' && canPlayDefs()) {
+      playDef('undead-aura-buff', { camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } });
+    }
   }, []);
   useEffect(() => {
     if ((run.auraFxSeq ?? 0) === prevAuraSeq.current) return;

@@ -7,7 +7,7 @@ import {
   cryptDrakeText, drunkenOafText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText, shootingStarText,
   ancientWandererText, musterTrooperText,
-  taughtSpellText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText, withImpStats, spiritText } from './cardText';
+  taughtSpellText, trailForagerText, transformProgressText, watcherText, withImpStats, spiritText } from './cardText';
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
  *  (0) for a not-yet-owned shop / Discover preview — those helpers then fall back to the printed text. */
@@ -197,7 +197,6 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             c.text;
   const metric =
     soulsmanText(c.id, p.soulsmanGold) ??
-    undeadBuyAtkText(c.id, p.undeadBuyAtk) ??
     cardTypeTallyText(c.id, p.cardBuffs?.[c.id]) ??
     '';
   // Golden card whose live text resolved (differs from the printed fallback) → that IS the golden-aware live

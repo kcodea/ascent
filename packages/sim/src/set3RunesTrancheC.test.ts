@@ -361,3 +361,22 @@ describe('Rebirth in the SHOP + the snapshot fold + the recruit-side Rune of Reb
     expect(s.board.filter((c) => c.keywords.includes('RB')), 'nothing eligible → no-op').toHaveLength(2);
   });
 });
+
+describe('Rune of Soul Script: the BUY-consume reaches an Undead (owner report 2026-09-16)', () => {
+  it('with no Celestial on the board, buying the Starform feeds the left-most Undead under the rune — and nobody without it', () => {
+    let s = run();
+    createStarform(s, SRC);
+    const u1 = body('u1', 'u3_poochy', { keywords: [] });
+    const u2 = body('u2', 'u3_poochy', { keywords: [] });
+    s = { ...s, board: [u1, u2] };
+    const [sa, sh] = [starformStats(s)!.attack, starformStats(s)!.health];
+    const before = buyStarform({ ...s, board: s.board.map((c) => ({ ...c })), shop: s.shop.map((o) => ({ ...o })) });
+    expect(before?.receiver, 'no rune: the buy has no receiver').toBeNull();
+    s = buyRune(s, 'rune_soul_script');
+    const out = buyStarform(s);
+    expect(out?.receiver?.uid).toBe('u1');
+    const fed = s.board.find((c) => c.uid === 'u1')!;
+    expect(fed.attack).toBe(u1.attack + sa);
+    expect(fed.health).toBe(u1.health + sh);
+  });
+});

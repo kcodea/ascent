@@ -377,9 +377,18 @@ export function destroyStarform(state: RunState): boolean {
  *  consume path (`starformRemoved('consume')` — Zenith re-creates, Twin Star hears the buy like a Devotee's). The
  *  reducer's `buy` case owns the Gold + the "counts as a minion bought" half. Returns the receiver (null = none)
  *  and the stats that moved; null with no Starform. */
+/** Can `c` receive the Starform's stats (a buy-consume receiver, a Collapse hit)? A Celestial — or, under Rune of
+ *  Soul Script, an Undead as well (the generic tribe predicate, so an added-tribe body counts). ONE predicate for
+ *  every receiver pick, so the rune can never reach one path and miss another. */
+export function starformReceives(state: Pick<RunState, 'runeSoulScript'>, c: BoardCard): boolean {
+  return isTribe(c, 'celestial') || (!!state.runeSoulScript && isTribe(c, 'undead'));
+}
+
 export function buyStarform(state: RunState): { receiver: BoardCard | null; stats: { attack: number; health: number } } | null {
   if (!hasStarform(state)) return null;
-  const receiver = state.board.find((c) => isTribe(c, 'celestial')) ?? null;
+  // The left-most eligible receiver — a Celestial, or under Rune of Soul Script an Undead too (owner report
+  // 2026-09-16: the buy-consume fell through to the plain removal on an all-Undead board while the Collapse worked).
+  const receiver = state.board.find((c) => starformReceives(state, c)) ?? null;
   const stats = receiver ? consumeStarform(state, receiver) : removeStarform(state, 'consume');
   if (!stats) return null;
   if (receiver) addBuff(receiver, 'Starform', stats.attack, stats.health);
@@ -406,7 +415,7 @@ export function collapseHits(state: RunState, originals = 2, extras = collapseEx
   // RUNE OF SOUL SCRIPT (owner 2026-09-16: "Undead should be able to consume [the Starform], AND be targets for a
   // Collapse"): your Undead are Collapse receivers beside your Celestials — the originals, the extras, and the
   // Supernova's "all your Celestials" alike. The generic tribe predicate, so an added-tribe Undead counts too.
-  const pool = state.board.filter((c) => isTribe(c, 'celestial') || (!!state.runeSoulScript && isTribe(c, 'undead')));
+  const pool = state.board.filter((c) => starformReceives(state, c));
   if (pool.length === 0) return [];
   // RUNE OF THE SUPERNOVA (Set 3 batch 2): "half its stats to ALL your Celestials instead of two" — every friendly
   // Celestial is an original (board order, no draw), and the extras still land on top with replacement.

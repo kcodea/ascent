@@ -1887,18 +1887,22 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   transform: translate(-50%, -50%) translate(var(--mstint-dx, 0px), var(--mstint-dy, 0px));
   border-radius: 50%;
   pointer-events: none;
-  mix-blend-mode: color;
-  opacity: var(--mstint-opacity, 0.85);
-  background: var(--mstint-neutral, #f2c33d);   /* neutral */
+  opacity: var(--mstint-opacity, 1);
+  background: var(--mstint-neutral, #f2c33d);   /* neutral — a SOLID fill (owner ask 2026-09-15) */
 }
 .badge.up > .mstint { background: var(--mstint-up, #21c17a); }     /* buffed above base */
 .badge.down > .mstint { background: var(--mstint-down, #e2452f); } /* below base/floor */
 /* The number on a framed badge — size / colour / nudge / outline are tuner-driven; unframed tier-0 badges keep
-   the base `.badge > .value` rule above. The translate nudges the digit within the disc. */
+   the base `.badge > .value` rule above. Absolutely centred on the disc so it grows from BOTH sides (a 4-digit
+   5000 stays centred instead of spilling off the right); the second translate is the tuner's nudge. */
 .badge:not([data-milestone='0']) > .value {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%) translate(var(--msnum-dx, 0px), var(--msnum-dy, 0px));
+  text-align: center;
+  white-space: nowrap;
   font-size: var(--msnum-size, 30px);
   color: var(--msnum-color, #fff);
-  transform: translate(var(--msnum-dx, 0px), var(--msnum-dy, 0px));
   -webkit-text-stroke: var(--msnum-stroke-w, 0px) var(--msnum-stroke-color, #000);
 }
 /* MILESTONE TUNER PREVIEW — the 🏅 Milestone Badges panel renders the real badge markup for all ten tiers so it

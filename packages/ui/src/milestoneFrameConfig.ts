@@ -48,7 +48,7 @@ const DEFAULTS: MilestoneFrameConfig = {
   scale1: 1.72, scale2: 1.72, scale3: 1.80, scale4: 1.86, scale5: 1.92,
   frameDx: -1, frameDy: -6,
 
-  tintFrac: 0.5, tintOpacity: 0.85, tintDx: 0, tintDy: 0,
+  tintFrac: 0.5, tintOpacity: 1, tintDx: 0, tintDy: 0,
   tintNeutral: '#f2c33d', tintUp: '#21c17a', tintDown: '#e2452f',
 
   numSize: 30, numDx: 0, numDy: 0, numColor: '#ffffff', numStrokeW: 0, numStrokeColor: '#000000',
@@ -129,7 +129,7 @@ const NUM_SPECS: Record<keyof typeof RANGES, [string, TunerControl['unit'], stri
   frameDx: ['Frame X', 'px', 'Nudge every frame left/right so its disc sits on the number.', 'Frame position'],
   frameDy: ['Frame Y', 'px', 'Nudge every frame up/down so its disc sits on the number.', 'Frame position'],
   tintFrac: ['Tint size', undefined, 'Tint disc size as a fraction of the frame — how much of the leather it covers.', 'State tint'],
-  tintOpacity: ['Tint strength', 'opacity', '0 hides the state colour, 1 is a full recolour of the leather.', 'State tint'],
+  tintOpacity: ['Tint strength', 'opacity', '0 hides the tint, 1 is a fully opaque solid disc over the leather.', 'State tint'],
   tintDx: ['Tint X', 'px', 'Nudge the tint disc left/right.', 'State tint'],
   tintDy: ['Tint Y', 'px', 'Nudge the tint disc up/down.', 'State tint'],
   numSize: ['Number size', 'px', 'Font size of the digit on a framed badge.', 'Number'],

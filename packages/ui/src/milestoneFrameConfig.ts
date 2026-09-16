@@ -20,7 +20,7 @@ import type { TunerControl, TunerSpec } from './tunerSchema';
  */
 export interface MilestoneFrameConfig {
   // ── Frame size, per tier (× of the 60px badge) ──────────────────────────────────────────────────────────
-  scale1: number; scale2: number; scale3: number; scale4: number; scale5: number;
+  scale1: number; scale2: number; scale3: number; scale4: number; scale5: number; scale6: number;
   // ── Frame position (px nudge so the disc lands on the number) ────────────────────────────────────────────
   frameDx: number; frameDy: number;
 
@@ -45,13 +45,13 @@ export interface MilestoneFrameConfig {
   // ── Glow underneath each frame ──────────────────────────────────────────────────────────────────────────
   /** Glow disc size (fraction of the frame), blur radius (px), and strength (opacity). */
   glowSize: number; glowBlur: number; glowOpacity: number;
-  /** Glow colour per tier 1..5 — controllable individually. */
-  glow1: string; glow2: string; glow3: string; glow4: string; glow5: string;
+  /** Glow colour per tier 1..6 — controllable individually. */
+  glow1: string; glow2: string; glow3: string; glow4: string; glow5: string; glow6: string;
 }
 
 /** Shipped values — the current authored look. Frame scales seat each tier's disc; tint/number match today. */
 const DEFAULTS: MilestoneFrameConfig = {
-  scale1: 1, scale2: 1, scale3: 1, scale4: 1, scale5: 1,
+  scale1: 1, scale2: 1, scale3: 1, scale4: 1, scale5: 1, scale6: 1,
   frameDx: -0.5, frameDy: 3,
 
   tintFrac: 0.66, tintOpacity: 1, tintDx: -1.5, tintDy: -0.5,
@@ -60,14 +60,14 @@ const DEFAULTS: MilestoneFrameConfig = {
   numSize: 33, numDx: -0.5, numDy: 0, numColor: '#ffffff', numStrokeW: 0, numStrokeColor: '#000000',
 
   glowSize: 0.95, glowBlur: 9, glowOpacity: 0.75,
-  glow1: '#c9d3e0', glow2: '#c9d3e0', glow3: '#ffd54a', glow4: '#ff5edb', glow5: '#4fd1ff',
+  glow1: '#c9d3e0', glow2: '#c9d3e0', glow3: '#ffd54a', glow4: '#ff5edb', glow5: '#4fd1ff', glow6: '#4fd1ff',
 };
 
 type ColorKey = 'tintNeutral' | 'tintUp' | 'tintDown' | 'numColor' | 'numStrokeColor'
-  | 'glow1' | 'glow2' | 'glow3' | 'glow4' | 'glow5';
+  | 'glow1' | 'glow2' | 'glow3' | 'glow4' | 'glow5' | 'glow6';
 
 const RANGES: Record<Exclude<keyof MilestoneFrameConfig, ColorKey>, [number, number, number]> = {
-  scale1: [0.8, 3, 0.01], scale2: [0.8, 3, 0.01], scale3: [0.8, 3, 0.01], scale4: [0.8, 3, 0.01], scale5: [0.8, 3, 0.01],
+  scale1: [0.8, 3, 0.01], scale2: [0.8, 3, 0.01], scale3: [0.8, 3, 0.01], scale4: [0.8, 3, 0.01], scale5: [0.8, 3, 0.01], scale6: [0.8, 3, 0.01],
   frameDx: [-40, 40, 0.5], frameDy: [-40, 40, 0.5],
   tintFrac: [0, 1, 0.01], tintOpacity: [0, 1, 0.01], tintDx: [-40, 40, 0.5], tintDy: [-40, 40, 0.5],
   numSize: [10, 60, 1], numDx: [-40, 40, 0.5], numDy: [-40, 40, 0.5], numStrokeW: [0, 6, 0.5],
@@ -102,6 +102,7 @@ export function applyMilestoneFrameVars(): void {
   r.setProperty('--ms-scale-3', String(cfg.scale3));
   r.setProperty('--ms-scale-4', String(cfg.scale4));
   r.setProperty('--ms-scale-5', String(cfg.scale5));
+  r.setProperty('--ms-scale-6', String(cfg.scale6));
   r.setProperty('--msf-dx', `${cfg.frameDx}px`);
   r.setProperty('--msf-dy', `${cfg.frameDy}px`);
   r.setProperty('--mstint-frac', String(cfg.tintFrac));
@@ -125,9 +126,10 @@ export function applyMilestoneFrameVars(): void {
   r.setProperty('--ms-glow-3', cfg.glow3);
   r.setProperty('--ms-glow-4', cfg.glow4);
   r.setProperty('--ms-glow-5', cfg.glow5);
+  r.setProperty('--ms-glow-6', cfg.glow6);
 }
 
-const COLOR_KEYS: ReadonlySet<string> = new Set<ColorKey>(['tintNeutral', 'tintUp', 'tintDown', 'numColor', 'numStrokeColor', 'glow1', 'glow2', 'glow3', 'glow4', 'glow5']);
+const COLOR_KEYS: ReadonlySet<string> = new Set<ColorKey>(['tintNeutral', 'tintUp', 'tintDown', 'numColor', 'numStrokeColor', 'glow1', 'glow2', 'glow3', 'glow4', 'glow5', 'glow6']);
 
 export function setMilestoneFrameValue(key: keyof MilestoneFrameConfig, value: number | string): void {
   const isColor = COLOR_KEYS.has(key);
@@ -144,11 +146,12 @@ export function resetMilestoneFrameConfig(): void {
 
 /** [label, unit, hint, group] per numeric dial; colours are appended after, declaration order = render order. */
 const NUM_SPECS: Record<keyof typeof RANGES, [string, TunerControl['unit'], string, string]> = {
-  scale1: ['Tier 1 size (≥50)', '×', 'Size of the plain silver frame vs the badge.', 'Frame size (per tier)'],
-  scale2: ['Tier 2 size (≥100)', '×', 'Size of the tier-2 frame.', 'Frame size (per tier)'],
-  scale3: ['Tier 3 size (≥500)', '×', 'Size of the gold frame.', 'Frame size (per tier)'],
-  scale4: ['Tier 4 size (≥1000)', '×', 'Size of the tier-4 frame.', 'Frame size (per tier)'],
-  scale5: ['Tier 5 size (≥5000)', '×', 'Size of the top frame — the ornate one with the most overflow.', 'Frame size (per tier)'],
+  scale1: ['Tier 1 size (0–49)', '×', 'Size of the plain silver frame vs the badge.', 'Frame size (per tier)'],
+  scale2: ['Tier 2 size (≥50)', '×', 'Size of the silver dagger frame.', 'Frame size (per tier)'],
+  scale3: ['Tier 3 size (≥150)', '×', 'Size of the gold frame.', 'Frame size (per tier)'],
+  scale4: ['Tier 4 size (≥500)', '×', 'Size of the pink frame.', 'Frame size (per tier)'],
+  scale5: ['Tier 5 size (≥2000)', '×', 'Size of the blue frame.', 'Frame size (per tier)'],
+  scale6: ['Tier 6 size (≥5000)', '×', 'Size of the top (crystal) frame — the ornate one with the most overflow.', 'Frame size (per tier)'],
   frameDx: ['Frame X', 'px', 'Nudge every frame left/right so its disc sits on the number.', 'Frame position'],
   frameDy: ['Frame Y', 'px', 'Nudge every frame up/down so its disc sits on the number.', 'Frame position'],
   tintFrac: ['Tint size', undefined, 'Tint disc size as a fraction of the frame — how much of the leather it covers.', 'State tint'],
@@ -177,11 +180,12 @@ const colorControls: TunerControl<Extract<keyof MilestoneFrameConfig, string>>[]
   { key: 'tintDown', label: 'Reduced colour', hint: 'Tint when the stat is below base / combat floor.', group: 'State tint colours', kind: 'color', min: 0, max: 0, step: 0 },
   { key: 'numColor', label: 'Number colour', hint: 'Fill colour of the digit on a framed badge.', group: 'Number colours', kind: 'color', min: 0, max: 0, step: 0 },
   { key: 'numStrokeColor', label: 'Number outline colour', hint: 'Colour of the digit outline (width above).', group: 'Number colours', kind: 'color', min: 0, max: 0, step: 0 },
-  { key: 'glow1', label: 'Tier 1 glow (≥50)', hint: 'Glow colour behind the tier-1 frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
-  { key: 'glow2', label: 'Tier 2 glow (≥100)', hint: 'Glow colour behind the tier-2 frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
-  { key: 'glow3', label: 'Tier 3 glow (≥500)', hint: 'Glow colour behind the tier-3 frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
-  { key: 'glow4', label: 'Tier 4 glow (≥1000)', hint: 'Glow colour behind the tier-4 frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
-  { key: 'glow5', label: 'Tier 5 glow (≥5000)', hint: 'Glow colour behind the tier-5 frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
+  { key: 'glow1', label: 'Tier 1 glow (0–49)', hint: 'Glow colour behind the plain silver frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
+  { key: 'glow2', label: 'Tier 2 glow (≥50)', hint: 'Glow colour behind the silver dagger frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
+  { key: 'glow3', label: 'Tier 3 glow (≥150)', hint: 'Glow colour behind the gold frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
+  { key: 'glow4', label: 'Tier 4 glow (≥500)', hint: 'Glow colour behind the pink frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
+  { key: 'glow5', label: 'Tier 5 glow (≥2000)', hint: 'Glow colour behind the blue frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
+  { key: 'glow6', label: 'Tier 6 glow (≥5000)', hint: 'Glow colour behind the top crystal frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
 ];
 
 const controls = [...numControls, ...colorControls];
@@ -189,7 +193,7 @@ const controls = [...numControls, ...colorControls];
 export const SPEC: TunerSpec<MilestoneFrameConfig> = {
   id: 'milestoneframe',            // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Milestone Badges',
-  note: 'dev · live · buff a unit past 50/100/…',
+  note: 'dev · live · buff a unit past 50/150/…',
   read: getMilestoneFrameConfig,
   write: (key, value) => setMilestoneFrameValue(key, value),
   writeColor: (key, value) => setMilestoneFrameValue(key, value),

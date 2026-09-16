@@ -1848,11 +1848,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .atk.down > .plate, .hp.down > .plate { background: #d23b2b; }
 /* ── MILESTONE FRAMES ────────────────────────────────────────────────────────────────────────────────────
    A tiered frame ART DISC the badge sits in once a stat crosses a value tier, driven by `data-milestone`
-   (0..5 = tierOf(value); see choreo/statMilestones.ts). Tier 0 (below the first threshold) shows NO frame and
-   keeps the flat `.plate`; tiers 1..5 render `<img.msframe>` (public/frames/milestone-{atk,hp}-{1..5}.webp) and
-   hide the plate. The number (`.value`) stays put — the frame disc is sized/offset AROUND it, so the frame grows
-   without moving the digit. Attack = sword motif, Health = heart motif; both escalate and OVERFLOW the badge box
-   (the sword/heart extend past the disc), which is why `.atk`/`.hp` keep `overflow: visible`.
+   (0..6 = tierOf(value); see choreo/statMilestones.ts). Tier 0 (below 0) shows NO frame and keeps the flat
+   `.plate`; tiers 1..6 render `<img.msframe>` (public/frames/milestone-{atk,hp}-{1..6}.webp) and hide the plate.
+   The lineup: plain silver (≥0), silver dagger (≥50), gold (≥150), pink (≥500), blue (≥2000), crystal (≥5000).
+   The number (`.value`) stays put — the frame disc is sized/offset AROUND it, so the frame grows without moving
+   the digit. Attack = sword motif, Health = heart motif; both escalate and OVERFLOW the badge box (the
+   sword/heart extend past the disc), which is why `.atk`/`.hp` keep `overflow: visible`.
    Pure STATIC paint — no looping animation. The value roll and one-shot `useBadgePop` are untouched.
    NOTE: `data-milestone`/`--msf-*` are MILESTONE tiers — DISTINCT from the unit's shop tier (`--tier-N`).
    The frame art overflows the 60px badge; the `--msf-scale`/`--msf-dx`/`--msf-dy` knobs per tier seat each
@@ -1876,6 +1877,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .badge[data-milestone='3'] { --msf-scale: var(--ms-scale-3, 1); --ms-glow: var(--ms-glow-3, #ffd54a); }
 .badge[data-milestone='4'] { --msf-scale: var(--ms-scale-4, 1); --ms-glow: var(--ms-glow-4, #ff5edb); }
 .badge[data-milestone='5'] { --msf-scale: var(--ms-scale-5, 1); --ms-glow: var(--ms-glow-5, #4fd1ff); }
+.badge[data-milestone='6'] { --msf-scale: var(--ms-scale-6, 1); --ms-glow: var(--ms-glow-6, #4fd1ff); } /* crystal */
 /* Per-tier GLOW underneath the frame — a soft, blurred colour disc behind the art whose colour is set per tier
    (owner ask 2026-09-15). STATIC blur (no looping animation), so it respects the 60fps paint rule. It is the
    FIRST child of .badge in the DOM, so it paints BEHIND the frame / tint / number. */

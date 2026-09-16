@@ -12,8 +12,8 @@
 export type StatKind = 'attack' | 'health';
 
 export const MILESTONE_TIERS: Record<StatKind, number[]> = {
-  attack: [50, 100, 500, 1000, 5000],
-  health: [50, 100, 500, 1000, 5000],
+  attack: [0, 50, 150, 500, 2000, 5000],
+  health: [0, 50, 150, 500, 2000, 5000],
 };
 
 /** How many thresholds `value` has reached: 0 (below the first) up to the number of thresholds. Pure. */

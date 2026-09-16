@@ -56,6 +56,20 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-16',
+    label: 'Milestone frames',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "Milestone badge frames now change at new values: plain silver below 50, the silver dagger at 50, gold at 150, pink at 500, blue at 2000, and a new top crystal frame at 5000.",
+      },
+      {
+        category: 'UI / Info',
+        text: "The celebration when a stat crosses a milestone now bursts in that tier's own colour, matching the frame it just earned — instead of the same gold every time.",
+      },
+    ],
+  },
+  {
+    date: '2026-09-16',
     label: 'Echohorn strikes on time',
     changes: [
       {

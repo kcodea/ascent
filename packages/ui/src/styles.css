@@ -1871,11 +1871,26 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    Values come from the 🏅 Milestone Badges tuner (milestoneFrameConfig.ts); the literals are the shipped
    fallback if a config var is ever absent. Ornate high tiers have a smaller disc-to-image ratio, so they scale
    up to keep the disc — and thus the number — a constant on-screen size. */
-.badge[data-milestone='1'] { --msf-scale: var(--ms-scale-1, 1); }
-.badge[data-milestone='2'] { --msf-scale: var(--ms-scale-2, 1); }
-.badge[data-milestone='3'] { --msf-scale: var(--ms-scale-3, 1); }
-.badge[data-milestone='4'] { --msf-scale: var(--ms-scale-4, 1); }
-.badge[data-milestone='5'] { --msf-scale: var(--ms-scale-5, 1); }
+.badge[data-milestone='1'] { --msf-scale: var(--ms-scale-1, 1); --ms-glow: var(--ms-glow-1, #c9d3e0); }
+.badge[data-milestone='2'] { --msf-scale: var(--ms-scale-2, 1); --ms-glow: var(--ms-glow-2, #c9d3e0); }
+.badge[data-milestone='3'] { --msf-scale: var(--ms-scale-3, 1); --ms-glow: var(--ms-glow-3, #ffd54a); }
+.badge[data-milestone='4'] { --msf-scale: var(--ms-scale-4, 1); --ms-glow: var(--ms-glow-4, #ff5edb); }
+.badge[data-milestone='5'] { --msf-scale: var(--ms-scale-5, 1); --ms-glow: var(--ms-glow-5, #4fd1ff); }
+/* Per-tier GLOW underneath the frame — a soft, blurred colour disc behind the art whose colour is set per tier
+   (owner ask 2026-09-15). STATIC blur (no looping animation), so it respects the 60fps paint rule. It is the
+   FIRST child of .badge in the DOM, so it paints BEHIND the frame / tint / number. */
+.badge > .msglow {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: calc(60px * var(--msf-scale, 1) * var(--msglow-frac, 0.95));
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%) translate(var(--msf-dx, -0.5px), var(--msf-dy, 3px));
+  border-radius: 50%;
+  pointer-events: none;
+  background: var(--ms-glow, #c9d3e0);
+  filter: blur(var(--msglow-blur, 9px));
+  opacity: var(--msglow-opacity, 0.75);
+}
 /* State tint — a SOLID disc OVER the frame's leather, coloured by stat state (owner ask 2026-09-15):
    neutral / buffed / reduced. Above the frame art, below the number. Size, strength, offset and the three
    colours are all tuner-driven; the literals here are the shipped fallback (owner-tuned 2026-09-15). */

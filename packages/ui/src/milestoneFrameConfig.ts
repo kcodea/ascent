@@ -41,6 +41,12 @@ export interface MilestoneFrameConfig {
   numDx: number; numDy: number;
   /** Number fill colour, outline width (px) and outline colour. */
   numColor: string; numStrokeW: number; numStrokeColor: string;
+
+  // ── Glow underneath each frame ──────────────────────────────────────────────────────────────────────────
+  /** Glow disc size (fraction of the frame), blur radius (px), and strength (opacity). */
+  glowSize: number; glowBlur: number; glowOpacity: number;
+  /** Glow colour per tier 1..5 — controllable individually. */
+  glow1: string; glow2: string; glow3: string; glow4: string; glow5: string;
 }
 
 /** Shipped values — the current authored look. Frame scales seat each tier's disc; tint/number match today. */
@@ -52,13 +58,20 @@ const DEFAULTS: MilestoneFrameConfig = {
   tintNeutral: '#be8c04', tintUp: '#00992e', tintDown: '#bd311f',
 
   numSize: 33, numDx: -0.5, numDy: 0, numColor: '#ffffff', numStrokeW: 0, numStrokeColor: '#000000',
+
+  glowSize: 0.95, glowBlur: 9, glowOpacity: 0.75,
+  glow1: '#c9d3e0', glow2: '#c9d3e0', glow3: '#ffd54a', glow4: '#ff5edb', glow5: '#4fd1ff',
 };
 
-const RANGES: Record<Exclude<keyof MilestoneFrameConfig, 'tintNeutral' | 'tintUp' | 'tintDown' | 'numColor' | 'numStrokeColor'>, [number, number, number]> = {
+type ColorKey = 'tintNeutral' | 'tintUp' | 'tintDown' | 'numColor' | 'numStrokeColor'
+  | 'glow1' | 'glow2' | 'glow3' | 'glow4' | 'glow5';
+
+const RANGES: Record<Exclude<keyof MilestoneFrameConfig, ColorKey>, [number, number, number]> = {
   scale1: [0.8, 3, 0.01], scale2: [0.8, 3, 0.01], scale3: [0.8, 3, 0.01], scale4: [0.8, 3, 0.01], scale5: [0.8, 3, 0.01],
   frameDx: [-40, 40, 0.5], frameDy: [-40, 40, 0.5],
   tintFrac: [0, 1, 0.01], tintOpacity: [0, 1, 0.01], tintDx: [-40, 40, 0.5], tintDy: [-40, 40, 0.5],
   numSize: [10, 60, 1], numDx: [-40, 40, 0.5], numDy: [-40, 40, 0.5], numStrokeW: [0, 6, 0.5],
+  glowSize: [0, 2, 0.01], glowBlur: [0, 40, 1], glowOpacity: [0, 1, 0.01],
 };
 
 export { DEFAULTS as MILESTONE_FRAME_DEFAULTS };
@@ -104,10 +117,20 @@ export function applyMilestoneFrameVars(): void {
   r.setProperty('--msnum-color', cfg.numColor);
   r.setProperty('--msnum-stroke-w', `${cfg.numStrokeW}px`);
   r.setProperty('--msnum-stroke-color', cfg.numStrokeColor);
+  r.setProperty('--msglow-frac', String(cfg.glowSize));
+  r.setProperty('--msglow-blur', `${cfg.glowBlur}px`);
+  r.setProperty('--msglow-opacity', String(cfg.glowOpacity));
+  r.setProperty('--ms-glow-1', cfg.glow1);
+  r.setProperty('--ms-glow-2', cfg.glow2);
+  r.setProperty('--ms-glow-3', cfg.glow3);
+  r.setProperty('--ms-glow-4', cfg.glow4);
+  r.setProperty('--ms-glow-5', cfg.glow5);
 }
 
+const COLOR_KEYS: ReadonlySet<string> = new Set<ColorKey>(['tintNeutral', 'tintUp', 'tintDown', 'numColor', 'numStrokeColor', 'glow1', 'glow2', 'glow3', 'glow4', 'glow5']);
+
 export function setMilestoneFrameValue(key: keyof MilestoneFrameConfig, value: number | string): void {
-  const isColor = key === 'tintNeutral' || key === 'tintUp' || key === 'tintDown' || key === 'numColor' || key === 'numStrokeColor';
+  const isColor = COLOR_KEYS.has(key);
   cfg = { ...cfg, [key]: isColor ? String(value) : Number(value) };
   applyMilestoneFrameVars();
   try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch { /* ignore */ }
@@ -136,6 +159,9 @@ const NUM_SPECS: Record<keyof typeof RANGES, [string, TunerControl['unit'], stri
   numDx: ['Number X', 'px', 'Nudge the number left/right within the disc.', 'Number'],
   numDy: ['Number Y', 'px', 'Nudge the number up/down within the disc.', 'Number'],
   numStrokeW: ['Number outline', 'px', 'Outline width around the digit — 0 is none.', 'Number'],
+  glowSize: ['Glow size', undefined, 'Glow disc size as a fraction of the frame.', 'Glow'],
+  glowBlur: ['Glow blur', 'px', 'How soft the glow halo is — higher spreads it wider.', 'Glow'],
+  glowOpacity: ['Glow strength', 'opacity', 'How strong the glow reads behind the frame. 0 hides it.', 'Glow'],
 };
 
 const numControls: TunerControl<Extract<keyof MilestoneFrameConfig, string>>[] =
@@ -151,6 +177,11 @@ const colorControls: TunerControl<Extract<keyof MilestoneFrameConfig, string>>[]
   { key: 'tintDown', label: 'Reduced colour', hint: 'Tint when the stat is below base / combat floor.', group: 'State tint colours', kind: 'color', min: 0, max: 0, step: 0 },
   { key: 'numColor', label: 'Number colour', hint: 'Fill colour of the digit on a framed badge.', group: 'Number colours', kind: 'color', min: 0, max: 0, step: 0 },
   { key: 'numStrokeColor', label: 'Number outline colour', hint: 'Colour of the digit outline (width above).', group: 'Number colours', kind: 'color', min: 0, max: 0, step: 0 },
+  { key: 'glow1', label: 'Tier 1 glow (≥50)', hint: 'Glow colour behind the tier-1 frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
+  { key: 'glow2', label: 'Tier 2 glow (≥100)', hint: 'Glow colour behind the tier-2 frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
+  { key: 'glow3', label: 'Tier 3 glow (≥500)', hint: 'Glow colour behind the tier-3 frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
+  { key: 'glow4', label: 'Tier 4 glow (≥1000)', hint: 'Glow colour behind the tier-4 frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
+  { key: 'glow5', label: 'Tier 5 glow (≥5000)', hint: 'Glow colour behind the tier-5 frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
 ];
 
 const controls = [...numControls, ...colorControls];

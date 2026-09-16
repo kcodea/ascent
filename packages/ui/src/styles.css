@@ -10475,3 +10475,38 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
    work while watching, which is most of why anyone watches. Dragging one is refused in `onCardPointerDown`
    instead — a JS guard, because the card must stay hoverable and `pointer-events: none` cannot do both. */
 .app.viewing .card { cursor: url('/cursors/gauntlet_open.svg') 6 2, default; }
+
+/* ---- SCENE BUILDER: badge stat editor + library preview (2026-09-16) ----
+   DUMMIES / UNIT EDITOR — the game's OWN stat badges (`.badge.atk` / `.badge.hp` + `.plate` + `.value`, the
+   card's exact nodes from Card.tsx) seated inline at panel scale, the `.value` being an invisible <input>.
+   Only the SEATING is overridden here (the card absolutes them onto its corners); the plate's fill, border
+   and radius are the card's rules. No cursor overrides (the gauntlet paints), no looping animation. */
+.sb-stats { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.sb-stats .badge { position: relative; inset: auto; width: 40px; height: 40px; z-index: 0; }
+.sb-stats .badge > .plate { border-width: 2px; border-radius: 11px; border-color: #100d08; }
+.sb-stats .badge > .value {
+  width: 100%; height: 100%; padding: 0; margin: 0; background: transparent; border: 0; outline: 0; text-align: center;
+  color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: 19px; line-height: 1; caret-color: #fff;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45); appearance: textfield; -moz-appearance: textfield;
+}
+.sb-stats .badge > .value::selection { background: rgba(255, 255, 255, 0.35); }
+.sb-stats .badge:focus-within > .plate { box-shadow: 0 0 0 2px var(--sb-brass, #c8a45c), 0 2px 6px rgba(0, 0, 0, 0.3); }
+/* The count (`‹ ×5 ›`) — a brass pill stepper in the badges' language; the number is typeable. */
+.sb-countstep { display: inline-flex; align-items: center; height: 26px; flex: none; border: 1px solid #443a2c; border-radius: 999px; background: var(--sb-well, #100d08); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6); color: var(--sb-ink2, #c9bda6); transition: border-color 0.12s ease; }
+.sb-countstep:focus-within { border-color: var(--sb-brass, #c8a45c); }
+.sb-countstep-btn { background: none; border: 0; height: 100%; padding: 0 6px; color: var(--sb-ink3, #9a8c74); font-size: 14px; font-weight: 900; line-height: 1; }
+.sb-countstep-btn:hover:not(:disabled) { color: var(--sb-brass, #c8a45c); }
+.sb-countstep-btn:disabled { opacity: 0.3; }
+.sb-countstep-x { font-size: 11px; color: var(--sb-ink3, #9a8c74); }
+.sb-countstep-n { width: 22px; padding: 0; background: transparent; border: 0; outline: 0; color: var(--sb-ink, #efe7db); font-family: var(--font-ui); font-weight: 800; font-size: 13px; text-align: center; }
+/* The dummies row wraps if the panel is narrow; the `set` button sits at the end. */
+.scenebuilder .sb-dummies { flex-wrap: wrap; gap: 6px; }
+.scenebuilder .sb-dummies .sb-btn { margin-left: auto; }
+/* LIBRARY PREVIEW — one fixed element (SceneBuilderPreview.tsx) holding the REAL `Card` / `RuneCard`, seated
+   beside the hovered row by JS. `pointer-events: none` so it never takes the hover; a 120 ms one-shot fade-in
+   (opacity/transform only), no loop. `zoom` enlarges it like the game's hover reveal (`.cardref-inner`). */
+.sb-preview { position: fixed; z-index: 950; pointer-events: none; filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.6)); animation: sbprevin 0.12s ease-out; }
+.sb-preview-inner { zoom: 1.25; }
+.sb-preview-inner.rune { zoom: 1.05; }
+.sb-preview .card.plated { margin-inline: calc(var(--ccw) * (var(--plate-scale, 1.5) - 1) / 2); }
+@keyframes sbprevin { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }

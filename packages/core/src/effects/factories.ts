@@ -1696,6 +1696,24 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ARENA_EFFECTS.onRiseBuffBoardAndHand(combatArena(ctx, self), params);
   },
 
+  /** Rune of the Endless March graft — `onRise`: fires only for the body that ROSE (the graft rides every friendly
+   *  Undead, so a board of five hears one Rise five times and only the riser answers). Summons beside itself. */
+  onRiseSelfSummonToken: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (minion !== self || self.dead) return;
+    ARENA_EFFECTS.onRiseSelfSummonToken(combatArena(ctx, self), params);
+  },
+
+  /** Rune of the Last Tool graft — Echo: "this minion's Equipment costs 0 next turn". Combat cannot write run
+   *  state, so the Echo LOGS a `questTrigger` carry-back (`flag: 'runeLastTool'`; the emit stamps `srcCard` = the
+   *  dying card, whose own `equip` effect names the Equipment) and `settleCombat` books the free turn from the
+   *  event log. A real Echo: own-death guarded, so every Echo multiplier / strip applies as to a printed one. */
+  deathrattleEquipmentFreeNextTurn: (ctx, self, _params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    if (!ctx.getCard(self.cardId).effects.some((e) => e.on === 'equip')) return;
+    ctx.log({ type: 'questTrigger', flag: 'runeLastTool', side: self.side });
+  },
+
   /** Squatimus — `summonOverflow` (this side's summon found no room): your minions +a/+h, carried back. */
   overflowBuffAllPermanent: (ctx, self, params, payload) => {
     const { side } = payload as { side: Side };

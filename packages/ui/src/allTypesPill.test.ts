@@ -76,6 +76,8 @@ const ART_PENDING = new Set<string>([
   'ce3_peddler', 'ce3_wishingstar', 'ce3_shootingstar', 'ce3_starcharter', 'ce3_lodestar', 'ce3_twinstar', 'ce3_zenith', 'ce3_constellationprime',
   // SET 3 SPIRITS — the Handy Flame rune token (Set 3 batch 2, 2026-09-16): authored ahead of its art (owner: wire none yet).
   'sp3_handyflame',
+  // Set 3 batch 2 (2026-09-16): the Skeleton token Rune of the Endless March summons — art owed.
+  'u3_skeleton',
 ]);
 
 describe('art coverage for live cards', () => {

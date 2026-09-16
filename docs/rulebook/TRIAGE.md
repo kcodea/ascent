@@ -48,7 +48,7 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod runeMatriarch — Rune of the Matriarch: Runebloom Matriarchs trigger twice — threaded so the COMBAT half of her per-spell proc doubles exactly like the shop half (owner audit 2026-08-02).
 - combat mod runeMammoth — Rune of the Mammoth: Menagerie Mammoths' grant is 1:1 symmetric (+3/+3 instead of +3 Attack).
 - combat mod baneDemonWiden — Bane's Existence (quest): the Demon-widen amounts. Carried into combat since the 2026-08-04 owner ruling — the widen fires on combat-triggered Battlecries too.
-- combat mod runeOverflow (Rune of Overflow: "Whenever you summon a minion that does not fit, give your minions +4/+4 permanently.") — Rune of Overflow: stats granted to your whole board, permanently, per summon that does not fit.
+- combat mod runeOverflow (Rune of the Crowded Crypt: "Whenever a summoned minion does not fit, give your minions +1/+1 permanently. Triggers twice in the Shop.") — Rune of Overflow: stats granted to your whole board, permanently, per summon that does not fit.
 - combat mod candlelightToll (Candlelight Toll: "") — Rune of Lasting Cadence: at Start of Combat, EVERY rally-capable friendly fires its Rally once (the board-wide sibling of `runeRallying`, which fires only the left-most). */ /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant).
 - combat mod gemheartCharge (Heart of the Mountain: "") — Heart of the Mountain: Gemheart Golems attack immediately when summoned.
 - combat mod burningLegionUses — The Burning Legion: how many times an attacking Imp may summon a copy of itself this combat.

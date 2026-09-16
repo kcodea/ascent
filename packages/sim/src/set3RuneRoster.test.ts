@@ -35,6 +35,11 @@ describe('the Set 3 static rune pool (handoff 2026-09-14)', () => {
     expect(pool.filter((r) => !r.epic)).toHaveLength(115);
     expect(pool.filter((r) => r.epic)).toHaveLength(98);
   });
+  it('the Set 3-original runes (batch 2: tranche A 11/13, B 8/11, C 2/4) join on top', () => {
+    const own = staticPool('set3', S3).filter(isOriginal);
+    expect(own.filter((r) => !r.epic)).toHaveLength(21);
+    expect(own.filter((r) => r.epic)).toHaveLength(28);
+  });
   it('Set 1 and Set 2 pools keep their previous scoped runes — a carryover only ADDS set3', () => {
     for (const r of [...RUNES, ...EPIC_RUNES]) {
       if (r.sets?.includes('set3') && !isOriginal(r)) expect(r.sets.some((x) => x === 'set1' || x === 'set2'), `${r.id} kept its origin scope`).toBe(true);

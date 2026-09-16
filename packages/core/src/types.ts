@@ -289,6 +289,8 @@ export type EffectFactoryId =
   | 'onRiseBuffBoardAndHand' // Set 3 Undead — Rising Tide: when a friendly minion Rises, your minions on board AND in hand +a/+h
   | 'overflowBuffAllPermanent' // Set 3 Undead — Squatimus: a summon that does not fit → your minions +a/+h PERMANENTLY (both phases)
   | 'deathrattleBuffRandomTribe' // Set 3 Undead — Noggin: Echo — a random friendly <tribe> +a/+h (both phases)
+  | 'onRiseSelfSummonToken' // Set 3 batch 2 — Rune of the Endless March graft: when THIS body Rises, summon a token (both phases)
+  | 'deathrattleEquipmentFreeNextTurn' // Set 3 batch 2 — Rune of the Last Tool graft: Echo — this minion's Equipment costs 0 next turn (shop: run field; combat: a `questTrigger` carry-back)
   | 'battlecryDestroyForDiscover' // Set 3 Undead — Cage Breaker: Shout — destroy a friendly <tribe> (its Echo + Rise fire) to Discover a <tribe>; combat grants a random one
   | 'equipmentRiseThenDestroy' // Set 3 Undead — Deathfibrillator: give the target Rise, then destroy it (it returns)
   | 'avengeCastTribeAttack' // Set 3 Undead — Soul-Lantern Hierophant: Avenge (N) — cast Lantern of Souls (the Rally body, avenge-windowed)
@@ -1440,6 +1442,47 @@ export type QuestReward =
   // Rune of Empowerment (Epic): your hero power's effect triggers twice (only offered to heroes whose power
   // benefits — see the sim's DOUBLEABLE_POWERS gate).
   | { kind: 'runeEmpowerment' }
+  // ── Set 3 batch 2 (2026-09-16) — tranche B (Starform / Equipment / Undead runes) ──────────────────────
+  /** Rune of First Light: create a Starform now; every Starform created from here on starts +8/+8; Start of
+   *  Turn: create one if none exists. */
+  | { kind: 'runeFirstLight' }
+  /** Rune of Accretion: minions the Starform Consumes grant it twice their stats (×(1+copies)). */
+  | { kind: 'runeAccretion' }
+  /** Rune of Eventide: the first Starform Consume/Collapse each turn → 2 random Shop spells + spell power +1/+1. */
+  | { kind: 'runeEventide' }
+  /** Rune of Efficient Tooling: the first Equipment activation each turn costs `less` less. */
+  | { kind: 'runeEfficientTooling'; less: number }
+  /** Rune of Quick Release: selling an Equip minion arms a 0-cost next activation this turn. */
+  | { kind: 'runeQuickRelease' }
+  /** Rune of Resonant Arms: every `per`-th Equipment trigger → your minions +attack/+health. */
+  | { kind: 'runeResonantArms'; per: number; attack: number; health: number }
+  /** Rune of Last Rites: the first Undead destroyed in the Shop each turn returns a plain copy to hand. */
+  | { kind: 'runeLastRites' }
+  /** Rune of the Crowded Crypt: the SHOP half — an overflowed summon buffs your minions +a/+h, `times` times.
+   *  (The combat half rides the existing `runeOverflow` combat flag with `amount: 1`.) */
+  | { kind: 'runeCrowdedCrypt'; attack: number; health: number; times: number }
+  /** Rune of the Open Constellation: the first Starform Consume each turn re-creates a token with its stats. */
+  | { kind: 'runeOpenConstellation' }
+  /** Rune of the Supernova: a Collapse hits EVERY friendly Celestial (plus the extras) instead of two. */
+  | { kind: 'runeSupernova' }
+  /** Rune of Stolen Constellations: every minion the Starform Consumes hands a plain copy to hand. */
+  | { kind: 'runeStolenConstellations' }
+  /** Rune of Spellweaving: the first `count` stat-granting Shop spells each turn also feed the Starform. */
+  | { kind: 'runeSpellweaving'; count: number }
+  /** Rune of Overcharge: the first Equipment activation each turn costs 0 and spends no charge. */
+  | { kind: 'runeOvercharge' }
+  /** Rune of Dismantling: the first Equip minion sold each turn fires its Equipment free before leaving. */
+  | { kind: 'runeDismantling' }
+  /** Rune of Counterrotation: after `count` DIFFERENT Equipment activate (per turn), re-trigger them all. */
+  | { kind: 'runeCounterrotation'; count: number }
+  /** Rune of Empty Hands: Discover an Equip minion; that CARD's Equipment costs 0 for the run. */
+  | { kind: 'runeEmptyHands' }
+  /** Rune of the Last Tool: grafts "Echo: this minion's Equipment costs 0 next turn" onto every Equip minion. */
+  | { kind: 'runeLastTool' }
+  /** Rune of the Endless March: grafts "when THIS rises, summon a 1/1 Skeleton" onto every friendly Undead. */
+  | { kind: 'runeEndlessMarch' }
+  /** Rune of the Grave Orbit: after combat, the Starform gains +a/+h per friendly Undead that Rose. */
+  | { kind: 'runeGraveOrbit'; attack: number; health: number }
   // Open the EPIC Runeforge — a quest reward that presents the Epic runeset (a random few of `EPIC_RUNES`) to
   // buy ONE, exactly like the Runesmith's forge but reachable by any hero via a quest.
   | { kind: 'openEpicRuneforge' }
@@ -1468,7 +1511,7 @@ export type QuestReward =
   | { kind: 'gainMaxGold'; amount: number }
   // `discover` opens a minion Discover — at your current tavern tier, or at `tier` when given (Rune of the Scout →
   // Tier 5, Rune of the Champion → Tier 6).
-  | { kind: 'discover'; tier?: number; /** Rune of the Catacomb: narrow the offer to Echo (Deathrattle) minions. */ filter?: 'battlecry' | 'deathrattle'; /** Rune of Rising Echoes: the pick arrives carrying these keywords. */ grantKeywords?: Keyword[] }
+  | { kind: 'discover'; tier?: number; /** Rune of the Catacomb: narrow the offer to Echo (Deathrattle) minions; `equip` (Rune of Empty Hands) to Equip minions. */ filter?: 'battlecry' | 'deathrattle' | 'equip'; /** Rune of Rising Echoes: the pick arrives carrying these keywords. */ grantKeywords?: Keyword[] }
   // Rune of the Second Path: Discover one of the minions that Greater Quests grant as rewards (a fixed pool).
   | { kind: 'discoverGreaterQuest' }
   | { kind: 'dupeFirstBuy' }

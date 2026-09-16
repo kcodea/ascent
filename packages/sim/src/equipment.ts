@@ -145,9 +145,34 @@ export function consumeAmplified(run: RunState, equipmentId: string): boolean {
   return true;
 }
 
-/** What this Equipment costs RIGHT NOW: base minus every stacked reduction, floored at 0. */
-export function equipmentCostOf(run: Pick<RunState, 'equipment'>, def: EquipmentDefinition): number {
-  return Math.max(0, def.baseCost - equipmentState(run).temporaryCostReduction);
+/** The run fields the price reads — the same helper the rail prints, so a rune discount is what the slot shows. */
+export type EquipmentCostRun = Pick<RunState,
+  'equipment' | 'runeEfficientTooling' | 'equipmentActivationsThisTurn' | 'quickReleaseArmed' | 'runeOvercharge'
+  | 'equipmentFreeCards' | 'equipmentFreeThisTurn'>;
+
+/** Is `equipmentId` priced at 0 by a run-long rune right now? Rune of Empty Hands (by the granting CARD — sold and
+ *  re-bought included) or Rune of the Last Tool (the Echo banked it free for this turn). */
+export function equipmentIsFree(run: EquipmentCostRun, equipmentId: string): boolean {
+  if (run.equipmentFreeThisTurn?.includes(equipmentId)) return true;
+  const free = run.equipmentFreeCards;
+  if (!free?.length) return false;
+  const g = equipmentState(run).available.find((x) => x.equipmentId === equipmentId);
+  return !!g?.sourceCardIds?.some((c) => free.includes(c));
+}
+
+/** Rune of Overcharge: is the NEXT activation one of this turn's free, charge-less ones? */
+export function overchargeFree(run: Pick<RunState, 'runeOvercharge' | 'equipmentActivationsThisTurn'>): boolean {
+  return (run.runeOvercharge ?? 0) > (run.equipmentActivationsThisTurn ?? 0);
+}
+
+/** What this Equipment costs RIGHT NOW: base minus every stacked reduction, floored at 0 — the temporary
+ *  reduction, then the tranche-B rune prices (Set 3 batch 2, 2026-09-16): Efficient Tooling's first-activation
+ *  discount, Quick Release's armed 0, Overcharge's free first activation, Empty Hands / the Last Tool's 0. */
+export function equipmentCostOf(run: EquipmentCostRun, def: EquipmentDefinition): number {
+  let cost = def.baseCost - equipmentState(run).temporaryCostReduction;
+  if ((run.equipmentActivationsThisTurn ?? 0) === 0 && run.runeEfficientTooling) cost -= run.runeEfficientTooling;
+  if (run.quickReleaseArmed || overchargeFree(run) || equipmentIsFree(run, def.id)) cost = 0;
+  return Math.max(0, cost);
 }
 
 /** The params one TRIGGER resolves with — the Gilded set when this entry's version is gilded. */
@@ -210,6 +235,7 @@ export function grantEquipment(run: RunState, source: BoardCard, def: EquipmentD
   const existing = e.available.find((g) => g.equipmentId === def.id);
   if (existing) {
     if (!existing.sourceUids.includes(source.uid)) existing.sourceUids.push(source.uid);
+    if (!(existing.sourceCardIds ??= []).includes(source.cardId)) existing.sourceCardIds.push(source.cardId);
     // A single Gilded source upgrades the shared entry; a plain one never downgrades it mid-turn.
     if (version === 'gilded') existing.version = 'gilded';
     return existing;
@@ -218,6 +244,7 @@ export function grantEquipment(run: RunState, source: BoardCard, def: EquipmentD
     equipmentId: def.id,
     version,
     sourceUids: [source.uid],
+    sourceCardIds: [source.cardId],
     grantedTurn: run.wave,
     ownChargeSpent: false, // a freshly granted Equipment arrives with its own charge ready
   };

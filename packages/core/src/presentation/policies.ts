@@ -308,6 +308,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:overflowBuffAllPermanent:summonOverflow': { policy: 'foldedCue', family: 'react' }, // Squatimus (set 3)
   'factory:onRiseBuffSelfWard:onRise': { policy: 'foldedCue', family: 'react' }, // Revenant (set 3)
   'factory:onRiseBuffBoardAndHand:onRise': { policy: 'foldedCue', family: 'react' }, // Rising Tide (set 3)
+  'factory:onRiseSelfSummonToken:onRise': { policy: 'ownBeat', family: 'react' }, // Rune of the Endless March graft (set 3 batch 2) — a Rise REACTION, like Revenant's
+  'factory:deathrattleEquipmentFreeNextTurn:onDeath': { policy: 'foldedCue', family: 'echo' }, // Rune of the Last Tool graft (set 3 batch 2)
   'factory:rallyBuff:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyGrantFirstSpellCopy:onAttack': { policy: 'ownBeat', family: 'rally' }, // Comet Conductor
   'factory:rallyBuffAttachments:onAttack': { policy: 'ownBeat', family: 'rally' },
@@ -793,6 +795,26 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_warding:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_warpath:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_wheel:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  // ── Set 3 batch 2, tranche B (2026-09-16) — Starform / Equipment / Undead runes ──
+  'rune:rune_first_light:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_accretion:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_eventide:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_efficient_tooling:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_quick_release:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_resonant_arms:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_last_rites:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_crowded_crypt:combat': { policy: 'foldedCue', family: 'combatModifier' }, // the combat half rides the Overflow flag; the shop half pays on the overflow beat
+  'rune:rune_open_constellation:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_supernova:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_stolen_constellations:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_spellweaving:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_overcharge:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_dismantling:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_counterrotation:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_empty_hands:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_last_tool:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_endless_march:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_grave_orbit:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_white_wolf:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_wild_hunt:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_window_shopping:recruit': { policy: 'ownBeat', family: 'runeMechanic' },

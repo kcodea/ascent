@@ -353,6 +353,13 @@ sheet's runes (Rune of the Open Hand, Rune of the Waking Reserve) are combat-sid
 faucets (Rune of Basic/Epic Spirits, Celestials, Undead) are capped at the shop tier by the engine, like the
 Dwarf/Kobold ones. See `docs/devlog/2026-09-16-set3-runes-tranche-a.md` for the rulings and interpretations.
 
+**Set 3-original runes (batch 2, 2026-09-16).** On top of the carryovers, set 3 now draws its OWN runes, scoped
+`sets: ['set3']` alone: tranche B ships 8 Basic + 11 Epic Starform / Equipment / Undead runes (see
+`docs/devlog/2026-09-16-set3-runes-tranche-b.md` for where each fires). Two engine facts they rest on: a
+**grafted Echo** (`grantedEffects` — Contract Rewrite, Rune of Rebirth, Rune of the Last Tool) fires on a SHOP
+death exactly as it does in combat; and a Starform rune is gated on Celestials (the token IS Celestial content),
+the way an Imp rune is gated on Demons.
+
 **Set forks.** A card a rune grants BY ID resolves to the pinned set's fork when one exists
 (`SET_FORKS` in `packages/content/src/sets.ts`): Rune of Yazzus / Rune of Frontline Glory hand a set-3 run
 `n3_yazzus` (the Tier-7 fork), never the legacy `yazzus` beside it. The Open Market's "first Shop consume

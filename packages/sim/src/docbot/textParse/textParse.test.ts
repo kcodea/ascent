@@ -71,7 +71,11 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // Growing Chorus ("after you play a Flame, Tide and Grove Reveler … then reset this"), Falling Embers ("your Star
 // Crashes give an additional +2/+2"), the Meteor Shower ("get another Star Crash"), the Astral Refrain ("copies of the
 // first and third Shop spells you cast that turn") and the Dream Mirror ("give the same stats to"). A conscious move.
-const UNRESOLVED_CAP = 73;
+// 73 → 85 on 2026-09-16: Set 3 batch 2, tranche B — twelve Starform / Equipment / Undead rune shapes the grammar has
+// no rule for ("Starforms you create start with +8/+8", "Consumed by your Starform grant it twice their stats", "your
+// first Equipment activation each turn costs 2 less", "after every third Equipment effect you trigger", "activate its
+// Equipment before selling it", "after activating 3 different Equipment, trigger them again", …). A conscious move.
+const UNRESOLVED_CAP = 85;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

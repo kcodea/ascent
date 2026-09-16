@@ -399,7 +399,7 @@ export const DEFAULT_PRACTICE_CONFIG: PracticeConfig = {
 
 export type DiscoverSpec =
   | { kind: 'spell'; extraCasts?: number } // `extraCasts` (Rune of the Astral Draft): the pick is stamped to cast that many more times
-  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number; lockGold?: number; golden?: boolean; maxTier?: number; lockWave?: number; borrowed?: boolean; setStats?: { attack: number; health: number } }
+  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle' | 'equip'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number; lockGold?: number; golden?: boolean; maxTier?: number; lockWave?: number; borrowed?: boolean; setStats?: { attack: number; health: number } }
   // A Discover from an EXPLICIT card-id pool (Rune of the Second Path's Greater-Quest reward minions; Rival's Reflection).
   | { kind: 'pool'; ids: string[]; borrowed?: boolean };
 
@@ -1108,6 +1108,62 @@ export interface RunState {
    *  while the repeats resolve — a repeat must not reproduce the modifier that created it. No content grants
    *  this yet; it exists so "your Equipment triggers an additional time" is card DATA when it arrives. */
   equipmentExtraTriggers?: number;
+  /**
+   * ── Set 3 batch 2 (2026-09-16) — tranche B rune state (Starform / Equipment / Undead runes) ────────────
+   * Arming fields are set by the reward cases in `applyQuestRewardInner`; the `…UsedThisTurn` / `…ThisTurn`
+   * latches reset in the turn advance beside the other per-turn rune latches.
+   */
+  /** Rune of First Light: every created Starform starts +8/+8 (× copies); Start of Turn seeds one when none. */
+  runeFirstLight?: boolean;
+  /** Rune of Accretion: the Starform's Shop consumes land ×(1 + copies) (`starformConsumeTimes`). */
+  runeAccretion?: boolean;
+  /** Rune of Eventide: the first Starform Consume / Collapse each turn → 2 Shop spells + spell power +1/+1. */
+  runeEventide?: boolean;
+  eventideUsedThisTurn?: boolean;
+  /** Rune of Efficient Tooling: Gold off the FIRST Equipment activation each turn (accumulates per copy). */
+  runeEfficientTooling?: number;
+  /** Rune of Quick Release: armed by selling an Equip minion; the next activation this turn costs 0. */
+  runeQuickRelease?: boolean;
+  quickReleaseArmed?: boolean;
+  /** Rune of Resonant Arms: a run-wide meter over Equipment TRIGGERS; pays +attack/+health every `per`. */
+  runeResonantArms?: { per: number; attack: number; health: number; tick: number };
+  /** Rune of Last Rites: the first Undead destroyed in the Shop each turn returns a plain copy to hand. */
+  runeLastRites?: boolean;
+  lastRitesUsedThisTurn?: boolean;
+  /** Rune of the Crowded Crypt (shop half): an overflowed shop summon buffs your minions `times` times. */
+  runeCrowdedCrypt?: { attack: number; health: number; times: number };
+  /** Rune of the Open Constellation: the first Starform Consume each turn re-creates a token with its stats. */
+  runeOpenConstellation?: boolean;
+  openConstellationUsedThisTurn?: boolean;
+  /** Rune of the Supernova: a Collapse hits every friendly Celestial instead of two. */
+  runeSupernova?: boolean;
+  /** Rune of Stolen Constellations: every minion the Starform Consumes hands a plain copy to hand. */
+  runeStolenConstellations?: boolean;
+  /** Rune of Spellweaving: how many stat-granting Shop spells per turn also feed the Starform (3 × copies). */
+  runeSpellweaving?: number;
+  spellweavingCastsThisTurn?: number;
+  /** Rune of Overcharge: how many activations per turn are free + charge-less (1 × copies). */
+  runeOvercharge?: number;
+  /** Rune of Dismantling: the first Equip minion sold each turn fires its Equipment free before leaving. */
+  runeDismantling?: boolean;
+  dismantlingUsedThisTurn?: boolean;
+  /** Rune of Counterrotation: distinct Equipment activated this turn → at `runeCounterrotation` they re-fire. */
+  runeCounterrotation?: number;
+  counterrotationIds?: string[];
+  /** Rune of Empty Hands: the pending Discover's pick joins `equipmentFreeCards` (its Equipment costs 0 by CARD). */
+  runeEmptyHands?: boolean;
+  discoverEquipFree?: boolean;
+  equipmentFreeCards?: string[];
+  /** Rune of the Last Tool: the graft's Echo banks an Equipment id for NEXT turn; the turn advance promotes it. */
+  runeLastTool?: boolean;
+  equipmentFreeNextTurn?: string[];
+  equipmentFreeThisTurn?: string[];
+  /** Rune of the Endless March: every friendly Undead carries the "when this Rises, summon a Skeleton" graft. */
+  runeEndlessMarch?: boolean;
+  /** Rune of the Grave Orbit: after combat the Starform gains +a/+h per friendly Undead that Rose. */
+  runeGraveOrbit?: { attack: number; health: number };
+  /** Equipment activations resolved this turn (Efficient Tooling / Overcharge read "first"). */
+  equipmentActivationsThisTurn?: number;
   heroReady2?: boolean;
   /** The SECOND power's once-per-game latch (`heroPowerSpent`'s sibling). */
   heroPowerSpent2?: boolean;
@@ -2176,6 +2232,9 @@ export interface GrantedEquipment {
   sourceUids: string[];
   /** The wave it was granted on — diagnostic, and the tell for "granted this turn" vs "re-equipped". */
   grantedTurn: number;
+  /** The CARD ids of every source (parallel to `sourceUids`, deduped) — Rune of Empty Hands prices an
+   *  Equipment at 0 by the granting CARD, and the source body may already be sold this turn. */
+  sourceCardIds?: string[];
   /** Has THIS Equipment's own once-per-turn charge been spent? Every Equipment carries its own (owner ruling
    *  2026-09-11); the Start-of-Turn rebuild starts every entry fresh. Spent only once the shared bonus pool is
    *  empty — see `equipment.ts`. */

@@ -24,8 +24,10 @@ export function fireStatMilestone(
   const binding = bindingFor(cardId, statMilestoneKind(tier));
   if (!binding) return; // unbound tier plays nothing — the frame still changes
   const camera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-  // The VISUAL fires on EVERY badge that crossed — the burst lands on each Attack/Health badge.
-  playDef(binding.def, { source: point, target: point, cursor: point, camera }, { uids: { source: cardId, target: cardId } });
+  // The VISUAL fires on EVERY badge that crossed — the burst lands on each Attack/Health badge. `uids` are
+  // null: the explicit `point` anchors the fire, and `cardId` is a card DEFINITION id, not an instance uid, so
+  // a def with per-unit `react` layers would fail to resolve it to a DOM node — null cleanly means "no unit".
+  playDef(binding.def, { source: point, target: point, cursor: point, camera }, { uids: { source: null, target: null } });
   // The SOUND is de-duped: when both stats on a unit — or several units under one shop-wide buff — cross a
   // milestone in the same beat, each would fire the rune-arrival clang and they'd stack into a muddy chorus.
   // Play it at most once per short window, so a simultaneous batch reads as one clang (owner ask 2026-09-15);

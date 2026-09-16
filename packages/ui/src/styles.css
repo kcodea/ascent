@@ -1861,9 +1861,9 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .badge > .msframe {
   position: absolute;
   left: 50%; top: 50%;
-  width: calc(60px * var(--msf-scale, 1.72));
+  width: calc(60px * var(--msf-scale, 1.5));
   height: auto;
-  transform: translate(-50%, -50%) translate(var(--msf-dx, -1px), var(--msf-dy, -6px));
+  transform: translate(-50%, -50%) translate(var(--msf-dx, 0px), var(--msf-dy, 4.5px));
   pointer-events: none;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
 }
@@ -1871,37 +1871,37 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    Values come from the 🏅 Milestone Badges tuner (milestoneFrameConfig.ts); the literals are the shipped
    fallback if a config var is ever absent. Ornate high tiers have a smaller disc-to-image ratio, so they scale
    up to keep the disc — and thus the number — a constant on-screen size. */
-.badge[data-milestone='1'] { --msf-scale: var(--ms-scale-1, 1.72); }
-.badge[data-milestone='2'] { --msf-scale: var(--ms-scale-2, 1.72); }
-.badge[data-milestone='3'] { --msf-scale: var(--ms-scale-3, 1.80); }
-.badge[data-milestone='4'] { --msf-scale: var(--ms-scale-4, 1.86); }
-.badge[data-milestone='5'] { --msf-scale: var(--ms-scale-5, 1.92); }
-/* State tint — a translucent disc OVER the frame's leather, recolouring it by stat state (owner ask 2026-09-15):
-   neutral / buffed / reduced. `mix-blend-mode: color` keeps the leather texture and swaps the hue. Above the
-   frame art, below the number. Size, strength, offset and the three colours are all tuner-driven. */
+.badge[data-milestone='1'] { --msf-scale: var(--ms-scale-1, 1.5); }
+.badge[data-milestone='2'] { --msf-scale: var(--ms-scale-2, 1.5); }
+.badge[data-milestone='3'] { --msf-scale: var(--ms-scale-3, 1.5); }
+.badge[data-milestone='4'] { --msf-scale: var(--ms-scale-4, 1.5); }
+.badge[data-milestone='5'] { --msf-scale: var(--ms-scale-5, 1.5); }
+/* State tint — a SOLID disc OVER the frame's leather, coloured by stat state (owner ask 2026-09-15):
+   neutral / buffed / reduced. Above the frame art, below the number. Size, strength, offset and the three
+   colours are all tuner-driven; the literals here are the shipped fallback (owner-tuned 2026-09-15). */
 .badge > .mstint {
   position: absolute;
   left: 50%; top: 50%;
-  width: calc(60px * var(--msf-scale, 1.72) * var(--mstint-frac, 0.5));
+  width: calc(60px * var(--msf-scale, 1.5) * var(--mstint-frac, 0.68));
   aspect-ratio: 1;
-  transform: translate(-50%, -50%) translate(var(--mstint-dx, 0px), var(--mstint-dy, 0px));
+  transform: translate(-50%, -50%) translate(var(--mstint-dx, -1.5px), var(--mstint-dy, -0.5px));
   border-radius: 50%;
   pointer-events: none;
   opacity: var(--mstint-opacity, 1);
-  background: var(--mstint-neutral, #f2c33d);   /* neutral — a SOLID fill (owner ask 2026-09-15) */
+  background: var(--mstint-neutral, #be8c04);   /* neutral — a SOLID fill (owner ask 2026-09-15) */
 }
-.badge.up > .mstint { background: var(--mstint-up, #21c17a); }     /* buffed above base */
-.badge.down > .mstint { background: var(--mstint-down, #e2452f); } /* below base/floor */
+.badge.up > .mstint { background: var(--mstint-up, #00992e); }     /* buffed above base */
+.badge.down > .mstint { background: var(--mstint-down, #bd311f); } /* below base/floor */
 /* The number on a framed badge — size / colour / nudge / outline are tuner-driven; unframed tier-0 badges keep
    the base `.badge > .value` rule above. Absolutely centred on the disc so it grows from BOTH sides (a 4-digit
    5000 stays centred instead of spilling off the right); the second translate is the tuner's nudge. */
 .badge:not([data-milestone='0']) > .value {
   position: absolute;
   left: 50%; top: 50%;
-  transform: translate(-50%, -50%) translate(var(--msnum-dx, 0px), var(--msnum-dy, 0px));
+  transform: translate(-50%, -50%) translate(var(--msnum-dx, -0.5px), var(--msnum-dy, 0px));
   text-align: center;
   white-space: nowrap;
-  font-size: var(--msnum-size, 30px);
+  font-size: var(--msnum-size, 33px);
   color: var(--msnum-color, #fff);
   -webkit-text-stroke: var(--msnum-stroke-w, 0px) var(--msnum-stroke-color, #000);
 }

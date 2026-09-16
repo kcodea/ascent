@@ -45,13 +45,13 @@ export interface MilestoneFrameConfig {
 
 /** Shipped values — the current authored look. Frame scales seat each tier's disc; tint/number match today. */
 const DEFAULTS: MilestoneFrameConfig = {
-  scale1: 1.72, scale2: 1.72, scale3: 1.80, scale4: 1.86, scale5: 1.92,
-  frameDx: -1, frameDy: -6,
+  scale1: 1.5, scale2: 1.5, scale3: 1.5, scale4: 1.5, scale5: 1.5,
+  frameDx: 0, frameDy: 4.5,
 
-  tintFrac: 0.5, tintOpacity: 1, tintDx: 0, tintDy: 0,
-  tintNeutral: '#f2c33d', tintUp: '#21c17a', tintDown: '#e2452f',
+  tintFrac: 0.68, tintOpacity: 1, tintDx: -1.5, tintDy: -0.5,
+  tintNeutral: '#be8c04', tintUp: '#00992e', tintDown: '#bd311f',
 
-  numSize: 30, numDx: 0, numDy: 0, numColor: '#ffffff', numStrokeW: 0, numStrokeColor: '#000000',
+  numSize: 33, numDx: -0.5, numDy: 0, numColor: '#ffffff', numStrokeW: 0, numStrokeColor: '#000000',
 };
 
 const RANGES: Record<Exclude<keyof MilestoneFrameConfig, 'tintNeutral' | 'tintUp' | 'tintDown' | 'numColor' | 'numStrokeColor'>, [number, number, number]> = {

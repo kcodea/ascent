@@ -16,6 +16,7 @@
  */
 import type { CombatEvent } from '@game/core';
 import type { Moment } from '../compile';
+import { defenderOf, ownStrikeAt } from './rallyFired';
 
 export interface ShoutFired {
   /** The unit that RE-TRIGGERED the Shout (Dawnclaw, Ryme, Chorus Drake, Embercrest…) — whose binding decides
@@ -61,7 +62,7 @@ export function shoutsAheadOf(moment: Moment, events: CombatEvent[], attackerUid
   for (let i = moment.end; i < events.length; i++) {
     const e = events[i]!;
     if (e.type === 'attack') return false;
-    if (e.type === 'dmg' && e.source === attackerUid && e.wave === undefined) return false;
+    if (ownStrikeAt(events, i, attackerUid, defenderOf(moment))) return false; // its strike (or a Ward absorbing it) lands first
     if (e.type === 'shout') return true;
   }
   return false;

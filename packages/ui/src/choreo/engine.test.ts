@@ -109,6 +109,14 @@ describe('runAttackExchangeCues — the Rally hold scales with the proc count', 
     expect(withProcs(1)).toBeCloseTo(withProcs(undefined), 5);   // absent = the single-proc hold
   });
 
+  /** An absorbed forced Echo (not parked) gets the parked swing's post-Echo stillness folded into the hold. */
+  it('windupSettleMs lengthens the hold by exactly that much, on top of the procs', () => {
+    const settled = runAttackExchangeCues(attackMoment(0), fakeEl(), null, 10, 0, {
+      combatSpeed: 1, advance: vi.fn(), onRallyPulse: () => {}, rallyProcs: 1, windupSettleMs: 260,
+    })!.duration();
+    expect(settled - withProcs(1)).toBeCloseTo(0.26, 3);
+  });
+
   it('two procs hold one stride longer', () => {
     expect(withProcs(2) - withProcs(1)).toBeCloseTo(RALLY_PROC_STRIDE_MS / 1000, 3);
   });

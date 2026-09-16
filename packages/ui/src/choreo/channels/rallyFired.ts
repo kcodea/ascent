@@ -165,6 +165,68 @@ export function rallyProcsFor(moment: Moment, events: CombatEvent[], attackerUid
 }
 
 /**
+ * DID THIS SWING'S FORCED ECHO RESOLVE ENTIRELY INSIDE THE WIND-UP? — true when the very next event after the
+ * attack moment is the attacker's OWN strike (its non-wave `dmg`), i.e. everything the Rally caused was absorbed
+ * into the attack moment and there is NO later beat between the wind-up and the hit.
+ *
+ * This is the switch between the two ways an Echohorn-style swing is played, and getting it wrong is the bug
+ * the owner filmed (2026-09-16: *"it will hang in the pause state and then never actually complete the lunge
+ * attack because it misses its beat / happens immediately"*):
+ *
+ *  - A forced Echo whose consequences land in beats of their OWN (a Fel Spikes wave, a Shout re-fire, a summoned
+ *    charger's whole exchange) needs the PARK: the swing holds at the top of its wind-up, the clock runs through
+ *    those beats, and the strike resumes on the attacker's own damage beat.
+ *  - A forced Echo that was ABSORBED (a Mammoth's summons, an Armadiyo's tribe buff, a T-Rex's baby — every
+ *    `absorbIntoWindup` type) has no later beat to span. Parking it advanced the clock straight into the
+ *    attacker's own damage beat while the body was still frozen: the numbers and the health committed with the
+ *    attacker reared back, and the strike then replayed after the fact — a hit that "misses its beat". Such a
+ *    swing is an ordinary absorbed swing and needs a LONGER WIND-UP, not a park (the same distinction the
+ *    Flamebeat cast fix drew on 2026-09-01).
+ *
+ * Pure; the `attack` guard mirrors `shoutsAheadOf` so a swing that never strikes (the target died in the
+ * wind-up) reads as "spans beats" and keeps the park's `targetGone` release.
+ */
+export function strikeFollowsWindup(moment: Moment, events: CombatEvent[], attackerUid: string | null): boolean {
+  if (attackerUid === null) return false;
+  return ownStrikeAt(events, moment.end, attackerUid, defenderOf(moment));
+}
+
+/** The defender an attack moment's swing is aimed at (null for a non-attack moment). */
+export function defenderOf(moment: Moment): string | null {
+  const p = moment.primary;
+  return p.type === 'attack' ? p.defender : null;
+}
+
+/**
+ * IS `events[i]` THE ATTACKER'S OWN BLOW LANDING? — the event a parked swing waits for.
+ *
+ * Two shapes, because the simulator logs them differently:
+ *  - its non-wave `dmg` (the ordinary hit — a wave-tagged `dmg` is a Fel Spikes volley, never a strike);
+ *  - a `shield` on ITS DEFENDER: the blow was absorbed by a Ward. A `shield` event carries no source, so it is
+ *    attributed by the defender, and the release used to look for the `dmg` alone — which never came. That was
+ *    the freeze the owner filmed (2026-09-16): Echohorn parked reared-back, its strike swallowed by a Ward, and
+ *    nothing to release it for the rest of the fight (the `z-index: 12; transition: none` the lunge leaves on the
+ *    card until its timeline completes stayed there to the end). A Ward absorb IS the strike landing.
+ *
+ * The `shield` case is attributed carefully: a charger summoned by the Echo may swing at the SAME defender while
+ * the attacker is parked, and its absorbed blow must not release the park early. The nearest preceding `attack`
+ * decides — the parked attacker's own, or someone else's aimed elsewhere (a Ward consumed by a different target
+ * is not this swing's), counts; someone else's aimed at this defender is theirs.
+ */
+export function ownStrikeAt(events: CombatEvent[], i: number, attackerUid: string, defenderUid: string | null): boolean {
+  const e = events[i];
+  if (!e || e.wave !== undefined) return false;
+  if (e.type === 'dmg') return e.source === attackerUid;
+  if (e.type !== 'shield' || defenderUid === null || e.target !== defenderUid) return false;
+  for (let j = i - 1; j >= 0; j--) {
+    const a = events[j]!;
+    if (a.type !== 'attack') continue;
+    return a.attacker === attackerUid || a.defender !== defenderUid;
+  }
+  return false;
+}
+
+/**
  * When the first sparkle lands, measured from the moment's start.
  *
  * Takes the wind-up duration as an ARGUMENT rather than reading `lungeConfig` itself, so this module stays

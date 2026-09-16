@@ -24,6 +24,12 @@ export interface AttackCueCtx {
    *  single-proc hold — so the wind-up stretches by one `RALLY_PROC_STRIDE_MS` per extra proc, keeping the
    *  whole Rally inside the swing that caused it (owner call 2026-08-05). Absent/0/1 = the hold as it was. */
   rallyProcs?: number;
+  /** Extra ms of stillness at the top of the wind-up AFTER the Rally's cues have had their window — for a forced
+   *  Echo that resolved entirely INSIDE this moment (`strikeFollowsWindup`: a Mammoth's summons, a tribe buff).
+   *  Such a swing is not parked (there is no later beat to span), so this is where the owner's "slight delay
+   *  after the final resolution before the Echohorn commits its attack" (2026-09-01) lives for it — the same
+   *  `PARKED_COMMIT_LEAD_MS` a parked swing gets from the beat clock. Absent/0 = the hold as it was. */
+  windupSettleMs?: number;
   /** Set when this attack's moment absorbed buff-other casts (on-attack / Rally buffers) → the lunge holds at the
    *  top of the wind-up and calls this (launch the buff tendrils) after `onRallyPulse`, before the strike, so the
    *  beat reads pulse → tendril → lunge. Absent = no absorbed buffs. */
@@ -184,7 +190,8 @@ export function runAttackExchangeCues(
     // has finished rolling, so the stats are visibly on the card before the strike leaves. Costs nothing on a
     // swing with no buffs, and `buffLeadMs: 0` restores the old timing exactly.
     rallyPauseMs: RALLY_PAUSE_MS + Math.max(0, (ctx.rallyProcs ?? 1) - 1) * RALLY_PROC_STRIDE_MS
-      + (ctx.onWindupBuffs ? cfg.buffLeadMs + cfg.windupSettleMs : 0),
+      + (ctx.onWindupBuffs ? cfg.buffLeadMs + cfg.windupSettleMs : 0)
+      + Math.max(0, ctx.windupSettleMs ?? 0),
   });
 }
 

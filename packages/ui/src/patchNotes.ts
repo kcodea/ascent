@@ -55,6 +55,20 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-16',
+    label: 'Echohorn strikes on time',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "Echohorn's attack no longer freezes reared-back and then lands late: when the Echo it triggers resolves inside the wind-up (a summon, a buff), it now pauses briefly for the Echo and then strikes with its hit landing on contact, like every other Rally swing.",
+        details: [
+          'The frozen-pose hold is kept only for Echoes that play out in beats of their own (a Fel Spikes spray, a re-fired Shout, a summoned charger), where the swing waits for them and then lands.',
+          "A held Echohorn whose blow was absorbed by the defender's Ward no longer stays frozen for the rest of the fight — the Ward absorb counts as its strike landing.",
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-15',
     label: 'Runeforge commits',
     changes: [

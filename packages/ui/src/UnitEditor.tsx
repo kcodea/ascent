@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import { StatBadgeField } from './StatBadgeField';
 import { createPortal } from 'react-dom';
 import { BUYABLE_CARDS } from '@game/content';
 import type { Keyword } from '@game/core';
@@ -34,42 +35,6 @@ export const EDITABLE_KEYWORDS: readonly Keyword[] = ['T', 'DS', 'V', 'W', 'R', 
 const KEYWORD_LABEL: Record<string, string> = {
   T: 'Taunt', DS: 'Ward', V: 'Execute', W: 'Flurry', R: 'Rise', C: 'Cleave',
 };
-
-/**
- * One stat field. A controlled `<input type="number">` bound straight to a number fights you while you type:
- * clearing it to retype makes `Number('')` → `NaN`, the rules clamp that to 0 (or 1 for health) on the SAME
- * keystroke, and the field snaps back under the cursor — multi-digit entry becomes a wrestle.
- *
- * The fix is a local STRING draft: the text you typed is what the field shows, and only a parse that yields a
- * real number is reported upward. An intermediate state ('' while you retype, '-' while you think about it)
- * simply commits nothing. Blur drops the draft, so the field then shows the CLAMPED value the rules settled
- * on — which is how you see that 0 health became 1.
- *
- * No clamping lives here; `min` is a browser affordance (spinner bounds) only. The floors are in
- * `sandboxEdit.ts` and stay there — this component reports intent and renders the result.
- */
-function NumField({
-  label, min, value, onCommit,
-}: { label: string; min: number; value: number; onCommit: (n: number) => void }) {
-  const [draft, setDraft] = useState<string | null>(null);
-  return (
-    <label className="uned-num">
-      <span>{label}</span>
-      <input
-        type="number"
-        min={min}
-        value={draft ?? String(value)}
-        onChange={(e) => {
-          const text = e.target.value;
-          setDraft(text);
-          const n = Number(text);
-          if (text.trim() !== '' && Number.isFinite(n)) onCommit(n);
-        }}
-        onBlur={() => setDraft(null)}
-      />
-    </label>
-  );
-}
 
 export function UnitEditor({
   value, anchor, onChange, onToggleKeyword, onRemove, onClose, cards: cardsProp,
@@ -130,9 +95,12 @@ export function UnitEditor({
       >
         {cards.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
       </select>
-      <div className="uned-stats">
-        <NumField label="atk" min={0} value={value.attack} onCommit={(n) => onChange({ attack: n })} />
-        <NumField label="hp" min={1} value={value.health} onCommit={(n) => onChange({ health: n })} />
+      {/* The game's own stat badges, typeable (owner ask 2026-09-16) — `.sb-stats` un-absolutes them. The floors
+          (0 attack, 1 health) are applied by the field on commit AND by `sandboxEdit.ts` (the rules), so the
+          badge always settles on what the sim accepted. */}
+      <div className="uned-stats sb-stats">
+        <StatBadgeField stat="atk" min={0} value={value.attack} onCommit={(n) => onChange({ attack: n })} title="Attack — click to type, ↑/↓ or wheel to step (Shift = 5)" />
+        <StatBadgeField stat="hp" min={1} value={value.health} onCommit={(n) => onChange({ health: n })} title="Health — click to type, ↑/↓ or wheel to step (Shift = 5)" />
       </div>
       <div className="uned-kw">
         {EDITABLE_KEYWORDS.map((kw) => (

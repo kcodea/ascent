@@ -1,6 +1,7 @@
 import type { StatKind } from '../choreo/statMilestones';
 import { bindingFor, statMilestoneKind } from '../choreo/bindings';
 import { canPlayDefs, playDef } from './playDef';
+import { milestoneTierPalette } from './milestonePalette';
 import { sfx } from '../sfx';
 
 /**
@@ -24,10 +25,16 @@ export function fireStatMilestone(
   const binding = bindingFor(cardId, statMilestoneKind(tier));
   if (!binding) return; // unbound tier plays nothing — the frame still changes
   const camera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  // Recolour the celebration to THIS tier's colour, taken from the tier's frame glow so the burst always
+  // matches the disc it lands in (owner decision 2026-09-15). `undefined` for an out-of-range tier plays the
+  // def's authored colours unchanged. NOTE: this recolours whatever def is bound, including a future per-card
+  // override — if a bespoke milestone def ever wants its OWN colours, give it `tintMode: 'texture'` layers
+  // (which `recolorDef` skips) or add an opt-out then.
+  const recolor = milestoneTierPalette(tier);
   // The VISUAL fires on EVERY badge that crossed — the burst lands on each Attack/Health badge. `uids` are
   // null: the explicit `point` anchors the fire, and `cardId` is a card DEFINITION id, not an instance uid, so
   // a def with per-unit `react` layers would fail to resolve it to a DOM node — null cleanly means "no unit".
-  playDef(binding.def, { source: point, target: point, cursor: point, camera }, { uids: { source: null, target: null } });
+  playDef(binding.def, { source: point, target: point, cursor: point, camera }, { uids: { source: null, target: null }, recolor });
   // The SOUND is de-duped: when both stats on a unit — or several units under one shop-wide buff — cross a
   // milestone in the same beat, each would fire the rune-arrival clang and they'd stack into a muddy chorus.
   // Play it at most once per short window, so a simultaneous batch reads as one clang (owner ask 2026-09-15);

@@ -185,6 +185,19 @@ export const PATCH_NOTES: PatchNote[] = [
           'Undead: Rune of Last Rites returns a plain copy of the first Undead you destroy in the Shop each turn; Rune of the Crowded Crypt gives your minions +1/+1 permanently whenever a summon does not fit (twice in the Shop); Rune of the Endless March summons a 1/1 Skeleton after a friendly Undead Rises; Rune of the Grave Orbit gives your Starform +15/+15 after combat for each friendly Undead that Rose.',
           'A grafted Echo (Rune of the Last Tool, Contract Rewrite, Rune of Rebirth) now fires on a Shop death as it already did in combat.',
         ],
+    ],
+  },
+  {
+    date: '2026-09-16',
+    label: 'Milestone frames',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "Milestone badge frames now change at new values: plain silver below 50, the silver dagger at 50, gold at 150, pink at 500, blue at 2000, and a new top crystal frame at 5000.",
+      },
+      {
+        category: 'UI / Info',
+        text: "The celebration when a stat crosses a milestone now bursts in that tier's own colour, matching the frame it just earned — instead of the same gold every time.",
       },
     ],
   },

@@ -56,6 +56,23 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-16',
+    label: 'Echo buffs show their source',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "A buff granted by a minion's Echo now streams its tribe's ribbon from where that minion fell to each minion it pays — in combat and in the shop. Before this an Echo's gift simply appeared with no cue at all.",
+        details: [
+          'Every Echo that buffs others (Dawn Sentinel, Noggin, Sergey, Grim, Armadiyo, Imp King, Trickster, Equinox Duelist, Lodestar, Chef Raag, …) draws the ribbon a beat after its death has read.',
+          'In the shop, an Echo fired by a destroy (Cage Breaker, Graverobber, EMS, a Funeral on Loan return) leaves from the slot the card just vacated.',
+          "Wolvie's gift to the next Beast you summon now streams from the fallen Wolvie; a dead Grim's aura on a later Beast does the same.",
+          "Flamebanner Marshal's Rally, Ashen Heir's inheritance, a Better Bot welded onto a Mech and a Bloodlust Rally used to land invisibly — each now shows its ribbon from the minion that granted it.",
+          "In the shop, Billings and Coinfire Forewoman's Gold-spent buffs, Gangplank's card-gained buff, and a Reveler's sell payout now show their ribbons too (a sold Reveler's leaves from the slot it was sold from).",
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-16',
     label: 'Milestone frames',
     changes: [
       {

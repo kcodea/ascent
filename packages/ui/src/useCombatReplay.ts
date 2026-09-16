@@ -32,8 +32,8 @@ import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
 import type { CombatQuestDelta } from './store'; // type-only (erased) — no runtime edge back to the store
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
-import { isDeathrattleBufferCard } from './deathrattleBuffers';
 import { fireBuffFx } from './buffFxRender';
+import { resolveBuffSource } from './choreo/buffSource';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { authoredBuffDefFor, bindingFor, heroPowerBuffLabelFor, labelBuffFxFor, sourceBuffDefFor } from './choreo/bindings';
@@ -746,12 +746,13 @@ export interface CombatReplay {
  *     (~600ms; embers ~800ms) before its tokens appear.
  *   - **Rise → reborn** (`REBORN_LEAD`): the `.dying.rising` body fully fades before it re-forms.
  *   - **Deathrattle → buff** (`DR_BUFF_LEAD`): the OPPOSITE problem to the two above. A buffing Deathrattle's
- *     beat is a `buffWave`, whose base hold is only `beatDelay('buff')` 140 × 1.5 = **210ms** — but a dead
- *     buffer is `sourceless` (see `isDeathrattleBufferCard`) so its FX is a DESCEND: `dropMs` 340 to land,
- *     then the stat-hold releases and the badge flashes 360ms ⇒ **~700ms of read**. Without a lead the beat
- *     tore down mid-flight, dropping the stat holds so the target's numbers SNAPPED instead of landing with
- *     the descend. Note this is the one lead that makes a beat LONGER than its animation would otherwise get,
- *     rather than holding a consequence back.
+ *     beat is a `buffWave`, whose base hold is only `beatDelay('buff')` 140 × 1.5 = **210ms** — but its FX
+ *     needs longer: the tribe tendril streams from the FALLEN body's last slot (`lastRectRef`, since 2026-09-16
+ *     — before that a dead buffer was `sourceless` and drew a 340ms descend), `travelMs` ~384 to land, then
+ *     the stat-hold releases and the badge flashes 360ms ⇒ **~750ms of read**. Without a lead the beat tore
+ *     down mid-flight, dropping the stat holds so the target's numbers SNAPPED instead of landing with the
+ *     ribbon. The lead also keeps the ribbon from leaving BEFORE the death has read. Note this is the one lead
+ *     that makes a beat LONGER than its animation would otherwise get, rather than holding a consequence back.
  *  An ATTACKER that died mid-lunge is first pulled home (~0.34s, see runRiseReturn / `.dr.returning`), so its
  *  skull/fade starts later — hence the higher `attacker` figure. The lead is layered ON TOP of the generic
  *  `overlapMs` (which alone measured the consequence from the IMPACT's start, landing it on top of the FX).
@@ -1569,9 +1570,21 @@ export function useCombatReplay(
        * (it rains a descend instead of drawing a tendril) — so this is the presentation it should have had all
        * along, and it now gets its number rolled on the same clock as every other buff on the swing.
        */
-      const sourceless = isDeathrattleBufferCard(cardId) || !cardIds.has(c.source);
-      const sEl = sourceless ? null : findEl(c.source);
-      if (!sourceless && !sEl) continue; // living-source buff needs a measurable source
+      /**
+       * A FALLEN SOURCE STILL HAS A SLOT (owner report 2026-09-16: "Dawn Sentinel isn't triggering the
+       * tendril" — see `choreo/buffSource.ts`). An Echo buffer is dead by the time its buff wave plays, so
+       * `findEl` finds no body — and the old rule routed EVERY Echo buffer (`isDeathrattleBufferCard`) to the
+       * sourceless path, which draws nothing. `lastRectRef` keeps every unit's last measured slot rect (the dying
+       * body is still on screen for its death beat), so the ribbon streams from where the card fell — a beat
+       * AFTER the death read, courtesy of `DR_BUFF_LEAD`. Also covers Wolvie's gift on the next summon and a dead
+       * Grim's aura on a later Beast. Only a LABEL (hero power / rune) or a body never rendered is sourceless.
+       */
+      const src = resolveBuffSource({
+        label: !cardIds.has(c.source), // a hero power / rune label — never a body
+        live: () => { const el = findEl(c.source); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; },
+        lastSlot: () => { const r = lastRectRef.current.get(c.source); return r ? { x: r.cx, y: r.cy } : null; },
+      });
+      const sourceless = src.sourceless;
       // AUTHORED REPLACES STOCK, for a LABEL grant (owner 2026-09-01, Gorun's Blade Mastery). A hero power has
       // no body to travel from, so its def rides the DESCEND convention the sourceless path already sets: the
       // pair is a point above the card → the card itself, which is what `fireBuffFx` draws generically and what
@@ -1621,19 +1634,17 @@ export function useCombatReplay(
       // buffs a SPELL cast; this covers a minion buffing others directly. Bound at `buffWave`/`buffed` keyed by
       // the buffer's card — the same binding the un-absorbed wave reads — the def flies source→target IN PLACE
       // of the generic tendril (both are source→target travel effects; drawing both reads as one buff twice).
+      const sc = src.center;
       const srcAuthored = sourceless ? null : sourceBuffDefFor(cardId);
-      if (srcAuthored && sEl) {
-        const asr = sEl.getBoundingClientRect();
-        const asc = { x: asr.left + asr.width / 2, y: asr.top + asr.height / 2 };
-        playDef(srcAuthored, { source: asc, target: tc, cursor: tc, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
+      if (srcAuthored && sc) {
+        playDef(srcAuthored, { source: sc, target: tc, cursor: tc, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
           { uids: { source: c.source, target: c.target }, index: srcAuthoredIndex });
         srcAuthoredIndex++;
         if (!perTarget.has(c.target)) perTarget.set(c.target, AUTHORED_BUFF_ROLL_MS);
         continue;
       }
-      const sr = sEl?.getBoundingClientRect();
       const strikeMs = fireBuffFx({
-        source: sr ? { x: sr.left + sr.width / 2, y: sr.top + sr.height / 2 } : undefined,
+        source: sc,
         target: tc,
         cardId, tribe,
         sourceless,
@@ -1850,8 +1861,10 @@ export function useCombatReplay(
     // Refresh the last-known rects for everyone still on screen, THEN resolve anchors below through
     // `anchorOf`. Order matters: a unit that dies in this beat is already gone from the DOM, so its entry has
     // to come from the previous beat's snapshot.
+    // BOTH sides (2026-09-16): a fallen ENEMY Echo buffer streams its tendril from its last slot too
+    // (`fireBuffCasts`), so the enemy board's rects are kept as well — one querySelector per unit per beat.
     const rects = lastRectRef.current;
-    for (const uid of playerUids) {
+    for (const uid of cardIds.keys()) {
       const el = findEl(uid);
       if (el) rects.set(uid, layoutRectOf(el));
     }

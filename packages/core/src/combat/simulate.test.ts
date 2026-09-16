@@ -201,8 +201,11 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'alley', attack: 0, health: 30 }, // the friend that should receive its Attack
     ];
     const a = run(p, [{ cardId: 'sandbag', attack: 0, health: 200 }], 1);
-    // A `buff` event sourced 'Bloodlust' lands on the friend (Attack only), proving the welded Rally fired.
-    expect(a.events.some((e) => e.type === 'buff' && e.source === 'Bloodlust' && e.attack > 0)).toBe(true);
+    // A `buff` event sourced by the SWINGER (its uid, so the replay can stream a tendril from it — 2026-09-16;
+    // it used to be the 'Bloodlust' label) lands on the friend (Attack only), proving the welded Rally fired.
+    const swinger = a.initial.player[0]!.uid;
+    const friend = a.initial.player[1]!.uid;
+    expect(a.events.some((e) => e.type === 'buff' && e.source === swinger && e.target === friend && e.attack > 0)).toBe(true);
   });
 
   it('carries the recruit-phase buff breakdown into the initial snapshot (for the combat inspect)', () => {
@@ -2153,8 +2156,10 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'omen', attack: 1, health: 200 }],
       3,
     );
-    // Better Bot attacked → a +5 Attack buff landed on the Drone (the other Mech), source "Better Bot".
-    expect(a.events.some((e) => e.type === 'buff' && e.source === 'Better Bot' && e.attack === 5)).toBe(true);
+    // Better Bot attacked → a +5 Attack buff landed on the Drone (the other Mech), sourced by the Better Bot's
+    // own uid (2026-09-16: was the 'Better Bot' label, which the replay could not draw a tendril from).
+    const bot = a.initial.player[0]!.uid;
+    expect(a.events.some((e) => e.type === 'buff' && e.source === bot && e.target === a.initial.player[1]!.uid && e.attack === 5)).toBe(true);
   });
 
   it('Better Bot (Rally) fires PER SWING — a Windfury body rallies twice in one attack turn', () => {
@@ -2167,7 +2172,7 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'omen', attack: 0, health: 11 }], // dies to the Better Bot's two 6-damage swings (12 ≥ 11)
       3,
     );
-    const rallies = a.events.filter((e) => e.type === 'buff' && e.source === 'Better Bot' && e.attack === 5).length;
+    const rallies = a.events.filter((e) => e.type === 'buff' && e.source === a.initial.player[0]!.uid && e.target === a.initial.player[1]!.uid && e.attack === 5).length;
     expect(rallies).toBe(2); // two swings → two rallies (the old once-per-attack code fired only one)
   });
 
@@ -2215,7 +2220,7 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'omen', attack: 1, health: 200 }],
       3,
     );
-    const rallied = (r: ReturnType<typeof run>) => r.events.some((e) => e.type === 'buff' && e.source === 'Better Bot' && e.attack === 5);
+    const rallied = (r: ReturnType<typeof run>) => r.events.some((e) => e.type === 'buff' && e.source === r.initial.player[0]!.uid && e.target === r.initial.player[1]!.uid && e.attack === 5);
     expect(rallied(withType)).toBe(true); // the only other Mech is the Anomaly'd Beast → it gets the rally
     expect(rallied(withoutType)).toBe(false); // no other Mech on the board → the rally lands on nobody
   });

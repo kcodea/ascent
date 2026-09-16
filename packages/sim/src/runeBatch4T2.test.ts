@@ -65,9 +65,14 @@ describe('Ashen Heir', () => {
     { cardId: 'ashen_heir', attack: 5, health: 60 },
   ];
   const killer: BoardMinion[] = [{ cardId: 'sandbag', attack: 6, health: 400 }];
+  // A payout is a `buff` sourced on the HEIR's uid (2026-09-16: was the 'Ashen Heir' label, which the replay could
+  // draw no tendril from). No Heir on the board → no such uid → 0.
+  const heirBuffs = (r: ReturnType<typeof sim>) => {
+    const heir = r.initial.player.find((m) => m.cardId === 'ashen_heir')?.uid;
+    return r.events.filter((e) => e.type === 'buff' && heir !== undefined && (e as { source: string }).source === heir);
+  };
   const inherited = (p: BoardMinion[]) =>
-    sim(p, killer).events.filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Ashen Heir')
-      .reduce((n, e) => n + ((e as { attack: number }).attack + (e as { health: number }).health), 0);
+    heirBuffs(sim(p, killer)).reduce((n, e) => n + ((e as { attack: number }).attack + (e as { health: number }).health), 0);
 
   it('an Imp that dies with ANOTHER IMP ALIVE hands its stats straight over', () => {
     // The case the first build silently did nothing for (owner report 2026-08-07): two Imps on the board, one
@@ -93,8 +98,7 @@ describe('Ashen Heir', () => {
     // Every payout is a distinct `buff` from the Heir; if the bank never cleared, the totals would compound
     // without bound as Imps keep arriving. Two Imps arrive from one Imp King, so at most one can inherit
     // before the other — the count of payouts is what proves the latch, not the magnitude.
-    const payouts = sim(board, killer).events
-      .filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Ashen Heir').length;
+    const payouts = heirBuffs(sim(board, killer)).length;
     expect(payouts).toBeLessThanOrEqual(2);
   });
 });

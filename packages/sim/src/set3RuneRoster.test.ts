@@ -1,7 +1,7 @@
 /**
  * SET 3 RUNE ROSTER — the 2026-09-14 handoff's acceptance checks, verbatim.
  *
- *  - Set 3's static pool resolves to 115 Basic / 98 Epic before any Set 3-original rune: the 85 + 64 unscoped
+ *  - Set 3's static pool resolved to 115 Basic / 98 Epic before any Set 3-original rune: the 85 + 64 unscoped
  *    baseline plus 30 Basic + 34 Epic set-1/set-2 carryovers whose mechanics Set 3 has (Rubies, Ales, Dwarves,
  *    Kobolds, Undead, Shop consume).
  *  - Set 1 and Set 2 pools keep exactly their previous scoped runes (the carryovers ADD set3, never move).
@@ -26,10 +26,10 @@ const staticPool = (setId: SetId, tribes: readonly string[]) =>
   [...RUNES, ...EPIC_RUNES].filter((r) => (!r.sets || r.sets.includes(setId)) && (!r.tribes || r.tribes.some((t) => tribes.includes(t))));
 
 describe('the Set 3 static rune pool (handoff 2026-09-14)', () => {
-  it('resolves to 115 Basic / 98 Epic before any Set 3-original rune', () => {
+  it('resolves to 126 Basic / 111 Epic — the 115 / 98 handoff baseline + Set 3 batch 2 tranche A (11 Basic + 13 Epic, 2026-09-16)', () => {
     const pool = staticPool('set3', S3);
-    expect(pool.filter((r) => !r.epic)).toHaveLength(115);
-    expect(pool.filter((r) => r.epic)).toHaveLength(98);
+    expect(pool.filter((r) => !r.epic)).toHaveLength(126);
+    expect(pool.filter((r) => r.epic)).toHaveLength(111);
   });
   it('Set 1 and Set 2 pools keep their previous scoped runes — a carryover only ADDS set3', () => {
     for (const r of [...RUNES, ...EPIC_RUNES]) {
@@ -63,8 +63,8 @@ describe('a Set 3 Dwarf / Kobold run at the forge', () => {
     const basic = forge(false), epic = forge(true);
     // the Wishbone is hero-conditional (requiresDoublePower) — the Warden's power does not double, so one Basic fewer
     const wishbone = RUNE_INDEX['rune_wishbone'] ? 1 : 0;
-    expect(basic.length).toBe(115 - wishbone);
-    expect(epic.length).toBe(98);
+    expect(basic.length).toBe(126 - wishbone);
+    expect(epic.length).toBe(111);
   });
 });
 

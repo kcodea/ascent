@@ -129,6 +129,9 @@ export interface BoardCard {
   health: number;
   /** Rune of the Bargain Bin: an overridden sell value (0) — read by `sellValueOf` ahead of the normal calc. */
   sellOverride?: number;
+  /** A HAND SPELL that casts this many extra times (Rune of the Astral Draft's Discover pick). Read by `spellCasts`
+   *  when the cast site passes the instance, so the x N badge previews it. Absent = 0. */
+  extraCasts?: number;
   keywords: Keyword[];
   golden: boolean;
   /** Anomaly Reactor: extra tribes granted to THIS instance beyond its printed tribe(s) (a spell-added Mech
@@ -392,7 +395,7 @@ export const DEFAULT_PRACTICE_CONFIG: PracticeConfig = {
 };
 
 export type DiscoverSpec =
-  | { kind: 'spell' }
+  | { kind: 'spell'; extraCasts?: number } // `extraCasts` (Rune of the Astral Draft): the pick is stamped to cast that many more times
   | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number; lockGold?: number; golden?: boolean; maxTier?: number; lockWave?: number; borrowed?: boolean; setStats?: { attack: number; health: number } }
   // A Discover from an EXPLICIT card-id pool (Rune of the Second Path's Greater-Quest reward minions; Rival's Reflection).
   | { kind: 'pool'; ids: string[]; borrowed?: boolean };
@@ -764,7 +767,7 @@ export interface RunState {
      *  specific badge — several threshold runes can be held at once, so a flat list alone can't say which
      *  belongs to which (owner ask 2026-08-03: "runes/quests should all have tally trackers"). */
     sourceId?: string;
-    meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume'; per: number; tick: number;
+    meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit'; per: number; tick: number;
     grantGoldNextTurn?: number; resetEachTurn?: boolean;
     grantSpell?: number; grantAle?: number; grantRuby?: number;
     /** Rune of the Deep Feast: exact card ids handed over when the meter trips. */
@@ -775,7 +778,7 @@ export interface RunState {
     rubyAll?: boolean;
     /** `step` (Compounding Wages) ESCALATES the payout: the grant grows by `step` after every payout, so the
      *  buff written here is mutated in place and the badge prints the CURRENT size. */
-    buff?: { target: 'imps' | 'shop' | 'shopRightmost' | 'shopTurn' | 'spells' | 'tribe'; tribe?: Tribe; attack: number; health: number; step?: { attack: number; health: number } };
+    buff?: { target: 'imps' | 'shop' | 'shopRightmost' | 'shopTurn' | 'spells' | 'tribe' | 'hand'; tribe?: Tribe; attack: number; health: number; step?: { attack: number; health: number } };
     oncePerTurn?: boolean; usedThisTurn?: boolean;
     /** Bubble Crown: a ONE-SHOT threshold — `once` declares it, `spent` records that it has paid. */
     once?: boolean; spent?: boolean;
@@ -1499,6 +1502,59 @@ export interface RunState {
   runeEnchantment?: boolean;
   /** Rune of the Crown: once `spellsCast` reaches `per`, your spells give +attack/+health extra. */
   runeCrown?: { per: number; attack: number; health: number };
+  // ── Set 3 batch 2 (2026-09-16) — tranche A (Spirit / Celestial runes). Amount-carrying fields ACCUMULATE per
+  //    copy (a duplicate doubles the output); boolean flags fire once per copy via `runeStacksOf` at the site. ──
+  /** Rune of the Chosen Vessel: whenever you play a Spirit, your LEFT-MOST minion in hand +a/+h. */
+  runeChosenVessel?: { attack: number; health: number };
+  /** Rune of Deep Currents: whenever you play a Spirit, `count` random friendly board Spirits +a/+h. */
+  runeDeepCurrents?: { count: number; attack: number; health: number };
+  /** Rune of the Traveling Festival: random Revelers conjured at every turn setup (the count = copies held). */
+  runeRevelerDrip?: number;
+  /** Rune of the Traveling Festival: the extra a Reveler SALE pays on the stat(s) it grants, on top of the shared
+   *  value (Flame → +attack more Attack, Tide → +health more Health, Grove → both). Read by `revelerSell`. */
+  revelerExtra?: { attack: number; health: number };
+  /** Rune of the Growing Chorus: the Reveler ids PLAYED since the last reset (one per type); when all three are
+   *  in, board + hand gain +a/+h, `revelerX` rises by `improve` and the list resets. */
+  runeGrowingChorus?: { attack: number; health: number; improve: number; played: string[] };
+  /** Rune of Charted Skies: after the `at`-th Shop spell each turn, Discover a Shop spell. */
+  runeChartedSkies?: { at: number };
+  /** Rune of Falling Embers: the extra every Star Crash cast in the shop grants (both landings). Read by the
+   *  Star Crash factory AND its live text (`spellDisplayText`), so the card prints the value it grants. */
+  starCrashBonus?: { attack: number; health: number };
+  /** Rune of Festival Wages: after the turn's first Reveler sale, the next card bought costs 0. */
+  runeFestivalWages?: boolean;
+  festivalWagesUsedThisTurn?: boolean;
+  /** Free-card charges (Festival Wages): the next `n` Shop buys — minion OR spell, either row — cost 0.
+   *  Spent one per buy; carries across turns until spent. */
+  nextCardFree?: number;
+  /** Rune of the Meteor Shower: the turn's first Star Crash cast hands over another. */
+  runeMeteorShower?: boolean;
+  meteorShowerUsedThisTurn?: boolean;
+  /** Rune of the Astral Refrain: after the `at`-th SHOP spell each turn, copies of the 1st and `at`-th land. */
+  runeAstralRefrain?: { at: number };
+  /** SHOP spells cast this turn, by id, in cast order — Gifts and reward tokens excluded (they are spell casts,
+   *  never Shop spells). Feeds Charted Skies / the Astral Refrain and their `x/3` tallies. Reset each wave. */
+  shopSpellIdsThisTurn?: string[];
+  /** Rune of the Astral Draft: a Shop-spell Discover at every turn setup whose pick casts an additional time. */
+  runeAstralDraft?: boolean;
+  /** The OPEN Discover's extra-cast stamp (Astral Draft): the pick arrives with `extraCasts` set to this.
+   *  Cleared with the other per-offer Discover modifiers when the pick is taken. */
+  discoverExtraCasts?: number;
+  /** Rune of the Dream Mirror: the turn's first hand-minion stat gain is mirrored onto a random board minion. */
+  runeDreamMirror?: boolean;
+  dreamMirrorUsedThisTurn?: boolean;
+  /** Rune of Waking Dreams: every hand-minion stat gain gives your board minions +a/+h. */
+  runeWakingDreams?: { attack: number; health: number };
+  /** Rune of Shared Revelry: the first Flame / Tide / Grove Reveler SOLD each turn fires its sell effect twice. */
+  runeSharedRevelry?: boolean;
+  /** …the Reveler ids already doubled this turn (one per type). Reset each wave. */
+  revelryDoubledThisTurn?: string[];
+  /** Rune of the Grand Procession (Epic): the first `n` Revelers PLAYED each turn return a plain copy to hand. */
+  runeProcessionPlay?: number;
+  processionPlayedThisTurn?: number;
+  /** Rune of the Festival Circuit: the first `n` Revelers SOLD each turn each hand over a random Celestial. */
+  runeFestivalCircuit?: number;
+  circuitSoldThisTurn?: number;
   /** Rune of the Lapidary (owner rework 2026-08-11): End of Turn, play a Ruby on a random minion for every
    *  card played this turn. Runs as a VIRTUAL recurring-EoT entry (see `recurringEotEffects`). */
   runeLapidary?: boolean;

@@ -14,12 +14,12 @@ import { activePowers, getHero, gildCopiesNeeded, hasPower, powerDiscoverPool } 
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { EQUIPMENT_INDEX, forkedCardId } from '@game/content';
+import { EQUIPMENT_INDEX, forkedCardId, REVELER_IDS } from '@game/content';
 import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe, handCardLocked} from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe, handCardLocked, fireStatGainReactors} from './recruit';
 import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
@@ -261,7 +261,8 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   // takes every regular discount below exactly like any minion — there is deliberately no special case here.
   // "Freedom" rift OR Fi's First Pick quest: the FIRST minion bought each turn is free (overriding every
   // price source below). ONE shared spend-marker, so holding both is still one freebie per turn.
-  const freeBuy = (s.rift === 'freedom' || !!s.questFreeFirstBuy) && !s.freeBuyUsedThisTurn;
+  // …or Rune of Festival Wages' armed free card ("your next card costs 0") — the same override, spent by the buy.
+  const freeBuy = ((s.rift === 'freedom' || !!s.questFreeFirstBuy) && !s.freeBuyUsedThisTurn) || (s.nextCardFree ?? 0) > 0;
   // Rune of Cadence: an armed minion discount knocks 1 off whatever the price source says (−1 per copy held).
   const cadenceOff = !freeBuy ? gateUses(s.cadenceMinionOff) : 0;
   // GIFT — Friends and Family: shop minions cost less for the rest of this turn.
@@ -277,6 +278,14 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   const windowOff = !freeBuy ? (s.cardDiscountWindow?.amount ?? 0) : 0;
   const cost = freeBuy ? 0 : Math.max(0, (offer.cost ?? heroOfferPrice(s, offer) ?? s.minionCostOverride ?? minionCostOf(s)) - cadenceOff - tradeInOff - spiritOff - giftMinionOff - windowOff);
   return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff, windowOff };
+}
+
+/** Rune of Festival Wages: a buy that was free because a free-card charge was armed spends ONE charge. A buy that
+ *  was free for another reason (the Freedom rift / First Pick) leaves the charge for the next card. */
+function spendFreeCard(s: RunState, wasFree: boolean): void {
+  if (!wasFree || !(s.nextCardFree ?? 0)) return;
+  s.nextCardFree = Math.max(0, (s.nextCardFree ?? 0) - 1);
+  procRuneId(s, 'rune_festival_wages');
 }
 
 export function minionCostOf(s: RunState): number {
@@ -566,6 +575,8 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
     // Rune of Rising Echoes: the pick arrives carrying granted keywords (Rise + Taunt). Applied after the gild
     // so a gilded pick keeps them, and de-duped against what the card already has.
     for (const k of s.discoverKeywords ?? []) if (!taken.keywords.includes(k)) taken.keywords.push(k);
+    // Rune of the Astral Draft: the pick casts an additional time — stamped on the instance, read by `spellCasts`.
+    if (s.discoverExtraCasts) taken.extraCasts = (taken.extraCasts ?? 0) + s.discoverExtraCasts;
     s.hand.push(taken);
     takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
   }
@@ -593,7 +604,7 @@ function autoResolveEotDiscovers(s: RunState): void {
   const clearDiscoverState = (): void => {
     s.discover = undefined;
     s.discoverLockTier = undefined; s.discoverLockGold = undefined; s.discoverLockWave = undefined;
-    s.discoverBorrowed = undefined; s.discoverGolden = undefined; s.discoverSetStats = undefined;
+    s.discoverBorrowed = undefined; s.discoverGolden = undefined; s.discoverSetStats = undefined; s.discoverExtraCasts = undefined;
   };
   let guard = 0;
   while ((s.discover?.length || (s.discoverQueue?.length ?? 0) > 0) && guard++ < 20) {
@@ -881,6 +892,10 @@ export function reduce(state: RunState, action: Action): RunState {
     // Dragon present BEFORE and AFTER this action received (base stats of new Dragons are excluded — only gains
     // on existing Dragons, board + hand). Advances the `tribeStats` objective by that total.
     const statBefore = new Map([...state.board, ...state.hand].map((c) => [c.uid, { attack: c.attack, health: c.health }]));
+    // Set 3 batch 2 (2026-09-16): `onGainStats` reactors (Handy Flame) + the "a minion in your hand gains stats"
+    // runes (Dream Mirror / Waking Dreams) ride this same per-action diff — the one boundary every stat writer
+    // crosses. Runs before the Dragon tally below so the gains it pays are themselves counted.
+    fireStatGainReactors(next, statBefore);
     let dragonStatGain = 0;
     for (const c of [...next.board, ...next.hand]) {
       const prev = statBefore.get(c.uid);
@@ -1330,9 +1345,11 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (s.spell && s.spell.uid === action.uid) {
         const spellDef = CARD_INDEX[s.spell.cardId];
         if (!spellDef) return state;
-        const cost = Math.max(0, (spellDef.cost ?? 0) - spellCostReduction(s, spellDef)); // `spellDef` is load-bearing: Rune of Thrift keys on it
+        const spellFree = (s.nextCardFree ?? 0) > 0; // Rune of Festival Wages: "your next card costs 0" — spells included
+        const cost = spellFree ? 0 : Math.max(0, (spellDef.cost ?? 0) - spellCostReduction(s, spellDef)); // `spellDef` is load-bearing: Rune of Thrift keys on it
         if (s.embers < cost || s.hand.length >= handCap(s)) return state;
         spendGold(s, cost);
+        spendFreeCard(s, spellFree);
         if (s.cadenceSpellOff) procRuneId(s, 'rune_cadence');
       if (s.cadenceSpellOff) s.cadenceSpellOff = undefined; // Rune of Cadence: the armed spell discount is spent
         s.hand.push({
@@ -1358,9 +1375,11 @@ function reduceCore(state: RunState, action: Action): RunState {
       // A spell offer sitting in the minion row (Spell Cart's spell shop) buys into the hand at its OWN cost,
       // exactly like the right-hand spell slot — no minion creation / triple.
       if (card.spell) {
-        const sCost = Math.max(0, (card.cost ?? 0) - spellCostReduction(s, card)); // pass the def — see the spell-slot buy above
+        const rowSpellFree = (s.nextCardFree ?? 0) > 0; // Rune of Festival Wages (see the spell-slot buy above)
+        const sCost = rowSpellFree ? 0 : Math.max(0, (card.cost ?? 0) - spellCostReduction(s, card)); // pass the def — see the spell-slot buy above
         if (s.embers < sCost || s.hand.length >= handCap(s)) return state;
         spendGold(s, sCost);
+        spendFreeCard(s, rowSpellFree);
         s.shop.splice(i, 1);
         ciaBuyEnchanted(s, offer); // Croupier Ayse: an Enchanted buy advances her prize counter
         s.hand.push({ uid: `b${s.uidSeq++}`, cardId: card.id, tribe: card.tribe, attack: card.attack, health: card.health, keywords: [...card.keywords], golden: false });
@@ -1444,6 +1463,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       s.shop.splice(i, 1);
       ciaBuyEnchanted(s, offer); // Croupier Ayse: an Enchanted buy advances her prize counter
       spendGold(s, buyCost);
+      spendFreeCard(s, freeBuy); // Rune of Festival Wages: an armed free card is spent by this buy
       if (spiritOff > 0) s.spiritDiscount = 0; // the Treasurer's discount is spent by the Spirit it applied to
       if (cadenceOff) procRuneId(s, 'rune_cadence');
       if (cadenceOff) s.cadenceMinionOff = undefined; // spent
@@ -1652,7 +1672,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // tavern spell pool up to the current tier). Multi-cast by the full spell multiplier, like the minion
         // path below.
         if (dop.spell) {
-          const spellCastsN = def.singleCast ? 1 : spellCasts(s, def);
+          const spellCastsN = def.singleCast ? 1 : spellCasts(s, def, card);
           for (let n = 0; n < spellCastsN; n++) { queueDiscover(s, { kind: 'spell' }); noteSpellCast(s, def); }
           if (!def.singleCast) s.nextSpellExtraCasts = undefined;
           if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
@@ -1680,7 +1700,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // and Spell Thesis (first-spell-each-turn); Yazzus is aimed-only so it's auto-excluded (a Discover spell is
         // untargeted). `singleCast` never multiplies. Bug fix (owner 2026-07-09): the old code read only
         // `nextSpellExtraCasts`, so Ancient Runes' "spells cast twice" silently did nothing for Discover spells.
-        const casts = def.singleCast ? 1 : spellCasts(s, def);
+        const casts = def.singleCast ? 1 : spellCasts(s, def, card);
         // A Discover spell IS a spell cast. This path used to return without ever reaching `castSpell`, so it
         // counted as nothing at all — no `spellsCast`, no quest tally, and no `spellCast` watchers, which is
         // why Sprout didn't trigger Runebloom Matriarch or Groveweaver (owner report 2026-07-27). Once per
@@ -1862,7 +1882,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // — the card is still consumed once. Untargeted economy/utility spells and `singleCast` spells
         // (Channeling the Devourer) never multi-fire (see `spellCasts`). The Discover-spells returned early
         // above. A bad target still fizzles before any cast (no partial state change).
-        const casts = spellCasts(s, def);
+        const casts = spellCasts(s, def, card);
         if (def.target === 'friendly' || def.target === 'any') {
           const boardTarget = s.board.find((c) => c.uid === action.targetUid);
           // A spell that cannot accomplish ANYTHING in this state is refused outright — kept in hand, no Gold
@@ -3312,6 +3332,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       s.discoverGolden = undefined;
       s.discoverSetStats = undefined;
       s.discoverKeywords = undefined;
+      s.discoverExtraCasts = undefined;
       s.discoverIntoShopUid = undefined;
       // Open the next queued Discover (golden / Drakko-doubled Brian, Yazzus-multiplied Help Wanted /
       // Sprout); only clear the offer once the queue is empty. A spec whose pool is empty opens nothing
@@ -3515,7 +3536,7 @@ function resolveChooseOneSpell(
   const offer = targetUid && !target ? s.shop.find((o) => o.uid === targetUid && !CARD_INDEX[o.cardId]?.spell) : undefined;
   // The aim was answered but the target has gone (sold) since — fizzle the cast, still consume the spell.
   if (targetUid && !target && !offer) { s.hand.splice(hi, 1); return s; }
-  const casts = spellCasts(s, def);
+  const casts = spellCasts(s, def, card);
   // (BOTH) — Rune of Facetwright's "they give both effects": resolve EVERY branch instead of the picked one.
   const both = chooseBothActive(s, card, def);
   if (both) spendChooseBothCharge(s, card, def); // Forked Crown / Prismpick — one card per charge
@@ -4545,7 +4566,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
       // Clear the offer state whether or not a pick landed — nothing here may leave a modal open.
       s.discover = undefined;
       s.discoverLockTier = undefined; s.discoverLockGold = undefined; s.discoverLockWave = undefined;
-      s.discoverBorrowed = undefined; s.discoverGolden = undefined; s.discoverSetStats = undefined;
+      s.discoverBorrowed = undefined; s.discoverGolden = undefined; s.discoverSetStats = undefined; s.discoverExtraCasts = undefined;
     }
   }
   // Shop-buff spells cast mid-fight: a one-time buff for the NEXT shop (the `nextShopBuff` channel).
@@ -4881,6 +4902,15 @@ function advanceCombat(s: RunState): void {
   s.spellhideUsedThisTurn = false;  // Rune of Spellhide records one spell per turn
   s.spellmarketUsedThisTurn = false; // Rune of the Spellmarket feeds the Shop once per turn
   s.lastWordUsedThisTurn = false;    // Rune of the Last Word triggers one sold Dragon's Shout per turn
+  // Set 3 batch 2 (2026-09-16) — the tranche-A per-turn gates. `nextCardFree` is deliberately NOT cleared: an
+  // armed free card carries until it is spent (an earned reward is never dropped).
+  s.festivalWagesUsedThisTurn = false; // Rune of Festival Wages: one Reveler sale per turn arms the free card
+  s.meteorShowerUsedThisTurn = false;  // Rune of the Meteor Shower: the first Star Crash each turn
+  s.shopSpellIdsThisTurn = [];         // Charted Skies / the Astral Refrain count the turn's Shop spells afresh
+  s.dreamMirrorUsedThisTurn = false;   // Rune of the Dream Mirror: the first hand gain each turn
+  s.revelryDoubledThisTurn = [];       // Rune of Shared Revelry: one double per Reveler type per turn
+  s.processionPlayedThisTurn = 0;      // Rune of the Grand Procession: the first N Revelers played each turn
+  s.circuitSoldThisTurn = 0;           // Rune of the Festival Circuit: the first N Revelers sold each turn
   s.banquetUsedThisTurn = false;     // Rune of the Banquet Hall feeds the board off one buy per turn
   s.spellhidePending = [];           // …and the recorded re-casts are spent by the combat that just began
   s.contrabandRubyUsed = undefined; // Rune of Contraband's two first-each-turn latches
@@ -5060,6 +5090,10 @@ function advanceCombat(s: RunState): void {
   // the start-of-turn modal so any quest offer / forge takes priority and the two Discovers stack behind it.
   // These are shop-phase Discovers, so the window opens normally (the no-window rule is END-of-turn only).
   if (s.runeLongShift) { procRuneId(s, 'rune_long_shift'); queueDiscover(s, { kind: 'spell' }); queueDiscover(s, { kind: 'spell' }); }
+  // Set 3 batch 2 (2026-09-16): Rune of the Astral Draft (a Shop-spell Discover that casts an additional time) and
+  // Rune of the Traveling Festival (a random Reveler per copy) — the same start-of-turn slot as the Long Shift.
+  if (s.runeAstralDraft) payAstralDraft(s);
+  if (s.runeRevelerDrip) payRevelerDrip(s, s.runeRevelerDrip);
   // GIFTS (owner design 2026-08-26). Merry Christmas offers a Gift every Start of Turn; Happy Birthday hands
   // one over every SECOND turn (its tick counts the waves between payouts). Both queue behind the start-of-turn
   // modal like the Long Shift, so a quest offer or forge still takes priority.
@@ -5136,6 +5170,7 @@ function advanceCombat(s: RunState): void {
       conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
       if (id === 'hoardflame') procRuneId(s, 'rune_hoardflame');
       if (id === 'sp_dragonflame') procRuneId(s, 'rune_dragon_breath');
+      if (id === 'starcrash') procRuneId(s, 'rune_falling_embers');
     }
   }
   // The CADENCED twin of the list above (Clockwork Promotion / the Muckbroker / Rare Goods): a card every
@@ -5763,6 +5798,22 @@ function payTribeDrip(s: RunState, drip: { tribe: Tribe; count: number }): void 
   if (pool.length === 0) return;
   conjureToHand(s, pool, drip.count, true);
   procRuneId(s, `rune_${drip.count >= 2 ? 'epic' : 'basic'}_${drip.tribe}`);
+}
+
+/** Rune of the Traveling Festival's faucet: `count` random Revelers to hand — shared by the purchase and every turn
+ *  setup, so the two can never drift. Overflow-safe like every earned reward. */
+function payRevelerDrip(s: RunState, count: number): void {
+  const pool = REVELER_IDS.map((id) => CARD_INDEX[id]).filter((c): c is CardDef => !!c);
+  if (pool.length === 0 || count <= 0) return;
+  conjureToHand(s, pool, count, true);
+  procRuneId(s, 'rune_traveling_festival');
+}
+
+/** Rune of the Astral Draft's Discover: a Shop-spell offer whose pick casts an additional time — one per copy
+ *  held. Queued (not opened) so it stacks behind any modal already up. */
+function payAstralDraft(s: RunState): void {
+  procRuneId(s, 'rune_astral_draft');
+  for (let k = 0; k < runeStacksOf(s, 'rune_astral_draft'); k++) queueDiscover(s, { kind: 'spell', extraCasts: 1 });
 }
 
 function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean, sourceKind: 'quest' | 'rune' = 'quest'): void {
@@ -6428,6 +6479,35 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
     case 'runeMountainTrade': s.runeMountainTrade = true; break;
     case 'runeOpenAppetite': s.runeOpenAppetite = true; break;
     case 'runeBroodmaster': s.runeBroodmaster = true; break;
+    // ── Set 3 batch 2 (2026-09-16) — tranche A (Spirit / Celestial runes) ──────────────────────────────────
+    // Amount-carrying rewards ACCUMULATE (a duplicate doubles the output); boolean flags multiply at their site.
+    case 'runeChosenVessel': s.runeChosenVessel = { attack: (s.runeChosenVessel?.attack ?? 0) + r.attack, health: (s.runeChosenVessel?.health ?? 0) + r.health }; break;
+    case 'runeDeepCurrents': s.runeDeepCurrents = { count: r.count, attack: (s.runeDeepCurrents?.attack ?? 0) + r.attack, health: (s.runeDeepCurrents?.health ?? 0) + r.health }; break;
+    case 'runeRevelerDrip': {
+      // Rune of the Traveling Festival: a random Reveler now AND every turn setup (the tribe-drip rule — buying a
+      // rune mid-turn must not feel like buying nothing; the setup faucet has already run this turn).
+      s.runeRevelerDrip = (s.runeRevelerDrip ?? 0) + r.count;
+      payRevelerDrip(s, r.count);
+      break;
+    }
+    case 'runeRevelerExtra': s.revelerExtra = { attack: (s.revelerExtra?.attack ?? 0) + r.attack, health: (s.revelerExtra?.health ?? 0) + r.health }; break;
+    case 'runeGrowingChorus': s.runeGrowingChorus = { attack: (s.runeGrowingChorus?.attack ?? 0) + r.attack, health: (s.runeGrowingChorus?.health ?? 0) + r.health, improve: (s.runeGrowingChorus?.improve ?? 0) + r.improve, played: s.runeGrowingChorus?.played ?? [] }; break;
+    case 'runeChartedSkies': s.runeChartedSkies = { at: r.at }; break;
+    case 'runeStarCrashBonus': s.starCrashBonus = { attack: (s.starCrashBonus?.attack ?? 0) + r.attack, health: (s.starCrashBonus?.health ?? 0) + r.health }; break;
+    case 'runeFestivalWages': s.runeFestivalWages = true; break;
+    case 'runeMeteorShower': s.runeMeteorShower = true; break;
+    case 'runeAstralRefrain': s.runeAstralRefrain = { at: r.at }; break;
+    case 'runeAstralDraft':
+      // Start-of-Turn Discover, paid ONCE NOW as well (the "Get X. Repeat every Start of Turn" convention): the
+      // forge opens after this turn's setup, so without this the rune hands over nothing until next turn.
+      s.runeAstralDraft = true;
+      payAstralDraft(s);
+      break;
+    case 'runeDreamMirror': s.runeDreamMirror = true; break;
+    case 'runeWakingDreams': s.runeWakingDreams = { attack: (s.runeWakingDreams?.attack ?? 0) + r.attack, health: (s.runeWakingDreams?.health ?? 0) + r.health }; break;
+    case 'runeSharedRevelry': s.runeSharedRevelry = true; break;
+    case 'runeProcessionPlay': s.runeProcessionPlay = (s.runeProcessionPlay ?? 0) + r.count; break; // +N returns per copy (repeat family)
+    case 'runeFestivalCircuit': s.runeFestivalCircuit = r.count; break; // the window doubles per copy at the sell site
     case 'runeSharedReflection': s.runeSharedReflection = true; break;
     case 'runeUnbrokenVein': s.runeUnbrokenVein = true; break;
     case 'runeLivingGrowth': s.runeLivingGrowth = true; break;

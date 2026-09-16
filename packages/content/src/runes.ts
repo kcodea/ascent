@@ -1255,6 +1255,123 @@ export const RUNES: RuneDef[] = [
     text: 'Every **7 Gold** spent, cast a random **stat-granting Shop spell**.',
     reward: { kind: 'runeThreshold', meter: 'gold', per: 7, castStatSpell: 1 },
   },
+
+  // ── Set 3 batch 2 (2026-09-16) — tranche A ──────────────────────────────────────────────────────────────
+  // Spirit / Celestial / Undead runes from the owner's sheet. Every one is SET 3 ONLY. Tribe drips reuse
+  // `runeTribeDrip` (tier-capped at the shop tier by `payTribeDrip`, so the text never says "up to your Shop
+  // Tier" — the Dwarf/Kobold verbiage). Tallies for the metered ones live in `runeTally.ts`.
+  {
+    id: 'rune_basic_spirit',
+    tribes: ['spirit'], // TRIBE GATE: the text names Spirits
+    name: 'Rune of Basic Spirits',
+    cost: 3,
+    text: 'Get a **Spirit**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'spirit', count: 1 },
+    sets: ['set3'],
+  },
+  {
+    id: 'rune_basic_celestial',
+    tribes: ['celestial'], // TRIBE GATE: the text names Celestials
+    name: 'Rune of Basic Celestials',
+    cost: 3,
+    text: 'Get a **Celestial**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'celestial', count: 1 },
+    sets: ['set3'],
+  },
+  {
+    id: 'rune_basic_undead',
+    tribes: ['undead'], // TRIBE GATE: the text names Undead
+    name: 'Rune of Basic Undead',
+    cost: 3,
+    text: 'Get an **Undead**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'undead', count: 1 },
+    sets: ['set3'],
+  },
+  {
+    // "After every third Spirit you play" = the threshold engine on a `playSpirit` meter (progress carries across
+    // turns, like the Dragon's Pantry), paying the HAND (`target: 'hand'`).
+    id: 'rune_full_hand',
+    tribes: ['spirit'],
+    name: 'Rune of the Full Hand',
+    cost: 4,
+    text: 'After every **3rd** Spirit you play, give the minions in your hand **+4/+4**.',
+    reward: { kind: 'runeThreshold', meter: 'playSpirit', per: 3, buff: { target: 'hand', attack: 4, health: 4 } },
+    sets: ['set3'],
+  },
+  {
+    id: 'rune_chosen_vessel',
+    tribes: ['spirit'],
+    name: 'Rune of the Chosen Vessel',
+    cost: 3,
+    text: 'Whenever you play a Spirit, give your **left-most** minion in hand **+2/+2**.',
+    reward: { kind: 'runeChosenVessel', attack: 2, health: 2 },
+    sets: ['set3'],
+  },
+  {
+    id: 'rune_deep_currents',
+    tribes: ['spirit'],
+    name: 'Rune of Deep Currents',
+    cost: 4,
+    text: 'Whenever you play a Spirit, give **2** random friendly Spirits **+2/+2**.',
+    reward: { kind: 'runeDeepCurrents', count: 2, attack: 2, health: 2 },
+    sets: ['set3'],
+  },
+  {
+    // A random Reveler now + every Start of Turn (the tribe-drip shape, Reveler-scoped), and the shared Reveler
+    // payout grows: Flame pays +2 more Attack, Tide +2 more Health, Grove +2/+2 more (`revelerExtra`).
+    id: 'rune_traveling_festival',
+    tribes: ['spirit'],
+    name: 'Rune of the Traveling Festival',
+    cost: 4,
+    text: 'Get a random **Reveler**. Repeat every **Start of Turn**. Your Revelers grant an additional **+2/+2**.',
+    previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
+    reward: { kind: 'multi', rewards: [{ kind: 'runeRevelerDrip', count: 1 }, { kind: 'runeRevelerExtra', attack: 2, health: 2 }] },
+    sets: ['set3'],
+  },
+  {
+    // Tracks which Reveler TYPES have been played since the last reset; the third distinct one pays out and resets.
+    // "Improve your Reveler values by +2/+2" = the shared Reveler value (one number, both stats) rises by 2.
+    id: 'rune_growing_chorus',
+    tribes: ['spirit'],
+    name: 'Rune of the Growing Chorus',
+    cost: 4,
+    text: 'After you play a **Flame**, **Tide** and **Grove Reveler**, give your board and hand **+5/+5**, improve your Reveler value by **+2/+2**, then reset this.',
+    previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
+    reward: { kind: 'runeGrowingChorus', attack: 5, health: 5, improve: 2 },
+    sets: ['set3'],
+  },
+  {
+    id: 'rune_charted_skies',
+    tribes: ['celestial'],
+    name: 'Rune of Charted Skies',
+    cost: 4,
+    text: 'After you cast your **3rd** Shop spell each turn, **Discover** a Shop spell.',
+    reward: { kind: 'runeChartedSkies', at: 3 },
+    sets: ['set3'],
+  },
+  {
+    // The Hoardflame shape: a named spell now + every Start of Turn (`recurringGrant` pays the first copy at once),
+    // plus a per-spell power bump the Star Crash factory and its live text both read (`starCrashBonus`).
+    id: 'rune_falling_embers',
+    tribes: ['celestial'],
+    name: 'Rune of Falling Embers',
+    cost: 4,
+    text: 'Get a **Star Crash**. Repeat every **Start of Turn**. Your Star Crashes give an additional **+2/+2**.',
+    reward: { kind: 'multi', rewards: [{ kind: 'recurringGrant', cards: ['starcrash'] }, { kind: 'runeStarCrashBonus', attack: 2, health: 2 }] },
+    sets: ['set3'],
+  },
+  {
+    // "Your next card costs 0": the next minion OR spell bought from the Shop (either row) is free — one card per
+    // Reveler sale, one sale per turn.
+    id: 'rune_festival_wages',
+    tribes: ['spirit'],
+    name: 'Rune of Festival Wages',
+    cost: 3,
+    text: 'After you sell your first **Reveler** each turn, your next card costs **0**.',
+    previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
+    reward: { kind: 'runeFestivalWages' },
+    sets: ['set3'],
+  },
 ];
 
 /**
@@ -2653,6 +2770,156 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get an **Arcane Behemoth**.',
     reward: { kind: 'grant', cards: ['dm_behemoth'] },
+  },
+
+  // ── Set 3 batch 2 (2026-09-16) — tranche A ──────────────────────────────────────────────────────────────
+  // The Epic half of the tranche. SET 3 ONLY, every one. Two runes from the owner's sheet are NOT here because
+  // their effect lives in combat (`packages/core/src/combat/simulate.ts`, reserved for a sibling tranche):
+  // Rune of the Open Hand (a combat hand-summon hook) and Rune of the Waking Reserve (a Start-of-Combat summon).
+  {
+    id: 'rune_epic_celestial',
+    tribes: ['celestial'],
+    name: 'Rune of Epic Celestials',
+    cost: 3,
+    epic: true,
+    text: 'Get **2 Celestials**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'celestial', count: 2 },
+    sets: ['set3'],
+  },
+  {
+    id: 'rune_epic_spirit',
+    tribes: ['spirit'],
+    name: 'Rune of Epic Spirits',
+    cost: 3,
+    epic: true,
+    text: 'Get **2 Spirits**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'spirit', count: 2 },
+    sets: ['set3'],
+  },
+  {
+    id: 'rune_epic_undead',
+    tribes: ['undead'],
+    name: 'Rune of Epic Undead',
+    cost: 3,
+    epic: true,
+    text: 'Get **2 Undead**. Repeat every **Start of Turn**.',
+    reward: { kind: 'runeTribeDrip', tribe: 'undead', count: 2 },
+    sets: ['set3'],
+  },
+  {
+    id: 'rune_meteor_shower',
+    tribes: ['celestial'],
+    name: 'Rune of the Meteor Shower',
+    cost: 2,
+    epic: true,
+    text: 'After you cast your first **Star Crash** each turn, get another **Star Crash**.',
+    previewCards: ['starcrash'],
+    reward: { kind: 'runeMeteorShower' },
+    sets: ['set3'],
+  },
+  {
+    // Counts SHOP spells only (a Gift or a reward token is a spell cast, not a Shop spell — the standing rule), and
+    // hands over copies of the turn's 1st and 3rd Shop spells the moment the 3rd resolves.
+    id: 'rune_astral_refrain',
+    tribes: ['celestial'],
+    name: 'Rune of the Astral Refrain',
+    cost: 5,
+    epic: true,
+    text: 'After your **3rd** Shop spell each turn, get copies of the **first** and **third** Shop spells you cast that turn.',
+    reward: { kind: 'runeAstralRefrain', at: 3 },
+    sets: ['set3'],
+  },
+  {
+    // The Discover pick arrives stamped `extraCasts: 1` (read by `spellCasts`, so the x N badge previews it).
+    id: 'rune_astral_draft',
+    tribes: ['celestial'],
+    name: 'Rune of the Astral Draft',
+    cost: 6,
+    epic: true,
+    text: '**Start of Turn:** **Discover** a Shop spell. It casts an additional time.',
+    reward: { kind: 'runeAstralDraft' },
+    sets: ['set3'],
+  },
+  {
+    // "A minion in your hand gains stats" = the reducer's per-action HAND stat diff (shop phase; every source).
+    id: 'rune_dream_mirror',
+    tribes: ['spirit'],
+    name: 'Rune of the Dream Mirror',
+    cost: 5,
+    epic: true,
+    text: 'The first time a minion in your hand gains stats each turn, give the same stats to a random friendly minion.',
+    reward: { kind: 'runeDreamMirror' },
+    sets: ['set3'],
+  },
+  {
+    id: 'rune_waking_dreams',
+    tribes: ['spirit'],
+    name: 'Rune of Waking Dreams',
+    cost: 5,
+    epic: true,
+    text: 'When a minion in your hand gains stats, give your minions **+4/+3**.',
+    reward: { kind: 'runeWakingDreams', attack: 4, health: 3 },
+    sets: ['set3'],
+  },
+  {
+    id: 'rune_shared_revelry',
+    tribes: ['spirit'],
+    name: 'Rune of Shared Revelry',
+    cost: 5,
+    epic: true,
+    text: 'The first **Flame**, **Tide** and **Grove Reveler** you sell each turn trigger twice.',
+    previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
+    reward: { kind: 'runeSharedRevelry' },
+    sets: ['set3'],
+  },
+  {
+    // Shares its name with the Tier-7 Spirit (Grand Procession), which is allowed — rune names are unique among
+    // RUNES, and the card's own return is on SELL where this one is on PLAY.
+    id: 'rune_grand_procession',
+    tribes: ['spirit'],
+    name: 'Rune of the Grand Procession',
+    cost: 6,
+    epic: true,
+    text: 'The first **2 Revelers** you play each turn return a plain copy to your hand.',
+    previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
+    reward: { kind: 'runeProcessionPlay', count: 2 },
+    sets: ['set3'],
+  },
+  {
+    // Spirit + Celestial: `tribes` is an ANY-OF gate, so a Spirit-only run can still be offered this (the granted
+    // Celestial resolves from the set pool regardless of the rolled tribes).
+    id: 'rune_festival_circuit',
+    tribes: ['spirit', 'celestial'],
+    name: 'Rune of the Festival Circuit',
+    cost: 5,
+    epic: true,
+    text: 'The first **3 Revelers** you sell each turn each give you a random **Celestial**.',
+    previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
+    reward: { kind: 'runeFestivalCircuit', count: 3 },
+    sets: ['set3'],
+  },
+  {
+    // RENAMED from the owner's "Rune of the Crown" (2026-09-16) — Rune of the Crown already exists (the Epic
+    // "after 6 Shop spells, spells give +4/+4"). Same engine as the Bubble Crown: a `playSpirit` meter raising
+    // the run's spell power (`spellBonus`), which every stat spell's live text already prints.
+    id: 'rune_spirit_crown',
+    tribes: ['spirit', 'celestial'],
+    name: 'Rune of the Spirit Crown',
+    cost: 6,
+    epic: true,
+    text: 'When you play **3** Spirits, improve your Shop spells by **+1/+1**.',
+    reward: { kind: 'runeThreshold', meter: 'playSpirit', per: 3, buff: { target: 'spells', attack: 1, health: 1 } },
+    sets: ['set3'],
+  },
+  {
+    id: 'rune_handy_flame',
+    tribes: ['spirit'],
+    name: 'Rune of the Handy Flame',
+    cost: 5,
+    epic: true,
+    text: 'Get a **Handy Flame**.',
+    reward: { kind: 'grant', cards: ['sp3_handyflame'] },
+    sets: ['set3'],
   },
 ];
 

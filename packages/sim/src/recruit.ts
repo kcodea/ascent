@@ -1335,7 +1335,7 @@ export function rubyCastCount(state: RunState): number {
   return (1 + extra) * grimoireMultActive(state);
 }
 
-export function spellCasts(state: RunState, def: CardDef): number {
+export function spellCasts(state: RunState, def: CardDef, card?: Pick<BoardCard, 'extraCasts'>): number {
   if (def.singleCast) return 1; // Channeling the Devourer never multiplies
   let mult = def.target ? spellCastMult(state) : 1; // Yazzus multiplies aimed spells; untargeted = 1
   if (state.spellDoubleAlways) mult *= 2; // Ancient Runes: every spell casts twice
@@ -1375,7 +1375,9 @@ export function spellCasts(state: RunState, def: CardDef): number {
   // Nimbus is ADDED LAST, and added rather than multiplied, because it reads "casts an ADDITIONAL time"
   // (owner 2026-07-24). It also applies to untargeted spells, unlike Yazzus — the charge is a flat bonus on
   // whatever the spell would otherwise do.
-  return mult + (state.nextSpellExtraCasts ?? 0);
+  // …and a per-INSTANCE extra (Rune of the Astral Draft stamps its Discover pick `extraCasts: 1`) — added, like
+  // Nimbus, because it reads "casts an additional time". Only the cast sites that hold the hand card pass it.
+  return mult + (state.nextSpellExtraCasts ?? 0) + (card?.extraCasts ?? 0);
 }
 
 /** Implosion's cast count: once by default, plus one more per Demon you control (so 1 + your Demons). Shared by
@@ -1495,7 +1497,7 @@ export function applyShoutsForShopBuff(state: RunState, n: number): void {
  * separate hooks would drift on the parts that must NOT differ — banking the remainder, and paying every
  * threshold a single large transaction crosses (a 12-Gold buy pays a 5-Gold rune twice).
  */
-export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume', amount: number): void {
+export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit', amount: number): void {
   if (amount <= 0 || !state.runeThresholds?.length) return;
   for (const t of state.runeThresholds) {
     if (t.meter !== meter) continue;
@@ -1575,6 +1577,13 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
   // stat-granting spell from here on is bigger, and `spellDisplayText` greens the printed value automatically.
   else if (b.target === 'spells') {
     state.spellBonus = { attack: (state.spellBonus?.attack ?? 0) + b.attack, health: (state.spellBonus?.health ?? 0) + b.health };
+  }
+  // `hand` (Rune of the Full Hand): every MINION in your hand +A/+H — permanent, as every hand buff is (R-HAND-02).
+  // Doubled per copy held (threshold family: same meter, doubled payoff). Spells in hand have no stats to take.
+  else if (b.target === 'hand') {
+    const reps = runeStacksOf(state, t.sourceId ?? '');
+    for (const c of state.hand) if (!CARD_INDEX[c.cardId]?.spell) addBuff(c, 'Rune of the Full Hand', b.attack * reps, b.health * reps);
+    grow();
   }
   else if (b.target === 'shop') applyRunShopBuff(state, b.attack, b.health, 'Rune');
   // `shopTurn` (Merchant's Chorus): the SAME shop-wide grant, but banked in the per-turn layer so it stacks
@@ -3335,7 +3344,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   revelerSell: (ctx, self, params) => {
     const x = revelerValue(ctx.state) * gold(self);
     const stat = str(params.stat);
-    const a = stat === 'health' ? 0 : x, h = stat === 'attack' ? 0 : x;
+    // Rune of the Traveling Festival: "your Revelers grant an additional +A/+H" — on the stat(s) this Reveler pays
+    // (Flame → Attack only, Tide → Health only, Grove → both). Accumulated per copy at the dispatcher.
+    const ex = ctx.state.revelerExtra ?? { attack: 0, health: 0 };
+    const a = stat === 'health' ? 0 : x + ex.attack, h = stat === 'attack' ? 0 : x + ex.health;
     const all = stat === 'both';
     for (const c of ctx.state.board) {
       if (!all && !isTribe(c, 'spirit')) continue;
@@ -3493,6 +3505,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   tribePlayedBuffSelfInHand: (ctx, self, params) => {
     if (!ctx.state.hand.includes(self)) return;
     addBuff(self, nameOf(self), num(params.attack, 4) * gold(self), num(params.health, 4) * gold(self));
+  },
+
+  /** Handy Flame (rune token, Set 3 batch 2): whenever this gains stats — in hand or on the board — a random OTHER
+   *  minion in your hand +a/+h (× golden). Never itself: a Handy Flame feeding itself would loop, and "a random
+   *  minion in your hand" read from a hand card means another card. Permanent, as every hand buff is. */
+  onGainStatsBuffRandomHand: (ctx, self, params) => {
+    const pool = ctx.state.hand.filter((c) => c.uid !== self.uid && !CARD_INDEX[c.cardId]?.spell);
+    for (const t of pickRandom(ctx.state, pool, 1)) addBuff(t, nameOf(self), num(params.attack, 6) * gold(self), num(params.health, 4) * gold(self));
   },
 
   /** Set 3 — Equipment Charger (Start of Turn): `count` bonus Equipment charges THIS turn (× golden) into the
@@ -7730,7 +7750,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellBuffTargetAndRandomFriendly: (ctx, _self, params, payload) => {
     const target = payload.target;
     if (!target) return;
-    const a = num(params.attack, 0) + spellAttackBonus(ctx.state), h = num(params.health, 0) + spellHealthBonus(ctx.state);
+    // Rune of Falling Embers: "your Star Crashes give an additional +A/+H" — folded into BOTH landings (the aimed
+    // one and the random friend), the same way spell power is; the live text prints the same total.
+    const sc = params._spellId === 'starcrash' ? (ctx.state.starCrashBonus ?? { attack: 0, health: 0 }) : { attack: 0, health: 0 };
+    const a = num(params.attack, 0) + spellAttackBonus(ctx.state) + sc.attack, h = num(params.health, 0) + spellHealthBonus(ctx.state) + sc.health;
     // Constellation Prime: "your Star Crashes cast an additional time" = the PRIMARY lands once more per Prime on
     // the chosen target; the secondary random-friendly half fires ONCE per cast (owner 2026-09-12).
     const lands = 1 + (params._spellId === 'starcrash' ? primeExtraPrimaryLands(ctx.state) : 0);
@@ -8583,6 +8606,9 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
   }
   if (spec.kind === 'spell') {
     offerSpellDiscover(state);
+    // Rune of the Astral Draft: the pick will cast an additional time — stamped on the OPEN offer and consumed by
+    // `takeDiscoverPick`, the same per-offer channel `discoverKeywords` uses.
+    state.discoverExtraCasts = spec.extraCasts;
   } else if (spec.kind === 'pool') {
     // Discover from an explicit card-id pool (Second Path). Offer up to 3 distinct, real cards.
     // Spells are excluded because the pool Discover was built for MINIONS — except GIFTS (owner design
@@ -8886,7 +8912,7 @@ export function spellHealthBonus(state: RunState): number {
  * base text for non-stat spells or a zero bonus. Convention: a stat spell's text shows "+A/+B" matching
  * its `spellBuffTarget` params, so it can be substituted.
  */
-export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; clueBonus?: number; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number; juggler?: boolean; anySpellsThisTurn?: number }): string {
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; clueBonus?: number; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number; juggler?: boolean; anySpellsThisTurn?: number; starCrashBonus?: { attack: number; health: number } }): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
   // Set 3 — a FLAT hand spell (Tower Shield: every cast effect opts out of spell power via `flat`) prints exactly
@@ -8896,6 +8922,15 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   if (def.id === 'clue') {
     const cb = extra?.clueBonus ?? 0;
     return cb > 0 ? def.text.replace('**+1/+1**', `**{{+${1 + cb}/+${1 + cb}}}**`) : def.text;
+  }
+  // Star Crash (set 3): base +5/+7 + spell power + Rune of Falling Embers' `starCrashBonus` — the exact total the
+  // cast lands on both its targets, printed IN PLACE (owner standard 2026-09-12: never a "Now +X/+Y" appendix).
+  if (def.id === 'starcrash') {
+    const eff = def.effects.find((e) => e.on === 'cast');
+    const baseA = Number(eff?.params?.attack ?? 5), baseH = Number(eff?.params?.health ?? 7);
+    const sc = extra?.starCrashBonus ?? { attack: 0, health: 0 };
+    const a = baseA + bonusA + sc.attack, h = baseH + bonusH + sc.health;
+    return a !== baseA || h !== baseH ? def.text.replace(`**+${baseA}/+${baseH}**`, `**{{+${a}/+${h}}}**`) : def.text;
   }
   // A RUBY itself reads live: base 1/1 + the run's `rubyBonus`. Needed since hovering any card that mentions
   // Rubies now previews the Ruby (owner 2026-07-25) — a preview promising "+1/+1" while the real Ruby grants
@@ -9361,9 +9396,20 @@ export function fireOnSell(state: RunState, card: BoardCard): void {
   const def = CARD_INDEX[card.cardId];
   if (!def || !def.effects.some((e) => e.on === 'onSell')) return;
   const ctx = makeContext(state);
-  for (const eff of def.effects) {
-    if (eff.on !== 'onSell') continue;
-    RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
+  // RUNE OF SHARED REVELRY (Set 3 batch 2, 2026-09-16): the first Flame, Tide and Grove Reveler you sell each
+  // turn TRIGGER TWICE — one extra full fire of the sell effect per copy held (repeat family), keyed per Reveler
+  // TYPE per turn exactly like Grand Procession's return. A second Flame this turn fires once.
+  let reps = 1;
+  if (state.runeSharedRevelry && REVELER_IDS.includes(card.cardId) && !(state.revelryDoubledThisTurn ?? []).includes(card.cardId)) {
+    state.revelryDoubledThisTurn = [...(state.revelryDoubledThisTurn ?? []), card.cardId];
+    reps += runeStacksOf(state, 'rune_shared_revelry');
+    procRuneId(state, 'rune_shared_revelry');
+  }
+  for (let rep = 0; rep < reps; rep++) {
+    for (const eff of def.effects) {
+      if (eff.on !== 'onSell') continue;
+      RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
+    }
   }
 }
 
@@ -9500,6 +9546,27 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
  * leaving. The sold card is passed as `target` so a watcher can inspect what it was.
  */
 export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
+  // ── Set 3 batch 2 (2026-09-16): the REVELER-SOLD runes. Both key on the sold body being a Reveler. ──
+  if (REVELER_IDS.includes(sold.cardId)) {
+    // RUNE OF FESTIVAL WAGES: the turn's FIRST Reveler sale arms a free card — the next Shop buy (minion or spell,
+    // either row) costs 0. One charge per copy held (repeat family); the charges carry until spent.
+    if (state.runeFestivalWages && !state.festivalWagesUsedThisTurn) {
+      state.festivalWagesUsedThisTurn = true;
+      state.nextCardFree = (state.nextCardFree ?? 0) + runeStacksOf(state, 'rune_festival_wages');
+      procRuneId(state, 'rune_festival_wages');
+    }
+    // RUNE OF THE FESTIVAL CIRCUIT: the first `n` Reveler sales each turn each hand over a random Celestial from the
+    // run's pool (≤ shop tier). The window doubles per copy held; a set whose pool has no Celestial grants nothing.
+    const circuit = state.runeFestivalCircuit ?? 0;
+    if (circuit > 0) {
+      const done = state.circuitSoldThisTurn ?? 0;
+      if (done < circuit * runeStacksOf(state, 'rune_festival_circuit')) {
+        state.circuitSoldThisTurn = done + 1;
+        const pool = poolOf(state).buyable.filter((c) => !c.spell && !c.token && !c.ruby && c.tier <= state.tier && defIsTribe(c, 'celestial'));
+        if (pool.length > 0) { procRuneId(state, 'rune_festival_circuit'); conjureToHand(state, pool, 1, true); }
+      }
+    }
+  }
   // RUNE OF THE LAST WORD: the turn's first Dragon-with-a-Shout you sell fires its Shout on the way out — one
   // more use from a body you were cashing in anyway. `replayBattlecry` is the same path Myra's hero power and
   // every other Shout re-fire uses, so a targeted Shout auto-picks exactly as it does there.
@@ -10734,6 +10801,38 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   state.spellsCast += 1;
   state.spellsThisTurn += 1;
   advanceRuneThresholds(state, 'spellCast', 1);
+  // ── Set 3 batch 2 (2026-09-16): the CELESTIAL spell-count runes. They count SHOP spells only — a Gift is a spell
+  //    cast but never a Shop spell (the standing rule above), so it neither advances nor is copied by them. ──
+  if (!spellDef.gift) {
+    const ids = state.shopSpellIdsThisTurn = [...(state.shopSpellIdsThisTurn ?? []), spellDef.id];
+    const n = ids.length;
+    // RUNE OF CHARTED SKIES: the `at`-th Shop spell of the turn opens a Shop-spell Discover (one per copy held).
+    const skies = state.runeChartedSkies;
+    if (skies && n === skies.at) {
+      procRuneId(state, 'rune_charted_skies');
+      for (let k = 0; k < runeStacksOf(state, 'rune_charted_skies'); k++) queueDiscover(state, { kind: 'spell' });
+    }
+    // RUNE OF THE ASTRAL REFRAIN: when the `at`-th Shop spell resolves, copies of the turn's FIRST and `at`-th
+    // Shop spells land in hand (overflow-safe: an earned reward is never dropped). Uncopyable spells are skipped,
+    // the same guard the echo runes use. One set of copies per copy held.
+    const refrain = state.runeAstralRefrain;
+    if (refrain && n === refrain.at) {
+      procRuneId(state, 'rune_astral_refrain');
+      for (let k = 0; k < runeStacksOf(state, 'rune_astral_refrain'); k++) {
+        for (const id of [ids[0]!, ids[refrain.at - 1]!]) {
+          const d = CARD_INDEX[id];
+          if (d && !NO_COPY_SPELLS.has(d.id)) conjureToHand(state, [d], 1, true);
+        }
+      }
+    }
+    // RUNE OF THE METEOR SHOWER: the turn's first Star Crash hands over another (one per copy held).
+    if (state.runeMeteorShower && spellDef.id === 'starcrash' && !state.meteorShowerUsedThisTurn) {
+      state.meteorShowerUsedThisTurn = true;
+      procRuneId(state, 'rune_meteor_shower');
+      const sc = CARD_INDEX['starcrash'];
+      if (sc) conjureToHand(state, [sc], runeStacksOf(state, 'rune_meteor_shower'), true);
+    }
+  }
   // Rune of Runic Exchange pays out in Ales, so counting Ales would let it feed itself — its meter excludes them.
   if (!ALE_IDS.includes(spellDef.id)) advanceRuneThresholds(state, 'spellCastNonAle', 1);
   // Living Grimoire's charge is spent by this cast (consumed here at the real cast, not in the read-only
@@ -11641,6 +11740,121 @@ export function handCardLocked(state: RunState, card: BoardCard): boolean {
   if (card.lockedUntilGoldSpent && (state.goldSpent ?? 0) < card.lockedUntilGoldSpent) return true;
   if (card.lockedUntilWave && state.wave < card.lockedUntilWave) return true;
   return false;
+}
+
+/**
+ * SET 3 BATCH 2 (2026-09-16) — the "whenever you play a Spirit" / "Reveler played" RUNES. Fired from `playCard`,
+ * the single "played from hand" chokepoint, beside `fireOnTribePlayed` — so a summoned token or a Discover pick
+ * sitting in hand never trips them, exactly like the Demon play runes. Every payout is wrapped for FX so the
+ * gains descend onto the board rather than the numbers jumping.
+ */
+export function fireSpiritPlayRunes(state: RunState, played: BoardCard): void {
+  if (isTribe(played, 'spirit')) {
+    // RUNE OF THE CHOSEN VESSEL: your LEFT-MOST minion in hand +A/+H (spells skipped — they have no stats).
+    const vessel = state.runeChosenVessel;
+    if (vessel) {
+      const left = state.hand.find((c) => !CARD_INDEX[c.cardId]?.spell);
+      if (left) { procRuneId(state, 'rune_chosen_vessel'); addBuff(left, 'Rune of the Chosen Vessel', vessel.attack, vessel.health); }
+    }
+    // RUNE OF DEEP CURRENTS: `count` random friendly board Spirits +A/+H — the played body is eligible (it is a
+    // friendly Spirit on the board by now), matching Aspect's "3 random friendly Spirits".
+    const currents = state.runeDeepCurrents;
+    if (currents) {
+      const pool = state.board.filter((c) => isTribe(c, 'spirit'));
+      if (pool.length > 0) {
+        procRuneId(state, 'rune_deep_currents');
+        captureBuffFx(state, undefined, 'spell', () => {
+          for (const t of pickRandom(state, pool, currents.count)) addBuff(t, 'Rune of Deep Currents', currents.attack, currents.health);
+        });
+      }
+    }
+  }
+  if (!REVELER_IDS.includes(played.cardId)) return;
+  // RUNE OF THE GROWING CHORUS: one entry per Reveler TYPE played; the third distinct type pays board + hand
+  // +A/+H, raises the shared Reveler value by `improve` (× Improve reps under Rune of Mastery) and resets.
+  const chorus = state.runeGrowingChorus;
+  if (chorus && !chorus.played.includes(played.cardId)) {
+    chorus.played = [...chorus.played, played.cardId];
+    if (REVELER_IDS.every((id) => chorus.played.includes(id))) {
+      chorus.played = [];
+      procRuneId(state, 'rune_growing_chorus');
+      captureBuffFx(state, undefined, 'spell', () => {
+        for (const c of state.board) addBuff(c, 'Rune of the Growing Chorus', chorus.attack, chorus.health);
+        for (const c of state.hand) if (!CARD_INDEX[c.cardId]?.spell) addBuff(c, 'Rune of the Growing Chorus', chorus.attack, chorus.health);
+      });
+      state.revelerX = revelerValue(state) + chorus.improve * improveReps(state);
+    }
+  }
+  // RUNE OF THE GRAND PROCESSION (Epic): the first `n` Revelers PLAYED each turn return a PLAIN copy (base stats,
+  // never golden) to hand — the card's own Grand Procession returns on SELL; this one pays on the way in.
+  const procession = state.runeProcessionPlay ?? 0;
+  if (procession > 0) {
+    const done = state.processionPlayedThisTurn ?? 0;
+    if (done < procession) {
+      state.processionPlayedThisTurn = done + 1;
+      const def = CARD_INDEX[played.cardId];
+      if (def) {
+        procRuneId(state, 'rune_grand_procession');
+        for (let k = 0; k < runeStacksOf(state, 'rune_grand_procession'); k++) grantMinionToHandOrBoard(state, def, false);
+      }
+    }
+  }
+}
+
+/**
+ * SET 3 BATCH 2 (2026-09-16) — "a minion in your HAND gains stats" + the `onGainStats` trigger, dispatched from
+ * the reducer's per-action stat diff (the same boundary the `onGainAttack` board diff and the Gangplank hand
+ * diff use, for the same reason: stats have a dozen writers, and a hook at the boundary cannot miss one).
+ *
+ * `gainers` = every card present before AND after the action whose Attack or Health rose, with its delta. Order:
+ *   1. `onGainStats` reactors (Handy Flame) — in hand or on the board — each fires ONCE per action.
+ *   2. The hand-gain runes, over the hand gainers INCLUDING anything step 1 just grew: Dream Mirror (the
+ *      turn's first hand gain, mirrored onto a random board minion) and Waking Dreams (board +A/+H per gainer).
+ * Anything step 2 grows on the BOARD is not re-diffed, so the chain is bounded by construction.
+ */
+export function fireStatGainReactors(state: RunState, before: Map<string, { attack: number; health: number }>): void {
+  const gained = (c: BoardCard): { attack: number; health: number } | null => {
+    const p = before.get(c.uid);
+    if (!p) return null;
+    const da = Math.max(0, c.attack - p.attack), dh = Math.max(0, c.health - p.health);
+    return da > 0 || dh > 0 ? { attack: da, health: dh } : null;
+  };
+  // 1. `onGainStats` reactors (hand + board). Resolved before any reactor runs, so a reactor's own payout cannot
+  //    re-enter this pass (bounded, deterministic).
+  const reactors = [...state.hand, ...state.board].filter((c) => gained(c) && CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onGainStats'));
+  if (reactors.length > 0) {
+    const ctx = makeContext(state);
+    for (const c of reactors) {
+      for (const eff of CARD_INDEX[c.cardId]?.effects ?? []) {
+        if (eff.on !== 'onGainStats') continue;
+        const fn = RECRUIT_FACTORIES[eff.do];
+        if (fn) captureBuffFx(state, c, 'minion', () => fn(ctx, c, eff.params ?? {}, { minion: c }));
+      }
+    }
+  }
+  // 2. The hand-gain runes.
+  if (!state.runeDreamMirror && !state.runeWakingDreams) return;
+  const handGainers = state.hand.filter((c) => !CARD_INDEX[c.cardId]?.spell).map((c) => ({ card: c, d: gained(c) })).filter((g): g is { card: BoardCard; d: { attack: number; health: number } } => !!g.d);
+  if (handGainers.length === 0) return;
+  // RUNE OF THE DREAM MIRROR: the FIRST hand gain each turn is mirrored — the same +A/+H — onto a random friendly
+  // board minion (× copies held). A gain with nobody on the board is not "used": the mirror waits for one.
+  if (state.runeDreamMirror && !state.dreamMirrorUsedThisTurn && state.board.length > 0) {
+    const first = handGainers[0]!;
+    state.dreamMirrorUsedThisTurn = true;
+    procRuneId(state, 'rune_dream_mirror');
+    const mult = runeStacksOf(state, 'rune_dream_mirror');
+    captureBuffFx(state, undefined, 'spell', () => {
+      for (const t of pickRandom(state, [...state.board], 1)) addBuff(t, 'Rune of the Dream Mirror', first.d.attack * mult, first.d.health * mult);
+    });
+  }
+  // RUNE OF WAKING DREAMS: every hand minion that gained this action pays your board +A/+H (accumulated per copy).
+  const waking = state.runeWakingDreams;
+  if (waking && state.board.length > 0) {
+    procRuneId(state, 'rune_waking_dreams', handGainers.length);
+    captureBuffFx(state, undefined, 'spell', () => {
+      for (let i = 0; i < handGainers.length; i++) for (const c of state.board) addBuff(c, 'Rune of Waking Dreams', waking.attack, waking.health);
+    });
+  }
 }
 
 export function summonCopyFromHandShop(state: RunState, uid: string, near: BoardCard | undefined, ward: boolean): BoardCard | undefined {
@@ -12657,6 +12871,10 @@ export function playCard(state: RunState, played: BoardCard): void {
   // DRAGON'S PANTRY: a Dragon played is one tick of the `playDragon` meter. The threshold engine owns the
   // banking, so "progress carries between turns" is free.
   if (isTribe(played, 'dragon')) advanceRuneThresholds(state, 'playDragon', 1);
+  // Set 3 batch 2 (2026-09-16): a Spirit played is one tick of the `playSpirit` meter (Rune of the Full Hand,
+  // Rune of the Spirit Crown) — same engine, same cross-turn banking.
+  if (isTribe(played, 'spirit')) advanceRuneThresholds(state, 'playSpirit', 1);
+  fireSpiritPlayRunes(state, played); // Chosen Vessel / Deep Currents / Growing Chorus / the Grand Procession rune
   // ECHOED ARRIVAL: every `per`-th ECHO minion played fires its Echo on arrival. Counted per ECHO BODY (not
   // per play), which is what "every 5th Echo minion" says; the fire itself is the shop-side Echo path
   // Gravetwin / the Reliquary use, so nothing about it is bespoke.

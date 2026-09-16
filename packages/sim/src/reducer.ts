@@ -14,18 +14,19 @@ import { activePowers, getHero, gildCopiesNeeded, hasPower, powerDiscoverPool } 
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { EQUIPMENT_INDEX, forkedCardId } from '@game/content';
+import { EQUIPMENT_INDEX, STAR_DESTROYER, forkedCardId, equipmentOf } from '@game/content';
+const STAR_DESTROYER_ID = STAR_DESTROYER.id;
 import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe, handCardLocked} from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, fireEquipmentFree, applyRuneGrafts, buyHealthAura, undeadBuyBonus, weldMagnetic , defIsTribe, handCardLocked} from './recruit';
 import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
-import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSpellAimsToken, starformStandIn, withStarformPinned } from './starform';
-import { syncStarDestroyer } from './equipment';
+import { buffStarform, buyStarform, createStarform, fireStarformGainRemainder, hasStarform, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSpellAimsToken, starformStandIn, withStarformPinned } from './starform';
+import { overchargeFree, syncStarDestroyer } from './equipment';
 import { fireOnBuyWatchers } from './recruit';
 import { MATCHMAKING } from './matchmaking';
 
@@ -569,6 +570,16 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
     s.hand.push(taken);
     takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
   }
+  // RUNE OF EMPTY HANDS (Set 3 batch 2): the pick's CARD joins the run's free-Equipment list — its Equipment costs
+  // 0 for the run, sold and re-bought included (owner note 2026-09-16: by card). Consumed by this pick, taken or
+  // forfeit to a full hand alike.
+  if (s.discoverEquipFree) {
+    s.discoverEquipFree = undefined;
+    if (equipmentOf(def)) {
+      procRuneId(s, 'rune_empty_hands');
+      if (!(s.equipmentFreeCards ??= []).includes(def.id)) s.equipmentFreeCards.push(def.id);
+    }
+  }
   // RUNE OF DRACONIC CURIOSITY: taking a DRAGON out of a Discover hands over a random Shop spell. Fired on the
   // PICK (here) rather than on the offer, so it pays for what you actually took — and outside the hand-cap
   // branch above, because a Discover into a full hand still cost you the pick.
@@ -854,6 +865,9 @@ export function reduce(state: RunState, action: Action): RunState {
     // STARFORM (rule 9) tripwire: the Star Destroyer is held exactly while a token exists. Every create / remove
     // path syncs it inline; this catches any path that forgets (a scripted row, a legacy save without the entry).
     syncStarDestroyer(next);
+    // Set 3 batch 2 rune-graft tripwire: every arrival path stamps the Endless March / Last Tool grafts inline;
+    // this sweep catches the ones that do not (a Discover, a conjure, a restored displaced body …).
+    if (next.runeEndlessMarch || next.runeLastTool) for (const c of [...next.board, ...next.hand]) applyRuneGrafts(next, c);
   }
   // onGainAttack reactors (Hunter — "when this gains Attack, give your minions +Health") fire whenever a
   // recruit action raises a BOARD minion's Attack, from ANY source (Fortify, spells, tribe Battlecries,
@@ -2320,6 +2334,23 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Sell from the board or the hand.
       let sold: BoardCard | undefined;
       const bi = s.board.findIndex((c) => c.uid === action.uid);
+      // RUNE OF DISMANTLING (Set 3 batch 2): the first Equip minion sold each turn fires its Equipment BEFORE it
+      // leaves — free (no Gold, no charge), a targeted one at a random OTHER friendly minion, a Choose One at a
+      // random branch; its held version (gilded upgrades the entry) decides the wording. Board sales only: a hand
+      // minion has never granted anything. The Star Destroyer is not a minion and never counts.
+      if (bi >= 0 && s.runeDismantling && !s.dismantlingUsedThisTurn) {
+        const body = s.board[bi]!;
+        const eq = equipmentOf(CARD_INDEX[body.cardId]);
+        if (eq) {
+          s.dismantlingUsedThisTurn = true;
+          const held = s.equipment?.available.find((g) => g.equipmentId === eq.id);
+          const version = held?.version ?? (body.golden ? 'gilded' : 'plain');
+          if (fireEquipmentFree(s, eq, version, body, body.uid)) {
+            procRuneId(s, 'rune_dismantling');
+            stampEquipFx(s, { kind: 'use', uid: body.uid, cardId: body.cardId, equipmentId: eq.id });
+          }
+        }
+      }
       if (bi >= 0) {
         sold = s.board[bi];
         s.board.splice(bi, 1);
@@ -2385,6 +2416,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         }
         if (s.nextSellBonus) s.nextSellBonus = 0;
       }
+      // RUNE OF QUICK RELEASE (Set 3 batch 2): selling an Equip minion (board or hand) arms a 0-cost next Equipment
+      // activation this turn. Idempotent — the arm is a boolean the activation spends.
+      // (The badge bursts when the arm is SPENT by an activation, not here.)
+      if (sold && s.runeQuickRelease && equipmentOf(CARD_INDEX[sold.cardId])) s.quickReleaseArmed = true;
       // On-sell effects (Hoard Whelp → get 6 Gold), fired after the card leaves the board/hand.
       if (sold) fireOnSell(s, sold);
       // Set 2 — record the sale, then tell the BOARD about it (Voicekeeper). Recorded FIRST so a watcher
@@ -2534,7 +2569,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       const granted = selectedEquipment(s);
       const def = granted ? EQUIPMENT_INDEX[granted.equipmentId] : undefined;
       if (!granted || !def) return state;
-      if (equipmentChargesOf(s, def.id) <= 0) return state; // no charge left for THIS Equipment (own + pool)
+      // RUNE OF OVERCHARGE (Set 3 batch 2): the first activation(s) each turn cost 0 (`equipmentCostOf`) and spend
+      // NO charge — so they also fire when every charge is already gone.
+      const overcharged = overchargeFree(s);
+      if (!overcharged && equipmentChargesOf(s, def.id) <= 0) return state; // no charge left for THIS Equipment (own + pool)
       // ── CHOOSE ONE on an Equipment (Prismatic Pick; owner ask 2026-08-31) ──────────────────────────────
       // "When it's used it should open the Choose One window." Same contract as a Choose One CARD: opening
       // the prompt COMMITS NOTHING — no Gold, no allowance, no trigger, no RNG — and the activation is
@@ -2561,8 +2599,15 @@ function reduceCore(state: RunState, action: Action): RunState {
 
       s.embers -= cost;
       const eq = s.equipment!;
-      spendEquipmentCharge(s, def.id); // the pool first, then this Equipment's own charge — checked above
+      if (!overcharged) spendEquipmentCharge(s, def.id); // the pool first, then this Equipment's own charge — checked above
       eq.lastUsedEquipmentId = def.id; // "last used" means last successfully ACTIVATED, not last viewed
+      // ── Set 3 batch 2 rune bookkeeping for this activation (the price was read through `equipmentCostOf`) ──
+      const firstThisTurn = (s.equipmentActivationsThisTurn ?? 0) === 0;
+      if (overcharged) procRuneId(s, 'rune_overcharge');
+      else if (s.quickReleaseArmed) procRuneId(s, 'rune_quick_release');
+      else if (firstThisTurn && s.runeEfficientTooling && def.baseCost - eq.temporaryCostReduction > 0) procRuneId(s, 'rune_efficient_tooling');
+      s.quickReleaseArmed = false; // Quick Release's arm is spent by the next activation, whatever priced it
+      s.equipmentActivationsThisTurn = (s.equipmentActivationsThisTurn ?? 0) + 1;
       // Additional triggers stack ADDITIVELY, and the count is SNAPSHOT here rather than re-read per trigger —
       // a repeat must never reproduce the modifier that created it (handoff).
       const triggers = 1 + (s.equipmentExtraTriggers ?? 0);
@@ -2599,6 +2644,26 @@ function reduceCore(state: RunState, action: Action): RunState {
         ...(target ? { targetUid: target.uid } : {}),
         ...(s.equipmentSpellCasts?.length ? { spellIds: [...s.equipmentSpellCasts] } : {}),
       });
+      // RUNE OF COUNTERROTATION (Set 3 batch 2): three DIFFERENT Equipment activated this turn → every one of them
+      // triggers again (targeted → a random friendly minion, a Choose One → a random branch), then the set resets so
+      // the next three can pay again. The Star Destroyer never joins the set (owner note 2026-09-16).
+      if (s.runeCounterrotation && def.id !== STAR_DESTROYER_ID) {
+        const ids = (s.counterrotationIds ??= []);
+        if (!ids.includes(def.id)) ids.push(def.id);
+        if (ids.length >= s.runeCounterrotation) {
+          procRuneId(s, 'rune_counterrotation');
+          const again = [...ids];
+          s.counterrotationIds = [];
+          for (const id of again) {
+            const g = s.equipment?.available.find((x) => x.equipmentId === id);
+            const d = EQUIPMENT_INDEX[id];
+            if (!g || !d) continue; // the grant outlives its source within the turn, so a sold source still fires
+            const src = s.board.find((c) => g.sourceUids.includes(c.uid));
+            const selfAgain: BoardCard = src ?? { uid: `eq:${d.id}`, cardId: d.id, tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false };
+            if (fireEquipmentFree(s, d, g.version, selfAgain)) stampEquipFx(s, { kind: 'use', uid: selfAgain.uid, cardId: selfAgain.cardId, equipmentId: d.id });
+          }
+        }
+      }
       checkTriples(s); // an Equipment that summons or grants can still complete a triple
       return s;
     }
@@ -4617,6 +4682,29 @@ function settleCombat(s: RunState, result: CombatResult): void {
     // +1 per Growth per copy held (recurring family, owner 2026-08-27).
     if (grown > 0) { procRuneId(s, 'rune_living_growth'); s.growthBonus = (s.growthBonus ?? 0) + grown * runeStacksOf(s, 'rune_living_growth'); }
   }
+  // ── Set 3 batch 2 (2026-09-16) combat carry-backs ──
+  // RUNE OF THE GRAVE ORBIT: +a/+h to the Starform for each friendly UNDEAD that Rose — the `reborn` events of
+  // player-side Undead (the starting board plus mid-fight summons; a board-full Rise that stayed dead emits none).
+  // Needs a Starform standing after the fight; × copies held.
+  if (s.runeGraveOrbit) {
+    const undead = new Set<string>();
+    for (const m of result.initial.player) if (defIsTribe(CARD_INDEX[m.cardId], 'undead')) undead.add(m.uid);
+    for (const e of result.events) if (e.type === 'summon' && e.side === 'player' && defIsTribe(CARD_INDEX[e.minion.cardId], 'undead')) undead.add(e.minion.uid);
+    const rose = result.events.filter((e) => e.type === 'reborn' && undead.has(e.target)).length;
+    if (rose > 0 && hasStarform(s)) {
+      procRuneId(s, 'rune_grave_orbit');
+      const go = runeStacksOf(s, 'rune_grave_orbit');
+      buffStarform(s, s.runeGraveOrbit.attack * rose * go, s.runeGraveOrbit.health * rose * go, 'Rune of the Grave Orbit');
+    }
+  }
+  // RUNE OF THE LAST TOOL: the graft's combat Echo logged a `questTrigger` carry-back per Equip minion that died
+  // (`srcCard` = the dying card, stamped by the simulator on every factory emit); its own `equip` effect names the
+  // Equipment to bank free for next turn. The badge already pulsed on the event.
+  for (const e of result.events) {
+    if (e.type !== 'questTrigger' || e.flag !== 'runeLastTool' || e.side !== 'player') continue;
+    const eq = equipmentOf(CARD_INDEX[e.srcCard ?? '']);
+    if (eq && !(s.equipmentFreeNextTurn ??= []).includes(eq.id)) s.equipmentFreeNextTurn.push(eq.id);
+  }
   // Rune of Ashen Payroll (owner 2026-08-11): 1 Gold next turn for EACH Imp summoned in combat — no threshold,
   // no once-per-combat cap. The armed flag just needs to be truthy.
   if (s.questFlags?.runeAshenPayroll) {
@@ -4861,6 +4949,19 @@ function advanceCombat(s: RunState): void {
   s.spellMultMark = 0; // Orivax: a new turn re-arms at the turn's first spell
   for (const t of s.runeThresholds ?? []) t.usedThisTurn = false; // oncePerTurn threshold runes re-arm
   if (s.runeOpenMarket) s.runeOpenMarket.usedThisTurn = false; // the Open Market re-arms each turn
+  // Set 3 batch 2 (2026-09-16) tranche-B per-turn latches.
+  s.eventideUsedThisTurn = undefined;
+  s.openConstellationUsedThisTurn = undefined;
+  s.lastRitesUsedThisTurn = undefined;
+  s.dismantlingUsedThisTurn = undefined;
+  s.quickReleaseArmed = undefined;
+  s.spellweavingCastsThisTurn = 0;
+  s.counterrotationIds = undefined;
+  s.equipmentActivationsThisTurn = 0;
+  // Rune of the Last Tool: what last turn's Echoes banked is THIS turn's free list; the bank starts over.
+  s.equipmentFreeThisTurn = undefined;
+  if (s.equipmentFreeNextTurn?.length) s.equipmentFreeThisTurn = [...s.equipmentFreeNextTurn];
+  s.equipmentFreeNextTurn = undefined;
   s.cardsBoughtThisTurn = 0; // Frenzied Excavator's per-turn cards-bought scaling resets each wave
   if (s.nextSellBonus) s.nextSellBonus = 0; // Quick Sale is a THIS-TURN bonus — expires unused at turn end
   // Funeral on Loan (owner 2026-07-31): the loan lasts ONE turn. A borrowed card that wasn't played stays in
@@ -5215,6 +5316,9 @@ function advanceCombat(s: RunState): void {
   // Set 2 — the warband's own Start-of-Turn effects (Gemline Martyr), the symmetric twin of End of Turn. Fired
   // here as the shop opens, alongside the Start-of-Turn rune rewards below.
   applyStartOfTurn(s);
+  // RUNE OF FIRST LIGHT (Set 3 batch 2): Start of Turn — no Starform out → create one (it arrives with the rune's
+  // +8/+8 like every creation, and eats the right-most minion when the row is full, as any create does).
+  if (s.runeFirstLight && !hasStarform(s)) createStarform(s, { cardId: 'rune_first_light', name: 'Rune of First Light' });
   // Rune of the Strange Caravan: Start of Turn, get a random minion from a type you do NOT control.
   if (s.runeStrangeCaravan) {
     procRune(s, 'runeStrangeCaravan');
@@ -6460,6 +6564,45 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       }
       break;
     }
+    // ── Set 3 batch 2 (2026-09-16) — tranche B (Starform / Equipment / Undead runes) ──
+    case 'runeFirstLight':
+      // Creates the token NOW (a second copy simply re-arms the +8/+8 doubling; the create is a no-op with one out —
+      // the buy path's "immediate value" is the token itself).
+      s.runeFirstLight = true;
+      createStarform(s, { cardId: def.id, name: def.name });
+      break;
+    case 'runeAccretion': s.runeAccretion = true; break;
+    case 'runeEventide': s.runeEventide = true; break;
+    case 'runeEfficientTooling': s.runeEfficientTooling = (s.runeEfficientTooling ?? 0) + r.less; break; // −2 per copy
+    case 'runeQuickRelease': s.runeQuickRelease = true; break;
+    case 'runeResonantArms':
+      // ONE meter, doubled payout per copy (meter family) — the tick survives a duplicate.
+      s.runeResonantArms = { per: r.per, attack: r.attack, health: r.health, tick: s.runeResonantArms?.tick ?? 0 };
+      break;
+    case 'runeLastRites': s.runeLastRites = true; break;
+    case 'runeCrowdedCrypt': s.runeCrowdedCrypt = { attack: r.attack, health: r.health, times: r.times }; break;
+    case 'runeOpenConstellation': s.runeOpenConstellation = true; break;
+    case 'runeSupernova': s.runeSupernova = true; break;
+    case 'runeStolenConstellations': s.runeStolenConstellations = true; break;
+    case 'runeSpellweaving': s.runeSpellweaving = (s.runeSpellweaving ?? 0) + r.count; break; // 3 casts per copy
+    case 'runeOvercharge': s.runeOvercharge = (s.runeOvercharge ?? 0) + 1; break; // one free activation per copy
+    case 'runeDismantling': s.runeDismantling = true; break;
+    case 'runeCounterrotation': s.runeCounterrotation = r.count; break;
+    case 'runeEmptyHands':
+      // A Discover narrowed to Equip minions (any tier up to the shop's); the pick is stamped free on TAKE.
+      s.runeEmptyHands = true;
+      s.discoverEquipFree = true;
+      queueDiscover(s, { kind: 'minion', tier: Math.min(s.tier, maxTierFor(s.rift)), filter: 'equip' });
+      break;
+    case 'runeLastTool':
+      s.runeLastTool = true;
+      for (const c of [...s.board, ...s.hand]) applyRuneGrafts(s, c);
+      break;
+    case 'runeEndlessMarch':
+      s.runeEndlessMarch = true;
+      for (const c of [...s.board, ...s.hand]) applyRuneGrafts(s, c); // a duplicate re-sweeps the Skeleton count
+      break;
+    case 'runeGraveOrbit': s.runeGraveOrbit = { attack: r.attack, health: r.health }; break;
     case 'runeLorekeeping': s.runeLorekeeping = true; break;
     case 'runeThrift': s.runeThrift = true; break;
     case 'runeFlagship': s.runeFlagship = true; break;

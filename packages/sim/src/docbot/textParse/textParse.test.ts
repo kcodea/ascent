@@ -61,7 +61,11 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // one with half its stats" — Star Seed, Orbit Keeper, Corona Devotee, Nova Herald, Twin Star, Zenith). A conscious move.
 // 61 → 63 on 2026-09-14: the owner's Celestial batch — Roundabout's "your Starform consumes the Shop" and Stardust
 // Peddler's "create a Starform or give one +1/+2" are two more Starform shapes the grammar has no rule for. A conscious move.
-const UNRESOLVED_CAP = 63;
+// 63 → 75 on 2026-09-16: Set 3 batch 2, tranche B — twelve Starform / Equipment / Undead rune shapes the grammar has
+// no rule for ("Starforms you create start with +8/+8", "Consumed by your Starform grant it twice their stats", "your
+// first Equipment activation each turn costs 2 less", "after every third Equipment effect you trigger", "activate its
+// Equipment before selling it", "after activating 3 different Equipment, trigger them again", …). A conscious move.
+const UNRESOLVED_CAP = 75;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

@@ -25,15 +25,25 @@ const S3 = ['kobold', 'dwarf', 'undead', 'spirit', 'celestial'] as const;
 const staticPool = (setId: SetId, tribes: readonly string[]) =>
   [...RUNES, ...EPIC_RUNES].filter((r) => (!r.sets || r.sets.includes(setId)) && (!r.tribes || r.tribes.some((t) => tribes.includes(t))));
 
+/** A Set 3-ORIGINAL rune: scoped to set 3 alone (the 2026-09-16 batch 2 tranches), as opposed to a carryover. */
+const set3Original = (r: { sets?: readonly string[] }): boolean => !!r.sets && r.sets.length === 1 && r.sets[0] === 'set3';
+/** Set 3 batch 2, tranche B (2026-09-16): 8 Basic + 11 Epic Starform / Equipment / Undead runes. */
+const TRANCHE_B = { basic: 8, epic: 11 };
+
 describe('the Set 3 static rune pool (handoff 2026-09-14)', () => {
   it('resolves to 115 Basic / 98 Epic before any Set 3-original rune', () => {
-    const pool = staticPool('set3', S3);
+    const pool = staticPool('set3', S3).filter((r) => !set3Original(r));
     expect(pool.filter((r) => !r.epic)).toHaveLength(115);
     expect(pool.filter((r) => r.epic)).toHaveLength(98);
   });
+  it('the Set 3-original runes (batch 2) join on top', () => {
+    const own = staticPool('set3', S3).filter(set3Original);
+    expect(own.filter((r) => !r.epic)).toHaveLength(TRANCHE_B.basic);
+    expect(own.filter((r) => r.epic)).toHaveLength(TRANCHE_B.epic);
+  });
   it('Set 1 and Set 2 pools keep their previous scoped runes — a carryover only ADDS set3', () => {
     for (const r of [...RUNES, ...EPIC_RUNES]) {
-      if (r.sets?.includes('set3')) expect(r.sets.some((x) => x === 'set1' || x === 'set2'), `${r.id} kept its origin scope`).toBe(true);
+      if (r.sets?.includes('set3') && !set3Original(r)) expect(r.sets.some((x) => x === 'set1' || x === 'set2'), `${r.id} kept its origin scope`).toBe(true);
     }
     // The set-1 / set-2 static pools as measured on origin/main BEFORE the carryover pass (2026-09-14) — unchanged.
     const s1 = staticPool('set1', ['beast', 'dragon', 'mech', 'undead', 'demon']);
@@ -63,8 +73,8 @@ describe('a Set 3 Dwarf / Kobold run at the forge', () => {
     const basic = forge(false), epic = forge(true);
     // the Wishbone is hero-conditional (requiresDoublePower) — the Warden's power does not double, so one Basic fewer
     const wishbone = RUNE_INDEX['rune_wishbone'] ? 1 : 0;
-    expect(basic.length).toBe(115 - wishbone);
-    expect(epic.length).toBe(98);
+    expect(basic.length).toBe(115 - wishbone + TRANCHE_B.basic);
+    expect(epic.length).toBe(98 + TRANCHE_B.epic);
   });
 });
 

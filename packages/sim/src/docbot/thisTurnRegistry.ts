@@ -80,4 +80,7 @@ export const THIS_TURN_CLASSIFIED: Readonly<Record<string, ThisTurnClassificatio
   'hero:frank': { kind: 'no-combat-meaning', why: 'Frantic Frank\'s Clearance marks SHOP minions 2 Gold this turn; costs exist only in the shop half' },
   'hero:sable': { kind: 'conforms', why: 'Soulbind\'s bond is threaded as questCombatMods.soulbind and simulate() mirrors stat gains between the bound bodies IN combat — the bind spans the whole turn as printed' },
   'hero:mimic': { kind: 'conforms', why: 'the adopted power is the run\'s power until the next turn-start Discover replaces it, so it is live through this turn\'s combat' },
+
+  // ── Set 3 batch 2, tranche B (2026-09-16) ──
+  rune_quick_release: { kind: 'no-combat-meaning', why: 'Rune of Quick Release: "your next Equipment activation costs 0 this turn" — an Equipment PRICE, and Equipment activates only in the shop; the arm (`quickReleaseArmed`) is spent by the next activation or cleared at the rollover (R-TURN-01 conform)' },
 };

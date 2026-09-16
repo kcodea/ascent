@@ -1,6 +1,6 @@
 import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { runSpells } from './spellPool';
-import { REVELER_IDS, CARD_INDEX, EQUIPMENT_INDEX, recurringEotOwner, type EquipmentDefinition } from '@game/content';
+import { REVELER_IDS, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer } from './equipment';
 import { currentCollector } from './activeCollector';
 import { alignmentOf } from './alignment';
@@ -2214,7 +2214,9 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
   if (minion.echoStripped) return;
   // A Gravetwin's Echo lives in `copiedEcho` (not its def) — fold it in so triggering "this minion's Echo"
   // (Ossuary Rite / Deathsayer / Reliquary) fires the copied effect too, not nothing (owner bug 2026-07-13).
-  const effects = effectsOverride ?? [...(CARD_INDEX[minion.cardId]?.effects ?? []), ...(minion.copiedEcho ?? [])];
+  // …and a GRAFTED Echo (`grantedEffects` — Contract Rewrite, Rune of Rebirth, Rune of the Last Tool) is as real in
+  // the shop as a printed one (the `instanceEffects` contract; combat folds the same list at instantiate).
+  const effects = effectsOverride ?? [...(CARD_INDEX[minion.cardId]?.effects ?? []), ...(minion.copiedEcho ?? []), ...(minion.grantedEffects ?? [])];
   if (!effects.length) return;
   const hasDR = effects.some((e) => e.on === 'onDeath');
   // THE ECHO CUE (owner ask 2026-08-28): "the echo animation ... should play ANYTIME an echo is triggered".
@@ -2316,8 +2318,54 @@ export function fireEquipmentTriggers(
     withEquipmentTriggerBeat(state, def.id, t, () => {
       fn(ctx, self, params, { minion: self, ...(target ? { target } : {}), ...(clockSeconds !== undefined ? { clockSeconds } : {}) });
     });
+    tickResonantArms(state);
   }
   return true;
+}
+
+/**
+ * RUNE OF RESONANT ARMS (Set 3 batch 2, 2026-09-16): "after every third Equipment effect you trigger" — a run-wide
+ * meter ticked once per TRIGGER at the one place every Equipment trigger resolves (an activation's repeats, a
+ * Dismantling or Counterrotation re-fire and the Star Destroyer all count). At `per` it pays your minions
+ * +attack/+health × copies held (meter family: one meter, doubled payout) and keeps the remainder.
+ */
+function tickResonantArms(state: RunState): void {
+  const ra = state.runeResonantArms;
+  if (!ra) return;
+  ra.tick += 1;
+  if (ra.tick < ra.per) return;
+  ra.tick -= ra.per;
+  procRuneId(state, 'rune_resonant_arms');
+  const reps = runeStacksOf(state, 'rune_resonant_arms');
+  captureBuffFx(state, undefined, 'spell', () => {
+    for (const c of state.board) addBuff(c, 'Rune of Resonant Arms', ra.attack * reps, ra.health * reps);
+  });
+}
+
+/**
+ * Fire one Equipment OUTSIDE the slot — no Gold, no charge — for Rune of Dismantling (the sold Equip minion's
+ * own Equipment) and Rune of Counterrotation (the three re-fires). A targeted Equipment aims at a RANDOM friendly
+ * board minion (`exclude` = the body being sold; nothing legal → no activation, the reducer's own rule); a Choose
+ * One fires a random branch (owner note 2026-09-16: no prompt outside the slot); the Star Destroyer never counts.
+ * Returns whether anything fired.
+ */
+export function fireEquipmentFree(state: RunState, def: EquipmentDefinition, version: 'plain' | 'gilded', self: BoardCard, exclude?: string): boolean {
+  if (def.id === STAR_DESTROYER.id) return false;
+  const rng = makeRng(state.rngCursor);
+  let fireDef = def;
+  if (def.chooseOne?.length) {
+    const branch = def.chooseOne[rng.int(def.chooseOne.length)]!;
+    fireDef = { ...def, effectId: branch.effectId, params: branch.params, gildedParams: branch.gildedParams };
+  }
+  let target: BoardCard | undefined;
+  if (def.targetMode === 'friendly') {
+    const pool = state.board.filter((c) => c.uid !== exclude);
+    if (pool.length === 0) { state.rngCursor = rng.state(); return false; }
+    target = pool[rng.int(pool.length)];
+  }
+  state.rngCursor = rng.state();
+  const fireSelf = fireDef !== def ? { ...self, golden: false } : self; // one gilding channel (see the reducer's activate case)
+  return fireEquipmentTriggers(state, fireDef, version, fireSelf, target, 1);
 }
 
 /**
@@ -2395,6 +2443,22 @@ export function destroyMinionInShop(
     state.vacatingUid = wasVacating;
     /* RISING is reset by the next destroy — see above */
   }
+  afterShopDestroy(state, target);
+}
+
+/**
+ * RUNE OF LAST RITES (Set 3 batch 2, 2026-09-16): the first UNDEAD you destroy during the Shop phase each turn
+ * returns a PLAIN copy to your hand (the printed card — never gilded, never its buffs), one per copy held,
+ * overflow-safe like every rune grant. Fired from BOTH shop-destroy paths — the immediate one here and the
+ * deferred `pendingDeath` settle — so every destroyer (Cage Breaker, a Deathfibrillator, Graverobber …) counts.
+ */
+export function afterShopDestroy(state: RunState, destroyed: BoardCard): void {
+  if (!state.runeLastRites || state.lastRitesUsedThisTurn || !isTribe(destroyed, 'undead')) return;
+  const def = CARD_INDEX[destroyed.cardId];
+  if (!def) return;
+  state.lastRitesUsedThisTurn = true;
+  procRuneId(state, 'rune_last_rites');
+  for (let k = 0; k < runeStacksOf(state, 'rune_last_rites'); k++) grantMinionToHandOrBoard(state, def, false, true);
 }
 
 /**
@@ -2444,6 +2508,9 @@ function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFr
   const grew = state.board.length - summonedFrom;
   const at = Math.min(state.board.length, slot + Math.max(0, grew));
   state.board.splice(at, 0, risen);
+  // Set 3 batch 2: the risen body is built fresh, so the rune grafts are re-stamped BEFORE `fireOnRise` runs —
+  // Rune of the Endless March's "when THIS Rises" lives on the riser itself.
+  applyRuneGrafts(state, risen);
   // The RETURN is its own beat (owner 2026-09-09: "show the minion rise again, just as if it had happened in
   // combat"): the UI plays combat's reborn re-form on the new body once it has mounted.
   stampShopFx(state, { kind: 'rise', uid: risen.uid, cardId: risen.cardId });
@@ -2455,6 +2522,16 @@ function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFr
  * (Flowing Monk, Squatimus). The one shop dispatcher for the event, shared by the summon path and `riseReturn`.
  */
 export function fireSummonOverflow(state: RunState): void {
+  // RUNE OF THE CROWDED CRYPT (Set 3 batch 2): the shop half — "+1/+1 permanently … triggers TWICE in the Shop",
+  // `times` × copies held. The combat half is the `runeOverflow` flag (amount 1) the simulator already reads.
+  const cc = state.runeCrowdedCrypt;
+  if (cc) {
+    procRuneId(state, 'rune_crowded_crypt');
+    const reps = cc.times * runeStacksOf(state, 'rune_crowded_crypt');
+    captureBuffFx(state, undefined, 'spell', () => {
+      for (const c of state.board) addBuff(c, 'Rune of the Crowded Crypt', cc.attack * reps, cc.health * reps);
+    });
+  }
   const ctx = makeContext(state);
   for (const c of [...state.board]) {
     const def = CARD_INDEX[c.cardId];
@@ -4165,6 +4242,25 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   onRiseBuffBoardAndHand: (ctx, self, params) => {
     if (!ctx.state.board.some((c) => c.uid === self.uid)) return;
     ARENA_EFFECTS.onRiseBuffBoardAndHand(shopArena(ctx.state, self), params);
+  },
+
+  /** Rune of the Endless March graft (shop half): only the body that ROSE answers (`fireOnRise` offers the return
+   *  to every watcher; the riser carries the graft, re-stamped by `riseReturn`). Summons beside itself. */
+  onRiseSelfSummonToken: (ctx, self, params, payload) => {
+    if ((payload as { minion?: BoardCard })?.minion !== self) return;
+    if (!ctx.state.board.some((c) => c.uid === self.uid)) return;
+    procRuneId(ctx.state, 'rune_endless_march');
+    ARENA_EFFECTS.onRiseSelfSummonToken(shopArena(ctx.state, self), params);
+  },
+
+  /** Rune of the Last Tool graft (shop half): a shop Echo banks THIS minion's Equipment free for NEXT turn (the
+   *  turn advance promotes the bank; `equipmentCostOf` reads it). Own-death guarded like every shop Echo. */
+  deathrattleEquipmentFreeNextTurn: (ctx, self, _params, payload) => {
+    if ((payload as { minion?: BoardCard })?.minion !== self) return; // `fireOnFriendDeath` offers every shop death to every watcher
+    const eq = equipmentOf(CARD_INDEX[self.cardId]);
+    if (!eq) return;
+    procRuneId(ctx.state, 'rune_last_tool');
+    if (!(ctx.state.equipmentFreeNextTurn ??= []).includes(eq.id)) ctx.state.equipmentFreeNextTurn.push(eq.id);
   },
 
   /** Squatimus (shop half): a shop summon that found no room → your minions +a/+h. A shop buff is permanent. */
@@ -8491,10 +8587,16 @@ export function hasDeathrattle(c: CardDef): boolean {
 }
 
 /** Resolve a `DiscoverSpec`'s string filter id back to a card predicate (closures aren't serializable). */
-function discoverFilter(id: 'battlecry' | 'deathrattle'): (c: CardDef) => boolean {
+function discoverFilter(id: 'battlecry' | 'deathrattle' | 'equip'): (c: CardDef) => boolean {
   if (id === 'battlecry') return hasBattlecry;
   if (id === 'deathrattle') return hasDeathrattle;
+  if (id === 'equip') return hasEquip; // Rune of Empty Hands: an Equip minion
   return () => true;
+}
+
+/** A minion that GRANTS Equipment (carries an `equip` effect). */
+export function hasEquip(c: CardDef | undefined): boolean {
+  return !!c && !c.spell && c.effects.some((e) => e.on === 'equip');
 }
 
 /**
@@ -9400,6 +9502,26 @@ export function fireStarformRemoved(state: RunState, reason: 'consume' | 'collap
       if (fn) captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, starformReason: reason, starformAttack: stats.attack, starformHealth: stats.health }));
     }
   }
+  // ── Set 3 batch 2 (2026-09-16) rune hooks — this is the ONE exit every consume (the buy, a Demon, a card) and
+  // every collapse rides, so the runes listen here rather than at each remover.
+  // RUNE OF EVENTIDE: the first Consume OR Collapse each turn → 2 random Shop spells + spell power +1/+1, × copies.
+  if (state.runeEventide && !state.eventideUsedThisTurn) {
+    state.eventideUsedThisTurn = true;
+    procRuneId(state, 'rune_eventide');
+    const ev = runeStacksOf(state, 'rune_eventide');
+    conjureToHand(state, runSpells(state).filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id)), 2 * ev, true);
+    state.spellBonus = { attack: (state.spellBonus?.attack ?? 0) + ev, health: (state.spellBonus?.health ?? 0) + ev };
+  }
+  // RUNE OF THE OPEN CONSTELLATION: the first CONSUME each turn re-creates a token carrying the consumed one's
+  // stats — created, then topped up to EXACTLY those stats (a Zenith rebirth that fired in the watcher loop above
+  // already made the token; it is topped up, never doubled). Latched once per turn.
+  if (reason === 'consume' && state.runeOpenConstellation && !state.openConstellationUsedThisTurn) {
+    state.openConstellationUsedThisTurn = true;
+    procRuneId(state, 'rune_open_constellation');
+    const sf = createStarform(state, { cardId: 'rune_open_constellation', name: 'Rune of the Open Constellation' });
+    const cur = offerBuyStats(state, sf);
+    buffStarform(state, Math.max(0, stats.attack - cur.attack), Math.max(0, stats.health - cur.health), 'Rune of the Open Constellation');
+  }
 }
 
 /** Fire the board's `onBuy` WATCHERS for a purchase that put NO body anywhere — the Starform's buy, which is
@@ -9594,6 +9716,7 @@ function makeContext(state: RunState): RecruitContext {
       };
       const near = state.board.findIndex((x) => x.uid === nearUid);
       state.board.splice(near >= 0 ? near + 1 : state.board.length, 0, minion);
+      applyRuneGrafts(state, minion); // Set 3 batch 2: a summoned Undead / Equip body carries the rune grafts
       // Wolvie's borrowed Echo (`deathrattleBuffNextSummon`): the next matching-tribe minion summoned in the
       // shop takes the pending buff, then it clears. Applied before `onSummon` so watchers see the buffed body.
       const psb = state.pendingSummonBuff;
@@ -10065,6 +10188,30 @@ export function applySecondLife(state: RunState, card: BoardCard): void {
   for (const kw of ['T', 'R'] as Keyword[]) if (!card.keywords.includes(kw)) card.keywords.push(kw);
 }
 
+/**
+ * TRANCHE-B RUNE GRAFTS (Set 3 batch 2, 2026-09-16) — Rune of the Endless March ("when THIS Undead Rises, summon
+ * a 1/1 Skeleton") and Rune of the Last Tool ("Echo: this minion's Equipment costs 0 next turn") ride the
+ * per-instance `grantedEffects` channel, the same graft Contract Rewrite / Rune of Rebirth use: a grafted trigger
+ * is as real as a printed one in the shop (`instanceEffects`), crosses into combat (`minion.ts`) and is served
+ * on the snapshot. Idempotent per `do` (a re-sweep updates the params in place), stamped on the INSTANCE — never
+ * the shared def. Called on purchase (board + hand sweep), at every board arrival (buy, summon, Rise return) and
+ * as a tripwire at the action boundary in `reduce`.
+ */
+export function applyRuneGrafts(state: RunState, card: BoardCard): void {
+  if (!state.runeEndlessMarch && !state.runeLastTool) return;
+  const def = CARD_INDEX[card.cardId];
+  if (!def || def.spell || def.ruby) return;
+  const graft = (effect: EffectDef): void => {
+    const cur = card.grantedEffects?.find((e) => e.do === effect.do);
+    if (cur) { cur.params = effect.params; return; }
+    (card.grantedEffects ??= []).push(effect);
+  };
+  if (state.runeEndlessMarch && isTribe(card, 'undead')) {
+    graft({ on: 'onRise', do: 'onRiseSelfSummonToken', params: { tokenId: 'u3_skeleton', count: runeStacksOf(state, 'rune_endless_march') } });
+  }
+  if (state.runeLastTool && hasEquip(def)) graft({ on: 'onDeath', do: 'deathrattleEquipmentFreeNextTurn', params: {} });
+}
+
 /** The tribe a card's Battlecry aim is restricted to, AFTER runes. Rune of Open Appetite drops the Appetite
  *  Agent's Demon-only rule, so every enforcement point — the reducer's target check, the "is there a legal
  *  target at all?" probe, the auto-pick pool, and the aim UI — has to ask this rather than read `targetTribe`
@@ -10077,6 +10224,7 @@ export function effectiveTargetTribe(state: RunState, def: CardDef | undefined):
 
 export function applyOnBuy(state: RunState, bought: BoardCard): void {
   applySecondLife(state, bought); // Rune of the Second Life: a Scavver arrives already carrying Taunt + Rise
+  applyRuneGrafts(state, bought); // Set 3 batch 2: the Endless March / Last Tool grafts ride the bought body
   const ctx = makeContext(state);
   // RUNE OF THE BANQUET HALL: the turn's first SHOP-BUFFED buy hands its bonus stats to one friendly minion of
   // each type. "Bonus" means what the tavern put on it (the offer's `atk`/`hp`, which the buy path bakes into
@@ -10559,6 +10707,7 @@ export function settlePendingDeath(state: RunState): void {
         // A destroy is a real death for watchers (owner ruling 2026-08-26). A loan EXPIRY still is not —
         // whether it should be is an open design question, deliberately unchanged here.
         if (pending.kind === 'destroy') fireOnFriendDeath(state, card);
+        if (pending.kind === 'destroy') afterShopDestroy(state, card); // Rune of Last Rites (Set 3 batch 2)
       } finally {
         state.vacatingUid = wasVacating;
         gone = state.board.findIndex((c) => c.uid === card.uid);
@@ -10603,12 +10752,32 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   // when the target actually ended up bigger. Snapshot each stat before, diff after.
   const preAtk = target?.attack ?? 0;
   const preHp = target?.health ?? 0;
+  // RUNE OF SPELLWEAVING (Set 3 batch 2): the first N stat-granting Shop spells each turn also feed the Starform
+  // what they ACTUALLY granted — a targeted spell's delta on its target, an untargeted one's biggest per-minion
+  // delta (its printed per-minion grant, spell power included). Snapshot only while the rune is live.
+  const weave = !!state.runeSpellweaving && (state.spellweavingCastsThisTurn ?? 0) < state.runeSpellweaving
+    && !spellDef.ruby && !spellDef.gift && isStatSpell(spellDef) && hasStarform(state);
+  const weaveBefore = weave ? new Map(state.board.map((c) => [c.uid, [c.attack, c.health] as const])) : undefined;
   // Starpath Vendor's next-SHOP-spell bonus: a Gift (Tower Shield, Clue) neither reads it nor spends it, so it
   // is lifted out for the duration of a Gift's cast and put back after.
   const heldNextBonus = spellDef.gift ? state.nextSpellBonus : undefined;
   if (heldNextBonus) state.nextSpellBonus = undefined;
   applyCastEffects(ctx, spellDef, target); // board-wide spells (Growth) run without a target
   if (heldNextBonus) state.nextSpellBonus = heldNextBonus;
+  if (weaveBefore) {
+    let wa = 0, wh = 0;
+    const bodies = target && state.board.includes(target) ? [target] : state.board;
+    for (const c of bodies) {
+      const b = weaveBefore.get(c.uid);
+      if (!b) continue;
+      wa = Math.max(wa, c.attack - b[0]); wh = Math.max(wh, c.health - b[1]);
+    }
+    if (wa > 0 || wh > 0) {
+      state.spellweavingCastsThisTurn = (state.spellweavingCastsThisTurn ?? 0) + 1;
+      procRuneId(state, 'rune_spellweaving');
+      buffStarform(state, wa, wh, 'Rune of Spellweaving');
+    }
+  }
   if (target && state.board.includes(target)) {
     const dAtk = target.attack - preAtk;
     const dHp = target.health - preHp;

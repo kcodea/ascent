@@ -171,4 +171,19 @@ export const SET3_UNDEAD: CardDef[] = [
     text: '**Avenge (3):** cast **Lantern of Souls**.',
     goldenText: '**Avenge (3):** cast **Lantern of Souls** twice.',
   },
+  {
+    // SKELETON (Set 3 batch 2, 2026-09-16) — the 1/1 Undead token Rune of the Endless March summons after a
+    // friendly Undead Rises. `token: true`: never drawn, never pooled; it resolves through `CARD_INDEX` in both
+    // phases like every other summoned token.
+    id: 'u3_skeleton',
+    name: 'Skeleton',
+    tribe: 'undead',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [],
+    token: true,
+    text: '',
+  },
 ];

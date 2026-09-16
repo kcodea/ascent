@@ -307,6 +307,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:overflowBuffAllPermanent:summonOverflow': { policy: 'foldedCue', family: 'react' }, // Squatimus (set 3)
   'factory:onRiseBuffSelfWard:onRise': { policy: 'foldedCue', family: 'react' }, // Revenant (set 3)
   'factory:onRiseBuffBoardAndHand:onRise': { policy: 'foldedCue', family: 'react' }, // Rising Tide (set 3)
+  'factory:onRiseSelfSummonToken:onRise': { policy: 'ownBeat', family: 'echo' }, // Rune of the Endless March graft (set 3 batch 2)
+  'factory:deathrattleEquipmentFreeNextTurn:onDeath': { policy: 'foldedCue', family: 'echo' }, // Rune of the Last Tool graft (set 3 batch 2)
   'factory:rallyBuff:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:rallyGrantFirstSpellCopy:onAttack': { policy: 'ownBeat', family: 'rally' }, // Comet Conductor
   'factory:rallyBuffAttachments:onAttack': { policy: 'ownBeat', family: 'rally' },

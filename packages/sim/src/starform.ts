@@ -56,10 +56,11 @@
  */
 import { makeRng, type CardDef } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import type { BoardCard, RunState, ShopCard } from './state';
-import { addBuff, addOfferBuff, consumeShopOffer, fireStarformGained, fireStarformRemoved, isTribe, offerBuyStats, rightmostShopMinion } from './recruit';
+import { procRuneId, type BoardCard, type RunState, type ShopCard } from './state';
+import { addBuff, addOfferBuff, consumeShopOffer, fireStarformGained, fireStarformRemoved, grantMinionToHandOrBoard, isTribe, offerBuyStats, rightmostShopMinion } from './recruit';
 import { syncStarDestroyer } from './equipment';
 import { tierSlots } from './shop';
+import { runeStacksOf } from './runeDup';
 
 export const STARFORM_ID = 'ce3_starform';
 /** Rule 5: the price a fresh token spawns at. */
@@ -184,6 +185,28 @@ function recordStarformFx(state: RunState, kind: 'consumeShop' | 'consumed' | 'c
 }
 
 /**
+ * RUNE OF ACCRETION (Set 3 batch 2, 2026-09-16): the multiplier every Starform Shop consume lands with — the one
+ * chokepoint for Black Hole, the Attractor, Roundabout AND the full-row creation meal. ×(1 + copies held): one
+ * copy doubles ("twice their stats"), a second copy triples (engine-doubling family, owner 2026-08-27).
+ */
+export function starformConsumeTimes(state: RunState): number {
+  return state.runeAccretion ? 1 + runeStacksOf(state, 'rune_accretion') : 1;
+}
+
+/** After the Starform ATE `cardId` (any Shop consume of its own): Accretion's badge (it just paid) and Rune of
+ *  Stolen Constellations' plain copy to hand — one per copy held, overflow-safe like every rune grant. */
+function afterStarformAte(state: RunState, cardId: string): void {
+  if (state.runeAccretion) procRuneId(state, 'rune_accretion');
+  if (state.runeStolenConstellations) {
+    const def = CARD_INDEX[cardId];
+    if (def && !def.spell && !def.ruby) {
+      procRuneId(state, 'rune_stolen_constellations');
+      for (let k = 0; k < runeStacksOf(state, 'rune_stolen_constellations'); k++) grantMinionToHandOrBoard(state, def, false, true);
+    }
+  }
+}
+
+/**
  * Rule 1. Create the Starform into the right-most Shop slot. Returns the offer, or the EXISTING one when a
  * Starform is already out (rule 2 — a no-op; the caller decides what "instead" means). `source` names the card
  * that made it, for the ledger of any stats the creation itself banks.
@@ -207,7 +230,8 @@ export function createStarform(state: RunState, source: { cardId: string; name: 
     const eaterStandIn: BoardCard = { uid: sf.uid, cardId: STARFORM_ID, tribe: 'celestial', attack: 1, health: 1, keywords: [], golden: false };
     // Insert first, then eat: the consume splices by index, and the token must take the VICTIM'S slot.
     state.shop.splice(victim + 1, 0, sf);
-    consumeShopOffer(state, eaterStandIn, victim, 1, (a, h) => { banked.attack += a; banked.health += h; }, sf.uid);
+    const victimId = state.shop[victim]!.cardId;
+    consumeShopOffer(state, eaterStandIn, victim, starformConsumeTimes(state), (a, h) => { banked.attack += a; banked.health += h; }, sf.uid);
     // The creation's meal is SILENT on screen (owner 2026-09-14): the victim simply leaves and the token takes its
     // slot in place — no ghost, no pull, no held slot, no row shift. The owner-authored `starform-create` cue
     // (below) is the whole moment. Mechanically it is still a real Shop consume (Open Market, the meter, the
@@ -215,6 +239,7 @@ export function createStarform(state: RunState, source: { cardId: string; name: 
     const meal = state.shopEaten?.[state.shopEaten.length - 1];
     if (meal && meal.uid !== sf.uid) meal.silent = true;
     buffStarform(state, banked.attack, banked.health, 'Consume');
+    afterStarformAte(state, victimId);
   } else {
     state.shop.push(sf); // an open slot — or a full row of nothing but spells (rule 1: it still appears)
   }
@@ -237,6 +262,14 @@ export function createStarform(state: RunState, source: { cardId: string; name: 
   const turn = state.tavernBuyBonusTurn;
   if (turn && (turn.atk > 0 || turn.hp > 0)) buffStarform(state, turn.atk, turn.hp, 'Shop Enchant');
   syncStarDestroyer(state); // rule 9: the token brings its Equipment
+  // RUNE OF FIRST LIGHT (Set 3 batch 2): "Starforms you create this game start with +8/+8" — EVERY creator, this
+  // rune's own Start of Turn included; +8/+8 per copy held. Banked after the shop channels so the ledger reads
+  // the rune's line beside them.
+  if (state.runeFirstLight) {
+    const fl = 8 * runeStacksOf(state, 'rune_first_light');
+    procRuneId(state, 'rune_first_light');
+    buffStarform(state, fl, fl, 'Rune of First Light');
+  }
   void source; // the creator is presentation metadata today (the content PR names it on the create cue)
   return sf;
 }
@@ -253,8 +286,8 @@ export function starformConsumeShopMinion(state: RunState, offerIndex: number, t
   const target = state.shop[offerIndex];
   if (!target || target.starform) return false;
   const standIn = starformStandIn(state, sf);
-  const ate = consumeShopOffer(state, standIn, offerIndex, times, (a, h) => { buffStarform(state, a, h, 'Consume'); }, sf.uid);
-  if (ate) recordStarformFx(state, 'consumeShop', target.uid, [sf.uid]);
+  const ate = consumeShopOffer(state, standIn, offerIndex, times * starformConsumeTimes(state), (a, h) => { buffStarform(state, a, h, 'Consume'); }, sf.uid);
+  if (ate) { recordStarformFx(state, 'consumeShop', target.uid, [sf.uid]); afterStarformAte(state, target.cardId); }
   return ate;
 }
 
@@ -313,9 +346,13 @@ export function collapseExtraTargetsOf(state: RunState): number {
 export function collapseHits(state: RunState, originals = 2, extras = collapseExtraTargetsOf(state)): BoardCard[] {
   const pool = state.board.filter((c) => isTribe(c, 'celestial'));
   if (pool.length === 0) return [];
+  // RUNE OF THE SUPERNOVA (Set 3 batch 2): "half its stats to ALL your Celestials instead of two" — every friendly
+  // Celestial is an original (board order, no draw), and the extras still land on top with replacement.
+  if (state.runeSupernova) { procRuneId(state, 'rune_supernova'); originals = pool.length; }
   const rng = makeRng(state.rngCursor);
   const avail = [...pool];
   const hits: BoardCard[] = [];
+  if (state.runeSupernova) hits.push(...avail.splice(0, avail.length));
   for (let i = 0; i < originals && avail.length > 0; i++) hits.push(avail.splice(rng.int(avail.length), 1)[0]!);
   for (let i = 0; i < extras; i++) hits.push(pool[rng.int(pool.length)]!);
   state.rngCursor = rng.state();

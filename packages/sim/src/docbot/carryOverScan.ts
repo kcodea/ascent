@@ -224,4 +224,15 @@ export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   soldThisTurn: { kind: 'no-combat-meaning', why: 'Voicekeeper reads it during the SHOP phase; not threaded into the combat side' },
   alesCastThisTurn: { kind: 'needs-staging', why: 'threaded (combatSide.alesLastTurn) for Bucky\'s payout; the fixture stages no Bucky' },
   fodderConsumedThisTurn: { kind: 'needs-staging', why: 'threaded (combatSide.fodderConsumedAtk/Hp) for Abhorrent Horror\'s SoC window; the fixture stages none' },
+  // ── Set 3 batch 2, tranche B (2026-09-16): shop-only rune latches (Starform / Equipment runes) ──
+  eventideUsedThisTurn: { kind: 'no-combat-meaning', why: "Rune of Eventide's per-turn latch on the first Starform Consume/Collapse; both are shop moments" },
+  openConstellationUsedThisTurn: { kind: 'no-combat-meaning', why: "Rune of the Open Constellation's per-turn latch on the first Starform Consume; a shop moment" },
+  lastRitesUsedThisTurn: { kind: 'no-combat-meaning', why: "Rune of Last Rites' per-turn latch on the first SHOP destroy of an Undead; a combat death is not a destroy" },
+  dismantlingUsedThisTurn: { kind: 'no-combat-meaning', why: "Rune of Dismantling's per-turn sell latch; selling is a shop action" },
+  quickReleaseArmed: { kind: 'no-combat-meaning', why: "Rune of Quick Release's armed 0-cost activation; Equipment activates only in the shop, so the arm is spent or expired before any fight" },
+  spellweavingCastsThisTurn: { kind: 'no-combat-meaning', why: "Rune of Spellweaving's per-turn Shop-spell cast count; the Starform it feeds is a shop offer" },
+  counterrotationIds: { kind: 'no-combat-meaning', why: "Rune of Counterrotation's distinct-Equipment set for this turn; Equipment activates only in the shop" },
+  equipmentActivationsThisTurn: { kind: 'no-combat-meaning', why: 'the per-turn Equipment activation count (Efficient Tooling / Overcharge read "first"); activation is a shop action' },
+  equipmentFreeThisTurn: { kind: 'no-combat-meaning', why: "Rune of the Last Tool's free-Equipment list for THIS turn — a shop price; promoted from the bank at the rollover" },
+  equipmentFreeNextTurn: { kind: 'no-combat-meaning', why: "Rune of the Last Tool's bank for NEXT turn — written by a shop Echo now and by settleCombat from the combat Echo's questTrigger carry-back; only a shop price reads it" },
 };

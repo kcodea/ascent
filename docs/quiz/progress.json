@@ -5,7 +5,7 @@
   "focus": "ARCHITECTURE ONLY \u2014 how the game is coded/structured. NEVER ask game-rules questions (see daily-prompt.md).",
   "difficulty": 1,
   "difficultyScale": "1 = gentlest (what is a function, what is a package). 5 = deep (trace an event through the architecture). Ramp only per the rules in daily-prompt.md.",
-  "totalQuizzes": 34,
+  "totalQuizzes": 35,
   "recentScores": [],
   "topics": {
     "what-is-a-function": {
@@ -49,44 +49,44 @@
       "lastAsked": "2026-09-15"
     },
     "reducer-run-state": {
-      "asked": 16,
-      "lastAsked": "2026-09-14"
+      "asked": 17,
+      "lastAsked": "2026-09-16"
     },
     "zustand-store": {
-      "asked": 16,
-      "lastAsked": "2026-09-14"
+      "asked": 17,
+      "lastAsked": "2026-09-16"
     },
     "event-bus": {
-      "asked": 16,
-      "lastAsked": "2026-09-14"
+      "asked": 17,
+      "lastAsked": "2026-09-16"
     },
     "cards-in-sets": {
-      "asked": 16,
-      "lastAsked": "2026-09-14"
+      "asked": 17,
+      "lastAsked": "2026-09-16"
     },
     "package-boundaries": {
-      "asked": 16,
-      "lastAsked": "2026-09-14"
+      "asked": 17,
+      "lastAsked": "2026-09-16"
     },
     "effects-as-subscriptions": {
-      "asked": 16,
-      "lastAsked": "2026-09-14"
+      "asked": 17,
+      "lastAsked": "2026-09-16"
     },
     "effect-timing-pipeline": {
-      "asked": 16,
-      "lastAsked": "2026-09-14"
+      "asked": 17,
+      "lastAsked": "2026-09-16"
     },
     "testing-vitest": {
-      "asked": 16,
-      "lastAsked": "2026-09-14"
+      "asked": 17,
+      "lastAsked": "2026-09-16"
     },
     "types-basics": {
-      "asked": 16,
-      "lastAsked": "2026-09-14"
+      "asked": 17,
+      "lastAsked": "2026-09-16"
     },
     "immutability": {
-      "asked": 16,
-      "lastAsked": "2026-09-14"
+      "asked": 17,
+      "lastAsked": "2026-09-16"
     }
   },
   "curriculum": [
@@ -845,6 +845,25 @@
       ],
       "scored": null,
       "note": "Still no score ever reported by Mike, so mastery/difficulty untouched (difficulty held at 1). Picked the 10 topics with the oldest lastAsked (2026-09-13, asked=15-16) since the types-basics/... group (lastAsked 2026-09-14) is now more recent. Used a subagent to extract every question/explanation angle already used per topic across all 16 prior archived HTML files on this exact topic set (2026-08-14 partial, 08-16/18/20/22/24/26/28/30, and 09-01/03/05/07/09/11/13), then read and verified a genuinely new 17th angle per topic (16th for eslint-rules/performance-memo) directly against live source before writing the final questions -- I independently re-verified every claimed fact myself (not just trusting the subagent) via direct reads/greps: factories.ts's `combatCastable(def): boolean` predicate, gating the pricier real cast logic behind a cheap up-front check, a fresh what-is-a-function angle (question-shaped naming + a boolean gate) distinct from all 16 prior default-param/closure/positional-footgun/options-object/void-return/mergeBuffs/HOF-callback-args/HOF-passed-run/export-privacy/rest-parameter/generic-type-parameter questions; simulate.ts's THREE separate iteration guards (ITERATION_GUARD=300 whole-combat loop, REATTACK_GUARD=50 recursive re-attack depth, IMMEDIATE_ATTACK_GUARD=64 a while-loop Whelp-chain drain), reasoned through as bounding three structurally different cascades rather than sharing one cap, a fresh deterministic-sim angle (termination as part of the determinism contract) distinct from the prior harness/servedBoards/ITERATION_GUARD-alone/JSON-round-trip/same-seed-different-choices/UI-object-pool-determinism/replay-harness-action-log questions; recruit.ts's `shopArena()` building its own `cursorRng: Rng` that re-derives `makeRng(state.rngCursor)` fresh on every call and writes the position back, a second real Rng implementation distinct from `makeRng`'s closure-based one, reasoned through via RunState needing to stay plain serializable data -- a fresh seeded-rng angle (multiple implementations of one interface, chosen for serializability) distinct from the prior fork()/state()/int()/pick()/imul/bitwise-coercion/mixSeed-statelessness/rng.ts-is-a-plain-function questions; packages/core/src/presentation/types.ts's `PresentationPolicy` ('ownBeat'/'foldedCue'/'passive'/'intentionallySilent') living in core as a deterministic per-effect classification the UI must obey, a fresh sim-ui-decoupling angle (presentation-sounding DATA still belongs in core because the classification itself is deterministic) distinct from the prior who-decides/beats-pacing/audio-channel/odds-preview/replay-speed/recruit-phase-reduce/grep-level-proof questions; every packages/*/package.json's `\"private\": true`, reasoned through as an npm-publish accident-guard independent of workspace linking, a fresh monorepo-packages angle distinct from the prior exports-field/dependencies-list/wildcard-versions/workspaces-glob/tools-deps/tsconfig-project-split/no-devDependencies questions; odds.ts's `computeCombatOdds()` mutating local `let win/draw/lose/lossDamageTotal` accumulators inside its own loop while its doc comment calls it 'Pure + deterministic,' a fresh pure-functions angle (local mutation contained within a call is compatible with purity; only externally-visible effects aren't) distinct from the prior same-output/Date.now/no-mocks/filter-map/substitution/rng-self-mutation/mkUid-hidden-side-effect/mkUid-reference-vs-value questions; types.ts's single shared `CardDef` interface used for every tribe with no per-tribe subclass, reasoned through via `tribe` being just a string field rather than a type distinction, a fresh data-vs-code angle distinct from the prior .strict()/GameEventSchema-enum/CARD_INDEX/heroes-kind-switch/quests-same-pattern/params-validation-depth/revisions-art-not-in-def questions; the `CombatEvent` union's trailing `& { step?, avenge?, key?, srcCard? }` intersection sitting outside the closing parenthesis of the ~25-variant union, a fresh event-log-replay angle (intersecting a union with a shared shape to avoid repeating optional fields in every branch) distinct from the prior array-vs-single-winner/serializable/uid-not-object-ref/step-tagging/two-event-mechanisms/discriminated-union-narrowing questions; eslint.config.mjs's `apps/desktop/release/**` ignore entry (Electron's own packaged output, a copy of main.cjs plus the bundled runtime) with its own distinct inline rationale from the neighboring `.claude/**`/`supabase/**` entries, a fresh eslint-rules angle distinct from the prior Math.random-ban/supabase-Deno-exclusion/desktop-cjs-require-override/.claude-per-machine-tooling(x2) questions; and docs/performance.md's `task: 0` blind spot on an otherwise-slow frame (the Long Tasks API doesn't attribute style/layout/paint/decode/GC time), a fresh performance-memo angle (a profiling-tool limitation, not a paint-property/layout-thrash/object-pooling/refresh-rate pattern) distinct from the prior React.memo/paint-property/layout-thrash/shader-pooling/canvas-laziness/turnClock-isolated-state/perf-harness-loose-tripwire questions. All ten facts were independently re-verified by me against live source (packages/core/src/effects/factories.ts:547, packages/core/src/combat/simulate.ts:27-29, packages/sim/src/recruit.ts:58-65, packages/core/src/presentation/types.ts, all five packages/*/package.json, packages/sim/src/odds.ts, packages/core/src/types.ts:595 + :1809, eslint.config.mjs, docs/performance.md), not just trusted from the subagent's report. Verified the embedded QUESTIONS array parses as valid JS (10 questions, 4 choices each, in-range answer index, all 10 topicIds present and unique) via a node script before publishing. Published as an interactive Artifact and archived to docs/quiz/archive/2026-09-15.html."
+    },
+    {
+      "date": "2026-09-16",
+      "quizNumber": 35,
+      "difficulty": 1,
+      "topics": [
+        "types-basics",
+        "immutability",
+        "reducer-run-state",
+        "zustand-store",
+        "event-bus",
+        "cards-in-sets",
+        "package-boundaries",
+        "effects-as-subscriptions",
+        "effect-timing-pipeline",
+        "testing-vitest"
+      ],
+      "scored": null,
+      "note": "Still no score ever reported by Mike, so mastery/difficulty untouched (difficulty held at 1). Picked the 10 topics with the oldest lastAsked (2026-09-14, asked=16) since the what-is-a-function/... group (lastAsked 2026-09-15) is now more recent. IMPORTANT PROCESS NOTE for future runs: a research subagent was first asked to extract every angle already used on this topic set from the archive folder, but it only checked the 9 August dates (08-15 through 08-31) and wrongly concluded the Sept 01-13 archives used a different rotation -- in fact this exact topic set also ran on the EVEN September dates (09-02/04/06/08/10/12/14; the ODD Sept dates 09-01/03/...(15 are the OTHER group), for 9+7=16 total, matching each topic's own asked:16 counter exactly. I caught this by cross-checking the asked-count arithmetic, then independently re-extracted the real question/explanation text from all 7 missed archives myself (topicId vs older `topic:` field naming differs between older and newer archive files) before trusting any candidate angle. Several of the original subagent's proposed 'fresh' facts turned out to already be used in those missed archives (CombatEvent avenge/step intersection was actually clean, but reAttackCache memoization, the reduce()-wrapper-mutating-scratch-fields-before-clone fact, dispatch's DEV/prod reduceWithPresentation branch, vite.config.ts resolve.alias, the EffectFn 4-parameter signature, and all three original testing-vitest candidates were already asked, some more than once) -- all were discarded in favor of independently re-verified fresh angles: types.ts's `CombatEvent` trailing `& { step?, avenge?, key?, srcCard? }` intersection type (distributing four shared optional fields onto all 25 union variants at once), a fresh types-basics angle distinct from all 16 prior Tier/TriggerFamily/discriminated-union/optional-marker/Action['type']-indexed-access/GameEvent-'passive'-comment/BoardMinion-vs-Minion/QuestReward-indexed-access/Partial-Record/Record-required-keys/Alignment-OR-logic questions; recruit.ts's Copycat (`spellCopyTargetExact`) using `structuredClone(target)` instead of a shallow `{...target}` spread, because a shallow copy would still share nested arrays/objects (enchants, per-instance accruals) with the original -- a fresh immutability angle (deep vs shallow copy) distinct from all 16 prior CardDef-share/keywords-clone/effects-share(x2)/EMPTY_SIDE-freeze/spread-vs-push-habit/reduce()-scratch-mutation/readonly-is-shallow/servedBoards-spread/reAttackCache-memoization questions; state.ts's `Action` union splitting into `uid`-addressed variants (a persistent board/hand card) vs `index`-addressed variants (a transient, rerollable offer slot -- Discover/buyQuest/buyRune/chooseOne), a fresh reducer-run-state angle distinct from the prior structuredClone/spendGold/??=/switch-narrowing/deserialize-merge/handCap-derived/combatSettled-idempotency/weldFxBaseSeq/Hunter-before-after-diff questions; store.ts's `commitResolvedAction(s, action, next, batch, captureBeats, set)` -- a plain shared function taking `set` as an ordinary parameter (needed only for deferred run-end `setTimeout` work), called by both `dispatch` and the presentation-tx committer -- a fresh zustand-store angle distinct from the prior create()/imports/toggleCompact/get()/selector/Math.random-exemption/actionSfx/localStorage-try-catch/dispatch-DEV-prod-branch/getState()-escape-hatch/no-persist-middleware/writeSave-sandbox-guard questions; simulate.ts's rune effects (Rune of Inheritance, Passing Spears) calling `bus.on('onDeath', ...)` directly inside `simulate()`, guarded by an `if` on quest-mod ownership so the handler is only ever attached when the rune is actually owned -- a fresh event-bus angle (conditional, ad hoc subscription outside the FACTORIES system) distinct from the prior on/emit/array-copy/iteration-guard/payload-unknown/handlers-Map/fresh-bus-per-combat/early-return/no-off-self-disable/private-readonly/type-only-import/GameEvent-trigger-names/no-sides-notion/bidirectional-emit-from-factories/Mineral-Master-tagged-buff questions; sets.ts's `SETS: Record<SetId, SetDef>` forcing a registry entry for every `SetId` member at compile time, a fresh cards-in-sets angle distinct from the prior which-set-pinning/throw-on-missing/Map-memoization/allowlist/Set-vs-array/mid-run-enable/unreachable-fallback/dedup/declaration-order/tribes-field/poolOf-wrapper/inherits-excludes-own-order/three-lists-filter-derived/poolFor-recursion-guard/default-to-set1 questions; core/package.json declaring both `\"main\"` and `\"exports\"` pointing at the identical file (legacy vs modern Node resolution fields), a fresh package-boundaries angle distinct from the prior exports-field(x4)/leaked-boundary/hypothetical-deep-imports(x2)/ownership-map/typecheck-split/worktree-symlinks/workspaces-vs-exports/dependency-list-comparison/no-lint-boundary-rule/vite-alias-load-bearing questions; schema.ts's `.strict()` on `CardDefSchema` catching a typo'd FIELD NAME (`goldentext` instead of `goldenText`) that a non-strict schema would silently accept as an ignored extra property, a fresh effects-as-subscriptions angle distinct from the prior EffectFactoryIdSchema-drift/typo-in-do-value/TriggerMultiplierDef/params-purpose(x2)/FACTORIES-Partial/effects-array/registerEffect-subscription/EffectFn-signature/on-do-mapping/chooseOne-independent-sets/COMBAT_REPLAYABLE_BATTLECRIES-derived/dated-comment-headers questions; recruit.ts's own header comment describing the recruit phase's OWN internal buy-vs-play split (`applyOnBuy` for hand-entry buy-triggers, `playCard` for board-entry summon-buffs+Battlecry), a fresh effect-timing-pipeline angle distinct from the prior recruit-vs-combat-general(x2)/why-battlecry-not-combat-time/why-6-triggerfamily-share-type/why-bake-battlecry/what-enforces-split/what-if-recruit-id-mid-combat/BoardMinion-vs-CardDef-stats/why-deathrattle-cant-pause/card-text-dual-wiring/CombatContext-frozen-numbers/settleCombat-carry-back/FACTORIES-vs-RECRUIT_FACTORIES(x2)/echoes-wired-in-shop/buffOnSummon-two-surfaces questions; and bindings.test.ts's `beforeEach(() => resetBindings())` resetting a module-level `patch` object between tests so results don't depend on test order, a fresh testing-vitest angle (module-level state isolation) distinct from the prior determinism-test/golden-test/poolDeterminism/poolSourceRule/content.test-referencedCardIds/rng.test-sequences(x2)/simulate.test-regex/vitest.config-glob(x2)/co-location/npm-test-run-flag/ci.yml-job-order/vitest.setup-navigator-polyfill(x2)/vitest.config-define-APP_VERSION questions. All ten facts were verified by direct reads of the live files (packages/core/src/types.ts:1809-1846, packages/sim/src/recruit.ts:3868-3878 and :12-19, packages/sim/src/state.ts:1305-1343, packages/ui/src/store.ts:625-669, packages/core/src/combat/simulate.ts:3038-3057, packages/content/src/sets.ts:143-166, packages/core/package.json, packages/content/src/schema.ts:452-456, packages/ui/src/choreo/bindings.ts:384 and bindings.test.ts). Verified the embedded QUESTIONS array parses as valid JS (10 questions, 4 choices each, in-range answer index, all 10 topicIds present and unique) via a node script before publishing. Published as an interactive Artifact and archived to docs/quiz/archive/2026-09-16.html."
     }
   ],
   "notes": "2026-08-15: refocused to ARCHITECTURE ONLY per Mike \u2014 removed game-rules topics (shop-vs-combat, auto-battler-loop) and expanded the code-architecture curriculum. Do not quiz on game rules; see the hard constraint in daily-prompt.md."

@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent Quiz #35</title>
+<style>
+  :root {
+    --bg: #f6f4ef;
+    --panel: #ffffff;
+    --panel-border: #e2ddd0;
+    --ink: #2a2620;
+    --ink-dim: #6b6555;
+    --accent: #a8712f;
+    --accent-ink: #ffffff;
+    --good: #2f7a4f;
+    --good-bg: #e5f4ea;
+    --bad: #b13d3d;
+    --bad-bg: #fbe9e9;
+    --track: #ece7da;
+    --choice-bg: #fbfaf6;
+    --choice-border: #ddd6c4;
+    --choice-hover: #f1ead9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1b1913;
+      --panel: #242018;
+      --panel-border: #3a3527;
+      --ink: #eee8d8;
+      --ink-dim: #a89d84;
+      --accent: #d69a4e;
+      --accent-ink: #1b1913;
+      --good: #6fce93;
+      --good-bg: #1e3327;
+      --bad: #e28080;
+      --bad-bg: #3a2222;
+      --track: #2f2b1f;
+      --choice-bg: #2b271c;
+      --choice-border: #423c2b;
+      --choice-hover: #352f22;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1b1913;
+    --panel: #242018;
+    --panel-border: #3a3527;
+    --ink: #eee8d8;
+    --ink-dim: #a89d84;
+    --accent: #d69a4e;
+    --accent-ink: #1b1913;
+    --good: #6fce93;
+    --good-bg: #1e3327;
+    --bad: #e28080;
+    --bad-bg: #3a2222;
+    --track: #2f2b1f;
+    --choice-bg: #2b271c;
+    --choice-border: #423c2b;
+    --choice-hover: #352f22;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding-block: 28px;
+  }
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding-inline: 16px;
+  }
+  header.top {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  header.top .kicker {
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  header.top h1 {
+    font-size: 22px;
+    margin: 0 0 4px;
+  }
+  header.top p {
+    color: var(--ink-dim);
+    font-size: 13px;
+    margin: 0;
+  }
+  .progressRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .track {
+    flex: 1;
+    height: 8px;
+    background: var(--track);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 999px;
+    transition: width 0.35s ease;
+    width: 0%;
+  }
+  .progLabel {
+    font-size: 12px;
+    color: var(--ink-dim);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px;
+    padding: 22px;
+  }
+  .topicTag {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border-radius: 999px;
+    padding: 3px 10px;
+    margin-bottom: 12px;
+    font-weight: 700;
+  }
+  .qtext {
+    font-size: 16px;
+    line-height: 1.5;
+    margin: 0 0 16px;
+  }
+  .choices {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .choice {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    text-align: left;
+    background: var(--choice-bg);
+    border: 1px solid var(--choice-border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--ink);
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .choice:hover:not(:disabled) {
+    background: var(--choice-hover);
+  }
+  .choice:disabled {
+    cursor: default;
+  }
+  .choice .letter {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--track);
+    color: var(--ink-dim);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .choice.correct {
+    background: var(--good-bg);
+    border-color: var(--good);
+  }
+  .choice.correct .letter {
+    background: var(--good);
+    color: #fff;
+  }
+  .choice.incorrect {
+    background: var(--bad-bg);
+    border-color: var(--bad);
+  }
+  .choice.incorrect .letter {
+    background: var(--bad);
+    color: #fff;
+  }
+  .explain {
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: 10px;
+    background: var(--track);
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--ink);
+    display: none;
+  }
+  .explain.show { display: block; }
+  .explain b { color: var(--accent); }
+  .footerRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 18px;
+  }
+  .scoreLabel {
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+  button.next {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    border-radius: 999px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: none;
+  }
+  button.next.show { display: inline-block; }
+  .final {
+    display: none;
+    text-align: center;
+  }
+  .final.show { display: block; }
+  .final .big {
+    font-size: 44px;
+    font-weight: 800;
+    margin: 6px 0;
+    color: var(--accent);
+  }
+  .final .line {
+    font-size: 15px;
+    color: var(--ink-dim);
+    margin-bottom: 18px;
+  }
+  .final .bits {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .final .bit {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .final .bit.ok { background: var(--good); }
+  .final .bit.no { background: var(--bad); }
+  .quizBody { display: block; }
+  .quizBody.hide { display: none; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="kicker">Daily Ascent Code Quiz</div>
+    <h1>Quiz #35</h1>
+    <p>2026-09-16 · How Ascent is coded, ten questions</p>
+  </header>
+
+  <div class="progressRow">
+    <div class="track"><div class="fill" id="fill"></div></div>
+    <div class="progLabel" id="progLabel">1 / 10</div>
+  </div>
+
+  <div class="card">
+    <div class="quizBody" id="quizBody">
+      <div class="topicTag" id="topicTag"></div>
+      <p class="qtext" id="qtext"></p>
+      <div class="choices" id="choices"></div>
+      <div class="explain" id="explain"></div>
+      <div class="footerRow">
+        <div class="scoreLabel" id="scoreLabel">Score: 0 / 10</div>
+        <button class="next" id="nextBtn">Next →</button>
+      </div>
+    </div>
+
+    <div class="final" id="final">
+      <div class="big" id="finalScore"></div>
+      <div class="line" id="finalLine"></div>
+      <div class="bits" id="finalBits"></div>
+      <div class="line" style="font-size:13px;">Reply to Mike's chat with your score so tomorrow's quiz can adapt — e.g. "8/10, missed the RNG one."</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var QUESTIONS = [
+    {
+      topicId: "types-basics",
+      question: "packages/core/src/types.ts defines the 25-variant <code>CombatEvent</code> union, then closes with <code>) &amp; { step?: number; avenge?: true; key?: string; srcCard?: string };</code> — intersecting the WHOLE union with one shared object type. What does that trailing <code>&amp; {...}</code> buy over just adding those four fields to each of the 25 variants individually?",
+      choices: [
+        "Every one of the 25 event variants automatically gets <code>step</code>/<code>avenge</code>/<code>key</code>/<code>srcCard</code> as optional fields from one shared declaration, instead of repeating them 25 times over — and any new variant added later automatically inherits them too",
+        "It's purely cosmetic — TypeScript strips the trailing <code>&amp; {...}</code> at compile time and it has no effect on the resulting type at all",
+        "It makes those four fields REQUIRED instead of optional on every variant",
+        "It only adds those fields to variants that don't already declare a field by that name, silently skipping the rest"
+      ],
+      answer: 0,
+      explanation: "Intersecting (<code>&amp;</code>) the whole union with one shared object type gives every one of the 25 variants those four optional fields at once — the alternative would be pasting <code>step?: number; avenge?: true; key?: string; srcCard?: string;</code> into all 25 individual object literals, and remembering to add it to variant #26 if one is ever added. An intersection is a real type-level combination with a real effect, not a no-op — so 'purely cosmetic' is wrong. The fields keep their own <code>?</code> markers inside the shared object, so they stay optional, not required. And TypeScript intersections don't have a 'skip if already named' escape hatch — they just require every constituent shape to be satisfied at once. See packages/core/src/types.ts:1809-1841."
+    },
+    {
+      topicId: "immutability",
+      question: "packages/sim/src/recruit.ts's Copycat effect (<code>spellCopyTargetExact</code>) does <code>const clone = structuredClone(target); clone.uid = ...; ctx.state.hand.push(clone);</code> to put an exact copy of a friendly minion into hand. Why <code>structuredClone(target)</code> here instead of the cheaper <code>{ ...target, uid: newUid }</code> object spread?",
+      choices: [
+        "<code>structuredClone</code> deep-copies every nested array/object on the BoardCard (enchants, per-instance accruals, etc.) into fresh ones, so the copy in hand and the original still on the board never end up sharing an inner array — a shallow <code>{...target}</code> would still point both cards at the SAME nested arrays/objects",
+        "<code>{ ...target, uid: newUid }</code> isn't valid TypeScript syntax once a type has more than 10 fields",
+        "<code>structuredClone</code> is required because <code>BoardCard</code> contains functions, and object spread can't copy functions",
+        "There's no real difference — <code>structuredClone</code> was used out of habit here and a spread would behave identically"
+      ],
+      answer: 0,
+      explanation: "A shallow spread copies <code>target</code>'s top-level fields, but any field that's itself an array or object still points at the exact same nested array/object as the original — mutate one card's nested list later and the 'independent' copy would silently change too. <code>structuredClone</code> recursively deep-copies everything, so the hand-copy and the board original are two genuinely separate objects from the moment they're created, which matters here since the whole point of Copycat is an exact, fully independent duplicate. There's no field-count limit on spread syntax, <code>BoardCard</code> is plain data with no functions (and spread would copy function references fine regardless — it's nested arrays/objects spread fails to isolate), and a spread here really would create a dangerous shared-reference bug the deep clone avoids. See packages/sim/src/recruit.ts (<code>spellCopyTargetExact</code>)."
+    },
+    {
+      topicId: "reducer-run-state",
+      question: "packages/sim/src/state.ts's <code>Action</code> union has variants like <code>{ type: 'buy'; uid: string }</code> and <code>{ type: 'sell'; uid: string }</code>, but others like <code>{ type: 'discover'; index: number }</code> and <code>{ type: 'buyQuest'; index: number }</code> use a numeric <code>index</code> instead. What's the actual difference driving that choice?",
+      choices: [
+        "<code>uid</code>-addressed actions target a specific board or hand card that has a persistent identity across renders; <code>index</code>-addressed actions target a slot in a transient, rerollable offer list (a Discover pick, a quest/rune shop row) where there's no persistent per-item identity to reference by uid",
+        "It's arbitrary — whichever an action's original author happened to prefer",
+        "<code>index</code> actions are always faster to process than <code>uid</code> actions, since array lookups by index are O(1) and uid lookups require a search",
+        "<code>uid</code> is reserved for actions that mutate the board; <code>index</code> is reserved for actions that are read-only"
+      ],
+      answer: 0,
+      explanation: "A <code>uid</code> is a stable id minted once when a card is created and kept for that card's whole life on the board/hand — ideal for referencing 'this specific card' across however many renders happen in between. A Discover offer or a quest/rune shop row, by contrast, is a freshly-generated, disposable list each time it's offered; there's no persistent per-item identity to reference by uid, so referencing 'whatever's currently sitting at position <code>index</code>' is both simpler and correct, since the whole list gets replaced together anyway. There's no performance rule behind the split, and <code>heroPower</code>/<code>reposition</code>/<code>reorderShop</code> all use <code>uid</code> and clearly mutate the board — the split is about what's being referenced, not whether the action mutates something. See packages/sim/src/state.ts:1305-1336."
+    },
+    {
+      topicId: "zustand-store",
+      question: "packages/ui/src/store.ts's <code>commitResolvedAction(s, action, next, batch, captureBeats, set)</code> is a plain (non-store) function that both <code>dispatch</code> and the presentation-transaction committer call, and it takes <code>set: StoreSet</code> as one of its ordinary parameters. Per the function's own doc comment, why does a helper that 'never resolves gameplay itself' need <code>set</code> handed to it at all?",
+      choices: [
+        "It needs <code>set</code> ONLY for deferred, run-end work (a <code>setTimeout</code> that must fire later without hitching the end-screen frame) — everything else it just returns as a plain object for the caller to merge in",
+        "Because <code>set</code> is a global singleton, so passing it as a parameter is required just to satisfy TypeScript's strict mode",
+        "<code>set</code> is unused inside <code>commitResolvedAction</code> — it's a leftover parameter from an earlier version of the function",
+        "Every zustand store method must accept <code>set</code> as its final parameter by convention"
+      ],
+      answer: 0,
+      explanation: "<code>commitResolvedAction</code> is a shared, non-store function — <code>set</code>/<code>get</code> are ordinarily only available inside <code>create((set, get) => ({...}))</code>, but here <code>set</code> gets passed in like any other argument specifically so that ONE piece of logic (deferred run-end bookkeeping via <code>setTimeout</code>, kept off the critical frame that shows the end screen) can still call <code>set</code> later, asynchronously, from outside the store's own methods. Everything else the function computes, it returns as a plain object for the caller (<code>dispatch</code> or the tx committer) to apply. <code>set</code>/<code>get</code> are ordinary function values you can pass around like anything else — nothing about zustand requires every function to accept them, and the doc comment explicitly explains the one real use, so it isn't a leftover. See packages/ui/src/store.ts:625-637."
+    },
+    {
+      topicId: "event-bus",
+      question: "Deep inside <code>simulate()</code>, packages/core/src/combat/simulate.ts has code like: <code>if (playerState.questMods.runeInheritance || enemyState.questMods.runeInheritance) { bus.on('onDeath', (payload) => { ... }); }</code> — a rune effect subscribing to the bus with its own inline handler, entirely separate from <code>FACTORIES</code>/<code>registerEffect</code>. What does this show about <code>CombatBus</code>?",
+      choices: [
+        "Any code that has a reference to <code>bus</code> can call <code>.on()</code> to subscribe — it isn't exclusive to the card-effect (<code>FACTORIES</code>) dispatch system — and a subscription doesn't even have to be unconditional; here it's wrapped in an <code>if</code> so the handler is only attached at all when the rune is actually owned",
+        "This is a bug — every combat-time effect is required to go through <code>FACTORIES</code>, so this inline <code>bus.on()</code> would fail at runtime",
+        "<code>bus.on()</code> can only be called once per event name, so this code would silently overwrite any card's existing <code>onDeath</code> handler",
+        "Rune effects use a completely separate <code>RuneBus</code> instance from the one <code>FACTORIES</code> handlers subscribe to, so the two never interact"
+      ],
+      answer: 0,
+      explanation: "<code>CombatBus</code> is a general-purpose pub/sub — <code>.on()</code> doesn't care whether the caller is the card-effect dispatch system or a one-off rune effect written inline in <code>simulate()</code>; both just add a handler to the same <code>handlers</code> map. The <code>if</code> guard is the interesting part: since subscribing is just a function call, it can be made conditional — a handler for Rune of Inheritance only gets attached AT ALL when at least one side actually owns that rune, rather than always subscribing and checking ownership inside the handler on every death. Nothing requires going through <code>FACTORIES</code>, <code>on()</code> appends to an array of handlers rather than overwriting, and it's the exact same <code>bus</code> instance visible via closure to any code running inside <code>simulate()</code> — there's no separate rune-only bus. See packages/core/src/combat/simulate.ts:3041-3050."
+    },
+    {
+      topicId: "cards-in-sets",
+      question: "packages/content/src/sets.ts declares <code>export type SetId = 'set1' | 'set2' | 'set3';</code> and then <code>export const SETS: Record&lt;SetId, SetDef&gt; = { ... };</code>. Using <code>Record&lt;SetId, SetDef&gt;</code> instead of a plain <code>{ [key: string]: SetDef }</code> for <code>SETS</code>'s type has what effect?",
+      choices: [
+        "TypeScript requires the <code>SETS</code> object literal to have an entry for EVERY member of <code>SetId</code> — if a fourth id were added to the <code>SetId</code> union but nobody added a matching entry to <code>SETS</code>, that's a compile error, not a runtime surprise",
+        "It makes <code>SETS</code> immutable at compile time, equivalent to wrapping it in <code>Object.freeze</code>",
+        "It's purely for editor autocomplete — <code>Record&lt;SetId, SetDef&gt;</code> and <code>{ [key: string]: SetDef }</code> behave identically at compile time",
+        "It restricts <code>SETS</code> to holding at most 3 entries, matching the 3 members of <code>SetId</code>"
+      ],
+      answer: 0,
+      explanation: "<code>Record&lt;SetId, SetDef&gt;</code> is TypeScript's way of saying 'an object with exactly these keys, each mapping to a <code>SetDef</code>' — since <code>SetId</code> is a fixed 3-member union, the type checker requires all 3 keys to be present (and rejects any key outside that union). A plain <code>{ [key: string]: SetDef }</code> index signature would accept ANY string key and wouldn't complain if <code>set3</code> were missing — a real gap <code>Record&lt;SetId, ...&gt;</code> closes. <code>Record</code> is purely a type-level shape constraint with no runtime-mutability effect, the two forms are genuinely NOT equivalent, and nothing stops <code>SetId</code> itself from growing a 4th member — <code>SETS</code> just has to keep up, which is exactly the guarantee this buys. See packages/content/src/sets.ts:143,166."
+    },
+    {
+      topicId: "package-boundaries",
+      question: "packages/core/package.json declares BOTH <code>\"main\": \"./src/index.ts\"</code> and <code>\"exports\": { \".\": \"./src/index.ts\" }</code>, pointing at the exact same file. Given <code>exports</code> already does the real boundary-enforcing work (blocking deep imports), why keep the older <code>main</code> field around too?",
+      choices: [
+        "<code>main</code> is the legacy, older Node.js resolution field that some older tooling still falls back to if it doesn't understand the newer <code>exports</code> field; keeping both is a compatibility belt-and-suspenders, not a functional necessity for this monorepo's own build",
+        "<code>main</code> and <code>exports</code> serve opposite purposes: <code>main</code> is what <code>ui</code> code imports from, <code>exports</code> is only read by <code>packages/tools</code>",
+        "Without <code>main</code>, TypeScript would refuse to compile the package at all — <code>exports</code> alone isn't sufficient for a <code>.ts</code> (as opposed to <code>.js</code>) entrypoint",
+        "<code>main</code> sets the package's default export value, while <code>exports</code> only controls its type declarations"
+      ],
+      answer: 0,
+      explanation: "<code>exports</code> is the modern field (Node 12+) that both points to the entrypoint AND restricts what subpaths are importable — it's what actually blocks a deep <code>@game/core/src/combat/minion.ts</code>-style import from resolving. <code>main</code> predates <code>exports</code> and is only consulted as a fallback by tooling that doesn't understand <code>exports</code> yet; here it points at the identical file, so it's redundant for THIS toolchain (Vite/TS both understand <code>exports</code>) but costs nothing to leave in for compatibility. There's no split by which package imports through which field — every importer goes through the same resolution — plenty of TS-source packages ship with <code>exports</code> alone just fine, and neither field is about 'default export values' as a JS runtime concept. See packages/core/package.json."
+    },
+    {
+      topicId: "effects-as-subscriptions",
+      question: "packages/content/src/schema.ts's comment above <code>CardDefSchema</code> explains why the schema calls <code>.strict()</code>: \"a typo'd optional key (<code>goldentext</code>, <code>targetTribes</code>) would otherwise validate silently and the card would ship without the feature.\" What exact mistake does <code>.strict()</code> catch here that a non-strict zod object wouldn't?",
+      choices: [
+        "A card author writing an unrecognized field NAME — like <code>goldentext</code> instead of the real <code>goldenText</code> — which a non-strict schema would just ignore as an unknown extra property, letting the card validate and ship with the golden-text feature silently missing",
+        "A card author writing the right field name but the wrong VALUE type — like <code>goldenText: 5</code> instead of a string — which <code>.strict()</code> alone catches but a loose schema wouldn't",
+        "Two different cards accidentally sharing the same <code>id</code>",
+        "A required field being left out entirely, like a card missing <code>name</code>"
+      ],
+      answer: 0,
+      explanation: "<code>.strict()</code> makes zod reject any object with keys OUTSIDE the ones the schema declares. Without it, a misspelled key like <code>goldentext</code> (instead of <code>goldenText</code>) would just be silently dropped by zod as an unrecognized property — the object would still validate fine, but the card would ship missing the golden-text feature its author thought they'd added, with no error anywhere to point at the typo. A wrong-TYPE mistake (right name, wrong value type) is caught by the field's own validator (<code>z.string()</code>, etc.) regardless of <code>.strict()</code> — that's not what this specific comment is about. Duplicate ids and missing required fields are real things zod catches too, but through other mechanisms, not <code>.strict()</code>. See packages/content/src/schema.ts:452-454."
+    },
+    {
+      topicId: "effect-timing-pipeline",
+      question: "packages/sim/src/recruit.ts's own header comment describes the recruit phase as: \"buy → card enters the hand; buy-triggers fire → <code>applyOnBuy</code> … play → card enters the board; summon-buffs fire, then the card's own Battlecry → <code>playCard</code>.\" Given that recruit-phase effects are usually explained as 'baking into stats before combat,' what does this reveal?",
+      choices: [
+        "'Recruit phase' isn't one single moment either — it has its own internal two-step split (buying into hand vs. playing onto the board), each with a different dispatch function and different effects firing at each step, mirroring the recruit-vs-combat split at a smaller scale",
+        "<code>applyOnBuy</code> and <code>playCard</code> are two names for the exact same function — the split is purely stylistic",
+        "Buy-triggers and Battlecries fire at the same moment; the comment's ordering is just documentation, not actual execution order",
+        "Every recruit-phase effect fires during BOTH <code>applyOnBuy</code> and <code>playCard</code>, once each, as a safety net"
+      ],
+      answer: 0,
+      explanation: "Just as combat time turned out to have its own internal structure (recruit-time bake vs. combat-time replay), the recruit phase itself splits into two genuinely different moments: a card entering the HAND (buy-triggers, <code>applyOnBuy</code>) and, separately, a card entering the BOARD (summon-buffs then its own Battlecry, <code>playCard</code>) — a buy-trigger and a Battlecry are NOT interchangeable, they're wired to different steps. <code>applyOnBuy</code> and <code>playCard</code> are two distinct functions, not duplicates, and there's no fire-everywhere safety net — an effect fires at its own designated step. The comment documents the real execution order because buying genuinely happens before playing (a card sits in hand in between). See packages/sim/src/recruit.ts:12-19."
+    },
+    {
+      topicId: "testing-vitest",
+      question: "packages/ui/src/choreo/bindings.test.ts calls <code>beforeEach(() =&gt; resetBindings())</code> at the top of nearly every <code>describe</code> block, and <code>resetBindings()</code> clears a module-level <code>patch</code> object (plus a <code>localStorage</code> key) back to empty. Why does a test file need to do that, when the tests themselves never touch React or Zustand state?",
+      choices: [
+        "<code>patch</code> is ordinary module-level mutable state (not React/Zustand-managed) that every test in the file can read and write — without resetting it before each test, an earlier test's leftover binding overrides would silently carry into the next test, making results depend on test ORDER",
+        "<code>beforeEach</code> is boilerplate every vitest file is required to include — omitting it wouldn't change what any test actually does",
+        "<code>resetBindings()</code> actually clears a DIFFERENT global (the seeded combat RNG), so it's unrelated to what <code>bindings.test.ts</code> is testing",
+        "Since JavaScript modules are re-imported fresh for every single <code>it()</code>, <code>patch</code> already starts empty each test regardless — <code>resetBindings()</code> is a defensive no-op"
+      ],
+      answer: 0,
+      explanation: "Modules are NOT re-imported per test — a module's top-level state, like <code>bindings.ts</code>'s <code>patch</code> object, is created ONCE per test file and stays alive across every <code>it()</code> inside it. If one test called <code>setBinding(...)</code> and the next test didn't reset first, the second test would see the first test's leftover override — a classic source of tests that pass individually but fail (or pass for the wrong reason) depending on run order. <code>beforeEach(() =&gt; resetBindings())</code> forces every test to start from the same clean slate. <code>beforeEach</code> is an ordinary vitest hook that only runs when explicitly called, not required boilerplate, and <code>resetBindings()</code> clears <code>bindings.ts</code>'s own <code>patch</code>/<code>localStorage</code> state — nothing RNG-related. See packages/ui/src/choreo/bindings.ts:384 and packages/ui/src/choreo/bindings.test.ts."
+    }
+  ];
+
+  var idx = 0, score = 0, answered = false;
+  var results = [];
+
+  var topicLabels = {
+    "types-basics": "TypeScript types",
+    "immutability": "Immutability",
+    "reducer-run-state": "Reducer + run state",
+    "zustand-store": "Zustand store",
+    "event-bus": "Event bus",
+    "cards-in-sets": "Cards in sets",
+    "package-boundaries": "Package boundaries",
+    "effects-as-subscriptions": "Effects as subscriptions",
+    "effect-timing-pipeline": "Effect timing",
+    "testing-vitest": "Testing (vitest)"
+  };
+
+  var fill = document.getElementById("fill");
+  var progLabel = document.getElementById("progLabel");
+  var topicTag = document.getElementById("topicTag");
+  var qtext = document.getElementById("qtext");
+  var choicesEl = document.getElementById("choices");
+  var explainEl = document.getElementById("explain");
+  var scoreLabel = document.getElementById("scoreLabel");
+  var nextBtn = document.getElementById("nextBtn");
+  var quizBody = document.getElementById("quizBody");
+  var finalEl = document.getElementById("final");
+  var finalScore = document.getElementById("finalScore");
+  var finalLine = document.getElementById("finalLine");
+  var finalBits = document.getElementById("finalBits");
+
+  var letters = ["A", "B", "C", "D"];
+
+  function render() {
+    var q = QUESTIONS[idx];
+    answered = false;
+    fill.style.width = (idx / QUESTIONS.length * 100) + "%";
+    progLabel.textContent = (idx + 1) + " / " + QUESTIONS.length;
+    topicTag.textContent = topicLabels[q.topicId] || q.topicId;
+    qtext.innerHTML = q.question;
+    scoreLabel.textContent = "Score: " + score + " / " + QUESTIONS.length;
+    explainEl.className = "explain";
+    explainEl.innerHTML = "";
+    nextBtn.className = "next";
+    choicesEl.innerHTML = "";
+
+    q.choices.forEach(function (choiceText, i) {
+      var btn = document.createElement("button");
+      btn.className = "choice";
+      btn.innerHTML = '<span class="letter">' + letters[i] + '</span><span>' + choiceText + '</span>';
+      btn.addEventListener("click", function () { pick(i, btn); });
+      choicesEl.appendChild(btn);
+    });
+  }
+
+  function pick(i, btn) {
+    if (answered) return;
+    answered = true;
+    var q = QUESTIONS[idx];
+    var correct = i === q.answer;
+    if (correct) score++;
+    results.push(correct);
+
+    var btns = choicesEl.querySelectorAll(".choice");
+    btns.forEach(function (b, bi) {
+      b.disabled = true;
+      if (bi === q.answer) b.classList.add("correct");
+      else if (bi === i) b.classList.add("incorrect");
+    });
+
+    explainEl.innerHTML = (correct ? "✅ Correct. " : "❌ Not quite. ") + q.explanation;
+    explainEl.className = "explain show";
+    scoreLabel.textContent = "Score: " + score + " / " + QUESTIONS.length;
+    nextBtn.className = "next show";
+    nextBtn.textContent = idx === QUESTIONS.length - 1 ? "See results →" : "Next →";
+  }
+
+  nextBtn.addEventListener("click", function () {
+    idx++;
+    if (idx >= QUESTIONS.length) {
+      showFinal();
+    } else {
+      render();
+    }
+  });
+
+  function showFinal() {
+    fill.style.width = "100%";
+    progLabel.textContent = QUESTIONS.length + " / " + QUESTIONS.length;
+    quizBody.className = "quizBody hide";
+    finalEl.className = "final show";
+    finalScore.textContent = score + " / " + QUESTIONS.length;
+    var pct = score / QUESTIONS.length;
+    var line;
+    if (pct === 1) line = "Perfect score! You've got a real handle on how this thing is built.";
+    else if (pct >= 0.8) line = "Great run — you're reading the architecture like a regular.";
+    else if (pct >= 0.5) line = "Solid effort — a few of these will click once you skim the files they point to.";
+    else line = "Rough one today — no worries, these get revisited. Go peek at the files named above when you get a chance.";
+    finalLine.textContent = line;
+    finalBits.innerHTML = "";
+    results.forEach(function (ok, i) {
+      var d = document.createElement("div");
+      d.className = "bit " + (ok ? "ok" : "no");
+      d.textContent = (i + 1);
+      finalBits.appendChild(d);
+    });
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

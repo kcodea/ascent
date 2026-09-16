@@ -30,8 +30,15 @@ export function fireStatMilestone(
   // milestone in the same beat, each would fire the rune-arrival clang and they'd stack into a muddy chorus.
   // Play it at most once per short window, so a simultaneous batch reads as one clang (owner ask 2026-09-15);
   // genuinely separate actions land more than a window apart and each still sound.
-  if (binding.sfx !== undefined && !soundCoolingDown()) sfx[binding.sfx]?.();
+  if (binding.sfx !== undefined && !soundCoolingDown()) {
+    // Half the clip's normal level (owner ask 2026-09-15). The bound sound (runeSelectImplosion) takes an
+    // optional volume; sounds that ignore the arg are unaffected, so this stays correct if the sfx is rebound.
+    (sfx[binding.sfx] as ((vol?: number) => void) | undefined)?.(MILESTONE_SOUND_VOLUME);
+  }
 }
+
+/** The milestone clang at half the rune-arrival clip's normal level (owner ask 2026-09-15). */
+const MILESTONE_SOUND_VOLUME = 0.5;
 
 /** True until `MILESTONE_SOUND_GAP_MS` has passed since the last milestone clang, so a burst of simultaneous
  *  crossings collapses to one sound. Stamps the clock on the first call of a batch. */

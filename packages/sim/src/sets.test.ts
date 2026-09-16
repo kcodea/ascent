@@ -128,7 +128,7 @@ describe('card sets — set 2 carries set 1 spells', () => {
     expect(spec('buddy')).toBe('T2 2/1'); // owner balance 2026-08-18
     expect(spec('nimbus')).toBe('T5 4/3');
     expect(spec('ropewrangler')).toBe('T4 6/5'); // owner balance 2026-08-18
-    expect(spec('yazzus')).toBe('T7 5/7'); // owner move 2026-07-31 — the tier half of the sheet's "T7 9/9"
+    expect(spec('yazzus')).toBe('T7 4/8'); // T7: owner move 2026-07-31; 4/8: the set-3 fork became THE Yazzus for every set (owner 2026-09-16)
     expect(spec('lazarus')).toBe('T4 5/4');
     expect(spec('zyff')).toBe('T7 6/6');
     // And Nimbus keeps the "additional time" wording from the 2026-07-24 ruling (stacks with Drakko), not the

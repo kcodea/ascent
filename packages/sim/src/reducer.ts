@@ -1882,8 +1882,8 @@ function reduceCore(state: RunState, action: Action): RunState {
           const giftTarget = def.target ? s.board.find((c) => c.uid === action.targetUid) : undefined;
           if (def.target && !giftTarget) return state; // aimed gift with no valid friendly target → fizzle, kept
           // Set 3 — a card-minted TARGETED hand spell (Tower Shield, Clue: `giftMulticast`) is the one Gift a cast
-          // multiplier reaches: the set-3 Yazzus repeats it ("your targeted spells" — owner 2026-09-09). Nothing
-          // else does — set 1's Yazzus says "Shop spells", and every other multiplier still skips Gifts.
+          // multiplier reaches: Yazzus repeats it ("your targeted spells" — owner 2026-09-09; the one Yazzus for
+          // every set since 2026-09-16). Nothing else does — every other multiplier still skips Gifts.
           const giftCasts = 1 + (def.giftMulticast && giftTarget ? yazzusExtraCasts(s) : 0);
           for (let n = 0; n < giftCasts; n++) applyCastEffects(makeContext(s), def, giftTarget);
           s.hand.splice(i, 1);
@@ -5991,8 +5991,8 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       if ((r.randomRuby ?? 0) > 0) mintRubies(s, r.randomRuby!);
       if (r.randomFilter) grantRandomFilterMinion(s, r.randomFilter, r.randomFilterCount ?? 1, r.randomFilterExactTier, true); // "N random Shout/Echo/Rally/Attachment minions"
       if (r.randomTier) grantRandomTierMinion(s, r.randomTier, r.randomCount ?? 1, true); // Rune of the Pair — N random Tier-K minions
-      // SET FORKS (2026-09-14): a granted id resolves to the pinned set's fork (`yazzus` → `n3_yazzus` in set 3),
-      // so Rune of Yazzus / Frontline Glory hand a set-3 run its own Yazzus — never the legacy twin beside it.
+      // SET FORKS (2026-09-14): a granted id resolves to the pinned set's fork when one exists (`SET_FORKS` — empty
+      // since Yazzus was unified 2026-09-16, kept for the next set that needs one).
       for (const raw of r.grantGolden ?? []) { // Leader of the Pack / Stormcalling — a GILDED copy (board-overflow safe)
         const id = forkedCardId(setIdOf(s), raw);
         if (CARD_INDEX[id]) grantMinionToHandOrBoard(s, CARD_INDEX[id]!, true, true);

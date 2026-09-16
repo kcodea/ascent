@@ -10,7 +10,8 @@ import { equipmentUsesLeft } from './equipment';
  * `set3Scaffold.test.ts`; this file covers the rulings with behaviour:
  *  - Splitboon Adept: option 1 targets one friend (+6/+6), option 2 buffs both neighbours (+3/+3); golden doubles;
  *    the adjacent Shout also resolves as a COMBAT re-fire (arena body).
- *  - The set-3 Yazzus doubles aimed Shop spells like the original AND Rubies (set 1's does not touch Rubies).
+ *  - Yazzus (ONE card in every set since 2026-09-16 — the set-3 fork became the permanent `yazzus`) doubles
+ *    aimed Shop spells AND Rubies AND the card-minted hand spells: every targeted spell.
  *  - Blaster is a set-3 card again and no longer archived. Sylus / Drakko wear their short names.
  */
 
@@ -86,33 +87,35 @@ describe('Splitboon Adept (Choose One)', () => {
   });
 });
 
-describe('the set-3 Yazzus fork', () => {
-  it('is T7 4/8 (T7 since 2026-09-11, "as he is in set 2") and doubles aimed Shop spells (golden ×3), like the original', () => {
-    const d = CARD_INDEX['n3_yazzus']!;
+describe('Yazzus — one card, every targeted spell (owner 2026-09-16)', () => {
+  it('is T7 4/8 and doubles aimed Shop spells (golden ×3)', () => {
+    const d = CARD_INDEX['yazzus']!;
     expect([d.tier, d.attack, d.health]).toEqual([7, 4, 8]);
+    expect(d.text).toBe('Your **targeted** spells cast **an additional** time.');
+    expect(d.goldenText).toBe('Your **targeted** spells cast **2 additional** times.');
     const spirit = CARD_INDEX['spiritfire'] ?? Object.values(CARD_INDEX).find((c) => c.spell && c.target)!;
-    expect(spellCasts(run({ board: [body('y', 'n3_yazzus')] }), spirit)).toBe(2);
-    expect(spellCasts(run({ board: [body('y', 'n3_yazzus', { golden: true })] }), spirit)).toBe(3);
+    expect(spellCasts(run({ board: [body('y', 'yazzus')] }), spirit)).toBe(2);
+    expect(spellCasts(run({ board: [body('y', 'yazzus', { golden: true })] }), spirit)).toBe(3);
     expect(spellCasts(run({ board: [] }), spirit)).toBe(1);
   });
 
-  it('doubles Rubies too — set 1\'s Yazzus does not', () => {
-    expect(rubyCastCount(run({ board: [body('y', 'n3_yazzus')] }))).toBe(2);
-    expect(rubyCastCount(run({ board: [body('y', 'n3_yazzus', { golden: true })] }))).toBe(3);
-    expect(rubyCastCount(run({ board: [body('y', 'yazzus')] }))).toBe(1);
+  it('doubles Rubies too (golden ×3)', () => {
+    expect(rubyCastCount(run({ board: [body('y', 'yazzus')] }))).toBe(2);
+    expect(rubyCastCount(run({ board: [body('y', 'yazzus', { golden: true })] }))).toBe(3);
+    expect(rubyCastCount(run({ board: [] }))).toBe(1);
   });
 
-  it('a Ruby played with the set-3 Yazzus on board lands twice', () => {
-    let s = run({ board: [body('y', 'n3_yazzus'), body('t', 'venom')], hand: [{ ...hand('rb', 'ruby'), attack: 1, health: 1 }] });
+  it('a Ruby played with Yazzus on board lands twice', () => {
+    let s = run({ board: [body('y', 'yazzus'), body('t', 'venom')], hand: [{ ...hand('rb', 'ruby'), attack: 1, health: 1 }] });
     s = reduce(s, { type: 'play', uid: 'rb', targetUid: 't' } as Action);
     expect([at(s, 't').attack, at(s, 't').health]).toEqual([3, 3]);
   });
 
-  it('set 1 keeps the original Yazzus untouched', () => {
-    const d = CARD_INDEX['yazzus']!;
-    expect([d.tier, d.attack, d.health]).toEqual([7, 5, 7]);
-    expect(poolFor('set3').buyable.some((c) => c.id === 'yazzus')).toBe(false);
-    expect(poolFor('set3').buyable.some((c) => c.id === 'n3_yazzus')).toBe(true);
+  it('there is no second Yazzus: n3_yazzus is gone from every pool and resolves to the one card', () => {
+    expect(poolFor('set3').buyable.some((c) => c.id === 'yazzus')).toBe(true);
+    expect(poolFor('set2').buyable.some((c) => c.id === 'yazzus')).toBe(true);
+    expect(poolFor('set3').all.some((c) => c.id === 'n3_yazzus')).toBe(false);
+    expect(CARD_INDEX['n3_yazzus']).toBe(CARD_INDEX['yazzus']);
   });
 });
 
@@ -156,13 +159,13 @@ describe('Tower Shield — a card-minted Gift', () => {
     expect(s.lastSpellCastId, 'Steward of Spells never copies a Gift').toBe('growth');
   });
 
-  it('the set-3 Yazzus repeats it; set 1\'s Yazzus does not', () => {
-    let s = run({ board: [body('y', 'n3_yazzus'), body('t', 'venom')], hand: [hand('ts', 'tower_shield')] });
+  it('Yazzus repeats it (a targeted spell); a golden Yazzus repeats it twice', () => {
+    let s = run({ board: [body('y', 'yazzus'), body('t', 'venom')], hand: [hand('ts', 'tower_shield')] });
     s = reduce(s, { type: 'play', uid: 'ts', targetUid: 't' } as Action);
     expect([at(s, 't').attack, at(s, 't').health]).toEqual([5, 3]);
-    let o = run({ board: [body('y', 'yazzus'), body('t', 'venom')], hand: [hand('ts', 'tower_shield')] });
-    o = reduce(o, { type: 'play', uid: 'ts', targetUid: 't' } as Action);
-    expect([at(o, 't').attack, at(o, 't').health]).toEqual([3, 2]);
+    let g = run({ board: [body('y', 'yazzus', { golden: true }), body('t', 'venom')], hand: [hand('ts', 'tower_shield')] });
+    g = reduce(g, { type: 'play', uid: 'ts', targetUid: 't' } as Action);
+    expect([at(g, 't').attack, at(g, 't').health]).toEqual([7, 4]);
   });
 });
 
@@ -178,7 +181,7 @@ describe('Clue — improves itself', () => {
   });
 
   it('a Yazzus-repeated Clue is two real Clues: +1/+1 then +2/+2, and the value climbs twice', () => {
-    let s = run({ board: [body('y', 'n3_yazzus'), body('t', 'venom')], hand: [hand('c1', 'clue')] });
+    let s = run({ board: [body('y', 'yazzus'), body('t', 'venom')], hand: [hand('c1', 'clue')] });
     s = reduce(s, { type: 'play', uid: 'c1', targetUid: 't' } as Action);
     expect([at(s, 't').attack, at(s, 't').health, s.clueBonus]).toEqual([4, 4, 2]);
   });

@@ -56,6 +56,25 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-16',
+    label: 'One Yazzus',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'Yazzus is one card again, in every set: your targeted spells cast an additional time (a Gilded Yazzus: two additional times).',
+        details: [
+          'Every targeted spell counts — Shop spells, Rubies, Tower Shields and Clues — not just Shop spells.',
+          'He is a Tier 7 4/8 everywhere; the separate "Set 3 Yazzus" is gone, and a saved run or replay that had one now shows the one Yazzus.',
+          'Rune of Yazzus and Rune of Frontline Glory grant this Yazzus.',
+        ],
+      },
+      {
+        category: 'Rune Change',
+        text: 'Rune of Frontline Glory leaves Set 3 (it stays a Set 1 rune).',
+      },
+    ],
+  },
+  {
+    date: '2026-09-16',
     label: 'Rebirth, Amplified Equipment + six Set 3 Runes',
     changes: [
       {

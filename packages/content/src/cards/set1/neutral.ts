@@ -153,22 +153,28 @@ export const NEUTRAL: CardDef[] = [
     goldenText: 'Your **End of Turn** effects trigger **three times**.',
   },
   {
-    // Spell doubler (recruit) — AIMED spells only. While on your board, each spell you *aim at a minion*
-    // (target: friendly/any) resolves its effect an extra time (golden: twice extra → ×3). Untargeted
-    // economy/utility/Discover spells are NOT multiplied. Resolved in @game/sim via `spellCasts(def)`.
-    // No combat factory → inert in combat; the body is just a sturdy 6/8.
+    // Spell doubler (recruit) — TARGETED spells only. While on your board, EVERY spell you *aim at a minion*
+    // (target: friendly/any) resolves its effect an extra time (golden: twice extra → ×3): Shop spells, Rubies,
+    // and the card-minted hand spells (Tower Shield, Clue). Untargeted economy/utility/Discover spells are NOT
+    // multiplied. Resolved in @game/sim: `spellCastMult` (aimed Shop spells), `rubyCastCount` (Rubies) and
+    // `yazzusExtraCasts` (Gifts) all read this id; best single copy wins, like Drakko / Chronos.
+    // No combat factory → inert in combat; the body is just a sturdy 4/8.
+    //
+    // ONE Yazzus (owner 2026-09-16): "there is no legacy or new Yazzus" — the set-3 fork (`n3_yazzus`, T7 4/8,
+    // "your targeted spells", 2026-09-09) IS the permanent Yazzus now, under this id, in every set that carries
+    // him. The 5/7 "targeted SHOP spells" body is gone; `n3_yazzus` resolves here through `LEGACY_CARD_IDS`.
     id: 'yazzus',
     name: 'Yazzus',
     tribe: 'neutral',
     // T6 → T7 (owner 2026-07-31) — the capstone tier, so outside the Summit rift it no longer shows up in
     // shops and arrives through explicit grants instead (Rune of Yazzus / Frontline Glory name it by id).
     tier: 7,
-    attack: 5,
-    health: 7,
+    attack: 4,
+    health: 8,
     keywords: [],
     effects: [],
-    text: 'Your **targeted** Shop spells cast **twice**.',
-    goldenText: 'Your **targeted** Shop spells cast **three times**.',
+    text: 'Your **targeted** spells cast **an additional** time.',
+    goldenText: 'Your **targeted** spells cast **2 additional** times.',
   },
   {
     // Engraver. At Start of Combat it grants Engraved (EG) to the minion on its LEFT (golden: both

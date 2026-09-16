@@ -176,13 +176,18 @@ const SET1_UNDEAD_IN_SET3: readonly CardDef[] = [
 /**
  * NEUTRALS that carry into SET 3 (owner roster 2026-09-09) — opted in BY ID from set 1 and set 2, SHARED
  * definitions like every other carry-over (a re-spec here would rebalance the source set; set 3's own version
- * of a card is a FORK in `cards/set3/neutral.ts` under a new id — Yazzus is the first).
+ * of a card would be a FORK in `cards/set3/neutral.ts` under a new id — Yazzus was the first, until the owner
+ * made the fork THE Yazzus for every set on 2026-09-16).
  *
  * Owner rulings on the roster: Bellringer Voss, Wayfinder, Black Belt Brian and Steward of Spells keep their
  * CURRENT stats (the sheet's numbers were stale); Sylus and Drakko are renamed for every set (display only,
  * ids unchanged); Blaster is restored from the archive as a set-3 card (`cards/set3/neutral.ts`).
  * Salvatore McKlusky and Anubis live in set 1's TIER7 list, hence the second filter.
  */
+/** Yazzus in set 3 — the one shared `yazzus` (owner 2026-09-16: no legacy / new split), kept OUT of the roster
+ *  list below so it can stay at the slot its set-3 fork occupied in the manifest (declaration order drives
+ *  seeded pool picks). */
+const YAZZUS_IN_SET3: readonly CardDef[] = NEUTRAL.filter((c) => c.id === 'yazzus');
 const SET1_NEUTRALS_IN_SET3: readonly CardDef[] = [
   ...NEUTRAL.filter((c) => [
     'venom', 'arenaheckler', 'tauntbreaker', 'wayfinder', 'blackbelt', 'jenkins', 'sylus', 'drummer', 'chronos',
@@ -266,14 +271,14 @@ export interface SetDef {
 
 /**
  * SET FORKS (rune roster handoff 2026-09-14, rule 7): a card a RUNE grants by id resolves to the pinned set's FORK
- * of that card when one exists. Rune of Yazzus / Rune of Frontline Glory name the legacy `yazzus`; set 3 plays
- * `n3_yazzus` (its Tier-7 fork with the wider Ruby / Ale scope), and granting the legacy body in a set-3 run would
- * put two indistinguishable "Yazzus" outcomes on the table. Only the GRANT path consults this — a card already in
- * a run's pool is never rewritten.
+ * of that card when one exists, so a rune never puts two indistinguishable outcomes of one name on the table.
+ * Only the GRANT path consults this — a card already in a run's pool is never rewritten.
+ *
+ * Currently EMPTY. Its one entry (`set3: { yazzus: 'n3_yazzus' }`) went when the owner unified Yazzus into a
+ * single card (2026-09-16 — the fork became the permanent `yazzus`; the old id resolves via `LEGACY_CARD_IDS`).
+ * The mechanism stays for the next set that genuinely needs a fork.
  */
-export const SET_FORKS: Partial<Record<SetId, Readonly<Record<string, string>>>> = {
-  set3: { yazzus: 'n3_yazzus' },
-};
+export const SET_FORKS: Partial<Record<SetId, Readonly<Record<string, string>>>> = {};
 /** The id a rune / quest grant should actually deliver in `setId`. */
 export const forkedCardId = (setId: SetId, cardId: string): string => SET_FORKS[setId]?.[cardId] ?? cardId;
 
@@ -326,9 +331,11 @@ export const SETS: Record<SetId, SetDef> = {
     // rather than folded into `SET3_CARDS`, so the Kobolds' positions never moved. The Ales are spells and go
     // last with the other spells.
     // Then the Undead (2026-09-09): set 3's own, then the carried set-1 ones — appended after the Dwarves, spells still last.
-    // Then the NEUTRALS (2026-09-09): set 3's own (Blaster, Splitboon, the set-3 Yazzus…), then the carried set-1 and set-2 ones.
+    // Then the NEUTRALS (2026-09-09): set 3's own (Blaster, Splitboon…), then Yazzus — the ONE shared Yazzus
+    // (2026-09-16) sits exactly where its set-3 fork used to, so set-3 pool order (seeded picks) never moved —
+    // then the carried set-1 and set-2 ones.
     // Then the SPIRITS (2026-09-09): a brand-new tribe, all set 3's own — appended after the Neutrals.
-    own: [...SET3_CARDS, ...SET2_KOBOLDS_IN_SET3, ...SET3_DWARVES, ...SET2_DWARVES_IN_SET3, ...SET3_UNDEAD, ...SET1_UNDEAD_IN_SET3, ...SET3_NEUTRAL, ...SET1_NEUTRALS_IN_SET3, ...SET2_NEUTRALS_IN_SET3, ...SET3_SPIRITS, ...SET3_CELESTIALS, ...SET3_SHARED_SPELLS, ...SET2_ALES_IN_SET3, ...SET3_SPELLS], // Celestials appended 2026-09-11; set 3's OWN spells last, after the shared toolkit + Ales (2026-09-10) // → packages/content/src/cards/set3/*.ts
+    own: [...SET3_CARDS, ...SET2_KOBOLDS_IN_SET3, ...SET3_DWARVES, ...SET2_DWARVES_IN_SET3, ...SET3_UNDEAD, ...SET1_UNDEAD_IN_SET3, ...SET3_NEUTRAL, ...YAZZUS_IN_SET3, ...SET1_NEUTRALS_IN_SET3, ...SET2_NEUTRALS_IN_SET3, ...SET3_SPIRITS, ...SET3_CELESTIALS, ...SET3_SHARED_SPELLS, ...SET2_ALES_IN_SET3, ...SET3_SPELLS], // Celestials appended 2026-09-11; set 3's OWN spells last, after the shared toolkit + Ales (2026-09-10) // → packages/content/src/cards/set3/*.ts
   },
 };
 

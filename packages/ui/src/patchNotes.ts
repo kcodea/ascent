@@ -148,6 +148,16 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-14',
+    label: 'Milestone badges',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Attack and Health badges now sit in tiered frames that light up as a unit grows, with a celebration when a stat hits a new milestone in the shop.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-14',
     label: 'Set 3 rune roster',
     changes: [
       {

@@ -11,6 +11,8 @@ import {
 import { CardArtEditor } from './CardArtEditor';
 import { heldFor, holdStat, statHoldKey, subscribeStatHolds } from './fx/statHold';
 import { resolveMechIcon } from './mechIcon';
+import { crossedUp, tierOf } from './choreo/statMilestones';
+import { fireStatMilestone } from './fx/statMilestone';
 
 /** The badge's scale-pop: how far it swells and over how long. See `useBadgePop`. */
 const BADGE_POP_SCALE = 1.35;
@@ -181,6 +183,12 @@ const tierPlateSrc = (golden: boolean): string =>
 /** The dark shape seated behind the rules-text panel (see `.descbox`). Owner art, a full card-body silhouette. */
 const DESC_BOX_SRC = `${import.meta.env.BASE_URL}frames/desc-backbox.webp`;
 const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.webp`;
+// Milestone frame art — the disc a stat badge sits in once it crosses a value tier (see choreo/statMilestones.ts).
+// One per stat (`atk` sword motif / `hp` heart motif) per tier 1..5; tier 0 (below the first threshold) has no
+// frame and keeps the flat plate. BASE_URL-relative like every other public/frames asset (itch serves from a CDN
+// sub-path where a root-absolute '/frames/…' 404s — see the note on TAUNT_FRAME_SRC).
+const msFrameSrc = (stat: 'atk' | 'hp', tier: number): string =>
+  `${import.meta.env.BASE_URL}frames/milestone-${stat}-${tier}.webp`;
 // Per-tribe plates — same stone/gold body as the neutral plate, tribe-coloured gem accents, same 800×1244
 // dims so the geometry vars are unchanged. Keyed on the PRIMARY tribe only (owner 2026-07-25): a Beast/Dragon
 // shows the neutral plate, only a Beast-PRIMARY card gets the beast one. Add a tribe here + drop its webp in
@@ -530,7 +538,21 @@ export const Card = memo(function Card({
     // NO local loop and no failsafe timer. `fx/statHold.ts` owns the clock for every hold no effect claimed
     // — one rAF for the whole board instead of one per card, and it survives this card unmounting mid-roll.
     // Its schedule-aware TTL is what force-delivers a hold nobody finished.
-  }, [uid, card.attack, card.health, autoRoll]);
+
+    // Milestone celebration: fire the per-tier def when a badge crosses a fixed value tier UPWARD. Guarded by
+    // the same conditions as the roll above — a real stat change on a uid-bearing (recruit) surface, never on
+    // spawn (prev.uid !== uid returned already) — so it is shop/hand-only for free and combat-ready via Unit.
+    const atkTier = crossedUp('attack', prev.attack, card.attack);
+    const hpTier = crossedUp('health', prev.health, card.health);
+    if (atkTier !== null) {
+      const r = atkPopRef.current?.getBoundingClientRect();
+      if (r) fireStatMilestone(card.cardId, 'attack', atkTier, { x: r.left + r.width / 2, y: r.top + r.height / 2 });
+    }
+    if (hpTier !== null) {
+      const r = hpPopRef.current?.getBoundingClientRect();
+      if (r) fireStatMilestone(card.cardId, 'health', hpTier, { x: r.left + r.width / 2, y: r.top + r.height / 2 });
+    }
+  }, [uid, card.attack, card.health, autoRoll, card.cardId]);
 
   // What the badges actually print. Live value MINUS whatever hasn't been shown yet, so the number stays
   // correct under anything else that touches the unit mid-hold (see statHold.ts on why it is a delta).
@@ -541,6 +563,10 @@ export const Card = memo(function Card({
   // allowed to print a negative stat.
   const shownAttack = held ? Math.max(0, card.attack - held.attack) : card.attack;
   const shownHealth = held ? Math.max(0, card.health - held.health) : card.health;
+  // Milestone tier of each SETTLED stat (0 = below the first threshold → no frame; 1..5 → a frame disc). Drives
+  // the badge frame art AND the data-milestone attribute below.
+  const atkMs = tierOf('attack', card.attack);
+  const hpMs = tierOf('health', card.health);
   // Each badge pops independently, so a buff that only moves attack leaves the health badge alone.
   const atkPopRef = useBadgePop(shownAttack);
   const hpPopRef = useBadgePop(shownHealth);
@@ -1085,11 +1111,17 @@ export const Card = memo(function Card({
             {/* Stat badges — three nodes each so FX can target them separately (docs/fx-vocabulary.md):
                 the `.badge` wrapper seats the pair, `.plate` is the shape, `.value` is the digit. Plate and
                 value are SIBLINGS, not nested, so the plate can scale without dragging the number. */}
-            <span ref={atkPopRef} className={`badge atk${statCls(shownAttack, card.baseAttack, card.floorAttack)}`}>
+            <span ref={atkPopRef} data-milestone={atkMs} className={`badge atk${statCls(shownAttack, card.baseAttack, card.floorAttack)}`}>
+              {atkMs >= 1 && <span className="msglow" aria-hidden="true" />}
+              {atkMs >= 1 && <img decoding="sync" className="msframe" src={msFrameSrc('atk', atkMs)} alt="" aria-hidden="true" />}
+              {atkMs >= 1 && <span className="mstint" aria-hidden="true" />}
               <span className="plate" aria-hidden="true" />
               <span className="value">{formatStat(shownAttack)}</span>
             </span>
-            <span ref={hpPopRef} className={`badge hp${statCls(shownHealth, card.baseHealth, card.floorHealth)}`}>
+            <span ref={hpPopRef} data-milestone={hpMs} className={`badge hp${statCls(shownHealth, card.baseHealth, card.floorHealth)}`}>
+              {hpMs >= 1 && <span className="msglow" aria-hidden="true" />}
+              {hpMs >= 1 && <img decoding="sync" className="msframe" src={msFrameSrc('hp', hpMs)} alt="" aria-hidden="true" />}
+              {hpMs >= 1 && <span className="mstint" aria-hidden="true" />}
               <span className="plate" aria-hidden="true" />
               <span className="value">{formatStat(shownHealth)}</span>
             </span>

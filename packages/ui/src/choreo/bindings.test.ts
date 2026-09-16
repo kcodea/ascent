@@ -13,6 +13,7 @@ import {
   setBinding,
   unbindJson,
   HUD_BINDING_KINDS,
+  STAT_MILESTONE_BINDING_KINDS,
 } from './bindings';
 import { CARD_INDEX } from '@game/content';
 import { SCORE_DEFAULTS } from './score';
@@ -183,6 +184,7 @@ const BINDINGS: Record<string, { def: string }> = {
   spellProgress: { def: 'spell-progress' },
   questTrigger: { def: 'quest-trigger' }, questComplete: { def: 'quest-complete' },
   // NB: `rally` is absent from this table on purpose — it is a committed TOMBSTONE, asserted below.
+  // NB: the stat-milestone kinds carry an `sfx`, so they live in SFX_BINDINGS below, not here.
 };
 
 /**
@@ -241,9 +243,22 @@ const FANOUT_BINDINGS: Record<string, { def: string; fanOut: string }> = {
   attackExchange: { def: 'self-buff-burst', fanOut: 'selfBuffed' },
 };
 
+/** Kind bindings that carry an `sfx`. Stat-milestone tiers 1-5 (a badge crossing a fixed Attack/Health value)
+ *  all reuse the rune-arrival beat — the same `rune-select-implosion` def and `runeSelectImplosion` sound — so a
+ *  milestone celebration reads like a rune landing in its slot (owner ask 2026-09-15). The per-tier FRAME art is
+ *  separate (public/frames/milestone-*.webp); the def here is the burst, not the frame. */
+const SFX_BINDINGS: Record<string, { def: string; sfx: string }> = {
+  statMilestone1: { def: 'rune-select-implosion', sfx: 'runeSelectImplosion' },
+  statMilestone2: { def: 'rune-select-implosion', sfx: 'runeSelectImplosion' },
+  statMilestone3: { def: 'rune-select-implosion', sfx: 'runeSelectImplosion' },
+  statMilestone4: { def: 'rune-select-implosion', sfx: 'runeSelectImplosion' },
+  statMilestone5: { def: 'rune-select-implosion', sfx: 'runeSelectImplosion' },
+};
+
 describe('the bound kinds', () => {
   it('binds exactly the intended kind → def pairs, and nothing else', () => {
-    const expected: Record<string, { def: string; fanOut?: string }> = { ...BINDINGS, ...FANOUT_BINDINGS };
+    const expected: Record<string, { def: string; fanOut?: string; sfx?: string }> =
+      { ...BINDINGS, ...FANOUT_BINDINGS, ...SFX_BINDINGS };
     expect(effectiveTables().kinds).toEqual(expected);
   });
 
@@ -307,10 +322,13 @@ describe('binding integrity', () => {
   });
 
   it('every key is a real moment kind and a real card id', () => {
-    // Both phases plus the HUD: combat kinds come from the score table, shop kinds from the recruit
-    // vocabulary, and HUD kinds (a rune badge firing) from their own list — they have neither a combat cue
-    // row nor a recruit emitter, by design (see `HudBindingKind`).
-    const kinds = new Set<string>([...Object.keys(SCORE_DEFAULTS), ...RECRUIT_MOMENT_KINDS, ...HUD_BINDING_KINDS]);
+    // Both phases plus the HUD and stat-milestone families: combat kinds come from the score table, shop
+    // kinds from the recruit vocabulary, HUD kinds (a rune badge firing) and stat-milestone kinds (a badge
+    // crossing a tier) from their own lists — they have neither a combat cue row nor a recruit emitter, by
+    // design (see `HudBindingKind` / `StatMilestoneBindingKind`).
+    const kinds = new Set<string>([
+      ...Object.keys(SCORE_DEFAULTS), ...RECRUIT_MOMENT_KINDS, ...HUD_BINDING_KINDS, ...STAT_MILESTONE_BINDING_KINDS,
+    ]);
     const t = effectiveTables();
     const bad: string[] = [];
     for (const kind of Object.keys(t.kinds)) if (!kinds.has(kind)) bad.push(`kinds.${kind}`);

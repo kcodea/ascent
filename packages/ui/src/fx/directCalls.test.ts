@@ -136,7 +136,7 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
     // A THIRD of the same kind (2026-09-09): `buffFxRender.ts` picks a per-tribe `tendril-trail-<tribe>` from
     // the buffer's tribe — a data-resolved id (like a binding, keyed on tribe rather than a bindings.json row),
     // not a fourth caller pattern. Listed for the same reason.
-    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['EquipFxTuner.tsx', 'Recruit.tsx', 'buffFxRender.ts', 'choreo/recruitCues.ts', 'choreo/score.ts', 'runeTriggerFx.ts', 'useCombatReplay.ts']);
+    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['EquipFxTuner.tsx', 'Recruit.tsx', 'buffFxRender.ts', 'choreo/recruitCues.ts', 'choreo/score.ts', 'fx/statMilestone.ts', 'runeTriggerFx.ts', 'useCombatReplay.ts']);
   });
 
   // The seven migrated effects the library used to call inert, plus `ruby-gem-apply` — authored in the

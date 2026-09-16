@@ -66,6 +66,26 @@
     },
     "shout": {
       "def": "shout-icon-effect"
+    },
+    "statMilestone1": {
+      "def": "rune-select-implosion",
+      "sfx": "runeSelectImplosion"
+    },
+    "statMilestone2": {
+      "def": "rune-select-implosion",
+      "sfx": "runeSelectImplosion"
+    },
+    "statMilestone3": {
+      "def": "rune-select-implosion",
+      "sfx": "runeSelectImplosion"
+    },
+    "statMilestone4": {
+      "def": "rune-select-implosion",
+      "sfx": "runeSelectImplosion"
+    },
+    "statMilestone5": {
+      "def": "rune-select-implosion",
+      "sfx": "runeSelectImplosion"
     }
   },
   "cards": {

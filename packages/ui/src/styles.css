@@ -1846,6 +1846,89 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* stats above base read green, below base read red */
 .atk.up > .plate, .hp.up > .plate { background: #1aa86f; }
 .atk.down > .plate, .hp.down > .plate { background: #d23b2b; }
+/* ── MILESTONE FRAMES ────────────────────────────────────────────────────────────────────────────────────
+   A tiered frame ART DISC the badge sits in once a stat crosses a value tier, driven by `data-milestone`
+   (0..5 = tierOf(value); see choreo/statMilestones.ts). Tier 0 (below the first threshold) shows NO frame and
+   keeps the flat `.plate`; tiers 1..5 render `<img.msframe>` (public/frames/milestone-{atk,hp}-{1..5}.webp) and
+   hide the plate. The number (`.value`) stays put — the frame disc is sized/offset AROUND it, so the frame grows
+   without moving the digit. Attack = sword motif, Health = heart motif; both escalate and OVERFLOW the badge box
+   (the sword/heart extend past the disc), which is why `.atk`/`.hp` keep `overflow: visible`.
+   Pure STATIC paint — no looping animation. The value roll and one-shot `useBadgePop` are untouched.
+   NOTE: `data-milestone`/`--msf-*` are MILESTONE tiers — DISTINCT from the unit's shop tier (`--tier-N`).
+   The frame art overflows the 60px badge; the `--msf-scale`/`--msf-dx`/`--msf-dy` knobs per tier seat each
+   frame's disc on the number (art discs sit slightly right-of/below their image centre, hence the default dy). */
+.badge:not([data-milestone='0']) > .plate { display: none; }   /* framed tiers: the art disc replaces the plate */
+.badge > .msframe {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: calc(60px * var(--msf-scale, 1));
+  height: auto;
+  transform: translate(-50%, -50%) translate(var(--msf-dx, -0.5px), var(--msf-dy, 3px));
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
+}
+/* Per-tier frame size — set on the .badge so BOTH the frame img and the tint disc (its children) inherit it.
+   Values come from the 🏅 Milestone Badges tuner (milestoneFrameConfig.ts); the literals are the shipped
+   fallback if a config var is ever absent. Ornate high tiers have a smaller disc-to-image ratio, so they scale
+   up to keep the disc — and thus the number — a constant on-screen size. */
+.badge[data-milestone='1'] { --msf-scale: var(--ms-scale-1, 1); --ms-glow: var(--ms-glow-1, #c9d3e0); }
+.badge[data-milestone='2'] { --msf-scale: var(--ms-scale-2, 1); --ms-glow: var(--ms-glow-2, #c9d3e0); }
+.badge[data-milestone='3'] { --msf-scale: var(--ms-scale-3, 1); --ms-glow: var(--ms-glow-3, #ffd54a); }
+.badge[data-milestone='4'] { --msf-scale: var(--ms-scale-4, 1); --ms-glow: var(--ms-glow-4, #ff5edb); }
+.badge[data-milestone='5'] { --msf-scale: var(--ms-scale-5, 1); --ms-glow: var(--ms-glow-5, #4fd1ff); }
+/* Per-tier GLOW underneath the frame — a soft, blurred colour disc behind the art whose colour is set per tier
+   (owner ask 2026-09-15). STATIC blur (no looping animation), so it respects the 60fps paint rule. It is the
+   FIRST child of .badge in the DOM, so it paints BEHIND the frame / tint / number. */
+.badge > .msglow {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: calc(60px * var(--msf-scale, 1) * var(--msglow-frac, 0.95));
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%) translate(var(--msf-dx, -0.5px), var(--msf-dy, 3px));
+  border-radius: 50%;
+  pointer-events: none;
+  background: var(--ms-glow, #c9d3e0);
+  filter: blur(var(--msglow-blur, 9px));
+  opacity: var(--msglow-opacity, 0.75);
+}
+/* State tint — a SOLID disc OVER the frame's leather, coloured by stat state (owner ask 2026-09-15):
+   neutral / buffed / reduced. Above the frame art, below the number. Size, strength, offset and the three
+   colours are all tuner-driven; the literals here are the shipped fallback (owner-tuned 2026-09-15). */
+.badge > .mstint {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: calc(60px * var(--msf-scale, 1) * var(--mstint-frac, 0.66));
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%) translate(var(--mstint-dx, -1.5px), var(--mstint-dy, -0.5px));
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: var(--mstint-opacity, 1);
+  background: var(--mstint-neutral, #be8c04);   /* neutral — a SOLID fill (owner ask 2026-09-15) */
+}
+.badge.up > .mstint { background: var(--mstint-up, #00992e); }     /* buffed above base */
+.badge.down > .mstint { background: var(--mstint-down, #bd311f); } /* below base/floor */
+/* The number on a framed badge — size / colour / nudge / outline are tuner-driven; unframed tier-0 badges keep
+   the base `.badge > .value` rule above. Absolutely centred on the disc so it grows from BOTH sides (a 4-digit
+   5000 stays centred instead of spilling off the right); the second translate is the tuner's nudge. */
+.badge:not([data-milestone='0']) > .value {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%) translate(var(--msnum-dx, -0.5px), var(--msnum-dy, 0px));
+  text-align: center;
+  white-space: nowrap;
+  font-size: var(--msnum-size, 33px);
+  color: var(--msnum-color, #fff);
+  -webkit-text-stroke: var(--msnum-stroke-w, 0px) var(--msnum-stroke-color, #000);
+}
+/* MILESTONE TUNER PREVIEW — the 🏅 Milestone Badges panel renders the real badge markup for all ten tiers so it
+   tracks the CSS vars live. The badges are normally absolute at a card's corners; here they lay out in rows, so
+   their positioning is neutralised and the row leaves generous room for the frame overflow (sword/heart). */
+.msprev { background: rgba(0, 0, 0, 0.28); border-radius: 8px; padding: 4px 6px 10px; }
+.msprev-states { display: flex; gap: 6px; justify-content: center; padding: 8px 0 2px; }
+.msprev-states .btn.on { outline: 2px solid var(--kw, #ffd54a); }
+.msprev-label { font: 600 11px/1.6 var(--font-ui); opacity: 0.7; text-align: center; margin-top: 4px; }
+.msprev-row { display: flex; gap: 26px; justify-content: center; align-items: center; padding: 20px 10px; }
+.msprev .badge.atk, .msprev .badge.hp { position: relative; inset: auto; bottom: auto; left: auto; right: auto; }
 /* A buff just landed here → the changed stat badge pops once (transform/opacity only — no paint props, per the
    60fps rule). Combat used to run its own `.statflash` cue for this; retired (Task 3 of the combat/shop
    stat-hold unification) now that combat's badge reads the same shared hold store the shop does, so Card's own

@@ -8930,7 +8930,8 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     const baseA = Number(eff?.params?.attack ?? 5), baseH = Number(eff?.params?.health ?? 7);
     const sc = extra?.starCrashBonus ?? { attack: 0, health: 0 };
     const a = baseA + bonusA + sc.attack, h = baseH + bonusH + sc.health;
-    return a !== baseA || h !== baseH ? def.text.replace(`**+${baseA}/+${baseH}**`, `**{{+${a}/+${h}}}**`) : def.text;
+    // The bold spans "Celestial +5/+7", so only the number is swapped (the `{{ }}` greens it like every other live value).
+    return a !== baseA || h !== baseH ? def.text.replace(`+${baseA}/+${baseH}`, `{{+${a}/+${h}}}`) : def.text;
   }
   // A RUBY itself reads live: base 1/1 + the run's `rubyBonus`. Needed since hovering any card that mentions
   // Rubies now previews the Ruby (owner 2026-07-25) — a preview promising "+1/+1" while the real Ruby grants
@@ -9562,6 +9563,7 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
       const done = state.circuitSoldThisTurn ?? 0;
       if (done < circuit * runeStacksOf(state, 'rune_festival_circuit')) {
         state.circuitSoldThisTurn = done + 1;
+        // `defIsTribe` — the shared helper, so an All-types body counts as a Celestial here as it does everywhere else.
         const pool = poolOf(state).buyable.filter((c) => !c.spell && !c.token && !c.ruby && c.tier <= state.tier && defIsTribe(c, 'celestial'));
         if (pool.length > 0) { procRuneId(state, 'rune_festival_circuit'); conjureToHand(state, pool, 1, true); }
       }

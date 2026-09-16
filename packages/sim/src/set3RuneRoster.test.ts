@@ -33,7 +33,8 @@ describe('the Set 3 static rune pool (handoff 2026-09-14)', () => {
   });
   it('Set 1 and Set 2 pools keep their previous scoped runes — a carryover only ADDS set3', () => {
     for (const r of [...RUNES, ...EPIC_RUNES]) {
-      if (r.sets?.includes('set3')) expect(r.sets.some((x) => x === 'set1' || x === 'set2'), `${r.id} kept its origin scope`).toBe(true);
+      // A Set 3-ORIGINAL rune (`sets: ['set3']` alone — the 2026-09-16 batch onward) has no origin scope to keep.
+      if (r.sets?.includes('set3') && r.sets.length > 1) expect(r.sets.some((x) => x === 'set1' || x === 'set2'), `${r.id} kept its origin scope`).toBe(true);
     }
     // The set-1 / set-2 static pools as measured on origin/main BEFORE the carryover pass (2026-09-14) — unchanged.
     const s1 = staticPool('set1', ['beast', 'dragon', 'mech', 'undead', 'demon']);

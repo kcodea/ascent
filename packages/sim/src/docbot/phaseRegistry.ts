@@ -81,6 +81,7 @@ export const TRIGGER_PHASES: Readonly<Record<string, 'recruit' | 'combat' | 'bot
   onAttack: 'both', // combat attacks + shop Rally dispatcher (fireShopRally)
   startOfCombat: 'both', // simulate + the shop-side SoC dispatcher (fireShopStartOfCombat)
   onGainAttack: 'both', // combat + the recruit-side scaling-aura dispatcher (recruitHuntGuard site)
+  onGainStats: 'recruit', // Set 3 batch 2 (2026-09-16): the reducer's per-action stat diff (fireStatGainReactors) — Handy Flame; combat does not emit it yet
   summonOverflow: 'both', // Nanon in combat; recruit dispatches it too (echo replays on a full board)
   passive: 'both', // marker effects read by direct `effects.some(...)` scans in both phases, never dispatched
 };

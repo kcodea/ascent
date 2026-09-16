@@ -61,7 +61,12 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // one with half its stats" — Star Seed, Orbit Keeper, Corona Devotee, Nova Herald, Twin Star, Zenith). A conscious move.
 // 61 → 63 on 2026-09-14: the owner's Celestial batch — Roundabout's "your Starform consumes the Shop" and Stardust
 // Peddler's "create a Starform or give one +1/+2" are two more Starform shapes the grammar has no rule for. A conscious move.
-const UNRESOLVED_CAP = 63;
+// 63 → 69 on 2026-09-16: Set 3 rune batch 2, tranche A — six of the 24 new Spirit/Celestial runes print shapes the
+// grammar has no rule for: the Traveling Festival ("a random Reveler … Your Revelers grant an additional +2/+2"), the
+// Growing Chorus ("after you play a Flame, Tide and Grove Reveler … then reset this"), Falling Embers ("your Star
+// Crashes give an additional +2/+2"), the Meteor Shower ("get another Star Crash"), the Astral Refrain ("copies of the
+// first and third Shop spells you cast that turn") and the Dream Mirror ("give the same stats to"). A conscious move.
+const UNRESOLVED_CAP = 69;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

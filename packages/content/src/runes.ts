@@ -1341,8 +1341,8 @@ export const RUNES: RuneDef[] = [
     sets: ['set3'],
   },
   {
+    // No `tribes` gate: the text names no tribe (a generic Shop-spell rune; Celestial-FLAVOURED on the sheet, not tribe-locked).
     id: 'rune_charted_skies',
-    tribes: ['celestial'],
     name: 'Rune of Charted Skies',
     cost: 4,
     text: 'After you cast your **3rd** Shop spell each turn, **Discover** a Shop spell.',
@@ -2820,8 +2820,8 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     // Counts SHOP spells only (a Gift or a reward token is a spell cast, not a Shop spell — the standing rule), and
     // hands over copies of the turn's 1st and 3rd Shop spells the moment the 3rd resolves.
+    // No `tribes` gate: names no tribe (see Charted Skies).
     id: 'rune_astral_refrain',
-    tribes: ['celestial'],
     name: 'Rune of the Astral Refrain',
     cost: 5,
     epic: true,
@@ -2831,8 +2831,8 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     // The Discover pick arrives stamped `extraCasts: 1` (read by `spellCasts`, so the x N badge previews it).
+    // No `tribes` gate: names no tribe (see Charted Skies).
     id: 'rune_astral_draft',
-    tribes: ['celestial'],
     name: 'Rune of the Astral Draft',
     cost: 6,
     epic: true,
@@ -2842,8 +2842,8 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     // "A minion in your hand gains stats" = the reducer's per-action HAND stat diff (shop phase; every source).
+    // No `tribes` gate: "a minion in your hand" names no tribe — any hand buff pays it (Spirit-flavoured on the sheet).
     id: 'rune_dream_mirror',
-    tribes: ['spirit'],
     name: 'Rune of the Dream Mirror',
     cost: 5,
     epic: true,
@@ -2852,8 +2852,8 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set3'],
   },
   {
+    // No `tribes` gate: names no tribe (see the Dream Mirror).
     id: 'rune_waking_dreams',
-    tribes: ['spirit'],
     name: 'Rune of Waking Dreams',
     cost: 5,
     epic: true,
@@ -2903,7 +2903,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // "after 6 Shop spells, spells give +4/+4"). Same engine as the Bubble Crown: a `playSpirit` meter raising
     // the run's spell power (`spellBonus`), which every stat spell's live text already prints.
     id: 'rune_spirit_crown',
-    tribes: ['spirit', 'celestial'],
+    tribes: ['spirit'], // the sheet tagged Spirit + Celestial; the text names only Spirits, so only Spirit gates it (owner rule)
     name: 'Rune of the Spirit Crown',
     cost: 6,
     epic: true,
@@ -2912,8 +2912,8 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set3'],
   },
   {
+    // No `tribes` gate: "Get a Handy Flame" names no tribe (the sheet tagged Spirit; the token pays off any hand minion).
     id: 'rune_handy_flame',
-    tribes: ['spirit'],
     name: 'Rune of the Handy Flame',
     cost: 5,
     epic: true,

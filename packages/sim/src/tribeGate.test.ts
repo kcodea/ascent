@@ -14,7 +14,10 @@ import { createRun, runTribesForSeed, type RunState } from './state';
 const WORD: Record<Exclude<Tribe, 'neutral'>, RegExp> = {
   // Imps and Fodder ARE Demon content (owner 2026-09-10), so an Imp rune counts as naming Demons.
   dragon: /\bDragons?\b/i, beast: /\bBeasts?\b/i, demon: /\bDemons?\b|\bImps?\b|\bFodder\b/i, mech: /\bMechs?\b/i, undead: /\bUndead\b/i,
-  dwarf: /\bDwarv(?:es)?\b|\bDwarf\b/i, kobold: /\bKobolds?\b/i, spirit: /\bSpirits?\b/i, celestial: /\bCelestials?\b/i,
+  // The three Revelers ARE Spirit content (Set 3 batch 2, 2026-09-16 — the owner's sheet tags every Reveler rune
+  // Spirit), so a Reveler rune counts as naming Spirits, the same way an Imp rune names Demons.
+  // …and Star Crash is the Celestials' own spell (it targets a friendly Celestial), so a Star Crash rune names Celestials.
+  dwarf: /\bDwarv(?:es)?\b|\bDwarf\b/i, kobold: /\bKobolds?\b/i, spirit: /\bSpirits?\b|\bRevelers?\b/i, celestial: /\bCelestials?\b|\bStar Crash(?:es)?\b/i,
 };
 /** Owner ruling 2026-09-10: a rune that only GRANTS a tribe body (Kegheart, High King) is gated like one that reads
  *  the board — so this allowlist is empty on purpose. Adding an id here needs an owner call. */

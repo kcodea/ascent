@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { CARD_INDEX, RUNES, EPIC_RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
+import { CARD_INDEX, GIFTS, RUNES, EPIC_RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { HEROES, runQaScenario, validateQaScenario, type BoardSnapshot, type BotLevel, type QaScenarioV1, type RunState, type ShopCard } from '@game/sim';
 import { buildQaScenario, reproCommandFor, scenarioFileName, scenarioFileText, QA_SCENARIO_FIXTURE_DIR } from './qaScenarioBridge';
 import type { Keyword } from '@game/core';
@@ -28,7 +28,7 @@ import { SceneBuilderPreview, type SbPreviewTarget } from './SceneBuilderPreview
  * panel collapses to a strip so it can tuck out of the way while you watch a fight. It wears the tuner
  * panels' slate (`.scenebuilder` in styles.css). Stripped from production with the rest of the dev tooling.
  */
-type CardRow = { id: string; name: string; tier: number; spell: boolean; tribe: string; hay: string };
+type CardRow = { id: string; name: string; tier: number; spell: boolean; tribe: string; hay: string; kind?: 'ruby' | 'gift' };
 /** The Library's three lists (owner ask 2026-09-16): the set pool's minions, its spells, and the set-scoped
  *  runes. Rubies (tokens) and Gifts (outside every set manifest) are not DRAWABLE, so neither list carries
  *  them — `poolFor` already excludes both; the shop cannot offer them, so the rig doesn't either. */
@@ -222,17 +222,21 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
   const setId: SetId = run?.setId ?? activeSet().id;
   const pool = useMemo(() => poolFor(setId), [setId]);
 
-  const all = useMemo<CardRow[]>(() =>
-    pool.all
-      .filter((c) => !c.token)
-      .map((c) => ({
-        id: c.id, name: c.name, tier: c.tier ?? 0, spell: !!c.spell, tribe: c.tribe ?? 'neutral',
-        // Keywords + rules text + effect ids, so "avenge" / "deathrattle" / "magnetic" find their cards.
-        hay: hay(c.name, c.id, c.tribe, c.tribe2, c.text, (c.keywords ?? []).join(' '),
-          (c.effects ?? []).map((e) => `${e.on} ${e.do}`).join(' ')),
-      }))
-      .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name)),
-  [pool]);
+  const all = useMemo<CardRow[]>(() => {
+    const row = (c: (typeof pool.all)[number], kind?: 'ruby' | 'gift'): CardRow => ({
+      id: c.id, name: c.name, tier: c.tier ?? 0, spell: !!c.spell || kind !== undefined, tribe: c.tribe ?? 'neutral', kind,
+      // Keywords + rules text + effect ids, so "avenge" / "deathrattle" / "magnetic" find their cards.
+      hay: hay(c.name, c.id, c.tribe, c.tribe2, c.text, (c.keywords ?? []).join(' '),
+        (c.effects ?? []).map((e) => `${e.on} ${e.do}`).join(' '), kind ?? ''),
+    });
+    // RUBIES + GIFTS (owner ask 2026-09-16): neither is drawable (Rubies are tokens, Gifts a card class outside every
+    // set manifest), so `pool.all` never lists them — but both are cast from the Shop row like a spell and are exactly
+    // what a Kobold / Gift rune test needs on the table. They join the Spells tab, labelled by class.
+    const rubies = Object.values(CARD_INDEX).filter((c) => c.ruby).map((c) => row(c, 'ruby'));
+    const gifts = GIFTS.map((c) => row(c, 'gift'));
+    return [...pool.all.filter((c) => !c.token).map((c) => row(c)), ...rubies, ...gifts]
+      .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
+  }, [pool]);
 
   // SET SCOPING (owner ask 2026-09-16): only the runes THIS set can forge — the same `sets` rule the Runeforge
   // applies (`runeforgePool`: absent = every set) — so a Set 3-only rune never shows up in a Set 2 sandbox. The
@@ -491,6 +495,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
                   onMouseEnter={(e) => previewRow('card', c.id, e.currentTarget)} onFocus={(e) => previewRow('card', c.id, e.currentTarget)} onBlur={clearPreview} onKeyDown={rowKeyNav}>
                   <span className={`sb-t sb-t${c.tier}`}>{c.tier}</span>
                   <span className="sb-name">{c.name}</span>
+                  {c.kind && <span className={`sb-tag ${c.kind}`}>{c.kind}</span>}
                 </button>
               )) : runeResults.map((r) => (
                 // Granting a rune applies its reward for the run, exactly like buying it in the Runeforge.

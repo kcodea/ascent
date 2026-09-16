@@ -144,11 +144,11 @@ export function resetMilestoneFrameConfig(): void {
 
 /** [label, unit, hint, group] per numeric dial; colours are appended after, declaration order = render order. */
 const NUM_SPECS: Record<keyof typeof RANGES, [string, TunerControl['unit'], string, string]> = {
-  scale1: ['Tier 1 size (≥50)', '×', 'Size of the plain silver frame vs the badge.', 'Frame size (per tier)'],
-  scale2: ['Tier 2 size (≥100)', '×', 'Size of the tier-2 frame.', 'Frame size (per tier)'],
-  scale3: ['Tier 3 size (≥500)', '×', 'Size of the gold frame.', 'Frame size (per tier)'],
-  scale4: ['Tier 4 size (≥1000)', '×', 'Size of the tier-4 frame.', 'Frame size (per tier)'],
-  scale5: ['Tier 5 size (≥5000)', '×', 'Size of the top frame — the ornate one with the most overflow.', 'Frame size (per tier)'],
+  scale1: ['Tier 1 size (0–49)', '×', 'Size of the plain silver frame vs the badge.', 'Frame size (per tier)'],
+  scale2: ['Tier 2 size (≥50)', '×', 'Size of the silver dagger frame.', 'Frame size (per tier)'],
+  scale3: ['Tier 3 size (≥150)', '×', 'Size of the gold frame.', 'Frame size (per tier)'],
+  scale4: ['Tier 4 size (≥500)', '×', 'Size of the pink frame.', 'Frame size (per tier)'],
+  scale5: ['Tier 5 size (≥2000)', '×', 'Size of the top (blue) frame — the ornate one with the most overflow.', 'Frame size (per tier)'],
   frameDx: ['Frame X', 'px', 'Nudge every frame left/right so its disc sits on the number.', 'Frame position'],
   frameDy: ['Frame Y', 'px', 'Nudge every frame up/down so its disc sits on the number.', 'Frame position'],
   tintFrac: ['Tint size', undefined, 'Tint disc size as a fraction of the frame — how much of the leather it covers.', 'State tint'],
@@ -177,11 +177,11 @@ const colorControls: TunerControl<Extract<keyof MilestoneFrameConfig, string>>[]
   { key: 'tintDown', label: 'Reduced colour', hint: 'Tint when the stat is below base / combat floor.', group: 'State tint colours', kind: 'color', min: 0, max: 0, step: 0 },
   { key: 'numColor', label: 'Number colour', hint: 'Fill colour of the digit on a framed badge.', group: 'Number colours', kind: 'color', min: 0, max: 0, step: 0 },
   { key: 'numStrokeColor', label: 'Number outline colour', hint: 'Colour of the digit outline (width above).', group: 'Number colours', kind: 'color', min: 0, max: 0, step: 0 },
-  { key: 'glow1', label: 'Tier 1 glow (≥50)', hint: 'Glow colour behind the tier-1 frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
-  { key: 'glow2', label: 'Tier 2 glow (≥100)', hint: 'Glow colour behind the tier-2 frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
-  { key: 'glow3', label: 'Tier 3 glow (≥500)', hint: 'Glow colour behind the tier-3 frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
-  { key: 'glow4', label: 'Tier 4 glow (≥1000)', hint: 'Glow colour behind the tier-4 frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
-  { key: 'glow5', label: 'Tier 5 glow (≥5000)', hint: 'Glow colour behind the tier-5 frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
+  { key: 'glow1', label: 'Tier 1 glow (0–49)', hint: 'Glow colour behind the plain silver frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
+  { key: 'glow2', label: 'Tier 2 glow (≥50)', hint: 'Glow colour behind the silver dagger frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
+  { key: 'glow3', label: 'Tier 3 glow (≥150)', hint: 'Glow colour behind the gold frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
+  { key: 'glow4', label: 'Tier 4 glow (≥500)', hint: 'Glow colour behind the pink frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
+  { key: 'glow5', label: 'Tier 5 glow (≥2000)', hint: 'Glow colour behind the blue frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
 ];
 
 const controls = [...numControls, ...colorControls];
@@ -189,7 +189,7 @@ const controls = [...numControls, ...colorControls];
 export const SPEC: TunerSpec<MilestoneFrameConfig> = {
   id: 'milestoneframe',            // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Milestone Badges',
-  note: 'dev · live · buff a unit past 50/100/…',
+  note: 'dev · live · buff a unit past 50/150/…',
   read: getMilestoneFrameConfig,
   write: (key, value) => setMilestoneFrameValue(key, value),
   writeColor: (key, value) => setMilestoneFrameValue(key, value),

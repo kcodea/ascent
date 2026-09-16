@@ -12,6 +12,7 @@ import { fxPoolSize } from './fxRuntime';
 import { createPlayer } from './player';
 import { hasPrimitives } from './registry';
 import { scaleDef, type FxScaleAxes } from './scaleDef';
+import { recolorDef } from './recolorDef';
 import { holdStat, revealStat } from './statHold';
 
 /**
@@ -123,6 +124,15 @@ export interface PlayDefOptions extends FxScaleAxes {
    * `follow` implies a caller-owned lifetime, so pair it with `loop` (or your own `retire` call).
    */
   follow?: () => { x: number; y: number } | null;
+  /**
+   * A per-call PALETTE recolor: a 4-stop rim→core palette (`0xRRGGBB` numbers) written onto every
+   * palette-bearing layer before the def plays, so ONE committed def can fire in a caller-chosen colour — the
+   * milestone celebration plays the single bound `rune-select-implosion` in each tier's colour this way. It is
+   * a UNIFORM, whole-def swap (see `recolorDef` for the boundary it keeps: a global colour axis in the family
+   * of `scale`/`intensity`, NOT a per-layer param channel). Omitted or empty = the def's authored colours, an
+   * exact no-op — the def object is not even copied.
+   */
+  recolor?: readonly number[];
 }
 
 /**
@@ -474,7 +484,7 @@ function playDefInner(
   // Per-call sizing, applied AFTER `getDef` — `scaleDef` reads the primitive registry, and nothing may do
   // that before `playDef`'s own `canPlayDefs()`-gated path (see `fxDefs.ts`'s ORDER MATTERS note). With both
   // axes at their default 1 this returns `playableDef`'s object by identity: an exact no-op.
-  const def = staggerLayers(scaleDef(playableDef(stored), opts), opts.index ?? 0);
+  const def = staggerLayers(recolorDef(scaleDef(playableDef(stored), opts), opts.recolor), opts.index ?? 0);
   const layers = def.layers;
   // Every layer muted = an effect that renders nothing. Declining is cheaper and more honest than mounting
   // a container and running an updater for a guaranteed-empty play.

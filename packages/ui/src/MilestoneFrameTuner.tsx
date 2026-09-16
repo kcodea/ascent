@@ -4,7 +4,7 @@ import { TunerPanel } from './TunerPanel';
 
 /** The digit shown on each tier's preview badge — the threshold that lights it, so the 4-digit tiers show how
  *  a big number fits the disc. */
-const TIER_NUM: Record<number, string> = { 1: '50', 2: '100', 3: '500', 4: '1000', 5: '5000' };
+const TIER_NUM: Record<number, string> = { 1: '10', 2: '50', 3: '150', 4: '500', 5: '2000' };
 const src = (stat: 'atk' | 'hp', tier: number): string =>
   `${import.meta.env.BASE_URL}frames/milestone-${stat}-${tier}.webp`;
 

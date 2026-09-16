@@ -61,8 +61,8 @@ const ART_PENDING = new Set<string>([
   'sp3_grovereveler', 'sp3_treasurer', 'sp3_revelator', 'sp3_luminary', 'sp3_forestcolossus', 'sp3_grandprocession',
   // …tranche 2 (the hand-summon cards): Hearth Whisperer, Seedling Spirit + Tide Caller have masters; the rest are pending.
   'sp3_slumbering', 'sp3_flamebanner', 'sp3_handboundtitan', 'sp3_dreamingdeep',
-  // SET 3 NEUTRALS: NONE LEFT — the Clue master landed 2026-09-09 (the set-3 Yazzus fork wears the original
-  // Yazzus portrait via an alias, so it never needed one).
+  // SET 3 NEUTRALS: NONE LEFT — the Clue master landed 2026-09-09 (Yazzus is one card for every set since
+  // 2026-09-16 and wears the original Yazzus portrait).
   // SET 3 DWARVES: NONE LEFT — Tankerchief's master landed 2026-09-09.
   // SET 3 UNDEAD: NONE LEFT — the Hierophant's master landed 2026-09-09 (second art pass).
   // SET 3 KOBOLDS: NONE LEFT. The whole roster is arted as of 2026-08-31 — the last master (Gemsmith, both
@@ -90,7 +90,7 @@ describe('art coverage for live cards', () => {
       // excluded: Alchemist Frank has his portrait, so every Equip minion is held to the same bar as any other
       // card, and the next one authored without art fails here rather than shipping a tribe sprite.
       .filter((c) => !c.id.startsWith('c3_') && !c.id.startsWith('hm_test_') && !ART_PENDING.has(c.id))
-      // An aliased id (the set-3 Yazzus fork) is arted by the file it points at.
+      // An aliased id (see `ART_ALIAS`) is arted by the file it points at.
       .filter((c) => !minions.has(ART_ALIAS[c.id] ?? c.id) && !spells.has(c.id))
       .map((c) => `${c.id} (${c.name})`);
     expect(missing, `these live cards render the tribe-sprite fallback instead of their art`).toEqual([]);

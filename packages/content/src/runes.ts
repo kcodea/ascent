@@ -1610,7 +1610,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_frontline_glory',
-    sets: ['set1', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set1'], // carried into set 3 on 2026-09-14; DROPPED from set 3 again by the owner 2026-09-16
     name: 'Rune of Frontline Glory',
     cost: 8,
     epic: true,

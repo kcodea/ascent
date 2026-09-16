@@ -1275,17 +1275,16 @@ export function buffCardTypeRunWide(state: RunState, cardId: string, a: number, 
  * UI's cast-spark replay) use `spellCasts`, which also applies the aimed-spell / singleCast exemptions.
  */
 function spellCastMult(state: RunState): number {
-  // Set 3's Yazzus (`n3_yazzus`, 2026-09-09) is a FORK with the same doubling here; its wider scope (Rubies and
-  // hand spells too) lives in `rubyCastCount` / the hand-spell path. Either id counts; best single copy wins.
-  const yazzus = state.board.filter((c) => c.cardId === 'yazzus' || c.cardId === 'n3_yazzus');
-  if (yazzus.some((c) => c.golden)) return 3;
-  return yazzus.length > 0 ? 2 : 1;
+  // ONE Yazzus (owner 2026-09-16): the former set-3 fork (`n3_yazzus`) IS `yazzus` now, in every set; a resumed run
+  // saved under the old id is rewritten to `yazzus` by `deserialize`. Best single copy wins.
+  return 1 + yazzusExtraCasts(state);
 }
 
-/** The set-3 Yazzus' extra casts for a NON-Shop targeted spell (a Ruby, a Tower Shield, a Clue): 2 if a golden
- *  copy is on board, 1 for a plain one, else 0. Set 1's Yazzus says "Shop spells" and stays out of this. */
+/** Yazzus' extra casts for ANY targeted spell — a Shop spell, a Ruby, a Tower Shield, a Clue: 2 if a golden copy
+ *  is on board, 1 for a plain one, else 0. "Your targeted spells cast an additional time" (owner 2026-09-16: one
+ *  Yazzus, every targeted spell — no Shop-only body any more). */
 export function yazzusExtraCasts(state: RunState): number {
-  const y = state.board.filter((c) => c.cardId === 'n3_yazzus');
+  const y = state.board.filter((c) => c.cardId === 'yazzus');
   if (y.some((c) => c.golden)) return 2;
   return y.length > 0 ? 1 : 0;
 }
@@ -1330,7 +1329,8 @@ export function rubyCastCount(state: RunState): number {
   // shadowing the other. `firstEachTurn` is read-only here for the same reason `spellCasts` is: the freebie is
   // spent by the real cast path bumping `rubyCastsThisTurn`, so the UI can preview the badge without consuming it.
   extra += state.rubyExtraCasts ?? 0;
-  // Set 3's Yazzus: "your TARGETED spells cast an additional time" — a Ruby is a targeted spell (owner 2026-09-09).
+  // Yazzus: "your TARGETED spells cast an additional time" — a Ruby is a targeted spell (owner 2026-09-09; one
+  // Yazzus for every set since 2026-09-16).
   extra += yazzusExtraCasts(state);
   // First-N gate: `rubyCastsThisTurn` counts Ruby PLAYS (not resolved casts — a doubled first Ruby must not
   // eat the second slot of Resonance's 2-Ruby window), reset each turn.

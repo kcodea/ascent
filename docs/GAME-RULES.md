@@ -341,9 +341,10 @@ objective.
 
 **Set scoping (`sets`) is MECHANICAL COMPATIBILITY, not set of origin.** A rune with no `sets` is offered in
 every set; a scoped rune is offered only where its mechanics exist. Since the **Set 3 rune roster handoff
-(2026-09-14)** set 3 draws **115 Basic / 98 Epic**: the 85 + 64 unscoped baseline plus 64 carryovers (30
-Basic + 34 Epic) from sets 1/2 — the Ruby, Ale, Dwarf, Kobold, Undead and Shop-consume packages — each of
-which KEPT its original scope (set 1 = 105/90 and set 2 = 135/126 are unchanged). Attachment, Mech, Fodder and
+(2026-09-14)** set 3 draws **115 Basic / 97 Epic** from carryovers: the 85 + 64 unscoped baseline plus 63
+carryovers (30 Basic + 33 Epic) from sets 1/2 — the Ruby, Ale, Dwarf, Kobold, Undead and Shop-consume packages —
+each of which KEPT its original scope (set 1 = 105/90 and set 2 = 135/126 are unchanged). (98 Epic at the
+handoff; Rune of Frontline Glory was dropped from set 3 by the owner on 2026-09-16 and is a set-1 rune again.) Attachment, Mech, Fodder and
 absent-tribe packages stay off set 3. Rune of the Night Market and Rune of Baal are deliberate off-tribe
 bridges (a rune-exclusive body that supplies its own function). The rolled-tribe gate still applies on top:
 a "your Dwarves" rune reaches a set-3 run only when Dwarf rolled.
@@ -369,9 +370,12 @@ death exactly as it does in combat; and a Starform rune is gated on Celestials (
 the way an Imp rune is gated on Demons.
 
 **Set forks.** A card a rune grants BY ID resolves to the pinned set's fork when one exists
-(`SET_FORKS` in `packages/content/src/sets.ts`): Rune of Yazzus / Rune of Frontline Glory hand a set-3 run
-`n3_yazzus` (the Tier-7 fork), never the legacy `yazzus` beside it. The Open Market's "first Shop consume
-each turn" hears the Starform's consumes (they ride the one Shop-consume chokepoint).
+(`SET_FORKS` in `packages/content/src/sets.ts`). The map is EMPTY today: its one entry, the set-3 Yazzus fork,
+went when the owner ruled there is **one Yazzus** (2026-09-16) — `yazzus` (Tier 7, 4/8, "your targeted spells
+cast an additional time": Shop spells, Rubies, Tower Shields and Clues alike) is the same card in every set that
+carries him, and the retired `n3_yazzus` id still resolves to it for saved runs and replays (`LEGACY_CARD_IDS`).
+The Open Market's "first Shop consume each turn" hears the Starform's consumes (they ride the one Shop-consume
+chokepoint).
 
 **Duplicates always do something** (owner rulings 2026-08-27, decisions `q-runedup-*`). Rune ownership is
 COUNTED (`RunState.runeStacks`; combat boolean flags use `flagCopies`), and a second copy stacks per family:

@@ -66,10 +66,9 @@ describe('the roster', () => {
     expect(names.filter((n) => n === 'Sugarnova')).toHaveLength(1);
     expect(names.filter((n) => n === 'Horizon Courier')).toHaveLength(0);
   });
-  it('the set-3 Yazzus fork is Tier 7 now (owner 2026-09-11, "as he is in set 2"); stats and text untouched', () => {
-    const d = CARD_INDEX['n3_yazzus']!;
+  it('Yazzus is Tier 7 4/8 — the one card for every set (owner 2026-09-16; T7 since 2026-09-11, "as he is in set 2")', () => {
+    const d = CARD_INDEX['yazzus']!;
     expect([d.tier, d.attack, d.health]).toEqual([7, 4, 8]);
-    expect(CARD_INDEX['yazzus']!.tier, 'the set-1/2 original was already T7').toBe(7);
   });
 });
 
@@ -190,8 +189,8 @@ describe('Crashborn Adept — the first Star Crash on it each turn also casts on
     expect([boardTotal(s)[0] - before[0], boardTotal(s)[1] - before[1]]).toEqual([2 * 10, 2 * 14]);
     expect(buffFrom(at(s, 'x'), 'Star Crash')[0], 'the Courier got the spread').toBeGreaterThanOrEqual(5);
   });
-  it('each spread is a FULL cast: with the set-3 Yazzus the spreads double too', () => {
-    let s = run({ hand: [spell('s', 'starcrash')], board: [...board(), body('z', 'n3_yazzus')] });
+  it('each spread is a FULL cast: with Yazzus the spreads double too', () => {
+    let s = run({ hand: [spell('s', 'starcrash')], board: [...board(), body('z', 'yazzus')] });
     const before = boardTotal(s);
     s = play(s, 's', { targetUid: 'a' });
     // original ×2 (Yazzus) + 2 spread targets × 2 casts each = 6 casts

@@ -5,6 +5,6 @@
  * the Vite globs, and the art-coverage test needs this map without dragging those in.
  */
 export const ART_ALIAS: Readonly<Record<string, string>> = {
-  // The set-3 Yazzus (`n3_yazzus`, a fork of `yazzus` — 2026-09-09) is the same card wearing the same face.
-  n3_yazzus: 'yazzus',
+  // Empty since 2026-09-16: its one entry (`n3_yazzus` → `yazzus`) went when the set-3 Yazzus fork became THE
+  // Yazzus. Keep the map — the next shared face goes here, not in a second file.
 };

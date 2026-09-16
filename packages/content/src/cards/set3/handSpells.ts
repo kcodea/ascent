@@ -8,9 +8,8 @@ import type { CardDef } from '@game/core';
  * can never offer one. Two things set them apart from the rune Gifts:
  *   • they are minted by CARDS (`battlecryGetHandSpell`), not handed out by a rune or hero, so they stay out
  *     of `GIFT_IDS` — Merry Christmas's Gift Discover must not offer a Tower Shield;
- *   • `giftMulticast`: a TARGETED hand spell may be repeated by the set-3 Yazzus ("your targeted spells cast
- *     an additional time") — the one cast multiplier a Gift honours. Set 1's Yazzus says "Shop spells" and
- *     never touches them.
+ *   • `giftMulticast`: a TARGETED hand spell may be repeated by Yazzus ("your targeted spells cast an
+ *     additional time" — the one Yazzus for every set since 2026-09-16) — the one cast multiplier a Gift honours.
  * Neither takes spell power or any other buff (owner 2026-09-09: "as of now").
  * `attack`/`health` are the schema's required stat fields; a spell's are inert.
  */

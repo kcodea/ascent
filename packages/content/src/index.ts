@@ -48,6 +48,27 @@ export const CARD_INDEX: Record<string, CardDef> = Object.fromEntries(
 );
 
 /**
+ * LEGACY CARD IDS — ids that once named a card of their own and now resolve to another card. A saved run, a
+ * replay or a recorded opponent board written under the old id must keep resolving, so each old id is bound
+ * onto `CARD_INDEX` as a NON-ENUMERABLE alias: `CARD_INDEX[old]` returns the current def, while every
+ * `Object.values/keys(CARD_INDEX)` sweep (audits, the Compendium, Doc Bot's registries, the balance tools) still
+ * sees each card exactly once. `@game/sim`'s `deserialize` also rewrites a loaded run's `cardId`s to the current
+ * id, so id-keyed engine reads (`c.cardId === 'yazzus'`) work on a resumed run too.
+ *
+ *  - `n3_yazzus` → `yazzus`: the set-3 Yazzus fork (2026-09-09) became THE Yazzus (owner 2026-09-16).
+ */
+export const LEGACY_CARD_IDS: Readonly<Record<string, string>> = {
+  n3_yazzus: 'yazzus',
+};
+for (const [legacy, current] of Object.entries(LEGACY_CARD_IDS)) {
+  if (CARD_INDEX[legacy]) throw new Error(`LEGACY_CARD_IDS: '${legacy}' is still a live card id`);
+  if (!CARD_INDEX[current]) throw new Error(`LEGACY_CARD_IDS: '${legacy}' points at unknown card '${current}'`);
+  Object.defineProperty(CARD_INDEX, legacy, { value: CARD_INDEX[current], enumerable: false, writable: false, configurable: false });
+}
+/** The current id for a possibly-legacy card id (identity for every live id). */
+export const canonicalCardId = (id: string): string => LEGACY_CARD_IDS[id] ?? id;
+
+/**
  * The ACTIVE set's shop-offerable minions.
  *
  * @deprecated for new code — prefer `poolOf(state).buyable` (sim) or `poolFor(setId).buyable`, which honour

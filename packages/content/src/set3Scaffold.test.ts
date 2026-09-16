@@ -51,8 +51,9 @@ describe('set 3 scaffold', () => {
       'profgreg', 'knit', 'deathlesshand', 'deathsayer', 'deathswarmer', 'pillager', 'mumi', 'sergeant',
       'forsakenweaver', 'wolvesden', 'soulsman', 'anubis',
       // …then the NEUTRALS (owner roster 2026-09-09, tranche 1): set 3's own — Blaster back from the archive,
-      // Splitboon Adept, the set-3 Yazzus fork — then the carried set-1 and set-2 neutrals (shared definitions).
-      'blaster', 'n3_defender', 'n3_pell', 'n3_hustler', 'n3_recruiter', 'n3_charger', 'n3_splitboon', 'n3_yazzus',
+      // Splitboon Adept — then Yazzus (the ONE shared Yazzus since 2026-09-16, pinned to the slot its set-3 fork
+      // held) — then the carried set-1 and set-2 neutrals (shared definitions).
+      'blaster', 'n3_defender', 'n3_pell', 'n3_hustler', 'n3_recruiter', 'n3_charger', 'n3_splitboon', 'yazzus',
       'drummer', 'sylus', 'chronos', 'joker', 'venom', 'tauntbreaker', 'blackbelt', 'jenkins', 'stewardofspells',
       'arenaheckler', 'wayfinder', 'salvatore',
       'n2_spellsword', 'n2_bellringer', 'k_pouchpincher', 'n2_paragon',

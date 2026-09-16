@@ -1,6 +1,6 @@
 import { makeRng } from '@game/core';
 import type { BoardMinion, BounceKind, CombatConfig, CombatOutcome, CombatResult, CombatSideState, EffectDef, Keyword, QuestObjectiveEvent, Rng, Tribe } from '@game/core';
-import { CARD_INDEX, SETS, activeSet, poolFor, type SetId } from '@game/content';
+import { CARD_INDEX, LEGACY_CARD_IDS, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { CONFIG, HENCHMEN_ARCHIVED, RIFT_BONUS_ARMOR, activeRift, type RiftId } from './config';
 import { DEFAULT_HERO_ID, getHero, powerDiscoverPool } from './heroes';
 import { generateQuestOffer, questOfferPlan } from './quests';
@@ -2652,6 +2652,11 @@ export function serialize(state: RunState): string {
  */
 export function deserialize(json: string, opts: { turnRemaining?: number } = {}): RunState {
   const parsed = JSON.parse(json) as RunState & { pendingSpellDiscovers?: number; bonusTurnSeconds?: number; bonusTurnSecondsNextTurn?: number };
+  // LEGACY CARD IDS: a save written under an id that has since been folded into another card (`n3_yazzus` →
+  // `yazzus`, 2026-09-16) is rewritten to the CURRENT id everywhere a `cardId` appears — board, hand, shop, the
+  // served / recorded boards, history — so id-keyed engine reads (`c.cardId === 'yazzus'`) see a resumed run
+  // exactly as a fresh one. `CARD_INDEX` also aliases the old id, so anything missed here still resolves.
+  healLegacyCardIds(parsed);
   // Heal-by-construction (review 2026-07-03): merge the save over a freshly-created run for the SAME
   // seed/hero/mode, so every field added since the save was written gets its fresh-run zero value
   // automatically. The old hand-maintained ??=-list drifted — it healed `pool`/`line`/`armor` but missed
@@ -2729,6 +2734,22 @@ export function deserialize(json: string, opts: { turnRemaining?: number } = {})
     state.cardDiscountWindow = undefined;
   }
   return state;
+}
+
+/** Walk a parsed save and rewrite every `cardId` that names a legacy id (see `LEGACY_CARD_IDS`) to its current id.
+ *  One pass at load time, never per action; a no-op walk when the map is empty is skipped outright. */
+function healLegacyCardIds(root: unknown): void {
+  if (Object.keys(LEGACY_CARD_IDS).length === 0) return;
+  const seen = new Set<object>();
+  const walk = (node: unknown): void => {
+    if (!node || typeof node !== 'object' || seen.has(node)) return;
+    seen.add(node);
+    if (Array.isArray(node)) { for (const v of node) walk(v); return; }
+    const rec = node as Record<string, unknown>;
+    if (typeof rec.cardId === 'string' && LEGACY_CARD_IDS[rec.cardId]) rec.cardId = LEGACY_CARD_IDS[rec.cardId];
+    for (const v of Object.values(rec)) walk(v);
+  };
+  walk(root);
 }
 
 /**

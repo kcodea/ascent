@@ -3269,7 +3269,9 @@ export interface CombatContext {
   grantRightmostSlotBuff(attack: number, health: number, side: Side): void;
   /** Wolvie (Echo) — queue a one-shot buff for the NEXT `tribe` minion `side` summons this combat. Consumed at
    *  the summon chokepoint (front of the queue), so two Wolvies stack as two separate next-summon grants. */
-  queueNextSummonBuff(side: Side, tribe: Tribe, attack: number, health: number): void;
+  /** `sourceUid` = the Echo minion that queued it (Wolvie), so the paid summon's buff is attributed to that
+   *  body and the replay can stream its tendril from the slot it fell in (2026-09-16). */
+  queueNextSummonBuff(side: Side, tribe: Tribe, attack: number, health: number, sourceUid?: string): void;
   /** Rune of the Zoo — how many times Beardsley's summon buff should apply to the CURRENT summon: the running
    *  combat-summon ordinal for `side` when the rune is held (1st summon → 1×, 2nd → 2×, …), else 1. */
   zooReps(side: Side): number;

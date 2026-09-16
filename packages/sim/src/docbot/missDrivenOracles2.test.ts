@@ -27,7 +27,7 @@ describe('Doc Bot — miss-driven oracles, wave 2', () => {
       [bm('pup', 'e0', 1, 6)],
       makeRng(21), CARD_INDEX, combatSide({ tier: 5 }), combatSide({ tier: 5 }));
     const buffed = new Set(r.events
-      .filter((e) => (e as { type?: string; srcCard?: string }).type === 'buff' && JSON.stringify(e).includes('Better Bot'))
+      .filter((e) => (e as { type?: string; source?: string }).type === 'buff' && (e as { source?: string }).source === 'm0') // the welded host's uid (m-uids are positional: p0 → m0) (was the 'Better Bot' label until 2026-09-16)
       .map((e) => (e as { target?: string }).target));
     expect(buffed.size, 'the Rally-Mech aura must fire for the real Mech at least').toBeGreaterThanOrEqual(1);
     // m-uids are positional: p1 → m1 (the Mech), p2 → m2 (the all-types body).

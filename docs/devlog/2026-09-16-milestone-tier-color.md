@@ -22,8 +22,9 @@ sixth "final" crystal frame was added:
 Tier 1's threshold is `0`, so the plain-silver frame is now the baseline every minion wears (the flat `.plate`
 only shows for a negative stat); a stat "earns" its first *celebrated* frame at 50. Tier 6's art
 (`milestone-{atk,hp}-6.webp`, converted from the owner's PNGs to 512² webp via sharp, ~43–53 KB) has a
-TRANSPARENT centre — no leather disc — so its number sits on the `.mstint` disc alone. Both tier 5 and tier 6
-carry a blue glow (`glow5`/`glow6` = `#4fd1ff`). The other five frame arts, glow colours and config structure
+TRANSPARENT centre — no leather disc — so its number sits on the `.mstint` disc alone. Tier 5 keeps its blue
+glow (`glow5` = `#4fd1ff`) and tier 6 glows white (`glow6` = `#ffffff`), so the two top tiers read distinctly.
+The other five frame arts, glow colours and config structure
 are unchanged; the tuner threshold labels and preview digits were updated to match. The recolor below reads
 `glow1..6`, so the celebration colours follow this schedule automatically.
 
@@ -66,7 +67,7 @@ cloud with a white-hot centre.
 ## Notes / interactions
 
 - Tiers 1 and 2 share the same silver glow (plain silver / dagger), so they celebrate identically; tiers 3–6
-  are gold / pink / blue / blue-crystal (tiers 5 and 6 share the same blue glow). Tier 1 sits at threshold 0,
+  are gold / pink / blue / white (tier 5 blue, tier 6 white). Tier 1 sits at threshold 0,
   so in practice its celebration never fires (a stat starts there rather than crossing up into it) — it's the
   baseline look. Tier 3's derived gold (from `glow3 #ffd54a`) reads slightly yellower than the def's original
   orange-ember ramp, since it derives from the glow rather than the def's own palette.

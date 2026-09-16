@@ -508,7 +508,9 @@ export function captureBuffFx(
     const dh = c.health - p.h;
     if (da <= 0 && dh <= 0) continue;
     state.recruitBuffFx.push({
-      sourceUid: kind === 'minion' ? source?.uid : undefined,
+      // A `deathrattle` capture keeps its source uid too (2026-09-16): the body has left the board, but the UI
+      // still knows the slot it fell from and streams the Echo's tendril from there. A `spell` stays unset.
+      sourceUid: kind === 'minion' || kind === 'deathrattle' ? source?.uid : undefined,
       targetUid: c.uid, attack: da, health: dh,
       sourceCardId: source?.cardId ?? '', sourceTribe: source?.tribe ?? 'neutral',
       kind,
@@ -8510,7 +8512,9 @@ export function applyGoldSpent(state: RunState, amount: number): void {
     card.goldTick = (card.goldTick ?? 0) + amount;
     while (card.goldTick >= every) {
       card.goldTick -= every;
-      fn(ctx, card, effect.params ?? {}, { minion: card });
+      // Captured (2026-09-16): a Gold-spent grant to OTHER minions (Billings, Coinfire Forewoman) used to land
+      // with no cue at all — the only shop path that had no capture around it. Display metadata only.
+      captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card }));
     }
   }
   // Ancient Wanderer: a "HAS +A/+H per N Gold spent" body is re-synced to the new run total. Not a threshold
@@ -9544,7 +9548,9 @@ export function fireOnSell(state: RunState, card: BoardCard): void {
   for (let rep = 0; rep < reps; rep++) {
     for (const eff of def.effects) {
       if (eff.on !== 'onSell') continue;
-      RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
+      // Captured (2026-09-16): a Reveler's sell pays the board, and the tendril streams from the slot the sold
+      // card just left (the UI's departure cache) — before this the grant landed silently.
+      captureBuffFx(state, card, 'minion', () => RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card }));
     }
   }
 }
@@ -9628,7 +9634,8 @@ export function fireOnGainCard(state: RunState, cardId?: string): void {
     const ctx = makeContext(state);
     for (const eff of def.effects) {
       if (eff.on !== 'onGainCard') continue;
-      RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card, cardId });
+      // Captured (2026-09-16): Gangplank's random-Dwarf grant used to land with no cue.
+      captureBuffFx(state, card, 'minion', () => RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card, cardId }));
     }
   }
 }

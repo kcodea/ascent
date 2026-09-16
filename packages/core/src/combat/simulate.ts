@@ -323,7 +323,7 @@ export function simulate(
    *  back, so the return restores a Ward the body carried at any point this fight. */
   const wardBroken = new Set<string>();
   /** Wolvie (Echo): one-shot buffs queued for the next tribe minion each side summons (FIFO). */
-  const nextSummonBuffs: Record<Side, { tribe: Tribe; attack: number; health: number }[]> = { player: [], enemy: [] };
+  const nextSummonBuffs: Record<Side, { tribe: Tribe; attack: number; health: number; sourceUid?: string }[]> = { player: [], enemy: [] };
   /** Wolvie's Echoes STACK onto the NEXT matching summon (owner 2026-08-12): four queued Echoes all land on the
    *  next Beast summoned, then the queue is spent — they are still for the next summon ONLY, just summed. Called
    *  from BOTH the normal summon chokepoint AND the Rise re-slot — a Rise re-enters play as a summon (owner
@@ -333,10 +333,13 @@ export function simulate(
     const matches = (b: { tribe: Tribe }): boolean =>
       minion.tribe === b.tribe || minion.tribe2 === b.tribe || !!cards[minion.cardId]?.universalTribe;
     let a = 0, h = 0;
-    for (const b of nextSummonBuffs[side]) if (matches(b)) { a += b.attack; h += b.health; }
+    let sourceUid: string | undefined;
+    for (const b of nextSummonBuffs[side]) if (matches(b)) { a += b.attack; h += b.health; sourceUid ??= b.sourceUid; }
     if (a === 0 && h === 0) return;
     nextSummonBuffs[side] = nextSummonBuffs[side].filter((b) => !matches(b)); // spent on this one body
-    ctx.buff(minion, a, h, 'Wolvie');
+    // Attributed to the FIRST Wolvie that queued (stacked Echoes stay ONE summed buff — the log shape is
+    // unchanged), so the replay streams the beast tendril from that fallen Wolvie's slot instead of nothing.
+    ctx.buff(minion, a, h, sourceUid ?? 'Wolvie');
   }
   /** Rune of Beastial Swarm: the current per-Beast-death buff amount, per side (grows via Avenge(2); the player
    *  side's final value carries back into the run). Seeded from the run-persisted level (default 2). */
@@ -1225,8 +1228,8 @@ export function simulate(
       // Player-side only — the enemy shop is regenerated each wave, so its slot buff would never be read.
       rightmostSlotGain[side].attack += attack; rightmostSlotGain[side].health += health;
     },
-    queueNextSummonBuff: (side, tribe, attack, health) => {
-      if (attack > 0 || health > 0) nextSummonBuffs[side].push({ tribe, attack, health });
+    queueNextSummonBuff: (side, tribe, attack, health, sourceUid) => {
+      if (attack > 0 || health > 0) nextSummonBuffs[side].push({ tribe, attack, health, sourceUid });
     },
     zooReps: (side) => (modsFor(side).runeZoo ? Math.max(1, summonOrdinal[side]) : 1),
     grantMagneticBuff: (attack, health, side) => {
@@ -1870,7 +1873,7 @@ export function simulate(
     }
     if ((minion.rallyMechAtk ?? 0) > 0) {
       for (const m of boards[side]) {
-        if (!m.dead && m.health > 0 && m !== minion && (m.tribe === 'mech' || m.tribe2 === 'mech' || !!m.universalTribe)) ctx.buff(m, minion.rallyMechAtk!, 0, 'Better Bot');
+        if (!m.dead && m.health > 0 && m !== minion && (m.tribe === 'mech' || m.tribe2 === 'mech' || !!m.universalTribe)) ctx.buff(m, minion.rallyMechAtk!, 0, minion.uid); // the HOST's uid: the weld's Rally streams from the body that swung (2026-09-16)
       }
     }
     if ((minion.rallySpellWeld ?? 0) > 0) { // player-only: grantToHand is a no-op for a served enemy
@@ -3115,7 +3118,7 @@ export function simulate(
       if (attacker.rallyMechAtk && attacker.rallyMechAtk > 0) {
         for (const m of boards[attacker.side]) { // iterate the board directly — no living() array per swing
           if (!m.dead && m.health > 0 && m !== attacker && (m.tribe === 'mech' || m.tribe2 === 'mech' || !!m.universalTribe)) {
-            ctx.buff(m, attacker.rallyMechAtk, 0, 'Better Bot');
+            ctx.buff(m, attacker.rallyMechAtk, 0, attacker.uid); // the HOST's uid, not the 'Better Bot' label — a label is bodiless to the replay and drew no tendril (2026-09-16)
           }
         }
       }
@@ -3124,7 +3127,7 @@ export function simulate(
       // is one-fight like Bloodlust itself (stripped at settle).
       if (attacker.bloodlustRally && attacker.attack > 0) {
         const pool = boards[attacker.side].filter((m) => !m.dead && m.health > 0 && m !== attacker);
-        if (pool.length > 0) ctx.buff(ctx.rng.pick(pool), attacker.attack, 0, 'Bloodlust');
+        if (pool.length > 0) ctx.buff(ctx.rng.pick(pool), attacker.attack, 0, attacker.uid); // the swinger's uid, not the 'Bloodlust' label (2026-09-16: the label drew no tendril)
       }
       // Perfect Core (welded Rally): each time this host attacks, add N random spells to your hand after combat
       // (N = accrued rallySpellWeld, stacks via magnetize; golden already baked at weld time). Mirrors the

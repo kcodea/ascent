@@ -1877,7 +1877,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .badge[data-milestone='3'] { --msf-scale: var(--ms-scale-3, 1); --ms-glow: var(--ms-glow-3, #ffd54a); }
 .badge[data-milestone='4'] { --msf-scale: var(--ms-scale-4, 1); --ms-glow: var(--ms-glow-4, #ff5edb); }
 .badge[data-milestone='5'] { --msf-scale: var(--ms-scale-5, 1); --ms-glow: var(--ms-glow-5, #4fd1ff); }
-.badge[data-milestone='6'] { --msf-scale: var(--ms-scale-6, 1); --ms-glow: var(--ms-glow-6, #4fd1ff); } /* crystal */
+.badge[data-milestone='6'] { --msf-scale: var(--ms-scale-6, 1); --ms-glow: var(--ms-glow-6, #ffffff); } /* crystal */
 /* Per-tier GLOW underneath the frame — a soft, blurred colour disc behind the art whose colour is set per tier
    (owner ask 2026-09-15). STATIC blur (no looping animation), so it respects the 60fps paint rule. It is the
    FIRST child of .badge in the DOM, so it paints BEHIND the frame / tint / number. */

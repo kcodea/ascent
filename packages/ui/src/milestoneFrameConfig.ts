@@ -60,7 +60,7 @@ const DEFAULTS: MilestoneFrameConfig = {
   numSize: 33, numDx: -0.5, numDy: 0, numColor: '#ffffff', numStrokeW: 0, numStrokeColor: '#000000',
 
   glowSize: 0.95, glowBlur: 9, glowOpacity: 0.75,
-  glow1: '#c9d3e0', glow2: '#c9d3e0', glow3: '#ffd54a', glow4: '#ff5edb', glow5: '#4fd1ff', glow6: '#4fd1ff',
+  glow1: '#c9d3e0', glow2: '#c9d3e0', glow3: '#ffd54a', glow4: '#ff5edb', glow5: '#4fd1ff', glow6: '#ffffff',
 };
 
 type ColorKey = 'tintNeutral' | 'tintUp' | 'tintDown' | 'numColor' | 'numStrokeColor'

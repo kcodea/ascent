@@ -422,11 +422,12 @@ export interface ActiveQuest {
   partProgress?: number[];
 }
 
-/** One shop-phase buff-other, captured for the UI to replay as a source→target tendril (living-minion source)
- *  or a rain-down descend (`spell` / `deathrattle` — no living source). Pure display metadata: consumes no RNG
- *  and does not affect stats, so determinism / golden sims are unaffected. Mirrors the `fodderEaten` pattern. */
+/** One shop-phase buff-other, captured for the UI to replay as a source→target tendril (a `minion` source, or a
+ *  `deathrattle` source streaming from the slot it fell from) or sourceless (`spell` — no body to leave from).
+ *  Pure display metadata: consumes no RNG and does not affect stats, so determinism / golden sims are
+ *  unaffected. Mirrors the `fodderEaten` pattern. */
 export interface BuffFxEvent {
-  sourceUid?: string;       // present + kind:'minion' → tendril from this board minion; absent → descend
+  sourceUid?: string;       // kind:'minion' → tendril from this board minion; kind:'deathrattle' → from the fallen body's last slot; absent → sourceless
   targetUid: string;
   attack: number;
   health: number;

@@ -1020,7 +1020,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleBuffNextSummon: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     ctx.queueNextSummonBuff(self.side, (str(params.tribe) || 'beast') as Tribe,
-      num(params.attack, 2) * mul(self), num(params.health, 4) * mul(self));
+      num(params.attack, 2) * mul(self), num(params.health, 4) * mul(self), self.uid);
   },
 
   /** Deathrattle (Grim): buff your `tribe` by +`per`/+`per` per Deathrattle triggered this game (the
@@ -1316,7 +1316,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return;
     const n = ctx.spiritsPlayedFor(self.side) * num(params.per, 1) * mul(self);
-    if (n > 0) ctx.buff(self, n, 0, self.name);
+    if (n > 0) ctx.buff(self, n, 0, self.uid); // uid, not name: a label source draws no self pulse (2026-09-16)
   },
   /** Set 3 Spirits — Forest Colossus (Start of Combat): your `tribe` minions +atk/+hp per point of this body's
    *  carried tally (Spirits played since it was played). Combat-only; the shop twin pays permanently. */
@@ -1370,7 +1370,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const pool = ctx.handMinionsFor(self.side).filter((h) => !ctx.getCard(h.cardId)?.spell);
     if (pool.length === 0) return;
     const top = pool.reduce((a, b) => (b.health > a.health ? b : a));
-    ctx.buff(self, top.attack * mul(self), top.health * mul(self), self.name);
+    ctx.buff(self, top.attack * mul(self), top.health * mul(self), self.uid); // uid, not name (2026-09-16)
   },
 
   /** Flamebanner Marshal (Rally): give `count` random friendly `tribe` minions (not itself) the Attack of the
@@ -1388,7 +1388,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (let i = 0; i < num(params.count, 2) * mul(self) && targets.length > 0; i++) {
       const t = ctx.rng.pick(targets);
       targets = targets.filter((m) => m !== t);
-      ctx.buff(t, top.attack, 0, self.name);
+      ctx.buff(t, top.attack, 0, self.uid); // uid, not name — a label source is bodiless to the replay and drew NO tendril (2026-09-16)
     }
   },
 
@@ -1866,7 +1866,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     // banked unconditionally and paid solely on the next SUMMON, which meant the ordinary case — several Imps
     // alive, one dies — did visibly nothing at all, and the card read as broken.
     const heir = ctx.living(self.side).find((m) => m !== dead && m !== self && !!ctx.getCard(m.cardId)?.imp);
-    if (heir) { ctx.buff(heir, attack, health, self.name); return; }
+    if (heir) { ctx.buff(heir, attack, health, self.uid); return; } // uid, not name — so the Heir's demon tendril streams to the paid Imp (2026-09-16)
     const bank = (self.impBank ??= { attack: 0, health: 0 });
     bank.attack += attack;
     bank.health += health;
@@ -1903,7 +1903,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const bank = self.impBank;
     if (!bank || (bank.attack <= 0 && bank.health <= 0)) return;
     self.impBank = { attack: 0, health: 0 };
-    ctx.buff(born, bank.attack, bank.health, self.name);
+    ctx.buff(born, bank.attack, bank.health, self.uid); // uid, not name (2026-09-16)
   },
 
   /**

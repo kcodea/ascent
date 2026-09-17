@@ -670,6 +670,12 @@ export const sfx = {
   // `undead-aura-buff` FX on every rise of the run-wide Undead Aura, shop and combat alike. Exclusive: while one
   // instance is still playing, further rises are silent (no overlap, no restart). No synth fallback — the surge
   // is an authored cue, and a placeholder tone under the authored FX would read as a different effect.
+  // The SPIRIT TENDRIL — the owner's `spirit tendril.mp3` (`audio/spirittendril.mp3`), one cue PER MINION HIT by a
+  // Spirit's buff ribbon (owner 2026-09-17: "this SHOULD play for each minion hit with a buff"). Fired from the one
+  // shared buff-other path (`fireBuffFx`) so shop, Start / End of Turn beats and combat all play it; scheduled to
+  // land WITH the ribbon (`delayMs` = the ribbon's travel time). Deliberately allowed to overlap — a board-wide
+  // Spirit buff is several hits, and each one sounds. No synth fallback (an authored cue).
+  spiritTendril: (delayMs = 0) => { playSample('spirittendril', 'buff', Math.max(0, delayMs) / 1000); },
   undeadAura: () => {
     if (undeadAuraNodes) return; // still ringing — one at a time
     playSample('undeadaurabuff', 'buff', 0, (n) => {

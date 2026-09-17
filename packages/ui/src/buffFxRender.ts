@@ -3,6 +3,7 @@ import { playDef } from './fx/playDef';
 import tendrilTrail from './fx/defs/tendril-trail.json';
 import { DESCEND_PRESETS, descendPreset } from './descendPresets';
 import { tunedDescend } from './buffFxConfig';
+import { sfx } from './sfx';
 
 /**
  * The flight time of `tendril-trail`'s ribbon, read from the def itself rather than pinned here — the stat-badge
@@ -51,6 +52,8 @@ export function fireBuffFx(o: {
   // see `fx/directCalls.ts`); neutral / an unlisted tribe keeps the literal generic.
   if (TENDRIL_TRIBES.has(o.tribe)) {
     playDef(`tendril-trail-${o.tribe}`, { source: o.source, target: o.target }, { uids: o.uids });
+    // The Spirit ribbon has its own landing cue (owner 2026-09-17), one per hit, timed to the ribbon's arrival.
+    if (o.tribe === 'spirit') sfx.spiritTendril(TENDRIL_TRAIL_TRAVEL_MS);
   } else {
     playDef('tendril-trail', { source: o.source, target: o.target }, { uids: o.uids });
   }

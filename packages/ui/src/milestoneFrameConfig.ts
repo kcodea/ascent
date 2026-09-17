@@ -67,12 +67,12 @@ const DEFAULTS: MilestoneFrameConfig = {
   scale1: 1, scale2: 1, scale3: 1, scale4: 1, scale5: 1, scale6: 1,
   frameDx: -0.5, frameDy: 3,
 
-  tintFrac: 0.66, tintOpacity: 1, tintDx: -1.5, tintDy: -0.5,
-  tintAtk: '#e0a81e', tintHp: '#c62828',
+  tintFrac: 0.76, tintOpacity: 1, tintDx: 0, tintDy: 0,
+  tintAtk: '#ffa200', tintHp: '#cf0707',
 
-  numSize: 33, numDx: -0.5, numDy: 0,
-  numColor: '#ffffff', numColorUp: '#3ad84a', numColorDown: '#ff5a4f', numStrokeW: 0, numStrokeColor: '#000000',
-  numShadowX: 0, numShadowY: 2, numShadowBlur: 3, numShadowOpacity: 0.55, numShadowColor: '#000000',
+  numSize: 26, numDx: -1, numDy: -1.5,
+  numColor: '#ffffff', numColorUp: '#00eb17', numColorDown: '#ff5a4f', numStrokeW: 0, numStrokeColor: '#000000',
+  numShadowX: 0, numShadowY: 1, numShadowBlur: 4.5, numShadowOpacity: 0.87, numShadowColor: '#000000',
 
   glowSize: 0.95, glowBlur: 9, glowOpacity: 0.75,
   glow1: '#c9d3e0', glow2: '#c9d3e0', glow3: '#ffd54a', glow4: '#ff5edb', glow5: '#4fd1ff', glow6: '#ffffff',

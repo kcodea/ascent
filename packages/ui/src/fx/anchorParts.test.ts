@@ -22,8 +22,14 @@ describe('partPointFromRects', () => {
   });
   it('a selector part is its own rect centre, falling back to the card centre when the card lacks it', () => {
     expect(partPointFromRects(card, 'badge.attack', { left: 100, top: 300, width: 20, height: 20 })).toEqual({ x: 110, y: 310 });
-    expect(partPointFromRects(card, 'medallion', null)).toEqual({ x: 140, y: 260 });
     expect(partPointFromRects(card, 'tier', { left: 0, top: 0, width: 0, height: 0 })).toEqual({ x: 140, y: 260 });
+  });
+  it('medallion resolves to its plate rect, but on a plate-less card (any board minion) falls to bottom-centre, NOT the centre', () => {
+    // With a real .plate-tribe rect it is that rect's centre (the hand-card plate gem).
+    expect(partPointFromRects(card, 'medallion', { left: 130, top: 300, width: 20, height: 20 })).toEqual({ x: 140, y: 310 });
+    // No plate element (board/combat card): bottom-centre at 0.9 of the height (200 + 120*0.9 = 308), not centre (260).
+    expect(partPointFromRects(card, 'medallion', null)).toEqual({ x: 140, y: 308 });
+    expect(partPointFromRects(card, 'medallion', { left: 0, top: 0, width: 0, height: 0 })).toEqual({ x: 140, y: 308 });
   });
 });
 

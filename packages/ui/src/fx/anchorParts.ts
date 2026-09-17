@@ -48,10 +48,18 @@ export interface PartRect { left: number; top: number; width: number; height: nu
 const centre = (r: PartRect): FxPoint => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
 const usable = (r: PartRect | null | undefined): r is PartRect => r != null && r.width > 0 && r.height > 0;
 
+/** Where `medallion` lands when the card has no `.plate-tribe` element — i.e. on ANY board/combat minion,
+ *  since the ornate tribe plate renders on HAND cards only (`Card.tsx`'s `usePlate`). A fraction of the card
+ *  height for the y of a bottom-centre point, matching where the hand card's plate gem sits, so a
+ *  medallion-anchored def (embermouth, shout-icon-effect) lands on the lower card rather than dead-centre.
+ *  Tunable — owner picked "bottom-centre" 2026-09-17; nudge this if the exact height wants adjusting. */
+const MEDALLION_BOARD_Y_FRAC = 0.9;
+
 /**
  * The point a part resolves to, given the unit's rect and — for a selector part — that part's own rect
- * (`null` when the card has no such element: a spell has no badges). A missing or empty part rect falls back
- * to the card centre, so a def is never thrown off-screen by a card that lacks the part.
+ * (`null` when the card has no such element: a spell has no badges). `medallion` falls back to a bottom-centre
+ * point (see `MEDALLION_BOARD_Y_FRAC`) because the tribe plate is hand-cards-only, so a board minion has no
+ * such element; every other missing part falls back to the card centre, so a def is never thrown off-screen.
  */
 export function partPointFromRects(card: PartRect, part: FxAnchorPart, partRect: PartRect | null): FxPoint {
   const c = centre(card);
@@ -61,6 +69,7 @@ export function partPointFromRects(card: PartRect, part: FxAnchorPart, partRect:
     case 'left': return { x: card.left, y: c.y };
     case 'right': return { x: card.left + card.width, y: c.y };
     case 'card': return c;
+    case 'medallion': return usable(partRect) ? centre(partRect) : { x: c.x, y: card.top + card.height * MEDALLION_BOARD_Y_FRAC };
     default: return usable(partRect) ? centre(partRect) : c;
   }
 }

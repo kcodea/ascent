@@ -19,20 +19,60 @@ export const COMBAT_ODDS_SIMS = 200;
 
 export type CombatOdds = NonNullable<CombatResult['odds']>;
 
-/** Re-run the stashed matchup `COMBAT_ODDS_SIMS` times. Pure + deterministic: same run seed and wave produce
- *  the identical numbers the old inline probe did (same `TAG.ODDS` stream, same round cap). */
-export function computeCombatOdds(
-  input: { player: BoardMinion[]; enemy: BoardMinion[]; playerState: CombatSideState; enemyState: CombatSideState; config: CombatConfig },
-  seed: number,
-  wave: number,
-): CombatOdds {
-  let win = 0, draw = 0, lose = 0, lossDamageTotal = 0;
+export type CombatOddsInput = { player: BoardMinion[]; enemy: BoardMinion[]; playerState: CombatSideState; enemyState: CombatSideState; config: CombatConfig };
+
+/**
+ * A RESUMABLE odds probe (perf pass 2026-09-16, owner-approved as a mechanical cleanup).
+ *
+ * The one-shot `computeCombatOdds` ran all `COMBAT_ODDS_SIMS` sims as ONE synchronous block: ~7 ms at wave 2,
+ * 30-44 ms by waves 9-14 (bigger boards → longer sims) — a measured long-task spike at every combat start,
+ * because the rIC `timeout` fired mid-frame on a busy replay. This form runs `n` sims per `step` so the UI can
+ * spread the work across idle slices and stop a slice when the deadline runs low.
+ *
+ * Byte-identical to the one-shot: sim `i` ALWAYS takes seed `mixSeed(seed, wave, TAG.ODDS, i)` no matter how
+ * the steps are sliced, and the tallies fold in the same order — so `result()` after any slicing equals
+ * `computeCombatOdds(input, seed, wave)` exactly (pinned in `odds.test.ts`).
+ */
+export interface OddsProbe {
+  /** Run up to `n` more sims. Returns `true` once every sim has run (further calls are no-ops). */
+  step(n: number): boolean;
+  /** `true` once every sim has run. */
+  done(): boolean;
+  /** Sims run so far (0..COMBAT_ODDS_SIMS). */
+  progress(): number;
+  /** The odds over the sims run SO FAR — call once `done()` for the full-probe numbers. */
+  result(): CombatOdds;
+}
+
+export function createOddsProbe(input: CombatOddsInput, seed: number, wave: number, sims = COMBAT_ODDS_SIMS): OddsProbe {
+  let win = 0, draw = 0, lose = 0, lossDamageTotal = 0, i = 0;
   const cap = lossDamageCap(wave);
-  for (let i = 0; i < COMBAT_ODDS_SIMS; i++) {
-    const r = simulate(input.player, input.enemy, makeRng(mixSeed(seed, wave, TAG.ODDS, i)), CARD_INDEX, input.playerState, input.enemyState, input.config);
-    if (r.result === 'win') win++;
-    else if (r.result === 'draw') draw++;
-    else { lose++; lossDamageTotal += Math.min(r.playerDamage, cap); } // round-capped, as a real loss would be
-  }
-  return { win: win / COMBAT_ODDS_SIMS, draw: draw / COMBAT_ODDS_SIMS, lose: lose / COMBAT_ODDS_SIMS, avgLossDamage: lose > 0 ? lossDamageTotal / lose : 0 };
+  const step = (n: number): boolean => {
+    const end = Math.min(sims, i + Math.max(0, n));
+    for (; i < end; i++) {
+      const r = simulate(input.player, input.enemy, makeRng(mixSeed(seed, wave, TAG.ODDS, i)), CARD_INDEX, input.playerState, input.enemyState, input.config);
+      if (r.result === 'win') win++;
+      else if (r.result === 'draw') draw++;
+      else { lose++; lossDamageTotal += Math.min(r.playerDamage, cap); } // round-capped, as a real loss would be
+    }
+    return i >= sims;
+  };
+  return {
+    step,
+    done: () => i >= sims,
+    progress: () => i,
+    result: () => {
+      const n = Math.max(1, i);
+      return { win: win / n, draw: draw / n, lose: lose / n, avgLossDamage: lose > 0 ? lossDamageTotal / lose : 0 };
+    },
+  };
+}
+
+/** Re-run the stashed matchup `COMBAT_ODDS_SIMS` times in one go. Pure + deterministic: same run seed and wave
+ *  produce the identical numbers the old inline probe did (same `TAG.ODDS` stream, same round cap). The
+ *  one-shot wrapper over `createOddsProbe` — tests and headless tools use this; the UI slices the probe. */
+export function computeCombatOdds(input: CombatOddsInput, seed: number, wave: number): CombatOdds {
+  const probe = createOddsProbe(input, seed, wave);
+  probe.step(COMBAT_ODDS_SIMS);
+  return probe.result();
 }

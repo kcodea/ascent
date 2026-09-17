@@ -68,6 +68,8 @@ import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
 import { pixiFx, discoverFx, RUBY_AIM_DEF_ID } from './pixiFx';
 import { FxUnderSlot } from './PixiFxLayer';
 import { perfMonitor } from './perfMonitor';
+import { PerfProfiler } from './perfProfiler';
+import { elementAtPoint, readRect } from './layoutRead';
 import { getSwapFxConfig } from './swapFxConfig';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
 import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig';
@@ -2868,7 +2870,7 @@ export function Recruit() {
   const boardUidAt = (x: number, y: number): string | null => {
     const cached = targetRectsRef.current;
     if (cached) return hitCachedUid(cached.board, x, y);
-    const el = document.elementFromPoint(x, y)?.closest('[data-zone="warband"] .row .card[data-uid]');
+    const el = elementAtPoint(x, y)?.closest('[data-zone="warband"] .row .card[data-uid]');
     return el?.getAttribute('data-uid') ?? null;
   };
   /** The uid of the tavern minion offer under a point (for `any` spell targeting — e.g. Shatter onto an
@@ -2876,7 +2878,7 @@ export function Recruit() {
   const shopUidAt = (x: number, y: number): string | null => {
     const cached = targetRectsRef.current;
     if (cached) return hitCachedUid(cached.shop, x, y);
-    const el = document.elementFromPoint(x, y)?.closest(`[data-zone="tavern"] .card[data-uid]:not(.spellcard)${SB_FOE_EXCLUDE}`);
+    const el = elementAtPoint(x, y)?.closest(`[data-zone="tavern"] .card[data-uid]:not(.spellcard)${SB_FOE_EXCLUDE}`);
     return el?.getAttribute('data-uid') ?? null;
   };
   /** The STARFORM offer under a point, or null — the one offer a friendly Celestial-aimed spell (Star Crash) may
@@ -2929,7 +2931,7 @@ export function Recruit() {
     let i = 0;
     for (const c of cards) {
       if (c.getAttribute('data-uid') === excludeUid) continue;
-      const r = c.getBoundingClientRect();
+      const r = readRect(c);
       if (x > r.left + r.width * INSERT_FRAC) i++;
     }
     return i;
@@ -2947,7 +2949,7 @@ export function Recruit() {
     let i = 0;
     for (const c of cards) {
       if (c.getAttribute('data-uid') === excludeUid) continue;
-      const r = c.getBoundingClientRect();
+      const r = readRect(c);
       if (x > r.left + r.width * INSERT_FRAC) i++;
     }
     return i;
@@ -2965,7 +2967,7 @@ export function Recruit() {
     let i = 0;
     for (const c of cards) {
       if (c.getAttribute('data-uid') === excludeUid) continue;
-      const r = c.getBoundingClientRect();
+      const r = readRect(c);
       if (x > r.left + r.width * INSERT_FRAC) i++;
     }
     return i;
@@ -3288,7 +3290,7 @@ export function Recruit() {
   const viewsRef = useRef({ shopViews, spellView, boardViews, handViews, spellUid: run.spell?.uid });
   viewsRef.current = { shopViews, spellView, boardViews, handViews, spellUid: run.spell?.uid };
   const onCardPointerDown = useCallback(
-    (e: ReactPointerEvent): void => {
+    (e: ReactPointerEvent): void => perfMonitor.measure('input:pointerdown', () => {
       if (e.button !== 0 || inCombat || useGame.getState().endTurnAnimating) return; // no dragging in combat / mid end-of-turn
       // A REPLAY VIEWER may not drag. The buy/sell it would produce is swallowed by `dispatch` anyway, so the
       // only thing a drag could do here is pick a card up and put it back — while fighting the playback that
@@ -3360,10 +3362,14 @@ export function Recruit() {
       // (DEV + prod alike); guarded off during playback, where input is inert anyway. One push, no layout.
       if (!useGame.getState().replaying) beginDragTrace(view.cardId, e.clientX, e.clientY);
       // The drag SESSION (perf 2026-09-17): the listeners, the per-drag rect caches and the move flush are
-      // installed imperatively right here, through the latest `startDragSession` (a ref — it closes over this
+      // installed imperatively from here, through the latest `startDragSession` (a ref — it closes over this
       // render's `run` and geometry), instead of by an effect keyed on the drag — so picking a card up, crossing
       // the threshold and putting it down never re-render `Recruit`. Touch/pen → snap to the finger.
-      startDragSessionRef.current({
+      // A MICROTASK, not inline: the session's one layout pass (the rect caches) would otherwise land inside
+      // this handler's `input:pointerdown` span and be tallied as `layout:read-in-move` — the counter that must
+      // read 0 for reads on the MOVE path. The microtask runs in this same task, before any further event.
+      const touch = e.pointerType !== 'mouse';
+      queueMicrotask(() => startDragSessionRef.current({
         uid, source, view,
         ox: w / 2, oy: h / 2,                        // anchor = centre → the card rides centred on the cursor
         grabOx: fracX * w, grabOy: fracY * h,        // where you actually grabbed (recentre starts here), full-size
@@ -3371,8 +3377,8 @@ export function Recruit() {
         startX: e.clientX, startY: e.clientY,
         x: e.clientX, y: e.clientY,
         active: false,
-      }, e.pointerType !== 'mouse');
-    },
+      }, touch));
+    }),
     [timeUp, inCombat],
   );
 
@@ -3595,12 +3601,14 @@ export function Recruit() {
         trailLast = null;
       }
     }); };
-    const onMove = (e: PointerEvent): void => {
+    // `input:pointermove` / `input:pointerup` (perf PR 1, 2026-09-17): the raw handlers, timed so a long
+    // task during a drag can be laid at the event's door (the rAF-coalesced work is `drag:flushMove`).
+    const onMove = (e: PointerEvent): void => perfMonitor.measure('input:pointermove', () => {
       dragStore.pos = { x: e.clientX, y: e.clientY }; // exact, every event — the visual layers read this
       sampleDragTrace(e.clientX, e.clientY); // replay drag-path capture — self-throttled to ~30 Hz, no layout
       lastMove = e;
       if (!moveRaf) moveRaf = requestAnimationFrame(flushMove);
-    };
+    });
     /** Tear the session down: listeners off, caches dropped, the store back to idle. Token-guarded so a timer
      *  left over from THIS session cannot end a newer one. Idempotent. */
     const endSession = (): void => {
@@ -3618,7 +3626,7 @@ export function Recruit() {
       endSessionRef.current = null;
       dragStore.endDrag();
     };
-    const onUp = (e: PointerEvent): void => {
+    const onUp = (e: PointerEvent): void => perfMonitor.measure('input:pointerup', () => {
       dragStore.pos = null; // this drag is over — never let its last point bleed into the next one
       const d = dragStore.get().drag;
       // Recompute "did it move" from the up event too: with the rAF-throttle a flick completed inside one
@@ -3730,7 +3738,7 @@ export function Recruit() {
         publish({ ...d, x: d.startX - d.grabOx + d.w / 2, y: d.startY - d.grabOy + d.h / 2 }, lastZone, { snapping: true });
         window.setTimeout(() => endSession(), getDragFeel().snapMs);
       }
-    };
+    });
     // Right-click while aiming a spell cancels it (snaps back to the hand).
     const onCtx = (e: MouseEvent): void => {
       const cur = dragStore.get().drag;
@@ -3791,7 +3799,7 @@ export function Recruit() {
         ? `[data-zone="warband"] .row .card[data-uid], [data-zone="tavern"] .row .card[data-uid]${SB_FOE_EXCLUDE}`
         : '[data-zone="warband"] .row .card[data-uid]';
     const minionAt = (x: number, y: number): { uid: string } | null => {
-      const el = document.elementFromPoint(x, y)?.closest(sel);
+      const el = elementAtPoint(x, y)?.closest(sel);
       const uid = el?.getAttribute('data-uid');
       if (!uid || uid === run.spell?.uid) return null; // a minion, never the spell
       // Displace can't target a golden (triple) — it never lights up as a valid pick.
@@ -3828,7 +3836,7 @@ export function Recruit() {
     let raf = 0;
     let pending: { x: number; y: number } | null = null;
     let lastUid: string | null = null;
-    const flush = (): void => {
+    const flush = (): void => perfMonitor.measure('input:aim-flush', () => {
       raf = 0;
       const pt = pending;
       pending = null;
@@ -3840,14 +3848,14 @@ export function Recruit() {
         lastUid = uid;
         dragStore.set({ aimTargetUid: uid }); // rare — only when you cross onto/off a different minion
       }
-    };
-    const move = (e: PointerEvent): void => {
+    });
+    const move = (e: PointerEvent): void => perfMonitor.measure('input:pointermove', () => {
       moved = true;
       // rAF-coalesced: a 1000Hz mouse still produces at most one update per frame.
       pending = { x: e.clientX, y: e.clientY };
       if (!raf) raf = requestAnimationFrame(flush);
-    };
-    const up = (e: PointerEvent): void => {
+    });
+    const up = (e: PointerEvent): void => perfMonitor.measure('input:pointerup', () => {
       if (!moved) return; // a plain click — stays armed for a follow-up click
       const target = minionAt(e.clientX, e.clientY);
       if (target && !timeUp) {
@@ -3885,7 +3893,7 @@ export function Recruit() {
         }
       } else if (equipArmed) armEquipment(); // released on nothing — cancels, spending no Gold and no use
       else armHero(); // released without a valid target — snaps back / cancels
-    };
+    });
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
     return () => {
@@ -3940,7 +3948,7 @@ export function Recruit() {
     // narrow the spell to the board (it could always hit an offer when the drag did the aiming).
     const aimsTavern = pendingTarget.deferredPlay && def?.target === 'any';
     const minionAt = (x: number, y: number): { uid: string } | null => {
-      const el = document.elementFromPoint(x, y)?.closest('[data-zone="warband"] .row .card[data-uid]');
+      const el = elementAtPoint(x, y)?.closest('[data-zone="warband"] .row .card[data-uid]');
       const uid = el?.getAttribute('data-uid');
       if (uid && valid(uid)) return { uid };
       const offer = aimsTavern ? shopUidAt(x, y) : null;
@@ -3959,7 +3967,7 @@ export function Recruit() {
     let raf = 0;
     let pending: { x: number; y: number } | null = null;
     let lastUid: string | null = null;
-    const flush = (): void => {
+    const flush = (): void => perfMonitor.measure('input:target-flush', () => {
       raf = 0;
       const pt = pending;
       pending = null;
@@ -3968,12 +3976,12 @@ export function Recruit() {
       const uid = target?.uid ?? null;
       pixiFx.setAimLine({ x: ox, y: oy }, { x: pt.x, y: pt.y }, !!target, getAimFxConfig());
       if (uid !== lastUid) { lastUid = uid; dragStore.set({ aimTargetUid: uid }); }
-    };
-    const move = (e: PointerEvent): void => {
+    });
+    const move = (e: PointerEvent): void => perfMonitor.measure('input:pointermove', () => {
       pending = { x: e.clientX, y: e.clientY };
       if (!raf) raf = requestAnimationFrame(flush);
-    };
-    const pick = (e: PointerEvent): void => {
+    });
+    const pick = (e: PointerEvent): void => perfMonitor.measure('input:pointerdown', () => {
       if (e.button !== 0 || timeUp) return;
       const target = minionAt(e.clientX, e.clientY);
       if (target) { dispatch({ type: 'battlecryTarget', targetUid: target.uid }); return; }
@@ -3981,7 +3989,7 @@ export function Recruit() {
       // been played, so the card simply returns to hand untouched. An ordinary battlecry aim still ignores the
       // click and keeps aiming — its body is already on the board, so there is nothing clean to back out to.
       if (pendingTarget.deferredPlay) dispatch({ type: 'cancelChoice' });
-    };
+    });
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerdown', pick);
     return () => {
@@ -5078,7 +5086,7 @@ export function Recruit() {
      already opened the gap. On the drop commit the drag is over, and because offsetLeft ignored the slide
      transforms the delta we seed is exactly where the card visually sits — so it continues rather than
      snapping back. Entering cards have no previous position and are skipped; `playBuySlide` owns those. */
-  useLayoutEffect(() => {
+  useLayoutEffect(() => perfMonitor.measure('layout:handglide:seed', () => {
     // A drag-REORDER is the Flip effect's job (it already glided these cards from their captured spots). Both
     // effects key off `handOrderKey`; the Flip effect runs first and sets this flag so we don't ALSO seed a
     // full-slot make-room glide here — which would replay the slide a second time after release. Reset it
@@ -5107,7 +5115,7 @@ export function Recruit() {
     // Deliberately NO cleanup timer: the var settles at `0px`, which is what the default already resolves
     // to, so leaving it inline is inert. A timer here would be one more hold to leak (see the 2026-07-27
     // stuck-cue audit).
-  }, [handOrderKey, inCombat]);
+  }), [handOrderKey, inCombat]);
 
   /* Every hand card's layout x, refreshed for the glide above. Declared AFTER it so that within one commit
      the glide reads the PREVIOUS frame's positions and this then overwrites them. One forced layout over at
@@ -6242,6 +6250,8 @@ export function Recruit() {
           load-bearing (above `.boardbg`, below every zone); see `FxUnderSlot` for why it can't live beside
           `.pixifx` outside `.app`. */}
       <FxUnderSlot />
+      {/* `render:recruit` BY CHILD (perf PR 1, 2026-09-17): dev-only React.Profiler regions — see `perfProfiler.tsx`. */}
+      <PerfProfiler id="render:recruit:hud">
       <HudBar />
       {/* LOBBY RAIL — the 8-seat table down the right edge of the stage. A direct child of `.app` (not the HUD
           bar) so it can be anchored to the STAGE height and run tall beside the board, instead of hanging off
@@ -6260,11 +6270,13 @@ export function Recruit() {
         nextTurnGold={nextTurnGold} afterNextGold={afterNextGold} wave={run.wave} rift={run.rift}
         onSummary={openSummary} onEndTurn={endTurnStable} onEndCombat={endCombat} onFreeze={onFreeze} onRefresh={onRefresh} onUpgrade={onUpgrade} onSkip={skipCombat}
       />
+      </PerfProfiler>
 
       {/* The sell / buy zones + the floating drag card — `DragOverlay` draws them straight from `dragStore`
           (perf 2026-09-17), so a drag decision never reaches this component. Same DOM position as before. */}
       <DragOverlay timeUp={timeUp} heroArmed={heroArmed} equipArmed={equipArmed} hasPendingTarget={!!pendingTarget} />
 
+      <PerfProfiler id="render:recruit:shop">
       <TavernRow
         frozen={!!run.frozen && !inCombat} replay={combatUnitsShown ? replay : null}
         sbEnemyShown={sbTavernShowsEnemy && !!run.sandbox} sbEnemySnap={sbEnemySnap} sbEditMode={sbEditMode} onSbEnemyPointerDown={onSbEnemyPointerDown}
@@ -6273,7 +6285,9 @@ export function Recruit() {
         tripleReadyUids={tripleReadyUids} returningFromCombat={returningFromCombat} onCardPointerDown={onCardPointerDown}
         spell={run.spell} spellView={spellView}
       />
+      </PerfProfiler>
 
+      <PerfProfiler id="render:recruit:board">
       <WarbandRow
         replay={combatUnitsShown ? replay : null}
         displayBoard={displayBoard} boardOrder={boardOrder} boardAligns={boardAligns} boardViews={boardViews} refViewsByUid={refViewsByUid}
@@ -6283,12 +6297,15 @@ export function Recruit() {
         summonDelayUids={summonDelayUids} electrifyUids={electrifyUids} karwindFlameUids={karwindFlameUids}
         returningFromCombat={returningFromCombat} hasPendingTarget={!!pendingTarget} onCardPointerDown={onCardPointerDown}
       />
+      </PerfProfiler>
 
+      <PerfProfiler id="render:recruit:hand">
       <HandRow
         gambleHand={gambleHand} handOrder={handOrder} goldSpentRun={run.goldSpent ?? 0} tier={run.tier} wave={run.wave}
         handViews={handViews} refViewsByUid={refViewsByUid} combatHandSummoned={combatHandSummoned}
         onCardPointerDown={onCardPointerDown} handPreviewViews={handPreviewViews}
       />
+      </PerfProfiler>
 
       {/* `render:recruit` for THIS render (after every card's own layout effect, before the FLIP) — see RenderMark. */}
       <RenderMark start={renderStart} phase={run.phase} />
@@ -6483,6 +6500,7 @@ export function Recruit() {
           );
         })}
 
+      <PerfProfiler id="render:recruit:overlays">
       <CombatLogOverlay
         showLog={showLog} result={replay.result} combatOdds={combatOdds} logTab={logTab} setLogTab={setLogTab}
         lastCombat={run.lastCombat} procs={replay.procs} fullLog={replay.fullLog} onClose={closeLog}
@@ -6502,6 +6520,7 @@ export function Recruit() {
         overlaysHeld={overlaysHeld} run={run} forgeMin={forgeMin} setForgeMin={setForgeMin} lockIn={lockIn} lockInSlow={lockInSlow} setLockIn={setLockIn}
         runeLockInCue={runeLockInCue} cueRuneArrival={cueRuneArrival} startRuneLockIn={startRuneLockIn} dispatch={dispatch}
       />
+      </PerfProfiler>
 
       {/* SANDBOX ONLY: the unit editor popover, opened by the click intercept in onCardPointerDown. Every
           apply reads and writes the LIVE store run rather than this render's `run` — a stat edit is itself a

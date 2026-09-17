@@ -73,6 +73,22 @@ const CODE_NAMES: Record<string, string> = {
   'render:combat': 'the combat-screen render',
   'choreo:step': 'the combat beat step (cues)',
   'choreo:frame': 'the combat frame fold',
+  // ── The pointer path (perf PR 1, 2026-09-17): every input handler the shop runs, as `input:<event>`. ──
+  'input:pointermove': 'the pointer-move handler (drag / aim)',
+  'input:pointerdown': 'the pointer-down handler (card grab / target pick)',
+  'input:pointerup': 'the pointer-up handler (the drop / aim release)',
+  'input:pointerenter': 'the card hover-in handler',
+  'input:pointerleave': 'the card hover-out handler',
+  'input:hover-preview': 'the hover preview (referenced-card popup) placement',
+  'input:aim-flush': 'the hero-power aim, per frame',
+  'input:target-flush': 'the battlecry target aim, per frame',
+  'layout:handglide:seed': 'the hand make-room glide (seeding the deltas)',
+  // ── `render:recruit` by child (React.Profiler, dev only) — a breakdown, not extra cost. ──
+  'render:recruit:hud': 'the recruit render — HUD + shop controls',
+  'render:recruit:shop': 'the recruit render — the shop row',
+  'render:recruit:board': 'the recruit render — the warband row',
+  'render:recruit:hand': 'the recruit render — the hand row',
+  'render:recruit:overlays': 'the recruit render — the overlays',
 };
 
 /**
@@ -80,9 +96,10 @@ const CODE_NAMES: Record<string, string> = {
  * and `reduce:<action>:<cardId>` from the dispatch — plus the Discover overlay's own FX controller, which
  * namespaces its spans as `discover fx:…`. `isKnownLabel` is what `perfNames.test.ts` enforces on every
  * static label in the source: a new `perfMonitor.measure('…')` must either be named here or fit a family,
- * or the HUD shows an address where the owner expects a name.
+ * or the HUD shows an address where the owner expects a name. `input:` and `render:recruit:` are families
+ * so a new handler or Profiler region degrades to a readable address rather than an unknown one.
  */
-const LABEL_FAMILIES = [/^fx:/, /^reduce:/, /^discover /];
+const LABEL_FAMILIES = [/^fx:/, /^reduce:/, /^discover /, /^input:/, /^render:recruit:/];
 export function isKnownLabel(label: string): boolean {
   return label in CODE_NAMES || LABEL_FAMILIES.some((re) => re.test(label));
 }
@@ -121,11 +138,27 @@ const SHORT_NAMES: Record<string, string> = {
   'render:combat': 'combat render',
   'choreo:step': 'beat cues',
   'choreo:frame': 'beat frame',
+  'input:pointermove': 'pointermove',
+  'input:pointerdown': 'pointerdown',
+  'input:pointerup': 'pointerup',
+  'input:pointerenter': 'hover in',
+  'input:pointerleave': 'hover out',
+  'input:hover-preview': 'hover preview',
+  'input:aim-flush': 'aim · frame',
+  'input:target-flush': 'target aim · frame',
+  'layout:handglide:seed': 'hand glide · seed',
+  'render:recruit:hud': 'shop render · HUD',
+  'render:recruit:shop': 'shop render · shop row',
+  'render:recruit:board': 'shop render · warband',
+  'render:recruit:hand': 'shop render · hand',
+  'render:recruit:overlays': 'shop render · overlays',
 };
 
 export function shortName(label: string): string {
   const short = SHORT_NAMES[label];
   if (short) return short;
+  if (label.startsWith('render:recruit:')) return `shop render · ${label.slice(15)}`;
+  if (label.startsWith('input:')) return label.slice(6);
   if (label.startsWith('discover ')) return `Discover · ${shortName(label.slice(9))}`;
   if (label.startsWith('fx:def:')) return `${effectName(label.slice(7))} fx/frame`;
   if (label.startsWith('fx:')) {

@@ -30,8 +30,8 @@ function block(src: string, startMarker: string, endMarker: string): string {
 
 describe('the drag session (Recruit.tsx source contract)', () => {
   const session = block(RECRUIT, 'const startDragSession = (drag: DragState, touch: boolean): void => {', 'startDragSessionRef.current = startDragSession;');
-  const flush = block(session, "const flushMove = (): void => { perfMonitor.measure('drag:flushMove', () => {", 'const onMove = (e: PointerEvent): void => {');
-  const onMove = block(session, 'const onMove = (e: PointerEvent): void => {', '/** Tear the session down');
+  const flush = block(session, "const flushMove = (): void => { perfMonitor.measure('drag:flushMove', () => {", 'const onMove = (e: PointerEvent): void => ');
+  const onMove = block(session, 'const onMove = (e: PointerEvent): void => ', '/** Tear the session down');
 
   it('the move flush reads no layout — it hit-tests the per-drag rect cache', () => {
     expect(LAYOUT_READS.test(flush), 'no layout read inside flushMove').toBe(false);

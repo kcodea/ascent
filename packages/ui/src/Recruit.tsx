@@ -32,7 +32,7 @@ if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
 import { chooseBothText } from './cardText';
-import { type Action, spiritsPlayedThisTurn, anySpellsCastThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken } from '@game/sim';
+import { type Action, spiritsPlayedThisTurn, anySpellsCastThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -1847,15 +1847,38 @@ export function Recruit() {
     if (!lc?.oddsInput || lc.odds) return;
     const input = lc.oddsInput;
     let cancelled = false;
-    const compute = (): void => {
-      if (cancelled) return;
-      const odds = perfMonitor.measure('odds:deferred', () => computeCombatOdds(input, run.seed, run.wave));
-      if (!cancelled) setCombatOdds(odds);
-    };
-    // rIC waits for a quiet frame during the combat intro; the timeout stops a busy replay starving it.
+    // INCREMENTAL (perf pass 2026-09-16): the one-shot probe was a single 7-44 ms synchronous block (bigger
+    // boards → longer sims) that the rIC `timeout` dropped mid-frame on a busy replay — a long task at every
+    // combat start. `createOddsProbe` runs the SAME per-sim seeds in resumable steps, so we drive it in
+    // slices: each idle callback runs ODDS_SLICE sims, then keeps stepping only while the deadline holds.
+    // Each slice records under `odds:deferred`, so the monitor shows many small calls, not one long one.
+    // The result is byte-identical to `computeCombatOdds` (pinned in odds.test.ts).
+    const ODDS_SLICE = 10;            // sims per step — a step can't be interrupted, so keep it a few ms even late-game
+    const ODDS_YIELD_MS = 4;          // keep stepping only while the idle deadline has more than this left
+    const ODDS_SLICE_TIMEOUT_MS = 200; // rIC timeout per callback — a saturated main thread still drains a step every 200 ms
+    const ODDS_FALLBACK_MS = 32;      // no rIC: one step every couple of frames
+    const probe = createOddsProbe(input, run.seed, run.wave);
+    const hasRIC = typeof requestIdleCallback === 'function';
     let idleId = 0; let timerId = 0;
-    if (typeof requestIdleCallback === 'function') idleId = requestIdleCallback(compute, { timeout: 1500 });
-    else timerId = window.setTimeout(compute, 250);
+    const slice = (deadline?: IdleDeadline): void => {
+      if (cancelled) return;
+      const done = perfMonitor.measure('odds:deferred', () => {
+        // A timed-out callback (`didTimeout`) has no idle budget — still run one step so a busy replay can't
+        // starve the probe forever; otherwise keep stepping while the deadline holds.
+        let finished = probe.step(ODDS_SLICE);
+        while (!finished && deadline && !deadline.didTimeout && deadline.timeRemaining() > ODDS_YIELD_MS) finished = probe.step(ODDS_SLICE);
+        return finished;
+      });
+      if (cancelled) return;
+      if (done) { setCombatOdds(probe.result()); return; }
+      schedule();
+    };
+    // rIC waits for a quiet frame during the combat intro; the timeout stops a busy replay starving a slice.
+    const schedule = (): void => {
+      if (hasRIC) idleId = requestIdleCallback(slice, { timeout: ODDS_SLICE_TIMEOUT_MS });
+      else timerId = window.setTimeout(() => slice(), ODDS_FALLBACK_MS);
+    };
+    schedule();
     return () => {
       cancelled = true;
       if (idleId && typeof cancelIdleCallback === 'function') cancelIdleCallback(idleId);

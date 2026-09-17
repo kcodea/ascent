@@ -42,6 +42,7 @@
     "player": "tsx packages/tools/src/player-curve.ts",
     "audit": "tsx packages/tools/src/card-audit.ts",
     "perf": "tsx packages/tools/src/perf.ts",
+    "perf:odds": "tsx packages/tools/src/perf-odds.ts",
     "pool": "tsx packages/tools/src/build-pool.ts",
     "board:export": "tsx packages/tools/src/board-export.ts",
     "fx:publish": "tsx packages/tools/src/fx-publish.ts",

@@ -55,6 +55,13 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-17',
+    label: 'Undead Aura sound',
+    changes: [
+      { category: 'UI / Info', text: 'The Undead Aura surge now has its own sound cue, in the Shop and mid-combat. It never overlaps itself — back-to-back rises share one cue.' },
+    ],
+  },
+  {
     date: '2026-09-16',
     label: 'Apples scales on both ends',
     changes: [

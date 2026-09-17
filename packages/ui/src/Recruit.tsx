@@ -4473,8 +4473,9 @@ export function Recruit() {
     // UNDEAD AURA (owner-authored `undead-aura-buff`, wired 2026-09-16): every rise of the run-wide Undead Aura —
     // Deathswarmer's Shout, Forsaken Weaver, Karthus, Anubis's Lantern, a Soul Script bake — plays the
     // camera-anchored surge over the board. Per-card tendrils on the bodies it buffs stay as they are.
-    if (tribe === 'undead' && canPlayDefs()) {
-      playDef('undead-aura-buff', { camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } });
+    if (tribe === 'undead') {
+      sfx.undeadAura(); // the owner's surge clip, exclusive — never overlaps itself
+      if (canPlayDefs()) playDef('undead-aura-buff', { camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } });
     }
   }, []);
   useEffect(() => {

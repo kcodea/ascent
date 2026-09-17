@@ -1,5 +1,4 @@
 import type { DescendPresetCfg } from './descendPresets';
-import { DESCEND_PRESETS } from './descendPresets';
 
 /**
  * Tunable parameters for the BUFF FX — the animation that plays on a minion when something buffs it: the
@@ -46,19 +45,17 @@ export interface BuffFxConfig {
   spiritHitStaggerMs: number;
 }
 
-const D = DESCEND_PRESETS.default!;
-
 const DEFAULTS: BuffFxConfig = {
+  // Owner-tuned 2026-09-17 (dialled in the Buff tuner and baked as the shipped values; the descend preset's
+  // own numbers no longer feed these; `tunedDescend` still folds them over the preset's colours/blend).
   waveGapMs: 150, waveMaxTotalMs: 900, waveMaxCount: 6,
-  startHeight: D.startHeight, dropMs: D.dropMs, retractMs: D.retractMs,
-  baseWidth: D.baseWidth, tipWidth: D.tipWidth, coreAlpha: D.coreAlpha,
-  ringCount: D.pulse.ringCount, ringSize: D.pulse.ringSize, ringWidth: D.pulse.ringWidth, ringMs: D.pulse.ringMs,
-  coreFlashSize: D.pulse.coreFlashSize, coreFlashMs: D.pulse.coreFlashMs,
-  // Owner-tuned 2026-07-19: a denser but much FINER spark burst than the descend preset's (46 x 3px, vs
-  // 60 x 7px) - the big sparks read as debris at wave scale, where three waves can overlap.
-  sparkCount: 46, sparkSpeed: D.pulse.sparkSpeed, sparkSize: 3, sparkLife: D.pulse.sparkLife,
-  spiritSfxOffsetMs: 0,
-  spiritHitStaggerMs: 60,
+  startHeight: 71, dropMs: 340, retractMs: 180,
+  baseWidth: 81.5, tipWidth: 38.5, coreAlpha: 0.05,
+  ringCount: 2, ringSize: 90, ringWidth: 6, ringMs: 500,
+  coreFlashSize: 115, coreFlashMs: 470,
+  sparkCount: 46, sparkSpeed: 410, sparkSize: 3, sparkLife: 850,
+  spiritSfxOffsetMs: -50,
+  spiritHitStaggerMs: 90,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */

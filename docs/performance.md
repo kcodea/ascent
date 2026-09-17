@@ -116,10 +116,12 @@ top-offenders list is built from.
 |---|---|---|
 | `reduce:<action>` / `reduce:<action>:<cardId>` | one run-logic dispatch, per card where one is named | `store.ts` |
 | `store:set` | the Zustand update + every synchronous subscriber (nests the reduce) | `store.ts` |
-| `autosave` | the run serialized to localStorage at a phase boundary | `store.ts` |
+| `autosave` | the run serialized to localStorage at a phase boundary — on idle time since 2026-09-17 (`idleWork.ts`), never inside the dispatch | `store.ts` |
+| `commit:actionRing` / `commit:telemetry` / `commit:derive` / `commit:replayFrame` | the per-action commit steps inside `store:set` (the ring's hash itself runs on idle time) — `store:set`'s self time is what is left | `store.ts` |
+| `view:shop` | building the tavern's card views (memoized per offer by signature — `shopViewCache.ts`) | `Recruit.tsx` |
 | `render:recruit` / `render:combat` | React render + commit of the shop / combat screen (phase-aware) | `Recruit.tsx` |
 | `view:board` / `view:hand` | building the card views | `Recruit.tsx` |
-| `layout:flip` → `layout:flip:write` + `layout:flip:read` | the FLIP effect: the animation half (Flip.from / manual tweens + forced reflows) and the capture half (Flip.getState + the offsetLeft sweep) | `Recruit.tsx` |
+| `layout:flip` → `layout:flip:write` + `layout:flip:read` | the FLIP effect (`RowFlip`, in the commit where a row moves): the capture half (the offsetLeft sweep, read FIRST outside a drag; Flip.getState after the write during one) and the animation half (Flip.from / manual tweens) | `Recruit.tsx` |
 | `drag:flushMove`, `layout:handglide`, `odds:deferred`, `recruit:moment cues` | drag / hand / odds / cue paths | `Recruit.tsx` |
 | `input:pointermove` / `input:pointerdown` / `input:pointerup` | the raw drag, grab and aim handlers (perf PR 1, 2026-09-17) | `Recruit.tsx` |
 | `input:aim-flush` / `input:target-flush` | the hero-power / battlecry aim's rAF-coalesced work | `Recruit.tsx` |
@@ -633,6 +635,20 @@ These are the rules the audits surfaced; the codebase already follows them — k
   wrapper over a ref for closures that must see the latest render — see `endTurnStable`), and a prop that
   is an object or array is memoized or derived from the view caches. Before/after in
   `docs/devlog/2026-09-16-perf-recruit-split.md`.
+- **Don't put the pointer's state in the component that renders the screen.** The live drag, its drop-gap
+  decision, the aim target and the zone glows lived as `Recruit` `useState` until 2026-09-17, so every slot
+  crossing reconciled the shop (28 `recruit renders` per 100-move drag). They live in `dragStore.ts` now — an
+  external store the rows, `DragOverlay` and `RowFlip` subscribe to by SLICE (`useDragSlice`), while `Recruit`
+  subscribes to none of it. A new piece of pointer-driven state goes there, and the component that draws it
+  subscribes; the drag session (`startDragSession`) publishes decisions, never `setState`. `dragSession.test.ts`
+  is the source contract: the move flush reads no layout and calls no React setter.
+- **Pass `simple: true` to `Flip.from` / `Flip.to`, not only to `Flip.getState`.** The animation call builds its
+  own "to" state; without the flag GSAP resolves a global matrix per element by appending a temp node and
+  reading it — a forced layout per card, ~9 ms per slot crossing on a 13-card shop. Only the Choose One
+  coalesce (`absolute: true`, cross-container) keeps the full path.
+- **Read before you write inside a layout effect, and skip the write when nothing moved.** The FLIP's
+  offsetLeft sweep used to follow the tween seeds (a third forced layout per drop); read on the flush React's
+  commit already dirtied, then write, and a commit that moved no card (a roll) touches no style at all.
 - **Don't read layout in a no-deps `useLayoutEffect`.** An effect with no dependency array runs on EVERY
   commit, and an `offsetLeft` / `getBoundingClientRect` read after that commit's style writes is a forced
   layout every time — the `layout:handglide` cache was 39.8 ms in one of the owner's worst frames for a

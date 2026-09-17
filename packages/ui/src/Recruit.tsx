@@ -41,7 +41,9 @@ import { heroPowerArt, heroArt, equipmentBranchArtFor } from './art';
 import { beginDragTrace, cancelDragTrace, endDragTrace, sampleDragTrace } from './replay/dragTrace';
 import { SYM_KINDS } from './choreo/channels/float';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
-import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, type DragGeo, type DragDecision } from './dragDecision';
+import { buildShopViews, type ShopViewCacheEntry } from './shopViewCache';
+import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, NO_DRAG_DECISION, type DragGeo, type DragDecision } from './dragDecision';
+import { dragStore, useDragSlice, type DragSnapshot, type DragState } from './dragStore';
 import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
 import { RuneLockIn, type RuneLockInCard } from './RuneLockIn';
@@ -809,19 +811,7 @@ export function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView { //
   };
 }
 
-interface DragState {
-  uid: string;
-  source: DragSource;
-  view: CardView;
-  ox: number; oy: number; // anchor offset within the card — set to the CENTRE so the card rides centred on
-                          // the cursor once dragging (all drop/insertion math is `x - ox + w/2` = cursor).
-  grabOx: number; grabOy: number; // the ACTUAL grab point within the card — the floating card starts here
-                                  // (no pickup pop) then smoothly recentres to the cursor over the first frames.
-  w: number; h: number; // the source card's size, so the floating card matches exactly
-  startX: number; startY: number; // pointer position at press
-  x: number; y: number; // current pointer
-  active: boolean; // crossed the drag threshold (vs a click)
-}
+// (`DragState` — the live drag's shape — lives in `dragStore.ts` since 2026-09-17, with the store it rides in.)
 
 export function Recruit() {
   // Render RATE of the biggest component in the app, surfaced to the perf HUD. This is the instrument that
@@ -954,19 +944,11 @@ export function Recruit() {
   const afterNextGold =
     Math.max(run.maxEmbers, Math.min(CONFIG.embersCap, run.maxEmbers + 2 * CONFIG.embersPerWave)) + maxGoldBonus + goldManaBonus;
 
-  const [drag, setDrag] = useState<DragState | null>(null);
-  const [overZone, setOverZone] = useState<Zone | null>(null);
-  // Height (px) of the sell region = top of screen → top of the warband. Measured when a board-minion
-  // drag begins, so the whole upper screen can act as one big "drop to sell" zone.
-  const [sellTop, setSellTop] = useState(0);
-  // Same idea for the buy zone: top of the warband → bottom of screen, measured when a shop-card drag begins.
-  const [buyTop, setBuyTop] = useState(0);
-  const [snapping, setSnapping] = useState(false);
-  const [magSlide, setMagSlide] = useState(false); // a Magnetic card sliding into its Mech
-  const [magTargetUid, setMagTargetUid] = useState<string | null>(null); // the Mech being merged into (crackles)
-  // Only the hovered TARGET is React state — the aim line's coordinates are pushed straight into Pixi by
-  // the rAF-coalesced move handlers, so pointer movement no longer re-renders this component.
-  const [aimTargetUid, setAimTargetUid] = useState<string | null>(null);
+  // THE LIVE DRAG, its decision, the sell/buy zone geometry, the magnet slide, the snap-back and the hero-aim
+  // target all live in `dragStore` (perf 2026-09-17) — an external store the rows, the drag overlay and the FLIP
+  // runner subscribe to on their own. `Recruit` neither reads nor subscribes to any of it: a pointermove, a
+  // drop-gap crossing or an aim crossing re-renders the one subtree that draws it, never this component.
+  // Handlers read the live snapshot through `dragStore.get()`; the aim line's coordinates go straight to Pixi.
   // SANDBOX ONLY: which board minion the unit editor is open on, and the rect it is seated under. Held as a
   // uid + rect rather than an element so a re-render (a stat edit is a re-render) can't leave a stale node.
   const sbEditMode = useGame((s) => s.sbEditMode);
@@ -2177,70 +2159,9 @@ export function Recruit() {
   /** The board cards that LEFT in the latest commit, with the centre they last stood at — see the refresh effect. */
   const departedCentreRef = useRef<Map<string, { x: number; y: number; w: number }>>(new Map());
   const prevShopFxSeq = useRef(run.shopFxSeq);
-  useLayoutEffect(() => {
-    const seq = run.shopFxSeq;
-    if (seq === undefined || seq === prevShopFxSeq.current) return;
-    prevShopFxSeq.current = seq; // advance FIRST — fires exactly once per action, like the Ruby cue above
-    const cues = run.shopDeathFx ?? [];
-    const cfg = getShopDeathFxConfig(); // read at FIRE TIME, so a tuner edit applies to the next death
-    // WHICH BODIES DIED THIS ACTION. An Echo belonging to a dying body must play WHERE THE CARD WAS (owner
-    // 2026-08-28) — so for those we go straight to the last-known centre and never consult the live DOM,
-    // where the uid is either absent or, after a Rise, a DIFFERENT body standing in its place.
-    const dying = new Set(cues.filter((f) => f.kind === 'death').map((f) => f.uid));
-    // Hold the row for the NEXT commit's slide. Set here rather than in the FLIP effect because only
-    // this one knows a death happened; the FLIP effect sees an ordinary board change.
-    if (dying.size > 0) shiftHoldRef.current = Math.max(0, cfg.shiftDelayMs);
-    for (const fx of cues) {
-      const cached = lastCentreRef.current.get(fx.uid);
-      const live = dying.has(fx.uid) ? null : findEl(fx.uid);
-      const base = live
-        ? (() => { const r = live.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width }; })()
-        : cached;
-      if (!base) continue;
-      const at = { x: base.x + cfg.offsetX, y: base.y + cfg.offsetY, w: base.w * cfg.sizeScale };
-      const fire = (): void => {
-        if (fx.kind === 'echo') { pixiFx.deathrattle(at.x, at.y, at.w); return; }
-        // A RISEN body has returned (owner 2026-09-09): combat's reborn re-form on the new card, one beat after the
-        // death it followed. `base` was read from the live, freshly-mounted element above.
-        if (fx.kind === 'rise') { reformReborn({ cx: at.x, cy: at.y, w: base.w, h: base.w * 1.4 }); return; }
-        // A body that will Rise dies IN FULL first (dissolve here, its Echo skull on its own cue) — the return is
-        // the `rise` cue above, not a bloom in place (owner 2026-09-09: "just as if it had happened in combat").
-        if (!canPlayDefs()) return;
-        const anchors = anchorsForUnits(null, fx.uid);
-        if (anchors) playDef('death-dissolve', anchors, { uids: { source: null, target: fx.uid } });
-      };
-      if (fx.kind === 'echo' && preFiredEchoRef.current.delete(fx.uid)) continue; // the lead already played it
-      if (fx.kind === 'echo' && !cfg.echoEnabled) continue;
-      if (fx.kind === 'death' && !cfg.deathEnabled) continue;
-      const delay = fx.kind === 'echo' ? cfg.echoDelayMs : fx.kind === 'rise' ? cfg.deathDelayMs + RISE_REFORM_MS : cfg.deathDelayMs;
-      if (delay > 0) window.setTimeout(fire, delay); else fire();
-    }
-  }, [run.shopFxSeq, run.shopDeathFx, findEl]);
-
-  /**
-   * Refresh the last-known-centre cache. Declared AFTER the cue effect on purpose: React runs layout effects
-   * in declaration order, so the cue above still sees the PREVIOUS layout — which is the only place a body
-   * that just died still has a position. Reads at most a board's worth of rects, once per render (never per
-   * frame), and skips entirely mid-drag where renders are frequent and nothing is dying.
-   */
-  useLayoutEffect(() => {
-    if (dragRef.current?.active) return;
-    const next = new Map<string, { x: number; y: number; w: number }>();
-    for (const el of document.querySelectorAll<HTMLElement>(FLIP_SEL_WARBAND)) {
-      const uid = el.dataset.uid;
-      if (!uid) continue;
-      const r = el.getBoundingClientRect();
-      next.set(uid, { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width });
-    }
-    // WHO LEFT THIS COMMIT (2026-09-16): a board card that was measured last render and is gone now — a
-    // destroyed / sold / borrowed body. Its Echo's buff-others are replayed by the post-paint `recruitFxSeq`
-    // effect below, which runs AFTER this layout effect in the same commit and needs the slot the card fell
-    // from to stream the tendril. Rebuilt every render, so it only ever holds this commit's departures.
-    const departed = new Map<string, { x: number; y: number; w: number }>();
-    for (const [uid, c] of lastCentreRef.current) if (!next.has(uid)) departed.set(uid, c);
-    departedCentreRef.current = departed;
-    lastCentreRef.current = next;
-  });
+  // The death-cue layout effect and the last-centre refresh that used to sit here run inside `RowFlip` now
+  // (perf 2026-09-17) — same order, same bodies — so they land in the commit where the row moves even when
+  // that commit was a drag decision that never re-rendered `Recruit`. The refs above are theirs to write.
 
   const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed, paused: overlayOpen, rampEnabled });
   /** Latest replay for handlers that must stay referentially stable (`skipCombat`): the hook returns a fresh
@@ -2877,144 +2798,20 @@ export function Recruit() {
   // A SPELL arms on its own, LOWER line (closer to the hand) than a minion's play floor — so casting doesn't
   // need a long drag up. Set alongside playFloor from the live `spellLine` knob. Fallback = playFloor.
   const spellFloorRef = useRef(Infinity);
-  const dragRef = useRef<DragState | null>(null);
-  dragRef.current = drag;
-  /**
-   * The EXACT live pointer position during a drag, updated on every pointermove.
-   *
-   * `drag.x/y` in React state is deliberately COARSE (see the decision gate in `flushMove`): it only
-   * advances when a layout DECISION changes, because every update re-renders this component.
-   * Anything that must track the cursor smoothly — the floating card's transform, the spell aim line, the
-   * motion trail — reads this ref instead, so it stays frame-exact without costing a render.
-   */
-  const dragPosRef = useRef<{ x: number; y: number } | null>(null);
-  /** Mirrors the render's `castingSpell` / `castTargetUid` so `flushMove` can keep the spell aim line exact
-   *  (it runs every frame; the render now only runs on the quantum). Written during render, read per frame. */
-  // `defId` picks the aim EFFECT for this cast: a Ruby dragged from hand plays `ruby-target`; everything else
-  // leaves it undefined so `setAimLine` uses its default (`spell-target`).
+  /** `castAimRef` mirrors the move flush's `castingSpell` / `castTargetUid` so the same flush can keep the
+   *  spell aim line exact every frame. `defId` picks the aim EFFECT for this cast: a Ruby dragged from hand plays
+   *  `ruby-target`; everything else leaves it undefined so `setAimLine` uses its default (`spell-target`).
+   *  (The exact pointer position is `dragStore.pos`; the floating card, its weighted-drag rAF and the aim-line
+   *  effect live in `DragOverlay` — perf 2026-09-17.) */
   const castAimRef = useRef<{ casting: boolean; onTarget: boolean; defId?: string }>({ casting: false, onTarget: false });
-  // Weighted-drag motion: the floating .dragcard lags slightly behind the cursor and tilts toward its
-  // motion. Driven by a per-frame rAF that writes the card's transform directly (no React re-render), so it
-  // stays compositor-only. `dragCardRef` is the floating node; `dragMotionRef` holds its smoothed position.
-  // When the card is snapping back or magnet-sliding, React/CSS own the transform instead (see the JSX).
-  const dragCardRef = useRef<HTMLDivElement>(null);
-  // The inner tilt wrapper. The 3D dive (rotateX/rotateY) lives HERE so it pivots about the card's OWN centre,
-  // decoupled from the outer's big position translate — otherwise the perspective foreshortens that translate
-  // and the card slides sideways instead of pitching cleanly (see `.dragtilt` in styles.css).
-  const dragTiltRef = useRef<HTMLDivElement>(null);
-  const dragMotionRef = useRef({ rx: 0, ry: 0, ax: 0, ay: 0, vx: 0, vy: 0 }); // rx/ry = smoothed pos; ax/ay = anchor (grab→centre); vx/vy = smoothed travel (drives the dive)
-  // Touch drags stick to the FINGER (near-1 catch-up), not the mouse-tuned weighted lag: a card trailing the
-  // cursor reads as pleasant "weight" with a mouse, but under a fingertip the same lag reads as stutter/low-FPS.
-  const dragIsTouchRef = useRef(false);
-  const reactDrivesDrag = snapping || magSlide; // these use a CSS transition, not the rAF lean
-  const reactDrivesDragRef = useRef(reactDrivesDrag);
-  reactDrivesDragRef.current = reactDrivesDrag;
-  // `magSlide` mirrored into a ref so `flushMove`'s decision gate (whose effect captures values at drag-start)
-  // reads the LIVE value — a magnet slide can begin mid-drag, and it suppresses the magnetize/insertion preview.
-  const magSlideRef = useRef(magSlide);
-  magSlideRef.current = magSlide;
-
-  // A targeted spell only enters "aiming" once it's dragged UP past the play line — down in the hand it's a
-  // reorder (see the drop handler), so the targeting reticle stays hidden there. Defined up here (before the
-  // drag-motion rAF) so that effect can depend on it: when a spell drops back below the line mid-drag the
-  // floating .dragcard REMOUNTS, and the rAF must re-run to position it — otherwise it strands at 0,0 (the
-  // top-left "ghost card" bug).
-  /**
-   * Does the DRAGGED card still owe a Choose One decision? Such a card never enters aim mode: it is dragged up
-   * like an untargeted spell and the aim picker opens after the branch is picked (owner ruling 2026-08-28).
-   * A card whose branches are already settled — a Gilded Orivax, a Veinbreaker under its rune — keeps aiming
-   * straight from the drag, because there is no question to ask.
-   */
-  const dragAsksChoiceFirst = useMemo(
-    () => (drag ? chooseOneNeedsChoice(run, run.hand.find((c) => c.uid === drag.uid), CARD_INDEX[drag.view.cardId]) : false),
-    [drag, run],
-  );
-  const castingSpell = computeCastingSpell(drag, drag ? drag.y : 0, spellFloorRef.current, dragAsksChoiceFirst);
-  // The move-flush rAF runs outside render, so it reads the same answer through a ref.
-  const asksFirstRef = useRef(dragAsksChoiceFirst);
-  asksFirstRef.current = dragAsksChoiceFirst;
-
-  // The weighted-drag rAF: while a card is actively dragged (and not snapping/magnet-sliding), smooth the
-  // card's render position toward the cursor (OUTER element) and dive it toward its motion (INNER `.dragtilt`).
-  // The card's per-frame travel feeds a smoothed velocity; the dive pitches the LEADING edge toward the board,
-  // one uniform gain on both axes, settling flat when the cursor stops. Pure compositor transforms — no layout
-  // reads. Position and tilt live on SEPARATE elements so the perspective never foreshortens the big position
-  // translate (which slid the card sideways instead of pitching it).
-  useLayoutEffect(() => {
-    if (!drag?.active) return;
-    const el = dragCardRef.current;
-    const tiltEl = dragTiltRef.current;
-    if (!el) return;
-    const m = dragMotionRef.current;
-    const d0 = dragRef.current;
-    // OUTER = position only: a plain 2D translate + `zoom` lift, and it carries the `perspective` PROPERTY so
-    // the inner dive foreshortens about the card centre (NOT baked into this translate → no slide). A flat
-    // `staticRotate` rides here too. LIFT via CSS `zoom` (a crisp LAYOUT scale), NOT `transform: scale` — a
-    // 3D-transformed layer rasterises at 1× and a scale upscales that one texture, blurring the card; `zoom`
-    // re-rasterises at the enlarged size. Because zoom also scales the translate, divide it by the lift.
-    const writePos = (f: ReturnType<typeof getDragFeel>): void => {
-      el.style.setProperty('zoom', String(f.scale));
-      el.style.perspective = `${f.perspective}px`;
-      el.style.transformOrigin = `${m.ax}px ${m.ay}px`;
-      el.style.transform = `translate(${m.rx / f.scale - m.ax}px, ${m.ry / f.scale - m.ay}px) rotate(${f.staticRotate}deg)`;
-    };
-    if (d0) {
-      m.rx = d0.x; m.ry = d0.y;        // start at the cursor so the lift doesn't jump
-      m.ax = d0.grabOx; m.ay = d0.grabOy; // anchor starts at the grab point → the card appears where you grabbed
-      m.vx = 0; m.vy = 0;              // no dive on the first frame
-      writePos(getDragFeel());
-      if (tiltEl) tiltEl.style.transform = 'rotateX(0deg) rotateY(0deg)'; // flat before-paint, no flash
-    }
-    let raf = 0;
-    let last = performance.now();
-    const tick = (now: number): void => {
-      const dt = Math.min(48, now - last);
-      last = now;
-      raf = requestAnimationFrame(tick);
-      const d = dragRef.current;
-      if (!d || reactDrivesDragRef.current) return; // snap/magslide → React+CSS own the transform
-      const f = getDragFeel();
-      // On touch, override the mouse-tuned weighted lag with a near-instant catch-up so the card tracks the
-      // fingertip (trailing under a finger reads as stutter, not weight). Mouse keeps the dialed `follow`.
-      const follow = dragIsTouchRef.current ? Math.max(f.follow, 0.9) : f.follow;
-      const k = follow >= 1 ? 1 : 1 - Math.pow(1 - follow, dt / 16.667); // frame-rate-independent catch-up
-      // recentre the anchor from the grab point toward the card centre — but only once the pointer has dragged
-      // `recenterAfter` px from the grab point, and at its own (slower) `recenter` rate so the glide reads.
-      if (Math.hypot(d.x - d.startX, d.y - d.startY) >= f.recenterAfter) {
-        const kc = f.recenter >= 1 ? 1 : 1 - Math.pow(1 - f.recenter, dt / 16.667);
-        // Hand cards hang from a lower point (`handGrabY`, near their stat badges); shop/board ride centred.
-        const tgtY = d.source === 'hand' ? d.h * f.handGrabY : d.h / 2;
-        m.ax += (d.w / 2 - m.ax) * kc;
-        m.ay += (tgtY - m.ay) * kc;
-      }
-      // Chase the EXACT pointer, not the coarse committed state — `drag.x/y` only advances in quantum steps
-      // (each one is a re-render), so following it here would make the card visibly stair-step.
-      const live = dragPosRef.current ?? d;
-      const gx = live.x - m.rx;
-      const gy = live.y - m.ry;
-      const stepX = gx * k;   // the card's ACTUAL per-frame travel (how far m.rx moves this frame)
-      const stepY = gy * k;
-      m.rx += stepX;
-      m.ry += stepY;
-      // Smoothed travel velocity = EMA of the per-frame step. `tiltEase` = 1 → tracks it raw (dive follows the
-      // motion and snaps flat the instant the cursor stops); lower = a softer build/settle. This is the
-      // "distance travelled" signal that drives the dive.
-      const ek = f.tiltEase >= 1 ? 1 : 1 - Math.pow(1 - f.tiltEase, dt / 16.667);
-      m.vx += (stepX - m.vx) * ek;
-      m.vy += (stepY - m.vy) * ek;
-      const clamp = (v: number): number => Math.max(-f.tiltMax, Math.min(f.tiltMax, v));
-      // Dive: the LEADING edge dips toward the board, one uniform gain for both axes (screen y is down+):
-      //   south (vy>0) → rotX<0 → bottom edge recedes → bottom corners pinch; east (vx>0) → rotY>0 → right recedes.
-      const rotX = clamp(-f.tiltGain * m.vy);
-      const rotY = clamp(f.tiltGain * m.vx);
-      writePos(f);
-      if (tiltEl) tiltEl.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-    // `castingSpell` too: it gates whether the .dragcard is mounted, so when it flips the effect must re-run to
-    // (re)bind the freshly-mounted node and write its transform before paint (no top-left flash / stranding).
-  }, [drag?.active, castingSpell]);
+  /** The drag session's entry + exit (see `startDragSession`): `onCardPointerDown` starts one through the ref
+   *  (always the latest render's closure), `endSessionRef` tears the live one down (drop, snap-back, unmount),
+   *  `dragSessionSeq` tokens each session so a stale timer cannot end its successor. */
+  const startDragSessionRef = useRef<(drag: DragState, touch: boolean) => void>(() => {});
+  const endSessionRef = useRef<(() => void) | null>(null);
+  const dragSessionSeq = useRef(0);
+  /** The latest `applyDrop` (a per-render closure) for the session's drop handler — the `runRef` pattern. */
+  const applyDropRef = useRef<(d: DragState, zone: Zone | null, x: number, y: number) => boolean>(() => false);
   // Cached board/shop card rects for spell targeting — populated at drag-start (the board is static
   // during a spell drag: a spell doesn't open an insertion gap), so boardUidAt/shopUidAt hit-test
   // arithmetic instead of calling elementFromPoint every frame. Null outside a spell drag.
@@ -3025,9 +2822,8 @@ export function Recruit() {
   // every frame. That live read was the last drag path still forcing a synchronous reflow per frame (a
   // read-after-Flip-write thrash); arithmetic against the cache removes it. Null outside a drag.
   const insertRectsRef = useRef<{ warband: { uid: string; left: number; width: number }[]; shop: { uid: string; left: number; width: number }[]; hand: { uid: string; left: number; width: number }[] } | null>(null);
-  // Hand cards OVERLAP (negative margin), so their slot spacing isn't the card width — measure it once per
-  // drag (consecutive cached lefts) and multiply the per-card slot offset by it to make the parting gap match.
-  const handSlotWRef = useRef(0);
+  // Hand cards OVERLAP (negative margin), so their slot spacing isn't the card width — measured once per drag
+  // (consecutive cached lefts) into `dragStore.handSlotW`; the hand row multiplies its per-card slot offset by it.
   // Last frame's reorder gap index (warband / shop). A reorder swap must trigger against each neighbour's
   // CURRENT (shifted) position, and that depends on where the gap currently is — hence we carry it frame to
   // frame. -1 = not reordering yet (falls back to the dragged card's home slot).
@@ -3221,7 +3017,7 @@ export function Recruit() {
     () => chooseBothStateOf(run),
     [run.runeFacetwright, run.runeUnbrokenVein, run.chooseBothCharges],
   );
-  const shopViewCache = useRef(new Map<string, CardView>());
+  const shopViewCache = useRef(new Map<string, ShopViewCacheEntry<CardView>>()); // per-offer signature memo — see shopViewCache.ts
   const spellViewCache = useRef<CardView | null>(null);
   const refViewCache = useRef(new Map<string, CardView[]>());
   const boardViewCache = useRef(new Map<string, CardView>());
@@ -3229,11 +3025,15 @@ export function Recruit() {
   const shopViews = useMemo(
     // The spell-display opts (cost mod + bonuses) ride along too, so Spell Cart's spell offers in the minion
     // row read their right cost + value, like the spell slot.
-    () => {
-      const fresh = new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: (run.rift === 'freedom' || !!run.questFreeFirstBuy) && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk + (run.tavernBuyBonusTurn?.atk ?? 0), tavernHp: run.tavernBuyBonus.hp + (run.tavernBuyBonusTurn?.hp ?? 0), tavernSources: run.tavernBuyBonusSources, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, rubyCasts: run.rubyCasts, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run, CARD_INDEX[o.cardId]), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run), tier: run.tier, minionCost: o.held ? minionCostOf(run) : offerBuyPrice(run, o).cost /* the charged price, every discount folded (Treasurer / Trade-In / Gift / Cadence) — owner report 2026-09-12 */, juggler: getHero(run.heroId).power.kind === 'baldgecoin', castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined, eotBuff: eotShopStats?.[o.uid], chooseBothState: bothState })] as const));
-      shopViewCache.current = stabilizeViewMap(fresh, shopViewCache.current);
-      return shopViewCache.current;
-    },
+    // PER-OFFER MEMO (perf 2026-09-17): each offer's view is keyed on a signature of the offer + the opts it is
+    // built with, so a dispatch that left four of five offers untouched builds one view, not five — see
+    // `shopViewCache.ts`. `stabilizeView` still value-compares a rebuilt view against its predecessor.
+    () => perfMonitor.measure('view:shop', () => {
+      const optsFor = (o: ShopCard): ShopViewOpts => ({ freeFirstBuy: (run.rift === 'freedom' || !!run.questFreeFirstBuy) && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk + (run.tavernBuyBonusTurn?.atk ?? 0), tavernHp: run.tavernBuyBonus.hp + (run.tavernBuyBonusTurn?.hp ?? 0), tavernSources: run.tavernBuyBonusSources, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, rubyCasts: run.rubyCasts, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run, CARD_INDEX[o.cardId]), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run), tier: run.tier, minionCost: o.held ? minionCostOf(run) : offerBuyPrice(run, o).cost /* the charged price, every discount folded (Treasurer / Trade-In / Gift / Cadence) — owner report 2026-09-12 */, juggler: getHero(run.heroId).power.kind === 'baldgecoin', castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined, eotBuff: eotShopStats?.[o.uid], chooseBothState: bothState });
+      const built = buildShopViews(run.shop, optsFor, (o, opts) => shopView(o, opts), shopViewCache.current, (fresh, prev) => stabilizeView(fresh, prev) ?? fresh);
+      shopViewCache.current = built.cache;
+      return built.views;
+    }),
     // DEP COMPLETENESS (owner report 2026-08-19: an Imp Overseer's live "(X/Y)" froze). Nine values were READ
     // above but missing here — `impBuff` (the Imp Aura the summoned-Imp stats print), `rubyCasts`,
     // `growthBonus`, `frontToBackBonusH`, the three spell-name ids, `cadenceMinionOff` and `tier`. In ordinary
@@ -3461,12 +3261,8 @@ export function Recruit() {
     w.__handBuffTest = (): void => { fireHandBuff([...handViews.keys()]); };
     return () => { delete w.__handBuffTest; };
   }, [handViews]);
-  // `render:recruit` (perf export): render body + React reconciliation + DOM commit for THIS render — the delta
-  // from `renderStart` (top of the component) to this earliest post-commit layout effect. No deps → every commit.
-  // Defined ahead of the Flip effect so it excludes Flip's cost. This is the number that goes up late-game.
-  // `render:combat` while a combat is on screen (this one component hosts both phases): a beat's React
-  // commit — the Unit list reconciling — is a different cost from a shop commit and must rank separately.
-  useLayoutEffect(() => { perfMonitor.record(run.phase === 'combat' ? 'render:combat' : 'render:recruit', performance.now() - renderStart); });
+  // `render:recruit` / `render:combat` (perf export) are recorded by `<RenderMark start={renderStart}/>` in the
+  // JSX below — placed after the rows and before `RowFlip`, exactly where the inline layout effect used to sit.
   // Tavern offers that would complete a Gild if bought — flagged with a gold glow + floating arrows. Mirrors
   // `checkTriples`' counting AND its threshold: the copies needed is 3 normally but 2 under Rune of Twin
   // Gilding or Midas' Touch, so the number you must already hold is `need - 1`. This was hardcoded to 2, so a
@@ -3562,11 +3358,18 @@ export function Recruit() {
       // capture the pointer so move/up keep firing even if it leaves the window or races
       // ahead of the floating card — events still bubble to the window listeners.
       try { el.setPointerCapture(e.pointerId); } catch { /* unsupported / detached */ }
-      dragIsTouchRef.current = e.pointerType !== 'mouse'; // touch/pen → snap to the finger (see dragIsTouchRef)
       // REPLAY V2 drag-path capture ("1:1 hands"): the grab point opens the trace. Capture is the product
       // (DEV + prod alike); guarded off during playback, where input is inert anyway. One push, no layout.
       if (!useGame.getState().replaying) beginDragTrace(view.cardId, e.clientX, e.clientY);
-      setDrag({
+      // The drag SESSION (perf 2026-09-17): the listeners, the per-drag rect caches and the move flush are
+      // installed imperatively from here, through the latest `startDragSession` (a ref — it closes over this
+      // render's `run` and geometry), instead of by an effect keyed on the drag — so picking a card up, crossing
+      // the threshold and putting it down never re-render `Recruit`. Touch/pen → snap to the finger.
+      // A MICROTASK, not inline: the session's one layout pass (the rect caches) would otherwise land inside
+      // this handler's `input:pointerdown` span and be tallied as `layout:read-in-move` — the counter that must
+      // read 0 for reads on the MOVE path. The microtask runs in this same task, before any further event.
+      const touch = e.pointerType !== 'mouse';
+      queueMicrotask(() => startDragSessionRef.current({
         uid, source, view,
         ox: w / 2, oy: h / 2,                        // anchor = centre → the card rides centred on the cursor
         grabOx: fracX * w, grabOy: fracY * h,        // where you actually grabbed (recentre starts here), full-size
@@ -3574,13 +3377,27 @@ export function Recruit() {
         startX: e.clientX, startY: e.clientY,
         x: e.clientX, y: e.clientY,
         active: false,
-      });
+      }, touch));
     }),
     [timeUp, inCombat],
   );
 
-  useEffect(() => {
-    if (!drag) return;
+  /**
+   * THE DRAG SESSION (perf 2026-09-17). Everything that used to be the `[drag?.uid]` effect — the per-drag rect
+   * caches, the window listeners, the rAF-coalesced move flush and the drop handler — as one function that
+   * `onCardPointerDown` calls DIRECTLY (through `startDragSessionRef`, so it always closes over the latest
+   * render's `run` and geometry, the `runRef` pattern). Nothing about it waits for React: a drag starts,
+   * decides and ends by writing `dragStore`, and the only React that runs for those writes is the row whose
+   * gap moved, the drag overlay and the FLIP runner. `Recruit` itself renders when a DROP dispatches, as any
+   * action does, and at no other point of the gesture.
+   *
+   * `endSession` is idempotent and token-guarded: a snap-back or magnet-slide timer from a drag the player has
+   * already replaced with a new one cannot tear the new one down (the old `setDrag(null)` in a timeout could).
+   */
+  const startDragSession = (drag: DragState, touch: boolean): void => {
+    endSessionRef.current?.(); // never two sessions at once
+    const token = ++dragSessionSeq.current;
+    dragStore.pos = null;
     // The sell region is the whole upper screen — everything above the warband. A board minion released
     // anywhere up there sells (not just over the tavern box). `source`/`view` are fixed for the drag.
     // Cache the zone geometry once per drag: the zone *containers* hold their position while dragging
@@ -3660,19 +3477,38 @@ export function Recruit() {
       shop: measureSlots('[data-zone="tavern"] .row .card[data-uid]').filter((c) => c.uid !== run.spell?.uid),
       hand: handSlots,
     };
+    // The FLIP baseline for the drag's pre-emptive slides — captured HERE, on the layout the drag starts from
+    // (one more read on the flush the measurements above already forced), instead of on every non-drag commit
+    // (see `RowFlip`'s read pass). `simple: true`: these rows only translate horizontally.
+    flipStateRef.current = Flip.getState(FLIP_SELECTOR, { simple: true });
     // Hand slot spacing = the gap between consecutive card lefts (they overlap, so it's < card width). Used to
     // size the reorder parting so cards shift exactly one slot. Falls back to the card width for a 1-card hand.
-    handSlotWRef.current = handSlots.length >= 2 ? handSlots[1]!.left - handSlots[0]!.left : handSlots[0]?.width ?? 0;
+    const handSlotW = handSlots.length >= 2 ? handSlots[1]!.left - handSlots[0]!.left : handSlots[0]?.width ?? 0;
     // Fresh drag → no prior gap yet; the index fns fall back to the dragged card's home slot for frame one.
     prevWarbandGapRef.current = -1;
     prevShopGapRef.current = -1;
     prevHandGapRef.current = -1;
     const inSellRegion = (y: number): boolean => drag.source === 'board' && !drag.view.spell && !timeUp && y < wbTop;
-    if (drag.source === 'board' && !drag.view.spell) setSellTop(wbTop);
-    if (drag.source === 'shop') setBuyTop(midlineY);
+    // ONE store write for the pickup — the drag, its zone geometry and the hand spacing land as a single snapshot
+    // (the rows and the overlay see a consistent pickup, and React batches the one notification).
+    dragStore.set({
+      drag, overZone: null, decision: NO_DRAG_DECISION, castingSpell: false, snapping: false, magSlide: false, touch, handSlotW,
+      ...(drag.source === 'board' && !drag.view.spell ? { sellTop: wbTop } : {}),
+      ...(drag.source === 'shop' ? { buyTop: midlineY } : {}),
+    });
     // Buying: a shop card released BELOW the board's midline (the background divider) buys it — the whole lower
     // half (warband row + hand). Above the line it snaps back, so a card hovered up by the offers won't buy.
     const inBuyRegion = (y: number): boolean => drag.source === 'shop' && y > midlineY;
+    /**
+     * Does the DRAGGED card still owe a Choose One decision? Such a card never enters aim mode: it is dragged up
+     * like an untargeted spell and the aim picker opens after the branch is picked (owner ruling 2026-08-28).
+     * A card whose branches are already settled — a Gilded Orivax, a Veinbreaker under its rune — keeps aiming
+     * straight from the drag, because there is no question to ask. Fixed for the drag: nothing dispatches mid-drag.
+     */
+    const asksFirst = chooseOneNeedsChoice(run, run.hand.find((c) => c.uid === drag.uid), CARD_INDEX[drag.view.cardId]);
+    // A Ruby (or ruby-themed spell) cast from hand gets its own aim effect (`ruby-target`); anything else uses the default.
+    const castDefId = playsRubyAim(CARD_INDEX[drag.view.cardId]) ? RUBY_AIM_DEF_ID : undefined;
+    const aimsStarform = starformSpellAimsToken(CARD_INDEX[drag.view.cardId] ?? {});
     // Move handling has TWO rates, deliberately.
     //
     // rAF-coalescing alone caps re-renders at the REFRESH rate — which is 60/s on a 60Hz panel but 240/s on
@@ -3680,27 +3516,45 @@ export function Recruit() {
     // in the 2026-07-19 capture as buckets of 100-388 `recruit renders`/sec, and a 74ms long task whose only
     // measured hotspot was a 0.4ms reducer call (i.e. it was all React).
     //
-    // So: VISUALS run frame-exact off `dragPosRef` (card transform, aim line, trail — none of them need a
-    // render), while the React STATE only advances once the pointer has moved far enough to change a layout
-    // decision. Every derived value the render computes from the position — the insertion slot, the magnet
-    // hover target, the cast target, the lift threshold, the drop zone — changes at CARD-scale distances
-    // (~100px), so an 8px quantum is imperceptible (~3ms of travel) while cutting renders several-fold.
+    // So: VISUALS run frame-exact off `dragStore.pos` (card transform, aim line, trail — none of them need a
+    // render), while the store only advances once the pointer has moved far enough to change a layout
+    // decision. Every derived value the rows draw from the position — the insertion slot, the magnet hover
+    // target, the cast target, the lift threshold, the drop zone — changes at CARD-scale distances (~100px).
     // Motion-trail bookkeeping: the viewport point of the last wisp emit (null until the drag goes active).
     let trailLast: { x: number; y: number } | null = null;
     let moveRaf = 0;
     let lastMove: PointerEvent | null = null;
-    // The position/zone last pushed into React state — the baseline the quantum is measured against.
+    // The position/zone last pushed into the store — the baseline the decision gate is measured against.
     let committed: { x: number; y: number } | null = null;
     let lastZone: Zone | null = null;
-    // The geometry hit-tests the decision needs — same in-component closures the render passes, so `flushMove`'s
-    // gate and the render can't diverge. They read the per-drag rect cache populated just above.
+    // The geometry hit-tests the decision needs — this render's closures over the per-drag rect cache above.
     const gateGeo: DragGeo = { warbandIndexAt, shopIndexAt, handIndexAt, boardUidAt, shopUidAt, starformUidAt };
+    const decOf = (d0: DragState | null, x: number, y: number, z: Zone | null, magSlide = dragStore.get().magSlide): DragDecision =>
+      deriveDragDecision({
+        drag: d0, x, y, overZone: z, magSlide, playFloor: playFloorRef.current, spellFloor: spellFloorRef.current,
+        collapseY: getDragFeel().collapseY, boardMax: CONFIG.boardMax, board: run.board, spellUid: run.spell?.uid, geo: gateGeo,
+        asksChoiceFirst: asksFirst, aimsStarform: !!d0 && aimsStarform,
+      });
+    /** Publish a decision point: the drag at (x, y), the zone, the decision and the cast state — one store write,
+     *  so the subscribers see one consistent snapshot — and carry each row's live gap to the next flush so
+     *  `reorderIndexFromSlots` can place neighbours at their CURRENT (shifted) spots (symmetric swap thresholds).
+     *  Only while actually reordering (gap >= 0), exactly as the old per-gap effects did. */
+    const publish = (next: DragState, zone: Zone | null, patch: Partial<DragSnapshot> = {}): DragDecision => {
+      const dec = decOf(next, next.x, next.y, zone, patch.magSlide ?? dragStore.get().magSlide);
+      const casting = computeCastingSpell(next, next.y, spellFloorRef.current, asksFirst);
+      castAimRef.current = { casting, onTarget: !!dec.castTargetUid, defId: castDefId };
+      dragStore.set({ ...patch, drag: next, overZone: zone, decision: dec, castingSpell: casting });
+      if (dec.gapIndex >= 0) prevWarbandGapRef.current = dec.gapIndex;
+      if (dec.shopGapIndex >= 0) prevShopGapRef.current = dec.shopGapIndex;
+      if (dec.handGapIndex >= 0) prevHandGapRef.current = dec.handGapIndex;
+      return dec;
+    };
     const flushMove = (): void => { perfMonitor.measure('drag:flushMove', () => {
       moveRaf = 0;
       const e = lastMove;
       if (!e) return;
       lastMove = null;
-      const d0 = dragRef.current;
+      const d0 = dragStore.get().drag;
       const willBeActive = !!d0 && (d0.active || Math.hypot(e.clientX - d0.startX, e.clientY - d0.startY) > getDragFeel().threshold);
       // The spell aim line follows the cursor EXACTLY (every frame), even though the state behind it only
       // advances on the decision gate — otherwise the line would visibly step.
@@ -3708,33 +3562,29 @@ export function Recruit() {
         pixiFx.setAimLine({ x: d0.startX, y: d0.startY }, { x: e.clientX, y: e.clientY }, castAimRef.current.onTarget, getAimFxConfig(), castAimRef.current.defId);
       }
       const zone = inSellRegion(e.clientY) ? 'tavern' : inBuyRegion(e.clientY) ? 'hand' : zoneAtCached(e.clientX, e.clientY);
-      // Re-render only when a VISIBLE decision changes — not on every quantum of travel. The dragged card, aim
-      // line and trail all ride `dragPosRef` frame-exact, so a `setDrag` only ever buys the DECISION-driven
+      // Publish only when a VISIBLE decision changes — not on every quantum of travel. The dragged card, aim
+      // line and trail all ride `dragStore.pos` frame-exact, so a store write only ever buys the DECISION-driven
       // layer: the drop-gap slides, the magnetize/cast highlights, and the aim reticle. Those change at CARD
       // scale (~100px) or on an aim/zone crossing — comparing the decision at the exact cursor to the one still
-      // shown (from the last committed point) drops the ~10-20× no-op renders the old 8px position-quantum made
-      // (the late-game drag/APM hitch). Zone + active are kept as explicit terms: `overZone` also drives the
-      // sell/buy-zone glow + `canDropHand`, and the active flip must never be delayed.
-      const decOf = (x: number, y: number, z: Zone | null): DragDecision =>
-        deriveDragDecision({
-          drag: d0, x, y, overZone: z, magSlide: magSlideRef.current, playFloor: playFloorRef.current, spellFloor: spellFloorRef.current,
-          collapseY: getDragFeel().collapseY, boardMax: CONFIG.boardMax, board: run.board, spellUid: run.spell?.uid, geo: gateGeo,
-          asksChoiceFirst: asksFirstRef.current, aimsStarform: !!d0 && starformSpellAimsToken(CARD_INDEX[d0.view.cardId] ?? {}),
-        });
-      const shownDec = committed ? decOf(committed.x, committed.y, lastZone) : null;
+      // shown (from the last committed point) drops the ~10-20× no-op writes a position quantum would make.
+      // Zone + active are kept as explicit terms: `overZone` also drives the sell/buy-zone glow + `canDropHand`,
+      // and the active flip must never be delayed.
+      const shownDec = committed ? decOf(d0, committed.x, committed.y, lastZone) : null;
       const decisionChanged =
         !shownDec ||
-        !dragDecisionEqual(decOf(e.clientX, e.clientY, zone), shownDec) ||
-        computeCastingSpell(d0, e.clientY, spellFloorRef.current, asksFirstRef.current)
-          !== computeCastingSpell(d0, committed!.y, spellFloorRef.current, asksFirstRef.current);
-      if (decisionChanged || willBeActive !== (d0?.active ?? false) || zone !== lastZone) {
+        !dragDecisionEqual(decOf(d0, e.clientX, e.clientY, zone), shownDec) ||
+        computeCastingSpell(d0, e.clientY, spellFloorRef.current, asksFirst)
+          !== computeCastingSpell(d0, committed!.y, spellFloorRef.current, asksFirst);
+      if (d0 && (decisionChanged || willBeActive !== d0.active || zone !== lastZone)) {
         committed = { x: e.clientX, y: e.clientY };
         lastZone = zone;
-        setDrag((d) => (d ? { ...d, x: e.clientX, y: e.clientY, active: willBeActive } : d));
-        setOverZone(zone);
+        // Drive the closed-fist cursor strictly off the drag going active, so it can never get stranded on
+        // (the bug where the grab cursor stuck after the first drag) — `endSession` always removes it.
+        if (willBeActive && !d0.active) document.body.classList.add('dragging');
+        publish({ ...d0, x: e.clientX, y: e.clientY, active: willBeActive }, zone);
       }
       // Wind-whoosh trail: distance-gated wisps behind the dragged card (gold for Divine Shield, blue for Reborn).
-      const dNow = dragRef.current;
+      const dNow = dragStore.get().drag;
       if (dNow?.active) {
         const cx = e.clientX; // the card rides centred on the cursor (ox/oy are the centre)
         const cy = e.clientY;
@@ -3754,14 +3604,31 @@ export function Recruit() {
     // `input:pointermove` / `input:pointerup` (perf PR 1, 2026-09-17): the raw handlers, timed so a long
     // task during a drag can be laid at the event's door (the rAF-coalesced work is `drag:flushMove`).
     const onMove = (e: PointerEvent): void => perfMonitor.measure('input:pointermove', () => {
-      dragPosRef.current = { x: e.clientX, y: e.clientY }; // exact, every event — the visual layers read this
+      dragStore.pos = { x: e.clientX, y: e.clientY }; // exact, every event — the visual layers read this
       sampleDragTrace(e.clientX, e.clientY); // replay drag-path capture — self-throttled to ~30 Hz, no layout
       lastMove = e;
       if (!moveRaf) moveRaf = requestAnimationFrame(flushMove);
     });
+    /** Tear the session down: listeners off, caches dropped, the store back to idle. Token-guarded so a timer
+     *  left over from THIS session cannot end a newer one. Idempotent. */
+    const endSession = (): void => {
+      if (dragSessionSeq.current !== token) return;
+      if (moveRaf) cancelAnimationFrame(moveRaf);
+      moveRaf = 0;
+      targetRectsRef.current = null;
+      insertRectsRef.current = null;
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('contextmenu', onCtx);
+      document.body.classList.remove('dragging');
+      castAimRef.current = { casting: false, onTarget: false };
+      endSessionRef.current = null;
+      dragStore.endDrag();
+    };
     const onUp = (e: PointerEvent): void => perfMonitor.measure('input:pointerup', () => {
-      dragPosRef.current = null; // this drag is over — never let its last point bleed into the next one
-      const d = dragRef.current;
+      dragStore.pos = null; // this drag is over — never let its last point bleed into the next one
+      const d = dragStore.get().drag;
       // Recompute "did it move" from the up event too: with the rAF-throttle a flick completed inside one
       // frame may not have flushed `active` yet, but it's still a drag if the pointer cleared the threshold.
       const moved = !!d && (d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > getDragFeel().threshold);
@@ -3769,8 +3636,7 @@ export function Recruit() {
         cancelDragTrace(); // a click, not a drag — nothing to replay
         document.body.classList.remove('dragging');
         // a click, not a drag — let onClick (hero targeting) handle it
-        setDrag(null);
-        setOverZone(null);
+        endSession();
         return;
       }
       // REPLAY V2 drag-path capture: close the trace at the release point, BEFORE the drop resolves — the
@@ -3828,17 +3694,15 @@ export function Recruit() {
         const el = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${magMech.uid}"]`);
         if (el) {
           const r = el.getBoundingClientRect();
-          setMagSlide(true); // the drone shrinks straight into the Mech…
-          setMagTargetUid(magMech.uid); // …and the Mech crackles as it absorbs it
-          setDrag((cur) => (cur ? { ...cur, x: r.left + r.width / 2, y: r.top + r.height / 2 } : cur));
+          // The drone shrinks straight into the Mech, and the Mech crackles as it absorbs it. Once the slide
+          // starts the warband settles (the decision is re-derived with `magSlide` on — no more shove preview).
+          publish({ ...d, x: r.left + r.width / 2, y: r.top + r.height / 2 }, lastZone, { magSlide: true, magTargetUid: magMech.uid });
         }
         window.setTimeout(() => {
           dispatch({ type: 'play', uid: d.uid, toIndex: magIdx }); // reducer merges into the Mech (stats pop)
-          setMagSlide(false);
-          setDrag(null);
-          setOverZone(null);
+          endSession();
           // let the Mech keep crackling a beat past the merge, then settle on the green buff flash
-          window.setTimeout(() => setMagTargetUid(null), 120);
+          window.setTimeout(() => dragStore.set({ magTargetUid: null }), 120);
           // Commit `magWeldLeadMs` BEFORE the slide ends so the weld ring starts while the card is still
           // finishing its shrink. Previously the dispatch waited for the full slide, so the card vanished,
           // then nothing happened for a dispatch + commit + rAF, and only THEN did the ring appear — a dead
@@ -3847,7 +3711,7 @@ export function Recruit() {
         return;
       }
 
-      const acted = applyDrop(d, zone, e.clientX, e.clientY);
+      const acted = applyDropRef.current(d, zone, e.clientX, e.clientY);
       // Route drag-drop commits through the manual per-card FLIP (see `handPlaySnapRef`) instead of the
       // whole-row Flip.from, which would replay the dragged card's move after the drop. Covers a played hand
       // minion entering the board, a board/shop-offer reorder, AND a SELL / BUY pull-out — each snapshotted its
@@ -3857,7 +3721,7 @@ export function Recruit() {
       // Slide the DRAGGED card the last stretch into its committed slot (the settle FLIP excludes it, so it
       // would otherwise teleport). Same motion as a buy, 30% faster. Only place/reorder — a buy runs its own
       // slide, a sell removes the card. The release box is the live `.dragcard` rect (its true visual spot,
-      // lag included), captured before `setDrag(null)` unmounts it below.
+      // lag included), captured before the session ends and unmounts it below.
       if (acted && (handMinionDrop || boardReorderDrop || shopReorderDrop) && flipZoneSel) {
         const dc = document.querySelector<HTMLElement>('.dragcard');
         const b = dc?.getBoundingClientRect();
@@ -3867,51 +3731,32 @@ export function Recruit() {
       }
       if (acted || d.view.spell || d.view.ruby) {
         // a spell / Ruby that misses just ends — it was never lifted from the hand
-        setDrag(null);
-        setOverZone(null);
+        endSession();
       } else {
         // invalid drop — snap the card cleanly + quickly back to its original slot. The card rides CENTRED on
         // the cursor, so aim its centre at the slot centre (press point − grab offset + half-card).
-        setSnapping(true);
-        setDrag((cur) => (cur ? { ...cur, x: cur.startX - cur.grabOx + cur.w / 2, y: cur.startY - cur.grabOy + cur.h / 2 } : cur));
-        window.setTimeout(() => {
-          setSnapping(false);
-          setDrag(null);
-          setOverZone(null);
-        }, getDragFeel().snapMs);
+        publish({ ...d, x: d.startX - d.grabOx + d.w / 2, y: d.startY - d.grabOy + d.h / 2 }, lastZone, { snapping: true });
+        window.setTimeout(() => endSession(), getDragFeel().snapMs);
       }
     });
     // Right-click while aiming a spell cancels it (snaps back to the hand).
     const onCtx = (e: MouseEvent): void => {
-      if (dragRef.current?.view.spell || dragRef.current?.view.ruby) {
+      const cur = dragStore.get().drag;
+      if (cur?.view.spell || cur?.view.ruby) {
         e.preventDefault();
         cancelDragTrace(); // an aborted aim never labels a later action
-        setDrag(null);
-        setOverZone(null);
+        endSession();
       }
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
     window.addEventListener('contextmenu', onCtx);
-    return () => {
-      if (moveRaf) cancelAnimationFrame(moveRaf);
-      targetRectsRef.current = null;
-      insertRectsRef.current = null;
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onUp);
-      window.removeEventListener('contextmenu', onCtx);
-    };
-  }, [drag?.uid]);
-
-  // Drive the closed-fist cursor strictly off drag state, so it can never get
-  // stranded on (the bug where the grab cursor stuck after the first drag).
-  useEffect(() => {
-    if (!drag?.active) return;
-    document.body.classList.add('dragging');
-    return () => document.body.classList.remove('dragging');
-  }, [drag?.active]);
+    endSessionRef.current = endSession;
+  };
+  startDragSessionRef.current = startDragSession;
+  // Unmounting mid-drag (a new run remounts Recruit via its runKey) must never strand the listeners or the store.
+  useEffect(() => () => { endSessionRef.current?.(); }, []);
 
   // Align the charge glyph to the board's midline (the background divider) at any resolution/aspect. The glyph is
   // a direct child of `.app` (NOT the warband zone), so it's independent of the warband layout offset (x/y/scale) —
@@ -3940,7 +3785,7 @@ export function Recruit() {
   // cancel; a plain click stays armed for a follow-up click.
   useEffect(() => {
     if ((!heroArmed && !equipArmed) || inCombat) {
-      setAimTargetUid(null);
+      dragStore.set({ aimTargetUid: null });
       return;
     }
     let moved = false;
@@ -4001,7 +3846,7 @@ export function Recruit() {
       pixiFx.setAimLine({ x: ox, y: oy }, { x: pt.x, y: pt.y }, !!target, getAimFxConfig());
       if (uid !== lastUid) {
         lastUid = uid;
-        setAimTargetUid(uid); // rare — only when you cross onto/off a different minion
+        dragStore.set({ aimTargetUid: uid }); // rare — only when you cross onto/off a different minion
       }
     });
     const move = (e: PointerEvent): void => perfMonitor.measure('input:pointermove', () => {
@@ -4084,7 +3929,7 @@ export function Recruit() {
   }, [pendingTarget, run]);
   useEffect(() => {
     if (!pendingTarget || inCombat) {
-      setAimTargetUid(null);
+      dragStore.set({ aimTargetUid: null });
       return;
     }
     // A tribe-restricted Battlecry (Toxin Tender → a friendly Undead, never self) only accepts matching
@@ -4130,7 +3975,7 @@ export function Recruit() {
       const target = minionAt(pt.x, pt.y);
       const uid = target?.uid ?? null;
       pixiFx.setAimLine({ x: ox, y: oy }, { x: pt.x, y: pt.y }, !!target, getAimFxConfig());
-      if (uid !== lastUid) { lastUid = uid; setAimTargetUid(uid); }
+      if (uid !== lastUid) { lastUid = uid; dragStore.set({ aimTargetUid: uid }); }
     });
     const move = (e: PointerEvent): void => perfMonitor.measure('input:pointermove', () => {
       pending = { x: e.clientX, y: e.clientY };
@@ -4712,33 +4557,9 @@ export function Recruit() {
     return () => cancelAnimationFrame(raf);
   }, [run.karwindFlashSeq, run.karwindCritUid]);
 
-  // The living aim line (owner redesign 2026-07-16): sync the Pixi curved line to whichever targeting
-  // gesture is live — the armed hero power / a pending targeted Battlecry (the `aim` state), or a
-  // targeted spell being cast from hand (the drag). Replaces the old dotted SVG line; the arch is rolled
-  // fresh inside pixiFx each time an aim STARTS.
-  // The hero-power / Battlecry paths now push their own coordinates straight into Pixi from their
-  // rAF-coalesced move handlers, so this effect no longer drives them — it only owns the SPELL-drag line
-  // and the teardown, and it carries a dep array (it previously ran on EVERY render, re-writing
-  // `document.body.classList` each time).
-  const aimingNow = !!((heroArmed || equipArmed || pendingTarget) || (castingSpell && drag));
-  useEffect(() => {
-    if (castingSpell && drag) {
-      // Use the exact live position, not the quantised state, so this render-time placement agrees with the
-      // per-frame update in `flushMove` (otherwise the line would flick back 8px on every commit).
-      const lp = dragPosRef.current ?? { x: drag.x, y: drag.y };
-      const defId = playsRubyAim(CARD_INDEX[drag.view.cardId]) ? RUBY_AIM_DEF_ID : undefined; // a Ruby / ruby spell → ruby-target
-      pixiFx.setAimLine({ x: drag.startX, y: drag.startY }, lp, !!castTargetUid, getAimFxConfig(), defId);
-    } else if (!heroArmed && !equipArmed && !pendingTarget) {
-      pixiFx.clearAimLine(); // no targeting gesture of any kind is live
-    }
-    // While the targeter is live, the aim line IS the pointer — hide the OS cursor (restored the moment
-    // the aim ends; see styles.css `body.aiming`).
-    document.body.classList.toggle('aiming', aimingNow);
-    // `castTargetUid` is deliberately NOT a dep: it's declared further down the component, so naming it here
-    // would evaluate it during render and hit the TDZ (the effect BODY reads it fine — that runs after).
-    // It's derived from `drag` anyway, which is a dep, so every change that matters already re-runs this.
-  }, [aimingNow, heroArmed, equipArmed, pendingTarget, castingSpell, drag]);
-  useEffect(() => () => { pixiFx.clearAimLine(); document.body.classList.remove('aiming'); }, []); // never strand the line/cursor on unmount
+  // The living aim line (the SPELL-drag half + the `body.aiming` cursor) is synced by `DragOverlay` (perf
+  // 2026-09-17), which subscribes to the drag it draws from; the hero-power / Battlecry paths push their own
+  // coordinates straight into Pixi from their rAF-coalesced move handlers above.
 
   // The Fodder-eat choreography (owner redesign 2026-07-16): the ghost card POPS IN hovering above the
   // shop line (fast in, easing to a stop), holds a beat, then CRUMBLES into purple energy (the CSS fade +
@@ -5130,32 +4951,9 @@ export function Recruit() {
   // each rule: centre-tracking, the play floor, magnetize suppression, the collapse lift). The SAME function
   // backs `flushMove`'s re-render gate, so the state we render here and the decision that decides whether to
   // re-render can never disagree. The dragged card's own transform/aim/trail bypass this (ref-driven, frame-exact).
-  const dragGeo: DragGeo = { warbandIndexAt, shopIndexAt, handIndexAt, boardUidAt, shopUidAt, starformUidAt };
-  const dragDecision = deriveDragDecision({
-    drag,
-    x: drag ? drag.x : 0,
-    y: drag ? drag.y : 0,
-    overZone,
-    magSlide,
-    playFloor: playFloorRef.current,
-    spellFloor: spellFloorRef.current,
-    collapseY: getDragFeel().collapseY,
-    boardMax: CONFIG.boardMax,
-    asksChoiceFirst: dragAsksChoiceFirst,
-    aimsStarform: !!drag && starformSpellAimsToken(CARD_INDEX[drag.view.cardId] ?? {}),
-    board: run.board,
-    spellUid: run.spell?.uid,
-    geo: dragGeo,
-  });
-  const { wouldMagnetize, castTargetUid, overWarband, collapsedLift, shopGapIndex, gapIndex, handGapIndex } = dragDecision;
-  // A Ruby (or ruby-themed spell) cast from hand gets its own aim effect (`ruby-target`); anything else uses the default.
-  const castIsRuby = castingSpell && !!drag && playsRubyAim(CARD_INDEX[drag.view.cardId]);
-  castAimRef.current = { casting: castingSpell, onTarget: !!castTargetUid, defId: castIsRuby ? RUBY_AIM_DEF_ID : undefined };
-  const draggingBoard = !!drag?.active && drag.source === 'board';
-  // The dragged card STAYS in the row (rendered invisible via `dimmed`) so its slot holds the row width —
-  // that's what stops the neighbours re-centring inward the instant you lift it (the "snap in then back out").
-  // The gap moves via per-card slide transforms (see `boardSlide`/`shopSlide`), not by removing the card.
-  // CELESTIAL alignment, one read per render, shared by every board card below. Gated on a Celestial being
+  // (Since 2026-09-17 the decision is derived ONCE, in the drag session's move flush, and published to
+  // `dragStore`; the rows, the drag overlay and `RowFlip` read it from there. Nothing here recomputes it.)
+    // CELESTIAL alignment, one read per render, shared by every board card below. Gated on a Celestial being
   // present so an ordinary board computes nothing. The arc itself is a CHILD of each card (see Card.tsx), so
   // this only decides the COLOUR — position is the card's own business, which is what fixed "they hate being
   // moved" (owner 2026-08-06). Recruit-phase only: alignment locks at combat start, and until the locked
@@ -5164,7 +4962,6 @@ export function Recruit() {
     () => (boardHasCelestial(displayBoard) ? alignmentsOf(displayBoard) : undefined),
     [displayBoard],
   );
-  const draggingShop = !!drag?.active && drag.source === 'shop';
   // HOLD the consumed slot open (Part 2 of the consume-slide). The sim splices the eaten offer from `run.shop`
   // in the same commit that bumps `shopEatenSeq`, so a naive `displayShop` loses the slot immediately and FLIP
   // reflows the survivors AT ONCE. Instead, on the commit that raises the seq we derive the eaten uids + their
@@ -5231,227 +5028,15 @@ export function Recruit() {
   // The spell stays rendered (dimmed) while being bought — like a minion offer — so the row keeps its width and
   // the offers slide to fill its slot. So it's always "shown" for FLIP-key purposes until the buy commits.
   const spellShown = run.spell?.uid ?? '';
-  // Per-card slide offset (in slots) that opens the drop gap by shifting the cards themselves. A CSS
-  // `transition: transform` (while dragging) glides these — the pre-emptive "make room" animation.
-  const draggedBoardIdx = draggingBoard ? run.board.findIndex((m) => m.uid === drag!.uid) : -1;
-  const boardSlide = useCallback((i: number): number => {
-    if (draggingBoard) {
-      if (gapIndex < 0) {
-        // Not reordering within the warband. Once lifted vertically clear of the row, close the gap. The row
-        // loses a card (N → N-1) and RE-CENTERS, so every survivor moves a HALF slot toward centre — cards
-        // before the lifted one shift right (+0.5), cards after shift left (-0.5). (The mirror of a hand-play
-        // insert.) A full-slot shift would fling them all the way to the lifted card's spot — the reported bug.
-        if (collapsedLift && draggedBoardIdx >= 0)
-          return i === draggedBoardIdx ? 0 : i < draggedBoardIdx ? 0.5 : -0.5;
-        return 0;
-      }
-      // Reordering an existing minion: the dragged card holds its slot (invisible). Every OTHER card shifts by
-      // a whole slot only when the gap crosses it — so nothing moves until the card is dragged clear.
-      if (i === draggedBoardIdx) return 0;
-      const p = i < draggedBoardIdx ? i : i - 1;      // its index among the non-dragged cards
-      return (p < gapIndex ? p : p + 1) - i;          // its index once the dragged card reinserts at the gap
-    }
-    if (gapIndex < 0) return 0;
-    // Playing a new card from hand: open a half-slot gap each side at the insertion point.
-    return i < gapIndex ? -0.5 : 0.5;
-  }, [draggingBoard, gapIndex, collapsedLift, draggedBoardIdx]);
-  // The spell is pinned at the END of the shop row, so buying it collapses like removing the last offer: treat
-  // its index as the row length, and every minion offer (all before it) recentres a half slot to fill the gap.
-  const draggedShopIdx = draggingShop
-    ? drag!.uid === run.spell?.uid
-      ? run.shop.length
-      : run.shop.findIndex((o) => o.uid === drag!.uid)
-    : -1;
-  const shopSlide = useCallback((i: number): number => {
-    if (!draggingShop) return 0;
-    if (shopGapIndex < 0) {
-      // Buying: dragged up/down out of the shop far enough — close the gap the offer leaves behind. Same as the
-      // warband: the row loses a card and re-centres, so survivors move a HALF slot toward centre (+0.5 before,
-      // -0.5 after), not a full slot to the bought card's old spot.
-      if (collapsedLift && draggedShopIdx >= 0)
-        return i === draggedShopIdx ? 0 : i < draggedShopIdx ? 0.5 : -0.5;
-      return 0;
-    }
-    if (i === draggedShopIdx) return 0;
-    const p = i < draggedShopIdx ? i : i - 1;
-    return (p < shopGapIndex ? p : p + 1) - i;
-  }, [draggingShop, shopGapIndex, collapsedLift, draggedShopIdx]);
-  // Hand reorder slide (mirror of shopSlide). Reorder mode = the dragged HAND card sits DOWN in the hand
-  // region (its centre below the play line), not lifted up to play/cast — then the gap opens at the drop
-  // index and every OTHER hand card shifts one slot when the gap crosses it. `handSlidePx` (in the JSX)
-  // multiplies this by the measured overlap spacing so the fan parts by exactly one slot.
-  const draggingHand = !!drag?.active && drag.source === 'hand';
-  const draggedHandIdx = draggingHand ? run.hand.findIndex((c) => c.uid === drag!.uid) : -1;
-  // `handGapIndex` (the drop slot for a hand reorder) comes from `deriveDragDecision` above.
-  const handSlide = useCallback((i: number): number => {
-    if (!draggingHand || handGapIndex < 0 || i === draggedHandIdx) return 0;
-    const p = i < draggedHandIdx ? i : i - 1;
-    return (p < handGapIndex ? p : p + 1) - i;
-  }, [draggingHand, handGapIndex, draggedHandIdx]);
-  // FLIP key tracks row composition + order AND the live drop-slot index, so cards slide smoothly *as the
-  // gap moves during a drag* (not just on drop). GSAP Flip animates this robustly — it reads in a batch,
-  // uses GPU transforms, and blends interruptions natively, so rapid gap moves don't storm the way the old
-  // hand-rolled FLIP did (which is why that one had to be limited to discrete changes).
-  const flipKey =
-    displayShop.map((o) => o.uid).join(',') + '|' + spellShown + '|' + shopGapIndex + '|' +
-    displayBoard.map((m) => m.uid).join(',') + '|' + gapIndex + '|' + (collapsedLift ? '1' : '0');
-  // Snapshot each shop card's centre + size (declared above, near the consume state that also reads it).
-  useLayoutEffect(() => {
-    const cur = new Map<string, { cx: number; cy: number; w: number; h: number }>();
-    for (const el of document.querySelectorAll<HTMLElement>('[data-zone="tavern"] .card[data-uid]')) {
-      const uid = el.dataset.uid;
-      if (!uid) continue;
-      const r = el.getBoundingClientRect();
-      if (r.width === 0) continue; // an unlaid-out / hidden card measures at the corner — skip it
-      cur.set(uid, { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height });
-    }
-    shopRectsRef.current = { prev: shopRectsRef.current.cur, cur };
-  }, [flipKey]);
-  // Carry each row's live gap to the next frame so `reorderIndexFromSlots` can place neighbours at their
-  // CURRENT (shifted) spots (symmetric swap thresholds). Only while actually reordering (gap >= 0).
-  useEffect(() => {
-    if (gapIndex >= 0) prevWarbandGapRef.current = gapIndex;
-  }, [gapIndex]);
-  useEffect(() => {
-    if (shopGapIndex >= 0) prevShopGapRef.current = shopGapIndex;
-  }, [shopGapIndex]);
-  useEffect(() => {
-    if (handGapIndex >= 0) prevHandGapRef.current = handGapIndex;
-  }, [handGapIndex]);
-
-  // FLIP via GSAP. `flipStateRef` holds the layout state captured at the end of the *previous* run (the
-  // cards' old spots); after React commits the new order, `Flip.from` animates each card from there to its
-  // fresh spot. Newly-mounted cards (a freshly bought/played card) aren't in the prior state, so they pop
-  // in (cardpop) instead of sliding from nowhere; removed cards (sold) just leave. GSAP clears its own
-  // transforms on complete and manages interruptions, so a fast drag blends rather than flinging cards.
-  useLayoutEffect(() => {
-   // Timed as `layout:flip` (perf export): GSAP Flip animation + the two forced reflows + the per-commit
-   // Flip.getState / commitRects rebuild (O(cards) offsetLeft reads). Runs every commit — a heavy branch here
-   // is the fanout-frame cost that's neither the sim nor the weld FX.
-   perfMonitor.measure('layout:flip', () => {
-    // WHICH ROW CAN MOVE. Only one row re-lays-out during a drag: the warband when its drop gap is open, the
-    // tavern when the shop's is. Capturing/animating BOTH doubled the most expensive thing in the shop phase
-    // for a row that provably cannot have moved. Outside a drag (a buy, a sell, a commit) either row can
-    // change, so the full selector stands.
-    //
-    // Switching selectors mid-drag is safe: `Flip.from` simply ignores elements absent from the captured
-    // state, and an absent element is one that did not move — which is the same outcome it had before.
-    // (Perf capture 2026-08-06: `layout:flip` was 4,511 ms of 5,010 ms measured — 90% of all work, ~9.2 ms
-    // per call against a 4.17 ms budget at 240 Hz, firing ~50×/s during a drag.)
-    // Consumed once: the hold applies to the single commit that follows the death, never to later ones.
-    const shiftHold = shiftHoldRef.current;
-    shiftHoldRef.current = 0;
-    const draggingNow = dragRef.current?.active ?? false;
-    const flipSel = !draggingNow ? FLIP_SELECTOR
-      : gapIndex >= 0 && shopGapIndex < 0 ? FLIP_SEL_WARBAND
-        : shopGapIndex >= 0 && gapIndex < 0 ? FLIP_SEL_TAVERN
-          : FLIP_SELECTOR;
-    // SPLIT INTO ITS TWO HALVES (perf, 2026-09-15): `layout:flip:write` is the animation branch — Flip.from
-    // or the manual tweens, each with a forced reflow — and `layout:flip:read` is the state capture that
-    // follows (Flip.getState + the offsetLeft sweep). The 2026-09-11 capture put this effect at ~7.3 ms mean,
-    // 98% of it during drags, and could not say which half; nested spans make `layout:flip` itself ~0 self
-    // time so the offenders list charges the halves, not the wrapper.
-    const prevFlipState = flipStateRef.current;
-    if (prevFlipState) perfMonitor.measure('layout:flip:write', () => {
-      const flipCfg = getFlipConfig();
-      const dragging = draggingNow;
-      if (dragging) {
-        // The PRE-EMPTIVE slide: as the drag crosses a slot boundary, the drop slot moves and the cards glide
-        // to make room (dragMs = the slide duration). The cards' CSS `transition: transform` is off for the
-        // whole drag (body.dragging rule in styles.css) so GSAP's transform animation isn't masked.
-        Flip.from(prevFlipState, { duration: flipCfg.dragMs / 1000, ease: 'power2.out' });
-      } else if (handPlaySnapRef.current) {
-        // A drag-drop just committed (a hand card landed, or a board / shop card was reordered). We do a MANUAL
-        // FLIP on the settled row's cards only (never a full Flip.from — for a hand-play the freshly played card
-        // is an entering element GSAP would jolt; for a reorder the dragged card would replay its whole move). All
-        // exclude the dragged/played card from the captured rects, so it just appears at its committed slot while
-        // its neighbours glide from where they sat. First kill the base `.card { transition: transform 0.12s }`
-        // so the slideDir→0 reset is instant (else it animates the reset over the reflow = a rebound). Then, for
-        // any neighbour whose real pre-commit spot (captured at drop) differs from its final slot — i.e. the
-        // release outran the throttled preview — glide it from there to home so it settles instead of jumping.
-        handPlaySnapRef.current = false;
-        const rects = handFlipRef.current;
-        handFlipRef.current = null;
-        const sel = handFlipSelRef.current ?? '[data-zone="warband"] .row .card[data-uid]';
-        handFlipSelRef.current = null;
-        const targets = gsap.utils.toArray<HTMLElement>(sel);
-        gsap.set(targets, { transition: 'none' });
-        void document.body.offsetWidth; // reflow so transform:0 is the instant baseline (no rebound)
-        for (const el of targets) {
-          const uid = el.dataset.uid;
-          const old = uid ? rects?.get(uid) : undefined;
-          const delta = old === undefined ? 0 : old - el.getBoundingClientRect().left;
-          if (Math.abs(delta) < 0.5) {
-            el.style.transition = ''; // static card (or the new one) — restore its base transition
-            continue;
-          }
-          gsap.fromTo(
-            el,
-            { x: delta },
-            { x: 0, duration: flipCfg.commitMs / 1000, ease: 'power2.out', clearProps: 'transform,transition' },
-          );
-        }
-        // The dragged card itself now sits at its committed slot (excluded from the FLIP above). Slide IT the
-        // last stretch from where you released it — same motion as a buy, 30% faster. WAAPI transform, so it
-        // doesn't fight the neighbours' GSAP x-tween. Runs here (not a separate effect) to guarantee it fires
-        // AFTER the card is at its final slot in this same commit.
-        const place = placePendingRef.current;
-        placePendingRef.current = null;
-        if (place) {
-          const card = document.querySelector<HTMLElement>(
-            place.sel.replace('[data-uid]', `[data-uid="${place.uid}"]`),
-          );
-          if (card) playBuySlide(place.from, card, 0.7);
-        }
-      } else if (flipCfg.commitMs > 0) {
-        // A COMMITTED move with NO drag (a SELL / buy-back, a summoned token, an effect repositioning) — opt-in
-        // via commitMs > 0. We do a MANUAL per-card FLIP off `commitRectsRef` (the prior frame's left edges)
-        // rather than GSAP's `Flip.from`: on a REMOVAL that re-centers the row, Flip's auto-matching glided the
-        // right survivor while teleporting the left one (the reported "janky shuffle") — a manual delta→0 tween
-        // is symmetric by construction. Kill `.card`'s transform-transition first so the delta seed is instant.
-        const targets = gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR);
-        const olds = commitRectsRef.current;
-        gsap.set(targets, { transition: 'none' });
-        void document.body.offsetWidth; // reflow so the transform baseline is instant (no CSS rebound)
-        for (const el of targets) {
-          const uid = el.dataset.uid;
-          const old = uid ? olds?.get(uid) : undefined;
-          // `offsetLeft` = the pure LAYOUT position (transform-immune). getBoundingClientRect would fold in any
-          // in-flight tween transform on this card, seeding a wrong delta — which made the leftmost card snap
-          // while its neighbour glided. offsetLeft compares like-for-like against the persisted old value.
-          const delta = old === undefined ? 0 : old - el.offsetLeft;
-          if (Math.abs(delta) < 0.5) { el.style.transition = ''; continue; } // unmoved (or new) card — restore base
-          gsap.fromTo(
-            el,
-            { x: delta },
-            {
-              x: 0, duration: flipCfg.commitMs / 1000, ease: 'power2.out', clearProps: 'transform,transition',
-              // A DEATH holds the row still for a beat first (owner 2026-08-28) — the survivors seed at their
-              // old offsets and simply wait there, so the gap stays open under the animation playing over it.
-              // Zero for every other commit, which is `gsap`'s default and the behaviour this always had.
-              ...(shiftHold > 0 ? { delay: shiftHold / 1000 } : {}),
-            },
-          );
-        }
-      }
-      // else: committed with commitMs 0 → snap (no animation); the drag preview already positioned everything.
-    });
-    perfMonitor.measure('layout:flip:read', () => {
-    // `simple: true` is GSAP's documented fast path: it skips the rotation/scale/skew accounting, which is
-    // the expensive half of a state capture (a `getComputedStyle` read per element on top of the rect). These
-    // rows only ever TRANSLATE horizontally, and `body.dragging` neutralises the hover `scale(1.06)` for the
-    // whole drag (styles.css), so there is no rotation or scale for the full path to account for.
-    flipStateRef.current = Flip.getState(flipSel, { simple: true });
-    // Persist each flipping card's LAYOUT left (offsetLeft — transform-immune, so a capture taken while a
-    // prior tween is still mid-flight records the true resting spot) for the NEXT commit's manual FLIP.
-    // Scoped with the same selector: a card in the row that could not move is absent, and the commit branch
-    // reads an absent uid as delta 0 — "did not move" — which is exactly right.
-    commitRectsRef.current = new Map(
-      gsap.utils.toArray<HTMLElement>(flipSel).map((el) => [el.dataset.uid ?? '', el.offsetLeft]),
-    );
-    });
-   });
-  }, [flipKey]);
+  // The per-row slides (`boardSlide` / `shopSlide` / `handSlide`) are computed INSIDE each memoized row from its
+  // `dragStore` slice (perf 2026-09-17); the FLIP that glides them, the shop-rect snapshot and the death cues
+  // run in `RowFlip` below the rows. The rows only need each zone's uid ORDER for the dragged card's home slot.
+  const boardOrder = useMemo(() => run.board.map((m) => m.uid), [run.board]);
+  const shopOrder = useMemo(() => run.shop.map((o) => o.uid), [run.shop]);
+  const handOrder = useMemo(() => run.hand.map((c) => c.uid), [run.hand]);
+  // Row composition + order — the non-pointer half of the FLIP key (`RowFlip` folds the live gap indices in).
+  const rowsKey = displayShop.map((o) => o.uid).join(',') + '|' + spellShown + '|' + displayBoard.map((m) => m.uid).join(',');
+  const flipRefs = useRef<FlipRefs>({ flipStateRef, commitRectsRef, handPlaySnapRef, handFlipRef, handFlipSelRef, placePendingRef, shiftHoldRef, shopRectsRef, lastCentreRef, departedCentreRef, prevShopFxSeq, preFiredEchoRef }).current;
 
   // Hand reorder glide: a drag-reorder (applyDrop) captured the fan's pre-move layout into handReorderFlipRef;
   // when the new hand order commits here, Flip.from animates each card from its old slot to its new one. GSAP
@@ -5472,6 +5057,7 @@ export function Recruit() {
       Flip.from(st, {
         duration: getFlipConfig().commitMs / 1000,
         ease: 'power2.out',
+        simple: true, // the state was captured simple (2026-09-04); the "to" side must be too, or it takes the per-card matrix path
         onComplete: () => gsap.set(targets, { clearProps: 'transition' }),
       });
     };
@@ -5507,7 +5093,7 @@ export function Recruit() {
     // unconditionally so a later count-change (buy/play) still glides normally.
     const glidedByFlip = reorderGlidedRef.current;
     reorderGlidedRef.current = false;
-    if (inCombat || dragRef.current?.active || glidedByFlip) return;
+    if (inCombat || dragStore.get().drag?.active || glidedByFlip) return;
     const prev = handLeftsRef.current;
     const els = [...document.querySelectorAll<HTMLElement>('.row.hand > .card[data-uid]')];
     const moved: HTMLElement[] = [];
@@ -5578,7 +5164,7 @@ export function Recruit() {
     if (viewing) return;   // replay viewer — no card touch cue, no drag, no click thock (see `viewing`)
     const t = e.target as HTMLElement;
     if (t.closest('[data-zone] .card')) { sfx.cardTouch(); return; }
-    if (heroArmed || equipArmed || drag) return;
+    if (heroArmed || equipArmed || dragStore.get().drag) return;
     if (t.closest('button, a, input, [role="dialog"], .bar, .shopbar')) return;
     sfx.clickThock();
     // Small dust at the cursor (sibling of the card-landing dust) — the authored `click-puff` def. Feed the
@@ -6573,13 +6159,9 @@ export function Recruit() {
     return false;
   };
 
-  // PRIMITIVE drag facts for the memoized rows below: the rows must not take `drag` itself (a fresh object
-  // on every decision), only the few scalars they actually render from.
-  const dragActive = drag?.active === true;
-  const dragUid = drag?.uid;
-  const isDragging = useCallback((uid: string): boolean => dragActive && dragUid === uid, [dragActive, dragUid]);
-  // A shop card over the hand will buy it — glow the hand to confirm the drop target.
-  const canDropHand = !!drag?.active && drag.source === 'shop' && overZone === 'hand';
+  // The drop handler closes over this render's `run`; the drag session (installed at pointerdown, long before
+  // this render) reaches the LATEST one through the ref — the `runRef` pattern.
+  applyDropRef.current = applyDrop;
   // STABLE HANDLERS for the memoized subtrees (perf 2026-09-16). Each one used to be an inline arrow in the
   // JSX — a new function every render, which is exactly what defeats a `React.memo` child.
   const openSummary = useCallback((): void => { setLogTab('gains'); setShowLog(true); }, []);
@@ -6690,49 +6272,45 @@ export function Recruit() {
       />
       </PerfProfiler>
 
-      {/* Sell zone — the whole screen above the warband lights up while dragging a board minion, and
-          releasing anywhere in it sells (handled by inSellRegion in the drop handler). */}
-      {drag?.active && drag.source === 'board' && !drag.view.spell && !timeUp && (
-        <div className={`sellzone${overZone === 'tavern' ? ' on' : ''}`} style={{ height: sellTop } as CSSProperties} aria-hidden="true" />
-      )}
-
-      {/* Buy zone — mirror of the sell zone: the whole screen *below* the warband lights up while dragging
-          a shop card, and releasing anywhere in it buys (handled by inBuyRegion in the drop handler). */}
-      {drag?.active && drag.source === 'shop' && (
-        <div className={`buyzone${overZone === 'hand' ? ' on' : ''}`} style={{ top: buyTop } as CSSProperties} aria-hidden="true" />
-      )}
+      {/* The sell / buy zones + the floating drag card — `DragOverlay` draws them straight from `dragStore`
+          (perf 2026-09-17), so a drag decision never reaches this component. Same DOM position as before. */}
+      <DragOverlay timeUp={timeUp} heroArmed={heroArmed} equipArmed={equipArmed} hasPendingTarget={!!pendingTarget} />
 
       <PerfProfiler id="render:recruit:shop">
       <TavernRow
         frozen={!!run.frozen && !inCombat} replay={combatUnitsShown ? replay : null}
         sbEnemyShown={sbTavernShowsEnemy && !!run.sandbox} sbEnemySnap={sbEnemySnap} sbEditMode={sbEditMode} onSbEnemyPointerDown={onSbEnemyPointerDown}
-        displayShop={displayShop} heldUids={heldUids} shopSlide={shopSlide} isDragging={isDragging} shopViews={shopViews} refViewsByUid={refViewsByUid}
-        dragActive={dragActive} dragUid={dragUid} dragTarget={drag?.view.target} dragCardId={drag?.view.cardId}
-        heroArmed={heroArmed} heroTargetsTavern={heroTargetsTavern} castingSpell={castingSpell} aimTargetUid={aimTargetUid} castTargetUid={castTargetUid}
+        displayShop={displayShop} heldUids={heldUids} shopOrder={shopOrder} shopViews={shopViews} refViewsByUid={refViewsByUid}
+        heroArmed={heroArmed} heroTargetsTavern={heroTargetsTavern}
         tripleReadyUids={tripleReadyUids} returningFromCombat={returningFromCombat} onCardPointerDown={onCardPointerDown}
-        spell={run.spell} draggingShop={draggingShop} spellView={spellView}
+        spell={run.spell} spellView={spellView}
       />
       </PerfProfiler>
 
       <PerfProfiler id="render:recruit:board">
       <WarbandRow
-        dropok={overWarband || wouldMagnetize} replay={combatUnitsShown ? replay : null}
-        displayBoard={displayBoard} boardAligns={boardAligns} boardSlide={boardSlide} isDragging={isDragging} boardViews={boardViews} refViewsByUid={refViewsByUid}
-        dragActive={dragActive} heroArmed={heroArmed} castingSpell={castingSpell} isPendingTarget={isPendingTarget} aimTargetUid={aimTargetUid} castTargetUid={castTargetUid}
+        replay={combatUnitsShown ? replay : null}
+        displayBoard={displayBoard} boardOrder={boardOrder} boardAligns={boardAligns} boardViews={boardViews} refViewsByUid={refViewsByUid}
+        heroArmed={heroArmed} isPendingTarget={isPendingTarget}
         soulboundUids={soulboundUids} battlecryUids={battlecryUids} eotProcUids={eotProcUids} eotPulseUids={eotPulseUids}
         karwindPulseUids={karwindPulseUids} karwindCritPulseUids={karwindCritPulseUids} karwindFlashSeq={run.karwindFlashSeq}
-        summonDelayUids={summonDelayUids} electrifyUids={electrifyUids} magTargetUid={magTargetUid} karwindFlameUids={karwindFlameUids}
+        summonDelayUids={summonDelayUids} electrifyUids={electrifyUids} karwindFlameUids={karwindFlameUids}
         returningFromCombat={returningFromCombat} hasPendingTarget={!!pendingTarget} onCardPointerDown={onCardPointerDown}
       />
       </PerfProfiler>
 
       <PerfProfiler id="render:recruit:hand">
       <HandRow
-        canDropHand={canDropHand} gambleHand={gambleHand} goldSpentRun={run.goldSpent ?? 0} tier={run.tier} wave={run.wave}
-        handViews={handViews} refViewsByUid={refViewsByUid} dragActive={dragActive} isDragging={isDragging} combatHandSummoned={combatHandSummoned}
-        handSlide={handSlide} handSlotW={handSlotWRef.current} onCardPointerDown={onCardPointerDown} handPreviewViews={handPreviewViews}
+        gambleHand={gambleHand} handOrder={handOrder} goldSpentRun={run.goldSpent ?? 0} tier={run.tier} wave={run.wave}
+        handViews={handViews} refViewsByUid={refViewsByUid} combatHandSummoned={combatHandSummoned}
+        onCardPointerDown={onCardPointerDown} handPreviewViews={handPreviewViews}
       />
       </PerfProfiler>
+
+      {/* `render:recruit` for THIS render (after every card's own layout effect, before the FLIP) — see RenderMark. */}
+      <RenderMark start={renderStart} phase={run.phase} />
+      {/* The warband / tavern FLIP + the shop death cues, in the commit where a row moves (see RowFlip). */}
+      <RowFlip rowsKey={rowsKey} shopFxSeq={run.shopFxSeq} shopDeathFx={run.shopDeathFx} findEl={findEl} refs={flipRefs} />
 
       {/* Loss-damage tally — surviving enemy tiers + the opponent's tier fly up into a damage counter
           above the enemy board (clamped to the round cap), then blast the Resolve bar. */}
@@ -6867,51 +6445,7 @@ export function Recruit() {
         </div>
       )}
 
-      {/* Portaled to <body> so the floating drag copy escapes `.app`'s stacking context (`.app` is
-          `position:relative; z-index:1`). Board furniture at the ROOT level — the `.statusbar` at z-index 40,
-          which holds the hero portrait, hero power and rune badges — otherwise painted OVER the dragcard, so a
-          dragged minion frame / card plate slid BEHIND them (owner report 2026-08-20). At root, the dragcard's
-          own z-index 115 wins over all that furniture while still sitting below the modal overlays (460+). It is
-          `position:fixed` and positioned in viewport coords by the rAF, so the DOM move doesn't shift it, and
-          the layout vars it reads (`--u`/`--ccw`/…) are defined on `:root`, so they still resolve under body. */}
-      {drag?.active && !castingSpell && createPortal((
-        <div
-          ref={dragCardRef}
-          className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize ? ' electric' : ''}${magSlide ? ' magslide' : ''}${overWarband && drag.source === 'hand' ? ' willplay' : ''}${drag.source === 'hand' ? ' fromhand' : ''}`}
-          style={{
-            width: drag.w,
-            height: drag.h,
-            // Normal drag lifts via `zoom` (crisp), written by the rAF — leave it undefined here so React
-            // doesn't fight it. The React-driven release animations (snap / magnet-slide) keep `transform:
-            // scale`, so force zoom back to 1 for them or the rAF's leftover zoom would stack (double-size).
-            zoom: reactDrivesDrag ? 1 : undefined,
-            // Normal drag: the rAF (above) owns this OUTER's `transform` + `transform-origin` (position: a
-            // weighted lag + recentre onto the cursor) and its `perspective`, while the dive lives on the inner
-            // `.dragtilt`. Written straight to the nodes so React re-renders don't fight them. Snap-back /
-            // magnet-slide use a CSS transition, so React drives those here — the origin is the card centre
-            // (matching the recentred anchor), the durations come from the config.
-            transformOrigin: reactDrivesDrag ? `${drag.w / 2}px ${drag.h / 2}px` : undefined,
-            transform: magSlide
-              ? dragTransform(getDragFeel().perspective, drag.x - drag.ox, drag.y - drag.oy, 0, 0, 0.06, 0)
-              : snapping
-                ? dragTransform(getDragFeel().perspective, drag.x - drag.ox, drag.y - drag.oy, 0, 0, getDragFeel().scale, getDragFeel().staticRotate)
-                : undefined,
-            transitionDuration: magSlide ? `${getDragFeel().magSlideMs}ms` : snapping ? `${getDragFeel().snapMs}ms` : undefined,
-            // accelerate + fade fully out as it shrinks in, so it vanishes cleanly into the Mech
-            opacity: magSlide ? 0 : 1,
-          }}
-        >
-          {/* Inner tilt layer: the rAF writes rotateX/rotateY here (dive about the card's own centre). During
-              snap/magnet-slide React flattens it so the frozen last-frame rotation clears. */}
-          <div className="dragtilt" ref={dragTiltRef} style={{ transform: reactDrivesDrag ? 'none' : undefined }}>
-            {/* Grab-shrink layer — eases the hover→held size change (hand drags only). Its own layer so the
-                one-shot scale can't fight the rAF's position/tilt writes above. See `.dragshrink` in styles.css. */}
-            <div className="dragshrink">
-              <Card card={drag.view} forceFull={drag.source === 'hand'} plated={drag.source === 'hand'} />
-            </div>
-          </div>
-        </div>
-      ), document.body)}
+      {/* The floating drag card is portalled to <body> by `DragOverlay` (mounted with the drop zones above). */}
 
       {/* The targeting line (hero power / targeted Battlecry / targeted spell) is the LIVING Pixi curve
           now — synced in the aim-line effect above; the old dotted SVG render retired (owner 2026-07-16). */}
@@ -7230,22 +6764,70 @@ const ShopControls = memo(function ShopControls({
  *  pinned foe). Memoized on the view maps + primitives + stable handlers, so a render that did not touch the
  *  shop (an overlay, the loss tally, a hover-driven local state) reconciles none of these cards. `replay` is
  *  passed ONLY while combat units show — the hook hands back a fresh object every render. */
+/** The pointer-state slice a row draws from (perf 2026-09-17): the drag's identity + the decision scalars, read
+ *  through `useDragSlice` so a decision change re-renders the row whose gap moved and NOTHING above it. Module
+ *  level so the selector is referentially stable (see `useDragSlice`'s caching contract). */
+const selectTavernDrag = (s: DragSnapshot) => ({
+  dragActive: s.drag?.active === true, dragUid: s.drag?.uid, dragSource: s.drag?.source,
+  dragTarget: s.drag?.view.target, dragCardId: s.drag?.view.cardId,
+  castingSpell: s.castingSpell, castTargetUid: s.decision.castTargetUid, aimTargetUid: s.aimTargetUid,
+  shopGapIndex: s.decision.shopGapIndex, collapsedLift: s.decision.collapsedLift,
+});
+const selectWarbandDrag = (s: DragSnapshot) => ({
+  dragActive: s.drag?.active === true, dragUid: s.drag?.uid, dragSource: s.drag?.source,
+  castingSpell: s.castingSpell, castTargetUid: s.decision.castTargetUid, aimTargetUid: s.aimTargetUid,
+  gapIndex: s.decision.gapIndex, collapsedLift: s.decision.collapsedLift,
+  dropok: s.decision.overWarband || s.decision.wouldMagnetize, magTargetUid: s.magTargetUid,
+});
+const selectHandDrag = (s: DragSnapshot) => ({
+  dragActive: s.drag?.active === true, dragUid: s.drag?.uid, dragSource: s.drag?.source,
+  handGapIndex: s.decision.handGapIndex, handSlotW: s.handSlotW,
+  // A shop card over the hand will buy it — glow the hand to confirm the drop target.
+  canDropHand: s.drag?.active === true && s.drag.source === 'shop' && s.overZone === 'hand',
+});
+
 const TavernRow = memo(function TavernRow({
-  frozen, replay, sbEnemyShown, sbEnemySnap, sbEditMode, onSbEnemyPointerDown, displayShop, heldUids, shopSlide,
-  isDragging, shopViews, refViewsByUid, dragActive, dragUid, dragTarget, dragCardId, heroArmed, heroTargetsTavern,
-  castingSpell, aimTargetUid, castTargetUid, tripleReadyUids, returningFromCombat, onCardPointerDown, spell,
-  draggingShop, spellView,
+  frozen, replay, sbEnemyShown, sbEnemySnap, sbEditMode, onSbEnemyPointerDown, displayShop, heldUids, shopOrder,
+  shopViews, refViewsByUid, heroArmed, heroTargetsTavern,
+  tripleReadyUids, returningFromCombat, onCardPointerDown, spell, spellView,
 }: {
   frozen: boolean; replay: ReturnType<typeof useCombatReplay> | null; sbEnemyShown: boolean;
   sbEnemySnap: BoardSnapshot | null; sbEditMode: boolean; onSbEnemyPointerDown: (e: React.PointerEvent) => void;
-  displayShop: ShopCard[]; heldUids: ReadonlySet<string> | null; shopSlide: (i: number) => number;
-  isDragging: (uid: string) => boolean; shopViews: ReadonlyMap<string, CardView>; refViewsByUid: ReadonlyMap<string, CardView[]>;
-  dragActive: boolean; dragUid: string | undefined; dragTarget: CardView['target'] | undefined; dragCardId: string | undefined;
-  heroArmed: boolean; heroTargetsTavern: boolean; castingSpell: boolean; aimTargetUid: string | null;
-  castTargetUid: string | null; tripleReadyUids: ReadonlySet<string>; returningFromCombat: boolean;
-  onCardPointerDown: (e: ReactPointerEvent) => void; spell: RunState['spell']; draggingShop: boolean;
+  displayShop: ShopCard[]; heldUids: ReadonlySet<string> | null;
+  /** `run.shop`'s uid order — the dragged offer's home slot for the reorder slide (memoized by the caller). */
+  shopOrder: readonly string[];
+  shopViews: ReadonlyMap<string, CardView>; refViewsByUid: ReadonlyMap<string, CardView[]>;
+  heroArmed: boolean; heroTargetsTavern: boolean;
+  tripleReadyUids: ReadonlySet<string>; returningFromCombat: boolean;
+  onCardPointerDown: (e: ReactPointerEvent) => void; spell: RunState['spell'];
   spellView: CardView | null;
 }) {
+  const { dragActive, dragUid, dragSource, dragTarget, dragCardId, castingSpell, castTargetUid, aimTargetUid, shopGapIndex, collapsedLift } = useDragSlice(selectTavernDrag);
+  const draggingShop = dragActive && dragSource === 'shop';
+  const isDragging = (uid: string): boolean => dragActive && dragUid === uid;
+  // The spell is pinned at the END of the shop row, so buying it collapses like removing the last offer: treat
+  // its index as the row length, and every minion offer (all before it) recentres a half slot to fill the gap.
+  const draggedShopIdx = draggingShop
+    ? dragUid === spell?.uid
+      ? shopOrder.length
+      : shopOrder.indexOf(dragUid ?? '')
+    : -1;
+  // Per-card slide offset (in slots) that opens the drop gap by shifting the cards themselves. A CSS
+  // `transition: transform` (while dragging) glides these — the pre-emptive "make room" animation.
+  const shopSlide = (i: number): number => {
+    if (!draggingShop) return 0;
+    if (shopGapIndex < 0) {
+      // Buying: dragged up/down out of the shop far enough — close the gap the offer leaves behind. Same as the
+      // warband: the row loses a card and re-centres, so survivors move a HALF slot toward centre (+0.5 before,
+      // -0.5 after), not a full slot to the bought card's old spot.
+      if (collapsedLift && draggedShopIdx >= 0)
+        return i === draggedShopIdx ? 0 : i < draggedShopIdx ? 0.5 : -0.5;
+      return 0;
+    }
+    if (i === draggedShopIdx) return 0;
+    const p = i < draggedShopIdx ? i : i - 1;
+    return (p < shopGapIndex ? p : p + 1) - i;
+  };
   return (
       <div className={`zone${frozen ? ' frozen' : ''}`} data-zone="tavern">
         <div className="row">
@@ -7334,21 +6916,51 @@ const TavernRow = memo(function TavernRow({
 
 /** The warband zone: your board (or, in combat, your units). Memoized the same way as `TavernRow`. */
 const WarbandRow = memo(function WarbandRow({
-  dropok, replay, displayBoard, boardAligns, boardSlide, isDragging, boardViews, refViewsByUid, dragActive, heroArmed,
-  castingSpell, isPendingTarget, aimTargetUid, castTargetUid, soulboundUids, battlecryUids, eotProcUids, eotPulseUids,
-  karwindPulseUids, karwindCritPulseUids, karwindFlashSeq, summonDelayUids, electrifyUids, magTargetUid, karwindFlameUids,
+  replay, displayBoard, boardOrder, boardAligns, boardViews, refViewsByUid, heroArmed,
+  isPendingTarget, soulboundUids, battlecryUids, eotProcUids, eotPulseUids,
+  karwindPulseUids, karwindCritPulseUids, karwindFlashSeq, summonDelayUids, electrifyUids, karwindFlameUids,
   returningFromCombat, hasPendingTarget, onCardPointerDown,
 }: {
-  dropok: boolean; replay: ReturnType<typeof useCombatReplay> | null; displayBoard: BoardCard[];
-  boardAligns: ReturnType<typeof alignmentsOf> | undefined; boardSlide: (i: number) => number; isDragging: (uid: string) => boolean;
-  boardViews: ReadonlyMap<string, CardView>; refViewsByUid: ReadonlyMap<string, CardView[]>; dragActive: boolean;
-  heroArmed: boolean; castingSpell: boolean; isPendingTarget: (uid: string) => boolean; aimTargetUid: string | null;
-  castTargetUid: string | null; soulboundUids: ReadonlySet<string>; battlecryUids: ReadonlySet<string>;
+  replay: ReturnType<typeof useCombatReplay> | null; displayBoard: BoardCard[];
+  /** `run.board`'s uid order — the dragged minion's home slot for the reorder slide (memoized by the caller). */
+  boardOrder: readonly string[];
+  boardAligns: ReturnType<typeof alignmentsOf> | undefined;
+  boardViews: ReadonlyMap<string, CardView>; refViewsByUid: ReadonlyMap<string, CardView[]>;
+  heroArmed: boolean; isPendingTarget: (uid: string) => boolean;
+  soulboundUids: ReadonlySet<string>; battlecryUids: ReadonlySet<string>;
   eotProcUids: ReadonlySet<string>; eotPulseUids: ReadonlySet<string>; karwindPulseUids: ReadonlySet<string>;
   karwindCritPulseUids: ReadonlySet<string>; karwindFlashSeq: number | undefined; summonDelayUids: ReadonlySet<string>;
-  electrifyUids: ReadonlySet<string>; magTargetUid: string | null; karwindFlameUids: ReadonlySet<string>;
+  electrifyUids: ReadonlySet<string>; karwindFlameUids: ReadonlySet<string>;
   returningFromCombat: boolean; hasPendingTarget: boolean; onCardPointerDown: (e: ReactPointerEvent) => void;
 }) {
+  const { dragActive, dragUid, dragSource, castingSpell, castTargetUid, aimTargetUid, gapIndex, collapsedLift, dropok, magTargetUid } = useDragSlice(selectWarbandDrag);
+  const draggingBoard = dragActive && dragSource === 'board';
+  const isDragging = (uid: string): boolean => dragActive && dragUid === uid;
+  // The dragged card STAYS in the row (rendered invisible via `dimmed`) so its slot holds the row width —
+  // that's what stops the neighbours re-centring inward the instant you lift it (the "snap in then back out").
+  // The gap moves via per-card slide transforms (see `boardSlide`), not by removing the card.
+  const draggedBoardIdx = draggingBoard ? boardOrder.indexOf(dragUid ?? '') : -1;
+  const boardSlide = (i: number): number => {
+    if (draggingBoard) {
+      if (gapIndex < 0) {
+        // Not reordering within the warband. Once lifted vertically clear of the row, close the gap. The row
+        // loses a card (N → N-1) and RE-CENTERS, so every survivor moves a HALF slot toward centre — cards
+        // before the lifted one shift right (+0.5), cards after shift left (-0.5). (The mirror of a hand-play
+        // insert.) A full-slot shift would fling them all the way to the lifted card's spot — the reported bug.
+        if (collapsedLift && draggedBoardIdx >= 0)
+          return i === draggedBoardIdx ? 0 : i < draggedBoardIdx ? 0.5 : -0.5;
+        return 0;
+      }
+      // Reordering an existing minion: the dragged card holds its slot (invisible). Every OTHER card shifts by
+      // a whole slot only when the gap crosses it — so nothing moves until the card is dragged clear.
+      if (i === draggedBoardIdx) return 0;
+      const p = i < draggedBoardIdx ? i : i - 1;      // its index among the non-dragged cards
+      return (p < gapIndex ? p : p + 1) - i;          // its index once the dragged card reinserts at the gap
+    }
+    if (gapIndex < 0) return 0;
+    // Playing a new card from hand: open a half-slot gap each side at the insertion point.
+    return i < gapIndex ? -0.5 : 0.5;
+  };
   return (
       <div className={`zone${dropok ? ' dropok' : ''}`} data-zone="warband">
         <div className="row warband">
@@ -7407,14 +7019,31 @@ const WarbandRow = memo(function WarbandRow({
 /** The hand zone: the fanned hand + the grant previews. Memoized like the other rows; `handSlotW` is the drag's
  *  measured slot spacing passed as a value (it was read off a ref at render). */
 const HandRow = memo(function HandRow({
-  canDropHand, gambleHand, goldSpentRun, tier, wave, handViews, refViewsByUid, dragActive, isDragging, combatHandSummoned,
-  handSlide, handSlotW, onCardPointerDown, handPreviewViews,
+  gambleHand, handOrder, goldSpentRun, tier, wave, handViews, refViewsByUid, combatHandSummoned,
+  onCardPointerDown, handPreviewViews,
 }: {
-  canDropHand: boolean; gambleHand: BoardCard[]; goldSpentRun: number; tier: number; wave: number;
-  handViews: ReadonlyMap<string, CardView>; refViewsByUid: ReadonlyMap<string, CardView[]>; dragActive: boolean;
-  isDragging: (uid: string) => boolean; combatHandSummoned: ReadonlySet<string> | null; handSlide: (i: number) => number;
-  handSlotW: number; onCardPointerDown: (e: ReactPointerEvent) => void; handPreviewViews: CardView[];
+  gambleHand: BoardCard[];
+  /** `run.hand`'s uid order — the dragged card's home slot for the reorder slide (memoized by the caller). */
+  handOrder: readonly string[];
+  goldSpentRun: number; tier: number; wave: number;
+  handViews: ReadonlyMap<string, CardView>; refViewsByUid: ReadonlyMap<string, CardView[]>;
+  combatHandSummoned: ReadonlySet<string> | null;
+  onCardPointerDown: (e: ReactPointerEvent) => void; handPreviewViews: CardView[];
 }) {
+  const { dragActive, dragUid, dragSource, handGapIndex, handSlotW, canDropHand } = useDragSlice(selectHandDrag);
+  const isDragging = (uid: string): boolean => dragActive && dragUid === uid;
+  // Hand reorder slide (mirror of shopSlide). Reorder mode = the dragged HAND card sits DOWN in the hand
+  // region (its centre below the play line), not lifted up to play/cast — then the gap opens at the drop
+  // index and every OTHER hand card shifts one slot when the gap crosses it. `handSlidePx` (in the JSX)
+  // multiplies this by the measured overlap spacing so the fan parts by exactly one slot.
+  const draggingHand = dragActive && dragSource === 'hand';
+  const draggedHandIdx = draggingHand ? handOrder.indexOf(dragUid ?? '') : -1;
+  // `handGapIndex` (the drop slot for a hand reorder) comes from `deriveDragDecision` (the move flush).
+  const handSlide = (i: number): number => {
+    if (!draggingHand || handGapIndex < 0 || i === draggedHandIdx) return 0;
+    const p = i < draggedHandIdx ? i : i - 1;
+    return (p < handGapIndex ? p : p + 1) - i;
+  };
   return (
       <div
         className={`zone${canDropHand ? ' dropok' : ''}`}
@@ -7474,6 +7103,522 @@ const HandRow = memo(function HandRow({
           ))}
         </div>
       </div>
+  );
+});
+
+/**
+ * `render:recruit` (perf export): render body + React reconciliation + DOM commit for ONE `Recruit` render — the
+ * delta from `renderStart` (top of `Recruit`'s body) to this layout effect. Its own component (perf 2026-09-17)
+ * placed AFTER the rows and BEFORE `RowFlip`, so that in tree order it still runs after every card's own layout
+ * effect and before the FLIP (timed separately) — exactly where the inline effect used to sit — and so that a
+ * row re-rendering on its own (a drag decision, which no longer touches `Recruit`) records nothing here.
+ * `render:combat` while a combat is on screen: a beat's React commit is a different cost from a shop commit.
+ */
+const RenderMark = memo(function RenderMark({ start, phase }: { start: number; phase: RunState['phase'] }) {
+  useLayoutEffect(() => { perfMonitor.record(phase === 'combat' ? 'render:combat' : 'render:recruit', performance.now() - start); });
+  return null;
+});
+
+/** The mutable bookkeeping the FLIP runner shares with `Recruit`'s handlers — created once in `Recruit` (the
+ *  drop handlers and the End-of-Turn presenters write into it) and handed to `RowFlip` as one stable object. */
+interface FlipRefs {
+  flipStateRef: { current: ReturnType<typeof Flip.getState> | null };
+  commitRectsRef: { current: Map<string, number> | null };
+  handPlaySnapRef: { current: boolean };
+  handFlipRef: { current: Map<string, number> | null };
+  handFlipSelRef: { current: string | null };
+  placePendingRef: { current: { uid: string; sel: string; from: BuyFrom } | null };
+  shiftHoldRef: { current: number };
+  shopRectsRef: { current: { prev: Map<string, { cx: number; cy: number; w: number; h: number }>; cur: Map<string, { cx: number; cy: number; w: number; h: number }> } };
+  lastCentreRef: { current: Map<string, { x: number; y: number; w: number }> };
+  departedCentreRef: { current: Map<string, { x: number; y: number; w: number }> };
+  prevShopFxSeq: { current: number | undefined };
+  preFiredEchoRef: { current: Set<string> };
+}
+
+const selectFlipDrag = (s: DragSnapshot) => ({
+  dragActive: s.drag?.active === true, gapIndex: s.decision.gapIndex, shopGapIndex: s.decision.shopGapIndex, collapsedLift: s.decision.collapsedLift,
+});
+
+/**
+ * THE ROW FLIP RUNNER (perf 2026-09-17) — the three layout effects that must run in the commit where a warband /
+ * tavern card moves: the shop-death cue (which reads the PREVIOUS layout and arms the shift hold), the FLIP
+ * itself, and the last-centre refresh. They used to be `Recruit`'s own layout effects, keyed on a `flipKey` that
+ * folded in the live drop-gap indices — so the drag's decision HAD to re-render `Recruit` for the cards to
+ * slide. The gap indices now come from `dragStore`; this component subscribes to them, re-renders (returning
+ * nothing) when they move, and runs the FLIP in that commit, right after the rows have committed their slides.
+ * Declaration order inside is load-bearing and unchanged: cue → snapshot → FLIP → refresh.
+ */
+const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl, refs }: {
+  /** Row composition + order (shop uids · spell · board uids) — the non-pointer half of the FLIP key. */
+  rowsKey: string;
+  shopFxSeq: RunState['shopFxSeq']; shopDeathFx: RunState['shopDeathFx'];
+  findEl: (uid: string) => Element | null; refs: FlipRefs;
+}) {
+  const { dragActive, gapIndex, shopGapIndex, collapsedLift } = useDragSlice(selectFlipDrag);
+  const { flipStateRef, commitRectsRef, handPlaySnapRef, handFlipRef, handFlipSelRef, placePendingRef, shiftHoldRef, shopRectsRef, lastCentreRef, departedCentreRef, prevShopFxSeq, preFiredEchoRef } = refs;
+  /**
+   * THE SHOP'S DEATH CUES (owner 2026-08-28) — see the block comment above `FlipRefs`' owner in `Recruit`.
+   *   · an Echo TRIGGERED    → `pixiFx.deathrattle` — the painted skull-shatter.
+   *   · a body DIED          → the authored `death-dissolve` def.
+   *   · a body that is RISING → neither: it re-forms rather than dissolving.
+   * POSITION. A dead body is already off the board by the time this runs, so `findEl` cannot find it. The
+   * cache below keeps the last known centre of every board card; this effect reads it BEFORE the refresh
+   * effect (declared after it, so it runs after) overwrites it with the new layout.
+   */
+  useLayoutEffect(() => {
+    const seq = shopFxSeq;
+    if (seq === undefined || seq === prevShopFxSeq.current) return;
+    prevShopFxSeq.current = seq; // advance FIRST — fires exactly once per action, like the Ruby cue above
+    const cues = shopDeathFx ?? [];
+    const cfg = getShopDeathFxConfig(); // read at FIRE TIME, so a tuner edit applies to the next death
+    // WHICH BODIES DIED THIS ACTION. An Echo belonging to a dying body must play WHERE THE CARD WAS (owner
+    // 2026-08-28) — so for those we go straight to the last-known centre and never consult the live DOM,
+    // where the uid is either absent or, after a Rise, a DIFFERENT body standing in its place.
+    const dying = new Set(cues.filter((f) => f.kind === 'death').map((f) => f.uid));
+    // Hold the row for the NEXT commit's slide. Set here rather than in the FLIP effect because only
+    // this one knows a death happened; the FLIP effect sees an ordinary board change.
+    if (dying.size > 0) shiftHoldRef.current = Math.max(0, cfg.shiftDelayMs);
+    for (const fx of cues) {
+      const cached = lastCentreRef.current.get(fx.uid);
+      const live = dying.has(fx.uid) ? null : findEl(fx.uid);
+      const base = live
+        ? (() => { const r = live.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width }; })()
+        : cached;
+      if (!base) continue;
+      const at = { x: base.x + cfg.offsetX, y: base.y + cfg.offsetY, w: base.w * cfg.sizeScale };
+      const fire = (): void => {
+        if (fx.kind === 'echo') { pixiFx.deathrattle(at.x, at.y, at.w); return; }
+        // A RISEN body has returned (owner 2026-09-09): combat's reborn re-form on the new card, one beat after the
+        // death it followed. `base` was read from the live, freshly-mounted element above.
+        if (fx.kind === 'rise') { reformReborn({ cx: at.x, cy: at.y, w: base.w, h: base.w * 1.4 }); return; }
+        // A body that will Rise dies IN FULL first (dissolve here, its Echo skull on its own cue) — the return is
+        // the `rise` cue above, not a bloom in place (owner 2026-09-09: "just as if it had happened in combat").
+        if (!canPlayDefs()) return;
+        const anchors = anchorsForUnits(null, fx.uid);
+        if (anchors) playDef('death-dissolve', anchors, { uids: { source: null, target: fx.uid } });
+      };
+      if (fx.kind === 'echo' && preFiredEchoRef.current.delete(fx.uid)) continue; // the lead already played it
+      if (fx.kind === 'echo' && !cfg.echoEnabled) continue;
+      if (fx.kind === 'death' && !cfg.deathEnabled) continue;
+      const delay = fx.kind === 'echo' ? cfg.echoDelayMs : fx.kind === 'rise' ? cfg.deathDelayMs + RISE_REFORM_MS : cfg.deathDelayMs;
+      if (delay > 0) window.setTimeout(fire, delay); else fire();
+    }
+  }, [shopFxSeq, shopDeathFx, findEl]);
+
+  // FLIP key tracks row composition + order AND the live drop-slot index, so cards slide smoothly *as the
+  // gap moves during a drag* (not just on drop). GSAP Flip animates this robustly — it reads in a batch,
+  // uses GPU transforms, and blends interruptions natively, so rapid gap moves don't storm the way the old
+  // hand-rolled FLIP did (which is why that one had to be limited to discrete changes).
+  const flipKey = rowsKey + '|' + shopGapIndex + '|' + gapIndex + '|' + (collapsedLift ? '1' : '0');
+  // Snapshot each shop card's centre + size (declared in Recruit, near the consume state that also reads it).
+  useLayoutEffect(() => {
+    const cur = new Map<string, { cx: number; cy: number; w: number; h: number }>();
+    for (const el of document.querySelectorAll<HTMLElement>('[data-zone="tavern"] .card[data-uid]')) {
+      const uid = el.dataset.uid;
+      if (!uid) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width === 0) continue; // an unlaid-out / hidden card measures at the corner — skip it
+      cur.set(uid, { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height });
+    }
+    shopRectsRef.current = { prev: shopRectsRef.current.cur, cur };
+  }, [flipKey]);
+
+  // FLIP via GSAP. `flipStateRef` holds the layout state captured at the end of the *previous* drag commit (the
+  // cards' old spots — seeded at drag START, see `startDragSession`); after React commits the new order,
+  // `Flip.from` animates each card from there to its fresh spot. Newly-mounted cards (a freshly bought/played
+  // card) aren't in the prior state, so they pop in (cardpop) instead of sliding from nowhere; removed cards
+  // (sold) just leave. GSAP clears its own transforms on complete and manages interruptions, so a fast drag
+  // blends rather than flinging cards.
+  useLayoutEffect(() => {
+   // Timed as `layout:flip` (perf export): GSAP Flip animation + the forced reflows + the per-commit
+   // Flip.getState / commitRects rebuild (O(cards) offsetLeft reads). Runs on every flipKey change — a heavy
+   // branch here is the fanout-frame cost that's neither the sim nor the weld FX.
+   perfMonitor.measure('layout:flip', () => {
+    // WHICH ROW CAN MOVE. Only one row re-lays-out during a drag: the warband when its drop gap is open, the
+    // tavern when the shop's is. Capturing/animating BOTH doubled the most expensive thing in the shop phase
+    // for a row that provably cannot have moved. Outside a drag (a buy, a sell, a commit) either row can
+    // change, so the full selector stands.
+    //
+    // Switching selectors mid-drag is safe: `Flip.from` simply ignores elements absent from the captured
+    // state, and an absent element is one that did not move — which is the same outcome it had before.
+    // (Perf capture 2026-08-06: `layout:flip` was 4,511 ms of 5,010 ms measured — 90% of all work, ~9.2 ms
+    // per call against a 4.17 ms budget at 240 Hz, firing ~50×/s during a drag.)
+    // Consumed once: the hold applies to the single commit that follows the death, never to later ones.
+    const shiftHold = shiftHoldRef.current;
+    shiftHoldRef.current = 0;
+    const draggingNow = dragActive;
+    const flipSel = !draggingNow ? FLIP_SELECTOR
+      : gapIndex >= 0 && shopGapIndex < 0 ? FLIP_SEL_WARBAND
+        : shopGapIndex >= 0 && gapIndex < 0 ? FLIP_SEL_TAVERN
+          : FLIP_SELECTOR;
+    // SPLIT INTO ITS TWO HALVES (perf, 2026-09-15): `layout:flip:write` is the animation branch — Flip.from
+    // or the manual tweens — and `layout:flip:read` is the state capture (Flip.getState / the offsetLeft
+    // sweep). The 2026-09-11 capture put this effect at ~7.3 ms mean, 98% of it during drags, and could not
+    // say which half; nested spans make `layout:flip` itself ~0 self time so the offenders list charges the
+    // halves, not the wrapper.
+    //
+    // THE SWEEP COMES FIRST (perf 2026-09-17). The offsetLeft sweep used to run AFTER the write pass, which
+    // made it a third forced layout on a drop commit (kill-transition reflow, tween seeds, then this) and a
+    // second one on every other commit. `offsetLeft` is a LAYOUT position — transform-immune, so no write in
+    // this effect can change it — and reading it on the flush React's own DOM writes already made unavoidable
+    // costs nothing extra. The commit branch below then diffs this sweep against the previous one, so a commit
+    // that moved nothing (a roll) writes nothing and forces nothing. The two per-drag-commit flushes (Flip.from's
+    // read, then the state capture the NEXT commit blends from) stay: the capture has to see the tween just seeded.
+    const prevFlipState = flipStateRef.current;
+    const flipCfg = getFlipConfig();
+    let commitLefts: Map<string, number> | null = null;
+    if (!draggingNow) perfMonitor.measure('layout:flip:read', () => {
+      // Persist each flipping card's LAYOUT left (offsetLeft — transform-immune, so a capture taken while a
+      // prior tween is still mid-flight records the true resting spot) for the NEXT commit's manual FLIP — and
+      // for THIS commit's, which diffs it against the previous sweep below. Not refreshed during a drag: the
+      // commit branch never runs mid-drag, the drop's own commit lands in the `handPlaySnapRef` branch, and a
+      // drag that ends in a snap-back changed no layout at all.
+      commitLefts = new Map(
+        gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR).map((el) => [el.dataset.uid ?? '', el.offsetLeft]),
+      );
+    });
+    perfMonitor.measure('layout:flip:write', () => {
+      if (draggingNow) {
+        // The PRE-EMPTIVE slide: as the drag crosses a slot boundary, the drop slot moves and the cards glide
+        // to make room (dragMs = the slide duration). The cards' CSS `transition: transform` is off for the
+        // whole drag (body.dragging rule in styles.css) so GSAP's transform animation isn't masked.
+        // `simple: true` on the ANIMATION call too (perf 2026-09-17): the recorded state was captured simple, but
+        // `Flip.from` builds its own "to" state for the same targets and, without the flag, resolves a global
+        // matrix per card — GSAP appends a temp element beside each and reads it, a forced layout per card.
+        // These cards only translate, so the simple path is the same slide; this was ~9 ms per slot crossing.
+        if (prevFlipState) Flip.from(prevFlipState, { duration: flipCfg.dragMs / 1000, ease: 'power2.out', simple: true });
+      } else if (handPlaySnapRef.current) {
+        // A drag-drop just committed (a hand card landed, or a board / shop card was reordered). We do a MANUAL
+        // FLIP on the settled row's cards only (never a full Flip.from — for a hand-play the freshly played card
+        // is an entering element GSAP would jolt; for a reorder the dragged card would replay its whole move). All
+        // exclude the dragged/played card from the captured rects, so it just appears at its committed slot while
+        // its neighbours glide from where they sat. First kill the base `.card { transition: transform 0.12s }`
+        // so the slideDir→0 reset is instant (else it animates the reset over the reflow = a rebound). Then, for
+        // any neighbour whose real pre-commit spot (captured at drop) differs from its final slot — i.e. the
+        // release outran the throttled preview — glide it from there to home so it settles instead of jumping.
+        // (This branch keeps its reflow: the rects it needs are VISUAL positions, and until the transition is
+        // killed and flushed the just-cleared slides are still mid-transition in them. The offsetLeft sweep
+        // above is what no longer costs a third flush after the tweens are seeded.)
+        handPlaySnapRef.current = false;
+        const rects = handFlipRef.current;
+        handFlipRef.current = null;
+        const sel = handFlipSelRef.current ?? '[data-zone="warband"] .row .card[data-uid]';
+        handFlipSelRef.current = null;
+        const targets = gsap.utils.toArray<HTMLElement>(sel);
+        gsap.set(targets, { transition: 'none' });
+        void document.body.offsetWidth; // reflow so transform:0 is the instant baseline (no rebound)
+        for (const el of targets) {
+          const uid = el.dataset.uid;
+          const old = uid ? rects?.get(uid) : undefined;
+          const delta = old === undefined ? 0 : old - el.getBoundingClientRect().left;
+          if (Math.abs(delta) < 0.5) {
+            el.style.transition = ''; // static card (or the new one) — restore its base transition
+            continue;
+          }
+          gsap.fromTo(
+            el,
+            { x: delta },
+            { x: 0, duration: flipCfg.commitMs / 1000, ease: 'power2.out', clearProps: 'transform,transition' },
+          );
+        }
+        // The dragged card itself now sits at its committed slot (excluded from the FLIP above). Slide IT the
+        // last stretch from where you released it — same motion as a buy, 30% faster. WAAPI transform, so it
+        // doesn't fight the neighbours' GSAP x-tween. Runs here (not a separate effect) to guarantee it fires
+        // AFTER the card is at its final slot in this same commit.
+        const place = placePendingRef.current;
+        placePendingRef.current = null;
+        if (place) {
+          const card = document.querySelector<HTMLElement>(
+            place.sel.replace('[data-uid]', `[data-uid="${place.uid}"]`),
+          );
+          if (card) playBuySlide(place.from, card, 0.7);
+        }
+      } else if (flipCfg.commitMs > 0) {
+        // A COMMITTED move with NO drag (a SELL / buy-back, a summoned token, an effect repositioning) — opt-in
+        // via commitMs > 0. We do a MANUAL per-card FLIP off the previous commit's offsetLeft sweep rather than
+        // GSAP's `Flip.from`: on a REMOVAL that re-centers the row, Flip's auto-matching glided the right
+        // survivor while teleporting the left one (the reported "janky shuffle") — a manual delta→0 tween is
+        // symmetric by construction.
+        //
+        // READ FIRST, WRITE ONLY IF SOMETHING MOVED (perf 2026-09-17). This branch used to kill the transition on
+        // every card, force a reflow, and only THEN discover that nothing had moved — which is the common case
+        // (a roll swaps five cards into the same five slots; a buff changes no layout at all). The deltas come
+        // off the sweep above; a commit with no delta touches no style, and one that DID move a card runs
+        // exactly the writes it always did.
+        const targets = gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR);
+        const olds = commitRectsRef.current;
+        const moving: { el: HTMLElement; delta: number }[] = [];
+        if (olds && commitLefts) {
+          for (const el of targets) {
+            const uid = el.dataset.uid;
+            const old = uid ? olds.get(uid) : undefined;
+            const now = uid ? commitLefts.get(uid) : undefined;
+            const delta = old === undefined || now === undefined ? 0 : old - now;
+            if (Math.abs(delta) >= 0.5) moving.push({ el, delta });
+          }
+        }
+        if (moving.length > 0) {
+          gsap.set(targets, { transition: 'none' });
+          const movingEls = new Set(moving.map((m) => m.el));
+          for (const el of targets) if (!movingEls.has(el)) el.style.transition = ''; // unmoved (or new) card — restore base
+          for (const { el, delta } of moving) {
+            gsap.fromTo(
+              el,
+              { x: delta },
+              {
+                x: 0, duration: flipCfg.commitMs / 1000, ease: 'power2.out', clearProps: 'transform,transition',
+                // A DEATH holds the row still for a beat first (owner 2026-08-28) — the survivors seed at their
+                // old offsets and simply wait there, so the gap stays open under the animation playing over it.
+                // Zero for every other commit, which is `gsap`'s default and the behaviour this always had.
+                ...(shiftHold > 0 ? { delay: shiftHold / 1000 } : {}),
+              },
+            );
+          }
+        }
+      }
+      // else: committed with commitMs 0 → snap (no animation); the drag preview already positioned everything.
+    });
+    if (draggingNow) perfMonitor.measure('layout:flip:read', () => {
+      // `simple: true` is GSAP's documented fast path: it skips the rotation/scale/skew accounting, which is
+      // the expensive half of a state capture (a `getComputedStyle` read per element on top of the rect). These
+      // rows only ever TRANSLATE horizontally, and `body.dragging` neutralises the hover `scale(1.06)` for the
+      // whole drag (styles.css), so there is no rotation or scale for the full path to account for.
+      // ONLY DURING A DRAG (perf 2026-09-17): the captured state feeds the next drag commit's `Flip.from` and
+      // nothing else, so outside a drag it was a forced layout per commit for a value the next drag START now
+      // captures fresh (`startDragSession`) — where it is also correct by construction, whereas a state kept
+      // from the last commit could predate a viewport resize.
+      flipStateRef.current = Flip.getState(flipSel, { simple: true });
+    });
+    if (commitLefts) commitRectsRef.current = commitLefts;
+   });
+  }, [flipKey]);
+
+  /**
+   * Refresh the last-known-centre cache. Declared AFTER the cue effect on purpose: React runs layout effects
+   * in declaration order, so the cue above still sees the PREVIOUS layout — which is the only place a body
+   * that just died still has a position. Reads at most a board's worth of rects, once per render (never per
+   * frame), and skips entirely mid-drag where renders are frequent and nothing is dying.
+   */
+  useLayoutEffect(() => {
+    if (dragStore.get().drag?.active) return;
+    const next = new Map<string, { x: number; y: number; w: number }>();
+    for (const el of document.querySelectorAll<HTMLElement>(FLIP_SEL_WARBAND)) {
+      const uid = el.dataset.uid;
+      if (!uid) continue;
+      const r = el.getBoundingClientRect();
+      next.set(uid, { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width });
+    }
+    // WHO LEFT THIS COMMIT (2026-09-16): a board card that was measured last render and is gone now — a
+    // destroyed / sold / borrowed body. Its Echo's buff-others are replayed by the post-paint `recruitFxSeq`
+    // effect in Recruit, which runs AFTER this layout effect in the same commit and needs the slot the card fell
+    // from to stream the tendril. Rebuilt every render, so it only ever holds this commit's departures.
+    const departed = new Map<string, { x: number; y: number; w: number }>();
+    for (const [uid, c] of lastCentreRef.current) if (!next.has(uid)) departed.set(uid, c);
+    departedCentreRef.current = departed;
+    lastCentreRef.current = next;
+  });
+  return null;
+});
+
+const selectOverlayDrag = (s: DragSnapshot) => ({
+  drag: s.drag, castingSpell: s.castingSpell, snapping: s.snapping, magSlide: s.magSlide,
+  wouldMagnetize: s.decision.wouldMagnetize, overWarband: s.decision.overWarband, castTargetUid: s.decision.castTargetUid,
+  overZone: s.overZone, sellTop: s.sellTop, buyTop: s.buyTop, touch: s.touch,
+});
+
+/**
+ * THE DRAG OVERLAY (perf 2026-09-17): the sell / buy zones and the floating drag card, plus the two effects that
+ * animate them — the weighted-drag rAF and the spell aim line. Everything here draws from `dragStore` and is the
+ * only React that renders on a drag decision besides the row whose gap moved; `Recruit` itself no longer holds
+ * any of it. The JSX is the same JSX that sat inline in `Recruit`'s return (same class names, same portal).
+ */
+const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, hasPendingTarget }: {
+  timeUp: boolean; heroArmed: boolean; equipArmed: boolean; hasPendingTarget: boolean;
+}) {
+  const { drag, castingSpell, snapping, magSlide, wouldMagnetize, overWarband, castTargetUid, overZone, sellTop, buyTop, touch } = useDragSlice(selectOverlayDrag);
+  // Weighted-drag motion: the floating .dragcard lags slightly behind the cursor and tilts toward its
+  // motion. Driven by a per-frame rAF that writes the card's transform directly (no React re-render), so it
+  // stays compositor-only. `dragCardRef` is the floating node; `dragMotionRef` holds its smoothed position.
+  // When the card is snapping back or magnet-sliding, React/CSS own the transform instead (see the JSX).
+  const dragCardRef = useRef<HTMLDivElement>(null);
+  // The inner tilt wrapper. The 3D dive (rotateX/rotateY) lives HERE so it pivots about the card's OWN centre,
+  // decoupled from the outer's big position translate — otherwise the perspective foreshortens that translate
+  // and the card slides sideways instead of pitching cleanly (see `.dragtilt` in styles.css).
+  const dragTiltRef = useRef<HTMLDivElement>(null);
+  const dragMotionRef = useRef({ rx: 0, ry: 0, ax: 0, ay: 0, vx: 0, vy: 0 }); // rx/ry = smoothed pos; ax/ay = anchor (grab→centre); vx/vy = smoothed travel (drives the dive)
+  const reactDrivesDrag = snapping || magSlide; // these use a CSS transition, not the rAF lean
+  const reactDrivesDragRef = useRef(reactDrivesDrag);
+  reactDrivesDragRef.current = reactDrivesDrag;
+
+  // The weighted-drag rAF: while a card is actively dragged (and not snapping/magnet-sliding), smooth the
+  // card's render position toward the cursor (OUTER element) and dive it toward its motion (INNER `.dragtilt`).
+  // The card's per-frame travel feeds a smoothed velocity; the dive pitches the LEADING edge toward the board,
+  // one uniform gain on both axes, settling flat when the cursor stops. Pure compositor transforms — no layout
+  // reads. Position and tilt live on SEPARATE elements so the perspective never foreshortens the big position
+  // translate (which slid the card sideways instead of pitching it).
+  useLayoutEffect(() => {
+    if (!drag?.active) return;
+    const el = dragCardRef.current;
+    const tiltEl = dragTiltRef.current;
+    if (!el) return;
+    const m = dragMotionRef.current;
+    const d0 = dragStore.get().drag;
+    // OUTER = position only: a plain 2D translate + `zoom` lift, and it carries the `perspective` PROPERTY so
+    // the inner dive foreshortens about the card centre (NOT baked into this translate → no slide). A flat
+    // `staticRotate` rides here too. LIFT via CSS `zoom` (a crisp LAYOUT scale), NOT `transform: scale` — a
+    // 3D-transformed layer rasterises at 1× and a scale upscales that one texture, blurring the card; `zoom`
+    // re-rasterises at the enlarged size. Because zoom also scales the translate, divide it by the lift.
+    const writePos = (f: ReturnType<typeof getDragFeel>): void => {
+      el.style.setProperty('zoom', String(f.scale));
+      el.style.perspective = `${f.perspective}px`;
+      el.style.transformOrigin = `${m.ax}px ${m.ay}px`;
+      el.style.transform = `translate(${m.rx / f.scale - m.ax}px, ${m.ry / f.scale - m.ay}px) rotate(${f.staticRotate}deg)`;
+    };
+    if (d0) {
+      m.rx = d0.x; m.ry = d0.y;        // start at the cursor so the lift doesn't jump
+      m.ax = d0.grabOx; m.ay = d0.grabOy; // anchor starts at the grab point → the card appears where you grabbed
+      m.vx = 0; m.vy = 0;              // no dive on the first frame
+      writePos(getDragFeel());
+      if (tiltEl) tiltEl.style.transform = 'rotateX(0deg) rotateY(0deg)'; // flat before-paint, no flash
+    }
+    let raf = 0;
+    let last = performance.now();
+    const tick = (now: number): void => {
+      const dt = Math.min(48, now - last);
+      last = now;
+      raf = requestAnimationFrame(tick);
+      const d = dragStore.get().drag;
+      if (!d || reactDrivesDragRef.current) return; // snap/magslide → React+CSS own the transform
+      const f = getDragFeel();
+      // On touch, override the mouse-tuned weighted lag with a near-instant catch-up so the card tracks the
+      // fingertip (trailing under a finger reads as stutter, not weight). Mouse keeps the dialed `follow`.
+      const follow = touch ? Math.max(f.follow, 0.9) : f.follow;
+      const k = follow >= 1 ? 1 : 1 - Math.pow(1 - follow, dt / 16.667); // frame-rate-independent catch-up
+      // recentre the anchor from the grab point toward the card centre — but only once the pointer has dragged
+      // `recenterAfter` px from the grab point, and at its own (slower) `recenter` rate so the glide reads.
+      if (Math.hypot(d.x - d.startX, d.y - d.startY) >= f.recenterAfter) {
+        const kc = f.recenter >= 1 ? 1 : 1 - Math.pow(1 - f.recenter, dt / 16.667);
+        // Hand cards hang from a lower point (`handGrabY`, near their stat badges); shop/board ride centred.
+        const tgtY = d.source === 'hand' ? d.h * f.handGrabY : d.h / 2;
+        m.ax += (d.w / 2 - m.ax) * kc;
+        m.ay += (tgtY - m.ay) * kc;
+      }
+      // Chase the EXACT pointer, not the coarse committed state — `drag.x/y` only advances in decision steps,
+      // so following it here would make the card visibly stair-step.
+      const live = dragStore.pos ?? d;
+      const gx = live.x - m.rx;
+      const gy = live.y - m.ry;
+      const stepX = gx * k;   // the card's ACTUAL per-frame travel (how far m.rx moves this frame)
+      const stepY = gy * k;
+      m.rx += stepX;
+      m.ry += stepY;
+      // Smoothed travel velocity = EMA of the per-frame step. `tiltEase` = 1 → tracks it raw (dive follows the
+      // motion and snaps flat the instant the cursor stops); lower = a softer build/settle. This is the
+      // "distance travelled" signal that drives the dive.
+      const ek = f.tiltEase >= 1 ? 1 : 1 - Math.pow(1 - f.tiltEase, dt / 16.667);
+      m.vx += (stepX - m.vx) * ek;
+      m.vy += (stepY - m.vy) * ek;
+      const clamp = (v: number): number => Math.max(-f.tiltMax, Math.min(f.tiltMax, v));
+      // Dive: the LEADING edge dips toward the board, one uniform gain for both axes (screen y is down+):
+      //   south (vy>0) → rotX<0 → bottom edge recedes → bottom corners pinch; east (vx>0) → rotY>0 → right recedes.
+      const rotX = clamp(-f.tiltGain * m.vy);
+      const rotY = clamp(f.tiltGain * m.vx);
+      writePos(f);
+      if (tiltEl) tiltEl.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+    // `castingSpell` too: it gates whether the .dragcard is mounted, so when it flips the effect must re-run to
+    // (re)bind the freshly-mounted node and write its transform before paint (no top-left flash / stranding).
+  }, [drag?.active, castingSpell, touch]);
+
+  // The living aim line (owner redesign 2026-07-16): sync the Pixi curved line to whichever targeting
+  // gesture is live — the armed hero power / a pending targeted Battlecry (the `aim` state), or a
+  // targeted spell being cast from hand (the drag). Replaces the old dotted SVG line; the arch is rolled
+  // fresh inside pixiFx each time an aim STARTS.
+  // The hero-power / Battlecry paths push their own coordinates straight into Pixi from their
+  // rAF-coalesced move handlers, so this effect does not drive them — it only owns the SPELL-drag line
+  // and the teardown.
+  const aimingNow = !!((heroArmed || equipArmed || hasPendingTarget) || (castingSpell && drag));
+  useEffect(() => {
+    if (castingSpell && drag) {
+      // Use the exact live position, not the quantised state, so this render-time placement agrees with the
+      // per-frame update in the move flush (otherwise the line would flick back on every commit).
+      const lp = dragStore.pos ?? { x: drag.x, y: drag.y };
+      const defId = playsRubyAim(CARD_INDEX[drag.view.cardId]) ? RUBY_AIM_DEF_ID : undefined; // a Ruby / ruby spell → ruby-target
+      pixiFx.setAimLine({ x: drag.startX, y: drag.startY }, lp, !!castTargetUid, getAimFxConfig(), defId);
+    } else if (!heroArmed && !equipArmed && !hasPendingTarget) {
+      pixiFx.clearAimLine(); // no targeting gesture of any kind is live
+    }
+    // While the targeter is live, the aim line IS the pointer — hide the OS cursor (restored the moment
+    // the aim ends; see styles.css `body.aiming`).
+    document.body.classList.toggle('aiming', aimingNow);
+    // `castTargetUid` rides `drag` (a new decision is a new `drag` object), so every change that matters
+    // already re-runs this.
+  }, [aimingNow, heroArmed, equipArmed, hasPendingTarget, castingSpell, drag]);
+  useEffect(() => () => { pixiFx.clearAimLine(); document.body.classList.remove('aiming'); }, []); // never strand the line/cursor on unmount
+
+  return (
+    <>
+      {/* Sell zone — the whole screen above the warband lights up while dragging a board minion, and
+          releasing anywhere in it sells (handled by inSellRegion in the drop handler). */}
+      {drag?.active && drag.source === 'board' && !drag.view.spell && !timeUp && (
+        <div className={`sellzone${overZone === 'tavern' ? ' on' : ''}`} style={{ height: sellTop } as CSSProperties} aria-hidden="true" />
+      )}
+
+      {/* Buy zone — mirror of the sell zone: the whole screen *below* the warband lights up while dragging
+          a shop card, and releasing anywhere in it buys (handled by inBuyRegion in the drop handler). */}
+      {drag?.active && drag.source === 'shop' && (
+        <div className={`buyzone${overZone === 'hand' ? ' on' : ''}`} style={{ top: buyTop } as CSSProperties} aria-hidden="true" />
+      )}
+
+      {/* Portaled to <body> so the floating drag copy escapes `.app`'s stacking context (`.app` is
+          `position:relative; z-index:1`). Board furniture at the ROOT level — the `.statusbar` at z-index 40,
+          which holds the hero portrait, hero power and rune badges — otherwise painted OVER the dragcard, so a
+          dragged minion frame / card plate slid BEHIND them (owner report 2026-08-20). At root, the dragcard's
+          own z-index 115 wins over all that furniture while still sitting below the modal overlays (460+). It is
+          `position:fixed` and positioned in viewport coords by the rAF, so the DOM move doesn't shift it, and
+          the layout vars it reads (`--u`/`--ccw`/…) are defined on `:root`, so they still resolve under body. */}
+      {drag?.active && !castingSpell && createPortal((
+        <div
+          ref={dragCardRef}
+          className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize ? ' electric' : ''}${magSlide ? ' magslide' : ''}${overWarband && drag.source === 'hand' ? ' willplay' : ''}${drag.source === 'hand' ? ' fromhand' : ''}`}
+          style={{
+            width: drag.w,
+            height: drag.h,
+            // Normal drag lifts via `zoom` (crisp), written by the rAF — leave it undefined here so React
+            // doesn't fight it. The React-driven release animations (snap / magnet-slide) keep `transform:
+            // scale`, so force zoom back to 1 for them or the rAF's leftover zoom would stack (double-size).
+            zoom: reactDrivesDrag ? 1 : undefined,
+            // Normal drag: the rAF (above) owns this OUTER's `transform` + `transform-origin` (position: a
+            // weighted lag + recentre onto the cursor) and its `perspective`, while the dive lives on the inner
+            // `.dragtilt`. Written straight to the nodes so React re-renders don't fight them. Snap-back /
+            // magnet-slide use a CSS transition, so React drives those here — the origin is the card centre
+            // (matching the recentred anchor), the durations come from the config.
+            transformOrigin: reactDrivesDrag ? `${drag.w / 2}px ${drag.h / 2}px` : undefined,
+            transform: magSlide
+              ? dragTransform(getDragFeel().perspective, drag.x - drag.ox, drag.y - drag.oy, 0, 0, 0.06, 0)
+              : snapping
+                ? dragTransform(getDragFeel().perspective, drag.x - drag.ox, drag.y - drag.oy, 0, 0, getDragFeel().scale, getDragFeel().staticRotate)
+                : undefined,
+            transitionDuration: magSlide ? `${getDragFeel().magSlideMs}ms` : snapping ? `${getDragFeel().snapMs}ms` : undefined,
+            // accelerate + fade fully out as it shrinks in, so it vanishes cleanly into the Mech
+            opacity: magSlide ? 0 : 1,
+          }}
+        >
+          {/* Inner tilt layer: the rAF writes rotateX/rotateY here (dive about the card's own centre). During
+              snap/magnet-slide React flattens it so the frozen last-frame rotation clears. */}
+          <div className="dragtilt" ref={dragTiltRef} style={{ transform: reactDrivesDrag ? 'none' : undefined }}>
+            {/* Grab-shrink layer — eases the hover→held size change (hand drags only). Its own layer so the
+                one-shot scale can't fight the rAF's position/tilt writes above. See `.dragshrink` in styles.css. */}
+            <div className="dragshrink">
+              <Card card={drag.view} forceFull={drag.source === 'hand'} plated={drag.source === 'hand'} />
+            </div>
+          </div>
+        </div>
+      ), document.body)}
+    </>
   );
 });
 

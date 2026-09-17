@@ -49,6 +49,7 @@ const ACTION_NAMES: Record<string, string> = {
  * run loop — and saying so is the useful part: it tells the reader immediately that no card is to blame.
  */
 const CODE_NAMES: Record<string, string> = {
+  'view:shop': 'building the shop view',
   'view:board': 'building the board view',
   'view:hand': 'building the hand view',
   'layout:flip': 'the board re-layout (FLIP)',
@@ -59,6 +60,10 @@ const CODE_NAMES: Record<string, string> = {
   'odds:deferred': 'the combat-odds probe',
   autosave: 'the autosave',
   'store:set': 'the store update (Zustand set + subscribers)',
+  'commit:actionRing': 'the bug-report action ring (record)',
+  'commit:telemetry': 'the balance telemetry record',
+  'commit:derive': 'the balance derivation record',
+  'commit:replayFrame': 'the replay frame capture',
   'recruit:moment cues': 'the moment cues',
   'fx:weldBatch': 'the FX weld batch',
   'fx:tick': 'the FX layer, whole ticker pass',
@@ -109,6 +114,7 @@ export function isKnownLabel(label: string): boolean {
 /** HUD-width names for the engine's own blocks — a narrow row has ~20 characters, so `CODE_NAMES`' prose
  *  ("the board re-layout — animating (FLIP write)") is for the report, and this is for the panel. */
 const SHORT_NAMES: Record<string, string> = {
+  'view:shop': 'shop view',
   'view:board': 'board view',
   'view:hand': 'hand view',
   'layout:flip': 'flip',
@@ -119,6 +125,10 @@ const SHORT_NAMES: Record<string, string> = {
   'odds:deferred': 'odds probe',
   autosave: 'autosave',
   'store:set': 'store update',
+  'commit:actionRing': 'action ring',
+  'commit:telemetry': 'telemetry',
+  'commit:derive': 'derivation',
+  'commit:replayFrame': 'replay frame',
   'recruit:moment cues': 'moment cues',
   'fx:weldBatch': 'weld batch fx',
   'fx:tick': 'FX ticker pass',

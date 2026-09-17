@@ -23,6 +23,8 @@ const IRREGULAR_CLIP_CATEGORY: Record<string, string> = {
   auctioneerhp: 'auctioneerhp', runeselect: 'runeselect',
   // The owner's 2026-09-17 buff cues ride the `buff` fader: the Undead Aura surge and the per-hit Spirit tendril.
   undeadaurabuff: 'buff', spirittendril: 'buff',
+  // The owner's `GambleSFX.mp3` → its own 1:1 `gamble` fader (the die launching, power and spell alike).
+  gamblesfx: 'gamble',
 };
 
 /** Numbered-variant bases (`buy1`/`buy2` → `buy`) — the logical clips backed by N files, one picked per play. */
@@ -60,4 +62,5 @@ export const CLIP_LABEL: Record<string, string> = {
   // the two that used to have no fader
   auctioneerhp: 'Auctioneer — hero power', runeselect: 'Rune select — frame clang',
   undeadaurabuff: 'Buff — Undead Aura surge', spirittendril: 'Buff — Spirit tendril hit',
+  gamblesfx: 'Gamble — die roll',
 };

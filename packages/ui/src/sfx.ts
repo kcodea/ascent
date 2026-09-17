@@ -676,6 +676,11 @@ export const sfx = {
   // land WITH the ribbon (`delayMs` = the ribbon's travel time). Deliberately allowed to overlap — a board-wide
   // Spirit buff is several hits, and each one sounds. No synth fallback (an authored cue).
   spiritTendril: (delayMs = 0) => { playSample('spirittendril', 'buff', Math.max(0, delayMs) / 1000); },
+  // The GAMBLE DIE — the owner's `GambleSFX.mp3` (`audio/gamblesfx.mp3`), fired the moment a die LAUNCHES: the
+  // Gambler's power roll on the button and the Gamble spell's throw across the table both use it (one shared
+  // `DiceRoll`, one shared cue). Once per roll; the landing keeps its `onLand` hook for a future clip. No synth
+  // fallback — an authored cue.
+  gamble: () => { playSample('gamblesfx', 'gamble'); },
   undeadAura: () => {
     if (undeadAuraNodes) return; // still ringing — one at a time
     playSample('undeadaurabuff', 'buff', 0, (n) => {

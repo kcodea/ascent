@@ -2190,6 +2190,11 @@ img.tierbadge.tierstars,
   box-shadow: 0 0 0 calc(var(--ccw) * 0.014) #9c6f24, 0 calc(var(--ccw) * 0.021) calc(var(--ccw) * 0.05) rgba(0, 0, 0, 0.4);
 }
 .card.compact .badge > .value { font-size: calc(var(--ccw) * 0.15); }
+/* But a FRAMED (milestone) badge keeps its tuner-driven fixed number size even on a compact card — the frame
+   art is fixed-px (calc(60px * --msf-scale)) too, so the digit must match it, not switch to the compact
+   card-width-responsive size. Higher specificity than the rule above, so --msnum-size wins (owner report
+   2026-09-16: the tuner's Number size wasn't reaching in-game cards). */
+.card.compact .badge:not([data-milestone='0']) > .value { font-size: var(--msnum-size, 33px); }
 .card.compact .atk { left: calc(var(--ccw) * -0.02); }
 .card.compact .hp { right: calc(var(--ccw) * -0.02); }
 /* mechanic medallion — eclipses the arch's bottom-centre, between the attack/health badges */

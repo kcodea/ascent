@@ -24,6 +24,7 @@ import {
 } from './audio/config';
 import { familyOf } from './audio/clipFamily';
 import { SCENES } from './audio/scenes';
+import { slugify, isValidSlug, saveSound } from './fx/defStore';
 
 export { SCENES };
 
@@ -214,23 +215,85 @@ const SAMPLE_URLS = {
   // the container fine — re-exporting to mp3 is preferred but must not gate a voiceline shipping.
   ...import.meta.glob('./audio/heroes/*.mp4', { eager: true, query: '?url', import: 'default' }),
   ...import.meta.glob('./audio/ceremony/*.mp3', { eager: true, query: '?url', import: 'default' }), // hero-select ceremony stingers (🎭 tuner owns their timing/volume)
+  ...import.meta.glob('./audio/fx/*.mp3', { eager: true, query: '?url', import: 'default' }), // `sound` primitive imports → `fx/<slug>`
+  ...import.meta.glob('./audio/fx/*.wav', { eager: true, query: '?url', import: 'default' }),
 } as Record<string, string>;
 const buffers = new Map<string, AudioBuffer>();
 const loadingSamples = new Set<string>();
 // Key = path under ./audio/ minus extension: `./audio/roll.mp3` → `roll`, `./audio/cards/karthus.mp3` → `cards/karthus`.
 const sampleName = (path: string): string => path.replace(/^\.\/audio\//, '').replace(/\.(mp3|wav|mp4)$/, '');
 
+// --- Imported `sound` FX clips (the `sound` primitive). Written to disk under audio/fx/<slug>.<ext> by the dev
+//     endpoint (committed → bundled for every player), decoded into a buffer in-session so they play the moment
+//     they import, and their {slug → ext} persisted so a RELOAD can re-fetch them off `/__fx/sound` until a
+//     dev-server restart lets the glob catch up. Keyed by the clip id `fx/<slug>`. ---
+const FX_IMPORTS_KEY = 'ascent.fximports.v1';
+const importedFxExt: Map<string, 'wav' | 'mp3'> = (() => {
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(FX_IMPORTS_KEY) : null;
+    const o = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+    return new Map(Object.entries(o).filter(([, e]) => e === 'wav' || e === 'mp3') as [string, 'wav' | 'mp3'][]);
+  } catch { return new Map(); }
+})();
+function persistFxImports(): void {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(FX_IMPORTS_KEY, JSON.stringify(Object.fromEntries(importedFxExt)));
+  } catch { /* a blocked/full store costs the post-reload re-fetch, never the import itself */ }
+}
+
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(new Error('Could not read the file.'));
+    r.readAsDataURL(file);
+  });
+}
+
 function loadSample(name: string): void {
   const a = audio();
   if (!a || buffers.has(name) || loadingSamples.has(name)) return;
   const entry = Object.entries(SAMPLE_URLS).find(([p]) => sampleName(p) === name);
-  if (!entry) return;
+  // A just-imported fx clip isn't in the frozen glob until a restart; in DEV fall back to the serve route so a
+  // reload can still re-fetch it off disk (`importedFxExt` remembers which ext it was written as).
+  let url = entry?.[1];
+  if (url === undefined && name.startsWith('fx/') && import.meta.env?.DEV) {
+    const ext = importedFxExt.get(name.slice(3));
+    if (ext) url = `/__fx/sound/${name.slice(3)}.${ext}`;
+  }
+  if (url === undefined) return;
   loadingSamples.add(name);
-  fetch(entry[1])
+  fetch(url)
     .then((r) => r.arrayBuffer())
     .then((ab) => a.decodeAudioData(ab))
     .then((buf) => { buffers.set(name, buf); loadingSamples.delete(name); })
     .catch(() => loadingSamples.delete(name));
+}
+
+/**
+ * Import a WAV/MP3 as a `sound` FX clip: decode it into a buffer NOW (so it plays immediately, no wait on the
+ * write or the glob), write it to `audio/fx/<slug>.<ext>` through the dev endpoint (committed → bundled for all
+ * players), and remember it so a reload can re-fetch it. Returns the clip id `fx/<slug>` to write into the
+ * layer's `clip` param. Rejects with a readable Error the caller should surface.
+ */
+export async function importFxSound(file: File): Promise<{ id: string; label: string }> {
+  const a = audio();
+  if (!a) throw new Error('Audio is not available here.');
+  const isWav = file.type === 'audio/wav' || file.type === 'audio/x-wav' || /\.wav$/i.test(file.name);
+  const isMp3 = file.type === 'audio/mpeg' || file.type === 'audio/mp3' || /\.mp3$/i.test(file.name);
+  if (!isWav && !isMp3) throw new Error('Only WAV or MP3 files can be imported.');
+  const ext: 'wav' | 'mp3' = isWav ? 'wav' : 'mp3';
+  const slug = slugify(file.name.replace(/\.[^.]+$/, ''));
+  if (!isValidSlug(slug)) throw new Error(`'${file.name}' doesn't make a usable name (letters, digits and dashes).`);
+  const dataUrl = await readAsDataUrl(file);
+  const buf = await a.decodeAudioData(await file.arrayBuffer()); // decode NOW so it plays this session
+  const id = `fx/${slug}`;
+  buffers.set(id, buf);
+  importedFxExt.set(slug, ext);
+  persistFxImports();
+  const saved = await saveSound(slug, dataUrl, ext);
+  if (!saved.ok) throw new Error(saved.error);
+  return { id, label: slug };
 }
 
 function prefetchSamples(): void {
@@ -887,7 +950,11 @@ export function setCategory(cat: string, patch: Partial<CategoryConfig>): void {
 /** Every committed clip's sample-name (`heroes/keshi`, `TallyTravel`, `buy1`), sorted — the desk derives one
  *  channel fader per clip from the audio glob, so a newly-dropped file appears on the board with no code. */
 export function clipNames(): string[] {
-  return Object.keys(SAMPLE_URLS).map(sampleName).sort();
+  const names = new Set(Object.keys(SAMPLE_URLS).map(sampleName));
+  // Imported fx clips that aren't in the frozen glob yet (imported this session, or before a restart) still
+  // belong in the picker — they resolve via the in-session buffer or the `/__fx/sound` fallback.
+  for (const slug of importedFxExt.keys()) names.add(`fx/${slug}`);
+  return [...names].sort();
 }
 /** A clip's per-clip channel gain: a multiplier ON TOP of its category's group fader (1 = untouched). */
 export function clipGain(clip: string): number {

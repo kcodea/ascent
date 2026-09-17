@@ -40,6 +40,8 @@ const SPECS: Record<keyof BuffFxConfig, [string, TunerUnit | undefined, string, 
   sparkSpeed:     ['Speed', 'px/s', 'How fast the sparks fly out.', 'Sparks'],
   sparkSize:      ['Size', 'px', 'Size of each spark.', 'Sparks'],
   sparkLife:      ['Lifetime', 'ms', 'How long one spark lasts.', 'Sparks'],
+
+  spiritSfxOffsetMs: ['Spirit cue offset', 'ms', 'When the Spirit tendril sound fires, relative to the ribbon ARRIVING on the minion: 0 = with the landing, negative = ahead of it, positive = after. One cue per minion hit.', 'Sound'],
 };
 
 /** Declaration order IS render order, and controls sharing a group render together under its heading. */
@@ -48,6 +50,7 @@ const ORDER: (keyof BuffFxConfig)[] = [
   'startHeight', 'dropMs', 'retractMs', 'baseWidth', 'tipWidth', 'coreAlpha',
   'ringCount', 'ringSize', 'ringWidth', 'ringMs', 'coreFlashSize', 'coreFlashMs',
   'sparkCount', 'sparkSpeed', 'sparkSize', 'sparkLife',
+  'spiritSfxOffsetMs',
 ];
 
 const controls: TunerControl<Extract<keyof BuffFxConfig, string>>[] = ORDER.map((key) => {

@@ -2,7 +2,7 @@ import type { Tribe } from '@game/core';
 import { playDef } from './fx/playDef';
 import tendrilTrail from './fx/defs/tendril-trail.json';
 import { DESCEND_PRESETS, descendPreset } from './descendPresets';
-import { tunedDescend } from './buffFxConfig';
+import { getBuffFxConfig, tunedDescend } from './buffFxConfig';
 import { sfx } from './sfx';
 
 /**
@@ -52,8 +52,9 @@ export function fireBuffFx(o: {
   // see `fx/directCalls.ts`); neutral / an unlisted tribe keeps the literal generic.
   if (TENDRIL_TRIBES.has(o.tribe)) {
     playDef(`tendril-trail-${o.tribe}`, { source: o.source, target: o.target }, { uids: o.uids });
-    // The Spirit ribbon has its own landing cue (owner 2026-09-17), one per hit, timed to the ribbon's arrival.
-    if (o.tribe === 'spirit') sfx.spiritTendril(TENDRIL_TRAIL_TRAVEL_MS);
+    // The Spirit ribbon has its own landing cue (owner 2026-09-17), one per hit, timed to the ribbon's arrival
+    // plus the dialled offset (Buff tuner → Sound → "Spirit cue offset"; 0 = with the landing).
+    if (o.tribe === 'spirit') sfx.spiritTendril(TENDRIL_TRAIL_TRAVEL_MS + getBuffFxConfig().spiritSfxOffsetMs);
   } else {
     playDef('tendril-trail', { source: o.source, target: o.target }, { uids: o.uids });
   }

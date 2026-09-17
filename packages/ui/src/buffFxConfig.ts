@@ -36,6 +36,10 @@ export interface BuffFxConfig {
   sparkSpeed: number;      // px/s — spark speed
   sparkSize: number;       // px — spark size
   sparkLife: number;       // ms — spark lifetime
+  /** ms — when the Spirit tendril's landing CUE fires, relative to the ribbon's ARRIVAL: 0 = with the landing,
+   *  negative = before it (lead the strike), positive = after. Owner ask 2026-09-17 ("the tendrils have a travel
+   *  time, so they should be slightly offset"). */
+  spiritSfxOffsetMs: number;
 }
 
 const D = DESCEND_PRESETS.default!;
@@ -49,6 +53,7 @@ const DEFAULTS: BuffFxConfig = {
   // Owner-tuned 2026-07-19: a denser but much FINER spark burst than the descend preset's (46 x 3px, vs
   // 60 x 7px) - the big sparks read as debris at wave scale, where three waves can overlap.
   sparkCount: 46, sparkSpeed: D.pulse.sparkSpeed, sparkSize: 3, sparkLife: D.pulse.sparkLife,
+  spiritSfxOffsetMs: 0,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -59,6 +64,7 @@ export const BUFFFX_RANGES: Partial<Record<keyof BuffFxConfig, [number, number, 
   ringCount: [0, 6, 1], ringSize: [0, 300, 5], ringWidth: [0, 30, 1], ringMs: [0, 1200, 10],
   coreFlashSize: [0, 300, 5], coreFlashMs: [0, 1200, 10],
   sparkCount: [0, 120, 1], sparkSpeed: [0, 900, 10], sparkSize: [1, 24, 1], sparkLife: [100, 2000, 10],
+  spiritSfxOffsetMs: [-400, 800, 5],
 };
 
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */

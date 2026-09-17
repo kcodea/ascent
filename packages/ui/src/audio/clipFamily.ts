@@ -21,6 +21,8 @@ const IRREGULAR_CLIP_CATEGORY: Record<string, string> = {
   equipclang: 'eqEquipClang', equipmentselect: 'eqSelect', equipmentsheen: 'eqSheen',
   // clips that used to ride the generic `ui` fallback with no fader — now their own categories
   auctioneerhp: 'auctioneerhp', runeselect: 'runeselect',
+  // The owner's 2026-09-17 buff cues ride the `buff` fader: the Undead Aura surge and the per-hit Spirit tendril.
+  undeadaurabuff: 'buff', spirittendril: 'buff',
 };
 
 /** Numbered-variant bases (`buy1`/`buy2` → `buy`) — the logical clips backed by N files, one picked per play. */
@@ -57,4 +59,5 @@ export const CLIP_LABEL: Record<string, string> = {
   'ceremony/woosh1': 'Ceremony — woosh 1', 'ceremony/woosh2': 'Ceremony — woosh 2',
   // the two that used to have no fader
   auctioneerhp: 'Auctioneer — hero power', runeselect: 'Rune select — frame clang',
+  undeadaurabuff: 'Buff — Undead Aura surge', spirittendril: 'Buff — Spirit tendril hit',
 };

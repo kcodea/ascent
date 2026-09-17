@@ -930,6 +930,108 @@ export function playScene(id: string): void {
   }
 }
 
+// --- FX SOUND primitive play path. A def's `sound` layer plays a clip through the SAME graph as every other
+//     sound (→ chosen bus → per-bus comp → master limiter → master volume → mute → out), so it automatically
+//     obeys the master volume, mute and skip-combat fade, and the mixing desk's per-bus fader still governs it.
+//     Per-layer Web Audio FILTERS (EQ/comp/reverb/…) insert between the source and the bus in a later PR; this
+//     PR is level + pitch + fades + reverse + loop + per-fire jitter + bus routing. ---
+export interface FxSoundOpts {
+  /** Playback level (0..~2), 1 = the clip's own level (still scaled by bus/master). */
+  gain?: number;
+  /** Playback rate — pitch AND speed together (1 = original). */
+  rate?: number;
+  fadeInMs?: number;
+  fadeOutMs?: number;
+  loop?: boolean;
+  /** Skip this many ms into the clip before it starts. */
+  startOffsetMs?: number;
+  reverse?: boolean;
+  /** Wait this many ms (on the audio clock) after the call before the clip starts. */
+  delayMs?: number;
+  bus?: BusName;
+  /** Randomly drop the level by up to this fraction per fire (0..1) — so repeats aren't identical. */
+  gainVar?: number;
+  /** Randomly shift the pitch by up to ±this fraction per fire (0..1). */
+  pitchVar?: number;
+}
+/** A live FX sound the caller can stop/fade — Web Audio sources are otherwise fire-and-forget. */
+export interface FxSoundHandle {
+  stop(fadeMs?: number): void;
+  ended(): boolean;
+}
+
+// Reversed copies of decoded buffers, built on demand and cached (Web Audio has no negative playbackRate).
+const reversedBuffers = new Map<string, AudioBuffer>();
+function reversedBuffer(a: AudioContext, name: string, buf: AudioBuffer): AudioBuffer {
+  const cached = reversedBuffers.get(name);
+  if (cached) return cached;
+  const rev = a.createBuffer(buf.numberOfChannels, buf.length, buf.sampleRate);
+  for (let c = 0; c < buf.numberOfChannels; c++) {
+    const s = buf.getChannelData(c);
+    const d = rev.getChannelData(c);
+    for (let i = 0, n = s.length; i < n; i++) d[i] = s[n - 1 - i];
+  }
+  reversedBuffers.set(name, rev);
+  return rev;
+}
+
+/**
+ * Play a clip for the `sound` FX primitive. Returns `null` if the clip's buffer isn't decoded yet (it kicks the
+ * decode; the caller retries next tick), or if audio is muted / suspended / backgrounded. Presentation-only:
+ * `Math.random` for per-fire variance is fine here (this file is UI, not the seeded engine).
+ */
+export function playFxSound(clip: string, opts: FxSoundOpts = {}): FxSoundHandle | null {
+  if (isHidden() || audioSuspended) return null;
+  const a = audio();
+  if (!a || muted || !clip) return null;
+  const buf = buffers.get(clip);
+  if (!buf) { loadSample(clip); return null; } // not decoded yet — caller retries
+  const src = a.createBufferSource();
+  src.buffer = opts.reverse ? reversedBuffer(a, clip, buf) : buf;
+  const pitchJit = opts.pitchVar ? 1 + (Math.random() * 2 - 1) * opts.pitchVar : 1;
+  src.playbackRate.value = Math.max(0.0625, (opts.rate ?? 1) * pitchJit);
+  src.loop = !!opts.loop;
+  const gainJit = opts.gainVar ? 1 - Math.random() * opts.gainVar : 1; // only DOWN, so it never exceeds the set level
+  const level = Math.max(0, (opts.gain ?? 1) * gainJit);
+  const g = a.createGain();
+  const busIn = busNodes.get(opts.bus ?? 'combat')?.input ?? master ?? a.destination;
+  src.connect(g).connect(busIn);
+  const t0 = a.currentTime + Math.max(0, (opts.delayMs ?? 0) / 1000);
+  const offset = Math.max(0, (opts.startOffsetMs ?? 0) / 1000);
+  const fadeIn = Math.max(0, (opts.fadeInMs ?? 0) / 1000);
+  if (fadeIn > 0) {
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0001, level), t0 + fadeIn);
+  } else {
+    g.gain.setValueAtTime(Math.max(0.0001, level), t0);
+  }
+  // One-shot fade-out: schedule a ramp to end just as the (rate-adjusted) clip finishes.
+  const fadeOut = Math.max(0, (opts.fadeOutMs ?? 0) / 1000);
+  if (fadeOut > 0 && !src.loop) {
+    const playDur = Math.max(0, (buf.duration - offset)) / src.playbackRate.value;
+    const outStart = t0 + Math.max(fadeIn, playDur - fadeOut);
+    g.gain.setValueAtTime(Math.max(0.0001, level), outStart);
+    g.gain.exponentialRampToValueAtTime(0.0001, outStart + fadeOut);
+  }
+  src.start(t0, offset);
+  let isEnded = false;
+  src.onended = () => { isEnded = true; };
+  return {
+    stop(fadeMs = 60) {
+      if (isEnded) return;
+      const now = a.currentTime;
+      const f = Math.max(0, fadeMs / 1000);
+      try {
+        g.gain.cancelScheduledValues(now);
+        g.gain.setValueAtTime(Math.max(0.0001, g.gain.value), now);
+        g.gain.linearRampToValueAtTime(0.0001, now + f);
+        src.stop(now + f + 0.02);
+      } catch { /* already stopped */ }
+    },
+    ended() { return isEnded; },
+  };
+}
+
 export function isMuted(): boolean {
   return muted;
 }

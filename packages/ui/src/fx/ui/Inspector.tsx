@@ -19,6 +19,7 @@ import { filterEntries, filterOnCount, isFilterGroup, moveFilter, type FilterEnt
 import { CORE_BLUR_ID, FILTER_ORDER_KEY } from '../filterStack';
 import { importShapeFromFile, listShapeOptions, removeImportedShape } from '../shapeLibrary';
 import { imageUrlFor, importFramesFromFiles, importImageFromFile, listImageOptions, IMAGE_NONE } from '../imageLibrary';
+import { clipNames, previewClip } from '../../sfx';
 import { ColorPickerHSB } from './ColorPickerHSB';
 import { PalettePicker } from './PalettePicker';
 import { GradientEditor } from './GradientEditor';
@@ -648,6 +649,14 @@ function ParamRow({
           onSheet={'sheetCols' in values ? (cols, rows, frames) => { onChange('sheetCols', cols); onChange('sheetRows', rows); onChange('sheetFrames', frames); } : undefined}
         />
       )}
+      {spec.kind === 'sound' && (
+        <SoundField
+          id={`fxwb-${key}`}
+          value={(value as string | undefined) ?? spec.default}
+          disabled={off}
+          onChange={(next) => onChange(key, next)}
+        />
+      )}
       {spec.kind === 'emitpoints' && (
         <EmitPointsField
           value={(value as number[][] | undefined) ?? []}
@@ -673,6 +682,41 @@ function ParamRow({
       {off && reason !== null && <div className="fxwb-rowwhy">{reason}</div>}
       {helpOpen && spec.help !== undefined && <div className="fxwb-rowhelp">{spec.help}</div>}
     </div>
+  );
+}
+
+/**
+ * The `sound` param's control: a picker over the committed clip library (`sfx.ts`'s `clipNames()`) plus a ▶
+ * preview. Import of new clips joins this list once that pipeline lands (PR 2); for now it lists the game's
+ * committed clips. Its own component (not an inline branch) so its `previewClip` handler and any future state
+ * live outside Inspector's mapped render, where hooks are illegal.
+ */
+function SoundField({
+  id,
+  value,
+  disabled = false,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  disabled?: boolean;
+  onChange: (next: string) => void;
+}): React.ReactElement {
+  const options = clipNames();
+  return (
+    <span className="fxwb-soundfield">
+      <select id={id} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
+        <option value="">(none)</option>
+        {options.map((c) => <option key={c} value={c}>{c}</option>)}
+      </select>
+      <button
+        type="button"
+        className="fxwb-btn"
+        disabled={disabled || value === ''}
+        onClick={() => { if (value !== '') previewClip(value); }}
+        title="Preview this clip"
+      >▶</button>
+    </span>
   );
 }
 

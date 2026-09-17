@@ -33,6 +33,7 @@ import { SPEC as HeroCeremonySpec } from './HeroCeremonyTuner';
 import { SPEC as CleaveFxSpec } from './CleaveFxTuner';
 import { SPEC as ConsumeFxSpec } from './ConsumeFxTuner';
 import { SPEC as CritFxSpec } from './CritFxTuner';
+import { SPEC as DiceRollSpec } from './DiceRollTuner';
 import { SPEC as DragSpec } from './DragTuner';
 import { SPEC as EndTurnSpec } from './EndTurnTuner';
 import { SPEC as ExecuteFxSpec } from './ExecuteFxTuner';
@@ -91,6 +92,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   BookSpec,
   BuffDrawerSpec,
   BuffFxSpec,
+  DiceRollSpec,
   CardPillsSpec,
   CardPlateSpec,
   CardTextSpec,

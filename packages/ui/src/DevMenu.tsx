@@ -75,6 +75,7 @@ import { PlateCoalesceTuner } from './PlateCoalesceTuner';
 import { PlateGildTuner } from './PlateGildTuner';
 import { EndTurnTuner } from './EndTurnTuner';
 import { HeroPowerTuner } from './HeroPowerTuner';
+import { DiceRollTuner } from './DiceRollTuner';
 import { TavernUpTuner } from './TavernUpTuner';
 import { HeroPanelTuner } from './HeroPanelTuner';
 import { pixiFx } from './pixiFx';
@@ -163,6 +164,7 @@ const GROUPS: Group[] = [
       { key: 'herofx', icon: '🃏', label: 'Hero Card FX', C: HeroFxTuner, hint: "Ayse's Enchanted glow + Sable's Soulbind ring" },
       { key: 'endturnbtn', icon: '💎', label: 'End Turn', C: EndTurnTuner, hint: 'The standalone End Turn diamond', alt: 'face the omen' },
       { key: 'heropowerbtn', icon: '💠', label: 'Hero Power', C: HeroPowerTuner, hint: 'The hero power diamond' },
+      { key: 'diceroll', icon: '🎲', label: 'Dice', C: DiceRollTuner, hint: "The 3D die the Gambler's power and the Gamble spell roll — tumble time, hop, spins, settle", alt: 'gambler gamble roll die' },
       { key: 'tavernupbtn', icon: '🍺', label: 'Tavern Up', C: TavernUpTuner, hint: 'The tavern-upgrade stone button', alt: 'upgrade tier' },
       { key: 'combatctl', icon: '🎚️', label: 'Combat Controls', C: CombatCtlTuner, hint: 'Look of the Summary pill, End Combat pill and Skip button — shape, colours, outline, text size', alt: 'summary skip end combat pill replay hud' },
     ],

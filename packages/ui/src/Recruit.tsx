@@ -104,6 +104,9 @@ import { holdStat, releaseStat } from './fx/statHold';
 import { fodderGainHolds, type FodderGain } from './fx/fodderGains';
 import { applyFloatSpeed, getFloatConfig, splashImgSrc } from './floatConfig';
 import gsap from 'gsap';
+import { DiceRoll } from './DiceRoll';
+import { diceSeed, type DieFace } from './diceRollTimeline';
+import { DICE_TEST_EVENT } from './diceRollConfig';
 import { Flip } from 'gsap/Flip';
 import { useGame } from './store';
 import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGateNudge } from './tutorial/gateBus';
@@ -1501,10 +1504,12 @@ export function Recruit() {
      as the beats run puts each card's arrival on its own pulse (owner ask 2026-07-27); the real cards replace
      them at `faceOmen`, and `grantPlayedRef` keeps them from materialising twice. */
   const [eotGrants, setEotGrants] = useState<string[]>([]);
-  // GAMBLE'S DIE (owner ask 2026-08-15): the spell plays the SAME tumble the Gambler's hero power does, at the
-  // point you released it, and the card it won is WITHHELD from the hand until the final number lands. The pull
-  // itself already resolved in the reducer (deterministic/replayable) — this is purely when you get to see it.
-  const [gambleDie, setGambleDie] = useState<{ n: number; settled: boolean; x: number; y: number } | null>(null);
+  // GAMBLE'S DIE (owner ask 2026-08-15; 3D die per the 2026-09-17 handoff): the spell rolls the SAME shared
+  // `DiceRoll` the Gambler's hero power does, at the point you released the card (the last pointer position,
+  // recorded below — never a layout read), and the card it won is WITHHELD from the hand until the die first
+  // touches down (`onLand`), not until it settles. The pull itself already resolved in the reducer
+  // (deterministic/replayable) — this is purely when you get to see it. The face IS the tier pulled.
+  const [gambleDie, setGambleDie] = useState<{ result: DieFace; x: number; y: number; seed: number; key: number } | null>(null);
   const [gambleHold, setGambleHold] = useState<string | null>(null);
   const pointerRef = useRef({ x: 0, y: 0 });
   useEffect(() => {
@@ -1520,24 +1525,22 @@ export function Recruit() {
     prevGambleSeq.current = seq;
     if (!seq || seq === prev) return;
     const tier = run.gambleRoll!.tier;
+    if (tier < 1 || tier > 6) return;
     const { x, y } = pointerRef.current;               // where the spell was released
     if (run.gambleWonUid) setGambleHold(run.gambleWonUid); // hold the prize back until the die lands
-    let tick = 0;
-    let settle = 0;
-    // The Gambler's exact cadence: 11 ticks x 55ms, then the landed face holds ~1.1s.
-    const id = window.setInterval(() => {
-      tick += 1;
-      if (tick >= 11) {
-        window.clearInterval(id);
-        setGambleDie({ n: tier, settled: true, x, y });
-        setGambleHold(null);                            // the number has landed — award the card NOW
-        settle = window.setTimeout(() => setGambleDie(null), 1100);
-      } else {
-        setGambleDie({ n: (tick % 6) + 1, settled: false, x, y });
-      }
-    }, 55);
-    return () => { window.clearInterval(id); window.clearTimeout(settle); setGambleHold(null); };
+    setGambleDie({ result: tier as DieFace, x, y, seed: diceSeed('spell', seq), key: seq });
+    return () => setGambleHold(null);                   // a second roll mid-tumble never strands the first prize
   }, [run.gambleRoll?.seq, run.gambleRoll?.tier, run.gambleWonUid]);
+  // DEV: the Dice tuner's ▶ Test rolls a spell-tinted die at the screen centre (no Gamble in hand needed).
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const on = (e: Event): void => {
+      const face = Math.min(6, Math.max(1, (e as CustomEvent<{ face?: number }>).detail?.face ?? 1)) as DieFace;
+      setGambleDie({ result: face, x: window.innerWidth / 2, y: window.innerHeight / 2, seed: diceSeed('spell', 1000 + face), key: -(1000 + face) });
+    };
+    window.addEventListener(DICE_TEST_EVENT, on);
+    return () => window.removeEventListener(DICE_TEST_EVENT, on);
+  }, []);
   /**
    * The uid the Choose One prompt is previewing ON THE BOARD (see `chooseOnePreview`), or undefined. Hidden
    * from the hand ROW while it stands there, so it is in one place rather than two.
@@ -6775,13 +6778,17 @@ export function Recruit() {
           Each `.floatanchor` reproduces the unit's card box (centre + footprint SNAPSHOT at spawn — see
           `spawnFloats`), so every per-kind CSS rule and both keyframes still resolve against a card-sized box
           exactly as they did inside the unit. */}
-      {gambleDie && createPortal(
-        <div
-          className={`gambledie${gambleDie.settled ? ' settled' : ''}`}
-          style={{ left: gambleDie.x, top: gambleDie.y }}
-          aria-hidden="true"
-        >{gambleDie.n}</div>,
-        document.body,
+      {gambleDie && (
+        <DiceRoll
+          key={gambleDie.key}
+          result={gambleDie.result}
+          anchor={{ x: gambleDie.x, y: gambleDie.y }}
+          variant="spell"
+          seed={gambleDie.seed}
+          holdMs={900}
+          onLand={() => setGambleHold(null)}             // the number has landed — award the card NOW
+          onRetire={() => setGambleDie((d) => (d && d.key === gambleDie.key ? null : d))}
+        />
       )}
       {fighting &&
         createPortal(

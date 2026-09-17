@@ -20,6 +20,8 @@ import { getEquipSlotConfig } from './equipSlotConfig';
 import { DiscountWindowReadout } from './DiscountWindowReadout';
 import { sfx } from './sfx';
 import { canPlayDefs, playDef } from './fx/playDef';
+import { DiceRoll } from './DiceRoll';
+import { diceSeed, type DieFace } from './diceRollTimeline';
 import { useGame } from './store';
 import { getHeroPowerBtnConfig } from './heroPowerBtnConfig';
 import { pixiFx } from './pixiFx';
@@ -365,35 +367,38 @@ export function StatusBar() {
   // tutorial's readiness predicate via `heroPowerLockTurns` so the button, the coach and the reducer agree —
   // Preparation used to be missing here, so a locked power looked armed and clicking it silently no-opped.
   const diceLock = heroPowerLockTurns(run, power.kind);
-  // GAMBLER'S DICE ROLL (owner ask 2026-08-14): the die visibly TUMBLES, then settles on what it rolled.
-  // Presentation only — the value comes from gameplay (`heroDiceLockUntil - wave`, the seeded roll the reducer
-  // already made). The tumble cycles 1→6 deterministically rather than randomly: it reads identically and
-  // keeps the UI free of its own RNG.
-  const [diceFace, setDiceFace] = useState<{ n: number; settled: boolean } | null>(null);
+  // GAMBLER'S DICE ROLL (owner ask 2026-08-14; 3D die per the 2026-09-17 handoff): the shared `DiceRoll`
+  // overlay tumbles a real die and lands it ON the power button, then HANDS OFF to the held face below as it
+  // fades — so the number is never taken away. Presentation only — the value is the seeded roll the reducer
+  // already made (`heroDiceRoll`; `heroDiceLockUntil - wave` is the same number); the die only reveals it.
+  // The button's rect is read ONCE per roll, here, never per frame. `settled` flips at t = 1 so the held face
+  // appears under the fading overlay; `null` again once the overlay has retired.
+  const powerBtnRef = useRef<HTMLButtonElement>(null);
+  const [dieRoll, setDieRoll] = useState<{ result: DieFace; anchor: { x: number; y: number }; seed: number; settled: boolean } | null>(null);
   const prevDiceLock = useRef(run.heroDiceLockUntil);
   useEffect(() => {
     const prev = prevDiceLock.current;
     prevDiceLock.current = run.heroDiceLockUntil;
     if (power.kind !== 'dice' || !run.heroDiceLockUntil || run.heroDiceLockUntil === prev) return;
-    const rolled = run.heroDiceLockUntil - run.wave;
-    if (rolled <= 0) return;
-    let tick = 0;
-    const id = window.setInterval(() => {
-      tick += 1;
-      if (tick >= 11) {
-        window.clearInterval(id);
-        setDiceFace({ n: rolled, settled: true }); // land on the real roll — and STAY PUT
-      } else {
-        setDiceFace({ n: (tick % 6) + 1, settled: false });
-      }
-    }, 55);
-    return () => window.clearInterval(id); }, [run.heroDiceLockUntil, run.wave, power.kind]);
+    const rolled = run.heroDiceRoll ?? (run.heroDiceLockUntil - run.wave);
+    if (rolled < 1 || rolled > 6) return;
+    const r = powerBtnRef.current?.getBoundingClientRect();
+    if (!r) return;
+    setDieRoll({
+      result: rolled as DieFace,
+      anchor: { x: r.left + r.width / 2, y: r.top + r.height / 2 },
+      seed: diceSeed('power', run.wave, rolled),
+      settled: false,
+    });
+  }, [run.heroDiceLockUntil, run.heroDiceRoll, run.wave, power.kind]);
   // The settled face STAYS UP for the rest of the turn (owner ruling 2026-08-16) — it used to hand the slot
   // back to the lock countdown after 1.1s, which read as the number being taken away. `heroDiceRollWave` is the
   // authority on "this turn", so a reload mid-turn still shows it and the next turn drops it with no explicit
-  // clear. Only the tumble itself is local state.
+  // clear. Only the tumble itself is local state — and while the 3D die is still in the air the held face
+  // waits (it takes over at the die's settle, under the overlay's fade).
   const diceHeld = power.kind === 'dice' && run.heroDiceRollWave === run.wave ? (run.heroDiceRoll ?? null) : null;
-  useEffect(() => { if (diceHeld == null) setDiceFace(null); }, [diceHeld]);
+  const diceHeldShown = diceHeld != null && (dieRoll == null || dieRoll.settled);
+  useEffect(() => { if (diceHeld == null) setDieRoll(null); }, [diceHeld]);
   // HUNCH'S SPELL PREVIEW (owner ask 2026-08-14): hovering the power shows the spell it would hand you. Built
   // through the SHARED `instView`, so the preview prints the spell's LIVE value (spell power et al.) — the
   // card-text rule: never show a base number where the real one is knowable.
@@ -698,6 +703,7 @@ export function StatusBar() {
         >
           <div className="hpwrap">
             <button
+              ref={powerBtnRef}
               type="button"
               className={`heropowerbtn${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}${committed ? ' committed' : ''}`}
               disabled={isPassive || (!canHero && !heroArmed)}
@@ -746,17 +752,26 @@ export function StatusBar() {
             </button>
             {liveCost ? <span className="hpcost"><span className="costn">{liveCost}</span></span> : null}
             {/* Keyed on its text so every change replays the compositor-only bump (the Avenge-tally feel).
-                While the Gambler's die tumbles it owns this slot, then hands it back to the countdown. */}
-            {diceFace != null
-              ? <span key={diceFace.settled ? 'die-final' : `die${diceFace.n}`} className={`hpb-tally hpb-dice${diceFace.settled ? ' settled' : ''}`}>{diceFace.n}</span>
-              : diceHeld != null
-                ? <span key="die-held" className="hpb-tally hpb-dice settled">{diceHeld}</span>
+                While the Gambler's 3D die is in the air the slot waits; the held face takes it at the settle. */}
+            {diceHeldShown
+              ? <span key="die-held" className="hpb-tally hpb-dice">{diceHeld}</span>
+              : dieRoll != null ? null
                 : powerTally ? <span key={powerTally} className="hpb-tally">{powerTally}</span> : null}
+            {dieRoll && (
+              <DiceRoll
+                result={dieRoll.result}
+                anchor={dieRoll.anchor}
+                variant="power"
+                seed={dieRoll.seed}
+                onComplete={() => setDieRoll((d) => (d ? { ...d, settled: true } : d))}
+                onRetire={() => setDieRoll(null)}
+              />
+            )}
             {/* CENTRE READOUT — a live magnitude printed ON the power art, distinct from the small pill above
                 it (which carries the countdown). Odelle's Exhibition is the first: the grant she is giving
                 RIGHT NOW. Suppressed while the Gambler's die owns the centre, so two heroes can never both
                 claim the slot (only reachable at all through a Void holding both). */}
-            {powerCenter && diceFace == null && diceHeld == null && (
+            {powerCenter && dieRoll == null && diceHeld == null && (
               <span key={powerCenter} className="hpb-tally hpb-center">{powerCenter}</span>
             )}
             {/* CASSEN'S COMMISSION PICKER — reuses the Discover overlay's shell so it reads as the same kind of

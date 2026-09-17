@@ -56,6 +56,22 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-17',
+    label: 'A real die',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "The Gambler's roll and the Gamble spell now roll a real die — a 3D die tumbles, hops and settles on the number, on the power button for the Gambler and where you released the card for Gamble.",
+        details: [
+          "The Gambler's die lands on the power button and the number stays there for the rest of the turn, as before.",
+          'Gamble: the die is coloured by the tier it rolled, and the card you won arrives the moment the die touches down.',
+          'The roll only shows the result the game already decided — replays and shared runs roll the same way every time.',
+          'Reduced-motion: the die simply appears on its face, with no tumble or burst.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-17',
     label: 'Undead Aura + Spirit tendril sounds',
     changes: [
       { category: 'UI / Info', text: 'The Undead Aura surge now has its own sound cue, in the Shop and mid-combat. It never overlaps itself — back-to-back rises share one cue.' },

@@ -20,8 +20,8 @@ function MilestonePreview(): JSX.Element {
       {[1, 2, 3, 4, 5, 6].map((t) => (
         <span key={t} className={`badge ${stat}${state ? ` ${state}` : ''}`} data-milestone={t}>
           <span className="msglow" aria-hidden="true" />
-          <img decoding="sync" className="msframe" src={src(stat, t)} alt="" aria-hidden="true" />
           <span className="mstint" aria-hidden="true" />
+          <img decoding="sync" className="msframe" src={src(stat, t)} alt="" aria-hidden="true" />
           <span className="value">{TIER_NUM[t]}</span>
         </span>
       ))}

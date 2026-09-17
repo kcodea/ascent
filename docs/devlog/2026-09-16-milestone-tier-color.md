@@ -64,10 +64,26 @@ specific layer.
 Because the burst's `coreBias` biases most particles to the inner stop, the tier colour itself dominates the
 cloud with a white-hot centre.
 
+## Badge tint + number redesign (owner ask 2026-09-16)
+
+The stat-state signal moved from the tint disc to the number. Previously the `.mstint` disc sat OVER the frame
+and recoloured by state (neutral gold / buffed green / reduced red). Now:
+
+- **Tint is behind the frame and fixed per stat**: `.mstint` is the DOM child before `.msframe`, so it paints
+  behind the frame art, and its colour is `tintAtk` (yellow) for Attack / `tintHp` (red) for Health regardless
+  of buff state. Consequence: it shows through the tier-6 crystal frame's transparent centre but is covered by
+  the opaque leather centre of tiers 1–5.
+- **The number carries the state**: `numColor` (neutral) / `numColorUp` (buffed) / `numColorDown` (reduced)
+  recolour the digit via `.badge.up`/`.badge.down`. Config lost `tintNeutral/Up/Down`, gained
+  `tintAtk`/`tintHp` + `numColorUp`/`numColorDown`; the tuner's colour controls moved with it.
+
 ## Notes / interactions
 
-- Tiers 1 and 2 share the same silver glow (plain silver / dagger), so they celebrate identically; tiers 3–6
-  are gold / pink / blue / white (tier 5 blue, tier 6 white). Tier 1 sits at threshold 0,
+- Frame glow halo: only tiers 4–6 (pink / blue / crystal) wear one; tiers 1–3 (plain silver / dagger / gold)
+  have their `.msglow` disc hidden in CSS (owner ask 2026-09-16). The `glow1..3` config values still tint each
+  tier's celebration burst — this only removes the halo behind the frame.
+- Tiers 1 and 2 share the same silver glow *value* (plain silver / dagger), so they celebrate identically;
+  tiers 3–6 are gold / pink / blue / white (tier 5 blue, tier 6 white). Tier 1 sits at threshold 0,
   so in practice its celebration never fires (a stat starts there rather than crossing up into it) — it's the
   baseline look. Tier 3's derived gold (from `glow3 #ffd54a`) reads slightly yellower than the def's original
   orange-ember ramp, since it derives from the glow rather than the def's own palette.

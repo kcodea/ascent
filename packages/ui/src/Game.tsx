@@ -21,6 +21,7 @@ import { MinionBook } from './MinionBook';
 import { EscMenu } from './EscMenu';
 import { DevMenu } from './DevMenu';
 import { EditorOverlay } from './uiEditor/EditorOverlay';
+import { setFxScene } from './fx/fxBudget';
 import { ensureDefsReady } from './fx/playDef';
 import { SceneBuilder } from './SceneBuilder';
 import { BugScenarioPanel } from './bug-report/BugScenarioPanel';
@@ -138,6 +139,10 @@ export function Game() {
       if (st.run === prevSt.run) return;
       const start = phaseStartBetween(prevSt.run, st.run);
       if (start) perfMonitor.beginWarmup(start);
+      // The FX budget's SCENE (`fxBudget.ts`): the Discover overlay carries its own, lower live-particle cap
+      // (`maxParticlesDiscover`). Told here, off the run state, so the FX layer never imports the store.
+      const inDiscover = !!st.run.discover;
+      if (inDiscover !== !!prevSt.run.discover) setFxScene(inDiscover ? 'discover' : null);
     });
 
     /**
@@ -208,6 +213,7 @@ export function Game() {
       window.removeEventListener('pointermove', onMove);
       unsub();
       unsubWarm();
+      setFxScene(null);
       perfMonitor.stop();
     };
   }, []);

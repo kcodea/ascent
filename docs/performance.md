@@ -145,6 +145,23 @@ def), so under normal play `fx:culled` stays at 0; a non-zero value in a capture
 and WHERE it climbed says which second. In DEV, `window.__fx.budget.set('maxParticles', n)` lowers a cap live
 to watch it bite.
 
+**The Discover scene cap** (2026-09-17): while the Discover overlay is open (`setFxScene('discover')`, wired in
+`Game.tsx` off `run.discover`) the live-particle ceiling is the LOWER of `maxParticles` and
+`maxParticlesDiscover` (2,000) — same oldest-first trim, same protections, so the (Both) loops on Discover cards
+are never touched. Sized from a manual-ticker measurement (death-dissolve fans at 4.17 ms steps): the def sim +
+render costs ≈ 0.66 µs per live particle (0.27 ms at 794 · 0.93 at 1,588 · 1.87 at 2,779 · 2.64 at 3,970,
+means), so 2,000 keeps `fx:tick` near 1.3 ms and still clears the largest legitimate Discover moment
+(≈ 1,860). Against the 2,673-particle Discover peak in the 2026-09-17 capture it would have retired the oldest
+plays down to ≤ 2,000 — never the burst landing now. `window.__fx.budget.scene()` reads the scene in force.
+
+**A play's lifetime ceiling** (2026-09-17): a `playDef` play used to have one backstop against a layer that
+never completes — 15 s of wall clock. It is now `playLifetimeMs(def) / speed` (`fx/playLifetime.ts`): the def's
+own honest end, i.e. `duration + the longest particle life`, or a layer's authored tail if longer (an emitter
+emits for its own `life` window and drains for another — `cia-hp`, `spell-target`, `ruby-target` are authored to
+run past their durations and are NOT cut), plus a 500 ms grace, never above the old 15 s. Note that the perf
+HUD's `fx:def:<id>` **`n` is the per-frame label's call count summed over every play of that def** — the
+handoff's "`dice-land` ticked 3,545 frames" was ≈25 plays × ~145 frames, not one play living 15 s.
+
 **Every static label must be registered in `perfNames.ts`** (`CODE_NAMES`, or a family prefix in
 `LABEL_FAMILIES`) — `perfNames.test.ts` scans the source and fails on an unregistered one, because the HUD
 speaks in-game names and an address is what the owner asked it to stop showing.

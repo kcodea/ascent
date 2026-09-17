@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import { Icon } from './Icon';
 import { pixiFx } from './pixiFx';
 import { playDef } from './fx/playDef';
@@ -35,7 +35,7 @@ const F = `${import.meta.env.BASE_URL}frames/`;
  * (owner ask 2026-08-18) — a price with nothing to buy is just noise — leaving a clean crystal, exactly the
  * shape the Tavern stone takes there.
  */
-export function RefreshButton({
+export const RefreshButton = memo(function RefreshButton({
   cost,
   freeRolls = 0,
   disabled,
@@ -125,4 +125,4 @@ export function RefreshButton({
       </span>
     </button>
   );
-}
+});

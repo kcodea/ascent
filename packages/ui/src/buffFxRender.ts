@@ -1,6 +1,7 @@
 import type { Tribe } from '@game/core';
 import { playDef } from './fx/playDef';
 import tendrilTrail from './fx/defs/tendril-trail.json';
+import tendrilTrailSpirit from './fx/defs/tendril-trail-spirit.json';
 import { DESCEND_PRESETS, descendPreset } from './descendPresets';
 import { getBuffFxConfig, tunedDescend } from './buffFxConfig';
 import { sfx } from './sfx';
@@ -17,6 +18,17 @@ const TENDRIL_TRAIL_TRAVEL_MS: number =
 /** Tribes with a per-tribe `tendril-trail-<tribe>` variant (a palette-swap of the generic). `neutral` alone keeps
  *  the generic ribbon. `celestial` joined 2026-09-14 (owner report: Wishing Star drew the default) with a
  *  moonlit-periwinkle palette swap of the generic — a PLACEHOLDER for the owner to retune in the workbench. */
+/**
+ * When the SPIRIT ribbon's landing burst goes off, read from its own def: the first TARGET-anchored layer's `at`
+ * (the burst + shockwave at 210 ms), NOT the ribbon's `travelMs` (170 — the ribbon arrives before the burst) and
+ * not the generic def's timing. The landing cue and the stat roll are timed to THIS (owner 2026-09-17: "it should
+ * play when the burst effect goes off"). Retuning the def in the workbench moves both with it.
+ */
+const SPIRIT_LANDING_MS: number = (() => {
+  const target = tendrilTrailSpirit.layers.find((l) => l.anchor === 'target' && typeof l.at === 'number');
+  return target?.at ?? tendrilTrailSpirit.layers.find((l) => l.primitive === 'ribbon')?.travelMs ?? TENDRIL_TRAIL_TRAVEL_MS;
+})();
+
 /** Spirit hits fired within this many ms of each other count as ONE burst for the stagger. */
 const SPIRIT_BURST_WINDOW_MS = 120;
 let spiritBurstAt = -Infinity;
@@ -67,8 +79,8 @@ export function fireBuffFx(o: {
     const stagger = spiritBurstIdx * Math.max(0, cfg.spiritHitStaggerMs);
     const fire = (): void => { playDef('tendril-trail-spirit', { source: o.source!, target: o.target }, { uids: o.uids }); };
     if (stagger > 0) window.setTimeout(fire, stagger); else fire();
-    sfx.spiritTendril(stagger + TENDRIL_TRAIL_TRAVEL_MS + cfg.spiritSfxOffsetMs);
-    return stagger + TENDRIL_TRAIL_TRAVEL_MS;
+    sfx.spiritTendril(stagger + SPIRIT_LANDING_MS + cfg.spiritSfxOffsetMs);
+    return stagger + SPIRIT_LANDING_MS;
   }
   if (TENDRIL_TRIBES.has(o.tribe)) {
     playDef(`tendril-trail-${o.tribe}`, { source: o.source, target: o.target }, { uids: o.uids });

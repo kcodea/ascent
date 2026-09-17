@@ -35,7 +35,7 @@ export interface BuffFxConfig {
   sparkSpeed: number;      // px/s — spark speed
   sparkSize: number;       // px — spark size
   sparkLife: number;       // ms — spark lifetime
-  /** ms — when the Spirit tendril's landing CUE fires, relative to the ribbon's ARRIVAL: 0 = with the landing,
+  /** ms — when the Spirit tendril's landing CUE fires, relative to its landing BURST going off: 0 = with the burst,
    *  negative = before it (lead the strike), positive = after. Owner ask 2026-09-17 ("the tendrils have a travel
    *  time, so they should be slightly offset"). */
   spiritSfxOffsetMs: number;
@@ -54,7 +54,7 @@ const DEFAULTS: BuffFxConfig = {
   ringCount: 2, ringSize: 90, ringWidth: 6, ringMs: 500,
   coreFlashSize: 115, coreFlashMs: 470,
   sparkCount: 46, sparkSpeed: 410, sparkSize: 3, sparkLife: 850,
-  spiritSfxOffsetMs: -50,
+  spiritSfxOffsetMs: 0, // relative to the Spirit def's LANDING BURST (its target-anchored `at`), not the ribbon's arrival
   spiritHitStaggerMs: 90,
 };
 

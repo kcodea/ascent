@@ -71,8 +71,8 @@ and recoloured by state (neutral gold / buffed green / reduced red). Now:
 
 - **Tint is behind the frame and fixed per stat**: `.mstint` is the DOM child before `.msframe`, so it paints
   behind the frame art, and its colour is `tintAtk` (yellow) for Attack / `tintHp` (red) for Health regardless
-  of buff state. Consequence: it shows through the tier-6 crystal frame's transparent centre but is covered by
-  the opaque leather centre of tiers 1–5.
+  of buff state. All six frame arts now have TRANSPARENT centres (the owner replaced the tiers-1–5 leather
+  discs with open rings/hearts on 2026-09-16), so the stat tint shows through on every tier.
 - **The number carries the state**: `numColor` (neutral) / `numColorUp` (buffed) / `numColorDown` (reduced)
   recolour the digit via `.badge.up`/`.badge.down`. Config lost `tintNeutral/Up/Down`, gained
   `tintAtk`/`tintHp` + `numColorUp`/`numColorDown`; the tuner's colour controls moved with it.

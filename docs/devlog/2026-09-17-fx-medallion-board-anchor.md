@@ -1,4 +1,24 @@
-# FX: `medallion` anchor part now lands on board minions (not card centre)
+# FX: `medallion` anchor part lands on the settled board minion (not card centre / drop point)
+
+Two related medallion-anchoring fixes, both in `anchorParts.ts`.
+
+## Fix 2 — parts resolve at the RESTING slot, not mid-slide
+A Shout played from hand fires `shout-icon-effect` (a `burst` on `source` + `anchorPart: medallion`). The base
+anchor was correct (the recruit path measures with `restingCenterOf`, which corrects for the slide transform),
+but the **medallion part was read off raw `getBoundingClientRect`** in `readUnitPartPoints` — which, while the
+card is still sliding into its warband slot, is the **drop position**. So the burst emerged from where the card
+was *released*, not where it *landed* (owner report 2026-09-17).
+
+`readUnitPartPoints` now transform-corrects every part rect to its resting position (`restingDelta`, the same
+offset `restingCenterOf` computes), so a part lands on the settled slot. No-op when nothing is transformed
+(combat) or for test stubs (no `offsetParent`).
+
+Combined with Fix 1 below, a Shout on a board minion (no tribe plate) now emerges from the **settled warband
+card's bottom-centre**.
+
+---
+
+# Fix 1 — `medallion` on board minions (no tribe plate) falls to bottom-centre, not card centre
 
 ## Symptom
 In the FX workbench (realBoard scenario, a real minion), a layer anchored to the **medallion** part played

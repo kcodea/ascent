@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { getEndTurnConfig, rgba } from './endTurnConfig';
 import { pixiFx } from './pixiFx';
 import { playDef } from './fx/playDef';
@@ -30,7 +30,7 @@ const F = `${import.meta.env.BASE_URL}frames/`;
  * Position/scale come from `--etb-*` vars (stage-pinned like the hero power); the DEV tuner
  * (`EndTurnTuner.tsx`) dials everything live.
  */
-export function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatReady, onEndCombat }: {
+export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatReady, onEndCombat }: {
   onEndTurn: () => void;
   disabled: boolean;
   /** The button has been hit — the end-of-turn beats are playing; show the dulled gem + stop the effects. */
@@ -262,4 +262,4 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatRead
       <span className="etb-tip">{combatReady ? 'End combat and go back to shop' : 'End your turn and start combat'}</span>
     </button>
   );
-}
+});

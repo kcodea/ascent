@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { pixiFx } from './pixiFx';
 
 /** Mounts the PixiJS WebGL effects overlay (see `pixiFx`) into a fixed, full-viewport,
@@ -39,11 +39,11 @@ export function PixiFxLayer(): React.ReactElement {
  * Rendered by `Recruit` rather than by `PixiFxLayer` for that reason alone; the canvas itself is owned by the
  * `pixiFx` singleton, so it survives the `.app` remount a new run causes and simply re-homes here.
  */
-export function FxUnderSlot(): React.ReactElement {
+export const FxUnderSlot = memo(function FxUnderSlot(): React.ReactElement {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     pixiFx.setUnderHost(ref.current);
     return () => pixiFx.setUnderHost(null);
   }, []);
   return <div ref={ref} className="pixifx-below" aria-hidden="true" />;
-}
+});

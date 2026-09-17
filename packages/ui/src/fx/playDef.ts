@@ -8,6 +8,8 @@ import type { FxDef } from './def';
 import type { StoredFxDef, StoredFxLayer } from './defStore';
 import { anchorsForUnits, unitSelector } from './combatAnchors';
 import { getDef, listDefs } from './fxDefs';
+import { admitPlay, culledTotal, expectedLoad, livePlaysSnapshot, registerLivePlay } from './fxBudget';
+import { getFxBudgetConfig, resetFxBudgetConfig, setFxBudgetValue } from './fxBudgetConfig';
 import { fxPoolSize } from './fxRuntime';
 import { createPlayer } from './player';
 import { hasPrimitives } from './registry';
@@ -490,6 +492,13 @@ function playDefInner(
   // a container and running an updater for a guaranteed-empty play.
   if (layers.length === 0) return null;
 
+  // THE BUDGET (see `fxBudget.ts`): make room BEFORE this play exists, so it is never its own victim. Over a
+  // cap, the OLDEST play of this same def is retired first — a pile-up pays for itself — then the oldest of
+  // any def. Under the caps (every normal moment) this is two counter reads and a Map-free scan of a short
+  // array, and nothing is touched. The load is taken off the post-`scaleDef` def, so `intensity` is in it.
+  const load = expectedLoad(def);
+  admitPlay(id, load);
+
   const container = new Container();
   const unmountLayer = pixiFx.mountLayer(container, slot);
   const player = createPlayer(
@@ -510,11 +519,16 @@ function playDefInner(
 
   let wallMs = 0;
   let removeUpdater: (() => void) | null = null;
+  let unregisterPlay: (() => void) | null = null;
   const { retire, retired } = createRetire({
     // Teardown order mirrors the workbench's build-effect cleanup exactly: stop being ticked, kill the
     // layers (the player destroys each layer's own child container), unmount from the overlay stage, then
-    // destroy our container.
+    // destroy our container. Leaving the budget registry rides the first step — whichever path retires us
+    // (natural finish, the caller's cancel, the wall-clock cap, or the budget itself), we are gone from it
+    // before anything else is torn down.
     removeUpdater: () => {
+      unregisterPlay?.();
+      unregisterPlay = null;
       removeUpdater?.();
       removeUpdater = null;
     },
@@ -522,6 +536,11 @@ function playDefInner(
     unmountLayer,
     destroyContainer: () => container.destroy({ children: true }),
     onDone: opts.onDone,
+  });
+  // Registered only now that `retire` exists. A looping / following play is caller-owned and a play with an
+  // `onDone` is being sequenced on, so none of the three may be trimmed (see `fxBudget.ts`'s header).
+  unregisterPlay = registerLivePlay({
+    id, load, retire, protected: opts.loop === true || opts.follow !== undefined || opts.onDone !== undefined,
   });
 
   // `fx:def:<id>` — the def's PER-FRAME cost (its layers' sims + filter retunes), as distinct from the spawn
@@ -602,6 +621,19 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
     poolSize: fxPoolSize,
     anchors: anchorsForUnits,
     list: (): string[] => listDefs().map((d) => d.id),
+    /**
+     * The FX budget (`fxBudget.ts` / `fxBudgetConfig.ts`), live. `get()` the caps, `set('maxParticles',
+     * 1500)` to make one bite on purpose and watch the perf HUD's `culled` counter climb, `reset()` to the
+     * shipped defaults, `live()` for what is registered right now, `culled()` for the running total.
+     * Persists like the other FX tuners (DEV localStorage); production always ships the defaults.
+     */
+    budget: {
+      get: getFxBudgetConfig,
+      set: setFxBudgetValue,
+      reset: resetFxBudgetConfig,
+      live: livePlaysSnapshot,
+      culled: culledTotal,
+    },
     /**
      * Drive the badge counter DIRECTLY on a live card, with no def, binding, layer or combat involved.
      *

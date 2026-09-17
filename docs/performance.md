@@ -132,8 +132,18 @@ top-offenders list is built from.
 
 Counters (levels, peak-sampled at 20 Hz): `fx:particles` (the WHOLE population — the def runtime's
 ParticleContainers plus the sprite particles; the older `particles` counter is the sprite pool alone),
-`fx:layers` (acquired def layers), `fx:filters` (filters applied across live `FilterStack`s), `sprite pool`,
-`weld rings`, `spell arrows`. Rates (per second): `unit renders`, `recruit renders`, `pointermoves`.
+`fx:layers` (acquired def layers), `fx:filters` (filters applied across live `FilterStack`s), `fx:culled`
+(plays the FX budget has trimmed since load — see below), `sprite pool`, `weld rings`, `spell arrows`.
+Rates (per second): `unit renders`, `recruit renders`, `pointermoves`, `fx:culled` (also tallied per bucket).
+
+**The FX budget** (`fx/fxBudget.ts`, caps in `fx/fxBudgetConfig.ts`; added 2026-09-16 after a 2002 s capture
+peaked at 5,778 live particles / 80 filters with `fx:tick` at 20.2 ms): `playDef` enforces a global
+live-particle cap, a per-def concurrent-play cap and a global filter cap at SPAWN time, retiring the OLDEST
+play of the same def first (then the oldest of any def) — never the one being spawned, and never a looping /
+following / `onDone` play. The defaults sit above any legitimate single moment (a 7-wide fan of the heaviest
+def), so under normal play `fx:culled` stays at 0; a non-zero value in a capture says a pile-up was trimmed,
+and WHERE it climbed says which second. In DEV, `window.__fx.budget.set('maxParticles', n)` lowers a cap live
+to watch it bite.
 
 **Every static label must be registered in `perfNames.ts`** (`CODE_NAMES`, or a family prefix in
 `LABEL_FAMILIES`) — `perfNames.test.ts` scans the source and fails on an unregistered one, because the HUD
@@ -579,6 +589,22 @@ These are the rules the audits surfaced; the codebase already follows them — k
   second. It now lives in an external store (`turnClock.ts`); only the tiny ring/rope subscribe to live seconds,
   while the big tree subscribes to the derived `timeUp` boolean (changes once per turn). Pattern: isolate a
   frequently-changing value into its own store/subscriber so only what *displays* it re-renders.
+- **Don't render the whole shop screen from one component's return.** `Recruit` subscribes to the whole
+  `run` and holds ~40 pieces of local state; until 2026-09-16 every one of them changing (a drag decision,
+  an aim target, a loss-tally tick, an overlay toggle) reconciled the ENTIRE screen — measured at
+  `render:recruit` 106 ms worst in the owner's 240 Hz capture. The rows (`TavernRow` / `WarbandRow` /
+  `HandRow`), the controls (`ShopControls`) and each overlay are now `React.memo` components at the bottom
+  of `Recruit.tsx`, fed only the slices they render from. Keep it that way: a NEW piece of JSX in `Recruit`
+  goes into the subtree it belongs to (or a new memo'd one), its handlers are `useCallback`s (or a stable
+  wrapper over a ref for closures that must see the latest render — see `endTurnStable`), and a prop that
+  is an object or array is memoized or derived from the view caches. Before/after in
+  `docs/devlog/2026-09-16-perf-recruit-split.md`.
+- **Don't read layout in a no-deps `useLayoutEffect`.** An effect with no dependency array runs on EVERY
+  commit, and an `offsetLeft` / `getBoundingClientRect` read after that commit's style writes is a forced
+  layout every time — the `layout:handglide` cache was 39.8 ms in one of the owner's worst frames for a
+  value that only changes when the hand's order/count, the grant previews or compact mode change. Key such
+  a read on the thing that can move the elements (plus `resize` when the viewport can), never on "every
+  render".
 - **Don't fight a stacking context with a bigger z-index — find out which context you are in.** Combat
   damage numbers spent a long time buried under the Pixi FX canvas because of TWO nested traps: `.unit` is
   its own stacking context in combat (`.attacking` z8 / `.struck` z12 / `.reborn` z14), so a child's z25 only

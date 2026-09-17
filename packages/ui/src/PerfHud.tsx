@@ -154,6 +154,7 @@ function PerfHudPanel() {
           add('fx:particles', 'particles');
           add('fx:layers', 'layers');
           add('fx:filters', 'filters');
+          add('fx:culled', 'culled'); // plays the FX budget trimmed since load — see fx/fxBudget.ts
           add('sprite pool', 'sprites');
           add('weld rings', 'welds');
           countersRef.current.textContent = parts.length ? parts.join(' · ') : 'no FX counters registered';

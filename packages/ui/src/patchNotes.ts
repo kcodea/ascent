@@ -56,6 +56,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-17',
+    label: 'Targeting sparkles linger',
+    changes: [
+      { category: 'UI / Info', text: 'When you finish aiming a spell or hero power, the targeting line\'s sparkles now drift and fade out on their own instead of blinking away with the line.' },
+    ],
+  },
+  {
+    date: '2026-09-17',
     label: 'Undead Aura + Spirit tendril sounds',
     changes: [
       { category: 'UI / Info', text: 'The Undead Aura surge now has its own sound cue, in the Shop and mid-combat. It never overlaps itself — back-to-back rises share one cue.' },

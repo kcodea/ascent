@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { memo, useRef } from 'react';
 import { playDef } from './fx/playDef';
 import { Icon } from './Icon';
 
@@ -34,7 +34,7 @@ const PIP_W = [11.45, 22.26, 38.36, 57.11, 70.94, 79.12, 79.12] as const;
  * existing `upgrade` dispatch. (The old warm gem-pop flash was dropped — owner 2026-08-14: it painted the
  * previous round orb.) All effect magnitudes come from the 🍺 tuner (`TavernUpTuner.tsx`).
  */
-export function TavernUpButton({ tier, maxTier, cost, disabled, combat, onUpgrade }: {
+export const TavernUpButton = memo(function TavernUpButton({ tier, maxTier, cost, disabled, combat, onUpgrade }: {
   /** Current tavern tier (1-based) — drives the lit slot pips + the broken "complete" gem at max. */
   tier: number;
   maxTier: number;
@@ -116,4 +116,4 @@ export function TavernUpButton({ tier, maxTier, cost, disabled, combat, onUpgrad
       <span className="tvb-tip">{combat ? `Shop tier ${tier}` : maxed ? 'Shop at max tier' : `Upgrade Shop — to tier ${tier + 1}`}</span>
     </button>
   );
-}
+});

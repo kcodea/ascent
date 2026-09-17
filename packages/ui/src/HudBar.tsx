@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { RIFTS, CONFIG, isCalibrationRound, lossDamageCap, runRecord } from '@game/sim';
 import { RiftPill } from './RiftPill';
 import { Icon } from './Icon';
@@ -5,7 +6,7 @@ import { OpponentFrame } from './OpponentFrame';
 import { useGame } from './store';
 
 /** Top bar: the round/altitude plaque (left) and the next-enemy frame (top-right). */
-export function HudBar() {
+export const HudBar = memo(function HudBar() {
   const run = useGame((s) => s.run);
   const lobby = run.lobby;
   // Your W–L record over the SCORED rounds (calibration rounds 1–2 don't count) — the run's score (A1).
@@ -83,4 +84,4 @@ export function HudBar() {
       </div>
     </div>
   );
-}
+});

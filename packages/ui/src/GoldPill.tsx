@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Icon } from './Icon';
 
 /**
@@ -6,7 +7,7 @@ import { Icon } from './Icon';
  * top strip now carries only the turn timer. Stage-pinned like the other board furniture (see `.goldpill` in
  * styles.css). Keeps the old strip's hover: this turn's Gold + the projected START of the next two waves.
  */
-export function GoldPill({ gold, nextTurnGold, afterNextGold, wave }: {
+export const GoldPill = memo(function GoldPill({ gold, nextTurnGold, afterNextGold, wave }: {
   gold: number;
   nextTurnGold: number;
   afterNextGold: number;
@@ -25,4 +26,4 @@ export function GoldPill({ gold, nextTurnGold, afterNextGold, wave }: {
       </div>
     </div>
   );
-}
+});

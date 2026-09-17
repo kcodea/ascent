@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   boardIntel, getHero, lastPlayerEncounter, lastRoundDamage, lossDamageCap, playerOpponent, seatResults,
@@ -26,7 +26,7 @@ import { useGame } from './store';
  * tier, triples) and their last three fights. That is the read the big card was standing in for, and it works
  * for all seven opponents rather than just the imminent one.
  */
-export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
+export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
   // Hooks must run unconditionally — the early return for a missing lobby lives after them.
   const firedRound = useRef(0);
   // The hovered seat AND where it sits on screen. The anchor is measured because the card is `position: fixed`
@@ -177,7 +177,7 @@ export function LobbyPanel({ lobby }: { lobby: RunLobby }): JSX.Element | null {
       </div>
     </div>
   );
-}
+});
 
 const TRIBE_LABEL: Record<string, string> = {
   beast: 'Beasts', dragon: 'Dragons', undead: 'Undead', mech: 'Mechs',

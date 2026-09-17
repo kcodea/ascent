@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import type { RiftDef } from '@game/sim';
 
 /**
@@ -17,7 +17,7 @@ import type { RiftDef } from '@game/sim';
  * rotating conic-gradient layer behind the plaque, clipped by the border-radius. No looping `filter`,
  * `box-shadow` or `background-position`, all of which repaint every frame.
  */
-export function RiftButton({ rift }: { rift: RiftDef }) {
+export const RiftButton = memo(function RiftButton({ rift }: { rift: RiftDef }) {
   const [pinned, setPinned] = useState(false);
   return (
     <button
@@ -35,4 +35,4 @@ export function RiftButton({ rift }: { rift: RiftDef }) {
       </div>
     </button>
   );
-}
+});

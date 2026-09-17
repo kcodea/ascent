@@ -1,5 +1,4 @@
 import type { DescendPresetCfg } from './descendPresets';
-import { DESCEND_PRESETS } from './descendPresets';
 
 /**
  * Tunable parameters for the BUFF FX — the animation that plays on a minion when something buffs it: the
@@ -36,19 +35,27 @@ export interface BuffFxConfig {
   sparkSpeed: number;      // px/s — spark speed
   sparkSize: number;       // px — spark size
   sparkLife: number;       // ms — spark lifetime
+  /** ms — when the Spirit tendril's landing CUE fires, relative to its landing BURST going off: 0 = with the burst,
+   *  negative = before it (lead the strike), positive = after. Owner ask 2026-09-17 ("the tendrils have a travel
+   *  time, so they should be slightly offset"). */
+  spiritSfxOffsetMs: number;
+  /** ms — STAGGER between successive Spirit ribbons fired in the same burst (a board-wide buff): the k-th hit
+   *  launches k × this later, and its landing cue + stat roll follow its own ribbon. Owner ask 2026-09-17
+   *  ("I want each buff that goes out to be slightly offset"). 0 = every hit at once, as before. */
+  spiritHitStaggerMs: number;
 }
 
-const D = DESCEND_PRESETS.default!;
-
 const DEFAULTS: BuffFxConfig = {
+  // Owner-tuned 2026-09-17 (dialled in the Buff tuner and baked as the shipped values; the descend preset's
+  // own numbers no longer feed these; `tunedDescend` still folds them over the preset's colours/blend).
   waveGapMs: 150, waveMaxTotalMs: 900, waveMaxCount: 6,
-  startHeight: D.startHeight, dropMs: D.dropMs, retractMs: D.retractMs,
-  baseWidth: D.baseWidth, tipWidth: D.tipWidth, coreAlpha: D.coreAlpha,
-  ringCount: D.pulse.ringCount, ringSize: D.pulse.ringSize, ringWidth: D.pulse.ringWidth, ringMs: D.pulse.ringMs,
-  coreFlashSize: D.pulse.coreFlashSize, coreFlashMs: D.pulse.coreFlashMs,
-  // Owner-tuned 2026-07-19: a denser but much FINER spark burst than the descend preset's (46 x 3px, vs
-  // 60 x 7px) - the big sparks read as debris at wave scale, where three waves can overlap.
-  sparkCount: 46, sparkSpeed: D.pulse.sparkSpeed, sparkSize: 3, sparkLife: D.pulse.sparkLife,
+  startHeight: 71, dropMs: 340, retractMs: 180,
+  baseWidth: 81.5, tipWidth: 38.5, coreAlpha: 0.05,
+  ringCount: 2, ringSize: 90, ringWidth: 6, ringMs: 500,
+  coreFlashSize: 115, coreFlashMs: 470,
+  sparkCount: 46, sparkSpeed: 410, sparkSize: 3, sparkLife: 850,
+  spiritSfxOffsetMs: 0, // relative to the Spirit def's LANDING BURST (its target-anchored `at`), not the ribbon's arrival
+  spiritHitStaggerMs: 90,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -59,6 +66,8 @@ export const BUFFFX_RANGES: Partial<Record<keyof BuffFxConfig, [number, number, 
   ringCount: [0, 6, 1], ringSize: [0, 300, 5], ringWidth: [0, 30, 1], ringMs: [0, 1200, 10],
   coreFlashSize: [0, 300, 5], coreFlashMs: [0, 1200, 10],
   sparkCount: [0, 120, 1], sparkSpeed: [0, 900, 10], sparkSize: [1, 24, 1], sparkLife: [100, 2000, 10],
+  spiritSfxOffsetMs: [-400, 800, 5],
+  spiritHitStaggerMs: [0, 300, 5],
 };
 
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */

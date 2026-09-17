@@ -1062,8 +1062,9 @@ export function useCombatReplay(
     // in here.
     // UNDEAD AURA (owner-authored `undead-aura-buff`, wired 2026-09-16): the same surge the recruit phase plays
     // off `auraFxSeq`, so an Undead Aura rising mid-combat (Ryme-style replays, Lantern of Souls) reads identically.
-    if (tribe === 'undead' && canPlayDefs()) {
-      playDef('undead-aura-buff', { camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } });
+    if (tribe === 'undead') {
+      sfx.undeadAura(); // the owner's surge clip, exclusive — never overlaps itself
+      if (canPlayDefs()) playDef('undead-aura-buff', { camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } });
     }
   };
   // User-controlled replay speed (in-combat slider). 1 = the tuned default; >1 faster, <1 slower. Every

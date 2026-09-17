@@ -288,6 +288,10 @@ interface PlayNodes { src: AudioBufferSourceNode; gain: GainNode; }
 // we keep a handle to the live nodes and ramp them down when the turn ends early (End Turn pressed / a new charge
 // starts) — otherwise the build keeps playing under combat. See `stopTurnCharge` + `sfx.turnCharge`.
 let turnChargeNodes: PlayNodes | null = null;
+/** The Undead Aura surge clip's live nodes while it plays — the cue NEVER overlaps itself (owner 2026-09-16:
+ *  "make it so it can only play once at a time"): a rise that lands while the clip is still ringing is skipped,
+ *  not stacked and not restarted. Cleared on the clip's natural end. */
+let undeadAuraNodes: PlayNodes | null = null;
 /** Fade out + stop the currently-playing turn-charge build (if any) over `ms`. No-op if none is playing. */
 export function stopTurnCharge(ms = 300): void {
   const a = ctx;                    // never CREATE a context just to stop
@@ -662,6 +666,23 @@ export const sfx = {
   // The end-of-turn CHARGE GLYPH starts charging (20s left, or turn start on short early waves) — fires once per
   // turn when the glyph lights. The sourced "turncharge" clip; synth rising-hum fallback until it decodes / if
   // absent. Drop the clip at `packages/ui/src/audio/turncharge.mp3`.
+  // The UNDEAD AURA SURGE — the owner's `undead aura buff.mp3` (`audio/undeadaurabuff.mp3`), fired beside the
+  // `undead-aura-buff` FX on every rise of the run-wide Undead Aura, shop and combat alike. Exclusive: while one
+  // instance is still playing, further rises are silent (no overlap, no restart). No synth fallback — the surge
+  // is an authored cue, and a placeholder tone under the authored FX would read as a different effect.
+  // The SPIRIT TENDRIL — the owner's `spirit tendril.mp3` (`audio/spirittendril.mp3`), one cue PER MINION HIT by a
+  // Spirit's buff ribbon (owner 2026-09-17: "this SHOULD play for each minion hit with a buff"). Fired from the one
+  // shared buff-other path (`fireBuffFx`) so shop, Start / End of Turn beats and combat all play it; scheduled to
+  // land WITH the ribbon (`delayMs` = the ribbon's travel time). Deliberately allowed to overlap — a board-wide
+  // Spirit buff is several hits, and each one sounds. No synth fallback (an authored cue).
+  spiritTendril: (delayMs = 0) => { playSample('spirittendril', 'buff', Math.max(0, delayMs) / 1000); },
+  undeadAura: () => {
+    if (undeadAuraNodes) return; // still ringing — one at a time
+    playSample('undeadaurabuff', 'buff', 0, (n) => {
+      undeadAuraNodes = n;
+      n.src.onended = () => { if (undeadAuraNodes?.src === n.src) undeadAuraNodes = null; };
+    });
+  },
   turnCharge: () => {
     stopTurnCharge(80); // never stack: quickly cut any build still ringing from a prior turn before the new one
     if (playSample('turncharge', 'turncharge', 0, (n) => {

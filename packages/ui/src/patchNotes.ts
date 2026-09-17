@@ -55,6 +55,14 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-17',
+    label: 'Undead Aura + Spirit tendril sounds',
+    changes: [
+      { category: 'UI / Info', text: 'The Undead Aura surge now has its own sound cue, in the Shop and mid-combat. It never overlaps itself — back-to-back rises share one cue.' },
+      { category: 'UI / Info', text: "A Spirit's buff ribbon now lands with its own sound — one cue per minion it reaches, in the Shop, at Start and End of Turn, and in combat." },
+    ],
+  },
+  {
     date: '2026-09-16',
     label: 'Apples scales on both ends',
     changes: [

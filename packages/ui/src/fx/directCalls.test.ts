@@ -151,6 +151,8 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // 'shop-buff-aura' left on 2026-09-02: the mid-combat Shop-buff bloom was removed (owner ask: every stock
       // buff cue is being replaced by an authored pixi effect); the number float carries the read now.
       'ale-bubbles', 'auctioneer-hp', 'choose-one-both', 'cia-hp', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
+      // 'dice-land' joined on 2026-09-17: the landing burst of the shared 3D die (`DiceRoll.tsx`), fired at the anchor.
+      'dice-land',
       'equipment-spark', 'equipment-used-up',
       // 'hand-buff' joined on 2026-09-15: the owner-authored hand-card buff cue, fired from `handBuffFx.ts`
       // (replacing the CSS spell-buff grow/shrink + mote blast, which never reached the def pipeline).

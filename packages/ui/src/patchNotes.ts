@@ -56,6 +56,24 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-17',
+    label: 'A real die',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "The Gambler's roll and the Gamble spell now roll a real die — a 3D die tumbles and settles on the number: it hops in place on the power button for the Gambler, and for Gamble it is THROWN from where you released the card, bouncing across the table in the direction you flicked.",
+        details: [
+          "The Gambler's die lands on the power button and the number stays there for the rest of the turn, as before.",
+          'Gamble: flick the card as you release it and the die rolls that way (a faster flick throws a little farther); release it still and it rolls toward the middle of the board. It bounces three times, rolling on the felt, and always stays on the table.',
+          'Gamble: the die is coloured by the tier it rolled, and the card you won arrives the moment the die comes to rest on its final bounce.',
+          'Both rolls now have a sound as the die leaves your hand.',
+          'The roll only shows the result the game already decided — replays and shared runs roll the same way every time.',
+          'Reduced-motion: the die simply appears on its face, with no tumble or burst.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-17',
     label: 'Targeting sparkles linger',
     changes: [
       { category: 'UI / Info', text: 'When you finish aiming a spell or hero power, the targeting line\'s sparkles now drift and fade out on their own instead of blinking away with the line.' },

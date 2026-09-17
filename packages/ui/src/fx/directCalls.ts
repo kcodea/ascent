@@ -61,6 +61,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // spell-buff grow/shrink + mote blast). Fired from the one `playHandBuffOn` every surface's fan-out lands on:
   // the shop's hand diff, the End-of-Turn presenters and the combat replay's `handBuff` beat scan.
   'hand-buff': ['handBuffFx.ts'],
+  'dice-land': ['DiceRoll.tsx'],
   'hero-power-spark': ['StatusBar.tsx'],
   'hero-power-target': ['Recruit.tsx'],
   'impact-dust': ['EndTurnButton.tsx', 'RefreshButton.tsx', 'choreo/channels/impact.ts'],

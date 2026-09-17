@@ -1245,29 +1245,20 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
   font-size: calc(30 * var(--u)); font-weight: 800; color: #ffe6a2;
   text-shadow: 0 3px 6px rgba(0, 0, 0, 0.9), 0 0 3px rgba(0, 0, 0, 1), 0 0 calc(6 * var(--u)) rgba(255, 200, 90, 0.55);
 }
-/* Gambler's Dice: the rolled face, BIG and centred ON the power diamond (owner ask 2026-08-14) rather than
-   riding the small tally slot above it. Compositor-only (transform + opacity) so a roll never costs a frame —
-   the one-shot rule from docs/performance.md. */
+/* Gambler's Dice: the HELD face — the number the 3D die (`DiceRoll`) landed on, kept BIG and centred ON the
+   power art for the rest of the turn (owner ruling 2026-08-16). The tumble itself is the shared `.diceroll`
+   overlay below; this only appears as that overlay fades, growing INTO place and holding — never shrinking
+   back (owner report 2026-08-14: a shrink read as the number "dropping"). Compositor-only, one-shot. */
 .hpwrap .hpb-dice {
   top: 50%; left: 50%;
   font-size: calc(62 * var(--u)); color: #ffe6a2;
   text-shadow: 0 0 calc(10 * var(--u)) rgba(255, 200, 90, 0.85), 0 4px 8px rgba(0, 0, 0, 0.9), 0 0 3px rgba(0, 0, 0, 1);
-  animation: dicetumble 160ms ease-out;
-}
-@keyframes dicetumble {
-  0% { transform: translate(-50%, -50%) scale(0.55) rotate(-26deg); opacity: 0.6; }
-  60% { transform: translate(-50%, -50%) scale(1.22) rotate(9deg); opacity: 1; }
-  100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
-}
-/* The LANDED face STAYS PUT (owner report 2026-08-14: it "dropped" as it landed) — replaying the tumble's
-   1.22→1 shrink on the final value read as the number falling. It just holds at full size instead. */
-.hpwrap .hpb-dice.settled {
   transform: translate(-50%, -50%) scale(1.22);
-  animation: dicesettle 130ms ease-out; /* grows INTO place and holds — never shrinks back */
+  animation: dicesettle 130ms ease-out;
 }
 @keyframes dicesettle {
-  from { transform: translate(-50%, -50%) scale(0.98); }
-  to { transform: translate(-50%, -50%) scale(1.22); }
+  from { transform: translate(-50%, -50%) scale(0.98); opacity: 0.4; }
+  to { transform: translate(-50%, -50%) scale(1.22); opacity: 1; }
 }
 /* Pete's Contrabanana: the smuggled tier-above offer flashes once as the row lands, so the "special" unit is
    obvious. One-shot (never a loop), and it rides opacity on a ::before overlay rather than animating the
@@ -9571,22 +9562,45 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 .uned.uned input[type="number"] { cursor: url('/cursors/gauntlet_default.svg') 6 2, text; }
 
-/* GAMBLE (the spell) — the die rolls at the point you released the card, using the SAME tumble + landed hold
-   as the Gambler's hero power (owner ask 2026-08-15). Portalled to <body> so no row clips it; pointer-events
-   off so it can never eat a click. Compositor-only transform/opacity, one-shot — never a looping paint. */
-.gambledie {
-  position: fixed; z-index: 120; pointer-events: none;
-  transform: translate(-50%, -50%) scale(1);
-  font-family: var(--font-ui); font-weight: 900; font-size: calc(62 * var(--u)); line-height: 1;
-  color: #ffe6a2;
-  text-shadow: 0 0 calc(10 * var(--u)) rgba(255, 200, 90, 0.85), 0 4px 8px rgba(0, 0, 0, 0.9), 0 0 3px rgba(0, 0, 0, 1);
-  animation: dicetumble 160ms ease-out;
+/* ── DICE ROLL — the shared top-down 3D die (`DiceRoll.tsx`, owner handoff 2026-09-17) ───────────────────
+   ONE component for the Gambler's power (lands on the power button) and the Gamble spell (lands at the cast
+   point). The GROUND is a fixed 0×0 point at the anchor and carries the perspective, so the die is always seen
+   dead-on and rests flat, result face up; hop (translateZ + scale) › yaw (rotateZ) › cube (rotateX rotateY) ›
+   six faces, each rotated onto its side and pushed out by half the die. Every animated property is transform
+   or opacity — the GSAP timeline in `diceRollTimeline.ts` writes them; nothing here loops. Portalled to <body> above
+   the board, pointer-events off so it can never eat a click. `--dice-tint` is set inline per roll: the hero
+   panel's gold for the power, the tier ramp (`--tier-N`) for the spell. */
+.diceroll {
+  position: fixed; z-index: 120; width: 0; height: 0; pointer-events: none;
+  perspective: 600px; perspective-origin: 50% 50%; transform-style: preserve-3d;
+  --dice-size: 76px; --dice-tint: var(--gold-lt);
 }
-.gambledie.settled {
-  transform: translate(-50%, -50%) scale(1.22);
-  animation: dicesettle 130ms ease-out; /* grows INTO place and holds — matches the hero-power die */
+.diceroll-shadow {
+  position: absolute; left: calc(var(--dice-size) * -0.5); top: calc(var(--dice-size) * -0.5);
+  width: var(--dice-size); height: var(--dice-size); border-radius: 22%;
+  background: radial-gradient(ellipse at 50% 50%, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.45) 55%, rgba(0, 0, 0, 0) 100%);
+  opacity: 0.5; will-change: transform, opacity;
 }
-
+/* Only the OUTERMOST wrapper (hop) is offset by half the die to centre it on the anchor — yaw and cube fill it
+   (`inset: 0`); a nested offset would walk the die away from the anchor one half-die per level. */
+.diceroll-hop {
+  position: absolute; left: calc(var(--dice-size) * -0.5); top: calc(var(--dice-size) * -0.5);
+  width: var(--dice-size); height: var(--dice-size); transform-style: preserve-3d; will-change: transform;
+}
+.diceroll-yaw, .diceroll-cube { position: absolute; inset: 0; transform-style: preserve-3d; will-change: transform; }
+.diceroll-face {
+  position: absolute; inset: 0; box-sizing: border-box; backface-visibility: hidden;
+  display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); place-items: center;
+  padding: 12%; border-radius: 14%;
+  background: linear-gradient(145deg, #fffaf0 0%, #f3e9d2 55%, #dfd0b0 100%);
+  border: 2px solid color-mix(in srgb, var(--dice-tint) 70%, #6b4a12);
+  box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--dice-tint) 28%, transparent), inset 0 -6px 10px rgba(80, 55, 15, 0.22);
+}
+.diceroll-pip { width: 58%; height: 58%; border-radius: 50%; opacity: 0; }
+.diceroll-pip.on {
+  opacity: 1; background: radial-gradient(circle at 35% 35%, color-mix(in srgb, var(--dice-tint) 55%, #fff), var(--dice-tint) 55%, color-mix(in srgb, var(--dice-tint) 60%, #000) 100%);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.5), 0 1px 1px rgba(0, 0, 0, 0.35);
+}
 /* ── Sable: the SOULBIND mark ──────────────────────────────────────────────────────────────────────────
    A purple ring floating above each bound minion while the bond is live. Same discipline as above: a static
    shadow, and only `opacity` animates. Both ends wear it, so the pair reads as a pair. */

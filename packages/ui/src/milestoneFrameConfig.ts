@@ -40,18 +40,21 @@ export interface MilestoneFrameConfig {
   tintOpacity: number;
   /** Tint nudge from the disc centre (px). */
   tintDx: number; tintDy: number;
-  /** Tint colour per stat: Attack is always this, Health is always this (owner ask 2026-09-16). The stat
-   *  STATE (buffed / reduced) is shown by the NUMBER colour below, not the tint. */
-  tintAtk: string; tintHp: string;
+  /** Tint colour per TIER and per stat (owner ask 2026-09-16): Attack tiers 1..6, then Health tiers 1..6.
+   *  The stat STATE (buffed / reduced) is shown by the NUMBER colour below, not the tint. */
+  tintAtk1: string; tintAtk2: string; tintAtk3: string; tintAtk4: string; tintAtk5: string; tintAtk6: string;
+  tintHp1: string; tintHp2: string; tintHp3: string; tintHp4: string; tintHp5: string; tintHp6: string;
 
   // ── The number (its COLOUR carries the stat state) ──────────────────────────────────────────────────────
   /** Font size of the digit on a framed badge (px). */
   numSize: number;
   /** Number nudge from the disc centre (px). */
   numDx: number; numDy: number;
-  /** Number fill colour at base (neutral), when buffed above base (up), and below base/floor (down); plus
-   *  outline width (px) and outline colour. */
-  numColor: string; numColorUp: string; numColorDown: string; numStrokeW: number; numStrokeColor: string;
+  /** Number fill colour at base (neutral, global) and below base/floor (reduced, global), plus outline width
+   *  (px) and outline colour. The BUFFED colour is per tier (owner ask 2026-09-16), below. */
+  numColor: string; numColorDown: string; numStrokeW: number; numStrokeColor: string;
+  /** Buffed (above base) number colour, per TIER 1..6. */
+  numColorUp1: string; numColorUp2: string; numColorUp3: string; numColorUp4: string; numColorUp5: string; numColorUp6: string;
   /** Drop shadow behind the digit: offset (px), blur (px), colour and strength (0 = off, 1 = full). */
   numShadowX: number; numShadowY: number; numShadowBlur: number; numShadowOpacity: number; numShadowColor: string;
 
@@ -68,18 +71,25 @@ const DEFAULTS: MilestoneFrameConfig = {
   frameDx: -0.5, frameDy: 3,
 
   tintFrac: 0.76, tintOpacity: 1, tintDx: 0, tintDy: 0,
-  tintAtk: '#ffa200', tintHp: '#cf0707',
+  tintAtk1: '#ffa200', tintAtk2: '#ffa200', tintAtk3: '#ffa200', tintAtk4: '#ffa200', tintAtk5: '#ffa200', tintAtk6: '#ffa200',
+  tintHp1: '#cf0707', tintHp2: '#cf0707', tintHp3: '#cf0707', tintHp4: '#cf0707', tintHp5: '#cf0707', tintHp6: '#cf0707',
 
   numSize: 26, numDx: -1, numDy: -1.5,
-  numColor: '#ffffff', numColorUp: '#00eb17', numColorDown: '#ff5a4f', numStrokeW: 0, numStrokeColor: '#000000',
+  numColor: '#ffffff', numColorDown: '#ff5a4f', numStrokeW: 0, numStrokeColor: '#000000',
+  numColorUp1: '#00eb17', numColorUp2: '#00eb17', numColorUp3: '#00eb17', numColorUp4: '#00eb17', numColorUp5: '#00eb17', numColorUp6: '#00eb17',
   numShadowX: 0, numShadowY: 1, numShadowBlur: 4.5, numShadowOpacity: 0.87, numShadowColor: '#000000',
 
-  glowSize: 0.95, glowBlur: 9, glowOpacity: 0.75,
+  glowSize: 0.95, glowBlur: 9, glowOpacity: 0.375,
   glow1: '#c9d3e0', glow2: '#c9d3e0', glow3: '#ffd54a', glow4: '#ff5edb', glow5: '#4fd1ff', glow6: '#ffffff',
 };
 
-type ColorKey = 'tintAtk' | 'tintHp' | 'numColor' | 'numColorUp' | 'numColorDown' | 'numStrokeColor'
-  | 'numShadowColor' | 'glow1' | 'glow2' | 'glow3' | 'glow4' | 'glow5' | 'glow6';
+type ColorKey =
+  | 'tintAtk1' | 'tintAtk2' | 'tintAtk3' | 'tintAtk4' | 'tintAtk5' | 'tintAtk6'
+  | 'tintHp1' | 'tintHp2' | 'tintHp3' | 'tintHp4' | 'tintHp5' | 'tintHp6'
+  | 'numColor' | 'numColorDown'
+  | 'numColorUp1' | 'numColorUp2' | 'numColorUp3' | 'numColorUp4' | 'numColorUp5' | 'numColorUp6'
+  | 'numStrokeColor' | 'numShadowColor'
+  | 'glow1' | 'glow2' | 'glow3' | 'glow4' | 'glow5' | 'glow6';
 
 const RANGES: Record<Exclude<keyof MilestoneFrameConfig, ColorKey>, [number, number, number]> = {
   scale1: [0.8, 3, 0.01], scale2: [0.8, 3, 0.01], scale3: [0.8, 3, 0.01], scale4: [0.8, 3, 0.01], scale5: [0.8, 3, 0.01], scale6: [0.8, 3, 0.01],
@@ -125,13 +135,16 @@ export function applyMilestoneFrameVars(): void {
   r.setProperty('--mstint-opacity', String(cfg.tintOpacity));
   r.setProperty('--mstint-dx', `${cfg.tintDx}px`);
   r.setProperty('--mstint-dy', `${cfg.tintDy}px`);
-  r.setProperty('--mstint-atk', cfg.tintAtk);
-  r.setProperty('--mstint-hp', cfg.tintHp);
+  const c = cfg as unknown as Record<string, string>;
+  for (let t = 1; t <= 6; t++) {
+    r.setProperty(`--mstint-atk-${t}`, c[`tintAtk${t}`]);
+    r.setProperty(`--mstint-hp-${t}`, c[`tintHp${t}`]);
+    r.setProperty(`--msnum-up-${t}`, c[`numColorUp${t}`]);
+  }
   r.setProperty('--msnum-size', `${cfg.numSize}px`);
   r.setProperty('--msnum-dx', `${cfg.numDx}px`);
   r.setProperty('--msnum-dy', `${cfg.numDy}px`);
   r.setProperty('--msnum-color', cfg.numColor);
-  r.setProperty('--msnum-up', cfg.numColorUp);
   r.setProperty('--msnum-down', cfg.numColorDown);
   r.setProperty('--msnum-stroke-w', `${cfg.numStrokeW}px`);
   r.setProperty('--msnum-stroke-color', cfg.numStrokeColor);
@@ -150,7 +163,14 @@ export function applyMilestoneFrameVars(): void {
   r.setProperty('--ms-glow-6', cfg.glow6);
 }
 
-const COLOR_KEYS: ReadonlySet<string> = new Set<ColorKey>(['tintAtk', 'tintHp', 'numColor', 'numColorUp', 'numColorDown', 'numStrokeColor', 'numShadowColor', 'glow1', 'glow2', 'glow3', 'glow4', 'glow5', 'glow6']);
+const COLOR_KEYS: ReadonlySet<string> = new Set<ColorKey>([
+  'tintAtk1', 'tintAtk2', 'tintAtk3', 'tintAtk4', 'tintAtk5', 'tintAtk6',
+  'tintHp1', 'tintHp2', 'tintHp3', 'tintHp4', 'tintHp5', 'tintHp6',
+  'numColor', 'numColorDown',
+  'numColorUp1', 'numColorUp2', 'numColorUp3', 'numColorUp4', 'numColorUp5', 'numColorUp6',
+  'numStrokeColor', 'numShadowColor',
+  'glow1', 'glow2', 'glow3', 'glow4', 'glow5', 'glow6',
+]);
 
 export function setMilestoneFrameValue(key: keyof MilestoneFrameConfig, value: number | string): void {
   const isColor = COLOR_KEYS.has(key);
@@ -199,12 +219,21 @@ const numControls: TunerControl<Extract<keyof MilestoneFrameConfig, string>>[] =
     return { key, label, unit, hint, group, min, max, step } as TunerControl<Extract<keyof MilestoneFrameConfig, string>>;
   });
 
+/** Per-tier colour label: the frame each tier wears and its threshold, so the picker reads plainly. */
+const TIER_TAG: Record<number, string> = { 1: 'silver ≥0', 2: 'dagger ≥50', 3: 'gold ≥150', 4: 'pink ≥500', 5: 'blue ≥2000', 6: 'crystal ≥5000' };
+/** Six per-tier colour controls for one config-key prefix (e.g. `tintAtk` → tintAtk1..6). */
+function tierColorControls(prefix: string, label: string, group: string, hint: string): TunerControl<Extract<keyof MilestoneFrameConfig, string>>[] {
+  return [1, 2, 3, 4, 5, 6].map((t) => ({
+    key: `${prefix}${t}`, label: `${label} T${t} (${TIER_TAG[t]})`, hint, group, kind: 'color', min: 0, max: 0, step: 0,
+  }) as unknown as TunerControl<Extract<keyof MilestoneFrameConfig, string>>);
+}
+
 const colorControls: TunerControl<Extract<keyof MilestoneFrameConfig, string>>[] = [
-  { key: 'tintAtk', label: 'Attack tint', hint: 'Tint disc colour behind every Attack frame (fixed, not per state).', group: 'Stat tint colours', kind: 'color', min: 0, max: 0, step: 0 },
-  { key: 'tintHp', label: 'Health tint', hint: 'Tint disc colour behind every Health frame (fixed, not per state).', group: 'Stat tint colours', kind: 'color', min: 0, max: 0, step: 0 },
-  { key: 'numColor', label: 'Number colour (neutral)', hint: 'Digit colour at base value (stat unchanged).', group: 'Number colours', kind: 'color', min: 0, max: 0, step: 0 },
-  { key: 'numColorUp', label: 'Number colour (buffed)', hint: 'Digit colour when the stat is above its printed base.', group: 'Number colours', kind: 'color', min: 0, max: 0, step: 0 },
-  { key: 'numColorDown', label: 'Number colour (reduced)', hint: 'Digit colour when the stat is below base / combat floor.', group: 'Number colours', kind: 'color', min: 0, max: 0, step: 0 },
+  ...tierColorControls('tintAtk', 'Attack tint', 'Attack tint (per tier)', 'Tint disc colour behind this tier’s Attack frame.'),
+  ...tierColorControls('tintHp', 'Health tint', 'Health tint (per tier)', 'Tint disc colour behind this tier’s Health frame.'),
+  { key: 'numColor', label: 'Number colour (neutral)', hint: 'Digit colour at base value (stat unchanged) — all tiers.', group: 'Number colours', kind: 'color', min: 0, max: 0, step: 0 },
+  { key: 'numColorDown', label: 'Number colour (reduced)', hint: 'Digit colour when the stat is below base / combat floor — all tiers.', group: 'Number colours', kind: 'color', min: 0, max: 0, step: 0 },
+  ...tierColorControls('numColorUp', 'Buffed number', 'Buffed number colour (per tier)', 'Digit colour when this tier’s stat is above its printed base.'),
   { key: 'numStrokeColor', label: 'Number outline colour', hint: 'Colour of the digit outline (width above).', group: 'Number colours', kind: 'color', min: 0, max: 0, step: 0 },
   { key: 'numShadowColor', label: 'Number shadow colour', hint: 'Colour of the drop shadow behind the digit (strength above).', group: 'Number colours', kind: 'color', min: 0, max: 0, step: 0 },
   { key: 'glow1', label: 'Tier 1 glow (0–49)', hint: 'Glow colour behind the plain silver frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },

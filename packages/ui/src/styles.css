@@ -1891,18 +1891,17 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   pointer-events: none;
   background: var(--ms-glow, #c9d3e0);
   filter: blur(var(--msglow-blur, 9px));
-  opacity: var(--msglow-opacity, 0.75);
+  opacity: var(--msglow-opacity, 0.375);
 }
 /* Tiers 1–3 (plain silver / dagger / gold) wear NO glow — only pink/blue/crystal glow (owner ask 2026-09-16).
    The glowN config values still tint each tier's CELEBRATION burst; this only hides the frame's halo disc. */
 .badge[data-milestone='1'] > .msglow,
 .badge[data-milestone='2'] > .msglow,
 .badge[data-milestone='3'] > .msglow { display: none; }
-/* Stat tint — a SOLID disc BEHIND the frame (owner ask 2026-09-16), a FIXED colour per stat: Attack yellow,
-   Health red, whatever the buff state (the STATE is carried by the number's colour below). In DOM it is the
-   child BEFORE .msframe, so it paints behind the frame art — it shows through a transparent-centre frame (the
-   tier-6 crystal) and is covered by an opaque leather-centre frame (tiers 1–5). Size/strength/offset and both
-   colours are tuner-driven; the literals here are the shipped fallback. */
+/* Stat tint — a SOLID disc BEHIND the frame (owner ask 2026-09-16), a colour set PER TIER and PER STAT
+   (owner ask 2026-09-16), whatever the buff state (the STATE is carried by the number's colour below). In DOM
+   it is the child BEFORE .msframe, so it paints behind the frame art and shows through every frame's
+   transparent centre. Size/strength/offset are tuner-driven; the per-tier colours come from the rules below. */
 .badge > .mstint {
   position: absolute;
   left: 50%; top: 50%;
@@ -1912,10 +1911,21 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   border-radius: 50%;
   pointer-events: none;
   opacity: var(--mstint-opacity, 1);
-  background: var(--mstint-atk, #e0a81e);   /* fallback; overridden per stat below (owner ask 2026-09-16) */
+  background: #ffa200;   /* static fallback; the per-tier × per-stat rules below set the real colour */
 }
-.badge.atk > .mstint { background: var(--mstint-atk, #e0a81e); }   /* Attack: fixed yellow, any state */
-.badge.hp  > .mstint { background: var(--mstint-hp, #c62828); }    /* Health: fixed red, any state */
+/* Per-tier × per-stat tint (owner ask 2026-09-16): each tier's Attack / Health frame gets its own tint disc. */
+.badge.atk[data-milestone='1'] > .mstint { background: var(--mstint-atk-1, #ffa200); }
+.badge.atk[data-milestone='2'] > .mstint { background: var(--mstint-atk-2, #ffa200); }
+.badge.atk[data-milestone='3'] > .mstint { background: var(--mstint-atk-3, #ffa200); }
+.badge.atk[data-milestone='4'] > .mstint { background: var(--mstint-atk-4, #ffa200); }
+.badge.atk[data-milestone='5'] > .mstint { background: var(--mstint-atk-5, #ffa200); }
+.badge.atk[data-milestone='6'] > .mstint { background: var(--mstint-atk-6, #ffa200); }
+.badge.hp[data-milestone='1'] > .mstint { background: var(--mstint-hp-1, #cf0707); }
+.badge.hp[data-milestone='2'] > .mstint { background: var(--mstint-hp-2, #cf0707); }
+.badge.hp[data-milestone='3'] > .mstint { background: var(--mstint-hp-3, #cf0707); }
+.badge.hp[data-milestone='4'] > .mstint { background: var(--mstint-hp-4, #cf0707); }
+.badge.hp[data-milestone='5'] > .mstint { background: var(--mstint-hp-5, #cf0707); }
+.badge.hp[data-milestone='6'] > .mstint { background: var(--mstint-hp-6, #cf0707); }
 /* The number on a framed badge — size / colour / nudge / outline are tuner-driven; unframed tier-0 badges keep
    the base `.badge > .value` rule above. Absolutely centred on the disc so it grows from BOTH sides (a 4-digit
    5000 stays centred instead of spilling off the right); the second translate is the tuner's nudge. */
@@ -1934,8 +1944,14 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 }
 /* The number's COLOUR carries the stat STATE (owner ask 2026-09-16): buffed / reduced recolour the digit.
    Higher specificity than the neutral rule above, so the state colour wins when the badge has .up / .down. */
-.badge.up:not([data-milestone='0']) > .value { color: var(--msnum-up, #3ad84a); }     /* buffed above base */
-.badge.down:not([data-milestone='0']) > .value { color: var(--msnum-down, #ff5a4f); } /* below base / floor */
+/* Buffed (above base) digit colour — PER TIER (owner ask 2026-09-16). */
+.badge.up[data-milestone='1'] > .value { color: var(--msnum-up-1, #00eb17); }
+.badge.up[data-milestone='2'] > .value { color: var(--msnum-up-2, #00eb17); }
+.badge.up[data-milestone='3'] > .value { color: var(--msnum-up-3, #00eb17); }
+.badge.up[data-milestone='4'] > .value { color: var(--msnum-up-4, #00eb17); }
+.badge.up[data-milestone='5'] > .value { color: var(--msnum-up-5, #00eb17); }
+.badge.up[data-milestone='6'] > .value { color: var(--msnum-up-6, #00eb17); }
+.badge.down:not([data-milestone='0']) > .value { color: var(--msnum-down, #ff5a4f); } /* reduced — global */
 /* MILESTONE TUNER PREVIEW — the 🏅 Milestone Badges panel renders the real badge markup for all ten tiers so it
    tracks the CSS vars live. The badges are normally absolute at a card's corners; here they lay out in rows, so
    their positioning is neutralised and the row leaves generous room for the frame overflow (sword/heart). */

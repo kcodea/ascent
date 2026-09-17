@@ -1386,7 +1386,8 @@ export type QuestReward =
   | { kind: 'runeAmplification' } // Equipment you do not activate becomes Amplified (triggers twice next activation; max 1 per Equipment)
   | { kind: 'runeGrandWorkshop' } // Amplify all your Equipment now, and again every Start of Turn
   | { kind: 'runeRedGiant' } // the Starform has a 50% chance to also Consume a Shop spell (a copy to hand, +8/+8)
-  | { kind: 'runeSoulScript' } // the Starform counts as Undead (Undead consumes, buffs and auras reach it)
+  | { kind: 'runeSoulScript' }
+  | { kind: 'runeGambleBoth' } // Rune of Gambling: every Gamble grants BOTH a minion and a spell of the rolled tier // the Starform counts as Undead (Undead consumes, buffs and auras reach it)
   | { kind: 'runeBroodmaster' } // a Broodwright's Imp buff also lands on itself
   // ── Set 3 batch 2 (2026-09-16) — tranche A (Spirit / Celestial runes) ──
   | { kind: 'runeChosenVessel'; attack: number; health: number } // whenever you play a Spirit: your LEFT-MOST minion in hand +a/+h

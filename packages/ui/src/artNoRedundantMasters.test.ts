@@ -120,6 +120,7 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // → 1192 (2026-09-14, the Celestial batch: +3 — the Star Destroyer and Stellar Lens icons, the Stellar Chorus spell art; Picksy + Flame Reveler replaced in place.)
     // → 1241 (2026-09-16, the Set 3 batch-2 rune emblems: +49 files measured against origin/main's 1180 — one
     // emblem per new rune except the Handy Flame and Open Hand runes, whose masters do not exist yet.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1241);
+    // → 1242 (2026-09-17, the Rune of Gambling emblem: +1.)
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1242);
   });
 });

@@ -1513,7 +1513,7 @@ export function Recruit() {
     if (import.meta.env.DEV) console.debug('[dice] throw', JSON.stringify({ from, flick, dir, distance, to, samples: pointerTrailRef.current.length, handTop: hand?.top }));
     return to;
   };
-  const [gambleHold, setGambleHold] = useState<string | null>(null);
+  const [gambleHold, setGambleHold] = useState<readonly string[] | null>(null);
   const pointerRef = useRef({ x: 0, y: 0 });
   // The last ~150 ms of pointer motion (a small ring, newest last) — the THROW's direction is the flick the mouse
   // made just before the card was released (owner ask 2026-09-17), read by `flickOf` at roll start.
@@ -1539,12 +1539,13 @@ export function Recruit() {
     const tier = run.gambleRoll!.tier;
     if (tier < 1 || tier > 6) return;
     const { x, y } = pointerRef.current;               // where the spell was released
-    if (run.gambleWonUid) setGambleHold(run.gambleWonUid); // hold the prize back until the die lands
+    const held = run.gambleWonUids ?? (run.gambleWonUid ? [run.gambleWonUid] : []);
+    if (held.length) setGambleHold(held);                // hold the prize(s) back until the die lands (two under Rune of Gambling)
     const seed = diceSeed('spell', seq);
     setGambleDie({ result: tier as DieFace, x, y, to: gambleLanding({ x, y }, seed), seed, key: seq });
     sfx.gamble();                                       // the die launches
     return () => setGambleHold(null);                   // a second roll mid-tumble never strands the first prize
-  }, [run.gambleRoll?.seq, run.gambleRoll?.tier, run.gambleWonUid]);
+  }, [run.gambleRoll?.seq, run.gambleRoll?.tier, run.gambleWonUid, run.gambleWonUids]);
   // DEV: the Dice tuner's ▶ Test rolls a spell-tinted die at the screen centre (no Gamble in hand needed).
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -1572,7 +1573,7 @@ export function Recruit() {
   const handShown = chooseOnePreviewUid
     ? run.hand.filter((c) => c.uid !== chooseOnePreviewUid)
     : run.hand;
-  const gambleHand = gambleHold ? handShown.filter((c) => c.uid !== gambleHold) : handShown;
+  const gambleHand = gambleHold ? handShown.filter((c) => !gambleHold.includes(c.uid)) : handShown;
   // Minions summoned to the BOARD during End-of-Turn playback (Moira re-firing a summoner) — injected into the
   // rendered board on their beat so they arrive in real time, replaced by the real cards at commit (same uid).
   const [eotSummons, setEotSummons] = useState<{ uid: string; cardId: string; index?: number }[]>([]);
@@ -3134,7 +3135,7 @@ export function Recruit() {
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const live = useMemo(
-    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, nextSpellBonus: run.nextSpellBonus, cardBuffs: cardBuffsLive, impAura: run.impBuff, rubyCasts: run.rubyCasts, goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run) /* Stellar Chorus's live total in HAND — the shop chain threaded it, this one starved it (owner report 2026-09-12) */, tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure }, chooseBothState: chooseBothStateOf(run) }),
+    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, nextSpellBonus: run.nextSpellBonus, cardBuffs: cardBuffsLive, impAura: run.impBuff, rubyCasts: run.rubyCasts, goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run) /* Stellar Chorus's live total in HAND — the shop chain threaded it, this one starved it (owner report 2026-09-12) */, tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth }, chooseBothState: chooseBothStateOf(run) }),
     // `run.board` is a dep because `topTribe` is derived from it — without it the memo held the stale tribe
     // (and the stale spell names) until some other dep happened to move (audit find, live-verified 2026-07-31).
     // `cardBuffsLive` is the value actually consumed (not raw `run.cardBuffs`) — listing it explicitly was an
@@ -7897,7 +7898,7 @@ const DiscoverOverlay = memo(function DiscoverOverlay({ overlaysHeld, run, disco
                 const lt = liveCardText(c.id, {
                   ...offerLiveTextParams(false, { ...liveOptsFromRun(run), cardBuffs: cardBuffsLive }),
                   runeMammoth: !!run.questFlags?.runeMammoth,
-                  runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure },
+                  runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth },
                   // (Both): a Discovered Choose One the run already makes do both reads as (Both) here too —
                   // the option row is where you decide to take it, so it must not promise a choice it won't ask.
                   chooseBoth: chooseBothActive(run, undefined, c),

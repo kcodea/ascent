@@ -6612,6 +6612,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       break;
     }
     case 'runeRedGiant': s.runeRedGiant = true; break; // pays per Starform consume (`redGiantSpellBite`)
+    case 'runeGambleBoth': s.runeGambleBoth = true; break; // Rune of Gambling: `spellGambleTierPull` pays a minion AND a spell
     case 'runeSoulScript':
       s.runeSoulScript = true;
       starformSoulScriptBake(s); // a token already out inherits the standing Undead Aura at once

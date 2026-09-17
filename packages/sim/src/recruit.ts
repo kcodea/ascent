@@ -7089,12 +7089,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const picks = [...pool.buyable, ...runSpells(ctx.state)].filter((c) => !c.token && c.tier === tier);
     if (picks.length === 0) return;
     const before = new Set(ctx.state.hand.map((c) => c.uid));
-    conjureToHand(ctx.state, picks, 1);
-    // Tell presentation what to roll — and WHICH card to hold back until the die lands (the UI withholds it
+    if (ctx.state.runeGambleBoth) {
+      // Rune of Gambling (owner 2026-09-17): the roll pays BOTH a minion AND a spell of that tier — one pull from
+      // each half of the candidate list (a half with nothing at this tier simply pays nothing, never a substitute).
+      procRune(ctx.state, 'runeGambleBoth');
+      conjureToHand(ctx.state, picks.filter((c) => !c.spell), 1);
+      conjureToHand(ctx.state, picks.filter((c) => !!c.spell), 1);
+    } else {
+      conjureToHand(ctx.state, picks, 1);
+    }
+    // Tell presentation what to roll — and WHICH cards to hold back until the die lands (the UI withholds them
     // from the hand for the tumble's duration, then reveals). Gameplay already resolved; this is display data.
-    const won = ctx.state.hand.find((c) => !before.has(c.uid));
+    const wonAll = ctx.state.hand.filter((c) => !before.has(c.uid));
     ctx.state.gambleRoll = { tier, seq: (ctx.state.gambleRoll?.seq ?? 0) + 1 };
-    if (won) ctx.state.gambleWonUid = won.uid;
+    if (wonAll.length > 0) { ctx.state.gambleWonUid = wonAll[0]!.uid; ctx.state.gambleWonUids = wonAll.map((c) => c.uid); }
   },
 
   spellBuffTarget: (ctx, self, params) => {
@@ -9053,12 +9061,14 @@ export function spellHealthBonus(state: RunState): number {
  * base text for non-stat spells or a zero bonus. Convention: a stat spell's text shows "+A/+B" matching
  * its `spellBuffTarget` params, so it can be substituted.
  */
-export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; clueBonus?: number; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number; juggler?: boolean; anySpellsThisTurn?: number; starCrashBonus?: { attack: number; health: number } }): string {
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; clueBonus?: number; playedThisTurn?: string[]; tier?: number; topTribe?: Tribe | null; growthBonus?: number; juggler?: boolean; anySpellsThisTurn?: number; starCrashBonus?: { attack: number; health: number }; gambleBoth?: boolean }): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
   // Set 3 — a FLAT hand spell (Tower Shield: every cast effect opts out of spell power via `flat`) prints exactly
   // its base — folding the run's spell power into the text would promise a value the cast never grants.
   if (def.gift && def.effects.length > 0 && def.effects.every((e) => e.on !== 'cast' || e.params?.flat === true)) return def.text;
+  // Rune of Gambling: a Gamble pays a minion AND a spell — the text must promise exactly that while the rune is armed.
+  if (def.id === 'sp_gamble' && extra?.gambleBoth) return def.text.replace('minion or spell', '{{minion AND spell}}');
   // Set 3 — a CLUE reads live: base 1/1 + the run's `clueBonus` (the value its cast will grant right now).
   if (def.id === 'clue') {
     const cb = extra?.clueBonus ?? 0;

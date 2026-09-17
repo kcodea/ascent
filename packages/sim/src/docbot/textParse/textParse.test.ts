@@ -77,7 +77,9 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // Equipment before selling it", "after activating 3 different Equipment, trigger them again", …). A conscious move.
 // 85 → 86 on 2026-09-16: Set 3 batch 2, tranche D — Rune of the Waking Reserve's second sentence ("This does not mark
 // that hand card as summoned.") is a rules clarification the grammar has no rule for. A conscious move.
-const UNRESOLVED_CAP = 86;
+// 86 → 87 on 2026-09-17: Rune of Gambling's rider ("Your Gambles grant both a spell and minion") names a card's
+// PAYOUT SHAPE rather than a magnitude — no grammar rule for it. A conscious move.
+const UNRESOLVED_CAP = 87;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

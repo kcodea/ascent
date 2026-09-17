@@ -2,6 +2,7 @@ import './styles.css';
 import './boardEdgeConfig'; // side-effect: apply the ultrawide edge-blend vars (dev: persisted tune; prod: DEFAULTS)
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { Recruit } from './Recruit';
+import { PERF_DOM_CONTAINERS } from './perfDomContainers';
 import { EndScreen } from './EndScreen';
 import { HeroSelect } from './HeroSelect';
 import { PracticeOptions } from './PracticeOptions';
@@ -21,6 +22,7 @@ import { MinionBook } from './MinionBook';
 import { EscMenu } from './EscMenu';
 import { DevMenu } from './DevMenu';
 import { EditorOverlay } from './uiEditor/EditorOverlay';
+import { setFxScene } from './fx/fxBudget';
 import { ensureDefsReady } from './fx/playDef';
 import { SceneBuilder } from './SceneBuilder';
 import { BugScenarioPanel } from './bug-report/BugScenarioPanel';
@@ -131,6 +133,8 @@ export function Game() {
     // turns each one into a state update, the render cost is invisible without this number next to it.
     const onMove = (): void => perfMonitor.count('pointermoves');
     window.addEventListener('pointermove', onMove, { passive: true });
+    // DOM nodes by container, once a second — so the 2026-09-17 leak (100 → 1,027 nodes) names its row.
+    perfMonitor.setDomContainers(PERF_DOM_CONTAINERS);
     perfMonitor.start();
     // WARM-UP at every phase start (owner report 2026-09-15: the opening spike "destroys the graph"). The
     // rule for what counts as a phase start is pure and tested in `perfWarmup.ts`; this is only the wiring.
@@ -138,6 +142,10 @@ export function Game() {
       if (st.run === prevSt.run) return;
       const start = phaseStartBetween(prevSt.run, st.run);
       if (start) perfMonitor.beginWarmup(start);
+      // The FX budget's SCENE (`fxBudget.ts`): the Discover overlay carries its own, lower live-particle cap
+      // (`maxParticlesDiscover`). Told here, off the run state, so the FX layer never imports the store.
+      const inDiscover = !!st.run.discover;
+      if (inDiscover !== !!prevSt.run.discover) setFxScene(inDiscover ? 'discover' : null);
     });
 
     /**
@@ -208,6 +216,7 @@ export function Game() {
       window.removeEventListener('pointermove', onMove);
       unsub();
       unsubWarm();
+      setFxScene(null);
       perfMonitor.stop();
     };
   }, []);

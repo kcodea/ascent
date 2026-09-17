@@ -1,0 +1,56 @@
+/**
+ * PER-OFFER MEMO for the tavern's card views (perf 2026-09-17, `docs/perf-handoff-2026-09-17.md` PR 2).
+ *
+ * `Recruit`'s `shopViews` memo rebuilt EVERY offer's view — `shopView()` runs the whole live-text chain
+ * (`liveCardText`, the (Both) predicate, the buff ledger) — whenever any of its ~50 inputs changed, which is
+ * every dispatch: the reducer clones the run, so `run.shop` is a new array on every action even when four of
+ * the five offers are byte-identical. `stabilizeViewMap` kept the RESULT reference-stable (the `Card` memo
+ * held), but the work of producing it was paid every time.
+ *
+ * This keys each offer's view on a SIGNATURE of exactly what `shopView` reads for it — the offer object and
+ * the opts it is built with — and reuses the cached view outright when the signature matches. Same offer,
+ * same opts → the same view object, with no `shopView` call at all. A miss builds the view and then still
+ * value-compares it against the previous one (`stabilize`), so a rebuilt-but-equal view keeps its identity too.
+ * The returned map IS the next cache (current uids only, no leak).
+ */
+export interface ShopViewCacheEntry<V> { sig: string; view: V }
+
+/** A cheap, order-stable signature of a plain JSON-ish value. `undefined` fields are dropped by JSON, which is
+ *  what we want: `{ eotBuff: undefined }` and `{}` build the same view. */
+export function viewSignature(offer: unknown, opts: unknown): string {
+  return JSON.stringify(offer) + '\u0000' + JSON.stringify(opts);
+}
+
+/**
+ * Build the uid → view map for `offers`, reusing `cache` entries whose signature is unchanged.
+ * `build(offer, opts)` is only called on a miss; `stabilize(fresh, prev)` decides whether a rebuilt view may
+ * keep the previous object (value equality — `cardViewEqual`), and is only consulted on a miss too.
+ */
+export function buildShopViews<O extends { uid: string }, Opts, V>(
+  offers: readonly O[],
+  optsFor: (offer: O) => Opts,
+  build: (offer: O, opts: Opts) => V,
+  cache: Map<string, ShopViewCacheEntry<V>>,
+  stabilize: (fresh: V, prev: V) => V = (fresh) => fresh,
+): { views: Map<string, V>; cache: Map<string, ShopViewCacheEntry<V>>; hits: number; misses: number } {
+  const views = new Map<string, V>();
+  const next = new Map<string, ShopViewCacheEntry<V>>();
+  let hits = 0, misses = 0;
+  for (const offer of offers) {
+    const opts = optsFor(offer);
+    const sig = viewSignature(offer, opts);
+    const prev = cache.get(offer.uid);
+    let view: V;
+    if (prev && prev.sig === sig) {
+      view = prev.view;
+      hits++;
+    } else {
+      const fresh = build(offer, opts);
+      view = prev ? stabilize(fresh, prev.view) : fresh;
+      misses++;
+    }
+    views.set(offer.uid, view);
+    next.set(offer.uid, { sig, view });
+  }
+  return { views, cache: next, hits, misses };
+}

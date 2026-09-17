@@ -83,10 +83,13 @@ describe('every static perf label in the source is registered', () => {
     };
     walk(__dirname);
     const re = /perfMonitor\.(?:measure|record|begin)\(\s*'([^']+)'/g;
+    // The React.Profiler regions record their `id` as a label (`perfProfiler.tsx`), so a static id counts too.
+    const reProfiler = /<PerfProfiler\s+id="([^"]+)"/g;
     const unknown: string[] = [];
     for (const f of files) {
       const src = readFileSync(f, 'utf8');
       for (const m of src.matchAll(re)) if (!isKnownLabel(m[1]!)) unknown.push(`${m[1]} (${f.slice(__dirname.length + 1)})`);
+      for (const m of src.matchAll(reProfiler)) if (!isKnownLabel(m[1]!)) unknown.push(`${m[1]} (${f.slice(__dirname.length + 1)})`);
     }
     expect(unknown, 'register these in perfNames.ts CODE_NAMES (or a LABEL_FAMILIES prefix)').toEqual([]);
   });

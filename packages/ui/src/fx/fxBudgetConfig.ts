@@ -45,12 +45,36 @@ export interface FxBudgetConfig {
   /** Global ceiling on filters applied across every live `FilterStack` (each is a render-to-texture pass)
    *  + the incoming play's expected filters. Over it, the oldest trimmable play that HAS filters goes. */
   maxFilters: number;
+  /**
+   * The DISCOVER SCENE ceiling on live def particles — in force while the Discover overlay is open
+   * (`fxBudget.ts`'s `setFxScene('discover')`, wired from `Game.tsx`), and always the LOWER of this and
+   * `maxParticles`. Same trim policy: the oldest same-def play first, never the incoming one, never a
+   * looping / following / `onDone` play (so the (Both) marker loops on Discover cards are untouchable).
+   *
+   * ── why a scene cap, and why 2,000 (perf handoff 2026-09-17, PR 3) ──────────────────────────────────
+   * The 238 s capture peaked at 2,673 live particles in a Discover second with `fx:tick` at 22 ms; outside
+   * the Discover the FX layer sat at 0.2 ms/frame. The Discover overlay itself plays NO defs (its golden
+   * burst is `discoverFx.discoverBurst`, 67 hand-written sprites on its own canvas); what stacks is the
+   * moment that OPENED it (a triple's `shop-tier-up` 506, `prismatic-pick` 364, a hero power's spark 124)
+   * on top of whatever the shop was already playing, plus up to four protected `choose-one-both` loops
+   * (217 each) on the offered cards. Measured on the dev build with a manual ticker (death-dissolve fans,
+   * 4.17 ms steps): the def sim + render costs ≈ 0.66 µs per live particle — ≈ 0.27 ms at 794, 0.93 ms at
+   * 1,588, 1.87 ms at 2,779, 2.64 ms at 3,970 (means; p95 climbs past 3 ms from ~1,600 up). The "`fx:tick`
+   * stays under 2 ms" line lands near 3,000 by the mean; 2,000 keeps the mean near 1.3 ms with headroom for
+   * the spawn frame and for a slower machine, and still clears the largest legitimate Discover moment
+   * (4 loops + a triple + a pick ≈ 1,860) — so under ordinary play it never bites and nothing looks
+   * different. Against the recorded peak it would have retired the oldest plays until ≤ 2,000 remained: the
+   * most-faded ~25% of that pile-up, never the burst that was landing. Owner-tunable in DEV via
+   * `window.__fx.budget.set('maxParticlesDiscover', n)`.
+   */
+  maxParticlesDiscover: number;
 }
 
 const DEFAULTS: FxBudgetConfig = {
   maxParticles: 4000,
   maxPerDef: 24,
   maxFilters: 48,
+  maxParticlesDiscover: 2000,
 };
 
 /** Slider bounds for a DEV tuner — [min, max, step] per key. */
@@ -58,6 +82,7 @@ export const FXBUDGET_RANGES: Record<keyof FxBudgetConfig, [number, number, numb
   maxParticles: [500, 20_000, 100],
   maxPerDef: [1, 64, 1],
   maxFilters: [4, 200, 1],
+  maxParticlesDiscover: [500, 20_000, 100],
 };
 
 /** The shipped values, exported so a tuner can mark which controls have moved away from them. */

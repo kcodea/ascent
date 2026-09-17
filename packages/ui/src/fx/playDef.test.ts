@@ -1,14 +1,17 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { pixiFx } from '../pixiFx';
 import type { StoredFxDef, StoredFxLayer } from './defStore';
 import { registerSavedDef } from './fxDefs';
-import { listPrimitives } from './registry';
+import { clearPrimitives, listPrimitives, registerPrimitive } from './registry';
+import type { FxInstance } from './primitive';
+import { LIFETIME_GRACE_MS, playLifetimeMs } from './playLifetime';
 import {
   canPlayDefs,
   createRetire,
   ensureDefsReady,
   fireProgress,
   loopOptionsFrom,
+  PLAY_TIMEOUT_MS,
   playDef,
   playableDef,
   playableLayers,
@@ -307,5 +310,136 @@ describe('withCamera', () => {
   it('leaves the anchors untouched with no DOM (the pure lanes must not need a window)', () => {
     const bare = { source: { x: 1, y: 2 } };
     expect(withCamera(bare), 'no window, no camera — and no crash').toBe(bare);
+  });
+});
+
+/**
+ * LIFETIME (perf handoff 2026-09-17, PR 3). A play retires when its player reports done; the ONLY backstop
+ * for a layer that never does was a flat 15 s of wall clock. The ceiling is now the def's own honest end
+ * (`playLifetimeMs`): duration + the longest particle life, or a layer's authored tail if longer, plus a
+ * grace. The overlay is stubbed the same way `fxBudget.test.ts` does it — a truthy renderer, a no-op mount,
+ * and an `addUpdater` that hands the per-frame updater back so the test can pump it.
+ */
+describe('playDef lifetime — the per-def ceiling', () => {
+  let updater: ((dtMs: number) => void) | null = null;
+  const stubPrimitive = (id: string, lifeDefault: number, completeAt: number | null) => ({
+    id,
+    params: {
+      count: { kind: 'slider' as const, label: 'Count', min: 0, max: 1000, step: 1, default: 12 },
+      life: { kind: 'slider' as const, label: 'Life', min: 1, max: 10_000, step: 1, default: lifeDefault },
+    },
+    spawn: (): FxInstance => {
+      let elapsed = 0;
+      return {
+        update: (dt: number) => { elapsed += dt; },
+        setParams: () => {},
+        setHead: () => {},
+        // `null` models a STUCK layer: one whose completion never arrives (a burst whose head never lands, a
+        // primitive bug). Otherwise complete once its own life has elapsed, like a burst's last shard dying.
+        isComplete: () => (completeAt === null ? false : elapsed >= completeAt),
+        destroy: () => {},
+      };
+    },
+  });
+
+  /** Pump the captured updater at `dtMs` per frame until the play reports done (or `maxMs` of wall clock). */
+  const runUntilDone = (done: () => boolean, dtMs = 10, maxMs = 20_000): number => {
+    let wall = 0;
+    while (!done() && wall < maxMs) {
+      updater?.(dtMs);
+      wall += dtMs;
+    }
+    return wall;
+  };
+
+  beforeEach(() => {
+    clearPrimitives();
+    updater = null;
+    vi.spyOn(pixiFx, 'rendererFor').mockReturnValue({} as never);
+    vi.spyOn(pixiFx, 'mountLayer').mockReturnValue(() => {});
+    vi.spyOn(pixiFx, 'addUpdater').mockImplementation((fn) => { updater = fn; return () => { updater = null; }; });
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    clearPrimitives();
+  });
+
+  it('a stuck play whose particle life outlives the def retires at duration + life (+ grace), never at 15 s', () => {
+    // spell-sparks-shaped: a 600 ms def with 680 / 700 ms bursts. Its honest end is 600 + 700 + grace.
+    registerPrimitive(stubPrimitive('burst', 450, null));
+    const stored = def([
+      layer({ at: 40, params: { count: 165, life: 680 } }),
+      layer({ at: 0, params: { count: 147, life: 700 } }),
+    ], { id: 'lifetime-stuck', duration: 600 });
+    registerSavedDef(stored);
+    let done = false;
+    const stop = playDef('lifetime-stuck', { source: { x: 0, y: 0 }, target: { x: 1, y: 1 } }, { onDone: () => { done = true; } });
+    expect(stop).toBeTypeOf('function');
+    const wall = runUntilDone(() => done);
+    const bound = playLifetimeMs(playableDef(stored));
+    expect(bound).toBe(600 + 700 + LIFETIME_GRACE_MS);
+    expect(done, 'the play retired on its own').toBe(true);
+    expect(wall, 'at the honest end, not the old 15 s wall-clock cap').toBeLessThanOrEqual(bound + 10);
+    expect(wall).toBeGreaterThan(600); // and not INSIDE the def — its shards are authored to outlive it
+    expect(wall).toBeLessThan(PLAY_TIMEOUT_MS);
+  });
+
+  it('a `dice-land`-shaped play that completes honestly retires when its last shard dies, inside the bound', () => {
+    // A 600 ms def: one burst whose 12 shards live 480 ms. Completion arrives at 480; the ceiling never bites.
+    registerPrimitive(stubPrimitive('burst', 450, 480));
+    const stored = def([layer({ params: { count: 12, life: 480 } })], { id: 'lifetime-dice', duration: 600 });
+    registerSavedDef(stored);
+    let done = false;
+    playDef('lifetime-dice', { source: { x: 0, y: 0 } }, { onDone: () => { done = true; } });
+    const wall = runUntilDone(() => done);
+    expect(done).toBe(true);
+    expect(wall).toBeGreaterThanOrEqual(480);
+    expect(wall).toBeLessThan(600 + 480); // well inside duration + life
+    expect(wall).toBeLessThanOrEqual(playLifetimeMs(playableDef(stored)));
+  });
+
+  it('a slower `speed` stretches the wall-clock ceiling by the same factor (the clock is what is slow)', () => {
+    registerPrimitive(stubPrimitive('burst', 450, null));
+    const stored = def([layer({ params: { life: 400 } })], { id: 'lifetime-speed', duration: 400 });
+    registerSavedDef(stored);
+    let done = false;
+    playDef('lifetime-speed', { source: { x: 0, y: 0 } }, { speed: 0.5, onDone: () => { done = true; } });
+    const wall = runUntilDone(() => done);
+    const bound = playLifetimeMs(playableDef(stored)); // 400 + 400 + grace, in simulated ms
+    expect(wall).toBeGreaterThanOrEqual(bound * 2 - 10);
+    expect(wall).toBeLessThanOrEqual(bound * 2 + 10);
+  });
+
+  it('the old 15 s wall-clock cap is still the absolute ceiling for a def whose honest end is longer', () => {
+    registerPrimitive(stubPrimitive('burst', 450, null));
+    const stored = def([layer({ params: { life: 30_000 } })], { id: 'lifetime-huge', duration: 1000 });
+    registerSavedDef(stored);
+    let done = false;
+    playDef('lifetime-huge', { source: { x: 0, y: 0 } }, { onDone: () => { done = true; } });
+    const wall = runUntilDone(() => done, 50, 40_000);
+    expect(done).toBe(true);
+    expect(wall).toBeLessThanOrEqual(PLAY_TIMEOUT_MS + 50);
+  });
+
+  it('the DOM-side wrapper count returns to baseline once plays retire (nothing is left mounted)', () => {
+    // `playDef` mounts one Pixi container per play through `pixiFx.mountLayer` and unmounts it on retire —
+    // the unmount is the FX layer's whole DOM/scene footprint. Count mounts against unmounts.
+    let mounted = 0;
+    vi.spyOn(pixiFx, 'mountLayer').mockImplementation(() => { mounted++; return () => { mounted--; }; });
+    registerPrimitive(stubPrimitive('burst', 450, 300));
+    const stored = def([layer({ params: { life: 300 } })], { id: 'lifetime-mounts', duration: 500 });
+    registerSavedDef(stored);
+    let finished = 0;
+    const stops: (() => void)[] = [];
+    for (let i = 0; i < 5; i++) {
+      const s = playDef('lifetime-mounts', { source: { x: i, y: i } }, { onDone: () => { finished++; } });
+      if (s) stops.push(s);
+    }
+    expect(mounted).toBe(5);
+    // Only the LAST registered updater is captured by the stub, so pump every play through its own retire.
+    runUntilDone(() => finished === 1);
+    for (const s of stops) s();
+    expect(mounted, 'every wrapper unmounted').toBe(0);
+    expect(finished).toBe(5);
   });
 });

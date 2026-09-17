@@ -118,6 +118,9 @@ export interface DiceCosmetics {
   restAngle: number;
   /** A pixel of landing-burst jitter, ±2 px each axis. */
   jitter: { x: number; y: number };
+  /** The THROW's direction jitter, in [-1, 1] — scaled by the tuner's `throwJitterDeg` at the call site. Drawn
+   *  AFTER the two above, so the power path's cosmetics are unchanged by its existence. */
+  throwJitter: number;
 }
 
 /** Every cosmetic choice for a roll, from the seeded stream — the ONLY randomness in the overlay. */
@@ -125,7 +128,8 @@ export function diceCosmetics(seed: number): DiceCosmetics {
   const rng = makeRng(seed);
   const restAngle = Math.round((rng.next() * 30 - 15) * 10) / 10;
   const jitter = { x: Math.round((rng.next() * 4 - 2) * 10) / 10, y: Math.round((rng.next() * 4 - 2) * 10) / 10 };
-  return { restAngle, jitter };
+  const throwJitter = Math.round((rng.next() * 2 - 1) * 1000) / 1000;
+  return { restAngle, jitter, throwJitter };
 }
 
 /** The tweened state one frame of the roll is drawn from. */
@@ -134,6 +138,7 @@ export interface DiceState {
   z: number;                // hop height toward the camera (px)
   scale: number;            // landing squash
   yaw: number;              // rotateZ (deg)
+  tx: number; ty: number;   // ground translate (px) — 0 for an in-place roll; the throw's travel otherwise
 }
 
 /** Shadow from height — opacity, offset and size all follow z, the top-down depth cue. */
@@ -150,7 +155,18 @@ export interface DiceTimelineOptions {
   spinCount: number;
   settleBounce: number; // 0..0.5
   restAngle: number;    // deg, seeded
-  /** `prefers-reduced-motion`: 250 ms, no hop, no spins, no rock-back — the face just appears. */
+  /**
+   * A THROW (the Gamble spell, owner follow-up 2026-09-17): instead of hopping in place the die travels `dx, dy`
+   * px along the table in `bounceCount` decaying parabolas (each apex = previous × `bounceDecay`, hang ∝ √decay)
+   * and its X/Y rotation advances WITH the distance travelled — rolling on the felt, not spinning mid-air — still
+   * resolving to the exact result face at the final touchdown. `onLand` is that LAST contact; `onBounce` fires
+   * at each earlier one. Omitted = the in-place roll (the Gambler's power).
+   */
+  throw?: { dx: number; dy: number; bounceCount: number; bounceDecay: number };
+  /** Each INTERMEDIATE touchdown of a throw: its index (0-based) and the ground offset at contact. */
+  onBounce?: (index: number, at: { x: number; y: number }) => void;
+  /** `prefers-reduced-motion`: 250 ms, no hop, no spins, no rock-back (and no throw — the die appears at the
+   *  landing spot) — the face just appears. */
   reducedMotion?: boolean;
   onUpdate?: (s: DiceState) => void;
   /** First ground contact (t = 0.62) — the landing burst, the prize reveal, the (future) sound hook. */
@@ -178,15 +194,16 @@ const mod360 = (d: number): number => ((d % 360) + 360) % 360;
 export function buildDiceTimeline(o: DiceTimelineOptions): DiceTimeline {
   const target = FACE_ROT[o.result];
   const from = { rx: mod360(o.from.rx), ry: mod360(o.from.ry) };
-  const state: DiceState = { rx: from.rx, ry: from.ry, z: 0, scale: 1, yaw: 0 };
+  const state: DiceState = { rx: from.rx, ry: from.ry, z: 0, scale: 1, yaw: 0, tx: 0, ty: 0 };
   const emit = (): void => { o.onUpdate?.(state); };
   const tl = gsap.timeline({ paused: true, onUpdate: emit, onComplete: () => { o.onComplete?.(); } });
   const rest = { rx: mod360(target.x), ry: mod360(target.y) };
 
   if (o.reducedMotion) {
     const T = 0.25;
-    // No spins: the shortest turn onto the face, and the face is simply there.
+    // No spins: the shortest turn onto the face, and the face is simply there — at the landing spot if thrown.
     state.rx = rest.rx; state.ry = rest.ry;
+    if (o.throw) { state.tx = o.throw.dx; state.ty = o.throw.dy; }
     tl.fromTo(state, { scale: 0.9 }, { scale: 1, duration: T, ease: 'power1.out', immediateRender: false }, 0);
     tl.call(() => { o.onLand?.(); }, [], 0.62 * T);
     return { tl, state, rest, durationMs: T * 1000 };
@@ -201,6 +218,38 @@ export function buildDiceTimeline(o: DiceTimelineOptions): DiceTimeline {
   const overX = o.settleBounce * 60;
   const overY = overX * 0.6;
   const hop = Math.max(0, o.hopHeight);
+
+  if (o.throw) {
+    // ── THE THROW ──────────────────────────────────────────────────────────────────────────────────────
+    // Travel + rolling occupy 0→TRAVEL; the last touchdown IS the landing; the rest is the contact squash
+    // relaxing. Rotation is tweened with the SAME ease and duration as the ground translate, so it is a
+    // function of distance travelled by construction — the die rolls on the felt.
+    const TRAVEL = 0.85;
+    const bounces = Math.min(4, Math.max(1, Math.round(o.throw.bounceCount)));
+    const decay = Math.min(0.7, Math.max(0.3, o.throw.bounceDecay));
+    const hangRatio = Math.sqrt(decay); // a parabola's hang time scales with the square root of its apex
+    let hangSum = 0;
+    for (let i = 0; i < bounces; i++) hangSum += hangRatio ** i;
+    const firstHang = (TRAVEL * T) / hangSum;
+    tl.to(state, { tx: o.throw.dx, ty: o.throw.dy, rx: endX, ry: endY, duration: TRAVEL * T, ease: 'power2.out' }, 0);
+    let at = 0;
+    for (let i = 0; i < bounces; i++) {
+      const hang = firstHang * hangRatio ** i;
+      const apex = hop * decay ** i;
+      tl.to(state, { z: apex, duration: hang / 2, ease: 'power2.out' }, at);
+      tl.to(state, { z: 0, duration: hang / 2, ease: 'power2.in' }, at + hang / 2);
+      at += hang;
+      if (i < bounces - 1) {
+        const idx = i;
+        tl.call(() => { o.onBounce?.(idx, { x: state.tx, y: state.ty }); }, [], at);
+      }
+    }
+    // The LAST contact: the landing — squash, then relax flat; the yaw finishes with the travel.
+    tl.fromTo(state, { scale: 1 + o.settleBounce * 0.25 }, { scale: 1, duration: (1 - TRAVEL) * T, ease: 'power1.out', immediateRender: false }, TRAVEL * T);
+    tl.to(state, { yaw: 360 + o.restAngle, duration: TRAVEL * T, ease: 'power2.out' }, 0);
+    tl.call(() => { o.onLand?.(); }, [], TRAVEL * T);
+    return { tl, state, rest, durationMs: T * 1000 };
+  }
 
   // CUBE — tumble past the end, rock back, settle.
   tl.to(state, { rx: endX + overX, ry: endY + overY, duration: 0.74 * T, ease: EASE_TUMBLE }, 0);

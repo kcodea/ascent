@@ -32,6 +32,24 @@ cycle on the power button and `Recruit`'s `.gambledie` portal — are replaced b
 - **Perf.** One `getBoundingClientRect` per Gambler roll (none for the spell — it uses the recorded pointer);
   four transform/opacity writes per frame; nothing loops; no filters.
 
+## Owner follow-ups, same day (same branch)
+
+- **The Gamble die is THROWN.** `buildDiceTimeline` takes `throw?: { dx, dy, bounceCount, bounceDecay }`: the
+  ground translates `dx, dy` over 0→0.85 while the cube's X/Y rotation is tweened with the SAME ease and duration
+  — rotation is a function of distance travelled by construction (rolling on the felt), still resolving to the
+  exact face at the last touchdown. `bounceCount` decaying parabolas (apex × `bounceDecay`, hang ∝ √decay), each
+  intermediate contact fires `onBounce` (a 0.55× `dice-land` burst), the final one is `onLand` (prize reveal). The
+  power path is untouched — the throw is a prop on the one component, not a fork. Test: 100 forced throws × 6 faces.
+- **Direction = the mouse's flick.** `Recruit` keeps a 150 ms ring of pointer samples; at roll start `flickOf`
+  takes the sample ~120 ms before release → release point as the direction and its speed (px/ms). Distance =
+  `throwDistance` × `flickDistanceScale(speed, flickScale)` (1 px/ms neutral, clamped 0.6×–1.6×). Under 8 px of
+  travel = still → `towardBoard` (cast → board centre, never downward). Landing = `throwLanding` (seeded ±wobble,
+  clamped inside the viewport and above the hand row). The direction is real input; only the wobble is seeded.
+- **Knobs (spell only):** throwDistance 220 (60–500), flickScale 0.5 (0–1), bounceCount 3 (1–4), bounceDecay 0.5
+  (0.3–0.7), throwJitterDeg 10 (0–25). Reduced motion: the die appears at the landing spot.
+- **Sound:** `GambleSFX.mp3` → `audio/gamblesfx.mp3`, `sfx.gamble()`, fired as the die LAUNCHES for both the
+  Gambler's power and the Gamble spell; its own 1:1 mixer category `gamble` (ui bus, 0.6). `onLand` stays a hook.
+
 **Adapted from the handoff, and why.** The spec's "particles ×12 / ring" DOM children became a `playDef` def
 (the coordinator's ask: route bursts through the FX pipeline). The four knobs are there, plus the two spell
 preset knobs the spec described as "per-variant presets" — the spell's quicker roll is a real, dialable

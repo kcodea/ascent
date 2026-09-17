@@ -105,8 +105,8 @@ import { fodderGainHolds, type FodderGain } from './fx/fodderGains';
 import { applyFloatSpeed, getFloatConfig, splashImgSrc } from './floatConfig';
 import gsap from 'gsap';
 import { DiceRoll } from './DiceRoll';
-import { diceSeed, type DieFace } from './diceRollTimeline';
-import { DICE_TEST_EVENT } from './diceRollConfig';
+import { diceCosmetics, diceSeed, type DieFace } from './diceRollTimeline';
+import { DICE_TEST_EVENT, FLICK_WINDOW_MS, diceRollParamsFor, flickDistanceScale, flickOf, throwLanding, towardBoard, type PointerSample } from './diceRollConfig';
 import { Flip } from 'gsap/Flip';
 import { useGame } from './store';
 import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGateNudge } from './tutorial/gateBus';
@@ -1505,15 +1505,43 @@ export function Recruit() {
      them at `faceOmen`, and `grantPlayedRef` keeps them from materialising twice. */
   const [eotGrants, setEotGrants] = useState<string[]>([]);
   // GAMBLE'S DIE (owner ask 2026-08-15; 3D die per the 2026-09-17 handoff): the spell rolls the SAME shared
-  // `DiceRoll` the Gambler's hero power does, at the point you released the card (the last pointer position,
-  // recorded below — never a layout read), and the card it won is WITHHELD from the hand until the die first
-  // touches down (`onLand`), not until it settles. The pull itself already resolved in the reducer
+  // `DiceRoll` the Gambler's hero power does — THROWN from the point you released the card (the last pointer
+  // position, recorded below) toward the board centre, bouncing across the table (owner follow-up 2026-09-17) —
+  // and the card it won is WITHHELD from the hand until the die's FINAL touchdown (`onLand`), not until it settles. The pull itself already resolved in the reducer
   // (deterministic/replayable) — this is purely when you get to see it. The face IS the tier pulled.
-  const [gambleDie, setGambleDie] = useState<{ result: DieFace; x: number; y: number; seed: number; key: number } | null>(null);
+  const [gambleDie, setGambleDie] = useState<{ result: DieFace; x: number; y: number; to: { x: number; y: number }; seed: number; key: number } | null>(null);
+  /** Where a Gamble die thrown from `from` lands (owner follow-up 2026-09-17): toward the board centre, bent by the
+   *  seeded wobble, clamped inside the viewport and above the hand row. ONE layout read per cast, never per frame. */
+  const gambleLanding = (from: { x: number; y: number }, seed: number): { x: number; y: number } => {
+    const p = diceRollParamsFor('spell').throw!;
+    const board = document.querySelector('[data-zone="warband"]')?.getBoundingClientRect();
+    const hand = document.querySelector('.row.hand')?.getBoundingClientRect();
+    const centre = board ? { x: board.left + board.width / 2, y: board.top + board.height / 2 } : { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    // The flick just before release sets the direction and (mildly) the distance; a still release throws toward
+    // the board centre. Real input, so only the seeded wobble below is the replay-pinned part.
+    const flick = flickOf(pointerTrailRef.current, { ...from, t: performance.now() });
+    const dir = flick?.dir ?? towardBoard(from, centre);
+    const distance = p.distance * (flick ? flickDistanceScale(flick.speed, p.flickScale) : 1);
+    const to = throwLanding(from, dir, { distance, jitterDeg: p.jitterDeg }, diceCosmetics(seed).throwJitter,
+      { width: window.innerWidth, height: window.innerHeight, handTop: hand?.top ?? window.innerHeight, margin: 60 });
+    // DEV fire log (same spirit as the FX fire log): what the throw read, so a "it went the wrong way" report can
+    // be checked against the samples rather than guessed at.
+    if (import.meta.env.DEV) console.debug('[dice] throw', JSON.stringify({ from, flick, dir, distance, to, samples: pointerTrailRef.current.length, handTop: hand?.top }));
+    return to;
+  };
   const [gambleHold, setGambleHold] = useState<string | null>(null);
   const pointerRef = useRef({ x: 0, y: 0 });
+  // The last ~150 ms of pointer motion (a small ring, newest last) — the THROW's direction is the flick the mouse
+  // made just before the card was released (owner ask 2026-09-17), read by `flickOf` at roll start.
+  const pointerTrailRef = useRef<PointerSample[]>([]);
   useEffect(() => {
-    const onMove = (e: PointerEvent): void => { pointerRef.current = { x: e.clientX, y: e.clientY }; };
+    const onMove = (e: PointerEvent): void => {
+      pointerRef.current = { x: e.clientX, y: e.clientY };
+      const trail = pointerTrailRef.current;
+      const t = performance.now();
+      trail.push({ x: e.clientX, y: e.clientY, t });
+      while (trail.length > 0 && t - trail[0]!.t > FLICK_WINDOW_MS) trail.shift();
+    };
     window.addEventListener('pointermove', onMove, { passive: true });
     window.addEventListener('pointerdown', onMove, { passive: true });
     return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerdown', onMove); };
@@ -1528,7 +1556,9 @@ export function Recruit() {
     if (tier < 1 || tier > 6) return;
     const { x, y } = pointerRef.current;               // where the spell was released
     if (run.gambleWonUid) setGambleHold(run.gambleWonUid); // hold the prize back until the die lands
-    setGambleDie({ result: tier as DieFace, x, y, seed: diceSeed('spell', seq), key: seq });
+    const seed = diceSeed('spell', seq);
+    setGambleDie({ result: tier as DieFace, x, y, to: gambleLanding({ x, y }, seed), seed, key: seq });
+    sfx.gamble();                                       // the die launches
     return () => setGambleHold(null);                   // a second roll mid-tumble never strands the first prize
   }, [run.gambleRoll?.seq, run.gambleRoll?.tier, run.gambleWonUid]);
   // DEV: the Dice tuner's ▶ Test rolls a spell-tinted die at the screen centre (no Gamble in hand needed).
@@ -1536,7 +1566,10 @@ export function Recruit() {
     if (!import.meta.env.DEV) return;
     const on = (e: Event): void => {
       const face = Math.min(6, Math.max(1, (e as CustomEvent<{ face?: number }>).detail?.face ?? 1)) as DieFace;
-      setGambleDie({ result: face, x: window.innerWidth / 2, y: window.innerHeight / 2, seed: diceSeed('spell', 1000 + face), key: -(1000 + face) });
+      const from = { x: window.innerWidth / 2, y: window.innerHeight * 0.8 };
+      const seed = diceSeed('spell', 1000 + face);
+      setGambleDie({ result: face, ...from, to: gambleLanding(from, seed), seed, key: -(1000 + face) });
+      sfx.gamble();
     };
     window.addEventListener(DICE_TEST_EVENT, on);
     return () => window.removeEventListener(DICE_TEST_EVENT, on);
@@ -6783,10 +6816,11 @@ export function Recruit() {
           key={gambleDie.key}
           result={gambleDie.result}
           anchor={{ x: gambleDie.x, y: gambleDie.y }}
+          throwTo={gambleDie.to}
           variant="spell"
           seed={gambleDie.seed}
           holdMs={900}
-          onLand={() => setGambleHold(null)}             // the number has landed — award the card NOW
+          onLand={() => setGambleHold(null)}             // the FINAL touchdown — award the card NOW
           onRetire={() => setGambleDie((d) => (d && d.key === gambleDie.key ? null : d))}
         />
       )}

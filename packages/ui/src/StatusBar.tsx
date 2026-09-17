@@ -390,6 +390,7 @@ export function StatusBar() {
       seed: diceSeed('power', run.wave, rolled),
       settled: false,
     });
+    sfx.gamble(); // the die launches (the same cue the Gamble spell's throw uses)
   }, [run.heroDiceLockUntil, run.heroDiceRoll, run.wave, power.kind]);
   // The settled face STAYS UP for the rest of the turn (owner ruling 2026-08-16) — it used to hand the slot
   // back to the lock countdown after 1.1s, which read as the number being taken away. `heroDiceRollWave` is the

@@ -28,8 +28,12 @@ import {
 export interface DiceRollProps {
   /** 1–6, from the sim. For the spell this is the tier pulled. */
   result: DieFace;
-  /** Screen px — the centre of the landing. Measured once by the caller. */
+  /** Screen px — the centre of the landing (or, for a THROW, the launch point). Measured once by the caller. */
   anchor: { x: number; y: number };
+  /** A THROW (the Gamble spell): the die launches from `anchor` and bounces across the table to land at `to`
+   *  (screen px, computed by the caller via `throwLanding`). The power path omits it and hops in place. It is a
+   *  prop on the one shared component, not a fork — see `diceRollTimeline.ts`. */
+  throwTo?: { x: number; y: number };
   variant: DiceVariant;
   /** Seeds the cosmetics (rest yaw, burst jitter). Key it off the EVENT — `diceSeed(...)`. */
   seed: number;
@@ -100,7 +104,7 @@ function reducedMotion(): boolean {
 }
 
 export function DiceRoll(props: DiceRollProps): JSX.Element {
-  const { result, anchor, variant, seed, holdMs = 0 } = props;
+  const { result, anchor, variant, seed, holdMs = 0, throwTo } = props;
   const groundRef = useRef<HTMLDivElement>(null);
   const shadowRef = useRef<HTMLDivElement>(null);
   const hopRef = useRef<HTMLDivElement>(null);
@@ -120,6 +124,14 @@ export function DiceRoll(props: DiceRollProps): JSX.Element {
     const palette = tintPalette(tint);
     let fade: gsap.core.Tween | null = null;
     let holdTimer = 0;
+    const thrown = throwTo && params.throw
+      ? { dx: throwTo.x - anchor.x, dy: throwTo.y - anchor.y, bounceCount: params.throw.bounceCount, bounceDecay: params.throw.bounceDecay }
+      : undefined;
+    const burst = (at: { x: number; y: number }, scale: number): void => {
+      if (reduced || !canPlayDefs()) return;
+      const p = { x: at.x + cosmetics.jitter.x, y: at.y + cosmetics.jitter.y };
+      playDef('dice-land', { source: p, target: p, cursor: p }, { recolor: palette, scale });
+    };
 
     const built = buildDiceTimeline({
       result,
@@ -130,8 +142,10 @@ export function DiceRoll(props: DiceRollProps): JSX.Element {
       settleBounce: params.settleBounce,
       restAngle: cosmetics.restAngle,
       reducedMotion: reduced,
+      throw: thrown,
       onUpdate: (s) => {
-        // Four transform writes, no reads. The shadow follows the hop height — the top-down depth cue.
+        // Five transform writes, no reads. The shadow follows the hop height — the top-down depth cue.
+        if (thrown) ground.style.transform = `translate(${s.tx}px, ${s.ty}px)`;
         hop.style.transform = `translateZ(${s.z}px) scale(${s.scale})`;
         yaw.style.transform = `rotateZ(${s.yaw}deg)`;
         cube.style.transform = `rotateX(${s.rx}deg) rotateY(${s.ry}deg)`;
@@ -139,14 +153,13 @@ export function DiceRoll(props: DiceRollProps): JSX.Element {
         shadow.style.opacity = String(sh.opacity);
         shadow.style.transform = `translate(${sh.tx}px, ${sh.ty}px) scale(${sh.scale})`;
       },
+      // An intermediate bounce of a throw: a smaller burst where it touched down.
+      onBounce: (_i, at) => { burst({ x: anchor.x + at.x, y: anchor.y + at.y }, 0.55); },
       onLand: () => {
         // The landing burst — ring + 12 particles — through the authored def, tinted by variant / tier. Skipped
         // under reduced motion (the handoff: just show the face). Sound hook: an `sfx` cue belongs HERE when a
-        // clip exists (none yet).
-        if (!reduced && canPlayDefs()) {
-          const p = { x: anchor.x + cosmetics.jitter.x, y: anchor.y + cosmetics.jitter.y };
-          playDef('dice-land', { source: p, target: p, cursor: p }, { recolor: palette });
-        }
+        // clip exists (none yet). For a throw this is the FINAL touchdown, at the landing spot.
+        burst(throwTo ?? anchor, 1);
         cbs.current.onLand?.();
       },
       onComplete: () => {
@@ -166,7 +179,7 @@ export function DiceRoll(props: DiceRollProps): JSX.Element {
       window.clearTimeout(holdTimer);
     };
     // A roll is one event: the props that identify it are fixed for the component's life.
-  }, [result, variant, seed, anchor.x, anchor.y]);
+  }, [result, variant, seed, anchor.x, anchor.y, throwTo?.x, throwTo?.y]);
 
   const tint = diceTint(variant, result);
   const style = { left: anchor.x, top: anchor.y, '--dice-tint': tint } as CSSProperties;

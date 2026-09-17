@@ -167,3 +167,93 @@ describe('seeded cosmetics — the same event replays identically', () => {
     expect(run()).toEqual(run());
   });
 });
+
+describe('the THROW (Gamble spell, owner follow-up 2026-09-17)', () => {
+  const THROW = { dx: 180, dy: -120, bounceCount: 3, bounceDecay: 0.5 };
+
+  for (const result of FACES) {
+    it(`thrown result ${result}: 100 forced throws, no mismatch, lands at the spot`, () => {
+      let from = { rx: 0, ry: 0 };
+      for (let i = 0; i < 100; i++) {
+        const seed = diceSeed('spell', i, result);
+        const { restAngle } = diceCosmetics(seed);
+        const built = buildDiceTimeline({
+          result, from, restAngle,
+          tumbleTime: 600 + (i * 41) % 1600, hopHeight: (i * 7) % 150, spinCount: 1 + (i % 6), settleBounce: (i % 6) * 0.1,
+          throw: { dx: -250 + (i * 13) % 500, dy: -(i * 5) % 300, bounceCount: 1 + (i % 4), bounceDecay: 0.3 + (i % 5) * 0.1 },
+        });
+        built.tl.progress(1);
+        expect(faceUp(built.state.rx, built.state.ry)).toBe(result);
+        expect(built.state.z).toBeCloseTo(0, 6);
+        expect(built.state.scale).toBe(1);
+        expect(built.state.tx).toBeCloseTo(-250 + (i * 13) % 500, 9);
+        expect(built.state.ty).toBeCloseTo(-(i * 5) % 300, 9);
+        expect(faceUp(built.rest.rx, built.rest.ry)).toBe(result);
+        const prev = FACE_ROT[FACES[(i + result) % 6]!];
+        from = { rx: prev.x, ry: prev.y };
+      }
+    });
+  }
+
+  it('rolls WITH the distance: rotation progress equals travel progress at every sample', () => {
+    const b = buildDiceTimeline({ result: 2, from: { rx: 0, ry: 0 }, tumbleTime: 1000, hopHeight: 80, spinCount: 2, settleBounce: 0.22, restAngle: 0, throw: THROW });
+    b.tl.progress(1);
+    const endX = b.state.rx, endY = b.state.ry;
+    for (const p of [0.1, 0.25, 0.4, 0.6, 0.85, 0.95]) {
+      b.tl.progress(p);
+      const travel = b.state.tx / THROW.dx;
+      expect(b.state.ty / THROW.dy).toBeCloseTo(travel, 6);
+      expect(b.state.rx / endX).toBeCloseTo(travel, 6);
+      expect(b.state.ry / endY).toBeCloseTo(travel, 6);
+    }
+    b.tl.progress(0.85);
+    expect(b.state.tx).toBeCloseTo(THROW.dx, 6); // travel is done at the final touchdown
+  });
+
+  it('bounces `bounceCount` decaying parabolas: each apex halves, each touchdown is at z = 0, then the landing', () => {
+    const onBounce = vi.fn(); const onLand = vi.fn(); const onComplete = vi.fn();
+    const opts = { result: 4 as DieFace, from: { rx: 0, ry: 0 }, tumbleTime: 1000, hopHeight: 80, spinCount: 2, settleBounce: 0.22, restAngle: 0, throw: THROW };
+    // Hang times ∝ √decay: h, h√.5, h·.5 summing to 0.85.
+    const r = Math.sqrt(0.5); const h = 0.85 / (1 + r + r * r);
+    const touchdowns = [h, h + h * r, 0.85];
+    const apexes = [h / 2, h + (h * r) / 2, h + h * r + (h * r * r) / 2];
+    // Geometry on a scrubbed copy (scrubbing back and forth re-fires GSAP callbacks, so the counts use a
+    // separate timeline driven forward once, as the component does).
+    const geo = buildDiceTimeline(opts);
+    apexes.forEach((t, i) => { geo.tl.progress(t); expect(geo.state.z).toBeCloseTo(80 * 0.5 ** i, 3); });
+    touchdowns.forEach((t) => { geo.tl.progress(t); expect(geo.state.z).toBeCloseTo(0, 3); });
+    const b = buildDiceTimeline({ ...opts, onBounce, onLand, onComplete });
+    b.tl.progress(0.84);
+    expect(onBounce).toHaveBeenCalledTimes(2);
+    expect(onBounce.mock.calls[0]![0]).toBe(0);
+    expect(onBounce.mock.calls[1]![0]).toBe(1);
+    // Each intermediate contact reports where on the ground it happened (short of the landing spot).
+    const at0 = onBounce.mock.calls[0]![1] as { x: number; y: number };
+    expect(Math.abs(at0.x)).toBeGreaterThan(0);
+    expect(Math.abs(at0.x)).toBeLessThan(Math.abs(THROW.dx));
+    expect(onLand).not.toHaveBeenCalled();
+    b.tl.progress(1);
+    expect(onBounce).toHaveBeenCalledTimes(2);
+    expect(onLand).toHaveBeenCalledTimes(1);
+    expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it('reduced motion: no throw — the die appears at the landing spot, face up, in 250 ms', () => {
+    const onBounce = vi.fn();
+    const b = buildDiceTimeline({ result: 6, from: { rx: 90, ry: 0 }, tumbleTime: 1000, hopHeight: 80, spinCount: 2, settleBounce: 0.22, restAngle: 0, throw: THROW, reducedMotion: true, onBounce });
+    expect(b.durationMs).toBe(250);
+    b.tl.progress(0.1);
+    expect(b.state.tx).toBe(THROW.dx); expect(b.state.ty).toBe(THROW.dy); expect(b.state.z).toBe(0);
+    b.tl.progress(1);
+    expect(faceUp(b.state.rx, b.state.ry)).toBe(6);
+    expect(onBounce).not.toHaveBeenCalled();
+  });
+
+  it('the power path is untouched by the throw knobs: no ground travel, no bounce callbacks', () => {
+    const onBounce = vi.fn();
+    const b = buildDiceTimeline({ result: 3, from: { rx: 0, ry: 0 }, tumbleTime: 1100, hopHeight: 80, spinCount: 3, settleBounce: 0.22, restAngle: 5, onBounce });
+    b.tl.progress(1);
+    expect(b.state.tx).toBe(0); expect(b.state.ty).toBe(0);
+    expect(onBounce).not.toHaveBeenCalled();
+  });
+});

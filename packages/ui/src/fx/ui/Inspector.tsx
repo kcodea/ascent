@@ -19,7 +19,7 @@ import { filterEntries, filterOnCount, isFilterGroup, moveFilter, type FilterEnt
 import { CORE_BLUR_ID, FILTER_ORDER_KEY } from '../filterStack';
 import { importShapeFromFile, listShapeOptions, removeImportedShape } from '../shapeLibrary';
 import { imageUrlFor, importFramesFromFiles, importImageFromFile, listImageOptions, IMAGE_NONE } from '../imageLibrary';
-import { clipNames, previewClip } from '../../sfx';
+import { clipNames, previewClip, importFxSound } from '../../sfx';
 import { ColorPickerHSB } from './ColorPickerHSB';
 import { PalettePicker } from './PalettePicker';
 import { GradientEditor } from './GradientEditor';
@@ -686,10 +686,12 @@ function ParamRow({
 }
 
 /**
- * The `sound` param's control: a picker over the committed clip library (`sfx.ts`'s `clipNames()`) plus a ▶
- * preview. Import of new clips joins this list once that pipeline lands (PR 2); for now it lists the game's
- * committed clips. Its own component (not an inline branch) so its `previewClip` handler and any future state
- * live outside Inspector's mapped render, where hooks are illegal.
+ * The `sound` param's control: a picker over the clip library (`sfx.ts`'s `clipNames()` — the game's committed
+ * clips plus this browser's imports) with a ▶ preview and an Import button. Importing a WAV/MP3 writes it to
+ * `audio/fx/<slug>` (committed → bundled for all players), decodes it for immediate play, and selects it.
+ *
+ * Its own component (not an inline branch) because it holds hooks — an import bumps a local counter to re-read
+ * `clipNames()` after the module-level registry changes, the same trick `ShapeField` uses.
  */
 function SoundField({
   id,
@@ -702,20 +704,54 @@ function SoundField({
   disabled?: boolean;
   onChange: (next: string) => void;
 }): React.ReactElement {
+  const [, bumpRegistry] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const options = clipNames();
+
+  const runImport = async (file: File): Promise<void> => {
+    setBusy(true);
+    setError(null);
+    try {
+      const { id: clipId } = await importFxSound(file);
+      bumpRegistry((n) => n + 1); // the library grew — re-read clipNames()
+      onChange(clipId);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <span className="fxwb-soundfield">
-      <select id={id} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
+      <select id={id} value={value} disabled={disabled || busy} onChange={(e) => onChange(e.target.value)}>
         <option value="">(none)</option>
         {options.map((c) => <option key={c} value={c}>{c}</option>)}
       </select>
       <button
         type="button"
         className="fxwb-btn"
-        disabled={disabled || value === ''}
+        disabled={disabled || busy || value === ''}
         onClick={() => { if (value !== '') previewClip(value); }}
         title="Preview this clip"
       >▶</button>
+      <button
+        type="button"
+        className="fxwb-btn"
+        disabled={disabled || busy}
+        onClick={() => fileRef.current?.click()}
+        title="Import a WAV or MP3"
+      >{busy ? '…' : 'Import'}</button>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".wav,.mp3,audio/wav,audio/mpeg"
+        hidden
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void runImport(f); }}
+      />
+      {error !== null && <span className="fxwb-rowwhy">{error}</span>}
     </span>
   );
 }

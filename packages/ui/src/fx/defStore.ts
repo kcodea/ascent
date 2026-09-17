@@ -454,6 +454,19 @@ export async function saveImage(slug: string, dataUrl: string): Promise<SaveResu
   return post('/__fx/image', { slug, dataUrl });
 }
 
+/** Write `audio/fx/<slug>.<ext>` from an audio data URL — the `sound` primitive's imported clip (see `sfx.ts`).
+ *  Committed there, it's bundled for every player. `ext` is 'wav' or 'mp3'; the server re-validates both the ext
+ *  and the audio magic bytes. */
+export async function saveSound(slug: string, dataUrl: string, ext: 'wav' | 'mp3'): Promise<SaveResult> {
+  if (!isValidSlug(slug)) {
+    return { ok: false, error: `'${slug}' is not a usable sound name (lowercase letters, digits and dashes).` };
+  }
+  if (!dataUrl.startsWith('data:audio/')) {
+    return { ok: false, error: 'A sound must be an audio data URL.' };
+  }
+  return post('/__fx/sound', { slug, dataUrl, ext });
+}
+
 // ─── session autosave ─────────────────────────────────────────────────────────────────────────────────
 
 function storage(): Storage | null {

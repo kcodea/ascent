@@ -32,6 +32,24 @@ export const MAX_ART_BYTES = 4 * 1024 * 1024;
 
 export const ART_DATA_URL_PREFIX = 'data:image/png;base64,';
 
+/** A `sound` FX clip is a short WAV/MP3 (SFX, the occasional short bed). 16 MB is a generous ceiling that still
+ *  bounds a bad request. */
+export const MAX_SOUND_BYTES = 16 * 1024 * 1024;
+/** The audio containers the `sound` primitive imports accept — matched to what `sfx.ts`'s glob + `decodeAudioData`
+ *  handle, minus `mp4` (Cubase exports are wav/mp3; keep the import surface to what the picker offers). */
+export const SOUND_EXTS = ['wav', 'mp3'] as const;
+export type SoundExt = (typeof SOUND_EXTS)[number];
+const WAV_RIFF = Buffer.from('RIFF');
+const WAV_WAVE = Buffer.from('WAVE');
+const ID3_MAGIC = Buffer.from('ID3');
+/** Is `buf` actually the audio it claims? Belt-and-braces on top of the `ext`, mirroring the PNG magic check:
+ *  WAV is a RIFF/WAVE container; MP3 is an ID3 tag or a raw MPEG-audio frame sync (0xFF Ex). */
+function isSoundBuffer(buf: Buffer, ext: SoundExt): boolean {
+  if (ext === 'wav') return buf.length >= 12 && buf.subarray(0, 4).equals(WAV_RIFF) && buf.subarray(8, 12).equals(WAV_WAVE);
+  // mp3
+  return buf.subarray(0, 3).equals(ID3_MAGIC) || (buf.length >= 2 && buf[0] === 0xff && (buf[1] & 0xe0) === 0xe0);
+}
+
 /** PNG's 8-byte file signature. Belt-and-braces on top of the data-URL prefix: the prefix is a claim, this
  *  is the file actually being a PNG. */
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -142,6 +160,48 @@ export function planImageRead(name: string, defsRoot: string): ReadPlan {
   if (!m) return { status: 404 };
   const root = path.resolve(defsRoot);
   const file = path.resolve(root, 'images', `${m[1]}.png`);
+  if (!isInside(root, file)) return { status: 404 };
+  return { status: 200, file };
+}
+
+/**
+ * Plan a write of an imported `sound` FX clip to `audio/fx/<slug>.<ext>`. Its own function rather than a
+ * `WriteKind` because the destination root (the audio tree) and the payload (a WAV/MP3, not a PNG) differ from
+ * `planWrite`. Pure + fs-free, same as the others: slug grammar + ext allow-list + audio-magic + size + a
+ * containment gate after resolve, so an unauthenticated local POST can never write outside `audio/fx/`.
+ */
+export function planSoundWrite(body: unknown, audioFxRoot: string): WritePlan {
+  if (!isRecord(body)) return bad(400, 'Expected a JSON object body.');
+  const root = path.resolve(audioFxRoot);
+  const { slug, dataUrl, ext } = body;
+  if (typeof slug !== 'string' || slug === '') return bad(400, 'Missing `slug`.');
+  if (!SLUG_RE.test(slug)) return bad(400, `'${slug}' is not a valid sound slug (^[a-z0-9][a-z0-9-]{0,63}$).`);
+  if (typeof ext !== 'string' || !SOUND_EXTS.includes(ext as SoundExt)) return bad(400, 'Sound must be a .wav or .mp3.');
+  if (typeof dataUrl !== 'string') return bad(400, 'Missing `dataUrl`.');
+  const marker = dataUrl.indexOf('base64,');
+  if (!dataUrl.startsWith('data:audio/') || marker < 0) return bad(400, 'Sound must be a base64 `data:audio/...` URL.');
+  // Cheap length gate BEFORE decoding (base64 is 4/3 of the bytes), so an absurd payload never allocates twice.
+  if (dataUrl.length > MAX_SOUND_BYTES * 2) return bad(413, `Sound is larger than ${MAX_SOUND_BYTES} bytes.`);
+  const buf = Buffer.from(dataUrl.slice(marker + 'base64,'.length), 'base64');
+  if (buf.byteLength === 0) return bad(400, 'Sound data URL is empty.');
+  if (buf.byteLength > MAX_SOUND_BYTES) return bad(413, `Sound is larger than ${MAX_SOUND_BYTES} bytes.`);
+  if (!isSoundBuffer(buf, ext as SoundExt)) return bad(400, `Sound is not a valid ${ext.toUpperCase()}.`);
+  const file = path.resolve(root, `${slug}.${ext}`);
+  if (!isInside(root, file)) return bad(400, 'Refusing to write outside the audio/fx directory.');
+  return { status: 200, file, data: buf };
+}
+
+/**
+ * Resolve a GET `/__fx/sound/<slug>.<ext>` request to the file to stream, or a 404 — the audio twin of
+ * `planImageRead`, so a just-imported clip (not yet in the frozen glob) resolves across a reload. Pure + fs-free
+ * so the slug/ext grammar and containment are unit-tested exactly like the writers.
+ */
+export function planSoundRead(name: string, audioFxRoot: string): ReadPlan {
+  const bare = (name.split('?')[0] ?? '').replace(/^\/+/, '');
+  const m = /^([a-z0-9][a-z0-9-]{0,63})\.(wav|mp3)$/.exec(bare);
+  if (!m) return { status: 404 };
+  const root = path.resolve(audioFxRoot);
+  const file = path.resolve(root, `${m[1]}.${m[2]}`);
   if (!isInside(root, file)) return { status: 404 };
   return { status: 200, file };
 }
@@ -278,9 +338,12 @@ export function planBindingsWrite(body: unknown, file: string): WritePlan {
 
 /** Hard ceiling on a request body, independent of `planWrite`: the socket is torn down past this so a
  *  runaway upload can't be buffered in the first place. */
-const MAX_BODY_BYTES = MAX_ART_BYTES * 2 + 4096;
+const MAX_BODY_BYTES = Math.max(MAX_ART_BYTES, MAX_SOUND_BYTES) * 2 + 4096;
 
 const DEFAULT_DEFS_ROOT = fileURLToPath(new URL('../../packages/ui/src/fx/defs', import.meta.url));
+
+/** Where imported `sound` FX clips are written (globbed by `sfx.ts` → committed → bundled for all players). */
+const DEFAULT_AUDIO_FX_ROOT = fileURLToPath(new URL('../../packages/ui/src/audio/fx', import.meta.url));
 
 const DEFAULT_BINDINGS_FILE = fileURLToPath(
   new URL('../../packages/ui/src/choreo/bindings.json', import.meta.url),
@@ -321,12 +384,15 @@ export interface FxDefsPluginOptions {
   bindingsFile?: string;
   /** Overridable for tests. Defaults to `packages/ui/src/cardArt.data.json`. */
   cardArtFile?: string;
+  /** Where imported `sound` FX clips are written. Defaults to `packages/ui/src/audio/fx`. */
+  audioFxRoot?: string;
 }
 
 export function fxDefsPlugin(options: FxDefsPluginOptions = {}): Plugin {
   const defsRoot = path.resolve(options.defsRoot ?? DEFAULT_DEFS_ROOT);
   const bindingsFile = path.resolve(options.bindingsFile ?? DEFAULT_BINDINGS_FILE);
   const cardArtFile = path.resolve(options.cardArtFile ?? DEFAULT_CARD_ART_FILE);
+  const audioFxRoot = path.resolve(options.audioFxRoot ?? DEFAULT_AUDIO_FX_ROOT);
   // Only used to make the reported path readable ("packages/ui/src/fx/defs/x.json"), never to write.
   const repoRoot = path.resolve(defsRoot, '..', '..', '..', '..', '..');
 
@@ -399,6 +465,35 @@ export function fxDefsPlugin(options: FxDefsPluginOptions = {}): Plugin {
     }
   };
 
+  /** Write an imported `sound` FX clip (POST `/__fx/sound`) to `audio/fx/<slug>.<ext>`. Same shell as the
+   *  image write; the planner (`planSoundWrite`) carries the audio-specific validation + destination root. */
+  const handleSound = respondToWrite((body) => planSoundWrite(body, audioFxRoot));
+
+  /**
+   * SERVE an imported `sound` clip at a stable dev URL (`GET /__fx/sound/<slug>.<ext>`) — the audio twin of
+   * `serveImage`. `audio/fx/*` is outside the Vite root and watch-ignored (so an import doesn't reload the
+   * page mid-edit), so a just-imported clip isn't in the frozen glob; `sfx.ts` decodes it into a buffer in the
+   * session, and this route lets a later reload re-fetch it off disk until a restart lets the glob catch up.
+   */
+  const serveSound = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    const plan = planSoundRead(req.url ?? '', audioFxRoot);
+    if (plan.status !== 200 || plan.file === undefined) {
+      res.statusCode = 404;
+      res.end();
+      return;
+    }
+    try {
+      const data = await readFile(plan.file);
+      res.statusCode = 200;
+      res.setHeader('Content-Type', plan.file.endsWith('.mp3') ? 'audio/mpeg' : 'audio/wav');
+      res.setHeader('Cache-Control', 'no-cache'); // a re-import overwrites in place — don't let the browser pin an old one
+      res.end(data);
+    } catch {
+      res.statusCode = 404;
+      res.end();
+    }
+  };
+
   /**
    * Commit the FX binding table. Its own route rather than a third `WriteKind`, because the destination is
    * fixed by the plugin instead of derived from the request — sharing `planWrite`'s signature would imply a
@@ -432,7 +527,18 @@ export function fxDefsPlugin(options: FxDefsPluginOptions = {}): Plugin {
      * up. Production is untouched: the glob is expanded at build time.
      */
     config: () => ({
-      server: { watch: { ignored: [path.resolve(defsRoot, 'images', '**').split(path.sep).join('/')] } },
+      server: {
+        watch: {
+          ignored: [
+            path.resolve(defsRoot, 'images', '**').split(path.sep).join('/'),
+            // Same reasoning as images: a `sound` import writes into this globbed dir mid-edit, and letting Vite
+            // reload on it would race the Inspector's state and lose the import from the layer. Ignored here; the
+            // session plays the fresh import from its decoded buffer, `GET /__fx/sound` re-serves it on a reload,
+            // and a restart lets the glob catch up.
+            path.resolve(audioFxRoot, '**').split(path.sep).join('/'),
+          ],
+        },
+      },
     }),
     configureServer(server) {
       server.middlewares.use('/__fx/def', (req, res) => void handle('def')(req, res));
@@ -442,6 +548,11 @@ export function fxDefsPlugin(options: FxDefsPluginOptions = {}): Plugin {
       server.middlewares.use('/__fx/image', (req, res) => {
         if (req.method === 'GET' || req.method === 'HEAD') { void serveImage(req, res); return; }
         void handle('image')(req, res);
+      });
+      // GET/HEAD serves the clip (see `serveSound`); POST writes it. One route, split by method, like `/__fx/image`.
+      server.middlewares.use('/__fx/sound', (req, res) => {
+        if (req.method === 'GET' || req.method === 'HEAD') { void serveSound(req, res); return; }
+        void handleSound(req, res);
       });
       server.middlewares.use('/__fx/bindings', (req, res) => void handleBindings(req, res));
       server.middlewares.use('/__fx/cardart', (req, res) => void handleCardArt(req, res));

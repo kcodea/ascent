@@ -1935,7 +1935,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* The number's COLOUR carries the stat STATE (owner ask 2026-09-16): buffed / reduced recolour the digit.
    Higher specificity than the neutral rule above, so the state colour wins when the badge has .up / .down. */
 .badge.up:not([data-milestone='0']) > .value { color: var(--msnum-up, #3ad84a); }     /* buffed above base */
-.badge.down:not([data-milestone='0']) > .value { color: var(--msnum-down, #ff5a4f); } /* below base / floor */
+.badge.down:not([data-milestone='0']) > .value { color: var(--msnum-down, #ffffff); } /* below base / floor */
 /* MILESTONE TUNER PREVIEW — the 🏅 Milestone Badges panel renders the real badge markup for all ten tiers so it
    tracks the CSS vars live. The badges are normally absolute at a card's corners; here they lay out in rows, so
    their positioning is neutralised and the row leaves generous room for the frame overflow (sword/heart). */

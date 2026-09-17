@@ -71,7 +71,7 @@ const DEFAULTS: MilestoneFrameConfig = {
   tintAtk: '#ffa200', tintHp: '#cf0707',
 
   numSize: 26, numDx: -1, numDy: -1.5,
-  numColor: '#ffffff', numColorUp: '#00eb17', numColorDown: '#ff5a4f', numStrokeW: 0, numStrokeColor: '#000000',
+  numColor: '#ffffff', numColorUp: '#00eb17', numColorDown: '#ffffff', numStrokeW: 0, numStrokeColor: '#000000',
   numShadowX: 0, numShadowY: 1, numShadowBlur: 4.5, numShadowOpacity: 0.87, numShadowColor: '#000000',
 
   glowSize: 0.95, glowBlur: 9, glowOpacity: 0.75,

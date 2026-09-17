@@ -66,11 +66,15 @@ describe('Doc Bot — a Choose One branch is still an effect', () => {
       + '`allEffectsOf`').toEqual([]);
   });
 
-  it('and a FLAT branch is left alone — the fix must not invent scaling', () => {
-    // Apples' first option buffs the current shop and takes no spell power by design (`spellBuffTavern` is
-    // flat, and says so). Greening it would be the same defect pointed the other way: a number that claims
-    // to have grown when the effect will not grant it.
+  it("and BOTH of Apples' branches scale — but nothing is invented at zero power", () => {
+    // Since 2026-09-16 (owner: "shop spell buffs on both ends") `spellBuffTavern` folds spell power like the
+    // random-friendlies branch, so the shop half greens too. The guard that matters is the other direction: with no
+    // spell power the authored numbers stand exactly as printed — a number must never claim to have grown when the
+    // effect will not grant it.
     const powered = spellDisplayText('apples', 2, 0, 2);
-    expect(powered.includes('+2/+4'), 'the flat shop buff still prints its authored value').toBe(true);
+    expect(powered.includes('{{+4/+6}}'), 'the shop buff prints its live value').toBe(true);
+    expect(powered.includes('{{+3/+3}}'), 'the random-friendlies grant prints its live value').toBe(true);
+    const plain = spellDisplayText('apples', 0, 0, 0);
+    expect(plain.includes('+2/+4') && plain.includes('+1/+1') && !plain.includes('{{'), 'no power: the authored text, un-greened').toBe(true);
   });
 });

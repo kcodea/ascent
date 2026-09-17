@@ -48,16 +48,15 @@ describe('chooseOneBranchText — a spell branch prints the number its factory w
     }
   });
 
-  it('Apples: the shop branch (documented flat) never greens; the random-friendlies branch does, since its factory folds', () => {
+  it('Apples: BOTH branches green with spell power — the shop branch folds since 2026-09-16 (owner: "shop spell buffs on both ends")', () => {
     const apples = CARD_INDEX['apples']!;
-    // The factory truth, read from the same predicate the helper uses: spellBuffTavern is excused (flat),
-    // spellBuffRandomFriendlies folds (the owner's 2026-08-02 Defensive Ale fix).
-    expect(effectFoldsSpellPower(apples.chooseOne![0]!.effects[0]!)).toBe(false);
+    // The factory truth, read from the same predicate the helper uses: both factories fold now.
+    expect(effectFoldsSpellPower(apples.chooseOne![0]!.effects[0]!)).toBe(true);
     expect(effectFoldsSpellPower(apples.chooseOne![1]!.effects[0]!)).toBe(true);
-    const shop = chooseOneBranchText('apples', 0, false, 2, 2);
-    expect(shop).toBe(apples.chooseOne![0]!.text);
-    expect(shop).toContain('+2/+4');
+    expect(chooseOneBranchText('apples', 0, false, 2, 2)).toContain('{{+4/+6}}');
     expect(chooseOneBranchText('apples', 1, false, 2, 2)).toContain('{{+3/+3}}');
+    // No power: the printed base stands un-greened on both.
+    expect(chooseOneBranchText('apples', 0, false, 0, 0)).toBe(apples.chooseOne![0]!.text);
   });
 
   it('a single-stat grant: Attack-only power greens only the Attack; Health power turns it into the live pair', () => {
@@ -163,13 +162,13 @@ describe('SABOTAGE — the greened number equals what the reducer actually grant
     }
   });
 
-  it("Apples' shop branch stays flat in the reducer too — the un-greened +2/+4 is the truth", () => {
+  it("Apples' shop branch folds spell power in the reducer — the greened pair is the truth", () => {
     let s = run([card('sp', 'apples')]);
-    s = { ...s, shop: [{ uid: 'o', cardId: 'drummer', cost: 3 } as never] };
+    s = { ...s, shop: [{ uid: 'o', cardId: 'drummer', cost: 3 } as never], spellBonus: { attack: 2, health: 2 } };
+    const printed = marker(chooseOneBranchText('apples', 0, false, 2, 2));
     s = reduce(s, { type: 'play', uid: 'sp' });
     s = reduce(s, { type: 'chooseOne', index: 0 });
     const o = s.shop[0]! as { atk?: number; hp?: number };
-    expect([o.atk ?? 0, o.hp ?? 0], 'the offer buff (`addOfferBuff` → atk/hp) is the authored +2/+4, no spell power').toEqual([2, 4]);
-    expect(chooseOneBranchText('apples', 0, false, 1, 1)).not.toContain('{{');
+    expect([o.atk ?? 0, o.hp ?? 0], 'the offer buff (`addOfferBuff` → atk/hp) is the printed live pair').toEqual(printed);
   });
 });

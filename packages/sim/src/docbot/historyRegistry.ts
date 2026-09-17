@@ -35,7 +35,6 @@ export const RUNE_DIFF_EXCUSED: Readonly<Record<string, { which: 'first' | 'seco
  * `spellStatBonus` reference — or an entry here.
  */
 export const SPELL_POWER_EXCUSED: Readonly<Record<string, { kind: 'documented-flat' | 'other-channel' | 'derived-magnitude' | 'needs-triage'; why: string }>> = {
-  spellBuffTavern: { kind: 'documented-flat', why: "Apples' current-shop option — its own docblock says flat, matching the next-shop option" },
   spellBuffNextShop: { kind: 'documented-flat', why: 'Apples\' banked option — docblock: "Flat (no spell-power scaling), like the current-shop option"' },
   spellAverageStats: { kind: 'derived-magnitude', why: 'Equalize: the grant IS the board average — there is no printed magnitude for spell power to scale' },
   rubyStatGain: { kind: 'other-channel', why: 'OWNER RULED 2026-08-26 (q-spellpower-rubyStatGain approved): flat is correct — Ruby strength is its own channel.' },

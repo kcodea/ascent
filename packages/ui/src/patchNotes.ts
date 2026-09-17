@@ -56,6 +56,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-16',
+    label: 'Apples scales on both ends',
+    changes: [
+      { category: 'Card Change', text: "Apples: the \"Give this shop\" option now gains your Shop-spell bonus too, and its printed number shows the live value — both ends of the Choose One scale the same way." },
+    ],
+  },
+  {
+    date: '2026-09-16',
     label: 'Milestone badge colours',
     changes: [
       {

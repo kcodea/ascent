@@ -11,7 +11,7 @@ import {
   CONFIG, createRun, hashRunState, reduce, serialize,
   type Action, type BugReportEnvelope, type RunState,
 } from '@game/sim';
-import { ACTION_RING_SIZE, recordActionEntry, resetActionRing, snapshotActionWindow } from './actionRing';
+import { ACTION_RING_SIZE, flushActionRing, recordActionEntry, resetActionRing, snapshotActionWindow } from './actionRing';
 import { captureIncidentCapsule, type BugCaptureSource } from './bugReportCapture';
 import { BUG_MAX_BODY_BYTES, trimEnvelope } from './bugReportUpload';
 
@@ -52,6 +52,20 @@ describe('actionRing', () => {
     });
   });
 
+  it('the hashes are owed on idle time and always present by the time a reader looks (perf 2026-09-17)', () => {
+    const s = createRun(48);
+    const a: Action = { type: 'roll' };
+    const next = reduce(s, a);
+    recordActionEntry(s, a, next, null);
+    // A reader flushes the pending work itself: no window ever leaves here unhashed.
+    const w = snapshotActionWindow(`${s.seed}:${s.heroId}`);
+    expect(w[0]!.stateHashBefore).toBe(hashRunState(s));
+    expect(w[0]!.stateHashAfter).toBe(hashRunState(next));
+    // …and an explicit flush is idempotent.
+    flushActionRing();
+    expect(snapshotActionWindow(`${s.seed}:${s.heroId}`)[0]).toEqual(w[0]);
+  });
+
   it('recording is observational — the states it reads are byte-identical afterwards', () => {
     const s = createRun(42);
     const a: Action = { type: 'roll' };
@@ -59,6 +73,7 @@ describe('actionRing', () => {
     const beforeBytes = serialize(s);
     const afterBytes = serialize(next);
     recordActionEntry(s, a, next, null);
+    flushActionRing(); // the deferred hash reads the states too — still byte-identical after it
     expect(serialize(s)).toBe(beforeBytes);
     expect(serialize(next)).toBe(afterBytes);
   });

@@ -5,7 +5,10 @@ import {
   admitPlay,
   culledTotal,
   expectedLoad,
+  fxScene,
   livePlayCount,
+  particleCapFor,
+  setFxScene,
   registerLivePlay,
   resetFxBudget,
   type FxBudgetReaders,
@@ -26,7 +29,7 @@ import type { StoredFxDef } from './defStore';
  * primitive, so the spawn-time hook, the registration and the retire-on-trim are exercised for real.
  */
 
-const CFG: FxBudgetConfig = { maxParticles: 1000, maxPerDef: 3, maxFilters: 8 };
+const CFG: FxBudgetConfig = { maxParticles: 1000, maxPerDef: 3, maxFilters: 8, maxParticlesDiscover: 400 };
 
 /** A registry-backed reader: the "live" totals are the sum of what is registered, which is what the pool
  *  would report once every play's layers are acquired. */
@@ -262,5 +265,60 @@ describe('through playDef (the real spawn-time hook)', () => {
     for (let i = 0; i < FXBUDGET_DEFAULTS.maxPerDef; i++) playDef('budget-test', { target: { x: 0, y: 0 } });
     expect(onDone).not.toHaveBeenCalled();
     expect(destroyed).toEqual([1]); // the oldest UNPROTECTED play went instead
+  });
+});
+
+/**
+ * THE DISCOVER SCENE CAP (perf handoff 2026-09-17, PR 3). While the Discover overlay is open, the live
+ * particle ceiling is the LOWER of the global cap and `maxParticlesDiscover`. Same trim policy, same
+ * protections — only the number changes, and only for that scene.
+ */
+describe('the Discover scene cap', () => {
+  afterEach(() => setFxScene(null));
+
+  it('particleCapFor is the global cap outside the Discover and the lower of the two inside it', () => {
+    expect(particleCapFor(CFG, null)).toBe(1000);
+    expect(particleCapFor(CFG, 'discover')).toBe(400);
+    expect(particleCapFor({ ...CFG, maxParticlesDiscover: 5000 }, 'discover'), 'never ABOVE the global cap').toBe(1000);
+  });
+
+  it('outside the Discover a pile-up under the global cap is left alone', () => {
+    const live: FxLivePlay[] = [];
+    play(live, 'a', 300);
+    play(live, 'b', 300);
+    expect(admitPlay('c', { particles: 300, filters: 0 }, CFG, registryReaders(live), null)).toBe(0);
+    expect(live).toHaveLength(2);
+  });
+
+  it('inside the Discover the same pile-up is trimmed oldest-first down to the scene cap', () => {
+    const live: FxLivePlay[] = [];
+    const a = play(live, 'a', 300);
+    const b = play(live, 'b', 300);
+    // 600 live + 300 incoming > 400 → trim a (300 + 300 > 400) → trim b (300 ≤ 400 fits) → 2 trimmed
+    expect(admitPlay('c', { particles: 300, filters: 0 }, CFG, registryReaders(live), 'discover')).toBe(2);
+    expect(a.retired()).toBe(true);
+    expect(b.retired()).toBe(true);
+    expect(live).toHaveLength(0);
+  });
+
+  it('still never trims a protected play (a looping card treatment on a Discover card)', () => {
+    const live: FxLivePlay[] = [];
+    const loop = play(live, 'choose-one-both', 217, 0, true);
+    const old = play(live, 'a', 300);
+    expect(admitPlay('c', { particles: 300, filters: 0 }, CFG, registryReaders(live), 'discover')).toBe(1);
+    expect(loop.retired()).toBe(false);
+    expect(old.retired()).toBe(true);
+  });
+
+  it('admitPlay reads the module scene by default, set through setFxScene', () => {
+    const live: FxLivePlay[] = [];
+    play(live, 'a', 300);
+    play(live, 'b', 300);
+    expect(fxScene()).toBeNull();
+    setFxScene('discover');
+    expect(fxScene()).toBe('discover');
+    expect(admitPlay('c', { particles: 300, filters: 0 }, CFG, registryReaders(live))).toBe(2);
+    setFxScene(null);
+    expect(fxScene()).toBeNull();
   });
 });

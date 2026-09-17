@@ -15,9 +15,17 @@
  *
  * COST: one `hashRunState` per accepted action (the before-hash reuses the previous entry's after-hash via
  * an identity cache), at human click cadence — never per frame. Measured in the WP C PR notes.
+ *
+ * OFF THE FRAME (perf 2026-09-17): the hash is a JSON round-trip + stable-stringify of the WHOLE run — 5–15 ms
+ * late-game, and it ran inside the dispatch's `store:set`, i.e. inside the frame the click dropped. The entry
+ * is pushed synchronously (so the ring's ORDER and capacity are exactly as before) with its two states held,
+ * and the hashes are filled in on idle time (`idleWork.ts`). Nothing reads a hash before `snapshotActionWindow`,
+ * which flushes the pending work first, so a reader never sees an unhashed entry. Safe because the reducer
+ * never mutates a state it has returned (it clones; `lastCombat` / `servedBoards` are only ever replaced).
  */
 import { hashRunState, type Action, type RecordedActionWindow, type RunState } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
+import { createDeferredWriter } from '../idleWork';
 
 /** Ring capacity — sized like the capsule's two-wave frame window: comfortably more accepted actions than a
  *  long shop turn produces, small enough that the capsule copy is a few KB. The tuning knob (§18-C). */
@@ -28,6 +36,8 @@ interface RingEntry {
   window: RecordedActionWindow;
   /** DEV only (null in prod) — the action's presentation batch, for dev panels. Never serialized. */
   batch: PresentationBatch | null;
+  /** The states whose hashes are still owed — cleared once `hashPending` has filled the window in. */
+  pending: { before: RunState; after: RunState } | null;
 }
 
 let ring: RingEntry[] = [];
@@ -40,30 +50,53 @@ let lastAfterHash = '';
 export function recordActionEntry(before: RunState, action: Action, after: RunState, batch: PresentationBatch | null): void {
   if (after === before) return; // rejected — the ring mirrors replayActions: accepted actions only
   try {
-    const stateHashBefore = before === lastAfter ? lastAfterHash : hashRunState(before);
-    const stateHashAfter = hashRunState(after);
-    lastAfter = after;
-    lastAfterHash = stateHashAfter;
     ring.push({
       runId: `${before.seed}:${before.heroId}`,
       window: {
         action: structuredClone(action),
         rngCursorBefore: before.rngCursor,
-        stateHashBefore,
-        stateHashAfter,
+        stateHashBefore: '',
+        stateHashAfter: '',
       },
       batch,
+      pending: { before, after },
     });
     if (ring.length > ACTION_RING_SIZE) ring.splice(0, ring.length - ACTION_RING_SIZE);
+    hasher.schedule(undefined);
   } catch {
     // Diagnostics must never break the commit path — a failed record simply shortens the window.
   }
 }
 
+/** Fill in every owed hash, oldest first — the identity cache works exactly as it did synchronously, because
+ *  the entries are walked in commit order. */
+function hashPending(): void {
+  for (const e of ring) {
+    const p = e.pending;
+    if (!p) continue;
+    try {
+      e.window.stateHashBefore = p.before === lastAfter ? lastAfterHash : hashRunState(p.before);
+      e.window.stateHashAfter = hashRunState(p.after);
+      lastAfter = p.after;
+      lastAfterHash = e.window.stateHashAfter;
+    } catch {
+      // A failed hash leaves the rails blank for that entry — the capsule still carries the action.
+    }
+    e.pending = null;
+  }
+}
+/** Hashing runs on idle time, at most `ACTION_HASH_TIMEOUT_MS` after the dispatch on a busy thread. */
+export const ACTION_HASH_TIMEOUT_MS = 1500;
+const hasher = createDeferredWriter<undefined>(() => hashPending(), ACTION_HASH_TIMEOUT_MS);
+
+/** Compute any hash still owed, synchronously. Every reader below calls this first; tests may call it directly. */
+export function flushActionRing(): void { hasher.flush(); hashPending(); }
+
 /** The contiguous tail of entries belonging to `runId` (a previous run's leftovers never leak into another
  *  run's capsule). Returns the SHARED window objects — callers that persist them must clone (the capture
  *  path structuredClones + freezes its copy). */
 export function snapshotActionWindow(runId: string): RecordedActionWindow[] {
+  flushActionRing();
   const out: RecordedActionWindow[] = [];
   for (let i = ring.length - 1; i >= 0 && ring[i]!.runId === runId; i--) out.unshift(ring[i]!.window);
   return out;
@@ -78,6 +111,7 @@ export function snapshotActionBatches(runId: string): (PresentationBatch | null)
 
 /** Test hook / hard reset. The ring otherwise self-cleans: capacity + the runId tail filter. */
 export function resetActionRing(): void {
+  hasher.cancel();
   ring = [];
   lastAfter = null;
   lastAfterHash = '';

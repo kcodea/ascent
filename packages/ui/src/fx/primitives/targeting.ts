@@ -183,6 +183,7 @@ class TargetingInstance implements FxInstance<TargetingParams> {
   private sparks: Spark[] = [];
   private alongAcc = 0;         // fractional spark-emission accumulators
   private pointerAcc = 0;
+  private stopping = false;      // set by `stopEmitting()` — the aim was released; drain the sparks, hide the line
 
   constructor(ctx: FxContext, params: TargetingParams) {
     this.params = params;
@@ -208,6 +209,17 @@ class TargetingInstance implements FxInstance<TargetingParams> {
     const dt = Math.max(0, dtMs / 1000);
     this.elapsed += dt;
     const p = this.params;
+
+    if (this.stopping) {
+      // The aim was released: emit nothing new and drop the ribbon + pointer, but let the sparks already in
+      // flight live out their full life (owner ask 2026-09-17) instead of vanishing the instant the line does.
+      if (this.sparks.length) this.stepSparks(dt);
+      this.g.clear();
+      this.drawSparks();
+      this.filters.frame(p, 1, dt);
+      return;
+    }
+
     this.spin += p.pointerSpin * dt * TAU;
     const cfg = lassoCfg(p);
     const { from, to: rawTo } = this.endpoints();
@@ -334,22 +346,7 @@ class TargetingInstance implements FxInstance<TargetingParams> {
     if (poly.length >= 6) g.poly(poly).fill({ color: p.colorCore, alpha: p.coreAlpha });
 
     // Sparks: a soft round glow behind the chosen SHAPE (oriented along its travel), twinkling + fading.
-    const shape = p.sparkleShape;
-    for (const s of this.sparks) {
-      const lt = s.age / s.life;
-      let alpha = p.sparkleAlpha * (1 - lt);
-      if (p.sparkleTwinkle > 0) alpha *= 0.5 + 0.5 * Math.sin(this.elapsed * p.sparkleTwinkle * TAU + s.phase);
-      if (alpha <= 0.01) continue;
-      const size = Math.max(0.3, s.size * (1 - p.sparkleSizeDecay * lt));
-      const col = lerpColor(p.sparkleColor, p.sparkleColor2, s.t);
-      g.circle(s.x, s.y, size * 1.8).fill({ color: col, alpha: alpha * 0.3 });
-      if (shape === 'circle') {
-        g.circle(s.x, s.y, size).fill({ color: col, alpha });
-      } else {
-        const verts = sparkPoly(shape, s.x, s.y, size, Math.atan2(s.vy, s.vx));
-        if (verts.length >= 6) g.poly(verts).fill({ color: col, alpha });
-      }
-    }
+    this.drawSparks();
 
     // The pointer at the cursor end.
     if (p.pointerSize > 0) {
@@ -370,9 +367,43 @@ class TargetingInstance implements FxInstance<TargetingParams> {
     }
   }
 
+  /** Draw the live sparks into `this.g` (assumes it was just cleared). Shared by the normal per-frame render
+   *  and the release-drain path, so a released aim's sparks look identical as they fade. */
+  private drawSparks(): void {
+    const p = this.params;
+    const g = this.g;
+    const shape = p.sparkleShape;
+    for (const s of this.sparks) {
+      const lt = s.age / s.life;
+      let alpha = p.sparkleAlpha * (1 - lt);
+      if (p.sparkleTwinkle > 0) alpha *= 0.5 + 0.5 * Math.sin(this.elapsed * p.sparkleTwinkle * TAU + s.phase);
+      if (alpha <= 0.01) continue;
+      const size = Math.max(0.3, s.size * (1 - p.sparkleSizeDecay * lt));
+      const col = lerpColor(p.sparkleColor, p.sparkleColor2, s.t);
+      g.circle(s.x, s.y, size * 1.8).fill({ color: col, alpha: alpha * 0.3 });
+      if (shape === 'circle') {
+        g.circle(s.x, s.y, size).fill({ color: col, alpha });
+      } else {
+        const verts = sparkPoly(shape, s.x, s.y, size, Math.atan2(s.vy, s.vx));
+        if (verts.length >= 6) g.poly(verts).fill({ color: col, alpha });
+      }
+    }
+  }
+
   setParams(next: TargetingParams): void {
     this.params = next;
     this.g.blendMode = next.blendMode;
+  }
+
+  /** The aim ended: stop spawning sparks and hide the ribbon/pointer, but keep the live sparks stepping and
+   *  drawing (see `update`) so they finish their own life instead of being culled with the line. */
+  stopEmitting(): void {
+    this.stopping = true;
+  }
+
+  /** Only meaningful after `stopEmitting()`: true once every spark has died, so the drain can be torn down. */
+  isComplete(): boolean {
+    return this.stopping && this.sparks.length === 0;
   }
 
   destroy(): void {

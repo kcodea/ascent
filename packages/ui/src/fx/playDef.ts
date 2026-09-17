@@ -8,10 +8,11 @@ import type { FxDef } from './def';
 import type { StoredFxDef, StoredFxLayer } from './defStore';
 import { anchorsForUnits, unitSelector } from './combatAnchors';
 import { getDef, listDefs } from './fxDefs';
-import { admitPlay, culledTotal, expectedLoad, livePlaysSnapshot, registerLivePlay } from './fxBudget';
+import { admitPlay, culledTotal, expectedLoad, fxScene, livePlaysSnapshot, registerLivePlay } from './fxBudget';
 import { getFxBudgetConfig, resetFxBudgetConfig, setFxBudgetValue } from './fxBudgetConfig';
 import { fxPoolSize } from './fxRuntime';
 import { createPlayer } from './player';
+import { playLifetimeMs } from './playLifetime';
 import { hasPrimitives } from './registry';
 import { scaleDef, type FxScaleAxes } from './scaleDef';
 import { recolorDef } from './recolorDef';
@@ -138,14 +139,18 @@ export interface PlayDefOptions extends FxScaleAxes {
 }
 
 /**
- * Hard WALL-CLOCK ceiling on one play.
+ * The ABSOLUTE wall-clock ceiling on one play.
  *
- * `player.ts` already caps a fire at `FIRE_TIMEOUT_MS` of SIMULATED time, which covers "a primitive's
- * `isComplete()` never reports true". It does not cover the clock itself failing to advance: simulated time
- * moves at `dtMs * speed`, so a caller passing a tiny (or zero) speed would hold an updater, a container and
- * a live GPU-backed primitive for the rest of the session. This cap is measured in real elapsed ms and is
- * therefore immune to that. At speed ≥ 1 the player's own cap always fires first, so this only ever bites
- * the pathological cases; a combat effect still running 15 real seconds after it fired is a bug either way.
+ * Since 2026-09-17 a play's real ceiling is its own honest end — `playLifetimeMs(def)` (duration + the
+ * longest particle life, or a layer's authored tail if longer, plus a grace), divided by the play's `speed`
+ * — and THIS is only the outer bound on that: `min(PLAY_TIMEOUT_MS, lifetime / speed)`. A stuck play (a
+ * layer whose `isComplete()` never arrives) is now retired within a second or two of where the def says it
+ * ends, instead of holding an updater, a container and a live GPU-backed particle layer for 15 s. Nothing
+ * authored is cut: `playLifetimeMs` sits AT the def's true completion, never inside it (see that module).
+ *
+ * `player.ts` separately caps a fire at `FIRE_TIMEOUT_MS` of SIMULATED time. Neither covers the clock
+ * itself failing to advance — simulated time moves at `dtMs * speed` — which is why both ceilings here are
+ * measured in real elapsed ms.
  */
 export const PLAY_TIMEOUT_MS = 15_000;
 
@@ -510,7 +515,12 @@ function playDefInner(
   // committed is not the one that plays. No seed (unlocked) hands over `null`: fresh roll per fire, which
   // is what an unlocked composition has always meant.
   player.setSeed(stored.seed ?? null);
-  player.setSpeed(opts.speed !== undefined && Number.isFinite(opts.speed) && opts.speed > 0 ? opts.speed : 1);
+  const speed = opts.speed !== undefined && Number.isFinite(opts.speed) && opts.speed > 0 ? opts.speed : 1;
+  player.setSpeed(speed);
+  // THE LIFETIME CEILING (perf handoff 2026-09-17): this play's honest end in wall-clock ms — the def's
+  // own completion (`playLifetimeMs`, in the def's simulated frame) stretched by a slow `speed`, and never
+  // past the absolute 15 s. A one-shot that has not retired by then is stuck, and is retired here.
+  const lifetimeMs = Math.min(PLAY_TIMEOUT_MS, playLifetimeMs(def) / speed);
   if (opts.loop) player.fireLoop(); else player.fireOnce();
   // Position every layer BEFORE anything can render. `fireOnce` spawns the t=0 layers but a primitive's head
   // starts at (0,0), so this is what guarantees a layer never exists un-positioned — independent of the
@@ -552,11 +562,11 @@ function playDefInner(
     wallMs += dtMs;
     perfMonitor.begin(frameLabel);
     try { player.update(dtMs); } finally { perfMonitor.end(); }
-    const overdue = !opts.loop && wallMs >= PLAY_TIMEOUT_MS; // a loop is caller-owned (see PlayDefOptions.loop)
+    const overdue = !opts.loop && wallMs >= lifetimeMs; // a loop is caller-owned (see PlayDefOptions.loop)
     if (!player.isPlaying() || overdue) {
       if (overdue && import.meta.env.DEV) {
         console.warn(
-          `[fx] playDef('${def.id}') passed the ${PLAY_TIMEOUT_MS}ms wall-clock cap without finishing — ` +
+          `[fx] playDef('${def.id}') passed its ${Math.round(lifetimeMs)}ms lifetime ceiling without finishing — ` +
             'force-retiring so it cannot leak an updater for the rest of the session.',
         );
       }
@@ -633,6 +643,8 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
       reset: resetFxBudgetConfig,
       live: livePlaysSnapshot,
       culled: culledTotal,
+      /** The scene in force (`'discover'` while the overlay is open, else null) — the cap `admitPlay` reads. */
+      scene: fxScene,
     },
     /**
      * Drive the badge counter DIRECTLY on a live card, with no def, binding, layer or combat involved.

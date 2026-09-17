@@ -116,11 +116,18 @@ top-offenders list is built from.
 |---|---|---|
 | `reduce:<action>` / `reduce:<action>:<cardId>` | one run-logic dispatch, per card where one is named | `store.ts` |
 | `store:set` | the Zustand update + every synchronous subscriber (nests the reduce) | `store.ts` |
-| `autosave` | the run serialized to localStorage at a phase boundary | `store.ts` |
+| `autosave` | the run serialized to localStorage at a phase boundary — on idle time since 2026-09-17 (`idleWork.ts`), never inside the dispatch | `store.ts` |
+| `commit:actionRing` / `commit:telemetry` / `commit:derive` / `commit:replayFrame` | the per-action commit steps inside `store:set` (the ring's hash itself runs on idle time) — `store:set`'s self time is what is left | `store.ts` |
+| `view:shop` | building the tavern's card views (memoized per offer by signature — `shopViewCache.ts`) | `Recruit.tsx` |
 | `render:recruit` / `render:combat` | React render + commit of the shop / combat screen (phase-aware) | `Recruit.tsx` |
 | `view:board` / `view:hand` | building the card views | `Recruit.tsx` |
-| `layout:flip` → `layout:flip:write` + `layout:flip:read` | the FLIP effect: the animation half (Flip.from / manual tweens + forced reflows) and the capture half (Flip.getState + the offsetLeft sweep) | `Recruit.tsx` |
+| `layout:flip` → `layout:flip:write` + `layout:flip:read` | the FLIP effect (`RowFlip`, in the commit where a row moves): the capture half (the offsetLeft sweep, read FIRST outside a drag; Flip.getState after the write during one) and the animation half (Flip.from / manual tweens) | `Recruit.tsx` |
 | `drag:flushMove`, `layout:handglide`, `odds:deferred`, `recruit:moment cues` | drag / hand / odds / cue paths | `Recruit.tsx` |
+| `input:pointermove` / `input:pointerdown` / `input:pointerup` | the raw drag, grab and aim handlers (perf PR 1, 2026-09-17) | `Recruit.tsx` |
+| `input:aim-flush` / `input:target-flush` | the hero-power / battlecry aim's rAF-coalesced work | `Recruit.tsx` |
+| `input:pointerenter` / `input:pointerleave` / `input:hover-preview` | the card hover-in / hover-out / referenced-card popup placement | `Card.tsx` |
+| `layout:handglide:seed` | the hand make-room glide's seeding pass (the offsetLeft read + the delta writes) | `Recruit.tsx` |
+| `render:recruit:hud` / `:shop` / `:board` / `:hand` / `:overlays` | `render:recruit` BY CHILD — `React.Profiler` regions, DEV only, recorded with self = 0 (a breakdown, never charged twice) | `perfProfiler.tsx`, `Recruit.tsx` |
 | `fx:tick` | the whole Pixi ticker pass of the board FX layer (HIGH → UTILITY priority) | `pixiFx.ts` |
 | `fx:sim` | the particle / tendril / aura / shield sim and every def player (`update`) | `pixiFx.ts` |
 | `fx:render` | the Pixi render pass — batching, filter passes, the GL submit (LOW+1 → UTILITY) | `pixiFx.ts` |
@@ -136,6 +143,18 @@ ParticleContainers plus the sprite particles; the older `particles` counter is t
 (plays the FX budget has trimmed since load — see below), `sprite pool`, `weld rings`, `spell arrows`.
 Rates (per second): `unit renders`, `recruit renders`, `pointermoves`, `fx:culled` (also tallied per bucket).
 
+**Long-task attribution and the input-event ring (perf PR 1, 2026-09-17).** Every `longtask` entry is
+intersected against a ring of recently closed spans; the labels that overlapped it are recorded on the bucket
+(`longTasks[].labels`). When NONE did — the 2026-09-17 "Mode B" blind spot — the bucket records the **last
+DOM input event** dispatched before it (`longTasks[].lastEvent`: type, a selector-ish target such as
+`div.card.shop[data-uid=…]`, and how many ms before the task it fired), from a capture-phase, passive
+listener ring that costs one store per event and no clock read. The report's *Unlabelled long tasks* table
+and the `long-task` verdict print it. **`layout:read-in-move`** is a per-bucket counter of layout reads
+(`getBoundingClientRect` / `offsetLeft` / `elementFromPoint`, routed through `layoutRead.ts`) made while an
+`input:` span or `drag:flushMove` is open — a read there is the forced-reflow-per-pointer-event pattern; it
+must read 0. **`nodesBy`** is the DOM node count per container (`perfDomContainers.ts`: shop, hand, board,
+FX roots, body portals, other), once a second, so the *DOM nodes by container* table can say where a leak is.
+
 **The FX budget** (`fx/fxBudget.ts`, caps in `fx/fxBudgetConfig.ts`; added 2026-09-16 after a 2002 s capture
 peaked at 5,778 live particles / 80 filters with `fx:tick` at 20.2 ms): `playDef` enforces a global
 live-particle cap, a per-def concurrent-play cap and a global filter cap at SPAWN time, retiring the OLDEST
@@ -144,6 +163,23 @@ following / `onDone` play. The defaults sit above any legitimate single moment (
 def), so under normal play `fx:culled` stays at 0; a non-zero value in a capture says a pile-up was trimmed,
 and WHERE it climbed says which second. In DEV, `window.__fx.budget.set('maxParticles', n)` lowers a cap live
 to watch it bite.
+
+**The Discover scene cap** (2026-09-17): while the Discover overlay is open (`setFxScene('discover')`, wired in
+`Game.tsx` off `run.discover`) the live-particle ceiling is the LOWER of `maxParticles` and
+`maxParticlesDiscover` (2,000) — same oldest-first trim, same protections, so the (Both) loops on Discover cards
+are never touched. Sized from a manual-ticker measurement (death-dissolve fans at 4.17 ms steps): the def sim +
+render costs ≈ 0.66 µs per live particle (0.27 ms at 794 · 0.93 at 1,588 · 1.87 at 2,779 · 2.64 at 3,970,
+means), so 2,000 keeps `fx:tick` near 1.3 ms and still clears the largest legitimate Discover moment
+(≈ 1,860). Against the 2,673-particle Discover peak in the 2026-09-17 capture it would have retired the oldest
+plays down to ≤ 2,000 — never the burst landing now. `window.__fx.budget.scene()` reads the scene in force.
+
+**A play's lifetime ceiling** (2026-09-17): a `playDef` play used to have one backstop against a layer that
+never completes — 15 s of wall clock. It is now `playLifetimeMs(def) / speed` (`fx/playLifetime.ts`): the def's
+own honest end, i.e. `duration + the longest particle life`, or a layer's authored tail if longer (an emitter
+emits for its own `life` window and drains for another — `cia-hp`, `spell-target`, `ruby-target` are authored to
+run past their durations and are NOT cut), plus a 500 ms grace, never above the old 15 s. Note that the perf
+HUD's `fx:def:<id>` **`n` is the per-frame label's call count summed over every play of that def** — the
+handoff's "`dice-land` ticked 3,545 frames" was ≈25 plays × ~145 frames, not one play living 15 s.
 
 **Every static label must be registered in `perfNames.ts`** (`CODE_NAMES`, or a family prefix in
 `LABEL_FAMILIES`) — `perfNames.test.ts` scans the source and fails on an unregistered one, because the HUD
@@ -599,6 +635,20 @@ These are the rules the audits surfaced; the codebase already follows them — k
   wrapper over a ref for closures that must see the latest render — see `endTurnStable`), and a prop that
   is an object or array is memoized or derived from the view caches. Before/after in
   `docs/devlog/2026-09-16-perf-recruit-split.md`.
+- **Don't put the pointer's state in the component that renders the screen.** The live drag, its drop-gap
+  decision, the aim target and the zone glows lived as `Recruit` `useState` until 2026-09-17, so every slot
+  crossing reconciled the shop (28 `recruit renders` per 100-move drag). They live in `dragStore.ts` now — an
+  external store the rows, `DragOverlay` and `RowFlip` subscribe to by SLICE (`useDragSlice`), while `Recruit`
+  subscribes to none of it. A new piece of pointer-driven state goes there, and the component that draws it
+  subscribes; the drag session (`startDragSession`) publishes decisions, never `setState`. `dragSession.test.ts`
+  is the source contract: the move flush reads no layout and calls no React setter.
+- **Pass `simple: true` to `Flip.from` / `Flip.to`, not only to `Flip.getState`.** The animation call builds its
+  own "to" state; without the flag GSAP resolves a global matrix per element by appending a temp node and
+  reading it — a forced layout per card, ~9 ms per slot crossing on a 13-card shop. Only the Choose One
+  coalesce (`absolute: true`, cross-container) keeps the full path.
+- **Read before you write inside a layout effect, and skip the write when nothing moved.** The FLIP's
+  offsetLeft sweep used to follow the tween seeds (a third forced layout per drop); read on the flush React's
+  commit already dirtied, then write, and a commit that moved no card (a roll) touches no style at all.
 - **Don't read layout in a no-deps `useLayoutEffect`.** An effect with no dependency array runs on EVERY
   commit, and an `offsetLeft` / `getBoundingClientRect` read after that commit's style writes is a forced
   layout every time — the `layout:handglide` cache was 39.8 ms in one of the owner's worst frames for a

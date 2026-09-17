@@ -23,6 +23,11 @@ import { getPrimitive } from './registry';
  * teardown a natural finish runs (`createRetire`), so the container, updater, filters and pooled particle
  * layer all go back the way they always do — there is no second cleanup path to keep correct.
  *
+ * A SCENE can lower the particle ceiling without changing the policy: while the Discover overlay is open
+ * (`setFxScene('discover')`, driven by `Game.tsx` off `run.discover`) the cap is the lower of `maxParticles`
+ * and `maxParticlesDiscover` (`particleCapFor`). See `fxBudgetConfig.ts` for what that number is sized
+ * against and why the Discover is the one scene that gets its own.
+ *
  * Three plays are PROTECTED from trimming and are never candidates (they still count toward the totals):
  * a looping play (`opts.loop` — caller-owned, a persistent card treatment), a following play
  * (`opts.follow` — the same), and a play with an `onDone` callback (the caller is sequencing on its
@@ -69,6 +74,27 @@ const RUNTIME_READERS: FxBudgetReaders = { liveParticles: fxLiveParticles, activ
  *  identity on retire (`unregister`) or when the budget trims it. */
 const plays: FxLivePlay[] = [];
 let culled = 0;
+
+/**
+ * The SCENE a spawn is admitted into. A scene may carry its own, lower particle ceiling
+ * (`FxBudgetConfig.maxParticlesDiscover`) — see `particleCapFor`. Only the Discover exists today; `null` is
+ * ordinary play. Set from `Game.tsx` off the run state (`run.discover`), so the FX layer never imports the
+ * store.
+ */
+export type FxScene = 'discover';
+let scene: FxScene | null = null;
+
+export function setFxScene(next: FxScene | null): void {
+  scene = next;
+}
+export function fxScene(): FxScene | null {
+  return scene;
+}
+
+/** PURE: the live-particle ceiling in force for `scene` — the global cap, or the lower scene cap inside one. */
+export function particleCapFor(cfg: Pick<FxBudgetConfig, 'maxParticles' | 'maxParticlesDiscover'>, activeScene: FxScene | null): number {
+  return activeScene === 'discover' ? Math.min(cfg.maxParticles, cfg.maxParticlesDiscover) : cfg.maxParticles;
+}
 
 // Registered at load, once: the FX runtime is a module singleton, and the monitor keeps a Map so a second
 // registration under the same name would only overwrite. A level, read at 20 Hz — never per frame.
@@ -167,8 +193,10 @@ export function admitPlay(
   load: FxPlayLoad,
   cfg: FxBudgetConfig = getFxBudgetConfig(),
   readers: FxBudgetReaders = RUNTIME_READERS,
+  activeScene: FxScene | null = scene,
 ): number {
   let n = 0;
+  const maxParticles = particleCapFor(cfg, activeScene);
   // Per-def concurrency: this def's own oldest goes, and only this def's — another def's play cannot
   // relieve a per-def cap.
   while (livePlayCount(id) >= cfg.maxPerDef) {
@@ -178,9 +206,10 @@ export function admitPlay(
     n++;
   }
   // Global particles: the REAL live count (the pool's, which drops synchronously as a trimmed play's
-  // particle layers are released) plus what this play will add.
+  // particle layers are released) plus what this play will add. Inside the Discover the ceiling is the
+  // scene's lower cap (`particleCapFor`) — same trim, same protections, only the number changes.
   if (load.particles > 0) {
-    while (readers.liveParticles() + load.particles > cfg.maxParticles) {
+    while (readers.liveParticles() + load.particles > maxParticles) {
       const victim = pickVictim(id, (p) => p.load.particles > 0);
       if (!victim) break;
       trim(victim);
@@ -205,8 +234,9 @@ export function livePlaysSnapshot(): { id: string; particles: number; filters: n
   return plays.map((p) => ({ id: p.id, particles: p.load.particles, filters: p.load.filters, protected: p.protected }));
 }
 
-/** Test-only: forget every registered play (without retiring it) and zero the cull total. */
+/** Test-only: forget every registered play (without retiring it), zero the cull total, leave any scene. */
 export function resetFxBudget(): void {
   plays.length = 0;
   culled = 0;
+  scene = null;
 }

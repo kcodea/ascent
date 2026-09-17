@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent Quiz #36</title>
+<style>
+  :root {
+    --bg: #f6f4ef;
+    --panel: #ffffff;
+    --panel-border: #e2ddd0;
+    --ink: #2a2620;
+    --ink-dim: #6b6555;
+    --accent: #a8712f;
+    --accent-ink: #ffffff;
+    --good: #2f7a4f;
+    --good-bg: #e5f4ea;
+    --bad: #b13d3d;
+    --bad-bg: #fbe9e9;
+    --track: #ece7da;
+    --choice-bg: #fbfaf6;
+    --choice-border: #ddd6c4;
+    --choice-hover: #f1ead9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1b1913;
+      --panel: #242018;
+      --panel-border: #3a3527;
+      --ink: #eee8d8;
+      --ink-dim: #a89d84;
+      --accent: #d69a4e;
+      --accent-ink: #1b1913;
+      --good: #6fce93;
+      --good-bg: #1e3327;
+      --bad: #e28080;
+      --bad-bg: #3a2222;
+      --track: #2f2b1f;
+      --choice-bg: #2b271c;
+      --choice-border: #423c2b;
+      --choice-hover: #352f22;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1b1913;
+    --panel: #242018;
+    --panel-border: #3a3527;
+    --ink: #eee8d8;
+    --ink-dim: #a89d84;
+    --accent: #d69a4e;
+    --accent-ink: #1b1913;
+    --good: #6fce93;
+    --good-bg: #1e3327;
+    --bad: #e28080;
+    --bad-bg: #3a2222;
+    --track: #2f2b1f;
+    --choice-bg: #2b271c;
+    --choice-border: #423c2b;
+    --choice-hover: #352f22;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding-block: 28px;
+  }
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding-inline: 16px;
+  }
+  header.top {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  header.top .kicker {
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  header.top h1 {
+    font-size: 22px;
+    margin: 0 0 4px;
+  }
+  header.top p {
+    color: var(--ink-dim);
+    font-size: 13px;
+    margin: 0;
+  }
+  .progressRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .track {
+    flex: 1;
+    height: 8px;
+    background: var(--track);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 999px;
+    transition: width 0.35s ease;
+    width: 0%;
+  }
+  .progLabel {
+    font-size: 12px;
+    color: var(--ink-dim);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px;
+    padding: 22px;
+  }
+  .topicTag {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border-radius: 999px;
+    padding: 3px 10px;
+    margin-bottom: 12px;
+    font-weight: 700;
+  }
+  .qtext {
+    font-size: 16px;
+    line-height: 1.5;
+    margin: 0 0 16px;
+  }
+  .choices {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .choice {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    text-align: left;
+    background: var(--choice-bg);
+    border: 1px solid var(--choice-border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--ink);
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .choice:hover:not(:disabled) {
+    background: var(--choice-hover);
+  }
+  .choice:disabled {
+    cursor: default;
+  }
+  .choice .letter {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--track);
+    color: var(--ink-dim);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .choice.correct {
+    background: var(--good-bg);
+    border-color: var(--good);
+  }
+  .choice.correct .letter {
+    background: var(--good);
+    color: #fff;
+  }
+  .choice.incorrect {
+    background: var(--bad-bg);
+    border-color: var(--bad);
+  }
+  .choice.incorrect .letter {
+    background: var(--bad);
+    color: #fff;
+  }
+  .explain {
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: 10px;
+    background: var(--track);
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--ink);
+    display: none;
+  }
+  .explain.show { display: block; }
+  .explain b { color: var(--accent); }
+  .footerRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 18px;
+  }
+  .scoreLabel {
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+  button.next {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    border-radius: 999px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: none;
+  }
+  button.next.show { display: inline-block; }
+  .final {
+    display: none;
+    text-align: center;
+  }
+  .final.show { display: block; }
+  .final .big {
+    font-size: 44px;
+    font-weight: 800;
+    margin: 6px 0;
+    color: var(--accent);
+  }
+  .final .line {
+    font-size: 15px;
+    color: var(--ink-dim);
+    margin-bottom: 18px;
+  }
+  .final .bits {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .final .bit {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .final .bit.ok { background: var(--good); }
+  .final .bit.no { background: var(--bad); }
+  .quizBody { display: block; }
+  .quizBody.hide { display: none; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="kicker">Daily Ascent Code Quiz</div>
+    <h1>Quiz #36</h1>
+    <p>2026-09-17 · How Ascent is coded, ten questions</p>
+  </header>
+
+  <div class="progressRow">
+    <div class="track"><div class="fill" id="fill"></div></div>
+    <div class="progLabel" id="progLabel">1 / 10</div>
+  </div>
+
+  <div class="card">
+    <div class="quizBody" id="quizBody">
+      <div class="topicTag" id="topicTag"></div>
+      <p class="qtext" id="qtext"></p>
+      <div class="choices" id="choices"></div>
+      <div class="explain" id="explain"></div>
+      <div class="footerRow">
+        <div class="scoreLabel" id="scoreLabel">Score: 0 / 10</div>
+        <button class="next" id="nextBtn">Next →</button>
+      </div>
+    </div>
+
+    <div class="final" id="final">
+      <div class="big" id="finalScore"></div>
+      <div class="line" id="finalLine"></div>
+      <div class="bits" id="finalBits"></div>
+      <div class="line" style="font-size:13px;">Reply to Mike's chat with your score so tomorrow's quiz can adapt — e.g. "8/10, missed the RNG one."</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var QUESTIONS = [
+    {
+      topicId: "what-is-a-function",
+      question: "In <code>packages/core/src/rng.ts</code>, <code>pick</code> is written as <code>pick: (xs) =&gt; xs[rng.int(xs.length)]</code> inside the plain object literal that <code>makeRng()</code> returns. What does calling <code>rng.pick(someArray)</code> actually demonstrate?",
+      choices: [
+        "A function can be stored as the value of an object property (like any other value) and then called with dot-notation",
+        "<code>pick</code> is a TypeScript class method, and <code>rng</code> is an instance of a <code>Rng</code> class",
+        "<code>pick</code> is a constructor function that builds new <code>Rng</code> objects",
+        "<code>rng.pick(...)</code> only works because JavaScript automatically turns array indices into function calls"
+      ],
+      answer: 0,
+      explanation: "In JS/TS, functions are values, just like numbers or strings — you can assign one directly to a property of a plain object literal, the same way <code>{ next, int, pick, fork, state }</code> does. Calling <code>rng.pick(...)</code> looks like a 'method call' from other languages, but it's really just 'read the value stored at property <code>pick</code>, then call it' — <code>makeRng()</code> never uses <code>class</code> or <code>new</code> anywhere, it just returns an ordinary object whose <code>pick</code> key happens to hold an arrow function. That rules out the class/constructor answers, and there's no special array-index magic involved — <code>xs[rng.int(xs.length)]</code> is just normal array indexing with a random index. See <code>packages/core/src/rng.ts:40-46</code>."
+    },
+    {
+      topicId: "deterministic-sim",
+      question: "<code>packages/core/src/combat/effectIdentity.test.ts</code> adds a <code>key</code>/<code>srcCard</code> identity stamp onto certain combat events so bugs can be traced back to the exact effect that caused them. Per the test's own comment, its hardest invariant proves this addition is safe for outcomes by:",
+      choices: [
+        "Stripping the new <code>key</code>/<code>srcCard</code> fields back out of the events and asserting the result is BYTE-IDENTICAL to a simulation that never added them at all",
+        "Running the simulation twice with the same seed and checking that the two resulting event logs match each other",
+        "Comparing the total number of events emitted before and after the change",
+        "Manually re-reading the code diff line-by-line to confirm nothing else changed"
+      ],
+      answer: 0,
+      explanation: "The test's own comment states it directly: \"Identity is metadata: outcomes are BYTE-identical to a simulation without it (asserted by stripping).\" It strips the newly-added <code>key</code>/<code>srcCard</code> fields back off every event and diffs what's left against a baseline run that never had them, proving the tag is purely additive metadata. That's a stronger proof than running twice with the same seed (which only shows the NEW code is self-consistent, not that it still matches the OLD behavior) or comparing event counts (too weak — the count could match while the actual content silently changed). See <code>packages/core/src/combat/effectIdentity.test.ts:1-16</code>."
+    },
+    {
+      topicId: "seeded-rng",
+      question: "The doc comment at the top of <code>packages/core/src/rng.ts</code> calls this one RNG \"the single source of randomness for the entire engine.\" Which systems does it explicitly name as flowing through it?",
+      choices: [
+        "Shop offers, combat targeting, AND summons — all three",
+        "Only combat targeting — shop offers are generated by a separate RNG instance",
+        "Only the run's initial seed — every draw after that is fixed and doesn't use the RNG again",
+        "UI animations, so visual effects stay perfectly in sync with combat timing"
+      ],
+      answer: 0,
+      explanation: "The comment reads: \"the single source of randomness for the entire engine — shop offers, combat targeting, summons all flow through this.\" A natural beginner assumption is that the shop and combat feel different enough to run on separate randomness — but ASCENT threads exactly ONE seeded <code>Rng</code> (forked per subsystem via <code>fork()</code>) through everything, which is precisely what lets a whole run reproduce identically from one seed. UI visuals are explicitly exempt from this rule (per <code>CLAUDE.md</code>, <code>Math.random</code> is fine there since it's cosmetic-only) — the seeded engine RNG isn't what drives animation. See <code>packages/core/src/rng.ts:1-11</code>."
+    },
+    {
+      topicId: "sim-ui-decoupling",
+      question: "Which package owns the table that decides WHICH visual effect def plays for a given combat moment (e.g. a death, a buff landing)?",
+      choices: [
+        "<code>packages/ui</code> (<code>choreo/bindings.ts</code>), loaded from a static JSON file",
+        "<code>packages/core</code> — combat can't emit an event without also knowing how it should look",
+        "<code>packages/content</code> — it's defined right alongside the card data",
+        "<code>packages/sim</code> — it's assembled during the reducer's dispatch step"
+      ],
+      answer: 0,
+      explanation: "<code>bindings.ts</code>'s own doc comment calls itself \"the single answer to that question, for the cue runner, the FX library browser, and the workbench's commit path\" and is explicit that \"WHAT plays lives here.\" <code>packages/core</code> only ever emits a plain event like <code>{ type: 'death', ... }</code> — it never says how that should look on screen. Because the binding table lives entirely in <code>packages/ui</code>, adding or retargeting a visual for an existing event type is a pure presentation-layer change that needs zero edits to <code>core</code>, <code>content</code>, or <code>sim</code> — a concrete proof of the sim/UI split, not just a slogan. See <code>packages/ui/src/choreo/bindings.ts</code>."
+    },
+    {
+      topicId: "monorepo-packages",
+      question: "<code>npm run perf</code> runs the code in <code>packages/tools/src/perf.ts</code>. Where is the <code>\"perf\": \"tsx packages/tools/src/perf.ts\"</code> script line itself actually defined?",
+      choices: [
+        "In the ROOT <code>package.json</code> — <code>packages/tools/package.json</code> and <code>packages/core/package.json</code> don't even have a <code>scripts</code> field",
+        "In <code>packages/tools/package.json</code>, right alongside the code it runs",
+        "It's auto-generated by npm workspaces from the file's path on disk",
+        "In a standalone <code>scripts/</code> folder that sits outside every package"
+      ],
+      answer: 0,
+      explanation: "<code>packages/core/package.json</code> and <code>packages/tools/package.json</code> each have only <code>name</code>/<code>version</code>/<code>private</code>/<code>type</code>/<code>main</code>/<code>exports</code> (or <code>dependencies</code>) fields — no <code>scripts</code> key at all. Every dev-facing command (<code>perf</code>, <code>harness</code>, <code>balance</code>, <code>pool</code>, and a couple dozen more) is centralized in the ROOT <code>package.json</code>'s <code>scripts</code>, even though the actual code each one runs is scattered across <code>packages/tools/src/</code>. That's a convention this repo chose — one place to see 'what commands exist' — not something npm workspaces requires; any package is free to have its own <code>scripts</code> too. See the root <code>package.json</code> and <code>packages/tools/package.json</code>."
+    },
+    {
+      topicId: "pure-functions",
+      question: "In <code>simulate()</code>, the <code>playerState</code> and <code>enemyState</code> parameters both default to the SAME <code>EMPTY_SIDE</code> constant, which is wrapped in <code>Object.freeze()</code>. Why does freezing it matter for keeping <code>simulate()</code> pure?",
+      choices: [
+        "It prevents any one call from mutating the shared default in place, which would otherwise silently corrupt every OTHER call that also falls back to that same default",
+        "It just makes the object print more nicely when logged for debugging",
+        "It stops <code>simulate()</code> from having to clone the object before using it",
+        "TypeScript requires every default parameter value to be wrapped in <code>Object.freeze()</code>"
+      ],
+      answer: 0,
+      explanation: "<code>EMPTY_SIDE</code> is ONE shared object reused as the default across every call that omits <code>playerState</code>/<code>enemyState</code>. If combat-time code ever mutated it in place, that corruption wouldn't stay local to the current call — it would leak into every future call that also falls back to the default, breaking 'same inputs → same output' in a way that's genuinely hard to trace back to its source. <code>Object.freeze()</code> makes such a mutation throw (in strict mode) or silently no-op instead of corrupting shared state. TypeScript has no such requirement for default values — this is a deliberate defensive choice, not a language rule. See <code>packages/core/src/combat/side.ts:7</code> and <code>packages/core/src/combat/simulate.ts:50,54</code>."
+    },
+    {
+      topicId: "data-vs-code",
+      question: "<code>packages/content/src/runes.ts</code> says each rune's <code>reward</code> field \"reuses the quest <code>QuestReward</code> application engine.\" What does that buy the codebase?",
+      choices: [
+        "Runes and quests share ONE application engine (<code>applyQuestReward</code>) for granting a reward — a rune's data just points at reward \"kinds\" quests already have, instead of runes needing their own bespoke reward-handling code",
+        "Runes are secretly implemented as a special kind of quest under the hood at runtime",
+        "It's purely a naming coincidence — the <code>reward</code> field is shaped the same but the two code paths don't actually share any logic",
+        "Runes get their OWN separate reward-handling code, written specifically to stay independent of quests"
+      ],
+      answer: 0,
+      explanation: "Rather than writing a second, parallel system for 'how do I grant this effect,' a rune's <code>reward</code> field is shaped exactly like a quest reward and both flow through the same <code>applyQuestReward</code> function — some runes reuse existing reward kinds quests already have, others define rune-only kinds, but the ENGINE that applies them is shared. That's the practical payoff of data-driven cards/runes/quests: adding a new rune that reuses an existing reward kind takes zero new application logic, just a new data entry. Runes and quests stay two distinct concepts (different pools, different acquisition) — only the reward-APPLYING machinery is shared. See <code>packages/content/src/runes.ts:1-9</code>."
+    },
+    {
+      topicId: "event-log-replay",
+      question: "<code>CLAUDE.md</code> deliberately never states how many variants the <code>CombatEvent</code> union in <code>packages/core/src/types.ts</code> has, saying only \"that union is the source of truth for the event count (don't hardcode a number in docs).\" Why avoid writing the number down?",
+      choices: [
+        "The union IS the single source of truth — a number written into a doc would silently go stale the next time a variant is added or removed, with nothing to catch the drift",
+        "TypeScript doesn't provide any way to count how many members are in a union type",
+        "The count of events changes between combats, depending on which effects happen to fire that fight",
+        "The exact event vocabulary is treated as a private implementation detail, hidden even from contributors"
+      ],
+      answer: 0,
+      explanation: "A doc that says 'there are N event types' is a snapshot that starts rotting the moment someone adds or removes a <code>CombatEvent</code> variant and forgets to update the doc — code and docs can silently disagree with nothing to flag it. Pointing at the union itself means there's exactly one place to check, and it can never be out of sync with itself. Choice C mixes up two different things: how many event OBJECTS get emitted during one specific fight (which does vary) versus how many DIFFERENT event SHAPES the type permits (which only changes when someone edits <code>types.ts</code>) — the doc is about the latter. See the root <code>CLAUDE.md</code> and <code>packages/core/src/types.ts:1809</code>."
+    },
+    {
+      topicId: "eslint-rules",
+      question: "<code>eslint.config.mjs</code> sets <code>'@typescript-eslint/no-explicit-any': 'off'</code> project-wide — in sharp contrast to the <code>Math.random</code> ban, which is set to <code>'error'</code>. What does that tell you about how an ESLint config works?",
+      choices: [
+        "Not every lint rule is meant to be maximally strict — a project can deliberately relax one rule (here, allowing the <code>any</code> type) while keeping a different one (determinism) strict, based on what actually matters for that project",
+        "Every rule in one ESLint config must be set to the same strictness level as every other rule",
+        "<code>no-explicit-any</code> isn't a real ESLint rule, so setting it to <code>'off'</code> has no effect either way",
+        "TypeScript itself automatically disables this rule, so writing it into the ESLint config is redundant"
+      ],
+      answer: 0,
+      explanation: "An ESLint config is just a list of individual choices, rule by rule — this repo's authors decided that banning <code>any</code> everywhere would cost more (fighting the type system while iterating on gameplay code) than it buys, while banning <code>Math.random</code> in the engine protects something genuinely load-bearing (replays, shareable seeds, determinism). Reading a lint config isn't only about spotting what's banned — noticing what's deliberately left permissive is just as informative about a team's real priorities. See <code>eslint.config.mjs</code>."
+    },
+    {
+      topicId: "performance-memo",
+      question: "<code>docs/performance.md</code> names two specific things currently wrapped in <code>perfMonitor.measure()</code> as tracked hotspots: <code>reduce:&lt;action&gt;</code> (every run-logic dispatch) and one other. What's the other one?",
+      choices: [
+        "<code>autosave</code> — serializing the ENTIRE run to JSON on every state change",
+        "<code>render:&lt;component&gt;</code> — every individual React component render",
+        "<code>combat:playback</code> — the animation clock that paces a fight's replay",
+        "<code>shop:reroll</code> — rerolling the shop's current card offers"
+      ],
+      answer: 0,
+      explanation: "The doc lists it directly: \"Currently measured: <code>reduce:&lt;action&gt;</code> ... and <code>autosave</code> (the whole run serialized to JSON on every state change).\" Wrapping a specific named block in <code>perfMonitor.measure()</code> is what lets the perf HUD's 'hotspots' panel rank a SPECIFIC cost by its worst single call, instead of just seeing 'a frame was slow' with no idea why. Autosave is a natural thing to watch this way — 'serialize the whole run to JSON' is exactly the kind of cost that can quietly grow (more board history, more quest progress accumulating) without anyone noticing until it shows up as a hitch. See <code>docs/performance.md:106-107</code>."
+    }
+  ];
+
+  var idx = 0, score = 0, answered = false;
+  var results = [];
+
+  var topicLabels = {
+    "what-is-a-function": "What is a function",
+    "deterministic-sim": "Deterministic sim",
+    "seeded-rng": "Seeded RNG",
+    "sim-ui-decoupling": "Sim ↔ UI split",
+    "monorepo-packages": "Monorepo packages",
+    "pure-functions": "Pure functions",
+    "data-vs-code": "Data vs. code",
+    "event-log-replay": "Event log / replay",
+    "eslint-rules": "ESLint rules",
+    "performance-memo": "Performance"
+  };
+
+  var fill = document.getElementById("fill");
+  var progLabel = document.getElementById("progLabel");
+  var topicTag = document.getElementById("topicTag");
+  var qtext = document.getElementById("qtext");
+  var choicesEl = document.getElementById("choices");
+  var explainEl = document.getElementById("explain");
+  var scoreLabel = document.getElementById("scoreLabel");
+  var nextBtn = document.getElementById("nextBtn");
+  var quizBody = document.getElementById("quizBody");
+  var finalEl = document.getElementById("final");
+  var finalScore = document.getElementById("finalScore");
+  var finalLine = document.getElementById("finalLine");
+  var finalBits = document.getElementById("finalBits");
+
+  var letters = ["A", "B", "C", "D"];
+
+  function render() {
+    var q = QUESTIONS[idx];
+    answered = false;
+    fill.style.width = (idx / QUESTIONS.length * 100) + "%";
+    progLabel.textContent = (idx + 1) + " / " + QUESTIONS.length;
+    topicTag.textContent = topicLabels[q.topicId] || q.topicId;
+    qtext.innerHTML = q.question;
+    scoreLabel.textContent = "Score: " + score + " / " + QUESTIONS.length;
+    explainEl.className = "explain";
+    explainEl.innerHTML = "";
+    nextBtn.className = "next";
+    choicesEl.innerHTML = "";
+
+    q.choices.forEach(function (choiceText, i) {
+      var btn = document.createElement("button");
+      btn.className = "choice";
+      btn.innerHTML = '<span class="letter">' + letters[i] + '</span><span>' + choiceText + '</span>';
+      btn.addEventListener("click", function () { pick(i, btn); });
+      choicesEl.appendChild(btn);
+    });
+  }
+
+  function pick(i, btn) {
+    if (answered) return;
+    answered = true;
+    var q = QUESTIONS[idx];
+    var correct = i === q.answer;
+    if (correct) score++;
+    results.push(correct);
+
+    var btns = choicesEl.querySelectorAll(".choice");
+    btns.forEach(function (b, bi) {
+      b.disabled = true;
+      if (bi === q.answer) b.classList.add("correct");
+      else if (bi === i) b.classList.add("incorrect");
+    });
+
+    explainEl.innerHTML = (correct ? "✅ Correct. " : "❌ Not quite. ") + q.explanation;
+    explainEl.className = "explain show";
+    scoreLabel.textContent = "Score: " + score + " / " + QUESTIONS.length;
+    nextBtn.className = "next show";
+    nextBtn.textContent = idx === QUESTIONS.length - 1 ? "See results →" : "Next →";
+  }
+
+  nextBtn.addEventListener("click", function () {
+    idx++;
+    if (idx >= QUESTIONS.length) {
+      showFinal();
+    } else {
+      render();
+    }
+  });
+
+  function showFinal() {
+    fill.style.width = "100%";
+    progLabel.textContent = QUESTIONS.length + " / " + QUESTIONS.length;
+    quizBody.className = "quizBody hide";
+    finalEl.className = "final show";
+    finalScore.textContent = score + " / " + QUESTIONS.length;
+    var pct = score / QUESTIONS.length;
+    var line;
+    if (pct === 1) line = "Perfect score! You've got a real handle on how this thing is built.";
+    else if (pct >= 0.8) line = "Great run — you're reading the architecture like a regular.";
+    else if (pct >= 0.5) line = "Solid effort — a few of these will click once you skim the files they point to.";
+    else line = "Rough one today — no worries, these get revisited. Go peek at the files named above when you get a chance.";
+    finalLine.textContent = line;
+    finalBits.innerHTML = "";
+    results.forEach(function (ok, i) {
+      var d = document.createElement("div");
+      d.className = "bit " + (ok ? "ok" : "no");
+      d.textContent = (i + 1);
+      finalBits.appendChild(d);
+    });
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

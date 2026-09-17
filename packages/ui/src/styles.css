@@ -1893,9 +1893,16 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   filter: blur(var(--msglow-blur, 9px));
   opacity: var(--msglow-opacity, 0.75);
 }
-/* State tint — a SOLID disc OVER the frame's leather, coloured by stat state (owner ask 2026-09-15):
-   neutral / buffed / reduced. Above the frame art, below the number. Size, strength, offset and the three
-   colours are all tuner-driven; the literals here are the shipped fallback (owner-tuned 2026-09-15). */
+/* Tiers 1–3 (plain silver / dagger / gold) wear NO glow — only pink/blue/crystal glow (owner ask 2026-09-16).
+   The glowN config values still tint each tier's CELEBRATION burst; this only hides the frame's halo disc. */
+.badge[data-milestone='1'] > .msglow,
+.badge[data-milestone='2'] > .msglow,
+.badge[data-milestone='3'] > .msglow { display: none; }
+/* Stat tint — a SOLID disc BEHIND the frame (owner ask 2026-09-16), a FIXED colour per stat: Attack yellow,
+   Health red, whatever the buff state (the STATE is carried by the number's colour below). In DOM it is the
+   child BEFORE .msframe, so it paints behind the frame art — it shows through a transparent-centre frame (the
+   tier-6 crystal) and is covered by an opaque leather-centre frame (tiers 1–5). Size/strength/offset and both
+   colours are tuner-driven; the literals here are the shipped fallback. */
 .badge > .mstint {
   position: absolute;
   left: 50%; top: 50%;
@@ -1905,10 +1912,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   border-radius: 50%;
   pointer-events: none;
   opacity: var(--mstint-opacity, 1);
-  background: var(--mstint-neutral, #be8c04);   /* neutral — a SOLID fill (owner ask 2026-09-15) */
+  background: var(--mstint-atk, #e0a81e);   /* fallback; overridden per stat below (owner ask 2026-09-16) */
 }
-.badge.up > .mstint { background: var(--mstint-up, #00992e); }     /* buffed above base */
-.badge.down > .mstint { background: var(--mstint-down, #bd311f); } /* below base/floor */
+.badge.atk > .mstint { background: var(--mstint-atk, #e0a81e); }   /* Attack: fixed yellow, any state */
+.badge.hp  > .mstint { background: var(--mstint-hp, #c62828); }    /* Health: fixed red, any state */
 /* The number on a framed badge — size / colour / nudge / outline are tuner-driven; unframed tier-0 badges keep
    the base `.badge > .value` rule above. Absolutely centred on the disc so it grows from BOTH sides (a 4-digit
    5000 stays centred instead of spilling off the right); the second translate is the tuner's nudge. */
@@ -1921,7 +1928,14 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   font-size: var(--msnum-size, 33px);
   color: var(--msnum-color, #fff);
   -webkit-text-stroke: var(--msnum-stroke-w, 0px) var(--msnum-stroke-color, #000);
+  /* STATIC drop shadow behind the digit (tuner-driven) — a static text-shadow is fine under the 60fps rule;
+     it only bans ANIMATING paint props in a loop. Strength is folded into the rgba colour var. */
+  text-shadow: var(--msnum-shadow-x, 0px) var(--msnum-shadow-y, 2px) var(--msnum-shadow-blur, 3px) var(--msnum-shadow-color, rgba(0, 0, 0, 0.55));
 }
+/* The number's COLOUR carries the stat STATE (owner ask 2026-09-16): buffed / reduced recolour the digit.
+   Higher specificity than the neutral rule above, so the state colour wins when the badge has .up / .down. */
+.badge.up:not([data-milestone='0']) > .value { color: var(--msnum-up, #3ad84a); }     /* buffed above base */
+.badge.down:not([data-milestone='0']) > .value { color: var(--msnum-down, #ff5a4f); } /* below base / floor */
 /* MILESTONE TUNER PREVIEW — the 🏅 Milestone Badges panel renders the real badge markup for all ten tiers so it
    tracks the CSS vars live. The badges are normally absolute at a card's corners; here they lay out in rows, so
    their positioning is neutralised and the row leaves generous room for the frame overflow (sword/heart). */
@@ -2179,6 +2193,11 @@ img.tierbadge.tierstars,
   box-shadow: 0 0 0 calc(var(--ccw) * 0.014) #9c6f24, 0 calc(var(--ccw) * 0.021) calc(var(--ccw) * 0.05) rgba(0, 0, 0, 0.4);
 }
 .card.compact .badge > .value { font-size: calc(var(--ccw) * 0.15); }
+/* But a FRAMED (milestone) badge keeps its tuner-driven fixed number size even on a compact card — the frame
+   art is fixed-px (calc(60px * --msf-scale)) too, so the digit must match it, not switch to the compact
+   card-width-responsive size. Higher specificity than the rule above, so --msnum-size wins (owner report
+   2026-09-16: the tuner's Number size wasn't reaching in-game cards). */
+.card.compact .badge:not([data-milestone='0']) > .value { font-size: var(--msnum-size, 33px); }
 .card.compact .atk { left: calc(var(--ccw) * -0.02); }
 .card.compact .hp { right: calc(var(--ccw) * -0.02); }
 /* mechanic medallion — eclipses the arch's bottom-centre, between the attack/health badges */

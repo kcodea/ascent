@@ -25,6 +25,7 @@ import {
 import { familyOf } from './audio/clipFamily';
 import { SCENES } from './audio/scenes';
 import { slugify, isValidSlug, saveSound } from './fx/defStore';
+import { buildAudioFilterChain } from './fx/audioFilters';
 
 export { SCENES };
 
@@ -1025,6 +1026,9 @@ export interface FxSoundOpts {
   gainVar?: number;
   /** Randomly shift the pitch by up to ±this fraction per fire (0..1). */
   pitchVar?: number;
+  /** The `sound` layer's full param bag — `buildAudioFilterChain` reads the Filter Lab keys (eqOn, comp_*, …)
+   *  off it to splice a per-fire EQ/comp/distortion/delay/pan chain between the source and the fader. */
+  filterParams?: Record<string, unknown>;
 }
 /** A live FX sound the caller can stop/fade — Web Audio sources are otherwise fire-and-forget. */
 export interface FxSoundHandle {
@@ -1067,7 +1071,12 @@ export function playFxSound(clip: string, opts: FxSoundOpts = {}): FxSoundHandle
   const level = Math.max(0, (opts.gain ?? 1) * gainJit);
   const g = a.createGain();
   const busIn = busNodes.get(opts.bus ?? 'combat')?.input ?? master ?? a.destination;
-  src.connect(g).connect(busIn);
+  // Channel strip: source → [Filter Lab inserts] → fader (g) → bus. `g` (level, fades, jitter) stays the LAST
+  // stage before the bus, so a fade-out silences any filter tail (echoes) too. No enabled filters → straight
+  // through, allocating nothing.
+  const chain = buildAudioFilterChain(a, opts.filterParams);
+  if (chain) { src.connect(chain.input); chain.output.connect(g); } else { src.connect(g); }
+  g.connect(busIn);
   const t0 = a.currentTime + Math.max(0, (opts.delayMs ?? 0) / 1000);
   const offset = Math.max(0, (opts.startOffsetMs ?? 0) / 1000);
   const fadeIn = Math.max(0, (opts.fadeInMs ?? 0) / 1000);

@@ -579,6 +579,22 @@ These are the rules the audits surfaced; the codebase already follows them — k
   second. It now lives in an external store (`turnClock.ts`); only the tiny ring/rope subscribe to live seconds,
   while the big tree subscribes to the derived `timeUp` boolean (changes once per turn). Pattern: isolate a
   frequently-changing value into its own store/subscriber so only what *displays* it re-renders.
+- **Don't render the whole shop screen from one component's return.** `Recruit` subscribes to the whole
+  `run` and holds ~40 pieces of local state; until 2026-09-16 every one of them changing (a drag decision,
+  an aim target, a loss-tally tick, an overlay toggle) reconciled the ENTIRE screen — measured at
+  `render:recruit` 106 ms worst in the owner's 240 Hz capture. The rows (`TavernRow` / `WarbandRow` /
+  `HandRow`), the controls (`ShopControls`) and each overlay are now `React.memo` components at the bottom
+  of `Recruit.tsx`, fed only the slices they render from. Keep it that way: a NEW piece of JSX in `Recruit`
+  goes into the subtree it belongs to (or a new memo'd one), its handlers are `useCallback`s (or a stable
+  wrapper over a ref for closures that must see the latest render — see `endTurnStable`), and a prop that
+  is an object or array is memoized or derived from the view caches. Before/after in
+  `docs/devlog/2026-09-16-perf-recruit-split.md`.
+- **Don't read layout in a no-deps `useLayoutEffect`.** An effect with no dependency array runs on EVERY
+  commit, and an `offsetLeft` / `getBoundingClientRect` read after that commit's style writes is a forced
+  layout every time — the `layout:handglide` cache was 39.8 ms in one of the owner's worst frames for a
+  value that only changes when the hand's order/count, the grant previews or compact mode change. Key such
+  a read on the thing that can move the elements (plus `resize` when the viewport can), never on "every
+  render".
 - **Don't fight a stacking context with a bigger z-index — find out which context you are in.** Combat
   damage numbers spent a long time buried under the Pixi FX canvas because of TWO nested traps: `.unit` is
   its own stacking context in combat (`.attacking` z8 / `.struck` z12 / `.reborn` z14), so a child's z25 only

@@ -70,7 +70,7 @@ export const dragStore = {
   set: (patch: Partial<DragSnapshot>): void => {
     let changed = false;
     for (const k in patch) {
-      if (!Object.is((snap as Record<string, unknown>)[k], (patch as Record<string, unknown>)[k])) { changed = true; break; }
+      if (!Object.is((snap as unknown as Record<string, unknown>)[k], (patch as unknown as Record<string, unknown>)[k])) { changed = true; break; }
     }
     if (!changed) return;
     snap = { ...snap, ...patch };

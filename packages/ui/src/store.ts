@@ -63,6 +63,7 @@ import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { turnClock } from './turnClock';
 import { BUG_REPORT_TX_TOAST, bugReportAvailability, buildBugReportEnvelope, buildClientContext, captureIncidentCapsule, captureMenuCapsule, exportBugReportJson } from './bug-report/bugReportCapture';
 import { recordActionEntry } from './bug-report/actionRing';
+import { createDeferredWriter } from './idleWork';
 import { validateBugReportDraft } from './bug-report/bugReportValidation';
 import { attemptBugReportUpload, enqueueBugReport, flushBugReportQueue, initBugReportUploads } from './bug-report/bugReportUpload';
 import type { BugClientContext, BugIncidentCapsule, BugReportDraft } from './bug-report/bugReportTypes';
@@ -822,8 +823,23 @@ function writeSave(run: RunState, actions: Action[], boards: BoardSnapshot[] = [
   } catch { /* ignore */ }
 }
 function clearSave(): void {
+  autosave.cancel(); // a write still waiting for idle time must not resurrect the run being cleared
   try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
 }
+/**
+ * THE PHASE-BOUNDARY AUTOSAVE, OFF THE FRAME (perf 2026-09-17). `writeSave` serializes the whole run + the
+ * action log + the captured boards + the telemetry to JSON and pushes it through localStorage — and it ran
+ * inside the dispatch's `store:set`, on the click that opened the shop or started the fight. It now runs on
+ * idle time, at most `AUTOSAVE_IDLE_TIMEOUT_MS` later on a saturated thread, as its own task. The run object
+ * it will write is the committed `next` (the reducer never mutates a state it has returned), so the bytes are
+ * the same; only WHEN they hit disk moved. `flushSave` (quit / tab-hide) writes the LIVE state itself and
+ * cancels this; `clearSave` cancels it. The window a crash could lose is the idle wait — a second or two of a
+ * turn that the turn-boundary save never covered mid-turn anyway.
+ */
+export const AUTOSAVE_IDLE_TIMEOUT_MS = 1500;
+const autosave = createDeferredWriter<Parameters<typeof writeSave>>((args) => {
+  perfMonitor.measure('autosave', () => writeSave(...args));
+}, AUTOSAVE_IDLE_TIMEOUT_MS);
 const BOOT_SAVE = loadSave();
 
 // ── REPLAY V2 (state replay, Phase A — docs/replay-v2-handoff.md §5) ──────────────────────────────────────
@@ -1126,9 +1142,10 @@ function commitResolvedAction(
     actionSfx(action, s.run, next);
     // WP C — the always-on rolling action window (bug-report/actionRing.ts): record this accepted action's
     // reproduction rails (rng cursor before + state hashes) into the memory-only ring. Purely observational
-    // (reads the states this path already holds, AFTER resolution — nothing it does can reach gameplay), one
-    // hash per accepted action at human click cadence. No-op for a rejected action.
-    recordActionEntry(s.run, action, next, batch);
+    // (reads the states this path already holds, AFTER resolution — nothing it does can reach gameplay). The
+    // hashes themselves are computed on idle time (perf 2026-09-17) — the push here is a few object writes.
+    // Each commit step below carries its own `commit:*` span, so `store:set`'s self time can be attributed.
+    perfMonitor.measure('commit:actionRing', () => recordActionEntry(s.run, action, next, batch));
     // Phase flips are where both real captures put their bad frames — annotate them so a spike in the
     // log can be read as "this was the shop opening" rather than an unexplained gap.
     if (next.phase !== s.run.phase) perfMonitor.mark(`phase:${s.run.phase}->${next.phase}`);
@@ -1156,11 +1173,11 @@ function commitResolvedAction(
     // Fold this action into the live acquisition log. Mutates in place and returns the same object — this
     // runs on EVERY dispatched action, so it must not allocate (nothing subscribes to it either). Computed
     // HERE, above the run-end block, so the deferred upload closure below can capture it.
-    const telemetryLog = recordTelemetryAction(s.telemetryLog, s.run, action, next);
+    const telemetryLog = perfMonitor.measure('commit:telemetry', () => recordTelemetryAction(s.telemetryLog, s.run, action, next));
     // …and the richer derivation, from the SAME (before, action, after) triple. Mutates in place and
     // returns the same object, exactly like the log above — this runs per dispatched action (a click),
     // never per frame, so its cost is a handful of object touches at human cadence.
-    const deriveState = observeAction(s.deriveState, s.run, action, next);
+    const deriveState = perfMonitor.measure('commit:derive', () => observeAction(s.deriveState, s.run, action, next));
     // REPLAY V2 (inspect trail): every dispatched action closes the inspect overlay (`inspect: null` in the
     // return below) — record that IMPLICIT close so the trail is self-contained (a seek's "latest event
     // at-or-before T" is then always the truth, never a resurrected stale open). Ticked BEFORE the frame's
@@ -1171,7 +1188,7 @@ function commitResolvedAction(
     // `servedBoards` by reference and mutates boards in place, so a shallow capture would let later turns
     // corrupt earlier frames. The no-change path (`next === s.run`) stays zero-cost.
     let replayFrames = s.replayFrames;
-    if (next !== s.run) {
+    if (next !== s.run) perfMonitor.measure('commit:replayFrame', () => {
       const tMs = replayClockTick();
       // The fight's cost settles on `settleCombat`/`resolveCombat` (lobby: via the seat sync), NOT at
       // `faceOmen` — so the fight's frame is patched here with what it actually cost. Armor absorbs first,
@@ -1220,7 +1237,7 @@ function commitResolvedAction(
           replayFrames = [...replayFrames, frame];
         }
       }
-    }
+    });
     const capturedBoards = action.type === 'faceOmen' && next !== s.run && next.lastCombat && next.mode === 'lobby'
       ? [...s.capturedBoards, snapshotBoard(next)]
       : s.capturedBoards;
@@ -1432,7 +1449,7 @@ function commitResolvedAction(
       // `next.sandbox` — a Scene Builder run never reaches the autosave OR the Continue slot. Both are
       // guarded here rather than only inside `writeSave`, because `savedRun` is what the title offers.
       else if (next.phase !== s.run.phase && !next.sandbox) {
-        perfMonitor.measure('autosave', () => writeSave(next, replayActions, capturedBoards, telemetryLog, deriveState));
+        autosave.schedule([next, replayActions, capturedBoards, telemetryLog, deriveState]); // idle time, not this frame
         savedRun = next;
       }
     }
@@ -1535,6 +1552,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // Capture the live recruit-turn timer so Continue resumes with the SAME seconds left (owner ask 2026-08-24).
     // Only mid-recruit — during combat the clock is irrelevant, and saving its 0 would resume a locked board.
     const turnRemaining = s.run.phase === 'recruit' ? turnClock.get() : undefined;
+    autosave.cancel(); // this write carries everything the pending boundary write would, and newer
     writeSave(s.run, s.replayActions, s.capturedBoards, s.telemetryLog, s.deriveState, turnRemaining);
     set({ savedTurnRemaining: turnRemaining ?? null });
     // The Replay V2 frames are far too large for that localStorage payload — they persist to IndexedDB

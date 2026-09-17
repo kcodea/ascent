@@ -56,6 +56,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-17',
+    label: 'Gamble joins Set 3',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'The Gamble spell is now in the Set 3 pool as well: roll a die and get a random minion of that Tier.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-17',
     label: 'A real die',
     changes: [
       {

@@ -9,6 +9,7 @@ import {
   beginEditCardArt, cardArtVars, cardArtVersion, editingCardArt, isPickingCardArt, subscribeCardArt,
 } from './cardArtConfig';
 import { CardArtEditor } from './CardArtEditor';
+import { perfMonitor } from './perfMonitor';
 import { heldFor, holdStat, statHoldKey, subscribeStatHolds } from './fx/statHold';
 import { resolveMechIcon } from './mechIcon';
 import { crossedUp, tierOf } from './choreo/statMilestones';
@@ -686,7 +687,7 @@ export const Card = memo(function Card({
   const showRefTip = (el: HTMLElement): void => {
     if (!hasPopup) return;
     if (refTimer.current) window.clearTimeout(refTimer.current);
-    refTimer.current = window.setTimeout(() => {
+    refTimer.current = window.setTimeout(() => perfMonitor.measure('input:hover-preview', () => {
       const r = el.getBoundingClientRect();
       const n = popupCards.length;
       const gap = 10;
@@ -715,7 +716,7 @@ export const Card = memo(function Card({
       const estH = cardW * 1.5550; // plate aspect (800×1244) — clamp so it stays on-screen
       const top = Math.max(6, Math.min(r.top, window.innerHeight - estH - 6));
       setRefPos({ left, top, origin: flip ? 'right' : 'left', cardTop: r.top });
-    }, showText ? 250 : 100);
+    }), showText ? 250 : 100);
   };
   const hideRefTip = (): void => {
     if (refTimer.current) { window.clearTimeout(refTimer.current); refTimer.current = null; }
@@ -788,8 +789,8 @@ export const Card = memo(function Card({
         // not the base card's, so the two can be framed independently.
         beginEditCardArt(artVariantKey(card.cardId!, card.chosenOption));
       } : undefined}
-      onMouseEnter={hasPopup && !dragging ? (e) => showRefTip(e.currentTarget) : undefined}
-      onMouseLeave={hasPopup ? hideRefTip : undefined}
+      onMouseEnter={hasPopup && !dragging ? (e) => perfMonitor.measure('input:pointerenter', () => showRefTip(e.currentTarget)) : undefined}
+      onMouseLeave={hasPopup ? () => perfMonitor.measure('input:pointerleave', hideRefTip) : undefined}
       onContextMenu={(e) => {
         e.preventDefault();
         inspectCard(card);

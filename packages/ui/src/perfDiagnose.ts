@@ -1,5 +1,7 @@
-import type { PerfBucket } from './perfMonitor';
+import type { PerfBucket, PerfLongTask } from './perfMonitor';
 import { counterPeak, topOffenders } from './perfLive';
+import { containerGrowth, growthSummary } from './perfDomContainers';
+import { eventAttributionLine } from './perfEventRing';
 import { thresholdsFor, type FrameThresholds } from './refreshRate';
 
 /**
@@ -97,6 +99,9 @@ export interface Spike {
   timings: { label: string; n: number; total: number; max: number }[];
   /** Peak live FX counts in this second. */
   counts: { label: string; n: number }[];
+  /** The worst long tasks in this second, each with what ran inside it — or the input event that was being
+   *  dispatched when nothing instrumented did (`PerfBucket.longTasks`). Empty on older recordings. */
+  longTasks: PerfLongTask[];
 }
 
 export interface Diagnosis {
@@ -249,7 +254,28 @@ export function worstSpikes(live: readonly PerfBucket[], n = 8): Spike[] {
         .sort((a, c) => c.max - a.max)
         .slice(0, 6),
       counts: top(b.counts, 6),
+      longTasks: b.longTasks ?? [],
     }));
+}
+
+/** One long task as the report prints it: what ran in it, or — unlabelled — what event was dispatching. */
+export function longTaskLine(t: PerfLongTask): string {
+  if (t.labels.length) return `${t.ms.toFixed(0)} ms — ran: ${t.labels.map((l) => `\`${l}\``).join(', ')}`;
+  if (t.lastEvent) return `${t.ms.toFixed(0)} ms — no label open; last event: ${eventAttributionLine(t.lastEvent)}`;
+  return `${t.ms.toFixed(0)} ms — no label open, no input event recorded`;
+}
+
+/**
+ * Every UNLABELLED long task in the run, worst first — the 2026-09-17 "Mode B" list. A task with a label is
+ * already attributed by the offenders table; these are the ones only the event ring can speak for.
+ */
+export function unlabelledLongTasks(buckets: readonly PerfBucket[], n = 8): (PerfLongTask & { phase?: string; wave?: number })[] {
+  const out: (PerfLongTask & { phase?: string; wave?: number })[] = [];
+  for (const b of buckets) {
+    if (b.hidden) continue;
+    for (const t of b.longTasks ?? []) if (t.labels.length === 0) out.push({ ...t, phase: b.phase, wave: b.wave });
+  }
+  return out.sort((a, b) => b.ms - a.ms).slice(0, n);
 }
 
 /**
@@ -349,14 +375,43 @@ export function diagnose(buckets: readonly PerfBucket[], namer: SubjectNamer = r
   const worstTask = live.reduce((a, b) => Math.max(a, b.task), 0);
   if (worstTask > th.jankMs * 2) {
     const at = live.find((b) => b.task === worstTask);
+    // The task's own attribution, when the recording has it: the labels that ran inside it, or — with none
+    // open — the input event that was being dispatched. That is the difference between "something blocked"
+    // and "the pointermove handler on a shop card blocked".
+    const worstRec = at?.longTasks?.[0];
+    const owned = worstRec && worstRec.labels.length > 0;
+    const triggered = worstRec && !owned && worstRec.lastEvent;
     v.push({
       id: 'long-task',
       severity: worstTask > 100 ? 'critical' : 'warn',
       title: `A single main-thread task ran ${round(worstTask)} ms`,
-      detail: `Longest blocking task of the run${at?.phase ? `, during ${at.phase}` : ''}${at?.wave !== undefined ? ` on wave ${at.wave}` : ''}. Nothing renders while it runs.`,
-      suggestion: 'This is synchronous work, not draw cost — a big clone, a shader compile, a save, or a reducer pass. Check the timings on that spike; if none of them own it, it is uninstrumented and worth wrapping in a timing.',
+      detail: `Longest blocking task of the run${at?.phase ? `, during ${at.phase}` : ''}${at?.wave !== undefined ? ` on wave ${at.wave}` : ''}. Nothing renders while it runs.${
+        owned ? ` Inside it: ${worstRec.labels.map((l) => `\`${l}\``).join(', ')}.`
+          : triggered ? ` No instrumented label was open — the last input event before it was ${eventAttributionLine(worstRec.lastEvent!)}.`
+            : ''}`,
+      suggestion: owned
+        ? 'This is synchronous work, not draw cost, and the labels above ran inside it — start with the one whose worst call is nearest the task length.'
+        : triggered
+          ? `Nothing we time ran in it, so the cost is in the handler for that event or in the style / layout work it forced (a layout read after a style write reflows the whole shop per pointer event). Check \`layout:read-in-move\` in the counters, and profile that handler in DevTools (docs/performance.md §3).`
+          : 'This is synchronous work, not draw cost — a big clone, a shader compile, a save, or a reducer pass. Check the timings on that spike; if none of them own it, it is uninstrumented and worth wrapping in a timing.',
       confidence: 'measured',
       phase: at?.phase,
+    });
+  }
+
+  // ── 3b. UNLABELLED LONG TASKS — the blind spot, named by its trigger (perf PR 1, 2026-09-17). ────────────
+  const blind = unlabelledLongTasks(live, 3);
+  if (blind.length > 0 && blind[0]!.ms > th.jankMs) {
+    const byType: Record<string, number> = {};
+    for (const b of live) for (const t of b.longTasks ?? []) if (t.labels.length === 0 && t.lastEvent) byType[t.lastEvent.type] = (byType[t.lastEvent.type] ?? 0) + 1;
+    const commonest = Object.entries(byType).sort((a, b) => b[1] - a[1])[0];
+    v.push({
+      id: 'unlabelled-long-tasks',
+      severity: blind[0]!.ms > 100 ? 'critical' : 'warn',
+      title: `${blind.length === 1 ? 'A long task' : 'Long tasks'} ran with no instrumented code inside — ${commonest ? `most often right after a ${commonest[0]}` : 'and no input event to blame'}`,
+      detail: blind.map((t) => `${longTaskLine(t)}${t.phase ? ` (${t.phase}${t.wave !== undefined ? ` w${t.wave}` : ''})` : ''}`).join('; ') + '.',
+      suggestion: 'Whatever ran is in the handler for that event, or in the style recalc / layout the browser did after it. Wrap that handler in an `input:` timing if it is not already, and check `layout:read-in-move` — a non-zero count is a layout read inside a pointer-move path, the forced-reflow-per-event pattern.',
+      confidence: 'measured',
     });
   }
 
@@ -441,12 +496,17 @@ export function diagnose(buckets: readonly PerfBucket[], namer: SubjectNamer = r
   const nodesFirst = live.find((b) => b.nodes > 0)?.nodes ?? 0;
   const nodesLast = [...live].reverse().find((b) => b.nodes > 0)?.nodes ?? 0;
   if (nodesFirst > 0 && nodesLast > nodesFirst * NODE_GROWTH_FACTOR && live.length > 30) {
+    // BY CONTAINER, when the recording counted them (perf PR 1, 2026-09-17): the growing rows name themselves.
+    const growth = containerGrowth(live);
+    const where = growthSummary(growth);
     v.push({
       id: 'dom-growth',
       severity: 'warn',
-      title: `DOM grew from ${nodesFirst} to ${nodesLast} nodes over the run`,
-      detail: `${round(nodesLast / nodesFirst, 1)}× growth across ${live.length}s. Style recalc scales with node count, so this gets slower the longer a run goes.`,
-      suggestion: 'Look for transient elements that are never removed — FX layers, floats, portals. Something is mounting and not cleaning up.',
+      title: `DOM grew from ${nodesFirst} to ${nodesLast} nodes over the run${growth.length && growth[0]!.delta > 0 ? ` — mostly in ${growth[0]!.name}` : ''}`,
+      detail: `${round(nodesLast / nodesFirst, 1)}× growth across ${live.length}s. Style recalc scales with node count, so this gets slower the longer a run goes.${where ? ` Growth by container: ${where}.` : ''}`,
+      suggestion: where
+        ? `Open the top container in the Elements panel and watch what accumulates — a transient element (a float, a hand-buff layer, a portal, an FX wrapper) that mounts there and never unmounts.`
+        : 'Look for transient elements that are never removed — FX layers, floats, portals. Something is mounting and not cleaning up.',
       confidence: 'measured',
     });
   }

@@ -41,6 +41,7 @@ import {
   DEFAULT_REFRESH_HZ, estimateRefreshHz, initialRefreshState, nextRefreshState, thresholdsFor,
   type FrameThresholds, type RefreshState,
 } from './refreshRate';
+import { EVENT_RING_TYPES, EventRing, SpanRing, attributeLongTask, type EventAttribution } from './perfEventRing';
 
 /** Bucket width. 1s keeps the log readable over a full run without losing spikes (worst is kept per bucket). */
 const BUCKET_MS = 1000;
@@ -178,7 +179,34 @@ export interface PerfBucket {
   /** Frames this second that were DIVERTED to a startup record by the warm-up (see `WarmupConfig`). The
    *  bucket's own stats cover only the frames that counted; this says how much of the second was warming up. */
   warmup?: number;
+  /**
+   * THE LONG TASKS THEMSELVES (the worst few this second), each with the labels that ran inside it — or, when
+   * NO label was open, the last DOM event dispatched before it (see `perfEventRing.ts`). `task` above is the
+   * longest one's duration; this is what it was. Absent on logs from before it existed.
+   */
+  longTasks?: PerfLongTask[];
+  /** DOM element count INSIDE each registered container (`setDomContainers`) plus `other`, so a climbing
+   *  `nodes` can be laid at a row's door rather than at the whole document's. Absent on older logs. */
+  nodesBy?: Record<string, number>;
 }
+
+/** One attributed long task — see `PerfBucket.longTasks`. */
+export interface PerfLongTask {
+  /** ms since monitoring started, at the task's START. */
+  t: number;
+  ms: number;
+  /** Measured labels whose spans overlapped the task, most recent last. Empty = UNLABELLED. */
+  labels: string[];
+  /** Set only when `labels` is empty: the newest input event at or before the task's end. */
+  lastEvent?: EventAttribution;
+}
+
+/** Long tasks kept per bucket — the worst few, by duration. */
+const MAX_LONG_TASKS_PER_BUCKET = 3;
+/** Labels charged for what `layout:read-in-move` counts: a layout read that happens while one of these
+ *  spans is open is a read inside a pointer-move path. `drag:flushMove` is the drag's rAF-coalesced move
+ *  handler and predates the `input:` family; it counts the same way. */
+const isInputLabel = (label: string): boolean => label.startsWith('input:') || label === 'drag:flushMove';
 
 type CounterFn = () => number;
 /** `overlay` names a phase-like state that is not a `RunState.phase` — the Runeforge — for the phase strip. */
@@ -296,6 +324,20 @@ class PerfMonitor {
   private readonly childMs: number[] = [];
   /** Self time per label since the LAST rAF tick — folded into `longAttrib` when that frame turns out long. */
   private readonly frameSelf = new Map<string, number>();
+  /**
+   * LONG-TASK ATTRIBUTION. A `longtask` entry is delivered AFTER the task ends, when the span stack is empty
+   * again — so "snapshot the stack" has to be "remember what closed recently": a ring of closed spans (label,
+   * start, end) that a task's `[startTime, startTime + duration]` is intersected against. When nothing
+   * overlaps, the task ran with no instrumented code in it, and the event ring names the handler family
+   * that was dispatching (the 2026-09-17 "Mode B" blind spot).
+   */
+  private readonly spans = new SpanRing(256);
+  private readonly events = new EventRing(32);
+  private readonly pendingLongTasks: PerfLongTask[] = [];
+  /** Open `input:` spans (see `isInputLabel`) — while > 0, a layout read counts as `layout:read-in-move`. */
+  private inputDepth = 0;
+  /** Named containers whose node counts are taken at bucket close — see `perfDomContainers.ts`. */
+  private domContainers: Readonly<Record<string, string>> = {};
   private readonly pendingLongAttrib = new Map<string, { ms: number; frames: number }>();
   private readonly counters = new Map<string, CounterFn>();
   /** PEAK of each counter since the bucket opened — see `sampleCounters`. */
@@ -433,15 +475,20 @@ class PerfMonitor {
     this.spanLabel.push(label);
     this.spanT0.push(performance.now());
     this.childMs.push(0);
+    if (isInputLabel(label)) this.inputDepth++;
   }
 
   end(): void {
     if (!this.running || this.spanLabel.length === 0) return;
-    const dt = performance.now() - this.spanT0.pop()!;
+    const now = performance.now();
+    const t0 = this.spanT0.pop()!;
+    const dt = now - t0;
     const label = this.spanLabel.pop()!;
     const child = this.childMs.pop()!;
     const depth = this.childMs.length;
     if (depth > 0) this.childMs[depth - 1]! += dt;
+    if (isInputLabel(label) && this.inputDepth > 0) this.inputDepth--;
+    this.rememberSpan(label, t0, now);
     // SELF time = the span minus what it nested. `store:set` wraps `reduce:<action>`; without this the
     // reducer's milliseconds would be charged twice and the offenders list would name the wrapper.
     this.recordSpan(label, dt, dt - child);
@@ -453,11 +500,54 @@ class PerfMonitor {
    * asynchronously after `setState`, so it can't be timed with `measure()`; instead a component captures
    * `performance.now()` at the top of its render and records the delta in a post-commit `useLayoutEffect`.
    * No-op when the monitor is off.
+   *
+   * `self` defaults to the whole duration. Pass `0` for a BREAKDOWN of a span already recorded — the
+   * `React.Profiler` children of `render:recruit` — so it shows in `timings` (n / total / max) without being
+   * charged a second time in the dropped-frame attribution its parent already owns.
    */
-  record(label: string, ms: number): void {
+  record(label: string, ms: number, self: number = ms): void {
     if (!this.running) return;
-    this.recordSpan(label, ms, ms);
+    const now = performance.now();
+    this.rememberSpan(label, now - ms, now);
+    this.recordSpan(label, ms, self);
   }
+
+  /** A closed span into the attribution ring — three stores. */
+  private rememberSpan(label: string, t0: number, t1: number): void { this.spans.push(label, t0, t1); }
+
+  /**
+   * A `longtask` entry arrived: name what ran inside it, or — when nothing instrumented did — the input event
+   * that was being dispatched. Keeps the worst few per bucket. Exposed (not private) so the attribution can
+   * be exercised without a real PerformanceObserver.
+   */
+  noteLongTask(startTime: number, duration: number): void {
+    if (!this.running) return;
+    const attrib = attributeLongTask(this.spans, this.events, startTime, startTime + duration);
+    const task: PerfLongTask = { t: Math.round(startTime - this.t0), ms: +duration.toFixed(1), ...attrib };
+    const list = this.pendingLongTasks;
+    list.push(task);
+    if (list.length > MAX_LONG_TASKS_PER_BUCKET) {
+      list.sort((a, b) => b.ms - a.ms);
+      list.length = MAX_LONG_TASKS_PER_BUCKET;
+    }
+  }
+
+  /** One capture-phase listener for every `EVENT_RING_TYPES` type: one ring write, no clock read (the
+   *  event carries its own `timeStamp` on the same clock as `performance.now()`). */
+  private readonly onDomEvent = (e: Event): void => { this.events.push(e.type, e.target, e.timeStamp); };
+
+  /**
+   * A layout read (`getBoundingClientRect`, `offsetLeft`, `elementFromPoint`) just happened — see
+   * `layoutRead.ts`. Counted as `layout:read-in-move` ONLY while an `input:` span is open, because a read
+   * inside a pointer-move handler after a style write is a forced synchronous reflow of the whole shop per
+   * pointer event — the strongest lead for the 2026-09-17 "Mode B" spikes. PR 2 asserts this reads 0.
+   */
+  noteLayoutRead(): void {
+    if (this.inputDepth > 0) this.count('layout:read-in-move');
+  }
+
+  /** Register the containers whose node counts are taken at bucket close (`PerfBucket.nodesBy`). */
+  setDomContainers(map: Readonly<Record<string, string>>): void { this.domContainers = map; }
 
   private recordSpan(label: string, ms: number, self: number): void {
     // Inside a warm-up the span belongs to the startup record, so the main timeline's hotspots describe play
@@ -598,6 +688,10 @@ class PerfMonitor {
     this.spanT0.length = 0;
     this.frameSelf.clear();
     this.pendingLongAttrib.clear();
+    this.inputDepth = 0;
+    this.spans.clear();
+    this.events.clear();
+    this.pendingLongTasks.length = 0;
     this.t0 = performance.now();
     this.lastFrame = this.t0;
     this.bucketStart = this.t0;
@@ -608,11 +702,17 @@ class PerfMonitor {
     // the browser, not inferred from frame gaps. Optional: not every engine implements the entry type.
     try {
       this.observer = new PerformanceObserver((list) => {
-        for (const e of list.getEntries()) this.longestTask = Math.max(this.longestTask, e.duration);
+        for (const e of list.getEntries()) {
+          this.longestTask = Math.max(this.longestTask, e.duration);
+          this.noteLongTask(e.startTime, e.duration);
+        }
       });
       this.observer.observe({ entryTypes: ['longtask'] });
     } catch { this.observer = null; }
     document.addEventListener('visibilitychange', this.onVisibility);
+    // The input-event ring (see `perfEventRing.ts`): capture phase, so the entry is written before any
+    // handler runs; passive, so it can never delay scrolling. Only while the monitor runs.
+    for (const type of EVENT_RING_TYPES) document.addEventListener(type, this.onDomEvent, { capture: true, passive: true });
     this.raf = requestAnimationFrame(this.tick);
   }
 
@@ -620,10 +720,12 @@ class PerfMonitor {
     if (!this.running) return;
     if (this.warm) this.closeWarmup(performance.now());
     this.running = false;
+    this.inputDepth = 0;
     cancelAnimationFrame(this.raf);
     this.observer?.disconnect();
     this.observer = null;
     document.removeEventListener('visibilitychange', this.onVisibility);
+    for (const type of EVENT_RING_TYPES) document.removeEventListener(type, this.onDomEvent, { capture: true });
   }
 
   private readonly onVisibility = (): void => { if (document.hidden) this.hiddenDuringBucket = true; };
@@ -720,6 +822,11 @@ class PerfMonitor {
       for (const [k, v] of this.pendingLongAttrib) longAttrib[k] = { ms: +v.ms.toFixed(2), frames: v.frames };
       this.pendingLongAttrib.clear();
     }
+    let longTasks: PerfLongTask[] | undefined;
+    if (this.pendingLongTasks.length > 0) {
+      longTasks = [...this.pendingLongTasks].sort((a, b) => b.ms - a.ms);
+      this.pendingLongTasks.length = 0;
+    }
 
     if (n === 0) return; // no frames at all (fully throttled) — nothing meaningful to record
 
@@ -744,6 +851,24 @@ class PerfMonitor {
     const mem = (performance as { memory?: { usedJSHeapSize: number } }).memory;
     const ctx = this.context();
     this.refreshPhaseCode(ctx);
+    const nodes = document.getElementsByTagName('*').length;
+    // Per-container counts, once a second: a `querySelectorAll` per container and a `.length` read of each
+    // match's descendants. The remainder is `other`. See `perfDomContainers.ts` for why the map is disjoint.
+    let nodesBy: Record<string, number> | undefined;
+    const containerNames = Object.keys(this.domContainers);
+    if (containerNames.length > 0) {
+      nodesBy = {};
+      let inContainers = 0;
+      for (const name of containerNames) {
+        let count = 0;
+        try {
+          for (const el of document.querySelectorAll(this.domContainers[name]!)) count += 1 + el.getElementsByTagName('*').length;
+        } catch { /* a bad selector must never break the sampler */ }
+        nodesBy[name] = count;
+        inContainers += count;
+      }
+      nodesBy.other = Math.max(0, nodes - inContainers);
+    }
 
     const bucket: PerfBucket = {
       t: Math.round(now - this.t0),
@@ -754,10 +879,12 @@ class PerfMonitor {
       ...(ctx.wave !== undefined ? { wave: ctx.wave } : {}),
       counts,
       heapMb: mem ? +(mem.usedJSHeapSize / 1048576).toFixed(1) : 0,
-      nodes: document.getElementsByTagName('*').length,
+      nodes,
       marks,
       timings,
       ...(longAttrib ? { longAttrib } : {}),
+      ...(longTasks ? { longTasks } : {}),
+      ...(nodesBy ? { nodesBy } : {}),
       ...(hidden ? { hidden: true } : {}),
       ...(warmup > 0 ? { warmup } : {}),
     };

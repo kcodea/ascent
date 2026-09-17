@@ -121,6 +121,11 @@ top-offenders list is built from.
 | `view:board` / `view:hand` | building the card views | `Recruit.tsx` |
 | `layout:flip` → `layout:flip:write` + `layout:flip:read` | the FLIP effect: the animation half (Flip.from / manual tweens + forced reflows) and the capture half (Flip.getState + the offsetLeft sweep) | `Recruit.tsx` |
 | `drag:flushMove`, `layout:handglide`, `odds:deferred`, `recruit:moment cues` | drag / hand / odds / cue paths | `Recruit.tsx` |
+| `input:pointermove` / `input:pointerdown` / `input:pointerup` | the raw drag, grab and aim handlers (perf PR 1, 2026-09-17) | `Recruit.tsx` |
+| `input:aim-flush` / `input:target-flush` | the hero-power / battlecry aim's rAF-coalesced work | `Recruit.tsx` |
+| `input:pointerenter` / `input:pointerleave` / `input:hover-preview` | the card hover-in / hover-out / referenced-card popup placement | `Card.tsx` |
+| `layout:handglide:seed` | the hand make-room glide's seeding pass (the offsetLeft read + the delta writes) | `Recruit.tsx` |
+| `render:recruit:hud` / `:shop` / `:board` / `:hand` / `:overlays` | `render:recruit` BY CHILD — `React.Profiler` regions, DEV only, recorded with self = 0 (a breakdown, never charged twice) | `perfProfiler.tsx`, `Recruit.tsx` |
 | `fx:tick` | the whole Pixi ticker pass of the board FX layer (HIGH → UTILITY priority) | `pixiFx.ts` |
 | `fx:sim` | the particle / tendril / aura / shield sim and every def player (`update`) | `pixiFx.ts` |
 | `fx:render` | the Pixi render pass — batching, filter passes, the GL submit (LOW+1 → UTILITY) | `pixiFx.ts` |
@@ -135,6 +140,18 @@ ParticleContainers plus the sprite particles; the older `particles` counter is t
 `fx:layers` (acquired def layers), `fx:filters` (filters applied across live `FilterStack`s), `fx:culled`
 (plays the FX budget has trimmed since load — see below), `sprite pool`, `weld rings`, `spell arrows`.
 Rates (per second): `unit renders`, `recruit renders`, `pointermoves`, `fx:culled` (also tallied per bucket).
+
+**Long-task attribution and the input-event ring (perf PR 1, 2026-09-17).** Every `longtask` entry is
+intersected against a ring of recently closed spans; the labels that overlapped it are recorded on the bucket
+(`longTasks[].labels`). When NONE did — the 2026-09-17 "Mode B" blind spot — the bucket records the **last
+DOM input event** dispatched before it (`longTasks[].lastEvent`: type, a selector-ish target such as
+`div.card.shop[data-uid=…]`, and how many ms before the task it fired), from a capture-phase, passive
+listener ring that costs one store per event and no clock read. The report's *Unlabelled long tasks* table
+and the `long-task` verdict print it. **`layout:read-in-move`** is a per-bucket counter of layout reads
+(`getBoundingClientRect` / `offsetLeft` / `elementFromPoint`, routed through `layoutRead.ts`) made while an
+`input:` span or `drag:flushMove` is open — a read there is the forced-reflow-per-pointer-event pattern; it
+must read 0. **`nodesBy`** is the DOM node count per container (`perfDomContainers.ts`: shop, hand, board,
+FX roots, body portals, other), once a second, so the *DOM nodes by container* table can say where a leak is.
 
 **The FX budget** (`fx/fxBudget.ts`, caps in `fx/fxBudgetConfig.ts`; added 2026-09-16 after a 2002 s capture
 peaked at 5,778 live particles / 80 filters with `fx:tick` at 20.2 ms): `playDef` enforces a global

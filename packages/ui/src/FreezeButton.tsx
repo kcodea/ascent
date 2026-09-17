@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { memo, useRef } from 'react';
 import { playDef } from './fx/playDef';
 
 // Public-folder assets must carry the BASE_URL — itch serves the game from a CDN sub-path, where a
@@ -21,7 +21,7 @@ const F = `${import.meta.env.BASE_URL}frames/`;
  * Leaving it on screen keeps the board's furniture from popping in and out at the phase change, and the frozen
  * state is worth seeing while the fight plays out, since it's what the next shop will open with.
  */
-export function FreezeButton({
+export const FreezeButton = memo(function FreezeButton({
   frozen,
   disabled,
   combat,
@@ -69,4 +69,4 @@ export function FreezeButton({
       </span>
     </button>
   );
-}
+});

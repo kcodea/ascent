@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react';
+import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react';
 import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
 import { compileTimeline } from './choreographer/compileTimeline';
 import { normalizePresentationBatch } from './choreographer/adapters/presentationBatchAdapter';
@@ -32,7 +32,7 @@ if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
 import { chooseBothText } from './cardText';
-import { spiritsPlayedThisTurn, anySpellsCastThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, createOddsProbe, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken } from '@game/sim';
+import { type Action, spiritsPlayedThisTurn, anySpellsCastThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -262,7 +262,7 @@ function dragTransform(persp: number, tx: number, ty: number, rotX: number, rotY
 
 /** Turn countdown (M:SS) as a shop-plaque widget (matches the Gold/Tavern buttons so it reads at a glance).
  *  Subscribes to the clock so ONLY this reads per-second; the plaque + digits turn red in the last 5s. */
-function ShopTimer({ practice }: { practice?: boolean }) {
+const ShopTimer = memo(function ShopTimer({ practice }: { practice?: boolean }) {
   const s = Math.max(0, useTurnSeconds());
   const practiceTimer = useGame((st) => st.practiceTimer);
   const setPracticeTimer = useGame((st) => st.setPracticeTimer);
@@ -291,7 +291,7 @@ function ShopTimer({ practice }: { practice?: boolean }) {
       </span>
     </div>
   );
-}
+});
 
 /** The end-of-turn CHARGE GLYPH turn timer — the board's etched sigil charging with white-hot blue energy over the
  *  final `window` seconds, building from BOTH sides inward along the midline conduit and filling the centre sigil
@@ -305,7 +305,7 @@ function ShopTimer({ practice }: { practice?: boolean }) {
  *  opacity to its ref (no per-frame React render), only while lit + unpaused — the heavy card tree is never touched
  *  (the clock lives in an external store; see turnClock.ts). The wipe/reveal is a compositor-friendly custom-prop
  *  write; the mask does the both-sides-in fill. */
-function ChargeGlyph({ inCombat, window: chargeWindow, paused, covered }: { inCombat: boolean; window: number; paused: boolean; covered: boolean }) {
+const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, paused, covered }: { inCombat: boolean; window: number; paused: boolean; covered: boolean }) {
   const seconds = Math.max(0, useTurnSeconds());
   const preview = useChargePreview();          // dev tuner force-shows + scrubs the glyph; null in normal play
   const boxRef = useRef<HTMLDivElement>(null);
@@ -428,7 +428,7 @@ function ChargeGlyph({ inCombat, window: chargeWindow, paused, covered }: { inCo
       <canvas className={`charge-motes${fading ? ' fading' : ''}`} ref={canvasRef} aria-hidden="true" />
     </>
   );
-}
+});
 
 /** Cards that reference another card → hovering shows it as a popup. The token a card summons /
  *  creates, or the Fodder it buffs / consumes (so the player can read what it does, and see the
@@ -2241,6 +2241,10 @@ export function Recruit() {
   });
 
   const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed, paused: overlayOpen, rampEnabled });
+  /** Latest replay for handlers that must stay referentially stable (`skipCombat`): the hook returns a fresh
+   *  object every render, so a `[replay]` dep would hand the memoized shop controls a new callback each render. */
+  const replayRef = useRef(replay);
+  replayRef.current = replay;
 
   // DEV (proc harness): publish the live replay's `seekTo` on a window handle so the FX workbench's rail-mode
   // harness can jump the fight to a moment. NOT a prop and NOT a store field, deliberately:
@@ -2447,7 +2451,7 @@ export function Recruit() {
       pixiFx.setVisible(false, FADE); // fade the FX canvas out with the board
       window.setTimeout(() => {
         gsap.globalTimeline.resume();
-        replay.skip(); // resolved board; its auras reconcile (dead clear, survivors persist) invisibly during the hold
+        replayRef.current.skip(); // resolved board; its auras reconcile (dead clear, survivors persist) invisibly during the hold
         pixiFx.clearParticles();
       }, FADE);
       window.setTimeout(() => {
@@ -2458,7 +2462,7 @@ export function Recruit() {
       window.setTimeout(() => setSkipFade(null), FADE + HOLD + IN);
       return 'out';
     });
-  }, [replay]);
+  }, []);
 
   // Loss-damage sequence — runs ONCE when a defeat's replay finishes. Surviving enemy tiers + the
   // opponent's tavern tier fly up into a damage counter above the enemy board (clamped to the round cap),
@@ -4058,7 +4062,7 @@ export function Recruit() {
   // Which board minions are valid picks for the pending targeted Battlecry — all friends for an
   // unrestricted pick (no targetTribe), or only the required tribe (never self) for a restricted one
   // (Toxin Tender → Undead).
-  const isPendingTarget = (uid: string): boolean => {
+  const isPendingTarget = useCallback((uid: string): boolean => {
     if (!pendingTarget) return false;
     const def = CARD_INDEX[pendingTarget.cardId];
     // Common Ground: the SECOND pick can't be the first minion (averaging with itself is a no-op).
@@ -4073,7 +4077,7 @@ export function Recruit() {
     if (uid === pendingTarget.uid) return false;
     const c = run.board.find((b) => b.uid === uid);
     return c ? isTribe(c, aimTribe) : false; // dual-types (Bane = Dragon/Demon) are valid picks
-  };
+  }, [pendingTarget, run]);
   useEffect(() => {
     if (!pendingTarget || inCombat) {
       setAimTargetUid(null);
@@ -5181,7 +5185,6 @@ export function Recruit() {
       return [...prev, ...fresh.filter((h) => !seen.has(h.uid))];
     });
   }
-  const heldUids = heldConsume.length ? new Set(heldConsume.map((h) => h.uid)) : null;
   let displayShop = eotConsumedUids.size ? run.shop.filter((o) => !eotConsumedUids.has(o.uid)) : run.shop;
   if (heldConsume.length) {
     const arr = [...displayShop];
@@ -5207,11 +5210,10 @@ export function Recruit() {
     // `sandboxFoeWave` is what makes a lobby fight serve this pin instead of the paired seat.
     useGame.setState({ run: { ...liveRun, servedBoards: { ...(liveRun.servedBoards ?? {}), [liveRun.wave]: next }, sandboxFoeWave: liveRun.wave } });
   };
-  const onSbEnemyPointerDown = (e: React.PointerEvent): void => {
-    // Read live: this handler is recreated every render (not a useCallback), so `sbEditMode`/`run` ARE
-    // fresh here — but the live read is kept anyway to match the one established pattern in this file
-    // (`onCardPointerDown`'s own live read a few thousand lines up) rather than have two conventions for
-    // the same problem.
+  const onSbEnemyPointerDown = useCallback((e: React.PointerEvent): void => {
+    // Read live: this handler is a stable `useCallback` (the memoized tavern row takes it as a prop), so
+    // `sbEditMode`/`run` must come from the store — the same pattern as `onCardPointerDown`'s live read a
+    // few thousand lines up.
     const { sbEditMode: liveEditMode, run: liveRun } = useGame.getState();
     if (!liveEditMode || !liveRun.sandbox) return;
     const el = (e.currentTarget as HTMLElement).closest('[data-uid]');
@@ -5221,14 +5223,14 @@ export function Recruit() {
     e.preventDefault();
     e.stopPropagation();
     setSbEditingFoe({ index, rect: (el as HTMLElement).getBoundingClientRect() });
-  };
+  }, []);
   // The spell stays rendered (dimmed) while being bought — like a minion offer — so the row keeps its width and
   // the offers slide to fill its slot. So it's always "shown" for FLIP-key purposes until the buy commits.
   const spellShown = run.spell?.uid ?? '';
   // Per-card slide offset (in slots) that opens the drop gap by shifting the cards themselves. A CSS
   // `transition: transform` (while dragging) glides these — the pre-emptive "make room" animation.
   const draggedBoardIdx = draggingBoard ? run.board.findIndex((m) => m.uid === drag!.uid) : -1;
-  const boardSlide = (i: number): number => {
+  const boardSlide = useCallback((i: number): number => {
     if (draggingBoard) {
       if (gapIndex < 0) {
         // Not reordering within the warband. Once lifted vertically clear of the row, close the gap. The row
@@ -5248,7 +5250,7 @@ export function Recruit() {
     if (gapIndex < 0) return 0;
     // Playing a new card from hand: open a half-slot gap each side at the insertion point.
     return i < gapIndex ? -0.5 : 0.5;
-  };
+  }, [draggingBoard, gapIndex, collapsedLift, draggedBoardIdx]);
   // The spell is pinned at the END of the shop row, so buying it collapses like removing the last offer: treat
   // its index as the row length, and every minion offer (all before it) recentres a half slot to fill the gap.
   const draggedShopIdx = draggingShop
@@ -5256,7 +5258,7 @@ export function Recruit() {
       ? run.shop.length
       : run.shop.findIndex((o) => o.uid === drag!.uid)
     : -1;
-  const shopSlide = (i: number): number => {
+  const shopSlide = useCallback((i: number): number => {
     if (!draggingShop) return 0;
     if (shopGapIndex < 0) {
       // Buying: dragged up/down out of the shop far enough — close the gap the offer leaves behind. Same as the
@@ -5269,7 +5271,7 @@ export function Recruit() {
     if (i === draggedShopIdx) return 0;
     const p = i < draggedShopIdx ? i : i - 1;
     return (p < shopGapIndex ? p : p + 1) - i;
-  };
+  }, [draggingShop, shopGapIndex, collapsedLift, draggedShopIdx]);
   // Hand reorder slide (mirror of shopSlide). Reorder mode = the dragged HAND card sits DOWN in the hand
   // region (its centre below the play line), not lifted up to play/cast — then the gap opens at the drop
   // index and every OTHER hand card shifts one slot when the gap crosses it. `handSlidePx` (in the JSX)
@@ -5277,11 +5279,11 @@ export function Recruit() {
   const draggingHand = !!drag?.active && drag.source === 'hand';
   const draggedHandIdx = draggingHand ? run.hand.findIndex((c) => c.uid === drag!.uid) : -1;
   // `handGapIndex` (the drop slot for a hand reorder) comes from `deriveDragDecision` above.
-  const handSlide = (i: number): number => {
+  const handSlide = useCallback((i: number): number => {
     if (!draggingHand || handGapIndex < 0 || i === draggedHandIdx) return 0;
     const p = i < draggedHandIdx ? i : i - 1;
     return (p < handGapIndex ? p : p + 1) - i;
-  };
+  }, [draggingHand, handGapIndex, draggedHandIdx]);
   // FLIP key tracks row composition + order AND the live drop-slot index, so cards slide smoothly *as the
   // gap moves during a drag* (not just on drop). GSAP Flip animates this robustly — it reads in a batch,
   // uses GPU transforms, and blends interruptions natively, so rapid gap moves don't storm the way the old
@@ -5525,19 +5527,34 @@ export function Recruit() {
     // stuck-cue audit).
   }, [handOrderKey, inCombat]);
 
-  /* Every hand card's layout x, refreshed each commit for the glide above. Declared AFTER it so that within
-     one commit the glide reads the PREVIOUS frame's positions and this then overwrites them. One forced
-     layout over at most `CONFIG.handMax` cards — the same shape as the warband's `commitRectsRef`. */
+  /* Every hand card's layout x, refreshed for the glide above. Declared AFTER it so that within one commit
+     the glide reads the PREVIOUS frame's positions and this then overwrites them. One forced layout over at
+     most `CONFIG.handMax` cards — the same shape as the warband's `commitRectsRef`.
+
+     GATED (perf 2026-09-16): this used to run on EVERY commit — a forced layout after the FLIP effect's
+     style writes, on every drag-decision render, every overlay toggle, every combat beat — measured at
+     39.8 ms in the owner's worst frame. The read only has to happen when a hand card's layout x can have
+     moved: the row's order / count (`handOrderKey`), the grant previews appended after the real cards (the
+     row is centred, so they shift everything), compact mode (card width), and the combat flip. Anything else
+     (a drag, a hover, an overlay) moves cards by TRANSFORM only, which `offsetLeft` ignores. A viewport
+     resize moves everything without a commit, so the same read is repeated on `resize`. The glide effect
+     above keys on a subset of this, so within one commit it still reads the previous positions first. */
+  const handLayoutKey = `${handOrderKey}|${handPreviews.length}|${compactCards ? '1' : '0'}`;
   useLayoutEffect(() => {
     if (inCombat) { handLeftsRef.current.clear(); return; }
-    perfMonitor.measure('layout:handglide', () => {
-      const next = new Map<string, number>();
-      for (const el of document.querySelectorAll<HTMLElement>('.row.hand > .card[data-uid]')) {
-        next.set(el.dataset.uid ?? '', el.offsetLeft);
-      }
-      handLeftsRef.current = next;
-    });
-  });
+    const refresh = (): void => {
+      perfMonitor.measure('layout:handglide', () => {
+        const next = new Map<string, number>();
+        for (const el of document.querySelectorAll<HTMLElement>('.row.hand > .card[data-uid]')) {
+          next.set(el.dataset.uid ?? '', el.offsetLeft);
+        }
+        handLeftsRef.current = next;
+      });
+    };
+    refresh();
+    window.addEventListener('resize', refresh);
+    return () => window.removeEventListener('resize', refresh);
+  }, [handLayoutKey, inCombat]);
 
   // Pop a one-shot spark burst at a screen point (when a spell resolves).
   const fireSpark = (x: number, y: number): void => {
@@ -6263,6 +6280,11 @@ export function Recruit() {
     };
     playBeat(0);
   };
+  /** `endTurn` closes over most of this component and is rebuilt every render; the memoized shop controls take
+   *  this stable wrapper instead, which always calls the LATEST one (a ref, the `runRef` pattern). */
+  const endTurnRef = useRef(endTurn);
+  endTurnRef.current = endTurn;
+  const endTurnStable = useCallback((): void => { endTurnRef.current(); }, []);
   // Spark on a targeted minion's card centre (falls back to the drop point).
   const sparkAtUid = (uid: string, fx: number, fy: number): void => {
     const el = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${uid}"]`);
@@ -6547,9 +6569,27 @@ export function Recruit() {
     return false;
   };
 
-  const isDragging = (uid: string): boolean => drag?.active === true && drag.uid === uid;
+  // PRIMITIVE drag facts for the memoized rows below: the rows must not take `drag` itself (a fresh object
+  // on every decision), only the few scalars they actually render from.
+  const dragActive = drag?.active === true;
+  const dragUid = drag?.uid;
+  const isDragging = useCallback((uid: string): boolean => dragActive && dragUid === uid, [dragActive, dragUid]);
   // A shop card over the hand will buy it — glow the hand to confirm the drop target.
   const canDropHand = !!drag?.active && drag.source === 'shop' && overZone === 'hand';
+  // STABLE HANDLERS for the memoized subtrees (perf 2026-09-16). Each one used to be an inline arrow in the
+  // JSX — a new function every render, which is exactly what defeats a `React.memo` child.
+  const openSummary = useCallback((): void => { setLogTab('gains'); setShowLog(true); }, []);
+  const closeLog = useCallback((): void => setShowLog(false), []);
+  const onFreeze = useCallback((): void => dispatch({ type: 'freeze' }), [dispatch]);
+  const onRefresh = useCallback((): void => dispatch({ type: 'roll' }), [dispatch]);
+  const onUpgrade = useCallback((): void => dispatch({ type: 'upgrade' }), [dispatch]);
+  // The held-open consumed slots as a Set — memoized so an unchanged `heldConsume` keeps the row's prop stable.
+  const heldUids = useMemo(() => (heldConsume.length ? new Set(heldConsume.map((h) => h.uid)) : null), [heldConsume]);
+  // The grant previews' views, built once per (previews, run) instead of inside the hand row's map on every render.
+  const handPreviewViews = useMemo(
+    () => handPreviews.map((cardId) => conjuredView(cardId, run) ?? tokenRefView(cardId, cardBuffsLive, run.impBuff, undefined, run.rubyBonus)),
+    [handPreviews, run, cardBuffsLive],
+  );
 
   return (
     <div
@@ -6633,141 +6673,15 @@ export function Recruit() {
           (owner ask 2026-08-25). Self-gates on lobby + combat. Also the lunge target for the hero strike. */}
       <CombatOpponent />
 
-      {!fighting ? (
-      <>
-      {/* SHOP controls — a labelled row of gold plaque buttons (Gold · Tavern · Reroll · Freeze) framed by
-          shopbutton.webp. The turn timer now lives in the header; End Turn is a standalone button (right). */}
-      <div className={`shopbar${inCombat ? ' closing' : ''}`}>
-        {/* Info plaques (Shop tier + turn Time) as widgets — same plaque language as the action row so they
-            read at a glance instead of as loose text. The tier value takes the card tier-badge colour. */}
-        {/* Info strip — the turn's read-only stats (Gold · Tier · Setup Time) grouped in one segmented
-            plaque. Styled tooltips (.sbtip) replace the native title so hover hints match the dark-pill format. */}
-        {/* Gold moved to a standalone glass pill bottom-right of the board; Tier moved onto the Tavern Up stone
-            (owner ask 2026-08-11). The top strip now carries only the turn timer. */}
-        {/* The turn timer is hidden entirely in the tutorial — a first-time player is never on the clock
-            (`turnSeconds` is already effectively infinite there; this just removes the misleading countdown). */}
-        {run.mode !== 'tutorial' && (
-          <div className="statstrip">
-            <ShopTimer practice={run.mode === 'practice' && !run.sandbox} />
-          </div>
-        )}
-        {/* Action tray — the turn's actions grouped into one control bar (Reroll · Freeze), framed by
-            shopbutton.webp. Tavern Up moved onto the board as the standalone STONE button (TavernUpButton,
-            mounted below with the End Turn diamond); Reroll/Freeze are queued for the same treatment. */}
-        <div className="shoprow actiontray">
-          {/* The Reroll tray plaque was replaced by the standalone REFRESH crystal, stage-pinned top-centre
-              (see <RefreshButton/> below) — same reducer wiring, so nothing about rolling changed. */}
-          {/* Freeze moved out of the tray to the board's TOP-RIGHT, opposite the Tavern stone — see
-              <FreezeButton/> below. Same reducer wiring; only the placement changed. */}
-        </div>
-      </div>
-      </>
-      ) : (
-        <div className="combatctl">
-          {/* Post-combat actions stay centred. During the replay the Skip button + speed slider live in the
-              top-right combat HUD (below) instead, so the arena stays clear. */}
-          {/* Empty spacer — End Combat lives on the diamond and Summary is a glass pill above it (below);
-              the .combatctl footprint stays so the enemy warband keeps its vertical spot. */}
-          <div className="cbtns" />
-        </div>
-      )}
-
-      {/* End Turn — the standalone DIAMOND button on the board's middle-right (de-coupled from the shop
-          tray, owner direction 2026-07-16). Mounted through BOTH phases: the lit gem during recruit, the
-          pressed (dim) gem from the click all the way through the combat screen. Keyed off `inCombat` (the
-          phase itself), NOT `fighting` (which waits for the intro), so the art swap is IMMEDIATE on the
-          click. Once the replay finishes it doubles as END COMBAT (a loss holds it until the loss-damage
-          blast lands, same as the old button) — clicking relights it with a clean shine, no strike. */}
-      {/* Summary — a small glass pill pinned ABOVE the End Combat diamond (same stage anchor + --etb-x/y
-          offsets, so it rides the tuner's position); fades in floating up like the diamond's tooltip. */}
-      {inCombat && replay.done && (
-        <button className="combatsummary" onClick={() => { setLogTab('gains'); setShowLog(true); }}>
-          <Icon name="battlecry" />
-          Summary
-        </button>
-      )}
-      {/* RIFT — the purple swirling plaque directly above the diamond, mounted only while this run has a
-          pinned rift and only in the SHOP phase (in combat that slot belongs to the Summary pill). Reads
-          run.rift, never the live registry, so a replayed run still shows the rift it was played under. */}
-      {!inCombat && run.rift && RIFTS[run.rift] && (
-        <RiftButton rift={RIFTS[run.rift]} />
-      )}
-      {/* A LOSS normally holds End Combat until the loss-damage blast has landed (`lossPhase === 'done'`).
-          In a sandbox REPLAY that sequence never runs at all — it early-returns on `run.combatSettled`,
-          which is `true` throughout a replay by design — so `lossPhase` stays null forever and the gate
-          below would leave no enabled way out of the phase (Skip unmounts once the replay is done).
-          Nothing is being waited on, so nothing is held. */}
-      <EndTurnButton
-        onEndTurn={endTurn}
-        onEndCombat={endCombat}
-        combatReady={inCombat && replay.done && (sandboxReplay || replay.result !== 'lose' || lossPhase === 'done')}
-        disabled={inCombat
-          ? !(replay.done && (sandboxReplay || replay.result !== 'lose' || lossPhase === 'done'))
-          : eotAnimating || !!run.questOffer || !!run.powerOffer || !!run.runeforgeOffer || !roundSettled}
-        pressed={inCombat || eotAnimating}
-        urgent={timeUp && !inCombat}
+      <ShopControls
+        fighting={fighting} inCombat={inCombat} mode={run.mode} sandbox={!!run.sandbox}
+        replayDone={replay.done} replayResult={replay.result} sandboxReplay={sandboxReplay} lossPhase={lossPhase}
+        eotAnimating={eotAnimating} hasQuestOffer={!!run.questOffer} hasPowerOffer={!!run.powerOffer} hasRuneforgeOffer={!!run.runeforgeOffer}
+        roundSettled={roundSettled} timeUp={timeUp} combatBgShown={combatBgShown} frozen={!!run.frozen} embers={run.embers}
+        refreshCost={nextRefreshCostOf(run)} freeRolls={run.freeRolls} tier={run.tier} maxTier={maxTierFor(run.rift)} upgradeCost={upgradeCostOf(run)}
+        nextTurnGold={nextTurnGold} afterNextGold={afterNextGold} wave={run.wave} rift={run.rift}
+        onSummary={openSummary} onEndTurn={endTurnStable} onEndCombat={endCombat} onFreeze={onFreeze} onRefresh={onRefresh} onUpgrade={onUpgrade} onSkip={skipCombat}
       />
-
-      {/* Tavern Up — the standalone STONE button on the board's left (replaces the tray plaque; same
-          reducer wiring + disabled conditions — a re-skin, not a behavior change). Mounted through BOTH
-          phases (owner note 2026-07-16): in combat it's a passive TIER INDICATOR — inert, cost coin hidden,
-          art at full strength. The max-tier condition lives in the component (the broken "complete" gem). */}
-      {/* Freeze — pinned TOP-RIGHT, opposite the Tavern stone. NOT gated on `timeUp` (owner 2026-07-21):
-          freezing after the clock runs out is a legitimate last action — the shop is still on screen until
-          the End-of-Turn animation starts, and the reducer never gated it, only this button did.
-          Hidden during combat like the other shop controls (owner ask 2026-08-29) — gated on the curtain's
-          staged window so it vanishes and returns under the blue. */}
-      {!combatBgShown && (
-      <FreezeButton
-        frozen={!!run.frozen}
-        disabled={eotAnimating || !!run.questOffer || !!run.powerOffer || !!run.runeforgeOffer}
-        combat={inCombat}
-        onFreeze={() => dispatch({ type: 'freeze' })}
-      />
-      )}
-      {/* Refresh — the standalone crystal pinned TOP-CENTRE, replacing the tray's Reroll plaque. It used to
-          stay mounted through combat as inert furniture (owner ask 2026-08-17), but the foe portrait now
-          drops onto this very anchor and the owner asked for it GONE during the fight (2026-08-29). Gated on
-          the curtain's staged window — not the raw phase — so it vanishes and returns under the blue, never
-          in view. */}
-      {/* `nextRefreshCostOf`, not `refreshCostOf`: the pill prints what THIS roll charges, folding banked
-          free rolls AND Rune of Window Shopping's first-3-free allowance (bug 3abab276 — the pill kept
-          showing 1 while the rune paid). Same helper gates `disabled`, so a free roll stays clickable at
-          0 Gold, matching the reducer's charge order exactly. */}
-      {!combatBgShown && (
-      <RefreshButton
-        cost={nextRefreshCostOf(run)}
-        freeRolls={run.freeRolls}
-        disabled={run.embers < nextRefreshCostOf(run) || timeUp || eotAnimating || !!run.questOffer || !!run.powerOffer || !!run.runeforgeOffer}
-        combat={inCombat}
-        onRefresh={() => dispatch({ type: 'roll' })}
-      />
-      )}
-      {/* Tavern stone + Gold — hidden during combat with the rest of the shop furniture (owner ask
-          2026-08-29, superseding the 2026-07-16 "passive tier indicator" and 2026-08-17 "gold in both
-          phases" rulings): with the curtain staging every entrance/exit, the combat scene keeps only the
-          fight's own controls. Both gate on the staged window so they swap under the blue. */}
-      {!combatBgShown && (
-      <TavernUpButton
-        tier={run.tier}
-        maxTier={maxTierFor(run.rift)} // Summit raises the ceiling to 7
-        cost={upgradeCostOf(run)}
-        disabled={run.embers < upgradeCostOf(run) || timeUp || eotAnimating || !!run.questOffer || !!run.powerOffer || !!run.runeforgeOffer}
-        combat={inCombat}
-        onUpgrade={() => dispatch({ type: 'upgrade' })}
-      />
-      )}
-      {!combatBgShown && (
-      <GoldPill gold={run.embers} nextTurnGold={nextTurnGold} afterNextGold={afterNextGold} wave={run.wave} />
-      )}
-
-      {/* Skip the combat replay — pinned ABOVE the End Turn / End Combat diamond (owner move 2026-08-11; it was
-          a top-centre HUD, and the replay-speed slider moved to the Esc menu's Combat section). */}
-      {inCombat && !replay.done && (
-        <button className="combathud-skip" onClick={skipCombat} title="Skip the combat replay">
-          <Icon name="sword" /> Skip
-        </button>
-      )}
 
       {/* Sell zone — the whole screen above the warband lights up while dragging a board minion, and
           releasing anywhere in it sells (handled by inSellRegion in the drop handler). */}
@@ -6781,199 +6695,31 @@ export function Recruit() {
         <div className={`buyzone${overZone === 'hand' ? ' on' : ''}`} style={{ top: buyTop } as CSSProperties} aria-hidden="true" />
       )}
 
-      <div className={`zone${run.frozen && !inCombat ? ' frozen' : ''}`} data-zone="tavern">
-        <div className="row">
-          {combatUnitsShown ? (
-            replay.visibleFrame.enemy.map((u) => (
-              <Unit
-                key={u.uid}
-                u={u}
-                side="foe"
-                anim={replay.anims[u.uid]}
-                triggered={replay.triggerUids.has(u.uid)}
-                rallyPulse={replay.rallyPulseUids.get(u.uid)}
-                watcherPulse={replay.watcherPulseUids.get(u.uid)}
-                framePulse={replay.framePulseUids.get(u.uid)}
-              />
-            ))
-          ) : sbTavernShowsEnemy && run.sandbox ? (
-            /* SANDBOX: the board pinned for the coming fight, shown in the row enemies actually occupy — so
-               the on-screen distance an effect travels here is the distance it will travel in the real fight.
-               Gated on `run.sandbox` (belt-and-braces alongside the store flag) and nested INSIDE the
-               non-fighting branch, so a live combat can never be affected by this toggle. */
-            (sbEnemySnap?.minions ?? []).map((m, i) => (
-              <Card
-                key={`sbfoe-${i}`}
-                uid={`sbfoe-${i}`}
-                card={{
-                  name: CARD_INDEX[m.cardId]?.name ?? m.cardId,
-                  cardId: m.cardId,
-                  tribe: CARD_INDEX[m.cardId]?.tribe ?? 'neutral',
-                  attack: m.attack,
-                  health: m.health,
-                  keywords: m.keywords ?? [],
-                  golden: m.golden ?? false,
-                  text: CARD_INDEX[m.cardId]?.text ?? '',
-                  tier: CARD_INDEX[m.cardId]?.tier,
-                }}
-                onPointerDown={sbEditMode ? onSbEnemyPointerDown : undefined}
-              />
-            ))
-          ) : (
-          <>
-          {displayShop.map((o, i) => (
-            <Fragment key={o.uid}>
-              {/* Gap opened by sliding the offers (`slideDir`); the dragged offer stays here invisible
-                  (`dimmed`) to hold its slot — same model as the warband, no re-centre jerk. */}
-              {heldUids?.has(o.uid) ? (
-                // A just-consumed slot, held open (invisible, opacity 0 via `dragsrc`) so the survivors don't
-                // reflow until the ghost has been pulled into the eater. `.card.compact` gives it the exact slot
-                // width; `data-uid` keeps FLIP counting it, so `flipKey` is unchanged and nothing moves yet.
-                <div className="card compact dragsrc" data-uid={o.uid} aria-hidden="true" />
-              ) : (
-              <Card
-                uid={o.uid}
-                slideDir={shopSlide(i)}
-                dimmed={isDragging(o.uid)}
-                card={shopViews.get(o.uid)!}
-                refCards={refViewsByUid.get(o.uid)}
-                dragging={!!drag?.active}
-                highlight={(heroArmed && heroTargetsTavern) || (castingSpell && (drag?.view.target === 'any' || (!!o.starform && starformSpellAimsToken(CARD_INDEX[drag?.view.cardId ?? ''] ?? {}))))}
-                targeted={(heroArmed && heroTargetsTavern && aimTargetUid === o.uid) || castTargetUid === o.uid}
-                tripleReady={tripleReadyUids.has(o.uid)}
-                contraband={o.contraband}
-                enchanted={o.enchanted}
-                suppressPop={returningFromCombat}
-                onPointerDown={heroArmed ? undefined : onCardPointerDown}
-              />
-              )}
-            </Fragment>
-          ))}
-          {run.spell && (
-            <Card
-              key={run.spell.uid}
-              uid={run.spell.uid}
-              dimmed={draggingShop && drag!.uid === run.spell.uid}
-              card={spellView!}
-              dragging={!!drag?.active}
-              onPointerDown={heroArmed ? undefined : onCardPointerDown}
-            />
-          )}
-          </>
-          )}
-        </div>
-      </div>
+      <TavernRow
+        frozen={!!run.frozen && !inCombat} replay={combatUnitsShown ? replay : null}
+        sbEnemyShown={sbTavernShowsEnemy && !!run.sandbox} sbEnemySnap={sbEnemySnap} sbEditMode={sbEditMode} onSbEnemyPointerDown={onSbEnemyPointerDown}
+        displayShop={displayShop} heldUids={heldUids} shopSlide={shopSlide} isDragging={isDragging} shopViews={shopViews} refViewsByUid={refViewsByUid}
+        dragActive={dragActive} dragUid={dragUid} dragTarget={drag?.view.target} dragCardId={drag?.view.cardId}
+        heroArmed={heroArmed} heroTargetsTavern={heroTargetsTavern} castingSpell={castingSpell} aimTargetUid={aimTargetUid} castTargetUid={castTargetUid}
+        tripleReadyUids={tripleReadyUids} returningFromCombat={returningFromCombat} onCardPointerDown={onCardPointerDown}
+        spell={run.spell} draggingShop={draggingShop} spellView={spellView}
+      />
 
-      <div className={`zone${overWarband || wouldMagnetize ? ' dropok' : ''}`} data-zone="warband">
-        <div className="row warband">
-          {combatUnitsShown ? (
-            replay.visibleFrame.player.map((u) => (
-              <Unit
-                key={u.uid}
-                u={u}
-                side="you"
-                anim={replay.anims[u.uid]}
-                triggered={replay.triggerUids.has(u.uid)}
-                rallyPulse={replay.rallyPulseUids.get(u.uid)}
-                watcherPulse={replay.watcherPulseUids.get(u.uid)}
-                framePulse={replay.framePulseUids.get(u.uid)}
-              />
-            ))
-          ) : (
-            <>
-              {displayBoard.map((m, i) => (
-                <Fragment key={m.uid}>
-                  {/* No drop-slot element: the gap is opened by shifting the cards via `slideDir` (a CSS
-                      transition glides it). The dragged card stays here rendered invisible (`dimmed`) so its
-                      slot holds the row width — no re-centre jerk on pickup. */}
-                  <Card
-                    uid={m.uid}
-                    align={boardAligns?.[i]}
-                    slideDir={boardSlide(i)}
-                    dimmed={isDragging(m.uid)}
-                    card={boardViews.get(m.uid)!}
-                    refCards={refViewsByUid.get(m.uid)}
-                    dragging={!!drag?.active}
-                    highlight={heroArmed || castingSpell || isPendingTarget(m.uid)}
-                    targeted={((heroArmed || isPendingTarget(m.uid)) && aimTargetUid === m.uid) || castTargetUid === m.uid}
-                    soulbound={soulboundUids.has(m.uid)}
-                    battlecry={battlecryUids.has(m.uid) || eotProcUids.has(m.uid)}
-                    // Medallion: a Battlecry / an officially-firing End-of-Turn pulses (ring); a cadence
-                    // card that only ticked this turn (proc'd but not complete) just glows.
-                    pulse={battlecryUids.has(m.uid) || eotPulseUids.has(m.uid) || karwindPulseUids.has(m.uid)}
-                    pulseCrit={karwindCritPulseUids.has(m.uid) ? run.karwindFlashSeq : undefined}
-                    glow={eotProcUids.has(m.uid)}
-                    popDelay={summonDelayUids.has(m.uid)}
-                    electrify={electrifyUids.has(m.uid) || magTargetUid === m.uid}
-                    karwind={karwindFlameUids.has(m.uid) ? (m.cardId === 'bane' || CARD_INDEX[m.cardId]?.keywords.includes('FD') ? 'haze' : 'flame') : false}
-                    suppressPop={returningFromCombat}
-                    onPointerDown={heroArmed || pendingTarget ? undefined : onCardPointerDown}
-                  />
-                </Fragment>
-              ))}
-            </>
-          )}
-        </div>
-      </div>
+      <WarbandRow
+        dropok={overWarband || wouldMagnetize} replay={combatUnitsShown ? replay : null}
+        displayBoard={displayBoard} boardAligns={boardAligns} boardSlide={boardSlide} isDragging={isDragging} boardViews={boardViews} refViewsByUid={refViewsByUid}
+        dragActive={dragActive} heroArmed={heroArmed} castingSpell={castingSpell} isPendingTarget={isPendingTarget} aimTargetUid={aimTargetUid} castTargetUid={castTargetUid}
+        soulboundUids={soulboundUids} battlecryUids={battlecryUids} eotProcUids={eotProcUids} eotPulseUids={eotPulseUids}
+        karwindPulseUids={karwindPulseUids} karwindCritPulseUids={karwindCritPulseUids} karwindFlashSeq={run.karwindFlashSeq}
+        summonDelayUids={summonDelayUids} electrifyUids={electrifyUids} magTargetUid={magTargetUid} karwindFlameUids={karwindFlameUids}
+        returningFromCombat={returningFromCombat} hasPendingTarget={!!pendingTarget} onCardPointerDown={onCardPointerDown}
+      />
 
-      <div
-        className={`zone${canDropHand ? ' dropok' : ''}`}
-        data-zone="hand"
-      >
-        <div className="row hand">
-          {gambleHand.map((m, i) => {
-            // Fan splay: each card tilts ~1.8° more than its neighbour out from the centre (capped at ±7° so a
-            // big hand never over-fans; a lone card sits straight). The rotation is applied in CSS via the
-            // `--fan-rot` var (see `.row.hand .card` in styles.css); it stays fanned through drags.
-            const n = gambleHand.length;
-            const fanRot = n <= 1 ? 0 : Math.max(-7, Math.min(7, (i - (n - 1) / 2) * 1.8));
-            // Locked cards are greyed + padlocked (and can't be played). TWO meters feed this:
-            // Disco Dan's Setlist locks until a SHOP TIER, Brackus's Summit until a run GOLD SPEND — the
-            // label shows whichever applies, with the gold one counting down so the wait is legible.
-            const goldSpent = run.goldSpent ?? 0;
-            const tierLocked = !!m.lockedUntilTier && run.tier < m.lockedUntilTier;
-            const goldLocked = !!m.lockedUntilGoldSpent && goldSpent < m.lockedUntilGoldSpent;
-            // Hourglass Reserve's pick is "locked in hand until next turn" (`lockedUntilWave`). The reducer
-            // already refuses to play it, but this lock was missing here — so it was functionally locked while
-            // still LOOKING playable (owner 2026-07-24). It now wears the same greyed padlock treatment as
-            // Disco Dan's tier lock and Brackus's gold lock.
-            const waveLocked = !!m.lockedUntilWave && run.wave < m.lockedUntilWave;
-            const locked = tierLocked || goldLocked || waveLocked;
-            const lockLabel = tierLocked
-              ? `Tier ${m.lockedUntilTier}`
-              : goldLocked
-                ? `${m.lockedUntilGoldSpent! - goldSpent} Gold`
-                : waveLocked
-                  ? 'Next turn'
-                  : undefined;
-            return (
-              <Card
-                key={m.uid}
-                uid={m.uid}
-                card={handViews.get(m.uid)!}
-                refCards={refViewsByUid.get(m.uid)}
-                dragging={!!drag?.active}
-                dimmed={isDragging(m.uid)}
-                spent={combatHandSummoned?.has(m.uid) ?? false}
-                handSlidePx={handSlide(i) * handSlotWRef.current}
-                fanRot={fanRot}
-                onPointerDown={onCardPointerDown}
-                locked={locked}
-                lockLabel={lockLabel}
-                forceFull
-                plated
-              />
-            );
-          })}
-          {/* Cards an End-of-Turn beat or a combat effect just granted, so the hand grows at the moment the
-              effect fires (the real commit lands later, at `faceOmen` / `settleCombat`). See `handPreviews`. */}
-          {handPreviews.map((cardId, i) => (
-            /* `plated` to match the real hand cards exactly — the preview is swapped for the committed card,
-               and an unplated preview made that swap read as a flicker. */
-            <Card key={`grant-${i}`} card={conjuredView(cardId, run) ?? tokenRefView(cardId, cardBuffsLive, run.impBuff, undefined, run.rubyBonus)} suppressPop forceFull plated />
-          ))}
-        </div>
-      </div>
+      <HandRow
+        canDropHand={canDropHand} gambleHand={gambleHand} goldSpentRun={run.goldSpent ?? 0} tier={run.tier} wave={run.wave}
+        handViews={handViews} refViewsByUid={refViewsByUid} dragActive={dragActive} isDragging={isDragging} combatHandSummoned={combatHandSummoned}
+        handSlide={handSlide} handSlotW={handSlotWRef.current} onCardPointerDown={onCardPointerDown} handPreviewViews={handPreviewViews}
+      />
 
       {/* Loss-damage tally — surviving enemy tiers + the opponent's tier fly up into a damage counter
           above the enemy board (clamped to the round cap), then blast the Resolve bar. */}
@@ -7207,11 +6953,529 @@ export function Recruit() {
           );
         })}
 
+      <CombatLogOverlay
+        showLog={showLog} result={replay.result} combatOdds={combatOdds} logTab={logTab} setLogTab={setLogTab}
+        lastCombat={run.lastCombat} procs={replay.procs} fullLog={replay.fullLog} onClose={closeLog}
+      />
+
+      <ChooseOneOverlay overlaysHeld={overlaysHeld} run={run} spellBonus={spellBonus} spellBonusH={spellBonusH} dispatch={dispatch} captureCoalesce={captureCoalesce} />
+
+      <DiscoverOverlay overlaysHeld={overlaysHeld} run={run} discoverMin={discoverMin} setDiscoverMin={setDiscoverMin} cardBuffsLive={cardBuffsLive} dispatch={dispatch} discoverBurstRef={discoverBurstRef} />
+
+      <ScoutOverlay overlaysHeld={overlaysHeld} scouted={run.scoutedNextOpponent} dispatch={dispatch} />
+
+      <QuestOverlay overlaysHeld={overlaysHeld} questOffer={run.questOffer} questMin={questMin} setQuestMin={setQuestMin} dispatch={dispatch} />
+
+      <PowerOverlay overlaysHeld={overlaysHeld} powerOffer={run.powerOffer} dispatch={dispatch} />
+
+      <RuneforgeOverlay
+        overlaysHeld={overlaysHeld} run={run} forgeMin={forgeMin} setForgeMin={setForgeMin} lockIn={lockIn} lockInSlow={lockInSlow} setLockIn={setLockIn}
+        runeLockInCue={runeLockInCue} cueRuneArrival={cueRuneArrival} startRuneLockIn={startRuneLockIn} dispatch={dispatch}
+      />
+
+      {/* SANDBOX ONLY: the unit editor popover, opened by the click intercept in onCardPointerDown. Every
+          apply reads and writes the LIVE store run rather than this render's `run` — a stat edit is itself a
+          re-render, so a stale closure here could otherwise drop a fast second keystroke's edit. */}
+      {sbEditMode && sbEditing !== null && (() => {
+        const card = run.board.find((c) => c.uid === sbEditing.uid);
+        if (card === undefined) return null; // it left the board under us — close rather than crash
+        const apply = (compute: (liveBoard: typeof run.board) => typeof run.board): void => {
+          const liveRun = useGame.getState().run;
+          useGame.setState({ run: { ...liveRun, board: compute(liveRun.board) } });
+        };
+        return (
+          <UnitEditor
+            value={{ cardId: card.cardId, attack: card.attack, health: card.health, keywords: card.keywords }}
+            anchor={sbEditing.rect}
+            cards={poolOf(run).buyable.map((c) => ({ id: c.id, name: c.name }))}
+            onChange={(patch) => {
+              if (patch.cardId !== undefined) {
+                const cardId = patch.cardId;
+                apply((liveBoard) => setCardId(liveBoard, card.uid, cardId, (id) => CARD_INDEX[id]));
+              } else {
+                apply((liveBoard) => setCardStats(liveBoard, card.uid, patch));
+              }
+            }}
+            onToggleKeyword={(kw) => apply((liveBoard) => toggleCardKeyword(liveBoard, card.uid, kw))}
+            onClose={() => setSbEditing(null)}
+          />
+        );
+      })()}
+
+      {/* SANDBOX ONLY: the unit editor popover for the pinned opponent, opened by `onSbEnemyPointerDown`.
+          `applyFoe` re-reads the live store (see its definition above) for the same stale-closure reason as
+          the player editor's `apply`. */}
+      {sbEditMode && sbEditingFoe !== null && sbEnemySnap !== null && sbEnemySnap.minions[sbEditingFoe.index] !== undefined && (() => {
+        const m = sbEnemySnap.minions[sbEditingFoe.index]!;
+        const i = sbEditingFoe.index;
+        return (
+          <UnitEditor
+            value={{ cardId: m.cardId, attack: m.attack, health: m.health, keywords: m.keywords ?? [] }}
+            anchor={sbEditingFoe.rect}
+            cards={poolOf(run).buyable.map((c) => ({ id: c.id, name: c.name }))}
+            onChange={(patch) => {
+              const liveSnap = useGame.getState().run.servedBoards?.[useGame.getState().run.wave] ?? sbEnemySnap;
+              if (patch.cardId !== undefined) {
+                const cardId = patch.cardId;
+                applyFoe(setEnemyCardId(liveSnap, i, cardId, (id) => CARD_INDEX[id]));
+              } else {
+                applyFoe(setEnemyStats(liveSnap, i, patch));
+              }
+            }}
+            onToggleKeyword={(kw) => {
+              const liveSnap = useGame.getState().run.servedBoards?.[useGame.getState().run.wave] ?? sbEnemySnap;
+              applyFoe(toggleEnemyKeyword(liveSnap, i, kw));
+            }}
+            onRemove={() => {
+              const liveSnap = useGame.getState().run.servedBoards?.[useGame.getState().run.wave] ?? sbEnemySnap;
+              applyFoe(removeEnemy(liveSnap, i));
+              setSbEditingFoe(null);
+            }}
+            onClose={() => setSbEditingFoe(null)}
+          />
+        );
+      })()}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------------------------------------------------
+ * MEMOIZED SUBTREES (perf 2026-09-16 — owner-approved mechanical cleanup, no visible change).
+ *
+ * `Recruit` subscribes to the whole `run` plus a dozen store slices and holds ~40 pieces of local state, so
+ * before this every one of those changes — a drag decision, an aim target, a loss tally tick, an overlay
+ * toggle, a combat beat — reconciled the ENTIRE shop screen: three card rows, seven buttons, the timer and
+ * every overlay. The JSX below is the same JSX that used to sit inline in `Recruit`'s return, moved VERBATIM
+ * into `React.memo` components that take only the slices they render from (primitives, memoized maps/sets,
+ * `useCallback`'d handlers). A change now re-renders the one subtree it belongs to. DOM order, class names,
+ * data attributes and handler semantics are unchanged — the source-scanning tests (`handRowViews`,
+ * `chooseOnePreview`, the FX call-site scans) still read these blocks in this file.
+ * ---------------------------------------------------------------------------------------------------------- */
+
+/** The shop furniture + the End Turn / End Combat diamond + the combat Skip/Summary controls — everything
+ *  between the HUD and the drag zones. Memoized on primitives + stable handlers (perf 2026-09-16: a drag
+ *  tick or an overlay toggle no longer reconciles seven buttons and the timer for nothing). */
+const ShopControls = memo(function ShopControls({
+  fighting, inCombat, mode, sandbox, replayDone, replayResult, sandboxReplay, lossPhase, eotAnimating,
+  hasQuestOffer, hasPowerOffer, hasRuneforgeOffer, roundSettled, timeUp, combatBgShown, frozen, embers,
+  refreshCost, freeRolls, tier, maxTier, upgradeCost, nextTurnGold, afterNextGold, wave, rift,
+  onSummary, onEndTurn, onEndCombat, onFreeze, onRefresh, onUpgrade, onSkip,
+}: {
+  fighting: boolean; inCombat: boolean; mode: RunState['mode']; sandbox: boolean; replayDone: boolean;
+  replayResult: 'win' | 'lose' | 'draw' | null; sandboxReplay: boolean; lossPhase: null | 'tally' | 'blast' | 'done';
+  eotAnimating: boolean; hasQuestOffer: boolean; hasPowerOffer: boolean; hasRuneforgeOffer: boolean;
+  roundSettled: boolean; timeUp: boolean; combatBgShown: boolean; frozen: boolean; embers: number;
+  refreshCost: number; freeRolls: RunState['freeRolls']; tier: number; maxTier: number; upgradeCost: number;
+  nextTurnGold: number; afterNextGold: number; wave: number; rift: RunState['rift'];
+  onSummary: () => void; onEndTurn: () => void; onEndCombat: () => void; onFreeze: () => void;
+  onRefresh: () => void; onUpgrade: () => void; onSkip: () => void;
+}) {
+  return (
+    <>
+      {!fighting ? (
+      <>
+      {/* SHOP controls — a labelled row of gold plaque buttons (Gold · Tavern · Reroll · Freeze) framed by
+          shopbutton.webp. The turn timer now lives in the header; End Turn is a standalone button (right). */}
+      <div className={`shopbar${inCombat ? ' closing' : ''}`}>
+        {/* Info plaques (Shop tier + turn Time) as widgets — same plaque language as the action row so they
+            read at a glance instead of as loose text. The tier value takes the card tier-badge colour. */}
+        {/* Info strip — the turn's read-only stats (Gold · Tier · Setup Time) grouped in one segmented
+            plaque. Styled tooltips (.sbtip) replace the native title so hover hints match the dark-pill format. */}
+        {/* Gold moved to a standalone glass pill bottom-right of the board; Tier moved onto the Tavern Up stone
+            (owner ask 2026-08-11). The top strip now carries only the turn timer. */}
+        {/* The turn timer is hidden entirely in the tutorial — a first-time player is never on the clock
+            (`turnSeconds` is already effectively infinite there; this just removes the misleading countdown). */}
+        {mode !== 'tutorial' && (
+          <div className="statstrip">
+            <ShopTimer practice={mode === 'practice' && !sandbox} />
+          </div>
+        )}
+        {/* Action tray — the turn's actions grouped into one control bar (Reroll · Freeze), framed by
+            shopbutton.webp. Tavern Up moved onto the board as the standalone STONE button (TavernUpButton,
+            mounted below with the End Turn diamond); Reroll/Freeze are queued for the same treatment. */}
+        <div className="shoprow actiontray">
+          {/* The Reroll tray plaque was replaced by the standalone REFRESH crystal, stage-pinned top-centre
+              (see <RefreshButton/> below) — same reducer wiring, so nothing about rolling changed. */}
+          {/* Freeze moved out of the tray to the board's TOP-RIGHT, opposite the Tavern stone — see
+              <FreezeButton/> below. Same reducer wiring; only the placement changed. */}
+        </div>
+      </div>
+      </>
+      ) : (
+        <div className="combatctl">
+          {/* Post-combat actions stay centred. During the replay the Skip button + speed slider live in the
+              top-right combat HUD (below) instead, so the arena stays clear. */}
+          {/* Empty spacer — End Combat lives on the diamond and Summary is a glass pill above it (below);
+              the .combatctl footprint stays so the enemy warband keeps its vertical spot. */}
+          <div className="cbtns" />
+        </div>
+      )}
+
+      {/* End Turn — the standalone DIAMOND button on the board's middle-right (de-coupled from the shop
+          tray, owner direction 2026-07-16). Mounted through BOTH phases: the lit gem during recruit, the
+          pressed (dim) gem from the click all the way through the combat screen. Keyed off `inCombat` (the
+          phase itself), NOT `fighting` (which waits for the intro), so the art swap is IMMEDIATE on the
+          click. Once the replay finishes it doubles as END COMBAT (a loss holds it until the loss-damage
+          blast lands, same as the old button) — clicking relights it with a clean shine, no strike. */}
+      {/* Summary — a small glass pill pinned ABOVE the End Combat diamond (same stage anchor + --etb-x/y
+          offsets, so it rides the tuner's position); fades in floating up like the diamond's tooltip. */}
+      {inCombat && replayDone && (
+        <button className="combatsummary" onClick={onSummary}>
+          <Icon name="battlecry" />
+          Summary
+        </button>
+      )}
+      {/* RIFT — the purple swirling plaque directly above the diamond, mounted only while this run has a
+          pinned rift and only in the SHOP phase (in combat that slot belongs to the Summary pill). Reads
+          the run's pinned rift, never the live registry, so a replayed run still shows the rift it was played under. */}
+      {!inCombat && rift && RIFTS[rift] && (
+        <RiftButton rift={RIFTS[rift]} />
+      )}
+      {/* A LOSS normally holds End Combat until the loss-damage blast has landed (`lossPhase === 'done'`).
+          In a sandbox REPLAY that sequence never runs at all — it early-returns on `run.combatSettled`,
+          which is `true` throughout a replay by design — so `lossPhase` stays null forever and the gate
+          below would leave no enabled way out of the phase (Skip unmounts once the replay is done).
+          Nothing is being waited on, so nothing is held. */}
+      <EndTurnButton
+        onEndTurn={onEndTurn}
+        onEndCombat={onEndCombat}
+        combatReady={inCombat && replayDone && (sandboxReplay || replayResult !== 'lose' || lossPhase === 'done')}
+        disabled={inCombat
+          ? !(replayDone && (sandboxReplay || replayResult !== 'lose' || lossPhase === 'done'))
+          : eotAnimating || hasQuestOffer || hasPowerOffer || hasRuneforgeOffer || !roundSettled}
+        pressed={inCombat || eotAnimating}
+        urgent={timeUp && !inCombat}
+      />
+
+      {/* Tavern Up — the standalone STONE button on the board's left (replaces the tray plaque; same
+          reducer wiring + disabled conditions — a re-skin, not a behavior change). Mounted through BOTH
+          phases (owner note 2026-07-16): in combat it's a passive TIER INDICATOR — inert, cost coin hidden,
+          art at full strength. The max-tier condition lives in the component (the broken "complete" gem). */}
+      {/* Freeze — pinned TOP-RIGHT, opposite the Tavern stone. NOT gated on `timeUp` (owner 2026-07-21):
+          freezing after the clock runs out is a legitimate last action — the shop is still on screen until
+          the End-of-Turn animation starts, and the reducer never gated it, only this button did.
+          Hidden during combat like the other shop controls (owner ask 2026-08-29) — gated on the curtain's
+          staged window so it vanishes and returns under the blue. */}
+      {!combatBgShown && (
+      <FreezeButton
+        frozen={frozen}
+        disabled={eotAnimating || hasQuestOffer || hasPowerOffer || hasRuneforgeOffer}
+        combat={inCombat}
+        onFreeze={onFreeze}
+      />
+      )}
+      {/* Refresh — the standalone crystal pinned TOP-CENTRE, replacing the tray's Reroll plaque. It used to
+          stay mounted through combat as inert furniture (owner ask 2026-08-17), but the foe portrait now
+          drops onto this very anchor and the owner asked for it GONE during the fight (2026-08-29). Gated on
+          the curtain's staged window — not the raw phase — so it vanishes and returns under the blue, never
+          in view. */}
+      {/* `nextRefreshCostOf`, not `refreshCostOf`: the pill prints what THIS roll charges, folding banked
+          free rolls AND Rune of Window Shopping's first-3-free allowance (bug 3abab276 — the pill kept
+          showing 1 while the rune paid). Same helper gates `disabled`, so a free roll stays clickable at
+          0 Gold, matching the reducer's charge order exactly. */}
+      {!combatBgShown && (
+      <RefreshButton
+        cost={refreshCost}
+        freeRolls={freeRolls}
+        disabled={embers < refreshCost || timeUp || eotAnimating || hasQuestOffer || hasPowerOffer || hasRuneforgeOffer}
+        combat={inCombat}
+        onRefresh={onRefresh}
+      />
+      )}
+      {/* Tavern stone + Gold — hidden during combat with the rest of the shop furniture (owner ask
+          2026-08-29, superseding the 2026-07-16 "passive tier indicator" and 2026-08-17 "gold in both
+          phases" rulings): with the curtain staging every entrance/exit, the combat scene keeps only the
+          fight's own controls. Both gate on the staged window so they swap under the blue. */}
+      {!combatBgShown && (
+      <TavernUpButton
+        tier={tier}
+        maxTier={maxTier} // Summit raises the ceiling to 7
+        cost={upgradeCost}
+        disabled={embers < upgradeCost || timeUp || eotAnimating || hasQuestOffer || hasPowerOffer || hasRuneforgeOffer}
+        combat={inCombat}
+        onUpgrade={onUpgrade}
+      />
+      )}
+      {!combatBgShown && (
+      <GoldPill gold={embers} nextTurnGold={nextTurnGold} afterNextGold={afterNextGold} wave={wave} />
+      )}
+
+      {/* Skip the combat replay — pinned ABOVE the End Turn / End Combat diamond (owner move 2026-08-11; it was
+          a top-centre HUD, and the replay-speed slider moved to the Esc menu's Combat section). */}
+      {inCombat && !replayDone && (
+        <button className="combathud-skip" onClick={onSkip} title="Skip the combat replay">
+          <Icon name="sword" /> Skip
+        </button>
+      )}
+    </>
+  );
+});
+
+/** The tavern zone: the shop offers + the pinned spell (or, in combat, the enemy units; in the sandbox, the
+ *  pinned foe). Memoized on the view maps + primitives + stable handlers, so a render that did not touch the
+ *  shop (an overlay, the loss tally, a hover-driven local state) reconciles none of these cards. `replay` is
+ *  passed ONLY while combat units show — the hook hands back a fresh object every render. */
+const TavernRow = memo(function TavernRow({
+  frozen, replay, sbEnemyShown, sbEnemySnap, sbEditMode, onSbEnemyPointerDown, displayShop, heldUids, shopSlide,
+  isDragging, shopViews, refViewsByUid, dragActive, dragUid, dragTarget, dragCardId, heroArmed, heroTargetsTavern,
+  castingSpell, aimTargetUid, castTargetUid, tripleReadyUids, returningFromCombat, onCardPointerDown, spell,
+  draggingShop, spellView,
+}: {
+  frozen: boolean; replay: ReturnType<typeof useCombatReplay> | null; sbEnemyShown: boolean;
+  sbEnemySnap: BoardSnapshot | null; sbEditMode: boolean; onSbEnemyPointerDown: (e: React.PointerEvent) => void;
+  displayShop: ShopCard[]; heldUids: ReadonlySet<string> | null; shopSlide: (i: number) => number;
+  isDragging: (uid: string) => boolean; shopViews: ReadonlyMap<string, CardView>; refViewsByUid: ReadonlyMap<string, CardView[]>;
+  dragActive: boolean; dragUid: string | undefined; dragTarget: CardView['target'] | undefined; dragCardId: string | undefined;
+  heroArmed: boolean; heroTargetsTavern: boolean; castingSpell: boolean; aimTargetUid: string | null;
+  castTargetUid: string | null; tripleReadyUids: ReadonlySet<string>; returningFromCombat: boolean;
+  onCardPointerDown: (e: ReactPointerEvent) => void; spell: RunState['spell']; draggingShop: boolean;
+  spellView: CardView | null;
+}) {
+  return (
+      <div className={`zone${frozen ? ' frozen' : ''}`} data-zone="tavern">
+        <div className="row">
+          {replay ? (
+            replay.visibleFrame.enemy.map((u) => (
+              <Unit
+                key={u.uid}
+                u={u}
+                side="foe"
+                anim={replay.anims[u.uid]}
+                triggered={replay.triggerUids.has(u.uid)}
+                rallyPulse={replay.rallyPulseUids.get(u.uid)}
+                watcherPulse={replay.watcherPulseUids.get(u.uid)}
+                framePulse={replay.framePulseUids.get(u.uid)}
+              />
+            ))
+          ) : sbEnemyShown ? (
+            /* SANDBOX: the board pinned for the coming fight, shown in the row enemies actually occupy — so
+               the on-screen distance an effect travels here is the distance it will travel in the real fight.
+               Gated on `run.sandbox` (belt-and-braces alongside the store flag) and nested INSIDE the
+               non-fighting branch, so a live combat can never be affected by this toggle. */
+            (sbEnemySnap?.minions ?? []).map((m, i) => (
+              <Card
+                key={`sbfoe-${i}`}
+                uid={`sbfoe-${i}`}
+                card={{
+                  name: CARD_INDEX[m.cardId]?.name ?? m.cardId,
+                  cardId: m.cardId,
+                  tribe: CARD_INDEX[m.cardId]?.tribe ?? 'neutral',
+                  attack: m.attack,
+                  health: m.health,
+                  keywords: m.keywords ?? [],
+                  golden: m.golden ?? false,
+                  text: CARD_INDEX[m.cardId]?.text ?? '',
+                  tier: CARD_INDEX[m.cardId]?.tier,
+                }}
+                onPointerDown={sbEditMode ? onSbEnemyPointerDown : undefined}
+              />
+            ))
+          ) : (
+          <>
+          {displayShop.map((o, i) => (
+            <Fragment key={o.uid}>
+              {/* Gap opened by sliding the offers (`slideDir`); the dragged offer stays here invisible
+                  (`dimmed`) to hold its slot — same model as the warband, no re-centre jerk. */}
+              {heldUids?.has(o.uid) ? (
+                // A just-consumed slot, held open (invisible, opacity 0 via `dragsrc`) so the survivors don't
+                // reflow until the ghost has been pulled into the eater. `.card.compact` gives it the exact slot
+                // width; `data-uid` keeps FLIP counting it, so `flipKey` is unchanged and nothing moves yet.
+                <div className="card compact dragsrc" data-uid={o.uid} aria-hidden="true" />
+              ) : (
+              <Card
+                uid={o.uid}
+                slideDir={shopSlide(i)}
+                dimmed={isDragging(o.uid)}
+                card={shopViews.get(o.uid)!}
+                refCards={refViewsByUid.get(o.uid)}
+                dragging={dragActive}
+                highlight={(heroArmed && heroTargetsTavern) || (castingSpell && (dragTarget === 'any' || (!!o.starform && starformSpellAimsToken(CARD_INDEX[dragCardId ?? ''] ?? {}))))}
+                targeted={(heroArmed && heroTargetsTavern && aimTargetUid === o.uid) || castTargetUid === o.uid}
+                tripleReady={tripleReadyUids.has(o.uid)}
+                contraband={o.contraband}
+                enchanted={o.enchanted}
+                suppressPop={returningFromCombat}
+                onPointerDown={heroArmed ? undefined : onCardPointerDown}
+              />
+              )}
+            </Fragment>
+          ))}
+          {spell && (
+            <Card
+              key={spell.uid}
+              uid={spell.uid}
+              dimmed={draggingShop && dragUid === spell.uid}
+              card={spellView!}
+              dragging={dragActive}
+              onPointerDown={heroArmed ? undefined : onCardPointerDown}
+            />
+          )}
+          </>
+          )}
+        </div>
+      </div>
+  );
+});
+
+/** The warband zone: your board (or, in combat, your units). Memoized the same way as `TavernRow`. */
+const WarbandRow = memo(function WarbandRow({
+  dropok, replay, displayBoard, boardAligns, boardSlide, isDragging, boardViews, refViewsByUid, dragActive, heroArmed,
+  castingSpell, isPendingTarget, aimTargetUid, castTargetUid, soulboundUids, battlecryUids, eotProcUids, eotPulseUids,
+  karwindPulseUids, karwindCritPulseUids, karwindFlashSeq, summonDelayUids, electrifyUids, magTargetUid, karwindFlameUids,
+  returningFromCombat, hasPendingTarget, onCardPointerDown,
+}: {
+  dropok: boolean; replay: ReturnType<typeof useCombatReplay> | null; displayBoard: BoardCard[];
+  boardAligns: ReturnType<typeof alignmentsOf> | undefined; boardSlide: (i: number) => number; isDragging: (uid: string) => boolean;
+  boardViews: ReadonlyMap<string, CardView>; refViewsByUid: ReadonlyMap<string, CardView[]>; dragActive: boolean;
+  heroArmed: boolean; castingSpell: boolean; isPendingTarget: (uid: string) => boolean; aimTargetUid: string | null;
+  castTargetUid: string | null; soulboundUids: ReadonlySet<string>; battlecryUids: ReadonlySet<string>;
+  eotProcUids: ReadonlySet<string>; eotPulseUids: ReadonlySet<string>; karwindPulseUids: ReadonlySet<string>;
+  karwindCritPulseUids: ReadonlySet<string>; karwindFlashSeq: number | undefined; summonDelayUids: ReadonlySet<string>;
+  electrifyUids: ReadonlySet<string>; magTargetUid: string | null; karwindFlameUids: ReadonlySet<string>;
+  returningFromCombat: boolean; hasPendingTarget: boolean; onCardPointerDown: (e: ReactPointerEvent) => void;
+}) {
+  return (
+      <div className={`zone${dropok ? ' dropok' : ''}`} data-zone="warband">
+        <div className="row warband">
+          {replay ? (
+            replay.visibleFrame.player.map((u) => (
+              <Unit
+                key={u.uid}
+                u={u}
+                side="you"
+                anim={replay.anims[u.uid]}
+                triggered={replay.triggerUids.has(u.uid)}
+                rallyPulse={replay.rallyPulseUids.get(u.uid)}
+                watcherPulse={replay.watcherPulseUids.get(u.uid)}
+                framePulse={replay.framePulseUids.get(u.uid)}
+              />
+            ))
+          ) : (
+            <>
+              {displayBoard.map((m, i) => (
+                <Fragment key={m.uid}>
+                  {/* No drop-slot element: the gap is opened by shifting the cards via `slideDir` (a CSS
+                      transition glides it). The dragged card stays here rendered invisible (`dimmed`) so its
+                      slot holds the row width — no re-centre jerk on pickup. */}
+                  <Card
+                    uid={m.uid}
+                    align={boardAligns?.[i]}
+                    slideDir={boardSlide(i)}
+                    dimmed={isDragging(m.uid)}
+                    card={boardViews.get(m.uid)!}
+                    refCards={refViewsByUid.get(m.uid)}
+                    dragging={dragActive}
+                    highlight={heroArmed || castingSpell || isPendingTarget(m.uid)}
+                    targeted={((heroArmed || isPendingTarget(m.uid)) && aimTargetUid === m.uid) || castTargetUid === m.uid}
+                    soulbound={soulboundUids.has(m.uid)}
+                    battlecry={battlecryUids.has(m.uid) || eotProcUids.has(m.uid)}
+                    // Medallion: a Battlecry / an officially-firing End-of-Turn pulses (ring); a cadence
+                    // card that only ticked this turn (proc'd but not complete) just glows.
+                    pulse={battlecryUids.has(m.uid) || eotPulseUids.has(m.uid) || karwindPulseUids.has(m.uid)}
+                    pulseCrit={karwindCritPulseUids.has(m.uid) ? karwindFlashSeq : undefined}
+                    glow={eotProcUids.has(m.uid)}
+                    popDelay={summonDelayUids.has(m.uid)}
+                    electrify={electrifyUids.has(m.uid) || magTargetUid === m.uid}
+                    karwind={karwindFlameUids.has(m.uid) ? (m.cardId === 'bane' || CARD_INDEX[m.cardId]?.keywords.includes('FD') ? 'haze' : 'flame') : false}
+                    suppressPop={returningFromCombat}
+                    onPointerDown={heroArmed || hasPendingTarget ? undefined : onCardPointerDown}
+                  />
+                </Fragment>
+              ))}
+            </>
+          )}
+        </div>
+      </div>
+  );
+});
+
+/** The hand zone: the fanned hand + the grant previews. Memoized like the other rows; `handSlotW` is the drag's
+ *  measured slot spacing passed as a value (it was read off a ref at render). */
+const HandRow = memo(function HandRow({
+  canDropHand, gambleHand, goldSpentRun, tier, wave, handViews, refViewsByUid, dragActive, isDragging, combatHandSummoned,
+  handSlide, handSlotW, onCardPointerDown, handPreviewViews,
+}: {
+  canDropHand: boolean; gambleHand: BoardCard[]; goldSpentRun: number; tier: number; wave: number;
+  handViews: ReadonlyMap<string, CardView>; refViewsByUid: ReadonlyMap<string, CardView[]>; dragActive: boolean;
+  isDragging: (uid: string) => boolean; combatHandSummoned: ReadonlySet<string> | null; handSlide: (i: number) => number;
+  handSlotW: number; onCardPointerDown: (e: ReactPointerEvent) => void; handPreviewViews: CardView[];
+}) {
+  return (
+      <div
+        className={`zone${canDropHand ? ' dropok' : ''}`}
+        data-zone="hand"
+      >
+        <div className="row hand">
+          {gambleHand.map((m, i) => {
+            // Fan splay: each card tilts ~1.8° more than its neighbour out from the centre (capped at ±7° so a
+            // big hand never over-fans; a lone card sits straight). The rotation is applied in CSS via the
+            // `--fan-rot` var (see `.row.hand .card` in styles.css); it stays fanned through drags.
+            const n = gambleHand.length;
+            const fanRot = n <= 1 ? 0 : Math.max(-7, Math.min(7, (i - (n - 1) / 2) * 1.8));
+            // Locked cards are greyed + padlocked (and can't be played). TWO meters feed this:
+            // Disco Dan's Setlist locks until a SHOP TIER, Brackus's Summit until a run GOLD SPEND — the
+            // label shows whichever applies, with the gold one counting down so the wait is legible.
+            const goldSpent = goldSpentRun;
+            const tierLocked = !!m.lockedUntilTier && tier < m.lockedUntilTier;
+            const goldLocked = !!m.lockedUntilGoldSpent && goldSpent < m.lockedUntilGoldSpent;
+            // Hourglass Reserve's pick is "locked in hand until next turn" (`lockedUntilWave`). The reducer
+            // already refuses to play it, but this lock was missing here — so it was functionally locked while
+            // still LOOKING playable (owner 2026-07-24). It now wears the same greyed padlock treatment as
+            // Disco Dan's tier lock and Brackus's gold lock.
+            const waveLocked = !!m.lockedUntilWave && wave < m.lockedUntilWave;
+            const locked = tierLocked || goldLocked || waveLocked;
+            const lockLabel = tierLocked
+              ? `Tier ${m.lockedUntilTier}`
+              : goldLocked
+                ? `${m.lockedUntilGoldSpent! - goldSpent} Gold`
+                : waveLocked
+                  ? 'Next turn'
+                  : undefined;
+            return (
+              <Card
+                key={m.uid}
+                uid={m.uid}
+                card={handViews.get(m.uid)!}
+                refCards={refViewsByUid.get(m.uid)}
+                dragging={dragActive}
+                dimmed={isDragging(m.uid)}
+                spent={combatHandSummoned?.has(m.uid) ?? false}
+                handSlidePx={handSlide(i) * handSlotW}
+                fanRot={fanRot}
+                onPointerDown={onCardPointerDown}
+                locked={locked}
+                lockLabel={lockLabel}
+                forceFull
+                plated
+              />
+            );
+          })}
+          {/* Cards an End-of-Turn beat or a combat effect just granted, so the hand grows at the moment the
+              effect fires (the real commit lands later, at `faceOmen` / `settleCombat`). See `handPreviews`. */}
+          {handPreviewViews.map((view, i) => (
+            /* `plated` to match the real hand cards exactly — the preview is swapped for the committed card,
+               and an unplated preview made that swap read as a flicker. */
+            <Card key={`grant-${i}`} card={view} suppressPop forceFull plated />
+          ))}
+        </div>
+      </div>
+  );
+});
+
+/** The post-combat Combat Summary overlay. Memoized so that, while it is closed (the whole shop phase), a
+ *  Recruit render costs it a handful of prop compares and nothing else. */
+const CombatLogOverlay = memo(function CombatLogOverlay({ showLog, result, combatOdds, logTab, setLogTab, lastCombat, procs, fullLog, onClose }: {
+  showLog: boolean; result: 'win' | 'lose' | 'draw' | null; combatOdds: CombatOdds | null; logTab: 'gains' | 'procs' | 'log';
+  setLogTab: (t: 'gains' | 'procs' | 'log') => void; lastCombat: RunState['lastCombat']; procs: ReturnType<typeof useCombatReplay>['procs'];
+  fullLog: ReturnType<typeof useCombatReplay>['fullLog']; onClose: () => void;
+}) {
+  return (
+    <>
       {showLog && (
-        <div className="logov" role="dialog" aria-label="Combat log" onClick={() => setShowLog(false)}>
+        <div className="logov" role="dialog" aria-label="Combat log" onClick={onClose}>
           <div className="logbox" onClick={(e) => e.stopPropagation()}>
             <div className="logtitle">
-              Combat Summary <span className={`logverdict ${replay.result ?? ''}`}>{replay.result === 'win' ? 'Victory' : replay.result === 'lose' ? 'Defeat' : 'Draw'}</span>
+              Combat Summary <span className={`logverdict ${result ?? ''}`}>{result === 'win' ? 'Victory' : result === 'lose' ? 'Defeat' : 'Draw'}</span>
             </div>
             {combatOdds && (
               <div
@@ -7245,7 +7509,7 @@ export function Recruit() {
               <div className="loglines">
                 <div className="loggainhead">What you keep from this fight</div>
                 {(() => {
-                  const gains = combatGains(run.lastCombat);
+                  const gains = combatGains(lastCombat);
                   return gains.length === 0 ? (
                     <div className="logline">No lasting gains this fight.</div>
                   ) : (
@@ -7255,26 +7519,36 @@ export function Recruit() {
               </div>
             ) : logTab === 'procs' ? (
               <div className="loglines">
-                {replay.procs.map((s, i) => (
+                {procs.map((s, i) => (
                   <div className={`logsum ${s.kind}`} key={i}>{s.text}</div>
                 ))}
               </div>
             ) : (
               <div className="loglines">
-                {replay.fullLog.length === 0 ? (
+                {fullLog.length === 0 ? (
                   <div className="logline">No blows were struck.</div>
                 ) : (
-                  replay.fullLog.map((line, i) => (
+                  fullLog.map((line, i) => (
                     <div className={`logline ${line.kind}`} key={i}>{line.text}</div>
                   ))
                 )}
               </div>
             )}
-            <button className="btn big" onClick={() => setShowLog(false)}>Close</button>
+            <button className="btn big" onClick={onClose}>Close</button>
           </div>
         </div>
       )}
+    </>
+  );
+});
 
+/** The Choose One prompt. Takes the whole `run` (it reads the prompt, the equipment ledger, board + hand) — so it
+ *  re-renders per dispatch exactly as before, but no longer on every drag decision / local state change. */
+const ChooseOneOverlay = memo(function ChooseOneOverlay({ overlaysHeld, run, spellBonus, spellBonusH, dispatch, captureCoalesce }: {
+  overlaysHeld: boolean; run: RunState; spellBonus: number; spellBonusH: number; dispatch: (a: Action) => void; captureCoalesce: () => void;
+}) {
+  return (
+    <>
       {!overlaysHeld && run.chooseOne && (
         // CLICK OUTSIDE THE OPTIONS = CANCEL (owner ruling 2026-08-28): the card returns to hand untouched.
         // Nothing was committed when it was played, so this is a pure no-op in the reducer — no effects, no
@@ -7377,7 +7651,18 @@ export function Recruit() {
           </div>
         </div>
       )}
+    </>
+  );
+});
 
+/** The Discover overlay + its minimize toggle. The three option views are built here, so they are rebuilt only
+ *  when this component renders (a dispatch), not on every render of the shop. */
+const DiscoverOverlay = memo(function DiscoverOverlay({ overlaysHeld, run, discoverMin, setDiscoverMin, cardBuffsLive, dispatch, discoverBurstRef }: {
+  overlaysHeld: boolean; run: RunState; discoverMin: boolean; setDiscoverMin: React.Dispatch<React.SetStateAction<boolean>>;
+  cardBuffsLive: Record<string, { attack: number; health: number }>; dispatch: (a: Action) => void; discoverBurstRef: React.RefObject<HTMLDivElement>;
+}) {
+  return (
+    <>
       {/* One orange button, always in the same fixed spot just below the Discover cards — it toggles between
           Minimize (inspect the board) and Return, so the player can flip back and forth without moving the mouse. */}
       {!overlaysHeld && run.discover && (
@@ -7437,22 +7722,31 @@ export function Recruit() {
           </div>
         </div>
       )}
+    </>
+  );
+});
 
+/** Farseer's Report — the scouted-board reveal. */
+const ScoutOverlay = memo(function ScoutOverlay({ overlaysHeld, scouted, dispatch }: {
+  overlaysHeld: boolean; scouted: RunState['scoutedNextOpponent']; dispatch: (a: Action) => void;
+}) {
+  return (
+    <>
       {/* Farseer's Report — a read-only Discover-style reveal of the next opponent's scouted minions, at their
           actual stats (green above the printed base; golden treatment for a triple). No pick; the Close button
           sits where the Discover MINIMIZE toggle usually is (`.disc-toggle`, fixed). Reuses the `.discover-ov` chrome. */}
-      {!overlaysHeld && run.scoutedNextOpponent && run.scoutedNextOpponent.length > 0 && (
+      {!overlaysHeld && scouted && scouted.length > 0 && (
         <button className="disc-toggle" onClick={() => dispatch({ type: 'closeScout' })} title="Close the scout">
           <Icon name="eye" /> Close
         </button>
       )}
-      {!overlaysHeld && run.scoutedNextOpponent && run.scoutedNextOpponent.length > 0 && (
+      {!overlaysHeld && scouted && scouted.length > 0 && (
         <div className="discover-ov" role="dialog" aria-label="Scouted minions">
           <div className="disc-panel">
             <span className="disc-gem disc-gem-top" aria-hidden="true" />
             <div className="disc-banner"><span className="disp">Scouted</span></div>
             <div className="disc-cards">
-              {run.scoutedNextOpponent.map((m, i) => {
+              {scouted.map((m, i) => {
                 const c = CARD_INDEX[m.cardId];
                 if (!c) return null;
                 // Effective base = the CardDef stats, doubled for a golden — so a plain golden reads gold (not
@@ -7469,29 +7763,38 @@ export function Recruit() {
           </div>
         </div>
       )}
+    </>
+  );
+});
 
+/** The Quest Shop overlay + its minimize toggle. */
+const QuestOverlay = memo(function QuestOverlay({ overlaysHeld, questOffer, questMin, setQuestMin, dispatch }: {
+  overlaysHeld: boolean; questOffer: RunState['questOffer']; questMin: boolean; setQuestMin: React.Dispatch<React.SetStateAction<boolean>>; dispatch: (a: Action) => void;
+}) {
+  return (
+    <>
       {/* Quest overlay — mirrors the Discover flow: a blurred modal that can be MINIMIZED to inspect the shop
           (rolled up front now) + board, then returned to, so the quest pick is shop-informed. Reuses the
           `.discover-ov` chrome (blur backdrop, panel, gems); the toggle sits in the same fixed spot. */}
-      {!overlaysHeld && run.questOffer && (
+      {!overlaysHeld && questOffer && (
         <button
           className="disc-toggle quest-toggle"
           onClick={() => setQuestMin((m) => !m)}
           title={questMin ? 'Return to the quest offer' : 'Inspect the shop, then return to choose a quest'}
         >
           {questMin
-            ? <><Icon name="up" /> Return to Quests · {run.questOffer.length} options</>
+            ? <><Icon name="up" /> Return to Quests · {questOffer.length} options</>
             : <><Icon name="eye" /> Inspect the shop</>}
         </button>
       )}
-      {!overlaysHeld && run.questOffer && !questMin && (
+      {!overlaysHeld && questOffer && !questMin && (
         <div className="discover-ov quest-ov" role="dialog" aria-label="Choose a quest">
           <div className="disc-panel quest-ov-panel">
             <span className="disc-gem disc-gem-top" aria-hidden="true" />
             <div className="disc-banner"><span className="disp">Quest Shop</span></div>
             <div className="disc-sub">Choose a quest to begin the turn</div>
             <div className="disc-cards quest-ov-cards">
-              {run.questOffer.map((id, i) => {
+              {questOffer.map((id, i) => {
                 const q = QUEST_INDEX[id];
                 return q ? <QuestCard key={id} quest={q} onBuy={() => dispatch({ type: 'buyQuest', index: i })} /> : null;
               })}
@@ -7500,26 +7803,35 @@ export function Recruit() {
           </div>
         </div>
       )}
+    </>
+  );
+});
 
+/** The hero-power Discover (Mimic / Void / Power Shifter). */
+const PowerOverlay = memo(function PowerOverlay({ overlaysHeld, powerOffer, dispatch }: {
+  overlaysHeld: boolean; powerOffer: RunState['powerOffer']; dispatch: (a: Action) => void;
+}) {
+  return (
+    <>
       {/* HERO-POWER DISCOVER (Mimic every turn / Void's turn-4 pair): pick one of two hero powers. Modelled on
           the Quest Shop overlay — same panel chrome, but the "cards" are power plaques (art + name + rule).
           Mandatory: no minimize, no skip — the reducer blocks everything else while it is open. */}
-      {!overlaysHeld && run.powerOffer && (
+      {!overlaysHeld && powerOffer && (
         <div className="discover-ov quest-ov power-ov" role="dialog" aria-label="Choose a hero power">
           <div className="disc-panel quest-ov-panel">
             <span className="disc-gem disc-gem-top" aria-hidden="true" />
-            <div className="disc-banner"><span className="disp">{run.powerOffer.slot === 'mimic' ? 'Mimicry' : run.powerOffer.slot === 'shifter' ? 'Power Shifter' : 'Twin Voids'}</span></div>
+            <div className="disc-banner"><span className="disp">{powerOffer.slot === 'mimic' ? 'Mimicry' : powerOffer.slot === 'shifter' ? 'Power Shifter' : 'Twin Voids'}</span></div>
             <div className="disc-sub">
-              {run.powerOffer.slot === 'mimic'
+              {powerOffer.slot === 'mimic'
                 ? 'Choose a hero power to wield this turn'
-                : run.powerOffer.slot === 'shifter'
+                : powerOffer.slot === 'shifter'
                   ? 'Choose a hero power — it replaces your current one for the rest of the run'
-                  : run.powerOffer.slot === 'void1'
+                  : powerOffer.slot === 'void1'
                     ? 'Choose your FIRST hero power — kept for the rest of the run'
                     : 'Choose your SECOND hero power — kept for the rest of the run'}
             </div>
             <div className="disc-cards power-ov-cards">
-              {run.powerOffer.heroIds.map((hid, i) => {
+              {powerOffer.heroIds.map((hid, i) => {
                 const h = getHero(hid);
                 const art = heroPowerArt(hid);
                 return (
@@ -7538,7 +7850,20 @@ export function Recruit() {
           </div>
         </div>
       )}
+    </>
+  );
+});
 
+/** The Runeforge overlay + its toggle, and the two rune lock-in ceremony mounts (the live one and the replay
+ *  cue's) that sit between them in the tree. Takes `run` (offer, discounts, Gold, the re-roll flags). */
+const RuneforgeOverlay = memo(function RuneforgeOverlay({ overlaysHeld, run, forgeMin, setForgeMin, lockIn, lockInSlow, setLockIn, runeLockInCue, cueRuneArrival, startRuneLockIn, dispatch }: {
+  overlaysHeld: boolean; run: RunState; forgeMin: boolean; setForgeMin: React.Dispatch<React.SetStateAction<boolean>>;
+  lockIn: RuneLockInCard[] | null; lockInSlow: number; setLockIn: React.Dispatch<React.SetStateAction<RuneLockInCard[] | null>>;
+  runeLockInCue: RuneLockInCard[] | null; cueRuneArrival: (cards: RuneLockInCard[] | null, phase: 'pending' | 'arrived') => void;
+  startRuneLockIn: (el: HTMLElement | null, chosenIndex: number) => void; dispatch: (a: Action) => void;
+}) {
+  return (
+    <>
       {/* Runeforge: a stone/engraved shop. Buy ONE of the offered runes (or Skip), then it closes and the shop
           begins. A minimize toggle lets you inspect the board behind it. The Runesmith's turn-6 forge draws the
           normal runeset; a quest can open the higher-power EPIC forge (`runeforgeEpic`) — same UI, Epic label. */}
@@ -7617,69 +7942,6 @@ export function Recruit() {
           </div>
         </div>
       )}
-
-      {/* SANDBOX ONLY: the unit editor popover, opened by the click intercept in onCardPointerDown. Every
-          apply reads and writes the LIVE store run rather than this render's `run` — a stat edit is itself a
-          re-render, so a stale closure here could otherwise drop a fast second keystroke's edit. */}
-      {sbEditMode && sbEditing !== null && (() => {
-        const card = run.board.find((c) => c.uid === sbEditing.uid);
-        if (card === undefined) return null; // it left the board under us — close rather than crash
-        const apply = (compute: (liveBoard: typeof run.board) => typeof run.board): void => {
-          const liveRun = useGame.getState().run;
-          useGame.setState({ run: { ...liveRun, board: compute(liveRun.board) } });
-        };
-        return (
-          <UnitEditor
-            value={{ cardId: card.cardId, attack: card.attack, health: card.health, keywords: card.keywords }}
-            anchor={sbEditing.rect}
-            cards={poolOf(run).buyable.map((c) => ({ id: c.id, name: c.name }))}
-            onChange={(patch) => {
-              if (patch.cardId !== undefined) {
-                const cardId = patch.cardId;
-                apply((liveBoard) => setCardId(liveBoard, card.uid, cardId, (id) => CARD_INDEX[id]));
-              } else {
-                apply((liveBoard) => setCardStats(liveBoard, card.uid, patch));
-              }
-            }}
-            onToggleKeyword={(kw) => apply((liveBoard) => toggleCardKeyword(liveBoard, card.uid, kw))}
-            onClose={() => setSbEditing(null)}
-          />
-        );
-      })()}
-
-      {/* SANDBOX ONLY: the unit editor popover for the pinned opponent, opened by `onSbEnemyPointerDown`.
-          `applyFoe` re-reads the live store (see its definition above) for the same stale-closure reason as
-          the player editor's `apply`. */}
-      {sbEditMode && sbEditingFoe !== null && sbEnemySnap !== null && sbEnemySnap.minions[sbEditingFoe.index] !== undefined && (() => {
-        const m = sbEnemySnap.minions[sbEditingFoe.index]!;
-        const i = sbEditingFoe.index;
-        return (
-          <UnitEditor
-            value={{ cardId: m.cardId, attack: m.attack, health: m.health, keywords: m.keywords ?? [] }}
-            anchor={sbEditingFoe.rect}
-            cards={poolOf(run).buyable.map((c) => ({ id: c.id, name: c.name }))}
-            onChange={(patch) => {
-              const liveSnap = useGame.getState().run.servedBoards?.[useGame.getState().run.wave] ?? sbEnemySnap;
-              if (patch.cardId !== undefined) {
-                const cardId = patch.cardId;
-                applyFoe(setEnemyCardId(liveSnap, i, cardId, (id) => CARD_INDEX[id]));
-              } else {
-                applyFoe(setEnemyStats(liveSnap, i, patch));
-              }
-            }}
-            onToggleKeyword={(kw) => {
-              const liveSnap = useGame.getState().run.servedBoards?.[useGame.getState().run.wave] ?? sbEnemySnap;
-              applyFoe(toggleEnemyKeyword(liveSnap, i, kw));
-            }}
-            onRemove={() => {
-              const liveSnap = useGame.getState().run.servedBoards?.[useGame.getState().run.wave] ?? sbEnemySnap;
-              applyFoe(removeEnemy(liveSnap, i));
-              setSbEditingFoe(null);
-            }}
-            onClose={() => setSbEditingFoe(null)}
-          />
-        );
-      })()}
-    </div>
+    </>
   );
-}
+});

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useGame } from './store';
 import { playerOpponent, getHero } from '@game/sim';
@@ -24,7 +24,7 @@ import { gatherSnapshotBuffs } from './runBuffs';
  * Mounted only while `.app.combat` is on; the drop-in itself is CSS (transform/opacity only — compositor-only,
  * per docs/performance.md).
  */
-export function CombatOpponent(): JSX.Element | null {
+export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null {
   const lobby = useGame((s) => s.run.lobby);
   // Keyed on the wipe curtain's STAGED window, not the raw phase (owner ask 2026-08-28): the drop-in and the
   // fade-and-fall exit both play while the blue curtain hides the scene, so the reveal sweep always exposes
@@ -188,4 +188,4 @@ export function CombatOpponent(): JSX.Element | null {
     </>,
     document.body,
   );
-}
+});

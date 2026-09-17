@@ -6,9 +6,10 @@
  * graph as every other sound, still obeys the master volume, mute and the mixing desk.
  *
  * v1 uses STATIC amounts (no curve-over-clip automation — owner 2026-09-17) and a FIXED order
- * (EQ → Compressor → Distortion → Delay → Pan, the standard order: shape → control → colour → space →
- * placement); authored reorder is a planned follow-up. Reverb (algorithmic) and modulation land in later PRs.
- * Only native nodes here — no AudioWorklets, no impulse files.
+ * (EQ → Compressor → Distortion → Delay → Reverb → Pan, the standard order: shape → control → colour → space
+ * → placement); authored reorder is a planned follow-up. Reverb is algorithmic (a generated decaying-noise
+ * impulse — no committed files). Modulation lands in a later PR. Native nodes + a synthetic IR only — no
+ * AudioWorklets, no committed impulse files.
  *
  * Kept OUT of `sfx.ts` so the graph code is one small, testable module: `audioFilterSpecs()` generates the
  * `sound` primitive's filter params (folded into its SPECS), and `buildAudioFilterChain(ctx, params)` builds
@@ -63,6 +64,41 @@ function distortionCurve(drive: number): Float32Array<ArrayBuffer> {
     curve[i] = k === 0 ? x : ((1 + k) * x) / (1 + k * Math.abs(x));
   }
   return curve;
+}
+
+/** Cached synthetic impulse responses — a reverb fire reuses one instead of refilling a multi-second noise
+ *  buffer every time (a fire must stay cheap; performance is the north star). Keyed by the knobs that shape
+ *  it plus the context's sample rate. */
+const impulseCache = new Map<string, AudioBuffer>();
+
+/**
+ * An ALGORITHMIC reverb impulse: exponentially-decaying noise, damped by a one-pole low-pass — a lush tail
+ * with NO committed impulse file (the design's "algorithmic, no asset files" intent; a generated IR sidesteps
+ * the asset-management reason convolution-with-files was deferred). `seconds` sets the tail length, `damping`
+ * (0..1) how fast the highs die. Cached by (seconds, damping, rate) so repeated fires don't refill it.
+ * `Math.random` is fine here — this is UI, not the seeded engine.
+ */
+function reverbImpulse(a: BaseAudioContext, seconds: number, damping: number): AudioBuffer {
+  const rate = a.sampleRate;
+  const secs = Math.min(8, Math.max(0.1, seconds));
+  const damp = Math.min(1, Math.max(0, damping));
+  const key = `${secs.toFixed(2)}|${damp.toFixed(2)}|${rate}`;
+  const cached = impulseCache.get(key);
+  if (cached) return cached;
+  const len = Math.max(1, Math.floor(rate * secs));
+  const ir = a.createBuffer(2, len, rate);
+  const lp = damp * 0.95; // more damping = more low-pass memory = a darker tail (0 = bright white noise)
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch);
+    let last = 0;
+    for (let i = 0; i < len; i++) {
+      const white = Math.random() * 2 - 1;
+      last = white * (1 - lp) + last * lp;
+      d[i] = last * Math.pow(1 - i / len, 2.2); // decays smoothly to silence at the tail's end
+    }
+  }
+  impulseCache.set(key, ir);
+  return ir;
 }
 
 const EQ: AudioFilterSpec = {
@@ -159,6 +195,29 @@ const DELAY: AudioFilterSpec = {
   },
 };
 
+const REVERB: AudioFilterSpec = {
+  id: 'reverb',
+  label: 'Reverb',
+  help: 'An algorithmic room/hall tail — a decaying-noise impulse, no sound files. Off costs nothing.',
+  knobs: [
+    { name: 'size', label: 'Size', min: 0.1, max: 8, step: 0.1, default: 1.8, help: 'Tail length in seconds — a tight room up to a long hall.' },
+    { name: 'damping', label: 'Damping', min: 0, max: 1, step: 0.01, default: 0.35, help: 'How fast the highs fade in the tail — higher is darker and more natural.' },
+    { name: 'mix', label: 'Mix', min: 0, max: 1, step: 0.01, default: 0.3, help: 'Dry↔wet blend — how loud the tail sits under the dry clip.' },
+  ],
+  build(a, p) {
+    const input = a.createGain();
+    const output = a.createGain();
+    const dry = a.createGain(); dry.gain.value = 1;
+    const wet = a.createGain(); wet.gain.value = num(p, knobKey('reverb', 'mix'), 0.3);
+    const conv = a.createConvolver();
+    conv.normalize = true;
+    conv.buffer = reverbImpulse(a, num(p, knobKey('reverb', 'size'), 1.8), num(p, knobKey('reverb', 'damping'), 0.35));
+    input.connect(dry); dry.connect(output);
+    input.connect(conv); conv.connect(wet); wet.connect(output);
+    return { input, output };
+  },
+};
+
 const PAN: AudioFilterSpec = {
   id: 'pan',
   label: 'Pan',
@@ -175,7 +234,7 @@ const PAN: AudioFilterSpec = {
 
 /** The core-native filters, in their FIXED application order (channel-strip convention). Authored reorder is a
  *  planned follow-up; today the order a signal passes through is exactly this array. */
-export const AUDIO_FILTERS: readonly AudioFilterSpec[] = [EQ, COMP, DISTORT, DELAY, PAN];
+export const AUDIO_FILTERS: readonly AudioFilterSpec[] = [EQ, COMP, DISTORT, DELAY, REVERB, PAN];
 
 /**
  * Flat param specs for the audio filter registry — a toggle per filter plus each knob (a slider grouped under

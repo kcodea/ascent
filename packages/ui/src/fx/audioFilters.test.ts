@@ -12,6 +12,8 @@ interface FakeNode {
   type: string;
   oversample: string;
   curve: Float32Array | null;
+  buffer: unknown;
+  normalize: boolean;
   frequency: { value: number }; Q: { value: number }; gain: { value: number };
   threshold: { value: number }; knee: { value: number }; ratio: { value: number };
   attack: { value: number }; release: { value: number };
@@ -22,7 +24,7 @@ function fakeContext() {
   const edges: Array<[FakeNode, FakeNode]> = [];
   const mk = (kind: string): FakeNode => {
     const n: FakeNode = {
-      kind, type: '', oversample: 'none', curve: null,
+      kind, type: '', oversample: 'none', curve: null, buffer: null, normalize: false,
       frequency: { value: 0 }, Q: { value: 0 }, gain: { value: 0 },
       threshold: { value: 0 }, knee: { value: 0 }, ratio: { value: 0 },
       attack: { value: 0 }, release: { value: 0 }, delayTime: { value: 0 }, pan: { value: 0 },
@@ -31,12 +33,19 @@ function fakeContext() {
     return n;
   };
   const a = {
+    sampleRate: 48000,
     createBiquadFilter: () => mk('biquad'),
     createDynamicsCompressor: () => mk('comp'),
     createWaveShaper: () => mk('shaper'),
     createGain: () => mk('gain'),
     createDelay: (_max?: number) => mk('delay'),
     createStereoPanner: () => mk('panner'),
+    createConvolver: () => mk('convolver'),
+    createBuffer: (channels: number, length: number, _rate: number) => ({
+      length,
+      numberOfChannels: channels,
+      getChannelData: () => new Float32Array(length),
+    }),
   };
   return { a: a as unknown as BaseAudioContext, edges };
 }
@@ -113,5 +122,26 @@ describe('buildAudioFilterChain', () => {
     expect((chain!.output as unknown as FakeNode).kind).toBe('gain');
     const shaper = edges.map(([f]) => f).find((n) => n.kind === 'shaper');
     expect(shaper?.curve).toBeInstanceOf(Float32Array);
+  });
+
+  it('builds an algorithmic reverb: a convolver with a generated impulse buffer, dry/wet gains', () => {
+    const { a, edges } = fakeContext();
+    const chain = buildAudioFilterChain(a, { reverbOn: true, reverb_size: 2, reverb_damping: 0.4, reverb_mix: 0.5 });
+    expect((chain!.input as unknown as FakeNode).kind).toBe('gain');
+    const conv = edges.map(([f]) => f).find((n) => n.kind === 'convolver')
+      ?? edges.map(([, t]) => t).find((n) => n.kind === 'convolver');
+    expect(conv).toBeDefined();
+    expect(conv!.buffer).not.toBeNull(); // a synthetic impulse was generated, no asset file
+  });
+
+  it('places reverb between delay and pan in the fixed order', () => {
+    const { a, edges } = fakeContext();
+    // Enable delay + reverb + pan; the signal must run delay(output) → reverb(input) → … → pan.
+    buildAudioFilterChain(a, { delayOn: true, reverbOn: true, panOn: true });
+    const kinds = AUDIO_FILTERS.map((f) => f.id);
+    expect(kinds.indexOf('delay')).toBeLessThan(kinds.indexOf('reverb'));
+    expect(kinds.indexOf('reverb')).toBeLessThan(kinds.indexOf('pan'));
+    // reverb's wet path reaches a panner somewhere downstream (order linked the sub-graphs)
+    expect(edges.some(([, to]) => to.kind === 'panner')).toBe(true);
   });
 });

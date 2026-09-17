@@ -1,15 +1,20 @@
-# FX workbench: audio Filter Lab — core native (PR 3)
+# FX workbench: audio Filter Lab — core native + reverb (PR 3)
 
 Third PR of the workbench audio feature (design: `docs/superpowers/specs/2026-09-17-fx-sound-primitive-design.md`).
-Gives a `sound` layer a chain of native Web Audio filters — the audio twin of the visual Filter Lab.
+Gives a `sound` layer a chain of native Web Audio filters — the audio twin of the visual Filter Lab. Folds in
+**reverb** too (the roadmap had it as a separate PR 4; owner asked for it in this version, 2026-09-17).
 
 ## What's new
-Five toggle-gated filters on the `sound` primitive, each off by default (an unused one allocates nothing):
+Six toggle-gated filters on the `sound` primitive, each off by default (an unused one allocates nothing):
 
 - **EQ (3-band)** — low shelf ~250 Hz, mid peak ~1.2 kHz, high shelf ~4 kHz (`BiquadFilterNode` ×3).
 - **Compressor** — threshold / ratio / attack / release (`DynamicsCompressorNode`).
 - **Distortion** — soft-clip waveshaper with a drive knob and a dry/wet mix (`WaveShaperNode` + gains).
 - **Delay / echo** — feedback delay with time / feedback / mix (`DelayNode` + feedback gain + wet/dry).
+- **Reverb** — an **algorithmic** room/hall tail: a `ConvolverNode` fed a **generated** decaying-noise impulse
+  (size / damping / mix). No committed impulse files — the IR is synthesised at runtime and cached by
+  (size, damping, sample rate), so a fire stays cheap. (The design deferred *file-based* convolution for its
+  asset-management cost; a generated IR sidesteps that. Swappable to a comb/allpass Freeverb if wanted.)
 - **Pan** — stereo placement (`StereoPannerNode`).
 
 ## How it fits the existing graph
@@ -31,12 +36,13 @@ filter keys off it.
 
 ## Scope decisions (v1)
 - **Static amounts** — no curve-over-clip automation (owner, 2026-09-17).
-- **Fixed order** — the chain applies EQ → Compressor → Distortion → Delay → Pan (the standard channel-strip
-  order). The approved design calls for *authored* order, but the only order-editing UI today (the visual
-  Filter Lab's master-group ▲/▼) is hard-bound to the Pixi filter registry; reusing it for audio means forking
-  Inspector JSX or refactoring shared visual code. Deferred to a focused follow-up (PR 3.5) rather than bloat
-  this PR. The fixed order is the sensible default the large majority of the time.
-- Reverb (algorithmic) and modulation remain PR 4 / PR 5.
+- **Fixed order** — the chain applies EQ → Compressor → Distortion → Delay → Reverb → Pan (the standard
+  channel-strip order). The approved design calls for *authored* order, but the only order-editing UI today
+  (the visual Filter Lab's master-group ▲/▼) is hard-bound to the Pixi filter registry; reusing it for audio
+  means forking Inspector JSX or refactoring shared visual code. Deferred to a focused follow-up (PR 3.5)
+  rather than bloat this PR. The fixed order is the sensible default the large majority of the time.
+- **Reverb folded in** — the roadmap had it as PR 4; owner asked for it in this version (2026-09-17), so it
+  ships here. Modulation remains the last PR.
 
 No new player-facing gameplay (a dev-authoring tool) → no patch note.
 

@@ -112,3 +112,10 @@ path, not JS, and PR 2's "no layout reads in move handlers" is the whole fix.
   `PerfBucket.longTasks`), DOM nodes by container (`nodesBy`, `PERF_DOM_CONTAINERS`), `render:recruit` by
   child (`PerfProfiler`, dev only), and the `layout:read-in-move` counter (`layoutRead.ts`). Report gains
   "Unlabelled long tasks" + "DOM nodes by container". See `docs/devlog/2026-09-17-perf-pointer-instrumentation.md`.
+- 2026-09-17 (PR 3, `perf/fx-lifetime`): Discover scene cap `maxParticlesDiscover: 2000` (would have
+  trimmed the 2,673 peak to ≤ 2,000, oldest plays first; measured ≈ 0.66 µs per live particle per tick);
+  play lifetime ceiling = the def's honest end (`fx/playLifetime.ts`) instead of a flat 15 s — the
+  `dice-land` 3,545 / `spell-sparks` 5,643 figures were `PerfSpan.n` summed over ~25–30 plays each, not one
+  play living 15 s; the DOM "leak" did NOT reproduce across two 4-minute scripted shop sessions (rest-state
+  node count flat 384 → 388) — 100 → 1,027 reads as title screen → populated shop, not a leak. Details in
+  `docs/devlog/2026-09-17-perf-fx-lifetime-dom-leak.md`.

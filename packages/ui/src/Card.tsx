@@ -1114,15 +1114,15 @@ export const Card = memo(function Card({
                 value are SIBLINGS, not nested, so the plate can scale without dragging the number. */}
             <span ref={atkPopRef} data-milestone={atkMs} className={`badge atk${statCls(shownAttack, card.baseAttack, card.floorAttack)}`}>
               {atkMs >= 1 && <span className="msglow" aria-hidden="true" />}
-              {atkMs >= 1 && <img decoding="sync" className="msframe" src={msFrameSrc('atk', atkMs)} alt="" aria-hidden="true" />}
               {atkMs >= 1 && <span className="mstint" aria-hidden="true" />}
+              {atkMs >= 1 && <img decoding="sync" className="msframe" src={msFrameSrc('atk', atkMs)} alt="" aria-hidden="true" />}
               <span className="plate" aria-hidden="true" />
               <span className="value">{formatStat(shownAttack)}</span>
             </span>
             <span ref={hpPopRef} data-milestone={hpMs} className={`badge hp${statCls(shownHealth, card.baseHealth, card.floorHealth)}`}>
               {hpMs >= 1 && <span className="msglow" aria-hidden="true" />}
-              {hpMs >= 1 && <img decoding="sync" className="msframe" src={msFrameSrc('hp', hpMs)} alt="" aria-hidden="true" />}
               {hpMs >= 1 && <span className="mstint" aria-hidden="true" />}
+              {hpMs >= 1 && <img decoding="sync" className="msframe" src={msFrameSrc('hp', hpMs)} alt="" aria-hidden="true" />}
               <span className="plate" aria-hidden="true" />
               <span className="value">{formatStat(shownHealth)}</span>
             </span>

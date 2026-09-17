@@ -118,6 +118,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // Split Decision). 27 more were REPLACED in place at net 0 — incl. the Magnifying Glass icon.)
     // → 1189 (2026-09-14, second pass: +3 — Constellation Prime, Shooting Star, the Hand Soap spell; 5 replaced in place.)
     // → 1192 (2026-09-14, the Celestial batch: +3 — the Star Destroyer and Stellar Lens icons, the Stellar Chorus spell art; Picksy + Flame Reveler replaced in place.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1192);
+    // → 1241 (2026-09-16, the Set 3 batch-2 rune emblems: +49 files measured against origin/main's 1180 — one
+    // emblem per new rune except the Handy Flame and Open Hand runes, whose masters do not exist yet.)
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1241);
   });
 });

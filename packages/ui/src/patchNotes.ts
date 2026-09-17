@@ -63,6 +63,16 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-16',
+    label: 'Milestone badge colours',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "Milestone badges now read state through the number itself: the digit turns green when a stat is buffed above its base and red when it's reduced. The disc behind the frame is a fixed colour per stat — yellow for Attack, red for Health. The lower frames (plain silver, dagger, gold) no longer glow.",
+      },
+    ],
+  },
+  {
+    date: '2026-09-16',
     label: 'Second hero power retired',
     changes: [
       { category: 'Hero Change', text: 'Void is out of the hero roster for now (Play and Practice) — the second-hero-power mechanic is on hold.' },

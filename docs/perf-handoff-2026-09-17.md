@@ -107,6 +107,11 @@ path, not JS, and PR 2's "no layout reads in move handlers" is the whole fix.
 ## Session log
 - 2026-09-15: perf monitor + warm-up + attribution + live screen shipped (#1508).
 - 2026-09-16/17: two captures analysed (this doc). No code changed for the findings yet.
+- 2026-09-17: **PR 1 built** (`perf/instrument-pointer`) — `input:<event>` spans on the drag / aim / grab /
+  hover paths, long-task attribution (labels inside it, or the last input event via a capture-phase ring —
+  `PerfBucket.longTasks`), DOM nodes by container (`nodesBy`, `PERF_DOM_CONTAINERS`), `render:recruit` by
+  child (`PerfProfiler`, dev only), and the `layout:read-in-move` counter (`layoutRead.ts`). Report gains
+  "Unlabelled long tasks" + "DOM nodes by container". See `docs/devlog/2026-09-17-perf-pointer-instrumentation.md`.
 - 2026-09-17 (PR 3, `perf/fx-lifetime`): Discover scene cap `maxParticlesDiscover: 2000` (would have
   trimmed the 2,673 peak to ≤ 2,000, oldest plays first; measured ≈ 0.66 µs per live particle per tick);
   play lifetime ceiling = the def's honest end (`fx/playLifetime.ts`) instead of a flat 15 s — the

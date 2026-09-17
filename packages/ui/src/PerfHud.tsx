@@ -3,7 +3,7 @@ import { perfMonitor, perfThresholds, type PerfBucket, type FrameThresholds } fr
 import { captureStats, graphColumns, rollingStats, topOffenders, type Offender } from './perfLive';
 import { displaySubject, phaseName, plainSubject, shortName } from './perfNames';
 import { DevPanelContext, useDraggablePanel } from './useDraggablePanel';
-import { diagnose, whatIsSlow, type Diagnosis } from './perfDiagnose';
+import { diagnose, longTaskLine, whatIsSlow, type Diagnosis } from './perfDiagnose';
 import { buildReport } from './perfReport';
 import { saveRun, toRun } from './perfStore';
 import { useGame } from './store';
@@ -385,8 +385,31 @@ function PerfHudPanel() {
           {live && !live.thin && live.verdicts[0] && (
             <Row k="session finding" v={live.verdicts[0].title} warn={live.verdicts[0].severity !== 'info'} title={live.verdicts[0].suggestion} />
           )}
+          {/* The worst long task this second, attributed — what ran inside it, or the input event that was
+              being dispatched when nothing instrumented did (perf PR 1, 2026-09-17). */}
+          {b?.longTasks?.[0] && (
+            <Row
+              k="long task"
+              v={longTaskLine(b.longTasks[0])}
+              warn={b.longTasks[0].labels.length === 0}
+              title="What ran inside the longest blocking task this second — or, with no label open, the last input event before it"
+            />
+          )}
+          <Row
+            k="layout reads in move"
+            v={String(b?.counts['layout:read-in-move'] ?? 0)}
+            warn={(b?.counts['layout:read-in-move'] ?? 0) > 0}
+            title="getBoundingClientRect / offsetLeft / elementFromPoint calls made inside a pointer-move handler this second — each can force a reflow per pointer event. Must read 0."
+          />
           <Row k="heap" v={b?.heapMb ? `${b.heapMb.toFixed(0)} MB` : 'n/a'} />
           <Row k="dom nodes" v={b ? String(b.nodes) : '–'} />
+          {b?.nodesBy && (
+            <Row
+              k="dom by container"
+              v={Object.entries(b.nodesBy).map(([k, n]) => `${k} ${n}`).join(' · ')}
+              title="DOM element count inside each container — the one that climbs across a run is the leak"
+            />
+          )}
           <Row k="context" v={b ? `${b.phase ? phaseName(b.phase) : '–'}${b.wave !== undefined ? ` · wave ${b.wave}` : ''}` : '–'} />
           <Row k="marks" v={marks.length ? marks.map(([k, v]) => `${shortName(k)}×${v}`).join(' ') : '–'} />
 

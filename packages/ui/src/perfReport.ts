@@ -1,4 +1,5 @@
-import { compareRuns, diagnose, whatIsSlow, type Diagnosis } from './perfDiagnose';
+import { compareRuns, diagnose, longTaskLine, unlabelledLongTasks, whatIsSlow, type Diagnosis } from './perfDiagnose';
+import { containerGrowth } from './perfDomContainers';
 import { topOffenders } from './perfLive';
 import { displaySubject, phaseName, shortName } from './perfNames';
 import type { PerfRunMeta } from './perfStore';
@@ -42,6 +43,9 @@ function spikeLine(s: Diagnosis['spikes'][number], budgetMs: number): string {
   }
   if (s.marks.length) parts.push(`  - fired: ${s.marks.map((m) => `${m.label}×${m.n}`).join(', ')}`);
   if (s.counts.length) parts.push(`  - live: ${s.counts.map((c) => `${c.label} ${c.n}`).join(', ')}`);
+  // The tasks themselves, attributed: what ran inside, or the input event that was dispatching when
+  // nothing instrumented did. This is the line that turns "nothing" into a handler name.
+  for (const t of s.longTasks) parts.push(`  - long task ${longTaskLine(t)}`);
   return parts.join('\n');
 }
 
@@ -148,6 +152,36 @@ export function buildReport(input: ReportInput): string {
     L.push('## Worst moments');
     L.push('');
     for (const s of spikes) L.push(spikeLine(s, d.budgetMs));
+    L.push('');
+  }
+
+  // ── Unlabelled long tasks — the blind spot, each named by its trigger (perf PR 1, 2026-09-17). ─────────
+  const blind = unlabelledLongTasks(input.buckets, 8);
+  if (blind.length) {
+    L.push('## Unlabelled long tasks');
+    L.push('');
+    L.push('Main-thread blocks with NO measured span open. Each names the last input event dispatched before it — the handler family (or the style / layout work it forced) owns the time.');
+    L.push('');
+    L.push('| at | task | last event | where |');
+    L.push('|---|---|---|---|');
+    for (const t of blind) {
+      const where = [t.phase ? phaseName(t.phase) : null, t.wave !== undefined ? `wave ${t.wave}` : null].filter(Boolean).join(', ');
+      L.push(`| ${(t.t / 1000).toFixed(0)}s | ${ms(t.ms)} | ${t.lastEvent ? `\`${t.lastEvent.type}\` on \`${t.lastEvent.target}\` ${t.lastEvent.msBefore >= 0 ? `${t.lastEvent.msBefore.toFixed(1)} ms earlier` : `${(-t.lastEvent.msBefore).toFixed(1)} ms into it`}` : '—'} | ${where || '—'} |`);
+    }
+    L.push('');
+  }
+
+  // ── DOM growth by container — the leak names itself. ───────────────────────────────────────────────────
+  const growth = containerGrowth(input.buckets);
+  if (growth.length) {
+    L.push('## DOM nodes by container');
+    L.push('');
+    L.push('| container | start | end | change | peak |');
+    L.push('|---|---|---|---|---|');
+    for (const g of growth) L.push(`| ${g.name} | ${g.first} | ${g.last} | ${g.delta > 0 ? `+${g.delta}` : g.delta} | ${g.peak} |`);
+    L.push('');
+    const reads = input.buckets.reduce((a, b) => a + (b.counts?.['layout:read-in-move'] ?? 0), 0);
+    L.push(`Layout reads inside a pointer-move path (\`layout:read-in-move\`): **${reads}**${reads > 0 ? ' — each one can force a synchronous reflow per pointer event; PR 2 drives this to 0' : ' — the move path read no layout'}.`);
     L.push('');
   }
 

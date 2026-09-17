@@ -56,6 +56,20 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-17',
+    label: 'Gamble joins Set 3',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'The Gamble spell is now in the Set 3 pool as well: roll a die and get a random minion or spell of that Tier.',
+      },
+      {
+        category: 'New Card',
+        text: 'New Basic rune in every set — Rune of Gambling: get a Gamble, repeat every turn, and your Gambles grant BOTH a minion and a spell of the rolled Tier.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-17',
     label: 'A real die',
     changes: [
       {

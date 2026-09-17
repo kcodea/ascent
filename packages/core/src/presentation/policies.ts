@@ -603,6 +603,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_epic_kobold:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_glider:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_hoardflame:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  'rune:rune_gambling:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // 2026-09-17: recurring Gamble + both-prizes rider
   'rune:rune_ornate_clock:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_pendant:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_engraving_gems:combat': { policy: 'foldedCue', family: 'combatModifier' },

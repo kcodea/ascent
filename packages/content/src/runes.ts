@@ -988,6 +988,17 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'multi', rewards: [{ kind: 'recurringGrant', cards: ['hoardflame'] }, { kind: 'runeSpellDouble', spellId: 'hoardflame' }] },
   },
   {
+    // Owner add 2026-09-17, ALL sets (no `sets` scope). The Hoardflame shape: a recurring spell grant plus a
+    // rider on that spell — here `runeGambleBoth`, which `spellGambleTierPull` reads to pay a minion AND a
+    // spell of the rolled tier (and the Gamble's live text prints "minion AND spell" while it is armed).
+    id: 'rune_gambling',
+    name: 'Rune of Gambling',
+    cost: 3,
+    text: 'Get a **Gamble**. Repeat every **turn**. Your Gambles grant **both** a spell and minion.',
+    previewCards: ['sp_gamble'],
+    reward: { kind: 'multi', rewards: [{ kind: 'recurringGrant', cards: ['sp_gamble'] }, { kind: 'runeGambleBoth' }] },
+  },
+  {
     id: 'rune_glider',
     tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of the Glider',

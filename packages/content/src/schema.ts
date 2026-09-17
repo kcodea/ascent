@@ -812,6 +812,7 @@ z.object({ kind: z.literal('runeAftermarket') }).strict(),
   z.object({ kind: z.literal('runeGrandWorkshop') }).strict(),
   z.object({ kind: z.literal('runeRedGiant') }).strict(),
   z.object({ kind: z.literal('runeSoulScript') }).strict(),
+  z.object({ kind: z.literal('runeGambleBoth') }).strict(),
   // ── Set 3 batch 2 (2026-09-16) — tranche A ──
   z.object({ kind: z.literal('runeChosenVessel'), attack: z.number().int(), health: z.number().int() }).strict(),
   z.object({ kind: z.literal('runeDeepCurrents'), count: z.number().int().positive(), attack: z.number().int(), health: z.number().int() }).strict(),

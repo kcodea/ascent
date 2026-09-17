@@ -1,5 +1,14 @@
 import type { TunerControl, TunerSpec } from './tunerSchema';
 
+/** `#rrggbb` + a 0..1 strength → a `rgba(r,g,b,a)` string, so a colour-picker hex and an opacity slider can
+ *  drive one `text-shadow` colour. A malformed hex falls back to black. */
+function hexToRgba(hex: string, alpha: number): string {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const v = Number.isFinite(n) ? n : 0;
+  const a = alpha < 0 ? 0 : alpha > 1 ? 1 : alpha;
+  return `rgba(${(v >> 16) & 255}, ${(v >> 8) & 255}, ${v & 255}, ${a})`;
+}
+
 /**
  * DEV tuner for the STAT MILESTONE FRAMES — the art discs an Attack/Health badge sits in once it crosses a
  * value tier (see choreo/statMilestones.ts), the state tint over them, and the number itself (owner ask
@@ -43,6 +52,8 @@ export interface MilestoneFrameConfig {
   /** Number fill colour at base (neutral), when buffed above base (up), and below base/floor (down); plus
    *  outline width (px) and outline colour. */
   numColor: string; numColorUp: string; numColorDown: string; numStrokeW: number; numStrokeColor: string;
+  /** Drop shadow behind the digit: offset (px), blur (px), colour and strength (0 = off, 1 = full). */
+  numShadowX: number; numShadowY: number; numShadowBlur: number; numShadowOpacity: number; numShadowColor: string;
 
   // ── Glow underneath each frame ──────────────────────────────────────────────────────────────────────────
   /** Glow disc size (fraction of the frame), blur radius (px), and strength (opacity). */
@@ -61,19 +72,21 @@ const DEFAULTS: MilestoneFrameConfig = {
 
   numSize: 33, numDx: -0.5, numDy: 0,
   numColor: '#ffffff', numColorUp: '#3ad84a', numColorDown: '#ff5a4f', numStrokeW: 0, numStrokeColor: '#000000',
+  numShadowX: 0, numShadowY: 2, numShadowBlur: 3, numShadowOpacity: 0.55, numShadowColor: '#000000',
 
   glowSize: 0.95, glowBlur: 9, glowOpacity: 0.75,
   glow1: '#c9d3e0', glow2: '#c9d3e0', glow3: '#ffd54a', glow4: '#ff5edb', glow5: '#4fd1ff', glow6: '#ffffff',
 };
 
 type ColorKey = 'tintAtk' | 'tintHp' | 'numColor' | 'numColorUp' | 'numColorDown' | 'numStrokeColor'
-  | 'glow1' | 'glow2' | 'glow3' | 'glow4' | 'glow5' | 'glow6';
+  | 'numShadowColor' | 'glow1' | 'glow2' | 'glow3' | 'glow4' | 'glow5' | 'glow6';
 
 const RANGES: Record<Exclude<keyof MilestoneFrameConfig, ColorKey>, [number, number, number]> = {
   scale1: [0.8, 3, 0.01], scale2: [0.8, 3, 0.01], scale3: [0.8, 3, 0.01], scale4: [0.8, 3, 0.01], scale5: [0.8, 3, 0.01], scale6: [0.8, 3, 0.01],
   frameDx: [-40, 40, 0.5], frameDy: [-40, 40, 0.5],
   tintFrac: [0, 1, 0.01], tintOpacity: [0, 1, 0.01], tintDx: [-40, 40, 0.5], tintDy: [-40, 40, 0.5],
   numSize: [10, 60, 1], numDx: [-40, 40, 0.5], numDy: [-40, 40, 0.5], numStrokeW: [0, 6, 0.5],
+  numShadowX: [-20, 20, 0.5], numShadowY: [-20, 20, 0.5], numShadowBlur: [0, 20, 0.5], numShadowOpacity: [0, 1, 0.01],
   glowSize: [0, 2, 0.01], glowBlur: [0, 40, 1], glowOpacity: [0, 1, 0.01],
 };
 
@@ -122,6 +135,10 @@ export function applyMilestoneFrameVars(): void {
   r.setProperty('--msnum-down', cfg.numColorDown);
   r.setProperty('--msnum-stroke-w', `${cfg.numStrokeW}px`);
   r.setProperty('--msnum-stroke-color', cfg.numStrokeColor);
+  r.setProperty('--msnum-shadow-x', `${cfg.numShadowX}px`);
+  r.setProperty('--msnum-shadow-y', `${cfg.numShadowY}px`);
+  r.setProperty('--msnum-shadow-blur', `${cfg.numShadowBlur}px`);
+  r.setProperty('--msnum-shadow-color', hexToRgba(cfg.numShadowColor, cfg.numShadowOpacity));
   r.setProperty('--msglow-frac', String(cfg.glowSize));
   r.setProperty('--msglow-blur', `${cfg.glowBlur}px`);
   r.setProperty('--msglow-opacity', String(cfg.glowOpacity));
@@ -133,7 +150,7 @@ export function applyMilestoneFrameVars(): void {
   r.setProperty('--ms-glow-6', cfg.glow6);
 }
 
-const COLOR_KEYS: ReadonlySet<string> = new Set<ColorKey>(['tintAtk', 'tintHp', 'numColor', 'numColorUp', 'numColorDown', 'numStrokeColor', 'glow1', 'glow2', 'glow3', 'glow4', 'glow5', 'glow6']);
+const COLOR_KEYS: ReadonlySet<string> = new Set<ColorKey>(['tintAtk', 'tintHp', 'numColor', 'numColorUp', 'numColorDown', 'numStrokeColor', 'numShadowColor', 'glow1', 'glow2', 'glow3', 'glow4', 'glow5', 'glow6']);
 
 export function setMilestoneFrameValue(key: keyof MilestoneFrameConfig, value: number | string): void {
   const isColor = COLOR_KEYS.has(key);
@@ -166,6 +183,10 @@ const NUM_SPECS: Record<keyof typeof RANGES, [string, TunerControl['unit'], stri
   numDx: ['Number X', 'px', 'Nudge the number left/right within the disc.', 'Number'],
   numDy: ['Number Y', 'px', 'Nudge the number up/down within the disc.', 'Number'],
   numStrokeW: ['Number outline', 'px', 'Outline width around the digit — 0 is none.', 'Number'],
+  numShadowX: ['Shadow X', 'px', 'Drop-shadow offset left/right behind the digit.', 'Number shadow'],
+  numShadowY: ['Shadow Y', 'px', 'Drop-shadow offset up/down behind the digit.', 'Number shadow'],
+  numShadowBlur: ['Shadow blur', 'px', 'How soft the drop shadow is — 0 is a hard edge.', 'Number shadow'],
+  numShadowOpacity: ['Shadow strength', 'opacity', '0 hides the shadow, 1 is fully opaque.', 'Number shadow'],
   glowSize: ['Glow size', undefined, 'Glow disc size as a fraction of the frame.', 'Glow'],
   glowBlur: ['Glow blur', 'px', 'How soft the glow halo is — higher spreads it wider.', 'Glow'],
   glowOpacity: ['Glow strength', 'opacity', 'How strong the glow reads behind the frame. 0 hides it.', 'Glow'],
@@ -185,6 +206,7 @@ const colorControls: TunerControl<Extract<keyof MilestoneFrameConfig, string>>[]
   { key: 'numColorUp', label: 'Number colour (buffed)', hint: 'Digit colour when the stat is above its printed base.', group: 'Number colours', kind: 'color', min: 0, max: 0, step: 0 },
   { key: 'numColorDown', label: 'Number colour (reduced)', hint: 'Digit colour when the stat is below base / combat floor.', group: 'Number colours', kind: 'color', min: 0, max: 0, step: 0 },
   { key: 'numStrokeColor', label: 'Number outline colour', hint: 'Colour of the digit outline (width above).', group: 'Number colours', kind: 'color', min: 0, max: 0, step: 0 },
+  { key: 'numShadowColor', label: 'Number shadow colour', hint: 'Colour of the drop shadow behind the digit (strength above).', group: 'Number colours', kind: 'color', min: 0, max: 0, step: 0 },
   { key: 'glow1', label: 'Tier 1 glow (0–49)', hint: 'Glow colour behind the plain silver frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
   { key: 'glow2', label: 'Tier 2 glow (≥50)', hint: 'Glow colour behind the silver dagger frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },
   { key: 'glow3', label: 'Tier 3 glow (≥150)', hint: 'Glow colour behind the gold frame.', group: 'Glow colours', kind: 'color', min: 0, max: 0, step: 0 },

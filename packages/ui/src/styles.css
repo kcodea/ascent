@@ -1928,6 +1928,9 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   font-size: var(--msnum-size, 33px);
   color: var(--msnum-color, #fff);
   -webkit-text-stroke: var(--msnum-stroke-w, 0px) var(--msnum-stroke-color, #000);
+  /* STATIC drop shadow behind the digit (tuner-driven) — a static text-shadow is fine under the 60fps rule;
+     it only bans ANIMATING paint props in a loop. Strength is folded into the rgba colour var. */
+  text-shadow: var(--msnum-shadow-x, 0px) var(--msnum-shadow-y, 2px) var(--msnum-shadow-blur, 3px) var(--msnum-shadow-color, rgba(0, 0, 0, 0.55));
 }
 /* The number's COLOUR carries the stat STATE (owner ask 2026-09-16): buffed / reduced recolour the digit.
    Higher specificity than the neutral rule above, so the state colour wins when the badge has .up / .down. */

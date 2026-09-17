@@ -140,7 +140,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(p.maxTier ?? CONFIG.maxTier, (p.grantedTier ?? p.tier) + 1)}** minion.` // frozen at grant tier
       : c.spell
-        ? spellDisplayText(c.id, p.spellBonus - (c.gift ? (p.nextSpellBonus?.attack ?? 0) : 0), p.frontToBackBonus, p.spellBonusH - (c.gift ? (p.nextSpellBonus?.health ?? 0) : 0), p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, starCrashBonus: p.starCrashBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier, topTribe: p.topTribe as never, growthBonus: p.growthBonus, anySpellsThisTurn: p.anySpellsThisTurn })
+        ? spellDisplayText(c.id, p.spellBonus - (c.gift ? (p.nextSpellBonus?.attack ?? 0) : 0), p.frontToBackBonus, p.spellBonusH - (c.gift ? (p.nextSpellBonus?.health ?? 0) : 0), p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, clueBonus: p.clueBonus, starCrashBonus: p.starCrashBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined, tier: p.tier, topTribe: p.topTribe as never, growthBonus: p.growthBonus, anySpellsThisTurn: p.anySpellsThisTurn, gambleBoth: p.runeFlags?.gambling })
         : transformProgressText(c.id, p.spellProgress ?? 0) ??
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
             cryptDrakeText(c.id, p.golden, p.attackSeen ?? 0, p.summonBonus ?? 0) ?? // live grant + combat countdown
@@ -361,7 +361,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
       lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined,
       topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run), tier7Access: hasTier7Access(run),
       runeMammoth: !!run.questFlags?.runeMammoth,
-      runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure },
+      runeFlags: { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth },
       chooseBothState: { runeFacetwright: run.runeFacetwright, runeUnbrokenVein: run.runeUnbrokenVein },
     },
   );

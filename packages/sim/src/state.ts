@@ -1209,6 +1209,8 @@ export interface RunState {
   gambleRoll?: { tier: number; seq: number };
   /** The hand card Gamble just won — withheld from the hand render until the die lands, then revealed. */
   gambleWonUid?: string;
+  /** Every card the last Gamble handed over (two under Rune of Gambling) — the UI withholds all of them until the die lands. */
+  gambleWonUids?: string[];
   /** Hunch (Rounded Spellbook): the wave the power was last used — its 3-Gold cost drops 1 per turn since
    *  (floor 0). Absent = never used, so the countdown runs from wave 1. */
   hunchResetWave?: number;
@@ -1672,6 +1674,8 @@ export interface RunState {
    *  (every `isTribe` watcher / consume sees an Undead), Undead-aimed friendly spells may aim it, the Undead
    *  Aura (`undeadBuyAtk`) and "your Undead +X" Shop buffs land on it. */
   runeSoulScript?: boolean;
+  /** Rune of Gambling (2026-09-17): every Gamble grants BOTH a random minion AND a random spell of the rolled tier. */
+  runeGambleBoth?: boolean;
   /** Rune of the Broodmaster: a Broodwright's Imp buff also lands on the Broodwright. */
   runeBroodmaster?: boolean;
   /** Rune of the Second Life: your Scavvers carry Taunt + Rise. */

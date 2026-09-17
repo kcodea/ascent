@@ -95,7 +95,7 @@ Every applicable case that did not run says why. This is the §4.3 substrate; no
 | `runtime-unobserved` | 163 | the driver ran and the engine emitted nothing observable — recorded, not hidden (a scenario-conditional effect the fixture did not reach: Imps, Fodder, Attachments, a lost last combat) |
 | `no-driver-for-shape` | 149 | **the largest real hole, down from 471** — an applicable case with no executable driver yet; the skip detail now names WHY (a scaler amount key such as `every` / `step` / `improve` / `per` that the first activation does not print — 110; a def-level behaviour field the extractor never states, `discoverOnPlay` / `manaPerTurn` / `ruby` … — 29; a trigger no stager fires yet — 10) |
 | `gild-not-applicable` | 130 | R-GILD-02 — spells and Rubies are never gilded |
-| `contract-states-no-magnitude` | 86 | the activation family proved the effect ACTS, but the contract states no number a magnitude could be compared to |
+| `contract-states-no-magnitude` | 87 | the activation family proved the effect ACTS, but the contract states no number a magnitude could be compared to |
 | `gild-shape-not-countable` | 65 | a keyword grant, a Choose One (a gilded body may resolve both branches), an extra-proc, or an activation-only family — no single ×factor to check |
 | `hero-power-behaviour-unextracted` | 58 | hero-power *magnitudes* are not extracted (activation is covered elsewhere) |
 | `gilded-not-declared` | 13 | no declared Gilded delta to compare against |
@@ -140,9 +140,9 @@ rule-per-sentence would not honestly cover.
 
 ## 4. Interaction intelligence (§18-F)
 
-- Graph: **1809** nodes / **5657** edges over the contract registry (content, effect-family, trigger-family,
+- Graph: **1811** nodes / **5660** edges over the contract registry (content, effect-family, trigger-family,
   channel, keyword, multiplier, copy-mode, counter, zone, phase-boundary nodes).
-- Applicability: **141528** candidate pairs against 509545 naive all-pairs (27.8%) — the producer → channel →
+- Applicability: **141530** candidate pairs against 542361 naive all-pairs (26.1%) — the producer → channel →
   consumer join is what makes pairwise tractable at all.
 - Sweep (full pairwise + §10.4 triples): 151 rows — 109 covered, 0 failed, 12 inapplicable, 30 blocked.
 - Families with at least one covered row: 12 of 23.

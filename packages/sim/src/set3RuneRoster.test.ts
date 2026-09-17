@@ -32,7 +32,7 @@ const originals = (epic: boolean): number => [...RUNES, ...EPIC_RUNES].filter((r
 describe('the Set 3 static rune pool (handoff 2026-09-14)', () => {
   it('resolves to 115 Basic / 97 Epic before any Set 3-original rune (98 Epic at the handoff; Frontline Glory dropped 2026-09-16)', () => {
     const pool = staticPool('set3', S3).filter((r) => !isOriginal(r));
-    expect(pool.filter((r) => !r.epic)).toHaveLength(115);
+    expect(pool.filter((r) => !r.epic)).toHaveLength(116); // 115 at the handoff + Rune of Gambling (all sets, 2026-09-17)
     expect(pool.filter((r) => r.epic)).toHaveLength(97);
     expect(pool.some((r) => r.id === 'rune_frontline_glory')).toBe(false);
     expect(RUNE_INDEX['rune_frontline_glory']!.sets).toEqual(['set1']);
@@ -46,11 +46,12 @@ describe('the Set 3 static rune pool (handoff 2026-09-14)', () => {
     for (const r of [...RUNES, ...EPIC_RUNES]) {
       if (r.sets?.includes('set3') && !isOriginal(r)) expect(r.sets.some((x) => x === 'set1' || x === 'set2'), `${r.id} kept its origin scope`).toBe(true);
     }
-    // The set-1 / set-2 static pools as measured on origin/main BEFORE the carryover pass (2026-09-14) — unchanged.
+    // The set-1 / set-2 static pools as measured on origin/main BEFORE the carryover pass (2026-09-14) — unchanged,
+    // +1 Basic each for Rune of Gambling (all sets, 2026-09-17).
     const s1 = staticPool('set1', ['beast', 'dragon', 'mech', 'undead', 'demon']);
     const s2 = staticPool('set2', ['beast', 'dragon', 'mech', 'demon', 'kobold', 'dwarf']);
-    expect([s1.filter((r) => !r.epic).length, s1.filter((r) => r.epic).length]).toEqual([105, 90]);
-    expect([s2.filter((r) => !r.epic).length, s2.filter((r) => r.epic).length]).toEqual([135, 126]);
+    expect([s1.filter((r) => !r.epic).length, s1.filter((r) => r.epic).length]).toEqual([106, 90]);
+    expect([s2.filter((r) => !r.epic).length, s2.filter((r) => r.epic).length]).toEqual([136, 126]);
   });
   it('never offers an Attachment / Fodder-only rune (their `sets` stay off set3)', () => {
     const banned = /attachment|fodder/i;
@@ -74,7 +75,7 @@ describe('a Set 3 Dwarf / Kobold run at the forge', () => {
     const basic = forge(false), epic = forge(true);
     // the Wishbone is hero-conditional (requiresDoublePower) — the Warden's power does not double, so one Basic fewer
     const wishbone = RUNE_INDEX['rune_wishbone'] ? 1 : 0;
-    expect(basic.length).toBe(115 - wishbone + originals(false));
+    expect(basic.length).toBe(116 - wishbone + originals(false));
     expect(epic.length).toBe(97 + originals(true));
   });
 });

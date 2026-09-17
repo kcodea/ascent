@@ -132,8 +132,18 @@ top-offenders list is built from.
 
 Counters (levels, peak-sampled at 20 Hz): `fx:particles` (the WHOLE population — the def runtime's
 ParticleContainers plus the sprite particles; the older `particles` counter is the sprite pool alone),
-`fx:layers` (acquired def layers), `fx:filters` (filters applied across live `FilterStack`s), `sprite pool`,
-`weld rings`, `spell arrows`. Rates (per second): `unit renders`, `recruit renders`, `pointermoves`.
+`fx:layers` (acquired def layers), `fx:filters` (filters applied across live `FilterStack`s), `fx:culled`
+(plays the FX budget has trimmed since load — see below), `sprite pool`, `weld rings`, `spell arrows`.
+Rates (per second): `unit renders`, `recruit renders`, `pointermoves`, `fx:culled` (also tallied per bucket).
+
+**The FX budget** (`fx/fxBudget.ts`, caps in `fx/fxBudgetConfig.ts`; added 2026-09-16 after a 2002 s capture
+peaked at 5,778 live particles / 80 filters with `fx:tick` at 20.2 ms): `playDef` enforces a global
+live-particle cap, a per-def concurrent-play cap and a global filter cap at SPAWN time, retiring the OLDEST
+play of the same def first (then the oldest of any def) — never the one being spawned, and never a looping /
+following / `onDone` play. The defaults sit above any legitimate single moment (a 7-wide fan of the heaviest
+def), so under normal play `fx:culled` stays at 0; a non-zero value in a capture says a pile-up was trimmed,
+and WHERE it climbed says which second. In DEV, `window.__fx.budget.set('maxParticles', n)` lowers a cap live
+to watch it bite.
 
 **Every static label must be registered in `perfNames.ts`** (`CODE_NAMES`, or a family prefix in
 `LABEL_FAMILIES`) — `perfNames.test.ts` scans the source and fails on an unregistered one, because the HUD

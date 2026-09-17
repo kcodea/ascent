@@ -58,6 +58,10 @@ export const CATEGORY_BUS: Record<string, BusName> = {
   // desk, not the sound: the hero-select stingers + the Auctioneer power sit on the hero bus, rune-select on ui.
   ceremony: 'hero', auctioneerhp: 'hero', runeselect: 'ui',
   gamble: 'ui',
+  // All FX-primitive clips imported through the workbench (`fx/<slug>`) share this one desk fader (see
+  // `familyOf`). Grouped on the combat bus — the `sound` primitive's own default bus — though playback routes
+  // through the layer's chosen bus, so this is where they GROUP on the desk, not what they play through.
+  fx: 'combat',
   eqEquipClang: 'equipment', eqSelect: 'equipment', eqSheen: 'equipment',
   eqUseBloodpot: 'equipment', eqUseTitanHammer: 'equipment', eqUseBlastPump: 'equipment',
   eqUsePrismaticPick: 'equipment', eqUseDuelingRubettas: 'equipment', eqUseThymepiece: 'equipment', eqUseDeathfibrillator: 'equipment', eqUseOther: 'equipment',
@@ -74,6 +78,7 @@ export const CATEGORY_LABEL: Record<string, string> = {
   auctioneerhp: 'Auctioneer — hero power',
   runeselect: 'Rune select — frame clang',
   gamble: 'Gamble — die roll (power + spell)',
+  fx: 'FX clips — imported sound-primitive layers',
   eqEquipClang: 'Equip clang — any Equip minion',
   eqSelect: 'Equipment slot — swap',
   eqSheen: 'Equipment slot — art sheen',

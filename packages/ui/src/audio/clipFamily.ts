@@ -39,6 +39,11 @@ export function familyOf(clip: string): string {
   if (clip.startsWith('heroes/')) return clip.endsWith('.power') ? 'heroPower' : 'heroSelect';
   if (clip.startsWith('cards/')) return clip.endsWith('.effect') ? 'cardEffect' : clip.endsWith('.death') ? 'cardDeath' : 'cardVoice';
   if (clip.startsWith('ceremony/')) return 'ceremony';
+  // FX-primitive clips imported through the workbench (`fx/<slug>`) all share ONE desk fader. Their slugs are
+  // dynamic (any imported name), so they cannot each get a 1:1 category — they route to the `fx` group. Playback
+  // goes through the layer's chosen BUS (see `playFxSound`), so this fader is the desk home the completeness
+  // guard requires; it is what lets an imported clip ship without failing `clipFamily.test.ts`.
+  if (clip.startsWith('fx/')) return 'fx';
   const eq = EQUIPMENT_CLIP_CATEGORY[clip];
   if (eq) return eq;
   const irregular = IRREGULAR_CLIP_CATEGORY[clip];

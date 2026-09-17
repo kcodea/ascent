@@ -66,6 +66,10 @@ export const PRIMITIVE_COPY: Record<string, FxCopy> = {
     label: 'Targeting',
     blurb: 'A glowing magic lasso from the source to the cursor that bobs and sways as you move — the aim line for a targeted power. Anchor it to the cursor.',
   },
+  sound: {
+    label: 'Sound',
+    blurb: 'Plays a sound clip when the layer fires — pick or import a clip, set its level, pitch, fades and bus. The audio layer of a composition; draws nothing.',
+  },
 };
 
 /** Keyed by `FxAnchorId`. `copy.test.ts` fails if this and `FX_ANCHOR_IDS` disagree in either direction. */

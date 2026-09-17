@@ -164,6 +164,21 @@ export type FxParamSpec = FxParamMeta &
     }
   | {
       /**
+       * A sound clip picked from the RUNTIME audio library (`sfx.ts`'s committed clips + this browser's
+       * imports): the `sound` primitive's clip. Like `image` it is NOT an `enum` — the valid set of clip ids
+       * grows when the owner imports a WAV/MP3 — and the value is just the id string (a library clip name like
+       * `smack1`, or a `sound:<slug>` import id). Like `image`, `''` is a legal value AND the default, meaning
+       * "no clip picked": the layer is silent until one is chosen.
+       */
+      kind: 'sound';
+      label: string;
+      group?: string;
+      help?: string;
+      /** A clip id (a library name, or a `sound:<slug>` import), or `''` for none. */
+      default: string;
+    }
+  | {
+      /**
        * An ORDERING of ids — the Filter Lab's `filterOrder`: which enabled filters compose first. Not a row
        * in the inspector (the Filters master's ▲/▼ write it; `visibleParamKeys` hides it) but a real param so
        * it saves with the def and round-trips through `coerceParams` like any other value. `[]` = the
@@ -226,7 +241,9 @@ export type ParamsOf<S extends FxParamSpecs> = {
             ? string
             : S[K] extends { kind: 'image' }
               ? string
-              : S[K] extends { kind: 'order' }
+              : S[K] extends { kind: 'sound' }
+                ? string
+                : S[K] extends { kind: 'order' }
                 ? string[]
                 : S[K] extends { kind: 'gradient' }
                   ? import('./gradient').GradientStop[]
@@ -291,6 +308,11 @@ export function coerceParams<S extends FxParamSpecs>(specs: S, raw: unknown): Pa
       case 'image':
         // Same runtime-registry reasoning as `shape` (an id this machine can't resolve must survive a
         // round-trip), but '' IS accepted: it is the "no image picked" value a fresh layer legitimately holds.
+        if (typeof v === 'string') out[key] = v;
+        break;
+      case 'sound':
+        // Same as `image`: a runtime clip-id string that must survive a round-trip even if this machine can't
+        // resolve it (a def shared from another machine naming an unimported clip), and '' is the "no clip" value.
         if (typeof v === 'string') out[key] = v;
         break;
       case 'order':

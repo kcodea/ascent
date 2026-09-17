@@ -40,6 +40,10 @@ export interface BuffFxConfig {
    *  negative = before it (lead the strike), positive = after. Owner ask 2026-09-17 ("the tendrils have a travel
    *  time, so they should be slightly offset"). */
   spiritSfxOffsetMs: number;
+  /** ms — STAGGER between successive Spirit ribbons fired in the same burst (a board-wide buff): the k-th hit
+   *  launches k × this later, and its landing cue + stat roll follow its own ribbon. Owner ask 2026-09-17
+   *  ("I want each buff that goes out to be slightly offset"). 0 = every hit at once, as before. */
+  spiritHitStaggerMs: number;
 }
 
 const D = DESCEND_PRESETS.default!;
@@ -54,6 +58,7 @@ const DEFAULTS: BuffFxConfig = {
   // 60 x 7px) - the big sparks read as debris at wave scale, where three waves can overlap.
   sparkCount: 46, sparkSpeed: D.pulse.sparkSpeed, sparkSize: 3, sparkLife: D.pulse.sparkLife,
   spiritSfxOffsetMs: 0,
+  spiritHitStaggerMs: 60,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -65,6 +70,7 @@ export const BUFFFX_RANGES: Partial<Record<keyof BuffFxConfig, [number, number, 
   coreFlashSize: [0, 300, 5], coreFlashMs: [0, 1200, 10],
   sparkCount: [0, 120, 1], sparkSpeed: [0, 900, 10], sparkSize: [1, 24, 1], sparkLife: [100, 2000, 10],
   spiritSfxOffsetMs: [-400, 800, 5],
+  spiritHitStaggerMs: [0, 300, 5],
 };
 
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */

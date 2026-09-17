@@ -17,6 +17,11 @@ const TENDRIL_TRAIL_TRAVEL_MS: number =
 /** Tribes with a per-tribe `tendril-trail-<tribe>` variant (a palette-swap of the generic). `neutral` alone keeps
  *  the generic ribbon. `celestial` joined 2026-09-14 (owner report: Wishing Star drew the default) with a
  *  moonlit-periwinkle palette swap of the generic — a PLACEHOLDER for the owner to retune in the workbench. */
+/** Spirit hits fired within this many ms of each other count as ONE burst for the stagger. */
+const SPIRIT_BURST_WINDOW_MS = 120;
+let spiritBurstAt = -Infinity;
+let spiritBurstIdx = 0;
+
 const TENDRIL_TRIBES = new Set<Tribe>(['beast', 'celestial', 'demon', 'dragon', 'dwarf', 'kobold', 'mech', 'undead', 'spirit']);
 
 /**
@@ -50,11 +55,23 @@ export function fireBuffFx(o: {
   // Each variant is a palette-swap of the generic, so its ribbon travelMs is unchanged and the roll still lands
   // on `TENDRIL_TRAIL_TRAVEL_MS` for all of them. A listed tribe fires a DATA-RESOLVED id (a dynamic playDef —
   // see `fx/directCalls.ts`); neutral / an unlisted tribe keeps the literal generic.
+  if (o.tribe === 'spirit') {
+    // SPIRIT HITS ARE STAGGERED (owner 2026-09-17: "each buff that goes out slightly offset"): the k-th ribbon of one
+    // burst launches k × `spiritHitStaggerMs` after the first, and its landing cue and stat roll follow ITS ribbon.
+    // A burst is the run of Spirit hits fired within `SPIRIT_BURST_WINDOW_MS` of each other (a board-wide buff
+    // fires them in one frame; two separate casts a second apart are two bursts). Buff tuner → Sound.
+    const cfg = getBuffFxConfig();
+    const now = performance.now();
+    spiritBurstIdx = now - spiritBurstAt <= SPIRIT_BURST_WINDOW_MS ? spiritBurstIdx + 1 : 0;
+    spiritBurstAt = now;
+    const stagger = spiritBurstIdx * Math.max(0, cfg.spiritHitStaggerMs);
+    const fire = (): void => { playDef('tendril-trail-spirit', { source: o.source!, target: o.target }, { uids: o.uids }); };
+    if (stagger > 0) window.setTimeout(fire, stagger); else fire();
+    sfx.spiritTendril(stagger + TENDRIL_TRAIL_TRAVEL_MS + cfg.spiritSfxOffsetMs);
+    return stagger + TENDRIL_TRAIL_TRAVEL_MS;
+  }
   if (TENDRIL_TRIBES.has(o.tribe)) {
     playDef(`tendril-trail-${o.tribe}`, { source: o.source, target: o.target }, { uids: o.uids });
-    // The Spirit ribbon has its own landing cue (owner 2026-09-17), one per hit, timed to the ribbon's arrival
-    // plus the dialled offset (Buff tuner → Sound → "Spirit cue offset"; 0 = with the landing).
-    if (o.tribe === 'spirit') sfx.spiritTendril(TENDRIL_TRAIL_TRAVEL_MS + getBuffFxConfig().spiritSfxOffsetMs);
   } else {
     playDef('tendril-trail', { source: o.source, target: o.target }, { uids: o.uids });
   }

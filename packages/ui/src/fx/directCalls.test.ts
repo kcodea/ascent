@@ -163,6 +163,8 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // 'starform-pull' joined on 2026-09-12: the owner-authored Starform consume / collapse pull, fired from `Recruit.tsx`.
       // 'starform-create' joined on 2026-09-14: the owner-authored Starform creation cue, fired from `Recruit.tsx`.
       'rune-buff-unit', 'rune-select-implosion', 'rune-slot-break', 'shop-buff-purple', 'shop-tier-up', 'spell-bounce', 'starform-create', 'starform-pull', 'strike-impact', 'tallyanimation1', 'tendril-trail',
+      // 'tendril-trail-spirit' joined on 2026-09-17: the Spirit ribbon fires by literal id so its hits can be staggered.
+      'tendril-trail-spirit',
       // 'undead-aura-buff' joined on 2026-09-16: the owner-authored Undead Aura surge, fired on every rise of the run-wide
       // Undead Aura from `Recruit.tsx` (shop) and `useCombatReplay.ts` (combat).
       'undead-aura-buff', 'ward-lost-blast', 'watcher-pulse',

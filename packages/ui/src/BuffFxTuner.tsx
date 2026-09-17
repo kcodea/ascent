@@ -41,7 +41,8 @@ const SPECS: Record<keyof BuffFxConfig, [string, TunerUnit | undefined, string, 
   sparkSize:      ['Size', 'px', 'Size of each spark.', 'Sparks'],
   sparkLife:      ['Lifetime', 'ms', 'How long one spark lasts.', 'Sparks'],
 
-  spiritSfxOffsetMs: ['Spirit cue offset', 'ms', 'When the Spirit tendril sound fires, relative to the ribbon ARRIVING on the minion: 0 = with the landing, negative = ahead of it, positive = after. One cue per minion hit.', 'Sound'],
+  spiritSfxOffsetMs: ['Spirit cue offset', 'ms', 'When the Spirit tendril sound fires, relative to its ribbon ARRIVING on the minion: 0 = with the landing, negative = ahead of it, positive = after. One cue per minion hit.', 'Sound'],
+  spiritHitStaggerMs: ['Spirit hit stagger', 'ms', 'Gap between one Spirit ribbon and the next in the same burst — each minion hit launches this much after the previous one, and its sound and number follow its own ribbon. 0 = all at once.', 'Sound'],
 };
 
 /** Declaration order IS render order, and controls sharing a group render together under its heading. */
@@ -50,7 +51,7 @@ const ORDER: (keyof BuffFxConfig)[] = [
   'startHeight', 'dropMs', 'retractMs', 'baseWidth', 'tipWidth', 'coreAlpha',
   'ringCount', 'ringSize', 'ringWidth', 'ringMs', 'coreFlashSize', 'coreFlashMs',
   'sparkCount', 'sparkSpeed', 'sparkSize', 'sparkLife',
-  'spiritSfxOffsetMs',
+  'spiritSfxOffsetMs', 'spiritHitStaggerMs',
 ];
 
 const controls: TunerControl<Extract<keyof BuffFxConfig, string>>[] = ORDER.map((key) => {

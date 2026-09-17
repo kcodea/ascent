@@ -38,6 +38,9 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // from the ONE shared buff-other path so the combat replay and the shop draw the same trail; a card's own
   // authored def still takes precedence upstream of it (see `fireBuffFx`).
   'tendril-trail': ['buffFxRender.ts'],
+  // The Spirit ribbon is fired by its LITERAL id (2026-09-17): its hits are staggered, so the call sits in its own
+  // branch beside the per-tribe dynamic one.
+  'tendril-trail-spirit': ['buffFxRender.ts'],
   // The owner-authored Undead Aura surge (2026-09-16): every rise of the run-wide Undead Aura, both phases.
   'undead-aura-buff': ['Recruit.tsx', 'useCombatReplay.ts'],
   coin: ['Recruit.tsx'],

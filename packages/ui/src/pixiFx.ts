@@ -37,6 +37,10 @@ const AIM_DEF_ID = 'spell-target';
 /** The aim effect for a Ruby cast from hand (owner ask 2026-09-14). Falls back to `AIM_DEF_ID` until authored. */
 export const RUBY_AIM_DEF_ID = 'ruby-target';
 const DEFAULT_AIM_LAYERS: readonly FxLayer[] = [{ primitive: 'targeting', anchor: 'cursor', at: 0, params: {} }];
+/** Safety cap on how long a released aim's particle tail may drain before it is force-torn-down (see
+ *  `drainAim`). Comfortably past the longest tail on the authored aim defs (spark life ~1.35s × jitter,
+ *  emitter mote life ~1.2s), so a real fade always completes on its own before this ever bites. */
+const AIM_DRAIN_CAP_MS = 3000;
 
 /**
  * The WebGL effects layer — a single transparent PixiJS overlay stretched over the whole
@@ -422,12 +426,17 @@ class FxController {
   private aim: {
     root: Container | null;                 // effectRoot holding every layer's container
     insts: FxInstance[] | null;             // one live instance per layer, index-aligned with `specs`
+    containers: Container[] | null;         // each layer's own container (child of `root`), index-aligned
     specs: readonly FxLayer[] | null;       // the def's layer specs, for `driveLayerHeads`
     sink: FxHeadSink | null;                // stable head sink over `insts`, built once (no per-frame alloc)
     defId: string;                          // which def this gesture plays (spell-target, ruby-target, …)
     spawnedDefId: string | null;            // the def the live insts were spawned from — respawn if it differs
     from: { x: number; y: number }; to: { x: number; y: number }; onTarget: boolean;
   } | null = null;
+  // Released aim lines still DRAINING: on release, the layers with a particle tail (the lasso's sparks, an
+  // emitter's motes) are `stopEmitting()`-ed and carried here so they live out their own life instead of
+  // vanishing with the line; ticked + reaped in `drainAim` (owner ask 2026-09-17).
+  private readonly finishingAim: { root: Container; insts: FxInstance[]; age: number }[] = [];
   private readonly critFxs: CritFx[] = []; // live Critical-Strike flourishes (ring + "CRIT!" + card flash)
   private readonly critTextCache = new Map<string, Texture>(); // "CRIT!" textures keyed by size|color|edge
   private readonly pulses: PulseFx[] = [];
@@ -705,7 +714,8 @@ class FxController {
       this.live.length > 0 || this.skullPops.length > 0 || this.tendrils.length > 0 ||
       this.weldRings.length > 0 || this.spellArrows.length > 0 ||
       this.waves.length > 0 || this.slashes.length > 0 || this.critFxs.length > 0 ||
-      this.pulses.length > 0 || this.descends.length > 0 || this.aim !== null
+      this.pulses.length > 0 || this.descends.length > 0 || this.aim !== null ||
+      this.finishingAim.length > 0
     );
   }
 
@@ -2479,19 +2489,65 @@ class FxController {
     // cast from hand → `ruby-target`), defaulting to `spell-target`. This records the live aim state;
     // `updateAim` spawns and drives every layer each frame, respawning if `defId` changed.
     if (!this.aim) {
-      this.aim = { root: null, insts: null, specs: null, sink: null, defId, spawnedDefId: null, from: { ...from }, to: { ...to }, onTarget };
+      this.aim = { root: null, insts: null, containers: null, specs: null, sink: null, defId, spawnedDefId: null, from: { ...from }, to: { ...to }, onTarget };
     } else {
       this.aim.from = { ...from }; this.aim.to = { ...to }; this.aim.onTarget = onTarget; this.aim.defId = defId;
     }
     this.wake();
   }
 
-  /** Drop the aim line (the aim ended — fired, cancelled, or released). */
+  /** Drop the aim line (the aim ended — fired, cancelled, or released). The ribbon and pointer go at once, but
+   *  any layer with a particle TAIL (a `stopEmitting()`: the lasso's sparks, an emitter's motes) is carried
+   *  into `finishingAim` and left to drain so its sparks live out their own life instead of blinking out with
+   *  the line (owner ask 2026-09-17). Tail-less layers (the cursor orb) are destroyed with the line. */
   clearAimLine(): void {
-    if (!this.aim) return;
-    if (this.aim.insts) for (const inst of this.aim.insts) inst.destroy();
-    if (this.aim.root) { this.layer?.removeChild(this.aim.root); this.aim.root.destroy({ children: true }); }
+    const a = this.aim;
+    if (!a) return;
     this.aim = null;
+    if (!a.insts || !a.root || !a.containers) {
+      // Never fully spawned (primitives still registering) — nothing has drawn; just drop the empty root.
+      if (a.root) { this.layer?.removeChild(a.root); a.root.destroy({ children: true }); }
+      return;
+    }
+    const draining: FxInstance[] = [];
+    for (let i = 0; i < a.insts.length; i++) {
+      const inst = a.insts[i]!;
+      if (typeof inst.stopEmitting === 'function') {
+        inst.stopEmitting();            // stop spawning, keep the live tail (drained in `drainAim`)
+        draining.push(inst);
+      } else {
+        inst.destroy();                  // no tail (e.g. the cursor orb): remove it with the line
+        const c = a.containers[i];
+        if (c) { c.parent?.removeChild(c); c.destroy({ children: true }); }
+      }
+    }
+    if (draining.length === 0) {
+      this.layer?.removeChild(a.root); a.root.destroy({ children: true });
+      return;
+    }
+    this.finishingAim.push({ root: a.root, insts: draining, age: 0 });
+    this.wake(); // the drain ticks on the main loop — wake it if this was the only live work
+  }
+
+  /** Tick every released-aim tail and reap the ones that have fully drained (all sparks/motes dead) or hit the
+   *  safety cap. Called once per frame from `update`. Heads are NOT re-driven — the sparks already in flight
+   *  carry their own motion, so the tail fades in place from where the aim was released. */
+  private drainAim(dtMs: number): void {
+    for (let i = this.finishingAim.length - 1; i >= 0; i--) {
+      const f = this.finishingAim[i]!;
+      f.age += dtMs;
+      let done = true;
+      for (const inst of f.insts) {
+        inst.update(dtMs);
+        if (inst.isComplete ? !inst.isComplete() : false) done = false;
+      }
+      if (done || f.age >= AIM_DRAIN_CAP_MS) {
+        for (const inst of f.insts) inst.destroy();
+        this.layer?.removeChild(f.root);
+        f.root.destroy({ children: true });
+        this.finishingAim.splice(i, 1);
+      }
+    }
   }
 
   /** Drive the live aim line this frame: lazily spawn EVERY layer of the aim def (`a.defId` — spell-target or
@@ -2506,7 +2562,7 @@ class FxController {
     if (a.insts && a.spawnedDefId !== a.defId) {
       for (const inst of a.insts) inst.destroy();
       if (a.root) { this.layer?.removeChild(a.root); a.root.destroy({ children: true }); }
-      a.root = null; a.insts = null; a.specs = null; a.sink = null;
+      a.root = null; a.insts = null; a.containers = null; a.specs = null; a.sink = null;
     }
     if (!a.insts) {
       const renderer = this.app?.renderer;
@@ -2519,15 +2575,18 @@ class FxController {
       if (!specs.every((l) => getPrimitive(l.primitive))) return;
       const root = new Container();
       this.layer.addChild(root);
+      const containers: Container[] = [];
       const insts = specs.map((layer) => {
         const prim = getPrimitive(layer.primitive)!;
         const container = new Container();
         root.addChild(container);
+        containers.push(container);
         return prim.spawn({ container, renderer, oneShot: false, effectRoot: root }, coerceParams(prim.params, layer.params));
       });
       a.root = root;
       a.specs = specs;
       a.insts = insts;
+      a.containers = containers;
       a.spawnedDefId = a.defId;
       // Built once, capturing the stable `insts` array, so the per-frame drive below allocates nothing.
       a.sink = {
@@ -2900,6 +2959,8 @@ class FxController {
 
     // The live aim line: the `targeting` primitive, advanced by this frame's delta while aiming.
     this.updateAim(dtMs);
+    // Released aim lines still draining their spark tail (see `clearAimLine`).
+    this.drainAim(dtMs);
 
 
     // Weld rings: advance + redraw each converging ring; retire once it lands.

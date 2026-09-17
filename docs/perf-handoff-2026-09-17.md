@@ -112,3 +112,12 @@ path, not JS, and PR 2's "no layout reads in move handlers" is the whole fix.
   `PerfBucket.longTasks`), DOM nodes by container (`nodesBy`, `PERF_DOM_CONTAINERS`), `render:recruit` by
   child (`PerfProfiler`, dev only), and the `layout:read-in-move` counter (`layoutRead.ts`). Report gains
   "Unlabelled long tasks" + "DOM nodes by container". See `docs/devlog/2026-09-17-perf-pointer-instrumentation.md`.
+- 2026-09-17: **PR 2 built** (`perf/pointer-state`, on top of PR 1) — the transient pointer state moved out of
+  `Recruit` into `dragStore.ts` (rows / `DragOverlay` / `RowFlip` subscribe to slices; `Recruit` subscribes to
+  nothing), the drag became an imperative session with NO layout read on the move path (`layout:read-in-move`
+  = 0 on every drag, `dragSession.test.ts` pins it), `Flip.from(…, { simple: true })` (the slot-crossing
+  `layout:flip:write` 10.6 → 1.4 ms avg), the FLIP reads first and skips no-op commits, the action-ring hash and
+  the autosave run on idle time (`idleWork.ts`), `shopView` memoized per offer. Route measured: `recruit renders`
+  140 → 18, drops 17–24 → 9–14 ms. Mode B in the embedded pane is a 2 s-periodic environment task (present at
+  idle, on `main` too); on the owner's machine PR 1's last-event attribution decides between paint and the hover
+  reveal. See `docs/devlog/2026-09-17-perf-pointer-state.md`.

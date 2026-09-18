@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { driveLayerHeads, resolveAnchor, type FxAnchors, type FxHeadSink } from './anchors';
 import { FX_ANCHOR_PARTS, withUnitParts, type UnitElementLike } from './anchorParts';
 import { coerceDef } from './defStore';
-import { setLayerAnchorPart, toDef, type EditorLayer } from './ui/layerModel';
+import { setLayerAnchorPart, setLayerAnchorPartTo, toDef, type EditorLayer } from './ui/layerModel';
 import { ANCHOR_PART_COPY } from './ui/copy';
 import './primitives';
 
@@ -27,6 +27,13 @@ describe('resolveAnchor with a part', () => {
     expect(resolveAnchor(anchors, 'travel', 0, 0, 'badge.attack')).toEqual({ x: 80, y: 140 });
     expect(resolveAnchor(anchors, 'travel', 1, 0, 'badge.attack')).toEqual({ x: 480, y: 140 });
   });
+  it('travel resolves each end to its OWN part (from-part vs to-part)', () => {
+    // from the source `top` to the target `badge.attack`
+    expect(resolveAnchor(anchors, 'travel', 0, 0, 'top', 'badge.attack')).toEqual({ x: 100, y: 60 });
+    expect(resolveAnchor(anchors, 'travel', 1, 0, 'top', 'badge.attack')).toEqual({ x: 480, y: 140 });
+    // `toPart` defaults to `part` — both ends share it, the pre-per-end behaviour
+    expect(resolveAnchor(anchors, 'travel', 1, 0, 'badge.attack')).toEqual({ x: 480, y: 140 });
+  });
   it('non-unit anchors ignore the part', () => {
     expect(resolveAnchor({ ...anchors, camera: { x: 1, y: 2 } }, 'camera', 0, undefined, 'top')).toEqual({ x: 1, y: 2 });
   });
@@ -43,6 +50,14 @@ describe('driveLayerHeads with parts', () => {
     expect(heads[2]).toEqual([500, 100]); // target has no `top` resolved → centre
     expect(aims[0]).toEqual([80, 140, 480, 140]);
     expect(aims[1]).toEqual([100, 100, 500, 100]);
+  });
+  it('a travel layer feeds each end its own part (anchorPart → source, anchorPartTo → target)', () => {
+    const heads: number[][] = [];
+    const aims: number[][] = [];
+    const sink: FxHeadSink = { setHead: (i, x, y) => { heads[i] = [x, y]; }, setAim: (i, sx, sy, tx, ty) => { aims[i] = [sx, sy, tx, ty]; } };
+    driveLayerHeads(sink, [{ anchor: 'travel', anchorPart: 'top', anchorPartTo: 'badge.attack' }], anchors, 0);
+    expect(heads[0]).toEqual([100, 60]); // t=0 → the source's `top`
+    expect(aims[0]).toEqual([100, 60, 480, 140]); // aim from source `top` → target `badge.attack`
   });
 });
 
@@ -81,6 +96,25 @@ describe('def round-trip', () => {
     expect('anchorPart' in back[0]).toBe(false);
     expect(toDef('x', 100, withPart).layers[0].anchorPart).toBe('badge.health');
     expect('anchorPart' in toDef('x', 100, back).layers[0]).toBe(false);
+  });
+  it('coerceDef keeps anchorPartTo only on a travel layer (dropped off-travel or when card)', () => {
+    const raw = { id: 'x', duration: 100, layers: [
+      { primitive: 'burst', anchor: 'travel', at: 0, params: {}, anchorPart: 'medallion', anchorPartTo: 'badge.attack' },
+      { primitive: 'burst', anchor: 'source', at: 0, params: {}, anchorPartTo: 'badge.attack' }, // not travel → dropped
+      { primitive: 'burst', anchor: 'travel', at: 0, params: {}, anchorPartTo: 'card' }, // card → dropped
+    ] };
+    const def = coerceDef(raw)!;
+    expect(def.layers[0].anchorPartTo).toBe('badge.attack');
+    expect('anchorPartTo' in def.layers[1]).toBe(false);
+    expect('anchorPartTo' in def.layers[2]).toBe(false);
+  });
+  it('setLayerAnchorPartTo stores/omits the to-part, and toDef serialises it only on travel', () => {
+    const base: EditorLayer = { primitive: 'burst', anchor: 'travel', at: 0, life: null, params: {} };
+    const withTo = setLayerAnchorPartTo([base], 0, 'badge.health');
+    expect(withTo[0].anchorPartTo).toBe('badge.health');
+    expect(toDef('x', 100, withTo).layers[0].anchorPartTo).toBe('badge.health');
+    const back = setLayerAnchorPartTo(withTo, 0, 'card');
+    expect('anchorPartTo' in back[0]).toBe(false);
   });
 });
 

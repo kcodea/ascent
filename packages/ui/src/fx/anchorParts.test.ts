@@ -36,6 +36,9 @@ describe('partsUsedByLayers / isAnchorPart / isSelectorPart', () => {
   it('collects distinct non-default parts only', () => {
     expect(partsUsedByLayers([{ anchorPart: 'card' }, { anchorPart: 'medallion' }, {}, { anchorPart: 'medallion' }, { anchorPart: 'top' }])).toEqual(['medallion', 'top']);
     expect(partsUsedByLayers([{}, { anchorPart: null }])).toEqual([]);
+    // both ends collected: a travel layer's source (anchorPart) AND target (anchorPartTo)
+    expect(partsUsedByLayers([{ anchorPart: 'medallion', anchorPartTo: 'badge.attack' }, { anchorPartTo: 'top' }])).toEqual(['medallion', 'badge.attack', 'top']);
+    expect(partsUsedByLayers([{ anchorPart: 'top', anchorPartTo: 'card' }])).toEqual(['top']); // `card` to-part is not a resolved part
   });
   it('knows the list and which parts need a DOM query', () => {
     for (const p of FX_ANCHOR_PARTS) expect(isAnchorPart(p)).toBe(true);

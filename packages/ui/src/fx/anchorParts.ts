@@ -70,12 +70,16 @@ export function partPointFromRects(card: PartRect, part: FxAnchorPart, partRect:
   }
 }
 
-/** The distinct non-default parts a set of layers asks for — what a fire needs to resolve, and nothing more. */
-export function partsUsedByLayers(layers: readonly { anchorPart?: FxAnchorPart | null }[]): FxAnchorPart[] {
+/** The distinct non-default parts a set of layers asks for — what a fire needs to resolve, and nothing more.
+ *  Reads BOTH ends: `anchorPart` (source / the shared end) and `anchorPartTo` (a travel layer's target end). */
+export function partsUsedByLayers(
+  layers: readonly { anchorPart?: FxAnchorPart | null; anchorPartTo?: FxAnchorPart | null }[],
+): FxAnchorPart[] {
   const out: FxAnchorPart[] = [];
   for (const l of layers) {
-    const p = l.anchorPart;
-    if (p && p !== 'card' && !out.includes(p)) out.push(p);
+    for (const p of [l.anchorPart, l.anchorPartTo]) {
+      if (p && p !== 'card' && !out.includes(p)) out.push(p);
+    }
   }
   return out;
 }

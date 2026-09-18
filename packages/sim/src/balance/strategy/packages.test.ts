@@ -35,7 +35,7 @@ describe('strategy packages — set-2 census', () => {
     const census = Object.fromEntries(rows.map((r) => [r.id, `${r.members}/${r.engines}/${r.payoffs}/${r.affineRunes}`]));
     expect(census).toEqual({
       ruby: '30/12/14/11',
-      ale: '31/5/4/32',
+      ale: '31/5/4/31', // 32 → 31 on 2026-09-18: rune tag pass
       demonConsume: '32/12/7/18',
       beastSummon: '30/7/5/13', // 14 → 13 on 2026-09-16: Rune of Rebirth grants the Rebirth keyword now (no longer an Echo-summon text match)
       dragon: '33/16/10/15',
@@ -44,7 +44,7 @@ describe('strategy packages — set-2 census', () => {
       mechAttach: '2/0/0/0',
       rally: '26/7/11/6',
       tempo: '37/5/20/35',
-      economy: '20/1/16/26',
+      economy: '20/1/16/25', // 26 → 25 on 2026-09-18: rune tag pass
     });
   });
 

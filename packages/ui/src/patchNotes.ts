@@ -87,6 +87,73 @@ export const PATCH_NOTES: PatchNote[] = [
     ],
   },
   {
+    date: '2026-09-18',
+    label: 'Rune tribe tags',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Runes are now tagged with the tribe they relate to: every Ruby rune counts as Kobold, every Dwarven Ale rune as Dwarf, every Attachment rune as Mech, and a rune that hands you a tribal minion carries that tribe. The Runeforge offers a tagged rune only in a run that has that tribe, and the Compendium filters by it.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-18',
+    label: 'Compendium tier chart',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'The Compendium now charts your selection by Tier: a bar graph in the tier row shows how many minions (or spells, or gifts) sit at each Tier for the tribes you have filtered to. Click a bar to filter that Tier.',
+        details: [
+          'The tier row stays put on the Runes and Heroes tabs instead of vanishing and shifting the whole window.',
+          'Gifts have their own section under Spells.',
+          'Hover any card or rune to see the cards it relates to (the token it summons, the spell it casts, the card a rune grants) — these were rendering behind the book before.',
+          'The Runes tab lists only the runes of the set you are looking at, and its tribe buttons filter to the runes that relate to a tribe.',
+          'The operating-system tooltip (the little yellow box) no longer appears anywhere in the game.',
+          'A card that gives you a Dwarven Ale now previews one Ale on hover — a different one each time — instead of all five.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-18',
+    label: 'Coloured terms',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "Every tribe name and mechanic word in card, spell, rune and hero-power text is now coloured, wherever it appears — not only the ones that happened to be in bold. The Equip, Starform and Collapse keyword pills now show on the cards that use them, with clearer definitions, and Vaultkeeper's printed grant now ticks live in combat as spells are cast.",
+        details: [
+          `Previously a tribe or keyword only took its colour when the card text bolded it, so plain mentions (Seedling Spirit's "Spirit", "Discover a Beast", "Collapse your Starform") read as ordinary text. They now colour on the shop, hand, board, combat, Compendium and hover surfaces alike.`,
+          `Keyword pills: "Equip" (Can be triggered once per turn, per equipment, for a cost.), "Starform" (occupies a Shop slot until purchased or destroyed; buying it grants its stats to your left-most Celestial) and "Collapse" (grant 50% of your Starform's stats to 3 Celestials and destroy it).`,
+          "Vaultkeeper: its \"+N/+N\" and \"spells to next step\" now count spells cast DURING the fight (yours and, for an opponent's Vaultkeeper, theirs), instead of only updating after combat.",
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-17',
+    label: 'Gamble joins Set 3',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'The Gamble spell is now in the Set 3 pool as well: roll a die and get a random minion or spell of that Tier.',
+      },
+      {
+        category: 'New Card',
+        text: 'New Basic rune in every set — Rune of Gambling: get a Gamble, repeat every turn, and your Gambles grant BOTH a minion and a spell of the rolled Tier.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-18',
+    label: 'Art Batch',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Grand Larceny gets its illustration (the last Gift without one); Old Timber, Sylus, Branch Manager and Jumpstart Jules wear new portraits, and a handful of card-art framings were re-tuned.',
+      },
+    ],
+  },
+  {
     date: '2026-09-17',
     label: 'Gamble joins Set 3',
     changes: [

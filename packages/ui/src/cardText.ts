@@ -884,8 +884,8 @@ export function copyCastSpellText(cardId: string, golden: boolean, names: {
   if (cardId === 'ce3_conductor' && names.firstThisTurn) {
     const n = `{{${names.firstThisTurn}}}`;
     return golden
-      ? `**Rally:** get **2** copies of ${n} — the first spell you cast this turn. Once per combat.`
-      : `**Rally:** get a copy of ${n} — the first spell you cast this turn. Once per combat.`;
+      ? `**Rally:** get **2** copies of ${n} — the first **Shop spell** you cast this turn.`
+      : `**Rally:** get a copy of ${n} — the first **Shop spell** you cast this turn.`;
   }
   if (cardId === 'd2_spellkeeper' && names.keeperFirst) {
     const n = `{{${names.keeperFirst}}}`;
@@ -981,9 +981,29 @@ export function conductorText(cardId: string, golden: boolean, conductorBuff: nu
 export function soulsmanText(cardId: string, goldGained: number): string | null {
   return cardId === 'soulsman' && goldGained > 0 ? ` {{Gained ${goldGained} Gold this run.}}` : null;
 }
+/**
+ * SPEAR WARDEN — "Has +4/+2 for every Spear Warden that died this game" (owner rework 2026-09-18).
+ *
+ * The printed "+4/+2" is a RATE; what the player needs to read is the stat block the body is carrying right
+ * now. Same shape as Ancient Wanderer: the live total replaces the magnitude (green), the rate moves into a
+ * parenthetical, and the death COUNT it came from is named. `enchant` is the run-wide `cardBuffs.knit` entry —
+ * the one channel every death feeds (`noteCardDeath` in simulate.ts), so the count is derived from it rather
+ * than tracked twice. No deaths yet → the printed sentence is already the whole truth.
+ */
 export function cardTypeTallyText(cardId: string, enchant: { attack: number; health: number } | undefined): string | null {
-  if (cardId !== 'knit' || !enchant || (enchant.attack <= 0 && enchant.health <= 0)) return null;
-  return ` {{Now +${enchant.attack}/+${enchant.health} this run.}}`;
+  if (!enchant || (enchant.attack <= 0 && enchant.health <= 0)) return null;
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'cardDeathScaler');
+  if (!def || !eff) return null;
+  const p = eff.params as { attack?: number; health?: number } | undefined;
+  const perA = Number(p?.attack ?? 1);
+  const perH = Number(p?.health ?? 1);
+  const per = perA > 0 ? perA : perH;
+  const total = perA > 0 ? enchant.attack : enchant.health;
+  // Ceil, not floor: a save from before the 2026-09-18 rework carries +3/+2 stacks, which still mean "a death".
+  const deaths = per > 0 ? Math.ceil(total / per) : 0;
+  if (deaths <= 0) return null;
+  return `Has **{{+${enchant.attack}/+${enchant.health}}}** (+${perA}/+${perH} for every **${def.name}** that died this game; {{${deaths}}} so far).`;
 }
 
 /**

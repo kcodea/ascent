@@ -117,7 +117,8 @@ describe('Drunken Oaf — the repeat count is 1 + Ales cast this turn', () => {
   const fight = (ales: number, golden = false) => simulate(
     [
       bm('dw_oaf', 'O', 0, 9999, golden ? { golden: true } : {}),
-      bm('dw_brunni', 'D1', 0, 9999), bm('dw_brunni', 'D2', 0, 9999),
+      // Three OTHER Dwarves: the Oaf never picks itself (R-TARGET-03, owner 2026-09-18), so its recipients are these.
+      bm('dw_brunni', 'D1', 0, 9999), bm('dw_brunni', 'D2', 0, 9999), bm('dw_brunni', 'D3', 0, 9999),
     ],
     [{ cardId: 'sandbag', attack: 0, health: 40000 }],
     makeRng(11), CARD_INDEX, combatSide({ tier: 4, tribes: ['dwarf'], alesLastTurn: ales }), combatSide({ tier: 1 }),
@@ -150,11 +151,12 @@ describe('Drunken Oaf — the repeat count is 1 + Ales cast this turn', () => {
   });
 
   it('the repeats can land on different Dwarves — each rep re-rolls its target (owner ruling)', () => {
-    // With 2 eligible Dwarves and 6 reps, a seeded run must not put all six on one body. This is the
+    // With 3 eligible Dwarves and 6 reps, a seeded run must not put all six on one body. This is the
     // spread-the-love ruling; the alternative shape (pick once, stack everything) would show one target.
     const targets = new Set((fight(5).events.filter((e) => e.type === 'buff') as { source?: string; target: string }[])
       .filter((b) => b.source === 'm0').map((b) => b.target));
     expect(targets.size, 'every rep hit the same body — the target is not being re-rolled').toBeGreaterThan(1);
+    expect(targets.has('m0'), 'never the Oaf itself (R-TARGET-03)').toBe(false);
   });
 });
 

@@ -27,6 +27,16 @@ const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : f
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 /** Tripled minions fire their buff/damage effects at doubled magnitude. */
 const mul = (self: Minion): number => (self.golden ? 2 : 1);
+
+/**
+ * R-TARGET-03 — NO CARD TARGETS ITSELF (owner ruling 2026-09-18, global). Every combat effect that CHOOSES a
+ * friendly body — a random pick, a minion-cast targeted spell — draws from this pool: the living friends
+ * WITHOUT the source. Positional reads ("adjacent", "left-most", "on this") are not choices and keep their own
+ * membership. The shop twin is `othersOnBoard` (recruit.ts); the arena twin is `others` (arena.ts).
+ */
+export function otherFriends(ctx: CombatContext, self: Minion, pred?: (m: Minion) => boolean): Minion[] {
+  return ctx.living(self.side).filter((m) => m !== self && (!pred || pred(m)));
+}
 /** Re-entrancy depth of the "a Dwarf gained Attack" watchers (Kneel / Tankerchief) — see `onTribeGainAttackBuffSelf`.
  *  Module-local like `huntGuard`: combat is synchronous and single-threaded, so a counter is exactly right. */
 let gainWatchDepth = 0;
@@ -523,6 +533,14 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       }
       ctx.log({ type: 'sc', source: self.uid, text: `${self.name} engraves the truth` });
     },
+    attackNow: (target) => {
+      // Arena Heckler: queue THIS body's out-of-turn strike at `target` and drain it at once (Rune of
+      // Forthcoming's shape), so the swing is an ordinary attack exchange in the log — Taunt granted, then the
+      // hit — rather than something the rotation picks up later. A dead / 0-Attack body never queues.
+      if (self.dead || self.health <= 0 || self.attack <= 0) return;
+      ctx.attackNow?.(self, false, target as Minion);
+      ctx.flushImmediateAttacks?.();
+    },
     castLeftmostHandSpellOnAdjacent: (tribe) => {
       // Quil's legacy ritual, verbatim (see the retired body's comment block for the ruling history).
       if (self.dead) return;
@@ -888,7 +906,7 @@ export function castNamedSpellInCombat(ctx: CombatContext, self: Minion, spellId
   const def = spellId ? ctx.getCard(spellId) : undefined;
   if (!def?.spell || self.dead || !combatCastable(def)) return;
   castInCombat(ctx, self, () => {
-    const friends = ctx.living(self.side);
+    const friends = otherFriends(ctx, self); // never the caster itself (R-TARGET-03)
     const targets = def.target ? (friends.length ? [ctx.rng.pick(friends)] : []) : undefined;
     if (def.target && (!targets || targets.length === 0)) return;
     // Mark the cast's WHOLE window, so the buffs (and anything else) it produces carry the spell's identity —
@@ -1185,7 +1203,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  copy of THAT SPELL to your hand (carried back via `playerHandGrants`). */
   rallyCastRandomStatSpell: (ctx, self, _params, payload) => {
     if ((payload as { minion?: Minion }).minion !== self) return;
-    const friends = ctx.living(self.side);
+    const friends = otherFriends(ctx, self); // never itself (R-TARGET-03)
     if (friends.length === 0) return;
     const pick = randomStatSpellBuff(ctx, mul(self), self.side);
     if (!pick) return;
@@ -1588,7 +1606,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Deathrattle: buff a random living friend (both stats). */
   deathrattleBuffRandom: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    const friends = ctx.living(self.side);
+    const friends = otherFriends(ctx, self); // never itself (R-TARGET-03; a dead self was already absent)
     if (friends.length === 0) return;
     ctx.buff(ctx.rng.pick(friends), num(params.attack) * mul(self), num(params.health) * mul(self), self.uid);
   },
@@ -1837,8 +1855,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const def = self.taughtSpellId ? ctx.getCard(self.taughtSpellId) : undefined;
     if (!def?.spell || self.dead || !combatCastable(def)) return;
     castInCombat(ctx, self, () => {
-      const friends = ctx.living(self.side);
-      if (friends.length === 0) return;
+      const friends = otherFriends(ctx, self); // never the Pup itself (R-TARGET-03)
+      if (def.target && friends.length === 0) return;
       const targets = def.target ? [ctx.rng.pick(friends)] : undefined;
       if (resolveCombatSpellCast(ctx, self, def, targets)) {
         ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
@@ -1926,8 +1944,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if ((payload as MinionPayload).minion !== self) return;
     const ids = ctx.rememberedSpellsFor?.(self.side) ?? [];
     if (ids.length === 0) return;
-    const beastPool = (): Minion[] => ctx.living(self.side).filter((m) =>
-      m.tribe === 'beast' || m.tribe2 === 'beast' || ctx.getCard(m.cardId)?.universalTribe);
+    const beastPool = (): Minion[] => otherFriends(ctx, self, (m) => // never itself (R-TARGET-03)
+      m.tribe === 'beast' || m.tribe2 === 'beast' || !!ctx.getCard(m.cardId)?.universalTribe);
     for (const id of ids) {
       const def = ctx.getCard(id);
       if (!def?.spell || !combatCastable(def)) continue;
@@ -1963,8 +1981,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (!def?.spell || !combatCastable(def)) return;
     // An aimed spell with no living Beast to aim at fizzles BEFORE the cast counts — same reason as the
     // castability gate: a cast that resolves onto nothing is not a cast the watchers should see.
-    const beastPool = (): Minion[] => ctx.living(self.side).filter((m) =>
-      m.tribe === 'beast' || m.tribe2 === 'beast' || ctx.getCard(m.cardId)?.universalTribe);
+    const beastPool = (): Minion[] => otherFriends(ctx, self, (m) => // never itself (R-TARGET-03)
+      m.tribe === 'beast' || m.tribe2 === 'beast' || !!ctx.getCard(m.cardId)?.universalTribe);
     if (def.target && beastPool().length === 0) return;
     castInCombat(ctx, self, () => {
       const beasts = beastPool();
@@ -2046,7 +2064,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (pool.length === 0) return;
     castInCombat(ctx, self, () => {
       const def = ctx.rng.pick(pool);
-      const friends = ctx.living(self.side);
+      const friends = otherFriends(ctx, self); // never itself (R-TARGET-03)
       const targets = def.target ? (friends.length > 0 ? [ctx.rng.pick(friends)] : []) : undefined;
       if (def.target && (!targets || targets.length === 0)) return;
       if (resolveCombatSpellCast(ctx, self, def, targets)) {
@@ -2078,7 +2096,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
         // on the same channel every other rune trigger uses, so the badge treats it identically.
         ctx.log({ type: 'questTrigger', flag: 'runeFloodedVault', side: self.side });
         castInCombat(ctx, self, () => {
-          const pool = ctx.living(self.side);
+          const pool = otherFriends(ctx, self); // never itself (R-TARGET-03)
           const targets = def.target ? (pool.length > 0 ? [ctx.rng.pick(pool)] : []) : undefined;
           if (def.target && (!targets || targets.length === 0)) return;
           if (resolveCombatSpellCast(ctx, self, def, targets)) {
@@ -2538,6 +2556,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  Paragon by scanning for this effect id. Declaring it here keeps the card data-driven — the alternative
    *  was hardcoding a card id inside core. */
   rubyStatMultiplier: () => {},
+  /** Spear Warden's passive marker — never dispatched; `noteCardDeath` (simulate.ts) reads it at the death site. */
+  cardDeathScaler: () => {},
 
   /** Set 2 — Alchemist Brisbane (Echo half): on death, buff your Rubies +atk/+hp (× golden), carried back. */
   // ── ARENA-MIGRATED (Step 3, Ruby family): one body in arena.ts serves both phases.
@@ -2609,16 +2629,16 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantRandomSpell(num(params.count, 1) * mul(self), self.side, self.uid);
   },
 
-  /** Set 3 Celestials — Comet Conductor (Rally): get a copy of the FIRST spell you cast this turn, ONCE per combat
-   *  (a per-instance latch, so Rallying Offensive's double fire and a Flurry's second hit cannot pay twice).
-   *  Nothing cast this turn → nothing to copy. Golden: 2 copies. The grant rides `ctx.grantToHand`, so the card
-   *  really flies into hand mid-fight (and a served enemy's copy no-ops, as every hand grant does). */
+  /** Set 3 Celestials — Neptus (Rally): get a copy of the FIRST Shop spell you cast this turn, on EVERY attack
+   *  (owner rework 2026-09-18 dropped "once per combat" from the sentence, and the per-instance latch with it —
+   *  a Flurry's second hit or a Rallying Offensive re-fire pays again). Nothing cast this turn → nothing to copy.
+   *  Golden: 2 copies. The grant rides `ctx.grantToHand`, so the card really flies into hand mid-fight (and a
+   *  served enemy's copy no-ops, as every hand grant does). */
   rallyGrantFirstSpellCopy: (ctx, self, _params, payload) => {
     const { minion } = payload as MinionPayload;
-    if (self.dead || minion !== self || self.firstSpellCopyFired) return;
+    if (self.dead || minion !== self) return;
     const id = ctx.firstSpellThisTurnIdFor(self.side);
     if (!id) return;
-    self.firstSpellCopyFired = true;
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(id, self.side, self.uid);
   },
 
@@ -2768,7 +2788,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   onFriendDeathBuffRandom: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion === self || minion.side !== self.side) return;
-    const friends = ctx.living(self.side);
+    const friends = otherFriends(ctx, self); // never itself (R-TARGET-03)
     if (friends.length === 0) return;
     ctx.buff(ctx.rng.pick(friends), num(params.attack) * mul(self), num(params.health) * mul(self), self.uid);
   },
@@ -3852,6 +3872,15 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   // ARENA-MIGRATED (SC family): one body in arena.ts; the dead guard stays with dispatch.
   scPlayRubiesSelfAndAdjacentTribe: (ctx, self, params) => {
     if (self.dead) return;
+    ARENA_EFFECTS.scPlayRubiesSelfAndAdjacentTribe(combatArena(ctx, self), params);
+  },
+
+  /** Set 2 — Kobe (owner rework 2026-09-18): when THIS minion takes damage, play `count` PERMANENT Rubies on
+   *  it and each living adjacent same-`tribe` neighbour — the very same arena body its Start of Combat used, so
+   *  the permanence + carry-back path is unchanged; only the trigger moved. Fires once per landed hit (a
+   *  Ward-absorbed 0-damage hit never reaches `onDamaged`). Golden doubles `count`. */
+  onDamagedPlayRubiesSelfAndAdjacentTribe: (ctx, self, params, payload) => {
+    if (self.dead || (payload as MinionPayload).minion !== self) return;
     ARENA_EFFECTS.scPlayRubiesSelfAndAdjacentTribe(combatArena(ctx, self), params);
   },
 

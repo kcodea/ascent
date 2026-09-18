@@ -85,8 +85,9 @@ export const SET3_UNDEAD: CardDef[] = [
     attack: 4,
     health: 7,
     keywords: [],
+    // Never itself (owner 2026-09-18, the global no-self-target rule): the aim excludes the Equipment's source.
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'deathfibrillator' } }],
-    text: '**Equip Deathfibrillator (2):** give a target **Undead** **Rise**, then destroy it.',
+    text: '**Equip Deathfibrillator (3):** give a target **Undead** **Rise**, then destroy it.',
   },
   {
     // Aimed Shout: Graverobber's two-step death (the Echo, the departure and any Rise get their beat), then a
@@ -99,6 +100,7 @@ export const SET3_UNDEAD: CardDef[] = [
     health: 6,
     keywords: [],
     target: 'friendly',
+    targetNotSelf: true, // owner 2026-09-18: never itself (now the rule for EVERY aimed Shout — see the reducer)
     effects: [{ on: 'onPlay', do: 'battlecryDestroyForDiscover', params: { tribe: 'undead' } }],
     text: '**Shout:** destroy a friendly **Undead** to Discover an **Undead**.',
     goldenText: '**Shout:** destroy a friendly **Undead** to Discover an **Undead**, twice.',

@@ -134,11 +134,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-echo",
-    "title": "'echo' family · 68 cards",
-    "statement": "All 68 'echo' cards trigger the same way. Gilding doubles their output; a few summon a gilded token instead. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'echo' family · 67 cards",
+    "statement": "All 67 'echo' cards trigger the same way. Gilding doubles their output; a few summon a gilded token instead. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "50 effect factories across 68 cards dispatch through the 'echo' presentation family, all on the single trigger 'onDeath' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline is the safe reading, with Void Panther / T-Rex / Chicken Brawl gilding the token they summon instead of doubling the count (owner ruling 2026-08-28).",
-    "cardText": "Exemplar — Amun Rab: \"Deathrattle: Summon 7 Imps and give your Imps +5/+5.\" · Members: Amun Rab · Anubis, Last Gate · Ashen Heir · Armadiyo · Bullseye · Dawnclaw · Menagerie Mammoth · T-Rex · Voidmother · Wolvie · Blaster · Bone Taxer · … and 56 more",
+    "currentBehaviour": "49 effect factories across 67 cards dispatch through the 'echo' presentation family, all on the single trigger 'onDeath' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline is the safe reading, with Void Panther / T-Rex / Chicken Brawl gilding the token they summon instead of doubling the count (owner ruling 2026-08-28).",
+    "cardText": "Exemplar — Amun Rab: \"Deathrattle: Summon 7 Imps and give your Imps +5/+5.\" · Members: Amun Rab · Anubis, Last Gate · Ashen Heir · Armadiyo · Bullseye · Dawnclaw · Menagerie Mammoth · T-Rex · Voidmother · Wolvie · Blaster · Bone Taxer · … and 55 more",
     "example": "Amun Rab follows the 'echo' convention — its trigger fires on onDeath. Gilded T-Rex summons one GILDED T-Rex Baby, while gilded Wolves Den summons 6 Crypt Wolves instead of 3.",
     "contentIds": [
       "amunrab",
@@ -185,7 +185,6 @@ export const CONVENTION_PENDING: GameRule[] = [
       "k_gemheart",
       "k_geode",
       "k_kobabyboldies",
-      "knit",
       "labexperiment",
       "manasaber",
       "mossmemory_colossus",
@@ -320,15 +319,16 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-passive",
-    "title": "'passive' family · 3 cards",
-    "statement": "All 3 'passive' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'passive' family · 4 cards",
+    "statement": "All 4 'passive' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "3 effect factories across 3 cards dispatch through the 'passive' presentation family, all on the single trigger 'passive' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Fuse Aldrin: \"When you Collapse a Starform, it buffs 2 additional random Celestials.\" · Members: Fuse Aldrin · Deepdelve Paragon · Ancient Wanderer",
+    "currentBehaviour": "4 effect factories across 4 cards dispatch through the 'passive' presentation family, all on the single trigger 'passive' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Fuse Aldrin: \"When you Collapse a Starform, it buffs 2 additional random Celestials.\" · Members: Fuse Aldrin · Deepdelve Paragon · Spear Warden · Ancient Wanderer",
     "example": "Fuse Aldrin follows the 'passive' convention — its trigger fires on passive. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_novaherald",
       "k_deepdelve",
+      "knit",
       "n2_wanderer"
     ]
   },
@@ -730,11 +730,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-startOfCombat",
-    "title": "'startOfCombat' family · 18 cards",
-    "statement": "All 18 'startOfCombat' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'startOfCombat' family · 17 cards",
+    "statement": "All 17 'startOfCombat' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "24 effect factories across 18 cards dispatch through the 'startOfCombat' presentation family, all on the single trigger 'startOfCombat' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Abhorrent Horror: \"Start of Combat: Gain +Attack/+Health equal to the Fodder consumed this turn.\" · Members: Abhorrent Horror · Arena Heckler · Quil · Spots · Bloodbinder · Bucky · Grave Body · Gravewarden · Kobe · Kennelmaster · Mirrorhide Rhino · Pack Leader · … and 6 more",
+    "currentBehaviour": "23 effect factories across 17 cards dispatch through the 'startOfCombat' presentation family, all on the single trigger 'startOfCombat' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Abhorrent Horror: \"Start of Combat: Gain +Attack/+Health equal to the Fodder consumed this turn.\" · Members: Abhorrent Horror · Arena Heckler · Quil · Spots · Bloodbinder · Bucky · Grave Body · Gravewarden · Kennelmaster · Mirrorhide Rhino · Pack Leader · Runescale Drake · … and 5 more",
     "example": "Abhorrent Horror follows the 'startOfCombat' convention — its trigger fires on startOfCombat. its printed numbers double when the card is gilded.",
     "contentIds": [
       "abhorrenthorror",
@@ -745,7 +745,6 @@ export const CONVENTION_PENDING: GameRule[] = [
       "dw_bucky",
       "gravebody",
       "gravewarden",
-      "k_kobe",
       "kennel",
       "mirrorrhino",
       "packleader",
@@ -1396,18 +1395,17 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-sc",
-    "title": "Start of Combat [SC] · 9 carriers",
+    "title": "Start of Combat [SC] · 8 carriers",
     "statement": "Start of Combat means: its effect fires once when combat begins, before any attacks — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
-    "currentBehaviour": "One shared engine path implements Start of Combat for all 9 carriers.",
-    "cardText": "Exemplar — Abhorrent Horror: \"Start of Combat: Gain +Attack/+Health equal to the Fodder consumed this turn.\" · Carriers: Abhorrent Horror · Quil · Spots · Bucky · Kobe · Kennelmaster · Speed Demon · Taurus · Taurus the Truth Bringer",
+    "currentBehaviour": "One shared engine path implements Start of Combat for all 8 carriers.",
+    "cardText": "Exemplar — Abhorrent Horror: \"Start of Combat: Gain +Attack/+Health equal to the Fodder consumed this turn.\" · Carriers: Abhorrent Horror · Quil · Spots · Bucky · Kennelmaster · Speed Demon · Taurus · Taurus the Truth Bringer",
     "example": "Abhorrent Horror carries Start of Combat — in play, its effect fires once when combat begins, before any attacks.",
     "contentIds": [
       "abhorrenthorror",
       "b2_quil",
       "b2_spots",
       "dw_bucky",
-      "k_kobe",
       "kennel",
       "runmaw",
       "taurus",
@@ -1556,15 +1554,16 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-w",
-    "title": "Windfury [W] · 4 carriers",
+    "title": "Windfury [W] · 5 carriers",
     "statement": "Windfury means: attacks twice per attack turn — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
-    "currentBehaviour": "One shared engine path implements Windfury for all 4 carriers.",
-    "cardText": "Exemplar — Commander Impala: \"Flurry. Ward. Critical Strike (50%).\" · Carriers: Commander Impala · Blazer · Speedy · Tauntbreaker",
+    "currentBehaviour": "One shared engine path implements Windfury for all 5 carriers.",
+    "cardText": "Exemplar — Commander Impala: \"Flurry. Ward. Critical Strike (50%).\" · Carriers: Commander Impala · Blazer · Boulderdash · Speedy · Tauntbreaker",
     "example": "Commander Impala carries Windfury — in play, attacks twice per attack turn.",
     "contentIds": [
       "impala",
       "k_blazer",
+      "k_boulderdash",
       "speedy",
       "tauntbreaker"
     ]
@@ -2235,17 +2234,18 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-damaged",
-    "title": "Trigger: a friendly minion takes or deals damage · 6 cards",
-    "statement": "All 6 of these fire on one trigger: a friendly minion takes or deals damage. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: a friendly minion takes or deals damage · 7 cards",
+    "statement": "All 7 of these fire on one trigger: a friendly minion takes or deals damage. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "5 effect factories across 6 cards dispatch on 'friendlyDemonDealtDamage', 'onDamaged' (combat) — re-clustered by TRIGGER out of the 'react' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Axeman: \"Critical Strike (50%). When a friendly Demon deals damage, gain +3/+3 permanently.\" · Members: Axeman · Leech · Impossible Todd · Gryphon · Target Dummy · Hearth Whisperer",
+    "currentBehaviour": "6 effect factories across 7 cards dispatch on 'friendlyDemonDealtDamage', 'onDamaged' (combat) — re-clustered by TRIGGER out of the 'react' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Axeman: \"Critical Strike (50%). When a friendly Demon deals damage, gain +3/+3 permanently.\" · Members: Axeman · Leech · Impossible Todd · Gryphon · Kobe · Target Dummy · Hearth Whisperer",
     "example": "Axeman fires when a friendly minion takes or deals damage, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "dm_chosenfiend",
       "dm_leech",
       "dm_todd",
       "gryphon",
+      "k_kobe",
       "sandbag",
       "sp3_hearthwhisperer"
     ]

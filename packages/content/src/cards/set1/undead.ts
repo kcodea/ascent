@@ -37,15 +37,21 @@ export const UNDEAD: CardDef[] = [
     goldenText: '**Avenge (3):** get **2** random Shop spells.',
   },
   {
+    // Owner rework 2026-09-18: 4/2, "Has +4/+2 for every Spear Warden that died this game." A HAS, derived from a
+    // real DEATH COUNT — not an Echo any more. `cardDeathScaler` is a PASSIVE marker: the combat death site
+    // (`noteCardDeath` in simulate.ts) reads it off the dying body's card and grants the card-type enchant
+    // (`cardBuffs.knit`, the run-wide channel every copy — board, hand, future — already inherits), so a
+    // Deathsayer / Echohorn proc, an Echo multiplier or a Rune of the Warden token dying all behave exactly as
+    // the sentence says: only a death counts, every death counts once, and the total is printed live.
     id: 'knit',
     name: 'Spear Warden',
     tribe: 'undead',
     tier: 2,
-    attack: 3,
+    attack: 4,
     health: 2,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffCardTypeRunWide', params: { cardId: 'knit', attack: 3, health: 2 } }],
-    text: 'When a **Spear Warden** dies in combat, all Spear Wardens gain **+3/+2** permanently.',
+    effects: [{ on: 'passive', do: 'cardDeathScaler', params: { cardId: 'knit', attack: 4, health: 2 } }],
+    text: 'Has **+4/+2** for every **Spear Warden** that died this game.',
   },
   {
     // On-kill permanent Undead attack buff that IMPROVES +3 per Slaughter, permanently for this copy (the
@@ -100,9 +106,12 @@ export const UNDEAD: CardDef[] = [
     attack: 3,
     health: 5,
     keywords: ['RL'],
+    // Owner rework 2026-09-18: the Rally ALSO re-fires your left-most SHOUT (the same `rallyProcDeathrattle`
+    // arena body, extended — one authoritative implementation; the Shout half rides the shared `replayShout`
+    // ritual so Karwind / Bane / the quest tallies see it exactly like an Embercrest re-fire).
     effects: [{ on: 'onAttack', do: 'rallyProcDeathrattle' }],
-    text: '**Rally:** trigger your left-most **Echo** before this attacks.',
-    goldenText: '**Rally:** trigger your left-most **Echo** twice before this attacks.',
+    text: '**Rally:** Trigger your left-most **Echo** and **Shout**.',
+    goldenText: '**Rally:** Trigger your left-most **Echo** and **Shout** twice.',
   },
   {
     // Battlecry: give your Undead +1 Attack wherever they are (board + hand immediately via

@@ -1261,9 +1261,11 @@ function opensBattlecryAim(s: RunState, card: BoardCard): boolean {
   if (taughtAimSpell(card)) return true;
   const def = CARD_INDEX[card.cardId];
   if (def?.target !== 'friendly' || def.chooseOne?.length) return false;
+  // R-TARGET-03 (owner 2026-09-18, global): an aimed Shout NEVER targets its own body — a board holding ONLY this
+  // minion has no legal pick, so don't prompt; the Battlecry simply doesn't fire and it plays as a plain body.
+  // (Was Graverobber's `targetNotSelf` opt-in; now the rule for every aimed Shout.)
   if (def.targetTribe) return s.board.some((c) => c.uid !== card.uid && isTribe(c, def.targetTribe!));
-  if (def.targetNotSelf) return s.board.some((c) => c.uid !== card.uid);
-  return true;
+  return s.board.some((c) => c.uid !== card.uid);
 }
 
 /** Rune of Refrain's roll for a Shout minion that has just FIRED: 25% per copy held (owner 2026-08-27, unique-engine
@@ -1668,8 +1670,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!def.spell && !def.ruby && s.board.length >= CONFIG.boardMax) return state;
         // A targeted Choose One SPELL with no legal target fizzles before the prompt (kept in hand, nothing
         // spent) — exactly as it did when the drag had to hit a target, and so the pick can never open an aim
-        // with no answer. Minions deliberately do NOT fizzle: a Runic Beetle with no other Beast has always
-        // played and auto-granted to itself, and the pick step still resolves it that way.
+        // with no answer. Minions deliberately do NOT fizzle: a Runic Beetle with no other Beast still plays as
+        // a body; its grant finds no legal recipient (R-TARGET-03: never itself) and simply does nothing.
         if (def.spell && def.target && chooseOneTargetPool(s, def).length === 0) return state;
         s.chooseOne = { uid: card.uid, cardId: def.id, spell: !!def.spell, toIndex: action.toIndex };
         return s;
@@ -2259,7 +2261,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       const optTarget = option.target ?? def.target;
       if (optTarget === 'friendly' || optTarget === 'any') {
         // Only aim when there is something legal to aim AT. With none, a spell has already fizzled at play
-        // time and a minion resolves now with the grant auto-picking (falls back to self) — unchanged.
+        // time and a minion resolves now with its grant finding no recipient (R-TARGET-03: never itself).
         if (chooseOneTargetPool(s, def).length > 0) {
           s.chooseOne = undefined;
           s.pendingTarget = {
@@ -2335,10 +2337,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       const card = s.board.find((c) => c.uid === pt.uid);
       const target = s.board.find((c) => c.uid === action.targetUid);
       if (!card || !target) return state; // a friendly target is required
-      // Self-targeting guard (Graverobber: destroying itself deleted the body that was paying for the spell).
-      // Authoritative — the aim UI mirrors it, but the reducer is what actually decides.
+      // Self-targeting guard — R-TARGET-03 (owner 2026-09-18, global): NO aimed Shout resolves onto its own
+      // body (it began as Graverobber's `targetNotSelf`, where destroying itself deleted the body paying for
+      // the spell; Cage Breaker / Auric Runemaster / Gravetwin now inherit it). Authoritative — the aim UI
+      // mirrors it, but the reducer is what actually decides.
       const ptDef = CARD_INDEX[pt.cardId];
-      if ((ptDef?.targetNotSelf || ptDef?.targetTribe) && target.uid === card.uid) return state;
+      if (target.uid === card.uid) return state;
       // A tribe-restricted Battlecry may only resolve onto that tribe. This guard was MISSING: the aim UI
       // filtered the pick, but the reducer accepted whatever uid it was handed — so an off-tribe target was
       // fully resolved (an Appetite Agent could feed a Beast). Exactly the hole Cupcakes had on the SPELL
@@ -2626,6 +2630,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         ? s.board.find((c) => c.uid === action.targetUid)
         : undefined;
       if (def.targetMode === 'friendly' && !target) return state;
+      // R-TARGET-03 (owner 2026-09-18, global): an aimed Equipment never lands on the body that GRANTED it — EMS
+      // cannot Deathfibrillate itself, Frank cannot Bloodpot himself. The aim UI + bot view mirror this.
+      if (target && granted.sourceUids.includes(target.uid)) return state;
 
       s.embers -= cost;
       const eq = s.equipment!;

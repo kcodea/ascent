@@ -20,12 +20,12 @@ describe('Resonance re-firing Baby Gastrid buffs a random friendly Dwarf', () =>
     expect(s.board.reduce((n, c) => n + c.health, 0) - before).toBe(6); // +2/Gold × 3 Gold
   });
 
-  it('with only Baby Gastrid itself as a Dwarf, it still lands (buffs itself)', () => {
+  it('with only Baby Gastrid itself as a Dwarf, the re-fire grants NOTHING — never itself (R-TARGET-03, owner 2026-09-18)', () => {
     let s: RunState = createRun(5, 'aster', 'practice');
     s = { ...s, goldSpentThisTurn: 2, board: [
       { uid: 'g', cardId: 'dw_dorrin', tribe: 'dwarf', attack: 2, health: 4, keywords: [], buffs: [] },
     ] as never };
-    expect(replayBattlecry(s, s.board[0]! as never)).toBe(true);
-    expect(s.board[0]!.health).toBe(4 + 4); // +2 × 2 Gold
+    replayBattlecry(s, s.board[0]! as never);
+    expect(s.board[0]!.health, 'no other eligible Dwarf → no grant, not a self-buff').toBe(4);
   });
 });

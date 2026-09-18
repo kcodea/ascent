@@ -22,8 +22,13 @@ describe('partPointFromRects', () => {
   });
   it('a selector part is its own rect centre, falling back to the card centre when the card lacks it', () => {
     expect(partPointFromRects(card, 'badge.attack', { left: 100, top: 300, width: 20, height: 20 })).toEqual({ x: 110, y: 310 });
-    expect(partPointFromRects(card, 'medallion', null)).toEqual({ x: 140, y: 260 });
     expect(partPointFromRects(card, 'tier', { left: 0, top: 0, width: 0, height: 0 })).toEqual({ x: 140, y: 260 });
+  });
+  it('medallion resolves to its gem rect, falling back to the card centre when the card lacks it', () => {
+    // With a real .cgem rect it is that rect's centre (the trigger gem the shout/rally pulses).
+    expect(partPointFromRects(card, 'medallion', { left: 130, top: 300, width: 20, height: 20 })).toEqual({ x: 140, y: 310 });
+    // No gem element: the card centre, exactly like every other missing part.
+    expect(partPointFromRects(card, 'medallion', null)).toEqual({ x: 140, y: 260 });
   });
 });
 
@@ -31,6 +36,9 @@ describe('partsUsedByLayers / isAnchorPart / isSelectorPart', () => {
   it('collects distinct non-default parts only', () => {
     expect(partsUsedByLayers([{ anchorPart: 'card' }, { anchorPart: 'medallion' }, {}, { anchorPart: 'medallion' }, { anchorPart: 'top' }])).toEqual(['medallion', 'top']);
     expect(partsUsedByLayers([{}, { anchorPart: null }])).toEqual([]);
+    // both ends collected: a travel layer's source (anchorPart) AND target (anchorPartTo)
+    expect(partsUsedByLayers([{ anchorPart: 'medallion', anchorPartTo: 'badge.attack' }, { anchorPartTo: 'top' }])).toEqual(['medallion', 'badge.attack', 'top']);
+    expect(partsUsedByLayers([{ anchorPart: 'top', anchorPartTo: 'card' }])).toEqual(['top']); // `card` to-part is not a resolved part
   });
   it('knows the list and which parts need a DOM query', () => {
     for (const p of FX_ANCHOR_PARTS) expect(isAnchorPart(p)).toBe(true);
@@ -61,13 +69,13 @@ describe('readUnitPartPoints', () => {
   it('queries ONLY the selector parts asked for, once each, and derives edges for free', () => {
     const u = unit(card, {
       '.badge.atk': { left: 100, top: 300, width: 20, height: 20 },
-      '.plate-tribe': { left: 130, top: 205, width: 20, height: 20 },
+      '.cgem': { left: 130, top: 205, width: 20, height: 20 },
     });
     const pts = readUnitPartPoints(u, ['badge.attack', 'top', 'medallion']);
     expect(pts['badge.attack']).toEqual({ x: 110, y: 310 });
-    expect(pts.medallion).toEqual({ x: 140, y: 215 }); // the tribe plate — the owner's "medallion"
+    expect(pts.medallion).toEqual({ x: 140, y: 215 }); // the trigger gem — the owner's "medallion"
     expect(pts.top).toEqual({ x: 140, y: 200 });
-    expect(u.queries).toEqual(['.badge.atk', '.plate-tribe']);
+    expect(u.queries).toEqual(['.badge.atk', '.cgem']);
   });
   it('tier skips the tier-7 glow halo so it lands on the plaque', () => {
     const u = unit(card, { '.tierbadge:not(.tierglow)': { left: 130, top: 190, width: 20, height: 20 } });

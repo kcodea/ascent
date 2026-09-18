@@ -1,4 +1,4 @@
-import type { CombatSideState } from '../types';
+import type { CombatSideState, Tribe } from '../types';
 
 /** The neutral, all-zero side context — a board with no run economy behind it (the procedural threat, an
  *  offline harness board, or a test that only cares about the minions). `simulate()` defaults both sides to
@@ -21,6 +21,7 @@ export const EMPTY_SIDE: Readonly<CombatSideState> = Object.freeze({
   beastBuyAtk: 0,
   beastsPlayed: 0,
   spiritsPlayed: 0,
+  tribesPlayed: {} as Partial<Record<Tribe, number>>,
   rubyCasts: 0,
   revelerX: 0,
   cardsBoughtThisTurn: 0,
@@ -37,5 +38,16 @@ export const EMPTY_SIDE: Readonly<CombatSideState> = Object.freeze({
  *  construct a side's run context — `combatSide({ spellsThisTurn: 2, tier: 6 })` — for the reducer, the tools,
  *  and every test, so no caller has to spell out all ~20 fields. */
 export function combatSide(partial: Partial<CombatSideState> = {}): CombatSideState {
-  return { ...EMPTY_SIDE, ...partial };
+  const side = { ...EMPTY_SIDE, ...partial };
+  // ONE per-tribe "played this turn" channel (2026-09-18): the legacy `beastsPlayed` / `spiritsPlayed` scalars and
+  // the `tribesPlayed` map are reconciled HERE, so a caller may set either form — the reducer passes the map (and
+  // the scalars it derives from it), a legacy snapshot only the scalars, a test whichever it likes — and every
+  // reader (`ctx.playedThisTurnFor`, `spiritsPlayedFor`, `beastsPlayedFor`) sees one consistent answer.
+  const map: Partial<Record<Tribe, number>> = { ...(partial.tribesPlayed ?? {}) };
+  if (map.beast === undefined && partial.beastsPlayed) map.beast = partial.beastsPlayed;
+  if (map.spirit === undefined && partial.spiritsPlayed) map.spirit = partial.spiritsPlayed;
+  side.tribesPlayed = map;
+  side.beastsPlayed = map.beast ?? 0;
+  side.spiritsPlayed = map.spirit ?? 0;
+  return side;
 }

@@ -43,12 +43,13 @@ describe('set 3 scaffold', () => {
       'dw3_thymes', 'dw3_tankerchief',
       'dw_brunni', 'dw_coinfire', 'dw_brakka', 'dw_dorrin', 'dw_foreman', 'dw_brewer', 'dw_tapkeeper',
       'dw_bladethrower', 'dw_thane', 'dw_pimm', 'dw_edward', 'dw_mountainbond', 'dw_billings', 'dw_gangplank',
-      // …then the UNDEAD (owner roster 2026-09-09): set 3's eleven new ones, then the ten set-1 Undead it keeps
+      // …then the UNDEAD (owner roster 2026-09-09): set 3's eleven new ones (+ Bicycle Bob, 2026-09-18), then the ten set-1 Undead it keeps
       // (shared definitions; four re-specced in place because set 1 is disabled). Ossuary Colossus was pulled.
       // Wolves Den joined 2026-09-10 (owner ask). Pillager left set 3 on 2026-09-18 (owner balance pass; it stays
       // in set 1 and stays a rune reward — CARD_INDEX is global).
       'u3_poochy', 'u3_noggin', 'u3_robinson', 'u3_adeptus', 'u3_ems', 'u3_cagebreaker', 'u3_revenant',
       'u3_risingtide', 'u3_squatimus', 'u3_rodrick', 'u3_hierophant',
+      'u3_bicyclebob', // the twelfth new Undead (owner handoff 2026-09-18), appended after the file's token
       'profgreg', 'knit', 'deathlesshand', 'deathsayer', 'deathswarmer', 'mumi', 'sergeant',
       'forsakenweaver', 'wolvesden', 'soulsman', 'anubis',
       // …then the NEUTRALS (owner roster 2026-09-09, tranche 1): set 3's own — Blaster back from the archive,

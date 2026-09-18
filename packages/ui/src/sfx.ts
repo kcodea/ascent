@@ -25,6 +25,8 @@ import {
 import { familyOf } from './audio/clipFamily';
 import { SCENES } from './audio/scenes';
 import { slugify, isValidSlug, saveSound } from './fx/defStore';
+import { getBuffFxConfig } from './buffFxConfig';
+import { buildAudioFilterChain } from './fx/audioFilters';
 
 export { SCENES };
 
@@ -354,7 +356,8 @@ let turnChargeNodes: PlayNodes | null = null;
 /** The Undead Aura surge clip's live nodes while it plays — the cue NEVER overlaps itself (owner 2026-09-16:
  *  "make it so it can only play once at a time"): a rise that lands while the clip is still ringing is skipped,
  *  not stacked and not restarted. Cleared on the clip's natural end. */
-let undeadAuraNodes: PlayNodes | null = null;
+/** When the last Undead Aura cue STARTED (performance.now ms) — the overlap guard is a short gap, not exclusivity. */
+let undeadAuraLastAt = -Infinity;
 /** Fade out + stop the currently-playing turn-charge build (if any) over `ms`. No-op if none is playing. */
 export function stopTurnCharge(ms = 300): void {
   const a = ctx;                    // never CREATE a context just to stop
@@ -745,11 +748,12 @@ export const sfx = {
   // fallback — an authored cue.
   gamble: () => { playSample('gamblesfx', 'gamble'); },
   undeadAura: () => {
-    if (undeadAuraNodes) return; // still ringing — one at a time
-    playSample('undeadaurabuff', 'buff', 0, (n) => {
-      undeadAuraNodes = n;
-      n.src.onended = () => { if (undeadAuraNodes?.src === n.src) undeadAuraNodes = null; };
-    });
+    // Overlap is allowed (owner 2026-09-18: a rise every 0.3 s should stack); only a burst of triggers inside the
+    // same few frames collapses to one sound — `undeadAuraSfxGapMs` in the Buff tuner (default 120 ms).
+    const now = performance.now();
+    if (now - undeadAuraLastAt < getBuffFxConfig().undeadAuraSfxGapMs) return;
+    undeadAuraLastAt = now;
+    playSample('undeadaurabuff', 'buff');
   },
   turnCharge: () => {
     stopTurnCharge(80); // never stack: quickly cut any build still ringing from a prior turn before the new one
@@ -1025,6 +1029,9 @@ export interface FxSoundOpts {
   gainVar?: number;
   /** Randomly shift the pitch by up to ±this fraction per fire (0..1). */
   pitchVar?: number;
+  /** The `sound` layer's full param bag — `buildAudioFilterChain` reads the Filter Lab keys (eqOn, comp_*, …)
+   *  off it to splice a per-fire EQ/comp/distortion/delay/pan chain between the source and the fader. */
+  filterParams?: Record<string, unknown>;
 }
 /** A live FX sound the caller can stop/fade — Web Audio sources are otherwise fire-and-forget. */
 export interface FxSoundHandle {
@@ -1067,7 +1074,12 @@ export function playFxSound(clip: string, opts: FxSoundOpts = {}): FxSoundHandle
   const level = Math.max(0, (opts.gain ?? 1) * gainJit);
   const g = a.createGain();
   const busIn = busNodes.get(opts.bus ?? 'combat')?.input ?? master ?? a.destination;
-  src.connect(g).connect(busIn);
+  // Channel strip: source → [Filter Lab inserts] → fader (g) → bus. `g` (level, fades, jitter) stays the LAST
+  // stage before the bus, so a fade-out silences any filter tail (echoes) too. No enabled filters → straight
+  // through, allocating nothing.
+  const chain = buildAudioFilterChain(a, opts.filterParams);
+  if (chain) { src.connect(chain.input); chain.output.connect(g); } else { src.connect(g); }
+  g.connect(busIn);
   const t0 = a.currentTime + Math.max(0, (opts.delayMs ?? 0) / 1000);
   const offset = Math.max(0, (opts.startOffsetMs ?? 0) / 1000);
   const fadeIn = Math.max(0, (opts.fadeInMs ?? 0) / 1000);

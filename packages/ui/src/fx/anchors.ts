@@ -53,12 +53,16 @@ export function pointOnTravel(a: FxPoint, b: FxPoint, t: number, bow: number): F
 }
 
 /** `progress` is the layer's own 0..1 through its life; only `travel` uses it. `part` narrows a unit anchor
- *  (`source` / `target`, and both ends of `travel`) to a part of that unit's card — see `FxAnchorPart`. */
+ *  (`source` / `target`, and the SOURCE end of `travel`) to a part of that unit's card — see `FxAnchorPart`.
+ *  `toPart` narrows the TARGET end of a `travel` independently (e.g. from the source's medallion to the
+ *  target's centre); it defaults to `part`, so a caller that passes only one part keeps both ends on it — the
+ *  behaviour before per-end parts existed. */
 export function resolveAnchor(
   anchors: FxAnchors, id: FxAnchorId, progress: number, bow = TRAVEL_BOW, part: FxAnchorPart | null = null,
+  toPart: FxAnchorPart | null = part,
 ): FxPoint {
   if (id === 'travel') {
-    return pointOnTravel(endPoint(anchors, 'source', part) ?? ORIGIN, endPoint(anchors, 'target', part) ?? ORIGIN, progress, bow);
+    return pointOnTravel(endPoint(anchors, 'source', part) ?? ORIGIN, endPoint(anchors, 'target', toPart) ?? ORIGIN, progress, bow);
   }
   if (id === 'source' || id === 'target') return endPoint(anchors, id, part) ?? ORIGIN;
   return anchors[id] ?? ORIGIN;
@@ -81,8 +85,12 @@ export interface FxHeadSink {
  *  `EditorLayer` satisfy it without either module having to know about the other. */
 export interface FxAnchoredLayer {
   anchor: FxAnchorId;
-  /** Which part of the anchored unit's card to land on — see `FxAnchorPart`. Absent / null = the centre. */
+  /** Which part of the anchored unit's card to land on — see `FxAnchorPart`. Absent / null = the centre. For a
+   *  `travel` layer this is the SOURCE (from) end. */
   anchorPart?: FxAnchorPart | null;
+  /** `travel` only: the part of the TARGET (to) unit's card the arc ends on, independent of `anchorPart`.
+   *  Absent / null = fall back to `anchorPart`, so both ends share one part — the pre-per-end behaviour. */
+  anchorPartTo?: FxAnchorPart | null;
   /** Layer timing, for resolving `travel` against this layer's OWN window (see `layerTravelProgress`).
    *  Optional so a caller that only cares about anchoring — and every existing test fake — still satisfies
    *  the type; absent reads as a layer spanning the whole composition. */
@@ -182,18 +190,21 @@ export function driveLayerHeads(
     // `layer.bow ?? TRAVEL_BOW` and not `|| ` — a bow of literally 0 is the whole point of the field (a
     // dead-straight laser), and `||` would swallow it back into the default arc.
     const part = layer.anchorPart ?? null;
+    // The TARGET end's part for a travel layer, independent of the source end; absent = fall back to `part`
+    // (both ends share one part — the pre-per-end behaviour).
+    const toPart = layer.anchorPartTo ?? part;
     const pt =
       head !== null && anchor === 'travel'
         ? head
-        : resolveAnchor(anchors, anchor, travelAt, layer.bow ?? TRAVEL_BOW, part);
+        : resolveAnchor(anchors, anchor, travelAt, layer.bow ?? TRAVEL_BOW, part, toPart);
     sink.setHead(i, pt.x, pt.y);
     // Three identity checks per layer, all on loop-invariant consts — narrowed here rather than hoisted into
     // a boolean because a boolean would not narrow `src`/`tgt`/`setAim` for TypeScript inside the loop. A
-    // layer aimed at a PART aims part-to-part (a beam from the caster's medallion to the victim's badge);
-    // the common no-part case keeps the hoisted pair.
+    // layer aimed at a PART aims part-to-part (a beam from the caster's medallion to the victim's badge); the
+    // source end rides `part`, the target end `toPart`. The common no-part case keeps the hoisted pair.
     if (setAim !== undefined && src !== undefined && tgt !== undefined) {
       const s = part !== null && part !== 'card' ? (endPoint(anchors, 'source', part) ?? src) : src;
-      const t = part !== null && part !== 'card' ? (endPoint(anchors, 'target', part) ?? tgt) : tgt;
+      const t = toPart !== null && toPart !== 'card' ? (endPoint(anchors, 'target', toPart) ?? tgt) : tgt;
       setAim.call(sink, i, s.x, s.y, t.x, t.y);
     }
   }

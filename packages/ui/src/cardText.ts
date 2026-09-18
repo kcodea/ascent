@@ -411,6 +411,29 @@ export function scTribeBuffPerPlayedText(cardId: string, golden: boolean, played
 }
 
 /**
+ * Bicycle Bob (`overflowBuffRandomTribePerPlayed`) — an overflow gives a random other <tribe> minion +A/+H, and the
+ * grant improves by the base for every <tribe> minion PLAYED this turn: (base × (1 + played)) × golden. Print the
+ * CURRENT grant (green) in place of the printed "+A/+H" (the hard live-value rule, both chains). `playedOf` answers
+ * the count for the card's tribe — the player counts its `playedThisTurn` ids through the shared tribe predicate,
+ * a served foe reads its snapshot's per-tribe map. Null before any qualifying play (the printed base is exact).
+ */
+export function overflowPerPlayedText(cardId: string, golden: boolean, playedOf: (tribe: Tribe) => number): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'overflowBuffRandomTribePerPlayed');
+  if (!def || !eff) return null;
+  const p = eff.params as { tribe?: string; attack?: number; health?: number } | undefined;
+  const tribe = String(p?.tribe ?? 'undead') as Tribe;
+  const played = playedOf(tribe);
+  if (played <= 0) return null;
+  const g = golden ? 2 : 1;
+  const a = Number(p?.attack ?? 1) * (1 + played) * g;
+  const h = Number(p?.health ?? 1) * (1 + played) * g;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  let done = false;
+  return src.replace(/\+\d+\/\+\d+/g, (m) => (done ? m : ((done = true), `{{+${a}/+${h}}}`)));
+}
+
+/**
  * DRUNKEN OAF (`scBuffRandomTribePerAle`) — Start of Combat gives a Dwarf +A/+H, repeated once more for every
  * Dwarven Ale cast this turn, so the reps are `1 + ales`. Spell out what it will ACTUALLY do right now: the rep
  * count and the total stats it's about to hand out, alongside the unchanged per-rep rate. Returns null on a dry

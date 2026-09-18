@@ -10,6 +10,7 @@ import {
 } from './index';
 import { STAR_DESTROYER } from '@game/content';
 import { applyShopRefreshed, addTurnShopBuff, applyRunShopBuff, consumeShopMinion, addOfferBuff, castSpellOnOffer, rightmostShopMinion } from './recruit';
+import { COLLAPSE_ORIGINALS } from './starform';
 
 /**
  * THE STARFORM — set 3 Celestials' shop token (owner design 2026-09-12; rules v2 2026-09-13). Every numbered
@@ -356,9 +357,9 @@ describe('rule 5 — BUYING it = your LEFT-MOST Celestial consumes it (full stat
     expect(s.hand.length, 'nothing entered the hand').toBe(hand);
     expect(s.pool, 'nothing returned').toEqual(pool);
     const c1 = s.board.find((c) => c.uid === 'c1')!, c2 = s.board.find((c) => c.uid === 'c2')!;
-    expect([c1.attack, c1.health], 'the LEFT-most Celestial — the sandbag at index 0 is skipped').toEqual([1 + 5, 1 + 7]);
+    expect([c1.attack, c1.health], 'the LEFT-most Celestial — the sandbag at index 0 is skipped').toEqual([2 + 5, 1 + 7]); // Cosmo Express 2/1 since 2026-09-18
     expect(c1.buffs?.find((b) => b.source === 'Starform')).toMatchObject({ attack: 5, health: 7 });
-    expect([c2.attack, c2.health], 'the second Celestial gets nothing').toEqual([2, 4]);
+    expect([c2.attack, c2.health], 'the second Celestial gets nothing').toEqual([4, 2]) // Sugarnova is 4/2 (2026-09-18);
     expect(s.board[0]!.attack, 'the non-Celestial is untouched').toBe(0);
     expect(s.cardsBoughtThisTurn, 'counted as a minion bought (the opening buy + this one)').toBe(2);
     expect(s.board[3]!.attack, 'the onBuy watcher heard it (twice: the opening buy + this one)').toBe(2 + 3 + 3);
@@ -368,11 +369,11 @@ describe('rule 5 — BUYING it = your LEFT-MOST Celestial consumes it (full stat
     let one = runOpen({ board: [body('c', 'ce3_courier')] });
     buffStarform(one, 2, 2, 'test'); createStarform(one, SRC); buffStarform(one, 2, 2, 'test');
     one = act(one, { type: 'buy', uid: starformOf(one)!.uid });
-    expect([one.board[0]!.attack, one.board[0]!.health]).toEqual([1 + 3, 1 + 3]);
+    expect([one.board[0]!.attack, one.board[0]!.health]).toEqual([2 + 3, 1 + 3]); // Cosmo Express 2/1 since 2026-09-18
     let three = runOpen({ board: [body('a', 'ce3_courier'), body('b', 'ce3_vendor'), body('c', 'ce3_seer')] }); // three DIFFERENT Celestials (three of a kind would triple)
     createStarform(three, SRC); buffStarform(three, 9, 9, 'test');
     three = act(three, { type: 'buy', uid: starformOf(three)!.uid });
-    expect(three.board.map((c) => c.attack)).toEqual([11, 2, 3]);
+    expect(three.board.map((c) => c.attack)).toEqual([12, 4, 0]); // Cosmo Express 2/1 + Sugarnova 4/2 + Gravestar Seer 0/8 since 2026-09-18
   });
 
   it('NO Celestial on board: the Gold is still taken, the token is lost (stats go nowhere), and the watcher hears reason consume — so a Zenith still re-creates', () => {
@@ -415,7 +416,7 @@ describe('rule 5 — BUYING it = your LEFT-MOST Celestial consumes it (full stat
     const eater = s.board[0]!;
     expect(consumeShopMinion(s, eater, rightmostShopMinion(s))).toBe(true);
     expect(hasStarform(s)).toBe(false);
-    expect([eater.attack, eater.health]).toEqual([1 + 5, 1 + 5]);
+    expect([eater.attack, eater.health]).toEqual([2 + 5, 1 + 5]); // Cosmo Express 2/1 since 2026-09-18
     expect(s.board[1]!.attack, 'starformRemoved(consume)').toBe(2 + 5);
     expect(holdsEquipment(s, STAR_DESTROYER.id), 'the Star Destroyer left with it').toBe(false);
   });
@@ -547,7 +548,7 @@ describe('rule 6 — printed stats are the counter; every shop buff bakes onto t
   });
 });
 
-describe('rule 7 — consume = 100% to one; collapse = 50% to 2 unique + extras (with replacement), rounded up; base included', () => {
+describe('rule 7 — consume = 100% to one; collapse = 50% to 3 unique (COLLAPSE_ORIGINALS; 2 until 2026-09-18) + extras (with replacement), rounded up; base included', () => {
   it('consumeStarform removes the token and returns its FULL stats (base 1/1 included)', () => {
     const s = runOpen({ board: [body('c', 'ce3_courier'), body('z', removedWatcher.id)] });
     createStarform(s, SRC);
@@ -572,15 +573,19 @@ describe('rule 7 — consume = 100% to one; collapse = 50% to 2 unique + extras 
     expect(starformStats(s)).toBeNull();
   });
 
-  it('collapseHits: 2 UNIQUE originals, then the extras WITH replacement; fewer Celestials → fewer originals; none → empty', () => {
+  it('collapseHits: 3 UNIQUE originals by default (owner 2026-09-18), then the extras WITH replacement; fewer Celestials → fewer originals; none → empty', () => {
     const cel = (uid: string) => body(uid, 'ce3_courier');
-    const s = run({ board: [cel('a'), cel('b'), cel('c'), body('n', 'sandbag')] });
+    const s = run({ board: [cel('a'), cel('b'), cel('c'), cel('d'), body('n', 'sandbag')] });
+    expect(COLLAPSE_ORIGINALS).toBe(3);
     for (let seed = 0; seed < 20; seed++) {
       s.rngCursor = seed;
+      const three = collapseHits(s, undefined, 0);
+      expect(three, 'the default draws COLLAPSE_ORIGINALS').toHaveLength(3);
+      expect(new Set(three.map((c) => c.uid)).size, 'unique').toBe(3);
+      expect(three.some((c) => c.uid === 'n'), 'never a non-Celestial').toBe(false);
       const two = collapseHits(s, 2, 0);
       expect(two).toHaveLength(2);
       expect(new Set(two.map((c) => c.uid)).size, 'unique').toBe(2);
-      expect(two.some((c) => c.uid === 'n'), 'never a non-Celestial').toBe(false);
     }
     // Extras may repeat: over many seeds, at least one draw of 2 + 3 extras lands 3 on a single body.
     let tripled = false;
@@ -599,7 +604,7 @@ describe('rule 7 — consume = 100% to one; collapse = 50% to 2 unique + extras 
     expect(collapseHits(none, 2, 4)).toEqual([]);
     // The run-wide counter feeds the default extras.
     const wide = run({ board: [cel('a')], collapseExtraTargets: 3 } as Partial<RunState>);
-    expect(collapseHits(wide)).toHaveLength(4);
+    expect(collapseHits(wide), '1 original (one body) + 3 extras').toHaveLength(4);
   });
 });
 

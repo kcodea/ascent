@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { EPIC_RUNES, RUNES } from '@game/content';
+import { CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
+import type { QuestReward } from '@game/core';
 import type { Tribe } from '@game/core';
 import { runeforgePool } from './reducer';
 import { HEROES, playableHeroes, practiceHeroes, powerDiscoverPool } from './heroes';
@@ -13,17 +14,27 @@ import { createRun, runTribesForSeed, type RunState } from './state';
 
 const WORD: Record<Exclude<Tribe, 'neutral'>, RegExp> = {
   // Imps and Fodder ARE Demon content (owner 2026-09-10), so an Imp rune counts as naming Demons.
-  dragon: /\bDragons?\b/i, beast: /\bBeasts?\b/i, demon: /\bDemons?\b|\bImps?\b|\bFodder\b/i, mech: /\bMechs?\b/i, undead: /\bUndead\b/i,
+  dragon: /\bDragons?\b/i, beast: /\bBeasts?\b/i, demon: /\bDemons?\b|\bImps?\b|\bFodder\b/i, mech: /\bMechs?\b|\bAttachments?\b/i, undead: /\bUndead\b/i,
   // The Starform is the Celestials' token (set 3, 2026-09-12) and Star Crash is their own spell, so a Starform or Star Crash rune
   // counts as naming Celestials — the Imp rule; the three Revelers ARE Spirit content (Set 3 batch 2, 2026-09-16), so a Reveler rune names Spirits.
-  dwarf: /\bDwarv(?:es)?\b|\bDwarf\b/i, kobold: /\bKobolds?\b/i, spirit: /\bSpirits?\b|\bRevelers?\b/i, celestial: /\bCelestials?\b|\bStarforms?\b|\bStar Crash(?:es)?\b/i,
+  // Rubies are the Kobolds' currency, Dwarven Ales the Dwarves', Attachments the Mechs' (owner tag pass 2026-09-18).
+  dwarf: /\bDwarv(?:es|en)?\b|\bDwarf\b|\bAles?\b/i, kobold: /\bKobolds?\b|\bRub(?:y|ies)\b/i, spirit: /\bSpirits?\b|\bRevelers?\b/i, celestial: /\bCelestials?\b|\bStarforms?\b|\bStar Crash(?:es)?\b/i,
 };
 /** Owner ruling 2026-09-10: a rune that only GRANTS a tribe body (Kegheart, High King) is gated like one that reads
  *  the board — so this allowlist is empty on purpose. Adding an id here needs an owner call. */
 const BODY_GRANT_ONLY = new Set<string>([]);
 
-const namesTribe = (rune: { text: string; reward?: unknown }, tribe: Tribe): boolean =>
-  WORD[tribe as Exclude<Tribe, 'neutral'>].test(rune.text) || JSON.stringify(rune).includes(`"tribe":"${tribe}"`) || JSON.stringify(rune).includes(`"randomTribe":"${tribe}"`);
+/** The tribes of the bodies a reward GRANTS (Rune of Lazarus → Lazarus is Undead) — the 2026-09-10 ruling's
+ *  "only grants a tribe body" case, resolved through the card index rather than a hand list. */
+const grantedTribes = (r: QuestReward | undefined): Tribe[] => {
+  if (!r) return [];
+  if (r.kind === 'grant') return [...(r.cards ?? []), ...(r.grantGolden ?? [])].map((id) => CARD_INDEX[id]?.tribe).filter((t): t is Tribe => !!t && t !== 'neutral');
+  if (r.kind === 'recurringGrant') return r.cards.map((id) => CARD_INDEX[id]?.tribe).filter((t): t is Tribe => !!t && t !== 'neutral');
+  if (r.kind === 'multi') return r.rewards.flatMap(grantedTribes);
+  return [];
+};
+const namesTribe = (rune: { text: string; reward?: QuestReward }, tribe: Tribe): boolean =>
+  WORD[tribe as Exclude<Tribe, 'neutral'>].test(rune.text) || JSON.stringify(rune).includes(`"tribe":"${tribe}"`) || JSON.stringify(rune).includes(`"randomTribe":"${tribe}"`) || grantedTribes(rune.reward).includes(tribe);
 
 describe('rune tribe tags agree with the printed text', () => {
   it('every tagged tribe is named by the text (or the reward params)', () => {

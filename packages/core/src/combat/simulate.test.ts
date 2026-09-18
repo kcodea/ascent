@@ -975,20 +975,20 @@ describe('simulate (handoff A.3)', () => {
     expect(enemySide.playerSpellPower).toBeUndefined();
   });
 
-  it("Grave Knit's combat death reports a run-wide +3/+2 card-type buff; two deaths stack to +6/+4", () => {
-    // One Grave Knit dies → one carry-back entry of +3/+2 for the 'knit' card type.
-    const one = run([{ cardId: 'knit', attack: 3, health: 2 }], [{ cardId: 'sandbag', attack: 5, health: 30 }], 5);
-    expect(one.playerCardBuffs).toEqual([{ cardId: 'knit', attack: 3, health: 2 }]);
-    // Two Grave Knits both die → the entry sums to +6/+4 (each death stacks).
+  it("Spear Warden's combat death reports a run-wide +4/+2 card-type buff; two deaths stack to +8/+4 (owner 2026-09-18)", () => {
+    // One Spear Warden dies → one carry-back entry of +4/+2 for the 'knit' card type.
+    const one = run([{ cardId: 'knit', attack: 4, health: 2 }], [{ cardId: 'sandbag', attack: 5, health: 30 }], 5);
+    expect(one.playerCardBuffs).toEqual([{ cardId: 'knit', attack: 4, health: 2 }]);
+    // Two Spear Wardens both die → the entry sums to +8/+4 (each death stacks).
     const two = run(
       [
-        { cardId: 'knit', attack: 3, health: 2 },
-        { cardId: 'knit', attack: 3, health: 2 },
+        { cardId: 'knit', attack: 4, health: 2 },
+        { cardId: 'knit', attack: 4, health: 2 },
       ],
       [{ cardId: 'sandbag', attack: 9, health: 60 }],
       5,
     );
-    expect(two.playerCardBuffs).toEqual([{ cardId: 'knit', attack: 6, health: 4 }]);
+    expect(two.playerCardBuffs).toEqual([{ cardId: 'knit', attack: 8, health: 4 }]);
     // An enemy Grave Knit dying gives the player nothing.
     const enemySide = run([{ cardId: 'sandbag', attack: 5, health: 30 }], [{ cardId: 'knit', attack: 3, health: 2 }], 5);
     expect(enemySide.playerCardBuffs).toBeUndefined();
@@ -1232,8 +1232,8 @@ describe('simulate (handoff A.3)', () => {
     const reborn = r.events.find((e) => e.type === 'reborn');
     expect(reborn).toBeDefined();
     if (reborn && reborn.type === 'reborn') {
-      // Its Eternal-Knight enchant applied ONCE: base 3 + 3 attack, 1 + 2 health.
-      expect(reborn.attack, 'own rattle fired once, not twice').toBe(6);
+      // Its Spear Warden death enchant applied ONCE: base 4 + 4 attack, 1 + 2 health.
+      expect(reborn.attack, 'one death, one stack').toBe(8);
       expect(reborn.hp).toBe(3);
     }
   });
@@ -1273,7 +1273,7 @@ describe('simulate (handoff A.3)', () => {
     const reborn = a.events.find((e) => e.type === 'reborn');
     expect(reborn).toBeDefined();
     if (reborn && reborn.type === 'reborn') {
-      expect(reborn.attack).toBe(6); // base 3 + its own death's +3 Eternal-Knight enchant (not the buffed 10)
+      expect(reborn.attack).toBe(8); // base 4 + its own death's +4 Spear Warden enchant (not the buffed 10)
       expect(reborn.hp).toBe(3); // 1 (Rise base Health) + the +2 enchant
       expect(reborn.keywords).not.toContain('DS'); // granted Divine Shield is gone
       expect(reborn.keywords).not.toContain('R'); // Reborn itself is spent
@@ -1286,10 +1286,11 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'omen', attack: 4, health: 60, keywords: [] }],
       3,
     );
-    // Golden: base attack 3×2 = 6 + golden enchant +6 → 12; Health 1 (Rise base — golden does NOT double it,
-    // owner ruling 2026-07-02) + golden enchant +4 → 5. Auras/enchants still apply on top of the 1.
+    // Golden: base attack 4×2 = 8 + the death enchant +4 → 12 (a gilded Warden dying is ONE death — the count
+    // is not gild-scaled, owner 2026-09-18); Health 1 (Rise base — golden does NOT double it, owner ruling
+    // 2026-07-02) + enchant +2 → 3. Auras/enchants still apply on top of the 1.
     const reborn = a.events.find((e) => e.type === 'reborn');
-    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([12, 5]);
+    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([12, 3]);
   });
 
   it('an attack exchange is simultaneous — retaliation damage lands BEFORE the dead defender\'s Deathrattle resolves', () => {
@@ -1403,7 +1404,7 @@ describe('simulate (handoff A.3)', () => {
     const wardens = a.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'knit');
     expect(wardens.length).toBe(1); // golden upgrades the summon, it does NOT double the count
     const w = wardens[0]!;
-    expect(w.type === 'summon' && w.minion.attack).toBe(6); // 3/2 base → gilded 6/4
+    expect(w.type === 'summon' && w.minion.attack).toBe(8); // 4/2 base → gilded 8/4
     expect(w.type === 'summon' && w.minion.health).toBe(4);
   });
 
@@ -1427,16 +1428,17 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('a captured ENEMY Spear Warden re-gains its OWN enchant when it Rises (snapshot auras intact)', () => {
-    // An enemy snapshot Warden carrying a +15/+10 Spear-Warden enchant on its buff breakdown (base 3/2 →
-    // 18/12) with Rise. On death it Rises from base — applyAuras must re-fold its own enchant even for the
-    // enemy side: base attack 3 + 15 = 18, Rise Health 1 + 10 = 11 (NOT bare 3/1).
+    // An enemy snapshot Warden carrying a +15/+10 Spear-Warden enchant on its buff breakdown (base 4/2 →
+    // 19/12) with Rise. On death it Rises from base — applyAuras must re-fold its own enchant even for the
+    // enemy side: base attack 4 + 15 = 19, Rise Health 1 + 10 = 11 (NOT bare 4/1). The stack its own death
+    // banks is a carry-back for the enemy side (KNOWN ASYMMETRY), so it is not on the risen body.
     const a = run(
       [{ cardId: 'omen', attack: 30, health: 90, keywords: [] }],
-      [{ cardId: 'knit', attack: 18, health: 12, keywords: ['R'], buffs: [{ source: 'Spear Warden', attack: 15, health: 10, count: 5 }] }],
+      [{ cardId: 'knit', attack: 19, health: 12, keywords: ['R'], buffs: [{ source: 'Spear Warden', attack: 15, health: 10, count: 5 }] }],
       3,
     );
     const reborn = a.events.find((e) => e.type === 'reborn');
-    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([18, 11]);
+    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([19, 11]);
   });
 
   it('Reborn fires the unit\'s Deathrattle on EVERY death — Twilight Whelp + Reborn leaves a Whelp per death', () => {
@@ -1477,16 +1479,16 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.slice(summonIdx + 1).some((e) => e.type === 'attack' && e.attacker === tokenUid)).toBe(true);
   });
 
-  it('Reborn carries the Eternal-Knight enchant — a fresh Reborn Knight returns at base attack + 1 Health + its own +3/+2', () => {
-    // Example: a 3/2 Eternal Knight with Reborn dies, banks its own +3/+2, and reborns as a 6/3 (base 3 + 3
+  it('Reborn carries the Spear Warden enchant — a fresh Reborn Warden returns at base attack + 1 Health + its own +4/+2', () => {
+    // Example: a 4/2 Spear Warden with Reborn dies, banks its own +4/+2, and reborns as an 8/3 (base 4 + 4
     // attack; 1 Rise Health + 2 enchant).
     const a = run(
-      [{ cardId: 'knit', attack: 3, health: 2, keywords: ['R'] }],
+      [{ cardId: 'knit', attack: 4, health: 2, keywords: ['R'] }],
       [{ cardId: 'omen', attack: 4, health: 24, keywords: [] }],
       1,
     );
     const reborn = a.events.find((e) => e.type === 'reborn');
-    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([6, 3]);
+    expect(reborn && reborn.type === 'reborn' ? [reborn.attack, reborn.hp] : null).toEqual([8, 3]);
   });
 
   it('a minion that Reborns from its own attack is next in line to attack again', () => {
@@ -3335,14 +3337,14 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('Lantern of Souls AND the Eternal-Knight enchant both re-apply to a player Undead that Reborns mid-combat', () => {
-    // Eternal Knight (Undead, Reborn, 3/2 base) enters at 3+3 = 6 Attack (Lantern), dies to retaliation, and
+    // Spear Warden (Undead, Reborn, 4/2 base) enters at 4+3 = 7 Attack (Lantern), dies to retaliation, and
     // Reborns at base — where BOTH Undead carry-through buffs re-apply: the Lantern (+3 Attack) AND its own
-    // death's Eternal-Knight enchant (+3/+2). So the reborn body is 3 + 3 + 3 = 9 Attack (not the base 3).
+    // death's Spear Warden enchant (+4/+2). So the reborn body is 4 + 3 + 4 = 11 Attack (not the base 4).
     const p: BoardMinion[] = [{ cardId: 'knit', attack: 2, health: 2, keywords: ['R'] }]; // R granted inline (knit is no longer Reborn by default)
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 5, health: 80 }]; // out-trades the Knit → forces the Reborn
     const a = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ undeadAtk: 3 }));
     const reborn = a.events.find((ev) => ev.type === 'reborn');
-    expect(reborn && reborn.type === 'reborn' && reborn.attack).toBe(9); // base 3 + Lantern 3 + Eternal-Knight 3
+    expect(reborn && reborn.type === 'reborn' && reborn.attack).toBe(11); // base 4 + Lantern 3 + Spear Warden 4
   });
 
   it('a Footman summoned mid-combat inherits the run-wide Undead aura (Lantern + the baked buy-time bonus)', () => {
@@ -3357,17 +3359,17 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('Spear Warden Reborn keeps its accrued stacks: a 5-stack Warden dies (→6) and Reborns at 6 stacks', () => {
-    // A Warden that entered with 5 prior stacks of its run-wide enchant (+3/+2 each = +15/+10, carried into
-    // combat on its buff breakdown under the card's own name) at base 3/2 → 18/12. It dies, banking a 6th
-    // stack this fight, and Reborns at base attack 3 + 6 stacks and 1 Health + the enchant health = 21/13.
+    // A Warden that entered with 5 prior stacks of its run-wide enchant (+4/+2 each = +20/+10, carried into
+    // combat on its buff breakdown under the card's own name) at base 4/2 → 24/12. It dies, banking a 6th
+    // stack this fight, and Reborns at base attack 4 + 6 stacks and 1 Health + the enchant health = 28/13.
     const p: BoardMinion[] = [{
-      cardId: 'knit', attack: 18, health: 12, keywords: ['R'],
-      buffs: [{ source: 'Spear Warden', attack: 15, health: 10, count: 5 }],
+      cardId: 'knit', attack: 24, health: 12, keywords: ['R'],
+      buffs: [{ source: 'Spear Warden', attack: 20, health: 10, count: 5 }],
     }];
-    const e: BoardMinion[] = [{ cardId: 'omen', attack: 20, health: 200 }]; // out-trades the Warden → forces the Reborn
+    const e: BoardMinion[] = [{ cardId: 'omen', attack: 30, health: 200 }]; // out-trades the Warden → forces the Reborn
     const a = simulate(p, e, makeRng(3), CARD_INDEX, combatSide());
     const reborn = a.events.find((ev) => ev.type === 'reborn');
-    expect(reborn && reborn.type === 'reborn' && reborn.attack).toBe(21); // base 3 + (15 prior + 3 this fight)
+    expect(reborn && reborn.type === 'reborn' && reborn.attack).toBe(28); // base 4 + (20 prior + 4 this fight)
     expect(reborn && reborn.type === 'reborn' && reborn.hp).toBe(13); // 1 (Rise) + (10 prior + 2 this fight)
   });
 
@@ -4340,15 +4342,15 @@ describe('Batch 7a combat runes (Rebirth / Aftershocks / Undertow / Mirror March
 });
 
 describe('Paragon (onRallyBuffOnePerTribe) scales with Rally doublers (owner 2026-08-14)', () => {
-  // Paragon buffs one minion of every tribe (+4/+4) whenever a friendly Rally fires. It is a WATCHER on
-  // another minion, so the Rally doubler — which re-runs only the attacker's own effects — used to skip it.
+  // Paragon buffs one minion of every tribe (+5/+5, owner 2026-09-18) whenever a friendly Rally fires. It is a
+  // WATCHER on another minion, so the Rally doubler — which re-runs only the attacker's own effects — used to skip it.
   const board = (): BoardMinion[] => [
     { cardId: 'n2_paragon', attack: 1, health: 40 },
     { cardId: 'stray', attack: 40, health: 40, keywords: ['RL'] }, // a rallying Beast that one-shots the dummy
   ];
   const enemy = (): BoardMinion[] => [{ cardId: 'sandbag', attack: 0, health: 40 }];
   const paragonFires = (r: { events: CombatEvent[] }): number =>
-    r.events.filter((e) => e.type === 'buff' && e.attack === 4 && e.health === 4).length;
+    r.events.filter((e) => e.type === 'buff' && e.attack === 5 && e.health === 5).length;
 
   it('the doubler makes Paragon fire per rally trigger (twice), not once', () => {
     const without = simulate(board(), enemy(), makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES }), combatSide({ tier: 1 }));

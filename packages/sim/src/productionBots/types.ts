@@ -104,6 +104,8 @@ export interface BotEquipmentView {
   /** Charges it can fire right now: its own remaining charge + the shared pool. */
   charges: number;
   targetMode: 'none' | 'friendly';
+  /** The board uids that GRANTED this Equipment — illegal aim targets (R-TARGET-03: never itself). */
+  sourceUids: readonly string[];
   /** The recruit factory one trigger resolves through (a Choose One Equipment lists its branches instead). */
   effectId: string;
   /** Branch effect ids when the Equipment opens a Choose One on use (Prismatic Pick). */

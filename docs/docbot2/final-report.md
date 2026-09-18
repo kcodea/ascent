@@ -46,7 +46,7 @@ axis, with any gap visible as a typed queue entry rather than as silence.
 | **Text classification bucket** | 1042 | 1042 (100%) | `textParse.test.ts` — every object lands in exactly one of four buckets; an unresolved parse is a queue entry, never a pass |
 | **Contract-oracle applicability** | 1042 | 1042 (100%) | `contractOracle.test.ts` — every contract is planned into §10.1 case templates; every unexecuted applicable case carries a typed skip reason |
 | **Interaction-graph membership** | 1042 | 1042 (100%) | `interactionGraph.test.ts` — every contract is a graph node; unmapped triggers are reported as a visible to-do (29 today) |
-| **Rulebook** | 148 rules (62 approved) | — | `enforcement.test.ts` — every approved rule names a backing lane file that must exist on disk |
+| **Rulebook** | 149 rules (63 approved) | — | `enforcement.test.ts` — every approved rule names a backing lane file that must exist on disk |
 
 **The inventory itself:** 588 cards (127 spells, 82 tokens), 59 hero powers, 142 + 139 runes, 117 quests —
 1042 contracted objects in total (1040 after the Yazzus fold, +2 for tranche D's two deferred combat-side runes; 1041 for a few hours on 2026-09-16, until the owner folded the set-3 Yazzus fork into the one `yazzus`; 990 until 2026-09-16, when Set 3 batch 2 — tranches A, B and C — added 49 runes + the Handy Flame and Skeleton tokens; 901 until 2026-08-28, when the owner archived the 16 Celestials — "leaving set 3 empty of minions now" — and every count in this report moved with them; +2 again the same day for the two Equipment reference cards; +8 on 2026-09-09 for the eight new set-3 Dwarves, −1 the same day when Gem Bus was archived; +11 the same day for the eleven new set-3 Undead; +3 the same day for Set 3 Neutrals tranche 1 — Splitboon Adept, the set-3 Yazzus, and Blaster back from the archive; +4 for tranche 2 — Defender, Inspector Pell and the two hand spells they mint, Tower Shield and Clue; +3 for tranche 3 — Highway Hustler, Warband Recruiter, Equipment Charger; +17 for the Set 3 Spirits tranche 1, a new tribe; +7 for tranche 2, the hand-summon cards; +9 on 2026-09-10 for the nine new Set 3 spells; +8 on 2026-09-11 for the eight reworked Set 3 Celestials; +1 on 2026-09-12 for the Starform shop token; +17 the same day for the Starform roster — sixteen Celestials and the Accretion spell).  Of those contracts, 16 are hand-authored curated ones and the rest are
@@ -71,12 +71,12 @@ the distance between those two is the single most important number in this repor
 | derived status **corroborated** (two independent sources agree — trace + text, or trace + params) | 500 |
 | derived status **approved** (owner-ruled intent, the strongest authority) | 1 |
 | derived status **extracted** (a draft nobody has corroborated yet) | 538 |
-| **with at least one case a driver actually EXECUTED this sweep** | 486 |
+| **with at least one case a driver actually EXECUTED this sweep** | 484 |
 | covered only by a **cited lane** (real evidence a human can follow — deliberately excluded from the fold) | 503 |
 
 `runContractSweep` refuses to fold a lane citation into a contract's status: a citation says "the
 `temporalWindow` lane covers this family", which is true and useful, but it is not the same as this
-contract's own case having been driven. That refusal is why the direct-execution number is 485 and not a
+contract's own case having been driven. That refusal is why the direct-execution number is 484 and not a
 flattering four-figure one — and why it was 36 until 2026-09-11, when the FAMILY DRIVERS landed
 (`packages/sim/src/docbot/drivers/`): one driver per CLAIM SHAPE (stat grant, card grant / summon,
 economy, keyword grant, equipment, vanilla body, activation) instead of one per object shape. "Executed"
@@ -93,7 +93,7 @@ Every applicable case that did not run says why. This is the §4.3 substrate; no
 | `covered-by-cited-lane` | 398 | an existing vitest lane owns the class; not re-executed per contract |
 | `gild-stated-by-golden-text` | 163 | a 'reshape' gild — the authored golden text states the form; the textOracle golden lane owns it |
 | `runtime-unobserved` | 163 | the driver ran and the engine emitted nothing observable — recorded, not hidden (a scenario-conditional effect the fixture did not reach: Imps, Fodder, Attachments, a lost last combat) |
-| `no-driver-for-shape` | 149 | **the largest real hole, down from 471** — an applicable case with no executable driver yet; the skip detail now names WHY (a scaler amount key such as `every` / `step` / `improve` / `per` that the first activation does not print — 110; a def-level behaviour field the extractor never states, `discoverOnPlay` / `manaPerTurn` / `ruby` … — 29; a trigger no stager fires yet — 10) |
+| `no-driver-for-shape` | 156 | **the largest real hole, down from 471** — an applicable case with no executable driver yet; the skip detail now names WHY (a scaler amount key such as `every` / `step` / `improve` / `per` that the first activation does not print — 110; a def-level behaviour field the extractor never states, `discoverOnPlay` / `manaPerTurn` / `ruby` … — 29; a trigger no stager fires yet — 10) |
 | `gild-not-applicable` | 130 | R-GILD-02 — spells and Rubies are never gilded |
 | `contract-states-no-magnitude` | 87 | the activation family proved the effect ACTS, but the contract states no number a magnitude could be compared to |
 | `gild-shape-not-countable` | 65 | a keyword grant, a Choose One (a gilded body may resolve both branches), an extra-proc, or an activation-only family — no single ×factor to check |
@@ -117,7 +117,7 @@ The one standing disagreement the full sweep prints is `shaper` (`effects.1.summ
 | parsed-equivalent | 917 |
 | verified-mismatch | 0 |
 | approved-exception | 0 |
-| **unresolved-parse** | 85 |
+| **unresolved-parse** | 89 |
 
 0 mismatches stand today (0 unpinned, 0 stale pins — both gated). The 2026-09-11 parser coverage pass
 (`docs/devlog/2026-09-11-docbot-text-parser-coverage.md`) took the unresolved queue from 582 (59%) to 55
@@ -130,7 +130,7 @@ only its Avenge buff; Cling Drone and Porkbelly act through id-keyed / flag-driv
 The rewrite advisor produced 0 wording recommendations against the 27-entry language guide. They are
 suggestions with `suggestedText`; nothing is ever applied to production content (§23).
 
-**85 unresolved parses remain, a hard-ceilinged queue** (63 before Set 3 batch 2 — tranches A, B and C — added their Spirit / Starform / Equipment / Undead rune shapes on 2026-09-16). `textParse.test.ts` pins the count (the ratchet may
+**89 unresolved parses remain, a hard-ceilinged queue** (63 before Set 3 batch 2 — tranches A, B and C — added their Spirit / Starform / Equipment / Undead rune shapes on 2026-09-16; 87 → 89 with the 2026-09-18 Kobold/Neutral rework — Kobe's "play … Rubies" and Arena Heckler's "attack it immediately"). `textParse.test.ts` pins the count (the ratchet may
 only shrink) AND asserts the unresolved share stays below 35% of active objects, so a content PR can no
 longer raise the pin past that line without a grammar change. The remainder is bespoke prose (hero-power
 flavour, "alternates between Attack and Health", "Bind … stats gained by one are gained by the other") that a
@@ -140,9 +140,9 @@ rule-per-sentence would not honestly cover.
 
 ## 4. Interaction intelligence (§18-F)
 
-- Graph: **1811** nodes / **5660** edges over the contract registry (content, effect-family, trigger-family,
+- Graph: **1810** nodes / **5656** edges over the contract registry (content, effect-family, trigger-family,
   channel, keyword, multiplier, copy-mode, counter, zone, phase-boundary nodes).
-- Applicability: **141530** candidate pairs against 542361 naive all-pairs (26.1%) — the producer → channel →
+- Applicability: **141136** candidate pairs against 542361 naive all-pairs (26.0%) — the producer → channel →
   consumer join is what makes pairwise tractable at all.
 - Sweep (full pairwise + §10.4 triples): 151 rows — 109 covered, 0 failed, 12 inapplicable, 30 blocked.
 - Families with at least one covered row: 12 of 23.
@@ -201,7 +201,7 @@ Reachable needs-ruling cards, waiting on a sitting the main session schedules �
 
 ## 7. Oracle families and sabotage evidence (§4.5)
 
-- **72** vitest lane files under `packages/sim/src/docbot/`.
+- **74** vitest lane files under `packages/sim/src/docbot/`.
 - **34** of them carry an in-file mutation/sabotage proof — a deliberate defect the lane must catch
   (`familyDrivers.test.ts` sabotages every family driver: a doctored amount, a doctored gilded factor, a
   wrong named card, a doctored count, a hidden Shout on a "vanilla" contract, and a vanilla body under an
@@ -225,7 +225,7 @@ Sixteen lines, each marked with a citable artifact. **5 done · 11 partial · 0 
 | 2 | Every approved global rule has an executable oracle | **partial** | `enforcement.test.ts` gates a backing lane per approved rule; two approved rules (`R-PLAY-01`, `R-AURA-01`) remain pinned unenforced |
 | 3 | All meaningful effects are visible in a causal semantic trace | **partial** | recruit envelope + `combatTrace.ts` adapter + `semanticTrace.test.ts`; combat causality is **step grouping, not proven parenthood** — `cause.stepRootEventId` is documented as such and true trigger-stack parenting needs simulate() instrumentation |
 | 4 | Shop and combat bug reports replay exact action sequences | **partial** | `QaScenarioV1.actions` (RecordedActionWindow trail) + `runQaScenario` divergence classification replay shop action trails exactly; combat replays from the pinned board and seed, not from a per-event action trail |
-| 5 | Every active content object passes applicable generated scenarios or has visible failures | **partial** | 485 contracts had a case directly executed (36 before the 2026-09-11 family drivers), 0 metamorphic failures, 0 limit failures, one standing draft disagreement (`shaper`); 153 applicable cases still have no driver, each skip naming the scaler key / def field / trigger that keeps it out |
+| 5 | Every active content object passes applicable generated scenarios or has visible failures | **partial** | 485 contracts had a case directly executed (36 before the 2026-09-11 family drivers), 0 metamorphic failures, 0 limit failures, one standing draft disagreement (`shaper`); 155 applicable cases still have no driver, each skip naming the scaler key / def field / trigger that keeps it out |
 | 6 | Applicable pairwise interactions are covered and reported semantically | **partial** | 93491 candidates enumerated and reported by channel; 106 covered rows, 30 blocked rows each with a typed reason. Coverage is by family, not per candidate pair |
 | 7 | High-risk triple interactions are covered | **partial** | §10.4 triples run in the same sweep; 6 of the 8 triple families are blocked with cited reasons |
 | 8 | Verified findings are deterministic, minimized, and reproducible from Scene Builder and CLI | **done** | `seedMinimize.ts` (1-minimal proof), `docbot:scenario -- <id>`, the Scene Builder QA bridge, `qaScenarioParity.test.ts`; findings carry a `reproduction` line |
@@ -234,7 +234,7 @@ Sixteen lines, each marked with a citable artifact. **5 done · 11 partial · 0 
 | 11 | Unruled behavior is reported as questionable rather than declared broken | **done** | the anomaly oracle caps at `questionable-interaction` by construction, with competing interpretations attached; sabotage-tested in `anomalyOracle.test.ts` |
 | 12 | Confirmed reports graduate into permanent regressions | **partial** | `bugs:graduate` + `bugTaxonomy.graduated.json` + `regressionScenarios.test.ts` are built and refusal-tested; **zero real player reports have graduated** — the loop is proven only by the synthetic walkthrough in `ci-lanes.md` |
 | 13 | CI prevents new active content from bypassing contracts and text verification | **done** | `contractExtract.test.ts` (contract inventory gate) + `textParse.test.ts` (classification + grow-loudly unresolved ratchet) both ride the required `verify` check |
-| 14 | Mutation/sabotage tests demonstrate detection in every oracle family | **partial** | 34 of 72 docbot lanes carry an in-file sabotage proof, plus the retro harness's 18 reinjections (14 caught, measured weekly); the remaining lanes are structural ratchets without one |
+| 14 | Mutation/sabotage tests demonstrate detection in every oracle family | **partial** | 37 of 74 docbot lanes carry an in-file sabotage proof, plus the retro harness's 18 reinjections (14 caught, measured weekly); the remaining lanes are structural ratchets without one |
 | 15 | Existing ad hoc probes that duplicate the platform are retired or converted | **partial** | the tripwire-numbering fork is retired in this PR (§9); the legacy `scenario.json` path and the two `combatEventLines` renderers are documented keeps with dated conditions, not yet executed |
 | 16 | A final coverage report lists what Doc Bot can prove and its blind spots | **done** | this document, generated by `npm run docbot:report` and drift-gated by `docbot-report.test.ts` |
 
@@ -268,10 +268,10 @@ Nothing is retired without proving the replacement catches the same class. Each 
 
 Ordered by how much they limit a confident claim. The counted ones are re-derived every run.
 
-1. **85 unresolved parses, and draft contracts on the other side.** The parser now reads 94% of printed text,
+1. **89 unresolved parses, and draft contracts on the other side.** The parser now reads 94% of printed text,
    but a comparison is only as strong as the contract it compares against — and most contracts are
    unreviewed extractor drafts, so a disagreement is a question, not a verdict (§6.1).
-2. **154 contract shapes with no driver.** Still the single largest verification hole, though down from
+2. **156 contract shapes with no driver.** Still the single largest verification hole, though down from
    471: the family drivers stage every stat / card / economy / keyword / equipment / vanilla / activation
    claim, and what is left is named per skip — scaler magnitudes (110), def-level behaviour the extractor
    does not state (29), and triggers no stager fires (10).

@@ -52,7 +52,7 @@ describe('Prismatic Pick', () => {
     expect(done.hand.length, 'nothing is handed over — you choose').toBe(0);
     expect(done.discover?.length, 'three Choose One cards to pick from').toBe(3);
     for (const id of done.discover ?? []) expect(CARD_INDEX[id]?.chooseOne?.length, `${id} is a Choose One card`).toBeGreaterThan(0);
-    expect(s.embers - done.embers, 'the Pick costs 2, charged once').toBe(2);
+    expect(s.embers - done.embers, 'the Pick costs 1, charged once').toBe(1); // 2 → 1, owner balance pass 2026-09-18
     expect(equipmentUsesLeft(done), 'one allowance, not two').toBe(equipmentUsesLeft(s) - 1);
     expect(done.chooseOnePick, 'the pick was consumed').toBeUndefined();
   });
@@ -61,7 +61,7 @@ describe('Prismatic Pick', () => {
     const s = armed();
     const done = act(act(s, { type: 'activateEquipment' }), { type: 'chooseOne', index: 1 });
     expect(done.chooseBothCharges, 'one charge armed').toBe(1);
-    expect(s.embers - done.embers, 'still charged once').toBe(2);
+    expect(s.embers - done.embers, 'still charged once').toBe(1); // 2 → 1, owner balance pass 2026-09-18
   });
 
   it('a GILDED Artificer opens the Discover twice — the second queued behind the first', () => {
@@ -82,7 +82,7 @@ describe('Prismatic Pick', () => {
   });
 
   it('an unaffordable Pick never even asks', () => {
-    const s = { ...armed(), embers: 1 };
+    const s = { ...armed(), embers: 0 }; // the Pick costs 1 since 2026-09-18
     const asked = act(s, { type: 'activateEquipment' });
     expect(asked.chooseOne, 'no question it cannot answer').toBeUndefined();
   });

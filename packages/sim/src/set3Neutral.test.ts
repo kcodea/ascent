@@ -65,7 +65,7 @@ describe('Splitboon Adept (Choose One)', () => {
     expect(s.board.map((c) => c.uid)).toEqual(['l', 'sb', 'r']);
     expect([at(s, 'l').attack, at(s, 'l').health]).toEqual([4, 4]);
     expect([at(s, 'r').attack, at(s, 'r').health]).toEqual([4, 4]);
-    expect([at(s, 'sb').attack, at(s, 'sb').health]).toEqual([3, 4]);
+    expect([at(s, 'sb').attack, at(s, 'sb').health]).toEqual([4, 4]); // Halfsies 3/4 → 4/4, owner stat pass 2026-09-18
 
     let g = setup(true);
     g = reduce(g, { type: 'play', uid: 'sb', toIndex: 0 } as Action); // leftmost: only ONE neighbour

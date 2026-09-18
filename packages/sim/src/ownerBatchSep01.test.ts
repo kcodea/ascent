@@ -29,10 +29,10 @@ describe('Standard Bearer — the Rally buff lasts the FIGHT, not the run (owner
     expect(def.goldenText).toContain('+6/+6');
   });
 
-  it('Paragon is untouched — still +4/+4 and still permanent', () => {
+  it('Paragon is untouched — +5/+5 (owner 2026-09-18) and still permanent', () => {
     // The two share ONE factory, so a param whose default leaked would silently strip Paragon's permanence.
     const p = CARD_INDEX['n2_paragon']!.effects[0]!.params as { attack: number; permanent?: boolean };
-    expect(p.attack).toBe(4);
+    expect(p.attack).toBe(5);
     expect(p.permanent, 'absent = permanent, which is what Paragon prints').toBeUndefined();
     expect(CARD_INDEX['n2_paragon']!.text).toMatch(/permanent/i);
   });

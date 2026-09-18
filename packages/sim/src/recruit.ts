@@ -54,7 +54,7 @@ type RecruitFn = (
 ) => void;
 
 import { SPELL_POWER_EXCUSED } from './docbot/historyRegistry';
-import { buffStarform, collapseHits, collapseStarform, createStarform, destroyStarform, hasStarform, starformConsumeShopMinion, starformFollowShopBuff, starformRefreshLand } from './starform';
+import { COLLAPSE_ORIGINALS, buffStarform, collapseHits, collapseStarform, createStarform, destroyStarform, hasStarform, starformConsumeShopMinion, starformFollowShopBuff, starformRefreshLand } from './starform';
 import { syncStarDestroyer } from './equipment';
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
@@ -307,6 +307,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     alesLastTurn: () => state.alesCastThisTurn ?? 0,
     engraveNeighbours: () => {}, // Engrave = "keep your combat gains"; every shop gain is already permanent
     engraveBoard: () => {},
+    attackNow: () => {}, // Arena Heckler's strike — no one to hit in the shop (the `armBleed` class)
     castLeftmostHandSpellOnAdjacent: (tribe) => {
       // Quil's shop half: cast the leftmost hand Shop Spell on the adjacent `tribe` neighbours — the STAT
       // family of the combat resolver, mirrored (buffs + spell power), each repetition a REAL counted cast
@@ -1258,6 +1259,17 @@ export function displayedStatsOf(state: RunState, card: BoardCard): { attack: nu
 function writeStatResult(state: RunState, card: BoardCard, source: string, resultAtk: number, resultHp: number): void {
   const baked = bakedAuraOf(state, card);
   addBuff(card, source, (resultAtk + baked.attack) - card.attack, (resultHp + baked.health) - card.health);
+}
+
+/**
+ * R-TARGET-03 — NO CARD TARGETS ITSELF (owner ruling 2026-09-18, global). Every shop-side effect that CHOOSES a
+ * friendly minion — a random pick, an aimed Shout, an Equipment aim, a minion-cast targeted spell — draws from
+ * this pool: the board WITHOUT the source. Positional reads ("adjacent", "left-most", "on this") are not
+ * choices and keep their own membership. The combat twin is `otherFriends` in factories.ts; the arena twin is
+ * `others` in arena.ts. One rule, three phase-native helpers — never a per-card exclusion.
+ */
+export function othersOnBoard(state: RunState, self: { uid: string }, pred?: (c: BoardCard) => boolean): BoardCard[] {
+  return state.board.filter((c) => c.uid !== self.uid && (!pred || pred(c)));
 }
 
 export function buffCardTypeRunWide(state: RunState, cardId: string, a: number, h: number, source: string): void {
@@ -2472,12 +2484,37 @@ export function destroyMinionInShop(
  * deferred `pendingDeath` settle — so every destroyer (Cage Breaker, a Deathfibrillator, Graverobber …) counts.
  */
 export function afterShopDestroy(state: RunState, destroyed: BoardCard): void {
+  noteShopCardDeath(state, destroyed);
   if (!state.runeLastRites || state.lastRitesUsedThisTurn || !isTribe(destroyed, 'undead')) return;
   const def = CARD_INDEX[destroyed.cardId];
   if (!def) return;
   state.lastRitesUsedThisTurn = true;
   procRuneId(state, 'rune_last_rites');
   for (let k = 0; k < runeStacksOf(state, 'rune_last_rites'); k++) grantMinionToHandOrBoard(state, def, false, true);
+}
+
+/**
+ * SPEAR WARDEN's death count, SHOP half (owner rework 2026-09-18: "for every Spear Warden that died this game").
+ * A shop destroy — Cage Breaker, a Deathfibrillator, Graverobber — is a death too, so it feeds the same run-wide
+ * `cardBuffs` enchant combat's `noteCardDeath` feeds (`buffCardTypeRunWide`: every copy on board + in hand grows
+ * now, and every future copy is minted with it). The dying body itself is still on the board at this point in
+ * both destroy paths; it is skipped, and a Rise rebuilds it from the def + the enchant (`riseReturn`).
+ */
+function noteShopCardDeath(state: RunState, destroyed: BoardCard): void {
+  const eff = CARD_INDEX[destroyed.cardId]?.effects.find((e) => e.on === 'passive' && e.do === 'cardDeathScaler');
+  if (!eff) return;
+  const cardId = str(eff.params?.cardId) || destroyed.cardId;
+  const a = num(eff.params?.attack, 1);
+  const h = num(eff.params?.health, 1);
+  if (a === 0 && h === 0) return;
+  const source = CARD_INDEX[cardId]?.name ?? cardId;
+  state.cardBuffs ??= {};
+  const cur = (state.cardBuffs[cardId] ??= { attack: 0, health: 0 });
+  cur.attack += a;
+  cur.health += h;
+  for (const c of [...state.board, ...state.hand]) {
+    if (c.cardId === cardId && c.uid !== destroyed.uid) addBuff(c, source, a, h);
+  }
 }
 
 /**
@@ -2699,7 +2736,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         const def = CARD_INDEX[id];
         if (!def?.spell) continue;
         if (def.target) {
-          const beasts = ctx.state.board.filter((c) => isTribe(c, 'beast'));
+          const beasts = othersOnBoard(ctx.state, self, (c) => isTribe(c, 'beast')); // never itself (R-TARGET-03)
           if (beasts.length === 0) continue; // an aimed spell with no Beast fizzles, per the combat body
           const rng = makeRng(ctx.state.rngCursor);
           const t = beasts[rng.int(beasts.length)]!;
@@ -3520,11 +3557,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Forest Colossus (Start of Combat, shop twin — a Twilight / End-of-Turn SoC replay): your `tribe` minions
-   *  +atk/+hp per point of THIS body's tally. Combat carries the tally on the body and does the same. */
+  /** Old Timber (Start of Combat, shop twin — a Twilight / End-of-Turn SoC replay): your `tribe` minions
+   *  +atk/+hp per step, where the steps are `base` (Old Timber's printed +3/+2, owner handoff 2026-09-18) plus
+   *  THIS body's tally. Combat carries the tally on the body and does the same arithmetic. */
   scBuffTribePerTally: (ctx, self, params) => {
     const tribe = str(params.tribe) as Tribe;
-    const n = (self.spiritTally ?? 0) * gold(self);
+    const n = (num(params.base, 0) + (self.spiritTally ?? 0)) * gold(self);
     if (n <= 0) return;
     const a = num(params.attack, 1) * n, h = num(params.health, 1) * n;
     for (const c of ctx.state.board) if (isTribe(c, tribe)) addBuff(c, nameOf(self), a, h);
@@ -3676,7 +3714,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tribe = self.golden ? '' : str(params.tribe); // golden drops the tribe filter (any friendly minion)
     const casts = self.golden ? 2 : 1;
     for (let c = 0; c < casts; c++) {
-      const pool = state.board.filter((m) => !tribe || isTribe(m, tribe as Tribe)); // All-types counts as every tribe
+      const pool = othersOnBoard(state, self, (m) => !tribe || isTribe(m, tribe as Tribe)); // All-types counts as every tribe; never itself (R-TARGET-03)
       if (pool.length === 0) return;
       const rng = makeRng(state.rngCursor);
       const target = pool[rng.int(pool.length)]!;
@@ -3946,7 +3984,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const a = num(params.attack, 5) * gold(self);
     const h = num(params.health, 5) * gold(self);
     if (a <= 0 && h <= 0) return;
-    const pool = ctx.state.board.filter((c) => !tribe || isTribe(c, tribe as never));
+    const pool = othersOnBoard(ctx.state, self, (c) => !tribe || isTribe(c, tribe as never)); // never itself (R-TARGET-03)
     if (pool.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
     const avail = [...pool];
@@ -4002,17 +4040,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // Un-aimed re-fire (Resonance / Myra / Echoing Roar) carries no target, so this used to do nothing (owner
     // report 2026-08-25). Auto-pick a RANDOM eligible friendly Dwarf instead — mirroring Appetite Agent's
     // `battlecryTargetConsumesShop`: a friendly OTHER than self respecting the live `targetTribe`, seeded off the
-    // shared rng cursor, falling back to self only when it is the only eligible Dwarf.
+    // shared rng cursor. NEVER itself (R-TARGET-03, owner 2026-09-18): no other eligible Dwarf → no grant.
     let target = (payload as { target?: BoardCard } | undefined)?.target;
     if (!target) {
       const tribe = effectiveTargetTribe(ctx.state, CARD_INDEX[self.cardId]);
-      const pool = ctx.state.board.filter((c) => c.uid !== self.uid && (!tribe || isTribe(c, tribe)));
-      if (pool.length > 0) {
-        const rng = makeRng(ctx.state.rngCursor);
-        target = pool[rng.int(pool.length)]!;
-        ctx.state.rngCursor = rng.state();
-      }
-      target = target ?? self;
+      const pool = othersOnBoard(ctx.state, self, (c) => !tribe || isTribe(c, tribe));
+      if (pool.length === 0) return;
+      const rng = makeRng(ctx.state.rngCursor);
+      target = pool[rng.int(pool.length)]!;
+      ctx.state.rngCursor = rng.state();
     }
     const per = num(params.health, 1) * gold(self);
     const h = per * (ctx.state.goldSpentThisTurn ?? 0);
@@ -4537,12 +4573,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       } else if (def.chooseOne?.length) {
         // See the note above: cast the first option rather than stranding the play on a modal we can't open.
         const synthetic = { ...def, effects: def.chooseOne[0]!.effects };
-        for (let n = 0; n < casts; n++) castSpell(st, synthetic, pickTaughtTarget(st, def));
+        for (let n = 0; n < casts; n++) castSpell(st, synthetic, pickTaughtTarget(st, def, self));
       } else {
         for (let n = 0; n < casts; n++) {
           // The PLAYER's pick when the Pup was played through the aim picker; otherwise a seeded-random
           // friendly (the Pup was re-fired by something that can't prompt, e.g. a Shout-repeater).
-          const target = payload.target ?? pickTaughtTarget(st, def);
+          const target = payload.target ?? pickTaughtTarget(st, def, self);
           if (def.target && !target) break; // aimed with nothing to aim at → fizzle, like the hand path
           castSpell(st, def, target);
         }
@@ -5354,18 +5390,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // Un-aimed play / re-fire: pick a RANDOM eligible target, not the left-most (owner report 2026-08-14 — it
     // always fed the left-most minion). Eligible = a friendly OTHER than self, respecting the card's targetTribe
     // after runes (Demons only, unless Rune of Open Appetite drops that). Seeded off the shared rng cursor so it
-    // stays deterministic/replayable. Falls back to self only when no eligible friend exists.
+    // stays deterministic/replayable. NEVER itself (R-TARGET-03, owner 2026-09-18): no eligible friend → no-op.
     let target = payload.target;
     if (!target) {
       const tribe = effectiveTargetTribe(ctx.state, CARD_INDEX[self.cardId]);
-      const pool = ctx.state.board.filter((c) => c.uid !== self.uid && (!tribe || isTribe(c, tribe)));
-      if (pool.length > 0) {
-        const rng = makeRng(ctx.state.rngCursor);
-        target = pool[rng.int(pool.length)]!;
-        ctx.state.rngCursor = rng.state();
-      }
+      const pool = othersOnBoard(ctx.state, self, (c) => !tribe || isTribe(c, tribe));
+      if (pool.length === 0) return;
+      const rng = makeRng(ctx.state.rngCursor);
+      target = pool[rng.int(pool.length)]!;
+      ctx.state.rngCursor = rng.state();
     }
-    target = target ?? self;
     // Rune of Open Appetite bursts only when it actually ENABLED this pick — i.e. the eater is off-type for
     // the card's declared `targetTribe`. Deliberately not stamped inside `effectiveTargetTribe`: that helper
     // is a pure query the aim UI, the can-target probe and the auto-pick pool all call, so a stamp there
@@ -5878,27 +5912,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ARENA_EFFECTS.spellCastBuffAll(shopArena(ctx.state, self), { attack: num(params.attack, 6), health: num(params.health, 6), tribe: str(params.tribe) });
   },
 
-  /** Set 3 Celestials — Crashborn Adept: the FIRST time each turn the NAMED spell (`spellId`) is cast on this,
-   *  cast it on `count` random OTHER friendly `tribe` minions too — a FULL cast each, scaled by `spellCasts`,
-   *  like the rest of the "also casts on" family (the Mirrorwing / Reflector / Runefire ruling). A per-instance,
-   *  per-turn latch (`namedSpreadUsedThisTurn`, cleared at Start of Turn) rather than the spells-on-this counter:
-   *  the gate is "first STAR CRASH", not "first spell", and a multiplied original (Yazzus) or a spread that lands
-   *  back on another Adept must not re-arm it. Fewer eligible bodies than `count` → spreads to those. Golden
+  /** Set 3 Celestials — Crash Course (owner handoff 2026-09-18: "similar to Mirrorwing but specific to Star Crash"):
+   *  the FIRST time each turn the NAMED spell (`spellId`) is cast on this, it casts `count` additional times ON
+   *  THIS — each a FULL cast scaled by `spellCasts` (the Mirrorwing ruling 2026-09-01: a re-cast is the same cast
+   *  happening again, multiplier included). Gated on the named spell, NOT on "first spell": the per-instance,
+   *  per-turn latch (`namedSpreadUsedThisTurn`, cleared at Start of Turn) is set before the re-casts so the
+   *  re-cast landing back on this body (which re-enters `fireOnSpellCastOnThis`) finds it spent and stops — the
+   *  same termination Mirrorwing gets from its pre-bumped counter. A Tower Shield first does not spend it. Golden
    *  doubles the count. */
-  onSpellCastOnThisSpreadTribeNamed: (ctx, self, params, payload) => {
+  onSpellCastOnThisRecastNamed: (ctx, self, params, payload) => {
     const spellDef = (payload as { spellDef?: CardDef }).spellDef;
     if (!spellDef || spellDef.id !== str(params.spellId)) return;
     if (self.namedSpreadUsedThisTurn) return;
     self.namedSpreadUsedThisTurn = true;
-    const tribe = str(params.tribe) as Tribe;
-    const others = ctx.state.board.filter((c) => c.uid !== self.uid && isTribe(c, tribe));
-    const rng = makeRng(ctx.state.rngCursor);
-    const picks: BoardCard[] = [];
-    for (let n = num(params.count, 2) * gold(self); n > 0 && others.length > 0; n--) picks.push(others.splice(rng.int(others.length), 1)[0]!);
-    ctx.state.rngCursor = rng.state();
-    const reps = spellCasts(ctx.state, spellDef);
-    // One bounce hop per cast (self → pick), recorded BEFORE the cast so the hop reads as causing what lands.
-    for (const pick of picks) for (let r = 0; r < reps; r++) { recordBounceFx(ctx.state, 'spell', self.uid, pick.uid); castSpell(ctx.state, spellDef, pick); }
+    for (let i = 0; i < num(params.count, 1) * gold(self) * spellCasts(ctx.state, spellDef); i++) {
+      castSpell(ctx.state, spellDef, self);
+    }
   },
 
   /** Set 3 Celestials — Comet (Orrery Artificer's Equipment): bank `extra` additional casts for the next Shop
@@ -5929,13 +5958,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     buffStarform(ctx.state, num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self), nameOf(self));
   },
 
-  /** Stardust Peddler (`onBuy`, owner 2026-09-14): with no Starform out, CREATE one (rule 1); otherwise +a/+h. Buying
-   *  the token itself counts as a buy and the token is gone by the time the watchers fire — so a Peddler re-seeds
-   *  the row right after the buy, which is what "create a Starform or give one +1/+2" literally promises. Golden
-   *  doubles the buff; the create has no number to double. */
-  onBuyCreateStarformOrBuff: (ctx, self, params) => {
+  /** Stardust Peddler (`goldSpent`, owner handoff 2026-09-18): every `every` Gold spent (the threshold is applied by
+   *  `applyGoldSpent`'s per-instance `goldTick` meter, the Coinfire Forewoman shape) — with no Starform out, CREATE
+   *  one (rule 1); otherwise +a/+h (× golden; the create has no number to double). */
+  goldSpentCreateStarformOrBuff: (ctx, self, params) => {
     if (!hasStarform(ctx.state)) { createStarform(ctx.state, { cardId: self.cardId, name: nameOf(self) }); return; }
-    buffStarform(ctx.state, num(params.attack, 1) * gold(self), num(params.health, 2) * gold(self), nameOf(self));
+    buffStarform(ctx.state, num(params.attack, 3) * gold(self), num(params.health, 3) * gold(self), nameOf(self));
   },
 
   /** "Give THIS SHOP +a/+h" — Wishing Star (Shout AND Echo, one factory on two triggers; the Stellar Lens has its
@@ -6022,40 +6050,29 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     buffStarform(ctx.state, num(params.attack, 2) * gold(self), num(params.health, 2) * gold(self), nameOf(self));
   },
 
-  /** Roundabout (End of Turn, owner 2026-09-14): the Starform eats EVERY minion offer in the row, left to right —
-   *  each a real Shop consume through the token's body (the consume meter, Open Market, `starformGained` all hear
-   *  each meal). Spell / Ruby offers and the token itself are never meals. Nothing without a Starform. Golden: the
-   *  token gains DOUBLE each meal's stats (`times` 2 — the Great Attractor's rider), not a second pass. */
-  endOfTurnStarformConsumeAllShop: (ctx, self) => {
-    if (!hasStarform(ctx.state)) return;
-    for (let guard = 0; guard < 16; guard++) {
-      const idx = ctx.state.shop.findIndex((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby && !o.starform; });
-      if (idx < 0) return;
-      if (!starformConsumeShopMinion(ctx.state, idx, gold(self))) return;
-    }
+  /** Roundabout (End of Turn, owner handoff 2026-09-18): create a Starform if none is out (rule 1 — a full row eats
+   *  its right-most minion; rule 2 — a no-op with one already out), THEN give it +a/+h (× golden). "Create and
+   *  give" with a token already standing is therefore just the buff — the create primitive is a no-op by design,
+   *  so the token never doubles up. Runs against THIS turn's row; the token is pinned through the next roll. */
+  endOfTurnCreateStarformThenBuff: (ctx, self, params) => {
+    if (!hasStarform(ctx.state)) createStarform(ctx.state, { cardId: self.cardId, name: nameOf(self) });
+    buffStarform(ctx.state, num(params.attack, 10) * gold(self), num(params.health, 10) * gold(self), nameOf(self));
   },
 
-  /** Orbit Keeper (Start of Turn): create a Starform if none is out (a no-op with one — rule 2; a full row eats its
-   *  right-most minion — rule 1). Runs in the Start-of-Turn pass, i.e. against the NEW turn's row. */
-  startOfTurnCreateStarform: (ctx, self) => {
-    if (hasStarform(ctx.state)) return;
-    createStarform(ctx.state, { cardId: self.cardId, name: nameOf(self) });
-  },
-
-  /** Corona Devotee (Shout; rules v2 2026-09-13): COLLAPSE the Starform — the token leaves and 2 UNIQUE random
+  /** Corona Devotee (Shout; rules v2 2026-09-13; 3 hits since 2026-09-18): COLLAPSE the Starform — the token leaves and 3 UNIQUE random
    *  friendly Celestials each gain HALF its stats, rounded up, base included (rule 7 — `collapseStarform` returns
    *  the halves), PLUS `collapseExtraTargetsOf` extra hits drawn WITH replacement (Nova Herald's passive +2 per
    *  Herald on board, +4 gilded; the run-wide `collapseExtraTargets` counter) — an extra may land on a Celestial
    *  that already took a hit, so with two Celestials one can take 3 and the other 1. One Celestial → 1 original +
    *  every extra on it; none → the token still collapses and the stats go nowhere; no Starform → nothing at all.
    *  The Devotee itself is a friendly Celestial and eligible. Golden: each hit gains double the half (the full
-   *  stats). `params.count` overrides the number of unique originals (default 2). */
+   *  stats). `params.count` overrides the number of unique originals (default `COLLAPSE_ORIGINALS`, 3). */
   battlecryCollapseStarform: (ctx, self, params) => {
     // The hits are drawn INSIDE the collapse (after the token leaves) so the `starformFx` record names every one
     // of them, duplicates included — the UI fires one `starform-pull` per hit.
     let hits: BoardCard[] = [];
     const half = collapseStarform(ctx.state, () => {
-      hits = collapseHits(ctx.state, num(params.count, 2));
+      hits = collapseHits(ctx.state, num(params.count, COLLAPSE_ORIGINALS));
       return hits;
     });
     if (!half) return;
@@ -6186,9 +6203,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  `orbitBuffArriver`), so the Familiar spreads value across the board instead of paying the newcomer. */
   orbitBuffRandomFriend: (ctx, self, params) => {
     const state = ctx.state;
-    if (state.board.length === 0) return;
+    const pool = othersOnBoard(state, self); // never itself (R-TARGET-03)
+    if (pool.length === 0) return;
     const rng = makeRng(state.rngCursor);
-    const pick = state.board[rng.int(state.board.length)]!;
+    const pick = pool[rng.int(pool.length)]!;
     state.rngCursor = rng.state();
     addBuff(pick, nameOf(self), num(params.attack) * gold(self), num(params.health) * gold(self));
   },
@@ -6873,6 +6891,27 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
+  /**
+   * LIVEWIRE (owner rework 2026-09-18): whenever you cast a Shop spell, cast `count` Rubies on THIS minion and on
+   * `others` random OTHER friendly `tribe` minions — distinct picks, seeded off the run cursor (replay-faithful).
+   * The self Ruby is printed ("on this"); the random pool never contains Livewire itself (the global
+   * no-self-target rule, R-TARGET-03). Fewer eligible Kobolds than `others` → each of them gets one.
+   * `playRubiesOn` is the shop's one Ruby chokepoint (live Ruby strength + the Ruby-gained watchers).
+   */
+  onSpellCastPlayRubiesSelfAndRandomTribe: (ctx, self, params) => {
+    const per = num(params.count, 1) * gold(self);
+    if (per <= 0 || !ctx.state.board.some((c) => c.uid === self.uid)) return;
+    const tribe = str(params.tribe);
+    const arena = shopArena(ctx.state, self);
+    arena.playRubiesOn(self, per);
+    const pool = othersOnBoard(ctx.state, self, (c) => !tribe || isTribe(c, tribe as Tribe));
+    const rng = makeRng(ctx.state.rngCursor);
+    for (let n = num(params.others, 2); n > 0 && pool.length > 0; n--) {
+      arena.playRubiesOn(pool.splice(rng.int(pool.length), 1)[0]!, per);
+    }
+    ctx.state.rngCursor = rng.state();
+  },
+
   onSpellCastBuffRandomTribe: (ctx, self, params) => {
     ARENA_EFFECTS.onSpellCastBuffRandomTribe(shopArena(ctx.state, self), params);
   },
@@ -6950,9 +6989,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!def?.spell) return;
     for (let i = 0; i < num(params.count, 1) * gold(self); i++) {
       if (!def.target) { castSpell(ctx.state, def); continue; }
-      if (ctx.state.board.length === 0) return;
+      const pool = othersOnBoard(ctx.state, self); // never the Archivist itself (R-TARGET-03)
+      if (pool.length === 0) return;
       const rng = makeRng(ctx.state.rngCursor);
-      const target = ctx.state.board[rng.int(ctx.state.board.length)]!;
+      const target = pool[rng.int(pool.length)]!;
       ctx.state.rngCursor = rng.state();
       castSpell(ctx.state, def, target);
     }
@@ -8170,11 +8210,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const step = num(params.step, 3) * gold(self) * improveReps(state); // "improves this" — ×2 under Mastery
     state.squirlScoutBuff = (state.squirlScoutBuff ?? 0) + step; // improve first → THIS play grants the new value
     const amount = state.squirlScoutBuff;
-    const beasts = state.board.filter((c) => isTribe(c, 'beast')).length; // "for every Beast you own"
-    if (amount <= 0 || beasts === 0 || state.board.length === 0) return;
+    const beasts = state.board.filter((c) => isTribe(c, 'beast')).length; // "for every Beast you own" (itself counted)
+    const pool = othersOnBoard(state, self); // …but never GRANTED to itself (R-TARGET-03)
+    if (amount <= 0 || beasts === 0 || pool.length === 0) return;
     const rng = makeRng(state.rngCursor);
     for (let i = 0; i < beasts; i++) {
-      const target = state.board[rng.int(state.board.length)]!; // a random friendly minion (may repeat)
+      const target = pool[rng.int(pool.length)]!; // a random OTHER friendly minion (may repeat)
       addBuff(target, nameOf(self), amount, amount);
     }
     state.rngCursor = rng.state();
@@ -8286,6 +8327,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   goldSpentScaleSelf: (ctx, self, params) => {
     syncGoldSpentScaler(ctx.state, self, params);
   },
+
+  /** SPEAR WARDEN — "Has +4/+2 for every Spear Warden that died this game." A passive MARKER, never dispatched:
+   *  the combat death site (`noteCardDeath`) reads it and grants the run-wide `cardBuffs` enchant, which the shop
+   *  already bakes into every copy (board, hand, future). Nothing to do here; the stub keeps the phase map honest. */
+  cardDeathScaler: () => {},
 
   /** NIGHT MARKET HORROR — "After you buy a card, give minions in the shop +2/+2 THIS TURN."
    *
@@ -8963,10 +9009,12 @@ export function taughtAimSpell(card: BoardCard): CardDef | undefined {
 /** The friendly a TAUGHT aimed spell lands on: a seeded-random board minion (deterministic — it advances the
  *  run's RNG cursor), or `undefined` when the board is empty so the caller can fizzle. Untargeted spells get
  *  `undefined` and cast normally. Same rule as Rune of Recurrence / Runic Archivist. */
-function pickTaughtTarget(state: RunState, def: CardDef): BoardCard | undefined {
-  if (!def.target || state.board.length === 0) return undefined;
+function pickTaughtTarget(state: RunState, def: CardDef, self: { uid: string }): BoardCard | undefined {
+  if (!def.target) return undefined;
+  const pool = othersOnBoard(state, self); // never the Pup itself (R-TARGET-03)
+  if (pool.length === 0) return undefined;
   const rng = makeRng(state.rngCursor);
-  const pick = state.board[rng.int(state.board.length)]!;
+  const pick = pool[rng.int(pool.length)]!;
   state.rngCursor = rng.state();
   return pick;
 }

@@ -396,11 +396,14 @@ describe('no valid target', () => {
     expect(equipmentState(s).available, 'and the Equipment is still held').toHaveLength(1);
   });
 
-  it('Bloodpot can target its own source — a lone Frank is still a legal play', () => {
+  it('Bloodpot can NOT target its own source — R-TARGET-03 (owner 2026-09-18): no card targets itself', () => {
+    // A lone Frank has no legal aim: the activation is refused outright — no Gold, no charge, nothing to undo.
     let s = run({ hand: [body('f', 'e3_frank')] });
     s = play(s, 'f');
+    const before = s;
     s = activate(s, 'f');
-    expect(statsOf(s, 'f'), 'Frank buffs himself').toEqual([6, 6]);
+    expect(s, 'refused: the granting body is never a target').toBe(before);
+    expect(statsOf(s, 'f'), 'Frank did not buff himself').toEqual([3, 3]);
   });
 });
 
@@ -766,11 +769,11 @@ describe('Blast Pump — an Equipment that casts a Shop spell', () => {
     expect(gilded, 'two genuine casts beat one').toBe(base * 2);
   });
 
-  it('costs 1 Gold', () => {
+  it('costs 2 Gold', () => { // 1 → 2, owner balance pass 2026-09-18
     let s = armedPump();
     const before = s.embers;
     s = activate(s);
-    expect(s.embers).toBe(before - 1);
+    expect(s.embers).toBe(before - 2);
   });
 });
 

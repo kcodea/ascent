@@ -39,4 +39,13 @@ describe('every committed clip has a home on the mixing board', () => {
         `name) or route it to a group in clipFamily.ts, and register that category in config.ts.`,
     ).toBe(true);
   });
+
+  // Imported FX-primitive clips (`fx/<slug>`) have dynamic names, so no committed clip may exist to exercise
+  // the branch above — pin it directly: any `fx/` clip must land on the real `fx` fader so an import can ship.
+  it('routes every imported fx/ clip to the real `fx` category', () => {
+    expect(categories.has('fx')).toBe(true);
+    expect(familyOf('fx/shout-effect')).toBe('fx');
+    expect(familyOf('fx/shout-effect-2')).toBe('fx'); // a second import, not a numbered variant of the first
+    expect(familyOf('fx/freesound-community-elf-male-warcry-101261-1')).toBe('fx');
+  });
 });

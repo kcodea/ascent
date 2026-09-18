@@ -293,7 +293,7 @@ export interface BoardCard {
    *  other per-turn counters. Incremented BEFORE a card's `spellCastOnThis` effects run, which is what stops a
    *  re-cast from re-triggering the same effect forever. Absent = 0. */
   spellsOnThisTurn?: number;
-  /** Crashborn Adept: its "first time each turn" named-spell spread has fired this turn. Cleared with the other
+  /** Crash Course: its "first Star Crash on this each turn" named-spell re-cast has fired this turn (was the Adept's spread). Cleared with the other
    *  per-turn counters at Start of Turn. */
   namedSpreadUsedThisTurn?: boolean;
   /** Set 2 — RUBIES played on this minion this turn. Kept separate from `spellsOnThisTurn` on purpose: Runefire

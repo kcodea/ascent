@@ -83,6 +83,7 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     alesLastTurn: () => 0,
     engraveNeighbours: () => {},
     engraveBoard: () => {},
+    attackNow: () => {},
     castLeftmostHandSpellOnAdjacent: () => {},
     echoEffectsOf: () => [],
     // Rally-family verbs (Step 3 item 4) — inert in this stub; the family's own coverage lives in rally.test.ts.

@@ -9,7 +9,7 @@ import { displayedStatsOf, fireRecruitDeathrattlesForTest, spellAttackBonus } fr
  * `set3Scaffold.test.ts`. The rulings under test:
  *  - `onRise` fires in BOTH phases for a FRIENDLY Rise (never an enemy's); a shop Rise pays permanently.
  *  - Rising Tide: board (a combat gain) + hand (permanent, R-HAND-02). Revenant: Ward + stats, stacking.
- *  - Squatimus: overflow → your minions +2/+2 in both phases. Noggin: a random friendly Undead only.
+ *  - Squatimus: overflow → your minions +3/+4 (owner stat pass 2026-09-18; was +2/+2) in both phases. Noggin: a random friendly Undead only.
  *  - Cage Breaker: the two-step destroy, then a Discover at the tavern tier. Coffin Flop: a real Discover.
  *  - Deathfibrillator: Rise then destroy → the body returns and the Rise watchers fire.
  */
@@ -52,7 +52,7 @@ describe('the roster', () => {
     expect([CARD_INDEX['mumi']!.tier, CARD_INDEX['mumi']!.attack, CARD_INDEX['mumi']!.health]).toEqual([3, 5, 2]);
     expect(CARD_INDEX['sergeant']!.name).toBe('Sergey');
     expect(CARD_INDEX['anubis']!.name).toBe('Anubis, Last Gate');
-    expect(EQUIPMENT_INDEX['coffin_flop']?.baseCost).toBe(2);
+    expect(EQUIPMENT_INDEX['coffin_flop']?.baseCost).toBe(3); // 2 → 3, owner balance pass 2026-09-18
     expect(EQUIPMENT_INDEX['deathfibrillator']?.targetMode).toBe('friendly');
   });
 });
@@ -66,8 +66,8 @@ describe('onRise — COMBAT: a friendly Rise wakes Revenant and Rising Tide', ()
     expect(r.events.some((e) => e.type === 'reborn'), 'Poochy rose').toBe(true);
     expect(buffsOn(r, rev).some((b) => b.attack === 7 && b.health === 7 && b.source === rev), 'Revenant +7/+7 from itself').toBe(true);
     expect(r.events.some((e) => (e.type === 'shieldUp' || e.type === 'keyword') && (e as { target: string }).target === rev), 'Revenant gains Ward').toBe(true);
-    expect(buffsOn(r, rev).some((b) => b.attack === 4 && b.health === 5 && b.source === tide), 'Rising Tide reaches the board').toBe(true);
-    expect(r.playerHandBuffs, 'Rising Tide reaches the HAND — permanently').toEqual([{ uid: 'h1', attack: 4, health: 5, source: tide }]);
+    expect(buffsOn(r, rev).some((b) => b.attack === 3 && b.health === 4 && b.source === tide), 'Rising Tide reaches the board').toBe(true); // +3/+4 since 2026-09-18
+    expect(r.playerHandBuffs, 'Rising Tide reaches the HAND — permanently').toEqual([{ uid: 'h1', attack: 3, health: 4, source: tide }]);
   });
   it("an ENEMY Rise is not a friendly Rise — Revenant doesn't grow", () => {
     const r = fight([bm('u3_revenant')], [bm('u3_poochy')]);
@@ -92,15 +92,15 @@ describe('onRise — SHOP: a Rise outside combat fires the watchers, and their p
     const risen = s.board.find((c) => c.cardId === 'u3_poochy')!;
     expect(risen.uid, 'a NEW body came back').not.toBe('p');
     expect((s.shopDeathFx ?? []).some((f) => f.kind === 'rise' && f.uid === risen.uid), 'the return is its own cue').toBe(true);
-    expect(risen.health, 'back at 1 Health, then Rising Tide +5').toBe(1 + 5);
+    expect(risen.health, 'back at 1 Health, then Rising Tide +4').toBe(1 + 4); // +3/+4 since 2026-09-18
     // Revenant: Ward + 7/7, attributed to itself — permanent (a shop buff is).
     expect(at(s, 'rev').keywords).toContain('DS');
     expect(at(s, 'rev').buffs?.find((b) => b.source === 'Revenant')).toMatchObject({ attack: 7, health: 7 });
     // Rising Tide: everyone on board (the risen Poochy included) and the hand.
-    expect(at(s, 'rev').buffs?.find((b) => b.source === 'Rising Tide')).toMatchObject({ attack: 4, health: 5 });
-    expect(risen.buffs?.find((b) => b.source === 'Rising Tide')).toMatchObject({ attack: 4, health: 5 });
-    expect(s.hand.find((c) => c.uid === 'h1')!.buffs?.find((b) => b.source === 'Rising Tide')).toMatchObject({ attack: 4, health: 5 });
-    expect(s.hand.find((c) => c.uid === 'h1')!.attack).toBe(CARD_INDEX['dw_brunni']!.attack + 4);
+    expect(at(s, 'rev').buffs?.find((b) => b.source === 'Rising Tide')).toMatchObject({ attack: 3, health: 4 });
+    expect(risen.buffs?.find((b) => b.source === 'Rising Tide')).toMatchObject({ attack: 3, health: 4 });
+    expect(s.hand.find((c) => c.uid === 'h1')!.buffs?.find((b) => b.source === 'Rising Tide')).toMatchObject({ attack: 3, health: 4 });
+    expect(s.hand.find((c) => c.uid === 'h1')!.attack).toBe(CARD_INDEX['dw_brunni']!.attack + 3); // Rising Tide +3/+4 since 2026-09-18
   });
   it('the Rise is its OWN beat, after the death/Echo beat — the return never lands in the Echo commit', () => {
     let s = run({ board: [body('p', 'u3_poochy', { keywords: ['T'] }), body('rev', 'u3_revenant')], hand: [body('ems', 'u3_ems')] });
@@ -143,8 +143,9 @@ describe("a friendly death in the shop reaches only the WATCHERS — never anoth
     expect(s.board.some((c) => c.cardId === 'footman'), "Footman Captain's Echo stayed asleep").toBe(false);
     expect(s.board.filter((c) => c.cardId === 'knit').length, 'the Warden returned').toBe(1);
     expect(s.board.find((c) => c.cardId === 'mumi')!.keywords, "Mumi's Echo stayed asleep too").not.toContain('R');
-    // …but the Warden's OWN Echo fired on the way out: the Spear Warden Aura grew.
-    expect(s.cardBuffs?.['knit']?.attack ?? 0).toBeGreaterThanOrEqual(3);
+    // …but the Warden DIED on the way out: the Spear Warden Aura grew by its +4/+2 (a shop destroy is a death —
+    // "every Spear Warden that died this game", owner 2026-09-18).
+    expect(s.cardBuffs?.['knit']).toEqual({ attack: 4, health: 2 });
   });
 });
 
@@ -166,15 +167,16 @@ describe('a shop Rise returns the PRINTED body with the Auras on top (owner repo
     // card the player reads shows it on top — exactly as any fresh Undead does.
     expect([sergey.attack, sergey.health]).toEqual([CARD_INDEX['sergeant']!.attack, 1]);
     expect(displayedStatsOf(s, sergey).attack, 'the Undead Aura folds in on display').toBe(CARD_INDEX['sergeant']!.attack + 5);
-    // The Warden: printed 3 + its own Aura (+6, then +9 after its Echo grew it on the way out) + the Undead Aura.
+    // The Warden: printed 4 + its own Aura (+6/+4 seeded, then +10/+6 after its shop DEATH grew it on the way out —
+    // a shop destroy is a death, owner 2026-09-18) + the Undead Aura.
     s = { ...s, embers: 20, equipment: s.equipment ? { ...s.equipment, available: s.equipment.available.map((g) => ({ ...g, ownChargeSpent: false })) } : s.equipment };
     s = act(s, { type: 'activateEquipment', targetUid: 'sw' });
     s = act(s, { type: 'resolveShopDeath' });
     const warden = s.board.find((c) => c.cardId === 'knit')!;
     expect(warden.uid).not.toBe('sw');
-    expect(warden.attack, 'printed 3 + its own Aura 9 (stored)').toBe(3 + 9);
+    expect(warden.attack, 'printed 4 + its own Aura 10 (stored)').toBe(4 + 10);
     expect(warden.health).toBe(1 + (4 + 2));
-    expect(displayedStatsOf(s, warden).attack, '+ the Undead Aura on display').toBe(3 + 9 + 5);
+    expect(displayedStatsOf(s, warden).attack, '+ the Undead Aura on display').toBe(4 + 10 + 5);
   });
 });
 
@@ -197,7 +199,7 @@ describe('a rising body HOLDS its slot (owner ruling 2026-09-09) — Rodrick on 
     // printed (R-RISE-04), so he alone comes back without it.
     for (const c of s.board) {
       if (c.cardId === 'u3_rodrick') expect(c.buffs, 'the risen body is printed').toBeUndefined();
-      else expect(c.buffs?.find((b) => b.source === 'Squatimus'), c.cardId + ' got the overflow buff').toMatchObject({ attack: 2, health: 2 });
+      else expect(c.buffs?.find((b) => b.source === 'Squatimus'), c.cardId + ' got the overflow buff').toMatchObject({ attack: 3, health: 4 }); // Squatimus +3/+4 since 2026-09-18
     }
   });
   it('COMBAT: the same — overflow fires, Rodrick rises, no Warden', () => {
@@ -263,13 +265,13 @@ describe('Noggin, Squatimus, Adeptus, Warden Rodrick, Hierophant', () => {
     expect(at(s, 'm').buffs?.find((b) => b.source === 'Noggin')).toMatchObject({ attack: 2, health: 2 });
     expect(at(s, 'b').buffs).toBeUndefined();
   });
-  it('Squatimus: a summon that does not fit → your minions +2/+2, shop and combat', () => {
+  it('Squatimus: a summon that does not fit → your minions +3/+4 (owner 2026-09-18), shop and combat', () => {
     const full = ['u3_squatimus', 'deathlesshand', 'dw_brunni', 'dw_brunni', 'dw_coinfire', 'dw_pimm', 'e3_frank'];
     // SHOP: fire Footman Captain's Echo on a full board — the Footman finds no room.
     const s = run({ board: full.map((id, i) => body(`b${i}`, id)) });
     fireRecruitDeathrattlesForTest(s, s.board[1]!);
     expect(s.board.length).toBe(7);
-    for (const c of s.board) expect(c.buffs?.find((b) => b.source === 'Squatimus'), c.cardId).toMatchObject({ attack: 2, health: 2 });
+    for (const c of s.board) expect(c.buffs?.find((b) => b.source === 'Squatimus'), c.cardId).toMatchObject({ attack: 3, health: 4 });
     // COMBAT: Wolves Den's Echo summons 3 Crypt Wolves into a board with one free slot (its own) — two overflow.
     // Run-board `sourceUid`s on the bodies (the perma-gain carry-back is keyed by them). Wolves Den is the ONLY body a
     // 20-Attack foe can kill, so it dies, its wolves overflow, and Squatimus + the sandbags survive to carry.
@@ -280,7 +282,7 @@ describe('Noggin, Squatimus, Adeptus, Warden Rodrick, Hierophant', () => {
     const sq = uidOf(r, 'u3_squatimus');
     expect(r.events.some((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'cryptwolf'), 'one wolf fit').toBe(true);
     expect(r.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === sq).length, 'two overflows × the living friends').toBeGreaterThanOrEqual(12);
-    expect((r.playerPermaBuffs ?? []).some((b) => b.attack >= 2 && b.health >= 2), 'and it carries back (an Engrave-style perma-gain)').toBe(true);
+    expect((r.playerPermaBuffs ?? []).some((b) => b.attack >= 3 && b.health >= 4), 'and it carries back (an Engrave-style perma-gain)').toBe(true);
   });
   it('Adeptus: Echo → +1 Attack to your Shop spells, combat carry-back and shop alike', () => {
     expect(fight([bm('u3_adeptus')], [foe(20, 20)]).playerSpellPower).toEqual({ attack: 1, health: 0 });

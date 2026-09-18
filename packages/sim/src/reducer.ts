@@ -1253,6 +1253,38 @@ export function reduce(state: RunState, action: Action): RunState {
   return next;
 }
 
+/** Will playing this minion open the generic targeted-Shout prompt? The ONE predicate the play case and Rune of
+ *  Refrain share: a Mage-Pup's taught aimed spell, or a friendly-targeted non-Choose-One Shout with a viable pick
+ *  (a tribe-restricted aim needs another matching friend; `targetNotSelf` (Graverobber) needs any other body —
+ *  with none, the Shout simply doesn't fire and the minion plays as a plain body, no prompt). */
+function opensBattlecryAim(s: RunState, card: BoardCard): boolean {
+  if (taughtAimSpell(card)) return true;
+  const def = CARD_INDEX[card.cardId];
+  if (def?.target !== 'friendly' || def.chooseOne?.length) return false;
+  // R-TARGET-03 (owner 2026-09-18, global): an aimed Shout NEVER targets its own body — a board holding ONLY this
+  // minion has no legal pick, so don't prompt; the Battlecry simply doesn't fire and it plays as a plain body.
+  // (Was Graverobber's `targetNotSelf` opt-in; now the rule for every aimed Shout.)
+  if (def.targetTribe) return s.board.some((c) => c.uid !== card.uid && isTribe(c, def.targetTribe!));
+  return s.board.some((c) => c.uid !== card.uid);
+}
+
+/** Rune of Refrain's roll for a Shout minion that has just FIRED: 25% per copy held (owner 2026-08-27, unique-engine
+ *  doubling), capped below certainty, drawn off the run cursor so a reload/replay resolves it identically. A hit
+ *  returns the actual instance (buffs/golden intact) to hand; a full hand swallows it. A miss is not the rune firing. */
+function rollRefrainReturn(s: RunState, card: BoardCard): void {
+  const rrng = makeRng(s.rngCursor);
+  const returns = rrng.int(100) < Math.min(95, 25 * runeStacksOf(s, 'rune_refrain'));
+  s.rngCursor = rrng.state();
+  if (returns && s.hand.length < handCap(s)) {
+    procRune(s, 'runeRefrain');
+    const idx = s.board.findIndex((c) => c.uid === card.uid);
+    if (idx >= 0) {
+      const [ret] = s.board.splice(idx, 1);
+      if (ret) s.hand.push(ret);
+    }
+  }
+}
+
 function reduceCore(state: RunState, action: Action): RunState {
   // Read-only rejections run BEFORE the deep clone — every no-op dispatch (a click while a Discover is
   // open, an out-of-phase action) used to pay the full structuredClone below for nothing.
@@ -1638,8 +1670,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!def.spell && !def.ruby && s.board.length >= CONFIG.boardMax) return state;
         // A targeted Choose One SPELL with no legal target fizzles before the prompt (kept in hand, nothing
         // spent) — exactly as it did when the drag had to hit a target, and so the pick can never open an aim
-        // with no answer. Minions deliberately do NOT fizzle: a Runic Beetle with no other Beast has always
-        // played and auto-granted to itself, and the pick step still resolves it that way.
+        // with no answer. Minions deliberately do NOT fizzle: a Runic Beetle with no other Beast still plays as
+        // a body; its grant finds no legal recipient (R-TARGET-03: never itself) and simply does nothing.
         if (def.spell && def.target && chooseOneTargetPool(s, def).length === 0) return state;
         s.chooseOne = { uid: card.uid, cardId: def.id, spell: !!def.spell, toIndex: action.toIndex };
         return s;
@@ -2128,20 +2160,11 @@ function reduceCore(state: RunState, action: Action): RunState {
             // One Shop spell per copy held (recurring family, owner 2026-08-27).
             if (spells.length > 0) conjureToHand(s, spells, runeStacksOf(s, 'rune_hoardcalling'), true);
           }
-          if (s.runeRefrain) {
-            const rrng = makeRng(s.rngCursor);
-            // 25% per copy held (owner 2026-08-27, unique-engine doubling), capped below certainty.
-            const returns = rrng.int(100) < Math.min(95, 25 * runeStacksOf(s, 'rune_refrain'));
-            s.rngCursor = rrng.state();
-            if (returns && s.hand.length < handCap(s)) {
-              procRune(s, 'runeRefrain'); // the 25% roll actually HIT — a miss is not the rune firing
-              const idx = s.board.findIndex((c) => c.uid === card.uid);
-              if (idx >= 0) {
-                const [ret] = s.board.splice(idx, 1);
-                if (ret) s.hand.push(ret);
-              }
-            }
-          }
+          // An AIMED Shout (Baby Gastrid, Toxin Tender, a Mage-Pup's taught spell) has not fired yet — its prompt
+          // opens below — so its roll waits for `battlecryTarget` (fix 2026-09-18: rolling here pulled the body
+          // back to hand BEFORE the aim, every aim was then refused because the source was no longer on the
+          // board, the Shout was lost and the prompt stranded — a bot seat could not end its turn).
+          if (s.runeRefrain && !opensBattlecryAim(s, card)) rollRefrainReturn(s, card);
         }
       }
       // Choose One: the branch was decided BEFORE the body ever reached the board (see the deferral at the top
@@ -2185,27 +2208,13 @@ function reduceCore(state: RunState, action: Action): RunState {
       // test because the Pup's own CardDef is untargeted — the taught spell on the INSTANCE is what needs an
       // aim, so the usual `def.target` route can't see it. `playCard` skips its Shout for the same reason, and
       // `applyBattlecryTarget` fires it with the chosen target.
-      if (taughtAimSpell(card)) {
-        s.pendingTarget = { uid: card.uid, cardId: card.cardId };
-        return s;
-      }
-      const playedDef = CARD_INDEX[card.cardId];
       // A Choose One owns its OWN targeting (the aim step ran before this replay, and the branch is already
       // applied above), so it must not fall into the generic targeted-Battlecry prompt as well — Runic Beetle
       // would open a second, meaningless aim. Before the deferral this block was unreachable for a Choose One
-      // because the prompt returned early.
-      if (playedDef?.target === 'friendly' && !playedDef.chooseOne?.length) {
-        const hasTarget = playedDef.targetTribe
-          ? s.board.some((c) => c.uid !== card.uid && isTribe(c, playedDef.targetTribe!))
-          // `targetNotSelf` (Graverobber): a board holding ONLY this minion has no legal pick, so don't
-          // prompt — the Battlecry simply doesn't fire and it plays as a plain body.
-          : playedDef.targetNotSelf
-            ? s.board.some((c) => c.uid !== card.uid)
-            : true;
-        if (hasTarget) {
-          s.pendingTarget = { uid: card.uid, cardId: card.cardId };
-          return s;
-        }
+      // because the prompt returned early. (`opensBattlecryAim` holds the one predicate; Refrain reads it too.)
+      if (opensBattlecryAim(s, card)) {
+        s.pendingTarget = { uid: card.uid, cardId: card.cardId };
+        return s;
       }
       checkTriples(s);
       if (card.golden) grantGoldenDiscover(s);
@@ -2252,7 +2261,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       const optTarget = option.target ?? def.target;
       if (optTarget === 'friendly' || optTarget === 'any') {
         // Only aim when there is something legal to aim AT. With none, a spell has already fizzled at play
-        // time and a minion resolves now with the grant auto-picking (falls back to self) — unchanged.
+        // time and a minion resolves now with its grant finding no recipient (R-TARGET-03: never itself).
         if (chooseOneTargetPool(s, def).length > 0) {
           s.chooseOne = undefined;
           s.pendingTarget = {
@@ -2328,10 +2337,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       const card = s.board.find((c) => c.uid === pt.uid);
       const target = s.board.find((c) => c.uid === action.targetUid);
       if (!card || !target) return state; // a friendly target is required
-      // Self-targeting guard (Graverobber: destroying itself deleted the body that was paying for the spell).
-      // Authoritative — the aim UI mirrors it, but the reducer is what actually decides.
+      // Self-targeting guard — R-TARGET-03 (owner 2026-09-18, global): NO aimed Shout resolves onto its own
+      // body (it began as Graverobber's `targetNotSelf`, where destroying itself deleted the body paying for
+      // the spell; Cage Breaker / Auric Runemaster / Gravetwin now inherit it). Authoritative — the aim UI
+      // mirrors it, but the reducer is what actually decides.
       const ptDef = CARD_INDEX[pt.cardId];
-      if ((ptDef?.targetNotSelf || ptDef?.targetTribe) && target.uid === card.uid) return state;
+      if (target.uid === card.uid) return state;
       // A tribe-restricted Battlecry may only resolve onto that tribe. This guard was MISSING: the aim UI
       // filtered the pick, but the reducer accepted whatever uid it was handed — so an off-tribe target was
       // fully resolved (an Appetite Agent could feed a Beast). Exactly the hole Cupcakes had on the SPELL
@@ -2344,6 +2355,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (opt) applyChooseOneTarget(s, card, opt.effects, target);
       else applyBattlecryTarget(s, card, target);
       s.pendingTarget = undefined;
+      // Rune of Refrain rolls for an aimed Shout HERE — its Shout has now fired (see the play-time note).
+      // Same gate as the play-time roll (a real Shout minion — never a Mage-Pup's taught spell).
+      if (!opt && s.runeRefrain && ptDef && hasBattlecry(ptDef)) rollRefrainReturn(s, card);
       checkTriples(s);
       if (card.golden) grantGoldenDiscover(s);
       openNextStartOfTurnModal(s); // this modal owned the screen — open whatever queued behind it
@@ -2616,6 +2630,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         ? s.board.find((c) => c.uid === action.targetUid)
         : undefined;
       if (def.targetMode === 'friendly' && !target) return state;
+      // R-TARGET-03 (owner 2026-09-18, global): an aimed Equipment never lands on the body that GRANTED it — EMS
+      // cannot Deathfibrillate itself, Frank cannot Bloodpot himself. The aim UI + bot view mirror this.
+      if (target && granted.sourceUids.includes(target.uid)) return state;
 
       s.embers -= cost;
       const eq = s.equipment!;
@@ -4412,15 +4429,16 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // Engraved only at Start of Combat (Taurus's neighbor) carries its gains back and is labelled "Engraved",
   // even though its run-board card never had the EG keyword. A non-Engraved carrier got Flowing Monk's gift.
   if (result.playerPermaBuffs) {
-    for (const { sourceUid, attack, health, engraved, ruby } of result.playerPermaBuffs) {
+    for (const { sourceUid, attack, health, engraved, ruby, label } of result.playerPermaBuffs) {
       const card = s.board.find((c) => c.uid === sourceUid);
       if (!card) continue;
       // Taragosa's Heir amplifies stat gains from ALL sources — combat included. It's Engraved, so its combat
       // gains reach here; multiply its carry-back ×2 (golden ×3) so combat matches its recruit-phase amplifier.
       const mult = card.cardId === 'taragosaheir' ? (card.golden ? 3 : 2) : 1;
       // 'Ruby' keeps the inspect breakdown honest AND makes the gain visible to Deepdelve Paragon next fight,
-      // which looks for exactly that source.
-      addBuff(card, ruby ? 'Ruby' : engraved ? 'Engraved' : 'Flowing Monk', attack * mult, health * mult);
+      // which looks for exactly that source. A self-authored permanent gain (Kindled Sprite's Rally, 2026-09-18)
+      // carries its own `label` so the ledger names the card.
+      addBuff(card, ruby ? 'Ruby' : engraved ? 'Engraved' : (label ?? 'Flowing Monk'), attack * mult, health * mult);
     }
   }
   // Set 2 — Rubies gained IN COMBAT (Rikk's Rally, Gemline's Avenge): mint them into hand now, baked with the
@@ -4952,7 +4970,7 @@ function advanceCombat(s: RunState): void {
   for (const c of [...s.board, ...s.hand]) {
     if (c.spellsOnThisTurn) c.spellsOnThisTurn = 0;
     if (c.rubiesOnThisTurn) c.rubiesOnThisTurn = 0; // Runefire counts Rubies landed on it per TURN too
-    if (c.namedSpreadUsedThisTurn) c.namedSpreadUsedThisTurn = false; // Crashborn Adept: "first time each turn"
+    if (c.namedSpreadUsedThisTurn) c.namedSpreadUsedThisTurn = false; // Crash Course: "the first Star Crash on this each turn"
     // The per-instance "spells since placed" counter (Spellkeeper Drake, Ashscribe Whelp) is per-turn too
     // — clear both halves.
     if (c.boardSpellCount) c.boardSpellCount = 0;

@@ -312,7 +312,8 @@ export type EffectFactoryId =
   | 'scTriggerTribeShouts' // Thunderous Sovereign: Start of Combat — trigger your tribe's Shouts
   | 'rallyTriggerLeftmostTribeShout' // Chorus Drake: Rally — trigger your left-most other Dragon's Shout
   | 'onSpellCastBuffRandomTribe'
-  | 'onSpellCastPlayRubiesAdjacent' // Runespark Channeler: a Shop spell casts Rubies on this minion's neighbours
+  | 'onSpellCastPlayRubiesAdjacent' // (retired 2026-09-18 — Livewire moved to the random form below; kept for saved replays)
+  | 'onSpellCastPlayRubiesSelfAndRandomTribe' // Livewire (owner rework 2026-09-18): a Shop spell casts Rubies on this AND `others` random OTHER `tribe` minions
   | 'summonBuffTribeAsym' // Groveweaver: a summoned tribe minion gets +atk/+hp at the current magnitude
   | 'onSpellCastImproveSummon' // Groveweaver: each spell cast improves that grant
   | 'battlecryCastNamedSpell' // Facetbound Martyr — cast a named Shop spell N times (recruit)
@@ -414,7 +415,8 @@ export type EffectFactoryId =
   | 'battlecryGrantShoutDragon' // Set 2 — Commander Warpath: get a random Dragon that has a Shout
   | 'onTribeAttackBuffAttacker' // Set 2 — Traveling Skald: a friendly Dragon that attacks gets +2/+1
   | 'onFriendlyDemonDamageBuffSelf' // Set 2 — Impossible Todd / Leech / Axeman: buff self (and maybe Imps) when a friendly Demon deals damage
-  | 'scPlayRubiesSelfAndAdjacentTribe' // Set 2 — Kobe (Start of Combat): play N permanent Rubies on self + adjacent same-tribe
+  | 'scPlayRubiesSelfAndAdjacentTribe' // Set 2 — (Kobe's pre-2026-09-18 Start of Combat form): play N permanent Rubies on self + adjacent same-tribe
+  | 'onDamagedPlayRubiesSelfAndAdjacentTribe' // Set 2 — Kobe (owner rework 2026-09-18): when THIS takes damage, play N permanent Rubies on self + adjacent same-tribe
   | 'rallyPlayRubiesSelf' // Set 2 — Boulderdash (Rally): play N permanent Rubies on itself
   | 'rallyPlayRubiesAll' // Set 2 — Blazer (Rally): play a permanent Ruby on all your minions
   | 'onSellGetRubies' // Set 2 — Beggy (onSell): get N Rubies when this is sold
@@ -701,26 +703,25 @@ export type EffectFactoryId =
   | 'battlecryDoubleNextSpell' // Nimbus: Battlecry arms the next Tavern spell to cast twice (recruit)
   | 'battlecryBuffNextSpell' // Set 3 Celestials — Starpath Vendor: Shout banks +A/+H for your NEXT Shop spell (recruit)
   | 'spellCastEveryNBuffTribe' // Set 3 Celestials — Astral Spellcore: every N Shop spells cast while it is on the board, buff your `tribe` (recruit; per-copy `spellProgress` meter)
-  | 'onSpellCastOnThisSpreadTribeNamed' // Set 3 Celestials — Crashborn Adept: first NAMED spell on this each turn also casts on N other friendly `tribe` (recruit)
+  | 'onSpellCastOnThisRecastNamed' // Set 3 Celestials — Crash Course: the first NAMED spell on this each turn casts N additional times on this, full re-casts (recruit)
   | 'rallyGrantFirstSpellCopy' // Set 3 Celestials — Comet Conductor: Rally — copy of the first spell cast this turn, once per combat (combat)
   | 'equipmentExtraNextSpellCasts' // Set 3 Celestials — Comet (Orrery Artificer's Equipment): bank N extra casts for the next spell (recruit)
   // ── Set 3 Celestials — THE STARFORM ROSTER (owner spec 2026-09-12); the token engine is `packages/sim/src/starform.ts` ──
   | 'battlecryCreateStarformOrBuff' // Star Seed: Shout — create the Starform, or give the existing one +A/+H (recruit)
   | 'onBuyBuffStarform' // (unused since 2026-09-14; kept for replays) whenever you buy a minion, the Starform gains +A/+H (recruit)
-  | 'onBuyCreateStarformOrBuff' // Stardust Peddler: whenever you buy a minion, create the Starform, or give the existing one +A/+H (recruit)
+  | 'goldSpentCreateStarformOrBuff' // Stardust Peddler: every N Gold spent, create the Starform, or give the existing one +A/+H (recruit)
   | 'buffThisShop' // Wishing Star (Shout + Echo): every offer in the row right now +A/+H — the Starform keeps it (recruit)
   | 'equipmentBuffThisShop' // (unused since 2026-09-14) this shop +A/+H, params-only (recruit)
   | 'equipmentCreateStarformThenBuffThisShop' // Stellar Lens (Lens Grinder's Equipment): create the Starform if none, then this shop +A/+H, params-only (recruit)
-  | 'endOfTurnStarformConsumeAllShop' // Roundabout: End of Turn — the Starform eats EVERY minion offer in the row (recruit)
+  | 'endOfTurnCreateStarformThenBuff' // Roundabout: End of Turn — create a Starform if none is out, then give it +A/+H (recruit)
   | 'battlecryStarformConsumeShop' // Accretion Warden: Shout — the Starform eats the highest-Tier Shop minion, ties right-most (recruit)
   | 'battlecryBuffThisShopPerSpellsThisTurn' // Shooting Star: Shout — this shop +A/+H per Shop spell cast this turn (recruit; live text)
   | 'endOfTurnBuffStarform' // Orbit Keeper: End of Turn — the Starform gains +A/+H (recruit)
-  | 'startOfTurnCreateStarform' // Orbit Keeper: Start of Turn — create a Starform if none is out (recruit)
   | 'collapseExtraTargets' // Nova Herald: a PASSIVE marker (never dispatched) — while on board every Collapse hits N extra random friendly Celestials, with replacement (recruit reads it: `collapseExtraTargetsOf`)
   | 'equipmentRemoveStarform' // Star Destroyer (the Starform's own Equipment, granted by the offer): the token leaves the Shop silently — no consume / collapse / watcher / buy (recruit)
   | 'deathrattleGiveMaxStatsRandomTribe' // Lodestar: Echo — a random other friendly `tribe` gains this body's MAX stats (both phases, arena body)
   | 'onStarformGainedBuffSelf' // Twin Star: whenever the Starform gains stats, this gains the same (recruit)
-  | 'battlecryCollapseStarform' // Corona Devotee: Shout — collapse the Starform: 2 unique random friendly Celestials + the extras (Nova Herald) each gain half (recruit)
+  | 'battlecryCollapseStarform' // Corona Devotee: Shout — collapse the Starform: 3 unique random friendly Celestials + the extras (Nova Herald) each gain half (recruit)
   | 'spellCastBuffStarform' // Zenith: whenever you cast a spell (Rubies too), the Starform gains +A/+H (recruit)
   | 'onStarformRemovedRecreateHalf' // Zenith: when the Starform is consumed / collapses, create a new one with half its stats (recruit)
   | 'spellStarformConsumeShop' // Black Hole (spell): the Starform eats `count` random Shop minions (pick: random | highestHealth | highestTier) (recruit)
@@ -810,6 +811,7 @@ export type EffectFactoryId =
   // --- RUNE-ONLY minion batch (2026-08-20). Every one of these rides `token: true` (forge-only). ---
   | 'onGetRubyDuplicate' // Gem Sage: getting a Ruby mints an extra copy (never re-fires `onGetRuby` — no recursion)
   | 'goldSpentScaleSelf' // Ancient Wanderer: HAS +A/+H per N Gold spent this RUN — a synced stored buff, not a per-step grant
+  | 'cardDeathScaler' // Spear Warden (owner rework 2026-09-18): HAS +A/+H per copy of `cardId` that DIED this run — a passive marker the combat death site reads (`noteCardDeath`); the grant rides the run-wide `cardBuffs` enchant
   | 'buffShopOffersThisTurn' // Night Market Horror: after a buy, minions in the shop get +A/+H for THIS TURN
   | 'onSellDiscoverSingleton' // Traveling Salesman: selling this Discovers among minions you own exactly one copy of
   | 'onGainAleBuffSelf' // Kegheart Dwarf: gaining a Dwarven Ale buffs this body +A/+H
@@ -2325,6 +2327,9 @@ export interface Minion {
   /** Permanent stats this minion gained mid-combat (Flowing Monk's overflow gift) — carried back to
    *  the run board afterwards, unlike ordinary combat-only buffs. */
   permaGain?: { attack: number; health: number };
+  /** The ledger line a self-authored permanent gain should carry home (Kindled Sprite: its own name). Read by the
+   *  settle carry-back for the non-Ruby remainder; absent = the legacy Engraved / Flowing Monk label. */
+  permaLabel?: string;
   /** Set when a gain was engraved by Transcendant's live adjacency aura rather than the EG keyword. */
   auraEngraved?: boolean;
   /** The RUBY share of `permaGain`. Rubies applied in combat are permanent, and without knowing which part of
@@ -2353,7 +2358,7 @@ export interface Minion {
   /** Crypt Drake: how many ally attacks this minion has seen this combat — drives its "improve every N
    *  attacks" buff. Per-combat (reset each fight); absent = 0. */
   attackSeen?: number;
-  /** Comet Conductor: its once-per-combat Rally has paid out this fight. Per-combat; absent = not yet. */
+  /** (Retired 2026-09-18 — Neptus pays on every Rally now; the latch is no longer read. Kept for old snapshots.) */
   firstSpellCopyFired?: boolean;
   /** Gryphon: how many free refreshes it has banked this combat — it grants one per hit up to a cap
    *  (so a Taunt soaking many hits doesn't roll unlimited refreshes). Absent = 0. */
@@ -2864,7 +2869,7 @@ export interface CombatResult {
    *  false` — a one-off gift to a non-EG carrier) and Engraved minions keeping their own combat gains
    *  (`engraved: true` — native EG like Gnasher/Flowing-Monk-recipient, or EG granted at Start of Combat
    *  by Taurus). `engraved` only drives the inspect-panel source label; the stats apply either way. */
-  playerPermaBuffs?: { sourceUid: string; attack: number; health: number; engraved: boolean; ruby?: boolean }[];
+  playerPermaBuffs?: { sourceUid: string; attack: number; health: number; engraved: boolean; ruby?: boolean; /** The ledger line the run card should print (Kindled Sprite's own permanent Rally); absent = the legacy Engraved / Flowing Monk label. */ label?: string }[];
   /** Card ids the player's combat deathrattles grant to the hand after combat (Arcane Weaver). */
   playerHandGrants?: string[];
   /** R-HAND-02: buffs a combat effect gave cards IN THE HAND — applied to the run hand at settle, permanently.
@@ -3085,7 +3090,7 @@ export interface CombatContext {
   /** Solaris Fang: make an existing minion take an extra attack immediately, out of turn order (the same
    *  attack-on-summon queue, drained by the next flushImmediateAttacks). The minion still attacks in its
    *  normal rotation too — this is a bonus strike. */
-  attackNow?(minion: Minion, shieldFirst?: boolean): void;
+  attackNow?(minion: Minion, shieldFirst?: boolean, forcedTarget?: Minion): void;
   /** Count a Deathrattle *triggered without a death* (Sporeling's Battlecry-proc'd rattle) toward the
    *  side's Deathrattle tally — feeds Grim + the run's deathrattlesTriggered carry-back. Player-side only. */
   countDeathrattle?(side: Side): void;

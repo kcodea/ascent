@@ -159,6 +159,11 @@ export interface UnitFrame {
   ascendProgress?: number;
   /** Guel: spells cast while on the run board (seeded from the snapshot) — for the live combat text. */
   spellProgress?: number;
+  /** Spells this unit's SIDE has cast so far THIS combat (stamped on every unit by `computeFrame` from the
+   *  `spellcast` events). Vaultkeeper's spell umbrella reads `run.spellsCast + this` so its printed grant and
+   *  "N spells to next step" tick AS the casts land (owner report 2026-09-18: "Vaultkeeper's text doesn't update
+   *  in real time in combat") — the run's counter only takes the carry-back at settle. */
+  spellsCastCombat?: number;
   /** Set 3 Spirits: the body's per-instance tally (Forest Colossus / Festival Keeper / Aspect live text). */
   spiritTally?: number;
   /** Runic Archivist's sales owed / Spell Warden's first-spell record — display-only, so the combat card prints
@@ -321,9 +326,14 @@ export function computeFrame(
   // matches the sim's Avenge gate) and total GLOBAL attack swings (Bloodbinder's Bleed fires every N, either side).
   const deaths: Record<'player' | 'enemy', number> = { player: 0, enemy: 0 };
   let attackCount = 0;
+  // Spells cast per side THIS combat (Vaultkeeper's live umbrella). Counted here rather than read off the event's
+  // `count`, which the sim seeds with the player's run-lifetime total (and 0 for the enemy) — the run already
+  // supplies that half, so the frame carries only the in-fight delta.
+  const spellCasts: Record<'player' | 'enemy', number> = { player: 0, enemy: 0 };
   for (let i = 0; i < Math.min(upto, events.length); i++) {
     const e = events[i];
     if (e.type === 'attack') attackCount++;
+    if (e.type === 'spellcast') spellCasts[e.side]++;
     if (e.type === 'dmg') {
       const u = find(e.target);
       if (u) u.health = e.remainingHp;
@@ -482,8 +492,8 @@ export function computeFrame(
   }
   // Stamp the live step-counter tallies onto every frame: each unit sees its OWN side's death count (Avenge) and
   // the global attack count (Bleed). stepProgress only reads these for the qualifying cards; others ignore them.
-  for (const u of player) { u.avengeSeen = deaths.player - (avengeBase.get(u.uid) ?? 0); u.bleedAttacks = attackCount; }
-  for (const u of enemy) { u.avengeSeen = deaths.enemy - (avengeBase.get(u.uid) ?? 0); u.bleedAttacks = attackCount; }
+  for (const u of player) { u.avengeSeen = deaths.player - (avengeBase.get(u.uid) ?? 0); u.bleedAttacks = attackCount; u.spellsCastCombat = spellCasts.player; }
+  for (const u of enemy) { u.avengeSeen = deaths.enemy - (avengeBase.get(u.uid) ?? 0); u.bleedAttacks = attackCount; u.spellsCastCombat = spellCasts.enemy; }
   // Keep a DEAD unit on screen for the beat in which it is still DEALING damage — a Deathrattle whose Echo
   // sprays the board (Fel Spikes) fires its volley one beat AFTER its body would have left, and a source→target
   // FX anchored to that body needs it present to launch from. Only the CURRENT beat's damage ([beatStart, upto))

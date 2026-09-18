@@ -59,6 +59,10 @@ export const PATCH_NOTES: PatchNote[] = [
     label: 'Bicycle Bob, Robinson & Adeptus',
     changes: [
       {
+        category: 'UI / Info',
+        text: 'The Undead Aura sound can overlap itself again when rises come a few tenths of a second apart; only a burst inside the same few frames collapses into one sound (tunable in the Buff tuner). Rising Tide gets its new portrait.',
+      },
+      {
         category: 'New Card',
         text: 'Bicycle Bob joins the Undead: a Tier 4 3/9 that gives a random other Undead +1/+1 whenever a summoned minion does not fit — and the gift improves by +1/+1 for every Undead you played this turn.',
         details: [

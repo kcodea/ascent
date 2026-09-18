@@ -56,6 +56,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-18',
+    label: 'Rune tribe tags',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Runes are now tagged with the tribe they relate to: every Ruby rune counts as Kobold, every Dwarven Ale rune as Dwarf, every Attachment rune as Mech, and a rune that hands you a tribal minion carries that tribe. The Runeforge offers a tagged rune only in a run that has that tribe, and the Compendium filters by it.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-18',
     label: 'Compendium tier chart',
     changes: [
       {

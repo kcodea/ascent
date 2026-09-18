@@ -255,6 +255,10 @@ export function MinionBook() {
   useEffect(() => { try { localStorage.setItem('ascent.bookzoom', String(zoom)); } catch { /* ignore */ } }, [zoom]);
   const [glossary, setGlossary] = useState(false); // swap the gallery for the keyword codex
   const [kw, setKw] = useState<{ term: string; icon: string; match: (c: CardDef) => boolean } | null>(null); // active keyword filter (from the glossary)
+  // RUNES TAB tribe filter (owner ask 2026-09-18): the tier row's chart space shows one button per tribe; a rune
+  // is "related" to a tribe when its `tribes` gate names it (the gate exists exactly where the text names a
+  // tribe — ruling 2026-09-16). No button lit = every rune.
+  const [runeTribes, setRuneTribes] = useState<Set<Tribe>>(() => new Set());
 
   // Opened from the title (no committed run) → browse the WHOLE card set; in a run → scope to its active
   // tribes (mirrors `stockPool`: neutral is always findable, so it's added below regardless).
@@ -285,8 +289,9 @@ export function MinionBook() {
   const runesToShow = useMemo(() => {
     const m = makeSearchMatcher(search);
     const match = (r: { name: string; text: string }): boolean => m(r.name) || m(r.text);
-    return [...[...RUNES].sort((a, b) => a.name.localeCompare(b.name)), ...[...EPIC_RUNES].sort((a, b) => a.name.localeCompare(b.name))].filter(match);
-  }, [search]);
+    const tribeOk = (r: { tribes?: readonly Tribe[] }): boolean => runeTribes.size === 0 || !!r.tribes?.some((t) => runeTribes.has(t));
+    return [...[...RUNES].sort((a, b) => a.name.localeCompare(b.name)), ...[...EPIC_RUNES].sort((a, b) => a.name.localeCompare(b.name))].filter((r) => match(r) && tribeOk(r));
+  }, [search, runeTribes]);
 
   // The quest DEFINITIONS to show in the Quests tab — scoped like the cards: every quest whose tribe is neutral
   // or in `tribes`, narrowed further by any selected tribe chips. Sorted lesser → greater → capstone, then name.
@@ -370,6 +375,28 @@ export function MinionBook() {
   // counting `inCategory` (so filtering to Undead shows where the Undead minions fall; Spells shows the spells).
   const tierCounts = useMemo(() => TIERS.map((t) => inCategory.filter((c) => c.tier === t).length), [inCategory]);
   const tierMax = Math.max(1, ...tierCounts);
+  // Each bar is STACKED by tribe in rail order (owner ask 2026-09-18: colour-coded by tribe) — so the unfiltered
+  // gallery reads as a tribe breakdown per tier, and a single-tribe filter paints its bars in that tribe's colour.
+  // Spells / Gifts / rewards carry no tribe worth colouring: they stack as one segment in their rail colour.
+  const stackColour = (c: CardDef): string => {
+    if (cats.has('gifts') && GIFT_IDS.has(c.id)) return '#ffd27a';
+    if (cats.has('runeRewards') && RUNE_REWARD_IDS.has(c.id)) return '#c9a4ec';
+    if (c.spell) return 'var(--acc)';
+    return `var(--t-${c.tribe})`;
+  };
+  const tierStacks = useMemo(() => {
+    const order = [...tribes, 'neutral' as Tribe];
+    return TIERS.map((t) => {
+      const by = new Map<string, number>();
+      for (const c of inCategory) if (c.tier === t) { const k = stackColour(c); by.set(k, (by.get(k) ?? 0) + 1); }
+      // Tribe segments in rail order, then the non-tribe colours.
+      const keys = [...by.keys()].sort((a, b) => {
+        const ia = order.findIndex((tr) => a === `var(--t-${tr})`), ib = order.findIndex((tr) => b === `var(--t-${tr})`);
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+      });
+      return keys.map((k) => ({ colour: k, n: by.get(k)! }));
+    });
+  }, [inCategory, tribes, cats]); // (stackColour reads `cats`, listed)
   // What the chart is counting, for its caption — mirrors the subtitle's noun.
   const chartNoun = query ? 'matches' : [cats.has('spells') && 'spells', cats.has('gifts') && 'gifts', cats.has('rewards') && 'quest rewards', cats.has('runeRewards') && 'rune rewards'].filter(Boolean).join(' & ') || 'minions';
 
@@ -531,7 +558,25 @@ export function MinionBook() {
             </button>
           ))}
           <div className="book-chart" role="group" aria-label={`${chartNoun} by tier`}>
-            {ownGalleryTab ? (
+            {cats.has('runes') ? (
+              /* Runes aren't tiered — the chart space carries the tribe filter instead (owner ask 2026-09-18). */
+              <div className="book-runetribes" role="group" aria-label="Filter runes by tribe">
+                <span className="book-chart-cap">runes by tribe</span>
+                {[...tribes].map((t) => (
+                  <button
+                    key={t}
+                    className={`book-runetribe${runeTribes.has(t) ? ' on' : ''}`}
+                    style={{ '--c': `var(--t-${t})` } as CSSProperties}
+                    onClick={() => setRuneTribes((prev) => { const next = new Set(prev); if (next.has(t)) next.delete(t); else next.add(t); return next; })}
+                    aria-pressed={runeTribes.has(t)}
+                    title={`Runes that name ${CAT_META[t].label}`}
+                  >
+                    <Icon name={CAT_META[t].icon} />
+                    <span>{CAT_META[t].label}</span>
+                  </button>
+                ))}
+              </div>
+            ) : ownGalleryTab ? (
               <span className="book-chart-quiet">not tiered</span>
             ) : (
               <>
@@ -549,7 +594,11 @@ export function MinionBook() {
                       title={`Tier ${t}: ${n} ${chartNoun}`}
                     >
                       <span className="book-bar-n">{n}</span>
-                      <span className="book-bar-fill" />
+                      <span className="book-bar-fill">
+                        {tierStacks[i]!.map((seg) => (
+                          <span key={seg.colour} className="book-bar-seg" style={{ '--seg-c': seg.colour, '--seg-h': seg.n / tierMax } as CSSProperties} />
+                        ))}
+                      </span>
                       <span className="book-bar-t">{t}</span>
                     </button>
                   );

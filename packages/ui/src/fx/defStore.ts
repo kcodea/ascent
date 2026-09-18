@@ -171,6 +171,9 @@ function coerceLayer(raw: unknown): StoredFxLayer | null {
   // The anchor PART is optional by design too: `card` is the centre and the default, so it (and any junk)
   // serialises as an omission — a def written before parts existed is byte-identical.
   if (isAnchorPart(raw.anchorPart) && raw.anchorPart !== 'card') layer.anchorPart = raw.anchorPart;
+  // The per-end TARGET part is `travel`-only and optional the same way: kept only on a travel layer, when it
+  // is a real non-`card` part — otherwise omitted, so both ends fall back to `anchorPart` as before.
+  if (anchor === 'travel' && isAnchorPart(raw.anchorPartTo) && raw.anchorPartTo !== 'card') layer.anchorPartTo = raw.anchorPartTo;
   // `life` is optional by design (omitted = live until the def's duration), so it is kept ONLY when it is a
   // usable number — a null/NaN/string `life` becomes an omission, not a zero-length layer.
   if (life !== null && life >= 0) layer.life = life;

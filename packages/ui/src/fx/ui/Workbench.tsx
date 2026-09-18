@@ -78,6 +78,7 @@ import {
   removeLayer,
   setLayerAnchor,
   setLayerAnchorPart,
+  setLayerAnchorPartTo,
   setLayerBow,
   setLayerStagger,
   setLayerMuted,
@@ -1333,6 +1334,12 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     record('structural');
     commitLayers(setLayerAnchorPart(layers, selected, part));
   };
+  // The TARGET-end part of a `travel` layer ("to"), set independently of the source-end part ("from").
+  const changeLayerAnchorPartTo = (part: FxAnchorPart): void => {
+    if ((layers[selected]?.anchorPartTo ?? 'card') === part) return;
+    record('structural');
+    commitLayers(setLayerAnchorPartTo(layers, selected, part));
+  };
 
   // Timing edit: state (so it persists / survives the next rebuild via `layersRef`) PLUS a live push to the
   // player — never a rebuild. `at`/`life` are no longer part of `structKey`, so the build effect correctly
@@ -2349,11 +2356,13 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           exactly the pair nobody guesses right. */}
       <p className="fxwb-anchorblurb">{anchorBlurb(selLayer.anchor)}</p>
       {/* The anchor PART — which piece of the anchored unit's card the head lands on. Only a UNIT anchor has
-          parts (source / target, and both ends of travel); slot / cursor / camera are points, not cards. */}
+          parts (source / target, and both ends of travel); slot / cursor / camera are points, not cards. A
+          TRAVEL layer gets TWO pickers — the FROM (source) end and the TO (target) end — so it can run, say,
+          from the source's medallion to the target's centre. Non-travel keeps the single "Part". */}
       {(selLayer.anchor === 'source' || selLayer.anchor === 'target' || selLayer.anchor === 'travel') && (
         <>
           <label className="fxwb-anchorrow" htmlFor="fxwb-layer-anchorpart">
-            <span>Part</span>
+            <span>{selLayer.anchor === 'travel' ? 'From part' : 'Part'}</span>
             <select
               id="fxwb-layer-anchorpart"
               value={selLayer.anchorPart ?? 'card'}
@@ -2365,6 +2374,24 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           </label>
           {(selLayer.anchorPart ?? 'card') !== 'card' && (
             <p className="fxwb-anchorblurb">{anchorPartBlurb(selLayer.anchorPart ?? 'card')}</p>
+          )}
+          {selLayer.anchor === 'travel' && (
+            <>
+              <label className="fxwb-anchorrow" htmlFor="fxwb-layer-anchorpart-to">
+                <span>To part</span>
+                <select
+                  id="fxwb-layer-anchorpart-to"
+                  value={selLayer.anchorPartTo ?? 'card'}
+                  title={anchorPartBlurb(selLayer.anchorPartTo ?? 'card')}
+                  onChange={(e) => changeLayerAnchorPartTo(e.target.value as FxAnchorPart)}
+                >
+                  {ANCHOR_PART_OPTIONS.map((p) => <option key={p.id} value={p.id} title={p.blurb}>{p.label}</option>)}
+                </select>
+              </label>
+              {(selLayer.anchorPartTo ?? 'card') !== 'card' && (
+                <p className="fxwb-anchorblurb">{anchorPartBlurb(selLayer.anchorPartTo ?? 'card')}</p>
+              )}
+            </>
           )}
         </>
       )}

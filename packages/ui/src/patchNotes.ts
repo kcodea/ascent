@@ -55,6 +55,16 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-18',
+    label: 'Art Batch',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Grand Larceny gets its illustration (the last Gift without one); Old Timber, Sylus, Branch Manager and Jumpstart Jules wear new portraits, and a handful of card-art framings were re-tuned.',
+      },
+    ],
+  },
+  {
     date: '2026-09-17',
     label: 'Gamble joins Set 3',
     changes: [

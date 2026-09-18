@@ -215,6 +215,7 @@ export type GameEvent =
   | 'equip' // recruit phase: this minion GRANTS its Equipment — on play, and again at every Start of Turn
          // rebuild. Shout-shaped (it fires as the body enters play) but it is not a Shout: it re-fires on
          // the rebuild, and its payload is a grant to the PLAYER rather than an effect on the board.
+  | 'equipmentActivated' // set 3 recruit phase (2026-09-18): the player ACTIVATED an Equipment from the slot — dispatched to BOARD bodies only (Rig); payload `{ minion, equipmentId }`
   | 'onGainCard' // recruit phase: a card was added to your hand via the conjure/grant path (Gangplank)
   | 'onRubyPlayed' // set 2 recruit phase: a Ruby was played on THIS minion (Ruby Broker → Gold, Resonance Idol → bounce)
   | 'rubyPlayedAnywhere' // Candle Conduit: a Ruby was played on ANY friendly minion (passive marker — the ruby paths scan for it; never dispatched through the bus)
@@ -827,7 +828,11 @@ export type EffectFactoryId =
   | 'minionSoldDemonGainStats' // Arcane Behemoth: selling a Demon feeds it that body's stats
   | 'onFriendDeathGainEcho' // Echo Mimic (combat): another friendly dies → this gains that minion's Echo for the fight
   | 'avengeSummonAttackImproving' // Muster General (combat): Avenge summons an improving token that strikes at once
-  | 'rallyDoubleSelf'; // Evolving Abomination (combat): Rally doubles this minion's stats, capped per combat
+  | 'rallyDoubleSelf' // Evolving Abomination (combat): Rally doubles this minion's stats, capped per combat
+  // ── Set 3 Neutrals, owner handoff 2026-09-18 ──
+  | 'endOfTurnBuffEndsPerUnusedEquipment' // Shredder: End of Turn — the left-most + right-most minions gain +A/+H per held Equipment whose charge went unused this turn (recruit; live text)
+  | 'equipmentCalibrate' // Calibration Wrench (Calibration Master's Equipment): the next N Equipment activations, other than the Wrench's own, are Amplified (recruit)
+  | 'equipmentActivatedBuffSelf'; // Rig: whenever you activate an Equipment, this board body gains +A/+H (recruit)
 
 export interface EffectDef {
   on: GameEvent;

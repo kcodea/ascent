@@ -82,7 +82,9 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 87 → 89 on 2026-09-18: the owner's Kobold/Neutral rework handoff — Kobe's "play 3 permanent Rubies on this and
 // adjacent Kobolds" (the owner's verb is PLAY, which the Ruby grammar does not read as "cast") and Arena Heckler's
 // "and attack it immediately" (an out-of-turn strike; no grammar rule). A conscious move.
-const UNRESOLVED_CAP = 89;
+// 89 → 90 on 2026-09-18: Shredder (the set-3 Neutral Equipment trio) — "for every Equipment unused this turn" is a
+// per-N scaler over a state the grammar has no noun for (held-but-unactivated Equipment). A conscious move.
+const UNRESOLVED_CAP = 90;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

@@ -1,7 +1,7 @@
 import { ALE_IDS, TRIBES, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
-import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer } from './equipment';
+import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
 import { currentCollector } from './activeCollector';
 import { alignmentOf } from './alignment';
 import { lobbyOpponentBoard } from './lobby/runLobby';
@@ -50,7 +50,9 @@ type RecruitFn = (
   starformAttack?: number; starformHealth?: number; starformReason?: 'consume' | 'collapse';
   /** EQUIPMENT activation: the turn clock's reading the action carried (seconds left) — a clock-window
    *  Equipment (Thymepiece) anchors to it. Absent = no reading. */
-  clockSeconds?: number },
+  clockSeconds?: number;
+  /** `equipmentActivated` (set 3 Neutrals, 2026-09-18): WHICH Equipment the player just activated. */
+  equipmentId?: string },
 ) => void;
 
 import { SPELL_POWER_EXCUSED } from './docbot/historyRegistry';
@@ -2405,6 +2407,27 @@ export function fireEquipmentFree(state: RunState, def: EquipmentDefinition, ver
   state.rngCursor = rng.state();
   const fireSelf = fireDef !== def ? { ...self, golden: false } : self; // one gilding channel (see the reducer's activate case)
   return fireEquipmentTriggers(state, fireDef, version, fireSelf, target, 1);
+}
+
+/**
+ * `equipmentActivated` watchers (set 3 Neutrals, 2026-09-18 — Rig): the player ACTIVATED an Equipment from the
+ * slot. Fired ONCE per activation by the reducer's `activateEquipment` success path, after the Equipment's own
+ * triggers resolved — never for a Dismantling / Counterrotation re-fire (`fireEquipmentFree`), which is not the
+ * player using the slot. BOARD bodies only: a Rig in hand does not watch. Each watcher's gain is captured as its
+ * own buff cue, attributed to the body that grew.
+ */
+export function fireEquipmentActivated(state: RunState, equipmentId: string): void {
+  const watchers = state.board.filter((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'equipmentActivated'));
+  if (watchers.length === 0) return;
+  const ctx = makeContext(state);
+  for (const c of watchers) {
+    if (!state.board.some((b) => b.uid === c.uid)) continue; // an earlier watcher's payout could move the board
+    for (const eff of CARD_INDEX[c.cardId]?.effects ?? []) {
+      if (eff.on !== 'equipmentActivated') continue;
+      const fn = RECRUIT_FACTORIES[eff.do];
+      if (fn) captureBuffFx(state, c, 'minion', () => fn(ctx, c, eff.params ?? {}, { minion: c, equipmentId }));
+    }
+  }
 }
 
 /**
@@ -5956,6 +5979,50 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  gilded Artificer's Comet passes its `gildedParams` (4). */
   equipmentExtraNextSpellCasts: (ctx, _self, params) => {
     ctx.state.nextSpellExtraCasts = (ctx.state.nextSpellExtraCasts ?? 0) + num(params.extra, 2);
+  },
+
+  // ═══ Set 3 Neutrals — owner handoff 2026-09-18: Shredder, the Calibration Wrench, Rig ═══
+
+  /** Shredder (End of Turn): the LEFT-most and RIGHT-most minions each gain +attack/+health for EVERY held
+   *  Equipment whose charge went unused this turn (`unusedEquipmentCount`, read before `expireEquipmentTurn`
+   *  clears the marks). One minion is both ends and is buffed once. One capture per unused Equipment so it reads
+   *  as N hits landing (the "+x/+y per z" End-of-Turn rule, owner 2026-07-17), and the live text prints the same
+   *  total (`shredderText`). Golden doubles the per-Equipment grant. */
+  endOfTurnBuffEndsPerUnusedEquipment: (ctx, self, params) => {
+    const unused = unusedEquipmentCount(ctx.state);
+    const board = ctx.state.board;
+    if (unused <= 0 || board.length === 0) return;
+    const ends = board.length === 1 ? [board[0]!] : [board[0]!, board[board.length - 1]!];
+    const a = num(params.attack, 4) * gold(self);
+    const h = num(params.health, 4) * gold(self);
+    for (let wave = 0; wave < unused; wave++) {
+      const before = ctx.state.recruitBuffFx.length;
+      captureBuffFx(ctx.state, self, 'minion', () => {
+        for (const target of ends) addBuff(target, nameOf(self), a, h);
+      });
+      for (let i = before; i < ctx.state.recruitBuffFx.length; i++) ctx.state.recruitBuffFx[i]!.fxWave = wave;
+      if (a > 0) {
+        for (const target of ends) {
+          if (!ctx.state.board.some((c) => c.uid === target.uid)) continue;
+          (ctx.state.gainAttackFiredUids ??= []).push(target.uid);
+          captureBuffFx(ctx.state, target, 'minion', () => fireOnGainAttack(ctx.state, target));
+        }
+      }
+    }
+  },
+
+  /** Calibration Wrench (Calibration Master's Equipment): bank `count` Amplified activations for WHATEVER
+   *  Equipment the player presses next — never the Wrench itself (`consumeCalibration` refuses its own id). The
+   *  reducer's activation spends one beside the per-id Amplified stack. A gilded Master's Wrench passes
+   *  `gildedParams` (2); an Amplified Wrench (a Rune of Amplification stack on it) simply fires this twice. */
+  equipmentCalibrate: (ctx, _self, params) => {
+    armCalibration(ctx.state, num(params.count, 1));
+  },
+
+  /** Rig: whenever you ACTIVATE an Equipment (dispatched by `fireEquipmentActivated` from the reducer's
+   *  activation, board bodies only), this gains +attack/+health permanently. Golden doubles. */
+  equipmentActivatedBuffSelf: (_ctx, self, params) => {
+    addBuff(self, nameOf(self), num(params.attack, 4) * gold(self), num(params.health, 4) * gold(self));
   },
 
   // ═══ Set 3 Celestials — THE STARFORM ROSTER (owner spec 2026-09-12). The token engine is `starform.ts`; every

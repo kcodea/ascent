@@ -20,13 +20,13 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts } from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts } from './recruit';
 import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
-import { syncStarDestroyer, overchargeFree } from './equipment';
+import { syncStarDestroyer, overchargeFree, consumeCalibration } from './equipment';
 import { fireOnBuyWatchers, tribesPlayedThisTurn } from './recruit';
 import { MATCHMAKING } from './matchmaking';
 
@@ -2653,8 +2653,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       // AMPLIFIED (owner design 2026-09-16): an Amplified Equipment TRIGGERS TWICE — the whole activation, extra
       // triggers included — and the stack is consumed by this activation (one stack max, so ×2 at most). Credited
       // to whichever amplifying rune is held (both, when both are).
-      const amplified = consumeAmplified(s, def.id);
-      if (amplified) {
+      // CALIBRATION WRENCH (set 3 Neutrals, 2026-09-18): a pending Calibration Amplifies whatever is pressed next —
+      // spent only when this Equipment's own stack did not already do the job (nothing wasted), never for the
+      // Wrench itself (`consumeCalibration` refuses its id). Either way it is ONE Amplification: ×2 at most.
+      const ownStack = consumeAmplified(s, def.id);
+      const amplified = ownStack || consumeCalibration(s, def.id);
+      if (ownStack) {
         if (s.runeAmplification) procRuneId(s, 'rune_amplification');
         if (s.runeGrandWorkshop) procRuneId(s, 'rune_grand_workshop');
       }
@@ -2692,6 +2696,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         ...(target ? { targetUid: target.uid } : {}),
         ...(s.equipmentSpellCasts?.length ? { spellIds: [...s.equipmentSpellCasts] } : {}),
       });
+      // `equipmentActivated` watchers (Rig, set 3 Neutrals 2026-09-18): the player USED an Equipment — once per
+      // activation, after its own triggers, before any Counterrotation re-fire (which is not the player pressing).
+      fireEquipmentActivated(s, def.id);
       // RUNE OF COUNTERROTATION (Set 3 batch 2): three DIFFERENT Equipment activated this turn → every one of them
       // triggers again (targeted → a random friendly minion, a Choose One → a random branch), then the set resets so
       // the next three can pay again. The Star Destroyer never joins the set (owner note 2026-09-16).

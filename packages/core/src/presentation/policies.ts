@@ -100,6 +100,9 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:clueBuffTarget:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:rallySummonAndGetRally:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:startOfTurnEquipmentCharge:startOfTurn': { policy: 'passive', family: 'economy' },
+  // Set 3 Neutrals, owner handoff 2026-09-18.
+  'factory:endOfTurnBuffEndsPerUnusedEquipment:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Shredder — cf. endOfTurnBuffEndsTribePerCard
+  'factory:equipmentActivatedBuffSelf:equipmentActivated': { policy: 'ownBeat', family: 'react' }, // Rig — cf. onGainStatsBuffRandomHand
   // set 3 Spirits (tranche 1)
   'factory:rallyGainAttackPerSpiritsPlayed:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:battlecryBuffRandomTribeBoardAndHand:onPlay': { policy: 'ownBeat', family: 'shout' },

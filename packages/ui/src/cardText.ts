@@ -411,6 +411,23 @@ export function scTribeBuffPerPlayedText(cardId: string, golden: boolean, played
 }
 
 /**
+ * SHREDDER (`endOfTurnBuffEndsPerUnusedEquipment`, set 3 Neutrals 2026-09-18) — "+4/+4 for every Equipment unused
+ * this turn" folded into the total it will ACTUALLY grant right now: the per-Equipment rate × the held Equipment
+ * whose charge is still unspent (`unusedEquipmentCount`). The count is what changes as the player presses the slot,
+ * so it is always shown; the rate stays in the parenthetical so the card still explains itself.
+ */
+export function shredderText(cardId: string, golden: boolean, unusedEquipment: number | undefined): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'endOfTurnBuffEndsPerUnusedEquipment');
+  if (!def || !eff) return null;
+  const n = unusedEquipment ?? 0;
+  const mult = golden ? 2 : 1;
+  const a = Number((eff.params as { attack?: number })?.attack ?? 4) * mult;
+  const h = Number((eff.params as { health?: number })?.health ?? 4) * mult;
+  return `**End of Turn:** give your left-most and right-most minions **{{+${a * n}/+${h * n}}}** (+${a}/+${h} for each Equipment unused this turn: **${n}**).`;
+}
+
+/**
  * Bicycle Bob (`overflowBuffRandomTribePerPlayed`) — an overflow gives a random other <tribe> minion +A/+H, and the
  * grant improves by the base for every <tribe> minion PLAYED this turn: (base × (1 + played)) × golden. Print the
  * CURRENT grant (green) in place of the printed "+A/+H" (the hard live-value rule, both chains). `playedOf` answers

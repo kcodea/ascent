@@ -171,6 +171,7 @@ export const CONDITIONAL_LEXICON: ReadonlyArray<readonly [RegExp, string]> = [
   [/(?:minion|it) Rises|Rises/i, 'onRise'],
   [/gains? Attack/i, 'onGainAttack'],
   [/gains stats/i, 'text:onGainStats'],
+  [/you (?:use|activate) (?:an )?Equipment/i, 'equipmentActivated'], // Rig (set 3 Neutrals, 2026-09-18)
   [/loses Ward/i, 'text:onShieldBreak'],
   [/magneti[sz]e|Magnetic attaches|is magnetized/i, 'onMagnetize'],
   [/is summoned|you have (?:space|room)|you first have room/i, 'onSummon'],

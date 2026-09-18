@@ -2280,6 +2280,14 @@ export interface PlayerEquipmentState {
    * held after the rebuild. The UI paints the charge indicator BLUE while > 0 (`equipmentAmplifiedOf`).
    */
   amplified?: Record<string, number>;
+  /**
+   * CALIBRATION WRENCH (set 3 Neutrals, owner handoff 2026-09-18) — how many upcoming Equipment activations are
+   * Amplified WHATEVER Equipment they turn out to be. The per-id `amplified` stack above cannot express "your next
+   * activation" (the Wrench does not know what the player will press), so the Wrench banks a count here and the
+   * activation spends one — for any Equipment but the Wrench itself, and only when its own stack did not already
+   * Amplify it (nothing is wasted). Survives the Start-of-Turn rebuild exactly like `amplified`.
+   */
+  calibrationPending?: number;
 }
 
 /**

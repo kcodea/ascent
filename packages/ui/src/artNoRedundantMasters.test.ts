@@ -125,6 +125,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // Manager and Jumpstart Jules were REPLACED in place from new masters at net 0.)
     // → 1247 (2026-09-18, Han Gover's minion art: +1 — the new Set 3 Dwarf/Undead.)
     // → 1246 (2026-09-18, Bicycle Bob + Handy Flame token + Rune of the Handy Flame + Rune of the Open Hand: +4.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1248);
+    // → 1252 (2026-09-18, the Set 3 Neutral Equipment trio: +4 measured against origin/main's 1248 — Shredder,
+    // Calibration Master, Rig and the Calibration Wrench icon. Sylus and Venom were REPLACED in place at net 0.)
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1252);
   });
 });

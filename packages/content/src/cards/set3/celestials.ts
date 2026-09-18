@@ -21,7 +21,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     name: 'Cosmo Express', // 'Horizon Courier' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'celestial',
     tier: 1,
-    attack: 1,
+    attack: 2,
     health: 1,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleGrantRandomSpell', params: { count: 1 } }],
@@ -29,19 +29,21 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     goldenText: '**Echo:** get **2** random Shop spells.',
   },
   {
-    // T2: banks +2/+2 for the NEXT Shop spell (`nextSpellBonus`), folded into spell power's read so every stat
-    // spell and its hover preview show the boosted number; spent by that cast. Gifts and Rubies are not Shop
-    // spells: they neither read nor spend it. Fires again → banks again (additive).
+    // T2 4/2 (owner handoff 2026-09-18; was 2/4 +2/+2): banks +4/+4 for the NEXT Shop spell (`nextSpellBonus`), a
+    // run field — so it CARRIES through End Turn → combat → the next shop unspent (pinned in set3Celestials.test.ts).
+    // Folded into spell power's read (`spellAttackBonus` / `spellHealthBonus`) so every Shop spell offer, hand
+    // spell and hover preview prints the boosted number live, in place; spent by exactly the next Shop-spell cast.
+    // Gifts and Rubies are not Shop spells: they neither read nor spend it. Fires again → banks again (additive).
     id: 'ce3_vendor',
     name: 'Sugarnova', // 'Starpath Vendor' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'celestial',
     tier: 2,
-    attack: 2,
-    health: 4,
+    attack: 4,
+    health: 2,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryBuffNextSpell', params: { attack: 2, health: 2 } }],
-    text: '**Shout:** give your next Shop spell **+2/+2**.',
-    goldenText: '**Shout:** give your next Shop spell **+4/+4**.',
+    effects: [{ on: 'onPlay', do: 'battlecryBuffNextSpell', params: { attack: 4, health: 4 } }],
+    text: '**Shout:** give your next Shop spell **+4/+4**.',
+    goldenText: '**Shout:** give your next Shop spell **+8/+8**.',
   },
   {
     // T3 Celestial-Undead: "a spell" is ANY spell (owner 2026-09-10, Stellar Chorus: "count rubies and tower
@@ -52,8 +54,8 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     tribe: 'celestial',
     tribe2: 'undead',
     tier: 3,
-    attack: 3,
-    health: 3,
+    attack: 0,
+    health: 8,
     keywords: [],
     effects: [{ on: 'spellCast', do: 'spellCastBuffSelf', params: { attack: 4, health: 0, includeRubies: true } }],
     text: 'Whenever you cast a spell, this gains **+4 Attack** permanently.',
@@ -93,9 +95,10 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     goldenText: '**Shout and Echo:** get **2 Star Crashes**.',
   },
   {
-    // T5: the "also casts on" family (Mirrorwing / Reflector / Runefire ruling — a FULL cast per target, scaled by
-    // the cast multiplier), gated on the NAMED spell and on 2 random OTHER friendly Celestials. Once per turn
-    // per copy (`namedSpreadUsedThisTurn`). Golden: 4 others.
+    // T5 (owner handoff 2026-09-18: "functions similar to Mirrorwing but specific to Star Crash"): the first Star
+    // Crash cast on this each turn casts AGAIN on this — a FULL re-cast scaled by the cast multiplier (the
+    // Mirrorwing ruling 2026-09-01), gated on the NAMED spell, once per turn per copy (`namedSpreadUsedThisTurn`,
+    // so a Tower Shield first does not spend it). Golden: 2 additional casts. (Was: spread to 2 other Celestials.)
     id: 'ce3_adept',
     name: 'Crash Course', // 'Crashborn Adept' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'celestial',
@@ -103,9 +106,9 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     attack: 5,
     health: 8,
     keywords: [],
-    effects: [{ on: 'spellCastOnThis', do: 'onSpellCastOnThisSpreadTribeNamed', params: { spellId: 'starcrash', count: 2, tribe: 'celestial' } }],
-    text: 'The first time each turn you cast **Star Crash** on this, cast it on **2** other friendly Celestials.',
-    goldenText: 'The first time each turn you cast **Star Crash** on this, cast it on **4** other friendly Celestials.',
+    effects: [{ on: 'spellCastOnThis', do: 'onSpellCastOnThisRecastNamed', params: { spellId: 'starcrash', count: 1 } }],
+    text: 'The first **Star Crash** you cast on this each turn casts an additional time.',
+    goldenText: 'The first **Star Crash** you cast on this each turn casts **2** additional times.',
   },
   {
     // T6: every 3 Shop spells cast while it is ON THE BOARD (owner 2026-09-11: hand-time casts do not count;
@@ -134,14 +137,14 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     health: 10,
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'comet' } }],
-    text: '**Equip Comet (4):** your next spell casts **2** additional times.',
-    goldenText: '**Equip Comet (4):** your next spell casts **4** additional times.',
+    text: '**Equip Comet (3):** your next spell casts **2** additional times.',
+    goldenText: '**Equip Comet (3):** your next spell casts **4** additional times.',
   },
   {
     // THE STARFORM (owner design 2026-09-12) — a 1/1 Celestial TOKEN that lives IN THE SHOP as a shop offer, not
     // on the board: created into the right-most Shop slot, only one at a time, it survives every refresh in its
     // own slot and grows from every shop buff + consume until it is bought (your LEFT-MOST Celestial consumes it
-    // for 100% of its stats — rules v2 2026-09-13) or collapsed (50% to 2 unique Celestials + extras). It spawns
+    // for 100% of its stats — rules v2 2026-09-13) or collapsed (50% to 3 unique Celestials + extras, owner 2026-09-18). It spawns
     // at 6 Gold and every refresh knocks 1 off (`ShopCard.cost`); its printed stats ARE the counter, so it carries
     // no rules text (owner: "printed stats are the live counter"); the engine that moves it is
     // `packages/sim/src/starform.ts`. `token: true` keeps it out of every draw pool — a card CREATES it (Star Seed
@@ -169,7 +172,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     tribe: 'celestial',
     tier: 1,
     attack: 2,
-    health: 1,
+    health: 2,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryCreateStarformOrBuff', params: { attack: 4, health: 4 } }], // +2/+2 until 2026-09-14
     text: '**Shout:** create a **Starform**. If you already have one, give it **+4/+4**.',
@@ -190,20 +193,20 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     goldenText: '**Taunt.** **Echo:** give a random friendly Celestial **+4/+2**.',
   },
   {
-    // T2: an `onBuy` watcher. The Starform's own buy (consumed into your left-most Celestial) COUNTS as a buy
-    // (rule 5) but the token is gone by the time the watchers hear it — a no-op by construction unless a Zenith
-    // just re-created it. Gilded: +2/+2 per buy.
+    // T2 2/5 (owner handoff 2026-09-18; was an `onBuy` watcher): a GOLD-SPENT meter — every 5 Gold spent while it
+    // stands (`goldTick`, the Coinfire Forewoman / Billings shape: the remainder carries, one big spend can cross
+    // it twice) creates the token when there is none, otherwise +3/+3. The step counter shows N/5 (the shared
+    // tracker rule, owner 2026-09-11). Gilded: +6/+6 (the create has no number to double).
     id: 'ce3_peddler',
     name: 'Stardust Peddler',
     tribe: 'celestial',
     tier: 2,
     attack: 2,
-    health: 3,
+    health: 5,
     keywords: [],
-    // 2026-09-14 (owner): creates the token when there is none; otherwise +1/+2 (was a bare +1/+1).
-    effects: [{ on: 'onBuy', do: 'onBuyCreateStarformOrBuff', params: { attack: 1, health: 2 } }],
-    text: 'Whenever you buy a minion, create a **Starform** or give one **+1/+2**.',
-    goldenText: 'Whenever you buy a minion, create a **Starform** or give one **+2/+4**.',
+    effects: [{ on: 'goldSpent', do: 'goldSpentCreateStarformOrBuff', params: { every: 5, attack: 3, health: 3 } }],
+    text: 'When you spend **5 Gold**, create a **Starform**, or give it **+3/+3**.',
+    goldenText: 'When you spend **5 Gold**, create a **Starform**, or give it **+6/+6**.',
   },
   {
     // T2 Shout AND Echo, one factory on two triggers: "this shop" = the offers standing in the row right now
@@ -272,24 +275,22 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     goldenText: '**Avenge (3):** get **2 Star Crashes**.',
   },
   {
-    // T4: End of Turn feeds the token (+2/+2; nothing without one); Start of Turn re-creates it when none is out
-    // (a full row eats its right-most minion, rule 1). Gilded: End of Turn +4/+4 (the create has no number).
+    // T5 (owner handoff 2026-09-18; was "EoT: the token eats the row / SoT: create one"): End of Turn CREATES the
+    // token when none is out (rule 1 — a full row eats its right-most minion) and gives it +10/+10 — with one
+    // already out the create is the no-op it always is (rule 2) and the +10/+10 lands on it. Gilded: +20/+20.
     id: 'ce3_orbitkeeper',
     name: 'Roundabout', // 'Orbit Keeper' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'celestial',
-    tier: 5, // T4 3/6 with an End-of-Turn +2/+2 until 2026-09-14 (owner): now the token EATS the whole row at End of Turn
+    tier: 5,
     attack: 7,
     health: 5,
     keywords: [],
-    effects: [
-      { on: 'endOfTurn', do: 'endOfTurnStarformConsumeAllShop' },
-      { on: 'startOfTurn', do: 'startOfTurnCreateStarform' },
-    ],
-    text: '**End of Turn:** your **Starform** consumes the Shop. **Start of Turn:** if you have no Starform, create one.',
-    goldenText: '**End of Turn:** your **Starform** consumes the Shop and gains **double** the stats. **Start of Turn:** if you have no Starform, create one.',
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnCreateStarformThenBuff', params: { attack: 10, health: 10 } }],
+    text: '**End of Turn:** create a **Starform** and give it **+10/+10**.',
+    goldenText: '**End of Turn:** create a **Starform** and give it **+20/+20**.',
   },
   {
-    // T4 (rules v2 2026-09-13): COLLAPSE — the token leaves; 2 UNIQUE random friendly Celestials each gain HALF its
+    // T4 (rules v2 2026-09-13; 3 hits since 2026-09-18): COLLAPSE — the token leaves; 3 UNIQUE random friendly Celestials each gain HALF its
     // stats (rounded up, base included, rule 7), plus the extras Nova Herald adds (with replacement). One Celestial
     // → it takes the one original + every extra; a Starform but NO Celestial → the token still collapses and the
     // stats go nowhere; no Starform → nothing happens. The Devotee itself is eligible. Gilded: each hit gains its
@@ -343,7 +344,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     tribe: 'celestial',
     tier: 5,
     attack: 5,
-    health: 9,
+    health: 5,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleGiveMaxStatsRandomTribe', params: { tribe: 'celestial' } }],
     text: "**Echo:** give a friendly Celestial this minion's stats.",
@@ -356,8 +357,8 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     name: 'Twinning', // 'Twin Star' until 2026-09-14 (owner rename; id + art unchanged)
     tribe: 'celestial',
     tier: 5, // T6 until 2026-09-14 (owner)
-    attack: 6,
-    health: 8,
+    attack: 4,
+    health: 7,
     keywords: [],
     effects: [{ on: 'starformGained', do: 'onStarformGainedBuffSelf' }],
     text: 'Whenever your **Starform** gains stats, this does, too.',

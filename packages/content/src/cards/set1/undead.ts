@@ -89,7 +89,7 @@ export const UNDEAD: CardDef[] = [
     name: 'Footman Captain',
     tribe: 'undead',
     tier: 3,
-    attack: 2,
+    attack: 4,
     health: 1,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'footman' } }],

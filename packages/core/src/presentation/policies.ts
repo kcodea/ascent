@@ -63,14 +63,13 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:battlecryBuffThisShopPerSpellsThisTurn:onPlay': { policy: 'ownBeat', family: 'shout' }, // Rocket Power (was Shooting Star)
   'factory:battlecryCollapseStarform:onPlay': { policy: 'ownBeat', family: 'shout' }, // Corona Devotee (rules v2 2026-09-13: it Collapses)
   'factory:collapseExtraTargets:passive': { policy: 'passive', family: 'passive' }, // Nova Herald — a marker read at Collapse time, never a beat
-  'factory:startOfTurnCreateStarform:startOfTurn': { policy: 'ownBeat', family: 'economy' }, // Orbit Keeper (SoT half)
   'factory:deathrattleGiveMaxStatsRandomTribe:onDeath': { policy: 'ownBeat', family: 'echo' }, // Lodestar
   'factory:onStarformGainedBuffSelf:starformGained': { policy: 'foldedCue', family: 'react' }, // Twin Star
   'factory:spellCastBuffStarform:spellCast': { policy: 'foldedCue', family: 'castReact' }, // Zenith (cast half)
   'factory:onStarformRemovedRecreateHalf:starformRemoved': { policy: 'ownBeat', family: 'react' }, // Zenith (rebirth half)
   'factory:spellStarformConsumeShop:cast': { policy: 'ownBeat', family: 'spellCast' }, // Black Hole (spell; was Accretion)
-  'factory:onBuyCreateStarformOrBuff:onBuy': { policy: 'foldedCue', family: 'economyReact' }, // Stardust Peddler (2026-09-14)
-  'factory:endOfTurnStarformConsumeAllShop:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Roundabout (EoT half, 2026-09-14)
+  'factory:goldSpentCreateStarformOrBuff:goldSpent': { policy: 'foldedCue', family: 'economyReact' }, // Stardust Peddler (2026-09-18)
+  'factory:endOfTurnCreateStarformThenBuff:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Roundabout (2026-09-18)
   'factory:battlecryGainGoldNextTurn:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGainKeyword:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGainRandomMinion:onPlay': { policy: 'ownBeat', family: 'shout' },
@@ -280,7 +279,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onSpellCastOnThisRecast:spellCastOnThis': { policy: 'ownBeat', family: 'economy' },
   // Reflector (Yirin's token) — same shape as the recast above: a second cast the player should SEE land.
   'factory:onSpellCastOnThisSpreadRandom:spellCastOnThis': { policy: 'ownBeat', family: 'economy' },
-  'factory:onSpellCastOnThisSpreadTribeNamed:spellCastOnThis': { policy: 'ownBeat', family: 'economy' }, // Crashborn Adept
+  'factory:onSpellCastOnThisRecastNamed:spellCastOnThis': { policy: 'ownBeat', family: 'economy' }, // Crash Course (2026-09-18)
   // Reflector also bounces a played Ruby to a random friendly (owner balance 2026-08-18) — same beat as the spell spread.
   'factory:onRubyPlayedSpreadRandom:onRubyPlayed': { policy: 'ownBeat', family: 'economy' },
   'factory:onSpellCastSecondCopyFirst:spellCast': { policy: 'ownBeat', family: 'castPayoff', reason: 'discrete payoff fired immediately after the cast; near-zero windup' },

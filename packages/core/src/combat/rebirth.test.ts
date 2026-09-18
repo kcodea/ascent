@@ -91,7 +91,7 @@ describe('Rebirth (RB) — the body comes back WHOLE, once', () => {
   });
 
   it('a Rebirth death is a REAL death (the friendly-death tally) but NOT a Rise (no onRise watcher payout)', () => {
-    // Rising Tide: "When a friendly minion Rises, give your minions +4/+5". A Rebirth must leave it quiet.
+    // Rising Tide: "When a friendly minion Rises, give your minions +3/+4". A Rebirth must leave it quiet.
     const r = fight([bm('u3_risingtide', { attack: 1, health: 30 }), bm('sandbag', { attack: 1, health: 2, keywords: ['RB'] })], [foe(3, 500)]);
     expect(reborns(r.events).some((e) => e.rebirth)).toBe(true);
     const tideBuffs = (evs: CombatEvent[]) => evs.filter((e) => e.type === 'buff' && /onRise/.test((e as { key?: string }).key ?? ''));

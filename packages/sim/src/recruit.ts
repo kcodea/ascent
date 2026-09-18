@@ -54,7 +54,7 @@ type RecruitFn = (
 ) => void;
 
 import { SPELL_POWER_EXCUSED } from './docbot/historyRegistry';
-import { buffStarform, collapseHits, collapseStarform, createStarform, destroyStarform, hasStarform, starformConsumeShopMinion, starformFollowShopBuff, starformRefreshLand } from './starform';
+import { COLLAPSE_ORIGINALS, buffStarform, collapseHits, collapseStarform, createStarform, destroyStarform, hasStarform, starformConsumeShopMinion, starformFollowShopBuff, starformRefreshLand } from './starform';
 import { syncStarDestroyer } from './equipment';
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
@@ -3557,11 +3557,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Forest Colossus (Start of Combat, shop twin — a Twilight / End-of-Turn SoC replay): your `tribe` minions
-   *  +atk/+hp per point of THIS body's tally. Combat carries the tally on the body and does the same. */
+  /** Old Timber (Start of Combat, shop twin — a Twilight / End-of-Turn SoC replay): your `tribe` minions
+   *  +atk/+hp per step, where the steps are `base` (Old Timber's printed +3/+2, owner handoff 2026-09-18) plus
+   *  THIS body's tally. Combat carries the tally on the body and does the same arithmetic. */
   scBuffTribePerTally: (ctx, self, params) => {
     const tribe = str(params.tribe) as Tribe;
-    const n = (self.spiritTally ?? 0) * gold(self);
+    const n = (num(params.base, 0) + (self.spiritTally ?? 0)) * gold(self);
     if (n <= 0) return;
     const a = num(params.attack, 1) * n, h = num(params.health, 1) * n;
     for (const c of ctx.state.board) if (isTribe(c, tribe)) addBuff(c, nameOf(self), a, h);
@@ -5911,27 +5912,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ARENA_EFFECTS.spellCastBuffAll(shopArena(ctx.state, self), { attack: num(params.attack, 6), health: num(params.health, 6), tribe: str(params.tribe) });
   },
 
-  /** Set 3 Celestials — Crashborn Adept: the FIRST time each turn the NAMED spell (`spellId`) is cast on this,
-   *  cast it on `count` random OTHER friendly `tribe` minions too — a FULL cast each, scaled by `spellCasts`,
-   *  like the rest of the "also casts on" family (the Mirrorwing / Reflector / Runefire ruling). A per-instance,
-   *  per-turn latch (`namedSpreadUsedThisTurn`, cleared at Start of Turn) rather than the spells-on-this counter:
-   *  the gate is "first STAR CRASH", not "first spell", and a multiplied original (Yazzus) or a spread that lands
-   *  back on another Adept must not re-arm it. Fewer eligible bodies than `count` → spreads to those. Golden
+  /** Set 3 Celestials — Crash Course (owner handoff 2026-09-18: "similar to Mirrorwing but specific to Star Crash"):
+   *  the FIRST time each turn the NAMED spell (`spellId`) is cast on this, it casts `count` additional times ON
+   *  THIS — each a FULL cast scaled by `spellCasts` (the Mirrorwing ruling 2026-09-01: a re-cast is the same cast
+   *  happening again, multiplier included). Gated on the named spell, NOT on "first spell": the per-instance,
+   *  per-turn latch (`namedSpreadUsedThisTurn`, cleared at Start of Turn) is set before the re-casts so the
+   *  re-cast landing back on this body (which re-enters `fireOnSpellCastOnThis`) finds it spent and stops — the
+   *  same termination Mirrorwing gets from its pre-bumped counter. A Tower Shield first does not spend it. Golden
    *  doubles the count. */
-  onSpellCastOnThisSpreadTribeNamed: (ctx, self, params, payload) => {
+  onSpellCastOnThisRecastNamed: (ctx, self, params, payload) => {
     const spellDef = (payload as { spellDef?: CardDef }).spellDef;
     if (!spellDef || spellDef.id !== str(params.spellId)) return;
     if (self.namedSpreadUsedThisTurn) return;
     self.namedSpreadUsedThisTurn = true;
-    const tribe = str(params.tribe) as Tribe;
-    const others = ctx.state.board.filter((c) => c.uid !== self.uid && isTribe(c, tribe));
-    const rng = makeRng(ctx.state.rngCursor);
-    const picks: BoardCard[] = [];
-    for (let n = num(params.count, 2) * gold(self); n > 0 && others.length > 0; n--) picks.push(others.splice(rng.int(others.length), 1)[0]!);
-    ctx.state.rngCursor = rng.state();
-    const reps = spellCasts(ctx.state, spellDef);
-    // One bounce hop per cast (self → pick), recorded BEFORE the cast so the hop reads as causing what lands.
-    for (const pick of picks) for (let r = 0; r < reps; r++) { recordBounceFx(ctx.state, 'spell', self.uid, pick.uid); castSpell(ctx.state, spellDef, pick); }
+    for (let i = 0; i < num(params.count, 1) * gold(self) * spellCasts(ctx.state, spellDef); i++) {
+      castSpell(ctx.state, spellDef, self);
+    }
   },
 
   /** Set 3 Celestials — Comet (Orrery Artificer's Equipment): bank `extra` additional casts for the next Shop
@@ -5962,13 +5958,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     buffStarform(ctx.state, num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self), nameOf(self));
   },
 
-  /** Stardust Peddler (`onBuy`, owner 2026-09-14): with no Starform out, CREATE one (rule 1); otherwise +a/+h. Buying
-   *  the token itself counts as a buy and the token is gone by the time the watchers fire — so a Peddler re-seeds
-   *  the row right after the buy, which is what "create a Starform or give one +1/+2" literally promises. Golden
-   *  doubles the buff; the create has no number to double. */
-  onBuyCreateStarformOrBuff: (ctx, self, params) => {
+  /** Stardust Peddler (`goldSpent`, owner handoff 2026-09-18): every `every` Gold spent (the threshold is applied by
+   *  `applyGoldSpent`'s per-instance `goldTick` meter, the Coinfire Forewoman shape) — with no Starform out, CREATE
+   *  one (rule 1); otherwise +a/+h (× golden; the create has no number to double). */
+  goldSpentCreateStarformOrBuff: (ctx, self, params) => {
     if (!hasStarform(ctx.state)) { createStarform(ctx.state, { cardId: self.cardId, name: nameOf(self) }); return; }
-    buffStarform(ctx.state, num(params.attack, 1) * gold(self), num(params.health, 2) * gold(self), nameOf(self));
+    buffStarform(ctx.state, num(params.attack, 3) * gold(self), num(params.health, 3) * gold(self), nameOf(self));
   },
 
   /** "Give THIS SHOP +a/+h" — Wishing Star (Shout AND Echo, one factory on two triggers; the Stellar Lens has its
@@ -6055,40 +6050,29 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     buffStarform(ctx.state, num(params.attack, 2) * gold(self), num(params.health, 2) * gold(self), nameOf(self));
   },
 
-  /** Roundabout (End of Turn, owner 2026-09-14): the Starform eats EVERY minion offer in the row, left to right —
-   *  each a real Shop consume through the token's body (the consume meter, Open Market, `starformGained` all hear
-   *  each meal). Spell / Ruby offers and the token itself are never meals. Nothing without a Starform. Golden: the
-   *  token gains DOUBLE each meal's stats (`times` 2 — the Great Attractor's rider), not a second pass. */
-  endOfTurnStarformConsumeAllShop: (ctx, self) => {
-    if (!hasStarform(ctx.state)) return;
-    for (let guard = 0; guard < 16; guard++) {
-      const idx = ctx.state.shop.findIndex((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby && !o.starform; });
-      if (idx < 0) return;
-      if (!starformConsumeShopMinion(ctx.state, idx, gold(self))) return;
-    }
+  /** Roundabout (End of Turn, owner handoff 2026-09-18): create a Starform if none is out (rule 1 — a full row eats
+   *  its right-most minion; rule 2 — a no-op with one already out), THEN give it +a/+h (× golden). "Create and
+   *  give" with a token already standing is therefore just the buff — the create primitive is a no-op by design,
+   *  so the token never doubles up. Runs against THIS turn's row; the token is pinned through the next roll. */
+  endOfTurnCreateStarformThenBuff: (ctx, self, params) => {
+    if (!hasStarform(ctx.state)) createStarform(ctx.state, { cardId: self.cardId, name: nameOf(self) });
+    buffStarform(ctx.state, num(params.attack, 10) * gold(self), num(params.health, 10) * gold(self), nameOf(self));
   },
 
-  /** Orbit Keeper (Start of Turn): create a Starform if none is out (a no-op with one — rule 2; a full row eats its
-   *  right-most minion — rule 1). Runs in the Start-of-Turn pass, i.e. against the NEW turn's row. */
-  startOfTurnCreateStarform: (ctx, self) => {
-    if (hasStarform(ctx.state)) return;
-    createStarform(ctx.state, { cardId: self.cardId, name: nameOf(self) });
-  },
-
-  /** Corona Devotee (Shout; rules v2 2026-09-13): COLLAPSE the Starform — the token leaves and 2 UNIQUE random
+  /** Corona Devotee (Shout; rules v2 2026-09-13; 3 hits since 2026-09-18): COLLAPSE the Starform — the token leaves and 3 UNIQUE random
    *  friendly Celestials each gain HALF its stats, rounded up, base included (rule 7 — `collapseStarform` returns
    *  the halves), PLUS `collapseExtraTargetsOf` extra hits drawn WITH replacement (Nova Herald's passive +2 per
    *  Herald on board, +4 gilded; the run-wide `collapseExtraTargets` counter) — an extra may land on a Celestial
    *  that already took a hit, so with two Celestials one can take 3 and the other 1. One Celestial → 1 original +
    *  every extra on it; none → the token still collapses and the stats go nowhere; no Starform → nothing at all.
    *  The Devotee itself is a friendly Celestial and eligible. Golden: each hit gains double the half (the full
-   *  stats). `params.count` overrides the number of unique originals (default 2). */
+   *  stats). `params.count` overrides the number of unique originals (default `COLLAPSE_ORIGINALS`, 3). */
   battlecryCollapseStarform: (ctx, self, params) => {
     // The hits are drawn INSIDE the collapse (after the token leaves) so the `starformFx` record names every one
     // of them, duplicates included — the UI fires one `starform-pull` per hit.
     let hits: BoardCard[] = [];
     const half = collapseStarform(ctx.state, () => {
-      hits = collapseHits(ctx.state, num(params.count, 2));
+      hits = collapseHits(ctx.state, num(params.count, COLLAPSE_ORIGINALS));
       return hits;
     });
     if (!half) return;

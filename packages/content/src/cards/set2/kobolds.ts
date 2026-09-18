@@ -154,8 +154,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     name: 'Gemheart Carver',
     tribe: 'kobold',
     tier: 4,
-    attack: 5,
-    health: 3,
+    attack: 6,
+    health: 5,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard' } }],
     text: "**Echo:** Summon a **1/1 Gemheart Golem**, plus this minion's Rubies.",
@@ -196,8 +196,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     name: 'Geode Guardian',
     tribe: 'kobold',
     tier: 2,
-    attack: 2,
-    health: 2,
+    attack: 3,
+    health: 3,
     keywords: ['T'],
     // Owner rework 2026-07-31 (from "play a Ruby on adjacent"). The COUNT is fixed — a Gilded copy still
     // summons 2 (the owner was explicit); gilding doubles the Rubies played on them instead.

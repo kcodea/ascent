@@ -121,6 +121,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // → 1241 (2026-09-16, the Set 3 batch-2 rune emblems: +49 files measured against origin/main's 1180 — one
     // emblem per new rune except the Handy Flame and Open Hand runes, whose masters do not exist yet.)
     // → 1242 (2026-09-17, the Rune of Gambling emblem: +1.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1242);
+    // → 1243 (2026-09-18, Grand Larceny's Gift art: +1 — the last artless Gift. Old Timber, Sylus, Branch
+    // Manager and Jumpstart Jules were REPLACED in place from new masters at net 0.)
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1243);
   });
 });

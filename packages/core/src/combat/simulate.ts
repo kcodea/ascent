@@ -4492,7 +4492,7 @@ export function simulate(
           out.push({ sourceUid: m.sourceUid!, attack: ruby.attack, health: ruby.health, engraved: false, ruby: true });
         }
         if (restA > 0 || restH > 0) {
-          out.push({ sourceUid: m.sourceUid!, attack: restA, health: restH, engraved: m.keywords.includes('EG') || !!m.auraEngraved });
+          out.push({ sourceUid: m.sourceUid!, attack: restA, health: restH, engraved: m.keywords.includes('EG') || !!m.auraEngraved, ...(m.permaLabel ? { label: m.permaLabel } : {}) });
         }
         return out;
       });

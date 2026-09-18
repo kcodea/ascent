@@ -185,6 +185,6 @@ describe('Rune of the Traveling Festival — the "+2/+2 more" is ONE TIME per Re
     expect(s.hand.some((c) => REVELER_IDS.includes(c.cardId)), 'each purchase paid its Reveler (two may have tripled with the board Flame)').toBe(true);
     const x = revelerValue(s);
     s = sell(s, 'f');
-    expect(stats(at(s, 'k')), 'gilded Flame: twice the value, but the +2 exactly once').toEqual([3 + 2 * x + 2, 1]);
+    expect(stats(at(s, 'k')), 'gilded Flame: twice the value, but the +2 exactly once').toEqual([1 + 2 * x + 2, 3]);
   });
 });

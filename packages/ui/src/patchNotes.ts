@@ -69,7 +69,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Crash Course: "The first Star Crash you cast on this each turn casts an additional time" — it now works like Mirrorwing, but only for Star Crash (gilded: 2 additional times). It no longer spreads to other Celestials.',
           'Roundabout: "End of Turn: create a Starform and give it +10/+10" (gilded +20/+20). With a Starform already out, only the +10/+10 lands. The old Start-of-Turn create and End-of-Turn "eat the Shop" are gone.',
           'Old Timber: "Start of Combat: give your Spirits +3/+2. Improves for every Spirit played" — +3/+2 more for each Spirit played since it was played; the card prints the current total.',
-          'Collapse now grants half the Starform's stats (rounded up) to 3 random friendly Celestials (was 2). Fuse Aldrin's extra hits still land on top; Rune of the Supernova still hits all of them instead.',
+          "Collapse now grants half the Starform's stats (rounded up) to 3 random friendly Celestials (was 2). Fuse Aldrin's extra hits still land on top; Rune of the Supernova still hits all of them instead.",
         ],
       },
     ],

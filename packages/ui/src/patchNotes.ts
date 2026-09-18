@@ -67,6 +67,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Hover any card or rune to see the cards it relates to (the token it summons, the spell it casts, the card a rune grants) — these were rendering behind the book before.',
           'The Runes tab lists only the runes of the set you are looking at, and its tribe buttons filter to the runes that relate to a tribe.',
           'The operating-system tooltip (the little yellow box) no longer appears anywhere in the game.',
+          'A card that gives you a Dwarven Ale now previews one Ale on hover — a different one each time — instead of all five.',
         ],
       },
     ],

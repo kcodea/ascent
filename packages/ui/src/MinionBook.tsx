@@ -5,7 +5,7 @@ import { CARD_INDEX, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, activeSet, poolFor } 
 import { HEROES, chooseBothActive, type RunState } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { chooseBothText } from './cardText';
-import { relatedCardIds } from './cardRefs';
+import { relatedCardIds, relatedPickOneIds } from './cardRefs';
 import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
 import { heroArt } from './art';
@@ -409,7 +409,10 @@ export function MinionBook() {
   const refViews = useMemo(() => {
     const m = new Map<string, CardView[]>();
     for (const c of allCards) {
-      const views = relatedCardIds(c.id).map((id) => CARD_INDEX[id]).filter((d): d is CardDef => !!d).map((d) => toView(d));
+      const views = [
+        ...relatedCardIds(c.id).map((id) => CARD_INDEX[id]).filter((d): d is CardDef => !!d).map((d) => toView(d)),
+        ...relatedPickOneIds(c.id).map((id) => CARD_INDEX[id]).filter((d): d is CardDef => !!d).map((d) => ({ ...toView(d), refPick: true })),
+      ];
       if (views.length) m.set(c.id, views);
     }
     return m;

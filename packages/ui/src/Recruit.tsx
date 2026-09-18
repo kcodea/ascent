@@ -32,7 +32,7 @@ if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
 import { chooseBothText } from './cardText';
-import { relatedCardIds } from './cardRefs';
+import { relatedCardIds, relatedPickOneIds } from './cardRefs';
 import { type Action, spiritsPlayedThisTurn, anySpellsCastThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy, foeSnapshotOf } from './sandboxEdit';
@@ -3102,7 +3102,8 @@ export function Recruit() {
       // `cardBuff()`; this popup was the last raw reader.
       const or = owner?.buffs?.find((b) => b.source === 'Ruby');
       const ownerRuby = { attack: or?.attack ?? 0, health: or?.health ?? 0, golden: owner?.golden };
-      if (refs.length) m.set(uid, refs.map((id) => tokenRefView(id, cardBuffsLive, run.impBuff, spellLive, run.rubyBonus, ownerRuby, run.clueBonus)));
+      const pool = relatedPickOneIds(cardId);
+      if (refs.length || pool.length) m.set(uid, [...refs.map((id) => tokenRefView(id, cardBuffsLive, run.impBuff, spellLive, run.rubyBonus, ownerRuby, run.clueBonus)), ...pool.map((id) => ({ ...tokenRefView(id, cardBuffsLive, run.impBuff, spellLive, run.rubyBonus, ownerRuby, run.clueBonus), refPick: true }))]);
     };
     for (const c of run.board) add(c.uid, c.cardId, c);
     for (const c of run.hand) add(c.uid, c.cardId, c);

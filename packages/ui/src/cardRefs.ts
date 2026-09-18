@@ -1,4 +1,5 @@
 import { CARD_INDEX, referencedCardIds } from '@game/content';
+import { ALE_IDS } from '@game/core';
 
 /** The MANUAL related-card map — Fodder/Imp cards whose references aren't effect params (Feed *consumes* Fodder).
  *  The shop's hover popup and the Compendium's both read it, on top of `referencedCardIds` (every card an effect
@@ -22,4 +23,15 @@ export function relatedCardIds(cardId: string): string[] {
   const named = [...(CARD_REFERENCES[cardId] ?? []), ...(def ? referencedCardIds(def) : [])];
   const namesARuby = named.some((id) => CARD_INDEX[id]?.ruby);
   return [...new Set([...named, ...(mentionsRuby && !namesARuby ? ['ruby'] : [])])].filter((id) => CARD_INDEX[id]);
+}
+
+/** A POOL the hover popup shows ONE random member of per open (owner ask 2026-09-18): a card that talks about
+ *  Dwarven Ales previews one Ale — a different one each time — rather than all five side by side. Only when the
+ *  card names no particular Ale itself. */
+export function relatedPickOneIds(cardId: string): string[] {
+  const def = CARD_INDEX[cardId];
+  if (!def) return [];
+  const txt = `${def.text} ${def.goldenText ?? ''}`;
+  if (/\b(Dwarven )?Ales?\b/.test(txt) && !relatedCardIds(cardId).some((id) => ALE_IDS.includes(id))) return [...ALE_IDS].filter((id) => CARD_INDEX[id]);
+  return [];
 }

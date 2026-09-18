@@ -87,41 +87,20 @@ export interface UnitElementLike {
 }
 
 /**
- * The pure-TRANSLATION offset from an element's CURRENT (possibly mid-tween) box to its RESTING box — the same
- * transform-correction `Recruit.tsx`'s `restingCenterOf` makes. A card played from hand SLIDES into its
- * warband slot (a CSS/FLIP transform), so at fire time its `getBoundingClientRect` is the drop position, not
- * the slot; a part read off that raw rect lands where the card was RELEASED. Shifting every part rect by this
- * delta lands it on the settled slot instead — matching the transform-corrected base anchor.
+ * Resolve `parts` for one unit element: one card rect, then one query + rect per SELECTOR part.
  *
- * Zero when the element isn't transformed, has no layout, or is a test stub (no `offsetParent`), so combat
- * (nothing sliding) and the unit tests are unaffected. Assumes a translation (what a slot slide is); a scale
- * would make it approximate, which is the same assumption `restingCenterOf` makes.
+ * Reads the RENDERED rects (`getBoundingClientRect`), i.e. wherever the card actually is on screen right now —
+ * INCLUDING any live transform. A just-played / hovered card is deliberately scaled up and lifted, and the FX
+ * must land on the gem the player SEES, not on the card's un-transformed layout box (correcting to the layout
+ * position threw the shout burst ~80px below the visible gem — owner report 2026-09-18).
  */
-function restingDelta(unit: UnitElementLike, raw: PartRect): { dx: number; dy: number } {
-  const el = unit as unknown as HTMLElement;
-  if (typeof getComputedStyle !== 'function' || el.offsetParent == null) return { dx: 0, dy: 0 };
-  const t = getComputedStyle(el).transform;
-  if (t === 'none' || t === '') return { dx: 0, dy: 0 };
-  const p = (el.offsetParent as HTMLElement).getBoundingClientRect();
-  return { dx: p.left + el.offsetLeft - raw.left, dy: p.top + el.offsetTop - raw.top };
-}
-
-const shift = (r: PartRect, dx: number, dy: number): PartRect =>
-  dx === 0 && dy === 0 ? r : { left: r.left + dx, top: r.top + dy, width: r.width, height: r.height };
-
-/** Resolve `parts` for one unit element: one card rect, then one query + rect per SELECTOR part — each
- *  transform-corrected to its RESTING position (see `restingDelta`) so a card sliding into its slot resolves
- *  its parts at the slot, not mid-slide. */
 export function readUnitPartPoints(unit: UnitElementLike, parts: readonly FxAnchorPart[]): FxPartPoints {
-  const raw = unit.getBoundingClientRect();
-  const { dx, dy } = restingDelta(unit, raw);
-  const card = shift(raw, dx, dy);
+  const card = unit.getBoundingClientRect();
   const out: FxPartPoints = {};
   for (const part of parts) {
     if (part === 'card') continue;
     const sel = PART_SELECTOR[part];
-    const cr = sel === undefined ? null : (unit.querySelector(sel)?.getBoundingClientRect() ?? null);
-    const rect = cr === null ? null : shift(cr, dx, dy);
+    const rect = sel === undefined ? null : (unit.querySelector(sel)?.getBoundingClientRect() ?? null);
     out[part] = partPointFromRects(card, part, rect);
   }
   return out;

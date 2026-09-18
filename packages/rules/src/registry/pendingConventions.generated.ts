@@ -2357,12 +2357,12 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 4 of these fire on one trigger: a summon overflows a full board. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "4 effect factories across 4 cards dispatch on 'summonOverflow' (both) — re-clustered by TRIGGER out of the 'react' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Flowing Monk: \"When you summon a minion that doesn't fit, Engrave 2 friendly minions +2/+2. Improves by +2/+2 every 5 overflows.\" · Members: Flowing Monk · Cratering Hulk · Bicycle Ben · Squatimus",
+    "cardText": "Exemplar — Flowing Monk: \"When you summon a minion that doesn't fit, Engrave 2 friendly minions +2/+2. Improves by +2/+2 every 5 overflows.\" · Members: Flowing Monk · Cratering Hulk · Bicycle Bob · Squatimus",
     "example": "Flowing Monk fires when a summon overflows a full board, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "monk",
       "thunderingabomination",
-      "u3_bicycleben",
+      "u3_bicyclebob",
       "u3_squatimus"
     ]
   },

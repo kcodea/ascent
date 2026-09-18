@@ -56,11 +56,11 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-18',
-    label: 'Bicycle Ben, Robinson & Adeptus',
+    label: 'Bicycle Bob, Robinson & Adeptus',
     changes: [
       {
         category: 'New Card',
-        text: 'Bicycle Ben joins the Undead: a Tier 4 3/9 that gives a random other Undead +1/+1 whenever a summoned minion does not fit — and the gift improves by +1/+1 for every Undead you played this turn.',
+        text: 'Bicycle Bob joins the Undead: a Tier 4 3/9 that gives a random other Undead +1/+1 whenever a summoned minion does not fit — and the gift improves by +1/+1 for every Undead you played this turn.',
         details: [
           'Fires in the shop and in combat, and the buff is permanent either way.',
           'Play two Undead this turn and each overflow hands out +3/+3; a gilded Ben doubles it.',

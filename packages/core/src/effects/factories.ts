@@ -1748,7 +1748,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ARENA_EFFECTS.overflowBuffAllPermanent(combatArena(ctx, self), params);
   },
 
-  /** Bicycle Ben — `summonOverflow` (this side's summon found no room): a random OTHER friendly <tribe> gains the
+  /** Bicycle Bob — `summonOverflow` (this side's summon found no room): a random OTHER friendly <tribe> gains the
    *  printed buff × (1 + <tribe> played this turn), carried back. One body in arena.ts serves both phases. */
   overflowBuffRandomTribePerPlayed: (ctx, self, params, payload) => {
     const { side } = payload as { side: Side };

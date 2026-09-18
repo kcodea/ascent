@@ -40,7 +40,7 @@ export interface LiveTextParams {
   /** Card ids you've played this recruit turn — Pack Leader / Spirit Worgen show their live per-play scaling. In
    *  COMBAT an enemy passes a pre-counted NUMBER instead (its snapshot doesn't carry the played ids). */
   playedThisTurn?: string[] | number;
-  /** The per-tribe "played this turn" map (Bicycle Ben's Undead count). Optional: the player's is derived from the
+  /** The per-tribe "played this turn" map (Bicycle Bob's Undead count). Optional: the player's is derived from the
    *  `playedThisTurn` ids when absent; a served foe in COMBAT passes its snapshot's map (the ids aren't carried). */
   tribesPlayed?: Partial<Record<Tribe, number>>;
   /** Combat-only per-instance accruals (from the MinionSnapshot), so the unified text covers combat-scaling cards
@@ -158,7 +158,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             chefRaagText(c.id, p.golden, p.impAura) ?? // Chef Raag: live Imp-Aura grant (floored at +1/+1)
             runescaleText(c.id, p.golden, p.spellProgress ?? 0) ??
             scTribeBuffPerPlayedText(c.id, p.golden, p.playedThisTurn) ??
-            overflowPerPlayedText(c.id, p.golden, (tribe) => p.tribesPlayed?.[tribe] ?? (Array.isArray(p.playedThisTurn) ? playedThisTurnFor({ playedThisTurn: p.playedThisTurn }, tribe) : 0)) ?? // Bicycle Ben: the current per-Undead-played grant
+            overflowPerPlayedText(c.id, p.golden, (tribe) => p.tribesPlayed?.[tribe] ?? (Array.isArray(p.playedThisTurn) ? playedThisTurnFor({ playedThisTurn: p.playedThisTurn }, tribe) : 0)) ?? // Bicycle Bob: the current per-Undead-played grant
             drunkenOafText(c.id, p.golden, p.alesThisTurn) ?? // Drunken Oaf: how many times it repeats right now
 
             packLeaderText(c.id, p.summonBonus ?? 0, p.golden) ??

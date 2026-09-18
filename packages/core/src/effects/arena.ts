@@ -844,7 +844,7 @@ export const ARENA_EFFECTS = {
     for (const f of arena.friends()) arena.buffPermanent(f, a, h);
   },
 
-  /** Bicycle Ben (Set 3 Undead, 2026-09-18) — a summon that does not fit: give ONE random OTHER friendly `tribe`
+  /** Bicycle Bob (Set 3 Undead, 2026-09-18) — a summon that does not fit: give ONE random OTHER friendly `tribe`
    *  minion +a/+h, where a/h are the printed base × (1 + `tribe` minions PLAYED this turn) × golden — "improves for
    *  every Undead played this turn". PERMANENT in both phases (`buffPermanent`: the shop buff is, combat carries it
    *  back like Flowing Monk's). Never Ben itself (R-TARGET-03: `others`). Ben counts himself when he was played

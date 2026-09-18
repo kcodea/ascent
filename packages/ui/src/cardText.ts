@@ -411,7 +411,7 @@ export function scTribeBuffPerPlayedText(cardId: string, golden: boolean, played
 }
 
 /**
- * Bicycle Ben (`overflowBuffRandomTribePerPlayed`) — an overflow gives a random other <tribe> minion +A/+H, and the
+ * Bicycle Bob (`overflowBuffRandomTribePerPlayed`) — an overflow gives a random other <tribe> minion +A/+H, and the
  * grant improves by the base for every <tribe> minion PLAYED this turn: (base × (1 + played)) × golden. Print the
  * CURRENT grant (green) in place of the printed "+A/+H" (the hard live-value rule, both chains). `playedOf` answers
  * the count for the card's tribe — the player counts its `playedThisTurn` ids through the shared tribe predicate,

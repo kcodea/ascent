@@ -11,25 +11,25 @@ import { liveCardText, liveBoardView } from './instView';
  */
 const base = { tier: 6, golden: false, spellBonus: 0, spellBonusH: 0, frontToBackBonus: 0, spellsThisTurn: 0, spellsCast: 0, deathrattlesTriggered: 0, undeadBuyAtk: 0, soulsmanGold: 0 };
 
-describe('Bicycle Ben — the printed grant is the current one', () => {
+describe('Bicycle Bob — the printed grant is the current one', () => {
   it('helper: null before any Undead is played (the printed base is exact); the live value in place after', () => {
-    expect(overflowPerPlayedText('u3_bicycleben', false, () => 0)).toBeNull();
-    expect(overflowPerPlayedText('u3_bicycleben', false, (t) => (t === 'undead' ? 2 : 0))).toBe(
+    expect(overflowPerPlayedText('u3_bicyclebob', false, () => 0)).toBeNull();
+    expect(overflowPerPlayedText('u3_bicyclebob', false, (t) => (t === 'undead' ? 2 : 0))).toBe(
       'When a summoned minion does not fit, give a random **Undead {{+3/+3}}**. Improves for every Undead played this turn.');
-    expect(overflowPerPlayedText('u3_bicycleben', true, (t) => (t === 'undead' ? 2 : 0))).toContain('{{+6/+6}}');
+    expect(overflowPerPlayedText('u3_bicyclebob', true, (t) => (t === 'undead' ? 2 : 0))).toContain('{{+6/+6}}');
     expect(overflowPerPlayedText('u3_noggin', false, () => 5), 'other cards fall through').toBeNull();
   });
   it('shop/board/hand chain: counts the run\'s played ids through the shared tribe predicate (all-types counts, a Dwarf does not)', () => {
-    expect(liveCardText('u3_bicycleben', { ...base, playedThisTurn: ['dw_brunni'] }).text).not.toContain('{{');
-    expect(liveCardText('u3_bicycleben', { ...base, playedThisTurn: ['u3_noggin', 'n2_paragon', 'dw_brunni'] }).text).toContain('{{+3/+3}}');
-    expect(liveCardText('u3_bicycleben', { ...base, golden: true, playedThisTurn: ['u3_bicycleben'] }).text).toContain('{{+4/+4}}');
+    expect(liveCardText('u3_bicyclebob', { ...base, playedThisTurn: ['dw_brunni'] }).text).not.toContain('{{');
+    expect(liveCardText('u3_bicyclebob', { ...base, playedThisTurn: ['u3_noggin', 'n2_paragon', 'dw_brunni'] }).text).toContain('{{+3/+3}}');
+    expect(liveCardText('u3_bicyclebob', { ...base, golden: true, playedThisTurn: ['u3_bicyclebob'] }).text).toContain('{{+4/+4}}');
     // The board surface, from a real run state.
     const run = { ...createRun(3, 'drakko'), setId: 'set3', playedThisTurn: ['u3_poochy', 'mumi'] } as RunState;
-    const view = liveBoardView({ uid: 'b', cardId: 'u3_bicycleben', tribe: 'undead', attack: 3, health: 9, keywords: [], golden: false }, run);
+    const view = liveBoardView({ uid: 'b', cardId: 'u3_bicyclebob', tribe: 'undead', attack: 3, health: 9, keywords: [], golden: false }, run);
     expect(view.text).toContain('{{+3/+3}}');
   });
   it('combat chain: a per-side `tribesPlayed` map wins over the ids (a served foe carries no ids, only the map)', () => {
-    expect(liveCardText('u3_bicycleben', { ...base, playedThisTurn: 4, tribesPlayed: { undead: 1 } }).text).toContain('{{+2/+2}}');
-    expect(liveCardText('u3_bicycleben', { ...base, playedThisTurn: 4 }).text, 'a bare number is Pack Leader\'s Beast count, not Undead').not.toContain('{{');
+    expect(liveCardText('u3_bicyclebob', { ...base, playedThisTurn: 4, tribesPlayed: { undead: 1 } }).text).toContain('{{+2/+2}}');
+    expect(liveCardText('u3_bicyclebob', { ...base, playedThisTurn: 4 }).text, 'a bare number is Pack Leader\'s Beast count, not Undead').not.toContain('{{');
   });
 });

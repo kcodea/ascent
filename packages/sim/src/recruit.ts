@@ -4353,7 +4353,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ARENA_EFFECTS.overflowBuffAllPermanent(shopArena(ctx.state, self), params);
   },
 
-  /** Bicycle Ben (shop half): a shop summon that found no room → a random OTHER friendly <tribe> gains the printed
+  /** Bicycle Bob (shop half): a shop summon that found no room → a random OTHER friendly <tribe> gains the printed
    *  buff × (1 + <tribe> played this turn). A shop buff is permanent. One body in arena.ts serves both phases. */
   overflowBuffRandomTribePerPlayed: (ctx, self, params) => {
     ARENA_EFFECTS.overflowBuffRandomTribePerPlayed(shopArena(ctx.state, self), params);

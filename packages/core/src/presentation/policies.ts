@@ -306,7 +306,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:orbitSellValue:orbit': { policy: 'ownBeat', family: 'orbit' },
   'factory:overflowBuffRandom:summonOverflow': { policy: 'foldedCue', family: 'react' },
   'factory:overflowBuffAllPermanent:summonOverflow': { policy: 'foldedCue', family: 'react' }, // Squatimus (set 3)
-  'factory:overflowBuffRandomTribePerPlayed:summonOverflow': { policy: 'foldedCue', family: 'react' }, // Bicycle Ben (set 3, 2026-09-18)
+  'factory:overflowBuffRandomTribePerPlayed:summonOverflow': { policy: 'foldedCue', family: 'react' }, // Bicycle Bob (set 3, 2026-09-18)
   'factory:onRiseBuffSelfWard:onRise': { policy: 'foldedCue', family: 'react' }, // Revenant (set 3)
   'factory:onRiseBuffBoardAndHand:onRise': { policy: 'foldedCue', family: 'react' }, // Rising Tide (set 3)
   'factory:onRiseSelfSummonToken:onRise': { policy: 'ownBeat', family: 'react' }, // Rune of the Endless March graft (set 3 batch 2) — a Rise REACTION, like Revenant's

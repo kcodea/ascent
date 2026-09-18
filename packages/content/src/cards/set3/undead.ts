@@ -6,7 +6,7 @@ import type { CardDef } from '@game/core';
  * Twenty-two cards on the sheet (Ossuary Colossus was pulled by the owner the same day). ELEVEN are set-1 Undead
  * carried over by id (`SET1_UNDEAD_IN_SET3` in `sets.ts` — shared definitions; four were re-specced in place
  * because set 1 is disabled). This file holds the roster's ELEVEN NEW cards, and only those — plus the Skeleton token
- * (batch 2, 2026-09-16) and Bicycle Ben, the roster's TWELFTH new card (owner handoff 2026-09-18), appended last.
+ * (batch 2, 2026-09-16) and Bicycle Bob, the roster's TWELFTH new card (owner handoff 2026-09-18), appended last.
  *
  * The tribe's spine is RISE and the things that watch it. Owner rulings that shaped the engine work
  * (2026-09-09):
@@ -195,8 +195,8 @@ export const SET3_UNDEAD: CardDef[] = [
     // pays (1+N)/(1+N); gilded ×2). Both phases off the shared `summonOverflow` watcher; permanent in both (the combat
     // gain carries back like the Monk's). The turn's Undead-played count reaches combat through the per-tribe
     // `tribesPlayed` side channel. No art yet — falls back to the tribe sprite.
-    id: 'u3_bicycleben',
-    name: 'Bicycle Ben',
+    id: 'u3_bicyclebob',
+    name: 'Bicycle Bob',
     tribe: 'undead',
     tier: 4,
     attack: 3,

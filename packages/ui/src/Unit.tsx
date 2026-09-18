@@ -139,7 +139,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         // Set 3 Spirits: the shared Reveler value + Spirits played this turn, frozen for the fight (Kindled Sprite's
         // Rally, Nurturer, the Revelers, Luminary). Player-side only, like the other run-scoped scalers.
         revelerX: foe ? enemyScalers?.revelerX : run.revelerX, spiritsPlayed: foe ? enemyScalers?.spiritsPlayed : spiritsPlayedThisTurn(run),
-        // Bicycle Ben's Undead-played count, per side (2026-09-18): the foe's rides its snapshot's per-tribe map; the
+        // Bicycle Bob's Undead-played count, per side (2026-09-18): the foe's rides its snapshot's per-tribe map; the
         // player's is derived from the frozen `playedThisTurn` ids by the same predicate the sim froze it with.
         tribesPlayed: foe ? enemyScalers?.tribesPlayed : tribesPlayedThisTurn(run),
       })

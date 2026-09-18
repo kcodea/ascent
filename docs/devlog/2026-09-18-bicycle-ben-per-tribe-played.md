@@ -1,10 +1,10 @@
-# 2026-09-18 — Bicycle Ben (a new set-3 Undead) + the per-tribe "played this turn" channel; Robinson / Adeptus edits
+# 2026-09-18 — Bicycle Bob (a new set-3 Undead) + the per-tribe "played this turn" channel; Robinson / Adeptus edits
 
 **Owner handoff 2026-09-18, three items.** Branch `feat/bicycle-ben-robinson-adeptus`.
 
 ## What shipped
 
-- **Bicycle Ben** (`u3_bicycleben`) — Tier 4 Undead 3/9: *"When a summoned minion does not fit, give a random
+- **Bicycle Bob** (`u3_bicyclebob`) — Tier 4 Undead 3/9: *"When a summoned minion does not fit, give a random
   Undead +1/+1. Improves for every Undead played this turn."* Owner clarification: the grant is
   `(1 + undeadPlayedThisTurn)/(1 + undeadPlayedThisTurn)`, gilded ×2. One arena body,
   `overflowBuffRandomTribePerPlayed` (`packages/core/src/effects/arena.ts`), on the existing `summonOverflow`
@@ -43,7 +43,7 @@ one instance of a general one:
 Undead has been played this turn (null before — the base is exact). Wired in `instView`'s chain: the player's
 count is derived from the `playedThisTurn` ids (`playedThisTurnFor`), a foe passes `tribesPlayed` from its
 snapshot. `Unit.tsx` passes `foe ? enemyScalers.tribesPlayed : tribesPlayedThisTurn(run)`. Pinned by
-`packages/ui/src/bicycleBenText.test.ts` plus the `renderedText` cross-chain exemplar (shop = combat = foe).
+`packages/ui/src/bicycleBobText.test.ts` plus the `renderedText` cross-chain exemplar (shop = combat = foe).
 
 ## Judgement calls
 
@@ -61,6 +61,6 @@ snapshot. `Unit.tsx` passes `foe ? enemyScalers.tribesPlayed : tribesPlayedThisT
 ## Docbot / registries
 
 `contracts:extract` regenerated (the Adeptus "mismatch" in `textParse` was just the stale registry);
-`thisTurnRegistry` classifies `u3_bicycleben` as `conforms`; `noSelfTarget`'s `ARENA_PICKERS` drives the new
+`thisTurnRegistry` classifies `u3_bicyclebob` as `conforms`; `noSelfTarget`'s `ARENA_PICKERS` drives the new
 body; `presentation/policies.ts` classifies `factory:overflowBuffRandomTribePerPlayed:summonOverflow` as a
 `foldedCue` react; `final-report.md` headline numbers bumped (1043 contracts).

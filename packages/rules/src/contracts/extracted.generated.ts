@@ -39945,7 +39945,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     }
   },
   {
-    "contentId": "u3_bicycleben",
+    "contentId": "u3_bicyclebob",
     "contentType": "minion",
     "revision": 1,
     "reviewStatus": "extracted",

@@ -292,7 +292,7 @@ export type EffectFactoryId =
   | 'onRiseBuffSelfWard' // Set 3 Undead — Revenant: after a friendly minion Rises, this gains Ward and +a/+h (stacks)
   | 'onRiseBuffBoardAndHand' // Set 3 Undead — Rising Tide: when a friendly minion Rises, your minions on board AND in hand +a/+h
   | 'overflowBuffAllPermanent' // Set 3 Undead — Squatimus: a summon that does not fit → your minions +a/+h PERMANENTLY (both phases)
-  | 'overflowBuffRandomTribePerPlayed' // Set 3 Undead — Bicycle Ben: a summon that does not fit → a random OTHER friendly <tribe> +(a·(1+played))/+(h·(1+played)) PERMANENTLY, `played` = that tribe played this turn (both phases, 2026-09-18)
+  | 'overflowBuffRandomTribePerPlayed' // Set 3 Undead — Bicycle Bob: a summon that does not fit → a random OTHER friendly <tribe> +(a·(1+played))/+(h·(1+played)) PERMANENTLY, `played` = that tribe played this turn (both phases, 2026-09-18)
   | 'deathrattleBuffRandomTribe' // Set 3 Undead — Noggin: Echo — a random friendly <tribe> +a/+h (both phases)
   | 'onRiseSelfSummonToken' // Set 3 batch 2 — Rune of the Endless March graft: when THIS body Rises, summon a token (both phases)
   | 'deathrattleEquipmentFreeNextTurn' // Set 3 batch 2 — Rune of the Last Tool graft: Echo — this minion's Equipment costs 0 next turn (shop: run field; combat: a `questTrigger` carry-back)
@@ -2562,7 +2562,7 @@ export interface CombatSideState {
   /** Set 3 Spirits played this turn (Kindled Sprite's Rally). Derived from `tribesPlayed.spirit` — see `combatSide()`. */
   spiritsPlayed: number;
   /** Cards played this recruit turn, counted PER TRIBE (an all-types card counts for every tribe) — the general
-   *  channel behind `beastsPlayed` / `spiritsPlayed`, read via `ctx.playedThisTurnFor(side, tribe)` (Bicycle Ben,
+   *  channel behind `beastsPlayed` / `spiritsPlayed`, read via `ctx.playedThisTurnFor(side, tribe)` (Bicycle Bob,
    *  2026-09-18). `combatSide()` keeps the two legacy scalars and this map consistent whichever one a caller sets. */
   tribesPlayed: Partial<Record<Tribe, number>>;
   /** Set 2 — lifetime Ruby casts this run. Text-only in combat: the "spell umbrella" cards (Vaultkeeper) print
@@ -2667,7 +2667,7 @@ export interface EnemyScalers {
   spellsCast: number;
   rubyCasts: number;
   spiritsPlayed: number;
-  /** Per-tribe cards played on the capture turn (Bicycle Ben's live text on a served board). */
+  /** Per-tribe cards played on the capture turn (Bicycle Bob's live text on a served board). */
   tribesPlayed: Partial<Record<Tribe, number>>;
   revelerX: number;
   impAura: { attack: number; health: number };
@@ -3061,7 +3061,7 @@ export interface CombatContext {
   /** Set 3 Spirits — Spirits played this turn, per side (Kindled Sprite). An enemy side carries 0 unless its state says otherwise. */
   spiritsPlayedFor(side: Side): number;
   /** Cards of `tribe` played this recruit turn, per side (frozen at combat start; an all-types card counts for
-   *  every tribe). The general read behind `beastsPlayedFor` / `spiritsPlayedFor` — Bicycle Ben's Undead count. */
+   *  every tribe). The general read behind `beastsPlayedFor` / `spiritsPlayedFor` — Bicycle Bob's Undead count. */
   playedThisTurnFor(side: Side, tribe: Tribe): number;
   /** Per-side cards bought this recruit turn (Frenzied Excavator's Start-of-Combat Ruby scaler). */
   cardsBoughtThisTurnFor(side: Side): number;

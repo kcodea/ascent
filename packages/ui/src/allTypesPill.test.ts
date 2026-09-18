@@ -61,8 +61,7 @@ const ART_PENDING = new Set<string>([
   // SET 3 NEUTRALS: NONE LEFT — the Clue master landed 2026-09-09 (Yazzus is one card for every set since
   // 2026-09-16 and wears the original Yazzus portrait).
   // SET 3 DWARVES: NONE LEFT — Tankerchief's master landed 2026-09-09.
-  // SET 3 UNDEAD: Bicycle Ben (owner handoff 2026-09-18) is authored ahead of its art — the tribe sprite until a master lands.
-  'u3_bicycleben',
+  // SET 3 UNDEAD: Bicycle Bob (owner handoff 2026-09-18) is authored ahead of its art — the tribe sprite until a master lands.
   // SET 3 KOBOLDS: NONE LEFT. The whole roster is arted as of 2026-08-31 — the last master (Gemsmith, both
   // Choose One branches) landed with the rename that gave the card its name. The seam above is what this
   // list is for; it stays empty until the next batch ships ahead of its art.
@@ -73,7 +72,6 @@ const ART_PENDING = new Set<string>([
   // Starform token and the Accretion spell; the rest are still authored ahead of their art.
   'ce3_peddler', 'ce3_wishingstar', 'ce3_shootingstar', 'ce3_starcharter', 'ce3_lodestar', 'ce3_twinstar', 'ce3_zenith', 'ce3_constellationprime',
   // SET 3 SPIRITS — the Handy Flame rune token (Set 3 batch 2, 2026-09-16): authored ahead of its art (owner: wire none yet).
-  'sp3_handyflame',
   // Set 3 batch 2 (2026-09-16): the Skeleton token Rune of the Endless March summons — art owed.
   'u3_skeleton',
 ]);

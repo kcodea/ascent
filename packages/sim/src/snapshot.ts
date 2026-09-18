@@ -144,7 +144,7 @@ export interface BoardSnapshot {
   spiritsPlayed?: number;
   revelerX?: number;
   /** Cards played on the capture turn, PER TRIBE (all-types cards count for every tribe) — the general channel
-   *  behind `beastsPlayed` / `spiritsPlayed` (a served Bicycle Ben's Undead count, 2026-09-18). Both legacy
+   *  behind `beastsPlayed` / `spiritsPlayed` (a served Bicycle Bob's Undead count, 2026-09-18). Both legacy
    *  scalars are still written so an older build reads the capture unchanged. */
   tribesPlayed?: Partial<Record<Tribe, number>>;
   /** Minions in the owner's hand at capture, with live stats (Rope Wrangler / Water Dragon reach into it). */

@@ -4169,7 +4169,7 @@ function preparePlayerCombatSide(s: RunState): PreparedCombatSide {
   // below. Odds: re-simulate the same two boards on independent seeds (a separate ODDS stream, so they're
   // reproducible and don't disturb the real combat RNG). ~1000 sims keeps the margin to ~±1.5%.
   // Pack Leader: Beasts you PLAYED this turn (frozen for combat), threaded into simulate like spellsThisTurn.
-  // ONE per-tribe map (2026-09-18, Bicycle Ben): the Beast and Spirit scalars are read off it, never re-counted.
+  // ONE per-tribe map (2026-09-18, Bicycle Bob): the Beast and Spirit scalars are read off it, never re-counted.
   const tribesPlayed = tribesPlayedThisTurn(s);
   const beastsPlayed = tribesPlayed.beast ?? 0;
   const spiritsPlayed = tribesPlayed.spirit ?? 0; // Kindled Sprite

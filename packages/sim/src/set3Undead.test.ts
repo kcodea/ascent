@@ -44,7 +44,7 @@ const buffsOn = (r: { events: readonly CombatEvent[] }, target: string) =>
 describe('the roster', () => {
   it('every new Undead is a set-3 card; Undead is a set-3 tribe; the set-1 re-specs landed', () => {
     const pool = poolFor('set3');
-    for (const id of ['u3_poochy', 'u3_noggin', 'u3_robinson', 'u3_adeptus', 'u3_ems', 'u3_cagebreaker', 'u3_revenant', 'u3_risingtide', 'u3_squatimus', 'u3_rodrick', 'u3_hierophant', 'u3_bicycleben']) {
+    for (const id of ['u3_poochy', 'u3_noggin', 'u3_robinson', 'u3_adeptus', 'u3_ems', 'u3_cagebreaker', 'u3_revenant', 'u3_risingtide', 'u3_squatimus', 'u3_rodrick', 'u3_hierophant', 'u3_bicyclebob']) {
       expect(pool.buyable.some((c) => c.id === id), id).toBe(true);
     }
     expect(SETS.set3.tribes).toContain('undead');
@@ -316,12 +316,12 @@ describe('Noggin, Squatimus, Adeptus, Warden Rodrick, Hierophant', () => {
  * turn, gilded ×2; permanent in both phases; never Ben himself (R-TARGET-03). The turn's Undead count reaches combat
  * on the per-tribe `tribesPlayed` side channel (`ctx.playedThisTurnFor`).
  */
-describe('Bicycle Ben — overflow → a random OTHER Undead, +(1+N)/+(1+N) for N Undead played this turn', () => {
+describe('Bicycle Bob — overflow → a random OTHER Undead, +(1+N)/+(1+N) for N Undead played this turn', () => {
   const benBoard = (over: Partial<RunState> = {}, ben: Partial<BoardCard> = {}): RunState => run({
-    board: [body('ben', 'u3_bicycleben', ben), body('pup', 'u3_poochy'), body('b1', 'dw_brunni'), body('b2', 'dw_brunni'), body('c', 'dw_coinfire'), body('p', 'dw_pimm'), body('f', 'e3_frank')],
+    board: [body('ben', 'u3_bicyclebob', ben), body('pup', 'u3_poochy'), body('b1', 'dw_brunni'), body('b2', 'dw_brunni'), body('c', 'dw_coinfire'), body('p', 'dw_pimm'), body('f', 'e3_frank')],
     ...over,
   });
-  const benBuff = (c: BoardCard) => c.buffs?.find((b) => b.source === 'Bicycle Ben');
+  const benBuff = (c: BoardCard) => c.buffs?.find((b) => b.source === 'Bicycle Bob');
 
   it('SHOP: 0 Undead played → the one other Undead gets +1/+1; the Dwarves get nothing; Ben never buffs himself', () => {
     const s = benBoard();
@@ -335,7 +335,7 @@ describe('Bicycle Ben — overflow → a random OTHER Undead, +(1+N)/+(1+N) for 
     expect(benBuff(at(s, 'pup'))).toMatchObject({ attack: 3, health: 3 });
   });
   it('SHOP: a played Ben counts himself — he is an Undead played this turn', () => {
-    const s = benBoard({ playedThisTurn: ['u3_bicycleben'] });
+    const s = benBoard({ playedThisTurn: ['u3_bicyclebob'] });
     fireSummonOverflow(s);
     expect(benBuff(at(s, 'pup'))).toMatchObject({ attack: 2, health: 2 });
   });
@@ -345,14 +345,14 @@ describe('Bicycle Ben — overflow → a random OTHER Undead, +(1+N)/+(1+N) for 
     expect(benBuff(at(s, 'pup'))).toMatchObject({ attack: 6, health: 6 });
   });
   it('SHOP: Ben as the only Undead → no grant at all (never himself, R-TARGET-03)', () => {
-    const s = run({ board: [body('ben', 'u3_bicycleben'), body('b1', 'dw_brunni'), body('b2', 'dw_brunni'), body('c', 'dw_coinfire'), body('p', 'dw_pimm'), body('f', 'e3_frank'), body('k', 'k_kobe')] });
+    const s = run({ board: [body('ben', 'u3_bicyclebob'), body('b1', 'dw_brunni'), body('b2', 'dw_brunni'), body('c', 'dw_coinfire'), body('p', 'dw_pimm'), body('f', 'e3_frank'), body('k', 'k_kobe')] });
     fireSummonOverflow(s);
     for (const c of s.board) expect(benBuff(c), c.uid).toBeUndefined();
   });
   it('SHOP: the pick is random among the OTHER Undead, and Ben is never it (many seeds)', () => {
     const hits = new Set<string>();
     for (let seed = 1; seed <= 40; seed++) {
-      const s = run({ rngCursor: seed, board: [body('ben', 'u3_bicycleben'), body('n', 'u3_noggin'), body('pup', 'u3_poochy'), body('m', 'mumi'), body('b1', 'dw_brunni'), body('c', 'dw_coinfire'), body('f', 'e3_frank')] } as Partial<RunState>);
+      const s = run({ rngCursor: seed, board: [body('ben', 'u3_bicyclebob'), body('n', 'u3_noggin'), body('pup', 'u3_poochy'), body('m', 'mumi'), body('b1', 'dw_brunni'), body('c', 'dw_coinfire'), body('f', 'e3_frank')] } as Partial<RunState>);
       fireSummonOverflow(s);
       for (const c of s.board) if (benBuff(c)) hits.add(c.uid);
       expect(benBuff(at(s, 'ben')), 'seed ' + seed).toBeUndefined();
@@ -365,13 +365,13 @@ describe('Bicycle Ben — overflow → a random OTHER Undead, +(1+N)/+(1+N) for 
     // recipient is one of {pup, wolf}); Ben himself never is.
     const mine = (golden = false): BoardMinion[] => [
       bm('wolvesden', { sourceUid: 'wd' } as Partial<BoardMinion>),
-      bm('u3_bicycleben', { sourceUid: 'ben', health: 60, ...(golden ? { golden: true, attack: 6 } : {}) } as Partial<BoardMinion>),
+      bm('u3_bicyclebob', { sourceUid: 'ben', health: 60, ...(golden ? { golden: true, attack: 6 } : {}) } as Partial<BoardMinion>),
       bm('u3_poochy', { sourceUid: 'pup', health: 60, keywords: [] } as Partial<BoardMinion>),
       ...[0, 1, 2, 3].map((i) => ({ sourceUid: `s${i}`, cardId: 'sandbag', attack: 1, health: 60, keywords: [] } as unknown as BoardMinion)),
     ];
     const pool = poolFor('set3').all.map((c) => c.id);
     const grants = (r: ReturnType<typeof simulate>) => {
-      const ben = uidOf(r, 'u3_bicycleben');
+      const ben = uidOf(r, 'u3_bicyclebob');
       const hits = r.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === ben) as unknown as { target: string; attack: number; health: number }[];
       return { ben, hits };
     };
@@ -392,7 +392,7 @@ describe('Bicycle Ben — overflow → a random OTHER Undead, +(1+N)/+(1+N) for 
     for (const h of gg.hits) expect([h.attack, h.health]).toEqual([6, 6]);
   });
   it("the per-tribe channel: the reducer freezes the turn's Undead count on the side, and combatSide reconciles both forms", () => {
-    const s = run({ board: [body('ben', 'u3_bicycleben')], playedThisTurn: ['u3_noggin', 'n2_paragon', 'dw_brunni', 'sp3_tidebud'] }); // Paragon is all-types
+    const s = run({ board: [body('ben', 'u3_bicyclebob')], playedThisTurn: ['u3_noggin', 'n2_paragon', 'dw_brunni', 'sp3_tidebud'] }); // Paragon is all-types
     const side = reduce(s, { type: 'faceOmen' }).lastCombat!.oddsInput!.playerState;
     expect(side.tribesPlayed).toEqual({ undead: 2, dwarf: 2, spirit: 2, beast: 1, mech: 1, dragon: 1, demon: 1, kobold: 1, celestial: 1, neutral: 1 }); // Paragon prints 'neutral' and counts as every real tribe (the shared predicate)
     expect(side.spiritsPlayed, 'the legacy scalar is read off the same map').toBe(2);

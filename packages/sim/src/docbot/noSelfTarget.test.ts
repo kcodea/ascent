@@ -41,7 +41,7 @@ const ARENA_PICKERS: Record<string, Record<string, unknown>> = {
   deathrattleBuffRandomTribe: { attack: 2, health: 2 },
   deathrattleGiveMaxStatsRandomTribe: {},
   overflowBuffRandom: { count: 2, attack: 2, health: 2 },
-  overflowBuffRandomTribePerPlayed: { tribe: 'dwarf', attack: 1, health: 1 }, // Bicycle Ben (2026-09-18) — tribe-scoped, the fake arena's bodies are Dwarves
+  overflowBuffRandomTribePerPlayed: { tribe: 'dwarf', attack: 1, health: 1 }, // Bicycle Bob (2026-09-18) — tribe-scoped, the fake arena's bodies are Dwarves
   rallyBuff: { count: 1, attack: 1, health: 1 },
   rallyGiveHealthToDragons: { tribe: 'dragon' },
   rallyGiveAttackToOthers: { count: 3 },

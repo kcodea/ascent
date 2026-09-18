@@ -9,17 +9,19 @@
  * then), and gives up after a few seconds so a missing/mistyped clip can't retry forever. `destroy()` fades
  * the sound out, so a scrubbed/cancelled cue — or a looped clip — leaves nothing ringing.
  *
- * This PR is the PLAYBACK layer (clip, level, pitch, fades, reverse, loop, per-fire jitter, delay, bus). The
- * per-layer audio FILTER LAB (EQ / compression / distortion / reverb / modulation) lands in later PRs, mirroring
- * the visual Filter Lab; the audio-graph code for it lives in `sfx.ts`, not here.
+ * This layer covers PLAYBACK (clip, level, pitch, fades, reverse, loop, per-fire jitter, delay, bus) PLUS the
+ * core-native audio Filter Lab (EQ / compressor / distortion / delay / pan) — its params are folded in from
+ * `audioFilters.ts` and the whole param bag is handed to `playFxSound`, which builds the filter node chain.
+ * Reverb (algorithmic) and modulation land in later PRs; that audio-graph code also lives outside this file.
  */
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import type { ParamsOf, FxParamSpecs } from '../params';
 import { registerPrimitive } from '../registry';
 import { playFxSound, type FxSoundHandle } from '../../sfx';
+import { audioFilterSpecs } from '../audioFilters';
 import { BUS_NAMES, type BusName } from '../../audio/config';
 
-const SPECS = {
+const PLAYBACK_SPECS = {
   clip: {
     kind: 'sound', label: 'Clip', group: 'Clip', default: '',
     help: 'The sound to play. Pick from the game\'s committed clips (imported clips join the list once that pipeline lands). Empty = silent.',
@@ -70,6 +72,10 @@ const SPECS = {
   },
 } satisfies FxParamSpecs;
 
+/** Playback params + the core-native audio Filter Lab (EQ/comp/distortion/delay/pan), each a toggle-gated
+ *  group. The filter values ride along in the param bag and are read by `playFxSound` → `buildAudioFilterChain`. */
+const SPECS = { ...PLAYBACK_SPECS, ...audioFilterSpecs() } satisfies FxParamSpecs;
+
 type SoundParams = ParamsOf<typeof SPECS>;
 
 /** After this long unfired, stop retrying — a missing/mistyped clip never decodes, and retrying forever would
@@ -97,6 +103,8 @@ class SoundInstance implements FxInstance<SoundParams> {
       gain: p.gain, rate: p.pitch, fadeInMs: p.fadeIn, fadeOutMs: p.fadeOut,
       loop: p.loop, startOffsetMs: p.startOffset, reverse: p.reverse, delayMs: p.delay,
       bus: p.bus as BusName, gainVar: p.gainVar, pitchVar: p.pitchVar,
+      // The whole param bag carries the Filter Lab knobs too; playFxSound reads the filter keys off it.
+      filterParams: this.params as Record<string, unknown>,
     });
     if (h) { this.handle = h; this.started = true; }
   }

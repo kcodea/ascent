@@ -1,49 +1,32 @@
-# FX: `medallion` anchor part lands on the settled board minion (not card centre / drop point)
+# FX: `medallion` anchor part points at the actual pulsing gem (`.cgem`), resolved at the settled slot
 
-Two related medallion-anchoring fixes, both in `anchorParts.ts`.
+Two related fixes for the `medallion` anchor part, both in `anchorParts.ts`, from owner reports 2026-09-17.
 
-## Fix 2 — parts resolve at the RESTING slot, not mid-slide
-A Shout played from hand fires `shout-icon-effect` (a `burst` on `source` + `anchorPart: medallion`). The base
-anchor was correct (the recruit path measures with `restingCenterOf`, which corrects for the slide transform),
-but the **medallion part was read off raw `getBoundingClientRect`** in `readUnitPartPoints` — which, while the
-card is still sliding into its warband slot, is the **drop position**. So the burst emerged from where the card
-was *released*, not where it *landed* (owner report 2026-09-17).
+## Fix 1 — wrong element (the real root cause)
+`medallion` was mapped to `.plate-tribe` — the ornate **tribe plate**, which `Card.tsx` renders on **hand
+cards only** (`usePlate`). Board/shop/combat minions never have it, so `querySelector('.plate-tribe')` returned
+null and every board medallion resolved to the **card centre**.
 
-`readUnitPartPoints` now transform-corrects every part rect to its resting position (`restingDelta`, the same
-offset `restingCenterOf` computes), so a part lands on the settled slot. No-op when nothing is transformed
-(combat) or for test stubs (no `offsetParent`).
+But the "medallion" the owner means is the round **mechanic gem at the card's base that PULSES on a Shout /
+Rally / crit / watcher** — `Card.tsx`'s **`.cgem`**, present on every board minion. `PART_SELECTOR.medallion`
+now points at `.cgem`, so a medallion-anchored def (embermouth, shout-icon-effect) lands on the gem — exactly
+the object that flashes when the effect fires.
 
-Combined with Fix 1 below, a Shout on a board minion (no tribe plate) now emerges from the **settled warband
-card's bottom-centre**.
+Also updated: the Stage-setter mock card's decoy (`.plate-tribe` → `.cgem`, sized round at the base in
+`styles.css`) so the workbench preview resolves the medallion too, and the inspector part blurb.
 
----
+## Fix 2 — resolve parts at the RESTING slot, not mid-slide
+A Shout played from hand fires its burst as the card SLIDES into its warband slot. The base anchor was already
+transform-corrected (the recruit path measures with `restingCenterOf`), but the **part** was read off raw
+`getBoundingClientRect`, which mid-slide is the drop position — so the burst emerged where the card was
+released. `readUnitPartPoints` now transform-corrects every part rect to its resting position (`restingDelta`,
+the same offset `restingCenterOf` computes). No-op with no transform (combat) or for test stubs (no
+`offsetParent`).
 
-# Fix 1 — `medallion` on board minions (no tribe plate) falls to bottom-centre, not card centre
+Together: a Shout on a board minion emerges from the **settled card's trigger gem** — "where the card is on the
+warband after I placed it."
 
-## Symptom
-In the FX workbench (realBoard scenario, a real minion), a layer anchored to the **medallion** part played
-from the card **centre** instead of the tribe plate.
+Needs an in-game by-eye check (the play-settle DOM is transient, not unit-testable without jsdom).
 
-## Root cause
-The `medallion` anchor part resolves by querying `.plate-tribe` on the anchored unit
-(`anchorParts.ts` → `PART_SELECTOR.medallion`). But `.plate-tribe` is rendered by `Card.tsx` **only on hand
-cards** — `usePlate = !!plated && plateOk`, and `plated` is passed true solely for a hand / dragged-from-hand
-card ("Board / shop / combat cards are never plated"). So **every board/combat minion lacks `.plate-tribe`**,
-`querySelector` returns null, and `partPointFromRects` fell back to the card centre.
-
-This was not workbench-only: the shipped `embermouth` and `shout-icon-effect` defs use `anchorPart: medallion`
-and had been centring on the real board too.
-
-## Fix
-`partPointFromRects` now resolves `medallion` to a **bottom-centre** point when there's no usable plate rect —
-`{ x: centre.x, y: card.top + card.height * MEDALLION_BOARD_Y_FRAC }` (0.9), where the hand card's plate gem
-visually sits — instead of the card centre. With a real `.plate-tribe` (a hand card) it still uses that rect's
-centre, unchanged. Only `medallion` changed; every other missing part still falls back to the centre.
-
-`MEDALLION_BOARD_Y_FRAC` is a named constant so the exact height is easy to nudge (owner picked "bottom-centre"
-2026-09-17).
-
-Scope: one function + its test. `endPoint` (the *other* fallback, for when parts were never resolved at all —
-synthetic scenarios) is untouched.
-
-File: `packages/ui/src/fx/anchorParts.ts` (+ `anchorParts.test.ts`).
+Files: `packages/ui/src/fx/anchorParts.ts` (+ test), `packages/ui/src/fx/ui/StageCard.tsx`,
+`packages/ui/src/styles.css`, `packages/ui/src/fx/ui/copy.ts`.

@@ -5,9 +5,10 @@ export type { FxAnchorPartPoints, FxPartPoints } from './anchors';
 
 /**
  * ANCHOR PARTS — "a target within a source". A layer anchored to `source`/`target`/`travel` can name a PART
- * of that unit's card to land on instead of the card's centre: a stat badge, the MEDALLION (the round tribe
- * plate — the owner's name for it), the tier badge, or an edge. `card` (the default, and every def written
- * before this) is the centre exactly as before.
+ * of that unit's card to land on instead of the card's centre: a stat badge, the MEDALLION (the round mechanic
+ * gem at the card's base that PULSES on a Shout / Rally / crit / watcher — `Card.tsx`'s `.cgem`, the owner's
+ * name for it), the tier badge, or an edge. `card` (the default, and every def written before this) is the
+ * centre exactly as before.
  *
  * Three pieces, kept apart on purpose:
  *   • the pure maths (`partPointFromRects`, `partsUsedByLayers`) — testable headless;
@@ -31,7 +32,11 @@ export const FX_ANCHOR_PARTS: readonly FxAnchorPart[] = [
 const PART_SELECTOR: Partial<Record<FxAnchorPart, string>> = {
   'badge.attack': '.badge.atk',
   'badge.health': '.badge.hp',
-  medallion: '.plate-tribe',
+  // The trigger MEDALLION — the round mechanic gem at the card's base that a Shout / Rally / crit / watcher
+  // pulses (`Card.tsx`'s `.cgem`), present on every board minion. NOT `.plate-tribe` (the ornate tribe plate
+  // on HAND cards only), which board minions never render — that mapping resolved every board medallion to
+  // the card centre.
+  medallion: '.cgem',
   tier: '.tierbadge:not(.tierglow)',
 };
 
@@ -48,18 +53,10 @@ export interface PartRect { left: number; top: number; width: number; height: nu
 const centre = (r: PartRect): FxPoint => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
 const usable = (r: PartRect | null | undefined): r is PartRect => r != null && r.width > 0 && r.height > 0;
 
-/** Where `medallion` lands when the card has no `.plate-tribe` element — i.e. on ANY board/combat minion,
- *  since the ornate tribe plate renders on HAND cards only (`Card.tsx`'s `usePlate`). A fraction of the card
- *  height for the y of a bottom-centre point, matching where the hand card's plate gem sits, so a
- *  medallion-anchored def (embermouth, shout-icon-effect) lands on the lower card rather than dead-centre.
- *  Tunable — owner picked "bottom-centre" 2026-09-17; nudge this if the exact height wants adjusting. */
-const MEDALLION_BOARD_Y_FRAC = 0.9;
-
 /**
  * The point a part resolves to, given the unit's rect and — for a selector part — that part's own rect
- * (`null` when the card has no such element: a spell has no badges). `medallion` falls back to a bottom-centre
- * point (see `MEDALLION_BOARD_Y_FRAC`) because the tribe plate is hand-cards-only, so a board minion has no
- * such element; every other missing part falls back to the card centre, so a def is never thrown off-screen.
+ * (`null` when the card has no such element: a spell has no badges). A missing or empty part rect falls back
+ * to the card centre, so a def is never thrown off-screen by a card that lacks the part.
  */
 export function partPointFromRects(card: PartRect, part: FxAnchorPart, partRect: PartRect | null): FxPoint {
   const c = centre(card);
@@ -69,7 +66,6 @@ export function partPointFromRects(card: PartRect, part: FxAnchorPart, partRect:
     case 'left': return { x: card.left, y: c.y };
     case 'right': return { x: card.left + card.width, y: c.y };
     case 'card': return c;
-    case 'medallion': return usable(partRect) ? centre(partRect) : { x: c.x, y: card.top + card.height * MEDALLION_BOARD_Y_FRAC };
     default: return usable(partRect) ? centre(partRect) : c;
   }
 }

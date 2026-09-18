@@ -9427,12 +9427,12 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   background: #2e3641; background-image: none; border-color: #4a5568; color: #d4dae4;
 }
 .fxwb-stagecard.fxwb-stagecard-sel { box-shadow: 0 0 0 3px #c8a45c, 0 3px 0 var(--shadow); }
-/* Anchor-PART decoys (StageCard.tsx): the tribe plate (the "medallion") and tier badge, placed roughly where
-   the real `.card.compact` / `.card.plated` rules put them so a part-anchored layer previews in the right
-   spot. Bare shapes, no art — the stage card is a mock, not a card. */
-.fxwb-stagecard .plate-tribe {
-  position: absolute; bottom: calc(var(--cw) * -0.3); left: 50%; z-index: 6; transform: translateX(-50%);
-  width: calc(var(--cw) * 0.36); height: calc(var(--cw) * 0.12); border-radius: 6px;
+/* Anchor-PART decoys (StageCard.tsx): the trigger medallion (the "medallion" — a round gem at the card's
+   base) and tier badge, placed roughly where the real `.card.compact` rules put them so a part-anchored layer
+   previews in the right spot. Bare shapes, no art — the stage card is a mock, not a card. */
+.fxwb-stagecard .cgem {
+  position: absolute; bottom: calc(var(--cw) * -0.10); left: 50%; z-index: 6; transform: translateX(-50%);
+  width: calc(var(--cw) * 0.21); height: calc(var(--cw) * 0.21); border-radius: 50%;
   background: #3a3244; border: 1px solid #8a7a55;
 }
 .fxwb-stagecard .tierbadge { min-width: 40px; min-height: 12px; }

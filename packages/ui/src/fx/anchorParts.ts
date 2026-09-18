@@ -87,21 +87,49 @@ export interface UnitElementLike {
 }
 
 /**
+ * The card's SETTLED (un-transformed) layout box, from the offsetParent + offset* geometry — the same
+ * transform-invariant read `Recruit.tsx`'s `restingCenterOf` makes for the centre. A just-played card is BOTH
+ * sliding into its warband slot (a translate) AND hover-enlarged (a scale + lift) at fire time; this returns
+ * the slot box regardless. Falls back to the live rect when the element isn't transformed, has no layout, or
+ * is a test stub (no `offsetParent`) — so combat and the unit tests are unaffected. Assumes the offsetParent
+ * (the row) is itself untransformed, exactly as `restingCenterOf` does.
+ */
+function settledCardRect(unit: UnitElementLike, raw: PartRect): PartRect {
+  const el = unit as unknown as HTMLElement;
+  if (typeof getComputedStyle !== 'function' || el.offsetParent == null) return raw;
+  const t = getComputedStyle(el).transform;
+  if (t === 'none' || t === '') return raw;
+  const p = (el.offsetParent as HTMLElement).getBoundingClientRect();
+  return { left: p.left + el.offsetLeft, top: p.top + el.offsetTop, width: el.offsetWidth, height: el.offsetHeight };
+}
+
+/**
  * Resolve `parts` for one unit element: one card rect, then one query + rect per SELECTOR part.
  *
- * Reads the RENDERED rects (`getBoundingClientRect`), i.e. wherever the card actually is on screen right now —
- * INCLUDING any live transform. A just-played / hovered card is deliberately scaled up and lifted, and the FX
- * must land on the gem the player SEES, not on the card's un-transformed layout box (correcting to the layout
- * position threw the shout burst ~80px below the visible gem — owner report 2026-09-18).
+ * Each part's rect is mapped from its FRACTIONAL position inside the card's live (possibly transformed) rect
+ * onto the card's SETTLED layout box (see `settledCardRect`). A fraction is invariant under the card's affine
+ * transform, so this cancels BOTH the play-in slide (translate) AND the hover enlarge (scale) at once — a
+ * medallion-anchored shout lands on the gem's settled slot position, not where the card was released or drawn
+ * mid-animation (owner reports 2026-09-18). With no transform (combat, workbench, test stubs) the settled box
+ * equals the live rect and the mapping is the identity, so nothing else changes.
  */
 export function readUnitPartPoints(unit: UnitElementLike, parts: readonly FxAnchorPart[]): FxPartPoints {
-  const card = unit.getBoundingClientRect();
+  const raw = unit.getBoundingClientRect();
+  const settled = settledCardRect(unit, raw);
+  const sx = raw.width > 0 ? settled.width / raw.width : 1;
+  const sy = raw.height > 0 ? settled.height / raw.height : 1;
+  const toSettled = (r: PartRect): PartRect => ({
+    left: settled.left + (r.left - raw.left) * sx,
+    top: settled.top + (r.top - raw.top) * sy,
+    width: r.width * sx,
+    height: r.height * sy,
+  });
   const out: FxPartPoints = {};
   for (const part of parts) {
     if (part === 'card') continue;
     const sel = PART_SELECTOR[part];
-    const rect = sel === undefined ? null : (unit.querySelector(sel)?.getBoundingClientRect() ?? null);
-    out[part] = partPointFromRects(card, part, rect);
+    const cr = sel === undefined ? null : (unit.querySelector(sel)?.getBoundingClientRect() ?? null);
+    out[part] = partPointFromRects(settled, part, cr === null ? null : toSettled(cr));
   }
   return out;
 }

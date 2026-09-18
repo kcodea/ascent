@@ -11,13 +11,18 @@ points at `.cgem`, so a medallion-anchored def (embermouth, shout-icon-effect) l
 Stage-setter mock decoy (`.plate-tribe` → `.cgem`, sized round at the base in `styles.css`) and the inspector
 part blurb follow suit.
 
-## Resolve at the RENDERED position, not the layout box
-An earlier attempt "transform-corrected" a part rect to the card's un-transformed layout position (to chase a
-hypothetical slide-into-slot). That was wrong: a just-played / hovered card is **deliberately scaled up and
-lifted** (`matrix(1.21,…,-66)`), so the gem the player SEES is the transformed one. Correcting to the layout
-box threw the shout burst ~80px BELOW the visible gem. `readUnitPartPoints` reads the plain
-`getBoundingClientRect` (the on-screen rect), so the FX lands on the gem where it actually is — verified from a
-live probe of the in-game fire (gem at y≈640, burst now there instead of the mis-corrected y≈721).
+## Resolve parts at the card's SETTLED slot (affine-invariant)
+A Shout played from hand fires WHILE the card is still animating into its warband slot — and the card's
+transform at fire time is BOTH a slide (translate, drop → slot) AND the hover enlarge (scale + lift):
+`matrix(1.21,…,-66)` from a live probe. A first attempt shifted the part by the card's translation delta —
+which can't handle the scale, so the burst landed ~80px below the gem; reading the raw on-screen rect instead
+put it where the card was RELEASED (mid-slide).
+
+`readUnitPartPoints` now takes each part's FRACTIONAL position inside the card's live (transformed) rect and
+maps it onto the card's **settled layout box** (`settledCardRect`, the offsetParent + offset* geometry
+`restingCenterOf` uses for the base). A fraction is invariant under the card's affine transform, so this
+cancels the slide and the scale together — the gem resolves to its settled slot, "where the card lands." With
+no transform (combat, workbench, stubs) the settled box equals the live rect and the mapping is the identity.
 
 Files: `packages/ui/src/fx/anchorParts.ts` (+ test), `packages/ui/src/fx/ui/StageCard.tsx`,
 `packages/ui/src/styles.css`, `packages/ui/src/fx/ui/copy.ts`.

@@ -1,0 +1,558 @@
+<title>Ascent Quiz #37 — 2026-09-18</title>
+<meta name="description" content="Quiz #37 for Mike — ten questions on how Ascent's engine, reducer, store, and tests are actually built.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f8fa;
+    --surface: #ffffff;
+    --surface-2: #eef1f4;
+    --border: #d7dce2;
+    --text: #1f2328;
+    --muted: #57606a;
+    --accent: #1a7f37;
+    --accent-soft: #dafbe1;
+    --bad: #cf222e;
+    --bad-soft: #ffebe9;
+    --warn: #9a6700;
+    --shadow: 0 1px 2px rgba(31,35,40,.06), 0 8px 24px rgba(31,35,40,.06);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1117;
+      --surface: #151b23;
+      --surface-2: #1c2431;
+      --border: #2d3745;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #3fb950;
+      --accent-soft: #123a20;
+      --bad: #ff7b72;
+      --bad-soft: #3c1618;
+      --warn: #d29922;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1117;
+    --surface: #151b23;
+    --surface-2: #1c2431;
+    --border: #2d3745;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #3fb950;
+    --accent-soft: #123a20;
+    --bad: #ff7b72;
+    --bad-soft: #3c1618;
+    --warn: #d29922;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    padding-inline: 16px;
+    padding-block: 32px;
+    min-height: 100%;
+    display: flex;
+    justify-content: center;
+  }
+  .wrap { width: 100%; max-width: 680px; }
+
+  .top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .kicker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    letter-spacing: .06em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    margin: 2px 0 0;
+    text-wrap: balance;
+  }
+  .score-chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 14px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .score-chip b { color: var(--text); }
+
+  .track {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin-bottom: 28px;
+  }
+  .track > div {
+    height: 100%;
+    background: var(--accent);
+    border-radius: inherit;
+    transition: width .35s ease;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 26px;
+    box-shadow: var(--shadow);
+  }
+  .qmeta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .qnum {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .topic-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px 8px;
+  }
+  .question {
+    font-size: 17px;
+    line-height: 1.55;
+    margin: 0 0 20px;
+    text-wrap: balance;
+  }
+  .question code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.92em;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    text-align: left;
+    width: 100%;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 13px 15px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14.5px;
+    line-height: 1.5;
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease, transform .1s ease;
+  }
+  .choice:hover:not(:disabled) { border-color: var(--accent); background: var(--surface-2); }
+  .choice:active:not(:disabled) { transform: scale(.995); }
+  .choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .choice:disabled { cursor: default; }
+  .choice .letter {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--muted);
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .choice .body { flex: 1; }
+  .choice code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.92em;
+    background: var(--surface-2);
+    border-radius: 4px;
+    padding: 0 4px;
+  }
+
+  .choice.correct { border-color: var(--accent); background: var(--accent-soft); }
+  .choice.correct .letter { border-color: var(--accent); color: var(--accent); background: var(--surface); }
+  .choice.correct code { background: rgba(0,0,0,.06); }
+  .choice.wrong { border-color: var(--bad); background: var(--bad-soft); }
+  .choice.wrong .letter { border-color: var(--bad); color: var(--bad); background: var(--surface); }
+  .choice.dim { opacity: .55; }
+
+  .result-tag {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding-top: 2px;
+    flex-shrink: 0;
+  }
+  .choice.correct .result-tag { color: var(--accent); }
+  .choice.wrong .result-tag { color: var(--bad); }
+
+  .explain {
+    margin-top: 18px;
+    padding: 16px 18px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text);
+    animation: rise .25s ease;
+  }
+  .explain b { color: var(--accent); }
+  .explain code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.92em;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0 4px;
+  }
+  @keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  .nextbar { margin-top: 20px; display: flex; justify-content: flex-end; }
+  .btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    font-size: 13.5px;
+    background: var(--text);
+    color: var(--bg);
+    border: none;
+    border-radius: 8px;
+    padding: 11px 20px;
+    cursor: pointer;
+    transition: opacity .15s ease;
+  }
+  .btn:hover { opacity: .85; }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .summary { text-align: center; padding: 12px 6px; }
+  .summary .big {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 52px;
+    font-weight: 700;
+    margin: 6px 0 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  .summary .line { color: var(--muted); font-size: 14.5px; margin-bottom: 22px; }
+  .summary .cheer { font-size: 16px; margin-bottom: 26px; line-height: 1.6; }
+  .recap {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .recap-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13.5px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+  }
+  .recap-row .dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .recap-row.ok .dot { background: var(--accent); }
+  .recap-row.no .dot { background: var(--bad); }
+  .recap-row span.t { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); }
+
+  footer.note {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12.5px;
+    margin-top: 22px;
+    line-height: 1.6;
+  }
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div>
+      <div class="kicker">Daily Ascent Code Quiz</div>
+      <h1>Quiz #37 — Sep 18</h1>
+    </div>
+    <div class="score-chip" id="scoreChip">Score <b id="scoreVal">0</b>/10</div>
+  </div>
+  <div class="track"><div id="progressBar" style="width:0%"></div></div>
+  <div class="card" id="card"></div>
+  <footer class="note">Reply with your score when you're done — tomorrow's quiz adapts to it.</footer>
+</div>
+
+<script>
+(function () {
+  var QUESTIONS = [
+    {
+      topicId: "types-basics",
+      question: "packages/core/src/types.ts declares <code>cardBuffs: Record&lt;string, { attack: number; health: number }&gt;</code>, using an inline object type instead of the already-existing <code>MinionBuff</code> interface. Why not just write <code>Record&lt;string, MinionBuff&gt;</code>?",
+      choices: [
+        "TypeScript doesn't allow interfaces as a Record's value type, only inline object literals.",
+        "Reusing an interface across two different fields would create a circular type reference.",
+        "<code>MinionBuff</code> carries extra fields (<code>source</code>, <code>count</code>) that <code>cardBuffs</code>'s value doesn't have — reusing it would be forcing on a shape that doesn't actually match.",
+        "It's a copy-paste oversight; the code should be refactored to use <code>MinionBuff</code>."
+      ],
+      answer: 2,
+      explanation: "<code>MinionBuff</code> (types.ts:1534) bundles <code>source</code>, <code>attack</code>, <code>health</code>, and <code>count</code> — built for tracking where a buff came from and how many stacks. <code>cardBuffs</code>'s values only ever need <code>attack</code>/<code>health</code> (a running enchant total per card), so writing the smaller shape inline is more honest than forcing on an interface with fields nothing would ever fill in. TypeScript happily allows interfaces as Record values, so <b>that's a shape-fit decision, not a language limitation.</b>"
+    },
+    {
+      topicId: "immutability",
+      question: "In packages/sim/src/snapshot.ts, the function that captures a board for opponent matchmaking clones each minion's buffs with <code>buffs: c.buffs.map((b) => ({ ...b }))</code> instead of just <code>buffs: c.buffs</code>. The comment says this is \"so the snapshot never shares the run board's arrays.\" Why does that matter?",
+      choices: [
+        "It makes the JSON file smaller when the run is saved.",
+        "Without cloning, a later buff to the LIVE run board could silently change stats on a board snapshot that's already been served to another player as their opponent.",
+        "Arrays can't be stored in a snapshot at all unless they're copied first.",
+        "It's needed purely to satisfy TypeScript's strict null checks."
+      ],
+      answer: 1,
+      explanation: "A snapshot exists to freeze one moment for other players in the lobby to fight later (the \"opponents are pinned\" rule). If <code>buffs</code> were shared by reference with the live run's array, a later in-run buff would still reach into those same objects and quietly change a snapshot already served as someone else's opponent. <b>The <code>.map((b) => ({ ...b }))</code> clone breaks that shared reference</b> so the snapshot stays frozen no matter what happens to the live run afterward."
+    },
+    {
+      topicId: "reducer-run-state",
+      question: "packages/sim/src/reducer.ts's <code>modalOpen(state)</code> guard blocks most actions while a Discover / Choose One / targeted Battlecry overlay is open — except ending the turn (<code>faceOmen</code>) is still let through if the only blocker is a pending Battlecry aim, but NOT if a Discover or Choose One is open. Why the narrower exemption?",
+      choices: [
+        "A pending Battlecry aim could otherwise soft-lock a player if the round timer expired mid-aim with no other escape — a real bug reported 2026-07-22 — while Discover/Choose One stay clickable even under a timeout, so they don't need one.",
+        "\"faceOmen\" is a read-only action, so it's always allowed regardless of state.",
+        "Discover and Choose One overlays are cosmetic and never actually block anything.",
+        "The exemption is a leftover from testing that was never removed."
+      ],
+      answer: 0,
+      explanation: "The reducer.ts comment spells it out: a targeted Battlecry blocked every other action, and if the shop timer hit zero before a target was picked, there was no legal move left — a genuine softlock. End Turn now auto-resolves that aim onto a legal target as an escape. <b>Discover and Choose One don't need the same carve-out</b> because their own choices stay answerable even after the timer expires, so nothing traps the player there."
+    },
+    {
+      topicId: "zustand-store",
+      question: "packages/ui/src/store.ts's <code>replayLastCombat()</code> does <code>lastCombat: { ...s.run.lastCombat }</code> — cloning it even though nothing about its actual data changed. Why bother cloning at all?",
+      choices: [
+        "Zustand requires every field to be a brand-new object on every set() call, or the store throws an error.",
+        "Cloning is required so structuredClone can be used later for autosave.",
+        "It's a defensive copy in case the user edits lastCombat directly from the browser console.",
+        "useCombatReplay's animation resets on its <code>[combat]</code> dependency array only when <code>run.lastCombat</code> changes OBJECT IDENTITY, not when its contents change — a fresh clone with identical data is what re-triggers the replay from beat 0."
+      ],
+      answer: 3,
+      explanation: "React's effect dependency arrays compare by reference (<code>===</code>), not deep equality. Re-showing the exact same fight requires that effect to fire again, and it only does that when it sees a genuinely different object — so <code>replayLastCombat</code> deliberately manufactures a new, data-identical object purely to trip the effect. <b>Zustand itself doesn't force new objects everywhere</b> — plenty of other fields in the same call are left untouched."
+    },
+    {
+      topicId: "event-bus",
+      question: "packages/core/src/events.ts describes CombatBus in its own doc comment as \"a minimal SYNCHRONOUS event bus.\" What would break if emit() instead queued handlers to run later (say, on a setTimeout) instead of calling them immediately?",
+      choices: [
+        "simulate() couldn't return a COMPLETE event log from one function call anymore — a cascade (a Deathrattle summon triggering another death, say) might still be pending when simulate() returns, breaking its contract as a pure function that fully resolves a fight in one call.",
+        "Nothing — handlers would just run in a different order with no other effects.",
+        "It would make the game faster, since handlers wouldn't block each other.",
+        "TypeScript would refuse to compile an async event handler."
+      ],
+      answer: 0,
+      explanation: "simulate()'s whole contract is to run a fight to completion and hand back one finished, complete event log — CLAUDE.md's \"combat is a pure function\" rule. <b>Immediate, synchronous dispatch is what guarantees a cascade has fully played out</b> before emit()'s caller moves on; a queued or async bus could let simulate() return while part of that cascade was still pending, silently truncating the log."
+    },
+    {
+      topicId: "cards-in-sets",
+      question: "packages/content/src/index.ts keeps CARD_INDEX (id → CardDef) as ONE global map covering every card that has ever existed, rather than one map per set — its comment says this is because it's used at \"~500 sites\" while only \"~20 sites\" actually draw from a set-scoped pool. What's the reasoning?",
+      choices: [
+        "Per-set maps would be too slow to build at startup.",
+        "Looking up a card BY ID — rendering it, resolving a summoned token, healing an old save — doesn't need to know which set is active; an id always resolves to the same card. Only the much smaller set of places that OFFER new cards to choose from need to be set-aware.",
+        "Sets don't actually contain different cards, so a global map is the only option.",
+        "CARD_INDEX used to be per-set, but that was deprecated for being too memory-hungry."
+      ],
+      answer: 1,
+      explanation: "The two jobs are genuinely different: resolving an id into its definition never depends on the active set — a given id always means the same card. Only the ~20 sites that actually offer NEW cards to choose from (the shop) need to filter by the active set, via <code>poolFor</code>/<code>poolOf</code>. <b>Splitting CARD_INDEX per set would force all ~500 unrelated lookup sites to somehow track the active set</b> for no benefit."
+    },
+    {
+      topicId: "package-boundaries",
+      question: "Root CLAUDE.md's ownership map singles out packages/sim/src/opponentPool.data.ts with a special rule: \"generated — never hand-edit; re-run npm run pool.\" Why call this out specifically, when most files in the repo are fine to edit directly?",
+      choices: [
+        "It contains secrets that must never be committed.",
+        "It's the only file in the repo that's auto-formatted by Prettier.",
+        "It's a placeholder stub that hasn't been implemented yet.",
+        "It's a build artifact produced by a script from other data — hand-editing it would just get silently overwritten (or drift out of sync with its real source) the next time the generator runs."
+      ],
+      answer: 3,
+      explanation: "A generated file is an output of a script, not a hand-authored source of truth — editing it directly either gets clobbered the next time <code>npm run pool</code> runs, or leaves it permanently out of sync with whatever real data it's meant to reflect. <b>The correct fix for wrong content in a generated file is fixing the generator</b> (or its inputs) and re-running it, never hand-patching the output."
+    },
+    {
+      topicId: "effects-as-subscriptions",
+      question: "packages/core/src/combat/simulate.ts's registerEffect() checks a Celestial alignment gate (alignAllows) ONCE, at the moment it subscribes a handler to the bus — not every time the handler fires. Why is checking once, at subscription time, both correct and cheaper?",
+      choices: [
+        "Alignment is locked in at the start of combat and never recalculated once the fight begins, so a gate that fails at subscription time can never later start passing — there's nothing left to re-check.",
+        "Checking inside the handler would be a TypeScript compile error.",
+        "alignAllows is too slow to call more than once per minion.",
+        "The bus doesn't allow conditional logic inside handlers."
+      ],
+      answer: 0,
+      explanation: "Per an owner ruling, a minion's Celestial alignment locks in the instant combat starts and combat deaths never re-centre the board — so if the gate fails when the handler is registered, it's guaranteed to still fail every later time it would fire. <b>Since the answer can never change mid-fight, checking once up front is exactly as correct as checking every time</b>, just cheaper."
+    },
+    {
+      topicId: "effect-timing-pipeline",
+      question: "Most combat triggers (Deathrattle, Rally, Slaughter…) fire through the generic CombatBus. onSummon is a deliberate exception — simulate.ts says it \"no longer travels the bus at all,\" and a separate function (emitOnSummonOrdered) walks the boards directly instead. Why does onSummon need its own dedicated dispatch?",
+      choices: [
+        "The shared bus can only hold one event type at a time.",
+        "onSummon fires too rarely to be worth wiring through the bus.",
+        "onSummon needed a GUARANTEED resolution order (auras first, then watchers left-to-right) that a handler list ordered only by REGISTRATION order can't reliably promise across a whole board.",
+        "The bus doesn't support payloads, and onSummon needs one."
+      ],
+      answer: 2,
+      explanation: "CombatBus only guarantees handlers fire in whatever order they happened to register for an event — fine for most triggers, but Ascent's summon resolution needs a specific order (auras first, then watchers left-to-right, per an owner ruling). <code>emitOnSummonOrdered</code> bypasses the bus and <b>walks the board directly so that ordering is guaranteed by construction</b>, instead of hoping registration order happened to line up."
+    },
+    {
+      topicId: "testing-vitest",
+      question: "packages/ui/src/liveTextAudit.test.ts exists because Groveweaver's printed card text once went stale — a real 2026-07-25 bug where the number on the card never grew even though its actual effect did. Instead of just fixing that one card, the test scans every \"scaling\" effect factory and requires each to be covered by a helper or listed with a written reason. What does that design choose to prevent?",
+      choices: [
+        "It prevents Groveweaver specifically from ever being played again.",
+        "It only checks that the test file itself doesn't have typos.",
+        "It prevents a FUTURE scaling card from silently shipping with stale printed text — any new scaling factory must either get a live-text helper or an explicit, reviewed justification for skipping one.",
+        "It measures how fast card text renders in the UI."
+      ],
+      answer: 2,
+      explanation: "A one-off fix for Groveweaver alone would only patch that single card; the same mistake could still happen to the next scaling card. By requiring every scaling factory to be wired to a helper or explicitly listed with a reason, <b>the test makes it impossible for a future card to slip through by accident</b> — someone has to consciously decide, and justify, skipping it."
+    }
+  ];
+
+  var TOPIC_LABELS = {
+    "types-basics": "types.ts",
+    "immutability": "snapshot.ts",
+    "reducer-run-state": "reducer.ts",
+    "zustand-store": "store.ts",
+    "event-bus": "events.ts",
+    "cards-in-sets": "sets & content",
+    "package-boundaries": "monorepo",
+    "effects-as-subscriptions": "simulate.ts",
+    "effect-timing-pipeline": "simulate.ts",
+    "testing-vitest": "vitest"
+  };
+
+  var current = 0;
+  var score = 0;
+  var answered = new Array(QUESTIONS.length).fill(null); // stores chosen index or null
+
+  var card = document.getElementById('card');
+  var scoreVal = document.getElementById('scoreVal');
+  var progressBar = document.getElementById('progressBar');
+
+  function letter(i) { return String.fromCharCode(65 + i); }
+
+  function renderQuestion(idx) {
+    var q = QUESTIONS[idx];
+    var chosen = answered[idx];
+    var locked = chosen !== null;
+
+    var html = '';
+    html += '<div class="qmeta"><span class="qnum">Q' + (idx + 1) + ' / ' + QUESTIONS.length + '</span>';
+    html += '<span class="topic-tag">' + (TOPIC_LABELS[q.topicId] || q.topicId) + '</span></div>';
+    html += '<p class="question">' + q.question + '</p>';
+    html += '<div class="choices">';
+    for (var i = 0; i < q.choices.length; i++) {
+      var cls = 'choice';
+      var tag = '';
+      if (locked) {
+        if (i === q.answer) { cls += ' correct'; tag = '<span class="result-tag">CORRECT</span>'; }
+        else if (i === chosen) { cls += ' wrong'; tag = '<span class="result-tag">YOUR PICK</span>'; }
+        else { cls += ' dim'; }
+      }
+      html += '<button class="' + cls + '" data-i="' + i + '" ' + (locked ? 'disabled' : '') + '>';
+      html += '<span class="letter">' + letter(i) + '</span>';
+      html += '<span class="body">' + q.choices[i] + '</span>' + tag;
+      html += '</button>';
+    }
+    html += '</div>';
+
+    if (locked) {
+      html += '<div class="explain"><b>' + (chosen === q.answer ? 'Correct. ' : 'Not quite. ') + '</b>' + q.explanation + '</div>';
+      html += '<div class="nextbar"><button class="btn" id="nextBtn">' + (idx === QUESTIONS.length - 1 ? 'See results →' : 'Next question →') + '</button></div>';
+    }
+
+    card.innerHTML = html;
+
+    var buttons = card.querySelectorAll('.choice');
+    buttons.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (answered[idx] !== null) return;
+        var i = parseInt(btn.getAttribute('data-i'), 10);
+        answered[idx] = i;
+        if (i === q.answer) score++;
+        scoreVal.textContent = String(score);
+        renderQuestion(idx);
+      });
+    });
+
+    var nextBtn = document.getElementById('nextBtn');
+    if (nextBtn) {
+      nextBtn.addEventListener('click', function () {
+        if (idx === QUESTIONS.length - 1) {
+          renderSummary();
+        } else {
+          current = idx + 1;
+          progressBar.style.width = (current / QUESTIONS.length * 100) + '%';
+          renderQuestion(current);
+        }
+      });
+    }
+
+    progressBar.style.width = (locked ? (idx + (idx === QUESTIONS.length - 1 ? 1 : 0)) / QUESTIONS.length * 100 : idx / QUESTIONS.length * 100) + '%';
+  }
+
+  function cheerFor(n) {
+    if (n === 10) return "Perfect score. You could probably explain this codebase to someone else at this point.";
+    if (n >= 8) return "Really strong grasp of how this thing is built — the harder wiring is starting to click.";
+    if (n >= 6) return "Solid! You're reading the architecture, not just the syntax now.";
+    if (n >= 4) return "Good progress — a few of these were genuinely deep cuts. Worth another look at the ones you missed.";
+    return "That was a tough set today. No worries — re-reading the misses is exactly how this sticks.";
+  }
+
+  function renderSummary() {
+    progressBar.style.width = '100%';
+    var html = '<div class="summary">';
+    html += '<div class="kicker" style="margin-bottom:2px;">Quiz complete</div>';
+    html += '<div class="big">' + score + '<span style="color:var(--muted);font-size:0.55em;">/10</span></div>';
+    html += '<div class="line">You scored ' + score + ' out of ' + QUESTIONS.length + '</div>';
+    html += '<div class="cheer">' + cheerFor(score) + '</div>';
+    html += '<div class="recap">';
+    for (var i = 0; i < QUESTIONS.length; i++) {
+      var ok = answered[i] === QUESTIONS[i].answer;
+      html += '<div class="recap-row ' + (ok ? 'ok' : 'no') + '"><span class="dot"></span>';
+      html += '<span class="t">Q' + (i + 1) + '</span>';
+      html += '<span>' + (TOPIC_LABELS[QUESTIONS[i].topicId] || QUESTIONS[i].topicId) + '</span>';
+      html += '<span style="margin-left:auto;font-family:\'JetBrains Mono\',monospace;font-size:12px;">' + (ok ? 'correct' : 'missed') + '</span>';
+      html += '</div>';
+    }
+    html += '</div></div>';
+    card.innerHTML = html;
+  }
+
+  renderQuestion(0);
+})();
+</script>

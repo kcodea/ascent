@@ -188,8 +188,8 @@ in; the shop never rolls it. Engine: `packages/sim/src/starform.ts`; every rule 
    +X/+X"), *this-turn* shop buffs and consumes all fold into its printed stats as they happen — so a
    refresh that clears a this-turn buff for every other offer leaves the Starform's total intact. It is the
    one offer that keeps them.
-7. **Consume = 100% of its stats to one Celestial; Collapse = 50% to 2 UNIQUE random friendly Celestials
-   plus the extras** (owner rule D, 2026-09-13), halves rounded **up**, the base 1/1 **included** in what
+7. **Consume = 100% of its stats to one Celestial; Collapse = 50% to 3 UNIQUE random friendly Celestials
+   plus the extras** (owner rule D, 2026-09-13; 3 hits since 2026-09-18, was 2), halves rounded **up**, the base 1/1 **included** in what
    transfers. The extras (Fuse Aldrin's passive: +2 per Herald, +4 gilded; plus the run-wide
    `collapseExtraTargets` counter, 0 today and reserved for future cards) are drawn **with replacement** —
    an extra may land on a Celestial that already took a hit, so with two Celestials one can take 3 and the
@@ -222,12 +222,13 @@ pinned in `packages/sim/src/set3CelestialRoster.test.ts`):
 - **Rocket Power** (was Shooting Star; no Flurry) counts Shop spells cast this turn (`spellsThisTurn` — a multiplied
   cast counts each time); the card prints the live total. **Zenith** counts a spell of **any** kind, Rubies included
   (the Gravestar Seer ruling).
-- **Stardust Peddler** (2026-09-14): whenever you buy a minion, it **creates** a Starform if you have none, else the
-  token gains **+1/+2**. Buying the token counts as a buy and the token is already gone — so a Peddler re-seeds one.
+- **Stardust Peddler** (2026-09-18, 2/5): **when you spend 5 Gold** (a per-instance Gold meter while it stands — the
+  Coinfire Forewoman / Billings shape; the remainder carries, a big spend can cross it twice; the step counter shows
+  N/5) it **creates** a Starform if you have none, else the token gains **+3/+3** (gilded +6/+6).
 - **The Stellar Lens** (2026-09-14) **creates** a Starform if you have none, then gives **this shop +7/+7** (gilded
   +14/+14) — the fresh token is one of the offers that takes it.
 - **Star Seed** gives an existing token **+4/+4** (gilded +8/+8).
-- **Solburn** (rules v2) **Collapses** the token: 2 unique random friendly Celestials each gain the rounded-up
+- **Solburn** (rules v2) **Collapses** the token: 3 unique random friendly Celestials each gain the rounded-up
   half (the Devotee itself is eligible; gilded → each hit gains the full stats); a token with no Celestial at all
   still collapses and the stats go nowhere; no token → nothing happens. Its old Consume is now the token's **buy**.
   **Fuse Aldrin** is a **passive**: while it stands, every Collapse hits **2 additional** random friendly Celestials
@@ -246,9 +247,16 @@ pinned in `packages/sim/src/set3CelestialRoster.test.ts`):
 - **Star Crash may be aimed at the Starform** (a friendly Celestial): the token gains +5/+7 (Twin Star hears it) and
   the secondary half still lands on a random friendly minion on the **board**. Only the tribe's own Celestial-aimed
   spell reaches the token — a plain `friendly` spell keeps its board-only aim (rule 5 stays whole).
-- **Roundabout** (Tier 5, 7/5 since 2026-09-14): its Start of Turn creates the token as the new turn's shop opens
-  (into a full row → it eats the right-most minion); its End of Turn has the token **eat every minion offer** in the
-  row, left to right — one real consume each (gilded: double stats per meal) — and does nothing without one.
+- **Roundabout** (Tier 5, 7/5; 2026-09-18): **End of Turn: create a Starform and give it +10/+10** (gilded +20/+20).
+  With no token out it creates one first (into a full row → it eats the right-most minion); with one already out
+  the create is the usual no-op and only the +10/+10 lands. (Until 2026-09-18 it created at Start of Turn and had
+  the token eat the whole row at End of Turn.)
+- **Crash Course** (2026-09-18): the **first Star Crash you cast on it each turn casts an additional time** on it —
+  Mirrorwing's shape (a FULL re-cast, scaled by the cast multiplier) gated to the named spell; gilded 2 additional.
+  (Until 2026-09-18 it spread the cast to 2 other Celestials instead.)
+- **Sugarnova** (2026-09-18, 4/2): **Shout: give your next Shop spell +4/+4** (gilded +8/+8). The bonus is a run
+  field: it **survives End Turn → combat → the next shop** if unspent, every Shop spell offer / hand spell prints
+  it live in place, and exactly the next Shop-spell cast consumes it (Gifts and Rubies neither read nor spend it).
 - **Maestro Lux** Discovers a Celestial from the run's pool — never itself, and never the Starform (a token, outside
   every draw pool).
 

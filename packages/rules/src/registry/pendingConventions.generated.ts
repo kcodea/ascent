@@ -2178,18 +2178,17 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-buy",
-    "title": "Trigger: you buy a card · 7 cards",
-    "statement": "All 7 of these fire on one trigger: you buy a card. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: you buy a card · 6 cards",
+    "statement": "All 6 of these fire on one trigger: you buy a card. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "8 effect factories across 7 cards dispatch on 'cardsBought', 'onBuy', 'spellBought' (recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Korok, the Hungerer: \"When you buy 4 cards, give your Fodder +1/+1 and add 1 Fodder to your next tavern.\" · Members: Korok, the Hungerer · Moonhowl Mentor · Banksly · Brightwing Broker · Stardust Peddler · Night Market Horror · Ninefold Broker",
+    "currentBehaviour": "7 effect factories across 6 cards dispatch on 'cardsBought', 'onBuy', 'spellBought' (recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Korok, the Hungerer: \"When you buy 4 cards, give your Fodder +1/+1 and add 1 Fodder to your next tavern.\" · Members: Korok, the Hungerer · Moonhowl Mentor · Banksly · Brightwing Broker · Night Market Horror · Ninefold Broker",
     "example": "Korok, the Hungerer fires when you buy a card, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "acid",
       "b2_moonhowl",
       "banksly",
       "broker",
-      "ce3_peddler",
       "dm_nightmarket",
       "n2_ninefold"
     ]
@@ -2323,13 +2322,14 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-goldSpent",
-    "title": "Trigger: you spend Gold this turn · 5 cards",
-    "statement": "All 5 of these fire on one trigger: you spend Gold this turn. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: you spend Gold this turn · 6 cards",
+    "statement": "All 6 of these fire on one trigger: you spend Gold this turn. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "6 effect factories across 5 cards dispatch on 'goldSpent' (recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Billings: \"When you spend 5 Gold, give 2 random friendly Dwarves +5/+5.\" · Members: Billings · Dwarf King, Brill · Coinfire Forewoman · Mountainbond · Tapkeeper",
-    "example": "Billings fires when you spend Gold this turn, like every other card here. its printed numbers double when the card is gilded.",
+    "currentBehaviour": "7 effect factories across 6 cards dispatch on 'goldSpent' (recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Stardust Peddler: \"When you spend 5 Gold, create a Starform, or give it +3/+3.\" · Members: Stardust Peddler · Billings · Dwarf King, Brill · Coinfire Forewoman · Mountainbond · Tapkeeper",
+    "example": "Stardust Peddler fires when you spend Gold this turn, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
+      "ce3_peddler",
       "dw_billings",
       "dw_brill",
       "dw_coinfire",
@@ -2480,7 +2480,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 3 of these fire on one trigger: a spell targets this minion. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "3 effect factories across 3 cards dispatch on 'spellCastOnThis' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Crash Course: \"The first time each turn you cast Star Crash on this, cast it on 2 other friendly Celestials.\" · Members: Crash Course · Mirrorwing · Reflector",
+    "cardText": "Exemplar — Crash Course: \"The first Star Crash you cast on this each turn casts an additional time.\" · Members: Crash Course · Mirrorwing · Reflector",
     "example": "Crash Course fires when a spell targets this minion, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_adept",
@@ -2531,14 +2531,13 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-startOfTurn",
-    "title": "Trigger: the turn starts · 4 cards",
-    "statement": "All 4 of these fire on one trigger: the turn starts. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: the turn starts · 3 cards",
+    "statement": "All 3 of these fire on one trigger: the turn starts. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "4 effect factories across 4 cards dispatch on 'startOfTurn' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Roundabout: \"End of Turn: your Starform consumes the Shop. Start of Turn: if you have no Starform, create one.\" · Members: Roundabout · Fel Conjurer · Double Dealer · Jumpstart Jules",
-    "example": "Roundabout fires when the turn starts, like every other card here. its printed numbers double when the card is gilded.",
+    "currentBehaviour": "3 effect factories across 3 cards dispatch on 'startOfTurn' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Fel Conjurer: \"Start of Turn: get a Quick Study.\" · Members: Fel Conjurer · Double Dealer · Jumpstart Jules",
+    "example": "Fel Conjurer fires when the turn starts, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
-      "ce3_orbitkeeper",
       "d2_felconjurer",
       "k3_forkedcrown",
       "n3_charger"
@@ -2564,7 +2563,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 4 of these fire on one trigger: you play a minion of a named tribe. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "4 effect factories across 4 cards dispatch on 'onTribePlayed' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Aspect: \"Whenever you play a Spirit, give 3 random friendly Spirits +1/+1. Improve this by +1/+1 every 3 times this triggers.\" · Members: Aspect · Tally · Old Timber · Dozer",
+    "cardText": "Exemplar — Aspect: \"When you play a Spirit, give 3 random Spirits +2/+2. Improves every 3 times this triggers.\" · Members: Aspect · Tally · Old Timber · Dozer",
     "example": "Aspect fires when you play a minion of a named tribe, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "sp3_aspect",

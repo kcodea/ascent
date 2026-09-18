@@ -45,23 +45,28 @@ describe('bounceFx — the per-hop shop signal', () => {
     expect(hops(s), 'the only friendly is the sandbag, so the secondary MUST land there').toEqual(['spell:sf>o']);
   });
 
-  it('Crash Course: two spell hops, one per other Celestial, from the Adept', () => {
+  it('Crash Course (2026-09-18: a same-target re-cast, Mirrorwing\'s shape) records NO a>a hop — only Star Crash\'s own random half hops, cross-target', () => {
     let s = run({ hand: [spell('s', 'starcrash')], board: [body('a', 'ce3_adept'), body('x', 'ce3_courier'), body('y', 'ce3_vendor')] });
     s = play(s, 's', { targetUid: 'a' });
-    const spread = hops(s).filter((h) => h.startsWith('spell:a>'));
-    expect(spread.sort()).toEqual(['spell:a>x', 'spell:a>y']);
-    // Each spread is a full Star Crash, whose own random half can hop again (x → y etc.) — those are real hops
-    // too and are recorded per cast; what must never appear is a same-body one.
+    expect(s.board.find((c) => c.uid === 'a')!.namedSpreadUsedThisTurn, 'the re-cast happened').toBe(true);
+    // Two full casts landed on `a` (its primary twice); each cast's secondary half is a random friendly — a
+    // cross-target hop from `a` when it lands elsewhere, NO hop when it lands back on `a`. Never an a>a entry.
+    const fromA = hops(s).filter((h) => h.startsWith('spell:a>'));
+    expect(fromA.length).toBeLessThanOrEqual(2);
+    expect(hops(s).every((h) => h.startsWith('spell:a>')), 'every hop this action leaves the Course').toBe(true);
     for (const h of hops(s)) { const [, pair] = h.split(':'); const [f, t] = pair!.split('>'); expect(f).not.toBe(t); }
+    const onA = (s.board.find((c) => c.uid === 'a')!.buffs ?? []).filter((b) => b.source === 'Star Crash').reduce((n, b) => n + b.attack, 0);
+    expect(onA, 'the primary +5 landed on the Course twice (2 casts)').toBeGreaterThanOrEqual(10);
   });
 
-  it('Crash Course under a cast doubler records the doubled hop TWICE (countable at the signal)', () => {
+  it('Crash Course under a cast doubler: the re-cast is a FULL doubled cast, so four secondary hops leave the Course', () => {
     let s = run({ hand: [spell('s', 'starcrash')], board: [body('a', 'ce3_adept'), body('x', 'ce3_courier'), body('y', 'ce3_vendor'), body('z', 'yazzus')] });
     s = play(s, 's', { targetUid: 'a' });
-    // Each spread is a FULL doubled cast, so the Adept → x and Adept → y hops appear at least twice each. (Star
-    // Crash's own random half can add further a>x / a>y hops on top — those are real hops too, so ≥ not =.)
-    expect(hops(s).filter((h) => h === 'spell:a>x').length).toBeGreaterThanOrEqual(2);
-    expect(hops(s).filter((h) => h === 'spell:a>y').length).toBeGreaterThanOrEqual(2);
+    // original ×2 (Yazzus) + re-cast ×2 = 4 casts on `a`, each with at most one secondary hop from `a`.
+    expect(hops(s).filter((h) => h.startsWith('spell:a>')).length).toBeLessThanOrEqual(4);
+    for (const h of hops(s)) { const [, pair] = h.split(':'); const [f, t] = pair!.split('>'); expect(f).not.toBe(t); }
+    const onA = (s.board.find((c) => c.uid === 'a')!.buffs ?? []).filter((b) => b.source === 'Star Crash').reduce((n, b) => n + b.attack, 0);
+    expect(onA, 'four primaries landed on the Course').toBeGreaterThanOrEqual(20);
   });
 
   it('Reflector: a spell on it hops once (spell), a Ruby on it hops once (ruby) — each to its random friend', () => {

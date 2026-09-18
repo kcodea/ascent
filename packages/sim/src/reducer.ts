@@ -4412,15 +4412,16 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // Engraved only at Start of Combat (Taurus's neighbor) carries its gains back and is labelled "Engraved",
   // even though its run-board card never had the EG keyword. A non-Engraved carrier got Flowing Monk's gift.
   if (result.playerPermaBuffs) {
-    for (const { sourceUid, attack, health, engraved, ruby } of result.playerPermaBuffs) {
+    for (const { sourceUid, attack, health, engraved, ruby, label } of result.playerPermaBuffs) {
       const card = s.board.find((c) => c.uid === sourceUid);
       if (!card) continue;
       // Taragosa's Heir amplifies stat gains from ALL sources — combat included. It's Engraved, so its combat
       // gains reach here; multiply its carry-back ×2 (golden ×3) so combat matches its recruit-phase amplifier.
       const mult = card.cardId === 'taragosaheir' ? (card.golden ? 3 : 2) : 1;
       // 'Ruby' keeps the inspect breakdown honest AND makes the gain visible to Deepdelve Paragon next fight,
-      // which looks for exactly that source.
-      addBuff(card, ruby ? 'Ruby' : engraved ? 'Engraved' : 'Flowing Monk', attack * mult, health * mult);
+      // which looks for exactly that source. A self-authored permanent gain (Kindled Sprite's Rally, 2026-09-18)
+      // carries its own `label` so the ledger names the card.
+      addBuff(card, ruby ? 'Ruby' : engraved ? 'Engraved' : (label ?? 'Flowing Monk'), attack * mult, health * mult);
     }
   }
   // Set 2 — Rubies gained IN COMBAT (Rikk's Rally, Gemline's Avenge): mint them into hand now, baked with the
@@ -4952,7 +4953,7 @@ function advanceCombat(s: RunState): void {
   for (const c of [...s.board, ...s.hand]) {
     if (c.spellsOnThisTurn) c.spellsOnThisTurn = 0;
     if (c.rubiesOnThisTurn) c.rubiesOnThisTurn = 0; // Runefire counts Rubies landed on it per TURN too
-    if (c.namedSpreadUsedThisTurn) c.namedSpreadUsedThisTurn = false; // Crashborn Adept: "first time each turn"
+    if (c.namedSpreadUsedThisTurn) c.namedSpreadUsedThisTurn = false; // Crash Course: "the first Star Crash on this each turn"
     // The per-instance "spells since placed" counter (Spellkeeper Drake, Ashscribe Whelp) is per-turn too
     // — clear both halves.
     if (c.boardSpellCount) c.boardSpellCount = 0;

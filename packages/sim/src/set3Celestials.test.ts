@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent } from '@game/core';
 import { CARD_INDEX, EQUIPMENT_INDEX, poolFor } from '@game/content';
 import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
-import { rubyStatBonus, spellAttackBonus, spellHealthBonus } from './recruit';
+import { rubyStatBonus, spellAttackBonus, spellDisplayText, spellHealthBonus } from './recruit';
 import { equipmentState } from './equipment';
 
 /**
@@ -11,11 +11,14 @@ import { equipmentState } from './equipment';
  * below land on a LONE Celestial, where the random friendly is that same body and every number is exact.
  *
  *  - Horizon Courier: Echo → a random Shop spell (combat death here).
- *  - Starpath Vendor: +2/+2 banked for the NEXT Shop spell; a Gift and a Ruby neither read nor spend it.
+ *  - Sugarnova (was Starpath Vendor; +4/+4 since 2026-09-18): banked for the NEXT Shop spell — it carries through
+ *    combat unspent, every Shop spell prints it live, and exactly the next Shop-spell cast spends it; a Gift and a
+ *    Ruby neither read nor spend it.
  *  - Gravestar Seer: +4 Attack per spell of ANY kind (Shop spell, Ruby), permanent.
  *  - Comet Conductor: Rally → a copy of the turn's first spell, once per combat.
  *  - Falling Star Herald: Shout AND Echo → a Star Crash.
- *  - Crashborn Adept: the first Star Crash on it each turn also casts on 2 other friendly Celestials (full casts).
+ *  - Crash Course (was Crashborn Adept; 2026-09-18): the first Star Crash on it each turn casts an additional time
+ *    on it (a full re-cast, Mirrorwing's shape, gated to the named spell).
  *  - Astral Spellcore: exactly the third Shop spell each turn → your Celestials +6/+6.
  *  - Orrery Artificer: Equip Comet (4) → the next spell casts 2 additional times.
  */
@@ -44,7 +47,7 @@ const toHand = (events: readonly CombatEvent[]): string[] =>
 describe('the roster', () => {
   it('all eight are set-3 Celestials with the sheet tier / stats, appended after the Spirits', () => {
     const rows: [string, number, number, number][] = [
-      ['ce3_courier', 1, 1, 1], ['ce3_vendor', 2, 2, 4], ['ce3_seer', 3, 3, 3], ['ce3_conductor', 4, 4, 5],
+      ['ce3_courier', 1, 1, 1], ['ce3_vendor', 2, 4, 2], ['ce3_seer', 3, 3, 3], ['ce3_conductor', 4, 4, 5],
       ['ce3_herald', 4, 4, 6], ['ce3_adept', 5, 5, 8], ['ce3_spellcore', 6, 7, 9], ['ce3_artificer', 6, 6, 10],
     ];
     const ids = poolFor('set3').buyable.map((c) => c.id);
@@ -84,26 +87,61 @@ describe('Horizon Courier — Echo: a random Shop spell', () => {
   });
 });
 
-describe('Starpath Vendor — your next Shop spell +2/+2', () => {
-  it('banks the bonus, the next stat spell reads it, and the cast spends it', () => {
+describe('Sugarnova — your next Shop spell +4/+4 (owner handoff 2026-09-18; was +2/+2)', () => {
+  it('(c) banks the bonus, the next stat spell reads it, and EXACTLY that cast spends it', () => {
     let s = run({ hand: [body('v', 'ce3_vendor'), spell('s1', 'starcrash'), spell('s2', 'starcrash')], board: [body('t', 'ce3_courier')] });
     s = play(s, 'v', { toIndex: 1 });
-    expect(s.nextSpellBonus).toEqual({ attack: 2, health: 2 });
-    expect([spellAttackBonus(s), spellHealthBonus(s)], 'folded into the spell-power read (so previews show it)').toEqual([2, 2]);
+    expect(s.nextSpellBonus).toEqual({ attack: 4, health: 4 });
+    expect([spellAttackBonus(s), spellHealthBonus(s)], 'folded into the spell-power read (so previews show it)').toEqual([4, 4]);
     const before = boardTotal(s);
     s = play(s, 's1', { targetUid: 't' });
-    // Star Crash lands twice (target + a random friendly), each at +5/+7 PLUS the banked +2/+2.
-    expect([boardTotal(s)[0] - before[0], boardTotal(s)[1] - before[1]]).toEqual([2 * 7, 2 * 9]);
+    // Star Crash lands twice (target + a random friendly), each at +5/+7 PLUS the banked +4/+4.
+    expect([boardTotal(s)[0] - before[0], boardTotal(s)[1] - before[1]]).toEqual([2 * 9, 2 * 11]);
     expect(s.nextSpellBonus, 'spent by that cast').toBeUndefined();
     const mid = boardTotal(s);
     s = play(s, 's2', { targetUid: 't' });
     expect([boardTotal(s)[0] - mid[0], boardTotal(s)[1] - mid[1]], 'the second spell is plain').toEqual([10, 14]);
   });
-  it('a second Shout stacks; golden banks +4/+4', () => {
+  it('a second Shout stacks; golden banks +8/+8', () => {
     let s = run({ hand: [body('v', 'ce3_vendor'), body('g', 'ce3_vendor', { golden: true })] });
     s = play(s, 'v', { toIndex: 0 });
     s = play(s, 'g', { toIndex: 1 });
-    expect(s.nextSpellBonus).toEqual({ attack: 6, health: 6 });
+    expect(s.nextSpellBonus).toEqual({ attack: 12, health: 12 });
+  });
+  it('(a) an unspent bonus SURVIVES End Turn → combat → the next shop, and the first Shop spell there spends it', () => {
+    let s = run({ hand: [body('v', 'ce3_vendor')], board: [body('t', 'ce3_courier')] });
+    s = play(s, 'v', { toIndex: 1 });
+    expect(s.nextSpellBonus).toEqual({ attack: 4, health: 4 });
+    // faceOmen → combat, settleCombat, resolveCombat opens the next shop (the equipment.test.ts turn helper)
+    s = reduce(reduce(reduce(s, { type: 'faceOmen' } as Action), { type: 'settleCombat' } as Action), { type: 'resolveCombat' } as Action);
+    expect(s.phase).toBe('recruit');
+    expect(s.nextSpellBonus, 'carried through combat').toEqual({ attack: 4, health: 4 });
+    expect([spellAttackBonus(s), spellHealthBonus(s)], 'still folded into spell power next turn').toEqual([4, 4]);
+    // Save / restore is a JSON round trip of RunState — the field rides along.
+    const restored = JSON.parse(JSON.stringify(s)) as RunState;
+    expect(restored.nextSpellBonus).toEqual({ attack: 4, health: 4 });
+    // The first Shop spell of the new turn is the one that spends it.
+    s = { ...s, hand: [...s.hand, spell('s1', 'starcrash')] };
+    const t = s.board.find((c) => c.cardId === 'ce3_courier') ?? s.board[0]!;
+    const before = t.attack;
+    s = play(s, 's1', { targetUid: t.uid });
+    expect(s.board.find((c) => c.uid === t.uid)!.attack - before, 'the +4 rode along (at least the primary)').toBeGreaterThanOrEqual(9);
+    expect(s.nextSpellBonus, 'spent by the first Shop spell of the new turn').toBeUndefined();
+  });
+  it('(b) every Shop spell prints the pending +4/+4 live and IN PLACE (spellDisplayText through the spell-power read)', () => {
+    const s = run({ nextSpellBonus: { attack: 4, health: 4 } });
+    const a = spellAttackBonus(s), h = spellHealthBonus(s);
+    expect([a, h]).toEqual([4, 4]);
+    // Star Crash: base +5/+7 → +9/+11, greened in place, no appendix.
+    const crash = spellDisplayText('starcrash', a, 0, h);
+    expect(crash).toContain('{{+9/+11}}');
+    expect(crash).not.toContain('+5/+7');
+    expect(crash).not.toMatch(/Now \+/);
+    // Stellar Chorus (base +2/+2, nothing cast yet) folds it the same way; a Gift (Tower Shield) prints its flat base.
+    expect(spellDisplayText('stellarchorus', a, 0, h, 0, 0, 0, { anySpellsThisTurn: 0 })).toContain('{{+6/+6}}');
+    expect(spellDisplayText('tower_shield', a, 0, h)).toBe(CARD_INDEX['tower_shield']!.text);
+    // Without the bonus the printed base stands (no false green).
+    expect(spellDisplayText('starcrash', 0, 0, 0)).toContain('+5/+7');
   });
   it('a Gift (Tower Shield) neither reads nor spends it', () => {
     let s = run({ hand: [spell('g', 'tower_shield')], board: [body('t', 'ce3_courier')], nextSpellBonus: { attack: 2, health: 2 } });
@@ -163,38 +201,55 @@ describe('Falling Star Herald — Shout and Echo: a Star Crash', () => {
   });
 });
 
-describe('Crashborn Adept — the first Star Crash on it each turn also casts on 2 other friendly Celestials', () => {
+describe('Crash Course — the first Star Crash you cast on this each turn casts an additional time (owner handoff 2026-09-18: Mirrorwing, gated to Star Crash)', () => {
   // Three Celestials and nothing else: a Star Crash is target +5/+7 plus one random friendly +5/+7, so every cast
   // adds exactly (10, 14) to the board total whichever body the random half picks.
   const board = () => [body('a', 'ce3_adept'), body('x', 'ce3_courier'), body('y', 'ce3_vendor')];
-  it('one cast becomes three (the original + one full cast on each of the two others)', () => {
+  it('one cast becomes two — the re-cast lands on THIS (its primary +5/+7 twice); the second Star Crash this turn is plain', () => {
     let s = run({ hand: [spell('s1', 'starcrash'), spell('s2', 'starcrash')], board: board() });
     const before = boardTotal(s);
     s = play(s, 's1', { targetUid: 'a' });
-    expect([boardTotal(s)[0] - before[0], boardTotal(s)[1] - before[1]]).toEqual([3 * 10, 3 * 14]);
-    expect(at(s, 'x').attack, 'x was a spread target').toBeGreaterThanOrEqual(1 + 5);
-    expect(at(s, 'y').attack, 'y was a spread target').toBeGreaterThanOrEqual(2 + 5);
+    expect([boardTotal(s)[0] - before[0], boardTotal(s)[1] - before[1]]).toEqual([2 * 10, 2 * 14]);
+    expect(buffFrom(at(s, 'a'), 'Star Crash')[0], 'the primary landed on the Course twice').toBeGreaterThanOrEqual(10);
     expect(at(s, 'a').namedSpreadUsedThisTurn).toBe(true);
     const mid = boardTotal(s);
     s = play(s, 's2', { targetUid: 'a' });
     expect([boardTotal(s)[0] - mid[0], boardTotal(s)[1] - mid[1]], 'the second Star Crash this turn is a plain cast').toEqual([10, 14]);
   });
-  it('a different spell on it does not count, and a non-Celestial is never a spread target', () => {
-    let s = run({ hand: [spell('g', 'tower_shield'), spell('s', 'starcrash')], board: [body('a', 'ce3_adept'), body('n', 'sandbag'), body('x', 'ce3_courier')] });
-    s = play(s, 'g', { targetUid: 'a' });
-    expect(at(s, 'a').namedSpreadUsedThisTurn, 'Tower Shield is not Star Crash').toBeFalsy();
+  it('gilded: 2 additional casts (three in all)', () => {
+    let s = run({ hand: [spell('s', 'starcrash')], board: [body('a', 'ce3_adept', { golden: true }), body('x', 'ce3_courier')] });
     const before = boardTotal(s);
     s = play(s, 's', { targetUid: 'a' });
-    // original + ONE spread (the only other Celestial): 2 casts
-    expect([boardTotal(s)[0] - before[0], boardTotal(s)[1] - before[1]]).toEqual([2 * 10, 2 * 14]);
-    expect(buffFrom(at(s, 'x'), 'Star Crash')[0], 'the Courier got the spread').toBeGreaterThanOrEqual(5);
+    expect([boardTotal(s)[0] - before[0], boardTotal(s)[1] - before[1]]).toEqual([3 * 10, 3 * 14]);
   });
-  it('each spread is a FULL cast: with Yazzus the spreads double too', () => {
+  it('a different spell on it first does not spend it (the gate is the NAMED spell, not "first spell" — unlike Mirrorwing); a Star Crash on another body does nothing', () => {
+    let s = run({ hand: [spell('g', 'tower_shield'), spell('s', 'starcrash'), spell('s2', 'starcrash')], board: [body('a', 'ce3_adept'), body('n', 'sandbag'), body('x', 'ce3_courier')] });
+    s = play(s, 'g', { targetUid: 'a' });
+    expect(at(s, 'a').namedSpreadUsedThisTurn, 'Tower Shield is not Star Crash').toBeFalsy();
+    let before = boardTotal(s);
+    s = play(s, 's2', { targetUid: 'x' });
+    expect([boardTotal(s)[0] - before[0], boardTotal(s)[1] - before[1]], 'aimed elsewhere: a plain cast').toEqual([10, 14]);
+    expect(at(s, 'a').namedSpreadUsedThisTurn).toBeFalsy();
+    before = boardTotal(s);
+    s = play(s, 's', { targetUid: 'a' });
+    expect([boardTotal(s)[0] - before[0], boardTotal(s)[1] - before[1]], 'the first Star Crash ON IT still re-casts').toEqual([2 * 10, 2 * 14]);
+  });
+  it('the re-cast is a FULL cast: with Yazzus the original casts twice and so does the re-cast (4 in all)', () => {
     let s = run({ hand: [spell('s', 'starcrash')], board: [...board(), body('z', 'yazzus')] });
     const before = boardTotal(s);
     s = play(s, 's', { targetUid: 'a' });
-    // original ×2 (Yazzus) + 2 spread targets × 2 casts each = 6 casts
-    expect([boardTotal(s)[0] - before[0], boardTotal(s)[1] - before[1]]).toEqual([6 * 10, 6 * 14]);
+    // original ×2 (Yazzus) + re-cast ×2 = 4 casts
+    expect([boardTotal(s)[0] - before[0], boardTotal(s)[1] - before[1]]).toEqual([4 * 10, 4 * 14]);
+  });
+  it('two Crash Courses: a Star Crash on one never re-arms the other (each has its own once-per-turn latch, spent only by a Star Crash on ITSELF)', () => {
+    let s = run({ hand: [spell('s', 'starcrash'), spell('s2', 'starcrash')], board: [body('a', 'ce3_adept'), body('b', 'ce3_adept')] });
+    let before = boardTotal(s);
+    s = play(s, 's', { targetUid: 'a' });
+    expect([boardTotal(s)[0] - before[0], boardTotal(s)[1] - before[1]]).toEqual([2 * 10, 2 * 14]);
+    expect(at(s, 'b').namedSpreadUsedThisTurn, 'b untouched').toBeFalsy();
+    before = boardTotal(s);
+    s = play(s, 's2', { targetUid: 'b' });
+    expect([boardTotal(s)[0] - before[0], boardTotal(s)[1] - before[1]], 'b\'s own first Star Crash re-casts').toEqual([2 * 10, 2 * 14]);
   });
   it('the latch clears at the next Start of Turn', () => {
     let s = run({ hand: [spell('s', 'starcrash')], board: board() });

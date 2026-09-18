@@ -39,7 +39,8 @@
  *      per-turn layer for every other offer leaves the Starform's total intact. `offerBuyStats` reads
  *      base + atk/hp for it and NEVER the live channels (they would pay twice).
  *   7. CONSUME (the buy) = 100% of its stats to one Celestial; COLLAPSE (Corona Devotee — rule D) = HALF its
- *      stats, rounded up, base included, to 2 UNIQUE random friendly Celestials PLUS
+ *      stats, rounded up, base included, to 3 UNIQUE random friendly Celestials (`COLLAPSE_ORIGINALS`; 2 until
+ *      2026-09-18) PLUS
  *      `collapseExtraTargetsOf(state)` extra hits drawn WITH replacement (an extra may land on a Celestial that
  *      already took a hit). 1 Celestial: 1 original + every extra on it. 0: the token still collapses, the stats
  *      go nowhere. With no Starform both do nothing. `consumeStarform` / `collapseStarform` remove the token and
@@ -67,6 +68,9 @@ export const STARFORM_ID = 'ce3_starform';
 export const STARFORM_START_PRICE = 6;
 
 export type StarformRemovedReason = 'consume' | 'collapse';
+/** Rule 7 — how many UNIQUE friendly Celestials a Collapse hits before the extras (3 — owner 2026-09-18; was 2
+ *  under rules v2 2026-09-13). The one number `collapseHits` and Solburn's factory both read. */
+export const COLLAPSE_ORIGINALS = 3;
 
 /** The Starform's LIVE PRICE (rule 5): `cost` on the offer, 6 for a token from before the field existed. */
 export function starformPrice(state: RunState): number | null {
@@ -395,7 +399,7 @@ export function buyStarform(state: RunState): { receiver: BoardCard | null; stat
   return { receiver, stats };
 }
 
-/** Rule 7 — the EXTRA Collapse hits beyond the 2 unique originals: the run-wide counter (`collapseExtraTargets`,
+/** Rule 7 — the EXTRA Collapse hits beyond the 3 unique originals: the run-wide counter (`collapseExtraTargets`,
  *  no writer yet) plus every Nova Herald standing on the board (its `passive` `collapseExtraTargets` marker:
  *  +2 each, +4 gilded — read off the card, never dispatched). */
 export function collapseExtraTargetsOf(state: RunState): number {
@@ -411,7 +415,7 @@ export function collapseExtraTargetsOf(state: RunState): number {
 /** Rule 7 — draw the Collapse's HITS from the friendly Celestials: `originals` UNIQUE picks first (fewer when the
  *  pool is smaller), then `extras` picks WITH replacement — an extra may repeat an original or another extra.
  *  Empty with no Celestial. One rng cursor advance, in this order, so a seeded replay reproduces it. */
-export function collapseHits(state: RunState, originals = 2, extras = collapseExtraTargetsOf(state)): BoardCard[] {
+export function collapseHits(state: RunState, originals = COLLAPSE_ORIGINALS, extras = collapseExtraTargetsOf(state)): BoardCard[] {
   // RUNE OF SOUL SCRIPT (owner 2026-09-16: "Undead should be able to consume [the Starform], AND be targets for a
   // Collapse"): your Undead are Collapse receivers beside your Celestials — the originals, the extras, and the
   // Supernova's "all your Celestials" alike. The generic tribe predicate, so an added-tribe Undead counts too.
@@ -445,7 +449,7 @@ export function consumeStarform(state: RunState, target: BoardCard): { attack: n
 /**
  * Rule 7 — COLLAPSE (Corona Devotee): the Starform leaves and HALF its stats, ROUNDED UP (base included), are
  * returned — the caller hands that half to EACH hit. Null with no Starform. `receivers` draws the hits AFTER
- * the token has left (`collapseHits`: 2 unique + the extras, with replacement) so the pull can be recorded
+ * the token has left (`collapseHits`: 3 unique + the extras, with replacement) so the pull can be recorded
  * against every one of them — one `starform-pull` per HIT, duplicates included (a Celestial hit three times
  * gets three pulls), all fired together (owner 2026-09-12 / 2026-09-13).
  */

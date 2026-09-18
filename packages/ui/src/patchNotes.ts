@@ -55,6 +55,26 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-18',
+    label: 'Spirit + Celestial reworks',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'Seven Set 3 Spirits and Celestials reworked, and a Starform Collapse now feeds 3 Celestials.',
+        details: [
+          'Kindled Sprite is now 1/3: "Rally: gain +1 Attack permanently for every Spirit played this turn." The Attack it gains in a fight comes home with it; the card prints the total it will gain right now.',
+          'Stardust Peddler is now 2/5: "When you spend 5 Gold, create a Starform, or give it +3/+3." A per-card Gold meter (the counter under the card shows N/5); gilded +6/+6.',
+          'Sugarnova is now 4/2: "Shout: give your next Shop spell +4/+4" (gilded +8/+8). The bonus carries through combat if you do not spend it, every Shop spell offer and hand spell shows the boosted number in green, and exactly the next Shop spell you cast uses it up.',
+          'Aspect: "When you play a Spirit, give 3 random Spirits +2/+2. Improves every 3 times this triggers." The improvement is +2/+2 per step (gilded +4/+4); the card prints its current grant and the counter shows the countdown.',
+          'Crash Course: "The first Star Crash you cast on this each turn casts an additional time" — it now works like Mirrorwing, but only for Star Crash (gilded: 2 additional times). It no longer spreads to other Celestials.',
+          'Roundabout: "End of Turn: create a Starform and give it +10/+10" (gilded +20/+20). With a Starform already out, only the +10/+10 lands. The old Start-of-Turn create and End-of-Turn "eat the Shop" are gone.',
+          'Old Timber: "Start of Combat: give your Spirits +3/+2. Improves for every Spirit played" — +3/+2 more for each Spirit played since it was played; the card prints the current total.',
+          'Collapse now grants half the Starform's stats (rounded up) to 3 random friendly Celestials (was 2). Fuse Aldrin's extra hits still land on top; Rune of the Supernova still hits all of them instead.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-17',
     label: 'Gamble joins Set 3',
     changes: [

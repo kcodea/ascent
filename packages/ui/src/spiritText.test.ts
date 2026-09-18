@@ -32,10 +32,17 @@ describe('spiritText — the Spirits print what they do now', () => {
     expect(stepProgress('sp3_festivalkeeper', { spiritTally: 4 }), 'wraps after a payout, Avenge-style').toEqual({ current: 1, total: 3 });
     expect(spiritText('sp3_aspect', false, { spiritTally: 0 }), 'base grant, base text').toBeNull();
     expect(spiritText('sp3_aspect', false, { spiritTally: 2 }), 'no countdown in the text any more').toBeNull();
-    expect(spiritText('sp3_aspect', false, { spiritTally: 3 })).toContain('{{+2/+2}}');
+    // Owner handoff 2026-09-18: a +2/+2 step — the 4th trigger pays +4/+4, the 7th +6/+6; gilded doubles.
+    expect(spiritText('sp3_aspect', false, { spiritTally: 3 })).toContain('{{+4/+4}}');
+    expect(spiritText('sp3_aspect', false, { spiritTally: 6 })).toContain('{{+6/+6}}');
+    expect(spiritText('sp3_aspect', true, { spiritTally: 3 })).toContain('{{+8/+8}}');
     expect(spiritText('sp3_aspect', false, { spiritTally: 3 })).not.toContain('more');
+    expect(spiritText('sp3_aspect', false, { spiritTally: 3 })).toContain('Improves every **3** times');
     expect(stepProgress('sp3_aspect', { spiritTally: 2 })).toEqual({ current: 2, total: 3 });
-    expect(spiritText('sp3_forestcolossus', false, { spiritTally: 2, onBoard: true })).toContain('{{+2/+2}}');
+    // Old Timber (2026-09-18): base +3/+2, then +3/+2 per Spirit counted — 2 counted → +9/+6; gilded +18/+12.
+    expect(spiritText('sp3_forestcolossus', false, { spiritTally: 2, onBoard: true })).toContain('{{+9/+6}}');
+    expect(spiritText('sp3_forestcolossus', true, { spiritTally: 2, onBoard: true })).toContain('{{+18/+12}}');
+    expect(spiritText('sp3_forestcolossus', false, { spiritTally: 0, onBoard: true }), 'nothing counted: the printed +3/+2 stands').toBeNull();
     expect(spiritText('sp3_forestcolossus', false, { spiritTally: 2, onBoard: false }), 'in the shop it has counted nothing yet').toBeNull();
   });
 
@@ -49,6 +56,8 @@ describe('spiritText — the Spirits print what they do now', () => {
     expect(spiritText('sp3_nurturer', false, { spiritsPlayed: 0 })).toBeNull();
     expect(spiritText('sp3_nurturer', false, { spiritsPlayed: 2 })).toContain('{{(×3)}}');
     expect(spiritText('sp3_kindled', false, { spiritsPlayed: 3 })).toContain('{{+3 Attack}}');
+    expect(spiritText('sp3_kindled', false, { spiritsPlayed: 3 }), 'permanent since 2026-09-18').toContain('permanently');
     expect(spiritText('sp3_kindled', true, { spiritsPlayed: 3 })).toContain('{{+6 Attack}}');
+    expect(spiritText('sp3_kindled', false, { spiritsPlayed: 0 }), 'nothing played: the printed base stands').toBeNull();
   });
 });

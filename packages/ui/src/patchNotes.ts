@@ -55,6 +55,21 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-18',
+    label: 'Compendium tier chart',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'The Compendium now charts your selection by Tier: a bar graph in the tier row shows how many minions (or spells, or gifts) sit at each Tier for the tribes you have filtered to. Click a bar to filter that Tier.',
+        details: [
+          'The tier row stays put on the Runes and Heroes tabs instead of vanishing and shifting the whole window.',
+          'Gifts have their own section under Spells.',
+          'Hover any card or rune to see the cards it relates to (the token it summons, the spell it casts, the card a rune grants) — these were rendering behind the book before.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-17',
     label: 'Gamble joins Set 3',
     changes: [

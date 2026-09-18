@@ -6607,6 +6607,32 @@ svg { width: 18px; height: 18px; }
 .book-tier { width: 38px; height: 38px; border-radius: 11px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: var(--font-ui); font-weight: 800; font-size: 17px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s, border-color 0.1s, background 0.1s; }
 .book-tier:hover { transform: translateY(-2px); border-color: var(--acc); }
 .book-tier.on { background: var(--acc); color: #fff; border-color: var(--acc-dk); box-shadow: 0 3px 0 var(--acc-dk); }
+/* THE TIER BAR NEVER LEAVES (owner report 2026-09-18: switching to Runes/Heroes unmounted it and the whole window
+   jumped a row). On those tabs the chips dim + disable instead. `min-height` pins the bar's height to the chart's,
+   so the chart's presence/absence can't move the gallery either. */
+.book-tiers { min-height: 92px; }
+/* The hover previews (a card's related cards, a rune's granted cards) portal to <body> at z 460 — UNDER the book
+   overlay's 480, so inside the Compendium they rendered invisibly behind the tome (owner report 2026-09-18:
+   "add mouseover previews" — they were there, just covered). Lift them over the book while it is open; still
+   under the Inspect overlay (500), which must keep covering everything. */
+body:has(.book-ov) .cardref { z-index: 490; }
+.book-tier:disabled { opacity: 0.35; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; transform: none; border-color: var(--line); }
+/* THE TIER CHART — one bar per tier, centred in the bar's spare width. `--h` (0..1) is the bar's share of the
+   tallest tier; the number rides above, the tier below. A picked tier (a lit chip) reads accented; the rest dim
+   while any chip is on so the selection reads in the chart too. Bars are buttons and toggle the tier chips. */
+.book-chart { flex: 1; display: flex; align-items: flex-end; justify-content: center; gap: 10px; height: 70px; margin: 0 28px; }
+.book-chart-quiet { align-self: center; font-family: var(--font-ui); font-weight: 800; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); opacity: 0.55; }
+.book-chart-cap { align-self: center; margin-right: 14px; max-width: 74px; text-align: right; font-family: var(--font-ui); font-weight: 800; font-size: 10.5px; line-height: 1.15; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); }
+.book-bar { --bar-c: var(--acc); width: 40px; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; padding: 0; border: 0; background: none; color: var(--ink3); font-family: var(--font-ui); transition: opacity 0.12s; }
+.book-bar-n { font-weight: 800; font-size: 12px; line-height: 1; color: var(--ink); }
+.book-bar-fill { display: block; width: 100%; height: max(3px, calc(var(--h, 0) * 42px)); border-radius: 5px 5px 2px 2px; background: linear-gradient(180deg, color-mix(in srgb, var(--bar-c) 90%, #fff) 0%, var(--bar-c) 100%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 1px 0 color-mix(in srgb, var(--bar-c) 60%, #000); transition: height 0.18s cubic-bezier(0.34, 1.2, 0.64, 1); }
+.book-bar-t { font-weight: 800; font-size: 11px; line-height: 1; letter-spacing: 0.06em; }
+.book-bar:hover .book-bar-fill { filter: brightness(1.15); }
+.book-bar.is-empty .book-bar-fill { background: color-mix(in srgb, var(--line) 35%, transparent); box-shadow: none; }
+.book-bar.is-empty .book-bar-n { color: var(--ink3); opacity: 0.6; }
+.book-bar.is-off { opacity: 0.38; }
+.book-bar.is-picked .book-bar-fill { --bar-c: var(--gold); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 0 2px color-mix(in srgb, var(--gold) 45%, transparent), 0 1px 0 color-mix(in srgb, var(--gold) 60%, #000); }
+.book-bar.is-picked .book-bar-t { color: var(--gold); }
 .book-main { flex: 1; display: flex; min-height: 0; }
 .book-rail { display: flex; flex-direction: column; gap: 7px; padding: 16px 12px; border-right: 2px solid var(--line); background: #2c2320; overflow-y: auto; flex: none; }
 .book-cat { display: inline-flex; align-items: center; gap: 9px; padding: 9px 16px 9px 11px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: var(--font-ui); font-weight: 700; font-size: 14px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; white-space: nowrap; transition: border-color 0.1s, background 0.1s; }

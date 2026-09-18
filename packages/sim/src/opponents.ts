@@ -138,6 +138,7 @@ export function opponentBoard(snap: BoardSnapshot): BoardMinion[] {
     ...(m.ascendProgress ? { ascendProgress: m.ascendProgress } : {}), // Tara: ascend progress toward Taragosa
     ...(m.spellProgress ? { spellProgress: m.spellProgress } : {}), // Archmagus Guel: on-board spell tally
     ...(m.spiritTally ? { spiritTally: m.spiritTally } : {}), // Set 3 Spirits: Forest Colossus's tally
+    ...(m.damageDealt ? { damageDealt: m.damageDealt } : {}), // Han Gover: the damage meter
     ...(m.soldProgress ? { soldProgress: m.soldProgress } : {}), // Runic Archivist (display-only)
     ...(m.boardFirstSpellId ? { boardFirstSpellId: m.boardFirstSpellId } : {}), // Spell Warden (display-only)
     ...(m.overflowBonus ? { overflowBonus: m.overflowBonus } : {}), // Flowing Monk: flat triple-combine grant bonus

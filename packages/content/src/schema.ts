@@ -541,6 +541,7 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleBuffHandTribe', // R-HAND-02 (2026-09-09): buff hand minions of a tribe — permanent in both phases
   // Set 3 Undead (2026-09-09)
   'onRiseBuffSelfWard', 'onRiseBuffBoardAndHand', 'overflowBuffAllPermanent', 'deathrattleBuffRandomTribe',
+  'overflowBuffRandomTribePerPlayed', // Bicycle Bob (2026-09-18): overflow → a random other <tribe> +(a·(1+played))/+(h·(1+played)), permanent
   // Set 3 batch 2, tranche B (2026-09-16) — rune grafts
   'onRiseSelfSummonToken', 'deathrattleEquipmentFreeNextTurn',
   'battlecryDestroyForDiscover', 'equipmentRiseThenDestroy', 'avengeCastTribeAttack',
@@ -571,6 +572,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onGetRubyDuplicate',           // Gem Sage
   'goldSpentScaleSelf',           // Ancient Wanderer
   'cardDeathScaler',              // Spear Warden (2026-09-18): HAS +A/+H per death of its card type this run
+  'dealtDamageAleMeter',          // Han Gover (2026-09-18): every N damage this deals, get an Ale (persistent per-instance meter)
   'buffShopOffersThisTurn',       // Night Market Horror
   'onSellDiscoverSingleton',      // Traveling Salesman
   'onGainAleBuffSelf',            // Kegheart Dwarf

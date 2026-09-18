@@ -37,8 +37,13 @@ export type FxSlot = 'over' | 'under' | 'above';
 export interface FxLayer {
   primitive: string;
   anchor: FxAnchorId;
-  /** Which part of the anchored unit's card the head lands on. Omitted = `card` (the centre). */
+  /** Which part of the anchored unit's card the head lands on. Omitted = `card` (the centre). For a `travel`
+   *  layer this is the SOURCE (from) end. */
   anchorPart?: FxAnchorPart;
+  /** `travel` layers only: the part of the TARGET (to) unit's card the arc ends on, set independently of
+   *  `anchorPart` (e.g. from the source's medallion to the target's centre). Omitted = falls back to
+   *  `anchorPart`, so both ends share one part — the behaviour before per-end parts existed. */
+  anchorPartTo?: FxAnchorPart;
   /** Milliseconds from effect start at which this layer spawns. */
   at: number;
   /** Milliseconds the layer lives. Omitted = until the def's duration. */

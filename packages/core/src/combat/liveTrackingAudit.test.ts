@@ -54,6 +54,7 @@ const LIVE: Record<string, string> = {
   playerSlaughterCopy: "the 'toHand' event on the kill beat — the copy flies to hand as you slaughter (Rune of the Trophy); the plain copy is still conjured for real at settle",
   playerBeastBuyAtkGain: "the 'tribeAura' event (The Old Hunt's live aura pump)",
   playerBeastBuyHpGain: "the 'tribeAura' event (Pack Mentality's Health twin)",
+  playerDamageMeters: "the 'dmg' events stamped with Han Gover as `source` — useCombatReplay sums them onto the seeded meter, so the N/40 step counter ticks per landed hit; the Ale itself flies to hand via 'toHand'",
 };
 
 /** Carry-backs where a real-time display is genuinely meaningless or already impossible to observe. */

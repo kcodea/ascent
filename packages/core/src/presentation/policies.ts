@@ -309,6 +309,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:orbitSellValue:orbit': { policy: 'ownBeat', family: 'orbit' },
   'factory:overflowBuffRandom:summonOverflow': { policy: 'foldedCue', family: 'react' },
   'factory:overflowBuffAllPermanent:summonOverflow': { policy: 'foldedCue', family: 'react' }, // Squatimus (set 3)
+  'factory:overflowBuffRandomTribePerPlayed:summonOverflow': { policy: 'foldedCue', family: 'react' }, // Bicycle Bob (set 3, 2026-09-18)
   'factory:onRiseBuffSelfWard:onRise': { policy: 'foldedCue', family: 'react' }, // Revenant (set 3)
   'factory:onRiseBuffBoardAndHand:onRise': { policy: 'foldedCue', family: 'react' }, // Rising Tide (set 3)
   'factory:onRiseSelfSummonToken:onRise': { policy: 'ownBeat', family: 'react' }, // Rune of the Endless March graft (set 3 batch 2) — a Rise REACTION, like Revenant's
@@ -1076,6 +1077,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onGetRubyDuplicate:onGetRuby': { policy: 'foldedCue', family: 'economyReact' },        // Gem Sage — cf. rubyGainedCast
   'factory:goldSpentScaleSelf:passive': { policy: 'passive', family: 'passive' },                 // Ancient Wanderer — a synced stat, never a beat
   'factory:cardDeathScaler:passive': { policy: 'passive', family: 'passive' },                    // Spear Warden — a death-count enchant read at the death site, never a beat
+  'factory:dealtDamageAleMeter:passive': { policy: 'passive', family: 'passive' },                // Han Gover — a damage meter read at the damage site; the Ale grant is its own `toHand` beat
   'factory:buffShopOffersThisTurn:onBuy': { policy: 'foldedCue', family: 'economyReact' },        // Night Market Horror — cf. buffBoardOnBuy
   'factory:buffShopOffersThisTurn:spellBought': { policy: 'foldedCue', family: 'economyReact' },  // …its "a spell is a card too" half
   'factory:onSellDiscoverSingleton:onSell': { policy: 'ownBeat', family: 'economy' },             // Traveling Salesman — cf. onSellDiscover

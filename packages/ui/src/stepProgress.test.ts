@@ -8,6 +8,12 @@ describe('stepProgress', () => {
     expect(stepProgress('guel', { spellProgress: 4 })).toEqual({ current: 4, total: 4 });
     expect(stepProgress('guel', { spellProgress: 5 })).toEqual({ current: 1, total: 4 });
   });
+  it('Han Gover: the persistent damage meter counts 1..40 then wraps (the Avenge-style tracker, owner 2026-09-11)', () => {
+    expect(stepProgress('dw3_hangover', {})).toEqual({ current: 0, total: 40 });
+    expect(stepProgress('dw3_hangover', { damageDealt: 27 })).toEqual({ current: 27, total: 40 });
+    expect(stepProgress('dw3_hangover', { damageDealt: 40 }), 'the hit that paid out').toEqual({ current: 40, total: 40 });
+    expect(stepProgress('dw3_hangover', { damageDealt: 43 }), 'carried into the next combat').toEqual({ current: 3, total: 40 });
+  });
   it('Spirit Pup clamps up to its one-time transform threshold', () => {
     const sp = stepProgress('spiritpup', { spellProgress: 3 });
     expect(sp?.total).toBeGreaterThan(0);

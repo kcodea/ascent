@@ -123,9 +123,10 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // → 1242 (2026-09-17, the Rune of Gambling emblem: +1.)
     // → 1243 (2026-09-18, Grand Larceny's Gift art: +1 — the last artless Gift. Old Timber, Sylus, Branch
     // Manager and Jumpstart Jules were REPLACED in place from new masters at net 0.)
-    // → 1246 (2026-09-18, the Set 3 Neutral Equipment trio: +3 — Shredder, Calibration Master, the Calibration
-    // Wrench icon. Sylus (a new master) and Venom were REPLACED in place at net 0; Rig has no master yet.)
-    // → 1246 (2026-09-18, Rig portrait: +1; Calibration Master replaced in place.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1247);
+    // → 1247 (2026-09-18, Han Gover's minion art: +1 — the new Set 3 Dwarf/Undead.)
+    // → 1246 (2026-09-18, Bicycle Bob + Handy Flame token + Rune of the Handy Flame + Rune of the Open Hand: +4.)
+    // → 1252 (2026-09-18, the Set 3 Neutral Equipment trio: +4 measured against origin/main's 1248 — Shredder,
+    // Calibration Master, Rig and the Calibration Wrench icon. Sylus and Venom were REPLACED in place at net 0.)
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1252);
   });
 });

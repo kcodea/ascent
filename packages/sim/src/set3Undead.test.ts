@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent, type SourceTriggerEvent } from '@game/core';
 import { CARD_INDEX, EQUIPMENT_INDEX, SETS, poolFor } from '@game/content';
 import { createRun, reduce, reduceWithPresentation, type Action, type BoardCard, type RunState } from './index';
-import { displayedStatsOf, fireRecruitDeathrattlesForTest, spellAttackBonus } from './recruit';
+import { displayedStatsOf, fireRecruitDeathrattlesForTest, fireSummonOverflow, spellAttackBonus, spellHealthBonus } from './recruit';
 
 /**
  * SET 3 — UNDEAD (owner roster 2026-09-09). Eleven new cards; the eleven carried-over set-1 Undead are pinned by
@@ -44,7 +44,7 @@ const buffsOn = (r: { events: readonly CombatEvent[] }, target: string) =>
 describe('the roster', () => {
   it('every new Undead is a set-3 card; Undead is a set-3 tribe; the set-1 re-specs landed', () => {
     const pool = poolFor('set3');
-    for (const id of ['u3_poochy', 'u3_noggin', 'u3_robinson', 'u3_adeptus', 'u3_ems', 'u3_cagebreaker', 'u3_revenant', 'u3_risingtide', 'u3_squatimus', 'u3_rodrick', 'u3_hierophant']) {
+    for (const id of ['u3_poochy', 'u3_noggin', 'u3_robinson', 'u3_adeptus', 'u3_ems', 'u3_cagebreaker', 'u3_revenant', 'u3_risingtide', 'u3_squatimus', 'u3_rodrick', 'u3_hierophant', 'u3_bicyclebob']) {
       expect(pool.buyable.some((c) => c.id === id), id).toBe(true);
     }
     expect(SETS.set3.tribes).toContain('undead');
@@ -180,40 +180,71 @@ describe('a shop Rise returns the PRINTED body with the Auras on top (owner repo
   });
 });
 
-describe('a rising body HOLDS its slot (owner ruling 2026-09-09) — Rodrick on a full board', () => {
+describe('ECHO FIRST, THEN THE RISE ATTEMPTS (owner ruling 2026-09-18, reversing 2026-09-09) — Rodrick on a full board', () => {
+  // Owner report 2026-09-18: a Deathfibrillated minion on a 7-body board "rises BEFORE its Echo triggers" — the
+  // Rise took the freed slot and the Echo's summon overflowed. The law is now the other way round, in BOTH
+  // phases and for ALL Rise/Echo interactions: the minion dies → its Echo fires (its summon takes the freed
+  // slot) → THEN the minion attempts to Rise, and on a full board it is the RETURN that finds no room (an
+  // overflow — Squatimus / Flowing Monk pay off on it — and the body stays dead).
   const six = ['u3_squatimus', 'dw_brunni', 'dw_coinfire', 'dw_pimm', 'e3_frank', 'u3_poochy'];
-  it('SHOP: the Echo summon overflows (Squatimus pays), and Rodrick returns', () => {
-    let s = run({ board: [body('rod', 'u3_rodrick'), ...six.map((id, i) => body(`b${i}`, id))], hand: [body('ems', 'u3_ems')] });
-    expect(s.board.length).toBe(7);
-    // EMS goes to hand-only use: the board is full, so play it into… no room. Aim the Deathfibrillator from an
-    // already-granted Equipment instead: grant by playing EMS onto a 6-body board first, then fill the 7th.
-    s = run({ board: [body('rod', 'u3_rodrick'), ...six.slice(0, 5).map((id, i) => body(`b${i}`, id))], hand: [body('ems', 'u3_ems')] });
+  it('SHOP (EMS / Deathfibrillator): the Spear Warden lands in the freed slot, Rodrick finds no room (Squatimus pays)', () => {
+    // Grant the Equipment by playing EMS onto a 6-body board, which fills the 7th slot; then aim it at Rodrick.
+    let s = run({ board: [body('rod', 'u3_rodrick'), ...six.slice(0, 5).map((id, i) => body(`b${i}`, id))], hand: [body('ems', 'u3_ems')] });
     s = act(s, { type: 'play', uid: 'ems', toIndex: 0 });
     expect(s.board.length).toBe(7);
     s = act(s, { type: 'activateEquipment', targetUid: 'rod' });
     s = act(s, { type: 'resolveShopDeath' });
     expect(s.board.length, 'still seven').toBe(7);
-    expect(s.board.some((c) => c.cardId === 'knit'), 'the Spear Warden found no room').toBe(false);
-    expect(s.board.some((c) => c.cardId === 'u3_rodrick'), 'Rodrick came back').toBe(true);
-    // Every body that was standing when the Warden overflowed wears the buff; the returned Rodrick is the card as
-    // printed (R-RISE-04), so he alone comes back without it.
-    for (const c of s.board) {
-      if (c.cardId === 'u3_rodrick') expect(c.buffs, 'the risen body is printed').toBeUndefined();
-      else expect(c.buffs?.find((b) => b.source === 'Squatimus'), c.cardId + ' got the overflow buff').toMatchObject({ attack: 3, health: 4 }); // Squatimus +3/+4 since 2026-09-18
-    }
+    expect(s.board.some((c) => c.cardId === 'knit'), "the Echo's Spear Warden took the freed slot").toBe(true);
+    expect(s.board.some((c) => c.cardId === 'u3_rodrick'), 'Rodrick found no room to rise').toBe(false);
+    // The Warden stands in Rodrick's old place (the Echo's summon lands "where the minion died").
+    expect(s.board.findIndex((c) => c.cardId === 'knit')).toBe(1);
+    // Every body standing when the RETURN overflowed wears the buff — the Warden included, it was already there.
+    for (const c of s.board) expect(c.buffs?.find((b) => b.source === 'Squatimus'), c.cardId + ' got the overflow buff').toMatchObject({ attack: 3, health: 4 }); // Squatimus +3/+4 since 2026-09-18
   });
-  it('COMBAT: the same — overflow fires, Rodrick rises, no Warden', () => {
+  it('SHOP: with room, both land — the Warden first, then Rodrick to its RIGHT', () => {
+    let s = run({ board: [body('rod', 'u3_rodrick'), body('b0', 'dw_brunni')], hand: [body('ems', 'u3_ems')] });
+    s = act(s, { type: 'play', uid: 'ems', toIndex: 0 });
+    s = act(s, { type: 'activateEquipment', targetUid: 'rod' });
+    s = act(s, { type: 'resolveShopDeath' });
+    expect(s.board.map((c) => c.cardId)).toEqual(['u3_ems', 'knit', 'u3_rodrick', 'dw_brunni']);
+  });
+  it('SHOP: a Rise minion with a NON-summon Echo still rises on a full board (the freed slot is its own)', () => {
+    // Sergeant's Echo grants Health (no body): the death frees a slot, nothing takes it, the Rise fits.
+    let s = run({ board: [body('sg', 'sergeant'), ...six.slice(0, 5).map((id, i) => body(`b${i}`, id))], hand: [body('ems', 'u3_ems')] });
+    s = act(s, { type: 'play', uid: 'ems', toIndex: 0 });
+    expect(s.board.length).toBe(7);
+    s = act(s, { type: 'activateEquipment', targetUid: 'sg' });
+    s = act(s, { type: 'resolveShopDeath' });
+    expect(s.board.length).toBe(7);
+    const sergey = s.board.find((c) => c.cardId === 'sergeant')!;
+    expect(sergey, 'Sergeant rose').toBeDefined();
+    expect(sergey.uid).not.toBe('sg');
+    expect(sergey.health).toBe(1);
+  });
+  it('COMBAT: the same — the Warden takes the slot, the Rise overflows (Squatimus pays), Rodrick never returns', () => {
     const r = fight([bm('u3_rodrick', { sourceUid: 'rod' } as Partial<BoardMinion>), bm('u3_squatimus', { sourceUid: 'sq', health: 60 } as Partial<BoardMinion>),
       ...[0, 1, 2, 3, 4].map((i) => ({ sourceUid: `s${i}`, cardId: 'sandbag', attack: 1, health: 60, keywords: [] } as unknown as BoardMinion))], [foe(20, 30)]);
-    // Rodrick dies TWICE in this fight: the first death Rises (its Warden finds no room — the slot is held),
-    // the second is real (no Rise left), and THAT Echo's Warden fits into the slot the body finally freed.
-    const rebornAt = r.events.findIndex((e) => e.type === 'reborn');
-    expect(rebornAt, 'Rodrick rose').toBeGreaterThanOrEqual(0);
+    // Rodrick dies ONCE: the Echo's Warden fills the slot his death freed, and the Rise finds no room.
+    const rod = uidOf(r, 'u3_rodrick');
+    const deaths = r.events.filter((e) => e.type === 'death' && (e as { target: string }).target === rod);
+    expect(deaths.length, 'one death, flagged as a Rise attempt').toBe(1);
+    expect(r.events.some((e) => e.type === 'reborn'), 'no return — the Warden had the slot').toBe(false);
     const wardens = r.events.map((e, i) => [e, i] as const).filter(([e]) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'knit');
-    expect(wardens.length, 'one Warden, from the REAL death').toBe(1);
-    expect(wardens[0]![1], 'and only after the Rise').toBeGreaterThan(rebornAt);
+    expect(wardens.length, "the Echo's Warden landed").toBe(1);
+    expect(wardens[0]![1], 'after the (rise-flagged) death').toBeGreaterThan(r.events.indexOf(deaths[0]!));
     const sq = uidOf(r, 'u3_squatimus');
-    expect(r.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === sq).length, 'Squatimus paid the overflow').toBeGreaterThanOrEqual(6);
+    expect(r.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === sq).length, 'Squatimus paid the overflow (7 standing incl. the Warden)').toBeGreaterThanOrEqual(7);
+  });
+  it("COMBAT: with room, both land in order — the Warden's summon, then the risen body to its RIGHT", () => {
+    const r = fight([bm('u3_rodrick', { sourceUid: 'rod' } as Partial<BoardMinion>), bm('sandbag', { attack: 0, health: 60 } as Partial<BoardMinion>)], [foe(20, 30)]);
+    const rod = uidOf(r, 'u3_rodrick');
+    const summonIdx = r.events.findIndex((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'knit');
+    const rebornIdx = r.events.findIndex((e) => e.type === 'reborn' && (e as { target: string }).target === rod);
+    expect(summonIdx).toBeGreaterThanOrEqual(0);
+    expect(rebornIdx, "the Rise came AFTER the Echo's summon").toBeGreaterThan(summonIdx);
+    const warden = (r.events[summonIdx] as { minion: { uid: string } }).minion.uid;
+    expect((r.events[rebornIdx] as { after?: string }).after, 'anchored to the Warden on its left').toBe(warden);
   });
 });
 
@@ -284,12 +315,21 @@ describe('Noggin, Squatimus, Adeptus, Warden Rodrick, Hierophant', () => {
     expect(r.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === sq).length, 'two overflows × the living friends').toBeGreaterThanOrEqual(12);
     expect((r.playerPermaBuffs ?? []).some((b) => b.attack >= 3 && b.health >= 4), 'and it carries back (an Engrave-style perma-gain)').toBe(true);
   });
-  it('Adeptus: Echo → +1 Attack to your Shop spells, combat carry-back and shop alike', () => {
-    expect(fight([bm('u3_adeptus')], [foe(20, 20)]).playerSpellPower).toEqual({ attack: 1, health: 0 });
+  it('Adeptus: Echo → +1/+1 to your Shop spells (owner 2026-09-18; was +1 Attack), combat carry-back and shop alike', () => {
+    expect(fight([bm('u3_adeptus')], [foe(20, 20)]).playerSpellPower).toEqual({ attack: 1, health: 1 });
     const s = run({ board: [body('a', 'u3_adeptus')] });
-    const before = spellAttackBonus(s);
+    const beforeA = spellAttackBonus(s), beforeH = spellHealthBonus(s);
     fireRecruitDeathrattlesForTest(s, s.board[0]!);
-    expect(spellAttackBonus(s)).toBe(before + 1);
+    expect(spellAttackBonus(s)).toBe(beforeA + 1);
+    expect(spellHealthBonus(s)).toBe(beforeH + 1);
+    expect([CARD_INDEX['u3_adeptus']!.tier, CARD_INDEX['u3_adeptus']!.attack, CARD_INDEX['u3_adeptus']!.health]).toEqual([4, 5, 1]);
+    expect(CARD_INDEX['u3_adeptus']!.text).toContain('+1/+1');
+    expect(CARD_INDEX['u3_adeptus']!.goldenText).toContain('+2/+2');
+  });
+  it('Robinson: Tier 4, 5/7 (owner handoff 2026-09-18) — text unchanged', () => {
+    const d = CARD_INDEX['u3_robinson']!;
+    expect([d.tier, d.attack, d.health]).toEqual([4, 5, 7]);
+    expect(d.text).toBe('**Equip Coffin Flop (3):** Discover an **Undead** minion.');
   });
   it('Warden Rodrick summons a real Spear Warden; the Hierophant casts Lantern of Souls on its third friendly death', () => {
     const r = fight([bm('u3_rodrick')], [foe(20, 20)]);
@@ -298,5 +338,98 @@ describe('Noggin, Squatimus, Adeptus, Warden Rodrick, Hierophant', () => {
     expect(h.events.some((e) => e.type === 'spellcast'), 'Lantern of Souls cast').toBe(true);
     // R-AURA-02: an Aura-affecting spell cast in combat is permanent — the Lantern's +3 carries back to the run.
     expect(h.playerUndeadAuraGain?.attack, 'the Undead Aura gain carries back').toBeGreaterThanOrEqual(3);
+  });
+});
+
+/**
+ * BICYCLE BEN (owner handoff 2026-09-18) — Tier 4 Undead 3/9: "When a summoned minion does not fit, give a random
+ * Undead +1/+1. Improves for every Undead played this turn." The grant is (1 + N)/(1 + N) for N Undead PLAYED this
+ * turn, gilded ×2; permanent in both phases; never Ben himself (R-TARGET-03). The turn's Undead count reaches combat
+ * on the per-tribe `tribesPlayed` side channel (`ctx.playedThisTurnFor`).
+ */
+describe('Bicycle Bob — overflow → a random OTHER Undead, +(1+N)/+(1+N) for N Undead played this turn', () => {
+  const benBoard = (over: Partial<RunState> = {}, ben: Partial<BoardCard> = {}): RunState => run({
+    board: [body('ben', 'u3_bicyclebob', ben), body('pup', 'u3_poochy'), body('b1', 'dw_brunni'), body('b2', 'dw_brunni'), body('c', 'dw_coinfire'), body('p', 'dw_pimm'), body('f', 'e3_frank')],
+    ...over,
+  });
+  const benBuff = (c: BoardCard) => c.buffs?.find((b) => b.source === 'Bicycle Bob');
+
+  it('SHOP: 0 Undead played → the one other Undead gets +1/+1; the Dwarves get nothing; Ben never buffs himself', () => {
+    const s = benBoard();
+    fireSummonOverflow(s);
+    expect(benBuff(at(s, 'pup'))).toMatchObject({ attack: 1, health: 1 });
+    for (const uid of ['ben', 'b1', 'b2', 'c', 'p', 'f']) expect(benBuff(at(s, uid)), uid).toBeUndefined();
+  });
+  it('SHOP: 2 Undead played this turn → +3/+3 (the base plus one step per Undead played)', () => {
+    const s = benBoard({ playedThisTurn: ['u3_noggin', 'u3_poochy', 'dw_brunni'] }); // the Dwarf does not count
+    fireSummonOverflow(s);
+    expect(benBuff(at(s, 'pup'))).toMatchObject({ attack: 3, health: 3 });
+  });
+  it('SHOP: a played Ben counts himself — he is an Undead played this turn', () => {
+    const s = benBoard({ playedThisTurn: ['u3_bicyclebob'] });
+    fireSummonOverflow(s);
+    expect(benBuff(at(s, 'pup'))).toMatchObject({ attack: 2, health: 2 });
+  });
+  it('SHOP: gilded doubles — 2 played → +6/+6', () => {
+    const s = benBoard({ playedThisTurn: ['u3_noggin', 'u3_poochy'] }, { golden: true, attack: 6, health: 18 });
+    fireSummonOverflow(s);
+    expect(benBuff(at(s, 'pup'))).toMatchObject({ attack: 6, health: 6 });
+  });
+  it('SHOP: Ben as the only Undead → no grant at all (never himself, R-TARGET-03)', () => {
+    const s = run({ board: [body('ben', 'u3_bicyclebob'), body('b1', 'dw_brunni'), body('b2', 'dw_brunni'), body('c', 'dw_coinfire'), body('p', 'dw_pimm'), body('f', 'e3_frank'), body('k', 'k_kobe')] });
+    fireSummonOverflow(s);
+    for (const c of s.board) expect(benBuff(c), c.uid).toBeUndefined();
+  });
+  it('SHOP: the pick is random among the OTHER Undead, and Ben is never it (many seeds)', () => {
+    const hits = new Set<string>();
+    for (let seed = 1; seed <= 40; seed++) {
+      const s = run({ rngCursor: seed, board: [body('ben', 'u3_bicyclebob'), body('n', 'u3_noggin'), body('pup', 'u3_poochy'), body('m', 'mumi'), body('b1', 'dw_brunni'), body('c', 'dw_coinfire'), body('f', 'e3_frank')] } as Partial<RunState>);
+      fireSummonOverflow(s);
+      for (const c of s.board) if (benBuff(c)) hits.add(c.uid);
+      expect(benBuff(at(s, 'ben')), 'seed ' + seed).toBeUndefined();
+    }
+    expect([...hits].sort()).toEqual(['m', 'n', 'pup']);
+  });
+  it('COMBAT: an Echo summon that does not fit fires Ben, at the frozen Undead-played count, and the gain carries back', () => {
+    // Wolves Den's Echo summons 3 Crypt Wolves into a board with one free slot (its own) — two overflow. Rising Pup
+    // is the other Undead standing when they do (the Den is dead; a Crypt Wolf that fit is Undead too — so the
+    // recipient is one of {pup, wolf}); Ben himself never is.
+    const mine = (golden = false): BoardMinion[] => [
+      bm('wolvesden', { sourceUid: 'wd' } as Partial<BoardMinion>),
+      bm('u3_bicyclebob', { sourceUid: 'ben', health: 60, ...(golden ? { golden: true, attack: 6 } : {}) } as Partial<BoardMinion>),
+      bm('u3_poochy', { sourceUid: 'pup', health: 60, keywords: [] } as Partial<BoardMinion>),
+      ...[0, 1, 2, 3].map((i) => ({ sourceUid: `s${i}`, cardId: 'sandbag', attack: 1, health: 60, keywords: [] } as unknown as BoardMinion)),
+    ];
+    const pool = poolFor('set3').all.map((c) => c.id);
+    const grants = (r: ReturnType<typeof simulate>) => {
+      const ben = uidOf(r, 'u3_bicyclebob');
+      const hits = r.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === ben) as unknown as { target: string; attack: number; health: number }[];
+      return { ben, hits };
+    };
+    const r0 = simulate(mine(), [foe(20, 25)], makeRng(7), CARD_INDEX, combatSide({ tier: 6, poolIds: pool }), combatSide({ tier: 6 }));
+    const g0 = grants(r0);
+    expect(g0.hits.length, 'two overflows → two grants').toBe(2);
+    for (const h of g0.hits) { expect(h.target).not.toBe(g0.ben); expect([h.attack, h.health]).toEqual([1, 1]); }
+    // The same fight with 2 Undead played this turn (the per-tribe channel): +3/+3 each, carried back as a perma-gain.
+    const r2 = simulate(mine(), [foe(20, 25)], makeRng(7), CARD_INDEX, combatSide({ tier: 6, poolIds: pool, tribesPlayed: { undead: 2 } }), combatSide({ tier: 6 }));
+    const g2 = grants(r2);
+    expect(g2.hits.length).toBe(2);
+    for (const h of g2.hits) { expect(h.target).not.toBe(g2.ben); expect([h.attack, h.health]).toEqual([3, 3]); }
+    expect((r2.playerPermaBuffs ?? []).filter((b) => b.attack === 3 && b.health === 3 && b.sourceUid !== 'ben').length, 'carried back to the run card (never Ben)').toBeGreaterThanOrEqual(1);
+    // Gilded: ×2.
+    const rg = simulate(mine(true), [foe(20, 25)], makeRng(7), CARD_INDEX, combatSide({ tier: 6, poolIds: pool, tribesPlayed: { undead: 2 } }), combatSide({ tier: 6 }));
+    const gg = grants(rg);
+    expect(gg.hits.length).toBe(2);
+    for (const h of gg.hits) expect([h.attack, h.health]).toEqual([6, 6]);
+  });
+  it("the per-tribe channel: the reducer freezes the turn's Undead count on the side, and combatSide reconciles both forms", () => {
+    const s = run({ board: [body('ben', 'u3_bicyclebob')], playedThisTurn: ['u3_noggin', 'n2_paragon', 'dw_brunni', 'sp3_tidebud'] }); // Paragon is all-types
+    const side = reduce(s, { type: 'faceOmen' }).lastCombat!.oddsInput!.playerState;
+    expect(side.tribesPlayed).toEqual({ undead: 2, dwarf: 2, spirit: 2, beast: 1, mech: 1, dragon: 1, demon: 1, kobold: 1, celestial: 1, neutral: 1 }); // Paragon prints 'neutral' and counts as every real tribe (the shared predicate)
+    expect(side.spiritsPlayed, 'the legacy scalar is read off the same map').toBe(2);
+    expect(side.beastsPlayed).toBe(1);
+    // A legacy capture with only the scalars reconstitutes the map; a map-only side derives the scalars.
+    expect(combatSide({ spiritsPlayed: 3, beastsPlayed: 1 }).tribesPlayed).toEqual({ spirit: 3, beast: 1 });
+    expect(combatSide({ tribesPlayed: { spirit: 2 } }).spiritsPlayed).toBe(2);
   });
 });

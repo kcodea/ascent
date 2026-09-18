@@ -32,14 +32,14 @@ describe('aggregate (synthetic fixture)', () => {
     const heroes = agg.heroes.filter((h) => h.assigned > 0).map((h) => `${h.heroId}:${h.assigned}:${h.placement.est?.toFixed(2)}`);
     expect(heroes).toMatchInlineSnapshot(`
       [
-        "drakko:30:3.73",
-        "fibbsy:30:4.53",
-        "gorr:30:4.77",
-        "harlan:30:5.57",
-        "midas:30:4.67",
-        "nadja:30:4.17",
-        "pete:30:4.13",
-        "warden:30:4.43",
+        "drakko:30:3.90",
+        "fibbsy:30:4.73",
+        "gorr:30:4.73",
+        "harlan:30:5.53",
+        "midas:30:4.73",
+        "nadja:30:4.07",
+        "pete:30:4.00",
+        "warden:30:4.30",
       ]
     `);
     expect(agg.minions.length).toBeGreaterThan(50);

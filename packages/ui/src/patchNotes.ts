@@ -55,6 +55,21 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-18',
+    label: 'Coloured terms',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "Every tribe name and mechanic word in card, spell, rune and hero-power text is now coloured, wherever it appears — not only the ones that happened to be in bold. The Equip, Starform and Collapse keyword pills now show on the cards that use them, with clearer definitions, and Vaultkeeper's printed grant now ticks live in combat as spells are cast.",
+        details: [
+          `Previously a tribe or keyword only took its colour when the card text bolded it, so plain mentions (Seedling Spirit's "Spirit", "Discover a Beast", "Collapse your Starform") read as ordinary text. They now colour on the shop, hand, board, combat, Compendium and hover surfaces alike.`,
+          `Keyword pills: "Equip" (Can be triggered once per turn, per equipment, for a cost.), "Starform" (occupies a Shop slot until purchased or destroyed; buying it grants its stats to your left-most Celestial) and "Collapse" (grant 50% of your Starform's stats to 3 Celestials and destroy it).`,
+          "Vaultkeeper: its \"+N/+N\" and \"spells to next step\" now count spells cast DURING the fight (yours and, for an opponent's Vaultkeeper, theirs), instead of only updating after combat.",
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-17',
     label: 'Gamble joins Set 3',
     changes: [

@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { chooseBothActive, hasTier7Access, runeStacksOf, spellAttackBonus, spellHealthBonus, spiritsPlayedThisTurn } from '@game/sim';
+import { chooseBothActive, hasTier7Access, unusedEquipmentCount, runeStacksOf, spellAttackBonus, spellHealthBonus, spiritsPlayedThisTurn } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { stepProgress } from './cardText';
 import { liveCardText } from './instView';
@@ -108,6 +108,9 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         // Drunken Oaf's rep count. Player-only: `enemyScalers` carries no Ale tally, so a served Oaf reads its
         // printed text — the same fallback every other run-scoped scaler takes on the foe side.
         alesThisTurn: foe ? enemyScalers?.alesLastTurn : run.alesCastThisTurn,
+        // Shredder's Equipment count. Player-only (an enemy snapshot carries no Equipment): in combat the turn's
+        // marks have expired, so this reads the Equipment the player holds going into the next turn.
+        unusedEquipment: foe ? 0 : unusedEquipmentCount(run),
         goldSpent: foe ? 0 : run.goldSpentThisTurn,
         // Ancient Wanderer's run-lifetime meter. Player-only: an enemy snapshot carries no run, so a served
         // Wanderer reads its printed rate — the same fallback every other run-scoped scaler takes on the foe

@@ -56,6 +56,25 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-18',
+    label: 'Equipment Neutrals',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'Three new Set 3 Neutrals built around Equipment: Shredder, Calibration Master and Rig.',
+        details: [
+          'Shredder (Tier 4, 8/4): "End of Turn: give your left-most and right-most minions +4/+4 for every Equipment unused this turn." The card prints the total it will grant right now; a lone minion is both ends and is buffed once. Gilded +8/+8.',
+          'Calibration Master (Tier 5, 9/6): "Equip Calibration Wrench (1): your next Equipment activation is Amplified." Whatever Equipment you press next triggers twice — never the Wrench itself — and the charge carries across turns until you use it. Gilded: your next two activations.',
+          'Rig (Tier 3, 4/4): "When you use Equipment, this gains +4/+4." Every activation from the slot counts, the Calibration Wrench included; a Rig in your hand does not grow. Gilded +8/+8.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Tauntbreaker has left the Set 3 pool.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-18',
     label: 'Kobold, Undead & Neutral reworks',
     changes: [
       {

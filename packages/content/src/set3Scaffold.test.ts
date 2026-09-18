@@ -53,9 +53,10 @@ describe('set 3 scaffold', () => {
       'forsakenweaver', 'wolvesden', 'soulsman', 'anubis',
       // …then the NEUTRALS (owner roster 2026-09-09, tranche 1): set 3's own — Blaster back from the archive,
       // Splitboon Adept — then Yazzus (the ONE shared Yazzus since 2026-09-16, pinned to the slot its set-3 fork
-      // held) — then the carried set-1 and set-2 neutrals (shared definitions).
-      'blaster', 'n3_defender', 'n3_pell', 'n3_hustler', 'n3_recruiter', 'n3_charger', 'n3_splitboon', 'yazzus',
-      'drummer', 'sylus', 'chronos', 'joker', 'venom', 'tauntbreaker', 'blackbelt', 'jenkins', 'stewardofspells',
+      // held) — then the carried set-1 and set-2 neutrals (shared definitions). Shredder, Calibration Master and
+      // Rig joined the own list 2026-09-18 (owner handoff); Tauntbreaker left the carry-over the same day.
+      'blaster', 'n3_defender', 'n3_pell', 'n3_hustler', 'n3_recruiter', 'n3_charger', 'n3_splitboon', 'n3_shredder', 'n3_calibration', 'n3_rig', 'yazzus',
+      'drummer', 'sylus', 'chronos', 'joker', 'venom', 'blackbelt', 'jenkins', 'stewardofspells',
       'arenaheckler', 'wayfinder', 'salvatore',
       'n2_spellsword', 'n2_bellringer', 'k_pouchpincher', 'n2_paragon',
       // …then the SPIRITS (owner roster 2026-09-09) — a brand-new tribe, all set 3's own: the seven hand-summon cards

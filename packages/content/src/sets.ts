@@ -191,8 +191,9 @@ const SET1_UNDEAD_IN_SET3: readonly CardDef[] = [
  *  seeded pool picks). */
 const YAZZUS_IN_SET3: readonly CardDef[] = NEUTRAL.filter((c) => c.id === 'yazzus');
 const SET1_NEUTRALS_IN_SET3: readonly CardDef[] = [
+  // Tauntbreaker left set 3 on 2026-09-18 (owner handoff); it stays in set 1 / set 2 and resolves globally.
   ...NEUTRAL.filter((c) => [
-    'venom', 'arenaheckler', 'tauntbreaker', 'wayfinder', 'blackbelt', 'jenkins', 'sylus', 'drummer', 'chronos',
+    'venom', 'arenaheckler', 'wayfinder', 'blackbelt', 'jenkins', 'sylus', 'drummer', 'chronos',
     'stewardofspells', 'joker',
   ].includes(c.id)),
   ...TIER7.filter((c) => c.id === 'salvatore'),

@@ -4,7 +4,7 @@ import { spiritsPlayedThisTurn, anySpellsCastThisTurn, CONFIG, chooseBothActive,
 import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
-  cryptDrakeText, drunkenOafText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
+  cryptDrakeText, drunkenOafText, shredderText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText, shootingStarText,
   ancientWandererText, musterTrooperText,
   taughtSpellText, trailForagerText, transformProgressText, watcherText, withImpStats, spiritText } from './cardText';
@@ -102,6 +102,8 @@ export interface LiveTextParams {
    *  Start of Combat will actually fire. Player-only: an enemy's snapshot carries no Ale count, so a served
    *  Oaf falls back to its printed text like every other run-scoped scaler. */
   alesThisTurn?: number;
+  /** Held Equipment whose charge is still unspent this turn — Shredder's live End-of-Turn total (set 3, 2026-09-18). */
+  unusedEquipment?: number;
   /** Rune of the Zoo (combat only): the player's combat-summon tally at the current beat — Beardsley prints
    *  the buff the NEXT summon will actually get (base × golden × (this + 1)). Undefined = no rune / shop. */
   zooSummons?: number | null;
@@ -156,6 +158,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             runescaleText(c.id, p.golden, p.spellProgress ?? 0) ??
             scTribeBuffPerPlayedText(c.id, p.golden, p.playedThisTurn) ??
             drunkenOafText(c.id, p.golden, p.alesThisTurn) ?? // Drunken Oaf: how many times it repeats right now
+            shredderText(c.id, p.golden, p.unusedEquipment) ?? // Shredder: the End-of-Turn total for the Equipment still unused
 
             packLeaderText(c.id, p.summonBonus ?? 0, p.golden) ??
             asymSummonBuffText(c.id, p.summonBonus ?? 0, p.golden) ?? // Groveweaver: live asymmetric grant
@@ -242,7 +245,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { nextSpellBonus?: { attack: number; health: number }; undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; starCrashBonus?: { attack: number; health: number }; revelerX?: number; spiritDiscount?: number; spiritsPlayed?: number; anySpellsThisTurn?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean } },
+  live?: { nextSpellBonus?: { attack: number; health: number }; undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; starCrashBonus?: { attack: number; health: number }; revelerX?: number; spiritDiscount?: number; spiritsPlayed?: number; anySpellsThisTurn?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; unusedEquipment?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean } },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -261,7 +264,7 @@ export function instView(
     spellProgress: inst.spellProgress, spiritTally: inst.spiritTally, ascendProgress: inst.ascendProgress, summonBonus: inst.summonBonus,
     overflowBonus: inst.overflowBonus,
     hpGrantBonus: inst.hpGrantBonus, eotTick: eotTickShown, eotBonus: inst.eotBonus, sellBonus: inst.sellBonus, soldProgress: inst.soldProgress,
-    playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff, conductorBuff: live?.conductorBuff, onBoard: live?.onBoard, alesThisTurn: live?.alesThisTurn,
+    playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff, conductorBuff: live?.conductorBuff, onBoard: live?.onBoard, alesThisTurn: live?.alesThisTurn, unusedEquipment: live?.unusedEquipment,
     lastSpellName: live?.lastSpellName, grantedTier: inst.grantedTier, improveReps: live?.improveReps,
     rememberedSpellNames: live?.rememberedSpellNames, impBank: live?.impBank,
     firstSpellThisTurnName: live?.firstSpellThisTurnName, lastSpellThisTurnName: live?.lastSpellThisTurnName,

@@ -411,6 +411,23 @@ export function scTribeBuffPerPlayedText(cardId: string, golden: boolean, played
 }
 
 /**
+ * SHREDDER (`endOfTurnBuffEndsPerUnusedEquipment`, set 3 Neutrals 2026-09-18) — "+4/+4 for every Equipment unused
+ * this turn" folded into the total it will ACTUALLY grant right now: the per-Equipment rate × the held Equipment
+ * whose charge is still unspent (`unusedEquipmentCount`). The count is what changes as the player presses the slot,
+ * so it is always shown; the rate stays in the parenthetical so the card still explains itself.
+ */
+export function shredderText(cardId: string, golden: boolean, unusedEquipment: number | undefined): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'endOfTurnBuffEndsPerUnusedEquipment');
+  if (!def || !eff) return null;
+  const n = unusedEquipment ?? 0;
+  const mult = golden ? 2 : 1;
+  const a = Number((eff.params as { attack?: number })?.attack ?? 4) * mult;
+  const h = Number((eff.params as { health?: number })?.health ?? 4) * mult;
+  return `**End of Turn:** give your left-most and right-most minions **{{+${a * n}/+${h * n}}}** (+${a}/+${h} for each Equipment unused this turn: **${n}**).`;
+}
+
+/**
  * DRUNKEN OAF (`scBuffRandomTribePerAle`) — Start of Combat gives a Dwarf +A/+H, repeated once more for every
  * Dwarven Ale cast this turn, so the reps are `1 + ales`. Spell out what it will ACTUALLY do right now: the rep
  * count and the total stats it's about to hand out, alongside the unchanged per-rep rate. Returns null on a dry

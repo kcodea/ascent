@@ -52,6 +52,7 @@ export const GameEventSchema = z.enum([
   'orbitFired', // Celestial — a board-wide watcher: ANY Orbit on your board resolved
   'starformGained', // Celestial — your Starform (the Shop token) gained stats (Twin Star); payload carries the delta
   'starformRemoved', // Celestial — your Starform left the Shop (consumed / collapsed); payload carries its stats. A Star Destroyer exit never fires it
+  'equipmentActivated', // set 3 Neutrals (2026-09-18): the player ACTIVATED an Equipment from the slot (Rig) — board watchers only; payload carries the Equipment id
 ]);
 
 export const EffectFactoryIdSchema = z.enum([
@@ -580,6 +581,10 @@ export const EffectFactoryIdSchema = z.enum([
   'onFriendDeathGainEcho',        // Echo Mimic
   'avengeSummonAttackImproving',  // Muster General
   'rallyDoubleSelf',              // Evolving Abomination
+  // ── Set 3 Neutrals, owner handoff 2026-09-18 ──
+  'endOfTurnBuffEndsPerUnusedEquipment', // Shredder: End of Turn — the left-most + right-most minions +A/+H per held Equipment unused this turn
+  'equipmentCalibrate',           // Calibration Wrench: the next N Equipment activations (not the Wrench's own) are Amplified
+  'equipmentActivatedBuffSelf',   // Rig: when you activate an Equipment, this board body gains +A/+H
 ]);
 
 export const EffectDefSchema = z.object({

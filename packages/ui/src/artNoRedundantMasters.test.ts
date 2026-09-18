@@ -123,6 +123,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // → 1242 (2026-09-17, the Rune of Gambling emblem: +1.)
     // → 1243 (2026-09-18, Grand Larceny's Gift art: +1 — the last artless Gift. Old Timber, Sylus, Branch
     // Manager and Jumpstart Jules were REPLACED in place from new masters at net 0.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1243);
+    // → 1246 (2026-09-18, the Set 3 Neutral Equipment trio: +3 — Shredder, Calibration Master, the Calibration
+    // Wrench icon. Sylus (a new master) and Venom were REPLACED in place at net 0; Rig has no master yet.)
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1246);
   });
 });

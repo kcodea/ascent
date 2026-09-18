@@ -5,7 +5,7 @@ import { Card, mdBold } from './Card';
 import { instView } from './instView';
 import { dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
-import { equipmentAmplifiedOf, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
+import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
 import { equipmentArtFor } from './art';
 import { heroArt, heroPowerArt, questArt, runeArt } from './art';
@@ -173,9 +173,10 @@ export function StatusBar() {
   // 2026-09-11). The pool is what makes the number read GREEN — it is above the Equipment's own baseline.
   const equipUses = equipmentUsesLeft(run);
   const equipPool = equipmentPool(run);
-  // AMPLIFIED (owner design 2026-09-16): the selected Equipment holds an Amplified stack — its next activation
-  // triggers twice. The charge indicator turns BLUE while it does (Rune of Amplification / the Grand Workshop).
-  const equipAmplified = selectedEquipDef ? equipmentAmplifiedOf(run, selectedEquipDef.id) : 0;
+  // AMPLIFIED (owner design 2026-09-16): the selected Equipment's next activation triggers twice — its own stack
+  // (Rune of Amplification / the Grand Workshop) or a pending Calibration Wrench charge it can spend (set 3
+  // Neutrals, 2026-09-18; never the Wrench itself). The charge indicator turns BLUE while it does.
+  const equipAmplified = selectedEquipDef && equipmentWillAmplify(run, selectedEquipDef.id) ? 1 : 0;
   const equipCost = selectedEquipDef ? equipmentCostOf(run, selectedEquipDef) : 0;
   // Visible but DISABLED when unaffordable or spent — the handoff is explicit that the slot keeps showing the
   // Equipment and explains why it cannot be used, rather than vanishing.

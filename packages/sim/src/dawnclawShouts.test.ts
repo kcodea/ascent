@@ -14,8 +14,10 @@ describe('Dawnclaw re-fires a neighbour Shout', () => {
   it('a stat-buff Shout (Brood Whelp) now lands DURING combat', () => {
     // Brood Whelp's Shout is `battlecryBuffTarget`. Dawnclaw has 1 HP and Taunt, so it eats the first swing
     // and dies with its neighbour still alive — which is what the Echo needs.
+    // A second Dragon (Ashscribe) is the Shout's recipient: Brood Whelp never targets itself (R-TARGET-03,
+    // owner 2026-09-18 — the old "fall back to self" pick is gone), and Dawnclaw is not a Dragon.
     const r = simulate(
-      [bm('d2_broodwhelp', 1, 9999), bm('b2_dawnclaw', 1, 1)],
+      [bm('d2_broodwhelp', 1, 9999), bm('b2_dawnclaw', 1, 1), bm('d2_ashscribe', 1, 9999)],
       [bm('sandbag', 50, 9999)], makeRng(4), CARD_INDEX, combatSide({ tier: 4 }), combatSide({ tier: 4 }));
     // A re-fire is a counted `shout` event (2026-09-01), not a narration line.
     expect(r.events.some((e) => e.type === 'shout'), 'the Echo did not re-fire the Shout').toBe(true);

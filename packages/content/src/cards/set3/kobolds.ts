@@ -35,9 +35,11 @@ export const SET3_KOBOLDS: CardDef[] = [
     attack: 2,
     health: 3,
     keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallyPlayRubiesSelf', params: { count: 1 } }],
-    text: '**Rally:** cast a **Ruby** on this.',
-    goldenText: '**Rally:** cast **2 Rubies** on this.',
+    // Owner rework 2026-09-18: the Ruby is PERMANENT (`permanent: true` — the same flag Boulderdash threads
+    // through `playRubiesOn`, so a Rally Ruby earned in combat carries back to the run board).
+    effects: [{ on: 'onAttack', do: 'rallyPlayRubiesSelf', params: { count: 1, permanent: true } }],
+    text: '**Rally:** Cast a **permanent Ruby** on this.',
+    goldenText: '**Rally:** Cast **2 permanent Rubies** on this.',
   },
   {
     // Choose One — the roster's introduction to the fork: a Shop spell (tempo, unknown) against Rubies
@@ -91,7 +93,7 @@ export const SET3_KOBOLDS: CardDef[] = [
     name: 'Delver', // 'Veinchant Delver' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'kobold',
     tier: 3,
-    attack: 3,
+    attack: 5,
     health: 3,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'veinstorm' } }],
@@ -105,7 +107,7 @@ export const SET3_KOBOLDS: CardDef[] = [
     name: 'Jewel',
     tribe: 'kobold',
     tier: 4,
-    attack: 4,
+    attack: 5,
     health: 5,
     keywords: [],
     effects: [],
@@ -131,8 +133,8 @@ export const SET3_KOBOLDS: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'blast_pump' } }],
-    text: '**Equip Blast Pump (1):** Cast **2 Rubies** on your minions.',
-    goldenText: '**Equip Blast Pump (1):** Cast **4 Rubies** on your minions.',
+    text: '**Equip Blast Pump (2):** Cast **2 Rubies** on your minions.',
+    goldenText: '**Equip Blast Pump (2):** Cast **4 Rubies** on your minions.',
   },
   {
     // Owner rework 2026-08-30: the left branch is a WARDING RUBY (the set-2 token that also grants Ward),
@@ -202,8 +204,8 @@ export const SET3_KOBOLDS: CardDef[] = [
     name: 'Double Dealer', // 'Dealer' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'kobold',
     tier: 4,
-    attack: 4,
-    health: 3,
+    attack: 6,
+    health: 6,
     keywords: [],
     // BOTH hooks, and that pairing is the card (owner ruling 2026-08-31). `onPlay` arms her the moment she
     // arrives — a Dealer bought mid-turn used to sit inert until the next turn — and `startOfTurn` re-arms
@@ -269,8 +271,8 @@ export const SET3_KOBOLDS: CardDef[] = [
     health: 8,
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'prismatic_pick' } }],
-    text: '**Equip Prismatic Pick (2): Choose One** — get a random **Choose One** card; or your next **Choose One** card this turn gains **both** effects.',
-    goldenText: '**Equip Prismatic Pick (2): Choose One** — get **2 random Choose One** cards; or your next **2 Choose One** cards this turn gain **both** effects.',
+    text: '**Equip Prismatic Pick (1): Choose One** — get a random **Choose One** card; or your next **Choose One** card this turn gains **both** effects.',
+    goldenText: '**Equip Prismatic Pick (1): Choose One** — get **2 random Choose One** cards; or your next **2 Choose One** cards this turn gain **both** effects.',
   },
   {
     // Set 3 — the SPELL-reactive Kobold. "Shop spell" is load-bearing (owner vocabulary rule): a Ruby is not
@@ -287,9 +289,12 @@ export const SET3_KOBOLDS: CardDef[] = [
     attack: 5,
     health: 8,
     keywords: [],
-    effects: [{ on: 'spellCast', do: 'onSpellCastPlayRubiesAdjacent', params: { count: 1 } }],
-    text: 'Whenever you cast a **Shop spell**, cast a **Ruby** on adjacent minions.',
-    goldenText: 'Whenever you cast a **Shop spell**, cast **2 Rubies** on adjacent minions.',
+    // Owner rework 2026-09-18: RANDOM, not adjacent — a Ruby on Livewire itself plus `others` (2) random OTHER
+    // Kobolds, distinct picks off the run cursor. The self Ruby is the one deliberate self-inclusion ("on this"
+    // is printed); the random half never re-picks Livewire (the global no-self-target rule).
+    effects: [{ on: 'spellCast', do: 'onSpellCastPlayRubiesSelfAndRandomTribe', params: { count: 1, others: 2, tribe: 'kobold' } }],
+    text: 'Whenever you cast a **Shop spell**, cast a **Ruby** on this and 2 other random **Kobolds**.',
+    goldenText: 'Whenever you cast a **Shop spell**, cast **2 Rubies** on this and 2 other random **Kobolds**.',
   },
   {
     // Set 3 — the THIRD Equip minion. Her Equipment improves your Rubies and then throws two at the ends of
@@ -302,7 +307,7 @@ export const SET3_KOBOLDS: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'dueling_rubettas' } }],
-    text: "**Equip Dual Rubetta's (2):** Improve your **Rubies** by **+1/+2** and cast a **Ruby** on your left and right-most **Kobold**.",
-    goldenText: "**Equip Dual Rubetta's (2):** Improve your **Rubies** by **+2/+4** and cast **2 Rubies** on your left and right-most **Kobold**.",
+    text: "**Equip Dual Rubetta's (2):** Improve your **Rubies** by **+1/+1** and cast a **Ruby** on your left-most and right-most **Kobold**.",
+    goldenText: "**Equip Dual Rubetta's (2):** Improve your **Rubies** by **+2/+2** and cast **2 Rubies** on your left-most and right-most **Kobold**.",
   },
 ];

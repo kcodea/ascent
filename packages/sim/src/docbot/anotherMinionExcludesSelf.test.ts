@@ -83,7 +83,6 @@ const SELF_EXCLUDING: Record<string, Exclusion> = {
   // ── Always excludes ────────────────────────────────────────────────────────────────────────────────────
   battlecryBuffTribeOthersAttack: 'arena skips `f.uid === arena.self.uid` before buffing',
   onTribeSummonedBuffRandomOthers: 'recruit builds `avail` as `board.filter(c => c.uid !== self.uid …)` before the seeded draw (Hank Pepe, set 3; also declines its own arrival)',
-  onSpellCastOnThisSpreadTribeNamed: 'recruit builds `others` as `board.filter(c => c.uid !== self.uid && isTribe(c, tribe))` before the seeded draw (Crashborn Adept, set 3 Celestials)',
   scBuffAlliesPctSelf: 'arena buffs `arena.friends()` filtered to `m.uid !== arena.self.uid`',
   onTribeAttackBuffAttacker: 'returns early on `minion === self` — the attacker must be someone else',
   avengeGiveAttack: 'the recipient walk skips `self`',
@@ -97,6 +96,8 @@ const SELF_EXCLUDING: Record<string, Exclusion> = {
   onOrbitBuffShop: 'buffs SHOP OFFERS, which are a different zone from the board the source sits on',
   onOtherDemonConsumeEcho: 'the consuming Demon arrives in the payload; the shop minion consumed is the target',
   spellDevour: 'picks a partner by board index around `indexOf(self)`, so the source is never its own victim',
+  onSpellCastPlayRubiesSelfAndRandomTribe: 'recruit casts the printed self Ruby explicitly, then draws the "2 other" from '
+    + '`othersOnBoard(state, self, …)` — the R-TARGET-03 pool, which never contains the source (Livewire, 2026-09-18)',
   rubySelfCastPerOtherRuby: 'the scan in `playRubyOn` skips `m === target`, so a Ruby landing on Double '
     + 'Trouble itself never triggers it — and its own payout goes through `applyRubyStats` (stats only, no '
     + 'watchers), so a SECOND Trouble cannot see it either. Both halves of the owner ruling',
@@ -110,11 +111,8 @@ const SELF_EXCLUDING: Record<string, Exclusion> = {
   // opted IN with `excludeSelf: true`, and opted OUT of with `includeSelf: false`. That inconsistency is
   // exactly why a card can print "other" and quietly not mean it, and why this lane checks the value rather
   // than merely the presence of a param.
-  onSpellCastBuffRandomTribe: {
-    param: 'excludeSelf', expect: true,
-    why: 'the arena pool drops the source only when `params.excludeSelf` is set — Runekeg prints "2 random '
-      + 'other friendly Dwarves" and must pass it, or the keg fuels itself',
-  },
+  onSpellCastBuffRandomTribe: 'the arena pool is `others(arena, tribe)` — R-TARGET-03 (owner 2026-09-18) made the old '
+    + '`excludeSelf` opt-in the rule, so the Runekeg "2 random other friendly Dwarves" holds with or without the param',
   battlecryBuffTribe: {
     param: 'includeSelf', expect: false,
     why: 'the arena buffs the whole tribe INCLUDING the caster unless `includeSelf: false` — Cleric prints '

@@ -125,7 +125,8 @@ const KNOWN_UNATTRIBUTED: readonly UnattributedPin[] = [
   {
     action: 'discover',
     why: '`onGainCard` watchers (Gangplank) dispatch bare when the pick lands in hand',
-    repro: () => ({ state: withState('warden', { board: [mk('b1', 'dw_gangplank')], discover: ['pup', 'pup', 'pup'] }), action: { type: 'discover', index: 0 } }),
+    // A second Dwarf (Orin) is the recipient: Gangplank never pays itself (R-TARGET-03, owner 2026-09-18).
+    repro: () => ({ state: withState('warden', { board: [mk('b1', 'dw_gangplank'), mk('b2', 'dw_orin')], discover: ['pup', 'pup', 'pup'] }), action: { type: 'discover', index: 0 } }),
   },
   {
     action: 'sell',

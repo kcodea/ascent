@@ -30,7 +30,7 @@ import { act } from 'react';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { enemyScalersOf, type CombatResult, type Keyword } from '@game/core';
+import { enemyScalersOf, type CombatEvent, type CombatResult, type Keyword, type MinionSnapshot } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { createRun, sideFromSnapshot, snapshotBoard, type BoardCard, type RunState } from '@game/sim';
 import { Card, type CardView } from './Card';
@@ -39,7 +39,8 @@ import { liveBoardView, liveCardText, type LiveTextParams } from './instView';
 import { useGame } from './store';
 import { badgeValuesOf, descTextOf, mount, normWs, plainOf } from './renderedText.mount';
 import { RENDER_EXCUSED } from './renderedText.registry';
-import type { UnitFrame } from './useCombatReplay';
+import { computeFrame, type UnitFrame } from './useCombatReplay';
+import { herzogText } from './cardText';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -315,6 +316,38 @@ describe('rendered-text reconciliation — combat chain + cross-chain drift', ()
       if (foeText !== ownerText) drifts.push(`${x.id} (${CARD_INDEX[x.id]!.name}):\n    owner "${ownerText}"\n    foe   "${foeText}"`);
     }
     expect(drifts, `FOE-SIDE DRIFT: the served card prints a different string than its owner saw:\n  ${drifts.join('\n  ')}`).toEqual([]);
+  });
+});
+
+/* ─────────────────────────── mid-combat spell casts (Vaultkeeper's live umbrella) ───────────────────────── */
+
+describe('rendered-text reconciliation — Vaultkeeper ticks with spells cast THIS combat (owner report 2026-09-18)', () => {
+  const x: CrossExemplar = { id: 'd2_herzog', run: { spellsCast: 3, rubyCasts: 1 } };
+  it("player side: the combat card prints run.spellsCast + rubyCasts + this fight's casts", () => {
+    const run = runFor(x);
+    const before = renderUnit(frameFor(x), run);
+    const after = renderUnit({ ...frameFor(x), spellsCastCombat: 2 }, run); // two spellcast beats folded by computeFrame
+    expect(before).toBe(plainOf(herzogText('d2_herzog', false, 4)!)); // 3 + 1, no casts yet
+    expect(after).toBe(plainOf(herzogText('d2_herzog', false, 6)!)); // …then +2 mid-fight: 6 → the grant steps 2 → 4
+    expect(after).not.toBe(before);
+  });
+  it("foe side: the served Vaultkeeper reads its owner's umbrella + the enemy side's casts this fight", () => {
+    const owner = runFor(x);
+    const before = renderFoeUnit(frameFor(x), owner);
+    const after = renderFoeUnit({ ...frameFor(x), spellsCastCombat: 4 }, owner);
+    expect(before).toBe(plainOf(herzogText('d2_herzog', false, 4)!));
+    expect(after).toBe(plainOf(herzogText('d2_herzog', false, 8)!));
+  });
+  it("computeFrame stamps each side's own spellcast count onto its units", () => {
+    const snap = (uid: string, side: 'player' | 'enemy'): MinionSnapshot => ({ uid, cardId: 'd2_herzog', name: 'Vaultkeeper', tribe: 'dragon', attack: 6, health: 10, keywords: [], side } as unknown as MinionSnapshot);
+    const events = [
+      { type: 'spellcast', side: 'player', count: 4 },
+      { type: 'spellcast', side: 'enemy', count: 1 },
+      { type: 'spellcast', side: 'player', count: 5 },
+    ] as unknown as CombatEvent[];
+    const f = computeFrame({ player: [snap('p1', 'player')], enemy: [snap('e1', 'enemy')] }, events, events.length, 0, new Map());
+    expect(f.player[0]!.spellsCastCombat).toBe(2);
+    expect(f.enemy[0]!.spellsCastCombat).toBe(1);
   });
 });
 

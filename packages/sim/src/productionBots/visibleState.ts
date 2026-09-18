@@ -85,8 +85,8 @@ function pendingTargets(s: RunState): string[] {
   const def = CARD_INDEX[pt.cardId];
   if (pt.spell && !pt.deferredPlay) return s.board.filter((c) => c.uid !== pt.spellFirstUid).map((c) => c.uid);
   const tribe = effectiveTargetTribe(s, def);
-  const notSelf = pt.deferredPlay || !!def?.targetNotSelf || !!tribe;
-  const board = s.board.filter((c) => (!notSelf || c.uid !== pt.uid) && (!tribe || isTribe(c, tribe)));
+  // R-TARGET-03: every aimed pick excludes the source (the reducer refuses a self-target outright).
+  const board = s.board.filter((c) => c.uid !== pt.uid && (!tribe || isTribe(c, tribe)));
   const offers = pt.deferredPlay && def?.target === 'any' ? s.shop.filter((o) => !CARD_INDEX[o.cardId]?.spell) : [];
   return [...board.map((c) => c.uid), ...offers.map((o) => o.uid)];
 }
@@ -168,6 +168,7 @@ function equipmentOf(s: RunState): BotEquipmentView[] {
       cost: equipmentCostOf(s, def),
       charges: equipmentChargesOf(s, g.equipmentId),
       targetMode: def.targetMode,
+      sourceUids: [...g.sourceUids], // R-TARGET-03: an aimed Equipment never lands on its own granting body
       effectId: def.effectId,
       chooseOne: (def.chooseOne ?? []).map((o) => o.effectId),
       selected: e.selectedEquipmentId === g.equipmentId,

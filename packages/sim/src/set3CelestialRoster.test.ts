@@ -70,12 +70,12 @@ const PROBES: CardDef[] = [
 for (const c of PROBES) CARD_INDEX[c.id] = c;
 
 const ROSTER: [string, string, number, number, number][] = [
-  ['ce3_starseed', 'Star Seed', 1, 2, 1], ['ce3_dawnsentinel', 'Dawn Sentinel', 1, 1, 3],
-  ['ce3_peddler', 'Stardust Peddler', 2, 2, 3], ['ce3_wishingstar', 'Wishing Star', 2, 2, 3],
+  ['ce3_starseed', 'Star Seed', 1, 2, 2], // 2/1 → 2/2, owner stat pass 2026-09-18 ['ce3_dawnsentinel', 'Dawn Sentinel', 1, 1, 3],
+  ['ce3_peddler', 'Stardust Peddler', 2, 2, 5], ['ce3_wishingstar', 'Wishing Star', 2, 2, 3], // Peddler 2/5 (rework 2026-09-18)
   ['ce3_accretionwarden', 'The Great Attractor', 3, 3, 4], ['ce3_shootingstar', 'Rocket Power', 3, 3, 2], ['ce3_eclipsewarden', 'Totality', 3, 3, 6],
   ['ce3_orbitkeeper', 'Roundabout', 5, 7, 5], ['ce3_coronadevotee', 'Solburn', 4, 4, 5], ['ce3_starcharter', 'Maestro Lux', 4, 3, 4],
-  ['ce3_lensgrinder', 'Lens Grinder', 4, 4, 6], ['ce3_lodestar', 'Lodestar', 5, 5, 9],
-  ['ce3_twinstar', 'Twinning', 5, 6, 8], ['ce3_novaherald', 'Fuse Aldrin', 6, 6, 9],
+  ['ce3_lensgrinder', 'Lens Grinder', 4, 4, 6], ['ce3_lodestar', 'Lodestar', 5, 5, 5], // Lodestar 5/9 → 5/5 (2026-09-18)
+  ['ce3_twinstar', 'Twinning', 5, 4, 7], // 6/8 → 4/7 (2026-09-18) ['ce3_novaherald', 'Fuse Aldrin', 6, 6, 9],
   ['ce3_zenith', 'Zenith', 7, 8, 12], ['ce3_constellationprime', 'Constellation Prime', 7, 9, 9],
 ];
 
@@ -148,34 +148,47 @@ describe('Dawn Sentinel — Taunt; Echo: a random friendly Celestial +2/+1 (both
   });
 });
 
-describe('Stardust Peddler — whenever you buy a minion, create a Starform or give one +1/+2 (owner 2026-09-14)', () => {
-  it('a normal buy feeds a held token +1/+2; the token\'s own buy counts as a buy, the Peddler consumes it, and the Peddler RE-SEEDS a fresh 1/1', () => {
+describe('Stardust Peddler — when you spend 5 Gold, create a Starform, or give it +3/+3 (owner handoff 2026-09-18)', () => {
+  // A buy is 3 Gold and a roll is 1: buy + roll + roll = 5 crosses the meter exactly once (`goldTick`, the
+  // Coinfire Forewoman shape); the remainder carries to the next spend.
+  it('every 5 Gold spent feeds a held token +3/+3; the meter carries its remainder; a buy alone (3) is not enough', () => {
     let s = withStarform(0, 0, { board: [body('p', 'ce3_peddler')] });
     s.shop.unshift(offer(s, 'ce3_courier'));
-    s = act(s, { type: 'buy', uid: s.shop[0]!.uid });
-    expect(sf(s)).toEqual([2, 3]);
-    expect(starformOf(s)!.buffs?.find((b) => b.source === 'Stardust Peddler')).toMatchObject({ attack: 1, health: 2 });
-    const bought = s.cardsBoughtThisTurn ?? 0;
-    const old = starformOf(s)!.uid;
-    s = act(s, { type: 'buy', uid: old }); // 6 Gold: the Peddler consumes the 2/3 token …
-    expect(s.cardsBoughtThisTurn, 'counted as a buy').toBe(bought + 1);
-    expect(stats(at(s, 'p')), 'the Peddler received the token (+2/+3)').toEqual([2 + 2, 3 + 3]);
-    expect(buffFrom(at(s, 'p'), 'Starform')).toEqual([2, 3]);
-    // … and, the token being gone when the buy watchers fire, creates a new one ("create a Starform or …").
-    expect(hasStarform(s), 'the Peddler re-seeded a token').toBe(true);
-    expect(starformOf(s)!.uid).not.toBe(old);
+    s = act(s, { type: 'buy', uid: s.shop[0]!.uid }); // 3 Gold → 3/5
+    expect(sf(s), 'a buy alone: 3/5, nothing yet').toEqual([1, 1]);
+    expect(at(s, 'p').goldTick).toBe(3);
+    s = act(s, { type: 'roll' }); // 4/5
     expect(sf(s)).toEqual([1, 1]);
+    s = act(s, { type: 'roll' }); // 5/5 → fires, meter back to 0
+    expect(sf(s)).toEqual([4, 4]);
+    expect(starformOf(s)!.buffs?.find((b) => b.source === 'Stardust Peddler')).toMatchObject({ attack: 3, health: 3 });
+    expect(at(s, 'p').goldTick).toBe(0);
   });
-  it('gilded: +2/+4 per buy; with NO Starform a buy CREATES one (nothing to double)', () => {
-    let s = withStarform(0, 0, { board: [body('p', 'ce3_peddler', { golden: true })] });
-    s.shop.unshift(offer(s, 'ce3_courier'));
-    s = act(s, { type: 'buy', uid: s.shop[0]!.uid });
-    expect(sf(s)).toEqual([3, 5]);
+  it('with NO Starform the 5th Gold CREATES one (nothing to double) into the open slot; a 6-Gold spend carries 1; gilded feeds +6/+6', () => {
+    // Two 3-Gold buys (no roll — a roll would refill the row and the create would eat its right-most minion).
     let t = run({ board: [body('p', 'ce3_peddler')], shop: [] });
-    t.shop.push(offer(t, 'ce3_courier'));
+    t.shop.push(offer(t, 'ce3_courier'), offer(t, 'ce3_courier'));
     t = act(t, { type: 'buy', uid: t.shop[0]!.uid });
-    expect(hasStarform(t), 'created on the buy').toBe(true);
+    expect(hasStarform(t), '3 Gold: not yet').toBe(false);
+    t = act(t, { type: 'buy', uid: t.shop[0]!.uid }); // 6/5 → fires once, 1 carries
+    expect(hasStarform(t), 'created on the 5th Gold').toBe(true);
     expect(sf(t)).toEqual([1, 1]);
+    expect(at(t, 'p').goldTick, 'the 6th Gold carries').toBe(1);
+    let g = withStarform(0, 0, { board: [body('p', 'ce3_peddler', { golden: true })] });
+    g.shop.unshift(offer(g, 'ce3_courier'), offer(g, 'ce3_courier'));
+    g = act(g, { type: 'buy', uid: g.shop[0]!.uid }); g = act(g, { type: 'buy', uid: g.shop[0]!.uid });
+    expect(sf(g)).toEqual([7, 7]);
+  });
+  it('the token\'s own buy (6 Gold): the Gold is spent BEFORE the token leaves, so the 5th Gold lands +3/+3 on the token and the buy consumes 4/4 into the Peddler; 1 Gold carries; no re-seed', () => {
+    // `spendGold` is the one Gold chokepoint and runs first in the buy case (every Gold card hears the spend the
+    // same way); the Starform still stands at that moment, so "or give it +3/+3" is what fires — the re-seed the
+    // old `onBuy` Peddler did is gone with its trigger.
+    let s = withStarform(0, 0, { board: [body('p', 'ce3_peddler')] });
+    const old = starformOf(s)!.uid;
+    s = act(s, { type: 'buy', uid: old });
+    expect(buffFrom(at(s, 'p'), 'Starform'), 'the token was 4/4 when the Peddler consumed it').toEqual([4, 4]);
+    expect(hasStarform(s), 'no token left (the meter fired while it stood)').toBe(false);
+    expect(at(s, 'p').goldTick, 'the 6th Gold carries').toBe(1);
   });
 });
 
@@ -187,7 +200,7 @@ describe('Wishing Star — Shout: adjacent minions +3/+4 (owner 2026-09-14; was 
     expect(stats(at(s, 'l'))).toEqual([1 + 3, 20 + 4]);
     expect(stats(at(s, 'r'))).toEqual([1 + 3, 20 + 4]);
     expect(stats(at(s, 'x')), 'not adjacent').toEqual([1, 20]);
-    expect(offerStats(s, s.shop[0]!), 'the shop is untouched').toEqual([1, 1]);
+    expect(offerStats(s, s.shop[0]!), 'the shop is untouched').toEqual([2, 1]); // Cosmo Express 2/1 since 2026-09-18
     expect(sf(s)).toEqual([1, 1]);
     let g = run({ board: [body('l', 'dbg_cel')], hand: [body('w', 'ce3_wishingstar', { golden: true })] });
     g = play(g, 'w', { toIndex: 1 });
@@ -204,13 +217,15 @@ describe('Wishing Star — Shout: adjacent minions +3/+4 (owner 2026-09-14; was 
 describe('The Great Attractor — Shout: this shop +4/+3, THEN the Starform consumes the highest-Health minion (owner 2026-09-14)', () => {
   it('every offer takes +4/+3 first, so the meal carries it; highest CURRENT Health wins, ties go RIGHT-most', () => {
     let s = withStarform(0, 0, { hand: [body('w', 'ce3_accretionwarden')] });
-    // courier 1/1, vendor 2/4, seer 3/3, seer 3/3 → the vendor (4 Health) is the meal; the buff lands before it is eaten
+    // courier 2/1, vendor 2/4, seer 0/8, seer 0/8 (stats since the 2026-09-18 owner pass) → the two Seers tie at 8 Health,
+    // so the RIGHT-most Seer is the meal; the buff lands before it is eaten
     s.shop.unshift(offer(s, 'ce3_courier'), offer(s, 'ce3_vendor'), offer(s, 'ce3_seer'), offer(s, 'ce3_seer'));
-    const vendor = s.shop[1]!.uid;
+    const rightSeer = s.shop[3]!.uid, leftSeer = s.shop[2]!.uid;
     s = play(s, 'w', { toIndex: 0 });
-    expect(s.shop.some((o) => o.uid === vendor), 'the highest-Health offer was eaten').toBe(false);
-    expect(offerStats(s, s.shop[0]!), 'the survivors keep the +4/+3').toEqual([1 + 4, 1 + 3]);
-    expect(sf(s), 'token 1/1 + its own +4/+3 + the buffed vendor (2+4)/(4+3)').toEqual([1 + 4 + 6, 1 + 3 + 7]);
+    expect(s.shop.some((o) => o.uid === rightSeer), 'the highest-Health offer was eaten').toBe(false);
+    expect(s.shop.some((o) => o.uid === leftSeer), 'the tie went RIGHT-most').toBe(true);
+    expect(offerStats(s, s.shop[0]!), 'the survivors keep the +4/+3').toEqual([2 + 4, 1 + 3]);
+    expect(sf(s), 'token 1/1 + its own +4/+3 + the buffed seer (0+4)/(8+3)').toEqual([1 + 4 + 4, 1 + 3 + 11]);
     expect(s.shopMinionsEaten, 'a real Shop consume').toBe(1);
     expect(s.tavernBuyBonus, 'THIS shop, never the permanent Staff-of-Guel channel').toEqual({ atk: 0, hp: 0 });
   });
@@ -219,12 +234,12 @@ describe('The Great Attractor — Shout: this shop +4/+3, THEN the Starform cons
     s.shop.push(offer(s, 'ce3_seer'));
     s = play(s, 'w', { toIndex: 0 });
     expect(s.shop.length).toBe(1);
-    expect(offerStats(s, s.shop[0]!)).toEqual([3 + 4, 3 + 3]);
+    expect(offerStats(s, s.shop[0]!)).toEqual([0 + 4, 8 + 3]); // Gravestar Seer 0/8 since 2026-09-18
     expect(hasStarform(s)).toBe(false);
     let g = withStarform(0, 0, { hand: [body('w', 'ce3_accretionwarden', { golden: true })] });
     g.shop.unshift(offer(g, 'ce3_seer'));
     g = play(g, 'w', { toIndex: 0 });
-    expect(sf(g), 'token 1/1 + 8/6 + double the buffed seer (3+8)/(3+6)').toEqual([1 + 8 + 22, 1 + 6 + 18]);
+    expect(sf(g), 'token 1/1 + 8/6 + double the buffed seer (0+8)/(8+6)').toEqual([1 + 8 + 16, 1 + 6 + 28]);
     expect(g.shop.length, 'one meal, not two').toBe(1);
   });
 });
@@ -244,7 +259,7 @@ describe('Rocket Power (was Shooting Star; no Flurry) — Shout: this shop +3/+3
       s = cast(s, n);
       expect(s.spellsThisTurn).toBe(n);
       s = play(s, 'w', { toIndex: 0 });
-      expect(offerStats(s, s.shop[0]!), `${n} spells`).toEqual([1 + want, 1 + want]);
+      expect(offerStats(s, s.shop[0]!), `${n} spells`).toEqual([2 + want, 1 + want]); // Cosmo Express 2/1 since 2026-09-18
       expect(sf(s), `${n} spells (Starform)`).toEqual([1 + want, 1 + want]);
     }
   });
@@ -265,58 +280,70 @@ describe('Eclipse Warden — Avenge (3): get a Star Crash (combat)', () => {
   });
 });
 
-describe('Roundabout (T5 7/5) — End of Turn: the Starform consumes the Shop. Start of Turn: create one if none (owner 2026-09-14)', () => {
+describe('Roundabout (T5 7/5) — End of Turn: create a Starform and give it +10/+10 (owner handoff 2026-09-18)', () => {
   const rollover = (s: RunState): RunState => act(act(act(s, { type: 'faceOmen' }), { type: 'settleCombat' }), { type: 'resolveCombat' });
-  it('End of Turn: every minion offer is eaten (spells stay), one real consume each; gilded doubles each meal; nothing without a token', () => {
-    let s = withStarform(0, 0, { board: [body('k', 'ce3_orbitkeeper')] });
-    s.shop.unshift(offer(s, 'ce3_courier'), offer(s, 'ce3_vendor'), offer(s, 'starcrash')); // 1/1, 2/4, a spell
+  it('End of Turn with a token already out: no second token, the held one gains +10/+10 (gilded +20/+20); the row is NOT eaten', () => {
+    let s = withStarform(3, 3, { board: [body('k', 'ce3_orbitkeeper')] });
+    const uid = starformOf(s)!.uid;
+    s.shop.unshift(offer(s, 'ce3_courier'), offer(s, 'ce3_seer'), offer(s, 'starcrash'));
     s = act(s, { type: 'faceOmen' });
-    expect(s.shop.filter((o) => !o.starform).map((o) => o.cardId), 'only the spell survived').toEqual(['starcrash']);
-    expect(sf(s)).toEqual([1 + 1 + 2, 1 + 1 + 4]);
-    expect(s.shopMinionsEaten, 'two real consumes').toBe(2);
+    expect(s.shop.filter((o) => o.starform)).toHaveLength(1);
+    expect(starformOf(s)!.uid, 'the same token').toBe(uid);
+    expect(sf(s)).toEqual([4 + 10, 4 + 10]);
+    expect(starformOf(s)!.buffs?.find((b) => b.source === 'Roundabout')).toMatchObject({ attack: 10, health: 10 });
+    expect(s.shop.filter((o) => !o.starform).map((o) => o.cardId), 'nothing eaten (the 2026-09-14 row-meal is gone)').toEqual(['ce3_courier', 'ce3_seer', 'starcrash']);
+    expect(s.shopMinionsEaten ?? 0).toBe(0);
     let g = withStarform(0, 0, { board: [body('k', 'ce3_orbitkeeper', { golden: true })] });
-    g.shop.unshift(offer(g, 'ce3_courier'), offer(g, 'ce3_vendor'));
     g = act(g, { type: 'faceOmen' });
-    expect(sf(g)).toEqual([1 + 2 + 4, 1 + 2 + 8]);
+    expect(sf(g)).toEqual([1 + 20, 1 + 20]);
+  });
+  it('End of Turn with NO token: creates one into the open slot and it arrives +10/+10; the token then survives into the next shop', () => {
     let n = run({ board: [body('k', 'ce3_orbitkeeper')], shop: [] });
     n.shop.push(offer(n, 'ce3_courier'));
     n = act(n, { type: 'faceOmen' });
-    expect(hasStarform(n)).toBe(false);
-    expect(n.shop, 'no token, nothing eaten').toHaveLength(1);
+    expect(hasStarform(n), 'created at End of Turn').toBe(true);
+    expect(sf(n)).toEqual([11, 11]);
+    expect(n.shop, 'the courier stays beside it').toHaveLength(2);
+    const uid = starformOf(n)!.uid;
+    n = act(act(n, { type: 'settleCombat' }), { type: 'resolveCombat' });
+    expect(n.phase).toBe('recruit');
+    expect(starformOf(n)?.uid, 'pinned through the turn flip').toBe(uid);
+    expect(sf(n)).toEqual([11, 11]);
   });
-  it('Start of Turn creates a token when none is out — into the NEW turn\'s full row, eating its right-most minion', () => {
+  it('End of Turn into a FULL row: the create eats the right-most minion first (rule 1), then the +10/+10 lands', () => {
+    let s = run({ board: [body('k', 'ce3_orbitkeeper')], shop: [] });
+    for (let i = 0; i < tierSlots(s.tier); i++) s.shop.push(offer(s, 'ce3_courier'));
+    s = act(s, { type: 'faceOmen' });
+    expect(hasStarform(s)).toBe(true);
+    expect(s.shopMinionsEaten, 'one real consume').toBe(1);
+    expect(sf(s), '1/1 + the eaten courier 2/1 (stat pass 2026-09-18) + 10/10').toEqual([13, 12]);
+    expect(s.shop.length, 'the token took the victim\'s slot').toBe(tierSlots(s.tier));
+  });
+  it('no Start of Turn half any more: a new turn with no token creates nothing', () => {
     let s = run({ board: [body('k', 'ce3_orbitkeeper')] });
-    s = rollover(s);
+    // faceOmen creates one at End of Turn — so remove it before the shop opens to prove Start of Turn is silent.
+    s = act(s, { type: 'faceOmen' });
+    s.shop = s.shop.filter((o) => !o.starform);
+    s = act(act(s, { type: 'settleCombat' }), { type: 'resolveCombat' });
     expect(s.phase).toBe('recruit');
-    expect(hasStarform(s), 'created at shop open').toBe(true);
-    expect(s.shop.length, 'the row is exactly the tier\'s width').toBe(tierSlots(s.tier));
-    const st = starformStats(s)!;
-    expect(st.attack + st.health, 'ate the right-most minion of the fresh row').toBeGreaterThan(2);
-    expect(s.shopMinionsEaten).toBe(1);
-  });
-  it('Start of Turn with a token already out: no second token, the held one keeps its stats (an empty row at End of Turn fed it nothing)', () => {
-    let s = withStarform(3, 3, { board: [body('k', 'ce3_orbitkeeper')] });
-    const uid = starformOf(s)!.uid;
-    s = rollover(s);
-    expect(s.shop.filter((o) => o.starform)).toHaveLength(1);
-    expect(starformOf(s)!.uid).toBe(uid);
-    expect(sf(s)).toEqual([4, 4]);
+    expect(hasStarform(s), 'nothing created at shop open').toBe(false);
+    void rollover;
   });
 });
 
-describe('Corona Devotee — Collapse your Starform: 2 unique random friendly Celestials each gain half its stats (rules v2)', () => {
-  it('two Celestials (the Devotee included) each gain the rounded-up half; a non-Celestial never; the token leaves', () => {
+describe('Corona Devotee — Collapse your Starform: 3 unique random friendly Celestials each gain half its stats (rules v2; 3 since 2026-09-18)', () => {
+  it('two Celestials (the Devotee included) each gain the rounded-up half — fewer bodies than 3 → fewer hits; a non-Celestial never; the token leaves', () => {
     let s = withStarform(6, 9, { board: [body('a', 'dbg_cel'), body('n', 'dbg_neutral')], hand: [body('d', 'ce3_coronadevotee')] }); // 7/10 → 4/5
     s = play(s, 'd', { toIndex: 0 });
     expect(hasStarform(s)).toBe(false);
     for (const uid of ['a', 'd']) expect(buffFrom(at(s, uid), 'Solburn'), uid).toEqual([4, 5]);
     expect(stats(at(s, 'n'))).toEqual([1, 20]);
   });
-  it('three Celestials: exactly two gain, seeded; the Devotee alone → just the Devotee; gilded → each gains the FULL stats; no Starform → nothing', () => {
-    let s = withStarform(6, 9, { board: [body('a', 'dbg_cel'), body('b', 'dbg_cel2')], hand: [body('d', 'ce3_coronadevotee')] });
+  it('four Celestials: exactly three gain, seeded; the Devotee alone → just the Devotee; gilded → each gains the FULL stats; no Starform → nothing', () => {
+    let s = withStarform(6, 9, { board: [body('a', 'dbg_cel'), body('b', 'dbg_cel2'), body('c', 'dbg_cel')], hand: [body('d', 'ce3_coronadevotee')] });
     s = play(s, 'd', { toIndex: 0 });
-    const gained = ['a', 'b', 'd'].filter((uid) => buffFrom(at(s, uid), 'Solburn')[0] === 4);
-    expect(gained, 'two unique hits').toHaveLength(2);
+    const gained = ['a', 'b', 'c', 'd'].filter((uid) => buffFrom(at(s, uid), 'Solburn')[0] === 4);
+    expect(gained, 'three unique hits').toHaveLength(3);
     let t = withStarform(6, 9, { board: [body('n', 'dbg_neutral'), body('m', 'dbg_neutral')], hand: [body('d', 'ce3_coronadevotee')] });
     t = play(t, 'd', { toIndex: 0 });
     expect(hasStarform(t), 'collapsed').toBe(false);
@@ -371,7 +398,7 @@ describe('Lens Grinder (T4 4/6) — Equip Stellar Lens (2): create a Starform, t
     s = act(s, { type: 'activateEquipment' } as Action);
     expect(s.embers).toBe(gold - 2);
     expect(starformOf(s)!.uid, 'a held token is kept, not replaced').toBe(uid);
-    expect(offerStats(s, s.shop[0]!)).toEqual([8, 8]);
+    expect(offerStats(s, s.shop[0]!)).toEqual([9, 8]); // Cosmo Express 2/1 since 2026-09-18
     expect(sf(s)).toEqual([8, 8]);
     expect(equipmentChargesOf(s, 'stellar_lens'), 'the charge is spent').toBe(0);
     s = act(s, { type: 'activateEquipment' } as Action);
@@ -389,7 +416,7 @@ describe('Lens Grinder (T4 4/6) — Equip Stellar Lens (2): create a Starform, t
     s = act(s, { type: 'activateEquipment' } as Action);
     expect(hasStarform(s), 'created by the Lens').toBe(true);
     expect(sf(s), 'the new 1/1 took the buff').toEqual([8, 8]);
-    expect(offerStats(s, s.shop[0]!)).toEqual([8, 8]);
+    expect(offerStats(s, s.shop[0]!)).toEqual([9, 8]); // Cosmo Express 2/1 since 2026-09-18
     let g = withStarform(0, 0, { hand: [body('l', 'ce3_lensgrinder', { golden: true })] });
     g = play(g, 'l', { toIndex: 0 });
     g = act(g, { type: 'selectEquipment', equipmentId: 'stellar_lens' } as Action);
@@ -401,20 +428,21 @@ describe('Lens Grinder (T4 4/6) — Equip Stellar Lens (2): create a Starform, t
 describe('Lodestar — Echo: give a friendly Celestial this minion\'s stats (its MAX stats, both phases)', () => {
   it('shop Echo: a random other friendly Celestial gains the Lodestar\'s current (buffed) stats; non-Celestials never', () => {
     const s = run({ board: [body('l', 'ce3_lodestar'), body('c', 'dbg_cel'), body('n', 'dbg_neutral')] });
-    at(s, 'l').attack += 3; at(s, 'l').health += 3; // 8/12
+    at(s, 'l').attack += 3; at(s, 'l').health += 3; // 8/8 (Lodestar 5/5 since 2026-09-18)
     fireRecruitDeathrattlesForTest(s, at(s, 'l'));
-    expect(stats(at(s, 'c'))).toEqual([1 + 8, 20 + 12]);
+    expect(stats(at(s, 'c'))).toEqual([1 + 8, 20 + 8]);
     expect(stats(at(s, 'n'))).toEqual([1, 20]);
     const g = run({ board: [body('l', 'ce3_lodestar', { golden: true }), body('c', 'dbg_cel')] });
     fireRecruitDeathrattlesForTest(g, at(g, 'l'));
-    expect(stats(at(g, 'c')), 'a gilded body\'s doubled stats ARE its stats').toEqual([1 + 10, 20 + 18]);
+    expect(stats(at(g, 'c')), 'a gilded body\'s doubled stats ARE its stats').toEqual([1 + 10, 20 + 10]);
   });
   it('combat: damaged to 5/5 (max 9), then +5/+5 → hands over 10/14, not 10/10 (owner example)', () => {
     // SC: the enemy probe deals 4 to every player minion — the Lodestar 5/9 → 5/5 (max 9), and the 1/3 Echo probe dies:
     // its Echo gives every living friend +5/+5 (Lodestar 10/10, max 14; the receiver +5/+5 too). The Lodestar is now
     // the left-most attacker (the player side is wider, so it swings first): it hits the 30/1 Taunt and dies → its
     // Echo hands the receiver its MAX stats: 10/14. The enemy's other body has 0 Attack, so nothing else moves.
-    const r = fight([bm('dbg_echoall'), bm('ce3_lodestar'), bm('dbg_cel'), bm('dbg_filler')], [bm('dbg_scall'), bm('dbg_taunt')], 3);
+    // The card is 5/5 since the 2026-09-18 owner pass; the owner's example needs max ≠ current, so the probe keeps a 5/9 body.
+    const r = fight([bm('dbg_echoall'), bm('ce3_lodestar', { health: 9 }), bm('dbg_cel'), bm('dbg_filler')], [bm('dbg_scall'), bm('dbg_taunt')], 3);
     const lode = r.initial.player.find((m) => m.cardId === 'ce3_lodestar')!.uid;
     const cel = r.initial.player.find((m) => m.cardId === 'dbg_cel')!.uid;
     const echo = buffsFrom(r.events, lode);
@@ -427,17 +455,17 @@ describe('Twinning (was Twin Star; T5) — whenever your Starform gains stats, t
     let s = withStarform(0, 0, { board: [body('t', 'ce3_twinstar')], hand: [body('w', 'ce3_wishingstar'), body('a', 'ce3_accretionwarden'), spell('sc', 'starcrash')] });
     s.shop.unshift(offer(s, 'ce3_seer'));
     buffStarform(s, 2, 3, 'test');
-    expect(stats(at(s, 't')), 'a direct buff').toEqual([8, 11]);
+    expect(stats(at(s, 't')), 'a direct buff').toEqual([6, 10]); // Twinning 4/7 since 2026-09-18
     s = play(s, 'w', { toIndex: 0 }); // Wishing Star (2026-09-14): a plain adjacent +3/+4 on the Twinning — NOT a mirror
-    expect(stats(at(s, 't')), 'an adjacent buff, direct').toEqual([11, 15]);
-    s = play(s, 'a', { toIndex: 0 }); // The Great Attractor: this shop +4/+3 (mirrored) then the token eats the 7/6 Seer (3/3 + 4/3) (mirrored)
-    expect(stats(at(s, 't')), 'a this-shop buff + a consume').toEqual([11 + 4 + 7, 15 + 3 + 6]);
+    expect(stats(at(s, 't')), 'an adjacent buff, direct').toEqual([9, 14]);
+    s = play(s, 'a', { toIndex: 0 }); // The Great Attractor: this shop +4/+3 (mirrored) then the token eats the 4/11 Seer (0/8 + 4/3) (mirrored)
+    expect(stats(at(s, 't')), 'a this-shop buff + a consume').toEqual([9 + 4 + 4, 14 + 3 + 11]);
     const sfUid = starformOf(s)!.uid;
     const before = stats(at(s, 't'));
     s = play(s, 'sc', { targetUid: sfUid }); // +5/+7 to the token (mirrored) — the secondary +5/+7 lands on a random board minion
     const gain: [number, number] = [at(s, 't').attack - before[0], at(s, 't').health - before[1]];
     expect(gain[0] % 5, 'the mirror + the secondary are each +5/+7').toBe(0);
-    expect(buffFrom(at(s, 't'), 'Twinning')).toEqual([2 + 4 + 7 + 5, 3 + 3 + 6 + 7]);
+    expect(buffFrom(at(s, 't'), 'Twinning')).toEqual([2 + 4 + 4 + 5, 3 + 3 + 11 + 7]);
     const secondary = s.board.map((c) => buffFrom(c, 'Star Crash')).reduce<[number, number]>((acc, b) => [acc[0] + b[0], acc[1] + b[1]], [0, 0]);
     expect(secondary, 'the secondary half landed once, somewhere on the board').toEqual([5, 7]);
     const g = withStarform(0, 0, { board: [body('t', 'ce3_twinstar', { golden: true })] });
@@ -470,37 +498,38 @@ describe('Nova Herald — when you Collapse a Starform, it buffs 2 additional ra
     expect(CARD_INDEX['ce3_novaherald']!.text).toContain('**2** additional');
     expect(CARD_INDEX['ce3_novaherald']!.goldenText).toContain('**4** additional');
   });
-  it('one Herald on board: a Devotee\'s Collapse lands 2 unique + 2 extras = 4 hits over 3 Celestials — every hit is the rounded-up half', () => {
+  it('one Herald on board: a Devotee\'s Collapse lands 3 unique + 2 extras = 5 hits over 3 Celestials — every hit is the rounded-up half', () => {
     let s = withStarform(6, 9, { board: [body('h', 'ce3_novaherald'), body('a', 'dbg_cel')], hand: [body('d', 'ce3_coronadevotee')] }); // 7/10 → 4/5 per hit
     s = play(s, 'd', { toIndex: 0 });
     const total = ['h', 'a', 'd'].map((uid) => buffFrom(at(s, uid), 'Solburn')).reduce<[number, number]>((acc, b) => [acc[0] + b[0], acc[1] + b[1]], [0, 0]);
-    expect(total, '4 hits × 4/5').toEqual([16, 20]);
-    expect(s.starformFx![0]!.toUids, 'the pull record lists every hit, duplicates allowed').toHaveLength(4);
+    expect(total, '5 hits × 4/5').toEqual([20, 25]);
+    expect(s.starformFx![0]!.toUids, 'the pull record lists every hit, duplicates allowed').toHaveLength(5);
     for (const uid of ['h', 'a', 'd']) expect(buffFrom(at(s, uid), 'Solburn')[0] % 4, uid).toBe(0);
+    for (const uid of ['h', 'a', 'd']) expect(buffFrom(at(s, uid), 'Solburn')[0] / 4, uid + ' is an original: at least one hit').toBeGreaterThanOrEqual(1);
   });
-  it('two Celestials, one Herald: a seeded case where one takes 3 hits and the other 1 (extras land with replacement)', () => {
+  it('two Celestials, one Herald: a seeded case where one takes 3 hits and the other 1 (extras land with replacement; 2 originals on 2 bodies)', () => {
     let found: RunState | null = null;
     for (let seed = 1; seed < 200 && !found; seed++) {
       let s = withStarform(6, 9, { board: [body('h', 'ce3_novaherald')], hand: [body('d', 'ce3_coronadevotee')] });
       s.rngCursor = seed;
       s = play(s, 'd', { toIndex: 0 });
       const h = buffFrom(at(s, 'h'), 'Solburn')[0] / 4, d = buffFrom(at(s, 'd'), 'Solburn')[0] / 4;
-      expect(h + d, 'always 4 hits').toBe(4);
+      expect(h + d, 'always 4 hits (2 originals — only 2 bodies — + 2 extras)').toBe(4);
       expect(Math.min(h, d), 'each original is unique: both bodies take at least one').toBeGreaterThanOrEqual(1);
       if (h === 3 || d === 3) found = s;
     }
     expect(found, 'a 3 + 1 split exists').not.toBeNull();
     expect(found!.starformFx![0]!.toUids).toHaveLength(4);
   });
-  it('two Heralds → 4 extras (6 hits); a gilded Herald → 4 extras; a Herald alone with a Starform takes all 3 hits itself', () => {
+  it('two Heralds → 4 extras (7 hits over 3 bodies); a gilded Herald → 4 extras (6 hits over 2); a Herald alone with a Starform takes every hit itself', () => {
     let s = withStarform(6, 9, { board: [body('h', 'ce3_novaherald'), body('i', 'ce3_novaherald')], hand: [body('d', 'ce3_coronadevotee')] });
     s = play(s, 'd', { toIndex: 0 });
     const hits = ['h', 'i', 'd'].reduce((n, uid) => n + buffFrom(at(s, uid), 'Solburn')[0] / 4, 0);
-    expect(hits).toBe(6);
+    expect(hits, '3 originals + 4 extras').toBe(7);
     let g = withStarform(6, 9, { board: [body('h', 'ce3_novaherald', { golden: true })], hand: [body('d', 'ce3_coronadevotee')] });
     g = play(g, 'd', { toIndex: 0 });
-    expect(['h', 'd'].reduce((n, uid) => n + buffFrom(at(g, uid), 'Solburn')[0] / 4, 0)).toBe(6);
-    // The Herald as the ONLY Celestial: a plain collapse helper call (no Devotee) → 1 original + 2 extras, all on it.
+    expect(['h', 'd'].reduce((n, uid) => n + buffFrom(at(g, uid), 'Solburn')[0] / 4, 0), '2 originals (2 bodies) + 4 extras').toBe(6);
+    // The Herald + the Devotee as the only Celestials → 2 originals + 2 extras = 4 hits, none on the neutral.
     const alone = withStarform(6, 9, { board: [body('h', 'ce3_novaherald'), body('n', 'dbg_neutral')], hand: [body('d', 'ce3_coronadevotee')] });
     const a2 = play(alone, 'd', { toIndex: 0 });
     expect(buffFrom(at(a2, 'h'), 'Solburn')[0] + buffFrom(at(a2, 'd'), 'Solburn')[0], '2 unique (h, d) + 2 extras = 4 hits').toBe(16);
@@ -647,7 +676,7 @@ describe('Black Hole (was Accretion; spell) — the Starform consumes 3 random S
     s.shop.unshift(offer(s, 'ce3_courier'), offer(s, 'ce3_vendor'));
     s = play(s, 'ac');
     expect(s.shop.filter((o) => !o.starform)).toHaveLength(0);
-    expect(sf(s)).toEqual([1 + 1 + 2, 1 + 1 + 4]);
+    expect(sf(s), 'Cosmo Express 2/1 + Sugarnova 4/2 (both since 2026-09-18)').toEqual([1 + 2 + 4, 1 + 1 + 2]);
     let n = run({ hand: [spell('ac', 'accretion')], shop: [] });
     n.shop.push(offer(n, 'ce3_vendor'));
     n = play(n, 'ac');

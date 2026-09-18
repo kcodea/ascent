@@ -39,8 +39,8 @@ export const SET2_NEUTRAL: CardDef[] = [
     name: 'Bellringer Voss',
     tribe: 'neutral',
     tier: 4, // owner balance 2026-08-18: T5 → T4
-    attack: 2,
-    health: 3,
+    attack: 4,
+    health: 4,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'endOfTurnCopyNeighbour', params: { every: 2 } }],
     text: '**Every 2 turns:** get a plain copy of the minion to the **left**.',
@@ -108,9 +108,10 @@ export const SET2_NEUTRAL: CardDef[] = [
     health: 6,
     keywords: [],
     universalTribe: true,
-    effects: [{ on: 'onAttack', do: 'onRallyBuffOnePerTribe', params: { attack: 4, health: 4 } }],
-    text: 'Whenever you trigger a **Rally**, give a minion of **every type** **+4/+4** permanently.',
-    goldenText: 'Whenever you trigger a **Rally**, give a minion of **every type** **+8/+8** permanently.',
+    // Owner rework 2026-09-18: +5/+5 (was +4/+4). One RANDOM minion per tribe you field; permanent.
+    effects: [{ on: 'onAttack', do: 'onRallyBuffOnePerTribe', params: { attack: 5, health: 5 } }],
+    text: 'Whenever you trigger a **Rally**, give a minion of **every type** **+5/+5** permanently.',
+    goldenText: 'Whenever you trigger a **Rally**, give a minion of **every type** **+10/+10** permanently.',
   },
   {
     // Owner add 2026-08-18: a cheaper, lower-tier Paragon — an all-type Rally payoff that spreads a buff over

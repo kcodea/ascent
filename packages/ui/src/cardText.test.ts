@@ -128,8 +128,9 @@ describe('cardText helpers', () => {
     expect(soulsmanText('soulsman', 5)).toContain('{{Gained 5 Gold this run.}}');
     expect(soulsmanText('soulsman', 0)).toBeNull();
     expect(soulsmanText('grim', 5)).toBeNull();
-    // Eternal Knight: run-wide card-type enchant accrued from deaths.
-    expect(cardTypeTallyText('knit', { attack: 9, health: 6 })).toContain('{{Now +9/+6 this run.}}');
+    // Spear Warden: run-wide card-type enchant accrued from deaths — the live total IN PLACE, plus the death count.
+    expect(cardTypeTallyText('knit', { attack: 8, health: 4 })).toContain('Has **{{+8/+4}}**');
+    expect(cardTypeTallyText('knit', { attack: 8, health: 4 })).toContain('{{2}} so far');
     expect(cardTypeTallyText('knit', { attack: 0, health: 0 })).toBeNull();
     expect(cardTypeTallyText('spore', { attack: 9, health: 6 })).toBeNull();
   });

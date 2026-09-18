@@ -40,7 +40,7 @@ export const SET3_DWARVES: CardDef[] = [
     name: 'Striker',
     tribe: 'dwarf',
     tier: 2,
-    attack: 2,
+    attack: 3,
     health: 3,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffAdjacentPerCard', params: { attack: 1 } }],

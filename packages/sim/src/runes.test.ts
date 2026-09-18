@@ -1059,6 +1059,29 @@ describe('Batch 7a runes (Rebirth / Tempering / Aftershocks / Refrain / Trophy +
     expect(trial(7, true)).toBe(trial(7, true)); // deterministic for a given seed (replay-safe)
   });
 
+  it('Rune of Refrain: an AIMED Shout rolls AFTER its aim resolves — the prompt is never stranded and the Shout fires (fix 2026-09-18)', () => {
+    // Baby Gastrid (dw_dorrin) aims at a friendly Dwarf. Before the fix the 25% roll ran at play time, so a hit
+    // pulled the body back to hand BEFORE the aim: every `battlecryTarget` was refused (source not on board), the
+    // Shout was lost and the prompt stranded (a pilot seat could not end its turn — B4 benchmark seed 103).
+    let hits = 0;
+    for (let seed = 1; seed <= 60; seed++) {
+      let s: RunState = { ...createRun(seed, 'warden'), wave: 3, phase: 'recruit', embers: 10, runeRefrain: true,
+        goldSpentThisTurn: 3,
+        board: [mkCard('dw', 'dw_brunni', 'dwarf', 3, 2)],
+        hand: [mkCard('g', 'dw_dorrin', 'dwarf', 2, 4)] };
+      s = reduce(s, { type: 'play', uid: 'g' });
+      expect(s.pendingTarget?.uid, 'the aim opened and the body is on the board').toBe('g');
+      expect(s.board.some((c) => c.uid === 'g')).toBe(true);
+      const aimed = reduce(s, { type: 'battlecryTarget', targetUid: 'dw' });
+      expect(aimed, 'the aim is accepted').not.toBe(s);
+      expect(aimed.pendingTarget).toBeUndefined();
+      expect(aimed.board.find((c) => c.uid === 'dw')!.health, 'the Shout fired (+2 Health per Gold spent)').toBeGreaterThan(2);
+      if (aimed.hand.some((c) => c.uid === 'g')) hits++;
+    }
+    expect(hits, 'Refrain still returns the body sometimes — after the Shout').toBeGreaterThan(0);
+    expect(hits).toBeLessThan(30);
+  });
+
   it("Rune of Transfusion: a Demon Consume also feeds the leftmost minion the Fodder's stats", () => {
     const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', runeTransfusion: true,
       board: [mkCard('lm', 'stray', 'beast', 1, 1), mkCard('d', 'stray', 'demon', 2, 2)] };

@@ -966,15 +966,17 @@ describe('run loop (@game/sim)', () => {
     expect(f.board.find((c) => c.uid === 'p')?.keywords).toContain('W');
   });
 
-  it('Runic Beetle with no other Beast auto-grants the buff to itself (no target step)', () => {
+  it('Runic Beetle with no other Beast plays as a plain body — never itself (R-TARGET-03, owner 2026-09-18)', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [], board: [],
       hand: [{ uid: 'rb', cardId: 'beetle', tribe: 'beast', attack: 3, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'rb' });
-    s = reduce(s, { type: 'chooseOne', index: 0 }); // no other Beast → resolves now, on itself
+    s = reduce(s, { type: 'chooseOne', index: 0 }); // no other Beast → resolves now, with no legal recipient
     expect(s.pendingTarget).toBeUndefined();
-    expect(s.board.find((c) => c.cardId === 'beetle')?.keywords).toContain('R');
+    const beetle = s.board.find((c) => c.cardId === 'beetle')!;
+    expect(beetle, 'it still lands on the board').toBeTruthy();
+    expect(beetle.keywords, 'but grants itself nothing').not.toContain('R');
   });
 
   it('Money Maker: every 2 turns conjures a Gold Pouch (narrowed from the Pouch/Deposit-Box pick)', () => {
@@ -5215,7 +5217,7 @@ describe('content batch: new minions (@game/sim)', () => {
     let s2: RunState = { ...createRun(1), embers: 9, board: [], hand: [], cardBuffs: { knit: { attack: 3, health: 2 } }, shop: [{ uid: 'x', cardId: 'knit' }] };
     s2 = reduce(s2, { type: 'buy', uid: 'x' });
     const bought = s2.hand.find((c) => c.cardId === 'knit')!;
-    expect([bought.attack, bought.health]).toEqual([6, 4]); // 3/2 base + 3/2 run buff
+    expect([bought.attack, bought.health]).toEqual([7, 4]); // 4/2 base + 3/2 run buff (the fixture's seeded enchant)
   });
 
   it("Grave Knit's run-wide buff stacks across combat deaths (+3/+2 each)", () => {

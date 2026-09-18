@@ -154,8 +154,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     name: 'Gemheart Carver',
     tribe: 'kobold',
     tier: 4,
-    attack: 5,
-    health: 3,
+    attack: 6,
+    health: 5,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard' } }],
     text: "**Echo:** Summon a **1/1 Gemheart Golem**, plus this minion's Rubies.",
@@ -196,8 +196,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     name: 'Geode Guardian',
     tribe: 'kobold',
     tier: 2,
-    attack: 2,
-    health: 2,
+    attack: 3,
+    health: 3,
     keywords: ['T'],
     // Owner rework 2026-07-31 (from "play a Ruby on adjacent"). The COUNT is fixed — a Gilded copy still
     // summons 2 (the owner was explicit); gilding doubles the Rubies played on them instead.
@@ -286,31 +286,34 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Ward.** **Avenge (3):** improve your Rubies **+2/+2** and get **2 random Kobolds**.',
   },
   {
-    // Start of Combat: play PERMANENT Rubies on this and its living same-tribe neighbours (carry back to the
-    // run board). Golden doubles the count.
+    // Owner rework 2026-09-18: "When this takes damage" (was Start of Combat) — every landed hit plays PERMANENT
+    // Rubies on this and its living same-tribe neighbours (the same arena body Kobe always used, dispatched
+    // off `onDamaged` — so the Rubies carry back to the run board through `playRubyOn`'s permanent channel).
+    // Taunt makes it take those hits. Golden doubles the count.
     id: 'k_kobe',
     name: 'Kobe',
     tribe: 'kobold',
     tier: 4,
     attack: 5,
     health: 6,
-    keywords: ['T', 'SC'],
-    effects: [{ on: 'startOfCombat', do: 'scPlayRubiesSelfAndAdjacentTribe', params: { tribe: 'kobold', count: 2, permanent: true } }],
-    text: '**Taunt.** **Start of Combat:** cast **2 permanent Rubies** on this and adjacent **Kobolds**.',
-    goldenText: '**Taunt.** **Start of Combat:** cast **4 permanent Rubies** on this and adjacent **Kobolds**.',
+    keywords: ['T'],
+    effects: [{ on: 'onDamaged', do: 'onDamagedPlayRubiesSelfAndAdjacentTribe', params: { tribe: 'kobold', count: 3, permanent: true } }],
+    text: '**Taunt.** When this takes damage, play **3 permanent Rubies** on this and adjacent **Kobolds**.',
+    goldenText: '**Taunt.** When this takes damage, play **6 permanent Rubies** on this and adjacent **Kobolds**.',
   },
   {
     // Rally: each attack plays PERMANENT Rubies on itself. Golden doubles the count.
+    // Owner rework 2026-09-18: FLURRY added — it swings twice, so the Rally pays twice per turn.
     id: 'k_boulderdash',
     name: 'Boulderdash',
     tribe: 'kobold',
     tier: 5,
     attack: 6,
     health: 7,
-    keywords: ['RL'],
+    keywords: ['W', 'RL'],
     effects: [{ on: 'onAttack', do: 'rallyPlayRubiesSelf', params: { count: 3, permanent: true } }],
-    text: '**Rally:** cast **3 permanent Rubies** on this.',
-    goldenText: '**Rally:** cast **6 permanent Rubies** on this.',
+    text: '**Flurry.** **Rally:** Cast **3 permanent Rubies** on this.',
+    goldenText: '**Flurry.** **Rally:** Cast **6 permanent Rubies** on this.',
   },
   {
     // A cheap Ruby payout on sale — get Rubies when this leaves the board for Gold. Golden doubles.

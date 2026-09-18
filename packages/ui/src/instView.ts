@@ -194,10 +194,10 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             clingProgressText(c.id, p.clingEnchant) ??
             cadenceProgressText(c.id, p.eotTick ?? 0, p.golden) ??
             escalatingCastText(c.id, p.golden, p.eotTick ?? 0, p.spellBonus, p.spellBonusH) ??
+            cardTypeTallyText(c.id, p.cardBuffs?.[c.id]) ?? // Spear Warden: the live "+4/+2 per death" total, in place
             c.text;
   const metric =
     soulsmanText(c.id, p.soulsmanGold) ??
-    cardTypeTallyText(c.id, p.cardBuffs?.[c.id]) ??
     '';
   // Golden card whose live text resolved (differs from the printed fallback) → that IS the golden-aware live
   // value; feed it as the golden text. Otherwise fall back to the printed goldenText.

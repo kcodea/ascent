@@ -1212,4 +1212,32 @@ export const APPROVED_RULES: GameRule[] = [
       + 'in deathrattleSummonRandomTribe — the pinning test names both so the overload cannot drift silently.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/targetVocabulary.test.ts'], lastVerifiedAt: '2026-09-10' },
   },
+  {
+    id: 'R-TARGET-03',
+    title: 'No card targets itself — every CHOSEN friendly recipient excludes the source',
+    statement:
+      'Wherever a card\'s effect CHOOSES a friendly minion — an aimed Shout, an aimed Equipment (its granting body), '
+      + 'a random-friendly picker, a minion-cast targeted spell, an un-aimed re-fire\'s auto-pick — the source is '
+      + 'never in the pool, whether or not the text prints "other". No fallback to self: with no other eligible body '
+      + 'the effect finds no recipient and does nothing (an aimed Shout alone on the board plays as a plain body and '
+      + 'is never prompted to aim). Positional and identity reads are NOT choices and keep their membership: '
+      + '"adjacent", "left-most / right-most", "on this", "your minions", and Paragon\'s "a minion of every type" '
+      + '(which it is — the owner\'s worked example has it collecting its own payout).',
+    domain: 'targeting',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner handoff, 2026-09-18 (Cage Breaker / EMS, then made global)', quote: 'no card should be able to target itself' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts othersOnBoard; packages/core/src/effects/factories.ts otherFriends; packages/core/src/effects/arena.ts others; packages/sim/src/reducer.ts (battlecryTarget refuses target.uid === card.uid; activateEquipment refuses granted.sourceUids); productionBots/visibleState.ts + legalActions.ts mirror both' },
+    ],
+    contentIds: ['u3_cagebreaker', 'u3_ems', 'dw_runemaster', 'gravetwin', 'e3_frank', 'e3_sculptor', 'dw_gangplank', 'dw_oaf', 'dw_billings', 'k_candleconduit', 'monk', 'd2_broodwhelp', 'dw_dorrin', 'dm_agent', 'b2_magepup', 'beetle', 'squirlscout', 'c3_familiar', 'runesnout_archivist'],
+    currentBehaviour:
+      'Conforms — 2026-09-18: every aimed Shout and aimed Equipment refuses a self-target in the reducer (the aim UI '
+      + 'and the bot view mirror it); the three phase helpers carry the rule for random pickers and minion-cast spells; '
+      + 'the old "fall back to self" auto-picks (battlecryBuffTarget, battlecryGrantKeyword, Baby Gastrid, Appetite '
+      + 'Agent) are gone. Behaviour changed for: Bloodpot / Titan Hammer (never the granter), Auric Runemaster, '
+      + 'Gravetwin, Gangplank, Drunken Oaf, Billings, Candle Conduit, Flowing Monk, Runekeg (excludeSelf implied), '
+      + 'Squirl Scout, Orbiting Familiar, Runic Archivist, Runesnout Archivist, Mage-Pup, Runic Beetle, Brood Whelp / '
+      + 'Twilight Emissary re-fires, Rot Weaver, Spell Drummer, named-spell casters with an aimed spell.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/docbot/noSelfTarget.test.ts', 'packages/sim/src/reworks0918.test.ts'], lastVerifiedAt: '2026-09-18' },
+  },
 ];

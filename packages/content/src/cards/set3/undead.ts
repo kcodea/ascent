@@ -42,8 +42,8 @@ export const SET3_UNDEAD: CardDef[] = [
     name: 'Noggin',
     tribe: 'undead',
     tier: 2,
-    attack: 2,
-    health: 2,
+    attack: 4,
+    health: 1,
     keywords: ['R'], // owner 2026-09-09: Rise in addition to the Echo
     effects: [{ on: 'onDeath', do: 'deathrattleBuffRandomTribe', params: { tribe: 'undead', attack: 2, health: 2 } }],
     text: '**Rise. Echo:** give a random friendly **Undead +2/+2**.',
@@ -59,8 +59,8 @@ export const SET3_UNDEAD: CardDef[] = [
     health: 6,
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'coffin_flop' } }],
-    text: '**Equip Coffin Flop (2):** Discover an **Undead** minion.',
-    goldenText: '**Equip Coffin Flop (2):** Discover an **Undead** minion, twice.',
+    text: '**Equip Coffin Flop (3):** Discover an **Undead** minion.',
+    goldenText: '**Equip Coffin Flop (3):** Discover an **Undead** minion, twice.',
   },
   {
     // Run-wide spell power on an Echo. Combat rides `grantSpellPower` (Skullblade's carry-back); the shop half
@@ -69,8 +69,8 @@ export const SET3_UNDEAD: CardDef[] = [
     name: 'Adeptus',
     tribe: 'undead',
     tier: 3,
-    attack: 4,
-    health: 2,
+    attack: 5,
+    health: 1,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleBuffSpellPower', params: { attack: 1, health: 0 } }],
     text: '**Echo:** give your **Shop spells +1 Attack**.',
@@ -85,8 +85,9 @@ export const SET3_UNDEAD: CardDef[] = [
     attack: 4,
     health: 7,
     keywords: [],
+    // Never itself (owner 2026-09-18, the global no-self-target rule): the aim excludes the Equipment's source.
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'deathfibrillator' } }],
-    text: '**Equip Deathfibrillator (2):** give a target **Undead** **Rise**, then destroy it.',
+    text: '**Equip Deathfibrillator (3):** give a target **Undead** **Rise**, then destroy it.',
   },
   {
     // Aimed Shout: Graverobber's two-step death (the Echo, the departure and any Rise get their beat), then a
@@ -99,6 +100,7 @@ export const SET3_UNDEAD: CardDef[] = [
     health: 6,
     keywords: [],
     target: 'friendly',
+    targetNotSelf: true, // owner 2026-09-18: never itself (now the rule for EVERY aimed Shout — see the reducer)
     effects: [{ on: 'onPlay', do: 'battlecryDestroyForDiscover', params: { tribe: 'undead' } }],
     text: '**Shout:** destroy a friendly **Undead** to Discover an **Undead**.',
     goldenText: '**Shout:** destroy a friendly **Undead** to Discover an **Undead**, twice.',
@@ -127,9 +129,9 @@ export const SET3_UNDEAD: CardDef[] = [
     attack: 8,
     health: 2,
     keywords: [],
-    effects: [{ on: 'onRise', do: 'onRiseBuffBoardAndHand', params: { attack: 4, health: 5 } }],
-    text: 'When a friendly minion **Rises**, give your minions on board and in hand **+4/+5**.',
-    goldenText: 'When a friendly minion **Rises**, give your minions on board and in hand **+8/+10**.',
+    effects: [{ on: 'onRise', do: 'onRiseBuffBoardAndHand', params: { attack: 3, health: 4 } }],
+    text: 'When a friendly minion **Rises**, give your minions on board and in hand **+3/+4**.',
+    goldenText: 'When a friendly minion **Rises**, give your minions on board and in hand **+6/+8**.',
   },
   {
     // Cratering Hulk's overflow half, any tribe, permanent in both phases (combat: an Engrave-style carry-back).
@@ -140,9 +142,9 @@ export const SET3_UNDEAD: CardDef[] = [
     attack: 5,
     health: 8,
     keywords: [],
-    effects: [{ on: 'summonOverflow', do: 'overflowBuffAllPermanent', params: { attack: 2, health: 2 } }],
-    text: 'Whenever a summoned minion does not fit, give your minions **+2/+2** permanently.',
-    goldenText: 'Whenever a summoned minion does not fit, give your minions **+4/+4** permanently.',
+    effects: [{ on: 'summonOverflow', do: 'overflowBuffAllPermanent', params: { attack: 3, health: 4 } }],
+    text: 'Whenever a summoned minion does not fit, give your minions **+3/+4** permanently.',
+    goldenText: 'Whenever a summoned minion does not fit, give your minions **+6/+8** permanently.',
   },
   {
     // Summons a real Spear Warden (the set-1 card, base 3/2 + its Aura), Footman Captain's factory.

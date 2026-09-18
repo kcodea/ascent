@@ -53,7 +53,7 @@ const EPIC: [string, number, string[] | undefined][] = [
   ['rune_meteor_shower', 2, ['celestial']], ['rune_astral_refrain', 5, undefined], ['rune_astral_draft', 6, undefined],
   ['rune_dream_mirror', 5, undefined], ['rune_waking_dreams', 5, undefined], ['rune_shared_revelry', 5, ['spirit']],
   ['rune_grand_procession', 6, ['spirit']], ['rune_festival_circuit', 5, ['spirit', 'celestial']],
-  ['rune_spirit_crown', 6, ['spirit']], ['rune_handy_flame', 5, undefined],
+  ['rune_spirit_crown', 6, ['spirit']], ['rune_handy_flame', 5, ['spirit']], // Handy Flame is a Spirit body → gated (tag pass 2026-09-18)
 ];
 
 describe('tranche A — pool membership, cost, scope and tribe gates', () => {
@@ -151,8 +151,8 @@ describe('Rune of Deep Currents', () => {
     let s = armed('rune_deep_currents', { board: [body('k', 'sp3_kindled'), body('v', 'venom')], hand: [body('a', 'sp3_tidereveler')] });
     s = play(s, 'a');
     // exactly two Spirits on the board → both are the picks
-    expect(stats(at(s, 'k'))).toEqual([3 + 2, 1 + 2]);
-    expect(stats(at(s, 'a'))).toEqual([2 + 2, 4 + 2]);
+    expect(stats(at(s, 'k'))).toEqual([1 + 2, 3 + 2]); // Kindled Sprite is 1/3 (2026-09-18)
+    expect(stats(at(s, 'a'))).toEqual([3 + 2, 4 + 2]); // Tide Reveler 3/4 since 2026-09-18
     expect(stats(at(s, 'v')), 'not a Spirit').toEqual([1, 1]);
   });
 });
@@ -164,7 +164,7 @@ describe('Rune of the Traveling Festival', () => {
     expect(REVELER_IDS).toContain(s.hand[0]!.cardId);
     expect(runeTally(s, 'rune_traveling_festival'), 'what a sale pays right now: 1 + 2').toBe('+3/+3');
     s = sell(s, 'f');
-    expect(stats(at(s, 'k')), 'Flame: value 1 + the rune\'s 2 extra Attack, no Health').toEqual([3 + 3, 1]);
+    expect(stats(at(s, 'k')), 'Flame: value 1 + the rune\'s 2 extra Attack, no Health').toEqual([1 + 3, 3]);
     expect(revelerValue(s), 'the shared value still rises by one').toBe(2);
     expect(runeTally(s, 'rune_traveling_festival')).toBe('+4/+4');
     s = nextTurn(s);
@@ -318,7 +318,7 @@ describe('Rune of the Dream Mirror', () => {
     let s = armed('rune_dream_mirror', tidebudSetup());
     const before = s.board.reduce((n, c) => n + c.attack + c.health, 0);
     s = play(s, 'tb');
-    expect(stats(inHand(s, 'k')), 'Tidebud paid the hand Spirit').toEqual([3, 1 + 2]);
+    expect(stats(inHand(s, 'k')), 'Tidebud paid the hand Spirit').toEqual([1, 3 + 2]);
     const after = s.board.reduce((n, c) => n + c.attack + c.health, 0);
     expect(after - before, 'exactly +0/+2 landed on ONE board minion (Tidebud\'s own base stats aside)').toBe(CARD_INDEX['sp3_tidebud']!.attack + CARD_INDEX['sp3_tidebud']!.health + 2);
     expect(s.runeProcs?.['rune_dream_mirror']).toBe(1);
@@ -341,7 +341,7 @@ describe('Rune of Waking Dreams', () => {
     let s = armed('rune_waking_dreams', tidebudSetup());
     s = play(s, 'tb');
     expect(stats(at(s, 'v'))).toEqual([1 + 4, 1 + 3]);
-    expect(stats(at(s, 'tb')), 'the played Tidebud is on the board by then').toEqual([1 + 4, 3 + 3]);
+    expect(stats(at(s, 'tb')), 'the played Tidebud is on the board by then').toEqual([2 + 4, 3 + 3]); // Tidebud 2/3 since 2026-09-18
     expect(stats(inHand(s, 'n')), 'a hand minion that did not gain is not a gainer').toEqual([1, 1]);
     expect(s.runeProcs?.['rune_waking_dreams']).toBe(1);
   });
@@ -375,12 +375,12 @@ describe('Rune of Shared Revelry', () => {
   it('the first Flame, Tide and Grove sold each turn trigger twice (value 1 then 2); a second Flame fires once', () => {
     let s = armed('rune_shared_revelry', { board: [body('k', 'sp3_kindled'), body('f', 'sp3_flamereveler'), body('f2', 'sp3_flamereveler'), body('t', 'sp3_tidereveler')] });
     s = sell(s, 'f');
-    expect(stats(at(s, 'k')), '+1 then +2 Attack').toEqual([3 + 3, 1]);
+    expect(stats(at(s, 'k')), '+1 then +2 Attack').toEqual([1 + 3, 3]);
     expect(revelerValue(s)).toBe(3);
     s = sell(s, 'f2');
-    expect(stats(at(s, 'k')), 'the second Flame pays once (+3)').toEqual([6 + 3, 1]);
+    expect(stats(at(s, 'k')), 'the second Flame pays once (+3)').toEqual([4 + 3, 3]);
     s = sell(s, 't');
-    expect(stats(at(s, 'k')), 'the first Tide doubles: +4 then +5 Health').toEqual([9, 1 + 9]);
+    expect(stats(at(s, 'k')), 'the first Tide doubles: +4 then +5 Health').toEqual([7, 3 + 9]);
     expect(s.runeProcs?.['rune_shared_revelry']).toBe(2);
   });
 });

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { CardDef, QuestReward, Tribe } from '@game/core';
-import { CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES, activeSet, poolFor } from '@game/content';
+import { CARD_INDEX, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, activeSet, poolFor } from '@game/content';
 import { HEROES, chooseBothActive, type RunState } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { chooseBothText } from './cardText';
+import { relatedCardIds, relatedPickOneIds } from './cardRefs';
 import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
 import { heroArt } from './art';
@@ -76,6 +77,9 @@ const RUNE_REWARD_CARDS: CardDef[] = (() => {
   return [...ids].map((id) => CARD_INDEX[id]).filter((c): c is CardDef => !!c);
 })();
 const RUNE_REWARD_IDS = new Set(RUNE_REWARD_CARDS.map((c) => c.id));
+/** Gifts — the hand spells a rune or hero hands out (a card class outside every set, never drawable). Shown in
+ *  their own left-rail section under Spells (owner ask 2026-09-18), un-scoped like the Rune Rewards. */
+const GIFT_IDS = new Set(GIFTS.map((c) => c.id));
 /** Cards that belong in the MINION gallery: buyable minions + evolution units. A card can *also* be a quest
  *  reward (Badgington is a normal Tier-4 Beast that Apex Hunt grants) — it then shows in BOTH its tribe and the
  *  Quest Rewards category. Membership sets keep those overlaps correct instead of hiding a real minion. */
@@ -98,7 +102,7 @@ function poolIds(setId: Parameters<typeof poolFor>[0]): { minions: Set<string>; 
 
 /** Left-rail category: a real tribe, the tribe-less "spells" bucket, the "rewards" (quest-reward cards) bucket,
  *  or the "quests" bucket (the quest DEFINITIONS themselves — objective + art, rendered as QuestCards). */
-type Category = Tribe | 'spells' | 'rewards' | 'quests' | 'runes' | 'runeRewards' | 'heroes';
+type Category = Tribe | 'spells' | 'gifts' | 'rewards' | 'quests' | 'runes' | 'runeRewards' | 'heroes';
 
 const CAT_META: Record<Category, { label: string; icon: string }> = {
   beast: { label: 'Beasts', icon: 'paw' },
@@ -112,6 +116,7 @@ const CAT_META: Record<Category, { label: string; icon: string }> = {
   kobold: { label: 'Kobolds', icon: 'crown' },
   neutral: { label: 'Neutral', icon: 'star' },
   spells: { label: 'Spells', icon: 'sc' },
+  gifts: { label: 'Gifts', icon: 'gift' },
   rewards: { label: 'Quest Rewards', icon: 'gift' },
   quests: { label: 'Quests', icon: 'target' },
   runes: { label: 'Runes', icon: 'anvil' },
@@ -120,7 +125,7 @@ const CAT_META: Record<Category, { label: string; icon: string }> = {
 };
 
 /** Left-rail categories that are NOT tribes — used to derive the selected-tribe subset from `cats`. */
-const NON_TRIBE_CATS = new Set<Category>(['spells', 'rewards', 'quests', 'runes', 'runeRewards', 'heroes']);
+const NON_TRIBE_CATS = new Set<Category>(['spells', 'gifts', 'rewards', 'quests', 'runes', 'runeRewards', 'heroes']);
 
 const TIERS = [1, 2, 3, 4, 5, 6, 7] as const;
 /** Every non-neutral tribe — the left-rail set when browsing the full game (from the title, pre-run). */
@@ -250,6 +255,10 @@ export function MinionBook() {
   useEffect(() => { try { localStorage.setItem('ascent.bookzoom', String(zoom)); } catch { /* ignore */ } }, [zoom]);
   const [glossary, setGlossary] = useState(false); // swap the gallery for the keyword codex
   const [kw, setKw] = useState<{ term: string; icon: string; match: (c: CardDef) => boolean } | null>(null); // active keyword filter (from the glossary)
+  // RUNES TAB tribe filter (owner ask 2026-09-18): the tier row's chart space shows one button per tribe; a rune
+  // is "related" to a tribe when its `tribes` gate names it (the gate exists exactly where the text names a
+  // tribe — ruling 2026-09-16). No button lit = every rune.
+  const [runeTribes, setRuneTribes] = useState<Set<Tribe>>(() => new Set());
 
   // Opened from the title (no committed run) → browse the WHOLE card set; in a run → scope to its active
   // tribes (mirrors `stockPool`: neutral is always findable, so it's added below regardless).
@@ -264,7 +273,7 @@ export function MinionBook() {
   // than being deleted, so restoring the tab when quests come back is a one-line change here. A quest-reward
   // token that is ALSO a real minion still shows in its tribe gallery (BUYABLE_CARDS membership is unchanged);
   // only the pure reward-only tokens, which needed the now-absent bucket to appear, go dark.
-  const categories: Category[] = useMemo(() => [...tribes, 'neutral', 'spells', 'runes', 'runeRewards', 'heroes'], [tribes]);
+  const categories: Category[] = useMemo(() => [...tribes, 'neutral', 'spells', 'gifts', 'runes', 'runeRewards', 'heroes'], [tribes]);
 
   // Heroes for the Heroes tab — every shippable hero (WIP ones are withheld, like the picker), searchable by
   // name or power. Not run-scoped (heroes aren't tribe-bound), same as the Runes tab.
@@ -280,8 +289,12 @@ export function MinionBook() {
   const runesToShow = useMemo(() => {
     const m = makeSearchMatcher(search);
     const match = (r: { name: string; text: string }): boolean => m(r.name) || m(r.text);
-    return [...[...RUNES].sort((a, b) => a.name.localeCompare(b.name)), ...[...EPIC_RUNES].sort((a, b) => a.name.localeCompare(b.name))].filter(match);
-  }, [search]);
+    const tribeOk = (r: { tribes?: readonly Tribe[] }): boolean => runeTribes.size === 0 || !!r.tribes?.some((t) => runeTribes.has(t));
+    // Set-scoped (owner ask 2026-09-18): only the runes the SHOWN set's Runeforge can offer — a rune with no `sets`
+    // is offered everywhere; otherwise its scope must name this set.
+    const setOk = (r: { sets?: readonly string[] }): boolean => !r.sets || r.sets.includes(setId);
+    return [...[...RUNES].sort((a, b) => a.name.localeCompare(b.name)), ...[...EPIC_RUNES].sort((a, b) => a.name.localeCompare(b.name))].filter((r) => setOk(r) && match(r) && tribeOk(r));
+  }, [search, runeTribes, setId]);
 
   // The quest DEFINITIONS to show in the Quests tab — scoped like the cards: every quest whose tribe is neutral
   // or in `tribes`, narrowed further by any selected tribe chips. Sorted lesser → greater → capstone, then name.
@@ -311,7 +324,7 @@ export function MinionBook() {
     const seen = new Set<string>();
     const out: CardDef[] = [];
     // Rune rewards are un-scoped (the Runeforge isn't tribe-bound) — added unconditionally, like spells.
-    for (const c of [...minions, ...evolutions, ...pool.spells, ...rewards, ...RUNE_REWARD_CARDS]) {
+    for (const c of [...minions, ...evolutions, ...pool.spells, ...rewards, ...RUNE_REWARD_CARDS, ...GIFTS]) {
       if (!seen.has(c.id)) { seen.add(c.id); out.push(c); }
     }
     return out;
@@ -324,39 +337,86 @@ export function MinionBook() {
   const searchMatch = makeSearchMatcher(search);
   const matchText = (c: CardDef): boolean => searchMatch(c.name) || searchMatch(c.text ?? '') || searchMatch(c.goldenText ?? '');
 
-  const filtered = useMemo(() => {
-    // A text search is GLOBAL: it scans every in-scope card (minions + evolutions + spells + quest/rune rewards),
-    // ignoring the tribe chips + Spells/Rewards mode toggles, so typing "Imp" surfaces every match. Tier chips
-    // still narrow it. Overrides the category logic below.
-    if (query) {
-      if (cats.has('quests') || cats.has('runes') || cats.has('heroes')) return []; // those tabs filter their own lists by the query
-      return allCards
-        .filter((c) => (tiers.size === 0 || tiers.has(c.tier)) && matchText(c))
-        .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
-    }
-    // Spells + Quest Rewards are EXCLUSIVE modes, not additive axes: selecting either shows ONLY that pool
-    // (or both pools, if both are on) and hides the minion gallery entirely. With neither selected, the gallery
-    // is minions-only — spells and quest rewards never leak into a tribe search unless the player toggles them on.
+  // The Runes / Heroes / Quests tabs render their own galleries — the card gallery (and its tier chart) is empty there.
+  const ownGalleryTab = cats.has('quests') || cats.has('runes') || cats.has('heroes');
+
+  // Every card the CURRENT category / keyword / search selection yields, BEFORE the tier chips narrow it — the
+  // tier chart counts these (so selecting Tier 3 highlights that bar instead of emptying the other six).
+  const inCategory = useMemo(() => {
+    if (ownGalleryTab) return [];
+    // A text search is GLOBAL: it scans every in-scope card (minions + evolutions + spells + gifts + quest/rune
+    // rewards), ignoring the tribe chips + Spells/Rewards mode toggles, so typing "Imp" surfaces every match.
+    // Tier chips still narrow it (below). Overrides the category logic.
+    if (query) return allCards.filter(matchText);
+    // Spells / Gifts / Quest Rewards / Rune Rewards are EXCLUSIVE modes, not additive axes: selecting any shows
+    // ONLY those pools (or several, if several are on) and hides the minion gallery entirely. With none selected,
+    // the gallery is minions-only — spells never leak into a tribe search unless the player toggles them on.
     // Membership is by pool set (not the `spell` flag), so a minion that's also a reward shows correctly in both.
-    if (cats.has('quests') || cats.has('runes') || cats.has('heroes')) return []; // the Quests / Runes / Heroes tabs render their own galleries below
     const showSpells = cats.has('spells');
+    const showGifts = cats.has('gifts');
     const showRewards = cats.has('rewards');
     const showRuneRewards = cats.has('runeRewards');
-    const special = showSpells || showRewards || showRuneRewards;
+    const special = showSpells || showGifts || showRewards || showRuneRewards;
     const tribeSel = [...cats].filter((x): x is Tribe => !NON_TRIBE_CATS.has(x));
-    return allCards
-      .filter((c) => {
-        if (tiers.size > 0 && !tiers.has(c.tier)) return false;
-        if (kw && !kw.match(c)) return false;
-        if (special) {
-          return (showRewards && QUEST_REWARD_IDS.has(c.id)) || (showSpells && SPELL_POOL_IDS.has(c.id)) || (showRuneRewards && RUNE_REWARD_IDS.has(c.id));
-        }
-        // Minion mode: buyable minions + evolutions only, narrowed by the selected tribes.
-        if (!MINION_POOL_IDS.has(c.id)) return false;
-        return tribeSel.length === 0 || tribeSel.includes(c.tribe) || (!!c.tribe2 && tribeSel.includes(c.tribe2));
-      })
-      .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
-  }, [allCards, tiers, cats, kw, query]);
+    return allCards.filter((c) => {
+      if (kw && !kw.match(c)) return false;
+      if (special) {
+        return (showRewards && QUEST_REWARD_IDS.has(c.id)) || (showSpells && SPELL_POOL_IDS.has(c.id)) || (showGifts && GIFT_IDS.has(c.id)) || (showRuneRewards && RUNE_REWARD_IDS.has(c.id));
+      }
+      // Minion mode: buyable minions + evolutions only, narrowed by the selected tribes.
+      if (!MINION_POOL_IDS.has(c.id)) return false;
+      return tribeSel.length === 0 || tribeSel.includes(c.tribe) || (!!c.tribe2 && tribeSel.includes(c.tribe2));
+    });
+  }, [allCards, cats, kw, query, ownGalleryTab]); // (matchText derives from `query`, the listed dep)
+
+  const filtered = useMemo(
+    () => inCategory.filter((c) => tiers.size === 0 || tiers.has(c.tier)).sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name)),
+    [inCategory, tiers],
+  );
+
+  // THE TIER CHART (owner ask 2026-09-18): how the current selection sits along the tiers — one bar per tier,
+  // counting `inCategory` (so filtering to Undead shows where the Undead minions fall; Spells shows the spells).
+  const tierCounts = useMemo(() => TIERS.map((t) => inCategory.filter((c) => c.tier === t).length), [inCategory]);
+  const tierMax = Math.max(1, ...tierCounts);
+  // Each bar is STACKED by tribe in rail order (owner ask 2026-09-18: colour-coded by tribe) — so the unfiltered
+  // gallery reads as a tribe breakdown per tier, and a single-tribe filter paints its bars in that tribe's colour.
+  // Spells / Gifts / rewards carry no tribe worth colouring: they stack as one segment in their rail colour.
+  const stackColour = (c: CardDef): string => {
+    if (cats.has('gifts') && GIFT_IDS.has(c.id)) return '#ffd27a';
+    if (cats.has('runeRewards') && RUNE_REWARD_IDS.has(c.id)) return '#c9a4ec';
+    if (c.spell) return 'var(--acc)';
+    return `var(--t-${c.tribe})`;
+  };
+  const tierStacks = useMemo(() => {
+    const order = [...tribes, 'neutral' as Tribe];
+    return TIERS.map((t) => {
+      const by = new Map<string, number>();
+      for (const c of inCategory) if (c.tier === t) { const k = stackColour(c); by.set(k, (by.get(k) ?? 0) + 1); }
+      // Tribe segments in rail order, then the non-tribe colours.
+      const keys = [...by.keys()].sort((a, b) => {
+        const ia = order.findIndex((tr) => a === `var(--t-${tr})`), ib = order.findIndex((tr) => b === `var(--t-${tr})`);
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+      });
+      return keys.map((k) => ({ colour: k, n: by.get(k)! }));
+    });
+  }, [inCategory, tribes, cats]); // (stackColour reads `cats`, listed)
+  // What the chart is counting, for its caption — mirrors the subtitle's noun.
+  const chartNoun = query ? 'matches' : [cats.has('spells') && 'spells', cats.has('gifts') && 'gifts', cats.has('rewards') && 'quest rewards', cats.has('runeRewards') && 'rune rewards'].filter(Boolean).join(' & ') || 'minions';
+
+  // Related-card hover previews (owner ask 2026-09-18): the same popup the shop shows — the token a card summons,
+  // the spell it casts, the Ruby it makes — at PRINTED stats, since the book is a static reference. Built once per
+  // card id; `Card` opens it after the usual hover delay.
+  const refViews = useMemo(() => {
+    const m = new Map<string, CardView[]>();
+    for (const c of allCards) {
+      const views = [
+        ...relatedCardIds(c.id).map((id) => CARD_INDEX[id]).filter((d): d is CardDef => !!d).map((d) => toView(d)),
+        ...relatedPickOneIds(c.id).map((id) => CARD_INDEX[id]).filter((d): d is CardDef => !!d).map((d) => ({ ...toView(d), refPick: true })),
+      ];
+      if (views.length) m.set(c.id, views);
+    }
+    return m;
+  }, [allCards]);
 
   // A glossary term is a live filter only if at least one in-scope card matches it — otherwise the row
   // renders inert (no dead-end clicks). Scope-aware: a keyword absent from this run's tribes reads inert.
@@ -396,14 +456,14 @@ export function MinionBook() {
               : cats.has('heroes')
                 ? `${heroesToShow.length} heroes — every champion and their power`
                 : cats.has('runes')
-                ? `${runesToShow.length} runes — the Basic + Epic Runeforge stock`
+                ? `${runesToShow.length} runes — this set's Basic + Epic Runeforge stock`
                 : cats.has('quests')
                 ? `${questsToShow.length} quests ${showTitle ? 'in the game' : 'available this run'}`
                 : `${filtered.length} ${
-                    [cats.has('spells') && 'spells', cats.has('rewards') && 'quest rewards', cats.has('runeRewards') && 'rune rewards']
+                    [cats.has('spells') && 'spells', cats.has('gifts') && 'gifts', cats.has('rewards') && 'quest rewards', cats.has('runeRewards') && 'rune rewards']
                       .filter(Boolean)
                       .join(' & ') || 'minions'
-                  } ${showTitle || cats.has('runeRewards') ? 'in the game' : 'findable this run'}`}
+                  } ${showTitle || cats.has('runeRewards') || cats.has('gifts') ? 'in the game' : 'findable this run'}`}
           </div>
           {!glossary && (
             <input
@@ -485,10 +545,11 @@ export function MinionBook() {
           </div>
         ) : (
           <>
-        {/* Tier filters across the top (multi-select); the active keyword filter rides at the far right. Hidden in
-            the Quests + Runes tabs — those pools aren't organized by the 1–6 card tiers. */}
-        {!cats.has('quests') && !cats.has('runes') && !cats.has('heroes') && (
-        <div className="book-tiers">
+        {/* Tier filters across the top (multi-select), the tier chart centred beside them, and the active keyword
+            filter at the far right. ALWAYS rendered — it used to unmount on the Runes / Heroes tabs (their pools
+            aren't tiered), which dropped the whole window by a row every time you switched (owner report
+            2026-09-18). Now the bar holds its place; on those tabs the chips dim and the chart goes quiet. */}
+        <div className={`book-tiers${ownGalleryTab ? ' is-inert' : ''}`}>
           <span className="book-axislabel">Tier</span>
           {TIERS.map((t) => (
             <button
@@ -496,17 +557,67 @@ export function MinionBook() {
               className={`book-tier${tiers.has(t) ? ' on' : ''}`}
               onClick={() => toggleTier(t)}
               aria-pressed={tiers.has(t)}
+              disabled={ownGalleryTab}
+              title={ownGalleryTab ? 'This tab is not organised by tier' : `Tier ${t}`}
             >
               {t}
             </button>
           ))}
+          <div className="book-chart" role="group" aria-label={`${chartNoun} by tier`}>
+            {cats.has('runes') ? (
+              /* Runes aren't tiered — the chart space carries the tribe filter instead (owner ask 2026-09-18). */
+              <div className="book-runetribes" role="group" aria-label="Filter runes by tribe">
+                <span className="book-chart-cap">runes by tribe</span>
+                {[...tribes].map((t) => (
+                  <button
+                    key={t}
+                    className={`book-runetribe${runeTribes.has(t) ? ' on' : ''}`}
+                    style={{ '--c': `var(--t-${t})` } as CSSProperties}
+                    onClick={() => setRuneTribes((prev) => { const next = new Set(prev); if (next.has(t)) next.delete(t); else next.add(t); return next; })}
+                    aria-pressed={runeTribes.has(t)}
+                    title={`Runes that name ${CAT_META[t].label}`}
+                  >
+                    <Icon name={CAT_META[t].icon} />
+                    <span>{CAT_META[t].label}</span>
+                  </button>
+                ))}
+              </div>
+            ) : ownGalleryTab ? (
+              <span className="book-chart-quiet">not tiered</span>
+            ) : (
+              <>
+                <span className="book-chart-cap">{chartNoun} by tier</span>
+                {TIERS.map((t, i) => {
+                  const n = tierCounts[i]!;
+                  const on = tiers.size === 0 || tiers.has(t);
+                  return (
+                    <button
+                      key={t}
+                      className={`book-bar${on ? '' : ' is-off'}${tiers.has(t) ? ' is-picked' : ''}${n === 0 ? ' is-empty' : ''}`}
+                      style={{ '--h': n / tierMax } as CSSProperties}
+                      onClick={() => toggleTier(t)}
+                      aria-pressed={tiers.has(t)}
+                      title={`Tier ${t}: ${n} ${chartNoun}`}
+                    >
+                      <span className="book-bar-n">{n}</span>
+                      <span className="book-bar-fill">
+                        {tierStacks[i]!.map((seg) => (
+                          <span key={seg.colour} className="book-bar-seg" style={{ '--seg-c': seg.colour, '--seg-h': seg.n / tierMax } as CSSProperties} />
+                        ))}
+                      </span>
+                      <span className="book-bar-t">{t}</span>
+                    </button>
+                  );
+                })}
+              </>
+            )}
+          </div>
           {kw && (
             <button className="book-kwchip" onClick={() => setKw(null)} title="Clear keyword filter">
               <Icon name={kw.icon} /> {kw.term} <span className="book-kwx">✕</span>
             </button>
           )}
         </div>
-        )}
 
         <div className="book-main">
           {/* Tribe + Spells filters down the left (multi-select). */}
@@ -515,7 +626,7 @@ export function MinionBook() {
               <button
                 key={c}
                 className={`book-cat${cats.has(c) ? ' on' : ''}`}
-                style={{ '--c': c === 'spells' ? 'var(--acc)' : c === 'rewards' ? 'var(--gold)' : c === 'quests' ? 'var(--acc-dk)' : c === 'runes' ? '#b078e6' : c === 'runeRewards' ? '#c9a4ec' : c === 'heroes' ? '#e0b34a' : `var(--t-${c})` } as CSSProperties}
+                style={{ '--c': c === 'spells' ? 'var(--acc)' : c === 'rewards' ? 'var(--gold)' : c === 'quests' ? 'var(--acc-dk)' : c === 'runes' ? '#b078e6' : c === 'gifts' ? '#ffd27a' : c === 'runeRewards' ? '#c9a4ec' : c === 'heroes' ? '#e0b34a' : `var(--t-${c})` } as CSSProperties}
                 onClick={() => toggleCat(c)}
                 aria-pressed={cats.has(c)}
                 title={CAT_META[c].label}
@@ -582,7 +693,7 @@ export function MinionBook() {
             <div className="book-grid" style={{ '--book-zoom': zoom } as CSSProperties}>
               {filtered.map((c) => (
                 <div className="book-cell" key={c.id}>
-                  <Card card={toView(c, gilded, run)} forceFull suppressPop plated />
+                  <Card card={toView(c, gilded, run)} forceFull suppressPop plated refCards={refViews.get(c.id)} />
                 </div>
               ))}
             </div>

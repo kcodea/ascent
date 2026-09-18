@@ -1,5 +1,5 @@
 import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react';
-import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
+import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { compileTimeline } from './choreographer/compileTimeline';
 import { normalizePresentationBatch } from './choreographer/adapters/presentationBatchAdapter';
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
@@ -32,7 +32,8 @@ if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
 import { chooseBothText } from './cardText';
-import { type Action, spiritsPlayedThisTurn, anySpellsCastThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe } from '@game/sim';
+import { relatedCardIds, relatedPickOneIds } from './cardRefs';
+import { type Action, spiritsPlayedThisTurn, anySpellsCastThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, selectedEquipment } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -440,13 +441,6 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
 /** Cards that reference another card → hovering shows it as a popup. The token a card summons /
  *  creates, or the Fodder it buffs / consumes (so the player can read what it does, and see the
  *  *current* buffed Fodder for Ritualist & co). */
-const CARD_REFERENCES: Record<string, string[]> = {
-  alley: ['stray'], shaper: ['stray'], pack: ['pup'], brood: ['impscrap'], combinator: ['cling', 'moneybot', 'betterbot'],
-  feed: ['fred'], ritualist: ['fred', 'impscrap'], maw: ['fred'],
-  // Imp summoners / buffers — the popup shows the Imp token at its current buffed stats. Cards that touch
-  // both Fodder and Imps (Ritualist, Bane, Fodder Feeder) reference both.
-  impking: ['impscrap'], fodderfeeder: ['fred', 'impscrap'], bane: ['fred', 'impscrap'],
-};
 /** A referenced token/spell card view. A referenced SPELL (a caster's Growth / Lantern) folds in the run's live
  *  spell power via `spellLive`, so hovering the caster shows the spell's CURRENT value — the reason the caster's
  *  own text no longer restates it. A token folds in its persistent buff: Fodder ('fred') gets Ritualist's buff,
@@ -3098,25 +3092,9 @@ export function Recruit() {
       // The manual map first (Fodder/Imp cards whose references aren't effect params — e.g. Feed *consumes*
       // Fodder), then every card the effects actually name (summoned tokens, granted/transformed cards) so ANY
       // card that mentions another in its text surfaces it. De-duped, manual order wins.
-      const def = CARD_INDEX[cardId];
-      // …plus a DERIVED rule: any card whose text talks about Rubies previews the Ruby itself, at its live
-      // value (owner 2026-07-25). Derived rather than hand-listed so a new Ruby card can never be forgotten —
-      // there are ~20 of them across the Kobold line and the list would rot on the first one added.
-      const mentionsRuby = !!def && !def.ruby && /\bRub(y|ies)\b/i.test(`${def.text} ${def.goldenText ?? ''}`);
-      const named = [
-        ...(CARD_REFERENCES[cardId] ?? []),
-        ...(def ? referencedCardIds(def) : []),
-      ];
-      // …but NOT when the card already names a PARTICULAR Ruby (owner report 2026-08-31: Facetbound Martyr
-      // previewed Warding Ruby, Veinstorm *and* a plain Ruby). The derived rule exists for a card that talks
-      // about Rubies in general — "cast a Ruby", "your Rubies" — and has nothing specific to show. A card that
-      // names one has already shown you the Ruby it means; adding the generic one on top both widens the
-      // popup and implies a second thing happens.
-      const namesARuby = named.some((id) => CARD_INDEX[id]?.ruby);
-      const refs = [...new Set([
-        ...named,
-        ...(mentionsRuby && !namesARuby ? ['ruby'] : []),
-      ])].filter((id) => CARD_INDEX[id]);
+      // The manual map + every effect-named card + the derived Ruby rule — ONE rule, shared with the Compendium
+      // (`cardRefs.ts`), so a card previews the same things in the shop and in the book.
+      const refs = relatedCardIds(cardId);
       const spellLive = { a: spellBonus, h: spellBonusH, ftb: run.frontToBackBonus, ftbH: run.frontToBackBonusH ?? run.frontToBackBonus, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, tier: run.tier, growthBonus: run.growthBonus, anySpellsThisTurn: anySpellsCastThisTurn(run) };
       // `cardBuffsLive`, NOT `run.cardBuffs` — the raw map holds only the PERMANENT enchants, so a Fodder
       // token previewed here printed 3/3 while the shop card next to it showed 6/6, dropping Heckbinder's
@@ -3124,7 +3102,8 @@ export function Recruit() {
       // `cardBuff()`; this popup was the last raw reader.
       const or = owner?.buffs?.find((b) => b.source === 'Ruby');
       const ownerRuby = { attack: or?.attack ?? 0, health: or?.health ?? 0, golden: owner?.golden };
-      if (refs.length) m.set(uid, refs.map((id) => tokenRefView(id, cardBuffsLive, run.impBuff, spellLive, run.rubyBonus, ownerRuby, run.clueBonus)));
+      const pool = relatedPickOneIds(cardId);
+      if (refs.length || pool.length) m.set(uid, [...refs.map((id) => tokenRefView(id, cardBuffsLive, run.impBuff, spellLive, run.rubyBonus, ownerRuby, run.clueBonus)), ...pool.map((id) => ({ ...tokenRefView(id, cardBuffsLive, run.impBuff, spellLive, run.rubyBonus, ownerRuby, run.clueBonus), refPick: true }))]);
     };
     for (const c of run.board) add(c.uid, c.cardId, c);
     for (const c of run.hand) add(c.uid, c.cardId, c);
@@ -3835,10 +3814,14 @@ export function Recruit() {
       : heroTargetsTavern
         ? `[data-zone="warband"] .row .card[data-uid], [data-zone="tavern"] .row .card[data-uid]${SB_FOE_EXCLUDE}`
         : '[data-zone="warband"] .row .card[data-uid]';
+    // R-TARGET-03 (owner 2026-09-18): an aimed Equipment never lands on the body that granted it — the reducer
+    // refuses the self-aim, so the picker must not light it up either.
+    const equipSourceUids = equipArmed ? (selectedEquipment(run)?.sourceUids ?? []) : [];
     const minionAt = (x: number, y: number): { uid: string } | null => {
       const el = elementAtPoint(x, y)?.closest(sel);
       const uid = el?.getAttribute('data-uid');
       if (!uid || uid === run.spell?.uid) return null; // a minion, never the spell
+      if (equipArmed && equipSourceUids.includes(uid)) return null; // never its own granting body
       // Displace can't target a golden (triple) — it never lights up as a valid pick.
       if (heroTargetsNoGolden && run.board.find((c) => c.uid === uid)?.golden) return null;
       return { uid };
@@ -3953,8 +3936,8 @@ export function Recruit() {
     const def = CARD_INDEX[pendingTarget.cardId];
     // Common Ground: the SECOND pick can't be the first minion (averaging with itself is a no-op).
     if (pendingTarget.spell && uid === pendingTarget.spellFirstUid) return false;
-    // `targetNotSelf` (Graverobber) excludes the source from an otherwise-unrestricted pick.
-    if (def?.targetNotSelf && uid === pendingTarget.uid) return false;
+    // R-TARGET-03 (owner 2026-09-18, global): an aimed Shout never picks its own body (the reducer refuses it).
+    if (uid === pendingTarget.uid) return false;
     // Runes can LIFT a tribe restriction (Rune of Open Appetite frees the Appetite Agent's aim), so the aim UI
     // asks the same helper the reducer's target check does. Reading `def.targetTribe` here directly would let
     // the UI refuse a pick the reducer would have accepted — the rune would half-apply and read as broken.
@@ -3974,7 +3957,7 @@ export function Recruit() {
     const def = CARD_INDEX[pendingTarget.cardId];
     const valid = (uid: string): boolean => {
       if (pendingTarget.spell && uid === pendingTarget.spellFirstUid) return false; // Common Ground: not the first pick
-      if (def?.targetNotSelf && uid === pendingTarget.uid) return false; // Graverobber: never itself
+      if (uid === pendingTarget.uid) return false; // R-TARGET-03: never itself (every aimed Shout)
       if (!def?.targetTribe) return true;
       if (uid === pendingTarget.uid) return false;
       const c = run.board.find((b) => b.uid === uid);

@@ -112,14 +112,17 @@ export function equipmentCandidates(v: BotVisibleState): Candidate[] {
   const selected = usable.find((e) => e.selected);
   if (selected) {
     if (selected.targetMode === 'friendly') {
-      for (const c of v.board) out.push({ action: { type: 'activateEquipment', targetUid: c.uid }, tag: `use ${selected.equipmentId} on ${c.cardId}` });
+      for (const c of v.board) {
+        if (selected.sourceUids.includes(c.uid)) continue; // R-TARGET-03: never its own granting body
+        out.push({ action: { type: 'activateEquipment', targetUid: c.uid }, tag: `use ${selected.equipmentId} on ${c.cardId}` });
+      }
     } else {
       out.push({ action: { type: 'activateEquipment' }, tag: `use ${selected.equipmentId}` });
     }
   }
   for (const e of usable) {
     if (e.selected) continue;
-    if (e.targetMode === 'friendly' && v.board.length === 0) continue;
+    if (e.targetMode === 'friendly' && !v.board.some((c) => !e.sourceUids.includes(c.uid))) continue;
     out.push({ action: { type: 'selectEquipment', equipmentId: e.equipmentId }, tag: `select ${e.equipmentId}` });
   }
   return out;

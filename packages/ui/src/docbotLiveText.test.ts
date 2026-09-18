@@ -49,7 +49,7 @@ const RICH: LiveTextParams = {
   spellsThisTurn: 3, spellsCast: 7, deathrattlesTriggered: 5, rubyCasts: 4, improveReps: 1,
   clingEnchant: { attack: 2, health: 3 }, fodderConsumed: { attack: 2, health: 2 },
   undeadBuyAtk: 2, soulsmanGold: 6,
-  cardBuffs: {}, impAura: { attack: 2, health: 3 },
+  cardBuffs: { knit: { attack: 8, health: 4 } }, /* two Spear Warden deaths */ impAura: { attack: 2, health: 3 },
   spellProgress: 5, /* past Runescale's every-4 improve step */ ascendProgress: 2, summonBonus: 2, overflowBonus: 2, hpGrantBonus: 2,
   eotTick: 2, eotBonus: 2, sellBonus: 2, soldProgress: 2,
   playedThisTurn: ['alley', 'alley', 'alley'], attackSeen: 9, permaGain: { attack: 2, health: 2 },

@@ -884,8 +884,8 @@ export function copyCastSpellText(cardId: string, golden: boolean, names: {
   if (cardId === 'ce3_conductor' && names.firstThisTurn) {
     const n = `{{${names.firstThisTurn}}}`;
     return golden
-      ? `**Rally:** get **2** copies of ${n} — the first spell you cast this turn. Once per combat.`
-      : `**Rally:** get a copy of ${n} — the first spell you cast this turn. Once per combat.`;
+      ? `**Rally:** get **2** copies of ${n} — the first **Shop spell** you cast this turn.`
+      : `**Rally:** get a copy of ${n} — the first **Shop spell** you cast this turn.`;
   }
   if (cardId === 'd2_spellkeeper' && names.keeperFirst) {
     const n = `{{${names.keeperFirst}}}`;
@@ -981,9 +981,29 @@ export function conductorText(cardId: string, golden: boolean, conductorBuff: nu
 export function soulsmanText(cardId: string, goldGained: number): string | null {
   return cardId === 'soulsman' && goldGained > 0 ? ` {{Gained ${goldGained} Gold this run.}}` : null;
 }
+/**
+ * SPEAR WARDEN — "Has +4/+2 for every Spear Warden that died this game" (owner rework 2026-09-18).
+ *
+ * The printed "+4/+2" is a RATE; what the player needs to read is the stat block the body is carrying right
+ * now. Same shape as Ancient Wanderer: the live total replaces the magnitude (green), the rate moves into a
+ * parenthetical, and the death COUNT it came from is named. `enchant` is the run-wide `cardBuffs.knit` entry —
+ * the one channel every death feeds (`noteCardDeath` in simulate.ts), so the count is derived from it rather
+ * than tracked twice. No deaths yet → the printed sentence is already the whole truth.
+ */
 export function cardTypeTallyText(cardId: string, enchant: { attack: number; health: number } | undefined): string | null {
-  if (cardId !== 'knit' || !enchant || (enchant.attack <= 0 && enchant.health <= 0)) return null;
-  return ` {{Now +${enchant.attack}/+${enchant.health} this run.}}`;
+  if (!enchant || (enchant.attack <= 0 && enchant.health <= 0)) return null;
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'cardDeathScaler');
+  if (!def || !eff) return null;
+  const p = eff.params as { attack?: number; health?: number } | undefined;
+  const perA = Number(p?.attack ?? 1);
+  const perH = Number(p?.health ?? 1);
+  const per = perA > 0 ? perA : perH;
+  const total = perA > 0 ? enchant.attack : enchant.health;
+  // Ceil, not floor: a save from before the 2026-09-18 rework carries +3/+2 stacks, which still mean "a death".
+  const deaths = per > 0 ? Math.ceil(total / per) : 0;
+  if (deaths <= 0) return null;
+  return `Has **{{+${enchant.attack}/+${enchant.health}}}** (+${perA}/+${perH} for every **${def.name}** that died this game; {{${deaths}}} so far).`;
 }
 
 /**
@@ -1259,7 +1279,8 @@ export function rallySpreadText(cardId: string, golden: boolean, rallySpreadAtk?
  *  - Festival Luminary prints +(1 + X) on both stats;
  *  - Aspect prints its current grant (its countdown, and Festival Keeper's whole tracker, live on the step
  *    counter instead — owner 2026-09-11); Forest Colossus the Spirits it has counted; Nurturer and Kindled
- *    Sprite the Spirits played this turn. Null when the printed base is already exact.
+ *    Sprite the Spirits played this turn; Old Timber its base +3/+2 grown per Spirit counted. Null when the printed
+ *    base is already exact.
  */
 export function spiritText(
   cardId: string, golden: boolean,
@@ -1283,10 +1304,12 @@ export function spiritText(
     case 'sp3_aspect': {
       // The live GRANT stays in the text (the hard live-value rule); the "N more" countdown moved to the step
       // counter with Festival Keeper's (owner ruling 2026-09-11), so the sentence states the cadence, not the count.
+      // Owner handoff 2026-09-18: a +2/+2 step ("+2/+2 … Improves every 3 times this triggers").
       const every = 3;
+      const step = 2 * g;
       const level = 1 + Math.floor(tally / every);
-      const v = level * g;
-      return level > 1 ? `Whenever you play a Spirit, give **3** random friendly Spirits **${live(`+${v}/+${v}`)}**. Improve this by **+${g}/+${g}** every ${every} times this triggers.` : null;
+      const v = level * step;
+      return level > 1 ? `When you play a Spirit, give **3** random Spirits **${live(`+${v}/+${v}`)}**. Improves every **${every}** times this triggers.` : null;
     }
     case 'sp3_treasurer': {
       // The banked discount is the card's whole live value (owner 2026-09-12: "festival treasurer being active
@@ -1294,12 +1317,18 @@ export function spiritText(
       const off = p.spiritDiscount ?? 0;
       return off > 0 ? `Whenever you **sell** a **Reveler**, your next Spirit costs **${g}** less this turn. ${live(`Next Spirit: −${off} Gold`)}` : null;
     }
-    case 'sp3_forestcolossus':
-      return p.onBoard ? `**Start of Combat:** give your Spirits **${live(`+${tally * g}/+${tally * g}`)}** (+${g}/+${g} for each Spirit played since this was played).` : null;
+    case 'sp3_forestcolossus': {
+      // Owner handoff 2026-09-18: a base +3/+2 that improves by +3/+2 per Spirit played since this was played —
+      // (1 + tally) steps. Off the board nothing has been counted yet, so the printed base stands.
+      if (!p.onBoard || tally <= 0) return null;
+      const steps = 1 + tally;
+      return `**Start of Combat:** give your Spirits **${live(`+${3 * steps * g}/+${2 * steps * g}`)}**. Improves for every Spirit played.`;
+    }
     case 'sp3_nurturer':
       return played > 0 ? `**End of Turn:** give a random Spirit **+${3 * g}/+${4 * g}**. Repeat for every Spirit played this turn ${live(`(×${1 + played})`)}.` : null;
     case 'sp3_kindled':
-      return played > 0 ? `**Rally:** gain **${live(`+${played * g} Attack`)}** (+${g} for each Spirit you played this turn).` : null;
+      // Owner handoff 2026-09-18: PERMANENT; the live value is the total it will gain on its next Rally right now.
+      return played > 0 ? `**Rally:** gain **${live(`+${played * g} Attack`)}** permanently (+${g} for every Spirit played this turn).` : null;
     default: return null;
   }
 }

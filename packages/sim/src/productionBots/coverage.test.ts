@@ -104,7 +104,8 @@ describe('Equipment is inside the planning boundary', () => {
     const s = withBloodpot();
     const cands = candidatesFor(toBotVisibleState(s));
     const uses = cands.filter((c) => c.action.type === 'activateEquipment');
-    expect(uses.map((c) => (c.action as { targetUid?: string }).targetUid).sort()).toEqual(['f', 't']);
+    // Never Frank himself — R-TARGET-03 (owner 2026-09-18): an aimed Equipment skips its own granting body.
+    expect(uses.map((c) => (c.action as { targetUid?: string }).targetUid).sort()).toEqual(['t']);
     proveIsolation(s, (cs) => cs.find((c) => c.action.type === 'activateEquipment' && (c.action as { targetUid?: string }).targetUid === 't')!);
     // And it actually buffs: the sibling-safe child has a +3/+3 Stray.
     const t = applyCandidate(createPlanningRoot(s), { type: 'activateEquipment', targetUid: 't' });
@@ -129,7 +130,7 @@ describe('Equipment is inside the planning boundary', () => {
     // After the swap the hammer is what activates.
     const after = applyCandidate(createPlanningRoot(s), swap!.action);
     const uses = candidatesFor(after.visible).filter((c) => c.action.type === 'activateEquipment');
-    expect(uses.length).toBe(3);
+    expect(uses.length, 'Frank + the Stray — never the Sculptor that granted the hammer (R-TARGET-03)').toBe(2);
     expect(after.visible.equipment.find((e) => e.selected)?.equipmentId).toBe('titan_hammer');
   });
 

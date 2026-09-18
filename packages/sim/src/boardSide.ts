@@ -50,6 +50,7 @@ export function sideFromSnapshot(snap: BoardSnapshot, fallbackTier: number, pool
     growthBonus: snap.growthBonus ?? 0, // enemy Rune of Living Growth
     rubyCasts: snap.rubyCasts ?? 0, // enemy Vaultkeeper's spell umbrella (text)
     spiritsPlayed: snap.spiritsPlayed ?? 0, // enemy Kindled Sprite's Rally — was never threaded (a served Sprite fought at 0)
+    tribesPlayed: snap.tribesPlayed ?? {}, // the per-tribe channel (enemy Bicycle Ben); a legacy capture's Beast/Spirit scalars are folded in by combatSide()
     revelerX: snap.revelerX ?? 0, // enemy Revelers / Luminary (text)
     handMinions: snap.handMinions ?? [], // enemy Rope Wrangler / Water Dragon
     beastHuntExtra: snap.beastHuntExtra ?? 0, // enemy Elderhorn (Rally/Slaughter)

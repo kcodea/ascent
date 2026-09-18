@@ -905,7 +905,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Gilding default: ×2",
     "statement": "A gilded card doubles its printed numbers. Outliers instead gild the summoned token, reshape the effect, or add a proc; spells never gild. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "gilding",
-    "currentBehaviour": "358 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
+    "currentBehaviour": "359 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
     "cardText": "Exemplar — Wolves Den: \"Deathrattle: Summon 3 Crypt Wolves.\" → gilded: \"Deathrattle: Summon 6 Crypt Wolves.\"",
     "example": "Wolves Den's gilded text just writes the ×2 out in full — while gilded Dunkey instead summons ONE gilded Armadiyo."
   },
@@ -2353,15 +2353,16 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-overflow",
-    "title": "Trigger: a summon overflows a full board · 3 cards",
-    "statement": "All 3 of these fire on one trigger: a summon overflows a full board. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: a summon overflows a full board · 4 cards",
+    "statement": "All 4 of these fire on one trigger: a summon overflows a full board. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "3 effect factories across 3 cards dispatch on 'summonOverflow' (both) — re-clustered by TRIGGER out of the 'react' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Flowing Monk: \"When you summon a minion that doesn't fit, Engrave 2 friendly minions +2/+2. Improves by +2/+2 every 5 overflows.\" · Members: Flowing Monk · Cratering Hulk · Squatimus",
+    "currentBehaviour": "4 effect factories across 4 cards dispatch on 'summonOverflow' (both) — re-clustered by TRIGGER out of the 'react' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Flowing Monk: \"When you summon a minion that doesn't fit, Engrave 2 friendly minions +2/+2. Improves by +2/+2 every 5 overflows.\" · Members: Flowing Monk · Cratering Hulk · Bicycle Ben · Squatimus",
     "example": "Flowing Monk fires when a summon overflows a full board, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "monk",
       "thunderingabomination",
+      "u3_bicycleben",
       "u3_squatimus"
     ]
   },

@@ -61,7 +61,8 @@ const ART_PENDING = new Set<string>([
   // SET 3 NEUTRALS: NONE LEFT — the Clue master landed 2026-09-09 (Yazzus is one card for every set since
   // 2026-09-16 and wears the original Yazzus portrait).
   // SET 3 DWARVES: NONE LEFT — Tankerchief's master landed 2026-09-09.
-  // SET 3 UNDEAD: NONE LEFT — the Hierophant's master landed 2026-09-09 (second art pass).
+  // SET 3 UNDEAD: Bicycle Ben (owner handoff 2026-09-18) is authored ahead of its art — the tribe sprite until a master lands.
+  'u3_bicycleben',
   // SET 3 KOBOLDS: NONE LEFT. The whole roster is arted as of 2026-08-31 — the last master (Gemsmith, both
   // Choose One branches) landed with the rename that gave the card its name. The seam above is what this
   // list is for; it stays empty until the next batch ships ahead of its art.

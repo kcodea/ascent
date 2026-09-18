@@ -103,7 +103,7 @@ const richBag = (id: string): LiveTextParams => ({
   cardBuffs: { [id]: { attack: 2, health: 3 } }, impAura: { attack: 2, health: 3 },
   spellProgress: 5, ascendProgress: 2, summonBonus: 6, /* ≥ Hunter's every-5 improve step */ overflowBonus: 2, hpGrantBonus: 2,
   eotTick: 2, eotBonus: 2, sellBonus: 2, soldProgress: 2,
-  playedThisTurn: ['alley', 'alley', 'alley'], attackSeen: 9, permaGain: { attack: 2, health: 2 },
+  playedThisTurn: ['alley', 'alley', 'alley'], tribesPlayed: { undead: 2 }, /* Bicycle Ben's per-tribe channel (2026-09-18) */ attackSeen: 9, permaGain: { attack: 2, health: 2 },
   squirlScoutBuff: 3, conductorBuff: 3, onBoard: true,
   goldSpent: 6, goldSpentRun: 13, goldPouchValue: 2,
   alesThisTurn: 2, zooSummons: 2, rallySpreadAtk: 5,
@@ -250,6 +250,7 @@ const CROSS: CrossExemplar[] = [
   { id: 'sp3_flamereveler', run: { revelerX: 4 } }, //   run-scoped shared Reveler value (owner 2026-09-10)
   { id: 'sp3_luminary', run: { revelerX: 3 } },
   { id: 'sp3_kindled', run: { playedThisTurn: ['sp3_tidebud', 'sp3_nurturer'] } }, // Spirits played this turn
+  { id: 'u3_bicycleben', run: { playedThisTurn: ['u3_noggin', 'mumi'] } }, // Undead played this turn — the per-tribe map rides the snapshot to the foe side (2026-09-18)
 ];
 
 const runFor = (x: CrossExemplar): RunState => ({ ...createRun(7), ...x.run }) as RunState;

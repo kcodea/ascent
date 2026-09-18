@@ -5,7 +5,8 @@ import type { CardDef } from '@game/core';
  *
  * Twenty-two cards on the sheet (Ossuary Colossus was pulled by the owner the same day). ELEVEN are set-1 Undead
  * carried over by id (`SET1_UNDEAD_IN_SET3` in `sets.ts` — shared definitions; four were re-specced in place
- * because set 1 is disabled). This file holds the roster's ELEVEN NEW cards, and only those.
+ * because set 1 is disabled). This file holds the roster's ELEVEN NEW cards, and only those — plus the Skeleton token
+ * (batch 2, 2026-09-16) and Bicycle Ben, the roster's TWELFTH new card (owner handoff 2026-09-18), appended last.
  *
  * The tribe's spine is RISE and the things that watch it. Owner rulings that shaped the engine work
  * (2026-09-09):
@@ -54,9 +55,9 @@ export const SET3_UNDEAD: CardDef[] = [
     id: 'u3_robinson',
     name: 'Robinson',
     tribe: 'undead',
-    tier: 3,
-    attack: 3,
-    health: 6,
+    tier: 4, // 3 → 4, 3/6 → 5/7 (owner handoff 2026-09-18)
+    attack: 5,
+    health: 7,
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'coffin_flop' } }],
     text: '**Equip Coffin Flop (3):** Discover an **Undead** minion.',
@@ -68,13 +69,13 @@ export const SET3_UNDEAD: CardDef[] = [
     id: 'u3_adeptus',
     name: 'Adeptus',
     tribe: 'undead',
-    tier: 3,
+    tier: 4, // 3 → 4, and the Echo grants both stats (owner handoff 2026-09-18; was +1 Attack only)
     attack: 5,
     health: 1,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffSpellPower', params: { attack: 1, health: 0 } }],
-    text: '**Echo:** give your **Shop spells +1 Attack**.',
-    goldenText: '**Echo:** give your **Shop spells +2 Attack**.',
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffSpellPower', params: { attack: 1, health: 1 } }],
+    text: '**Echo:** give your **Shop spells +1/+1**.',
+    goldenText: '**Echo:** give your **Shop spells +2/+2**.',
   },
   {
     // An EQUIP Undead whose Equipment is a paid, aimed "fire this Echo and keep the body": Rise, then destroy.
@@ -187,5 +188,22 @@ export const SET3_UNDEAD: CardDef[] = [
     effects: [],
     token: true,
     text: '',
+  },
+  {
+    // BICYCLE BEN (owner handoff 2026-09-18). Flowing Monk's trigger, Noggin's target: a summon that does not fit →
+    // ONE random OTHER friendly Undead +1/+1, and the grant improves by +1/+1 for every Undead PLAYED this turn (so it
+    // pays (1+N)/(1+N); gilded ×2). Both phases off the shared `summonOverflow` watcher; permanent in both (the combat
+    // gain carries back like the Monk's). The turn's Undead-played count reaches combat through the per-tribe
+    // `tribesPlayed` side channel. No art yet — falls back to the tribe sprite.
+    id: 'u3_bicycleben',
+    name: 'Bicycle Ben',
+    tribe: 'undead',
+    tier: 4,
+    attack: 3,
+    health: 9,
+    keywords: [],
+    effects: [{ on: 'summonOverflow', do: 'overflowBuffRandomTribePerPlayed', params: { tribe: 'undead', attack: 1, health: 1 } }],
+    text: 'When a summoned minion does not fit, give a random **Undead +1/+1**. Improves for every Undead played this turn.',
+    goldenText: 'When a summoned minion does not fit, give a random **Undead +2/+2**. Improves for every Undead played this turn.',
   },
 ];

@@ -360,6 +360,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     logSpellProgress: (amount) => ctx.log({ type: 'spellProgress', target: self.uid, amount }),
     logImprove: (amount) => ctx.log({ type: 'improve', target: self.uid, amount }),
     spellsThisTurn: () => ctx.spellsThisTurnFor(self.side),
+    playedThisTurn: (tribe) => ctx.playedThisTurnFor(self.side, tribe as Tribe),
     grantRandomFromPool: (pred, count) => {
       const pool = ctx.poolCards(self.side).filter(pred);
       if (pool.length === 0) return;
@@ -1745,6 +1746,14 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side } = payload as { side: Side };
     if (self.dead || side !== self.side) return;
     ARENA_EFFECTS.overflowBuffAllPermanent(combatArena(ctx, self), params);
+  },
+
+  /** Bicycle Ben — `summonOverflow` (this side's summon found no room): a random OTHER friendly <tribe> gains the
+   *  printed buff × (1 + <tribe> played this turn), carried back. One body in arena.ts serves both phases. */
+  overflowBuffRandomTribePerPlayed: (ctx, self, params, payload) => {
+    const { side } = payload as { side: Side };
+    if (self.dead || side !== self.side) return;
+    ARENA_EFFECTS.overflowBuffRandomTribePerPlayed(combatArena(ctx, self), params);
   },
 
   /** Cage Breaker — a combat-triggered Shout has no Shop to Discover from and no aim: it grants a random

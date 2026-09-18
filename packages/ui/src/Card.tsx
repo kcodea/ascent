@@ -84,6 +84,7 @@ function useBadgePop(value: number): RefObject<HTMLSpanElement> {
 import './cardPillsConfig';
 import { artFor, artVariantKey } from './art';
 import { renameTerms } from './terms';
+import { colourTerms } from './termColour';
 import { KeywordDefs } from './KeywordDefs';
 import { refPopupLeft } from './refPreviewPlacement';
 import { detectCardKeywords } from './detectCardKeywords';
@@ -236,7 +237,12 @@ const TRIBE_ICON: Record<Tribe, string> = {
  *  `**…**`. Every rich rules-text surface (card body, rune text, Choose One options) goes through this, so the
  *  vocabulary is consistent everywhere — not just on card bodies (`renameTerms` is idempotent, so a caller that
  *  already renamed is harmless). */
-export const mdBold = (s: string): string => renameTerms(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+const mdBoldRaw = (s: string): string => renameTerms(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+/** …then colour every remaining tribe / mechanic term (`colourTerms`, owner ask 2026-09-18) so a term the author
+ *  left un-bolded still takes the tribe colour. Surfaces that also process the `{{…}}`/`((…))`/`[[…]]`/`<<…>>`
+ *  markers (the card body) use `rulesHtml` instead, which runs the term pass LAST — after the markers — so a
+ *  term inside a marker keeps the marker's own colour. `colourTerms` is depth-aware and idempotent. */
+export const mdBold = (s: string): string => colourTerms(mdBoldRaw(s));
 /** A {{…}} marker → a green "modified" span (e.g. Kennelmaster's Avenge-boosted buff). */
 const descUp = (s: string): string => s.replace(/\{\{(.+?)\}\}/g, '<span class="descup">$1</span>');
 /** A ((…)) marker → a gold "temporary" span, parentheses kept visible (next-combat spell grants). */
@@ -251,6 +257,8 @@ const descRune = (s: string): string => s.replace(/\[\[(.+?)\]\]/g, '<span class
  *  green, and so on. Its own marker rather than reusing `descup` because that green means "a modified value of
  *  this card's own rule", which (Both) is not. */
 const descBoth = (s: string): string => s.replace(/<<(.+?)>>/g, '<span class="descboth">$1</span>');
+/** The FULL rules-text pipeline for a card body: rename + bold, the four markers, then the term colouring. */
+export const rulesHtml = (s: string): string => colourTerms(descBoth(descRune(descTemp(descUp(mdBoldRaw(s))))));
 /**
  * Golden (tripled) cards show their numbers doubled to match the doubled effect:
  * "+1/+1" → "+2/+2", "deal 3" / "deal **3**" → "deal 6", "3 to every" → "6 to
@@ -319,6 +327,9 @@ export interface CardView {
   /** Requires a target when cast (drives the cast-by-drag targeting) — `'friendly'` = a board minion only,
    *  `'any'` = a board OR shop minion. Mirrors `CardDef.target`. */
   target?: 'friendly' | 'any';
+  /** Hover-popup pool member: of all `refCards` flagged this way, ONE is shown per popup open, drawn at random
+   *  (a card that says 'get a Dwarven Ale' previews one Ale, not all five — owner 2026-09-18). */
+  refPick?: boolean;
   /** Base (printed) stats — stats above base render green, below base render red. */
   baseAttack?: number;
   baseHealth?: number;
@@ -656,7 +667,7 @@ export const Card = memo(function Card({
   // re-ran the full pipeline — renameTerms' 23 regexes + the bold/marker passes — AND handed React a fresh
   // string, forcing a dangerouslySetInnerHTML re-parse. That cost fired on all ~22 on-screen cards at once
   // whenever a shared prop flipped (drag start/end, hero arm), inside the same frame as the drag's FLIP.
-  const rulesHtml = useMemo(() => descBoth(descRune(descTemp(descUp(mdBold(shownText))))), [shownText]);
+  const rulesHtmlMemo = useMemo(() => rulesHtml(shownText), [shownText]);
   // The card's primary mechanic glyph for the medallion — the first mechanic the card itself has (see
   // mechIcon.ts). `null` → a blank badge. Never the tribe.
   const mechIcon = resolveMechIcon(card);
@@ -664,7 +675,11 @@ export const Card = memo(function Card({
   // the FULL card (art + name + rules text); any referenced cards (the token it summons / Fodder it
   // buffs / its Stray) trail off to the right of it. In full-text mode the card already shows its text,
   // so only the referenced cards appear. Rendered at full size with `forceFull` so it's readable.
-  const popupCards: CardView[] = [...(showText ? [] : [card]), ...(refCards ?? [])];
+  // `refPick` members form a pool; `pickIdx` (re-rolled every open, see showRefTip) picks the one shown.
+  const [pickIdx, setPickIdx] = useState(0);
+  const refFixed = refCards?.filter((c) => !c.refPick) ?? [];
+  const refPool = refCards?.filter((c) => c.refPick) ?? [];
+  const popupCards: CardView[] = [...(showText ? [] : [card]), ...refFixed, ...(refPool.length ? [refPool[pickIdx % refPool.length]!] : [])];
   const hasPopup = popupCards.length > 0;
   const [refPos, setRefPos] = useState<{ left: number; top: number; origin: 'left' | 'right'; cardTop: number } | null>(null);
   const refTimer = useRef<number | null>(null);
@@ -687,6 +702,7 @@ export const Card = memo(function Card({
   const showRefTip = (el: HTMLElement): void => {
     if (!hasPopup) return;
     if (refTimer.current) window.clearTimeout(refTimer.current);
+    if (refPool.length > 1) setPickIdx(Math.floor(Math.random() * refPool.length)); // presentation only — never the sim's RNG
     refTimer.current = window.setTimeout(() => perfMonitor.measure('input:hover-preview', () => {
       const r = el.getBoundingClientRect();
       const n = popupCards.length;
@@ -1151,7 +1167,7 @@ export const Card = memo(function Card({
         <div className="cn">{card.name}</div>
         {card.text && (
           <div className="desc">
-            <span dangerouslySetInnerHTML={{ __html: rulesHtml }} />
+            <span dangerouslySetInnerHTML={{ __html: rulesHtmlMemo }} />
           </div>
         )}
         {!spellLike && !tribePlated && (

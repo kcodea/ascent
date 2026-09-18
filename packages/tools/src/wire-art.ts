@@ -351,6 +351,14 @@ const JOBS: Job[] = [
     label: 'spells', src: 'C:/Game Assets/Ascent Art/Spells',
     dirs: ['.'], dest: 'packages/ui/src/art/spells', index: spellsByName, aliases: SPELL_ALIASES,
   },
+  {
+    // GIFTS (2026-09-18, when Grand Larceny's master finally landed). A Gift is a `spell: true` card, so it
+    // rides the spell art channel (`artFor` falls through minions → spells) and the spell index already knows
+    // every Gift by name — the folder just had never been a job: the 2026-08-26/27 Gift batches were wired by
+    // hand, which is exactly the "hand-rolled script beside the pipeline" this file's header warns against.
+    label: 'gifts', src: 'C:/Game Assets/Ascent Art/Gifts',
+    dirs: ['.'], dest: 'packages/ui/src/art/spells', index: spellsByName, aliases: {},
+  },
 ];
 
 const webpJobs: Promise<unknown>[] = [];

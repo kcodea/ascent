@@ -766,11 +766,11 @@ describe('Blast Pump — an Equipment that casts a Shop spell', () => {
     expect(gilded, 'two genuine casts beat one').toBe(base * 2);
   });
 
-  it('costs 1 Gold', () => {
+  it('costs 2 Gold', () => { // 1 → 2, owner balance pass 2026-09-18
     let s = armedPump();
     const before = s.embers;
     s = activate(s);
-    expect(s.embers).toBe(before - 1);
+    expect(s.embers).toBe(before - 2);
   });
 });
 

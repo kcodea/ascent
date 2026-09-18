@@ -19,7 +19,7 @@ import type { CardView } from './Card';
 /** Every scalar (primitive-comparable) `CardView` field. */
 const SCALAR_KEYS = [
   'name', 'cardId', 'tribe', 'tribe2', 'universalTribe', 'attack', 'health', 'text', 'goldenText',
-  'stepEphemeral', 'cost', 'costChanged', 'castMult', 'golden', 'tier', 'spell', 'ruby', 'target',
+  'stepEphemeral', 'cost', 'costChanged', 'castMult', 'golden', 'tier', 'spell', 'ruby', 'target', 'refPick',
   'baseAttack', 'baseHealth', 'floorAttack', 'floorHealth', 'chosenOption', 'chooseBothKey', 'artUrl', 'starform',
 ] as const satisfies readonly (keyof CardView)[];
 

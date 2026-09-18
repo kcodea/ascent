@@ -1253,6 +1253,36 @@ export function reduce(state: RunState, action: Action): RunState {
   return next;
 }
 
+/** Will playing this minion open the generic targeted-Shout prompt? The ONE predicate the play case and Rune of
+ *  Refrain share: a Mage-Pup's taught aimed spell, or a friendly-targeted non-Choose-One Shout with a viable pick
+ *  (a tribe-restricted aim needs another matching friend; `targetNotSelf` (Graverobber) needs any other body —
+ *  with none, the Shout simply doesn't fire and the minion plays as a plain body, no prompt). */
+function opensBattlecryAim(s: RunState, card: BoardCard): boolean {
+  if (taughtAimSpell(card)) return true;
+  const def = CARD_INDEX[card.cardId];
+  if (def?.target !== 'friendly' || def.chooseOne?.length) return false;
+  if (def.targetTribe) return s.board.some((c) => c.uid !== card.uid && isTribe(c, def.targetTribe!));
+  if (def.targetNotSelf) return s.board.some((c) => c.uid !== card.uid);
+  return true;
+}
+
+/** Rune of Refrain's roll for a Shout minion that has just FIRED: 25% per copy held (owner 2026-08-27, unique-engine
+ *  doubling), capped below certainty, drawn off the run cursor so a reload/replay resolves it identically. A hit
+ *  returns the actual instance (buffs/golden intact) to hand; a full hand swallows it. A miss is not the rune firing. */
+function rollRefrainReturn(s: RunState, card: BoardCard): void {
+  const rrng = makeRng(s.rngCursor);
+  const returns = rrng.int(100) < Math.min(95, 25 * runeStacksOf(s, 'rune_refrain'));
+  s.rngCursor = rrng.state();
+  if (returns && s.hand.length < handCap(s)) {
+    procRune(s, 'runeRefrain');
+    const idx = s.board.findIndex((c) => c.uid === card.uid);
+    if (idx >= 0) {
+      const [ret] = s.board.splice(idx, 1);
+      if (ret) s.hand.push(ret);
+    }
+  }
+}
+
 function reduceCore(state: RunState, action: Action): RunState {
   // Read-only rejections run BEFORE the deep clone — every no-op dispatch (a click while a Discover is
   // open, an out-of-phase action) used to pay the full structuredClone below for nothing.
@@ -2128,20 +2158,11 @@ function reduceCore(state: RunState, action: Action): RunState {
             // One Shop spell per copy held (recurring family, owner 2026-08-27).
             if (spells.length > 0) conjureToHand(s, spells, runeStacksOf(s, 'rune_hoardcalling'), true);
           }
-          if (s.runeRefrain) {
-            const rrng = makeRng(s.rngCursor);
-            // 25% per copy held (owner 2026-08-27, unique-engine doubling), capped below certainty.
-            const returns = rrng.int(100) < Math.min(95, 25 * runeStacksOf(s, 'rune_refrain'));
-            s.rngCursor = rrng.state();
-            if (returns && s.hand.length < handCap(s)) {
-              procRune(s, 'runeRefrain'); // the 25% roll actually HIT — a miss is not the rune firing
-              const idx = s.board.findIndex((c) => c.uid === card.uid);
-              if (idx >= 0) {
-                const [ret] = s.board.splice(idx, 1);
-                if (ret) s.hand.push(ret);
-              }
-            }
-          }
+          // An AIMED Shout (Baby Gastrid, Toxin Tender, a Mage-Pup's taught spell) has not fired yet — its prompt
+          // opens below — so its roll waits for `battlecryTarget` (fix 2026-09-18: rolling here pulled the body
+          // back to hand BEFORE the aim, every aim was then refused because the source was no longer on the
+          // board, the Shout was lost and the prompt stranded — a bot seat could not end its turn).
+          if (s.runeRefrain && !opensBattlecryAim(s, card)) rollRefrainReturn(s, card);
         }
       }
       // Choose One: the branch was decided BEFORE the body ever reached the board (see the deferral at the top
@@ -2185,27 +2206,13 @@ function reduceCore(state: RunState, action: Action): RunState {
       // test because the Pup's own CardDef is untargeted — the taught spell on the INSTANCE is what needs an
       // aim, so the usual `def.target` route can't see it. `playCard` skips its Shout for the same reason, and
       // `applyBattlecryTarget` fires it with the chosen target.
-      if (taughtAimSpell(card)) {
-        s.pendingTarget = { uid: card.uid, cardId: card.cardId };
-        return s;
-      }
-      const playedDef = CARD_INDEX[card.cardId];
       // A Choose One owns its OWN targeting (the aim step ran before this replay, and the branch is already
       // applied above), so it must not fall into the generic targeted-Battlecry prompt as well — Runic Beetle
       // would open a second, meaningless aim. Before the deferral this block was unreachable for a Choose One
-      // because the prompt returned early.
-      if (playedDef?.target === 'friendly' && !playedDef.chooseOne?.length) {
-        const hasTarget = playedDef.targetTribe
-          ? s.board.some((c) => c.uid !== card.uid && isTribe(c, playedDef.targetTribe!))
-          // `targetNotSelf` (Graverobber): a board holding ONLY this minion has no legal pick, so don't
-          // prompt — the Battlecry simply doesn't fire and it plays as a plain body.
-          : playedDef.targetNotSelf
-            ? s.board.some((c) => c.uid !== card.uid)
-            : true;
-        if (hasTarget) {
-          s.pendingTarget = { uid: card.uid, cardId: card.cardId };
-          return s;
-        }
+      // because the prompt returned early. (`opensBattlecryAim` holds the one predicate; Refrain reads it too.)
+      if (opensBattlecryAim(s, card)) {
+        s.pendingTarget = { uid: card.uid, cardId: card.cardId };
+        return s;
       }
       checkTriples(s);
       if (card.golden) grantGoldenDiscover(s);
@@ -2344,6 +2351,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (opt) applyChooseOneTarget(s, card, opt.effects, target);
       else applyBattlecryTarget(s, card, target);
       s.pendingTarget = undefined;
+      // Rune of Refrain rolls for an aimed Shout HERE — its Shout has now fired (see the play-time note).
+      // Same gate as the play-time roll (a real Shout minion — never a Mage-Pup's taught spell).
+      if (!opt && s.runeRefrain && ptDef && hasBattlecry(ptDef)) rollRefrainReturn(s, card);
       checkTriples(s);
       if (card.golden) grantGoldenDiscover(s);
       openNextStartOfTurnModal(s); // this modal owned the screen — open whatever queued behind it

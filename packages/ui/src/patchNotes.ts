@@ -75,6 +75,105 @@ export const PATCH_NOTES: PatchNote[] = [
     ],
   },
   {
+    date: '2026-09-18',
+    label: 'Stat pass',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'A balance pass over 35 minions: most of the low-tier bodies got a little sturdier, a few late-game cards were trimmed, and Chronos finally has a body worth protecting.',
+        details: [
+          'Cosmo Express 2/1, Star Seed 2/2, Tidebud 2/3, Defender 3/2, Flame Reveler 4/3, Geode Guardian 3/3, Highway Hustler 3/4, Noggin 4/1, Seedling Spirit 2/4, Striker 3/3, Tide Reveler 3/4.',
+          'Brunni 3/2, Adeptus 5/1, Coinfire Forewoman 3/5, Delver 5/3, Footman Captain 4/1, Gravestar Seer 0/8, Halfsies 4/4.',
+          'Bellringer Voss 4/4, Blade Thrower 6/5, Blaster 8/2, Broad-Axe Brakka 5/3, Double Dealer 6/6, Gemheart Carver 6/5, Jewel 5/5, Jumpstart Jules 6/7, Uncle Orc 5/8, Wayfinder 4/2.',
+          'Billings 5/6, Chronos 5/7, Drakko 3/5, Edward Keg-hands 5/7, Lodestar 5/5, Tide Caller 6/5, Twinning 4/7.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Rising Tide and Squatimus now give +3/+4 (Rising Tide down from +4/+5, Squatimus up from +2/+2); Gilded doubles as before.',
+      },
+      {
+        category: 'Card Change',
+        text: 'Equipment costs retuned: Blast Pump 2, Coffin Flop 3, Deathfibrillator 3, Comet 3, Prismatic Pick 1.',
+        details: [
+          'Blast Pump 1 → 2 and Coffin Flop 2 → 3, Deathfibrillator 2 → 3 (a little more expensive).',
+          'Comet 4 → 3 and Prismatic Pick 2 → 1 (cheaper).',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Pillager no longer appears in the Set 3 shop (it still exists as a rune reward).',
+      },
+    ],
+  },
+  {
+    date: '2026-09-18',
+    label: 'Rune tribe tags',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Runes are now tagged with the tribe they relate to: every Ruby rune counts as Kobold, every Dwarven Ale rune as Dwarf, every Attachment rune as Mech, and a rune that hands you a tribal minion carries that tribe. The Runeforge offers a tagged rune only in a run that has that tribe, and the Compendium filters by it.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-18',
+    label: 'Compendium tier chart',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'The Compendium now charts your selection by Tier: a bar graph in the tier row shows how many minions (or spells, or gifts) sit at each Tier for the tribes you have filtered to. Click a bar to filter that Tier.',
+        details: [
+          'The tier row stays put on the Runes and Heroes tabs instead of vanishing and shifting the whole window.',
+          'Gifts have their own section under Spells.',
+          'Hover any card or rune to see the cards it relates to (the token it summons, the spell it casts, the card a rune grants) — these were rendering behind the book before.',
+          'The Runes tab lists only the runes of the set you are looking at, and its tribe buttons filter to the runes that relate to a tribe.',
+          'The operating-system tooltip (the little yellow box) no longer appears anywhere in the game.',
+          'A card that gives you a Dwarven Ale now previews one Ale on hover — a different one each time — instead of all five.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-18',
+    label: 'Coloured terms',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "Every tribe name and mechanic word in card, spell, rune and hero-power text is now coloured, wherever it appears — not only the ones that happened to be in bold. The Equip, Starform and Collapse keyword pills now show on the cards that use them, with clearer definitions, and Vaultkeeper's printed grant now ticks live in combat as spells are cast.",
+        details: [
+          `Previously a tribe or keyword only took its colour when the card text bolded it, so plain mentions (Seedling Spirit's "Spirit", "Discover a Beast", "Collapse your Starform") read as ordinary text. They now colour on the shop, hand, board, combat, Compendium and hover surfaces alike.`,
+          `Keyword pills: "Equip" (Can be triggered once per turn, per equipment, for a cost.), "Starform" (occupies a Shop slot until purchased or destroyed; buying it grants its stats to your left-most Celestial) and "Collapse" (grant 50% of your Starform's stats to 3 Celestials and destroy it).`,
+          "Vaultkeeper: its \"+N/+N\" and \"spells to next step\" now count spells cast DURING the fight (yours and, for an opponent's Vaultkeeper, theirs), instead of only updating after combat.",
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-17',
+    label: 'Gamble joins Set 3',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'The Gamble spell is now in the Set 3 pool as well: roll a die and get a random minion or spell of that Tier.',
+      },
+      {
+        category: 'New Card',
+        text: 'New Basic rune in every set — Rune of Gambling: get a Gamble, repeat every turn, and your Gambles grant BOTH a minion and a spell of the rolled Tier.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-18',
+    label: 'Art Batch',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Grand Larceny gets its illustration (the last Gift without one); Old Timber, Sylus, Branch Manager and Jumpstart Jules wear new portraits, and a handful of card-art framings were re-tuned.',
+      },
+    ],
+  },
+  {
     date: '2026-09-17',
     label: 'Gamble joins Set 3',
     changes: [

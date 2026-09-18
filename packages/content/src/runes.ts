@@ -37,6 +37,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_structure',
+    tribes: ['mech'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Structure',
     cost: 3,
     text: 'After you play an **Attachment** from hand, get a random Shop spell.',
@@ -55,6 +56,7 @@ export const RUNES: RuneDef[] = [
   {
     // Cross-currency smuggling: each turn, the first Ruby pays an Ale and the first Ale pays a Ruby.
     id: 'rune_contraband',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Contraband',
     cost: 6, // owner balance 2026-08-11
     text: 'The first **Ruby** you cast each turn gives you a random **Dwarven Ale**. The first **Dwarven Ale** you cast gives you a **Ruby**.',
@@ -84,6 +86,7 @@ export const RUNES: RuneDef[] = [
     // that ("those minions won't be in the shop, but it's fine if they are given as rewards") — CARD_INDEX is
     // global, so the grant resolves. NOTE: the Gold-Pouch half is INERT outside set 1 (no `emberpouch` there).
     id: 'rune_pillaging',
+    tribes: ['undead'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Pillaging',
     cost: 4,
     text: 'Get a **Pillager**. Your **Gold Pouches** are worth **2 Gold** for the rest of the run.',
@@ -143,6 +146,7 @@ export const RUNES: RuneDef[] = [
   {
     // Shares Open Tab's primitive (2 random Ales at End of Turn).
     id: 'rune_first_round',
+    tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the First Round',
     cost: 5, // owner balance 2026-08-11
     text: '**End of Turn:** get **2 random Dwarven Ales**.',
@@ -158,6 +162,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_overtime',
+    tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Overtime',
     cost: 1,
     text: 'Every **15 Gold** you spend, get a random **Dwarven Ale**.',
@@ -224,6 +229,7 @@ export const RUNES: RuneDef[] = [
     // Reworked 2026-08-06 (owner): first TWO Rubies each turn double, 2 Rubies per turn, and buying it pays
     // the first 2 Rubies immediately (the recurringEndOfTurn Ruby effects fire once on purchase).
     id: 'rune_resonance',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Resonance',
     cost: 3,
     text: 'Your **first 2 Rubies** played from hand each turn cast an **extra time**. Get **2 Rubies** every turn.',
@@ -233,6 +239,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_investment',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Investment',
     cost: 3, // owner balance 2026-08-04
     text: 'Get **2 Rubies** when you **sell 2 minions**.',
@@ -242,6 +249,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_last_call',
+    tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Last Call',
     cost: 2, // owner balance 2026-08-11 (1 → 2)
     text: '**Avenge (4):** get **2 random Dwarven Ales**.', // owner 2026-08-11 (was Avenge 3 / 1 Ale)
@@ -309,6 +317,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_facetwright',
+    tribes: ['kobold'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Facetwright',
     cost: 4,
     // Owner fix 2026-08-02: the FIRST copy lands the moment the rune is bought (the plain `grant` up front) —
@@ -396,6 +405,7 @@ export const RUNES: RuneDef[] = [
   {
     // Rubies are ordinary Set 2 cards, so "get 5 Rubies" is a plain card grant.
     id: 'rune_gemcutting',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Gemcutting',
     cost: 1, // 4 → 1 (owner 2026-08-02)
     // Owner sheet 2026-07-31: SEVEN Rubies minted at a fixed 3/3, not the run's 1/1+bonus line.
@@ -441,6 +451,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_spare_parts',
+    tribes: ['mech'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Spare Parts',
     cost: 2,
     text: 'Get **5 random Attachments**.',
@@ -472,6 +483,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_warden',
+    tribes: ['undead'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     sets: ['set1', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
     name: 'Rune of the Warden',
     cost: 5,
@@ -491,6 +503,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_tempering',
+    tribes: ['mech'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Tempering',
     cost: 4,
     text: 'The first **Attachment** you play each turn also gives that minion **Ward**.',
@@ -558,6 +571,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_engraving',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Engraving',
     cost: 3,
     text: '**Avenge (3):** your **Rubies** permanently give **+1 more Health**.',
@@ -652,6 +666,7 @@ export const RUNES: RuneDef[] = [
     // Threshold again, with the new next-turn Gold payout. Per the sheet the window is a TURN, so the meter
     // resets each turn rather than banking a remainder across them.
     id: 'rune_gem_dividend',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of the Gem Dividend',
     cost: 3,
     text: 'After you cast **5 Rubies** in a turn, gain **3 Gold** next turn.',
@@ -690,6 +705,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_shared_pour',
+    tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Shared Pour',
     cost: 3, // owner balance 2026-08-11
     text: 'Your first **Dwarven Ale** each turn casts an **additional time**.',
@@ -774,6 +790,7 @@ export const RUNES: RuneDef[] = [
   // ── the 2026-08-07 owner card-keyed batch (all Set 2 — each names a Set-2 card) ──
   {
     id: 'rune_full_measure',
+    tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Full Measure',
     cost: 4,
     // Owner 2026-08-11: now also HANDS OVER a Baby Gastrid, on top of the Attack-symmetry effect.
@@ -784,6 +801,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_mountain_trade',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Mountain Trade',
     cost: 5,
     // Owner 2026-08-11: full rework — a "cards played" threshold that showers the board with a Ruby every 6.
@@ -795,6 +813,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_open_appetite',
+    tribes: ['demon'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Open Appetite',
     cost: 5,
     // Owner 2026-08-11: now also HANDS OVER an Appetite Agent, on top of the any-type targeting.
@@ -806,6 +825,7 @@ export const RUNES: RuneDef[] = [
 
   {
     id: 'rune_unbroken_vein',
+    tribes: ['kobold'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Unbroken Vein',
     cost: 5,
     // Owner 2026-08-11: now also HANDS OVER a Veinbreaker, on top of the both-effects grant.
@@ -817,6 +837,7 @@ export const RUNES: RuneDef[] = [
   // ── Aug-11 minion-grant runes (Basic) ──
   {
     id: 'rune_display_case',
+    tribes: ['demon'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Display Case',
     cost: 4,
     text: 'Get a **Market Tormentor**. Your **Market Tormentors** also enchant the **left-most** Shop slot.',
@@ -826,6 +847,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_living_geode',
+    tribes: ['kobold'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Living Geode',
     cost: 4,
     text: 'Get a **Geode Guardian**. **Gemheart Golems** summoned by your **Geode Guardians** have **Ward**.',
@@ -925,6 +947,7 @@ export const RUNES: RuneDef[] = [
     // reward must not name an archived id: here the reward IS the point. Archived cards still resolve through
     // `CARD_INDEX`, so the grant works.
     id: 'rune_ruby_resonance',
+    tribes: ['kobold'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Ruby Resonance',
     cost: 3,
     text: 'Get a **Resonance Idol**.',
@@ -1103,6 +1126,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_gem_sage',
+    tribes: ['kobold'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Gem Sage',
     cost: 5,
     text: 'Get a **Gem Sage**.',
@@ -1111,6 +1135,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_ancient_expenditure',
+    tribes: ['mech'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Ancient Expenditure',
     cost: 4,
     text: 'Get an **Ancient Wanderer**.',
@@ -1120,6 +1145,7 @@ export const RUNES: RuneDef[] = [
     // The CADENCE rune: `everyTurns` on the existing `recurringGrant`, not a bespoke flag. Three runes in this
     // batch share it (see the Muckbroker + Rare Goods below).
     id: 'rune_clockwork_promotion',
+    tribes: ['mech'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Clockwork Promotion',
     cost: 4,
     text: 'Every **2 turns**, get a **Clockwork Assistant**.',
@@ -1127,6 +1153,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_night_market',
+    tribes: ['demon'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Night Market',
     cost: 5,
     text: 'Get a **Night Market Horror**.',
@@ -1134,6 +1161,7 @@ export const RUNES: RuneDef[] = [
   },
   {
     id: 'rune_muckbroker',
+    tribes: ['beast'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Muckbroker',
     cost: 4,
     text: 'Every **2 turns**, get a **Muckslinger**.',
@@ -1220,6 +1248,7 @@ export const RUNES: RuneDef[] = [
     // flips at every turn setup. The axis in force rides into combat on the mod (see `runeShiftingFacets`),
     // so a fight always resolves the axis the shop was showing.
     id: 'rune_shifting_facets',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Shifting Facets',
     cost: 3,
     text: '**Avenge (3):** improve your **Rubies** by **+1 Health**. Each turn this **alternates** between Health and Attack.',
@@ -1583,6 +1612,7 @@ export const EPIC_RUNES: RuneDef[] = [
   // ── Batch 4: grant runes (existing cards + a Gilded-grant option) ──
   {
     id: 'rune_assembly',
+    tribes: ['mech'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Assembly',
     cost: 6,
     epic: true,
@@ -1602,6 +1632,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     // The two currencies feed each other's power, one step per turn each.
     id: 'rune_gemscript',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Gemscript',
     cost: 4,
     epic: true,
@@ -1612,6 +1643,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_stormcalling',
+    tribes: ['dragon'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Stormcalling',
     cost: 4, // owner balance 2026-08-11
     epic: true,
@@ -1632,6 +1664,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // Owner 2026-08-20: ENABLED in every set (was gated to the disabled set 1) and repriced 4 -> 3. Souls Man
     // is an out-of-set UNDEAD body, granted rather than drawn — same acceptance as Rune of Pillaging.
     id: 'rune_soul_taxes',
+    tribes: ['undead'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Soul Taxes',
     cost: 3,
     epic: true,
@@ -1715,6 +1748,7 @@ export const EPIC_RUNES: RuneDef[] = [
   // ── Batch 4b: the two new signature cards ──
   {
     id: 'rune_feast',
+    tribes: ['demon'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     sets: ['set1'],
     name: 'Rune of the Feast',
     cost: 5,
@@ -1724,6 +1758,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_reconfiguration',
+    tribes: ['mech'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     sets: ['set1'],
     name: 'Rune of Reconfiguration',
     cost: 6,
@@ -1744,6 +1779,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_armory',
+    tribes: ['mech'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Armory',
     cost: 3,
     epic: true,
@@ -1856,6 +1892,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     // Owner add 2026-08-02: the Gold sink for a Ruby board — 10 Gold spent showers the whole line.
     id: 'rune_gemspam',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Gemspam',
     cost: 4, // owner balance 2026-08-11
     epic: true,
@@ -1895,6 +1932,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_lazarus',
+    tribes: ['undead'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Lazarus',
     cost: 5,
     epic: true,
@@ -1918,6 +1956,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_exgalloper',
+    tribes: ['beast'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Exgalloper',
     cost: 3,
     epic: true,
@@ -1929,6 +1968,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // Owner add 2026-08-03. Same shape as the other forge-only body grants (Brill, Mykel): the minion is
     // `token: true` so it exists ONLY through this rune.
     id: 'rune_baal',
+    tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Baal',
     cost: 6,
     epic: true,
@@ -1939,6 +1979,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_brisbane',
+    tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Mykel',
     cost: 4,
     epic: true,
@@ -1949,6 +1990,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     // 3 RANDOM Ales (owner 2026-07-29), not a fixed trio — the variety is the point.
     id: 'rune_double_fisting',
+    tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Double Fisting',
     cost: 6,
     epic: true,
@@ -1960,6 +2002,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     // Shares Bottomless Cellar's primitive — the run-wide Ale multiplier, additive with Edward Keg-hands.
     id: 'rune_bottomless_cask',
+    tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Bottomless Cask',
     cost: 5,
     epic: true,
@@ -1970,6 +2013,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     // The run-wide twin of the Motherlode quest — same primitive, no tribe filter (any friendly minion).
     id: 'rune_motherlode',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of the Motherlode',
     cost: 5,
     epic: true,
@@ -2037,6 +2081,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     // The meter excludes Ales — the payout IS an Ale, so counting them would let the rune feed itself.
     id: 'rune_runic_exchange',
+    tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Runic Exchange',
     cost: 2,
     epic: true,
@@ -2075,6 +2120,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_shared_table',
+    tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Shared Table',
     cost: 3,
     epic: true,
@@ -2084,6 +2130,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_redirection',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Redirection',
     cost: 4,
     epic: true,
@@ -2142,6 +2189,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_attacking_gems',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Attacking Gems',
     cost: 4,
     epic: true,
@@ -2188,6 +2236,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // Counted through a narrow helper, NOT `noteSpellCast` — the Ruby path already fires the Ruby+Spell umbrella
     // and spends the Grimoire charge, so reusing that function would double-fire every "every 3 casts" card.
     id: 'rune_spellstone',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of the Spellstone',
     cost: 3,
     epic: true,
@@ -2211,6 +2260,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     // Epic, like every other named-minion grant rune (Yazzus, Lazarus, Exgalloper, Mykel, the High King).
     id: 'rune_chimerus',
+    tribes: ['dragon'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Chimerus',
     cost: 3,
     epic: true,
@@ -2236,6 +2286,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_lapidary',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of the Lapidary',
     cost: 5,
     epic: true,
@@ -2384,6 +2435,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_conduit',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of the Conduit',
     cost: 5,
     epic: true,
@@ -2407,6 +2459,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_bucky',
+    tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Bucky',
     cost: 7,
     epic: true,
@@ -2418,6 +2471,7 @@ export const EPIC_RUNES: RuneDef[] = [
   // ── batch 4, tranche 2 (2026-08-07): the three grant runes for the new T6 bodies ──
   {
     id: 'rune_ashen_heir',
+    tribes: ['demon'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Ashen Heir',
     cost: 5,
     text: 'Get an **Ashen Heir**.',
@@ -2427,6 +2481,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_ancient_den',
+    tribes: ['beast'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Ancient Den',
     cost: 6,
     text: 'Get a **Mossmemory Colossus**.',
@@ -2447,6 +2502,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_ruby_shrapnel',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Ruby Shrapnel',
     cost: 5,
     text: 'When a **Ruby**-buffed minion dies, split its Ruby bonus stats among your surviving minions.',
@@ -2515,6 +2571,7 @@ export const EPIC_RUNES: RuneDef[] = [
   // ── Aug-11 minion-grant runes (Epic) ──
   {
     id: 'rune_dawnclaw',
+    tribes: ['beast'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Dawnclaw',
     cost: 5,
     epic: true,
@@ -2534,6 +2591,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_kobold_bebes',
+    tribes: ['kobold'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Kobold Bebes',
     cost: 6,
     epic: true,
@@ -2582,6 +2640,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     // Owner add 2026-08-12. Grants the rune-only Voidmother (T6 Beast 6/1, Echo: summon a Void Panther).
     id: 'rune_voidmother',
+    tribes: ['beast'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Voidmother',
     cost: 4,
     epic: true,
@@ -2619,6 +2678,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // Owner add 2026-08-12. Grants a Beardsley + the `runeZoo` combat flag: each Beardsley's summon buff scales
     // with the running combat-summon count (1st summon 1×, 2nd 2×, …). Stacks across Beardsleys and golden.
     id: 'rune_zoo',
+    tribes: ['beast'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Zoo',
     cost: 6,
     epic: true,
@@ -2706,6 +2766,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_engraving_gems',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Engraving Gems',
     cost: 4,
     epic: true,
@@ -2730,6 +2791,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // BACK to Epic 2026-08-19 (owner) — the def moves between arrays, since `runeforgePool` reads membership.
     // Reworked with it: the clause is no longer a second EAT but the meal SHARED SIDEWAYS to the neighbours.
     id: 'rune_blart',
+    tribes: ['demon'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Blart',
     cost: 4,
     epic: true,
@@ -2824,6 +2886,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // RENAMED from the owner's "Rune of the Muster" (2026-08-20): that name is already taken by the free-refresh
     // rune, and two runes cannot share a name inside one set (`validateRunes`).
     id: 'rune_muster_general',
+    tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Muster General',
     cost: 5,
     epic: true,
@@ -2832,6 +2895,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_delayed_duplication',
+    tribes: ['beast'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Delayed Duplication',
     cost: 5,
     epic: true,
@@ -2840,6 +2904,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_ascension',
+    tribes: ['dragon'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Ascension',
     cost: 5,
     epic: true,
@@ -2896,6 +2961,7 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_bottomless_portrait',
+    tribes: ['demon'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Bottomless Portrait',
     cost: 5,
     epic: true,
@@ -3092,6 +3158,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     // No `tribes` gate: "Get a Handy Flame" names no tribe (the sheet tagged Spirit; the token pays off any hand minion).
     id: 'rune_handy_flame',
+    tribes: ['spirit'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Handy Flame',
     cost: 5,
     epic: true,
@@ -3325,6 +3392,7 @@ export const ARCHIVED_RUNES: RuneDef[] = [
   {
     // ARCHIVED 2026-08-18 (owner) alongside Prismcaster (k_prismcaster).
     id: 'rune_battle_refraction',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Battle Refraction',
     cost: 6,
     text: 'Your **Prismcasters** also repeat **Rubies** played during combat.',
@@ -3425,6 +3493,7 @@ export const ARCHIVED_RUNES: RuneDef[] = [
   },
   {
     id: 'rune_brokerage',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of the Brokerage',
     cost: 2,
     epic: true,

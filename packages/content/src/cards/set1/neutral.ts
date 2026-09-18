@@ -111,8 +111,8 @@ export const NEUTRAL: CardDef[] = [
     name: 'Drakko', // 'Drakko the Drummer' until 2026-09-09 (owner: rename for all sets; id unchanged)
     tribe: 'neutral',
     tier: 5,
-    attack: 2,
-    health: 4,
+    attack: 3,
+    health: 5,
     keywords: [],
     effects: [],
     // "twice" — a MULTIPLIER (owner 2026-08-28). Two Drakkos are still twice; Drakko × a different
@@ -143,8 +143,8 @@ export const NEUTRAL: CardDef[] = [
     name: 'Chronos',
     tribe: 'neutral',
     tier: 5,
-    attack: 1,
-    health: 6,
+    attack: 5,
+    health: 7,
     keywords: [],
     effects: [],
     // "twice" — a MULTIPLIER, same family of wording as Drakko.
@@ -367,8 +367,8 @@ export const NEUTRAL: CardDef[] = [
     name: 'Wayfinder',
     tribe: 'neutral',
     tier: 4,
-    attack: 3,
-    health: 1,
+    attack: 4,
+    health: 2,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryDiscoverMinion', params: { tribe: 'uncontrolled' } }],
     text: "**Battlecry:** Discover a minion from a tribe you don't control.",

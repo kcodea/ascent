@@ -42,6 +42,7 @@ const SPECS: Record<keyof BuffFxConfig, [string, TunerUnit | undefined, string, 
   sparkLife:      ['Lifetime', 'ms', 'How long one spark lasts.', 'Sparks'],
 
   spiritSfxOffsetMs: ['Spirit cue offset', 'ms', 'When the Spirit tendril sound fires, relative to its landing BURST going off on the minion: 0 = with the burst, negative = ahead of it, positive = after. One cue per minion hit.', 'Sound'],
+  undeadAuraSfxGapMs: ['Undead Aura sound gap', 'ms', 'Two Undead Aura cues closer together than this collapse into one sound; further apart they overlap. Small = bursts in the same few frames only.', 'Sound'],
   spiritHitStaggerMs: ['Spirit hit stagger', 'ms', 'Gap between one Spirit ribbon and the next in the same burst — each minion hit launches this much after the previous one, and its sound and number follow its own ribbon. 0 = all at once.', 'Sound'],
 };
 
@@ -51,7 +52,7 @@ const ORDER: (keyof BuffFxConfig)[] = [
   'startHeight', 'dropMs', 'retractMs', 'baseWidth', 'tipWidth', 'coreAlpha',
   'ringCount', 'ringSize', 'ringWidth', 'ringMs', 'coreFlashSize', 'coreFlashMs',
   'sparkCount', 'sparkSpeed', 'sparkSize', 'sparkLife',
-  'spiritSfxOffsetMs', 'spiritHitStaggerMs',
+  'spiritSfxOffsetMs', 'spiritHitStaggerMs', 'undeadAuraSfxGapMs',
 ];
 
 const controls: TunerControl<Extract<keyof BuffFxConfig, string>>[] = ORDER.map((key) => {

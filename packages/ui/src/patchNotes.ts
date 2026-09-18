@@ -56,6 +56,33 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-18',
+    label: 'Bicycle Bob, Robinson & Adeptus',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'The Undead Aura sound can overlap itself again when rises come a few tenths of a second apart; only a burst inside the same few frames collapses into one sound (tunable in the Buff tuner). Rising Tide gets its new portrait.',
+      },
+      {
+        category: 'New Card',
+        text: 'Bicycle Bob joins the Undead: a Tier 4 3/9 that gives a random other Undead +1/+1 whenever a summoned minion does not fit — and the gift improves by +1/+1 for every Undead you played this turn.',
+        details: [
+          'Fires in the shop and in combat, and the buff is permanent either way.',
+          'Play two Undead this turn and each overflow hands out +3/+3; a gilded Ben doubles it.',
+          'Ben never buffs himself. The card prints the current grant in the shop, in your hand and in combat.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Robinson is now Tier 4 and a 5/7 (was Tier 3, 3/6).',
+      },
+      {
+        category: 'Card Change',
+        text: "Adeptus is now Tier 4, and its Echo gives your Shop spells +1/+1 (was +1 Attack only). Gilded: +2/+2.",
+      },
+    ],
+  },
+  {
+    date: '2026-09-18',
     label: 'Kobold, Undead & Neutral reworks',
     changes: [
       {

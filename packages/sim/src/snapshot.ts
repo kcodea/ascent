@@ -16,7 +16,7 @@ import { CARD_INDEX } from '@game/content';
 import { HEROES } from './heroes';
 import { createRun, type Action, type RunState, type ShopCard, type RunMode } from './state';
 import { reduce, questCombatMods } from './reducer';
-import { defIsTribe, handCardLocked, spellAttackBonus, spellHealthBonus, spiritsPlayedThisTurn } from './recruit';
+import { handCardLocked, spellAttackBonus, spellHealthBonus, tribesPlayedThisTurn } from './recruit';
 import type { ThreatId } from './threats';
 
 /** Where a pool board came from. 'self' = your own captured run; 'friend' = a friend's imported board;
@@ -143,6 +143,10 @@ export interface BoardSnapshot {
    *  shared Reveler value (display-only). Both were dropped before the 2026-09-10 parity pass. */
   spiritsPlayed?: number;
   revelerX?: number;
+  /** Cards played on the capture turn, PER TRIBE (all-types cards count for every tribe) — the general channel
+   *  behind `beastsPlayed` / `spiritsPlayed` (a served Bicycle Bob's Undead count, 2026-09-18). Both legacy
+   *  scalars are still written so an older build reads the capture unchanged. */
+  tribesPlayed?: Partial<Record<Tribe, number>>;
   /** Minions in the owner's hand at capture, with live stats (Rope Wrangler / Water Dragon reach into it). */
   handMinions?: { uid: string; cardId: string; attack: number; health: number; keywords: Keyword[]; golden: boolean; locked?: true }[];
   /** Set 2 — Elderhorn's chosen mode(s): extra fires for the owner's Beast triggers. */
@@ -298,14 +302,15 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
   // are a declared derivation pair (docbot/derivations.test.ts): when they disagree, a served board's Pack
   // Leader fights weaker than its owner's did. The raw compare here missed all-types minions after the reducer
   // was fixed (#1216) — exactly the drift the pair-test now pins.
-  const beastsPlayed = (s.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], 'beast')).length;
+  const tribesPlayed = tribesPlayedThisTurn(s); // ONE per-tribe map (2026-09-18); the two legacy scalars are read off it
+  const beastsPlayed = tribesPlayed.beast ?? 0;
   // Active reward trophies — the same set the player sees in their own badges (completed quests + owned runes).
   const quests = (s.activeQuests ?? []).filter((q) => q.completed).map((q) => q.questId);
   const runes = [...(s.ownedRunes ?? [])];
   // The owner's HAND, split the same way the reducer splits it for the player side: spell ids in hand order
   // (Vault Curator) and minions with live stats (Rope Wrangler / Water Dragon).
   const handSpellIds = s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell).map((c) => c.cardId);
-  const spiritsPlayed = spiritsPlayedThisTurn(s);
+  const spiritsPlayed = tribesPlayed.spirit ?? 0;
   const handMinions = s.hand
     .filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; })
     .map((c) => ({ uid: c.uid, cardId: c.cardId, attack: c.attack, health: c.health, keywords: [...c.keywords], golden: c.golden, ...(handCardLocked(s, c) ? { locked: true as const } : {}) }));
@@ -357,6 +362,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(s.growthBonus ? { growthBonus: s.growthBonus } : {}),
     ...(s.rubyCasts ? { rubyCasts: s.rubyCasts } : {}),
     ...(spiritsPlayed ? { spiritsPlayed } : {}),
+    ...(Object.keys(tribesPlayed).length ? { tribesPlayed } : {}),
     ...(s.revelerX ? { revelerX: s.revelerX } : {}),
     ...(handMinions.length ? { handMinions } : {}),
     ...(s.beastHuntExtra ? { beastHuntExtra: s.beastHuntExtra } : {}),

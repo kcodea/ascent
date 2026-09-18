@@ -308,6 +308,12 @@ const JOBS: Job[] = [
     dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,
   },
   {
+    // The rune-exclusive tokens (Handy Flame, Feasting Bogrot, ...) — the owner keeps their masters beside the rune
+    // emblems (owner ask 2026-09-18). Same strict name match into the minion slot.
+    label: 'rune-reward minions', src: 'C:/Game Assets/Ascent Art/Runes/Special Rune Rewards',
+    dirs: ['.'], dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,
+  },
+  {
     // Quest-reward minions are authored in their own folder but are still MINION art — same destination.
     label: 'quest-reward minions', src: 'C:/Game Assets/Ascent Art/Quests/Quest Reward Related Things',
     dirs: ['.'], dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,

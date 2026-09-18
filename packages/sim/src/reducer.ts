@@ -27,7 +27,7 @@ import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacks
 import { spellFizzles } from './spellFizzle';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
 import { syncStarDestroyer, overchargeFree } from './equipment';
-import { fireOnBuyWatchers } from './recruit';
+import { fireOnBuyWatchers, tribesPlayedThisTurn } from './recruit';
 import { MATCHMAKING } from './matchmaking';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -4169,8 +4169,10 @@ function preparePlayerCombatSide(s: RunState): PreparedCombatSide {
   // below. Odds: re-simulate the same two boards on independent seeds (a separate ODDS stream, so they're
   // reproducible and don't disturb the real combat RNG). ~1000 sims keeps the margin to ~±1.5%.
   // Pack Leader: Beasts you PLAYED this turn (frozen for combat), threaded into simulate like spellsThisTurn.
-  const beastsPlayed = (s.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], 'beast')).length;
-  const spiritsPlayed = (s.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], 'spirit')).length; // Kindled Sprite
+  // ONE per-tribe map (2026-09-18, Bicycle Bob): the Beast and Spirit scalars are read off it, never re-counted.
+  const tribesPlayed = tribesPlayedThisTurn(s);
+  const beastsPlayed = tribesPlayed.beast ?? 0;
+  const spiritsPlayed = tribesPlayed.spirit ?? 0; // Kindled Sprite
   // The PLAYER side's run-level combat context — one symmetric `CombatSideState`, built once from the live
   // RunState and shared by the real fight + the 1000-sim odds probe.
   const playerState: CombatSideState = combatSide({
@@ -4198,6 +4200,7 @@ function preparePlayerCombatSide(s: RunState): PreparedCombatSide {
     beastBuyAtk: s.beastBuyAtk ?? 0,
     beastsPlayed,
     spiritsPlayed,
+    tribesPlayed,
     cardsBoughtThisTurn: s.cardsBoughtThisTurn ?? 0,
     magneticAtk: s.magneticBuyAtk ?? 0,
     magneticHp: s.magneticBuyHp ?? 0,

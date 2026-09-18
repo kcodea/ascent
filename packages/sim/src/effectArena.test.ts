@@ -71,6 +71,7 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     logSpellProgress: () => {},
     logImprove: () => {},
     spellsThisTurn: () => 0,
+    playedThisTurn: () => 0,
     grantRandomFromPool: () => {},
     grantNamedCard: () => {},
     handMinions: () => [],

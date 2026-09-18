@@ -70,6 +70,7 @@ export function enemyScalersOf(e: CombatSideState): EnemyScalers | undefined {
     spellsCast: e.spellsCast ?? 0,
     rubyCasts: e.rubyCasts ?? 0,
     spiritsPlayed: e.spiritsPlayed ?? 0,
+    tribesPlayed: e.tribesPlayed ?? {},
     revelerX: e.revelerX ?? 0,
     impAura: { attack: e.impAtk, health: e.impHp },
     fodderConsumed: { attack: e.fodderConsumedAtk, health: e.fodderConsumedHp },
@@ -84,7 +85,7 @@ export function enemyScalersOf(e: CombatSideState): EnemyScalers | undefined {
   };
   const pair = (p: { attack: number; health: number }): boolean => !!(p.attack || p.health);
   const any = pair(out.spellPower) || out.spellsThisTurn > 0 || out.beastsPlayed > 0 || out.deathrattles > 0 || out.conductorBuff > 0
-    || out.spellsCast > 0 || out.rubyCasts > 0 || out.spiritsPlayed > 0 || out.revelerX > 0
+    || out.spellsCast > 0 || out.rubyCasts > 0 || out.spiritsPlayed > 0 || out.revelerX > 0 || Object.values(out.tribesPlayed).some((n) => (n ?? 0) > 0)
     || pair(out.impAura) || pair(out.fodderConsumed) || out.undeadBuyAtk > 0 || Object.keys(out.cardBuffs).length > 0
     || out.alesLastTurn > 0 || !!out.lastSpellCastId || out.rememberedSpellIds.length > 0 || pair(out.spellEscalation)
     || out.growthBonus > 0 || pair(out.rubyBonus);
@@ -816,6 +817,9 @@ export function simulate(
     },
     beastsPlayedFor: (side) => (side === 'player' ? playerState.beastsPlayed : enemyBeastsPlayed),
     spiritsPlayedFor: (side) => (side === 'player' ? playerState.spiritsPlayed : (enemyState.spiritsPlayed ?? 0)),
+    // The per-tribe channel (2026-09-18). `combatSide()` reconciles the map with the legacy scalars, so a side built
+    // from `{ spiritsPlayed: 2 }` answers 2 here for 'spirit' exactly as `spiritsPlayedFor` does.
+    playedThisTurnFor: (side, tribe) => (side === 'player' ? playerState : enemyState).tribesPlayed?.[tribe] ?? 0,
     cardsBoughtThisTurnFor: (side) => (side === 'player' ? playerState.cardsBoughtThisTurn : enemyState.cardsBoughtThisTurn),
     fodderConsumedFor: (side) => (side === 'player'
       ? { attack: playerState.fodderConsumedAtk, health: playerState.fodderConsumedHp }

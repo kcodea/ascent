@@ -33,13 +33,13 @@ describe('aggregate (synthetic fixture)', () => {
     expect(heroes).toMatchInlineSnapshot(`
       [
         "drakko:30:3.73",
-        "fibbsy:30:4.73",
-        "gorr:30:4.90",
-        "harlan:30:5.27",
-        "midas:30:4.87",
-        "nadja:30:4.07",
-        "pete:30:4.03",
-        "warden:30:4.40",
+        "fibbsy:30:4.53",
+        "gorr:30:4.77",
+        "harlan:30:5.57",
+        "midas:30:4.67",
+        "nadja:30:4.17",
+        "pete:30:4.13",
+        "warden:30:4.43",
       ]
     `);
     expect(agg.minions.length).toBeGreaterThan(50);

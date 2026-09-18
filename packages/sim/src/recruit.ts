@@ -1,4 +1,4 @@
-import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { ALE_IDS, TRIBES, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer } from './equipment';
@@ -167,6 +167,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     logSpellProgress: () => {}, // the live countdown re-derives from the instance field in the shop
     logImprove: () => {},
     spellsThisTurn: () => state.spellsThisTurn,
+    playedThisTurn: (tribe) => playedThisTurnFor(state, tribe as Tribe),
     grantNamedCard: (cardId, count) => {
       const def = CARD_INDEX[cardId];
       if (def) conjureToHand(state, [def], count);
@@ -4350,6 +4351,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Squatimus (shop half): a shop summon that found no room → your minions +a/+h. A shop buff is permanent. */
   overflowBuffAllPermanent: (ctx, self, params) => {
     ARENA_EFFECTS.overflowBuffAllPermanent(shopArena(ctx.state, self), params);
+  },
+
+  /** Bicycle Bob (shop half): a shop summon that found no room → a random OTHER friendly <tribe> gains the printed
+   *  buff × (1 + <tribe> played this turn). A shop buff is permanent. One body in arena.ts serves both phases. */
+  overflowBuffRandomTribePerPlayed: (ctx, self, params) => {
+    ARENA_EFFECTS.overflowBuffRandomTribePerPlayed(shopArena(ctx.state, self), params);
   },
 
   /** Cage Breaker (Shout, aimed): DESTROY a friendly <tribe> — the two-step death Graverobber uses, so its Echo,
@@ -11992,9 +11999,30 @@ export function revelerValue(state: Pick<RunState, 'revelerX'>): number {
   return Math.max(1, state.revelerX ?? 1);
 }
 
-/** Spirits played from hand this turn — derived from the turn's play list, so it resets with it. */
+/**
+ * Cards of `tribe` played from hand this turn — THE one counting function (2026-09-18): through the shared tribe
+ * predicate (an all-types card counts for every tribe), derived from the turn's play list so it resets with it.
+ * `spiritsPlayedThisTurn`, the reducer's per-side combat map (`tribesPlayedThisTurn`) and the shop arena's
+ * `playedThisTurn(tribe)` all read this — never a second filter.
+ */
+export function playedThisTurnFor(state: Pick<RunState, 'playedThisTurn'>, tribe: Tribe): number {
+  return (state.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], tribe)).length;
+}
+
+/** The per-tribe map of cards played this turn — what `CombatSideState.tribesPlayed` freezes at combat start
+ *  (read in combat via `ctx.playedThisTurnFor`). Tribes at 0 are omitted so a plain turn stays `{}`. */
+export function tribesPlayedThisTurn(state: Pick<RunState, 'playedThisTurn'>): Partial<Record<Tribe, number>> {
+  const out: Partial<Record<Tribe, number>> = {};
+  for (const tribe of TRIBES) {
+    const n = playedThisTurnFor(state, tribe);
+    if (n > 0) out[tribe] = n;
+  }
+  return out;
+}
+
+/** Spirits played from hand this turn — `playedThisTurnFor(state, 'spirit')`. */
 export function spiritsPlayedThisTurn(state: Pick<RunState, 'playedThisTurn'>): number {
-  return (state.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], 'spirit')).length;
+  return playedThisTurnFor(state, 'spirit');
 }
 
 /** `count` random picks from `pool` (no repeats), drawn off the run cursor so a replay lands the same picks. */

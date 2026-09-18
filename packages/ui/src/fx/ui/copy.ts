@@ -91,7 +91,7 @@ export const ANCHOR_PART_COPY: Record<FxAnchorPart, FxCopy> = {
   card: { label: 'Card centre', blurb: 'The middle of the card — the default, and what every anchor meant before parts existed.' },
   'badge.attack': { label: 'Attack badge', blurb: 'The attack stat badge in the card\'s corner.' },
   'badge.health': { label: 'Health badge', blurb: 'The health stat badge in the card\'s corner.' },
-  medallion: { label: 'Medallion', blurb: 'The round tribe plate (falls back to the card centre on cards without one).' },
+  medallion: { label: 'Medallion', blurb: 'The round mechanic gem at the card\'s base — the one a Shout/Rally pulses (falls back to the card centre on cards without one).' },
   tier: { label: 'Tier badge', blurb: 'The tier stars plaque at the top of the card.' },
   top: { label: 'Top edge', blurb: 'The middle of the card\'s top edge — for things that rise out of it.' },
   bottom: { label: 'Bottom edge', blurb: 'The middle of the card\'s bottom edge — for things that pool beneath it.' },

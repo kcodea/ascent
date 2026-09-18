@@ -74,11 +74,11 @@ export function StageCard({ actor, selected, onSelect, onPointerDownDrag }: Stag
         <span className="plate" aria-hidden="true" />
         <span className="value">{actor.hp}</span>
       </span>
-      {/* The tribe plate ("medallion") and tier badge — inert decoys carrying the SAME class names as
+      {/* The trigger medallion (`.cgem`) and tier badge — inert decoys carrying the SAME class names as
           `Card.tsx`, so a layer anchored to one of those PARTS (see `anchorParts.ts`) previews on the stage
           about where it lands on a real card. Placed by the `.fxwb-stagecard` rules in styles.css, since the
           real rules hang off `.card.compact` / `.card.plated`, which this mock deliberately isn't. */}
-      <span className="plate-tribe" aria-hidden="true" />
+      <span className="cgem" aria-hidden="true" />
       <span className="tierbadge" aria-hidden="true" />
     </div>
   );

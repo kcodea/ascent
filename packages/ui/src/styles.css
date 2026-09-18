@@ -6719,7 +6719,7 @@ body:has(.book-ov) .cardref { z-index: 490; }
 .book-gloss:hover { transform: translateY(-2px); border-color: var(--acc); }
 .book-gloss.on { background: var(--acc); color: #fff; border-color: var(--acc-dk); box-shadow: 0 3px 0 var(--acc-dk); }
 /* Search box in the compendium header — becomes the right-side pusher; the Glossary/Gilded buttons flow after it. */
-.book-search { margin-left: auto; height: 38px; width: min(240px, 28vw); padding: 0 14px; border-radius: 11px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink); font-family: var(--font-body), sans-serif; font-weight: 600; font-size: 14px; }
+.book-search { margin-left: auto; height: 38px; width: min(240px, 28vw); padding: 0 14px; border-radius: 11px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); /* the rail chips' grey/black, not the orange ink (owner 2026-09-18) */ font-family: var(--font-body), sans-serif; font-weight: 600; font-size: 14px; }
 .book-search:focus { outline: none; border-color: var(--acc); }
 .book-search::placeholder { color: var(--ink3); }
 .book-search ~ .book-gloss, .book-search ~ .book-gilded { margin-left: 12px; }

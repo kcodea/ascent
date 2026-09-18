@@ -56,6 +56,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-18',
+    label: 'Bloodpot on Frank; Compendium search',
+    changes: [
+      { category: 'Card Change', text: 'Alchemist Frank can Bloodpot himself again — Bloodpot is the one Equipment exempt from the "no card targets itself" rule.' },
+      { category: 'Card Change', text: 'Picksy moves to Tier 5.' },
+      { category: 'Card Change', text: "Comet (Cometius) and Nimbus: 'your next spell casts N additional times' now reaches every spell — a Clue or a Ruby cast next is repeated too, and its ×N badge shows the real count." },
+      { category: 'UI / Info', text: 'Compendium: a search now drills down by the tribe (or Spells / Gifts) you have lit in the left rail — search "equip", then pick Kobolds. The search box reads in the same grey as the rail.' },
+    ],
+  },
+  {
+    date: '2026-09-18',
     label: 'Kobold, Undead & Neutral reworks',
     changes: [
       {

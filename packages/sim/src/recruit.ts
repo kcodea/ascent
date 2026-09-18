@@ -1349,7 +1349,19 @@ export function rubyCastCount(state: RunState): number {
   // First-N gate: `rubyCastsThisTurn` counts Ruby PLAYS (not resolved casts — a doubled first Ruby must not
   // eat the second slot of Resonance's 2-Ruby window), reset each turn.
   if ((state.rubyCastsThisTurn ?? 0) < (state.rubyFirstCastWindow ?? 1)) extra += state.rubyFirstExtraCasts ?? 0;
-  return (1 + extra) * grimoireMultActive(state);
+  // Comet / Nimbus: "your NEXT SPELL casts N additional times" — a Ruby is a spell (owner 2026-09-18: "this effect
+  // says spell, which means ALL spells should count"). Added last, like `spellCasts` adds it, and spent by the
+  // Ruby cast site the same way the Shop-spell sites spend it.
+  return (1 + extra) * grimoireMultActive(state) + (state.nextSpellExtraCasts ?? 0);
+}
+
+/** How many times a GIFT-class hand spell resolves. A Gift resolves exactly once (owner design 2026-08-26) — except a
+ *  card-minted TARGETED hand spell (`giftMulticast`: Clue, Tower Shield), which the "next spell" charges reach:
+ *  Yazzus ("your targeted spells", 2026-09-09) and Comet / Nimbus ("your next spell" — a Clue is a spell, owner
+ *  2026-09-18). Side-effect free; shared by the reducer's gift cast site and the UI's ×N badge so they never drift. */
+export function giftCastCount(state: Pick<RunState, 'board' | 'nextSpellExtraCasts'>, def: Pick<CardDef, 'giftMulticast'>, aimed: boolean): number {
+  if (!def.giftMulticast || !aimed) return 1;
+  return 1 + yazzusExtraCasts(state as RunState) + (state.nextSpellExtraCasts ?? 0);
 }
 
 export function spellCasts(state: RunState, def: CardDef, card?: Pick<BoardCard, 'extraCasts'>): number {

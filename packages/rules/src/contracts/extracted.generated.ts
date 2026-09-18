@@ -15839,12 +15839,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "setIds": [
       "set3"
     ],
-    "tier": 6,
+    "tier": 5,
     "tribes": [
       "kobold"
     ],
     "tags": [
-      "tier:6"
+      "tier:5"
     ],
     "triggers": [
       {

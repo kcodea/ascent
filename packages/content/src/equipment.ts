@@ -36,6 +36,9 @@ export interface EquipmentDefinition {
   /** Gold to activate. Cost reductions apply on top; the floor is 0. */
   baseCost: number;
   targetMode: EquipmentTargetMode;
+  /** R-TARGET-03 EXEMPTION (owner 2026-09-18: "Bloodpot should be usable on Alchemist Frank"): a friendly-aimed
+   *  Equipment that MAY land on the body that granted it. Default (absent) = never its own body. */
+  mayTargetSelf?: true;
   /** The recruit factory that resolves one TRIGGER of this Equipment. */
   effectId: string;
   /** Params for `effectId`. A Gilded source uses `gildedParams` when present. */
@@ -105,6 +108,7 @@ export const BLOODPOT: EquipmentDefinition = {
   goldenText: 'Give a friendly minion **+6/+6**.',
   baseCost: 1,
   targetMode: 'friendly',
+  mayTargetSelf: true, // owner 2026-09-18: Frank may Bloodpot himself
   effectId: 'equipmentBuffTarget',
   params: { attack: 3, health: 3 },
   gildedParams: { attack: 6, health: 6 },

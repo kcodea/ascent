@@ -76,7 +76,6 @@ const ART_PENDING = new Set<string>([
   // Set 3 batch 2 (2026-09-16): the Skeleton token Rune of the Endless March summons — art owed.
   'u3_skeleton',
   // SET 3 NEUTRALS (2026-09-18): Rig shipped with no master (Shredder + Calibration Master landed with theirs).
-  'n3_rig',
 ]);
 
 describe('art coverage for live cards', () => {

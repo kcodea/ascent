@@ -53,7 +53,7 @@ const EPIC: [string, number, string[] | undefined][] = [
   ['rune_meteor_shower', 2, ['celestial']], ['rune_astral_refrain', 5, undefined], ['rune_astral_draft', 6, undefined],
   ['rune_dream_mirror', 5, undefined], ['rune_waking_dreams', 5, undefined], ['rune_shared_revelry', 5, ['spirit']],
   ['rune_grand_procession', 6, ['spirit']], ['rune_festival_circuit', 5, ['spirit', 'celestial']],
-  ['rune_spirit_crown', 6, ['spirit']], ['rune_handy_flame', 5, undefined],
+  ['rune_spirit_crown', 6, ['spirit']], ['rune_handy_flame', 5, ['spirit']], // Handy Flame is a Spirit body → gated (tag pass 2026-09-18)
 ];
 
 describe('tranche A — pool membership, cost, scope and tribe gates', () => {

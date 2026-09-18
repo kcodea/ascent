@@ -356,7 +356,7 @@ describe('rule 5 — BUYING it = your LEFT-MOST Celestial consumes it (full stat
     expect(s.hand.length, 'nothing entered the hand').toBe(hand);
     expect(s.pool, 'nothing returned').toEqual(pool);
     const c1 = s.board.find((c) => c.uid === 'c1')!, c2 = s.board.find((c) => c.uid === 'c2')!;
-    expect([c1.attack, c1.health], 'the LEFT-most Celestial — the sandbag at index 0 is skipped').toEqual([1 + 5, 1 + 7]);
+    expect([c1.attack, c1.health], 'the LEFT-most Celestial — the sandbag at index 0 is skipped').toEqual([2 + 5, 1 + 7]); // Cosmo Express 2/1 since 2026-09-18
     expect(c1.buffs?.find((b) => b.source === 'Starform')).toMatchObject({ attack: 5, health: 7 });
     expect([c2.attack, c2.health], 'the second Celestial gets nothing').toEqual([2, 4]);
     expect(s.board[0]!.attack, 'the non-Celestial is untouched').toBe(0);
@@ -368,11 +368,11 @@ describe('rule 5 — BUYING it = your LEFT-MOST Celestial consumes it (full stat
     let one = runOpen({ board: [body('c', 'ce3_courier')] });
     buffStarform(one, 2, 2, 'test'); createStarform(one, SRC); buffStarform(one, 2, 2, 'test');
     one = act(one, { type: 'buy', uid: starformOf(one)!.uid });
-    expect([one.board[0]!.attack, one.board[0]!.health]).toEqual([1 + 3, 1 + 3]);
+    expect([one.board[0]!.attack, one.board[0]!.health]).toEqual([2 + 3, 1 + 3]); // Cosmo Express 2/1 since 2026-09-18
     let three = runOpen({ board: [body('a', 'ce3_courier'), body('b', 'ce3_vendor'), body('c', 'ce3_seer')] }); // three DIFFERENT Celestials (three of a kind would triple)
     createStarform(three, SRC); buffStarform(three, 9, 9, 'test');
     three = act(three, { type: 'buy', uid: starformOf(three)!.uid });
-    expect(three.board.map((c) => c.attack)).toEqual([11, 2, 3]);
+    expect(three.board.map((c) => c.attack)).toEqual([12, 2, 0]); // Cosmo Express 2/1 + Gravestar Seer 0/8 since 2026-09-18
   });
 
   it('NO Celestial on board: the Gold is still taken, the token is lost (stats go nowhere), and the watcher hears reason consume — so a Zenith still re-creates', () => {
@@ -415,7 +415,7 @@ describe('rule 5 — BUYING it = your LEFT-MOST Celestial consumes it (full stat
     const eater = s.board[0]!;
     expect(consumeShopMinion(s, eater, rightmostShopMinion(s))).toBe(true);
     expect(hasStarform(s)).toBe(false);
-    expect([eater.attack, eater.health]).toEqual([1 + 5, 1 + 5]);
+    expect([eater.attack, eater.health]).toEqual([2 + 5, 1 + 5]); // Cosmo Express 2/1 since 2026-09-18
     expect(s.board[1]!.attack, 'starformRemoved(consume)').toBe(2 + 5);
     expect(holdsEquipment(s, STAR_DESTROYER.id), 'the Star Destroyer left with it').toBe(false);
   });

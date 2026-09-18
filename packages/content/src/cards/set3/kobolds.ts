@@ -91,7 +91,7 @@ export const SET3_KOBOLDS: CardDef[] = [
     name: 'Delver', // 'Veinchant Delver' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'kobold',
     tier: 3,
-    attack: 3,
+    attack: 5,
     health: 3,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'veinstorm' } }],
@@ -105,7 +105,7 @@ export const SET3_KOBOLDS: CardDef[] = [
     name: 'Jewel',
     tribe: 'kobold',
     tier: 4,
-    attack: 4,
+    attack: 5,
     health: 5,
     keywords: [],
     effects: [],
@@ -131,8 +131,8 @@ export const SET3_KOBOLDS: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'blast_pump' } }],
-    text: '**Equip Blast Pump (1):** Cast **2 Rubies** on your minions.',
-    goldenText: '**Equip Blast Pump (1):** Cast **4 Rubies** on your minions.',
+    text: '**Equip Blast Pump (2):** Cast **2 Rubies** on your minions.',
+    goldenText: '**Equip Blast Pump (2):** Cast **4 Rubies** on your minions.',
   },
   {
     // Owner rework 2026-08-30: the left branch is a WARDING RUBY (the set-2 token that also grants Ward),
@@ -202,8 +202,8 @@ export const SET3_KOBOLDS: CardDef[] = [
     name: 'Double Dealer', // 'Dealer' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'kobold',
     tier: 4,
-    attack: 4,
-    health: 3,
+    attack: 6,
+    health: 6,
     keywords: [],
     // BOTH hooks, and that pairing is the card (owner ruling 2026-08-31). `onPlay` arms her the moment she
     // arrives — a Dealer bought mid-turn used to sit inert until the next turn — and `startOfTurn` re-arms
@@ -269,8 +269,8 @@ export const SET3_KOBOLDS: CardDef[] = [
     health: 8,
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'prismatic_pick' } }],
-    text: '**Equip Prismatic Pick (2): Choose One** — get a random **Choose One** card; or your next **Choose One** card this turn gains **both** effects.',
-    goldenText: '**Equip Prismatic Pick (2): Choose One** — get **2 random Choose One** cards; or your next **2 Choose One** cards this turn gain **both** effects.',
+    text: '**Equip Prismatic Pick (1): Choose One** — get a random **Choose One** card; or your next **Choose One** card this turn gains **both** effects.',
+    goldenText: '**Equip Prismatic Pick (1): Choose One** — get **2 random Choose One** cards; or your next **2 Choose One** cards this turn gain **both** effects.',
   },
   {
     // Set 3 — the SPELL-reactive Kobold. "Shop spell" is load-bearing (owner vocabulary rule): a Ruby is not

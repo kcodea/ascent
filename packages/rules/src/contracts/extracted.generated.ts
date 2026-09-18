@@ -20330,8 +20330,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set1",
-      "set3"
+      "set1"
     ],
     "tier": 3,
     "tribes": [
@@ -40249,8 +40248,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 4,
-            "health": 5
+            "attack": 3,
+            "health": 4
           }
         }
       }
@@ -40418,8 +40417,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 2,
-            "health": 2
+            "attack": 3,
+            "health": 4
           }
         }
       }

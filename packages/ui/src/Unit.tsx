@@ -76,7 +76,9 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         // Squirl Scout, rune flags) — those fall back to base text on the foe side, stats still right.
         frontToBackBonus: foe ? (enemyScalers?.spellEscalation.attack ?? 0) : run.frontToBackBonus,
         frontToBackBonusH: foe ? (enemyScalers?.spellEscalation.health ?? 0) : run.frontToBackBonusH,
-        spellsThisTurn, spellsCast: foe ? (enemyScalers?.spellsCast ?? 0) : run.spellsCast, deathrattlesTriggered: drTally,
+        // Vaultkeeper's umbrella ticks LIVE: the run's lifetime count + this side's casts so far THIS fight (the
+        // carry-back only lands on `run.spellsCast` at settle — owner report 2026-09-18).
+        spellsThisTurn, spellsCast: (foe ? (enemyScalers?.spellsCast ?? 0) : run.spellsCast) + (u.spellsCastCombat ?? 0), deathrattlesTriggered: drTally,
         rubyCasts: foe ? (enemyScalers?.rubyCasts ?? 0) : run.rubyCasts, // the Vaultkeeper umbrella — was never passed in combat, either side
         clingEnchant: foe ? enemyScalers?.cardBuffs.cling : run.cardBuffs?.cling,
         fodderConsumed: foe ? enemyScalers?.fodderConsumed : run.fodderConsumedThisTurn,
@@ -210,6 +212,7 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.u.ascendProgress === b.u.ascendProgress &&
   a.u.hpGrantBonus === b.u.hpGrantBonus &&
   a.u.spellProgress === b.u.spellProgress &&
+  a.u.spellsCastCombat === b.u.spellsCastCombat && // ticks only on a spellcast beat (rare) — Vaultkeeper's live umbrella
   a.u.spiritTally === b.u.spiritTally &&
   a.u.soldProgress === b.u.soldProgress &&
   a.u.boardFirstSpellId === b.u.boardFirstSpellId &&

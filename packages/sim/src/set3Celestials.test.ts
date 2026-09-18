@@ -44,7 +44,8 @@ const toHand = (events: readonly CombatEvent[]): string[] =>
 describe('the roster', () => {
   it('all eight are set-3 Celestials with the sheet tier / stats, appended after the Spirits', () => {
     const rows: [string, number, number, number][] = [
-      ['ce3_courier', 1, 1, 1], ['ce3_vendor', 2, 2, 4], ['ce3_seer', 3, 3, 3], ['ce3_conductor', 4, 4, 5],
+      // Cosmo Express 1/1 → 2/1 and Gravestar Seer 3/3 → 0/8 (owner stat pass 2026-09-18)
+      ['ce3_courier', 1, 2, 1], ['ce3_vendor', 2, 2, 4], ['ce3_seer', 3, 0, 8], ['ce3_conductor', 4, 4, 5],
       ['ce3_herald', 4, 4, 6], ['ce3_adept', 5, 5, 8], ['ce3_spellcore', 6, 7, 9], ['ce3_artificer', 6, 6, 10],
     ];
     const ids = poolFor('set3').buyable.map((c) => c.id);
@@ -246,16 +247,16 @@ describe('Astral Spellcore — every 3 Shop spells cast while it is on the board
   });
 });
 
-describe('Orrery Artificer — Equip Comet (4): your next spell casts 2 additional times', () => {
-  it('the play grants Comet; activating costs 4 and banks 2 extra casts, which the next spell spends', () => {
+describe('Orrery Artificer — Equip Comet (3): your next spell casts 2 additional times', () => {
+  it('the play grants Comet; activating costs 3 and banks 2 extra casts, which the next spell spends', () => {
     let s = run({ hand: [body('o', 'ce3_artificer'), spell('s', 'starcrash')] });
     s = play(s, 'o', { toIndex: 0 });
     expect(equipmentState(s).available.map((g) => g.equipmentId)).toContain('comet');
-    expect(EQUIPMENT_INDEX['comet']!.baseCost).toBe(4);
+    expect(EQUIPMENT_INDEX['comet']!.baseCost).toBe(3); // 4 → 3, owner balance pass 2026-09-18
     s = reduce(s, { type: 'selectEquipment', equipmentId: 'comet' } as Action);
     const gold = s.embers;
     s = reduce(s, { type: 'activateEquipment' } as Action);
-    expect(s.embers).toBe(gold - 4);
+    expect(s.embers).toBe(gold - 3); // Comet 4 → 3, owner balance pass 2026-09-18
     expect(s.nextSpellExtraCasts).toBe(2);
     const before = stats(at(s, 'o'));
     s = play(s, 's', { targetUid: 'o' });

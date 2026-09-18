@@ -21,7 +21,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     name: 'Cosmo Express', // 'Horizon Courier' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'celestial',
     tier: 1,
-    attack: 1,
+    attack: 2,
     health: 1,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleGrantRandomSpell', params: { count: 1 } }],
@@ -52,8 +52,8 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     tribe: 'celestial',
     tribe2: 'undead',
     tier: 3,
-    attack: 3,
-    health: 3,
+    attack: 0,
+    health: 8,
     keywords: [],
     effects: [{ on: 'spellCast', do: 'spellCastBuffSelf', params: { attack: 4, health: 0, includeRubies: true } }],
     text: 'Whenever you cast a spell, this gains **+4 Attack** permanently.',
@@ -133,8 +133,8 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     health: 10,
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'comet' } }],
-    text: '**Equip Comet (4):** your next spell casts **2** additional times.',
-    goldenText: '**Equip Comet (4):** your next spell casts **4** additional times.',
+    text: '**Equip Comet (3):** your next spell casts **2** additional times.',
+    goldenText: '**Equip Comet (3):** your next spell casts **4** additional times.',
   },
   {
     // THE STARFORM (owner design 2026-09-12) — a 1/1 Celestial TOKEN that lives IN THE SHOP as a shop offer, not
@@ -168,7 +168,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     tribe: 'celestial',
     tier: 1,
     attack: 2,
-    health: 1,
+    health: 2,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryCreateStarformOrBuff', params: { attack: 4, health: 4 } }], // +2/+2 until 2026-09-14
     text: '**Shout:** create a **Starform**. If you already have one, give it **+4/+4**.',
@@ -342,7 +342,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     tribe: 'celestial',
     tier: 5,
     attack: 5,
-    health: 9,
+    health: 5,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleGiveMaxStatsRandomTribe', params: { tribe: 'celestial' } }],
     text: "**Echo:** give a friendly Celestial this minion's stats.",
@@ -355,8 +355,8 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     name: 'Twinning', // 'Twin Star' until 2026-09-14 (owner rename; id + art unchanged)
     tribe: 'celestial',
     tier: 5, // T6 until 2026-09-14 (owner)
-    attack: 6,
-    health: 8,
+    attack: 4,
+    health: 7,
     keywords: [],
     effects: [{ on: 'starformGained', do: 'onStarformGainedBuffSelf' }],
     text: 'Whenever your **Starform** gains stats, this does, too.',

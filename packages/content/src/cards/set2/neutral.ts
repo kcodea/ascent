@@ -39,8 +39,8 @@ export const SET2_NEUTRAL: CardDef[] = [
     name: 'Bellringer Voss',
     tribe: 'neutral',
     tier: 4, // owner balance 2026-08-18: T5 → T4
-    attack: 2,
-    health: 3,
+    attack: 4,
+    health: 4,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'endOfTurnCopyNeighbour', params: { every: 2 } }],
     text: '**Every 2 turns:** get a plain copy of the minion to the **left**.',

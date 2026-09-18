@@ -55,6 +55,38 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-18',
+    label: 'Stat pass',
+    changes: [
+      {
+        category: 'Card Change',
+        text: 'A balance pass over 35 minions: most of the low-tier bodies got a little sturdier, a few late-game cards were trimmed, and Chronos finally has a body worth protecting.',
+        details: [
+          'Cosmo Express 2/1, Star Seed 2/2, Tidebud 2/3, Defender 3/2, Flame Reveler 4/3, Geode Guardian 3/3, Highway Hustler 3/4, Noggin 4/1, Seedling Spirit 2/4, Striker 3/3, Tide Reveler 3/4.',
+          'Brunni 3/2, Adeptus 5/1, Coinfire Forewoman 3/5, Delver 5/3, Footman Captain 4/1, Gravestar Seer 0/8, Halfsies 4/4.',
+          'Bellringer Voss 4/4, Blade Thrower 6/5, Blaster 8/2, Broad-Axe Brakka 5/3, Double Dealer 6/6, Gemheart Carver 6/5, Jewel 5/5, Jumpstart Jules 6/7, Uncle Orc 5/8, Wayfinder 4/2.',
+          'Billings 5/6, Chronos 5/7, Drakko 3/5, Edward Keg-hands 5/7, Lodestar 5/5, Tide Caller 6/5, Twinning 4/7.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Rising Tide and Squatimus now give +3/+4 (Rising Tide down from +4/+5, Squatimus up from +2/+2); Gilded doubles as before.',
+      },
+      {
+        category: 'Card Change',
+        text: 'Equipment costs retuned: Blast Pump 2, Coffin Flop 3, Deathfibrillator 3, Comet 3, Prismatic Pick 1.',
+        details: [
+          'Blast Pump 1 → 2 and Coffin Flop 2 → 3, Deathfibrillator 2 → 3 (a little more expensive).',
+          'Comet 4 → 3 and Prismatic Pick 2 → 1 (cheaper).',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Pillager no longer appears in the Set 3 shop (it still exists as a rune reward).',
+      },
+    ],
+  },
+  {
     date: '2026-09-17',
     label: 'Gamble joins Set 3',
     changes: [

@@ -158,7 +158,8 @@ const SET2_DWARVES_IN_SET3: readonly CardDef[] = SET2_DWARVES.filter((c) =>
 const SET2_ALES_IN_SET3: readonly CardDef[] = SET2_SPELLS.filter((c) => ALE_IDS.includes(c.id));
 
 /**
- * SET 1 UNDEAD that carry into SET 3 (owner roster 2026-09-09): eleven of set 1's Undead, opted in BY ID — shared
+ * SET 1 UNDEAD that carry into SET 3 (owner roster 2026-09-09): ten of set 1's Undead (eleven until Pillager left on
+ * 2026-09-18 — owner balance pass; it stays in set 1 and as a rune reward), opted in BY ID — shared
  * definitions. Set 1 is DISABLED, so the four the roster re-specced (Deathswarmer 0/3, Mumi T3 5/2, Sergeant →
  * Sergey, Anubis → "Anubis, Last Gate") were changed in place rather than forked (owner call 2026-09-09).
  * The set-1 Undead NOT on the roster (Sporeling, Karthus, Ryme, Grave Body, Cratering Hulk, Steadfast Champion,
@@ -168,7 +169,7 @@ const SET2_ALES_IN_SET3: readonly CardDef[] = SET2_SPELLS.filter((c) => ALE_IDS.
  */
 const SET1_UNDEAD_IN_SET3: readonly CardDef[] = [
   ...UNDEAD.filter((c) => [
-    'deathswarmer', 'knit', 'deathlesshand', 'mumi', 'pillager', 'soulsman', 'deathsayer', 'profgreg',
+    'deathswarmer', 'knit', 'deathlesshand', 'mumi', 'soulsman', 'deathsayer', 'profgreg',
     'sergeant', 'forsakenweaver', 'wolvesden',
   ].includes(c.id)),
   ...TIER7.filter((c) => c.id === 'anubis'),

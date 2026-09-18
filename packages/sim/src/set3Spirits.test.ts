@@ -46,7 +46,7 @@ describe('the Revelers share one value', () => {
     s = sell(s, 'f');
     expect(stats(at(s, 'k'))).toEqual([3 + 1, 1]);
     expect(stats(at(s, 'v')), 'Flame pays Spirits only').toEqual([1, 1]);
-    expect(stats(inHand(s, 'h')), 'the hand is NEVER paid (owner correction 2026-09-09)').toEqual([1, 3]);
+    expect(stats(inHand(s, 'h')), 'the hand is NEVER paid (owner correction 2026-09-09)').toEqual([2, 3]); // Tidebud 2/3 since 2026-09-18
     expect(revelerValue(s)).toBe(2);
     s = sell(s, 't');
     expect(stats(at(s, 'k'))).toEqual([4, 1 + 2]);

@@ -73,7 +73,7 @@ describe('Striker — End of Turn: adjacent minions +1 Attack per card played', 
     s = act(s, { type: 'faceOmen' });
     expect(at(s, 'l').attack - l0, 'left neighbour (neutral)').toBe(2);
     expect(at(s, 'r').attack - r0, 'right neighbour (Dwarf)').toBe(2);
-    expect(at(s, 'st').attack, 'never itself (Growth gave it +1, Striker gave it nothing)').toBe(2 + 1);
+    expect(at(s, 'st').attack, 'never itself (Growth gave it +1, Striker gave it nothing)').toBe(3 + 1); // Striker 3/3 since 2026-09-18
     expect(at(s, 'st').buffs?.some((b) => b.source === 'Striker')).toBeFalsy();
   });
   it('REPEATS per card played as separate instances — Kneel pays once per card (owner 2026-09-09)', () => {

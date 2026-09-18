@@ -123,7 +123,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // → 1242 (2026-09-17, the Rune of Gambling emblem: +1.)
     // → 1243 (2026-09-18, Grand Larceny's Gift art: +1 — the last artless Gift. Old Timber, Sylus, Branch
     // Manager and Jumpstart Jules were REPLACED in place from new masters at net 0.)
+    // → 1247 (2026-09-18, Han Gover's minion art: +1 — the new Set 3 Dwarf/Undead.)
     // → 1246 (2026-09-18, Bicycle Bob + Handy Flame token + Rune of the Handy Flame + Rune of the Open Hand: +4.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1247);
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1248);
   });
 });

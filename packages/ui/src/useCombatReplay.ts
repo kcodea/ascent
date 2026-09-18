@@ -166,6 +166,8 @@ export interface UnitFrame {
   spellsCastCombat?: number;
   /** Set 3 Spirits: the body's per-instance tally (Forest Colossus / Festival Keeper / Aspect live text). */
   spiritTally?: number;
+  /** Han Gover: total damage this body has dealt (seeded from the run card + this fight's landed hits). */
+  damageDealt?: number;
   /** Runic Archivist's sales owed / Spell Warden's first-spell record — display-only, so the combat card prints
    *  the same live text the shop does (parity pass 2026-09-10). */
   soldProgress?: number;
@@ -214,6 +216,7 @@ const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   ascendProgress: s.ascendProgress, // Tara: seed the ascend tracker from the run-board total, then count up
   spellProgress: s.spellProgress, // Guel: seed his on-board spell tally for the live combat text
   spiritTally: s.spiritTally, // Set 3 Spirits: the carried tally, so Forest Colossus / Keeper / Aspect print live in combat
+  damageDealt: s.damageDealt, // Han Gover: seed the damage meter from the run total, then count each landed hit it deals
   soldProgress: s.soldProgress, // Runic Archivist (display-only)
   boardFirstSpellId: s.boardFirstSpellId, // Spell Warden (display-only)
   eotBonus: s.eotBonus, // Ritualist: seed the per-tick grant so the combat text isn't stuck at base
@@ -337,6 +340,12 @@ export function computeFrame(
     if (e.type === 'dmg') {
       const u = find(e.target);
       if (u) u.health = e.remainingHp;
+      // Han Gover: its meter is the sum of every landed hit it dealt — the `dmg` events stamped with it as
+      // `source`, the same amounts the sim's `noteDamageDealt` added — on top of the seeded run total.
+      if (e.source) {
+        const src = find(e.source);
+        if (src?.cardId === 'dw3_hangover') src.damageDealt = (src.damageDealt ?? 0) + e.amount;
+      }
     } else if (e.type === 'shield') {
       const u = find(e.target);
       if (u) { u.divineShield = false; u.keywords = u.keywords.filter((k) => k !== 'DS'); }

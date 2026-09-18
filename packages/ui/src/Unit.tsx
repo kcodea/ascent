@@ -166,6 +166,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
       spellProgress: u.spellProgress, spiritTally: u.spiritTally, summonBonus: u.summonBonus,
       ascendProgress: u.ascendProgress, attackSeen: u.attackSeen,
       avengeSeen: u.avengeSeen, bleedAttacks: u.bleedAttacks,
+      damageDealt: u.damageDealt, // Han Gover: the N/40 damage meter ticks on each landed hit it deals
       // orbitTick deliberately absent: Orbits are a shop mechanic, no combat counter (audit 2026-08-06).
     }) ?? undefined,
     // Combat: the counter fades in on each tick and fades out after ~3s (see `.stepcounter.ephemeral`).
@@ -207,6 +208,7 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.u.golden === b.u.golden &&
   a.u.summonBonus === b.u.summonBonus &&
   a.u.attackSeen === b.u.attackSeen &&
+  a.u.damageDealt === b.u.damageDealt && // Han Gover: only its own hits move it, so this is a per-unit compare
   // avengeSeen only ticks on a death (a rare board-reflow beat) — cheap to compare, and it's what
   // restarts the avenge counter's fade-in. (bleedAttacks is the GLOBAL attack count stamped on every
   // unit every attack; comparing it here would re-render the whole board each beat — deliberately left

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { CARD_INDEX, EQUIPMENT_INDEX, SETS, poolFor } from '@game/content';
 import { createRun, reduce, equipmentUsesLeft, type Action, type BoardCard, type RunState } from './index';
+import { snapshotBoard } from './snapshot';
 
 /**
  * SET 3 — DWARVES (owner roster 2026-09-09). Eight new cards; the fourteen carried-over set-2 Dwarves are
@@ -28,7 +29,7 @@ const at = (s: RunState, uid: string): BoardCard => s.board.find((c) => c.uid ==
 
 describe('the roster', () => {
   it('every new Dwarf is a set-3 card, and Dwarf is a set-3 tribe', () => {
-    const ids = ['dw3_shiftbroker', 'dw3_striker', 'dw3_pourman', 'dw3_hankpepe', 'dw3_tromboneer', 'dw3_kneel', 'dw3_thymes', 'dw3_tankerchief'];
+    const ids = ['dw3_shiftbroker', 'dw3_striker', 'dw3_pourman', 'dw3_hankpepe', 'dw3_tromboneer', 'dw3_kneel', 'dw3_thymes', 'dw3_tankerchief', 'dw3_hangover'];
     const pool = poolFor('set3');
     for (const id of ids) expect(pool.buyable.some((c) => c.id === id), id).toBe(true);
     expect(SETS.set3.tribes).toContain('dwarf');
@@ -295,5 +296,100 @@ describe('Thymepiece — all cards cost 1 less Gold for the next 8 seconds (owne
     s = act(s, { type: 'settleCombat' });
     s = act(s, { type: 'resolveCombat' });
     expect(s.cardDiscountWindow).toBeUndefined();
+  });
+});
+
+describe('Han Gover — "When this deals 40 damage, get an Ale" (owner handoff 2026-09-18)', () => {
+  const ALES = ['wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack'];
+  const foe = (attack: number, health: number, keywords: string[] = []): BoardMinion =>
+    ({ cardId: 'sandbag', attack, health, keywords } as unknown as BoardMinion);
+  const gover = (over: Partial<BoardMinion> = {}): BoardMinion => {
+    const d = CARD_INDEX['dw3_hangover']!;
+    return { cardId: 'dw3_hangover', attack: d.attack, health: d.health, keywords: [], sourceUid: 'hg', ...over } as unknown as BoardMinion;
+  };
+  const fight = (board: BoardMinion[], foes: BoardMinion[]) =>
+    simulate(board, foes, makeRng(5), CARD_INDEX,
+      combatSide({ tier: 6, poolIds: poolFor('set3').all.map((c) => c.id) }), combatSide({ tier: 6 }));
+  const alesGranted = (r: ReturnType<typeof fight>) => (r.playerHandGrants ?? []).filter((id) => ALES.includes(id));
+  const toHandFromGover = (r: ReturnType<typeof fight>) =>
+    r.events.filter((e) => e.type === 'toHand' && (e as { source?: string }).source === r.initial.player[0]!.uid);
+
+  it('the card: T4 4/7 Dwarf/Undead, a passive marker, both texts', () => {
+    const d = CARD_INDEX['dw3_hangover']!;
+    expect([d.tier, d.attack, d.health, d.tribe, d.tribe2]).toEqual([4, 4, 7, 'dwarf', 'undead']);
+    expect(d.effects).toEqual([{ on: 'passive', do: 'dealtDamageAleMeter', params: { every: 40, count: 1 } }]);
+    expect(d.text).toContain('40 damage');
+    expect(d.goldenText).toContain('2 Ales');
+  });
+
+  it('39 damage → nothing; the tally still carries back', () => {
+    // 13 Attack into three 0/13 sandbags: three clean kills, 39 damage dealt, no threshold crossed.
+    const r = fight([gover({ attack: 13 })], [foe(0, 13), foe(0, 13), foe(0, 13)]);
+    expect(alesGranted(r)).toEqual([]);
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 39 }]);
+  });
+
+  it('40 damage → ONE Ale, flown to hand mid-fight (a `toHand` from Han Gover) and landed at settle', () => {
+    const r = fight([gover({ attack: 20 })], [foe(0, 20), foe(0, 20)]);
+    expect(alesGranted(r).length).toBe(1);
+    expect(toHandFromGover(r).length).toBe(1);
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 40 }]);
+    // The real settle: the Ale is in the hand and the meter persists on the run card.
+    let s = run({ phase: 'combat', board: [body('hg', 'dw3_hangover')], hand: [], lastCombat: r });
+    s = act(s, { type: 'settleCombat' });
+    expect(s.hand.filter((c) => ALES.includes(c.cardId)).length).toBe(1);
+    expect(at(s, 'hg').damageDealt).toBe(40);
+  });
+
+  it('overkill counts: a 20-Attack swing into a 1-Health body is 20 damage dealt', () => {
+    const r = fight([gover({ attack: 20 })], [foe(0, 1), foe(0, 1)]);
+    expect(alesGranted(r).length).toBe(1);
+  });
+
+  it('GILDED: each crossing pays TWO Ales, and nothing else doubles', () => {
+    const r = fight([gover({ attack: 20, golden: true })], [foe(0, 20), foe(0, 20)]);
+    expect(alesGranted(r).length).toBe(2);
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 40 }]);
+  });
+
+  it('the tally persists ACROSS combats: 43 after fight one (one Ale), 82 after fight two (a second Ale)', () => {
+    // Fight one: seeded at 30, deals 13 → 43, crosses 40 once.
+    const r1 = fight([gover({ attack: 13, damageDealt: 30 })], [foe(0, 13)]);
+    expect(alesGranted(r1).length).toBe(1);
+    let s = run({ phase: 'combat', board: [body('hg', 'dw3_hangover', { damageDealt: 30 })], hand: [], lastCombat: r1 });
+    s = act(s, { type: 'settleCombat' });
+    expect(at(s, 'hg').damageDealt).toBe(43);
+    expect(s.hand.filter((c) => ALES.includes(c.cardId)).length).toBe(1);
+    // Fight two, seeded from the run card exactly as the reducer seeds it: 43 + 39 = 82, crosses 80 once.
+    const r2 = fight([gover({ attack: 13, damageDealt: at(s, 'hg').damageDealt })], [foe(0, 13), foe(0, 13), foe(0, 13)]);
+    expect(alesGranted(r2).length).toBe(1);
+    expect(r2.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 82 }]);
+    s = act({ ...s, phase: 'combat', lastCombat: r2, combatSettled: false } as RunState, { type: 'settleCombat' });
+    expect(at(s, 'hg').damageDealt).toBe(82);
+    expect(s.hand.filter((c) => ALES.includes(c.cardId)).length, 'two Ales across the two combats').toBe(2);
+  });
+
+  it('one enormous hit can cross two thresholds and pays both', () => {
+    const r = fight([gover({ attack: 85 })], [foe(0, 1)]);
+    expect(alesGranted(r).length).toBe(2);
+  });
+
+  it('a hit that never lands (a Ward) adds nothing', () => {
+    // First swing pops the Ward (0 damage dealt), the second kills: 40 dealt in total — one Ale, not two.
+    const r = fight([gover({ attack: 40 })], [foe(0, 40, ['DS'])]);
+    expect(alesGranted(r).length).toBe(1);
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 40 }]);
+  });
+
+  it('a snapshot (served board) carries the meter, so a served Han Gover pays out from its real total', () => {
+    const s = run({ board: [body('hg', 'dw3_hangover', { damageDealt: 39 })] });
+    expect(snapshotBoard(s).minions[0]!.damageDealt).toBe(39);
+  });
+
+  it('a triple keeps the highest meter of the merged copies', () => {
+    let s = run({ board: [body('a', 'dw3_hangover', { damageDealt: 12 }), body('b', 'dw3_hangover', { damageDealt: 33 })], hand: [body('c', 'dw3_hangover')] });
+    s = act(s, { type: 'play', uid: 'c' });
+    const g = [...s.board, ...s.hand].find((c) => c.cardId === 'dw3_hangover' && c.golden)!;
+    expect(g.damageDealt).toBe(33);
   });
 });

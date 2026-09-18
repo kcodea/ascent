@@ -934,25 +934,29 @@ export const APPROVED_RULES: GameRule[] = [
   },
   {
     id: 'R-RISE-05',
-    title: 'A rising body holds its slot — its Echo resolves first, and a summon with no room overflows',
+    title: 'Echo first, THEN the Rise attempts — a dying body holds no slot; its Echo takes the freed room and a return with no room overflows',
     statement:
-      'A minion that will Rise keeps its board slot while it is dead. Its Echo resolves before the Rise, and a '
-      + 'minion that Echo would summon finds no room on a full board: the summon overflows (Squatimus, Flowing Monk '
-      + 'pay off) and the rising body returns. If the rising body itself cannot fit — its slot was taken by another '
-      + 'return or a placed summon — that too counts as an overflow, and the body stays dead. Both phases. '
-      + 'Supersedes the 2026-07-02 reading under which a dying Rise body held no slot.',
+      'A minion with Rise (or Rebirth) that dies resolves in this order, in BOTH phases and for ALL Rise/Echo '
+      + 'interactions: it dies and leaves its slot → its Echo fires (an Echo that summons lands in the freed slot) '
+      + '→ THEN it attempts to return, to the right of what its Echo summoned. If the board is full by then, the '
+      + 'return finds no room: that counts as an overflow (Squatimus, Flowing Monk pay off) and the body stays dead. '
+      + 'A Rise minion whose Echo summons nothing still rises on a full board. REVERSES the 2026-09-09 reading '
+      + '(the rising body held its slot through its Echo, so the Echo summon overflowed and the body returned) — '
+      + 'which the owner reported as "the minion rises BEFORE its Echo triggers".',
     domain: 'keywords',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-09 (Rodrick / Squatimus report)', quote: 'a rising minion does hold a slot/space. it cannot summon when the board is full, and the echo triggers before the rise does, but it DOES count as overflowing if a rising minion does not fit.' },
-      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts risingReserved / occupied (every room check); packages/sim/src/recruit.ts settlePendingDeath (no vacating for a riser) + riseReturn → fireSummonOverflow' },
+      { kind: 'owner-chat', ref: 'Owner handoff 2026-09-18 (Deathfibrillator on a 7-body board)', quote: 'it gives the minion Rise and kills it, but then that minion rises BEFORE its Echo triggers. This is wrong. The Echo should trigger from the death of the minion, THEN the minion attempts to rise. This is true for ALL Rise/Echo interactions.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-09 (Rodrick / Squatimus report) — SUPERSEDED on the slot-hold; kept for "a return that does not fit counts as overflowing"', quote: 'it DOES count as overflowing if a rising minion does not fit.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts killOrReborn (no slot reservation; `occupied` = living); packages/sim/src/recruit.ts settlePendingDeath + destroyMinionInShop (every dying body is `vacatingUid`) + riseReturn / rebirthReturn → fireSummonOverflow' },
     ],
-    contentIds: ['u3_rodrick', 'u3_squatimus'],
+    contentIds: ['u3_rodrick', 'u3_squatimus', 'u3_ems'],
     currentBehaviour:
-      'Conforms — 2026-09-09: combat reserves the slot through the Echo and fires `summonOverflow` for a return that '
-      + 'does not fit; the shop keeps the rising body on the board through its Echo (no `vacatingUid`), so the summon '
-      + 'path sees a full board, and `riseReturn` fires the same overflow dispatcher when it has no room.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Undead.test.ts'], lastVerifiedAt: '2026-09-09' },
+      "Conforms — 2026-09-18: combat dropped the `risingReserved` hold, so the Echo's summons place into the freed "
+      + 'slot and the return is gated on `living < 7` afterwards (an overflow when it fails); the shop marks a rising '
+      + 'body `vacatingUid` like any other dying body, so the summon path discounts it, and `riseReturn` / '
+      + '`rebirthReturn` fire the overflow dispatcher when the return has no room.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Undead.test.ts', 'packages/core/src/combat/simulate.test.ts', 'packages/core/src/combat/rebirth.test.ts', 'packages/sim/src/shopDestroy.test.ts'], lastVerifiedAt: '2026-09-18' },
   },
   /* ── 2026-09-09 / 2026-09-10 — the Set 3 Spirits rulings and the owner's bug-report rulings of 2026-09-10 ── */
   {

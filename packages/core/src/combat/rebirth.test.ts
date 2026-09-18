@@ -102,15 +102,26 @@ describe('Rebirth (RB) — the body comes back WHOLE, once', () => {
     expect(tideBuffs(rise.events).length).toBeGreaterThan(0);
   });
 
-  it('a rebirthing body HOLDS its slot through its Echo (the Rise rule): with six others standing it still returns', () => {
-    // Pack's Echo summons two Pups; the held slot means they overflow and the body itself comes back.
+  it("ECHO FIRST, THEN THE RETURN (owner 2026-09-18, the Rise rule): with six others standing, the Echo's summon takes the freed slot and the body stays dead", () => {
+    // Mama Pup's Echo summons two Pups. Her death frees ONE slot: the first Pup takes it, the second overflows,
+    // and the Rebirth return — attempted only after the Echo — finds no room. (Before 2026-09-18 the body held
+    // its slot through the Echo, so both Pups overflowed and the body came back.)
     const board = [bm('pack', { attack: 1, health: 2, keywords: ['RB'] }), ...Array.from({ length: 6 }, () => bm('u3_poochy', { attack: 0, health: 200, keywords: [] }))];
     const r = fight(board, [foe(3, 500)]);
-    expect(reborns(r.events), 'the body returned').toHaveLength(1);
-    // Whatever the Pups did, the return never pushed the side past the cap.
+    expect(reborns(r.events), 'no return — the Pup had the slot').toHaveLength(0);
+    const pups = r.events.filter((e) => e.type === 'summon' && e.side === 'player' && e.minion.cardId === 'pup');
+    expect(pups, 'one Pup landed in the freed slot').toHaveLength(1);
+    // The side never went past the cap.
     const alive = new Set(r.initial.player.map((m) => m.uid));
-    for (const e of r.events) { if (e.type === 'summon' && e.side === 'player') alive.add(e.minion.uid); if (e.type === 'death' && e.side === 'player' && !(e as { rise?: true }).rise) alive.delete(e.target); }
+    for (const e of r.events) { if (e.type === 'summon' && e.side === 'player') alive.add(e.minion.uid); if (e.type === 'death' && e.side === 'player') alive.delete(e.target); }
     expect(alive.size).toBeLessThanOrEqual(7);
+  });
+
+  it('a Rebirth body with a NON-summon Echo still returns on a full board (its own freed slot)', () => {
+    // Sergeant's Echo grants Health, no body — the freed slot is still free when the return is attempted.
+    const board = [bm('sergeant', { attack: 1, health: 2, keywords: ['RB'] }), ...Array.from({ length: 6 }, () => bm('u3_poochy', { attack: 0, health: 200, keywords: [] }))];
+    const r = fight(board, [foe(3, 500)]);
+    expect(reborns(r.events).filter((e) => e.rebirth), 'the body returned').toHaveLength(1);
   });
 
   it('is deterministic: the same seed replays byte-for-byte', () => {

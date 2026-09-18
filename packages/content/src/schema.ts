@@ -571,6 +571,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onGetRubyDuplicate',           // Gem Sage
   'goldSpentScaleSelf',           // Ancient Wanderer
   'cardDeathScaler',              // Spear Warden (2026-09-18): HAS +A/+H per death of its card type this run
+  'dealtDamageAleMeter',          // Han Gover (2026-09-18): every N damage this deals, get an Ale (persistent per-instance meter)
   'buffShopOffersThisTurn',       // Night Market Horror
   'onSellDiscoverSingleton',      // Traveling Salesman
   'onGainAleBuffSelf',            // Kegheart Dwarf

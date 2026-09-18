@@ -40,7 +40,7 @@ describe('set 3 scaffold', () => {
       // …then the DWARVES (owner roster 2026-09-09): set 3's eight new ones, appended AFTER the Kobolds so no
       // Kobold moved, then the fourteen set-2 Dwarves it keeps (shared definitions, same as the Kobolds).
       'dw3_shiftbroker', 'dw3_striker', 'dw3_pourman', 'dw3_hankpepe', 'dw3_tromboneer', 'dw3_kneel',
-      'dw3_thymes', 'dw3_tankerchief',
+      'dw3_thymes', 'dw3_tankerchief', 'dw3_hangover', // Han Gover appended 2026-09-18
       'dw_brunni', 'dw_coinfire', 'dw_brakka', 'dw_dorrin', 'dw_foreman', 'dw_brewer', 'dw_tapkeeper',
       'dw_bladethrower', 'dw_thane', 'dw_pimm', 'dw_edward', 'dw_mountainbond', 'dw_billings', 'dw_gangplank',
       // …then the UNDEAD (owner roster 2026-09-09): set 3's eleven new ones (+ Bicycle Bob, 2026-09-18), then the ten set-1 Undead it keeps

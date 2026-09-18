@@ -1134,7 +1134,7 @@ export interface StepProgress {
  */
 export function stepProgress(
   cardId: string,
-  p: { spellProgress?: number; spiritTally?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number; playTick?: number; shoutTick?: number; soldProgress?: number; grimoireCharged?: boolean; orbitTick?: number; rubyCastTick?: number },
+  p: { spellProgress?: number; spiritTally?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number; playTick?: number; shoutTick?: number; soldProgress?: number; grimoireCharged?: boolean; orbitTick?: number; rubyCastTick?: number; damageDealt?: number },
 ): StepProgress | null {
   const def = CARD_INDEX[cardId];
   if (!def) return null;
@@ -1156,6 +1156,11 @@ export function stepProgress(
   }
 
   if (def.effects.some((e) => e.do === 'spellCastBuffOthers')) return cyc(p.spellProgress ?? 0, 4); // Guel
+  // Han Gover: the DAMAGE meter ("when this deals 40 damage, get an Ale") — the running per-instance tally,
+  // Avenge-style (1..40 then wrap; 40/40 is the hit that paid out). Persists across combats, so the shop shows
+  // where the meter stands and combat continues from it. Tracker, not a fraction in the text (owner 2026-09-11).
+  const dmgMeter = def.effects.find((e) => e.do === 'dealtDamageAleMeter');
+  if (dmgMeter) return cyc(p.damageDealt ?? 0, Math.max(1, n((dmgMeter.params as { every?: number })?.every, 40)));
   // Astral Spellcore: every N Shop spells cast while on the board — the same per-copy `spellProgress` meter as
   // Guel, counting up; Avenge-style N/3 (owner 2026-09-11: the counter, never the text). Keyed on the effect's
   // SHAPE (a `spellCast` watcher with an `every` cadence and a `tribe` payout) rather than its factory id on

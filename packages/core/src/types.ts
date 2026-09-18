@@ -817,6 +817,7 @@ export type EffectFactoryId =
   | 'onGetRubyDuplicate' // Gem Sage: getting a Ruby mints an extra copy (never re-fires `onGetRuby` — no recursion)
   | 'goldSpentScaleSelf' // Ancient Wanderer: HAS +A/+H per N Gold spent this RUN — a synced stored buff, not a per-step grant
   | 'cardDeathScaler' // Spear Warden (owner rework 2026-09-18): HAS +A/+H per copy of `cardId` that DIED this run — a passive marker the combat death site reads (`noteCardDeath`); the grant rides the run-wide `cardBuffs` enchant
+  | 'dealtDamageAleMeter' // Han Gover (Set 3 Dwarf/Undead, 2026-09-18): "When this deals N damage, get an Ale" — a passive marker the combat damage site reads (`noteDamageDealt`): a per-instance `damageDealt` tally that persists across combats; every crossing of a multiple of `params.every` grants `params.count` (×2 gilded) random Dwarven Ales via `grantToHand` (home through `playerHandGrants`)
   | 'buffShopOffersThisTurn' // Night Market Horror: after a buy, minions in the shop get +A/+H for THIS TURN
   | 'onSellDiscoverSingleton' // Traveling Salesman: selling this Discovers among minions you own exactly one copy of
   | 'onGainAleBuffSelf' // Kegheart Dwarf: gaining a Dwarven Ale buffs this body +A/+H
@@ -2212,6 +2213,9 @@ export interface BoardMinion {
    *  progress, Aspect's trigger count, Forest Colossus's "Spirits played since"). Forest Colossus's
    *  Start of Combat READS it; the others print it. Seeded from the run board. */
   spiritTally?: number;
+  /** Han Gover — the damage THIS body has dealt across every combat so far (per-instance). Seeds the combat
+   *  tally; the combat total carries back via `playerDamageMeters`. */
+  damageDealt?: number;
   /** Runic Archivist: sales still owed (per-instance). Display-only in combat. */
   soldProgress?: number;
   /** Spell Warden: the first spell cast since it was placed (per-instance). Display-only in combat. */
@@ -2307,6 +2311,9 @@ export interface Minion {
   /** Guel: spells-cast-while-on-board (seeded from the run card) — feeds the live combat text only. */
   spellProgress?: number;
   spiritTally?: number;
+  /** Han Gover: total damage this body has dealt (seeded from the run card, ticked by `noteDamageDealt` on
+   *  every landed hit it deals). Carries back to the run card via `playerDamageMeters`. */
+  damageDealt?: number;
   soldProgress?: number; // Runic Archivist (display-only)
   boardFirstSpellId?: string; // Spell Warden (display-only)
   /** The originating run board card's uid (if any), for per-instance carry-back. */
@@ -2429,6 +2436,7 @@ export interface MinionSnapshot {
   /** Guel's spells-cast-while-on-board (seeded from the run board) — for the live combat card text. */
   spellProgress?: number;
   spiritTally?: number;
+  damageDealt?: number; // Han Gover: the seeded damage tally, so the combat meter starts from the run total
   soldProgress?: number; // Runic Archivist (display-only)
   boardFirstSpellId?: string; // Spell Warden (display-only)
   /** Per-source recruit-phase buff breakdown (see Minion.buffs) — lets the combat inspect panel itemize a
@@ -2721,6 +2729,7 @@ export interface CombatCarryBacks {
   summonBonus: NonNullable<CombatResult['playerSummonBonus']>;
   hpGrantBonus?: CombatResult['playerHpGrantBonus'];
   spellProgress?: CombatResult['playerSpellProgress'];
+  damageMeters?: CombatResult['playerDamageMeters'];
   ascendCount?: CombatResult['playerAscendCount'];
   permaBuffs?: CombatResult['playerPermaBuffs'];
   handGrants?: string[];
@@ -2875,6 +2884,10 @@ export interface CombatResult {
   /** Tara's stat-grant tally this combat, per board card uid — accumulated onto `ascendProgress` and, at the
    *  threshold, transformed to its ascend form in settleCombat. */
   playerAscendCount?: { sourceUid: string; count: number }[];
+  /** Han Gover's running "damage this minion has dealt" tally after this combat, per board card uid — the seeded
+   *  value plus everything it dealt this fight (attacks, retaliation, incidental). Persisted to the run board so
+   *  the meter survives combat → shop → combat. */
+  playerDamageMeters?: { sourceUid: string; total: number }[];
   /** Permanent stats a minion keeps from this combat, keyed by the recipient's board card uid — applied
    *  to the run board after combat, win or lose. Two sources: Flowing Monk's overflow gift (`engraved:
    *  false` — a one-off gift to a non-EG carrier) and Engraved minions keeping their own combat gains

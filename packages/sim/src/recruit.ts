@@ -2468,7 +2468,8 @@ export function destroyMinionInShop(
     //        put its two Imps at the far end of the board instead of in its place (owner report 2026-08-28:
     //        "it should be summoned as if the minion died where it did").
     //      · CAPACITY. A vacating body must not consume a summon slot, or an Echo that summons is silently
-    //        dead on a full board.
+    //        dead on a full board. A RISING body vacates too (owner 2026-09-18: Echo first, then the Rise
+    //        attempts — the return, not the Echo's summon, is what finds no room on a full board).
     //    Combat reaches the same result the other way round (remove, then summon into the vacated slot); what
     //    matters is that the summons end up where the body died, which is what a player sees.
     state.vacatingUid = target.uid;
@@ -2545,8 +2546,8 @@ function noteShopCardDeath(state: RunState, destroyed: BoardCard): void {
  *                     and the return goes to its RIGHT (owner ruling 2026-07-06).
  */
 function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFrom: number): BoardCard | undefined {
-  // A rising body held its slot through its Echo, so this only fails if something else filled the board — and
-  // then the return COUNTS AS AN OVERFLOW (owner 2026-09-09), the same event a summon with no room fires.
+  // The Echo resolved FIRST and its summons took the freed room (owner 2026-09-18); a return with no room
+  // COUNTS AS AN OVERFLOW (owner 2026-09-09, unchanged), the same event a summon with no room fires.
   if (state.board.length >= CONFIG.boardMax) { fireSummonOverflow(state); return undefined; }
   const def = CARD_INDEX[target.cardId];
   const mul = target.golden ? 2 : 1;
@@ -2590,8 +2591,9 @@ function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFr
  * THE REBIRTH RETURN (owner 2026-09-16) — the shop twin of combat's Rebirth branch in `killOrReborn`: the body
  * comes back as it WAS — every buff, every granted keyword (Rebirth itself spent), every per-instance counter —
  * with nothing rebuilt from the def. A FRESH uid for the same reason `riseReturn` takes one (the departure diff
- * needs to see the body leave). The board cap gates it as a Rise: the Echo resolved first, and no room means an
- * overflow and no return. NOT a Rise — the Rise watchers (`fireOnRise`) stay quiet.
+ * needs to see the body leave). The board cap gates it as a Rise: the Echo resolved first and its summons took
+ * the freed room (owner 2026-09-18), and no room means an overflow and no return. NOT a Rise — the Rise
+ * watchers (`fireOnRise`) stay quiet.
  */
 function rebirthReturn(state: RunState, target: BoardCard, slot: number, summonedFrom: number): BoardCard | undefined {
   if (state.board.length >= CONFIG.boardMax) { fireSummonOverflow(state); return undefined; }
@@ -8351,6 +8353,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  the combat death site (`noteCardDeath`) reads it and grants the run-wide `cardBuffs` enchant, which the shop
    *  already bakes into every copy (board, hand, future). Nothing to do here; the stub keeps the phase map honest. */
   cardDeathScaler: () => {},
+  dealtDamageAleMeter: () => {}, // Han Gover: combat-only meter (no damage is dealt in the shop); the tally rides the run card
 
   /** NIGHT MARKET HORROR — "After you buy a card, give minions in the shop +2/+2 THIS TURN."
    *
@@ -10892,10 +10895,13 @@ export function settlePendingDeath(state: RunState): void {
       // The body is dying: the authored dissolve plays for it (suppressed when it is rising — it re-forms).
       stampShopFx(state, { kind: 'death', uid: card.uid, cardId: card.cardId, ...(willRise || willRebirth ? { rise: true } : {}) });
       const wasVacating = state.vacatingUid;
-      // A body that will NOT rise vacates its slot for its Echo's summons ("in the place of the minion dying").
-      // A RISING body HOLDS its slot (owner ruling 2026-09-09): its Echo resolves first, and on a full board the
-      // summon overflows — Squatimus / Flowing Monk pay off on it — while the body itself returns.
-      if (!willRise && !willRebirth) state.vacatingUid = card.uid;
+      // EVERY dying body vacates its slot for its Echo's summons ("in the place of the minion dying") — a rising
+      // or rebirthing one included (owner ruling 2026-09-18: "the Echo triggers first, then the minion attempts
+      // to Rise", for ALL Rise/Echo interactions; reverses the 2026-09-09 "a rising body holds its slot"). On a
+      // full board the Echo's summon lands in the freed slot and it is the RETURN that finds no room — an
+      // overflow (Squatimus / Flowing Monk pay off on it) and the body stays dead. Owner report 2026-09-18: a
+      // Deathfibrillated minion on a 7-body board rose and its Echo's summon overflowed — the wrong way round.
+      state.vacatingUid = card.uid;
       summonedFrom = state.board.length;
       try {
         if (pending.kind === 'loan') triggerBorrowedEcho(state, card);

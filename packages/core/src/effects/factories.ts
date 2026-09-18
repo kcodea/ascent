@@ -2567,6 +2567,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   rubyStatMultiplier: () => {},
   /** Spear Warden's passive marker — never dispatched; `noteCardDeath` (simulate.ts) reads it at the death site. */
   cardDeathScaler: () => {},
+  dealtDamageAleMeter: () => {}, // Han Gover: a passive marker — the damage site (`noteDamageDealt`) does the work
 
   /** Set 2 — Alchemist Brisbane (Echo half): on death, buff your Rubies +atk/+hp (× golden), carried back. */
   // ── ARENA-MIGRATED (Step 3, Ruby family): one body in arena.ts serves both phases.

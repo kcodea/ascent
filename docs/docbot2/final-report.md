@@ -42,17 +42,17 @@ axis, with any gap visible as a typed queue entry rather than as silence.
 
 | Axis | Covered | Denominator | Gate that keeps it true |
 |---|---|---|---|
-| **Contract in the committed registry** | 1043 | 1043 (100%) | `contractExtract.test.ts` — new content FAILS the PR gate until `npm run contracts:extract` is committed |
-| **Text classification bucket** | 1043 | 1043 (100%) | `textParse.test.ts` — every object lands in exactly one of four buckets; an unresolved parse is a queue entry, never a pass |
-| **Contract-oracle applicability** | 1043 | 1043 (100%) | `contractOracle.test.ts` — every contract is planned into §10.1 case templates; every unexecuted applicable case carries a typed skip reason |
-| **Interaction-graph membership** | 1043 | 1043 (100%) | `interactionGraph.test.ts` — every contract is a graph node; unmapped triggers are reported as a visible to-do (29 today) |
+| **Contract in the committed registry** | 1044 | 1044 (100%) | `contractExtract.test.ts` — new content FAILS the PR gate until `npm run contracts:extract` is committed |
+| **Text classification bucket** | 1044 | 1044 (100%) | `textParse.test.ts` — every object lands in exactly one of four buckets; an unresolved parse is a queue entry, never a pass |
+| **Contract-oracle applicability** | 1044 | 1044 (100%) | `contractOracle.test.ts` — every contract is planned into §10.1 case templates; every unexecuted applicable case carries a typed skip reason |
+| **Interaction-graph membership** | 1044 | 1044 (100%) | `interactionGraph.test.ts` — every contract is a graph node; unmapped triggers are reported as a visible to-do (29 today) |
 | **Rulebook** | 149 rules (63 approved) | — | `enforcement.test.ts` — every approved rule names a backing lane file that must exist on disk |
 
 **The inventory itself:** 588 cards (127 spells, 82 tokens), 59 hero powers, 142 + 139 runes, 117 quests —
-1043 contracted objects in total (1040 after the Yazzus fold, +2 for tranche D's two deferred combat-side runes; 1041 for a few hours on 2026-09-16, until the owner folded the set-3 Yazzus fork into the one `yazzus`; 990 until 2026-09-16, when Set 3 batch 2 — tranches A, B and C — added 49 runes + the Handy Flame and Skeleton tokens; 901 until 2026-08-28, when the owner archived the 16 Celestials — "leaving set 3 empty of minions now" — and every count in this report moved with them; +2 again the same day for the two Equipment reference cards; +8 on 2026-09-09 for the eight new set-3 Dwarves, −1 the same day when Gem Bus was archived; +11 the same day for the eleven new set-3 Undead; +3 the same day for Set 3 Neutrals tranche 1 — Splitboon Adept, the set-3 Yazzus, and Blaster back from the archive; +4 for tranche 2 — Defender, Inspector Pell and the two hand spells they mint, Tower Shield and Clue; +3 for tranche 3 — Highway Hustler, Warband Recruiter, Equipment Charger; +17 for the Set 3 Spirits tranche 1, a new tribe; +7 for tranche 2, the hand-summon cards; +9 on 2026-09-10 for the nine new Set 3 spells; +8 on 2026-09-11 for the eight reworked Set 3 Celestials; +1 on 2026-09-12 for the Starform shop token; +17 the same day for the Starform roster — sixteen Celestials and the Accretion spell; +1 on 2026-09-18 for Bicycle Bob, the twelfth new set-3 Undead).  Of those contracts, 16 are hand-authored curated ones and the rest are
+1044 contracted objects in total (1040 after the Yazzus fold, +2 for tranche D's two deferred combat-side runes; 1041 for a few hours on 2026-09-16, until the owner folded the set-3 Yazzus fork into the one `yazzus`; 990 until 2026-09-16, when Set 3 batch 2 — tranches A, B and C — added 49 runes + the Handy Flame and Skeleton tokens; 901 until 2026-08-28, when the owner archived the 16 Celestials — "leaving set 3 empty of minions now" — and every count in this report moved with them; +2 again the same day for the two Equipment reference cards; +8 on 2026-09-09 for the eight new set-3 Dwarves, −1 the same day when Gem Bus was archived; +11 the same day for the eleven new set-3 Undead; +3 the same day for Set 3 Neutrals tranche 1 — Splitboon Adept, the set-3 Yazzus, and Blaster back from the archive; +4 for tranche 2 — Defender, Inspector Pell and the two hand spells they mint, Tower Shield and Clue; +3 for tranche 3 — Highway Hustler, Warband Recruiter, Equipment Charger; +17 for the Set 3 Spirits tranche 1, a new tribe; +7 for tranche 2, the hand-summon cards; +9 on 2026-09-10 for the nine new Set 3 spells; +8 on 2026-09-11 for the eight reworked Set 3 Celestials; +1 on 2026-09-12 for the Starform shop token; +17 the same day for the Starform roster — sixteen Celestials and the Accretion spell; +1 on 2026-09-18 for Bicycle Bob, the twelfth new set-3 Undead).  Of those contracts, 16 are hand-authored curated ones and the rest are
 extractor drafts, visibly `reviewStatus: 'extracted'` (§4.2 — a machine guess is never silently intent).
 
-**Of those 1043, 118 cover ARCHIVED content classes** — 117 quests and 1 henchman, both systems switched off by
+**Of those 1044, 118 cover ARCHIVED content classes** — 117 quests and 1 henchman, both systems switched off by
 the owner's 2026-08-28 ruling. They are counted here deliberately rather than quietly dropped. Archiving a
 whole content class is precisely the move that can make coverage evaporate unnoticed, so the archived total is
 a headline number on the doc-drift rail: it must appear in this document, and the gate fails the moment it
@@ -66,9 +66,9 @@ full, because `devGrant` is deliberately left ungated and every RUNE in the game
 100% coverage means every object **has** a contract. It does not mean every contract is **verified**, and
 the distance between those two is the single most important number in this report:
 
-| Contract verification depth | Count of 1043 |
+| Contract verification depth | Count of 1044 |
 |---|---|
-| derived status **corroborated** (two independent sources agree — trace + text, or trace + params) | 501 |
+| derived status **corroborated** (two independent sources agree — trace + text, or trace + params) | 502 |
 | derived status **approved** (owner-ruled intent, the strongest authority) | 1 |
 | derived status **extracted** (a draft nobody has corroborated yet) | 541 |
 | **with at least one case a driver actually EXECUTED this sweep** | 484 |
@@ -93,7 +93,7 @@ Every applicable case that did not run says why. This is the §4.3 substrate; no
 | `covered-by-cited-lane` | 398 | an existing vitest lane owns the class; not re-executed per contract |
 | `gild-stated-by-golden-text` | 163 | a 'reshape' gild — the authored golden text states the form; the textOracle golden lane owns it |
 | `runtime-unobserved` | 163 | the driver ran and the engine emitted nothing observable — recorded, not hidden (a scenario-conditional effect the fixture did not reach: Imps, Fodder, Attachments, a lost last combat) |
-| `no-driver-for-shape` | 156 | **the largest real hole, down from 471** — an applicable case with no executable driver yet; the skip detail now names WHY (a scaler amount key such as `every` / `step` / `improve` / `per` that the first activation does not print — 110; a def-level behaviour field the extractor never states, `discoverOnPlay` / `manaPerTurn` / `ruby` … — 29; a trigger no stager fires yet — 10) |
+| `no-driver-for-shape` | 157 | **the largest real hole, down from 471** — an applicable case with no executable driver yet; the skip detail now names WHY (a scaler amount key such as `every` / `step` / `improve` / `per` that the first activation does not print — 110; a def-level behaviour field the extractor never states, `discoverOnPlay` / `manaPerTurn` / `ruby` … — 29; a trigger no stager fires yet — 10) |
 | `gild-not-applicable` | 130 | R-GILD-02 — spells and Rubies are never gilded |
 | `contract-states-no-magnitude` | 87 | the activation family proved the effect ACTS, but the contract states no number a magnitude could be compared to |
 | `gild-shape-not-countable` | 65 | a keyword grant, a Choose One (a gilded body may resolve both branches), an extra-proc, or an activation-only family — no single ×factor to check |
@@ -140,9 +140,9 @@ rule-per-sentence would not honestly cover.
 
 ## 4. Interaction intelligence (§18-F)
 
-- Graph: **1812** nodes / **5665** edges over the contract registry (content, effect-family, trigger-family,
+- Graph: **1814** nodes / **5674** edges over the contract registry (content, effect-family, trigger-family,
   channel, keyword, multiplier, copy-mode, counter, zone, phase-boundary nodes).
-- Applicability: **141449** candidate pairs against 543403 naive all-pairs (26.0%) — the producer → channel →
+- Applicability: **141710** candidate pairs against 544446 naive all-pairs (26%) — the producer → channel →
   consumer join is what makes pairwise tractable at all.
 - Sweep (full pairwise + §10.4 triples): 151 rows — 109 covered, 0 failed, 12 inapplicable, 30 blocked.
 - Families with at least one covered row: 12 of 23.

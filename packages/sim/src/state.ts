@@ -260,6 +260,9 @@ export interface BoardCard {
   /** Set 3 Spirits — per-instance `onTribePlayed` tally (Festival Keeper progress, Aspect's trigger
    *  count, Forest Colossus's Spirits-since-played). Carried into combat on the body. */
   spiritTally?: number;
+  /** Han Gover — total damage this card's body has dealt across every combat this run (per-instance). Seeded
+   *  into combat, carried back via `playerDamageMeters`; the Ale pays out on every multiple of 40. */
+  damageDealt?: number;
   /** The wave this card was bought on — drives Hoarder's climbing sell value (currentWave - boughtWave
    *  + 1, ×2 golden). Set in the reducer's `buy` case; absent on cards from other sources (a Hoarder that
    *  wasn't bought sells for the base 1, since it has no held-since wave). */

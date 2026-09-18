@@ -235,6 +235,7 @@ function cleanBoard(s: RunState): BoardMinion[] {
     ...(c.ascendProgress ? { ascendProgress: c.ascendProgress } : {}),
     ...(c.spellProgress ? { spellProgress: c.spellProgress } : {}), // Archmagus Guel: on-board spell tally
     ...(c.spiritTally ? { spiritTally: c.spiritTally } : {}), // Set 3 Spirits: Forest Colossus's Spirits-since-played (SoC reads it)
+    ...(c.damageDealt ? { damageDealt: c.damageDealt } : {}), // Han Gover: the damage meter (a served copy pays out from the real total)
     ...(c.soldProgress ? { soldProgress: c.soldProgress } : {}), // Runic Archivist: display-only, so a served copy prints its count
     ...(c.boardFirstSpellId ? { boardFirstSpellId: c.boardFirstSpellId } : {}), // Spell Warden: display-only
     ...(c.overflowBonus ? { overflowBonus: c.overflowBonus } : {}), // Flowing Monk: flat triple-combine grant bonus

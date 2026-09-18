@@ -59,23 +59,24 @@ describe('Rune of the Ornate Clock: the Epic forge moves, it does not duplicate'
 describe('Gangplank fires for EVERY card — including a 7-card Harlan Buyout', () => {
   it("Harlan's Buyout procs Gangplank once per card taken", () => {
     let s = createRun(11, 'aster');
-    // Gangplank ALONE on the board: it is then the only legal recipient, so its own stats are the exact
-    // payout count. (A second Dwarf body would triple with the taken copies and eat the stats being measured —
+    // Gangplank + ONE other Dwarf (Ironlung, a body the taken Orins cannot triple with): Gangplank never pays
+    // itself (R-TARGET-03, owner 2026-09-18), so Ironlung is the only legal recipient and its stats are the
+    // exact payout count. (A second ORIN would triple with the taken copies and eat the stats being measured —
     // a test artifact that cost me a false negative first time round.)
     s = {
       ...s, heroId: 'harlan', embers: 99, heroReady: true, wave: 1,
-      board: [body('gp', 'dw_gangplank')],
+      board: [body('gp', 'dw_gangplank'), body('pm', 'dw_ironlung')],
       shop: Array.from({ length: 5 }, (_, i) => ({ uid: `o${i}`, cardId: 'dw_orin' })),
       hand: [],
     } as unknown as RunState;
-    const gp0 = s.board[0]!;
-    const before = gp0.attack + gp0.health;
+    const pm0 = s.board[1]!;
+    const before = pm0.attack + pm0.health;
     const handBefore = s.hand.length;
     s = reduce(s, { type: 'heroPower' } as Action);
     const taken = s.hand.length - handBefore;
     expect(taken, 'Buyout took the shop into hand').toBeGreaterThan(0);
-    const gp = s.board.find((c) => c.uid === 'gp')!;
+    const pm = s.board.find((c) => c.uid === 'pm')!;
     // Gangplank grants +1/+2 = 3 stat points per arriving card — one payout each, no more, no fewer.
-    expect(gp.attack + gp.health - before, `${taken} cards arrived → ${taken} payouts`).toBe(taken * 3);
+    expect(pm.attack + pm.health - before, `${taken} cards arrived → ${taken} payouts`).toBe(taken * 3);
   });
 });

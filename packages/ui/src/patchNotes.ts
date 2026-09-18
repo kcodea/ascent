@@ -55,6 +55,58 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-18',
+    label: 'Kobold, Undead & Neutral reworks',
+    changes: [
+      {
+        category: 'Card Change',
+        text: "Kobold reworks: Kobe now plays permanent Rubies whenever it takes damage, Boulderdash gains Flurry, Korn and the Kob's Rally Ruby is permanent, Livewire spreads its Rubies to random Kobolds, and Dual Rubetta's improves your Rubies by +1/+1.",
+        details: [
+          'Kobe: Taunt. When this takes damage, play 3 permanent Rubies on this and adjacent Kobolds (was a Start of Combat cast of 2).',
+          'Boulderdash: Flurry. Rally: cast 3 permanent Rubies on this — it swings twice, so the Rally pays twice.',
+          'Korn and the Kob: Rally: cast a permanent Ruby on this (it carries back to your board after combat).',
+          'Livewire: whenever you cast a Shop spell, cast a Ruby on this and 2 other random Kobolds (was: adjacent minions).',
+          "Dual Rubetta's (Kaura L'roft): improve your Rubies by +1/+1 (was +1/+2) and cast a Ruby on your left-most and right-most Kobold.",
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Spear Warden is now a 4/2 that HAS +4/+2 for every Spear Warden that died this game — a true death count, not an Echo.',
+        details: [
+          'Every Spear Warden death counts once: in combat, in the shop (Cage Breaker, a Deathfibrillator), a copy, a gilded copy, a Rune of the Warden token.',
+          'Triggering its old Echo without a death (Deathsayer, Echohorn) no longer grows it, and Echo multipliers no longer double it.',
+          'The card prints its current total in place, in the shop and in combat.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: "Deathsayer's Rally now triggers your left-most Echo AND your left-most Shout.",
+      },
+      {
+        category: 'Card Change',
+        text: "Neptus's Rally now gives a copy of the first Shop spell you cast this turn on EVERY attack (the once-per-combat limit is gone).",
+      },
+      {
+        category: 'Card Change',
+        text: 'Arena Heckler is now a 6/5: Start of Combat, it gives the minion opposite it Taunt and attacks it immediately.',
+      },
+      {
+        category: 'Card Change',
+        text: 'Paragon gives +5/+5 (was +4/+4).',
+      },
+      {
+        category: 'Card Change',
+        text: "No card can target itself any more. Cage Breaker and EMS's Deathfibrillator can no longer be aimed at themselves — and the same rule now applies to every aimed Shout, aimed Equipment and random-friendly effect.",
+        details: [
+          'Aimed Shouts (Cage Breaker, Auric Runemaster, Gravetwin, Graverobber, Brood Whelp, Twilight Emissary, Baby Gastrid, Appetite Agent, Runic Beetle) never offer their own body as a target; alone on the board they play as a plain body.',
+          'Aimed Equipment (Bloodpot, Titan Hammer, Deathfibrillator) can no longer be used on the minion that granted it.',
+          'Random-friendly effects (Gangplank, Drunken Oaf, Billings, Runekeg, Flowing Monk, Squirl Scout, Orbiting Familiar, Candle Conduit, Rot Weaver, and every minion that casts an aimed spell) never pick the minion itself.',
+          'Positional effects ("adjacent", "left-most", "on this") and Paragon\'s "a minion of every type" are unchanged.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-17',
     label: 'Gamble joins Set 3',
     changes: [

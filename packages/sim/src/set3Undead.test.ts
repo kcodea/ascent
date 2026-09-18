@@ -143,8 +143,9 @@ describe("a friendly death in the shop reaches only the WATCHERS — never anoth
     expect(s.board.some((c) => c.cardId === 'footman'), "Footman Captain's Echo stayed asleep").toBe(false);
     expect(s.board.filter((c) => c.cardId === 'knit').length, 'the Warden returned').toBe(1);
     expect(s.board.find((c) => c.cardId === 'mumi')!.keywords, "Mumi's Echo stayed asleep too").not.toContain('R');
-    // …but the Warden's OWN Echo fired on the way out: the Spear Warden Aura grew.
-    expect(s.cardBuffs?.['knit']?.attack ?? 0).toBeGreaterThanOrEqual(3);
+    // …but the Warden DIED on the way out: the Spear Warden Aura grew by its +4/+2 (a shop destroy is a death —
+    // "every Spear Warden that died this game", owner 2026-09-18).
+    expect(s.cardBuffs?.['knit']).toEqual({ attack: 4, health: 2 });
   });
 });
 
@@ -166,15 +167,16 @@ describe('a shop Rise returns the PRINTED body with the Auras on top (owner repo
     // card the player reads shows it on top — exactly as any fresh Undead does.
     expect([sergey.attack, sergey.health]).toEqual([CARD_INDEX['sergeant']!.attack, 1]);
     expect(displayedStatsOf(s, sergey).attack, 'the Undead Aura folds in on display').toBe(CARD_INDEX['sergeant']!.attack + 5);
-    // The Warden: printed 3 + its own Aura (+6, then +9 after its Echo grew it on the way out) + the Undead Aura.
+    // The Warden: printed 4 + its own Aura (+6/+4 seeded, then +10/+6 after its shop DEATH grew it on the way out —
+    // a shop destroy is a death, owner 2026-09-18) + the Undead Aura.
     s = { ...s, embers: 20, equipment: s.equipment ? { ...s.equipment, available: s.equipment.available.map((g) => ({ ...g, ownChargeSpent: false })) } : s.equipment };
     s = act(s, { type: 'activateEquipment', targetUid: 'sw' });
     s = act(s, { type: 'resolveShopDeath' });
     const warden = s.board.find((c) => c.cardId === 'knit')!;
     expect(warden.uid).not.toBe('sw');
-    expect(warden.attack, 'printed 3 + its own Aura 9 (stored)').toBe(3 + 9);
+    expect(warden.attack, 'printed 4 + its own Aura 10 (stored)').toBe(4 + 10);
     expect(warden.health).toBe(1 + (4 + 2));
-    expect(displayedStatsOf(s, warden).attack, '+ the Undead Aura on display').toBe(3 + 9 + 5);
+    expect(displayedStatsOf(s, warden).attack, '+ the Undead Aura on display').toBe(4 + 10 + 5);
   });
 });
 

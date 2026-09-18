@@ -231,13 +231,14 @@ export const PRISMATIC_PICK: EquipmentDefinition = {
 export const DUELING_RUBETTAS: EquipmentDefinition = {
   id: 'dueling_rubettas',
   name: "Dual Rubetta's", // renamed from "Dueling Rubetta's" (owner 2026-09-11); id + sfx + fx ids kept
-  text: 'Improve your **Rubies** by **+1/+2** and cast a **Ruby** on your left and right-most **Kobold**.',
-  goldenText: 'Improve your **Rubies** by **+2/+4** and cast **2 Rubies** on your left and right-most **Kobold**.',
+  // Owner rework 2026-09-18: the improve is +1/+1 (was +1/+2) and the sentence names BOTH ends explicitly.
+  text: 'Improve your **Rubies** by **+1/+1** and cast a **Ruby** on your left-most and right-most **Kobold**.',
+  goldenText: 'Improve your **Rubies** by **+2/+2** and cast **2 Rubies** on your left-most and right-most **Kobold**.',
   baseCost: 2,
   targetMode: 'none',
   effectId: 'equipmentRubyDuel',
-  params: { attack: 1, health: 2, rubies: 1 },
-  gildedParams: { attack: 2, health: 4, rubies: 2 },
+  params: { attack: 1, health: 1, rubies: 1 },
+  gildedParams: { attack: 2, health: 2, rubies: 2 },
   // The owner's authored def + clip (2026-09-01). It plays ON the Rubbetta targets, alongside the standard
   // Ruby-application cue rather than instead of it — the Rubies are still Rubies.
   useFxId: 'dueling-rabettas',

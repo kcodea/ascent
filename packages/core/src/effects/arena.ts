@@ -308,6 +308,10 @@ export interface EffectArena {
   engraveNeighbours(text?: string): void;
   /** Taurus the Truth Bringer: Engrave EVERY friendly body. Same shop no-op rationale as above. */
   engraveBoard(): void;
+  /** Arena Heckler: THIS body takes an immediate, out-of-turn strike at `target` (combat: the `attackNow` lane
+   *  with a forced target, drained at once so the swing lands inside this beat). A shop no-op — there is no
+   *  one to hit, the same class as `armBleed`. */
+  attackNow(target: ArenaBody): void;
   /** Quil: cast the LEFTMOST Shop Spell in hand on the adjacent `tribe` minions — a REAL cast (counted,
    *  watcher-visible), whole-ritual per phase. Combat runs the legacy castInCombat + combat resolver; the
    *  shop mirrors the resolver's STAT family (buffs + spell power) through `noteSpellCast`, and lets pure
@@ -329,6 +333,14 @@ const gold = (arena: EffectArena): number => (arena.self.golden ? 2 : 1);
  *  arithmetic is not: ~50 rallies in one fight would reach Infinity and turn every downstream stat into NaN.
  *  Set far past any reachable board strength so it never binds in play. (Moved here with the body.) */
 const RALLY_SPREAD_CAP = 1_000_000_000;
+/**
+ * R-TARGET-03 — NO CARD TARGETS ITSELF (owner ruling 2026-09-18, global). Every arena body that CHOOSES a
+ * friendly (a random pick) draws from this pool: the friends WITHOUT the source. Positional reads ("adjacent",
+ * "left-most", "on this", "your minions") are not choices and keep their own membership. Phase twins:
+ * `otherFriends` (combat factories) and `othersOnBoard` (recruit).
+ */
+const others = (arena: EffectArena, pred?: (m: ArenaBody) => boolean): ArenaBody[] =>
+  arena.friends().filter((m) => m.uid !== arena.self.uid && (!pred || pred(m)));
 
 /**
  * The shared effect bodies. Keyed by the same `do` ids as the legacy registries, so the wrappers in
@@ -605,9 +617,10 @@ export const ARENA_EFFECTS = {
     arena.grantUndeadAttackAura((typeof params.attack === 'number' ? params.attack : 2) * (arena.self.golden ? 2 : 1));
   },
 
-  /** Runekeg — whenever you cast a Shop spell: give `count` random minions of `tribe` +atk/+hp (golden
-   *  doubles; `excludeSelf` for "other"). Runebloom Matriarch used to share this and repeat under Rune of the
-   *  Matriarch; its 2026-08-07 rework moved it to `scGrantSpellCastExtra`, which now carries that rune. */
+  /** Runekeg — whenever you cast a Shop spell: give `count` random OTHER minions of `tribe` +atk/+hp (golden
+   *  doubles). Never the source: R-TARGET-03 made the old `excludeSelf` opt-in the rule (the param is now
+   *  implied). Runebloom Matriarch used to share this and repeat under Rune of the Matriarch; its 2026-08-07
+   *  rework moved it to `scGrantSpellCastExtra`, which now carries that rune. */
   onSpellCastBuffRandomTribe(arena: EffectArena, params: Record<string, unknown>): void {
     const g = arena.self.golden ? 2 : 1;
     const tribe = typeof params.tribe === 'string' ? params.tribe : '';
@@ -616,8 +629,7 @@ export const ARENA_EFFECTS = {
     if (a <= 0 && h <= 0) return;
     const rng = arena.rng();
     {
-      const pool = arena.friends().filter((m) =>
-        (!tribe || arena.isTribe(m, tribe)) && !(params.excludeSelf && m.uid === arena.self.uid));
+      const pool = others(arena, (m) => !tribe || arena.isTribe(m, tribe));
       if (pool.length === 0) return;
       const want = Math.min(typeof params.count === 'number' ? params.count : 3, pool.length);
       for (let i = 0; i < want; i++) arena.buff(pool.splice(rng.int(pool.length), 1)[0]!, a, h);
@@ -875,9 +887,9 @@ export const ARENA_EFFECTS = {
     const g = arena.self.golden ? 2 : 1;
     const a = (typeof params.attack === 'number' ? params.attack : 2) * (1 + step) * g + flat;
     const h = (typeof params.health === 'number' ? params.health : 2) * (1 + step) * g + flat;
-    // COPY before splicing: `friends()` may hand back the phase's live board array, and splicing that
-    // would remove minions from the actual board (caught by Monk's own regression test).
-    const pool = [...arena.friends()];
+    // `others` returns a fresh filtered array (never the live board — splicing the phase's own array would
+    // remove minions from the actual board, Monk's old regression), and never the Monk itself (R-TARGET-03).
+    const pool = others(arena);
     const rng = arena.rng();
     for (let i = 0; i < (typeof params.count === 'number' ? params.count : 2) && pool.length > 0; i++) {
       arena.buffPermanent(pool.splice(rng.int(pool.length), 1)[0]!, a, h);
@@ -1092,8 +1104,9 @@ export const ARENA_EFFECTS = {
   },
 
   /** Targeted stat Shout (Brood Whelp / Baby Gastrid's kin): buff the chosen friend — or, unchosen (a
-   *  Myra / Dawnclaw re-fire, or combat), auto-pick the highest-Attack OTHER friend honouring `targetTribe`,
-   *  falling back to self. The chosen target rides `params.target`, merged by the shop wrapper. */
+   *  Myra / Dawnclaw re-fire, or combat), auto-pick the highest-Attack OTHER friend honouring `targetTribe`.
+   *  NEVER itself (R-TARGET-03, owner 2026-09-18 — the old self fallback is gone: no eligible other → no grant).
+   *  The chosen target rides `params.target`, merged by the shop wrapper. */
   battlecryBuffTarget(arena: EffectArena, params: Record<string, unknown>): void {
     const g = arena.self.golden ? 2 : 1;
     const a = (typeof params.attack === 'number' ? params.attack : 0) * g;
@@ -1103,8 +1116,7 @@ export const ARENA_EFFECTS = {
     if (!target) {
       const restrict = arena.targetTribe();
       const ok = (f: ArenaBody): boolean => !restrict || arena.isTribe(f, restrict);
-      const others = arena.friends().filter((f) => f.uid !== arena.self.uid && ok(f));
-      const pool = others.length > 0 ? others : ok(arena.self) ? [arena.self] : [];
+      const pool = others(arena, ok); // never itself (R-TARGET-03)
       if (pool.length === 0) return;
       target = pool.reduce((x, y) => (y.attack > x.attack ? y : x));
     }
@@ -1122,8 +1134,7 @@ export const ARENA_EFFECTS = {
       const restrict = arena.targetTribe();
       const lacks = (f: ArenaBody): boolean => kws.some((k) => !f.keywords.includes(k));
       const ok = (f: ArenaBody): boolean => lacks(f) && (!restrict || arena.isTribe(f, restrict));
-      const others = arena.friends().filter((f) => f.uid !== arena.self.uid && ok(f));
-      const pool = others.length > 0 ? others : ok(arena.self) ? [arena.self] : [];
+      const pool = others(arena, ok); // never itself (R-TARGET-03 — the old self fallback is gone)
       if (pool.length === 0) return;
       target = pool.reduce((x, y) => (y.attack > x.attack ? y : x));
     }
@@ -1305,6 +1316,9 @@ export const ARENA_EFFECTS = {
     const g = gold(arena);
     const a = num(params.attack, 3) * g;
     const h = num(params.health, 3) * g;
+    // NOT `others(arena)`: Paragon is itself "a minion of every type" and the owner's worked example (2 Dragons + a
+    // Beast + Paragon → one Dragon, the Beast, Paragon) has it collecting its own payout — a positional/identity
+    // membership, not a chosen target, so R-TARGET-03 leaves it alone. Flagged in the 2026-09-18 handoff.
     const living = arena.friends();
     const universal = living.filter((m) => arena.isUniversalTribe(m));
     const real = living.filter((m) => !arena.isUniversalTribe(m));
@@ -1436,6 +1450,12 @@ export const ARENA_EFFECTS = {
   rallyProcDeathrattle(arena: EffectArena, _params?: Record<string, unknown>): void {
     const target = arena.friends().find((m) => arena.hasEcho(m, true));
     if (target) arena.triggerEchoOn(target, true);
+    // Owner rework 2026-09-18: "...and Shout" — the LEFT-MOST living body with a Shout (`onPlay`) re-fires it too,
+    // through the shared Shout-replay ritual (Embercrest's path: combat folds the Battlecry multipliers and emits
+    // `battlecryTriggered`; the shop counts it for the quest tallies). Gild repeats the re-fire, matching the
+    // Echo half's `mul(self)`. Deathsayer has no Shout of its own, so "itself included" is moot here.
+    const shouter = arena.friends().find((m) => arena.hasEffect(m, 'onPlay'));
+    if (shouter) for (let r = 0; r < gold(arena); r++) arena.replayShout(shouter);
   },
 
   /** Boulderdash — Rally: play `count` PERMANENT Rubies on itself (× golden). */
@@ -1819,7 +1839,7 @@ export const ARENA_EFFECTS = {
    *  draw the recruit half made, so a replayed run picks the same body. */
   onGainCardBuffTribe(arena: EffectArena, params: Record<string, unknown>): void {
     const tribe = str(params.tribe);
-    const pool = arena.friends().filter((c) => !tribe || arena.isTribe(c, tribe));
+    const pool = others(arena, (c) => !tribe || arena.isTribe(c, tribe)); // never Gangplank itself (R-TARGET-03)
     if (pool.length === 0) return;
     const rng = arena.rng();
     const target = pool[rng.int(pool.length)]!;
@@ -1861,7 +1881,8 @@ export const ARENA_EFFECTS = {
     if (targets.length === 0) return;
     const own = arena.friends();
     const idx = Math.min(Math.max(own.findIndex((m) => m.uid === arena.self.uid), 0), targets.length - 1);
-    const picks = [targets[idx]!];
+    const opposite = targets[idx]!;
+    const picks = [opposite];
     if (arena.self.golden) {
       const neighbour = targets[idx + 1] ?? targets[idx - 1];
       if (neighbour) picks.push(neighbour);
@@ -1871,6 +1892,9 @@ export const ARENA_EFFECTS = {
       if (victim.keywords.includes('T')) continue;
       arena.grantKeywordTo(victim, 'T');
     }
+    // Owner rework 2026-09-18: "...and attack it immediately" — `attack: true` sends THIS body at the OPPOSITE
+    // minion right now (a golden Heckler still strikes the opposite one, never the neighbour it also Taunted).
+    if (params.attack === true) arena.attackNow(opposite);
   },
 
   /** Daybreak Acolyte — THIS body gains stats (the align-gated halves live on the card; × golden). */
@@ -1922,11 +1946,11 @@ export const ARENA_EFFECTS = {
   },
 
   /** Drunken Oaf — give A `tribe` minion +atk/+hp, repeated once more per Ale (reps = 1 + ales; the base
-   *  grant lands on a dry turn too). Each rep re-rolls its target; self is eligible. Golden doubles the
-   *  per-rep grant, never the rep count. */
+   *  grant lands on a dry turn too). Each rep re-rolls its target; never the Oaf itself (R-TARGET-03). Golden
+   *  doubles the per-rep grant, never the rep count. */
   scBuffRandomTribePerAle(arena: EffectArena, params: Record<string, unknown>): void {
     const tribe = str(params.tribe) || 'dwarf';
-    const targets = arena.friends().filter((m) => arena.isTribe(m, tribe));
+    const targets = others(arena, (m) => arena.isTribe(m, tribe));
     if (targets.length === 0) return;
     const ales = arena.alesLastTurn();
     const reps = 1 + ales;

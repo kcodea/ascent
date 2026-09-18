@@ -32,7 +32,7 @@ if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
 import { chooseBothText } from './cardText';
-import { type Action, spiritsPlayedThisTurn, anySpellsCastThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe } from '@game/sim';
+import { type Action, spiritsPlayedThisTurn, anySpellsCastThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, selectedEquipment } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -3835,10 +3835,14 @@ export function Recruit() {
       : heroTargetsTavern
         ? `[data-zone="warband"] .row .card[data-uid], [data-zone="tavern"] .row .card[data-uid]${SB_FOE_EXCLUDE}`
         : '[data-zone="warband"] .row .card[data-uid]';
+    // R-TARGET-03 (owner 2026-09-18): an aimed Equipment never lands on the body that granted it — the reducer
+    // refuses the self-aim, so the picker must not light it up either.
+    const equipSourceUids = equipArmed ? (selectedEquipment(run)?.sourceUids ?? []) : [];
     const minionAt = (x: number, y: number): { uid: string } | null => {
       const el = elementAtPoint(x, y)?.closest(sel);
       const uid = el?.getAttribute('data-uid');
       if (!uid || uid === run.spell?.uid) return null; // a minion, never the spell
+      if (equipArmed && equipSourceUids.includes(uid)) return null; // never its own granting body
       // Displace can't target a golden (triple) — it never lights up as a valid pick.
       if (heroTargetsNoGolden && run.board.find((c) => c.uid === uid)?.golden) return null;
       return { uid };
@@ -3953,8 +3957,8 @@ export function Recruit() {
     const def = CARD_INDEX[pendingTarget.cardId];
     // Common Ground: the SECOND pick can't be the first minion (averaging with itself is a no-op).
     if (pendingTarget.spell && uid === pendingTarget.spellFirstUid) return false;
-    // `targetNotSelf` (Graverobber) excludes the source from an otherwise-unrestricted pick.
-    if (def?.targetNotSelf && uid === pendingTarget.uid) return false;
+    // R-TARGET-03 (owner 2026-09-18, global): an aimed Shout never picks its own body (the reducer refuses it).
+    if (uid === pendingTarget.uid) return false;
     // Runes can LIFT a tribe restriction (Rune of Open Appetite frees the Appetite Agent's aim), so the aim UI
     // asks the same helper the reducer's target check does. Reading `def.targetTribe` here directly would let
     // the UI refuse a pick the reducer would have accepted — the rune would half-apply and read as broken.
@@ -3974,7 +3978,7 @@ export function Recruit() {
     const def = CARD_INDEX[pendingTarget.cardId];
     const valid = (uid: string): boolean => {
       if (pendingTarget.spell && uid === pendingTarget.spellFirstUid) return false; // Common Ground: not the first pick
-      if (def?.targetNotSelf && uid === pendingTarget.uid) return false; // Graverobber: never itself
+      if (uid === pendingTarget.uid) return false; // R-TARGET-03: never itself (every aimed Shout)
       if (!def?.targetTribe) return true;
       if (uid === pendingTarget.uid) return false;
       const c = run.board.find((b) => b.uid === uid);

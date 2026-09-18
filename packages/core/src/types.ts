@@ -312,7 +312,8 @@ export type EffectFactoryId =
   | 'scTriggerTribeShouts' // Thunderous Sovereign: Start of Combat — trigger your tribe's Shouts
   | 'rallyTriggerLeftmostTribeShout' // Chorus Drake: Rally — trigger your left-most other Dragon's Shout
   | 'onSpellCastBuffRandomTribe'
-  | 'onSpellCastPlayRubiesAdjacent' // Runespark Channeler: a Shop spell casts Rubies on this minion's neighbours
+  | 'onSpellCastPlayRubiesAdjacent' // (retired 2026-09-18 — Livewire moved to the random form below; kept for saved replays)
+  | 'onSpellCastPlayRubiesSelfAndRandomTribe' // Livewire (owner rework 2026-09-18): a Shop spell casts Rubies on this AND `others` random OTHER `tribe` minions
   | 'summonBuffTribeAsym' // Groveweaver: a summoned tribe minion gets +atk/+hp at the current magnitude
   | 'onSpellCastImproveSummon' // Groveweaver: each spell cast improves that grant
   | 'battlecryCastNamedSpell' // Facetbound Martyr — cast a named Shop spell N times (recruit)
@@ -414,7 +415,8 @@ export type EffectFactoryId =
   | 'battlecryGrantShoutDragon' // Set 2 — Commander Warpath: get a random Dragon that has a Shout
   | 'onTribeAttackBuffAttacker' // Set 2 — Traveling Skald: a friendly Dragon that attacks gets +2/+1
   | 'onFriendlyDemonDamageBuffSelf' // Set 2 — Impossible Todd / Leech / Axeman: buff self (and maybe Imps) when a friendly Demon deals damage
-  | 'scPlayRubiesSelfAndAdjacentTribe' // Set 2 — Kobe (Start of Combat): play N permanent Rubies on self + adjacent same-tribe
+  | 'scPlayRubiesSelfAndAdjacentTribe' // Set 2 — (Kobe's pre-2026-09-18 Start of Combat form): play N permanent Rubies on self + adjacent same-tribe
+  | 'onDamagedPlayRubiesSelfAndAdjacentTribe' // Set 2 — Kobe (owner rework 2026-09-18): when THIS takes damage, play N permanent Rubies on self + adjacent same-tribe
   | 'rallyPlayRubiesSelf' // Set 2 — Boulderdash (Rally): play N permanent Rubies on itself
   | 'rallyPlayRubiesAll' // Set 2 — Blazer (Rally): play a permanent Ruby on all your minions
   | 'onSellGetRubies' // Set 2 — Beggy (onSell): get N Rubies when this is sold
@@ -810,6 +812,7 @@ export type EffectFactoryId =
   // --- RUNE-ONLY minion batch (2026-08-20). Every one of these rides `token: true` (forge-only). ---
   | 'onGetRubyDuplicate' // Gem Sage: getting a Ruby mints an extra copy (never re-fires `onGetRuby` — no recursion)
   | 'goldSpentScaleSelf' // Ancient Wanderer: HAS +A/+H per N Gold spent this RUN — a synced stored buff, not a per-step grant
+  | 'cardDeathScaler' // Spear Warden (owner rework 2026-09-18): HAS +A/+H per copy of `cardId` that DIED this run — a passive marker the combat death site reads (`noteCardDeath`); the grant rides the run-wide `cardBuffs` enchant
   | 'buffShopOffersThisTurn' // Night Market Horror: after a buy, minions in the shop get +A/+H for THIS TURN
   | 'onSellDiscoverSingleton' // Traveling Salesman: selling this Discovers among minions you own exactly one copy of
   | 'onGainAleBuffSelf' // Kegheart Dwarf: gaining a Dwarven Ale buffs this body +A/+H
@@ -2353,7 +2356,7 @@ export interface Minion {
   /** Crypt Drake: how many ally attacks this minion has seen this combat — drives its "improve every N
    *  attacks" buff. Per-combat (reset each fight); absent = 0. */
   attackSeen?: number;
-  /** Comet Conductor: its once-per-combat Rally has paid out this fight. Per-combat; absent = not yet. */
+  /** (Retired 2026-09-18 — Neptus pays on every Rally now; the latch is no longer read. Kept for old snapshots.) */
   firstSpellCopyFired?: boolean;
   /** Gryphon: how many free refreshes it has banked this combat — it grants one per hit up to a cap
    *  (so a Taunt soaking many hits doesn't roll unlimited refreshes). Absent = 0. */
@@ -3085,7 +3088,7 @@ export interface CombatContext {
   /** Solaris Fang: make an existing minion take an extra attack immediately, out of turn order (the same
    *  attack-on-summon queue, drained by the next flushImmediateAttacks). The minion still attacks in its
    *  normal rotation too — this is a bonus strike. */
-  attackNow?(minion: Minion, shieldFirst?: boolean): void;
+  attackNow?(minion: Minion, shieldFirst?: boolean, forcedTarget?: Minion): void;
   /** Count a Deathrattle *triggered without a death* (Sporeling's Battlecry-proc'd rattle) toward the
    *  side's Deathrattle tally — feeds Grim + the run's deathrattlesTriggered carry-back. Player-side only. */
   countDeathrattle?(side: Side): void;

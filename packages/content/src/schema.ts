@@ -138,6 +138,7 @@ export const EffectFactoryIdSchema = z.enum([
   'rallyTriggerLeftmostTribeShout',
   'onSpellCastBuffRandomTribe',
   'onSpellCastPlayRubiesAdjacent',
+  'onSpellCastPlayRubiesSelfAndRandomTribe', // Livewire (2026-09-18)
   'summonBuffTribeAsym',
   'onSpellCastImproveSummon',
   'battlecryCastTaughtSpell',
@@ -234,6 +235,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onTribeAttackBuffAttacker',
   'onFriendlyDemonDamageBuffSelf',
   'scPlayRubiesSelfAndAdjacentTribe',
+  'onDamagedPlayRubiesSelfAndAdjacentTribe', // Kobe (2026-09-18)
   'rallyPlayRubiesSelf',
   'rallyPlayRubiesAll',
   'onSellGetRubies',
@@ -568,6 +570,7 @@ export const EffectFactoryIdSchema = z.enum([
   // --- RUNE-ONLY minion batch (2026-08-20) ---
   'onGetRubyDuplicate',           // Gem Sage
   'goldSpentScaleSelf',           // Ancient Wanderer
+  'cardDeathScaler',              // Spear Warden (2026-09-18): HAS +A/+H per death of its card type this run
   'buffShopOffersThisTurn',       // Night Market Horror
   'onSellDiscoverSingleton',      // Traveling Salesman
   'onGainAleBuffSelf',            // Kegheart Dwarf

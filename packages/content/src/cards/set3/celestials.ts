@@ -60,8 +60,9 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     goldenText: 'Whenever you cast a spell, this gains **+8 Attack** permanently.',
   },
   {
-    // T4 Rally: the run remembers the turn's first spell (`firstSpellThisTurnId`), combat carries it on the side
-    // state, and the Rally hands a copy to hand mid-fight (`grantToHand`) — once per combat, per-instance latch.
+    // T4 Rally: the run remembers the turn's first Shop spell (`firstSpellThisTurnId`), combat carries it on the
+    // side state, and the Rally hands a copy to hand mid-fight (`grantToHand`) — EVERY attack (owner rework
+    // 2026-09-18 dropped the once-per-combat latch from the sentence, so the latch went with it).
     id: 'ce3_conductor',
     name: 'Neptus', // 'Comet Conductor' until 2026-09-12 (owner rename; id + art unchanged)
     tribe: 'celestial',
@@ -70,8 +71,8 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'onAttack', do: 'rallyGrantFirstSpellCopy' }],
-    text: '**Rally:** get a copy of the first spell you cast this turn. Once per combat.',
-    goldenText: '**Rally:** get **2** copies of the first spell you cast this turn. Once per combat.',
+    text: '**Rally:** get a copy of the first **Shop spell** you cast this turn.',
+    goldenText: '**Rally:** get **2** copies of the first **Shop spell** you cast this turn.',
   },
   {
     // T4: the tribe's Star Crash engine — one on play, one on death. Two effect entries (there is no "Shout and

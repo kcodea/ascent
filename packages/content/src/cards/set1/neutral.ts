@@ -278,18 +278,20 @@ export const NEUTRAL: CardDef[] = [
     goldenText: '**End of Turn:** get **2** copies of the most recent Shop spell cast.',
   },
   {
-    // Start of Combat: give the enemy's rightmost minion Taunt (golden: the two rightmost) — force your side
-    // to chew through the back line first. A control/tempo tool that reshapes the enemy's block order.
+    // Start of Combat: give the enemy minion OPPOSITE this Taunt, then ATTACK IT IMMEDIATELY (owner rework
+    // 2026-09-18, 6/5 body). The strike rides the existing out-of-turn `attackNow` lane (Solaris Fang / Rune of
+    // Forthcoming) with a FORCED target, so the log + replay are ordinary attack events and turn order is
+    // untouched. Golden: the adjacent minion gets Taunt too; the strike still goes at the opposite one.
     id: 'arenaheckler',
     name: 'Arena Heckler',
     tribe: 'neutral',
     tier: 4,
-    attack: 2,
+    attack: 6,
     health: 5,
     keywords: [],
-    effects: [{ on: 'startOfCombat', do: 'scGrantEnemyTaunt' }],
-    text: '**Start of Combat:** Give the minion **opposite** this **Taunt**.',
-    goldenText: '**Start of Combat:** Give the minion **opposite** this **Taunt**, and an **adjacent** minion too.',
+    effects: [{ on: 'startOfCombat', do: 'scGrantEnemyTaunt', params: { attack: true } }],
+    text: '**Start of Combat:** Give the minion **opposite** this **Taunt** and attack it immediately.',
+    goldenText: '**Start of Combat:** Give the minion **opposite** this **Taunt**, and an **adjacent** minion too, then attack it immediately.',
   },
   {
     // End of Turn: cast Lasso (steal a random tavern minion into hand) via the shared castSpell factory — a

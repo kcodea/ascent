@@ -481,7 +481,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "low"
+      "confidence": "low",
+      "unparsed": [
+        "scGrantEnemyTaunt.attack"
+      ]
     },
     "setIds": [
       "set1",
@@ -15778,7 +15781,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "high"
+      "confidence": "medium",
+      "unparsed": [
+        "rallyPlayRubiesSelf.permanent"
+      ]
     },
     "setIds": [
       "set3"
@@ -15919,7 +15925,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "high"
+      "confidence": "medium",
+      "unparsed": [
+        "onSpellCastPlayRubiesSelfAndRandomTribe.tribe"
+      ]
     },
     "setIds": [
       "set3"
@@ -15940,11 +15949,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "onSpellCastPlayRubiesAdjacent",
+        "kind": "onSpellCastPlayRubiesSelfAndRandomTribe",
         "amount": {
           "kind": "const",
           "plain": {
-            "count": 1
+            "count": 1,
+            "others": 2
           }
         }
       }
@@ -16263,6 +16273,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "kobold"
     ],
     "keywords": [
+      "W",
       "RL"
     ],
     "tags": [
@@ -16943,8 +16954,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "medium",
       "unparsed": [
-        "scPlayRubiesSelfAndAdjacentTribe.permanent",
-        "scPlayRubiesSelfAndAdjacentTribe.tribe"
+        "onDamagedPlayRubiesSelfAndAdjacentTribe.permanent",
+        "onDamagedPlayRubiesSelfAndAdjacentTribe.tribe"
       ]
     },
     "setIds": [
@@ -16956,26 +16967,25 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "kobold"
     ],
     "keywords": [
-      "T",
-      "SC"
+      "T"
     ],
     "tags": [
       "tier:4"
     ],
     "triggers": [
       {
-        "event": "startOfCombat",
-        "phase": "both",
+        "event": "onDamaged",
+        "phase": "combat",
         "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
       {
-        "kind": "scPlayRubiesSelfAndAdjacentTribe",
+        "kind": "onDamagedPlayRubiesSelfAndAdjacentTribe",
         "amount": {
           "kind": "const",
           "plain": {
-            "count": 2
+            "count": 3
           }
         }
       }
@@ -17472,18 +17482,18 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "triggers": [
       {
-        "event": "onDeath",
+        "event": "passive",
         "phase": "both",
         "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
       {
-        "kind": "deathrattleBuffCardTypeRunWide",
+        "kind": "cardDeathScaler",
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 3,
+            "attack": 4,
             "health": 2
           }
         },
@@ -19097,8 +19107,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 4,
-            "health": 4
+            "attack": 5,
+            "health": 5
           }
         }
       }

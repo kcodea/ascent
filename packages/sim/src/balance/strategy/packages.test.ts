@@ -42,7 +42,7 @@ describe('strategy packages — set-2 census', () => {
       spellEngine: '106/16/13/23', // 22 → 23 on 2026-09-17: Rune of Gambling (recurring Gamble, every set)
       echo: '39/14/9/6', // 7 → 6 on 2026-09-16: same Rune of Rebirth rework
       mechAttach: '2/0/0/0',
-      rally: '26/7/11/6',
+      rally: '26/8/11/6', // Boulderdash gained Flurry (owner 2026-09-18)
       tempo: '37/5/20/35',
       economy: '20/1/16/26',
     });

@@ -981,11 +981,13 @@ export function simulate(
       }
     },
     flushImmediateAttacks: () => flushImmediateAttacks(),
-    attackNow: (minion, shieldFirst) => {
+    attackNow: (minion, shieldFirst, forcedTarget) => {
       // Solaris Fang's Avenge: an existing minion takes a bonus strike out of turn order via the same
       // attack-on-summon queue (drained by the next flushImmediateAttacks). `shieldFirst` grants a fresh Ward
       // right before the strike — so a golden Solaris, which queues two, goes in shielded on BOTH.
-      if (!minion.dead && minion.health > 0) pendingAttackOnSummon.push({ minion, shieldFirst });
+      // `forcedTarget` (Arena Heckler) steers the strike at ONE named body — honoured by `performAttack` only
+      // while that body is still a live, legal target (Porkbelly's vanguard rule).
+      if (!minion.dead && minion.health > 0) pendingAttackOnSummon.push({ minion, shieldFirst, forcedTarget });
     },
     countDeathrattle: (side) => {
       // A Deathrattle triggered WITHOUT a death (Sporeling's Battlecry proc) still counts toward the tally
@@ -2066,7 +2068,7 @@ export function simulate(
   //     own swing, or Solaris Fang / Feeding Line / Bloodlust granting an existing body a bonus attack).
   const pendingAttackOnSummon: (
     | { summon: { minion: Minion; side: Side; card: CardDef; nearUid: string | undefined; grantKeywords: Keyword[] | undefined; golden: boolean; copyStats: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean } | undefined; doubled: boolean }; minion?: undefined }
-    | { minion: Minion; shieldFirst?: boolean; summon?: undefined }
+    | { minion: Minion; shieldFirst?: boolean; forcedTarget?: Minion; summon?: undefined }
   )[] = [];
 
   // Fire a minion's OWN Deathrattle / on-death effects directly (no global onDeath broadcast / Avenge / death
@@ -2161,6 +2163,30 @@ export function simulate(
     });
   }
 
+  /**
+   * SPEAR WARDEN's death count (owner rework 2026-09-18: "Has +4/+2 for every Spear Warden that died this game").
+   *
+   * Called from every death site — the real death, a Rise death and a Rebirth death all count ("died"), right
+   * where `deaths[side]` is tallied, so the rule lives in ONE place. A body whose card carries the passive
+   * `cardDeathScaler` marker grants its card type the printed per-death amount: the living copies on this side
+   * feel it NOW (`ctx.buff`, so the fight is fought at the new size), and `grantCardBuff` records it for the
+   * run-wide `cardBuffs` enchant every copy — board, hand, future, a Rune of the Warden token — inherits at
+   * settle. NOT an Echo: a Deathsayer / Echohorn proc is not a death, an Echo multiplier does not double it, and
+   * a gilded Warden dying is still ONE death. The dying body itself is skipped (`ctx.living` excludes it) — a
+   * Rise brings it back through `applyAuras`, which re-reads `cardBuffs`.
+   */
+  function noteCardDeath(minion: Minion): void {
+    const eff = cards[minion.cardId]?.effects.find((e) => e.on === 'passive' && e.do === 'cardDeathScaler');
+    if (!eff) return;
+    const p = eff.params ?? {};
+    const cardId = typeof p.cardId === 'string' && p.cardId ? p.cardId : minion.cardId;
+    const a = typeof p.attack === 'number' ? p.attack : 1;
+    const h = typeof p.health === 'number' ? p.health : 1;
+    if (a === 0 && h === 0) return;
+    for (const m of living(minion.side)) if (m.cardId === cardId) ctx.buff(m, a, h, minion.uid);
+    ctx.grantCardBuff(cardId, a, h, minion.side);
+  }
+
   function killOrReborn(minion: Minion, killer?: Minion): void {
     nextStep(); // this victim's death is its own resolution step (the exchange's damage came before)
     // Reborn (A.3 step 6): a minion's FIRST death fires its Deathrattle / on-death effects, then it returns
@@ -2205,6 +2231,7 @@ export function simulate(
       nextStep();
       risingReserved[minion.side] += 1;
       deaths[minion.side] += 1; // counted before the Echo (R-AVWIN-02), as for a Rise
+      noteCardDeath(minion);
       fireOwnDeathrattles(minion, killer);
       bus.emit('onDeath', { minion, side: minion.side, killer, ownAlreadyFired: true });
       if (minion.side === 'enemy') enemyDeaths++;
@@ -2264,6 +2291,7 @@ export function simulate(
       // summons stamps a baseline that already includes this death — "the summoning death does not count".
       // The avenge broadcast itself still goes out after the Echo, unchanged.
       deaths[minion.side] += 1;
+      noteCardDeath(minion);
       fireOwnDeathrattles(minion, killer); // a Rise death still has a killer — Jensen & Fi must reach it
       // A Rise death is a REAL death (owner ruling 2026-07-27, reversing 2026-07-02/07-06): it counts for
       // Avenge, the enemy-death tally, friendly-death quests and on-death watchers. The body genuinely leaves
@@ -2562,6 +2590,7 @@ export function simulate(
     // the death that created it OUTSIDE its window. The avenge broadcast still fires after the Echo (below),
     // so resolution order is unchanged — only the tally the new body reads on arrival moved.
     deaths[minion.side] += 1;
+    noteCardDeath(minion);
     withEchoDefer(() => {
       bus.emit('onDeath', { minion, side: minion.side, killer });
       // Rune of the Crucible: the sacrificed bodies return when the side's LAST minion dies. Checked AFTER the
@@ -3429,7 +3458,7 @@ export function simulate(
       // own entry bump gives the swing itself the next step (grant → strike, two beats, never merged into the
       // death resolution that queued them).
       nextStep();
-      const { minion: m, shieldFirst } = item;
+      const { minion: m, shieldFirst, forcedTarget } = item;
       // Grant a fresh Ward immediately before this strike (Solaris Fang's Avenge). Paired with the strike so a
       // golden Solaris — which queues two — goes in shielded on EACH. Idempotent (no double shield).
       if (shieldFirst && !m.dead && m.health > 0 && !m.divineShield) {
@@ -3439,7 +3468,7 @@ export function simulate(
       }
       if (m.dead || m.health <= 0 || m.attack <= 0) continue;
       if (countLiving(OTHER[m.side]) === 0) continue;
-      performAttack(m, OTHER[m.side], 0);
+      performAttack(m, OTHER[m.side], 0, forcedTarget);
     }
   }
 

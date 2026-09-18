@@ -75,7 +75,8 @@ describe('liveCardText — the single source of truth shared by shop + combat', 
 
   it('folds in Ritualist’s per-tick grant + the run-wide Eternal Knight tally (metric append) in one call', () => {
     expect(liveCardText('ritualist', { ...base, eotBonus: 6 }).text).toContain('{{+7/+7}}'); // accrued 6 + step 1 (non-golden)
-    // Eternal Knight (knit): run-wide card-type enchant shows as an appended metric, now available in combat too.
-    expect(liveCardText('knit', { ...base, cardBuffs: { knit: { attack: 9, health: 6 } } }).text).toContain('{{Now +9/+6 this run.}}');
+    // Spear Warden (knit): the run-wide death enchant prints its live total IN PLACE (shop + combat share this chain).
+    expect(liveCardText('knit', { ...base, cardBuffs: { knit: { attack: 12, health: 6 } } }).text).toContain('Has **{{+12/+6}}**');
+    expect(liveCardText('knit', { ...base, cardBuffs: { knit: { attack: 12, health: 6 } } }).text).toContain('{{3}} so far');
   });
 });

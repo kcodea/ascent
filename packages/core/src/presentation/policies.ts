@@ -147,7 +147,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:deathrattleBuffAll:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleBuffAllByImpAura:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleBuffAllHealth:onDeath': { policy: 'ownBeat', family: 'echo' },
-  'factory:deathrattleBuffCardTypeRunWide:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleBuffShopPermanent:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleBuffCelestials:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleBuffImps:onDeath': { policy: 'ownBeat', family: 'echo' },
@@ -256,7 +255,9 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onOtherDemonConsumeEcho:onConsume': { policy: 'foldedCue', family: 'react' },
   // ── Set 2 batch B (2026-08-18): new primitives ──
   'factory:onFriendlyDemonDamageBuffSelf:friendlyDemonDealtDamage': { policy: 'foldedCue', family: 'react' }, // Impossible Todd / Leech / Axeman
-  'factory:scPlayRubiesSelfAndAdjacentTribe:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' }, // Kobe
+  // Kobe (owner rework 2026-09-18): "when this takes damage" — the Rubies land through the standard Ruby-landed
+  // cue inside the hit that caused them, the Target Dummy / Faultline Scrapper shape (a damage reaction, not a beat).
+  'factory:onDamagedPlayRubiesSelfAndAdjacentTribe:onDamaged': { policy: 'foldedCue', family: 'react' },
   'factory:rallyPlayRubiesSelf:onAttack': { policy: 'ownBeat', family: 'rally' }, // Boulderdash
   'factory:rallyPlayRubiesAll:onAttack': { policy: 'ownBeat', family: 'rally' }, // Blazer
   'factory:onSellGetRubies:onSell': { policy: 'ownBeat', family: 'economy' }, // Beggy
@@ -368,9 +369,10 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // key on trigger group, and that trap has been hit twice on this exact card.
   'factory:armChooseBoth:onPlay': { policy: 'passive', family: 'economy' },
   'factory:armChooseBoth:startOfTurn': { policy: 'passive', family: 'economy' },
-  // Runespark Channeler: a Shop spell casts Rubies on its neighbours. The Rubies themselves are the visible
-  // thing and they arrive through the standard Ruby-landed cue, so this rides that rather than owning a beat.
-  'factory:onSpellCastPlayRubiesAdjacent:spellCast': { policy: 'foldedCue', family: 'economyReact' },
+  // Livewire (owner rework 2026-09-18): a Shop spell casts Rubies on itself + random other Kobolds. The Rubies
+  // themselves are the visible thing and they arrive through the standard Ruby-landed cue, so this rides that
+  // rather than owning a beat (the same classification its adjacent-form predecessor carried).
+  'factory:onSpellCastPlayRubiesSelfAndRandomTribe:spellCast': { policy: 'foldedCue', family: 'economyReact' },
   // Ruby Roach's payout rides the Choose One play that caused it, drawn by the usual Ruby-landed cue.
   'factory:chooseOnePlayedPlayRubies:chooseOnePlayed': { policy: 'foldedCue', family: 'economyReact' },
   'factory:scArmBleed:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
@@ -1071,6 +1073,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // ── RUNE-ONLY MINION BATCH (2026-08-20). Each entry copies the bucket its closest sibling already sits in. ──
   'factory:onGetRubyDuplicate:onGetRuby': { policy: 'foldedCue', family: 'economyReact' },        // Gem Sage — cf. rubyGainedCast
   'factory:goldSpentScaleSelf:passive': { policy: 'passive', family: 'passive' },                 // Ancient Wanderer — a synced stat, never a beat
+  'factory:cardDeathScaler:passive': { policy: 'passive', family: 'passive' },                    // Spear Warden — a death-count enchant read at the death site, never a beat
   'factory:buffShopOffersThisTurn:onBuy': { policy: 'foldedCue', family: 'economyReact' },        // Night Market Horror — cf. buffBoardOnBuy
   'factory:buffShopOffersThisTurn:spellBought': { policy: 'foldedCue', family: 'economyReact' },  // …its "a spell is a card too" half
   'factory:onSellDiscoverSingleton:onSell': { policy: 'ownBeat', family: 'economy' },             // Traveling Salesman — cf. onSellDiscover

@@ -39,14 +39,17 @@ describe('a card reaching hand MID-COMBAT fires its reactors', () => {
 
   it('Gangplank pays out DURING the fight, not only at settle', () => {
     const r = simulate(
-      [bm('dw_gangplank', 3, 9999), bm(GRANTER, 1, 1)],
+      // Orin is the recipient: Gangplank never picks itself (R-TARGET-03, owner 2026-09-18).
+      [bm('dw_gangplank', 3, 9999), bm('dw_orin', 3, 9999), bm(GRANTER, 1, 1)],
       [bm('sandbag', 50, 9999)], makeRng(4), CARD_INDEX,
       combatSide({ tier: 4 }), combatSide({ tier: 4 }));
     expect(r.events.some((e) => (e as { type: string }).type === 'toHand'),
       'a card really did reach hand mid-fight').toBe(true);
-    // +1/+2 on a random friendly Dwarf — Gangplank is the only one here, so it is its own recipient.
-    expect(buffTotal(r.events, r.initial.player, 'dw_gangplank'),
+    // +1/+2 on a random OTHER friendly Dwarf — Orin is the only one, so it is the recipient.
+    expect(buffTotal(r.events, r.initial.player, 'dw_orin'),
       'Gangplank paid out in-combat').toBeGreaterThan(0);
+    expect(buffTotal(r.events, r.initial.player, 'dw_gangplank'),
+      'never onto itself').toBe(0);
   });
 
   it('the ENEMY board does not react to a card reaching YOUR hand', () => {
@@ -66,7 +69,7 @@ describe('a card reaching hand MID-COMBAT fires its reactors', () => {
     // The shop half has fired per mint since 2026-08-26; combat now matches it.
     const r = simulate(
       // Tunnelcharger Rikk's Rally mints 3 Rubies when it attacks — the simplest live `ctx.grantRubies`.
-      [bm('dw_gangplank', 3, 9999), bm('k_tunnelcharger', 3, 9999)],
+      [bm('dw_gangplank', 3, 9999), bm('dw_orin', 3, 9999), bm('k_tunnelcharger', 3, 9999)],
       [bm('sandbag', 50, 9999)], makeRng(4), CARD_INDEX,
       combatSide({ tier: 4 }), combatSide({ tier: 4 }));
     const rubies = r.events.filter((e) => {
@@ -74,7 +77,7 @@ describe('a card reaching hand MID-COMBAT fires its reactors', () => {
       return ev.type === 'toHand' && ev.cardId === 'ruby';
     }).length;
     expect(rubies, 'fixture guard: a Ruby was minted mid-fight').toBeGreaterThan(0);
-    expect(buffTotal(r.events, r.initial.player, 'dw_gangplank'),
-      'and Gangplank saw it arrive').toBeGreaterThan(0);
+    expect(buffTotal(r.events, r.initial.player, 'dw_orin'),
+      'and Gangplank saw it arrive (paying its OTHER Dwarf — never itself, R-TARGET-03)').toBeGreaterThan(0);
   });
 });

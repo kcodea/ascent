@@ -65,6 +65,8 @@ export const PATCH_NOTES: PatchNote[] = [
           'The tier row stays put on the Runes and Heroes tabs instead of vanishing and shifting the whole window.',
           'Gifts have their own section under Spells.',
           'Hover any card or rune to see the cards it relates to (the token it summons, the spell it casts, the card a rune grants) — these were rendering behind the book before.',
+          'The Runes tab lists only the runes of the set you are looking at, and its tribe buttons filter to the runes that relate to a tribe.',
+          'The operating-system tooltip (the little yellow box) no longer appears anywhere in the game.',
         ],
       },
     ],

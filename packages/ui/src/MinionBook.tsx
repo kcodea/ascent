@@ -290,8 +290,11 @@ export function MinionBook() {
     const m = makeSearchMatcher(search);
     const match = (r: { name: string; text: string }): boolean => m(r.name) || m(r.text);
     const tribeOk = (r: { tribes?: readonly Tribe[] }): boolean => runeTribes.size === 0 || !!r.tribes?.some((t) => runeTribes.has(t));
-    return [...[...RUNES].sort((a, b) => a.name.localeCompare(b.name)), ...[...EPIC_RUNES].sort((a, b) => a.name.localeCompare(b.name))].filter((r) => match(r) && tribeOk(r));
-  }, [search, runeTribes]);
+    // Set-scoped (owner ask 2026-09-18): only the runes the SHOWN set's Runeforge can offer — a rune with no `sets`
+    // is offered everywhere; otherwise its scope must name this set.
+    const setOk = (r: { sets?: readonly string[] }): boolean => !r.sets || r.sets.includes(setId);
+    return [...[...RUNES].sort((a, b) => a.name.localeCompare(b.name)), ...[...EPIC_RUNES].sort((a, b) => a.name.localeCompare(b.name))].filter((r) => setOk(r) && match(r) && tribeOk(r));
+  }, [search, runeTribes, setId]);
 
   // The quest DEFINITIONS to show in the Quests tab — scoped like the cards: every quest whose tribe is neutral
   // or in `tribes`, narrowed further by any selected tribe chips. Sorted lesser → greater → capstone, then name.
@@ -450,7 +453,7 @@ export function MinionBook() {
               : cats.has('heroes')
                 ? `${heroesToShow.length} heroes — every champion and their power`
                 : cats.has('runes')
-                ? `${runesToShow.length} runes — the Basic + Epic Runeforge stock`
+                ? `${runesToShow.length} runes — this set's Basic + Epic Runeforge stock`
                 : cats.has('quests')
                 ? `${questsToShow.length} quests ${showTitle ? 'in the game' : 'available this run'}`
                 : `${filtered.length} ${

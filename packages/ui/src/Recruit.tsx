@@ -33,7 +33,7 @@ if (import.meta.env.DEV) {
 }
 import { chooseBothText } from './cardText';
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
-import { type Action, spiritsPlayedThisTurn, anySpellsCastThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, selectedEquipment } from '@game/sim';
+import { type Action, spiritsPlayedThisTurn, anySpellsCastThisTurn, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -256,6 +256,9 @@ const spellCastCount = (run: Parameters<typeof spellCasts>[0], def: Parameters<t
   // through `spellCasts` — it isn't a Shop Spell. Reading `spellCasts` for one showed no badge at all, which is
   // what the owner reported (2026-07-24). `rubyCastCount` is the same helper the reducer casts with.
   def.ruby ? rubyCastCount(run) :
+  // A GIFT-class hand spell (Clue, Tower Shield, the Gifts) has its own count too — the badge must show what the
+  // gift cast site resolves, not the Shop-spell multiplier (owner 2026-09-18: a Clue under Comet showed ×3 and cast once).
+  def.gift ? giftCastCount(run, def, !!def.target) :
   def.id === 'implosion' ? spellCasts(run, def) * implosionCasts(run) :
   def.id === 'sp_dragonflame' ? spellCasts(run, def) * dragonflameCasts(run) : // ×N badge: 1 + your Dragons
   spellCasts(run, def, card); // `card` = the HAND instance, so an Astral Draft pick's extra cast shows on its badge
@@ -3816,7 +3819,7 @@ export function Recruit() {
         : '[data-zone="warband"] .row .card[data-uid]';
     // R-TARGET-03 (owner 2026-09-18): an aimed Equipment never lands on the body that granted it — the reducer
     // refuses the self-aim, so the picker must not light it up either.
-    const equipSourceUids = equipArmed ? (selectedEquipment(run)?.sourceUids ?? []) : [];
+    const equipSourceUids = equipArmed && !selectedEquipmentDef(run)?.mayTargetSelf ? (selectedEquipment(run)?.sourceUids ?? []) : [];
     const minionAt = (x: number, y: number): { uid: string } | null => {
       const el = elementAtPoint(x, y)?.closest(sel);
       const uid = el?.getAttribute('data-uid');

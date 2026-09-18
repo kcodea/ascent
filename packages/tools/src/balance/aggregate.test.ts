@@ -28,20 +28,18 @@ describe('aggregate (synthetic fixture)', () => {
     expect(agg.populationPlacement.est).toBeCloseTo(4.5, 6);
   });
 
-  // Regenerated 2026-09-18: Han Gover joined the set-3 pool (appended after Tankerchief), which reseeds the
-  // synthetic lobby's draws. Not a behaviour change in the aggregate itself.
   it('headline numbers snapshot (regenerate deliberately when the fixture changes)', () => {
     const heroes = agg.heroes.filter((h) => h.assigned > 0).map((h) => `${h.heroId}:${h.assigned}:${h.placement.est?.toFixed(2)}`);
     expect(heroes).toMatchInlineSnapshot(`
       [
-        "drakko:30:3.87",
+        "drakko:30:3.90",
         "fibbsy:30:4.73",
-        "gorr:30:4.87",
-        "harlan:30:5.27",
-        "midas:30:5.00",
-        "nadja:30:3.83",
-        "pete:30:4.07",
-        "warden:30:4.37",
+        "gorr:30:4.73",
+        "harlan:30:5.53",
+        "midas:30:4.73",
+        "nadja:30:4.07",
+        "pete:30:4.00",
+        "warden:30:4.30",
       ]
     `);
     expect(agg.minions.length).toBeGreaterThan(50);

@@ -1,10 +1,10 @@
-import type { Keyword } from '@game/core';
+import type { Keyword, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { spiritsPlayedThisTurn, anySpellsCastThisTurn, CONFIG, chooseBothActive, dominantBoardTribe, hasTier7Access, rubyStatBonus, runeStacksOf, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
+import { spiritsPlayedThisTurn, playedThisTurnFor, anySpellsCastThisTurn, CONFIG, chooseBothActive, dominantBoardTribe, hasTier7Access, rubyStatBonus, runeStacksOf, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
-  cryptDrakeText, drunkenOafText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
+  cryptDrakeText, drunkenOafText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, monkProgressText, overflowPerPlayedText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText, shootingStarText,
   ancientWandererText, musterTrooperText,
   taughtSpellText, trailForagerText, transformProgressText, watcherText, withImpStats, spiritText } from './cardText';
@@ -40,6 +40,9 @@ export interface LiveTextParams {
   /** Card ids you've played this recruit turn — Pack Leader / Spirit Worgen show their live per-play scaling. In
    *  COMBAT an enemy passes a pre-counted NUMBER instead (its snapshot doesn't carry the played ids). */
   playedThisTurn?: string[] | number;
+  /** The per-tribe "played this turn" map (Bicycle Bob's Undead count). Optional: the player's is derived from the
+   *  `playedThisTurn` ids when absent; a served foe in COMBAT passes its snapshot's map (the ids aren't carried). */
+  tribesPlayed?: Partial<Record<Tribe, number>>;
   /** Combat-only per-instance accruals (from the MinionSnapshot), so the unified text covers combat-scaling cards
    *  too: Crypt Drake's total Attack seen, and an Engrave minion's permanent run gain. Absent (0) in the shop. */
   attackSeen?: number;
@@ -155,6 +158,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             chefRaagText(c.id, p.golden, p.impAura) ?? // Chef Raag: live Imp-Aura grant (floored at +1/+1)
             runescaleText(c.id, p.golden, p.spellProgress ?? 0) ??
             scTribeBuffPerPlayedText(c.id, p.golden, p.playedThisTurn) ??
+            overflowPerPlayedText(c.id, p.golden, (tribe) => p.tribesPlayed?.[tribe] ?? (Array.isArray(p.playedThisTurn) ? playedThisTurnFor({ playedThisTurn: p.playedThisTurn }, tribe) : 0)) ?? // Bicycle Bob: the current per-Undead-played grant
             drunkenOafText(c.id, p.golden, p.alesThisTurn) ?? // Drunken Oaf: how many times it repeats right now
 
             packLeaderText(c.id, p.summonBonus ?? 0, p.golden) ??

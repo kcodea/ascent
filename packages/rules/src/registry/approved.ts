@@ -1226,7 +1226,9 @@ export const APPROVED_RULES: GameRule[] = [
       + 'the effect finds no recipient and does nothing (an aimed Shout alone on the board plays as a plain body and '
       + 'is never prompted to aim). Positional and identity reads are NOT choices and keep their membership: '
       + '"adjacent", "left-most / right-most", "on this", "your minions", and Paragon\'s "a minion of every type" '
-      + '(which it is — the owner\'s worked example has it collecting its own payout).',
+      + '(which it is — the owner\'s worked example has it collecting its own payout).' 
+      + 'OWNER EXEMPTION (2026-09-18): an Equipment definition may opt out with `mayTargetSelf` — Bloodpot is '
+      + 'usable on Alchemist Frank himself.',
     domain: 'targeting',
     status: 'approved',
     evidence: [

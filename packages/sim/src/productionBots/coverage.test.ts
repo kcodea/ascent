@@ -104,8 +104,9 @@ describe('Equipment is inside the planning boundary', () => {
     const s = withBloodpot();
     const cands = candidatesFor(toBotVisibleState(s));
     const uses = cands.filter((c) => c.action.type === 'activateEquipment');
-    // Never Frank himself — R-TARGET-03 (owner 2026-09-18): an aimed Equipment skips its own granting body.
-    expect(uses.map((c) => (c.action as { targetUid?: string }).targetUid).sort()).toEqual(['t']);
+    // Frank himself IS a target: Bloodpot is `mayTargetSelf` (owner 2026-09-18 exemption from R-TARGET-03); the
+    // bot's legal-action view mirrors the reducer.
+    expect(uses.map((c) => (c.action as { targetUid?: string }).targetUid).sort()).toEqual(['f', 't']);
     proveIsolation(s, (cs) => cs.find((c) => c.action.type === 'activateEquipment' && (c.action as { targetUid?: string }).targetUid === 't')!);
     // And it actually buffs: the sibling-safe child has a +3/+3 Stray.
     const t = applyCandidate(createPlanningRoot(s), { type: 'activateEquipment', targetUid: 't' });

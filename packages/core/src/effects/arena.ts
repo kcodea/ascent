@@ -154,6 +154,9 @@ export interface EffectArena {
   buffPermanent(t: ArenaBody, attack: number, health: number): void;
   /** Shop spells cast this turn, for THIS side (combat reads the side's captured value). */
   spellsThisTurn(): number;
+  /** Cards of `tribe` PLAYED this recruit turn, for THIS side (combat reads the side's frozen per-tribe map; the
+   *  shop counts the live `playedThisTurn` through the shared tribe predicate — an all-types card counts). */
+  playedThisTurn(tribe: string): number;
   /** Grant `count` copies of a NAMED card to hand. Combat rides `grantToHand` (announced + flown in the
    *  replay); the shop conjures (run-buff bake + hand cap). */
   grantNamedCard(cardId: string, count: number): void;
@@ -839,6 +842,24 @@ export const ARENA_EFFECTS = {
     const a = (typeof params.attack === 'number' ? params.attack : 2) * g;
     const h = (typeof params.health === 'number' ? params.health : 2) * g;
     for (const f of arena.friends()) arena.buffPermanent(f, a, h);
+  },
+
+  /** Bicycle Bob (Set 3 Undead, 2026-09-18) — a summon that does not fit: give ONE random OTHER friendly `tribe`
+   *  minion +a/+h, where a/h are the printed base × (1 + `tribe` minions PLAYED this turn) × golden — "improves for
+   *  every Undead played this turn". PERMANENT in both phases (`buffPermanent`: the shop buff is, combat carries it
+   *  back like Flowing Monk's). Never Ben itself (R-TARGET-03: `others`). Ben counts himself when he was played
+   *  this turn — `playedThisTurn` is the reducer's stamp, and a played Ben is an Undead played. No per-instance
+   *  accrual: the whole scale is the turn's tally, so a gilded Ben needs no merge step. */
+  overflowBuffRandomTribePerPlayed(arena: EffectArena, params: Record<string, unknown>): void {
+    const tribe = str(params.tribe);
+    if (!tribe) return;
+    const played = Number(arena.playedThisTurn(tribe)) || 0;
+    const g = arena.self.golden ? 2 : 1;
+    const a = num(params.attack, 1) * (1 + played) * g;
+    const h = num(params.health, 1) * (1 + played) * g;
+    const pool = others(arena, (m) => arena.isTribe(m, tribe)); // a fresh array, never the live board; never itself
+    if (pool.length === 0) return;
+    arena.buffPermanent(pool[arena.rng().int(pool.length)]!, a, h);
   },
 
   /** Big Huggies — Echo: put a named spell in hand (golden grants two). */

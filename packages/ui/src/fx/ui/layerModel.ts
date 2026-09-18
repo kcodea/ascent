@@ -20,8 +20,12 @@ export interface EditorLayer {
   name?: string;
   anchor: FxLayer['anchor']; // reuse def.ts's anchor type
   /** Which part of the anchored unit's card the head lands on (see `FxAnchorPart`). Absent = `card`, the
-   *  centre — serialises as an omission so a layer that never touched it is byte-identical. */
+   *  centre — serialises as an omission so a layer that never touched it is byte-identical. For a `travel`
+   *  layer this is the FROM (source) end. */
   anchorPart?: FxLayer['anchorPart'];
+  /** `travel` layers only: the TO (target) end's part, independent of `anchorPart`. Absent = falls back to
+   *  `anchorPart` (both ends share one part) — serialises as an omission. */
+  anchorPartTo?: FxLayer['anchorPartTo'];
   at: number; // ms from effect start at which this layer spawns
   life: number | null; // ms this layer lives, or null = "runs to the def's full duration"
   /** `travel`-anchored layers only: ms the head takes to cross its arc, or null = "the whole life" (the
@@ -176,6 +180,22 @@ export function setLayerAnchorPart(
     const next = { ...l };
     if (part === 'card') delete next.anchorPart;
     else next.anchorPart = part;
+    return next;
+  });
+}
+
+/** Set the TARGET-end anchor part (`anchorPartTo`) of the travel layer at `index` — the "to" of a
+ *  from → to pairing. `card` OMITS the field (both ends fall back to `anchorPart`), same as `setLayerAnchorPart`. */
+export function setLayerAnchorPartTo(
+  layers: EditorLayer[],
+  index: number,
+  part: NonNullable<EditorLayer['anchorPartTo']> | 'card',
+): EditorLayer[] {
+  return layers.map((l, i) => {
+    if (i !== index) return l;
+    const next = { ...l };
+    if (part === 'card') delete next.anchorPartTo;
+    else next.anchorPartTo = part;
     return next;
   });
 }
@@ -370,6 +390,7 @@ export function toDef(
       primitive: l.primitive,
       anchor: l.anchor,
       ...(l.anchorPart !== undefined && l.anchorPart !== 'card' ? { anchorPart: l.anchorPart } : {}),
+      ...(l.anchor === 'travel' && l.anchorPartTo !== undefined && l.anchorPartTo !== 'card' ? { anchorPartTo: l.anchorPartTo } : {}),
       at: l.at,
       life: l.life ?? undefined,
       travelMs: l.travelMs ?? undefined,

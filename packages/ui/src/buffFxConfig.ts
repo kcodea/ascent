@@ -43,6 +43,9 @@ export interface BuffFxConfig {
    *  launches k × this later, and its landing cue + stat roll follow its own ribbon. Owner ask 2026-09-17
    *  ("I want each buff that goes out to be slightly offset"). 0 = every hit at once, as before. */
   spiritHitStaggerMs: number;
+  /** Undead Aura cue: a second aura sound within this many ms of the last is dropped (a burst in the same few
+   *  frames stays one sound); anything slower overlaps freely (owner 2026-09-18: every 0.3 s should overlap). */
+  undeadAuraSfxGapMs: number;
 }
 
 const DEFAULTS: BuffFxConfig = {
@@ -56,6 +59,7 @@ const DEFAULTS: BuffFxConfig = {
   sparkCount: 46, sparkSpeed: 410, sparkSize: 3, sparkLife: 850,
   spiritSfxOffsetMs: 0, // relative to the Spirit def's LANDING BURST (its target-anchored `at`), not the ribbon's arrival
   spiritHitStaggerMs: 90,
+  undeadAuraSfxGapMs: 120,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -68,6 +72,7 @@ export const BUFFFX_RANGES: Partial<Record<keyof BuffFxConfig, [number, number, 
   sparkCount: [0, 120, 1], sparkSpeed: [0, 900, 10], sparkSize: [1, 24, 1], sparkLife: [100, 2000, 10],
   spiritSfxOffsetMs: [-400, 800, 5],
   spiritHitStaggerMs: [0, 300, 5],
+  undeadAuraSfxGapMs: [0, 1000, 10],
 };
 
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */

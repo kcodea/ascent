@@ -15888,12 +15888,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "setIds": [
       "set3"
     ],
-    "tier": 6,
+    "tier": 5,
     "tribes": [
       "kobold"
     ],
     "tags": [
-      "tier:6"
+      "tier:5"
     ],
     "triggers": [
       {
@@ -39956,12 +39956,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "setIds": [
       "set3"
     ],
-    "tier": 3,
+    "tier": 4,
     "tribes": [
       "undead"
     ],
     "tags": [
-      "tier:3"
+      "tier:4"
     ],
     "triggers": [
       {
@@ -39977,7 +39977,59 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "kind": "const",
           "plain": {
             "attack": 1,
-            "health": 0
+            "health": 1
+          }
+        }
+      }
+    ],
+    "gildedDelta": {
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
+    },
+    "textContract": {
+      "source": "index"
+    }
+  },
+  {
+    "contentId": "u3_bicyclebob",
+    "contentType": "minion",
+    "revision": 1,
+    "reviewStatus": "extracted",
+    "extraction": {
+      "extractor": "contracts-extract@1",
+      "confidence": "medium",
+      "unparsed": [
+        "overflowBuffRandomTribePerPlayed.tribe"
+      ]
+    },
+    "setIds": [
+      "set3"
+    ],
+    "tier": 4,
+    "tribes": [
+      "undead"
+    ],
+    "tags": [
+      "tier:4"
+    ],
+    "triggers": [
+      {
+        "event": "summonOverflow",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "overflowBuffRandomTribePerPlayed",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 1,
+            "health": 1
           }
         }
       }
@@ -40337,12 +40389,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "setIds": [
       "set3"
     ],
-    "tier": 3,
+    "tier": 4,
     "tribes": [
       "undead"
     ],
     "tags": [
-      "tier:3"
+      "tier:4"
     ],
     "triggers": [
       {

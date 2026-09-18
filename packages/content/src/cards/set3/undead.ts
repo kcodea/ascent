@@ -87,7 +87,7 @@ export const SET3_UNDEAD: CardDef[] = [
     keywords: [],
     // Never itself (owner 2026-09-18, the global no-self-target rule): the aim excludes the Equipment's source.
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'deathfibrillator' } }],
-    text: '**Equip Deathfibrillator (2):** give a target **Undead** **Rise**, then destroy it.',
+    text: '**Equip Deathfibrillator (3):** give a target **Undead** **Rise**, then destroy it.',
   },
   {
     // Aimed Shout: Graverobber's two-step death (the Echo, the departure and any Rise get their beat), then a

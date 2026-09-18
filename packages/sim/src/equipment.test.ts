@@ -396,14 +396,20 @@ describe('no valid target', () => {
     expect(equipmentState(s).available, 'and the Equipment is still held').toHaveLength(1);
   });
 
-  it('Bloodpot can NOT target its own source — R-TARGET-03 (owner 2026-09-18): no card targets itself', () => {
-    // A lone Frank has no legal aim: the activation is refused outright — no Gold, no charge, nothing to undo.
+  it('Bloodpot MAY target its own source — the owner exempted it from R-TARGET-03 (2026-09-18: "Bloodpot should be usable on Alchemist Frank")', () => {
+    // `mayTargetSelf` on the definition: a lone Frank Bloodpots himself; the aim UI + bot view light him up too.
     let s = run({ hand: [body('f', 'e3_frank')] });
     s = play(s, 'f');
-    const before = s;
     s = activate(s, 'f');
-    expect(s, 'refused: the granting body is never a target').toBe(before);
-    expect(statsOf(s, 'f'), 'Frank did not buff himself').toEqual([3, 3]);
+    expect(statsOf(s, 'f'), 'Frank buffed himself').toEqual([6, 6]);
+    expect(equipmentUsesLeft(s)).toBe(0);
+  });
+  it('the Deathfibrillator is still refused on its own source (R-TARGET-03 stays the default)', () => {
+    let s = run({ hand: [body('e', 'u3_ems')] });
+    s = play(s, 'e');
+    const before = s;
+    s = activate(s, 'e');
+    expect(s, 'refused: no `mayTargetSelf` on the definition').toBe(before);
   });
 });
 

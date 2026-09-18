@@ -160,6 +160,16 @@ describe('R-TARGET-03 — every aimed Equipment refuses its granting body', () =
   for (const eq of friendly) {
     const granter = ALL_CARDS.find((c) => c.effects.some((e) => e.on === 'equip' && e.params?.equipmentId === eq.id));
     if (!granter) continue; // a rune-only / starform Equipment has no minion granter to exclude
+    if (eq.mayTargetSelf) {
+      // The owner's EXEMPTION list (2026-09-18: "Bloodpot should be usable on Alchemist Frank") — the definition
+      // opts out, so the granter IS a legal aim. Pinned here so an exemption is deliberate, never accidental.
+      it(`${eq.id} (${eq.name}, from ${granter.name}): exempt — aiming at the granter lands`, () => {
+        const s = run({ board: [body('src', granter.id), body('t', 'knit')] });
+        rebuildEquipment(s);
+        expect(act(s, { type: 'activateEquipment', targetUid: 'src' }), 'the granter is a legal aim').not.toBe(s);
+      });
+      continue;
+    }
     it(`${eq.id} (${eq.name}, from ${granter.name}): aiming at the granter is refused, at another body it lands`, () => {
       const s = run({ board: [body('src', granter.id), body('t', 'knit')] });
       rebuildEquipment(s);

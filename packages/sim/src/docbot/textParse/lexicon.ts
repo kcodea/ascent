@@ -161,6 +161,7 @@ export const CONDITIONAL_LEXICON: ReadonlyArray<readonly [RegExp, string]> = [
   [/you play (?:a|an) (?:Beast or Dragon|Beast|Demon|Dragon|Dwarf|Kobold|Mech|Undead|Spirit|Celestial|Imp|Attachment|Magnetic)/i, 'onTribePlayed'],
   [/you play/i, 'onTribePlayed'],
   [/you summon/i, 'onSummon'],
+  [/this deals \d+ damage/i, 'text:onDealtDamage'], // Han Gover (2026-09-18): a passive damage meter — the engine names no trigger for it
   [/this (?:takes damage|is damaged)/i, 'onDamaged'],
   [/(?:a )?friend(?:ly minion)? dies|friendly .* dies|your (?:last|left-most) minion dies|Ruby-buffed minion dies|(?:an|another friendly|a friendly) (?:Imp|minion) dies|Imp that dies/i, 'onFriendDeath'],
   [/dies in combat/i, 'onFriendDeath'],

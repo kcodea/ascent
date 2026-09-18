@@ -31,7 +31,7 @@ function playerCarry(r: CombatResult): CombatCarryBacks {
     deaths: r.playerDeaths ?? 0, survivorCardIds: r.playerSurvivorCardIds, foeDeaths: r.enemyDeaths,
     firstKill: r.playerFirstKill, lastKill: r.playerLastKill, questTally: r.playerQuestTally, questEvents: r.playerQuestEvents,
     beastBuyAtkGain: r.playerBeastBuyAtkGain, beastBuyHpGain: r.playerBeastBuyHpGain, beastScaleProgress: r.playerBeastScaleProgress,
-    summonBonus: r.playerSummonBonus ?? [], hpGrantBonus: r.playerHpGrantBonus, spellProgress: r.playerSpellProgress,
+    summonBonus: r.playerSummonBonus ?? [], hpGrantBonus: r.playerHpGrantBonus, spellProgress: r.playerSpellProgress, damageMeters: r.playerDamageMeters,
     ascendCount: r.playerAscendCount, permaBuffs: r.playerPermaBuffs, handGrants: r.playerHandGrants, handBuffs: r.playerHandBuffs,
     rubyGrants: r.playerRubyGrants, nextTurnSpellCopies: r.playerNextTurnSpellCopies, rubyBonusGain: r.playerRubyBonusGain,
     rubyMints: r.playerRubyMints, handSummoned: r.playerHandSummoned, beastExtraGain: r.playerBeastExtraGain,

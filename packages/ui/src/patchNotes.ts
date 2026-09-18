@@ -56,6 +56,36 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-18',
+    label: 'Han Gover, Blazer & the Rise order',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'Han Gover — a Tier 4 Dwarf/Undead who hands you a Dwarven Ale every 40 damage he deals.',
+        details: [
+          'Tier 4, 4/7, Dwarf AND Undead. "When this deals 40 damage, get an Ale." Gilded: get 2 Ales.',
+          'Every hit he lands counts — attacks, retaliation, any damage he deals — and the tally KEEPS COUNTING across combats (27 this fight, 13 more next fight, and the Ale arrives).',
+          'The Ale flies to your hand the moment the threshold is crossed in combat, and is waiting for you in the next shop.',
+          'His progress shows on the card as a step counter (N/40), in the shop and in combat, like every other every-N tracker.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Blazer is now Tier 3 at 2/7 (was Tier 4, 3/8). Its Flurry + Rally Ruby play is unchanged.',
+      },
+      {
+        category: 'Card Change',
+        text: 'Rise and Echo now resolve in the right order everywhere: the minion dies, its Echo fires, and only THEN does it try to Rise.',
+        details: [
+          'Applies to every Rise (and Rebirth) minion, in combat and in the shop — a Deathfibrillated minion, Warden Rodrick, anything that dies with Rise.',
+          'The Echo goes first and its summons land in the slot the minion just left. On a full board that means the summon fits and it is the Rise that finds no room — the minion stays dead, and that counts as an overflow (Squatimus and friends pay off).',
+          'A Rise minion whose Echo does not summon anything still rises on a full board — its own slot is still free.',
+          'Previously the rising minion held its slot through its Echo, so its summon overflowed and the minion came back — which read as "it rose before its Echo".',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-18',
     label: 'Kobold, Undead & Neutral reworks',
     changes: [
       {

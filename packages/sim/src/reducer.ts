@@ -3866,6 +3866,9 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   // Tara: the golden keeps the *highest* ascend progress of the copies (= the lowest "to go"), so tripling a
   // Tara that's close to ascending doesn't reset it back to 20-to-go.
   const goldenAscend = def.ascendAt ? Math.max(...combined.map((c) => c.ascendProgress ?? 0)) : 0;
+  // Han Gover: the golden keeps the HIGHEST damage tally of the copies (the same rule as Tara's ascend
+  // progress — the closest meter to its next Ale is the one that survives the merge).
+  const goldenDamageDealt = Math.max(...combined.map((c) => c.damageDealt ?? 0));
   // Hoarder: the golden keeps the EARLIEST (minimum) boughtWave of the copies, so a golden Hoarder
   // inherits the oldest copy's age → its highest sell value as the starting point (sell =
   // (wave - boughtWave + 1) × 2 golden). Generic — harmless on cards that don't read it — but Hoarder
@@ -3891,6 +3894,7 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
     buffs: goldenBuffs.length > 0 ? goldenBuffs : undefined,
     spellProgress: goldenProgress > 0 ? goldenProgress : undefined,
     ascendProgress: goldenAscend > 0 ? goldenAscend : undefined,
+    damageDealt: goldenDamageDealt > 0 ? goldenDamageDealt : undefined,
     boughtWave: goldenBoughtWave,
     eotTick: goldenEotTick,
   };
@@ -4050,6 +4054,7 @@ function preparePlayerCombatSide(s: RunState): PreparedCombatSide {
     ascendProgress: b.ascendProgress ?? 0, // Tara: seed the prior ascend tally so the live tracker shows the total
     spellProgress: b.spellProgress, // Guel: seed his on-board spell tally so the live combat text scales (not stuck at base)
     spiritTally: b.spiritTally, // Set 3 Spirits: Forest Colossus's Start of Combat reads it; Festival Keeper / Aspect print it
+    damageDealt: b.damageDealt, // Han Gover: seed the damage meter so it continues from the run total
     soldProgress: b.soldProgress, // Runic Archivist: display-only, so the combat card prints its live count
     boardFirstSpellId: b.boardFirstSpellId, // Spell Warden: display-only
     eotBonus: b.eotBonus, // Ritualist: seed the End-of-Turn grant so the live combat text reads its current per-tick value
@@ -4408,6 +4413,14 @@ function settleCombat(s: RunState, result: CombatResult): void {
         card.cardId = t.into;
         card.spellProgress = undefined;
       }
+    }
+  }
+  // Han Gover: persist the damage meter (seeded + this fight's hits) so it survives combat → shop → combat.
+  // The Ales themselves already came home through `playerHandGrants` above.
+  if (result.playerDamageMeters) {
+    for (const { sourceUid, total } of result.playerDamageMeters) {
+      const card = s.board.find((c) => c.uid === sourceUid);
+      if (card) card.damageDealt = total;
     }
   }
   // Tara → Taragosa: accumulate this combat's stat-grants; at the `ascendAt` threshold, ascend the board card

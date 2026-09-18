@@ -71,20 +71,34 @@ describe('Graverobber destroys in the shop', () => {
     expect(risen.health, 'golden doubles Attack but NEVER Health (owner ruling 2026-07-02)').toBe(1);
   });
 
-  it('a rising body HOLDS its slot, exactly as combat does — the Echo resolves FIRST but cannot take the room', () => {
-    // Owner ruling 2026-09-09 (superseding the 2026-07-02 "the body holds no slot"): Imp King's Echo summons 2
-    // Imps while the body still stands in its slot. 4 others + victim + Graverobber = 6: the first Imp fits (7),
-    // the second overflows, the victim leaves (6) and returns (7) — as printed, without the granted Rise.
+  it("ECHO FIRST, THEN THE RISE ATTEMPTS, exactly as combat does — the Echo's summons take the freed room", () => {
+    // Owner ruling 2026-09-18 (reversing 2026-09-09's "a rising body holds its slot"): Imp King's Echo summons
+    // 2 Imps while the body stands VACATING its slot. 4 others + victim + Graverobber = 6, the victim's slot
+    // freed → both Imps fit (7) → the King's return finds no room → an overflow, and the King stays dead.
     let s = run();
     const victim = body('impking', 'victim');
     victim.keywords = [...victim.keywords, 'R'];
     const others = ['sandbag', 'alley', 'trickster', 'ritualist'].map((id, i) => body(id, `o${i}`));
     s = { ...s, board: [...others, victim], hand: [body('graverobber', 'gr')] };
     s = graverob(s, 'victim');
-    expect(s.board.some((c) => c.uid === 'victim'), 'the corpse is gone — a fresh body returned').toBe(false);
-    expect(s.board.filter((c) => c.cardId === 'impscrap'), 'one Imp fit, one overflowed').toHaveLength(1);
-    expect(s.board.filter((c) => c.cardId === 'impking'), 'the King returned').toHaveLength(1);
+    expect(s.board.some((c) => c.uid === 'victim'), 'the corpse is gone').toBe(false);
+    expect(s.board.filter((c) => c.cardId === 'impscrap'), 'both Imps fit — the Echo went first').toHaveLength(2);
+    expect(s.board.filter((c) => c.cardId === 'impking'), 'the King found no room to rise').toHaveLength(0);
     expect(s.board.length).toBe(7);
+  });
+
+  it("with room, the Echo's summons land first and the risen body returns to their RIGHT", () => {
+    let s = run();
+    const victim = body('impking', 'victim');
+    victim.keywords = [...victim.keywords, 'R'];
+    s = { ...s, board: [body('sandbag', 'o0'), victim, body('sandbag', 'o1')], hand: [body('graverobber', 'gr')] };
+    s = graverob(s, 'victim');
+    const ids = s.board.map((c) => c.cardId);
+    const king = ids.indexOf('impking');
+    const imps = ids.map((id, i) => [id, i] as const).filter(([id]) => id === 'impscrap').map(([, i]) => i);
+    expect(imps).toHaveLength(2);
+    expect(king, 'the King came back to the right of his Imps').toBeGreaterThan(Math.max(...imps));
+    expect(s.board.findIndex((c) => c.uid === 'o1'), 'and left of the old right neighbour').toBeGreaterThan(king);
   });
 
   it('still pays its spell: the destroy is a means, not the whole card', () => {

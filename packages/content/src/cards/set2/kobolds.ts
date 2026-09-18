@@ -333,9 +333,9 @@ export const SET2_KOBOLDS: CardDef[] = [
     id: 'k_blazer',
     name: 'Blazer',
     tribe: 'kobold',
-    tier: 4,
-    attack: 3,
-    health: 8,
+    tier: 3, // owner 2026-09-18: T4 3/8 → T3 2/7
+    attack: 2,
+    health: 7,
     keywords: ['W', 'RL'],
     effects: [{ on: 'onAttack', do: 'rallyPlayRubiesAll', params: { count: 1 } }],
     text: '**Flurry.** **Rally:** cast a **Ruby** on your minions.',

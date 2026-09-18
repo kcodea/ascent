@@ -327,6 +327,7 @@ export function instView(
             ascendProgress: inst.ascendProgress, eotTick: eotTickShown, goldTick: inst.goldTick, buyTick: inst.buyTick, playTick: inst.playTick, rubyCastTick: inst.rubyCastTick,
             shoutTick: inst.shoutTick, soldProgress: inst.soldProgress, grimoireCharged: live?.grimoireCharged,
             orbitTick: inst.orbitTick, // CELESTIAL Orbit (N) — the shop-phase cadence counter
+            damageDealt: inst.damageDealt, // Han Gover: the persistent damage meter (N/40)
           });
           // Normally a fresh 0/N is hidden as noise (owner ruling). The Living Grimoire is the deliberate
           // exception: 0/3 is the whole point there — it's how you see the card is SPENT and how far the

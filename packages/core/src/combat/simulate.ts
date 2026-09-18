@@ -696,6 +696,7 @@ export function simulate(
     ascendProgress: m.ascendProgress,
     spellProgress: m.spellProgress, // Guel: the live combat text reads his on-board spell tally
     spiritTally: m.spiritTally, // Set 3 Spirits: Forest Colossus's Start of Combat reads it; Keeper / Aspect print it
+    damageDealt: m.damageDealt, // Han Gover: the seeded damage tally, so the combat meter starts from the run total
     soldProgress: m.soldProgress, // Runic Archivist (display-only)
     boardFirstSpellId: m.boardFirstSpellId, // Spell Warden (display-only)
 
@@ -703,11 +704,11 @@ export function simulate(
   });
 
   const living = (side: Side): Minion[] => boards[side].filter((m) => !m.dead && m.health > 0);
-  /** Slots held by bodies mid-Rise (dead for the duration of their own Echo, but returning). A RISING BODY HOLDS
-   *  ITS SLOT (owner ruling 2026-09-09, superseding 2026-07-02): its Echo resolves first, and a summon that Echo
-   *  makes finds no room on a full board — it overflows. Read by every room check through `occupied`. */
-  const risingReserved: Record<Side, number> = { player: 0, enemy: 0 };
-  const occupied = (side: Side): number => living(side).length + risingReserved[side];
+  /** The room check every summon reads. A dying body — Rise or Rebirth included — holds NO slot while it is dead
+   *  (owner ruling 2026-09-18, reversing the 2026-09-09 "a rising body holds its slot"): the Echo fires from the
+   *  death and takes the freed room first, THEN the body attempts to return, and on a full board it is the RETURN
+   *  that finds no room (an overflow; the body stays dead). So `occupied` is simply the living count. */
+  const occupied = (side: Side): number => living(side).length;
   // Like `living`, but RETAINS a body already at ≤0 HP whose death is being DEFERRED across a multi-volley
   // Echo (Fel Spikes): it stays on the board until the spray's flush, so a later volley / re-fire re-hits the
   // SAME accumulating set instead of skipping a body volley 1 already dropped. Only differs from `living` while
@@ -2187,6 +2188,36 @@ export function simulate(
     ctx.grantCardBuff(cardId, a, h, minion.side);
   }
 
+  /**
+   * HAN GOVER's damage meter ("When this deals 40 damage, get an Ale" — Set 3 Dwarf/Undead, 2026-09-18).
+   *
+   * Called from the ONE place every landed hit passes through (`applyDamage`, right after the `dmg` event), so
+   * attacks, retaliation and incidental damage (an Echo volley, a bolt) all count, and a hit that never landed
+   * (Immune, a popped Ward, 0 damage) never does — exactly the hits the replay's `dmg` events carry, which is
+   * what the UI re-derives the live meter from. A body whose card carries the passive `dealtDamageAleMeter`
+   * marker adds the FULL amount of the hit to its per-instance `damageDealt` (seeded from the run card, so
+   * the tally persists across combats), and every multiple of `every` it crosses grants `count` random
+   * Dwarven Ales (×2 gilded) through `grantToHand` — the standard combat→hand channel, so the card flies to
+   * hand in the replay and settles into the real hand via `playerHandGrants`. Overkill counts (a 30-Attack
+   * swing into a 1-Health body is 30 damage dealt); one big hit can cross two thresholds and pays both.
+   */
+  function noteDamageDealt(dealer: Minion, amount: number): void {
+    const eff = cards[dealer.cardId]?.effects.find((e) => e.on === 'passive' && e.do === 'dealtDamageAleMeter');
+    if (!eff) return;
+    const p = eff.params ?? {};
+    const every = Math.max(1, typeof p.every === 'number' ? p.every : 40);
+    const count = Math.max(0, typeof p.count === 'number' ? p.count : 1) * (dealer.golden ? 2 : 1);
+    const before = dealer.damageDealt ?? 0;
+    const after = before + amount;
+    dealer.damageDealt = after;
+    const crossings = Math.floor(after / every) - Math.floor(before / every);
+    if (crossings <= 0 || count <= 0) return;
+    const ales = ctx.poolCards(dealer.side).filter((c) => ALE_IDS.includes(c.id));
+    if (ales.length === 0) return; // a set without the Ales grants nothing (same rule as Rune of Last Call)
+    const draw = grantRngFor(dealer.side);
+    for (let i = 0; i < crossings * count; i++) ctx.grantToHand(draw.pick(ales).id, dealer.side, dealer.uid);
+  }
+
   function killOrReborn(minion: Minion, killer?: Minion): void {
     nextStep(); // this victim's death is its own resolution step (the exchange's damage came before)
     // Reborn (A.3 step 6): a minion's FIRST death fires its Deathrattle / on-death effects, then it returns
@@ -2229,7 +2260,6 @@ export function simulate(
       minion.health = 0;
       emit({ type: 'death', target: minion.uid, side: minion.side, rise: true });
       nextStep();
-      risingReserved[minion.side] += 1;
       deaths[minion.side] += 1; // counted before the Echo (R-AVWIN-02), as for a Rise
       noteCardDeath(minion);
       fireOwnDeathrattles(minion, killer);
@@ -2238,7 +2268,8 @@ export function simulate(
       noteKill(minion.cardId, minion.uid, minion.side);
       questEventsFor[minion.side].push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
       emitAvenge(minion.side, deaths[minion.side], minion);
-      risingReserved[minion.side] -= 1;
+      // Echo first, THEN the return (owner 2026-09-18): the Echo's summons took the freed room; no room now = an
+      // overflow and the body stays dead — the same rule as a Rise.
       if (living(minion.side).length >= 7) {
         bus.emit('summonOverflow', { side: minion.side });
         if (isUndeadMinion(minion)) finalGateGraves[minion.side].push({ cardId: minion.cardId, golden: !!minion.golden }); // it stayed dead
@@ -2286,7 +2317,8 @@ export function simulate(
       minion.health = 0;
       emit({ type: 'death', target: minion.uid, side: minion.side, rise: true });
       nextStep(); // the rattle's effects are a separate resolution from the death itself
-      risingReserved[minion.side] += 1; // the slot stays held through the Echo (owner 2026-09-09)
+      // NO slot is held while the body is dead (owner 2026-09-18, reversing 2026-09-09): the Echo fires from the
+      // death and its summons take the freed room first; the Rise is attempted only afterwards, below.
       // R-AVWIN-02 (fixed 2026-09-10): the death is COUNTED before its Echo fires, so an Avenge source the Echo
       // summons stamps a baseline that already includes this death — "the summoning death does not count".
       // The avenge broadcast itself still goes out after the Echo, unchanged.
@@ -2308,12 +2340,12 @@ export function simulate(
       // (`deaths[side]` was incremented above, before the Echo — R-AVWIN-02.)
       questEventsFor[minion.side].push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
       emitAvenge(minion.side, deaths[minion.side], minion);
-      risingReserved[minion.side] -= 1; // the reservation ends: the return itself takes the slot
-      // A RISING BODY HOLDS ITS SLOT (owner ruling 2026-09-09, superseding the 2026-07-02 "holds none"): the Echo
-      // resolved first and could not take this slot. If the side is somehow at 7 living anyway (another Rise or
-      // a placed summon filled it), the return does not fit — and that COUNTS AS AN OVERFLOW ("it DOES count as
-      // overflowing if a rising minion does not fit"): the overflow watchers fire, and the body stays dead for
-      // real. Its (rise-flagged) death was already emitted and tallied above, so nothing is pushed twice.
+      // ECHO FIRST, THEN THE RISE ATTEMPTS (owner ruling 2026-09-18: "the Echo triggers first, then the minion
+      // attempts to Rise" — for ALL Rise/Echo interactions; reverses the 2026-09-09 "a rising body holds its
+      // slot"). The Echo's summons took the freed slot; if the side is at 7 living now, the return does not fit —
+      // and that COUNTS AS AN OVERFLOW (unchanged: "it DOES count as overflowing if a rising minion does not
+      // fit"): the overflow watchers fire, and the body stays dead for real. Its (rise-flagged) death was
+      // already emitted and tallied above, so nothing is pushed twice.
       if (living(minion.side).length >= 7) {
         bus.emit('summonOverflow', { side: minion.side });
         if (isUndeadMinion(minion)) finalGateGraves[minion.side].push({ cardId: minion.cardId, golden: !!minion.golden }); // Final Gate: it stayed dead
@@ -2776,6 +2808,8 @@ export function simulate(
     emit({ type: 'dmg', target: target.uid, amount, remainingHp: Math.max(0, target.health), ...(poisoner ? { source: poisoner.uid } : {}) });
     // The hit landed (Immune + Divine Shield already returned above) — notify on-damaged watchers (Gryphon).
     if (amount > 0) bus.emit('onDamaged', { minion: target, side: target.side });
+    // Han Gover's meter: the dealer's running damage tally (see `noteDamageDealt`).
+    if (amount > 0 && poisoner) noteDamageDealt(poisoner, amount);
     // Set 2: a FRIENDLY-relative Demon just dealt damage that LANDED (Immune / Divine Shield / 0-dmg all
     // returned above, so a Ward-absorbed hit never gets here). Watchers filter by side; the emit filters to Demons.
     if (amount > 0 && poisoner && isTribeOf(poisoner, 'demon', cards)) {
@@ -3500,6 +3534,7 @@ export function simulate(
       hpGrantBonus: minion.hpGrantBonus,
       ascendProgress: minion.ascendProgress,
       spiritTally: minion.spiritTally,
+      damageDealt: minion.damageDealt,
       soldProgress: minion.soldProgress,
       boardFirstSpellId: minion.boardFirstSpellId,
       sourceUid: minion.sourceUid,
@@ -4468,6 +4503,10 @@ export function simulate(
     const spellProgress = board
       .filter((m) => m.sourceUid !== undefined && (m.spellProgress ?? 0) > 0)
       .map((m) => ({ sourceUid: m.sourceUid!, progress: m.spellProgress! }));
+    // Han Gover: the running damage tally (seeded + this fight's hits) carries back so the meter persists.
+    const damageMeters = board
+      .filter((m) => m.sourceUid !== undefined && (m.damageDealt ?? 0) > 0 && cards[m.cardId]?.effects.some((e) => e.do === 'dealtDamageAleMeter'))
+      .map((m) => ({ sourceUid: m.sourceUid!, total: m.damageDealt! }));
     // Tara's stat-grant tally this combat, per board card (for the ascend-at-settle accumulation).
     const ascendCount = board
       .filter((m) => m.sourceUid !== undefined && (buffCounts.get(m.uid) ?? 0) > 0)
@@ -4521,6 +4560,7 @@ export function simulate(
       summonBonus,
       hpGrantBonus: hpGrantBonus.length > 0 ? hpGrantBonus : undefined,
       spellProgress: spellProgress.length > 0 ? spellProgress : undefined,
+      damageMeters: damageMeters.length > 0 ? damageMeters : undefined,
       ascendCount: ascendCount.length > 0 ? ascendCount : undefined,
       permaBuffs: permaBuffs.length > 0 ? permaBuffs : undefined,
       handGrants: handGrants[side].length > 0 ? handGrants[side] : undefined,
@@ -4588,6 +4628,7 @@ export function simulate(
     playerSummonBonus: pc.summonBonus,
     playerHpGrantBonus: pc.hpGrantBonus,
     playerSpellProgress: pc.spellProgress,
+    playerDamageMeters: pc.damageMeters,
     playerAscendCount: pc.ascendCount,
     playerPermaBuffs: pc.permaBuffs,
     playerHandGrants: pc.handGrants,

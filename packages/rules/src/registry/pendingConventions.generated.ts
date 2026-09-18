@@ -319,14 +319,15 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-passive",
-    "title": "'passive' family · 4 cards",
-    "statement": "All 4 'passive' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'passive' family · 5 cards",
+    "statement": "All 5 'passive' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "4 effect factories across 4 cards dispatch through the 'passive' presentation family, all on the single trigger 'passive' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Fuse Aldrin: \"When you Collapse a Starform, it buffs 2 additional random Celestials.\" · Members: Fuse Aldrin · Deepdelve Paragon · Spear Warden · Ancient Wanderer",
+    "currentBehaviour": "5 effect factories across 5 cards dispatch through the 'passive' presentation family, all on the single trigger 'passive' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Fuse Aldrin: \"When you Collapse a Starform, it buffs 2 additional random Celestials.\" · Members: Fuse Aldrin · Han Gover · Deepdelve Paragon · Spear Warden · Ancient Wanderer",
     "example": "Fuse Aldrin follows the 'passive' convention — its trigger fires on passive. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_novaherald",
+      "dw3_hangover",
       "k_deepdelve",
       "knit",
       "n2_wanderer"
@@ -832,11 +833,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-global-dual-tribe",
-    "title": "Dual & universal tribes · 22 carriers",
+    "title": "Dual & universal tribes · 23 carriers",
     "statement": "A dual-tribe minion counts as both tribes, everywhere. A universal minion counts as every tribe. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
     "currentBehaviour": "isTribe/tribe predicates fold tribe2 and universalTribe; the tribePredicates lane sweeps raw comparisons.",
-    "cardText": "Exemplar — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · Carriers: Bane · Gravestar Seer · Crypt Drake · Crypt Wolf · Fel Conjurer · Baal · High King Mykel · Mountainbond · Heckbinder · Gemgorge Fiend · Lab Experiment · Evolving Abomination · … and 10 more",
+    "cardText": "Exemplar — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · Carriers: Bane · Gravestar Seer · Crypt Drake · Crypt Wolf · Fel Conjurer · Han Gover · Baal · High King Mykel · Mountainbond · Heckbinder · Gemgorge Fiend · Lab Experiment · … and 11 more",
     "example": "Bane receives BOTH tribes' buffs and satisfies either tribe's quest counters.",
     "contentIds": [
       "bane",
@@ -844,6 +845,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "cryptdrake",
       "cryptwolf",
       "d2_felconjurer",
+      "dw3_hangover",
       "dw_baal",
       "dw_brisbane",
       "dw_mountainbond",
@@ -905,7 +907,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Gilding default: ×2",
     "statement": "A gilded card doubles its printed numbers. Outliers instead gild the summoned token, reshape the effect, or add a proc; spells never gild. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "gilding",
-    "currentBehaviour": "358 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
+    "currentBehaviour": "359 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
     "cardText": "Exemplar — Wolves Den: \"Deathrattle: Summon 3 Crypt Wolves.\" → gilded: \"Deathrattle: Summon 6 Crypt Wolves.\"",
     "example": "Wolves Den's gilded text just writes the ×2 out in full — while gilded Dunkey instead summons ONE gilded Armadiyo."
   },

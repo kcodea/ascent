@@ -123,6 +123,9 @@ export function toEditorLayer(raw: unknown): EditorLayer | null {
     // The anchor PART rides on the same omit-unless-set terms: `card` (the centre) is the default and is
     // never written, so a pre-parts session round-trips byte-for-byte.
     ...(isAnchorPart(l.anchorPart) && l.anchorPart !== 'card' ? { anchorPart: l.anchorPart } : {}),
+    // The travel TARGET-end part rides on the same terms; kept only on a travel layer with a real non-`card`
+    // value, else omitted so both ends fall back to `anchorPart`.
+    ...(coerceAnchor(l.anchor) === 'travel' && isAnchorPart(l.anchorPartTo) && l.anchorPartTo !== 'card' ? { anchorPartTo: l.anchorPartTo } : {}),
     params: coerceParams(l.params),
   };
 }
@@ -273,6 +276,9 @@ export function toStoredLayers(
       anchor: l.anchor,
       // The anchor part rides along only when set — `card` is the centre and an omission (see `FxAnchorPart`).
       ...(l.anchorPart === undefined || l.anchorPart === 'card' ? {} : { anchorPart: l.anchorPart }),
+      // The travel TARGET-end part, only on a travel layer with a real non-`card` value (else both ends share
+      // `anchorPart`).
+      ...(l.anchor === 'travel' && l.anchorPartTo !== undefined && l.anchorPartTo !== 'card' ? { anchorPartTo: l.anchorPartTo } : {}),
       at: l.at,
       ...(l.life === null ? {} : { life: l.life }),
       ...(l.travelMs === null || l.travelMs === undefined ? {} : { travelMs: l.travelMs }),

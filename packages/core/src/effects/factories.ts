@@ -1310,20 +1310,28 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       ctx.grantToHand(pick.id, self.side, self.uid);
     }
   },
-  /** Set 3 Spirits — Kindled Sprite (Rally): +per Attack per Spirit played this turn (frozen at combat start).
-   *  Combat-only, like every Rally self-gain. Own attack only. */
+  /** Set 3 Spirits — Kindled Sprite (Rally): +per Attack per Spirit played this turn (frozen at combat start),
+   *  PERMANENTLY (owner handoff 2026-09-18): the gain is booked as `permaGain` — the Target Dummy channel — so
+   *  `playerPermaBuffs` carries it home to the run card (an Engraved body already accrues it in `ctx.buff`).
+   *  Own attack only. */
   rallyGainAttackPerSpiritsPlayed: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return;
     const n = ctx.spiritsPlayedFor(self.side) * num(params.per, 1) * mul(self);
-    if (n > 0) ctx.buff(self, n, 0, self.uid); // uid, not name: a label source draws no self pulse (2026-09-16)
+    if (n <= 0) return;
+    ctx.buff(self, n, 0, self.uid); // uid, not name: a label source draws no self pulse (2026-09-16)
+    if (!self.keywords.includes('EG')) {
+      self.permaGain = { attack: (self.permaGain?.attack ?? 0) + n, health: self.permaGain?.health ?? 0 };
+      self.permaLabel = self.name; // the run card's ledger names the Sprite, not Flowing Monk
+    }
   },
-  /** Set 3 Spirits — Forest Colossus (Start of Combat): your `tribe` minions +atk/+hp per point of this body's
-   *  carried tally (Spirits played since it was played). Combat-only; the shop twin pays permanently. */
+  /** Set 3 Spirits — Old Timber (Start of Combat): your `tribe` minions +atk/+hp per step — `base` steps (its
+   *  printed +3/+2, owner handoff 2026-09-18) plus this body's carried tally (Spirits played since it was played).
+   *  Combat-only; the shop twin pays permanently. */
   scBuffTribePerTally: (ctx, self, params) => {
     if (self.dead) return;
     const tribe = str(params.tribe);
-    const n = (self.spiritTally ?? 0) * mul(self);
+    const n = (num(params.base, 0) + (self.spiritTally ?? 0)) * mul(self);
     if (n <= 0) return;
     const a = num(params.attack, 1) * n, h = num(params.health, 1) * n;
     const arena = combatArena(ctx, self);

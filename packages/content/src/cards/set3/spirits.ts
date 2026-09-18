@@ -8,8 +8,8 @@ import type { CardDef } from '@game/core';
  *     more Revelers; Festival Treasurer and Grand Procession pay off selling them.
  *   • SPIRITS PLAYED — a per-turn tally (`spiritsPlayedThisTurn`, derived from `playedThisTurn`) and a new
  *     `onTribePlayed` trigger with PER-INSTANCE tallies (`spiritTally`): Festival Keeper (every 3 → a spell),
- *     Aspect (improves every 3), Forest Colossus (counts only Spirits played AFTER it — owner
- *     2026-09-09).
+ *     Aspect (improves every 3), Old Timber (counts only Spirits played AFTER it — owner
+ *     2026-09-09; a base +3/+2 that improves per Spirit since 2026-09-18).
  * Tranche 2 adds the HAND-SUMMON cards (Tide Caller, Dreaming Deep, Seedling Spirit, Handbound Titan,
  * Flamebanner Marshal, Hearth Whisperer, Slumbering Colossus).
  * Golden doubles every number (owner 2026-09-09); a golden Reveler pays 2X.
@@ -114,19 +114,20 @@ export const SET3_SPIRITS: readonly CardDef[] = [
     goldenText: '**Echo:** summon the **2** highest-Health minions from your hand and give them **Ward**.',
   },
   {
-    // Rally: +1 Attack per Spirit played this turn. Combat reads the tally frozen at combat start
-    // (`spiritsPlayedFor`); a shop-triggered Rally reads the live count. Combat-only in a fight (owner: "all
-    // attack only unless something else modifies or engraves them").
+    // Rally: +1 Attack PERMANENTLY per Spirit played this turn (owner handoff 2026-09-18 — was combat-only, 3/1).
+    // Combat reads the tally frozen at combat start (`spiritsPlayedFor`) and books the gain as `permaGain` so it
+    // carries back to the run card (Target Dummy's channel); a shop-triggered Rally reads the live count and is
+    // permanent as every shop grant is. The live text prints the current total on both chains (`spiritText`).
     id: 'sp3_kindled',
     name: 'Kindled Sprite',
     tribe: 'spirit',
     tier: 1,
-    attack: 3,
-    health: 1,
+    attack: 1,
+    health: 3,
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallyGainAttackPerSpiritsPlayed', params: { per: 1 } }],
-    text: '**Rally:** gain **+1 Attack** for each Spirit you played this turn.',
-    goldenText: '**Rally:** gain **+2 Attack** for each Spirit you played this turn.',
+    text: '**Rally:** gain **+1 Attack** permanently for every Spirit played this turn.',
+    goldenText: '**Rally:** gain **+2 Attack** permanently for every Spirit played this turn.',
   },
   {
     // Shout: ONE random Spirit on the board AND one random Spirit in hand, +2 Health each (owner: two recipients).
@@ -258,8 +259,9 @@ export const SET3_SPIRITS: readonly CardDef[] = [
     goldenText: '**Shout:** if you control a Spirit, **Discover** a Spirit, twice.',
   },
   {
-    // Whenever you play a Spirit: 3 random friendly Spirits +N/+N, where N starts at 1 and improves by 1 every
-    // 3 triggers (per copy — owner 2026-09-09). Golden doubles both the grant and the improvement.
+    // Whenever you play a Spirit: 3 random friendly Spirits +N/+N, where N starts at 2 and improves by 2 every
+    // 3 triggers (per copy — owner 2026-09-09; +2 step since the 2026-09-18 handoff). Golden doubles both the
+    // grant and the improvement. The live text prints the current grant; the step counter shows N/3.
     id: 'sp3_aspect',
     name: 'Aspect', // renamed from Aspect (owner 2026-09-11); id kept
     tribe: 'spirit',
@@ -267,9 +269,9 @@ export const SET3_SPIRITS: readonly CardDef[] = [
     attack: 5,
     health: 7,
     keywords: [],
-    effects: [{ on: 'onTribePlayed', do: 'tribePlayedBuffRandomTribeImproving', params: { tribe: 'spirit', count: 3, attack: 1, health: 1, every: 3 } }],
-    text: 'Whenever you play a Spirit, give **3** random friendly Spirits **+1/+1**. Improve this by **+1/+1** every 3 times this triggers.',
-    goldenText: 'Whenever you play a Spirit, give **3** random friendly Spirits **+2/+2**. Improve this by **+2/+2** every 3 times this triggers.',
+    effects: [{ on: 'onTribePlayed', do: 'tribePlayedBuffRandomTribeImproving', params: { tribe: 'spirit', count: 3, attack: 2, health: 2, every: 3 } }],
+    text: 'When you play a Spirit, give **3** random Spirits **+2/+2**. Improves every **3** times this triggers.',
+    goldenText: 'When you play a Spirit, give **3** random Spirits **+4/+4**. Improves every **3** times this triggers.',
   },
   {
     // Whenever you sell a Reveler: your next Spirit this turn costs 1 less — stacks to −3 (owner 2026-09-09).
@@ -311,7 +313,8 @@ export const SET3_SPIRITS: readonly CardDef[] = [
   },
   {
     // Renamed from Parade Colossus (owner 2026-09-09). Counts only Spirits played AFTER it was played — a
-    // per-instance tally (`spiritTally`) that the combat body carries in. Start of Combat: Spirits +1/+1 each.
+    // per-instance tally (`spiritTally`) that the combat body carries in. Start of Combat (owner handoff
+    // 2026-09-18): a BASE +3/+2 that improves by +3/+2 per Spirit played — (1 + tally) steps (`base: 1`).
     id: 'sp3_forestcolossus',
     name: 'Old Timber', // 'Forest Colossus' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'spirit',
@@ -321,10 +324,10 @@ export const SET3_SPIRITS: readonly CardDef[] = [
     keywords: [],
     effects: [
       { on: 'onTribePlayed', do: 'tribePlayedTally', params: { tribe: 'spirit' } },
-      { on: 'startOfCombat', do: 'scBuffTribePerTally', params: { tribe: 'spirit', attack: 1, health: 1 } },
+      { on: 'startOfCombat', do: 'scBuffTribePerTally', params: { tribe: 'spirit', attack: 3, health: 2, base: 1 } },
     ],
-    text: '**Start of Combat:** give your Spirits **+1/+1** for each Spirit you played since this was played.',
-    goldenText: '**Start of Combat:** give your Spirits **+2/+2** for each Spirit you played since this was played.',
+    text: '**Start of Combat:** give your Spirits **+3/+2**. Improves for every Spirit played.',
+    goldenText: '**Start of Combat:** give your Spirits **+6/+4**. Improves for every Spirit played.',
   },
   {
     // The first Flame, Tide and Grove Reveler sold each turn each return a PLAIN copy (base stats, not golden)

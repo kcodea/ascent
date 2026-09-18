@@ -10,7 +10,7 @@
  * the screen uses, so the two surfaces cannot disagree again.
  */
 import { describe, expect, it } from 'vitest';
-import { createRun, type RunState, type ShopCard } from '@game/sim';
+import { createRun, spellAttackBonus, spellHealthBonus, type RunState, type ShopCard } from '@game/sim';
 import { shopView } from './Recruit';
 import { instView } from './instView';
 
@@ -39,5 +39,28 @@ describe('shop spell live text (owner 2026-09-13)', () => {
 
   it('with nothing cast the shop prints the base (no false green)', () => {
     expect(shopView(offer('stellarchorus'), { anySpellsThisTurn: 0 }).text).toContain('**+2/+2**');
+  });
+
+  it('Sugarnova pending +4/+4 (owner 2026-09-18) greens every Shop spell offer AND hand spell in place, through the same spell-power read the cast uses', () => {
+    const run = runWith({ nextSpellBonus: { attack: 4, health: 4 } });
+    const a = spellAttackBonus(run), h = spellHealthBonus(run);
+    expect([a, h], 'the banked bonus rides the spell-power read').toEqual([4, 4]);
+    // The shop row: a Star Crash offer and a Stellar Chorus offer both print base + 4.
+    const crash = shopView(offer('starcrash'), { spellBonus: a, spellBonusH: h, anySpellsThisTurn: 0 });
+    expect(crash.text).toContain('{{+9/+11}}');
+    expect(crash.text).not.toContain('+5/+7');
+    expect(shopView(offer('stellarchorus'), { spellBonus: a, spellBonusH: h, anySpellsThisTurn: 0 }).text).toContain('{{+6/+6}}');
+    // The hand: the same Star Crash reads the same line (the hand chain threads `nextSpellBonus` for Gifts only).
+    const hand = instView(
+      { uid: 'h', cardId: 'starcrash', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false },
+      run.tier, undefined, a, h, 0, 0, 0, 0, 0, 1, 0, undefined, undefined, { nextSpellBonus: run.nextSpellBonus, anySpellsThisTurn: 0 },
+    );
+    expect(hand.text).toBe(crash.text);
+    // A Gift in hand (Tower Shield) never reads it: its flat base, no green.
+    const gift = instView(
+      { uid: 'g', cardId: 'tower_shield', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false },
+      run.tier, undefined, a, h, 0, 0, 0, 0, 0, 1, 0, undefined, undefined, { nextSpellBonus: run.nextSpellBonus, anySpellsThisTurn: 0 },
+    );
+    expect(gift.text).not.toContain('{{');
   });
 });

@@ -3190,7 +3190,7 @@ export const EPIC_RUNES: RuneDef[] = [
     cost: 6,
     epic: true,
     tribes: ['celestial'],
-    text: 'When you **Collapse** a Starform, grant half its stats to **all** your Celestials instead of two.',
+    text: 'When you **Collapse** a Starform, grant half its stats to **all** your Celestials instead of three.',
     previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
     reward: { kind: 'runeSupernova' },
     sets: ['set3'],

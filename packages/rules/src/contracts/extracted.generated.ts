@@ -2885,10 +2885,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "medium",
-      "unparsed": [
-        "onSpellCastOnThisSpreadTribeNamed.tribe"
-      ]
+      "confidence": "high"
     },
     "setIds": [
       "set3"
@@ -2909,11 +2906,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "onSpellCastOnThisSpreadTribeNamed",
+        "kind": "onSpellCastOnThisRecastNamed",
         "amount": {
           "kind": "const",
           "plain": {
-            "count": 2
+            "count": 1
           }
         },
         "refs": [
@@ -2922,11 +2919,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
+      "kind": "reshape",
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
+      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
       "source": "index"
@@ -3459,7 +3455,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "low"
+      "confidence": "high"
     },
     "setIds": [
       "set3"
@@ -3476,26 +3472,26 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "event": "endOfTurn",
         "phase": "shop",
         "phaseBasis": "derived:phaseRegistry"
-      },
-      {
-        "event": "startOfTurn",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
       {
-        "kind": "endOfTurnStarformConsumeAllShop"
-      },
-      {
-        "kind": "startOfTurnCreateStarform"
+        "kind": "endOfTurnCreateStarformThenBuff",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 10,
+            "health": 10
+          }
+        }
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
+      "kind": "multiply",
+      "factor": 2,
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -3522,19 +3518,20 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "triggers": [
       {
-        "event": "onBuy",
+        "event": "goldSpent",
         "phase": "shop",
         "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
       {
-        "kind": "onBuyCreateStarformOrBuff",
+        "kind": "goldSpentCreateStarformOrBuff",
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 1,
-            "health": 2
+            "attack": 3,
+            "every": 5,
+            "health": 3
           }
         }
       }
@@ -3903,8 +3900,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 2,
-            "health": 2
+            "attack": 4,
+            "health": 4
           }
         }
       }
@@ -36360,10 +36357,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 1,
+            "attack": 2,
             "count": 3,
             "every": 3,
-            "health": 1
+            "health": 2
           }
         }
       }
@@ -36753,8 +36750,9 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 1,
-            "health": 1
+            "attack": 3,
+            "base": 1,
+            "health": 2
           }
         }
       }

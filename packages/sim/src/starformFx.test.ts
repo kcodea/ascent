@@ -97,15 +97,15 @@ describe('starformFx — the per-action pull channel', () => {
     expect(none.starformFxSeq).toBe(0);
   });
 
-  it('(3) COLLAPSE (Corona Devotee): one record from the token naming EVERY hit — two unique, one, or the Devotee alone; Herald extras repeat uids', () => {
+  it('(3) COLLAPSE (Corona Devotee): one record from the token naming EVERY hit — three unique (since 2026-09-18), two, one, or the Devotee alone; Herald extras repeat uids', () => {
     let s = withStarform({ board: [body('a', 'ce3_seer'), body('b', 'ce3_courier'), body('c', 'ce3_vendor'), body('n', 'sandbag')], hand: [body('d', 'ce3_coronadevotee')] });
     const token = starformOf(s)!.uid;
     s = play(s, 'd');
     expect(s.starformFx).toHaveLength(1);
     const fx = s.starformFx![0]!;
     expect([fx.kind, fx.fromUid]).toEqual(['collapse', token]);
-    expect(fx.toUids).toHaveLength(2);
-    expect(new Set(fx.toUids).size, 'two distinct targets').toBe(2);
+    expect(fx.toUids).toHaveLength(3);
+    expect(new Set(fx.toUids).size, 'three distinct targets').toBe(3);
     expect(fx.toUids).not.toContain('n');
     // The receivers on the record are exactly the bodies that gained.
     const gained = s.board.filter((c) => (c.buffs ?? []).some((b) => b.source === 'Solburn')).map((c) => c.uid);

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { CARD_INDEX, REVELER_IDS, poolFor } from '@game/content';
 import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
-import { handCardLocked, revelerValue, spiritsPlayedThisTurn, summonCopyFromHandShop } from './recruit';
+import { fireShopRally, handCardLocked, revelerValue, spiritsPlayedThisTurn, summonCopyFromHandShop } from './recruit';
 import { equipmentState } from './equipment';
 
 /**
@@ -44,15 +44,15 @@ describe('the Revelers share one value', () => {
     });
     expect(revelerValue(s)).toBe(1);
     s = sell(s, 'f');
-    expect(stats(at(s, 'k'))).toEqual([3 + 1, 1]);
+    expect(stats(at(s, 'k')), 'Kindled Sprite is 1/3 (2026-09-18)').toEqual([1 + 1, 3]);
     expect(stats(at(s, 'v')), 'Flame pays Spirits only').toEqual([1, 1]);
     expect(stats(inHand(s, 'h')), 'the hand is NEVER paid (owner correction 2026-09-09)').toEqual([2, 3]); // Tidebud 2/3 since 2026-09-18
     expect(revelerValue(s)).toBe(2);
     s = sell(s, 't');
-    expect(stats(at(s, 'k'))).toEqual([4, 1 + 2]);
+    expect(stats(at(s, 'k'))).toEqual([2, 3 + 2]);
     expect(revelerValue(s)).toBe(3);
     s = sell(s, 'g');
-    expect(stats(at(s, 'k'))).toEqual([4 + 3, 3 + 3]);
+    expect(stats(at(s, 'k'))).toEqual([2 + 3, 5 + 3]);
     expect(stats(at(s, 'v')), 'the Grove pays every minion').toEqual([1 + 3, 1 + 3]);
     expect(revelerValue(s)).toBe(4);
   });
@@ -60,7 +60,7 @@ describe('the Revelers share one value', () => {
   it('a golden Reveler pays 2X (and still raises the value by one)', () => {
     let s = run({ board: [body('f', 'sp3_flamereveler', { golden: true }), body('k', 'sp3_kindled')], revelerX: 5 });
     s = sell(s, 'f');
-    expect(at(s, 'k').attack).toBe(3 + 10);
+    expect(at(s, 'k').attack).toBe(1 + 10);
     expect(revelerValue(s)).toBe(6);
   });
 
@@ -124,12 +124,42 @@ describe('Revelers as a class', () => {
 });
 
 describe('Spirits played this turn', () => {
-  it('Kindled Sprite (combat): +1 Attack per Spirit played this turn, frozen at combat start', () => {
-    const r = simulate([bm('sp3_kindled')], [foe(0, 30)], makeRng(3), CARD_INDEX,
+  it('Kindled Sprite (combat): +1 Attack per Spirit played this turn, frozen at combat start — PERMANENT (carried back as a perma-buff, owner 2026-09-18)', () => {
+    const r = simulate([bm('sp3_kindled', { sourceUid: 'k1', health: 40 } as Partial<BoardMinion>)], [foe(0, 30)], makeRng(3), CARD_INDEX,
       combatSide({ tier: 6, spiritsPlayed: 3, poolIds: poolFor('set3').all.map((c) => c.id) }), combatSide({ tier: 6 }));
     const gains = r.events.filter((e) => e.type === 'buff' && String((e as { key?: string }).key ?? '').includes('rallyGainAttackPerSpiritsPlayed'));
     expect(gains.length).toBeGreaterThan(0);
     expect((gains[0] as { attack: number }).attack).toBe(3);
+    // Every Rally swing books +3 into `permaGain`; the settle carry-back (`playerPermaBuffs`) hands the total home.
+    const home = r.playerPermaBuffs?.filter((b) => b.sourceUid === 'k1') ?? [];
+    expect(home.length, 'a perma-buff record for the run card').toBe(1);
+    expect(home[0]!.attack, 'the sum of its Rallies').toBe(3 * gains.length);
+    expect(home[0]!.health).toBe(0);
+  });
+
+  it('Kindled Sprite: the run card keeps the Attack after the fight (End Turn → combat → next shop)', () => {
+    // Three (distinct — three of a kind would triple) Spirits played this turn, then the fight: the Sprite comes
+    // home with +3 Attack per Rally it made. A 40-Health body so it survives to be carried back.
+    let s = run({ board: [body('k', 'sp3_kindled', { health: 40 })], hand: [body('a', 'sp3_tidebud'), body('b', 'sp3_nurturer'), body('c', 'sp3_bondweaver')], playedThisTurn: [] });
+    s = play(s, 'a'); s = play(s, 'b'); s = play(s, 'c');
+    expect(spiritsPlayedThisTurn(s)).toBe(3);
+    const before = at(s, 'k').attack;
+    s = reduce(reduce(reduce(s, { type: 'faceOmen' } as Action), { type: 'settleCombat' } as Action), { type: 'resolveCombat' } as Action);
+    expect(s.phase).toBe('recruit');
+    const rallies = (s.lastCombat?.events ?? []).filter((e) => e.type === 'buff' && String((e as { key?: string }).key ?? '').includes('rallyGainAttackPerSpiritsPlayed'));
+    expect(rallies.length).toBeGreaterThan(0);
+    expect((rallies[0] as { attack: number }).attack, 'the frozen count').toBe(3);
+    expect(at(s, 'k').attack - before, 'permanent: +3 per Rally, on the run card').toBe(3 * rallies.length);
+    expect((at(s, 'k').buffs ?? []).find((b) => b.source === 'Kindled Sprite'), 'the ledger names the card, not Flowing Monk').toBeTruthy();
+  });
+
+  it('Kindled Sprite (shop-triggered Rally): the live count, permanent as every shop grant', () => {
+    let s = run({ board: [body('k', 'sp3_kindled')], hand: [body('a', 'sp3_tidebud'), body('b', 'sp3_nurturer')], playedThisTurn: [] });
+    s = play(s, 'a'); s = play(s, 'b');
+    const before = at(s, 'k').attack;
+    fireShopRally(s, at(s, 'k'));
+    expect(at(s, 'k').attack - before).toBe(2);
+    expect((at(s, 'k').buffs ?? []).filter((b) => b.source === 'Kindled Sprite').reduce((n, b) => n + b.attack, 0)).toBe(2);
   });
 
   it('Nurturer: End of Turn pays once, plus once per Spirit played this turn', () => {
@@ -157,31 +187,44 @@ describe('onTribePlayed — per-instance tallies', () => {
     expect(s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell), 'a random Shop spell arrived').toHaveLength(1);
   });
 
-  it('Aspect: +1/+1 to 3 random Spirits per play, improving to +2/+2 after 3 triggers', () => {
+  it('Aspect: +2/+2 to 3 random Spirits per play, improving to +4/+4 after 3 triggers (owner handoff 2026-09-18; was +1/+1)', () => {
     const ids = { a: 'sp3_tidebud', b: 'sp3_nurturer', c: 'sp3_bondweaver', d: 'sp3_festivalkeeper' } as const;
     let s = run({ board: [body('ac', 'sp3_aspect'), body('x', 'sp3_kindled')], hand: Object.entries(ids).map(([u, id]) => body(u, id)) });
-    // Total Attack the Choreographer has handed out = Σ (other Spirits' attack − printed). None of the played
+    // Total Attack the Aspect has handed out = Σ (other Spirits' attack − printed). None of the played
     // Spirits touches Attack on play (Tidebud's Shout is Health-only), so the sum is a clean read.
     const handed = (st: RunState): number => st.board.filter((c) => c.uid !== 'ac').reduce((n, c) => n + c.attack - CARD_INDEX[c.cardId]!.attack, 0);
     s = play(s, 'a'); s = play(s, 'b'); s = play(s, 'c');
     expect(at(s, 'ac').spiritTally).toBe(3);
-    // fires with 2, 3, 4 other Spirits available → 2 + 3 + 3 recipients × +1 Attack
-    expect(handed(s)).toBe(8);
-    s = play(s, 'd'); // the 4th trigger pays the improved +2 Attack to 3 recipients
-    expect(handed(s)).toBe(14);
+    // fires with 2, 3, 4 other Spirits available → (2 + 3 + 3) recipients × +2 Attack
+    expect(handed(s)).toBe(16);
+    s = play(s, 'd'); // the 4th trigger pays the improved +4 Attack to 3 recipients
+    expect(handed(s)).toBe(16 + 12);
+    // The second improvement: a copy that has already witnessed 6 triggers pays +6 on the 7th.
+    let t = run({ board: [body('ac', 'sp3_aspect', { spiritTally: 6 }), body('x', 'sp3_kindled'), body('y', 'sp3_nurturer'), body('z', 'sp3_bondweaver')], hand: [body('a', 'sp3_tidebud')] });
+    t = play(t, 'a');
+    expect(handed(t), '3 recipients × +6').toBe(18);
+    // Gilded: a +4 step improving by +4.
+    let g = run({ board: [body('ac', 'sp3_aspect', { golden: true }), body('x', 'sp3_kindled'), body('y', 'sp3_nurturer'), body('z', 'sp3_bondweaver')], hand: [body('a', 'sp3_tidebud')] });
+    g = play(g, 'a');
+    expect(handed(g), '3 recipients × +4').toBe(12);
   });
 
-  it('Forest Colossus counts only Spirits played AFTER it, and its Start of Combat pays per point in the fight', () => {
+  it('Old Timber counts only Spirits played AFTER it; its Start of Combat pays a base +3/+2 plus +3/+2 per point (owner handoff 2026-09-18)', () => {
     let s = run({ board: [body('early', 'sp3_kindled')], hand: [body('fc', 'sp3_forestcolossus'), body('a', 'sp3_tidebud'), body('b', 'sp3_tidebud')] });
     s = play(s, 'fc');
     expect(at(s, 'fc').spiritTally ?? 0, 'its own arrival never counts').toBe(0);
     s = play(s, 'a'); s = play(s, 'b');
     expect(at(s, 'fc').spiritTally).toBe(2);
-    const r = simulate([bm('sp3_forestcolossus', { spiritTally: 2 } as Partial<BoardMinion>), bm('sp3_kindled')], [foe(1, 40)], makeRng(5), CARD_INDEX,
-      combatSide({ tier: 6, poolIds: poolFor('set3').all.map((c) => c.id) }), combatSide({ tier: 6 }));
-    const kindled = r.initial.player.find((m) => m.cardId === 'sp3_kindled')!;
-    const soc = r.events.find((e) => e.type === 'buff' && (e as { target?: string }).target === kindled.uid && (e as { attack?: number }).attack === 2 && (e as { health?: number }).health === 2);
-    expect(soc, 'Kindled Sprite got +2/+2 at Start of Combat').toBeTruthy();
+    const socOn = (tally: number, golden = false) => {
+      const r = simulate([bm('sp3_forestcolossus', { spiritTally: tally, golden } as Partial<BoardMinion>), bm('sp3_kindled')], [foe(1, 40)], makeRng(5), CARD_INDEX,
+        combatSide({ tier: 6, poolIds: poolFor('set3').all.map((c) => c.id) }), combatSide({ tier: 6 }));
+      const kindled = r.initial.player.find((m) => m.cardId === 'sp3_kindled')!;
+      const e = r.events.find((ev) => ev.type === 'buff' && (ev as { target?: string }).target === kindled.uid && String((ev as { key?: string }).key ?? '').includes('scBuffTribePerTally')) as { attack: number; health: number } | undefined;
+      return e ? [e.attack, e.health] : null;
+    };
+    expect(socOn(0), 'nothing counted yet: the printed base +3/+2').toEqual([3, 2]);
+    expect(socOn(2), 'two counted: (1 + 2) × +3/+2').toEqual([9, 6]);
+    expect(socOn(2, true), 'gilded doubles').toEqual([18, 12]);
   });
 });
 
@@ -189,7 +232,7 @@ describe('board-and-hand recipients', () => {
   it('Tidebud buffs one random Spirit on board AND one in hand (+2 Health each)', () => {
     let s = run({ board: [body('x', 'sp3_kindled')], hand: [body('tb', 'sp3_tidebud'), body('h', 'sp3_nurturer'), body('v', 'venom')] });
     s = play(s, 'tb');
-    expect(at(s, 'x').health).toBe(1 + 2);
+    expect(at(s, 'x').health).toBe(3 + 2);
     expect(inHand(s, 'h').health).toBe(6 + 2);
     expect(inHand(s, 'v').health, 'not a Spirit').toBe(1);
     expect(at(s, 'tb').health, 'never itself').toBe(3);
@@ -238,7 +281,7 @@ describe('board-and-hand recipients', () => {
   it('Dreamcurrent Mystic: a Shop spell cast → a random hand minion +4/+6', () => {
     let s = run({ board: [body('dm', 'sp3_dreamcurrent')], hand: [body('h', 'sp3_kindled'), body('sp', 'growth')] });
     s = reduce(s, { type: 'play', uid: 'sp' } as Action);
-    expect(stats(inHand(s, 'h'))).toEqual([3 + 4, 1 + 6]);
+    expect(stats(inHand(s, 'h'))).toEqual([1 + 4, 3 + 6]);
   });
 
   it('Gathering Guide only Discovers with another Spirit on board', () => {

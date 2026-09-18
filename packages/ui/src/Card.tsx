@@ -327,6 +327,9 @@ export interface CardView {
   /** Requires a target when cast (drives the cast-by-drag targeting) — `'friendly'` = a board minion only,
    *  `'any'` = a board OR shop minion. Mirrors `CardDef.target`. */
   target?: 'friendly' | 'any';
+  /** Hover-popup pool member: of all `refCards` flagged this way, ONE is shown per popup open, drawn at random
+   *  (a card that says 'get a Dwarven Ale' previews one Ale, not all five — owner 2026-09-18). */
+  refPick?: boolean;
   /** Base (printed) stats — stats above base render green, below base render red. */
   baseAttack?: number;
   baseHealth?: number;
@@ -672,7 +675,11 @@ export const Card = memo(function Card({
   // the FULL card (art + name + rules text); any referenced cards (the token it summons / Fodder it
   // buffs / its Stray) trail off to the right of it. In full-text mode the card already shows its text,
   // so only the referenced cards appear. Rendered at full size with `forceFull` so it's readable.
-  const popupCards: CardView[] = [...(showText ? [] : [card]), ...(refCards ?? [])];
+  // `refPick` members form a pool; `pickIdx` (re-rolled every open, see showRefTip) picks the one shown.
+  const [pickIdx, setPickIdx] = useState(0);
+  const refFixed = refCards?.filter((c) => !c.refPick) ?? [];
+  const refPool = refCards?.filter((c) => c.refPick) ?? [];
+  const popupCards: CardView[] = [...(showText ? [] : [card]), ...refFixed, ...(refPool.length ? [refPool[pickIdx % refPool.length]!] : [])];
   const hasPopup = popupCards.length > 0;
   const [refPos, setRefPos] = useState<{ left: number; top: number; origin: 'left' | 'right'; cardTop: number } | null>(null);
   const refTimer = useRef<number | null>(null);
@@ -695,6 +702,7 @@ export const Card = memo(function Card({
   const showRefTip = (el: HTMLElement): void => {
     if (!hasPopup) return;
     if (refTimer.current) window.clearTimeout(refTimer.current);
+    if (refPool.length > 1) setPickIdx(Math.floor(Math.random() * refPool.length)); // presentation only — never the sim's RNG
     refTimer.current = window.setTimeout(() => perfMonitor.measure('input:hover-preview', () => {
       const r = el.getBoundingClientRect();
       const n = popupCards.length;

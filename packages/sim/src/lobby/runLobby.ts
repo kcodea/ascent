@@ -393,7 +393,11 @@ export function pairRunLobby(lobby: RunLobby): { pairs: [LobbySeatState, LobbySe
       bestPairs = [];
       bestCost = Infinity;
       search(pool.filter((x) => x.id !== cand.id), [], 0);
-      const total = bestCost + (byeCount.get(cand.id) ?? 0) * 10_000;
+      // A bye whose ghost can only be a rematch (the candidate just fought / eliminated the only ghost on offer)
+      // costs as much as a live rematch, so another eligible seat takes the bye instead (owner 2026-09-19).
+      const g = ghostFor(lobby, cand.id);
+      const ghostRematch = g && ghostIsRematch(lobby, cand.id, g.seat) ? 1e6 : 0;
+      const total = bestCost + (byeCount.get(cand.id) ?? 0) * 10_000 + ghostRematch;
       if (total < bestTotal) { bestTotal = total; byePairs = bestPairs; bye = cand; }
     }
     return { pairs: byePairs, bye };
@@ -413,20 +417,38 @@ export function pairRunLobby(lobby: RunLobby): { pairs: [LobbySeatState, LobbySe
  * Returns `null` only before the first elimination, when there is no ghost to raise — the odd seat then genuinely
  * sits out. In an 8-seat lobby that can't happen, since the count is only odd after someone has died.
  */
-export function ghostFor(lobby: RunLobby): { seat: LobbySeatState; board: PreparedBoard } | null {
+export function ghostFor(lobby: RunLobby, forSeatId?: string): { seat: LobbySeatState; board: PreparedBoard } | null {
   const fallen = lobby.seats
     // Strictly BEFORE this round: the pairs and the bye resolve simultaneously, so a seat knocked out in this
     // very round hasn't fallen yet from the bye's point of view — raising it as its own round's ghost would be
     // fighting someone who is still, as far as this round is concerned, alive.
     .filter((x) => !x.alive && x.eliminatedRound !== undefined && x.eliminatedRound < lobby.round)
     .sort((a, b) => (b.eliminatedRound ?? 0) - (a.eliminatedRound ?? 0));
-  for (const seat of fallen) {
-    const d = driverFor(seat, lobby.setId);
-    // The board it had the round it DIED — not its final recorded board, and not a fresh one for this round.
-    const board = d?.prepare(seat.eliminatedRound!) ?? d?.finalBoard?.() ?? null;
-    if (board) return { seat, board };
-  }
-  return null;
+  // NO GHOST REMATCH (owner report 2026-09-19, the Hearthstone rule): the bye holder never faces the ghost of the
+  // seat it fought LAST round — which at a 3-alive table is exactly the seat it just eliminated. Such a ghost is
+  // passed over for the next most recently fallen one; only when every ghost is a rematch (one dead seat, and the
+  // bye holder killed it) does the most recent stand, and `pairRunLobby` then steers the bye elsewhere.
+  const pick = (skipRematch: boolean): { seat: LobbySeatState; board: PreparedBoard } | null => {
+    for (const seat of fallen) {
+      if (skipRematch && forSeatId && ghostIsRematch(lobby, forSeatId, seat)) continue;
+      const d = driverFor(seat, lobby.setId);
+      // The board it had the round it DIED — not its final recorded board, and not a fresh one for this round.
+      const board = d?.prepare(seat.eliminatedRound!) ?? d?.finalBoard?.() ?? null;
+      if (board) return { seat, board };
+    }
+    return null;
+  };
+  return pick(true) ?? pick(false);
+}
+
+/** Would `seatId` facing `ghost` be a rematch? True when the two met last round (a live fight or a ghost fight),
+ *  or when `seatId` is the seat that eliminated `ghost` (the fight in the round the ghost died). */
+export function ghostIsRematch(lobby: RunLobby, seatId: string, ghost: LobbySeatState): boolean {
+  return lobby.encounters.some((e) => {
+    const between = (e.a === seatId && e.b === ghost.id) || (e.b === seatId && e.a === ghost.id);
+    if (!between) return false;
+    return e.round === lobby.round - 1 || e.round === ghost.eliminatedRound;
+  });
 }
 
 /** Who the player faces this round, and the board they bring. `null` = the player has a bye. */
@@ -436,7 +458,7 @@ export function playerOpponent(lobby: RunLobby): { seat: LobbySeatState; board: 
   if (!pair) {
     // Holding the bye: face the most recently fallen seat's board instead of sitting the round out.
     if (bye?.id !== 's0') return null;
-    const g = ghostFor(lobby);
+    const g = ghostFor(lobby, 's0');
     return g ? { seat: g.seat, board: g.board, ghost: true } : null;
   }
   const foe = pair[0].id === 's0' ? pair[1] : pair[0];
@@ -619,7 +641,7 @@ export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult)
   // resolved by the reducer (it goes through `playerOpponent` like any other opponent), so only a NON-player
   // bye is resolved here. The ghost is already eliminated and settles nothing.
   if (bye) {
-    const ghost = ghostFor(lobby);
+    const ghost = ghostFor(lobby, bye.id);
     const board = ghost ? ghost.board : null;
     const mine = bye.id === 's0' ? null : (driverFor(bye, lobby.setId)?.prepare(lobby.round) ?? driverFor(bye, lobby.setId)?.finalBoard?.() ?? null);
     if (bye.id !== 's0' && board && mine) {

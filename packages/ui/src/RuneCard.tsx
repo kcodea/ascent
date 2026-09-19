@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties } from 'react';
-import type { QuestReward, RuneDef } from '@game/core';
+import type { Keyword, QuestReward, RuneDef } from '@game/core';
 import { CARD_INDEX, RUNE_DUP_UNIQUE, runeStacks } from '@game/content';
 import { Card, mdBold, type CardView } from './Card';
 import { Icon } from './Icon';
 import { runeArt } from './art';
 import { withImpStats } from './cardText';
+import { KeywordDefs } from './KeywordDefs';
+import { detectCardKeywords } from './detectCardKeywords';
 import { useGame } from './store';
 
 /** The card ids a rune's reward GRANTS (Pillaging → the Pillager) — for the hover preview. GILDED grants
@@ -30,6 +32,9 @@ function previewIdsOf(rune: RuneDef): { id: string; golden?: boolean }[] {
   for (const id of rune.previewCards ?? []) if (!out.some((x) => x.id === id)) out.push({ id });
   return out;
 }
+
+/** Runes carry no badge keywords — one stable empty list so `KeywordDefs`' memo key never churns. */
+const NO_KEYWORDS: Keyword[] = [];
 
 function cardViewOf(id: string, golden = false): CardView | null {
   const def = CARD_INDEX[id];
@@ -68,7 +73,11 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating }: {
   // Plain parens (wrap=false) — rune text renders through `mdBold`, which doesn't process the green {{…}} marker.
   const impAura = useGame((s) => s.run?.impBuff);
   const rewardCards = previewIdsOf(rune).map((x) => cardViewOf(x.id, x.golden)).filter((v): v is CardView => v !== null);
-  const hasPreview = rewardCards.length > 0;
+  // The glossary pills a rune's text raises (Amplified, Equip, Rebirth, …) — the same `KeywordDefs` column a card
+  // hover shows, so a term is explained wherever it is printed (owner ask 2026-09-18). Runes carry no badges.
+  const kwCard = { keywords: NO_KEYWORDS, text: rune.text };
+  const hasDefs = detectCardKeywords(kwCard).length > 0;
+  const hasPreview = rewardCards.length > 0 || hasDefs;
   const [tip, setTip] = useState<{ left: number; top: number; origin: 'left' | 'right' } | null>(null);
   const timer = useRef<number | null>(null);
   const show = (el: HTMLElement): void => {
@@ -78,7 +87,9 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating }: {
       const r = el.getBoundingClientRect();
       const gap = 10;
       const cardW = r.width * 0.82;
-      const tipW = cardW * rewardCards.length + (rewardCards.length - 1) * gap;
+      // The defs column is `min(144px, 25vw)` wide (styles.css) and sits after the cards, zoomed like them.
+      const defsW = hasDefs ? Math.min(144, window.innerWidth * 0.25) * 1.52 : 0;
+      const tipW = cardW * rewardCards.length + Math.max(0, rewardCards.length - 1) * gap + (hasDefs && rewardCards.length ? gap : 0) + defsW;
       const flip = r.right + gap + tipW > window.innerWidth - 6;
       const left = flip ? Math.max(6, r.left - gap - tipW) : r.right + gap;
       const estH = cardW * 1.34;
@@ -138,6 +149,7 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating }: {
             {rewardCards.map((rv, i) => (
               <Card key={`${rv.cardId ?? i}-${i}`} card={rv} forceFull suppressPop plated />
             ))}
+            {hasDefs && <KeywordDefs card={kwCard} />}
           </div>
         </div>,
         document.body,

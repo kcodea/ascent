@@ -56,6 +56,22 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-18',
+    label: 'Glossary True-Up',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Every keyword is now explained in one place: the hover pills beside a card, a rune or your Equipment and the Compendium glossary read the same definitions, with new entries for Amplified, Equipment, Start of Turn, Orbit, Bleed, Improve, Aura, Gifts, Clues, summoning from hand and permanent gains. The Compendium glossary is now legible (dark text on the cream panels) and Rune of Amplification reads simply "Equipment you do not use becomes Amplified."',
+        details: [
+          'Amplified pill: "An Amplified Equipment will trigger its effect twice for no additional gold." It shows on Rune of Amplification, Rune of the Grand Workshop, the Calibration Wrench and Calibration Master, and is coloured in text like other keywords.',
+          'Runes now show keyword pills on hover (the same column a card hover shows), and the Equipment slot tooltip lists the pills its text uses.',
+          'Definitions checked against the rules: Rise returns the printed stats at 1 Health; Rebirth returns the full body; Dawn is the left half of your board, Dusk the right, the exact middle counts as both; Attachment fuses onto a friendly minion that shares its type; Stealth is lost when the minion attacks.',
+          'The Compendium glossary is sectioned Triggers / Combat keywords / Build & shop / Spells & tokens and no longer carries its own copy of any definition.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-18',
     label: 'Equipment Neutrals',
     changes: [
       {

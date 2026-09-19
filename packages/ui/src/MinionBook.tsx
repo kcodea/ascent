@@ -11,6 +11,8 @@ import { RuneCard } from './RuneCard';
 import { heroArt } from './art';
 import { Icon } from './Icon';
 import { MECHANICS, toMechInput } from './mechanics';
+import { GLOSSARY_SECTIONS, KEYWORD_GLOSSARY, type KeywordDef } from './keywordGlossary';
+import { detectCardKeywords } from './detectCardKeywords';
 import { useGame } from './store';
 
 /** Evolution units — non-buyable tokens a minion ascends/transforms into (Spirit Pup → Spirit Worgen,
@@ -155,38 +157,33 @@ function makeSearchMatcher(raw: string): (text: string) => boolean {
   return (text) => text.toLowerCase().includes(lower);
 }
 
-/** The glossary — every keyword + trigger the cards use, one rule apiece. Grouped by when-it-fires
- *  (Triggers), what-it-does-in-combat (Combat), and shop/build terms. It is REBUILT from the shared
- *  `MECHANICS` registry (`mechanics.ts`) by id, so the codex glyph/name/def and the card medallion
- *  (`mechIcon.ts`) can never drift — a `mechIcon.test.ts` drift test guards `GLOSSARY_MECHANIC_IDS`.
- *  Each row's `match` predicate is the registry `detect` run over the card, so clicking a term surfaces
- *  exactly the minions that carry (or grant) it. Non-mechanic rows with no card filter (Gilded) are
- *  appended by hand. */
+/** The glossary — every keyword / trigger / mechanic term the shipped text uses, one rule apiece, GENERATED from
+ *  `KEYWORD_GLOSSARY` (`keywordGlossary.ts`): the same entries and the same wording the hover pill column
+ *  (`KeywordDefs`) reads, sectioned by `KeywordDef.section`, so the two surfaces cannot drift. A row linked to a
+ *  `MECHANICS` registry entry (`mechanic`) wears that mechanic's medallion glyph and filters the gallery by its
+ *  `detect` predicate (exactly the minions that carry or grant it); any other row wears its own `icon` and filters
+ *  by the text hit the pill uses; an `inert` row (Gilded — a display state, not a card property) has no filter.
+ *  `mechIcon.test.ts` guards `GLOSSARY_MECHANIC_IDS` against the registry. */
 const byId = Object.fromEntries(MECHANICS.map((m) => [m.id, m]));
-const row = (id: string): GlossItem => {
-  const m = byId[id]!;
-  return { icon: m.glyph, term: m.term, def: m.def, match: (c: CardDef) => m.detect(toMechInput(c)) };
+const row = (d: KeywordDef): GlossItem => {
+  if (d.mechanic) {
+    const m = byId[d.mechanic];
+    if (!m) throw new Error(`MinionBook glossary: '${d.id}' links unknown mechanic '${d.mechanic}'`);
+    return { icon: m.glyph, term: d.name, def: d.def, match: (c: CardDef) => m.detect(toMechInput(c)) };
+  }
+  const icon = d.icon ?? 'star';
+  if (d.inert) return { icon, term: d.name, def: d.def };
+  return { icon, term: d.name, def: d.def, match: (c: CardDef) => detectCardKeywords({ keywords: c.keywords, text: c.text ?? '' }).some((k) => k.id === d.id) };
 };
 
 /** The registry ids the glossary renders, in section+display order. Exported for the drift test. */
-export const GLOSSARY_MECHANIC_IDS = [
-  'shout', 'echo', 'startCombat', 'endTurn', 'avenge', 'rally', 'slaughter', 'bleed', 'chooseOne',
-  'taunt', 'ward', 'execute', 'flurry', 'crit', 'rise', 'cleave', 'stealth', 'immune', 'watcher',
-  'attachment', 'consume', 'fodder', 'engraved', 'discover',
-] as const;
+export const GLOSSARY_MECHANIC_IDS: readonly string[] = GLOSSARY_SECTIONS.flatMap((sec) =>
+  KEYWORD_GLOSSARY.filter((d) => d.section === sec.id && d.mechanic).map((d) => d.mechanic!));
 
-const GLOSSARY: { title: string; items: GlossItem[] }[] = [
-  { title: 'Triggers', items: ['shout', 'echo', 'startCombat', 'endTurn', 'avenge', 'rally', 'slaughter', 'bleed', 'chooseOne'].map(row) },
-  { title: 'Combat keywords', items: ['taunt', 'ward', 'execute', 'flurry', 'crit', 'rise', 'cleave', 'stealth', 'immune', 'watcher'].map(row) },
-  {
-    title: 'Build & shop',
-    items: [
-      ...['attachment', 'consume', 'fodder', 'engraved', 'discover'].map(row),
-      // Non-mechanic row (a shop/fusion term, not a card-detectable mechanic): no `match`, renders inert.
-      { icon: 'crown', term: 'Gilded', def: 'Collect three copies to fuse one doubled-stat Gilded minion.' },
-    ],
-  },
-];
+const GLOSSARY: { title: string; items: GlossItem[] }[] = GLOSSARY_SECTIONS.map((sec) => ({
+  title: sec.title,
+  items: KEYWORD_GLOSSARY.filter((d) => d.section === sec.id).map(row),
+}));
 
 /** Zoom steps for the card grid — the multiplier applied to the grid's `--ch` (card height), which the CSS
  *  derives width + drawer geometry from. 0.6 fits roughly twice the cards per row; 1.6 is a reading size. */

@@ -21,16 +21,14 @@ const TRIBE_TERMS: readonly string[] = [
   'Kobold', 'Kobolds', 'Dwarf', 'Dwarves', 'Dwarfs', 'Celestial', 'Celestials', 'Spirit', 'Spirits',
 ];
 
-/** Mechanic names that are coloured but carry no glossary pill (their pill status is the owner's call). */
-const EXTRA_MECHANIC_TERMS: readonly string[] = ['Orbit', 'Orbits', 'Bleed', 'Equipment', 'Shop Spell', 'Shop Spells'];
-
 const esc = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** The full coloured vocabulary: tribes + every glossary name/alias + the extras. Exported for the sweep test. */
+/** The full coloured vocabulary: tribes + every glossary name/alias (`keywordGlossary.ts` is the one list of
+ *  mechanic terms — a term coloured here always has a definition there). A `detectRe` phrase ("permanently",
+ *  "summon … from your hand") raises a pill but is body text, so it is NOT coloured. Exported for the sweep test. */
 export const COLOURED_TERMS: readonly string[] = Array.from(new Set([
   ...TRIBE_TERMS,
   ...KEYWORD_GLOSSARY.flatMap((d) => [d.name, ...d.aliases]),
-  ...EXTRA_MECHANIC_TERMS,
 ]));
 
 // Longest first so "Start of Combat" beats "Combat"-like prefixes and "Dwarven Ale" beats "Ale". The optional

@@ -35,7 +35,6 @@ import { CurveEditor, Inspector } from './Inspector';
 import { CommandBar } from './CommandBar';
 import type { CommandItem, CommandSources } from './commandIndex';
 import { CURVE_PRESETS } from '../curve';
-import { DefLibrary } from './DefLibrary';
 import { SeedBakeWarning } from './SeedBakeWarning';
 import { LibraryBrowser } from './LibraryBrowser';
 import { PresetGallery } from './PresetGallery';
@@ -64,7 +63,7 @@ import { useGame } from '../../store';
 import { createBackdrop, type FxBackdrop } from './backdrop';
 import { Timeline } from './Timeline';
 import { previewClock } from './timelineModel';
-import { ANCHOR_OPTIONS, ANCHOR_PART_OPTIONS, anchorBlurb, anchorPartBlurb, primitiveBlurb, primitiveLabel } from './copy';
+import { ANCHOR_OPTIONS, ANCHOR_PART_OPTIONS, anchorBlurb, anchorPartBlurb } from './copy';
 import { partsUsedByLayers } from '../anchorParts';
 import type { FxAnchorPart } from '../def';
 import { applyReorder } from './dragEdit';
@@ -84,7 +83,6 @@ import {
   setLayerMuted,
   setLayerName,
   setLayerParam,
-  setLayerPrimitive,
   setLayerSolo,
   setLayerTiming,
   setLayerTravel,
@@ -399,6 +397,11 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const [cmdOpen, setCmdOpen] = useState(false);
   const [inspectorFocusKey, setInspectorFocusKey] = useState<string | null>(null);
   const [timelineOpen, setTimelineOpen] = useState(true);
+  // The two side panels collapse to a thin strip the same way the timeline does — the Layers column on the
+  // left and the Editor (properties) column on the right (owner 2026-09-19). Collapsing narrows the grid
+  // column (via the `--fxwb-layers-w` / `--fxwb-props-w` overrides on `.fxwb-grid`) and hides the panel body.
+  const [layersOpen, setLayersOpen] = useState(true);
+  const [editorOpen, setEditorOpen] = useState(true);
   const [backdropColor, setBackdropColor] = useState<number | null>(null);
   const [durationMs, setDurationMs] = useState(restoredSession?.durationMs ?? DEFAULT_DURATION_MS);
 
@@ -444,7 +447,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // Rail mode: collapse to one side so the live board is visible underneath, and host the proc harness.
   // A MODE rather than a second overlay, because the whole point is tuning and watching without a context
   // switch — two windows would put them a click apart, which is the loop this is meant to remove.
-  const [railMode, setRailMode] = useState(false);
+  // railMode (the legacy "Watch in combat" alternate layout) is no longer reachable — its only toggle was
+  // removed (owner 2026-09-19). Kept as a permanently-false const so the alternate layout + its effects stay
+  // intact for now rather than being excised in this UI-cleanup pass.
+  const [railMode] = useState(false);
   // The harness's selection, lifted here so the commit panel can address it (see ProcHarnessProps).
   const [harnessCard, setHarnessCard] = useState('');
   // WHICH UNIT the preview is about. Pixi layers never need this — they draw at the scenario's screen
@@ -1302,19 +1308,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     if (trimmed === (current ?? '')) return;
     record('structural');
     commitLayers(setLayerName(layersRef.current, i, trimmed));
-  };
-
-  // The TOP primitive-button row edits the SELECTED layer's primitive (resetting its params to the new
-  // primitive's defaults). Structural change → structKey changes → the build effect respawns the player.
-  // This is the ONE irreversible-feeling action in the tool — every slider you dialled on that layer is gone
-  // — so it always takes its own history entry: one Ctrl+Z brings the whole tuned layer back.
-  const changeLayerPrimitive = (id: string): void => {
-    if (layers[selected]?.primitive === id) return;
-    record('structural');
-    const prim = getPrimitive(id);
-    // Params the new primitive shares by name are CARRIED OVER (see `setLayerPrimitive`) rather than reset,
-    // so a mis-click on this row no longer discards a tuned layer.
-    commitLayers(setLayerPrimitive(layers, selected, id, prim?.params ?? {}));
   };
 
   // Anchor edit: which staged point this layer's head follows. Unlike params/timing this one deliberately
@@ -2182,22 +2175,11 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           ↷
         </button>
       </div>
+      {/* Scenario picker — only the DOM-backed scenarios (Stage setter / Real board). The synthetic previews
+          (one-way / bounce / pinned / stationary) and the per-layer primitive tabs were removed from the top
+          bar (owner 2026-09-19): a layer's primitive is chosen when it's added, in the Layers panel. */}
       <div className="fxwb-group">
-        {/* Human names, not registry ids (see `copy.ts`) — `emitter` and `burst` are indistinguishable
-            until something says one streams and the other fires once. The blurb is the tooltip. */}
-        {listPrimitives().map((prim) => (
-          <button
-            key={prim.id}
-            className={`fxwb-btn${prim.id === selLayer.primitive ? ' on' : ''}`}
-            title={primitiveBlurb(prim.id)}
-            onClick={() => changeLayerPrimitive(prim.id)}
-          >
-            {primitiveLabel(prim.id)}
-          </button>
-        ))}
-      </div>
-      <div className="fxwb-group">
-        {SCENARIOS.map((s) => (
+        {SCENARIOS.filter((s) => s.id === 'stageSetter' || s.id === 'realBoard').map((s) => (
           <button
             key={s.id}
             className={`fxwb-btn${s.id === scenarioId ? ' on' : ''}`}
@@ -2298,25 +2280,11 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   );
 
   // The template picker + New/Browse openers.
+  // The inline START FROM template list + Paste def were removed (owner 2026-09-19) — "Browse all" opens the
+  // full library instead.
   const defLibBlock = (
-    <>
-      <DefLibrary
-        defs={defs}
-        onLoad={(def) => loadDef(def, def.id)}
-        onDuplicate={(def) => loadDef(def, `${def.id}-copy`)}
-      />
-      <button className="fxwb-btn" onClick={() => { setBrowsing(false); setGallery(true); }}>
-        ＋ New effect
-      </button>
-      <button className="fxwb-btn" onClick={() => { setGallery(false); setBrowsing(true); }}>
-        Browse all
-      </button>
-    </>
-  );
-
-  const watchBtn = (
-    <button className="fxwb-btn" onClick={() => setRailMode((r) => !r)}>
-      {railMode ? 'Full editor' : 'Watch in combat'}
+    <button className="fxwb-btn" onClick={() => { setGallery(false); setBrowsing(true); }}>
+      Browse all
     </button>
   );
 
@@ -2632,31 +2600,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     </button>
   );
 
-  // The single transport core (play · fire · scrub · time) — hoisted into the top bar in the grid layout so
-  // there is ONE transport instead of the rail-mode duplication.
-  const transportCore = (
-    <div className="fxwb-group fxwb-transportcore">
-      {playBtn}
-      <button
-        className="fxwb-fire"
-        onClick={fire}
-        title="Retrigger the whole composition from 0 (F) — a single pass, even if one is already playing. Continuous playback is the separate Loop toggle."
-      >
-        🔥 Fire
-      </button>
-      <input
-        className="fxwb-scrub"
-        type="range"
-        aria-label="Scrub"
-        min={0}
-        max={durationMs}
-        value={timeMs}
-        onChange={(e) => scrub(Number(e.target.value))}
-      />
-      <span className="fxwb-time">{Math.round(timeMs)} / {durationMs} ms</span>
-    </div>
-  );
-
   const loopGroup = (
     <div className="fxwb-loopgroup" title="Loop is on by default -- Fire above always stays a single one-shot pass regardless of this toggle">
       <button
@@ -2901,31 +2844,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     </>
   );
 
-  // The pipeline rail (top status strip) — identical in both layouts.
-  const pipeRail = (
-    <div className="fxwb-pipe" role="status" aria-label="Effect progress">
-      {([
-        ['Compose', layers.length > 0, `${layers.length} layer${layers.length === 1 ? '' : 's'}`],
-        ['Name', isValidSlug(slugify(defName)), isValidSlug(slugify(defName)) ? slugify(defName) : 'unnamed'],
-        ['Bind', harnessKind !== null && harnessCard !== '',
-          harnessKind === null ? 'no moment' : harnessCard === '' ? 'no card' : 'ready'],
-        ['Ship', commitMissing === null, commitMissing === null ? 'ready to commit' : 'blocked'],
-      ] as const).map(([label, done, detail], i) => (
-        <span key={label} className={`fxwb-pipe-step${done ? ' done' : ''}`} title={detail}>
-          <span className="fxwb-pipe-dot">{done ? '✓' : i + 1}</span>
-          {label}
-          <span className="fxwb-pipe-detail">{detail}</span>
-        </span>
-      ))}
-      <span className="fxwb-pipe-state">
-        <span className={`fxwb-pipe-chip${seedLocked ? ' on' : ''}`}>
-          {seedLocked ? 'seed locked' : 'seed rolling'}
-        </span>
-        <span className="fxwb-pipe-chip">{slot === 'over' ? 'over cards' : 'under cards'}</span>
-      </span>
-    </div>
-  );
-
   const cmdBar = (
     <CommandBar open={cmdOpen} sources={cmdSources} onClose={() => setCmdOpen(false)} onRun={onRun} />
   );
@@ -2937,7 +2855,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   if (railMode) {
     return (
       <div className="fxwb fxwb-rail">
-        {pipeRail}
         <div className="fxwb-top">
           <div className="fxwb-title">🎨 FX Workbench</div>
           {topPickers}
@@ -2947,7 +2864,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         <div className="fxwb-side">
           {restoreBanners}
           {defLibBlock}
-          {watchBtn}
           {layersEl}
           {timingBlock}
           {inspectorEl}
@@ -3015,17 +2931,15 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
 
   return (
     <div className="fxwb">
-      {pipeRail}
       {/* THE FOUR-REGION GRID (Layers | Stage | Properties, over a full-width top bar and a collapsible
           timeline). The blocks are the workbench's existing ones (shared consts above) — only their DOM
           parent changed. The centre stage is a framed TRANSPARENT pane this phase: the full-screen Pixi
           overlay shows through it (and the pointer passes to it for cursor scenarios); the Stage Setter
           fills it in a later phase. */}
-      <div className="fxwb-grid">
+      <div className={`fxwb-grid${layersOpen ? '' : ' layers-collapsed'}${editorOpen ? '' : ' props-collapsed'}`}>
         <div className="fxwb-top">
           <div className="fxwb-title">🎨 FX Workbench</div>
           {topPickers}
-          {transportCore}
           {slotGroup}
           <button
             className="fxwb-btn fxwb-cmdk"
@@ -3035,16 +2949,32 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           >
             ⌘K
           </button>
+          {/* The def section (Copy def / name / Save) lives in the top bar so it is persistently reachable
+              without scrolling the properties column (owner 2026-09-19). */}
+          <div className="fxwb-def-top">{saveBlock}</div>
           {fpsEl}
           {closeBtn}
         </div>
 
-        <div className="fxwb-layers-region">
-          {restoreBanners}
-          {defLibBlock}
-          {watchBtn}
-          {layersEl}
-          {timingBlock}
+        <div className={`fxwb-layers-region${layersOpen ? '' : ' collapsed'}`}>
+          <div className="fxwb-region-head">
+            <button
+              className="fxwb-btn fxwb-region-toggle"
+              onClick={() => setLayersOpen((v) => !v)}
+              aria-expanded={layersOpen}
+              title={layersOpen ? 'Collapse the layers panel' : 'Expand the layers panel'}
+            >
+              <span aria-hidden="true">{layersOpen ? '◂' : '▸'}</span>{layersOpen ? ' Layers' : ''}
+            </button>
+          </div>
+          {layersOpen && (
+            <>
+              {restoreBanners}
+              {defLibBlock}
+              {layersEl}
+              {timingBlock}
+            </>
+          )}
         </div>
 
         <div className="fxwb-stage">
@@ -3066,9 +2996,18 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           )}
         </div>
 
-        <div className="fxwb-props-region">
-          {inspectorEl}
-          {saveBlock}
+        <div className={`fxwb-props-region${editorOpen ? '' : ' collapsed'}`}>
+          <div className="fxwb-region-head fxwb-region-head-right">
+            <button
+              className="fxwb-btn fxwb-region-toggle"
+              onClick={() => setEditorOpen((v) => !v)}
+              aria-expanded={editorOpen}
+              title={editorOpen ? 'Collapse the editor panel' : 'Expand the editor panel'}
+            >
+              <span aria-hidden="true">{editorOpen ? '▸' : '◂'}</span>{editorOpen ? ' Editor' : ''}
+            </button>
+          </div>
+          {editorOpen && inspectorEl}
         </div>
 
         <div className={`fxwb-timeline-region${timelineOpen ? '' : ' collapsed'}`}>

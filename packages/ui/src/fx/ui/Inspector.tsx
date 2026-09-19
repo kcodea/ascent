@@ -132,7 +132,7 @@ export function Inspector({
    *  primitive doesn't have, or when the row can't be found on screen. */
   onFocusHandled?: () => void;
 }): React.ReactElement {
-  const [tier, setTier] = useState<InspectorTier>('essentials');
+  const [tier, setTier] = useState<InspectorTier>('all');
   const [query, setQuery] = useState('');
   // EXPLICIT per-group open/closed OVERRIDES the author has actually set, keyed by primitive — deliberately
   // sparse (a group nobody has toggled has no entry here at all). This is the fix for a real regression: an
@@ -309,15 +309,7 @@ export function Inspector({
     <div className="fxwb-inspector" ref={rootRef}>
       <div className="fxwb-tierbar">
         <div className="fxwb-tier" role="group" aria-label="Parameter tier">
-          <button
-            type="button"
-            className={`fxwb-tierbtn${tier === 'essentials' ? ' on' : ''}`}
-            aria-pressed={tier === 'essentials'}
-            title="Only the few params that carry this effect's look"
-            onClick={() => setTier('essentials')}
-          >
-            Essentials
-          </button>
+          {/* Essentials tier removed (owner 2026-09-19) — the inspector defaults to All. */}
           <button
             type="button"
             className={`fxwb-tierbtn${tier === 'all' ? ' on' : ''}`}

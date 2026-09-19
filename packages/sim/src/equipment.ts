@@ -172,11 +172,23 @@ export function consumeCalibration(run: RunState, equipmentId: string): boolean 
   return true;
 }
 
-/** Will an activation of `equipmentId` RIGHT NOW resolve Amplified — its own stack, or a pending Calibration it can
- *  spend? The slot paints the charge indicator BLUE (`data-fx="equipment-amplified"`) off this, so the Wrench's
- *  pending charge shows on every held Equipment it would apply to, never on the Wrench itself. */
-export function equipmentWillAmplify(run: Pick<RunState, 'equipment'>, equipmentId: string): boolean {
+/** RUNE OF EMPTY HANDS (owner 2026-09-18): is `equipmentId` PERMANENTLY Amplified — granted by a card the rune's
+ *  Discover picked (`equipmentAmplifiedCards`, by CARD like the free list, so a sold-and-rebought copy keeps it)?
+ *  Every activation triggers twice and nothing is ever spent. */
+export function equipmentPermanentlyAmplified(run: Pick<RunState, 'equipment' | 'equipmentAmplifiedCards'>, equipmentId: string): boolean {
+  const amp = run.equipmentAmplifiedCards;
+  if (!amp?.length) return false;
+  const g = equipmentState(run).available.find((x) => x.equipmentId === equipmentId);
+  return !!g?.sourceCardIds?.some((c) => amp.includes(c));
+}
+
+/** Will an activation of `equipmentId` RIGHT NOW resolve Amplified — its own stack, Empty Hands' permanent
+ *  Amplification, or a pending Calibration it can spend? The slot paints the charge indicator BLUE
+ *  (`data-fx="equipment-amplified"`) off this, so the Wrench's pending charge shows on every held Equipment it
+ *  would apply to, never on the Wrench itself. */
+export function equipmentWillAmplify(run: Pick<RunState, 'equipment' | 'equipmentAmplifiedCards'>, equipmentId: string): boolean {
   if (equipmentAmplifiedOf(run, equipmentId) > 0) return true;
+  if (equipmentPermanentlyAmplified(run, equipmentId)) return true;
   return equipmentId !== CALIBRATION_WRENCH.id && calibrationPendingOf(run) > 0;
 }
 
@@ -202,6 +214,14 @@ export function equipmentIsFree(run: EquipmentCostRun, equipmentId: string): boo
   return !!g?.sourceCardIds?.some((c) => free.includes(c));
 }
 
+/** Rune of Quick Release: does the arm apply to an activation of `equipmentId` right now? Never to the sold
+ *  minion's OWN Equipment (owner 2026-09-18: "doesn't discount its own Equipment") — that one neither uses nor
+ *  spends the arm. */
+export function quickReleaseApplies(run: Pick<RunState, 'quickReleaseArmed'>, equipmentId: string): boolean {
+  const arm = run.quickReleaseArmed;
+  return !!arm && arm.excludeEquipmentId !== equipmentId;
+}
+
 /** Rune of Overcharge: is the NEXT activation one of this turn's free, charge-less ones? */
 export function overchargeFree(run: Pick<RunState, 'runeOvercharge' | 'equipmentActivationsThisTurn'>): boolean {
   return (run.runeOvercharge ?? 0) > (run.equipmentActivationsThisTurn ?? 0);
@@ -213,7 +233,7 @@ export function overchargeFree(run: Pick<RunState, 'runeOvercharge' | 'equipment
 export function equipmentCostOf(run: EquipmentCostRun, def: EquipmentDefinition): number {
   let cost = def.baseCost - equipmentState(run).temporaryCostReduction;
   if ((run.equipmentActivationsThisTurn ?? 0) === 0 && run.runeEfficientTooling) cost -= run.runeEfficientTooling;
-  if (run.quickReleaseArmed || overchargeFree(run) || equipmentIsFree(run, def.id)) cost = 0;
+  if (quickReleaseApplies(run, def.id) || overchargeFree(run) || equipmentIsFree(run, def.id)) cost = 0;
   return Math.max(0, cost);
 }
 

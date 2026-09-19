@@ -45,14 +45,14 @@ const nextTurn = (s: RunState): RunState => {
 const BASIC: [string, number, string[] | undefined][] = [
   ['rune_basic_spirit', 3, ['spirit']], ['rune_basic_celestial', 3, ['celestial']], ['rune_basic_undead', 3, ['undead']],
   ['rune_full_hand', 4, ['spirit']], ['rune_chosen_vessel', 3, ['spirit']], ['rune_deep_currents', 4, ['spirit']],
-  ['rune_traveling_festival', 4, ['spirit']], ['rune_growing_chorus', 4, ['spirit']], ['rune_charted_skies', 4, undefined],
+  ['rune_traveling_festival', 4, ['spirit']], ['rune_growing_chorus', 4, ['spirit']], ['rune_charted_skies', 2, undefined], // 4 → 2 (2026-09-18)
   ['rune_falling_embers', 4, ['celestial']], ['rune_festival_wages', 3, ['spirit']],
 ];
 const EPIC: [string, number, string[] | undefined][] = [
   ['rune_epic_celestial', 3, ['celestial']], ['rune_epic_spirit', 3, ['spirit']], ['rune_epic_undead', 3, ['undead']],
-  ['rune_meteor_shower', 2, ['celestial']], ['rune_astral_refrain', 5, undefined], ['rune_astral_draft', 6, undefined],
+  ['rune_meteor_shower', 2, ['celestial']], ['rune_astral_refrain', 5, undefined], ['rune_astral_draft', 4, undefined], // Draft 6 → 4 (2026-09-18)
   ['rune_dream_mirror', 5, undefined], ['rune_waking_dreams', 5, undefined], ['rune_shared_revelry', 5, ['spirit']],
-  ['rune_grand_procession', 6, ['spirit']], ['rune_festival_circuit', 5, ['spirit', 'celestial']],
+  ['rune_grand_procession', 6, ['spirit']], ['rune_festival_circuit', 4, ['spirit', 'celestial']], // Circuit 5 → 4 (2026-09-18)
   ['rune_spirit_crown', 6, ['spirit']], ['rune_handy_flame', 5, ['spirit']], // Handy Flame is a Spirit body → gated (tag pass 2026-09-18)
 ];
 
@@ -195,17 +195,40 @@ describe('Rune of the Growing Chorus', () => {
 });
 
 // ── the Celestial spell runes ────────────────────────────────────────────────────────────────────────────
+// Owner rework 2026-09-18: EVERY spell counts (Shop spells, Rubies, Clues, Gifts); the 3rd cast each turn hands over a
+// seeded-random copy of one of those three. Once per turn.
 describe('Rune of Charted Skies', () => {
-  it('the 3rd Shop spell each turn opens a Shop-spell Discover; the tally counts the turn\'s Shop spells', () => {
-    let s = armed('rune_charted_skies', { board: [body('v', 'venom')], hand: [body('g1', 'growth'), body('g2', 'growth'), body('g3', 'growth')] });
+  it('the 3rd spell each turn hands over a copy of one of the three (seeded); once per turn; the tally counts every spell', () => {
+    let s = armed('rune_charted_skies', { board: [body('v', 'venom')], hand: [body('g1', 'growth'), body('g2', 'growth'), body('g3', 'growth'), body('g4', 'growth')] });
     s = play(s, 'g1'); s = play(s, 'g2');
     expect(runeTally(s, 'rune_charted_skies')).toBe('2/3');
-    expect(s.discover).toBeUndefined();
+    expect(s.hand.map((c) => c.cardId).filter((id) => id === 'growth')).toHaveLength(2);
     s = play(s, 'g3');
-    expect(s.discover, 'a spell Discover opened').toBeDefined();
-    for (const id of s.discover!) expect(CARD_INDEX[id]!.spell).toBe(true);
+    expect(s.discover, 'no Discover any more').toBeUndefined();
+    expect(handIds(s).filter((id) => id === 'growth'), 'one copy of one of the three (all Growth here) landed').toHaveLength(2);
     expect(runeTally(s, 'rune_charted_skies')).toBe('3/3');
     expect(s.runeProcs?.['rune_charted_skies']).toBe(1);
+    s = play(s, 'g4'); // the 4th: nothing more this turn
+    expect(s.runeProcs?.['rune_charted_skies']).toBe(1);
+    expect(handIds(s).filter((id) => id === 'growth')).toHaveLength(1);
+    // Determinism: the same seed picks the same copy.
+    const a = armed('rune_charted_skies', { board: [body('v', 'venom')], hand: [body('g1', 'growth'), body('r', 'ruby'), body('g3', 'growth')] });
+    const runIt = (x: RunState): string[] => { let t = play(x, 'g1'); t = play(t, 'r', 'v'); t = play(t, 'g3'); return handIds(t); };
+    expect(runIt(a)).toEqual(runIt(a));
+  });
+  it('a Ruby, a Clue and a Gift all count toward the 3; a Gift is never the copy', () => {
+    const gift = CARD_INDEX['gift_encore']!; // an untargeted Gift ("your Shouts trigger an extra time this turn")
+    expect(gift.gift).toBe(true);
+    let s = armed('rune_charted_skies', { board: [body('v', 'venom')], hand: [body('r', 'ruby'), body('gf', gift.id), body('g', 'growth')] });
+    s = play(s, 'r', 'v');
+    expect(runeTally(s, 'rune_charted_skies'), 'a Ruby counts').toBe('1/3');
+    s = play(s, 'gf');
+    expect(runeTally(s, 'rune_charted_skies'), 'a Gift counts').toBe('2/3');
+    s = play(s, 'g');
+    expect(s.runeProcs?.['rune_charted_skies']).toBe(1);
+    const copy = s.hand[s.hand.length - 1]!;
+    expect(['ruby', 'growth'], 'the copy is the Ruby or the Growth — never the Gift').toContain(copy.cardId);
+    expect(handIds(s)).not.toContain(gift.id);
   });
 });
 
@@ -230,14 +253,19 @@ describe('Rune of Falling Embers', () => {
   });
 });
 
+// Owner rework 2026-09-18: "after you sell 3 Revelers" — every third Reveler sold THIS TURN (the Festival Circuit's
+// per-turn scope) arms the free card; the meter resets at the flip.
 describe('Rune of Festival Wages', () => {
-  it('the turn\'s first Reveler sold makes the next card free — minion or spell — then prices return; re-arms next turn', () => {
+  it('every 3rd Reveler sold this turn makes the next card free — minion or spell; the meter resets next turn', () => {
     let s = armed('rune_festival_wages', {
-      board: [body('f', 'sp3_flamereveler'), body('t', 'sp3_tidereveler')],
+      board: [body('f', 'sp3_flamereveler'), body('t', 'sp3_tidereveler'), body('g', 'sp3_grovereveler'), body('f2', 'sp3_flamereveler'), body('t2', 'sp3_tidereveler'), body('g2', 'sp3_grovereveler')],
       shop: [{ uid: 'o1', cardId: 'venom' }, { uid: 'o2', cardId: 'venom' }],
     });
     expect(offerBuyPrice(s, s.shop[0]!).cost).toBe(3);
-    s = sell(s, 'f');
+    s = sell(s, 'f'); s = sell(s, 't');
+    expect(s.nextCardFree ?? 0, 'two sales: not yet').toBe(0);
+    expect(runeTally(s, 'rune_festival_wages')).toBe('2/3');
+    s = sell(s, 'g');
     expect(s.nextCardFree).toBe(1);
     expect(runeTally(s, 'rune_festival_wages')).toBe('next card free');
     expect(offerBuyPrice(s, s.shop[0]!).cost).toBe(0);
@@ -246,11 +274,14 @@ describe('Rune of Festival Wages', () => {
     expect(s.embers, 'the buy cost nothing').toBe(gold);
     expect(s.nextCardFree, 'spent').toBe(0);
     expect(offerBuyPrice(s, s.shop[0]!).cost).toBe(3);
-    s = sell(s, 't');
-    expect(s.nextCardFree, 'one sale per turn arms it').toBe(0);
+    expect(runeTally(s, 'rune_festival_wages'), 'the meter wrapped').toBe('0/3');
+    s = sell(s, 'f2'); s = sell(s, 't2'); s = sell(s, 'g2');
+    expect(s.nextCardFree, 'the 6th sale pays again').toBe(1);
+    expect(s.runeProcs?.['rune_festival_wages'], 'armed twice + spent once').toBe(3);
     s = nextTurn(s);
+    expect(s.revelersSoldThisTurn, 'the meter resets at the flip').toBe(0);
+    expect(s.nextCardFree, 'an armed free card carries').toBe(1);
     s = { ...s, board: [body('g', 'sp3_grovereveler')], spell: { uid: 'sp', cardId: 'growth' } };
-    s = sell(s, 'g');
     const g2 = s.embers;
     s = act(s, { type: 'buy', uid: 'sp' } as Action);
     expect(s.embers, 'a spell counts as "your next card"').toBe(g2);
@@ -272,15 +303,24 @@ describe('Rune of the Meteor Shower', () => {
   });
 });
 
+// Owner rework 2026-09-18: EVERY spell counts; the 3rd cast each turn hands over 2 copies of the SECOND one.
 describe('Rune of the Astral Refrain', () => {
-  it('after the 3rd Shop spell each turn: copies of the 1st and the 3rd land in hand', () => {
-    let s = armed('rune_astral_refrain', { board: [body('c', 'ce3_wishingstar')], hand: [body('g1', 'growth'), body('s1', 'starcrash'), body('s2', 'starcrash')] });
+  it('after the 3rd spell each turn: 2 copies of the SECOND land in hand; once per turn', () => {
+    let s = armed('rune_astral_refrain', { board: [body('c', 'ce3_wishingstar')], hand: [body('g1', 'growth'), body('s1', 'starcrash'), body('s2', 'starcrash'), body('g4', 'growth')] });
     s = play(s, 'g1');
     s = play(s, 's1', 'c');
-    expect(handIds(s)).toEqual(['starcrash']);
+    expect(handIds(s)).toEqual(['starcrash', 'growth']);
     s = play(s, 's2', 'c');
-    expect(handIds(s).sort()).toEqual(['growth', 'starcrash']);
+    expect(handIds(s).sort(), 'two Star Crashes — the second spell — arrived').toEqual(['growth', 'starcrash', 'starcrash']);
     expect(runeTally(s, 'rune_astral_refrain')).toBe('3/3');
+    expect(s.runeProcs?.['rune_astral_refrain']).toBe(1);
+    s = play(s, 'g4');
+    expect(s.runeProcs?.['rune_astral_refrain'], 'the 4th pays nothing').toBe(1);
+  });
+  it('a Ruby in second place is copied as 2 Rubies at the run\'s current line', () => {
+    let s = armed('rune_astral_refrain', { board: [body('c', 'ce3_wishingstar')], hand: [body('g1', 'growth'), body('r', 'ruby'), body('g3', 'growth')] });
+    s = play(s, 'g1'); s = play(s, 'r', 'c'); s = play(s, 'g3');
+    expect(handIds(s)).toEqual(['ruby', 'ruby']);
     expect(s.runeProcs?.['rune_astral_refrain']).toBe(1);
   });
 });
@@ -313,8 +353,9 @@ const tidebudSetup = (over: Partial<RunState> = {}): Partial<RunState> => ({
   hand: [body('tb', 'sp3_tidebud'), body('k', 'sp3_kindled'), body('n', 'venom')],
   ...over,
 });
+// Owner rework 2026-09-18: EVERY hand gain is mirrored (the per-turn latch is gone).
 describe('Rune of the Dream Mirror', () => {
-  it('the first hand-minion gain each turn is mirrored — the same stats — onto a random board minion; once per turn', () => {
+  it('every hand-minion gain is mirrored — the same stats — onto a random board minion', () => {
     let s = armed('rune_dream_mirror', tidebudSetup());
     const before = s.board.reduce((n, c) => n + c.attack + c.health, 0);
     s = play(s, 'tb');
@@ -322,17 +363,15 @@ describe('Rune of the Dream Mirror', () => {
     const after = s.board.reduce((n, c) => n + c.attack + c.health, 0);
     expect(after - before, 'exactly +0/+2 landed on ONE board minion (Tidebud\'s own base stats aside)').toBe(CARD_INDEX['sp3_tidebud']!.attack + CARD_INDEX['sp3_tidebud']!.health + 2);
     expect(s.runeProcs?.['rune_dream_mirror']).toBe(1);
-    // a second hand gain this turn: not mirrored
+    // a second hand gain this turn: mirrored again
     s = { ...s, hand: [...s.hand, body('tb2', 'sp3_tidebud')] };
     const mid = s.board.reduce((n, c) => n + c.attack + c.health, 0);
     s = play(s, 'tb2');
-    // Tidebud #2 also pays a random board Spirit (+2 Health) now that Spirits sit on the board — subtract that
+    // Tidebud #2 also pays a random board Spirit (+2 Health) now that Spirits sit on the board — plus the mirror's +2
     const boardSpiritGain = 2;
     const end = s.board.reduce((n, c) => n + c.attack + c.health, 0);
-    expect(end - mid).toBe(CARD_INDEX['sp3_tidebud']!.attack + CARD_INDEX['sp3_tidebud']!.health + boardSpiritGain);
-    // re-arms at the next turn
-    s = nextTurn(s);
-    expect(s.dreamMirrorUsedThisTurn).toBe(false);
+    expect(end - mid).toBe(CARD_INDEX['sp3_tidebud']!.attack + CARD_INDEX['sp3_tidebud']!.health + boardSpiritGain + 2);
+    expect(s.runeProcs?.['rune_dream_mirror']).toBe(2);
   });
 });
 
@@ -401,16 +440,39 @@ describe('Rune of the Grand Procession (Epic)', () => {
   });
 });
 
+// Owner rework 2026-09-18: every 3 Revelers sold this turn pay ONE random Celestial; the Revelers also buff Celestials.
 describe('Rune of the Festival Circuit', () => {
-  it('the first 3 Revelers SOLD each turn each hand over a random Celestial; the 4th does not', () => {
-    let s = armed('rune_festival_circuit', { board: [body('f', 'sp3_flamereveler'), body('t', 'sp3_tidereveler'), body('g', 'sp3_grovereveler'), body('f2', 'sp3_flamereveler')] });
-    for (const uid of ['f', 't', 'g']) s = sell(s, uid);
-    expect(s.hand).toHaveLength(3);
+  it('every 3rd Reveler SOLD this turn hands over a random Celestial (the 4th does not; the 6th does)', () => {
+    let s = armed('rune_festival_circuit', { board: [body('f', 'sp3_flamereveler'), body('t', 'sp3_tidereveler'), body('g', 'sp3_grovereveler'), body('f2', 'sp3_flamereveler'), body('t2', 'sp3_tidereveler'), body('g2', 'sp3_grovereveler')] });
+    s = sell(s, 'f'); s = sell(s, 't');
+    expect(s.hand).toHaveLength(0);
+    expect(runeTally(s, 'rune_festival_circuit')).toBe('2/3');
+    s = sell(s, 'g');
+    expect(s.hand).toHaveLength(1);
     for (const c of s.hand) expect(isTribeId(c.cardId, 'celestial'), c.cardId).toBe(true);
-    expect(runeTally(s, 'rune_festival_circuit')).toBe('3/3');
+    expect(runeTally(s, 'rune_festival_circuit'), 'the meter wraps once it pays').toBe('0/3');
     s = sell(s, 'f2');
-    expect(s.hand).toHaveLength(3);
-    expect(s.runeProcs?.['rune_festival_circuit']).toBe(3);
+    expect(s.hand).toHaveLength(1);
+    s = sell(s, 't2'); s = sell(s, 'g2');
+    expect(s.hand, 'the 6th sale pays again').toHaveLength(2);
+    expect(s.runeProcs?.['rune_festival_circuit']).toBe(2);
+    expect(nextTurn(s).revelersSoldThisTurn).toBe(0);
+  });
+  it('while held, a Reveler\'s sell buff reaches your Celestials as well as your Spirits', () => {
+    const cel = [...Object.values(CARD_INDEX)].find((c) => c.tribe === 'celestial' && !c.spell && !c.token && !c.effects.length)?.id
+      ?? [...Object.values(CARD_INDEX)].find((c) => c.tribe === 'celestial' && !c.spell && !c.token)!.id;
+    const setup = { board: [body('f', 'sp3_flamereveler'), body('c', cel), body('k', 'sp3_kindled'), body('v', 'venom')] };
+    // Without the rune: only the Spirit.
+    let plain = run(setup);
+    plain = sell(plain, 'f');
+    expect(at(plain, 'c').attack).toBe(CARD_INDEX[cel]!.attack);
+    expect(at(plain, 'k').attack).toBe(CARD_INDEX['sp3_kindled']!.attack + 1);
+    // With the rune: the Spirit AND the Celestial, never the Neutral.
+    let s = armed('rune_festival_circuit', setup);
+    s = sell(s, 'f');
+    expect(at(s, 'c').attack, 'the Celestial got the Reveler\'s +1 Attack').toBe(CARD_INDEX[cel]!.attack + 1);
+    expect(at(s, 'k').attack).toBe(CARD_INDEX['sp3_kindled']!.attack + 1);
+    expect(at(s, 'v').attack, 'a Neutral is still not an audience').toBe(CARD_INDEX['venom']!.attack);
   });
 });
 

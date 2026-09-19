@@ -84,7 +84,13 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // "and attack it immediately" (an out-of-turn strike; no grammar rule). A conscious move.
 // 89 → 90 on 2026-09-18: Shredder (the set-3 Neutral Equipment trio) — "for every Equipment unused this turn" is a
 // per-N scaler over a state the grammar has no noun for (held-but-unactivated Equipment). A conscious move.
-const UNRESOLVED_CAP = 90;
+// 90 → 91 on 2026-09-18: the owner's rune batch (Charted Skies, Astral Refrain, Festival Wages/Circuit, Dismantling,
+// Quick Release, Empty Hands, Dream Mirror, Endless March, Eventide, Astral Draft) — the printed texts are the owner's
+// verbatim. New unresolved riders: the Astral Refrain's "2 copies of the second one" (an ORDINAL pick — no grammar
+// rule), the Festival Circuit's "Your Revelers buff Celestials" (an audience-widening rider), Quick Release's
+// "(Doesn't discount its own Equipment)" (an exclusion parenthetical) and Empty Hands' "and is Amplified permanently";
+// Charted Skies, Festival Wages, Eventide and the Endless March now parse fully, so the queue nets +1. A conscious move.
+const UNRESOLVED_CAP = 91;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

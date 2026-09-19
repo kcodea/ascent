@@ -26036,7 +26036,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "tags": [
       "runeforge:epic",
-      "cost:6"
+      "cost:4"
     ],
     "effects": [
       {
@@ -27167,7 +27167,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "tags": [
       "runeforge:basic",
-      "cost:4"
+      "cost:2"
     ],
     "effects": [
       {
@@ -29411,7 +29411,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "tags": [
       "runeforge:epic",
-      "cost:5"
+      "cost:4"
     ],
     "effects": [
       {

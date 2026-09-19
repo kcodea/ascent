@@ -3,7 +3,7 @@ import { combatSide, makeRng, simulate, type BoardMinion, type CardDef, type Eff
 import { BLOODPOT, CARD_INDEX, EPIC_RUNES, EQUIPMENT_INDEX, RUNES, RUNE_INDEX, RUNE_DUP_SWEETENER, TITAN_HAMMER } from '@game/content';
 import {
   CONFIG, createRun, reduce, createStarform, destroyStarform, hasStarform, starformOf, starformStats, buffStarform,
-  starformConsumeShopMinion, starformConsumeTimes, collapseHits, equipmentCostOf, equipmentState,
+  starformConsumeShopMinion, starformConsumeTimes, collapseHits, equipmentCostOf, equipmentState, equipmentPermanentlyAmplified, equipmentWillAmplify, ENDLESS_MARCH_TOKEN,
   type Action, type BoardCard, type RunState,
 } from './index';
 import { castSpell, fireEquipmentTriggers, makeContext } from './recruit';
@@ -121,20 +121,20 @@ describe('Rune of Accretion', () => {
 });
 
 describe('Rune of Eventide', () => {
-  it('the FIRST Consume or Collapse each turn pays 2 Shop spells + spell power +1/+1; the second pays nothing', () => {
+  // Owner rework 2026-09-18: the 2 random Shop spells are gone — only the +1/+1 spell power remains, once per turn.
+  it('the FIRST Consume or Collapse each turn gives Shop spells +1/+1 (no spells handed over); the second pays nothing', () => {
     let s = openSlot(armed('rune_eventide', { board: [body('c', CEL.id)] }));
     createStarform(s, SRC);
     const sf = starformOf(s)!;
     const handBefore = s.hand.length;
     s = act(s, { type: 'buy', uid: sf.uid }); // the buy = your left-most Celestial CONSUMES it
-    expect(s.hand.length - handBefore).toBe(2);
-    expect(s.hand.slice(-2).every((c) => CARD_INDEX[c.cardId]?.spell)).toBe(true);
+    expect(s.hand.length - handBefore, 'no spells are granted any more (2026-09-18)').toBe(0);
     expect(s.spellBonus).toEqual({ attack: 1, health: 1 });
     expect(procs(s, 'rune_eventide')).toBe(1);
     // A second exit this turn: nothing more.
     createStarform(s, SRC);
     s = act(s, { type: 'buy', uid: starformOf(s)!.uid });
-    expect(s.hand.length - handBefore).toBe(2);
+    expect(s.spellBonus).toEqual({ attack: 1, health: 1 });
     expect(procs(s, 'rune_eventide')).toBe(1);
     // Next turn re-arms.
     expect(nextTurn(s).eventideUsedThisTurn).toBeUndefined();
@@ -220,15 +220,31 @@ describe('Rune of Quick Release', () => {
     let s = select(smiths('rune_quick_release'), TITAN_HAMMER.id);
     expect(equipmentCostOf(s, TITAN_HAMMER)).toBe(3);
     s = act(s, { type: 'sell', uid: 'f' });
-    expect(s.quickReleaseArmed).toBe(true);
+    expect(s.quickReleaseArmed).toEqual({ excludeEquipmentId: BLOODPOT.id });
     expect(equipmentCostOf(s, TITAN_HAMMER)).toBe(0);
     const gold = s.embers;
     s = act(s, { type: 'activateEquipment', targetUid: 'x' });
     expect(s.embers).toBe(gold);
     expect(at(s, 'x').attack).toBe(50);
     expect(procs(s, 'rune_quick_release')).toBe(1);
-    expect(s.quickReleaseArmed).toBe(false);
+    expect(s.quickReleaseArmed).toBeUndefined();
     expect(equipmentCostOf(select(s, BLOODPOT.id), BLOODPOT)).toBe(1);
+  });
+  // Owner 2026-09-18: "(Doesn't discount its own Equipment)" — the sold minion's own Equipment is never the free one.
+  it("does NOT discount the sold minion's OWN Equipment, and activating it leaves the arm for another", () => {
+    let s = smiths('rune_quick_release');
+    s = act(s, { type: 'sell', uid: 'f' }); // Frank sold → its Bloodpot is excluded
+    expect(equipmentCostOf(select(s, BLOODPOT.id), BLOODPOT), 'its own Equipment stays full price').toBe(1);
+    expect(equipmentCostOf(select(s, TITAN_HAMMER.id), TITAN_HAMMER), 'another Equipment is free').toBe(0);
+    const gold = s.embers;
+    s = act(select(s, BLOODPOT.id), { type: 'activateEquipment', targetUid: 'x' });
+    expect(gold - s.embers, 'the Bloodpot cost its 1 Gold').toBe(1);
+    expect(procs(s, 'rune_quick_release'), 'the badge did not burst for its own Equipment').toBe(0);
+    expect(s.quickReleaseArmed, 'the arm survives an own-Equipment activation').toEqual({ excludeEquipmentId: BLOODPOT.id });
+    s = act(select(s, TITAN_HAMMER.id), { type: 'activateEquipment', targetUid: 'x' });
+    expect(s.embers, 'the Hammer was the free one').toBe(gold - 1);
+    expect(procs(s, 'rune_quick_release')).toBe(1);
+    expect(s.quickReleaseArmed).toBeUndefined();
   });
 });
 
@@ -264,18 +280,26 @@ describe('Rune of Overcharge', () => {
 });
 
 describe('Rune of Dismantling', () => {
-  it('the first Equip minion sold each turn fires its Equipment free at a random OTHER friendly minion; the second does not', () => {
+  // Owner 2026-09-18: the per-turn cap is gone — EVERY Equip minion sold fires, and every fire stamps its own cue.
+  it('EVERY Equip minion sold fires its Equipment free at a random OTHER friendly minion, each with its own use cue', () => {
     let s = smiths('rune_dismantling');
     const gold = s.embers;
     s = act(s, { type: 'sell', uid: 'f' }); // Frank → Bloodpot +3/+3 on the Sculptor or the Celestial
     const frankName = CARD_INDEX['e3_frank']!.name; // an Equipment buff is itemised under its SOURCE body's name
-    expect(s.board.some((c) => c.uid !== 'f' && c.buffs?.some((b) => b.source === frankName && b.attack === 3 && b.health === 3))).toBe(true);
+    const hit = s.board.find((c) => c.uid !== 'f' && c.buffs?.some((b) => b.source === frankName && b.attack === 3 && b.health === 3));
+    expect(hit).toBeDefined();
     expect(s.embers - gold, 'the sale paid and the Equipment cost nothing').toBe(1);
     expect(procs(s, 'rune_dismantling')).toBe(1);
     expect(equipmentState(s).available.find((g) => g.equipmentId === BLOODPOT.id)!.ownChargeSpent, 'no charge spent').toBe(false);
-    s = act(s, { type: 'sell', uid: 'h' }); // the Sculptor: latched
-    expect(at(s, 'x').attack, 'no 50/50').toBe(1);
-    expect(procs(s, 'rune_dismantling')).toBe(1);
+    const cue1 = (s.equipFx ?? []).find((f) => f.kind === 'use');
+    expect(cue1, 'the fire stamped a use cue').toMatchObject({ uid: 'f', equipmentId: BLOODPOT.id, targetUid: hit!.uid });
+    const seq1 = s.equipFxSeq;
+    s = act(s, { type: 'sell', uid: 'h' }); // the Sculptor: the SECOND sale fires too (no cap)
+    expect(at(s, 'x').attack, 'the Hammer landed on the one body left').toBeGreaterThanOrEqual(50);
+    expect(procs(s, 'rune_dismantling')).toBe(2);
+    const cue2 = (s.equipFx ?? []).find((f) => f.kind === 'use');
+    expect(cue2, 'the second fire stamped its own cue').toMatchObject({ uid: 'h', equipmentId: TITAN_HAMMER.id, targetUid: 'x' });
+    expect(s.equipFxSeq, 'a fresh FX sequence for the second fire').not.toBe(seq1);
   });
 });
 
@@ -308,10 +332,29 @@ describe('Rune of Empty Hands', () => {
     s = act(s, { type: 'play', uid: taken.uid, toIndex: 0 });
     const eq = s.equipment!.available[0]!;
     expect(equipmentCostOf(s, EQUIPMENT_INDEX[eq.equipmentId]!)).toBe(0);
-    // Sold and re-granted later (a fresh body of the same card) — still 0.
+    // …and PERMANENTLY Amplified (owner 2026-09-18): read as Amplified with no stack banked.
+    expect(s.equipmentAmplifiedCards).toEqual([pick]);
+    expect(equipmentPermanentlyAmplified(s, eq.equipmentId)).toBe(true);
+    expect(equipmentWillAmplify(s, eq.equipmentId)).toBe(true);
+    expect(equipmentState(s).amplified?.[eq.equipmentId], 'no per-id stack — it is permanent').toBeUndefined();
+    // Sold and re-granted later (a fresh body of the same card) — still 0 and still Amplified.
     s = act(s, { type: 'sell', uid: taken.uid });
     s = act({ ...s, hand: [...s.hand, body('again', pick)] } as RunState, { type: 'play', uid: 'again', toIndex: 0 });
     expect(equipmentCostOf(s, EQUIPMENT_INDEX[eq.equipmentId]!)).toBe(0);
+    expect(equipmentWillAmplify(s, eq.equipmentId)).toBe(true);
+  });
+  it('the permanent Amplification doubles EVERY activation and is never spent', () => {
+    // Frank's Bloodpot (+3/+3 on a friendly) stamped as an Empty Hands pick by hand: the same run fields the pick writes.
+    let s = smiths('rune_efficient_tooling', { equipmentFreeCards: ['e3_frank'], equipmentAmplifiedCards: ['e3_frank'] });
+    s = select(s, BLOODPOT.id);
+    expect(equipmentWillAmplify(s, BLOODPOT.id)).toBe(true);
+    s = act(s, { type: 'activateEquipment', targetUid: 'x' });
+    expect(at(s, 'x').attack, 'two triggers: +3 twice').toBe(1 + 6);
+    expect(equipmentWillAmplify(s, BLOODPOT.id), 'still Amplified after the activation').toBe(true);
+    // A fresh charge (as the next turn's rebuild grants): doubled again — nothing was spent.
+    equipmentState(s).available.find((g) => g.equipmentId === BLOODPOT.id)!.ownChargeSpent = false;
+    s = act(select(s, BLOODPOT.id), { type: 'activateEquipment', targetUid: 'x' });
+    expect(at(s, 'x').attack).toBe(1 + 12);
   });
 });
 describe('Rune of the Last Tool', () => {
@@ -378,7 +421,8 @@ describe('Rune of the Crowded Crypt', () => {
 });
 
 describe('Rune of the Endless March', () => {
-  it('SHOP: a friendly Undead that Rises summons a 1/1 Skeleton beside it', () => {
+  // Owner 2026-09-18: the Rise now summons a SPEAR WARDEN (the set-1 card, `knit`) instead of a 1/1 Skeleton.
+  it('SHOP: a friendly Undead that Rises summons a Spear Warden beside it', () => {
     let s = armed('rune_endless_march', { board: [body('p', 'u3_poochy', { keywords: ['T'] })], hand: [body('e', 'u3_ems')] });
     expect(at(s, 'p').grantedEffects?.some((e) => e.do === 'onRiseSelfSummonToken')).toBe(true);
     s = act(s, { type: 'play', uid: 'e', toIndex: 0 });
@@ -386,18 +430,25 @@ describe('Rune of the Endless March', () => {
     s = act(s, { type: 'resolveShopDeath' });
     const risen = s.board.find((c) => c.cardId === 'u3_poochy')!;
     expect(risen.grantedEffects?.some((e) => e.do === 'onRiseSelfSummonToken'), 'the risen body is re-grafted').toBe(true);
-    expect(s.board.filter((c) => c.cardId === 'u3_skeleton')).toHaveLength(1);
+    expect(risen.grantedEffects?.find((e) => e.do === 'onRiseSelfSummonToken')?.params?.tokenId).toBe(ENDLESS_MARCH_TOKEN);
+    expect(ENDLESS_MARCH_TOKEN).toBe('knit');
+    expect(s.board.filter((c) => c.cardId === 'u3_skeleton'), 'no Skeleton any more').toHaveLength(0);
+    const warden = s.board.filter((c) => c.cardId === 'knit');
+    expect(warden).toHaveLength(1);
+    expect(warden[0]!.attack).toBe(CARD_INDEX['knit']!.attack);
+    expect(warden[0]!.health).toBe(CARD_INDEX['knit']!.health);
+    expect(s.board.indexOf(warden[0]!), 'beside the riser').toBe(s.board.indexOf(risen) + 1);
     expect(procs(s, 'rune_endless_march')).toBe(1);
   });
-  it('COMBAT: the riser itself summons the Skeleton after its Rise; its neighbours stay quiet', () => {
-    const graft: EffectDef[] = [{ on: 'onRise', do: 'onRiseSelfSummonToken', params: { tokenId: 'u3_skeleton', count: 1 } }];
+  it('COMBAT: the riser itself summons the Spear Warden after its Rise; its neighbours stay quiet', () => {
+    const graft: EffectDef[] = [{ on: 'onRise', do: 'onRiseSelfSummonToken', params: { tokenId: ENDLESS_MARCH_TOKEN, count: 1 } }];
     const pup: BoardMinion = { cardId: 'u3_poochy', attack: 1, health: 1, sourceUid: 'p', keywords: ['R'], grantedEffects: graft };
     const other: BoardMinion = { cardId: 'u3_poochy', attack: 0, health: 40, sourceUid: 'o', keywords: [], grantedEffects: graft };
     const r = simulate([pup, other], [{ cardId: 'sandbag', attack: 5, health: 3 }], makeRng(3), CARD_INDEX, combatSide({ tier: 6, tribes: ['undead'] }), combatSide({ tier: 1 }));
     const reborn = r.events.findIndex((e) => e.type === 'reborn');
     expect(reborn, 'the Pup rose').toBeGreaterThanOrEqual(0);
-    const skeletons = r.events.filter((e, i) => i > reborn && e.type === 'summon' && e.side === 'player' && e.minion.cardId === 'u3_skeleton');
-    expect(skeletons, 'exactly ONE Skeleton — the riser answered, the other graft did not').toHaveLength(1);
+    const wardens = r.events.filter((e, i) => i > reborn && e.type === 'summon' && e.side === 'player' && e.minion.cardId === 'knit');
+    expect(wardens, 'exactly ONE Spear Warden — the riser answered, the other graft did not').toHaveLength(1);
   });
 });
 

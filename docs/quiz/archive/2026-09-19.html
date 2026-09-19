@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ascent Quiz #38 — 2026-09-19</title>
+<meta name="description" content="Quiz #38 for Mike — ten questions on how Ascent's engine, RNG, and package boundaries are actually built.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f8fa;
+    --surface: #ffffff;
+    --surface-2: #eef1f4;
+    --border: #d7dce2;
+    --text: #1f2328;
+    --muted: #57606a;
+    --accent: #1a7f37;
+    --accent-soft: #dafbe1;
+    --bad: #cf222e;
+    --bad-soft: #ffebe9;
+    --warn: #9a6700;
+    --shadow: 0 1px 2px rgba(31,35,40,.06), 0 8px 24px rgba(31,35,40,.06);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1117;
+      --surface: #151b23;
+      --surface-2: #1c2431;
+      --border: #2d3745;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #3fb950;
+      --accent-soft: #123a20;
+      --bad: #ff7b72;
+      --bad-soft: #3c1618;
+      --warn: #d29922;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1117;
+    --surface: #151b23;
+    --surface-2: #1c2431;
+    --border: #2d3745;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #3fb950;
+    --accent-soft: #123a20;
+    --bad: #ff7b72;
+    --bad-soft: #3c1618;
+    --warn: #d29922;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+    padding: 32px 16px 64px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 24px; }
+  header .kicker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  header h1 { font-size: 24px; margin: 0 0 6px; }
+  header p { color: var(--muted); font-size: 14px; margin: 0; }
+
+  .progressbar {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    overflow: hidden;
+    margin: 20px 0 28px;
+    border: 1px solid var(--border);
+  }
+  .progressbar-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width .3s ease;
+  }
+
+  .scoretrack {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .scoretrack .pip {
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted);
+  }
+  .scoretrack .pip.correct { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .scoretrack .pip.wrong { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 24px 22px;
+    margin-bottom: 18px;
+  }
+  .qmeta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .qmeta .num { color: var(--accent); font-weight: 600; }
+  .question { font-size: 17px; line-height: 1.5; margin: 0 0 18px; font-weight: 600; }
+
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    text-align: left;
+    padding: 13px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14.5px;
+    line-height: 1.45;
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease, transform .1s ease;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
+  .choice:disabled { cursor: default; }
+  .choice .letter {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--muted);
+    flex-shrink: 0;
+    width: 20px;
+  }
+  .choice.correct { background: var(--accent-soft); border-color: var(--accent); }
+  .choice.correct .letter { color: var(--accent); }
+  .choice.wrong { background: var(--bad-soft); border-color: var(--bad); }
+  .choice.wrong .letter { color: var(--bad); }
+  .choice.dim { opacity: .55; }
+
+  .result-tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 6px;
+    margin-top: 16px;
+  }
+  .result-tag.correct { background: var(--accent-soft); color: var(--accent); }
+  .result-tag.wrong { background: var(--bad-soft); color: var(--bad); }
+
+  .explanation {
+    margin-top: 12px;
+    padding: 14px 15px;
+    background: var(--surface-2);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--text);
+    display: none;
+  }
+  .explanation.show { display: block; }
+  .explanation code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    background: var(--bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+
+  .nextrow { display: flex; justify-content: flex-end; margin-top: 16px; }
+  .btn {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    display: none;
+  }
+  .btn.show { display: inline-block; }
+  .btn:hover { filter: brightness(1.08); }
+
+  .summary { text-align: center; padding: 36px 24px; }
+  .summary .big { font-size: 44px; font-weight: 700; margin: 8px 0; font-family: 'JetBrains Mono', monospace; }
+  .summary .line { color: var(--muted); font-size: 15px; margin-bottom: 22px; }
+  .summary .topics { font-size: 13px; color: var(--muted); margin-top: 20px; line-height: 1.7; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">Daily Ascent Code Quiz</div>
+    <h1>🎓 Ascent Quiz #38</h1>
+    <p>2026-09-19 · 10 questions on how the engine, RNG, and packages are actually built</p>
+  </header>
+
+  <div class="progressbar"><div class="progressbar-fill" id="progressFill"></div></div>
+  <div class="scoretrack" id="scoreTrack"></div>
+
+  <div id="quizArea"></div>
+
+  <div id="summaryArea" class="card summary hidden"></div>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    topicId: "what-is-a-function",
+    question: "In packages/core/src/combat/minion.ts, instantiate() looks up a card by id in the CardIndex and finds nothing there. What does it do?",
+    choices: [
+      "Returns null so the caller can check for a missing card",
+      "Returns a default placeholder Minion with zero stats",
+      "Throws an Error immediately, naming the unknown card id",
+      "Silently skips that minion and continues building the rest of the board"
+    ],
+    answer: 2,
+    explanation: "instantiate() does <code>if (!card) throw new Error(`Unknown card: ${board.cardId}`);</code> — it fails loudly and immediately instead of returning a \"nothing here\" value like null. That means every caller downstream can safely assume the Minion it gets back is real, with no need to defensively check for null on every use. Returning null would push that check onto every single caller instead of catching the bug at its source."
+  },
+  {
+    topicId: "deterministic-sim",
+    question: "Each committed board in packages/sim/src/opponentPool.data.ts (the pre-generated opponent pool) carries its own seed, capturedAt, and patch fields. Why?",
+    choices: [
+      "They're leftover debug fields nobody reads anymore",
+      "So the offline generation step that built the pool (npm run pool) is itself traceable and reproducible, not just runtime combat",
+      "The UI displays them to the player as trivia about each opponent",
+      "They let the matchmaker prefer boards generated more recently"
+    ],
+    answer: 1,
+    explanation: "Determinism in Ascent isn't just about simulate() during a fight — the pool of opponent boards is itself generated content, and each board's seed/capturedAt/patch stamps record exactly how and when it was produced, so regenerating the pool is reproducible and any board's provenance can be traced. It's the same \"everything traces back to a seed\" discipline extended to a build-time step, not just a runtime one."
+  },
+  {
+    topicId: "seeded-rng",
+    question: "Inside makeRng() in packages/core/src/rng.ts, the returned object's pick method is written as pick: (xs) => xs[rng.int(xs.length)] — but rng is the very object being built, right there in the same object literal. Why does this work instead of crashing?",
+    choices: [
+      "JavaScript hoists rng to the top of the function so it's already fully built",
+      "pick is an arrow function, and arrow functions can always see themselves",
+      "The arrow function's body doesn't run until something calls .pick(...) later — by then, rng has already been fully assigned",
+      "It doesn't actually work; pick is broken and unused in practice"
+    ],
+    answer: 2,
+    explanation: "A closure captures the variable rng, not its value at the moment pick is defined. Nothing inside pick actually runs while the object literal is still being built — it only runs later, when a caller invokes .pick(), and by then const rng = {...} has finished executing and rng is fully populated. It's a common (and slightly mind-bending) JS pattern: an object referring to itself by name from inside one of its own methods."
+  },
+  {
+    topicId: "sim-ui-decoupling",
+    question: "Nearly 100 files in packages/ui import from @game/core, almost always written as import type { CombatEvent } from '@game/core'. How does this square with \"the UI never computes outcomes\"?",
+    choices: [
+      "It doesn't — this shows the UI secretly runs combat logic too",
+      "import type is erased entirely at compile time, so the UI shares core's TYPE vocabulary (what an event or minion looks like) without pulling in any of its runtime logic",
+      "These imports are unused leftovers that should be deleted",
+      "TypeScript automatically strips real function imports the same way it strips type imports"
+    ],
+    answer: 1,
+    explanation: "import type only exists for TypeScript's type-checker; it produces zero runtime code once compiled. So the UI can freely describe \"a CombatEvent looks like this\" across nearly every file — for props, state shapes, and pattern matching — without ever pulling in @game/core's actual logic. That's consistent with real simulate() call sites living exclusively in packages/sim."
+  },
+  {
+    topicId: "monorepo-packages",
+    question: "packages/core, content, sim, and ui each declare main and exports fields pointing at their own src/index.ts. packages/tools has no main/exports at all. Why is tools different?",
+    choices: [
+      "It's an oversight that should be fixed",
+      "Tools is a leaf: nothing else in the monorepo imports @game/tools as a dependency, so it has no need to declare an entrypoint contract for other packages to resolve",
+      "tsx doesn't support the main/exports fields",
+      "Tools is written in plain JavaScript, which doesn't use package.json entrypoints"
+    ],
+    answer: 1,
+    explanation: "main/exports exist to tell OTHER packages how to resolve import ... from '@game/tools'. But nothing does that — tools' scripts (perf.ts, balance.ts, and friends) are run directly via tsx from the root's npm scripts, never imported as a library. An entrypoint contract is only needed for a package that's a dependency of something else."
+  },
+  {
+    topicId: "pure-functions",
+    question: "computeCombatOdds() in packages/sim/src/odds.ts calls simulate() 200 times in a loop, and EVERY call gets a different rng (a fresh makeRng(mixSeed(seed, wave, TAG.ODDS, i)) per loop index i). Its own doc comment still calls the whole function \"Pure + deterministic.\" How can that be, if it produces 200 different results internally?",
+    choices: [
+      "The doc comment is inaccurate — this function isn't actually pure",
+      "Purity means \"same inputs → same output\" — the 200 different rngs aren't outside randomness, they're entirely derived from the function's own arguments (seed, wave, and the loop index), so the same call always reproduces the same 200-way spread",
+      "simulate() secretly ignores the rng argument, so all 200 calls are identical anyway",
+      "It's only \"pure\" because the loop runs synchronously with no async code"
+    ],
+    answer: 1,
+    explanation: "Purity doesn't require every internal step to return the same thing — it requires that calling the function again with the same explicit inputs reproduces the exact same behavior. Every one of the 200 rngs is mechanically derived from seed/wave/i (all either arguments or a fixed constant), so re-running computeCombatOdds with the same seed and wave regenerates the identical 200 rngs and therefore the identical win/draw/loss numbers."
+  },
+  {
+    topicId: "data-vs-code",
+    question: "referencedCardIds() (powers the UI's hover-preview of cards a card mentions) and validateCards() (the test-time integrity check) in packages/content/src/index.ts both walk each card's effects looking for referenced ids. Per the file's own comment, why don't these two ever drift out of sync with each other?",
+    choices: [
+      "They're generated from each other by a build script",
+      "They both read from the SAME small data table (which params of which effect ids point at another card) — one source of truth feeding two different features",
+      "They're actually the same function with two different names",
+      "A CI job compares their outputs nightly and fails if they disagree"
+    ],
+    answer: 1,
+    explanation: "Because card effects are DATA ({ do: 'battlecrySummon', params: {...} }), a single small lookup table describing \"effect X's param Y is a card/token reference\" can drive both a UI feature (hover-preview) and a test-time validator without writing the reference logic twice. That's the payoff of \"cards are data, not bespoke code\" going one level deeper — even the tooling that reads the cards gets to share logic through shared data."
+  },
+  {
+    topicId: "event-log-replay",
+    question: "In the CombatEvent union in packages/core/src/types.ts, the death variant carries an explicit side: Side field, but attack and dmg don't. Why the difference?",
+    choices: [
+      "attack/dmg are older event types added before side was invented",
+      "death's side lets the UI count things like enemy kills directly, without matching a uid back to a board; attack/dmg already pin down the unit precisely via their own uid fields (attacker/defender/target), so a separate side tag would be redundant",
+      "attack/dmg always happen to the player's side, so side would always be the same value",
+      "It's a bug — attack/dmg are supposed to have side too"
+    ],
+    answer: 1,
+    explanation: "A discriminated union doesn't have to give every variant the same shape — each one only carries what the UI actually needs to read off it. death adds side because something like Cassen's hero power needs to count enemy kills without cross-referencing a uid against the board; attack/dmg already identify their unit precisely by uid, so anything that needs to know which side that uid belongs to can look it up from the board snapshot instead."
+  },
+  {
+    topicId: "eslint-rules",
+    question: "The very first entry in eslint.config.mjs's config array is { ignores: [...] } — with no files key, unlike every rule block that follows it. What does an ignores entry with no files actually do?",
+    choices: [
+      "Nothing — ignores only works when paired with a files array",
+      "It applies globally: those paths are excluded from ESLint entirely, not just from one particular rule block",
+      "It ignores the REST of the config file, so nothing after it takes effect",
+      "It's equivalent to writing files: ['**/*'] on every later block"
+    ],
+    answer: 1,
+    explanation: "In ESLint's flat config, a config object with only ignores (no files) is treated specially: it's a global exclusion applied to the whole config, not a scoped exception inside one rule set. That's how node_modules, dist, and the other listed paths get skipped by every rule in the file, not just whichever block happens to come right after it."
+  },
+  {
+    topicId: "performance-memo",
+    question: "The pre-combat odds probe used to run synchronously on the End Turn click. Per docs/performance.md's 2026-08-01 audit, what changed, and what did it buy?",
+    choices: [
+      "It was deleted entirely — the odds bar no longer shows real numbers",
+      "It was moved to run in idle time AFTER the combat view mounts, taking ~10ms off the click and dropping the headless full-run benchmark from 164 to 136 ms/op",
+      "It was rewritten in WebGL to run on the GPU instead of the CPU",
+      "It was cached so it only ever runs once per run instead of once per combat"
+    ],
+    answer: 1,
+    explanation: "The 200-simulation probe behind the odds bar doesn't need to block the moment the player clicks End Turn — it only needs to be ready by the time the combat view is on screen. Deferring it to idle time (faceOmen stashes the input, the UI computes the odds after the transition) shaved real, measured time off the click and off the full-run benchmark — a concrete example of moving non-critical work off the interaction path instead of trying to make the work itself faster."
+  }
+];
+
+let current = 0;
+let score = 0;
+const results = [];
+
+const quizArea = document.getElementById('quizArea');
+const progressFill = document.getElementById('progressFill');
+const scoreTrack = document.getElementById('scoreTrack');
+const summaryArea = document.getElementById('summaryArea');
+
+function initTrack() {
+  scoreTrack.innerHTML = '';
+  QUESTIONS.forEach((_, i) => {
+    const pip = document.createElement('div');
+    pip.className = 'pip';
+    pip.textContent = i + 1;
+    pip.id = 'pip-' + i;
+    scoreTrack.appendChild(pip);
+  });
+}
+
+function renderQuestion(i) {
+  const q = QUESTIONS[i];
+  const letters = ['A', 'B', 'C', 'D'];
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `
+    <div class="qmeta"><span class="num">Question ${i + 1} / ${QUESTIONS.length}</span><span>${q.topicId}</span></div>
+    <p class="question">${q.question}</p>
+    <div class="choices" id="choices-${i}"></div>
+    <div class="explanation" id="explain-${i}"></div>
+    <div class="nextrow"><button class="btn" id="next-${i}">${i === QUESTIONS.length - 1 ? 'See results →' : 'Next question →'}</button></div>
+  `;
+  quizArea.innerHTML = '';
+  quizArea.appendChild(card);
+
+  const choicesEl = document.getElementById('choices-' + i);
+  q.choices.forEach((choiceText, ci) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice';
+    btn.innerHTML = `<span class="letter">${letters[ci]}</span><span>${choiceText}</span>`;
+    btn.addEventListener('click', () => selectAnswer(i, ci));
+    choicesEl.appendChild(btn);
+  });
+
+  progressFill.style.width = ((i) / QUESTIONS.length * 100) + '%';
+}
+
+function selectAnswer(i, ci) {
+  const q = QUESTIONS[i];
+  const choicesEl = document.getElementById('choices-' + i);
+  const buttons = choicesEl.querySelectorAll('.choice');
+  const correct = ci === q.answer;
+
+  buttons.forEach((b, bi) => {
+    b.disabled = true;
+    if (bi === q.answer) b.classList.add('correct');
+    else if (bi === ci) b.classList.add('wrong');
+    else b.classList.add('dim');
+  });
+
+  const explainEl = document.getElementById('explain-' + i);
+  explainEl.classList.add('show');
+  explainEl.innerHTML = `<span class="result-tag ${correct ? 'correct' : 'wrong'}">${correct ? '✓ Correct' : '✗ Not quite'}</span><br><br>${q.explanation}`;
+
+  const pip = document.getElementById('pip-' + i);
+  pip.classList.add(correct ? 'correct' : 'wrong');
+  pip.textContent = correct ? '✓' : '✗';
+
+  if (correct) score++;
+  results.push(correct);
+
+  document.getElementById('next-' + i).classList.add('show');
+  progressFill.style.width = ((i + 1) / QUESTIONS.length * 100) + '%';
+}
+
+quizArea.addEventListener('click', (e) => {
+  if (e.target && e.target.id && e.target.id.startsWith('next-')) {
+    current++;
+    if (current < QUESTIONS.length) {
+      renderQuestion(current);
+    } else {
+      showSummary();
+    }
+  }
+});
+
+function showSummary() {
+  quizArea.innerHTML = '';
+  const pct = Math.round((score / QUESTIONS.length) * 100);
+  let line;
+  if (pct === 100) line = "Perfect score! You're reading this codebase like you wrote it. 🏆";
+  else if (pct >= 80) line = "Really strong — you're building a solid mental map of how this game is built.";
+  else if (pct >= 50) line = "Good progress — a few of these were deep cuts. Keep going, it compounds fast.";
+  else line = "Tough one today — no worries, reply with your score and tomorrow will circle back to what tripped you up.";
+
+  summaryArea.classList.remove('hidden');
+  summaryArea.innerHTML = `
+    <div class="kicker" style="color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:13px;">QUIZ COMPLETE</div>
+    <div class="big">${score} / ${QUESTIONS.length}</div>
+    <div class="line">${line}</div>
+    <div class="topics">Reply to this morning's message with your score (e.g. "${score}/10, missed the eslint one") and tomorrow's quiz will adapt.</div>
+  `;
+  progressFill.style.width = '100%';
+}
+
+initTrack();
+renderQuestion(0);
+</script>
+</body>
+</html>

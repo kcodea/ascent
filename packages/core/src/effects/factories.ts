@@ -2555,6 +2555,20 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ARENA_EFFECTS.deathrattleSummonRubyStats(combatArena(ctx, self), params);
   },
 
+  /** Set 3 — Kurse: Avenge (`count`) — Carver's Golem on the avenge window. Every time the side's tally (read
+   *  through `avengeCountFor`, so a risen body restarts) hits a multiple of `count`, run the SAME arena body
+   *  Carver's Echo runs: a 1/1 `tokenId` plus this minion's Rubies (shop Ruby buff + mid-combat `rubyGain`),
+   *  golden = ONE Golem at double stats (Carver's convention, owner ruling 2026-08-04). Lands beside Kurse via
+   *  `ctx.summon` — a full board emits `summonOverflow` like any other summon. */
+  avengeSummonRubyStats: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 3));
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % x !== 0) return;
+    ARENA_EFFECTS.deathrattleSummonRubyStats(combatArena(ctx, self), params);
+  },
+
   /** Set 2 — Deepdelve Paragon. A MARKER, not a trigger: it is never dispatched.
    *
    *  The card does exactly one thing (owner spec 2026-07-25): Rubies APPLIED DURING COMBAT are worth double

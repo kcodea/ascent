@@ -567,6 +567,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onTribePlayedBuffSelfPerSpell', // Herzog: +N/+N when you play a tribe; N scales with Shop Spells cast
   'endOfTurnPlayRuby', // Alchemist Brisbane (EoT): play N Rubies on a random friendly Kobold
   'deathrattleSummonRubyStats', // Gemheart Carver: Echo summon a token with stats = its Rubies
+  'avengeSummonRubyStats', // Kurse (set 3): the same Golem on Avenge (N)
   'rubyStatMultiplier', // Deepdelve Paragon: Rubies applied IN COMBAT are worth 2x (3x Gilded)
   'rubyCastConsumeShop', // Gemgorge Fiend: every N Rubies cast, Consume a Shop minion
   // --- RUNE-ONLY minion batch (2026-08-20) ---

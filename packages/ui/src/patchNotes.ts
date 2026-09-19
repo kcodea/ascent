@@ -56,6 +56,22 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-19',
+    label: 'Kurse + Pickles',
+    changes: [
+      {
+        category: 'New Card',
+        text: "Kurse (Tier 5 Kobold, 10/5): Avenge (3) — summon a 1/1 Gemheart Golem, plus this minion's Rubies.",
+        details: [
+          "Gemheart Carver's Golem on an Avenge trigger: after every three friendly deaths in a combat, a Golem lands beside Kurse carrying every Ruby stacked on Kurse at that moment.",
+          'Fires each time the count is reached — six friendly deaths is two Golems. A full board loses the Golem.',
+          'Gilded: one Golem at double stats, the same as Gemheart Carver.',
+        ],
+      },
+      { category: 'Card Change', text: "Pickles: the Ruby branch now gives 3 Rubies (was 2); Gilded 6 (was 4)." },
+    ],
+  },
+  {
+    date: '2026-09-19',
     label: 'No ghost rematches',
     changes: [
       { category: 'UI / Info', text: "When the table is odd and you fight a ghost (a fallen seat's board), it is never the seat you fought last round or the one you eliminated — the next most recent ghost stands in, and if the only ghost would be a rematch, another seat takes the bye." },

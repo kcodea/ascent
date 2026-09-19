@@ -1874,6 +1874,20 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .badge[data-milestone='4'] { --msf-scale: var(--ms-scale-4, 1); --ms-glow: var(--ms-glow-4, #ff5edb); }
 .badge[data-milestone='5'] { --msf-scale: var(--ms-scale-5, 1); --ms-glow: var(--ms-glow-5, #4fd1ff); }
 .badge[data-milestone='6'] { --msf-scale: var(--ms-scale-6, 1); --ms-glow: var(--ms-glow-6, #ffffff); } /* crystal */
+/* Per-tier × per-stat tint + BUFFED number colour (owner ask 2026-09-19): each tier's disc and its buffed digit
+   have their own Attack / Health colour. Set on the badge so the .mstint and .value children inherit them. */
+.badge.atk[data-milestone='1'] { --mstint-cur: var(--ms-tint-atk-1, #ffa200); --ms-numup-cur: var(--ms-numup-atk-1, #6ffe5d); }
+.badge.atk[data-milestone='2'] { --mstint-cur: var(--ms-tint-atk-2, #ffa200); --ms-numup-cur: var(--ms-numup-atk-2, #6ffe5d); }
+.badge.atk[data-milestone='3'] { --mstint-cur: var(--ms-tint-atk-3, #ffa200); --ms-numup-cur: var(--ms-numup-atk-3, #6ffe5d); }
+.badge.atk[data-milestone='4'] { --mstint-cur: var(--ms-tint-atk-4, #ffa200); --ms-numup-cur: var(--ms-numup-atk-4, #6ffe5d); }
+.badge.atk[data-milestone='5'] { --mstint-cur: var(--ms-tint-atk-5, #ffa200); --ms-numup-cur: var(--ms-numup-atk-5, #6ffe5d); }
+.badge.atk[data-milestone='6'] { --mstint-cur: var(--ms-tint-atk-6, #ffa200); --ms-numup-cur: var(--ms-numup-atk-6, #6ffe5d); }
+.badge.hp[data-milestone='1'] { --mstint-cur: var(--ms-tint-hp-1, #cf0707); --ms-numup-cur: var(--ms-numup-hp-1, #6ffe5d); }
+.badge.hp[data-milestone='2'] { --mstint-cur: var(--ms-tint-hp-2, #cf0707); --ms-numup-cur: var(--ms-numup-hp-2, #6ffe5d); }
+.badge.hp[data-milestone='3'] { --mstint-cur: var(--ms-tint-hp-3, #cf0707); --ms-numup-cur: var(--ms-numup-hp-3, #6ffe5d); }
+.badge.hp[data-milestone='4'] { --mstint-cur: var(--ms-tint-hp-4, #cf0707); --ms-numup-cur: var(--ms-numup-hp-4, #6ffe5d); }
+.badge.hp[data-milestone='5'] { --mstint-cur: var(--ms-tint-hp-5, #cf0707); --ms-numup-cur: var(--ms-numup-hp-5, #6ffe5d); }
+.badge.hp[data-milestone='6'] { --mstint-cur: var(--ms-tint-hp-6, #cf0707); --ms-numup-cur: var(--ms-numup-hp-6, #6ffe5d); }
 /* Per-tier GLOW underneath the frame — a soft, blurred colour disc behind the art whose colour is set per tier
    (owner ask 2026-09-15). STATIC blur (no looping animation), so it respects the 60fps paint rule. It is the
    FIRST child of .badge in the DOM, so it paints BEHIND the frame / tint / number. */
@@ -1908,10 +1922,8 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   border-radius: 50%;
   pointer-events: none;
   opacity: var(--mstint-opacity, 1);
-  background: var(--mstint-atk, #e0a81e);   /* fallback; overridden per stat below (owner ask 2026-09-16) */
+  background: var(--mstint-cur, #e0a81e);   /* per-tier × per-stat, set on the badge above (owner ask 2026-09-19) */
 }
-.badge.atk > .mstint { background: var(--mstint-atk, #e0a81e); }   /* Attack: fixed yellow, any state */
-.badge.hp  > .mstint { background: var(--mstint-hp, #c62828); }    /* Health: fixed red, any state */
 /* The number on a framed badge — size / colour / nudge / outline are tuner-driven; unframed tier-0 badges keep
    the base `.badge > .value` rule above. Absolutely centred on the disc so it grows from BOTH sides (a 4-digit
    5000 stays centred instead of spilling off the right); the second translate is the tuner's nudge. */
@@ -1930,7 +1942,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 }
 /* The number's COLOUR carries the stat STATE (owner ask 2026-09-16): buffed / reduced recolour the digit.
    Higher specificity than the neutral rule above, so the state colour wins when the badge has .up / .down. */
-.badge.up:not([data-milestone='0']) > .value { color: var(--msnum-up, #3ad84a); }     /* buffed above base */
+.badge.up:not([data-milestone='0']) > .value { color: var(--ms-numup-cur, #6ffe5d); }  /* buffed: per-tier × per-stat */
 .badge.down:not([data-milestone='0']) > .value { color: var(--msnum-down, #ff5a4f); } /* below base / floor */
 /* MILESTONE TUNER PREVIEW — the 🏅 Milestone Badges panel renders the real badge markup for all ten tiers so it
    tracks the CSS vars live. The badges are normally absolute at a card's corners; here they lay out in rows, so

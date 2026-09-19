@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
+        text: "Replay viewer: the Power column now measures a board against the boards players actually had at that exact round, so it no longer drops off a cliff between round 12 and 13 with no change to the board.",
+        details: [
+          'Power used to compare a board with a bracket of rounds (10–12, 13–15, …); crossing a bracket edge swapped the yardstick and the number could fall from 99 to 11 in one round.',
+          "Now every round has its own yardstick — the recorded boards at that round — and 50 means \"the typical board at this round\". A board that stands still while the field grows still loses Power, because the field really did grow.",
+        ],
+      },
+      {
+        category: 'UI / Info',
         text: "Replay viewer: the round rail is now a full table you can collapse and drag, with Recruit / Combat jump cells, Power and Win % columns, shop sounds, and the recorded player's cursor.",
         details: [
           'Each round row has two cells: Recruit jumps to that round’s shop, Combat plays that round’s fight from its start. The cell you are watching is highlighted.',

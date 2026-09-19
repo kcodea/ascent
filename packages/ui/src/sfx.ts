@@ -26,7 +26,7 @@ import { familyOf } from './audio/clipFamily';
 import { SCENES } from './audio/scenes';
 import { slugify, isValidSlug, saveSound } from './fx/defStore';
 import { getBuffFxConfig } from './buffFxConfig';
-import { buildAudioFilterChain } from './fx/audioFilters';
+import { buildAudioFilterChain, curveVaries, applyAudioCurve, type FxFilterCtx } from './fx/audioFilters';
 
 export { SCENES };
 
@@ -1074,14 +1074,26 @@ export function playFxSound(clip: string, opts: FxSoundOpts = {}): FxSoundHandle
   const level = Math.max(0, (opts.gain ?? 1) * gainJit);
   const g = a.createGain();
   const busIn = busNodes.get(opts.bus ?? 'combat')?.input ?? master ?? a.destination;
-  // Channel strip: source → [Filter Lab inserts] → fader (g) → bus. `g` (level, fades, jitter) stays the LAST
-  // stage before the bus, so a fade-out silences any filter tail (echoes) too. No enabled filters → straight
-  // through, allocating nothing.
-  const chain = buildAudioFilterChain(a, opts.filterParams);
-  if (chain) { src.connect(chain.input); chain.output.connect(g); } else { src.connect(g); }
-  g.connect(busIn);
   const t0 = a.currentTime + Math.max(0, (opts.delayMs ?? 0) / 1000);
   const offset = Math.max(0, (opts.startOffsetMs ?? 0) / 1000);
+  // The clip's play window (one clip length, rate-adjusted) — the domain every over-time curve maps onto, and
+  // reused by the one-shot fade-out below.
+  const playDur = Math.max(0, buf.duration - offset) / src.playbackRate.value;
+  const fireCtx: FxFilterCtx = { t0, durSec: playDur };
+  // Channel strip: source → [Filter Lab inserts] → fader (g) → [Level-curve gain] → bus. `g` (level, fades,
+  // jitter) is the fader; the Filter Lab dials automate on the fireCtx window. No enabled filters → straight in.
+  const chain = buildAudioFilterChain(a, opts.filterParams, fireCtx);
+  if (chain) { src.connect(chain.input); chain.output.connect(g); } else { src.connect(g); }
+  // Clip Level over time: a unity gain after the fader that rides `gainCurve`, added ONLY when the curve
+  // actually varies — so an un-automated sound keeps the plain `g → bus` path and allocates nothing extra.
+  let tail: AudioNode = g;
+  const gainCurve = (opts.filterParams as Record<string, unknown> | undefined)?.gainCurve;
+  if (playDur > 0 && curveVaries(gainCurve)) {
+    const gAuto = a.createGain();
+    applyAudioCurve(gAuto.gain, 1, gainCurve, fireCtx);
+    g.connect(gAuto); tail = gAuto;
+  }
+  tail.connect(busIn);
   const fadeIn = Math.max(0, (opts.fadeInMs ?? 0) / 1000);
   if (fadeIn > 0) {
     g.gain.setValueAtTime(0.0001, t0);
@@ -1092,7 +1104,6 @@ export function playFxSound(clip: string, opts: FxSoundOpts = {}): FxSoundHandle
   // One-shot fade-out: schedule a ramp to end just as the (rate-adjusted) clip finishes.
   const fadeOut = Math.max(0, (opts.fadeOutMs ?? 0) / 1000);
   if (fadeOut > 0 && !src.loop) {
-    const playDur = Math.max(0, (buf.duration - offset)) / src.playbackRate.value;
     const outStart = t0 + Math.max(fadeIn, playDur - fadeOut);
     g.gain.setValueAtTime(Math.max(0.0001, level), outStart);
     g.gain.exponentialRampToValueAtTime(0.0001, outStart + fadeOut);

@@ -5,29 +5,100 @@
  * EQ'd, compressed, distorted, echoed and panned without leaving the workbench — and, routed through the same
  * graph as every other sound, still obeys the master volume, mute and the mixing desk.
  *
- * v1 uses STATIC amounts (no curve-over-clip automation — owner 2026-09-17) and a FIXED order
- * (EQ → Compressor → Distortion → Delay → Reverb → Pan, the standard order: shape → control → colour → space
- * → placement); authored reorder is a planned follow-up. Reverb is algorithmic (a generated decaying-noise
- * impulse — no committed files). Modulation lands in a later PR. Native nodes + a synthetic IR only — no
- * AudioWorklets, no committed impulse files.
+ * OVER-TIME AUTOMATION (owner 2026-09-19): each effect's HEADLINE dial can ride a curve across the clip's play
+ * window (0 = fires, 1 = clip ends) — EQ bands, compressor threshold, and each space effect's Mix, plus Pan.
+ * Unlike the visual lab (which samples a curve per FRAME), audio uses Web Audio's own param automation
+ * (`setValueCurveAtTime`), scheduled once at fire time and run sample-accurately on the audio thread. A flat
+ * curve (the default) is a no-op — the param is set statically — so an un-automated sound is unchanged. The
+ * dials that BAKE a buffer/waveshape at fire time (reverb size/damping, distortion drive, delay time) can't be
+ * live-automated and stay static.
+ *
+ * Fixed chain order (EQ → Compressor → Distortion → Delay → Reverb → Pan). Reverb is algorithmic (a generated
+ * decaying-noise impulse — no committed files). Native nodes + a synthetic IR only.
  *
  * Kept OUT of `sfx.ts` so the graph code is one small, testable module: `audioFilterSpecs()` generates the
- * `sound` primitive's filter params (folded into its SPECS), and `buildAudioFilterChain(ctx, params)` builds
- * the node chain `playFxSound` splices in. Every `build` takes the AudioContext by argument, so a fake context
- * unit-tests the wiring without real Web Audio.
+ * `sound` primitive's filter params (folded into its SPECS), and `buildAudioFilterChain(ctx, params, fireCtx)`
+ * builds the node chain `playFxSound` splices in. Every `build` takes the AudioContext by argument, so a fake
+ * context unit-tests the wiring without real Web Audio.
  */
 import type { FxParamSpec, FxParamSpecs } from './params';
+import { bakeCurveLut, CURVE_PRESETS, type CurvePoint } from './curve';
 
 type P = Record<string, unknown>;
 const num = (p: P, k: string, d = 0): number => (typeof p[k] === 'number' ? (p[k] as number) : d);
 const bool = (p: P, k: string): boolean => p[k] === true;
 
-/** A filter's on-toggle key and one of its knob keys — the param-key grammar the spec generator and the
- *  chain builder must agree on. */
+/** A filter's on-toggle key, a knob key, and a knob's over-time curve key — the param-key grammar the spec
+ *  generator and the chain builder must agree on. */
 const onKey = (id: string): string => `${id}On`;
 const knobKey = (id: string, name: string): string => `${id}_${name}`;
+const curveKey = (id: string, name: string): string => `${id}_${name}Curve`;
 
-/** One control on an audio filter — a plain numeric knob. (The core-native set needs no colour/toggle knobs.) */
+// --- OVER-TIME AUTOMATION -----------------------------------------------------------------------------------
+/** The fire's timing window, so an automated param can be scheduled across the clip's play length. */
+export interface FxFilterCtx {
+  /** Audio-clock time the clip starts. */
+  t0: number;
+  /** Seconds the clip plays over — the domain the 0..1 curve maps onto. `0` disables automation (static). */
+  durSec: number;
+}
+/** A ctx that disables automation — every param is set statically. The default for callers/tests with no
+ *  timing window (a workbench-less unit test, or a fire with an unknown length). */
+export const STATIC_CTX: FxFilterCtx = { t0: 0, durSec: 0 };
+
+/** Points a curve param resolves to when unset — flat 1, i.e. the dial's value held constant (a no-op). */
+const FLAT_CURVE: readonly CurvePoint[] = [[0, 1], [1, 1]];
+/** LUT resolution for `setValueCurveAtTime` — enough for a smooth ramp over a short clip, cheap to bake. */
+const AUTOMATION_LUT = 64;
+
+/** Bake a curve param into a 0..1 LUT and report whether it actually varies (a flat curve → set statically). */
+function bakeAmount(raw: unknown): { lut: Float32Array; varies: boolean } {
+  const pts = Array.isArray(raw) && raw.length >= 2 ? (raw as CurvePoint[]) : FLAT_CURVE;
+  const lut = new Float32Array(AUTOMATION_LUT);
+  bakeCurveLut(pts, lut);
+  let varies = false;
+  for (let i = 1; i < AUTOMATION_LUT; i++) { if (Math.abs(lut[i] - lut[0]) > 1e-4) { varies = true; break; } }
+  return { lut, varies };
+}
+
+/** Set `param` to `base × curve(t)` across the fire window, or — when the curve is flat or there is no window
+ *  — statically to `base × constant`. The curve is a MULTIPLIER on the dial's value (flat 1 = the dial as set). */
+function setAuto(param: AudioParam, base: number, rawCurve: unknown, ctx: FxFilterCtx): void {
+  const { lut, varies } = bakeAmount(rawCurve);
+  if (varies && ctx.durSec > 0) {
+    const v = new Float32Array(AUTOMATION_LUT);
+    for (let i = 0; i < AUTOMATION_LUT; i++) v[i] = base * lut[i];
+    param.setValueCurveAtTime(v, ctx.t0, ctx.durSec);
+  } else {
+    param.value = base * lut[0];
+  }
+}
+
+/** The DRY side of a crossfade (distortion): `1 − wet(t)`, so as the wet Mix rides its curve the dry recedes. */
+function setAutoDry(param: AudioParam, wetBase: number, rawCurve: unknown, ctx: FxFilterCtx): void {
+  const { lut, varies } = bakeAmount(rawCurve);
+  if (varies && ctx.durSec > 0) {
+    const v = new Float32Array(AUTOMATION_LUT);
+    for (let i = 0; i < AUTOMATION_LUT; i++) v[i] = 1 - wetBase * lut[i];
+    param.setValueCurveAtTime(v, ctx.t0, ctx.durSec);
+  } else {
+    param.value = 1 - wetBase * lut[0];
+  }
+}
+
+/** Does a curve param actually vary over time? A flat curve means the dial is held constant — the caller can
+ *  skip allocating an automation node (the clip Level in `sfx.ts` uses this to stay on the plain fader path). */
+export function curveVaries(rawCurve: unknown): boolean {
+  return bakeAmount(rawCurve).varies;
+}
+
+/** Schedule `param = base × curve(t)` across the fire window (or static when the curve is flat / there is no
+ *  window). Exported so the clip Level curve in `sfx.ts` rides the same automation path as the filter dials. */
+export function applyAudioCurve(param: AudioParam, base: number, rawCurve: unknown, ctx: FxFilterCtx): void {
+  setAuto(param, base, rawCurve, ctx);
+}
+
+/** One control on an audio filter — a plain numeric knob. `automatable` gives it an over-time curve companion. */
 interface AudioKnob {
   /** param-key suffix (`${id}_${name}`) + label source. */
   name: string;
@@ -36,6 +107,8 @@ interface AudioKnob {
   max: number;
   step: number;
   default: number;
+  /** This dial rides an over-time curve (a `${id}_${name}Curve` param); see the automation notes above. */
+  automatable?: boolean;
   help?: string;
 }
 
@@ -49,7 +122,7 @@ interface AudioFilterSpec {
   /** The on-toggle's help text. */
   help: string;
   knobs: AudioKnob[];
-  build(a: BaseAudioContext, p: P): { input: AudioNode; output: AudioNode };
+  build(a: BaseAudioContext, p: P, ctx: FxFilterCtx): { input: AudioNode; output: AudioNode };
 }
 
 /** Classic soft-clip waveshaper curve. `drive` 0..1 → a bend from identity (clean) to hard saturation. */
@@ -106,17 +179,17 @@ const EQ: AudioFilterSpec = {
   label: 'EQ (3-band)',
   help: 'A three-band equaliser — cut or boost lows, mids and highs. Off costs nothing.',
   knobs: [
-    { name: 'low', label: 'Low', min: -24, max: 24, step: 0.5, default: 0, help: 'Low shelf ~250 Hz, in dB. Negative thins the bottom, positive fattens it.' },
-    { name: 'mid', label: 'Mid', min: -24, max: 24, step: 0.5, default: 0, help: 'Mid peak ~1.2 kHz, in dB — where most body and presence lives.' },
-    { name: 'high', label: 'High', min: -24, max: 24, step: 0.5, default: 0, help: 'High shelf ~4 kHz, in dB. Positive adds air and edge.' },
+    { name: 'low', label: 'Low', min: -24, max: 24, step: 0.5, default: 0, automatable: true, help: 'Low shelf ~250 Hz, in dB. Negative thins the bottom, positive fattens it.' },
+    { name: 'mid', label: 'Mid', min: -24, max: 24, step: 0.5, default: 0, automatable: true, help: 'Mid peak ~1.2 kHz, in dB — where most body and presence lives.' },
+    { name: 'high', label: 'High', min: -24, max: 24, step: 0.5, default: 0, automatable: true, help: 'High shelf ~4 kHz, in dB. Positive adds air and edge.' },
   ],
-  build(a, p) {
+  build(a, p, ctx) {
     const low = a.createBiquadFilter();
-    low.type = 'lowshelf'; low.frequency.value = 250; low.gain.value = num(p, knobKey('eq', 'low'));
+    low.type = 'lowshelf'; low.frequency.value = 250; setAuto(low.gain, num(p, knobKey('eq', 'low')), p[curveKey('eq', 'low')], ctx);
     const mid = a.createBiquadFilter();
-    mid.type = 'peaking'; mid.frequency.value = 1200; mid.Q.value = 1; mid.gain.value = num(p, knobKey('eq', 'mid'));
+    mid.type = 'peaking'; mid.frequency.value = 1200; mid.Q.value = 1; setAuto(mid.gain, num(p, knobKey('eq', 'mid')), p[curveKey('eq', 'mid')], ctx);
     const high = a.createBiquadFilter();
-    high.type = 'highshelf'; high.frequency.value = 4000; high.gain.value = num(p, knobKey('eq', 'high'));
+    high.type = 'highshelf'; high.frequency.value = 4000; setAuto(high.gain, num(p, knobKey('eq', 'high')), p[curveKey('eq', 'high')], ctx);
     low.connect(mid); mid.connect(high);
     return { input: low, output: high };
   },
@@ -127,14 +200,14 @@ const COMP: AudioFilterSpec = {
   label: 'Compressor',
   help: 'Evens out the level — clamps peaks so the clip sits more consistently in the mix. Off costs nothing.',
   knobs: [
-    { name: 'threshold', label: 'Threshold', min: -60, max: 0, step: 1, default: -24, help: 'dB level above which it clamps. Lower = more of the clip gets compressed.' },
+    { name: 'threshold', label: 'Threshold', min: -60, max: 0, step: 1, default: -24, automatable: true, help: 'dB level above which it clamps. Lower = more of the clip gets compressed.' },
     { name: 'ratio', label: 'Ratio', min: 1, max: 20, step: 0.5, default: 4, help: 'How hard it clamps above the threshold (4 = 4:1). Higher = flatter.' },
     { name: 'attack', label: 'Attack', min: 0, max: 200, step: 1, default: 3, help: 'ms before it clamps after a peak. Fast catches transients; slow lets them punch through.' },
     { name: 'release', label: 'Release', min: 10, max: 1000, step: 10, default: 250, help: 'ms to let go again after the level drops.' },
   ],
-  build(a, p) {
+  build(a, p, ctx) {
     const c = a.createDynamicsCompressor();
-    c.threshold.value = num(p, knobKey('comp', 'threshold'), -24);
+    setAuto(c.threshold, num(p, knobKey('comp', 'threshold'), -24), p[curveKey('comp', 'threshold')], ctx);
     c.ratio.value = num(p, knobKey('comp', 'ratio'), 4);
     c.attack.value = num(p, knobKey('comp', 'attack'), 3) / 1000;
     c.release.value = num(p, knobKey('comp', 'release'), 250) / 1000;
@@ -148,19 +221,20 @@ const DISTORT: AudioFilterSpec = {
   label: 'Distortion',
   help: 'Adds grit and saturation by shaping the waveform. Off costs nothing.',
   knobs: [
-    { name: 'drive', label: 'Drive', min: 0, max: 1, step: 0.01, default: 0.3, help: 'How hard the waveshaper bends the signal — 0 clean, 1 crushed.' },
-    { name: 'mix', label: 'Mix', min: 0, max: 1, step: 0.01, default: 1, help: 'Dry↔wet blend. 1 = fully distorted, 0 = bypass.' },
+    { name: 'drive', label: 'Drive', min: 0, max: 1, step: 0.01, default: 0.3, help: 'How hard the waveshaper bends the signal — 0 clean, 1 crushed. (Static — it bakes the waveshape at fire time.)' },
+    { name: 'mix', label: 'Mix', min: 0, max: 1, step: 0.01, default: 1, automatable: true, help: 'Dry↔wet blend. 1 = fully distorted, 0 = bypass.' },
   ],
-  build(a, p) {
+  build(a, p, ctx) {
     const drive = num(p, knobKey('distort', 'drive'), 0.3);
-    const mix = num(p, knobKey('distort', 'mix'), 1);
+    const mixBase = num(p, knobKey('distort', 'mix'), 1);
+    const mixCurve = p[curveKey('distort', 'mix')];
     const shaper = a.createWaveShaper();
     shaper.curve = distortionCurve(drive);
     shaper.oversample = '2x';
     const input = a.createGain();
     const output = a.createGain();
-    const dry = a.createGain(); dry.gain.value = 1 - mix;
-    const wet = a.createGain(); wet.gain.value = mix;
+    const dry = a.createGain(); setAutoDry(dry.gain, mixBase, mixCurve, ctx);
+    const wet = a.createGain(); setAuto(wet.gain, mixBase, mixCurve, ctx);
     input.connect(dry); dry.connect(output);
     input.connect(shaper); shaper.connect(wet); wet.connect(output);
     return { input, output };
@@ -172,18 +246,17 @@ const DELAY: AudioFilterSpec = {
   label: 'Delay / echo',
   help: 'Repeats the clip as fading echoes. Off costs nothing.',
   knobs: [
-    { name: 'time', label: 'Time', min: 0, max: 1000, step: 10, default: 250, help: 'ms between echoes.' },
+    { name: 'time', label: 'Time', min: 0, max: 1000, step: 10, default: 250, help: 'ms between echoes. (Static — automating it would pitch-warp the echoes.)' },
     { name: 'feedback', label: 'Feedback', min: 0, max: 0.9, step: 0.01, default: 0.35, help: 'How much each echo feeds the next — higher = more repeats (capped below runaway).' },
-    { name: 'mix', label: 'Mix', min: 0, max: 1, step: 0.01, default: 0.3, help: 'How loud the echoes are against the dry clip.' },
+    { name: 'mix', label: 'Mix', min: 0, max: 1, step: 0.01, default: 0.3, automatable: true, help: 'How loud the echoes are against the dry clip.' },
   ],
-  build(a, p) {
+  build(a, p, ctx) {
     const time = num(p, knobKey('delay', 'time'), 250) / 1000;
     const fb = Math.min(0.9, Math.max(0, num(p, knobKey('delay', 'feedback'), 0.35)));
-    const mix = num(p, knobKey('delay', 'mix'), 0.3);
     const input = a.createGain();
     const output = a.createGain();
     const dry = a.createGain(); dry.gain.value = 1; // dry passes through; echoes are added on top
-    const wet = a.createGain(); wet.gain.value = mix;
+    const wet = a.createGain(); setAuto(wet.gain, num(p, knobKey('delay', 'mix'), 0.3), p[curveKey('delay', 'mix')], ctx);
     const d = a.createDelay(1.1);
     d.delayTime.value = Math.min(1.0, Math.max(0, time));
     const fbGain = a.createGain(); fbGain.gain.value = fb;
@@ -200,15 +273,15 @@ const REVERB: AudioFilterSpec = {
   label: 'Reverb',
   help: 'An algorithmic room/hall tail — a decaying-noise impulse, no sound files. Off costs nothing.',
   knobs: [
-    { name: 'size', label: 'Size', min: 0.1, max: 8, step: 0.1, default: 1.8, help: 'Tail length in seconds — a tight room up to a long hall.' },
-    { name: 'damping', label: 'Damping', min: 0, max: 1, step: 0.01, default: 0.35, help: 'How fast the highs fade in the tail — higher is darker and more natural.' },
-    { name: 'mix', label: 'Mix', min: 0, max: 1, step: 0.01, default: 0.3, help: 'Dry↔wet blend — how loud the tail sits under the dry clip.' },
+    { name: 'size', label: 'Size', min: 0.1, max: 8, step: 0.1, default: 1.8, help: 'Tail length in seconds — a tight room up to a long hall. (Static — it bakes the impulse at fire time.)' },
+    { name: 'damping', label: 'Damping', min: 0, max: 1, step: 0.01, default: 0.35, help: 'How fast the highs fade in the tail — higher is darker. (Static — it bakes the impulse at fire time.)' },
+    { name: 'mix', label: 'Mix', min: 0, max: 1, step: 0.01, default: 0.3, automatable: true, help: 'Dry↔wet blend — how loud the tail sits under the dry clip.' },
   ],
-  build(a, p) {
+  build(a, p, ctx) {
     const input = a.createGain();
     const output = a.createGain();
     const dry = a.createGain(); dry.gain.value = 1;
-    const wet = a.createGain(); wet.gain.value = num(p, knobKey('reverb', 'mix'), 0.3);
+    const wet = a.createGain(); setAuto(wet.gain, num(p, knobKey('reverb', 'mix'), 0.3), p[curveKey('reverb', 'mix')], ctx);
     const conv = a.createConvolver();
     conv.normalize = true;
     conv.buffer = reverbImpulse(a, num(p, knobKey('reverb', 'size'), 1.8), num(p, knobKey('reverb', 'damping'), 0.35));
@@ -223,11 +296,11 @@ const PAN: AudioFilterSpec = {
   label: 'Pan',
   help: 'Places the clip in the stereo field. Off = centred.',
   knobs: [
-    { name: 'pan', label: 'Pan', min: -1, max: 1, step: 0.01, default: 0, help: '-1 hard left, 0 centre, +1 hard right.' },
+    { name: 'pan', label: 'Pan', min: -1, max: 1, step: 0.01, default: 0, automatable: true, help: '-1 hard left, 0 centre, +1 hard right.' },
   ],
-  build(a, p) {
+  build(a, p, ctx) {
     const sp = a.createStereoPanner();
-    sp.pan.value = Math.max(-1, Math.min(1, num(p, knobKey('pan', 'pan'), 0)));
+    setAuto(sp.pan, Math.max(-1, Math.min(1, num(p, knobKey('pan', 'pan'), 0))), p[curveKey('pan', 'pan')], ctx);
     return { input: sp, output: sp };
   },
 };
@@ -237,9 +310,10 @@ const PAN: AudioFilterSpec = {
 export const AUDIO_FILTERS: readonly AudioFilterSpec[] = [EQ, COMP, DISTORT, DELAY, REVERB, PAN];
 
 /**
- * Flat param specs for the audio filter registry — a toggle per filter plus each knob (a slider grouped under
- * the filter's label and gated on that toggle being on). Spread into the `sound` primitive's SPECS, so the
- * inspector renders each filter as its own toggle-gated group. No `order` param in v1 (fixed order).
+ * Flat param specs for the audio filter registry — a toggle per filter, each knob (a slider grouped under the
+ * filter's label and gated on that toggle), and, for an automatable knob, an over-time curve companion
+ * (`${id}_${name}Curve`). Spread into the `sound` primitive's SPECS, so the inspector renders each filter as
+ * its own toggle-gated group.
  */
 export function audioFilterSpecs(registry: readonly AudioFilterSpec[] = AUDIO_FILTERS): FxParamSpecs {
   const out: Record<string, FxParamSpec> = {};
@@ -252,6 +326,14 @@ export function audioFilterSpecs(registry: readonly AudioFilterSpec[] = AUDIO_FI
         kind: 'slider', label: k.label, group, min: k.min, max: k.max, step: k.step, default: k.default,
         enabledWhen: gate, help: k.help ?? `${k.label} — a ${f.label} control.`,
       };
+      if (k.automatable) {
+        out[curveKey(f.id, k.name)] = {
+          kind: 'curve', label: `${k.label} / time`, group, default: [[0, 1], [1, 1]], vMax: 1,
+          presets: CURVE_PRESETS, enabledWhen: gate,
+          help: `How ${k.label} rides over the sound (0 = it fires, 1 = the clip ends). Flat = held constant; ` +
+            `the curve multiplies the dial above.`,
+        };
+      }
     }
   }
   return out;
@@ -268,11 +350,13 @@ export interface AudioChain {
  * Build the Web Audio node chain for whichever filters are enabled in `params`, in `registry` (fixed) order:
  * each enabled filter's output feeds the next's input. Returns `null` when none are enabled (the caller then
  * wires the source straight through, allocating nothing). `params` is the `sound` layer's full param bag — the
- * builder only reads the filter keys.
+ * builder only reads the filter keys. `fireCtx` carries the play window for over-time automation (default
+ * `STATIC_CTX` = no automation).
  */
 export function buildAudioFilterChain(
   a: BaseAudioContext,
   params: P | undefined,
+  fireCtx: FxFilterCtx = STATIC_CTX,
   registry: readonly AudioFilterSpec[] = AUDIO_FILTERS,
 ): AudioChain | null {
   if (!params) return null;
@@ -280,7 +364,7 @@ export function buildAudioFilterChain(
   let tail: AudioNode | null = null;
   for (const f of registry) {
     if (!bool(params, onKey(f.id))) continue;
-    const { input, output } = f.build(a, params);
+    const { input, output } = f.build(a, params, fireCtx);
     if (tail) tail.connect(input);
     else head = input;
     tail = output;

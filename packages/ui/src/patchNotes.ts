@@ -55,6 +55,13 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-19',
+    label: 'No ghost rematches',
+    changes: [
+      { category: 'UI / Info', text: "When the table is odd and you fight a ghost (a fallen seat's board), it is never the seat you fought last round or the one you eliminated — the next most recent ghost stands in, and if the only ghost would be a rematch, another seat takes the bye." },
+    ],
+  },
+  {
     date: '2026-09-18',
     label: 'Dissipate',
     changes: [

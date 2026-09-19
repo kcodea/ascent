@@ -407,6 +407,12 @@ Source: `packages/sim/src/heroes.ts` (`runeforge`, `epicRuneforge`),
 drawn from the pool. Pairing is deterministic and avoids unnecessary immediate rematches; the encounter is
 resolved once and both seats take their damage from that single result.
 
+**Odd table → a ghost fight.** With an odd number alive, one seat (only from the bottom three by Resolve+Armor)
+holds the bye and fights a **ghost**: the most recently eliminated seat's board from the round it died. The ghost
+takes nothing. **A ghost is never a rematch** (owner 2026-09-19, the Hearthstone rule): the bye holder never faces
+the ghost of the seat it fought last round or the seat it eliminated — the next most recent ghost stands in, and
+when the only ghost on offer would be a rematch, the bye goes to another eligible seat.
+
 The pool-based `pickOpponent` path below still exists and still serves the **non-lobby** modes and tooling. It
 is NOT what a lobby run faces, which is why injecting served boards into a lobby replay changes nothing:
 

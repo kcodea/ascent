@@ -153,9 +153,9 @@ export const SET2_KOBOLDS: CardDef[] = [
     id: 'k_gemheart',
     name: 'Gemheart Carver',
     tribe: 'kobold',
-    tier: 4,
-    attack: 6,
-    health: 5,
+    tier: 3, // T4 6/5 → T3 5/3 (owner 2026-09-19)
+    attack: 5,
+    health: 3,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard' } }],
     text: "**Echo:** Summon a **1/1 Gemheart Golem**, plus this minion's Rubies.",

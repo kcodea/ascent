@@ -7,7 +7,7 @@ import { createRun, reduce, type Action, type BoardCard, type RunState } from '.
  * OWNER HANDOFF 2026-09-18 — two Set 3 Kobold items.
  *
  *  1. Pickles' Ruby branch pays 3 (was 2); gilded 6.
- *  2. KURSE (T5 10/5): Avenge (3) — summon a 1/1 Gemheart Golem plus this minion's Rubies. Gemheart Carver's
+ *  2. KURSE (T4 7/4; T5 10/5 until the 2026-09-19 tune): Avenge (3) — summon a 1/1 Gemheart Golem plus this minion's Rubies. Gemheart Carver's
  *     body (`deathrattleSummonRubyStats`) on the avenge window: 1/1 + every Ruby stacked on Kurse when the
  *     count is reached; fires on EVERY multiple of three; a full board loses the Golem (summonOverflow); enemy
  *     deaths never count. Golden = Carver's convention: ONE Golem at double stats.
@@ -39,9 +39,9 @@ const kurse = (extra: Partial<BoardMinion> = {}) => bm('k3_kurse', 'KU', 10, 100
 const punchbag = () => foe('sandbag', 1, 400);
 
 describe('Kurse — Avenge (3): a Gemheart Golem plus its Rubies', () => {
-  it('is a T5 10/5 Kobold whose Avenge names the Carver Golem', () => {
+  it('is a T4 7/4 Kobold (owner tune 2026-09-19) whose Avenge names the Carver Golem', () => {
     const c = CARD_INDEX['k3_kurse']!;
-    expect([c.tribe, c.tier, c.attack, c.health]).toEqual(['kobold', 5, 10, 5]);
+    expect([c.tribe, c.tier, c.attack, c.health]).toEqual(['kobold', 4, 7, 4]);
     expect(c.effects).toEqual([{ on: 'avenge', do: 'avengeSummonRubyStats', params: { count: 3, tokenId: 'gemheart-shard' } }]);
     expect(c.text).toBe("**Avenge (3):** Summon a **1/1 Gemheart Golem**, plus this minion's Rubies.");
     expect(c.goldenText).toBe("**Avenge (3):** Summon a **2/2 Gemheart Golem**, plus double this minion's Rubies.");

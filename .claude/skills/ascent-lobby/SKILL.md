@@ -63,6 +63,12 @@ against *today's* code, so any content change silently breaks every old replay.
   session's frames are shifted along the cumulative clock — real time away must never become a replay pause.
 - `partial` means "does not begin at round 1", not "was resumed". A partial recording must state its recorded
   RANGE up front; a rail that silently starts at R7 reads as filtering, not as missing capture.
+- Three OPTIONAL side channels ride the recording (version stays 2; older recordings simply lack them): the
+  `inspectTrail`, the `cursorTrail` (`[tMs, x, y]` viewport fractions, ≤20 Hz, capped at 6,000 per run) and a
+  combat frame's stamped `odds` (`stampReplayOdds` after the deferred probe — absent at `faceOmen` time). The
+  viewer backfills a missing Win % from the recorded rosters in idle time and marks it `~`.
+- Playback fires the live `actionSfx` per APPLIED shop frame (never on a seek) and lifts a ghost's source card
+  through the live `dragStore.drag` slice flagged `ghost` — never a parallel "held" state.
 
 Spec: `docs/replay-v2-handoff.md`.
 

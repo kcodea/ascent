@@ -34,6 +34,11 @@ export interface DragState {
   startX: number; startY: number; // pointer position at press
   x: number; y: number; // current pointer (the last DECISION point — coarse; `dragStore.pos` is exact)
   active: boolean; // crossed the drag threshold (vs a click)
+  /** A REPLAY GHOST flight (2026-09-19): the replay player sets this drag while a recorded drag path plays, so
+   *  the rows lift the source card exactly as they do for a live drag (`dimmed` → `.dragsrc`, the drop gap
+   *  opening at the recorded destination). The floating `.dragcard` overlay skips it — the ghost layer is the
+   *  moving card — and no pointer session exists behind it. Never set by a live drag. */
+  ghost?: true;
 }
 
 export interface DragSnapshot {

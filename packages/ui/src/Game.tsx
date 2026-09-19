@@ -51,6 +51,7 @@ import { Icon } from './Icon';
 import { ErrorBoundary } from './ErrorBoundary';
 import { ReplayOverlay } from './replay/ReplayOverlay';
 import { ReplayDragGhost } from './replay/ReplayDragGhost';
+import { ReplayCursorGhost } from './replay/ReplayCursorGhost';
 import { RoundRail } from './replay/RoundRail';
 import { PixiFxLayer } from './PixiFxLayer';
 import { pixiFx, warmDiscoverFx } from './pixiFx';
@@ -471,6 +472,8 @@ export function Game() {
           the overlay mounts LAST so the transport controls float above everything (salvaged v1 order). */}
       {/* The drag ghost self-gates on `replayDragGhost` (only ever set mid-replay) and sits UNDER the
           transport chrome — a recorded hand replaying must never cover the viewer's controls. */}
+      {/* The recorded cursor sits UNDER the drag ghost: while a card flies the ghost's fist is the hand. */}
+      <ReplayCursorGhost />
       <ReplayDragGhost />
       <RoundRail />
       <ReplayOverlay />

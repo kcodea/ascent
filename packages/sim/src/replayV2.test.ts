@@ -5,6 +5,7 @@ import type { RunState } from './state';
 import { runRecord } from './state';
 import { createLobbyRun, playerLobbySeat } from './lobby/runLobby';
 import { createRun } from './state';
+import { computeCombatOdds } from './odds';
 import {
   SHOP_VIEW_EXCLUDED_KEYS,
   combatFrameOf,
@@ -17,6 +18,12 @@ import {
   appendInspectEvent,
   INSPECT_NOISE_MS,
   INSPECT_OPEN_THROTTLE_MS,
+  boardPowerOf,
+  cursorAt,
+  oddsInputFromCombatFrame,
+  thinCursorTrail,
+  CURSOR_TRAIL_MAX,
+  type CursorSample,
   type InspectEvent,
   type ReplayFrame,
   type ReplayV2,
@@ -430,5 +437,128 @@ describe('causeIndex survives capture and delta expansion', () => {
     const { frame } = deltaShopFrameOf(key.view, run, 'buyRune', 10, 0);
     expect(frame.causeIndex).toBe(0);
     expect(expandFrames([key, frame])[1]).toMatchObject({ causeIndex: 0 });
+  });
+});
+
+describe("roundMarks frame indices (2026-09-19: the rail's Recruit / Combat cells seek by index)", () => {
+  const { frames } = captureBotRun(4, 'drakko');
+  const marks = roundMarks(frames);
+
+  it("shopIndex is the wave's turnStart frame, combatIndex its combat frame, lastShopIndex its final shop frame", () => {
+    for (const m of marks) {
+      const shop = frames[m.shopIndex!]!;
+      expect(shop.kind).toBe('shop');
+      if (shop.kind === 'shop') { expect(shop.cause).toBe('turnStart'); expect(shop.wave).toBe(m.wave); expect(shop.tMs).toBe(m.tMs); }
+      const combat = frames[m.combatIndex!]!;
+      expect(combat.kind).toBe('combat');
+      expect(combat.wave).toBe(m.wave);
+      const last = frames[m.lastShopIndex!]!;
+      expect(last.kind).not.toBe('combat');
+      expect(last.wave).toBe(m.wave);
+      // No later shop frame of this wave exists past lastShopIndex, and the combat follows the shopping.
+      expect(frames.slice(m.lastShopIndex! + 1).some((f) => f.wave === m.wave && f.kind !== 'combat')).toBe(false);
+      expect(m.combatIndex!).toBeGreaterThan(m.lastShopIndex!);
+    }
+  });
+
+  it("a wave with no combat (a partial recording's open final round) has no combatIndex", () => {
+    const cut = frames.slice(0, marks[1]!.combatIndex!); // stop just before round 2 fights
+    const m = roundMarks(cut);
+    expect(m[1]!.combatIndex).toBeUndefined();
+    expect(m[1]!.shopIndex).toBeDefined();
+    expect(m[0]!.combatIndex).toBeDefined();
+  });
+});
+
+describe("boardPowerOf — the rail's Power column (2026-09-19)", () => {
+  const { frames } = captureBotRun(4, 'drakko');
+  it('scores a recorded end-of-recruit board in 0..100 and declines an empty one', () => {
+    const marks = roundMarks(frames);
+    const expanded = expandFrames(frames);
+    let scored = 0;
+    for (const m of marks) {
+      const f = expanded[m.lastShopIndex!]!;
+      if (f.kind !== 'shop') continue;
+      const p = boardPowerOf(f.view, m.wave);
+      if (f.view.board.length === 0) { expect(p).toBeNull(); continue; }
+      expect(p).not.toBeNull();
+      expect(p!).toBeGreaterThanOrEqual(0);
+      expect(p!).toBeLessThanOrEqual(100);
+      expect(Number.isInteger(p)).toBe(true);
+      scored += 1;
+    }
+    expect(scored).toBeGreaterThan(0);
+    expect(boardPowerOf({ board: [] }, 5)).toBeNull();
+  });
+});
+
+describe('oddsInputFromCombatFrame — the Win % backfill for recordings without stamped odds', () => {
+  const { frames } = captureBotRun(4, 'drakko');
+  it('rebuilds a runnable matchup from the recorded rosters, and the probe is deterministic over it', () => {
+    const marks = roundMarks(frames);
+    const expanded = expandFrames(frames);
+    const m = marks.find((x) => x.combatIndex !== undefined && expanded[x.lastShopIndex!]!.kind === 'shop')!;
+    const combat = expanded[m.combatIndex!]!;
+    const shop = expanded[m.lastShopIndex!]!;
+    if (combat.kind !== 'combat' || shop.kind !== 'shop') throw new Error('fixture');
+    expect(combat.odds, 'the capture layer never stamps odds at faceOmen time (the probe is deferred)').toBeUndefined();
+    const input = oddsInputFromCombatFrame(combat, shop.view);
+    expect(input.player.map((x) => x.cardId)).toEqual(combat.initial.player.map((x) => x.cardId));
+    expect(input.enemy.map((x) => x.cardId)).toEqual(combat.initial.enemy.map((x) => x.cardId));
+    expect(input.playerState.tier).toBe(shop.view.tier);
+    const a = computeCombatOdds(input, 4, m.wave);
+    const b = computeCombatOdds(input, 4, m.wave);
+    expect(a).toEqual(b);
+    expect(a.win + a.draw + a.lose).toBeCloseTo(1, 6);
+  });
+});
+
+describe('the cursor trail (2026-09-19) — thinning, lookup, and the JSON round trip', () => {
+  it('thinCursorTrail keeps the endpoints and caps uniformly; under the cap it is a copy', () => {
+    const trail: CursorSample[] = Array.from({ length: 100 }, (_, i) => [i * 50, i / 100, 0.5]);
+    const thin = thinCursorTrail(trail, 10);
+    expect(thin).toHaveLength(10);
+    expect(thin[0]).toEqual(trail[0]);
+    expect(thin[9]).toEqual(trail[99]);
+    for (let i = 1; i < thin.length; i++) expect(thin[i]![0]).toBeGreaterThan(thin[i - 1]![0]);
+    const same = thinCursorTrail(trail);
+    expect(same).toEqual(trail);
+    expect(same).not.toBe(trail);
+    expect(thinCursorTrail(Array.from({ length: CURSOR_TRAIL_MAX + 500 }, (_, i) => [i, 0, 0] as CursorSample))).toHaveLength(CURSOR_TRAIL_MAX);
+  });
+
+  it('cursorAt interpolates on the clock, holds at the ends, and the hint makes a monotone walk O(1)', () => {
+    const trail: CursorSample[] = [[0, 0, 0], [100, 1, 0], [200, 1, 1], [200, 0.5, 0.5]];
+    expect(cursorAt([], 50)).toBeNull();
+    expect(cursorAt(trail, -10)).toEqual({ x: 0, y: 0, index: 0 });
+    expect(cursorAt(trail, 50)).toEqual({ x: 0.5, y: 0, index: 0 });
+    expect(cursorAt(trail, 150)).toEqual({ x: 1, y: 0.5, index: 1 });
+    expect(cursorAt(trail, 999)!.index).toBe(3); // past the end: the LAST sample (ties resolve to the last)
+    expect(cursorAt(trail, 999)!.x).toBe(0.5);
+    // The hint path returns the same answer as a fresh search.
+    let hint: number | undefined;
+    for (let t = 0; t <= 250; t += 7) {
+      const fresh = cursorAt(trail, t)!;
+      const hinted = cursorAt(trail, t, hint)!;
+      expect(hinted).toEqual(fresh);
+      hint = hinted.index;
+    }
+    // A stale hint (a seek backwards) is ignored, not trusted.
+    expect(cursorAt(trail, 20, 2)).toEqual(cursorAt(trail, 20));
+  });
+
+  it('rides the ReplayV2 as an OPTIONAL field — version stays 2, and the tuples survive JSON', () => {
+    const run = createRun(31);
+    const f0 = shopFrameOf(run, 'turnStart', 0);
+    const withTrail: ReplayV2 = {
+      version: 2, seed: run.seed, heroId: run.heroId, mode: 'lobby', author: 'a', patch: 'p',
+      frames: [f0], cursorTrail: [[0, 0.123, 0.456], [50, 0.2, 0.4]],
+      result: { placement: 1, record: { wins: 0, losses: 0, draws: 0 }, finalBoard: null },
+    };
+    const back = JSON.parse(JSON.stringify(withTrail)) as ReplayV2;
+    expect(back.version).toBe(2);
+    expect(back.cursorTrail).toEqual([[0, 0.123, 0.456], [50, 0.2, 0.4]]);
+    const without: ReplayV2 = { ...withTrail, cursorTrail: undefined };
+    expect(JSON.parse(JSON.stringify(without)).cursorTrail, 'an older recording simply has none').toBeUndefined();
   });
 });

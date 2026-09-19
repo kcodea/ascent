@@ -113,7 +113,7 @@ import { DiceRoll } from './DiceRoll';
 import { diceCosmetics, diceSeed, type DieFace } from './diceRollTimeline';
 import { DICE_TEST_EVENT, FLICK_WINDOW_MS, diceRollParamsFor, flickDistanceScale, flickOf, throwLanding, towardBoard, type PointerSample } from './diceRollConfig';
 import { Flip } from 'gsap/Flip';
-import { useGame } from './store';
+import { recordCursorSample, useGame } from './store';
 import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGateNudge } from './tutorial/gateBus';
 import { Unit } from './Unit';
 import { useCombatReplay } from './useCombatReplay';
@@ -1921,7 +1921,13 @@ export function Recruit() {
         return finished;
       });
       if (cancelled) return;
-      if (done) { setCombatOdds(probe.result()); return; }
+      if (done) {
+        const odds = probe.result();
+        setCombatOdds(odds);
+        // REPLAY V2 (2026-09-19): the number the player is about to see is the number the replay prints.
+        useGame.getState().stampReplayOdds(odds);
+        return;
+      }
       schedule();
     };
     // rIC waits for a quiet frame during the combat intro; the timeout stops a busy replay starving a slice.
@@ -2392,6 +2398,17 @@ export function Recruit() {
   useEffect(() => {
     if (spectating) useGame.setState({ combatReplayDone: replay.done });
   }, [spectating, replay.done]);
+
+  // REPLAY V2 free-cursor capture (2026-09-19): on the LIVE recruit screen, every pointermove records where the
+  // hand is (≤20 Hz, throttled inside; viewport fractions; no layout reads — `clientX/Y` are event fields).
+  // A passive window listener, so it can never delay scrolling or the drag session's own move handling; off
+  // during combat (nothing to point at) and during playback (`recordCursorSample` guards too).
+  useEffect(() => {
+    if (spectating || inCombat) return;
+    const onMove = (e: PointerEvent): void => { recordCursorSample(e.clientX, e.clientY); };
+    window.addEventListener('pointermove', onMove, { passive: true });
+    return () => window.removeEventListener('pointermove', onMove);
+  }, [spectating, inCombat]);
 
   // Leaving the arena: fade EVERYTHING out together (units + FX) for one beat, THEN swap to the shop and fade
   // the recruit board + survivors back in together — a single synchronized crossfade instead of an abrupt
@@ -3412,7 +3429,7 @@ export function Recruit() {
       try { el.setPointerCapture(e.pointerId); } catch { /* unsupported / detached */ }
       // REPLAY V2 drag-path capture ("1:1 hands"): the grab point opens the trace. Capture is the product
       // (DEV + prod alike); guarded off during playback, where input is inert anyway. One push, no layout.
-      if (!useGame.getState().replaying) beginDragTrace(view.cardId, e.clientX, e.clientY);
+      if (!useGame.getState().replaying) beginDragTrace(view.cardId, e.clientX, e.clientY, uid);
       // The drag SESSION (perf 2026-09-17): the listeners, the per-drag rect caches and the move flush are
       // installed imperatively from here, through the latest `startDragSession` (a ref — it closes over this
       // render's `run` and geometry), instead of by an effect keyed on the drag — so picking a card up, crossing
@@ -7624,13 +7641,13 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
     <>
       {/* Sell zone — the whole screen above the warband lights up while dragging a board minion, and
           releasing anywhere in it sells (handled by inSellRegion in the drop handler). */}
-      {drag?.active && drag.source === 'board' && !drag.view.spell && !timeUp && (
+      {drag?.active && !drag.ghost && drag.source === 'board' && !drag.view.spell && !timeUp && (
         <div className={`sellzone${overZone === 'tavern' ? ' on' : ''}`} style={{ height: sellTop } as CSSProperties} aria-hidden="true" />
       )}
 
       {/* Buy zone — mirror of the sell zone: the whole screen *below* the warband lights up while dragging
           a shop card, and releasing anywhere in it buys (handled by inBuyRegion in the drop handler). */}
-      {drag?.active && drag.source === 'shop' && (
+      {drag?.active && !drag.ghost && drag.source === 'shop' && (
         <div className={`buyzone${overZone === 'hand' ? ' on' : ''}`} style={{ top: buyTop } as CSSProperties} aria-hidden="true" />
       )}
 
@@ -7641,7 +7658,7 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
           own z-index 115 wins over all that furniture while still sitting below the modal overlays (460+). It is
           `position:fixed` and positioned in viewport coords by the rAF, so the DOM move doesn't shift it, and
           the layout vars it reads (`--u`/`--ccw`/…) are defined on `:root`, so they still resolve under body. */}
-      {drag?.active && !castingSpell && createPortal((
+      {drag?.active && !drag.ghost && !castingSpell && createPortal((
         <div
           ref={dragCardRef}
           className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize ? ' electric' : ''}${magSlide ? ' magslide' : ''}${overWarband && drag.source === 'hand' ? ' willplay' : ''}${drag.source === 'hand' ? ' fromhand' : ''}`}

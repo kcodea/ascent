@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useGame } from '../store';
 import {
   pauseReplay, resumeReplay, setReplaySpeed, seekReplayIndex, endReplay,
-  replayEffectiveTimes, replayFrameTimes, replayRoundSpan,
+  replayEffectiveTimes, replayFrameTimes, replayRoundSpan, setReplayCursor, setReplaySounds,
 } from './replayPlayer';
 
 /**
@@ -227,6 +227,28 @@ export function ReplayOverlay(): JSX.Element | null {
         )}
       </div>
 
+      {/* VIEWER TOGGLES (2026-09-19): the recorded shop-action sounds, and the recorded cursor sprite (offered
+          only when this recording carries a trail). Both persist per browser; both default on. */}
+      <button
+        className={`replaybtn toggle pressable${s.sounds === false ? ' off' : ''}`}
+        onClick={() => setReplaySounds(s.sounds === false)}
+        title={s.sounds === false ? 'Shop sounds: off' : 'Shop sounds: on'}
+        aria-label="Replay shop sounds"
+        aria-pressed={s.sounds !== false}
+      >
+        {s.sounds === false ? '🔇' : '🔊'}
+      </button>
+      {s.hasCursorTrail && (
+        <button
+          className={`replaybtn toggle pressable${s.cursor === false ? ' off' : ''}`}
+          onClick={() => setReplayCursor(s.cursor === false)}
+          title={s.cursor === false ? 'Recorded cursor: hidden' : 'Recorded cursor: shown'}
+          aria-label="Recorded cursor"
+          aria-pressed={s.cursor !== false}
+        >
+          🖱
+        </button>
+      )}
       <button className="replaybtn ghost pressable" onClick={endReplay} title="Exit replay" aria-label="Exit replay">✕</button>
     </div>
   );

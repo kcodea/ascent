@@ -7,6 +7,13 @@ import { defaultsOf, validateSpecs } from './params';
  * edge and exposes each node's set params — verifies the wiring (which nodes, in which order, linked how)
  * without real Web Audio. The DSP itself (how it SOUNDS) is a by-ear check in the workshop.
  */
+/** A fake AudioParam: records both a static `value` and the last `setValueCurveAtTime` schedule, so a test can
+ *  tell a STATIC dial from an AUTOMATED one. */
+interface FakeParam { value: number; curveArg: Float32Array | null; setValueCurveAtTime(v: Float32Array, t: number, d: number): void; }
+function param(): FakeParam {
+  const p: FakeParam = { value: 0, curveArg: null, setValueCurveAtTime(v) { p.curveArg = v; } };
+  return p;
+}
 interface FakeNode {
   kind: string;
   type: string;
@@ -14,10 +21,10 @@ interface FakeNode {
   curve: Float32Array | null;
   buffer: unknown;
   normalize: boolean;
-  frequency: { value: number }; Q: { value: number }; gain: { value: number };
-  threshold: { value: number }; knee: { value: number }; ratio: { value: number };
-  attack: { value: number }; release: { value: number };
-  delayTime: { value: number }; pan: { value: number };
+  frequency: FakeParam; Q: FakeParam; gain: FakeParam;
+  threshold: FakeParam; knee: FakeParam; ratio: FakeParam;
+  attack: FakeParam; release: FakeParam;
+  delayTime: FakeParam; pan: FakeParam;
   connect(dest: FakeNode): FakeNode;
 }
 function fakeContext() {
@@ -25,9 +32,9 @@ function fakeContext() {
   const mk = (kind: string): FakeNode => {
     const n: FakeNode = {
       kind, type: '', oversample: 'none', curve: null, buffer: null, normalize: false,
-      frequency: { value: 0 }, Q: { value: 0 }, gain: { value: 0 },
-      threshold: { value: 0 }, knee: { value: 0 }, ratio: { value: 0 },
-      attack: { value: 0 }, release: { value: 0 }, delayTime: { value: 0 }, pan: { value: 0 },
+      frequency: param(), Q: param(), gain: param(),
+      threshold: param(), knee: param(), ratio: param(),
+      attack: param(), release: param(), delayTime: param(), pan: param(),
       connect(dest) { edges.push([n, dest]); return dest; },
     };
     return n;
@@ -68,6 +75,19 @@ describe('audioFilterSpecs', () => {
   it('ships every filter OFF by default (an unused filter allocates nothing)', () => {
     const d = defaultsOf(audioFilterSpecs());
     for (const f of AUDIO_FILTERS) expect(d[on(f.id)]).toBe(false);
+  });
+
+  it('gives every automatable knob an over-time curve companion (and nothing else one)', () => {
+    const specs = audioFilterSpecs();
+    // headline dials that ride a curve
+    for (const key of ['eq_low', 'eq_mid', 'eq_high', 'comp_threshold', 'distort_mix', 'delay_mix', 'reverb_mix', 'pan_pan']) {
+      expect(specs[`${key}Curve`]).toMatchObject({ kind: 'curve', enabledWhen: { is: true } });
+    }
+    // static-only dials get NO curve
+    for (const key of ['comp_ratio', 'distort_drive', 'delay_time', 'reverb_size', 'reverb_damping']) {
+      expect(specs[`${key}Curve`]).toBeUndefined();
+    }
+    expect(validateSpecs(specs)).toEqual([]);
   });
 });
 
@@ -143,5 +163,44 @@ describe('buildAudioFilterChain', () => {
     expect(kinds.indexOf('reverb')).toBeLessThan(kinds.indexOf('pan'));
     // reverb's wet path reaches a panner somewhere downstream (order linked the sub-graphs)
     expect(edges.some(([, to]) => to.kind === 'panner')).toBe(true);
+  });
+});
+
+describe('over-time automation', () => {
+  const RAMP = [[0, 0], [1, 1]] as const; // a curve that varies (0 → 1)
+  const FLAT = [[0, 1], [1, 1]] as const; // the default (held constant)
+  const ctx = { t0: 0, durSec: 1 };
+
+  it('sets a dial STATICALLY when the curve is flat or there is no window', () => {
+    // flat curve + a window → static value, no schedule
+    let chain = buildAudioFilterChain(fakeContext().a, { panOn: true, pan_pan: 0.6, pan_panCurve: FLAT }, ctx);
+    let sp = chain!.input as unknown as FakeNode;
+    expect(sp.pan.value).toBeCloseTo(0.6);
+    expect(sp.pan.curveArg).toBeNull();
+    // varying curve but NO window (durSec 0) → still static
+    chain = buildAudioFilterChain(fakeContext().a, { panOn: true, pan_pan: 0.6, pan_panCurve: RAMP }, { t0: 0, durSec: 0 });
+    sp = chain!.input as unknown as FakeNode;
+    expect(sp.pan.curveArg).toBeNull();
+  });
+
+  it('schedules a varying dial as base × curve over the window', () => {
+    const chain = buildAudioFilterChain(fakeContext().a, { panOn: true, pan_pan: 0.5, pan_panCurve: RAMP }, ctx);
+    const sp = chain!.input as unknown as FakeNode;
+    expect(sp.pan.curveArg).toBeInstanceOf(Float32Array);
+    const v = sp.pan.curveArg!;
+    expect(v[0]).toBeCloseTo(0); // 0.5 × 0
+    expect(v[v.length - 1]).toBeCloseTo(0.5); // 0.5 × 1
+  });
+
+  it('crossfades distortion dry/wet when Mix is automated (wet = mix×curve, dry = 1 − wet)', () => {
+    const { a, edges } = fakeContext();
+    buildAudioFilterChain(a, { distortOn: true, distort_drive: 0.4, distort_mix: 1, distort_mixCurve: RAMP }, ctx);
+    const gains = edges.flatMap(([f, t]) => [f, t]).filter((n) => n.kind === 'gain');
+    const automated = gains.filter((n) => n.gain.curveArg !== null);
+    expect(automated.length).toBeGreaterThanOrEqual(2); // wet and dry both scheduled
+    const wet = automated.find((n) => n.gain.curveArg![n.gain.curveArg!.length - 1] > 0.9); // ends near 1
+    const dry = automated.find((n) => n.gain.curveArg![n.gain.curveArg!.length - 1] < 0.1); // ends near 0
+    expect(wet).toBeDefined();
+    expect(dry).toBeDefined();
   });
 });

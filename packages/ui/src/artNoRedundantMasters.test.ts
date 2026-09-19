@@ -127,6 +127,7 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // → 1246 (2026-09-18, Bicycle Bob + Handy Flame token + Rune of the Handy Flame + Rune of the Open Hand: +4.)
     // → 1252 (2026-09-18, the Set 3 Neutral Equipment trio: +4 measured against origin/main's 1248 — Shredder,
     // Calibration Master, Rig and the Calibration Wrench icon. Sylus and Venom were REPLACED in place at net 0.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1252);
+    // → 1253 (2026-09-18, the Dissipate spell art: +1 — the sell-to-Shop spell added to sets 2 and 3.)
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1253);
   });
 });

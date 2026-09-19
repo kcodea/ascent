@@ -493,6 +493,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:spellReturnToHand:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellScoutNextOpponent:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellSellToBeast:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:spellSellToShopRightmost:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellSellToDemon:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellSetStats:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellStealAdjacentRubies:cast': { policy: 'ownBeat', family: 'spellCast' },

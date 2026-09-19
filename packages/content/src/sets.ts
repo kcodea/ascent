@@ -40,6 +40,8 @@ const SET3_SHARED_SPELL_IDS: readonly string[] = [
   'sp_gamble', // owner add 2026-09-17: the die-roll tier pull joins set 3 (rolls the real die, like the Gambler)
   // …the tribe spells (set 2's Ruby toolkit, set 1's Undead pair, the Dwarves' On the House):
   'rubyshipment', 'facetwright', 'veinstorm', 'rubytransfer', 'lanternofsouls', 'undeadarmy', 'onthehouse',
+  // Appended AFTER the tribe spells so no existing position moves (owner add 2026-09-18):
+  'sp_dissipate', // owner add 2026-09-18: sell a minion, its stats go to the right-most Shop minion (set 2's own spell, shared here)
 ];
 const SET3_SPELL_SOURCES: readonly CardDef[] = [...SPELLS, ...SET2_SPELLS];
 const SET3_SHARED_SPELLS: readonly CardDef[] = SET3_SHARED_SPELL_IDS.map((id) => {

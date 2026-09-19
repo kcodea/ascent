@@ -36,10 +36,10 @@ describe('strategy packages — set-2 census', () => {
     expect(census).toEqual({
       ruby: '30/12/14/11',
       ale: '31/5/4/31', // 32 → 31 on 2026-09-18: rune tag pass
-      demonConsume: '32/12/7/18',
+      demonConsume: '33/13/7/18', // 32 → 33 on 2026-09-18: Dissipate (a sell spell — the consume text match)
       beastSummon: '30/7/5/13', // 14 → 13 on 2026-09-16: Rune of Rebirth grants the Rebirth keyword now (no longer an Echo-summon text match)
       dragon: '33/16/10/15',
-      spellEngine: '106/16/13/23', // 22 → 23 on 2026-09-17: Rune of Gambling (recurring Gamble, every set)
+      spellEngine: '107/16/13/23', // 22 → 23 on 2026-09-17: Rune of Gambling (recurring Gamble, every set); 106 → 107 on 2026-09-18: Dissipate
       echo: '39/14/9/6', // 7 → 6 on 2026-09-16: same Rune of Rebirth rework
       mechAttach: '2/0/0/0',
       rally: '26/8/11/6', // Boulderdash gained Flurry (owner 2026-09-18)

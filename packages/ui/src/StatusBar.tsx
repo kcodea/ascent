@@ -183,6 +183,11 @@ export function StatusBar() {
   // Neutrals, 2026-09-18; never the Wrench itself). The charge indicator turns BLUE while it does.
   const equipAmplified = selectedEquipDef && equipmentWillAmplify(run, selectedEquipDef.id) ? 1 : 0;
   const equipCost = selectedEquipDef ? equipmentCostOf(run, selectedEquipDef) : 0;
+  // DISCOUNTED below the definition's printed cost (Efficient Tooling, Quick Release, Overcharge, Empty Hands /
+  // Last Tool, a temporary reduction): the coin goes GREEN, the same cue the Rune pivot and the offer price use.
+  // The pill ALWAYS renders — a plain 0-cost Equipment shows '0' (owner report 2026-09-18: Bloodpot at 0 showed no
+  // coin at all, which read as a missing price rather than a free press).
+  const equipDiscounted = !!selectedEquipDef && equipCost < selectedEquipDef.baseCost;
   // Visible but DISABLED when unaffordable or spent — the handoff is explicit that the slot keeps showing the
   // Equipment and explains why it cannot be used, rather than vanishing.
   const equipReady = !!selectedEquipDef && run.phase === 'recruit' && equipUses > 0 && run.embers >= equipCost;
@@ -281,11 +286,11 @@ export function StatusBar() {
     playDef('equipment-used-up', { source: at, target: at, cursor: at });
   }, [equipUses, hasEquip]);
 
-  const equipSnapRef = useRef<{ name: string; rule: string; art?: string; cost: number; version: string } | null>(null);
+  const equipSnapRef = useRef<{ name: string; rule: string; art?: string; cost: number; discounted: boolean; version: string } | null>(null);
   if (hasEquip) {
     equipSnapRef.current = {
       name: selectedEquipDef!.name, rule: equipRule, art: equipArt,
-      cost: equipCost, version: selectedEquip!.version,
+      cost: equipCost, discounted: equipDiscounted, version: selectedEquip!.version,
     };
   }
   const [equipLeaving, setEquipLeaving] = useState(false);
@@ -998,7 +1003,7 @@ export function StatusBar() {
                   ? <span className="hpb-artwrap" aria-hidden="true"><img decoding="sync" className="hpb-art" src={equipSnap.art} alt="" draggable={false} /></span>
                   : <span className="hpb-glyph" aria-hidden="true">⚒</span>}
               </button>
-              {equipSnap.cost ? <span className="hpcost"><span className="costn">{equipSnap.cost}</span></span> : null}
+              <span className={`hpcost${equipSnap.discounted ? ' discounted' : ''}`}><span className="costn">{equipSnap.cost}</span></span>
             </div>
             <div className="hplabel">{equipSnap.name}</div>
           </div>
@@ -1046,7 +1051,7 @@ export function StatusBar() {
                   )
                   : <span className="hpb-glyph" aria-hidden="true">⚒</span>}
               </button>
-              {equipCost ? <span className="hpcost"><span className="costn">{equipCost}</span></span> : null}
+              <span className={`hpcost${equipDiscounted ? ' discounted' : ''}`} data-testid="equip-cost"><span className="costn">{equipCost}</span></span>
               {/* THIS Equipment's charges — its own + the shared bonus pool. GREEN (`boosted`) while the pool is
                   above zero: the number is modified above the Equipment's own baseline of 1, and spending the
                   pool through ANY Equipment drops every one of them back to plain. */}

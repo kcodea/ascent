@@ -63,6 +63,57 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-18',
+    label: 'Dissipate',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'Dissipate (Tier 5 spell, 4 Gold): sell a friendly minion and give its stats to the right-most minion in the Shop.',
+        details: [
+          'The minion is genuinely sold — you get its Gold, and everything that triggers on a sale triggers.',
+          'Its current stats, buffs included, land on the right-most MINION in the Shop (spells are skipped).',
+          'With no minion in the Shop the spell cannot be cast: it stays in your hand and nothing is sold.',
+          'Available in Set 2 and Set 3.',
+        ],
+      },
+      {
+        category: 'UI / Info',
+        text: 'The Equipment cost coin always shows a number — a free activation reads "0", and a discounted one turns green.',
+        details: [
+          'A 0-cost Equipment used to show no coin at all; it now shows 0.',
+          'When a rune has cut the cost below the printed price, the coin goes green, like every other discount.',
+        ],
+      },
+      {
+        category: 'UI / Info',
+        text: "Cage Breaker: the destroyed minion now finishes dying before the Discover opens, instead of the pick covering it.",
+      },
+    ],
+  },
+  {
+    date: '2026-09-18',
+    label: 'Rune Batch',
+    changes: [
+      {
+        category: 'Rune Change',
+        text: 'Eleven Set 3 runes reworked or repriced — the spell-count runes now count every spell, the Reveler runes count to 3, and the Equipment runes lost their caps and gained teeth.',
+        details: [
+          'Rune of Charted Skies now costs 2 and reads "After you cast 3 spells, get a copy of one of them. (Once per turn)" — every spell counts (Shop spells, Rubies, Clues, Gifts), and the copy is one of those three at random.',
+          'Rune of the Astral Refrain: "After you cast 3 spells, get 2 copies of the second one." Same counting basis — every spell counts.',
+          'Rune of the Astral Draft now costs 4 (was 6).',
+          'Rune of Eventide: "After you Consume or Collapse a Starform, give your Shop spells +1/+1. (Once per turn)" — it no longer hands out spells.',
+          'Rune of Festival Wages: "After you sell 3 Revelers, your next card costs 0." Every third Reveler sold in a turn arms it.',
+          'Rune of the Festival Circuit now costs 4 and reads "After you sell 3 Revelers, get a random Celestial. Your Revelers buff Celestials." — while held, your Revelers’ sell buffs reach your Celestials too.',
+          'Rune of Dismantling no longer caps at once per turn — every Equip minion you sell fires its Equipment for free first, and every fire plays out.',
+          'Rune of Quick Release: the sold minion’s own Equipment is never the discounted one — only another Equipment is free.',
+          'Rune of Empty Hands: the Discovered minion’s Equipment now costs 0 AND is Amplified permanently.',
+          'Rune of the Dream Mirror: EVERY stat gain on a minion in your hand is now mirrored onto a random friendly minion (was the first each turn).',
+          'Rune of the Endless March: a friendly Undead that rises now summons a Spear Warden (was a 1/1 Skeleton).',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-18',
     label: 'Glossary True-Up',
     changes: [
       {

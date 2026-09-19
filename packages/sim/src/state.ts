@@ -1121,14 +1121,17 @@ export interface RunState {
   runeFirstLight?: boolean;
   /** Rune of Accretion: the Starform's Shop consumes land ×(1 + copies) (`starformConsumeTimes`). */
   runeAccretion?: boolean;
-  /** Rune of Eventide: the first Starform Consume / Collapse each turn → 2 Shop spells + spell power +1/+1. */
+  /** Rune of Eventide: the first Starform Consume / Collapse each turn → spell power +1/+1 (owner 2026-09-18: the
+   *  2 random spells are gone). */
   runeEventide?: boolean;
   eventideUsedThisTurn?: boolean;
   /** Rune of Efficient Tooling: Gold off the FIRST Equipment activation each turn (accumulates per copy). */
   runeEfficientTooling?: number;
-  /** Rune of Quick Release: armed by selling an Equip minion; the next activation this turn costs 0. */
+  /** Rune of Quick Release: armed by selling an Equip minion; the next activation this turn of any OTHER Equipment
+   *  costs 0. `excludeEquipmentId` is the sold minion's own Equipment (owner 2026-09-18: "doesn't discount its own
+   *  Equipment") — activating THAT one neither uses nor spends the arm. A later sale re-arms with its own id. */
   runeQuickRelease?: boolean;
-  quickReleaseArmed?: boolean;
+  quickReleaseArmed?: { excludeEquipmentId: string };
   /** Rune of Resonant Arms: a run-wide meter over Equipment TRIGGERS; pays +attack/+health every `per`. */
   runeResonantArms?: { per: number; attack: number; health: number; tick: number };
   /** Rune of Last Rites: the first Undead destroyed in the Shop each turn returns a plain copy to hand. */
@@ -1148,21 +1151,24 @@ export interface RunState {
   spellweavingCastsThisTurn?: number;
   /** Rune of Overcharge: how many activations per turn are free + charge-less (1 × copies). */
   runeOvercharge?: number;
-  /** Rune of Dismantling: the first Equip minion sold each turn fires its Equipment free before leaving. */
+  /** Rune of Dismantling: EVERY Equip minion sold fires its Equipment free before leaving (no per-turn cap —
+   *  owner 2026-09-18). */
   runeDismantling?: boolean;
-  dismantlingUsedThisTurn?: boolean;
   /** Rune of Counterrotation: distinct Equipment activated this turn → at `runeCounterrotation` they re-fire. */
   runeCounterrotation?: number;
   counterrotationIds?: string[];
-  /** Rune of Empty Hands: the pending Discover's pick joins `equipmentFreeCards` (its Equipment costs 0 by CARD). */
+  /** Rune of Empty Hands: the pending Discover's pick joins `equipmentFreeCards` (its Equipment costs 0 by CARD) and
+   *  `equipmentAmplifiedCards` (its Equipment is PERMANENTLY Amplified — every activation triggers twice, no stack
+   *  spent; owner 2026-09-18). Both are by card id, so a sold-and-rebought copy keeps them. */
   runeEmptyHands?: boolean;
   discoverEquipFree?: boolean;
   equipmentFreeCards?: string[];
+  equipmentAmplifiedCards?: string[];
   /** Rune of the Last Tool: the graft's Echo banks an Equipment id for NEXT turn; the turn advance promotes it. */
   runeLastTool?: boolean;
   equipmentFreeNextTurn?: string[];
   equipmentFreeThisTurn?: string[];
-  /** Rune of the Endless March: every friendly Undead carries the "when this Rises, summon a Skeleton" graft. */
+  /** Rune of the Endless March: every friendly Undead carries the "when this Rises, summon a Spear Warden" graft. */
   runeEndlessMarch?: boolean;
   /** Rune of the Grave Orbit: after combat the Starform gains +a/+h per friendly Undead that Rose. */
   runeGraveOrbit?: { attack: number; health: number };
@@ -1581,33 +1587,40 @@ export interface RunState {
   /** Rune of the Growing Chorus: the Reveler ids PLAYED since the last reset (one per type); when all three are
    *  in, board + hand gain +a/+h, `revelerX` rises by `improve` and the list resets. */
   runeGrowingChorus?: { attack: number; health: number; improve: number; played: string[] };
-  /** Rune of Charted Skies: after the `at`-th Shop spell each turn, Discover a Shop spell. */
+  /** Rune of Charted Skies: after the `at`-th spell cast each turn (every kind — `spellIdsThisTurn`), a copy of a
+   *  random copyable one of those `at` lands in hand. Once per turn. */
   runeChartedSkies?: { at: number };
   /** Rune of Falling Embers: the extra every Star Crash cast in the shop grants (both landings). Read by the
    *  Star Crash factory AND its live text (`spellDisplayText`), so the card prints the value it grants. */
   starCrashBonus?: { attack: number; health: number };
-  /** Rune of Festival Wages: after the turn's first Reveler sale, the next card bought costs 0. */
+  /** Rune of Festival Wages: every `REVELER_METER` Revelers sold this turn (`revelersSoldThisTurn`), the next card
+   *  bought costs 0 (one charge per copy held). */
   runeFestivalWages?: boolean;
-  festivalWagesUsedThisTurn?: boolean;
+  /** Revelers SOLD this turn — the shared meter Festival Wages and the Festival Circuit read ("after you sell 3
+   *  Revelers": every third sale pays). Reset each wave. */
+  revelersSoldThisTurn?: number;
   /** Free-card charges (Festival Wages): the next `n` Shop buys — minion OR spell, either row — cost 0.
    *  Spent one per buy; carries across turns until spent. */
   nextCardFree?: number;
   /** Rune of the Meteor Shower: the turn's first Star Crash cast hands over another. */
   runeMeteorShower?: boolean;
   meteorShowerUsedThisTurn?: boolean;
-  /** Rune of the Astral Refrain: after the `at`-th SHOP spell each turn, copies of the 1st and `at`-th land. */
+  /** Rune of the Astral Refrain: after the `at`-th spell cast each turn (every kind), 2 copies of the SECOND one
+   *  land in hand (a Gift is never copied). Once per turn. */
   runeAstralRefrain?: { at: number };
-  /** SHOP spells cast this turn, by id, in cast order — Gifts and reward tokens excluded (they are spell casts,
-   *  never Shop spells). Feeds Charted Skies / the Astral Refrain and their `x/3` tallies. Reset each wave. */
-  shopSpellIdsThisTurn?: string[];
+  /** EVERY spell cast this turn, by id, in cast order — Shop spells, Rubies, Clues and Gifts alike (owner
+   *  2026-09-18: "ALL spells count"); a reward TOKEN (Goldcrafter, Implosion…) still counts as nothing, the standing
+   *  rule. A multiplied cast lists its id once per resolution. Feeds Charted Skies / the Astral Refrain and their
+   *  `x/3` tallies; both pay at exactly `at` entries, so the list is honest past 3. Reset each wave. */
+  spellIdsThisTurn?: string[];
   /** Rune of the Astral Draft: a Shop-spell Discover at every turn setup whose pick casts an additional time. */
   runeAstralDraft?: boolean;
   /** The OPEN Discover's extra-cast stamp (Astral Draft): the pick arrives with `extraCasts` set to this.
    *  Cleared with the other per-offer Discover modifiers when the pick is taken. */
   discoverExtraCasts?: number;
-  /** Rune of the Dream Mirror: the turn's first hand-minion stat gain is mirrored onto a random board minion. */
+  /** Rune of the Dream Mirror: EVERY hand-minion stat gain is mirrored onto a random board minion (no per-turn
+   *  latch — owner 2026-09-18). */
   runeDreamMirror?: boolean;
-  dreamMirrorUsedThisTurn?: boolean;
   /** Rune of Waking Dreams: every hand-minion stat gain gives your board minions +a/+h. */
   runeWakingDreams?: { attack: number; health: number };
   /** Rune of Shared Revelry: the first Flame / Tide / Grove Reveler SOLD each turn fires its sell effect twice. */
@@ -1617,9 +1630,9 @@ export interface RunState {
   /** Rune of the Grand Procession (Epic): the first `n` Revelers PLAYED each turn return a plain copy to hand. */
   runeProcessionPlay?: number;
   processionPlayedThisTurn?: number;
-  /** Rune of the Festival Circuit: the first `n` Revelers SOLD each turn each hand over a random Celestial. */
+  /** Rune of the Festival Circuit: every `runeFestivalCircuit` Revelers SOLD this turn (`revelersSoldThisTurn`) hand
+   *  over a random Celestial; while held, `revelerSell` pays your Celestials too. */
   runeFestivalCircuit?: number;
-  circuitSoldThisTurn?: number;
   /** Rune of the Lapidary (owner rework 2026-08-11): End of Turn, play a Ruby on a random minion for every
    *  card played this turn. Runs as a VIRTUAL recurring-EoT entry (see `recurringEotEffects`). */
   runeLapidary?: boolean;

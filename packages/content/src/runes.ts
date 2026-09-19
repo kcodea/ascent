@@ -1300,11 +1300,12 @@ export const RUNES: RuneDef[] = [
   {
     // AMPLIFIED is a new Equipment STATE (owner design 2026-09-16): the charge indicator turns BLUE while an
     // Equipment holds a stack; the stack is spent by the next activation, which then triggers twice. The End-of-Turn
-    // pass marks every held Equipment the player did not activate (`amplifyUnactivated`).
+    // pass marks every held Equipment the player did not activate (`amplifyUnactivated`). The text is the owner's
+    // one-liner (2026-09-18) — what Amplified MEANS (triggers twice, no extra Gold, max 1) is the glossary pill's job.
     id: 'rune_amplification',
     name: 'Rune of Amplification',
     cost: 4,
-    text: 'Equipment you do not activate becomes **Amplified**. Amplified Equipment triggers **twice** the next time you activate it. Maximum **1** per Equipment.',
+    text: '**Equipment** you do not use becomes **Amplified**.',
     reward: { kind: 'runeAmplification' },
     sets: ['set3'],
   },

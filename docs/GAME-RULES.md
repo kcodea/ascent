@@ -129,9 +129,10 @@ minion alive. Duplicates collapse into one entry; a single Gilded source upgrade
   Starform's live price included), every discounted coin shows green, the slot counts it down, and it ends on its own expiry
   action, at combat entry, or at the turn flip. A Continue whose saved clock is already past the window
   resumes without it; the engine never reads a clock (`RunState.cardDiscountWindow`).
-- **Amplified** (owner design 2026-09-16, Set 3 batch 2): a per-Equipment STATE. *"Equipment you do not
-  activate becomes Amplified. Amplified Equipment triggers twice the next time you activate it. Maximum 1 per
-  Equipment."* An Amplified Equipment's next activation runs **twice** — the whole activation, extra triggers
+- **Amplified** (owner design 2026-09-16, Set 3 batch 2): a per-Equipment STATE. The rune prints *"Equipment you
+  do not use becomes Amplified."* (owner wording 2026-09-18); the glossary pill / Compendium define the state:
+  *"An Amplified Equipment will trigger its effect twice for no additional gold."* An Amplified Equipment's next
+  activation runs **twice** — the whole activation, extra triggers
   included, so `(1 + extra) × 2` — and the stack is **consumed** by it. One stack per Equipment, never more.
   Written by **Rune of Amplification** (Basic 4: at End of Turn every held Equipment you did not activate this
   turn — through the pool or its own charge — gains a stack) and **Rune of the Grand Workshop** (Epic 6: every

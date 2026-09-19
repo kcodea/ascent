@@ -104,6 +104,7 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
     set('hues', filter.hues.includes(h) ? filter.hues.filter((x) => x !== h) : [...filter.hues, h]);
 
   return (
+    <div className="fxlib-scrim" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
     <div className="fxlib">
       <div className="fxlib-top">
         <span className="fxlib-title">FX Library</span>
@@ -249,6 +250,7 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
           ))}
         </div>
       </div>
+    </div>
     </div>
   );
 }

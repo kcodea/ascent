@@ -20,7 +20,7 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts } from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, settleMinionSale } from './recruit';
 import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
@@ -1321,7 +1321,14 @@ function reduceCore(state: RunState, action: Action): RunState {
   // Letting the transitions through is safe: the modal is untouched and presents itself in the next recruit
   // phase, which is where a Discover can be answered anyway.
   const combatTransition = action.type === 'resolveCombat' || action.type === 'settleCombat';
-  if (modalOpen(state) && !combatTransition && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'cancelChoice' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'pickPower' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout' && !endTurnEscapesAim) {
+  // `resolveShopDeath` IS EXEMPT TOO (owner report 2026-09-18, Cage Breaker): its Shout stamps the destroy AND opens
+  // the Discover in one commit, so the UI's landing timer dispatched this into an open modal and was refused here —
+  // the body stood under the Discover until the pick, whose safety pass (top of `reduce`) settled the death in the
+  // same instant the overlay closed: a death nobody saw. Letting it through changes NO ordering — the death settles
+  // before the pick resolves either way — it only lets the settle be its own commit, so the shop can play the
+  // dissolve and THEN raise the Discover (Recruit.tsx holds the overlay on `pendingDeath`).
+  const settlesDeath = action.type === 'resolveShopDeath' && !!state.pendingDeath;
+  if (modalOpen(state) && !combatTransition && !settlesDeath && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'cancelChoice' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'pickPower' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout' && !endTurnEscapesAim) {
     return state;
   }
 
@@ -2398,84 +2405,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         sold = s.hand[hi];
         s.hand.splice(hi, 1);
       }
-      // Hoarder sells for a flat 2 Gold (golden 4); everything else for the base sell value. Rune of
-      // Bartering (Shout minions sell for 2) is folded into the shared helper, so the UI coin matches.
-      // Quick Sale: the next minion sold this turn gets a one-shot bonus on top, then the bonus is spent.
-      if (sold) {
-        // `sellValueWithBonus` — the SAME helper the UI's sell float reads, so the Gold paid and the number
-        // floated can't drift (they did: the bonus used to be added inline here only).
-        // Rune of Bartering earns its 2 Gold only on a Shout minion — the same condition `sellValueOf`
-        // applies. Stamped HERE and not in that helper: it is a pure display query the sell float also calls,
-        // so a stamp there would fire on every render rather than on the sale.
-        if (s.runeBartering && hasBattlecry(CARD_INDEX[sold.cardId])) procRune(s, 'runeBartering');
-        gainGold(s, sellValueWithBonus(sold, s));
-        // Rune of Liquidation: the sold minion's FULL (live) stats transfer to the right-most Shop minion
-        // (owner 2026-08-11; was BONUS-above-base only). No shop minion (all spells/Rubies, or an empty
-        // tavern) → nothing to give.
-        if (s.runeLiquidation) {
-          const target = [...s.shop].reverse().find((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
-          // Stats land once per copy held (owner 2026-08-27, unique-engine doubling).
-          if (target && (sold.attack > 0 || sold.health > 0)) { procRuneId(s, 'rune_liquidation'); const lq = runeStacksOf(s, 'rune_liquidation'); addOfferBuff(target, 'Rune of Liquidation', sold.attack * lq, sold.health * lq); }
-        }
-        // Rune of Investment (owner 2026-08-18): every 2 minions sold mints Rubies at the run's live strength.
-        if (s.runeSellRubies) {
-          s.runeSellRubiesSold = (s.runeSellRubiesSold ?? 0) + 1;
-          // The badge bursts on the MINT, not on every sale — the first sale of a pair banks toward the
-          // threshold and is not the rune firing (same contract as Bulk Order's `per`).
-          if (s.runeSellRubiesSold >= 2) { procRune(s, 'runeSellRubies'); mintRubies(s, s.runeSellRubies); s.runeSellRubiesSold -= 2; }
-        }
-        // Rune of the Aftermarket: the FIRST sale each turn gives HALF the sold minion's (live) stats to the
-      // RIGHT-MOST Shop minion (owner 2026-08-11; was full BASE stats to every Shop minion).
-      if (s.runeAftermarket && !s.aftermarketUsedThisTurn) {
-        procRune(s, 'runeAftermarket');
-        const soldDef = CARD_INDEX[sold.cardId];
-        if (soldDef && !soldDef.spell && !soldDef.ruby) {
-          s.aftermarketUsedThisTurn = true;
-          const target = [...s.shop].reverse().find((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
-          // Half stats per copy held (owner 2026-08-27, unique-engine doubling — two copies pass the full stats).
-          const am = runeStacksOf(s, 'rune_aftermarket');
-          const halfA = Math.floor(sold.attack / 2) * am;
-          const halfH = Math.floor(sold.health / 2) * am;
-          if (target && (halfA > 0 || halfH > 0)) addOfferBuff(target, 'Rune of the Aftermarket', halfA, halfH);
-        }
-      }
-      // Rune of the Foundry: every `per` minions sold hands over a random Dragon (the run's pinned pool).
-        if (s.runeFoundry) {
-          const fd = { ...s.runeFoundry, sold: s.runeFoundry.sold + 1 };
-          if (fd.sold >= fd.per) {
-            fd.sold -= fd.per;
-            const dragons = poolOf(s).all.filter((c) => !c.spell && !c.token && !c.ruby && (c.tribe === 'dragon' || c.tribe2 === 'dragon'));
-            // Same 5-sale meter, one Dragon per copy held per trip (threshold family, owner 2026-08-27).
-            if (dragons.length > 0) { procRuneId(s, 'rune_foundry'); conjureToHand(s, dragons, runeStacksOf(s, 'rune_foundry'), true); }
-          }
-          s.runeFoundry = fd;
-        }
-        if (s.nextSellBonus) s.nextSellBonus = 0;
-      }
-      // RUNE OF QUICK RELEASE (Set 3 batch 2): selling an Equip minion (board or hand) arms a 0-cost next Equipment
-      // activation this turn. Idempotent — the arm is a boolean the activation spends.
-      // (The badge bursts when the arm is SPENT by an activation, not here.)
-      if (sold && s.runeQuickRelease && equipmentOf(CARD_INDEX[sold.cardId])) s.quickReleaseArmed = true;
-      // On-sell effects (Hoard Whelp → get 6 Gold), fired after the card leaves the board/hand.
-      if (sold) fireOnSell(s, sold);
-      // Set 2 — record the sale, then tell the BOARD about it (Voicekeeper). Recorded FIRST so a watcher
-      // counting "the first Dragon sold this turn" sees this sale included, the way `playedThisTurn` works.
-      if (sold) {
-        s.soldThisTurn = [...(s.soldThisTurn ?? []), sold.cardId];
-        fireOnMinionSold(s, sold);
-      }
-      // Rune of the Seller's Market: every minion you sell pumps your whole board +4/+3.
-      if (sold && s.runeSellersMarket) { procRuneId(s, 'rune_sellers_market'); const sm = runeStacksOf(s, 'rune_sellers_market'); for (const c of s.board) addBuff(c, "Rune of the Seller's Market", 4 * sm, 3 * sm); }
-      // Rune of Trade-In: your FIRST sale each turn arms a 1-Gold discount on your next minion of that TYPE.
-      if (sold && s.runeTradeIn && s.soldThisTurn?.length === 1) {
-        const t = CARD_INDEX[sold.cardId]?.tribe;
-        if (t && t !== 'neutral') s.tradeInTribe = t;
-      }
-      // Robin's Spoils: each minion you sell banks +1 Gold for the START of next turn — stacks all turn, lands
-      // on top of the cap, then is consumed + reset when next turn's Gold is set (Hoarder's bonus channel).
-      if (sold && hasPower(s, 'sellGold')) s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + 1;
-      // Return the copies to the shared pool (a golden ate three). Tokens aren't pooled → ignored.
-      if (sold) returnToPool(s, sold.cardId, sold.golden ? 3 : 1);
+      // Every post-removal sale ritual (Gold, the sell runes, on-sell + minion-sold notifications, Robin's
+      // Spoils, the pool return) lives in `settleMinionSale` so a spell that SELLS a minion (Dissipate) walks
+      // exactly the same path as this manual sale.
+      if (sold) settleMinionSale(s, sold);
       return s;
     }
 

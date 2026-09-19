@@ -64,6 +64,7 @@ export const SPELL_POLICY: Readonly<Record<string, SpellPolicy>> = {
   devour: P('never', 0), powershifter: P('never', 0), mend: P('never', 0), turnabout: P('never', 0), displacement: P('never', 0),
   sigilkinship: P('never', 0), layaway: P('never', 0), seconddraft: P('never', 0), strangerevision: P('never', 0),
   sp_closedcasket: P('never', 0), commonground: P('never', 0), aresmar: P('statTarget', 2), rubytransfer: P('never', 0), rubyexcavation: P('never', 0),
+  sp_dissipate: P('never', 0), // sells a board minion (the engine) — 2026-09-18
 };
 
 export function spellPolicyOf(cardId: string): SpellPolicy {

@@ -7982,6 +7982,29 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (beast) addBuff(beast, 'Feed the Alpha', sold.attack, sold.health);
   },
 
+  /** Dissipate (owner add 2026-09-18) — SELL the target through the FULL sale path (`settleMinionSale`: Gold, every
+   *  sell rune, the body's own `onSell`, the `minionSold` notification, the Reveler counters, Robin's Spoils, the
+   *  pool return — exactly a manual sale) and add its CURRENT stats (buffs included) to the RIGHT-MOST minion
+   *  offer in the Shop (spell / Ruby offers skipped). With no minion in the Shop the spell fizzles BEFORE this
+   *  runs (`spellFizzle.ts`), so the target is never sold for nothing. `singleCast` on the card: a Yazzus second
+   *  cast would find the target gone, so it never multiplies. */
+  spellSellToShopRightmost: (ctx, self) => {
+    if (!self) return;
+    const state = ctx.state;
+    const idx = state.board.indexOf(self);
+    if (idx < 0) return;
+    const target = [...state.shop].reverse().find((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
+    if (!target) return; // the fizzle rule refuses this cast; belt-and-braces so a multi-effect wrapper can't sell for nothing
+    const sold = state.board.splice(idx, 1)[0]!;
+    // The stats read BEFORE settling: a Seller's Market pump lands on the board that remains, not on the sold body.
+    const attack = sold.attack, health = sold.health;
+    settleMinionSale(state, sold);
+    // Re-find the right-most offer AFTER the sale rituals (Liquidation / Aftermarket may have buffed it, but they
+    // never reorder the Shop, so the same offer is still right-most).
+    const dest = [...state.shop].reverse().find((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; }) ?? target;
+    if (attack > 0 || health > 0) addOfferBuff(dest, 'Dissipate', attack, health);
+  },
+
   /** Resonance — re-trigger the target's Battlecry (the reducer guards this to Battlecry minions only).
    *  Reuses the Myra-power path, so Drakko's "Battlecries fire extra times" still amplifies it. */
   spellReplayBattlecry: (ctx, self) => {
@@ -9908,6 +9931,91 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
       RECRUIT_FACTORIES[eff.do]?.(makeContext(state), card, eff.params ?? {}, { minion: card, target: sold });
     }
   }
+}
+
+/**
+ * The sale rituals that follow a minion leaving the board or hand — SHARED by the reducer's manual `sell` case and
+ * by any spell that sells a minion (Dissipate, 2026-09-18): the Gold (bartering + Quick Sale aware), the sell runes
+ * (Liquidation, Investment, Aftermarket, Foundry, Quick Release, Seller's Market, Trade-In), the sold body's own
+ * `onSell` effects, the `soldThisTurn` record + board-wide `minionSold` notification (Voicekeeper, the Reveler
+ * runes), Robin's Spoils and the pool return. The caller has ALREADY removed `sold` from wherever it lived.
+ * (Rune of Dismantling is deliberately NOT here: it fires BEFORE the body leaves and belongs to the manual sale.)
+ */
+export function settleMinionSale(state: RunState, sold: BoardCard): void {
+  // Hoarder sells for a flat 2 Gold (golden 4); everything else for the base sell value. Rune of
+  // Bartering (Shout minions sell for 2) is folded into the shared helper, so the UI coin matches.
+  // Quick Sale: the next minion sold this turn gets a one-shot bonus on top, then the bonus is spent.
+  // `sellValueWithBonus` — the SAME helper the UI's sell float reads, so the Gold paid and the number
+  // floated can't drift (they did: the bonus used to be added inline here only).
+  // Rune of Bartering earns its 2 Gold only on a Shout minion — the same condition `sellValueOf`
+  // applies. Stamped HERE and not in that helper: it is a pure display query the sell float also calls,
+  // so a stamp there would fire on every render rather than on the sale.
+  if (state.runeBartering && hasBattlecry(CARD_INDEX[sold.cardId])) procRune(state, 'runeBartering');
+  gainGold(state, sellValueWithBonus(sold, state));
+  // Rune of Liquidation: the sold minion's FULL (live) stats transfer to the right-most Shop minion
+  // (owner 2026-08-11; was BONUS-above-base only). No shop minion (all spells/Rubies, or an empty
+  // tavern) → nothing to give.
+  if (state.runeLiquidation) {
+    const target = [...state.shop].reverse().find((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
+    // Stats land once per copy held (owner 2026-08-27, unique-engine doubling).
+    if (target && (sold.attack > 0 || sold.health > 0)) { procRuneId(state, 'rune_liquidation'); const lq = runeStacksOf(state, 'rune_liquidation'); addOfferBuff(target, 'Rune of Liquidation', sold.attack * lq, sold.health * lq); }
+  }
+  // Rune of Investment (owner 2026-08-18): every 2 minions sold mints Rubies at the run's live strength.
+  if (state.runeSellRubies) {
+    state.runeSellRubiesSold = (state.runeSellRubiesSold ?? 0) + 1;
+    // The badge bursts on the MINT, not on every sale — the first sale of a pair banks toward the
+    // threshold and is not the rune firing (same contract as Bulk Order's `per`).
+    if (state.runeSellRubiesSold >= 2) { procRune(state, 'runeSellRubies'); mintRubies(state, state.runeSellRubies); state.runeSellRubiesSold -= 2; }
+  }
+  // Rune of the Aftermarket: the FIRST sale each turn gives HALF the sold minion's (live) stats to the
+  // RIGHT-MOST Shop minion (owner 2026-08-11; was full BASE stats to every Shop minion).
+  if (state.runeAftermarket && !state.aftermarketUsedThisTurn) {
+  procRune(state, 'runeAftermarket');
+  const soldDef = CARD_INDEX[sold.cardId];
+  if (soldDef && !soldDef.spell && !soldDef.ruby) {
+    state.aftermarketUsedThisTurn = true;
+    const target = [...state.shop].reverse().find((o) => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; });
+    // Half stats per copy held (owner 2026-08-27, unique-engine doubling — two copies pass the full stats).
+    const am = runeStacksOf(state, 'rune_aftermarket');
+    const halfA = Math.floor(sold.attack / 2) * am;
+    const halfH = Math.floor(sold.health / 2) * am;
+    if (target && (halfA > 0 || halfH > 0)) addOfferBuff(target, 'Rune of the Aftermarket', halfA, halfH);
+  }
+  }
+  // Rune of the Foundry: every `per` minions sold hands over a random Dragon (the run's pinned pool).
+  if (state.runeFoundry) {
+    const fd = { ...state.runeFoundry, sold: state.runeFoundry.sold + 1 };
+    if (fd.sold >= fd.per) {
+      fd.sold -= fd.per;
+      const dragons = poolOf(state).all.filter((c) => !c.spell && !c.token && !c.ruby && defIsTribe(c, 'dragon'));
+      // Same 5-sale meter, one Dragon per copy held per trip (threshold family, owner 2026-08-27).
+      if (dragons.length > 0) { procRuneId(state, 'rune_foundry'); conjureToHand(state, dragons, runeStacksOf(state, 'rune_foundry'), true); }
+    }
+    state.runeFoundry = fd;
+  }
+  if (state.nextSellBonus) state.nextSellBonus = 0;
+  // RUNE OF QUICK RELEASE (Set 3 batch 2): selling an Equip minion (board or hand) arms a 0-cost next Equipment
+  // activation this turn. Idempotent — the arm is a boolean the activation spends.
+  // (The badge bursts when the arm is SPENT by an activation, not here.)
+  if (state.runeQuickRelease && equipmentOf(CARD_INDEX[sold.cardId])) state.quickReleaseArmed = true;
+  // On-sell effects (Hoard Whelp → get 6 Gold), fired after the card leaves the board/hand.
+  fireOnSell(state, sold);
+  // Set 2 — record the sale, then tell the BOARD about it (Voicekeeper). Recorded FIRST so a watcher
+  // counting "the first Dragon sold this turn" sees this sale included, the way `playedThisTurn` works.
+  state.soldThisTurn = [...(state.soldThisTurn ?? []), sold.cardId];
+  fireOnMinionSold(state, sold);
+  // Rune of the Seller's Market: every minion you sell pumps your whole board +4/+3.
+  if (state.runeSellersMarket) { procRuneId(state, 'rune_sellers_market'); const sm = runeStacksOf(state, 'rune_sellers_market'); for (const c of state.board) addBuff(c, "Rune of the Seller's Market", 4 * sm, 3 * sm); }
+  // Rune of Trade-In: your FIRST sale each turn arms a 1-Gold discount on your next minion of that TYPE.
+  if (state.runeTradeIn && state.soldThisTurn?.length === 1) {
+  const t = CARD_INDEX[sold.cardId]?.tribe;
+  if (t && t !== 'neutral') state.tradeInTribe = t;
+  }
+  // Robin's Spoils: each minion you sell banks +1 Gold for the START of next turn — stacks all turn, lands
+  // on top of the cap, then is consumed + reset when next turn's Gold is set (Hoarder's bonus channel).
+  if (hasPower(state, 'sellGold')) state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + 1;
+  // Return the copies to the shared pool (a golden ate three). Tokens aren't pooled → ignored.
+  returnToPool(state, sold.cardId, sold.golden ? 3 : 1);
 }
 
 /**

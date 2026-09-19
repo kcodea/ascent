@@ -379,5 +379,23 @@ export const SET2_SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'spellBuffHealthGrantFlurryDragon', params: { health: 10 } }],
     text: 'Give a minion **+10 Health**. If it is a **Dragon**, also give it **Flurry**.',
   },
-
+  {
+    // Owner add 2026-09-18. Sell a friendly minion — the FULL sale (Gold, every on-sell trigger, the sell runes) — and
+    // its current stats (buffs included) land on the RIGHT-MOST minion in the Shop. Set-agnostic: also opted into set 3
+    // by id (`SET3_SHARED_SPELL_IDS`). No minion in the Shop → the cast is refused (`spellFizzle.ts`). `singleCast`: a
+    // Yazzus second cast would find the target already sold, so it never multiplies (the Fodder Treatment ruling).
+    id: 'sp_dissipate',
+    name: 'Dissipate',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    singleCast: true,
+    cost: 4,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellSellToShopRightmost' }],
+    text: 'Sell a minion and give its stats to the right-most minion in the Shop.',
+  },
 ];

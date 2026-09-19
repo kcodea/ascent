@@ -56,6 +56,34 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-18',
+    label: 'Dissipate',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'Dissipate (Tier 5 spell, 4 Gold): sell a friendly minion and give its stats to the right-most minion in the Shop.',
+        details: [
+          'The minion is genuinely sold — you get its Gold, and everything that triggers on a sale triggers.',
+          'Its current stats, buffs included, land on the right-most MINION in the Shop (spells are skipped).',
+          'With no minion in the Shop the spell cannot be cast: it stays in your hand and nothing is sold.',
+          'Available in Set 2 and Set 3.',
+        ],
+      },
+      {
+        category: 'UI / Info',
+        text: 'The Equipment cost coin always shows a number — a free activation reads "0", and a discounted one turns green.',
+        details: [
+          'A 0-cost Equipment used to show no coin at all; it now shows 0.',
+          'When a rune has cut the cost below the printed price, the coin goes green, like every other discount.',
+        ],
+      },
+      {
+        category: 'UI / Info',
+        text: "Cage Breaker: the destroyed minion now finishes dying before the Discover opens, instead of the pick covering it.",
+      },
+    ],
+  },
+  {
+    date: '2026-09-18',
     label: 'Equipment Neutrals',
     changes: [
       {

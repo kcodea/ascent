@@ -267,6 +267,27 @@ describe('Cage Breaker + Coffin Flop — Discovers at the tavern tier', () => {
     expect(s.board.some((c) => c.uid === 'm'), 'the victim is gone once the pick is made').toBe(false);
     expect(s.hand.length, 'and the pick is in hand').toBe(1);
   });
+  it("Cage Breaker: the UI's `resolveShopDeath` settles the death UNDER the open Discover (owner 2026-09-18)", () => {
+    // The landing timer dispatches `resolveShopDeath` while the Discover is already open. The modal gate used to
+    // refuse it, so the body stood under the overlay until the pick — the death played only as the overlay
+    // closed. It must settle as its own commit, leaving the Discover exactly as it was.
+    let s = run({ tier: 4, board: [body('m', 'u3_poochy', { keywords: ['T'] }), body('b', 'dw_brunni')], hand: [body('cb', 'u3_cagebreaker')] });
+    s = act(s, { type: 'play', uid: 'cb' });
+    s = act(s, { type: 'battlecryTarget', targetUid: 'm' });
+    const opts = s.discover!;
+    expect(s.pendingDeath?.uid).toBe('m');
+    const settled = act(s, { type: 'resolveShopDeath' });
+    expect(settled, 'the action is accepted under the modal').not.toBe(s);
+    expect(settled.pendingDeath).toBeUndefined();
+    expect(settled.board.some((c) => c.uid === 'm'), 'the victim died before the pick').toBe(false);
+    expect(settled.discover, 'the Discover is untouched').toEqual(opts);
+    // Every OTHER board action stays refused under the modal — the exemption is for the death settle alone.
+    expect(act(settled, { type: 'roll' })).toBe(settled);
+    // And the pick then resolves onto the same end state the old path reached (death first, then the pick).
+    const picked = act(settled, { type: 'discover', index: 0 });
+    expect(picked.hand.length).toBe(1);
+    expect(picked.board.some((c) => c.uid === 'm')).toBe(false);
+  });
   it('Coffin Flop: using it opens an Undead Discover; a non-Undead aim is a no-op for the Deathfibrillator', () => {
     let s = run({ tier: 3, hand: [body('rob', 'u3_robinson')] });
     s = act(s, { type: 'play', uid: 'rob', toIndex: 0 });

@@ -1141,6 +1141,11 @@ body.tvb-glow-preview .tvbwrap:not(:disabled) .tvb-glow {
 .runecard-cost.discounted { background: radial-gradient(circle at 38% 30%, #8fe3a4, #3ea45c 58%, #1f6b38); border-color: #123; }
 .runecard-cost.discounted .costn { color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55); }
 .hpcost .costn { font-family: var(--font-ui); font-weight: 900; font-size: calc(22 * var(--u)); color: #4a3208; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); line-height: 1; }
+/* An Equipment whose activation is DISCOUNTED below its printed cost (Efficient Tooling, Quick Release, Overcharge,
+   Empty Hands / Last Tool): the same green re-tint the Rune pivot coin uses, so 'cheaper than printed' reads the
+   same everywhere (owner 2026-09-18). A plain 0 (Star Destroyer) stays gold. */
+.hpcost.discounted { background: radial-gradient(circle at 38% 30%, #8fe3a4, #3ea45c 58%, #1f6b38); border-color: #123; }
+.hpcost.discounted .costn { color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55); }
 /* ---- Hero-power DIAMOND (owner direction 2026-07-16) — the bronze diamond housing on the board's
    middle-left, mirroring the End Turn diamond. Same layer recipe: face-cut glow (masked source → only the
    halo paints), the frame, and the power art clipped to the face window. `--hpb-*` vars come from the

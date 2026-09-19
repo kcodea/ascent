@@ -2390,7 +2390,7 @@ function tickResonantArms(state: RunState): void {
  * One fires a random branch (owner note 2026-09-16: no prompt outside the slot); the Star Destroyer never counts.
  * Returns whether anything fired.
  */
-export function fireEquipmentFree(state: RunState, def: EquipmentDefinition, version: 'plain' | 'gilded', self: BoardCard, exclude?: string): boolean {
+export function fireEquipmentFree(state: RunState, def: EquipmentDefinition, version: 'plain' | 'gilded', self: BoardCard, exclude?: string): { targetUid?: string } | false {
   if (def.id === STAR_DESTROYER.id) return false;
   const rng = makeRng(state.rngCursor);
   let fireDef = def;
@@ -2406,7 +2406,10 @@ export function fireEquipmentFree(state: RunState, def: EquipmentDefinition, ver
   }
   state.rngCursor = rng.state();
   const fireSelf = fireDef !== def ? { ...self, golden: false } : self; // one gilding channel (see the reducer's activate case)
-  return fireEquipmentTriggers(state, fireDef, version, fireSelf, target, 1);
+  if (!fireEquipmentTriggers(state, fireDef, version, fireSelf, target, 1)) return false;
+  // The caller stamps the `use` cue — WITH the random target, so the authored def travels to the body it hit
+  // (owner 2026-09-18: every Dismantling fire must play; a cue without a destination played on the slot).
+  return target ? { targetUid: target.uid } : {};
 }
 
 /**
@@ -3529,8 +3532,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const ex = ctx.state.revelerExtra ?? { attack: 0, health: 0 };
     const a = stat === 'health' ? 0 : x + ex.attack, h = stat === 'attack' ? 0 : x + ex.health;
     const all = stat === 'both';
+    // Rune of the Festival Circuit (owner 2026-09-18): "Your Revelers buff Celestials" — the Spirit audience widens
+    // to your Celestials while the rune is held. ONE audience rule here, so every Reveler (and every re-fire —
+    // Shared Revelry, a Rune of Dismantling-style replay) honours it.
+    const circuit = !!ctx.state.runeFestivalCircuit;
     for (const c of ctx.state.board) {
-      if (!all && !isTribe(c, 'spirit')) continue;
+      if (!all && !isTribe(c, 'spirit') && !(circuit && isTribe(c, 'celestial'))) continue;
       addBuff(c, nameOf(self), a, h);
     }
     ctx.state.revelerX = revelerValue(ctx.state) + 1;
@@ -9746,12 +9753,12 @@ export function fireStarformRemoved(state: RunState, reason: 'consume' | 'collap
   }
   // ── Set 3 batch 2 (2026-09-16) rune hooks — this is the ONE exit every consume (the buy, a Demon, a card) and
   // every collapse rides, so the runes listen here rather than at each remover.
-  // RUNE OF EVENTIDE: the first Consume OR Collapse each turn → 2 random Shop spells + spell power +1/+1, × copies.
+  // RUNE OF EVENTIDE: the first Consume OR Collapse each turn → spell power +1/+1 (× copies). The 2 random Shop
+  // spells it used to hand over are gone (owner rework 2026-09-18).
   if (state.runeEventide && !state.eventideUsedThisTurn) {
     state.eventideUsedThisTurn = true;
     procRuneId(state, 'rune_eventide');
     const ev = runeStacksOf(state, 'rune_eventide');
-    conjureToHand(state, runSpells(state).filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id)), 2 * ev, true);
     state.spellBonus = { attack: (state.spellBonus?.attack ?? 0) + ev, health: (state.spellBonus?.health ?? 0) + ev };
   }
   // RUNE OF THE OPEN CONSTELLATION: the first CONSUME each turn re-creates a token carrying the consumed one's
@@ -9864,27 +9871,31 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
  * fires the SOLD card's own `onSell` effects: this is the watcher side, for cards that react to OTHER minions
  * leaving. The sold card is passed as `target` so a watcher can inspect what it was.
  */
+/** "After you sell 3 Revelers" (Rune of Festival Wages): the printed meter. The Festival Circuit carries its own
+ *  in its reward (`count`). Lives here, not in the reward data, because the Wages kind carries no amount — the card
+ *  text is the contract; keep the two in lockstep. */
+export const REVELER_METER = 3;
+
 export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
-  // ── Set 3 batch 2 (2026-09-16): the REVELER-SOLD runes. Both key on the sold body being a Reveler. ──
+  // ── Set 3 batch 2: the REVELER-SOLD runes. Both key on the sold body being a Reveler and both read ONE per-turn
+  //    meter (owner rework 2026-09-18: "after you sell 3 Revelers" — every third sale this turn pays; the meter's
+  //    scope is the Festival Circuit's original per-turn window). Selling is a shop action, so the meter resets
+  //    at the flip with the other per-turn counters. ──
   if (REVELER_IDS.includes(sold.cardId)) {
-    // RUNE OF FESTIVAL WAGES: the turn's FIRST Reveler sale arms a free card — the next Shop buy (minion or spell,
-    // either row) costs 0. One charge per copy held (repeat family); the charges carry until spent.
-    if (state.runeFestivalWages && !state.festivalWagesUsedThisTurn) {
-      state.festivalWagesUsedThisTurn = true;
+    const sold3 = state.revelersSoldThisTurn = (state.revelersSoldThisTurn ?? 0) + 1;
+    // RUNE OF FESTIVAL WAGES: every `REVELER_METER` Revelers sold arm a free card — the next Shop buy (minion or
+    // spell, either row) costs 0. One charge per copy held (repeat family); the charges carry until spent.
+    if (state.runeFestivalWages && sold3 % REVELER_METER === 0) {
       state.nextCardFree = (state.nextCardFree ?? 0) + runeStacksOf(state, 'rune_festival_wages');
       procRuneId(state, 'rune_festival_wages');
     }
-    // RUNE OF THE FESTIVAL CIRCUIT: the first `n` Reveler sales each turn each hand over a random Celestial from the
-    // run's pool (≤ shop tier). The window doubles per copy held; a set whose pool has no Celestial grants nothing.
+    // RUNE OF THE FESTIVAL CIRCUIT: every `runeFestivalCircuit` Revelers sold hand over a random Celestial from the
+    // run's pool (≤ shop tier), one per copy held; a set whose pool has no Celestial grants nothing.
     const circuit = state.runeFestivalCircuit ?? 0;
-    if (circuit > 0) {
-      const done = state.circuitSoldThisTurn ?? 0;
-      if (done < circuit * runeStacksOf(state, 'rune_festival_circuit')) {
-        state.circuitSoldThisTurn = done + 1;
-        // `defIsTribe` — the shared helper, so an All-types body counts as a Celestial here as it does everywhere else.
-        const pool = poolOf(state).buyable.filter((c) => !c.spell && !c.token && !c.ruby && c.tier <= state.tier && defIsTribe(c, 'celestial'));
-        if (pool.length > 0) { procRuneId(state, 'rune_festival_circuit'); conjureToHand(state, pool, 1, true); }
-      }
+    if (circuit > 0 && sold3 % circuit === 0) {
+      // `defIsTribe` — the shared helper, so an All-types body counts as a Celestial here as it does everywhere else.
+      const pool = poolOf(state).buyable.filter((c) => !c.spell && !c.token && !c.ruby && c.tier <= state.tier && defIsTribe(c, 'celestial'));
+      if (pool.length > 0) { procRuneId(state, 'rune_festival_circuit'); conjureToHand(state, pool, runeStacksOf(state, 'rune_festival_circuit'), true); }
     }
   }
   // RUNE OF THE LAST WORD: the turn's first Dragon-with-a-Shout you sell fires its Shout on the way out — one
@@ -10455,13 +10466,16 @@ export function applySecondLife(state: RunState, card: BoardCard): void {
 
 /**
  * TRANCHE-B RUNE GRAFTS (Set 3 batch 2, 2026-09-16) — Rune of the Endless March ("when THIS Undead Rises, summon
- * a 1/1 Skeleton") and Rune of the Last Tool ("Echo: this minion's Equipment costs 0 next turn") ride the
+ * a Spear Warden" — owner 2026-09-18, was a 1/1 Skeleton) and Rune of the Last Tool ("Echo: this minion's Equipment costs 0 next turn") ride the
  * per-instance `grantedEffects` channel, the same graft Contract Rewrite / Rune of Rebirth use: a grafted trigger
  * is as real as a printed one in the shop (`instanceEffects`), crosses into combat (`minion.ts`) and is served
  * on the snapshot. Idempotent per `do` (a re-sweep updates the params in place), stamped on the INSTANCE — never
  * the shared def. Called on purchase (board + hand sweep), at every board arrival (buy, summon, Rise return) and
  * as a tripwire at the action boundary in `reduce`.
  */
+/** What a Rune of the Endless March Rise summons: Spear Warden (the set-1 card). */
+export const ENDLESS_MARCH_TOKEN = 'knit';
+
 export function applyRuneGrafts(state: RunState, card: BoardCard): void {
   if (!state.runeEndlessMarch && !state.runeLastTool) return;
   const def = CARD_INDEX[card.cardId];
@@ -10472,7 +10486,8 @@ export function applyRuneGrafts(state: RunState, card: BoardCard): void {
     (card.grantedEffects ??= []).push(effect);
   };
   if (state.runeEndlessMarch && isTribe(card, 'undead')) {
-    graft({ on: 'onRise', do: 'onRiseSelfSummonToken', params: { tokenId: 'u3_skeleton', count: runeStacksOf(state, 'rune_endless_march') } });
+    // A Spear Warden — the set-1 card (`knit`), summoned at its current base + death-count aura (owner 2026-09-18).
+    graft({ on: 'onRise', do: 'onRiseSelfSummonToken', params: { tokenId: ENDLESS_MARCH_TOKEN, count: runeStacksOf(state, 'rune_endless_march') } });
   }
   if (state.runeLastTool && hasEquip(def)) graft({ on: 'onDeath', do: 'deathrattleEquipmentFreeNextTurn', params: {} });
 }
@@ -11130,6 +11145,64 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
  *  reward kind carries no amount; the card text is the contract — keep the two in lockstep. */
 const RUNE_SUMMONING_STEP = 2;
 
+/**
+ * Can a spell cast this turn be handed back as a COPY by the spell-count runes? A Gift (a Clue, Tower Shield, a
+ * reward Gift) is a spell CAST but never copy food — the standing rule every copy path honours — and the
+ * `NO_COPY_SPELLS` set (Second Draft) would loop the copier. A Ruby copies fine: it is minted at the run's
+ * current Ruby line (`mintRubies`), the way every other Ruby grant works.
+ */
+function spellCopyableForCountRunes(id: string): CardDef | undefined {
+  const d = CARD_INDEX[id];
+  if (!d || d.gift || NO_COPY_SPELLS.has(d.id)) return undefined;
+  return d;
+}
+
+/** Hand `n` copies of a counted spell to hand — a Ruby through the Ruby mint (the run's current line), anything
+ *  else through the shared conjure (overflow-safe: an earned rune reward is never dropped). */
+function grantCountRuneCopy(state: RunState, def: CardDef, n: number): void {
+  if (def.ruby) mintRubies(state, n, def.id);
+  else conjureToHand(state, [def], n, true);
+}
+
+/**
+ * THE SPELL-COUNT RUNES' meter (Rune of Charted Skies / Rune of the Astral Refrain). Owner rework 2026-09-18:
+ * "ALL spells count — Shop spells, Rubies, Clues, Gifts", so EVERY cast path notes itself here once per
+ * resolution: `noteSpellCast` (Shop spells + Gifts, Discover spells included) and the reducer's Ruby branch. A
+ * reward TOKEN never reaches here (`noteSpellCast` returns before this for a token — the standing "counts as
+ * nothing" rule).
+ *
+ * Both runes pay at EXACTLY `at` entries, so each is once per turn by construction; the list keeps growing past
+ * `at` so the `x/3` badge stays honest ("3/3" until the flip).
+ *
+ *   · CHARTED SKIES — a seeded-random copy of ONE of the `at` spells (drawn from the copyable ones; a turn whose
+ *     three were all Gifts pays nothing), one per copy held.
+ *   · THE ASTRAL REFRAIN — 2 copies of the SECOND of the `at` (a Gift or an uncopyable second pays nothing),
+ *     2 per copy held.
+ */
+export function noteSpellForCountRunes(state: RunState, spellId: string): void {
+  const ids = state.spellIdsThisTurn = [...(state.spellIdsThisTurn ?? []), spellId];
+  const n = ids.length;
+  const skies = state.runeChartedSkies;
+  if (skies && n === skies.at) {
+    const pool = ids.slice(0, skies.at).map(spellCopyableForCountRunes).filter((d): d is CardDef => !!d);
+    if (pool.length > 0) {
+      procRuneId(state, 'rune_charted_skies');
+      const rng = makeRng(state.rngCursor);
+      const pick = pool[rng.int(pool.length)]!;
+      state.rngCursor = rng.state();
+      grantCountRuneCopy(state, pick, runeStacksOf(state, 'rune_charted_skies'));
+    }
+  }
+  const refrain = state.runeAstralRefrain;
+  if (refrain && n === refrain.at) {
+    const second = spellCopyableForCountRunes(ids[1]!);
+    if (second) {
+      procRuneId(state, 'rune_astral_refrain');
+      grantCountRuneCopy(state, second, 2 * runeStacksOf(state, 'rune_astral_refrain'));
+    }
+  }
+}
+
 export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // A REWARD card (`token: true` — Goldcrafter, Implosion, Copycat, the Triple Reward…) is NOT a Shop spell
   // (owner rule 2026-08-01, extended to every cast path 2026-08-04): it resolves its own effect and nothing
@@ -11187,37 +11260,16 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   state.spellsCast += 1;
   state.spellsThisTurn += 1;
   advanceRuneThresholds(state, 'spellCast', 1);
-  // ── Set 3 batch 2 (2026-09-16): the CELESTIAL spell-count runes. They count SHOP spells only — a Gift is a spell
-  //    cast but never a Shop spell (the standing rule above), so it neither advances nor is copied by them. ──
-  if (!spellDef.gift) {
-    const ids = state.shopSpellIdsThisTurn = [...(state.shopSpellIdsThisTurn ?? []), spellDef.id];
-    const n = ids.length;
-    // RUNE OF CHARTED SKIES: the `at`-th Shop spell of the turn opens a Shop-spell Discover (one per copy held).
-    const skies = state.runeChartedSkies;
-    if (skies && n === skies.at) {
-      procRuneId(state, 'rune_charted_skies');
-      for (let k = 0; k < runeStacksOf(state, 'rune_charted_skies'); k++) queueDiscover(state, { kind: 'spell' });
-    }
-    // RUNE OF THE ASTRAL REFRAIN: when the `at`-th Shop spell resolves, copies of the turn's FIRST and `at`-th
-    // Shop spells land in hand (overflow-safe: an earned reward is never dropped). Uncopyable spells are skipped,
-    // the same guard the echo runes use. One set of copies per copy held.
-    const refrain = state.runeAstralRefrain;
-    if (refrain && n === refrain.at) {
-      procRuneId(state, 'rune_astral_refrain');
-      for (let k = 0; k < runeStacksOf(state, 'rune_astral_refrain'); k++) {
-        for (const id of [ids[0]!, ids[refrain.at - 1]!]) {
-          const d = CARD_INDEX[id];
-          if (d && !NO_COPY_SPELLS.has(d.id)) conjureToHand(state, [d], 1, true);
-        }
-      }
-    }
-    // RUNE OF THE METEOR SHOWER: the turn's first Star Crash hands over another (one per copy held).
-    if (state.runeMeteorShower && spellDef.id === 'starcrash' && !state.meteorShowerUsedThisTurn) {
-      state.meteorShowerUsedThisTurn = true;
-      procRuneId(state, 'rune_meteor_shower');
-      const sc = CARD_INDEX['starcrash'];
-      if (sc) conjureToHand(state, [sc], runeStacksOf(state, 'rune_meteor_shower'), true);
-    }
+  // ── Set 3 batch 2: the spell-count runes (Charted Skies / the Astral Refrain). Owner rework 2026-09-18: EVERY
+  //    spell counts — a Gift (Clue included) is a spell cast, so it advances them here; a Ruby advances them from
+  //    its own reducer branch through the same `noteSpellForCountRunes`. ──
+  noteSpellForCountRunes(state, spellDef.id);
+  // RUNE OF THE METEOR SHOWER: the turn's first Star Crash hands over another (one per copy held).
+  if (!spellDef.gift && state.runeMeteorShower && spellDef.id === 'starcrash' && !state.meteorShowerUsedThisTurn) {
+    state.meteorShowerUsedThisTurn = true;
+    procRuneId(state, 'rune_meteor_shower');
+    const sc = CARD_INDEX['starcrash'];
+    if (sc) conjureToHand(state, [sc], runeStacksOf(state, 'rune_meteor_shower'), true);
   }
   // Rune of Runic Exchange pays out in Ales, so counting Ales would let it feed itself — its meter excludes them.
   if (!ALE_IDS.includes(spellDef.id)) advanceRuneThresholds(state, 'spellCastNonAle', 1);
@@ -12259,15 +12311,14 @@ export function fireStatGainReactors(state: RunState, before: Map<string, { atta
   if (!state.runeDreamMirror && !state.runeWakingDreams) return;
   const handGainers = state.hand.filter((c) => !CARD_INDEX[c.cardId]?.spell).map((c) => ({ card: c, d: gained(c) })).filter((g): g is { card: BoardCard; d: { attack: number; health: number } } => !!g.d);
   if (handGainers.length === 0) return;
-  // RUNE OF THE DREAM MIRROR: the FIRST hand gain each turn is mirrored — the same +A/+H — onto a random friendly
-  // board minion (× copies held). A gain with nobody on the board is not "used": the mirror waits for one.
-  if (state.runeDreamMirror && !state.dreamMirrorUsedThisTurn && state.board.length > 0) {
-    const first = handGainers[0]!;
-    state.dreamMirrorUsedThisTurn = true;
-    procRuneId(state, 'rune_dream_mirror');
+  // RUNE OF THE DREAM MIRROR: EVERY hand gain is mirrored — each gainer's own +A/+H — onto a random friendly board
+  // minion (× copies held), one roll per gainer (owner rework 2026-09-18: the per-turn latch is gone). The hand
+  // card is never on the board, so R-TARGET-03 self-exclusion is moot here.
+  if (state.runeDreamMirror && state.board.length > 0) {
+    procRuneId(state, 'rune_dream_mirror', handGainers.length);
     const mult = runeStacksOf(state, 'rune_dream_mirror');
     captureBuffFx(state, undefined, 'spell', () => {
-      for (const t of pickRandom(state, [...state.board], 1)) addBuff(t, 'Rune of the Dream Mirror', first.d.attack * mult, first.d.health * mult);
+      for (const g of handGainers) for (const t of pickRandom(state, [...state.board], 1)) addBuff(t, 'Rune of the Dream Mirror', g.d.attack * mult, g.d.health * mult);
     });
   }
   // RUNE OF WAKING DREAMS: every hand minion that gained this action pays your board +A/+H (accumulated per copy).

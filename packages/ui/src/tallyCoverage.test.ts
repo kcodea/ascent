@@ -95,7 +95,9 @@ const armedRun = (): RunState => ({
   // Set 3 batch 2 (2026-09-16): the two Shop-spell counters share one per-turn list.
   runeChartedSkies: { at: 3 },
   runeAstralRefrain: { at: 3 },
-  shopSpellIdsThisTurn: ['growth'],
+  spellIdsThisTurn: ['growth'], // every spell kind since 2026-09-18
+  revelersSoldThisTurn: 1, // Festival Wages / the Festival Circuit's shared "after you sell 3 Revelers" meter (2026-09-18)
+  runeFestivalCircuit: 3,
   runeThresholds: [],
 } as unknown as RunState);
 

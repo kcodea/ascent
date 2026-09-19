@@ -114,10 +114,10 @@ The one standing disagreement the full sweep prints is `shaper` (`effects.1.summ
 
 | Bucket | Objects |
 |---|---|
-| parsed-equivalent | 917 |
+| parsed-equivalent | 956 |
 | verified-mismatch | 0 |
 | approved-exception | 0 |
-| **unresolved-parse** | 90 |
+| **unresolved-parse** | 91 |
 
 0 mismatches stand today (0 unpinned, 0 stale pins — both gated). The 2026-09-11 parser coverage pass
 (`docs/devlog/2026-09-11-docbot-text-parser-coverage.md`) took the unresolved queue from 582 (59%) to 55
@@ -130,7 +130,7 @@ only its Avenge buff; Cling Drone and Porkbelly act through id-keyed / flag-driv
 The rewrite advisor produced 0 wording recommendations against the 27-entry language guide. They are
 suggestions with `suggestedText`; nothing is ever applied to production content (§23).
 
-**90 unresolved parses remain, a hard-ceilinged queue** (63 before Set 3 batch 2 — tranches A, B and C — added their Spirit / Starform / Equipment / Undead rune shapes on 2026-09-16; 87 → 89 with the 2026-09-18 Kobold/Neutral rework — Kobe's "play … Rubies" and Arena Heckler's "attack it immediately"; 90 with Shredder's "for every Equipment unused this turn" the same day). `textParse.test.ts` pins the count (the ratchet may
+**91 unresolved parses remain, a hard-ceilinged queue** (63 before Set 3 batch 2 — tranches A, B and C — added their Spirit / Starform / Equipment / Undead rune shapes on 2026-09-16; 87 → 89 with the 2026-09-18 Kobold/Neutral rework — Kobe's "play … Rubies" and Arena Heckler's "attack it immediately"; 90 with Shredder's "for every Equipment unused this turn" the same day; 91 with the 2026-09-18 rune batch — the Astral Refrain's ordinal "the second one", the Festival Circuit's "Your Revelers buff Celestials", Quick Release's exclusion parenthetical and Empty Hands' "Amplified permanently", net of four rune texts that now parse). `textParse.test.ts` pins the count (the ratchet may
 only shrink) AND asserts the unresolved share stays below 35% of active objects, so a content PR can no
 longer raise the pin past that line without a grammar change. The remainder is bespoke prose (hero-power
 flavour, "alternates between Attack and Health", "Bind … stats gained by one are gained by the other") that a
@@ -229,7 +229,7 @@ Sixteen lines, each marked with a citable artifact. **5 done · 11 partial · 0 
 | 6 | Applicable pairwise interactions are covered and reported semantically | **partial** | 93491 candidates enumerated and reported by channel; 106 covered rows, 30 blocked rows each with a typed reason. Coverage is by family, not per candidate pair |
 | 7 | High-risk triple interactions are covered | **partial** | §10.4 triples run in the same sweep; 6 of the 8 triple families are blocked with cited reasons |
 | 8 | Verified findings are deterministic, minimized, and reproducible from Scene Builder and CLI | **done** | `seedMinimize.ts` (1-minimal proof), `docbot:scenario -- <id>`, the Scene Builder QA bridge, `qaScenarioParity.test.ts`; findings carry a `reproduction` line |
-| 9 | Displayed text is checked against approved mechanics | **partial** | every object classified; 957 of 1047 parse fully and their amounts, counts, cadences, Ruby counts and trigger events are compared; 61 unresolved parses are refused, never called clean — and the contract side is still mostly unreviewed drafts |
+| 9 | Displayed text is checked against approved mechanics | **partial** | every object classified; 956 of 1047 parse fully and their amounts, counts, cadences, Ruby counts and trigger events are compared; 61 unresolved parses are refused, never called clean — and the contract side is still mostly unreviewed drafts |
 | 10 | Poor wording is reported separately with safe rewrite suggestions | **done** | `wording-recommendation` is its own class; `runRewriteAdvisor` emits `suggestedText`, never applies it (§23) |
 | 11 | Unruled behavior is reported as questionable rather than declared broken | **done** | the anomaly oracle caps at `questionable-interaction` by construction, with competing interpretations attached; sabotage-tested in `anomalyOracle.test.ts` |
 | 12 | Confirmed reports graduate into permanent regressions | **partial** | `bugs:graduate` + `bugTaxonomy.graduated.json` + `regressionScenarios.test.ts` are built and refusal-tested; **zero real player reports have graduated** — the loop is proven only by the synthetic walkthrough in `ci-lanes.md` |
@@ -268,7 +268,7 @@ Nothing is retired without proving the replacement catches the same class. Each 
 
 Ordered by how much they limit a confident claim. The counted ones are re-derived every run.
 
-1. **90 unresolved parses, and draft contracts on the other side.** The parser now reads 94% of printed text,
+1. **91 unresolved parses, and draft contracts on the other side.** The parser now reads 94% of printed text,
    but a comparison is only as strong as the contract it compares against — and most contracts are
    unreviewed extractor drafts, so a disagreement is a question, not a verdict (§6.1).
 2. **158 contract shapes with no driver.** Still the single largest verification hole, though down from

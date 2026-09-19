@@ -137,6 +137,11 @@ const FIXTURES: Record<string, Fixture> = {
     make: () => ({ s: base({ shop: [asOffer(anyMinion(), 'of1')] }) }),
     proof: (next) => expect(next.shop.some((o) => o.golden), 'an offer was gilded').toBe(true),
   },
+  sp_dissipate: {
+    arms: 'spellSellToShopRightmost: a friendly target on the board + a minion offer in the tavern to receive its stats',
+    make: () => ({ s: base({ board: [onBoard(anyMinion(), 'm1')], shop: [asOffer(anyMinion(), 'of1')] }), targetUid: 'm1' }),
+    proof: (next) => expect(next.board.some((c) => c.uid === 'm1'), 'the target was sold').toBe(false),
+  },
   elevationritual: {
     arms: 'spellRefreshTierUp: a minion offer in the tavern (tier 2 leaves tier-up headroom)',
     make: () => ({ s: base({ tier: 2, shop: [asOffer(anyMinion(), 'of1')] }) }),

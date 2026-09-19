@@ -207,7 +207,9 @@ function actionSfx(action: Action, prev: RunState, next: RunState): void {
   if (prev.phase !== next.phase) dropBoardFx();
   // A Discover choice just OPENED (any action that set run.discover — playing a Discover spell, a golden's
   // reward, etc.): play the discover cue, on top of the triggering action's own sound.
-  if (!prev.discover && next.discover) sfx.discover();
+  // …unless a shop death is pending in the same commit (Cage Breaker): Recruit holds the overlay until the body has
+  // dissolved and plays this cue itself when it opens (owner 2026-09-18).
+  if (!prev.discover && next.discover && !next.pendingDeath) sfx.discover();
   // A friendly minion was just GIVEN Taunt — it existed on the board WITHOUT Taunt and now has it (so this
   // skips minions bought/played already-Taunt; only granted Taunt, e.g. Bulwark/a hero power, fires it).
   const wasTaunt = new Map(prev.board.map((m) => [m.uid, m.keywords.includes('T')]));

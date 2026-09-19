@@ -448,6 +448,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellBuffByTier',
   'spellSellToDemon',
   'spellSellToBeast',
+  'spellSellToShopRightmost',
   'spellReplayBattlecry',
   'spellExtraEndOfTurn',
   'spellGildRandomTavern',

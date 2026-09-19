@@ -137,6 +137,9 @@ gsap.registerPlugin(Flip);
 const KEYWORD_FLASH = { flashSize: 110, flashMs: 260, flashAlpha: 0.6, colorGlow: '#9fd8ff', blend: 'screen' as const };
 /** The reborn re-form's offset after the death, matching combat's `auraReform` cue (score.ts `withReform`, 460ms). */
 const RISE_REFORM_MS = 460;
+/** The shop death-dissolve cue's authored length (`fx/defs/death-dissolve.json` `duration`) — how long a Discover that
+ *  follows a shop destroy waits for the body to finish leaving before it opens (owner 2026-09-18, Cage Breaker). */
+const DEATH_DISSOLVE_MS = 600;
 
 const EMPTY_KW: ReadonlyMap<string, ReadonlySet<string>> = new Map();
 const EMPTY_TRANSFORMS: ReadonlyMap<string, string> = new Map();
@@ -1839,6 +1842,34 @@ export function Recruit() {
   // on the offers' existence, so nothing ticks while held) until the reveal sweep finishes, the same way
   // the start-of-combat beat waits for the entry reveal.
   const overlaysHeld = !inCombat && wipe !== 'idle';
+  // A DISCOVER WAITS FOR THE DEATH IT FOLLOWS (owner 2026-09-18: Cage Breaker's Shout destroys a minion and opens a
+  // Discover in the SAME commit, and the overlay used to land on top of the body before it had even begun to die).
+  // Presentation only — the reducer's order is untouched (`run.discover` is set at once; the pending death settles on
+  // the landing timer as always). The overlay's RENDER, its burst and its cue are held: armed the moment a Discover
+  // is open with a death pending (the body is still on the board), released one dissolve after the death commits
+  // (+ the reborn re-form when the body Rises). Shared by construction: ANY effect that stamps `pendingDeath` and
+  // opens a Discover in one action goes through this hold. `discoverHeld` is what the overlay reads.
+  const [postDeathHold, setPostDeathHold] = useState(false);
+  const discoverOpen = !!run.discover;
+  const discoverDeathHold = discoverOpen && (!!run.pendingDeath || postDeathHold);
+  const discoverHeld = overlaysHeld || discoverDeathHold;
+  const deathHoldPendingUid = run.pendingDeath?.uid;
+  const shopDeathFxRef = useRef(run.shopDeathFx);
+  shopDeathFxRef.current = run.shopDeathFx;
+  useEffect(() => {
+    if (!discoverOpen) { setPostDeathHold(false); return; }
+    if (deathHoldPendingUid) { setPostDeathHold(true); return; } // arm while the body still stands
+    if (!postDeathHold) return;
+    // The death has committed: let the dissolve (and a Rise's re-form) play out, then open.
+    const cfg = getShopDeathFxConfig();
+    const rose = (shopDeathFxRef.current ?? []).some((f) => f.kind === 'rise');
+    const ms = Math.max(0, cfg.deathDelayMs) + DEATH_DISSOLVE_MS + (rose ? RISE_REFORM_MS : 0);
+    const t = window.setTimeout(() => {
+      setPostDeathHold(false);
+      sfx.discover(); // the open cue the store skipped while the death was pending (see store.ts)
+    }, ms);
+    return () => window.clearTimeout(t);
+  }, [discoverOpen, deathHoldPendingUid, postDeathHold]);
   const onWipeEnd = useCallback((e: ReactTransitionEvent<HTMLDivElement>): void => {
     if (e.propertyName !== 'clip-path') return;
     window.clearTimeout(wipeTimeoutRef.current);
@@ -2257,13 +2288,13 @@ export function Recruit() {
   // A board-covering modal is open (Discover / Choose One / a quest or runeforge offer / a scouted board).
   useEffect(() => {
     // A minimized Discover / Quest overlay leaves the board visible, so it doesn't count as covering.
-    const modalCovering = !overlaysHeld && ((run.discover && !discoverMin) || (run.questOffer && !questMin) || run.powerOffer || (run.runeforgeOffer && !forgeMin) || run.chooseOne || (run.scoutedNextOpponent?.length ?? 0) > 0);
+    const modalCovering = !overlaysHeld && ((run.discover && !discoverMin && !discoverDeathHold) || (run.questOffer && !questMin) || run.powerOffer || (run.runeforgeOffer && !forgeMin) || run.chooseOne || (run.scoutedNextOpponent?.length ?? 0) > 0);
     // The hero portrait / pills / power diamond live OUTSIDE the overlay's backdrop root (their own fixed
     // stacking contexts), so the overlay's backdrop-filter can't blur them — mark the body and let CSS blur
     // + dim them to match the rest of the covered board (owner report 2026-07-16). One-shot filter change.
     document.body.classList.toggle('modalup', !!modalCovering);
     return () => document.body.classList.remove('modalup');
-  }, [run.discover, run.chooseOne, discoverMin, run.questOffer, run.powerOffer, questMin, run.runeforgeOffer, forgeMin, overlaysHeld]);
+  }, [run.discover, run.chooseOne, discoverMin, run.questOffer, run.powerOffer, questMin, run.runeforgeOffer, forgeMin, overlaysHeld, discoverDeathHold]);
   // B2: each Discover opens expanded — reset the minimized flag whenever the pending Discover changes.
   useEffect(() => { setDiscoverMin(false); }, [run.discover]);
   // Each quest offer opens expanded too — reset the minimized flag when the offer changes.
@@ -4498,11 +4529,11 @@ export function Recruit() {
   // Discover opened → erupt the golden magic burst on the overlay's behind-the-cards FX layer. Fired once
   // the burst app has initialised (attach resolves immediately if already created).
   useEffect(() => {
-    if (!run.discover) return;
+    if (!run.discover || discoverDeathHold) return; // held behind a shop death: the burst fires when the overlay does
     const el = discoverBurstRef.current;
     if (!el) return;
     void discoverFx.attach(el).then(() => discoverFx.discoverBurst(window.innerWidth / 2, window.innerHeight / 2));
-  }, [run.discover]);
+  }, [run.discover, discoverDeathHold]);
 
   // Karwind flame flash: when a Battlecry triggers Karwind, flame the Dragons it buffed (~0.9s).
   useEffect(() => {
@@ -6538,7 +6569,7 @@ export function Recruit() {
 
       <ChooseOneOverlay overlaysHeld={overlaysHeld} run={run} spellBonus={spellBonus} spellBonusH={spellBonusH} dispatch={dispatch} captureCoalesce={captureCoalesce} />
 
-      <DiscoverOverlay overlaysHeld={overlaysHeld} run={run} discoverMin={discoverMin} setDiscoverMin={setDiscoverMin} cardBuffsLive={cardBuffsLive} dispatch={dispatch} discoverBurstRef={discoverBurstRef} />
+      <DiscoverOverlay overlaysHeld={discoverHeld} run={run} discoverMin={discoverMin} setDiscoverMin={setDiscoverMin} cardBuffsLive={cardBuffsLive} dispatch={dispatch} discoverBurstRef={discoverBurstRef} />
 
       <ScoutOverlay overlaysHeld={overlaysHeld} scouted={run.scoutedNextOpponent} dispatch={dispatch} />
 

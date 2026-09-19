@@ -601,11 +601,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-spellCast",
-    "title": "'spellCast' family · 107 cards",
-    "statement": "All 107 'spellCast' cards trigger the same way. These are the spells themselves, and spells are never gilded. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'spellCast' family · 108 cards",
+    "statement": "All 108 'spellCast' cards trigger the same way. These are the spells themselves, and spells are never gilded. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "101 effect factories across 107 cards dispatch through the 'spellCast' presentation family, all on the single trigger 'cast' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: INAPPLICABLE — checkTriples skips spells and Rubies, so no member of this family can ever BE gilded (R-GILD-02, owner ruling 2026-08-28).",
-    "cardText": "Exemplar — Black Hole: \"Your Starform consumes 3 random Shop minions.\" · Members: Black Hole · Anomaly Reactor · Eyes of Aresmar · Bloodlust · Bulwark · Carnival Coin · Chrono Staff · Clue · Common Ground · Consume · Copycat · Crescendo · … and 95 more",
+    "currentBehaviour": "102 effect factories across 108 cards dispatch through the 'spellCast' presentation family, all on the single trigger 'cast' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: INAPPLICABLE — checkTriples skips spells and Rubies, so no member of this family can ever BE gilded (R-GILD-02, owner ruling 2026-08-28).",
+    "cardText": "Exemplar — Black Hole: \"Your Starform consumes 3 random Shop minions.\" · Members: Black Hole · Anomaly Reactor · Eyes of Aresmar · Bloodlust · Bulwark · Carnival Coin · Chrono Staff · Clue · Common Ground · Consume · Copycat · Crescendo · … and 96 more",
     "example": "Black Hole follows the 'spellCast' convention — its trigger fires on cast. three copies of it never combine into a golden one, so it has no gilded form at all.",
     "contentIds": [
       "accretion",
@@ -689,6 +689,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "sp_blessing",
       "sp_closedcasket",
       "sp_containmentrune",
+      "sp_dissipate",
       "sp_dragonflame",
       "sp_flutter",
       "sp_gamble",

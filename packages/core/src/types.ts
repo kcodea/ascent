@@ -667,6 +667,7 @@ export type EffectFactoryId =
   | 'spellBuffByTier' // Lantern Light: cast — give the target +Tavern Tier / +Tavern Tier (recruit)
   | 'spellSellToDemon' // Fodder Treatment: cast — sell the target, give its stats to your left-most Demon (recruit)
   | 'spellSellToBeast' // Feed the Alpha: cast — sell the target, give its stats to your right-most Beast (recruit)
+  | 'spellSellToShopRightmost' // Dissipate: cast — SELL the target (the full sale path) and give its stats to the right-most Shop minion (recruit)
   | 'spellReplayBattlecry' // Resonance: cast — re-trigger a friendly Battlecry minion's Battlecry (recruit)
   | 'spellExtraEndOfTurn' // Chrono Staff: cast — your End-of-Turn effects fire 1 extra time this turn (recruit)
   | 'spellGildRandomTavern' // Golden Touch: cast — make a random tavern minion Golden (recruit)

@@ -97,6 +97,7 @@ export function simplifyDragPath(pts: readonly Pt[], eps = DRAG_SIMPLIFY_EPS, ca
 // ── Module state: one trace at a time (a drag is singular by construction) ────────────────────────────────
 let tracing = false;
 let traceCardId = '';
+let traceUid: string | undefined;
 let traceStartAt = 0;
 let lastSampleAt = 0;
 let tracePts: Pt[] = [];
@@ -104,9 +105,10 @@ let tracePts: Pt[] = [];
 let pending: { path: DragPath; at: number } | null = null;
 
 /** Start tracing a drag: the grab point is the path's first sample. Resets any previous trace/parked path. */
-export function beginDragTrace(cardId: string, x: number, y: number): void {
+export function beginDragTrace(cardId: string, x: number, y: number, uid?: string): void {
   tracing = true;
   traceCardId = cardId;
+  traceUid = uid;
   traceStartAt = now();
   lastSampleAt = traceStartAt;
   tracePts = [[toFrac(x, vw()), toFrac(y, vh())]];
@@ -141,6 +143,7 @@ export function endDragTrace(x: number, y: number): DragPath | null {
   tracePts = [];
   if (pts.length < 2) return null; // a malformed/degenerate path never attaches (playback also skips these)
   const path: DragPath = { cardId: traceCardId, durMs: Math.max(0, Math.round(now() - traceStartAt)), pts };
+  if (traceUid) path.uid = traceUid;
   pending = { path, at: now() };
   return path;
 }

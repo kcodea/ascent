@@ -12,12 +12,14 @@
  */
 import type { CombatResult } from '@game/core';
 import {
-  expandFrames, rollupRounds, roundMarks,
-  type CombatFrame, type DragPath, type InspectEvent, type ReplayV2, type RoundMark, type RoundStat, type ShopFrame, type ShopView,
+  boardPowerOf, createOddsProbe, cursorAt, expandFrames, oddsInputFromCombatFrame, rollupRounds, roundMarks,
+  type Action, type CombatFrame, type CursorSample, type DragPath, type InspectEvent, type ReplayV2, type RoundMark, type RoundStat, type ShopFrame, type ShopView,
 } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import type { CardView } from '../Card';
-import { useGame } from '../store';
+import { actionSfx, useGame } from '../store';
+import { dragStore } from '../dragStore';
+import { NO_DRAG_DECISION, type DragDecision, type DragSource, type Zone } from '../dragDecision';
 import { captureRuneLockIn, chosenRuneIndex } from '../runeLockInCapture';
 import type { RuneLockInCard } from '../RuneLockIn';
 import { synthRunFromShopView } from './synthRun';
@@ -91,6 +93,129 @@ let unsubCombat: (() => void) | null = null;
 let inspectTrail: InspectEvent[] = [];
 /** Pending in-step inspect timers — cleared alongside the frame timer (a seek/pause must not fire a stale open). */
 let inspectTimers: ReturnType<typeof setTimeout>[] = [];
+/** The recording's free-cursor trail (2026-09-19), same clock as the frames. Empty on older recordings. */
+let cursorTrail: CursorSample[] = [];
+export function replayCursorTrail(): readonly CursorSample[] {
+  return cursorTrail;
+}
+
+// ── Viewer toggles (2026-09-19): shop sounds + the cursor sprite. Persisted per browser, default ON. ──────
+const SOUNDS_KEY = 'ascent.replay.sounds';
+const CURSOR_KEY = 'ascent.replay.cursor';
+function readToggle(key: string): boolean {
+  try { return localStorage.getItem(key) !== '0'; } catch { return true; }
+}
+let sounds = readToggle(SOUNDS_KEY);
+let cursorOn = readToggle(CURSOR_KEY);
+export function setReplaySounds(v: boolean): void {
+  sounds = v;
+  try { localStorage.setItem(SOUNDS_KEY, v ? '1' : '0'); } catch { /* ignore */ }
+  patchSession({ sounds: v });
+}
+export function setReplayCursor(v: boolean): void {
+  cursorOn = v;
+  try { localStorage.setItem(CURSOR_KEY, v ? '1' : '0'); } catch { /* ignore */ }
+  patchSession({ cursor: v });
+}
+
+// ── Per-round info for the rail's Power / Win % columns (2026-09-19) ──────────────────────────────────────
+export interface RoundInfo {
+  wave: number;
+  /** `boardPowerOf` over the round's end-of-recruit board (0..100), null for an empty board / no shop frame. */
+  power: number | null;
+  /** Win chance of the round's fight, 0..100. null = not yet known (a backfill still running) or no fight. */
+  winPct: number | null;
+  /** True when `winPct` was BACKFILLED from the recorded rosters (an older recording without stamped odds)
+   *  — an estimate the rail prints with a `~`. False when it is the exact number the player saw. */
+  winApprox: boolean;
+}
+let roundInfo: RoundInfo[] = [];
+/** The per-round Power / Win % table — computed once per `startReplay` (power) and filled in by the idle-time
+ *  odds backfill (win % on older recordings); `replaySession.roundInfoTick` bumps when a value lands. */
+export function replayRoundInfo(): readonly RoundInfo[] {
+  return roundInfo;
+}
+
+/** Build the per-round table from the marks: power synchronously (~50 multiply-adds per round), the win
+ *  chance straight off a stamped `odds` when the recording has one. Pure over the frames — tested. */
+export function roundInfoOf(fr: readonly Frame[], mk: readonly RoundMark[]): RoundInfo[] {
+  return mk.map((m) => {
+    const shop = m.lastShopIndex !== undefined ? fr[m.lastShopIndex] : undefined;
+    const combat = m.combatIndex !== undefined ? fr[m.combatIndex] : undefined;
+    const power = shop?.kind === 'shop' ? boardPowerOf(shop.view, m.wave) : null;
+    const odds = combat?.kind === 'combat' ? combat.odds : undefined;
+    return { wave: m.wave, power, winPct: odds ? Math.round(odds.win * 100) : null, winApprox: false };
+  });
+}
+
+/** Sims per idle step of the odds backfill — the same slicing the live Combat Summary uses. */
+const BACKFILL_SLICE = 10;
+const BACKFILL_YIELD_MS = 4;
+const BACKFILL_TIMEOUT_MS = 500;
+const BACKFILL_FALLBACK_MS = 48;
+let backfillHandle: { idle?: number; timer?: ReturnType<typeof setTimeout> } = {};
+function cancelBackfill(): void {
+  if (backfillHandle.idle && typeof cancelIdleCallback === 'function') cancelIdleCallback(backfillHandle.idle);
+  if (backfillHandle.timer) clearTimeout(backfillHandle.timer);
+  backfillHandle = {};
+}
+
+/**
+ * ODDS BACKFILL for recordings made before the capture layer stamped `odds` (2026-09-19): re-run the odds probe
+ * over each round's recorded rosters, one round at a time, in IDLE slices — never on the render path (it is
+ * ~200 sims per round). Each finished round lands in `roundInfo` and bumps `roundInfoTick` so the rail
+ * re-renders that row. Cancelled by seek-free `endReplay`; a stale slice checks the token and bails.
+ */
+let replayEpoch = 0; // bumps on start/end only — a SEEK must not cancel a running backfill (`token` does)
+function scheduleOddsBackfill(myEpoch: number, seed: number): void {
+  const pending = roundInfo
+    .map((info, i) => ({ info, mark: marks[i]! }))
+    .filter(({ info, mark }) => info.winPct === null && mark.combatIndex !== undefined);
+  if (pending.length === 0) return;
+  let cursor = 0;
+  let probe: ReturnType<typeof createOddsProbe> | null = null;
+  const hasRIC = typeof requestIdleCallback === 'function';
+  const slice = (deadline?: IdleDeadline): void => {
+    if (myEpoch !== replayEpoch) return;
+    const cur = pending[cursor];
+    if (!cur) return;
+    if (!probe) {
+      const combat = frames[cur.mark.combatIndex!];
+      const shop = cur.mark.lastShopIndex !== undefined ? frames[cur.mark.lastShopIndex] : undefined;
+      try {
+        if (combat?.kind !== 'combat') throw new Error('no combat frame');
+        probe = createOddsProbe(oddsInputFromCombatFrame(combat, shop?.kind === 'shop' ? shop.view : null), seed, cur.mark.wave);
+      } catch {
+        // A roster this build can no longer instantiate (a retired card) — leave the cell blank, move on.
+        cursor += 1; probe = null; schedule(); return;
+      }
+    }
+    let finished = false;
+    try {
+      finished = probe.step(BACKFILL_SLICE);
+      while (!finished && deadline && !deadline.didTimeout && deadline.timeRemaining() > BACKFILL_YIELD_MS) finished = probe.step(BACKFILL_SLICE);
+    } catch {
+      cursor += 1; probe = null; schedule(); return; // a sim threw mid-fight on drifted content — skip the round
+    }
+    if (finished) {
+      const i = roundInfo.indexOf(cur.info);
+      if (i >= 0) {
+        roundInfo = roundInfo.slice();
+        roundInfo[i] = { ...cur.info, winPct: Math.round(probe.result().win * 100), winApprox: true };
+        patchSession({ roundInfoTick: (useGame.getState().replaySession?.roundInfoTick ?? 0) + 1 });
+      }
+      cursor += 1; probe = null;
+      if (cursor >= pending.length) { backfillHandle = {}; return; }
+    }
+    schedule();
+  };
+  const schedule = (): void => {
+    if (myEpoch !== replayEpoch) return;
+    if (hasRIC) backfillHandle = { idle: requestIdleCallback(slice, { timeout: BACKFILL_TIMEOUT_MS }) };
+    else backfillHandle = { timer: setTimeout(() => slice(), BACKFILL_FALLBACK_MS) };
+  };
+  schedule();
+}
 
 /** Every store key the player writes while rendering — snapshotted on start, restored verbatim on exit, so
  *  the viewer's real in-progress run (and whatever screen they came from) survives watching a replay. */
@@ -222,6 +347,122 @@ function patchSession(patch: Partial<NonNullable<StoreState['replaySession']>>):
   useGame.setState({ replaySession: { ...s, ...patch } });
 }
 
+/** The session fields every frame render (re)asserts — the constant-per-replay ones, so the two render
+ *  branches can't drift on which flags they carry. */
+function sessionBase(i: number, f: Frame): NonNullable<StoreState['replaySession']> {
+  const prev = useGame.getState().replaySession;
+  return {
+    index: i, total: frames.length, playing, speed, round: f.wave, authorName, partial,
+    phase: f.kind === 'combat' ? 'combat' : 'shop',
+    sounds, cursor: cursorOn, hasCursorTrail: cursorTrail.length > 0,
+    roundInfoTick: prev?.roundInfoTick ?? 0,
+  };
+}
+
+/** Lift a ghost's HELD card out of its zone (owner report 2026-09-19: "the Chipper remains on board until he
+ *  places it in the new position"). Sets the SAME drag slice the live drag sets — the rows dim the source
+ *  through their existing `isDragging` read, and the drop gap opens at the recorded destination through the
+ *  same decision fields — flagged `ghost` so the floating-card overlay and the sell/buy zones stay out (the
+ *  ghost layer is the moving card). Cleared by `releaseGhostHold` when the frame lands or anything else
+ *  renders. Pure over its inputs apart from the store write — tested through `ghostHoldFor`. */
+function holdGhostCard(prevView: ShopView | null, nextView: ShopView, cause: ShopFrame['cause'], drag: DragPath, view: CardView | undefined): void {
+  const hold = ghostHoldFor(prevView, nextView, cause, drag);
+  if (!hold) return;
+  // The rows read `view.cardId` / `view.target` / `view.spell` off the drag; a card this build no longer
+  // knows still gets lifted, with a bare plate standing in for the view.
+  const plate: CardView = view ?? {
+    name: drag.cardId, cardId: drag.cardId, tribe: 'neutral', attack: 0, health: 0, keywords: [], text: '', tier: 1,
+    baseAttack: 0, baseHealth: 0,
+  };
+  dragStore.set({
+    drag: {
+      uid: hold.uid, source: hold.source, view: plate, active: true, ghost: true,
+      ox: 0, oy: 0, grabOx: 0, grabOy: 0, w: 0, h: 0, startX: 0, startY: 0, x: 0, y: 0,
+    },
+    overZone: hold.overZone, decision: hold.decision, castingSpell: false, snapping: false, magSlide: false,
+  });
+}
+function releaseGhostHold(): void {
+  if (dragStore.get().drag?.ghost) dragStore.endDrag();
+}
+
+/** Which card a recorded drag held, where it came from, and the decision that opens its destination gap.
+ *  `uid` comes off the path when recorded (2026-09-19+); older paths derive it from the frame diff (the card
+ *  that left the source zone) or, for a same-zone reorder, the first card of that id in the zone. Pure. */
+export function ghostHoldFor(prevView: ShopView | null, nextView: ShopView, cause: ShopFrame['cause'], drag: DragPath):
+  { uid: string; source: DragSource; overZone: Zone | null; decision: DragDecision } | null {
+  const source: DragSource | null =
+    cause === 'buy' || cause === 'reorderShop' ? 'shop'
+    : cause === 'play' || cause === 'reorderHand' ? 'hand'
+    : cause === 'sell' || cause === 'reposition' ? 'board'
+    : null;
+  if (!source || !prevView) return null;
+  const zoneOf = (v: ShopView, z: DragSource): readonly { uid: string; cardId: string }[] =>
+    z === 'shop' ? (v.shop ?? []).filter((o): o is NonNullable<typeof o> => !!o) : z === 'hand' ? v.hand : v.board;
+  const before = zoneOf(prevView, source);
+  const after = zoneOf(nextView, source);
+  let uid = drag.uid;
+  if (!uid) {
+    const gone = before.find((c) => !after.some((d) => d.uid === c.uid) && c.cardId === drag.cardId)
+      ?? before.find((c) => !after.some((d) => d.uid === c.uid));
+    uid = (gone ?? before.find((c) => c.cardId === drag.cardId))?.uid;
+  }
+  if (!uid) return null;
+  const decision: DragDecision = { ...NO_DRAG_DECISION };
+  let overZone: Zone | null = null;
+  const at = (list: readonly { uid: string }[]): number => list.findIndex((c) => c.uid === uid);
+  switch (cause) {
+    case 'reposition': { const i = at(nextView.board); if (i >= 0) decision.gapIndex = i; overZone = 'warband'; break; }
+    case 'reorderShop': { const i = at(zoneOf(nextView, 'shop')); if (i >= 0) decision.shopGapIndex = i; overZone = 'tavern'; break; }
+    case 'reorderHand': { const i = at(nextView.hand); if (i >= 0) decision.handGapIndex = i; overZone = 'hand'; break; }
+    case 'play': {
+      const i = at(nextView.board);
+      if (i >= 0) { decision.gapIndex = i; decision.overWarband = true; overZone = 'warband'; }
+      else decision.collapsedLift = true; // a spell / a hand card that never landed on the board
+      break;
+    }
+    case 'buy': decision.collapsedLift = true; overZone = 'hand'; break;
+    case 'sell': decision.collapsedLift = true; overZone = 'tavern'; break;
+    default: break;
+  }
+  return { uid, source, overZone, decision };
+}
+
+/** The action a recorded shop frame stands for — enough of one for `actionSfx` (its `type`, and the `uid` /
+ *  `index` the cue table reads). The uid: the drag path's when recorded, else the card that LEFT the source
+ *  zone (a play leaves the hand, a sell the board, a buy the shop). Pure — tested. */
+export function frameAction(prev: ShopFrame, f: ShopFrame): Action | null {
+  if (f.cause === 'turnStart') return null;
+  const type = f.cause;
+  let uid = f.drag?.uid;
+  if (!uid) {
+    const left = (a: readonly { uid: string }[], b: readonly { uid: string }[]): string | undefined =>
+      a.find((c) => !b.some((d) => d.uid === c.uid))?.uid;
+    if (type === 'play') uid = left(prev.view.hand, f.view.hand);
+    else if (type === 'sell') uid = left(prev.view.board, f.view.board);
+    else if (type === 'buy') {
+      const shop = (v: ShopView): { uid: string }[] => (v.shop ?? []).filter((o): o is NonNullable<typeof o> => !!o);
+      uid = left(shop(prev.view), shop(f.view));
+    }
+  }
+  return {
+    type,
+    ...(uid ? { uid } : {}),
+    ...(typeof f.causeIndex === 'number' ? { index: f.causeIndex } : {}),
+  } as unknown as Action;
+}
+
+/** Fire the live action cue for a frame playback just APPLIED (advance only — a seek is a jump, not an
+ *  action). `prevRun`/`nextRun` are the store's run before and after the render — the same synthetic runs
+ *  the recruit tree draws, so the cue table reads the same hand/board it reads live. Honours the viewer's
+ *  Sounds toggle; the mixer / mute apply inside `sfx` as always. */
+function fireFrameSfx(prevF: Frame | undefined, f: Frame, prevRun: StoreState['run'], nextRun: StoreState['run']): void {
+  if (!sounds || f.kind !== 'shop' || prevF?.kind !== 'shop') return;
+  const action = frameAction(prevF, f);
+  if (!action) return;
+  try { actionSfx(action, prevRun, nextRun); } catch { /* a cue must never break playback */ }
+}
+
 /** The store slices a frame render must reset — combat bridges and interaction chrome the previous frame
  *  (or the viewer's own pre-replay screen) may have left populated. `combatSettled` itself is run state and
  *  comes from the frame's recorded view. */
@@ -280,6 +521,8 @@ function renderFrame(i: number): void {
   stepArmedAtReal = null;
   if (frames[i]?.kind === 'combat') combatShownAtReal = performance.now();
   ghostLandPending = false; // any render supersedes an in-flight ghost (frameResets clears the layer too)
+  ghostFlightStartedAtReal = null;
+  releaseGhostHold(); // …and the held card returns — in its NEW slot, since the landing frame renders now
   const f = frames[i];
   if (!f) return;
   if (f.kind === 'shop') {
@@ -298,7 +541,7 @@ function renderFrame(i: number): void {
       run: synthRunFromShopView(f.view),
       ...frameResets(),
       ...(lockInCue ? { runeLockInCue: lockInCue } : {}),
-      replaySession: { index: i, total: frames.length, playing, speed, round: f.wave, authorName, partial },
+      replaySession: sessionBase(i, f),
     });
   } else {
     const view = nearestShopView(i);
@@ -309,7 +552,7 @@ function renderFrame(i: number): void {
       // `combatSettled: false` so the arena treats it as a fight to play, not one already resolved.
       run: { ...base, phase: 'combat', wave: f.wave, combatSettled: false, lastCombat: f as unknown as CombatResult },
       ...frameResets(),
-      replaySession: { index: i, total: frames.length, playing, speed, round: f.wave, authorName, partial },
+      replaySession: sessionBase(i, f),
     });
   }
 }
@@ -383,6 +626,39 @@ let combatShownAtReal = 0;
 /** True while a ghost is flying and its frame has NOT landed yet — a pause mid-ghost lands the frame
  *  immediately (the ghost dissolves with it), so the paused world is never stuck one frame behind. */
 let ghostLandPending = false;
+/** Real-clock start of the in-flight ghost, for the cursor sprite's clock (`replayClockMs`). */
+let ghostFlightStartedAtReal: number | null = null;
+
+/**
+ * The replay's CURRENT source time in ms — the frames' clock, read between frames (2026-09-19, for the cursor
+ * sprite, which moves on this clock rather than on frame boundaries). Playing: the rendered frame's time plus
+ * the step's banked + live progress at the armed speed. Mid-ghost: the flight covers the recorded delta's
+ * tail, so it counts back from the landing frame. Paused / seeking: the rendered frame's time. No layout, no
+ * allocation — safe to call per animation frame.
+ */
+export function replayClockMs(): number {
+  const f = frames[idx];
+  if (!f) return 0;
+  if (ghostLandPending && ghostFlightStartedAtReal !== null) {
+    const drag = f.kind === 'shop' ? f.drag : undefined;
+    const dur = drag?.durMs ?? 0;
+    return Math.min(f.tMs, f.tMs - dur + Math.max(0, performance.now() - ghostFlightStartedAtReal) * speed);
+  }
+  const live = stepArmedAtReal !== null ? Math.max(0, performance.now() - stepArmedAtReal) * speedAtArm : 0;
+  const next = frames[idx + 1];
+  const t = f.tMs + stepElapsedSourceMs + live;
+  return next ? Math.min(t, next.tMs) : t;
+}
+
+/** The cursor sprite's position at the replay's current time (viewport fractions), or null when there is
+ *  nothing to show: no trail, the toggle off, a combat frame (the trail is recruit-only), or a ghost in
+ *  flight (its closed fist IS the hand). `hint` threads the last sample index back in for O(1) advance. */
+export function replayCursorAt(hint?: number): { x: number; y: number; index: number } | null {
+  if (!cursorOn || cursorTrail.length === 0) return null;
+  const f = frames[idx];
+  if (!f || f.kind === 'combat' || ghostLandPending) return null;
+  return cursorAt(cursorTrail, replayClockMs(), hint);
+}
 
 function advance(myToken: number): void {
   if (myToken !== token) return;
@@ -397,20 +673,30 @@ function advance(myToken: number): void {
     // is the literal 1:1 addition (the live drag took exactly that long between the two states too). Seeks
     // never come through `advance`, so they skip ghosts entirely.
     const prevView = frames[idx]?.kind === 'shop' ? (frames[idx] as ShopFrame).view : null;
+    const prevF = frames[idx];
     idx += 1;
     ghostKey += 1;
     ghostLandPending = true;
-    useGame.setState({ replayDragGhost: { ...drag, durMs: drag.durMs / speed, key: ghostKey, view: ghostCardView(prevView, drag.cardId) } });
+    ghostFlightStartedAtReal = performance.now();
+    const view = ghostCardView(prevView, drag.cardId);
+    useGame.setState({ replayDragGhost: { ...drag, durMs: drag.durMs / speed, key: ghostKey, view } });
+    // The source card LIFTS for the flight (owner report 2026-09-19) — the ghost is the only copy on screen.
+    holdGhostCard(prevView, (nf as ShopFrame).view, (nf as ShopFrame).cause, drag, view);
     timer = setTimeout(() => {
       if (myToken !== token) return;
       ghostLandPending = false;
-      renderFrame(idx); // frameResets clears the ghost in the same set
+      const prevRun = useGame.getState().run;
+      renderFrame(idx); // frameResets clears the ghost in the same set (and the hold releases with it)
+      fireFrameSfx(prevF, frames[idx]!, prevRun, useGame.getState().run);
       scheduleNext(myToken);
     }, drag.durMs / speed);
     return;
   }
+  const prevF = frames[idx];
   idx += 1;
+  const prevRun = useGame.getState().run;
   renderFrame(idx);
+  fireFrameSfx(prevF, frames[idx]!, prevRun, useGame.getState().run);
   scheduleNext(myToken);
 }
 
@@ -487,6 +773,8 @@ export function startReplay(replay: ReplayV2, meta?: { authorName?: string }): v
   frameWaves = expanded.map((f) => f.wave);
   effTimes = effectiveTimesOf(frameTimes);
   inspectTrail = replay.inspectTrail ?? []; // absent on recordings made before the trail existed
+  cursorTrail = replay.cursorTrail ?? [];   // likewise (2026-09-19)
+  roundInfo = roundInfoOf(expanded, marks);
   idx = 0;
   speed = 1;
   playing = true;
@@ -512,6 +800,10 @@ export function startReplay(replay: ReplayV2, meta?: { authorName?: string }): v
   });
   renderFrame(0);
   scheduleNext(token);
+  // Older recordings carry no stamped odds — estimate them in idle time, one round per slice, off the render path.
+  cancelBackfill();
+  replayEpoch += 1;
+  scheduleOddsBackfill(replayEpoch, replay.seed);
 }
 
 export function pauseReplay(): void {
@@ -585,12 +877,14 @@ export function seekReplay(tMs: number): void {
 /** Seek straight to a frame INDEX — the transport bar's path (it maps a bar fraction through the CLAMPED
  *  timeline to an index, so the raw-tMs search would undo the clamping). Same combat-scrub rule + epoch
  *  bump as `seekReplay`; the round rail keeps `seekReplay` (its marks carry exact frame times). */
-export function seekReplayIndex(i: number, opts?: { atTMs?: number }): void {
+export function seekReplayIndex(i: number, opts?: { atTMs?: number; playCombat?: boolean }): void {
   if (!snapshot || frames.length === 0) return;
   token += 1;
   clearPending();
   let k = Math.max(0, Math.min(frames.length - 1, Math.round(i)));
-  if (frames[k]?.kind === 'combat') {
+  // `playCombat` (the rail's Combat cell, 2026-09-19): land ON the fight so the arena plays it from the top —
+  // the one caller that asks "replay this fight", where the scrub rule would skip to its resolved world.
+  if (frames[k]?.kind === 'combat' && !opts?.playCombat) {
     let j = k + 1;
     while (j < frames.length && frames[j]?.kind === 'combat') j += 1;
     if (j < frames.length) k = j;
@@ -610,6 +904,20 @@ export function seekReplayIndex(i: number, opts?: { atTMs?: number }): void {
   if (playing) scheduleNext(token);
 }
 
+/**
+ * SEEK TO A ROUND'S PHASE (the rail's two cells, 2026-09-19): `'shop'` lands on the round's shop opening
+ * (its `turnStart` frame — the first shop frame of the round); `'combat'` lands on its combat frame, and the
+ * fight plays from its start (the arena treats a freshly rendered combat frame as unresolved). A round with no
+ * frame of that phase (a partial recording's open final round) is a no-op.
+ */
+export function seekReplayPhase(wave: number, phase: 'shop' | 'combat'): void {
+  const mark = marks.find((m) => m.wave === wave);
+  if (!mark) return;
+  const i = phase === 'shop' ? mark.shopIndex : mark.combatIndex;
+  if (i === undefined) return;
+  seekReplayIndex(i, phase === 'combat' ? { playCombat: true } : undefined);
+}
+
 /** Exit the replay and restore the snapshotted store slice — the viewer's real in-progress run, screen
  *  flags and combat bridges all return exactly as they were before `startReplay`. */
 export function endReplay(): void {
@@ -625,9 +933,15 @@ export function endReplay(): void {
   frameWaves = [];
   effTimes = [];
   inspectTrail = [];
+  cursorTrail = [];
+  roundInfo = [];
+  cancelBackfill();
+  replayEpoch += 1;
+  releaseGhostHold();
   partial = undefined;
   playing = false;
   ghostLandPending = false;
+  ghostFlightStartedAtReal = null;
   useGame.setState({
     ...restore,
     replaying: false,

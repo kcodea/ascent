@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { HEROES, playableHeroes, practiceHeroes, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroes, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -33,6 +33,7 @@ export interface CareerView {
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
 import { DRAG_CAUSES, takeDragTrace } from './replay/dragTrace';
+import { closeCursorWave, resetCursorTrail, sampleCursor, shiftCursorTrail, takeCursorTrail } from './replay/cursorTrace';
 import {
   DRAFT_STALE_MS, RESUME_GAP_MS, REPLAY_DRAFT_SCHEMA, draftRunId, firstRecordedWave, lastRecordedTMs,
   mergeDraftChunks, replayDrafts, runRecordsDraft, shiftFrames, shiftInspect, splitIntoChunks, trimToBaseline,
@@ -143,8 +144,10 @@ function dropBoardFx(): void {
   clearAllHandBuffs();
 }
 
-/** Fire the sound for a dispatched action (+ a sparkle when a triple just formed). */
-function actionSfx(action: Action, prev: RunState, next: RunState): void {
+/** Fire the sound for a dispatched action (+ a sparkle when a triple just formed).
+ *  EXPORTED (2026-09-19) so replay playback fires the SAME mapping when it applies a recorded shop frame —
+ *  one table of action → cue, never two (see `replayPlayer.ts`'s `fireFrameSfx`). */
+export function actionSfx(action: Action, prev: RunState, next: RunState): void {
   // The reducer returns the *same* reference for a rejected action (can't afford, board/hand
   // full, timer up). For the actions a player actively triggers expecting something to happen,
   // play a clear "wrong" buzz instead of the success blip — and skip the success sound.
@@ -251,6 +254,15 @@ export interface ReplaySession {
    *  states the recorded RANGE up front, because the alternative — a rail that simply starts at R7 — reads as
    *  "the earlier rounds were filtered out" rather than "they were never recorded". */
   partial?: { firstWave: number; lastWave: number };
+  /** Which phase of `round` the rendered frame belongs to — the rail highlights that cell (2026-09-19). */
+  phase?: 'shop' | 'combat';
+  /** Viewer toggles (2026-09-19): shop-action sounds during playback, and the recorded cursor sprite. */
+  sounds?: boolean;
+  cursor?: boolean;
+  /** Whether this recording carries a cursor trail at all (the Cursor toggle hides itself otherwise). */
+  hasCursorTrail?: boolean;
+  /** Bumped when the idle-time odds backfill lands a round's Win % — the rail re-reads `replayRoundInfo()`. */
+  roundInfoTick?: number;
 }
 
 interface GameStore {
@@ -267,6 +279,10 @@ interface GameStore {
   endTurnAnimating: boolean;
   /** Set the end-of-turn animation lock (Recruit drives it around the proc beat sequence). */
   setEndTurnAnimating: (v: boolean) => void;
+  /** REPLAY V2 (2026-09-19): stamp the DEFERRED odds the live Combat Summary just computed onto the current
+   *  fight's recorded frame, so the replay viewer's "Win %" column shows the exact number the player saw.
+   *  Called by Recruit when its idle-time probe finishes; a no-op outside a live run (playback, no frame). */
+  stampReplayOdds: (odds: CombatOdds) => void;
   /** Enemy minions killed in the live combat replay — bridges useCombatReplay → Cassen's StatusBar counter. */
   combatEnemyDeaths: number;
   /** THE HERO ATTACK PILL (owner ask 2026-08-25) — the winner's round damage, printed on their portrait like a
@@ -865,6 +881,15 @@ function recordInspectEvent(view: CardView | null): void {
     inspect: view ? (structuredClone(view) as unknown as InspectSnapshot) : null,
   });
 }
+/** Record one free-cursor position into the trail (2026-09-19) — Recruit's pointermove calls this on the live
+ *  recruit screen. Throttled inside `sampleCursor`; the clock tick is the same one the frames use. Never
+ *  during playback (a viewer's mouse is not the recorded player's hand) and never in a sandbox/practice run
+ *  (nothing will ever watch it). */
+export function recordCursorSample(x: number, y: number): void {
+  const st = useGame.getState();
+  if (st.replaying || !runRecordsDraft(st.run)) return;
+  sampleCursor(x, y, replayClockTick());
+}
 const replayNow = (): number => (typeof performance !== 'undefined' ? performance.now() : 0);
 function replayClockTick(): number {
   const now = replayNow();
@@ -879,6 +904,7 @@ function seedReplayFrames(run: RunState): ReplayFrame[] {
   replayElapsedMs = 0;
   replayLastShopView = null;
   replayInspectTrail = [];
+  resetCursorTrail();
   if (run.phase !== 'recruit') return [];
   const first = shopFrameOf(run, 'turnStart', 0);
   replayLastShopView = first.view;
@@ -933,7 +959,7 @@ function startReplayDraft(run: RunState): void {
  */
 function persistReplayWave(run: RunState, frames: readonly ReplayFrame[], trail: readonly InspectEvent[], wave: number): void {
   if (!replayDraftId || !replayDraftReady) return;
-  const chunk = splitIntoChunks(replayDraftId, frames, trail).find((c) => c.wave === wave);
+  const chunk = splitIntoChunks(replayDraftId, frames, trail, takeCursorTrail()).find((c) => c.wave === wave);
   if (!chunk) return;
   const meta = { ...draftMeta(run), runId: replayDraftId, currentWave: run.wave };
   void replayDrafts.putChunk(meta, chunk).catch(() => { replayPartialReason ??= 'storage_failure'; });
@@ -965,7 +991,7 @@ function beginReplayCapture(run: RunState): ReplayFrame[] {
 function persistClosedWaves(run: RunState, frames: readonly ReplayFrame[], trail: readonly InspectEvent[]): void {
   if (!replayDraftId || !replayDraftReady) return;
   const open = run.wave; // the wave now in progress — still mutable, written by `flushSave` instead
-  const chunks = splitIntoChunks(replayDraftId, frames, trail);
+  const chunks = splitIntoChunks(replayDraftId, frames, trail, takeCursorTrail());
   const meta = { ...draftMeta(run), runId: replayDraftId, currentWave: open };
   for (const chunk of chunks) {
     if (chunk.wave >= open || chunk.wave <= replayPersistedWave) continue;
@@ -993,16 +1019,20 @@ async function hydrateReplayDraft(run: RunState): Promise<void> {
   replayPersistedWave = 0;
   try {
     const draft = await replayDrafts.load(runId);
-    const restored = draft ? mergeDraftChunks(draft.chunks) : { frames: [], inspectTrail: [] };
+    const restored = draft ? mergeDraftChunks(draft.chunks) : { frames: [], inspectTrail: [], cursorTrail: [] };
     const frames = trimToBaseline(restored.frames);
     if (frames.length === 0) {
       // Nothing usable: a pre-persistence run, a cleared browser store, or a draft that failed validation.
       replayPartialReason = 'resumed_without_frames';
       return;
     }
-    const offset = lastRecordedTMs(frames, restored.inspectTrail) + RESUME_GAP_MS;
+    const offset = lastRecordedTMs(frames, restored.inspectTrail, restored.cursorTrail) + RESUME_GAP_MS;
     replayElapsedMs += offset; // the live clock continues from where the recording left off
     replayInspectTrail = [...restored.inspectTrail, ...shiftInspect(replayInspectTrail, offset)];
+    // The cursor trail: this session's samples so far shift along with the frames, behind the restored ones.
+    shiftCursorTrail(offset);
+    const sinceBoot = takeCursorTrail(Number.MAX_SAFE_INTEGER);
+    resetCursorTrail([...restored.cursorTrail, ...sinceBoot]);
     useGame.setState((st) => ({
       replayFrames: [...frames, ...shiftFrames(st.replayFrames, offset)],
       // The recording now reaches back to its earliest persisted round. It is only still `partial` if that
@@ -1217,7 +1247,9 @@ function commitResolvedAction(
         const frame = shopFrameOf(next, 'turnStart', tMs);
         replayLastShopView = frame.view;
         replayFrames = [...replayFrames, frame];
-        // …and the round that just closed is now immutable → write it to the draft. One IndexedDB write per
+        // The closed round's cursor samples are simplified ONCE here (never per move), then …
+        closeCursorWave();
+        // …the round that just closed is now immutable → write it to the draft. One IndexedDB write per
         // round, at the one moment of the loop the player is not mid-interaction.
         persistClosedWaves(next, replayFrames, replayInspectTrail);
       } else if (next.phase === 'recruit' && s.run.phase === 'recruit') {
@@ -1276,6 +1308,8 @@ function commitResolvedAction(
       // Copied SYNCHRONOUSLY — the module-level trail resets the moment a new run seeds, and the v2 assembly
       // below runs deferred. Events are capture-owned clones, so sharing them into the copy is safe.
       const inspectTrail = replayInspectTrail.slice();
+      // …and the cursor trail, capped to `CURSOR_TRAIL_MAX` (thinned uniformly beyond).
+      const cursorTrail = takeCursorTrail();
       // Capture locally (→ this browser's pool next launch) AND push to the shared backend (→ everyone's pool).
       // A victory also logs a leaderboard run (its final warband for the hover). Deferred so it never hitches
       // the end screen; all best-effort and never throw.
@@ -1353,6 +1387,8 @@ function commitResolvedAction(
           frames: replayFrames,
           // The inspect trail (open/close events of the card-inspect overlay, same clock as the frames).
           ...(inspectTrail.length ? { inspectTrail } : {}),
+          // The free-cursor trail (2026-09-19) — optional, the version stays 2.
+          ...(cursorTrail.length ? { cursorTrail } : {}),
           result: {
             placement: lobbyPlacement ?? 0,
             record: runRecord(next),
@@ -1774,6 +1810,21 @@ export const useGame = create<GameStore>((rawSet, get) => {
   armHero: (slot = 0) => set((s) => ({ heroArmed: !s.heroArmed, heroArmedSlot: slot, equipArmed: false })),
   armEquipment: () => set((s) => ({ equipArmed: !s.equipArmed, heroArmed: false })),
   setEndTurnAnimating: (v) => set({ endTurnAnimating: v }),
+  stampReplayOdds: (odds) => {
+    const s = get();
+    if (s.replaying) return;
+    const frames = s.replayFrames;
+    for (let i = frames.length - 1; i >= 0; i--) {
+      const f = frames[i];
+      if (f?.kind === 'combat') {
+        if (f.wave !== s.run.wave || f.odds) return; // a stale probe (a frame already stamped, or a later round's)
+        const next = frames.slice();
+        next[i] = { ...f, odds };
+        set({ replayFrames: next });
+        return;
+      }
+    }
+  },
   duelPreview: false,
   setDuelPreview: (v) => set({ duelPreview: v }),
   combatStaged: false,

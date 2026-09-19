@@ -323,3 +323,31 @@ describe('the round-boundary write only ever writes IMMUTABLE rounds', () => {
     }
   });
 });
+
+describe('the cursor trail rides the draft chunks (2026-09-19)', () => {
+  const cap = captureBotRun(4242, 'brackus', { stopAtWave: 4 });
+
+  it('samples land in the wave whose first frame is at-or-before them, and merge back sorted', () => {
+    const marks = roundMarks(cap.frames);
+    const w2 = marks[1]!.tMs;
+    const cursor: [number, number, number][] = [[0, 0.1, 0.1], [w2 - 1, 0.2, 0.2], [w2, 0.3, 0.3], [w2 + 5, 0.4, 0.4]];
+    const chunks = splitIntoChunks('r', cap.frames, [], cursor);
+    expect(chunks[0]!.cursorTrail).toEqual([[0, 0.1, 0.1], [w2 - 1, 0.2, 0.2]]);
+    expect(chunks[1]!.cursorTrail).toEqual([[w2, 0.3, 0.3], [w2 + 5, 0.4, 0.4]]);
+    expect(chunks[2]!.cursorTrail, 'a wave with no samples carries no field at all').toBeUndefined();
+    const merged = mergeDraftChunks([...chunks].reverse());
+    expect(merged.cursorTrail).toEqual(cursor);
+    expect(merged.frames).toEqual(cap.frames);
+  });
+
+  it('an older chunk without the field is valid and merges to an empty trail; a junk field is rejected', () => {
+    const chunks = splitIntoChunks('r', cap.frames);
+    expect(chunks.every(isValidChunk)).toBe(true);
+    expect(mergeDraftChunks(chunks).cursorTrail).toEqual([]);
+    expect(isValidChunk({ ...chunks[0]!, cursorTrail: 'nope' })).toBe(false);
+  });
+
+  it('lastRecordedTMs counts a trailing cursor sample — a resume continues past it', () => {
+    expect(lastRecordedTMs(cap.frames, [], [[cap.tMs + 900, 0.5, 0.5]])).toBe(cap.tMs + 900);
+  });
+});

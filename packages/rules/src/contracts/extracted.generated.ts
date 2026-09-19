@@ -15885,12 +15885,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "setIds": [
       "set3"
     ],
-    "tier": 5,
+    "tier": 4,
     "tribes": [
       "kobold"
     ],
     "tags": [
-      "tier:5"
+      "tier:4"
     ],
     "triggers": [
       {
@@ -16751,12 +16751,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "set2",
       "set3"
     ],
-    "tier": 4,
+    "tier": 3,
     "tribes": [
       "kobold"
     ],
     "tags": [
-      "tier:4"
+      "tier:3"
     ],
     "triggers": [
       {

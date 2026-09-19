@@ -121,6 +121,7 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   avengeSummonAttackImproving: 'cardId',       // Muster General -> Trooper
   deathrattleGrantSpell: 'cardId',             // Big Huggies -> Staff of Guel
   deathrattleSummonRubyStats: 'tokenId',       // Gemheart -> Gemheart Shard
+  avengeSummonRubyStats: 'tokenId',            // Kurse -> Gemheart Shard (set 3; the same Golem on Avenge)
   echoSummonInheritAttackAndCharge: 'token',   // Anvilshade Smith -> Dwarf Soldier (param is `token`, not `tokenId`)
   battlecryGetHandSpell: 'cardId',             // Defender -> Tower Shield; Magnifying Glass -> Clue (set-3 hand spells)
   endOfTurnGetRubies: 'rubyId',                // Wardstone Jeweler -> Warding Ruby

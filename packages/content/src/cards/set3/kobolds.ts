@@ -55,11 +55,12 @@ export const SET3_KOBOLDS: CardDef[] = [
     chooseOne: [
       { text: 'Get a random **Shop spell**.', goldenText: 'Get **2** random **Shop spells**.',
         effects: [{ on: 'onPlay', do: 'battlecryGrantRandomSpell', params: { count: 1 } }] },
-      { text: 'Get **2 Rubies**.', goldenText: 'Get **4 Rubies**.',
-        effects: [{ on: 'onPlay', do: 'battlecryGetRubies', params: { count: 2 } }] },
+      // Owner handoff 2026-09-18: the Ruby branch pays 3 (was 2); gilded 6.
+      { text: 'Get **3 Rubies**.', goldenText: 'Get **6 Rubies**.',
+        effects: [{ on: 'onPlay', do: 'battlecryGetRubies', params: { count: 3 } }] },
     ],
-    text: '**Choose One:** get a random **Shop spell**, or get **2 Rubies**.',
-    goldenText: '**Choose One:** get **2** random **Shop spells**, or get **4 Rubies**.',
+    text: '**Choose One:** get a random **Shop spell**, or get **3 Rubies**.',
+    goldenText: '**Choose One:** get **2** random **Shop spells**, or get **6 Rubies**.',
   },
   {
     // Both branches raise Ruby STRENGTH (`rubyBonus`) — the run-wide stat every future Ruby carries — split
@@ -309,5 +310,26 @@ export const SET3_KOBOLDS: CardDef[] = [
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'dueling_rubettas' } }],
     text: "**Equip Dual Rubetta's (2):** Improve your **Rubies** by **+1/+1** and cast a **Ruby** on your left-most and right-most **Kobold**.",
     goldenText: "**Equip Dual Rubetta's (2):** Improve your **Rubies** by **+2/+2** and cast **2 Rubies** on your left-most and right-most **Kobold**.",
+  },
+  {
+    // KURSE (owner handoff 2026-09-18) — Gemheart Carver's Golem on an AVENGE trigger. `avengeSummonRubyStats` is
+    // a thin combat wrapper around the SAME arena body Carver's Echo runs (`deathrattleSummonRubyStats`), so
+    // the Golem is a 1/1 plus every Ruby stacked on Kurse at the moment the count is reached, landing beside
+    // Kurse (a full board = `summonOverflow`, like any summon). Fires EVERY time the tally hits a multiple of
+    // `count` — six friendly deaths is two Golems. Golden = Carver's convention exactly (owner ruling
+    // 2026-08-04): ONE Golem at double stats, not two.
+    //
+    // Printed "1/1" is static, matching Carver: the referenced-card hover shows the Golem at its live stats
+    // (`tokenRefView`'s `ownerRuby` branch reads the Rubies off the summoner), so the two never diverge.
+    id: 'k3_kurse',
+    name: 'Kurse',
+    tribe: 'kobold',
+    tier: 5,
+    attack: 10,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'avenge', do: 'avengeSummonRubyStats', params: { count: 3, tokenId: 'gemheart-shard' } }],
+    text: "**Avenge (3):** Summon a **1/1 Gemheart Golem**, plus this minion's Rubies.",
+    goldenText: "**Avenge (3):** Summon a **2/2 Gemheart Golem**, plus double this minion's Rubies.",
   },
 ];

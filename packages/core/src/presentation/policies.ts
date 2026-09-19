@@ -20,6 +20,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:avengeGiveAttack:avenge': { policy: 'ownBeat', family: 'avenge' },
   'factory:avengeGrantRandomSpell:avenge': { policy: 'ownBeat', family: 'avenge' },
   'factory:avengeCastTribeAttack:avenge': { policy: 'ownBeat', family: 'avenge' }, // Soul-Lantern Hierophant (set 3)
+  'factory:avengeSummonRubyStats:avenge': { policy: 'ownBeat', family: 'avenge' }, // Kurse (set 3)
   'factory:avengeGrantSpell:avenge': { policy: 'ownBeat', family: 'avenge' },
   'factory:avengeGrantSpellPower:avenge': { policy: 'ownBeat', family: 'avenge' },
   'factory:avengeImproveSummon:avenge': { policy: 'ownBeat', family: 'avenge' },

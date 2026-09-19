@@ -128,6 +128,7 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // → 1252 (2026-09-18, the Set 3 Neutral Equipment trio: +4 measured against origin/main's 1248 — Shredder,
     // Calibration Master, Rig and the Calibration Wrench icon. Sylus and Venom were REPLACED in place at net 0.)
     // → 1253 (2026-09-18, the Dissipate spell art: +1 — the sell-to-Shop spell added to sets 2 and 3.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1253);
+    // → 1254 (2026-09-19, Kurse's minion art: +1 — the new Set 3 Kobold.)
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1254);
   });
 });

@@ -34,6 +34,7 @@ describe('set 3 scaffold', () => {
       'k3_facetbound',
       'k3_doubletrouble',
       'k3_forksong', 'k3_forkedcrown', 'k3_rubyroach', 'k3_porkbelly', 'k3_prismpick', 'k3_runespark', 'k3_kaura',
+      'k3_kurse', // appended 2026-09-19 (owner handoff 2026-09-18)
       // …then the nine set-2 Kobolds it keeps.
       'k_chipwick', 'k_gemheart', 'k_geode', 'k_kobabyboldies',
       'k_kobe', 'k_boulderdash', 'k_blazer',

@@ -64,8 +64,10 @@ const vanillaLike = (uid: string, cardId: string): RunState['shop'][number] => {
 
 interface Curriculum {
   pkg: string;
-  /** (a) an assembled engine on the board + the payoff in hand. */
-  ready: { board: string[]; hand: string; };
+  /** (a) an assembled engine on the board + the payoff in hand. `shop` is what the payoff needs to find in the
+   *  Shop to BE a payoff (Appetite Agent's Shout consumes a Shop minion — against an empty Shop it is a vanilla
+   *  3/2, and since the per-wave board model (2026-09-19) the pilot correctly holds that in hand). */
+  ready: { board: string[]; hand: string; shop?: string };
   /** (b) the engine piece a wave-2 shop offers beside a vanilla body of the same stats. */
   engine: string;
   /** (d) an affine rune and an off-package rune of the SAME cost. */
@@ -75,7 +77,7 @@ interface Curriculum {
 const CURRICULA: Curriculum[] = [
   { pkg: 'ruby', ready: { board: ['k_chipwick', 'k_geode', 'k_kobe'], hand: 'k_frenzied' }, engine: 'k_chipwick', forge: { affine: 'rune_resonance', off: 'rune_window_shopping' } },
   { pkg: 'ale', ready: { board: ['dw_pimm', 'dw_brunni', 'dw_edward'], hand: 'wo_champion' }, engine: 'dw_pimm', forge: { affine: 'rune_flagship', off: 'rune_window_shopping' } },
-  { pkg: 'demonConsume', ready: { board: ['dm_knocked', 'dm_butcher', 'dm_glutton'], hand: 'dm_agent' }, engine: 'dm_agent', forge: { affine: 'rune_infernal_ink', off: 'rune_window_shopping' } },
+  { pkg: 'demonConsume', ready: { board: ['dm_knocked', 'dm_butcher', 'dm_glutton'], hand: 'dm_agent', shop: 'stray' }, engine: 'dm_agent', forge: { affine: 'rune_infernal_ink', off: 'rune_window_shopping' } },
   { pkg: 'beastSummon', ready: { board: ['b2_trex', 'kennel', 'b2_beardsley'], hand: 'b2_wolvie' }, engine: 'b2_trex', forge: { affine: 'rune_brood', off: 'rune_window_shopping' } /* rune_rebirth until 2026-09-16 — it grants the Rebirth keyword now, no summon affinity */ },
   { pkg: 'dragon', ready: { board: ['d2_embermouth', 'karwind', 'd2_skald'], hand: 'd2_broodfire' }, engine: 'd2_embermouth', forge: { affine: 'rune_chorus', off: 'rune_window_shopping' } },
   { pkg: 'spellEngine', ready: { board: ['d2_scalechanter', 'n2_spellsword', 'd2_mirrorwing'], hand: 'growth' }, engine: 'n2_spellsword', forge: { affine: 'rune_recollection', off: 'rune_window_shopping' } },
@@ -89,7 +91,7 @@ describe.each(CURRICULA)('curriculum — $pkg', ({ pkg, ready, engine, forge }) 
   it('(a) ready payoff: with the engine assembled it takes the payoff line from hand', () => {
     const board = ready.board.map((id, i) => body(`b${i}`, id));
     const hand = [body('p', ready.hand)];
-    const start = { ...run({ embers: 0, wave: 6, tier: 4, board, hand }), shop: [] };
+    const start = { ...run({ embers: 0, wave: 6, tier: 4, board, hand }), shop: ready.shop ? [{ uid: 'x', cardId: ready.shop }] : [] };
     const { pilot } = strategistFor(start, pkg);
     const { actions } = playTurn(start, pilot);
     expect(actions.some((a) => a.type === 'play' && a.uid === 'p'), `${ready.hand} was never played (${actions.map((a) => a.type).join(' ')})`).toBe(true);

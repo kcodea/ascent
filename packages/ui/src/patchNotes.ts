@@ -56,6 +56,14 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-19',
+    label: 'Kobold tune',
+    changes: [
+      { category: 'Card Change', text: 'Gemheart Carver is now Tier 3 at 5/3 (was Tier 4, 6/5).' },
+      { category: 'Card Change', text: 'Kurse is now Tier 4 at 7/4 (was Tier 5, 10/5).' },
+    ],
+  },
+  {
+    date: '2026-09-19',
     label: 'Kurse + Pickles',
     changes: [
       {

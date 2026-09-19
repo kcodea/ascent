@@ -324,9 +324,9 @@ export const SET3_KOBOLDS: CardDef[] = [
     id: 'k3_kurse',
     name: 'Kurse',
     tribe: 'kobold',
-    tier: 5,
-    attack: 10,
-    health: 5,
+    tier: 4, // T5 10/5 → T4 7/4 (owner 2026-09-19)
+    attack: 7,
+    health: 4,
     keywords: [],
     effects: [{ on: 'avenge', do: 'avengeSummonRubyStats', params: { count: 3, tokenId: 'gemheart-shard' } }],
     text: "**Avenge (3):** Summon a **1/1 Gemheart Golem**, plus this minion's Rubies.",

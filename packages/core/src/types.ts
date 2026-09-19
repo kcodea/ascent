@@ -1409,17 +1409,17 @@ export type QuestReward =
   | { kind: 'runeRevelerDrip'; count: number } // a random Reveler now + every Start of Turn
   | { kind: 'runeRevelerExtra'; attack: number; health: number } // your Revelers' sell payout grows by +a/+h on the stat(s) they pay
   | { kind: 'runeGrowingChorus'; attack: number; health: number; improve: number } // after you play a Flame, Tide AND Grove Reveler: board + hand +a/+h, Reveler value +improve, reset
-  | { kind: 'runeChartedSkies'; at: number } // after your `at`-th Shop spell each turn: Discover a Shop spell
+  | { kind: 'runeChartedSkies'; at: number } // after your `at`-th spell each turn (every kind): a copy of a random one of them (once per turn)
   | { kind: 'runeStarCrashBonus'; attack: number; health: number } // your Star Crashes give an extra +a/+h (shop casts)
-  | { kind: 'runeFestivalWages' } // after your first Reveler sold each turn, your next card costs 0
+  | { kind: 'runeFestivalWages' } // after every 3 Revelers sold (per turn), your next card costs 0
   | { kind: 'runeMeteorShower' } // after your first Star Crash each turn, get another
-  | { kind: 'runeAstralRefrain'; at: number } // after your `at`-th Shop spell each turn: copies of the 1st and `at`-th Shop spells cast this turn
+  | { kind: 'runeAstralRefrain'; at: number } // after your `at`-th spell each turn (every kind): 2 copies of the SECOND spell cast this turn (once per turn)
   | { kind: 'runeAstralDraft' } // Start of Turn: Discover a Shop spell that casts an additional time
-  | { kind: 'runeDreamMirror' } // the first time a hand minion gains stats each turn, a random friendly board minion gains the same
+  | { kind: 'runeDreamMirror' } // whenever a hand minion gains stats, a random friendly board minion gains the same
   | { kind: 'runeWakingDreams'; attack: number; health: number } // whenever a hand minion gains stats, your board +a/+h
   | { kind: 'runeSharedRevelry' } // the first Flame, Tide and Grove Reveler you sell each turn trigger twice
   | { kind: 'runeProcessionPlay'; count: number } // the first `count` Revelers you PLAY each turn return a plain copy to hand
-  | { kind: 'runeFestivalCircuit'; count: number } // the first `count` Revelers you sell each turn each give a random Celestial
+  | { kind: 'runeFestivalCircuit'; count: number } // after every `count` Revelers sold (per turn), a random Celestial; your Revelers buff Celestials
   | { kind: 'runeSecondLife' } // your Scavvers carry Taunt + Rise
   | { kind: 'runeSharedReflection' } // Mirrorwing's first spell each turn also casts on adjacent Dragons
   | { kind: 'runeUnbrokenVein' } // Veinbreaker applies both Choose One options

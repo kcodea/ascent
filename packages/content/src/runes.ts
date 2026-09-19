@@ -1300,11 +1300,12 @@ export const RUNES: RuneDef[] = [
   {
     // AMPLIFIED is a new Equipment STATE (owner design 2026-09-16): the charge indicator turns BLUE while an
     // Equipment holds a stack; the stack is spent by the next activation, which then triggers twice. The End-of-Turn
-    // pass marks every held Equipment the player did not activate (`amplifyUnactivated`).
+    // pass marks every held Equipment the player did not activate (`amplifyUnactivated`). The text is the owner's
+    // one-liner (2026-09-18) — what Amplified MEANS (triggers twice, no extra Gold, max 1) is the glossary pill's job.
     id: 'rune_amplification',
     name: 'Rune of Amplification',
     cost: 4,
-    text: 'Equipment you do not activate becomes **Amplified**. Amplified Equipment triggers **twice** the next time you activate it. Maximum **1** per Equipment.',
+    text: '**Equipment** you do not use becomes **Amplified**.',
     reward: { kind: 'runeAmplification' },
     sets: ['set3'],
   },
@@ -1407,11 +1408,14 @@ export const RUNES: RuneDef[] = [
     sets: ['set3'],
   },
   {
-    // No `tribes` gate: the text names no tribe (a generic Shop-spell rune; Celestial-FLAVOURED on the sheet, not tribe-locked).
+    // No `tribes` gate: the text names no tribe (a generic spell rune; Celestial-FLAVOURED on the sheet, not tribe-locked).
+    // Owner rework 2026-09-18: EVERY spell counts (Shop spells, Rubies, Clues, Gifts — `spellIdsThisTurn`), and the
+    // 3rd cast each turn hands over a seeded-random copy of one of those three (a Gift is never copy food — the
+    // standing rule — so the pick draws from the copyable ones). Once per turn.
     id: 'rune_charted_skies',
     name: 'Rune of Charted Skies',
-    cost: 4,
-    text: 'After you cast your **3rd** Shop spell each turn, **Discover** a Shop spell.',
+    cost: 2,
+    text: 'After you cast **3** spells, get a copy of one of them. (Once per turn)',
     reward: { kind: 'runeChartedSkies', at: 3 },
     sets: ['set3'],
   },
@@ -1427,13 +1431,14 @@ export const RUNES: RuneDef[] = [
     sets: ['set3'],
   },
   {
-    // "Your next card costs 0": the next minion OR spell bought from the Shop (either row) is free — one card per
-    // Reveler sale, one sale per turn.
+    // "Your next card costs 0": the next minion OR spell bought from the Shop (either row) is free. Owner rework
+    // 2026-09-18: every 3 Revelers SOLD (the shared per-turn `revelersSoldThisTurn` meter, the Festival Circuit's
+    // scope) arms one free card per copy held; the meter resets at the turn flip.
     id: 'rune_festival_wages',
     tribes: ['spirit'],
     name: 'Rune of Festival Wages',
     cost: 3,
-    text: 'After you sell your first **Reveler** each turn, your next card costs **0**.',
+    text: 'After you sell **3 Revelers**, your next card costs **0**.',
     previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
     reward: { kind: 'runeFestivalWages' },
     sets: ['set3'],
@@ -1469,12 +1474,13 @@ export const RUNES: RuneDef[] = [
   },
   {
     // Hooked on `fireStarformRemoved` — the one exit every consume (the buy, a Demon, a card) and collapse rides —
-    // latched once per turn. 2 spells + the +1/+1 spell-power bump per copy held.
+    // latched once per turn. Owner rework 2026-09-18: the 2 random spells are gone; only the +1/+1 spell-power bump
+    // (per copy held) remains.
     id: 'rune_eventide',
     name: 'Rune of Eventide',
     cost: 4,
     tribes: ['celestial'],
-    text: 'After you first **Consume** or **Collapse** a Starform each turn, get **2** random Shop spells and improve Shop spells by **+1/+1**.',
+    text: 'After you **Consume** or **Collapse** a **Starform**, give your **Shop spells +1/+1**. (Once per turn)',
     previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
     reward: { kind: 'runeEventide' },
     sets: ['set3'],
@@ -1490,11 +1496,13 @@ export const RUNES: RuneDef[] = [
     sets: ['set3'],
   },
   {
-    // Armed by the sell path, spent by the next activation, expires with the turn. Idempotent → sweetener duplicate.
+    // Armed by the sell path, spent by the next activation of an OTHER Equipment (owner 2026-09-18: the sold minion's
+    // own Equipment is never the one discounted — activating it neither uses nor spends the arm), expires with the
+    // turn. Idempotent → sweetener duplicate.
     id: 'rune_quick_release',
     name: 'Rune of Quick Release',
     cost: 4,
-    text: 'After you sell an **Equip** minion, your next Equipment activation costs **0** this turn.',
+    text: "After you sell an **Equip** minion, your next Equipment activation costs **0** this turn. (Doesn't discount its own Equipment)",
     reward: { kind: 'runeQuickRelease' },
     sets: ['set3'],
   },
@@ -3062,14 +3070,15 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set3'],
   },
   {
-    // Counts SHOP spells only (a Gift or a reward token is a spell cast, not a Shop spell — the standing rule), and
-    // hands over copies of the turn's 1st and 3rd Shop spells the moment the 3rd resolves.
+    // Owner rework 2026-09-18: EVERY spell counts (Shop spells, Rubies, Clues, Gifts — the same `spellIdsThisTurn`
+    // basis as Charted Skies), and the 3rd cast each turn hands over 2 copies of the SECOND one (a Gift is never
+    // copy food — the standing rule — so a Gift in second place pays nothing). Once per turn.
     // No `tribes` gate: names no tribe (see Charted Skies).
     id: 'rune_astral_refrain',
     name: 'Rune of the Astral Refrain',
     cost: 5,
     epic: true,
-    text: 'After your **3rd** Shop spell each turn, get copies of the **first** and **third** Shop spells you cast that turn.',
+    text: 'After you cast **3** spells, get **2 copies** of the **second** one.',
     reward: { kind: 'runeAstralRefrain', at: 3 },
     sets: ['set3'],
   },
@@ -3078,7 +3087,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // No `tribes` gate: names no tribe (see Charted Skies).
     id: 'rune_astral_draft',
     name: 'Rune of the Astral Draft',
-    cost: 6,
+    cost: 4, // 6 → 4 (owner 2026-09-18)
     epic: true,
     text: '**Start of Turn:** **Discover** a Shop spell. It casts an additional time.',
     reward: { kind: 'runeAstralDraft' },
@@ -3086,12 +3095,14 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     // "A minion in your hand gains stats" = the reducer's per-action HAND stat diff (shop phase; every source).
+    // Owner rework 2026-09-18: EVERY hand gain is mirrored (no per-turn latch) — each gainer's own +A/+H lands on a
+    // random friendly BOARD minion.
     // No `tribes` gate: "a minion in your hand" names no tribe — any hand buff pays it (Spirit-flavoured on the sheet).
     id: 'rune_dream_mirror',
     name: 'Rune of the Dream Mirror',
     cost: 5,
     epic: true,
-    text: 'The first time a minion in your hand gains stats each turn, give the same stats to a random friendly minion.',
+    text: 'When a minion in your hand **gains stats**, also give those stats to a random friendly minion.',
     reward: { kind: 'runeDreamMirror' },
     sets: ['set3'],
   },
@@ -3131,13 +3142,16 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     // Spirit + Celestial: `tribes` is an ANY-OF gate, so a Spirit-only run can still be offered this (the granted
-    // Celestial resolves from the set pool regardless of the rolled tribes).
+    // Celestial resolves from the set pool regardless of the rolled tribes). Owner rework 2026-09-18: every 3
+    // Revelers SOLD (the shared per-turn `revelersSoldThisTurn` meter) pay one Celestial per copy held; and while
+    // held, the Revelers' sell buffs (Flame → Attack, Tide → Health) reach your Celestials as well as your Spirits
+    // (`revelerSell` reads the flag — one audience rule, not per card).
     id: 'rune_festival_circuit',
     tribes: ['spirit', 'celestial'],
     name: 'Rune of the Festival Circuit',
-    cost: 5,
+    cost: 4,
     epic: true,
-    text: 'The first **3 Revelers** you sell each turn each give you a random **Celestial**.',
+    text: 'After you sell **3 Revelers**, get a random **Celestial**. Your **Revelers** buff **Celestials**.',
     previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
     reward: { kind: 'runeFestivalCircuit', count: 3 },
     sets: ['set3'],
@@ -3235,12 +3249,13 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     // The sell path fires the sold minion's Equipment through `fireEquipmentTriggers` — no Gold, no charge — a
     // targeted one at a random OTHER friendly minion, a Choose One at a random branch (owner note 2026-09-16).
-    // The Star Destroyer never counts (it has no minion to sell). Latched once per turn.
+    // The Star Destroyer never counts (it has no minion to sell). No per-turn cap (owner 2026-09-18): EVERY Equip
+    // minion sold fires, and every fire stamps its own `use` cue (with the random target) so each one plays.
     id: 'rune_dismantling',
     name: 'Rune of Dismantling',
     cost: 4,
     epic: true,
-    text: 'The first time you sell an **Equip** minion each turn, activate its Equipment for free before selling it.',
+    text: 'When you sell an **Equip** minion, activate its Equipment for free before selling it.',
     reward: { kind: 'runeDismantling' },
     sets: ['set3'],
   },
@@ -3257,12 +3272,14 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   {
     // The Discover is filtered to Equip minions; the PICK's card id joins `equipmentFreeCards`, so that card's
-    // Equipment costs 0 for the run — sold and re-bought included (owner note 2026-09-16: by CARD).
+    // Equipment costs 0 for the run — sold and re-bought included (owner note 2026-09-16: by CARD) — and is
+    // PERMANENTLY Amplified (owner 2026-09-18): every activation triggers twice, no stack ever spent
+    // (`equipmentAmplifiedCards`, read beside the per-id stack).
     id: 'rune_empty_hands',
     name: 'Rune of Empty Hands',
     cost: 4,
     epic: true,
-    text: '**Discover** an Equip minion. Its Equipment costs **0** permanently.',
+    text: '**Discover** an Equip minion. Its Equipment costs **0** and is **Amplified** permanently.',
     reward: { kind: 'runeEmptyHands' },
     sets: ['set3'],
   },
@@ -3278,16 +3295,18 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set3'],
   },
   {
-    // A GRAFT on every friendly Undead: "when THIS body Rises, summon a 1/1 Skeleton" — fired off the shared
-    // `onRise` moment in both phases (the riser hears its own return), so a Rune of Rebirth Rise counts too.
-    // One Skeleton per copy held.
+    // A GRAFT on every friendly Undead: "when THIS body Rises, summon a Spear Warden" — fired off the shared
+    // `onRise` moment in both phases (the riser hears its own return, AFTER its Echo — the Echo-then-Rise order),
+    // so a Rune of Rebirth Rise counts too. The Warden is the set-1 card (`knit`, its current base stats + its
+    // death-count aura), summoned beside the riser when there is room. One Warden per copy held.
+    // Owner rework 2026-09-18: was a 1/1 Skeleton.
     id: 'rune_endless_march',
     name: 'Rune of the Endless March',
     cost: 5,
     epic: true,
     tribes: ['undead'],
-    text: 'After a friendly **Undead** Rises, summon a **1/1 Skeleton**.',
-    previewCards: ['u3_skeleton'],
+    text: 'After a friendly **Undead** **rises**, summon a **Spear Warden**.',
+    previewCards: ['knit'],
     reward: { kind: 'runeEndlessMarch' },
     sets: ['set3'],
   },

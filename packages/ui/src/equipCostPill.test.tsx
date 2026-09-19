@@ -59,7 +59,7 @@ describe('the Equipment cost coin', () => {
   });
 
   it('a discount below the printed cost shows the live number on the GREEN coin (Quick Release armed → 0)', () => {
-    show(withBloodpot({ quickReleaseArmed: true }));
+    show(withBloodpot({ quickReleaseArmed: { excludeEquipmentId: 'titan_hammer' } })); // armed by another minion's sale — Bloodpot is not the excluded one
     expect(coin(), 'the coin still renders at 0').not.toBeNull();
     expect(coin()!.textContent).toBe('0');
     expect(coin()!.classList.contains('discounted')).toBe(true);

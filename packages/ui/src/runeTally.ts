@@ -1,4 +1,4 @@
-import { runeStacksOf, type RunState } from '@game/sim';
+import { runeStacksOf, REVELER_METER, type RunState } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 
 /**
@@ -63,12 +63,13 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_growing_chorus' && run.runeGrowingChorus) {
     return `${Math.min(run.runeGrowingChorus.played.length, 3)}/3`;
   }
-  // Rune of Charted Skies / the Astral Refrain: Shop spells cast this turn toward the one that fires.
+  // Rune of Charted Skies / the Astral Refrain: spells cast this turn (every kind — owner 2026-09-18) toward the
+  // one that fires.
   if (runeId === 'rune_charted_skies' && run.runeChartedSkies) {
-    return `${Math.min((run.shopSpellIdsThisTurn ?? []).length, run.runeChartedSkies.at)}/${run.runeChartedSkies.at}`;
+    return `${Math.min((run.spellIdsThisTurn ?? []).length, run.runeChartedSkies.at)}/${run.runeChartedSkies.at}`;
   }
   if (runeId === 'rune_astral_refrain' && run.runeAstralRefrain) {
-    return `${Math.min((run.shopSpellIdsThisTurn ?? []).length, run.runeAstralRefrain.at)}/${run.runeAstralRefrain.at}`;
+    return `${Math.min((run.spellIdsThisTurn ?? []).length, run.runeAstralRefrain.at)}/${run.runeAstralRefrain.at}`;
   }
   // Rune of the Traveling Festival: what a Reveler sale pays RIGHT NOW (the shared value + this rune's extra).
   if (runeId === 'rune_traveling_festival' && run.revelerExtra) {
@@ -83,13 +84,15 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_grand_procession' && run.runeProcessionPlay) {
     return `${Math.min(run.processionPlayedThisTurn ?? 0, run.runeProcessionPlay)}/${run.runeProcessionPlay}`;
   }
+  // Rune of the Festival Circuit / Festival Wages: Revelers sold this turn toward the next payout — "after you sell
+  // 3 Revelers" is every third sale (owner 2026-09-18), so the meter wraps once it pays.
   if (runeId === 'rune_festival_circuit' && run.runeFestivalCircuit) {
-    const cap = run.runeFestivalCircuit * runeStacksOf(run, 'rune_festival_circuit');
-    return `${Math.min(run.circuitSoldThisTurn ?? 0, cap)}/${cap}`;
+    return `${(run.revelersSoldThisTurn ?? 0) % run.runeFestivalCircuit}/${run.runeFestivalCircuit}`;
   }
-  // Rune of Festival Wages: an armed free card is the whole point — say so while it is held.
-  if (runeId === 'rune_festival_wages' && (run.nextCardFree ?? 0) > 0) {
-    return `next card free`;
+  // Rune of Festival Wages: an armed free card is the whole point — say so while it is held; otherwise the meter.
+  if (runeId === 'rune_festival_wages') {
+    if ((run.nextCardFree ?? 0) > 0) return `next card free`;
+    return `${(run.revelersSoldThisTurn ?? 0) % REVELER_METER}/${REVELER_METER}`;
   }
   // Rune of Spellslinging keeps its own Gold meter rather than joining `runeThresholds`.
   if (runeId === 'rune_spellslinging' && run.spellDripPer) {

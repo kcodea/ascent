@@ -20,13 +20,13 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, settleMinionSale } from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale } from './recruit';
 import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
-import { syncStarDestroyer, overchargeFree, consumeCalibration } from './equipment';
+import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, quickReleaseApplies } from './equipment';
 import { fireOnBuyWatchers, tribesPlayedThisTurn } from './recruit';
 import { MATCHMAKING } from './matchmaking';
 
@@ -589,6 +589,8 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
     if (equipmentOf(def)) {
       procRuneId(s, 'rune_empty_hands');
       if (!(s.equipmentFreeCards ??= []).includes(def.id)) s.equipmentFreeCards.push(def.id);
+      // …and PERMANENTLY Amplified (owner 2026-09-18): read beside the per-id stack at every activation, never spent.
+      if (!(s.equipmentAmplifiedCards ??= []).includes(def.id)) s.equipmentAmplifiedCards.push(def.id);
     }
   }
   // RUNE OF DRACONIC CURIOSITY: taking a DRAGON out of a Discover hands over a random Shop spell. Fired on the
@@ -1861,6 +1863,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (s.runeSpellstone && def) { procRuneId(s, 'rune_spellstone'); countRubyAsShopSpell(s, def, casts); }
         // Watchers that say "a spell" (Forsaken Mage) hear the Ruby too — unless Spellstone already fired them all.
         else if (def) fireSpellCastWatchersForRuby(s, def, casts);
+        // Charted Skies / the Astral Refrain count EVERY spell (owner 2026-09-18) — a Ruby once per resolution, the
+        // way a multiplied Shop spell notes each cast.
+        if (def) for (let n = 0; n < casts; n++) noteSpellForCountRunes(s, def.id);
         fireOnRubyCast(s, umbrellaBefore, s.spellsCast + s.rubyCasts); // Gemgorge Fiend: every 3 → Consume a Shop minion
         return s;
       }
@@ -2377,20 +2382,22 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Sell from the board or the hand.
       let sold: BoardCard | undefined;
       const bi = s.board.findIndex((c) => c.uid === action.uid);
-      // RUNE OF DISMANTLING (Set 3 batch 2): the first Equip minion sold each turn fires its Equipment BEFORE it
-      // leaves — free (no Gold, no charge), a targeted one at a random OTHER friendly minion, a Choose One at a
-      // random branch; its held version (gilded upgrades the entry) decides the wording. Board sales only: a hand
-      // minion has never granted anything. The Star Destroyer is not a minion and never counts.
-      if (bi >= 0 && s.runeDismantling && !s.dismantlingUsedThisTurn) {
+      // RUNE OF DISMANTLING (Set 3 batch 2): EVERY Equip minion sold fires its Equipment BEFORE it leaves — free
+      // (no Gold, no charge), a targeted one at a random OTHER friendly minion, a Choose One at a random branch; its
+      // held version (gilded upgrades the entry) decides the wording. No per-turn cap (owner 2026-09-18 — was
+      // "the first each turn"). Board sales only: a hand minion has never granted anything. The Star Destroyer is
+      // not a minion and never counts. Each sale is its own action, so each fire stamps its own `use` cue — with
+      // the target it rolled — and the Recruit screen plays every one.
+      if (bi >= 0 && s.runeDismantling) {
         const body = s.board[bi]!;
         const eq = equipmentOf(CARD_INDEX[body.cardId]);
         if (eq) {
-          s.dismantlingUsedThisTurn = true;
           const held = s.equipment?.available.find((g) => g.equipmentId === eq.id);
           const version = held?.version ?? (body.golden ? 'gilded' : 'plain');
-          if (fireEquipmentFree(s, eq, version, body, body.uid)) {
+          const fired = fireEquipmentFree(s, eq, version, body, body.uid);
+          if (fired) {
             procRuneId(s, 'rune_dismantling');
-            stampEquipFx(s, { kind: 'use', uid: body.uid, cardId: body.cardId, equipmentId: eq.id });
+            stampEquipFx(s, { kind: 'use', uid: body.uid, cardId: body.cardId, equipmentId: eq.id, ...(fired.targetUid ? { targetUid: fired.targetUid } : {}) });
           }
         }
       }
@@ -2576,10 +2583,13 @@ function reduceCore(state: RunState, action: Action): RunState {
       eq.lastUsedEquipmentId = def.id; // "last used" means last successfully ACTIVATED, not last viewed
       // ── Set 3 batch 2 rune bookkeeping for this activation (the price was read through `equipmentCostOf`) ──
       const firstThisTurn = (s.equipmentActivationsThisTurn ?? 0) === 0;
+      const quickReleased = quickReleaseApplies(s, def.id);
       if (overcharged) procRuneId(s, 'rune_overcharge');
-      else if (s.quickReleaseArmed) procRuneId(s, 'rune_quick_release');
+      else if (quickReleased) procRuneId(s, 'rune_quick_release');
       else if (firstThisTurn && s.runeEfficientTooling && def.baseCost - eq.temporaryCostReduction > 0) procRuneId(s, 'rune_efficient_tooling');
-      s.quickReleaseArmed = false; // Quick Release's arm is spent by the next activation, whatever priced it
+      // Quick Release's arm is spent by the next activation it APPLIES to, whatever priced it; the sold minion's own
+      // Equipment passes it by untouched (owner 2026-09-18).
+      if (quickReleased) s.quickReleaseArmed = undefined;
       s.equipmentActivationsThisTurn = (s.equipmentActivationsThisTurn ?? 0) + 1;
       // Additional triggers stack ADDITIVELY, and the count is SNAPSHOT here rather than re-read per trigger —
       // a repeat must never reproduce the modifier that created it (handoff).
@@ -2589,9 +2599,13 @@ function reduceCore(state: RunState, action: Action): RunState {
       // CALIBRATION WRENCH (set 3 Neutrals, 2026-09-18): a pending Calibration Amplifies whatever is pressed next —
       // spent only when this Equipment's own stack did not already do the job (nothing wasted), never for the
       // Wrench itself (`consumeCalibration` refuses its id). Either way it is ONE Amplification: ×2 at most.
-      const ownStack = consumeAmplified(s, def.id);
+      // RUNE OF EMPTY HANDS (owner 2026-09-18): its pick's Equipment is PERMANENTLY Amplified — nothing to spend, so
+      // it is read first and a Calibration is never wasted on it.
+      const permanent = equipmentPermanentlyAmplified(s, def.id);
+      const ownStack = permanent || consumeAmplified(s, def.id);
       const amplified = ownStack || consumeCalibration(s, def.id);
-      if (ownStack) {
+      if (permanent) procRuneId(s, 'rune_empty_hands');
+      else if (ownStack) {
         if (s.runeAmplification) procRuneId(s, 'rune_amplification');
         if (s.runeGrandWorkshop) procRuneId(s, 'rune_grand_workshop');
       }
@@ -2648,7 +2662,8 @@ function reduceCore(state: RunState, action: Action): RunState {
             if (!g || !d) continue; // the grant outlives its source within the turn, so a sold source still fires
             const src = s.board.find((c) => g.sourceUids.includes(c.uid));
             const selfAgain: BoardCard = src ?? { uid: `eq:${d.id}`, cardId: d.id, tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false };
-            if (fireEquipmentFree(s, d, g.version, selfAgain)) stampEquipFx(s, { kind: 'use', uid: selfAgain.uid, cardId: selfAgain.cardId, equipmentId: d.id });
+            const fired = fireEquipmentFree(s, d, g.version, selfAgain);
+            if (fired) stampEquipFx(s, { kind: 'use', uid: selfAgain.uid, cardId: selfAgain.cardId, equipmentId: d.id, ...(fired.targetUid ? { targetUid: fired.targetUid } : {}) });
           }
         }
       }
@@ -4965,7 +4980,6 @@ function advanceCombat(s: RunState): void {
   s.eventideUsedThisTurn = undefined;
   s.openConstellationUsedThisTurn = undefined;
   s.lastRitesUsedThisTurn = undefined;
-  s.dismantlingUsedThisTurn = undefined;
   s.quickReleaseArmed = undefined;
   s.spellweavingCastsThisTurn = 0;
   s.counterrotationIds = undefined;
@@ -4996,13 +5010,11 @@ function advanceCombat(s: RunState): void {
   s.lastWordUsedThisTurn = false;    // Rune of the Last Word triggers one sold Dragon's Shout per turn
   // Set 3 batch 2 (2026-09-16) — the tranche-A per-turn gates. `nextCardFree` is deliberately NOT cleared: an
   // armed free card carries until it is spent (an earned reward is never dropped).
-  s.festivalWagesUsedThisTurn = false; // Rune of Festival Wages: one Reveler sale per turn arms the free card
+  s.revelersSoldThisTurn = 0;          // Festival Wages / the Festival Circuit: "after you sell 3 Revelers" counts afresh
   s.meteorShowerUsedThisTurn = false;  // Rune of the Meteor Shower: the first Star Crash each turn
-  s.shopSpellIdsThisTurn = [];         // Charted Skies / the Astral Refrain count the turn's Shop spells afresh
-  s.dreamMirrorUsedThisTurn = false;   // Rune of the Dream Mirror: the first hand gain each turn
+  s.spellIdsThisTurn = [];             // Charted Skies / the Astral Refrain count the turn's spells afresh
   s.revelryDoubledThisTurn = [];       // Rune of Shared Revelry: one double per Reveler type per turn
   s.processionPlayedThisTurn = 0;      // Rune of the Grand Procession: the first N Revelers played each turn
-  s.circuitSoldThisTurn = 0;           // Rune of the Festival Circuit: the first N Revelers sold each turn
   s.banquetUsedThisTurn = false;     // Rune of the Banquet Hall feeds the board off one buy per turn
   s.spellhidePending = [];           // …and the recorded re-casts are spent by the combat that just began
   s.contrabandRubyUsed = undefined; // Rune of Contraband's two first-each-turn latches

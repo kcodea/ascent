@@ -397,6 +397,11 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const [cmdOpen, setCmdOpen] = useState(false);
   const [inspectorFocusKey, setInspectorFocusKey] = useState<string | null>(null);
   const [timelineOpen, setTimelineOpen] = useState(true);
+  // The two side panels collapse to a thin strip the same way the timeline does — the Layers column on the
+  // left and the Editor (properties) column on the right (owner 2026-09-19). Collapsing narrows the grid
+  // column (via the `--fxwb-layers-w` / `--fxwb-props-w` overrides on `.fxwb-grid`) and hides the panel body.
+  const [layersOpen, setLayersOpen] = useState(true);
+  const [editorOpen, setEditorOpen] = useState(true);
   const [backdropColor, setBackdropColor] = useState<number | null>(null);
   const [durationMs, setDurationMs] = useState(restoredSession?.durationMs ?? DEFAULT_DURATION_MS);
 
@@ -2931,7 +2936,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           parent changed. The centre stage is a framed TRANSPARENT pane this phase: the full-screen Pixi
           overlay shows through it (and the pointer passes to it for cursor scenarios); the Stage Setter
           fills it in a later phase. */}
-      <div className="fxwb-grid">
+      <div className={`fxwb-grid${layersOpen ? '' : ' layers-collapsed'}${editorOpen ? '' : ' props-collapsed'}`}>
         <div className="fxwb-top">
           <div className="fxwb-title">🎨 FX Workbench</div>
           {topPickers}
@@ -2951,11 +2956,25 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           {closeBtn}
         </div>
 
-        <div className="fxwb-layers-region">
-          {restoreBanners}
-          {defLibBlock}
-          {layersEl}
-          {timingBlock}
+        <div className={`fxwb-layers-region${layersOpen ? '' : ' collapsed'}`}>
+          <div className="fxwb-region-head">
+            <button
+              className="fxwb-btn fxwb-region-toggle"
+              onClick={() => setLayersOpen((v) => !v)}
+              aria-expanded={layersOpen}
+              title={layersOpen ? 'Collapse the layers panel' : 'Expand the layers panel'}
+            >
+              <span aria-hidden="true">{layersOpen ? '◂' : '▸'}</span>{layersOpen ? ' Layers' : ''}
+            </button>
+          </div>
+          {layersOpen && (
+            <>
+              {restoreBanners}
+              {defLibBlock}
+              {layersEl}
+              {timingBlock}
+            </>
+          )}
         </div>
 
         <div className="fxwb-stage">
@@ -2977,8 +2996,18 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           )}
         </div>
 
-        <div className="fxwb-props-region">
-          {inspectorEl}
+        <div className={`fxwb-props-region${editorOpen ? '' : ' collapsed'}`}>
+          <div className="fxwb-region-head fxwb-region-head-right">
+            <button
+              className="fxwb-btn fxwb-region-toggle"
+              onClick={() => setEditorOpen((v) => !v)}
+              aria-expanded={editorOpen}
+              title={editorOpen ? 'Collapse the editor panel' : 'Expand the editor panel'}
+            >
+              <span aria-hidden="true">{editorOpen ? '▸' : '◂'}</span>{editorOpen ? ' Editor' : ''}
+            </button>
+          </div>
+          {editorOpen && inspectorEl}
         </div>
 
         <div className={`fxwb-timeline-region${timelineOpen ? '' : ' collapsed'}`}>

@@ -8315,10 +8315,13 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   display: grid;
   grid-template-columns: var(--fxwb-layers-w) minmax(0, 1fr) var(--fxwb-props-w);
   grid-template-rows: auto minmax(0, 1fr) auto;
+  /* The Editor (props) column spans the middle AND bottom rows, so it runs full-height down the right side;
+     the Timeline is therefore cut off at the Editor's left edge rather than spanning the full width (owner
+     2026-09-19). */
   grid-template-areas:
     "top    top    top"
     "layers stage  props"
-    "tl     tl     tl";
+    "tl     tl     props";
   min-height: 0;
   overflow: hidden;      /* clip rather than ever spill a horizontal scrollbar onto the page body */
   pointer-events: none;  /* the stage stays click-through; each real region opts back in below */
@@ -8371,6 +8374,19 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    paints them — NO bare keyword cursor here (CLAUDE.md's custom-cursor rule). */
 .fxwb-cmdk { font-weight: 800; letter-spacing: 0.04em; }
 .fxwb-timeline-toggle { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ---- SIDE-PANEL COLLAPSE (Layers left / Editor right) ---------------------------------------------------
+   Owner 2026-09-19: both side panels collapse to a thin strip, the same gesture as the Timeline's toggle.
+   Collapsing narrows the grid column (override the width var on the grid) and hides the panel body; only the
+   toggle strip remains. Each panel leads with a small header holding its ◂/▸ toggle. */
+.fxwb-grid.layers-collapsed { --fxwb-layers-w: 42px; }
+.fxwb-grid.props-collapsed { --fxwb-props-w: 42px; }
+.fxwb-region-head { display: flex; align-items: center; margin-bottom: 2px; }
+.fxwb-region-head-right { justify-content: flex-end; }
+.fxwb-region-toggle { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.fxwb-layers-region.collapsed, .fxwb-props-region.collapsed { padding: 8px 4px; gap: 0; overflow: hidden; }
+.fxwb-layers-region.collapsed .fxwb-region-toggle,
+.fxwb-props-region.collapsed .fxwb-region-toggle { padding: 5px 3px; }
 
 
 /* Shape param control: a built-ins/imports picker, an Import (PNG/SVG) button, the alpha hint, and an

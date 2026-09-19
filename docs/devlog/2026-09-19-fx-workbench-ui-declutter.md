@@ -25,10 +25,14 @@ engine or content change — this is authoring-tool surface only.
 - **Browse all** now opens as a big **centered window** over a dim scrim (`.fxlib-scrim`) instead of
   full-screen; click the scrim to close.
 
-## Still pending (owner directives not in this pass)
-- Timeline cut off at the inspector's left edge, with the editor/inspector column taking the reclaimed
-  bottom-right space full-height.
-- Collapse toggles for the left (Layers) and right (Editor) panels, matching the Timeline's collapse button.
+## Layout: full-height Editor + panel collapse
+- The **Editor (props) column now spans the middle AND bottom grid rows**, so it runs full-height down the
+  right side. The **Timeline is therefore cut off at the Editor's left edge** rather than spanning the full
+  width (grid-template-areas: the `tl` row's third track is `props`).
+- **Both side panels collapse** to a thin strip, the same gesture as the Timeline's toggle — **Layers** on the
+  left, **Editor** on the right. Collapsing narrows the grid column (overrides `--fxwb-layers-w` /
+  `--fxwb-props-w` to 42px on `.fxwb-grid`) and hides the panel body; the freed space goes to the stage and,
+  when the Editor is collapsed, the Timeline widens to fill it. State: `layersOpen` / `editorOpen`.
 
 Files: `packages/ui/src/fx/ui/Workbench.tsx`, `Inspector.tsx`, `LibraryBrowser.tsx`,
 `packages/ui/src/styles.css`. Dev-authoring tool → no patch note.

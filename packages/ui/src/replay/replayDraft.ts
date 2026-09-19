@@ -18,7 +18,7 @@
  *    round-boundary write converges on the complete round instead of duplicating it.
  *  - Nothing in this module imports the reducer or simulates anything — it moves recorded frames, no more.
  */
-import type { InspectEvent, ReplayFrame, RunMode, RunState } from '@game/sim';
+import type { CursorSample, InspectEvent, ReplayFrame, RunMode, RunState } from '@game/sim';
 
 /** Bumped when the stored shape changes; a draft from an older schema is discarded rather than migrated
  *  (it is a disposable in-progress recording, never player-visible data). */
@@ -55,6 +55,8 @@ export interface ReplayRoundChunk {
   wave: number;
   frames: ReplayFrame[];
   inspectTrail: InspectEvent[];
+  /** The round's free-cursor samples (2026-09-19). Optional: a chunk written by an earlier build has none. */
+  cursorTrail?: CursorSample[];
 }
 
 export interface ReplayDraft {
@@ -93,10 +95,11 @@ export function runRecordsDraft(run: Pick<RunState, 'mode' | 'sandbox'>): boolea
 }
 
 /** Highest `tMs` across frames and trail — the cumulative clock position a resume must continue from. */
-export function lastRecordedTMs(frames: readonly ReplayFrame[], trail: readonly InspectEvent[] = []): number {
+export function lastRecordedTMs(frames: readonly ReplayFrame[], trail: readonly InspectEvent[] = [], cursor: readonly CursorSample[] = []): number {
   let max = 0;
   for (const f of frames) if (f.tMs > max) max = f.tMs;
   for (const e of trail) if (e.tMs > max) max = e.tMs;
+  for (const c of cursor) if (c[0] > max) max = c[0];
   return max;
 }
 
@@ -123,6 +126,7 @@ export function splitIntoChunks(
   runId: string,
   frames: readonly ReplayFrame[],
   trail: readonly InspectEvent[] = [],
+  cursor: readonly CursorSample[] = [],
 ): ReplayRoundChunk[] {
   const byWave = new Map<number, ReplayRoundChunk>();
   const order: number[] = [];
@@ -138,10 +142,17 @@ export function splitIntoChunks(
   if (order.length === 0) return [];
   // Wave boundaries on the cumulative clock: the tMs of each wave's first frame.
   const bounds = order.map((w) => ({ wave: w, from: byWave.get(w)!.frames[0]!.tMs }));
-  for (const e of trail) {
+  const waveAt = (tMs: number): number => {
     let target = bounds[0]!;
-    for (const b of bounds) { if (b.from <= e.tMs) target = b; else break; }
-    byWave.get(target.wave)!.inspectTrail.push(e);
+    for (const b of bounds) { if (b.from <= tMs) target = b; else break; }
+    return target.wave;
+  };
+  for (const e of trail) byWave.get(waveAt(e.tMs))!.inspectTrail.push(e);
+  // Cursor samples ride the same rule. The field is added only to chunks that hold samples, so a chunk's
+  // stored shape stays what it was for a run that never sampled (nothing here reads the field's absence).
+  for (const c of cursor) {
+    const chunk = byWave.get(waveAt(c[0]))!;
+    (chunk.cursorTrail ??= []).push(c);
   }
   return order.map((w) => byWave.get(w)!);
 }
@@ -151,17 +162,20 @@ export function splitIntoChunks(
  * caller merging hand-built chunks must not have to care), and frames within a wave keep their recorded
  * order. Both lists come back sorted by `tMs` so the two timelines stay one timeline.
  */
-export function mergeDraftChunks(chunks: readonly ReplayRoundChunk[]): { frames: ReplayFrame[]; inspectTrail: InspectEvent[] } {
+export function mergeDraftChunks(chunks: readonly ReplayRoundChunk[]): { frames: ReplayFrame[]; inspectTrail: InspectEvent[]; cursorTrail: CursorSample[] } {
   const ordered = [...chunks].sort((a, b) => a.wave - b.wave);
   const frames: ReplayFrame[] = [];
   const inspectTrail: InspectEvent[] = [];
+  const cursorTrail: CursorSample[] = [];
   for (const c of ordered) {
     frames.push(...c.frames);
     inspectTrail.push(...c.inspectTrail);
+    if (c.cursorTrail) cursorTrail.push(...c.cursorTrail);
   }
   frames.sort((a, b) => a.tMs - b.tMs);
   inspectTrail.sort((a, b) => a.tMs - b.tMs);
-  return { frames, inspectTrail };
+  cursorTrail.sort((a, b) => a[0] - b[0]);
+  return { frames, inspectTrail, cursorTrail };
 }
 
 /** The lowest wave a recording actually contains — what a partial replay must advertise as its start. */
@@ -182,6 +196,7 @@ export function isValidChunk(c: unknown): c is ReplayRoundChunk {
   if (typeof o.runId !== 'string' || typeof o.wave !== 'number' || !Number.isFinite(o.wave)) return false;
   if (!Array.isArray(o.frames) || o.frames.length === 0) return false;
   if (o.inspectTrail !== undefined && !Array.isArray(o.inspectTrail)) return false;
+  if (o.cursorTrail !== undefined && !Array.isArray(o.cursorTrail)) return false;
   return o.frames.every((f) => f && typeof f === 'object'
     && typeof (f as ReplayFrame).wave === 'number'
     && typeof (f as ReplayFrame).tMs === 'number'

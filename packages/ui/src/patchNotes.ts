@@ -56,6 +56,24 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-19',
+    label: 'Replay viewer',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "Replay viewer: the round rail is now a full table you can collapse and drag, with Recruit / Combat jump cells, Power and Win % columns, shop sounds, and the recorded player's cursor.",
+        details: [
+          'Each round row has two cells: Recruit jumps to that round’s shop, Combat plays that round’s fight from its start. The cell you are watching is highlighted.',
+          "Power: the board's strength at the end of the recruit turn (0–100). Win %: the game's own win chance for that fight — exact on new recordings; older ones show an estimate marked ~ once it has been computed.",
+          'Drag the rail anywhere by its ⋮⋮ handle; collapse it to a slim badge with ◂. Your placement is remembered.',
+          'Shop actions (buys, plays, rolls, upgrades…) now play their sounds during a replay — a 🔊 toggle on the transport turns them off.',
+          "New recordings capture the player's pointer between drags; playback shows a small gauntlet moving with it (🖱 toggle). Older replays simply have no cursor.",
+          'During a replayed drag the original card now lifts out of its row while the ghost travels, instead of staying put until the drop.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-19',
     label: 'Kurse + Pickles',
     changes: [
       {

@@ -9761,6 +9761,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.6); color: var(--gl-text, #eef4fb); font-family: var(--font-ui); }
 .replaybtn { font-family: var(--font-ui); font-weight: 800; font-size: 15px; min-width: 46px; height: 42px; padding: 0 8px; border-radius: 9px; border: 1.5px solid var(--gl-border, rgba(190, 214, 240, 0.4)); background: transparent; color: var(--gl-text, #eef4fb); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; display: grid; place-items: center; }
 .replaybtn:hover { border-color: var(--gl-border-top, rgba(226, 240, 255, 0.6)); }
+/* The viewer toggles (2026-09-19): a dimmed frame + muted glyph when OFF, so the state reads at a glance. */
+.replaybtn.toggle { min-width: 40px; font-size: 14px; }
+.replaybtn.toggle.off { opacity: 0.45; border-style: dashed; }
 /* The scrub track. `overflow: visible` so the handle can overhang it; the FILL clips itself instead. Padded
    vertically with a transparent hit area — an 8px-tall drag target is the mechanical half of "clunky". */
 .replayprog { position: relative; width: 300px; height: 14px; border-radius: 8px; background: rgba(255, 255, 255, 0.14); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; overflow: visible; touch-action: none; }
@@ -9804,27 +9807,60 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   text-align: center; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .replayspeed-opt:hover { background: rgba(255, 255, 255, 0.1); }
 .replayspeed-opt.on { background: rgba(255, 255, 255, 0.16); color: var(--gl-value, #e6b45a); }
-/* Round rail — the left-hand per-round index (click a row → seek to that round's shop opening). Styled to
-   match the lobby rail's solid backing plate (translucency over the stonework washes text out to grey).
-   The FIXED positioning lives on `.roundrail-wrap` so the metrics dock can sit as an absolutely-positioned
-   SIBLING of the rail (a child would be clipped by the rail's overflow-y scroll).
-   Position + size are owner-tunable via the 🎞 Replay Rail dev tuner — the `--rrl-*` vars; these fallbacks
-   MUST mirror the replayRailConfig DEFAULTS. */
+/* Round rail — the per-round index (REWORKED 2026-09-19: one table — Round · Recruit · Combat · Gold · Acts ·
+   Tier · Power · Win % — with two clickable cells per row, collapsible to a slim handle, draggable by its grab).
+   Styled to match the lobby rail's solid backing plate (translucency over the stonework washes text out).
+   The FIXED positioning lives on `.roundrail-wrap`: `--rrl-x/--rrl-y` are the HOME (owner-tunable via the 🎞
+   Replay Rail dev tuner; these fallbacks MUST mirror the replayRailConfig DEFAULTS) and `--rrl-dx/--rrl-dy` the
+   viewer's own drag offset (written per pointermove on the element itself — a transform, never a layout
+   property, so a drag is compositor-only). */
 .roundrail-wrap { position: fixed; left: calc(var(--rrl-x, 11) * 1px); top: calc(50% + var(--rrl-y, -300) * 1px);
-  transform: translateY(-50%) scale(var(--rrl-s, 1.09)); transform-origin: left center; z-index: 555; }
+  transform: translate(var(--rrl-dx, 0px), var(--rrl-dy, 0px)) translateY(-50%) scale(var(--rrl-s, 1.09));
+  transform-origin: left center; z-index: 555; will-change: transform; }
+.roundrail-wrap.dragging { user-select: none; }
 .roundrail {
-  display: flex; flex-direction: column; gap: 3px; padding: 8px 6px; border-radius: 10px; max-height: 82vh; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 3px; padding: 6px 6px 8px; border-radius: 10px; max-height: 82vh; overflow-y: auto;
   background: #14111c; box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
   font-family: var(--font-ui); position: relative; z-index: 1; }
-.roundrail-row { display: grid; grid-template-columns: 34px 16px auto; align-items: center; gap: 6px; padding: 4px 8px;
-  border: none; border-radius: 7px; background: transparent; color: rgba(255, 255, 255, 0.78); font: inherit;
-  font-weight: 700; font-size: 12px; line-height: 16px; text-align: left; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.roundrail-row:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
-.roundrail-row.active { background: rgba(196, 160, 92, 0.2); color: #fff; box-shadow: inset 0 0 0 1px var(--acc); }
+/* The title bar: grab handle · title · collapse toggle. */
+.roundrail-bar { display: flex; align-items: center; gap: 6px; padding: 2px 4px 4px; }
+.roundrail-title { flex: 1; font-weight: 800; font-size: 11px; line-height: 16px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
+.roundrail-grab { display: inline-grid; place-items: center; width: 18px; height: 20px; border-radius: 5px;
+  font-weight: 800; font-size: 12px; line-height: 1; letter-spacing: -2px; color: rgba(255, 255, 255, 0.45);
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, grab; touch-action: none; }
+.roundrail-grab:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.roundrail-wrap.dragging .roundrail-grab { background: rgba(196, 160, 92, 0.25); color: #fff; }
+.roundrail-toggle { display: inline-grid; place-items: center; width: 20px; height: 20px; padding: 0; border: none;
+  border-radius: 5px; background: transparent; color: rgba(255, 255, 255, 0.6); font: inherit; font-weight: 800; font-size: 12px; }
+.roundrail-toggle:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+/* COLLAPSED: a slim plate — grab · current round + phase glyph · expand. */
+.roundrail-mini { display: flex; align-items: center; gap: 6px; width: var(--rrl-collapsed-w, 118px); padding: 5px 6px;
+  border-radius: 10px; background: #14111c; box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
+  font-family: var(--font-ui); box-sizing: border-box; }
+.roundrail-mini-round { flex: 1; font-weight: 800; font-size: 12px; line-height: 16px; color: #fff; white-space: nowrap; }
+.roundrail-mini-phase { font-style: normal; color: var(--gl-value, #e6b45a); }
+/* THE TABLE. Column 1 the round, 2-3 the two cells, then five data columns sharing `--rrl-col-w`. Rows keep the
+   old 24px rhythm (16px line + 4px×2 padding, 3px gap). */
+.roundrail-grid { display: flex; flex-direction: column; gap: 3px; }
+.roundrail-head, .roundrail-row { display: grid; align-items: center; gap: 4px;
+  grid-template-columns: 30px 44px 44px repeat(5, var(--rrl-col-w, 34px)); }
+.roundrail-head { padding: 2px 6px; font-weight: 800; font-size: 9px; line-height: 14px; letter-spacing: 0.05em;
+  text-transform: uppercase; color: rgba(255, 255, 255, 0.45); text-align: center; }
+.roundrail-head > span:first-child { text-align: left; }
+.roundrail-row { padding: 2px 6px; border-radius: 7px; color: rgba(255, 255, 255, 0.78);
+  font-weight: 700; font-size: 12px; line-height: 16px; }
+.roundrail-row.current { background: rgba(196, 160, 92, 0.12); color: #fff; }
 .roundrail-num { letter-spacing: 0.03em; }
-.roundrail-head { padding: 4px 8px; font-weight: 800; font-size: 10px; line-height: 16px; letter-spacing: 0.06em;
-  text-transform: uppercase; color: rgba(255, 255, 255, 0.45); }
-/* PARTIAL recording banner — sits above the Round header and states the recorded range. Static paint only
+/* The two clickable cells: Recruit (the anvil) and Combat (the verdict + the health it cost). The cell playback
+   is IN wears the accent ring; a disabled cell (no frame of that phase recorded) reads muted. */
+.roundrail-cell { display: inline-flex; align-items: center; justify-content: center; gap: 3px; height: 20px; padding: 0 4px;
+  border: none; border-radius: 6px; background: rgba(255, 255, 255, 0.05); color: inherit; font: inherit; font-weight: 800; }
+.roundrail-cell:hover:not(:disabled) { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.roundrail-cell.active { background: rgba(196, 160, 92, 0.28); color: #fff; box-shadow: inset 0 0 0 1px var(--acc); }
+.roundrail-cell:disabled { opacity: 0.35; }
+.roundrail-cell.shop { color: rgba(255, 255, 255, 0.7); }
+/* PARTIAL recording banner — sits above the table and states the recorded range. Static paint only
    (no animation): it renders once per replay and must never cost a frame. */
 .roundrail-partial { display: flex; flex-direction: column; gap: 1px; margin: 0 0 4px; padding: 5px 8px;
   border-radius: 7px; background: rgba(232, 138, 122, 0.14); box-shadow: inset 0 0 0 1px rgba(232, 138, 122, 0.35); }
@@ -9835,34 +9871,21 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .roundrail-verdict.win { color: #9fd98a; }
 .roundrail-verdict.loss { color: #e88a7a; }
 .roundrail-verdict.draw { color: rgba(255, 255, 255, 0.55); }
+.roundrail-verdict.none { color: rgba(255, 255, 255, 0.3); }
 .roundrail-loss { font-size: 11px; color: #e88a7a; opacity: 0.85; }
-/* Metrics DOCK (owner rework 2026-08-19 — replaced the per-round hover drawer): slides out of the rail to
-   the RIGHT and EXTENDS it, one row per round aligned with the rail's rows (same 24px row rhythm: 16px line
-   + 4px×2 padding, 3px gap), showing Gold spent / Actions / Shop tier at start for ALL rounds at once. The
-   tiny icon header hangs ABOVE the plate so data row 1 stays level with rail row R1. Absolutely positioned
-   off the rail's right edge (opening never shifts the rail); the slide is a ONE-SHOT transform/opacity
-   transition — compositor-only, per the no-looping-paint-animation rule. */
-.rounddock { position: absolute; left: calc(100% - 4px); top: 0; bottom: 0; width: var(--rrl-dock-w, 128px); overflow: hidden;
-  display: flex; flex-direction: column; gap: 3px; padding: 8px 10px 8px 14px;
-  border-radius: 0 10px 10px 0; background: #14111c;
-  box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
-  font-family: var(--font-ui); white-space: nowrap;
-  transform: translateX(-14px); opacity: 0; pointer-events: none;
-  transition: transform 180ms ease-out, opacity 180ms ease-out; }
-.rounddock.open { transform: translateX(0); opacity: 1; pointer-events: auto; }
-.rounddock-head { display: grid; grid-template-columns: repeat(3, 30px); gap: 8px; justify-items: center;
-  padding: 4px 0; font-weight: 800; font-size: 10px; line-height: 16px; letter-spacing: 0.06em;
-  text-transform: uppercase; color: rgba(255, 255, 255, 0.45); }
-.rounddock-row { display: grid; grid-template-columns: repeat(3, 30px); gap: 8px; align-items: center;
-  padding: 4px 0; border-radius: 7px; font-weight: 700; font-size: 12px; line-height: 16px;
-  color: rgba(255, 255, 255, 0.78); }
-.rounddock-row.active { background: rgba(196, 160, 92, 0.14); color: #fff; }
-.rounddock-val { text-align: center; color: var(--gl-value, #e6b45a); font-variant-numeric: tabular-nums; }
-/* The dock's collapse chevron was REMOVED 2026-08-30 (owner: "the replay rail extension arrow dances
-   around when you try and click it. remove that functionality"). It sat at `left: 100%` and the `.open`
-   state moved it by the dock's own width with a 180ms `left` transition -- so clicking it slid the button
-   128px out from under the pointer, and clicking again slid it back. The dock is always open now, which
-   is what the rail is for; `.rounddock.open` is kept as the (only) state the aside renders in. */
+.roundrail-val { text-align: center; color: var(--gl-value, #e6b45a); font-variant-numeric: tabular-nums; }
+.roundrail-val.win.good { color: #9fd98a; }
+.roundrail-val.win.bad { color: #e88a7a; }
+/* (The 2026-08-19 slide-out metrics DOCK and its 2026-08-30 chevron removal are history: the dock's three
+   columns now live inside the table above, and the collapse is the whole rail's — a handle that never moves
+   out from under the pointer, because the grab and the toggle sit on the rail's own title bar.) */
+
+/* Recorded cursor — the replay's free-pointer sprite (2026-09-19): the open gauntlet, moved along the recorded
+   trail by ONE transform per animation frame (`ReplayCursorGhost`). Sits under the drag ghost (540) and never
+   intercepts pointer events. The -6/-2 offset puts the live cursor's hotspot (6 2) on the sampled point. */
+.replay-cursor { position: fixed; inset: 0; z-index: 535; pointer-events: none; }
+.replay-cursor-sprite { position: absolute; left: -6px; top: -2px; width: 32px; height: 32px; opacity: 0;
+  will-change: transform; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55)); }
 
 /* Drag ghost — the recorded card drag replayed as a floating card + closed-fist cursor (owner ask 2026-08-19:
    "1:1 hands"). The .ghostmover rides ONE Web-Animations transform along the recorded path (compositor-only —

@@ -9,11 +9,14 @@
  * KEEP THIS MODULE OFF THE REDUCER PATH — it is capture/replay metadata, not run state. Nothing in
  * reducer.ts / recruit.ts may import it (it imports THEM, one-way).
  */
-import type { CombatResult } from '@game/core';
+import { combatSide, type BoardMinion, type CombatResult, type Keyword, type MinionSnapshot } from '@game/core';
 import type { Action, RunMode, RunState } from './state';
 import type { BoardSnapshot } from './snapshot';
 import { nextOpponent } from './reducer';
 import { pairRunLobby, type RunLobby } from './lobby/runLobby';
+import { poolOf } from './cardPool';
+import { boardStrength } from './boardModel';
+import type { CombatOddsInput } from './odds';
 
 /**
  * What produced a shop frame. Derived from the `Action` union — THE §7.2 exhaustiveness guarantee: a new
@@ -69,6 +72,10 @@ export type ShopView = Omit<RunState, ShopViewExcludedKey> & {
  */
 export interface DragPath {
   cardId: string;
+  /** The dragged INSTANCE's uid (2026-09-19) — so playback can lift the source card out of its zone the way
+   *  the live drag does (the ghost is the moving card; the original must not stay standing). Absent on
+   *  earlier recordings, where playback derives it from the frame diff / a cardId match instead. */
+  uid?: string;
   durMs: number;
   pts: [number, number][];
 }
@@ -108,6 +115,11 @@ export interface CombatFrame extends Omit<CombatResult, 'oddsInput'> {
    *  the lobby table's −X floats show). Settles on `settleCombat`/`resolveCombat` — the capture layer
    *  patches this after the settle action (it is 0 at `faceOmen` time). */
   resolveLost: number;
+  /** `odds` (inherited from `CombatResult`) is ABSENT at `faceOmen` time — the 200-sim probe is deferred to UI
+   *  idle time (perf audit 2026-08-01) — so the capture layer stamps it onto this frame once the live probe
+   *  finishes (`stampReplayOdds`, 2026-09-19): the replay viewer's "Win %" column is then the EXACT number the
+   *  player saw in the Combat Summary. Recordings from before the stamp existed carry none, and the viewer
+   *  backfills an approximation from the recorded rosters (`oddsInputFromCombatFrame`). */
 }
 
 /**
@@ -162,6 +174,14 @@ export interface ReplayV2 {
    *  playback re-opens the same panel on the same card at the same moment (literal 1:1). Optional: absent
    *  on recordings made before it existed. See the inspect-trail section at the bottom of this module. */
   inspectTrail?: InspectEvent[];
+  /** The FREE-CURSOR trail (2026-09-19): where the recorded player's pointer was on the recruit screen, on
+   *  the SAME clock as `frames[].tMs`, sampled at ≤20 Hz, simplified per round and capped at
+   *  `CURSOR_TRAIL_MAX` samples for the whole run (thinned uniformly beyond). Playback moves a gauntlet
+   *  sprite along it. Optional and backward-compatible: the version stays 2, and a recording made before the
+   *  trail existed simply has none (the viewer's Cursor toggle then has nothing to show). Drag paths are NOT
+   *  duplicated here — the ghost plays those from the frame's `drag`; the trail carries the hand between
+   *  drags. See the cursor-trail section at the bottom of this module. */
+  cursorTrail?: CursorSample[];
   /** The recorded truth about the outcome. */
   result: {
     /** Lobby finish, 1..8 (1 = won). */
@@ -315,25 +335,77 @@ export interface RoundMark {
   tMs: number;
   result?: 'win' | 'loss' | 'draw';
   resolveLost?: number;
+  /** Frame INDEX of the wave's shop opening (the `turnStart` frame, else its first shop frame) — the rail's
+   *  Recruit cell seeks here. Absent when the wave recorded no shop frame at all. */
+  shopIndex?: number;
+  /** Frame index of the wave's LAST shop frame — the end-of-recruit board the Power / Win % columns read. */
+  lastShopIndex?: number;
+  /** Frame index of the wave's combat frame — the rail's Combat cell seeks here (the fight plays from its
+   *  start). Absent when the wave recorded no fight (a partial recording's open final wave). */
+  combatIndex?: number;
 }
 
 /** Derive the round rail's index — one pass over the frames, wave order preserved (frames are appended in
  *  wall-clock order, so waves arrive contiguous and ascending). */
 export function roundMarks(frames: readonly ReplayFrame[]): RoundMark[] {
-  const byWave = new Map<number, RoundMark>();
-  for (const f of frames) {
+  const byWave = new Map<number, RoundMark & { sawTurnStart?: boolean }>();
+  frames.forEach((f, i) => {
     let mark = byWave.get(f.wave);
     if (!mark) {
       mark = { wave: f.wave, tMs: f.tMs };
       byWave.set(f.wave, mark);
     }
-    if (f.kind !== 'combat' && f.cause === 'turnStart') mark.tMs = f.tMs;
-    if (f.kind === 'combat') {
+    if (f.kind !== 'combat') {
+      if (f.cause === 'turnStart' && !mark.sawTurnStart) { mark.tMs = f.tMs; mark.shopIndex = i; mark.sawTurnStart = true; }
+      else if (mark.shopIndex === undefined) mark.shopIndex = i;
+      mark.lastShopIndex = i;
+    } else {
       mark.result = f.result === 'lose' ? 'loss' : f.result;
       mark.resolveLost = f.resolveLost;
+      if (mark.combatIndex === undefined) mark.combatIndex = i;
     }
-  }
-  return [...byWave.values()].sort((a, b) => a.wave - b.wave);
+  });
+  return [...byWave.values()]
+    .sort((a, b) => a.wave - b.wave)
+    .map(({ sawTurnStart: _s, ...mark }) => mark);
+}
+
+/**
+ * The BOARD POWER the replay viewer prints per round (2026-09-19, "Power" column): the learned board-strength
+ * model (`boardStrength`, packages/sim/src/boardModel.ts — the evaluator the production bots search with) over
+ * a recorded end-of-recruit board, squashed to 0..1 and printed as 0..100. `null` for an empty board (the
+ * model declines to score it — the column prints an em-dash rather than a misleading 0).
+ */
+export function boardPowerOf(view: Pick<ShopView, 'board'>, wave: number): number | null {
+  if (!view.board?.length) return null;
+  const minions: BoardMinion[] = view.board.map((b) => ({
+    cardId: b.cardId, attack: b.attack, health: b.health, keywords: [...b.keywords] as Keyword[], golden: b.golden,
+  }));
+  const s = boardStrength(minions, wave);
+  return s > 0 ? Math.round(s * 100) : null;
+}
+
+/**
+ * APPROXIMATE odds input for a recording whose combat frame carries no stamped `odds` (made before
+ * 2026-09-19). The exact `oddsInput` is stripped at capture (the §2 drift class), so this rebuilds the matchup
+ * from what the frame DOES carry — both starting rosters (`initial`: the instantiated boards before the first
+ * Start-of-Combat event) — with neutral side states at the recorded tier. Run-level scalers (spell power,
+ * tribe auras, quest mods) are not recoverable, so the number is an estimate and the viewer marks it `~`.
+ * New recordings carry the exact figure and never come through here.
+ */
+export function oddsInputFromCombatFrame(frame: Pick<CombatFrame, 'initial'>, view: Pick<ShopView, 'tier' | 'setId'> | null): CombatOddsInput {
+  const toMinion = (m: MinionSnapshot): BoardMinion => ({
+    cardId: m.cardId, attack: m.attack, health: m.health, keywords: [...m.keywords], golden: m.golden,
+  });
+  const poolIds = poolOf(view ?? {}).all.map((c) => c.id);
+  const tier = view?.tier ?? 1;
+  return {
+    player: frame.initial.player.map(toMinion),
+    enemy: frame.initial.enemy.map(toMinion),
+    playerState: combatSide({ tier, poolIds }),
+    enemyState: combatSide({ tier, poolIds }),
+    config: {},
+  };
 }
 
 /** The metrics drawer's three numbers, per round (§7.4). A pure fold over recorded frames — it cannot
@@ -426,4 +498,56 @@ export function appendInspectEvent(trail: InspectEvent[], ev: InspectEvent, max 
   }
   if (trail.length >= max) return; // capped: drop further opens (closes above still land)
   trail.push(ev);
+}
+
+// ── Cursor trail (2026-09-19: the replay viewer shows the recorded player's hand between drags) ───────────
+// The recruit screen samples `pointermove` at ≤20 Hz (`ui/replay/cursorTrace.ts`) into a trail of
+// `[tMs, x, y]` tuples on the SAME cumulative clock as the frames — viewport FRACTIONS like `DragPath.pts`, so
+// a replay watched at another resolution still tracks the fullscreen anchored layout. Tuples rather than
+// objects because the trail is the one payload that scales with TIME rather than with actions: a 20-minute
+// shop at 20 Hz is 24,000 raw samples, and the key overhead of `{t,x,y}` JSON would triple its weight.
+
+/** One cursor sample: `[tMs, xFraction, yFraction]` (x/y at 3-decimal precision). */
+export type CursorSample = [number, number, number];
+
+/** Sampling floor: at most one recorded sample per this many ms (20 Hz). */
+export const CURSOR_SAMPLE_MS = 50;
+/** Cap on the WHOLE run's trail — beyond it the trail is thinned uniformly (`thinCursorTrail`). ~6,000 tuples
+ *  is ~120 KB of JSON: bounded, whatever the run's length. */
+export const CURSOR_TRAIL_MAX = 6000;
+
+/** Uniform thinning to at most `max` samples, first and last kept. Returns a copy when already under. Pure. */
+export function thinCursorTrail(trail: readonly CursorSample[], max = CURSOR_TRAIL_MAX): CursorSample[] {
+  if (trail.length <= max) return trail.slice();
+  if (max <= 1) return trail.length ? [trail[0]!] : [];
+  const out: CursorSample[] = [];
+  for (let i = 0; i < max; i++) out.push(trail[Math.round((i * (trail.length - 1)) / (max - 1))]!);
+  return out;
+}
+
+/** The cursor position at `tMs` — linear interpolation between the surrounding samples; the first sample
+ *  before the trail begins, the last after it ends; `null` for an empty trail. `hint` is the index of the
+ *  sample at-or-before the previous query, so a monotone playback clock advances in O(1) per frame rather
+ *  than re-searching (a seek passes no hint and pays one binary search). Pure — tested. */
+export function cursorAt(trail: readonly CursorSample[], tMs: number, hint?: number): { x: number; y: number; index: number } | null {
+  const n = trail.length;
+  if (n === 0) return null;
+  const holds = (k: number): boolean => k >= 0 && k < n && trail[k]![0] <= tMs && (k === n - 1 || trail[k + 1]![0] > tMs);
+  let i: number;
+  if (hint !== undefined && holds(hint)) i = hint;
+  else if (hint !== undefined && holds(hint + 1)) i = hint + 1; // the common case: the clock advanced one sample
+  else {
+    let lo = 0, hi = n - 1, ans = -1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (trail[mid]![0] <= tMs) { ans = mid; lo = mid + 1; } else hi = mid - 1;
+    }
+    i = ans;
+  }
+  if (i < 0) return { x: trail[0]![1], y: trail[0]![2], index: 0 };
+  const a = trail[i]!;
+  const b = trail[i + 1];
+  if (!b || b[0] <= a[0]) return { x: a[1], y: a[2], index: i };
+  const f = Math.max(0, Math.min(1, (tMs - a[0]) / (b[0] - a[0])));
+  return { x: a[1] + (b[1] - a[1]) * f, y: a[2] + (b[2] - a[2]) * f, index: i };
 }

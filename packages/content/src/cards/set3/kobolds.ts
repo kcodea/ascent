@@ -266,7 +266,7 @@ export const SET3_KOBOLDS: CardDef[] = [
     id: 'k3_prismpick',
     name: 'Picksy', // 'Prismpick Artificer' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'kobold',
-    tier: 6,
+    tier: 5, // T6 → T5 (owner 2026-09-18)
     attack: 8,
     health: 8,
     keywords: [],

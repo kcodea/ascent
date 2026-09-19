@@ -130,6 +130,7 @@ const ALIASES: Record<string, string> = {
   festivalluminary: 'sp3_luminary',    // now Limelight
   shootingstar: 'ce3_shootingstar',    // now Rocket Power (2026-09-14)
   twinstar: 'ce3_twinstar',            // now Twinning (2026-09-14)
+  equipmentshredder: 'n3_shredder',    // the master carries the card's working name; the card is Shredder (2026-09-18)
   cinderchancellor: 'dm_chancellor', // pre-rename name; RougeRogue.png wins the base slot, this fills `2`
   // 2026-07-31 renames. Hellrider and Lastlight now match their cards by name exactly, so they need no entry
   // (and RevolvingMaw.png correctly stops matching anything — Hellrider.png is the current art). Only Void
@@ -306,6 +307,12 @@ const JOBS: Job[] = [
     label: 'minions', src: 'C:/Game Assets/Ascent Art/Set 2 Minions',
     dirs: ['Beasts', 'Demons', 'Dragons', 'Dwarves', 'Kobolds', 'Neutral'],
     dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,
+  },
+  {
+    // The rune-exclusive tokens (Handy Flame, Feasting Bogrot, ...) — the owner keeps their masters beside the rune
+    // emblems (owner ask 2026-09-18). Same strict name match into the minion slot.
+    label: 'rune-reward minions', src: 'C:/Game Assets/Ascent Art/Runes/Special Rune Rewards',
+    dirs: ['.'], dest: 'packages/ui/src/art/minions', index: cardsByName, aliases: ALIASES,
   },
   {
     // Quest-reward minions are authored in their own folder but are still MINION art — same destination.

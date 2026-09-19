@@ -36,6 +36,9 @@ export interface EquipmentDefinition {
   /** Gold to activate. Cost reductions apply on top; the floor is 0. */
   baseCost: number;
   targetMode: EquipmentTargetMode;
+  /** R-TARGET-03 EXEMPTION (owner 2026-09-18: "Bloodpot should be usable on Alchemist Frank"): a friendly-aimed
+   *  Equipment that MAY land on the body that granted it. Default (absent) = never its own body. */
+  mayTargetSelf?: true;
   /** The recruit factory that resolves one TRIGGER of this Equipment. */
   effectId: string;
   /** Params for `effectId`. A Gilded source uses `gildedParams` when present. */
@@ -105,6 +108,7 @@ export const BLOODPOT: EquipmentDefinition = {
   goldenText: 'Give a friendly minion **+6/+6**.',
   baseCost: 1,
   targetMode: 'friendly',
+  mayTargetSelf: true, // owner 2026-09-18: Frank may Bloodpot himself
   effectId: 'equipmentBuffTarget',
   params: { attack: 3, health: 3 },
   gildedParams: { attack: 6, health: 6 },
@@ -448,7 +452,34 @@ export const STAR_DESTROYER: EquipmentDefinition = {
   effectId: 'equipmentRemoveStarform',
 };
 
-export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR, MAGNIFYING_GLASS, WHIPLASSO, SPIRITBRINGER, REVELMAKER, COMET, STELLAR_LENS, STAR_DESTROYER];
+/**
+ * CALIBRATION WRENCH — Calibration Master's Equipment (set-3 Neutral roster, owner handoff 2026-09-18): "your
+ * next Equipment activation is Amplified."
+ *
+ * Rides the EXISTING Amplified machinery rather than a parallel one: the engine keys Amplified stacks BY
+ * EQUIPMENT ID (`PlayerEquipmentState.amplified`, consumed at activation by `consumeAmplified`), but the Wrench
+ * does not know which Equipment the player will press next — so it banks a PENDING count on the same state
+ * (`calibrationPending`, `armCalibration`) and the reducer's activation reads it exactly where it reads the
+ * per-id stack: an activation of any Equipment OTHER THAN THE WRENCH that is not already Amplified by its own
+ * stack spends one pending count and triggers twice. The pending count survives the Start-of-Turn rebuild
+ * the way Amplified stacks do (it is Amplification, so it carries), and the slot paints the blue charge for
+ * every held Equipment it would apply to (`equipmentWillAmplify`). The Wrench can never Amplify itself.
+ *
+ * Gilded arms TWO (the next two activations) through `gildedParams` — the Equipment channel.
+ */
+export const CALIBRATION_WRENCH: EquipmentDefinition = {
+  id: 'calibration_wrench',
+  name: 'Calibration Wrench',
+  text: 'Your next **Equipment** activation is **Amplified**.',
+  goldenText: 'Your next **2 Equipment** activations are **Amplified**.',
+  baseCost: 1,
+  targetMode: 'none',
+  effectId: 'equipmentCalibrate',
+  params: { count: 1 },
+  gildedParams: { count: 2 },
+};
+
+export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR, MAGNIFYING_GLASS, WHIPLASSO, SPIRITBRINGER, REVELMAKER, COMET, STELLAR_LENS, STAR_DESTROYER, CALIBRATION_WRENCH];
 
 export const EQUIPMENT_INDEX: Readonly<Record<string, EquipmentDefinition>> =
   Object.fromEntries(EQUIPMENT.map((e) => [e.id, e]));

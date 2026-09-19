@@ -56,6 +56,92 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-18',
+    label: 'Equipment Neutrals',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'Three new Set 3 Neutrals built around Equipment: Shredder, Calibration Master and Rig.',
+        details: [
+          'Shredder (Tier 4, 8/4): "End of Turn: give your left-most and right-most minions +4/+4 for every Equipment unused this turn." The card prints the total it will grant right now; a lone minion is both ends and is buffed once. Gilded +8/+8.',
+          'Calibration Master (Tier 5, 9/6): "Equip Calibration Wrench (1): your next Equipment activation is Amplified." Whatever Equipment you press next triggers twice — never the Wrench itself — and the charge carries across turns until you use it. Gilded: your next two activations.',
+          'Rig (Tier 3, 4/4): "When you use Equipment, this gains +4/+4." Every activation from the slot counts, the Calibration Wrench included; a Rig in your hand does not grow. Gilded +8/+8.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Tauntbreaker has left the Set 3 pool.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-18',
+    label: 'Han Gover, Blazer & the Rise order',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'Han Gover — a Tier 4 Dwarf/Undead who hands you a Dwarven Ale every 40 damage he deals.',
+        details: [
+          'Tier 4, 4/7, Dwarf AND Undead. "When this deals 40 damage, get an Ale." Gilded: get 2 Ales.',
+          'Every hit he lands counts — attacks, retaliation, any damage he deals — and the tally KEEPS COUNTING across combats (27 this fight, 13 more next fight, and the Ale arrives).',
+          'The Ale flies to your hand the moment the threshold is crossed in combat, and is waiting for you in the next shop.',
+          'His progress shows on the card as a step counter (N/40), in the shop and in combat, like every other every-N tracker.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Blazer is now Tier 3 at 2/7 (was Tier 4, 3/8). Its Flurry + Rally Ruby play is unchanged.',
+      },
+      {
+        category: 'Card Change',
+        text: 'Rise and Echo now resolve in the right order everywhere: the minion dies, its Echo fires, and only THEN does it try to Rise.',
+        details: [
+          'Applies to every Rise (and Rebirth) minion, in combat and in the shop — a Deathfibrillated minion, Warden Rodrick, anything that dies with Rise.',
+          'The Echo goes first and its summons land in the slot the minion just left. On a full board that means the summon fits and it is the Rise that finds no room — the minion stays dead, and that counts as an overflow (Squatimus and friends pay off).',
+          'A Rise minion whose Echo does not summon anything still rises on a full board — its own slot is still free.',
+          'Previously the rising minion held its slot through its Echo, so its summon overflowed and the minion came back — which read as "it rose before its Echo".',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-18',
+    label: 'Bloodpot on Frank; Compendium search',
+    changes: [
+      { category: 'Card Change', text: 'Alchemist Frank can Bloodpot himself again — Bloodpot is the one Equipment exempt from the "no card targets itself" rule.' },
+      { category: 'Card Change', text: 'Picksy moves to Tier 5.' },
+      { category: 'Card Change', text: "Comet (Cometius) and Nimbus: 'your next spell casts N additional times' now reaches every spell — a Clue or a Ruby cast next is repeated too, and its ×N badge shows the real count." },
+      { category: 'UI / Info', text: 'Compendium: a search now drills down by the tribe (or Spells / Gifts) you have lit in the left rail — search "equip", then pick Kobolds. The search box reads in the same grey as the rail.' },
+    ],
+  },
+  {
+    date: '2026-09-18',
+    label: 'Bicycle Bob, Robinson & Adeptus',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'The Undead Aura sound can overlap itself again when rises come a few tenths of a second apart; only a burst inside the same few frames collapses into one sound (tunable in the Buff tuner). Rising Tide gets its new portrait.',
+      },
+      {
+        category: 'New Card',
+        text: 'Bicycle Bob joins the Undead: a Tier 4 3/9 that gives a random other Undead +1/+1 whenever a summoned minion does not fit — and the gift improves by +1/+1 for every Undead you played this turn.',
+        details: [
+          'Fires in the shop and in combat, and the buff is permanent either way.',
+          'Play two Undead this turn and each overflow hands out +3/+3; a gilded Ben doubles it.',
+          'Ben never buffs himself. The card prints the current grant in the shop, in your hand and in combat.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Robinson is now Tier 4 and a 5/7 (was Tier 3, 3/6).',
+      },
+      {
+        category: 'Card Change',
+        text: "Adeptus is now Tier 4, and its Echo gives your Shop spells +1/+1 (was +1 Attack only). Gilded: +2/+2.",
+      },
+    ],
+  },
+  {
+    date: '2026-09-18',
     label: 'Kobold, Undead & Neutral reworks',
     changes: [
       {

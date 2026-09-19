@@ -36,4 +36,8 @@ export const RENDER_EXCUSED: Readonly<Record<string, RenderExcuse>> = {
   // grimoireCharged, surfaced via stepProgress — including the deliberate 0/3 visible-at-zero exception);
   // the rules text itself has no scaling number.
   d2_grimoire: { kind: 'accurate-at-any-value', why: 'no scaling number in the text; recharge progress is the shoutTick step counter (stepProgress)' },
+  // Han Gover (2026-09-18): "When this deals 40 damage, get an Ale" — the printed threshold never scales; the
+  // running damage tally is the N/40 step counter (stepProgress reads `damageDealt`, the Avenge-style tracker
+  // per the owner's 2026-09-11 "trackers, not fractions in the text" ruling), on the board AND in combat.
+  dw3_hangover: { kind: 'accurate-at-any-value', why: 'no scaling number in the text; the damage meter is the damageDealt step counter (stepProgress)' },
 };

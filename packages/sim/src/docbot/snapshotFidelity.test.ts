@@ -130,6 +130,7 @@ function boardCardExemplar(): Required<BoardCard> {
     eotBonus: 3,
     spellProgress: 4,
     spiritTally: 2,
+    damageDealt: 27, // Han Gover (2026-09-18): the damage meter
     boughtWave: 2,
     sellBonus: 3,
     soldProgress: 2,
@@ -190,6 +191,7 @@ function boardMinionExemplar(): Required<BoardMinion> {
     ascendProgress: 3,
     spellProgress: 4,
     spiritTally: 2,
+    damageDealt: 27, // Han Gover (2026-09-18): the damage meter
     sourceUid: 'exemplar-source-uid',
     resummon: true,
     partingCry: true,

@@ -127,4 +127,53 @@ export const SET3_NEUTRAL: readonly CardDef[] = [
     text: '**Choose One:** give a friendly minion **+6/+6**, or give adjacent minions **+3/+3**.',
     goldenText: '**Choose One:** give a friendly minion **+12/+12**, or give adjacent minions **+6/+6**.',
   },
+  {
+    // Owner handoff 2026-09-18. End of Turn: the left-most and right-most minions each gain +4/+4 for EVERY
+    // Equipment the player holds whose charge was NOT spent this turn (`unusedEquipmentCount` — the per-turn
+    // `usedThisTurn` mark Rune of Amplification also reads, taken BEFORE `expireEquipmentTurn` clears it). A
+    // one-minion board is both ends and is buffed once. Permanent shop buff; golden +8/+8 per Equipment. The
+    // live text prints the current total (`shredderText`) on every surface.
+    id: 'n3_shredder',
+    name: 'Shredder',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 8,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffEndsPerUnusedEquipment', params: { attack: 4, health: 4 } }],
+    text: '**End of Turn:** give your left-most and right-most minions **+4/+4** for every **Equipment** unused this turn.',
+    goldenText: '**End of Turn:** give your left-most and right-most minions **+8/+8** for every **Equipment** unused this turn.',
+  },
+  {
+    // Owner handoff 2026-09-18. Equip minion: the Calibration Wrench (1 Gold) arms the run so the NEXT Equipment
+    // activation — any Equipment but the Wrench itself — resolves Amplified (triggers twice), riding the same
+    // `amplified` machinery Rune of Amplification / the Grand Workshop feed (`packages/sim/src/equipment.ts`,
+    // `calibrationPending`). Gilded: the next TWO activations.
+    id: 'n3_calibration',
+    name: 'Calibration Master',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 9,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'calibration_wrench' } }],
+    text: '**Equip Calibration Wrench (1):** your next **Equipment** activation is **Amplified**.',
+    goldenText: '**Equip Calibration Wrench (1):** your next **2 Equipment** activations are **Amplified**.',
+  },
+  {
+    // Owner handoff 2026-09-18. Whenever the player ACTIVATES an Equipment from the slot (the reducer's
+    // `activateEquipment` success path — the Calibration Wrench counts, it is an activation like any other),
+    // every Rig ON THE BOARD gains +4/+4 permanently (golden +8/+8). Hand copies never fire: the
+    // `equipmentActivated` trigger is dispatched to board bodies only (`fireEquipmentActivated`).
+    id: 'n3_rig',
+    name: 'Rig',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 4,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'equipmentActivated', do: 'equipmentActivatedBuffSelf', params: { attack: 4, health: 4 } }],
+    text: 'When you use **Equipment**, this gains **+4/+4**.',
+    goldenText: 'When you use **Equipment**, this gains **+8/+8**.',
+  },
 ];

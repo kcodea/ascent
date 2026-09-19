@@ -1,6 +1,6 @@
 import type { Action } from '../state';
 import { ACTION_CATALOG } from './actionCatalog';
-import { CARD_INDEX } from '@game/content';
+import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
 import type { BotVisibleState } from './types';
 
 /**
@@ -113,7 +113,7 @@ export function equipmentCandidates(v: BotVisibleState): Candidate[] {
   if (selected) {
     if (selected.targetMode === 'friendly') {
       for (const c of v.board) {
-        if (selected.sourceUids.includes(c.uid)) continue; // R-TARGET-03: never its own granting body
+        if (!EQUIPMENT_INDEX[selected.equipmentId]?.mayTargetSelf && selected.sourceUids.includes(c.uid)) continue; // R-TARGET-03: never its own granting body (unless the def opts out — Bloodpot)
         out.push({ action: { type: 'activateEquipment', targetUid: c.uid }, tag: `use ${selected.equipmentId} on ${c.cardId}` });
       }
     } else {
@@ -122,7 +122,7 @@ export function equipmentCandidates(v: BotVisibleState): Candidate[] {
   }
   for (const e of usable) {
     if (e.selected) continue;
-    if (e.targetMode === 'friendly' && !v.board.some((c) => !e.sourceUids.includes(c.uid))) continue;
+    if (e.targetMode === 'friendly' && !EQUIPMENT_INDEX[e.equipmentId]?.mayTargetSelf && !v.board.some((c) => !e.sourceUids.includes(c.uid))) continue;
     out.push({ action: { type: 'selectEquipment', equipmentId: e.equipmentId }, tag: `select ${e.equipmentId}` });
   }
   return out;

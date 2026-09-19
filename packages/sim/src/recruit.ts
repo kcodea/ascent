@@ -1,7 +1,7 @@
-import { ALE_IDS, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { ALE_IDS, TRIBES, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
-import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer } from './equipment';
+import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
 import { currentCollector } from './activeCollector';
 import { alignmentOf } from './alignment';
 import { lobbyOpponentBoard } from './lobby/runLobby';
@@ -50,7 +50,9 @@ type RecruitFn = (
   starformAttack?: number; starformHealth?: number; starformReason?: 'consume' | 'collapse';
   /** EQUIPMENT activation: the turn clock's reading the action carried (seconds left) — a clock-window
    *  Equipment (Thymepiece) anchors to it. Absent = no reading. */
-  clockSeconds?: number },
+  clockSeconds?: number;
+  /** `equipmentActivated` (set 3 Neutrals, 2026-09-18): WHICH Equipment the player just activated. */
+  equipmentId?: string },
 ) => void;
 
 import { SPELL_POWER_EXCUSED } from './docbot/historyRegistry';
@@ -167,6 +169,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     logSpellProgress: () => {}, // the live countdown re-derives from the instance field in the shop
     logImprove: () => {},
     spellsThisTurn: () => state.spellsThisTurn,
+    playedThisTurn: (tribe) => playedThisTurnFor(state, tribe as Tribe),
     grantNamedCard: (cardId, count) => {
       const def = CARD_INDEX[cardId];
       if (def) conjureToHand(state, [def], count);
@@ -1349,7 +1352,19 @@ export function rubyCastCount(state: RunState): number {
   // First-N gate: `rubyCastsThisTurn` counts Ruby PLAYS (not resolved casts — a doubled first Ruby must not
   // eat the second slot of Resonance's 2-Ruby window), reset each turn.
   if ((state.rubyCastsThisTurn ?? 0) < (state.rubyFirstCastWindow ?? 1)) extra += state.rubyFirstExtraCasts ?? 0;
-  return (1 + extra) * grimoireMultActive(state);
+  // Comet / Nimbus: "your NEXT SPELL casts N additional times" — a Ruby is a spell (owner 2026-09-18: "this effect
+  // says spell, which means ALL spells should count"). Added last, like `spellCasts` adds it, and spent by the
+  // Ruby cast site the same way the Shop-spell sites spend it.
+  return (1 + extra) * grimoireMultActive(state) + (state.nextSpellExtraCasts ?? 0);
+}
+
+/** How many times a GIFT-class hand spell resolves. A Gift resolves exactly once (owner design 2026-08-26) — except a
+ *  card-minted TARGETED hand spell (`giftMulticast`: Clue, Tower Shield), which the "next spell" charges reach:
+ *  Yazzus ("your targeted spells", 2026-09-09) and Comet / Nimbus ("your next spell" — a Clue is a spell, owner
+ *  2026-09-18). Side-effect free; shared by the reducer's gift cast site and the UI's ×N badge so they never drift. */
+export function giftCastCount(state: Pick<RunState, 'board' | 'nextSpellExtraCasts'>, def: Pick<CardDef, 'giftMulticast'>, aimed: boolean): number {
+  if (!def.giftMulticast || !aimed) return 1;
+  return 1 + yazzusExtraCasts(state as RunState) + (state.nextSpellExtraCasts ?? 0);
 }
 
 export function spellCasts(state: RunState, def: CardDef, card?: Pick<BoardCard, 'extraCasts'>): number {
@@ -2395,6 +2410,27 @@ export function fireEquipmentFree(state: RunState, def: EquipmentDefinition, ver
 }
 
 /**
+ * `equipmentActivated` watchers (set 3 Neutrals, 2026-09-18 — Rig): the player ACTIVATED an Equipment from the
+ * slot. Fired ONCE per activation by the reducer's `activateEquipment` success path, after the Equipment's own
+ * triggers resolved — never for a Dismantling / Counterrotation re-fire (`fireEquipmentFree`), which is not the
+ * player using the slot. BOARD bodies only: a Rig in hand does not watch. Each watcher's gain is captured as its
+ * own buff cue, attributed to the body that grew.
+ */
+export function fireEquipmentActivated(state: RunState, equipmentId: string): void {
+  const watchers = state.board.filter((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'equipmentActivated'));
+  if (watchers.length === 0) return;
+  const ctx = makeContext(state);
+  for (const c of watchers) {
+    if (!state.board.some((b) => b.uid === c.uid)) continue; // an earlier watcher's payout could move the board
+    for (const eff of CARD_INDEX[c.cardId]?.effects ?? []) {
+      if (eff.on !== 'equipmentActivated') continue;
+      const fn = RECRUIT_FACTORIES[eff.do];
+      if (fn) captureBuffFx(state, c, 'minion', () => fn(ctx, c, eff.params ?? {}, { minion: c, equipmentId }));
+    }
+  }
+}
+
+/**
  * ONE Equipment TRIGGER, on its own beat. Each repeat is a separate trigger for listeners and for the Beat
  * Lab, carrying its index — which is the causality the replay cannot store (replay v2 is state replay), so
  * it lives here on the presentation channel instead. See `docs/replay-v2-causality.md`.
@@ -2455,7 +2491,8 @@ export function destroyMinionInShop(
     //        put its two Imps at the far end of the board instead of in its place (owner report 2026-08-28:
     //        "it should be summoned as if the minion died where it did").
     //      · CAPACITY. A vacating body must not consume a summon slot, or an Echo that summons is silently
-    //        dead on a full board.
+    //        dead on a full board. A RISING body vacates too (owner 2026-09-18: Echo first, then the Rise
+    //        attempts — the return, not the Echo's summon, is what finds no room on a full board).
     //    Combat reaches the same result the other way round (remove, then summon into the vacated slot); what
     //    matters is that the summons end up where the body died, which is what a player sees.
     state.vacatingUid = target.uid;
@@ -2532,8 +2569,8 @@ function noteShopCardDeath(state: RunState, destroyed: BoardCard): void {
  *                     and the return goes to its RIGHT (owner ruling 2026-07-06).
  */
 function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFrom: number): BoardCard | undefined {
-  // A rising body held its slot through its Echo, so this only fails if something else filled the board — and
-  // then the return COUNTS AS AN OVERFLOW (owner 2026-09-09), the same event a summon with no room fires.
+  // The Echo resolved FIRST and its summons took the freed room (owner 2026-09-18); a return with no room
+  // COUNTS AS AN OVERFLOW (owner 2026-09-09, unchanged), the same event a summon with no room fires.
   if (state.board.length >= CONFIG.boardMax) { fireSummonOverflow(state); return undefined; }
   const def = CARD_INDEX[target.cardId];
   const mul = target.golden ? 2 : 1;
@@ -2577,8 +2614,9 @@ function riseReturn(state: RunState, target: BoardCard, slot: number, summonedFr
  * THE REBIRTH RETURN (owner 2026-09-16) — the shop twin of combat's Rebirth branch in `killOrReborn`: the body
  * comes back as it WAS — every buff, every granted keyword (Rebirth itself spent), every per-instance counter —
  * with nothing rebuilt from the def. A FRESH uid for the same reason `riseReturn` takes one (the departure diff
- * needs to see the body leave). The board cap gates it as a Rise: the Echo resolved first, and no room means an
- * overflow and no return. NOT a Rise — the Rise watchers (`fireOnRise`) stay quiet.
+ * needs to see the body leave). The board cap gates it as a Rise: the Echo resolved first and its summons took
+ * the freed room (owner 2026-09-18), and no room means an overflow and no return. NOT a Rise — the Rise
+ * watchers (`fireOnRise`) stay quiet.
  */
 function rebirthReturn(state: RunState, target: BoardCard, slot: number, summonedFrom: number): BoardCard | undefined {
   if (state.board.length >= CONFIG.boardMax) { fireSummonOverflow(state); return undefined; }
@@ -4352,6 +4390,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ARENA_EFFECTS.overflowBuffAllPermanent(shopArena(ctx.state, self), params);
   },
 
+  /** Bicycle Bob (shop half): a shop summon that found no room → a random OTHER friendly <tribe> gains the printed
+   *  buff × (1 + <tribe> played this turn). A shop buff is permanent. One body in arena.ts serves both phases. */
+  overflowBuffRandomTribePerPlayed: (ctx, self, params) => {
+    ARENA_EFFECTS.overflowBuffRandomTribePerPlayed(shopArena(ctx.state, self), params);
+  },
+
   /** Cage Breaker (Shout, aimed): DESTROY a friendly <tribe> — the two-step death Graverobber uses, so its Echo,
    *  its departure and its Rise get their beat — then Discover a <tribe> at the tavern tier (owner 2026-09-09:
    *  "any undead up to the player's current tavern tier"). The Discover is queued behind the pending death. */
@@ -5935,6 +5979,50 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  gilded Artificer's Comet passes its `gildedParams` (4). */
   equipmentExtraNextSpellCasts: (ctx, _self, params) => {
     ctx.state.nextSpellExtraCasts = (ctx.state.nextSpellExtraCasts ?? 0) + num(params.extra, 2);
+  },
+
+  // ═══ Set 3 Neutrals — owner handoff 2026-09-18: Shredder, the Calibration Wrench, Rig ═══
+
+  /** Shredder (End of Turn): the LEFT-most and RIGHT-most minions each gain +attack/+health for EVERY held
+   *  Equipment whose charge went unused this turn (`unusedEquipmentCount`, read before `expireEquipmentTurn`
+   *  clears the marks). One minion is both ends and is buffed once. One capture per unused Equipment so it reads
+   *  as N hits landing (the "+x/+y per z" End-of-Turn rule, owner 2026-07-17), and the live text prints the same
+   *  total (`shredderText`). Golden doubles the per-Equipment grant. */
+  endOfTurnBuffEndsPerUnusedEquipment: (ctx, self, params) => {
+    const unused = unusedEquipmentCount(ctx.state);
+    const board = ctx.state.board;
+    if (unused <= 0 || board.length === 0) return;
+    const ends = board.length === 1 ? [board[0]!] : [board[0]!, board[board.length - 1]!];
+    const a = num(params.attack, 4) * gold(self);
+    const h = num(params.health, 4) * gold(self);
+    for (let wave = 0; wave < unused; wave++) {
+      const before = ctx.state.recruitBuffFx.length;
+      captureBuffFx(ctx.state, self, 'minion', () => {
+        for (const target of ends) addBuff(target, nameOf(self), a, h);
+      });
+      for (let i = before; i < ctx.state.recruitBuffFx.length; i++) ctx.state.recruitBuffFx[i]!.fxWave = wave;
+      if (a > 0) {
+        for (const target of ends) {
+          if (!ctx.state.board.some((c) => c.uid === target.uid)) continue;
+          (ctx.state.gainAttackFiredUids ??= []).push(target.uid);
+          captureBuffFx(ctx.state, target, 'minion', () => fireOnGainAttack(ctx.state, target));
+        }
+      }
+    }
+  },
+
+  /** Calibration Wrench (Calibration Master's Equipment): bank `count` Amplified activations for WHATEVER
+   *  Equipment the player presses next — never the Wrench itself (`consumeCalibration` refuses its own id). The
+   *  reducer's activation spends one beside the per-id Amplified stack. A gilded Master's Wrench passes
+   *  `gildedParams` (2); an Amplified Wrench (a Rune of Amplification stack on it) simply fires this twice. */
+  equipmentCalibrate: (ctx, _self, params) => {
+    armCalibration(ctx.state, num(params.count, 1));
+  },
+
+  /** Rig: whenever you ACTIVATE an Equipment (dispatched by `fireEquipmentActivated` from the reducer's
+   *  activation, board bodies only), this gains +attack/+health permanently. Golden doubles. */
+  equipmentActivatedBuffSelf: (_ctx, self, params) => {
+    addBuff(self, nameOf(self), num(params.attack, 4) * gold(self), num(params.health, 4) * gold(self));
   },
 
   // ═══ Set 3 Celestials — THE STARFORM ROSTER (owner spec 2026-09-12). The token engine is `starform.ts`; every
@@ -8332,6 +8420,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  the combat death site (`noteCardDeath`) reads it and grants the run-wide `cardBuffs` enchant, which the shop
    *  already bakes into every copy (board, hand, future). Nothing to do here; the stub keeps the phase map honest. */
   cardDeathScaler: () => {},
+  dealtDamageAleMeter: () => {}, // Han Gover: combat-only meter (no damage is dealt in the shop); the tally rides the run card
 
   /** NIGHT MARKET HORROR — "After you buy a card, give minions in the shop +2/+2 THIS TURN."
    *
@@ -10873,10 +10962,13 @@ export function settlePendingDeath(state: RunState): void {
       // The body is dying: the authored dissolve plays for it (suppressed when it is rising — it re-forms).
       stampShopFx(state, { kind: 'death', uid: card.uid, cardId: card.cardId, ...(willRise || willRebirth ? { rise: true } : {}) });
       const wasVacating = state.vacatingUid;
-      // A body that will NOT rise vacates its slot for its Echo's summons ("in the place of the minion dying").
-      // A RISING body HOLDS its slot (owner ruling 2026-09-09): its Echo resolves first, and on a full board the
-      // summon overflows — Squatimus / Flowing Monk pay off on it — while the body itself returns.
-      if (!willRise && !willRebirth) state.vacatingUid = card.uid;
+      // EVERY dying body vacates its slot for its Echo's summons ("in the place of the minion dying") — a rising
+      // or rebirthing one included (owner ruling 2026-09-18: "the Echo triggers first, then the minion attempts
+      // to Rise", for ALL Rise/Echo interactions; reverses the 2026-09-09 "a rising body holds its slot"). On a
+      // full board the Echo's summon lands in the freed slot and it is the RETURN that finds no room — an
+      // overflow (Squatimus / Flowing Monk pay off on it) and the body stays dead. Owner report 2026-09-18: a
+      // Deathfibrillated minion on a 7-body board rose and its Echo's summon overflowed — the wrong way round.
+      state.vacatingUid = card.uid;
       summonedFrom = state.board.length;
       try {
         if (pending.kind === 'loan') triggerBorrowedEcho(state, card);
@@ -11992,9 +12084,30 @@ export function revelerValue(state: Pick<RunState, 'revelerX'>): number {
   return Math.max(1, state.revelerX ?? 1);
 }
 
-/** Spirits played from hand this turn — derived from the turn's play list, so it resets with it. */
+/**
+ * Cards of `tribe` played from hand this turn — THE one counting function (2026-09-18): through the shared tribe
+ * predicate (an all-types card counts for every tribe), derived from the turn's play list so it resets with it.
+ * `spiritsPlayedThisTurn`, the reducer's per-side combat map (`tribesPlayedThisTurn`) and the shop arena's
+ * `playedThisTurn(tribe)` all read this — never a second filter.
+ */
+export function playedThisTurnFor(state: Pick<RunState, 'playedThisTurn'>, tribe: Tribe): number {
+  return (state.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], tribe)).length;
+}
+
+/** The per-tribe map of cards played this turn — what `CombatSideState.tribesPlayed` freezes at combat start
+ *  (read in combat via `ctx.playedThisTurnFor`). Tribes at 0 are omitted so a plain turn stays `{}`. */
+export function tribesPlayedThisTurn(state: Pick<RunState, 'playedThisTurn'>): Partial<Record<Tribe, number>> {
+  const out: Partial<Record<Tribe, number>> = {};
+  for (const tribe of TRIBES) {
+    const n = playedThisTurnFor(state, tribe);
+    if (n > 0) out[tribe] = n;
+  }
+  return out;
+}
+
+/** Spirits played from hand this turn — `playedThisTurnFor(state, 'spirit')`. */
 export function spiritsPlayedThisTurn(state: Pick<RunState, 'playedThisTurn'>): number {
-  return (state.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], 'spirit')).length;
+  return playedThisTurnFor(state, 'spirit');
 }
 
 /** `count` random picks from `pool` (no repeats), drawn off the run cursor so a replay lands the same picks. */

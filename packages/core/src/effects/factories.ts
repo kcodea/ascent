@@ -360,6 +360,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     logSpellProgress: (amount) => ctx.log({ type: 'spellProgress', target: self.uid, amount }),
     logImprove: (amount) => ctx.log({ type: 'improve', target: self.uid, amount }),
     spellsThisTurn: () => ctx.spellsThisTurnFor(self.side),
+    playedThisTurn: (tribe) => ctx.playedThisTurnFor(self.side, tribe as Tribe),
     grantRandomFromPool: (pred, count) => {
       const pool = ctx.poolCards(self.side).filter(pred);
       if (pool.length === 0) return;
@@ -1747,6 +1748,14 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ARENA_EFFECTS.overflowBuffAllPermanent(combatArena(ctx, self), params);
   },
 
+  /** Bicycle Bob — `summonOverflow` (this side's summon found no room): a random OTHER friendly <tribe> gains the
+   *  printed buff × (1 + <tribe> played this turn), carried back. One body in arena.ts serves both phases. */
+  overflowBuffRandomTribePerPlayed: (ctx, self, params, payload) => {
+    const { side } = payload as { side: Side };
+    if (self.dead || side !== self.side) return;
+    ARENA_EFFECTS.overflowBuffRandomTribePerPlayed(combatArena(ctx, self), params);
+  },
+
   /** Cage Breaker — a combat-triggered Shout has no Shop to Discover from and no aim: it grants a random
    *  minion of the tribe through the usual Discover-in-combat channel (owner 2026-09-09). The DESTROY half is
    *  shop-only — combat has no "destroy a friendly" verb, and a re-fired Shout mid-fight paying a body for a
@@ -2558,6 +2567,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   rubyStatMultiplier: () => {},
   /** Spear Warden's passive marker — never dispatched; `noteCardDeath` (simulate.ts) reads it at the death site. */
   cardDeathScaler: () => {},
+  dealtDamageAleMeter: () => {}, // Han Gover: a passive marker — the damage site (`noteDamageDealt`) does the work
 
   /** Set 2 — Alchemist Brisbane (Echo half): on death, buff your Rubies +atk/+hp (× golden), carried back. */
   // ── ARENA-MIGRATED (Step 3, Ruby family): one body in arena.ts serves both phases.

@@ -66,6 +66,9 @@ export const CHANNEL_OF_TRIGGER: Readonly<Record<string, string>> = {
   // Equipment is granted as a body ENTERS PLAY (and re-granted at the rebuild), so it shares the summon
   // channel with every other arrival-driven trigger — that is what an Equip minion interacts with.
   equip: 'summon',
+  // Activating Equipment is the player pressing the slot — the hero-power-shaped channel — so a watcher on it
+  // (Rig, 2026-09-18) interacts with everything an Equipment activation touches.
+  equipmentActivated: 'hero-power',
   onDeath: 'death',
   onRise: 'death', // a Rise is the tail of a death — the watchers (Revenant, Rising Tide) interact with what kills
   avenge: 'death',

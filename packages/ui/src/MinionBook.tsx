@@ -344,10 +344,24 @@ export function MinionBook() {
   // tier chart counts these (so selecting Tier 3 highlights that bar instead of emptying the other six).
   const inCategory = useMemo(() => {
     if (ownGalleryTab) return [];
-    // A text search is GLOBAL: it scans every in-scope card (minions + evolutions + spells + gifts + quest/rune
-    // rewards), ignoring the tribe chips + Spells/Rewards mode toggles, so typing "Imp" surfaces every match.
-    // Tier chips still narrow it (below). Overrides the category logic.
-    if (query) return allCards.filter(matchText);
+    // A text search scans every in-scope card (minions + evolutions + spells + gifts + quest/rune rewards) — with
+    // NO rail chips lit it is global, so typing "Imp" surfaces every match. With chips lit it DRILLS DOWN inside
+    // the search (owner ask 2026-09-18: search "equip", then narrow by tribe): a lit tribe keeps only matches of
+    // that tribe (either tribe of a dual-tribe body); a lit Spells / Gifts / rewards chip keeps only that pool.
+    // Tier chips still narrow it (below).
+    if (query) {
+      const hits = allCards.filter(matchText);
+      const tribeSel = [...cats].filter((x): x is Tribe => !NON_TRIBE_CATS.has(x));
+      const poolSel = [...cats].filter((x) => NON_TRIBE_CATS.has(x));
+      if (tribeSel.length === 0 && poolSel.length === 0) return hits;
+      return hits.filter((c) => {
+        const tribeOk = tribeSel.length === 0 || tribeSel.includes(c.tribe) || (!!c.tribe2 && tribeSel.includes(c.tribe2));
+        const poolOk = poolSel.length === 0
+          || (poolSel.includes('spells') && SPELL_POOL_IDS.has(c.id)) || (poolSel.includes('gifts') && GIFT_IDS.has(c.id))
+          || (poolSel.includes('rewards') && QUEST_REWARD_IDS.has(c.id)) || (poolSel.includes('runeRewards') && RUNE_REWARD_IDS.has(c.id));
+        return tribeOk && poolOk;
+      });
+    }
     // Spells / Gifts / Quest Rewards / Rune Rewards are EXCLUSIVE modes, not additive axes: selecting any shows
     // ONLY those pools (or several, if several are on) and hides the minion gallery entirely. With none selected,
     // the gallery is minions-only — spells never leak into a tribe search unless the player toggles them on.

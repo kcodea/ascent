@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { chooseBothActive, hasTier7Access, runeStacksOf, spellAttackBonus, spellHealthBonus, spiritsPlayedThisTurn } from '@game/sim';
+import { chooseBothActive, hasTier7Access, unusedEquipmentCount, runeStacksOf, spellAttackBonus, spellHealthBonus, spiritsPlayedThisTurn, tribesPlayedThisTurn } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { stepProgress } from './cardText';
 import { liveCardText } from './instView';
@@ -108,6 +108,9 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         // Drunken Oaf's rep count. Player-only: `enemyScalers` carries no Ale tally, so a served Oaf reads its
         // printed text — the same fallback every other run-scoped scaler takes on the foe side.
         alesThisTurn: foe ? enemyScalers?.alesLastTurn : run.alesCastThisTurn,
+        // Shredder's Equipment count. Player-only (an enemy snapshot carries no Equipment): in combat the turn's
+        // marks have expired, so this reads the Equipment the player holds going into the next turn.
+        unusedEquipment: foe ? 0 : unusedEquipmentCount(run),
         goldSpent: foe ? 0 : run.goldSpentThisTurn,
         // Ancient Wanderer's run-lifetime meter. Player-only: an enemy snapshot carries no run, so a served
         // Wanderer reads its printed rate — the same fallback every other run-scoped scaler takes on the foe
@@ -139,6 +142,9 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         // Set 3 Spirits: the shared Reveler value + Spirits played this turn, frozen for the fight (Kindled Sprite's
         // Rally, Nurturer, the Revelers, Luminary). Player-side only, like the other run-scoped scalers.
         revelerX: foe ? enemyScalers?.revelerX : run.revelerX, spiritsPlayed: foe ? enemyScalers?.spiritsPlayed : spiritsPlayedThisTurn(run),
+        // Bicycle Bob's Undead-played count, per side (2026-09-18): the foe's rides its snapshot's per-tribe map; the
+        // player's is derived from the frozen `playedThisTurn` ids by the same predicate the sim froze it with.
+        tribesPlayed: foe ? enemyScalers?.tribesPlayed : tribesPlayedThisTurn(run),
       })
     : { text: '', goldenText: undefined };
   const view: CardView = {
@@ -163,6 +169,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
       spellProgress: u.spellProgress, spiritTally: u.spiritTally, summonBonus: u.summonBonus,
       ascendProgress: u.ascendProgress, attackSeen: u.attackSeen,
       avengeSeen: u.avengeSeen, bleedAttacks: u.bleedAttacks,
+      damageDealt: u.damageDealt, // Han Gover: the N/40 damage meter ticks on each landed hit it deals
       // orbitTick deliberately absent: Orbits are a shop mechanic, no combat counter (audit 2026-08-06).
     }) ?? undefined,
     // Combat: the counter fades in on each tick and fades out after ~3s (see `.stepcounter.ephemeral`).
@@ -204,6 +211,7 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.u.golden === b.u.golden &&
   a.u.summonBonus === b.u.summonBonus &&
   a.u.attackSeen === b.u.attackSeen &&
+  a.u.damageDealt === b.u.damageDealt && // Han Gover: only its own hits move it, so this is a per-unit compare
   // avengeSeen only ticks on a death (a rare board-reflow beat) — cheap to compare, and it's what
   // restarts the avenge counter's fade-in. (bleedAttacks is the GLOBAL attack count stamped on every
   // unit every attack; comparing it here would re-render the whole board each beat — deliberately left

@@ -52,7 +52,7 @@ const RICH: LiveTextParams = {
   cardBuffs: { knit: { attack: 8, health: 4 } }, /* two Spear Warden deaths */ impAura: { attack: 2, health: 3 },
   spellProgress: 5, /* past Runescale's every-4 improve step */ ascendProgress: 2, summonBonus: 2, overflowBonus: 2, hpGrantBonus: 2,
   eotTick: 2, eotBonus: 2, sellBonus: 2, soldProgress: 2,
-  playedThisTurn: ['alley', 'alley', 'alley'], attackSeen: 9, permaGain: { attack: 2, health: 2 },
+  playedThisTurn: ['alley', 'alley', 'alley'], tribesPlayed: { undead: 2 }, /* Bicycle Bob's per-tribe channel (2026-09-18) */ attackSeen: 9, permaGain: { attack: 2, health: 2 },
   squirlScoutBuff: 3, conductorBuff: 3, onBoard: false,
   goldSpent: 6, goldSpentRun: 12, goldPouchValue: 2,
   alesThisTurn: 2, zooSummons: 2, rallySpreadAtk: 5,

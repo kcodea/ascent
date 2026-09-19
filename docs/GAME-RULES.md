@@ -505,6 +505,33 @@ hear **wherever it happens**:
 `simulate.ts`, `fireOnRise` off the shop's `riseReturn`), with the risen body in the payload. Pinned in
 `set3Undead.test.ts` for both phases and for the enemy case.
 
+### Echo first, THEN the Rise attempts — every Rise/Echo interaction, both phases (owner ruling 2026-09-18)
+
+*"When I used Deathfibrillator on a minion with 7 bodies on board, it gives the minion Rise and kills it, but
+then that minion rises BEFORE its Echo triggers. This is wrong. The Echo should trigger from the death of the
+minion, THEN the minion attempts to rise. This is true for ALL Rise/Echo interactions."*
+
+A minion with **Rise** (or **Rebirth**) that dies resolves in this order, in **combat and in the shop** alike:
+
+1. the minion **dies** — it leaves its slot (a real death: Avenge, tallies, on-death watchers, kill credit);
+2. its **Echo fires** (and every on-death watcher, in the existing order) — an Echo that summons lands its
+   bodies **in the freed slot**, where the minion died;
+3. **THEN** the minion **attempts** to return — to the right of what its Echo summoned. If the board is full
+   by then (the Echo's summons took the room), the return **finds no room**: it counts as an **overflow**
+   (Squatimus / Flowing Monk / Rune of the Crowded Crypt pay off) and the body stays dead. Its Rise is spent.
+
+So on a full board a **Warden Rodrick** dies, his Spear Warden takes his slot, and Rodrick does not come back.
+A Rise minion whose Echo summons nothing (Sergeant) still rises on a full board — the slot its death freed is
+still free. This **reverses the 2026-09-09 ruling** under which a rising body held its slot through its Echo
+(so the Echo's summon overflowed and the body returned) — that read as "the minion rose before its Echo".
+
+**How it is enforced.** Combat: `killOrReborn` in `simulate.ts` holds no slot reservation (the `occupied` room
+check is the living count); the Echo's summons place first, then the return is gated on `living < 7`. Shop:
+`settlePendingDeath` / `destroyMinionInShop` in `recruit.ts` mark EVERY dying body `vacatingUid` (the summon
+path discounts it), then `riseReturn` / `rebirthReturn` gate on the board cap. Pinned in
+`core/src/combat/simulate.test.ts`, `core/src/combat/rebirth.test.ts`, `sim/src/set3Undead.test.ts` and
+`sim/src/shopDestroy.test.ts`. Rule **R-RISE-05** in the registry records the supersession.
+
 ### Rebirth — a NEW keyword, distinct from Rise (owner ruling 2026-09-16)
 
 **Rebirth** (`RB`): when the minion dies it returns **once with its FULL current body** — stats (Health refilled
@@ -533,8 +560,9 @@ a Rise-vs-Rebirth parity fixture whose flow of deaths, returns and Avenge payout
 - **NOT a Rise:** the Rise watchers (Revenant, Rising Tide — `onRise`) stay quiet, and Rune of the Deathtouched
   Apple (a Rise re-arm) does not touch it — those two are Rise's own.
 - **It IS a summon in full** (the owner's Rise ruling 2026-08-12): the summon-entry suite runs on the return.
-- **A full board at the return = an overflow**; the body stays dead (the Rise rule). A rebirthing body holds
-  its slot through its Echo, as a rising one does.
+- **A full board at the return = an overflow**; the body stays dead (the Rise rule). The body holds NO slot
+  while it is dead: its Echo fires first and takes the freed room, and only then is the return attempted (see
+  "Echo first, then the Rise" above).
 - **A body holding BOTH keywords: Rebirth resolves first.** Rise has no precedence rule of its own (it is one
   keyword), so the stronger return goes first and the buffs are not thrown away; its Rise stays armed, so its
   NEXT death Rises the printed body.

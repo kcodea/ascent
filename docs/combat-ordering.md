@@ -116,11 +116,14 @@ whole thing twice, each swing its own step):
 
 Each fallen body runs `killOrReborn` as its own step. Two paths:
 
-7. **Rise** (the body has Reborn available):
+7. **Rise** (the body has Reborn available) — and **Rebirth**, which follows the same order:
    `death` (`rise:true`) → *(step)* Deathrattle → `summon` → *(step)* `reborn`.
    The body vacates its slot first, the rattle's summons fill it, then it returns at base Attack / 1 HP
-   to the **right** of those summons. If the side is already at 7 living, the Rise fails → it stays a
-   true death.
+   to the **right** of those summons. If the side is already at 7 living **when the return is attempted**
+   (the rattle's summons took the freed room), the Rise fails → it stays a true death, and that failed
+   return is an **overflow** (`summonOverflow` fires). **Echo first, THEN the Rise attempts** — owner
+   ruling 2026-09-18, for every Rise/Echo interaction in both phases; it reverses the 2026-09-09 "a rising
+   body holds its slot through its Echo" (under which the summon overflowed and the body returned).
 8. **True death:**
    `death` → `onDeath` bus (Deathrattle) → `summon` · `buff` → Echo doublers (Sylus, Funeral Engine)
    re-fire the rattle → `avenge` bus → Bone Throne / Pit Without End / Empty Graves may trigger.
@@ -166,7 +169,7 @@ Each fallen body runs `killOrReborn` as its own step. Two paths:
 | **Venomous** (Toxin · `V`) | Its damage lands (unshielded) | `dmg` → `poison` → `venomLost` | Sets HP to 0 in Phase 1; the death resolves in Phase 2. |
 | **Cleave** (`C`) | A Cleave minion attacks | `dmg` × neighbours | Splash hits both neighbours in Phase 1, before any death resolves. |
 | **Windfury** (Flurry · `W`) | A Flurry minion attacks | `attack` × 2 | The whole exchange runs twice; each swing its own step. 2nd only if it survives the 1st. |
-| **Reborn** (Rise · `R`) | First death | `death` → `summon` → `reborn` | Die → Deathrattle → return at base Attack / 1 HP, to the *right* of what it summoned. Fails at 7 living. |
+| **Reborn** (Rise · `R`) | First death | `death` → `summon` → `reborn` | Die → Deathrattle → return at base Attack / 1 HP, to the *right* of what it summoned. Fails (an overflow) at 7 living when the return is attempted — the Echo's summons take the freed room first (owner 2026-09-18). |
 | **Deathrattle** (Echo · `onDeath`) | True death (or a Rise's death) | `death` → `summon` · `buff` | Fires *before* a Rise body returns. Echo doublers (Sylus) re-fire it in place. |
 | **Attack-on-summon** (Whelp · `attackOnSummon`) | Summoned by a Deathrattle | `summon` → `attack` | **Deferred:** the *whole* summon + strike land together at the flush, after the cascade — off-board meanwhile (see §3.10). |
 | **On-kill** (Slaughter · `onKill`) | Fells a body while attacking | `summon` · `buff` · `toHand` | After *all* Phase-2 deaths. Only when `killer === attacker` — a defender's retaliation kill doesn't count. |

@@ -135,4 +135,25 @@ export const SET3_DWARVES: CardDef[] = [
     text: 'When a **Dwarf** gains Attack, this gains **+1/+4**.',
     goldenText: 'When a **Dwarf** gains Attack, this gains **+2/+8**.',
   },
+  {
+    // Owner handoff 2026-09-18. Dwarf/Undead: "When this deals 40 damage, get an Ale." A PASSIVE marker the
+    // combat damage site reads (`noteDamageDealt` in simulate.ts): every landed hit this body deals — attack,
+    // retaliation, incidental — adds to its per-instance `damageDealt` tally, which is seeded from the run card
+    // and carried back (`playerDamageMeters`), so it persists combat → shop → combat. Each multiple of 40 it
+    // crosses grants a random Dwarven Ale (the same pool-scoped pick Pourman's Keg / Rune of Last Call use) via
+    // `grantToHand`, so the card flies to hand in the replay and lands in the real hand at settle. Gilded pays
+    // 2 Ales per crossing and doubles nothing else. Progress shows on the step-counter badge (N/40), the
+    // Avenge-style meter every every-N card wears (owner ruling 2026-09-11: trackers, not fractions in the text).
+    id: 'dw3_hangover',
+    name: 'Han Gover',
+    tribe: 'dwarf',
+    tribe2: 'undead',
+    tier: 4,
+    attack: 4,
+    health: 7,
+    keywords: [],
+    effects: [{ on: 'passive', do: 'dealtDamageAleMeter', params: { every: 40, count: 1 } }],
+    text: 'When this deals **40 damage**, get an **Ale**.',
+    goldenText: 'When this deals **40 damage**, get **2 Ales**.',
+  },
 ];

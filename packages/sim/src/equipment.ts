@@ -1,4 +1,4 @@
-import { CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, type EquipmentDefinition } from '@game/content';
+import { CALIBRATION_WRENCH, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, type EquipmentDefinition } from '@game/content';
 import type { BoardCard, GrantedEquipment, PlayerEquipmentState, RunState } from './state';
 
 /**
@@ -143,6 +143,48 @@ export function consumeAmplified(run: RunState, equipmentId: string): boolean {
   if (cur - 1 > 0) next[equipmentId] = cur - 1; else delete next[equipmentId];
   e.amplified = next;
   return true;
+}
+
+// ── CALIBRATION WRENCH (set 3 Neutrals, owner handoff 2026-09-18) ────────────────────────────────────────
+// "Your next Equipment activation is Amplified." The per-id stack above cannot say "whatever you press next", so
+// the Wrench banks a COUNT on the same state and the activation spends it beside the per-id stack.
+
+/** Upcoming activations the Wrench has Amplified (any Equipment but the Wrench itself). */
+export function calibrationPendingOf(run: Pick<RunState, 'equipment'>): number {
+  return equipmentState(run).calibrationPending ?? 0;
+}
+
+/** The Wrench fired: bank `count` more Amplified activations (a gilded Master's Wrench banks two per trigger). */
+export function armCalibration(run: RunState, count: number): void {
+  if (count <= 0) return;
+  const e = ensure(run);
+  e.calibrationPending = (e.calibrationPending ?? 0) + count;
+}
+
+/** SPEND one pending Calibration for an activation of `equipmentId`. The Wrench never Amplifies itself; nothing
+ *  pending → false. The caller doubles the trigger count for THIS activation, exactly as for `consumeAmplified`. */
+export function consumeCalibration(run: RunState, equipmentId: string): boolean {
+  if (equipmentId === CALIBRATION_WRENCH.id) return false;
+  const e = ensure(run);
+  const cur = e.calibrationPending ?? 0;
+  if (cur <= 0) return false;
+  if (cur - 1 > 0) e.calibrationPending = cur - 1; else delete e.calibrationPending;
+  return true;
+}
+
+/** Will an activation of `equipmentId` RIGHT NOW resolve Amplified — its own stack, or a pending Calibration it can
+ *  spend? The slot paints the charge indicator BLUE (`data-fx="equipment-amplified"`) off this, so the Wrench's
+ *  pending charge shows on every held Equipment it would apply to, never on the Wrench itself. */
+export function equipmentWillAmplify(run: Pick<RunState, 'equipment'>, equipmentId: string): boolean {
+  if (equipmentAmplifiedOf(run, equipmentId) > 0) return true;
+  return equipmentId !== CALIBRATION_WRENCH.id && calibrationPendingOf(run) > 0;
+}
+
+/** SHREDDER (set 3 Neutrals, 2026-09-18): how many held Equipment have NOT been activated this turn — the same
+ *  per-turn `usedThisTurn` mark Rune of Amplification reads. Meaningful only BEFORE `expireEquipmentTurn` clears
+ *  the marks; the End-of-Turn pass runs first, so Shredder sees the turn as it was played. */
+export function unusedEquipmentCount(run: Pick<RunState, 'equipment'>): number {
+  return equipmentState(run).available.filter((g) => !g.usedThisTurn).length;
 }
 
 /** The run fields the price reads — the same helper the rail prints, so a rune discount is what the slot shows. */
@@ -321,6 +363,7 @@ export interface ReequipCue { uid: string; cardId: string; equipmentId: string }
 export function rebuildEquipment(run: RunState): ReequipCue[] {
   const lastUsed = equipmentState(run).lastUsedEquipmentId;
   const amplified = equipmentState(run).amplified; // Amplified stacks CARRY across the rebuild (pruned below)
+  const calibration = equipmentState(run).calibrationPending; // …and so does the Wrench's pending count (it IS Amplification)
   // A fresh collection every turn — every re-granted entry arrives with its own charge unspent — and the
   // shared pool back to zero. Bonus charges and cost reductions are per-turn by definition, so they reset
   // here as well as at End of Turn — whichever runs first.
@@ -330,6 +373,7 @@ export function rebuildEquipment(run: RunState): ReequipCue[] {
     bonusSpent: 0,
     temporaryCostReduction: 0,
     ...(lastUsed ? { lastUsedEquipmentId: lastUsed } : {}),
+    ...(calibration ? { calibrationPending: calibration } : {}),
   };
   const cues: ReequipCue[] = [];
   const cued = new Set<string>();

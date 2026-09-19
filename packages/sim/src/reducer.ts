@@ -20,14 +20,14 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts } from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts } from './recruit';
 import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
-import { syncStarDestroyer, overchargeFree } from './equipment';
-import { fireOnBuyWatchers } from './recruit';
+import { syncStarDestroyer, overchargeFree, consumeCalibration } from './equipment';
+import { fireOnBuyWatchers, tribesPlayedThisTurn } from './recruit';
 import { MATCHMAKING } from './matchmaking';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -1777,6 +1777,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // below so the next cast of either kind is single.
         // Shared with the UI's ×N badge (`rubyCastCount`), so the number shown and the number resolved can't drift.
         const casts = rubyCastCount(s);
+        s.nextSpellExtraCasts = undefined; // Comet / Nimbus "next spell" charge spent on this Ruby (folded into `casts`, owner 2026-09-18)
         if (boardTarget) {
           for (let n = 0; n < casts; n++) {
             addBuff(boardTarget, 'Ruby', card.attack, card.health);
@@ -1916,8 +1917,9 @@ function reduceCore(state: RunState, action: Action): RunState {
           // Set 3 — a card-minted TARGETED hand spell (Tower Shield, Clue: `giftMulticast`) is the one Gift a cast
           // multiplier reaches: Yazzus repeats it ("your targeted spells" — owner 2026-09-09; the one Yazzus for
           // every set since 2026-09-16). Nothing else does — every other multiplier still skips Gifts.
-          const giftCasts = 1 + (def.giftMulticast && giftTarget ? yazzusExtraCasts(s) : 0);
+          const giftCasts = giftCastCount(s, def, !!giftTarget);
           for (let n = 0; n < giftCasts; n++) applyCastEffects(makeContext(s), def, giftTarget);
+          if (def.giftMulticast && giftTarget) s.nextSpellExtraCasts = undefined; // Comet / Nimbus charge spent (folded into `giftCasts`)
           s.hand.splice(i, 1);
           s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
           noteSpellCast(s, def); // counts as a spell CAST (but never as a Shop spell — see the flag's doc)
@@ -2631,8 +2633,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         : undefined;
       if (def.targetMode === 'friendly' && !target) return state;
       // R-TARGET-03 (owner 2026-09-18, global): an aimed Equipment never lands on the body that GRANTED it — EMS
-      // cannot Deathfibrillate itself, Frank cannot Bloodpot himself. The aim UI + bot view mirror this.
-      if (target && granted.sourceUids.includes(target.uid)) return state;
+      // cannot Deathfibrillate itself. `mayTargetSelf` opts a definition out (Bloodpot: Frank may buff himself,
+      // owner 2026-09-18). The aim UI + bot view mirror this.
+      if (target && !def.mayTargetSelf && granted.sourceUids.includes(target.uid)) return state;
 
       s.embers -= cost;
       const eq = s.equipment!;
@@ -2650,8 +2653,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       // AMPLIFIED (owner design 2026-09-16): an Amplified Equipment TRIGGERS TWICE — the whole activation, extra
       // triggers included — and the stack is consumed by this activation (one stack max, so ×2 at most). Credited
       // to whichever amplifying rune is held (both, when both are).
-      const amplified = consumeAmplified(s, def.id);
-      if (amplified) {
+      // CALIBRATION WRENCH (set 3 Neutrals, 2026-09-18): a pending Calibration Amplifies whatever is pressed next —
+      // spent only when this Equipment's own stack did not already do the job (nothing wasted), never for the
+      // Wrench itself (`consumeCalibration` refuses its id). Either way it is ONE Amplification: ×2 at most.
+      const ownStack = consumeAmplified(s, def.id);
+      const amplified = ownStack || consumeCalibration(s, def.id);
+      if (ownStack) {
         if (s.runeAmplification) procRuneId(s, 'rune_amplification');
         if (s.runeGrandWorkshop) procRuneId(s, 'rune_grand_workshop');
       }
@@ -2689,6 +2696,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         ...(target ? { targetUid: target.uid } : {}),
         ...(s.equipmentSpellCasts?.length ? { spellIds: [...s.equipmentSpellCasts] } : {}),
       });
+      // `equipmentActivated` watchers (Rig, set 3 Neutrals 2026-09-18): the player USED an Equipment — once per
+      // activation, after its own triggers, before any Counterrotation re-fire (which is not the player pressing).
+      fireEquipmentActivated(s, def.id);
       // RUNE OF COUNTERROTATION (Set 3 batch 2): three DIFFERENT Equipment activated this turn → every one of them
       // triggers again (targeted → a random friendly minion, a Choose One → a random branch), then the set resets so
       // the next three can pay again. The Star Destroyer never joins the set (owner note 2026-09-16).
@@ -3866,6 +3876,9 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   // Tara: the golden keeps the *highest* ascend progress of the copies (= the lowest "to go"), so tripling a
   // Tara that's close to ascending doesn't reset it back to 20-to-go.
   const goldenAscend = def.ascendAt ? Math.max(...combined.map((c) => c.ascendProgress ?? 0)) : 0;
+  // Han Gover: the golden keeps the HIGHEST damage tally of the copies (the same rule as Tara's ascend
+  // progress — the closest meter to its next Ale is the one that survives the merge).
+  const goldenDamageDealt = Math.max(...combined.map((c) => c.damageDealt ?? 0));
   // Hoarder: the golden keeps the EARLIEST (minimum) boughtWave of the copies, so a golden Hoarder
   // inherits the oldest copy's age → its highest sell value as the starting point (sell =
   // (wave - boughtWave + 1) × 2 golden). Generic — harmless on cards that don't read it — but Hoarder
@@ -3891,6 +3904,7 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
     buffs: goldenBuffs.length > 0 ? goldenBuffs : undefined,
     spellProgress: goldenProgress > 0 ? goldenProgress : undefined,
     ascendProgress: goldenAscend > 0 ? goldenAscend : undefined,
+    damageDealt: goldenDamageDealt > 0 ? goldenDamageDealt : undefined,
     boughtWave: goldenBoughtWave,
     eotTick: goldenEotTick,
   };
@@ -4050,6 +4064,7 @@ function preparePlayerCombatSide(s: RunState): PreparedCombatSide {
     ascendProgress: b.ascendProgress ?? 0, // Tara: seed the prior ascend tally so the live tracker shows the total
     spellProgress: b.spellProgress, // Guel: seed his on-board spell tally so the live combat text scales (not stuck at base)
     spiritTally: b.spiritTally, // Set 3 Spirits: Forest Colossus's Start of Combat reads it; Festival Keeper / Aspect print it
+    damageDealt: b.damageDealt, // Han Gover: seed the damage meter so it continues from the run total
     soldProgress: b.soldProgress, // Runic Archivist: display-only, so the combat card prints its live count
     boardFirstSpellId: b.boardFirstSpellId, // Spell Warden: display-only
     eotBonus: b.eotBonus, // Ritualist: seed the End-of-Turn grant so the live combat text reads its current per-tick value
@@ -4169,8 +4184,10 @@ function preparePlayerCombatSide(s: RunState): PreparedCombatSide {
   // below. Odds: re-simulate the same two boards on independent seeds (a separate ODDS stream, so they're
   // reproducible and don't disturb the real combat RNG). ~1000 sims keeps the margin to ~±1.5%.
   // Pack Leader: Beasts you PLAYED this turn (frozen for combat), threaded into simulate like spellsThisTurn.
-  const beastsPlayed = (s.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], 'beast')).length;
-  const spiritsPlayed = (s.playedThisTurn ?? []).filter((id) => defIsTribe(CARD_INDEX[id], 'spirit')).length; // Kindled Sprite
+  // ONE per-tribe map (2026-09-18, Bicycle Bob): the Beast and Spirit scalars are read off it, never re-counted.
+  const tribesPlayed = tribesPlayedThisTurn(s);
+  const beastsPlayed = tribesPlayed.beast ?? 0;
+  const spiritsPlayed = tribesPlayed.spirit ?? 0; // Kindled Sprite
   // The PLAYER side's run-level combat context — one symmetric `CombatSideState`, built once from the live
   // RunState and shared by the real fight + the 1000-sim odds probe.
   const playerState: CombatSideState = combatSide({
@@ -4198,6 +4215,7 @@ function preparePlayerCombatSide(s: RunState): PreparedCombatSide {
     beastBuyAtk: s.beastBuyAtk ?? 0,
     beastsPlayed,
     spiritsPlayed,
+    tribesPlayed,
     cardsBoughtThisTurn: s.cardsBoughtThisTurn ?? 0,
     magneticAtk: s.magneticBuyAtk ?? 0,
     magneticHp: s.magneticBuyHp ?? 0,
@@ -4408,6 +4426,14 @@ function settleCombat(s: RunState, result: CombatResult): void {
         card.cardId = t.into;
         card.spellProgress = undefined;
       }
+    }
+  }
+  // Han Gover: persist the damage meter (seeded + this fight's hits) so it survives combat → shop → combat.
+  // The Ales themselves already came home through `playerHandGrants` above.
+  if (result.playerDamageMeters) {
+    for (const { sourceUid, total } of result.playerDamageMeters) {
+      const card = s.board.find((c) => c.uid === sourceUid);
+      if (card) card.damageDealt = total;
     }
   }
   // Tara → Taragosa: accumulate this combat's stat-grants; at the `ascendAt` threshold, ascend the board card

@@ -357,6 +357,7 @@ export function mirrorForEnemySeat(result: CombatResult): CombatResult {
     playerSummonBonus: c.summonBonus,
     playerHpGrantBonus: c.hpGrantBonus,
     playerSpellProgress: c.spellProgress,
+    playerDamageMeters: c.damageMeters,
     playerAscendCount: c.ascendCount,
     playerPermaBuffs: c.permaBuffs,
     playerHandGrants: c.handGrants,

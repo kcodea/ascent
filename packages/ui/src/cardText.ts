@@ -411,6 +411,46 @@ export function scTribeBuffPerPlayedText(cardId: string, golden: boolean, played
 }
 
 /**
+ * SHREDDER (`endOfTurnBuffEndsPerUnusedEquipment`, set 3 Neutrals 2026-09-18) — "+4/+4 for every Equipment unused
+ * this turn" folded into the total it will ACTUALLY grant right now: the per-Equipment rate × the held Equipment
+ * whose charge is still unspent (`unusedEquipmentCount`). The count is what changes as the player presses the slot,
+ * so it is always shown; the rate stays in the parenthetical so the card still explains itself.
+ */
+export function shredderText(cardId: string, golden: boolean, unusedEquipment: number | undefined): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'endOfTurnBuffEndsPerUnusedEquipment');
+  if (!def || !eff) return null;
+  const n = unusedEquipment ?? 0;
+  const mult = golden ? 2 : 1;
+  const a = Number((eff.params as { attack?: number })?.attack ?? 4) * mult;
+  const h = Number((eff.params as { health?: number })?.health ?? 4) * mult;
+  return `**End of Turn:** give your left-most and right-most minions **{{+${a * n}/+${h * n}}}** (+${a}/+${h} for each Equipment unused this turn: **${n}**).`;
+}
+
+/**
+ * Bicycle Bob (`overflowBuffRandomTribePerPlayed`) — an overflow gives a random other <tribe> minion +A/+H, and the
+ * grant improves by the base for every <tribe> minion PLAYED this turn: (base × (1 + played)) × golden. Print the
+ * CURRENT grant (green) in place of the printed "+A/+H" (the hard live-value rule, both chains). `playedOf` answers
+ * the count for the card's tribe — the player counts its `playedThisTurn` ids through the shared tribe predicate,
+ * a served foe reads its snapshot's per-tribe map. Null before any qualifying play (the printed base is exact).
+ */
+export function overflowPerPlayedText(cardId: string, golden: boolean, playedOf: (tribe: Tribe) => number): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'overflowBuffRandomTribePerPlayed');
+  if (!def || !eff) return null;
+  const p = eff.params as { tribe?: string; attack?: number; health?: number } | undefined;
+  const tribe = String(p?.tribe ?? 'undead') as Tribe;
+  const played = playedOf(tribe);
+  if (played <= 0) return null;
+  const g = golden ? 2 : 1;
+  const a = Number(p?.attack ?? 1) * (1 + played) * g;
+  const h = Number(p?.health ?? 1) * (1 + played) * g;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  let done = false;
+  return src.replace(/\+\d+\/\+\d+/g, (m) => (done ? m : ((done = true), `{{+${a}/+${h}}}`)));
+}
+
+/**
  * DRUNKEN OAF (`scBuffRandomTribePerAle`) — Start of Combat gives a Dwarf +A/+H, repeated once more for every
  * Dwarven Ale cast this turn, so the reps are `1 + ales`. Spell out what it will ACTUALLY do right now: the rep
  * count and the total stats it's about to hand out, alongside the unchanged per-rep rate. Returns null on a dry
@@ -1111,7 +1151,7 @@ export interface StepProgress {
  */
 export function stepProgress(
   cardId: string,
-  p: { spellProgress?: number; spiritTally?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number; playTick?: number; shoutTick?: number; soldProgress?: number; grimoireCharged?: boolean; orbitTick?: number; rubyCastTick?: number },
+  p: { spellProgress?: number; spiritTally?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number; playTick?: number; shoutTick?: number; soldProgress?: number; grimoireCharged?: boolean; orbitTick?: number; rubyCastTick?: number; damageDealt?: number },
 ): StepProgress | null {
   const def = CARD_INDEX[cardId];
   if (!def) return null;
@@ -1133,6 +1173,11 @@ export function stepProgress(
   }
 
   if (def.effects.some((e) => e.do === 'spellCastBuffOthers')) return cyc(p.spellProgress ?? 0, 4); // Guel
+  // Han Gover: the DAMAGE meter ("when this deals 40 damage, get an Ale") — the running per-instance tally,
+  // Avenge-style (1..40 then wrap; 40/40 is the hit that paid out). Persists across combats, so the shop shows
+  // where the meter stands and combat continues from it. Tracker, not a fraction in the text (owner 2026-09-11).
+  const dmgMeter = def.effects.find((e) => e.do === 'dealtDamageAleMeter');
+  if (dmgMeter) return cyc(p.damageDealt ?? 0, Math.max(1, n((dmgMeter.params as { every?: number })?.every, 40)));
   // Astral Spellcore: every N Shop spells cast while on the board — the same per-copy `spellProgress` meter as
   // Guel, counting up; Avenge-style N/3 (owner 2026-09-11: the counter, never the text). Keyed on the effect's
   // SHAPE (a `spellCast` watcher with an `every` cadence and a `tribe` payout) rather than its factory id on

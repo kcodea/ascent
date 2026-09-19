@@ -19,6 +19,7 @@ import type { ParamsOf, FxParamSpecs } from '../params';
 import { registerPrimitive } from '../registry';
 import { playFxSound, type FxSoundHandle } from '../../sfx';
 import { audioFilterSpecs } from '../audioFilters';
+import { CURVE_PRESETS } from '../curve';
 import { BUS_NAMES, type BusName } from '../../audio/config';
 
 const PLAYBACK_SPECS = {
@@ -29,6 +30,10 @@ const PLAYBACK_SPECS = {
   gain: {
     kind: 'slider', label: 'Level', group: 'Clip', min: 0, max: 2, step: 0.01, default: 1, essential: true,
     help: 'Playback level — 1 is the clip\'s own level, above 1 boosts it. Still scaled by the bus and master volume, so this only sets how loud it reads against the mix.',
+  },
+  gainCurve: {
+    kind: 'curve', label: 'Level / time', group: 'Clip', default: [[0, 1], [1, 1]], vMax: 1, presets: CURVE_PRESETS,
+    help: 'How the Level rides over the sound (0 = it fires, 1 = the clip ends). Flat = constant; e.g. ramp down for a fade-out, up for a swell. Multiplies the Level above.',
   },
   pitch: {
     kind: 'slider', label: 'Pitch', group: 'Clip', min: 0.25, max: 4, step: 0.01, default: 1,

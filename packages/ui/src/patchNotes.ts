@@ -56,6 +56,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-19',
+    label: 'Effect cleanup crash',
+    changes: [
+      { category: 'UI / Info', text: "Fixed a crash in the shop when the effect budget trimmed an effect whose scene had already been torn down (\"Cannot read properties of null (reading 'indexOf')\")." },
+    ],
+  },
+  {
+    date: '2026-09-19',
     label: 'Replay viewer',
     changes: [
       {

@@ -5403,8 +5403,6 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .escbtn   { position: relative; --pr-edge: 4px; --pr-edge-c: rgba(90, 66, 30, 0.3); }
 .hsback   { --pr-edge: 4px; --pr-edge-c: rgba(0, 0, 0, 0.5); }   /* absolute already — no containment needed */
 .lbback   { position: relative; --pr-edge: 4px; --pr-edge-c: rgba(0, 0, 0, 0.5); }
-/* A 132px gold disc: it can carry real depth, and the edge takes the coin's own dark gold. */
-.caravatar { position: relative; --pr-edge: 5px; --pr-edge-c: #a8780f; }
 /* 40px icon buttons — the floor. 3px still reads as an object without swamping the glyph. */
 .book-close       { position: relative; --pr-edge: 3px; --pr-edge-c: rgba(90, 66, 30, 0.32); }
 .avatarpick-close { position: relative; --pr-edge: 3px; --pr-edge-c: rgba(0, 0, 0, 0.45); }
@@ -6224,7 +6222,6 @@ svg { width: 18px; height: 18px; }
 .lbsub { font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.02em; color: rgba(232, 200, 119, 0.85); }
 .lbscroll { flex: 1; overflow-y: auto; padding: 8px 30px 40px; display: flex; flex-direction: column; gap: 14px; }
 .lbempty { margin: 56px auto; color: rgba(255, 255, 255, 0.72); font-family: var(--font-ui); font-weight: 700; font-size: 18px; text-align: center; }
-.carempty-rating { margin-bottom: 12px; font-weight: 800; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--acc); }
 
 /* DEV-only Balance Report panel — reuses the .lbpage shell; adds a controls row + progress bar + dense tables. */
 .balpage { position: fixed; inset: 0; z-index: 480; display: flex; flex-direction: column; background: linear-gradient(rgba(6, 11, 22, 0.9), rgba(6, 11, 22, 0.95)); animation: fadein 0.2s ease; font-family: var(--font-ui); }
@@ -6433,47 +6430,107 @@ svg { width: 18px; height: 18px; }
 .runtrophy-tip .runtrophy-tip-kind { color: var(--gold); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px; }
 .runtrophy:hover .runtrophy-tip { opacity: 1; transition-delay: 0.25s; }
 
-/* Career (A7 part 2) — reuses the leaderboard page shell (.lbpage / .lbentry / .lbwarband). */
-.carprofile { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }
-.carstat { flex: 1; min-width: 120px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 14px 10px; border-radius: 14px; background: rgba(20, 30, 50, 0.55); border: 1.5px solid rgba(196, 160, 92, 0.4); }
-.carstat .cs-v { font-family: var(--font-ui); font-weight: 900; font-size: 30px; color: #fff; font-variant-numeric: tabular-nums; }
-.carstat .cs-l { font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
-.carsec { font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: #e8c877; margin: 18px 0 4px; }
-.carsec-ico { display: inline-flex; align-items: center; gap: 8px; }
-.carsec-ico svg { width: 16px; height: 16px; color: #e8c877; flex: none; }
-.cartop { font-family: var(--font-ui); font-weight: 700; font-size: 14px; color: rgba(255, 255, 255, 0.7); margin-top: 8px; }
-.carherorows { display: flex; flex-direction: column; gap: 6px; }
-.carherorow { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 12px; background: rgba(20, 30, 50, 0.4); }
-.carhero-portrait { width: 40px; height: 40px; border-radius: 9px; overflow: hidden; flex: none; background: var(--bg2); display: grid; place-items: center; }
-.carhero-portrait img { width: 100%; height: 100%; object-fit: cover; }
-.carhero-name { font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: #fff; min-width: 120px; }
-.carhero-meta { font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.62); }
-.carrec { font-family: var(--font-ui); font-weight: 900; font-size: 15px; margin-left: 10px; font-variant-numeric: tabular-nums; }
-/* Match-row subtitle: which round the run ended on + when it was played. */
-.carsub { display: flex; align-items: center; gap: 7px; margin-top: 3px; font-family: var(--font-ui); font-size: 12.5px; font-weight: 700; color: rgba(255, 255, 255, 0.52); }
-.carsub-round { color: rgba(255, 255, 255, 0.72); }
-.carsub-dot { opacity: 0.5; }
-.carsub-when { font-weight: 600; }
-.carrec.won { color: #6fe0a0; }
-.carrec.lost { color: #ff9a9a; }
-/* Verdict reads as plain colored small-caps under the name (mockup: "OATH 7 • SURPASSED" in green). */
-/* Right edge of a match row: VICTORY/DEFEAT word + expand chevron. */
-.carresult { flex: none; display: flex; align-items: center; gap: 14px; margin-left: auto; }
-.carwl { font-family: var(--font-ui); font-weight: 900; font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; }
-.carwl.won { color: #6fe0a0; }
-/* A top-4 finish is a GOOD result and scores positive Rating, so it reads in the same green as a win — the
-   placement chip beside it (1st / 3rd) is what separates them. */
-.carwl.top4 { color: #6fe0a0; }
-.carwl.lost { color: #ff9a9a; }
-/* The MMR move on a match row. Tabular figures so a column of them lines up, and a fixed min-width so
-   "+6" and "-124" don't shuffle the chevron sideways. */
-.carmmr { font-family: var(--font-ui); font-weight: 900; font-size: 13px; font-variant-numeric: tabular-nums; min-width: 42px; text-align: right; }
-.carmmr.up { color: #6fe0a0; }
-.carmmr.down { color: #ff9a9a; }
-/* Lobby finish position. Tabular + fixed width for the same reason as .carmmr — "1st" and "8th" must not
-   move the verdict beside them. Gold only for the win; the rest read as neutral detail. */
-.carplace { font-family: var(--font-ui); font-weight: 900; font-size: 13px; font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; color: rgba(255, 255, 255, 0.62); }
-.carplace.first { color: var(--acc); }
+/* ── CAREER (owner rebuild 2026-09-19) — three columns on the .lbpage backdrop: hero + tiles · Match
+   History banners · Seasonal Ranked + Performance Trends. All `cv2-`. Panels re-use the page shell
+   (.lbpage/.lbtopbar/.lbscroll/.lbempty); the hero portrait re-uses the in-run `.hero > .f > .heroimg` rules
+   (ring, disc, cover-fit) and only undoes the tray's transforms. Nothing here animates in a loop. ── */
+.cv2-cols { display: grid; grid-template-columns: 290px minmax(0, 1fr) 330px; gap: 16px; align-items: start; margin-top: 6px; }
+/* Ornate gold-framed panel: deep navy fill + double gold frame (border + inset hairline). */
+.cv2-panel { background: linear-gradient(180deg, rgba(13, 22, 40, 0.78), rgba(9, 15, 29, 0.85)); border: 2px solid rgba(196, 160, 92, 0.5); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), inset 0 0 40px rgba(0, 0, 0, 0.3), 0 10px 30px -12px rgba(0, 0, 0, 0.55); border-radius: 16px; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.cv2-sec { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: #e8c877; }
+.cv2-sec svg { width: 16px; height: 16px; color: #e8c877; flex: none; }
+.cv2-btn { position: relative; font-family: var(--font-ui); font-weight: 900; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #1a1206; background: linear-gradient(180deg, #f0d089, #c99d4e); border: 1.5px solid #8a6428; padding: 9px 16px; border-radius: 10px; white-space: nowrap; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45); --pr-edge: 3px; --pr-edge-c: #8a6428; }
+.cv2-btn:disabled { opacity: 0.4; filter: saturate(0.4); cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.cv2-signin { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+
+/* LEFT — the hero frame + tiles */
+.cv2-left { align-items: center; text-align: center; padding-top: 22px; }
+/* The in-run frame, re-seated: `.hero` keeps its gold ring / cream face / shadow, `.f` its ink disc + circle,
+   `.heroimg` its cover fit. Only the geometry is set here (the tray's .statusbar rules never apply). */
+.cv2-heroframe .hero { display: block; position: relative; width: 150px; height: 150px; padding: 7px; border-radius: 50%; box-sizing: border-box; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 0 3px rgba(20, 30, 50, 0.9), 0 0 0 4.5px rgba(196, 160, 92, 0.45), 0 8px 24px rgba(0, 0, 0, 0.5); }
+.cv2-heroframe .hero .f { width: 100%; height: 100%; }
+.cv2-heroframe .hero .f svg { width: 44%; height: 44%; }
+.cv2-heroframe.small .hero { width: 56px; height: 56px; padding: 3px; box-shadow: 0 0 0 2px rgba(20, 30, 50, 0.9), 0 0 0 3px rgba(196, 160, 92, 0.4), 0 4px 12px rgba(0, 0, 0, 0.45); }
+/* The hero's name plate — the same pill the in-run portrait wears (cream gradient, gold rim), sat under the frame. */
+.cv2-heroname { margin-top: -14px; z-index: 1; max-width: 100%; padding: 4px 18px; background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.02em; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 6px -2px var(--shadow); }
+.cv2-playername { margin-top: 2px; font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232, 200, 119, 0.7); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cv2-tiles { display: flex; flex-direction: column; gap: 8px; align-self: stretch; margin-top: 14px; }
+.cv2-stat { display: grid; grid-template-columns: 34px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(196, 160, 92, 0.28); text-align: left; }
+.cv2-stat-ico { grid-row: 1 / span 2; width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: rgba(196, 160, 92, 0.16); color: #f0c977; }
+.cv2-stat-ico svg { width: 18px; height: 18px; }
+.cv2-stat-v { font-family: var(--font-ui); font-weight: 900; font-size: 22px; line-height: 1.05; color: #fff; font-variant-numeric: tabular-nums; }
+.cv2-stat-l { font-family: var(--font-ui); font-weight: 700; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.58); }
+
+/* CENTRE — Match History banners */
+.cv2-center { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.cv2-center > .cv2-sec { margin: 4px 2px 2px; }
+.cv2-none { align-items: center; color: rgba(255, 255, 255, 0.72); font-family: var(--font-ui); font-weight: 700; font-size: 16px; padding: 40px 16px; }
+.cv2-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 190px; gap: 14px; align-items: center; padding: 12px 16px; color: #f4eee2; background: linear-gradient(90deg, rgba(13, 22, 40, 0.82), rgba(9, 15, 29, 0.86)); border: 2px solid rgba(196, 160, 92, 0.32); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.1), 0 8px 22px -12px rgba(0, 0, 0, 0.6); border-radius: 14px; min-width: 0; }
+.cv2-row.focus { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc); }
+.cv2-row-hero { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; min-width: 0; }
+.cv2-row-heroname { font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: #fff; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cv2-row-record { font-family: var(--font-ui); font-weight: 900; font-size: 15px; font-variant-numeric: tabular-nums; }
+.cv2-row-record.won { color: #6fe0a0; }
+.cv2-row-record.lost { color: #ff9a9a; }
+.cv2-row-label { font-family: var(--font-ui); font-weight: 800; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(232, 200, 119, 0.8); }
+.cv2-row-team { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+/* The final team: 7 fixed slots. Each holds the REAL card, rendered at its leaderboard size and scaled down
+   with a transform (compositor-only), inside a box pre-sized to the scaled footprint. The scale steps down
+   with the viewport so the row never overflows. */
+.cv2-team { --tile-cw: 120px; --tile-s: 0.6; display: flex; gap: 8px; align-items: flex-start; padding-bottom: 12px; }
+.cv2-tile { position: relative; flex: none; width: calc(var(--tile-cw) * var(--tile-s)); height: calc(var(--tile-cw) / 0.752 * var(--tile-s)); }
+.cv2-tile.empty { border-radius: 8px; border: 1.5px dashed rgba(255, 255, 255, 0.12); background: rgba(0, 0, 0, 0.16); }
+.cv2-tile-scale { position: absolute; left: 0; top: 0; width: var(--tile-cw); height: calc(var(--tile-cw) / 0.752); transform: scale(var(--tile-s)); transform-origin: top left; }
+.cv2-tile .card { --cw: var(--tile-cw); --ch: calc(var(--cw) / 0.752); --ccw: calc(var(--cw) * 0.85); min-width: 0; }
+/* A hovered tile lifts above its neighbours so the card's own hover popups aren't clipped by the next tile. */
+.cv2-tile:hover { z-index: 3; }
+.cv2-row-outcome { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 3px; min-width: 0; }
+.cv2-verdict { font-family: var(--font-ui); font-weight: 900; font-size: 22px; letter-spacing: 0.06em; line-height: 1.05; color: #f4eee2; }
+.cv2-verdict.won { color: #6fe0a0; }
+.cv2-verdict.top4 { color: #f4eee2; }
+.cv2-verdict.lost { color: #ff9a9a; }
+.cv2-verdict.none { color: rgba(255, 255, 255, 0.45); }
+.cv2-row-when { font-family: var(--font-ui); font-weight: 600; font-size: 12px; color: rgba(255, 255, 255, 0.6); }
+.cv2-row-gold { display: inline-flex; align-items: baseline; gap: 6px; margin-top: 2px; }
+.cv2-row-gold-l { font-family: var(--font-ui); font-weight: 800; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(232, 200, 119, 0.8); }
+.cv2-row-gold-v { font-family: var(--font-ui); font-weight: 900; font-size: 15px; color: #fff; font-variant-numeric: tabular-nums; }
+.cv2-watch { margin-top: 6px; }
+
+/* RIGHT — Seasonal Ranked + Performance Trends */
+.cv2-right { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.cv2-mmr { display: flex; align-items: baseline; gap: 12px; padding: 4px 2px 0; }
+.cv2-mmr-l { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
+.cv2-mmr-v { font-family: var(--font-ui); font-weight: 900; font-size: 40px; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
+.cv2-mmr-d { font-family: var(--font-ui); font-weight: 900; font-size: 16px; font-variant-numeric: tabular-nums; }
+.cv2-mmr-d.up { color: #6fe0a0; }
+.cv2-mmr-d.down { color: #ff9a9a; }
+.cv2-trends-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cv2-seg { display: inline-flex; border-radius: 8px; overflow: hidden; border: 1px solid rgba(196, 160, 92, 0.4); }
+.cv2-seg-btn { font-family: var(--font-ui); font-weight: 800; font-size: 11px; letter-spacing: 0.04em; padding: 4px 9px; color: rgba(255, 255, 255, 0.7); background: rgba(0, 0, 0, 0.28); border: none; }
+.cv2-seg-btn + .cv2-seg-btn { border-left: 1px solid rgba(196, 160, 92, 0.3); }
+.cv2-seg-btn:hover { color: #fff; }
+.cv2-seg-btn.on { color: #241705; background: linear-gradient(180deg, #f0d089, #c99d4e); }
+.cv2-trend { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.cv2-trend-head { display: flex; align-items: baseline; justify-content: space-between; }
+.cv2-trend-title { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.75); }
+.cv2-trend-avg { font-family: var(--font-ui); font-weight: 900; font-size: 18px; color: #fff; font-variant-numeric: tabular-nums; }
+/* The chart: a static SVG stretched to the column (non-scaling strokes keep the line crisp under the stretch);
+   the axis extremes are HTML labels pinned to its corners so they never distort. */
+.cv2-chart { position: relative; padding: 0 0 0 30px; }
+.cv2-chart svg { display: block; width: 100%; height: 96px; }
+.cv2-grid { stroke: rgba(255, 255, 255, 0.1); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.cv2-line { fill: none; stroke: var(--gold-lt); stroke-width: 2.5px; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.cv2-dot { stroke-width: 7px; }
+.cv2-axis { position: absolute; left: 0; width: 26px; text-align: right; font-family: var(--font-ui); font-weight: 700; font-size: 10px; color: rgba(255, 255, 255, 0.45); font-variant-numeric: tabular-nums; }
+.cv2-axis.top { top: 2px; }
+.cv2-axis.bottom { bottom: 2px; }
+.cv2-chart-empty { position: absolute; inset: 0 0 0 30px; display: grid; place-items: center; font-family: var(--font-ui); font-weight: 700; font-size: 11px; color: rgba(255, 255, 255, 0.4); text-align: center; padding: 0 10px; }
+.cv2-trend-foot { font-family: var(--font-ui); font-weight: 600; font-size: 10.5px; color: rgba(255, 255, 255, 0.4); text-align: right; }
+
+/* Narrower viewports: the team tiles step down, then the columns stack. */
+@media (max-width: 1600px) { .cv2-team { --tile-s: 0.52; gap: 6px; } .cv2-row { grid-template-columns: 130px minmax(0, 1fr) 170px; } }
+@media (max-width: 1360px) { .cv2-cols { grid-template-columns: 250px minmax(0, 1fr) 290px; } .cv2-team { --tile-s: 0.46; } }
+@media (max-width: 1100px) { .cv2-cols { grid-template-columns: 1fr; } .cv2-team { --tile-s: 0.6; } .cv2-row { grid-template-columns: 150px minmax(0, 1fr) 190px; } }
 
 /* Recent Games list (RecentGames.tsx) — the last 20 games across all players: portrait · name/hero · place ·
    verdict. Reuses the .lbpage/.lbscroll page frame from the leaderboards. */
@@ -6509,94 +6566,7 @@ svg { width: 18px; height: 18px; }
 .matchwatch { font: inherit; font-weight: 800; font-size: 13px; letter-spacing: 0.02em; color: #1a1206; background: var(--acc); border: none; padding: 7px 14px; border-radius: 9px; white-space: nowrap; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .matchwatch:hover:not(:disabled) { filter: brightness(1.08); }
 .matchwatch:disabled { opacity: 0.55; cursor: default; }
-.cartags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-/* The run a Recent-Games click focused — a static accent ring (no animation). */
-.carmatch-focus { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc); }
 
-/* Career layout (redesign) — two columns: a combined Profile+Insights+Record panel · Match History. */
-.carcols { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 10px; }
-.carright { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-/* Ornate gold-framed panel (mockup 2026-07-16): deep navy fill + double gold frame (border + inset hairline). */
-.carcard { background: linear-gradient(180deg, rgba(13, 22, 40, 0.78), rgba(9, 15, 29, 0.85)); border: 2px solid rgba(196, 160, 92, 0.5); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), inset 0 0 40px rgba(0, 0, 0, 0.3), 0 10px 30px -12px rgba(0, 0, 0, 0.55); border-radius: 16px; padding: 6px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
-.carcard .carsec { margin: 8px 0 2px; }
-
-/* Left — Profile + Insights + hero record (one panel). Header block centered; the lists below full-width. */
-.carprofilecard { align-items: center; text-align: center; }
-.carprofilecard .carsec, .carprofilecard .carinsights, .carprofilecard .carherorows { align-self: stretch; text-align: left; }
-.carprofilecard .carhero-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.carhero-wl { margin-left: auto; flex: none; font-family: var(--font-ui); font-weight: 900; font-size: 14px; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.55); }
-.carhero-wl .chw-w { color: #6fe0a0; }
-.carhero-wl .chw-l { color: #ff9a9a; }
-.caravatar-wrap { position: relative; margin: 10px auto 12px; width: 132px; }
-.caravatar { width: 132px; height: 132px; border-radius: 50%; display: grid; place-items: center; overflow: hidden; padding: 0; font-family: var(--font-ui); font-weight: 900; font-size: 57px; color: #1a1208; background: linear-gradient(150deg, #f3c96a, #e08a3c); border: 3px solid #cfa557; box-shadow: 0 0 0 3px rgba(20, 30, 50, 0.9), 0 0 0 4.5px rgba(196, 160, 92, 0.45), 0 6px 20px rgba(0, 0, 0, 0.45); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s ease, box-shadow 0.1s ease; }
-/* Oath badge riding the avatar's bottom edge (mockup's level roundel). */
-.caravatar:hover { transform: scale(1.05); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); }
-.caravatar svg { width: 42px; height: 42px; color: #1a1208; }
-.caravatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.carpname { font-family: var(--font-ui); font-weight: 900; font-size: 20px; color: #fff; }
-/* Gold rating pill under the name — the mockup's "RATING 188 • OATH 7" ribbon. */
-.carrank { align-self: center; margin-top: 6px; padding: 5px 18px; border-radius: 999px; background: linear-gradient(180deg, #f0d089, #c99d4e); border: 1.5px solid #8a6428; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 2px 6px rgba(0, 0, 0, 0.35); font-family: var(--font-ui); font-weight: 900; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #241705; }
-.carranksub { align-self: center; margin-top: 6px; font-family: var(--font-ui); font-weight: 800; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232, 200, 119, 0.65); }
-.carprofmeta { display: flex; width: 100%; gap: 8px; margin-top: 12px; }
-.carprofmeta > div { flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center; padding: 10px 4px 8px; border-radius: 12px; background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(196, 160, 92, 0.28); }
-.carprofmeta svg { width: 17px; height: 17px; color: #e8c877; margin-bottom: 1px; }
-.carprofmeta b { font-family: var(--font-ui); font-weight: 900; font-size: 20px; color: #fff; font-variant-numeric: tabular-nums; }
-.carprofmeta span { font-family: var(--font-ui); font-weight: 700; font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
-
-/* Center — expandable match cards */
-.carcenter { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.carcenter .carsec { margin-top: 0; }
-.carmatch { padding: 0; overflow: hidden; transition: border-color 0.15s ease; }
-.carmatch.open { border-color: rgba(196, 160, 92, 0.55); }
-.carmatch-head { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 14px 18px; background: none; border: none; color: inherit; font: inherit; }
-/* The Career row's ▶ Watch — the Recent Games `.matchwatch` chip, sized down a step for the denser match-card
-   head. It sits INSIDE the row's carresult cluster, so the head itself is a div[role=button] (a button can't
-   nest a button — same shape as the Recent Games rows). */
-.carwatch { padding: 6px 12px; font-size: 12px; }
-.carmatch-head:hover { background: rgba(255, 255, 255, 0.04); }
-.carmatch-head .lbinfo { flex: 1; min-width: 0; }
-.carchev { flex: none; font-size: 15px; color: rgba(255, 255, 255, 0.5); transition: transform 0.18s ease; transform: rotate(-90deg); }
-.carchev.open { transform: rotate(0deg); }
-.carmatch-body { padding: 0 18px 16px; }
-/* Match tags sit inline on the row's right half, before the Victory/Defeat word. */
-.carmatch-head .cartags { flex: none; max-width: 42%; justify-content: flex-end; margin-top: 0; }
-/* Expanded run: labeled stat columns with divider rules (mockup's Gold Spent / Avg. Actions / Cards / MVP strip). */
-.carstatstrip { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; padding: 10px 0 12px; border-top: 1px solid rgba(196, 160, 92, 0.25); }
-.cst { display: flex; flex-direction: column; gap: 2px; padding: 2px 22px; }
-.cst:first-child { padding-left: 2px; }
-.cst + .cst { border-left: 1px solid rgba(255, 255, 255, 0.12); }
-.cst-l { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-ui); font-weight: 700; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232, 200, 119, 0.8); }
-.cst-l svg { width: 13px; height: 13px; color: #e8c877; }
-.cst-v { font-family: var(--font-ui); font-weight: 900; font-size: 19px; color: #fff; font-variant-numeric: tabular-nums; }
-.cst-v em { font-style: normal; font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.6); }
-.cst-mvp .cst-v { font-size: 16px; padding-top: 2px; }
-/* Warband + standout-stats side panel. */
-.carmatch-detail { display: flex; gap: 16px; align-items: stretch; }
-.carmatch-boardcol { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
-.carstandout { flex: none; width: 200px; padding: 10px 0 4px 16px; border-left: 1px solid rgba(196, 160, 92, 0.25); display: flex; flex-direction: column; gap: 9px; }
-.cso-h { font-family: var(--font-ui); font-weight: 900; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #e8c877; margin-bottom: 2px; }
-.cso-row { position: relative; display: flex; flex-direction: column; gap: 1px; padding-left: 12px; }
-.cso-row::before { content: '•'; position: absolute; left: 0; top: 0; color: #e8c877; font-size: 12px; }
-.cso-l { font-family: var(--font-ui); font-weight: 700; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
-.cso-v { font-family: var(--font-ui); font-weight: 800; font-size: 13.5px; color: #fff; }
-.cso-v.up { color: #6fe0a0; }
-.cso-v.down { color: #ff9a9a; }
-
-/* Right — Insights rail */
-.carinsights { gap: 2px; }
-.carinsight { display: flex; align-items: center; gap: 11px; padding: 8px 2px; }
-.carinsight + .carinsight { border-top: 1px solid rgba(255, 255, 255, 0.08); }
-.ci-ico { flex: none; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: rgba(196, 160, 92, 0.16); color: #f0c977; }
-.ci-ico svg { width: 16px; height: 16px; }
-/* Single-line insight row: label left, value pushed right (mockup 2026-07-16). */
-.ci-l { flex: 1; min-width: 0; font-family: var(--font-ui); font-weight: 700; font-size: 12.5px; letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.66); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ci-v { flex: none; max-width: 55%; font-family: var(--font-ui); font-weight: 900; font-size: 14.5px; color: #fff; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
-
-/* Stack the three columns on narrow viewports. */
-@media (max-width: 900px) {
-  .carcols { grid-template-columns: 1fr; }
-  .carcard { position: static; }
-}
 
 /* ── Compendium (Tab) — a filterable codex of minions + spells. Blurred overlay styled like an open tome:
    tier filters across the top, tribe/Spells filters down the left, a single scrolling gallery. ── */
@@ -9332,8 +9302,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 
 /* ROWS — a row is a SURFACE, not an object: it presses INTO the list rather than out of it. An offset edge under
    a transparent row renders as a stray bar sitting in the gap, not as a button. */
-.gloss-row:active, .gloss-row:hover:active,
-.carmatch-head:active, .carmatch-head:hover:active {
+.gloss-row:active, .gloss-row:hover:active {
   background: rgba(0, 0, 0, 0.22);
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
   transition-duration: 0.06s;
@@ -9889,11 +9858,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   font-family: var(--font-ui); box-sizing: border-box; }
 .roundrail-mini-round { flex: 1; font-weight: 800; font-size: 12px; line-height: 16px; color: #fff; white-space: nowrap; }
 .roundrail-mini-phase { font-style: normal; color: var(--gl-value, #e6b45a); }
-/* THE TABLE. Column 1 the round, 2-3 the two cells, then five data columns sharing `--rrl-col-w`. Rows keep the
+/* THE TABLE. Column 1 the round, 2-3 the two cells, then four data columns sharing `--rrl-col-w`. Rows keep the
    old 24px rhythm (16px line + 4px×2 padding, 3px gap). */
 .roundrail-grid { display: flex; flex-direction: column; gap: 3px; }
 .roundrail-head, .roundrail-row { display: grid; align-items: center; gap: 4px;
-  grid-template-columns: 30px 44px 44px repeat(5, var(--rrl-col-w, 34px)); }
+  grid-template-columns: 30px 44px 44px repeat(4, var(--rrl-col-w, 34px)); }
 .roundrail-head { padding: 2px 6px; font-weight: 800; font-size: 9px; line-height: 14px; letter-spacing: 0.05em;
   text-transform: uppercase; color: rgba(255, 255, 255, 0.45); text-align: center; }
 .roundrail-head > span:first-child { text-align: left; }

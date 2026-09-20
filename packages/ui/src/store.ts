@@ -31,6 +31,7 @@ export interface CareerView {
 }
 
 import type { CardView } from './Card';
+import type { CareerRun } from './careerData';
 import type { CombatBuffDelta } from './runBuffs';
 import { DRAG_CAUSES, takeDragTrace } from './replay/dragTrace';
 import { closeCursorWave, resetCursorTrail, sampleCursor, shiftCursorTrail, takeCursorTrail } from './replay/cursorTrace';
@@ -634,6 +635,10 @@ interface GameStore {
   careerOf: CareerView | null;
   openCareer: (of?: CareerView) => void;
   closeCareer: () => void;
+  /** The Career page's fetched runs, cached so reopening the page paints instantly and refreshes behind.
+   *  `key` = whose career + the `careerVersion` it was read under (a finished run / reset invalidates it). */
+  careerCache: { key: string; runs: CareerRun[] } | null;
+  setCareerCache: (key: string, runs: CareerRun[]) => void;
   /** The Minion Book codex overlay (Tab) is open — a filterable reference of every minion + spell
    *  findable this run. UI-only; reads the run's pool + active tribes. */
   showBook: boolean;
@@ -2030,6 +2035,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
   openCareer: (of) => set({ showCareer: true, careerOf: of ?? null }),
   // Clear WHOSE career on close, so reopening your own from the title never inherits the last player viewed.
   closeCareer: () => set({ showCareer: false, careerOf: null }),
+  careerCache: null,
+  setCareerCache: (key, runs) => set({ careerCache: { key, runs } }),
   showBook: false,
   toggleBook: () => set((s) => ({ showBook: !s.showBook })),
   closeBook: () => set({ showBook: false }),

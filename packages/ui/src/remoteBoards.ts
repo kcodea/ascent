@@ -16,6 +16,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { CONFIG, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type ReplayV2, type RunTelemetry } from '@game/sim';
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
+import { careerRunOf, joinTelemetry, type CareerRun, type RunHistoryRowLike, type TelemetryProbeRow } from './careerData';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -1046,6 +1047,80 @@ export async function fetchRunHistory<T>(limit = 50, forUserId?: string): Promis
   } catch {
     return null;
   }
+}
+
+// ── Career page (owner rebuild 2026-09-19) — the account's runs, joined to their replay rows ────────────────
+// The page reads `run_history` (the per-account run log: every finished lobby run with its final board, record,
+// placement, Gold, APT, rating delta, seed and end time) and a LIGHT probe of `run_telemetry` (JSON-path
+// scalars only — never the 100 KB–1 MB replay payloads) for replay availability + the recording's clock span.
+// The two are joined by SEED (`careerData.joinTelemetry`). `runs` (the Hall of Champions) is NOT read here: it
+// only ever holds 1st-place finishes, so it cannot be a match history.
+
+/** Newest rows fetched WITH their full `entry` (final board included) — the match-history banners. */
+export const CAREER_DETAIL_ROWS = 10;
+
+/** The light `run_history` select — every scalar the trends + left-column tiles need, projected out of the
+ *  `entry` jsonb server-side so a 100-row pull stays a few KB instead of shipping 100 boards. */
+const CAREER_LIGHT_SELECT = 'id, created_at, hero_id, wave, wins, placement, mode, losses:entry->>losses, draws:entry->>draws, apt:entry->>apt, seed:entry->>seed, gold_spent:entry->>goldSpent, rating_delta:entry->>ratingDelta, at:entry->>at, dominant_tribe:entry->>dominantTribe';
+
+/** The light `run_telemetry` probe: the row id (the Watch handle), the seed (the join), the v2 stamp (the
+ *  watchability gate) and the first/last frame clocks (the run length). PostgREST resolves `frames->-1` as
+ *  the last element; on a DB whose PostgREST predates negative indices the select errors and the probe
+ *  retries WITHOUT the clocks (Watch still works; run length prints "—"). */
+const TELEMETRY_PROBE_SELECT = 'id, created_at, placement, seed:replay->>seed, v2_version:replay->v2->>version, first_t:replay->v2->frames->0->>tMs, last_t:replay->v2->frames->-1->>tMs';
+const TELEMETRY_PROBE_SELECT_NO_CLOCK = 'id, created_at, placement, seed:replay->>seed, v2_version:replay->v2->>version';
+
+/**
+ * The Career page's runs — newest first, `limit` rows in all (light), the newest `CAREER_DETAIL_ROWS` of
+ * them detailed (with the final board), every row joined to its replay facts. Defaults to YOUR runs; pass
+ * `userId` to read another player's (opening a Career from the leaderboard / Recent Games).
+ *
+ * Returns null (NOT []) when we couldn't ask — no backend, no session for an own-career read, or the history
+ * query failed / timed out — so the page can say "couldn't reach the server" rather than "no runs yet". The
+ * telemetry probe is best-effort: its failure only costs Watch buttons + run lengths, never the page.
+ */
+export async function fetchMyRuns(limit = 100, opts?: { userId?: string }): Promise<CareerRun[] | null> {
+  const c = client();
+  const userId = opts?.userId ?? currentUserId();
+  if (!c || !userId || (!opts?.userId && !currentUserId())) return null;
+  const detailLimit = Math.min(CAREER_DETAIL_ROWS, limit);
+  try {
+    const timeout = () => new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const light = Promise.race([
+      Promise.resolve(c.from('run_history').select(CAREER_LIGHT_SELECT).eq('user_id', userId).order('created_at', { ascending: false }).limit(limit)),
+      timeout(),
+    ]);
+    const detailed = Promise.race([
+      Promise.resolve(c.from('run_history').select('id, created_at, placement, entry').eq('user_id', userId).order('created_at', { ascending: false }).limit(detailLimit)),
+      timeout(),
+    ]);
+    const probe = (select: string) => Promise.race([
+      Promise.resolve(c.from('run_telemetry').select(select).eq('user_id', userId).order('created_at', { ascending: false }).limit(limit)),
+      timeout(),
+    ]);
+    const [lightRes, detailRes, probeRes0] = await Promise.all([light, detailed, probe(TELEMETRY_PROBE_SELECT)]);
+    if (!lightRes || lightRes.error || !lightRes.data) return null;
+    // A failed detailed read degrades to light rows everywhere (outcome-only banners), never to a failed page.
+    const detailRows = detailRes && !detailRes.error && detailRes.data ? (detailRes.data as unknown as RunHistoryRowLike[]) : [];
+    const probeRes = probeRes0 && probeRes0.error ? await probe(TELEMETRY_PROBE_SELECT_NO_CLOCK) : probeRes0;
+    const probeRows = probeRes && !probeRes.error && probeRes.data ? (probeRes.data as unknown as TelemetryProbeRow[]) : [];
+    return careerRunsOf(lightRes.data as unknown as RunHistoryRowLike[], detailRows, probeRows);
+  } catch {
+    return null;
+  }
+}
+
+/** Assemble the page's rows from the three raw result sets: the light rows are the list; a detailed row
+ *  with the same id upgrades its entry (board + every field read straight off the jsonb); the telemetry
+ *  probe joins by seed. Exported pure for the fetch tests. */
+export function careerRunsOf(lightRows: RunHistoryRowLike[], detailRows: RunHistoryRowLike[], probeRows: TelemetryProbeRow[]): CareerRun[] {
+  const detailById = new Map<number, RunHistoryRowLike>();
+  for (const d of detailRows) if (typeof d.id === 'number') detailById.set(d.id, d);
+  const runs = lightRows.map((row) => {
+    const d = typeof row.id === 'number' ? detailById.get(row.id) : undefined;
+    return careerRunOf(d ? { ...row, ...d } : row);
+  });
+  return joinTelemetry(runs, probeRows);
 }
 
 // ── Fight-result ledger (win-tracking) ─────────────────────────────────────────────────────────────────────

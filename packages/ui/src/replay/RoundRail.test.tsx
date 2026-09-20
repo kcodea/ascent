@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 /**
  * THE ROUND RAIL (rework 2026-09-19): one row per round with a Recruit cell and a Combat cell, the current
- * cell highlighted; Power / Win % columns; collapse to a slim handle; drag by the grab handle. Collapse and
+ * cell highlighted; the Win % column (Power was removed 2026-09-19); collapse to a slim handle; drag by the grab
+ * handle. Collapse and
  * drag placement persist per browser and a resize keeps the rail on screen.
  *
  * Driven through the real store + player over a captured bot run, so a change to how the player exposes
@@ -62,16 +63,17 @@ beforeEach(() => {
 afterEach(() => { ui.unmount(); act(() => { endReplay(); }); });
 
 describe('the table', () => {
-  it('renders one row per recorded round with a Recruit cell and a Combat cell, plus the five data columns', () => {
+  it('renders one row per recorded round with a Recruit cell and a Combat cell, plus the four data columns (no Power)', () => {
     const marks = replayRoundMarks();
     expect(rows()).toHaveLength(marks.length);
     const head = [...ui.container.querySelectorAll('.roundrail-head span')].map((s) => s.textContent);
-    expect(head).toEqual(['Round', 'Recruit', 'Combat', 'Gold', 'Acts', 'Tier', 'Power', 'Win %']);
+    expect(head).toEqual(['Round', 'Recruit', 'Combat', 'Gold', 'Acts', 'Tier', 'Win %']);
+    expect(head, 'the Power column is gone (owner 2026-09-19)').not.toContain('Power');
     for (const [i, row] of rows().entries()) {
       expect(row.querySelector('.roundrail-num')?.textContent).toBe(`R${marks[i]!.wave}`);
       expect(cell(row, 'shop')).not.toBeNull();
       expect(cell(row, 'combat')).not.toBeNull();
-      expect(row.querySelectorAll('.roundrail-val')).toHaveLength(5);
+      expect(row.querySelectorAll('.roundrail-val')).toHaveLength(4);
     }
     // The open final round (cut at its shop opening) has no fight: its Combat cell is disabled.
     const last = rows().at(-1)!;
@@ -93,12 +95,11 @@ describe('the table', () => {
     expect(cell(rows()[0]!, 'combat').classList.contains('active')).toBe(false);
   });
 
-  it('Win % reads "—" until a value lands; Power is a 0-100 integer for a non-empty board', () => {
+  it('Win % (the last data column) reads "—" until a value lands', () => {
     const vals = (row: HTMLElement): string[] => [...row.querySelectorAll('.roundrail-val')].map((v) => v.textContent ?? '');
     for (const row of rows()) {
-      const [, , , power, win] = vals(row);
+      const [, , , win] = vals(row);
       expect(win).toBe('—');
-      if (power !== '—') { const n = Number(power); expect(Number.isInteger(n)).toBe(true); expect(n).toBeGreaterThanOrEqual(0); expect(n).toBeLessThanOrEqual(100); }
     }
   });
 });

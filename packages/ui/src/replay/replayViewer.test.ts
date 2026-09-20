@@ -1,5 +1,5 @@
 /**
- * REPLAY VIEWER rework (owner handoff 2026-09-19): seek-to-phase, the per-round Power / Win % table (stamped
+ * REPLAY VIEWER rework (owner handoff 2026-09-19): seek-to-phase, the per-round Win % table (stamped
  * odds + the idle backfill), the shop-action sounds fired per APPLIED frame, the held card during a ghost
  * flight, and the odds stamp on the capture side. Driven through the real store + player with fake timers.
  */
@@ -94,10 +94,10 @@ describe('seekReplayPhase — the rail\'s two cells', () => {
   });
 });
 
-describe('the per-round Power / Win % table', () => {
+describe('the per-round Win % table', () => {
   const cap = captureBotRun(4242, 'brackus', 4);
 
-  it('power is scored per round from the end-of-recruit board; Win % reads a STAMPED odds verbatim', () => {
+  it('Win % reads a STAMPED odds verbatim; the table carries no Power (removed 2026-09-19)', () => {
     const frames = cap.frames.slice();
     const marks = roundMarks(frames);
     const ci = marks[0]!.combatIndex!;
@@ -105,10 +105,9 @@ describe('the per-round Power / Win % table', () => {
     if (combat.kind !== 'combat') throw new Error('fixture');
     frames[ci] = { ...combat, odds: { win: 0.734, draw: 0.05, lose: 0.216, avgLossDamage: 3 } };
     const info = roundInfoOf(expandFrames(frames), marks);
-    expect(info[0]).toEqual({ wave: 1, power: info[0]!.power, winPct: 73, winApprox: false });
+    expect(info[0]).toEqual({ wave: 1, winPct: 73, winApprox: false });
+    expect(info[0]).not.toHaveProperty('power');
     expect(info[1]!.winPct, 'round 2 carries no stamp → unknown until the backfill lands').toBeNull();
-    const lastShop = expandFrames(frames)[marks[1]!.lastShopIndex!]!;
-    if (lastShop.kind === 'shop' && lastShop.view.board.length > 0) expect(info[1]!.power).not.toBeNull();
   });
 
   it('the idle-time backfill fills a missing Win % as an ESTIMATE (~) and bumps roundInfoTick', () => {

@@ -11,11 +11,12 @@ import { clampRailOffset, loadRailPlacement, saveRailPlacement, type RailPlaceme
  * scrubbing within a round).
  *
  * REWORKED 2026-09-19 (owner handoff):
- *  - ONE TABLE, one row per round: Round · Recruit · Combat · Gold · Acts · Tier · Power · Win %. The old
+ *  - ONE TABLE, one row per round: Round · Recruit · Combat · Gold · Acts · Tier · Win %. The old
  *    slide-out metrics dock (2026-08-19) is folded in as columns — same numbers, same `rollupRounds` fold.
  *  - TWO CLICKABLE CELLS per round: Recruit seeks to the round's shop opening; Combat lands ON the fight, which
  *    then plays from its start (`seekReplayPhase`). The cell playback is currently IN highlights.
- *  - Power = `boardPowerOf` over the round's end-of-recruit board (0..100). Win % = the odds the game computed
+ *  - (The Power column — `boardPowerOf` over the end-of-recruit board — was removed 2026-09-19, owner: "this stat
+ *    is not great right now"; the scorer stays in the sim for the balance tools.) Win % = the odds the game computed
  *    for that fight — the exact stamped number on new recordings, a `~`-marked idle-time estimate on old ones,
  *    "—" until it lands (`replayRoundInfo` + `roundInfoTick`).
  *  - COLLAPSIBLE (a slim handle showing the current round) and DRAGGABLE by its grab handle; the placement
@@ -70,7 +71,6 @@ const RailRow = memo(function RailRow({ mark, goldSpent, actions, tierAtStart, i
       <span className="roundrail-val">{goldSpent}</span>
       <span className="roundrail-val">{actions}</span>
       <span className="roundrail-val">{tierAtStart ?? '—'}</span>
-      <span className="roundrail-val" title="Board power at the end of the recruit turn (0–100)">{info?.power ?? '—'}</span>
       <span
         className={`roundrail-val win${win === null ? '' : win >= 50 ? ' good' : ' bad'}`}
         title={win === null
@@ -101,7 +101,7 @@ export function RoundRail(): JSX.Element | null {
     () => (session ? statsByWave(replayRoundStats()) : new Map()),
     [session != null],
   );
-  // Power is fixed per replay; Win % fills in as the idle backfill lands (the tick bumps per landed round).
+  // Win % fills in as the idle backfill lands (the tick bumps per landed round).
   const infoByWave = useMemo<Map<number, RoundInfo>>(() => {
     const m = new Map<number, RoundInfo>();
     if (session) for (const i of replayRoundInfo()) m.set(i.wave, i);
@@ -241,7 +241,6 @@ export function RoundRail(): JSX.Element | null {
             <span role="columnheader" title="Gold spent this round">Gold</span>
             <span role="columnheader" title="Actions this turn">Acts</span>
             <span role="columnheader" title="Shop tier at the start of the turn">Tier</span>
-            <span role="columnheader" title="Board power at the end of the recruit turn (0–100)">Power</span>
             <span role="columnheader" title="The game's computed chance of winning the round's fight">Win %</span>
           </div>
           {marks.map((m) => {

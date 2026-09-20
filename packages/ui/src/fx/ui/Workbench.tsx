@@ -1555,7 +1555,16 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // Copy the whole composed DEF as JSON — with multiple layers, the def is the useful artifact, not one
   // layer's params.
   const copyDef = (): void => {
-    void navigator.clipboard.writeText(JSON.stringify(toDef('workbench', durationMs, layers, slot, ease), null, 2)).then(() => {
+    // Copy the loop-boundary settings too: `toDef` omits `loopMode`/`loopJoinMs` (they are StoredFxDef fields
+    // that only Save wrote), so a SEAMLESS composition used to paste back as play-out — the exact bug that
+    // shipped the milestone badge FX without its seamless loop. Omit the defaults, matching toDef's own
+    // omit-when-default convention, so an untouched composition serialises byte-identically.
+    const def = {
+      ...toDef('workbench', durationMs, layers, slot, ease),
+      ...(loopMode !== 'playOut' ? { loopMode } : {}),
+      ...(loopJoinMs !== 0 ? { loopJoinMs } : {}),
+    };
+    void navigator.clipboard.writeText(JSON.stringify(def, null, 2)).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
     });
@@ -2610,19 +2619,29 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         {loopOn ? '🔁 Loop: On' : '🔁 Loop: Off'}
       </button>
       {/* How the loop boundary is crossed -- a DEF property (saved into the effect), unlike the preview-only
-          Loop toggle beside it. Play out: finish the whole pass, then restart. Seamless: cross-fade the
-          tail into the fresh cycle so a continuous effect never blinks at the seam. Lit when seamless. */}
-      <button
-        className={`fxwb-loop-toggle${loopMode === 'seamless' ? ' on' : ''}`}
-        onClick={() => changeLoopMode(loopMode === 'seamless' ? 'playOut' : 'seamless')}
-        title={
-          loopMode === 'seamless'
-            ? 'Seamless: the tail cross-fades into the next cycle (no seam blink) -- click for Play out'
-            : 'Play out: each pass finishes before the next begins -- click for Seamless (cross-faded seam)'
-        }
-      >
-        {loopMode === 'seamless' ? '♾ Seamless' : '▶ Play out'}
-      </button>
+          Loop toggle beside it. A labelled TWO-OPTION control (not a single flip button, which read
+          ambiguously as either the current mode or the action): the active mode is lit, and each button SETS
+          its mode directly. Play out: finish the whole pass, then restart. Seamless: cross-fade the tail into
+          the fresh cycle so a continuous effect never blinks at the seam. */}
+      <span className="fxwb-speedlabel">Loop seam</span>
+      <div className="fxwb-loopseam" role="group" aria-label="Loop seam mode">
+        <button
+          className={`fxwb-loop-toggle${loopMode === 'playOut' ? ' on' : ''}`}
+          aria-pressed={loopMode === 'playOut'}
+          onClick={() => changeLoopMode('playOut')}
+          title="Play out: each pass finishes before the next begins (a fresh restart at the seam)"
+        >
+          ▶ Play out
+        </button>
+        <button
+          className={`fxwb-loop-toggle${loopMode === 'seamless' ? ' on' : ''}`}
+          aria-pressed={loopMode === 'seamless'}
+          onClick={() => changeLoopMode('seamless')}
+          title="Seamless: the tail cross-fades into the next cycle so a continuous effect never blinks at the seam"
+        >
+          ♾ Seamless
+        </button>
+      </div>
       <label className="fxwb-speedlabel" htmlFor="fxwb-duration">Duration</label>
       <input
         id="fxwb-duration"
@@ -2962,9 +2981,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
               className="fxwb-btn fxwb-region-toggle"
               onClick={() => setLayersOpen((v) => !v)}
               aria-expanded={layersOpen}
-              title={layersOpen ? 'Collapse the layers panel' : 'Expand the layers panel'}
+              title={layersOpen ? 'Collapse the primitives panel' : 'Expand the primitives panel'}
             >
-              <span aria-hidden="true">{layersOpen ? '◂' : '▸'}</span>{layersOpen ? ' Layers' : ''}
+              <span aria-hidden="true">{layersOpen ? '◂' : '▸'}</span>{layersOpen ? ' Primitives' : ''}
             </button>
           </div>
           {layersOpen && (

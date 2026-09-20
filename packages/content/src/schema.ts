@@ -589,6 +589,10 @@ export const EffectFactoryIdSchema = z.enum([
   'endOfTurnBuffEndsPerUnusedEquipment', // Shredder: End of Turn — the left-most + right-most minions +A/+H per held Equipment unused this turn
   'equipmentCalibrate',           // Calibration Wrench: the next N Equipment activations (not the Wrench's own) are Amplified
   'equipmentActivatedBuffSelf',   // Rig: when you activate an Equipment, this board body gains +A/+H
+  // ── Set 3 Neutrals, owner handoff 2026-09-19 ──
+  'onDamagedReflectRandomEnemies', // Yeti: the first time this takes damage each combat, deal that amount to N random enemies
+  // ── Set 3 Kobolds, owner handoff 2026-09-19 ──
+  'dealtDamageGoldNextTurn',      // Goldvein: Han Gover's damage-dealt meter with a Gold-next-turn body, once per combat
 ]);
 
 export const EffectDefSchema = z.object({

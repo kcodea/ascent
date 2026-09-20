@@ -33,11 +33,11 @@ describe('aggregate (synthetic fixture)', () => {
     expect(heroes).toMatchInlineSnapshot(`
       [
         "drakko:30:5.03",
-        "fibbsy:30:4.13",
+        "fibbsy:30:4.10",
         "gorr:30:4.57",
         "harlan:30:4.93",
         "midas:30:4.60",
-        "nadja:30:3.50",
+        "nadja:30:3.53",
         "pete:30:4.30",
         "warden:30:4.93",
       ]

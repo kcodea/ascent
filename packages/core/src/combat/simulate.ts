@@ -18,7 +18,7 @@ import type {
   Side,
   Tribe,
 } from '../types';
-import { ALE_IDS, alignAllows, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires } from '../types';
+import { ALE_IDS, DAMAGE_METER_DOS, alignAllows, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires } from '../types';
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
 import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, SILENT_ONPLAY } from '../effects/factories';
@@ -2205,21 +2205,40 @@ export function simulate(
    * hand in the replay and settles into the real hand via `playerHandGrants`. Overkill counts (a 30-Attack
    * swing into a 1-Health body is 30 damage dealt); one big hit can cross two thresholds and pays both.
    */
+  const ALE_METER_MAX_PER_HIT = 2; // Han Gover's "(Max 2 per hit)"
   function noteDamageDealt(dealer: Minion, amount: number): void {
-    const eff = cards[dealer.cardId]?.effects.find((e) => e.on === 'passive' && e.do === 'dealtDamageAleMeter');
+    // ONE meter, several bodies (`DAMAGE_METER_DOS`): the tally advances the same way for every marker; the
+    // marker's `do` decides the payout. Goldvein (2026-09-19) — "gain G Gold next turn (Once per combat)" — banks
+    // through `grantBonusGold` (the Tromboneer / Bounty Bot carry-back) the first time the meter crosses a
+    // multiple of `every` this fight; the latch (`goldMeterFired`) rides the instance like Yeti's, so a Risen
+    // body does not re-arm and a fresh combat does. Gilded doubles the Gold, never the fire count.
+    const eff = cards[dealer.cardId]?.effects.find((e) => e.on === 'passive' && DAMAGE_METER_DOS.includes(e.do));
     if (!eff) return;
     const p = eff.params ?? {};
     const every = Math.max(1, typeof p.every === 'number' ? p.every : 40);
-    const count = Math.max(0, typeof p.count === 'number' ? p.count : 1) * (dealer.golden ? 2 : 1);
     const before = dealer.damageDealt ?? 0;
     const after = before + amount;
     dealer.damageDealt = after;
     const crossings = Math.floor(after / every) - Math.floor(before / every);
-    if (crossings <= 0 || count <= 0) return;
+    if (crossings <= 0) return;
+    if (eff.do === 'dealtDamageGoldNextTurn') {
+      if (dealer.goldMeterFired) return;
+      const gold = Math.max(0, typeof p.gold === 'number' ? p.gold : 3) * (dealer.golden ? 2 : 1);
+      if (gold <= 0) return;
+      dealer.goldMeterFired = true;
+      ctx.grantBonusGold(gold, dealer.side);
+      return;
+    }
+    const count = Math.max(0, typeof p.count === 'number' ? p.count : 1) * (dealer.golden ? 2 : 1);
+    if (count <= 0) return;
     const ales = ctx.poolCards(dealer.side).filter((c) => ALE_IDS.includes(c.id));
     if (ales.length === 0) return; // a set without the Ales grants nothing (same rule as Rune of Last Call)
     const draw = grantRngFor(dealer.side);
-    for (let i = 0; i < crossings * count; i++) ctx.grantToHand(draw.pick(ales).id, dealer.side, dealer.uid);
+    // "(Max 2 per hit)" (owner 2026-09-19): one damage event pays at most `ALE_METER_MAX_PER_HIT` Ales however
+    // many thresholds it crosses (gilded: its first crossing's 2 fill the cap). The tally already advanced by
+    // the full amount above, so the uncredited crossings are spent, not banked — the next 40 pays again.
+    const payout = Math.min(crossings * count, ALE_METER_MAX_PER_HIT);
+    for (let i = 0; i < payout; i++) ctx.grantToHand(draw.pick(ales).id, dealer.side, dealer.uid);
   }
 
   function killOrReborn(minion: Minion, killer?: Minion): void {
@@ -2811,7 +2830,8 @@ export function simulate(
     // stays byte-identical (no `source: undefined` key on the event).
     emit({ type: 'dmg', target: target.uid, amount, remainingHp: Math.max(0, target.health), ...(poisoner ? { source: poisoner.uid } : {}) });
     // The hit landed (Immune + Divine Shield already returned above) — notify on-damaged watchers (Gryphon).
-    if (amount > 0) bus.emit('onDamaged', { minion: target, side: target.side });
+    // `amount` rides the payload for reactors that echo the hit (Yeti); the older watchers ignore it.
+    if (amount > 0) bus.emit('onDamaged', { minion: target, side: target.side, amount });
     // Han Gover's meter: the dealer's running damage tally (see `noteDamageDealt`).
     if (amount > 0 && poisoner) noteDamageDealt(poisoner, amount);
     // Set 2: a FRIENDLY-relative Demon just dealt damage that LANDED (Immune / Divine Shield / 0-dmg all
@@ -4509,7 +4529,7 @@ export function simulate(
       .map((m) => ({ sourceUid: m.sourceUid!, progress: m.spellProgress! }));
     // Han Gover: the running damage tally (seeded + this fight's hits) carries back so the meter persists.
     const damageMeters = board
-      .filter((m) => m.sourceUid !== undefined && (m.damageDealt ?? 0) > 0 && cards[m.cardId]?.effects.some((e) => e.do === 'dealtDamageAleMeter'))
+      .filter((m) => m.sourceUid !== undefined && (m.damageDealt ?? 0) > 0 && cards[m.cardId]?.effects.some((e) => DAMAGE_METER_DOS.includes(e.do)))
       .map((m) => ({ sourceUid: m.sourceUid!, total: m.damageDealt! }));
     // Tara's stat-grant tally this combat, per board card (for the ascend-at-settle accumulation).
     const ascendCount = board

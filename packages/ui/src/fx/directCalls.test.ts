@@ -167,6 +167,9 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       'rune-buff-unit', 'rune-select-implosion', 'rune-slot-break', 'shop-buff-purple', 'shop-tier-up', 'spell-bounce', 'starform-create', 'starform-pull', 'strike-impact', 'tallyanimation1', 'tendril-trail',
       // 'tendril-trail-spirit' joined on 2026-09-17: the Spirit ribbon fires by literal id so its hits can be staggered.
       'tendril-trail-spirit',
+      // 'test-ascent-frame-attack' / '…-health' joined on 2026-09-19: the owner-authored persistent milestone
+      // badge effects, fired by literal id per stat from `fx/milestoneBadgeFx.ts` for a unit at the ≥5000 tier.
+      'test-ascent-frame-attack', 'test-ascent-frame-health',
       // 'undead-aura-buff' joined on 2026-09-16: the owner-authored Undead Aura surge, fired on every rise of the run-wide
       // Undead Aura from `Recruit.tsx` (shop) and `useCombatReplay.ts` (combat).
       'undead-aura-buff', 'ward-lost-blast', 'watcher-pulse',

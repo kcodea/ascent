@@ -1533,7 +1533,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_crowded_crypt',
     name: 'Rune of the Crowded Crypt',
     cost: 4,
-    text: 'Whenever a summoned minion does not **fit**, give your minions **+1/+1 permanently**. Triggers **twice** in the Shop.',
+    text: '**Overflow:** give your minions **+1/+1 permanently**. Triggers **twice** in the Shop.',
     reward: { kind: 'multi', rewards: [
       { kind: 'combatFlag', flag: 'runeOverflow', amount: 1 },
       { kind: 'runeCrowdedCrypt', attack: 1, health: 1, times: 2 },
@@ -2237,7 +2237,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Overflow',
     cost: 4, // owner balance 2026-08-11
     epic: true,
-    text: 'Whenever you summon a minion that **does not fit**, give your minions **+4/+4 permanently**.',
+    text: '**Overflow:** give your minions **+4/+4 permanently**.',
     reward: { kind: 'combatFlag', flag: 'runeOverflow', amount: 4 },
   },
   {

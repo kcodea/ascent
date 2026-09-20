@@ -40,4 +40,7 @@ export const RENDER_EXCUSED: Readonly<Record<string, RenderExcuse>> = {
   // running damage tally is the N/40 step counter (stepProgress reads `damageDealt`, the Avenge-style tracker
   // per the owner's 2026-09-11 "trackers, not fractions in the text" ruling), on the board AND in combat.
   dw3_hangover: { kind: 'accurate-at-any-value', why: 'no scaling number in the text; the damage meter is the damageDealt step counter (stepProgress)' },
+  // Goldvein (2026-09-19): the same damage meter with a Gold-next-turn body — "When this deals 6 damage, gain 3 Gold
+  // next turn"; the printed threshold never scales, the tally is the N/6 step counter.
+  k3_goldvein: { kind: 'accurate-at-any-value', why: 'no scaling number in the text; the damage meter is the damageDealt step counter (stepProgress)' },
 };

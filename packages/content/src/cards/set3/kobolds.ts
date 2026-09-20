@@ -332,4 +332,23 @@ export const SET3_KOBOLDS: CardDef[] = [
     text: "**Avenge (3):** Summon a **1/1 Gemheart Golem**, plus this minion's Rubies.",
     goldenText: "**Avenge (3):** Summon a **2/2 Gemheart Golem**, plus double this minion's Rubies.",
   },
+  {
+    // GOLDVEIN (owner handoff 2026-09-19). Han Gover's damage-dealt meter (`noteDamageDealt` in simulate.ts —
+    // every landed hit this body deals, seeded from the run card and carried back so it persists combat → shop →
+    // combat) with a Gold body: the first time the meter crosses a multiple of 6 in a fight, +3 Gold is banked
+    // for next turn through the same `grantBonusGold` channel Tromboneer / Bounty Bot use. ONCE per combat —
+    // the latch rides the combat instance (`goldMeterFired`, Yeti's convention), so a Risen body does not
+    // re-arm and a fresh combat does. Gilded: 6 Gold, still once. Progress shows on the step-counter badge
+    // (N/6). A "Payload" keyword was considered for this family and PARKED (owner 2026-09-19) — plain wording.
+    id: 'k3_goldvein',
+    name: 'Goldvein',
+    tribe: 'kobold',
+    tier: 1,
+    attack: 2,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'passive', do: 'dealtDamageGoldNextTurn', params: { every: 6, gold: 3 } }],
+    text: 'When this deals **6 damage**, gain **3 Gold** next turn. (Once per combat)',
+    goldenText: 'When this deals **6 damage**, gain **6 Gold** next turn. (Once per combat)',
+  },
 ];

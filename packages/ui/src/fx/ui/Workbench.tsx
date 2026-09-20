@@ -2969,8 +2969,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             ⌘K
           </button>
           {/* The def section (Copy def / name / Save) lives in the top bar so it is persistently reachable
-              without scrolling the properties column (owner 2026-09-19). */}
+              without scrolling the properties column (owner 2026-09-19). Browse all sits just to its right
+              (owner 2026-09-20). */}
           <div className="fxwb-def-top">{saveBlock}</div>
+          {defLibBlock}
           {fpsEl}
           {closeBtn}
         </div>
@@ -2989,7 +2991,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           {layersOpen && (
             <>
               {restoreBanners}
-              {defLibBlock}
               {layersEl}
               {timingBlock}
             </>

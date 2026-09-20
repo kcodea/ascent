@@ -8160,16 +8160,29 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 .fxwb-layer-btns button:hover:not(:disabled) { border-color: #c8a45c; color: #f0d9a4; }
 .fxwb-layer-btns button:disabled { opacity: 0.35; cursor: default; }
-.fxwb-layer-add { display: flex; align-items: center; gap: 5px; margin-top: 2px; }
-.fxwb-layer-add select {
-  flex: 1; min-width: 0; background: #241f17; border: 1px solid #4a4136; color: #efe7db; border-radius: 6px;
-  padding: 4px 6px; font-family: var(--font-ui); font-size: 12px; cursor: pointer;
+/* "Add new primitive" — a button that expands a picker of every primitive WITH its one-line definition, so you
+   choose what to add by what it does (owner ask 2026-09-20). Replaces the old id-dropdown + ＋. */
+.fxwb-layer-add { position: relative; margin-top: 4px; }
+.fxwb-addprim-btn {
+  width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px dashed #4a4136;
+  background: #241f17; color: #f0d9a4; font-family: var(--font-ui); font-size: 12px; font-weight: 800;
+  text-align: left; cursor: pointer;
 }
-.fxwb-layer-add button {
-  flex: none; width: 28px; height: 26px; padding: 0; border-radius: 6px; border: 1px solid #c8a45c;
-  background: color-mix(in srgb, #c8a45c 16%, #241f17); color: #f0d9a4; font-size: 14px; font-weight: 800; cursor: pointer;
+.fxwb-addprim-btn:hover, .fxwb-addprim-btn.on { border-color: #c8a45c; background: color-mix(in srgb, #c8a45c 14%, #241f17); }
+/* The picker expands UPWARD from the button (it sits at the bottom of the panel), a bordered card that scrolls
+   if the primitive list is long. Each row is the primitive's name over its one-line definition. */
+.fxwb-addprim-menu {
+  position: absolute; left: 0; right: 0; bottom: calc(100% + 4px); z-index: 8; max-height: 320px; overflow-y: auto;
+  background: #16120e; border: 1px solid #4a4136; border-radius: 8px; padding: 4px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 2px;
 }
-.fxwb-layer-add button:hover { background: color-mix(in srgb, #c8a45c 30%, #241f17); }
+.fxwb-addprim-item {
+  display: flex; flex-direction: column; gap: 1px; width: 100%; text-align: left; padding: 6px 8px;
+  border: 0; border-radius: 6px; background: transparent; color: #efe7db; font-family: var(--font-ui); cursor: pointer;
+}
+.fxwb-addprim-item:hover { background: #241f17; }
+.fxwb-addprim-name { font-size: 12px; font-weight: 800; color: #f0d9a4; }
+.fxwb-addprim-blurb { font-size: 10.5px; line-height: 1.35; color: #9a8c74; }
 
 /* Per-selected-layer timing controls (at / life). */
 .fxwb-timing {
@@ -8458,7 +8471,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-def-top { position: relative; display: flex; align-items: center; gap: 6px; margin-left: 6px; }
 .fxwb-def-top .fxwb-copy { margin: 0; white-space: nowrap; }
 .fxwb-def-top .fxwb-def { flex-direction: row; align-items: center; gap: 6px; }
-.fxwb-def-top .fxwb-def-nameinput { flex: 0 0 auto; width: 150px; }
+.fxwb-def-top .fxwb-def-nameinput { flex: 0 0 auto; width: 300px; }
 .fxwb-def-top .fxwb-def-variantwarn,
 .fxwb-def-top .fxwb-seedbake,
 .fxwb-def-top .fxwb-def-note,

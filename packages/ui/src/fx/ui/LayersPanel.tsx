@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { effectiveMutes, type EditorLayer } from './layerModel';
 import { reorderTargetIndex, type ReorderDrag } from './dragEdit';
-import { anchorLabel, primitiveLabel } from './copy';
+import { anchorLabel, primitiveLabel, primitiveBlurb } from './copy';
 
 /**
  * The composition's layer list — extracted out of the god-component `Workbench.tsx` (which still owns every
@@ -49,9 +49,21 @@ export function LayersPanel(props: LayersPanelProps): React.ReactElement {
   // before the extraction: `effectiveMutes(layers)`, a pure function of the layer list.
   const liveMutes = effectiveMutes(layers);
 
-  // The "Add layer" picker's own selection — independent of the selected LAYER, it only feeds `onAdd`.
-  // Mirrors the `useState` initializer Workbench used to own for this exact control.
-  const [addPrimitiveId, setAddPrimitiveId] = useState<string>(() => props.primitives[0] ?? 'ribbon');
+  // The "Add new primitive" picker: a button that expands a menu of every primitive WITH its one-line
+  // definition, so you choose what to add by what it DOES, not by guessing an id (owner ask). Replaces the
+  // old id-dropdown + ＋. Click a primitive to add it and close; click outside or Esc to dismiss.
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const addRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const onDown = (e: PointerEvent): void => {
+      if (!addRef.current?.contains(e.target as Node)) setPickerOpen(false);
+    };
+    const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') setPickerOpen(false); };
+    window.addEventListener('pointerdown', onDown);
+    window.addEventListener('keydown', onKey);
+    return () => { window.removeEventListener('pointerdown', onDown); window.removeEventListener('keydown', onKey); };
+  }, [pickerOpen]);
 
   // The in-place rename textbox: which row (if any) is being edited, and its in-progress text. This used to
   // live in Workbench (`renaming`/`renameText`), but the JSX that reads it moved here, so the state moves
@@ -200,11 +212,31 @@ export function LayersPanel(props: LayersPanelProps): React.ReactElement {
           </span>
         </div>
       ))}
-      <div className="fxwb-layer-add">
-        <select value={addPrimitiveId} onChange={(e) => setAddPrimitiveId(e.target.value)}>
-          {props.primitives.map((id) => <option key={id} value={id}>{id}</option>)}
-        </select>
-        <button onClick={() => onAdd(addPrimitiveId)} title="Add layer">＋</button>
+      <div className="fxwb-layer-add" ref={addRef}>
+        <button
+          type="button"
+          className={`fxwb-addprim-btn${pickerOpen ? ' on' : ''}`}
+          aria-expanded={pickerOpen}
+          onClick={() => setPickerOpen((v) => !v)}
+        >
+          ＋ Add new primitive
+        </button>
+        {pickerOpen && (
+          <div className="fxwb-addprim-menu" role="menu">
+            {props.primitives.map((id) => (
+              <button
+                key={id}
+                type="button"
+                role="menuitem"
+                className="fxwb-addprim-item"
+                onClick={() => { onAdd(id); setPickerOpen(false); }}
+              >
+                <span className="fxwb-addprim-name">{primitiveLabel(id)}</span>
+                <span className="fxwb-addprim-blurb">{primitiveBlurb(id)}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

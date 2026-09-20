@@ -8292,6 +8292,12 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 .fxwb-loop-toggle:hover { background: #4a4136; color: #efe7db; }
 .fxwb-loop-toggle.on { background: color-mix(in srgb, #c8a45c 22%, #241f17); border-color: #c8a45c; color: #f0d9a4; }
+/* The Loop-seam mode as a joined two-option control (Play out | Seamless): abutting buttons read as one
+   segmented picker, the lit one is the active mode. */
+.fxwb-loopseam { display: inline-flex; align-items: center; }
+.fxwb-loopseam .fxwb-loop-toggle { border-radius: 0; }
+.fxwb-loopseam .fxwb-loop-toggle:first-child { border-radius: 7px 0 0 7px; }
+.fxwb-loopseam .fxwb-loop-toggle:last-child { border-radius: 0 7px 7px 0; border-left: 0; }
 /* "Fit to effects" -- trims the loop to where the last layer ends. Same chip shape as the Loop toggle it
    sits beside, but never picks up the toggle's lit `.on` state: it's a one-shot action, not a mode. */
 .fxwb-fitduration {

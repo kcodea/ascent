@@ -78,9 +78,9 @@ const DEFAULTS: MilestoneFrameConfig = {
 
   numSize: 26, numDx: -1, numDy: -1.5,
   numColor: '#ffffff', numColorDown: '#ff5a4f', numStrokeW: 0, numStrokeColor: '#000000',
-  numUpAtk1: '#6ffe5d', numUpAtk2: '#6ffe5d', numUpAtk3: '#6ffe5d', numUpAtk4: '#f9a8ff', numUpAtk5: '#c29afe', numUpAtk6: '#b3c6ff',
-  numUpHp1: '#6ffe5d', numUpHp2: '#6ffe5d', numUpHp3: '#6ffe5d', numUpHp4: '#b853c6', numUpHp5: '#8563c5', numUpHp6: '#5d7fd0',
-  numShadowX: 0, numShadowY: 1, numShadowBlur: 4.5, numShadowOpacity: 0.87, numShadowColor: '#000000',
+  numUpAtk1: '#6ffe5d', numUpAtk2: '#6ffe5d', numUpAtk3: '#6ffe5d', numUpAtk4: '#f9a8ff', numUpAtk5: '#ceadff', numUpAtk6: '#c2d1ff',
+  numUpHp1: '#6ffe5d', numUpHp2: '#6ffe5d', numUpHp3: '#6ffe5d', numUpHp4: '#ee70ff', numUpHp5: '#b994ff', numUpHp6: '#8aadff',
+  numShadowX: 0, numShadowY: 1, numShadowBlur: 4.5, numShadowOpacity: 1, numShadowColor: '#000000',
 
   glowSize: 0.95, glowBlur: 9, glowOpacity: 0.75,
   glow1: '#c9d3e0', glow2: '#c9d3e0', glow3: '#ffd54a', glow4: '#ff5edb', glow5: '#4fd1ff', glow6: '#ffffff',

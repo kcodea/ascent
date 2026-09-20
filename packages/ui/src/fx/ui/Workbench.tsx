@@ -2962,9 +2962,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
               className="fxwb-btn fxwb-region-toggle"
               onClick={() => setLayersOpen((v) => !v)}
               aria-expanded={layersOpen}
-              title={layersOpen ? 'Collapse the layers panel' : 'Expand the layers panel'}
+              title={layersOpen ? 'Collapse the primitives panel' : 'Expand the primitives panel'}
             >
-              <span aria-hidden="true">{layersOpen ? '◂' : '▸'}</span>{layersOpen ? ' Layers' : ''}
+              <span aria-hidden="true">{layersOpen ? '◂' : '▸'}</span>{layersOpen ? ' Primitives' : ''}
             </button>
           </div>
           {layersOpen && (

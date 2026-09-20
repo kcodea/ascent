@@ -374,6 +374,28 @@ describe('Han Gover — "When this deals 40 damage, get an Ale" (owner handoff 2
     expect(alesGranted(r).length).toBe(2);
   });
 
+  it('"(Max 2 per hit)" (owner 2026-09-19): a 120-damage hit crosses three thresholds but pays 2 Ales, not 3', () => {
+    const d = CARD_INDEX['dw3_hangover']!;
+    expect(d.text).toContain('(Max 2 per hit)');
+    expect(d.goldenText).toContain('(Max 2 per hit)');
+    const r = fight([gover({ attack: 120 })], [foe(0, 1)]);
+    expect(alesGranted(r).length).toBe(2);
+    expect(toHandFromGover(r).length).toBe(2);
+    // The meter still advanced by the FULL 120 — the third crossing is spent, not banked.
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 120 }]);
+  });
+
+  it('…and the next 40 pays again: after a capped 120 hit (meter 120), a 40 hit crosses 160 and pays 1', () => {
+    const r = fight([gover({ attack: 40, damageDealt: 120 })], [foe(0, 1)]);
+    expect(alesGranted(r).length).toBe(1);
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 160 }]);
+  });
+
+  it('GILDED under the cap: one crossing pays its 2; a second crossing in the SAME hit pays nothing more', () => {
+    const r = fight([gover({ attack: 85, golden: true })], [foe(0, 1)]);
+    expect(alesGranted(r).length).toBe(2);
+  });
+
   it('a hit that never lands (a Ward) adds nothing', () => {
     // First swing pops the Ward (0 damage dealt), the second kills: 40 dealt in total — one Ale, not two.
     const r = fight([gover({ attack: 40 })], [foe(0, 40, ['DS'])]);

@@ -56,6 +56,50 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-19',
+    label: 'Overflow keyword, Yeti, Goldvein, Han Gover cap',
+    changes: [
+      {
+        category: 'New Card',
+        text: 'Goldvein joins the Kobolds: a Tier 1 2/3 that banks 3 Gold for next turn the first time it has dealt 6 damage in a combat.',
+        details: [
+          "Its damage meter works like Han Gover's: every landed hit it deals counts, and the total carries from fight to fight. When it crosses a multiple of 6, you gain 3 Gold next turn — on top of the Gold cap.",
+          'Once per combat: a second crossing in the same fight pays nothing, and a Goldvein that Rises does not get a second payout. The next fight re-arms it.',
+          'Gilded: 6 Gold, still once per combat.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: 'Chipwick Prospector has left Set 3. It is still a Set 2 card.',
+      },
+      {
+        category: 'New Card',
+        text: 'Yeti joins the Neutrals: a Tier 6 0/12 that throws the first hit it takes each combat back at 2 random enemies.',
+        details: [
+          "The first time Yeti takes damage in a fight, the same amount is dealt to 2 different random enemies (just the one if only one is standing). It fires once per combat — a Yeti that Rises does not get a second throw.",
+          'The thrown damage is real damage: it pops a Ward, is shrugged off by Immune, and a kill resolves on the spot with its Echo.',
+          'Gilding doubles the body and nothing else.',
+        ],
+      },
+      {
+        category: 'Card Change',
+        text: "Han Gover now reads \"(Max 2 per hit)\": one hit pays at most 2 Ales however many 40-damage marks it crosses.",
+        details: [
+          'The meter still counts the full damage of the hit, so the next 40 dealt pays again as normal.',
+          'Gilded Han Gover still gets 2 Ales per crossing — the first crossing in a hit fills the cap, so a second crossing in the same hit pays nothing extra.',
+        ],
+      },
+      {
+        category: 'UI / Info',
+        text: 'Overflow is now a keyword: every card and rune that reacts to a summoned minion finding no room on your board reads "Overflow: …", with its own pill, Compendium entry and medallion.',
+        details: [
+          'Overflow: when a minion is summoned, but does not have space on your board.',
+          'Rewritten to the keyword form: Squatimus, Flowing Monk, Bicycle Bob, Cratering Hulk, Rune of Overflow and Rune of the Crowded Crypt. What they do is unchanged.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-19',
     label: 'Effect cleanup crash',
     changes: [
       { category: 'UI / Info', text: "Fixed a crash in the shop when the effect budget trimmed an effect whose scene had already been torn down (\"Cannot read properties of null (reading 'indexOf')\")." },

@@ -144,8 +144,8 @@ export const SET3_UNDEAD: CardDef[] = [
     health: 8,
     keywords: [],
     effects: [{ on: 'summonOverflow', do: 'overflowBuffAllPermanent', params: { attack: 3, health: 4 } }],
-    text: 'Whenever a summoned minion does not fit, give your minions **+3/+4** permanently.',
-    goldenText: 'Whenever a summoned minion does not fit, give your minions **+6/+8** permanently.',
+    text: '**Overflow:** give your minions **+3/+4** permanently.',
+    goldenText: '**Overflow:** give your minions **+6/+8** permanently.',
   },
   {
     // Summons a real Spear Warden (the set-1 card, base 3/2 + its Aura), Footman Captain's factory.
@@ -203,7 +203,7 @@ export const SET3_UNDEAD: CardDef[] = [
     health: 9,
     keywords: [],
     effects: [{ on: 'summonOverflow', do: 'overflowBuffRandomTribePerPlayed', params: { tribe: 'undead', attack: 1, health: 1 } }],
-    text: 'When a summoned minion does not fit, give a random **Undead +1/+1**. Improves for every Undead played this turn.',
-    goldenText: 'When a summoned minion does not fit, give a random **Undead +2/+2**. Improves for every Undead played this turn.',
+    text: '**Overflow:** give a random **Undead +1/+1**. Improves for every Undead played this turn.',
+    goldenText: '**Overflow:** give a random **Undead +2/+2**. Improves for every Undead played this turn.',
   },
 ];

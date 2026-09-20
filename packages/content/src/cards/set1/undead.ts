@@ -186,8 +186,8 @@ export const UNDEAD: CardDef[] = [
       { on: 'onSummon', do: 'onSummonSelfBuff', params: { attack: 3, health: 3 } },
       { on: 'summonOverflow', do: 'onSummonOverflowBuffTribe', params: { tribe: 'undead', attack: 2, health: 2, engrave: true } },
     ],
-    text: 'Gain **+3/+3** when a minion is summoned in combat. Overflow summons **Engrave** your Undead **+2/+2**.',
-    goldenText: 'Gain **+6/+6** when a minion is summoned in combat. Overflow summons **Engrave** your Undead **+4/+4**.',
+    text: 'Gain **+3/+3** when a minion is summoned in combat. **Overflow:** Engrave your Undead **+2/+2**.',
+    goldenText: 'Gain **+6/+6** when a minion is summoned in combat. **Overflow:** Engrave your Undead **+4/+4**.',
   },
   {
     // Deathrattle: give all living friendly minions +2 Health (golden +4). Each time Sergeant itself

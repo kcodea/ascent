@@ -443,7 +443,7 @@ data are unchanged) via `packages/ui/src/terms.ts`:
 | Golden | **Gilded** |
 
 **Kept as-is** (no rename): Taunt, Avenge, Choose One, Start of Combat, End of Turn, Rally, Cleave,
-Consume, Discover.
+Consume, Discover, Overflow (a keyword since 2026-09-19 — see the Rise ordering section).
 
 Source: `packages/ui/src/terms.ts`.
 
@@ -526,6 +526,10 @@ A minion with **Rise** (or **Rebirth**) that dies resolves in this order, in **c
 3. **THEN** the minion **attempts** to return — to the right of what its Echo summoned. If the board is full
    by then (the Echo's summons took the room), the return **finds no room**: it counts as an **overflow**
    (Squatimus / Flowing Monk / Rune of the Crowded Crypt pay off) and the body stays dead. Its Rise is spent.
+
+   **Overflow** is a printed keyword (owner 2026-09-19): every card or rune that reacts to a summon finding no
+   room reads "**Overflow:** …", and the glossary defines it as *"When a minion is summoned, but does not have
+   space on your board."* It fires in the shop and in combat alike (the `summonOverflow` trigger).
 
 So on a full board a **Warden Rodrick** dies, his Spear Warden takes his slot, and Rodrick does not come back.
 A Rise minion whose Echo summons nothing (Sergeant) still rises on a full board — the slot its death freed is

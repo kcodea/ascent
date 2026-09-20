@@ -78,7 +78,6 @@ const REACTIVE_ON = new Set<EffectDef['on']>([
   'spellCastOnThis',           // a targeted spell resolved on this minion (Mirrorwing, Runefire)
   // recruit-phase reactions to your actions
   'spellCast',                 // you cast any spell (Runescale Drake, Spirit Worgen)
-  'summonOverflow',            // a summon couldn't fit the full board (Flowing Monk)
   'goldSpent',                 // you spent Gold — per threshold (Acid, Banksly, Koron)
   'cardsBought',               // you bought a card — per threshold (Korok, Banksly)
   'cardsPlayed',               // you played a card — per threshold (Mountainbond)
@@ -117,6 +116,8 @@ const REGISTRY: Omit<Mechanic, 'def'>[] = [
   { id: 'rally', term: 'Rally', glyph: 'sword', detect: kwMatch('RL'), kw: 'RL', termRe: /\brally\b|\brallies\b/i, order: 15 },
   { id: 'slaughter', term: 'Slaughter', glyph: 'slaughter', detect: kwMatch('SL'), kw: 'SL', termRe: /\bslaughters?\b/i, order: 16 },
   { id: 'bleed', term: 'Bleed', glyph: 'poison', detect: hasDo(/^scArmBleed$/), termRe: /\bbleed\b/i, order: 17 },
+  // OVERFLOW (owner keyword 2026-09-19): its own trigger family now, so `summonOverflow` left the Watcher set.
+  { id: 'overflow', term: 'Overflow', glyph: 'overflow', detect: hasOn('summonOverflow'), termRe: /\boverflows?\b/i, order: 19 },
   { id: 'chooseOne', term: 'Choose One', glyph: 'choose1', detect: (m) => !!m.chooseOne, termRe: /choose one/i, order: 18 },
   // — Combat keywords —
   { id: 'taunt', term: 'Taunt', glyph: 'taunt', detect: kwMatch('T'), kw: 'T', termRe: /\btaunt\b/i, order: 30 },

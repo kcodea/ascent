@@ -8872,6 +8872,22 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-rowwhy {
   grid-column: 1 / -1; margin-top: 2px; font-size: 10px; line-height: 1.3; font-weight: 800; color: #b58ad8;
 }
+/* The sound clip's WAVEFORM STRIP with draggable Start (green) / End (red) trim lines (owner ask): clip a
+   sound to exactly the window you want, in the editor. Full row width below the clip picker; the trimmed-out
+   ends dim. `touch-action: none` so a drag on a handle never scrolls the rail. */
+.fxwb-wave {
+  grid-column: 1 / -1; position: relative; height: 56px; margin: 5px 0 2px; border-radius: 6px;
+  border: 1px solid #4a4136; background: #141009; overflow: hidden; touch-action: none;
+}
+.fxwb-wave.fxwb-off { opacity: 0.45; }
+.fxwb-wave-canvas { display: block; width: 100%; height: 100%; }
+.fxwb-wave-load { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; color: #9a8c74; }
+.fxwb-wave-dim { position: absolute; top: 0; bottom: 0; background: rgba(10, 8, 4, 0.62); pointer-events: none; }
+.fxwb-wave-handle { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; cursor: ew-resize; }
+/* A wider invisible grab zone so the 2px line is easy to catch. */
+.fxwb-wave-handle::before { content: ''; position: absolute; top: 0; bottom: 0; left: -5px; right: -5px; }
+.fxwb-wave-handle.start { background: #6ffe5d; box-shadow: 0 0 5px #6ffe5d; }
+.fxwb-wave-handle.end { background: #ff5a4f; box-shadow: 0 0 5px #ff5a4f; }
 
 /* An INERT param — one whose `enabledWhen` isn't satisfied — is greyed and non-interactive, never hidden: a
    control that disappears takes its discoverability with it and makes the rail jump while you tune. The `?`

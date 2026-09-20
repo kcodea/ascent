@@ -56,6 +56,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-19',
+    label: 'Replay Win % fix',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "Replay viewer: the estimated Win % (~) on older recordings now accounts for the recorded player's runes, quests, spell power and auras — it read ~0% on fights that were actually won.",
+        details: [
+          'The estimate used to re-fight each round with both sides stripped of their run-level effects, so a Beast build carried by Rune of Beastial Swarm or Rune of Warding looked hopeless on paper.',
+          "The player's side is now rebuilt from the round's last shop state exactly as the real fight was; the opponent's side uses what the recording carries about it, so the number stays marked ~ on old recordings.",
+          'New recordings are unaffected: their Win % is the exact figure the Combat Summary showed.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-19',
     label: 'Effect cleanup crash',
     changes: [
       { category: 'UI / Info', text: "Fixed a crash in the shop when the effect budget trimmed an effect whose scene had already been torn down (\"Cannot read properties of null (reading 'indexOf')\")." },

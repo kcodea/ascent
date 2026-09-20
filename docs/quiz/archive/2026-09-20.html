@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ascent Quiz #39 — 2026-09-20</title>
+<meta name="description" content="Quiz #39 for Mike — ten questions on types, immutability, the reducer, the Zustand store, and how effects are wired.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f8fa;
+    --surface: #ffffff;
+    --surface-2: #eef1f4;
+    --border: #d7dce2;
+    --text: #1f2328;
+    --muted: #57606a;
+    --accent: #1a7f37;
+    --accent-soft: #dafbe1;
+    --bad: #cf222e;
+    --bad-soft: #ffebe9;
+    --warn: #9a6700;
+    --shadow: 0 1px 2px rgba(31,35,40,.06), 0 8px 24px rgba(31,35,40,.06);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1117;
+      --surface: #151b23;
+      --surface-2: #1c2431;
+      --border: #2d3745;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #3fb950;
+      --accent-soft: #123a20;
+      --bad: #ff7b72;
+      --bad-soft: #3c1618;
+      --warn: #d29922;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1117;
+    --surface: #151b23;
+    --surface-2: #1c2431;
+    --border: #2d3745;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #3fb950;
+    --accent-soft: #123a20;
+    --bad: #ff7b72;
+    --bad-soft: #3c1618;
+    --warn: #d29922;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+    padding: 32px 16px 64px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 24px; }
+  header .kicker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  header h1 { font-size: 24px; margin: 0 0 6px; }
+  header p { color: var(--muted); font-size: 14px; margin: 0; }
+
+  .progressbar {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    overflow: hidden;
+    margin: 20px 0 28px;
+    border: 1px solid var(--border);
+  }
+  .progressbar-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width .3s ease;
+  }
+
+  .scoretrack {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .scoretrack .pip {
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted);
+  }
+  .scoretrack .pip.correct { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .scoretrack .pip.wrong { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 24px 22px;
+    margin-bottom: 18px;
+  }
+  .qmeta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .qmeta .num { color: var(--accent); font-weight: 600; }
+  .question { font-size: 17px; line-height: 1.5; margin: 0 0 18px; font-weight: 600; }
+
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    text-align: left;
+    padding: 13px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14.5px;
+    line-height: 1.45;
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease, transform .1s ease;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
+  .choice:disabled { cursor: default; }
+  .choice .letter {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--muted);
+    flex-shrink: 0;
+    width: 20px;
+  }
+  .choice.correct { background: var(--accent-soft); border-color: var(--accent); }
+  .choice.correct .letter { color: var(--accent); }
+  .choice.wrong { background: var(--bad-soft); border-color: var(--bad); }
+  .choice.wrong .letter { color: var(--bad); }
+  .choice.dim { opacity: .55; }
+
+  .result-tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 6px;
+    margin-top: 16px;
+  }
+  .result-tag.correct { background: var(--accent-soft); color: var(--accent); }
+  .result-tag.wrong { background: var(--bad-soft); color: var(--bad); }
+
+  .explanation {
+    margin-top: 12px;
+    padding: 14px 15px;
+    background: var(--surface-2);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--text);
+    display: none;
+  }
+  .explanation.show { display: block; }
+  .explanation code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    background: var(--bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+
+  .nextrow { display: flex; justify-content: flex-end; margin-top: 16px; }
+  .btn {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    display: none;
+  }
+  .btn.show { display: inline-block; }
+  .btn:hover { filter: brightness(1.08); }
+
+  .summary { text-align: center; padding: 36px 24px; }
+  .summary .big { font-size: 44px; font-weight: 700; margin: 8px 0; font-family: 'JetBrains Mono', monospace; }
+  .summary .line { color: var(--muted); font-size: 15px; margin-bottom: 22px; }
+  .summary .topics { font-size: 13px; color: var(--muted); margin-top: 20px; line-height: 1.7; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">Daily Ascent Code Quiz</div>
+    <h1>🎓 Ascent Quiz #39</h1>
+    <p>2026-09-20 · 10 questions on types, immutability, the reducer, the store, and effect wiring</p>
+  </header>
+
+  <div class="progressbar"><div class="progressbar-fill" id="progressFill"></div></div>
+  <div class="scoretrack" id="scoreTrack"></div>
+
+  <div id="quizArea"></div>
+
+  <div id="summaryArea" class="card summary hidden"></div>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    topicId: "types-basics",
+    question: "packages/core/src/types.ts defines both a Minion interface (the full live combat instance) and a separate, narrower MinionSnapshot interface. Why have a second, smaller shape at all?",
+    choices: [
+      "MinionSnapshot is the display-only data a combat card reads to print its current text (like a taught spell's name) — nothing may read it to affect an actual outcome",
+      "MinionSnapshot replaces Minion once combat ends, since Minion becomes invalid",
+      "MinionSnapshot is the zod schema used to validate Minion objects at runtime",
+      "MinionSnapshot is a compressed version of Minion sent over the network between seats"
+    ],
+    answer: 0,
+    explanation: "MinionSnapshot exists purely so the UI can print each minion's live card text (an escalating rally bonus, a taught spell's name, current ascend progress, …) without touching the real simulation type. It's not a runtime validator (that's zod's job, a different file entirely), it doesn't replace Minion, and combat in Ascent never crosses a network boundary between seats — everything is resolved locally by one call to simulate(). See types.ts around line 1759."
+  },
+  {
+    topicId: "immutability",
+    question: "packages/core/src/combat/side.ts builds EMPTY_SIDE with Object.freeze({ ...many fields..., rubyBonus: { attack: 0, health: 0 }, ... }). Which of these does this freeze still leave completely unprotected?",
+    choices: [
+      "Mutating a nested field one level down, like EMPTY_SIDE.rubyBonus.attack = 5 — Object.freeze() only locks an object's own top-level properties, it does not recurse into nested objects",
+      "Reassigning a top-level field, like EMPTY_SIDE.tier = 6",
+      "Adding a brand new top-level property, like EMPTY_SIDE.newField = 1",
+      "Calling combatSide() a second time to build another side"
+    ],
+    answer: 0,
+    explanation: "Object.freeze() is shallow: it stops top-level property reassignment, addition, and deletion, but a nested object like rubyBonus is just an ordinary (unfrozen) object sitting inside a frozen one — its own properties are still fully writable. B and C are exactly what freeze DOES block, and calling combatSide() again is unrelated: it just spreads a fresh { ...EMPTY_SIDE, ...partial } copy every time, which is how mutable per-combat sides get built from one frozen template."
+  },
+  {
+    topicId: "reducer-run-state",
+    question: "A lobby seat's opponent 'driver' is a function/closure that produces that seat's boards. RunState.lobby stores only each seat's (kind, seed, heroId) — never the driver function itself, which gets rebuilt on demand. Why not just store the driver directly?",
+    choices: [
+      "structuredClone() (what reduceCore uses to clone RunState on every dispatch) cannot clone a function — only serializable data can live on RunState, so the driver has to be rebuilt from data instead",
+      "Storing a function would make a seat's opponent behavior change unpredictably between rounds",
+      "TypeScript doesn't allow a function type to be used as an optional interface field",
+      "It's purely a memory optimization — seeds take less space than a function body"
+    ],
+    answer: 0,
+    explanation: "reduceCore deep-clones the whole RunState with structuredClone() on every action, and structuredClone has no way to serialize a closure — it would throw. So RunState.lobby only pins the inputs (kind, seed, heroId), and the actual driver is rebuilt from them whenever it's needed, which works cleanly because every driver is a pure function of its seed + hero (same inputs replay identically). It's not about unpredictability — rebuilding from a fixed seed is what KEEPS it deterministic — and TypeScript happily types function fields; that's not the constraint here."
+  },
+  {
+    topicId: "zustand-store",
+    question: "packages/ui/src/store.ts's exitReplay() re-checks s.run.sandbox and s.sandboxReplay before doing anything, even though the button that calls it only ever renders while both are already true. Why bother re-checking inside the action itself?",
+    choices: [
+      "A store action shouldn't rely on its caller's guard being correct — it should stay a safe no-op even if something calls it from outside the one button that currently guards it",
+      "Zustand requires every action function to start with a conditional or the store fails to compile",
+      "It's leftover dead code from an earlier version of the replay button",
+      "It caps how many times the replay can be watched in one session"
+    ],
+    answer: 0,
+    explanation: "The comment above this code spells it out: a store action must not depend on its caller's guard. exitReplay() re-validates its own preconditions so it's safe to call from anywhere, not just from the one hidden-when-inactive button — the same discipline as validating inputs at a function boundary instead of trusting every caller to have already checked. It's not a Zustand requirement, it's clearly load-bearing (not dead code), and it has nothing to do with a watch-count limit."
+  },
+  {
+    topicId: "event-bus",
+    question: "packages/core/src/events.ts declares EventHandler using the type keyword, but CombatBus using the class keyword. What's the general reason to reach for class instead of type here?",
+    choices: [
+      "CombatBus needs to hold its own internal state (the handlers map) and expose methods (on, emit) that act on it — a type alias can only describe a shape, it can't carry behavior or private data",
+      "class is required any time something is exported from a TypeScript module",
+      "type can't describe a function's signature, so EventHandler had to become a class too",
+      "class makes the object faster to garbage-collect once a combat ends"
+    ],
+    answer: 0,
+    explanation: "EventHandler is nothing but a function shape — (payload: unknown) => void — so a type alias is exactly the right tool: no behavior to carry. CombatBus needs a private handlers Map plus on()/emit() methods that read and write it, which is what class gives you. type describes function signatures constantly (EventHandler IS one), and this distinction has nothing to do with garbage-collection speed."
+  },
+  {
+    topicId: "cards-in-sets",
+    question: "packages/content/src/sets.ts's SetDef interface has fields scoping a set's own cards and tribes. Per the file's own comment, which of these does a SetDef NOT yet scope per-set?",
+    choices: [
+      "Quests, runes, and heroes — the comment says they have their own separate toggles, not tied to the active set",
+      "Tavern spells — the comment says every set is forced to share one identical spell list",
+      "Tribes — the comment says every set draws from one universal tribe roster",
+      "Tier 7 cards — the comment says they're excluded from the set system entirely"
+    ],
+    answer: 0,
+    explanation: "The comment right after sets.ts's \"Adding a set\" steps says it plainly: quests, runes and heroes are NOT set-scoped yet — they have their own toggles. Spells actually DO live inside a set's own resolved pool (set 2's spell list differs from set 1's), tribes are very much per-set (SetDef.tribes — set 1's five founding tribes vs set 2's Kobold-centric roster), and Tier 7 cards are just more cards inside a set's own list (see SET1_TIER7_IN_SET2)."
+  },
+  {
+    topicId: "package-boundaries",
+    question: "packages/core/src/index.ts re-exports its whole surface with a string of export * from './...' lines, while packages/ui/src/index.ts exports only two names: Game and Boot. Both are 'public entrypoints' — why such different shapes?",
+    choices: [
+      "Each entrypoint exposes exactly what its consumers actually need — core's types/RNG/simulate() are used all over downstream packages, while ui is only ever consumed by apps/web, which just needs two top-level components to mount",
+      "export * is required once a package passes roughly 5 source files",
+      "ui's shorter export list means it physically has fewer source files than core",
+      "It's an inconsistency that should be fixed — ui should also use export * for uniformity"
+    ],
+    answer: 0,
+    explanation: "A public entrypoint's job is to control what's visible to consumers, not to follow one universal shape. core is imported for its types/RNG/simulate() by content, sim, tools, AND ui, so it re-exports broadly; ui is only ever imported by apps/web, which just mounts the app — so two names are the entire real contract. export * isn't a file-count threshold, ui has plenty of internal files (they're simply not exported), and this asymmetry is the intended design, not an inconsistency to fix."
+  },
+  {
+    topicId: "effects-as-subscriptions",
+    question: "Hunter's onGainAttackBuffImproving effect factory (packages/core/src/effects/factories.ts) guards itself with a module-level const huntGuard = new WeakSet<object>() — adding self before running, and always removing it inside a finally block. What problem is this actually solving?",
+    choices: [
+      "The effect's own +Attack grant would re-trigger the onGainAttack event on that same minion, calling itself again — the guard blocks that re-entrant loop, and finally guarantees cleanup even if the effect body throws",
+      "It caches the computed buff amount so it isn't recalculated on every combat frame",
+      "It stops two DIFFERENT minions from ever having this effect active at the same time",
+      "WeakSet is required here because Minion objects can't be stored in an ordinary Set"
+    ],
+    answer: 0,
+    explanation: "The comment right above the guard says exactly this: granting +Attack would re-fire onGainAttack on the same minion, calling the handler again. huntGuard flags \"already running for this minion\" and finally always clears that flag, even on an exception, so it can never get permanently stuck locked. It's not a cache (nothing is stored across combats), it doesn't restrict other minions (each minion is its own independent WeakSet entry), and plain Minion objects work fine in a regular Set too — WeakSet is chosen so entries don't leak memory once a minion is gone, not because it's required."
+  },
+  {
+    topicId: "effect-timing-pipeline",
+    question: "CLAUDE.md's Architecture section describes one of the combat simulator's trigger families in plain English as 'on-shield-break'. What is that trigger's actual GameEvent identifier in packages/core/src/types.ts?",
+    choices: [
+      "onLoseDivineShield",
+      "onShieldBreak",
+      "divineShieldLost",
+      "onDamaged"
+    ],
+    answer: 0,
+    explanation: "Docs are allowed to describe a trigger in friendlier plain language even when the code's real identifier reads differently — the actual GameEvent (types.ts) is onLoseDivineShield. onDamaged is a real but DIFFERENT event (it fires on any landed damage, not specifically a shield breaking). Good habit either way: always check the actual union in code rather than assuming a doc's descriptive phrase is a literal identifier."
+  },
+  {
+    topicId: "testing-vitest",
+    question: "packages/ui/src/artNoRedundantMasters.test.ts doesn't call any game logic at all — it uses Node's fs module to read directories and assert on which files exist. What is this test actually guarding against?",
+    choices: [
+      "Leftover PNG 'master' art files shipping alongside their already-converted .webp versions, bloating the build — added after a real upload got rejected for having too many files in the zip",
+      "A card's art file failing to load at runtime in the browser",
+      "Two different cards accidentally sharing the exact same art file",
+      "An artist committing art into the wrong folder structure"
+    ],
+    answer: 0,
+    explanation: "The comment at the top of the file names the real incident: itch.io rejected an upload for exceeding its 1000-file cap, traced to 166 redundant PNG masters left sitting beside their .webp builds. The test walks every art directory and fails if a PNG still shares a name with a .webp (plus a second check that the total file count stays under budget). A vitest test doesn't have to exercise your app's functions at all — asserting directly on the filesystem/build output is a completely legitimate kind of test."
+  }
+];
+
+let current = 0;
+let score = 0;
+const results = [];
+
+const quizArea = document.getElementById('quizArea');
+const progressFill = document.getElementById('progressFill');
+const scoreTrack = document.getElementById('scoreTrack');
+const summaryArea = document.getElementById('summaryArea');
+
+function initTrack() {
+  scoreTrack.innerHTML = '';
+  QUESTIONS.forEach((_, i) => {
+    const pip = document.createElement('div');
+    pip.className = 'pip';
+    pip.textContent = i + 1;
+    pip.id = 'pip-' + i;
+    scoreTrack.appendChild(pip);
+  });
+}
+
+function renderQuestion(i) {
+  const q = QUESTIONS[i];
+  const letters = ['A', 'B', 'C', 'D'];
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `
+    <div class="qmeta"><span class="num">Question ${i + 1} / ${QUESTIONS.length}</span><span>${q.topicId}</span></div>
+    <p class="question">${q.question}</p>
+    <div class="choices" id="choices-${i}"></div>
+    <div class="explanation" id="explain-${i}"></div>
+    <div class="nextrow"><button class="btn" id="next-${i}">${i === QUESTIONS.length - 1 ? 'See results →' : 'Next question →'}</button></div>
+  `;
+  quizArea.innerHTML = '';
+  quizArea.appendChild(card);
+
+  const choicesEl = document.getElementById('choices-' + i);
+  q.choices.forEach((choiceText, ci) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice';
+    btn.innerHTML = `<span class="letter">${letters[ci]}</span><span>${choiceText}</span>`;
+    btn.addEventListener('click', () => selectAnswer(i, ci));
+    choicesEl.appendChild(btn);
+  });
+
+  progressFill.style.width = ((i) / QUESTIONS.length * 100) + '%';
+}
+
+function selectAnswer(i, ci) {
+  const q = QUESTIONS[i];
+  const choicesEl = document.getElementById('choices-' + i);
+  const buttons = choicesEl.querySelectorAll('.choice');
+  const correct = ci === q.answer;
+
+  buttons.forEach((b, bi) => {
+    b.disabled = true;
+    if (bi === q.answer) b.classList.add('correct');
+    else if (bi === ci) b.classList.add('wrong');
+    else b.classList.add('dim');
+  });
+
+  const explainEl = document.getElementById('explain-' + i);
+  explainEl.classList.add('show');
+  explainEl.innerHTML = `<span class="result-tag ${correct ? 'correct' : 'wrong'}">${correct ? '✓ Correct' : '✗ Not quite'}</span><br><br>${q.explanation}`;
+
+  const pip = document.getElementById('pip-' + i);
+  pip.classList.add(correct ? 'correct' : 'wrong');
+  pip.textContent = correct ? '✓' : '✗';
+
+  if (correct) score++;
+  results.push(correct);
+
+  document.getElementById('next-' + i).classList.add('show');
+  progressFill.style.width = ((i + 1) / QUESTIONS.length * 100) + '%';
+}
+
+quizArea.addEventListener('click', (e) => {
+  if (e.target && e.target.id && e.target.id.startsWith('next-')) {
+    current++;
+    if (current < QUESTIONS.length) {
+      renderQuestion(current);
+    } else {
+      showSummary();
+    }
+  }
+});
+
+function showSummary() {
+  quizArea.innerHTML = '';
+  const pct = Math.round((score / QUESTIONS.length) * 100);
+  let line;
+  if (pct === 100) line = "Perfect score! You're reading this codebase like you wrote it. 🏆";
+  else if (pct >= 80) line = "Really strong — you're building a solid mental map of how this game is built.";
+  else if (pct >= 50) line = "Good progress — a few of these were deep cuts. Keep going, it compounds fast.";
+  else line = "Tough one today — no worries, reply with your score and tomorrow will circle back to what tripped you up.";
+
+  summaryArea.classList.remove('hidden');
+  summaryArea.innerHTML = `
+    <div class="kicker" style="color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:13px;">QUIZ COMPLETE</div>
+    <div class="big">${score} / ${QUESTIONS.length}</div>
+    <div class="line">${line}</div>
+    <div class="topics">Reply to this morning's message with your score (e.g. "${score}/10, missed the store one") and tomorrow's quiz will adapt.</div>
+  `;
+  progressFill.style.width = '100%';
+}
+
+initTrack();
+renderQuestion(0);
+</script>
+</body>
+</html>

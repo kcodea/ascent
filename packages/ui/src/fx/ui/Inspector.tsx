@@ -508,6 +508,41 @@ export function Inspector({
  * Its own component because the `?` toggle is state, and state inside Inspector's mapped render would violate
  * the rules of hooks (the same reason `CurveEditor`/`ShapeField` below are components).
  */
+/**
+ * The numeric readout for a slider param, made EDITABLE (owner ask): type a precise value the slider's `step`
+ * can't hit, and the effect updates live. A local edit buffer holds the raw text while focused, so a partial
+ * decimal like "0." or "-" types cleanly — a plain controlled number input would reformat mid-keystroke and
+ * fight the typist. On blur the buffer clears and the field shows the committed value. Every commit is clamped
+ * to the param's [min, max], the same range the slider spans, so a typed value can never leave that range.
+ */
+function NumberField({ value, min, max, disabled, onCommit }: {
+  value: number;
+  min: number;
+  max: number;
+  disabled: boolean;
+  onCommit: (n: number) => void;
+}): React.ReactElement {
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <input
+      type="number"
+      className="fxwb-val fxwb-valnum"
+      min={min}
+      max={max}
+      step="any"
+      disabled={disabled}
+      value={draft ?? String(value)}
+      onChange={(e) => {
+        setDraft(e.target.value);
+        const n = Number(e.target.value);
+        if (Number.isFinite(n) && e.target.value.trim() !== '') onCommit(Math.min(max, Math.max(min, n)));
+      }}
+      onFocus={(e) => e.currentTarget.select()}
+      onBlur={() => setDraft(null)}
+    />
+  );
+}
+
 function ParamRow({
   paramKey: key,
   spec,
@@ -590,7 +625,8 @@ function ParamRow({
           <input id={`fxwb-${key}`} type="range" min={spec.min} max={spec.max} step={spec.step}
             disabled={off}
             value={value as number} onChange={(e) => onChange(key, Number(e.target.value))} />
-          <span className="fxwb-val">{String(value)}</span>
+          <NumberField value={value as number} min={spec.min} max={spec.max} disabled={off}
+            onCommit={(n) => onChange(key, n)} />
         </>
       )}
       {spec.kind === 'toggle' && (

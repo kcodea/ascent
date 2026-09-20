@@ -8030,7 +8030,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   margin: 0 0 6px; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
   color: #9a8c74; border-bottom: 1px solid #4a4136; padding-bottom: 4px;
 }
-.fxwb-row { display: grid; grid-template-columns: 118px minmax(0, 1fr) 52px; align-items: center; gap: 8px; margin: 5px 0; }
+.fxwb-row { display: grid; grid-template-columns: 118px minmax(0, 1fr) 64px; align-items: center; gap: 8px; margin: 5px 0; }
 /* The value column is FIXED rather than `auto` so the sliders all end at the same x — with `auto` every row
    was a different length depending on how many digits its number happened to have. */
 .fxwb-row .fxwb-val, .fxwb-row > span:last-child { text-align: right; }
@@ -8098,6 +8098,16 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 .fxwb-row input[type='color'] { justify-self: start; width: 28px; height: 20px; border: 1px solid #4a4136; border-radius: 4px; background: none; padding: 0; cursor: pointer; }
 .fxwb-val { font-size: 11px; font-weight: 800; color: #f0d9a4; text-align: right; font-variant-numeric: tabular-nums; }
+/* The editable numeric readout: type a precise value the slider's step can't reach (owner ask). Styled as a
+   compact field so it still reads as the value, with the number spinners hidden (they only nudge by step and
+   waste width — the point here is typing an exact number). */
+.fxwb-valnum {
+  width: 100%; box-sizing: border-box; padding: 2px 4px; border: 1px solid #4a4136; border-radius: 5px;
+  background: #1c1810; font-family: var(--font-ui); -moz-appearance: textfield;
+}
+.fxwb-valnum:focus { outline: none; border-color: #c8a45c; }
+.fxwb-valnum:disabled { opacity: 0.5; }
+.fxwb-valnum::-webkit-outer-spin-button, .fxwb-valnum::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .fxwb-copy {
   margin-top: auto; padding: 8px; border-radius: 8px; border: 2px solid #c8a45c; background: color-mix(in srgb, #c8a45c 16%, #241f17);
   color: #f0d9a4; font-family: var(--font-ui); font-weight: 800; font-size: 12px; cursor: pointer;

@@ -5563,6 +5563,11 @@ svg { width: 18px; height: 18px; }
 .devmenu-item.on { background: color-mix(in srgb, var(--acc) 14%, var(--card)); color: var(--acc-dk); }
 .devmenu-item.on.cursor { background: color-mix(in srgb, var(--acc) 22%, var(--card)); }
 .devmenu-item.action .devmenu-tick { color: var(--ink3); }
+/* The FX Workbench is pinned to the top of the menu, always available (owner ask) — a faint accent tint marks
+   it, and a divider under its group sets it apart from the scrolling tuner groups below. */
+.devmenu-pinned { border-bottom: 1px solid var(--line); margin-bottom: 4px; padding-bottom: 3px; }
+.devmenu-item.pinned { background: color-mix(in srgb, var(--acc) 10%, transparent); }
+.devmenu-item.pinned.cursor { background: color-mix(in srgb, var(--acc) 20%, var(--card)); }
 
 .devmenu-empty { padding: 16px 8px; font-size: 12px; font-weight: 600; color: var(--ink3); text-align: center;
   display: flex; flex-direction: column; align-items: center; gap: 9px; }

@@ -334,18 +334,25 @@ export function DevMenu() {
       .filter((g) => g.items.length > 0);
   }, [needle]);
 
+  // The FX Workbench is PINNED to the very top of the menu (owner ask): always shown, never filtered by the
+  // search. It's pulled out of the normal Actions list here and rendered above the groups below — its run()
+  // still lives in `actions`, so keyboard `activate()` finds it as usual.
+  const pinnedAction = useMemo(() => actions.find((a) => a.id === 'workbench'), [actions]);
   const visibleActions = useMemo(
-    () => (needle ? actions.filter((a) => `${a.label} ${a.hint}`.toLowerCase().includes(needle)) : actions),
+    () => actions
+      .filter((a) => a.id !== 'workbench')
+      .filter((a) => !needle || `${a.label} ${a.hint}`.toLowerCase().includes(needle)),
     [actions, needle],
   );
 
   // The keyboard walks ONE flat sequence over whatever is currently visible: tuners first, then actions.
   const flat = useMemo(
     () => [
+      ...(pinnedAction ? [{ kind: 'action' as const, id: pinnedAction.id }] : []),
       ...groups.flatMap((g) => g.items.map((t) => ({ kind: 'tuner' as const, id: t.key }))),
       ...visibleActions.map((a) => ({ kind: 'action' as const, id: a.id })),
     ],
-    [groups, visibleActions],
+    [groups, visibleActions, pinnedAction],
   );
 
   useEffect(() => { setCursor(0); }, [needle]);
@@ -384,7 +391,9 @@ export function DevMenu() {
     return () => window.removeEventListener('pointerdown', onDown);
   }, [open]);
 
-  let row = -1; // running index into `flat`, so each rendered row knows its keyboard position
+  // Running index into `flat`, so each rendered row knows its keyboard position. The pinned FX Workbench (when
+  // present) is flat[0], so the group rows start counting from 0 → their first `row += 1` lands on 1.
+  let row = pinnedAction ? 0 : -1;
 
   return (
     <>
@@ -421,6 +430,21 @@ export function DevMenu() {
           </div>
 
           <div className="devmenu-list" ref={listRef}>
+            {/* FX Workbench, pinned to the top and always visible — never filtered by the search (owner ask). */}
+            {pinnedAction && (
+              <div className="devmenu-group devmenu-pinned" key="pinned">
+                <button
+                  className={`devmenu-item action pinned${cursor === 0 ? ' cursor' : ''}${pinnedAction.live?.() ? ' on' : ''}`}
+                  onPointerEnter={() => setCursor(0)}
+                  onClick={pinnedAction.run}
+                  title={pinnedAction.hint}
+                >
+                  <span className="devmenu-ic" aria-hidden>{pinnedAction.icon}</span>
+                  <span className="devmenu-lb">{pinnedAction.label}</span>
+                  <span className="devmenu-tick" aria-hidden>▸</span>
+                </button>
+              </div>
+            )}
             {groups.map((g) => (
               <div className="devmenu-group" key={g.id}>
                 <div className="devmenu-gh">{g.title}</div>

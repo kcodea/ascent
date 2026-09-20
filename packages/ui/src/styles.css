@@ -6326,60 +6326,176 @@ svg { width: 18px; height: 18px; }
 .balpick:focus-visible { outline: 2px solid var(--acc); }
 .balpick option { color: #1a1206; }
 
-/* Player Leaderboard (Rankings) — reuses the .lbpage shell; a compact ranked table (rank · player · rating · games · favorite hero). */
-.rankpage .lbscroll { max-width: 860px; margin: 0 auto; width: 100%; }
-.ranktable { display: flex; flex-direction: column; gap: 2px; font-family: var(--font-ui); }
-/* Columns in PX (not em) so the header — which uses a smaller font-size — computes the SAME track widths as the
-   data rows and lines up. (em tracks scale with each row's own font-size, which was the misalignment.) */
-/* The row is a PLATE, not a tint (owner report 2026-08-06: "the leaderboard font is hidden in the
-   background"). At rgba(0,0,0,.3) the homescreen's daylit castle read straight through it, so the columns
-   that aren't accent-coloured — Games, the hero name, the header labels — washed out against clouds and
-   towers. Opaque-enough navy fixes every one of them at once and needs no per-column colour tuning. */
-.rankrow { display: grid; grid-template-columns: 40px minmax(0, 1fr) 96px 96px 210px 104px; gap: 0; align-items: stretch; padding: 10px 18px; background: rgba(8, 13, 26, 0.82); border: 2px solid rgba(255, 255, 255, 0.14); border-radius: 12px; color: #f4eee2; }
-/* A leaderboard row is a BUTTON now (it opens that player's career). Reset the button chrome so it still
-   reads as a table row, and keep the grid from the base rule — a button defaults to inline-block and would
-   otherwise collapse the columns. */
-/* THE ACTUAL BUG (owner report 2026-08-06). This button reset is declared AFTER `.rankrow`, so its
-   `background: none` erased the row's plate and its `color: inherit` pulled the page's dark ink
-   (rgb(42,32,23)) over the row's own light colour — leaving dark-brown text on a transparent row above a
-   daylit castle. Only the `.me` row looked right, because `.rankrow.me` is declared later still and put its
-   tint back. The reset now drops `background` / `color` / `border` and keeps only what a button actually
-   needs neutralising, so `.rankrow` owns the plate and the ink. */
-.rankrow-btn { width: 100%; font: inherit; text-align: inherit; appearance: none; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.rankrow-btn:hover { border-color: var(--acc); background: linear-gradient(rgba(196, 160, 92, 0.14), rgba(196, 160, 92, 0.14)), rgba(8, 13, 26, 0.82); }
-.rankrow-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: -2px; }
-/* Transparent 2px border keeps the header's columns inset the SAME as the bordered data rows, so they line up. */
-.rankrow.rankhead { background: none; border: 2px solid transparent; border-bottom: 2px solid rgba(255, 255, 255, 0.28); border-radius: 0; padding-top: 4px; padding-bottom: 8px; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(255, 255, 255, 0.78); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85); }
-/* Column dividers: a full-height rule at the left of every column after the player name. */
-.rankrow > .ranknum, .rankrow > .rankfav { align-self: stretch; display: flex; align-items: center; border-left: 1px solid rgba(255, 255, 255, 0.1); padding-left: 14px; margin-left: 14px; }
-.rankrow.rankhead > .ranknum, .rankrow.rankhead > .rankfav { border-left-color: transparent; }
-.rankrow > .ranknum { justify-content: flex-end; }
-.rankrow > .rankrank, .rankrow > .rankname { display: flex; align-items: center; }
-.rankrow > .rankrank { justify-content: center; }
-.rankrow.me { border-color: var(--acc); background: linear-gradient(rgba(255, 140, 40, 0.16), rgba(255, 140, 40, 0.16)), rgba(8, 13, 26, 0.82); }
+/* ── LADDER PAGES (owner polish 2026-09-20) — the ranked Leaderboard (Rankings.tsx), the Hall of Champions
+   (Leaderboard.tsx) and Recent Games (RecentGames.tsx), in the Career page's visual language: the gold-framed
+   navy panel, chunky banner rows, the circular in-run hero frame, real card tiles for boards, small-caps
+   labels. All `lb-` / `rg-` (the shell rules above — .lbpage / .lbtopbar / .lbback / .lbtitle / .lbscroll /
+   .lbempty — are shared with the Career page and untouched). Nothing here animates in a loop except the
+   loading spinner (transform only); tile hovers are one-shot transform transitions. ── */
+.lb-ladder .lbscroll { max-width: 1560px; margin: 0 auto; width: 100%; gap: 0; padding-top: 4px; }
+/* Ornate gold-framed panel: deep navy fill + double gold frame (border + inset hairline) — the Career panel. */
+.lb-panel { background: linear-gradient(180deg, rgba(13, 22, 40, 0.78), rgba(9, 15, 29, 0.85)); border: 2px solid rgba(196, 160, 92, 0.5); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), inset 0 0 40px rgba(0, 0, 0, 0.3), 0 10px 30px -12px rgba(0, 0, 0, 0.55); border-radius: 16px; padding: 12px 16px 16px; min-width: 0; }
+.lb-label { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(232, 200, 119, 0.85); }
+/* The gold action button (WATCH / WATCH REPLAY) — the Career's `.cv2-btn` shape. */
+.lb-btn { position: relative; font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: #1a1206; background: linear-gradient(180deg, #f0d089, #c99d4e); border: 1.5px solid #8a6428; padding: 9px 16px; border-radius: 10px; white-space: nowrap; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45); --pr-edge: 3px; --pr-edge-c: #8a6428; }
+.lb-btn:disabled { opacity: 0.4; filter: saturate(0.4); cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+/* Segmented toggle in the top bar (the Hall's Most recent / Most wins) — the Career's trend-window control. */
+.lb-seg { margin-left: auto; display: inline-flex; border-radius: 9px; overflow: hidden; border: 1px solid rgba(196, 160, 92, 0.45); flex: none; }
+.lb-seg-btn { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.04em; padding: 8px 14px; color: rgba(255, 255, 255, 0.72); background: rgba(0, 0, 0, 0.32); border: none; }
+.lb-seg-btn + .lb-seg-btn { border-left: 1px solid rgba(196, 160, 92, 0.3); }
+.lb-seg-btn:hover { color: #fff; }
+.lb-seg-btn.on { color: #241705; background: linear-gradient(180deg, #f0d089, #c99d4e); }
 
-/* REPLAY V2 (Phase C) — the per-row Watch pill: spectate that player's latest recorded run. Sits in the
-   .rankrow grid's trailing 104px column; the click is stopped from bubbling to the row (which opens the
-   Career). Salvaged verbatim from the killed v1 branch (PR #956) — only the data behind it changed. */
-.rankwatch { align-self: center; justify-self: end; margin-left: 14px; padding: 6px 12px; font: inherit; font-weight: 800; font-size: 12px; letter-spacing: 0.02em; color: #1a1206; background: var(--acc); border: none; border-radius: 8px; white-space: nowrap; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.rankwatch:hover:not(:disabled) { filter: brightness(1.08); }
-.rankwatch:disabled { opacity: 0.55; cursor: default; }
-.rankrow.rankhead > .rankwatchhead { color: rgba(255, 255, 255, 0.78); font-size: 11px; }
-.rankrank { font-weight: 800; font-size: 20px; text-align: center; color: rgba(255, 255, 255, 0.82); }
-.rankrank.r1 { color: #ffcf4a; }
-.rankrank.r2 { color: #d6dde6; }
-.rankrank.r3 { color: #e0965a; }
-.rankname { font-weight: 800; font-size: 17px; color: #fff; display: flex; align-items: center; gap: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rankhead .rankname { font-size: 11px; color: rgba(255, 255, 255, 0.78); }
-.rankyou { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #1a1206; background: var(--acc); padding: 1px 6px; border-radius: 6px; }
-.ranknum { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 16px; color: #f4eee2; }
-.rankhead .ranknum { font-size: 11px; font-weight: 800; }
-.rankrating { color: var(--acc); font-weight: 800; }
-.rankfav { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; color: #f4eee2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rankhead .rankfav { font-size: 11px; color: rgba(255, 255, 255, 0.78); }
-.rankportrait { width: 30px; height: 30px; border-radius: 8px; overflow: hidden; background: rgba(0, 0, 0, 0.3); flex: none; display: grid; place-items: center; }
-.rankportrait img { width: 100%; height: 100%; object-fit: cover; }
-.rankportrait svg { width: 18px; height: 18px; color: #f6efe2; }
+/* Designed states: loading (spinner), empty, offline — an icon over the line, centred in the scroll. */
+.lb-state { display: flex; flex-direction: column; align-items: center; gap: 14px; margin: 72px auto; font-size: 17px; }
+.lb-state svg { width: 40px; height: 40px; color: rgba(232, 200, 119, 0.7); }
+.lb-spin { width: 34px; height: 34px; border-radius: 50%; border: 3px solid rgba(232, 200, 119, 0.22); border-top-color: #e8c877; animation: flspin 0.9s linear infinite; }
+
+/* The in-run frame, re-seated: `.hero` keeps its gold ring / cream face / shadow, `.f` its ink disc + circle,
+   `.heroimg` its cover fit. Only the geometry is set here (the tray's .statusbar rules never apply). */
+.lb-heroframe { flex: none; }
+.lb-heroframe .hero { display: block; position: relative; width: 60px; height: 60px; padding: 3px; border-radius: 50%; box-sizing: border-box; box-shadow: 0 0 0 2px rgba(20, 30, 50, 0.9), 0 0 0 3px rgba(196, 160, 92, 0.4), 0 4px 12px rgba(0, 0, 0, 0.45); }
+.lb-heroframe .hero .f { width: 100%; height: 100%; }
+.lb-heroframe .hero .f svg { width: 44%; height: 44%; }
+.lb-heroframe.big .hero { width: 84px; height: 84px; padding: 4px; }
+
+/* The rank medallion: a coin for the podium (gold / silver / bronze, the game's own metal ramps), a plain
+   numeral beyond. Static shadows — nothing breathes. */
+.lb-medal { position: relative; display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; font-family: var(--font-ui); font-weight: 900; font-size: 18px; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.8); flex: none; }
+.lb-medal svg { position: absolute; top: -9px; left: 50%; width: 16px; height: 16px; transform: translateX(-50%); }
+.lb-medal.gold, .lb-medal.silver, .lb-medal.bronze { color: #1a1206; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -2px 0 rgba(0, 0, 0, 0.25), 0 0 0 2px rgba(20, 30, 50, 0.9), 0 3px 8px rgba(0, 0, 0, 0.5); }
+.lb-medal.gold { background: linear-gradient(160deg, #ffe9a3, #e0aa3a 55%, #a8780f); }
+.lb-medal.gold svg { color: #ffd76a; }
+.lb-medal.silver { background: linear-gradient(160deg, #f6f8fb, #b9c3cf 55%, #7b8794); }
+.lb-medal.silver svg { color: #dfe6ee; }
+.lb-medal.bronze { background: linear-gradient(160deg, #f0b98a, #c07a3e 55%, #7d4a1f); }
+.lb-medal.bronze svg { color: #e6a066; }
+
+/* Final-team tiles: 7 fixed slots, each the REAL card rendered at `--tile-cw` and scaled down with a
+   transform (compositor-only) inside a box pre-sized to the scaled footprint. `--tile-s` steps UP on wide
+   screens (2560-class) so the stat pips stay legible there too. A hovered tile lifts (one-shot transform). */
+.lb-team { --tile-cw: 132px; --tile-s: 0.82; display: flex; gap: 8px; align-items: flex-start; padding: 18px 0 8px; }
+.lb-table .lb-team { --tile-s: 0.7; }
+.lb-tile { position: relative; flex: none; width: calc(var(--tile-cw) * var(--tile-s)); height: calc(var(--tile-cw) / 0.752 * var(--tile-s)); }
+.lb-tile.empty { border-radius: 8px; border: 1.5px dashed rgba(255, 255, 255, 0.12); background: rgba(0, 0, 0, 0.16); }
+.lb-tile-scale { position: absolute; left: 0; top: 0; width: var(--tile-cw); height: calc(var(--tile-cw) / 0.752); transform: scale(var(--tile-s)); transform-origin: top left; }
+.lb-tile .card { --cw: var(--tile-cw); --ch: calc(var(--cw) / 0.752); --ccw: calc(var(--cw) * 0.85); min-width: 0; }
+/* A hovered tile lifts above its neighbours so the Card's OWN hover reveal (the portalled full card with its
+   rules text — the existing inspect) and glow ring aren't clipped by the next tile. No scale-up here: the
+   reveal is the readable version, and growing the tile under it would move the anchor it measured. */
+.lb-tile:hover { z-index: 5; }
+/* The reveal is portalled to <body> at z 460; the ladder pages sit at 470 (.lbpage), so without this it opened
+   INVISIBLY behind the page (the same trap the Compendium hit, 2026-09-18). Lift it over the page; still under
+   the Inspect overlay (500). */
+body:has(.lb-ladder) .cardref { z-index: 490; }
+.lb-team-none { display: inline-flex; align-items: center; min-height: 48px; padding: 0 14px; border-radius: 10px; border: 1.5px dashed rgba(255, 255, 255, 0.16); background: rgba(0, 0, 0, 0.16); font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.5); }
+.lb-team-none.dim { border-style: solid; border-color: rgba(255, 255, 255, 0.08); }
+
+/* Rune emblems + names (Recent Games): the Runeforge art in a purple-ringed disc, the name beside it, the
+   standard floating tooltip (.runtrophy-tip) with the rune's text above on hover. */
+.lb-runes { display: flex; flex-wrap: wrap; gap: 6px 10px; }
+.lb-rune { position: relative; display: inline-flex; align-items: center; gap: 7px; padding: 3px 10px 3px 3px; border-radius: 999px; background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(176, 120, 230, 0.35); }
+.lb-rune-em { width: 26px; height: 26px; border-radius: 50%; overflow: hidden; border: 1.5px solid #b078e6; background: #14100c; display: grid; place-items: center; flex: none; }
+.lb-rune-em img { width: 100%; height: 100%; object-fit: cover; }
+.lb-rune-em svg { width: 14px; height: 14px; color: #d9cfaa; }
+.lb-rune-name { font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: #f4eee2; white-space: nowrap; }
+.lb-rune:hover .lb-rune-tip { opacity: 1; transition-delay: 0.25s; }
+.lb-runes-none { font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.45); }
+
+/* ── THE RANKED TABLE (Rankings.tsx) — one gold panel, a header row, then a plate per player. Column tracks in
+   px so the smaller-font header computes the SAME tracks as the rows. The board column takes the rest. ── */
+.lb-table { display: flex; flex-direction: column; gap: 6px; }
+.lb-trow { display: grid; grid-template-columns: 56px minmax(220px, 280px) 130px 84px minmax(0, 1fr) 128px; column-gap: 14px; align-items: center; padding: 10px 14px; border-radius: 12px; color: #f4eee2; min-width: 0; }
+.lb-trow > * { min-width: 0; }
+.lb-thead { padding: 2px 14px 8px; border-bottom: 2px solid rgba(196, 160, 92, 0.35); border-radius: 0; font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(232, 200, 119, 0.85); }
+.lb-thead .lb-c-rank { text-align: center; }
+.lb-thead .lb-c-rating, .lb-thead .lb-c-games { text-align: right; }
+/* A row is a plate that opens the player's Career (a div[role=button]); hover warms the frame, YOUR row
+   carries the accent ring. */
+.lb-trow-btn { background: linear-gradient(90deg, rgba(13, 22, 40, 0.82), rgba(9, 15, 29, 0.86)); border: 2px solid rgba(196, 160, 92, 0.28); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.08); transition: border-color 0.12s ease, background 0.12s ease; }
+.lb-trow-btn:hover { border-color: rgba(232, 200, 119, 0.75); background: linear-gradient(90deg, rgba(20, 31, 54, 0.9), rgba(13, 21, 40, 0.92)); }
+.lb-trow-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+.lb-trow-btn.me { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc), inset 0 0 0 1px rgba(240, 144, 46, 0.25); background: linear-gradient(90deg, rgba(60, 34, 12, 0.7), rgba(13, 21, 40, 0.9)); }
+.lb-c-rank { display: flex; justify-content: center; }
+.lb-c-player { display: flex; align-items: center; gap: 12px; }
+.lb-who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lb-handle { display: flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 900; font-size: 17px; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-you { flex: none; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #1a1206; background: var(--acc); padding: 2px 7px; border-radius: 6px; }
+.lb-herosub { font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.62); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-c-rating { display: flex; align-items: baseline; justify-content: flex-end; gap: 6px; }
+.lb-rating { font-family: var(--font-ui); font-weight: 900; font-size: 26px; line-height: 1; color: #ffd76a; font-variant-numeric: tabular-nums; }
+.lb-unit { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
+.lb-c-games { display: flex; justify-content: flex-end; }
+.lb-num { font-family: var(--font-ui); font-weight: 800; font-size: 17px; color: #f4eee2; font-variant-numeric: tabular-nums; }
+.lb-c-board { display: flex; flex-direction: column; gap: 5px; padding-left: 14px; border-left: 1px solid rgba(255, 255, 255, 0.1); }
+.lb-latest-place { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.6); }
+.lb-latest-place.won { color: #6fe0a0; }
+.lb-latest-place.lost { color: #ff9a9a; }
+.lb-c-act { display: flex; justify-content: flex-end; }
+
+/* ── BANNER ROWS (Hall of Champions + Recent Games) — the Career match banner: hero column · team column ·
+   outcome column, plus a leading rank column on the Hall. ── */
+.lb-rows { display: flex; flex-direction: column; gap: 10px; }
+.lb-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 220px; gap: 14px; align-items: center; padding: 12px 18px; color: #f4eee2; background: linear-gradient(90deg, rgba(13, 22, 40, 0.82), rgba(9, 15, 29, 0.86)); border: 2px solid rgba(196, 160, 92, 0.32); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.1), 0 8px 22px -12px rgba(0, 0, 0, 0.6); border-radius: 14px; min-width: 0; }
+.lb-hall .lb-row { grid-template-columns: 56px 150px minmax(0, 1fr) 236px; }
+.lb-row > * { min-width: 0; }
+.lb-row-btn { transition: border-color 0.12s ease, background 0.12s ease; }
+.lb-row-btn:hover { border-color: rgba(232, 200, 119, 0.75); background: linear-gradient(90deg, rgba(20, 31, 54, 0.9), rgba(13, 21, 40, 0.92)); }
+.lb-row-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+.lb-row-btn[aria-disabled='true'] { opacity: 0.7; }
+.lb-row-rank { display: flex; justify-content: center; }
+.lb-row-hero { display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; }
+.lb-row-hero .lb-heroframe .hero { width: 64px; height: 64px; }
+.lb-row-name { margin-top: 3px; font-family: var(--font-ui); font-weight: 900; font-size: 15px; color: #fff; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-row-herosub { font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.62); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-row-record { font-family: var(--font-ui); font-weight: 900; font-size: 16px; font-variant-numeric: tabular-nums; }
+.lb-row-record.won { color: #6fe0a0; }
+.lb-row-record.lost { color: #ff9a9a; }
+.lb-row-record.none { color: rgba(255, 255, 255, 0.7); font-weight: 800; font-size: 14px; }
+.lb-row-team { display: flex; flex-direction: column; gap: 5px; padding: 0 14px; border-left: 1px solid rgba(255, 255, 255, 0.1); border-right: 1px solid rgba(255, 255, 255, 0.1); align-self: stretch; justify-content: center; }
+.lb-row-team .lb-label + .lb-label, .lb-row-team .lb-team + .lb-label, .lb-row-team .lb-team-none + .lb-label { margin-top: 6px; }
+.lb-row-extras { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; }
+.lb-row-extras .lbpips { margin-top: 0; }
+.lb-row-extras .runtrophies { margin-top: 0; }
+.lb-row-extras .runtrophy-inner { width: 34px; height: 34px; }
+.lb-row-outcome { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 3px; }
+.lb-verdict { font-family: var(--font-ui); font-weight: 900; font-size: 24px; letter-spacing: 0.06em; line-height: 1.05; color: #f4eee2; }
+.lb-verdict.won { color: #6fe0a0; }
+.lb-verdict.top4 { color: #f4eee2; }
+.lb-verdict.lost { color: #ff9a9a; }
+.lb-verdict.none { color: rgba(255, 255, 255, 0.45); }
+.lb-when { font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.62); }
+.lb-facts { display: flex; justify-content: flex-end; gap: 16px; margin-top: 2px; }
+.lb-fact { display: inline-flex; flex-direction: column; align-items: flex-end; }
+.lb-fact-l { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232, 200, 119, 0.8); }
+.lb-fact-v { font-family: var(--font-ui); font-weight: 900; font-size: 16px; color: #fff; font-variant-numeric: tabular-nums; }
+.lb-partial { display: inline-flex; align-items: center; gap: 6px; margin-top: 2px; padding: 3px 9px; border-radius: 999px; background: rgba(240, 144, 46, 0.14); border: 1px solid rgba(240, 144, 46, 0.45); font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.03em; color: #ffc27a; }
+.lb-partial svg { width: 12px; height: 12px; }
+.lb-watch { margin-top: 6px; }
+/* The Hall's round-17 fight record, compact under the verdict: fights · W · L (· T) · win rate. */
+.lb-fights { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 10px; margin-top: 4px; font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.72); }
+.lb-fights b { color: #fff; font-weight: 900; font-size: 15px; }
+.lb-fight.w b { color: #6fe0a0; }
+.lb-fight.l b { color: #ff9a9a; }
+.lb-fight.wr { display: inline-flex; align-items: center; gap: 4px; color: #ffd76a; font-weight: 900; }
+.lb-fight.wr svg { width: 13px; height: 13px; }
+.lb-fights.none { font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.45); }
+
+/* 2560-class screens: bigger tiles + a wider list so the page fills rather than floats. */
+@media (min-width: 2200px) {
+  .lb-ladder .lbscroll { max-width: 2000px; }
+  .lb-team { --tile-s: 0.95; }
+  .lb-table .lb-team { --tile-s: 0.9; }
+  .lb-row { grid-template-columns: 170px minmax(0, 1fr) 250px; }
+  .lb-hall .lb-row { grid-template-columns: 60px 170px minmax(0, 1fr) 260px; }
+}
+/* Narrower viewports: the tiles step down before the columns would overflow. */
+@media (max-width: 1400px) { .lb-team { --tile-s: 0.62; } .lb-table .lb-team { --tile-s: 0.56; } }
+@media (max-width: 1180px) {
+  .lb-team { --tile-s: 0.5; }
+  .lb-table .lb-team { --tile-s: 0.44; }
+  .lb-trow { grid-template-columns: 48px minmax(180px, 240px) 100px 70px minmax(0, 1fr) 110px; }
+}
 .lbentry { background: rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 18px; padding: 14px 18px; }
 .lbentry-head { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
 .lbrank { min-width: 30px; text-align: center; font-family: var(--font-ui); font-weight: 800; font-size: 20px; color: var(--acc); flex: none; }
@@ -6389,22 +6505,6 @@ svg { width: 18px; height: 18px; }
 .lbinfo { display: flex; flex-direction: column; }
 .lbname { font-family: var(--font-ui); font-weight: 800; font-size: 18px; color: #fff; }
 .lbmeta { font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.6); }
-/* Round-17 win record — pushed to the right edge of the entry head. */
-.lbrecord { margin-left: auto; flex: none; display: inline-flex; align-items: baseline; gap: 6px; font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: rgba(255, 255, 255, 0.85); background: rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.14); border-radius: 12px; padding: 7px 13px; white-space: nowrap; }
-.lbrecord svg { width: 16px; height: 16px; color: var(--acc); align-self: center; }
-.lbrecord b { color: #fff; font-weight: 900; font-size: 18px; }
-.lbrecord .lbwr { color: var(--acc); font-weight: 800; font-size: 13px; }
-.lbrecord.none { color: rgba(255, 255, 255, 0.5); font-weight: 600; font-size: 13px; }
-/* Hall of Champions fight record — the Career/BoardLog .bl-record breakdown, but as a compact inline group at the
-   right of the entry head (no margin-auto push on the win rate; slightly smaller than the full-width Career row). */
-.lb-record { margin-left: auto; flex: none; gap: 13px; font-size: 14px; }
-.lb-record .bl-stat b { font-size: 17px; }
-.lb-record .bl-wr { margin-left: 2px; font-size: 14px; }
-/* Sort toggle in the top bar (Most recent / Most wins). */
-.lbsort { margin-left: auto; display: inline-flex; gap: 6px; flex: none; }
-.lbsortbtn { font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.72); background: rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.16); padding: 8px 14px; border-radius: 10px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.lbsortbtn:hover { border-color: var(--acc); color: var(--acc); }
-.lbsortbtn.on { background: var(--acc); border-color: var(--acc); color: #fff; }
 /* Per-round W/L spread — a compact version of the end-screen pips (.endpip). Calibration rounds (1–2) dimmed. */
 .lbpips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
 .lbpip { flex: none; width: 19px; height: 19px; border-radius: 5px; font-family: var(--font-ui); font-weight: 800; font-size: 11px; color: #fff; display: grid; place-items: center; }

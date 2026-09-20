@@ -567,7 +567,10 @@ export async function fetchDerivedRuns(limit = 200): Promise<DerivedRun[]> {
   }
 }
 
-/** One row for the Recent Games list (title → "Recent Games"): who played, which hero, how it ended. */
+/** One row for the Recent Games list (title → "Recent Games"): who played, which hero, how it ended — plus,
+ *  since the 2026-09-20 polish, the LIGHT facts the banner prints (final board, record, run length, runes,
+ *  partial flag), read as JSON-path scalars / small subtrees off the replay so the list still never pulls a
+ *  frame. */
 export interface RecentGameRow {
   /** `auth.users.id` of the player — needed to open THEIR Career from the row (the mutable `author` name must
    *  never be used to look anything up). Null on pre-accounts rows, which then aren't clickable. */
@@ -583,6 +586,22 @@ export interface RecentGameRow {
   /** True when the row's telemetry carries a WATCHABLE v2 state replay (`replay->v2->version === 2`), read
    *  as a light JSON-path column so the list never pulls the ~100–450 KB payloads (replay-v2-handoff §9). */
   hasReplay: boolean;
+  /** The run's final warband (`replay->v2->result->finalBoard`) — null on rows without a v2 replay, on an
+   *  empty final board, and on the plainer fallback selects. */
+  board: BoardSnapshot | null;
+  /** The recorded fight record (`replay->v2->result->record`); null when the row has no v2 replay — the
+   *  scalar `wins` column is then all the banner can print. */
+  record: { wins: number; losses: number; draws: number } | null;
+  /** The recording's clock span (last frame − first frame), ms — the run length. Null without both clocks
+   *  (no v2 replay, or a PostgREST that can't index `frames->-1`). */
+  durationMs: number | null;
+  /** A recording that does NOT start at round 1 (`replay->v2->partial`), with the first round it holds. */
+  partial: boolean;
+  firstRecordedWave: number | null;
+  /** The runes the run picked (`picked_runes`), falling back to the final board's own rune list. */
+  runes: string[];
+  /** The round the run ended on (`derived->>finalWave`); null on rows without a derivation. */
+  wave: number | null;
 }
 
 // ── Replay v2 (spectate — docs/replay-v2-handoff.md Phase C) ───────────────────────────────────────────────
@@ -605,8 +624,32 @@ export function v2ReplayOf(replayColumn: unknown): ReplayV2 | null {
   return isReplayV2(v2) ? v2 : null;
 }
 
-/** Map one raw `run_telemetry` list row → a `RecentGameRow`. Exported pure for the Phase C listing tests. */
+/** A JSON-path scalar as PostgREST returns it (`->` keeps the JSON type, `->>` returns TEXT) → a finite
+ *  number, or null. */
+const numOf = (v: unknown): number | null => {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v === 'string' && v.trim() !== '') { const n = Number(v); return Number.isFinite(n) ? n : null; }
+  return null;
+};
+
+/** A stored board snapshot as a light select returns it — null for anything that isn't one, and for an
+ *  EMPTY board (nothing to tile). */
+const boardOf = (v: unknown): BoardSnapshot | null =>
+  v && typeof v === 'object' && Array.isArray((v as BoardSnapshot).minions) && (v as BoardSnapshot).minions.length > 0 ? (v as BoardSnapshot) : null;
+
+/** Map one raw `run_telemetry` list row → a `RecentGameRow`. Exported pure for the Phase C listing tests.
+ *  Every banner fact is optional on the wire — the fallback selects (`RECENT_GAMES_SELECTS`) drop columns a
+ *  pre-migration backend can't serve, and older rows simply carry nulls — so the mapper never throws on a
+ *  sparse row; it prints what it has. */
 export function asRecentGameRow(r: Record<string, unknown>): RecentGameRow {
+  const board = boardOf(r.final_board);
+  const rec = r.record && typeof r.record === 'object' ? (r.record as Record<string, unknown>) : null;
+  const record = rec && numOf(rec.wins) !== null
+    ? { wins: numOf(rec.wins) ?? 0, losses: numOf(rec.losses) ?? 0, draws: numOf(rec.draws) ?? 0 }
+    : null;
+  const first = numOf(r.first_t);
+  const last = numOf(r.last_t);
+  const picked = Array.isArray(r.picked_runes) ? (r.picked_runes as unknown[]).filter((x): x is string => typeof x === 'string') : [];
   return {
     userId: (r.user_id as string | null) ?? null,
     author: (r.author as string | null) ?? null,
@@ -618,8 +661,29 @@ export function asRecentGameRow(r: Record<string, unknown>): RecentGameRow {
     // The aliased JSON-path column `replay_v2_version` (`replay->v2->version`) — 2 on a v2 row, null/absent
     // on v1-only rows, rows with no replay, and the pre-migration fallback select.
     hasReplay: (r.replay_v2_version === 2 || r.replay_v2_version === '2') && typeof r.id === 'number',
+    board,
+    record,
+    durationMs: first !== null && last !== null && last >= first ? last - first : null,
+    partial: r.partial === true || r.partial === 'true',
+    firstRecordedWave: numOf(r.first_wave),
+    runes: picked.length > 0 ? picked : (board?.runes ?? []),
+    wave: numOf(r.final_wave),
   };
 }
+
+/** The Recent Games select ladder — richest first. Every JSON-path column is a server-side scalar or a small
+ *  subtree (the final board, the record), never the frame list: the list still never downloads a payload.
+ *  `frames->-1` (the last frame's clock) needs a PostgREST that resolves negative indices; `derived` /
+ *  `picked_runes` / `replay` need their migrations. A backend that rejects a select falls to the next,
+ *  plainer rung, costing only what that rung reads (run length → banner facts → Watch). Exported for tests. */
+const RECENT_BASE = 'id, user_id, author, hero_id, wins, placement, created_at';
+const RECENT_FACTS = 'picked_runes, replay_v2_version:replay->v2->version, final_board:replay->v2->result->finalBoard, record:replay->v2->result->record, partial:replay->v2->>partial, first_wave:replay->v2->>firstRecordedWave, final_wave:derived->>finalWave';
+export const RECENT_GAMES_SELECTS: readonly string[] = [
+  `${RECENT_BASE}, ${RECENT_FACTS}, first_t:replay->v2->frames->0->>tMs, last_t:replay->v2->frames->-1->>tMs`,
+  `${RECENT_BASE}, ${RECENT_FACTS}`,
+  `${RECENT_BASE}, replay_v2_version:replay->v2->version`,
+  RECENT_BASE,
+];
 
 /** The last N finished games across ALL players (public read on `run_telemetry`) — newest first. Best-effort +
  *  time-boxed; `[]` when no backend / on any failure. */
@@ -627,27 +691,81 @@ export async function fetchRecentGames(limit = 20): Promise<RecentGameRow[]> {
   const c = client();
   if (!c) return [];
   try {
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
-    const query = (select: string) => Promise.resolve(
-      c.from('run_telemetry').select(select).order('created_at', { ascending: false }).limit(limit),
-    );
-    // `replay_v2_version:replay->v2->version` is the LIGHT watchability probe: the server extracts one JSON
-    // scalar per row, so the list never downloads the replay payloads themselves (they're 100–450 KB each —
-    // the whole point of the two-step fetch; `fetchReplayPayload` pulls ONE on Watch click).
-    let result = await Promise.race([
-      query('id, user_id, author, hero_id, wins, placement, created_at, replay_v2_version:replay->v2->version'),
-      timeout,
+    const timeout = () => new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const query = (select: string) => Promise.race([
+      Promise.resolve(c.from('run_telemetry').select(select).order('created_at', { ascending: false }).limit(limit)),
+      timeout(),
     ]);
-    // Pre-migration DB (no `replay` column yet) errors the JSON-path select — fall back to the plain list,
-    // which simply offers no Watch buttons (`hasReplay` stays false).
-    if (result && result.error) {
-      result = await Promise.race([query('id, user_id, author, hero_id, wins, placement, created_at'), timeout]);
+    // Walk the ladder: a query ERROR (an unknown column / an unsupported path on this backend) tries the
+    // next, plainer select; a timeout or a clean answer ends the walk.
+    let result: Awaited<ReturnType<typeof query>> = null;
+    for (const select of RECENT_GAMES_SELECTS) {
+      result = await query(select);
+      if (!result || !result.error) break;
     }
     if (!result || result.error || !result.data) return [];
     // Runtime-built select list → supabase-js can't infer the row type; read the columns by hand.
     return (result.data as unknown as Array<Record<string, unknown>>).map(asRecentGameRow);
   } catch {
     return [];
+  }
+}
+
+/** The latest recorded game of one ranked player — the ranked table's "latest board" cell. */
+export interface LatestGameFacts {
+  /** `run_telemetry.id` of that game (the Watch handle when `hasReplay`). */
+  rowId: number;
+  heroId: string;
+  placement: number | null;
+  createdAt: string | null;
+  board: BoardSnapshot | null;
+  hasReplay: boolean;
+}
+
+/** The latest recorded game of EACH listed player, keyed by user id — two light reads: a tiny id probe over
+ *  the players' newest telemetry rows (ids only, never a payload), then the facts + final board of just the
+ *  one newest row per player (`replay->v2->result->finalBoard`, a few KB each). A player with no recorded
+ *  game is simply absent. Best-effort + time-boxed; empty on any failure. */
+export async function fetchLatestGamesForUsers(userIds: string[]): Promise<Map<string, LatestGameFacts>> {
+  const out = new Map<string, LatestGameFacts>();
+  const c = client();
+  const ids = userIds.filter((id) => !!id);
+  if (!c || ids.length === 0) return out;
+  try {
+    const timeout = () => new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const probe = await Promise.race([
+      Promise.resolve(c.from('run_telemetry').select('id, user_id').in('user_id', ids).order('created_at', { ascending: false }).limit(ids.length * 30)),
+      timeout(),
+    ]);
+    if (!probe || probe.error || !probe.data) return out;
+    const newest = new Map<string, number>();
+    for (const r of probe.data as unknown as Array<{ id: unknown; user_id: unknown }>) {
+      if (typeof r.user_id === 'string' && typeof r.id === 'number' && !newest.has(r.user_id)) newest.set(r.user_id, r.id);
+    }
+    if (newest.size === 0) return out;
+    const rowIds = [...newest.values()];
+    const query = (select: string) => Promise.race([
+      Promise.resolve(c.from('run_telemetry').select(select).in('id', rowIds)),
+      timeout(),
+    ]);
+    // A pre-`replay` backend errors the JSON-path select — fall back to the scalar facts (no board tiles).
+    let result = await query('id, user_id, hero_id, placement, created_at, replay_v2_version:replay->v2->version, final_board:replay->v2->result->finalBoard');
+    if (result && result.error) result = await query('id, user_id, hero_id, placement, created_at');
+    if (!result || result.error || !result.data) return out;
+    for (const r of result.data as unknown as Array<Record<string, unknown>>) {
+      if (typeof r.user_id !== 'string' || typeof r.id !== 'number') continue;
+      out.set(r.user_id, {
+        rowId: r.id,
+        heroId: String(r.hero_id ?? ''),
+        placement: r.placement != null ? Number(r.placement) : null,
+        createdAt: (r.created_at as string | null) ?? null,
+        board: boardOf(r.final_board),
+        hasReplay: r.replay_v2_version === 2 || r.replay_v2_version === '2',
+      });
+    }
+    return out;
+  } catch {
+    return out;
   }
 }
 

@@ -56,6 +56,22 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-20',
+    label: 'Leaderboard, Hall of Champions + Recent Games redesign',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "The Leaderboard, the Hall of Champions and Recent Games have been rebuilt in the Career page's style: gold-framed banners, podium medallions, circular hero portraits, and every board shown as real card tiles you can hover to inspect.",
+        details: [
+          "Leaderboard: a proper ranked table — gold / silver / bronze medallions for the top 3, your own row highlighted and scrolled into view, each player's rating, games played and their latest recorded board as card tiles (with how that game ended), plus a Watch button for their latest run.",
+          "Hall of Champions: each victory is one banner — the champion's hero portrait and handle, their fight record and round-by-round pips, the winning warband as card tiles, the runes and quests they finished with, and the board's round-17 record.",
+          "Recent Games: each recording is a banner with the player's hero and handle, the final team as card tiles, the runes they took (emblem + name), and the outcome block — VICTORY or placement, date and time, W–L record, run length and rounds — with one Watch Replay button. A recording that doesn't start at round 1 is labelled as a partial recording.",
+          'Hovering any board tile on these pages now opens the full card reveal (it used to open behind the page).',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-20',
     label: 'Top-milestone badge effect',
     changes: [
       {

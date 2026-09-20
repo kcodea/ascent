@@ -1,35 +1,36 @@
 import { useEffect, useState } from 'react';
 import { getHero, isCalibrationRound } from '@game/sim';
-import { Card } from './Card';
-import { storedCardView } from './storedBoardView';
 import { RunTrophies } from './RunTrophies';
-import { heroArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame } from './store';
 import { fetchBoardStats, fetchVictories, remoteEnabled, type BoardWinStats, type VictoryRow } from './remoteBoards';
-
+import { LbHeroFrame, LbLabel, LbMedallion, LbTeam } from './LadderBits';
+import { playedOnText, recordOfHistory, recordText } from './leaderboardData';
 
 /**
- * Leaderboard — a full "Hall of Champions" PAGE (not a modal): the latest 20 VICTORY runs from the shared
- * backend (`fetchVictories`), scrollable, with a Back button top-left. Each entry shows the champion (rank ·
- * hero · author · wave · date) and their final winning warband inline, rendered with the same `Card` as the
- * end screen (so cards size correctly + show full text on hover, on top). Read-only + best-effort.
+ * Leaderboard — the "Hall of Champions" PAGE (not a modal): the latest 20 VICTORY runs from the shared
+ * backend (`fetchVictories`), scrollable, with a Back button top-left. Polished 2026-09-20 to the Career
+ * page's banner language: each champion is one chunky row — the rank medallion (podium gold / silver /
+ * bronze), the circular hero frame with the hero + author, the run's W–L record and round pips, the final
+ * winning warband as 7 real card tiles, and the outcome block (VICTORY · date · round) with the board's
+ * round-17 fight record and the quests / runes it ended with. Read-only + best-effort.
  */
-/** The round-17 fight record for a leaderboard slot — the same "N Fights · W Wins · T Ties · L Losses · X% win
- *  rate" breakdown the Career per-round board log uses (owner request 2026-07-13), reusing its `.bl-record` /
- *  `.bl-stat` styling so the two read identically. */
+const HALL_ROWS = 20;
+
+/** The round-17 fight record for a Hall slot — how often this board has beaten others as their final
+ *  opponent (owner request 2026-07-13). Compact: fights · wins · win rate. */
 function WinRecord({ stats }: { stats?: BoardWinStats }) {
   if (!stats || stats.fights === 0) {
-    return <div className="lbrecord none" title="No round-17 fights logged against this board yet">No fights yet</div>;
+    return <div className="lb-fights none">No round-17 fights logged yet</div>;
   }
   return (
-    <div className="bl-record lb-record" title="This board's record when served as a round-17 opponent">
-      <span className="bl-stat"><b>{stats.fights}</b> Fights</span>
-      <span className="bl-stat w"><b>{stats.wins}</b> Wins</span>
-      <span className="bl-stat t"><b>{stats.ties}</b> Ties</span>
-      <span className="bl-stat l"><b>{stats.losses}</b> Losses</span>
-      <span className="bl-wr"><Icon name="crown" />{stats.winRate}% win rate</span>
+    <div className="lb-fights" aria-label="This board's record when served as a round-17 opponent">
+      <span className="lb-fight"><b>{stats.fights}</b> fights</span>
+      <span className="lb-fight w"><b>{stats.wins}</b> W</span>
+      <span className="lb-fight l"><b>{stats.losses}</b> L</span>
+      {stats.ties > 0 && <span className="lb-fight t"><b>{stats.ties}</b> T</span>}
+      <span className="lb-fight wr"><Icon name="crown" />{stats.winRate}%</span>
     </div>
   );
 }
@@ -50,7 +51,7 @@ export function Leaderboard() {
     // WINNING LOBBY BOARDS only (owner rework 2026-07-31): rows logged before the rework carry no mode and
     // are filtered out — the Hall restarts with the ladder.
     void fetchVictories(60).then(async (rAll) => {
-      const r = rAll.filter((v) => v.mode === 'lobby').slice(0, 20);
+      const r = rAll.filter((v) => v.mode === 'lobby').slice(0, HALL_ROWS);
       if (!alive) return;
       setRows(r);
       // Then pull each slot's round-17 win record from the fight ledger (best-effort; leaves the record empty on failure).
@@ -73,74 +74,75 @@ export function Leaderboard() {
     : sort === 'wins' ? [...rows].sort((a, b) => winsOf(b) - winsOf(a)) : rows;
 
   return (
-    <div className="lbpage">
+    <div className="lbpage lb-ladder lb-hall">
       <div className="lbtopbar">
         <button className="lbback pressable" onClick={back}>← Back</button>
         <div className="lbtitle">
           <Icon name="crown" />
           <div>
             <div className="esch disp">Hall of Champions</div>
-            <div className="lbsub">The latest 20 victory runs</div>
+            <div className="lbsub">The latest {HALL_ROWS} victory runs and their warbands</div>
           </div>
         </div>
         {/* Sort toggle — Most recent (default) vs Most round-17 wins. */}
-        <div className="lbsort" role="group" aria-label="Sort leaderboard">
-          <button className={`lbsortbtn${sort === 'recent' ? ' on' : ''}`} onClick={() => { sfx.pulse(); setSort('recent'); }}>Most recent</button>
-          <button className={`lbsortbtn${sort === 'wins' ? ' on' : ''}`} onClick={() => { sfx.pulse(); setSort('wins'); }}>Most wins</button>
+        <div className="lb-seg" role="group" aria-label="Sort leaderboard">
+          <button type="button" className={`lb-seg-btn${sort === 'recent' ? ' on' : ''}`} aria-pressed={sort === 'recent'} onClick={() => { if (sort !== 'recent') { sfx.pulse(); setSort('recent'); } }}>Most recent</button>
+          <button type="button" className={`lb-seg-btn${sort === 'wins' ? ' on' : ''}`} aria-pressed={sort === 'wins'} onClick={() => { if (sort !== 'wins') { sfx.pulse(); setSort('wins'); } }}>Most wins</button>
         </div>
       </div>
 
       <div className="lbscroll">
         {!remoteEnabled() ? (
-          <div className="lbempty">Leaderboard unavailable — no backend configured.</div>
+          <div className="lbempty lb-state"><Icon name="gear" /><div>Hall of Champions unavailable — no backend configured.</div></div>
         ) : ordered === null ? (
-          <div className="lbempty">Loading…</div>
+          <div className="lbempty lb-state loading"><span className="lb-spin" aria-hidden /><div>Opening the Hall…</div></div>
         ) : ordered.length === 0 ? (
-          <div className="lbempty">No champions yet — be the first to summit.</div>
+          <div className="lbempty lb-state"><Icon name="crown" /><div>No champions yet — be the first to summit.</div></div>
         ) : (
-          ordered.map((r, i) => {
-            const hero = getHero(r.heroId);
-            const art = heroArt(r.heroId);
-            return (
-              <div className="lbentry" key={r.boardId ?? i}>
-                <div className="lbentry-head">
-                  <div className="lbrank">{i + 1}</div>
-                  <div className="lbportrait">
-                    {art ? <img decoding="sync" src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
+          <div className="lb-rows">
+            {ordered.map((r, i) => {
+              const hero = getHero(r.heroId);
+              const rec = recordOfHistory(r.history);
+              const when = playedOnText(r.createdAt) || r.date;
+              const board = r.board && r.board.minions.length > 0 ? r.board : null;
+              return (
+                <div className="lb-row" key={r.boardId ?? i}>
+                  <div className="lb-row-rank"><LbMedallion rank={i + 1} /></div>
+                  <div className="lb-row-hero">
+                    <LbHeroFrame heroId={r.heroId} />
+                    <div className="lb-row-name">{r.author || hero.name}</div>
+                    <div className="lb-row-herosub">{hero.name}</div>
+                    {rec && <div className={`lb-row-record ${rec.wins >= rec.losses ? 'won' : 'lost'}`}>{recordText(rec)}</div>}
                   </div>
-                  <div className="lbinfo">
-                    <div className="lbname">{r.author || hero.name}</div>
-                    <div className="lbmeta">{hero.name} · Wave {r.wave}{r.date ? ` · ${r.date}` : ''}</div>
-                    {r.history && (
-                      <div className="lbpips" aria-label="Round results">
-                        {[...r.history].map((c, k) => {
-                          const res = c === 'W' ? 'win' : c === 'L' ? 'lose' : 'draw';
-                          const cal = isCalibrationRound(k + 1);
-                          return (
-                            <span
-                              key={k}
-                              className={`lbpip ${res}${cal ? ' cal' : ''}`}
-                              title={`Round ${k + 1}: ${res}${cal ? ' (calibration — not scored)' : ''}`}
-                            >
-                              {c}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
+                  <div className="lb-row-team">
+                    <LbLabel>Winning warband</LbLabel>
+                    <LbTeam board={board} empty="No warband stored for this run" />
+                    <div className="lb-row-extras">
+                      {r.history && (
+                        <div className="lbpips lb-pips" aria-label="Round results">
+                          {[...r.history].map((c, k) => {
+                            const res = c === 'W' ? 'win' : c === 'L' ? 'lose' : 'draw';
+                            const cal = isCalibrationRound(k + 1);
+                            return (
+                              <span key={k} className={`lbpip ${res}${cal ? ' cal' : ''}`} aria-label={`Round ${k + 1}: ${res}${cal ? ' (calibration — not scored)' : ''}`}>{c}</span>
+                            );
+                          })}
+                        </div>
+                      )}
+                      <RunTrophies quests={r.board?.quests} runes={r.board?.runes} />
+                    </div>
                   </div>
-                  {/* Round-17 win record — how often this board has beaten others as their final opponent. */}
-                  <WinRecord stats={r.boardId ? stats.get(r.boardId) : undefined} />
+                  <div className="lb-row-outcome">
+                    <LbLabel>Match outcome</LbLabel>
+                    <div className="lb-verdict won">VICTORY</div>
+                    <div className="lb-when">{when}{r.wave ? ` · Round ${r.wave}` : ''}</div>
+                    {/* Round-17 win record — how often this board has beaten others as their final opponent. */}
+                    <WinRecord stats={r.boardId ? stats.get(r.boardId) : undefined} />
+                  </div>
                 </div>
-                {r.board && r.board.minions.length > 0 && (
-                  <div className="lbwarband">
-                    {r.board.minions.map((m, j) => <Card key={j} card={storedCardView(m)} suppressPop />)}
-                  </div>
-                )}
-                <RunTrophies quests={r.board?.quests} runes={r.board?.runes} />
-              </div>
-            );
-          })
+              );
+            })}
+          </div>
         )}
       </div>
     </div>

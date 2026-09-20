@@ -33,7 +33,7 @@ if (import.meta.env.DEV) {
 }
 import { chooseBothText } from './cardText';
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
-import { type Action, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, selectedEquipment, selectedEquipmentDef } from '@game/sim';
+import { type Action, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -754,8 +754,8 @@ export function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView { //
   // Undead — so a buffed offer reads its new stats (green) and carries the baked ones in when bought.
   const cb = opts.cardBuffs?.[c.id] ?? { attack: 0, health: 0 };
   // Matches the buy path's `isUndead` (reducer): primary/second tribe OR a universalTribe card.
-  const undead = c.tribe === 'undead' || c.tribe2 === 'undead' || !!c.universalTribe;
-  const beast = c.tribe === 'beast' || c.tribe2 === 'beast' || !!c.universalTribe; // Squirl Scout aura preview
+  const undead = defIsTribe(c, 'undead');
+  const beast = defIsTribe(c, 'beast'); // Squirl Scout aura preview
   const magnetic = c.keywords.includes('M'); // Scrap Herald aura preview
   // Fodder carries Staff of Guel through its run-wide enchant (cb), not the buy-buff, so don't fold the
   // tavern-buy bonus onto a Fodder offer too (the reducer's buy path skips it the same way).
@@ -1433,6 +1433,8 @@ export function Recruit() {
   const eotEatKey = useRef(1_000_000); // fodderAnim keys for EoT-beat eats — offset far above the seq-keyed watcher's range
   const prevEatFlashSeq = useRef(run.fodderEatenSeq); // the stat-diff flash's own eat tracker (suppresses the eaters' instant pop)
   const prevFxSeq = useRef(run.recruitFxSeq); // inits to current so it never fires on mount (a resumed save may carry a bumped seq)
+  /** Buff-FX waves captured while the arena covered the board (a combat-grant's settle-time reactor) — replayed on the shop reveal. */
+  const settleFxRef = useRef<RunState['recruitBuffFx']>([]);
   // The buffed minions an ale cast is visualizing this action, so the generic buff tendril is suppressed for
   // them (same rule as `rubyOwned` below). Keyed by `recruitFxSeq` so it only applies to that one action.
   const spellCastOwnedRef = useRef<{ seq: number; uids: Set<string> }>({ seq: -1, uids: new Set() });
@@ -4383,8 +4385,26 @@ export function Recruit() {
     // body (Kneel's self-buff) is a separate cue that still plays as itself.
     const events = owned ? run.recruitBuffFx.filter((e) => !(rubyOwned.has(e.targetUid) || (aleOwned.has(e.targetUid) && e.kind === 'spell'))) : run.recruitBuffFx;
     if (events.length === 0) return;
+    // A BUFF CAPTURED UNDER THE ARENA WAITS FOR THE SHOP (owner report 2026-09-19: Gangplank buffed Han Gover —
+    // "the stats went up but the animation didn't play"). A card a COMBAT grants to hand (Han Gover's Ale at
+    // 40 damage, Pillager's Pouch, a Flash copy) comes home at `settleCombat`, where the reducer's hand diff
+    // re-fires "a card was added to your hand" on the RUN board — Gangplank's permanent payout, captured on
+    // this channel with its seq bumped while the phase is still `combat`. The warband is not in the DOM under
+    // the arena, so `findEl` found nothing, the ribbon was dropped and the seq consumed: back in the shop the
+    // recipient simply stood there with bigger numbers. Park the wave and play it on the reveal instead.
+    if (inCombat) { settleFxRef.current = [...settleFxRef.current, ...events]; return; }
     replayBuffFxEvents(events);
   }, [run.recruitFxSeq]);
+  // …and the parked wave plays once the curtain has revealed the shop (`wipe` back to `idle` with the phase on
+  // `recruit`), when the warband is measurable again. A decisive combat (end screen) drops it — no board to land on.
+  useEffect(() => {
+    if (inCombat || wipe !== 'idle') return;
+    if (run.phase !== 'recruit') { settleFxRef.current = []; return; }
+    const pending = settleFxRef.current;
+    if (pending.length === 0) return;
+    settleFxRef.current = [];
+    replayBuffFxEvents(pending);
+  }, [inCombat, wipe, run.phase, replayBuffFxEvents]);
 
   // AURA WAVE: a run-wide tribe-aura channel rose this action (auraFxSeq bumped) — bloom a tribe-colored wave
   // from the board CENTRE out to both edges. It's a GLOBAL cue (the aura touched the whole board), so it fires

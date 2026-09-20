@@ -25,7 +25,7 @@
 /** The correctness-critical files, each pinned at its 2026-08-26 count. Lower a number when you convert
  *  sites to the predicates; never raise one — implement via `isTribe` / `defIsTribe` / `isTribeOf` instead. */
 export const TRIBE_RATCHET: Readonly<Record<string, number>> = {
-  'packages/sim/src/recruit.ts': 49, // includes isTribe/defIsTribe's own definitional comparisons + owner-deferred pool-draw sites
+  'packages/sim/src/recruit.ts': 47, // 2026-09-19: auraFxTargets' shop branch + fireOnGainCard's Heavy Payroll gate became defIsTribe. Includes isTribe/defIsTribe's own definitional comparisons + owner-deferred pool-draw sites
   'packages/sim/src/reducer.ts': 13, // 2026-09-18: the sell case's Foundry check moved to recruit.ts (`settleMinionSale`) and became `defIsTribe`
   'packages/sim/src/snapshot.ts': 3, // was 4; beastsPlayed converted to defIsTribe in the Doc Bot PR (see derivations.test.ts)
   'packages/sim/src/quests.ts': 1,

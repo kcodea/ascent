@@ -1130,8 +1130,9 @@ export function auraFxTargets(state: RunState, tribe: AuraFxTribe): string[] {
   for (const o of state.shop) {
     const def = CARD_INDEX[o.cardId];
     if (!def) continue;
+    // The shared def predicate (dual types + All-types), never a bare `tribe ===` — a Dwarf/Undead offer is Undead.
     const hit = tribe === 'mech' ? def.keywords.includes('M')
-      : def.tribe === tribe || def.tribe2 === tribe || !!def.universalTribe
+      : defIsTribe(def, tribe)
         || (tribe === 'undead' && !!o.starform && !!state.runeSoulScript); // Rune of Soul Script: the token is Undead
     if (hit) uids.push(o.uid);
   }
@@ -9810,7 +9811,7 @@ export function fireOnGainCard(state: RunState, cardId?: string): void {
   // this game (a conjured / rewarded / drip-fed Dwarf all count; a purchase is `applyOnBuy`).
   const payroll = state.runeHeavyPayroll;
   const gained = cardId ? CARD_INDEX[cardId] : undefined;
-  if (payroll && gained && (gained.tribe === 'dwarf' || gained.tribe2 === 'dwarf' || gained.universalTribe) && state.board.length > 0) {
+  if (payroll && gained && defIsTribe(gained, 'dwarf') && state.board.length > 0) {
     procRuneId(state, 'rune_heavy_payroll');
     captureBuffFx(state, undefined, 'spell', () => addBuff(state.board[0]!, 'Rune of Heavy Payroll', payroll.attack, payroll.health));
   }

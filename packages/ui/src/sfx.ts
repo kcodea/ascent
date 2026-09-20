@@ -974,6 +974,22 @@ export function setClipGain(clip: string, v: number): void {
 export function previewClip(clip: string): void {
   playSample(clip, familyOf(clip));
 }
+/**
+ * The decoded AudioBuffer for an FX clip, or null if it isn't decoded yet (this kicks the decode, so the
+ * caller can re-read once it lands). The workbench's waveform strip reads its samples + duration to draw the
+ * clip and place the trim handles.
+ */
+export function getFxClipBuffer(clip: string): AudioBuffer | null {
+  if (!clip) return null;
+  const buf = buffers.get(clip);
+  if (!buf) { loadSample(clip); return null; }
+  return buf;
+}
+/** Preview a clip's TRIMMED window (the workbench ▶): plays `[startOffsetMs, duration − endOffsetMs]` through
+ *  the FX sound path, so the audition matches exactly what the effect will play. */
+export function previewFxClip(clip: string, startOffsetMs = 0, endOffsetMs = 0): void {
+  playFxSound(clip, { startOffsetMs, endOffsetMs });
+}
 /** Peak level 0..1 for a meter key ('master' | bus name). */
 export function meterLevel(key: string): number {
   const an = analysers.get(key);
@@ -1021,6 +1037,9 @@ export interface FxSoundOpts {
   loop?: boolean;
   /** Skip this many ms into the clip before it starts. */
   startOffsetMs?: number;
+  /** Stop this many ms before the clip's END (0 = play to the end). With `startOffsetMs` this trims the clip
+   *  to the window `[startOffsetMs, duration − endOffsetMs]`. */
+  endOffsetMs?: number;
   reverse?: boolean;
   /** Wait this many ms (on the audio clock) after the call before the clip starts. */
   delayMs?: number;
@@ -1076,9 +1095,14 @@ export function playFxSound(clip: string, opts: FxSoundOpts = {}): FxSoundHandle
   const busIn = busNodes.get(opts.bus ?? 'combat')?.input ?? master ?? a.destination;
   const t0 = a.currentTime + Math.max(0, (opts.delayMs ?? 0) / 1000);
   const offset = Math.max(0, (opts.startOffsetMs ?? 0) / 1000);
-  // The clip's play window (one clip length, rate-adjusted) — the domain every over-time curve maps onto, and
+  const endTrim = Math.max(0, (opts.endOffsetMs ?? 0) / 1000);
+  // The trimmed window in the buffer's own time: [offset, duration − endTrim]. End-offset 0 plays to the clip's
+  // end (the pre-trim behaviour). A looped clip repeats just this window.
+  const clipLen = Math.max(0, buf.duration - offset - endTrim);
+  if (src.loop && clipLen > 0) { src.loopStart = offset; src.loopEnd = offset + clipLen; }
+  // The play window (one trimmed length, rate-adjusted) — the domain every over-time curve maps onto, and
   // reused by the one-shot fade-out below.
-  const playDur = Math.max(0, buf.duration - offset) / src.playbackRate.value;
+  const playDur = clipLen / src.playbackRate.value;
   const fireCtx: FxFilterCtx = { t0, durSec: playDur };
   // Channel strip: source → [Filter Lab inserts] → fader (g) → [Level-curve gain] → bus. `g` (level, fades,
   // jitter) is the fader; the Filter Lab dials automate on the fireCtx window. No enabled filters → straight in.
@@ -1108,7 +1132,9 @@ export function playFxSound(clip: string, opts: FxSoundOpts = {}): FxSoundHandle
     g.gain.setValueAtTime(Math.max(0.0001, level), outStart);
     g.gain.exponentialRampToValueAtTime(0.0001, outStart + fadeOut);
   }
-  src.start(t0, offset);
+  // Third arg = the buffer-time length to play, so the End offset actually stops the clip early. Omitted when
+  // there's no end trim, so a full clip keeps the exact prior behaviour (play to the natural end).
+  if (endTrim > 0) src.start(t0, offset, clipLen); else src.start(t0, offset);
   let isEnded = false;
   src.onended = () => { isEnded = true; };
   return {

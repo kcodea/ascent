@@ -14,6 +14,7 @@ import { heldFor, holdStat, statHoldKey, subscribeStatHolds } from './fx/statHol
 import { resolveMechIcon } from './mechIcon';
 import { crossedUp, tierOf } from './choreo/statMilestones';
 import { fireStatMilestone } from './fx/statMilestone';
+import { useMilestoneBadgeFx } from './fx/milestoneBadgeFx';
 
 /** The badge's scale-pop: how far it swells and over how long. See `useBadgePop`. */
 const BADGE_POP_SCALE = 1.35;
@@ -582,6 +583,10 @@ export const Card = memo(function Card({
   // Each badge pops independently, so a buff that only moves attack leaves the health badge alone.
   const atkPopRef = useBadgePop(shownAttack);
   const hpPopRef = useBadgePop(shownHealth);
+  // A persistent Pixi effect rides each badge that has reached the FINAL milestone tier (≥5000), everywhere —
+  // shop, warband and combat (combat units render through this same Card). Latches on for the unit's life.
+  useMilestoneBadgeFx(uid, 'attack', atkMs, () => atkPopRef.current);
+  useMilestoneBadgeFx(uid, 'health', hpMs, () => hpPopRef.current);
   // The arched frame is universal now. `showText` = also render the drop-down text drawer (the "full"
   // card): on a force-full card (hover reveal / hand / right-click inspect) or when the player turns the
   // compact tiles off. At rest (compact tiles on, not force-full) it's a pure arched art tile.

@@ -55,6 +55,30 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-20',
+    label: 'Top-milestone badge effect',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "A minion whose Attack or Health reaches the top milestone (5000) gains a glowing effect on that badge — in the shop, your warband and combat alike. It stays lit for the rest of that minion's life, even if the stat later drops.",
+      },
+      {
+        category: 'UI / Info',
+        text: 'The top-milestone Attack and Health badge effects have a refreshed look.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-19',
+    label: 'Per-tier milestone badge colours',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "Milestone stat badges now wear their own colour at each tier: the disc behind the frame — and the buffed digit on the top frames — shifts as a stat climbs past 50, 150, 500, 2000 and 5000, instead of one Attack colour and one Health colour across every tier.",
+      },
+    ],
+  },
+  {
     date: '2026-09-19',
     label: 'Damage meters: reset + live counter',
     changes: [

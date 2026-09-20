@@ -5563,6 +5563,11 @@ svg { width: 18px; height: 18px; }
 .devmenu-item.on { background: color-mix(in srgb, var(--acc) 14%, var(--card)); color: var(--acc-dk); }
 .devmenu-item.on.cursor { background: color-mix(in srgb, var(--acc) 22%, var(--card)); }
 .devmenu-item.action .devmenu-tick { color: var(--ink3); }
+/* The FX Workbench is pinned to the top of the menu, always available (owner ask) — a faint accent tint marks
+   it, and a divider under its group sets it apart from the scrolling tuner groups below. */
+.devmenu-pinned { border-bottom: 1px solid var(--line); margin-bottom: 4px; padding-bottom: 3px; }
+.devmenu-item.pinned { background: color-mix(in srgb, var(--acc) 10%, transparent); }
+.devmenu-item.pinned.cursor { background: color-mix(in srgb, var(--acc) 20%, var(--card)); }
 
 .devmenu-empty { padding: 16px 8px; font-size: 12px; font-weight: 600; color: var(--ink3); text-align: center;
   display: flex; flex-direction: column; align-items: center; gap: 9px; }
@@ -8025,7 +8030,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   margin: 0 0 6px; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
   color: #9a8c74; border-bottom: 1px solid #4a4136; padding-bottom: 4px;
 }
-.fxwb-row { display: grid; grid-template-columns: 118px minmax(0, 1fr) 52px; align-items: center; gap: 8px; margin: 5px 0; }
+.fxwb-row { display: grid; grid-template-columns: 118px minmax(0, 1fr) 64px; align-items: center; gap: 8px; margin: 5px 0; }
 /* The value column is FIXED rather than `auto` so the sliders all end at the same x — with `auto` every row
    was a different length depending on how many digits its number happened to have. */
 .fxwb-row .fxwb-val, .fxwb-row > span:last-child { text-align: right; }
@@ -8093,6 +8098,19 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 .fxwb-row input[type='color'] { justify-self: start; width: 28px; height: 20px; border: 1px solid #4a4136; border-radius: 4px; background: none; padding: 0; cursor: pointer; }
 .fxwb-val { font-size: 11px; font-weight: 800; color: #f0d9a4; text-align: right; font-variant-numeric: tabular-nums; }
+/* The editable numeric readout: type a precise value the slider's step can't reach (owner ask). Styled as a
+   compact field so it still reads as the value, with the number spinners hidden (they only nudge by step and
+   waste width — the point here is typing an exact number). */
+.fxwb-valnum {
+  width: 100%; box-sizing: border-box; padding: 2px 4px; border: 1px solid #4a4136; border-radius: 5px;
+  background: #1c1810; font-family: var(--font-ui); -moz-appearance: textfield;
+}
+.fxwb-valnum:focus { outline: none; border-color: #c8a45c; }
+.fxwb-valnum:disabled { opacity: 0.5; }
+.fxwb-valnum::-webkit-outer-spin-button, .fxwb-valnum::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+/* The value readout is double-click-to-edit: a dotted underline on hover signals it can be typed into (no
+   keyword cursor here — the game's custom-cursor rule owns that). */
+.fxwb-valedit:hover { text-decoration: underline dotted #c8a45c; text-underline-offset: 2px; }
 .fxwb-copy {
   margin-top: auto; padding: 8px; border-radius: 8px; border: 2px solid #c8a45c; background: color-mix(in srgb, #c8a45c 16%, #241f17);
   color: #f0d9a4; font-family: var(--font-ui); font-weight: 800; font-size: 12px; cursor: pointer;
@@ -8155,16 +8173,47 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 .fxwb-layer-btns button:hover:not(:disabled) { border-color: #c8a45c; color: #f0d9a4; }
 .fxwb-layer-btns button:disabled { opacity: 0.35; cursor: default; }
-.fxwb-layer-add { display: flex; align-items: center; gap: 5px; margin-top: 2px; }
-.fxwb-layer-add select {
-  flex: 1; min-width: 0; background: #241f17; border: 1px solid #4a4136; color: #efe7db; border-radius: 6px;
-  padding: 4px 6px; font-family: var(--font-ui); font-size: 12px; cursor: pointer;
+/* "Add new primitive" — a button that expands a picker of every primitive WITH its one-line definition, so you
+   choose what to add by what it does (owner ask 2026-09-20). Replaces the old id-dropdown + ＋. */
+.fxwb-layer-add { position: relative; margin-top: 4px; }
+.fxwb-addprim-btn {
+  width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px dashed #4a4136;
+  background: #241f17; color: #f0d9a4; font-family: var(--font-ui); font-size: 12px; font-weight: 800;
+  text-align: left; cursor: pointer;
 }
-.fxwb-layer-add button {
-  flex: none; width: 28px; height: 26px; padding: 0; border-radius: 6px; border: 1px solid #c8a45c;
-  background: color-mix(in srgb, #c8a45c 16%, #241f17); color: #f0d9a4; font-size: 14px; font-weight: 800; cursor: pointer;
+.fxwb-addprim-btn:hover, .fxwb-addprim-btn.on { border-color: #c8a45c; background: color-mix(in srgb, #c8a45c 14%, #241f17); }
+/* The picker is a big CENTERED WINDOW over a dimming scrim (owner 2026-09-20): "make it nearly full screen…
+   BIGGER TO ACCOMODATE ALL THE PRIMITIVES". A responsive multi-column grid lays out EVERY primitive at once —
+   name over its one-line definition — so you pick by what it DOES with no scrolling. Click the scrim (or Esc,
+   or ✕) to dismiss; z above the workbench overlay (z500). */
+.fxwb-addprim-scrim {
+  position: fixed; inset: 0; z-index: 560; display: grid; place-items: center;
+  padding: 24px; background: rgba(0, 0, 0, 0.55);
 }
-.fxwb-layer-add button:hover { background: color-mix(in srgb, #c8a45c 30%, #241f17); }
+.fxwb-addprim-window {
+  width: min(1100px, 94vw); max-height: 90vh; overflow-y: auto;
+  background: #16120e; border: 1px solid #4a4136; border-radius: 12px; padding: 20px 22px 22px;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.65);
+}
+.fxwb-addprim-head {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+}
+.fxwb-addprim-title { font-size: 24px; font-weight: 800; color: #f0d9a4; }
+.fxwb-addprim-close {
+  border: 1px solid #4a4136; border-radius: 6px; background: #241f17; color: #f0d9a4;
+  font-family: var(--font-ui); font-size: 16px; font-weight: 800; padding: 4px 12px;
+}
+.fxwb-addprim-close:hover { border-color: #c8a45c; }
+.fxwb-addprim-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px;
+}
+.fxwb-addprim-item {
+  display: flex; flex-direction: column; gap: 3px; width: 100%; text-align: left; padding: 12px 14px;
+  border: 1px solid #3a332a; border-radius: 8px; background: #1d1811; color: #efe7db; font-family: var(--font-ui);
+}
+.fxwb-addprim-item:hover { border-color: #c8a45c; background: color-mix(in srgb, #c8a45c 12%, #1d1811); }
+.fxwb-addprim-name { font-size: 16px; font-weight: 800; color: #f0d9a4; }
+.fxwb-addprim-blurb { font-size: 12px; line-height: 1.4; color: #9a8c74; }
 
 /* Per-selected-layer timing controls (at / life). */
 .fxwb-timing {
@@ -8287,6 +8336,12 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 .fxwb-loop-toggle:hover { background: #4a4136; color: #efe7db; }
 .fxwb-loop-toggle.on { background: color-mix(in srgb, #c8a45c 22%, #241f17); border-color: #c8a45c; color: #f0d9a4; }
+/* The Loop-seam mode as a joined two-option control (Play out | Seamless): abutting buttons read as one
+   segmented picker, the lit one is the active mode. */
+.fxwb-loopseam { display: inline-flex; align-items: center; }
+.fxwb-loopseam .fxwb-loop-toggle { border-radius: 0; }
+.fxwb-loopseam .fxwb-loop-toggle:first-child { border-radius: 7px 0 0 7px; }
+.fxwb-loopseam .fxwb-loop-toggle:last-child { border-radius: 0 7px 7px 0; border-left: 0; }
 /* "Fit to effects" -- trims the loop to where the last layer ends. Same chip shape as the Loop toggle it
    sits beside, but never picks up the toggle's lit `.on` state: it's a one-shot action, not a mode. */
 .fxwb-fitduration {
@@ -8330,6 +8385,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* The top bar is `position: absolute` in its base rule (for the rail layout); here it is a static grid row. */
 .fxwb-grid > .fxwb-top {
   grid-area: top; position: static; inset: auto; pointer-events: auto;
+  /* One row: the def-name box shrinks to keep everything on a single line, so ⌘K stays beside Close at the
+     far right instead of the bar wrapping and dropping Close to a second row. */
+  flex-wrap: nowrap; min-width: 0;
 }
 
 .fxwb-layers-region, .fxwb-props-region {
@@ -8360,7 +8418,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 
 .fxwb-timeline-region {
   grid-area: tl; overflow: auto; min-height: 0; box-sizing: border-box; pointer-events: auto;
-  display: flex; flex-direction: column; gap: 8px; padding: 8px 14px;
+  display: flex; flex-direction: column; gap: 8px; padding: 8px 14px 20px;
   background: #16120e; border-top: 2px solid #4a4136;
 }
 .fxwb-timeline-regionhead { display: flex; align-items: center; }
@@ -8373,7 +8431,17 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* ⌘K opener + the timeline collapse toggle. Plain `.fxwb-btn`s, so the global gauntlet cursor rule already
    paints them — NO bare keyword cursor here (CLAUDE.md's custom-cursor rule). */
 .fxwb-cmdk { font-weight: 800; letter-spacing: 0.04em; }
-.fxwb-timeline-toggle { display: inline-flex; align-items: center; gap: 6px; }
+/* Browse All Effects — a prominent opener between the scenario pickers and the def section (owner 2026-09-20):
+   bigger, with 2× the base button font. */
+/* Scoped under `.fxwb` (0,2,0) so it beats `.fxwb button` (0,1,1), which otherwise pins every workbench button
+   to the 12px control size. 2× bigger with 2× the base font, and margin on each side so it stands apart from
+   the scenario pickers on its left and the def section on its right (owner 2026-09-20). */
+.fxwb .fxwb-browseall {
+  flex: none; margin: 0 18px; padding: 12px 24px; font-size: 18px; font-weight: 800; white-space: nowrap;
+  border: 1px solid #4a4136; border-radius: 8px;
+}
+.fxwb .fxwb-browseall:hover { border-color: #c8a45c; background: #4a4136; color: #f0d9a4; }
+.fxwb-timeline-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 18px; letter-spacing: 0.02em; }
 
 /* ---- SIDE-PANEL COLLAPSE (Layers left / Editor right) ---------------------------------------------------
    Owner 2026-09-19: both side panels collapse to a thin strip, the same gesture as the Timeline's toggle.
@@ -8383,7 +8451,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-grid.props-collapsed { --fxwb-props-w: 42px; }
 .fxwb-region-head { display: flex; align-items: center; margin-bottom: 2px; }
 .fxwb-region-head-right { justify-content: flex-end; }
-.fxwb-region-toggle { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.fxwb-region-toggle { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 18px; letter-spacing: 0.02em; }
 .fxwb-layers-region.collapsed, .fxwb-props-region.collapsed { padding: 8px 4px; gap: 0; overflow: hidden; }
 .fxwb-layers-region.collapsed .fxwb-region-toggle,
 .fxwb-props-region.collapsed .fxwb-region-toggle { padding: 5px 3px; }
@@ -8444,10 +8512,13 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 
 /* The def section relocated into the top bar (owner 2026-09-19): Copy def + name + Save in ONE compact
    horizontal group, and the (rare) warnings/notes drop below the bar instead of stretching the top row. */
-.fxwb-def-top { position: relative; display: flex; align-items: center; gap: 6px; margin-left: 6px; }
+.fxwb-def-top { position: relative; display: flex; align-items: center; gap: 6px; margin-left: 6px; flex: 1 1 auto; min-width: 0; }
 .fxwb-def-top .fxwb-copy { margin: 0; white-space: nowrap; }
-.fxwb-def-top .fxwb-def { flex-direction: row; align-items: center; gap: 6px; }
-.fxwb-def-top .fxwb-def-nameinput { flex: 0 0 auto; width: 150px; }
+.fxwb-def-top .fxwb-def { flex-direction: row; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; }
+.fxwb-def-top .fxwb-def-saverow { flex: 1 1 auto; min-width: 0; }
+/* Doubled from 150px (owner ask). Flexes so it fills the slack up to ~300 and shrinks (min 150) rather than
+   wrapping the whole top bar to a second row. */
+.fxwb-def-top .fxwb-def-nameinput { flex: 0 1 200px; min-width: 130px; width: auto; }
 .fxwb-def-top .fxwb-def-variantwarn,
 .fxwb-def-top .fxwb-seedbake,
 .fxwb-def-top .fxwb-def-note,
@@ -8801,6 +8872,22 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-rowwhy {
   grid-column: 1 / -1; margin-top: 2px; font-size: 10px; line-height: 1.3; font-weight: 800; color: #b58ad8;
 }
+/* The sound clip's WAVEFORM STRIP with draggable Start (green) / End (red) trim lines (owner ask): clip a
+   sound to exactly the window you want, in the editor. Full row width below the clip picker; the trimmed-out
+   ends dim. `touch-action: none` so a drag on a handle never scrolls the rail. */
+.fxwb-wave {
+  grid-column: 1 / -1; position: relative; height: 56px; margin: 5px 0 2px; border-radius: 6px;
+  border: 1px solid #4a4136; background: #141009; overflow: hidden; touch-action: none;
+}
+.fxwb-wave.fxwb-off { opacity: 0.45; }
+.fxwb-wave-canvas { display: block; width: 100%; height: 100%; }
+.fxwb-wave-load { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; color: #9a8c74; }
+.fxwb-wave-dim { position: absolute; top: 0; bottom: 0; background: rgba(10, 8, 4, 0.62); pointer-events: none; }
+.fxwb-wave-handle { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; cursor: ew-resize; }
+/* A wider invisible grab zone so the 2px line is easy to catch. */
+.fxwb-wave-handle::before { content: ''; position: absolute; top: 0; bottom: 0; left: -5px; right: -5px; }
+.fxwb-wave-handle.start { background: #6ffe5d; box-shadow: 0 0 5px #6ffe5d; }
+.fxwb-wave-handle.end { background: #ff5a4f; box-shadow: 0 0 5px #ff5a4f; }
 
 /* An INERT param — one whose `enabledWhen` isn't satisfied — is greyed and non-interactive, never hidden: a
    control that disappears takes its discoverability with it and makes the rail jump while you tune. The `?`
@@ -9468,6 +9555,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb button, .fxwb input, .fxwb select {
   font-family: var(--font-ui); font-size: var(--t-control); font-weight: 700;
 }
+/* Section-title collapse toggles (Primitives / Editor / Timeline) read as HEADINGS — scoped under `.fxwb`
+   (0,2,0) so this beats the generic `.fxwb button` control size above (owner 2026-09-20). */
+.fxwb .fxwb-region-toggle, .fxwb .fxwb-timeline-toggle { font-size: 18px; }
 .fxwb .fxwb-def-sub, .fxwb .fxwb-layer-meta, .fxwb .fxwb-def-meta, .fxwb .fxwb-hint {
   font-size: var(--t-meta); font-weight: 700; letter-spacing: 0.01em;
 }

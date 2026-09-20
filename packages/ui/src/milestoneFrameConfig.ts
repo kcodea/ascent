@@ -73,14 +73,14 @@ const DEFAULTS: MilestoneFrameConfig = {
   frameDx: -0.5, frameDy: 3,
 
   tintFrac: 0.76, tintOpacity: 1, tintDx: 0, tintDy: 0,
-  tintAtk1: '#ffa200', tintAtk2: '#ffa200', tintAtk3: '#ffa200', tintAtk4: '#ffa200', tintAtk5: '#ffa200', tintAtk6: '#ffa200',
-  tintHp1: '#cf0707', tintHp2: '#cf0707', tintHp3: '#cf0707', tintHp4: '#cf0707', tintHp5: '#cf0707', tintHp6: '#cf0707',
+  tintAtk1: '#ffa200', tintAtk2: '#bdbdbd', tintAtk3: '#ceb65f', tintAtk4: '#d48cce', tintAtk5: '#767ad5', tintAtk6: '#749cec',
+  tintHp1: '#cf0707', tintHp2: '#525252', tintHp3: '#805e00', tintHp4: '#700067', tintHp5: '#2d0070', tintHp6: '#00378f',
 
   numSize: 26, numDx: -1, numDy: -1.5,
   numColor: '#ffffff', numColorDown: '#ff5a4f', numStrokeW: 0, numStrokeColor: '#000000',
-  numUpAtk1: '#6ffe5d', numUpAtk2: '#6ffe5d', numUpAtk3: '#6ffe5d', numUpAtk4: '#6ffe5d', numUpAtk5: '#6ffe5d', numUpAtk6: '#6ffe5d',
-  numUpHp1: '#6ffe5d', numUpHp2: '#6ffe5d', numUpHp3: '#6ffe5d', numUpHp4: '#6ffe5d', numUpHp5: '#6ffe5d', numUpHp6: '#6ffe5d',
-  numShadowX: 0, numShadowY: 1, numShadowBlur: 4.5, numShadowOpacity: 0.87, numShadowColor: '#000000',
+  numUpAtk1: '#6ffe5d', numUpAtk2: '#6ffe5d', numUpAtk3: '#6ffe5d', numUpAtk4: '#f9a8ff', numUpAtk5: '#ceadff', numUpAtk6: '#c2d1ff',
+  numUpHp1: '#6ffe5d', numUpHp2: '#6ffe5d', numUpHp3: '#6ffe5d', numUpHp4: '#ee70ff', numUpHp5: '#b994ff', numUpHp6: '#8aadff',
+  numShadowX: 0, numShadowY: 1, numShadowBlur: 4.5, numShadowOpacity: 1, numShadowColor: '#000000',
 
   glowSize: 0.95, glowBlur: 9, glowOpacity: 0.75,
   glow1: '#c9d3e0', glow2: '#c9d3e0', glow3: '#ffd54a', glow4: '#ff5edb', glow5: '#4fd1ff', glow6: '#ffffff',

@@ -14,7 +14,6 @@ import { invalidateStageAnchors, SCENARIOS, type FxHeadContext } from '../scenar
 import { pixiFx } from '../../pixiFx';
 import {
   clearCommitNote,
-  clearSession,
   isValidSlug,
   loadCommitNote,
   loadSession,
@@ -31,10 +30,9 @@ import {
 import { getDef, listDefs, refreshDefs, registerSavedDef } from '../fxDefs';
 import { applyVariant, presetTable } from '../presets';
 import { getImportedDataUrl, registerSavedArt } from '../shapeLibrary';
-import { CurveEditor, Inspector } from './Inspector';
+import { Inspector } from './Inspector';
 import { CommandBar } from './CommandBar';
 import type { CommandItem, CommandSources } from './commandIndex';
-import { CURVE_PRESETS } from '../curve';
 import { SeedBakeWarning } from './SeedBakeWarning';
 import { LibraryBrowser } from './LibraryBrowser';
 import { PresetGallery } from './PresetGallery';
@@ -523,7 +521,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   }, []);
   // "Restored unsaved work" is VISIBLE and dismissible — restoring must never silently clobber what the
   // author expected to see (a blank default composition).
-  const [restoredNotice, setRestoredNotice] = useState(restoredSession !== null);
+  const [, setRestoredNotice] = useState(restoredSession !== null);
   // Loop is ON by default: tuning an effect means watching it play over and over while you drag sliders, so
   // the workbench opens looping rather than making you click Loop first every session. `toggleLoop` turns it
   // off for the cases where a single discrete pass is what you want to study.
@@ -1555,7 +1553,16 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // Copy the whole composed DEF as JSON — with multiple layers, the def is the useful artifact, not one
   // layer's params.
   const copyDef = (): void => {
-    void navigator.clipboard.writeText(JSON.stringify(toDef('workbench', durationMs, layers, slot, ease), null, 2)).then(() => {
+    // Copy the loop-boundary settings too: `toDef` omits `loopMode`/`loopJoinMs` (they are StoredFxDef fields
+    // that only Save wrote), so a SEAMLESS composition used to paste back as play-out — the exact bug that
+    // shipped the milestone badge FX without its seamless loop. Omit the defaults, matching toDef's own
+    // omit-when-default convention, so an untouched composition serialises byte-identically.
+    const def = {
+      ...toDef('workbench', durationMs, layers, slot, ease),
+      ...(loopMode !== 'playOut' ? { loopMode } : {}),
+      ...(loopJoinMs !== 0 ? { loopJoinMs } : {}),
+    };
+    void navigator.clipboard.writeText(JSON.stringify(def, null, 2)).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
     });
@@ -2050,34 +2057,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     if (liveOnly) pushLiveLayers(next);
   };
 
-  /** Throw the restored work away and start from a fresh default composition. Disarms the autosave so the
-   *  reset doesn't immediately write itself straight back into storage. */
-  const discardRestored = (): void => {
-    // Recorded, so Discard stops being the one-way door it looks like: Ctrl+Z brings the restored work back
-    // (and re-arms the autosave, so it is durable again).
-    record('structural');
-    clearSession();
-    const first = listPrimitives()[0]?.id ?? 'ribbon';
-    const prim = getPrimitive(first);
-    const fresh = [createEditorLayer(first, prim ? defaultsOf(prim.params) : {})];
-    commitLayers(fresh);
-    // Same reasoning as `loadDef`: if the discarded work happened to share the fresh default's structure,
-    // structKey is unchanged and nothing rebuilds — push the defaults onto the live player explicitly.
-    pushLiveLayers(fresh);
-    applySelected(0);
-    applyDuration(DEFAULT_DURATION_MS);
-    cancelRename();
-    // A fresh default composition is an UNLOCKED one (the default feel): the restored work's frozen roll
-    // goes with the work it belonged to. The number itself is kept so locking again is one click.
-    applySeed(seed, false);
-    setSlot('over'); // a fresh default composition plays where every composition always has
-    setRestoredNotice(false);
-    // Discard replaces the composition WITHOUT going through `loadDef`, so it has to clear the variant warning
-    // itself — otherwise "part of the Crackling variant did nothing" outlives the Crackling composition and
-    // describes a fresh default that never came from a preset at all.
-    setVariantWarning(null);
-    autosaveArmedRef.current = false; // AFTER commitLayers/applySeed, which arm it
-  };
+  // (The "Discard restored work" action was removed with its banner, owner 2026-09-20.)
 
   // ── ⌘K command palette ──────────────────────────────────────────────────────────────────────────────
   // Everything the palette searches: the live layers, each layer's primitive param specs (so a param can be
@@ -2254,28 +2234,8 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           </button>
         </div>
       )}
-      {restoredNotice && (
-        <div className="fxwb-def-restore">
-          <span className="fxwb-def-restore-txt">Restored unsaved work.</span>
-          <button
-            type="button"
-            className="fxwb-def-restore-discard"
-            title="Throw the restored work away and start from a fresh default composition"
-            onClick={discardRestored}
-          >
-            Discard
-          </button>
-          <button
-            type="button"
-            className="fxwb-def-restore-x"
-            title="Keep it — just hide this"
-            aria-label="Dismiss"
-            onClick={() => setRestoredNotice(false)}
-          >
-            ✕
-          </button>
-        </div>
-      )}
+      {/* The "Restored unsaved work" banner was removed (owner 2026-09-20) — a restored session just loads
+          silently now. The commit-confirmation note above stays. */}
     </>
   );
 
@@ -2283,8 +2243,8 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // The inline START FROM template list + Paste def were removed (owner 2026-09-19) — "Browse all" opens the
   // full library instead.
   const defLibBlock = (
-    <button className="fxwb-btn" onClick={() => { setGallery(false); setBrowsing(true); }}>
-      Browse all
+    <button className="fxwb-btn fxwb-browseall" onClick={() => { setGallery(false); setBrowsing(true); }}>
+      Browse All Effects
     </button>
   );
 
@@ -2610,19 +2570,29 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         {loopOn ? '🔁 Loop: On' : '🔁 Loop: Off'}
       </button>
       {/* How the loop boundary is crossed -- a DEF property (saved into the effect), unlike the preview-only
-          Loop toggle beside it. Play out: finish the whole pass, then restart. Seamless: cross-fade the
-          tail into the fresh cycle so a continuous effect never blinks at the seam. Lit when seamless. */}
-      <button
-        className={`fxwb-loop-toggle${loopMode === 'seamless' ? ' on' : ''}`}
-        onClick={() => changeLoopMode(loopMode === 'seamless' ? 'playOut' : 'seamless')}
-        title={
-          loopMode === 'seamless'
-            ? 'Seamless: the tail cross-fades into the next cycle (no seam blink) -- click for Play out'
-            : 'Play out: each pass finishes before the next begins -- click for Seamless (cross-faded seam)'
-        }
-      >
-        {loopMode === 'seamless' ? '♾ Seamless' : '▶ Play out'}
-      </button>
+          Loop toggle beside it. A labelled TWO-OPTION control (not a single flip button, which read
+          ambiguously as either the current mode or the action): the active mode is lit, and each button SETS
+          its mode directly. Play out: finish the whole pass, then restart. Seamless: cross-fade the tail into
+          the fresh cycle so a continuous effect never blinks at the seam. */}
+      <span className="fxwb-speedlabel">Loop seam</span>
+      <div className="fxwb-loopseam" role="group" aria-label="Loop seam mode">
+        <button
+          className={`fxwb-loop-toggle${loopMode === 'playOut' ? ' on' : ''}`}
+          aria-pressed={loopMode === 'playOut'}
+          onClick={() => changeLoopMode('playOut')}
+          title="Play out: each pass finishes before the next begins (a fresh restart at the seam)"
+        >
+          ▶ Play out
+        </button>
+        <button
+          className={`fxwb-loop-toggle${loopMode === 'seamless' ? ' on' : ''}`}
+          aria-pressed={loopMode === 'seamless'}
+          onClick={() => changeLoopMode('seamless')}
+          title="Seamless: the tail cross-fades into the next cycle so a continuous effect never blinks at the seam"
+        >
+          ♾ Seamless
+        </button>
+      </div>
       <label className="fxwb-speedlabel" htmlFor="fxwb-duration">Duration</label>
       <input
         id="fxwb-duration"
@@ -2695,24 +2665,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       >
         Under
       </button>
-    </div>
-  );
-
-  const easeGroup = (
-    <div
-      className="fxwb-easegroup"
-      title={
-        'A curve on the clock of the WHOLE composition: v = t is no change, a shallow start delays every ' +
-        'layer together and a steep one rushes them. It redistributes time INSIDE the duration rather ' +
-        'than changing it, and it cannot run backwards — a falling stretch reads as a hold.'
-      }
-    >
-      <CurveEditor
-        value={ease}
-        label="Ease"
-        presets={CURVE_PRESETS}
-        onChange={(next) => setEase(next.map((pt) => [pt[0], pt[1]] as [number, number]))}
-      />
     </div>
   );
 
@@ -2917,7 +2869,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           <span className="fxwb-time">{Math.round(timeMs)} / {durationMs} ms</span>
           {loopGroup}
           {slotGroup}
-          {easeGroup}
           {seedGroup}
           {playbackControls}
           <div className="fxwb-hint">{hintText}</div>
@@ -2940,7 +2891,13 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         <div className="fxwb-top">
           <div className="fxwb-title">🎨 FX Workbench</div>
           {topPickers}
-          {slotGroup}
+          {/* Browse All Effects sits between the scenario pickers and the def section (owner 2026-09-20). */}
+          {defLibBlock}
+          {/* The def section (Copy def / name / Save) lives in the top bar so it is persistently reachable
+              without scrolling the properties column (owner 2026-09-19). */}
+          <div className="fxwb-def-top">{saveBlock}</div>
+          {fpsEl}
+          {/* ⌘K command palette sits at the far right, next to Close (owner 2026-09-20). */}
           <button
             className="fxwb-btn fxwb-cmdk"
             onClick={openCmd}
@@ -2949,10 +2906,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           >
             ⌘K
           </button>
-          {/* The def section (Copy def / name / Save) lives in the top bar so it is persistently reachable
-              without scrolling the properties column (owner 2026-09-19). */}
-          <div className="fxwb-def-top">{saveBlock}</div>
-          {fpsEl}
           {closeBtn}
         </div>
 
@@ -2962,15 +2915,17 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
               className="fxwb-btn fxwb-region-toggle"
               onClick={() => setLayersOpen((v) => !v)}
               aria-expanded={layersOpen}
-              title={layersOpen ? 'Collapse the layers panel' : 'Expand the layers panel'}
+              title={layersOpen ? 'Collapse the primitives panel' : 'Expand the primitives panel'}
             >
-              <span aria-hidden="true">{layersOpen ? '◂' : '▸'}</span>{layersOpen ? ' Layers' : ''}
+              <span aria-hidden="true">{layersOpen ? '◂' : '▸'}</span>{layersOpen ? ' Primitives' : ''}
             </button>
           </div>
           {layersOpen && (
             <>
+              {/* CANVAS Over/Under (which canvas the effect draws on) sits at the top of the Primitives
+                  panel (owner 2026-09-20) rather than in the top bar. */}
+              {slotGroup}
               {restoreBanners}
-              {defLibBlock}
               {layersEl}
               {timingBlock}
             </>
@@ -3025,7 +2980,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             <div className="fxwb-timeline-body">
               {timelineEl}
               {loopGroup}
-              {easeGroup}
               {seedGroup}
               {playbackControls}
             </div>

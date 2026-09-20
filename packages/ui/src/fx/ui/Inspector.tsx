@@ -508,6 +508,58 @@ export function Inspector({
  * Its own component because the `?` toggle is state, and state inside Inspector's mapped render would violate
  * the rules of hooks (the same reason `CurveEditor`/`ShapeField` below are components).
  */
+/**
+ * The numeric readout for a slider param, DOUBLE-CLICK to edit (owner ask): the value shows as plain text like
+ * before, and double-clicking it turns it into a field you can type a precise value into — one the slider's
+ * `step` can't hit. Enter or blur commits; Escape cancels. Keeping it a readout until double-clicked leaves the
+ * dense param list clean rather than turning all ~180 rows into input boxes. Every commit is clamped to the
+ * param's [min, max] — the same range the slider spans — so a typed value can never leave that range.
+ */
+function NumberField({ value, min, max, disabled, onCommit }: {
+  value: number;
+  min: number;
+  max: number;
+  disabled: boolean;
+  onCommit: (n: number) => void;
+}): React.ReactElement {
+  // null = not editing (show the readout); a string = the in-progress typed text (raw, so a partial decimal
+  // like "0." types cleanly rather than being reformatted mid-keystroke).
+  const [draft, setDraft] = useState<string | null>(null);
+
+  if (draft === null) {
+    return (
+      <span
+        className="fxwb-val fxwb-valedit"
+        title={disabled ? undefined : 'Double-click to type a value'}
+        onDoubleClick={() => { if (!disabled) setDraft(String(value)); }}
+      >
+        {String(value)}
+      </span>
+    );
+  }
+
+  const commit = (): void => {
+    const n = Number(draft);
+    if (Number.isFinite(n) && draft.trim() !== '') onCommit(Math.min(max, Math.max(min, n)));
+    setDraft(null);
+  };
+  return (
+    <input
+      type="number"
+      className="fxwb-val fxwb-valnum"
+      min={min}
+      max={max}
+      step="any"
+      autoFocus
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onFocus={(e) => e.currentTarget.select()}
+      onKeyDown={(e) => { if (e.key === 'Enter') commit(); else if (e.key === 'Escape') setDraft(null); }}
+      onBlur={commit}
+    />
+  );
+}
+
 function ParamRow({
   paramKey: key,
   spec,
@@ -590,7 +642,8 @@ function ParamRow({
           <input id={`fxwb-${key}`} type="range" min={spec.min} max={spec.max} step={spec.step}
             disabled={off}
             value={value as number} onChange={(e) => onChange(key, Number(e.target.value))} />
-          <span className="fxwb-val">{String(value)}</span>
+          <NumberField value={value as number} min={spec.min} max={spec.max} disabled={off}
+            onCommit={(n) => onChange(key, n)} />
         </>
       )}
       {spec.kind === 'toggle' && (

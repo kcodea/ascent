@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 /**
  * THE ROUND RAIL (rework 2026-09-19): one row per round with a Recruit cell and a Combat cell, the current
- * cell highlighted; the Win % column (Power was removed 2026-09-19); collapse to a slim handle; drag by the grab
- * handle. Collapse and
- * drag placement persist per browser and a resize keeps the rail on screen.
+ * cell highlighted; the Win % column (Power was removed 2026-09-19); collapse to a slim handle; drag from ANY
+ * point of the rail (2026-09-20 — a press that travels under the threshold is still a click on the cell).
+ * Collapse and drag placement persist per browser and a resize keeps the rail on screen.
  *
  * Driven through the real store + player over a captured bot run, so a change to how the player exposes
  * marks / phase / round info fails here rather than passing against a stub.
@@ -53,6 +53,13 @@ const cell = (row: HTMLElement, kind: 'shop' | 'combat'): HTMLButtonElement => r
 const click = (el: HTMLElement): void => { act(() => { el.click(); }); };
 const pointer = (el: HTMLElement, type: string, x: number, y: number): void => {
   act(() => { el.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: x, clientY: y, button: 0 })); });
+};
+/** A real press-and-release: the pointer pair, then the click the browser fires after them. */
+const press = (el: HTMLElement, from: [number, number], to: [number, number]): void => {
+  pointer(el, 'pointerdown', from[0], from[1]);
+  if (from[0] !== to[0] || from[1] !== to[1]) pointer(el, 'pointermove', to[0], to[1]);
+  pointer(el, 'pointerup', to[0], to[1]);
+  act(() => { el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: to[0], clientY: to[1], button: 0 })); });
 };
 
 beforeEach(() => {
@@ -119,7 +126,7 @@ describe('collapse + drag (persisted)', () => {
     expect(loadRailPlacement().collapsed).toBe(false);
   });
 
-  it('dragging the grab handle moves the rail by the pointer delta, writes the offset as CSS vars, and persists it', () => {
+  it('dragging from the grip moves the rail by the pointer delta, writes the offset as CSS vars, and persists it', () => {
     const grab = ui.container.querySelector<HTMLElement>('.roundrail-grab')!;
     const wrap = ui.container.querySelector<HTMLElement>('.roundrail-wrap')!;
     pointer(grab, 'pointerdown', 100, 100);
@@ -154,5 +161,44 @@ describe('collapse + drag (persisted)', () => {
     // once — what matters is that a resize re-clamps and persists).
     expect(p.dx).toBeLessThan(99_999);
     expect(p.dx).toBe(99_999 + 2 * (window.innerWidth - 40 - 5000));
+  });
+});
+
+describe('drag from anywhere (owner 2026-09-20)', () => {
+  it('a press on a CELL that travels past the threshold drags the rail — and the click that follows does NOT seek', () => {
+    const wrap = ui.container.querySelector<HTMLElement>('.roundrail-wrap')!;
+    const combat = cell(rows()[0]!, 'combat');
+    const before = useGame.getState().replaySession?.index;
+    press(combat, [100, 100], [160, 130]);
+    expect(wrap.style.getPropertyValue('--rrl-dx')).toBe('60px');
+    expect(wrap.style.getPropertyValue('--rrl-dy')).toBe('30px');
+    expect(JSON.parse(localStorage.getItem(RAIL_PLACEMENT_KEY)!)).toMatchObject({ dx: 60, dy: 30 });
+    expect(useGame.getState().replaySession?.index, 'the drag-release click is swallowed').toBe(before);
+    expect(wrap.classList.contains('dragging')).toBe(false);
+  });
+
+  it('a press on a cell that does NOT travel (or travels under 4 px) is a click: the cell still seeks and the rail stays put', () => {
+    const wrap = ui.container.querySelector<HTMLElement>('.roundrail-wrap')!;
+    press(cell(rows()[0]!, 'combat'), [100, 100], [100, 100]);
+    expect(useGame.getState().replaySession?.index).toBe(replayRoundMarks()[0]!.combatIndex);
+    expect(wrap.style.getPropertyValue('--rrl-dx')).toBe('0px');
+    press(cell(rows()[1]!, 'shop'), [100, 100], [102, 103]); // a 2-3 px wobble is still a click
+    expect(useGame.getState().replaySession?.round).toBe(2);
+    expect(wrap.style.getPropertyValue('--rrl-dx')).toBe('0px');
+    expect(localStorage.getItem(RAIL_PLACEMENT_KEY)).toBeNull();
+  });
+
+  it('the title bar, a data cell and the collapsed handle all drag too', () => {
+    const wrap = ui.container.querySelector<HTMLElement>('.roundrail-wrap')!;
+    press(ui.container.querySelector<HTMLElement>('.roundrail-title')!, [0, 0], [10, 0]);
+    expect(wrap.style.getPropertyValue('--rrl-dx')).toBe('10px');
+    press(rows()[0]!.querySelector<HTMLElement>('.roundrail-val')!, [0, 0], [0, 20]);
+    expect(wrap.style.getPropertyValue('--rrl-dy')).toBe('20px');
+    // Collapse (a plain click on the toggle still works), then drag the mini handle.
+    press(ui.container.querySelector<HTMLElement>('.roundrail-toggle')!, [5, 5], [5, 5]);
+    expect(ui.container.querySelector('.roundrail-mini')).not.toBeNull();
+    // (Rightwards: jsdom's 0×0 rect sits at the origin, so a leftward move is clamped back on screen.)
+    press(ui.container.querySelector<HTMLElement>('.roundrail-mini-round')!, [0, 0], [8, 0]);
+    expect(ui.container.querySelector<HTMLElement>('.roundrail-wrap')!.style.getPropertyValue('--rrl-dx')).toBe('18px');
   });
 });

@@ -1,16 +1,18 @@
 /**
  * CAREER PAGE DATA (owner rebuild 2026-09-19) — the pure half. Pins:
- *  1. how a `run_history` row (detailed entry OR light JSON-path scalars) becomes a `CareerRun`, and how the
- *     telemetry probe joins by seed (replay availability, run length, placement fallback);
+ *  1. how a `run_history` row (detailed entry OR light JSON-path scalars) becomes a `CareerRun` — incl. the
+ *     run's RUNES off the board snapshot — and how the telemetry probe joins by seed (replay availability, run
+ *     length, placement fallback);
  *  2. the per-run derivations the outcome block prints — placement, run length, Gold — from a FIXTURE REPLAY
  *     (`replaySummary`) and from the light probe (`telemetryFactsOf`), agreeing with each other;
  *  3. the left-column aggregates;
- *  4. the three trend series over a window.
+ *  4. the three trend series over a window;
+ *  5. the Heroes tab's per-hero fold (owner ask 2026-09-20).
  */
 import { describe, it, expect } from 'vitest';
 import type { ReplayV2 } from '@game/sim';
 import {
-  actionsOf, apmOf, careerAggregates, careerRunOf, joinTelemetry, outcomeOf, polylineOf, replaySummary,
+  actionsOf, apmOf, careerAggregates, careerRunOf, heroCareers, joinTelemetry, outcomeOf, polylineOf, replaySummary,
   runLengthText, telemetryFactsOf, trendSeries, type CareerRun,
 } from './careerData';
 
@@ -24,7 +26,7 @@ const detailedRow = (over: Record<string, unknown> = {}, entryOver: Record<strin
   entry: {
     v: 1, date: iso(1).slice(0, 10), at: iso(1), seed: 4242, heroId: 'brackus', wins: 6, losses: 4, draws: 1,
     wave: 12, placement: 2, mode: 'lobby', goldSpent: 88, apt: 25.5, ratingDelta: 37, dominantTribe: 'beast',
-    board: { minions: [{ cardId: 'alleycat', attack: 3, health: 3 }], wave: 12, heroId: 'brackus' },
+    board: { minions: [{ cardId: 'alleycat', attack: 3, health: 3 }], wave: 12, heroId: 'brackus', runes: ['rune_broodpit', 'rune_epic_forge'] },
     ...entryOver,
   },
   ...over,
@@ -47,6 +49,17 @@ describe('careerRunOf — one run_history row → one CareerRun', () => {
     expect(r.board?.minions).toHaveLength(1);
     expect(r.at).toBe(iso(1));
     expect(r.atMs).toBe(NOW - DAY);
+  });
+
+  it("the run's RUNES ride on the board snapshot (`board.runes` = the run's ownedRunes, in pick order); none → []", () => {
+    expect(careerRunOf(detailedRow()).runes).toEqual(['rune_broodpit', 'rune_epic_forge']);
+    // Rune of Duplication legitimately repeats an id — both slots are kept.
+    expect(careerRunOf(detailedRow({}, { board: { minions: [], wave: 1, heroId: 'brackus', runes: ['rune_x', 'rune_x'] } })).runes).toEqual(['rune_x', 'rune_x']);
+    expect(careerRunOf(detailedRow({}, { board: { minions: [], wave: 1, heroId: 'brackus' } })).runes).toEqual([]);
+    expect(careerRunOf(detailedRow({}, { board: null })).runes).toEqual([]);
+    expect(careerRunOf(lightRow()).runes).toEqual([]);
+    // Garbage in the array never leaks through.
+    expect(careerRunOf(detailedRow({}, { board: { minions: [], wave: 1, heroId: 'brackus', runes: ['ok', 3, null, ''] } })).runes).toEqual(['ok']);
   });
 
   it('reads a LIGHT row off the text aliases, parsing the numbers; board stays null and detailed false', () => {
@@ -175,7 +188,7 @@ describe('per-run text + derivations', () => {
 /** Fixture runs, newest first, spanning the 7 / 30 / 90-day windows. */
 const run = (over: Partial<CareerRun>): CareerRun => ({
   id: 1, heroId: 'brackus', at: iso(0), atMs: NOW, wave: 12, wins: 6, losses: 4, draws: 0, placement: 3, goldSpent: 80,
-  apt: 25, ratingDelta: 10, seed: 1, dominantTribe: 'beast', mode: 'lobby', board: null, detailed: false, replayRowId: null,
+  apt: 25, ratingDelta: 10, seed: 1, dominantTribe: 'beast', mode: 'lobby', board: null, detailed: false, runes: [], replayRowId: null,
   durationMs: 12 * 60_000, ...over,
 });
 const RUNS: CareerRun[] = [
@@ -206,6 +219,35 @@ describe('careerAggregates — the left column', () => {
   it('a hero tie goes to the one played most recently', () => {
     const a = careerAggregates([run({ heroId: 'sable', atMs: NOW }), run({ heroId: 'brackus', atMs: NOW - DAY })]);
     expect(a.mostPlayedHero).toBe('sable');
+  });
+});
+
+describe('heroCareers — the Heroes tab, folded over EVERY run', () => {
+  it('one line per hero played: runs, 1st-place wins, the summed fight record + win rate, avg / best placement, last played', () => {
+    const h = heroCareers(RUNS);
+    expect(h.map((x) => x.heroId)).toEqual(['brackus', 'sable']); // 4 runs vs 2
+    const b = h[0]!;
+    // brackus: runs 1, 3, 5, 6 → placements 1, 7, —, 6 → 1 first, avg 14/3 = 4.7, best 1; fights 8–2, 2–6, 0–0, 6–4 = 16–12 = 57%
+    expect(b).toMatchObject({ runs: 4, firsts: 1, wins: 16, losses: 12, winRate: 57, avgPlacement: 4.7, bestPlacement: 1 });
+    expect(b.lastAtMs).toBe(NOW - 1 * DAY); // the undated run 6 never wins "last played"
+    const s = h[1]!;
+    // sable: runs 2, 4 → placements 4, 2 → 0 firsts, avg 3, best 2; fights 5–5 + 6–3 = 11–8 = 58%
+    expect(s).toMatchObject({ runs: 2, firsts: 0, wins: 11, losses: 8, winRate: 58, avgPlacement: 3, bestPlacement: 2 });
+    expect(s.lastAtMs).toBe(NOW - 3 * DAY);
+  });
+
+  it('sorts by runs played, then win rate (unknown last), then id; never-played heroes are absent; empties are null', () => {
+    const h = heroCareers([
+      run({ heroId: 'a', wins: 1, losses: 1, placement: null, atMs: NaN }),
+      run({ heroId: 'b', wins: 3, losses: 1, placement: 2 }),
+      run({ heroId: 'c', wins: 0, losses: 0, placement: 5 }),
+      run({ heroId: '', wins: 9, losses: 0 }), // a malformed row with no hero is skipped
+    ]);
+    expect(h.map((x) => x.heroId)).toEqual(['b', 'a', 'c']);
+    expect(h[1]).toMatchObject({ winRate: 50, avgPlacement: null, bestPlacement: null });
+    expect(Number.isNaN(h[1]!.lastAtMs)).toBe(true);
+    expect(h[2]).toMatchObject({ winRate: null, avgPlacement: 5, bestPlacement: 5 });
+    expect(heroCareers([])).toEqual([]);
   });
 });
 

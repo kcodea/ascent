@@ -58,7 +58,7 @@ const LIGHT = [
   { id: 10, created_at: '2026-09-18T01:00:00Z', hero_id: 'cia', wave: 8, wins: 2, placement: 7, mode: 'lobby', losses: '5', draws: '0', apt: '18', seed: '55', gold_spent: '40', rating_delta: '-30', at: '2026-09-18T00:59:00Z', dominant_tribe: null },
 ];
 const DETAIL = [
-  { id: 12, created_at: '2026-09-19T05:39:50Z', placement: 1, entry: { v: 1, at: '2026-09-19T05:39:48Z', seed: 1465984878, heroId: 'sable', wins: 9, losses: 4, draws: 1, wave: 15, placement: 1, goldSpent: 120, apt: 26.1, ratingDelta: 41, dominantTribe: 'beast', board: { minions: [{ cardId: 'alleycat', attack: 5, health: 5 }, { cardId: 'stray', attack: 2, health: 2 }], wave: 15, heroId: 'sable' } } },
+  { id: 12, created_at: '2026-09-19T05:39:50Z', placement: 1, entry: { v: 1, at: '2026-09-19T05:39:48Z', seed: 1465984878, heroId: 'sable', wins: 9, losses: 4, draws: 1, wave: 15, placement: 1, goldSpent: 120, apt: 26.1, ratingDelta: 41, dominantTribe: 'beast', board: { minions: [{ cardId: 'alleycat', attack: 5, health: 5 }, { cardId: 'stray', attack: 2, health: 2 }], wave: 15, heroId: 'sable', runes: ['rune_broodpit', 'rune_epic_forge'] } } },
   { id: 11, created_at: '2026-09-19T05:24:42Z', placement: 3, entry: { v: 1, at: '2026-09-19T05:24:40Z', seed: 2068602420, heroId: 'repete', wins: 5, losses: 5, draws: 0, wave: 11, placement: 3, goldSpent: 90, apt: 22, ratingDelta: 9, dominantTribe: 'mech', board: null } },
 ];
 const PROBE = [
@@ -100,8 +100,9 @@ describe('fetchMyRuns — the query shape', () => {
     // Row 12: detailed (board), watchable (v2 + id), 883 s long.
     expect(runs[0]).toMatchObject({ heroId: 'sable', wins: 9, losses: 4, placement: 1, goldSpent: 120, apt: 26.1, ratingDelta: 41, detailed: true, replayRowId: 97, durationMs: 883179.2 });
     expect(runs[0]!.board?.minions).toHaveLength(2);
-    // Row 11: detailed but no stored board (outcome-only banner); v1-only telemetry → no Watch, clock still read.
-    expect(runs[1]).toMatchObject({ heroId: 'repete', detailed: true, board: null, replayRowId: null, durationMs: 690108, placement: 3 });
+    expect(runs[0]!.runes, "the run's runes ride on the detailed row's board snapshot").toEqual(['rune_broodpit', 'rune_epic_forge']);
+    // Row 11: detailed but no stored board (outcome-only banner, "No runes recorded"); v1-only telemetry → no Watch, clock still read.
+    expect(runs[1]).toMatchObject({ heroId: 'repete', detailed: true, board: null, runes: [], replayRowId: null, durationMs: 690108, placement: 3 });
     // Row 10: light only (beyond the detail cap) and no telemetry row at all.
     expect(runs[2]).toMatchObject({ heroId: 'cia', detailed: false, board: null, replayRowId: null, durationMs: null, goldSpent: 40, placement: 7 });
   });

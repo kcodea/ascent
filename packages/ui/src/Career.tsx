@@ -1,41 +1,64 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { RUNE_INDEX } from '@game/content';
 import { getHero } from '@game/sim';
 import type { BoardSnapshot } from '@game/sim';
-import { Card } from './Card';
+import { Card, mdBold } from './Card';
 import { storedCardView } from './storedBoardView';
-import { heroArt } from './art';
+import { heroArt, runeArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './store';
 import { fetchMyRuns, fetchReplayPayload, remoteEnabled } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
 import {
-  TREND_WINDOWS, TRIBE_LABEL, careerAggregates, outcomeOf, playedOnText, polylineOf, runLengthText, trendSeries,
-  type CareerRun, type TrendSeries, type TrendWindow,
+  TREND_WINDOWS, TRIBE_LABEL, careerAggregates, heroCareers, ordinalOf, outcomeOf, playedOnText, polylineOf, runLengthText, trendSeries,
+  type CareerRun, type HeroCareer, type TrendSeries, type TrendWindow,
 } from './careerData';
 
 /**
- * CAREER (owner rebuild 2026-09-19) — three columns on the game's page backdrop, after the Battlegrounds-style
+ * CAREER (owner rebuild 2026-09-19/20) — three columns on the game's page backdrop, after the Battlegrounds-style
  * mockup:
  *
  *  LEFT    the most-played hero in the SAME circular frame the recruit screen wears (the `.hero > .f >
  *          .heroimg` markup + rules from StatusBar, re-seated here without the tray transforms), its name
  *          plate, and four stat tiles — 1st Place Wins · Top 4 Finish · Avg Placement · Favorite Tribe.
- *  CENTRE  Match History — the account's last 10 runs FROM THE SERVER (`fetchMyRuns`; never local-only runs):
- *          hero + record · the final team as 7 small card tiles · the outcome block (VICTORY / placement,
- *          date + run length, Gold) and ONE button, WATCH REPLAY, live only when a telemetry replay exists.
- *  RIGHT   Seasonal Ranked — the account's MMR as a plain number (the server-synced profile rating) with the
- *          last run's delta beside it — and Performance Trends: Avg Placement · Fight Win Rate · Avg APM as
- *          inline-SVG lines over a 7 / 30 / 90-day window.
+ *  CENTRE  two tabs in the column header (MATCH HISTORY | HEROES, the choice persisted per browser):
+ *          Match History — the account's last 25 runs FROM THE SERVER (`fetchMyRuns`; never local-only runs),
+ *          each a TALL BANNER that reads top to bottom (owner 2026-09-20: "chunky and fully readable"):
+ *            head   hero portrait + name + W–L record ‖ the outcome block (VICTORY / placement, date · length · Gold)
+ *            team   the final team as 7 full-size card tiles (the real `Card`, sized like the leaderboard's; no
+ *                   label — it collided with the gilded crown / tier stars, owner 2026-09-20)
+ *            foot   the run's rune selections as emblems + names (hover = the rune's text) ‖ ONE button,
+ *                   WATCH REPLAY, live only when a telemetry replay exists.
+ *          Heroes — every hero the account has played (folded over ALL the fetched runs, not just the 25
+ *          banners): portrait + name, runs, 1st-place wins, the total fight record + win rate, avg / best
+ *          placement, last played — sorted by runs played (owner ask 2026-09-20).
+ *          Only this column scrolls; the side columns stay put. All three columns share one header row
+ *          (`.cv2-colhead`), so their panels start level.
+ *  RIGHT   Seasonal Ranked — the account's MMR as a bare number (the server-synced profile rating; no delta,
+ *          no divisions) — and Performance Trends: Avg Placement · Fight Win Rate · Avg APM as inline-SVG
+ *          lines over a 7 / 30 / 90-day window.
  *
  * Every number comes from `careerData.ts` (pure, tested). The fetch is cached on the store so reopening
  * paints at once and refreshes behind; a finished run or a career reset bumps `careerVersion` and refetches.
  * Read-only; opened by the title's Career button (and by the leaderboard / Recent Games for another player).
  */
 
-/** Rows fetched for the trends + tiles (light); the newest `CAREER_DETAIL_ROWS` of them carry the board. */
-const FETCH_LIMIT = 100;
-const MATCH_ROWS = 10;
+/** Rows fetched light (scalars only) for the trends, the tiles and the Heroes tab — effectively every run the
+ *  account has (a light row is ~200 bytes); the newest `CAREER_DETAIL_ROWS` of them also carry the board. */
+const FETCH_LIMIT = 1000;
+/** Which centre tab is open, persisted per browser (owner ask 2026-09-20). */
+const TAB_KEY = 'ascent.career.tab';
+type CenterTab = 'history' | 'heroes';
+function loadTab(): CenterTab {
+  try { return localStorage.getItem(TAB_KEY) === 'heroes' ? 'heroes' : 'history'; } catch { return 'history'; }
+}
+function saveTab(t: CenterTab): void {
+  try { localStorage.setItem(TAB_KEY, t); } catch { /* storage unavailable — the choice just doesn't persist */ }
+}
+/** Banners in Match History — the newest 25 server runs (owner 2026-09-20; was 10). Matches `CAREER_DETAIL_ROWS`. */
+const MATCH_ROWS = 25;
 const BOARD_SLOTS = 7;
 
 /** The in-run hero frame, re-seated: the same `.hero > .f > img.heroimg` markup StatusBar renders (so the
@@ -55,7 +78,7 @@ function HeroFrame({ heroId, small }: { heroId: string; small?: boolean }) {
   );
 }
 
-/** The final team — exactly 7 slots, the real `Card` at a small scale, empty slots blank. */
+/** The final team — exactly 7 slots, the real `Card` at the leaderboard's tile size, empty slots blank. */
 function FinalTeam({ board }: { board: BoardSnapshot }) {
   const minions = board.minions.slice(0, BOARD_SLOTS);
   return (
@@ -63,14 +86,56 @@ function FinalTeam({ board }: { board: BoardSnapshot }) {
       {Array.from({ length: BOARD_SLOTS }, (_, i) => {
         const m = minions[i];
         return m
-          ? <div className="cv2-tile" key={i}><div className="cv2-tile-scale"><Card card={storedCardView(m)} suppressPop /></div></div>
+          ? <div className="cv2-tile" key={i}><Card card={storedCardView(m)} suppressPop /></div>
           : <div className="cv2-tile empty" key={i} aria-hidden="true" />;
       })}
     </div>
   );
 }
 
-/** A labelled small-caps stat with a big value — the left column's tiles + the outcome block's Gold. */
+/** One rune the run picked: its emblem (the real rune art) + name; hovering floats the rune's text in a
+ *  styled panel (portalled + fixed, so the scrolling list never clips it — never a native tooltip). */
+function RuneEmblem({ runeId }: { runeId: string }) {
+  const rune = RUNE_INDEX[runeId];
+  const [tip, setTip] = useState<{ left: number; top: number; above: boolean } | null>(null);
+  const timer = useRef<number | null>(null);
+  useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
+  if (!rune) return null;
+  const art = runeArt(rune.id);
+  const show = (el: HTMLElement): void => {
+    if (timer.current) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => {
+      // One layout read per hover (never per frame): anchor the panel under the emblem, centred, flipping
+      // above when the row sits near the bottom of the screen.
+      const r = el.getBoundingClientRect();
+      const w = 280;
+      const left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2));
+      const above = r.bottom + 150 > window.innerHeight;
+      setTip({ left, top: above ? r.top - 10 : r.bottom + 10, above });
+    }, 160);
+  };
+  const hide = (): void => {
+    if (timer.current) { window.clearTimeout(timer.current); timer.current = null; }
+    setTip(null);
+  };
+  return (
+    <div className={`cv2-rune${rune.epic ? ' epic' : ''}`} onMouseEnter={(e) => show(e.currentTarget)} onMouseLeave={hide}>
+      <div className="cv2-rune-disc">
+        {art ? <img decoding="sync" className="cv2-rune-art" src={art} alt="" aria-hidden /> : <span className="cv2-rune-emblem" aria-hidden><Icon name="anvil" /></span>}
+      </div>
+      <div className="cv2-rune-name">{rune.name}</div>
+      {tip && createPortal(
+        <div className={`cv2-rune-tip${tip.above ? ' above' : ''}`} role="tooltip" style={{ left: tip.left, top: tip.top }}>
+          <div className="cv2-rune-tip-name">{rune.name}<span className="cv2-rune-tip-kind">{rune.epic ? 'Epic Rune' : 'Rune'}</span></div>
+          <div className="cv2-rune-tip-body" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
+/** A labelled small-caps stat with a big value — the left column's tiles. */
 function StatTile({ label, value, icon }: { label: string; value: string; icon?: string }) {
   return (
     <div className="cv2-stat">
@@ -81,7 +146,7 @@ function StatTile({ label, value, icon }: { label: string; value: string; icon?:
   );
 }
 
-const CHART_W = 300, CHART_H = 96, CHART_PAD = 8;
+const CHART_W = 300, CHART_H = 110, CHART_PAD = 10;
 
 /** One trend: a static inline-SVG polyline (no library, nothing animated) with the window average as the
  *  headline and the axis extremes labelled. `invert` puts `yMin` at the top (placement: 1st reads high). */
@@ -91,6 +156,7 @@ function TrendChart({ title, series, yMin, yMax, invert, unit, empty }: {
   const pts = polylineOf(series.points, { w: CHART_W, h: CHART_H, pad: CHART_PAD, yMin, yMax, invert });
   const one = series.points.length === 1 ? pts.split(',').map(Number) : null;
   const avgText = series.avg === null ? '—' : `${series.avg}${unit ?? ''}`;
+  const n = series.points.length;
   return (
     <div className="cv2-trend">
       <div className="cv2-trend-head">
@@ -102,14 +168,14 @@ function TrendChart({ title, series, yMin, yMax, invert, unit, empty }: {
           <line className="cv2-grid" x1={CHART_PAD} x2={CHART_W - CHART_PAD} y1={CHART_PAD} y2={CHART_PAD} />
           <line className="cv2-grid" x1={CHART_PAD} x2={CHART_W - CHART_PAD} y1={CHART_H / 2} y2={CHART_H / 2} />
           <line className="cv2-grid" x1={CHART_PAD} x2={CHART_W - CHART_PAD} y1={CHART_H - CHART_PAD} y2={CHART_H - CHART_PAD} />
-          {series.points.length > 1 && <polyline className="cv2-line" points={pts} />}
+          {n > 1 && <polyline className="cv2-line" points={pts} />}
           {one && <line className="cv2-line cv2-dot" x1={one[0]} y1={one[1]} x2={one[0]} y2={one[1]} />}
         </svg>
         <span className="cv2-axis top">{invert ? yMin : yMax}{unit}</span>
         <span className="cv2-axis bottom">{invert ? yMax : yMin}{unit}</span>
-        {series.points.length === 0 && <span className="cv2-chart-empty">{empty}</span>}
+        {n === 0 && <span className="cv2-chart-empty">{empty}</span>}
       </div>
-      <div className="cv2-trend-foot">{series.points.length} run{series.points.length === 1 ? '' : 's'}</div>
+      <div className="cv2-trend-foot">{n} run{n === 1 ? '' : 's'}</div>
     </div>
   );
 }
@@ -135,6 +201,127 @@ function focusIndexOf(runs: readonly CareerRun[], f: CareerFocus | undefined): n
   return best;
 }
 
+/** A designed whole-page state (loading / offline / signed-out / no backend): an icon, a headline, a line of
+ *  help and at most one action — never a bare string. */
+function PageState({ icon, title, body, action, busy, className }: {
+  icon: string; title: string; body: string; action?: { label: string; onClick: () => void }; busy?: boolean; className?: string;
+}) {
+  return (
+    <div className={`cv2-state${className ? ` ${className}` : ''}`} role={busy ? 'status' : undefined} aria-busy={busy || undefined}>
+      <div className={`cv2-state-ico${busy ? ' spin' : ''}`}><Icon name={icon} /></div>
+      <div className="cv2-state-title">{title}</div>
+      <div className="cv2-state-body">{body}</div>
+      {action && <button type="button" className="cv2-btn pressable" onClick={action.onClick}>{action.label}</button>}
+    </div>
+  );
+}
+
+/** One match banner. */
+function MatchRow({ run, focus, busy, unplayable, onWatch }: {
+  run: CareerRun; focus: boolean; busy: boolean; unplayable: boolean; onWatch: () => void;
+}) {
+  const o = outcomeOf(run.placement);
+  const when = playedOnText(run.atMs);
+  const length = runLengthText(run.durationMs);
+  const watchable = run.replayRowId !== null;
+  const hasBoard = !!run.board && run.board.minions.length > 0;
+  const runes = run.runes.filter((id) => RUNE_INDEX[id]);
+  return (
+    <article className={`cv2-row ${o.cls}${focus ? ' focus' : ''}`} aria-label={`${run.heroId ? getHero(run.heroId).name : 'Run'} — ${o.label}`}>
+      <header className="cv2-row-head">
+        <div className="cv2-row-hero">
+          <HeroFrame heroId={run.heroId} small />
+          <div className="cv2-row-heroid">
+            <div className="cv2-row-heroname">{run.heroId ? getHero(run.heroId).name : '—'}</div>
+            <div className={`cv2-row-record ${run.wins >= run.losses ? 'won' : 'lost'}`} aria-label={`${run.wins} wins, ${run.losses} losses`}>
+              <span className="cv2-row-record-n">{run.wins}</span><span className="cv2-row-record-l">W</span>
+              <span className="cv2-row-record-sep">–</span>
+              <span className="cv2-row-record-n">{run.losses}</span><span className="cv2-row-record-l">L</span>
+            </div>
+          </div>
+        </div>
+        <div className="cv2-row-outcome">
+          <div className="cv2-row-label">Match Outcome</div>
+          <div className={`cv2-verdict ${o.cls}`}>{o.label}</div>
+          <div className="cv2-row-meta">
+            <span className="cv2-meta"><span className="cv2-meta-l">Played</span><span className="cv2-meta-v cv2-row-when">{when || '—'}</span></span>
+            <span className="cv2-meta"><span className="cv2-meta-l">Length</span><span className="cv2-meta-v cv2-row-length">{length}</span></span>
+            <span className="cv2-meta"><span className="cv2-meta-l">Gold spent</span><span className="cv2-meta-v cv2-row-gold-v">{run.goldSpent === null ? '—' : run.goldSpent}</span></span>
+          </div>
+        </div>
+      </header>
+      {/* No "Final Team" label (owner 2026-09-20): it collided with the first tile's crown / tier stars, and the
+          card row speaks for itself. The row keeps headroom above the tiles for those overhangs instead. */}
+      <div className="cv2-row-team">
+        {hasBoard
+          ? <FinalTeam board={run.board!} />
+          : <div className="cv2-row-none">No final team recorded for this run.</div>}
+      </div>
+      <footer className="cv2-row-foot">
+        <div className="cv2-row-runes">
+          <div className="cv2-row-label">Runes</div>
+          {runes.length > 0
+            ? <div className="cv2-runes" aria-label="Runes picked this run">{runes.map((id, i) => <RuneEmblem runeId={id} key={`${id}#${i}`} />)}</div>
+            : <div className="cv2-row-none cv2-norunes">No runes recorded</div>}
+        </div>
+        <button
+          type="button"
+          className="cv2-btn cv2-watch pressable"
+          disabled={!watchable || busy || unplayable}
+          onClick={onWatch}
+          aria-label={watchable ? 'Watch this run’s replay' : 'No replay stored for this run'}
+        >
+          <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Watch Replay'}
+        </button>
+      </footer>
+    </article>
+  );
+}
+
+/** One hero's line on the Heroes tab — the same visual language as a match banner's head, plus the stat cells. */
+function HeroRow({ h }: { h: HeroCareer }) {
+  const name = getHero(h.heroId).name;
+  const last = playedOnText(h.lastAtMs);
+  return (
+    <article className="cv2-hrow" aria-label={`${name} — ${h.runs} run${h.runs === 1 ? '' : 's'}`}>
+      <div className="cv2-row-hero">
+        <HeroFrame heroId={h.heroId} small />
+        <div className="cv2-row-heroid">
+          <div className="cv2-row-heroname">{name}</div>
+          <div className="cv2-hrow-runs">{h.runs} run{h.runs === 1 ? '' : 's'}</div>
+        </div>
+      </div>
+      <div className="cv2-hrow-stats">
+        <div className="cv2-hcell">
+          <span className="cv2-meta-l">1st Place Wins</span>
+          <span className={`cv2-hcell-v${h.firsts > 0 ? ' won' : ''}`}>{h.firsts}</span>
+        </div>
+        <div className="cv2-hcell wide">
+          <span className="cv2-meta-l">Fight Record</span>
+          <span className="cv2-hcell-v cv2-hrow-record" aria-label={`${h.wins} wins, ${h.losses} losses`}>
+            <span className="cv2-row-record-n">{h.wins}</span><span className="cv2-row-record-l">W</span>
+            <span className="cv2-row-record-sep">–</span>
+            <span className="cv2-row-record-n">{h.losses}</span><span className="cv2-row-record-l">L</span>
+          </span>
+          <span className="cv2-hrow-rate">{h.winRate === null ? 'No fights' : `${h.winRate}% win rate`}</span>
+        </div>
+        <div className="cv2-hcell">
+          <span className="cv2-meta-l">Avg Placement</span>
+          <span className="cv2-hcell-v">{h.avgPlacement === null ? '—' : h.avgPlacement}</span>
+        </div>
+        <div className="cv2-hcell">
+          <span className="cv2-meta-l">Best</span>
+          <span className={`cv2-hcell-v ${h.bestPlacement === null ? '' : outcomeOf(h.bestPlacement).cls}`}>{h.bestPlacement === null ? '—' : ordinalOf(h.bestPlacement)}</span>
+        </div>
+        <div className="cv2-hcell">
+          <span className="cv2-meta-l">Last Played</span>
+          <span className="cv2-hcell-v small">{last || '—'}</span>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 export function Career() {
   const show = useGame((s) => s.showCareer);
   const close = useGame((s) => s.closeCareer);
@@ -154,6 +341,7 @@ export function Career() {
   const [runs, setRuns] = useState<CareerRun[] | null | undefined>(undefined);
   const [fetchTick, setFetchTick] = useState(0); // the Retry button
   const [window_, setWindow] = useState<TrendWindow>(30);
+  const [tab, setTab] = useState<CenterTab>(loadTab);
   const [watching, setWatching] = useState<number | null>(null); // run id whose replay is loading
   const [noReplay, setNoReplay] = useState<number | null>(null); // run id whose payload came back unplayable
 
@@ -172,7 +360,7 @@ export function Career() {
       setRuns(rows ?? (cached ?? null));
     });
     // …and re-read YOUR OWN rating from the server while we're here — the profile is a local mirror of the
-    // `profiles` row and this is the number the Seasonal Ranked card prints.
+    // `profiles` row and this is the number the Seasonal Ranked card prints (the same one the leaderboard shows).
     if (!viewing) syncProfileFromServer(playerName);
     return () => { live = false; };
     // `cache` is deliberately NOT a dep: the effect writes it, and re-running on that write would refetch forever.
@@ -180,6 +368,7 @@ export function Career() {
 
   const aggregates = useMemo(() => careerAggregates(runs ?? []), [runs]);
   const trends = useMemo(() => trendSeries(runs ?? [], window_, Date.now()), [runs, window_]);
+  const heroes = useMemo(() => heroCareers(runs ?? []), [runs]);
   const focusIndex = useMemo(() => (runs ? focusIndexOf(runs, viewing?.focus) : -1), [runs, viewing?.focus]);
 
   if (!show) return null;
@@ -187,7 +376,6 @@ export function Career() {
   const back = (): void => { sfx.pulse(); close(); };
   const shownName = viewing ? (viewing.author || tempHandle(viewing.userId)) : (playerName || tempHandle(myId));
   const mmr = viewing ? viewing.rating : profile.rating;
-  const lastDelta = runs?.[0]?.ratingDelta ?? null;
 
   // Watch a listed run back: the join already resolved the telemetry row id, so this is the same one-row
   // payload fetch Recent Games makes, handed to the same viewer. `startReplay` closes this overlay itself and
@@ -208,98 +396,108 @@ export function Career() {
   const heroId = aggregates.mostPlayedHero ?? viewing?.favoriteHero ?? '';
   const heroName = heroId ? getHero(heroId).name : '—';
   const matchRows = (runs ?? []).slice(0, MATCH_ROWS);
+  const pickTab = (t: CenterTab): void => { if (t === tab) return; sfx.pulse(); setTab(t); saveTab(t); };
 
   let body: JSX.Element;
   if (!remoteEnabled()) {
-    body = <div className="lbempty">Career unavailable — no backend configured.</div>;
+    body = <PageState icon="mute" title="Career unavailable" body="This build has no backend configured, so there is no server record to show." />;
   } else if (!userId) {
     body = (
-      <div className="lbempty cv2-signin">
-        <div>Sign in to see your career.</div>
-        <button type="button" className="cv2-btn pressable" onClick={() => { sfx.pulse(); openAccountPanel(); }}>Sign in</button>
-      </div>
+      <PageState
+        icon="taunt"
+        title="Sign in to see your career"
+        body="Your runs, placements and Rating live on your account, so they follow you between devices."
+        action={{ label: 'Sign in', onClick: () => { sfx.pulse(); openAccountPanel(); } }}
+        className="cv2-signin"
+      />
     );
   } else if (runs === undefined) {
-    body = <div className="lbempty">Loading…</div>;
+    body = <PageState icon="refresh" title="Loading your career" body="Fetching your recent runs from the server…" busy />;
   } else if (runs === null) {
     body = (
-      <div className="lbempty cv2-signin">
-        <div>Couldn’t reach the server.</div>
-        <button type="button" className="cv2-btn pressable" onClick={() => { sfx.pulse(); setFetchTick((t) => t + 1); }}>Retry</button>
-      </div>
+      <PageState
+        icon="mute"
+        title="Couldn’t reach the server"
+        body="Your career is stored on your account. Check your connection and try again."
+        action={{ label: 'Retry', onClick: () => { sfx.pulse(); setFetchTick((t) => t + 1); } }}
+        className="cv2-signin"
+      />
     );
   } else {
     body = (
       <div className="cv2-cols">
         {/* LEFT — most-played hero + the four tiles */}
-        <aside className="cv2-panel cv2-left">
-          <HeroFrame heroId={heroId} />
-          <div className="cv2-heroname">{heroName}</div>
-          <div className="cv2-playername">{shownName}</div>
-          <div className="cv2-tiles">
-            <StatTile icon="crown" label="1st Place Wins" value={String(aggregates.firsts)} />
-            <StatTile icon="shield" label="Top 4 Finish" value={aggregates.top4Pct === null ? '—' : `${aggregates.top4Pct}%`} />
-            <StatTile icon="star" label="Avg Placement" value={aggregates.avgPlacement === null ? '—' : String(aggregates.avgPlacement)} />
-            <StatTile icon="paw" label="Favorite Tribe" value={aggregates.favoriteTribe ? TRIBE_LABEL[aggregates.favoriteTribe] : '—'} />
+        <aside className="cv2-col cv2-leftcol">
+          <div className="cv2-colhead"><div className="cv2-sec"><Icon name="crown" />Career Stats</div></div>
+          <div className="cv2-panel cv2-left">
+            <HeroFrame heroId={heroId} />
+            <div className="cv2-heroname">{heroName}</div>
+            <div className="cv2-playername">{shownName}</div>
+            <div className="cv2-tiles">
+              <StatTile icon="crown" label="1st Place Wins" value={String(aggregates.firsts)} />
+              <StatTile icon="shield" label="Top 4 Finish" value={aggregates.top4Pct === null ? '—' : `${aggregates.top4Pct}%`} />
+              <StatTile icon="star" label="Avg Placement" value={aggregates.avgPlacement === null ? '—' : String(aggregates.avgPlacement)} />
+              <StatTile icon="paw" label="Favorite Tribe" value={aggregates.favoriteTribe ? TRIBE_LABEL[aggregates.favoriteTribe] : '—'} />
+            </div>
           </div>
         </aside>
 
-        {/* CENTRE — Match History */}
-        <section className="cv2-center">
-          <div className="cv2-sec"><Icon name="clock" />Match History</div>
-          {matchRows.length === 0 ? (
-            <div className="cv2-panel cv2-none">{viewing ? `No runs to show for ${shownName}.` : 'No runs yet — play a run to start your career.'}</div>
-          ) : matchRows.map((run, i) => {
-            const o = outcomeOf(run.placement);
-            const when = playedOnText(run.atMs);
-            const length = runLengthText(run.durationMs);
-            const watchable = run.replayRowId !== null;
-            const busy = watching !== null && watching === run.id;
-            const unplayable = noReplay !== null && noReplay === run.id;
-            const hasBoard = !!run.board && run.board.minions.length > 0;
-            return (
-              <div className={`cv2-row${hasBoard ? '' : ' noboard'}${i === focusIndex ? ' focus' : ''}`} key={run.id ?? i}>
-                <div className="cv2-row-hero">
-                  <HeroFrame heroId={run.heroId} small />
-                  <div className="cv2-row-heroname">{run.heroId ? getHero(run.heroId).name : '—'}</div>
-                  <div className={`cv2-row-record ${run.wins >= run.losses ? 'won' : 'lost'}`}>{run.wins}–{run.losses}</div>
+        {/* CENTRE — Match History | Heroes (the only column that scrolls) */}
+        <section className="cv2-col cv2-center" aria-label={tab === 'heroes' ? 'Heroes' : 'Match History'}>
+          <div className="cv2-colhead cv2-center-head">
+            <div className="cv2-tabs" role="tablist" aria-label="Career view">
+              <button type="button" role="tab" className={`cv2-tab${tab === 'history' ? ' on' : ''}`} aria-selected={tab === 'history'} onClick={() => pickTab('history')}>
+                <Icon name="clock" />Match History
+              </button>
+              <button type="button" role="tab" className={`cv2-tab${tab === 'heroes' ? ' on' : ''}`} aria-selected={tab === 'heroes'} onClick={() => pickTab('heroes')}>
+                <Icon name="taunt" />Heroes
+              </button>
+            </div>
+            <span className="cv2-sec-sub">
+              {tab === 'heroes'
+                ? (heroes.length ? `${heroes.length} hero${heroes.length === 1 ? '' : 'es'} played` : '')
+                : (matchRows.length ? `Last ${matchRows.length} run${matchRows.length === 1 ? '' : 's'}` : '')}
+            </span>
+          </div>
+          {tab === 'heroes' ? (
+            <div className="cv2-list cv2-herolist" role="tabpanel">
+              {heroes.length === 0 ? (
+                <div className="cv2-panel cv2-none">
+                  <div className="cv2-state-ico"><Icon name="taunt" /></div>
+                  <div className="cv2-state-title">No heroes yet</div>
+                  <div className="cv2-state-body">{viewing ? `${shownName} hasn’t finished a lobby run yet.` : 'Every hero you finish a lobby run with is tallied here.'}</div>
                 </div>
-                {hasBoard && (
-                  <div className="cv2-row-team">
-                    <div className="cv2-row-label">Final Team</div>
-                    <FinalTeam board={run.board!} />
-                  </div>
-                )}
-                <div className="cv2-row-outcome">
-                  <div className="cv2-row-label">Match Outcome</div>
-                  <div className={`cv2-verdict ${o.cls}`}>{o.label}</div>
-                  <div className="cv2-row-when">{when}{when && length !== '—' ? ' · ' : ''}{length !== '—' ? length : (when ? '' : '—')}</div>
-                  <div className="cv2-row-gold"><span className="cv2-row-gold-l">Gold</span><span className="cv2-row-gold-v">{run.goldSpent === null ? '—' : run.goldSpent}</span></div>
-                  <button
-                    type="button"
-                    className="cv2-btn cv2-watch pressable"
-                    disabled={!watchable || busy || unplayable}
-                    onClick={() => watchRun(run)}
-                    aria-label={watchable ? 'Watch this run’s replay' : 'No replay stored for this run'}
-                  >
-                    {busy ? 'Loading…' : unplayable ? 'No replay' : 'Watch Replay'}
-                  </button>
+              ) : heroes.map((h) => <HeroRow key={h.heroId} h={h} />)}
+            </div>
+          ) : (
+            <div className="cv2-list" role="tabpanel">
+              {matchRows.length === 0 ? (
+                <div className="cv2-panel cv2-none">
+                  <div className="cv2-state-ico"><Icon name="sword" /></div>
+                  <div className="cv2-state-title">No runs yet</div>
+                  <div className="cv2-state-body">{viewing ? `${shownName} hasn’t finished a lobby run yet.` : 'Finish a lobby run and it will appear here, final team and all.'}</div>
                 </div>
-              </div>
-            );
-          })}
+              ) : matchRows.map((run, i) => (
+                <MatchRow
+                  key={run.id ?? i}
+                  run={run}
+                  focus={i === focusIndex}
+                  busy={watching !== null && watching === run.id}
+                  unplayable={noReplay !== null && noReplay === run.id}
+                  onWatch={() => watchRun(run)}
+                />
+              ))}
+            </div>
+          )}
         </section>
 
         {/* RIGHT — Seasonal Ranked + Performance Trends */}
-        <aside className="cv2-right">
+        <aside className="cv2-col cv2-right">
+          <div className="cv2-colhead"><div className="cv2-sec"><Icon name="star" />Seasonal Ranked</div></div>
           <div className="cv2-panel cv2-ranked">
-            <div className="cv2-sec">Seasonal Ranked</div>
             <div className="cv2-mmr">
-              <span className="cv2-mmr-l">MMR</span>
               <span className="cv2-mmr-v">{mmr}</span>
-              {lastDelta !== null && (
-                <span className={`cv2-mmr-d ${lastDelta >= 0 ? 'up' : 'down'}`}>{lastDelta >= 0 ? '+' : '−'}{Math.abs(lastDelta)}</span>
-              )}
+              <span className="cv2-mmr-l">MMR</span>
             </div>
           </div>
           <div className="cv2-panel cv2-trends">
@@ -340,7 +538,7 @@ export function Career() {
           </div>
         </div>
       </div>
-      <div className="lbscroll">{body}</div>
+      <div className="lbscroll cv2-body">{body}</div>
     </div>
   );
 }

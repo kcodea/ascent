@@ -13,6 +13,8 @@ import type { BoardSnapshot, ReplayV2 } from '@game/sim';
  *  - `run_telemetry` carries the v2 replay. A LIGHT probe (JSON-path scalars, never the payload) tells us per
  *    run whether a watchable replay exists (→ WATCH REPLAY) and the recording's first/last frame clock (→ run
  *    length). The two tables share no id; the run's SEED is the join (the same key `fetchReplayForSeed` uses).
+ *  - The run's RUNES ride inside the final board snapshot (`board.runes`, stamped from the run's `ownedRunes`
+ *    by `snapshotOf`) — no extra column or table; a run with no board (or none picked) shows "No runes recorded".
  *  - Anything neither table has prints "—". No server columns were added for this page.
  *
  * Everything here is pure and synchronous so it is testable without a client: the fetch lives in
@@ -47,6 +49,10 @@ export interface CareerRun {
   /** True when this row was fetched with its full entry (so a null `board` means "no board stored", not
    *  "not fetched"). The page shows the outcome-only banner for a detailed row with no board. */
   detailed: boolean;
+  /** The runes the run picked — rune ids in acquisition order (Rune of Duplication legitimately repeats one).
+   *  Read off the final board snapshot's `runes` (`snapshotOf` stamps the run's `ownedRunes` there), so only a
+   *  detailed row with a board can carry them; empty = "No runes recorded". */
+  runes: string[];
   /** `run_telemetry.id` of a WATCHABLE v2 replay for this run — the handle `fetchReplayPayload` takes. Null =
    *  no replay (the button renders disabled). */
   replayRowId: number | null;
@@ -113,6 +119,7 @@ export function careerRunOf(row: RunHistoryRowLike): CareerRun {
   const atMs = at ? Date.parse(at) : NaN;
   const board = e.board && typeof e.board === 'object' && Array.isArray((e.board as BoardSnapshot).minions)
     ? (e.board as BoardSnapshot) : null;
+  const runes = board && Array.isArray(board.runes) ? (board.runes as unknown[]).filter((id): id is string => typeof id === 'string' && id !== '') : [];
   return {
     id: num(row.id),
     heroId: str(e.heroId) ?? str(row.hero_id) ?? '',
@@ -130,6 +137,7 @@ export function careerRunOf(row: RunHistoryRowLike): CareerRun {
     mode: str(e.mode) ?? str(row.mode),
     board,
     detailed,
+    runes,
     replayRowId: null,
     durationMs: null,
   };
@@ -297,6 +305,59 @@ export function careerAggregates(runs: readonly CareerRun[]): CareerAggregates {
     avgPlacement: placed ? Math.round((placementSum / placed) * 10) / 10 : null,
     favoriteTribe,
   };
+}
+
+// ── Heroes tab (owner ask 2026-09-20) ───────────────────────────────────────────────────────────────────
+
+/** One hero's career line — every run the account played it, folded. */
+export interface HeroCareer {
+  heroId: string;
+  /** Runs played on this hero. */
+  runs: number;
+  /** 1st-place finishes. */
+  firsts: number;
+  /** Total FIGHT record across the hero's runs (combat wins / losses; draws not counted). */
+  wins: number;
+  losses: number;
+  /** wins ÷ (wins + losses) as a whole percent; null with no fights. */
+  winRate: number | null;
+  /** Mean placement to one decimal over the runs that recorded one; null when none did. */
+  avgPlacement: number | null;
+  /** Best (lowest) placement; null when no run recorded one. */
+  bestPlacement: number | null;
+  /** When the hero was last played (max run end time); NaN when no run carries a time. */
+  lastAtMs: number;
+}
+
+/** Every hero the account has played, folded over ALL the runs handed in, sorted by runs played (desc), then
+ *  win rate (desc, unknown last), then hero id — heroes never played are simply absent. Pure. */
+export function heroCareers(runs: readonly CareerRun[]): HeroCareer[] {
+  const by = new Map<string, HeroCareer & { placed: number; placementSum: number }>();
+  for (const r of runs) {
+    if (!r.heroId) continue;
+    let h = by.get(r.heroId);
+    if (!h) {
+      h = { heroId: r.heroId, runs: 0, firsts: 0, wins: 0, losses: 0, winRate: null, avgPlacement: null, bestPlacement: null, lastAtMs: NaN, placed: 0, placementSum: 0 };
+      by.set(r.heroId, h);
+    }
+    h.runs++;
+    h.wins += r.wins;
+    h.losses += r.losses;
+    if (r.placement !== null) {
+      h.placed++;
+      h.placementSum += r.placement;
+      if (r.placement === 1) h.firsts++;
+      if (h.bestPlacement === null || r.placement < h.bestPlacement) h.bestPlacement = r.placement;
+    }
+    if (Number.isFinite(r.atMs) && !(h.lastAtMs >= r.atMs)) h.lastAtMs = r.atMs;
+  }
+  const out: HeroCareer[] = [...by.values()].map(({ placed, placementSum, ...h }) => ({
+    ...h,
+    winRate: h.wins + h.losses > 0 ? Math.round((h.wins / (h.wins + h.losses)) * 100) : null,
+    avgPlacement: placed ? Math.round((placementSum / placed) * 10) / 10 : null,
+  }));
+  out.sort((a, b) => b.runs - a.runs || (b.winRate ?? -1) - (a.winRate ?? -1) || a.heroId.localeCompare(b.heroId));
+  return out;
 }
 
 // ── Performance trends ──────────────────────────────────────────────────────────────────────────────────

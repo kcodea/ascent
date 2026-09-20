@@ -19,14 +19,21 @@ import { clampRailOffset, loadRailPlacement, saveRailPlacement, type RailPlaceme
  *    is not great right now"; the scorer stays in the sim for the balance tools.) Win % = the odds the game computed
  *    for that fight — the exact stamped number on new recordings, a `~`-marked idle-time estimate on old ones,
  *    "—" until it lands (`replayRoundInfo` + `roundInfoTick`).
- *  - COLLAPSIBLE (a slim handle showing the current round) and DRAGGABLE by its grab handle; the placement
- *    persists per browser (`railPlacement.ts`) and is re-clamped on resize so it can never leave the screen.
+ *  - COLLAPSIBLE (a slim handle showing the current round) and DRAGGABLE FROM ANYWHERE on its surface (owner
+ *    2026-09-20: "literally anywhere should drag it"; the ⋮⋮ grip stays as the affordance). A pointerdown
+ *    anywhere on the rail ARMS a drag; it becomes one only once the pointer travels `DRAG_THRESHOLD_PX`, so a
+ *    press-and-release on a cell / the toggle is still a plain click that reaches the button, and a press that
+ *    turned into a drag swallows the click that would follow it. The placement persists per browser
+ *    (`railPlacement.ts`) and is re-clamped on resize so it can never leave the screen.
  *
  * Perf: at most ~19 rows, each memoized on scalars — playback advancing a frame re-renders only the row
  * losing and the row gaining the highlight. The drag writes two CSS vars on the wrapper per pointermove (the
  * rect is measured ONCE at pointerdown) and never re-renders React until the pointer is released. The
  * collapse is a plain conditional render (one-shot, no looping animation).
  */
+
+/** How far the pointer must travel from its press before the press counts as a drag rather than a click. */
+export const DRAG_THRESHOLD_PX = 4;
 
 const VERDICT_GLYPH = { win: 'W', loss: 'L', draw: 'D' } as const;
 
@@ -89,8 +96,11 @@ export function RoundRail(): JSX.Element | null {
   const session = useGame((st) => st.replaySession);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [placement, setPlacement] = useState<RailPlacement>(() => loadRailPlacement());
-  /** The offset the pointer is dragging RIGHT NOW (written to CSS vars per move; committed to state on release). */
-  const dragRef = useRef<{ startX: number; startY: number; dx0: number; dy0: number; rect: DOMRect; vw: number; vh: number; last: { dx: number; dy: number } | null } | null>(null);
+  /** The press in progress: ARMED from pointerdown (a click until proven otherwise), DRAGGING once the pointer
+   *  has travelled the threshold (written to CSS vars per move; committed to state on release). */
+  const dragRef = useRef<{ startX: number; startY: number; dx0: number; dy0: number; rect: DOMRect; vw: number; vh: number; pointerId: number; dragging: boolean; last: { dx: number; dy: number } | null } | null>(null);
+  /** Set when a press ended as a drag, so the click the browser fires next is swallowed before a cell sees it. */
+  const swallowClickRef = useRef(false);
   const placementRef = useRef(placement);
   placementRef.current = placement;
 
@@ -142,39 +152,55 @@ export function RoundRail(): JSX.Element | null {
     return () => window.removeEventListener('resize', onResize);
   }, [session != null, placement.collapsed]);
 
-  const onGrabDown = (e: React.PointerEvent<HTMLElement>): void => {
+  const onRailDown = (e: React.PointerEvent<HTMLElement>): void => {
     const el = wrapRef.current;
     if (!el || e.button !== 0) return;
-    e.preventDefault();
+    // ARM only — no preventDefault, no capture: a plain click must still reach the cell / toggle underneath.
     const cur = placementRef.current;
     // ONE layout read for the whole gesture: the rail's box now, and the viewport. Every move is arithmetic.
     dragRef.current = {
       startX: e.clientX, startY: e.clientY, dx0: cur.dx, dy0: cur.dy,
-      rect: el.getBoundingClientRect(), vw: window.innerWidth, vh: window.innerHeight, last: null,
+      rect: el.getBoundingClientRect(), vw: window.innerWidth, vh: window.innerHeight,
+      pointerId: e.pointerId, dragging: false, last: null,
     };
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
-    el.classList.add('dragging');
   };
-  const onGrabMove = (e: React.PointerEvent<HTMLElement>): void => {
+  const onRailMove = (e: React.PointerEvent<HTMLElement>): void => {
     const d = dragRef.current;
     const el = wrapRef.current;
     if (!d || !el) return;
+    const mx = e.clientX - d.startX, my = e.clientY - d.startY;
+    if (!d.dragging) {
+      if (Math.abs(mx) < DRAG_THRESHOLD_PX && Math.abs(my) < DRAG_THRESHOLD_PX) return; // still a click
+      d.dragging = true;
+      try { el.setPointerCapture(d.pointerId); } catch { /* unsupported */ }
+      el.classList.add('dragging');
+    }
     const next = clampRailOffset(
-      { dx: d.dx0 + (e.clientX - d.startX), dy: d.dy0 + (e.clientY - d.startY) },
+      { dx: d.dx0 + mx, dy: d.dy0 + my },
       { dx: d.dx0, dy: d.dy0 }, d.rect, { width: d.vw, height: d.vh },
     );
     applyVars(el, next.dx, next.dy); // the cached rect stays valid: it is the box under dx0/dy0, and the clamp maps through the delta
     d.last = next;
   };
-  const onGrabUp = (e: React.PointerEvent<HTMLElement>): void => {
+  const onRailUp = (): void => {
     const d = dragRef.current;
     dragRef.current = null;
-    wrapRef.current?.classList.remove('dragging');
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
-    if (!d?.last) return;
+    const el = wrapRef.current;
+    if (!d?.dragging) return; // a click — let the browser deliver it to whatever was pressed
+    el?.classList.remove('dragging');
+    try { el?.releasePointerCapture(d.pointerId); } catch { /* ignore */ }
+    swallowClickRef.current = true;
+    if (!d.last) return;
     const p = { ...placementRef.current, dx: d.last.dx, dy: d.last.dy };
     setPlacement(p);
     saveRailPlacement(p);
+  };
+  /** The click that follows a drag-release lands on whatever the pointer was over — never a seek / toggle. */
+  const onRailClickCapture = (e: React.MouseEvent<HTMLElement>): void => {
+    if (!swallowClickRef.current) return;
+    swallowClickRef.current = false;
+    e.preventDefault();
+    e.stopPropagation();
   };
   const toggleCollapsed = (): void => {
     const p = { ...placementRef.current, collapsed: !placementRef.current.collapsed };
@@ -184,25 +210,23 @@ export function RoundRail(): JSX.Element | null {
 
   if (!session || marks.length === 0) return null;
 
+  // The grip is an AFFORDANCE now — the drag handlers live on the wrapper, so any point of the rail drags it.
   const grab = (
-    <span
-      className="roundrail-grab"
-      role="button"
-      tabIndex={0}
-      aria-label="Drag to move the round rail"
-      title="Drag to move"
-      onPointerDown={onGrabDown}
-      onPointerMove={onGrabMove}
-      onPointerUp={onGrabUp}
-      onPointerCancel={onGrabUp}
-    >
+    <span className="roundrail-grab" aria-hidden="true">
       ⋮⋮
     </span>
   );
+  const dragProps = {
+    onPointerDown: onRailDown,
+    onPointerMove: onRailMove,
+    onPointerUp: onRailUp,
+    onPointerCancel: onRailUp,
+    onClickCapture: onRailClickCapture,
+  };
 
   if (placement.collapsed) {
     return (
-      <div className="roundrail-wrap collapsed" ref={wrapRef}>
+      <div className="roundrail-wrap collapsed" ref={wrapRef} {...dragProps}>
         <div className="roundrail-mini" role="group" aria-label="Replay rounds (collapsed)">
           {grab}
           <span className="roundrail-mini-round">
@@ -216,7 +240,7 @@ export function RoundRail(): JSX.Element | null {
   }
 
   return (
-    <div className="roundrail-wrap" ref={wrapRef}>
+    <div className="roundrail-wrap" ref={wrapRef} {...dragProps}>
       <nav className="roundrail" aria-label="Replay rounds">
         <div className="roundrail-bar">
           {grab}

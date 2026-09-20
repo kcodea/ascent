@@ -35,8 +35,9 @@ describe('set 3 scaffold', () => {
       'k3_doubletrouble',
       'k3_forksong', 'k3_forkedcrown', 'k3_rubyroach', 'k3_porkbelly', 'k3_prismpick', 'k3_runespark', 'k3_kaura',
       'k3_kurse', // appended 2026-09-19 (owner handoff 2026-09-18)
-      // …then the nine set-2 Kobolds it keeps.
-      'k_chipwick', 'k_gemheart', 'k_geode', 'k_kobabyboldies',
+      'k3_goldvein', // appended 2026-09-19 (owner handoff)
+      // …then the six set-2 Kobolds it keeps (Chipwick Prospector left 2026-09-19 — owner handoff; still a set-2 card).
+      'k_gemheart', 'k_geode', 'k_kobabyboldies',
       'k_kobe', 'k_boulderdash', 'k_blazer',
       // …then the DWARVES (owner roster 2026-09-09): set 3's eight new ones, appended AFTER the Kobolds so no
       // Kobold moved, then the fourteen set-2 Dwarves it keeps (shared definitions, same as the Kobolds).
@@ -56,8 +57,9 @@ describe('set 3 scaffold', () => {
       // …then the NEUTRALS (owner roster 2026-09-09, tranche 1): set 3's own — Blaster back from the archive,
       // Splitboon Adept — then Yazzus (the ONE shared Yazzus since 2026-09-16, pinned to the slot its set-3 fork
       // held) — then the carried set-1 and set-2 neutrals (shared definitions). Shredder, Calibration Master and
-      // Rig joined the own list 2026-09-18 (owner handoff); Tauntbreaker left the carry-over the same day.
-      'blaster', 'n3_defender', 'n3_pell', 'n3_hustler', 'n3_recruiter', 'n3_charger', 'n3_splitboon', 'n3_shredder', 'n3_calibration', 'n3_rig', 'yazzus',
+      // Rig joined the own list 2026-09-18 (owner handoff); Tauntbreaker left the carry-over the same day. Yeti
+      // joined 2026-09-19 (owner handoff).
+      'blaster', 'n3_defender', 'n3_pell', 'n3_hustler', 'n3_recruiter', 'n3_charger', 'n3_splitboon', 'n3_shredder', 'n3_calibration', 'n3_rig', 'n3_yeti', 'yazzus',
       'drummer', 'sylus', 'chronos', 'joker', 'venom', 'blackbelt', 'jenkins', 'stewardofspells',
       'arenaheckler', 'wayfinder', 'salvatore',
       'n2_spellsword', 'n2_bellringer', 'k_pouchpincher', 'n2_paragon',

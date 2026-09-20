@@ -5,6 +5,13 @@ import type { CombatBus } from './events';
  *  BOTH the recruit factories and the combat ones (Slaughter / Rally / Echo grants) need it. */
 export const ALE_IDS: readonly string[] = ['wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack'];
 
+/** The DAMAGE-DEALT meter family ("When this deals N damage, …"): passive markers the combat damage site reads
+ *  (`noteDamageDealt` in simulate.ts) — one per-instance `damageDealt` tally that persists across combats, paid
+ *  out by the marker's own body every time it crosses a multiple of `params.every`. Han Gover pays Ales;
+ *  Goldvein (2026-09-19) banks Gold for next turn, once per combat. Every consumer of the tally (carry-back, the
+ *  step-counter badge, snapshots) keys off THIS set, not a single factory id. */
+export const DAMAGE_METER_DOS: readonly string[] = ['dealtDamageAleMeter', 'dealtDamageGoldNextTurn'];
+
 export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral' | 'kobold' | 'dwarf' | 'celestial' | 'spirit'; // 'spirit' + 'celestial': set 3's new tribes (owner 2026-09-09)
 /** Every tribe, as a list — complete BY CONSTRUCTION (the `Record<Tribe, true>` fails to compile when a tribe is
  *  added to the union and not here). The per-tribe "played this turn" map is built over it (2026-09-18). */
@@ -834,7 +841,11 @@ export type EffectFactoryId =
   // ── Set 3 Neutrals, owner handoff 2026-09-18 ──
   | 'endOfTurnBuffEndsPerUnusedEquipment' // Shredder: End of Turn — the left-most + right-most minions gain +A/+H per held Equipment whose charge went unused this turn (recruit; live text)
   | 'equipmentCalibrate' // Calibration Wrench (Calibration Master's Equipment): the next N Equipment activations, other than the Wrench's own, are Amplified (recruit)
-  | 'equipmentActivatedBuffSelf'; // Rig: whenever you activate an Equipment, this board body gains +A/+H (recruit)
+  | 'equipmentActivatedBuffSelf' // Rig: whenever you activate an Equipment, this board body gains +A/+H (recruit)
+  // ── Set 3 Neutrals, owner handoff 2026-09-19 ──
+  | 'onDamagedReflectRandomEnemies' // Yeti: the FIRST time this takes damage each combat, deal that amount to N distinct random enemies (combat)
+  // ── Set 3 Kobolds, owner handoff 2026-09-19 ──
+  | 'dealtDamageGoldNextTurn'; // Goldvein: "When this deals N damage, gain G Gold next turn. (Once per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body (`grantBonusGold`), latched once per combat on the instance (`goldMeterFired`); gilded doubles G (combat)
 
 export interface EffectDef {
   on: GameEvent;
@@ -2382,6 +2393,13 @@ export interface Minion {
   /** Gryphon: how many free refreshes it has banked this combat — it grants one per hit up to a cap
    *  (so a Taunt soaking many hits doesn't roll unlimited refreshes). Absent = 0. */
   grantedRefresh?: number;
+  /** Yeti (Set 3 Neutral, 2026-09-19): its once-per-combat reflection has fired. On the INSTANCE like Gryphon's
+   *  `grantedRefresh` / Candleback's `rubyRecvTick`, and deliberately NOT on the Rise / Rebirth reset list — a
+   *  returned body is the same combat instance, so "once per combat" stays spent. A fresh Minion per fight. */
+  reflectFired?: boolean;
+  /** Goldvein (Set 3 Kobold, 2026-09-19): its once-per-combat Gold payout has fired. Same convention as `reflectFired`:
+   *  on the instance, NOT reset by Rise / Rebirth (a returned body is the same combat instance). */
+  goldMeterFired?: boolean;
   /** Sergeant: accumulated HP bonus on its Deathrattle (grows each time Sergeant gains Attack in
    *  combat). Applied on top of the base params.health when the Deathrattle fires. Absent = 0. */
   hpGrantBonus?: number;

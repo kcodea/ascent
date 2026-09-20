@@ -144,6 +144,10 @@ export const SET3_DWARVES: CardDef[] = [
     // `grantToHand`, so the card flies to hand in the replay and lands in the real hand at settle. Gilded pays
     // 2 Ales per crossing and doubles nothing else. Progress shows on the step-counter badge (N/40), the
     // Avenge-style meter every every-N card wears (owner ruling 2026-09-11: trackers, not fractions in the text).
+    // "(Max 2 per hit)" (owner 2026-09-19): ONE damage event pays at most 2 Ales however many thresholds it
+    // crosses — plain: two crossings pay 2, a third pays nothing; gilded: the first crossing's 2 fill the cap and
+    // a second crossing in the same hit pays nothing. The meter still advances by the FULL damage, so the
+    // uncredited crossings are not owed later — the next 40 dealt pays again as normal.
     id: 'dw3_hangover',
     name: 'Han Gover',
     tribe: 'dwarf',
@@ -153,7 +157,7 @@ export const SET3_DWARVES: CardDef[] = [
     health: 7,
     keywords: [],
     effects: [{ on: 'passive', do: 'dealtDamageAleMeter', params: { every: 40, count: 1 } }],
-    text: 'When this deals **40 damage**, get an **Ale**.',
-    goldenText: 'When this deals **40 damage**, get **2 Ales**.',
+    text: 'When this deals **40 damage**, get an **Ale**. (Max 2 per hit)',
+    goldenText: 'When this deals **40 damage**, get **2 Ales**. (Max 2 per hit)',
   },
 ];

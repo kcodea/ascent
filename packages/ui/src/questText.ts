@@ -219,7 +219,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         case 'runeCounterpoint':
           return 'When a friendly minion dies, your left-most minion attacks immediately';
         case 'runeOverflow':
-          return `Whenever you summon a minion that does not fit, give your minions +${r.amount ?? 4}/+${r.amount ?? 4} permanently`;
+          return `Overflow: give your minions +${r.amount ?? 4}/+${r.amount ?? 4} permanently`;
         case 'runeFoodChain':
           return "Start of Combat: the first minion you summon gains your left-most Demon's stats this combat";
         case 'runeAttackingGems':

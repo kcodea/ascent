@@ -2582,6 +2582,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Spear Warden's passive marker — never dispatched; `noteCardDeath` (simulate.ts) reads it at the death site. */
   cardDeathScaler: () => {},
   dealtDamageAleMeter: () => {}, // Han Gover: a passive marker — the damage site (`noteDamageDealt`) does the work
+  dealtDamageGoldNextTurn: () => {}, // Goldvein (2026-09-19): the same meter, a Gold-next-turn body — `noteDamageDealt` pays it
 
   /** Set 2 — Alchemist Brisbane (Echo half): on death, buff your Rubies +atk/+hp (× golden), carried back. */
   // ── ARENA-MIGRATED (Step 3, Ruby family): one body in arena.ts serves both phases.
@@ -3246,6 +3247,28 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (!self.keywords.includes('EG')) {
       self.permaGain = { attack: (self.permaGain?.attack ?? 0) + a, health: self.permaGain?.health ?? 0 };
     }
+  },
+
+  /** Set 3 — Yeti (owner handoff 2026-09-19): the FIRST time THIS minion takes damage each combat, deal the SAME
+   *  amount to `count` DISTINCT random living enemies (fewer when fewer stand; one enemy → just that one). Each
+   *  hit goes through `ctx.damage`, the normal path — a Ward pops, Immune shrugs it, on-damaged watchers wake,
+   *  a kill resolves at once with the standing Echo-before-Rise order, and Yeti is the credited source. The latch
+   *  is `reflectFired` on the instance (like Gryphon's cap), so a Risen / Reborn Yeti does NOT re-arm. Fires even
+   *  on the hit that kills it (the guard is `dead`, not Health — the body is still resolving). Golden doubles
+   *  nothing: the owner's text has no gilded rider. Reads `payload.amount` (added to `onDamaged` for it). */
+  onDamagedReflectRandomEnemies: (ctx, self, params, payload) => {
+    const { minion, amount } = payload as MinionPayload & { amount?: number };
+    if (self.dead || minion !== self || self.reflectFired) return;
+    const dmg = amount ?? 0;
+    if (dmg <= 0) return;
+    self.reflectFired = true;
+    const foe: Side = self.side === 'player' ? 'enemy' : 'player';
+    const pool = ctx.living(foe);
+    if (pool.length === 0) return;
+    const targets: Minion[] = [];
+    for (let i = 0; i < num(params.count, 2) && pool.length > 0; i++) targets.push(pool.splice(ctx.rng.int(pool.length), 1)[0]!);
+    ctx.log({ type: 'sc', source: self.uid, text: `${self.name} throws the hit back`, cast: true });
+    for (const t of targets) ctx.damage(t, dmg, false, false, self);
   },
 
   /** Set 2 — Faultline Scrapper: when THIS minion takes damage, give your Rubies +atk/+hp (× golden) — raises

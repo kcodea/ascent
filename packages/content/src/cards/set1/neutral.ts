@@ -99,8 +99,8 @@ export const NEUTRAL: CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'summonOverflow', do: 'overflowBuffRandom', params: { attack: 2, health: 2, count: 2, improveEvery: 5 } }],
-    text: "When you summon a minion that doesn't fit, Engrave 2 friendly minions **+2/+2**. Improves by **+2/+2** every 5 overflows.",
-    goldenText: "When you summon a minion that doesn't fit, Engrave 2 friendly minions **+4/+4**. Improves by **+4/+4** every 5 overflows.",
+    text: '**Overflow:** Engrave 2 friendly minions **+2/+2**. Improves by **+2/+2** every 5 overflows.',
+    goldenText: '**Overflow:** Engrave 2 friendly minions **+4/+4**. Improves by **+4/+4** every 5 overflows.',
   },
   {
     // Battlecry doubler (recruit). While on your board, each Battlecry minion you play fires its

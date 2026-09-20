@@ -98,7 +98,20 @@ export function useMilestoneBadgeFx(
     if (uid && tier >= FINAL_TIER) markMilestoneReached(uid, stat);
     const active = !!uid && (tier >= FINAL_TIER || hasMilestoneReached(uid, stat));
     if (active && uid && !disposeRef.current) {
-      disposeRef.current = startBadgeLoop(stat, uid, () => centreOf(getBadge()));
+      // The badge to ride each frame. While THIS card is being dragged, its own badge (`getBadge`) is the
+      // parked, dimmed original frozen at the drag-origin slot — so follow the live badge on the floating
+      // `.dragcard` clone instead, and the effect rides the card as it's dragged rather than sticking where it
+      // was picked up. The clone is a uid-less `<Card>` render (Recruit.tsx), so it never starts its own loop;
+      // and only one `.dragcard` exists at a time, so when this card is `.dragsrc` that clone IS this card.
+      const cloneSel = `.dragcard .card ${stat === 'attack' ? '.badge.atk' : '.badge.hp'}`;
+      const at = (): { x: number; y: number } | null => {
+        const own = getBadge();
+        if (own?.closest('.card')?.classList.contains('dragsrc')) {
+          return centreOf(document.querySelector<HTMLElement>(cloneSel));
+        }
+        return centreOf(own);
+      };
+      disposeRef.current = startBadgeLoop(stat, uid, at);
     } else if (!active && disposeRef.current) {
       disposeRef.current();
       disposeRef.current = null;

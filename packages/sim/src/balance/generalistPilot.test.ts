@@ -67,7 +67,10 @@ describe('competence scenarios', () => {
   });
 
   it('(b) a triple one buy away: takes it', () => {
-    const base = run({ embers: 3, board: [body('a', 'stray'), body('b', 'stray')], hand: [] }, 12, 'drakko', 'set1');
+    // Wave 2, not 1 (2026-09-19, the per-wave board model): every recorded wave-1 board is one or two bodies, so
+    // the model rates a THIRD body at wave 1 as a top-decile board and the 2/1 beside the third copy ties the
+    // triple line within half a point. From wave 2 on the question is unambiguous and the pilot takes it.
+    const base = run({ embers: 3, wave: 2, board: [body('a', 'stray'), body('b', 'stray')], hand: [] }, 12, 'drakko', 'set1');
     const start: RunState = { ...base, shop: [{ uid: 'o1', cardId: 'stray' }, ...base.shop.slice(1)] };
     const { run: end, actions } = playTurn(start, pilot());
     expect(actions[0], 'the third copy was not the first thing bought').toEqual({ type: 'buy', uid: 'o1' });

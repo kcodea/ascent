@@ -7830,7 +7830,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    and is invisible while still being in the DOM (which is exactly how it first shipped here). The rail takes the
    top strip and the bar below is offset by its height — one variable, so the two cannot drift apart. It also
    does NOT wrap: a second line would change that height and put the bar back on top of it. */
-.fxwb { --fxwb-pipe-h: 39px; }
+.fxwb { --fxwb-pipe-h: 0px; } /* the COMPOSE→SHIP pipeline strip was removed (owner 2026-09-19); 0 reclaims its band */
 /* `.fxwb .fxwb-top` (0,2,0), not a bare `.fxwb-top` (0,1,0): the original rule sets `top: 0` and is defined
    LATER in this file, so an equal-specificity override loses on order and the rail stays buried. */
 .fxwb .fxwb-top { top: var(--fxwb-pipe-h); }
@@ -8315,10 +8315,13 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   display: grid;
   grid-template-columns: var(--fxwb-layers-w) minmax(0, 1fr) var(--fxwb-props-w);
   grid-template-rows: auto minmax(0, 1fr) auto;
+  /* The Editor (props) column spans the middle AND bottom rows, so it runs full-height down the right side;
+     the Timeline is therefore cut off at the Editor's left edge rather than spanning the full width (owner
+     2026-09-19). */
   grid-template-areas:
     "top    top    top"
     "layers stage  props"
-    "tl     tl     tl";
+    "tl     tl     props";
   min-height: 0;
   overflow: hidden;      /* clip rather than ever spill a horizontal scrollbar onto the page body */
   pointer-events: none;  /* the stage stays click-through; each real region opts back in below */
@@ -8371,6 +8374,19 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    paints them — NO bare keyword cursor here (CLAUDE.md's custom-cursor rule). */
 .fxwb-cmdk { font-weight: 800; letter-spacing: 0.04em; }
 .fxwb-timeline-toggle { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ---- SIDE-PANEL COLLAPSE (Layers left / Editor right) ---------------------------------------------------
+   Owner 2026-09-19: both side panels collapse to a thin strip, the same gesture as the Timeline's toggle.
+   Collapsing narrows the grid column (override the width var on the grid) and hides the panel body; only the
+   toggle strip remains. Each panel leads with a small header holding its ◂/▸ toggle. */
+.fxwb-grid.layers-collapsed { --fxwb-layers-w: 42px; }
+.fxwb-grid.props-collapsed { --fxwb-props-w: 42px; }
+.fxwb-region-head { display: flex; align-items: center; margin-bottom: 2px; }
+.fxwb-region-head-right { justify-content: flex-end; }
+.fxwb-region-toggle { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.fxwb-layers-region.collapsed, .fxwb-props-region.collapsed { padding: 8px 4px; gap: 0; overflow: hidden; }
+.fxwb-layers-region.collapsed .fxwb-region-toggle,
+.fxwb-props-region.collapsed .fxwb-region-toggle { padding: 5px 3px; }
 
 
 /* Shape param control: a built-ins/imports picker, an Import (PNG/SVG) button, the alpha hint, and an
@@ -8425,6 +8441,19 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   font-size: 12px; font-weight: 700;
 }
 .fxwb-def-nameinput::placeholder { color: #9a8c74; font-weight: 400; }
+
+/* The def section relocated into the top bar (owner 2026-09-19): Copy def + name + Save in ONE compact
+   horizontal group, and the (rare) warnings/notes drop below the bar instead of stretching the top row. */
+.fxwb-def-top { position: relative; display: flex; align-items: center; gap: 6px; margin-left: 6px; }
+.fxwb-def-top .fxwb-copy { margin: 0; white-space: nowrap; }
+.fxwb-def-top .fxwb-def { flex-direction: row; align-items: center; gap: 6px; }
+.fxwb-def-top .fxwb-def-nameinput { flex: 0 0 auto; width: 150px; }
+.fxwb-def-top .fxwb-def-variantwarn,
+.fxwb-def-top .fxwb-seedbake,
+.fxwb-def-top .fxwb-def-note,
+.fxwb-def-top .fxwb-def-err {
+  position: absolute; top: 100%; right: 0; margin-top: 4px; max-width: 340px; z-index: 6;
+}
 .fxwb-def-nameinput:focus { outline: none; border-color: #c8a45c; }
 .fxwb-def-save {
   flex: 0 0 auto; padding: 6px 12px; border-radius: 6px; border: 2px solid #c8a45c;
@@ -8797,9 +8826,17 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 
 /* FX LIBRARY BROWSER — a full-screen overlay above the workbench. Deliberately opaque: the workbench rail
    underneath is a competing wall of controls, and browsing wants a quiet surface. */
+/* Browse-all opens as a big CENTERED WINDOW over a dim scrim (owner 2026-09-19), not full-screen; click the
+   scrim to close. */
+.fxlib-scrim {
+  position: fixed; inset: 0; z-index: 60; display: grid; place-items: center;
+  background: rgba(0, 0, 0, 0.58);
+}
 .fxlib {
-  position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column;
+  width: min(1180px, 92vw); height: min(80vh, 820px); display: flex; flex-direction: column;
   background: #100d08; color: #efe7db; font-family: var(--font-ui);
+  border: 1px solid #4a4136; border-radius: 12px; overflow: hidden;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
 }
 .fxlib-top {
   display: flex; align-items: center; gap: 8px; padding: 10px 14px;

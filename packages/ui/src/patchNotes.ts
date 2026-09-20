@@ -56,6 +56,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-19',
+    label: 'Per-tier milestone badge colours',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "Milestone stat badges now wear their own colour at each tier: the disc behind the frame — and the buffed digit on the top frames — shifts as a stat climbs past 50, 150, 500, 2000 and 5000, instead of one Attack colour and one Health colour across every tier.",
+      },
+    ],
+  },
+  {
+    date: '2026-09-19',
     label: 'Overflow keyword, Yeti, Goldvein, Han Gover cap',
     changes: [
       {

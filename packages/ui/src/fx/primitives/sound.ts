@@ -49,7 +49,12 @@ const PLAYBACK_SPECS = {
   },
   startOffset: {
     kind: 'slider', label: 'Start offset', group: 'Timing', min: 0, max: 2000, step: 10, default: 0,
-    help: 'Skip this many ms into the clip before it starts.',
+    help: 'Skip this many ms into the clip before it starts. Drag the green line on the waveform to set it.',
+  },
+  endOffset: {
+    kind: 'slider', label: 'End offset', group: 'Timing', min: 0, max: 2000, step: 10, default: 0,
+    help: 'Stop this many ms before the clip\'s end (0 = play to the end). The clip plays the window between the '
+      + 'Start and End lines on the waveform — drag the red line to set it.',
   },
   delay: {
     kind: 'slider', label: 'Delay', group: 'Timing', min: 0, max: 2000, step: 10, default: 0,
@@ -106,7 +111,7 @@ class SoundInstance implements FxInstance<SoundParams> {
     const p = this.params;
     const h = playFxSound(p.clip, {
       gain: p.gain, rate: p.pitch, fadeInMs: p.fadeIn, fadeOutMs: p.fadeOut,
-      loop: p.loop, startOffsetMs: p.startOffset, reverse: p.reverse, delayMs: p.delay,
+      loop: p.loop, startOffsetMs: p.startOffset, endOffsetMs: p.endOffset, reverse: p.reverse, delayMs: p.delay,
       bus: p.bus as BusName, gainVar: p.gainVar, pitchVar: p.pitchVar,
       // The whole param bag carries the Filter Lab knobs too; playFxSound reads the filter keys off it.
       filterParams: this.params as Record<string, unknown>,

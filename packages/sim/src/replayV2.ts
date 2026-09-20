@@ -9,10 +9,12 @@
  * KEEP THIS MODULE OFF THE REDUCER PATH — it is capture/replay metadata, not run state. Nothing in
  * reducer.ts / recruit.ts may import it (it imports THEM, one-way).
  */
-import { combatSide, type BoardMinion, type CombatResult, type Keyword, type MinionSnapshot } from '@game/core';
+import { combatSide, type BoardMinion, type CombatResult, type EnemyScalers, type Keyword, type MinionSnapshot } from '@game/core';
+import { CARD_INDEX } from '@game/content';
 import type { Action, RunMode, RunState } from './state';
 import type { BoardSnapshot } from './snapshot';
-import { nextOpponent } from './reducer';
+import { nextOpponent, playerBoardMinions, playerCombatSideState, playerCombatConfig, questCombatMods } from './reducer';
+import { defIsTribe } from './recruit';
 import { pairRunLobby, type RunLobby } from './lobby/runLobby';
 import { poolOf } from './cardPool';
 import { boardStrength } from './boardModel';
@@ -388,24 +390,119 @@ export function boardPowerOf(view: Pick<ShopView, 'board'>, wave: number): numbe
 /**
  * APPROXIMATE odds input for a recording whose combat frame carries no stamped `odds` (made before
  * 2026-09-19). The exact `oddsInput` is stripped at capture (the §2 drift class), so this rebuilds the matchup
- * from what the frame DOES carry — both starting rosters (`initial`: the instantiated boards before the first
- * Start-of-Combat event) — with neutral side states at the recorded tier. Run-level scalers (spell power,
- * tribe auras, quest mods) are not recoverable, so the number is an estimate and the viewer marks it `~`.
+ * from what the recording DOES carry:
+ *
+ *  - Both starting rosters from `initial` (the instantiated boards before the first Start-of-Combat event):
+ *    stats, keywords, gilding — post-End-of-Turn, with the banked keyword grants and Open the Gates' Imps in.
+ *  - The PLAYER'S run-level side state from the round's last shop frame: a `ShopView` is the RunState minus a
+ *    few engine-only keys, so the SAME builder the real fight used (`playerCombatSideState`: runes, quest mods,
+ *    spell power, auras, hand, hero power — ~45 scalers) rebuilds it verbatim. This was the bug (owner report
+ *    2026-09-19): the first backfill fed a NEUTRAL side, so a Beast build's Rune of Beastial Swarm / Rune of
+ *    Warding never fired in the estimate and recorded wins read ~0%.
+ *  - The player's per-instance carries (grafted effects, Bloodlust, Imp banks, buff breakdowns, alignment)
+ *    from the shop frame's board, matched onto the `initial` bodies by position + card id.
+ *  - The ENEMY'S side from the frame's `enemyScalers` (spell power, Imp aura, Ruby strength, …) at the paired
+ *    seat's scouted tier. A rival seat's runes / quest mods and its Undead / Beast / Attachment auras are not
+ *    in the recording (its snapshot lives in the opponent pool, not the replay), so the enemy side is the
+ *    weaker approximation — the number stays an estimate and the viewer marks it `~`.
+ *
+ * `initial` already carries the LIVE auras the simulator folds into the player's starting bodies (Imp aura,
+ * Undead Lantern) — those are backed out before the probe re-applies them. Fleeting Vigor is the reverse:
+ * `enterCombat` rewinds it out of `initial` into opening events, so the bank still on the shop frame is put back.
  * New recordings carry the exact figure and never come through here.
  */
-export function oddsInputFromCombatFrame(frame: Pick<CombatFrame, 'initial'>, view: Pick<ShopView, 'tier' | 'setId'> | null): CombatOddsInput {
-  const toMinion = (m: MinionSnapshot): BoardMinion => ({
-    cardId: m.cardId, attack: m.attack, health: m.health, keywords: [...m.keywords], golden: m.golden,
-  });
+export function oddsInputFromCombatFrame(
+  frame: Pick<CombatFrame, 'initial' | 'enemyScalers' | 'opponent'>,
+  view: ShopView | null,
+): CombatOddsInput {
   const poolIds = poolOf(view ?? {}).all.map((c) => c.id);
   const tier = view?.tier ?? 1;
-  return {
-    player: frame.initial.player.map(toMinion),
-    enemy: frame.initial.enemy.map(toMinion),
-    playerState: combatSide({ tier, poolIds }),
-    enemyState: combatSide({ tier, poolIds }),
-    config: {},
-  };
+  if (!view) {
+    // No shop frame for the round (a partial recording) — the neutral estimate is all there is.
+    const toMinion = (m: MinionSnapshot): BoardMinion => ({ cardId: m.cardId, attack: m.attack, health: m.health, keywords: [...m.keywords], golden: m.golden ?? false });
+    return {
+      player: frame.initial.player.map(toMinion),
+      enemy: frame.initial.enemy.map(toMinion),
+      playerState: combatSide({ tier, poolIds }),
+      enemyState: combatSide({ tier, poolIds }),
+      config: {},
+    };
+  }
+  // The view is `RunState` minus `SHOP_VIEW_EXCLUDED_KEYS`; the player-side builders read none of those keys
+  // (pinned in `replayOdds.test.ts`), so the view stands in for the run.
+  const run = view as unknown as RunState;
+  const playerState = playerCombatSideState(run);
+  const twilightMult = run.questFlags?.runeTwilight ? 2 : 1;
+  const fleeting = run.fleetingVigor && (run.fleetingVigor.attack !== 0 || run.fleetingVigor.health !== 0)
+    ? { attack: run.fleetingVigor.attack * twilightMult, health: run.fleetingVigor.health * twilightMult }
+    : null;
+  const player = overlayRoster(frame.initial.player, playerBoardMinions(run.board), (m, snap, fromBoard) => {
+    // Back out the live auras `simulate` applied to the starting bodies (it re-applies them from the side state).
+    const def = CARD_INDEX[snap.cardId];
+    if (def?.imp) { m.attack = Math.max(0, m.attack - playerState.impAtk); m.health -= playerState.impHp; }
+    if (defIsTribe(def, 'undead') || m.universalTribe) { m.attack = Math.max(0, m.attack - playerState.undeadAtk); m.health -= playerState.undeadHp; }
+    // Fleeting Vigor covered the run board only — not the Imps appended after it.
+    if (fleeting && fromBoard) { m.attack += fleeting.attack; m.health += fleeting.health; }
+  });
+  const foe = replayFoeSeat(view, frame.opponent);
+  // `enemyScalers` grew field by field (2026-08 → 09); an older recording carries a subset, so every read
+  // defaults — the shape on disk is whatever the build that recorded it knew.
+  const es: Partial<EnemyScalers> = frame.enemyScalers ?? {};
+  const pair = (p: { attack?: number; health?: number } | undefined): { attack: number; health: number } => ({ attack: p?.attack ?? 0, health: p?.health ?? 0 });
+  const enemyState = combatSide({
+    tier: foe?.intel?.tier ?? tier,
+    poolIds,
+    spellPowerAtk: pair(es.spellPower).attack, spellPowerHp: pair(es.spellPower).health,
+    spellsThisTurn: es.spellsThisTurn ?? 0, beastsPlayed: es.beastsPlayed ?? 0, deathrattles: es.deathrattles ?? 0,
+    conductorBuff: es.conductorBuff ?? 0, spellsCast: es.spellsCast ?? 0, rubyCasts: es.rubyCasts ?? 0,
+    spiritsPlayed: es.spiritsPlayed ?? 0, tribesPlayed: es.tribesPlayed ?? {}, revelerX: es.revelerX ?? 0,
+    impAtk: pair(es.impAura).attack, impHp: pair(es.impAura).health,
+    fodderConsumedAtk: pair(es.fodderConsumed).attack, fodderConsumedHp: pair(es.fodderConsumed).health,
+    undeadBuyAtk: es.undeadBuyAtk ?? 0, cardBuffs: es.cardBuffs ?? {}, alesLastTurn: es.alesLastTurn ?? 0,
+    lastSpellCastId: es.lastSpellCastId, rememberedSpellIds: [...(es.rememberedSpellIds ?? [])],
+    spellEscalation: pair(es.spellEscalation), growthBonus: es.growthBonus ?? 0, rubyBonus: pair(es.rubyBonus),
+    // The rival's hero power is the one run-level enemy scaler the recording names (Atrius' Possession, …).
+    questMods: questCombatMods({ heroId: frame.opponent.heroId, spellsCast: es.spellsCast ?? 0 } as RunState),
+  });
+  const enemy = overlayRoster(frame.initial.enemy, [], () => {});
+  return { player, enemy, playerState, enemyState, config: playerCombatConfig(run) };
+}
+
+/** The lobby seat the player was paired with for this fight, for its scouted intel — matched by hero + label
+ *  (the seat's pairing is not stored on the frame). Null for a non-lobby run / an unmatched opponent. */
+function replayFoeSeat(view: ShopView, opponent: CombatFrame['opponent']): RunLobby['seats'][number] | null {
+  const seats = view.lobby?.seats ?? [];
+  return seats.find((s) => s.id !== 's0' && s.heroId === opponent.heroId && s.label === opponent.author)
+    ?? seats.find((s) => s.id !== 's0' && s.heroId === opponent.heroId)
+    ?? null;
+}
+
+/**
+ * The probe's roster for one side: the `initial` bodies (what actually entered the fight, End of Turn included —
+ * stats, keywords, gilding and the per-instance tallies the snapshot carries) laid over the run board's
+ * per-instance fields the snapshot does NOT carry (grafted effects, Bloodlust, Imp banks, alignment, …), matched
+ * by position when the card id agrees, else by the next unused board card of that id. A body with no match (an
+ * Imp Open the Gates appended, a token) is built from the snapshot alone. `adjust` runs per body with
+ * `fromBoard` = matched.
+ */
+function overlayRoster(
+  snaps: readonly MinionSnapshot[],
+  board: readonly BoardMinion[],
+  adjust: (m: BoardMinion, snap: MinionSnapshot, fromBoard: boolean) => void,
+): BoardMinion[] {
+  const used = new Set<number>();
+  return snaps.map((snap, i) => {
+    let bi = board[i]?.cardId === snap.cardId && !used.has(i) ? i : -1;
+    if (bi < 0) bi = board.findIndex((b, j) => !used.has(j) && b.cardId === snap.cardId);
+    const base = bi >= 0 ? board[bi]! : null;
+    if (bi >= 0) used.add(bi);
+    // The snapshot's own fields win where it carries one (they are post-End-of-Turn); its identity fields
+    // (`uid`, `name`, `tribe`) are combat-instance data a BoardMinion does not hold.
+    const defined = Object.fromEntries(Object.entries(snap).filter(([k, v]) => v !== undefined && k !== 'uid' && k !== 'name' && k !== 'tribe'));
+    const m: BoardMinion = { ...(base ?? {}), ...defined, cardId: snap.cardId, attack: snap.attack, health: snap.health, keywords: [...snap.keywords], golden: snap.golden ?? false };
+    adjust(m, snap, base !== null);
+    return m;
+  });
 }
 
 /** The metrics drawer's three numbers, per round (§7.4). A pure fold over recorded frames — it cannot

@@ -3976,22 +3976,18 @@ function endRecruitTurn(s: RunState): void {
 }
 
 /**
- * THE PLAYER'S FULL COMBAT SIDE — the board mapped into `BoardMinion`s with alignment locked and every
- * per-instance carry, the pending Start-of-Combat banks spent into it (Fleeting Vigor, banked keywords, Open
- * the Gates' Imps), the run-level `CombatSideState` (~45 scalers) and the player-only one-fight `CombatConfig`.
- * MUTATES `s` (the banks are spent), so it must run inside a reducer dispatch and exactly once per fight.
- *
- * Extracted from `faceOmen` (balance bot B1, 2026-09-15) so BOTH seats of a self-play fight are prepared by
- * the one builder the shipped player fight uses — the lobby's non-player seats otherwise enter combat through
- * `sideFromSnapshot` (fewer scalers, no alignment, no pending Start-of-Combat banks) or a bare tier-only side.
+ * The player's run board mapped into combat `BoardMinion`s — alignment locked, every per-instance carry
+ * (Bloodlust, grafted effects, Imp banks, buff breakdowns, …) threaded. PURE (no banks spent): the shared
+ * half of `preparePlayerCombatSide`, also used by the replay viewer's odds backfill (`oddsInputFromCombatFrame`,
+ * 2026-09-19) so an OLD recording's estimate fights with the same per-instance fields the real fight had.
  */
-function preparePlayerCombatSide(s: RunState): PreparedCombatSide {
+export function playerBoardMinions(board: readonly BoardCard[]): BoardMinion[] {
   // CELESTIAL: alignment LOCKS here. The recruit board's live centring is stamped onto each body as it
   // enters combat, and combat never recomputes it — deaths don't re-centre the line, so a Celestial
   // fights the half of the sky you built it into (owner ruling 2026-08-03). Computed once for the whole
   // board rather than per-minion, so it costs one pass regardless of board size.
-  const playerAligns = alignmentsOf(s.board);
-  const player: BoardMinion[] = s.board.map((b, bi) => ({
+  const playerAligns = alignmentsOf(board);
+  return board.map((b, bi) => ({
     cardId: b.cardId,
     attack: b.attack,
     health: b.health,
@@ -4032,6 +4028,20 @@ function preparePlayerCombatSide(s: RunState): PreparedCombatSide {
     ...(b.allTribes ? { universalTribe: true } : {}), // Anomaly Reactor: "All" types → universal in combat
     buffs: b.buffs, // recruit-phase buff breakdown → carried into combat so the inspect panel itemizes it
   }));
+}
+
+/**
+ * THE PLAYER'S FULL COMBAT SIDE — the board mapped into `BoardMinion`s with alignment locked and every
+ * per-instance carry, the pending Start-of-Combat banks spent into it (Fleeting Vigor, banked keywords, Open
+ * the Gates' Imps), the run-level `CombatSideState` (~45 scalers) and the player-only one-fight `CombatConfig`.
+ * MUTATES `s` (the banks are spent), so it must run inside a reducer dispatch and exactly once per fight.
+ *
+ * Extracted from `faceOmen` (balance bot B1, 2026-09-15) so BOTH seats of a self-play fight are prepared by
+ * the one builder the shipped player fight uses — the lobby's non-player seats otherwise enter combat through
+ * `sideFromSnapshot` (fewer scalers, no alignment, no pending Start-of-Combat banks) or a bare tier-only side.
+ */
+function preparePlayerCombatSide(s: RunState): PreparedCombatSide {
+  const player = playerBoardMinions(s.board);
   // Fleeting Vigor — a one-shot Start-of-Combat buff banked last shop: pump the player's COMBAT board
   // (not the run board, so it's gone after this fight), then spend it. Applied before the odds sims so
   // every simulation sees the same buffed board. Captured so we can telegraph it once combat resolves —
@@ -4131,14 +4141,24 @@ function preparePlayerCombatSide(s: RunState): PreparedCombatSide {
   // is unfightable (a served board referencing a card this build removed → `instantiate` throws) — caught
   // below. Odds: re-simulate the same two boards on independent seeds (a separate ODDS stream, so they're
   // reproducible and don't disturb the real combat RNG). ~1000 sims keeps the margin to ~±1.5%.
+  const playerState = playerCombatSideState(s);
+  const config = playerCombatConfig(s);
+  return { board: player, state: playerState, config, fleeting, fleetingCovered, twilightMult };
+}
+
+/**
+ * The PLAYER side's run-level combat context — one symmetric `CombatSideState` (~45 scalers), built from the
+ * run state and shared by the real fight + the odds probe. PURE: reads `s`, spends nothing. Reads none of the
+ * engine-only keys a replay `ShopView` strips (`SHOP_VIEW_EXCLUDED_KEYS`), so the replay viewer's odds backfill
+ * can rebuild an old recording's player side from its last shop frame (pinned by `replayOdds.test.ts`).
+ */
+export function playerCombatSideState(s: RunState): CombatSideState {
   // Pack Leader: Beasts you PLAYED this turn (frozen for combat), threaded into simulate like spellsThisTurn.
   // ONE per-tribe map (2026-09-18, Bicycle Bob): the Beast and Spirit scalars are read off it, never re-counted.
   const tribesPlayed = tribesPlayedThisTurn(s);
   const beastsPlayed = tribesPlayed.beast ?? 0;
   const spiritsPlayed = tribesPlayed.spirit ?? 0; // Kindled Sprite
-  // The PLAYER side's run-level combat context — one symmetric `CombatSideState`, built once from the live
-  // RunState and shared by the real fight + the 1000-sim odds probe.
-  const playerState: CombatSideState = combatSide({
+  return combatSide({
     // The run's PINNED set — every random pick in combat narrows to this. Without it a Set-1 run could be
     // handed a Set-2 card (owner report 2026-07-27: Badgington's Slaughter, Sea Urchin's Discover). `all`
     // rather than `buyable`, because a legitimate pick can be a non-buyable card of the set.
@@ -4198,15 +4218,17 @@ function preparePlayerCombatSide(s: RunState): PreparedCombatSide {
     questMods: questCombatMods(s),
     pendingQuests: buildPendingCombatQuests(s),
   });
-  // Player-only one-fight rune overrides.
-  const config: CombatConfig = {
+}
+
+/** Player-only one-fight rune overrides (Forthcoming strike, a doubled Rally, the tutorial's forced order). Pure. */
+export function playerCombatConfig(s: RunState): CombatConfig {
+  return {
     playerAttacksFirst:
       (s.attackFirstNext ?? false) || (s.mode === 'tutorial' && !!s.tutorialAttackFirst?.[s.wave - 1]), // Forthcoming strike, or a tutorial round that forces the player to swing first
     forceEnemyFirstTargetCard:
       s.mode === 'tutorial' ? (s.tutorialForceEnemyTarget?.[s.wave - 1] || undefined) : undefined,
     playerRallyDouble: s.rallyDoubleNext ?? false,
   };
-  return { board: player, state: playerState, config, fleeting, fleetingCovered, twilightMult };
 }
 
 /**

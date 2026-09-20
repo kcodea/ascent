@@ -140,8 +140,12 @@ describe('legacy defect (c): lobby combat builds a TIER-ONLY combat context; the
 
   it('the player\'s reducer fight (`faceOmen`) passes the run-level scalers the lobby drops', () => {
     const reducer = src('reducer.ts');
-    const start = reducer.indexOf('const playerState: CombatSideState = combatSide({');
-    expect(start).toBeGreaterThan(0);
+    // The builder is `playerCombatSideState` (extracted from `preparePlayerCombatSide` on 2026-09-19 so the
+    // replay viewer's odds backfill can rebuild a recording's player side through the same code).
+    const fn = reducer.indexOf('export function playerCombatSideState(');
+    expect(fn).toBeGreaterThan(0);
+    const start = reducer.indexOf('return combatSide({', fn);
+    expect(start).toBeGreaterThan(fn);
     const block = reducer.slice(start, reducer.indexOf('});', start));
     for (const field of ['poolIds', 'spellsCast', 'spellPowerAtk', 'spellPowerHp', 'rubyBonus', 'tribes', 'cardBuffs', 'handSpellIds', 'questMods', 'pendingQuests', 'handMinions']) {
       expect(block, field).toContain(`${field}:`);

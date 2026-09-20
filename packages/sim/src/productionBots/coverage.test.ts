@@ -391,8 +391,11 @@ describe('reveals are audited by effect, not by action name', () => {
 describe('combatContext mirrors the reducer’s faceOmen preparation', () => {
   it('every combatSide key the reducer sets is mirrored — a new scaler there fails here', () => {
     const src = readFileSync(join(__dirname, '../reducer.ts'), 'utf8');
-    const start = src.indexOf('const playerState: CombatSideState = combatSide({');
-    expect(start).toBeGreaterThan(0);
+    // The builder is `playerCombatSideState` (extracted from `preparePlayerCombatSide` on 2026-09-19).
+    const fn = src.indexOf('export function playerCombatSideState(');
+    expect(fn).toBeGreaterThan(0);
+    const start = src.indexOf('return combatSide({', fn);
+    expect(start).toBeGreaterThan(fn);
     const end = src.indexOf('});', start);
     const block = src.slice(start, end);
     const keys = [...block.matchAll(/^\s+([A-Za-z0-9_]+):/gm)].map((m) => m[1]!);

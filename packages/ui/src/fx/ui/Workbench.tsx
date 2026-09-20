@@ -2959,7 +2959,13 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         <div className="fxwb-top">
           <div className="fxwb-title">🎨 FX Workbench</div>
           {topPickers}
-          {slotGroup}
+          {/* The def section (Copy def / name / Save) lives in the top bar so it is persistently reachable
+              without scrolling the properties column (owner 2026-09-19). Browse all sits just to its right
+              (owner 2026-09-20). */}
+          <div className="fxwb-def-top">{saveBlock}</div>
+          {defLibBlock}
+          {fpsEl}
+          {/* ⌘K command palette sits at the far right, next to Close (owner 2026-09-20). */}
           <button
             className="fxwb-btn fxwb-cmdk"
             onClick={openCmd}
@@ -2968,12 +2974,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           >
             ⌘K
           </button>
-          {/* The def section (Copy def / name / Save) lives in the top bar so it is persistently reachable
-              without scrolling the properties column (owner 2026-09-19). Browse all sits just to its right
-              (owner 2026-09-20). */}
-          <div className="fxwb-def-top">{saveBlock}</div>
-          {defLibBlock}
-          {fpsEl}
           {closeBtn}
         </div>
 
@@ -2990,6 +2990,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           </div>
           {layersOpen && (
             <>
+              {/* CANVAS Over/Under (which canvas the effect draws on) sits at the top of the Primitives
+                  panel (owner 2026-09-20) rather than in the top bar. */}
+              {slotGroup}
               {restoreBanners}
               {layersEl}
               {timingBlock}

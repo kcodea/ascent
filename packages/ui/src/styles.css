@@ -8354,6 +8354,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* The top bar is `position: absolute` in its base rule (for the rail layout); here it is a static grid row. */
 .fxwb-grid > .fxwb-top {
   grid-area: top; position: static; inset: auto; pointer-events: auto;
+  /* One row: the def-name box shrinks to keep everything on a single line, so ⌘K stays beside Close at the
+     far right instead of the bar wrapping and dropping Close to a second row. */
+  flex-wrap: nowrap; min-width: 0;
 }
 
 .fxwb-layers-region, .fxwb-props-region {
@@ -8397,7 +8400,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* ⌘K opener + the timeline collapse toggle. Plain `.fxwb-btn`s, so the global gauntlet cursor rule already
    paints them — NO bare keyword cursor here (CLAUDE.md's custom-cursor rule). */
 .fxwb-cmdk { font-weight: 800; letter-spacing: 0.04em; }
-.fxwb-timeline-toggle { display: inline-flex; align-items: center; gap: 6px; }
+.fxwb-timeline-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; letter-spacing: 0.02em; }
 
 /* ---- SIDE-PANEL COLLAPSE (Layers left / Editor right) ---------------------------------------------------
    Owner 2026-09-19: both side panels collapse to a thin strip, the same gesture as the Timeline's toggle.
@@ -8407,7 +8410,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-grid.props-collapsed { --fxwb-props-w: 42px; }
 .fxwb-region-head { display: flex; align-items: center; margin-bottom: 2px; }
 .fxwb-region-head-right { justify-content: flex-end; }
-.fxwb-region-toggle { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.fxwb-region-toggle { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 14px; letter-spacing: 0.02em; }
 .fxwb-layers-region.collapsed, .fxwb-props-region.collapsed { padding: 8px 4px; gap: 0; overflow: hidden; }
 .fxwb-layers-region.collapsed .fxwb-region-toggle,
 .fxwb-props-region.collapsed .fxwb-region-toggle { padding: 5px 3px; }
@@ -8468,10 +8471,13 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 
 /* The def section relocated into the top bar (owner 2026-09-19): Copy def + name + Save in ONE compact
    horizontal group, and the (rare) warnings/notes drop below the bar instead of stretching the top row. */
-.fxwb-def-top { position: relative; display: flex; align-items: center; gap: 6px; margin-left: 6px; }
+.fxwb-def-top { position: relative; display: flex; align-items: center; gap: 6px; margin-left: 6px; flex: 1 1 auto; min-width: 0; }
 .fxwb-def-top .fxwb-copy { margin: 0; white-space: nowrap; }
-.fxwb-def-top .fxwb-def { flex-direction: row; align-items: center; gap: 6px; }
-.fxwb-def-top .fxwb-def-nameinput { flex: 0 0 auto; width: 300px; }
+.fxwb-def-top .fxwb-def { flex-direction: row; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; }
+.fxwb-def-top .fxwb-def-saverow { flex: 1 1 auto; min-width: 0; }
+/* Doubled from 150px (owner ask). Flexes so it fills the slack up to ~300 and shrinks (min 150) rather than
+   wrapping the whole top bar to a second row. */
+.fxwb-def-top .fxwb-def-nameinput { flex: 1 1 300px; min-width: 150px; width: auto; }
 .fxwb-def-top .fxwb-def-variantwarn,
 .fxwb-def-top .fxwb-seedbake,
 .fxwb-def-top .fxwb-def-note,

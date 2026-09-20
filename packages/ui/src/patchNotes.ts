@@ -55,6 +55,16 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-20',
+    label: 'Top-milestone badge effect',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "A minion whose Attack or Health reaches the top milestone (5000) gains a glowing effect on that badge — in the shop, your warband and combat alike. It stays lit for the rest of that minion's life, even if the stat later drops.",
+      },
+    ],
+  },
+  {
     date: '2026-09-19',
     label: 'Per-tier milestone badge colours',
     changes: [

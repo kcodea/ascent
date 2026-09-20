@@ -91,6 +91,10 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'starform-pull': ['Recruit.tsx'],
   'starform-create': ['Recruit.tsx'], // the token's creation cue (owner def 2026-09-14) — on the token's slot, every creator
   'strike-impact': ['choreo/channels/impact.ts'],
+  // The persistent per-badge milestone effects (owner 2026-09-19): a looping, badge-tracking play started for
+  // every unit whose Attack / Health has reached the final tier (≥5000), fired by literal id per stat.
+  'test-ascent-frame-attack': ['fx/milestoneBadgeFx.ts'],
+  'test-ascent-frame-health': ['fx/milestoneBadgeFx.ts'],
   // A consumed / death-lost Ward (owner-authored 2026-09-09, replacing the `shatterAt('shield')` shard-burst;
   // the `sfx.shieldBreak` sound is unchanged). Fired from the aura channel's two Ward-loss sites.
   'ward-lost-blast': ['choreo/channels/aura.ts'],

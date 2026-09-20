@@ -8400,7 +8400,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* ⌘K opener + the timeline collapse toggle. Plain `.fxwb-btn`s, so the global gauntlet cursor rule already
    paints them — NO bare keyword cursor here (CLAUDE.md's custom-cursor rule). */
 .fxwb-cmdk { font-weight: 800; letter-spacing: 0.04em; }
-.fxwb-timeline-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; letter-spacing: 0.02em; }
+.fxwb-timeline-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 24px; letter-spacing: 0.02em; }
 
 /* ---- SIDE-PANEL COLLAPSE (Layers left / Editor right) ---------------------------------------------------
    Owner 2026-09-19: both side panels collapse to a thin strip, the same gesture as the Timeline's toggle.
@@ -8410,7 +8410,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-grid.props-collapsed { --fxwb-props-w: 42px; }
 .fxwb-region-head { display: flex; align-items: center; margin-bottom: 2px; }
 .fxwb-region-head-right { justify-content: flex-end; }
-.fxwb-region-toggle { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 14px; letter-spacing: 0.02em; }
+.fxwb-region-toggle { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 24px; letter-spacing: 0.02em; }
 .fxwb-layers-region.collapsed, .fxwb-props-region.collapsed { padding: 8px 4px; gap: 0; overflow: hidden; }
 .fxwb-layers-region.collapsed .fxwb-region-toggle,
 .fxwb-props-region.collapsed .fxwb-region-toggle { padding: 5px 3px; }

@@ -2,6 +2,8 @@
   "version": 1,
   "id": "test-ascent-frame-attack",
   "duration": 900,
+  "loopMode": "seamless",
+  "slot": "under",
   "layers": [
     {
       "primitive": "emitter",

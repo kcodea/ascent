@@ -200,7 +200,11 @@ export class FilterStack {
   }
 
   destroy(): void {
-    this.container.filters = [];
+    // The container may already be gone: the FX budget (`fxBudget.trim` → `retire` → `killAllLive`) can retire a
+    // play AFTER its scene tore the container down, and Pixi's `filters` setter walks the destroyed container's
+    // null effects list ("Cannot read properties of null (reading 'indexOf')" — owner crash report 2026-09-19).
+    // A destroyed container has no filters left to clear; only our own bookkeeping still needs releasing.
+    if (!this.container.destroyed) this.container.filters = [];
     this.activeKey = '';
     activeFilterTotal -= this.activeCount;
     this.activeCount = 0;

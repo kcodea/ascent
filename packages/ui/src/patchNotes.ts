@@ -62,6 +62,10 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: "A minion whose Attack or Health reaches the top milestone (5000) gains a glowing effect on that badge — in the shop, your warband and combat alike. It stays lit for the rest of that minion's life, even if the stat later drops.",
       },
+      {
+        category: 'UI / Info',
+        text: 'The top-milestone Attack and Health badge effects have a refreshed look.',
+      },
     ],
   },
   {

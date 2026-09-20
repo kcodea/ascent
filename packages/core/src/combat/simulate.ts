@@ -18,7 +18,7 @@ import type {
   Side,
   Tribe,
 } from '../types';
-import { ALE_IDS, DAMAGE_METER_DOS, alignAllows, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires } from '../types';
+import { ALE_IDS, damageMeterOf, alignAllows, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires } from '../types';
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
 import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, SILENT_ONPLAY } from '../effects/factories';
@@ -2212,10 +2212,11 @@ export function simulate(
     // through `grantBonusGold` (the Tromboneer / Bounty Bot carry-back) the first time the meter crosses a
     // multiple of `every` this fight; the latch (`goldMeterFired`) rides the instance like Yeti's, so a Risen
     // body does not re-arm and a fresh combat does. Gilded doubles the Gold, never the fire count.
-    const eff = cards[dealer.cardId]?.effects.find((e) => e.on === 'passive' && DAMAGE_METER_DOS.includes(e.do));
-    if (!eff) return;
+    const meter = damageMeterOf(cards[dealer.cardId]);
+    if (!meter) return;
+    const eff = cards[dealer.cardId]!.effects.find((e) => e.do === meter.do)!;
     const p = eff.params ?? {};
-    const every = Math.max(1, typeof p.every === 'number' ? p.every : 40);
+    const every = meter.every;
     const before = dealer.damageDealt ?? 0;
     const after = before + amount;
     dealer.damageDealt = after;
@@ -4527,10 +4528,12 @@ export function simulate(
     const spellProgress = board
       .filter((m) => m.sourceUid !== undefined && (m.spellProgress ?? 0) > 0)
       .map((m) => ({ sourceUid: m.sourceUid!, progress: m.spellProgress! }));
-    // Han Gover: the running damage tally (seeded + this fight's hits) carries back so the meter persists.
+    // Han Gover: the running damage tally (seeded + this fight's hits) carries back so the meter persists. A
+    // once-per-combat meter (Goldvein — `resetEachCombat`) carries back 0 whenever it moved, so the run card is
+    // wiped at settle and the shop reads 0/N (owner 2026-09-19); its next fight starts from 0 regardless.
     const damageMeters = board
-      .filter((m) => m.sourceUid !== undefined && (m.damageDealt ?? 0) > 0 && cards[m.cardId]?.effects.some((e) => DAMAGE_METER_DOS.includes(e.do)))
-      .map((m) => ({ sourceUid: m.sourceUid!, total: m.damageDealt! }));
+      .filter((m) => m.sourceUid !== undefined && (m.damageDealt ?? 0) > 0 && damageMeterOf(cards[m.cardId]))
+      .map((m) => ({ sourceUid: m.sourceUid!, total: damageMeterOf(cards[m.cardId])!.resetEachCombat ? 0 : m.damageDealt! }));
     // Tara's stat-grant tally this combat, per board card (for the ascend-at-settle accumulation).
     const ascendCount = board
       .filter((m) => m.sourceUid !== undefined && (buffCounts.get(m.uid) ?? 0) > 0)

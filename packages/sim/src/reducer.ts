@@ -4399,11 +4399,13 @@ function settleCombat(s: RunState, result: CombatResult): void {
     }
   }
   // Han Gover: persist the damage meter (seeded + this fight's hits) so it survives combat → shop → combat.
-  // The Ales themselves already came home through `playerHandGrants` above.
+  // The Ales themselves already came home through `playerHandGrants` above. A once-per-combat meter (Goldvein)
+  // carries back 0 (`resetEachCombat`, core `DAMAGE_METER_MARKERS`) → the card's tally is CLEARED, so the shop
+  // badge reads 0/N after the fight (owner 2026-09-19).
   if (result.playerDamageMeters) {
     for (const { sourceUid, total } of result.playerDamageMeters) {
       const card = s.board.find((c) => c.uid === sourceUid);
-      if (card) card.damageDealt = total;
+      if (card) card.damageDealt = total > 0 ? total : undefined;
     }
   }
   // Tara → Taragosa: accumulate this combat's stat-grants; at the `ascendAt` threshold, ascend the board card

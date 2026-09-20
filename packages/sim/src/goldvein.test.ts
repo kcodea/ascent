@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
+import { combatSide, damageMeterOf, damageMeterReading, makeRng, simulate, type BoardMinion } from '@game/core';
 import { CARD_INDEX, poolFor } from '@game/content';
 import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
 import { snapshotBoard } from './snapshot';
@@ -11,6 +11,13 @@ import { snapshotBoard } from './snapshot';
  * the payout is `grantBonusGold` → `playerBonusGold` → `bonusEmbersNextTurn` (Tromboneer's channel), latched ONCE
  * per combat on the instance (`goldMeterFired` — Yeti's convention: a Risen body does not re-arm). Gilded 6 Gold.
  * Chipwick Prospector left set 3 the same day (still a set-2 card) — pinned at the bottom.
+ *
+ * RESET SEMANTICS (owner report 2026-09-19 — the shop badge read "6/6" after the combat Goldvein fired in: *"it
+ * should show 0/6 since the trigger should reset if it hits 6/6, after combat"*): the "(Once per combat)" rider
+ * is data on the marker (`DAMAGE_METER_MARKERS.dealtDamageGoldNextTurn.resetEachCombat`), and it means the meter
+ * starts EVERY fight at 0 — progress and latch — and carries back 0, so the run card is cleared at settle and the
+ * shop reads 0/6 after ANY combat (4 dealt → 0/6 too; it does not bank a partial toward the next fight). Han
+ * Gover's "(Max 2 per hit)" is not once-per-combat, so his tally still persists (set3Dwarves.test.ts).
  */
 
 const body = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
@@ -42,20 +49,32 @@ describe('Goldvein — "When this deals 6 damage, gain 3 Gold next turn. (Once p
     expect(poolFor('set3').buyable.some((c) => c.id === 'k3_goldvein')).toBe(true);
   });
 
-  it('5 damage → nothing; the tally still carries back', () => {
-    const r = fight([vein({ attack: 5 })], [foe(0, 5)]);
-    expect(r.playerBonusGold ?? 0).toBe(0);
-    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'gv', total: 5 }]);
+  it('the meter is declared once-per-combat in core: resetEachCombat, every 6; Han Gover is not', () => {
+    expect(damageMeterOf(CARD_INDEX['k3_goldvein'])).toEqual({ do: 'dealtDamageGoldNextTurn', every: 6, resetEachCombat: true });
+    expect(damageMeterOf(CARD_INDEX['dw3_hangover'])).toEqual({ do: 'dealtDamageAleMeter', every: 40, resetEachCombat: false });
+    expect(damageMeterOf(CARD_INDEX['k_chipwick'])).toBeNull();
   });
 
-  it('6 damage → +3 Gold next turn, banked on top of the cap at settle', () => {
+  it('5 damage → nothing; a once-per-combat meter carries back 0 (the shop reads 0/6, nothing banks toward next fight)', () => {
+    const r = fight([vein({ attack: 5 })], [foe(0, 5)]);
+    expect(r.playerBonusGold ?? 0).toBe(0);
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'gv', total: 0 }]);
+    // The live combat meter itself moved (the badge ticks per hit); only the carry-back is the reset.
+    expect(r.initial.player[0]!.damageDealt).toBeUndefined();
+    let s = run({ phase: 'combat', board: [body('gv', 'k3_goldvein', { damageDealt: 4 })], hand: [], lastCombat: r });
+    s = act(s, { type: 'settleCombat' });
+    expect(at(s, 'gv').damageDealt, 'a stale tally on the run card is wiped too').toBeUndefined();
+  });
+
+  it('6 damage → +3 Gold next turn, banked on top of the cap at settle; the shop badge reads 0/6, not 6/6', () => {
     const r = fight([vein({ attack: 6 })], [foe(0, 6)]);
     expect(r.playerBonusGold).toBe(3);
-    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'gv', total: 6 }]);
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'gv', total: 0 }]);
     let s = run({ phase: 'combat', board: [body('gv', 'k3_goldvein')], hand: [], lastCombat: r });
     s = act(s, { type: 'settleCombat' });
     expect(s.bonusEmbersNextTurn).toBe(3);
-    expect(at(s, 'gv').damageDealt).toBe(6);
+    expect(at(s, 'gv').damageDealt).toBeUndefined();
+    expect(damageMeterReading(at(s, 'gv').damageDealt ?? 0, damageMeterOf(CARD_INDEX['k3_goldvein'])!)).toEqual({ current: 0, total: 6 });
   });
 
   it('12 damage in one combat → still +3 (once per combat), whether one hit or two', () => {
@@ -67,34 +86,40 @@ describe('Goldvein — "When this deals 6 damage, gain 3 Gold next turn. (Once p
     expect(fight([vein({ attack: 12, golden: true })], [foe(0, 1)]).playerBonusGold).toBe(6);
   });
 
-  it('the meter carries ACROSS combats like Han Gover: 4 then 4 → the second fight crosses 6 and pays', () => {
+  it('the meter does NOT carry across combats (unlike Han Gover): 4 then 4 → the second fight starts at 0 and does not pay', () => {
     const r1 = fight([vein({ attack: 4 })], [foe(0, 4)]);
     expect(r1.playerBonusGold ?? 0).toBe(0);
     let s = run({ phase: 'combat', board: [body('gv', 'k3_goldvein')], hand: [], lastCombat: r1 });
     s = act(s, { type: 'settleCombat' });
-    expect(at(s, 'gv').damageDealt).toBe(4);
+    expect(at(s, 'gv').damageDealt).toBeUndefined();
     const r2 = fight([vein({ attack: 4, damageDealt: at(s, 'gv').damageDealt })], [foe(0, 4)]);
-    expect(r2.playerBonusGold).toBe(3);
-    expect(r2.playerDamageMeters).toEqual([{ sourceUid: 'gv', total: 8 }]);
-    // …and a fresh combat re-arms the once-per-combat latch: 8 → 12 crosses again and pays again.
+    expect(r2.playerBonusGold ?? 0).toBe(0);
+    expect(r2.playerDamageMeters).toEqual([{ sourceUid: 'gv', total: 0 }]);
+    // A seeded tally is IGNORED for a once-per-combat body (a pre-reset snapshot / served copy): the fight
+    // still starts at 0, so 4 more does not cross 6 …
     const r3 = fight([vein({ attack: 4, damageDealt: 8 })], [foe(0, 4)]);
-    expect(r3.playerBonusGold).toBe(3);
+    expect(r3.initial.player[0]!.damageDealt).toBeUndefined();
+    expect(r3.playerBonusGold ?? 0).toBe(0);
+    // … and a fresh combat re-arms the once-per-combat latch: 6 in the next fight pays again.
+    expect(fight([vein({ attack: 6 })], [foe(0, 6)]).playerBonusGold).toBe(3);
   });
 
   it('once per COMBAT survives a Rise: the risen body does not re-arm', () => {
     // Seeded at 4 with 6 Attack, 1 Health and Rise: the first clash lands 6 (meter 10 — crosses 6, pays 3) and
     // kills it; it rises at its printed 2 Attack and lands 2 more (meter 12 — a second crossing) before the
     // second foe finishes it. The 12-crossing pays nothing: the latch rode through the Rise.
-    const r = fight([vein({ attack: 6, health: 1, keywords: ['R'], damageDealt: 4 })], [foe(1, 6), foe(1, 100)]);
+    const r = fight([vein({ attack: 6, health: 1, keywords: ['R'] })], [foe(1, 6), foe(1, 100)]);
     expect(r.playerBonusGold).toBe(3);
     expect(r.events.some((e) => e.type === 'death' && e.target === r.initial.player[0]!.uid && (e as { rise?: boolean }).rise)).toBe(true);
-    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'gv', total: 12 }]);
+    // The body died in the end (no survivor to carry back) — the fight's `dmg` events, which the combat badge
+    // sums, total 8 dealt by it (6, then 2 after the Rise).
+    expect(r.events.filter((e) => e.type === 'dmg' && e.source === r.initial.player[0]!.uid).reduce((n, e) => n + (e as { amount: number }).amount, 0)).toBe(8);
   });
 
   it('a hit that never lands (a Ward) adds nothing', () => {
     const r = fight([vein({ attack: 6 })], [foe(0, 6, ['DS'])]);
     expect(r.playerBonusGold).toBe(3); // the Ward pops on the first swing (0 dealt); the second lands 6
-    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'gv', total: 6 }]);
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'gv', total: 0 }]);
   });
 
   it('a snapshot carries the meter; a triple keeps the highest', () => {

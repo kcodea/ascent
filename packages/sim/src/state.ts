@@ -261,7 +261,9 @@ export interface BoardCard {
    *  count, Forest Colossus's Spirits-since-played). Carried into combat on the body. */
   spiritTally?: number;
   /** Han Gover — total damage this card's body has dealt across every combat this run (per-instance). Seeded
-   *  into combat, carried back via `playerDamageMeters`; the Ale pays out on every multiple of 40. */
+   *  into combat, carried back via `playerDamageMeters`; the Ale pays out on every multiple of 40. The badge
+   *  reads it mod 40 (core `damageMeterReading`). A once-per-combat meter (Goldvein) never holds a value here
+   *  between fights — the settle clears it (`resetEachCombat`), so the shop reads 0/6. */
   damageDealt?: number;
   /** The wave this card was bought on — drives Hoarder's climbing sell value (currentWave - boughtWave
    *  + 1, ×2 golden). Set in the reducer's `buy` case; absent on cards from other sources (a Hoarder that

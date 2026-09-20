@@ -103,6 +103,8 @@ export const TRIGGER_LEXICON: readonly TriggerLexeme[] = [
   { re: /^Start of (?:Turn|shop)\s*[:：]/, event: 'startOfTurn', display: 'Start of Turn' },
   { re: /^Rally\s*[:：]/, event: 'onAttack', display: 'Rally' },
   { re: /^Slaughter\s*[:：]/, event: 'onKill', display: 'Slaughter' },
+  // Overflow: — the owner's keyword form (2026-09-19) for the `summonOverflow` trigger (a summon that found no room).
+  { re: /^Overflow\s*[:：]/, event: 'summonOverflow', display: 'Overflow' },
   { re: /^Avenge \((\d+)\)\s*[:：]/, event: 'avenge', display: 'Avenge' },
   { re: /^Sell\s*[:：]/, event: 'onSell', display: 'Sell' },
   // "Equip Comet (4):" — the Equipment trigger; the number is the charge count.
@@ -162,7 +164,7 @@ export const CONDITIONAL_LEXICON: ReadonlyArray<readonly [RegExp, string]> = [
   [/you play/i, 'onTribePlayed'],
   [/you summon/i, 'onSummon'],
   [/this deals \d+ damage/i, 'text:onDealtDamage'], // Han Gover (2026-09-18): a passive damage meter — the engine names no trigger for it
-  [/this (?:takes damage|is damaged)/i, 'onDamaged'],
+  [/this(?: minion)? (?:takes damage|is damaged)/i, 'onDamaged'], // \"this minion takes damage\" — Yeti (2026-09-19)
   [/(?:a )?friend(?:ly minion)? dies|friendly .* dies|your (?:last|left-most) minion dies|Ruby-buffed minion dies|(?:an|another friendly|a friendly) (?:Imp|minion) dies|Imp that dies/i, 'onFriendDeath'],
   [/dies in combat/i, 'onFriendDeath'],
   [/you trigger (?:a|an) (?:Beast's )?Echo/i, 'text:onEchoTriggered'],

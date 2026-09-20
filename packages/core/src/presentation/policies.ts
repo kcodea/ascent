@@ -104,6 +104,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // Set 3 Neutrals, owner handoff 2026-09-18.
   'factory:endOfTurnBuffEndsPerUnusedEquipment:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Shredder — cf. endOfTurnBuffEndsTribePerCard
   'factory:equipmentActivatedBuffSelf:equipmentActivated': { policy: 'ownBeat', family: 'react' }, // Rig — cf. onGainStatsBuffRandomHand
+  // Yeti (2026-09-19): the reflected hits are `dmg` events of their own, so the reaction owns its beat.
+  'factory:onDamagedReflectRandomEnemies:onDamaged': { policy: 'ownBeat', family: 'react' },
   // set 3 Spirits (tranche 1)
   'factory:rallyGainAttackPerSpiritsPlayed:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:battlecryBuffRandomTribeBoardAndHand:onPlay': { policy: 'ownBeat', family: 'shout' },
@@ -1080,6 +1082,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:goldSpentScaleSelf:passive': { policy: 'passive', family: 'passive' },                 // Ancient Wanderer — a synced stat, never a beat
   'factory:cardDeathScaler:passive': { policy: 'passive', family: 'passive' },                    // Spear Warden — a death-count enchant read at the death site, never a beat
   'factory:dealtDamageAleMeter:passive': { policy: 'passive', family: 'passive' },                // Han Gover — a damage meter read at the damage site; the Ale grant is its own `toHand` beat
+  'factory:dealtDamageGoldNextTurn:passive': { policy: 'passive', family: 'passive' },            // Goldvein (2026-09-19) — the same meter; the Gold bank is a `bonusGold` moment of its own
   'factory:buffShopOffersThisTurn:onBuy': { policy: 'foldedCue', family: 'economyReact' },        // Night Market Horror — cf. buffBoardOnBuy
   'factory:buffShopOffersThisTurn:spellBought': { policy: 'foldedCue', family: 'economyReact' },  // …its "a spell is a card too" half
   'factory:onSellDiscoverSingleton:onSell': { policy: 'ownBeat', family: 'economy' },             // Traveling Salesman — cf. onSellDiscover

@@ -444,7 +444,8 @@ function recCast(s: string): Rec | null {
 }
 
 function recDamage(s: string): Rec | null {
-  const m = /^[Dd]eals?\s+(?:(\d+) damage|(?:its |this minion's )Attack(?:\s*\+\s*\d+)?)/.exec(s);
+  // \"deal it to …\" — the damage just taken, echoed (Yeti, 2026-09-19): an amount the text names by pronoun.
+  const m = /^[Dd]eals?\s+(?:(\d+) damage|it|(?:its |this minion's )Attack(?:\s*\+\s*\d+)?)/.exec(s);
   if (m) {
     let len = m[0].length;
     let target: ParsedTarget | undefined;
@@ -780,6 +781,9 @@ function recNote(s: string): Rec | null {
 
 /** Whole-sentence limits: "Once per combat." / "3 times per combat." / "Usable twice per turn." / "(Twice per combat)". */
 function recLimitSentence(s: string): Rec | null {
+  // "(Max 2 per hit)" — a payout cap per event (Han Gover, 2026-09-19): the same limit note, unit `per-hit`.
+  const cap = /^\(Max (\d+) per (hit|turn|combat)\)\.?$/.exec(s.trim());
+  if (cap) return { effect: { kind: 'note', action: 'limit', amount: { value: Number(cap[1]), unit: `per-${cap[2]}` } }, len: s.length };
   const m = /^\(?(?:Usable )?(Once|Twice|once|twice|\d+ times|\d+ uses)(?: per (turn|combat|game|run))?\)?\.?$/.exec(s.trim());
   if (!m) return null;
   return { effect: { kind: 'note', action: 'limit', amount: { value: /^once$/i.test(m[1]!) ? 1 : /^twice$/i.test(m[1]!) ? 2 : Number(/\d+/.exec(m[1]!)![0]), unit: m[2] ? `per-${m[2]}` : 'total' } }, len: s.length };

@@ -8452,6 +8452,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  already bakes into every copy (board, hand, future). Nothing to do here; the stub keeps the phase map honest. */
   cardDeathScaler: () => {},
   dealtDamageAleMeter: () => {}, // Han Gover: combat-only meter (no damage is dealt in the shop); the tally rides the run card
+  dealtDamageGoldNextTurn: () => {}, // Goldvein (2026-09-19): the same combat-only meter, a Gold-next-turn body
 
   /** NIGHT MARKET HORROR — "After you buy a card, give minions in the shop +2/+2 THIS TURN."
    *

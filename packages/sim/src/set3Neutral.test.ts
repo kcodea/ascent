@@ -263,3 +263,80 @@ describe('Equipment Charger — Start of Turn: an extra Equipment charge', () =>
     expect(equipmentUsesLeft(g)).toBe(plainBefore + 2);
   });
 });
+
+/**
+ * YETI (owner handoff 2026-09-19) — Tier 6 Neutral 0/12: "When this minion takes damage, deal it to 2 random enemies.
+ * (Once per combat)". The reflection rides the normal damage path (Ward pops, kills resolve), targets are DISTINCT
+ * living enemies off the combat rng, and the latch is on the combat instance — a Risen Yeti does not re-arm.
+ */
+describe('Yeti — the first hit each combat is thrown back at 2 random enemies', () => {
+  const yeti = (over: Partial<BoardMinion> = {}): BoardMinion => bm('n3_yeti', over);
+  const foeK = (attack: number, health: number, keywords: string[] = []): BoardMinion =>
+    ({ cardId: 'sandbag', attack, health, keywords } as unknown as BoardMinion);
+  const reflected = (r: ReturnType<typeof fightWithHand>) => {
+    const uid = r.initial.player[0]!.uid;
+    return r.events.filter((e): e is Extract<typeof e, { type: 'dmg' }> => e.type === 'dmg' && (e as { source?: string }).source === uid);
+  };
+
+  it('the card: T6 0/12 Neutral, one onDamaged effect, the owner text, in set 3', () => {
+    const d = CARD_INDEX['n3_yeti']!;
+    expect([d.tier, d.attack, d.health, d.tribe]).toEqual([6, 0, 12, 'neutral']);
+    expect(d.effects).toEqual([{ on: 'onDamaged', do: 'onDamagedReflectRandomEnemies', params: { count: 2 } }]);
+    expect(d.text).toBe('When this minion takes damage, deal it to **2 random enemies**. (Once per combat)');
+    expect(poolFor('set3').all.some((c) => c.id === 'n3_yeti')).toBe(true);
+  });
+
+  it('takes 5 → two DISTINCT enemies each take 5, credited to Yeti; nothing more for the rest of the fight', () => {
+    // Only the 5-Attack foe can hurt it; three foes so the two targets are a real random pick.
+    const r = fightWithHand([yeti()], [foeK(5, 40), foeK(0, 40), foeK(0, 40)]);
+    const hits = reflected(r);
+    expect(hits.map((h) => h.amount)).toEqual([5, 5]);
+    expect(new Set(hits.map((h) => h.target)).size).toBe(2);
+    // Yeti was hit more than once (12 Health, 5 per swing) — the reflection fired exactly once.
+    const yetiUid = r.initial.player[0]!.uid;
+    expect(r.events.filter((e) => e.type === 'dmg' && e.target === yetiUid).length).toBeGreaterThan(1);
+  });
+
+  it('a single enemy: just that one takes the hit', () => {
+    const r = fightWithHand([yeti()], [foeK(5, 40)]);
+    const hits = reflected(r);
+    expect(hits.length).toBe(1);
+    expect(hits[0]!.amount).toBe(5);
+    expect(hits[0]!.target).toBe(r.initial.enemy[0]!.uid);
+  });
+
+  it('a Ward on the enemy pops instead of taking the damage (the normal damage path)', () => {
+    const r = fightWithHand([yeti()], [foeK(5, 40, ['DS'])]);
+    expect(reflected(r).length).toBe(0);
+    const foeUid = r.initial.enemy[0]!.uid;
+    // The foe's shield broke right after its first hit on Yeti — the reflection did it.
+    const shieldAt = r.events.findIndex((e) => e.type === 'shield' && e.target === foeUid);
+    const firstYetiHit = r.events.findIndex((e) => e.type === 'dmg' && e.target === r.initial.player[0]!.uid);
+    expect(shieldAt).toBeGreaterThan(firstYetiHit);
+  });
+
+  it('the reflection can kill, and the kill resolves at once', () => {
+    const r = fightWithHand([yeti({ health: 40 })], [foeK(5, 5)]);
+    const hits = reflected(r);
+    expect(hits.length).toBe(1);
+    expect(hits[0]!.remainingHp).toBe(0);
+    expect(r.events.some((e) => e.type === 'death' && e.target === r.initial.enemy[0]!.uid)).toBe(true);
+  });
+
+  it('once per COMBAT: a Risen Yeti does not re-arm (the latch stays on the instance)', () => {
+    // A 12-Attack foe kills Yeti in one hit (reflected: 12 to the foe), Yeti Rises at 1 Health and is hit again.
+    const r = fightWithHand([yeti({ keywords: ['R'] })], [foeK(12, 100)]);
+    const hits = reflected(r);
+    expect(hits.length).toBe(1);
+    expect(hits[0]!.amount).toBe(12);
+    const yetiUid = r.initial.player[0]!.uid;
+    expect(r.events.filter((e) => e.type === 'death' && e.target === yetiUid).length).toBe(2); // died, rose, died
+  });
+
+  it('a fresh combat re-arms it: the same board fights twice and reflects in both', () => {
+    const r1 = fightWithHand([yeti()], [foeK(5, 40)]);
+    const r2 = fightWithHand([yeti()], [foeK(5, 40)]);
+    expect(reflected(r1).length).toBe(1);
+    expect(reflected(r2).length).toBe(1);
+  });
+});

@@ -689,7 +689,7 @@ export function monkProgressText(cardId: string, golden: boolean, summonBonus: n
   const cur = base * (1 + Math.floor(summonBonus / every)) * mult + overflowBonus;
   const per = base * mult; // the per-step improvement size (golden ×2)
   const toNext = every - (summonBonus % every); // overflows until the next step
-  return `When you summon a minion that doesn't fit, Engrave ${count} friendly minions {{+${cur}/+${cur}}} (kept after combat). Improves **+${per}/+${per}** every ${every} overflows — {{${toNext} to go}}.`;
+  return `**Overflow:** Engrave ${count} friendly minions {{+${cur}/+${cur}}} (kept after combat). Improves **+${per}/+${per}** every ${every} overflows — {{${toNext} to go}}.`;
 }
 
 /**
@@ -1176,7 +1176,9 @@ export function stepProgress(
   // Han Gover: the DAMAGE meter ("when this deals 40 damage, get an Ale") — the running per-instance tally,
   // Avenge-style (1..40 then wrap; 40/40 is the hit that paid out). Persists across combats, so the shop shows
   // where the meter stands and combat continues from it. Tracker, not a fraction in the text (owner 2026-09-11).
-  const dmgMeter = def.effects.find((e) => e.do === 'dealtDamageAleMeter');
+  // Han Gover (40) + Goldvein (6): the `DAMAGE_METER_DOS` family, spelled out as literals here so the rendered-text
+  // lanes (which scrape `e.do === '…'` from this file) list both bodies as subjects.
+  const dmgMeter = def.effects.find((e) => e.do === 'dealtDamageAleMeter' || e.do === 'dealtDamageGoldNextTurn');
   if (dmgMeter) return cyc(p.damageDealt ?? 0, Math.max(1, n((dmgMeter.params as { every?: number })?.every, 40)));
   // Astral Spellcore: every N Shop spells cast while on the board — the same per-copy `spellProgress` meter as
   // Guel, counting up; Avenge-style N/3 (owner 2026-09-11: the counter, never the text). Keyed on the effect's

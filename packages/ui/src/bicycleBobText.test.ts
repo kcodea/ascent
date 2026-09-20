@@ -15,7 +15,7 @@ describe('Bicycle Bob — the printed grant is the current one', () => {
   it('helper: null before any Undead is played (the printed base is exact); the live value in place after', () => {
     expect(overflowPerPlayedText('u3_bicyclebob', false, () => 0)).toBeNull();
     expect(overflowPerPlayedText('u3_bicyclebob', false, (t) => (t === 'undead' ? 2 : 0))).toBe(
-      'When a summoned minion does not fit, give a random **Undead {{+3/+3}}**. Improves for every Undead played this turn.');
+      '**Overflow:** give a random **Undead {{+3/+3}}**. Improves for every Undead played this turn.');
     expect(overflowPerPlayedText('u3_bicyclebob', true, (t) => (t === 'undead' ? 2 : 0))).toContain('{{+6/+6}}');
     expect(overflowPerPlayedText('u3_noggin', false, () => 5), 'other cards fall through').toBeNull();
   });

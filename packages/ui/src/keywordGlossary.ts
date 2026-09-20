@@ -68,6 +68,9 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   { id: 'avenge', name: 'Avenge', aliases: [], section: 'triggers', mechanic: 'avenge', def: 'Avenge (N): triggers each time N of your minions have died this combat.' },
   { id: 'rally', name: 'Rally', aliases: [], badge: 'RL', section: 'triggers', mechanic: 'rally', def: 'Triggers each time this minion begins to attack in combat.' },
   { id: 'slaughter', name: 'Slaughter', aliases: [], badge: 'SL', section: 'triggers', mechanic: 'slaughter', def: 'Triggers whenever this minion kills an enemy.' },
+  // Overflow (owner keyword 2026-09-19): the `summonOverflow` trigger's printed form — "**Overflow:** …" on every
+  // card / rune that reacts to a summon finding no room. Wording is the owner's verbatim.
+  { id: 'overflow', name: 'Overflow', aliases: [], section: 'triggers', mechanic: 'overflow', def: 'When a minion is summoned, but does not have space on your board.' },
   { id: 'bleed', name: 'Bleed', aliases: [], section: 'triggers', mechanic: 'bleed', def: "Marks random enemies at Start of Combat. Every few attacks in the fight, each marked enemy still alive takes this minion's Attack." },
   // Orbit — a card PLAYED FROM HAND into the slot beside this minion (not a summoned token, not a reorder).
   { id: 'orbit', name: 'Orbit', aliases: ['Orbits'], section: 'triggers', icon: 'star', def: 'Triggers when you play a card from your hand into a slot next to this minion.' },

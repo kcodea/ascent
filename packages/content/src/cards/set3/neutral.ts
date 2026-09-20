@@ -176,4 +176,21 @@ export const SET3_NEUTRAL: readonly CardDef[] = [
     text: 'When you use **Equipment**, this gains **+4/+4**.',
     goldenText: 'When you use **Equipment**, this gains **+8/+8**.',
   },
+  {
+    // Owner handoff 2026-09-19. A 0/12 wall: the FIRST time it takes damage each combat, the same amount is dealt
+    // to 2 distinct random enemies (one enemy → just that one) through the normal damage path (Ward pops, Immune
+    // shrugs, kills resolve with the standing Echo-before-Rise order). The once-per-combat latch lives on the
+    // combat instance (`reflectFired`), so a Risen / Reborn Yeti does not re-arm. Nothing scales, nothing gilds:
+    // the owner's text carries no gilded rider, so the gilded card is the same rule on the doubled body.
+    id: 'n3_yeti',
+    name: 'Yeti',
+    tribe: 'neutral',
+    tier: 6,
+    attack: 0,
+    health: 12,
+    keywords: [],
+    effects: [{ on: 'onDamaged', do: 'onDamagedReflectRandomEnemies', params: { count: 2 } }],
+    text: 'When this minion takes damage, deal it to **2 random enemies**. (Once per combat)',
+    goldenText: 'When this minion takes damage, deal it to **2 random enemies**. (Once per combat)',
+  },
 ];

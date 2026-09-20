@@ -56,6 +56,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-19',
+    label: 'Settle-time buff ribbons',
+    changes: [
+      { category: 'UI / Info', text: "A buff that lands when a card earned in combat comes home to your hand (Gangplank paying out Han Gover's Ale, for example) now plays its ribbon once the shop is revealed instead of silently under the arena — dual-type minions included." },
+    ],
+  },
+  {
+    date: '2026-09-19',
     label: 'Replay Win % fix',
     changes: [
       {

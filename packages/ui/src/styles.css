@@ -8108,6 +8108,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-valnum:focus { outline: none; border-color: #c8a45c; }
 .fxwb-valnum:disabled { opacity: 0.5; }
 .fxwb-valnum::-webkit-outer-spin-button, .fxwb-valnum::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+/* The value readout is double-click-to-edit: a dotted underline on hover signals it can be typed into (no
+   keyword cursor here — the game's custom-cursor rule owns that). */
+.fxwb-valedit:hover { text-decoration: underline dotted #c8a45c; text-underline-offset: 2px; }
 .fxwb-copy {
   margin-top: auto; padding: 8px; border-radius: 8px; border: 2px solid #c8a45c; background: color-mix(in srgb, #c8a45c 16%, #241f17);
   color: #f0d9a4; font-family: var(--font-ui); font-weight: 800; font-size: 12px; cursor: pointer;

@@ -509,11 +509,11 @@ export function Inspector({
  * the rules of hooks (the same reason `CurveEditor`/`ShapeField` below are components).
  */
 /**
- * The numeric readout for a slider param, made EDITABLE (owner ask): type a precise value the slider's `step`
- * can't hit, and the effect updates live. A local edit buffer holds the raw text while focused, so a partial
- * decimal like "0." or "-" types cleanly — a plain controlled number input would reformat mid-keystroke and
- * fight the typist. On blur the buffer clears and the field shows the committed value. Every commit is clamped
- * to the param's [min, max], the same range the slider spans, so a typed value can never leave that range.
+ * The numeric readout for a slider param, DOUBLE-CLICK to edit (owner ask): the value shows as plain text like
+ * before, and double-clicking it turns it into a field you can type a precise value into — one the slider's
+ * `step` can't hit. Enter or blur commits; Escape cancels. Keeping it a readout until double-clicked leaves the
+ * dense param list clean rather than turning all ~180 rows into input boxes. Every commit is clamped to the
+ * param's [min, max] — the same range the slider spans — so a typed value can never leave that range.
  */
 function NumberField({ value, min, max, disabled, onCommit }: {
   value: number;
@@ -522,7 +522,27 @@ function NumberField({ value, min, max, disabled, onCommit }: {
   disabled: boolean;
   onCommit: (n: number) => void;
 }): React.ReactElement {
+  // null = not editing (show the readout); a string = the in-progress typed text (raw, so a partial decimal
+  // like "0." types cleanly rather than being reformatted mid-keystroke).
   const [draft, setDraft] = useState<string | null>(null);
+
+  if (draft === null) {
+    return (
+      <span
+        className="fxwb-val fxwb-valedit"
+        title={disabled ? undefined : 'Double-click to type a value'}
+        onDoubleClick={() => { if (!disabled) setDraft(String(value)); }}
+      >
+        {String(value)}
+      </span>
+    );
+  }
+
+  const commit = (): void => {
+    const n = Number(draft);
+    if (Number.isFinite(n) && draft.trim() !== '') onCommit(Math.min(max, Math.max(min, n)));
+    setDraft(null);
+  };
   return (
     <input
       type="number"
@@ -530,15 +550,12 @@ function NumberField({ value, min, max, disabled, onCommit }: {
       min={min}
       max={max}
       step="any"
-      disabled={disabled}
-      value={draft ?? String(value)}
-      onChange={(e) => {
-        setDraft(e.target.value);
-        const n = Number(e.target.value);
-        if (Number.isFinite(n) && e.target.value.trim() !== '') onCommit(Math.min(max, Math.max(min, n)));
-      }}
+      autoFocus
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
       onFocus={(e) => e.currentTarget.select()}
-      onBlur={() => setDraft(null)}
+      onKeyDown={(e) => { if (e.key === 'Enter') commit(); else if (e.key === 'Escape') setDraft(null); }}
+      onBlur={commit}
     />
   );
 }

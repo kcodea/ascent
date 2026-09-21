@@ -6497,7 +6497,10 @@ svg { width: 18px; height: 18px; }
    tier plaque or a Gilded card's crown badge (both sit inside the box). 18px let the arch overlap the FINAL
    TEAM / WINNING WARBAND caption by ~1.5px; the padding now scales with the tile (--tile-cw × --tile-s) so
    the arch clears the caption by ~10px at EVERY --tile-s step (0.5 / 0.62 / 0.82 / 0.95), never more. The
-   bottom trimmed 8 → 4px (nothing hangs below a tile's box) so the row grows ~8px, not 12. */
+   bottom trimmed 8 → 4px (nothing hangs below a tile's box) so the row grows ~8px, not 12. (The keyword FX
+   that orbit a tile clear it too: a Flurry card's outermost ring — an ellipse that SPINS — paints ~11px under
+   the caption at 0.82; measure it at rotation 0, its tallest pose, because getBoundingClientRect on the
+   spinning box is the AABB of the rotated rectangle and overstates it by up to ~19px.) */
 .lb-team { --tile-cw: 132px; --tile-s: 0.82; display: flex; gap: 8px; align-items: flex-start; padding: calc(var(--tile-cw) * var(--tile-s) * 0.23 + 5px) 0 4px; }
 .lb-tile { position: relative; flex: none; width: calc(var(--tile-cw) * var(--tile-s)); height: calc(var(--tile-cw) / 0.752 * var(--tile-s)); }
 .lb-tile.empty { border-radius: 8px; border: 1.5px dashed rgba(255, 255, 255, 0.12); background: rgba(0, 0, 0, 0.16); }
@@ -6583,15 +6586,13 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 /* THE BANNER PORTRAIT WEARS THE PORTRAIT RING (owner 2026-09-21): the Hall's and Recent Games' row portrait
    sits in the game's gold hero-portrait PNG (hero-select/heroportrait.png — the `.portring` recipe, the same
    re-seat the Career rows got the same morning). The LbHeroFrame markup is untouched: `.lb-heroframe` becomes
-   the ring box and the existing `.hero` disc is re-seated in its hole (0.9 × ring, offset 0.046 / 0.054, the
-   ring 1.0315 × tall for the PNG's drop shadow). --ring 96px → an 86.4px disc, up from the 64px CSS-ring
-   portrait; the 150px hero track holds it with room. Scoped under `.lb-row-hero` so the Rankings table's
-   `.lb-trow-btn .lb-heroframe .hero` (88px, no ring) and the `.big` variant are untouched. */
-.lb-row-hero .lb-heroframe { --ring: 96px; position: relative; display: block; width: var(--ring); height: calc(var(--ring) * 1.0315); }
-.lb-row-hero .lb-heroframe::after { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
-  background: url('./hero-select/heroportrait.png') center / 100% 100% no-repeat; }
-.lb-row-hero .lb-heroframe .hero { position: absolute; z-index: 1; width: calc(var(--ring) * 0.9); height: calc(var(--ring) * 0.9);
-  left: calc(var(--ring) * 0.046); top: calc(var(--ring) * 0.054); padding: 0; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.6); overflow: hidden; }
+   the ring box and the existing `.hero` disc is re-seated in its hole. The GEOMETRY (box, ::after PNG, disc
+   0.9 × ring at 0.046 / 0.054, ring 1.0315 × tall) lives ONCE, in the portrait-ring group in the MEDAL RANK
+   block (`.portring, .cv2-heroframe, .lb-row-hero .lb-heroframe`); this rule only sets the size. --ring 96px
+   → an 86.4px disc, up from the 64px CSS-ring portrait; the 150px hero track holds it with room. Scoped under
+   `.lb-row-hero` so the Rankings table's `.lb-trow-btn .lb-heroframe .hero` (88px, no ring) and the `.big`
+   variant are untouched. */
+.lb-row-hero .lb-heroframe { --ring: 96px; }
 .lb-row-name { margin-top: 3px; font-family: var(--font-ui); font-weight: 900; font-size: 15px; color: #fff; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lb-row-herosub { font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.62); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lb-row-record { font-family: var(--font-ui); font-weight: 900; font-size: 16px; font-variant-numeric: tabular-nums; }
@@ -11141,14 +11142,20 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
    The PNG is 1524×1572 (a drop shadow under the ring makes it taller than wide); its hole is centred at
    (49.6%, 48.9%) with an inner diameter of 86% of the width — measured off the alpha. The disc is 90% so its
    edge sits UNDER the ring's inner lip. `--ring` is the ring's rendered width; everything scales off it. */
-.portring { position: relative; display: block; flex: none; width: var(--ring, 160px); height: calc(var(--ring, 160px) * 1.0315); }
-.portring::after { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+/* ONE geometry for every ring in the game: `.portring` (rank crests, the title corner), the Career frames
+   (`.cv2-heroframe`, whose own block only sets `--ring` / `.small`) and the ladder banner rows
+   (`.lb-row-hero .lb-heroframe`, likewise) are comma-joined here so the hole constants are written once. The
+   Career / ladder discs keep the `.hero` chrome their pages already give them; only the bare `.portring` disc
+   (no `.hero` rules underneath it) takes the border-off / dark-fill line below. (`.cv2-heroframe` is doubled on
+   purpose: it must outrank the Heroes tab's older `.cv2-hcard .cv2-heroframe .hero` size.) */
+.portring, .cv2-heroframe, .lb-row-hero .lb-heroframe { position: relative; display: block; flex: none; width: var(--ring, 160px); height: calc(var(--ring, 160px) * 1.0315); }
+.portring::after, .cv2-heroframe::after, .lb-row-hero .lb-heroframe::after { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
   background: url('./hero-select/heroportrait.png') center / 100% 100% no-repeat; }
-.portring > .hero { position: absolute; z-index: 1; display: block; box-sizing: border-box;
+.portring > .hero, .cv2-heroframe.cv2-heroframe .hero, .lb-row-hero .lb-heroframe .hero { position: absolute; z-index: 1;
   width: calc(var(--ring, 160px) * 0.9); height: calc(var(--ring, 160px) * 0.9);
   left: calc(var(--ring, 160px) * 0.046); top: calc(var(--ring, 160px) * 0.054);
-  padding: 0; border: none; border-radius: 50%; overflow: hidden; background: #0b0f18;
-  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.6); }
+  padding: 0; overflow: hidden; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.6); }
+.portring > .hero { display: block; box-sizing: border-box; border: none; border-radius: 50%; background: #0b0f18; }
 .portring > .hero .f { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; }
 .portring > .hero .f svg { width: 40%; height: 40%; }
 /* The rank crest IS a portrait ring; the size classes set its width. */
@@ -11225,16 +11232,12 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 .rankbar-xl .rankbar-points { font-size: 20px; color: #fff6e4; }
 
 /* EVERY Career hero portrait wears the SAME portrait ring — the left column + Heroes tab (owner 2026-09-20)
-   and the small match-row portraits (owner 2026-09-21) — the markup is untouched; these rules re-seat the
-   existing `.hero` disc into the ring's hole. `.small` only shrinks `--ring`: 84px puts a 75.6px disc where
-   the row's old 76px CSS-ring portrait sat, so the row header keeps its height (the outcome block is taller). */
-.cv2-heroframe { --ring: 176px; position: relative; display: block; flex: none; width: var(--ring); height: calc(var(--ring) * 1.0315); }
+   and the small match-row portraits (owner 2026-09-21) — the markup is untouched; the portrait-ring group
+   above (`.portring, .cv2-heroframe, …`) re-seats the existing `.hero` disc into the ring's hole, and these
+   two rules only set the size. `.small` only shrinks `--ring`: 84px puts a 75.6px disc where the row's old
+   76px CSS-ring portrait sat, so the row header keeps its height (the outcome block is taller). */
+.cv2-heroframe { --ring: 176px; }
 .cv2-heroframe.small { --ring: 84px; }
-.cv2-heroframe::after { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
-  background: url('./hero-select/heroportrait.png') center / 100% 100% no-repeat; }
-/* Class doubled on purpose: this must outrank the Heroes tab's older `.cv2-hcard .cv2-heroframe .hero` size. */
-.cv2-heroframe.cv2-heroframe .hero { position: absolute; z-index: 1; width: calc(var(--ring) * 0.9); height: calc(var(--ring) * 0.9);
-  left: calc(var(--ring) * 0.046); top: calc(var(--ring) * 0.054); padding: 0; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.6); overflow: hidden; }
 
 /* Rankings rows: the rank cell holds the row-size bar instead of the bare MMR. */
 .lb-c-rating .rankbar-row { justify-content: flex-end; }

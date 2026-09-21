@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { perfMonitor } from './perfMonitor';
 import gsap from 'gsap';
-import type { CombatEvent, CombatResult, Keyword, MinionBuff, MinionSnapshot, Tribe } from '@game/core';
+import { damageMeterOf, type CombatEvent, type CombatResult, type Keyword, type MinionBuff, type MinionSnapshot, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { triggerCounts } from './choreo/triggerCounts';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
@@ -340,11 +340,16 @@ export function computeFrame(
     if (e.type === 'dmg') {
       const u = find(e.target);
       if (u) u.health = e.remainingHp;
-      // Han Gover: its meter is the sum of every landed hit it dealt — the `dmg` events stamped with it as
-      // `source`, the same amounts the sim's `noteDamageDealt` added — on top of the seeded run total.
+      // The damage meters (Han Gover, Goldvein — core's `DAMAGE_METER_MARKERS`): a meter is the sum of every
+      // landed hit its body dealt — the `dmg` events stamped with it as `source`, the same amounts the sim's
+      // `noteDamageDealt` added — on top of the seeded run total. Keyed off the card's MARKER, not an id: the
+      // id gate (`dw3_hangover` only) is why Goldvein's badge never moved in combat (owner report 2026-09-19).
+      // This fold runs to the END of the beat being cued, so the badge ticks on the beat the damage lands —
+      // the same moment the damage number pops — including the blow that ends the fight (the `done` frame
+      // folds the whole log, so the last increment stays on the badge through the end-of-combat sequence).
       if (e.source) {
         const src = find(e.source);
-        if (src?.cardId === 'dw3_hangover') src.damageDealt = (src.damageDealt ?? 0) + e.amount;
+        if (src && damageMeterOf(CARD_INDEX[src.cardId])) src.damageDealt = (src.damageDealt ?? 0) + e.amount;
       }
     } else if (e.type === 'shield') {
       const u = find(e.target);

@@ -1,4 +1,4 @@
-import type { BoardMinion, CardDef, Minion, Side } from '../types';
+import { damageMeterOf, type BoardMinion, type CardDef, type Minion, type Side } from '../types';
 
 export type CardIndex = Record<string, CardDef>;
 
@@ -77,7 +77,9 @@ export function instantiate(
     hpGrantBonus: board.hpGrantBonus, // Sergeant: seed the Deathrattle HP-grant accrual from the run board
     ascendProgress: board.ascendProgress, // Tara: seed the ascend tally so the live tracker shows the total
     spiritTally: board.spiritTally, // Set 3 Spirits: Forest Colossus's Start of Combat reads it
-    damageDealt: board.damageDealt, // Han Gover: seed the damage meter so it continues from the run total
+    // Han Gover: seed the damage meter so it continues from the run total. A once-per-combat meter (Goldvein —
+    // `resetEachCombat`) starts every fight at 0 whatever the board card carries (a pre-reset snapshot, say).
+    damageDealt: damageMeterOf(card)?.resetEachCombat ? undefined : board.damageDealt,
     soldProgress: board.soldProgress, // Runic Archivist: display-only, so the combat card reads its live count
     boardFirstSpellId: board.boardFirstSpellId, // Spell Warden: display-only
     spellProgress: board.spellProgress, // Guel: seed the per-instance spell tally for the live combat text

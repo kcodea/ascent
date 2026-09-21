@@ -10915,3 +10915,136 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 .scenebuilder .sb-seg-btn.sb-tab { border-radius: 0; padding: calc(4 * var(--u)) calc(4 * var(--u)); text-transform: uppercase; letter-spacing: 0.06em; font-size: calc(10 * var(--u)); }
 .scenebuilder .sb-seg-btn.sb-tab.on { border-color: transparent; }
 .scenebuilder .sb-seg-btn.sb-tab em { opacity: 0.7; }
+
+/* ============================================================================================================
+   MEDAL RANK (2026-09-20) — the crest-in-frame, the shared division bar, and the post-game rank screen.
+   ============================================================================================================
+   The crest reuses the in-run circular hero frame verbatim (`.lb-heroframe > .hero > .f > img.heroimg`, the
+   same markup LadderBits re-seats from the StatusBar) with the medal art cover-fit inside it and a small
+   DIVISION PLATE (I / II / III) eclipsing the frame's bottom edge — one painting per medal, the numeral is
+   composited (owner decision). The bar fill is a `scaleX` transform so the end screen animates it on the
+   compositor; every rank-screen beat is transform/opacity and nothing loops. */
+.rankcrest { position: relative; display: inline-block; flex: none; }
+.rankcrest .hero { width: 44px; height: 44px; padding: 3px; }
+.rankcrest .hero .f { background: #0b0f18; width: 100%; height: 100%; }
+.rankcrest-mini .hero { width: 36px; height: 36px; padding: 2px; }
+.rankcrest-big .hero { width: 84px; height: 84px; padding: 4px; }
+.rankcrest-xl .hero { width: 168px; height: 168px; padding: 6px; box-shadow: 0 0 0 3px rgba(20, 30, 50, 0.9), 0 0 0 5px rgba(196, 160, 92, 0.55), 0 16px 40px -12px rgba(0, 0, 0, 0.7); }
+.rankcrest-plate { position: absolute; left: 50%; bottom: 0; transform: translate(-50%, 42%); z-index: 2; white-space: nowrap;
+  font-family: var(--font-ui); font-weight: 900; font-size: 12px; line-height: 1; letter-spacing: 0.08em;
+  padding: 3px 9px; border-radius: 999px; background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink);
+  border: 2px solid var(--gold); box-shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.7); }
+.rankcrest-mini .rankcrest-plate { font-size: 9px; padding: 2px 6px; border-width: 1px; }
+.rankcrest-big .rankcrest-plate { font-size: 14px; padding: 4px 12px; }
+.rankcrest-xl .rankcrest-plate { font-size: 24px; padding: 6px 20px; border-width: 3px; transform: translate(-50%, 36%); }
+/* The crest a transition lands on stacks under the current one, hidden until the timeline reveals it. */
+.rankbar-crests { position: relative; display: grid; place-items: center; flex: none; }
+.rankbar-crests > .rankcrest { grid-area: 1 / 1; }
+.rankcrest-next { opacity: 0; }
+
+.rankbar { display: flex; align-items: center; gap: 14px; text-align: left; }
+.rankbar-body { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1 1 auto; }
+.rankbar-label { font-family: var(--font-ui); font-weight: 900; font-size: 18px; letter-spacing: 0.06em; text-transform: uppercase; color: #fff6e4; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8); white-space: nowrap; }
+.rankbar-track { position: relative; width: 180px; height: 10px; border-radius: 999px; background: rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(196, 160, 92, 0.4); }
+.rankbar-fill { position: absolute; inset: 0; transform-origin: left center; border-radius: inherit; will-change: transform;
+  background: linear-gradient(90deg, #c9973f, #ffe08a); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35); }
+/* Medal tints for the fill (identity still reads by crest silhouette + label — colour is a garnish). */
+.rankbar-bronze .rankbar-fill { background: linear-gradient(90deg, #a8672f, #f0b98a); }
+.rankbar-silver .rankbar-fill { background: linear-gradient(90deg, #8a95a3, #eef2f6); }
+.rankbar-gold .rankbar-fill { background: linear-gradient(90deg, #c9973f, #ffe08a); }
+.rankbar-platinum .rankbar-fill { background: linear-gradient(90deg, #4fb3b0, #d6fbf7); }
+.rankbar-diamond .rankbar-fill { background: linear-gradient(90deg, #3b7ee0, #bfe0ff); }
+.rankbar-ascendant .rankbar-fill { background: linear-gradient(90deg, #7c3fd6, #ffd76a); }
+/* The endpoint glow that lights when the gate unlocks (opacity + scale only; static radial fill). */
+.rankbar-tip { position: absolute; right: -8px; top: 50%; width: 26px; height: 26px; margin-top: -13px; border-radius: 50%; opacity: 0; pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 244, 200, 0.95), rgba(255, 220, 120, 0) 70%); }
+.rankbar.on-gate .rankbar-tip { opacity: 0.85; }
+.rankbar-points { font-family: var(--font-ui); font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; color: rgba(255, 246, 228, 0.85); white-space: nowrap; }
+.rankbar-caption { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
+.rankbar-gate { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.04em; color: #ffe08a; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8); }
+/* mini — the Title's Play card plate. */
+.rankbar-mini { gap: 8px; }
+.rankbar-mini .rankbar-body { gap: 3px; }
+.rankbar-mini .rankbar-label { font-size: 13px; }
+.rankbar-mini .rankbar-track { width: 120px; height: 6px; }
+.rankbar-mini .rankbar-tip { width: 16px; height: 16px; margin-top: -8px; right: -5px; }
+.rankbar-mini .rankbar-points { font-size: 11px; }
+.rankbar-mini .rankbar-gate { font-size: 10px; }
+/* row — a Rankings table row. */
+.rankbar-row .rankbar-label { font-size: 14px; }
+.rankbar-row .rankbar-track { width: 110px; height: 8px; }
+.rankbar-row .rankbar-points { font-size: 12px; }
+/* big — the Career card. */
+.rankbar-big { gap: 18px; }
+.rankbar-big .rankbar-label { font-size: 22px; }
+.rankbar-big .rankbar-track { width: auto; max-width: 240px; height: 12px; } /* stretches to the card, never past it */
+.rankbar-big .rankbar-points { font-size: 15px; }
+/* xl — the post-game screen: stacked, centred. */
+.rankbar-xl { flex-direction: column; align-items: center; text-align: center; gap: 22px; }
+.rankbar-xl .rankbar-body { align-items: center; gap: 10px; }
+.rankbar-xl .rankbar-label { font-size: 34px; letter-spacing: 0.12em; }
+.rankbar-xl .rankbar-track { width: min(380px, 72vw); height: 16px; }
+.rankbar-xl .rankbar-tip { width: 36px; height: 36px; margin-top: -18px; right: -12px; }
+.rankbar-xl .rankbar-points { font-size: 20px; color: #fff6e4; }
+
+/* The Title's Play card wears its rank on a frosted plate pinned inside the frame's bottom edge (always
+   visible — the promotion gate has to be readable BEFORE the next ranked match). Non-interactive: the card is
+   the button. */
+.mcrank { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 3; display: flex;
+  padding: 6px 16px 6px 8px; border-radius: 999px; background: rgba(6, 9, 16, 0.74); border: 1px solid rgba(196, 160, 92, 0.5);
+  box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.8); pointer-events: none; }
+
+/* Rankings rows: the rank cell holds the row-size bar instead of the bare MMR. */
+.lb-c-rating .rankbar-row { justify-content: flex-end; }
+
+/* ── THE POST-GAME RANK SCREEN ──
+   Same overlay chrome as the lobby end screen (`.heroselect.endscreen.lobbyend`), with the dim-in stretched
+   to the Reveal beat. Placement headline (VICTORY in green for 1st, the ordinal otherwise) → crest + bar →
+   delta → outcome → CONTINUE, with Rewatch / Final warband as secondary links. */
+.heroselect.rankend { animation: fadein 0.45s ease; }
+.rankend-panel { display: flex; flex-direction: column; align-items: center; gap: 16px; padding-bottom: 12px; }
+.rankend-place { display: flex; flex-direction: column; align-items: center; line-height: 0.92; will-change: transform, opacity; }
+.rankend-place-text { font-family: var(--font-disp, var(--font-ui)); font-weight: 900; font-size: clamp(64px, 11vh, 132px); letter-spacing: -0.01em;
+  background: linear-gradient(180deg, #fff6df, #d8a94e 62%, #a2762c); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.35)); }
+/* VICTORY reads green (owner ask 2026-09-20). `background-image`, not the shorthand — the shorthand un-clips. */
+.rankend.won .rankend-place-text { background-image: linear-gradient(180deg, #f2fff2, #8ff0a4 50%, #2f9a4a); }
+.rankend-place-of { font-family: var(--font-ui); font-weight: 700; font-size: clamp(13px, 1.7vh, 19px); letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); margin-top: 0.35em; }
+/* The rank display is the skip target while the sequence plays (role=button → the global gauntlet pointer). */
+.rankend-rank { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 10px 28px 14px; border-radius: 24px; }
+.rankend-panel.settled .rankend-rank { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.rankend-delta { font-family: var(--font-ui); font-weight: 900; font-size: 36px; line-height: 1; font-variant-numeric: tabular-nums; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9); will-change: transform, opacity; }
+.rankend-delta.up { color: #6fe089; }
+.rankend-delta.down { color: #ff7d7d; }
+.rankend-delta.flat { color: rgba(255, 246, 228, 0.85); }
+.rankend-detail { font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
+.rankend-outcome { font-family: var(--font-ui); font-weight: 800; font-size: 19px; letter-spacing: 0.08em; text-transform: uppercase; color: #ffe08a; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9); will-change: transform, opacity; }
+.rankend-outcome.promo { color: #8ff0a4; }
+.rankend-outcome.demo { color: #ff9a9a; }
+.rankend-status { display: flex; align-items: center; gap: 10px; font-family: var(--font-ui); font-weight: 700; font-size: 16px; letter-spacing: 0.06em; color: rgba(255, 246, 228, 0.82); max-width: 620px; }
+.rankend-status.rejected { color: #ff9a9a; }
+.rankend-status.unrated { text-transform: uppercase; letter-spacing: 0.18em; opacity: 0.7; }
+.rankend-spin { width: 18px; height: 18px; border-width: 2px; }
+.rankend-actions { display: flex; align-items: center; gap: 18px; }
+.rankend-actions .endplay { margin-top: 14px; }
+.rankend-retry { background: linear-gradient(180deg, #6a9ce0, #3f74bd); border-color: #22467a; box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.3), 0 7px 0 #22467a, 0 14px 34px -8px rgba(0, 0, 0, 0.55); }
+.rankend-retry:hover { background: linear-gradient(180deg, #5f90d4, #366aae); }
+.rankend-secondary { display: flex; align-items: center; gap: 26px; }
+.rankend-link { font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 246, 228, 0.7);
+  background: none; border: none; border-bottom: 2px solid transparent; padding: 6px 2px; }
+.rankend-link:hover, .rankend-link:focus-visible { color: #fff; border-bottom-color: var(--acc); outline: none; }
+.rankend-warband { display: flex; flex-direction: column; align-items: center; }
+.rankend-warband .endboardlabel { margin-top: 6px; }
+/* The single live-region announcement: present for assistive tech, invisible on screen. */
+.rankend-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) {
+  .heroselect.rankend { animation-duration: 0.2s; }
+}
+/* DEV preview: the overlay must clear the title screen (z450) yet stay under the floating dev panels (600+). */
+.heroselect.rankend-preview { z-index: 460; }
+.rankpreview-body { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px 10px; min-width: 300px; }
+.rankpreview-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.rankpreview-btn { display: flex; justify-content: space-between; gap: 8px; text-align: left; }
+.rankpreview-btn.on { outline: 2px solid var(--acc); }
+.rankpreview-btn-ms { opacity: 0.6; font-variant-numeric: tabular-nums; }

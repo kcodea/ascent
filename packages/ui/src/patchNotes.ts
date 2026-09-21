@@ -56,6 +56,23 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-20',
+    label: 'Medal ranks + the post-game rank screen',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "Your ladder rating is now a MEDAL RANK — Bronze, Silver, Gold, Platinum, Diamond and Ascendant, three divisions each (III → II → I), 100 points per division — and the end of every ranked game plays it out: VICTORY (or your placement), your crest, and the division bar moving from where you were to where you are.",
+        details: [
+          'Finish top 4 to gain points, bottom 4 to lose them. Reaching 100 unlocks a PROMOTION GAME: finish top 4 in your next ranked game to advance a division — or 1st to advance to the next medal — and you land at 0 / 100 in the new division. A lost promotion game just costs its points.',
+          'Falling below 0 demotes you one division (Bronze III has a floor at 0). Ascendant I has no cap — its counter just keeps climbing.',
+          "The post-game screen shows the actual points applied (a capped award at the gate says so), the outcome line — promotion, demotion, or \"Promotion game ready\" — and CONTINUE, which is always usable; click the rank display or Skip to settle the animation instantly. Rewatch and your final warband sit underneath as secondary actions.",
+          "If the rank update hasn't come back yet the screen says \"Updating rank…\"; a connection hiccup shows \"Rank update pending\" with a Retry. Practice games show your placement and \"Unrated\".",
+          "Your crest, division and bar now appear on the title screen's Play card (with the promotion-game line when you're on the gate), on your Career page's Seasonal Ranked card, and on the Leaderboard, which orders players by division then points.",
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-20',
     label: 'Leaderboard, Hall of Champions + Recent Games redesign',
     changes: [
       {

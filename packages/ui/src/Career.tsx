@@ -11,6 +11,9 @@ import { sfx } from './sfx';
 import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './store';
 import { fetchMyRuns, fetchReplayPayload, remoteEnabled } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
+import { RankBar } from './rank/RankBar';
+import { scalarCaption } from './rank/rankFormat';
+import { rankPositionOf } from './rank/types';
 import {
   TREND_WINDOWS, TRIBE_LABEL, careerAggregates, heroCareers, ordinalOf, outcomeOf, playedOnText, polylineOf, runLengthText, trendSeries,
   type CareerRun, type HeroCareer, type TrendSeries, type TrendWindow,
@@ -376,6 +379,9 @@ export function Career() {
   const back = (): void => { sfx.pulse(); close(); };
   const shownName = viewing ? (viewing.author || tempHandle(viewing.userId)) : (playerName || tempHandle(myId));
   const mmr = viewing ? viewing.rating : profile.rating;
+  // MEDAL RANK (2026-09-20): the Seasonal Ranked card shows the crest + division bar once a rank exists on the
+  // profile (or on the viewed player's row); the scalar stays as a small caption. No rank → the bare number.
+  const rank = rankPositionOf(viewing ? (viewing as { rank?: unknown }).rank : (profile as { rank?: unknown }).rank);
 
   // Watch a listed run back: the join already resolved the telemetry row id, so this is the same one-row
   // payload fetch Recent Games makes, handed to the same viewer. `startReplay` closes this overlay itself and
@@ -495,10 +501,14 @@ export function Career() {
         <aside className="cv2-col cv2-right">
           <div className="cv2-colhead"><div className="cv2-sec"><Icon name="star" />Seasonal Ranked</div></div>
           <div className="cv2-panel cv2-ranked">
-            <div className="cv2-mmr">
-              <span className="cv2-mmr-v">{mmr}</span>
-              <span className="cv2-mmr-l">MMR</span>
-            </div>
+            {rank ? (
+              <RankBar position={rank} size="big" caption={`${scalarCaption(rank)} MMR`} />
+            ) : (
+              <div className="cv2-mmr">
+                <span className="cv2-mmr-v">{mmr}</span>
+                <span className="cv2-mmr-l">MMR</span>
+              </div>
+            )}
           </div>
           <div className="cv2-panel cv2-trends">
             <div className="cv2-trends-head">

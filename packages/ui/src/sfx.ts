@@ -862,6 +862,27 @@ export const sfx = {
   },
   win: () => chord([523, 659, 784, 1046], { dur: 0.2, type: 'triangle', vol: 0.14, category: 'ui' }, 0.1),
   lose: () => chord([392, 311, 233], { dur: 0.24, type: 'sawtooth', vol: 0.13, category: 'ui' }, 0.12),
+  // ── MEDAL RANK cues (post-game rank screen, 2026-09-20) — four MODEST cues on the `rank` fader: the bar
+  //    starting to move, the promotion gate unlocking, a division promotion, a medal promotion. Each tries an
+  //    authored clip first (`rankprogress` / `rankgate` / `rankpromote` / `rankmedal`, none committed yet) and
+  //    falls back to a short synth so the screen is never silent. A demotion plays only the progress cue (the
+  //    blueprint: factual, no punitive spectacle).
+  rankProgress: () => {
+    if (playSample('rankprogress', 'rank')) return;
+    tone({ freq: 420, dur: 0.16, type: 'triangle', vol: 0.07, slideTo: 620, category: 'rank' });
+  },
+  rankGate: () => {
+    if (playSample('rankgate', 'rank')) return;
+    chord([659, 988], { dur: 0.22, type: 'triangle', vol: 0.1, category: 'rank' }, 0.09);
+  },
+  rankPromote: () => {
+    if (playSample('rankpromote', 'rank')) return;
+    chord([523, 659, 784], { dur: 0.24, type: 'triangle', vol: 0.11, category: 'rank' }, 0.08);
+  },
+  rankMedal: () => {
+    if (playSample('rankmedal', 'rank')) return;
+    chord([523, 659, 784, 1046, 1318], { dur: 0.3, type: 'triangle', vol: 0.12, category: 'rank' }, 0.09);
+  },
 } as const;
 
 // --- Dev SFX mixer bridge (DEV only). SfxMixer.tsx still edits per-CATEGORY gains through these until it's

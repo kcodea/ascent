@@ -1,0 +1,143 @@
+import { describe, expect, it } from 'vitest';
+import { RANK_FIXTURES, fixtureById } from './fixtures';
+import { announcement, barFraction, cappedDetail, deltaText, gateText, outcomeText, placementText, pointsText, rankLabel, signedRp } from './rankFormat';
+import { planRankSequence, sequenceDurationMs } from './rankSequence';
+import { compareRank, DIVISION_COUNT, isMedalGate, isPromotionReady, medalOf, rankPositionOf, rankScalar } from './types';
+
+/**
+ * The ONE formatting helper + the sequence planner, pinned per fixture (blueprint §3 rows + the owner's
+ * 2026-09-20 decisions). If any surface ever prints a different label for an index, this is where it fails.
+ */
+describe('rank index → label (the shared mapping)', () => {
+  it('walks Bronze III … Ascendant I, III → II → I within each medal', () => {
+    const labels = Array.from({ length: DIVISION_COUNT }, (_, i) => rankLabel(i));
+    expect(labels.slice(0, 4)).toEqual(['Bronze III', 'Bronze II', 'Bronze I', 'Silver III']);
+    expect(labels[7]).toBe('Gold II');
+    expect(labels[17]).toBe('Ascendant I');
+    expect(medalOf(9)).toBe('Platinum');
+    expect(medalOf(14)).toBe('Diamond');
+  });
+  it('clamps out-of-range indices instead of printing undefined', () => {
+    expect(rankLabel(-3)).toBe('Bronze III');
+    expect(rankLabel(99)).toBe('Ascendant I');
+  });
+  it('medal gates are every division I; the promotion-ready position is 100 below Ascendant I', () => {
+    expect(isMedalGate(8)).toBe(true);  // Gold I → Platinum III needs 1st
+    expect(isMedalGate(7)).toBe(false);
+    expect(isPromotionReady({ divisionIndex: 7, points: 100 })).toBe(true);
+    expect(isPromotionReady({ divisionIndex: 17, points: 100 })).toBe(false);
+    expect(gateText({ divisionIndex: 7, points: 100 })).toBe('Promotion game ready — finish top 4 to advance');
+    expect(gateText({ divisionIndex: 8, points: 100 })).toBe('Promotion game ready — finish 1st to advance');
+  });
+  it('orders by division then points (the scalar alone ties adjacent divisions)', () => {
+    const a = { divisionIndex: 7, points: 100 };
+    const b = { divisionIndex: 8, points: 0 };
+    expect(rankScalar(a)).toBe(rankScalar(b));
+    expect(compareRank(a, b)).toBeGreaterThan(0); // b (Gold I) sorts first
+    expect(compareRank(b, a)).toBeLessThan(0);
+  });
+  it('duck-types a position off a RankedProfile or a bare position, never off garbage', () => {
+    expect(rankPositionOf({ position: { divisionIndex: 5, points: 40 }, highest: { divisionIndex: 5, points: 40 } })).toEqual({ divisionIndex: 5, points: 40 });
+    expect(rankPositionOf({ divisionIndex: 5, points: 40 })).toEqual({ divisionIndex: 5, points: 40 });
+    expect(rankPositionOf(1234)).toBeNull();
+    expect(rankPositionOf({ divisionIndex: 'x' })).toBeNull();
+    expect(rankPositionOf(null)).toBeNull();
+  });
+});
+
+describe('points, placement and delta text', () => {
+  it('prints x / 100 below the top and an uncapped RP counter at Ascendant I', () => {
+    expect(pointsText({ divisionIndex: 7, points: 76 })).toBe('76 / 100');
+    expect(pointsText({ divisionIndex: 17, points: 130 })).toBe('130 RP');
+    expect(barFraction({ divisionIndex: 17, points: 130 })).toBe(1);
+    expect(barFraction({ divisionIndex: 7, points: 25 })).toBe(0.25);
+  });
+  it('VICTORY for 1st, the upper-case ordinal otherwise', () => {
+    expect(placementText(1)).toBe('VICTORY');
+    expect(placementText(2)).toBe('2ND');
+    expect(placementText(3)).toBe('3RD');
+    expect(placementText(8)).toBe('8TH');
+  });
+  it('signs with a real minus', () => {
+    expect(signedRp(16)).toBe('+16 RP');
+    expect(signedRp(-40)).toBe('−40 RP');
+    expect(signedRp(0)).toBe('0 RP');
+  });
+  it('shows the ACTUAL movement at the gate cap, with the base award as detail', () => {
+    const gate = fixtureById('gate')!.result!;
+    expect(deltaText(gate)).toBe('+12 RP');
+    expect(cappedDetail(gate)).toBe('base +40 RP · capped at the gate');
+    expect(outcomeText(gate)).toBe('Promotion game ready — finish top 4 to advance');
+    expect(outcomeText(fixtureById('gate-medal')!.result!)).toBe('Promotion game ready — finish 1st to advance');
+  });
+  it('shows only the actual loss at the Bronze floor, and "0 RP · Bronze floor" when nothing could be lost', () => {
+    const floor = fixtureById('floor')!.result!;
+    expect(deltaText(floor)).toBe('−10 RP');
+    expect(cappedDetail(floor)).toBe('base −40 RP · Bronze floor');
+    const zero = fixtureById('floor-zero')!.result!;
+    expect(deltaText(zero)).toBe('0 RP · Bronze floor');
+  });
+  it('a won promotion prints the base award and states the 0 / 100 reset (owner decision)', () => {
+    const promo = fixtureById('promo-won')!.result!;
+    expect(deltaText(promo)).toBe('+16 RP');
+    expect(cappedDetail(promo)).toBe('promotion — Gold I starts at 0 / 100');
+    expect(outcomeText(promo)).toBe('Promoted to Gold I');
+    expect(outcomeText(fixtureById('promo-medal')!.result!)).toBe('Promoted to Platinum III');
+  });
+  it('a failed promotion and a demotion stay factual', () => {
+    expect(outcomeText(fixtureById('promo-failed')!.result!)).toBe('Promotion unsuccessful');
+    expect(deltaText(fixtureById('promo-failed')!.result!)).toBe('−40 RP');
+    expect(outcomeText(fixtureById('demotion')!.result!)).toBe('Demoted to Gold III');
+    expect(cappedDetail(fixtureById('demotion')!.result!)).toBeNull();
+  });
+  it('Ascendant I never announces a false promotion', () => {
+    const top = fixtureById('ascendant')!.result!;
+    expect(outcomeText(top)).toBe('Ascendant I · uncapped');
+    expect(deltaText(top)).toBe('+40 RP');
+    expect(planRankSequence(top).some((s) => s.kind === 'transition' || s.kind === 'gate')).toBe(false);
+  });
+  it('the live-region sentence carries placement, delta, the new rank and the outcome', () => {
+    expect(announcement(3, fixtureById('gain')!.result, 'confirmed')).toBe('Finished 3rd. +16 RP. Now Gold II, 76 / 100.');
+    expect(announcement(1, fixtureById('promo-medal')!.result, 'confirmed')).toBe('Victory. +40 RP. Now Platinum III, 0 / 100. Promoted to Platinum III.');
+    expect(announcement(2, null, 'pending')).toBe('Finished 2nd. Updating rank.');
+    expect(announcement(4, null, 'unrated')).toBe('Finished 4th. Unrated.');
+  });
+});
+
+describe('the planned sequence per fixture', () => {
+  const kinds = (id: string): string[] => planRankSequence(fixtureById(id)!.result!).map((s) => s.kind);
+  it('a plain gain: reveal → establish → one bar travel → hold', () => {
+    expect(kinds('gain')).toEqual(['reveal', 'establish', 'bar', 'outcome']);
+    const bar = planRankSequence(fixtureById('gain')!.result!).find((s) => s.kind === 'bar')!;
+    expect(bar).toMatchObject({ from: 60, to: 76, divisionIndex: 7, uncapped: false });
+  });
+  it('a gate unlock fills to 100 then lights the endpoint', () => {
+    expect(kinds('gate')).toEqual(['reveal', 'establish', 'bar', 'gate', 'outcome']);
+  });
+  it('a promotion: old full bar → crest transition up → new bar from zero', () => {
+    const steps = planRankSequence(fixtureById('promo-won')!.result!);
+    expect(steps.map((s) => s.kind)).toEqual(['reveal', 'establish', 'transition', 'bar', 'outcome']);
+    expect(steps[2]).toMatchObject({ from: 7, to: 8, direction: 'up', medal: false });
+    expect(steps[3]).toMatchObject({ divisionIndex: 8, from: 0, to: 0 });
+    const medal = planRankSequence(fixtureById('promo-medal')!.result!)[2];
+    expect(medal).toMatchObject({ kind: 'transition', from: 8, to: 9, medal: true });
+  });
+  it('a demotion: drain to zero → transition down → previous division retreats from 100', () => {
+    const steps = planRankSequence(fixtureById('demotion')!.result!);
+    expect(steps.map((s) => s.kind)).toEqual(['reveal', 'establish', 'bar', 'transition', 'bar', 'outcome']);
+    expect(steps[2]).toMatchObject({ divisionIndex: 7, from: 10, to: 0 });
+    expect(steps[3]).toMatchObject({ from: 7, to: 6, direction: 'down' });
+    expect(steps[4]).toMatchObject({ divisionIndex: 6, from: 100, to: 70 });
+  });
+  it('a failed promotion simply retreats from 100 — no transition, no spectacle', () => {
+    expect(kinds('promo-failed')).toEqual(['reveal', 'establish', 'bar', 'outcome']);
+  });
+  it('every confirmed fixture settles in roughly 2.3–3.2 s', () => {
+    for (const f of RANK_FIXTURES) {
+      if (!f.result) continue;
+      const ms = sequenceDurationMs(planRankSequence(f.result));
+      expect(ms, f.id).toBeGreaterThanOrEqual(2200);
+      expect(ms, f.id).toBeLessThanOrEqual(3300);
+    }
+  });
+});

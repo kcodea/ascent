@@ -7,6 +7,8 @@ import { fetchTopPlayers, fetchLatestGamesForUsers, fetchLatestReplayForUser, re
 import { startReplay } from './replay/replayPlayer';
 import { LbHeroFrame, LbMedallion, LbTeam } from './LadderBits';
 import { ordinalOf, playedOnText } from './leaderboardData';
+import { RankBar } from './rank/RankBar';
+import { compareRank, rankPositionOf, type RankPosition } from './rank/types';
 
 /**
  * Rankings — the player LEADERBOARD (owner request 2026-07-13; polished 2026-09-20 to the Career page's
@@ -18,6 +20,24 @@ import { ordinalOf, playedOnText } from './leaderboardData';
  * best-effort — empty until the backend is configured. Distinct from the Hall of Champions (victory runs).
  */
 export const RANKED_ROWS = 10;
+
+/** A row's medal rank, when the profile row carries one (the rules branch adds it) — else null (legacy MMR). */
+const rankOfRow = (r: PlayerRow): RankPosition | null => rankPositionOf((r as { rank?: unknown }).rank);
+
+/** MEDAL RANK ordering (blueprint §8): division first, then points — ranked rows ahead of legacy-only rows,
+ *  which keep their server order (rating desc). A list with no ranks at all is returned untouched. */
+export function sortRankAware(rows: PlayerRow[]): PlayerRow[] {
+  if (!rows.some((r) => rankOfRow(r))) return rows;
+  return rows
+    .map((r, i) => ({ r, i, rank: rankOfRow(r) }))
+    .sort((a, b) => {
+      if (a.rank && b.rank) return compareRank(a.rank, b.rank) || a.i - b.i;
+      if (a.rank) return -1;
+      if (b.rank) return 1;
+      return a.i - b.i;
+    })
+    .map((x) => x.r);
+}
 
 export function Rankings() {
   const show = useGame((s) => s.showRankings);
@@ -37,7 +57,7 @@ export function Rankings() {
     let alive = true;
     void fetchTopPlayers(RANKED_ROWS).then(async (r) => {
       if (!alive) return;
-      setRows(r);
+      setRows(sortRankAware(r));
       // Then each ranked player's latest recorded board (best-effort; a failure just leaves the cell empty).
       const facts = await fetchLatestGamesForUsers(r.map((p) => p.userId));
       if (alive) setLatest(facts);
@@ -80,7 +100,7 @@ export function Rankings() {
             <div className="lb-trow lb-thead" role="row">
               <span className="lb-c-rank">#</span>
               <span className="lb-c-player">Player</span>
-              <span className="lb-c-rating">Rating</span>
+              <span className="lb-c-rating">{rows.some((r) => rankOfRow(r)) ? 'Rank' : 'Rating'}</span>
               <span className="lb-c-games">Games</span>
               <span className="lb-c-board">Latest board</span>
               <span className="lb-c-act" />
@@ -88,6 +108,7 @@ export function Rankings() {
             {rows.map((r, i) => {
               const hero = r.favoriteHero ? getHero(r.favoriteHero) : null;
               const handle = displayHandle(r.author, r.discriminator, r.userId);
+              const rowRank = rankOfRow(r);
               const game = latest?.get(r.userId);
               // Match the player by their real identity (`user_id`), NOT the display name — two accounts can
               // share a name (that's what the `#tag` disambiguates), and matching by name lit up every row of
@@ -133,7 +154,11 @@ export function Rankings() {
                       <span className="lb-herosub">{hero ? hero.name : 'No favorite hero yet'}</span>
                     </span>
                   </span>
-                  <span className="lb-c-rating"><span className="lb-rating">{r.rating}</span><span className="lb-unit">MMR</span></span>
+                  <span className="lb-c-rating">
+                    {rowRank
+                      ? <RankBar position={rowRank} size="row" showGate={false} />
+                      : <><span className="lb-rating">{r.rating}</span><span className="lb-unit">MMR</span></>}
+                  </span>
                   <span className="lb-c-games"><span className="lb-num">{r.gamesPlayed}</span></span>
                   <span className="lb-c-board">
                     {game ? (

@@ -130,6 +130,9 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // → 1253 (2026-09-18, the Dissipate spell art: +1 — the sell-to-Shop spell added to sets 2 and 3.)
     // → 1254 (2026-09-19, Kurse's minion art: +1 — the new Set 3 Kobold.)
     // → 1256 (2026-09-19, Yeti + Goldvein minion art: +2 — the new Set 3 Neutral and Set 3 Kobold.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1256);
+    // → 1262 (2026-09-20, the six MEDAL CRESTS for the ranked ladder — Bronze, Silver, Gold, Platinum, Diamond,
+    // Ascendant — in a NEW `art/ranks/` dir the walk picks up automatically. +6, no PNG masters committed; the
+    // masters stay under `C:\Game Assets\Ascent Art\Ranks\`.)
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1262);
   });
 });

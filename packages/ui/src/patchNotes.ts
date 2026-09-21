@@ -56,6 +56,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-20',
+    label: 'Kobe nerf',
+    changes: [
+      { category: 'Card Change', text: 'Kobe now plays one permanent Ruby (gilded: two) on itself and adjacent Kobolds when it takes damage, down from three (gilded six).' },
+    ],
+  },
+  {
+    date: '2026-09-20',
     label: 'Every round counts',
     changes: [
       { category: 'UI / Info', text: "Your W–L record now counts every round of a run. The first two rounds used to be skipped as \"calibration\" (a leftover of the old course), so a 15-round game read 9–4; the HUD, end screen, Career, Recent Games and the Hall all count all rounds now." },

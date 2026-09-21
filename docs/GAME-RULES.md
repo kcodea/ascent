@@ -5,7 +5,8 @@ source file. Anything not confirmable from code is marked **(unverified — conf
 
 ASCENT is a deterministic, **asynchronous auto-battler**: shop for minions, build a 7-slot board, and fight
 auto-resolved combats inside an **eight-seat elimination lobby**. You are not racing a fixed course — you are
-outlasting seven other seats, and your **final placement** is the result that moves your ladder Rating.
+outlasting seven other seats, and your **final placement** is the result that moves your ladder **rank** (a
+medal + division — see *Ranked ladder* below).
 
 > **RETIRED — do not describe as current.** The **17-round course** and the **Line / Oath** success contract
 > are no longer the game. Their constants (`CONFIG.courseRounds: 17`, `defaultLine`, `calibrationRounds`,
@@ -46,15 +47,51 @@ outlasting seven other seats, and your **final placement** is the result that mo
   reaches 0 is eliminated and receives a placement.
 - The lobby ends when **one seat remains**. `maxRounds: 60` is a **deterministic stalemate backstop**, not a
   course length or a player-facing target.
-- **Placement is the result.** A lobby finish resolves a placement-based Rating change; 1st is the win. (A
-  lobby never reaches the `victory` phase — `advanceCombat` ends every lobby at `gameover` whether you won or
-  lost, because a lobby has no course clock to complete.)
+- **Placement is the result.** A lobby finish resolves a placement-based rank change (the medal ladder
+  below); 1st is the win. (A lobby never reaches the `victory` phase — `advanceCombat` ends every lobby at
+  `gameover` whether you won or lost, because a lobby has no course clock to complete.)
 - A run **pins its set at creation** and reads it forever after, so an in-progress or replayed run is
   unaffected by a later global set change.
 
 Source: `packages/sim/src/lobby/lobby.ts` (`DEFAULT_LOBBY_RULES`, damage application),
 `packages/sim/src/lobby/runLobby.ts`, `packages/sim/src/lobby/seats.ts`,
-`packages/sim/src/lobby/snapshotSeats.ts`, `packages/sim/src/playerRating.ts`.
+`packages/sim/src/lobby/snapshotSeats.ts`, `packages/sim/src/rank.ts`.
+
+---
+
+## Ranked ladder — medals and divisions (season 3, owner rules 2026-09-20)
+
+The visible ladder is a **medal + division**, not a number. Only a finished **rated lobby** (the `Play`
+route) moves it; Practice, the tutorial and sandbox runs never do.
+
+- **Six medals — Bronze, Silver, Gold, Platinum, Diamond, Ascendant — three divisions each**, ordered
+  **III → II → I** and then the next medal's III (18 divisions, `Bronze III` lowest, `Ascendant I` highest).
+  Each division is **100 points** wide.
+- **Points by final placement** (`RANK_RULES.placementAwards`): 1st **+40**, 2nd **+28**, 3rd **+16**, 4th
+  **+6**, 5th **−6**, 6th **−16**, 7th **−28**, 8th **−40**. Nothing else moves the ladder — no round-wins
+  modifier, no opponent-strength adjustment.
+- **Promotion games.** Reaching **100** does not promote; it makes the **next** rated game a promotion game
+  (overflow past 100 is discarded; the delta shown is the delta applied). To move up **a division** (Gold III
+  → Gold II) the promotion game needs a **top-4 finish**; to move up **a medal** (Gold I → Platinum III) it
+  needs **1st place**. A won promotion game starts the next division at **0 / 100** — not the game's award.
+  A lost promotion game (5th–8th) applies its normal negative points from 100; the gate reopens when the
+  player climbs back to 100. At a **medal** gate, a 2nd–4th finish neither promotes nor gains — the player
+  stays at 100, still promotion-ready.
+- **Demotion.** Dropping below 0 demotes one division to `100 + result` (Gold II 10 → 8th → Gold III 70).
+  Exactly 0 stays. **Bronze III floors at 0**. **Ascendant I is uncapped** (points keep climbing past 100,
+  no further gate); a negative result there still demotes.
+- **Career best** (division first, then points) never decreases. **Leaderboards sort by division, then
+  points** — the reporting scalar `100 × division + points` still exists (`profile.rating`) but ties Gold II
+  100 with Gold I 0, so it is never the sort key.
+- **The server is the authority.** A finished rated lobby submits `{ run id, placement, season, rules
+  version }` and the `settle_rank` transaction (lock → dedupe → resolve → commit) returns the immutable
+  result the post-game screen animates plus the account's current rank; the client only mirrors it. A result
+  that cannot be sent (offline) is kept and retried; it never resolves locally. **Season 3 started everyone at
+  Bronze III 0/100.**
+
+Source: `packages/sim/src/rank.ts` (`RANK_RULES`, `resolveRank`, `settleRank`), `supabase/functions/
+_shared/lobbyRating.ts`, `supabase/migrations/2026-09-20-medal-rank.sql` (`settle_rank`),
+`packages/ui/src/rank/` (submission states + the durable pending queue).
 
 ---
 

@@ -1,19 +1,29 @@
 /**
- * submit-rating — the authoritative rating writer (ACCOUNTS C3).
+ * submit-rating — the authoritative MEDAL RANK writer (2026-09-20; succeeds the ACCOUNTS C3 numeric writer).
  *
- * A client sends `{ runId, placement }` — never a rating. This function, running as the SERVICE ROLE, reads
- * the caller's CURRENT stored rating and computes the new one itself, so a client can't inflate it. One rating
- * per (player, run) via the `rated_runs` ledger; a simple per-player rate limit on top.
+ * A client sends `{ runId, placement, seasonId, rulesVersion, seed? }` — never a rating, never a division.
+ * This function, running as the SERVICE ROLE, calls the `settle_rank` database function, which does the whole
+ * settlement in ONE transaction: it locks the caller's profile row, checks the `rank_results` ledger under
+ * that lock (a duplicate returns the ORIGINAL result — never a second award), resolves the medal rules from
+ * the locked profile, and writes profile + revision + the immutable result together. A failure anywhere rolls
+ * the lot back: no half-settled state, no consumed dedupe key without points.
  *
- * Deploy: `supabase functions deploy submit-rating`. Then run the C3 block in `schema.sql` (it creates
- * `rated_runs` and revokes the client's legacy `submit_own_rating` RPC). Until both are done, the client keeps
- * using that RPC fallback and nothing breaks.
+ * VALIDATION before the call: placement is an integer 1–8; `seasonId` / `rulesVersion` must be the ones this
+ * deployment serves (a client from another season or rules version is REJECTED — 409 — rather than settled
+ * under rules it did not show); `runId` is a non-empty string ≤ 128 chars (a persisted UUID for runs started
+ * since medals, `String(seed)` for older saved games — the client never regenerates it on retry).
+ *
+ * PARITY: the database's outcome is re-derived here from `_shared/lobbyRating.ts` and compared. A mismatch
+ * does NOT overrule the committed SQL result (the ledger is what was written) — it flags `parity: false` and
+ * logs, so a rules edit that missed one copy surfaces on the first real settlement.
+ *
+ * Deploy: `supabase functions deploy submit-rating` (see docs/rank-season-runbook.md for the full order).
  *
  * Deno runtime — NOT part of the Node monorepo build (the repo's tsc/eslint don't compile this directory).
  */
 // @ts-nocheck — Deno globals + remote imports aren't visible to the repo's Node TypeScript config.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { lobbyRatingAfter } from '../_shared/lobbyRating.ts';
+import { RANK_RULES_VERSION, RANK_SEASON, isValidPlacement, resolveRankOutcome, sameRankOutcome } from '../_shared/lobbyRating.ts';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -23,10 +33,14 @@ const CORS: Record<string, string> = {
 const json = (status: number, body: unknown): Response =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
-/** Per-player rate limit: at most this many rated runs inside the window below. A normal player finishes far
- *  fewer; this only trips on scripted spam. */
-const RATE_MAX = 20;
-const RATE_WINDOW_MS = 10 * 60 * 1000;
+/** `raise exception '<code>'` inside `settle_rank` → the HTTP status the client maps to retryable/rejected. */
+const SQL_ERROR_STATUS: Record<string, number> = {
+  bad_placement: 400,
+  bad_run_id: 400,
+  unsupported_season: 409,
+  unsupported_rules: 409,
+  rate_limited: 429,
+};
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -44,46 +58,65 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const user = userData?.user;
   if (userErr || !user) return json(401, { error: 'unauthenticated' });
 
-  // Input: a run id (for dedupe) + a lobby placement. NO rating — the server derives that.
-  let body: { runId?: unknown; placement?: unknown };
+  // INPUT — strict. A season / rules-version mismatch is a definite rejection (the client shows the truth
+  // and keeps its request; an updated client can resubmit the same run id under the right version).
+  let body: { runId?: unknown; placement?: unknown; seasonId?: unknown; rulesVersion?: unknown; seed?: unknown };
   try { body = await req.json(); } catch { return json(400, { error: 'bad_json' }); }
-  const runId = typeof body.runId === 'string' ? body.runId.slice(0, 128) : String(body.runId ?? '');
-  const placement = Number(body.placement);
-  if (!runId || !Number.isFinite(placement) || placement < 1 || placement > 8) {
-    return json(400, { error: 'bad_input' });
-  }
+  const runId = typeof body.runId === 'string' ? body.runId.trim().slice(0, 128) : '';
+  const placement = typeof body.placement === 'number' ? body.placement : Number(body.placement);
+  if (!runId) return json(400, { error: 'bad_run_id' });
+  if (!isValidPlacement(placement)) return json(400, { error: 'bad_placement' });
+  if (body.seasonId !== RANK_SEASON) return json(409, { error: 'unsupported_season', expected: RANK_SEASON });
+  if (body.rulesVersion !== RANK_RULES_VERSION) return json(409, { error: 'unsupported_rules', expected: RANK_RULES_VERSION });
+  const seed = typeof body.seed === 'number' && Number.isFinite(body.seed) && Number.isInteger(body.seed) ? body.seed : null;
 
-  // Service-role client — the authoritative writer, bypassing RLS (which forbids every client rating write).
+  // THE SETTLEMENT — one atomic database call as the service role (RLS forbids every client rank write; the
+  // function itself is executable by the service role only).
   const admin = createClient(url, serviceKey);
-
-  // DEDUPE: one rating per (player, run). Insert the ledger row FIRST; a unique violation means this run was
-  // already rated, so return the current rating unchanged — idempotent under a retried submit.
-  const ledger = await admin.from('rated_runs').insert({ user_id: user.id, run_id: runId }).select('run_id');
-  if (ledger.error) {
-    if (ledger.error.code === '23505') {
-      const cur = await admin.from('profiles').select('rating').eq('user_id', user.id).maybeSingle();
-      return json(200, { rating: cur.data?.rating ?? 0, deduped: true });
-    }
-    return json(500, { error: 'ledger_failed' });
+  const settled = await admin.rpc('settle_rank', {
+    p_user: user.id, p_run_id: runId, p_placement: placement,
+    p_season: RANK_SEASON, p_rules_version: RANK_RULES_VERSION, p_seed: seed,
+  });
+  if (settled.error) {
+    const message = String(settled.error.message ?? '');
+    const code = Object.keys(SQL_ERROR_STATUS).find((k) => message.includes(k));
+    if (code) return json(SQL_ERROR_STATUS[code]!, { error: code });
+    console.error('settle_rank failed', settled.error);
+    return json(500, { error: 'settle_failed' });
   }
 
-  // RATE LIMIT: count this player's recent ledger rows. Cheap; the ledger is already indexed by (user, time).
-  const since = new Date(Date.now() - RATE_WINDOW_MS).toISOString();
-  const recent = await admin.from('rated_runs')
-    .select('run_id', { count: 'exact', head: true })
-    .eq('user_id', user.id).gte('created_at', since);
-  if ((recent.count ?? 0) > RATE_MAX) return json(429, { error: 'rate_limited' });
+  const out = settled.data as { status?: string; result?: Record<string, unknown>; profile?: Record<string, unknown> } | null;
+  if (!out || !out.result || !out.profile) return json(500, { error: 'settle_malformed' });
 
-  // AUTHORITATIVE COMPUTE — from the STORED rating, never a client-supplied one. A missing row = a new player
-  // at rating 0 (the starting rating); the profile is upserted so the ladder always has a row to rank.
-  const prof = await admin.from('profiles').select('rating').eq('user_id', user.id).maybeSingle();
-  const ratingBefore = typeof prof.data?.rating === 'number' ? prof.data.rating : 0;
-  const ratingAfter = lobbyRatingAfter(ratingBefore, placement);
+  // RUNTIME PARITY — re-derive the committed result from the shared TS rules and compare.
+  let parity = true;
+  try {
+    const r = out.result as {
+      placement: number; before: { divisionIndex: number; points: number }; after: { divisionIndex: number; points: number };
+      baseDelta: number; appliedDelta: number; cappedPoints: number; wasPromotionGame: boolean;
+      promotionKind: 'division' | 'medal' | null; requiredFinish: number | null;
+      promotionUnlocked: boolean; promoted: boolean; demoted: boolean;
+    };
+    const expected = resolveRankOutcome(r.before, r.placement);
+    parity = sameRankOutcome(expected, {
+      placement: r.placement, before: r.before, after: r.after, baseDelta: r.baseDelta, appliedDelta: r.appliedDelta,
+      cappedPoints: r.cappedPoints, wasPromotionGame: r.wasPromotionGame, promotionKind: r.promotionKind ?? null,
+      requiredFinish: r.requiredFinish ?? null, promotionUnlocked: r.promotionUnlocked, promoted: r.promoted, demoted: r.demoted,
+    });
+    if (!parity) console.error('rank parity mismatch', { user: user.id, runId, sql: out.result, ts: expected });
+  } catch (e) {
+    parity = false;
+    console.error('rank parity check threw', e);
+  }
 
-  const write = await admin.from('profiles')
-    .upsert({ user_id: user.id, rating: ratingAfter, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
-    .select('rating');
-  if (write.error) return json(500, { error: 'write_failed' });
-
-  return json(200, { rating: ratingAfter, delta: ratingAfter - ratingBefore });
+  const position = (out.profile as { position?: { divisionIndex: number; points: number } }).position;
+  return json(200, {
+    status: 'confirmed',
+    deduped: out.status === 'deduped',
+    result: out.result,
+    profile: out.profile,
+    /** The derived reporting scalar, for anything still reading a number. */
+    rating: position ? 100 * position.divisionIndex + position.points : null,
+    parity,
+  });
 });

@@ -56,6 +56,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-20',
+    label: 'Ladder pages backdrop',
+    changes: [
+      { category: 'UI / Info', text: 'Career, Leaderboard, Hall of Champions and Recent Games now sit on the deep navy backdrop the loading screen uses (the same one as the new rank screen) instead of the title art.' },
+    ],
+  },
+  {
+    date: '2026-09-20',
     label: 'Every round counts',
     changes: [
       { category: 'UI / Info', text: "Your W–L record now counts every round of a run. The first two rounds used to be skipped as \"calibration\" (a leftover of the old course), so a 15-round game read 9–4; the HUD, end screen, Career, Recent Games and the Hall all count all rounds now." },

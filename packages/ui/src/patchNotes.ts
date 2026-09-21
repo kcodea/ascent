@@ -69,7 +69,7 @@ export const PATCH_NOTES: PatchNote[] = [
           "Dropping OUT of a medal is gated too: a loss at a medal's lowest division (Gold III) stops at 0 and arms a DEMOTION GAME for your next ranked lobby — a top-4 finish keeps you in the medal (your points apply from 0), a 5th–8th drops you to the previous medal's division I with 100 minus that game's loss (an 8th lands on Silver I 60). Arriving at 0 by winning a medal promotion does not arm it; only a loss there does.",
           "The post-game screen shows the actual points applied (a capped award at the gate says so), the outcome line when there is one — \"Promotion game ready\" / \"Demotion game\" — and CONTINUE, which is always usable and fades you back to the menu; click the rank display or Skip to settle the animation instantly.",
           "If the rank update hasn't come back yet the screen says \"Updating rank…\"; a result that can't reach the server is kept and retried — it's never lost — and shows \"Rank update pending\" with a Retry. Practice games show your placement and \"Unrated\".",
-          "Your crest, division and bar now appear on the title screen's Play card (with the promotion- or demotion-game line when you're on a gate), on your Career page's Seasonal Ranked card, and on the Leaderboard, which orders players by division first, then points.",
+          "Your crest, division and bar now appear on your Career page's Seasonal Ranked card and on the Leaderboard, which orders players by division first, then points.",
           "Your career-best rank never goes down. Leaderboards sort by division first, then points.",
           'Previous-season ratings are archived, not deleted; the new season starts everyone fresh.',
         ],

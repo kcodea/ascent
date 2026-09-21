@@ -11052,13 +11052,6 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 .rankbar-xl .rankbar-tip { width: 36px; height: 36px; margin-top: -18px; right: -12px; }
 .rankbar-xl .rankbar-points { font-size: 20px; color: #fff6e4; }
 
-/* The Title's Play card wears its rank on a frosted plate pinned inside the frame's bottom edge (always
-   visible — the promotion gate has to be readable BEFORE the next ranked match). Non-interactive: the card is
-   the button. */
-.mcrank { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 3; display: flex;
-  padding: 6px 16px 6px 8px; border-radius: 999px; background: rgba(6, 9, 16, 0.74); border: 1px solid rgba(196, 160, 92, 0.5);
-  box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.8); pointer-events: none; }
-
 /* The Career page's hero portrait (left column) wears the SAME portrait ring (owner 2026-09-20) — the markup
    is untouched; these rules re-seat the existing `.hero` disc into the ring's hole. The small match-row
    portraits keep their CSS ring. */

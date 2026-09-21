@@ -370,12 +370,14 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
 
   // The workbench now stages a LIST of layers (a composition), not a single primitive. `layers[selected]` is
   // the one the top primitive row / Inspector / timing controls edit; every layer is played together.
-  const [layers, setLayers] = useState<EditorLayer[]>(() => {
-    if (restoredSession !== null) return restoredSession.layers;
-    const first = listPrimitives()[0]?.id ?? 'ribbon';
-    return [createEditorLayer(first, defaultsOf(getPrimitive(first)?.params ?? {}))];
-  });
-  const [selected, setSelected] = useState(restoredSession?.selected ?? 0);
+  //
+  // OPENS EMPTY (owner ask 2026-09-20): a fresh mount always starts with NO layers — a blank stage that
+  // prompts you to "Add a primitive" — rather than restoring the last autosaved composition or seeding a
+  // default layer. This also ends the session-shadowing where reopening the workbench quietly replayed a stale
+  // localStorage session over a committed def. The autosaved `restoredSession` still seeds the non-layer
+  // preferences below (duration / slot / seed / ease), which are harmless until a layer exists.
+  const [layers, setLayers] = useState<EditorLayer[]>(() => []);
+  const [selected, setSelected] = useState(0);
   // `realBoard` while the stage is up (below): it reads anchors off the live DOM, and with the stage there
   // that DOM is six real cards at their real size and spacing — the honest default. Falls back to whatever
   // is first if that scenario ever goes away.
@@ -709,6 +711,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
 
     const build = (): void => {
       if (disposed) return;
+      // Nothing staged (the empty open state, or every layer just deleted): there is no effect to preview, so
+      // build no player at all. Adding the first layer changes `structKey`, which re-runs this effect and
+      // builds for real. Returning before `container`/`player` are assigned leaves the cleanup a clean no-op.
+      if (layersRef.current.length === 0) return;
       // The slot decides WHICH renderer builds the layers — the under-card canvas is a second GL context,
       // and a layer built against one renderer and drawn by the other is undefined behaviour. Asking for it
       // also brings that canvas up (it is created lazily, on first use), and the existing retry loop below
@@ -2128,9 +2134,11 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   };
 
   // The selected layer drives the top primitive row, the Inspector, and the timing controls. Fallback to the
-  // last layer guards the brief window after a delete before `selected` re-clamps.
-  const selLayer = layers[selected] ?? layers[layers.length - 1];
-  const activePrimitive = getPrimitive(selLayer.primitive);
+  // last layer guards the brief window after a delete before `selected` re-clamps. UNDEFINED when the
+  // composition is empty (the blank open state, or every layer deleted) — every block that reads it below
+  // either guards for that or is replaced by an empty-state prompt.
+  const selLayer: EditorLayer | undefined = layers[selected] ?? layers[layers.length - 1];
+  const activePrimitive = selLayer ? getPrimitive(selLayer.primitive) : undefined;
   const activeScenario = SCENARIOS.find((s) => s.id === scenarioId) ?? SCENARIOS[0];
   // Which layers are silenced right now, mute and solo folded together — the same value pushed to the
   // player, so the list can't disagree with what you're hearing/seeing.
@@ -2280,7 +2288,13 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     />
   );
 
-  const timingBlock = (
+  const timingBlock = selLayer === undefined ? (
+    // The blank open state (or every layer deleted): no layer to place, so the timing/anchor controls are
+    // replaced by a prompt pointing at the one thing you can do — add a primitive.
+    <div className="fxwb-timing fxwb-timing-empty">
+      <p className="fxwb-empty-hint">No layers yet — add a primitive to begin.</p>
+    </div>
+  ) : (
     <div className="fxwb-timing">
       {/* Which staged point this layer's head follows. Lives with At/Life because the three together are
           "when and where this layer happens" — the whole of a layer's placement in the composition. */}

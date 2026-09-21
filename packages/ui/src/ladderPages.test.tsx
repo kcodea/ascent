@@ -242,7 +242,7 @@ describe('Rankings — designed states', () => {
     useGame.setState({ showRankings: true });
     ui = mount(<Rankings />);
     await flush();
-    expect(ui.container.querySelector('.lb-state')?.textContent).toContain('no backend configured');
+    expect(ui.container.querySelector('.lb-state')?.textContent).toContain('No backend configured');
     expect(ui.container.querySelector('.lb-table')).toBeNull();
   });
 });

@@ -65,7 +65,7 @@ export const FreezeButton = memo(function FreezeButton({
       <span className="frz-pill" aria-hidden="true">Freeze</span>
       <span className="sbtip frz-tip">
         {combat ? (frozen ? 'Tavern frozen' : 'Tavern not frozen')
-          : frozen ? 'Frozen — click to unfreeze' : 'Freeze the tavern'}
+          : frozen ? 'Frozen. Click to unfreeze.' : 'Freeze the tavern'}
       </span>
     </button>
   );

@@ -669,13 +669,13 @@ function procReport(events: CombatEvent[], names: Map<string, string>): { text: 
   if (poison) kw.push(`${poison} Execute kills`);
   if (reborn) kw.push(`${reborn} rises`);
   if (kw.length) out.push({ text: kw.join(' · '), kind: 'total' });
-  if (startCombat.size) { out.push({ text: 'Start of Combat', kind: 'head' }); for (const [k, c] of startCombat) out.push({ text: c > 1 ? `${k} — ${c}×` : k, kind: 'sc' }); }
-  if (rally.size) { out.push({ text: 'Rally', kind: 'head' }); for (const [k, c] of rally) out.push({ text: `${k} — ${c}×`, kind: 'rally' }); }
-  if (shout.size) { out.push({ text: 'Shout', kind: 'head' }); for (const [k, c] of shout) out.push({ text: `${k} — ${c}×`, kind: 'sc' }); }
-  if (generated.size) { out.push({ text: 'Cards generated', kind: 'head' }); for (const [k, c] of generated) out.push({ text: `${k} — ${c}×`, kind: 'summon' }); }
-  if (summoned.size) { out.push({ text: 'Summoned', kind: 'head' }); for (const [k, c] of summoned) out.push({ text: `${k} — ${c}×`, kind: 'summon' }); }
-  if (buffs.size) { out.push({ text: 'Buffs', kind: 'head' }); for (const [k, t] of buffs) out.push({ text: `${k} — ${t.n}× (+${t.atk}/+${t.hp})`, kind: 'buff' }); }
-  if (maxGold.size) { out.push({ text: 'Max Gold', kind: 'head' }); for (const [k, t] of maxGold) out.push({ text: `${k} — +${t.total} (${t.n}×)`, kind: 'buff' }); }
+  if (startCombat.size) { out.push({ text: 'Start of Combat', kind: 'head' }); for (const [k, c] of startCombat) out.push({ text: c > 1 ? `${k} · ${c}×` : k, kind: 'sc' }); }
+  if (rally.size) { out.push({ text: 'Rally', kind: 'head' }); for (const [k, c] of rally) out.push({ text: `${k} · ${c}×`, kind: 'rally' }); }
+  if (shout.size) { out.push({ text: 'Shout', kind: 'head' }); for (const [k, c] of shout) out.push({ text: `${k} · ${c}×`, kind: 'sc' }); }
+  if (generated.size) { out.push({ text: 'Cards generated', kind: 'head' }); for (const [k, c] of generated) out.push({ text: `${k} · ${c}×`, kind: 'summon' }); }
+  if (summoned.size) { out.push({ text: 'Summoned', kind: 'head' }); for (const [k, c] of summoned) out.push({ text: `${k} · ${c}×`, kind: 'summon' }); }
+  if (buffs.size) { out.push({ text: 'Buffs', kind: 'head' }); for (const [k, t] of buffs) out.push({ text: `${k} · ${t.n}× (+${t.atk}/+${t.hp})`, kind: 'buff' }); }
+  if (maxGold.size) { out.push({ text: 'Max Gold', kind: 'head' }); for (const [k, t] of maxGold) out.push({ text: `${k} · +${t.total} (${t.n}×)`, kind: 'buff' }); }
   return out;
 }
 

@@ -148,7 +148,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <button
               className="titlename"
               onClick={beginEdit}
-              data-tip={unnamed ? 'This is a temporary name — click to make it your own' : 'Click to change your name'}
+              data-tip={unnamed ? 'This is a temporary name. Click to make it your own.' : 'Click to change your name'}
             >
               {/* First-time nudge: a real element (not a pseudo — the tooltip owns this button's ::before/::after)
                   with a STATIC ring shadow whose OPACITY pulses (compositor-only). */}
@@ -226,19 +226,19 @@ export function Title({ onSettings }: { onSettings: () => void }) {
 
         {/* Preserved secondary modes (not in the mockup, kept so nothing is lost). */}
         <div className="titlesecondary">
-          <button onClick={() => { sfx.pulse(); toggleBook(); }} data-tip="Compendium — browse every card">Compendium</button>
+          <button onClick={() => { sfx.pulse(); toggleBook(); }} data-tip="Compendium. Browse every card.">Compendium</button>
           <span className="tsdot">·</span>
-          <button onClick={() => { sfx.pulse(); openPatchNotes(); }} data-tip="Patch Notes — gameplay changes by date">Patch Notes</button>
+          <button onClick={() => { sfx.pulse(); openPatchNotes(); }} data-tip="Patch Notes. Gameplay changes by date.">Patch Notes</button>
           {/* BUG REPORTER from the MAIN MENU (owner ask 2026-08-27): the same reporter as in-game Ctrl+B —
               no run needed; the description is the payload. Routes through the store's one open authority. */}
           <span className="tsdot">·</span>
-          <button onClick={() => { sfx.pulse(); openBugReport(); }} data-tip="Spotted a problem? Describe it here — no run needed (Ctrl+B)">Report a Problem</button>
+          <button onClick={() => { sfx.pulse(); openBugReport(); }} data-tip="Spotted a problem? Describe it here, no run needed (Ctrl+B).">Report a Problem</button>
           {/* DEV-ONLY (owner 2026-08-24): the Balance Report is a dev/telemetry view, stripped from the exe +
               itch prod builds. The dot rides inside the guard so prod never shows a dangling separator. */}
           {import.meta.env.DEV && (
             <>
               <span className="tsdot">·</span>
-              <button onClick={() => { sfx.pulse(); openBalance(); }} data-tip="Balance Report — real player offer / pick / win rates">Balance Report</button>
+              <button onClick={() => { sfx.pulse(); openBalance(); }} data-tip="Balance Report. Real player offer, pick and win rates.">Balance Report</button>
             </>
           )}
           {/* REPLAY VIEWER (v2): watch back the last run finished this session (frames aren't persisted, so
@@ -253,7 +253,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           {import.meta.env.DEV && (
             <>
               <span className="tsdot">·</span>
-              <button onClick={() => { sfx.pulse(); startSceneBuilder(); }} data-tip="Scene Builder — dev sandbox: a lobby game against bots where you can't be eliminated; any board, any enemy, god or normal rules">Scene Builder</button>
+              <button onClick={() => { sfx.pulse(); startSceneBuilder(); }} data-tip="Scene Builder. A dev sandbox: a lobby game against bots where you can't be eliminated, with any board, any enemy, god or normal rules.">Scene Builder</button>
             </>
           )}
         </div>
@@ -338,7 +338,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                   {modeArt('learn')
                     ? <div className="mcart-clip"><img decoding="sync" className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
-                  <div className="mcdesc">A coached first game — every mechanic, then graduate.</div>
+                  <div className="mcdesc">A coached first game. Every mechanic, then graduate.</div>
                 </div>
               </button>
 
@@ -362,10 +362,10 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           <div className="tutprompt-card">
             <div className="eyebrow">First time?</div>
             <h1 className="disp tutprompt-title">Try the Tutorial</h1>
-            <p className="tutprompt-sub">A quick coached game teaches you everything — shop, build, position, and win. About five minutes.</p>
+            <p className="tutprompt-sub">A quick coached game teaches you everything: shop, build, position, and win. About five minutes.</p>
             <div className="tutprompt-actions">
               <button className="endplay pressable" onClick={() => { sfx.pulse(); setTutorialPrompt(false); startTutorial(LEARN_ASCENT); }}>Start the Tutorial</button>
-              <button className="tutprompt-skip" onClick={() => { sfx.pulse(); skipCourse(LEARN_ASCENT.id, LEARN_ASCENT.version); setTutorialPrompt(false); startLobby(); }}>Skip — just play</button>
+              <button className="tutprompt-skip" onClick={() => { sfx.pulse(); skipCourse(LEARN_ASCENT.id, LEARN_ASCENT.version); setTutorialPrompt(false); startLobby(); }}>Skip and just play</button>
             </div>
           </div>
         </div>

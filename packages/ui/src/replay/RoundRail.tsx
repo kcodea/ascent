@@ -55,7 +55,7 @@ const RailRow = memo(function RailRow({ mark, goldSpent, actions, tierAtStart, i
         className={`roundrail-cell shop pressable${activeCell === 'shop' ? ' active' : ''}`}
         disabled={mark.shopIndex === undefined}
         onClick={() => onShop(mark.wave)}
-        title={`Round ${mark.wave} — jump to the shop`}
+        title={`Round ${mark.wave}. Jump to the shop.`}
         aria-label={`Round ${mark.wave} recruit`}
         aria-current={activeCell === 'shop' ? 'step' : undefined}
       >
@@ -66,7 +66,7 @@ const RailRow = memo(function RailRow({ mark, goldSpent, actions, tierAtStart, i
         className={`roundrail-cell combat pressable${activeCell === 'combat' ? ' active' : ''}`}
         disabled={mark.combatIndex === undefined}
         onClick={() => onCombat(mark.wave)}
-        title={`Round ${mark.wave} — play the fight from its start`}
+        title={`Round ${mark.wave}. Play the fight from its start.`}
         aria-label={`Round ${mark.wave} combat`}
         aria-current={activeCell === 'combat' ? 'step' : undefined}
       >
@@ -81,7 +81,7 @@ const RailRow = memo(function RailRow({ mark, goldSpent, actions, tierAtStart, i
       <span
         className={`roundrail-val win${win === null ? '' : win >= 50 ? ' good' : ' bad'}`}
         title={win === null
-          ? 'Win chance — not yet computed'
+          ? 'Win chance not yet computed'
           : info?.winApprox
             ? 'Estimated from the recorded boards (this recording predates stamped odds)'
             : 'The win chance the game computed for this fight at End Turn'}
@@ -252,7 +252,7 @@ export function RoundRail(): JSX.Element | null {
             quit-and-resume records in full, so this is the honest label for the cases that failed anyway —
             a pre-persistence recording, or storage that refused. */}
         {session.partial && (
-          <div className="roundrail-partial" title="This recording does not cover the whole run — the earlier rounds were never captured.">
+          <div className="roundrail-partial" title="This recording does not cover the whole run. The earlier rounds were never captured.">
             <span className="roundrail-partial-tag">Partial replay</span>
             <span className="roundrail-partial-range">Rounds {session.partial.firstWave}–{session.partial.lastWave} recorded</span>
           </div>

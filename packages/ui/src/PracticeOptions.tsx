@@ -86,7 +86,7 @@ export function PracticeOptions() {
       <button className="hsback" onPointerDown={() => { sfx.pulse(); cancel(); }}>← Back</button>
       <div className="mpbox pobox">
         <h1 className="disp mptitle">PRACTICE</h1>
-        <p className="posub">A sandbox to try things out — nothing here is rated.</p>
+        <p className="posub">A sandbox to try things out. Nothing here is rated.</p>
 
         <Segmented
           label="Opponents"
@@ -105,7 +105,7 @@ export function PracticeOptions() {
         />
         <Segmented
           label="Health"
-          hint={cfg.health === 'unlimited' ? "You can't be eliminated." : 'Real damage — last one standing wins.'}
+          hint={cfg.health === 'unlimited' ? "You can't be eliminated." : 'Real damage. Last one standing wins.'}
           value={cfg.health}
           options={HEALTH}
           onPick={(v) => setDraft({ health: v })}

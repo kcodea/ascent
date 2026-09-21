@@ -240,7 +240,7 @@ function MatchRow({ run, focus, busy, unplayable, onWatch }: {
   const runes = run.runes.filter((id) => RUNE_INDEX[id]);
   const fights = run.wins + run.losses + run.draws;
   return (
-    <article className={`cv2-row ${o.cls}${focus ? ' focus' : ''}`} aria-label={`${run.heroId ? getHero(run.heroId).name : 'Run'} — ${o.label}`}>
+    <article className={`cv2-row ${o.cls}${focus ? ' focus' : ''}`} aria-label={`${run.heroId ? getHero(run.heroId).name : 'Run'}: ${o.label}`}>
       <header className="cv2-row-head">
         <div className="cv2-row-hero">
           <HeroFrame heroId={run.heroId} small />
@@ -337,7 +337,7 @@ function HeroTile({ h }: { h: HeroCareer }) {
     <div
       className="cv2-hcard"
       tabIndex={0}
-      aria-label={`${name} — ${games}`}
+      aria-label={`${name}: ${games}`}
       aria-describedby={tip ? tipId : undefined}
       onMouseEnter={(e) => show(e.currentTarget, 160)}
       onMouseLeave={hide}

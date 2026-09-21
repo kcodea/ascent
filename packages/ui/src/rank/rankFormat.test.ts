@@ -26,8 +26,8 @@ describe('rank index → label (the shared mapping)', () => {
     expect(isMedalGate(7)).toBe(false);
     expect(isPromotionReady({ divisionIndex: 7, points: 100 })).toBe(true);
     expect(isPromotionReady({ divisionIndex: 17, points: 100 })).toBe(false);
-    expect(gateText({ divisionIndex: 7, points: 100 })).toBe('Promotion game ready — finish top 4 to advance');
-    expect(gateText({ divisionIndex: 8, points: 100 })).toBe('Promotion game ready — finish 1st to advance');
+    expect(gateText({ divisionIndex: 7, points: 100 })).toBe('Promotion game ready. Finish top 4 to advance.');
+    expect(gateText({ divisionIndex: 8, points: 100 })).toBe('Promotion game ready. Finish 1st to advance.');
   });
   it('orders by division then points (the scalar alone ties adjacent divisions)', () => {
     const a = { divisionIndex: 7, points: 100 };
@@ -67,8 +67,8 @@ describe('points, placement and delta text', () => {
     const gate = fixtureById('gate')!.result!;
     expect(deltaText(gate)).toBe('+12 RP');
     expect(cappedDetail(gate)).toBe('base +40 RP · capped at the gate');
-    expect(outcomeText(gate)).toBe('Promotion game ready — finish top 4 to advance');
-    expect(outcomeText(fixtureById('gate-medal')!.result!)).toBe('Promotion game ready — finish 1st to advance');
+    expect(outcomeText(gate)).toBe('Promotion game ready. Finish top 4 to advance.');
+    expect(outcomeText(fixtureById('gate-medal')!.result!)).toBe('Promotion game ready. Finish 1st to advance.');
   });
   it('shows only the actual loss at the Bronze floor, and "0 RP · Bronze floor" when nothing could be lost', () => {
     const floor = fixtureById('floor')!.result!;
@@ -95,8 +95,8 @@ describe('points, placement and delta text', () => {
     expect(gate.demotionUnlocked).toBe(true); // the RULES' field — nothing here derives it
     expect(deltaText(gate)).toBe('−10 RP');
     expect(cappedDetail(gate)).toBe('base −40 RP · clamped at the Gold floor');
-    expect(outcomeText(gate)).toBe('Demotion game — finish top 4 to stay in Gold');
-    expect(demotionGateText({ divisionIndex: 9, points: 0 })).toBe('Demotion game — finish top 4 to stay in Platinum');
+    expect(outcomeText(gate)).toBe('Demotion game. Finish top 4 to stay in Gold.');
+    expect(demotionGateText({ divisionIndex: 9, points: 0 })).toBe('Demotion game. Finish top 4 to stay in Platinum.');
     // A result WITHOUT the flag prints no gate line, whatever its shape.
     expect(outcomeText({ ...gate, demotionUnlocked: false })).toBeNull();
     expect(cappedDetail({ ...gate, demotionUnlocked: false })).toBe('base −40 RP');
@@ -110,9 +110,9 @@ describe('points, placement and delta text', () => {
     expect(outcomeText(escaped)).toBeNull();
     expect(planRankSequence(escaped).map((s) => s.kind)).toEqual(['reveal', 'establish', 'bar', 'outcome']);
     // The standing line the Title plate / Career print: promotion gate from the position, demotion gate from the flag.
-    expect(standingGateText({ divisionIndex: 7, points: 100 })).toBe('Promotion game ready — finish top 4 to advance');
+    expect(standingGateText({ divisionIndex: 7, points: 100 })).toBe('Promotion game ready. Finish top 4 to advance.');
     expect(standingGateText({ divisionIndex: 6, points: 0 })).toBeNull();
-    expect(standingGateText({ divisionIndex: 6, points: 0 }, true)).toBe('Demotion game — finish top 4 to stay in Gold');
+    expect(standingGateText({ divisionIndex: 6, points: 0 }, true)).toBe('Demotion game. Finish top 4 to stay in Gold.');
     // `standingDemotionReady`: ONLY the stored flag (profile or position level) — never derived from the shape:
     // a 0 at a medal floor without the flag is a won medal promotion's landing, not a demotion game.
     expect(standingDemotionReady({ position: { divisionIndex: 6, points: 0 }, demotionReady: false })).toBe(false);

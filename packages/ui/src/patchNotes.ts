@@ -72,6 +72,23 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-21',
+    label: 'Plain-language text pass',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Glossary: the Orbit and Dawn / Dusk entries are gone. They are not in the game. Watcher, Permanent and Aura are reworded.',
+        details: [
+          'Watcher: A card that triggers off other minions.',
+          'Permanent: Imbues/Buffs carry through the run permanently.',
+          'Aura: A run wide bonus for every minion that it suits. Carries through shop and combat phases.',
+          'Orbit and Dawn / Dusk no longer appear as keyword boxes on cards or as Compendium rows.',
+          'Tooltips, the post-combat summary, quest lines, rank messages and these patch notes now read in the same plain style: short sentences, no dashes joining clauses.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-21',
     label: 'Ladder row portraits',
     changes: [
       {
@@ -79,7 +96,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Recent Games and the Hall of Champions: bigger hero portraits in the portrait ring, larger rune pills, and the warband sits clear of its caption.',
         details: [
           "Each row's hero portrait now sits in the same gold portrait ring the Career page and hero select use, about a third larger than before.",
-          'The rune pills on Recent Games grew — a bigger emblem and larger name text — and still wrap when a run took many runes.',
+          'The rune pills on Recent Games grew, with a bigger emblem and larger name text. They still wrap when a run took many runes.',
           'The seven warband cards moved down so their frames no longer run into the FINAL TEAM / WINNING WARBAND caption, on every screen size.',
         ],
       },
@@ -87,13 +104,27 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-21',
-    label: 'Title screen — your portrait, name and rank',
+    label: 'Title screen: your portrait, name and rank',
     changes: [
       {
         category: 'UI / Info',
         text: "The title screen shows your portrait large in the top-right with your name and rank; Sign in / Sign out moved into Settings.",
         details: [
-          "Your avatar now sits in the game's gold portrait ring, top-right of the main menu — click it to change your avatar, or click your name on the ring's edge to rename yourself. Your current rank (say Bronze III) shows in a badge under your name once you have one.",
+          "Your avatar now sits in the game's gold portrait ring, top-right of the main menu. Click it to change your avatar, or click your name on the ring's edge to rename yourself. Your current rank (say Bronze III) shows in a badge under your name once you have one.",
+          "The old \"Sign in\" / \"Account\" button in that corner is gone. Sign in (and Sign out, once you're signed in) now live at the bottom of Settings; signing in still only takes an email and a one-time code.",
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-21',
+    label: 'Title screen: your portrait, name and rank',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "The title screen shows your portrait large in the top-right with your name and rank; Sign in / Sign out moved into Settings.",
+        details: [
+          "Your avatar now sits in the game's gold portrait ring, top-right of the main menu. Click it to change your avatar, or click your name on the ring's edge to rename yourself. Your current rank (say Bronze III) shows in a badge under your name once you have one.",
           "The old \"Sign in\" / \"Account\" button in that corner is gone. Sign in (and Sign out, once you're signed in) now live at the bottom of Settings; signing in still only takes an email and a one-time code.",
         ],
       },
@@ -107,7 +138,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: "Career, Leaderboard, Hall of Champions, Recent Games and the Mode screen now carry a left sidebar with Back and the main menu, so you can jump between them without returning to the title; the Career page's side columns grew to fill wide screens; the Mode screen sits on the same navy backdrop.",
         details: [
-          'The sidebar holds Back at the top and, centred below it, Play, Career, Leaderboard, Hall of Champions, Recent Games and Settings — the screen you are on is the blue plaque.',
+          'The sidebar holds Back at the top and, centred below it, Play, Career, Leaderboard, Hall of Champions, Recent Games and Settings. The screen you are on is the blue plaque.',
           "Back keeps doing what it did on each screen: a player's Career opened from the Leaderboard still returns to the Leaderboard; the Mode screen's Back returns to the title menu.",
           "On the Career page the centre column now stops growing once the seven cards are at full size, and any extra width goes to the stats and Seasonal Ranked columns instead of sitting empty beside the cards.",
           'The Mode screen (Play / Learn / Practice) uses the same navy backdrop as the ladder pages.',
@@ -139,13 +170,13 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-21',
-    label: 'Rank screen — the demotion effect',
+    label: 'Rank screen: the demotion effect',
     changes: [
       {
         category: 'UI / Info',
         text: "Losing a division or a medal now plays its own effect (and sound) on the rank screen.",
         details: [
-          "Dropping a division (say Gold II to Gold III) and dropping a medal after a lost demotion game both play it: a shock off your crest, the old crest falls away in a shower of shards, and the new one settles in — the mirror of the promotion burst.",
+          "Dropping a division (say Gold II to Gold III) and dropping a medal after a lost demotion game both play it: a shock off your crest, the old crest falls away in a shower of shards, and the new one settles in. It mirrors the promotion burst.",
           "Skipping the animation (click the rank display or Skip) still settles instantly and silently.",
         ],
       },
@@ -153,19 +184,19 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-20',
-    label: 'Medal ranks — season 3 + the post-game rank screen',
+    label: 'Medal ranks: season 3 and the post-game rank screen',
     changes: [
       {
         category: 'UI / Info',
-        text: "The ladder is now a medal and a division instead of a number: Bronze, Silver, Gold, Platinum, Diamond and Ascendant, three divisions each (III up to I), 100 points per division. Everyone starts season 3 at Bronze III. Your rank is settled by the server after every ranked lobby, and the end of every ranked game plays it out — VICTORY (or your placement), your crest, and the division bar moving from where you were to where you are.",
+        text: "The ladder is now a medal and a division instead of a number: Bronze, Silver, Gold, Platinum, Diamond and Ascendant, three divisions each (III up to I), 100 points per division. Everyone starts season 3 at Bronze III. Your rank is settled by the server after every ranked lobby, and the end of every ranked game plays it out: VICTORY (or your placement), your crest, and the division bar moving from where you were to where you are.",
         details: [
           'Points by finish: 1st +40, 2nd +28, 3rd +16, 4th +6, 5th -6, 6th -16, 7th -28, 8th -40. Only ranked lobbies count; Practice and the tutorial never move your rank.',
-          "Reaching 100 points unlocks a PROMOTION GAME rather than promoting on the spot (anything past 100 is discarded). Moving up a division (say Gold III to Gold II) takes a top-4 finish in that game; moving up a medal (Gold I to Platinum III) takes 1st place. A won promotion starts the next division at 0 — not the game's points.",
-          'A lost promotion game (5th–8th) just costs its normal points from 100; climb back to 100 and the gate reopens. At a medal gate, a 2nd–4th finish neither promotes nor gains — you stay at 100, still promotion-ready.',
-          'Dropping below 0 inside a medal demotes one division and keeps the remainder (Gold II 10 after an 8th place lands on Gold III 70). Bronze III can never fall below 0. Ascendant I has no cap — points keep climbing.',
-          "Dropping OUT of a medal is gated too: a loss at a medal's lowest division (Gold III) stops at 0 and arms a DEMOTION GAME for your next ranked lobby — a top-4 finish keeps you in the medal (your points apply from 0), a 5th–8th drops you to the previous medal's division I with 100 minus that game's loss (an 8th lands on Silver I 60). Arriving at 0 by winning a medal promotion does not arm it; only a loss there does.",
-          "The post-game screen shows the actual points applied (a capped award at the gate says so), the outcome line when there is one — \"Promotion game ready\" / \"Demotion game\" — and CONTINUE, which is always usable and fades you back to the menu; click the rank display or Skip to settle the animation instantly.",
-          "If the rank update hasn't come back yet the screen says \"Updating rank…\"; a result that can't reach the server is kept and retried — it's never lost — and shows \"Rank update pending\" with a Retry. Practice games show your placement and \"Unrated\".",
+          "Reaching 100 points unlocks a PROMOTION GAME rather than promoting on the spot (anything past 100 is discarded). Moving up a division (say Gold III to Gold II) takes a top-4 finish in that game; moving up a medal (Gold I to Platinum III) takes 1st place. A won promotion starts the next division at 0, not at the game's points.",
+          'A lost promotion game (5th–8th) just costs its normal points from 100; climb back to 100 and the gate reopens. At a medal gate, a 2nd–4th finish neither promotes nor gains. You stay at 100, still promotion-ready.',
+          'Dropping below 0 inside a medal demotes one division and keeps the remainder (Gold II 10 after an 8th place lands on Gold III 70). Bronze III can never fall below 0. Ascendant I has no cap, so points keep climbing.',
+          "Dropping OUT of a medal is gated too: a loss at a medal's lowest division (Gold III) stops at 0 and arms a DEMOTION GAME for your next ranked lobby. A top-4 finish keeps you in the medal and your points apply from 0. A 5th–8th drops you to the previous medal's division I with 100 minus that game's loss (an 8th lands on Silver I 60). Arriving at 0 by winning a medal promotion does not arm it; only a loss there does.",
+          'The post-game screen shows the actual points applied (a capped award at the gate says so), the outcome line when there is one ("Promotion game ready" or "Demotion game"), and CONTINUE, which is always usable and fades you back to the menu. Click the rank display or Skip to settle the animation instantly.',
+          "If the rank update hasn't come back yet the screen says \"Updating rank…\". A result that can't reach the server is kept and retried, never lost, and shows \"Rank update pending\" with a Retry. Practice games show your placement and \"Unrated\".",
           "Your crest, division and bar now appear on your Career page's Seasonal Ranked card and on the Leaderboard, which orders players by division first, then points.",
           "Your career-best rank never goes down. Leaderboards sort by division first, then points.",
           'Previous-season ratings are archived, not deleted; the new season starts everyone fresh.',
@@ -191,7 +222,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-20',
     label: 'Leaderboard rows',
     changes: [
-      { category: 'UI / Info', text: "The Leaderboard's rows are now big and clean: a large rank medallion, the hero portrait, the player's handle with their favourite hero, the rating as a big gold MMR number, games played, and a CAREER PAGE button that opens that player's Career (WATCH still plays their latest run). The strip of card tiles showing each player's latest board is gone — that lives on their Career page." },
+      { category: 'UI / Info', text: "The Leaderboard's rows are now big and clean: a large rank medallion, the hero portrait, the player's handle with their favourite hero, the rating as a big gold MMR number, games played, and a CAREER PAGE button that opens that player's Career (WATCH still plays their latest run). The strip of card tiles showing each player's latest board is gone. That lives on their Career page." },
     ],
   },
   {
@@ -200,7 +231,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: "On the Career page a match is now won or lost by placement — top 4 is a win, 5th to 8th a loss — so each Match History banner shows WIN or LOSS under the hero (the fight record is a small caption), the Win Rate trend is your share of top-4 finishes, and the Heroes tab is a grid of every hero you've played as a portrait with its games played; hover or tab onto one for its W–L record, win rate, average placement, 1st-place wins, best placement and last played.",
+        text: "On the Career page a match is now won or lost by placement: top 4 is a win, 5th to 8th a loss. Each Match History banner shows WIN or LOSS under the hero (the fight record is a small caption), the Win Rate trend is your share of top-4 finishes, and the Heroes tab is a grid of every hero you've played as a portrait with its games played. Hover or tab onto one for its W–L record, win rate, average placement, 1st-place wins, best placement and last played.",
       },
     ],
   },
@@ -219,9 +250,9 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: "The Leaderboard, the Hall of Champions and Recent Games have been rebuilt in the Career page's style: gold-framed banners, podium medallions, circular hero portraits, and every board shown as real card tiles you can hover to inspect.",
         details: [
-          "Leaderboard: a proper ranked table — gold / silver / bronze medallions for the top 3, your own row highlighted and scrolled into view, each player's rating, games played and their latest recorded board as card tiles (with how that game ended), plus a Watch button for their latest run.",
-          "Hall of Champions: each victory is one banner — the champion's hero portrait and handle, their fight record and round-by-round pips, the winning warband as card tiles, the runes and quests they finished with, and the board's round-17 record.",
-          "Recent Games: each recording is a banner with the player's hero and handle, the final team as card tiles, the runes they took (emblem + name), and the outcome block — VICTORY or placement, date and time, W–L record, run length and rounds — with one Watch Replay button. A recording that doesn't start at round 1 is labelled as a partial recording.",
+          "Leaderboard: a proper ranked table with gold, silver and bronze medallions for the top 3, your own row highlighted and scrolled into view, each player's rating, games played and their latest recorded board as card tiles (with how that game ended), plus a Watch button for their latest run.",
+          "Hall of Champions: each victory is one banner with the champion's hero portrait and handle, their fight record and round-by-round pips, the winning warband as card tiles, the runes and quests they finished with, and the board's round-17 record.",
+          "Recent Games: each recording is a banner with the player's hero and handle, the final team as card tiles, the runes they took (emblem + name), the outcome block (VICTORY or placement, date and time, W–L record, run length and rounds), and one Watch Replay button. A recording that doesn't start at round 1 is labelled as a partial recording.",
           'Hovering any board tile on these pages now opens the full card reveal (it used to open behind the page).',
         ],
       },
@@ -235,12 +266,12 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: "The Career page is rebuilt as three columns: your most-played hero with 1st Place Wins / Top 4 Finish / Avg Placement / Favorite Tribe, a Match History of your last 25 server runs as tall banners (hero + record, the final team as full card tiles, the runes you picked, VICTORY or your placement, date, run length, Gold spent, and Watch Replay), and Seasonal Ranked showing your MMR as a single number above your Avg Placement / Win Rate / APM trends over 7, 30 or 90 days. A new Heroes tab lists every hero you've played with runs, 1st-place wins, fight record, average and best placement, and last played.",
         details: [
-          "Match History reads only your account's server runs — the last 25, newest first. Only that column scrolls; the hero panel and the Ranked card stay put.",
+          "Match History reads only your account's server runs, the last 25, newest first. Only that column scrolls. The hero panel and the Ranked card stay put.",
           "Each banner shows the final team as 7 full-size card tiles (gilded frames and stat badges included) and the run's rune picks with their art; hover a rune for its text.",
-          'The rating delta and divisions are gone from Seasonal Ranked — it is your current MMR, nothing else.',
-          "The Heroes tab folds every run you've played: runs, 1st-place wins, total fight W–L with win rate, average and best placement, last played — most-played first. Your tab choice is remembered.",
+          'The rating delta and divisions are gone from Seasonal Ranked. It is your current MMR, nothing else.',
+          "The Heroes tab folds every run you've played: runs, 1st-place wins, total fight W–L with win rate, average and best placement, last played. Most-played first. Your tab choice is remembered.",
           "The replay viewer's round rail lost its Power column (the stat wasn't reliable). The rail can now be dragged from any point of its surface; a plain click on a Recruit / Combat cell still seeks.",
-          'Hovering a card while a replay plays now opens the same related-card and keyword previews you get live — a recorded drag no longer hides them.',
+          'Hovering a card while a replay plays now opens the same related-card and keyword previews you get live. A recorded drag no longer hides them.',
         ],
       },
     ],
@@ -251,7 +282,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: "A minion whose Attack or Health reaches the top milestone (5000) gains a glowing effect on that badge — in the shop, your warband and combat alike. It stays lit for the rest of that minion's life, even if the stat later drops.",
+        text: "A minion whose Attack or Health reaches the top milestone (5000) gains a glowing effect on that badge in the shop, your warband and combat alike. It stays lit for the rest of that minion's life, even if the stat later drops.",
       },
       {
         category: 'UI / Info',
@@ -265,7 +296,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: "Milestone stat badges now wear their own colour at each tier: the disc behind the frame — and the buffed digit on the top frames — shifts as a stat climbs past 50, 150, 500, 2000 and 5000, instead of one Attack colour and one Health colour across every tier.",
+        text: "Milestone stat badges now wear their own colour at each tier. The disc behind the frame, and the buffed digit on the top frames, shifts as a stat climbs past 50, 150, 500, 2000 and 5000, instead of one Attack colour and one Health colour across every tier.",
       },
     ],
   },
@@ -277,13 +308,13 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Card Change',
         text: "Goldvein's damage meter now resets after every combat: it reads 0/6 in the shop instead of sitting at 6/6 once it has fired.",
         details: [
-          "Once per combat means the meter starts every fight fresh — progress and the payout both. Damage it dealt in an earlier fight no longer counts toward the next one.",
+          "Once per combat means the meter starts every fight fresh, progress and payout both. Damage it dealt in an earlier fight no longer counts toward the next one.",
           'In combat the counter climbs with each hit and stops at 6/6 once the Gold is banked; it does not lap around to promise a second payout.',
         ],
       },
       {
         category: 'UI / Info',
-        text: "Damage-meter counters (Goldvein, Han Gover) show progress toward the NEXT payout — Han Gover at 47 damage reads 7/40, not 47/40 — and a payout lands on 0.",
+        text: "Damage-meter counters (Goldvein, Han Gover) show progress toward the NEXT payout, and a payout lands on 0. Han Gover at 47 damage reads 7/40, not 47/40.",
       },
       {
         category: 'UI / Info',
@@ -302,7 +333,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'New Card',
         text: 'Goldvein joins the Kobolds: a Tier 1 2/3 that banks 3 Gold for next turn the first time it has dealt 6 damage in a combat.',
         details: [
-          "Its damage meter works like Han Gover's: every landed hit it deals counts. When it reaches 6, you gain 3 Gold next turn — on top of the Gold cap. (Unlike Han Gover's, the meter resets after every combat — see the follow-up patch.)",
+          "Its damage meter works like Han Gover's: every landed hit it deals counts. When it reaches 6, you gain 3 Gold next turn, on top of the Gold cap. Unlike Han Gover's, the meter resets after every combat. See the follow-up patch.",
           'Once per combat: a second crossing in the same fight pays nothing, and a Goldvein that Rises does not get a second payout. The next fight re-arms it.',
           'Gilded: 6 Gold, still once per combat.',
         ],
@@ -315,7 +346,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'New Card',
         text: 'Yeti joins the Neutrals: a Tier 6 0/12 that throws the first hit it takes each combat back at 2 random enemies.',
         details: [
-          "The first time Yeti takes damage in a fight, the same amount is dealt to 2 different random enemies (just the one if only one is standing). It fires once per combat — a Yeti that Rises does not get a second throw.",
+          "The first time Yeti takes damage in a fight, the same amount is dealt to 2 different random enemies (just the one if only one is standing). It fires once per combat. A Yeti that Rises does not get a second throw.",
           'The thrown damage is real damage: it pops a Ward, is shrugged off by Immune, and a kill resolves on the spot with its Echo.',
           'Gilding doubles the body and nothing else.',
         ],
@@ -325,7 +356,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: "Han Gover now reads \"(Max 2 per hit)\": one hit pays at most 2 Ales however many 40-damage marks it crosses.",
         details: [
           'The meter still counts the full damage of the hit, so the next 40 dealt pays again as normal.',
-          'Gilded Han Gover still gets 2 Ales per crossing — the first crossing in a hit fills the cap, so a second crossing in the same hit pays nothing extra.',
+          'Gilded Han Gover still gets 2 Ales per crossing. The first crossing in a hit fills the cap, so a second crossing in the same hit pays nothing extra.',
         ],
       },
       {
@@ -342,7 +373,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-19',
     label: 'Settle-time buff ribbons',
     changes: [
-      { category: 'UI / Info', text: "A buff that lands when a card earned in combat comes home to your hand (Gangplank paying out Han Gover's Ale, for example) now plays its ribbon once the shop is revealed instead of silently under the arena — dual-type minions included." },
+      { category: 'UI / Info', text: "A buff that lands when a card earned in combat comes home to your hand (Gangplank paying out Han Gover's Ale, for example) now plays its ribbon once the shop is revealed instead of silently under the arena. Dual-type minions included." },
     ],
   },
   {
@@ -351,7 +382,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: "Replay viewer: the estimated Win % (~) on older recordings now accounts for the recorded player's runes, quests, spell power and auras — it read ~0% on fights that were actually won.",
+        text: "Replay viewer: the estimated Win % (~) on older recordings now accounts for the recorded player's runes, quests, spell power and auras. It read ~0% on fights that were actually won.",
         details: [
           'The estimate used to re-fight each round with both sides stripped of their run-level effects, so a Beast build carried by Rune of Beastial Swarm or Rune of Warding looked hopeless on paper.',
           "The player's side is now rebuilt from the round's last shop state exactly as the real fight was; the opponent's side uses what the recording carries about it, so the number stays marked ~ on old recordings.",
@@ -376,7 +407,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: "Replay viewer: the Power column now measures a board against the boards players actually had at that exact round, so it no longer drops off a cliff between round 12 and 13 with no change to the board.",
         details: [
           'Power used to compare a board with a bracket of rounds (10–12, 13–15, …); crossing a bracket edge swapped the yardstick and the number could fall from 99 to 11 in one round.',
-          "Now every round has its own yardstick — the recorded boards at that round — and 50 means \"the typical board at this round\". A board that stands still while the field grows still loses Power, because the field really did grow.",
+          'Now every round has its own yardstick, the recorded boards at that round, and 50 means "the typical board at this round". A board that stands still while the field grows still loses Power, because the field really did grow.',
         ],
       },
       {
@@ -384,9 +415,9 @@ export const PATCH_NOTES: PatchNote[] = [
         text: "Replay viewer: the round rail is now a full table you can collapse and drag, with Recruit / Combat jump cells, Power and Win % columns, shop sounds, and the recorded player's cursor.",
         details: [
           'Each round row has two cells: Recruit jumps to that round’s shop, Combat plays that round’s fight from its start. The cell you are watching is highlighted.',
-          "Power: the board's strength at the end of the recruit turn (0–100). Win %: the game's own win chance for that fight — exact on new recordings; older ones show an estimate marked ~ once it has been computed.",
+          "Power: the board's strength at the end of the recruit turn (0–100). Win %: the game's own win chance for that fight. It is exact on new recordings. Older ones show an estimate marked ~ once it has been computed.",
           'Drag the rail anywhere by its ⋮⋮ handle; collapse it to a slim badge with ◂. Your placement is remembered.',
-          'Shop actions (buys, plays, rolls, upgrades…) now play their sounds during a replay — a 🔊 toggle on the transport turns them off.',
+          'Shop actions (buys, plays, rolls, upgrades…) now play their sounds during a replay. A 🔊 toggle on the transport turns them off.',
           "New recordings capture the player's pointer between drags; playback shows a small gauntlet moving with it (🖱 toggle). Older replays simply have no cursor.",
           'During a replayed drag the original card now lifts out of its row while the ghost travels, instead of staying put until the drop.',
         ],
@@ -407,10 +438,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'New Card',
-        text: "Kurse (Tier 5 Kobold, 10/5): Avenge (3) — summon a 1/1 Gemheart Golem, plus this minion's Rubies.",
+        text: "Kurse (Tier 5 Kobold, 10/5): Avenge (3), summon a 1/1 Gemheart Golem, plus this minion's Rubies.",
         details: [
           "Gemheart Carver's Golem on an Avenge trigger: after every three friendly deaths in a combat, a Golem lands beside Kurse carrying every Ruby stacked on Kurse at that moment.",
-          'Fires each time the count is reached — six friendly deaths is two Golems. A full board loses the Golem.',
+          'Fires each time the count is reached, so six friendly deaths is two Golems. A full board loses the Golem.',
           'Gilded: one Golem at double stats, the same as Gemheart Carver.',
         ],
       },
@@ -421,7 +452,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-19',
     label: 'No ghost rematches',
     changes: [
-      { category: 'UI / Info', text: "When the table is odd and you fight a ghost (a fallen seat's board), it is never the seat you fought last round or the one you eliminated — the next most recent ghost stands in, and if the only ghost would be a rematch, another seat takes the bye." },
+      { category: 'UI / Info', text: "When the table is odd and you fight a ghost (a fallen seat's board), it is never the seat you fought last round or the one you eliminated. The next most recent ghost stands in, and if the only ghost would be a rematch, another seat takes the bye." },
     ],
   },
   {
@@ -432,7 +463,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'New Card',
         text: 'Dissipate (Tier 5 spell, 4 Gold): sell a friendly minion and give its stats to the right-most minion in the Shop.',
         details: [
-          'The minion is genuinely sold — you get its Gold, and everything that triggers on a sale triggers.',
+          'The minion is genuinely sold. You get its Gold, and everything that triggers on a sale triggers.',
           'Its current stats, buffs included, land on the right-most MINION in the Shop (spells are skipped).',
           'With no minion in the Shop the spell cannot be cast: it stays in your hand and nothing is sold.',
           'Available in Set 2 and Set 3.',
@@ -440,7 +471,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'UI / Info',
-        text: 'The Equipment cost coin always shows a number — a free activation reads "0", and a discounted one turns green.',
+        text: 'The Equipment cost coin always shows a number. A free activation reads "0", and a discounted one turns green.',
         details: [
           'A 0-cost Equipment used to show no coin at all; it now shows 0.',
           'When a rune has cut the cost below the printed price, the coin goes green, like every other discount.',
@@ -458,16 +489,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Rune Change',
-        text: 'Eleven Set 3 runes reworked or repriced — the spell-count runes now count every spell, the Reveler runes count to 3, and the Equipment runes lost their caps and gained teeth.',
+        text: 'Eleven Set 3 runes reworked or repriced. The spell-count runes now count every spell, the Reveler runes count to 3, and the Equipment runes lost their caps and gained teeth.',
         details: [
-          'Rune of Charted Skies now costs 2 and reads "After you cast 3 spells, get a copy of one of them. (Once per turn)" — every spell counts (Shop spells, Rubies, Clues, Gifts), and the copy is one of those three at random.',
-          'Rune of the Astral Refrain: "After you cast 3 spells, get 2 copies of the second one." Same counting basis — every spell counts.',
+          'Rune of Charted Skies now costs 2 and reads "After you cast 3 spells, get a copy of one of them. (Once per turn)". Every spell counts (Shop spells, Rubies, Clues, Gifts), and the copy is one of those three at random.',
+          'Rune of the Astral Refrain: "After you cast 3 spells, get 2 copies of the second one." Every spell counts here too.',
           'Rune of the Astral Draft now costs 4 (was 6).',
-          'Rune of Eventide: "After you Consume or Collapse a Starform, give your Shop spells +1/+1. (Once per turn)" — it no longer hands out spells.',
+          'Rune of Eventide: "After you Consume or Collapse a Starform, give your Shop spells +1/+1. (Once per turn)". It no longer hands out spells.',
           'Rune of Festival Wages: "After you sell 3 Revelers, your next card costs 0." Every third Reveler sold in a turn arms it.',
-          'Rune of the Festival Circuit now costs 4 and reads "After you sell 3 Revelers, get a random Celestial. Your Revelers buff Celestials." — while held, your Revelers’ sell buffs reach your Celestials too.',
-          'Rune of Dismantling no longer caps at once per turn — every Equip minion you sell fires its Equipment for free first, and every fire plays out.',
-          'Rune of Quick Release: the sold minion’s own Equipment is never the discounted one — only another Equipment is free.',
+          'Rune of the Festival Circuit now costs 4 and reads "After you sell 3 Revelers, get a random Celestial. Your Revelers buff Celestials." While held, your Revelers’ sell buffs reach your Celestials too.',
+          'Rune of Dismantling no longer caps at once per turn. Every Equip minion you sell fires its Equipment for free first, and every fire plays out.',
+          'Rune of Quick Release: the sold minion’s own Equipment is never the discounted one. Only another Equipment is free.',
           'Rune of Empty Hands: the Discovered minion’s Equipment now costs 0 AND is Amplified permanently.',
           'Rune of the Dream Mirror: EVERY stat gain on a minion in your hand is now mirrored onto a random friendly minion (was the first each turn).',
           'Rune of the Endless March: a friendly Undead that rises now summons a Spear Warden (was a 1/1 Skeleton).',
@@ -500,7 +531,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Three new Set 3 Neutrals built around Equipment: Shredder, Calibration Master and Rig.',
         details: [
           'Shredder (Tier 4, 8/4): "End of Turn: give your left-most and right-most minions +4/+4 for every Equipment unused this turn." The card prints the total it will grant right now; a lone minion is both ends and is buffed once. Gilded +8/+8.',
-          'Calibration Master (Tier 5, 9/6): "Equip Calibration Wrench (1): your next Equipment activation is Amplified." Whatever Equipment you press next triggers twice — never the Wrench itself — and the charge carries across turns until you use it. Gilded: your next two activations.',
+          'Calibration Master (Tier 5, 9/6): "Equip Calibration Wrench (1): your next Equipment activation is Amplified." Whatever Equipment you press next triggers twice, never the Wrench itself, and the charge carries across turns until you use it. Gilded: your next two activations.',
           'Rig (Tier 3, 4/4): "When you use Equipment, this gains +4/+4." Every activation from the slot counts, the Calibration Wrench included; a Rig in your hand does not grow. Gilded +8/+8.',
         ],
       },
@@ -516,10 +547,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'New Card',
-        text: 'Han Gover — a Tier 4 Dwarf/Undead who hands you a Dwarven Ale every 40 damage he deals.',
+        text: 'Han Gover is a Tier 4 Dwarf/Undead who hands you a Dwarven Ale every 40 damage he deals.',
         details: [
           'Tier 4, 4/7, Dwarf AND Undead. "When this deals 40 damage, get an Ale." Gilded: get 2 Ales.',
-          'Every hit he lands counts — attacks, retaliation, any damage he deals — and the tally KEEPS COUNTING across combats (27 this fight, 13 more next fight, and the Ale arrives).',
+          'Every hit he lands counts: attacks, retaliation, any damage he deals. The tally KEEPS COUNTING across combats (27 this fight, 13 more next fight, and the Ale arrives).',
           'The Ale flies to your hand the moment the threshold is crossed in combat, and is waiting for you in the next shop.',
           'His progress shows on the card as a step counter (N/40), in the shop and in combat, like every other every-N tracker.',
         ],
@@ -532,10 +563,10 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Card Change',
         text: 'Rise and Echo now resolve in the right order everywhere: the minion dies, its Echo fires, and only THEN does it try to Rise.',
         details: [
-          'Applies to every Rise (and Rebirth) minion, in combat and in the shop — a Deathfibrillated minion, Warden Rodrick, anything that dies with Rise.',
-          'The Echo goes first and its summons land in the slot the minion just left. On a full board that means the summon fits and it is the Rise that finds no room — the minion stays dead, and that counts as an overflow (Squatimus and friends pay off).',
-          'A Rise minion whose Echo does not summon anything still rises on a full board — its own slot is still free.',
-          'Previously the rising minion held its slot through its Echo, so its summon overflowed and the minion came back — which read as "it rose before its Echo".',
+          'Applies to every Rise (and Rebirth) minion, in combat and in the shop: a Deathfibrillated minion, Warden Rodrick, anything that dies with Rise.',
+          'The Echo goes first and its summons land in the slot the minion just left. On a full board that means the summon fits and it is the Rise that finds no room. The minion stays dead, and that counts as an overflow (Squatimus and friends pay off).',
+          'A Rise minion whose Echo does not summon anything still rises on a full board, because its own slot is still free.',
+          'Previously the rising minion held its slot through its Echo, so its summon overflowed and the minion came back. That read as "it rose before its Echo".',
         ],
       },
     ],
@@ -544,10 +575,10 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-18',
     label: 'Bloodpot on Frank; Compendium search',
     changes: [
-      { category: 'Card Change', text: 'Alchemist Frank can Bloodpot himself again — Bloodpot is the one Equipment exempt from the "no card targets itself" rule.' },
+      { category: 'Card Change', text: 'Alchemist Frank can Bloodpot himself again. Bloodpot is the one Equipment exempt from the "no card targets itself" rule.' },
       { category: 'Card Change', text: 'Picksy moves to Tier 5.' },
-      { category: 'Card Change', text: "Comet (Cometius) and Nimbus: 'your next spell casts N additional times' now reaches every spell — a Clue or a Ruby cast next is repeated too, and its ×N badge shows the real count." },
-      { category: 'UI / Info', text: 'Compendium: a search now drills down by the tribe (or Spells / Gifts) you have lit in the left rail — search "equip", then pick Kobolds. The search box reads in the same grey as the rail.' },
+      { category: 'Card Change', text: "Comet (Cometius) and Nimbus: 'your next spell casts N additional times' now reaches every spell. A Clue or a Ruby cast next is repeated too, and its ×N badge shows the real count." },
+      { category: 'UI / Info', text: 'Compendium: a search now drills down by the tribe (or Spells / Gifts) you have lit in the left rail. Search "equip", then pick Kobolds. The search box reads in the same grey as the rail.' },
     ],
   },
   {
@@ -560,7 +591,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'New Card',
-        text: 'Bicycle Bob joins the Undead: a Tier 4 3/9 that gives a random other Undead +1/+1 whenever a summoned minion does not fit — and the gift improves by +1/+1 for every Undead you played this turn.',
+        text: 'Bicycle Bob joins the Undead: a Tier 4 3/9 that gives a random other Undead +1/+1 whenever a summoned minion does not fit. The gift improves by +1/+1 for every Undead you played this turn.',
         details: [
           'Fires in the shop and in combat, and the buff is permanent either way.',
           'Play two Undead this turn and each overflow hands out +3/+3; a gilded Ben doubles it.',
@@ -586,7 +617,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: "Kobold reworks: Kobe now plays permanent Rubies whenever it takes damage, Boulderdash gains Flurry, Korn and the Kob's Rally Ruby is permanent, Livewire spreads its Rubies to random Kobolds, and Dual Rubetta's improves your Rubies by +1/+1.",
         details: [
           'Kobe: Taunt. When this takes damage, play 3 permanent Rubies on this and adjacent Kobolds (was a Start of Combat cast of 2).',
-          'Boulderdash: Flurry. Rally: cast 3 permanent Rubies on this — it swings twice, so the Rally pays twice.',
+          'Boulderdash: Flurry. Rally: cast 3 permanent Rubies on this. It swings twice, so the Rally pays twice.',
           'Korn and the Kob: Rally: cast a permanent Ruby on this (it carries back to your board after combat).',
           'Livewire: whenever you cast a Shop spell, cast a Ruby on this and 2 other random Kobolds (was: adjacent minions).',
           "Dual Rubetta's (Kaura L'roft): improve your Rubies by +1/+1 (was +1/+2) and cast a Ruby on your left-most and right-most Kobold.",
@@ -594,7 +625,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Card Change',
-        text: 'Spear Warden is now a 4/2 that HAS +4/+2 for every Spear Warden that died this game — a true death count, not an Echo.',
+        text: 'Spear Warden is now a 4/2 that HAS +4/+2 for every Spear Warden that died this game. It is a true death count, not an Echo.',
         details: [
           'Every Spear Warden death counts once: in combat, in the shop (Cage Breaker, a Deathfibrillator), a copy, a gilded copy, a Rune of the Warden token.',
           'Triggering its old Echo without a death (Deathsayer, Echohorn) no longer grows it, and Echo multipliers no longer double it.',
@@ -619,7 +650,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Card Change',
-        text: "No card can target itself any more. Cage Breaker and EMS's Deathfibrillator can no longer be aimed at themselves — and the same rule now applies to every aimed Shout, aimed Equipment and random-friendly effect.",
+        text: "No card can target itself any more. Cage Breaker and EMS's Deathfibrillator can no longer be aimed at themselves, and the same rule now applies to every aimed Shout, aimed Equipment and random-friendly effect.",
         details: [
           'Aimed Shouts (Cage Breaker, Auric Runemaster, Gravetwin, Graverobber, Brood Whelp, Twilight Emissary, Baby Gastrid, Appetite Agent, Runic Beetle) never offer their own body as a target; alone on the board they play as a plain body.',
           'Aimed Equipment (Bloodpot, Titan Hammer, Deathfibrillator) can no longer be used on the minion that granted it.',
@@ -641,9 +672,9 @@ export const PATCH_NOTES: PatchNote[] = [
           'Stardust Peddler is now 2/5: "When you spend 5 Gold, create a Starform, or give it +3/+3." A per-card Gold meter (the counter under the card shows N/5); gilded +6/+6.',
           'Sugarnova is now 4/2: "Shout: give your next Shop spell +4/+4" (gilded +8/+8). The bonus carries through combat if you do not spend it, every Shop spell offer and hand spell shows the boosted number in green, and exactly the next Shop spell you cast uses it up.',
           'Aspect: "When you play a Spirit, give 3 random Spirits +2/+2. Improves every 3 times this triggers." The improvement is +2/+2 per step (gilded +4/+4); the card prints its current grant and the counter shows the countdown.',
-          'Crash Course: "The first Star Crash you cast on this each turn casts an additional time" — it now works like Mirrorwing, but only for Star Crash (gilded: 2 additional times). It no longer spreads to other Celestials.',
+          'Crash Course: "The first Star Crash you cast on this each turn casts an additional time". It now works like Mirrorwing, but only for Star Crash (gilded: 2 additional times). It no longer spreads to other Celestials.',
           'Roundabout: "End of Turn: create a Starform and give it +10/+10" (gilded +20/+20). With a Starform already out, only the +10/+10 lands. The old Start-of-Turn create and End-of-Turn "eat the Shop" are gone.',
-          'Old Timber: "Start of Combat: give your Spirits +3/+2. Improves for every Spirit played" — +3/+2 more for each Spirit played since it was played; the card prints the current total.',
+          'Old Timber: "Start of Combat: give your Spirits +3/+2. Improves for every Spirit played". That is +3/+2 more for each Spirit played since it was played. The card prints the current total.',
           "Collapse now grants half the Starform's stats (rounded up) to 3 random friendly Celestials (was 2). Fuse Aldrin's extra hits still land on top; Rune of the Supernova still hits all of them instead.",
         ],
       },
@@ -701,10 +732,10 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'The tier row stays put on the Runes and Heroes tabs instead of vanishing and shifting the whole window.',
           'Gifts have their own section under Spells.',
-          'Hover any card or rune to see the cards it relates to (the token it summons, the spell it casts, the card a rune grants) — these were rendering behind the book before.',
+          'Hover any card or rune to see the cards it relates to (the token it summons, the spell it casts, the card a rune grants). These were rendering behind the book before.',
           'The Runes tab lists only the runes of the set you are looking at, and its tribe buttons filter to the runes that relate to a tribe.',
           'The operating-system tooltip (the little yellow box) no longer appears anywhere in the game.',
-          'A card that gives you a Dwarven Ale now previews one Ale on hover — a different one each time — instead of all five.',
+          'A card that gives you a Dwarven Ale now previews one Ale on hover instead of all five, a different one each time.',
         ],
       },
     ],
@@ -715,7 +746,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: "Every tribe name and mechanic word in card, spell, rune and hero-power text is now coloured, wherever it appears — not only the ones that happened to be in bold. The Equip, Starform and Collapse keyword pills now show on the cards that use them, with clearer definitions, and Vaultkeeper's printed grant now ticks live in combat as spells are cast.",
+        text: "Every tribe name and mechanic word in card, spell, rune and hero-power text is now coloured wherever it appears, not only the ones that happened to be in bold. The Equip, Starform and Collapse keyword pills now show on the cards that use them, with clearer definitions, and Vaultkeeper's printed grant now ticks live in combat as spells are cast.",
         details: [
           `Previously a tribe or keyword only took its colour when the card text bolded it, so plain mentions (Seedling Spirit's "Spirit", "Discover a Beast", "Collapse your Starform") read as ordinary text. They now colour on the shop, hand, board, combat, Compendium and hover surfaces alike.`,
           `Keyword pills: "Equip" (Can be triggered once per turn, per equipment, for a cost.), "Starform" (occupies a Shop slot until purchased or destroyed; buying it grants its stats to your left-most Celestial) and "Collapse" (grant 50% of your Starform's stats to 3 Celestials and destroy it).`,
@@ -734,7 +765,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'New Card',
-        text: 'New Basic rune in every set — Rune of Gambling: get a Gamble, repeat every turn, and your Gambles grant BOTH a minion and a spell of the rolled Tier.',
+        text: 'Rune of Gambling, a new Basic rune in every set: get a Gamble, repeat every turn, and your Gambles grant BOTH a minion and a spell of the rolled Tier.',
       },
     ],
   },
@@ -758,7 +789,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'New Card',
-        text: 'New Basic rune in every set — Rune of Gambling: get a Gamble, repeat every turn, and your Gambles grant BOTH a minion and a spell of the rolled Tier.',
+        text: 'Rune of Gambling, a new Basic rune in every set: get a Gamble, repeat every turn, and your Gambles grant BOTH a minion and a spell of the rolled Tier.',
       },
     ],
   },
@@ -768,13 +799,13 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: "The Gambler's roll and the Gamble spell now roll a real die — a 3D die tumbles and settles on the number: it hops in place on the power button for the Gambler, and for Gamble it is THROWN from where you released the card, bouncing across the table in the direction you flicked.",
+        text: "The Gambler's roll and the Gamble spell now roll a real die. A 3D die tumbles and settles on the number. It hops in place on the power button for the Gambler, and for Gamble it is THROWN from where you released the card, bouncing across the table in the direction you flicked.",
         details: [
           "The Gambler's die lands on the power button and the number stays there for the rest of the turn, as before.",
           'Gamble: flick the card as you release it and the die rolls that way (a faster flick throws a little farther); release it still and it rolls toward the middle of the board. It bounces three times, rolling on the felt, and always stays on the table.',
           'Gamble: the die is coloured by the tier it rolled, and the card you won arrives the moment the die comes to rest on its final bounce.',
           'Both rolls now have a sound as the die leaves your hand.',
-          'The roll only shows the result the game already decided — replays and shared runs roll the same way every time.',
+          'The roll only shows the result the game already decided, so replays and shared runs roll the same way every time.',
           'Reduced-motion: the die simply appears on its face, with no tumble or burst.',
         ],
       },
@@ -791,15 +822,15 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-17',
     label: 'Undead Aura + Spirit tendril sounds',
     changes: [
-      { category: 'UI / Info', text: 'The Undead Aura surge now has its own sound cue, in the Shop and mid-combat. It never overlaps itself — back-to-back rises share one cue.' },
-      { category: 'UI / Info', text: "A Spirit's buff ribbon now lands with its own sound — one cue per minion it reaches, in the Shop, at Start and End of Turn, and in combat." },
+      { category: 'UI / Info', text: 'The Undead Aura surge now has its own sound cue, in the Shop and mid-combat. It never overlaps itself. Back-to-back rises share one cue.' },
+      { category: 'UI / Info', text: "A Spirit's buff ribbon now lands with its own sound, one cue per minion it reaches, in the Shop, at Start and End of Turn, and in combat." },
     ],
   },
   {
     date: '2026-09-16',
     label: 'Apples scales on both ends',
     changes: [
-      { category: 'Card Change', text: "Apples: the \"Give this shop\" option now gains your Shop-spell bonus too, and its printed number shows the live value — both ends of the Choose One scale the same way." },
+      { category: 'Card Change', text: 'Apples: the "Give this shop" option now gains your Shop-spell bonus too, and its printed number shows the live value. Both ends of the Choose One scale the same way.' },
     ],
   },
   {
@@ -808,7 +839,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: "Milestone badges now read state through the number itself: the digit turns green when a stat is buffed above its base and red when it's reduced. The disc behind the frame is a fixed colour per stat — yellow for Attack, red for Health. The lower frames (plain silver, dagger, gold) no longer glow.",
+        text: "Milestone badges now read state through the number itself: the digit turns green when a stat is buffed above its base and red when it's reduced. The disc behind the frame is a fixed colour per stat: yellow for Attack, red for Health. The lower frames (plain silver, dagger, gold) no longer glow.",
       },
     ],
   },
@@ -816,7 +847,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-16',
     label: 'Second hero power retired',
     changes: [
-      { category: 'Hero Change', text: 'Void is out of the hero roster for now (Play and Practice) — the second-hero-power mechanic is on hold.' },
+      { category: 'Hero Change', text: 'Void is out of the hero roster for now (Play and Practice). The second-hero-power mechanic is on hold.' },
       { category: 'Card Change', text: 'The Second Calling Gift is retired: Happy Birthday and Merry Christmas no longer hand it out. A copy already in hand still casts.' },
     ],
   },
@@ -824,7 +855,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-16',
     label: 'Undead Aura surge',
     changes: [
-      { category: 'UI / Info', text: 'Every rise of your Undead Aura now plays its own surge effect over the board — in the Shop and mid-combat alike. The minions it buffs keep their tendrils.' },
+      { category: 'UI / Info', text: 'Every rise of your Undead Aura now plays its own surge effect over the board, in the Shop and mid-combat alike. The minions it buffs keep their tendrils.' },
       { category: 'UI / Info', text: 'The "New Undead arrive +X Attack" line no longer appears on Deathswarmer, Forsaken Weaver and Karthus.' },
     ],
   },
@@ -836,7 +867,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'New Rune',
         text: 'Rune of the Open Hand (Epic, 5): when you summon a minion from your hand, another friendly minion gains its stats.',
         details: [
-          'Fires on every minion summoned from your hand that finds room — in combat and in the Shop — and gives the summoned minion\'s current Attack and Health to a random other friendly minion.',
+          "Fires on every minion summoned from your hand that finds room, in combat and in the Shop, and gives the summoned minion's current Attack and Health to a random other friendly minion.",
         ],
       },
       {
@@ -857,7 +888,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Rune Change',
-        text: 'Rune of the Traveling Festival: the extra +2/+2 is paid once per Reveler trigger — holding a second copy still brings a second Reveler each turn but does not raise the bonus.',
+        text: 'Rune of the Traveling Festival: the extra +2/+2 is paid once per Reveler trigger. Holding a second copy still brings a second Reveler each turn but does not raise the bonus.',
       },
     ],
   },
@@ -869,7 +900,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Card Change',
         text: 'Yazzus is one card again, in every set: your targeted spells cast an additional time (a Gilded Yazzus: two additional times).',
         details: [
-          'Every targeted spell counts — Shop spells, Rubies, Tower Shields and Clues — not just Shop spells.',
+          'Every targeted spell counts, not just Shop spells: Rubies, Tower Shields and Clues too.',
           'He is a Tier 7 4/8 everywhere; the separate "Set 3 Yazzus" is gone, and a saved run or replay that had one now shows the one Yazzus.',
           'Rune of Yazzus and Rune of Frontline Glory grant this Yazzus.',
         ],
@@ -886,7 +917,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'New Card',
-        text: 'New keyword: Rebirth. When a minion with Rebirth dies it returns once with everything it had — its full stats, buffs, keywords and effects. (Rise still brings back the printed card at 1 Health.)',
+        text: 'New keyword: Rebirth. When a minion with Rebirth dies it returns once with everything it had: its full stats, buffs, keywords and effects. Rise still brings back the printed card at 1 Health.',
         details: [
           'Rebirth resolves before Rise: a minion holding both comes back whole first, and its Rise is still there for the next death.',
           'Its Echo fires on the Rebirth death, and the death counts for Avenge and death-watchers, just like a Rise.',
@@ -900,15 +931,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'New Rune',
-        text: 'Amplified Equipment: Rune of Amplification (4) — Equipment you do not activate becomes Amplified; Amplified Equipment triggers twice the next time you activate it (max 1 per Equipment). Rune of the Grand Workshop (Epic, 6) Amplifies all your Equipment now and every Start of Turn.',
+        text: 'Amplified Equipment: Rune of Amplification (4) makes Equipment you do not activate Amplified. Amplified Equipment triggers twice the next time you activate it (max 1 per Equipment). Rune of the Grand Workshop (Epic, 6) Amplifies all your Equipment now and every Start of Turn.',
       },
       {
         category: 'New Rune',
-        text: 'Rune of Soul Script (5, Undead + Celestial): Starforms count as Undead — Undead Consumes, buffs and Auras reach them.',
+        text: 'Rune of Soul Script (5, Undead + Celestial): Starforms count as Undead, so Undead Consumes, buffs and Auras reach them.',
       },
       {
         category: 'New Rune',
-        text: 'Rune of the Red Giant (Epic, 5, Celestial): your Starform has a 50% chance to also Consume a Shop spell when it feeds — you get a copy of that spell and the Starform gains +8/+8.',
+        text: 'Rune of the Red Giant (Epic, 5, Celestial): your Starform has a 50% chance to also Consume a Shop spell when it feeds. You get a copy of that spell and the Starform gains +8/+8.',
       },
       {
         category: 'New Rune',
@@ -926,33 +957,33 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-16',
-    label: 'Set 3 runes — Spirits and Celestials',
+    label: 'Set 3 runes: Spirits and Celestials',
     changes: [
       {
         category: 'New Rune',
-        text: 'Twenty-four new Set 3 Runes for Spirit, Celestial and Undead runs — eleven in the Runeforge and thirteen in the Epic Runeforge.',
+        text: 'Twenty-four new Set 3 Runes for Spirit, Celestial and Undead runs: eleven in the Runeforge and thirteen in the Epic Runeforge.',
         details: [
-          'Tribe faucets: Rune of Basic / Epic Spirits, Celestials and Undead — a minion of that type (two for the Epic) now and every Start of Turn, never above your Shop Tier.',
+          'Tribe faucets: Rune of Basic / Epic Spirits, Celestials and Undead. A minion of that type (two for the Epic) now and every Start of Turn, never above your Shop Tier.',
           'Spirit play-offs: Rune of the Full Hand (every 3rd Spirit played buffs your hand +4/+4), the Chosen Vessel (each Spirit played gives your left-most hand minion +2/+2), Deep Currents (each Spirit played gives 2 random friendly Spirits +2/+2), the Spirit Crown (every 3 Spirits played improve your Shop spells +1/+1).',
           'Reveler runes: the Traveling Festival (a random Reveler every turn, and Revelers pay +2 more), the Growing Chorus (play all three Reveler types: board + hand +5/+5 and your Reveler value +2), Festival Wages (your first Reveler sold each turn makes your next card free), Shared Revelry (the first Flame, Tide and Grove sold each turn trigger twice), the Grand Procession (the first 2 Revelers played each turn return a plain copy), the Festival Circuit (the first 3 Revelers sold each turn each give a random Celestial).',
-          'Celestial spell runes: Charted Skies (your 3rd Shop spell each turn Discovers a Shop spell), Falling Embers (a Star Crash every turn, and every Star Crash gives +2/+2 more — the card shows the new value), the Meteor Shower (your first Star Crash each turn gives another), the Astral Refrain (your 3rd Shop spell each turn hands you copies of that turn\'s 1st and 3rd), the Astral Draft (Start of Turn: Discover a Shop spell that casts an additional time).',
+          "Celestial spell runes: Charted Skies (your 3rd Shop spell each turn Discovers a Shop spell), Falling Embers (a Star Crash every turn, and every Star Crash gives +2/+2 more, with the card showing the new value), the Meteor Shower (your first Star Crash each turn gives another), the Astral Refrain (your 3rd Shop spell each turn hands you copies of that turn's 1st and 3rd), the Astral Draft (Start of Turn: Discover a Shop spell that casts an additional time).",
           'Hand runes: the Dream Mirror (the first time a hand minion gains stats each turn, a random friendly minion gains the same) and Waking Dreams (whenever a hand minion gains stats, your minions +4/+3).',
-          'Rune of the Handy Flame hands you a new rune-only Spirit: Handy Flame (Tier 5, 2/13) — whenever it gains stats, a random other minion in your hand gets +6/+4.',
+          'Rune of the Handy Flame hands you a new rune-only Spirit: Handy Flame (Tier 5, 2/13). Whenever it gains stats, a random other minion in your hand gets +6/+4.',
           'Every metered rune shows its live progress on its badge, and the "improves" runes show their current bonus.',
         ],
       },
-      { category: 'New Card', text: 'Handy Flame — a Tier 5 Spirit token reached only through its rune. No art yet.' },
+      { category: 'New Card', text: 'Handy Flame is a Tier 5 Spirit token reached only through its rune. No art yet.' },
     ],
   },
   {
     date: '2026-09-16',
-    label: 'Set 3 runes — Starform, Equipment, Undead',
+    label: 'Set 3 runes: Starform, Equipment, Undead',
     changes: [
       {
         category: 'New Rune',
         text: 'Nineteen new Set 3 Runes: eight Basic and eleven Epic, built around the Starform, Equipment and the Undead.',
         details: [
-          'Starform (Basic): Rune of First Light creates a Starform that starts +8/+8 — as does every one you create after — and seeds a new one each Start of Turn if you have none; Rune of Accretion doubles what your Starform gains from the Shop minions it Consumes; Rune of Eventide pays 2 Shop spells and +1/+1 spell power the first time you Consume or Collapse a Starform each turn.',
+          'Starform (Basic): Rune of First Light creates a Starform that starts +8/+8, as does every one you create after, and seeds a new one each Start of Turn if you have none; Rune of Accretion doubles what your Starform gains from the Shop minions it Consumes; Rune of Eventide pays 2 Shop spells and +1/+1 spell power the first time you Consume or Collapse a Starform each turn.',
           "Starform (Epic): Rune of the Open Constellation re-creates a Starform with the consumed one's stats after your first Consume each turn; Rune of the Supernova makes a Collapse reach ALL your Celestials; Rune of Stolen Constellations hands you a copy of every minion your Starform Consumes; Rune of Spellweaving feeds your first 3 stat-granting Shop spells each turn to your Starform too.",
           'Equipment (Basic): Rune of Efficient Tooling takes 2 Gold off your first Equipment activation each turn; Rune of Quick Release makes your next activation free after you sell an Equip minion; Rune of Resonant Arms gives your minions +8/+5 after every third Equipment effect you trigger (the badge counts toward it).',
           "Equipment (Epic): Rune of Overcharge makes your first activation each turn free and charge-less; Rune of Dismantling fires a sold Equip minion's Equipment for free before it leaves (once per turn, at a random friendly minion); Rune of Counterrotation re-triggers three different Equipment once you have activated all three; Rune of Empty Hands Discovers an Equip minion whose Equipment costs 0 for the rest of the run; Rune of the Last Tool gives your Equip minions \"Echo: this minion's Equipment costs 0 next turn\".",
@@ -968,12 +999,12 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: "A buff granted by a minion's Echo now streams its tribe's ribbon from where that minion fell to each minion it pays — in combat and in the shop. Before this an Echo's gift simply appeared with no cue at all.",
+        text: "A buff granted by a minion's Echo now streams its tribe's ribbon from where that minion fell to each minion it pays, in combat and in the shop. Before this an Echo's gift simply appeared with no cue at all.",
         details: [
           'Every Echo that buffs others (Dawn Sentinel, Noggin, Sergey, Grim, Armadiyo, Imp King, Trickster, Equinox Duelist, Lodestar, Chef Raag, …) draws the ribbon a beat after its death has read.',
           'In the shop, an Echo fired by a destroy (Cage Breaker, Graverobber, EMS, a Funeral on Loan return) leaves from the slot the card just vacated.',
           "Wolvie's gift to the next Beast you summon now streams from the fallen Wolvie; a dead Grim's aura on a later Beast does the same.",
-          "Flamebanner Marshal's Rally, Ashen Heir's inheritance, a Better Bot welded onto a Mech and a Bloodlust Rally used to land invisibly — each now shows its ribbon from the minion that granted it.",
+          "Flamebanner Marshal's Rally, Ashen Heir's inheritance, a Better Bot welded onto a Mech and a Bloodlust Rally used to land invisibly. Each now shows its ribbon from the minion that granted it.",
           "In the shop, Billings and Coinfire Forewoman's Gold-spent buffs, Gangplank's card-gained buff, and a Reveler's sell payout now show their ribbons too (a sold Reveler's leaves from the slot it was sold from).",
         ],
       },
@@ -989,7 +1020,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'UI / Info',
-        text: "The celebration when a stat crosses a milestone now bursts in that tier's own colour, matching the frame it just earned — instead of the same gold every time.",
+        text: "The celebration when a stat crosses a milestone now bursts in that tier's own colour, matching the frame it just earned, instead of the same gold every time.",
       },
     ],
   },
@@ -1002,7 +1033,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: "Echohorn's attack no longer freezes reared-back and then lands late: when the Echo it triggers resolves inside the wind-up (a summon, a buff), it now pauses briefly for the Echo and then strikes with its hit landing on contact, like every other Rally swing.",
         details: [
           'The frozen-pose hold is kept only for Echoes that play out in beats of their own (a Fel Spikes spray, a re-fired Shout, a summoned charger), where the swing waits for them and then lands.',
-          "A held Echohorn whose blow was absorbed by the defender's Ward no longer stays frozen for the rest of the fight — the Ward absorb counts as its strike landing.",
+          "A held Echohorn whose blow was absorbed by the defender's Ward no longer stays frozen for the rest of the fight. The Ward absorb counts as its strike landing.",
         ],
       },
     ],
@@ -1011,7 +1042,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-15',
     label: 'Runeforge commits',
     changes: [
-      { category: 'UI / Info', text: 'The Runeforge no longer offers a way to leave without a rune — pick one of the offered Runes (the free re-roll is still there).' },
+      { category: 'UI / Info', text: 'The Runeforge no longer offers a way to leave without a rune. Pick one of the offered Runes. The free re-roll is still there.' },
     ],
   },
   {
@@ -1020,11 +1051,11 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Hero Change',
-        text: "A hero power you pick up mid-run (Void's turn-4 picks, Mimic's disguises, Power Shifter) now starts its price clock the turn you take it — Rounded Spellbook costs 3 on the turn you pick it, not 0.",
+        text: "A hero power you pick up mid-run (Void's turn-4 picks, Mimic's disguises, Power Shifter) now starts its price clock the turn you take it. Rounded Spellbook costs 3 on the turn you pick it, not 0.",
         details: [
           "Rounded Spellbook and Buyout used to count their discount from turn 1 even when you adopted them later, so a Void picking Rounded Spellbook on turn 4 got it free from the start and its cost coin was blank. They now start at their full price (3 / 11) on the pick turn and fall 1 a turn from there, exactly like Hunch and Harlan do from turn 1.",
           "All In pays out from 1 Gold on the pick turn (it used to arrive with several turns already banked). Dragon Tamer starts at its full 5.",
-          "Dynamite Dig's first dig is free for a new wielder, whatever the power it replaced had spent. Gild arrives ready even if the power it replaced was used, and its 75-Gold recharge now works for a Void, a Mimic or a Power Shifter — not only for Indy.",
+          "Dynamite Dig's first dig is free for a new wielder, whatever the power it replaced had spent. Gild arrives ready even if the power it replaced was used, and its 75-Gold recharge now works for a Void, a Mimic or a Power Shifter, not only for Indy.",
         ],
       },
       { category: 'UI / Info', text: "Both of Void's hero-power buttons show the cost coin for any power that costs Gold, and the coin reads exactly what the power will charge. Passives (Empowering Vines and kin) still show their passive badge instead of a coin." },
@@ -1034,7 +1065,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-15',
     label: 'Hand buff cue',
     changes: [
-      { category: 'UI / Info', text: 'A card in your hand getting stronger — a minion gaining stats, or a spell, Ruby or token whose printed value goes up — now bursts and pops in place with a new effect, in the Shop, at End of Turn and mid-combat alike. It replaces the old grow-and-sparkle on spells, and hand minions finally get a cue too.' },
+      { category: 'UI / Info', text: 'A card in your hand getting stronger now bursts and pops in place with a new effect, in the Shop, at End of Turn and mid-combat alike. That covers a minion gaining stats, or a spell, Ruby or token whose printed value goes up. It replaces the old grow-and-sparkle on spells, and hand minions finally get a cue too.' },
     ],
   },
   {
@@ -1043,11 +1074,11 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'When a spell or Ruby bounces onto a different minion because of where it first landed, a ribbon now streaks from the first target to the second — one per bounce, so a doubled bounce reads as two.',
+        text: 'When a spell or Ruby bounces onto a different minion because of where it first landed, a ribbon now streaks from the first target to the second. One per bounce, so a doubled bounce reads as two.',
         details: [
           "Plays for Star Crash's second landing, Crash Course's extra Star Crashes, Reflector's spread, Rune of Distillation (a Shop minion to your left-most), Rune of Redirection (left-most to right-most), Rune of the Conduit, and Trouble in combat.",
           'Rubies get a red ribbon; spells get a first-pass purple-and-blue one that will be tuned later.',
-          'A spell that simply casts AGAIN on the same minion (Mirrorwing, Nimbus, Yazzus, Prismcaster) does not use this cue — it will get its own.',
+          'A spell that simply casts AGAIN on the same minion (Mirrorwing, Nimbus, Yazzus, Prismcaster) does not use this cue. It will get its own.',
         ],
       },
     ],
@@ -1071,7 +1102,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-14',
     label: 'Tendrils: Celestial + Equipment',
     changes: [
-      { category: 'UI / Info', text: 'Celestials have their own buff ribbon (a moonlit periwinkle) instead of the generic one — Wishing Star and friends.' },
+      { category: 'UI / Info', text: 'Celestials such as Wishing Star have their own buff ribbon (a moonlit periwinkle) instead of the generic one.' },
       { category: 'UI / Info', text: 'Equipment that buffs your minions without its own effect (Spiritbinder, the Stellar Lens’s board half) now draws the buff ribbon from the minion that granted it, like any minion-to-minion buff.' },
     ],
   },
@@ -1080,7 +1111,7 @@ export const PATCH_NOTES: PatchNote[] = [
     label: 'Starform creation',
     changes: [
       { category: 'Card Change', text: 'The Starform always returns to the right-most Shop slot on a refresh. You can still drag it around during the turn.' },
-      { category: 'UI / Info', text: 'A Starform being created has its own burst-and-ring cue on its slot. Forming one in a full Shop no longer pulls the eaten minion across the row or shuffles the other offers — it simply appears where that minion stood.' },
+      { category: 'UI / Info', text: 'A Starform being created has its own burst-and-ring cue on its slot. Forming one in a full Shop no longer pulls the eaten minion across the row or shuffles the other offers. It simply appears where that minion stood.' },
     ],
   },
   {
@@ -1094,8 +1125,8 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-14',
     label: 'Rocket Power + counters + Spirit tendril',
     changes: [
-      { category: 'Card Change', text: 'Rocket Power: Shout — give this shop +3/+3, then repeat it for every Shop spell you cast this turn (it used to do nothing with no spell cast).' },
-      { category: 'UI / Info', text: "The step counter on a hovered card no longer sits on top of the card name — it now rides just under the plate's bottom gem." },
+      { category: 'Card Change', text: 'Rocket Power: Shout, give this shop +3/+3, then repeat it for every Shop spell you cast this turn. It used to do nothing with no spell cast.' },
+      { category: 'UI / Info', text: "The step counter on a hovered card no longer sits on top of the card name. It now rides just under the plate's bottom gem." },
       { category: 'UI / Info', text: 'Spirits have their own buff ribbon: when a Spirit buffs another minion, a warm gold-and-green tendril streams between them.' },
     ],
   },
@@ -1115,7 +1146,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Rune Change',
-        text: 'Set 3 Runeforges now draw from 115 Basic and 98 Epic runes: 64 runes from Sets 1 and 2 whose mechanics Set 3 has — the Ruby, Dwarven Ale, Dwarf, Kobold, Undead and Shop-consume packages — join the pool. Sets 1 and 2 are unchanged.',
+        text: 'Set 3 Runeforges now draw from 115 Basic and 98 Epic runes. 64 runes from Sets 1 and 2 whose mechanics Set 3 has join the pool: the Ruby, Dwarven Ale, Dwarf, Kobold, Undead and Shop-consume packages. Sets 1 and 2 are unchanged.',
         details: [
           'Basic (30): Gemcutting, Overtime, Distillation, Last Call, Basic Dwarves, Basic Kobolds, Engraving, Investment, Recollection, Resonance, Ruby Resonance, Shared Pour, Shifting Facets, the Flagship, the Gem Dividend, Compounding Wages, Facetwright, Full Measure, Heavy Payroll, Kegheart, Refraction, Shared Spoils, the Brew, the Living Geode, Mountain Trade, the First Round, the Gem Sage, the Unbroken Vein, the Warden, Contraband.',
           'Epic (34): Rising Graves, Gemstorm, Runic Exchange, the Open Market, Epic Dwarves, Epic Kobolds, the Shared Table, the Spellstone, Attacking Gems, Engraving Gems, Gemscript, Gemspam, Living Treasure, Mykel, Profit Sharing, Redirection, the Gem Golem, the High King, Yazzus, Lazarus, Ruby Shrapnel, the Bottomless Cask, the Conduit, the Deepening Vein, the Lapidary, the Motherlode, Baal, Double Fisting, Kobold Bebes, the Chef, Bucky, Mastery, the Spearline, Frontline Glory.',
@@ -1133,12 +1164,12 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'A Celestial pass: Star Seed, Stardust Peddler, The Great Attractor, Roundabout, Lens Grinder, Wishing Star, Rocket Power (was Shooting Star), Twinning (was Twin Star) and Black Hole (was Accretion) all changed.',
         details: [
           'Star Seed: an existing Starform now gets +4/+4 (was +2/+2).',
-          'Stardust Peddler: whenever you buy a minion, create a Starform if you have none — otherwise give it +1/+2.',
-          'The Great Attractor: Shout — give this shop +4/+3, then your Starform consumes the highest-Health minion (it used to eat the highest Tier, with no buff).',
+          'Stardust Peddler: whenever you buy a minion, create a Starform if you have none. Otherwise give it +1/+2.',
+          'The Great Attractor: Shout, give this shop +4/+3, then your Starform consumes the highest-Health minion. It used to eat the highest Tier, with no buff.',
           'Roundabout: now Tier 5, 7/5. End of Turn: your Starform consumes the whole Shop. Start of Turn: create one if you have none.',
           'Lens Grinder: now Tier 4, 4/6. Stellar Lens (2): create a Starform, then give this shop +7/+7 (was +10/+10, no create).',
-          'Wishing Star: Shout — give adjacent minions +3/+4 (was Shout + Echo: this shop +2/+2).',
-          'Rocket Power (was Shooting Star): no Flurry; Shout — this shop +3/+3 for every Shop spell cast this turn.',
+          'Wishing Star: Shout, give adjacent minions +3/+4. It was Shout and Echo, this shop +2/+2.',
+          'Rocket Power (was Shooting Star): no Flurry. Shout, this shop +3/+3 for every Shop spell cast this turn.',
           'Twinning (was Twin Star): now Tier 5.',
           'Black Hole (was Accretion): your Starform consumes 3 random Shop minions. No Star Crash any more.',
         ],
@@ -1163,7 +1194,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'Your warband now opens a slot to make room a little sooner as you drag a minion up from hand — you no longer have to lift it as far before the board reacts.',
+        text: 'Your warband now opens a slot to make room a little sooner as you drag a minion up from hand. You no longer have to lift it as far before the board reacts.',
       },
     ],
   },
@@ -1203,8 +1234,8 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Hero Change',
-        text: 'Warden — Aegis now costs 3 Gold (was 4): give a friendly minion Ward, then give your minions with Ward +5 Attack.',
-        details: ['The buff is a flat +5 Attack to every Warded minion (the fresh one included) — it no longer scales +Tier/+Tier+1 and no longer adds Health. It can be used on a minion that already has Ward — the Ward half adds nothing, but every Warded minion still gets the +5 Attack.'],
+        text: "Warden's Aegis now costs 3 Gold (was 4): give a friendly minion Ward, then give your minions with Ward +5 Attack.",
+        details: ['The buff is a flat +5 Attack to every Warded minion, the fresh one included. It no longer scales +Tier/+Tier+1 and no longer adds Health. It can be used on a minion that already has Ward. The Ward half adds nothing, but every Warded minion still gets the +5 Attack.'],
       },
     ],
   },
@@ -1214,7 +1245,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Card Change',
-        text: 'Thirty Set 3 minions have new names (names only — stats, effects and art are unchanged).',
+        text: 'Thirty Set 3 minions have new names. Names only: stats, effects and art are unchanged.',
         details: [
           'Celestials: Horizon Courier → Cosmo Express · Starpath Vendor → Sugarnova · Falling Star Herald → Plummet · Crashborn Adept → Crash Course · Accretion Warden → The Great Attractor · Eclipse Warden → Totality · Orbit Keeper → Roundabout · Corona Devotee → Solburn · Star Charter → Maestro Lux · Nova Herald → Fuse Aldrin.',
           'Spirits: Dreamcurrent Mystic → Lullaby Lou · Gathering Guide → Branch Manager · Festival Keeper → Tally · Bondweaver Shaman → Knot · Spirit Artificer → Revelsmith · Festival Treasurer → Smokey Joe · Festival Luminary → Limelight · Slumbering Colossus → Dozer · Forest Colossus → Old Timber · Nurturer → Mother Moss.',
@@ -1230,7 +1261,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Card Change',
-        text: "Spiritbinder (Bondweaver Shaman's Equipment) now gives a RANDOM Spirit on your board and a random Spirit in your hand +6/+6 — it no longer asks for a target.",
+        text: "Spiritbinder (Bondweaver Shaman's Equipment) now gives a RANDOM Spirit on your board and a random Spirit in your hand +6/+6. It no longer asks for a target.",
         details: ['It could be aimed at a non-Spirit, which the card never promised. Picking its own Spirit on the board (the Shaman itself included) closes that; the hand half was already random.'],
       },
     ],
@@ -1241,9 +1272,9 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'New targeting effect when you aim a targeted spell, hero power or equipment — a custom glowing lasso that follows your cursor.',
+        text: 'New targeting effect when you aim a targeted spell, hero power or equipment: a custom glowing lasso that follows your cursor.',
         details: [
-          'The aim line now plays a fully authored effect (built in the FX workshop) instead of the old default line — the same look across spell casts, targeted hero powers, and the two-target picker.',
+          'The aim line now plays a fully authored effect (built in the FX workshop) instead of the old default line. It is the same look across spell casts, targeted hero powers, and the two-target picker.',
           'It can layer more than the lasso now (a custom image / stream that rides your cursor), so the targeting look is tunable rather than fixed.',
           'The impact effects that fire on the target when you release are unchanged.',
         ],
@@ -1256,7 +1287,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'Stellar Chorus (and Clues) in the Shop now show the exact value they will grant right now — the tavern kept printing the base +2/+2 after spells had been cast, while the same card in hand read the true total.',
+        text: 'Stellar Chorus (and Clues) in the Shop now show the exact value they will grant right now. The tavern kept printing the base +2/+2 after spells had been cast, while the same card in hand read the true total.',
       },
       {
         category: 'Card Change',
@@ -1276,15 +1307,15 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Card Change',
         text: 'The Starform now costs Gold, and buying it feeds it to your left-most Celestial. It appears at 6 Gold and gets 1 cheaper with every Shop refresh.',
         details: [
-          'The token spawns at 6 Gold. Every refresh — paid or free — takes 1 off, down to 0. The lower price carries into your next turn; a brand-new Starform (including one Zenith re-creates) starts at 6 again.',
+          'The token spawns at 6 Gold. Every refresh, paid or free, takes 1 off, down to 0. The lower price carries into your next turn; a brand-new Starform (including one Zenith re-creates) starts at 6 again.',
           'Buying it: your LEFT-most Celestial on the board consumes it and gains all of its stats. With no Celestial on board the Gold is still spent and the token is simply gone.',
-          'Every normal discount applies to it — Rune of Cadence, Trade-In, the Friends-and-Family Gift, the Thymepiece window, a free first buy. The coin on the card always shows what you will pay.',
+          'Every normal discount applies to it: Rune of Cadence, Trade-In, the Friends-and-Family Gift, the Thymepiece window, a free first buy. The coin on the card always shows what you will pay.',
           'It still counts as a minion bought (Stardust Peddler and every "whenever you buy" effect hear it). The old free "buy to dismiss" is gone.',
         ],
       },
       {
         category: 'New Card',
-        text: 'Star Destroyer — an Equipment you hold whenever you have a Starform: use it (0 Gold, once per turn) to remove the Starform from the Shop with no other effect.',
+        text: 'Star Destroyer is an Equipment you hold whenever you have a Starform. Use it (0 Gold, once per turn) to remove the Starform from the Shop with no other effect.',
         details: [
           'It sits in the Equipment rail beside anything your minions grant, with its own once-per-turn charge, and leaves the rail the moment the Starform is gone.',
           'Using it is a clean removal: nothing gains stats, nothing counts as bought, and Zenith does not re-create the token.',
@@ -1295,7 +1326,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Collapse is now 2 random friendly Celestials (was 3), each gaining half the Starform’s stats rounded up. Corona Devotee now Collapses instead of Consuming; Nova Herald becomes a passive that adds 2 extra Collapse hits.',
         details: [
           'Corona Devotee: "Shout: Collapse your Starform." (gilded: each hit gains the full stats). Its old Consume is now what buying the token does.',
-          'Nova Herald: "When you Collapse a Starform, it buffs 2 additional random Celestials." (gilded: 4). The extra hits can land on the same Celestial more than once — with two Celestials one can take three hits and the other one. Two Heralds add 4.',
+          'Nova Herald: "When you Collapse a Starform, it buffs 2 additional random Celestials." (gilded: 4). The extra hits can land on the same Celestial more than once. With two Celestials one can take three hits and the other one. Two Heralds add 4.',
           'A Collapse with a single Celestial gives it the one hit plus every extra; with none, the token still breaks and the stats go nowhere.',
         ],
       },
@@ -1320,18 +1351,18 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'UI / Info',
-        text: 'Collapse now has its own keyword box beside the card, and so does the Starform — hover a Celestial that names either and the side panel explains it.',
+        text: 'Collapse now has its own keyword box beside the card, and so does the Starform. Hover a Celestial that names either and the side panel explains it.',
       },
       {
         category: 'UI / Info',
-        text: 'The Starform has its own consume animation: a beam of starlight and a rush of particles fly from whatever is being consumed to whatever gains — the meal into the token, the token into Corona Devotee, and one pull to each of the three Celestials when Nova Herald collapses it.',
+        text: 'The Starform has its own consume animation. A beam of starlight and a rush of particles fly from whatever is being consumed to whatever gains: the meal into the token, the token into Corona Devotee, and one pull to each of the three Celestials when Nova Herald collapses it.',
       },
       {
         category: 'Card Change',
         text: 'Thymes and its Thymepiece are reworked: instead of banking time for next turn, using the Thymepiece makes every card in the Shop cost 1 less Gold for the next 8 seconds.',
         details: [
           'Thymepiece still costs 3 Gold to use and needs no target. Gilded Thymes: 2 less Gold, same 8 seconds.',
-          'It applies to cards only — Shop minions, the spell slot and any spell offers in the row. Upgrading the Shop and refreshing cost what they always did. Prices never go below 0.',
+          'It applies to cards only: Shop minions, the spell slot and any spell offers in the row. Upgrading the Shop and refreshing cost what they always did. Prices never go below 0.',
           'The 8 seconds run on the turn clock, so anything that pauses the clock (a Discover, a Choose One, aiming) pauses the discount too. While it is active every Shop price shows the green discounted coin, and the Equipment slot counts it down ("−1 Gold · 6s").',
         ],
       },
@@ -1350,16 +1381,16 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'New Card',
-        text: 'Set 3 Celestials: sixteen new minions, a new spell and a new Equipment built around the Starform — a 1/1 Celestial token that lives in your Shop, grows from every shop buff and consume, and is cashed in by your Celestials.',
+        text: 'Set 3 Celestials: sixteen new minions, a new spell and a new Equipment built around the Starform. The Starform is a 1/1 Celestial token that lives in your Shop, grows from every shop buff and consume, and is cashed in by your Celestials.',
         details: [
-          'The Starform sits in the Shop like any offer (its printed stats are the counter — no rules text). It survives every refresh in its own slot, keeps "this shop" buffs the others lose, and eats the right-most Shop minion when it is created into a full row. Buying it costs 0 Gold and simply dismisses it (that still counts as a minion bought).',
-          'Star Seed (T1): Shout — create a Starform, or give the one you have +2/+2. Dawn Sentinel (T1): Taunt; Echo — a random friendly Celestial +2/+1.',
-          'Stardust Peddler (T2): whenever you buy a minion, your Starform +1/+1. Wishing Star (T2): Shout AND Echo — this shop +2/+2.',
-          'Accretion Warden (T3): Shout — your Starform consumes the highest-Tier Shop minion (ties go right). Shooting Star (T3): Flurry; Shout — this shop +3/+3 for each Shop spell you cast this turn (the card prints the live total). Eclipse Warden (T3): Avenge (3) — get a Star Crash.',
-          'Orbit Keeper (T4): End of Turn — Starform +2/+2; Start of Turn — create one if you have none. Corona Devotee (T4): Shout — consume your Starform and gain all its stats. Star Charter (T4): Shout — Discover a Celestial.',
-          "Lens Grinder (T5): Equip Stellar Lens (2 Gold) — this shop +10/+10. Lodestar (T5): Echo — a friendly Celestial gains this minion's stats (its full, undamaged stats).",
-          'Twin Star (T6): whenever your Starform gains stats, this gains the same. Nova Herald (T6): Shout — collapse your Starform; 3 random friendly Celestials each gain half its stats (rounded up).',
-          'Zenith (T7): whenever you cast a spell (Rubies too), your Starform +3/+3; when it collapses or is consumed, a new one appears with half its stats. Constellation Prime (T7): your Star Crashes land their +5/+7 on the chosen Celestial an extra time; Shout — get 2 Star Crashes.',
+          'The Starform sits in the Shop like any offer. Its printed stats are the counter, with no rules text. It survives every refresh in its own slot, keeps "this shop" buffs the others lose, and eats the right-most Shop minion when it is created into a full row. Buying it costs 0 Gold and simply dismisses it (that still counts as a minion bought).',
+          'Star Seed (T1): Shout, create a Starform, or give the one you have +2/+2. Dawn Sentinel (T1): Taunt. Echo, a random friendly Celestial +2/+1.',
+          'Stardust Peddler (T2): whenever you buy a minion, your Starform +1/+1. Wishing Star (T2): Shout AND Echo, this shop +2/+2.',
+          'Accretion Warden (T3): Shout, your Starform consumes the highest-Tier Shop minion (ties go right). Shooting Star (T3): Flurry. Shout, this shop +3/+3 for each Shop spell you cast this turn. The card prints the live total. Eclipse Warden (T3): Avenge (3), get a Star Crash.',
+          'Orbit Keeper (T4): End of Turn, Starform +2/+2. Start of Turn, create one if you have none. Corona Devotee (T4): Shout, consume your Starform and gain all its stats. Star Charter (T4): Shout, Discover a Celestial.',
+          "Lens Grinder (T5): Equip Stellar Lens (2 Gold), this shop +10/+10. Lodestar (T5): Echo, a friendly Celestial gains this minion's stats. That means its full, undamaged stats.",
+          'Twin Star (T6): whenever your Starform gains stats, this gains the same. Nova Herald (T6): Shout, collapse your Starform; 3 random friendly Celestials each gain half its stats (rounded up).',
+          'Zenith (T7): whenever you cast a spell (Rubies too), your Starform +3/+3; when it collapses or is consumed, a new one appears with half its stats. Constellation Prime (T7): your Star Crashes land their +5/+7 on the chosen Celestial an extra time, and its Shout gets you 2 Star Crashes.',
           'Accretion (new T3 Celestial spell): your Starform consumes the highest-Health Shop minion, and you get a Star Crash either way.',
           'Star Crash can now be aimed at the Starform itself: it grows the token, and the second +5/+7 still lands on a random friendly minion on your board.',
           'Gilded readings double the numbers: +4/+4 (Star Seed, Wishing Star), +2/+2 per buy (Peddler), double the meal (Accretion Warden, Corona Devotee), +6/+6 per spell (Shooting Star, Zenith), +20/+20 (Stellar Lens), the full stats (Nova Herald, Zenith\'s rebirth), and two extra landings + 4 Star Crashes (Constellation Prime).',
@@ -1367,11 +1398,11 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'UI / Info',
-        text: 'The Choose One window now shows the buffed numbers on a Choose One spell — with spell power up, each option prints (in green) exactly what it will grant.',
+        text: 'The Choose One window now shows the buffed numbers on a Choose One spell. With spell power up, each option prints in green exactly what it will grant.',
         details: [
           "Aspect's Blessing under +1/+1 spell power offers +4/+2 or +2/+4 in the window, not the printed +3/+1 / +1/+3.",
           "Apples' \"2 random friendly minions\" option shows its live value; its \"this shop +2/+4\" option stays as printed, because that buff never takes spell power.",
-          'Crest of the Climb keeps its flat +4 Attack / +4 Health — it is designed not to scale.',
+          'Crest of the Climb keeps its flat +4 Attack / +4 Health. It is designed not to scale.',
           'Minion Choose Ones (Battlecries) are unchanged: they never took spell power, so their options still print as authored.',
         ],
       },
@@ -1413,7 +1444,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Card Change',
-        text: 'Each Equipment can now be used once per turn on its own. Bonus charges are shared between all your Equipment and are spent first — shown in green.',
+        text: 'Each Equipment can now be used once per turn on its own. Bonus charges are shared between all your Equipment and are spent first. They show in green.',
         details: [
           'Previously all your Equipment shared a single use per turn. Now every Equipment you hold has its own charge, so with two Equip minions on the board you can activate both each turn.',
           'Bonus charges (Equipment Charger’s Start of Turn grant, 2 when gilded) go into one shared pool that any Equipment can draw from. The pool is spent before an Equipment’s own charge.',
@@ -1424,12 +1455,12 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Hero Change',
         text: 'Brackus: continuing a saved run no longer re-arms his opening "locked until 70 Gold spent" condition on a later Discover.',
         details: [
-          'After Save & Quit → Continue, the next card Brackus picked from any Discover could arrive locked until 70 Gold had been spent — the run-start lock leaking back in on reload. Fixed; a resumed run keeps exactly the Discover state it was saved with.',
+          'After Save & Quit → Continue, the next card Brackus picked from any Discover could arrive locked until 70 Gold had been spent. The run-start lock was leaking back in on reload. Fixed: a resumed run keeps exactly the Discover state it was saved with.',
         ],
       },
       {
         category: 'Card Change',
-        text: 'Hawkus and Mineral Master now answer every extra Rally a multiplier adds — with Uron on your board, each fires twice per Rally, like Paragon already did.',
+        text: 'Hawkus and Mineral Master now answer every extra Rally a multiplier adds. With Uron on your board, each fires twice per Rally, like Paragon already did.',
         details: [
           'Rally watchers ("whenever you trigger a Rally…") were split across two lists: the free-Rally list knew all three, the multiplier list knew only Paragon. One list now serves both, so a free Rally and an extra Rally reach the same cards.',
           'A Rally watcher that summons (Hawkus triggering an Echo) no longer fires a third time when the summoned body shifts it along the board.',
@@ -1479,15 +1510,15 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'New Card',
         text: 'Nine new Set 3 spells.',
         details: [
-          "Aspect's Blessing (Tier 1): Choose One — a random minion in your hand gets +3/+1, or +1/+3.",
-          'Rush Order (Tier 2, Dwarf): Choose One — get a random Dwarven Ale, or gain 3 Gold next turn.',
+          "Aspect's Blessing (Tier 1) is a Choose One: a random minion in your hand gets +3/+1, or +1/+3.",
+          'Rush Order (Tier 2, Dwarf) is a Choose One: get a random Dwarven Ale, or gain 3 Gold next turn.',
           'Shared Spirit (Tier 2): a random minion on your board and a random minion in your hand get +3/+2.',
           'Star Crash (Tier 3, Celestial): give a Celestial +5/+7; it also casts on a random friendly minion.',
           'Grave Robbery (Tier 3): destroy a friendly minion, get a random Shop spell.',
           'Hand Soap (Tier 4): the left-most minion in your hand gets +8/+8.',
           'Crescendo (Tier 6, Spirit): your minions get +1/+1 for each Spirit you played this turn.',
           'Stellar Chorus (Tier 4): give a minion +2/+2, improved by +3/+3 for each spell of any kind you cast this turn.',
-          'Split Decision (Tier 5): Choose One — Discover a minion, or Discover a Shop spell.',
+          'Split Decision (Tier 5) is a Choose One: Discover a minion, or Discover a Shop spell.',
         ],
       },
       {
@@ -1529,7 +1560,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'New Card',
-        text: 'Wolves Den (Tier 3 Undead/Beast) joins Set 3 — Deathrattle: summon 3 Crypt Wolves.',
+        text: 'Wolves Den (Tier 3 Undead/Beast) joins Set 3. Deathrattle, summon 3 Crypt Wolves.',
       },
       {
         category: 'Card Change',
@@ -1579,13 +1610,13 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'New Card',
-        text: 'The last seven Spirits, built around a new idea: summoning a minion FROM YOUR HAND. The card stays in your hand — a copy fights.',
+        text: 'The last seven Spirits, built around a new idea: summoning a minion FROM YOUR HAND. The card stays in your hand. A copy fights.',
         details: [
           'Summon from hand: the copy has the card\'s stats, keywords and gilding at that moment; the card stays in hand (greyed for the fight) and can be summoned only once per combat. Buffs it gains later never reach the copy.',
-          'Tide Caller (Tier 5): Echo — summon the highest-Health minion from your hand. Dreaming Deep (Tier 7): the same, and the copy gets Ward.',
-          'Seedling Spirit (Tier 2): Rally — summon a random Spirit from your hand.',
-          'Handbound Titan (Tier 6): Start of Combat — gain the stats of the highest-Health minion in your hand, this combat.',
-          'Flamebanner Marshal (Tier 6): Rally — 2 friendly Spirits gain the Attack of the highest-Attack minion in your hand, this combat.',
+          'Tide Caller (Tier 5): Echo, summon the highest-Health minion from your hand. Dreaming Deep (Tier 7): the same, and the copy gets Ward.',
+          'Seedling Spirit (Tier 2): Rally, summon a random Spirit from your hand.',
+          'Handbound Titan (Tier 6): Start of Combat, gain the stats of the highest-Health minion in your hand, this combat.',
+          'Flamebanner Marshal (Tier 6): Rally, 2 friendly Spirits gain the Attack of the highest-Attack minion in your hand, this combat.',
           'Hearth Whisperer (Tier 2): Taunt. Whenever it takes damage, a random minion in your hand gets +1/+2, permanently.',
           'Slumbering Colossus (Tier 4): while in your hand, every Spirit you play gives it +4/+4.',
         ],
@@ -1598,14 +1629,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'New Card',
-        text: 'A new tribe for Set 3: Spirits. Seventeen arrive now — the Revelers you sell for a growing reward, and the Spirits that count how many you play.',
+        text: 'A new tribe for Set 3: Spirits. Seventeen arrive now: the Revelers you sell for a growing reward, and the Spirits that count how many you play.',
         details: [
-          'Flame, Tide and Grove Reveler (Tiers 2, 2, 4): when you sell one, your Spirits get +X Attack (Flame), +X Health (Tide), or every minion gets +X/+X (Grove) — and X, shared by all three, goes up by one. A golden Reveler pays double.',
+          'Flame, Tide and Grove Reveler (Tiers 2, 2, 4): when you sell one, your Spirits get +X Attack (Flame), +X Health (Tide), or every minion gets +X/+X (Grove). X is shared by all three and goes up by one each time. A golden Reveler pays double.',
           'Revelator (Tier 5) and Spirit Artificer\'s Revelmaker (Tier 4 Equip, 2 Gold) hand you a random Reveler. Festival Treasurer (Tier 5): each Reveler you sell makes your next Spirit this turn 1 cheaper, up to 3. Grand Procession (Tier 7): the first Flame, Tide and Grove Reveler you sell each turn return a plain copy to your hand.',
-          'Festival Luminary (Tier 6): Shout — 3 random Spirits get +1/+1 plus your Reveler bonus.',
-          'Kindled Sprite (Tier 1): Rally — +1 Attack per Spirit played this turn. Nurturer (Tier 3): End of Turn — a random Spirit gets +3/+4, repeated for every Spirit played this turn.',
-          'Festival Keeper (Tier 3): after every 3 Spirits you play, get a random spell (progress carries over). Aspect Choreographer (Tier 5): whenever you play a Spirit, 3 random Spirits get +1/+1, improving every 3 triggers. Forest Colossus (Tier 6): Start of Combat — your Spirits get +1/+1 for each Spirit played since it was played.',
-          'Tidebud (Tier 1): Shout — a random Spirit on your board and one in your hand get +2 Health. Bondweaver Shaman (Tier 3): Equip Spiritbringer (2) — a Spirit on your board and one in hand get +6/+6. Gathering Guide (Tier 4): Shout — if you control a Spirit, Discover a Spirit. Dreamcurrent Mystic (Tier 4): whenever you cast a Shop spell, a minion in your hand gets +4/+6.',
+          'Festival Luminary (Tier 6): Shout, 3 random Spirits get +1/+1 plus your Reveler bonus.',
+          'Kindled Sprite (Tier 1): Rally, +1 Attack per Spirit played this turn. Nurturer (Tier 3): End of Turn, a random Spirit gets +3/+4, repeated for every Spirit played this turn.',
+          'Festival Keeper (Tier 3): after every 3 Spirits you play, get a random spell (progress carries over). Aspect Choreographer (Tier 5): whenever you play a Spirit, 3 random Spirits get +1/+1, improving every 3 triggers. Forest Colossus (Tier 6): Start of Combat, your Spirits get +1/+1 for each Spirit played since it was played.',
+          'Tidebud (Tier 1): Shout, a random Spirit on your board and one in your hand get +2 Health. Bondweaver Shaman (Tier 3): Equip Spiritbringer (2), a Spirit on your board and one in hand get +6/+6. Gathering Guide (Tier 4): Shout, if you control a Spirit, Discover a Spirit. Dreamcurrent Mystic (Tier 4): whenever you cast a Shop spell, a minion in your hand gets +4/+6.',
           'Every scaling Spirit prints its current number on the card. Spirits can also be a Practice tribe surge.',
         ],
       },
@@ -1617,11 +1648,11 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Card Change',
-        text: 'Forsaken Mage now grows your Undead Aura when you cast ANY spell — Rubies, Tower Shields and Clues included, not only Shop spells.',
+        text: 'Forsaken Mage now grows your Undead Aura when you cast ANY spell, not only Shop spells. Rubies, Tower Shields and Clues included.',
       },
       {
         category: 'UI / Info',
-        text: 'Hovering a card in your hand no longer floats its referenced card high over the board — the preview sits level with the card.',
+        text: 'Hovering a card in your hand no longer floats its referenced card high over the board. The preview sits level with the card.',
       },
       {
         category: 'UI / Info',
@@ -1641,9 +1672,9 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'New Card',
         text: 'The last three Set 3 Neutrals: Highway Hustler, Warband Recruiter and Equipment Charger. The Neutral roster is complete.',
         details: [
-          'Highway Hustler (Tier 2, 2/3): Equip Whiplass-o (2) — steal the highest-Tier minion in the Shop. A gilded Hustler steals two.',
-          'Warband Recruiter (Tier 4, 4/5): Rally — summon a random Rally minion and get a copy of it. Works in combat and when a Rally is triggered in the shop.',
-          'Equipment Charger (Tier 4, 6/2): Start of Turn — gain an Equipment charge for the turn. Golden gives two.',
+          'Highway Hustler (Tier 2, 2/3): Equip Whiplass-o (2), steal the highest-Tier minion in the Shop. A gilded Hustler steals two.',
+          'Warband Recruiter (Tier 4, 4/5): Rally, summon a random Rally minion and get a copy of it. Works in combat and when a Rally is triggered in the shop.',
+          'Equipment Charger (Tier 4, 6/2): Start of Turn, gain an Equipment charge for the turn. Golden gives two.',
         ],
       },
     ],
@@ -1656,8 +1687,8 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'New Card',
         text: 'Two more Set 3 Neutrals, each with a new kind of free hand spell: Defender hands out Tower Shields, Inspector Pell investigates for Clues.',
         details: [
-          'Defender (Tier 2, 2/2): Shout — get 2 Tower Shields. A Tower Shield is a free spell: give a friendly minion +2/+1 and Taunt.',
-          'Inspector Pell (Tier 3, 2/5): Equip Magnifying Glass (1) — get 2 Clues. A Clue is a free spell: give a friendly minion +1/+1, then every Clue after it gives +1/+1 more.',
+          'Defender (Tier 2, 2/2): Shout, get 2 Tower Shields. A Tower Shield is a free spell: give a friendly minion +2/+1 and Taunt.',
+          'Inspector Pell (Tier 3, 2/5): Equip Magnifying Glass (1), get 2 Clues. A Clue is a free spell: give a friendly minion +1/+1, then every Clue after it gives +1/+1 more.',
           'Tower Shields and Clues count as spells you cast, but they are not Shop spells: nothing copies them, and they take no spell power. The Set 3 Yazzus repeats them, as it does every targeted spell.',
         ],
       },
@@ -1671,9 +1702,9 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'New Card',
         text: 'The first of Set 3\'s Neutrals: Splitboon Adept, a Set 3 Yazzus, and Blaster returns from the archive, with fifteen returning Neutrals.',
         details: [
-          'Splitboon Adept (Tier 3, 3/4): Choose One — give a friendly minion +6/+6, or give adjacent minions +3/+3.',
-          'Yazzus (Set 3 only — Tier 6, 4/8): your targeted spells cast an additional time. That now includes Rubies. Set 2\'s Yazzus is unchanged.',
-          'Blaster (Tier 4, 5/3) is back in Set 3: Taunt. Echo — deal 3 damage to all minions.',
+          'Splitboon Adept (Tier 3, 3/4): Choose One, give a friendly minion +6/+6, or give adjacent minions +3/+3.',
+          "Yazzus (Set 3 only, Tier 6, 4/8): your targeted spells cast an additional time. That now includes Rubies. Set 2's Yazzus is unchanged.",
+          'Blaster (Tier 4, 5/3) is back in Set 3: Taunt. Echo, deal 3 damage to all minions.',
           'Returning in Set 3: Cheap Date, Coppercoat Spellsword, Venom, Arena Heckler, Tauntbreaker, Wayfinder, Bellringer Voss, Black Belt Brian, Jensen & Fi, Sylus, Drakko, Chronos, Steward of Spells, Paragon, Mysterious Joker and Salvatore McKlusky.',
         ],
       },
@@ -1691,7 +1722,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Card Change',
         text: 'Prismatic Pick\'s first option now lets you Discover a Choose One card instead of handing you a random one.',
         details: [
-          'Prismatic Pick (Prismpick Artificer\'s Equipment): Choose One — Discover a Choose One card (a gilded Pick opens the Discover twice); or your next Choose One card this turn gains both effects.',
+          "Prismatic Pick (Prismpick Artificer's Equipment): Choose One, Discover a Choose One card, or your next Choose One card this turn gains both effects. A gilded Pick opens the Discover twice.",
         ],
       },
     ],
@@ -1705,16 +1736,16 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Eleven new Undead join Set 3, alongside eleven returning Undead.',
         details: [
           'Rising Pup (Tier 1): Taunt, Rise.',
-          'Noggin (Tier 2): Rise. Echo — a random friendly Undead gets +2/+2.',
-          'Robinson (Tier 3): Equip Coffin Flop (2) — Discover an Undead minion.',
-          'Adeptus (Tier 3): Echo — your Shop spells get +1 Attack.',
-          'EMS (Tier 4): Equip Deathfibrillator (2) — give a target Undead Rise, then destroy it.',
-          'Cage Breaker (Tier 4): Shout — destroy a friendly Undead to Discover an Undead.',
+          'Noggin (Tier 2): Rise. Echo, a random friendly Undead gets +2/+2.',
+          'Robinson (Tier 3): Equip Coffin Flop (2), Discover an Undead minion.',
+          'Adeptus (Tier 3): Echo, your Shop spells get +1 Attack.',
+          'EMS (Tier 4): Equip Deathfibrillator (2), give a target Undead Rise, then destroy it.',
+          'Cage Breaker (Tier 4): Shout, destroy a friendly Undead to Discover an Undead.',
           'Revenant (Tier 5): after a friendly minion Rises, gains Ward and +7/+7.',
           'Rising Tide (Tier 5): when a friendly minion Rises, your minions on board and in hand get +4/+5.',
           'Squatimus (Tier 5): whenever a summoned minion does not fit, your minions get +2/+2 permanently.',
-          'Warden Rodrick (Tier 5): Echo — summon a Spear Warden.',
-          'Soul-Lantern Hierophant (Tier 6): Avenge (3) — cast Lantern of Souls.',
+          'Warden Rodrick (Tier 5): Echo, summon a Spear Warden.',
+          'Soul-Lantern Hierophant (Tier 6): Avenge (3), cast Lantern of Souls.',
           'Returning from Set 1: Deathswarmer, Spear Warden, Footman Captain, Mumi, Pillager, Soulsman, Deathsayer, Professor Greg, Sergey, Forsaken Mage and Anubis, Last Gate.',
         ],
       },
@@ -1745,11 +1776,11 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'Shift Broker (Tier 1): when you sell a minion, gains +1 Attack.',
           'Striker (Tier 2): End of Turn, gives its neighbours +1 Attack for each card you played this turn.',
-          "Pourman (Tier 2): Equip Pourman's Keg (1) — cast a random Dwarven Ale.",
+          "Pourman (Tier 2): Equip Pourman's Keg (1), cast a random Dwarven Ale.",
           'Hank Pepe (Tier 3): when you play a Dwarf, three other Dwarves get +1/+1.',
-          'Tromboneer (Tier 4): Echo — gain 3 Gold next turn, on top of the usual cap.',
+          'Tromboneer (Tier 4): Echo, gain 3 Gold next turn, on top of the usual cap.',
           'Kneel (Tier 4): when a Dwarf gains Attack, gains +2 Health. Works in the shop and in combat.',
-          'Thymes (Tier 6): Equip Thymepiece (3) — 30 more seconds on next turn\'s timer.',
+          "Thymes (Tier 6): Equip Thymepiece (3), 30 more seconds on next turn's timer.",
           'Tankerchief (Tier 7): when a Dwarf gains Attack, gains +1/+4.',
           'Returning from Set 2: Paymaster Pimm, Brunni, Coinfire Forewoman, Gangplank, Baby Gastrid, Blade Thrower, Broad-Axe Brakka, Billings, Doubletap Brewer, Edward Keg-hands, Kringle, Mountainbond, Lieutenant Thane and Tapkeeper.',
         ],
@@ -1792,7 +1823,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'When a minion’s Shout fires, it now bursts with a new effect in place of the old medallion pulse — in the shop as it’s played, and in combat when a card re-triggers another minion’s Shout.',
+        text: 'When a minion’s Shout fires, it now bursts with a new effect in place of the old medallion pulse. It plays in the shop as it’s played, and in combat when a card re-triggers another minion’s Shout.',
       },
     ],
   },
@@ -1802,7 +1833,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'The ribbon that streams from a minion to an ally it buffs is now colored by the buffer’s tribe — green for Beasts, violet for Demons, gold for Dwarves, and so on.',
+        text: 'The ribbon that streams from a minion to an ally it buffs is now colored by the buffer’s tribe: green for Beasts, violet for Demons, gold for Dwarves, and so on.',
       },
     ],
   },
@@ -1812,7 +1843,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'Losing a Ward now bursts with a new effect — a hard spray of shards and a shockwave — whether it is consumed by a hit or lost when its bearer dies. The break sound is unchanged.',
+        text: 'Losing a Ward now bursts with a new effect, a hard spray of shards and a shockwave, whether it is consumed by a hit or lost when its bearer dies. The break sound is unchanged.',
       },
     ],
   },
@@ -1822,7 +1853,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'Gaining Ward now has a proper burst — a spray of shards and a ringing shockwave — whenever a minion gains it, in the shop as well as in combat.',
+        text: 'Gaining Ward now has a proper burst, a spray of shards and a ringing shockwave, whenever a minion gains it, in the shop as well as in combat.',
         details: [
           'The new effect plays every way a unit gains Ward mid-combat, and now also in the shop, where a Battlecry, Shout or rune granting Ward to one of your minions previously showed only the dome with no flourish.',
         ],
@@ -1837,7 +1868,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: 'Settings has a new Performance section with an effects frame cap: Display, 60, 120, 144, 240 or 360. It limits combat effects and card motion on high-refresh displays.',
         details: [
-          'It caps combat effects and card motion only — the rest of the game still runs at your display’s refresh. To cap the whole game, use your GPU driver’s per-app frame limit.',
+          'It caps combat effects and card motion only. The rest of the game still runs at your display’s refresh. To cap the whole game, use your GPU driver’s per-app frame limit.',
           'It cannot raise the rate above the refresh rate of your display, so options above it are shown dimmed and do nothing.',
           'Your choice is remembered between sessions.',
         ],
@@ -1863,7 +1894,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'The golden burst behind combat damage numbers is back in the downloadable and itch.io builds — it had been missing there since it shipped, while showing correctly in development.',
+        text: 'The golden burst behind combat damage numbers is back in the downloadable and itch.io builds. It had been missing there since it shipped, while showing correctly in development.',
       },
     ],
   },
@@ -1875,9 +1906,9 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: 'The first three of the new buff effects are in: a gold shard-burst when a minion buffs itself, a ribbon trail when one minion buffs another, and a violet spray when your whole shop gets buffed.',
         details: [
-          'Self-buff: when a minion buffs itself — in the shop, on a combat buff wave, or as it grows while being attacked — it bursts with a spray of gold shards and a ringing shockwave, right on the minion.',
+          'Self-buff: when a minion buffs itself, in the shop, on a combat buff wave, or as it grows while being attacked, it bursts with a spray of gold shards and a ringing shockwave, right on the minion.',
           'Buff trail: when a minion buffs another, a ribbon now streams from the buffer to the minion it pumped, with a flick of shards at the source, and the stat count-up lands as the ribbon arrives.',
-          'Shop buff: when the whole tavern is buffed (Demon Horse and friends), a wide violet spray now sweeps up across the shop — and if you earn it mid-combat, it blooms on the swing alongside the +A/+H number.',
+          'Shop buff: when the whole tavern is buffed (Demon Horse and friends), a wide violet spray now sweeps up across the shop. If you earn it mid-combat, it blooms on the swing alongside the +A/+H number.',
           'Cards with their own authored effect (Dragonflame, Karwind, Broodfire) keep it; the trail only plays where no card-specific effect exists.',
           'Buffs with no on-board source (spells, a fallen Echo, hero powers) and the board-wide tribe-aura wash are still awaiting their new effects.',
         ],
@@ -1894,7 +1925,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'Level 1 is the old Easy, level 3 the old Medium, level 5 the old Hard. Levels 2 and 4 sit between them.',
           'Levels 6–10 go past the old Hard: bigger boards, a faster tier climb, higher starting tiers, and heavier hits.',
-          'From level 6, one to three bot minions each round are real cards with effects — Echoes that Ward allies or spray damage, Venomous, Cleave, Rally and more. Higher levels unlock nastier ones.',
+          'From level 6, one to three bot minions each round are real cards with effects: Echoes that Ward allies or spray damage, Venomous, Cleave, Rally and more. Higher levels unlock nastier ones.',
           'Those utility minions use the bot board’s stats for that round, so they scale with the game. Venom stays at 1 Attack.',
           'Your saved Practice setup carries over: Easy, Medium and Hard become levels 1, 3 and 5.',
         ],
@@ -1907,11 +1938,11 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'The old buff flourishes are being retired to make way for new ones — when a minion is buffed in the shop or in combat, the stat numbers still tick up but the generic ribbon/glow no longer plays. New effects are on the way.',
+        text: 'The old buff flourishes are being retired to make way for new ones. When a minion is buffed in the shop or in combat, the stat numbers still tick up but the generic ribbon/glow no longer plays. New effects are on the way.',
         details: [
           'Removed the shop/combat “tendril” that reached from a buffer to the minion it pumped, and the “rain-down” version for buffs with no on-board source.',
           'Removed the gold self-buff burst a minion showed when it buffed itself, and the tribe-aura wave that washed across your board.',
-          'Card-specific effects are untouched — Dragonflame, Karwind’s flame ring, Broodfire, the tavern Shout burst, and rune/quest reward ribbons all still play.',
+          'Card-specific effects are untouched. Dragonflame, Karwind’s flame ring, Broodfire, the tavern Shout burst, and rune/quest reward ribbons all still play.',
           'The stat-badge count-up, the shop-buff number float, and every sound are unchanged.',
         ],
       },
@@ -1923,7 +1954,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'Hero select now shows each hero power’s Gold cost beside its name — (Cost: X), (Cost: Free), or (Passive).',
+        text: 'Hero select now shows each hero power’s Gold cost beside its name: (Cost: X), (Cost: Free), or (Passive).',
       },
       {
         category: 'UI / Info',
@@ -1952,10 +1983,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'Shouts re-triggered in combat now play out one fire at a time — a Drakko-repeated Shout reads as three, not one.',
+        text: 'Shouts re-triggered in combat now play out one fire at a time. A Drakko-repeated Shout reads as three, not one.',
         details: [
           'When a minion re-triggers a Shout mid-fight (Dawnclaw, Ryme, Thunderous Sovereign, Chorus Drake, Embercrest and friends), each fire gets its own beat: the re-triggering minion pulses, the owner of the Shout blooms per fire, and each fire floats its own number in turn.',
-          'An attack whose swing re-fires Shouts parks at the top of its wind-up while each fire plays out — one at a time, stats rolling per fire — then strikes.',
+          'An attack whose swing re-fires Shouts parks at the top of its wind-up while each fire plays out, one at a time with stats rolling per fire, then strikes.',
           'The Combat Log names each fire (Dawnclaw triggers the Shout of Wardkeeper), and the Procs tab lists them under a new Shout section with their count.',
         ],
       },
@@ -1979,7 +2010,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: 'A Choose One minion now waits on the board while you pick, and glides back to your hand if you cancel.',
         details: [
-          'Nothing is committed until you choose — cancelling is still completely free.',
+          'Nothing is committed until you choose. Cancelling is still completely free.',
         ],
       },
       {
@@ -1990,7 +2021,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: 'Everything a minion sets off by attacking now plays while it is still reared back, before the swing lands.',
         details: [
-          'Spells cast from an attack — Flamebeat Drake, Warflame — resolve in the wind-up with their effects and stats.',
+          'Spells cast from an attack, such as Flamebeat Drake and Warflame, resolve in the wind-up with their effects and stats.',
           'Rubies cast on an attack (Boulderdash) and hero-power grants (Gorun) now land their numbers there too.',
           'Previously the lunge finished first and the consequences played afterwards.',
         ],
@@ -2003,7 +2034,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Card Change',
         text: 'Everything a minion sets off by attacking now fully resolves before its own attack lands.',
         details: [
-          'A Rally that triggers an Echo — Echohorn, Deathsayer — plays out completely first, summons and all.',
+          'A Rally that triggers an Echo, such as Echohorn or Deathsayer, plays out completely first, summons and all.',
           'A summoned minion that attacks immediately resolves its whole attack before the next one is summoned.',
           'If the attacker’s target dies to all that, the attacker simply settles: no damage dealt, and none taken back.',
         ],
@@ -2046,7 +2077,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'New Card',
-        text: "Kaura L'roft (Kobold, Tier 4): Equip Dueling Rubetta's — improve your Rubies, then cast a Ruby on your left and right-most Kobold.",
+        text: "Kaura L'roft (Kobold, Tier 4): Equip Dueling Rubetta's, improve your Rubies, then cast a Ruby on your left and right-most Kobold.",
       },
       {
         category: 'Card Change',
@@ -2063,7 +2094,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Dealer starts watching for your first Choose One the moment she is played, instead of waiting for the next turn.',
         details: [
           'Each Dealer keeps her OWN tracker, so one bought after this turn’s first Choose One still pays for the next one.',
-          'Two Dealers on board at the start of a turn is still one card’s worth — they were both waiting for the same first card.',
+          'Two Dealers on board at the start of a turn is still one card’s worth. They were both waiting for the same first card.',
           'A Gilded Dealer carries two of her own, as her text says.',
         ],
       },
@@ -2085,7 +2116,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Card Change',
         text: 'Apples now prints what it will actually give: its "2 random friendly minions" half folds in your Spell Power.',
         details: [
-          'Only the printed number was wrong — the buff itself always included Spell Power.',
+          'Only the printed number was wrong. The buff itself always included Spell Power.',
           'Its other half (buffing this Shop) is flat by design and still prints its plain value.',
           'Apples also counts as a stat spell now, so Rune of Thrift discounts it.',
         ],
@@ -2099,14 +2130,14 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Stat numbers no longer dip to a wrong value (and flash red) while a Ruby lands in combat.',
         details: [
           'A minion buffed mid-fight could briefly show LESS than it had before the buff, then correct itself.',
-          'The stats themselves were always right — only the number on the badge was wrong, and only for a moment.',
+          'The stats themselves were always right. Only the number on the badge was wrong, and only for a moment.',
         ],
       },
       {
         category: 'UI / Info',
         text: 'Picking a rune no longer blinks on its way to the centre, and the rune you chose now arrives in your tray with an effect of its own.',
         details: [
-          'The chosen rune moves in one continuous motion — it used to flicker for a frame as the ceremony took over.',
+          'The chosen rune moves in one continuous motion. It used to flicker for a frame as the ceremony took over.',
           'Its badge stays empty while the ceremony plays, then the artwork pops in as the board comes back.',
           'The arrival has its own sound.',
         ],
@@ -2119,7 +2150,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: "During a fight, the opponent's runes now sit in three ornate sockets beside their portrait — always visible, so you can see how many runes they're carrying at a glance.",
+        text: "During a fight, the opponent's runes now sit in three ornate sockets beside their portrait, always visible, so you can see how many runes they're carrying at a glance.",
         details: [
           'The three sockets always show; a rune the opponent owns fills its socket.',
         ],
@@ -2132,10 +2163,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'Right-click OR left-click an opponent in the rail to open a bigger, reworked scouting report — and click away to close it.',
+        text: 'Right-click OR left-click an opponent in the rail to open a bigger, reworked scouting report. Click away to close it.',
         details: [
           'It now shows their shop tier, gilded units (triples), the dominant tribe on their board with a count, three rune sockets, and a titled fight-history table.',
-          'Each past fight shows the round, the foe’s portrait, WON/LOST, and the damage — hover a rune to read what it does.',
+          'Each past fight shows the round, the foe’s portrait, WON/LOST, and the damage. Hover a rune to read what it does.',
           'Clicking a different opponent switches straight to their report; clicking anywhere outside closes it.',
         ],
       },
@@ -2150,7 +2181,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Cards granted at End of Turn no longer flash at double their number before settling.',
         details: [
           'Most visible on Rope Wrangler, which can hand you five cards at once.',
-          'Only the display was affected — you always received the right cards.',        ],
+          'Only the display was affected. You always received the right cards.',        ],
       },
     ],
   },
@@ -2162,7 +2193,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Card Change',
         text: "Reflector's text now says it reacts to Rubies as well as Spells, which it always did.",
         details: [
-          'Spells and Rubies share its once-per-turn trigger, so a Ruby landing first uses it up — that was invisible from a card that only mentioned Spells.',
+          'Spells and Rubies share its once-per-turn trigger, so a Ruby landing first uses it up. That was invisible from a card that only mentioned Spells.',
           'No change to how the card behaves.',
         ],
       },
@@ -2174,7 +2205,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Rune Change',
-        text: 'Rune of Open Enrollment no longer adds an extra Shop slot — it replaces an offer instead, so the Shop keeps its normal size.',
+        text: 'Rune of Open Enrollment no longer adds an extra Shop slot. It replaces an offer instead, so the Shop keeps its normal size.',
         details: [
           'It used to leave 7 minions in a 6-slot Shop.',
           'When the Shop happens to be short a card, it still simply fills the empty slot.',
@@ -2196,7 +2227,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Saving and quitting mid-turn now returns you to the turn with the time you left it on, instead of restarting the round timer.',
         details: [
           'Quitting with 8 seconds left and pressing Continue used to hand back a full turn.',
-          'The time was always saved correctly — it was being overwritten on the way back in.',        ],
+          'The time was always saved correctly. It was being overwritten on the way back in.',        ],
       },
     ],
   },
@@ -2208,7 +2239,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: 'The Gemheart Golem has new artwork.',
         details: [
-          'Every card that summons one shows the new picture — it is a single shared portrait, so the Golem looks the same wherever it comes from.',
+          'Every card that summons one shows the new picture. It is a single shared portrait, so the Golem looks the same wherever it comes from.',
           'Nothing about the Golem itself changed: same body, same stats, same Rubies.',
         ],
       },
@@ -2220,7 +2251,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'The Runeforge got a visual overhaul — illustrated backdrop, a gold title plaque, and bigger, cleaner rune tablets.',
+        text: 'The Runeforge got a visual overhaul: an illustrated backdrop, a gold title plaque, and bigger, cleaner rune tablets.',
         details: [
           'A new forge illustration glows behind the panel.',
           'The stone banner became a gold plaque with a larger title; the Gold pill and rune tablets were resized and reseated.',
@@ -2238,7 +2269,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'A burst and a double shockwave land on the target minion, replacing the generic targeting spark.',
           'It comes with its own sound cue.',
-          'No change to what the Pulse does — it still triggers a friendly minion’s Shout.',
+          'No change to what the Pulse does. It still triggers a friendly minion’s Shout.',
         ],
       },
     ],
@@ -2249,7 +2280,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'The round metrics beside a replay are simply always shown — the collapse arrow that slid away from your cursor is gone.',
+        text: 'The round metrics beside a replay are simply always shown. The collapse arrow that slid away from your cursor is gone.',
         details: [
           'The arrow was pinned to the edge of the panel it opened, so pressing it moved it out from under the pointer.',
           'Gold, Acts and Tier per round are always visible now.',
@@ -2265,7 +2296,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: 'The replay bar now covers ONE round at a time, so you can pick a round and scrub through it properly.',
         details: [
-          'The timer shows your position within the round you are watching, not the whole game — on a long replay a single round used to be about forty pixels of bar.',
+          'The timer shows your position within the round you are watching, not the whole game. On a long replay a single round used to be about forty pixels of bar.',
           'Pick the round from the rail on the left; the bar then belongs entirely to that round.',
           'Playback speed is a button with a menu (0.5x up to 5x) instead of a slider you had to drag onto the value you wanted.',
           'The whole bar is chunkier, and the scrub track is easier to grab.',
@@ -2279,11 +2310,11 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'Replays are for watching — the board controls no longer respond to clicks — and card art no longer slides sideways when you roll.',
+        text: 'Replays are for watching, so the board controls no longer respond to clicks. Card art no longer slides sideways when you roll.',
         details: [
           'End Turn, Freeze, Refresh and the rest are inert while a replay plays. They never did anything, but they used to press and play their sound, which read as broken.',
           'Cards can still be hovered and read while you watch.',
-          'Shop cards used to grow slightly as they arrived, which dragged their art a few pixels to the left — most visibly on cards whose art sits off-centre. They now rise and fade without growing.',
+          'Shop cards used to grow slightly as they arrived, which dragged their art a few pixels to the left, most visibly on cards whose art sits off-centre. They now rise and fade without growing.',
         ],
       },
     ],
@@ -2294,7 +2325,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'The replay bar can be dragged to scrub, shows how far through you are, and takes the keyboard — and playback speed now carries the shop timer with it.',
+        text: 'The replay bar can be dragged to scrub, shows how far through you are, and takes the keyboard. Playback speed now carries the shop timer with it.',
         details: [
           'Drag the bar to scrub, instead of clicking one spot at a time, with a handle showing where you are.',
           'An elapsed / total time readout sits beside it.',
@@ -2312,7 +2343,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: 'Watching a replay now shows the rune lock-in ceremony, the same as playing it does.',
         details: [
-          'When a recorded player buys a rune, the chosen rune slides to centre, the gold frame clamps shut and the flash goes off — it used to just vanish from the forge.',
+          'When a recorded player buys a rune, the chosen rune slides to centre, the gold frame clamps shut and the flash goes off. It used to just vanish from the forge.',
           'Replays recorded before today can still show it, unless the purchase was a duplicate rune, in which case the recording cannot say which one was picked and the ceremony is skipped.',
         ],
       },
@@ -2324,10 +2355,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'Choosing a mode no longer flashes a game board on the way to the menu — nothing is running until you actually start a run.',
+        text: 'Choosing a mode no longer flashes a game board on the way to the menu. Nothing is running until you actually start a run.',
         details: [
           'Pressing Practice showed the board for an instant before the options screen appeared. It no longer does, and the same gap on Play, Rift and Lobby is closed too.',
-          'The board is not merely hidden before a run now — it is not running at all.',
+          'The board is not merely hidden before a run now. It is not running at all.',
         ],
       },
     ],
@@ -2340,7 +2371,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: 'Practice bots now sit down with the same Resolve and Armor you do, instead of starting on little over half your health.',
         details: [
-          'A bot table used to open at 18/17/16/15/14/13/12 against your 30 — visible on the round-1 standings. Every seat now starts level with you.',
+          'A bot table used to open at 18/17/16/15/14/13/12 against your 30, visible on the round-1 standings. Every seat now starts level with you.',
           'Bot games have not got longer: the bots hit each other harder to make up for the extra health, so a dominant run still finishes on the same clock.',
           'How hard bots hit YOU is unchanged on all three difficulties.',
         ],
@@ -2353,10 +2384,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: "Click your opponent's portrait in combat to see their run-wide Buffs Panel — the same window your own portrait opens.",
+        text: "Click your opponent's portrait in combat to see their run-wide Buffs Panel, the same window your own portrait opens.",
         details: [
           'Hovering the foe portrait shows the same prompt yours does; the panel drops down below their health pill, with an arrow cue underneath it.',
-          "It lists the buffs their board actually brings to the fight — Spell power, Ruby power, and their tribe auras — read from the run that built it.",
+          "It lists the buffs their board actually brings to the fight: Spell power, Ruby power, and their tribe auras, read from the run that built it.",
           'Opponents with no run-wide buffs show no arrow or prompt, exactly like your own portrait.',
         ],
       },
@@ -2368,11 +2399,11 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'The combat curtain now erupts from the End Turn gem — the gem charges up, blooms the blue over the whole scene, then a sweep reveals the arena.',
+        text: 'The combat curtain now erupts from the End Turn gem. The gem charges up, blooms the blue over the whole scene, then a sweep reveals the arena.',
         details: [
           'A short charge-up on the gem (motes spiraling in, a swelling flare) telegraphs the transition before it fires.',
           'The cover is a circle blooming out of the gem, trailed by stardust and swirling wisps along its edge; the reveal is a clean linear sweep (right-to-left into combat, left-to-right back to shop).',
-          'Returning to shop, the End Combat gem drinks the scene back in — motes and sparks stream into it as the blue closes.',
+          'Returning to shop, the End Combat gem drinks the scene back in. Motes and sparks stream into it as the blue closes.',
           'Smoother than before on big screens: the glow front was rebuilt to stay off the main thread.',
         ],
       },
@@ -2384,7 +2415,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'Locking in a rune now gets a short ceremony — the others clear away and your pick takes centre stage.',
+        text: 'Locking in a rune now gets a short ceremony. The others clear away and your pick takes centre stage.',
         details: [
           'A gold frame closes onto your rune and a flash bursts out as it locks.',
           'The rune is yours the instant you click; the flourish plays over the top and needs no input.',
@@ -2399,17 +2430,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'Gilding an Equip minion now announces the upgrade — the equip flourish plays again.',
+        text: 'Gilding an Equip minion now announces the upgrade. The equip flourish plays again.',
         details: [
           'Playing a Gilded copy over the plain version upgrades what is in your slot, so it gets the same feedback a brand-new Equipment does.',
-          'A second Gilded copy after that is silent — the slot is already at its best.',
+          'A second Gilded copy after that is silent. The slot is already at its best.',
         ],
       },
       {
         category: 'UI / Info',
         text: 'Your Equipment puffs out when you spend your last use for the turn.',
         details: [
-          'Only when you actually run out — spending one of two uses leaves the other and stays quiet.',
+          'Only when you actually run out. Spending one of two uses leaves the other and stays quiet.',
           'If something grants you an extra use, spending that one puffs again.',
         ],
       },
@@ -2423,7 +2454,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: "Kringle's End of Turn buff now lands one hit per card you played, instead of a single lump.",
         details: [
-          'Same stats as before — five cards played is still +5/+10, it just arrives as five hits in a row.',
+          'Same stats as before. Five cards played is still +5/+10, it just arrives as five hits in a row.',
           'The more you played, the bigger the flurry.',
         ],
       },
@@ -2433,7 +2464,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-08-29',
     label: 'Combat Controls',
     changes: [
-      { category: 'UI / Info', text: 'The combat controls — the Summary and End Combat pills and the Skip button — got a fresh look and tighter placement, and they now hold their spot on the board at any window size.' },
+      { category: 'UI / Info', text: 'The combat controls got a fresh look and tighter placement, and they now hold their spot on the board at any window size. That covers the Summary and End Combat pills and the Skip button.' },
     ],
   },
   {
@@ -2445,14 +2476,14 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'A sheen sweeps the Equipment art whenever the slot shows a new one.',
         details: [
           'It plays on the first Equipment you get, and whenever you swap the slot to a different one.',
-          'It stays quiet when you play another copy of an Equip minion you already have — the slot is showing the same thing.',
+          'It stays quiet when you play another copy of an Equip minion you already have. The slot is showing the same thing.',
         ],
       },
       {
         category: 'Card Change',
         text: 'Cards that arrive in your hand DURING a fight now trigger the minions that watch for them.',
         details: [
-          'Gangplank and Kegheart Dwarf react the moment a card reaches your hand mid-combat, so the payout can help win the fight that earned it — before, the stats only showed up back in the shop.',
+          'Gangplank and Kegheart Dwarf react the moment a card reaches your hand mid-combat, so the payout can help win the fight that earned it. Before, the stats only showed up back in the shop.',
           'A Ruby minted in combat counts as a card arriving, the same as it does in the shop.',
         ],
       },
@@ -2472,13 +2503,13 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'Combat entrances got a full makeover: a blue curtain sweeps the board, announces NOW FACING with your opponent, and reveals both armies standing ready — then sweeps the other way back to the shop.',
+        text: 'Combat entrances got a full makeover: a blue curtain sweeps the board, announces NOW FACING with your opponent, and reveals both armies standing ready, then sweeps the other way back to the shop.',
         details: [
           "Ending your turn sweeps a dark-blue curtain across the whole board; your opponent's portrait and name are announced on it before the arena is revealed.",
           'Both armies are revealed already in position and hold a beat before the first attack.',
           'Returning to the shop plays the curtain in the opposite direction, with everything back in place when it clears.',
           "The fight screen is decluttered: the shop's Tier stone, Refresh crystal, Freeze gem and Gold coin step aside during combat and return with the shop.",
-          "Your opponent's hero power now shows beside their portrait during the fight — hover it to read what it does.",
+          "Your opponent's hero power now shows beside their portrait during the fight. Hover it to read what it does.",
           'Fights that end your run (or win you the lobby) skip the curtain and go straight to the results.',
         ],
       },
@@ -2490,10 +2521,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'New Card',
-        text: 'EQUIPMENT — some minions hand you a tool you can use every shop phase, for as long as they live.',
+        text: 'EQUIPMENT: some minions hand you a tool you can use every shop phase, for as long as they live.',
         details: [
           'An Equip minion grants its Equipment the moment you play it. The Equipment appears in its own slot beside your hero power.',
-          'Using one costs Gold and spends your Equipment use for the turn — you get one use per turn, shared across every Equipment you hold.',
+          'Using one costs Gold and spends your Equipment use for the turn. You get one use per turn, shared across every Equipment you hold.',
           'Your hero power is untouched: the two are spent separately, so holding an Equipment never costs you your power.',
           'Lose the minion and you lose its Equipment. Keep it and the Equipment comes back every turn.',
           'A Gilded Equip minion upgrades its Equipment, and holding two sources of the same one keeps the better version.',
@@ -2501,13 +2532,13 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'New Card',
-        text: 'Alchemist Frank — a Tier 1 Neutral who equips the Bloodpot: give a friendly minion +3/+3.',
+        text: 'Alchemist Frank is a Tier 1 Neutral who equips the Bloodpot: give a friendly minion +3/+3.',
       },
       {
         category: 'New Card',
-        text: 'Titan Sculptor — a Tier 6 Neutral who equips the Titan Hammer: SET a friendly minion to 50/50.',
+        text: 'Titan Sculptor is a Tier 6 Neutral who equips the Titan Hammer: SET a friendly minion to 50/50.',
         details: [
-          'It sets, rather than adds — a smaller minion is raised to 50/50, and a bigger one is brought down to it.',
+          'It sets, rather than adds. A smaller minion is raised to 50/50, and a bigger one is brought down to it.',
           'Gilded, the Hammer sets 100/100.',
         ],
       },
@@ -2519,13 +2550,13 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: 'The equip flourish now only plays when you actually equip something new.',
         details: [
-          'Playing a second copy of an Equip minion is silent — you already hold that Equipment.',
+          'Playing a second copy of an Equip minion is silent. You already hold that Equipment.',
           'The minion still counts: it keeps the Equipment alive, and a Gilded copy still upgrades it.',
         ],
       },
       {
         category: 'UI / Info',
-        text: 'Holding more than one Equipment? Hover the slot and the others slide out to the right — click one to switch.',
+        text: 'Holding more than one Equipment? Hover the slot and the others slide out to the right. Click one to switch.',
         details: [
           'Switching is free: it costs no Gold and no use, so you can change your mind before committing.',
           'Each option shows its icon, its name and what it costs right now.',
@@ -2539,9 +2570,9 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'The opponents rail down the right edge got a full visual pass — a gilded backplate frame, warmer plaques, each opponent’s name on its own banner, and a shield icon on armor.',
+        text: 'The opponents rail down the right edge got a full visual pass: a gilded backplate frame, warmer plaques, each opponent’s name on its own banner, and a shield icon on armor.',
         details: [
-          'The next opponent you fight is lit brighter in place — a ring, glow and accent bar mark it, replacing the old “Next” label.',
+          'The next opponent you fight is lit brighter in place. A ring, glow and accent bar mark it, replacing the old “Next” label.',
           'A seat’s health now reads larger and bold, and sits in the same spot whether or not the seat has armor.',
           'The scouting card you open by hovering an opponent always stays fully on screen instead of being clipped at the edge.',
         ],
@@ -2554,13 +2585,13 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Card Change',
-        text: 'Trigger multipliers now say exactly how they combine — "twice" multiplies, "additional" adds up.',
+        text: 'Trigger multipliers now say exactly how they combine. "Twice" multiplies, "additional" adds up.',
         details: [
-          'Drakko the Drummer: "Your Shouts trigger twice." Two Drakkos are still twice — a multiplier does not stack with itself.',
+          'Drakko the Drummer: "Your Shouts trigger twice." Two Drakkos are still twice. A multiplier does not stack with itself.',
           'Chronos: "Your End of Turn effects trigger twice." Same rule.',
           'Sylus the Reaper: "Your Echoes trigger 1 additional time." Every copy counts, so two Sylus mean three Echoes.',
-          'Zyff and Uron read "an additional time", so they stack too — two Urons now mean three triggers, where before the second did nothing.',
-          'The two kinds combine: Drakko + Zyff means a Shout triggers FOUR times — Zyff adds a trigger, then Drakko doubles the total.',
+          'Zyff and Uron read "an additional time", so they stack too. Two Urons now mean three triggers, where before the second did nothing.',
+          'The two kinds combine. Drakko + Zyff means a Shout triggers FOUR times: Zyff adds a trigger, then Drakko doubles the total.',
           'Gilded Drakko and Chronos now read "three times".',
         ],
       },
@@ -2569,7 +2600,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Deaths and Echoes in the shop now animate, the same way they do in combat.',
         details: [
           'A minion destroyed in the shop plays the death dissolve; one that is rising plays its return instead.',
-          'The Echo burst plays anytime an Echo triggers in the shop — from a destroy, a rune, or any card that triggers one.',
+          'The Echo burst plays anytime an Echo triggers in the shop, from a destroy, a rune, or any card that triggers one.',
         ],
       },
       {
@@ -2588,10 +2619,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Card Change',
-        text: 'Rise now works in the shop — a minion destroyed there comes back, just as it would in combat.',
+        text: 'Rise now works in the shop. A minion destroyed there comes back, just as it would in combat.',
         details: [
           'Graverobber eating a minion with Rise no longer kills it outright: it returns at its base Attack with 1 Health, its Rise spent.',
-          'Its Echo still resolves first, so if the Echo fills your board there is no room and the Rise is lost — the same rule combat uses.',
+          'Its Echo still resolves first, so if the Echo fills your board there is no room and the Rise is lost. It is the same rule combat uses.',
           'Funeral on Loan follows the same rule: discover a minion with Rise, play it this turn, and after its Echo it rises and stays on your board.',
         ],
       },
@@ -2599,7 +2630,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: 'Destroying a minion in the shop now plays out instead of happening instantly.',
         details: [
-          'The minion shows its death, and its Echo animation if it has one, on its own beat — they used to resolve in a single frame with nothing to see.',
+          'The minion shows its death, and its Echo animation if it has one, on its own beat. They used to resolve in a single frame with nothing to see.',
           'Funeral on Loan now visibly places the borrowed minion on your board before its Echo and death play.',
         ],
       },
@@ -2613,10 +2644,10 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: 'Choose One now asks for your choice BEFORE you pick a target, clicking away cancels and returns the card to your hand, and a card that already does both effects says (Both) and skips the prompt.',
         details: [
-          'Play the card, pick your side, then aim — the old flow made you aim first, which meant choosing after you had already committed.',
+          'Play the card, pick your side, then aim. The old flow made you aim first, which meant choosing after you had already committed.',
           'Nothing happens until the choice is settled: a Choose One minion waits in your hand until you pick, so it is never left on the board mid-decision.',
           'Click away from the options (or away while aiming) to cancel. The card comes straight back to your hand with nothing spent and nothing triggered.',
-          "When every branch is already switched on — a Gilded Orivax, or Facetwright's Choice and Veinbreaker with their runes — the card no longer asks a question with one answer. It reads (Both) and prints both effects, wherever you see it.",
+          "When every branch is already switched on, the card no longer asks a question with one answer. That covers a Gilded Orivax, or Facetwright's Choice and Veinbreaker with their runes. It reads (Both) and prints both effects, wherever you see it.",
         ],
       },
     ],
@@ -2627,10 +2658,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Card Change',
-        text: 'Apples now offers a board buff instead of a second shop buff — and its shop half got bigger.',
+        text: 'Apples now offers a board buff instead of a second shop buff, and its shop half got bigger.',
         details: [
           'Choose One: give this shop +2/+4 (was +1/+3), or give 2 random friendly minions +1/+1.',
-          'The old "next shop +2/+4" option is gone — both halves used to buff shops, which left the card with nothing to offer a board you already own.',
+          'The old "next shop +2/+4" option is gone. Both halves used to buff shops, which left the card with nothing to offer a board you already own.',
         ],
       },
       {
@@ -2660,10 +2691,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'Rubies are now CAST, never "played" — every card and rune that hands out a Ruby says so the same way.',
+        text: 'Rubies are now CAST, never "played". Every card and rune that hands out a Ruby says so the same way.',
         details: [
           '"Play a Ruby" now reads "Cast a Ruby" on 11 Kobold and Dwarf minions, 2 spells and 6 runes.',
-          '"Played" now means one thing everywhere: a card leaving your hand. Rune of the Lapidary still reads "after you play 6 cards" — that is a card play, not a Ruby.',
+          '"Played" now means one thing everywhere: a card leaving your hand. Rune of the Lapidary still reads "after you play 6 cards". That is a card play, not a Ruby.',
           'Wording only. No Ruby, card or rune changed what it does.',
         ],
       },
@@ -2673,7 +2704,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-08-28',
     label: 'Rune Fix',
     changes: [
-      { category: 'Rune Change', text: 'Rune of Summoning now gives the +2/+2 it promises — it was quietly paying half.', details: [
+      { category: 'Rune Change', text: 'Rune of Summoning now gives the +2/+2 it promises. It was quietly paying half.', details: [
         'Every Shop spell you cast improves your Imp Aura by +2/+2, exactly as the rune reads.',
         'Rune of Mastery still doubles it, and a second copy still doubles it again.',
       ] },
@@ -2685,12 +2716,12 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'Buffs that follow a whole tribe around — on your board, in your hand, in the shop, and onto copies you pick up later — are now called Auras. Same effects, clearer words.',
+        text: 'Buffs that follow a whole tribe around are now called Auras. They reach your board, your hand, the shop, and copies you pick up later. Same effects, clearer words.',
         details: [
           'A card that used to read "give your Beasts +8/+8 wherever they are" now reads "give your Beast Aura +8/+8".',
           'Eleven cards and runes were re-worded: Kennelmaster, Trophy Stalker, Grim, Armadiyo, Deathswarmer, Forsaken Mage, Lantern of Souls, Attachment Mechanic, Chorus Engine, Rune of Summoning and Rune of the Cinder Ledger.',
           'Quest rewards that grant one of these buffs read the same new way.',
-          'Nothing about what they do changed — the numbers, targets and timing are untouched.',
+          'Nothing about what they do changed. The numbers, targets and timing are untouched.',
         ],
       },
     ],
@@ -2705,7 +2736,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'No quest turns: turns 5 and 11 are ordinary Shop turns.',
           'The quest picker no longer appears, and no objectives are tracked.',
-          'Runes are unaffected — the Runeforge still opens on turn 6, and the Epic Runeforge on turn 9.',
+          'Runes are unaffected. The Runeforge still opens on turn 6, and the Epic Runeforge on turn 9.',
           'A run already in progress keeps the quest it was carrying, and it still completes and pays out.',
         ],
       },
@@ -2720,7 +2751,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Card Change',
-        text: 'Henchmen are removed for now — no hero offers one.',
+        text: 'Henchmen are removed for now. No hero offers one.',
       },
     ],
   },
@@ -2737,7 +2768,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'Combat now has its own board — a wipe of light sweeps across the table as the fight begins, and sweeps back when you return to the shop.',
+        text: 'Combat now has its own board. A wipe of light sweeps across the table as the fight begins, and sweeps back when you return to the shop.',
         details: [
           'The shop board was also re-exported from the newest master, so the two boards match exactly.',
           'Returning to the shop plays the wipe in reverse.',
@@ -2749,14 +2780,14 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-08-27',
     label: 'Bug Board Round 1',
     changes: [
-      { category: 'Card Change', text: 'Great Pot now scales with your spell power — and its text shows the value it will actually give.', details: [
+      { category: 'Card Change', text: 'Great Pot now scales with your spell power, and its text shows the value it will actually give.', details: [
         'The +4/+4 it gives one minion of each type now adds your spell power, like every other stat-granting spell.',
         'Its printed number goes green and live once any spell power is up.',
       ] },
-      { category: 'UI / Info', text: "Growth's improved value (from Mushy's rune) now shows everywhere — including the popup when hovering Mushy.", details: [
+      { category: 'UI / Info', text: "Growth's improved value (from Mushy's rune) now shows everywhere, including the popup when hovering Mushy.", details: [
         'The hover popup and the mid-combat hand fly-in previously kept showing the base +1/+1 while the cast paid more.',
       ] },
-      { category: 'UI / Info', text: 'The Refresh button now shows the real price of your next roll — a green 0 while Rune of Window Shopping is paying.', details: [
+      { category: 'UI / Info', text: 'The Refresh button now shows the real price of your next roll: a green 0 while Rune of Window Shopping is paying.', details: [
         'Free rolls from the rune also stay clickable when you have no Gold, matching what a roll actually costs.',
       ] },
     ],
@@ -2767,10 +2798,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Card Change',
-        text: "Opponent boards now fight at full fidelity — spell marks, grafted Echoes, and Ashen Heir's bank all carry into battle.",
+        text: "Opponent boards now fight at full fidelity. Spell marks, grafted Echoes, and Ashen Heir's bank all carry into battle.",
         details: [
-          'Parting Cry, Closed Casket and Soren’s Reclaim now work on opponent boards too — a served copy of a board fights with the same marks its owner paid for (Reclaim even destroys the exact minion its owner chose).',
-          'An Echo gained in the shop (Echo Mimic, Grave Body, and friends) now actually fires when that minion dies in combat — yours and your opponents’.',
+          'Parting Cry, Closed Casket and Soren’s Reclaim now work on opponent boards too. A served copy of a board fights with the same marks its owner paid for. Reclaim even destroys the exact minion its owner chose.',
+          'An Echo gained in the shop (Echo Mimic, Grave Body, and friends) now actually fires when that minion dies in combat, yours and your opponents’.',
           'A copy summoned "without Echo" now stays Echo-less in combat as well, instead of quietly regaining it when the fight starts.',
           'Ashen Heir’s banked Imp stats now ride into battle: an Imp summoned mid-fight collects the bank. The bank itself stays with your Heir between fights.',
         ],
@@ -2783,7 +2814,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Card Change',
-        text: 'Effects that last "this turn" now correctly persist through that turn\'s combat — a turn runs from your shop through the fight that ends it.',
+        text: "Effects that last \"this turn\" now correctly persist through that turn's combat. A turn runs from your shop through the fight that ends it.",
         details: [
           'Demand an Encore fixed: its extra Shout triggers now also apply to every Shout triggered in that turn\'s combat (they used to vanish when combat started).',
           'This is now the standing rule for all "this turn" effects. A sweep of every card, rune, gift and hero power that says "this turn" found Demand an Encore was the only one breaking it.',
@@ -2799,22 +2830,22 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Card Change',
         text: 'Shouts triggered in combat now respect your Shout multipliers everywhere.',
         details: [
-          'Parting Cry, Embercrest, Rune of Ancestral Roar, Rune of Shared Scripture and Rune of the War Chorus all fired a Shout exactly once, even with a "Battlecries fire 1 more time" minion on board — they now fire the extra times, just like Ryme, Dawnclaw, Thunderous Sovereign and Chorus Drake already did.',
+          'Parting Cry, Embercrest, Rune of Ancestral Roar, Rune of Shared Scripture and Rune of the War Chorus all fired a Shout exactly once, even with a "Battlecries fire 1 more time" minion on board. They now fire the extra times, just like Ryme, Dawnclaw, Thunderous Sovereign and Chorus Drake already did.',
         ],
       },
       {
         category: 'Card Change',
         text: 'The Empty Graves quest reward now triggers Echoes at full strength.',
         details: [
-          'The marked minion\'s "Rally: trigger your leftmost Echo" ignored every Echo multiplier (Sylus, Uron, Funeral Engine, first-Echo bonuses) and the marked minion\'s gilding — it now counts them all, like every other Echo trigger.',
-          'The quest\'s reward text was also rewritten — it still described an older design.',
+          "The marked minion's \"Rally: trigger your leftmost Echo\" ignored every Echo multiplier (Sylus, Uron, Funeral Engine, first-Echo bonuses) and the marked minion's gilding. It now counts them all, like every other Echo trigger.",
+          "The quest's reward text was also rewritten. It still described an older design.",
         ],
       },
       {
         category: 'Card Change',
         text: 'A gilded Exgalloper now summons gilded copies of itself.',
         details: [
-          'Its copies are exact copies without the Echo — so a gilded body\'s copies now carry the Gilded badge too, matching Mirrorhide Rhino.',
+          "Its copies are exact copies without the Echo, so a gilded body's copies now carry the Gilded badge too, matching Mirrorhide Rhino.",
         ],
       },
     ],
@@ -2823,17 +2854,17 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-08-27',
     label: 'Rune Duplicates',
     changes: [
-      { category: 'Rune Change', text: 'Owning a second copy of a rune now always does something — every duplicate stacks, pays again, or refunds you.', details: [
-        'Recurring runes (Coffers, Flagship, Scales, the Deep, Seller\'s Market, …) fire once more per copy — two Flagships give your Dwarves +4/+4 per Shop spell.',
-        'Meter runes (Foundry, Returning Pack, the Vault, Golden Splinter, …) keep ONE meter but pay double at each trip — two Returning Packs hand over 2 Beasts per 6 combat summons.',
-        'Repeat runes (Wishbone, Shared Pour, the Conduit, Mastery, Corrupted Tome, …) add one more repetition per copy — two Wishbones fire your Hero Power 3 times.',
-        'One-shot runes (Small Fortune, Spare Parts, the Armory, the Altar, the Muster, Treasure Map) simply grant again — a second Treasure Map schedules its own payout.',
+      { category: 'Rune Change', text: 'Owning a second copy of a rune now always does something. Every duplicate stacks, pays again, or refunds you.', details: [
+        "Recurring runes (Coffers, Flagship, Scales, the Deep, Seller's Market, …) fire once more per copy. Two Flagships give your Dwarves +4/+4 per Shop spell.",
+        'Meter runes (Foundry, Returning Pack, the Vault, Golden Splinter, …) keep ONE meter but pay double at each trip. Two Returning Packs hand over 2 Beasts per 6 combat summons.',
+        'Repeat runes (Wishbone, Shared Pour, the Conduit, Mastery, Corrupted Tome, …) add one more repetition per copy. Two Wishbones fire your Hero Power 3 times.',
+        'One-shot runes (Small Fortune, Spare Parts, the Armory, the Altar, the Muster, Treasure Map) simply grant again. A second Treasure Map schedules its own payout.',
         'Start-of-Combat and combat-trigger runes (Rallying, Five Banners, Warding, the Underdog, Savagery, …) fire once per copy in every fight.',
-        'Engine runes double their output where a doubling makes sense — two Runes of Structure hand you 2 Shop spells per Attachment, two Contrabands smuggle 2 Ales / 2 Rubies, two Thrifts make stat spells cost 4 less.',
-        'A duplicate that genuinely cannot stack (e.g. Twin Gilding) instead pays Gold equal to half the rune\'s cost (rounded up) plus a free refresh — never a dead buy.',
+        'Engine runes double their output where a doubling makes sense. Two Runes of Structure hand you 2 Shop spells per Attachment, two Contrabands smuggle 2 Ales / 2 Rubies, two Thrifts make stat spells cost 4 less.',
+        "A duplicate that genuinely cannot stack, such as Twin Gilding, instead pays Gold equal to half the rune's cost (rounded up) plus a free refresh. Never a dead buy.",
         'The Runeforge stops offering runes you own whose duplicate would only pay that refund; Rune of Duplication can still reach them deliberately.',
       ] },
-      { category: 'Rune Change', text: 'Rune of Held Strength reworked: now "Start of Combat: give your left and right-most minions the stats of the left-most minion card in your hand" — a standing effect read fresh every fight, instead of a one-shot on purchase.' },
+      { category: 'Rune Change', text: 'Rune of Held Strength reworked: now "Start of Combat: give your left and right-most minions the stats of the left-most minion card in your hand". It is a standing effect read fresh every fight, instead of a one-shot on purchase.' },
     ],
   },
   {
@@ -2848,7 +2879,7 @@ export const PATCH_NOTES: PatchNote[] = [
     label: 'Art Batch',
     changes: [
       { category: 'UI / Info', text: 'New illustrations: 7 more Gifts, the two Gift runes, and a new Aevor portrait.', details: [
-        'Fast Track, Friends and Family, Grave Invitation, Parting Gifts, Second Calling, Special Delivery and Unbridled Might each get their art — 14 of the 15 Gifts are now illustrated.',
+        'Fast Track, Friends and Family, Grave Invitation, Parting Gifts, Second Calling, Special Delivery and Unbridled Might each get their art. 14 of the 15 Gifts are now illustrated.',
         'Happy Birthday and Merry Christmas wear their rune art in the Runeforge.',
         'Aevor has a brand-new portrait.',
       ] },
@@ -2861,17 +2892,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'UI / Info',
-        text: 'You can now report a problem from the main menu too — hit "Report a Problem" (or Ctrl+B) on the title screen to describe something you saw earlier, no run needed.',
+        text: 'You can now report a problem from the main menu too. Hit "Report a Problem" (or Ctrl+B) on the title screen to describe something you saw earlier, no run needed.',
         details: [
-          'A menu report carries your description and build info — perfect for logging something you spotted mid-game and wanted to write up later.',
+          'A menu report carries your description and build info. Use it to log something you spotted mid-game and wanted to write up later.',
         ],
       },
       {
         category: 'UI / Info',
-        text: 'Press Ctrl+B any time during a run to report a problem — the game attaches the details automatically and the shop timer pauses while you type.',
+        text: 'Press Ctrl+B any time during a run to report a problem. The game attaches the details automatically and the shop timer pauses while you type.',
         details: [
           'Describe what happened in your own words; the current turn and latest combat details ride along on their own.',
-          'Reports send in the background and never interrupt play — submitted while offline, a report is kept safe and sends when you reconnect.',
+          'Reports send in the background and never interrupt play. Submitted while offline, a report is kept safe and sends when you reconnect.',
         ],
       },
     ],
@@ -2880,15 +2911,15 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-08-26',
     label: 'Rulebook rulings',
     changes: [
-      { category: 'Card Change', text: 'Six Echo and death-watcher minions now work in the Shop phase too — anything that fires an Echo or destroys a minion during the Shop (Funeral on Loan, Ossuary Rite, Deathsayer and friends) now sets them off, instead of only combat.', details: [
+      { category: 'Card Change', text: 'Six Echo and death-watcher minions now work in the Shop phase too. Anything that fires an Echo or destroys a minion during the Shop (Funeral on Loan, Ossuary Rite, Deathsayer and friends) now sets them off, instead of only combat.', details: [
         'Malphas: its Echo gives Shop minions +8/+8 when fired in the Shop.',
         'Runesnout Archivist: its Echo casts every remembered spell on your Beasts in the Shop.',
         'Scavvers: its Echo triggers an adjacent Rally in the Shop.',
-        'Ashen Heir: an Imp destroyed in the Shop hands its stats to a living Imp — or to the next Imp you summon.',
+        'Ashen Heir: an Imp destroyed in the Shop hands its stats to a living Imp, or to the next Imp you summon.',
         'Brood Matron: friends dying in the Shop breed Imps (still max 3 per turn).',
         'Echo Mimic: gains the Echo of a friendly minion that dies in the Shop.',
       ] },
-      { category: 'Card Change', text: 'Reflector now also reflects Rubies played on it during combat — one bonus Ruby spread to a random friendly minion, once per fight.' },
+      { category: 'Card Change', text: 'Reflector now also reflects Rubies played on it during combat: one bonus Ruby spread to a random friendly minion, once per fight.' },
       { category: 'Card Change', text: 'Veinstorm now folds your spell power into the Rubies it puts on the Shop, like every other stat-granting Shop spell.' },
       { category: 'Card Change', text: 'Pack Leader’s text now says what it always did: it grows from Beasts played in the Shop while it’s on your board.' },
     ],
@@ -2897,10 +2928,10 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-08-26',
     label: 'Fixes',
     changes: [
-      { category: 'Rune Change', text: 'Unused Shout charges no longer go to waste at combat — Rune of the War Drum and Warm Embers now carry an unspent charge into the fight.', details: [
+      { category: 'Rune Change', text: 'Unused Shout charges no longer go to waste at combat. Rune of the War Drum and Warm Embers now carry an unspent charge into the fight.', details: [
         'Rune of the War Drum: if you didn’t play a Shout this shop, the first Shout that triggers during combat (a Parting Cry, Ryme, and friends) fires the extra times instead.',
         'Warm Embers’ banked double-charges work the same way: charges you didn’t spend in the shop double the next Shouts triggered in combat.',
-        'Both still work exactly as before when you spend them in the shop — this only rescues charges that would have evaporated.',
+        'Both still work exactly as before when you spend them in the shop. This only rescues charges that would have evaporated.',
       ] },
     ],
   },
@@ -2908,7 +2939,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-08-26',
     label: 'Fixes',
     changes: [
-      { category: 'Card Change', text: 'Pack Leader now counts the same Beasts for everyone — when your board is served as an opponent, its Pack Leader fights at full strength (an all-types minion you played was being missed).' },
+      { category: 'Card Change', text: 'Pack Leader now counts the same Beasts for everyone. When your board is served as an opponent, its Pack Leader fights at full strength. An all-types minion you played was being missed.' },
     ],
   },
   {
@@ -2921,14 +2952,14 @@ export const PATCH_NOTES: PatchNote[] = [
         'Rune of Trade-In discounts an all-types minion of the armed type.',
         'Pack Leader counts an all-types minion you played as a Beast.',
       ] },
-      { category: 'Rune Change', text: 'Rune of Thrift actually works now — every Shop spell that gives stats really is 2 Gold cheaper, Ales included, and the shown price matches what you pay.' },
-      { category: 'Card Change', text: 'Conductor now fires during combat. Anything that re-triggers its Shout mid-fight — a Parting Cry, Ryme, Dawnclaw, Rune of Shared Scripture — now buffs its neighbours for the full snowballed amount, instead of doing nothing.' },
+      { category: 'Rune Change', text: 'Rune of Thrift actually works now. Every Shop spell that gives stats really is 2 Gold cheaper, Ales included, and the shown price matches what you pay.' },
+      { category: 'Card Change', text: 'Conductor now fires during combat. Anything that re-triggers its Shout mid-fight, such as a Parting Cry, Ryme, Dawnclaw or Rune of Shared Scripture, now buffs its neighbours for the full snowballed amount, instead of doing nothing.' },
       { category: 'Card Change', text: 'Conductor’s card text now tracks what it will really give.', details: [
-        'On your board and in combat it shows the buff it grants RIGHT NOW — it used to read one step high, as if you were about to play another copy.',
+        'On your board and in combat it shows the buff it grants RIGHT NOW. It used to read one step high, as if you were about to play another copy.',
         'In the shop it still shows what playing it would grant.',
         'An opponent’s Conductor now shows the opponent’s number, and carries their full snowball into the fight.',
       ] },
-      { category: 'Card Change', text: 'Gangplank now triggers for every card that reaches your hand — bought Shop spells, minted Rubies, Discover picks, a full Buyout, and more. It was only counting a few of them.' },
+      { category: 'Card Change', text: 'Gangplank now triggers for every card that reaches your hand: bought Shop spells, minted Rubies, Discover picks, a full Buyout, and more. It was only counting a few of them.' },
       { category: 'Card Change', text: 'Funeral on Loan: a borrowed Echo minion that summons now fits its summon into the slot the borrowed body leaves behind, instead of doing nothing on a full-looking board.' },
       { category: 'Rune Change', text: 'Rune of the Ornate Clock now MOVES your Epic Runeforge to next turn instead of also giving you the turn-9 one.' },
     ],
@@ -2937,9 +2968,9 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-08-26',
     label: 'Gifts',
     changes: [
-      { category: 'New Card', text: 'Gifts arrive — a new kind of free spell you are given rather than bought.', details: [
+      { category: 'New Card', text: 'Gifts arrive: a new kind of free spell you are given rather than bought.', details: [
         'A Gift is handed to you by a rune or a hero, never sold in the Shop.',
-        'Casting one counts as casting a spell, but a Gift is not a Shop Spell — so nothing can copy or repeat it.',
+        'Casting one counts as casting a spell, but a Gift is not a Shop Spell, so nothing can copy or repeat it.',
         'Fifteen to collect, from doubling a minion’s Health to robbing the whole Shop.',
       ] },
       { category: 'New Hero', text: 'Kindness joins the roster. Great Presence Discovers a Gift every 4 turns.', details: [
@@ -2948,16 +2979,16 @@ export const PATCH_NOTES: PatchNote[] = [
       ] },
       { category: 'New Rune', text: 'Happy Birthday (Basic) gives a random Gift right away, then another every 2 turns.' },
       { category: 'New Rune', text: 'Merry Christmas (Epic) lets you Discover a Gift immediately, then again every Start of Turn.' },
-      { category: 'New Card', text: 'Great Pot — a Tier 4 spell that gives a minion of each type +4/+4.' },
+      { category: 'New Card', text: 'Great Pot is a Tier 4 spell that gives a minion of each type +4/+4.' },
     ],
   },
   {
     date: '2026-08-26',
     label: 'Fixes',
     changes: [
-      { category: 'Card Change', text: 'Kringle again shows its full grant — its text was dropping the Health half the moment you played a card.' },
+      { category: 'Card Change', text: 'Kringle again shows its full grant. Its text was dropping the Health half the moment you played a card.' },
       { category: 'Rune Change', text: 'A shop buffed “for this turn” now sticks to the minion you buy.', details: [
-        'Rune of the Merchant’s Chorus and Night Market Horror buff minions in the shop for the turn — buying one used to pay only part of what the shop showed.',
+        'Rune of the Merchant’s Chorus and Night Market Horror buff minions in the shop for the turn. Buying one used to pay only part of what the shop showed.',
         'The bought minion now arrives with the advertised stats and keeps them on the board.',
       ] },
     ],
@@ -2966,9 +2997,9 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-08-25',
     label: 'Practice Bots',
     changes: [
-      { category: 'UI / Info', text: 'Practice bot games are much shorter — bots now tier up as the rounds go on, hit harder, and knock each other out instead of stalling in draws.', details: [
+      { category: 'UI / Info', text: 'Practice bot games are much shorter. Bots now tier up as the rounds go on, hit harder, and knock each other out instead of stalling in draws.', details: [
         'Bots climb tavern tiers over the game (faster on higher difficulties), so a lost round actually costs Resolve.',
-        'Bot damage scales with difficulty — Easy hits softest, Hard hardest.',
+        'Bot damage scales with difficulty. Easy hits softest, Hard hardest.',
         'Each bot now fields a slightly different board, so bot-vs-bot fights resolve instead of mirroring into draws.',
         'Bots start on less health than you, so the table thins out at a sensible pace.',
       ] },
@@ -2978,7 +3009,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-08-25',
     label: 'Fixes',
     changes: [
-      { category: 'Card Change', text: 'Resonance now works on Baby Gastrid — re-firing its Shout buffs a random friendly Dwarf instead of doing nothing.' },
+      { category: 'Card Change', text: 'Resonance now works on Baby Gastrid. Re-firing its Shout buffs a random friendly Dwarf instead of doing nothing.' },
       { category: 'Hero Change', text: 'Aevor’s Tempest counter no longer shows a lock icon before it unlocks.' },
     ],
   },
@@ -2993,7 +3024,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-08-24',
     label: 'Load Screen',
     changes: [
-      { category: 'UI / Info', text: 'New look for the load screen before the game opens — a larger logo on a deep-blue glow — and its loading bar now fills smoothly over three seconds before the menu appears.' },
+      { category: 'UI / Info', text: 'New look for the load screen before the game opens: a larger logo on a deep-blue glow. Its loading bar now fills smoothly over three seconds before the menu appears.' },
     ],
   },
   {
@@ -3008,24 +3039,24 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-08-24',
     label: 'Practice & Lobby Polish',
     changes: [
-      { category: 'UI / Info', text: 'Fixed Practice bot games reporting the wrong placement — beating the bots now correctly reads as 1st, and your finish reflects how many of the fights you won.' },
+      { category: 'UI / Info', text: 'Fixed Practice bot games reporting the wrong placement. Beating the bots now correctly reads as 1st, and your finish reflects how many of the fights you won.' },
       { category: 'UI / Info', text: 'Practice bots now show real portrait icons and random player-style names instead of “Bot 1–7”.' },
-      { category: 'UI / Info', text: 'When one player holds two seats in a lobby, the second reads with an adjective (e.g. “Sneaky Orangez”) instead of “Orangez (2)”.' },
+      { category: 'UI / Info', text: 'When one player holds two seats in a lobby, the second reads with an adjective, such as “Sneaky Orangez”, instead of “Orangez (2)”.' },
     ],
   },
   {
     date: '2026-08-24',
     label: 'Practice Options',
     changes: [
-      { category: 'UI / Info', text: 'Practice now opens a setup screen — pick your opponents (real players, or scaling bots with Easy / Medium / Hard), health (unlimited or normal elimination), shop-timer speed (1–4×), and an optional tribe surge.', details: [
+      { category: 'UI / Info', text: 'Practice now opens a setup screen. Pick your opponents (real players, or scaling bots with Easy / Medium / Hard), health (unlimited or normal elimination), shop-timer speed (1–4×), and an optional tribe surge.', details: [
         'Opponents: real players’ recorded warbands, or effectless bots that only grow in stats.',
         'Bot difficulty: Easy / Medium / Hard curves (only shown when Bots is chosen).',
         'Health: Unlimited (you can’t be eliminated) or Normal (real damage, last one standing).',
-        'Time: 1– 4× shop-timer speed.',
+        'Time: 1–4× shop-timer speed.',
         'Tribe surge: doubles how often a chosen tribe’s cards appear.',
         'Everything is unrated, and your choices are remembered for next time.',
       ] },
-      { category: 'UI / Info', text: 'Bots are simple, effectless opponents that only grow in stats round over round — a low-pressure way to practice the real game, at three difficulty curves.' },
+      { category: 'UI / Info', text: 'Bots are simple, effectless opponents that only grow in stats round over round. They are a low-pressure way to practice the real game, at three difficulty curves.' },
       { category: 'UI / Info', text: 'Tribe surge doubles how often the chosen tribe’s cards turn up in your shop.' },
     ],
   },
@@ -3044,7 +3075,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-08-24',
     label: 'Menu Polish',
     changes: [
-      { category: 'UI / Info', text: 'Added this Patch Notes screen — gameplay changes by date, opened from the title.' },
+      { category: 'UI / Info', text: 'Added this Patch Notes screen: gameplay changes by date, opened from the title.' },
       { category: 'UI / Info', text: 'Title-screen button tooltips now use the game’s own styling instead of the plain browser tooltip.' },
       { category: 'UI / Info', text: 'Hero power and rune hover tooltips are 30% larger and easier to read.' },
     ],
@@ -3058,19 +3089,19 @@ export const PATCH_NOTES: PatchNote[] = [
         'Ruby Wealth costs 1 Gold and mints 2 Rubies.',
         'Usable twice per turn, not once.',
       ] },
-      { category: 'Hero Change', text: 'Brackus can no longer be handed out by Mimic or the Power Shifter spell — adopting a start-of-game power mid-run did nothing.' },
+      { category: 'Hero Change', text: 'Brackus can no longer be handed out by Mimic or the Power Shifter spell. Adopting a start-of-game power mid-run did nothing.' },
       { category: 'Rune Change', text: 'Rune of Beastial Swarm now shows its current +X/+X value on its pill, not just the countdown to the next improve.' },
-      { category: 'Card Change', text: 'Fixed a bug where a minion summoned mid-combat (e.g. by Bullseye or Mammoth) could gain its Avenge immediately — Avenge now counts from the moment it arrives.', details: [
+      { category: 'Card Change', text: 'Fixed a bug where a minion summoned mid-combat (by Bullseye or Mammoth, say) could gain its Avenge immediately. Avenge now counts from the moment it arrives.', details: [
         'A summoned minion now starts its Avenge count at 0 instead of inheriting every friendly death that happened before it arrived.',
         'Affected any minion pulled into combat by another (Bullseye, Mammoth, and similar).',
       ] },
-      { category: 'UI / Info', text: 'Hero power pills now show live trackers and current values during combat — Aevor’s kills, Gorun’s attack bonus, Cindara’s Avenge counter, and Vale’s per-type buff all tick as the fight happens.', details: [
+      { category: 'UI / Info', text: 'Hero power pills now show live trackers and current values during combat. Aevor’s kills, Gorun’s attack bonus, Cindara’s Avenge counter, and Vale’s per-type buff all tick as the fight happens.', details: [
         'Aevor: the kill count toward the next Tempest step ticks up as enemies fall.',
         'Gorun: the attack-bonus value and its progress to the next improve update mid-fight.',
         'Cindara: a live X/4 Avenge tracker toward the next Whelp.',
         'Vale: the per-type buff grows with each spell cast this game.',
       ] },
-      { category: 'UI / Info', text: 'A hero’s second power (Void) now shows the full pills — cost, tracker and value — exactly like the main power.' },
+      { category: 'UI / Info', text: 'A hero’s second power (Void) now shows the full pills for cost, tracker and value, exactly like the main power.' },
       { category: 'UI / Info', text: 'Fibbsy’s power previews the Ruby it will mint on hover, at its current value.' },
     ],
   },
@@ -3080,7 +3111,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       { category: 'UI / Info', text: 'The Learn Ascent tutorial now climbs to Tier 6, teaches the rune system, and uses tier-accurate shops.', details: [
         'Tiers up all the way to 6 across the course.',
-        'Shops only ever offer minions your current tier has unlocked — and the course explains that link.',
+        'Shops only ever offer minions your current tier has unlocked, and the course explains that link.',
         'A Runeforge round introduces runes with clear direction.',
         'A spotlight now sits over the Tier-Up button when the step calls for it.',
       ] },
@@ -3094,7 +3125,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-08-23',
     label: 'Hero Batch',
     changes: [
-      { category: 'New Hero', text: 'Aevor joins the roster. Tempest unlocks after 15 kills, then buffs your flanks +4/+4 at end of turn — growing every 15 kills.', details: [
+      { category: 'New Hero', text: 'Aevor joins the roster. Tempest unlocks after 15 kills, then buffs your flanks +4/+4 at end of turn, growing every 15 kills.', details: [
         'Starts with 16 Armor.',
         'Tempest stays locked until your minions have killed 15 enemies.',
         'Once unlocked, it grants your two flank minions +4/+4 at end of turn.',
@@ -3102,15 +3133,15 @@ export const PATCH_NOTES: PatchNote[] = [
       ] },
       { category: 'New Hero', text: 'Gorun joins the roster. Blade Mastery grants attackers +3 Attack, improving every 8 attacks.', details: [
         'Starts with 11 Armor.',
-        'Your attacking minions get +3 Attack from the very first swing — no unlock.',
+        'Your attacking minions get +3 Attack from the very first swing. No unlock.',
         'The bonus grows by +3 for every 8 attacks made.',
       ] },
       { category: 'New Hero', text: 'Cindara joins the roster. Hoard summons a Whelp every 4 friendly deaths and improves your Whelps +2/+2.', details: [
         'Starts with 9 Armor.',
         'Every 4 friendly deaths in combat, summon a 1/1 Whelp that attacks immediately.',
-        'Improving Whelps adds +2/+2 — applied live to both existing and newly summoned Whelps.',
+        'Improving Whelps adds +2/+2, applied live to both existing and newly summoned Whelps.',
       ] },
-      { category: 'Hero Change', text: 'Fi and Coran are temporarily in Practice only while their hero quests are reworked — they are marked “Not currently enabled in Play”.', details: [
+      { category: 'Hero Change', text: 'Fi and Coran are temporarily in Practice only while their hero quests are reworked. They are marked “Not currently enabled in Play”.', details: [
         'Both remain fully playable in Practice.',
         'They cannot be handed out through a power Discover (Mimic / Void / Power Shifter) while pulled.',
       ] },
@@ -3120,11 +3151,11 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-08-22',
     label: 'Power Shifter & New Heroes',
     changes: [
-      { category: 'New Card', text: 'Power Shifter — a Tier 5 spell that lets you Discover a brand-new hero power to replace your current one.' },
+      { category: 'New Card', text: 'Power Shifter is a Tier 5 spell that lets you Discover a brand-new hero power to replace your current one.' },
       { category: 'New Hero', text: 'Rayse joins the roster: minions you summon in combat gain +2/+3 and Taunt.' },
       { category: 'New Hero', text: 'Mimic joins the roster: Discover a hero power to wield each turn.' },
       { category: 'New Hero', text: 'Void joins the roster: wield TWO hero powers for the rest of the run.' },
-      { category: 'Hero Change', text: 'Cia is now Ayse — a new “Ace” reward suit, a 20% chance per card to be enchanted, enchantable spells, and enchanted cards possible from the first shop.', details: [
+      { category: 'Hero Change', text: 'Cia is now Ayse: a new “Ace” reward suit, a 20% chance per card to be enchanted, enchantable spells, and enchanted cards possible from the first shop.', details: [
         'Renamed from Cia to Ayse, with a new "Ace" reward suit.',
         'Each shop card has a 20% chance to arrive enchanted.',
         'Spells can now be enchanted too.',
@@ -3132,7 +3163,7 @@ export const PATCH_NOTES: PatchNote[] = [
       ] },
       { category: 'Hero Change', text: 'Auctioneer’s hero power no longer waits until turn 3.' },
       { category: 'Card Change', text: 'Rune of Rebirth now prints its granted Echo on the exact minion that received it.' },
-      { category: 'UI / Info', text: 'The hero-select screen was redesigned, and Practice now uses the real hero cards — four across, two rows, alphabetical.' },
+      { category: 'UI / Info', text: 'The hero-select screen was redesigned, and Practice now uses the real hero cards: four across, two rows, alphabetical.' },
     ],
   },
   {
@@ -3149,7 +3180,7 @@ export const PATCH_NOTES: PatchNote[] = [
     label: 'The Runeforge',
     changes: [
       { category: 'New Rune', text: '30 new runes and 16 rune-only minions arrive with the Runeforge batch.' },
-      { category: 'New Card', text: 'Conductor — a snowballing minion that triggers on adjacent Shouts.' },
+      { category: 'New Card', text: 'Conductor is a snowballing minion that triggers on adjacent Shouts.' },
       { category: 'Card Change', text: 'Oona doubles both stats again; Quillen counts as every type; several minions gained real tribes; Fresh Pages now Discovers on purchase.' },
       { category: 'UI / Info', text: 'The Hero Select Ceremony (pick presentation + explicit Start Game), a keyword-definition panel beside hovered cards, and minion medallion mechanic icons.' },
     ],
@@ -3159,7 +3190,7 @@ export const PATCH_NOTES: PatchNote[] = [
     label: 'Runes & Dragons',
     changes: [
       { category: 'New Rune', text: '27 new runes, 6 rune reworks, and Might of Aeon.' },
-      { category: 'New Card', text: 'A Dragon batch — 8 Dragons and 2 spells — plus the Standard Bearer minion.' },
+      { category: 'New Card', text: 'A Dragon batch of 8 Dragons and 2 spells, plus the Standard Bearer minion.' },
       { category: 'Card Change', text: '15 new minions and a set of rebalances; Beefy and Lantern Light no longer fizzle when cast in combat.' },
       { category: 'UI / Info', text: 'Rune triggers now burst on their badge, and the locked third rune slot shows chains.' },
     ],
@@ -3168,7 +3199,7 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-08-18',
     label: 'Balance Pass',
     changes: [
-      { category: 'Card Change', text: 'A broad Set 1 / Set 2 balance patch — stat tweaks, effect reworks, a new Gildmaster power, and rune tuning.' },
+      { category: 'Card Change', text: 'A broad Set 1 / Set 2 balance patch: stat tweaks, effect reworks, a new Gildmaster power, and rune tuning.' },
     ],
   },
 ];

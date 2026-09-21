@@ -186,7 +186,7 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
           className="rankend-rank"
           role="button"
           tabIndex={0}
-          aria-label={settled ? 'Rank result' : 'Rank result — activate to skip the animation'}
+          aria-label={settled ? 'Rank result' : 'Rank result. Activate to skip the animation.'}
           onClick={settled ? undefined : skip}
           onKeyDown={settled ? undefined : (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); skip(); } }}
         >
@@ -218,7 +218,7 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
         <div className="rankend-status pending" role="status"><span className="lb-spin rankend-spin" aria-hidden />Updating rank…</div>
       )}
       {submission === 'retryable' && (
-        <div className="rankend-status retry" role="status">Rank update pending — your result is saved and will be retried.</div>
+        <div className="rankend-status retry" role="status">Rank update pending. Your result is saved and will be retried.</div>
       )}
       {submission === 'rejected' && (
         <div className="rankend-status rejected" role="alert">{error ?? 'Rank update failed. This result could not be ranked.'}</div>

@@ -93,11 +93,11 @@ export function RecentGames(): JSX.Element | null {
 
       <div className="lbscroll">
         {!remoteEnabled() ? (
-          <div className="lbempty lb-state"><Icon name="gear" /><div>Recent games unavailable — no backend configured.</div></div>
+          <div className="lbempty lb-state"><Icon name="gear" /><div>Recent games unavailable. No backend configured.</div></div>
         ) : rows === null ? (
           <div className="lbempty lb-state loading"><span className="lb-spin" aria-hidden /><div>Gathering the latest climbs…</div></div>
         ) : rows.length === 0 ? (
-          <div className="lbempty lb-state"><Icon name="clock" /><div>No recordings yet — finish a run to seed the feed.</div></div>
+          <div className="lbempty lb-state"><Icon name="clock" /><div>No recordings yet. Finish a run to seed the feed.</div></div>
         ) : (
           <div className="lb-rows rg-list">
             {rows.map((r, i) => {

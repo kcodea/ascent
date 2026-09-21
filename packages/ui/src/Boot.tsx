@@ -123,7 +123,7 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
           <path d="M11 5.5h2" />
         </svg>
         <div className="rotate-prompt-t">Rotate your device</div>
-        <div className="rotate-prompt-s">ASCENT plays in landscape — turn your phone sideways to play.</div>
+        <div className="rotate-prompt-s">ASCENT plays in landscape. Turn your phone sideways to play.</div>
       </div>
     </>
   );

@@ -407,7 +407,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
   // in front.
   return createPortal(
     <div ref={cardRef} className={`lobbyscout lobbyscout--v${variant}${pinned ? ' pinned' : ''}`} role={pinned ? 'dialog' : 'tooltip'}
-      aria-label={pinned ? `${seat.label} — scouting report` : undefined}
+      aria-label={pinned ? `${seat.label} scouting report` : undefined}
       style={clamp
         ? { top: clamp.top, right: clamp.right }
         : { top: at.top, right: `calc(100vw - ${at.right}px + 6px)`, visibility: 'hidden' }}

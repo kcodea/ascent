@@ -38,14 +38,14 @@ export function ordinal(n: number): string {
 /** The gate line shown while a player sits on 100: which finish the NEXT rated game needs. */
 export function gateText(pos: RankPosition): string {
   return isMedalGate(pos.divisionIndex)
-    ? 'Promotion game ready — finish 1st to advance'
-    : 'Promotion game ready — finish top 4 to advance';
+    ? 'Promotion game ready. Finish 1st to advance.'
+    : 'Promotion game ready. Finish top 4 to advance.';
 }
 
 /** The DEMOTION-gate line (owner 2026-09-20): a loss clamped at 0 on a medal floor makes the next rated game a
  *  demotion game — top 4 stays in the medal, bottom 4 drops to the previous medal's I. */
 export function demotionGateText(pos: RankPosition): string {
-  return `Demotion game — finish top 4 to stay in ${medalOf(pos.divisionIndex)}`;
+  return `Demotion game. Finish top 4 to stay in ${medalOf(pos.divisionIndex)}.`;
 }
 
 /** The line a surface prints for a position on EITHER gate (`demotionReady` is the profile's STORED flag — a 0
@@ -94,7 +94,7 @@ export function outcomeText(r: RankResult): string | null {
   if (r.demotionUnlocked) return demotionGateText(r.after);
   if (r.wasPromotionGame && !r.promoted) {
     // Factual (blueprint §7: no punitive spectacle). Still on the gate if the loss was absorbed.
-    return isPromotionReady(r.after) ? 'Promotion unsuccessful — still promotion-ready' : 'Promotion unsuccessful';
+    return isPromotionReady(r.after) ? 'Promotion unsuccessful. Still promotion-ready.' : 'Promotion unsuccessful';
   }
   return null;
 }

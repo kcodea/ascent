@@ -94,11 +94,11 @@ export function Leaderboard() {
 
       <div className="lbscroll">
         {!remoteEnabled() ? (
-          <div className="lbempty lb-state"><Icon name="gear" /><div>Hall of Champions unavailable — no backend configured.</div></div>
+          <div className="lbempty lb-state"><Icon name="gear" /><div>Hall of Champions unavailable. No backend configured.</div></div>
         ) : ordered === null ? (
           <div className="lbempty lb-state loading"><span className="lb-spin" aria-hidden /><div>Opening the Hall…</div></div>
         ) : ordered.length === 0 ? (
-          <div className="lbempty lb-state"><Icon name="crown" /><div>No champions yet — be the first to summit.</div></div>
+          <div className="lbempty lb-state"><Icon name="crown" /><div>No champions yet. Be the first to summit.</div></div>
         ) : (
           <div className="lb-rows">
             {ordered.map((r, i) => {
@@ -125,7 +125,7 @@ export function Leaderboard() {
                             const res = c === 'W' ? 'win' : c === 'L' ? 'lose' : 'draw';
                             const cal = isCalibrationRound(k + 1);
                             return (
-                              <span key={k} className={`lbpip ${res}${cal ? ' cal' : ''}`} aria-label={`Round ${k + 1}: ${res}${cal ? ' (calibration — not scored)' : ''}`}>{c}</span>
+                              <span key={k} className={`lbpip ${res}${cal ? ' cal' : ''}`} aria-label={`Round ${k + 1}: ${res}${cal ? '. Calibration round, not scored' : ''}`}>{c}</span>
                             );
                           })}
                         </div>

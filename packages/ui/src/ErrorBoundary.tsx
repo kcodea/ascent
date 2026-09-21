@@ -39,8 +39,8 @@ export class ErrorBoundary extends Component<Props, State> {
       <div className="crashscreen" role="alert">
         <h1>The game hit a snag</h1>
         <p>
-          An unexpected error stopped the screen from updating. Try to continue where you left off —
-          if it sticks, reload to start fresh.
+          An unexpected error stopped the screen from updating. Try to continue where you left off.
+          If it sticks, reload to start fresh.
         </p>
         <pre>{error.message}</pre>
         <details className="crashdetails">

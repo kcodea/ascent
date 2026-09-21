@@ -76,14 +76,10 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   // card / rune that reacts to a summon finding no room. Wording is the owner's verbatim.
   { id: 'overflow', name: 'Overflow', aliases: [], section: 'triggers', mechanic: 'overflow', def: 'When a minion is summoned, but does not have space on your board.' },
   { id: 'bleed', name: 'Bleed', aliases: [], section: 'triggers', mechanic: 'bleed', def: "Marks random enemies at Start of Combat. Every few attacks in the fight, each marked enemy still alive takes this minion's Attack." },
-  // Orbit — a card PLAYED FROM HAND into the slot beside this minion (not a summoned token, not a reorder).
-  { id: 'orbit', name: 'Orbit', aliases: ['Orbits'], section: 'triggers', icon: 'star', def: 'Triggers when you play a card from your hand into a slot next to this minion.' },
-  // Alignment is board GEOMETRY (`packages/sim/src/alignment.ts`): left half Dawn, right half Dusk, the exact
-  // middle body Eclipse (both). It moves as you rearrange and LOCKS when combat starts.
-  { id: 'dawndusk', name: 'Dawn / Dusk', aliases: ['Dawn', 'Dusk', 'Eclipse'], section: 'triggers', icon: 'clock', def: 'Dawn is the left half of your board, Dusk the right; the exact middle minion counts as both. A Celestial fires the half that matches its side, locked in when combat starts.' },
   { id: 'chooseone', name: 'Choose One', aliases: [], section: 'triggers', mechanic: 'chooseOne', def: 'When you play it, pick one of its two effects.' },
   // Compendium-only: no shipped text says "Watcher" — the medallion + codex row name the reactive family.
-  { id: 'watcher', name: 'Watcher', aliases: [], section: 'triggers', mechanic: 'watcher', pill: false, def: 'Reacts to your other minions and actions — e.g. when another minion is summoned or attacks.' },
+  // Wording is the owner's verbatim (2026-09-21).
+  { id: 'watcher', name: 'Watcher', aliases: [], section: 'triggers', mechanic: 'watcher', pill: false, def: 'A card that triggers off other minions.' },
 
   // ── Combat keywords ────────────────────────────────────────────────────────────────────────────────────────
   { id: 'taunt', name: 'Taunt', aliases: [], badge: 'T', section: 'combat', mechanic: 'taunt', def: 'Enemies must attack this minion before any other until it is destroyed.' },
@@ -99,7 +95,8 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   { id: 'stealth', name: 'Stealth', aliases: [], badge: 'ST', section: 'combat', mechanic: 'stealth', def: "Can't be attacked until it attacks, then loses Stealth." },
   { id: 'engraved', name: 'Engraved', aliases: [], badge: 'EG', section: 'combat', mechanic: 'engraved', def: 'Keeps all stats gained during combat.' },
   // "permanently" marks a combat-time gain that outlives the fight (LG-DURATION); shop gains are permanent by default.
-  { id: 'permanent', name: 'Permanent', aliases: [], section: 'combat', icon: 'heart', detectRe: /\bpermanent(?:ly)?\b/, def: 'Lasts for the rest of the run — a gain made in combat sticks to the card on your board.' },
+  // Wording is the owner's verbatim (2026-09-21).
+  { id: 'permanent', name: 'Permanent', aliases: [], section: 'combat', icon: 'heart', detectRe: /\bpermanent(?:ly)?\b/, def: 'Imbues/Buffs carry through the run permanently.' },
 
   // ── Build & shop ───────────────────────────────────────────────────────────────────────────────────────────
   // Attachment welds by DROPPING the card onto a friendly minion that shares one of its types (`magnetizesTo`).
@@ -109,8 +106,9 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   { id: 'discover', name: 'Discover', aliases: [], section: 'build', mechanic: 'discover', def: 'Choose one of three offered cards to keep.' },
   // LG-IMPROVE-01: "Improve(s) this by +X/+X per N" — the raised number is run-permanent and printed live.
   { id: 'improve', name: 'Improve', aliases: ['Improves', 'Improving'], section: 'build', icon: 'up', detectRe: /\bimprov(?:e|es|ing)\b/, def: 'Raises the number this effect uses for the rest of the run. The card always shows the current value.' },
-  // Aura — the run-wide scope noun (owner ruling 2026-08-28): "your <Tribe> Aura".
-  { id: 'aura', name: 'Aura', aliases: ['Auras'], section: 'build', icon: 'up', def: 'A run-wide bonus for every minion of that type — on your board, in your hand, in the Shop, and any copy you get later.' },
+  // Aura — the run-wide scope noun (owner ruling 2026-08-28): "your <Tribe> Aura". Wording is the owner's
+  // verbatim (2026-09-21).
+  { id: 'aura', name: 'Aura', aliases: ['Auras'], section: 'build', icon: 'up', def: 'A run wide bonus for every minion that it suits. Carries through shop and combat phases.' },
   // The Spirits' hand-summon (owner design 2026-09-09): an exact copy at the moment of summon, the card stays.
   { id: 'summonfromhand', name: 'Summon from hand', aliases: [], section: 'build', icon: 'house', detectRe: /\bsummon(?:ed|s)?\b[^.]*?\bfrom your hand\b/, def: 'Summons an exact copy of a minion in your hand into combat. The card stays in your hand and can be summoned this way once per combat.' },
   // Equipment minions print "**Equip <Name> (cost):**" — the word "Equip" is the text hit that raises the pill

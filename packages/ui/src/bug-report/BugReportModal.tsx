@@ -95,7 +95,7 @@ function BugReportPanel() {
         <div className="bgrbody">
           <p className="bgrhelper">
             {inMenu
-              ? 'Tell us what happened and what you expected instead. Describe it in as much detail as you can — where it happened, and roughly when.'
+              ? 'Tell us what happened and what you expected instead. Describe it in as much detail as you can, including where it happened and roughly when.'
               : 'Tell us what happened and what you expected instead. The current turn and combat details will be attached automatically.'}
           </p>
           <label className="bgrlabel" htmlFor="bgrtext">What happened?</label>
@@ -112,7 +112,7 @@ function BugReportPanel() {
           />
           <div className="bgrdisclose">
             {inMenu
-              ? 'No run active — this report carries your description and build info.'
+              ? 'No run active. This report carries your description and build info.'
               : 'This report includes the current run state, recent actions, and combat events.'}
           </div>
           <label className="bgrlabel" htmlFor="bgrtype">Issue type (optional)</label>

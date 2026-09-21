@@ -69,7 +69,7 @@ export function AccountPanel() {
             {playerName && account.discriminator && <p className="acctpanel-handle">{formatHandle(playerName, account.discriminator)}</p>}
             <p className="acctpanel-email">{account.email}</p>
             <p className="acctpanel-note">
-              Your progress is saved to this account and follows you to any device — just sign in with this
+              Your progress is saved to this account and follows you to any device. Just sign in with this
               email there.
             </p>
             <button className="acctpanel-btn ghost pressable" onClick={() => void signOutAccount()}>Sign out</button>
@@ -78,8 +78,8 @@ export function AccountPanel() {
           <div className="acctpanel-body">
             <p className="acctpanel-lead">Enter your code.</p>
             <p className="acctpanel-note">
-              We emailed a code to <b>{email}</b>. Type it below to finish — your current progress upgrades to
-              that account, nothing is lost. (On the web you can click the link in the email instead.)
+              We emailed a code to <b>{email}</b>. Type it below to finish. Your current progress upgrades to
+              that account, and nothing is lost. On the web you can click the link in the email instead.
             </p>
             <input
               className="acctinput acctpanel-input acctpanel-code"
@@ -111,7 +111,7 @@ export function AccountPanel() {
           <div className="acctpanel-body">
             <p className="acctpanel-lead">Save your progress.</p>
             <p className="acctpanel-note">
-              Right now your run history and rating live only on this device — clearing data or switching
+              Right now your run history and rating live only on this device. Clearing data or switching
               machines loses them. Add your email and we’ll send a one-time code; no password needed.
             </p>
             <input

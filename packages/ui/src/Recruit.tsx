@@ -301,7 +301,7 @@ const ShopTimer = memo(function ShopTimer({ practice }: { practice?: boolean }) 
       <span className="sbtip">
         {practice
           ? 'Time left this turn. Practice only: pick 1–4× to lengthen the shop timer (1× matches a scored run).'
-          : 'Time left this turn — at 0 your actions lock; hit End Turn'}
+          : 'Time left this turn. At 0 your actions lock, so hit End Turn first.'}
       </span>
     </div>
   );
@@ -7751,7 +7751,7 @@ const CombatLogOverlay = memo(function CombatLogOverlay({ showLog, result, comba
             {combatOdds && (
               <div
                 className="logodds"
-                title="Estimated from repeated simulations of this matchup — the actual result was one roll of these odds."
+                title="Estimated from repeated simulations of this matchup. The actual result was one roll of these odds."
               >
                 <div className="oddscap">Outcome odds</div>
                 <div className="oddsbar">
@@ -7765,7 +7765,7 @@ const CombatLogOverlay = memo(function CombatLogOverlay({ showLog, result, comba
                   <span className="ol lose">{Math.round(combatOdds.lose * 100)}% loss</span>
                 </div>
                 {combatOdds.lose > 0 && (
-                  <div className="oddsavg" title="Average Health lost across the losing simulations (round-capped) — what a typical loss of this matchup costs.">
+                  <div className="oddsavg" title="Average Health lost across the losing simulations, capped by the round. This is what a typical loss of this matchup costs.">
                     Avg damage on loss: <b>{Math.round(combatOdds.avgLossDamage * 10) / 10}</b>
                   </div>
                 )}
@@ -8096,10 +8096,10 @@ const PowerOverlay = memo(function PowerOverlay({ overlaysHeld, powerOffer, disp
               {powerOffer.slot === 'mimic'
                 ? 'Choose a hero power to wield this turn'
                 : powerOffer.slot === 'shifter'
-                  ? 'Choose a hero power — it replaces your current one for the rest of the run'
+                  ? 'Choose a hero power. It replaces your current one for the rest of the run.'
                   : powerOffer.slot === 'void1'
-                    ? 'Choose your FIRST hero power — kept for the rest of the run'
-                    : 'Choose your SECOND hero power — kept for the rest of the run'}
+                    ? 'Choose your FIRST hero power. You keep it for the rest of the run.'
+                    : 'Choose your SECOND hero power. You keep it for the rest of the run.'}
             </div>
             <div className="disc-cards power-ov-cards">
               {powerOffer.heroIds.map((hid, i) => {
@@ -8204,7 +8204,7 @@ const RuneforgeOverlay = memo(function RuneforgeOverlay({ overlaysHeld, run, for
                 <button
                   className="forge-reroll"
                   onClick={() => dispatch({ type: 'rerollRuneforge' })}
-                  title="Re-roll the offered Runes — free, once per game (spending it here forfeits the other forge's re-roll)"
+                  title="Re-roll the offered Runes for free, once per game. Spending it here forfeits the other forge's re-roll."
                 >
                   <Icon name="refresh" /> Re-roll · <b className="forge-reroll-cost">Free</b>
                 </button>

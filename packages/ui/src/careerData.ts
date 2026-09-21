@@ -290,17 +290,20 @@ export interface CareerAggregates {
   firsts: number;
   /** Top-4 finishes as a whole percent of the runs that recorded a placement; null when none did. */
   top4Pct: number | null;
+  /** Bottom-4 finishes (5th–8th) — the MATCH losses (`isMatchWin`), as a count. A run with no placement
+   *  (course / rift runs) counts in neither this nor `top4Pct` (owner ask 2026-09-21). */
+  losses: number;
   /** Mean placement to one decimal over the runs that recorded one; null when none did. */
   avgPlacement: number | null;
   /** The final board's dominant tribe seen most often across runs; null when no run recorded one. */
   favoriteTribe: Tribe | null;
 }
 
-/** The four left-column tiles + the portrait's hero, over every run handed in (newest first). Pure. */
+/** The five left-column tiles + the portrait's hero, over every run handed in (newest first). Pure. */
 export function careerAggregates(runs: readonly CareerRun[]): CareerAggregates {
   const heroCount = new Map<string, number>();
   const tribeCount = new Map<Tribe, number>();
-  let placed = 0, firsts = 0, top4 = 0, placementSum = 0;
+  let placed = 0, firsts = 0, top4 = 0, losses = 0, placementSum = 0;
   for (const r of runs) {
     if (r.heroId) heroCount.set(r.heroId, (heroCount.get(r.heroId) ?? 0) + 1);
     if (r.dominantTribe) tribeCount.set(r.dominantTribe, (tribeCount.get(r.dominantTribe) ?? 0) + 1);
@@ -309,6 +312,7 @@ export function careerAggregates(runs: readonly CareerRun[]): CareerAggregates {
       placementSum += r.placement;
       if (r.placement === 1) firsts++;
       if (r.placement <= 4) top4++;
+      else losses++;
     }
   }
   // Map insertion order is newest-first, so on a tie the FIRST max is the most recently played.
@@ -321,6 +325,7 @@ export function careerAggregates(runs: readonly CareerRun[]): CareerAggregates {
     mostPlayedHero,
     firsts,
     top4Pct: placed ? Math.round((top4 / placed) * 100) : null,
+    losses,
     avgPlacement: placed ? Math.round((placementSum / placed) * 10) / 10 : null,
     favoriteTribe,
   };

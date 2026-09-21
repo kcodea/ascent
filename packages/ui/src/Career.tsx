@@ -26,7 +26,8 @@ import {
  *
  *  LEFT    the most-played hero in the SAME circular frame the recruit screen wears (the `.hero > .f >
  *          .heroimg` markup + rules from StatusBar, re-seated here without the tray transforms), its name
- *          plate, and four stat tiles — 1st Place Wins · Top 4 Finish · Avg Placement · Favorite Tribe.
+ *          plate, and five stat tiles — 1st Place Wins · Top 4 Finish · Losses · Avg Placement · Favorite Tribe
+ *          (Losses = bottom-4 finishes, the count of match losses; owner ask 2026-09-21).
  *  CENTRE  two tabs in the column header (MATCH HISTORY | HEROES, the choice persisted per browser):
  *          Match History — the account's last 25 runs FROM THE SERVER (`fetchMyRuns`; never local-only runs),
  *          each a TALL BANNER that reads top to bottom (owner 2026-09-20: "chunky and fully readable"):
@@ -489,7 +490,7 @@ export function Career() {
   } else {
     body = (
       <div className="cv2-cols">
-        {/* LEFT — most-played hero + the four tiles */}
+        {/* LEFT — most-played hero + the five tiles */}
         <aside className="cv2-col cv2-leftcol">
           <div className="cv2-colhead"><div className="cv2-sec"><Icon name="crown" />Career Stats</div></div>
           <div className="cv2-panel cv2-left">
@@ -499,6 +500,8 @@ export function Career() {
             <div className="cv2-tiles">
               <StatTile icon="crown" label="1st Place Wins" value={String(aggregates.firsts)} />
               <StatTile icon="shield" label="Top 4 Finish" value={aggregates.top4Pct === null ? '—' : `${aggregates.top4Pct}%`} />
+              {/* LOSSES (owner ask 2026-09-21): the bottom-4 finishes, as a count beside the Top 4 rate. */}
+              <StatTile icon="skull" label="Losses" value={String(aggregates.losses)} />
               <StatTile icon="star" label="Avg Placement" value={aggregates.avgPlacement === null ? '—' : String(aggregates.avgPlacement)} />
               <StatTile icon="paw" label="Favorite Tribe" value={aggregates.favoriteTribe ? TRIBE_LABEL[aggregates.favoriteTribe] : '—'} />
             </div>

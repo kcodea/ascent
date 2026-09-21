@@ -10,7 +10,7 @@ import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame, tempHandle } from './store';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
-import { Crest, IconHelm, IconTrophy } from './menuIcons';
+import { Crest, IconHelm } from './menuIcons';
 import { startReplay } from './replay/replayPlayer';
 import { getCourseProgress, skipCourse } from './tutorial/tutorialProfile';
 import { RankCrest } from './rank/RankBar';
@@ -20,12 +20,15 @@ import { rankLabel } from './rank/rankFormat';
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
  * homescreen mockup: a full-bleed sky-castle background, the ASCENT logo + wordmark, an ornate
- * left-aligned menu (Play / Career / Leaderboard / Settings), an editable account-name chip, and the
- * build version. A single store flag (`showTitle`) drives it, no router.
+ * left-aligned menu, the account corner (portrait / name / rank), and the build version. A single store
+ * flag (`showTitle`) drives it, no router.
  *
- * PLAY starts the scored Ascent climb; CAREER is a placeholder (the career/rating system isn't built
- * yet — see docs/roadmap.md Phase A). Practice + Compendium are kept as secondary links so no mode is
- * lost while the top-level menu mirrors the mockup.
+ * THE MENU (owner ask 2026-09-21): Play · Social · Patch Notes · Scene Builder (DEV only) · Settings.
+ * SOCIAL consolidates the four ladder pages — it opens the player's own Career page (`goTo('career')`),
+ * whose menu sidebar (`MenuSidebar.tsx`) still lists Career · Leaderboard · Hall of Champions · Recent
+ * Games, so every page stays one hop away without a plaque each on the title. The secondary row under the
+ * plaques keeps only Report a Problem, Balance Report (DEV) and Rewatch Last Game (when a replay exists);
+ * the Compendium left the title entirely (still the Tab key, `toggleBook`).
  */
 
 // The Crest / helm / trophy glyphs live in `menuIcons.tsx`, shared with the ladder pages' menu sidebar.
@@ -45,14 +48,12 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const startTutorial = useGame((s) => s.startTutorial);
   const startRift = useGame((s) => s.startRift);
   const startSceneBuilder = useGame((s) => s.startSceneBuilder);
-  const openLeaderboard = useGame((s) => s.openLeaderboard);
-  const openRankings = useGame((s) => s.openRankings);
-  const openRecentGames = useGame((s) => s.openRecentGames);
+  // SOCIAL → the player's own Career page through the sidebar's `goTo` (every ladder page closed first, so
+  // `careerOf` is null = your own page); the sidebar on that page leads to the other three.
+  const goTo = useGame((s) => s.goTo);
   const openBalance = useGame((s) => s.openBalance);
   const openPatchNotes = useGame((s) => s.openPatchNotes);
   const openBugReport = useGame((s) => s.openBugReport);
-  const openCareer = useGame((s) => s.openCareer);
-  const toggleBook = useGame((s) => s.toggleBook);
   const playerName = useGame((s) => s.playerName);
   const setPlayerName = useGame((s) => s.setPlayerName);
   const playerAvatar = useGame((s) => s.playerAvatar);
@@ -202,36 +203,36 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           {/* Learn moved OFF the main menu (owner 2026-08-17): it now lives in the mode picker as its own card,
               opening a learning hub (Tutorial + future advanced lessons). A new player is also offered the
               tutorial the first time they hit Play. */}
-          <button className="menubtn" onClick={() => { sfx.pulse(); openCareer(); }} data-tip="Your match history + per-hero stats">
+          {/* SOCIAL (owner ask 2026-09-21) — Career, Leaderboard, Hall of Champions and Recent Games folded into
+              one plaque. It opens your Career page; that page's sidebar carries the other three. The helm is the
+              Career glyph the sidebar still wears, so the destination reads the same on both. */}
+          <button className="menubtn" onClick={() => { sfx.pulse(); goTo('career'); }} data-tip="Your Career, the Leaderboard, the Hall of Champions and Recent Games">
             <span className="mbicon"><IconHelm /></span>
-            <span className="mblabel">{txt.career}</span>
+            <span className="mblabel">Social</span>
           </button>
-          <button className="menubtn" onClick={() => { sfx.pulse(); openRankings(); }} data-tip="Top players by rating">
-            <span className="mbicon"><IconTrophy /></span>
-            <span className="mblabel">{txt.leaderboard}</span>
-          </button>
-          <button className="menubtn" onClick={() => { sfx.pulse(); openLeaderboard(); }} data-tip="The latest victory runs + their warbands">
-            <span className="mbicon"><Icon name="crown" /></span>
-            <span className="mblabel">{txt.champions}</span>
-          </button>
-          <button className="menubtn" onClick={() => { sfx.pulse(); openRecentGames(); }} data-tip="The last 20 games played across every player">
+          <button className="menubtn" onClick={() => { sfx.pulse(); openPatchNotes(); }} data-tip="Gameplay changes by date">
             <span className="mbicon"><Icon name="clock" /></span>
-            <span className="mblabel">Recent Games</span>
+            <span className="mblabel">Patch Notes</span>
           </button>
+          {/* DEV-ONLY: the Scene Builder is a dev sandbox stripped from the player build (the prod menu is Play ·
+              Social · Patch Notes · Settings). */}
+          {import.meta.env.DEV && (
+            <button className="menubtn" onClick={() => { sfx.pulse(); startSceneBuilder(); }} data-tip="A dev sandbox. A lobby game against bots where you cannot be eliminated, with any board, any enemy, god or normal rules.">
+              <span className="mbicon"><Icon name="anvil" /></span>
+              <span className="mblabel">Scene Builder</span>
+            </button>
+          )}
           <button className="menubtn" onClick={onSettings}>
             <span className="mbicon"><Icon name="gear" /></span>
             <span className="mblabel">{txt.settings}</span>
           </button>
         </nav>
 
-        {/* Preserved secondary modes (not in the mockup, kept so nothing is lost). */}
+        {/* Secondary links under the plaques: the reporter, the DEV balance report and the last replay. The
+            Compendium link left here on 2026-09-21 (owner: "not important" on the title); it is still Tab. */}
         <div className="titlesecondary">
-          <button onClick={() => { sfx.pulse(); toggleBook(); }} data-tip="Compendium. Browse every card.">Compendium</button>
-          <span className="tsdot">·</span>
-          <button onClick={() => { sfx.pulse(); openPatchNotes(); }} data-tip="Patch Notes. Gameplay changes by date.">Patch Notes</button>
           {/* BUG REPORTER from the MAIN MENU (owner ask 2026-08-27): the same reporter as in-game Ctrl+B —
               no run needed; the description is the payload. Routes through the store's one open authority. */}
-          <span className="tsdot">·</span>
           <button onClick={() => { sfx.pulse(); openBugReport(); }} data-tip="Spotted a problem? Describe it here, no run needed (Ctrl+B).">Report a Problem</button>
           {/* DEV-ONLY (owner 2026-08-24): the Balance Report is a dev/telemetry view, stripped from the exe +
               itch prod builds. The dot rides inside the guard so prod never shows a dangling separator. */}
@@ -248,12 +249,6 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <>
               <span className="tsdot">·</span>
               <button onClick={() => { sfx.pulse(); startReplay(lastReplay); }} data-tip="Watch back your last finished game">Rewatch Last Game</button>
-            </>
-          )}
-          {import.meta.env.DEV && (
-            <>
-              <span className="tsdot">·</span>
-              <button onClick={() => { sfx.pulse(); startSceneBuilder(); }} data-tip="Scene Builder. A dev sandbox: a lobby game against bots where you can't be eliminated, with any board, any enemy, god or normal rules.">Scene Builder</button>
             </>
           )}
         </div>

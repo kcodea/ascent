@@ -5461,7 +5461,9 @@ body:has(.titlescreen) .version { visibility: hidden; }
    generic fade-and-rise. `backwards` holds the invisible first frame through the delay; no `forwards`, so once
    the animation ends the transform returns to the hover transition's control and the two never fight.
    Runs once per title mount (the mode picker is a sibling overlay, so closing it doesn't re-fire this).
-   Six children max — the total tail is ~0.65s, and it's transform + opacity only. */
+   Six children max — the Continue row + Play · Social · Patch Notes · Scene Builder (DEV) · Settings (menu
+   2026-09-21) — the total tail is ~0.65s, and it's transform + opacity only. A seventh seat is listed so an
+   extra plaque never lands ahead of the others (an unlisted child would seat at delay 0). */
 .titlenav > * { animation: mbseat 0.42s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
 .titlenav > *:nth-child(1) { animation-delay: 0.04s; }
 .titlenav > *:nth-child(2) { animation-delay: 0.09s; }
@@ -5469,6 +5471,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .titlenav > *:nth-child(4) { animation-delay: 0.19s; }
 .titlenav > *:nth-child(5) { animation-delay: 0.24s; }
 .titlenav > *:nth-child(6) { animation-delay: 0.29s; }
+.titlenav > *:nth-child(7) { animation-delay: 0.34s; }
 @keyframes mbseat { from { opacity: 0; transform: translateX(-26px); } to { opacity: 1; transform: none; } }
 
 /* Reduced motion: the plaques are simply already seated, and the lamp doesn't sweep. Press, hover and focus
@@ -10412,14 +10415,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .pnlabel { font-family: var(--font-ui); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--acc); background: color-mix(in srgb, var(--acc) 14%, transparent); border: 1px solid color-mix(in srgb, var(--acc) 35%, transparent); padding: 2px 9px; border-radius: 999px; }
 .pngroup { display: grid; grid-template-columns: 116px 1fr; gap: 12px; align-items: start; padding: 5px 0; }
 .pntag { justify-self: start; font-family: var(--font-ui); font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 3px 10px; border-radius: 8px; white-space: nowrap; color: var(--pn-c, var(--ink2)); background: color-mix(in srgb, var(--pn-c, var(--ink2)) 14%, transparent); border: 1px solid color-mix(in srgb, var(--pn-c, var(--ink2)) 34%, transparent); }
-/* Per-category hue — reuse the existing palette tokens so patch tags match the rest of the game's language. */
-.pntag-newhero   { --pn-c: var(--t-beast); }
-.pntag-herochange{ --pn-c: var(--t-demon); }
-.pntag-newcard   { --pn-c: var(--t-dragon); }
-.pntag-cardchange{ --pn-c: var(--t-kobold); }
-.pntag-newrune   { --pn-c: var(--t-undead); }
-.pntag-runechange{ --pn-c: var(--t-dwarf); }
-.pntag-ui        { --pn-c: var(--ink3); }
+/* Per-category hue (the owner's two buckets, 2026-09-21) — reuse the existing palette tokens so patch tags
+   match the rest of the game's language: Balance (cards / heroes / runes / spells + the ranked ladder) wears
+   the HUD's warm gold trim, Systems (everything else) the neutral label ink. */
+.pntag-balance { --pn-c: var(--gold-lt); }
+.pntag-systems { --pn-c: var(--ink3); }
 .pnlist { margin: 0; padding: 0 0 0 2px; list-style: none; display: flex; flex-direction: column; gap: 6px; }
 .pnlist > li { font-family: var(--font-ui); font-weight: 600; font-size: 14.5px; line-height: 1.4; color: var(--ink2); }
 /* Detailed view: the granular sub-bullets under a change. Indented, dimmer, with a real bullet to read as a

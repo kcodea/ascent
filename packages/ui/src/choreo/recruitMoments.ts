@@ -86,9 +86,18 @@ export type RecruitMomentKind =
   /** A minion GAINED Ward (`'DS'`) in the shop — a Battlecry/Shout/rune granting Divine Shield to a unit
    *  already in play. The recruit twin of combat's `shieldGain` moment (the `shieldUp` event): one binding
    *  (`shieldGain`) serves both phases. Detected by a keyword board-diff in `Recruit.tsx`, like the self-buff. */
-  | 'shieldGain';
+  | 'shieldGain'
+  /**
+   * A minion was PLAYED FROM HAND — dragged/bought out of the hand onto the board (as opposed to a token
+   * summoned by another card, or a minion merged in by a Triple, neither of which passes through the hand).
+   * Unlike `shout` this is NOT gated on the def carrying an `onPlay`: a vanilla body (Void Panther's plain
+   * Deathrattle) fires it too, which is what lets ANY card carry a "played" sound. Detected in `Recruit.tsx`
+   * by a board-diff intersected with the PREVIOUS frame's hand uids (a played card keeps its uid moving
+   * hand→board), so tokens and Triple-merges — never in hand — are excluded. Recipient IS the source, keyed
+   * by its card id so each played minion resolves its OWN binding (the by-card play cue). */
+  | 'minionPlayed';
 
-export const RECRUIT_MOMENT_KINDS: readonly RecruitMomentKind[] = ['rubyLanded', 'shopRubied', 'shopBuffAll', 'minionBuffed', 'minionSelfBuffed', 'shout', 'spellCast', 'shieldGain'];
+export const RECRUIT_MOMENT_KINDS: readonly RecruitMomentKind[] = ['rubyLanded', 'shopRubied', 'shopBuffAll', 'minionBuffed', 'minionSelfBuffed', 'shout', 'spellCast', 'shieldGain', 'minionPlayed'];
 
 /**
  * A `shout` moment, built here rather than inline at the call site so the kind has a NAMED emitter in this
@@ -113,6 +122,17 @@ export function shoutMoment(uid: string, cardId: string): RecruitMoment {
  */
 export function selfBuffMoment(uid: string, cardId: string): RecruitMoment {
   return { kind: 'minionSelfBuffed', sourceCardId: cardId, recipients: [{ uid, count: 1 }] };
+}
+
+/**
+ * A `minionPlayed` moment — a minion just played from hand. Same shape as `shoutMoment` (recipient IS the
+ * source, keyed by its card so each played minion resolves its OWN binding), but emitted from a DIFFERENT
+ * `Recruit.tsx` detector: a board-diff intersected with the previous frame's hand uids, so it fires for every
+ * hand-play regardless of `onPlay` and never for tokens or Triple-merges. Named here so the kind has a source
+ * the `recruitMoments.test.ts` invariant can see.
+ */
+export function minionPlayedMoment(uid: string, cardId: string): RecruitMoment {
+  return { kind: 'minionPlayed', sourceCardId: cardId, recipients: [{ uid, count: 1 }] };
 }
 
 /**

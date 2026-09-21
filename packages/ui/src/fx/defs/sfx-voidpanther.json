@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "id": "sfx-voidpanther",
+  "duration": 1000,
+  "layers": [
+    {
+      "primitive": "sound",
+      "anchor": "travel",
+      "at": 0,
+      "params": {
+        "clip": "fx/voidpanthergrowl",
+        "gain": 0.35,
+        "gainCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "pitch": 1.24,
+        "reverse": false,
+        "loop": false,
+        "startOffset": 230,
+        "endOffset": 710,
+        "delay": 0,
+        "fadeIn": 0,
+        "fadeOut": 0,
+        "gainVar": 0,
+        "pitchVar": 0,
+        "bus": "combat",
+        "eqOn": false,
+        "eq_low": 0,
+        "eq_lowCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "eq_mid": 0,
+        "eq_midCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "eq_high": 0,
+        "eq_highCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "compOn": false,
+        "comp_threshold": -24,
+        "comp_thresholdCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "comp_ratio": 4,
+        "comp_attack": 3,
+        "comp_release": 250,
+        "distortOn": false,
+        "distort_drive": 0.3,
+        "distort_mix": 1,
+        "distort_mixCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "delayOn": false,
+        "delay_time": 250,
+        "delay_feedback": 0.35,
+        "delay_mix": 0.3,
+        "delay_mixCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "reverbOn": true,
+        "reverb_size": 4.2,
+        "reverb_damping": 0.35,
+        "reverb_mix": 0.14,
+        "reverb_mixCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ],
+        "panOn": false,
+        "pan_pan": 0,
+        "pan_panCurve": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ]
+      }
+    }
+  ]
+}

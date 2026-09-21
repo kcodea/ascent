@@ -148,6 +148,16 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-21',
+    label: 'Void Panther growl',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Void Panther now gives a growl when you play it from hand.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-21',
     label: 'Ladder row portraits',
     changes: [
       {

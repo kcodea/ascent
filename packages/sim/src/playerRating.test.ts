@@ -14,6 +14,7 @@ import {
   STARTING_RATING,
   type PlayerProfile,
 } from './playerRating';
+import { initialRankedProfile } from './rank';
 
 describe('player rating — Line bands', () => {
   it('maps rating to the raw Line band', () => {
@@ -63,7 +64,7 @@ describe('player rating — the delta table', () => {
 });
 
 describe('player rating — resolveRunRating (win-weighted model)', () => {
-  const base: PlayerProfile = { rating: 1420, currentLine: 9, highestRating: 1420, highestLine: 9 };
+  const base: PlayerProfile = { rank: initialRankedProfile(), rating: 1420, currentLine: 9, highestRating: 1420, highestLine: 9 };
 
   it('TRULY winning — over the Line AND won round 17: line + summit + final-win stack high', () => {
     // Line 9, 11 scored wins (delta +2), reached the summit, won the final.
@@ -134,7 +135,7 @@ describe('player rating — resolveRunRating (win-weighted model)', () => {
   });
 
   it('floors rating at 0', () => {
-    const low: PlayerProfile = { rating: 10, currentLine: 7, highestRating: 800, highestLine: 8 };
+    const low: PlayerProfile = { rank: initialRankedProfile(), rating: 10, currentLine: 7, highestRating: 800, highestLine: 8 };
     const r = resolveRunRating(low, { scoredWins: 0, line: 7, completed: false, wonFinal: false }); // -32
     expect(r.ratingAfter).toBe(0);
     expect(r.profile.rating).toBe(0);
@@ -145,7 +146,7 @@ describe('player rating — resolveRunRating (win-weighted model)', () => {
 describe('player rating — promotion/demotion hysteresis', () => {
   it('promotes when rating clears the next band threshold', () => {
     // At Line 8 (rating 1150), a strong run pushes past 1200 → promote to Line 9.
-    const p: PlayerProfile = { rating: 1194, currentLine: 8, highestRating: 1194, highestLine: 8 };
+    const p: PlayerProfile = { rank: initialRankedProfile(), rating: 1194, currentLine: 8, highestRating: 1194, highestLine: 8 };
     const r = resolveRunRating(p, { scoredWins: 10, line: 8, completed: true, wonFinal: false }); // +12 +8 = +20 → 1214
     expect(r.ratingAfter).toBe(1214);
     expect(r.lineAfter).toBe(9);
@@ -154,7 +155,7 @@ describe('player rating — promotion/demotion hysteresis', () => {
 
   it('holds the Line inside the 75-point buffer (no yo-yo)', () => {
     // At Line 9 rating 1210; a small miss stays Line 9 (demotion needs < 1125).
-    const p: PlayerProfile = { rating: 1210, currentLine: 9, highestRating: 1210, highestLine: 9 };
+    const p: PlayerProfile = { rank: initialRankedProfile(), rating: 1210, currentLine: 9, highestRating: 1210, highestLine: 9 };
     const r = resolveRunRating(p, { scoredWins: 6, line: 9, completed: true, wonFinal: false }); // -24 +8 = -16 → 1194
     expect(r.ratingAfter).toBe(1194);
     expect(r.lineAfter).toBe(9); // still inside the buffer (>= 1125)
@@ -163,7 +164,7 @@ describe('player rating — promotion/demotion hysteresis', () => {
 
   it('demotes only when rating falls under the buffer', () => {
     // At Line 9 rating 1140; a bad run drops under 1125 → demote to Line 8.
-    const p: PlayerProfile = { rating: 1140, currentLine: 9, highestRating: 1300, highestLine: 9 };
+    const p: PlayerProfile = { rank: initialRankedProfile(), rating: 1140, currentLine: 9, highestRating: 1300, highestLine: 9 };
     const r = resolveRunRating(p, { scoredWins: 6, line: 9, completed: false, wonFinal: false }); // -24 → 1116
     expect(r.ratingAfter).toBe(1116);
     expect(r.lineAfter).toBe(8);
@@ -183,12 +184,12 @@ describe('player rating — promotion/demotion hysteresis', () => {
 
 describe("resolveLobbyRating — the ladder's only rating source (owner rework 2026-07-31)", () => {
   it('pays by placement: top half gains, bottom half loses, floored at 0', () => {
-    const p: PlayerProfile = { rating: 100, currentLine: 7, highestRating: 100, highestLine: 7 };
+    const p: PlayerProfile = { rank: initialRankedProfile(), rating: 100, currentLine: 7, highestRating: 100, highestLine: 7 };
     expect(resolveLobbyRating(p, 1).ratingDelta).toBe(LOBBY_PLACEMENT_DELTAS[0]);
     expect(resolveLobbyRating(p, 4).ratingDelta).toBe(LOBBY_PLACEMENT_DELTAS[3]);
     expect(resolveLobbyRating(p, 8).ratingDelta).toBe(LOBBY_PLACEMENT_DELTAS[7]);
     // Floor: an 8th at 10 rating cannot go negative.
-    const low: PlayerProfile = { rating: 10, currentLine: 7, highestRating: 10, highestLine: 7 };
+    const low: PlayerProfile = { rank: initialRankedProfile(), rating: 10, currentLine: 7, highestRating: 10, highestLine: 7 };
     expect(resolveLobbyRating(low, 8).ratingAfter).toBe(0);
     // An out-of-range placement clamps rather than throwing (a malformed lobby must not crash the end screen).
     expect(resolveLobbyRating(p, 99).ratingDelta).toBe(LOBBY_PLACEMENT_DELTAS[7]);
@@ -196,7 +197,7 @@ describe("resolveLobbyRating — the ladder's only rating source (owner rework 2
 
   it('the Line (course par) tracks lobby MMR through the same promotion bands', () => {
     // 780 + a 1st (+100) crosses the Line-8 promotion at 800.
-    const p: PlayerProfile = { rating: 780, currentLine: 7, highestRating: 780, highestLine: 7 };
+    const p: PlayerProfile = { rank: initialRankedProfile(), rating: 780, currentLine: 7, highestRating: 780, highestLine: 7 };
     const c = resolveLobbyRating(p, 1);
     expect(c.ratingAfter).toBe(880);
     expect(c.promoted).toBe(true);

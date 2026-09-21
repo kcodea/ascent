@@ -597,6 +597,12 @@ export function procRuneId(s: RunState, id: string | undefined, times = 1): void
 
 export interface RunState {
   seed: number;
+  /** MEDAL RANK (2026-09-20): the run's stable RANKED identity — a client-minted UUID stamped on a rated
+   *  lobby at creation and persisted with the save, so a retried settlement always names the same run and
+   *  the server's `rank_results` ledger dedupes it. Absent on runs from before medals (and on every run the
+   *  sim itself creates — `createRun`/`createLobbyRun` never mint one, so seeds stay the only determinism
+   *  input); `rankedRunIdOf` then falls back to `String(seed)`, the pre-medal identity. */
+  runId?: string;
   /** Game mode — see `RunMode`.
    *  'ascent' (the scored climb) or 'practice' (the SAME course — any hero, unlimited health,
    *  3× shop timer — so it reads identically to Ascent; ends at `courseRounds` regardless of W/L, unscored).

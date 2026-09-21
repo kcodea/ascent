@@ -179,6 +179,27 @@ export function playableDef(def: StoredFxDef): FxDef {
 }
 
 /**
+ * The live centre of the SOURCE unit for a def-authored `followSource` play (see `FxDef.followSource`): the
+ * card's own rect, or — while it is being dragged — the floating `.dragcard` clone's, so the effect rides the
+ * card instead of sticking to the parked drag-origin slot (mirrors `milestoneBadgeFx`'s badge-follow). Returns
+ * `null` when the unit has no layout box this frame, which hides the effect for that frame without ending the
+ * caller-owned loop. DOM-guarded so a headless import never throws.
+ */
+function liveSourcePoint(uid: string | null | undefined): { x: number; y: number } | null {
+  if (!uid || typeof document === 'undefined') return null;
+  const el = document.querySelector<HTMLElement>(unitSelector(uid));
+  if (!el) return null;
+  // The `.card[data-uid]` IS the element `unitSelector` matches, and `.dragsrc` rides that same class list
+  // while this card is the drag origin (Card.tsx). Its slot copy is parked/dimmed then, so follow the clone.
+  const src = el.classList.contains('dragsrc')
+    ? document.querySelector<HTMLElement>('.dragcard .card')
+    : el;
+  const r = src?.getBoundingClientRect();
+  if (!r || !(r.width > 0) || !(r.height > 0)) return null;
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+
+/**
  * PURE: a fire's 0..1 progress, for `resolveAnchor`'s `travel` interpolation.
  *
  * Clamped at both ends because neither is hypothetical: a fire deliberately runs PAST `def.duration` (an
@@ -504,6 +525,12 @@ function playDefInner(
   const load = expectedLoad(def);
   admitPlay(id, load);
 
+  // A def can author "ride my source" (`FxDef.followSource`) instead of the caller passing a per-frame
+  // `follow`. An explicit `opts.follow` still wins; otherwise, when the def opts in AND a source uid was
+  // given, synthesize the same per-frame re-anchor from that uid's live DOM position (drag-aware).
+  const follow: PlayDefOptions['follow'] =
+    opts.follow ?? (stored.followSource ? () => liveSourcePoint(opts.uids?.source) : undefined);
+
   const container = new Container();
   const unmountLayer = pixiFx.mountLayer(container, slot);
   const player = createPlayer(
@@ -550,7 +577,7 @@ function playDefInner(
   // Registered only now that `retire` exists. A looping / following play is caller-owned and a play with an
   // `onDone` is being sequenced on, so none of the three may be trimmed (see `fxBudget.ts`'s header).
   unregisterPlay = registerLivePlay({
-    id, load, retire, protected: opts.loop === true || opts.follow !== undefined || opts.onDone !== undefined,
+    id, load, retire, protected: opts.loop === true || follow !== undefined || opts.onDone !== undefined,
   });
 
   // `fx:def:<id>` — the def's PER-FRAME cost (its layers' sims + filter retunes), as distinct from the spawn
@@ -582,8 +609,8 @@ function playDefInner(
     // (see PlayDefOptions.follow). `null` hides the effect for this frame without ending the caller-owned
     // play; a point overrides all three of the snapshot anchors so a single-anchor emitter follows it.
     let live = anchors;
-    if (opts.follow) {
-      const p = opts.follow();
+    if (follow) {
+      const p = follow();
       if (!p) {
         container.visible = false;
         return;

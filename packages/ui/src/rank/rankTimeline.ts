@@ -1,7 +1,8 @@
 /**
  * The GSAP execution of a planned rank sequence (`rankSequence.ts`). Compositor-only: the bar is a `scaleX`
- * on the fill, the crest swap is scale + opacity, every text beat is an opacity fade; the counter writes
- * `textContent` from a tweened proxy (no React re-render per frame, no layout reads). Sounds are fired from
+ * on the fill, the crest swap is transform (scale / y) + opacity, every text beat is an opacity fade; the
+ * counter writes `textContent` from a tweened proxy (no React re-render per frame, no layout reads). Sounds —
+ * the cues AND the authored defs (`rank-up` / `down-rank`, whose own `sound` layers play) — are fired from
  * `.call()`s so a skip (`progress(1, true)`) stays silent.
  */
 import { gsap } from 'gsap';
@@ -14,6 +15,11 @@ import type { RankStep } from './rankSequence';
 export const RANK_UP_HIT_MS = 280;
 /** The def's full length — the transition beat stretches to cover it so the burst is not cut off. */
 export const RANK_UP_FX_MS = 900;
+/** When the owner's `down-rank` def (2026-09-21) lets its shards fall (its burst layer's `at`; the shockwave
+ *  precedes it at 60 ms and the sound layer starts at 0): the OLD crest holds until then, then drops out. */
+export const RANK_DOWN_HIT_MS = 90;
+/** The def's full length — the down transition beat covers it so the falling shards are not cut off. */
+export const RANK_DOWN_FX_MS = 900;
 
 export interface RankTimelineTargets {
   placement: HTMLElement | null;
@@ -123,13 +129,26 @@ export function buildRankTimeline(steps: readonly RankStep[], t: RankTimelineTar
           tl.to([...el(t.label), ...el(t.track), ...el(t.points)], { opacity: 1, duration: 0.24, ease: 'power1.out' }, '<');
           tl.to({}, { duration: Math.max(0, sec(step.ms) - sec(RANK_UP_HIT_MS) - 0.24) }, '>'); // let the burst finish
         } else {
-          const half = sec(step.ms) / 2;
-          // The old crest + label leave; the bar is dimmed while it snaps to the new division's starting edge.
-          tl.to([...el(t.crestOld), ...el(t.label)], { opacity: 0, scale: 0.9, duration: half, ease: 'power2.in' }, '>');
-          tl.to([...el(t.track), ...el(t.points)], { opacity: 0.25, duration: half, ease: 'power1.in' }, '<');
-          tl.call(swap, undefined, '>');
-          tl.fromTo(el(t.crestNew), { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: half, ease: 'power2.out' }, '<');
-          tl.to([...el(t.label), ...el(t.track), ...el(t.points)], { opacity: 1, duration: half, ease: 'power1.out' }, '<');
+          // A DEMOTION (division or medal — every `direction: 'down'` transition) is the owner-authored `down-rank`
+          // FX (2026-09-21): the OLD crest HOLDS while the shockwave leaves it (0 → 90 ms), then at the HIT the
+          // shards fall, the old crest drops away, the crest swaps to the new division / medal and the label + bar
+          // snap to it. The def's own `sound` layer IS the sound — there is no demotion cue, and `cues.hit` is the
+          // promotion clang, so nothing is fired from here. The beat is the def's full length so the fall is not
+          // cut off. With no canvas (`playDef` declines) the same hold → drop → replace plays without particles —
+          // that is the plain fade-and-replace fallback. The play sits inside a `.call()`, so a skip
+          // (`progress(1, true)`) never starts it and stays silent.
+          tl.call(() => {
+            const at = crestCentre(t.crestOld);
+            if (at && canPlayDefs()) playDef('down-rank', { source: at, target: at, cursor: at });
+          }, undefined, '>');
+          tl.to([...el(t.track), ...el(t.points)], { opacity: 0.25, duration: sec(RANK_DOWN_HIT_MS), ease: 'power1.in' }, '<');
+          tl.call(swap, undefined, `<${sec(RANK_DOWN_HIT_MS)}`);
+          // At the hit: the old crest drops and shrinks out (transform + opacity only) while the new one settles
+          // in from slightly small — a demotion lands, it does not burst in.
+          tl.to(el(t.crestOld), { opacity: 0, scale: 0.86, y: 22, duration: 0.18, ease: 'power2.in' }, '<');
+          tl.fromTo(el(t.crestNew), { opacity: 0, scale: 0.92, y: -6 }, { opacity: 1, scale: 1, y: 0, duration: 0.24, ease: 'power2.out' }, '<');
+          tl.to([...el(t.label), ...el(t.track), ...el(t.points)], { opacity: 1, duration: 0.24, ease: 'power1.out' }, '<');
+          tl.to({}, { duration: Math.max(0, sec(step.ms) - sec(RANK_DOWN_HIT_MS) - 0.24) }, '>'); // let the shards fall
         }
         break;
       }

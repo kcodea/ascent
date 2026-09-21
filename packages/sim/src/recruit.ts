@@ -8451,7 +8451,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  the combat death site (`noteCardDeath`) reads it and grants the run-wide `cardBuffs` enchant, which the shop
    *  already bakes into every copy (board, hand, future). Nothing to do here; the stub keeps the phase map honest. */
   cardDeathScaler: () => {},
-  dealtDamageAleMeter: () => {}, // Han Gover: combat-only meter (no damage is dealt in the shop); the tally rides the run card
+  dealtDamageAleMeter: () => {}, // Han Gover (Pummel (40)): combat-only meter, once per combat; starts every fight at 0 and carries back 0
   dealtDamageGoldNextTurn: () => {}, // Goldvein (2026-09-19): the same combat-only meter, a Gold-next-turn body
 
   /** NIGHT MARKET HORROR — "After you buy a card, give minions in the shop +2/+2 THIS TURN."

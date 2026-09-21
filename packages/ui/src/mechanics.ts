@@ -5,7 +5,7 @@
  * NOT here: it lives in `keywordGlossary.ts` (the one definition the hover pill and the Compendium both read),
  * linked by `KeywordDef.mechanic === Mechanic.id`; `def` below is filled from it at module load.
  */
-import type { CardDef, EffectDef, Keyword } from '@game/core';
+import { DAMAGE_METER_DOS, type CardDef, type EffectDef, type Keyword } from '@game/core';
 import { KEYWORD_GLOSSARY } from './keywordGlossary';
 
 /** The card fields a predicate needs. A full CardDef satisfies it; the resolver builds one per CardView. */
@@ -113,6 +113,9 @@ const REGISTRY: Omit<Mechanic, 'def'>[] = [
   { id: 'startCombat', term: 'Start of Combat', glyph: 'fist', detect: kwMatch('SC'), kw: 'SC', termRe: /start of combat/i, order: 12 },
   { id: 'endTurn', term: 'End of Turn', glyph: 'sc', detect: hasOn('endOfTurn'), termRe: /end of turn/i, order: 13 },
   { id: 'avenge', term: 'Avenge (N)', glyph: 'skull', detect: hasOn('avenge'), termRe: /\bavenge\b/i, order: 14 },
+  // PUMMEL (owner keyword 2026-09-21): the damage-dealt threshold trigger (Han Gover, Goldvein) — a passive
+  // `DAMAGE_METER_MARKERS` body, detected off core's registry so a third meter card joins without touching this.
+  { id: 'pummel', term: 'Pummel (X)', glyph: 'fist', detect: (m) => m.effects.some((e) => e.on === 'passive' && DAMAGE_METER_DOS.includes(e.do)), termRe: /\bpummels?\b/i, order: 20 },
   { id: 'rally', term: 'Rally', glyph: 'sword', detect: kwMatch('RL'), kw: 'RL', termRe: /\brally\b|\brallies\b/i, order: 15 },
   { id: 'slaughter', term: 'Slaughter', glyph: 'slaughter', detect: kwMatch('SL'), kw: 'SL', termRe: /\bslaughters?\b/i, order: 16 },
   { id: 'bleed', term: 'Bleed', glyph: 'poison', detect: hasDo(/^scArmBleed$/), termRe: /\bbleed\b/i, order: 17 },

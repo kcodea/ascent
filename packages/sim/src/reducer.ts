@@ -4009,7 +4009,9 @@ export function playerBoardMinions(board: readonly BoardCard[]): BoardMinion[] {
     ascendProgress: b.ascendProgress ?? 0, // Tara: seed the prior ascend tally so the live tracker shows the total
     spellProgress: b.spellProgress, // Guel: seed his on-board spell tally so the live combat text scales (not stuck at base)
     spiritTally: b.spiritTally, // Set 3 Spirits: Forest Colossus's Start of Combat reads it; Festival Keeper / Aspect print it
-    damageDealt: b.damageDealt, // Han Gover: seed the damage meter so it continues from the run total
+    // Pummel (Han Gover, Goldvein): carried for a persistent meter. A once-per-combat meter (every meter since
+    // 2026-09-21, `resetEachCombat`) ignores it in core's `instantiate` and starts the fight at 0.
+    damageDealt: b.damageDealt,
     soldProgress: b.soldProgress, // Runic Archivist: display-only, so the combat card prints its live count
     boardFirstSpellId: b.boardFirstSpellId, // Spell Warden: display-only
     eotBonus: b.eotBonus, // Ritualist: seed the End-of-Turn grant so the live combat text reads its current per-tick value

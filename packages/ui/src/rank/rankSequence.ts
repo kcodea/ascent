@@ -28,9 +28,11 @@ export const RANK_BEAT_MS = {
   /** Each half of a two-bar sequence (promotion / demotion) — shorter so the whole thing stays ~3 s. */
   barHalf: 700,
   gate: 500,
-  transition: 550,
   /** An UP transition is the owner's `rank-up` FX: 280 ms ring collapse → hit → the burst's tail (900 ms def). */
   transitionUp: 900,
+  /** A DOWN transition is the owner's `down-rank` FX (2026-09-21): shockwave at 60 ms → the shard fall at the
+   *  90 ms hit → its tail (900 ms def). Both demotion kinds (division and medal) take it. */
+  transitionDown: 900,
   outcome: 400,
 } as const;
 
@@ -51,12 +53,12 @@ export function planRankSequence(r: RankResult): RankStep[] {
     // A LOST DEMOTION GAME (owner 2026-09-20): the bar already sits at 0 — hold it there a beat, transition
     // the crest down a medal, then the landing division's bar fills to the landing points.
     steps.push({ kind: 'bar', ms: RANK_BEAT_MS.barHalf, divisionIndex: r.before.divisionIndex, from: 0, to: 0, uncapped: false });
-    steps.push({ kind: 'transition', ms: RANK_BEAT_MS.transition, from: r.before.divisionIndex, to: r.after.divisionIndex, direction: 'down', medal: medalChange });
+    steps.push({ kind: 'transition', ms: RANK_BEAT_MS.transitionDown, from: r.before.divisionIndex, to: r.after.divisionIndex, direction: 'down', medal: medalChange });
     steps.push({ kind: 'bar', ms: RANK_BEAT_MS.barHalf, divisionIndex: r.after.divisionIndex, from: 0, to: r.after.points, uncapped: false });
   } else if (r.demoted) {
     // Drain the old division to zero, transition down, then the previous division retreats from 100.
     steps.push({ kind: 'bar', ms: RANK_BEAT_MS.barHalf, divisionIndex: r.before.divisionIndex, from: r.before.points, to: 0, uncapped: false });
-    steps.push({ kind: 'transition', ms: RANK_BEAT_MS.transition, from: r.before.divisionIndex, to: r.after.divisionIndex, direction: 'down', medal: medalChange });
+    steps.push({ kind: 'transition', ms: RANK_BEAT_MS.transitionDown, from: r.before.divisionIndex, to: r.after.divisionIndex, direction: 'down', medal: medalChange });
     steps.push({ kind: 'bar', ms: RANK_BEAT_MS.barHalf, divisionIndex: r.after.divisionIndex, from: POINTS_PER_DIVISION, to: r.after.points, uncapped: false });
   } else {
     steps.push({ kind: 'bar', ms: RANK_BEAT_MS.bar, divisionIndex: r.before.divisionIndex, from: r.before.points, to: r.after.points, uncapped: isUncapped(r.after.divisionIndex) });

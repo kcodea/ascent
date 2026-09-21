@@ -56,6 +56,7 @@ const cues = {
   promote: () => sfx.rankPromote(),
   medal: () => sfx.rankMedal(),
   // The rank-up HIT is the Runeforge lock-in clang (`runeselect.mp3`, owner pick 2026-09-20) — reused, not copied.
+  // A demotion has NO cue here: its sound is the `down-rank` def's own `sound` layer (2026-09-21).
   hit: () => sfx.runeSelect(),
 };
 

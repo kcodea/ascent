@@ -128,8 +128,10 @@ describe('Match History', () => {
     expect(rows.map((r) => r.querySelector('.cv2-row-result')?.classList.contains('win'))).toEqual([true, true, false]);
     expect(rows[2]!.querySelector('.cv2-row-result')?.classList.contains('loss')).toBe(true);
     expect(rows.map((r) => r.querySelector('.cv2-row-result')?.getAttribute('aria-label'))).toEqual(['Match win', 'Match win', 'Match loss']);
-    // The fight record survives only as a small caption — never the headline W–L any more.
-    expect(text('.cv2-row .cv2-row-fights')).toEqual(['Fights 9–4', 'Fights 5–5', 'Fights 2–5']);
+    // The fight record survives only as a small bare "N–M" caption (no "Fights" word — owner 2026-09-21; the
+    // aria-label carries the meaning) — never the headline W–L any more.
+    expect(text('.cv2-row .cv2-row-fights')).toEqual(['9–4', '5–5', '2–5']);
+    expect(rows.map((r) => r.querySelector('.cv2-row-fights')?.getAttribute('aria-label'))).toEqual(['Fights: 9 won, 4 lost', 'Fights: 5 won, 5 lost', 'Fights: 2 won, 5 lost']);
     expect(ui.container.querySelector('.cv2-row-record')).toBeNull();
     // Reading order inside a banner: head (hero ‖ outcome) → team → foot (runes ‖ watch).
     for (const r of rows) {

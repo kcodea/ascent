@@ -159,25 +159,26 @@ describe('the planned sequence per fixture', () => {
     const steps = planRankSequence(fixtureById('demotion')!.result!);
     expect(steps.map((s) => s.kind)).toEqual(['reveal', 'establish', 'bar', 'transition', 'bar', 'outcome']);
     expect(steps[2]).toMatchObject({ divisionIndex: 7, from: 10, to: 0 });
-    expect(steps[3]).toMatchObject({ from: 7, to: 6, direction: 'down' });
+    expect(steps[3]).toMatchObject({ from: 7, to: 6, direction: 'down', medal: false, ms: 900 }); // the down-rank def's length
     expect(steps[4]).toMatchObject({ divisionIndex: 6, from: 100, to: 70 });
   });
   it('a lost demotion game: the bar holds at 0 → crest transitions down a medal → the landing bar fills to the landing points', () => {
     const steps = planRankSequence(fixtureById('demo-lost')!.result!);
     expect(steps.map((s) => s.kind)).toEqual(['reveal', 'establish', 'bar', 'transition', 'bar', 'outcome']);
     expect(steps[2]).toMatchObject({ divisionIndex: 6, from: 0, to: 0 });
-    expect(steps[3]).toMatchObject({ from: 6, to: 5, direction: 'down', medal: true });
+    expect(steps[3]).toMatchObject({ from: 6, to: 5, direction: 'down', medal: true, ms: 900 }); // the same def for a medal drop
     expect(steps[4]).toMatchObject({ divisionIndex: 5, from: 0, to: 60 });
   });
   it('a failed promotion simply retreats from 100 — no transition, no spectacle', () => {
     expect(kinds('promo-failed')).toEqual(['reveal', 'establish', 'bar', 'outcome']);
   });
-  it('every confirmed fixture settles in roughly 2.3–3.2 s', () => {
+  it('every confirmed fixture settles in roughly 2.3–3.4 s', () => {
+    // The longest is a demotion: 450 + 250 + 700 + the 900 ms down-rank beat + 700 + 400 = 3400.
     for (const f of RANK_FIXTURES) {
       if (!f.result) continue;
       const ms = sequenceDurationMs(planRankSequence(f.result));
       expect(ms, f.id).toBeGreaterThanOrEqual(2200);
-      expect(ms, f.id).toBeLessThanOrEqual(3400);
+      expect(ms, f.id).toBeLessThanOrEqual(3500);
     }
   });
 });

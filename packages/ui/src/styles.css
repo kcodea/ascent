@@ -6286,7 +6286,7 @@ svg { width: 18px; height: 18px; }
    container — that would clip the plaques' shadows and the Play bubble beside the column — the plaques compact
    on a short viewport instead (below). */
 .msb-nav { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: safe center; gap: 10px; }
-.msb-item { display: block; }
+.msb-item, .tn-item { display: block; }
 /* The compact plaque — the title's `.menubtn` language (navy plaque, gold rim, 4px hard edge, lamp-catch sheen,
    press compresses) sized for the column: 15px label, a 28px icon cell, full sidebar width minus the gutters.
    No hover slide (it would push into the page) and no seat-in stagger (it would re-fire on every page hop).
@@ -10466,10 +10466,15 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    rules above drop a bubble BELOW its element, which in the sidebar's 10px-gap stack landed on the Career
    plaque (review 2026-09-21). Same bubble, same pointer square showing its LEFT vertex. After the shared rules
    and one class deeper, so it wins on both surfaces (the picker is inside `.titlescreen`, the pages are
-   `.lbpage`). */
-.msb .msb-item[data-tip]::after { left: calc(100% + 12px); top: 50%; transform: translateY(-50%) translateX(-4px); }
-.msb .msb-item[data-tip]:hover::after, .msb .msb-item[data-tip]:focus-visible::after { transform: translateY(-50%) translateX(0); }
-.msb .msb-item[data-tip]::before { left: calc(100% + 7px); top: 50%; transform: translateY(-50%) rotate(45deg); border-top: none; border-bottom: 1.5px solid var(--line); }
+   `.lbpage`). The TITLE's Play wrapper (`.tn-item`, Title.tsx — the saved-run note that used to be a native
+   `title=`) is the same stack with the same problem, so it shares these rules; so does the Continue row's
+   discard button (`.clearrun`), whose hover `filter` + `transform` make it a stacking context, so a bubble
+   BELOW it painted under the Play plaque — to the right there is nothing to hide behind. */
+.msb .msb-item[data-tip]::after, .titlenav .tn-item[data-tip]::after, .continuerow .clearrun[data-tip]::after { left: calc(100% + 12px); top: 50%; transform: translateY(-50%) translateX(-4px); }
+.msb .msb-item[data-tip]:hover::after, .msb .msb-item[data-tip]:focus-visible::after,
+.titlenav .tn-item[data-tip]:hover::after, .titlenav .tn-item[data-tip]:focus-visible::after,
+.continuerow .clearrun[data-tip]:hover::after, .continuerow .clearrun[data-tip]:focus-visible::after { transform: translateY(-50%) translateX(0); }
+.msb .msb-item[data-tip]::before, .titlenav .tn-item[data-tip]::before, .continuerow .clearrun[data-tip]::before { left: calc(100% + 7px); top: 50%; transform: translateY(-50%) rotate(45deg); border-top: none; border-bottom: 1.5px solid var(--line); }
 
 
 /* ══ SHOP → COMBAT → SHOP (owner ask 2026-08-25) ═════════════════════════════════════════════════════════

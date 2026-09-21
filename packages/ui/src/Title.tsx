@@ -24,9 +24,10 @@ import { rankLabel } from './rank/rankFormat';
  * flag (`showTitle`) drives it, no router.
  *
  * THE MENU (owner ask 2026-09-21): Play · Social · Patch Notes · Scene Builder (DEV only) · Settings.
- * SOCIAL consolidates the four ladder pages — it opens the player's own Career page (`goTo('career')`),
- * whose menu sidebar (`MenuSidebar.tsx`) still lists Career · Leaderboard · Hall of Champions · Recent
- * Games, so every page stays one hop away without a plaque each on the title. The secondary row under the
+ * SOCIAL consolidates the four ladder pages — it opens the player's own Career page (`openCareer()`, the
+ * un-stamped open, so the page fades in whole rather than as a sidebar hop), whose menu sidebar
+ * (`MenuSidebar.tsx`) still lists Career · Leaderboard · Hall of Champions · Recent Games, so every page
+ * stays one hop away without a plaque each on the title. The secondary row under the
  * plaques keeps only Report a Problem, Balance Report (DEV) and Rewatch Last Game (when a replay exists);
  * the Compendium left the title entirely (still the Tab key, `toggleBook`).
  */
@@ -48,9 +49,12 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const startTutorial = useGame((s) => s.startTutorial);
   const startRift = useGame((s) => s.startRift);
   const startSceneBuilder = useGame((s) => s.startSceneBuilder);
-  // SOCIAL → the player's own Career page through the sidebar's `goTo` (every ladder page closed first, so
-  // `careerOf` is null = your own page); the sidebar on that page leads to the other three.
-  const goTo = useGame((s) => s.goTo);
+  // SOCIAL → the player's own Career page through `openCareer()` — the plain open, NOT the sidebar's `goTo`:
+  // `goTo` stamps `navHopAt`, which makes the destination mount wearing `.hop` (page fade off, sidebar cut in
+  // hard) — right for a sidebar hop, wrong for a title open, which should fade in whole like Play → modes
+  // (review 2026-09-21). `careerOf` is already null here (`openTitle` spreads PAGES_CLOSED), so it is your
+  // own page; the sidebar on that page leads to the other three.
+  const openCareer = useGame((s) => s.openCareer);
   const openBalance = useGame((s) => s.openBalance);
   const openPatchNotes = useGame((s) => s.openPatchNotes);
   const openBugReport = useGame((s) => s.openBugReport);
@@ -103,6 +107,16 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const effectiveName = playerName || tempHandle(account.userId);
   const beginEdit = () => { setDraft(playerName); setEditing(true); };
   const commit = () => { setPlayerName(draft); setEditing(false); };
+
+  // The Play plaque. With a run saved it carries the same warning the sidebar's Play does, as a `data-tip`
+  // bubble on a WRAPPER (`.tn-item`, positioned like the sidebar's `.msb-item`): the plaque's own ::after is
+  // its sheen, so a tip on the plaque itself is inert by the tooltip rule. No native `title=` on the title.
+  const playPlaque = (
+    <button className={`menubtn${savedRun ? '' : ' active'}`} onClick={() => { sfx.pulse(); setTitleView('modes'); }}>
+      <span className="mbicon"><Crest /></span>
+      <span className="mblabel">{txt.play}</span>
+    </button>
+  );
 
   return (
     <div className="titlescreen">
@@ -189,24 +203,21 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                   if (confirmClear) { clearRun(); setConfirmClear(false); } else setConfirmClear(true);
                 }}
                 onBlur={() => setConfirmClear(false)}
-                title={confirmClear ? 'Click again to discard your saved run' : 'Discard your saved run'}
+                data-tip={confirmClear ? 'Click again to discard your saved run.' : 'Discard your saved run.'}
                 aria-label="Discard your saved run"
               >
                 {confirmClear ? 'Clear?' : <IconTrash />}
               </button>
             </div>
           )}
-          <button className={`menubtn${savedRun ? '' : ' active'}`} onClick={() => { sfx.pulse(); setTitleView('modes'); }} title={savedRun ? 'Start a new run (replaces your saved run)' : undefined}>
-            <span className="mbicon"><Crest /></span>
-            <span className="mblabel">{txt.play}</span>
-          </button>
+          {savedRun ? <div className="tn-item" data-tip="New run. Replaces your saved run.">{playPlaque}</div> : playPlaque}
           {/* Learn moved OFF the main menu (owner 2026-08-17): it now lives in the mode picker as its own card,
               opening a learning hub (Tutorial + future advanced lessons). A new player is also offered the
               tutorial the first time they hit Play. */}
           {/* SOCIAL (owner ask 2026-09-21) — Career, Leaderboard, Hall of Champions and Recent Games folded into
               one plaque. It opens your Career page; that page's sidebar carries the other three. The helm is the
               Career glyph the sidebar still wears, so the destination reads the same on both. */}
-          <button className="menubtn" onClick={() => { sfx.pulse(); goTo('career'); }} data-tip="Your Career, the Leaderboard, the Hall of Champions and Recent Games">
+          <button className="menubtn" onClick={() => { sfx.pulse(); openCareer(); }} data-tip="Your Career, the Leaderboard, the Hall of Champions and Recent Games">
             <span className="mbicon"><IconHelm /></span>
             <span className="mblabel">Social</span>
           </button>

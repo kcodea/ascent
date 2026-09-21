@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "id": "payload-trigger",
+  "id": "pummel-trigger",
   "duration": 900,
   "layers": [
     {

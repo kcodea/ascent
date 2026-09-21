@@ -1173,13 +1173,14 @@ export function stepProgress(
   }
 
   if (def.effects.some((e) => e.do === 'spellCastBuffOthers')) return cyc(p.spellProgress ?? 0, 4); // Guel
-  // Han Gover: the DAMAGE meter ("when this deals 40 damage, get an Ale") — the running per-instance tally.
-  // Persists across combats, so the shop shows where the meter stands and combat continues from it. Tracker, not
-  // a fraction in the text (owner 2026-09-11). The READING is core's `damageMeterReading` (owner rule 2026-09-19):
-  // progress toward the NEXT crossing (`total mod 40` — 47 reads 7/40, a crossing lands on 0/40), and a
-  // once-per-combat meter (Goldvein, 6) clamps at 6/6 for the rest of the fight, then resets to 0/6 in the shop.
-  // Han Gover (40) + Goldvein (6): the `DAMAGE_METER_DOS` family, spelled out as literals here so the rendered-text
-  // lanes (which scrape `e.do === '…'` from this file) list both bodies as subjects.
+  // PUMMEL (X) — the DAMAGE meter ("Pummel (40): Get a Dwarven Ale. (Once per combat)" — Han Gover; "Pummel (6):
+  // Gain 3 Gold next turn. (Once per combat)" — Goldvein): the running per-instance tally toward X. Tracker, not a
+  // fraction in the text (owner 2026-09-11). The READING is core's `damageMeterReading` (owner rule 2026-09-19):
+  // a once-per-combat meter (every Pummel body since 2026-09-21) counts up in combat and clamps at X/X once it
+  // fired — the "spent for this fight" reading — then resets to 0/X in the shop; a persistent meter would read
+  // progress toward its next crossing (`total mod X`). Han Gover (40) + Goldvein (6): the `DAMAGE_METER_DOS`
+  // family, spelled out as literals here so the rendered-text lanes (which scrape `e.do === '…'` from this file)
+  // list both bodies as subjects.
   const dmgMeter = def.effects.find((e) => e.do === 'dealtDamageAleMeter' || e.do === 'dealtDamageGoldNextTurn');
   if (dmgMeter) return damageMeterReading(p.damageDealt ?? 0, damageMeterOf(def)!);
   // Astral Spellcore: every N Shop spells cast while on the board — the same per-copy `spellProgress` meter as

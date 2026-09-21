@@ -320,7 +320,7 @@ describe('momentKind → score coverage (every CombatEvent type maps to an itera
     // Quest/rune beats: these used to hit `momentKind`'s `damage` fallthrough. They have their own kinds now, so
     // this row also guards against a kind being added without its score entry (the "cues is not iterable" crash).
     { type: 'questTrigger', flag: 'f', side: 'player' }, { type: 'questComplete', questId: 'q', side: 'player' },
-    { type: 'payloadTrigger', source: 'a', side: 'player', marker: 'dealtDamageGoldNextTurn' },
+    { type: 'pummelTrigger', source: 'a', side: 'player', marker: 'dealtDamageGoldNextTurn' },
   ] as CombatEvent[];
 
   it('every event type yields a defined, iterable score entry (never crashes runMomentCues)', () => {

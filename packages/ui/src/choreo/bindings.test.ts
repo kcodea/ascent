@@ -183,12 +183,12 @@ const BINDINGS: Record<string, { def: string }> = {
   minionSelfBuffed: { def: 'self-buff-burst' },
   spellProgress: { def: 'spell-progress' },
   questTrigger: { def: 'quest-trigger' }, questComplete: { def: 'quest-complete' },
-  // A DAMAGE-METER crossing (Han Gover / Goldvein — the future "Payload" keyword): the owner-authored
-  // `payload-trigger` (2026-09-21), played ON the body that crossed by the `payloadFx` channel, which scans the
-  // `payloadTrigger` events inside whatever moment they landed in — usually the hit's impact, occasionally a
-  // `payloadTrigger` moment of their own (an `onDamaged` reactor's `handBuff` splits the run); the `fxDef` row
+  // A PUMMEL (X) fire (Han Gover / Goldvein — the damage-dealt threshold keyword): the owner-authored
+  // `pummel-trigger` (2026-09-21), played ON the body that fired by the `pummelFx` channel, which scans the
+  // `pummelTrigger` events inside whatever moment they landed in — usually the hit's impact, occasionally a
+  // `pummelTrigger` moment of their own (an `onDamaged` reactor's `handBuff` splits the run); the `fxDef` row
   // stands down for that kind so the scan is the only player.
-  payloadTrigger: { def: 'payload-trigger' },
+  pummelTrigger: { def: 'pummel-trigger' },
   // NB: `rally` is absent from this table on purpose — it is a committed TOMBSTONE, asserted below.
   // NB: the stat-milestone kinds carry an `sfx`, so they live in SFX_BINDINGS below, not here.
 };

@@ -41,7 +41,7 @@ describe('momentKind', () => {
       [{ type: 'questComplete', questId: 'q', side: 'player' }, 'questComplete'],
       // A damage-meter crossing (Han Gover / Goldvein): its own kind, so a leading instance is never scored as
       // a `damage` moment (the crimson hit burst) — in a real log it rides its hit's impact as a RESULT_TYPE.
-      [{ type: 'payloadTrigger', source: 'b', side: 'player', marker: 'dealtDamageAleMeter' }, 'payloadTrigger'],
+      [{ type: 'pummelTrigger', source: 'b', side: 'player', marker: 'dealtDamageAleMeter' }, 'pummelTrigger'],
     ];
     for (const [primary, kind] of cases) {
       expect(momentKind(primary)).toBe(kind);

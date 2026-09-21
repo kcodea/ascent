@@ -56,9 +56,18 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-21',
-    label: 'Damage-threshold trigger effect',
+    label: 'Pummel keyword',
     changes: [
-      { category: 'UI / Info', text: "Goldvein and Han Gover now flash and pulse on the card when their damage threshold triggers." },
+      {
+        category: 'Card Change',
+        text: "Pummel (X) is the new keyword for damage-threshold triggers. Han Gover reads Pummel (40): Get a Dwarven Ale. (Once per combat) and now pays once per combat; Goldvein reads Pummel (6): Gain 3 Gold next turn. (Once per combat).",
+        details: [
+          'Pummel (X): Triggers once this minion has dealt X damage in a combat. Every landed hit the minion deals counts, overkill included. The meter starts every combat at 0 and resets after it.',
+          'Han Gover used to keep a lifetime damage tally with a cap of 2 Ales per hit. Now the first 40 damage he deals in a fight pays one Dwarven Ale (2 when Gilded), and that is all for that fight. His counter starts each combat at 0/40 and holds at 40/40 once he has paid out.',
+          "Goldvein's rules are unchanged; only the wording moved to the keyword.",
+        ],
+      },
+      { category: 'UI / Info', text: 'A Pummel now flashes and pulses on the card the moment it triggers, even when the triggering hit ends the fight. The Pummel pill in the card hover explains the keyword.' },
     ],
   },
   {

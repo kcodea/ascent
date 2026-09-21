@@ -697,7 +697,7 @@ export function simulate(
     ascendProgress: m.ascendProgress,
     spellProgress: m.spellProgress, // Guel: the live combat text reads his on-board spell tally
     spiritTally: m.spiritTally, // Set 3 Spirits: Forest Colossus's Start of Combat reads it; Keeper / Aspect print it
-    damageDealt: m.damageDealt, // Han Gover: the seeded damage tally, so the combat meter starts from the run total
+    damageDealt: m.damageDealt, // Pummel (Han Gover, Goldvein): the seeded damage tally (a once-per-combat meter arrives here undefined)
     soldProgress: m.soldProgress, // Runic Archivist (display-only)
     boardFirstSpellId: m.boardFirstSpellId, // Spell Warden (display-only)
 
@@ -2193,60 +2193,58 @@ export function simulate(
   }
 
   /**
-   * HAN GOVER's damage meter ("When this deals 40 damage, get an Ale" — Set 3 Dwarf/Undead, 2026-09-18).
+   * PUMMEL (X) — the damage meter ("Pummel (40): Get a Dwarven Ale. (Once per combat)" — Han Gover, Set 3
+   * Dwarf/Undead; "Pummel (6): Gain 3 Gold next turn. (Once per combat)" — Goldvein, Set 3 Kobold). Owner keyword
+   * 2026-09-21: "Triggers once this minion has dealt X damage in a combat."
    *
    * Called from the ONE place every landed hit passes through (`applyDamage`, right after the `dmg` event), so
    * attacks, retaliation and incidental damage (an Echo volley, a bolt) all count, and a hit that never landed
    * (Immune, a popped Ward, 0 damage) never does — exactly the hits the replay's `dmg` events carry, which is
-   * what the UI re-derives the live meter from. A body whose card carries the passive `dealtDamageAleMeter`
-   * marker adds the FULL amount of the hit to its per-instance `damageDealt` (seeded from the run card, so
-   * the tally persists across combats), and every multiple of `every` it crosses grants `count` random
-   * Dwarven Ales (×2 gilded) through `grantToHand` — the standard combat→hand channel, so the card flies to
-   * hand in the replay and settles into the real hand via `playerHandGrants`. Overkill counts (a 30-Attack
-   * swing into a 1-Health body is 30 damage dealt); one big hit can cross two thresholds and pays both.
+   * what the UI re-derives the live meter from. A body whose card carries a `DAMAGE_METER_MARKERS` passive adds
+   * the FULL amount of the hit to its per-instance `damageDealt` (fresh every fight — `resetEachCombat`), and the
+   * FIRST time the tally reaches `every` in a combat its marker pays out ONCE and latches (`pummelFired`, on the
+   * instance like Yeti's `reflectFired`, so a Risen body does not re-arm and a fresh combat does). Overkill
+   * counts (a 30-Attack swing into a 1-Health body is 30 damage dealt); one enormous hit that crosses several
+   * multiples of X still pays once — the meter is a threshold, not a cadence (the lifetime tally and its
+   * "(Max 2 per hit)" cap retired with the Pummel ruling).
    */
-  const ALE_METER_MAX_PER_HIT = 2; // Han Gover's "(Max 2 per hit)"
   function noteDamageDealt(dealer: Minion, amount: number): void {
     // ONE meter, several bodies (`DAMAGE_METER_DOS`): the tally advances the same way for every marker; the
-    // marker's `do` decides the payout. Goldvein (2026-09-19) — "gain G Gold next turn (Once per combat)" — banks
-    // through `grantBonusGold` (the Tromboneer / Bounty Bot carry-back) the first time the meter crosses a
-    // multiple of `every` this fight; the latch (`goldMeterFired`) rides the instance like Yeti's, so a Risen
-    // body does not re-arm and a fresh combat does. Gilded doubles the Gold, never the fire count.
+    // marker's `do` decides the payout. Han Gover grants `count` random Dwarven Ales (×2 gilded) through
+    // `grantToHand` — the standard combat→hand channel, so the card flies to hand in the replay and settles into
+    // the real hand via `playerHandGrants`. Goldvein banks `gold` (×2 gilded) through `grantBonusGold` (the
+    // Tromboneer / Bounty Bot carry-back). Gilded doubles the payout, never the fire count.
     const meter = damageMeterOf(cards[dealer.cardId]);
     if (!meter) return;
     const eff = cards[dealer.cardId]!.effects.find((e) => e.do === meter.do)!;
     const p = eff.params ?? {};
-    const every = meter.every;
     const before = dealer.damageDealt ?? 0;
     const after = before + amount;
     dealer.damageDealt = after;
-    const crossings = Math.floor(after / every) - Math.floor(before / every);
-    if (crossings <= 0) return;
-    // THE TRIGGER MOMENT (2026-09-21, the future "Payload" keyword): a crossing that PAYS emits one
-    // `payloadTrigger` per credited crossing — the presentation cue the owner authored (`payload-trigger`)
-    // plays off it, on the body that crossed, AFTER the `dmg` that did it and BEFORE the payout's own events.
-    // "After" is not "immediately after": `applyDamage` runs the victim's `onDamaged` reactors before it reaches
-    // this meter, so a reactor's own events (a Target Dummy's `buff`, a Hearth Whisperer's `handBuff`) sit
-    // between the `dmg` and the trigger — the replay's `payloadFx` scan is per event, so it finds the trigger
-    // wherever the beat compiler put it. ONLY the trigger emit is wrapped in `withEffect`, so the EVENT carries
-    // the meter's OWN identity (`factory:dealtDamage…:passive`) instead of inheriting whatever effect dealt
-    // the hit (a Fel Spikes volley, Yeti's reflection); the payout itself stays OUTSIDE the wrap, exactly as it
-    // was before the trigger existed — the Ale's `toHand` is unstamped on a plain swing, so its beat keeps the
-    // stock `toHand` hold under the Beat Lab too (a stamped `toHand` would re-pace through the meter's
-    // `foldedCue` policy when the Lab's live toggle is on). A crossing that pays NOTHING — Goldvein's latch
-    // already spent, a set with no Ales — emits nothing: there is no trigger to show. Emitting touches no RNG;
+    if (dealer.pummelFired || after < meter.every) return;
+    // THE TRIGGER MOMENT (2026-09-21): a Pummel that PAYS emits one `pummelTrigger` — the presentation cue the
+    // owner authored (`pummel-trigger`) plays off it, on the body that fired, AFTER the `dmg` that did it and
+    // BEFORE the payout's own events. "After" is not "immediately after": `applyDamage` runs the victim's
+    // `onDamaged` reactors before it reaches this meter, so a reactor's own events (a Target Dummy's `buff`, a
+    // Hearth Whisperer's `handBuff`) sit between the `dmg` and the trigger — the replay's `pummelFx` scan is per
+    // event, so it finds the trigger wherever the beat compiler put it. ONLY the trigger emit is wrapped in
+    // `withEffect`, so the EVENT carries the meter's OWN identity (`factory:dealtDamage…:passive`) instead of
+    // inheriting whatever effect dealt the hit (a Fel Spikes volley, Yeti's reflection); the payout itself stays
+    // OUTSIDE the wrap, exactly as it was before the trigger existed — the Ale's `toHand` is unstamped on a plain
+    // swing, so its beat keeps the stock `toHand` hold under the Beat Lab too (a stamped `toHand` would re-pace
+    // through the meter's `foldedCue` policy when the Lab's live toggle is on). A Pummel that pays NOTHING (a
+    // set with no Ales) emits nothing and does not latch: there is no trigger to show. Emitting touches no RNG;
     // determinism holds.
-    const fired = (n: number): void => {
+    const fired = (): void => {
       withEffect(dealer, eff, () => {
-        for (let i = 0; i < n; i++) emit({ type: 'payloadTrigger', source: dealer.uid, side: dealer.side, marker: eff.do });
+        emit({ type: 'pummelTrigger', source: dealer.uid, side: dealer.side, marker: eff.do });
       });
     };
     if (eff.do === 'dealtDamageGoldNextTurn') {
-      if (dealer.goldMeterFired) return;
       const gold = Math.max(0, typeof p.gold === 'number' ? p.gold : 3) * (dealer.golden ? 2 : 1);
       if (gold <= 0) return;
-      dealer.goldMeterFired = true;
-      fired(1); // the once-per-combat latch: exactly one trigger per fight, however many thresholds this hit crossed
+      dealer.pummelFired = true;
+      fired();
       ctx.grantBonusGold(gold, dealer.side);
       return;
     }
@@ -2255,14 +2253,9 @@ export function simulate(
     const ales = ctx.poolCards(dealer.side).filter((c) => ALE_IDS.includes(c.id));
     if (ales.length === 0) return; // a set without the Ales grants nothing (same rule as Rune of Last Call)
     const draw = grantRngFor(dealer.side);
-    // "(Max 2 per hit)" (owner 2026-09-19): one damage event pays at most `ALE_METER_MAX_PER_HIT` Ales however
-    // many thresholds it crosses (gilded: its first crossing's 2 fill the cap). The tally already advanced by
-    // the full amount above, so the uncredited crossings are spent, not banked — the next 40 pays again.
-    const payout = Math.min(crossings * count, ALE_METER_MAX_PER_HIT);
-    // One trigger per CREDITED crossing: the crossings whose Ales were actually paid (plain: min(crossings, 2);
-    // gilded: its single crossing fills the cap → one trigger, two Ales).
-    fired(Math.min(crossings, Math.ceil(payout / count)));
-    for (let i = 0; i < payout; i++) ctx.grantToHand(draw.pick(ales).id, dealer.side, dealer.uid);
+    dealer.pummelFired = true;
+    fired();
+    for (let i = 0; i < count; i++) ctx.grantToHand(draw.pick(ales).id, dealer.side, dealer.uid);
   }
 
   function killOrReborn(minion: Minion, killer?: Minion): void {
@@ -2856,7 +2849,7 @@ export function simulate(
     // The hit landed (Immune + Divine Shield already returned above) — notify on-damaged watchers (Gryphon).
     // `amount` rides the payload for reactors that echo the hit (Yeti); the older watchers ignore it.
     if (amount > 0) bus.emit('onDamaged', { minion: target, side: target.side, amount });
-    // Han Gover's meter: the dealer's running damage tally (see `noteDamageDealt`).
+    // Pummel (Han Gover, Goldvein): the dealer's running damage tally (see `noteDamageDealt`).
     if (amount > 0 && poisoner) noteDamageDealt(poisoner, amount);
     // Set 2: a FRIENDLY-relative Demon just dealt damage that LANDED (Immune / Divine Shield / 0-dmg all
     // returned above, so a Ward-absorbed hit never gets here). Watchers filter by side; the emit filters to Demons.
@@ -4551,9 +4544,10 @@ export function simulate(
     const spellProgress = board
       .filter((m) => m.sourceUid !== undefined && (m.spellProgress ?? 0) > 0)
       .map((m) => ({ sourceUid: m.sourceUid!, progress: m.spellProgress! }));
-    // Han Gover: the running damage tally (seeded + this fight's hits) carries back so the meter persists. A
-    // once-per-combat meter (Goldvein — `resetEachCombat`) carries back 0 whenever it moved, so the run card is
-    // wiped at settle and the shop reads 0/N (owner 2026-09-19); its next fight starts from 0 regardless.
+    // Pummel (Han Gover, Goldvein): the damage tally carries back per body. A once-per-combat meter (every
+    // meter since the Pummel ruling 2026-09-21 — `resetEachCombat`) carries back 0 whenever it moved, so the run
+    // card is wiped at settle and the shop reads 0/N (owner 2026-09-19); its next fight starts from 0
+    // regardless. A persistent meter would carry its seeded total plus this fight's hits.
     const damageMeters = board
       .filter((m) => m.sourceUid !== undefined && (m.damageDealt ?? 0) > 0 && damageMeterOf(cards[m.cardId]))
       .map((m) => ({ sourceUid: m.sourceUid!, total: damageMeterOf(cards[m.cardId])!.resetEachCombat ? 0 : m.damageDealt! }));

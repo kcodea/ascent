@@ -3824,8 +3824,9 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   // Tara: the golden keeps the *highest* ascend progress of the copies (= the lowest "to go"), so tripling a
   // Tara that's close to ascending doesn't reset it back to 20-to-go.
   const goldenAscend = def.ascendAt ? Math.max(...combined.map((c) => c.ascendProgress ?? 0)) : 0;
-  // Han Gover: the golden keeps the HIGHEST damage tally of the copies (the same rule as Tara's ascend
-  // progress — the closest meter to its next Ale is the one that survives the merge).
+  // Pummel (Han Gover, Goldvein): the golden keeps the HIGHEST damage tally of the copies (the same rule as
+  // Tara's ascend progress). Moot while every meter resets each combat (the run card holds 0 between fights),
+  // kept for a persistent meter.
   const goldenDamageDealt = Math.max(...combined.map((c) => c.damageDealt ?? 0));
   // Hoarder: the golden keeps the EARLIEST (minimum) boughtWave of the copies, so a golden Hoarder
   // inherits the oldest copy's age → its highest sell value as the starting point (sell =
@@ -4398,10 +4399,10 @@ function settleCombat(s: RunState, result: CombatResult): void {
       }
     }
   }
-  // Han Gover: persist the damage meter (seeded + this fight's hits) so it survives combat → shop → combat.
-  // The Ales themselves already came home through `playerHandGrants` above. A once-per-combat meter (Goldvein)
-  // carries back 0 (`resetEachCombat`, core `DAMAGE_METER_MARKERS`) → the card's tally is CLEARED, so the shop
-  // badge reads 0/N after the fight (owner 2026-09-19).
+  // PUMMEL (Han Gover, Goldvein): the damage meter's carry-back. Every meter is once per combat (`resetEachCombat`,
+  // core `DAMAGE_METER_MARKERS` — all bodies since the Pummel ruling 2026-09-21), so it carries back 0 → the
+  // card's tally is CLEARED, and the shop badge reads 0/X after the fight (owner 2026-09-19). The Ales themselves
+  // already came home through `playerHandGrants` above. A persistent meter would land its running total here.
   if (result.playerDamageMeters) {
     for (const { sourceUid, total } of result.playerDamageMeters) {
       const card = s.board.find((c) => c.uid === sourceUid);

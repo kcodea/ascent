@@ -1,16 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent } from '../index';
+import { combatSide, damageMeterOf, makeRng, simulate, type BoardMinion, type CombatEvent } from '../index';
 import { CARD_INDEX, poolFor } from '@game/content';
 
 /**
- * `payloadTrigger` (2026-09-21) — the DAMAGE-METER crossing as an observable combat event (the future "Payload"
- * keyword: Han Gover's Ale meter, Goldvein's Gold meter). The owner authored `payload-trigger` for "when cards
- * like Goldvein and Han Gover trigger"; before this the UI could only re-derive a crossing from `dmg.source`
- * amounts, Goldvein's payout was silent (`grantBonusGold` emits nothing) and an ENEMY meter was invisible.
+ * `pummelTrigger` (2026-09-21) — PUMMEL (X) as an observable combat event. The owner's keyword for the
+ * damage-dealt meter: "Pummel (X): Triggers once this minion has dealt X damage in a combat." Han Gover reads
+ * "Pummel (40): Get a Dwarven Ale. (Once per combat)" and Goldvein "Pummel (6): Gain 3 Gold next turn. (Once per
+ * combat)". The owner authored `pummel-trigger` for "when cards like Goldvein and Han Gover trigger"; before the
+ * event the UI could only re-derive a crossing from `dmg.source` amounts, Goldvein's payout was silent
+ * (`grantBonusGold` emits nothing) and an ENEMY meter was invisible.
  *
- * The contract pinned here: ONE event per CREDITED crossing, emitted on the body that crossed, right after the
- * `dmg` that crossed it and BEFORE the payout's own events, stamped with the meter's own effect identity; a
- * crossing that pays nothing emits nothing; determinism untouched.
+ * The contract pinned here: ONE event per body per combat (every Pummel is once per combat — the meter starts
+ * at 0 every fight and latches when it fires), emitted on the body that fired, right after the `dmg` that
+ * reached X and BEFORE the payout's own events, stamped with the meter's own effect identity; a meter that pays
+ * nothing emits nothing; determinism untouched.
  */
 const foe = (attack: number, health: number, keywords: string[] = []): BoardMinion =>
   ({ cardId: 'sandbag', attack, health, keywords } as unknown as BoardMinion);
@@ -26,10 +29,14 @@ const SET3 = poolFor('set3').all.map((c) => c.id);
 const fight = (board: BoardMinion[], foes: BoardMinion[], enemyPool = false) =>
   simulate(board, foes, makeRng(5), CARD_INDEX,
     combatSide({ tier: 6, poolIds: SET3 }), combatSide({ tier: 6, ...(enemyPool ? { poolIds: SET3 } : {}) }));
-const triggers = (events: CombatEvent[]) => events.filter((e) => e.type === 'payloadTrigger') as Extract<CombatEvent, { type: 'payloadTrigger' }>[];
+const triggers = (events: CombatEvent[]) => events.filter((e) => e.type === 'pummelTrigger') as Extract<CombatEvent, { type: 'pummelTrigger' }>[];
 const types = (events: CombatEvent[]): string[] => events.map((e) => e.type);
 
-describe('payloadTrigger — Han Gover (the Ale meter, every 40, max 2 per hit)', () => {
+describe('pummelTrigger — Han Gover (Pummel (40): Get a Dwarven Ale. (Once per combat))', () => {
+  it('the meter is declared once per combat in core (resetEachCombat, every 40) — the lifetime tally is gone', () => {
+    expect(damageMeterOf(CARD_INDEX['dw3_hangover'])).toEqual({ do: 'dealtDamageAleMeter', every: 40, resetEachCombat: true });
+  });
+
   it('40 damage → ONE trigger on Han Gover, player side, the Ale marker, stamped with the meter’s own key', () => {
     const r = fight([gover({ attack: 20 })], [foe(0, 20), foe(0, 20)]);
     const t = triggers(r.events);
@@ -40,46 +47,65 @@ describe('payloadTrigger — Han Gover (the Ale meter, every 40, max 2 per hit)'
     });
   });
 
-  it('39 damage → no trigger (nothing crossed)', () => {
+  it('39 damage → no trigger (X not reached)', () => {
     const r = fight([gover({ attack: 13 })], [foe(0, 13), foe(0, 13), foe(0, 13)]);
     expect(triggers(r.events)).toEqual([]);
   });
 
-  it('sits AFTER the dmg that crossed it and BEFORE the Ale it pays (dmg → reactor buff → payloadTrigger → toHand), in the hit’s step', () => {
+  it('sits AFTER the dmg that reached X and BEFORE the Ale it pays (dmg → reactor buff → pummelTrigger → toHand), in the hit’s step', () => {
     const r = fight([gover({ attack: 20 })], [foe(0, 20), foe(0, 20)]);
-    const i = r.events.findIndex((e) => e.type === 'payloadTrigger');
+    const i = r.events.findIndex((e) => e.type === 'pummelTrigger');
     expect(i).toBeGreaterThan(0);
     const before = r.events.slice(0, i).reverse().find((e) => e.type === 'dmg')!;
     expect(before).toMatchObject({ type: 'dmg', amount: 20, source: r.initial.player[0]!.uid });
     expect(r.events[i + 1]).toMatchObject({ type: 'toHand', side: 'player', source: r.initial.player[0]!.uid });
-    expect(r.events[i]!.step).toBe(before.step); // the crossing shares the hit's resolution step
+    expect(r.events[i]!.step).toBe(before.step); // the trigger shares the hit's resolution step
     // ONLY the trigger carries the meter's identity. The Ale's `toHand` is emitted outside the `withEffect` wrap —
     // unstamped on a plain swing, exactly as it was before the trigger existed — so its beat keeps the stock
     // `toHand` hold under the Beat Lab rather than folding through the meter's `foldedCue` policy (review
-    // 2026-09-21). The order pinned above: `dmg → (the victim's onDamaged reactor) → payloadTrigger → toHand`.
+    // 2026-09-21). The order pinned above: `dmg → (the victim's onDamaged reactor) → pummelTrigger → toHand`.
     expect(r.events[i]!.key).toBe('factory:dealtDamageAleMeter:passive');
     expect(r.events[i + 1]!.key).toBeUndefined();
     expect(r.events[i + 1]!.srcCard).toBeUndefined();
   });
 
-  it('one 80-damage hit crosses twice → TWO triggers (two Ales)', () => {
+  it('ONCE PER COMBAT: one 80-damage hit reaches 40 once → ONE trigger, ONE Ale (no second crossing pays)', () => {
     const r = fight([gover({ attack: 80 })], [foe(0, 80)]);
-    expect(triggers(r.events).length).toBe(2);
-    expect(r.events.filter((e) => e.type === 'toHand').length).toBe(2);
+    expect(triggers(r.events).length).toBe(1);
+    expect(r.events.filter((e) => e.type === 'toHand').length).toBe(1);
   });
 
-  it('a GILDED 80-damage hit is ONE credited crossing (its two Ales fill the cap) → one trigger', () => {
+  it('ONCE PER COMBAT: 40 then 40 more in the same fight → still one trigger, one Ale (the latch holds)', () => {
+    const r = fight([gover({ attack: 40 })], [foe(0, 40), foe(0, 40)]);
+    expect(triggers(r.events).length).toBe(1);
+    expect(r.events.filter((e) => e.type === 'toHand').length).toBe(1);
+    expect(r.result).toBe('win');
+  });
+
+  it('NO CAP: a 120-damage hit is one Pummel, one trigger, one Ale — "(Max 2 per hit)" is retired', () => {
+    const r = fight([gover({ attack: 120 })], [foe(0, 120)]);
+    expect(triggers(r.events).length).toBe(1);
+    expect(r.events.filter((e) => e.type === 'toHand').length).toBe(1);
+    expect(CARD_INDEX['dw3_hangover']!.text).not.toContain('Max 2 per hit');
+  });
+
+  it('GILDED: the one Pummel pays TWO Ales — one trigger, two toHands', () => {
     const r = fight([gover({ attack: 80, golden: true })], [foe(0, 80)]);
     expect(triggers(r.events).length).toBe(1);
     expect(r.events.filter((e) => e.type === 'toHand').length).toBe(2);
   });
 
-  it('a 120-damage hit crosses three times but "(Max 2 per hit)" credits two → two triggers, not three', () => {
-    const r = fight([gover({ attack: 120 })], [foe(0, 120)]);
-    expect(triggers(r.events).length).toBe(2);
+  it('RESET EACH COMBAT: a seeded lifetime tally is ignored — the fight starts at 0 and 13 more does not reach 40; a fresh fight re-arms', () => {
+    const r = fight([gover({ attack: 13, damageDealt: 30 })], [foe(0, 13)]);
+    expect(r.initial.player[0]!.damageDealt).toBeUndefined();
+    expect(triggers(r.events)).toEqual([]);
+    expect(r.events.filter((e) => e.type === 'toHand')).toEqual([]);
+    expect(r.playerDamageMeters, 'carries back 0 → the shop reads 0/40').toEqual([{ sourceUid: 'hg', total: 0 }]);
+    // …and the next combat is a fresh meter: 40 in one fight pays again.
+    expect(triggers(fight([gover({ attack: 40 })], [foe(0, 40)]).events)).toHaveLength(1);
   });
 
-  it('a Warded hit never reaches the meter: the first swing pops the Ward (no trigger), the second crosses (one)', () => {
+  it('a Warded hit never reaches the meter: the first swing pops the Ward (no trigger), the second reaches 40 (one)', () => {
     const r = fight([gover({ attack: 40 })], [foe(0, 40, ['DS'])]);
     const t = triggers(r.events);
     expect(t).toHaveLength(1);
@@ -88,25 +114,32 @@ describe('payloadTrigger — Han Gover (the Ale meter, every 40, max 2 per hit)'
     expect(r.events.indexOf(t[0]!)).toBeGreaterThan(shieldAt);
   });
 
-  it('a crossing that pays NOTHING (a pool with no Ales) emits nothing — no trigger without a payout', () => {
+  it('a Pummel that pays NOTHING (a pool with no Ales) emits nothing and does not latch — no trigger without a payout', () => {
     const noAles = SET3.filter((id) => !id.startsWith('wo_'));
     const r = simulate([gover({ attack: 40 })], [foe(0, 40)], makeRng(5), CARD_INDEX,
       combatSide({ tier: 6, poolIds: noAles }), combatSide({ tier: 6 }));
     expect(r.events.filter((e) => e.type === 'toHand')).toEqual([]);
     expect(triggers(r.events)).toEqual([]);
-    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 40 }]); // the tally still advanced
+    expect(r.playerDamageMeters, 'the tally still advanced, and a once-per-combat meter carries back 0').toEqual([{ sourceUid: 'hg', total: 0 }]);
   });
 
-  it('THE LAST-ATTACK CASE: the crossing on the killing blow is the last thing before the final death', () => {
-    // 40 Attack into a lone 0/40: the one hit crosses 40 AND ends the fight.
+  it('an ENEMY Han Gover fires too — the trigger carries side: enemy', () => {
+    const r = fight([foe(0, 40)], [gover({ attack: 40 })], true);
+    const t = triggers(r.events);
+    expect(t).toHaveLength(1);
+    expect(t[0]).toMatchObject({ source: r.initial.enemy[0]!.uid, side: 'enemy', marker: 'dealtDamageAleMeter' });
+  });
+
+  it('THE LAST-ATTACK CASE: the Pummel on the killing blow is the last thing before the final death', () => {
+    // 40 Attack into a lone 0/40: the one hit reaches 40 AND ends the fight.
     const r = fight([gover({ attack: 40 })], [foe(0, 40)]);
     const tail = types(r.events).slice(-3);
-    expect(tail).toEqual(['payloadTrigger', 'toHand', 'death']);
+    expect(tail).toEqual(['pummelTrigger', 'toHand', 'death']);
     expect(r.result).toBe('win');
   });
 });
 
-describe('payloadTrigger — Goldvein (the Gold meter, every 6, once per combat)', () => {
+describe('pummelTrigger — Goldvein (Pummel (6): Gain 3 Gold next turn. (Once per combat))', () => {
   it('6 damage → ONE trigger, the Gold marker, stamped with the meter’s own key; the Gold still banks', () => {
     const r = fight([vein({ attack: 6 })], [foe(0, 6)]);
     const t = triggers(r.events);
@@ -120,19 +153,19 @@ describe('payloadTrigger — Goldvein (the Gold meter, every 6, once per combat)
     expect(triggers(fight([vein({ attack: 6 })], [foe(0, 6), foe(0, 6)]).events)).toHaveLength(1);
   });
 
-  it('an ENEMY Goldvein crosses too — the trigger carries side: enemy (the player-side Ale grant is not the only signal)', () => {
+  it('an ENEMY Goldvein fires too — the trigger carries side: enemy (the player-side Ale grant is not the only signal)', () => {
     const r = fight([foe(0, 6)], [vein({ attack: 6 })]);
     const t = triggers(r.events);
     expect(t).toHaveLength(1);
     expect(t[0]).toMatchObject({ source: r.initial.enemy[0]!.uid, side: 'enemy', marker: 'dealtDamageGoldNextTurn' });
   });
 
-  it('THE LAST-ATTACK CASE: 2 Attack into three 0/1 dummies crosses 6 on the third, fight-ending hit — the trigger precedes only the death', () => {
+  it('THE LAST-ATTACK CASE: 2 Attack into three 0/1 dummies reaches 6 on the third, fight-ending hit — the trigger precedes only the death', () => {
     const r = fight([vein({ attack: 2 })], [foe(0, 1), foe(0, 1), foe(0, 1)]);
     const t = triggers(r.events);
     expect(t).toHaveLength(1);
     const i = r.events.indexOf(t[0]!);
-    expect(types(r.events).slice(i)).toEqual(['payloadTrigger', 'death']);
+    expect(types(r.events).slice(i)).toEqual(['pummelTrigger', 'death']);
     expect(r.result).toBe('win');
   });
 

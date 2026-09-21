@@ -220,7 +220,7 @@ export function combatEventLines(result: CombatResult): CombatEventLine[] {
       case 'spellProgress': text = `${n(e.target)} spell tally ${e.amount}`; break;
       case 'questTrigger': text = `${e.flag} fires (${e.side})`; break;
       case 'questComplete': text = `quest ${e.questId} completes (${e.side})`; break;
-      case 'payloadTrigger': text = `${n(e.source)}'s damage meter triggers (${e.marker}, ${e.side})`; break;
+      case 'pummelTrigger': text = `${n(e.source)}'s Pummel triggers (${e.marker}, ${e.side})`; break;
       default: {
         // A future event type this build doesn't know — render its raw shape rather than dropping evidence.
         const u = e as { type: string } & Record<string, unknown>;

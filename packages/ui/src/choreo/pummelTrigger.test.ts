@@ -9,14 +9,14 @@ import { runMomentCues, SCORE_DEFAULTS } from './score';
 import { bindingFor } from './bindings';
 import { beatDelay, getChoreoConfig, holdMsForKind } from './choreoConfig';
 import { holdMs } from './clock';
-import { PAYLOAD_STACK_MS } from './channels/payloadFired';
+import { PUMMEL_STACK_MS } from './channels/pummelFired';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { anchorsForUnits } from '../fx/combatAnchors';
 
 /**
- * `payload-trigger` (owner-authored, 2026-09-21) — the DAMAGE-METER crossing's presentation, end to end:
- * the engine's `payloadTrigger` event folds into the impact moment of the hit that crossed (the beat), the
- * `payloadFx` channel plays the def bound at the `payloadTrigger` kind ON the body that crossed (the binding),
+ * `pummel-trigger` (owner-authored, 2026-09-21) — the DAMAGE-METER crossing's presentation, end to end:
+ * the engine's `pummelTrigger` event folds into the impact moment of the hit that crossed (the beat), the
+ * `pummelFx` channel plays the def bound at the `pummelTrigger` kind ON the body that crossed (the binding),
  * and — THE case the owner named — a crossing on the last attack of the fight, as the LAST event of the log,
  * still produces both the beat and the `playDef` call.
  */
@@ -28,7 +28,7 @@ const mockAnchors = vi.mocked(anchorsForUnits);
 
 const attack = (attacker: string, defender: string): CombatEvent => ({ type: 'attack', attacker, defender, swing: 0 } as CombatEvent);
 const dmg = (target: string, source: string, amount = 6, remainingHp = 0): CombatEvent => ({ type: 'dmg', target, source, amount, remainingHp } as CombatEvent);
-const trigger = (source: string, marker = 'dealtDamageGoldNextTurn'): CombatEvent => ({ type: 'payloadTrigger', source, side: 'player', marker } as CombatEvent);
+const trigger = (source: string, marker = 'dealtDamageGoldNextTurn'): CombatEvent => ({ type: 'pummelTrigger', source, side: 'player', marker } as CombatEvent);
 const death = (target: string): CombatEvent => ({ type: 'death', target, side: 'enemy' } as CombatEvent);
 const shape = (ms: { start: number; end: number; primary: CombatEvent }[]) => ms.map(({ start, end, primary }) => ({ start, end, primary }));
 
@@ -48,24 +48,24 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('the beat — a crossing rides the impact of the hit that crossed it', () => {
   it('is a RESULT_TYPE, classified as its own kind, paced like damage, with a score row', () => {
-    expect(RESULT_TYPES.has('payloadTrigger')).toBe(true);
-    expect(momentKind(trigger('gv'))).toBe('payloadTrigger');
-    expect(holdMsForKind('payloadTrigger')).toBe(holdMsForKind('damage'));
-    expect(Array.isArray(SCORE_DEFAULTS.payloadTrigger)).toBe(true);
-    expect(SCORE_DEFAULTS.payloadTrigger.some((c) => c.ch === 'payloadFx')).toBe(true);
+    expect(RESULT_TYPES.has('pummelTrigger')).toBe(true);
+    expect(momentKind(trigger('gv'))).toBe('pummelTrigger');
+    expect(holdMsForKind('pummelTrigger')).toBe(holdMsForKind('damage'));
+    expect(Array.isArray(SCORE_DEFAULTS.pummelTrigger)).toBe(true);
+    expect(SCORE_DEFAULTS.pummelTrigger.some((c) => c.ch === 'pummelFx')).toBe(true);
     // …and the channel is on EVERY kind, because the event usually rides another kind's moment (its hit's impact)
     // and only sometimes leads its own.
-    for (const cues of Object.values(SCORE_DEFAULTS)) expect(cues.some((c) => c.ch === 'payloadFx')).toBe(true);
+    for (const cues of Object.values(SCORE_DEFAULTS)) expect(cues.some((c) => c.ch === 'pummelFx')).toBe(true);
   });
 
-  it('a LEADING crossing holds like the hit it belongs to: the clock keys by primary event type, and `payloadTrigger` has a real pacing key (= dmg), not the 300 fallback', () => {
+  it('a LEADING crossing holds like the hit it belongs to: the clock keys by primary event type, and `pummelTrigger` has a real pacing key (= dmg), not the 300 fallback', () => {
     const ev = [attack('gv', 'foe'), dmg('foe', 'gv'), trigger('gv'), death('foe')];
-    const lead: Moment = { start: 2, end: 4, primary: ev[2]!, kind: 'payloadTrigger' } as Moment;
-    expect(beatDelay('payloadTrigger')).toBe(beatDelay('dmg'));
+    const lead: Moment = { start: 2, end: 4, primary: ev[2]!, kind: 'pummelTrigger' } as Moment;
+    expect(beatDelay('pummelTrigger')).toBe(beatDelay('dmg'));
     expect(holdMs(lead, undefined, 1)).toBeCloseTo(beatDelay('dmg') * getChoreoConfig().speed, 5);
   });
 
-  it('a mid-clash crossing never splits the impact: [dmg, payloadTrigger, retaliation dmg, death] is ONE beat (and the oracle agrees)', () => {
+  it('a mid-clash crossing never splits the impact: [dmg, pummelTrigger, retaliation dmg, death] is ONE beat (and the oracle agrees)', () => {
     const ev = [attack('hg', 'foe'), dmg('foe', 'hg', 40), trigger('hg', 'dealtDamageAleMeter'), dmg('hg', 'foe', 2, 5), death('foe')];
     const beats = buildBeats(ev);
     expect(beats.length).toBe(2);
@@ -74,7 +74,7 @@ describe('the beat — a crossing rides the impact of the hit that crossed it', 
     expect(compileMoments(ev)[1]!.kind).toBe('damage');
   });
 
-  it('THE LAST-EVENT CASE: a payloadTrigger as the very last event of the log still lands in the final impact beat', () => {
+  it('THE LAST-EVENT CASE: a pummelTrigger as the very last event of the log still lands in the final impact beat', () => {
     const ev = [attack('gv', 'foe'), dmg('foe', 'gv'), death('foe'), trigger('gv')];
     const beats = buildBeats(ev);
     expect(beats.length).toBe(2);
@@ -85,23 +85,23 @@ describe('the beat — a crossing rides the impact of the hit that crossed it', 
   });
 
   it('the binding: the owner’s def is bound at the kind, and resolves for both meter cards', () => {
-    expect(bindingFor(null, 'payloadTrigger')).toEqual({ def: 'payload-trigger' });
-    expect(bindingFor('k3_goldvein', 'payloadTrigger')?.def).toBe('payload-trigger');
-    expect(bindingFor('dw3_hangover', 'payloadTrigger')?.def).toBe('payload-trigger');
+    expect(bindingFor(null, 'pummelTrigger')).toEqual({ def: 'pummel-trigger' });
+    expect(bindingFor('k3_goldvein', 'pummelTrigger')?.def).toBe('pummel-trigger');
+    expect(bindingFor('dw3_hangover', 'pummelTrigger')?.def).toBe('pummel-trigger');
   });
 });
 
-describe('the cue — payloadFx plays the def ON the body that crossed', () => {
+describe('the cue — pummelFx plays the def ON the body that crossed', () => {
   const lastMoment = (ev: CombatEvent[]): Moment => compileMoments(ev).at(-1)!;
 
-  it('THE LAST-EVENT CASE: a payloadTrigger as the last event of the log → the beat runs, the proc reports, playDef fires on (uid, uid) with uids', () => {
+  it('THE LAST-EVENT CASE: a pummelTrigger as the last event of the log → the beat runs, the proc reports, playDef fires on (uid, uid) with uids', () => {
     const ev = [attack('gv', 'foe'), dmg('foe', 'gv'), death('foe'), trigger('gv')];
-    const onPayloadProc = vi.fn();
-    const stop = runMomentCues(lastMoment(ev), baseCtx(ev, new Map([['gv', 'k3_goldvein']]), { onPayloadProc }));
-    expect(onPayloadProc).toHaveBeenCalledWith('gv', 'dealtDamageGoldNextTurn', 1);
+    const onPummelProc = vi.fn();
+    const stop = runMomentCues(lastMoment(ev), baseCtx(ev, new Map([['gv', 'k3_goldvein']]), { onPummelProc }));
+    expect(onPummelProc).toHaveBeenCalledWith('gv', 'dealtDamageGoldNextTurn', 1);
     expect(mockAnchors).toHaveBeenCalledWith('gv', 'gv');
     expect(mockPlayDef).toHaveBeenCalledTimes(1);
-    expect(mockPlayDef).toHaveBeenCalledWith('payload-trigger', { target: { x: 5, y: 7 } }, { uids: { source: 'gv', target: 'gv' }, index: 0 });
+    expect(mockPlayDef).toHaveBeenCalledWith('pummel-trigger', { target: { x: 5, y: 7 } }, { uids: { source: 'gv', target: 'gv' }, index: 0 });
     stop();
   });
 
@@ -109,31 +109,31 @@ describe('the cue — payloadFx plays the def ON the body that crossed', () => {
     const ev = [attack('hg', 'foe'), dmg('foe', 'hg', 40), trigger('hg', 'dealtDamageAleMeter'), dmg('hg', 'foe', 2, 5), death('foe')];
     runMomentCues(lastMoment(ev), baseCtx(ev, new Map([['hg', 'dw3_hangover']])));
     expect(mockPlayDef).toHaveBeenCalledTimes(1);
-    expect(mockPlayDef).toHaveBeenCalledWith('payload-trigger', { target: { x: 5, y: 7 } }, { uids: { source: 'hg', target: 'hg' }, index: 0 });
+    expect(mockPlayDef).toHaveBeenCalledWith('pummel-trigger', { target: { x: 5, y: 7 } }, { uids: { source: 'hg', target: 'hg' }, index: 0 });
   });
 
-  it('a double crossing (Han Gover’s 80-damage hit) detonates TWICE, a stack stride apart', () => {
+  it('a body fired twice in one moment (synthetic — every shipped Pummel is once per combat) detonates TWICE, a stack stride apart', () => {
     vi.useFakeTimers();
     const ev = [attack('hg', 'foe'), dmg('foe', 'hg', 80), trigger('hg', 'dealtDamageAleMeter'), trigger('hg', 'dealtDamageAleMeter'), death('foe')];
-    const onPayloadProc = vi.fn();
-    runMomentCues(lastMoment(ev), baseCtx(ev, new Map([['hg', 'dw3_hangover']]), { onPayloadProc }));
-    expect(onPayloadProc).toHaveBeenCalledTimes(1);
-    expect(onPayloadProc).toHaveBeenCalledWith('hg', 'dealtDamageAleMeter', 2);
+    const onPummelProc = vi.fn();
+    runMomentCues(lastMoment(ev), baseCtx(ev, new Map([['hg', 'dw3_hangover']]), { onPummelProc }));
+    expect(onPummelProc).toHaveBeenCalledTimes(1);
+    expect(onPummelProc).toHaveBeenCalledWith('hg', 'dealtDamageAleMeter', 2);
     expect(mockPlayDef).toHaveBeenCalledTimes(1);
-    vi.advanceTimersByTime(PAYLOAD_STACK_MS - 1);
+    vi.advanceTimersByTime(PUMMEL_STACK_MS - 1);
     expect(mockPlayDef).toHaveBeenCalledTimes(1);
     vi.advanceTimersByTime(2);
     expect(mockPlayDef).toHaveBeenCalledTimes(2);
-    expect(mockPlayDef).toHaveBeenLastCalledWith('payload-trigger', { target: { x: 5, y: 7 } }, { uids: { source: 'hg', target: 'hg' }, index: 1 });
+    expect(mockPlayDef).toHaveBeenLastCalledWith('pummel-trigger', { target: { x: 5, y: 7 } }, { uids: { source: 'hg', target: 'hg' }, index: 1 });
     vi.useRealTimers();
   });
 
   it('when defs cannot play, the proc callback still fires (the fallback pulse) and nothing is scheduled', () => {
     mockCanPlayDefs.mockReturnValue(false);
     const ev = [attack('gv', 'foe'), dmg('foe', 'gv'), death('foe'), trigger('gv')];
-    const onPayloadProc = vi.fn();
-    runMomentCues(lastMoment(ev), baseCtx(ev, new Map([['gv', 'k3_goldvein']]), { onPayloadProc }));
-    expect(onPayloadProc).toHaveBeenCalledWith('gv', 'dealtDamageGoldNextTurn', 1);
+    const onPummelProc = vi.fn();
+    runMomentCues(lastMoment(ev), baseCtx(ev, new Map([['gv', 'k3_goldvein']]), { onPummelProc }));
+    expect(onPummelProc).toHaveBeenCalledWith('gv', 'dealtDamageGoldNextTurn', 1);
     expect(mockPlayDef).not.toHaveBeenCalled();
   });
 
@@ -146,20 +146,20 @@ describe('the cue — payloadFx plays the def ON the body that crossed', () => {
 
   it('a moment with no crossing plays nothing on this channel', () => {
     const ev = [attack('gv', 'foe'), dmg('foe', 'gv'), death('foe')];
-    const onPayloadProc = vi.fn();
-    runMomentCues(lastMoment(ev), baseCtx(ev, new Map([['gv', 'k3_goldvein']]), { onPayloadProc }));
-    expect(onPayloadProc).not.toHaveBeenCalled();
+    const onPummelProc = vi.fn();
+    runMomentCues(lastMoment(ev), baseCtx(ev, new Map([['gv', 'k3_goldvein']]), { onPummelProc }));
+    expect(onPummelProc).not.toHaveBeenCalled();
     expect(mockPlayDef).not.toHaveBeenCalled();
   });
 });
 
 describe('a REAL fight — the crossing LEADS its moment (the one-channel rule)', () => {
   // The sim runs the victim's `onDamaged` reactors BEFORE the dealer's meter, so a reactor event that is neither a
-  // RESULT_TYPE nor a deferred `buff` lands between the crossing `dmg` and its `payloadTrigger` and splits the
+  // RESULT_TYPE nor a deferred `buff` lands between the crossing `dmg` and its `pummelTrigger` and splits the
   // impact run. Hearth Whisperer (Set 3 Spirit, Taunt, `onDamagedBuffRandomHand`) emits a player-side `handBuff`
   // when it has a hand minion to buff — and an enemy Goldvein's crossing on that hit then HEADS a moment of its
-  // own: `[attack] [dmg,dmg] [handBuff] [payloadTrigger,death]`. That moment is `payloadTrigger`-kind, whose
-  // score is BASE — which carries BOTH `payloadFx` (the per-event scan) and `fxDef` (the primary's binding).
+  // own: `[attack] [dmg,dmg] [handBuff] [pummelTrigger,death]`. That moment is `pummelTrigger`-kind, whose
+  // score is BASE — which carries BOTH `pummelFx` (the per-event scan) and `fxDef` (the primary's binding).
   // Without the stand-down in the `fxDef` row the owner's burst played TWICE for one crossing (review 2026-09-21).
   const SET3 = poolFor('set3').all.map((c) => c.id);
   const whisperer = { cardId: 'sp3_hearthwhisperer', attack: 2, health: 6, keywords: ['T'] } as unknown as BoardMinion;
@@ -176,25 +176,25 @@ describe('a REAL fight — the crossing LEADS its moment (the one-channel rule)'
     const ordered = replayOrder(r.events);
     const beats = replayBeats(r.events);
     expect(beats.map((b) => ordered.slice(b.start, b.end).map((e) => e.type))).toEqual([
-      ['attack'], ['dmg', 'dmg'], ['handBuff'], ['payloadTrigger', 'death'],
+      ['attack'], ['dmg', 'dmg'], ['handBuff'], ['pummelTrigger', 'death'],
     ]);
     const last = beats.at(-1)!;
-    expect(last.kind).toBe('payloadTrigger');
-    expect(SCORE_DEFAULTS.payloadTrigger.some((c) => c.ch === 'fxDef')).toBe(true); // the row IS there — it must stand down
+    expect(last.kind).toBe('pummelTrigger');
+    expect(SCORE_DEFAULTS.pummelTrigger.some((c) => c.ch === 'fxDef')).toBe(true); // the row IS there — it must stand down
     runMomentCues(last, baseCtx(ordered, cardIdsOf(r)));
     expect(mockPlayDef).toHaveBeenCalledTimes(1);
-    expect(mockPlayDef).toHaveBeenCalledWith('payload-trigger', { target: { x: 5, y: 7 } }, { uids: { source: gv, target: gv }, index: 0 });
+    expect(mockPlayDef).toHaveBeenCalledWith('pummel-trigger', { target: { x: 5, y: 7 } }, { uids: { source: gv, target: gv }, index: 0 });
   });
 
-  it('the synthetic shape of the same log: [attack, dmg, dmg, handBuff, payloadTrigger, death] → one play', () => {
+  it('the synthetic shape of the same log: [attack, dmg, dmg, handBuff, pummelTrigger, death] → one play', () => {
     const handBuff = { type: 'handBuff', uid: 'h1', cardId: 'stray', side: 'player', attack: 1, health: 2 } as CombatEvent;
     const ev = [attack('gv', 'hw'), dmg('hw', 'gv', 6, 0), dmg('gv', 'hw', 2, 28), handBuff, trigger('gv'), death('hw')];
     const moments = compileMoments(ev);
-    const lead = moments.find((m) => m.kind === 'payloadTrigger');
+    const lead = moments.find((m) => m.kind === 'pummelTrigger');
     expect(lead).toBeDefined();
     runMomentCues(lead!, baseCtx(ev, new Map([['gv', 'k3_goldvein'], ['hw', 'sp3_hearthwhisperer']])));
     expect(mockPlayDef).toHaveBeenCalledTimes(1);
-    expect(mockPlayDef).toHaveBeenCalledWith('payload-trigger', { target: { x: 5, y: 7 } }, { uids: { source: 'gv', target: 'gv' }, index: 0 });
+    expect(mockPlayDef).toHaveBeenCalledWith('pummel-trigger', { target: { x: 5, y: 7 } }, { uids: { source: 'gv', target: 'gv' }, index: 0 });
   });
 });
 
@@ -211,15 +211,15 @@ describe('a REAL fight — the crossing on the killing blow', () => {
   it('Goldvein’s third hit crosses 6 AND ends the fight: the trigger is in the LAST beat, and that beat plays the def on Goldvein', () => {
     const r = fight([{ cardId: 'k3_goldvein', attack: 2, health: 3, keywords: [] } as unknown as BoardMinion], [foe(0, 1), foe(0, 1), foe(0, 1)]);
     const gv = r.initial.player[0]!.uid;
-    expect(r.events.filter((e) => e.type === 'payloadTrigger')).toHaveLength(1);
+    expect(r.events.filter((e) => e.type === 'pummelTrigger')).toHaveLength(1);
     const ordered = replayOrder(r.events);
     const beats = replayBeats(r.events);
     const last = beats.at(-1)!;
-    expect(ordered.slice(last.start, last.end).map((e) => e.type)).toEqual(['dmg', 'payloadTrigger', 'death']); // the killing blow's own beat
+    expect(ordered.slice(last.start, last.end).map((e) => e.type)).toEqual(['dmg', 'pummelTrigger', 'death']); // the killing blow's own beat
     expect(last.kind).toBe('damage');
     runMomentCues(last, baseCtx(ordered, cardIdsOf(r)));
     expect(mockPlayDef).toHaveBeenCalledTimes(1);
-    expect(mockPlayDef).toHaveBeenCalledWith('payload-trigger', { target: { x: 5, y: 7 } }, { uids: { source: gv, target: gv }, index: 0 });
+    expect(mockPlayDef).toHaveBeenCalledWith('pummel-trigger', { target: { x: 5, y: 7 } }, { uids: { source: gv, target: gv }, index: 0 });
   });
 
   it('Han Gover’s 40th point of damage ends the fight: the trigger rides the impact beat and plays the def on him (the Ale and the death follow)', () => {
@@ -227,11 +227,11 @@ describe('a REAL fight — the crossing on the killing blow', () => {
     const hg = r.initial.player[0]!.uid;
     const ordered = replayOrder(r.events);
     const beats = replayBeats(r.events);
-    const idx = beats.findIndex((b) => ordered.slice(b.start, b.end).some((e) => e.type === 'payloadTrigger'));
+    const idx = beats.findIndex((b) => ordered.slice(b.start, b.end).some((e) => e.type === 'pummelTrigger'));
     expect(idx).toBeGreaterThan(0);
     expect(beats[idx]!.kind).toBe('damage');
     expect(ordered.slice(beats[idx]!.start, beats[idx]!.end).some((e) => e.type === 'dmg' && e.source === hg)).toBe(true);
     runMomentCues(beats[idx]!, baseCtx(ordered, cardIdsOf(r)));
-    expect(mockPlayDef).toHaveBeenCalledWith('payload-trigger', { target: { x: 5, y: 7 } }, { uids: { source: hg, target: hg }, index: 0 });
+    expect(mockPlayDef).toHaveBeenCalledWith('pummel-trigger', { target: { x: 5, y: 7 } }, { uids: { source: hg, target: hg }, index: 0 });
   });
 });

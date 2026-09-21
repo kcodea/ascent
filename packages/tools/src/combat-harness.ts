@@ -92,8 +92,8 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
       return `   ✷ ${ev.side}'s ${ev.flag} triggered`;
     case 'questComplete':
       return `   ✦ ${ev.side}'s quest ${ev.questId} completes mid-combat`;
-    case 'payloadTrigger':
-      return `   ⚑ ${n(ev.source)}'s damage meter TRIGGERS (${ev.marker})`;
+    case 'pummelTrigger':
+      return `   ⚑ ${n(ev.source)}'s PUMMEL triggers (${ev.marker})`;
   }
 }
 
@@ -121,11 +121,11 @@ console.log(
   } result  ${deterministic ? '✓' : '✗ — BUG'}`,
 );
 
-// ── Second matchup: the DAMAGE METER (the future "Payload" keyword, 2026-09-21) ──────────────────────────
-// The fixture above has no meter body, so the `payloadTrigger` narration never printed. Goldvein (2 Attack,
-// "When this deals 6 damage…") into three 0/1 sandbags crosses 6 on its THIRD hit — the blow that also kills the
-// last foe — so this prints the trigger as the last thing before the death (the last-attack case the replay
-// must still play in full). Same self-relative determinism check as the main matchup.
+// ── Second matchup: PUMMEL (X), the damage meter (owner keyword 2026-09-21) ──────────────────────
+// The fixture above has no meter body, so the `pummelTrigger` narration never printed. Goldvein (2 Attack,
+// "Pummel (6): Gain 3 Gold next turn. (Once per combat)") into three 0/1 sandbags reaches 6 on its THIRD hit —
+// the blow that also kills the last foe — so this prints the trigger as the last thing before the death (the
+// last-attack case the replay must still play in full). Same self-relative determinism check as the main matchup.
 const meterPlayer: BoardMinion[] = [{ cardId: 'k3_goldvein', attack: 2, health: 3 }];
 const meterEnemy: BoardMinion[] = [
   { cardId: 'sandbag', attack: 0, health: 1 },
@@ -137,13 +137,13 @@ const m1 = simulate(meterPlayer, meterEnemy, makeRng(METER_SEED), CARD_INDEX);
 const m2 = simulate(meterPlayer, meterEnemy, makeRng(METER_SEED), CARD_INDEX);
 const meterDeterministic = JSON.stringify(m1) === JSON.stringify(m2);
 const meterNames = nameMap(m1);
-console.log('\n=== damage-meter matchup (payloadTrigger) ===\n');
+console.log('\n=== damage-meter matchup (pummelTrigger) ===\n');
 console.log('PLAYER:', board(meterPlayer));
 console.log('ENEMY: ', board(meterEnemy));
 console.log(`\n--- event log (seed 0x${METER_SEED.toString(16)}) ---`);
 for (const ev of m1.events) console.log(describe(ev, meterNames));
-const triggers = m1.events.filter((ev) => ev.type === 'payloadTrigger').length;
-console.log(`\nPAYLOAD TRIGGERS: ${triggers}  (bonus Gold carried back: ${m1.playerBonusGold ?? 0})`);
+const triggers = m1.events.filter((ev) => ev.type === 'pummelTrigger').length;
+console.log(`\nPUMMEL TRIGGERS: ${triggers}  (bonus Gold carried back: ${m1.playerBonusGold ?? 0})`);
 console.log(
   `DETERMINISM: re-running the same seed produced ${
     meterDeterministic ? 'an IDENTICAL' : 'a DIFFERENT'

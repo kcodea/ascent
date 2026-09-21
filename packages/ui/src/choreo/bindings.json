@@ -27,8 +27,8 @@
     "questTrigger": {
       "def": "quest-trigger"
     },
-    "payloadTrigger": {
-      "def": "payload-trigger"
+    "pummelTrigger": {
+      "def": "pummel-trigger"
     },
     "rally": null,
     "rubyLanded": {

@@ -5,33 +5,34 @@ import type { CombatBus } from './events';
  *  BOTH the recruit factories and the combat ones (Slaughter / Rally / Echo grants) need it. */
 export const ALE_IDS: readonly string[] = ['wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack'];
 
-/** The DAMAGE-DEALT meter family ("When this deals N damage, …"): passive markers the combat damage site reads
- *  (`noteDamageDealt` in simulate.ts) — one per-instance `damageDealt` tally, paid out by the marker's own body
- *  every time it crosses a multiple of `params.every`. Han Gover pays Ales; Goldvein (2026-09-19) banks Gold for
- *  next turn, once per combat. Every consumer of the tally (carry-back, the step-counter badge, snapshots) keys
- *  off THIS registry, not a single factory id.
+/** PUMMEL (X) — the DAMAGE-DEALT meter family (owner keyword 2026-09-21: "Pummel (X): Triggers once this minion
+ *  has dealt X damage in a combat."). Passive markers the combat damage site reads (`noteDamageDealt` in
+ *  simulate.ts) — one per-instance `damageDealt` tally, paid out by the marker's own body the FIRST time it
+ *  reaches `params.every` in a fight. Han Gover pays a Dwarven Ale; Goldvein (2026-09-19) banks Gold for next
+ *  turn. Every consumer of the tally (carry-back, the step-counter badge, snapshots) keys off THIS registry, not
+ *  a single factory id.
  *
- *  `resetEachCombat` is the marker's RIDER made data (owner report 2026-09-19 — Goldvein reading "6/6" in the
- *  shop after the combat it fired in: *"it should show 0/6 since the trigger should reset if it hits 6/6, after
- *  combat"*). A "(Once per combat)" body starts every fight at 0 — the latch AND the progress — so the shop
- *  reads 0/N after ANY combat (the tally is not seeded into the fight and carries back as 0). A persistent
- *  body (Han Gover's "(Max 2 per hit)" is not once-per-combat) keeps its lifetime tally across combats exactly
- *  as before. The rule lives HERE, in the meter definition, so the sim's seed / carry-back and both text chains
- *  read one flag instead of each deciding for itself. */
+ *  `resetEachCombat` is the marker's "(Once per combat)" rider made data (owner report 2026-09-19 — Goldvein
+ *  reading "6/6" in the shop after the combat it fired in: *"it should show 0/6 since the trigger should reset
+ *  if it hits 6/6, after combat"*). A once-per-combat body starts every fight at 0 — the latch AND the progress
+ *  — so the shop reads 0/N after ANY combat (the tally is not seeded into the fight and carries back as 0).
+ *  Since the Pummel ruling (2026-09-21) EVERY meter is once per combat — Han Gover's lifetime tally and its
+ *  "(Max 2 per hit)" cap are gone — so the flag is true for both bodies; it stays data so the sim's seed /
+ *  carry-back and both text chains read one flag instead of each deciding for itself. */
 export interface DamageMeterMarker {
   /** The meter starts fresh every combat (progress + latch) and carries back as 0. */
   resetEachCombat: boolean;
 }
 export const DAMAGE_METER_MARKERS: Readonly<Record<string, DamageMeterMarker>> = {
-  dealtDamageAleMeter: { resetEachCombat: false },   // Han Gover — a lifetime tally, every 40 pays
-  dealtDamageGoldNextTurn: { resetEachCombat: true }, // Goldvein — "(Once per combat)": fresh each fight
+  dealtDamageAleMeter: { resetEachCombat: true },    // Han Gover — "Pummel (40): Get a Dwarven Ale. (Once per combat)" (owner 2026-09-21; a lifetime tally before)
+  dealtDamageGoldNextTurn: { resetEachCombat: true }, // Goldvein — "Pummel (6): Gain 3 Gold next turn. (Once per combat)"
 };
 export const DAMAGE_METER_DOS: readonly string[] = Object.keys(DAMAGE_METER_MARKERS);
 
 /** The damage meter a card carries (its marker effect + threshold + reset rule), or null for every other card. */
 export interface DamageMeter extends DamageMeterMarker {
   do: string;
-  /** The threshold — `params.every` (40 for Han Gover, 6 for Goldvein). Always ≥ 1. */
+  /** The threshold — the X of "Pummel (X)" (`params.every`: 40 for Han Gover, 6 for Goldvein). Always ≥ 1. */
   every: number;
 }
 export function damageMeterOf(def: { effects?: readonly { on?: string; do: string; params?: Record<string, unknown> }[] } | undefined): DamageMeter | null {
@@ -43,10 +44,12 @@ export function damageMeterOf(def: { effects?: readonly { on?: string; do: strin
 
 /** What the step-counter badge PRINTS for a damage meter, from the raw tally — ONE formula for the shop
  *  (`instView` → `stepProgress`) and combat (`Unit.tsx`), so the two surfaces can never disagree:
- *   · a persistent meter shows progress toward its NEXT crossing — `total mod every` — so Han Gover at 47 reads
- *     7/40 and a crossing lands on 0/40 (owner rule 2026-09-19), never a cumulative 47/40;
- *   · a once-per-combat meter counts up and CLAMPS at `every` for the rest of the fight — it fired, and it cannot
- *     fire again, so 6/6 is the honest reading in combat; the reset at combat end takes it back to 0/6 in the shop. */
+ *   · a once-per-combat meter (every Pummel body since 2026-09-21) counts up and CLAMPS at `every` for the rest
+ *     of the fight — it fired, and it cannot fire again, so 40/40 (Han Gover) or 6/6 (Goldvein) is the honest
+ *     "spent" reading in combat; the reset at combat end takes it back to 0/N in the shop;
+ *   · a persistent meter (none today; kept for a future lifetime tally) shows progress toward its NEXT crossing —
+ *     `total mod every` — so 47 reads 7/40 and a crossing lands on 0/40 (owner rule 2026-09-19), never a
+ *     cumulative 47/40. */
 export function damageMeterReading(total: number, meter: DamageMeter): { current: number; total: number } {
   const t = Math.max(0, total);
   return { current: meter.resetEachCombat ? Math.min(t, meter.every) : t % meter.every, total: meter.every };
@@ -867,7 +870,7 @@ export type EffectFactoryId =
   | 'onGetRubyDuplicate' // Gem Sage: getting a Ruby mints an extra copy (never re-fires `onGetRuby` — no recursion)
   | 'goldSpentScaleSelf' // Ancient Wanderer: HAS +A/+H per N Gold spent this RUN — a synced stored buff, not a per-step grant
   | 'cardDeathScaler' // Spear Warden (owner rework 2026-09-18): HAS +A/+H per copy of `cardId` that DIED this run — a passive marker the combat death site reads (`noteCardDeath`); the grant rides the run-wide `cardBuffs` enchant
-  | 'dealtDamageAleMeter' // Han Gover (Set 3 Dwarf/Undead, 2026-09-18): "When this deals N damage, get an Ale" — a passive marker the combat damage site reads (`noteDamageDealt`): a per-instance `damageDealt` tally that persists across combats; every crossing of a multiple of `params.every` grants `params.count` (×2 gilded) random Dwarven Ales via `grantToHand` (home through `playerHandGrants`)
+  | 'dealtDamageAleMeter' // Han Gover (Set 3 Dwarf/Undead, 2026-09-18; Pummel keyword 2026-09-21): "Pummel (40): Get a Dwarven Ale. (Once per combat)" — a passive marker the combat damage site reads (`noteDamageDealt`): a per-instance `damageDealt` tally that starts every fight at 0 (`DAMAGE_METER_MARKERS.resetEachCombat`); the FIRST time it reaches `params.every` in a combat it grants `params.count` (×2 gilded) random Dwarven Ales via `grantToHand` (home through `playerHandGrants`), then latches for the rest of the fight (`pummelFired`)
   | 'buffShopOffersThisTurn' // Night Market Horror: after a buy, minions in the shop get +A/+H for THIS TURN
   | 'onSellDiscoverSingleton' // Traveling Salesman: selling this Discovers among minions you own exactly one copy of
   | 'onGainAleBuffSelf' // Kegheart Dwarf: gaining a Dwarven Ale buffs this body +A/+H
@@ -885,7 +888,7 @@ export type EffectFactoryId =
   // ── Set 3 Neutrals, owner handoff 2026-09-19 ──
   | 'onDamagedReflectRandomEnemies' // Yeti: the FIRST time this takes damage each combat, deal that amount to N distinct random enemies (combat)
   // ── Set 3 Kobolds, owner handoff 2026-09-19 ──
-  | 'dealtDamageGoldNextTurn'; // Goldvein: "When this deals N damage, gain G Gold next turn. (Once per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body (`grantBonusGold`), latched once per combat on the instance (`goldMeterFired`); the meter RESETS each combat (`DAMAGE_METER_MARKERS.resetEachCombat` — not seeded, carries back 0); gilded doubles G (combat)
+  | 'dealtDamageGoldNextTurn'; // Goldvein: "Pummel (6): Gain 3 Gold next turn. (Once per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body (`grantBonusGold`), latched once per combat on the instance (`pummelFired`); the meter RESETS each combat (`DAMAGE_METER_MARKERS.resetEachCombat` — not seeded, carries back 0); gilded doubles G (combat)
 
 export interface EffectDef {
   on: GameEvent;
@@ -2271,8 +2274,9 @@ export interface BoardMinion {
    *  progress, Aspect's trigger count, Forest Colossus's "Spirits played since"). Forest Colossus's
    *  Start of Combat READS it; the others print it. Seeded from the run board. */
   spiritTally?: number;
-  /** Han Gover — the damage THIS body has dealt across every combat so far (per-instance). Seeds the combat
-   *  tally; the combat total carries back via `playerDamageMeters`. */
+  /** Pummel (Han Gover, Goldvein) — the damage THIS body has dealt (per-instance). Since every meter resets each
+   *  combat (2026-09-21) this is 0 / absent on a settled run card; a persistent meter would seed the combat tally
+   *  from it. The combat total carries back via `playerDamageMeters`. */
   damageDealt?: number;
   /** Runic Archivist: sales still owed (per-instance). Display-only in combat. */
   soldProgress?: number;
@@ -2369,8 +2373,9 @@ export interface Minion {
   /** Guel: spells-cast-while-on-board (seeded from the run card) — feeds the live combat text only. */
   spellProgress?: number;
   spiritTally?: number;
-  /** Han Gover: total damage this body has dealt (seeded from the run card, ticked by `noteDamageDealt` on
-   *  every landed hit it deals). Carries back to the run card via `playerDamageMeters`. */
+  /** Pummel (Han Gover, Goldvein): total damage this body has dealt this combat (ticked by `noteDamageDealt` on
+   *  every landed hit it deals; seeded from the run card only for a persistent meter). Carries back to the run
+   *  card via `playerDamageMeters`. */
   damageDealt?: number;
   soldProgress?: number; // Runic Archivist (display-only)
   boardFirstSpellId?: string; // Spell Warden (display-only)
@@ -2437,9 +2442,10 @@ export interface Minion {
    *  `grantedRefresh` / Candleback's `rubyRecvTick`, and deliberately NOT on the Rise / Rebirth reset list — a
    *  returned body is the same combat instance, so "once per combat" stays spent. A fresh Minion per fight. */
   reflectFired?: boolean;
-  /** Goldvein (Set 3 Kobold, 2026-09-19): its once-per-combat Gold payout has fired. Same convention as `reflectFired`:
-   *  on the instance, NOT reset by Rise / Rebirth (a returned body is the same combat instance). */
-  goldMeterFired?: boolean;
+  /** PUMMEL (X) — this body's once-per-combat damage-meter payout has fired (Goldvein's Gold, Han Gover's Ale;
+   *  `DAMAGE_METER_MARKERS`). Same convention as `reflectFired`: on the instance, NOT reset by Rise / Rebirth (a
+   *  returned body is the same combat instance). A fresh Minion per fight re-arms it. */
+  pummelFired?: boolean;
   /** Sergeant: accumulated HP bonus on its Deathrattle (grows each time Sergeant gains Attack in
    *  combat). Applied on top of the base params.health when the Deathrattle fires. Absent = 0. */
   hpGrantBonus?: number;
@@ -2501,7 +2507,7 @@ export interface MinionSnapshot {
   /** Guel's spells-cast-while-on-board (seeded from the run board) — for the live combat card text. */
   spellProgress?: number;
   spiritTally?: number;
-  damageDealt?: number; // Han Gover: the seeded damage tally, so the combat meter starts from the run total
+  damageDealt?: number; // Pummel (Han Gover, Goldvein): the seeded damage tally (ignored by a once-per-combat meter — every meter today)
   soldProgress?: number; // Runic Archivist (display-only)
   boardFirstSpellId?: string; // Spell Warden (display-only)
   /** Per-source recruit-phase buff breakdown (see Minion.buffs) — lets the combat inspect panel itemize a
@@ -2557,7 +2563,7 @@ export type CombatEvent = (
   | { type: 'spellProgress'; target: string; amount: number } // Archmagus Guel: on-board spell tally after a combat cast (live countdown)
   | { type: 'questTrigger'; flag: string; side: Side } // a completed quest / owned rune's COMBAT effect fired — `flag` maps to its badge id so the UI can pulse the node
   | { type: 'questComplete'; questId: string; side: Side } // a quest completed MID-COMBAT (its objective crossed): the UI lights its node + its reward activates from this beat (see PendingCombatQuest)
-  | { type: 'payloadTrigger'; source: string; side: Side; marker: string } // a DAMAGE-METER crossing PAID OUT (2026-09-21, the future "Payload" keyword — `DAMAGE_METER_MARKERS`): `source` = the body whose meter crossed, `marker` = the meter's `do` (`dealtDamageAleMeter` / `dealtDamageGoldNextTurn`). ONE event per CREDITED crossing — Han Gover's 80-damage hit crosses twice and emits twice (his "(Max 2 per hit)" cap bounds it); a gilded crossing is one event; Goldvein's once-per-combat latch means one per fight; a crossing that pays nothing (latch spent, a set with no Ales) emits nothing. Emitted AFTER the `dmg` that crossed it (and after the victim's `onDamaged` reactors, which `applyDamage` runs before the meter — a Target Dummy's `buff` or a Hearth Whisperer's `handBuff` can sit between) and BEFORE the payout's own events (`toHand`), so the replay plays the trigger flash on the hit and the Ale's flight follows. Presentation only — the payout is already carried by `toHand` / `playerBonusGold`.
+  | { type: 'pummelTrigger'; source: string; side: Side; marker: string } // PUMMEL (X) fired (2026-09-21, `DAMAGE_METER_MARKERS`): the body's damage meter reached X this combat and PAID OUT. `source` = the body whose meter fired, `marker` = the meter's `do` (`dealtDamageAleMeter` / `dealtDamageGoldNextTurn`). ONE event per body per combat — every Pummel is once per combat (Han Gover's Ale, Goldvein's Gold), however many thresholds one hit crossed; a meter that pays nothing (a set with no Ales) emits nothing. Emitted AFTER the `dmg` that reached X (and after the victim's `onDamaged` reactors, which `applyDamage` runs before the meter — a Target Dummy's `buff` or a Hearth Whisperer's `handBuff` can sit between) and BEFORE the payout's own events (`toHand`), so the replay plays the trigger flash on the hit and the Ale's flight follows. Presentation only — the payout is already carried by `toHand` / `playerBonusGold`.
 ) & { step?: number; avenge?: true; key?: string; srcCard?: string; wave?: number };
 // `wave` (Fel Spikes / multi-pass echo pacing): a stable presentation tag marking which AoE PASS ("wave") an
 // event belongs to. Unlike `step` — which deaths bump mid-pass (`killOrReborn` calls `nextStep`) — a wave id
@@ -2950,10 +2956,10 @@ export interface CombatResult {
   /** Tara's stat-grant tally this combat, per board card uid — accumulated onto `ascendProgress` and, at the
    *  threshold, transformed to its ascend form in settleCombat. */
   playerAscendCount?: { sourceUid: string; count: number }[];
-  /** Han Gover's running "damage this minion has dealt" tally after this combat, per board card uid — the seeded
-   *  value plus everything it dealt this fight (attacks, retaliation, incidental). Persisted to the run board so
-   *  the meter survives combat → shop → combat. A once-per-combat meter (Goldvein — `DAMAGE_METER_MARKERS`
-   *  `resetEachCombat`) reports `total: 0` instead, which the settle turns into a CLEARED run card (0/N). */
+  /** The Pummel bodies' (Han Gover, Goldvein) "damage this minion has dealt" tally after this combat, per board
+   *  card uid. Every meter is once per combat (`DAMAGE_METER_MARKERS` `resetEachCombat`, all bodies since
+   *  2026-09-21), so each reports `total: 0`, which the settle turns into a CLEARED run card (0/N in the shop);
+   *  a persistent meter would report the seeded value plus this fight's damage. */
   playerDamageMeters?: { sourceUid: string; total: number }[];
   /** Permanent stats a minion keeps from this combat, keyed by the recipient's board card uid — applied
    *  to the run board after combat, win or lose. Two sources: Flowing Monk's overflow gift (`engraved:

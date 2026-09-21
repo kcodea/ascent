@@ -15,8 +15,8 @@ import { applyFloatSpeed } from './floatConfig';
 import { buildAuthoredTimeline, getCombatRampConfig, rampSpeed } from './combatRampConfig';
 import { attackerOfImpact, meleePairOfImpact, type Beat } from './combatBeats';
 import { holdMs } from './choreo/clock';
-import { finalHoldMs, payloadReadMs, payloadRemainingMs, type PayloadFire } from './choreo/finalHold';
-import { PAYLOAD_STACK_MS } from './choreo/channels/payloadFired';
+import { finalHoldMs, pummelReadMs, pummelRemainingMs, type PummelFire } from './choreo/finalHold';
+import { PUMMEL_STACK_MS } from './choreo/channels/pummelFired';
 import type { Moment } from './choreo/compile';
 import { replayBeats, replayOrder } from './choreo/replayOrder';
 import { rallyDeliveredUids, runMomentCues } from './choreo/score';
@@ -168,7 +168,7 @@ export interface UnitFrame {
   spellsCastCombat?: number;
   /** Set 3 Spirits: the body's per-instance tally (Forest Colossus / Festival Keeper / Aspect live text). */
   spiritTally?: number;
-  /** Han Gover: total damage this body has dealt (seeded from the run card + this fight's landed hits). */
+  /** Pummel (Han Gover, Goldvein): total damage this body has dealt this fight (the seeded snapshot value, undefined for a once-per-combat meter, plus its landed hits). */
   damageDealt?: number;
   /** Runic Archivist's sales owed / Spell Warden's first-spell record — display-only, so the combat card prints
    *  the same live text the shop does (parity pass 2026-09-10). */
@@ -218,7 +218,7 @@ const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   ascendProgress: s.ascendProgress, // Tara: seed the ascend tracker from the run-board total, then count up
   spellProgress: s.spellProgress, // Guel: seed his on-board spell tally for the live combat text
   spiritTally: s.spiritTally, // Set 3 Spirits: the carried tally, so Forest Colossus / Keeper / Aspect print live in combat
-  damageDealt: s.damageDealt, // Han Gover: seed the damage meter from the run total, then count each landed hit it deals
+  damageDealt: s.damageDealt, // Pummel (Han Gover, Goldvein): the snapshot's seed (undefined for a once-per-combat meter), then count each landed hit it deals
   soldProgress: s.soldProgress, // Runic Archivist (display-only)
   boardFirstSpellId: s.boardFirstSpellId, // Spell Warden (display-only)
   eotBonus: s.eotBonus, // Ritualist: seed the per-tick grant so the combat text isn't stuck at base
@@ -342,9 +342,10 @@ export function computeFrame(
     if (e.type === 'dmg') {
       const u = find(e.target);
       if (u) u.health = e.remainingHp;
-      // The damage meters (Han Gover, Goldvein — core's `DAMAGE_METER_MARKERS`): a meter is the sum of every
+      // The PUMMEL meters (Han Gover, Goldvein — core's `DAMAGE_METER_MARKERS`): a meter is the sum of every
       // landed hit its body dealt — the `dmg` events stamped with it as `source`, the same amounts the sim's
-      // `noteDamageDealt` added — on top of the seeded run total. Keyed off the card's MARKER, not an id: the
+      // `noteDamageDealt` added — on top of the seeded value (none for a once-per-combat meter, so the badge
+      // counts from 0 and `damageMeterReading` clamps it at X/X once the Pummel fired). Keyed off the card's MARKER, not an id: the
       // id gate (`dw3_hangover` only) is why Goldvein's badge never moved in combat (owner report 2026-09-19).
       // This fold runs to the END of the beat being cued, so the badge ticks on the beat the damage lands —
       // the same moment the damage number pops — including the blow that ends the fight (the `done` frame
@@ -587,7 +588,7 @@ function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string;
     case 'shout': return { text: `${n(e.source)} triggers ${n(e.target)}'s Shout.`, kind: 'sc' };
     case 'toHand': return { text: `${cardName(e.cardId)} is added to your hand.`, kind: 'summon' };
     case 'handBuff': return { text: `${cardName(e.cardId)} in your hand grows +${e.attack}/+${e.health}.`, kind: 'buff' };
-    case 'payloadTrigger': return { text: `${n(e.source)}'s damage threshold triggers.`, kind: 'sc' };
+    case 'pummelTrigger': return { text: `${n(e.source)}'s Pummel triggers.`, kind: 'sc' };
     default: return null;
   }
 }
@@ -612,7 +613,7 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
     case 'shout': return `${n(e.source)} triggers ${n(e.target)}'s Shout!`;
     case 'toHand': return `${cardName(e.cardId)} is added to your hand.`;
     case 'handBuff': return `${cardName(e.cardId)} in your hand grows +${e.attack}/+${e.health}.`;
-    case 'payloadTrigger': return `${n(e.source)}'s damage threshold triggers!`;
+    case 'pummelTrigger': return `${n(e.source)}'s Pummel triggers!`;
     default: return null;
   }
 }
@@ -1225,7 +1226,7 @@ export function useCombatReplay(
   /** The stock WHITE trigger-medallion pulse on one unit, outside the per-beat scan — the same keyed hold that
    *  scan uses (a re-fire inside the window restarts its own timer; the clear only removes the uid if this fire
    *  is still the standing one). Used as the FALLBACK when a cue that normally plays an authored def finds
-   *  nothing bound (a damage-meter crossing with no `payloadTrigger` binding). */
+   *  nothing bound (a Pummel fire with no `pummelTrigger` binding). */
   const pulseTrigger = useCallback((uid: string): void => {
     sfx.triggerPulse();
     setTriggers((prev) => new Set([...prev, uid]));
@@ -1480,11 +1481,11 @@ export function useCombatReplay(
   // damage float fully play before the replay reports `done` (which cleans up the dead + triggers the
   // round-end UI). Without it, the last kill was cut off mid-pop with no number.
   const [finished, setFinished] = useState(false);
-  // The most recent PAYLOAD flash (a damage-meter crossing's `payload-trigger`) this replay fired, wall-clock —
+  // The most recent PUMMEL flash (a Pummel fire's `pummel-trigger`) this replay fired, wall-clock —
   // so the final hold can wait out one fired a beat or two BEFORE the end (Han Gover's crossing trails its Ale's
   // `toHand` beat and the death beat). See `choreo/finalHold.ts`. A stale entry from an earlier fight is
   // harmless (already elapsed → 0), and `resetTo` clears it anyway.
-  const lastPayloadFireRef = useRef<PayloadFire | null>(null);
+  const lastPummelFireRef = useRef<PummelFire | null>(null);
   // Tab visibility — pause the beat clock while backgrounded so beats/lunges don't pile up and then fire
   // all at once (a loud burst of sounds) when you tab back in.
   const [hidden, setHidden] = useState(() => typeof document !== 'undefined' && document.hidden);
@@ -1530,7 +1531,7 @@ export function useCombatReplay(
     setWatcherPulse(new Map());
     setFramePulse(new Map());
     setFinished(false);
-    lastPayloadFireRef.current = null;
+    lastPummelFireRef.current = null;
     setAttackUid(null);
     // (the `[data-zone] .unit` kill that stopped any lunge left mid-flight by the previous fight now runs
     //  first, at the top of this callback — see the comment there for why the ordering is load-bearing)
@@ -1888,12 +1889,12 @@ export function useCombatReplay(
     // The floor is that death's OWN pull-home hold + a small buffer for the fade's tail — so a plain trade
     // settles ~200ms sooner than a Deathrattle one instead of everything paying the DR figure.
     const pull = last ? pulledHomeAttackerHold(last, attackerOfImpact(beats, beats.length - 1), events, cardIds) : 0;
-    // A DAMAGE-METER crossing on the killing blow (Goldvein / Han Gover, 2026-09-21) adds a third, WALL-CLOCK
-    // floor: the owner's `payload-trigger` must play out in full before `done` starts the hand-off. Pure —
+    // A PUMMEL fire on the killing blow (Goldvein / Han Gover, 2026-09-21) adds a third, WALL-CLOCK
+    // floor: the owner's `pummel-trigger` must play out in full before `done` starts the hand-off. Pure —
     // see `choreo/finalHold.ts` for the argument and the tests.
     const hold = finalHoldMs(last, events, cardIds, {
       finalHold: getChoreoConfig().finalHold, combatSpeed, pull,
-      pendingPayloadMs: payloadRemainingMs(lastPayloadFireRef.current, performance.now()),
+      pendingPummelMs: pummelRemainingMs(lastPummelFireRef.current, performance.now()),
     });
     const t = window.setTimeout(() => setFinished(true), hold);
     return () => window.clearTimeout(t);
@@ -2206,23 +2207,23 @@ export function useCombatReplay(
         pulseWatcher(source);
         if (!bindingFor(cardIds.get(source) ?? null, 'shout')) bloomFrame(target);
       },
-      // A DAMAGE-METER crossing (`payloadTrigger` — Han Gover, Goldvein; the future "Payload" keyword,
-      // 2026-09-21): the `payloadFx` cue plays the owner's `payload-trigger` ON the body's medallion, and that
+      // A PUMMEL (X) fire (`pummelTrigger` — Han Gover, Goldvein; the damage-dealt threshold keyword,
+      // 2026-09-21): the `pummelFx` cue plays the owner's `pummel-trigger` ON the body's medallion, and that
       // def carries its own `triggerpulse` sound layer — so the body is deliberately NOT added to the per-beat
       // `trig` scan (its white CSS pulse + `sfx.triggerPulse()` would stack a second pulse and a second copy of
       // the same clip under the burst — the shop's rule for a bound Shout). The card's own effect voiceline
       // still plays; when NOTHING is bound at the kind the stock pulse + sound stand in, so unbinding the def
-      // in the workbench never leaves a crossing silent.
-      onPayloadProc: (uid: string, _marker: string, count: number) => {
+      // in the workbench never leaves a fire silent.
+      onPummelProc: (uid: string, _marker: string, count: number) => {
         const cid = cardIds.get(uid) ?? null;
         if (cid) sfx.cardEffect(cid);
-        if (!bindingFor(cid, 'payloadTrigger')) { pulseTrigger(uid); return; }
+        if (!bindingFor(cid, 'pummelTrigger')) { pulseTrigger(uid); return; }
         // Remember the flash's wall-clock end so a fight that ends a beat or two later still waits it out
-        // (the final-hold floor — `choreo/finalHold.ts`). A stacked double crossing reads a stride longer.
-        const read = payloadReadMs(cid);
+        // (the final-hold floor — `choreo/finalHold.ts`). A body fired twice in one moment reads a stride longer.
+        const read = pummelReadMs(cid);
         if (read > 0) {
           const spd = combatSpeedRef.current > 0 ? combatSpeedRef.current : 1;
-          lastPayloadFireRef.current = { at: performance.now(), readMs: read + ((count - 1) * PAYLOAD_STACK_MS) / spd };
+          lastPummelFireRef.current = { at: performance.now(), readMs: read + ((count - 1) * PUMMEL_STACK_MS) / spd };
         }
       },
 

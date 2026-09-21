@@ -56,11 +56,11 @@ export interface ChoreoConfig {
   venomLost: number;
   /** A unit dies — the collapse read. */
   death: number;
-  /** A damage-meter crossing (`payloadTrigger`: Han Gover / Goldvein) LEADING a moment — only when an `onDamaged`
+  /** A damage-meter crossing (`pummelTrigger`: Han Gover / Goldvein) LEADING a moment — only when an `onDamaged`
    *  reactor's event split it off its hit's impact (Hearth Whisperer's `handBuff`); folded into the impact it
    *  never reaches the clock. Tuned equal to `dmg` so the leading crossing (and a death riding in it) holds
    *  like the hit it belongs to, not the bare 300 fallback. */
-  payloadTrigger: number;
+  pummelTrigger: number;
   // Overlay lifetimes (divide by combatSpeed only, not by `speed`).
   /** How long a combat damage/heal float lingers before it clears (ms; keep ≥ the floatup CSS anim). */
   floatMs: number;
@@ -90,7 +90,7 @@ const DEFAULTS: ChoreoConfig = {
   maxGold: 560, hpGrant: 0,
   // result beats (ms)
   dmg: 460, shield: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,
-  payloadTrigger: 460, // = dmg (see the field doc) — a leading crossing reads like the hit it rode in on
+  pummelTrigger: 460, // = dmg (see the field doc) — a leading crossing reads like the hit it rode in on
   // overlay lifetimes (ms)
   floatMs: 1500, deathFloatMs: 1000, finalHold: 900,
   // consequence-overlap: a summon/reborn rides on the preceding FX after this short gap (nearly in tandem) —
@@ -143,7 +143,7 @@ const KIND_TO_KEY: Record<MomentKind, keyof ChoreoConfig> = {
   hpGrant: 'hpGrant', spellProgress: 'hpGrant', reveal: 'summon',
   tribeAura: 'buff', // hold-times like a buff wave — an aura is a buff cue
   questTrigger: 'dmg', questComplete: 'dmg',
-  payloadTrigger: 'payloadTrigger', // its own key (= dmg): the clock keys by primary event TYPE, so a leading crossing needs a real entry to hold like damage rather than falling to the 300 default
+  pummelTrigger: 'pummelTrigger', // its own key (= dmg): the clock keys by primary event TYPE, so a leading crossing needs a real entry to hold like damage rather than falling to the 300 default
 };
 export function holdMsForKind(kind: MomentKind): number {
   return beatDelay(KIND_TO_KEY[kind]);

@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ascent Quiz #40 — 2026-09-21</title>
+<meta name="description" content="Quiz #40 for Mike — ten questions on functions, purity, the seeded RNG, and package boundaries in Ascent's real code.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f8fa;
+    --surface: #ffffff;
+    --surface-2: #eef1f4;
+    --border: #d7dce2;
+    --text: #1f2328;
+    --muted: #57606a;
+    --accent: #1a7f37;
+    --accent-soft: #dafbe1;
+    --bad: #cf222e;
+    --bad-soft: #ffebe9;
+    --warn: #9a6700;
+    --shadow: 0 1px 2px rgba(31,35,40,.06), 0 8px 24px rgba(31,35,40,.06);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1117;
+      --surface: #151b23;
+      --surface-2: #1c2431;
+      --border: #2d3745;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #3fb950;
+      --accent-soft: #123a20;
+      --bad: #ff7b72;
+      --bad-soft: #3c1618;
+      --warn: #d29922;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1117;
+    --surface: #151b23;
+    --surface-2: #1c2431;
+    --border: #2d3745;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #3fb950;
+    --accent-soft: #123a20;
+    --bad: #ff7b72;
+    --bad-soft: #3c1618;
+    --warn: #d29922;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+    padding: 32px 16px 64px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 24px; }
+  header .kicker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  header h1 { font-size: 24px; margin: 0 0 6px; }
+  header p { color: var(--muted); font-size: 14px; margin: 0; }
+
+  .progressbar {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    overflow: hidden;
+    margin: 20px 0 28px;
+    border: 1px solid var(--border);
+  }
+  .progressbar-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width .3s ease;
+  }
+
+  .scoretrack {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .scoretrack .pip {
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted);
+  }
+  .scoretrack .pip.correct { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .scoretrack .pip.wrong { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 24px 22px;
+    margin-bottom: 18px;
+  }
+  .qmeta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .qmeta .num { color: var(--accent); font-weight: 600; }
+  .question { font-size: 17px; line-height: 1.5; margin: 0 0 18px; font-weight: 600; }
+
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    text-align: left;
+    padding: 13px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14.5px;
+    line-height: 1.45;
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease, transform .1s ease;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
+  .choice:disabled { cursor: default; }
+  .choice .letter {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--muted);
+    flex-shrink: 0;
+    width: 20px;
+  }
+  .choice.correct { background: var(--accent-soft); border-color: var(--accent); }
+  .choice.correct .letter { color: var(--accent); }
+  .choice.wrong { background: var(--bad-soft); border-color: var(--bad); }
+  .choice.wrong .letter { color: var(--bad); }
+  .choice.dim { opacity: .55; }
+
+  .result-tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 6px;
+    margin-top: 16px;
+  }
+  .result-tag.correct { background: var(--accent-soft); color: var(--accent); }
+  .result-tag.wrong { background: var(--bad-soft); color: var(--bad); }
+
+  .explanation {
+    margin-top: 12px;
+    padding: 14px 15px;
+    background: var(--surface-2);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--text);
+    display: none;
+  }
+  .explanation.show { display: block; }
+  .explanation code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    background: var(--bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+
+  .nextrow { display: flex; justify-content: flex-end; margin-top: 16px; }
+  .btn {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    display: none;
+  }
+  .btn.show { display: inline-block; }
+  .btn:hover { filter: brightness(1.08); }
+
+  .summary { text-align: center; padding: 36px 24px; }
+  .summary .big { font-size: 44px; font-weight: 700; margin: 8px 0; font-family: 'JetBrains Mono', monospace; }
+  .summary .line { color: var(--muted); font-size: 15px; margin-bottom: 22px; }
+  .summary .topics { font-size: 13px; color: var(--muted); margin-top: 20px; line-height: 1.7; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">Daily Ascent Code Quiz</div>
+    <h1>🎓 Ascent Quiz #40</h1>
+    <p>2026-09-21 · 10 questions on functions, purity, the seeded RNG, and package boundaries</p>
+  </header>
+
+  <div class="progressbar"><div class="progressbar-fill" id="progressFill"></div></div>
+  <div class="scoretrack" id="scoreTrack"></div>
+
+  <div id="quizArea"></div>
+
+  <div id="summaryArea" class="card summary hidden"></div>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    topicId: "what-is-a-function",
+    question: "packages/content/src/index.ts's referencedCardIds(card) takes one CardDef in and returns an array of the ids it mentions — nothing is mutated, nothing is written to a database, nothing is logged. If you call referencedCardIds(sameCard) fifty times in a row, what happens?",
+    choices: [
+      "It returns the exact same array of ids every single time",
+      "It returns a different result each time, since the internal Set reorders itself",
+      "It throws after the first call, since the returned array is frozen",
+      "It mutates sameCard.effects on each call, so the 50th result differs from the 1st"
+    ],
+    answer: 0,
+    explanation: "referencedCardIds() only reads from its <code>card</code> argument (plus fixed lookup tables like <code>CARD_REF_EFFECTS</code>) into a Set it builds fresh on each call — nothing outside the function is touched, so nothing could change between calls. That's the core idea of a function: given the identical input, you get the identical output, every time, with zero side effects. Contrast this with a function that reads <code>Date.now()</code> or a random source internally — that one really could return something different on the 2nd call with the same argument."
+  },
+  {
+    topicId: "sim-ui-decoupling",
+    question: "packages/core/src/events.ts's CombatBus.emit(event, payload) loops over handlers that minions registered with .on(...) and calls each one — synchronously, entirely inside packages/core. Where does packages/ui fit into this loop?",
+    choices: [
+      "UI components subscribe to CombatBus too, so they can react live as combat resolves",
+      "Nowhere — the UI never touches CombatBus; it only reads the finished events array simulate() returns, after combat has already fully resolved",
+      "The UI polls CombatBus.emit() once per animation frame to know what to draw next",
+      "CombatBus actually lives in packages/ui, not packages/core"
+    ],
+    answer: 1,
+    explanation: "CombatBus is a <code>core</code>-internal wiring detail: minion effect handlers subscribe to it while simulate() runs, letting one effect trigger another (a Deathrattle summon &rarr; onSummon) entirely inside the pure combat-resolution step. By the time the UI sees anything, combat is already over and simulate() has returned a finished events array — the UI's job is only to animate that pre-computed log on its own clock, never to listen for what's about to happen. Same rule as CLAUDE.md's 'the UI never computes outcomes,' just visible at the level of one specific internal class."
+  },
+  {
+    topicId: "monorepo-packages",
+    question: "packages/ui/src/Recruit.tsx calls referencedCardIds(card) — imported from @game/content — to power the shop's hover-preview of cards a card mentions. It does NOT reimplement its own 'walk this card's effects for referenced ids' logic. What does that show about how the monorepo's packages are meant to interact?",
+    choices: [
+      "ui is allowed to copy logic from content as long as it credits the source file in a comment",
+      "A capability like 'which cards does this card reference' is owned by ONE package (content, since it owns card data) and exposed through its public entrypoint — other packages call it instead of re-deriving the same logic",
+      "ui and content share one compiled build, so duplication isn't really a risk either way",
+      "This is a boundary violation that should be refactored out"
+    ],
+    answer: 1,
+    explanation: "packages/content owns card data, and by extension owns anything that understands its shape — including which effects reference other cards. Exporting referencedCardIds() from content's entrypoint lets ui consume that knowledge instead of rebuilding it, so a change to how references work (a new effect type, a new param) only has to happen in one place. That's the same principle behind CLAUDE.md's 'ui depends on others through public package entrypoints only' rule — ownership plus a published interface, not a copy in every consumer."
+  },
+  {
+    topicId: "pure-functions",
+    question: "packages/content/src/index.ts's validateCards() walks every card, calls CardDefSchema.parse(card), and throws an Error the moment it finds a problem (a duplicate id, a broken reference). It never mutates any CardDef. Is validateCards() a pure function, strictly speaking?",
+    choices: [
+      "Yes — 'pure' just means 'doesn't mutate its inputs', and this never mutates a card",
+      "No — throwing an exception is itself a second, alternate exit path, which strictly disqualifies it from 'pure', even though it's still fully deterministic and safe",
+      "Yes — because it's only called from npm test, and test code is exempt from purity rules",
+      "No — pure functions can't contain a for loop, and validateCards() loops over every card"
+    ],
+    answer: 1,
+    explanation: "Not mutating inputs is necessary for purity but not sufficient by itself — a strictly pure function also always returns a value along one predictable path for a given input, never bailing out a different way. Throwing is a different kind of exit than returning (and it's exactly why validateCards() is useful — a test can assert it throws), but that non-local jump is why the textbook definition of 'pure' doesn't quite apply, even though the function is still fully deterministic and side-effect-free in every other sense. Worth holding both ideas at once: 'safe and deterministic' and 'pure in the strict sense' aren't always identical claims."
+  },
+  {
+    topicId: "data-vs-code",
+    question: "packages/content/src/index.ts's CARD_REF_EFFECTS is a plain object — { spellCastTransform: 'into', avengeSummon: 'cardId', deathrattleGrantCardToHand: 'cardId', ... } — mapping an effect id to which of its params holds a referenced card id. When a new effect factory is added that names another card, what does wiring up its hover-preview actually require?",
+    choices: [
+      "Writing a new if/else branch inside referencedCardIds() specifically for that effect",
+      "Adding one new key to the CARD_REF_EFFECTS object — no new code branch needed",
+      "Editing packages/ui/src/Recruit.tsx directly, since that's where hover-previews render",
+      "Nothing — referencedCardIds() already reads every effect factory's source via reflection"
+    ],
+    answer: 1,
+    explanation: "Because CARD_REF_EFFECTS is data (a lookup table), referencedCardIds() itself never has to change when a new card-referencing effect ships — you add one entry saying which param key holds the reference, and the existing generic loop in referencedCardIds() picks it up automatically. That's the 'data vs code' payoff in miniature: growing the game's content shouldn't require growing its logic in lockstep. Option D is close but wrong — there's no reflection reading factory internals; the mapping still has to be declared by hand, once, per effect id."
+  },
+  {
+    topicId: "event-log-replay",
+    question: "packages/core/src/events.ts's CombatBus.emit() copies the handler list into a new array — for (const handler of [...list]) — instead of looping over the stored array directly, because 'handlers may register new handlers (summoned minions)' mid-emit. What would go wrong without that copy?",
+    choices: [
+      "Nothing — JS arrays can't be modified while being iterated, so the copy is purely defensive",
+      "A newly-summoned minion's handler (registered by a Deathrattle firing during this very emit) could get invoked in the same pass that spawned it, or the live iteration could skip/duplicate handlers as the array shifts underneath it — either way the event order stops being predictable",
+      "The copy exists only to satisfy a TypeScript strict-mode lint rule, with no runtime effect",
+      "Without the copy, emit() would run asynchronously instead of synchronously"
+    ],
+    answer: 1,
+    explanation: "JavaScript arrays absolutely can mutate mid-iteration, and doing so can skip or repeat elements depending on exactly when the push happens — a live-array walk where a Deathrattle's onSummon handler pushes itself onto the very list being iterated is a real hazard, not a hypothetical one. Snapshotting the handler list with <code>[...list]</code> before looping locks in 'exactly the handlers that existed the moment this event fired,' which is what keeps the resulting event order reproducible — a requirement for replay, since a shuffled or duplicated handler order would make the same seed produce a different log on a different run."
+  },
+  {
+    topicId: "eslint-rules",
+    question: "eslint.config.mjs's banMathRandom block lists packages/tools/**/*.ts alongside core/content/sim, even though CLAUDE.md's architecture rule only says 'Math.random is banned in core/content/sim.' The block's own comment explains tools is included too because npm run pool ___.",
+    choices: [
+      "imports code from packages/core, so the ban has to cascade transitively through any importer",
+      "generates the COMMITTED opponent pool — nondeterminism there would make the pool build itself unreproducible, even though it's a build-time script rather than the live engine",
+      "is the only package allowed to call Math.random, so it needs an explicit override rather than a ban",
+      "runs inside a Node worker thread, where Math.random behaves differently than on the main thread"
+    ],
+    answer: 1,
+    explanation: "The Math.random ban isn't really about which package a file lives in — it's about which pieces of output need to be reproducible from a seed. npm run pool is a tools script, but what it produces (the committed opponent pool file) is exactly the kind of artifact determinism protects: real randomness in generating it would mean two runs of the same generation step could produce two different, unreproducible pools. The rule follows the *consequence* (an unreproducible committed artifact), not just a package label — which is also why CLAUDE.md's shorter phrasing doesn't tell the whole story, and reading the actual eslint config matters more than the summary."
+  },
+  {
+    topicId: "performance-memo",
+    question: "docs/performance.md's own example: the plateGild canvas fix cut the MEAN frame time in its opening window by 24% (6.48 &rarr; 5.82 ms) — a real, measured win on paper. But the WORST frame in that same window barely moved, staying around 16.7 ms (4&times; over the 4.17 ms budget). Per the doc's own judging rule, does this fix count as done?",
+    choices: [
+      "Yes — a 24% mean improvement is a genuine, measurable win, and that's the number that matters",
+      "No — the doc explicitly judges changes by the worst frame first, and a worst frame still 4× over budget means a player-felt hitch is still there no matter what the mean says",
+      "Yes, because 5.82 ms comfortably beats the legacy 16.67 ms (60Hz) budget",
+      "It's unmeasurable either way — mean and worst can't both be tracked in the same window"
+    ],
+    answer: 1,
+    explanation: "docs/performance.md is explicit that 'a mean improvement that leaves the worst frame where it was has not fixed anything a player can feel' — averages are exactly the statistic that hides one bad hitch sitting inside an otherwise smooth second. The plateGild example is the doc's own cautionary case: a real, correctly-measured 24% mean win that still leaves a stutter a player would notice, because the worst frame — the number the game is actually judged on — barely moved. The lesson isn't 'ignore the mean,' it's 'the mean is context, the worst frame is the verdict.'"
+  },
+  {
+    topicId: "seeded-rng",
+    question: "packages/core/src/rng.ts's fork() is written as fork: () => makeRng((next() * 4294967296) >>> 0) — it calls the PARENT rng's own next() to seed the brand-new child. What does that mean for the parent stream immediately after you call someRng.fork()?",
+    choices: [
+      "Nothing — fork() reads the parent's current state without consuming a value from it",
+      "The parent has been advanced by one draw: whatever someRng.next() would have returned right after fork() is now a different value than if fork() had never been called",
+      "fork() resets the parent back to its original seed, so it can be reused from scratch",
+      "fork() is illegal to call more than once on the same rng instance"
+    ],
+    answer: 1,
+    explanation: "fork()'s implementation calls <code>next()</code> on the parent — the exact same function that advances the parent's internal state and returns a pseudo-random float — and uses that returned value to seed the new child. So fork() isn't a read-only peek at the parent; it's a real draw from the parent's stream, exactly like calling <code>someRng.next()</code> directly would be. That matters for determinism: forking a subsystem's RNG (say, for one combat) consumes exactly one value from whatever rng you forked it from, so whether you fork before or after some other next() call changes what every later draw produces — which is precisely why the whole thing stays perfectly reproducible from a single seed, rather than becoming fragile."
+  },
+  {
+    topicId: "deterministic-sim",
+    question: "packages/content/src/index.ts's CARD_INDEX is built once from ALL_CARDS and stays global — never rebuilt from just whichever set happens to be 'live' right now. A run 'PINS its set at creation' (per CLAUDE.md) and can be replayed weeks later, after other sets have since been flipped live. Why does a global, unchanging CARD_INDEX matter for that replay?",
+    choices: [
+      "It doesn't matter for replay — CARD_INDEX only affects which cards show up in the shop",
+      "A card id (used everywhere — summoned tokens, deathrattle grants, saved board state) has to resolve to the exact same CardDef every time it's looked up, regardless of which set is enabled today; rebuilding CARD_INDEX from only the active set could make an old replay's ids resolve to a different card, or nothing at all",
+      "It's purely a performance optimization — rebuilding CARD_INDEX per set would be too slow to matter for correctness",
+      "CARD_INDEX is actually rebuilt fresh on every combat anyway, so this wouldn't change anything"
+    ],
+    answer: 1,
+    explanation: "CARD_INDEX exists specifically because 'an id resolves to the same card regardless' of which set is live — it's a pure id→def lookup used at roughly 500 call sites, many of them resolving something a run already committed to (a summoned token, a saved board slot) rather than something being freshly drawn from a shop pool. If it were rebuilt from only the active set, flipping a set switch could silently break every old run and replay that references a card no longer in that set. Determinism here isn't just about simulate() being reproducible in the moment — it's about ids staying resolvable to the same content indefinitely, which is exactly what CLAUDE.md's 'flipping the switch never changes an in-flight or replayed run' promise depends on."
+  }
+];
+
+let current = 0;
+let score = 0;
+const results = [];
+
+const quizArea = document.getElementById('quizArea');
+const progressFill = document.getElementById('progressFill');
+const scoreTrack = document.getElementById('scoreTrack');
+const summaryArea = document.getElementById('summaryArea');
+
+function initTrack() {
+  scoreTrack.innerHTML = '';
+  QUESTIONS.forEach((_, i) => {
+    const pip = document.createElement('div');
+    pip.className = 'pip';
+    pip.textContent = i + 1;
+    pip.id = 'pip-' + i;
+    scoreTrack.appendChild(pip);
+  });
+}
+
+function renderQuestion(i) {
+  const q = QUESTIONS[i];
+  const letters = ['A', 'B', 'C', 'D'];
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `
+    <div class="qmeta"><span class="num">Question ${i + 1} / ${QUESTIONS.length}</span><span>${q.topicId}</span></div>
+    <p class="question">${q.question}</p>
+    <div class="choices" id="choices-${i}"></div>
+    <div class="explanation" id="explain-${i}"></div>
+    <div class="nextrow"><button class="btn" id="next-${i}">${i === QUESTIONS.length - 1 ? 'See results →' : 'Next question →'}</button></div>
+  `;
+  quizArea.innerHTML = '';
+  quizArea.appendChild(card);
+
+  const choicesEl = document.getElementById('choices-' + i);
+  q.choices.forEach((choiceText, ci) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice';
+    btn.innerHTML = `<span class="letter">${letters[ci]}</span><span>${choiceText}</span>`;
+    btn.addEventListener('click', () => selectAnswer(i, ci));
+    choicesEl.appendChild(btn);
+  });
+
+  progressFill.style.width = ((i) / QUESTIONS.length * 100) + '%';
+}
+
+function selectAnswer(i, ci) {
+  const q = QUESTIONS[i];
+  const choicesEl = document.getElementById('choices-' + i);
+  const buttons = choicesEl.querySelectorAll('.choice');
+  const correct = ci === q.answer;
+
+  buttons.forEach((b, bi) => {
+    b.disabled = true;
+    if (bi === q.answer) b.classList.add('correct');
+    else if (bi === ci) b.classList.add('wrong');
+    else b.classList.add('dim');
+  });
+
+  const explainEl = document.getElementById('explain-' + i);
+  explainEl.classList.add('show');
+  explainEl.innerHTML = `<span class="result-tag ${correct ? 'correct' : 'wrong'}">${correct ? '✓ Correct' : '✗ Not quite'}</span><br><br>${q.explanation}`;
+
+  const pip = document.getElementById('pip-' + i);
+  pip.classList.add(correct ? 'correct' : 'wrong');
+  pip.textContent = correct ? '✓' : '✗';
+
+  if (correct) score++;
+  results.push(correct);
+
+  document.getElementById('next-' + i).classList.add('show');
+  progressFill.style.width = ((i + 1) / QUESTIONS.length * 100) + '%';
+}
+
+quizArea.addEventListener('click', (e) => {
+  if (e.target && e.target.id && e.target.id.startsWith('next-')) {
+    current++;
+    if (current < QUESTIONS.length) {
+      renderQuestion(current);
+    } else {
+      showSummary();
+    }
+  }
+});
+
+function showSummary() {
+  quizArea.innerHTML = '';
+  const pct = Math.round((score / QUESTIONS.length) * 100);
+  let line;
+  if (pct === 100) line = "Perfect score! You're reading this codebase like you wrote it. 🏆";
+  else if (pct >= 80) line = "Really strong — you're building a solid mental map of how this game is built.";
+  else if (pct >= 50) line = "Good progress — a few of these were deep cuts. Keep going, it compounds fast.";
+  else line = "Tough one today — no worries, reply with your score and tomorrow will circle back to what tripped you up.";
+
+  summaryArea.classList.remove('hidden');
+  summaryArea.innerHTML = `
+    <div class="kicker" style="color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:13px;">QUIZ COMPLETE</div>
+    <div class="big">${score} / ${QUESTIONS.length}</div>
+    <div class="line">${line}</div>
+    <div class="topics">Reply to this morning's message with your score (e.g. "${score}/10, missed the RNG one") and tomorrow's quiz will adapt.</div>
+  `;
+  progressFill.style.width = '100%';
+}
+
+initTrack();
+renderQuestion(0);
+</script>
+</body>
+</html>

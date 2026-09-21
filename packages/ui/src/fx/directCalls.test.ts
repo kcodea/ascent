@@ -158,7 +158,10 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // (replacing the CSS spell-buff grow/shrink + mote blast, which never reached the def pipeline).
       // 'ruby-bounce' + 'spell-bounce' joined on 2026-09-15: the cross-target re-cast ribbon, fired from the `bounceFx`
       // watcher in `Recruit.tsx` (shop) and the `bounceFx` channel in `choreo/score.ts` (combat).
-      'freeze-blast', 'hand-buff', 'hero-power-spark', 'hero-power-target', 'impact-dust', 'landing-dust', 'ruby-bounce', 'ruby-gem-apply',
+      'freeze-blast', 'hand-buff', 'hero-power-spark', 'hero-power-target', 'impact-dust', 'landing-dust',
+      // 'rank-up' joined on 2026-09-20: the owner-authored promotion hit on the post-game rank screen (`rank/rankTimeline.ts`).
+      'rank-up',
+      'ruby-bounce', 'ruby-gem-apply',
       // 'tendril-trail' joined on 2026-09-02: the owner-authored buff-other ribbon, fired from `buffFxRender.ts`.
       // 'shop-buff-purple' joined the same day: the mid-combat Shop-buff bloom, fired from `useCombatReplay.ts`.
       // 'ward-lost-blast' joined on 2026-09-09: the owner-authored Ward-loss burst, fired from `choreo/channels/aura.ts`.

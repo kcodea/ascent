@@ -17,6 +17,7 @@ import { ScoutCardTuner } from './ScoutCardTuner';
 import { TitleLogoTuner } from './TitleLogoTuner';
 import { LoadScreenTuner } from './LoadScreenTuner';
 import { HeroDuelTuner } from './HeroDuelTuner';
+import { RankScreenPreview } from './rank/RankScreenPreview';
 import { RulebookTriage } from './RulebookTriage';
 import { BugBoard } from './BugBoard';
 import { QaWorkbench } from './QaWorkbench';
@@ -153,6 +154,7 @@ const GROUPS: Group[] = [
       { key: 'titleveil', icon: '🌒', label: 'Title Veil', C: TitleVeilTuner, hint: 'The dark navy gradient behind the main menu — colour, intensity and the bowed clear zone over the floating city', alt: 'main menu background darken vignette overlay' },
       { key: 'loadscreen', icon: '⏳', label: 'Load Screen', C: LoadScreenTuner, hint: 'The boot splash — resize the AscentIcon and size/position the loading bar. "Toggle load screen" re-shows it live', alt: 'boot loading splash screen' },
       { key: 'heroduel', icon: '⚔️', label: 'Hero Duel', C: HeroDuelTuner, hint: 'The post-combat sequence — foe portrait, attack pill, and the winning hero lunge. Has Test buttons', alt: 'combat end hero attack strike pill' },
+      { key: 'rankscreen', icon: '🎖️', label: 'Rank Screen', C: RankScreenPreview, hint: 'The post-game medal rank screen — plays every fixture state (gain, loss, gate unlocked, promotion won, medal promotion, promotion failed, demotion, floor, Ascendant uncapped, pending, retryable, rejected, unrated) plus the pending → confirmed arrival, the demotion-gate variants, the rank-up FX hit and the Continue cross-fade', alt: 'medal mmr rank end screen placement promotion division points bar' },
     ],
   },
   {

@@ -25,6 +25,8 @@ const IRREGULAR_CLIP_CATEGORY: Record<string, string> = {
   undeadaurabuff: 'buff', spirittendril: 'buff',
   // The owner's `GambleSFX.mp3` → its own 1:1 `gamble` fader (the die launching, power and spell alike).
   gamblesfx: 'gamble',
+  // The post-game rank screen's four cues share the `rank` fader (no clips committed yet — synth fallbacks).
+  rankprogress: 'rank', rankgate: 'rank', rankpromote: 'rank', rankmedal: 'rank',
 };
 
 /** Numbered-variant bases (`buy1`/`buy2` → `buy`) — the logical clips backed by N files, one picked per play. */

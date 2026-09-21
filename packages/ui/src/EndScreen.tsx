@@ -8,6 +8,8 @@ import { heroArt } from './art';
 import { Icon } from './Icon';
 import { useGame } from './store';
 import { startReplay } from './replay/replayPlayer';
+import { RankScreen } from './rank/RankScreen';
+import { useRankSource } from './rank/rankSource';
 
 /** A live `CardView` for a final-warband minion — shared with the final-board capture (see `liveBoardView`),
  *  so scaling cards show their *accumulated* magnitude at run's end, not the printed base. */
@@ -59,13 +61,48 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
   // REPLAY VIEWER (v2): the just-finished run's state replay — stashed by the run-end block a tick after the
   // phase flips (same deferral as the rating), so the Rewatch button pops in once it lands.
   const lastReplay = useGame((s) => s.lastReplay);
+  const canRewatch = !!lastReplay && lastReplay.seed === run.seed;
+  // MEDAL RANK (2026-09-20): the store's rank slice (rules branch) — null until it merges, in which case the
+  // legacy rating block below still renders. Practice is always unrated, whatever the slice says. The rank
+  // screen shows NO warband and no Rewatch (owner 2026-09-20) — Rewatch stays reachable from Recent Games.
+  const rankSource = useRankSource();
+  const warband = (
+    <>
+      <div className="endboardlabel">Final warband</div>
+      <div className="endboard">
+        {run.board.length === 0
+          ? <span className="endempty">— empty —</span>
+          : run.board.map((m) => <Card key={m.uid} card={boardView(m, run)} suppressPop />)}
+      </div>
+    </>
+  );
+  if (run.mode === 'practice' || rankSource) {
+    const practice = run.mode === 'practice';
+    return (
+      <div className={`heroselect endscreen lobbyend rankend${won ? ' won' : ''}`}>
+        <div className="hsbox endbox">
+          <RankScreen
+            placement={place}
+            seatCount={lobby.seats.length}
+            submission={practice ? 'unrated' : rankSource!.submission}
+            result={practice ? null : rankSource!.result}
+            current={practice ? null : rankSource!.current}
+            error={practice ? undefined : rankSource!.error}
+            unratedReason={practice ? 'Practice' : undefined}
+            runId={rankSource?.runId ?? rankSource?.result?.runId ?? String(run.seed)}
+            onContinue={onPlayAgain}
+            onRetry={practice ? undefined : rankSource!.retry}
+          />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className={`heroselect endscreen lobbyend${won ? ' won' : ''}`}>
       <div className="hsbox endbox">
         <div className="endplace" aria-label={`Finished ${ordinal(place)} of ${lobby.seats.length}`}>
           <span className="endplace-num">{ordinal(place)}</span>
           <span className="endplace-of">of {lobby.seats.length}</span>
-          {run.mode === 'practice' && <span className="endplace-practice">Practice — unrated</span>}
         </div>
         {run.mode === 'lobby' && lastRating && (
           <div className={`endmmr${lastRating.ratingDelta >= 0 ? ' up' : ' down'}`} aria-label="Rating change">
@@ -74,16 +111,11 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
             <span className="endmmr-label">Rating</span>
           </div>
         )}
-        <div className="endboardlabel">Final warband</div>
-        <div className="endboard">
-          {run.board.length === 0
-            ? <span className="endempty">— empty —</span>
-            : run.board.map((m) => <Card key={m.uid} card={boardView(m, run)} suppressPop />)}
-        </div>
+        {warband}
         <button className="endplay pressable" onClick={onPlayAgain}>Play Again</button>
         {/* Watch back the run that just ended — exiting the replay restores this end screen untouched. */}
-        {lastReplay && lastReplay.seed === run.seed && (
-          <button className="endplay pressable ghost" onClick={() => startReplay(lastReplay)}>Rewatch</button>
+        {canRewatch && (
+          <button className="endplay pressable ghost" onClick={() => startReplay(lastReplay!)}>Rewatch</button>
         )}
       </div>
     </div>

@@ -76,6 +76,9 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // from the `bounceFx` channel in score.ts (Trouble, Candle Conduit, a Resonance Idol / Reflector spread).
   // `spell-bounce` is a PLACEHOLDER palette-swap of `ruby-bounce` until the owner tunes it in the workbench.
   'ruby-bounce': ['Recruit.tsx', 'choreo/score.ts'],
+  // The RANK-UP hit (owner-authored 2026-09-20): a ring collapsing onto the crest, then a gold shard burst as
+  // the new crest lands — fired by the post-game rank timeline at the promotion beat (division and medal).
+  'rank-up': ['rank/rankTimeline.ts'],
   'rune-buff-unit': ['Recruit.tsx', 'useCombatReplay.ts'],
   // The implosion on a rune's BADGE as the lock-in ceremony hands it over (owner ask 2026-08-31).
   'rune-select-implosion': ['useRuneArrivalFx.ts'],

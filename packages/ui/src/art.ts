@@ -165,6 +165,15 @@ const MODE_ART = indexArt(
 );
 export const modeArt = (modeId: string): string | undefined => MODE_ART[modeId];
 
+/** MEDAL CRESTS (2026-09-20) — one square master per medal (`ranks/<medal>.webp`, lower-case: `gold.webp`),
+ *  composited inside the circular hero frame by `RankCrest`; the division numeral is a plate on the frame,
+ *  not a separate painting. Keyed by the lower-cased medal name. Preloaded with the rest of the art so the
+ *  post-game screen never pops its crest in. */
+const RANK_ART = indexArt(
+  import.meta.glob('./art/ranks/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as ArtModules,
+);
+export const rankArt = (medal: string): string | undefined => RANK_ART[medal.toLowerCase()];
+
 /** Avatar picker: every bundled art the player can choose as their profile avatar, namespaced by pool
  *  (`hero:<id>` / `minion:<cardId>` / `power:<heroId>`) so ids never collide across pools. `key` is the raw
  *  glob key (cardId / heroId), used to resolve a display name from CARD_INDEX / HEROES in the picker. */
@@ -202,7 +211,7 @@ const PUBLIC_ART_URLS: string[] = [
 
 /** Every bundled art URL (minions + heroes + powers) + the public backdrops/cursors, deduped — the warm-up set. */
 const ALL_ART_URLS: string[] = [
-  ...new Set([...Object.values(MINION_ART), ...Object.values(HERO_ART), ...Object.values(POWER_ART), ...PUBLIC_ART_URLS]),
+  ...new Set([...Object.values(MINION_ART), ...Object.values(HERO_ART), ...Object.values(POWER_ART), ...Object.values(RANK_ART), ...PUBLIC_ART_URLS]),
 ];
 
 let warmed = false;

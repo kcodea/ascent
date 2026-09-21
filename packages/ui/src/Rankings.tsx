@@ -6,6 +6,8 @@ import { useGame, displayHandle } from './store';
 import { fetchTopPlayers, fetchLatestReplayForUser, remoteEnabled, type PlayerRow } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
 import { LbHeroFrame, LbMedallion } from './LadderBits';
+import { RankBar } from './rank/RankBar';
+import { compareRankDesc, rankPositionOf, type RankPosition } from './rank/types';
 
 /**
  * Rankings — the player LEADERBOARD (owner request 2026-07-13; polished 2026-09-20 to the Career page's
@@ -24,6 +26,24 @@ import { LbHeroFrame, LbMedallion } from './LadderBits';
  */
 export const RANKED_ROWS = 10;
 
+/** A row's medal rank, when the profile row carries one (post-migration) — else null (legacy MMR). */
+const rankOfRow = (r: PlayerRow): RankPosition | null => rankPositionOf(r.rank);
+
+/** MEDAL RANK ordering (blueprint §8): division first, then points — ranked rows ahead of legacy-only rows,
+ *  which keep their server order (rating desc). A list with no ranks at all is returned untouched. */
+export function sortRankAware(rows: PlayerRow[]): PlayerRow[] {
+  if (!rows.some((r) => rankOfRow(r))) return rows;
+  return rows
+    .map((r, i) => ({ r, i, rank: rankOfRow(r) }))
+    .sort((a, b) => {
+      if (a.rank && b.rank) return compareRankDesc(a.rank, b.rank) || a.i - b.i;
+      if (a.rank) return -1;
+      if (b.rank) return 1;
+      return a.i - b.i;
+    })
+    .map((x) => x.r);
+}
+
 export function Rankings() {
   const show = useGame((s) => s.showRankings);
   const close = useGame((s) => s.closeRankings);
@@ -38,7 +58,7 @@ export function Rankings() {
     if (!show) return;
     setRows(null); // loading state each open
     let alive = true;
-    void fetchTopPlayers(RANKED_ROWS).then((r) => { if (alive) setRows(r); });
+    void fetchTopPlayers(RANKED_ROWS).then((r) => { if (alive) setRows(sortRankAware(r)); });
     return () => { alive = false; };
   }, [show]);
 
@@ -77,13 +97,14 @@ export function Rankings() {
             <div className="lb-trow lb-thead" role="row">
               <span className="lb-c-rank">#</span>
               <span className="lb-c-player">Player</span>
-              <span className="lb-c-rating">Rating</span>
+              <span className="lb-c-rating">{rows.some((r) => rankOfRow(r)) ? 'Rank' : 'Rating'}</span>
               <span className="lb-c-games">Games</span>
               <span className="lb-c-act" />
             </div>
             {rows.map((r, i) => {
               const hero = r.favoriteHero ? getHero(r.favoriteHero) : null;
               const handle = displayHandle(r.author, r.discriminator, r.userId);
+              const rowRank = rankOfRow(r);
               // Match the player by their real identity (`user_id`), NOT the display name — two accounts can
               // share a name (that's what the `#tag` disambiguates), and matching by name lit up every row of
               // duplicates as "YOU" (owner report 2026-08-10).
@@ -129,7 +150,11 @@ export function Rankings() {
                       <span className="lb-herosub">{hero ? hero.name : 'No favorite hero yet'}</span>
                     </span>
                   </span>
-                  <span className="lb-c-rating rk-rating"><span className="lb-rating">{r.rating}</span><span className="lb-unit">MMR</span></span>
+                  <span className="lb-c-rating rk-rating">
+                    {rowRank
+                      ? <RankBar position={rowRank} size="row" showGate={false} />
+                      : <><span className="lb-rating">{r.rating}</span><span className="lb-unit">MMR</span></>}
+                  </span>
                   <span className="lb-c-games"><span className="lb-num">{r.gamesPlayed}</span><span className="lb-unit">played</span></span>
                   <span className="lb-c-act">
                     <button

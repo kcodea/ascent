@@ -10,6 +10,9 @@ import { sfx } from './sfx';
 import { useGame, tempHandle } from './store';
 import { startReplay } from './replay/replayPlayer';
 import { getCourseProgress, skipCourse } from './tutorial/tutorialProfile';
+import { RankBar } from './rank/RankBar';
+import { useCurrentRank, useDemotionReady } from './rank/rankSource';
+import { pointsText, rankLabel } from './rank/rankFormat';
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
@@ -68,7 +71,11 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const lastReplay = useGame((s) => s.lastReplay);
   const continueRun = useGame((s) => s.continueRun);
   const clearRun = useGame((s) => s.clearRun);
-  const rating = useGame((s) => s.profile.rating); // shown on the Play card
+  const rating = useGame((s) => s.profile.rating); // shown on the Play card (legacy, until the medal rank exists)
+  // MEDAL RANK (2026-09-20): the Play card wears the crest + division bar once the profile carries a rank,
+  // with the promotion-ready line — the gate must be visible BEFORE entering the next ranked match.
+  const rank = useCurrentRank();
+  const demotionReady = useDemotionReady();
 
   // FRONT-PAGE COPY (dev Title Text tuner). Re-render on change so edits land live behind the panel; with no
   // override this returns the shipped defaults, so production is byte-identical to the hard-coded strings.
@@ -280,7 +287,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                   {modeArt('lobby')
                     ? <div className="mcart-clip"><img decoding="sync" className="mcframe-art" src={modeArt('lobby')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
-                  <div className="mcdesc">Rating {rating}</div>
+                  <div className="mcdesc">{rank ? `${rankLabel(rank)} · ${pointsText(rank)}` : `Rating ${rating}`}</div>
+                  {rank && <div className="mcrank"><RankBar position={rank} size="mini" demotionReady={demotionReady} /></div>}
                 </div>
               </button>
             </div>

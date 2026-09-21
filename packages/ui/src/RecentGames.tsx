@@ -44,7 +44,8 @@ export function RecentGames(): JSX.Element | null {
 
   // Open the clicked game inside the player's Career, expanded to that run. The Career header wants a
   // rating / games-played that the feed row doesn't carry, so pull the player's profile first (best-effort —
-  // an absent profile just opens with the name we have). `focus` pins WHICH run to expand + scroll to.
+  // an absent profile just opens with the name we have). The same fetch brings their medal rank, so the
+  // Seasonal Ranked card paints the crest + bar at once. `focus` pins WHICH run to expand + scroll to.
   const openGame = async (r: RecentGameRow, key: string): Promise<void> => {
     if (!r.userId || opening) return;
     sfx.pulse();
@@ -56,6 +57,7 @@ export function RecentGames(): JSX.Element | null {
       rating: p?.rating ?? 0,
       gamesPlayed: p?.gamesPlayed ?? 0,
       favoriteHero: p?.favoriteHero,
+      ...(p?.rank ? { rank: p.rank } : {}),
       focus: { heroId: r.heroId, wins: r.wins, placement: r.placement, createdAt: r.createdAt },
     });
     setOpening(null);

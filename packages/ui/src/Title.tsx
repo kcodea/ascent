@@ -62,6 +62,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const lastReplay = useGame((s) => s.lastReplay);
   const continueRun = useGame((s) => s.continueRun);
   const clearRun = useGame((s) => s.clearRun);
+  // The account corner's rank badge (owner 2026-09-21) — the crest + division under the name plate.
+  const rank = useCurrentRank();
 
   // FRONT-PAGE COPY (dev Title Text tuner). Re-render on change so edits land live behind the panel; with no
   // override this returns the shipped defaults, so production is byte-identical to the hard-coded strings.

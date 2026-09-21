@@ -1,4 +1,4 @@
-import type { Keyword, Tribe } from '@game/core';
+import { damageMeterOf, type Keyword, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { spiritsPlayedThisTurn, playedThisTurnFor, anySpellsCastThisTurn, CONFIG, chooseBothActive, dominantBoardTribe, hasTier7Access, rubyStatBonus, runeStacksOf, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
 import type { CardView } from './Card';
@@ -336,10 +336,12 @@ export function instView(
             orbitTick: inst.orbitTick, // CELESTIAL Orbit (N) — the shop-phase cadence counter
             damageDealt: inst.damageDealt, // Han Gover: the persistent damage meter (N/40)
           });
-          // Normally a fresh 0/N is hidden as noise (owner ruling). The Living Grimoire is the deliberate
-          // exception: 0/3 is the whole point there — it's how you see the card is SPENT and how far the
-          // recharge has come (owner ask 2026-07-24).
-          const showsZero = inst.cardId === 'd2_grimoire';
+          // Normally a fresh 0/N is hidden as noise (owner ruling). Two deliberate exceptions: the Living
+          // Grimoire — 0/3 is the whole point there, it's how you see the card is SPENT and how far the recharge
+          // has come (owner ask 2026-07-24) — and the DAMAGE METERS (Han Gover, Goldvein): a meter that just
+          // reset reads 0/N on purpose (owner 2026-09-19: Goldvein "should show 0/6" in the shop after the
+          // combat it fired in), and a crossing landing on 0/40 is the "paid out, counting again" reading.
+          const showsZero = inst.cardId === 'd2_grimoire' || !!damageMeterOf(c);
           return sp && (sp.current > 0 || showsZero) ? sp : null;
         })() ?? undefined
       : undefined,

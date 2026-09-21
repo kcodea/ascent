@@ -6864,21 +6864,32 @@ const ShopControls = memo(function ShopControls({
  *  passed ONLY while combat units show — the hook hands back a fresh object every render. */
 /** The pointer-state slice a row draws from (perf 2026-09-17): the drag's identity + the decision scalars, read
  *  through `useDragSlice` so a decision change re-renders the row whose gap moved and NOTHING above it. Module
- *  level so the selector is referentially stable (see `useDragSlice`'s caching contract). */
-const selectTavernDrag = (s: DragSnapshot) => ({
+ *  level so the selector is referentially stable (see `useDragSlice`'s caching contract). Exported for the
+ *  replay-hover test only.
+ *
+ *  `viewerDrag` — is the VIEWER holding a card — is what the cards' hover previews key off (`Card`'s
+ *  `dragging`): a replayed GHOST drag (`drag.ghost`, the recorded player's card in flight) sets the same
+ *  `active` slice so the rows dim the source and open the gap, but it is not the viewer's hand, so it must not
+ *  cancel their hover (owner report 2026-09-20: the related-card / keyword previews never appeared while a
+ *  replay played — every recorded drag was hiding them). Drags and clicks stay inert in a replay regardless
+ *  (`onCardPointerDown` refuses them). */
+export const selectTavernDrag = (s: DragSnapshot) => ({
   dragActive: s.drag?.active === true, dragUid: s.drag?.uid, dragSource: s.drag?.source,
+  viewerDrag: s.drag?.active === true && s.drag.ghost !== true,
   dragTarget: s.drag?.view.target, dragCardId: s.drag?.view.cardId,
   castingSpell: s.castingSpell, castTargetUid: s.decision.castTargetUid, aimTargetUid: s.aimTargetUid,
   shopGapIndex: s.decision.shopGapIndex, collapsedLift: s.decision.collapsedLift,
 });
-const selectWarbandDrag = (s: DragSnapshot) => ({
+export const selectWarbandDrag = (s: DragSnapshot) => ({
   dragActive: s.drag?.active === true, dragUid: s.drag?.uid, dragSource: s.drag?.source,
+  viewerDrag: s.drag?.active === true && s.drag.ghost !== true,
   castingSpell: s.castingSpell, castTargetUid: s.decision.castTargetUid, aimTargetUid: s.aimTargetUid,
   gapIndex: s.decision.gapIndex, collapsedLift: s.decision.collapsedLift,
   dropok: s.decision.overWarband || s.decision.wouldMagnetize, magTargetUid: s.magTargetUid,
 });
-const selectHandDrag = (s: DragSnapshot) => ({
+export const selectHandDrag = (s: DragSnapshot) => ({
   dragActive: s.drag?.active === true, dragUid: s.drag?.uid, dragSource: s.drag?.source,
+  viewerDrag: s.drag?.active === true && s.drag.ghost !== true,
   handGapIndex: s.decision.handGapIndex, handSlotW: s.handSlotW,
   // A shop card over the hand will buy it — glow the hand to confirm the drop target.
   canDropHand: s.drag?.active === true && s.drag.source === 'shop' && s.overZone === 'hand',
@@ -6900,7 +6911,7 @@ const TavernRow = memo(function TavernRow({
   onCardPointerDown: (e: ReactPointerEvent) => void; spell: RunState['spell'];
   spellView: CardView | null;
 }) {
-  const { dragActive, dragUid, dragSource, dragTarget, dragCardId, castingSpell, castTargetUid, aimTargetUid, shopGapIndex, collapsedLift } = useDragSlice(selectTavernDrag);
+  const { dragActive, viewerDrag, dragUid, dragSource, dragTarget, dragCardId, castingSpell, castTargetUid, aimTargetUid, shopGapIndex, collapsedLift } = useDragSlice(selectTavernDrag);
   const draggingShop = dragActive && dragSource === 'shop';
   const isDragging = (uid: string): boolean => dragActive && dragUid === uid;
   // The spell is pinned at the END of the shop row, so buying it collapses like removing the last offer: treat
@@ -6940,6 +6951,7 @@ const TavernRow = memo(function TavernRow({
                 rallyPulse={replay.rallyPulseUids.get(u.uid)}
                 watcherPulse={replay.watcherPulseUids.get(u.uid)}
                 framePulse={replay.framePulseUids.get(u.uid)}
+                holdStep={replay.done}
               />
             ))
           ) : sbEnemyShown ? (
@@ -6983,7 +6995,7 @@ const TavernRow = memo(function TavernRow({
                 dimmed={isDragging(o.uid)}
                 card={shopViews.get(o.uid)!}
                 refCards={refViewsByUid.get(o.uid)}
-                dragging={dragActive}
+                dragging={viewerDrag}
                 highlight={(heroArmed && heroTargetsTavern) || (castingSpell && (dragTarget === 'any' || (!!o.starform && starformSpellAimsToken(CARD_INDEX[dragCardId ?? ''] ?? {}))))}
                 targeted={(heroArmed && heroTargetsTavern && aimTargetUid === o.uid) || castTargetUid === o.uid}
                 tripleReady={tripleReadyUids.has(o.uid)}
@@ -7001,7 +7013,7 @@ const TavernRow = memo(function TavernRow({
               uid={spell.uid}
               dimmed={draggingShop && dragUid === spell.uid}
               card={spellView!}
-              dragging={dragActive}
+              dragging={viewerDrag}
               onPointerDown={heroArmed ? undefined : onCardPointerDown}
             />
           )}
@@ -7031,7 +7043,7 @@ const WarbandRow = memo(function WarbandRow({
   electrifyUids: ReadonlySet<string>; karwindFlameUids: ReadonlySet<string>;
   returningFromCombat: boolean; hasPendingTarget: boolean; onCardPointerDown: (e: ReactPointerEvent) => void;
 }) {
-  const { dragActive, dragUid, dragSource, castingSpell, castTargetUid, aimTargetUid, gapIndex, collapsedLift, dropok, magTargetUid } = useDragSlice(selectWarbandDrag);
+  const { dragActive, viewerDrag, dragUid, dragSource, castingSpell, castTargetUid, aimTargetUid, gapIndex, collapsedLift, dropok, magTargetUid } = useDragSlice(selectWarbandDrag);
   const draggingBoard = dragActive && dragSource === 'board';
   const isDragging = (uid: string): boolean => dragActive && dragUid === uid;
   // The dragged card STAYS in the row (rendered invisible via `dimmed`) so its slot holds the row width —
@@ -7073,6 +7085,7 @@ const WarbandRow = memo(function WarbandRow({
                 rallyPulse={replay.rallyPulseUids.get(u.uid)}
                 watcherPulse={replay.watcherPulseUids.get(u.uid)}
                 framePulse={replay.framePulseUids.get(u.uid)}
+                holdStep={replay.done}
               />
             ))
           ) : (
@@ -7089,7 +7102,7 @@ const WarbandRow = memo(function WarbandRow({
                     dimmed={isDragging(m.uid)}
                     card={boardViews.get(m.uid)!}
                     refCards={refViewsByUid.get(m.uid)}
-                    dragging={dragActive}
+                    dragging={viewerDrag}
                     highlight={heroArmed || castingSpell || isPendingTarget(m.uid)}
                     targeted={((heroArmed || isPendingTarget(m.uid)) && aimTargetUid === m.uid) || castTargetUid === m.uid}
                     soulbound={soulboundUids.has(m.uid)}
@@ -7128,7 +7141,7 @@ const HandRow = memo(function HandRow({
   combatHandSummoned: ReadonlySet<string> | null;
   onCardPointerDown: (e: ReactPointerEvent) => void; handPreviewViews: CardView[];
 }) {
-  const { dragActive, dragUid, dragSource, handGapIndex, handSlotW, canDropHand } = useDragSlice(selectHandDrag);
+  const { dragActive, viewerDrag, dragUid, dragSource, handGapIndex, handSlotW, canDropHand } = useDragSlice(selectHandDrag);
   const isDragging = (uid: string): boolean => dragActive && dragUid === uid;
   // Hand reorder slide (mirror of shopSlide). Reorder mode = the dragged HAND card sits DOWN in the hand
   // region (its centre below the play line), not lifted up to play/cast — then the gap opens at the drop
@@ -7179,7 +7192,7 @@ const HandRow = memo(function HandRow({
                 uid={m.uid}
                 card={handViews.get(m.uid)!}
                 refCards={refViewsByUid.get(m.uid)}
-                dragging={dragActive}
+                dragging={viewerDrag}
                 dimmed={isDragging(m.uid)}
                 spent={combatHandSummoned?.has(m.uid) ?? false}
                 handSlidePx={handSlide(i) * handSlotW}

@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { damageMeterOf } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { chooseBothActive, hasTier7Access, unusedEquipmentCount, runeStacksOf, spellAttackBonus, spellHealthBonus, spiritsPlayedThisTurn, tribesPlayedThisTurn } from '@game/sim';
 import { Card, type CardView } from './Card';
@@ -26,13 +27,18 @@ interface UnitProps {
   watcherPulse?: number;
   /** Bloom this unit's card frame light blue — the watcher's frame surface (CSS fallback). Nonce. */
   framePulse?: number;
+  /** The replay is DONE (the last beat has played and the end-of-combat sequence is running). A damage meter's
+   *  step counter (Han Gover / Goldvein) then stays up instead of fading ~3s after its last tick, so the
+   *  increment from the blow that ended the fight is still readable through the tally / hero strike / curtain
+   *  until the shop takes over (owner ask 2026-09-19: "even when it's the last minion in combat"). */
+  holdStep?: boolean;
 }
 
 const sameKeywords = (a: string[], b: string[]): boolean =>
   a === b || (a.length === b.length && a.every((k, i) => k === b[i]));
 
 /** A combat unit — the same Card as recruit, wrapped for animations and the DS ring. */
-function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePulse }: UnitProps) {
+function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePulse, holdStep }: UnitProps) {
   // How many units actually re-rendered this second — the memo above is supposed to keep this at 1–3 per
   // beat; a number near the board size means the comparator is missing. One branch when the monitor is off.
   perfMonitor.count('unit renders');
@@ -173,8 +179,9 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
       // orbitTick deliberately absent: Orbits are a shop mechanic, no combat counter (audit 2026-08-06).
     }) ?? undefined,
     // Combat: the counter fades in on each tick and fades out after ~3s (see `.stepcounter.ephemeral`).
-    // Shop/recruit paths (instView) leave this undefined so the counter stays persistently visible.
-    stepEphemeral: true,
+    // Shop/recruit paths (instView) leave this undefined so the counter stays persistently visible. Once the
+    // replay is done, a DAMAGE METER's counter holds instead (see `holdStep`) — its final reading is the point.
+    stepEphemeral: !(holdStep && def && damageMeterOf(def)),
   };
   return (
     // A `ghost` (a dead body kept only to anchor its own still-playing FX) is hidden but keeps its layout box,
@@ -203,6 +210,7 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.rallyPulse === b.rallyPulse &&
   a.watcherPulse === b.watcherPulse &&
   a.framePulse === b.framePulse &&
+  a.holdStep === b.holdStep && // flips once per fight (replay done) — one re-render of the board
   a.u.uid === b.u.uid &&
   a.u.attack === b.u.attack &&
   a.u.health === b.u.health &&

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
+import { combatSide, damageMeterOf, damageMeterReading, makeRng, simulate, type BoardMinion } from '@game/core';
 import { CARD_INDEX, EQUIPMENT_INDEX, SETS, poolFor } from '@game/content';
 import { createRun, reduce, equipmentUsesLeft, type Action, type BoardCard, type RunState } from './index';
 import { snapshotBoard } from './snapshot';
@@ -367,6 +367,23 @@ describe('Han Gover — "When this deals 40 damage, get an Ale" (owner handoff 2
     s = act({ ...s, phase: 'combat', lastCombat: r2, combatSettled: false } as RunState, { type: 'settleCombat' });
     expect(at(s, 'hg').damageDealt).toBe(82);
     expect(s.hand.filter((c) => ALES.includes(c.cardId)).length, 'two Ales across the two combats').toBe(2);
+  });
+
+  it('the badge reads progress toward the NEXT crossing (owner rule 2026-09-19): 47 dealt → 7/40 in the shop; 33 more → fires', () => {
+    // Persistent (NOT once-per-combat — "(Max 2 per hit)" is a cap, not a rider): the tally carries as before,
+    // only the READING is `total mod 40`, so the shop never shows a cumulative 47/40.
+    const meter = damageMeterOf(CARD_INDEX['dw3_hangover'])!;
+    expect(meter.resetEachCombat).toBe(false);
+    const r1 = fight([gover({ attack: 47 })], [foe(0, 1)]);
+    expect(alesGranted(r1).length).toBe(1);
+    let s = run({ phase: 'combat', board: [body('hg', 'dw3_hangover')], hand: [], lastCombat: r1 });
+    s = act(s, { type: 'settleCombat' });
+    expect(at(s, 'hg').damageDealt).toBe(47);
+    expect(damageMeterReading(at(s, 'hg').damageDealt!, meter)).toEqual({ current: 7, total: 40 });
+    const r2 = fight([gover({ attack: 33, damageDealt: at(s, 'hg').damageDealt })], [foe(0, 1)]);
+    expect(alesGranted(r2).length).toBe(1);
+    expect(r2.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 80 }]);
+    expect(damageMeterReading(80, meter), 'the crossing lands on 0/40').toEqual({ current: 0, total: 40 });
   });
 
   it('one enormous hit can cross two thresholds and pays both', () => {

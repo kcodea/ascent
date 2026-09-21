@@ -5403,8 +5403,6 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .escbtn   { position: relative; --pr-edge: 4px; --pr-edge-c: rgba(90, 66, 30, 0.3); }
 .hsback   { --pr-edge: 4px; --pr-edge-c: rgba(0, 0, 0, 0.5); }   /* absolute already — no containment needed */
 .lbback   { position: relative; --pr-edge: 4px; --pr-edge-c: rgba(0, 0, 0, 0.5); }
-/* A 132px gold disc: it can carry real depth, and the edge takes the coin's own dark gold. */
-.caravatar { position: relative; --pr-edge: 5px; --pr-edge-c: #a8780f; }
 /* 40px icon buttons — the floor. 3px still reads as an object without swamping the glyph. */
 .book-close       { position: relative; --pr-edge: 3px; --pr-edge-c: rgba(90, 66, 30, 0.32); }
 .avatarpick-close { position: relative; --pr-edge: 3px; --pr-edge-c: rgba(0, 0, 0, 0.45); }
@@ -6229,7 +6227,6 @@ svg { width: 18px; height: 18px; }
 .lbsub { font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.02em; color: rgba(232, 200, 119, 0.85); }
 .lbscroll { flex: 1; overflow-y: auto; padding: 8px 30px 40px; display: flex; flex-direction: column; gap: 14px; }
 .lbempty { margin: 56px auto; color: rgba(255, 255, 255, 0.72); font-family: var(--font-ui); font-weight: 700; font-size: 18px; text-align: center; }
-.carempty-rating { margin-bottom: 12px; font-weight: 800; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--acc); }
 
 /* DEV-only Balance Report panel — reuses the .lbpage shell; adds a controls row + progress bar + dense tables. */
 .balpage { position: fixed; inset: 0; z-index: 480; display: flex; flex-direction: column; background: linear-gradient(rgba(6, 11, 22, 0.9), rgba(6, 11, 22, 0.95)); animation: fadein 0.2s ease; font-family: var(--font-ui); }
@@ -6538,47 +6535,183 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .runtrophy-tip .runtrophy-tip-kind { color: var(--gold); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px; }
 .runtrophy:hover .runtrophy-tip { opacity: 1; transition-delay: 0.25s; }
 
-/* Career (A7 part 2) — reuses the leaderboard page shell (.lbpage / .lbentry / .lbwarband). */
-.carprofile { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }
-.carstat { flex: 1; min-width: 120px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 14px 10px; border-radius: 14px; background: rgba(20, 30, 50, 0.55); border: 1.5px solid rgba(196, 160, 92, 0.4); }
-.carstat .cs-v { font-family: var(--font-ui); font-weight: 900; font-size: 30px; color: #fff; font-variant-numeric: tabular-nums; }
-.carstat .cs-l { font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
-.carsec { font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: #e8c877; margin: 18px 0 4px; }
-.carsec-ico { display: inline-flex; align-items: center; gap: 8px; }
-.carsec-ico svg { width: 16px; height: 16px; color: #e8c877; flex: none; }
-.cartop { font-family: var(--font-ui); font-weight: 700; font-size: 14px; color: rgba(255, 255, 255, 0.7); margin-top: 8px; }
-.carherorows { display: flex; flex-direction: column; gap: 6px; }
-.carherorow { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 12px; background: rgba(20, 30, 50, 0.4); }
-.carhero-portrait { width: 40px; height: 40px; border-radius: 9px; overflow: hidden; flex: none; background: var(--bg2); display: grid; place-items: center; }
-.carhero-portrait img { width: 100%; height: 100%; object-fit: cover; }
-.carhero-name { font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: #fff; min-width: 120px; }
-.carhero-meta { font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.62); }
-.carrec { font-family: var(--font-ui); font-weight: 900; font-size: 15px; margin-left: 10px; font-variant-numeric: tabular-nums; }
-/* Match-row subtitle: which round the run ended on + when it was played. */
-.carsub { display: flex; align-items: center; gap: 7px; margin-top: 3px; font-family: var(--font-ui); font-size: 12.5px; font-weight: 700; color: rgba(255, 255, 255, 0.52); }
-.carsub-round { color: rgba(255, 255, 255, 0.72); }
-.carsub-dot { opacity: 0.5; }
-.carsub-when { font-weight: 600; }
-.carrec.won { color: #6fe0a0; }
-.carrec.lost { color: #ff9a9a; }
-/* Verdict reads as plain colored small-caps under the name (mockup: "OATH 7 • SURPASSED" in green). */
-/* Right edge of a match row: VICTORY/DEFEAT word + expand chevron. */
-.carresult { flex: none; display: flex; align-items: center; gap: 14px; margin-left: auto; }
-.carwl { font-family: var(--font-ui); font-weight: 900; font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; }
-.carwl.won { color: #6fe0a0; }
-/* A top-4 finish is a GOOD result and scores positive Rating, so it reads in the same green as a win — the
-   placement chip beside it (1st / 3rd) is what separates them. */
-.carwl.top4 { color: #6fe0a0; }
-.carwl.lost { color: #ff9a9a; }
-/* The MMR move on a match row. Tabular figures so a column of them lines up, and a fixed min-width so
-   "+6" and "-124" don't shuffle the chevron sideways. */
-.carmmr { font-family: var(--font-ui); font-weight: 900; font-size: 13px; font-variant-numeric: tabular-nums; min-width: 42px; text-align: right; }
-.carmmr.up { color: #6fe0a0; }
-.carmmr.down { color: #ff9a9a; }
-/* Lobby finish position. Tabular + fixed width for the same reason as .carmmr — "1st" and "8th" must not
-   move the verdict beside them. Gold only for the win; the rest read as neutral detail. */
-.carplace { font-family: var(--font-ui); font-weight: 900; font-size: 13px; font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; color: rgba(255, 255, 255, 0.62); }
-.carplace.first { color: var(--acc); }
+/* ── CAREER (owner rebuild 2026-09-19/20) — three columns on the .lbpage backdrop: hero + tiles · Match
+   History banners · Seasonal Ranked + Performance Trends. All `cv2-`. Panels re-use the page shell
+   (.lbpage/.lbtopbar/.lbscroll); the hero portrait re-uses the in-run `.hero > .f > .heroimg` rules (ring, disc,
+   cover-fit) and only undoes the tray's transforms. READABILITY FLOOR (owner 2026-09-20): every label ≥ 13px,
+   every value ≥ 15px; only the Match History column scrolls. Nothing here animates in a loop except the
+   loading spinner (transform-only). ── */
+.cv2-body { overflow: hidden; padding-bottom: 22px; }
+.cv2-cols { display: grid; grid-template-columns: 300px minmax(0, 1fr) 340px; grid-template-rows: minmax(0, 1fr); gap: 18px; align-items: stretch; flex: 1; min-height: 0; margin-top: 4px; }
+/* Ornate gold-framed panel: deep navy fill + double gold frame (border + inset hairline). */
+.cv2-panel { background: linear-gradient(180deg, rgba(13, 22, 40, 0.8), rgba(9, 15, 29, 0.88)); border: 2px solid rgba(196, 160, 92, 0.5); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), inset 0 0 40px rgba(0, 0, 0, 0.3), 0 10px 30px -12px rgba(0, 0, 0, 0.55); border-radius: 16px; padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.cv2-sec { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 900; font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; color: #e8c877; }
+.cv2-sec svg { width: 18px; height: 18px; color: #e8c877; flex: none; }
+.cv2-sec-sub { margin-left: auto; font-weight: 700; font-size: 13px; letter-spacing: 0.06em; text-transform: none; color: rgba(255, 255, 255, 0.55); white-space: nowrap; }
+/* Every column is a header row + content; the header row is the SAME height in all three (owner 2026-09-20:
+   the three columns start level), so the left panel, the first banner and the Seasonal Ranked card share a top. */
+.cv2-col { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.cv2-colhead { display: flex; align-items: center; gap: 12px; height: 40px; flex: none; margin: 0 4px 10px; }
+/* The centre column's two tabs — MATCH HISTORY | HEROES (a real tablist; the gauntlet comes from the global button rule). */
+.cv2-tabs { display: inline-flex; gap: 4px; padding: 3px; border-radius: 10px; background: rgba(0, 0, 0, 0.32); border: 1px solid rgba(196, 160, 92, 0.32); }
+.cv2-tab { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(232, 200, 119, 0.7); background: transparent; border: none; border-radius: 8px; padding: 6px 14px; white-space: nowrap; transition: color 0.12s; }
+.cv2-tab svg { width: 16px; height: 16px; }
+.cv2-tab:hover { color: #f4dc9c; }
+.cv2-tab.on { color: #241705; background: linear-gradient(180deg, #f0d089, #c99d4e); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45); }
+/* The page's gold button — the gauntlet cursor comes from the global `button` rule; never a bare keyword here. */
+.cv2-btn { position: relative; display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 900; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; color: #1a1206; background: linear-gradient(180deg, #f0d089, #c99d4e); border: 1.5px solid #8a6428; padding: 11px 20px; border-radius: 10px; white-space: nowrap; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45); --pr-edge: 3px; --pr-edge-c: #8a6428; }
+.cv2-btn svg { width: 18px; height: 18px; }
+.cv2-btn:hover:not(:disabled) { background: linear-gradient(180deg, #fbe3a6, #d8ac5c); border-color: #a87a34; }
+.cv2-btn:disabled { opacity: 0.45; filter: saturate(0.3); cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.cv2-btn:disabled:hover { transform: none; filter: saturate(0.3); }
+
+/* Whole-page states (loading / offline / signed-out / no backend) + the empty list — an icon, a headline,
+   a line of help, at most one action. */
+.cv2-state { margin: auto; width: min(460px, 100%); display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 36px 32px 32px; background: linear-gradient(180deg, rgba(13, 22, 40, 0.8), rgba(9, 15, 29, 0.88)); border: 2px solid rgba(196, 160, 92, 0.5); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), 0 10px 30px -12px rgba(0, 0, 0, 0.55); border-radius: 16px; }
+.cv2-state-ico { width: 60px; height: 60px; border-radius: 50%; display: grid; place-items: center; background: rgba(196, 160, 92, 0.14); border: 2px solid rgba(196, 160, 92, 0.4); color: #f0c977; margin-bottom: 4px; }
+.cv2-state-ico svg { width: 28px; height: 28px; }
+.cv2-state-ico.spin svg { animation: cv2spin 1.1s linear infinite; }
+@keyframes cv2spin { to { transform: rotate(360deg); } }
+.cv2-state-title { font-family: var(--font-ui); font-weight: 900; font-size: 22px; color: #fff; line-height: 1.15; }
+.cv2-state-body { font-family: var(--font-ui); font-weight: 600; font-size: 15px; line-height: 1.45; color: rgba(255, 255, 255, 0.72); max-width: 380px; }
+.cv2-state .cv2-btn { margin-top: 8px; }
+
+/* LEFT column */
+.cv2-leftcol, .cv2-right { max-height: 100%; }
+.cv2-left { align-items: center; text-align: center; padding-top: 24px; flex: none; max-height: 100%; overflow-y: auto; }
+/* The in-run hero frame (.hero > .f > .heroimg — StatusBar's rules) without the tray's scale/offset. */
+.cv2-heroframe .hero { display: block; position: relative; width: 160px; height: 160px; padding: 7px; border-radius: 50%; box-sizing: border-box; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 0 3px rgba(20, 30, 50, 0.9), 0 0 0 4.5px rgba(196, 160, 92, 0.45), 0 8px 24px rgba(0, 0, 0, 0.5); }
+.cv2-heroframe .hero .f { width: 100%; height: 100%; }
+.cv2-heroframe .hero .f svg { width: 44%; height: 44%; }
+.cv2-heroframe.small .hero { width: 76px; height: 76px; padding: 4px; box-shadow: 0 0 0 2px rgba(20, 30, 50, 0.9), 0 0 0 3.5px rgba(196, 160, 92, 0.45), 0 4px 12px rgba(0, 0, 0, 0.45); }
+/* The name plate overlaps the frame's bottom edge, like the recruit screen's. */
+.cv2-heroname { margin-top: -16px; z-index: 1; max-width: 100%; padding: 5px 20px; background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: 17px; letter-spacing: 0.02em; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 6px -2px var(--shadow); }
+.cv2-playername { margin-top: 4px; font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232, 200, 119, 0.75); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cv2-tiles { display: flex; flex-direction: column; gap: 10px; align-self: stretch; margin-top: 16px; }
+.cv2-stat { display: grid; grid-template-columns: 40px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 12px; align-items: center; padding: 12px 14px; border-radius: 12px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(196, 160, 92, 0.3); text-align: left; }
+.cv2-stat-ico { grid-row: 1 / span 2; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: rgba(196, 160, 92, 0.16); color: #f0c977; }
+.cv2-stat-ico svg { width: 22px; height: 22px; }
+.cv2-stat-v { font-family: var(--font-ui); font-weight: 900; font-size: 26px; line-height: 1.05; color: #fff; font-variant-numeric: tabular-nums; }
+.cv2-stat-l { font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.62); margin-top: 2px; }
+
+/* CENTRE column — the header stays; the list beneath it is the page's only scroller. */
+.cv2-center-head { margin-left: 2px; }
+/* The first banner's top edge is the panels' top edge: no top padding here. */
+.cv2-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 0 6px 24px 2px; }
+.cv2-list::-webkit-scrollbar, .cv2-right::-webkit-scrollbar, .cv2-left::-webkit-scrollbar { width: 8px; }
+.cv2-list::-webkit-scrollbar-thumb, .cv2-right::-webkit-scrollbar-thumb, .cv2-left::-webkit-scrollbar-thumb { background: rgba(196, 160, 92, 0.35); border-radius: 6px; }
+.cv2-none { align-items: center; text-align: center; padding: 44px 24px; margin-top: 8px; }
+.cv2-row { display: flex; flex-direction: column; gap: 14px; padding: 16px 20px 18px; color: #f4eee2; background: linear-gradient(180deg, rgba(13, 22, 40, 0.84), rgba(9, 15, 29, 0.9)); border: 2px solid rgba(196, 160, 92, 0.34); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.1), 0 8px 22px -12px rgba(0, 0, 0, 0.6); border-radius: 16px; min-width: 0; flex: none; }
+/* The banner's left edge carries the outcome colour, so a scan down the list reads the results at a glance. */
+.cv2-row.won { border-left: 6px solid #55c98a; }
+.cv2-row.top4 { border-left: 6px solid #e6b45a; }
+.cv2-row.lost { border-left: 6px solid #d9666a; }
+.cv2-row.none { border-left: 6px solid rgba(255, 255, 255, 0.25); }
+.cv2-row.focus { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc), 0 8px 22px -12px rgba(0, 0, 0, 0.6); }
+.cv2-row-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.cv2-row-hero { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.cv2-row-heroid { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cv2-row-heroname { font-family: var(--font-ui); font-weight: 900; font-size: 22px; line-height: 1.1; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cv2-row-record { display: inline-flex; align-items: baseline; gap: 3px; font-family: var(--font-ui); font-weight: 900; font-size: 18px; font-variant-numeric: tabular-nums; color: #f4eee2; }
+.cv2-row-record-l { font-size: 13px; letter-spacing: 0.06em; color: rgba(255, 255, 255, 0.6); margin-right: 4px; }
+.cv2-row-record-sep { color: rgba(255, 255, 255, 0.4); margin-right: 4px; }
+.cv2-row-record.won .cv2-row-record-n:first-child { color: #6fe0a0; }
+.cv2-row-record.lost .cv2-row-record-n:first-child { color: #ff9a9a; }
+.cv2-row-label { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(232, 200, 119, 0.85); }
+.cv2-row-outcome { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 4px; min-width: 0; flex: none; }
+.cv2-verdict { font-family: var(--font-ui); font-weight: 900; font-size: 30px; letter-spacing: 0.08em; line-height: 1.05; color: #f4eee2; }
+.cv2-verdict.won { color: #6fe0a0; }
+.cv2-verdict.top4 { color: #f4eee2; }
+.cv2-verdict.lost { color: #ff9a9a; }
+.cv2-verdict.none { color: rgba(255, 255, 255, 0.45); }
+.cv2-row-meta { display: flex; gap: 18px; margin-top: 4px; }
+.cv2-meta { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.cv2-meta-l { font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
+.cv2-meta-v { font-family: var(--font-ui); font-weight: 800; font-size: 16px; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cv2-row-team { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding-top: 10px; }
+.cv2-row-none { font-family: var(--font-ui); font-weight: 600; font-size: 15px; color: rgba(255, 255, 255, 0.55); padding: 6px 0; }
+/* The final team: 7 fixed slots holding the REAL card at the leaderboard's size — `--cw` is set directly (the
+   card's typography is fixed-px, so a 2-digit stat reads at any of these widths) off the row's own width
+   (container units), capped at 150px so a 2560-wide page grows the tiles instead of the gutters. */
+.cv2-team { container-type: inline-size; --tile-gap: 14px; display: flex; gap: var(--tile-gap); align-items: flex-start; padding: 2px 0 6px; }
+/* A slot is `--tw` wide; the COMPACT card inside is 85% of that (its arch is ~square, height auto), centred so
+   its ±8px stat badges overhang into the slot's own margin rather than the neighbour's. */
+.cv2-tile { --tw: min(150px, calc((100cqw - 6 * var(--tile-gap)) / 7)); position: relative; flex: none; width: var(--tw); min-height: calc(var(--tw) * 0.85 + 22px); display: flex; justify-content: center; align-items: flex-start; }
+.cv2-tile.empty::before { content: ''; width: calc(var(--tw) * 0.85); height: calc(var(--tw) * 0.85); border-radius: var(--arch-radius); border: 2px dashed rgba(255, 255, 255, 0.14); background: rgba(0, 0, 0, 0.18); box-sizing: border-box; }
+.cv2-tile .card { --cw: var(--tw); --ch: calc(var(--cw) / 0.752); --ccw: calc(var(--cw) * 0.85); min-width: 0; }
+/* A hovered tile lifts above its neighbours so the card's own hover popups aren't clipped by the next tile. */
+.cv2-tile:hover { z-index: 3; }
+.cv2-row-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding-top: 12px; border-top: 1px solid rgba(196, 160, 92, 0.18); }
+.cv2-row-runes { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cv2-norunes { padding: 10px 0; }
+.cv2-runes { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+/* One picked rune: the stone-toned disc the in-run badge wears + the rune's name. Hover floats its text. */
+.cv2-rune { display: inline-flex; align-items: center; gap: 10px; padding: 4px 12px 4px 4px; border-radius: 999px; background: rgba(0, 0, 0, 0.26); border: 1px solid rgba(196, 160, 92, 0.24); transition: border-color 0.12s; }
+.cv2-rune:hover { border-color: rgba(196, 160, 92, 0.6); }
+.cv2-rune.epic { border-color: rgba(168, 216, 239, 0.4); }
+.cv2-rune-disc { width: 48px; height: 48px; flex: none; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: linear-gradient(180deg, #3a3e46, #2a2d33); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 0 0 2px rgba(20, 30, 50, 0.9), 0 0 0 3px rgba(140, 190, 230, 0.35); }
+.cv2-rune.epic .cv2-rune-disc { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 0 0 2px rgba(20, 30, 50, 0.9), 0 0 0 3px rgba(168, 216, 239, 0.7); }
+.cv2-rune-art { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cv2-rune-emblem { display: flex; color: #cfe4ea; }
+.cv2-rune-emblem svg { width: 24px; height: 24px; }
+.cv2-rune-name { font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: #fff; white-space: nowrap; }
+/* The hover panel — portalled to <body> and fixed, so the scrolling list can't clip it (no native title). */
+.cv2-rune-tip { position: fixed; z-index: 520; width: 280px; display: flex; flex-direction: column; gap: 6px; background: linear-gradient(180deg, rgba(46, 56, 72, 0.96), rgba(20, 25, 34, 0.98)); border: 1px solid rgba(190, 214, 240, 0.28); border-top-color: rgba(226, 240, 255, 0.45); color: #eef4fb; border-radius: 12px; padding: 12px 16px; font-family: var(--font-ui); font-size: 15px; line-height: 1.4; font-weight: 600; text-align: left; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.16); pointer-events: none; animation: fadein 0.12s ease; }
+.cv2-rune-tip.above { transform: translateY(-100%); }
+.cv2-rune-tip-name { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-weight: 900; font-size: 16px; color: #ffd98a; }
+.cv2-rune-tip-kind { font-size: 13px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #a8d8ef; }
+.cv2-rune-tip-body b { color: #a8d8ef; font-weight: 800; }
+.cv2-watch { flex: none; }
+/* HEROES tab rows — one banner per hero played: the match head's portrait + name, then five stat cells. */
+.cv2-hrow { display: grid; grid-template-columns: 200px minmax(0, 1fr); align-items: center; gap: 20px; padding: 14px 20px; color: #f4eee2; background: linear-gradient(180deg, rgba(13, 22, 40, 0.84), rgba(9, 15, 29, 0.9)); border: 2px solid rgba(196, 160, 92, 0.34); border-left-width: 6px; box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.1), 0 8px 22px -12px rgba(0, 0, 0, 0.6); border-radius: 16px; min-width: 0; flex: none; }
+.cv2-hrow-runs { font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: rgba(232, 200, 119, 0.85); }
+/* Sized columns (label widths, not content) so every row's cells line up down the list. */
+.cv2-hrow-stats { display: grid; grid-template-columns: 112px 150px 122px 64px minmax(0, 1fr); gap: 14px; align-items: start; }
+.cv2-hcell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cv2-hcell .cv2-meta-l { white-space: nowrap; }
+.cv2-hcell-v { font-family: var(--font-ui); font-weight: 900; font-size: 22px; line-height: 1.1; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cv2-hcell-v.small { font-size: 16px; font-weight: 800; }
+.cv2-hcell-v.won { color: #6fe0a0; }
+.cv2-hcell-v.top4 { color: #f4eee2; }
+.cv2-hcell-v.lost { color: #ff9a9a; }
+.cv2-hrow-record { display: inline-flex; align-items: baseline; gap: 3px; }
+.cv2-hrow-rate { font-family: var(--font-ui); font-size: 14px; font-weight: 800; color: rgba(255, 255, 255, 0.7); white-space: nowrap; }
+
+/* RIGHT column */
+.cv2-right { gap: 0; overflow-y: auto; }
+.cv2-ranked { flex: none; margin-bottom: 14px; padding: 12px 18px 14px; }
+.cv2-trends { flex: none; gap: 8px; padding-top: 14px; }
+.cv2-mmr { display: flex; align-items: baseline; gap: 12px; padding: 2px 2px 0; }
+.cv2-mmr-v { font-family: var(--font-ui); font-weight: 900; font-size: 48px; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
+.cv2-mmr-l { font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
+.cv2-trends-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.cv2-seg { display: inline-flex; flex: none; border-radius: 8px; overflow: hidden; border: 1px solid rgba(196, 160, 92, 0.4); }
+.cv2-seg-btn { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.04em; padding: 6px 11px; color: rgba(255, 255, 255, 0.7); background: rgba(0, 0, 0, 0.28); border: none; }
+.cv2-seg-btn + .cv2-seg-btn { border-left: 1px solid rgba(196, 160, 92, 0.3); }
+.cv2-seg-btn:hover { color: #fff; }
+.cv2-seg-btn.on { color: #241705; background: linear-gradient(180deg, #f0d089, #c99d4e); }
+.cv2-trend { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.cv2-trend-head { display: flex; align-items: baseline; justify-content: space-between; }
+.cv2-trend-title { font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.8); }
+.cv2-trend-avg { font-family: var(--font-ui); font-weight: 900; font-size: 22px; color: #fff; font-variant-numeric: tabular-nums; }
+/* Inline SVG only — a static polyline in a fixed viewBox; the axis extremes sit in a gutter to its left. */
+.cv2-chart { position: relative; padding: 0 0 0 40px; }
+.cv2-chart svg { display: block; width: 100%; height: 92px; }
+.cv2-grid { stroke: rgba(255, 255, 255, 0.12); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.cv2-line { fill: none; stroke: var(--gold-lt); stroke-width: 2.5px; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.cv2-dot { stroke-width: 8px; }
+.cv2-axis { position: absolute; left: 0; width: 34px; text-align: right; font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.55); font-variant-numeric: tabular-nums; }
+.cv2-axis.top { top: 2px; }
+.cv2-axis.bottom { bottom: 2px; }
+.cv2-chart-empty { position: absolute; inset: 0 0 0 40px; display: grid; place-items: center; font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.45); text-align: center; padding: 0 10px; }
+.cv2-trend-foot { font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.45); text-align: right; }
+
+@media (min-height: 1000px) { .cv2-chart svg { height: 120px; } .cv2-trend { gap: 6px; padding-top: 12px; } .cv2-trends { gap: 12px; } }
+/* Narrower pages give the tiles the room first (the side columns shrink); under 1100 the columns stack and
+   the page scrolls as a whole. */
+@media (max-width: 1700px) { .cv2-cols { grid-template-columns: 270px minmax(0, 1fr) 320px; } }
+@media (max-width: 1360px) { .cv2-cols { grid-template-columns: 250px minmax(0, 1fr) 290px; gap: 14px; } .cv2-verdict { font-size: 26px; } .cv2-hrow { grid-template-columns: 180px minmax(0, 1fr); } .cv2-hrow-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 10px; } }
+@media (max-width: 1100px) { .cv2-body { overflow-y: auto; } .cv2-cols { grid-template-columns: 1fr; grid-template-rows: none; flex: none; } .cv2-leftcol, .cv2-left, .cv2-right { max-height: none; overflow: visible; } .cv2-list { overflow: visible; } }
 
 /* Recent Games list (RecentGames.tsx) — the last 20 games across all players: portrait · name/hero · place ·
    verdict. Reuses the .lbpage/.lbscroll page frame from the leaderboards. */
@@ -6614,94 +6747,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .matchwatch { font: inherit; font-weight: 800; font-size: 13px; letter-spacing: 0.02em; color: #1a1206; background: var(--acc); border: none; padding: 7px 14px; border-radius: 9px; white-space: nowrap; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .matchwatch:hover:not(:disabled) { filter: brightness(1.08); }
 .matchwatch:disabled { opacity: 0.55; cursor: default; }
-.cartags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-/* The run a Recent-Games click focused — a static accent ring (no animation). */
-.carmatch-focus { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc); }
 
-/* Career layout (redesign) — two columns: a combined Profile+Insights+Record panel · Match History. */
-.carcols { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 10px; }
-.carright { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-/* Ornate gold-framed panel (mockup 2026-07-16): deep navy fill + double gold frame (border + inset hairline). */
-.carcard { background: linear-gradient(180deg, rgba(13, 22, 40, 0.78), rgba(9, 15, 29, 0.85)); border: 2px solid rgba(196, 160, 92, 0.5); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), inset 0 0 40px rgba(0, 0, 0, 0.3), 0 10px 30px -12px rgba(0, 0, 0, 0.55); border-radius: 16px; padding: 6px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
-.carcard .carsec { margin: 8px 0 2px; }
-
-/* Left — Profile + Insights + hero record (one panel). Header block centered; the lists below full-width. */
-.carprofilecard { align-items: center; text-align: center; }
-.carprofilecard .carsec, .carprofilecard .carinsights, .carprofilecard .carherorows { align-self: stretch; text-align: left; }
-.carprofilecard .carhero-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.carhero-wl { margin-left: auto; flex: none; font-family: var(--font-ui); font-weight: 900; font-size: 14px; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.55); }
-.carhero-wl .chw-w { color: #6fe0a0; }
-.carhero-wl .chw-l { color: #ff9a9a; }
-.caravatar-wrap { position: relative; margin: 10px auto 12px; width: 132px; }
-.caravatar { width: 132px; height: 132px; border-radius: 50%; display: grid; place-items: center; overflow: hidden; padding: 0; font-family: var(--font-ui); font-weight: 900; font-size: 57px; color: #1a1208; background: linear-gradient(150deg, #f3c96a, #e08a3c); border: 3px solid #cfa557; box-shadow: 0 0 0 3px rgba(20, 30, 50, 0.9), 0 0 0 4.5px rgba(196, 160, 92, 0.45), 0 6px 20px rgba(0, 0, 0, 0.45); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s ease, box-shadow 0.1s ease; }
-/* Oath badge riding the avatar's bottom edge (mockup's level roundel). */
-.caravatar:hover { transform: scale(1.05); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); }
-.caravatar svg { width: 42px; height: 42px; color: #1a1208; }
-.caravatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.carpname { font-family: var(--font-ui); font-weight: 900; font-size: 20px; color: #fff; }
-/* Gold rating pill under the name — the mockup's "RATING 188 • OATH 7" ribbon. */
-.carrank { align-self: center; margin-top: 6px; padding: 5px 18px; border-radius: 999px; background: linear-gradient(180deg, #f0d089, #c99d4e); border: 1.5px solid #8a6428; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 2px 6px rgba(0, 0, 0, 0.35); font-family: var(--font-ui); font-weight: 900; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #241705; }
-.carranksub { align-self: center; margin-top: 6px; font-family: var(--font-ui); font-weight: 800; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232, 200, 119, 0.65); }
-.carprofmeta { display: flex; width: 100%; gap: 8px; margin-top: 12px; }
-.carprofmeta > div { flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: center; padding: 10px 4px 8px; border-radius: 12px; background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(196, 160, 92, 0.28); }
-.carprofmeta svg { width: 17px; height: 17px; color: #e8c877; margin-bottom: 1px; }
-.carprofmeta b { font-family: var(--font-ui); font-weight: 900; font-size: 20px; color: #fff; font-variant-numeric: tabular-nums; }
-.carprofmeta span { font-family: var(--font-ui); font-weight: 700; font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
-
-/* Center — expandable match cards */
-.carcenter { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.carcenter .carsec { margin-top: 0; }
-.carmatch { padding: 0; overflow: hidden; transition: border-color 0.15s ease; }
-.carmatch.open { border-color: rgba(196, 160, 92, 0.55); }
-.carmatch-head { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 14px 18px; background: none; border: none; color: inherit; font: inherit; }
-/* The Career row's ▶ Watch — the Recent Games `.matchwatch` chip, sized down a step for the denser match-card
-   head. It sits INSIDE the row's carresult cluster, so the head itself is a div[role=button] (a button can't
-   nest a button — same shape as the Recent Games rows). */
-.carwatch { padding: 6px 12px; font-size: 12px; }
-.carmatch-head:hover { background: rgba(255, 255, 255, 0.04); }
-.carmatch-head .lbinfo { flex: 1; min-width: 0; }
-.carchev { flex: none; font-size: 15px; color: rgba(255, 255, 255, 0.5); transition: transform 0.18s ease; transform: rotate(-90deg); }
-.carchev.open { transform: rotate(0deg); }
-.carmatch-body { padding: 0 18px 16px; }
-/* Match tags sit inline on the row's right half, before the Victory/Defeat word. */
-.carmatch-head .cartags { flex: none; max-width: 42%; justify-content: flex-end; margin-top: 0; }
-/* Expanded run: labeled stat columns with divider rules (mockup's Gold Spent / Avg. Actions / Cards / MVP strip). */
-.carstatstrip { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; padding: 10px 0 12px; border-top: 1px solid rgba(196, 160, 92, 0.25); }
-.cst { display: flex; flex-direction: column; gap: 2px; padding: 2px 22px; }
-.cst:first-child { padding-left: 2px; }
-.cst + .cst { border-left: 1px solid rgba(255, 255, 255, 0.12); }
-.cst-l { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-ui); font-weight: 700; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232, 200, 119, 0.8); }
-.cst-l svg { width: 13px; height: 13px; color: #e8c877; }
-.cst-v { font-family: var(--font-ui); font-weight: 900; font-size: 19px; color: #fff; font-variant-numeric: tabular-nums; }
-.cst-v em { font-style: normal; font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.6); }
-.cst-mvp .cst-v { font-size: 16px; padding-top: 2px; }
-/* Warband + standout-stats side panel. */
-.carmatch-detail { display: flex; gap: 16px; align-items: stretch; }
-.carmatch-boardcol { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
-.carstandout { flex: none; width: 200px; padding: 10px 0 4px 16px; border-left: 1px solid rgba(196, 160, 92, 0.25); display: flex; flex-direction: column; gap: 9px; }
-.cso-h { font-family: var(--font-ui); font-weight: 900; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #e8c877; margin-bottom: 2px; }
-.cso-row { position: relative; display: flex; flex-direction: column; gap: 1px; padding-left: 12px; }
-.cso-row::before { content: '•'; position: absolute; left: 0; top: 0; color: #e8c877; font-size: 12px; }
-.cso-l { font-family: var(--font-ui); font-weight: 700; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
-.cso-v { font-family: var(--font-ui); font-weight: 800; font-size: 13.5px; color: #fff; }
-.cso-v.up { color: #6fe0a0; }
-.cso-v.down { color: #ff9a9a; }
-
-/* Right — Insights rail */
-.carinsights { gap: 2px; }
-.carinsight { display: flex; align-items: center; gap: 11px; padding: 8px 2px; }
-.carinsight + .carinsight { border-top: 1px solid rgba(255, 255, 255, 0.08); }
-.ci-ico { flex: none; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: rgba(196, 160, 92, 0.16); color: #f0c977; }
-.ci-ico svg { width: 16px; height: 16px; }
-/* Single-line insight row: label left, value pushed right (mockup 2026-07-16). */
-.ci-l { flex: 1; min-width: 0; font-family: var(--font-ui); font-weight: 700; font-size: 12.5px; letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.66); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ci-v { flex: none; max-width: 55%; font-family: var(--font-ui); font-weight: 900; font-size: 14.5px; color: #fff; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
-
-/* Stack the three columns on narrow viewports. */
-@media (max-width: 900px) {
-  .carcols { grid-template-columns: 1fr; }
-  .carcard { position: static; }
-}
 
 /* ── Compendium (Tab) — a filterable codex of minions + spells. Blurred overlay styled like an open tome:
    tier filters across the top, tribe/Spells filters down the left, a single scrolling gallery. ── */
@@ -8130,7 +8176,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   margin: 0 0 6px; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
   color: #9a8c74; border-bottom: 1px solid #4a4136; padding-bottom: 4px;
 }
-.fxwb-row { display: grid; grid-template-columns: 118px minmax(0, 1fr) 52px; align-items: center; gap: 8px; margin: 5px 0; }
+.fxwb-row { display: grid; grid-template-columns: 118px minmax(0, 1fr) 64px; align-items: center; gap: 8px; margin: 5px 0; }
 /* The value column is FIXED rather than `auto` so the sliders all end at the same x — with `auto` every row
    was a different length depending on how many digits its number happened to have. */
 .fxwb-row .fxwb-val, .fxwb-row > span:last-child { text-align: right; }
@@ -8198,6 +8244,19 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 .fxwb-row input[type='color'] { justify-self: start; width: 28px; height: 20px; border: 1px solid #4a4136; border-radius: 4px; background: none; padding: 0; cursor: pointer; }
 .fxwb-val { font-size: 11px; font-weight: 800; color: #f0d9a4; text-align: right; font-variant-numeric: tabular-nums; }
+/* The editable numeric readout: type a precise value the slider's step can't reach (owner ask). Styled as a
+   compact field so it still reads as the value, with the number spinners hidden (they only nudge by step and
+   waste width — the point here is typing an exact number). */
+.fxwb-valnum {
+  width: 100%; box-sizing: border-box; padding: 2px 4px; border: 1px solid #4a4136; border-radius: 5px;
+  background: #1c1810; font-family: var(--font-ui); -moz-appearance: textfield;
+}
+.fxwb-valnum:focus { outline: none; border-color: #c8a45c; }
+.fxwb-valnum:disabled { opacity: 0.5; }
+.fxwb-valnum::-webkit-outer-spin-button, .fxwb-valnum::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+/* The value readout is double-click-to-edit: a dotted underline on hover signals it can be typed into (no
+   keyword cursor here — the game's custom-cursor rule owns that). */
+.fxwb-valedit:hover { text-decoration: underline dotted #c8a45c; text-underline-offset: 2px; }
 .fxwb-copy {
   margin-top: auto; padding: 8px; border-radius: 8px; border: 2px solid #c8a45c; background: color-mix(in srgb, #c8a45c 16%, #241f17);
   color: #f0d9a4; font-family: var(--font-ui); font-weight: 800; font-size: 12px; cursor: pointer;
@@ -8260,16 +8319,47 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 .fxwb-layer-btns button:hover:not(:disabled) { border-color: #c8a45c; color: #f0d9a4; }
 .fxwb-layer-btns button:disabled { opacity: 0.35; cursor: default; }
-.fxwb-layer-add { display: flex; align-items: center; gap: 5px; margin-top: 2px; }
-.fxwb-layer-add select {
-  flex: 1; min-width: 0; background: #241f17; border: 1px solid #4a4136; color: #efe7db; border-radius: 6px;
-  padding: 4px 6px; font-family: var(--font-ui); font-size: 12px; cursor: pointer;
+/* "Add new primitive" — a button that expands a picker of every primitive WITH its one-line definition, so you
+   choose what to add by what it does (owner ask 2026-09-20). Replaces the old id-dropdown + ＋. */
+.fxwb-layer-add { position: relative; margin-top: 4px; }
+.fxwb-addprim-btn {
+  width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px dashed #4a4136;
+  background: #241f17; color: #f0d9a4; font-family: var(--font-ui); font-size: 12px; font-weight: 800;
+  text-align: left; cursor: pointer;
 }
-.fxwb-layer-add button {
-  flex: none; width: 28px; height: 26px; padding: 0; border-radius: 6px; border: 1px solid #c8a45c;
-  background: color-mix(in srgb, #c8a45c 16%, #241f17); color: #f0d9a4; font-size: 14px; font-weight: 800; cursor: pointer;
+.fxwb-addprim-btn:hover, .fxwb-addprim-btn.on { border-color: #c8a45c; background: color-mix(in srgb, #c8a45c 14%, #241f17); }
+/* The picker is a big CENTERED WINDOW over a dimming scrim (owner 2026-09-20): "make it nearly full screen…
+   BIGGER TO ACCOMODATE ALL THE PRIMITIVES". A responsive multi-column grid lays out EVERY primitive at once —
+   name over its one-line definition — so you pick by what it DOES with no scrolling. Click the scrim (or Esc,
+   or ✕) to dismiss; z above the workbench overlay (z500). */
+.fxwb-addprim-scrim {
+  position: fixed; inset: 0; z-index: 560; display: grid; place-items: center;
+  padding: 24px; background: rgba(0, 0, 0, 0.55);
 }
-.fxwb-layer-add button:hover { background: color-mix(in srgb, #c8a45c 30%, #241f17); }
+.fxwb-addprim-window {
+  width: min(1100px, 94vw); max-height: 90vh; overflow-y: auto;
+  background: #16120e; border: 1px solid #4a4136; border-radius: 12px; padding: 20px 22px 22px;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.65);
+}
+.fxwb-addprim-head {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+}
+.fxwb-addprim-title { font-size: 24px; font-weight: 800; color: #f0d9a4; }
+.fxwb-addprim-close {
+  border: 1px solid #4a4136; border-radius: 6px; background: #241f17; color: #f0d9a4;
+  font-family: var(--font-ui); font-size: 16px; font-weight: 800; padding: 4px 12px;
+}
+.fxwb-addprim-close:hover { border-color: #c8a45c; }
+.fxwb-addprim-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px;
+}
+.fxwb-addprim-item {
+  display: flex; flex-direction: column; gap: 3px; width: 100%; text-align: left; padding: 12px 14px;
+  border: 1px solid #3a332a; border-radius: 8px; background: #1d1811; color: #efe7db; font-family: var(--font-ui);
+}
+.fxwb-addprim-item:hover { border-color: #c8a45c; background: color-mix(in srgb, #c8a45c 12%, #1d1811); }
+.fxwb-addprim-name { font-size: 16px; font-weight: 800; color: #f0d9a4; }
+.fxwb-addprim-blurb { font-size: 12px; line-height: 1.4; color: #9a8c74; }
 
 /* Per-selected-layer timing controls (at / life). */
 .fxwb-timing {
@@ -8441,6 +8531,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* The top bar is `position: absolute` in its base rule (for the rail layout); here it is a static grid row. */
 .fxwb-grid > .fxwb-top {
   grid-area: top; position: static; inset: auto; pointer-events: auto;
+  /* One row: the def-name box shrinks to keep everything on a single line, so ⌘K stays beside Close at the
+     far right instead of the bar wrapping and dropping Close to a second row. */
+  flex-wrap: nowrap; min-width: 0;
 }
 
 .fxwb-layers-region, .fxwb-props-region {
@@ -8471,7 +8564,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 
 .fxwb-timeline-region {
   grid-area: tl; overflow: auto; min-height: 0; box-sizing: border-box; pointer-events: auto;
-  display: flex; flex-direction: column; gap: 8px; padding: 8px 14px;
+  display: flex; flex-direction: column; gap: 8px; padding: 8px 14px 20px;
   background: #16120e; border-top: 2px solid #4a4136;
 }
 .fxwb-timeline-regionhead { display: flex; align-items: center; }
@@ -8484,7 +8577,17 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* ⌘K opener + the timeline collapse toggle. Plain `.fxwb-btn`s, so the global gauntlet cursor rule already
    paints them — NO bare keyword cursor here (CLAUDE.md's custom-cursor rule). */
 .fxwb-cmdk { font-weight: 800; letter-spacing: 0.04em; }
-.fxwb-timeline-toggle { display: inline-flex; align-items: center; gap: 6px; }
+/* Browse All Effects — a prominent opener between the scenario pickers and the def section (owner 2026-09-20):
+   bigger, with 2× the base button font. */
+/* Scoped under `.fxwb` (0,2,0) so it beats `.fxwb button` (0,1,1), which otherwise pins every workbench button
+   to the 12px control size. 2× bigger with 2× the base font, and margin on each side so it stands apart from
+   the scenario pickers on its left and the def section on its right (owner 2026-09-20). */
+.fxwb .fxwb-browseall {
+  flex: none; margin: 0 18px; padding: 12px 24px; font-size: 18px; font-weight: 800; white-space: nowrap;
+  border: 1px solid #4a4136; border-radius: 8px;
+}
+.fxwb .fxwb-browseall:hover { border-color: #c8a45c; background: #4a4136; color: #f0d9a4; }
+.fxwb-timeline-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 18px; letter-spacing: 0.02em; }
 
 /* ---- SIDE-PANEL COLLAPSE (Layers left / Editor right) ---------------------------------------------------
    Owner 2026-09-19: both side panels collapse to a thin strip, the same gesture as the Timeline's toggle.
@@ -8494,7 +8597,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-grid.props-collapsed { --fxwb-props-w: 42px; }
 .fxwb-region-head { display: flex; align-items: center; margin-bottom: 2px; }
 .fxwb-region-head-right { justify-content: flex-end; }
-.fxwb-region-toggle { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.fxwb-region-toggle { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 18px; letter-spacing: 0.02em; }
 .fxwb-layers-region.collapsed, .fxwb-props-region.collapsed { padding: 8px 4px; gap: 0; overflow: hidden; }
 .fxwb-layers-region.collapsed .fxwb-region-toggle,
 .fxwb-props-region.collapsed .fxwb-region-toggle { padding: 5px 3px; }
@@ -8555,10 +8658,13 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 
 /* The def section relocated into the top bar (owner 2026-09-19): Copy def + name + Save in ONE compact
    horizontal group, and the (rare) warnings/notes drop below the bar instead of stretching the top row. */
-.fxwb-def-top { position: relative; display: flex; align-items: center; gap: 6px; margin-left: 6px; }
+.fxwb-def-top { position: relative; display: flex; align-items: center; gap: 6px; margin-left: 6px; flex: 1 1 auto; min-width: 0; }
 .fxwb-def-top .fxwb-copy { margin: 0; white-space: nowrap; }
-.fxwb-def-top .fxwb-def { flex-direction: row; align-items: center; gap: 6px; }
-.fxwb-def-top .fxwb-def-nameinput { flex: 0 0 auto; width: 150px; }
+.fxwb-def-top .fxwb-def { flex-direction: row; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; }
+.fxwb-def-top .fxwb-def-saverow { flex: 1 1 auto; min-width: 0; }
+/* Doubled from 150px (owner ask). Flexes so it fills the slack up to ~300 and shrinks (min 150) rather than
+   wrapping the whole top bar to a second row. */
+.fxwb-def-top .fxwb-def-nameinput { flex: 0 1 200px; min-width: 130px; width: auto; }
 .fxwb-def-top .fxwb-def-variantwarn,
 .fxwb-def-top .fxwb-seedbake,
 .fxwb-def-top .fxwb-def-note,
@@ -8912,6 +9018,22 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-rowwhy {
   grid-column: 1 / -1; margin-top: 2px; font-size: 10px; line-height: 1.3; font-weight: 800; color: #b58ad8;
 }
+/* The sound clip's WAVEFORM STRIP with draggable Start (green) / End (red) trim lines (owner ask): clip a
+   sound to exactly the window you want, in the editor. Full row width below the clip picker; the trimmed-out
+   ends dim. `touch-action: none` so a drag on a handle never scrolls the rail. */
+.fxwb-wave {
+  grid-column: 1 / -1; position: relative; height: 56px; margin: 5px 0 2px; border-radius: 6px;
+  border: 1px solid #4a4136; background: #141009; overflow: hidden; touch-action: none;
+}
+.fxwb-wave.fxwb-off { opacity: 0.45; }
+.fxwb-wave-canvas { display: block; width: 100%; height: 100%; }
+.fxwb-wave-load { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; color: #9a8c74; }
+.fxwb-wave-dim { position: absolute; top: 0; bottom: 0; background: rgba(10, 8, 4, 0.62); pointer-events: none; }
+.fxwb-wave-handle { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; cursor: ew-resize; }
+/* A wider invisible grab zone so the 2px line is easy to catch. */
+.fxwb-wave-handle::before { content: ''; position: absolute; top: 0; bottom: 0; left: -5px; right: -5px; }
+.fxwb-wave-handle.start { background: #6ffe5d; box-shadow: 0 0 5px #6ffe5d; }
+.fxwb-wave-handle.end { background: #ff5a4f; box-shadow: 0 0 5px #ff5a4f; }
 
 /* An INERT param — one whose `enabledWhen` isn't satisfied — is greyed and non-interactive, never hidden: a
    control that disappears takes its discoverability with it and makes the rail jump while you tune. The `?`
@@ -9443,8 +9565,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 
 /* ROWS — a row is a SURFACE, not an object: it presses INTO the list rather than out of it. An offset edge under
    a transparent row renders as a stray bar sitting in the gap, not as a button. */
-.gloss-row:active, .gloss-row:hover:active,
-.carmatch-head:active, .carmatch-head:hover:active {
+.gloss-row:active, .gloss-row:hover:active {
   background: rgba(0, 0, 0, 0.22);
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
   transition-duration: 0.06s;
@@ -9579,6 +9700,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb button, .fxwb input, .fxwb select {
   font-family: var(--font-ui); font-size: var(--t-control); font-weight: 700;
 }
+/* Section-title collapse toggles (Primitives / Editor / Timeline) read as HEADINGS — scoped under `.fxwb`
+   (0,2,0) so this beats the generic `.fxwb button` control size above (owner 2026-09-20). */
+.fxwb .fxwb-region-toggle, .fxwb .fxwb-timeline-toggle { font-size: 18px; }
 .fxwb .fxwb-def-sub, .fxwb .fxwb-layer-meta, .fxwb .fxwb-def-meta, .fxwb .fxwb-hint {
   font-size: var(--t-meta); font-weight: 700; letter-spacing: 0.01em;
 }
@@ -9978,6 +10102,10 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   transform: translate(var(--rrl-dx, 0px), var(--rrl-dy, 0px)) translateY(-50%) scale(var(--rrl-s, 1.09));
   transform-origin: left center; z-index: 555; will-change: transform; }
 .roundrail-wrap.dragging { user-select: none; }
+/* Any point of the rail drags it (2026-09-20), so the whole surface wears the grab gauntlet; buttons keep the
+   global open-gauntlet rule. `touch-action: none` on the surface keeps a touch drag from scrolling the page. */
+.roundrail-wrap { cursor: url('/cursors/gauntlet_open.svg') 6 2, grab; touch-action: none; }
+.roundrail-wrap.dragging, .roundrail-wrap.dragging * { cursor: url('/cursors/gauntlet_open.svg') 6 2, grabbing; }
 .roundrail {
   display: flex; flex-direction: column; gap: 3px; padding: 6px 6px 8px; border-radius: 10px; max-height: 82vh; overflow-y: auto;
   background: #14111c; box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
@@ -10000,11 +10128,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   font-family: var(--font-ui); box-sizing: border-box; }
 .roundrail-mini-round { flex: 1; font-weight: 800; font-size: 12px; line-height: 16px; color: #fff; white-space: nowrap; }
 .roundrail-mini-phase { font-style: normal; color: var(--gl-value, #e6b45a); }
-/* THE TABLE. Column 1 the round, 2-3 the two cells, then five data columns sharing `--rrl-col-w`. Rows keep the
+/* THE TABLE. Column 1 the round, 2-3 the two cells, then four data columns sharing `--rrl-col-w`. Rows keep the
    old 24px rhythm (16px line + 4px×2 padding, 3px gap). */
 .roundrail-grid { display: flex; flex-direction: column; gap: 3px; }
 .roundrail-head, .roundrail-row { display: grid; align-items: center; gap: 4px;
-  grid-template-columns: 30px 44px 44px repeat(5, var(--rrl-col-w, 34px)); }
+  grid-template-columns: 30px 44px 44px repeat(4, var(--rrl-col-w, 34px)); }
 .roundrail-head { padding: 2px 6px; font-weight: 800; font-size: 9px; line-height: 14px; letter-spacing: 0.05em;
   text-transform: uppercase; color: rgba(255, 255, 255, 0.45); text-align: center; }
 .roundrail-head > span:first-child { text-align: left; }

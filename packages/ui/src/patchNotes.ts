@@ -72,11 +72,33 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-20',
+    label: 'Career page rebuild + replay viewer',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "The Career page is rebuilt as three columns: your most-played hero with 1st Place Wins / Top 4 Finish / Avg Placement / Favorite Tribe, a Match History of your last 25 server runs as tall banners (hero + record, the final team as full card tiles, the runes you picked, VICTORY or your placement, date, run length, Gold spent, and Watch Replay), and Seasonal Ranked showing your MMR as a single number above your Avg Placement / Win Rate / APM trends over 7, 30 or 90 days. A new Heroes tab lists every hero you've played with runs, 1st-place wins, fight record, average and best placement, and last played.",
+        details: [
+          "Match History reads only your account's server runs — the last 25, newest first. Only that column scrolls; the hero panel and the Ranked card stay put.",
+          "Each banner shows the final team as 7 full-size card tiles (gilded frames and stat badges included) and the run's rune picks with their art; hover a rune for its text.",
+          'The rating delta and divisions are gone from Seasonal Ranked — it is your current MMR, nothing else.',
+          "The Heroes tab folds every run you've played: runs, 1st-place wins, total fight W–L with win rate, average and best placement, last played — most-played first. Your tab choice is remembered.",
+          "The replay viewer's round rail lost its Power column (the stat wasn't reliable). The rail can now be dragged from any point of its surface; a plain click on a Recruit / Combat cell still seeks.",
+          'Hovering a card while a replay plays now opens the same related-card and keyword previews you get live — a recorded drag no longer hides them.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-20',
     label: 'Top-milestone badge effect',
     changes: [
       {
         category: 'UI / Info',
         text: "A minion whose Attack or Health reaches the top milestone (5000) gains a glowing effect on that badge — in the shop, your warband and combat alike. It stays lit for the rest of that minion's life, even if the stat later drops.",
+      },
+      {
+        category: 'UI / Info',
+        text: 'The top-milestone Attack and Health badge effects have a refreshed look.',
       },
     ],
   },
@@ -92,13 +114,38 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-19',
+    label: 'Damage meters: reset + live counter',
+    changes: [
+      {
+        category: 'Card Change',
+        text: "Goldvein's damage meter now resets after every combat: it reads 0/6 in the shop instead of sitting at 6/6 once it has fired.",
+        details: [
+          "Once per combat means the meter starts every fight fresh — progress and the payout both. Damage it dealt in an earlier fight no longer counts toward the next one.",
+          'In combat the counter climbs with each hit and stops at 6/6 once the Gold is banked; it does not lap around to promise a second payout.',
+        ],
+      },
+      {
+        category: 'UI / Info',
+        text: "Damage-meter counters (Goldvein, Han Gover) show progress toward the NEXT payout — Han Gover at 47 damage reads 7/40, not 47/40 — and a payout lands on 0.",
+      },
+      {
+        category: 'UI / Info',
+        text: "Damage-meter counters tick in real time in combat as each hit lands, including the blow that ends the fight, and the final reading stays on the card through the end of combat.",
+        details: [
+          "Goldvein's counter did not move in combat at all before this; only Han Gover's did.",
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-19',
     label: 'Overflow keyword, Yeti, Goldvein, Han Gover cap',
     changes: [
       {
         category: 'New Card',
         text: 'Goldvein joins the Kobolds: a Tier 1 2/3 that banks 3 Gold for next turn the first time it has dealt 6 damage in a combat.',
         details: [
-          "Its damage meter works like Han Gover's: every landed hit it deals counts, and the total carries from fight to fight. When it crosses a multiple of 6, you gain 3 Gold next turn — on top of the Gold cap.",
+          "Its damage meter works like Han Gover's: every landed hit it deals counts. When it reaches 6, you gain 3 Gold next turn — on top of the Gold cap. (Unlike Han Gover's, the meter resets after every combat — see the follow-up patch.)",
           'Once per combat: a second crossing in the same fight pays nothing, and a Goldvein that Rises does not get a second payout. The next fight re-arms it.',
           'Gilded: 6 Gold, still once per combat.',
         ],

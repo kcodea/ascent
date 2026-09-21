@@ -1,427 +1,544 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Tribe } from '@game/core';
-import { getHero, TAG_INFO } from '@game/sim';
-import { Card } from './Card';
+import { createPortal } from 'react-dom';
+import { RUNE_INDEX } from '@game/content';
+import { getHero } from '@game/sim';
+import type { BoardSnapshot } from '@game/sim';
+import { Card, mdBold } from './Card';
 import { storedCardView } from './storedBoardView';
-import { RunTrophies } from './RunTrophies';
-import { avatarSrc, heroArt } from './art';
+import { heroArt, runeArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './store';
-import { careerStats, ordinal, runVerdict, VERDICT_CLASS, VERDICT_LABEL, type RunHistoryEntry } from './runHistory';
-import { fetchRunHistory, fetchReplayForSeed, historyEntryWatchable } from './remoteBoards';
+import { fetchMyRuns, fetchReplayPayload, remoteEnabled } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
-
-
-/** "When this run was played" for the match row. Prefers the full `at` datetime (date + time); falls back to
- *  the day-only `date` on older entries (no time then). Empty string if neither parses. */
-function playedAtText(e: Pick<RunHistoryEntry, 'at' | 'date'>): string {
-  if (e.at) {
-    const d = new Date(e.at);
-    return Number.isNaN(d.getTime()) ? '' : d.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
-  }
-  if (e.date) {
-    // Parse the day-only string as LOCAL midnight — `new Date('YYYY-MM-DD')` is UTC and shifts a day back in
-    // negative-offset zones.
-    const d = new Date(`${e.date}T00:00:00`);
-    return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-  }
-  return '';
-}
-
-/** A run's played-time as an epoch (ms), preferring the full `at` datetime, falling back to the day-only
- *  `date`. NaN when neither parses — the focus matcher then leans on the identity fields instead. */
-function runTimeMs(e: Pick<RunHistoryEntry, 'at' | 'date'>): number {
-  if (e.at) { const t = Date.parse(e.at); if (!Number.isNaN(t)) return t; }
-  if (e.date) { const t = Date.parse(`${e.date}T00:00:00`); if (!Number.isNaN(t)) return t; }
-  return NaN;
-}
+import {
+  TREND_WINDOWS, TRIBE_LABEL, careerAggregates, heroCareers, ordinalOf, outcomeOf, playedOnText, polylineOf, runLengthText, trendSeries,
+  type CareerRun, type HeroCareer, type TrendSeries, type TrendWindow,
+} from './careerData';
 
 /**
- * Match a Recent-Games focus to the run_history entry it names, so opening a game from the feed expands the
- * right run. run_telemetry (the feed) and run_history (the career) are separate rows written from the same
- * run-end flow, so there is no shared id to join on — but both stamp the run's END TIME within seconds, so the
- * NEAREST timestamp among the player's same-hero runs is the reliable key. (The two rows' `wins` can even
- * disagree — they're tallied by different paths — so identity fields are only a fallback tiebreaker when no
- * usable timestamps exist, never a hard filter.) Returns -1 when the hero appears in neither.
+ * CAREER (owner rebuild 2026-09-19/20) — three columns on the game's page backdrop, after the Battlegrounds-style
+ * mockup:
+ *
+ *  LEFT    the most-played hero in the SAME circular frame the recruit screen wears (the `.hero > .f >
+ *          .heroimg` markup + rules from StatusBar, re-seated here without the tray transforms), its name
+ *          plate, and four stat tiles — 1st Place Wins · Top 4 Finish · Avg Placement · Favorite Tribe.
+ *  CENTRE  two tabs in the column header (MATCH HISTORY | HEROES, the choice persisted per browser):
+ *          Match History — the account's last 25 runs FROM THE SERVER (`fetchMyRuns`; never local-only runs),
+ *          each a TALL BANNER that reads top to bottom (owner 2026-09-20: "chunky and fully readable"):
+ *            head   hero portrait + name + W–L record ‖ the outcome block (VICTORY / placement, date · length · Gold)
+ *            team   the final team as 7 full-size card tiles (the real `Card`, sized like the leaderboard's; no
+ *                   label — it collided with the gilded crown / tier stars, owner 2026-09-20)
+ *            foot   the run's rune selections as emblems + names (hover = the rune's text) ‖ ONE button,
+ *                   WATCH REPLAY, live only when a telemetry replay exists.
+ *          Heroes — every hero the account has played (folded over ALL the fetched runs, not just the 25
+ *          banners): portrait + name, runs, 1st-place wins, the total fight record + win rate, avg / best
+ *          placement, last played — sorted by runs played (owner ask 2026-09-20).
+ *          Only this column scrolls; the side columns stay put. All three columns share one header row
+ *          (`.cv2-colhead`), so their panels start level.
+ *  RIGHT   Seasonal Ranked — the account's MMR as a bare number (the server-synced profile rating; no delta,
+ *          no divisions) — and Performance Trends: Avg Placement · Fight Win Rate · Avg APM as inline-SVG
+ *          lines over a 7 / 30 / 90-day window.
+ *
+ * Every number comes from `careerData.ts` (pure, tested). The fetch is cached on the store so reopening
+ * paints at once and refreshes behind; a finished run or a career reset bumps `careerVersion` and refetches.
+ * Read-only; opened by the title's Career button (and by the leaderboard / Recent Games for another player).
  */
-function matchRunIndex(entries: RunHistoryEntry[], f: CareerFocus): number {
-  const sameHero = entries.map((e, i) => ({ e, i })).filter((x) => x.e.heroId === f.heroId);
-  if (sameHero.length === 0) return -1;
-  if (sameHero.length === 1) return sameHero[0].i;
-  // Multiple same-hero runs — prefer the one closest in time to the clicked game.
-  const ft = f.createdAt ? Date.parse(f.createdAt) : NaN;
-  if (Number.isFinite(ft)) {
-    let best = -1, bestScore = Infinity;
-    for (const { e, i } of sameHero) {
-      const et = runTimeMs(e);
-      if (!Number.isFinite(et)) continue;
-      const score = Math.abs(et - ft);
-      if (score < bestScore) { bestScore = score; best = i; }
-    }
-    if (best >= 0) return best;
-  }
-  // No usable timestamps — lean on identity (wins + placement), else the newest same-hero run.
-  const ident = sameHero.find((x) => x.e.wins === f.wins
-    && (f.placement == null || x.e.placement == null || x.e.placement === f.placement));
-  return (ident ?? sameHero[0]).i;
+
+/** Rows fetched light (scalars only) for the trends, the tiles and the Heroes tab — effectively every run the
+ *  account has (a light row is ~200 bytes); the newest `CAREER_DETAIL_ROWS` of them also carry the board. */
+const FETCH_LIMIT = 1000;
+/** Which centre tab is open, persisted per browser (owner ask 2026-09-20). */
+const TAB_KEY = 'ascent.career.tab';
+type CenterTab = 'history' | 'heroes';
+function loadTab(): CenterTab {
+  try { return localStorage.getItem(TAB_KEY) === 'heroes' ? 'heroes' : 'history'; } catch { return 'history'; }
 }
+function saveTab(t: CenterTab): void {
+  try { localStorage.setItem(TAB_KEY, t); } catch { /* storage unavailable — the choice just doesn't persist */ }
+}
+/** Banners in Match History — the newest 25 server runs (owner 2026-09-20; was 10). Matches `CAREER_DETAIL_ROWS`. */
+const MATCH_ROWS = 25;
+const BOARD_SLOTS = 7;
 
-const TRIBE_LABEL: Record<Tribe, string> = {
-  beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral', kobold: 'Kobold', dwarf: 'Dwarf',
-  celestial: 'Celestial',
-  spirit: 'Spirit',
-};
-
-/** One row in the Insights rail — icon chip, label left, value right (mockup 2026-07-16). */
-function Insight({ icon, label, value }: { icon: string; label: string; value: string }) {
+/** The in-run hero frame, re-seated: the same `.hero > .f > img.heroimg` markup StatusBar renders (so the
+ *  ring, disc and portrait rules are shared), scoped under `.cv2-heroframe` which only undoes the tray's
+ *  transforms. `small` is the match-row portrait. */
+function HeroFrame({ heroId, small }: { heroId: string; small?: boolean }) {
+  const art = heroArt(heroId);
+  const name = heroId ? getHero(heroId).name : '';
   return (
-    <div className="carinsight">
-      <span className="ci-ico"><Icon name={icon} /></span>
-      <span className="ci-l">{label}</span>
-      <span className="ci-v">{value}</span>
+    <div className={`cv2-heroframe${small ? ' small' : ''}`}>
+      <div className="hero">
+        <div className="f">
+          {art ? <img decoding="sync" className="heroimg" src={art} alt={name} draggable={false} /> : <Icon name="anvil" />}
+        </div>
+      </div>
     </div>
   );
 }
 
-/**
- * Career (A7) — a full-page overlay of your LOCAL match history (persisted in `runHistory.ts`), laid out as
- * a **stats bar** (runs · best run · avg wins · win rate) over three columns: a **Profile Card** (avatar,
- * name, an "Unranked" placeholder until the rating system lands), the **Recent Match History** (large
- * click-to-expand cards), and an **Insights** rail (favorite hero / tribe / mechanic, win rate, streak).
- * Read-only; the story of your climbs. Opened by the title's Career button; self-gates on `showCareer`.
- */
+/** The final team — exactly 7 slots, the real `Card` at the leaderboard's tile size, empty slots blank. */
+function FinalTeam({ board }: { board: BoardSnapshot }) {
+  const minions = board.minions.slice(0, BOARD_SLOTS);
+  return (
+    <div className="cv2-team" aria-label="Final team">
+      {Array.from({ length: BOARD_SLOTS }, (_, i) => {
+        const m = minions[i];
+        return m
+          ? <div className="cv2-tile" key={i}><Card card={storedCardView(m)} suppressPop /></div>
+          : <div className="cv2-tile empty" key={i} aria-hidden="true" />;
+      })}
+    </div>
+  );
+}
+
+/** One rune the run picked: its emblem (the real rune art) + name; hovering floats the rune's text in a
+ *  styled panel (portalled + fixed, so the scrolling list never clips it — never a native tooltip). */
+function RuneEmblem({ runeId }: { runeId: string }) {
+  const rune = RUNE_INDEX[runeId];
+  const [tip, setTip] = useState<{ left: number; top: number; above: boolean } | null>(null);
+  const timer = useRef<number | null>(null);
+  useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
+  if (!rune) return null;
+  const art = runeArt(rune.id);
+  const show = (el: HTMLElement): void => {
+    if (timer.current) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => {
+      // One layout read per hover (never per frame): anchor the panel under the emblem, centred, flipping
+      // above when the row sits near the bottom of the screen.
+      const r = el.getBoundingClientRect();
+      const w = 280;
+      const left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2));
+      const above = r.bottom + 150 > window.innerHeight;
+      setTip({ left, top: above ? r.top - 10 : r.bottom + 10, above });
+    }, 160);
+  };
+  const hide = (): void => {
+    if (timer.current) { window.clearTimeout(timer.current); timer.current = null; }
+    setTip(null);
+  };
+  return (
+    <div className={`cv2-rune${rune.epic ? ' epic' : ''}`} onMouseEnter={(e) => show(e.currentTarget)} onMouseLeave={hide}>
+      <div className="cv2-rune-disc">
+        {art ? <img decoding="sync" className="cv2-rune-art" src={art} alt="" aria-hidden /> : <span className="cv2-rune-emblem" aria-hidden><Icon name="anvil" /></span>}
+      </div>
+      <div className="cv2-rune-name">{rune.name}</div>
+      {tip && createPortal(
+        <div className={`cv2-rune-tip${tip.above ? ' above' : ''}`} role="tooltip" style={{ left: tip.left, top: tip.top }}>
+          <div className="cv2-rune-tip-name">{rune.name}<span className="cv2-rune-tip-kind">{rune.epic ? 'Epic Rune' : 'Rune'}</span></div>
+          <div className="cv2-rune-tip-body" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
+/** A labelled small-caps stat with a big value — the left column's tiles. */
+function StatTile({ label, value, icon }: { label: string; value: string; icon?: string }) {
+  return (
+    <div className="cv2-stat">
+      {icon && <span className="cv2-stat-ico"><Icon name={icon} /></span>}
+      <span className="cv2-stat-v">{value}</span>
+      <span className="cv2-stat-l">{label}</span>
+    </div>
+  );
+}
+
+const CHART_W = 300, CHART_H = 110, CHART_PAD = 10;
+
+/** One trend: a static inline-SVG polyline (no library, nothing animated) with the window average as the
+ *  headline and the axis extremes labelled. `invert` puts `yMin` at the top (placement: 1st reads high). */
+function TrendChart({ title, series, yMin, yMax, invert, unit, empty }: {
+  title: string; series: TrendSeries; yMin: number; yMax: number; invert?: boolean; unit?: string; empty: string;
+}) {
+  const pts = polylineOf(series.points, { w: CHART_W, h: CHART_H, pad: CHART_PAD, yMin, yMax, invert });
+  const one = series.points.length === 1 ? pts.split(',').map(Number) : null;
+  const avgText = series.avg === null ? '—' : `${series.avg}${unit ?? ''}`;
+  const n = series.points.length;
+  return (
+    <div className="cv2-trend">
+      <div className="cv2-trend-head">
+        <span className="cv2-trend-title">{title}</span>
+        <span className="cv2-trend-avg">{avgText}</span>
+      </div>
+      <div className="cv2-chart">
+        <svg viewBox={`0 0 ${CHART_W} ${CHART_H}`} preserveAspectRatio="none" role="img" aria-label={`${title} over the window`}>
+          <line className="cv2-grid" x1={CHART_PAD} x2={CHART_W - CHART_PAD} y1={CHART_PAD} y2={CHART_PAD} />
+          <line className="cv2-grid" x1={CHART_PAD} x2={CHART_W - CHART_PAD} y1={CHART_H / 2} y2={CHART_H / 2} />
+          <line className="cv2-grid" x1={CHART_PAD} x2={CHART_W - CHART_PAD} y1={CHART_H - CHART_PAD} y2={CHART_H - CHART_PAD} />
+          {n > 1 && <polyline className="cv2-line" points={pts} />}
+          {one && <line className="cv2-line cv2-dot" x1={one[0]} y1={one[1]} x2={one[0]} y2={one[1]} />}
+        </svg>
+        <span className="cv2-axis top">{invert ? yMin : yMax}{unit}</span>
+        <span className="cv2-axis bottom">{invert ? yMax : yMin}{unit}</span>
+        {n === 0 && <span className="cv2-chart-empty">{empty}</span>}
+      </div>
+      <div className="cv2-trend-foot">{n} run{n === 1 ? '' : 's'}</div>
+    </div>
+  );
+}
+
+/** The APM axis top: the series' max rounded up to the next 10, never below 10 (so an empty / tiny series
+ *  still draws a sensible box). */
+function apmAxisMax(series: TrendSeries): number {
+  const top = series.points.reduce((m, p) => Math.max(m, p.y), 0);
+  return Math.max(10, Math.ceil((top + 5) / 10) * 10);
+}
+
+/** Which match row a Recent-Games click meant: the same-hero run nearest in time to the game's `createdAt`
+ *  (run_history and run_telemetry stamp the same end time within seconds). -1 = no focus / no match. */
+function focusIndexOf(runs: readonly CareerRun[], f: CareerFocus | undefined): number {
+  if (!f) return -1;
+  const ft = f.createdAt ? Date.parse(f.createdAt) : NaN;
+  let best = -1, bestScore = Infinity;
+  runs.forEach((r, i) => {
+    if (i >= MATCH_ROWS || r.heroId !== f.heroId) return;
+    const score = Number.isFinite(ft) && Number.isFinite(r.atMs) ? Math.abs(r.atMs - ft) : (r.wins === f.wins ? 0.5 : 1) * 1e15;
+    if (score < bestScore) { bestScore = score; best = i; }
+  });
+  return best;
+}
+
+/** A designed whole-page state (loading / offline / signed-out / no backend): an icon, a headline, a line of
+ *  help and at most one action — never a bare string. */
+function PageState({ icon, title, body, action, busy, className }: {
+  icon: string; title: string; body: string; action?: { label: string; onClick: () => void }; busy?: boolean; className?: string;
+}) {
+  return (
+    <div className={`cv2-state${className ? ` ${className}` : ''}`} role={busy ? 'status' : undefined} aria-busy={busy || undefined}>
+      <div className={`cv2-state-ico${busy ? ' spin' : ''}`}><Icon name={icon} /></div>
+      <div className="cv2-state-title">{title}</div>
+      <div className="cv2-state-body">{body}</div>
+      {action && <button type="button" className="cv2-btn pressable" onClick={action.onClick}>{action.label}</button>}
+    </div>
+  );
+}
+
+/** One match banner. */
+function MatchRow({ run, focus, busy, unplayable, onWatch }: {
+  run: CareerRun; focus: boolean; busy: boolean; unplayable: boolean; onWatch: () => void;
+}) {
+  const o = outcomeOf(run.placement);
+  const when = playedOnText(run.atMs);
+  const length = runLengthText(run.durationMs);
+  const watchable = run.replayRowId !== null;
+  const hasBoard = !!run.board && run.board.minions.length > 0;
+  const runes = run.runes.filter((id) => RUNE_INDEX[id]);
+  return (
+    <article className={`cv2-row ${o.cls}${focus ? ' focus' : ''}`} aria-label={`${run.heroId ? getHero(run.heroId).name : 'Run'} — ${o.label}`}>
+      <header className="cv2-row-head">
+        <div className="cv2-row-hero">
+          <HeroFrame heroId={run.heroId} small />
+          <div className="cv2-row-heroid">
+            <div className="cv2-row-heroname">{run.heroId ? getHero(run.heroId).name : '—'}</div>
+            <div className={`cv2-row-record ${run.wins >= run.losses ? 'won' : 'lost'}`} aria-label={`${run.wins} wins, ${run.losses} losses`}>
+              <span className="cv2-row-record-n">{run.wins}</span><span className="cv2-row-record-l">W</span>
+              <span className="cv2-row-record-sep">–</span>
+              <span className="cv2-row-record-n">{run.losses}</span><span className="cv2-row-record-l">L</span>
+            </div>
+          </div>
+        </div>
+        <div className="cv2-row-outcome">
+          <div className="cv2-row-label">Match Outcome</div>
+          <div className={`cv2-verdict ${o.cls}`}>{o.label}</div>
+          <div className="cv2-row-meta">
+            <span className="cv2-meta"><span className="cv2-meta-l">Played</span><span className="cv2-meta-v cv2-row-when">{when || '—'}</span></span>
+            <span className="cv2-meta"><span className="cv2-meta-l">Length</span><span className="cv2-meta-v cv2-row-length">{length}</span></span>
+            <span className="cv2-meta"><span className="cv2-meta-l">Gold spent</span><span className="cv2-meta-v cv2-row-gold-v">{run.goldSpent === null ? '—' : run.goldSpent}</span></span>
+          </div>
+        </div>
+      </header>
+      {/* No "Final Team" label (owner 2026-09-20): it collided with the first tile's crown / tier stars, and the
+          card row speaks for itself. The row keeps headroom above the tiles for those overhangs instead. */}
+      <div className="cv2-row-team">
+        {hasBoard
+          ? <FinalTeam board={run.board!} />
+          : <div className="cv2-row-none">No final team recorded for this run.</div>}
+      </div>
+      <footer className="cv2-row-foot">
+        <div className="cv2-row-runes">
+          <div className="cv2-row-label">Runes</div>
+          {runes.length > 0
+            ? <div className="cv2-runes" aria-label="Runes picked this run">{runes.map((id, i) => <RuneEmblem runeId={id} key={`${id}#${i}`} />)}</div>
+            : <div className="cv2-row-none cv2-norunes">No runes recorded</div>}
+        </div>
+        <button
+          type="button"
+          className="cv2-btn cv2-watch pressable"
+          disabled={!watchable || busy || unplayable}
+          onClick={onWatch}
+          aria-label={watchable ? 'Watch this run’s replay' : 'No replay stored for this run'}
+        >
+          <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Watch Replay'}
+        </button>
+      </footer>
+    </article>
+  );
+}
+
+/** One hero's line on the Heroes tab — the same visual language as a match banner's head, plus the stat cells. */
+function HeroRow({ h }: { h: HeroCareer }) {
+  const name = getHero(h.heroId).name;
+  const last = playedOnText(h.lastAtMs);
+  return (
+    <article className="cv2-hrow" aria-label={`${name} — ${h.runs} run${h.runs === 1 ? '' : 's'}`}>
+      <div className="cv2-row-hero">
+        <HeroFrame heroId={h.heroId} small />
+        <div className="cv2-row-heroid">
+          <div className="cv2-row-heroname">{name}</div>
+          <div className="cv2-hrow-runs">{h.runs} run{h.runs === 1 ? '' : 's'}</div>
+        </div>
+      </div>
+      <div className="cv2-hrow-stats">
+        <div className="cv2-hcell">
+          <span className="cv2-meta-l">1st Place Wins</span>
+          <span className={`cv2-hcell-v${h.firsts > 0 ? ' won' : ''}`}>{h.firsts}</span>
+        </div>
+        <div className="cv2-hcell wide">
+          <span className="cv2-meta-l">Fight Record</span>
+          <span className="cv2-hcell-v cv2-hrow-record" aria-label={`${h.wins} wins, ${h.losses} losses`}>
+            <span className="cv2-row-record-n">{h.wins}</span><span className="cv2-row-record-l">W</span>
+            <span className="cv2-row-record-sep">–</span>
+            <span className="cv2-row-record-n">{h.losses}</span><span className="cv2-row-record-l">L</span>
+          </span>
+          <span className="cv2-hrow-rate">{h.winRate === null ? 'No fights' : `${h.winRate}% win rate`}</span>
+        </div>
+        <div className="cv2-hcell">
+          <span className="cv2-meta-l">Avg Placement</span>
+          <span className="cv2-hcell-v">{h.avgPlacement === null ? '—' : h.avgPlacement}</span>
+        </div>
+        <div className="cv2-hcell">
+          <span className="cv2-meta-l">Best</span>
+          <span className={`cv2-hcell-v ${h.bestPlacement === null ? '' : outcomeOf(h.bestPlacement).cls}`}>{h.bestPlacement === null ? '—' : ordinalOf(h.bestPlacement)}</span>
+        </div>
+        <div className="cv2-hcell">
+          <span className="cv2-meta-l">Last Played</span>
+          <span className="cv2-hcell-v small">{last || '—'}</span>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 export function Career() {
   const show = useGame((s) => s.showCareer);
   const close = useGame((s) => s.closeCareer);
   const playerName = useGame((s) => s.playerName);
-  const playerAvatar = useGame((s) => s.playerAvatar);
-  const openAvatarPicker = useGame((s) => s.openAvatarPicker);
   const profile = useGame((s) => s.profile);
   const careerOf = useGame((s) => s.careerOf); // null = your own career
   const myId = useGame((s) => s.account.userId);
   const careerVersion = useGame((s) => s.careerVersion);
-  // The career lives on the SERVER now (owner call 2026-08-03), so this is a fetch rather than a synchronous
-  // localStorage read. `careerVersion` bumps after a finished run or a career reset, re-fetching so an open
-  // view never shows a stale log. `null` distinguishes "still loading / couldn't ask" from "no runs yet",
-  // which the empty state below reads.
-  const [entries, setEntries] = useState<RunHistoryEntry[] | null>(null);
+  const openAccountPanel = useGame((s) => s.openAccountPanel);
+  const cache = useGame((s) => s.careerCache);
+  const setCache = useGame((s) => s.setCareerCache);
+
+  const viewing = careerOf;
+  const userId = viewing?.userId ?? myId;
+  const cacheKey = `${userId ?? ''}|${careerVersion}`;
+  // `undefined` = loading; `null` = couldn't ask (no session / server unreachable); [] = no runs yet.
+  const [runs, setRuns] = useState<CareerRun[] | null | undefined>(undefined);
+  const [fetchTick, setFetchTick] = useState(0); // the Retry button
+  const [window_, setWindow] = useState<TrendWindow>(30);
+  const [tab, setTab] = useState<CenterTab>(loadTab);
+  const [watching, setWatching] = useState<number | null>(null); // run id whose replay is loading
+  const [noReplay, setNoReplay] = useState<number | null>(null); // run id whose payload came back unplayable
+
   useEffect(() => {
     if (!show) return;
     let live = true;
-    setEntries(null);
-    // Viewing someone else reads THEIR rows by user_id. `careerOf` is in the deps so switching players from
-    // the leaderboard refetches rather than showing the previous player's runs under the new name.
-    void fetchRunHistory<RunHistoryEntry>(50, careerOf?.userId).then((rows) => { if (live) setEntries(rows ?? []); });
-    // …and re-read YOUR OWN rating from the server while we're here (owner ask 2026-08-19). The profile is a
-    // local MIRROR of the `profiles` row; without this it is only refreshed at launch, so a rating edited (or
-    // a row deleted) server-side didn't show until a full restart. Own career only — another player's rating
-    // comes from the leaderboard row we were handed, not from our profile. Best-effort: offline keeps the
-    // mirror, silently.
-    if (!careerOf) syncProfileFromServer(playerName);
+    // Paint the cached list at once (no loading flash on reopen), then refresh behind it.
+    const cached = cache && cache.key === cacheKey ? cache.runs : undefined;
+    setRuns(cached);
+    setWatching(null);
+    setNoReplay(null);
+    if (!userId || !remoteEnabled()) { setRuns(null); return; }
+    void fetchMyRuns(FETCH_LIMIT, viewing ? { userId: viewing.userId } : undefined).then((rows) => {
+      if (!live) return;
+      if (rows) setCache(cacheKey, rows);
+      setRuns(rows ?? (cached ?? null));
+    });
+    // …and re-read YOUR OWN rating from the server while we're here — the profile is a local mirror of the
+    // `profiles` row and this is the number the Seasonal Ranked card prints (the same one the leaderboard shows).
+    if (!viewing) syncProfileFromServer(playerName);
     return () => { live = false; };
-  }, [show, careerVersion, careerOf?.userId, careerOf, playerName]);
-  const stats = useMemo(() => careerStats(entries ?? []), [entries]);
-  // Any recorded placement means these are lobby results, and the course-shaped headline numbers below
-  // (Completed / Flawless / the Oath-based Win Rate) would read as a flat 0 or as an answer to a question
-  // the lobby never asks. Owner report 2026-08-08.
-  const lobbyMode = stats.lobbyRuns > 0;
-  const [open, setOpen] = useState<Set<number>>(() => new Set([0])); // newest run starts expanded
-  // ── Watch (owner ask 2026-08-19): play back a listed run's uploaded v2 replay ────────────────────────────
-  // Index-keyed like `open`; both reset when the entries refetch so a stale index can't point at the wrong run.
-  const [watching, setWatching] = useState<number | null>(null); // row index whose replay is loading
-  const [noReplay, setNoReplay] = useState<number | null>(null); // row index whose fetch came back empty
-  useEffect(() => { setWatching(null); setNoReplay(null); }, [entries]);
+    // `cache` is deliberately NOT a dep: the effect writes it, and re-running on that write would refetch forever.
+  }, [show, cacheKey, userId, viewing, playerName, fetchTick, setCache]);
 
-  // ── Focus: opened from a specific game (a Recent Games row) ────────────────────────────────────────────
-  // Expand + scroll to the run the feed row named. Matched once entries land; index -1 = no focus / no match
-  // (then the default newest-expanded view stands). Recomputed if the player or their runs change.
-  const focus: CareerFocus | undefined = careerOf?.focus;
-  const focusIndex = useMemo(
-    () => (focus && entries && entries.length > 0 ? matchRunIndex(entries, focus) : -1),
-    [focus, entries],
-  );
-  const focusRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (focusIndex < 0) return;
-    setOpen((prev) => new Set(prev).add(focusIndex));
-    // Scroll after the expanded body has painted, so we centre on the full card, not the collapsed head.
-    const id = requestAnimationFrame(() => focusRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
-    return () => cancelAnimationFrame(id);
-  }, [focusIndex]);
+  const aggregates = useMemo(() => careerAggregates(runs ?? []), [runs]);
+  const trends = useMemo(() => trendSeries(runs ?? [], window_, Date.now()), [runs, window_]);
+  const heroes = useMemo(() => heroCareers(runs ?? []), [runs]);
+  const focusIndex = useMemo(() => (runs ? focusIndexOf(runs, viewing?.focus) : -1), [runs, viewing?.focus]);
 
   if (!show) return null;
 
   const back = (): void => { sfx.pulse(); close(); };
-  const toggle = (i: number): void => {
-    sfx.pulse();
-    setOpen((prev) => { const n = new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n; });
-  };
-
-  // ── WHOSE numbers ───────────────────────────────────────────────────────────────────────────────────
-  // Your own card reads the local `profile` (rating, highest). Another player's cannot: those live in
-  // THEIR profile row, and all we were handed is the leaderboard line. So rating/games come from that row, and
-  // "highest" is derived from their run history (`ratingAfter`) rather than invented — omitted when unknowable.
-  const viewing = careerOf;
-  // A player who never set a name shows a stable temp handle keyed on their account id (never null — that
-  // crashed `.trim()`; owner ask 2026-08-10: show a randomized name rather than "Unnamed Climber").
   const shownName = viewing ? (viewing.author || tempHandle(viewing.userId)) : (playerName || tempHandle(myId));
-  const shownRating = viewing ? viewing.rating : profile.rating;
-  const highestSeen = viewing
-    ? (entries ?? []).reduce((m, e) => Math.max(m, e.ratingAfter ?? 0), 0) || null
-    : profile.highestRating;
+  const mmr = viewing ? viewing.rating : profile.rating;
 
-  // Watch a listed run back: map the row to its uploaded telemetry replay by SEED (the only key the two rows
-  // share — see fetchReplayForSeed) and hand it to the viewer. `startReplay` closes this overlay itself and
-  // restores it on exit (Phase B), so nothing here touches `showCareer`. A row whose fetch comes back empty
-  // (pre-upload loss, deleted row, offline) degrades to "No replay" instead of a broken viewer.
-  const watchRun = (ev: React.MouseEvent, e: RunHistoryEntry, i: number): void => {
-    ev.stopPropagation();
-    if (watching !== null) return;
+  // Watch a listed run back: the join already resolved the telemetry row id, so this is the same one-row
+  // payload fetch Recent Games makes, handed to the same viewer. `startReplay` closes this overlay itself and
+  // restores it on exit. An unplayable payload degrades the button to "No replay", never a broken viewer.
+  const watchRun = (run: CareerRun): void => {
+    if (run.replayRowId === null || run.id === null || watching !== null) return;
     sfx.pulse();
     setNoReplay(null);
-    setWatching(i);
-    void fetchReplayForSeed(e.seed, { userId: viewing?.userId ?? myId })
+    setWatching(run.id);
+    void fetchReplayPayload(run.replayRowId)
       .then((rep) => {
         if (rep) startReplay(rep, { authorName: shownName || undefined });
-        else setNoReplay(i);
+        else setNoReplay(run.id);
       })
       .finally(() => setWatching(null));
   };
 
-  const favHero = stats.perHero[0];
-  const favHeroName = favHero ? getHero(favHero.heroId).name : '—';
-  const favTribe = stats.topTribes[0] ? TRIBE_LABEL[stats.topTribes[0].tribe] : '—';
-  const avatarChar = (shownName.trim()[0] ?? '').toUpperCase();
-  // Avatars are stored locally today, so another player's is unknown — their initial stands in rather than
-  // showing YOUR avatar over THEIR name, which would be actively misleading.
-  const avatarImg = viewing ? undefined : avatarSrc(playerAvatar);
+  const heroId = aggregates.mostPlayedHero ?? viewing?.favoriteHero ?? '';
+  const heroName = heroId ? getHero(heroId).name : '—';
+  const matchRows = (runs ?? []).slice(0, MATCH_ROWS);
+  const pickTab = (t: CenterTab): void => { if (t === tab) return; sfx.pulse(); setTab(t); saveTab(t); };
+
+  let body: JSX.Element;
+  if (!remoteEnabled()) {
+    body = <PageState icon="mute" title="Career unavailable" body="This build has no backend configured, so there is no server record to show." />;
+  } else if (!userId) {
+    body = (
+      <PageState
+        icon="taunt"
+        title="Sign in to see your career"
+        body="Your runs, placements and Rating live on your account, so they follow you between devices."
+        action={{ label: 'Sign in', onClick: () => { sfx.pulse(); openAccountPanel(); } }}
+        className="cv2-signin"
+      />
+    );
+  } else if (runs === undefined) {
+    body = <PageState icon="refresh" title="Loading your career" body="Fetching your recent runs from the server…" busy />;
+  } else if (runs === null) {
+    body = (
+      <PageState
+        icon="mute"
+        title="Couldn’t reach the server"
+        body="Your career is stored on your account. Check your connection and try again."
+        action={{ label: 'Retry', onClick: () => { sfx.pulse(); setFetchTick((t) => t + 1); } }}
+        className="cv2-signin"
+      />
+    );
+  } else {
+    body = (
+      <div className="cv2-cols">
+        {/* LEFT — most-played hero + the four tiles */}
+        <aside className="cv2-col cv2-leftcol">
+          <div className="cv2-colhead"><div className="cv2-sec"><Icon name="crown" />Career Stats</div></div>
+          <div className="cv2-panel cv2-left">
+            <HeroFrame heroId={heroId} />
+            <div className="cv2-heroname">{heroName}</div>
+            <div className="cv2-playername">{shownName}</div>
+            <div className="cv2-tiles">
+              <StatTile icon="crown" label="1st Place Wins" value={String(aggregates.firsts)} />
+              <StatTile icon="shield" label="Top 4 Finish" value={aggregates.top4Pct === null ? '—' : `${aggregates.top4Pct}%`} />
+              <StatTile icon="star" label="Avg Placement" value={aggregates.avgPlacement === null ? '—' : String(aggregates.avgPlacement)} />
+              <StatTile icon="paw" label="Favorite Tribe" value={aggregates.favoriteTribe ? TRIBE_LABEL[aggregates.favoriteTribe] : '—'} />
+            </div>
+          </div>
+        </aside>
+
+        {/* CENTRE — Match History | Heroes (the only column that scrolls) */}
+        <section className="cv2-col cv2-center" aria-label={tab === 'heroes' ? 'Heroes' : 'Match History'}>
+          <div className="cv2-colhead cv2-center-head">
+            <div className="cv2-tabs" role="tablist" aria-label="Career view">
+              <button type="button" role="tab" className={`cv2-tab${tab === 'history' ? ' on' : ''}`} aria-selected={tab === 'history'} onClick={() => pickTab('history')}>
+                <Icon name="clock" />Match History
+              </button>
+              <button type="button" role="tab" className={`cv2-tab${tab === 'heroes' ? ' on' : ''}`} aria-selected={tab === 'heroes'} onClick={() => pickTab('heroes')}>
+                <Icon name="taunt" />Heroes
+              </button>
+            </div>
+            <span className="cv2-sec-sub">
+              {tab === 'heroes'
+                ? (heroes.length ? `${heroes.length} hero${heroes.length === 1 ? '' : 'es'} played` : '')
+                : (matchRows.length ? `Last ${matchRows.length} run${matchRows.length === 1 ? '' : 's'}` : '')}
+            </span>
+          </div>
+          {tab === 'heroes' ? (
+            <div className="cv2-list cv2-herolist" role="tabpanel">
+              {heroes.length === 0 ? (
+                <div className="cv2-panel cv2-none">
+                  <div className="cv2-state-ico"><Icon name="taunt" /></div>
+                  <div className="cv2-state-title">No heroes yet</div>
+                  <div className="cv2-state-body">{viewing ? `${shownName} hasn’t finished a lobby run yet.` : 'Every hero you finish a lobby run with is tallied here.'}</div>
+                </div>
+              ) : heroes.map((h) => <HeroRow key={h.heroId} h={h} />)}
+            </div>
+          ) : (
+            <div className="cv2-list" role="tabpanel">
+              {matchRows.length === 0 ? (
+                <div className="cv2-panel cv2-none">
+                  <div className="cv2-state-ico"><Icon name="sword" /></div>
+                  <div className="cv2-state-title">No runs yet</div>
+                  <div className="cv2-state-body">{viewing ? `${shownName} hasn’t finished a lobby run yet.` : 'Finish a lobby run and it will appear here, final team and all.'}</div>
+                </div>
+              ) : matchRows.map((run, i) => (
+                <MatchRow
+                  key={run.id ?? i}
+                  run={run}
+                  focus={i === focusIndex}
+                  busy={watching !== null && watching === run.id}
+                  unplayable={noReplay !== null && noReplay === run.id}
+                  onWatch={() => watchRun(run)}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* RIGHT — Seasonal Ranked + Performance Trends */}
+        <aside className="cv2-col cv2-right">
+          <div className="cv2-colhead"><div className="cv2-sec"><Icon name="star" />Seasonal Ranked</div></div>
+          <div className="cv2-panel cv2-ranked">
+            <div className="cv2-mmr">
+              <span className="cv2-mmr-v">{mmr}</span>
+              <span className="cv2-mmr-l">MMR</span>
+            </div>
+          </div>
+          <div className="cv2-panel cv2-trends">
+            <div className="cv2-trends-head">
+              <div className="cv2-sec">Performance Trends</div>
+              <div className="cv2-seg" role="group" aria-label="Trend window">
+                {TREND_WINDOWS.map((d) => (
+                  <button
+                    type="button"
+                    key={d}
+                    className={`cv2-seg-btn${window_ === d ? ' on' : ''}`}
+                    aria-pressed={window_ === d}
+                    onClick={() => { if (window_ !== d) { sfx.pulse(); setWindow(d); } }}
+                  >
+                    {d}d
+                  </button>
+                ))}
+              </div>
+            </div>
+            <TrendChart title="Avg Placement" series={trends.placement} yMin={1} yMax={8} invert empty="No placements in this window" />
+            <TrendChart title="Fight Win Rate" series={trends.winRate} yMin={0} yMax={100} unit="%" empty="No fights in this window" />
+            <TrendChart title="Avg APM" series={trends.apm} yMin={0} yMax={apmAxisMax(trends.apm)} empty="No replays with a clock in this window" />
+          </div>
+        </aside>
+      </div>
+    );
+  }
 
   return (
-    <div className="lbpage">
+    <div className="lbpage cv2-page">
       <div className="lbtopbar">
         <button className="lbback pressable" onClick={back}>← Back</button>
         <div className="lbtitle">
           <Icon name="taunt" />
           <div>
-            <div className="esch disp">{viewing ? `${shownName}'s Career` : 'Career'}</div>
+            <div className="esch disp">{viewing ? `${shownName}’s Career` : 'Career'}</div>
             <div className="lbsub">{viewing ? 'Their record of climbs' : 'Your record of climbs'}</div>
           </div>
         </div>
       </div>
-
-      <div className="lbscroll">
-        {(entries ?? []).length === 0 ? (
-          <>
-            <div className="lbempty">
-              <div className="carempty-rating">Rating {shownRating}</div>
-              {viewing ? `No runs to show for ${shownName}.` : 'No runs yet — play a run to start your career.'}
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="carcols">
-              {/* LEFT — Profile + Insights + Hero record (one full-height panel) */}
-              <aside className="carcard carprofilecard">
-                <div className="caravatar-wrap">
-                  {/* Read-only when viewing someone else: a plain div, not a button, so the avatar picker is
-                      unreachable rather than merely hidden. */}
-                  {viewing ? (
-                    <div className="caravatar">{avatarChar || <Icon name="anvil" />}</div>
-                  ) : (
-                    <button className="caravatar pressable" onClick={openAvatarPicker} title="Change your avatar">
-                      {avatarImg ? <img decoding="sync" src={avatarImg} alt="Your avatar" draggable={false} /> : avatarChar || <Icon name="anvil" />}
-                    </button>
-                  )}
-                </div>
-                <div className="carpname">{shownName}</div>
-                {/* Oath dropped from this card entirely (owner 2026-08-17) — the course modes it belonged to are
-                    no longer reachable, so it was a number nothing produced. Rating is the whole line now; a
-                    viewed player still shows their games count, which does come from the leaderboard row. */}
-                <div className="carrank">
-                  Rating {shownRating}{viewing ? ` · ${viewing.gamesPlayed} game${viewing.gamesPlayed === 1 ? '' : 's'}` : ''}
-                </div>
-                <div className="carranksub">
-                  {viewing
-                    ? (highestSeen ? `Highest seen: Rating ${highestSeen}` : 'Highest: unknown')
-                    : `Highest: Rating ${profile.highestRating}`}
-                </div>
-                {/* LOBBY vs COURSE (owner 2026-08-08): a lobby has no 17-round course and no Oath, so
-                    "Completed" / "Flawless" are structurally 0 there and the line-based streak means nothing.
-                    Once any lobby result exists, show the battle-royale trio instead — 1sts, top-4s, and a
-                    top-4 streak — which is what those runs actually produced. */}
-                <div className="carprofmeta">
-                  {lobbyMode ? (
-                    <>
-                      <div><Icon name="sword" /><b>{stats.firsts}</b><span>1st Place</span></div>
-                      <div><Icon name="shield" /><b>{stats.topFours}</b><span>Top 4</span></div>
-                      <div><Icon name="flame" /><b>{stats.lobbyStreak}</b><span>Top-4 Streak</span></div>
-                    </>
-                  ) : (
-                    <>
-                      <div><Icon name="sword" /><b>{stats.completions}</b><span>Completed</span></div>
-                      <div><Icon name="shield" /><b>{stats.flawless}</b><span>Flawless</span></div>
-                      <div><Icon name="flame" /><b>{stats.streak}</b><span>Streak</span></div>
-                    </>
-                  )}
-                </div>
-
-                <div className="carsec">Insights</div>
-                <div className="carinsights">
-                  <Insight icon="refresh" label="Runs" value={String(stats.runs)} />
-                  {lobbyMode ? (
-                    <>
-                      {/* Average placement is the genre's headline number, and "Top 4 %" is its win rate —
-                          the old line-based Win Rate answered a question a lobby never asks. */}
-                      <Insight icon="star" label="Avg. Placement" value={stats.avgPlacement !== null ? String(stats.avgPlacement) : '—'} />
-                      <Insight icon="up" label="Top 4" value={`${stats.top4Rate}%`} />
-                      <Insight icon="crown" label="Best Finish" value={stats.bestPlacement !== null ? ordinal(stats.bestPlacement) : '—'} />
-                      <Insight icon="sword" label="Avg. Wins" value={String(stats.avgWins)} />
-                    </>
-                  ) : (
-                    <>
-                      <Insight icon="star" label="Best Run" value={stats.bestRun ? `${stats.bestRun.wins}–${stats.bestRun.losses}` : '—'} />
-                      <Insight icon="up" label="Win Rate" value={`${stats.winRate}%`} />
-                      <Insight icon="sword" label="Avg. Wins" value={String(stats.avgWins)} />
-                    </>
-                  )}
-                  <Insight icon="windfury" label="Avg. Actions / Round" value={String(stats.avgApt)} />
-                  <Insight icon="ember" label="Avg. Gold Spent" value={String(stats.avgGold)} />
-                  <Insight icon="crown" label="Favorite Hero" value={favHeroName} />
-                  <Insight icon="paw" label="Favorite Tribe" value={favTribe} />
-                  <Insight icon="sc" label="Favorite Mechanic" value={stats.favoriteMechanic ?? '—'} />
-                  <Insight icon="heart" label="Favorite Minion" value={stats.favoriteMinion ?? '—'} />
-                </div>
-
-                {stats.perHero.length > 0 && (
-                  <>
-                    <div className="carsec">By hero · W–L</div>
-                    <div className="carherorows">
-                      {stats.perHero.map((h) => (
-                        <div className="carherorow" key={h.heroId}>
-                          <div className="carhero-portrait">
-                            {heroArt(h.heroId) ? <img decoding="sync" src={heroArt(h.heroId)} alt={getHero(h.heroId).name} draggable={false} /> : <Icon name="anvil" />}
-                          </div>
-                          <div className="carhero-name">{getHero(h.heroId).name}</div>
-                          <div className="carhero-wl"><span className="chw-w">{h.lineWins}W</span>–<span className="chw-l">{h.lineLosses}L</span></div>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </aside>
-
-              {/* RIGHT — Recent Match History (the Board Log's per-round "winningest board" panel was
-                  removed 2026-08-04, owner ask) */}
-              <div className="carright">
-                <section className="carcenter">
-                  <div className="carsec carsec-ico"><Icon name="crown" />Recent Match History</div>
-                  {(entries ?? []).slice(0, 25).map((e, i) => {
-                    const expanded = open.has(i);
-                    const verdict = runVerdict(e);
-                    const wonRun = verdict !== 'defeat'; // the SCORE reads green for a top-4 too
-                    const delta = e.ratingDelta;
-                    // Watch is offered only where a replay can actually exist (seed + lobby + post-dates v2
-                    // capture — historyEntryWatchable): rows that can't map get NO button rather than one
-                    // that always answers "No replay". The head is a div[role=button] (not a <button>)
-                    // because a button can't nest the Watch button — same shape as the Recent Games rows.
-                    const watchable = historyEntryWatchable(e);
-                    return (
-                      <div
-                        className={`lbentry carmatch${expanded ? ' open' : ''}${i === focusIndex ? ' carmatch-focus' : ''}`}
-                        key={i}
-                        ref={i === focusIndex ? focusRef : undefined}
-                      >
-                        <div
-                          role="button"
-                          tabIndex={0}
-                          className="carmatch-head"
-                          onClick={() => toggle(i)}
-                          onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle(i); } }}
-                        >
-                          <div className="lbportrait">
-                            {heroArt(e.heroId) ? <img decoding="sync" src={heroArt(e.heroId)} alt={getHero(e.heroId).name} draggable={false} /> : <Icon name="anvil" />}
-                          </div>
-                          <div className="lbinfo">
-                            <div className="lbname">
-                              {getHero(e.heroId).name}
-                              <span className={`carrec ${wonRun ? 'won' : 'lost'}`}>{e.wins}–{e.losses}</span>
-                            </div>
-                            {/* The round the run ended on + when it was played (owner ask 2026-08-11). Round
-                                comes from the reached wave; the timestamp prefers the full `at`, falling back to
-                                the day-only `date` on older entries. */}
-                            <div className="carsub">
-                              <span className="carsub-round">Round {e.wave}</span>
-                              {playedAtText(e) && <><span className="carsub-dot">·</span><span className="carsub-when">{playedAtText(e)}</span></>}
-                            </div>
-                          </div>
-                          {e.tags.length > 0 && (
-                            <div className="cartags">{e.tags.map((t) => <span className="endtag" key={t}>{t}{TAG_INFO[t] && <span className="tagtip">{TAG_INFO[t]}</span>}</span>)}</div>
-                          )}
-                          <div className="carresult">
-                            {/* Where you finished the lobby. Absent on pre-lobby entries, which have no
-                                placement to report — those rows simply omit it rather than inventing one. */}
-                            {e.placement !== undefined && (
-                              <span className={`carplace${e.placement === 1 ? ' first' : ''}`}>{ordinal(e.placement)}</span>
-                            )}
-                            <span className={`carwl ${VERDICT_CLASS[verdict]}`}>{VERDICT_LABEL[verdict]}</span>
-                            {/* The MMR move, beside the verdict. `0` is a real, meaningful value (a lobby that
-                                rated you flat) so this tests for undefined rather than truthiness. */}
-                            {delta !== undefined && (
-                              <span className={`carmmr ${delta >= 0 ? 'up' : 'down'}`}>{delta >= 0 ? '+' : ''}{delta}</span>
-                            )}
-                            {watchable && (
-                              <button
-                                type="button"
-                                className="matchwatch carwatch pressable"
-                                onClick={(ev) => watchRun(ev, e, i)}
-                                disabled={watching === i}
-                                title={noReplay === i ? 'This replay is unavailable' : 'Watch this run back'}
-                              >
-                                {watching === i ? '…' : noReplay === i ? 'No replay' : '▶ Watch'}
-                              </button>
-                            )}
-                            <span className={`carchev${expanded ? ' open' : ''}`} aria-hidden="true">▾</span>
-                          </div>
-                        </div>
-                        {expanded && (
-                          <div className="carmatch-body">
-                            <div className="carstatstrip">
-                              {e.goldSpent !== undefined && <div className="cst"><span className="cst-l">Gold Spent</span><span className="cst-v">{e.goldSpent}</span></div>}
-                              {e.apt !== undefined && <div className="cst"><span className="cst-l">Avg. Actions</span><span className="cst-v">{e.apt}</span></div>}
-                              {e.cardsPlayed !== undefined && <div className="cst"><span className="cst-l">Cards</span><span className="cst-v">{e.cardsPlayed}</span></div>}
-                              {e.triples !== undefined && e.triples > 0 && <div className="cst"><span className="cst-l">Triples</span><span className="cst-v">{e.triples}</span></div>}
-                              {e.mvp && <div className="cst cst-mvp"><span className="cst-l"><Icon name="crown" /> MVP</span><span className="cst-v">{e.mvp.name} <em>({e.mvp.damage})</em></span></div>}
-                            </div>
-                            <div className="carmatch-detail">
-                              <div className="carmatch-boardcol">
-                                {e.board && e.board.minions.length > 0 && (
-                                  <div className="lbwarband">
-                                    {e.board.minions.map((m, j) => <Card key={j} card={storedCardView(m)} suppressPop />)}
-                                  </div>
-                                )}
-                                <RunTrophies quests={e.board?.quests} runes={e.board?.runes} />
-                              </div>
-                              {(e.strongest || e.topMechanic || e.ratingDelta !== undefined) && (
-                                <aside className="carstandout">
-                                  <div className="cso-h">Standout Stats</div>
-                                  {e.strongest && <div className="cso-row"><span className="cso-l">Strongest</span><span className="cso-v">{e.strongest.name} {e.strongest.attack}/{e.strongest.health}</span></div>}
-                                  {e.topMechanic && <div className="cso-row"><span className="cso-l">Most</span><span className="cso-v">{e.topMechanic.name} ×{e.topMechanic.count}</span></div>}
-                                  {e.ratingDelta !== undefined && <div className="cso-row"><span className="cso-l">Rating</span><span className={`cso-v ${e.ratingDelta >= 0 ? 'up' : 'down'}`}>{e.ratingDelta >= 0 ? '+' : ''}{e.ratingDelta}</span></div>}
-                                </aside>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </section>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
+      <div className="lbscroll cv2-body">{body}</div>
     </div>
   );
 }

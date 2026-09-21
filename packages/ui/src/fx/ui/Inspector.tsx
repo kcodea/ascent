@@ -19,7 +19,7 @@ import { filterEntries, filterOnCount, isFilterGroup, moveFilter, type FilterEnt
 import { CORE_BLUR_ID, FILTER_ORDER_KEY } from '../filterStack';
 import { importShapeFromFile, listShapeOptions, removeImportedShape } from '../shapeLibrary';
 import { imageUrlFor, importFramesFromFiles, importImageFromFile, listImageOptions, IMAGE_NONE } from '../imageLibrary';
-import { clipNames, previewClip, importFxSound } from '../../sfx';
+import { clipNames, previewFxClip, importFxSound, getFxClipBuffer } from '../../sfx';
 import { ColorPickerHSB } from './ColorPickerHSB';
 import { PalettePicker } from './PalettePicker';
 import { GradientEditor } from './GradientEditor';
@@ -508,6 +508,58 @@ export function Inspector({
  * Its own component because the `?` toggle is state, and state inside Inspector's mapped render would violate
  * the rules of hooks (the same reason `CurveEditor`/`ShapeField` below are components).
  */
+/**
+ * The numeric readout for a slider param, DOUBLE-CLICK to edit (owner ask): the value shows as plain text like
+ * before, and double-clicking it turns it into a field you can type a precise value into — one the slider's
+ * `step` can't hit. Enter or blur commits; Escape cancels. Keeping it a readout until double-clicked leaves the
+ * dense param list clean rather than turning all ~180 rows into input boxes. Every commit is clamped to the
+ * param's [min, max] — the same range the slider spans — so a typed value can never leave that range.
+ */
+function NumberField({ value, min, max, disabled, onCommit }: {
+  value: number;
+  min: number;
+  max: number;
+  disabled: boolean;
+  onCommit: (n: number) => void;
+}): React.ReactElement {
+  // null = not editing (show the readout); a string = the in-progress typed text (raw, so a partial decimal
+  // like "0." types cleanly rather than being reformatted mid-keystroke).
+  const [draft, setDraft] = useState<string | null>(null);
+
+  if (draft === null) {
+    return (
+      <span
+        className="fxwb-val fxwb-valedit"
+        title={disabled ? undefined : 'Double-click to type a value'}
+        onDoubleClick={() => { if (!disabled) setDraft(String(value)); }}
+      >
+        {String(value)}
+      </span>
+    );
+  }
+
+  const commit = (): void => {
+    const n = Number(draft);
+    if (Number.isFinite(n) && draft.trim() !== '') onCommit(Math.min(max, Math.max(min, n)));
+    setDraft(null);
+  };
+  return (
+    <input
+      type="number"
+      className="fxwb-val fxwb-valnum"
+      min={min}
+      max={max}
+      step="any"
+      autoFocus
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onFocus={(e) => e.currentTarget.select()}
+      onKeyDown={(e) => { if (e.key === 'Enter') commit(); else if (e.key === 'Escape') setDraft(null); }}
+      onBlur={commit}
+    />
+  );
+}
+
 function ParamRow({
   paramKey: key,
   spec,
@@ -590,7 +642,8 @@ function ParamRow({
           <input id={`fxwb-${key}`} type="range" min={spec.min} max={spec.max} step={spec.step}
             disabled={off}
             value={value as number} onChange={(e) => onChange(key, Number(e.target.value))} />
-          <span className="fxwb-val">{String(value)}</span>
+          <NumberField value={value as number} min={spec.min} max={spec.max} disabled={off}
+            onCommit={(n) => onChange(key, n)} />
         </>
       )}
       {spec.kind === 'toggle' && (
@@ -642,12 +695,23 @@ function ParamRow({
         />
       )}
       {spec.kind === 'sound' && (
-        <SoundField
-          id={`fxwb-${key}`}
-          value={(value as string | undefined) ?? spec.default}
-          disabled={off}
-          onChange={(next) => onChange(key, next)}
-        />
+        <>
+          <SoundField
+            id={`fxwb-${key}`}
+            value={(value as string | undefined) ?? spec.default}
+            disabled={off}
+            startOffset={Number(values.startOffset ?? 0)}
+            endOffset={Number(values.endOffset ?? 0)}
+            onChange={(next) => onChange(key, next)}
+          />
+          <WaveformStrip
+            clip={(value as string | undefined) ?? spec.default}
+            startOffset={Number(values.startOffset ?? 0)}
+            endOffset={Number(values.endOffset ?? 0)}
+            disabled={off}
+            onTrim={(k, ms) => onChange(k, ms)}
+          />
+        </>
       )}
       {spec.kind === 'emitpoints' && (
         <EmitPointsField
@@ -689,11 +753,16 @@ function SoundField({
   id,
   value,
   disabled = false,
+  startOffset = 0,
+  endOffset = 0,
   onChange,
 }: {
   id: string;
   value: string;
   disabled?: boolean;
+  /** The sound layer's current trim, so ▶ auditions exactly the clipped window (see the waveform below). */
+  startOffset?: number;
+  endOffset?: number;
   onChange: (next: string) => void;
 }): React.ReactElement {
   const [, bumpRegistry] = useState(0);
@@ -726,8 +795,8 @@ function SoundField({
         type="button"
         className="fxwb-btn"
         disabled={disabled || busy || value === ''}
-        onClick={() => { if (value !== '') previewClip(value); }}
-        title="Preview this clip"
+        onClick={() => { if (value !== '') previewFxClip(value, startOffset, endOffset); }}
+        title="Preview the clipped window (Start→End)"
       >▶</button>
       <button
         type="button"
@@ -745,6 +814,110 @@ function SoundField({
       />
       {error !== null && <span className="fxwb-rowwhy">{error}</span>}
     </span>
+  );
+}
+
+/**
+ * A waveform strip for the selected sound clip, with draggable Start (green) and End (red) trim lines (owner
+ * ask: clip a sound to exactly what you want, in the editor). It reads the clip's decoded `AudioBuffer` to
+ * draw the wave, and dragging a line writes the sound layer's `startOffset` / `endOffset` params (ms) — so the
+ * effect plays exactly the window between the lines, and the two type-in fields on those rows stay in sync.
+ * The trimmed-out regions dim. Renders nothing until a clip is chosen; shows "decoding…" until its buffer lands.
+ */
+function WaveformStrip({ clip, startOffset, endOffset, disabled, onTrim }: {
+  clip: string;
+  startOffset: number;
+  endOffset: number;
+  disabled: boolean;
+  onTrim: (key: 'startOffset' | 'endOffset', ms: number) => void;
+}): React.ReactElement | null {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [, bump] = useState(0);
+  const buf = clip ? getFxClipBuffer(clip) : null;
+
+  // If the buffer isn't decoded yet (a fresh import / first select kicks the decode), poll briefly and re-render
+  // once it lands so the wave appears without the author having to touch anything.
+  useEffect(() => {
+    if (buf || !clip) return;
+    const t = window.setInterval(() => { if (getFxClipBuffer(clip)) { bump((n) => n + 1); window.clearInterval(t); } }, 120);
+    return () => window.clearInterval(t);
+  }, [clip, buf]);
+
+  // Draw the waveform (channel-0 min/max per pixel column) whenever the buffer changes.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !buf) return;
+    const w = canvas.clientWidth || 240;
+    const h = canvas.clientHeight || 56;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, w, h);
+    const data = buf.getChannelData(0);
+    const step = Math.max(1, Math.floor(data.length / w));
+    const mid = h / 2;
+    ctx.strokeStyle = '#c8a45c';
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    for (let x = 0; x < w; x++) {
+      let min = 1;
+      let max = -1;
+      const s0 = x * step;
+      const s1 = Math.min(data.length, s0 + step);
+      for (let i = s0; i < s1; i++) { const v = data[i]; if (v < min) min = v; if (v > max) max = v; }
+      ctx.moveTo(x + 0.5, mid + min * mid * 0.94);
+      ctx.lineTo(x + 0.5, mid + max * mid * 0.94);
+    }
+    ctx.stroke();
+  }, [buf]);
+
+  if (!clip) return null;
+  const durMs = buf ? buf.duration * 1000 : 0;
+  const startPct = durMs > 0 ? Math.min(100, (startOffset / durMs) * 100) : 0;
+  const endPct = durMs > 0 ? Math.max(0, ((durMs - endOffset) / durMs) * 100) : 100;
+
+  // Drag a trim line: map the pointer x to a clip time, clamp to the param range (0..2000 ms) AND to the other
+  // line, and write the offset in 10 ms steps (the param's own step). `endOffset` is measured from the clip END,
+  // so the end line sits at `duration − endOffset`.
+  const startDrag = (which: 'startOffset' | 'endOffset') => (e: React.PointerEvent<HTMLDivElement>): void => {
+    if (disabled || durMs <= 0) return;
+    e.preventDefault();
+    const box = boxRef.current;
+    const move = (ev: PointerEvent): void => {
+      if (!box) return;
+      const r = box.getBoundingClientRect();
+      const posMs = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)) * durMs;
+      const snap = (ms: number): number => Math.round(ms / 10) * 10;
+      if (which === 'startOffset') {
+        const cap = Math.min(2000, Math.max(0, durMs - endOffset));
+        onTrim('startOffset', snap(Math.min(cap, Math.max(0, posMs))));
+      } else {
+        const cap = Math.min(2000, Math.max(0, durMs - startOffset));
+        onTrim('endOffset', snap(Math.min(cap, Math.max(0, durMs - posMs))));
+      }
+    };
+    const up = (): void => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  return (
+    <div className={`fxwb-wave${disabled ? ' fxwb-off' : ''}`} ref={boxRef}>
+      {buf
+        ? <canvas ref={canvasRef} className="fxwb-wave-canvas" />
+        : <span className="fxwb-wave-load">decoding…</span>}
+      <div className="fxwb-wave-dim" style={{ left: 0, width: `${startPct}%` }} />
+      <div className="fxwb-wave-dim" style={{ left: `${endPct}%`, right: 0 }} />
+      <div className="fxwb-wave-handle start" style={{ left: `${startPct}%` }} onPointerDown={startDrag('startOffset')} title="Start" />
+      <div className="fxwb-wave-handle end" style={{ left: `${endPct}%` }} onPointerDown={startDrag('endOffset')} title="End" />
+    </div>
   );
 }
 

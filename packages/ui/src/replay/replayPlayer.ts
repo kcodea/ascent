@@ -12,7 +12,7 @@
  */
 import type { CombatResult } from '@game/core';
 import {
-  boardPowerOf, createOddsProbe, cursorAt, expandFrames, oddsInputFromCombatFrame, rollupRounds, roundMarks,
+  createOddsProbe, cursorAt, expandFrames, oddsInputFromCombatFrame, rollupRounds, roundMarks,
   type Action, type CombatFrame, type CursorSample, type DragPath, type InspectEvent, type ReplayV2, type RoundMark, type RoundStat, type ShopFrame, type ShopView,
 } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
@@ -118,11 +118,10 @@ export function setReplayCursor(v: boolean): void {
   patchSession({ cursor: v });
 }
 
-// ── Per-round info for the rail's Power / Win % columns (2026-09-19) ──────────────────────────────────────
+// ── Per-round info for the rail's Win % column (2026-09-19; the Power column was removed the same day — owner:
+// "this stat is not great right now". `boardPowerOf` stays in the sim for the balance tools.) ─────────────
 export interface RoundInfo {
   wave: number;
-  /** `boardPowerOf` over the round's end-of-recruit board (0..100), null for an empty board / no shop frame. */
-  power: number | null;
   /** Win chance of the round's fight, 0..100. null = not yet known (a backfill still running) or no fight. */
   winPct: number | null;
   /** True when `winPct` was BACKFILLED from the recorded rosters (an older recording without stamped odds)
@@ -130,21 +129,19 @@ export interface RoundInfo {
   winApprox: boolean;
 }
 let roundInfo: RoundInfo[] = [];
-/** The per-round Power / Win % table — computed once per `startReplay` (power) and filled in by the idle-time
- *  odds backfill (win % on older recordings); `replaySession.roundInfoTick` bumps when a value lands. */
+/** The per-round Win % table — seeded once per `startReplay` from the stamped odds and filled in by the
+ *  idle-time odds backfill (older recordings); `replaySession.roundInfoTick` bumps when a value lands. */
 export function replayRoundInfo(): readonly RoundInfo[] {
   return roundInfo;
 }
 
-/** Build the per-round table from the marks: power synchronously (~50 multiply-adds per round), the win
- *  chance straight off a stamped `odds` when the recording has one. Pure over the frames — tested. */
+/** Build the per-round table from the marks: the win chance straight off a stamped `odds` when the recording
+ *  has one, null otherwise (the backfill fills those in). Pure over the frames — tested. */
 export function roundInfoOf(fr: readonly Frame[], mk: readonly RoundMark[]): RoundInfo[] {
   return mk.map((m) => {
-    const shop = m.lastShopIndex !== undefined ? fr[m.lastShopIndex] : undefined;
     const combat = m.combatIndex !== undefined ? fr[m.combatIndex] : undefined;
-    const power = shop?.kind === 'shop' ? boardPowerOf(shop.view, m.wave) : null;
     const odds = combat?.kind === 'combat' ? combat.odds : undefined;
-    return { wave: m.wave, power, winPct: odds ? Math.round(odds.win * 100) : null, winApprox: false };
+    return { wave: m.wave, winPct: odds ? Math.round(odds.win * 100) : null, winApprox: false };
   });
 }
 

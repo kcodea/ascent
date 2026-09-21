@@ -72,6 +72,27 @@ export const PATCH_NOTES: PatchNote[] = [
     ],
   },
   {
+    date: '2026-09-21',
+    label: 'Career match history',
+    changes: [
+      { category: 'UI / Info', text: 'Career match history: hero portraits now wear the portrait ring, and the fight record reads as a bare N–M.' },
+    ],
+  },
+  {
+    date: '2026-09-21',
+    label: 'Rank screen — the demotion effect',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "Losing a division or a medal now plays its own effect (and sound) on the rank screen.",
+        details: [
+          "Dropping a division (say Gold II to Gold III) and dropping a medal after a lost demotion game both play it: a shock off your crest, the old crest falls away in a shower of shards, and the new one settles in — the mirror of the promotion burst.",
+          "Skipping the animation (click the rank display or Skip) still settles instantly and silently.",
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-20',
     label: 'Medal ranks — season 3 + the post-game rank screen',
     changes: [

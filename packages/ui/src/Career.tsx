@@ -247,13 +247,14 @@ function MatchRow({ run, focus, busy, unplayable, onWatch }: {
           <div className="cv2-row-heroid">
             <div className="cv2-row-heroname">{run.heroId ? getHero(run.heroId).name : '—'}</div>
             {/* The MATCH result — by placement (top 4 = WIN, 5th–8th = LOSS; owner 2026-09-20). The fight
-                record is only a small caption beneath it, and only when the run recorded any fights. */}
+                record is only a small caption beneath it — a bare "N–M" (owner 2026-09-21: no "Fights" word;
+                the aria-label keeps the meaning) — and only when the run recorded any fights. */}
             <div className={`cv2-row-result ${result.cls}`} aria-label={result.cls === 'none' ? 'No placement recorded' : `Match ${result.label.toLowerCase()}`}>
               {result.label}
             </div>
             {fights > 0 && (
               <div className="cv2-row-fights" aria-label={`Fights: ${run.wins} won, ${run.losses} lost`}>
-                Fights {run.wins}–{run.losses}
+                {run.wins}–{run.losses}
               </div>
             )}
           </div>

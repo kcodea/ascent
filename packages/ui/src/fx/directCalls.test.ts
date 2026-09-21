@@ -153,6 +153,9 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       'ale-bubbles', 'auctioneer-hp', 'choose-one-both', 'cia-hp', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
       // 'dice-land' joined on 2026-09-17: the landing burst of the shared 3D die (`DiceRoll.tsx`), fired at the anchor.
       'dice-land',
+      // 'down-rank' joined on 2026-09-21: the owner-authored demotion hit on the post-game rank screen (`rank/rankTimeline.ts`),
+      // the down twin of `rank-up` — fired for both demotion kinds (division and medal).
+      'down-rank',
       'equipment-spark', 'equipment-used-up',
       // 'hand-buff' joined on 2026-09-15: the owner-authored hand-card buff cue, fired from `handBuffFx.ts`
       // (replacing the CSS spell-buff grow/shrink + mote blast, which never reached the def pipeline).

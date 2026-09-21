@@ -307,8 +307,9 @@ describe('committed defs — canvas slot', () => {
     // a flourish — so the slot carries an explicit inventory rather than being available by default.
     // `rank-up` (owner-authored 2026-09-20) plays on the POST-GAME RANK SCREEN — itself a full-screen overlay
     // above every board canvas — so the above-modal canvas (lifted over the screen by CSS while it is up) is
-    // the only one that can draw the ring collapsing onto the crest.
-    const ABOUT_A_MODAL = new Set(['prismatic-pick', 'rank-up']);
+    // the only one that can draw the ring collapsing onto the crest. `down-rank` (owner-authored 2026-09-21) is
+    // its demotion twin on the same screen — same overlay, same lifted canvas, same reason.
+    const ABOUT_A_MODAL = new Set(['prismatic-pick', 'rank-up', 'down-rank']);
     const claimed = ENTRIES.filter((e) => isRecord(e.raw) && e.raw.slot === 'above').map((e) => e.stem);
     expect(claimed.filter((s) => !ABOUT_A_MODAL.has(s)),
       'a def took the above-modal canvas without being about a modal — check it, then add it here')

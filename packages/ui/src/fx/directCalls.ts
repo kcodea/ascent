@@ -62,6 +62,9 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // the shop's hand diff, the End-of-Turn presenters and the combat replay's `handBuff` beat scan.
   'hand-buff': ['handBuffFx.ts'],
   'dice-land': ['DiceRoll.tsx'],
+  // The DOWN-RANK hit (owner-authored 2026-09-21): a shockwave off the crest, then a blue→orange shard fall as
+  // the old crest drops — fired by the post-game rank timeline at every demotion beat (division and medal).
+  'down-rank': ['rank/rankTimeline.ts'],
   'hero-power-spark': ['StatusBar.tsx'],
   'hero-power-target': ['Recruit.tsx'],
   'impact-dust': ['EndTurnButton.tsx', 'RefreshButton.tsx', 'choreo/channels/impact.ts'],

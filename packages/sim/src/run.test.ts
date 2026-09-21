@@ -4295,11 +4295,11 @@ describe('PvE course + record (@game/sim)', () => {
     expect(healed.maxArmor).toBe(0);
   });
 
-  it('runRecord counts only the scored rounds — calibration rounds (1–2) do not count', () => {
-    // history = [cal1, cal2, r3, r4, r5]; the two calibration entries are excluded from the record.
+  it('runRecord counts EVERY round — calibration is retired (owner 2026-09-20: a 15-round game read 9–4)', () => {
     const record = runRecord({ ...createRun(1), history: ['lose', 'lose', 'win', 'win', 'lose'] });
-    expect(record).toEqual({ wins: 2, losses: 1, draws: 0 });
-    expect(isCalibrationRound(2)).toBe(true);
+    expect(record).toEqual({ wins: 2, losses: 3, draws: 0 });
+    expect(isCalibrationRound(1)).toBe(false);
+    expect(isCalibrationRound(2)).toBe(false);
     expect(isCalibrationRound(3)).toBe(false);
   });
 

@@ -267,7 +267,7 @@ describe('Leaderboard — the Hall of Champions banners', () => {
     expect(rows[0]!.querySelector('.lb-fights')?.textContent).toBe('8 fights6 W2 L75%');
     expect(rows[1]!.querySelector('.lb-fights.none')?.textContent).toBe('No round-17 fights logged yet');
     expect(rows[0]!.querySelectorAll('.lbpip')).toHaveLength(15);
-    expect(rows[0]!.querySelectorAll('.lbpip.cal')).toHaveLength(2); // rounds 1–2 are calibration
+    expect(rows[0]!.querySelectorAll('.lbpip.cal')).toHaveLength(0); // no calibration rounds since 2026-09-20 — every round counts
     expect(rows[0]!.querySelectorAll('.runtrophy')).toHaveLength(1); // the stored board's one rune
   });
 

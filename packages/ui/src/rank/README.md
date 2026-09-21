@@ -21,19 +21,22 @@ import {
   `wasDemotionGame`, `demotionUnlocked`, `highestAfter`) is what the screen animates. `appliedDelta` is
   **the number to show** — it is `0` on a won promotion (0/100 in the new division) and on a held medal gate
   (2nd–4th at Gold I 100 stays at 100). `cappedPoints` is what the base award lost to the cap / floor / hold.
-- **Demotion gate** (owner addition): `isDemotionReady(pos)` — 0 points on a medal's lowest division above
-  Bronze (`divisionIndex % 3 === 0 && divisionIndex > 0 && points === 0`). Show *"Demotion game — finish
-  top 4 to stay in Gold"* when `isDemotionReady(profile.rank.position)` before the next ranked game; after a
-  game, `result.demotionUnlocked` means the player ENDS demotion-ready (a loss clamped at the medal floor, or
-  a medal promotion that landed at 0), `result.wasDemotionGame` means this game WAS the demotion game
-  (`requiredFinish` 4 = the worst finish that escaped; `demoted` says whether they dropped — to the previous
-  medal's I at `100 + award`). A promotion game never coincides with a demotion game.
+- **Demotion gate** (owner addition): a **STORED** flag, `position.demotionReady` (read it through
+  `isDemotionReady(pos)`; absent = false). It is armed ONLY by a loss that lands on 0 at a medal's lowest
+  division above Bronze (Gold III, …), cleared by any non-negative result, and never set by a promotion
+  landing — 0/100 after a won medal promotion is NOT armed (the first loss there arms, the second demotes).
+  Show *"Demotion game — finish top 4 to stay in Gold"* when `isDemotionReady(profile.rank.position)` before
+  the next ranked game; after a game, `result.demotionUnlocked` (= `result.after.demotionReady`) means THIS
+  game armed it, `result.wasDemotionGame` means this game WAS the demotion game (`requiredFinish` 4 = the
+  worst finish that escapes; `demoted` says whether they dropped — to the previous medal's I at
+  `100 + award`). A promotion game never coincides with a demotion game. `highest` never carries the flag.
 - `rankLabel` is the ONE index→label mapping; do not hand-roll medal names anywhere else.
 
 ## Store slice (`useGame`)
 
 ```ts
 profile.rank: RankedProfile            // authoritative mirror: seasonId, rulesVersion, revision, position, highest
+profile.rank.position.demotionReady    // REAL, server-stored (profiles.rank_demotion_ready) — the armed demotion gate; never derived client-side
 profile.rating: number                 // = rankScalar(profile.rank.position) — legacy numeric surfaces keep reading it
 rankRunId: string | null               // the ranked identity of the run the slice describes (null before any finish)
 rankResult: RankResult | null          // the SERVER-confirmed result of that run; null until 'confirmed'

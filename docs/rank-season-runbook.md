@@ -41,7 +41,7 @@ every settlement with `settle_failed` (retryable — nothing is lost, nothing is
    ```sql
    select column_name from information_schema.columns
      where table_schema = 'public' and table_name = 'profiles' and column_name like 'rank_%';
-   -- expect: rank_season, rank_rules_version, rank_division, rank_points,
+   -- expect: rank_season, rank_rules_version, rank_division, rank_points, rank_demotion_ready,
    --         rank_highest_division, rank_highest_points, rank_revision
    select proname from pg_proc where proname in ('settle_rank', 'rank_result_json', 'rank_profile_json');
    -- expect all three
@@ -71,14 +71,16 @@ function secrets — the same three the previous `submit-rating` used, so nothin
 
    ```sql
    select run_id, placement, division_before, points_before, division_after, points_after,
-          applied_delta, promotion_unlocked, promoted, demoted, created_at
+          demotion_ready_after, applied_delta, promotion_unlocked, promoted, demoted, created_at
      from public.rank_results order by created_at desc limit 5;
-   select author, rating, rank_season, rank_division, rank_points, rank_revision
+   select author, rating, rank_season, rank_division, rank_points, rank_demotion_ready, rank_revision
      from public.profiles where rank_revision > 0 order by updated_at desc limit 5;
    ```
 
    Expect one `rank_results` row; the profile's `rank_season = 3`, `rank_revision = 1`, `rating` equal to
-   `100 × rank_division + rank_points`.
+   `100 × rank_division + rank_points`, `rank_demotion_ready = false` (a first game from Bronze III can never
+   arm the medal-boundary demotion gate — it is a STORED flag, set only by a loss that lands on 0 at Silver
+   III or higher, and `settle_rank` writes it in the same transaction as the points).
 3. Optional dedupe check — Edge Functions → **submit-rating → Logs**: re-trigger the same submission from the
    client (DevTools → `useGame.getState().retryRankSubmission()` won't resend a confirmed one, so use the
    Network tab's *Replay XHR* on the `submit-rating` call). The response carries `"deduped": true` and the
@@ -94,7 +96,8 @@ archived into `season2_rating`; nothing is deleted. Do this only after step 4 pr
 update public.profiles set season2_rating = coalesce(season2_rating, rating);
 update public.profiles set
   rank_season = 3, rank_rules_version = 1,
-  rank_division = 0, rank_points = 0, rank_highest_division = 0, rank_highest_points = 0,
+  rank_division = 0, rank_points = 0, rank_demotion_ready = false,
+  rank_highest_division = 0, rank_highest_points = 0,
   rank_revision = rank_revision + 1,
   rating = 0, updated_at = now();
 ```

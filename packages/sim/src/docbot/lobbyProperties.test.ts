@@ -113,7 +113,7 @@ describe('Doc Bot — MEDAL RANK monotonicity + gate properties (season 3)', () 
       const r = resolveRank(start, placement);
       if (r.promoted) {
         expect(isPromotionReady(start), 'no same-game promotion').toBe(true);
-        expect(r.after).toEqual({ divisionIndex: start.divisionIndex + 1, points: 0 });
+        expect(r.after).toEqual({ divisionIndex: start.divisionIndex + 1, points: 0, demotionReady: false });
       }
       if (r.promotionUnlocked) expect(r.after.points).toBe(RANK_RULES.divisionPoints);
     }

@@ -13,9 +13,11 @@ import {
  * The fixture table is the blueprint's §3 acceptance table ADJUSTED to the owner's rulings: a won promotion
  * lands at 0/100 in the next division (not the game's award), a MEDAL gate needs 1st (a 2nd–4th holds at 100),
  * a DIVISION gate needs top-4; and the owner's same-day addition: demotion across a MEDAL boundary is gated
- * (clamp at 0 on the medal's lowest division → demotion game: bottom-4 drops to the previous medal's I at
- * 100 + award, top-4 escapes). Then every boundary, and the structural properties §11 asks for: better
- * placement never lands lower, no same-game promotion, no multi-division jump, highest never decreases.
+ * — a LOSS that lands on 0 at the medal's lowest division clamps there and ARMS the STORED `demotionReady`
+ * flag; the next game is a demotion game (bottom-4 drops to the previous medal's I at 100 + award, top-4
+ * escapes and disarms). Merely standing at 0 (a fresh medal promotion) is NOT armed. Then every boundary, and
+ * the structural properties §11 asks for: better placement never lands lower, no same-game promotion, no
+ * multi-division jump, highest never decreases.
  *
  * These same fixtures drive the server mirror in packages/ui/src/lobbyRatingParity.test.ts.
  */
@@ -28,7 +30,9 @@ const D = (label: string): number => {
   if (m < 0 || t === undefined) throw new Error(`bad label ${label}`);
   return m * 3 + t;
 };
-const at = (label: string, points: number): RankPosition => ({ divisionIndex: D(label), points });
+const at = (label: string, points: number, demotionReady = false): RankPosition => ({ divisionIndex: D(label), points, demotionReady });
+/** An ARMED demotion gate: 0 points on a medal's lowest division after a loss landed there. */
+const armed = (label: string): RankPosition => at(label, 0, true);
 
 /** [before, placement, after, appliedDelta, flags] */
 type Row = [RankPosition, number, RankPosition, number, Partial<Pick<RankResult, 'promoted' | 'demoted' | 'promotionUnlocked' | 'wasPromotionGame' | 'promotionKind' | 'cappedPoints' | 'requiredFinish' | 'wasDemotionGame' | 'demotionUnlocked'>>, string];
@@ -49,18 +53,20 @@ export const RANK_FIXTURES: Row[] = [
   [at('Gold II', 6), 5, at('Gold II', 0), -6, { demoted: false, demotionUnlocked: false }, 'exactly 0 stays (Gold II has no demotion gate)'],
   [at('Gold II', 0), 5, at('Gold III', 94), -6, { demoted: true }, 'from 0 a loss demotes within the medal'],
   // ── the MEDAL-boundary demotion gate (owner addition 2026-09-20) ──
-  [at('Gold III', 10), 8, at('Gold III', 0), -10, { demoted: false, demotionUnlocked: true, wasDemotionGame: false, cappedPoints: 30 }, 'medal floor: a loss CLAMPS at 0 → demotion-ready'],
-  [at('Gold III', 6), 5, at('Gold III', 0), -6, { demoted: false, demotionUnlocked: true, cappedPoints: 0 }, 'landing exactly on 0 at a medal floor is demotion-ready too'],
-  [at('Gold III', 0), 8, at('Silver I', 60), -40, { wasDemotionGame: true, requiredFinish: 4, demoted: true, demotionUnlocked: false, cappedPoints: 0 }, 'demotion game: 8th drops to Silver I at 100 + award'],
-  [at('Gold III', 0), 5, at('Silver I', 94), -6, { wasDemotionGame: true, demoted: true }, 'demotion game: 5th drops to Silver I 94'],
-  [at('Gold III', 0), 4, at('Gold III', 6), 6, { wasDemotionGame: true, demoted: false, demotionUnlocked: false }, 'demotion game: 4th escapes with its award from 0'],
-  [at('Gold III', 0), 3, at('Gold III', 16), 16, { wasDemotionGame: true, demoted: false }, 'demotion game: 3rd → Gold III 16'],
-  [at('Gold III', 0), 1, at('Gold III', 40), 40, { wasDemotionGame: true, demoted: false, promotionUnlocked: false }, 'demotion game: 1st → Gold III 40'],
-  [at('Silver I', 100), 1, at('Gold III', 0), 0, { promoted: true, promotionKind: 'medal', demotionUnlocked: true }, 'a won MEDAL promotion lands at 0 in the new medal — demotion-ready by the derived rule'],
+  [at('Gold III', 10), 8, armed('Gold III'), -10, { demoted: false, demotionUnlocked: true, wasDemotionGame: false, cappedPoints: 30 }, 'medal floor: a loss CLAMPS at 0 → ARMED'],
+  [at('Gold III', 6), 5, armed('Gold III'), -6, { demoted: false, demotionUnlocked: true, cappedPoints: 0 }, 'a loss landing exactly on 0 at a medal floor arms too'],
+  [armed('Gold III'), 8, at('Silver I', 60), -40, { wasDemotionGame: true, requiredFinish: 4, demoted: true, demotionUnlocked: false, cappedPoints: 0 }, 'demotion game: 8th drops to Silver I at 100 + award'],
+  [armed('Gold III'), 5, at('Silver I', 94), -6, { wasDemotionGame: true, demoted: true }, 'demotion game: 5th drops to Silver I 94'],
+  [armed('Gold III'), 4, at('Gold III', 6), 6, { wasDemotionGame: true, demoted: false, demotionUnlocked: false }, 'demotion game: 4th escapes with its award from 0 and DISARMS'],
+  [armed('Gold III'), 3, at('Gold III', 16), 16, { wasDemotionGame: true, demoted: false }, 'demotion game: 3rd → Gold III 16'],
+  [armed('Gold III'), 1, at('Gold III', 40), 40, { wasDemotionGame: true, demoted: false, promotionUnlocked: false }, 'demotion game: 1st → Gold III 40'],
+  [at('Silver I', 100), 1, at('Gold III', 0), 0, { promoted: true, promotionKind: 'medal', demotionUnlocked: false }, 'a won MEDAL promotion lands at 0 in the new medal — NOT armed'],
+  [at('Gold III', 0), 8, armed('Gold III'), 0, { wasDemotionGame: false, demoted: false, demotionUnlocked: true, cappedPoints: 40 }, 'the first loss at 0 (fresh promotion) clamps and ARMS — no demotion yet'],
+  [at('Gold III', 0), 4, at('Gold III', 6), 6, { wasDemotionGame: false, demoted: false, demotionUnlocked: false }, 'at 0 but NOT armed, a top-4 is an ordinary gain'],
   [at('Gold II', 100), 4, at('Gold I', 0), 0, { promoted: true, demotionUnlocked: false }, 'a won DIVISION promotion lands at 0 with no demotion gate'],
-  [at('Ascendant III', 5), 8, at('Ascendant III', 0), -5, { demoted: false, demotionUnlocked: true }, 'Ascendant III is a medal floor too'],
-  [at('Ascendant III', 0), 6, at('Diamond I', 84), -16, { wasDemotionGame: true, demoted: true }, 'Ascendant III demotion game: 6th → Diamond I 84'],
-  [at('Silver III', 0), 7, at('Bronze I', 72), -28, { wasDemotionGame: true, demoted: true }, 'Silver III demotion game: 7th → Bronze I 72'],
+  [at('Ascendant III', 5), 8, armed('Ascendant III'), -5, { demoted: false, demotionUnlocked: true }, 'Ascendant III is a medal floor too'],
+  [armed('Ascendant III'), 6, at('Diamond I', 84), -16, { wasDemotionGame: true, demoted: true }, 'Ascendant III demotion game: 6th → Diamond I 84'],
+  [armed('Silver III'), 7, at('Bronze I', 72), -28, { wasDemotionGame: true, demoted: true }, 'Silver III demotion game: 7th → Bronze I 72'],
   [at('Bronze III', 0), 8, at('Bronze III', 0), 0, { wasDemotionGame: false, demoted: false, demotionUnlocked: false, cappedPoints: 40 }, 'Bronze III at 0: floor, NO gate'],
   [at('Bronze III', 10), 8, at('Bronze III', 0), -10, { demoted: false, cappedPoints: 30 }, 'Bronze floor absorbs the rest'],
   [at('Bronze III', 0), 8, at('Bronze III', 0), 0, { demoted: false, cappedPoints: 40 }, 'Bronze floor at 0 applies nothing'],
@@ -130,14 +136,39 @@ describe('rank — the configuration', () => {
     expect(isPromotionReady(at('Ascendant I', 100))).toBe(false);
   });
 
-  it('demotion-ready is derived: 0 on a medal\'s lowest division above Bronze (index % 3 === 0, > 0)', () => {
-    expect(isDemotionReady(at('Gold III', 0))).toBe(true);
-    expect(isDemotionReady(at('Gold III', 1))).toBe(false);
-    expect(isDemotionReady(at('Gold II', 0))).toBe(false);
-    expect(isDemotionReady(at('Bronze III', 0))).toBe(false);
-    expect(isDemotionReady(at('Ascendant III', 0))).toBe(true);
+  it('demotion-ready is a STORED flag, valid only at 0 on a medal\'s lowest division above Bronze', () => {
+    expect(isDemotionReady(armed('Gold III'))).toBe(true);
+    expect(isDemotionReady(at('Gold III', 0)), 'standing at 0 is not armed').toBe(false);
+    expect(isDemotionReady({ divisionIndex: 6, points: 0 }), 'absent = false').toBe(false);
+    expect(isRankPosition(armed('Gold III'))).toBe(true);
+    expect(isRankPosition({ divisionIndex: 6, points: 1, demotionReady: true }), 'armed off 0 is corrupt').toBe(false);
+    expect(isRankPosition({ divisionIndex: 7, points: 0, demotionReady: true }), 'armed off a floor is corrupt').toBe(false);
+    expect(isRankPosition({ divisionIndex: 0, points: 0, demotionReady: true }), 'Bronze III has no gate').toBe(false);
     expect([...Array(18).keys()].filter((d) => hasDemotionGate(d))).toEqual([3, 6, 9, 12, 15]);
     expect(RANK_RULES.demotionEscapeFinish).toBe(4);
+  });
+
+  it('the owner\'s sequence: medal promotion → first loss ARMS (no demotion) → second loss DEMOTES', () => {
+    const won = resolveRank(at('Silver I', 100), 1);
+    expect(won.after).toEqual(at('Gold III', 0));
+    expect(won.demotionUnlocked).toBe(false);
+    const first = resolveRank(won.after, 8);
+    expect(first.wasDemotionGame).toBe(false);
+    expect(first.demoted).toBe(false);
+    expect(first.after).toEqual(armed('Gold III'));
+    expect(first.demotionUnlocked).toBe(true);
+    expect(first.appliedDelta).toBe(0);
+    const second = resolveRank(first.after, 8);
+    expect(second.wasDemotionGame).toBe(true);
+    expect(second.demoted).toBe(true);
+    expect(second.after).toEqual(at('Silver I', 60));
+    // …and a top-4 escape from the armed state DISARMS; a later loss must arm again before demoting
+    const escaped = resolveRank(first.after, 2);
+    expect(escaped.after).toEqual(at('Gold III', 28));
+    expect(escaped.demotionUnlocked).toBe(false);
+    const back = resolveRank(escaped.after, 8);
+    expect(back.after).toEqual(armed('Gold III'));
+    expect(back.demoted).toBe(false);
   });
 });
 
@@ -198,12 +229,12 @@ describe('rank — boundaries', () => {
   it('every division: reaching 100 unlocks without promoting; every gate promotes exactly one division', () => {
     for (let d = 0; d < 17; d++) {
       const reach = resolveRank({ divisionIndex: d, points: 99 }, 1);
-      expect(reach.after).toEqual({ divisionIndex: d, points: 100 });
+      expect(reach.after).toEqual({ divisionIndex: d, points: 100, demotionReady: false });
       expect(reach.promotionUnlocked).toBe(true);
       expect(reach.promoted).toBe(false);
       expect(reach.cappedPoints).toBe(39);
       const won = resolveRank({ divisionIndex: d, points: 100 }, 1);
-      expect(won.after).toEqual({ divisionIndex: d + 1, points: 0 });
+      expect(won.after).toEqual({ divisionIndex: d + 1, points: 0, demotionReady: false });
       expect(won.promoted).toBe(true);
       expect(won.promotionUnlocked).toBe(false);
     }
@@ -213,7 +244,7 @@ describe('rank — boundaries', () => {
     for (let d = 1; d <= 17; d++) {
       const r = resolveRank({ divisionIndex: d, points: 5 }, 8);
       if (hasDemotionGate(d)) {
-        expect(r.after, `division ${d} is a medal floor`).toEqual({ divisionIndex: d, points: 0 });
+        expect(r.after, `division ${d} is a medal floor`).toEqual({ divisionIndex: d, points: 0, demotionReady: true });
         expect(r.demoted).toBe(false);
         expect(r.demotionUnlocked).toBe(true);
         expect(r.appliedDelta).toBe(-5);
@@ -223,7 +254,7 @@ describe('rank — boundaries', () => {
           const g = resolveRank(r.after, placement);
           expect(g.wasDemotionGame).toBe(true);
           expect(g.demoted).toBe(true);
-          expect(g.after).toEqual({ divisionIndex: d - 1, points: 100 + RANK_RULES.placementAwards[placement - 1]! });
+          expect(g.after).toEqual({ divisionIndex: d - 1, points: 100 + RANK_RULES.placementAwards[placement - 1]!, demotionReady: false });
           expect(g.appliedDelta).toBe(RANK_RULES.placementAwards[placement - 1]);
           expect(g.cappedPoints).toBe(0);
         }
@@ -231,16 +262,16 @@ describe('rank — boundaries', () => {
           const g = resolveRank(r.after, placement);
           expect(g.wasDemotionGame).toBe(true);
           expect(g.demoted).toBe(false);
-          expect(g.after).toEqual({ divisionIndex: d, points: RANK_RULES.placementAwards[placement - 1]! });
+          expect(g.after).toEqual({ divisionIndex: d, points: RANK_RULES.placementAwards[placement - 1]!, demotionReady: false });
         }
       } else {
-        expect(r.after).toEqual({ divisionIndex: d - 1, points: 65 });
+        expect(r.after).toEqual({ divisionIndex: d - 1, points: 65, demotionReady: false });
         expect(r.demoted).toBe(true);
         expect(r.demotionUnlocked).toBe(false);
       }
     }
     const floor = resolveRank({ divisionIndex: 0, points: 5 }, 8);
-    expect(floor.after).toEqual({ divisionIndex: 0, points: 0 });
+    expect(floor.after).toEqual({ divisionIndex: 0, points: 0, demotionReady: false });
     expect(floor.demoted).toBe(false);
     expect(floor.appliedDelta).toBe(-5);
     expect(floor.cappedPoints).toBe(35);
@@ -262,7 +293,8 @@ describe('rank — properties (blueprint §11)', () => {
   const starts: RankPosition[] = [];
   for (let d = 0; d <= 17; d++) for (const p of [0, 1, 6, 40, 60, 94, 99, 100, 150]) {
     if (d < 17 && p > 100) continue;
-    starts.push({ divisionIndex: d, points: p });
+    starts.push({ divisionIndex: d, points: p, demotionReady: false });
+    if (p === 0 && hasDemotionGate(d)) starts.push({ divisionIndex: d, points: p, demotionReady: true });
   }
 
   it('a better placement never lands LOWER (by compareRank) from the same start', () => {
@@ -287,6 +319,10 @@ describe('rank — properties (blueprint §11)', () => {
       if (r.wasDemotionGame) expect(isDemotionReady(start)).toBe(true);
       if (r.demoted && hasDemotionGate(start.divisionIndex)) expect(r.wasDemotionGame, 'a medal boundary is only crossed downward through a demotion game').toBe(true);
       expect(r.demotionUnlocked).toBe(isDemotionReady(r.after));
+      if (r.demotionUnlocked) expect(r.baseDelta, 'only a LOSS arms the gate').toBeLessThan(0);
+      if (r.promoted) expect(r.after.demotionReady, 'a promotion landing is never armed').toBe(false);
+      if (r.wasDemotionGame) expect(r.after.demotionReady, 'a demotion game always disarms').toBe(false);
+      expect(isRankPosition(r.after), 'the flag is only ever armed where it may be').toBe(true);
       expect(isRankPosition(r.after)).toBe(true);
     }
   });
@@ -307,10 +343,38 @@ describe('rank — properties (blueprint §11)', () => {
       expect(compareRank(a.profile.highest, prevHighest)).toBeGreaterThanOrEqual(0);
       expect(compareRank(a.profile.highest, a.profile.position)).toBeGreaterThanOrEqual(0);
       expect(a.result.highestAfter).toEqual(a.profile.highest);
+      expect(a.profile.highest.demotionReady, 'highest never carries the gate flag').toBe(false);
       prevHighest = a.profile.highest;
       profile = a.profile;
     });
     expect(isRankedProfile(profile)).toBe(true);
+  });
+
+  it('settleRank carries the STORED flag on the profile position — and only there', () => {
+    // Climb Bronze III → Silver III by winning every game (three 100s + three won gates), then lose twice.
+    let profile = initialRankedProfile();
+    let i = 0;
+    while (profile.position.divisionIndex < D('Silver III')) profile = settleRank(profile, 1, `climb-${i++}`).profile;
+    expect(profile.position).toEqual(at('Silver III', 0));
+    expect(profile.position.demotionReady, 'a promotion landing is never armed').toBe(false);
+    const first = settleRank(profile, 8, 'loss-1');
+    expect(first.result.wasDemotionGame).toBe(false);
+    expect(first.result.demotionUnlocked).toBe(true);
+    expect(first.profile.position).toEqual(armed('Silver III'));
+    expect(first.profile.highest.demotionReady).toBe(false);
+    expect(first.result.highestAfter.demotionReady).toBe(false);
+    expect(first.result.after.demotionReady).toBe(true);
+    expect(isRankedProfile(first.profile)).toBe(true);
+    const second = settleRank(first.profile, 8, 'loss-2');
+    expect(second.result.wasDemotionGame).toBe(true);
+    expect(second.result.demoted).toBe(true);
+    expect(second.profile.position).toEqual(at('Bronze I', 60));
+    expect(second.profile.highest, 'the career best stays at the medal reached').toEqual(at('Silver III', 0));
+    // the armed profile survives a JSON round-trip with the flag intact, and highest stays flag-free
+    const rt = parseRankedProfile(JSON.parse(JSON.stringify(first.profile)));
+    expect(rt).toEqual(first.profile);
+    expect(rt!.position.demotionReady).toBe(true);
+    expect(rt!.highest.demotionReady).toBe(false);
   });
 
   it('the derived scalar: appliedDelta is after − before, and a full climb from Bronze III is 17 won gates', () => {
@@ -334,6 +398,14 @@ describe('rank — parsers + identity', () => {
     expect(parseRankResult({ ...result, after: { divisionIndex: 99, points: 0 } })).toBeNull();
     expect(parseRankResult({ rating: 548, delta: 71 }), 'the OLD numeric function response is not a result').toBeNull();
     expect(parseRankResult(null)).toBeNull();
+    // the stored flag survives the wire in both directions, and a server row without it reads as false
+    const arming = settleRank({ ...initialRankedProfile(), position: at('Gold III', 6), highest: at('Gold III', 6) }, 5, 'arm').result;
+    expect(arming.after).toEqual(armed('Gold III'));
+    expect(parseRankResult(JSON.parse(JSON.stringify(arming)))).toEqual(arming);
+    const bare = parseRankResult({ ...arming, before: { divisionIndex: 6, points: 6 }, after: { divisionIndex: 6, points: 0 } });
+    expect(bare!.before.demotionReady).toBe(false);
+    expect(bare!.after.demotionReady).toBe(false);
+    expect(parseRankResult({ ...arming, after: { divisionIndex: 6, points: 1, demotionReady: true } }), 'an armed flag off 0 is corrupt').toBeNull();
   });
 
   it('parseRankedProfile round-trips and rejects a malformed profile', () => {
@@ -341,6 +413,11 @@ describe('rank — parsers + identity', () => {
     expect(parseRankedProfile(JSON.parse(JSON.stringify(p)))).toEqual(p);
     expect(parseRankedProfile({ ...p, position: { divisionIndex: 3, points: 101 } })).toBeNull();
     expect(parseRankedProfile({ ...p, revision: -1 })).toBeNull();
+    expect(parseRankedProfile({ ...p, position: { divisionIndex: 7, points: 0, demotionReady: true } }), 'armed off a medal floor').toBeNull();
+    expect(parseRankedProfile({ ...p, position: { divisionIndex: 6, points: 0, demotionReady: 'yes' } }), 'a non-boolean flag').toBeNull();
+    const armedProfile = parseRankedProfile({ ...p, position: { divisionIndex: 6, points: 0, demotionReady: true }, highest: { divisionIndex: 6, points: 0, demotionReady: true } });
+    expect(armedProfile!.position).toEqual(armed('Gold III'));
+    expect(armedProfile!.highest, 'highest is normalised flag-free even when the wire carries one').toEqual(at('Gold III', 0));
   });
 
   it('rankedRunIdOf: the persisted UUID, else the pre-medal String(seed)', () => {

@@ -1080,7 +1080,7 @@ function parseSubmitResponse(data: unknown): RankSubmitOutcome {
 
 /** The `profiles` rank columns, as the client reads them. Kept in one place so the boot fetch and the
  *  leaderboard agree on names. */
-const RANK_COLUMNS = 'rating, rank_season, rank_rules_version, rank_division, rank_points, rank_highest_division, rank_highest_points, rank_revision';
+const RANK_COLUMNS = 'rating, rank_season, rank_rules_version, rank_division, rank_points, rank_demotion_ready, rank_highest_division, rank_highest_points, rank_revision';
 
 /** Shape one `profiles` row's rank columns into a `RankedProfile`. A row whose `rank_season` is not the live
  *  season (never ranked under medals, or from an earlier season) reads as a FRESH season start — the same
@@ -1090,7 +1090,7 @@ function rankedProfileOfRow(r: Record<string, unknown>): RankedProfile {
   if (r.rank_season !== RANK_SEASON) return { ...initialRankedProfile(), revision: rev };
   const parsed = parseRankedProfile({
     seasonId: r.rank_season, rulesVersion: r.rank_rules_version, revision: rev,
-    position: { divisionIndex: r.rank_division, points: r.rank_points },
+    position: { divisionIndex: r.rank_division, points: r.rank_points, demotionReady: r.rank_demotion_ready === true },
     highest: { divisionIndex: r.rank_highest_division, points: r.rank_highest_points },
   });
   return parsed ?? { ...initialRankedProfile(), revision: rev };

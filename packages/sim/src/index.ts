@@ -27,6 +27,7 @@ export * from './productionBots';
 export * from './opponents';
 export * from './rating';
 export * from './playerRating';
+export * from './rank';
 export * from './synthesize';
 export * from './balanceReport';
 export { BOTS, BOT_BY_ID, DEFAULT_BOT, type BotPolicy, type BotWeights } from './bots';

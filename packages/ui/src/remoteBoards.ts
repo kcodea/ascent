@@ -14,8 +14,9 @@
  * seeds should still pin to the committed pool only (see docs/board-pool.md).
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { CONFIG, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type ReplayV2, type RunTelemetry } from '@game/sim';
+import { CONFIG, RANK_SEASON, initialRankedProfile, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type RankedProfile, type ReplayV2, type RunTelemetry } from '@game/sim';
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
+import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
 import { careerRunOf, joinTelemetry, type CareerRun, type RunHistoryRowLike, type TelemetryProbeRow } from './careerData';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -905,10 +906,14 @@ export interface PlayerRow {
   author: string;
   /** The `#4821` half of the handle (C2b). Undefined for a legacy/untagged row; the UI shows the bare name. */
   discriminator?: string;
+  /** The reporting scalar (`100 × division + points` since medals; the raw season-2 number before). */
   rating: number;
   gamesPlayed: number;
   /** Hero id of the most-played hero (resolved to a name + portrait in the UI). Undefined if none recorded. */
   favoriteHero?: string;
+  /** MEDAL RANK (2026-09-20): the row's ladder state, when the table carries the rank columns. Absent on a
+   *  pre-migration backend — render the scalar then. */
+  rank?: RankedProfile;
 }
 
 /**
@@ -952,35 +957,119 @@ export async function claimHandle(name: string): Promise<{ author: string; discr
   }
 }
 
+/** How long a single settlement round-trip may take before the client parks it as retryable. */
+const RANK_SUBMIT_TIMEOUT_MS = 15_000;
+
 /**
- * ACCOUNTS C3 — submit a finished LOBBY run's placement for an AUTHORITATIVE rating.
+ * MEDAL RANK — submit a finished RATED lobby's placement for an AUTHORITATIVE settlement (2026-09-20).
  *
- * The `submit-rating` Edge Function reads the caller's STORED rating and computes the delta itself from the
- * same placement table the client uses, so a client can't inflate it; `runId` dedupes so one run rates once.
- * Falls back to the legacy `submit_own_rating` RPC (the client-computed absolute value) ONLY while the function
- * isn't deployed — once C3 is live the schema revokes that RPC and the function path is the only one that runs.
- * Fire-and-forget, like the rest of this seam.
+ * The `submit-rating` Edge Function (service role) runs the atomic `settle_rank` transaction: it locks the
+ * caller's profile row, checks the `rank_results` ledger under the lock (a duplicate returns the ORIGINAL
+ * result, never a second award), resolves the medal rules, and writes profile + revision + immutable result
+ * in one commit. The client sends `{ runId, placement, seasonId, rulesVersion }` — never a rating, never a
+ * division — and gets back the typed `RankResult` plus the current authoritative `RankedProfile`.
+ *
+ * The answer is EXPLICIT (blueprint §7): `confirmed` (with the result), `retryable` (offline, timeout, 5xx,
+ * rate-limited, no session yet — the durable queue in `rank/rankSubmission.ts` keeps the request and retries
+ * it byte-for-byte) or `rejected` (bad input, unsupported season / rules version, a server that predates
+ * medals). There is NO client-computed fallback any more: the legacy `submit_own_rating` RPC is retired for
+ * the medal ladder (owner ruling — the old delta table must not write the new ladder).
  */
-async function submitRating(opts: { runId: string; placement: number; fallbackRating: number }): Promise<void> {
+export async function submitRating(req: RankSubmitRequest): Promise<RankSubmitOutcome> {
   const c = client();
-  if (!c) return;
+  if (!c) return { status: 'retryable', reason: 'no_backend' };
+  if (!currentUserId()) return { status: 'retryable', reason: 'no_session' };
+  const body = { runId: req.runId, placement: req.placement, seasonId: req.seasonId, rulesVersion: req.rulesVersion, ...(req.seed != null ? { seed: req.seed } : {}) };
   try {
-    const { error } = await c.functions.invoke('submit-rating', { body: { runId: opts.runId, placement: opts.placement } });
-    if (!error) return; // the server set the authoritative rating
-  } catch { /* function absent (pre-deploy) / offline → fall through to the legacy RPC */ }
-  try { await c.rpc('submit_own_rating', { new_rating: opts.fallbackRating }); } catch { /* best-effort */ }
+    const timeout = new Promise<{ timedOut: true }>((resolve) => setTimeout(() => resolve({ timedOut: true }), RANK_SUBMIT_TIMEOUT_MS));
+    const call = c.functions.invoke('submit-rating', { body }) as Promise<{ data: unknown; error: unknown }>;
+    const raced = await Promise.race([call, timeout]);
+    if ('timedOut' in raced) return { status: 'retryable', reason: 'timeout' };
+    if (raced.error) return classifyFunctionError(raced.error);
+    return parseSubmitResponse(raced.data);
+  } catch (e) {
+    return { status: 'retryable', reason: `network:${(e as Error)?.message ?? 'unknown'}` };
+  }
 }
 
-/** Upsert a player's leaderboard row (keyed by user). Fire-and-forget; never throws / blocks. Skipped for
- *  anonymous players (no author) — an unnamed run can't own a leaderboard slot. */
+/** Map a `functions.invoke` error to a submission outcome. Only definite server refusals are `rejected`;
+ *  anything transport-shaped (fetch failure, relay error, 5xx, 429, a not-yet-deployed function) is retryable
+ *  so the durable queue keeps the result. */
+async function classifyFunctionError(err: unknown): Promise<RankSubmitOutcome> {
+  const e = err as { name?: string; message?: string; context?: { status?: number; json?: () => Promise<unknown> } };
+  const status = e.context?.status;
+  let code = '';
+  try {
+    const parsed = e.context?.json ? await e.context.json() : null;
+    code = typeof (parsed as { error?: unknown } | null)?.error === 'string' ? (parsed as { error: string }).error : '';
+  } catch { /* no readable body */ }
+  if (status === 400 || status === 409 || status === 422) return { status: 'rejected', reason: code || `http_${status}` };
+  if (status === 401 || status === 403) return { status: 'retryable', reason: code || 'unauthenticated' };
+  return { status: 'retryable', reason: code || e.message || e.name || 'function_error' };
+}
+
+/** Parse the function's 200 body into a typed outcome. A body with no parseable `result`/`profile` means the
+ *  deployed function predates medals (it would have written the OLD numeric ladder) — surfaced as `rejected`
+ *  so nobody mistakes it for a settled medal result. */
+function parseSubmitResponse(data: unknown): RankSubmitOutcome {
+  const o = (data ?? {}) as { result?: unknown; profile?: unknown; deduped?: unknown; error?: unknown };
+  if (typeof o.error === 'string') return { status: 'rejected', reason: o.error };
+  const result = parseRankResult(o.result);
+  const profile = parseRankedProfile(o.profile);
+  if (!result || !profile) return { status: 'rejected', reason: 'server_outdated' };
+  return { status: 'confirmed', result, profile, deduped: o.deduped === true };
+}
+
+/** The `profiles` rank columns, as the client reads them. Kept in one place so the boot fetch and the
+ *  leaderboard agree on names. */
+const RANK_COLUMNS = 'rating, rank_season, rank_rules_version, rank_division, rank_points, rank_demotion_ready, rank_highest_division, rank_highest_points, rank_revision';
+
+/** Shape one `profiles` row's rank columns into a `RankedProfile`. A row whose `rank_season` is not the live
+ *  season (never ranked under medals, or from an earlier season) reads as a FRESH season start — the same
+ *  thing `settle_rank` does on its first settlement — keeping the row's revision so the compare still orders. */
+function rankedProfileOfRow(r: Record<string, unknown>): RankedProfile {
+  const rev = typeof r.rank_revision === 'number' ? r.rank_revision : 0;
+  if (r.rank_season !== RANK_SEASON) return { ...initialRankedProfile(), revision: rev };
+  const parsed = parseRankedProfile({
+    seasonId: r.rank_season, rulesVersion: r.rank_rules_version, revision: rev,
+    position: { divisionIndex: r.rank_division, points: r.rank_points, demotionReady: r.rank_demotion_ready === true },
+    highest: { divisionIndex: r.rank_highest_division, points: r.rank_highest_points },
+  });
+  return parsed ?? { ...initialRankedProfile(), revision: rev };
+}
+
+/**
+ * Fetch THIS account's authoritative `RankedProfile` — the medal-era twin of `fetchPlayerRating`, with the
+ * same three-way contract: `undefined` = couldn't ask (no backend / no session / error / timeout / a
+ * pre-migration table without the rank columns) → keep the local mirror; `null` = asked, no row → fresh;
+ * a profile = adopt (subject to the store's revision compare).
+ */
+export async function fetchRankedProfile(): Promise<RankedProfile | null | undefined> {
+  const c = client();
+  const userId = currentUserId();
+  if (!c || !userId) return undefined;
+  try {
+    const timeout = new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([
+      Promise.resolve(c.from('profiles').select(RANK_COLUMNS).eq('user_id', userId).limit(1)),
+      timeout,
+    ]);
+    if (!result || result.error) return undefined;
+    if (!result.data?.length) return null;
+    return rankedProfileOfRow(result.data[0] as Record<string, unknown>);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Upsert a player's leaderboard row's DISPLAY columns (keyed by user). Fire-and-forget; never throws /
+ *  blocks. Since medals (2026-09-20) this writes NO ladder state at all: the rank settles through
+ *  `submitRating` on its own durable path, independent of this write and of the history upload/fetch that
+ *  feeds `gamesPlayed`. (`rating` stays in the signature for queued pre-medal payloads; it is never sent.) */
 export async function uploadPlayerProfile(p: {
-  author?: string; rating: number; gamesPlayed: number; favoriteHero?: string; patch: string;
-  /** C2 offline queue: a run finished with no live session is UNRATED — its ladder rating is not submitted
-   *  (the local rating still moved; only the server ladder skips it). The rest of the profile still upserts. */
+  author?: string; rating?: number; gamesPlayed: number; favoriteHero?: string; patch: string;
+  /** C2 offline queue tag — informational now (the ladder no longer rides this write). */
   unrated?: boolean;
-  /** C3: the finished LOBBY's placement (1–8) + a stable run id, so the SERVER derives the rating. Absent for
-   *  non-lobby runs, which don't move the ladder. */
-  runId?: string; placement?: number;
 }): Promise<void> {
   const c = client();
   const userId = currentUserId();
@@ -990,15 +1079,15 @@ export async function uploadPlayerProfile(p: {
     // ACCOUNTS C1: the profile is keyed on `user_id`, NOT on the display name. Before this, renaming yourself
     // to someone else's name inherited their leaderboard slot — the name WAS the primary key.
     //
-    // ── DISPLAY COLUMNS vs RATING ────────────────────────────────────────────────────────────────────────
-    // The write-once RLS policy rejects a `rating` change on a row UPDATE (its `with check` requires the
-    // incoming rating to equal the stored one), so the display columns and the rating travel by DIFFERENT
-    // doors. Here we upsert ONLY the display columns; the rating goes through `submitRating` (C3), which is the
-    // Edge Function. The client therefore NEVER persists a rating it computed itself — a brand-new row gets a
-    // rating-0 PLACEHOLDER and the server fills in the real value. (History: a single `upsert()` sent rating on
-    // every write and, once it moved, Postgres rejected the WHOLE row — freezing games_played/author at run
-    // one, the "1 game for four runs" report 2026-08-04. Split writes fixed that; C3 removes client rating
-    // authority entirely.)
+    // ── DISPLAY COLUMNS vs RANK ──────────────────────────────────────────────────────────────────────────
+    // The RLS policy rejects any change to `rating` / the `rank_*` columns on a row UPDATE (its `with check`
+    // requires them to equal the stored values), so the display columns and the ladder travel by DIFFERENT
+    // doors. Here we write ONLY the display columns; the ladder moves through `submitRating` → the
+    // `settle_rank` transaction. A brand-new row gets a rating-0 / Bronze III PLACEHOLDER (the insert policy
+    // requires exactly that) and the server fills in the real values. (History: a single `upsert()` sent
+    // rating on every write and, once it moved, Postgres rejected the WHOLE row — freezing games_played/author
+    // at run one, the "1 game for four runs" report 2026-08-04. Split writes fixed that; medals remove the
+    // client's last numeric fallback.)
     const now = new Date().toISOString();
     // `email` is denormalised from `auth.users` (C2b) — kept current here so "signed in as …" and a future
     // Steam merge can read it off the profile row. Null while anonymous.
@@ -1013,10 +1102,6 @@ export async function uploadPlayerProfile(p: {
     if (updated.error || !updated.data || updated.data.length === 0) {
       await c.from('profiles').insert({ user_id: userId, rating: 0, ...mutable });
     }
-    // RATING: LOBBY runs only (a placement is present), never for an unrated (offline) run.
-    if (!p.unrated && p.placement != null && p.runId) {
-      await submitRating({ runId: p.runId, placement: p.placement, fallbackRating: p.rating });
-    }
   } catch {
     /* best-effort — profile sync must never disrupt the end screen */
   }
@@ -1028,18 +1113,38 @@ export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
   const c = client();
   if (!c) return [];
   try {
-    const request = Promise.resolve(
-      c.from('profiles').select('user_id, author, discriminator, rating, games_played, favorite_hero')
-        // Only RANKED players — a profile with zero finished games hasn't earned a slot (and a stray 0-game
-        // ghost row shouldn't clutter the board). Defensive alongside `claimHandle` no longer minting them.
-        .gt('games_played', 0)
-        .order('rating', { ascending: false }).order('games_played', { ascending: false }).limit(limit),
-    );
+    // Only RANKED players — a profile with zero finished games hasn't earned a slot (and a stray 0-game
+    // ghost row shouldn't clutter the board). Defensive alongside `claimHandle` no longer minting them.
+    // MEDALS: order by division, then points (the scalar `rating` ties Gold II 100 with Gold I 0 — the
+    // promoted player must rank above the one still waiting at the gate); games-played breaks the rest.
+    // A pre-migration table has no rank columns → that query errors → fall back to the legacy ordering.
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
-    const result = await Promise.race([request, timeout]);
+    const ranked = await Promise.race([
+      Promise.resolve(
+        c.from('profiles').select(`user_id, author, discriminator, games_played, favorite_hero, ${RANK_COLUMNS}`)
+          .gt('games_played', 0)
+          .order('rank_division', { ascending: false }).order('rank_points', { ascending: false })
+          .order('games_played', { ascending: false }).limit(limit),
+      ),
+      timeout,
+    ]);
+    const result = ranked && !ranked.error && ranked.data
+      ? ranked
+      : await Promise.race([
+        Promise.resolve(
+          c.from('profiles').select('user_id, author, discriminator, rating, games_played, favorite_hero')
+            .gt('games_played', 0)
+            .order('rating', { ascending: false }).order('games_played', { ascending: false }).limit(limit),
+        ),
+        timeout,
+      ]);
     if (!result || result.error || !result.data) return [];
-    return (result.data as Array<{ user_id: string; author: string; discriminator: string | null; rating: number; games_played: number; favorite_hero: string | null }>)
-      .map((r) => ({ userId: r.user_id, author: r.author, discriminator: r.discriminator ?? undefined, rating: r.rating, gamesPlayed: r.games_played, favoriteHero: r.favorite_hero ?? undefined }));
+    return (result.data as Array<Record<string, unknown> & { user_id: string; author: string; discriminator: string | null; rating: number; games_played: number; favorite_hero: string | null }>)
+      .map((r) => ({
+        userId: r.user_id, author: r.author, discriminator: r.discriminator ?? undefined, rating: r.rating,
+        gamesPlayed: r.games_played, favoriteHero: r.favorite_hero ?? undefined,
+        ...(typeof r.rank_revision === 'number' ? { rank: rankedProfileOfRow(r) } : {}),
+      }));
   } catch {
     return [];
   }

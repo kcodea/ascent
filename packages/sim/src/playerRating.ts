@@ -16,12 +16,22 @@
  * flat so it maps 1:1 to a future `profiles` table row.
  */
 
+import {
+  RANK_SEASON, compareRank, initialRankedProfile, rankScalar, type RankResult, type RankedProfile,
+} from './rank';
+
 export interface PlayerProfile {
   /** The ladder season this profile belongs to. A stored profile from an older season is RESET on load —
-   *  the true season reset (owner ask 2026-07-31). Season 1 = the course-rating era; season 2 = the lobby
-   *  ladder. Bump {@link CURRENT_SEASON} to reset everyone. */
+   *  the true season reset (owner ask 2026-07-31). Season 1 = the course-rating era; season 2 = the numeric
+   *  lobby ladder; season 3 = the MEDAL ladder (`rank`). Bump {@link CURRENT_SEASON} to reset everyone. */
   season?: number;
-  /** Skill rating. Starts at {@link STARTING_RATING}; floored at 0. Drives the Line via the promo/demo buffer. */
+  /** MEDAL RANK (season 3, owner 2026-09-20) — the authoritative ladder state, mirrored from the server
+   *  (`RankedProfile` in `rank.ts`). Everything below it is DERIVED from this now: `rating` is the reporting
+   *  scalar `100 × divisionIndex + points` so the numeric surfaces keep working, and the Line re-derives from
+   *  that scalar. */
+  rank: RankedProfile;
+  /** Skill rating. Since season 3 this is the DERIVED scalar of `rank.position` (`rankScalar`), kept so
+   *  legacy numeric surfaces (title / Rankings / Career) still read a number. Floored at 0. */
   rating: number;
   /** The Line tier currently assigned ({@link MIN_LINE}–{@link MAX_LINE}). Sticky: only moves when the rating
    *  crosses a promotion/demotion threshold (hysteresis), so a player near a band edge doesn't yo-yo. */
@@ -33,8 +43,9 @@ export interface PlayerProfile {
   lineGrace?: { line: number; missesRemaining: number };
 }
 
-/** The live ladder season — bumping this resets every stored profile on next load. */
-export const CURRENT_SEASON = 2;
+/** The live ladder season — bumping this resets every stored profile on next load. Season 3 = medals; the
+ *  server's `settle_rank` carries the same number and refuses any other (see `rank.ts` / the runbook). */
+export const CURRENT_SEASON = RANK_SEASON;
 
 /** Starting rating for a new player: 0 → **Line 7** (the bottom band), so everyone climbs up from the floor. */
 export const STARTING_RATING = 0;
@@ -71,7 +82,76 @@ export function lineForRating(rating: number): number {
 /** A fresh profile: {@link STARTING_RATING} (0 → Line 7) — a new player starts at the bottom of the ladder. */
 export function initialProfile(): PlayerProfile {
   const line = lineForRating(STARTING_RATING);
-  return { season: CURRENT_SEASON, rating: STARTING_RATING, currentLine: line, highestRating: STARTING_RATING, highestLine: line };
+  return { season: CURRENT_SEASON, rank: initialRankedProfile(), rating: STARTING_RATING, currentLine: line, highestRating: STARTING_RATING, highestLine: line };
+}
+
+/**
+ * Adopt the SERVER's ranked profile over the local mirror (the medal ladder's authority is `settle_rank`; the
+ * client only ever mirrors). Returns `null` when nothing should change:
+ *   • the server copy is OLDER than the mirror in the same season (`revision` compare) — a late answer from a
+ *     queued/older submission, or a boot fetch that raced a settlement — must never roll a newer profile back;
+ *   • the server copy is identical to the mirror.
+ * A different season always adopts (a new season is newer by definition). The legacy numeric fields are
+ * re-derived: `rating` = the position's scalar, the high-water marks from `highest`, the Line from the scalar
+ * (no hysteresis — the server number is a ruling, not a match result).
+ */
+export function adoptServerRank(profile: PlayerProfile, server: RankedProfile): PlayerProfile | null {
+  const local = profile.rank;
+  if (local && server.seasonId === local.seasonId && server.revision < local.revision) return null;
+  if (local && sameRankedProfile(local, server)) return null;
+  const rating = rankScalar(server.position);
+  const highestRating = rankScalar(server.highest);
+  return {
+    ...profile,
+    season: CURRENT_SEASON,
+    rank: {
+      seasonId: server.seasonId, rulesVersion: server.rulesVersion, revision: server.revision,
+      position: { ...server.position }, highest: { ...server.highest },
+    },
+    rating,
+    currentLine: lineForRating(rating),
+    highestRating: Math.max(highestRating, rating),
+    highestLine: lineForRating(Math.max(highestRating, rating)),
+  };
+}
+
+/** Reconcile the local mirror against a server READ of the ranked profile — the medal-era twin of
+ *  {@link resolveServerProfile}, with the same three-way contract: `undefined` = couldn't ask (keep local),
+ *  `null` = asked, no row (fresh profile), a profile = adopt (subject to the revision compare). */
+export function resolveServerRank(
+  profile: PlayerProfile,
+  server: RankedProfile | null | undefined,
+): PlayerProfile | null {
+  if (server === undefined) return null;
+  if (server === null) {
+    const fresh = initialProfile();
+    return profile.rank && sameRankedProfile(profile.rank, fresh.rank) && profile.season === fresh.season
+      && profile.rating === fresh.rating && profile.highestRating === fresh.highestRating
+      ? null : fresh;
+  }
+  return adoptServerRank(profile, server);
+}
+
+function sameRankedProfile(a: RankedProfile, b: RankedProfile): boolean {
+  return a.seasonId === b.seasonId && a.rulesVersion === b.rulesVersion && a.revision === b.revision
+    && compareRank(a.position, b.position) === 0 && compareRank(a.highest, b.highest) === 0
+    && (a.position.demotionReady === true) === (b.position.demotionReady === true);
+}
+
+/** Project a confirmed `RankResult` onto the legacy `RatingChange` shape, so the surfaces that still read
+ *  `lastRating` / `ratingDelta` (end screen, Career rows, replay results) show the medal ladder's numbers —
+ *  the scalar before/after and the APPLIED delta — until they are medal-aware. `profile` is the adopted
+ *  post-result profile. */
+export function legacyRatingChangeOf(result: RankResult, profile: PlayerProfile): RatingChange {
+  const ratingBefore = rankScalar(result.before);
+  const ratingAfter = rankScalar(result.after);
+  return {
+    ratingBefore, ratingAfter, ratingDelta: result.appliedDelta,
+    lineDelta: 0, lineComponent: 0, completionBonus: 0, finalWinBonus: 0, endgameBonus: 0,
+    lineBefore: lineForRating(ratingBefore), lineAfter: lineForRating(ratingAfter),
+    promoted: result.promoted, demoted: result.demoted,
+    profile,
+  };
 }
 
 /** Adopt a SERVER-side rating over the local profile (owner control 2026-07-31: the `profiles` table is
@@ -82,6 +162,7 @@ export function adoptServerRating(profile: PlayerProfile, serverRating: number):
   const line = lineForRating(rating);
   return {
     ...profile,
+    rank: profile.rank ?? initialRankedProfile(), // legacy numeric path (season 2 tools/tests) — never invents a medal
     season: CURRENT_SEASON,
     rating,
     currentLine: line,

@@ -5,8 +5,11 @@
  * HEADLESSLY through its real loop — `createLobby` → `resolveRound` → `runLobby` over `SeatDriver`s — across
  * many seeds, and the properties the rules doc states are asserted structurally rather than by example:
  *
- *   · Rating: a better placement never yields a smaller Rating change (`LOBBY_PLACEMENT_DELTAS` +
- *     `resolveLobbyRating`, including the 0-floor).
+ *   · Rating (legacy numeric, season 2): a better placement never yields a smaller Rating change
+ *     (`LOBBY_PLACEMENT_DELTAS` + `resolveLobbyRating`, including the 0-floor).
+ *   · MEDAL RANK (season 3, 2026-09-20): a better placement never lands LOWER by the explicit rank order
+ *     (`compareRank`: division first, then points) from any start; gates only ever move ONE division; a
+ *     lobby's eight placements settle to eight distinct, monotone results; `highest` never decreases.
  *   · Pairing: every living seat fights exactly once per round or takes the documented bye; an eliminated
  *     seat is never paired; no seat fights itself.
  *   · Elimination: a seat at zero is eliminated exactly once and stays out; final placements follow the
@@ -25,6 +28,7 @@ import type { LobbyState } from '../lobby/types';
 import type { SeatDriver } from '../lobby/types';
 import type { BoardSnapshot } from '../snapshot';
 import { LOBBY_PLACEMENT_DELTAS, initialProfile, resolveLobbyRating } from '../playerRating';
+import { RANK_RULES, compareRank, initialRankedProfile, isPromotionReady, rankTopDivision, resolveRank, settleRank, type RankPosition } from '../rank';
 
 /** A recorded seat that fields the same synthetic board every round — strength scales with `power`.
  *  (`sandbag` at attack=power: the same stub the shipped lobby tests drive the loop with.) */
@@ -77,6 +81,64 @@ describe('Doc Bot — Rating monotonicity across placements', () => {
     const p = initialProfile();
     expect(resolveLobbyRating({ ...p, rating: 500 }, 0).ratingDelta).toBe(LOBBY_PLACEMENT_DELTAS[0]);
     expect(resolveLobbyRating({ ...p, rating: 500 }, 99).ratingDelta).toBe(LOBBY_PLACEMENT_DELTAS[7]);
+  });
+});
+
+describe('Doc Bot — MEDAL RANK monotonicity + gate properties (season 3)', () => {
+  const starts: RankPosition[] = [];
+  for (let d = 0; d <= rankTopDivision(); d++) for (const p of [0, 6, 40, 94, 100, 160]) {
+    if (d < rankTopDivision() && p > RANK_RULES.divisionPoints) continue;
+    starts.push({ divisionIndex: d, points: p });
+  }
+
+  it('the award table covers all 8 seats and is strictly decreasing (1st best … 8th worst)', () => {
+    expect(RANK_RULES.placementAwards).toHaveLength(8);
+    for (let i = 1; i < 8; i++) expect(RANK_RULES.placementAwards[i]!).toBeLessThan(RANK_RULES.placementAwards[i - 1]!);
+  });
+
+  it('a better placement never lands LOWER by the explicit rank order, from any start — gates included', () => {
+    for (const start of starts) {
+      let prev: RankPosition | null = null;
+      for (let placement = 1; placement <= 8; placement++) {
+        const r = resolveRank(start, placement);
+        if (prev) expect(compareRank(prev, r.after), `division ${start.divisionIndex} @ ${start.points}: ${placement - 1} vs ${placement}`).toBeGreaterThanOrEqual(0);
+        expect(Math.abs(r.after.divisionIndex - start.divisionIndex), 'never more than one division').toBeLessThanOrEqual(1);
+        prev = r.after;
+      }
+    }
+  });
+
+  it('a gate is only ever entered by reaching exactly 100 and only ever leaves by exactly one division', () => {
+    for (const start of starts) for (let placement = 1; placement <= 8; placement++) {
+      const r = resolveRank(start, placement);
+      if (r.promoted) {
+        expect(isPromotionReady(start), 'no same-game promotion').toBe(true);
+        expect(r.after).toEqual({ divisionIndex: start.divisionIndex + 1, points: 0, demotionReady: false });
+      }
+      if (r.promotionUnlocked) expect(r.after.points).toBe(RANK_RULES.divisionPoints);
+    }
+  });
+
+  it('a real lobby\'s placements (competition ranking, ties included) always settle to a monotone, valid result', () => {
+    for (const seed of SEEDS) {
+      const state = createLobby(seed, eightSeats(seed));
+      runLobby(state);
+      const table = standings(state);
+      let prevPlacement = 0;
+      let prevAfter: RankPosition | null = null;
+      const profile = settleRank(initialRankedProfile(), 1, 'warm').profile; // Bronze III 40 — off the floor
+      for (const row of table) {
+        const placement = row.placement ?? 0;
+        expect(placement, 'every seat of a finished lobby holds a placement').toBeGreaterThanOrEqual(1);
+        expect(placement).toBeLessThanOrEqual(8);
+        const r = settleRank(profile, placement, `seed-${seed}-${row.id}`);
+        if (prevAfter && placement !== prevPlacement) expect(compareRank(prevAfter, r.profile.position), `seed ${seed}`).toBeGreaterThanOrEqual(0);
+        if (prevAfter && placement === prevPlacement) expect(compareRank(prevAfter, r.profile.position), 'a shared placement shares its result').toBe(0);
+        expect(compareRank(r.profile.highest, profile.highest), 'highest never decreases').toBeGreaterThanOrEqual(0);
+        prevPlacement = placement;
+        prevAfter = r.profile.position;
+      }
+    }
   });
 });
 

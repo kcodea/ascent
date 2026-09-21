@@ -17,9 +17,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
  *
  * THEN THE LEADERBOARD FROZE AGAIN — at the rating this time (owner report 2026-08-06). The write-once policy
  * deferred rating movement to a "C3 Edge Function" that was never built, so NO path could move a stored
- * rating at all. The third leg of the shape: after a successful UPDATE, rating travels through the
- * `submit_own_rating` RPC (a security-definer function scoped to the caller's own row — schema.sql
- * 2026-08-06), never through the row statement.
+ * rating at all. C3 then built it; and MEDALS (2026-09-20) moved the ladder entirely off this write: the
+ * profile row's display columns travel here, the rank settles through `submitRating` → `settle_rank` on its
+ * OWN durable path (`rank/rankSubmission.ts`). This write must therefore carry NO ladder column at all — the
+ * medal RLS policy rejects an update that changes `rating` or any `rank_*` column, and an insert with
+ * anything but the Bronze III placeholder.
  *
  * These tests drive a fake Supabase client, so they pin the SHAPE of the calls: what a real Postgres would
  * accept or reject is the thing under test, and it is decided entirely by which columns we send.
@@ -29,7 +31,6 @@ interface Call { table: string; op: 'update' | 'insert' | 'upsert' | 'rpc' | 'in
 
 const calls: Call[] = [];
 let existingRows: Array<{ user_id: string }> = [];
-let functionErrors = false; // when true, the submit-rating Edge Function fails → the client falls back to the RPC
 
 // `client()` builds its Supabase handle from `createClient` + the two VITE_ env vars, so the seam to fake is
 // the driver itself. `vi.stubEnv` supplies the config that makes `client()` return non-null.
@@ -45,7 +46,7 @@ vi.mock('@supabase/supabase-js', () => ({
     functions: {
       invoke: async (fn: string, opts: { body: Record<string, unknown> }) => {
         calls.push({ table: fn, op: 'invoke', payload: opts.body });
-        return { data: null, error: functionErrors ? { message: 'not deployed' } : null };
+        return { data: null, error: null };
       },
     },
     from: (table: string) => ({
@@ -72,10 +73,11 @@ vi.mock('./identity', () => ({
 }));
 
 const load = async () => (await import('./remoteBoards')).uploadPlayerProfile;
-// A LOBBY run carries a placement + runId (C3); rating is only the pre-deploy fallback value.
-const lobby = { author: 'Orangez', rating: 548, gamesPlayed: 4, favoriteHero: 'guardian', patch: 'test', runId: 'seed-1', placement: 2 };
+// A finished run's display payload. (`rating` is tolerated for queued pre-medal payloads and never sent.)
+const lobby = { author: 'Orangez', rating: 548, gamesPlayed: 4, favoriteHero: 'guardian', patch: 'test' };
+const RANK_COLUMNS = ['rating', 'rank_season', 'rank_rules_version', 'rank_division', 'rank_points', 'rank_highest_division', 'rank_highest_points', 'rank_revision', 'season2_rating'];
 
-beforeEach(() => { calls.length = 0; functionErrors = false; vi.resetModules(); });
+beforeEach(() => { calls.length = 0; vi.resetModules(); });
 afterEach(() => vi.restoreAllMocks());
 
 describe('writing a player profile', () => {
@@ -94,46 +96,35 @@ describe('writing a player profile', () => {
     expect(calls.filter((c) => c.op === 'insert')).toHaveLength(0);
   });
 
-  it('C3: rating goes through the submit-rating EDGE FUNCTION with {runId, placement} — not a client rating', async () => {
+  it('MEDALS: the profile write never submits a rank, never invokes the Edge Function, never calls an RPC', async () => {
     existingRows = [{ user_id: 'u-1' }];
     await (await load())(lobby);
-    const invoke = calls.find((c) => c.op === 'invoke');
-    expect(invoke, 'the server must be asked to derive the rating').toBeTruthy();
-    expect(invoke!.table).toBe('submit-rating');
-    expect(invoke!.payload, 'the client sends placement + runId, never a rating').toEqual({ runId: 'seed-1', placement: 2 });
-    expect(calls.some((c) => c.op === 'rpc'), 'the legacy RPC must NOT run when the function succeeds').toBe(false);
+    expect(calls.some((c) => c.op === 'invoke'), 'the ladder settles on its own path (rank/rankSubmission.ts), never from here').toBe(false);
+    expect(calls.some((c) => c.op === 'rpc'), 'the legacy submit_own_rating RPC is retired').toBe(false);
   });
 
-  it('C3: falls back to the submit_own_rating RPC only when the function fails (pre-deploy)', async () => {
+  it('MEDALS: the update never carries ANY rank column — the RLS policy rejects a change to each of them', async () => {
     existingRows = [{ user_id: 'u-1' }];
-    functionErrors = true; // the Edge Function isn't deployed yet
     await (await load())(lobby);
-    const rpc = calls.find((c) => c.op === 'rpc');
-    expect(rpc, 'without a deployed function the client must still move the rating').toBeTruthy();
-    expect(rpc!.table).toBe('submit_own_rating');
-    expect(rpc!.payload).toEqual({ new_rating: 548 });
+    const update = calls.find((c) => c.op === 'update');
+    for (const col of RANK_COLUMNS) expect(Object.keys(update!.payload), col).not.toContain(col);
   });
 
-  it('inserts a rating-0 PLACEHOLDER when there is no row — the server fills the real value', async () => {
+  it('inserts a rating-0 / Bronze III PLACEHOLDER when there is no row — the server fills the real values', async () => {
     existingRows = []; // no profile yet
     await (await load())(lobby);
     const insert = calls.find((c) => c.op === 'insert');
     expect(insert, 'a first-time player must still get a row').toBeTruthy();
     expect(insert!.payload, 'the client never persists a rating it computed itself').toMatchObject({ user_id: 'u-1', rating: 0, games_played: 4 });
+    // The medal insert policy demands exactly the defaults for every rank column: sending none is the way.
+    for (const col of RANK_COLUMNS.filter((c) => c !== 'rating')) expect(Object.keys(insert!.payload), col).not.toContain(col);
   });
 
-  it('a NON-lobby run (no placement) never touches the rating at all', async () => {
-    existingRows = [{ user_id: 'u-1' }];
-    await (await load())({ author: 'Orangez', rating: 548, gamesPlayed: 4, patch: 'test' }); // no runId/placement
-    expect(calls.some((c) => c.op === 'invoke'), 'no lobby placement → no rating submission').toBe(false);
-    expect(calls.some((c) => c.op === 'rpc')).toBe(false);
-  });
-
-  it('an UNRATED (offline) run upserts the profile but never submits rating', async () => {
+  it('an UNRATED (offline-queued) payload still upserts the display columns', async () => {
     existingRows = [{ user_id: 'u-1' }];
     await (await load())({ ...lobby, unrated: true });
     expect(calls.some((c) => c.op === 'update'), 'the display columns still upsert').toBe(true);
-    expect(calls.some((c) => c.op === 'invoke' || c.op === 'rpc'), 'an offline run is unrated — no rating').toBe(false);
+    expect(calls.some((c) => c.op === 'invoke' || c.op === 'rpc')).toBe(false);
   });
 
   it('never uses upsert for profiles — one statement cannot satisfy a write-once column', async () => {

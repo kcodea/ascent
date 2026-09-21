@@ -55,6 +55,13 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-21',
+    label: 'Career match history',
+    changes: [
+      { category: 'UI / Info', text: 'Career match history: hero portraits now wear the portrait ring, and the fight record reads as a bare N–M.' },
+    ],
+  },
+  {
     date: '2026-09-20',
     label: 'Medal ranks — season 3 + the post-game rank screen',
     changes: [

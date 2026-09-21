@@ -6606,7 +6606,6 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .cv2-heroframe .hero { display: block; position: relative; width: 160px; height: 160px; padding: 7px; border-radius: 50%; box-sizing: border-box; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 0 3px rgba(20, 30, 50, 0.9), 0 0 0 4.5px rgba(196, 160, 92, 0.45), 0 8px 24px rgba(0, 0, 0, 0.5); }
 .cv2-heroframe .hero .f { width: 100%; height: 100%; }
 .cv2-heroframe .hero .f svg { width: 44%; height: 44%; }
-.cv2-heroframe.small .hero { width: 76px; height: 76px; padding: 4px; box-shadow: 0 0 0 2px rgba(20, 30, 50, 0.9), 0 0 0 3.5px rgba(196, 160, 92, 0.45), 0 4px 12px rgba(0, 0, 0, 0.45); }
 /* The name plate overlaps the frame's bottom edge, like the recruit screen's. */
 .cv2-heroname { margin-top: -16px; z-index: 1; max-width: 100%; padding: 5px 20px; background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: 17px; letter-spacing: 0.02em; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 6px -2px var(--shadow); }
 .cv2-playername { margin-top: 4px; font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232, 200, 119, 0.75); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -11059,13 +11058,16 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   padding: 6px 16px 6px 8px; border-radius: 999px; background: rgba(6, 9, 16, 0.74); border: 1px solid rgba(196, 160, 92, 0.5);
   box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.8); pointer-events: none; }
 
-/* The Career page's hero portrait (left column) wears the SAME portrait ring (owner 2026-09-20) — the markup
-   is untouched; these rules re-seat the existing `.hero` disc into the ring's hole. The small match-row
-   portraits keep their CSS ring. */
-.cv2-heroframe:not(.small) { --ring: 176px; position: relative; display: block; flex: none; width: var(--ring); height: calc(var(--ring) * 1.0315); }
-.cv2-heroframe:not(.small)::after { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+/* EVERY Career hero portrait wears the SAME portrait ring — the left column + Heroes tab (owner 2026-09-20)
+   and the small match-row portraits (owner 2026-09-21) — the markup is untouched; these rules re-seat the
+   existing `.hero` disc into the ring's hole. `.small` only shrinks `--ring`: 84px puts a 75.6px disc where
+   the row's old 76px CSS-ring portrait sat, so the row header keeps its height (the outcome block is taller). */
+.cv2-heroframe { --ring: 176px; position: relative; display: block; flex: none; width: var(--ring); height: calc(var(--ring) * 1.0315); }
+.cv2-heroframe.small { --ring: 84px; }
+.cv2-heroframe::after { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
   background: url('./hero-select/heroportrait.png') center / 100% 100% no-repeat; }
-.cv2-heroframe:not(.small) .hero { position: absolute; z-index: 1; width: calc(var(--ring) * 0.9); height: calc(var(--ring) * 0.9);
+/* Class doubled on purpose: this must outrank the Heroes tab's older `.cv2-hcard .cv2-heroframe .hero` size. */
+.cv2-heroframe.cv2-heroframe .hero { position: absolute; z-index: 1; width: calc(var(--ring) * 0.9); height: calc(var(--ring) * 0.9);
   left: calc(var(--ring) * 0.046); top: calc(var(--ring) * 0.054); padding: 0; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.6); overflow: hidden; }
 
 /* Rankings rows: the rank cell holds the row-size bar instead of the bare MMR. */

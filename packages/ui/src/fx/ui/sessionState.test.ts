@@ -152,6 +152,8 @@ describe('normalizeSession', () => {
       // Likewise the def-level ease — an authored curve must survive closing and reopening the workbench,
       // or the autosave quietly discards part of the composition.
       ease: [[0, 0], [0.4, 0.9], [1, 1]] as [number, number][],
+      // And the def-level "ride my source" toggle, spelled out so this stays an exact-equality round-trip.
+      followSource: true,
     };
     expect(normalizeSession(JSON.parse(JSON.stringify(saved)), BOUNDS)).toEqual(saved);
   });

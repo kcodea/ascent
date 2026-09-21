@@ -15,11 +15,11 @@ const finishedRun = (over: Partial<RunState> = {}): RunState => ({
 const extra = { date: '2026-06-30', boardsContributed: 8, board: null, apt: 6.2, cardsPlayed: 14 };
 
 describe('buildRunHistoryEntry (A7)', () => {
-  it('captures the record, line verdict, tags, and run stats (calibration excluded)', () => {
+  it('captures the record, line verdict, tags, and run stats (every round counts since 2026-09-20)', () => {
     const e = buildRunHistoryEntry(finishedRun({ heroId: 'rohan', triplesMade: 3, goldSpent: 120 }), extra);
     expect(e).toMatchObject({
       v: 1, date: '2026-06-30', heroId: 'rohan',
-      wins: 11, losses: 4, draws: 0, // scored only
+      wins: 11, losses: 6, draws: 0, // all 17 rounds: the two former calibration losses count now
       line: 9, lineStatus: 'exceeded', completed: true, wave: 17,
       boardsContributed: 8, triples: 3, goldSpent: 120, apt: 6.2, cardsPlayed: 14,
     });

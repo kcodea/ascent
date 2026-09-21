@@ -376,6 +376,9 @@ export function toDef(
   layers: EditorLayer[],
   slot?: FxSlot,
   ease?: ReadonlyArray<readonly [number, number]>,
+  /** Trailing and optional like `ease`: when true the effect rides its source unit every frame (see
+   *  `FxDef.followSource`). Omitted unless set, so an untouched composition is byte-identical. */
+  followSource?: boolean,
 ): FxDef {
   return {
     id,
@@ -386,6 +389,8 @@ export function toDef(
     // Omitted for the identity ramp, so a composition that never drew a curve is byte-identical (matches
     // `toStoredDef`, and keeps the player on its no-ease fast path rather than sampling an identity).
     ...(ease !== undefined && !isIdentityCurve(ease) ? { ease } : {}),
+    // Omitted unless opted in, so a composition that never follows is byte-identical (matches `toStoredDef`).
+    ...(followSource === true ? { followSource: true } : {}),
     layers: layers.map((l) => ({
       primitive: l.primitive,
       anchor: l.anchor,

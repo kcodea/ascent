@@ -98,6 +98,12 @@ export interface StoredFxDef {
    * omitted when `0`, same discipline as above.
    */
   loopJoinMs?: number;
+  /**
+   * Carries `FxDef.followSource` verbatim: when true the effect re-anchors to its source every frame so it
+   * rides a moving unit (a drag, a reorder, a lunge). OPTIONAL and omitted-unless-`true`, on exactly the same
+   * terms as `slot`/`ease`/`loopMode` — a def that never opts in saves the exact JSON it saved before.
+   */
+  followSource?: boolean;
   layers: StoredFxLayer[];
 }
 
@@ -264,6 +270,9 @@ export function coerceDef(raw: unknown): StoredFxDef | null {
   // than a value worth keeping, so it is dropped alongside non-finite/absent input.
   const loopJoinMs = finite(raw.loopJoinMs);
   if (loopJoinMs !== null && loopJoinMs !== 0) def.loopJoinMs = loopJoinMs;
+  // Only a literal `true` opts in; absent/typo'd/anything-else means "don't follow", expressed as an omission
+  // so an untouched def round-trips byte-identically (same discipline as `slot`/`loopMode`).
+  if (raw.followSource === true) def.followSource = true;
   return def;
 }
 
@@ -350,6 +359,9 @@ export function toStoredDef(
    *  `'playOut'` simply produces an omission, same as `undefined` would. */
   loopMode?: 'playOut' | 'seamless',
   loopJoinMs?: number,
+  /** Trailing and optional for the same reason as `ease`/`loopMode`: a caller with no follow flag says
+   *  nothing rather than threading `undefined` through a hole in the middle of the signature. */
+  followSource?: boolean,
 ): StoredFxDef {
   const meta = carriedMeta(id, prior);
   // Two literals rather than a post-hoc assignment purely for KEY ORDER: `version, id, label, tags, duration,
@@ -371,6 +383,9 @@ export function toStoredDef(
   // never touches looping keeps saving the exact JSON it saved before this field existed.
   if (loopMode === 'seamless') def.loopMode = 'seamless';
   if (typeof loopJoinMs === 'number' && Number.isFinite(loopJoinMs) && loopJoinMs !== 0) def.loopJoinMs = loopJoinMs;
+  // Same omit-unless-`true` rule as `slot`: an author who never opts in keeps saving the exact JSON they
+  // saved before this field existed, and one who LOADS a following def and re-saves it keeps the flag.
+  if (followSource === true) def.followSource = true;
   return def;
 }
 

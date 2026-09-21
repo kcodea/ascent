@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getHero } from '@game/sim';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
+import { MenuSidebar } from './MenuSidebar';
 import { useGame } from './store';
 import { fetchRecentGames, fetchPlayerById, fetchReplayPayload, remoteEnabled, type RecentGameRow } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
@@ -79,8 +80,8 @@ export function RecentGames(): JSX.Element | null {
 
   return (
     <div className="lbpage lb-ladder rg-page">
+      <MenuSidebar current="recent" onBack={back} />
       <div className="lbtopbar">
-        <button className="lbback pressable" onClick={back}>← Back</button>
         <div className="lbtitle">
           <Icon name="clock" />
           <div>

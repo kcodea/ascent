@@ -8,6 +8,7 @@ import { storedCardView } from './storedBoardView';
 import { heroArt, runeArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
+import { MenuSidebar } from './MenuSidebar';
 import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './store';
 import { fetchMyRuns, fetchReplayPayload, remoteEnabled } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
@@ -597,8 +598,10 @@ export function Career() {
 
   return (
     <div className="lbpage cv2-page">
+      {/* Back + the main menu live in the left sidebar (owner ask 2026-09-21). Back keeps this page's own
+          close, so a Career opened from the Leaderboard still returns there. */}
+      <MenuSidebar current="career" onBack={back} />
       <div className="lbtopbar">
-        <button className="lbback pressable" onClick={back}>← Back</button>
         <div className="lbtitle">
           <Icon name="taunt" />
           <div>

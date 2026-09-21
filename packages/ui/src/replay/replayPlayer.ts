@@ -219,7 +219,7 @@ function scheduleOddsBackfill(myEpoch: number, seed: number): void {
 const SNAPSHOT_KEYS = [
   'run', 'showTitle', 'heroChoices', 'inspect', 'heroArmed', 'endTurnAnimating',
   'combatEnemyDeaths', 'combatBuffs', 'combatQuestDelta', 'combatTriggeredQuests', 'combatCompletedQuests',
-  'showLeaderboard', 'showRankings', 'showRecentGames', 'showCareer', 'careerOf',
+  'showLeaderboard', 'showRankings', 'showRecentGames', 'showCareer', 'careerOf', 'titleView',
 ] as const;
 type SnapshotKey = (typeof SNAPSHOT_KEYS)[number];
 type StoreState = ReturnType<typeof useGame.getState>;

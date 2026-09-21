@@ -3,21 +3,26 @@ import { getHero } from '@game/sim';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame, displayHandle } from './store';
-import { fetchTopPlayers, fetchLatestGamesForUsers, fetchLatestReplayForUser, remoteEnabled, type LatestGameFacts, type PlayerRow } from './remoteBoards';
+import { fetchTopPlayers, fetchLatestReplayForUser, remoteEnabled, type PlayerRow } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
-import { LbHeroFrame, LbMedallion, LbTeam } from './LadderBits';
-import { ordinalOf, playedOnText } from './leaderboardData';
+import { LbHeroFrame, LbMedallion } from './LadderBits';
 import { RankBar } from './rank/RankBar';
 import { compareRankDesc, rankPositionOf, type RankPosition } from './rank/types';
 
 /**
  * Rankings — the player LEADERBOARD (owner request 2026-07-13; polished 2026-09-20 to the Career page's
- * standard): the top players by skill rating (the "MMR") as a proper ranked table — podium medallions for the
- * top 3, the circular hero frame, the handle, the rating as the big number, games played, and each player's
- * LATEST recorded board as real card tiles (a light two-step read of `run_telemetry`, never a payload). Your
- * own row is highlighted and scrolled into view once the list lands. A row opens that player's Career; its
- * WATCH button plays their latest recorded run. Read from the shared `profiles` table (`fetchTopPlayers`);
- * best-effort — empty until the backend is configured. Distinct from the Hall of Champions (victory runs).
+ * standard; row re-laid 2026-09-20 — owner: "the row is mostly empty"): the top players by skill rating (the
+ * "MMR") as a chunky ranked table — a large podium medallion for the top 3 (a plain numeral beyond), the
+ * circular hero frame at portrait size, the handle large with the favourite hero under it, the rating as the
+ * big gold number in its own column, games played as a labelled value, then the actions: CAREER PAGE (the
+ * primary — opens that player's Career, the same thing the row itself does) and WATCH (secondary — plays
+ * their latest recorded run). The former "latest board" tile strip and its two-step telemetry read are gone.
+ * Your own row is highlighted and scrolled into view once the list lands. Read from the shared `profiles`
+ * table (`fetchTopPlayers`); best-effort — empty until the backend is configured. Distinct from the Hall of
+ * Champions (victory runs).
+ *
+ * COORDINATION NOTE: the rating cell is ONE element (`.lb-c-rating`, aliased `.rk-rating`) so the rank-screen
+ * work can slot a medal crest into it without re-laying the row.
  */
 export const RANKED_ROWS = 10;
 
@@ -45,7 +50,6 @@ export function Rankings() {
   const myId = useGame((s) => s.account.userId);
   const openCareer = useGame((s) => s.openCareer);
   const [rows, setRows] = useState<PlayerRow[] | null>(null);
-  const [latest, setLatest] = useState<Map<string, LatestGameFacts> | null>(null); // null = still loading
   const [watching, setWatching] = useState<string | null>(null); // userId whose replay is loading
   const [noReplay, setNoReplay] = useState<string | null>(null); // userId with no watchable v2 run
   const mineRef = useRef<HTMLDivElement | null>(null);
@@ -53,15 +57,8 @@ export function Rankings() {
   useEffect(() => {
     if (!show) return;
     setRows(null); // loading state each open
-    setLatest(null);
     let alive = true;
-    void fetchTopPlayers(RANKED_ROWS).then(async (r) => {
-      if (!alive) return;
-      setRows(sortRankAware(r));
-      // Then each ranked player's latest recorded board (best-effort; a failure just leaves the cell empty).
-      const facts = await fetchLatestGamesForUsers(r.map((p) => p.userId));
-      if (alive) setLatest(facts);
-    });
+    void fetchTopPlayers(RANKED_ROWS).then((r) => { if (alive) setRows(sortRankAware(r)); });
     return () => { alive = false; };
   }, [show]);
 
@@ -102,14 +99,12 @@ export function Rankings() {
               <span className="lb-c-player">Player</span>
               <span className="lb-c-rating">{rows.some((r) => rankOfRow(r)) ? 'Rank' : 'Rating'}</span>
               <span className="lb-c-games">Games</span>
-              <span className="lb-c-board">Latest board</span>
               <span className="lb-c-act" />
             </div>
             {rows.map((r, i) => {
               const hero = r.favoriteHero ? getHero(r.favoriteHero) : null;
               const handle = displayHandle(r.author, r.discriminator, r.userId);
               const rowRank = rankOfRow(r);
-              const game = latest?.get(r.userId);
               // Match the player by their real identity (`user_id`), NOT the display name — two accounts can
               // share a name (that's what the `#tag` disambiguates), and matching by name lit up every row of
               // duplicates as "YOU" (owner report 2026-08-10).
@@ -120,6 +115,8 @@ export function Rankings() {
                 sfx.pulse();
                 openCareer({ userId: r.userId, author: r.author, rating: r.rating, gamesPlayed: r.gamesPlayed, favoriteHero: r.favoriteHero });
               };
+              // The CAREER PAGE button does the same thing as the row — stop the bubble so it opens ONCE.
+              const openTheirsBtn = (e: React.MouseEvent): void => { e.stopPropagation(); openTheirs(); };
               // Watch their latest run — fetch that player's newest v2 replay and hand it to the viewer.
               // `startReplay` closes this overlay; exiting the replay restores it. A player with no
               // watchable run yet degrades the pill to "No run" rather than opening a broken viewer.
@@ -133,8 +130,7 @@ export function Rankings() {
                   .then((rep) => { if (rep) startReplay(rep, { authorName: handle }); else setNoReplay(r.userId); })
                   .finally(() => setWatching(null));
               };
-              const when = playedOnText(game?.createdAt);
-              // A div[role=button], not a <button> — the row nests the Watch button and a button can't nest a button.
+              // A div[role=button], not a <button> — the row nests its action buttons and a button can't nest a button.
               return (
                 <div
                   role="button"
@@ -154,30 +150,24 @@ export function Rankings() {
                       <span className="lb-herosub">{hero ? hero.name : 'No favorite hero yet'}</span>
                     </span>
                   </span>
-                  <span className="lb-c-rating">
+                  <span className="lb-c-rating rk-rating">
                     {rowRank
                       ? <RankBar position={rowRank} size="row" showGate={false} />
                       : <><span className="lb-rating">{r.rating}</span><span className="lb-unit">MMR</span></>}
                   </span>
-                  <span className="lb-c-games"><span className="lb-num">{r.gamesPlayed}</span></span>
-                  <span className="lb-c-board">
-                    {game ? (
-                      <>
-                        <LbTeam board={game.board} empty="No board stored for their latest game" />
-                        {game.placement !== null && (
-                          <span className={`lb-latest-place ${game.placement === 1 ? 'won' : game.placement <= 4 ? 'top4' : 'lost'}`}>
-                            {game.placement === 1 ? 'Victory' : ordinalOf(game.placement)}{when ? ` · ${when}` : ''}
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      <span className="lb-team-none dim">{latest === null ? 'Loading…' : 'No recorded game yet'}</span>
-                    )}
-                  </span>
+                  <span className="lb-c-games"><span className="lb-num">{r.gamesPlayed}</span><span className="lb-unit">played</span></span>
                   <span className="lb-c-act">
                     <button
                       type="button"
-                      className="lb-btn pressable"
+                      className="lb-btn lb-career pressable"
+                      onClick={openTheirsBtn}
+                      aria-label={`Open ${handle}'s career page`}
+                    >
+                      Career page
+                    </button>
+                    <button
+                      type="button"
+                      className="lb-btn lb-btn-ghost lb-watch-latest pressable"
                       onClick={watch}
                       disabled={!r.userId || watching === r.userId || noReplay === r.userId}
                       aria-label={noReplay === r.userId ? 'No watchable run yet' : `Watch ${handle}'s latest run`}

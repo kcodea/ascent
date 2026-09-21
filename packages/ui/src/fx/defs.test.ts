@@ -305,7 +305,10 @@ describe('committed defs — canvas slot', () => {
     // `above` draws over the Discover / Choose One overlays, which are otherwise deliberately above every
     // board effect. A board moment drawn over the window that is asking the player a question is a bug, not
     // a flourish — so the slot carries an explicit inventory rather than being available by default.
-    const ABOUT_A_MODAL = new Set(['prismatic-pick']);
+    // `rank-up` (owner-authored 2026-09-20) plays on the POST-GAME RANK SCREEN — itself a full-screen overlay
+    // above every board canvas — so the above-modal canvas (lifted over the screen by CSS while it is up) is
+    // the only one that can draw the ring collapsing onto the crest.
+    const ABOUT_A_MODAL = new Set(['prismatic-pick', 'rank-up']);
     const claimed = ENTRIES.filter((e) => isRecord(e.raw) && e.raw.slot === 'above').map((e) => e.stem);
     expect(claimed.filter((s) => !ABOUT_A_MODAL.has(s)),
       'a def took the above-modal canvas without being about a modal — check it, then add it here')

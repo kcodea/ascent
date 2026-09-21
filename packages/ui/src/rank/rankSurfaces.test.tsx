@@ -61,6 +61,22 @@ describe('RankBar', () => {
     expect(ui.container.querySelector('.rankbar-gate')).toBeNull();
     expect(ui.container.querySelector('.rankbar')!.className).toContain('on-gate'); // the tip still lights
   });
+  it('prints the DEMOTION-game line only from the profile flag — a 0 at a medal floor alone is ambiguous', () => {
+    ui = mount(<RankBar position={{ divisionIndex: 6, points: 0 }} size="mini" />);
+    expect(ui.container.querySelector('.rankbar-gate')).toBeNull();
+    ui.render(<RankBar position={{ divisionIndex: 6, points: 0 }} size="mini" demotionReady />);
+    expect(ui.container.querySelector('.rankbar-gate')?.textContent).toBe('Demotion game — finish top 4 to stay in Gold');
+    expect(ui.container.querySelector('.rankbar-gate')!.className).toContain('demo');
+    expect(ui.container.querySelector('.rankbar')!.className).not.toContain('on-gate'); // no endpoint glow at 0
+  });
+  it('the stack layout (Career card) reads crest → bar → points → NAME → caption', () => {
+    ui = mount(<RankBar position={{ divisionIndex: 7, points: 60 }} size="big" layout="stack" caption="760 MMR" />);
+    const bar = ui.container.querySelector('.rankbar')!;
+    expect(bar.className).toContain('rankbar-stack');
+    const order = ['.rankcrest', '.rankbar-track', '.rankbar-points', '.rankbar-label', '.rankbar-caption'].map((sel) => bar.querySelector(sel)!);
+    for (let i = 1; i < order.length; i++) expect(order[i - 1]!.compareDocumentPosition(order[i]!) & 4, `${i}`).toBe(4);
+    expect(bar.querySelector('.rankbar-label')?.textContent).toBe('Gold II');
+  });
   it('Ascendant I reads an uncapped RP counter over a full bar', () => {
     ui = mount(<RankBar position={{ divisionIndex: 17, points: 130 }} />);
     expect(ui.container.querySelector('.rankbar-points')?.textContent).toBe('130 RP');

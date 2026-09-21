@@ -4,8 +4,8 @@ The **presentation half** of the medal ranking feature (owner blueprint 2026-09-
 rows of §5/§8; owner decisions: six medals Bronze → Ascendant, divisions III → II → I, 100 points per
 division, division promotion on a top-4, medal promotion on 1st, a won promotion lands at **0/100**,
 Ascendant I uncapped). The rules resolver + store slice + server settlement are a separate branch
-(`feat/rank-rules-server`, `packages/sim/src/rank.ts`); this branch was built **against local mirror types**
-because that branch had not been pushed when this one was cut.
+(`feat/rank-rules-server`, `packages/sim/src/rank.ts`); this branch was first built against local mirror types
+and then MERGED that branch the same day (see "Owner review rounds" below) — `rank/types.ts` now re-exports `@game/sim`.
 
 ## What shipped (`packages/ui/src/rank/`)
 
@@ -102,3 +102,56 @@ because that branch had not been pushed when this one was cut.
 - Authored cue clips (`rankprogress` / `rankgate` / `rankpromote` / `rankmedal`) when the owner has them —
   they slot in with no code change.
 - `docs/GAME-RULES.md` rank wording belongs to the rules PR (it owns the rules).
+
+## Owner review rounds (same day, same branch)
+
+- **Layout + backdrop**: one centred column at every viewport (`.heroselect.rankend` collapses the picker's
+  two-row grid to a single centred cell); the board dims into the LOADING SPLASH's deep-navy radial
+  (`apps/web/index.html`'s boot backdrop — this replaced a first "blue wipe + slight dim" direction). No "of 8"
+  under the placement; no Rewatch / Final warband on this screen (Rewatch lives in Recent Games).
+- **Crest in the portrait ring**: the medal disc now sits in the game's gold hero-portrait PNG
+  (`hero-select/heroportrait.png`, the ring the ceremony snaps the champion into), painted by CSS as the
+  `.portring::after`; the hole was measured off the alpha (centre 49.6 % / 48.9 %, inner diameter 86 %, the
+  PNG is 1524×1572 because of its drop shadow). The division numeral is a gold-coin plate on the ring's
+  bottom edge. Crest ≈ 200–260 px on desktop (`clamp(200px, 26vh, 260px)` inside the zoomed `.hsbox`). The
+  Career page's hero portrait (left column) wears the same ring through CSS only — its markup is untouched.
+- **Text trimmed to what the visuals don't say**: a promotion / demotion prints NO detail or outcome line
+  (the crest transition + new label + 0/100 say it); the gate lines stay ("Promotion game ready — …",
+  "Demotion game — …"), as do "Promotion unsuccessful" and the floor / cap details. The live region still
+  SAYS "Promoted to …" / "Demoted to …" because a screen reader cannot see the crest change.
+- **Continue cross-fades into the menu** (`rank/exitFade.ts`): `openTitle` unmounts the end screen in the
+  same commit the title mounts, so the settled overlay is CLONED onto `<body>` above the title (`.rankend-exit`,
+  z480, aria-hidden, buttons disabled), the real one is released, and the clone tweens to opacity 0 over
+  400 ms (150 ms reduced motion) and removes itself. The clone is taken in an effect keyed on `leaving` so it
+  captures the settled DOM. Continue is single-fire (disabled after the first press, Enter included).
+- **Rules branch merged** (`feat/rank-rules-server`): `rank/types.ts` now re-exports `@game/sim`'s contract
+  (its `compareRank` is ascending — the surfaces use `compareRankDesc`), keeps the presentation helpers, and
+  carries the MEDAL-DEMOTION GATE fields as optionals (`wasDemotionGame`, `demotionUnlocked`) until the
+  resolver lands them; `rankSource.ts` reads the real slice (`rankSubmissionError` is a short CODE →
+  `rankErrorText` prints the truthful sentence; `rankRunId` keys the consumed marker). `PlayerRow.rank` is
+  typed now. Career's Seasonal Ranked card always shows the medal (every profile carries a rank since the
+  merge); a viewed player without one keeps the bare number.
+- **Medal-demotion gate (owner rule)**: a loss clamped at 0 on a medal floor prints "Demotion game — finish
+  top 4 to stay in Gold" (`demotionGateText`; derived from the result shape when the rules don't carry the
+  flag); a LOST demotion game holds the bar at 0 → crest transitions down a medal → the landing division's bar
+  fills to the landing points (the rules agent owns the number; the fixture uses 60); an ESCAPE is a plain
+  fill. The Title plate / Career bar print the demotion line from the profile's `demotionReady` flag
+  (`useDemotionReady`) — a 0 at a medal floor alone is ambiguous, since a won promotion lands there too.
+  Fixtures `demo-gate` / `demo-lost` / `demo-escape` in the DEV panel + tests.
+- **Career card re-stacked** (`RankBar layout="stack"`): the crest large in its ring (150 px) and centred, the
+  bar the full card width beneath it, the rank NAME under the bar, the scalar caption small under the name.
+- **Rank-up is an authored FX** (`fx/defs/rank-up.json`, owner-authored in the workbench; params verbatim): a
+  reversed shockwave ring collapsing onto the crest (0 → 280 ms) then a 329-shard additive gold burst at
+  280 ms. Fired from `rank/rankTimeline.ts` at the promotion beat — division AND medal — with
+  `playDef('rank-up', { source: <crest centre> })` behind `canPlayDefs()`. Sequence: the OLD crest holds while
+  the ring collapses → at the hit (`RANK_UP_HIT_MS` = 280) the burst fires, the crest / plate / label / bar
+  swap to the new division and the Runeforge lock-in clang plays (`sfx.runeSelect()` — `runeselect.mp3`
+  already shipped, so it is reused rather than re-imported) → the new bar fills from 0. The up-transition beat
+  is the def's full 900 ms so the shards are not cut off. Registered in `fx/directCalls.ts` +
+  `directCalls.test.ts`, allow-listed in `playDefUids.test.ts` (crest-anchored, no unit) and in
+  `defs.test.ts`'s above-modal inventory: the def draws on the ABOVE canvas (z200), which the rank overlay
+  (z400) would cover, so `body:has(.heroselect.rankend) .pixifx-above { z-index: 470 }` lifts it over the
+  screen while it is up (under the dev panels at 600+, under the exit clone at 480). Demotions keep the drain
+  + crest change; reduced motion never builds the timeline, so the def is skipped and the crest just swaps.
+  The DEV preview mounts `PixiFxLayer` itself while a fixture is open from the title (Game only mounts it with
+  the board), so the owner can watch the hit without playing a game.

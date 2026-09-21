@@ -7,7 +7,8 @@
  * the Match History BANNERS (head: hero + record ‖ outcome block · team: 7 slots · foot: runes ‖ ONE Watch
  * button, live only with a replay); the MMR as a bare number (no delta); the three trend charts + window
  * toggle; the designed loading / signed-out / offline / empty states; the HEROES tab (per-hero rows folded over
- * every run, the choice persisted); the three columns sharing one header row. Also pins what must NOT be there:
+ * every run, the choice persisted); the three columns sharing one header row; the Seasonal Ranked card as the
+ * medal rank (crest in the portrait ring + bar + the scalar caption). Also pins what must NOT be there:
  * any board-power stat, a Share button, a rating delta, the old Insight grid, a native `title` tooltip.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -75,7 +76,7 @@ beforeEach(async () => {
   useGame.setState({
     showCareer: true, careerOf: null, careerCache: null, playerName: 'Kev',
     account: { userId: 'me-1', email: null, anonymous: true, discriminator: null },
-    profile: { ...useGame.getState().profile, rating: 1234 },
+    profile: { ...useGame.getState().profile, rating: 1234, rank: { ...useGame.getState().profile.rank, position: { divisionIndex: 12, points: 34 }, highest: { divisionIndex: 12, points: 34 } } },
   });
   ui = mount(<Career />);
   await flush();
@@ -232,11 +233,18 @@ describe('Match History', () => {
 });
 
 describe('the right column', () => {
-  it('Seasonal Ranked prints the account rating as a BARE MMR number — no delta, no tiers', () => {
-    expect(ui.container.querySelector('.cv2-mmr-v')?.textContent).toBe('1234');
-    expect(ui.container.querySelector('.cv2-mmr-l')?.textContent).toBe('MMR');
-    expect(ui.container.querySelector('.cv2-mmr-d')).toBeNull();
-    expect(ui.container.querySelector('.cv2-ranked')?.textContent).toBe('1234MMR');
+  it('Seasonal Ranked prints the MEDAL RANK — crest in the portrait ring, label, bar, points, the scalar as a caption — no delta', () => {
+    const card = ui.container.querySelector('.cv2-ranked')!;
+    expect(card.querySelector('.rankcrest.portring .hero .f img.heroimg')).not.toBeNull();
+    expect(card.querySelector('.rankcrest-plate')?.textContent).toBe('III');
+    expect(card.querySelector('.rankbar-label')?.textContent).toBe('Diamond III');
+    expect(card.querySelector('.rankbar-points')?.textContent).toBe('34 / 100');
+    expect(card.querySelector('.rankbar-caption')?.textContent).toBe('1234 MMR');
+    // The card stacks: crest → bar → points → name → caption (owner 2026-09-20).
+    expect(card.querySelector('.rankbar')!.className).toContain('rankbar-stack');
+    expect(card.querySelector('.rankbar-track')!.compareDocumentPosition(card.querySelector('.rankbar-label')!) & 4).toBe(4);
+    expect(card.querySelector('.cv2-mmr-d')).toBeNull();
+    expect(card.querySelector('.rankend-delta')).toBeNull();
     expect(ui.container.querySelector('.cv2-right .cv2-colhead')?.textContent).toBe('Seasonal Ranked');
     expect(ui.container.textContent).not.toMatch(/division|tier|bronze|silver|gold rank/i);
   });
@@ -318,7 +326,7 @@ describe('states', () => {
     expect(none!.querySelector('.cv2-state-title')?.textContent).toBe('No runs yet');
     expect(none!.querySelector('.cv2-state-ico svg')).not.toBeNull();
     expect(ui.container.querySelector('.cv2-row')).toBeNull();
-    expect(ui.container.querySelector('.cv2-mmr-v')?.textContent).toBe('1234');
+    expect(ui.container.querySelector('.cv2-ranked .rankbar-caption')?.textContent).toBe('1234 MMR');
     expect(text('.cv2-left .cv2-stat-v')).toEqual(['0', '—', '—', '—']);
   });
 
@@ -330,6 +338,7 @@ describe('states', () => {
     await flush();
     expect(fetchMyRuns).toHaveBeenCalledWith(1000, { userId: 'them-9' }); // ALL their runs (the Heroes tab folds every one)
     expect(ui.container.querySelector('.lbtitle .esch')?.textContent).toBe('Mika’s Career');
+    // A viewed row without a medal rank (pre-migration) keeps the bare number.
     expect(ui.container.querySelector('.cv2-mmr-v')?.textContent).toBe('763');
     expect(ui.container.querySelector('.cv2-left .cv2-playername')?.textContent).toBe('Mika');
   });

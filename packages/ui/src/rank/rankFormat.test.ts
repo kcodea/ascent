@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { RANK_FIXTURES, fixtureById } from './fixtures';
-import { announcement, barFraction, cappedDetail, deltaText, gateText, outcomeText, placementText, pointsText, rankLabel, signedRp } from './rankFormat';
+import { announcement, barFraction, cappedDetail, deltaText, demotionGateText, gateText, outcomeText, placementText, pointsText, rankLabel, signedRp, standingGateText } from './rankFormat';
 import { planRankSequence, sequenceDurationMs } from './rankSequence';
-import { compareRank, DIVISION_COUNT, isMedalGate, isPromotionReady, medalOf, rankPositionOf, rankScalar } from './types';
+import { compareRankDesc, DIVISION_COUNT, isDemotionUnlocked, isMedalGate, isPromotionReady, medalOf, rankPositionOf, rankScalar } from './types';
 
 /**
  * The ONE formatting helper + the sequence planner, pinned per fixture (blueprint §3 rows + the owner's
@@ -33,8 +33,8 @@ describe('rank index → label (the shared mapping)', () => {
     const a = { divisionIndex: 7, points: 100 };
     const b = { divisionIndex: 8, points: 0 };
     expect(rankScalar(a)).toBe(rankScalar(b));
-    expect(compareRank(a, b)).toBeGreaterThan(0); // b (Gold I) sorts first
-    expect(compareRank(b, a)).toBeLessThan(0);
+    expect(compareRankDesc(a, b)).toBeGreaterThan(0); // b (Gold I) sorts first
+    expect(compareRankDesc(b, a)).toBeLessThan(0);
   });
   it('duck-types a position off a RankedProfile or a bare position, never off garbage', () => {
     expect(rankPositionOf({ position: { divisionIndex: 5, points: 40 }, highest: { divisionIndex: 5, points: 40 } })).toEqual({ divisionIndex: 5, points: 40 });
@@ -90,6 +90,30 @@ describe('points, placement and delta text', () => {
     expect(outcomeText(fixtureById('demotion')!.result!)).toBeNull();
     expect(cappedDetail(fixtureById('demotion')!.result!)).toBeNull();
   });
+  it('the MEDAL-DEMOTION GATE (owner 2026-09-20): a clamped loss at a medal floor prints the demotion-game line; a lost demotion game drops a medal; an escape is a plain fill', () => {
+    const gate = fixtureById('demo-gate')!.result!;
+    expect(isDemotionUnlocked(gate)).toBe(true);
+    expect(deltaText(gate)).toBe('−10 RP');
+    expect(cappedDetail(gate)).toBe('base −40 RP · clamped at the Gold floor');
+    expect(outcomeText(gate)).toBe('Demotion game — finish top 4 to stay in Gold');
+    expect(demotionGateText({ divisionIndex: 9, points: 0 })).toBe('Demotion game — finish top 4 to stay in Platinum');
+    // Derived when the rules do not carry the flag: the same shape without `demotionUnlocked`.
+    expect(isDemotionUnlocked({ ...gate, demotionUnlocked: undefined })).toBe(true);
+    expect(isDemotionUnlocked({ ...gate, demotionUnlocked: undefined, before: { divisionIndex: 5, points: 100 } })).toBe(false); // a promotion landing on 0
+    const lost = fixtureById('demo-lost')!.result!;
+    expect(deltaText(lost)).toBe('−28 RP');
+    expect(cappedDetail(lost)).toBeNull();
+    expect(outcomeText(lost)).toBeNull();
+    expect(announcement(7, lost, 'confirmed')).toBe('Finished 7th. −28 RP. Now Silver I, 60 / 100. Demoted to Silver I.');
+    const escaped = fixtureById('demo-escape')!.result!;
+    expect(deltaText(escaped)).toBe('+16 RP');
+    expect(outcomeText(escaped)).toBeNull();
+    expect(planRankSequence(escaped).map((s) => s.kind)).toEqual(['reveal', 'establish', 'bar', 'outcome']);
+    // The standing line the Title plate / Career print: promotion gate from the position, demotion gate from the flag.
+    expect(standingGateText({ divisionIndex: 7, points: 100 })).toBe('Promotion game ready — finish top 4 to advance');
+    expect(standingGateText({ divisionIndex: 6, points: 0 })).toBeNull();
+    expect(standingGateText({ divisionIndex: 6, points: 0 }, true)).toBe('Demotion game — finish top 4 to stay in Gold');
+  });
   it('Ascendant I never announces a false promotion, and its counter needs no caption', () => {
     const top = fixtureById('ascendant')!.result!;
     expect(outcomeText(top)).toBeNull();
@@ -118,7 +142,7 @@ describe('the planned sequence per fixture', () => {
   it('a promotion: old full bar → crest transition up → new bar from zero', () => {
     const steps = planRankSequence(fixtureById('promo-won')!.result!);
     expect(steps.map((s) => s.kind)).toEqual(['reveal', 'establish', 'transition', 'bar', 'outcome']);
-    expect(steps[2]).toMatchObject({ from: 7, to: 8, direction: 'up', medal: false });
+    expect(steps[2]).toMatchObject({ from: 7, to: 8, direction: 'up', medal: false, ms: 900 }); // the rank-up def's length
     expect(steps[3]).toMatchObject({ divisionIndex: 8, from: 0, to: 0 });
     const medal = planRankSequence(fixtureById('promo-medal')!.result!)[2];
     expect(medal).toMatchObject({ kind: 'transition', from: 8, to: 9, medal: true });
@@ -130,6 +154,13 @@ describe('the planned sequence per fixture', () => {
     expect(steps[3]).toMatchObject({ from: 7, to: 6, direction: 'down' });
     expect(steps[4]).toMatchObject({ divisionIndex: 6, from: 100, to: 70 });
   });
+  it('a lost demotion game: the bar holds at 0 → crest transitions down a medal → the landing bar fills to the landing points', () => {
+    const steps = planRankSequence(fixtureById('demo-lost')!.result!);
+    expect(steps.map((s) => s.kind)).toEqual(['reveal', 'establish', 'bar', 'transition', 'bar', 'outcome']);
+    expect(steps[2]).toMatchObject({ divisionIndex: 6, from: 0, to: 0 });
+    expect(steps[3]).toMatchObject({ from: 6, to: 5, direction: 'down', medal: true });
+    expect(steps[4]).toMatchObject({ divisionIndex: 5, from: 0, to: 60 });
+  });
   it('a failed promotion simply retreats from 100 — no transition, no spectacle', () => {
     expect(kinds('promo-failed')).toEqual(['reveal', 'establish', 'bar', 'outcome']);
   });
@@ -138,7 +169,7 @@ describe('the planned sequence per fixture', () => {
       if (!f.result) continue;
       const ms = sequenceDurationMs(planRankSequence(f.result));
       expect(ms, f.id).toBeGreaterThanOrEqual(2200);
-      expect(ms, f.id).toBeLessThanOrEqual(3300);
+      expect(ms, f.id).toBeLessThanOrEqual(3400);
     }
   });
 });

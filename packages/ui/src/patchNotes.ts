@@ -56,17 +56,19 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-20',
-    label: 'Medal ranks + the post-game rank screen',
+    label: 'Medal ranks — season 3 + the post-game rank screen',
     changes: [
       {
         category: 'UI / Info',
-        text: "Your ladder rating is now a MEDAL RANK — Bronze, Silver, Gold, Platinum, Diamond and Ascendant, three divisions each (III → II → I), 100 points per division — and the end of every ranked game plays it out: VICTORY (or your placement), your crest, and the division bar moving from where you were to where you are.",
+        text: "The ladder is now a medal and a division instead of a number: Bronze, Silver, Gold, Platinum, Diamond and Ascendant, three divisions each (III up to I), 100 points per division. Everyone starts season 3 at Bronze III. Your rank is settled by the server after every ranked lobby, and the end of every ranked game plays it out — VICTORY (or your placement), your crest, and the division bar moving from where you were to where you are.",
         details: [
-          'Finish top 4 to gain points, bottom 4 to lose them. Reaching 100 unlocks a PROMOTION GAME: finish top 4 in your next ranked game to advance a division — or 1st to advance to the next medal — and you land at 0 / 100 in the new division. A lost promotion game just costs its points.',
-          'Falling below 0 demotes you one division (Bronze III has a floor at 0). Ascendant I has no cap — its counter just keeps climbing.',
-          "The post-game screen shows the actual points applied (a capped award at the gate says so), the outcome line — promotion, demotion, or \"Promotion game ready\" — and CONTINUE, which is always usable; click the rank display or Skip to settle the animation instantly. Rewatch and your final warband sit underneath as secondary actions.",
-          "If the rank update hasn't come back yet the screen says \"Updating rank…\"; a connection hiccup shows \"Rank update pending\" with a Retry. Practice games show your placement and \"Unrated\".",
-          "Your crest, division and bar now appear on the title screen's Play card (with the promotion-game line when you're on the gate), on your Career page's Seasonal Ranked card, and on the Leaderboard, which orders players by division then points.",
+          'Points by finish: 1st +40, 2nd +28, 3rd +16, 4th +6, 5th -6, 6th -16, 7th -28, 8th -40. Only ranked lobbies count; Practice and the tutorial never move your rank.',
+          "Reaching 100 points unlocks a PROMOTION GAME rather than promoting on the spot (anything past 100 is discarded). Moving up a division (say Gold III to Gold II) takes a top-4 finish in that game; moving up a medal (Gold I to Platinum III) takes 1st place. A won promotion starts the next division at 0 — not the game's points.",
+          'A lost promotion game (5th–8th) just costs its normal points from 100; climb back to 100 and the gate reopens. At a medal gate, a 2nd–4th finish neither promotes nor gains — you stay at 100, still promotion-ready.',
+          "Dropping below 0 demotes one division and keeps the remainder (Gold II 10 after an 8th place lands on Gold III 70). Dropping below 0 at a medal's lowest division (Gold III) instead clamps at 0 and sets up a DEMOTION GAME: finish top 4 in your next ranked game to stay in the medal, bottom 4 to drop to the previous medal's division I. Bronze III can never fall below 0. Ascendant I has no cap — points keep climbing.",
+          "The post-game screen shows the actual points applied (a capped award at the gate says so), the outcome line when there is one — \"Promotion game ready\" / \"Demotion game\" — and CONTINUE, which is always usable and fades you back to the menu; click the rank display or Skip to settle the animation instantly.",
+          "If the rank update hasn't come back yet the screen says \"Updating rank…\"; a result that can't reach the server is kept and retried — it's never lost — and shows \"Rank update pending\" with a Retry. Practice games show your placement and \"Unrated\".",
+          "Your crest, division and bar now appear on the title screen's Play card (with the promotion- or demotion-game line when you're on a gate), on your Career page's Seasonal Ranked card, and on the Leaderboard, which orders players by division first, then points. Your career-best rank never goes down; previous-season ratings are archived, not deleted.",
         ],
       },
     ],

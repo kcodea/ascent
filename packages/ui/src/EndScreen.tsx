@@ -89,7 +89,7 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
             current={practice ? null : rankSource!.current}
             error={practice ? undefined : rankSource!.error}
             unratedReason={practice ? 'Practice' : undefined}
-            runId={rankSource?.result?.runId ?? String(run.seed)}
+            runId={rankSource?.runId ?? rankSource?.result?.runId ?? String(run.seed)}
             onContinue={onPlayAgain}
             onRetry={practice ? undefined : rankSource!.retry}
           />

@@ -381,7 +381,7 @@ export function Career() {
   const mmr = viewing ? viewing.rating : profile.rating;
   // MEDAL RANK (2026-09-20): the Seasonal Ranked card shows the crest + division bar once a rank exists on the
   // profile (or on the viewed player's row); the scalar stays as a small caption. No rank → the bare number.
-  const rank = rankPositionOf(viewing ? (viewing as { rank?: unknown }).rank : (profile as { rank?: unknown }).rank);
+  const rank = rankPositionOf(viewing ? (viewing as { rank?: unknown }).rank : profile.rank);
 
   // Watch a listed run back: the join already resolved the telemetry row id, so this is the same one-row
   // payload fetch Recent Games makes, handed to the same viewer. `startReplay` closes this overlay itself and
@@ -502,7 +502,7 @@ export function Career() {
           <div className="cv2-colhead"><div className="cv2-sec"><Icon name="star" />Seasonal Ranked</div></div>
           <div className="cv2-panel cv2-ranked">
             {rank ? (
-              <RankBar position={rank} size="big" caption={`${scalarCaption(rank)} MMR`} />
+              <RankBar position={rank} size="big" layout="stack" caption={`${scalarCaption(rank)} MMR`} />
             ) : (
               <div className="cv2-mmr">
                 <span className="cv2-mmr-v">{mmr}</span>

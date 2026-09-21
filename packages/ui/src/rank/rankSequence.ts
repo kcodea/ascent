@@ -29,6 +29,8 @@ export const RANK_BEAT_MS = {
   barHalf: 700,
   gate: 500,
   transition: 550,
+  /** An UP transition is the owner's `rank-up` FX: 280 ms ring collapse → hit → the burst's tail (900 ms def). */
+  transitionUp: 900,
   outcome: 400,
 } as const;
 
@@ -43,8 +45,14 @@ export function planRankSequence(r: RankResult): RankStep[] {
   if (r.promoted) {
     // The old bar is already full (the gate). Transition the crest/tier, then the NEW division fills from
     // zero to wherever it landed (owner decision: 0/100 — so the fill is a beat of "here is your new bar").
-    steps.push({ kind: 'transition', ms: RANK_BEAT_MS.transition, from: r.before.divisionIndex, to: r.after.divisionIndex, direction: 'up', medal: medalChange });
+    steps.push({ kind: 'transition', ms: RANK_BEAT_MS.transitionUp, from: r.before.divisionIndex, to: r.after.divisionIndex, direction: 'up', medal: medalChange });
     steps.push({ kind: 'bar', ms: RANK_BEAT_MS.barHalf, divisionIndex: r.after.divisionIndex, from: 0, to: r.after.points, uncapped: isUncapped(r.after.divisionIndex) });
+  } else if (r.demoted && r.wasDemotionGame) {
+    // A LOST DEMOTION GAME (owner 2026-09-20): the bar already sits at 0 — hold it there a beat, transition
+    // the crest down a medal, then the landing division's bar fills to the landing points.
+    steps.push({ kind: 'bar', ms: RANK_BEAT_MS.barHalf, divisionIndex: r.before.divisionIndex, from: 0, to: 0, uncapped: false });
+    steps.push({ kind: 'transition', ms: RANK_BEAT_MS.transition, from: r.before.divisionIndex, to: r.after.divisionIndex, direction: 'down', medal: medalChange });
+    steps.push({ kind: 'bar', ms: RANK_BEAT_MS.barHalf, divisionIndex: r.after.divisionIndex, from: 0, to: r.after.points, uncapped: false });
   } else if (r.demoted) {
     // Drain the old division to zero, transition down, then the previous division retreats from 100.
     steps.push({ kind: 'bar', ms: RANK_BEAT_MS.barHalf, divisionIndex: r.before.divisionIndex, from: r.before.points, to: 0, uncapped: false });

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDraggablePanel } from '../useDraggablePanel';
+import { PixiFxLayer } from '../PixiFxLayer';
+import { isPreRun, useGame } from '../store';
 import { sfx } from '../sfx';
 import { RANK_FIXTURES, type RankFixture } from './fixtures';
 import { RankScreen } from './RankScreen';
@@ -21,6 +23,10 @@ export function RankScreenPreview(): JSX.Element {
   const [reduced, setReduced] = useState(false);
   const [replayKey, setReplayKey] = useState(0);
   const [arrival, setArrival] = useState(false);
+  // From the TITLE there is no FX canvas (Game mounts `PixiFxLayer` only with the board / picker), so the
+  // rank-up def would silently fall back to the fade. Mount the layer here while a fixture is open so the
+  // owner sees the real hit; with a run up the game's own layer is already attached and this stays out.
+  const preRun = useGame(isPreRun);
 
   // "Pending → confirmed": mount the gain fixture as pending, then flip it confirmed after a beat.
   useEffect(() => {
@@ -85,6 +91,7 @@ export function RankScreenPreview(): JSX.Element {
           </div>
         </div>
       </div>
+      {shown && preRun && <PixiFxLayer />}
       {shown && (
         <div className={`heroselect endscreen lobbyend rankend rankend-preview${shown.placement === 1 ? ' won' : ''}`}>
           <div className="hsbox endbox">

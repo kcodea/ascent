@@ -8,7 +8,7 @@ import { startReplay } from './replay/replayPlayer';
 import { LbHeroFrame, LbMedallion, LbTeam } from './LadderBits';
 import { ordinalOf, playedOnText } from './leaderboardData';
 import { RankBar } from './rank/RankBar';
-import { compareRank, rankPositionOf, type RankPosition } from './rank/types';
+import { compareRankDesc, rankPositionOf, type RankPosition } from './rank/types';
 
 /**
  * Rankings — the player LEADERBOARD (owner request 2026-07-13; polished 2026-09-20 to the Career page's
@@ -21,8 +21,8 @@ import { compareRank, rankPositionOf, type RankPosition } from './rank/types';
  */
 export const RANKED_ROWS = 10;
 
-/** A row's medal rank, when the profile row carries one (the rules branch adds it) — else null (legacy MMR). */
-const rankOfRow = (r: PlayerRow): RankPosition | null => rankPositionOf((r as { rank?: unknown }).rank);
+/** A row's medal rank, when the profile row carries one (post-migration) — else null (legacy MMR). */
+const rankOfRow = (r: PlayerRow): RankPosition | null => rankPositionOf(r.rank);
 
 /** MEDAL RANK ordering (blueprint §8): division first, then points — ranked rows ahead of legacy-only rows,
  *  which keep their server order (rating desc). A list with no ranks at all is returned untouched. */
@@ -31,7 +31,7 @@ export function sortRankAware(rows: PlayerRow[]): PlayerRow[] {
   return rows
     .map((r, i) => ({ r, i, rank: rankOfRow(r) }))
     .sort((a, b) => {
-      if (a.rank && b.rank) return compareRank(a.rank, b.rank) || a.i - b.i;
+      if (a.rank && b.rank) return compareRankDesc(a.rank, b.rank) || a.i - b.i;
       if (a.rank) return -1;
       if (b.rank) return 1;
       return a.i - b.i;

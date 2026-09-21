@@ -10942,7 +10942,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 /* The rank crest IS a portrait ring; the size classes set its width. */
 .rankcrest { --ring: 56px; }
 .rankcrest-mini { --ring: 44px; }
-.rankcrest-big { --ring: 112px; }
+.rankcrest-big { --ring: 150px; }
 .rankcrest-xl { --ring: clamp(200px, 26vh, 260px); }
 /* The division plate — a gold coin pill on the ring's bottom edge, in the game's gold-medal ramp. */
 .rankcrest-plate { position: absolute; left: 50%; bottom: calc(var(--ring, 160px) * 0.02); transform: translate(-50%, 40%); z-index: 3; white-space: nowrap;
@@ -10977,6 +10977,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 .rankbar-points { font-family: var(--font-ui); font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; color: rgba(255, 246, 228, 0.85); white-space: nowrap; }
 .rankbar-caption { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
 .rankbar-gate { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.04em; color: #ffe08a; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8); }
+.rankbar-gate.demo { color: #ff9a9a; }
 /* mini — the Title's Play card plate. */
 .rankbar-mini { gap: 8px; }
 .rankbar-mini .rankbar-body { gap: 3px; }
@@ -10989,12 +10990,16 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 .rankbar-row .rankbar-label { font-size: 14px; }
 .rankbar-row .rankbar-track { width: 110px; height: 8px; }
 .rankbar-row .rankbar-points { font-size: 12px; }
-/* big — the Career card. */
-.rankbar-big { gap: 14px; }
-.rankbar-big .rankbar-body { flex: 1 1 0; }          /* basis 0 → the bar shrinks to the card, never past it */
-.rankbar-big .rankbar-label { font-size: 19px; letter-spacing: 0.04em; white-space: normal; }
-.rankbar-big .rankbar-track { width: auto; max-width: 240px; height: 12px; } /* stretches to the card, never past it */
+/* big + stack — the Career card (owner 2026-09-20): a centred column — the crest large in its ring, the bar
+   the full card width beneath it, the rank NAME under the bar, the scalar caption small under the name. */
+.rankbar-stack { flex-direction: column; align-items: stretch; text-align: center; gap: 12px; }
+.rankbar-stack .rankbar-crests { align-self: center; }
+.rankbar-stack .rankbar-body { align-items: center; gap: 6px; }
+.rankbar-stack .rankbar-track { width: 100%; }
+.rankbar-big .rankbar-label { font-size: 22px; letter-spacing: 0.1em; }
+.rankbar-big .rankbar-track { height: 12px; }
 .rankbar-big .rankbar-points { font-size: 15px; }
+.rankbar-big .rankbar-caption { margin-top: -2px; }
 /* xl — the post-game screen: stacked, centred. */
 .rankbar-xl { flex-direction: column; align-items: center; text-align: center; gap: 26px; }
 .rankbar-xl .rankbar-body { align-items: center; gap: 10px; }
@@ -11032,6 +11037,10 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 .heroselect.rankend { grid-template-rows: 1fr; place-items: center; padding: 24px;
   background: radial-gradient(ellipse 60% 60% at 50% 50%, #24468a 0%, #0a1730 100%);
   animation: fadein 0.45s ease; }
+/* The rank-up FX draws on the ABOVE canvas (z200), which the rank overlay (z400) would otherwise cover: while
+   the screen is up the canvas is lifted over it (and under the dev panels at 600+; the exit clone at 480 is
+   above it, by which time the burst has finished). */
+body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 /* The CONTINUE cross-fade: a static clone of the settled screen, parked above the title (z450) while GSAP
    fades its opacity; `animation: none` stops the overlay's own fade-in from replaying on the copy. */
 .heroselect.rankend.rankend-exit { z-index: 480; pointer-events: none; animation: none; }
@@ -11054,7 +11063,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 .rankend-detail { font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
 .rankend-outcome { font-family: var(--font-ui); font-weight: 800; font-size: 19px; letter-spacing: 0.08em; text-transform: uppercase; color: #ffe08a; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9); will-change: transform, opacity; }
 .rankend-outcome.promo { color: #8ff0a4; }
-.rankend-outcome.demo { color: #ff9a9a; }
+.rankend-outcome.demo, .rankend-outcome.demogate { color: #ff9a9a; }
 .rankend-status { display: flex; align-items: center; gap: 10px; font-family: var(--font-ui); font-weight: 700; font-size: 16px; letter-spacing: 0.06em; color: rgba(255, 246, 228, 0.82); max-width: 620px; }
 .rankend-status.rejected { color: #ff9a9a; }
 .rankend-status.unrated { text-transform: uppercase; letter-spacing: 0.18em; opacity: 0.7; }

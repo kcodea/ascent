@@ -4,7 +4,7 @@
  * an index → label, a points readout, or what a delta at a cap/floor says. Pure; no React, no store.
  */
 import {
-  isMedalGate, isPromotionReady, isUncapped, POINTS_PER_DIVISION, rankLabel, rankScalar,
+  isDemotionUnlocked, isMedalGate, isPromotionReady, isUncapped, medalOf, POINTS_PER_DIVISION, rankLabel, rankScalar,
   type RankPosition, type RankResult,
 } from './types';
 
@@ -42,12 +42,29 @@ export function gateText(pos: RankPosition): string {
     : 'Promotion game ready — finish top 4 to advance';
 }
 
+/** The DEMOTION-gate line (owner 2026-09-20): a loss clamped at 0 on a medal floor makes the next rated game a
+ *  demotion game — top 4 stays in the medal, bottom 4 drops to the previous medal's I. */
+export function demotionGateText(pos: RankPosition): string {
+  return `Demotion game — finish top 4 to stay in ${medalOf(pos.divisionIndex)}`;
+}
+
+/** The line a surface prints for a position on EITHER gate (`demotionReady` comes from the profile — a 0 at a
+ *  medal floor alone is ambiguous, since a won promotion also lands on 0). */
+export function standingGateText(pos: RankPosition, demotionReady = false): string | null {
+  if (isPromotionReady(pos)) return gateText(pos);
+  if (demotionReady) return demotionGateText(pos);
+  return null;
+}
+
 /** The primary delta line: the ACTUAL movement, and the floor reading when nothing could be lost. A WON
  *  promotion is the one case that prints the finish's base award instead: the owner's rule lands the new
  *  division at 0 / 100, so the "actual" scalar movement is 0 — and a big "0 RP" over a promotion reads as a
  *  bug, not a rule. The crest transition + new label + 0 / 100 say the rest (owner 2026-09-20). */
 export function deltaText(r: RankResult): string {
   if (r.promoted) return signedRp(r.baseDelta);
+  // A lost demotion game moves a whole medal (Gold III 0 → Silver I 60 is +60 on the scalar): print the
+  // finish's award — the crest transition says the rest.
+  if (r.demoted && r.wasDemotionGame) return signedRp(r.baseDelta);
   const floored = r.appliedDelta === 0 && r.baseDelta < 0 && r.after.divisionIndex === 0 && r.after.points === 0;
   if (floored) return '0 RP · Bronze floor';
   return signedRp(r.appliedDelta);
@@ -57,10 +74,11 @@ export function deltaText(r: RankResult): string {
  *  ("base +40 RP · capped at the gate"). A promotion's reset needs no words — the new bar reads 0 / 100
  *  (owner 2026-09-20). */
 export function cappedDetail(r: RankResult): string | null {
-  if (r.promoted) return null;
+  if (r.promoted || (r.demoted && r.wasDemotionGame)) return null;
   if (r.appliedDelta === r.baseDelta) return null;
   if (r.baseDelta > 0) return `base ${signedRp(r.baseDelta)} · capped at the gate`;
   if (r.after.divisionIndex === 0 && r.after.points === 0) return `base ${signedRp(r.baseDelta)} · Bronze floor`;
+  if (isDemotionUnlocked(r)) return `base ${signedRp(r.baseDelta)} · clamped at the ${medalOf(r.after.divisionIndex)} floor`;
   return `base ${signedRp(r.baseDelta)}`;
 }
 
@@ -71,6 +89,7 @@ export function cappedDetail(r: RankResult): string | null {
 export function outcomeText(r: RankResult): string | null {
   if (r.promoted || r.demoted) return null;
   if (r.promotionUnlocked) return gateText(r.after);
+  if (isDemotionUnlocked(r)) return demotionGateText(r.after);
   if (r.wasPromotionGame && !r.promoted) {
     // Factual (blueprint §7: no punitive spectacle). Still on the gate if the loss was absorbed.
     return isPromotionReady(r.after) ? 'Promotion unsuccessful — still promotion-ready' : 'Promotion unsuccessful';

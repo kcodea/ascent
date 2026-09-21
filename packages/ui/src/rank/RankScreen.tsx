@@ -6,7 +6,7 @@ import { markRankPresented, wasRankPresented } from './presented';
 import { planRankSequence } from './rankSequence';
 import { buildRankTimeline } from './rankTimeline';
 import { beginExitFade } from './exitFade';
-import type { RankPosition, RankResult, RankSubmission } from './types';
+import { isDemotionUnlocked, type RankPosition, type RankResult, type RankSubmission } from './types';
 
 /**
  * THE POST-GAME RANK SCREEN (owner ask 2026-09-20: "the game should dim and the animation plays VICTORY or
@@ -55,6 +55,8 @@ const cues = {
   gate: () => sfx.rankGate(),
   promote: () => sfx.rankPromote(),
   medal: () => sfx.rankMedal(),
+  // The rank-up HIT is the Runeforge lock-in clang (`runeselect.mp3`, owner pick 2026-09-20) — reused, not copied.
+  hit: () => sfx.runeSelect(),
 };
 
 export function RankScreen(props: RankScreenProps): JSX.Element {
@@ -192,6 +194,7 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
             key={settled ? 'after' : 'before'}
             position={shownPos}
             size="xl"
+            layout="screen"
             showGate={false}
             anim={settled ? undefined : anim}
             nextDivisionIndex={!settled && transitions ? result!.after.divisionIndex : undefined}
@@ -201,7 +204,7 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
               <div className={`rankend-delta ${deltaTone}`} ref={deltaRef}>{delta}</div>
               {detail && <div className="rankend-detail" ref={detailRef}>{detail}</div>}
               {outcome && (
-                <div className={`rankend-outcome${result.promoted ? ' promo' : result.demoted ? ' demo' : result.promotionUnlocked ? ' gate' : ''}`} ref={outcomeRef}>
+                <div className={`rankend-outcome${result.promoted ? ' promo' : result.demoted ? ' demo' : result.promotionUnlocked ? ' gate' : isDemotionUnlocked(result) ? ' demogate' : ''}`} ref={outcomeRef}>
                   {outcome}
                 </div>
               )}

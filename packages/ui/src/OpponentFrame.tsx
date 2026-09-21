@@ -42,7 +42,7 @@ export function OpponentFrame() {
             <div className="opp-stats"><span className="opp-stat life"><Icon name="heart" />?</span></div>
           </div>
         </div>
-        <div className="opp-preview"><div className="opp-compline">A wild board — no intel</div></div>
+        <div className="opp-preview"><div className="opp-compline">A wild board. No intel.</div></div>
       </div>
     );
   }

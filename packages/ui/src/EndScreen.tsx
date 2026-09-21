@@ -282,7 +282,7 @@ export function EndScreen({ won }: { won: boolean }) {
               const cal = !practice && isCalibrationRound(i + 1);
               const wave = i + 1;
               const hasBoard = boardsByWave.has(wave);
-              const label = `Round ${wave}: ${r}${cal ? ' (calibration — not scored)' : ''}${hasBoard ? ' · click to view this round’s board' : ''}`;
+              const label = `Round ${wave}: ${r}${cal ? '. Calibration round, not scored' : ''}${hasBoard ? ' · click to view this round’s board' : ''}`;
               const glyph = r === 'win' ? 'W' : r === 'lose' ? 'L' : 'D';
               return hasBoard ? (
                 <button key={i} type="button" className={`endpip ${r}${cal ? ' cal' : ''} clickable${viewWave === wave ? ' active' : ''}`} title={label} onClick={() => setViewWave(viewWave === wave ? null : wave)}>

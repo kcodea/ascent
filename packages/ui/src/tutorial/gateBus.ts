@@ -55,7 +55,7 @@ export function gateBlocks(action: Action, run?: RunState): { blocked: boolean; 
     // A sell can target a board OR hand minion; fall back to hand if not found on the board.
     const resolved = cardId ?? run.hand.find((c) => c.uid === (action as { uid: string }).uid)?.cardId;
     if (resolved !== gate.allowedCardId) {
-      return { blocked: true, reason: 'That is not the highlighted minion — follow the spotlight.' };
+      return { blocked: true, reason: 'That is not the highlighted minion. Follow the spotlight.' };
     }
   }
   return { blocked: false };

@@ -14,7 +14,7 @@ const KINDS: { kind: AvatarArt['kind']; label: string }[] = [
 function nameOf(a: AvatarArt): string {
   if (a.kind === 'minion') return CARD_INDEX[a.key]?.name ?? a.key;
   const name = getHero(a.key).name;
-  return a.kind === 'power' ? `${name} — Power` : name;
+  return a.kind === 'power' ? `${name} (Power)` : name;
 }
 
 /**

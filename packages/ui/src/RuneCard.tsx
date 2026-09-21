@@ -111,7 +111,7 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating }: {
       disabled={!affordable}
       onMouseEnter={hasPreview ? (e) => show(e.currentTarget) : undefined}
       onMouseLeave={hasPreview ? hide : undefined}
-      aria-label={`${rune.name} — buy for ${shownCost} Gold`}
+      aria-label={`${rune.name}: buy for ${shownCost} Gold`}
     >
       {/* `decoding="sync"`: paint the art WITH the card in the same frame, the same reason `Card.tsx` does it.
           This is what the lock-in ceremony's flicker was (owner report 2026-08-31: "there's still a slight
@@ -121,7 +121,7 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating }: {
           precisely at the hand-off, on the card the eye is following. */}
       {art && <img className="runecard-art" src={art} alt="" aria-hidden decoding="sync" />}
       {/* Gold coin cost, overhanging the top-left corner (like a spell's cost). */}
-      <span className={`runecard-cost${discounted ? ' discounted' : ''}`} title={discounted ? `Pivot discount — ${shownCost} Gold (was ${rune.cost})` : `Costs ${shownCost} Gold`}><span className="costn">{shownCost}</span></span>
+      <span className={`runecard-cost${discounted ? ' discounted' : ''}`} title={discounted ? `Pivot discount: ${shownCost} Gold, down from ${rune.cost}` : `Costs ${shownCost} Gold`}><span className="costn">{shownCost}</span></span>
       <span className="runecard-emblem" aria-hidden><Icon name="sc" /></span>
       <div className="runecard-head">
         <div className="runecard-kicker">{rune.epic ? 'Epic Rune' : 'Rune'}</div>
@@ -134,7 +134,7 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating }: {
               className="runecard-nostack"
               title={RUNE_DUP_UNIQUE.has(rune.id)
                 ? 'Rune of Duplication will copy this, but a second copy of this rune has no additional effect.'
-                : 'This rune does not stack — the Duplication copy instead refunds half its cost in Gold plus a free refresh.'}
+                : 'This rune does not stack. The Duplication copy instead refunds half its cost in Gold plus a free refresh.'}
             >
               {RUNE_DUP_UNIQUE.has(rune.id) ? 'Does not stack' : 'Copy refunds'}
             </div>

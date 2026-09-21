@@ -436,6 +436,14 @@ offsets in `styles.css`).
 
 ## Next
 
+- **Apply the owner's writing rule to the engine-side player copy** (rule + the `packages/ui` sweep shipped
+  2026-09-21, see `docs/devlog/2026-09-21-player-text-style.md`): ~35 hero blurbs / power texts in
+  `packages/sim/src/heroes.ts`, ~15 printed card / equipment texts in `packages/content/src`, the Fleeting
+  Vigor ribbon in `packages/sim/src/reducer.ts`, the Learn Ascent course copy in
+  `packages/sim/src/tutorial/learnAscent.ts`. Same house style (short plain sentences, no dash joining
+  clauses), every fact kept, and grow `noEmDashPlayerText.test.ts` with HEROES / ALL_CARDS / LEARN_ASCENT
+  cases in the same PR.
+
 - **Decide: should ALL-TYPES cards appear in every tribe-grant pool?** (raised 2026-08-20) Quillen's Archive
   now counts `universalTribe` cards via the new `defIsTribe`, which is what makes an off-set archive (Undead /
   Mech) pay out at all. But ~10 OTHER def-level pool filters still use the blind `c.tribe === t || c.tribe2

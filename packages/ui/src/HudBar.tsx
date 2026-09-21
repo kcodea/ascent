@@ -52,7 +52,7 @@ export const HudBar = memo(function HudBar() {
                 <span
                   key={round}
                   className={`rd rd-${state}${calib ? ' rd-calib' : ''}${round === CONFIG.calibrationRounds ? ' rd-edge' : ''}`}
-                  title={`Round ${round}${calib ? ' · Setup' : ''} — ${label}`}
+                  title={`Round ${round}${calib ? ' · Setup' : ''}: ${label}`}
                 >
                   {state === 'win' ? '✓' : state === 'lose' ? '✕' : ''}
                 </span>
@@ -67,7 +67,7 @@ export const HudBar = memo(function HudBar() {
             <Icon name="crown" />{wins}–{losses}
           </span>
         )}
-        <span className="lbl line" title={`Your Oath for this run — fulfill it with ${run.line} wins`}>Oath {run.line}</span>
+        <span className="lbl line" title={`Your Oath for this run. Fulfill it with ${run.line} wins.`}>Oath {run.line}</span>
       </div>
       )}
       {/* Run-buffs window — floats top-left just under the round plaque. Absolutely positioned (NOT an in-flow

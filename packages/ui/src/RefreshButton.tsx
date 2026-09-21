@@ -88,10 +88,10 @@ export const RefreshButton = memo(function RefreshButton({
       disabled={disabled || combat}
       onClick={click}
       aria-label={combat
-        ? 'Refresh the shop — unavailable during combat'
+        ? 'Refresh the shop. Unavailable during combat.'
         : cost > 0
           ? `Refresh the shop for ${cost} Gold`
-          : `Refresh the shop (free${freeRolls > 1 ? ` — ${freeRolls} free rolls left` : ''})`}
+          : `Refresh the shop for free${freeRolls > 1 ? `, ${freeRolls} free rolls left` : ''}`}
     >
       {/* Hover halo — BEHIND the art so the button reads clean. */}
       <span className="rfb-glow" aria-hidden="true" />
@@ -121,7 +121,7 @@ export const RefreshButton = memo(function RefreshButton({
         </span>
       )}
       <span className="rfb-tip">
-        {cost > 0 ? `Refresh — ${cost} Gold` : `Refresh — free${freeRolls > 1 ? ` (${freeRolls} left)` : ''}`}
+        {cost > 0 ? `Refresh for ${cost} Gold` : `Refresh for free${freeRolls > 1 ? ` (${freeRolls} left)` : ''}`}
       </span>
     </button>
   );

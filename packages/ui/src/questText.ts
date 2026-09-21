@@ -75,7 +75,7 @@ export function questObjectiveText(o: QuestObjective): string {
     case 'journey':
       // Hero quests (Fi / Coran). Named for the counter AND its three sources, because every hero quest uses
       // this one objective — a player who reads it once never has to read it again.
-      return `Travel ${o.count} steps — play a minion, cast a spell or upgrade`;
+      return `Travel ${o.count} steps. Play a minion, cast a spell or upgrade to travel.`;
     case 'tribeStats':
       return `Give ${o.tribe ? TRIBE_PLURAL[o.tribe] : 'minions'} ${o.count} total stats`;
     default:

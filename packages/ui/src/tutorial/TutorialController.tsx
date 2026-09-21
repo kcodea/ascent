@@ -332,7 +332,7 @@ export function TutorialController(): JSX.Element | null {
     if (current.kind === 'panel') {
       setTutorialGate({ allowedActionKinds: [], reason: 'Read this, then press Continue.' });
     } else {
-      setTutorialGate({ allowedActionKinds: allowedKindsFor(current.step), allowedCardId: allowedCardFor(current.step), reason: 'Follow the highlighted step first — that action comes next.' });
+      setTutorialGate({ allowedActionKinds: allowedKindsFor(current.step), allowedCardId: allowedCardFor(current.step), reason: 'Follow the highlighted step first. That action comes next.' });
     }
     return () => setTutorialGate(null);
   }, [isTutorial, current]);

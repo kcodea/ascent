@@ -113,7 +113,7 @@ export const TavernUpButton = memo(function TavernUpButton({ tier, maxTier, cost
           the tier lives with the button that changes it. Purely a label; pointer-events off so it never eats a
           click meant for the upgrade. */}
       <span className="tvb-tierpill" aria-hidden="true">Tier {tier}</span>
-      <span className="tvb-tip">{combat ? `Shop tier ${tier}` : maxed ? 'Shop at max tier' : `Upgrade Shop — to tier ${tier + 1}`}</span>
+      <span className="tvb-tip">{combat ? `Shop tier ${tier}` : maxed ? 'Shop at max tier' : `Upgrade Shop to tier ${tier + 1}`}</span>
     </button>
   );
 });

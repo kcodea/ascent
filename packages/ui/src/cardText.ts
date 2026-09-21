@@ -488,7 +488,7 @@ export function packLeaderText(cardId: string, summonBonus: number, golden: bool
   const mult = golden ? 2 : 1;
   const x = summonBonus * mult; // total grant right now (tally already holds `step` per Beast)
   const per = step * mult; // per-Beast rate, golden-aware
-  return `**Start of Combat:** Give your **Beasts** {{+${x}/+${x}}} — **+${per}/+${per}** per **Beast** played while on the board.`;
+  return `**Start of Combat:** Give your **Beasts** {{+${x}/+${x}}}, **+${per}/+${per}** per **Beast** played while on the board.`;
 }
 
 /**
@@ -645,7 +645,7 @@ export function guelProgressText(cardId: string, golden: boolean, spellProgress:
   const cur = (base + Math.floor(spellProgress / 4)) * mult; // the current grant size
   const per = base * mult; // the per-4-spells improvement size (golden ×2)
   const toNext = 4 - (spellProgress % 4); // on-board spells until the next step
-  return `After a spell is cast (shop or combat), give ${count} other friendly minions {{+${cur}/+${cur}}} (improves **+${per}/+${per}** per 4 spells with this on board — {{${toNext} to go}}).`;
+  return `After a spell is cast (shop or combat), give ${count} other friendly minions {{+${cur}/+${cur}}}. Improves by **+${per}/+${per}** per 4 spells with this on board, {{${toNext} to go}}.`;
 }
 
 /**
@@ -689,7 +689,7 @@ export function monkProgressText(cardId: string, golden: boolean, summonBonus: n
   const cur = base * (1 + Math.floor(summonBonus / every)) * mult + overflowBonus;
   const per = base * mult; // the per-step improvement size (golden ×2)
   const toNext = every - (summonBonus % every); // overflows until the next step
-  return `**Overflow:** Engrave ${count} friendly minions {{+${cur}/+${cur}}} (kept after combat). Improves **+${per}/+${per}** every ${every} overflows — {{${toNext} to go}}.`;
+  return `**Overflow:** Engrave ${count} friendly minions {{+${cur}/+${cur}}}, kept after combat. Improves by **+${per}/+${per}** every ${every} overflows, {{${toNext} to go}}.`;
 }
 
 /**
@@ -904,28 +904,28 @@ export function copyCastSpellText(cardId: string, golden: boolean, names: {
   if (cardId === 'd2_recaller' && names.lastThisTurn) {
     const n = `{{${names.lastThisTurn}}}`;
     return golden
-      ? `**Shout:** get **2** copies of ${n} — the last **Shop spell** you cast this turn.`
-      : `**Shout:** get a copy of ${n} — the last **Shop spell** you cast this turn.`;
+      ? `**Shout:** get **2** copies of ${n}, the last **Shop spell** you cast this turn.`
+      : `**Shout:** get a copy of ${n}, the last **Shop spell** you cast this turn.`;
   }
   if (cardId === 'd2_runefire' && names.lastThisTurn) {
     const n = `{{${names.lastThisTurn}}}`;
     return golden
-      ? `**End of Turn:** cast ${n} — the last **Shop spell** you cast this turn — **2 additional** times.`
-      : `**End of Turn:** cast ${n} — the last **Shop spell** you cast this turn — again.`;
+      ? `**End of Turn:** cast ${n}, the last **Shop spell** you cast this turn, **2 additional** times.`
+      : `**End of Turn:** cast ${n}, the last **Shop spell** you cast this turn, again.`;
   }
   if (cardId === 'd2_spellvault' && names.firstThisTurn) {
     const n = `{{${names.firstThisTurn}}}`;
     return golden
-      ? `**End of Turn:** get **2** copies of ${n} — the first **Shop spell** you cast this turn.`
-      : `**End of Turn:** get a copy of ${n} — the first **Shop spell** you cast this turn.`;
+      ? `**End of Turn:** get **2** copies of ${n}, the first **Shop spell** you cast this turn.`
+      : `**End of Turn:** get a copy of ${n}, the first **Shop spell** you cast this turn.`;
   }
   // Comet Conductor (owner 2026-09-11: "needs to reference the spell it is going to grant, like Steward of
   // Spells"): the Rally copies the turn's FIRST spell, which the run remembers and combat carries per side.
   if (cardId === 'ce3_conductor' && names.firstThisTurn) {
     const n = `{{${names.firstThisTurn}}}`;
     return golden
-      ? `**Rally:** get **2** copies of ${n} — the first **Shop spell** you cast this turn.`
-      : `**Rally:** get a copy of ${n} — the first **Shop spell** you cast this turn.`;
+      ? `**Rally:** get **2** copies of ${n}, the first **Shop spell** you cast this turn.`
+      : `**Rally:** get a copy of ${n}, the first **Shop spell** you cast this turn.`;
   }
   if (cardId === 'd2_spellkeeper' && names.keeperFirst) {
     const n = `{{${names.keeperFirst}}}`;
@@ -1301,7 +1301,7 @@ export function taughtSpellText(cardId: string, taughtSpellId: string | undefine
   if (!spell?.spell) return null;
   // Name the spell as well as its rule: the name is how the player recognises what they bought, and the rule
   // is what it does. Mirrors how the shop reads a spell.
-  return `**Shout:** cast **${spell.name}** — ${spellText}`;
+  return `**Shout:** cast **${spell.name}**. ${spellText}`;
 }
 
 /**

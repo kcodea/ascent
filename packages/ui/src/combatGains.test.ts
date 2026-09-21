@@ -29,10 +29,10 @@ describe('combatGains (A4 post-combat summary)', () => {
       ],
     };
     const g = combatGains(r);
-    expect(g[0]).toBe('Your spells gain +2/+0 — permanent'); // spell power leads
+    expect(g[0]).toBe('Your spells permanently gain +2/+0'); // spell power leads
     expect(g).toContain('Maximum Gold +1');
-    expect(g).toContain('Your Undead gain +3 Attack — permanent');
-    expect(g).toContain('Your Imps gain +2/+3 — permanent');
+    expect(g).toContain('Your Undead permanently gain +3 Attack');
+    expect(g).toContain('Your Imps permanently gain +2/+3');
     expect(g).toContain('Kept combat stats +4/+3 across 2 minions'); // engraved aggregated
     expect(g).toContain('2 Fodders added to your next tavern');
     expect(g).toContain('1 free reroll banked'); // singular

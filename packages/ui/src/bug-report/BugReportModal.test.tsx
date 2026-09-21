@@ -127,7 +127,7 @@ describe('BugReportModal', () => {
     const el = mount();
     expect(useGame.getState().bugReportDraft!.capsule.phase).toBe('menu');
     expect(el.querySelector('.bgrbadge')?.textContent).toBe('MENU');
-    expect(el.textContent).toContain('No run active — this report carries your description and build info.');
+    expect(el.textContent).toContain('No run active. This report carries your description and build info.');
     expect(el.textContent).toContain('Main menu');
     expect(el.textContent).not.toContain('Round 0');
     expect(el.textContent).not.toContain('Current turn and latest combat log attached');

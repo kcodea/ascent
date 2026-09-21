@@ -1,4 +1,4 @@
-import type { Tribe } from '@game/core';
+import { damageMeterOf, damageMeterReading, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 
 /** Effect `do` names that summon a fresh Imp (the `impscrap` token) — the gate for the live "(X/Y)" Imp-stat
@@ -1173,13 +1173,15 @@ export function stepProgress(
   }
 
   if (def.effects.some((e) => e.do === 'spellCastBuffOthers')) return cyc(p.spellProgress ?? 0, 4); // Guel
-  // Han Gover: the DAMAGE meter ("when this deals 40 damage, get an Ale") — the running per-instance tally,
-  // Avenge-style (1..40 then wrap; 40/40 is the hit that paid out). Persists across combats, so the shop shows
-  // where the meter stands and combat continues from it. Tracker, not a fraction in the text (owner 2026-09-11).
+  // Han Gover: the DAMAGE meter ("when this deals 40 damage, get an Ale") — the running per-instance tally.
+  // Persists across combats, so the shop shows where the meter stands and combat continues from it. Tracker, not
+  // a fraction in the text (owner 2026-09-11). The READING is core's `damageMeterReading` (owner rule 2026-09-19):
+  // progress toward the NEXT crossing (`total mod 40` — 47 reads 7/40, a crossing lands on 0/40), and a
+  // once-per-combat meter (Goldvein, 6) clamps at 6/6 for the rest of the fight, then resets to 0/6 in the shop.
   // Han Gover (40) + Goldvein (6): the `DAMAGE_METER_DOS` family, spelled out as literals here so the rendered-text
   // lanes (which scrape `e.do === '…'` from this file) list both bodies as subjects.
   const dmgMeter = def.effects.find((e) => e.do === 'dealtDamageAleMeter' || e.do === 'dealtDamageGoldNextTurn');
-  if (dmgMeter) return cyc(p.damageDealt ?? 0, Math.max(1, n((dmgMeter.params as { every?: number })?.every, 40)));
+  if (dmgMeter) return damageMeterReading(p.damageDealt ?? 0, damageMeterOf(def)!);
   // Astral Spellcore: every N Shop spells cast while on the board — the same per-copy `spellProgress` meter as
   // Guel, counting up; Avenge-style N/3 (owner 2026-09-11: the counter, never the text). Keyed on the effect's
   // SHAPE (a `spellCast` watcher with an `every` cadence and a `tribe` payout) rather than its factory id on

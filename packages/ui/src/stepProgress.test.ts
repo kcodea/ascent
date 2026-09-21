@@ -8,11 +8,19 @@ describe('stepProgress', () => {
     expect(stepProgress('guel', { spellProgress: 4 })).toEqual({ current: 4, total: 4 });
     expect(stepProgress('guel', { spellProgress: 5 })).toEqual({ current: 1, total: 4 });
   });
-  it('Han Gover: the persistent damage meter counts 1..40 then wraps (the Avenge-style tracker, owner 2026-09-11)', () => {
+  it('Han Gover: the persistent damage meter shows progress toward the NEXT crossing — total mod 40 (owner rule 2026-09-19)', () => {
     expect(stepProgress('dw3_hangover', {})).toEqual({ current: 0, total: 40 });
     expect(stepProgress('dw3_hangover', { damageDealt: 27 })).toEqual({ current: 27, total: 40 });
-    expect(stepProgress('dw3_hangover', { damageDealt: 40 }), 'the hit that paid out').toEqual({ current: 40, total: 40 });
+    expect(stepProgress('dw3_hangover', { damageDealt: 40 }), 'the crossing resets the badge').toEqual({ current: 0, total: 40 });
     expect(stepProgress('dw3_hangover', { damageDealt: 43 }), 'carried into the next combat').toEqual({ current: 3, total: 40 });
+    expect(stepProgress('dw3_hangover', { damageDealt: 47 }), 'never a cumulative 47/40').toEqual({ current: 7, total: 40 });
+    expect(stepProgress('dw3_hangover', { damageDealt: 80 })).toEqual({ current: 0, total: 40 });
+  });
+  it('Goldvein: the once-per-combat meter counts up and clamps at 6/6 for the rest of the fight; the shop reads 0/6 after the reset', () => {
+    expect(stepProgress('k3_goldvein', {}), 'fresh (and the shop after any combat — the sim carries back 0)').toEqual({ current: 0, total: 6 });
+    expect(stepProgress('k3_goldvein', { damageDealt: 4 })).toEqual({ current: 4, total: 6 });
+    expect(stepProgress('k3_goldvein', { damageDealt: 6 }), 'fired — cannot fire again this fight').toEqual({ current: 6, total: 6 });
+    expect(stepProgress('k3_goldvein', { damageDealt: 13 }), 'still 6/6, never a second lap').toEqual({ current: 6, total: 6 });
   });
   it('Spirit Pup clamps up to its one-time transform threshold', () => {
     const sp = stepProgress('spiritpup', { spellProgress: 3 });

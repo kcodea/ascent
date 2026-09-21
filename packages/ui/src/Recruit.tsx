@@ -6951,6 +6951,7 @@ const TavernRow = memo(function TavernRow({
                 rallyPulse={replay.rallyPulseUids.get(u.uid)}
                 watcherPulse={replay.watcherPulseUids.get(u.uid)}
                 framePulse={replay.framePulseUids.get(u.uid)}
+                holdStep={replay.done}
               />
             ))
           ) : sbEnemyShown ? (
@@ -7084,6 +7085,7 @@ const WarbandRow = memo(function WarbandRow({
                 rallyPulse={replay.rallyPulseUids.get(u.uid)}
                 watcherPulse={replay.watcherPulseUids.get(u.uid)}
                 framePulse={replay.framePulseUids.get(u.uid)}
+                holdStep={replay.done}
               />
             ))
           ) : (

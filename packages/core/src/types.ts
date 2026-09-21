@@ -6,11 +6,51 @@ import type { CombatBus } from './events';
 export const ALE_IDS: readonly string[] = ['wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack'];
 
 /** The DAMAGE-DEALT meter family ("When this deals N damage, …"): passive markers the combat damage site reads
- *  (`noteDamageDealt` in simulate.ts) — one per-instance `damageDealt` tally that persists across combats, paid
- *  out by the marker's own body every time it crosses a multiple of `params.every`. Han Gover pays Ales;
- *  Goldvein (2026-09-19) banks Gold for next turn, once per combat. Every consumer of the tally (carry-back, the
- *  step-counter badge, snapshots) keys off THIS set, not a single factory id. */
-export const DAMAGE_METER_DOS: readonly string[] = ['dealtDamageAleMeter', 'dealtDamageGoldNextTurn'];
+ *  (`noteDamageDealt` in simulate.ts) — one per-instance `damageDealt` tally, paid out by the marker's own body
+ *  every time it crosses a multiple of `params.every`. Han Gover pays Ales; Goldvein (2026-09-19) banks Gold for
+ *  next turn, once per combat. Every consumer of the tally (carry-back, the step-counter badge, snapshots) keys
+ *  off THIS registry, not a single factory id.
+ *
+ *  `resetEachCombat` is the marker's RIDER made data (owner report 2026-09-19 — Goldvein reading "6/6" in the
+ *  shop after the combat it fired in: *"it should show 0/6 since the trigger should reset if it hits 6/6, after
+ *  combat"*). A "(Once per combat)" body starts every fight at 0 — the latch AND the progress — so the shop
+ *  reads 0/N after ANY combat (the tally is not seeded into the fight and carries back as 0). A persistent
+ *  body (Han Gover's "(Max 2 per hit)" is not once-per-combat) keeps its lifetime tally across combats exactly
+ *  as before. The rule lives HERE, in the meter definition, so the sim's seed / carry-back and both text chains
+ *  read one flag instead of each deciding for itself. */
+export interface DamageMeterMarker {
+  /** The meter starts fresh every combat (progress + latch) and carries back as 0. */
+  resetEachCombat: boolean;
+}
+export const DAMAGE_METER_MARKERS: Readonly<Record<string, DamageMeterMarker>> = {
+  dealtDamageAleMeter: { resetEachCombat: false },   // Han Gover — a lifetime tally, every 40 pays
+  dealtDamageGoldNextTurn: { resetEachCombat: true }, // Goldvein — "(Once per combat)": fresh each fight
+};
+export const DAMAGE_METER_DOS: readonly string[] = Object.keys(DAMAGE_METER_MARKERS);
+
+/** The damage meter a card carries (its marker effect + threshold + reset rule), or null for every other card. */
+export interface DamageMeter extends DamageMeterMarker {
+  do: string;
+  /** The threshold — `params.every` (40 for Han Gover, 6 for Goldvein). Always ≥ 1. */
+  every: number;
+}
+export function damageMeterOf(def: { effects?: readonly { on?: string; do: string; params?: Record<string, unknown> }[] } | undefined): DamageMeter | null {
+  const eff = def?.effects?.find((e) => e.on === 'passive' && DAMAGE_METER_DOS.includes(e.do));
+  if (!eff) return null;
+  const every = eff.params?.every;
+  return { do: eff.do, every: Math.max(1, typeof every === 'number' ? every : 40), ...DAMAGE_METER_MARKERS[eff.do]! };
+}
+
+/** What the step-counter badge PRINTS for a damage meter, from the raw tally — ONE formula for the shop
+ *  (`instView` → `stepProgress`) and combat (`Unit.tsx`), so the two surfaces can never disagree:
+ *   · a persistent meter shows progress toward its NEXT crossing — `total mod every` — so Han Gover at 47 reads
+ *     7/40 and a crossing lands on 0/40 (owner rule 2026-09-19), never a cumulative 47/40;
+ *   · a once-per-combat meter counts up and CLAMPS at `every` for the rest of the fight — it fired, and it cannot
+ *     fire again, so 6/6 is the honest reading in combat; the reset at combat end takes it back to 0/6 in the shop. */
+export function damageMeterReading(total: number, meter: DamageMeter): { current: number; total: number } {
+  const t = Math.max(0, total);
+  return { current: meter.resetEachCombat ? Math.min(t, meter.every) : t % meter.every, total: meter.every };
+}
 
 export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral' | 'kobold' | 'dwarf' | 'celestial' | 'spirit'; // 'spirit' + 'celestial': set 3's new tribes (owner 2026-09-09)
 /** Every tribe, as a list — complete BY CONSTRUCTION (the `Record<Tribe, true>` fails to compile when a tribe is
@@ -845,7 +885,7 @@ export type EffectFactoryId =
   // ── Set 3 Neutrals, owner handoff 2026-09-19 ──
   | 'onDamagedReflectRandomEnemies' // Yeti: the FIRST time this takes damage each combat, deal that amount to N distinct random enemies (combat)
   // ── Set 3 Kobolds, owner handoff 2026-09-19 ──
-  | 'dealtDamageGoldNextTurn'; // Goldvein: "When this deals N damage, gain G Gold next turn. (Once per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body (`grantBonusGold`), latched once per combat on the instance (`goldMeterFired`); gilded doubles G (combat)
+  | 'dealtDamageGoldNextTurn'; // Goldvein: "When this deals N damage, gain G Gold next turn. (Once per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body (`grantBonusGold`), latched once per combat on the instance (`goldMeterFired`); the meter RESETS each combat (`DAMAGE_METER_MARKERS.resetEachCombat` — not seeded, carries back 0); gilded doubles G (combat)
 
 export interface EffectDef {
   on: GameEvent;
@@ -2911,7 +2951,8 @@ export interface CombatResult {
   playerAscendCount?: { sourceUid: string; count: number }[];
   /** Han Gover's running "damage this minion has dealt" tally after this combat, per board card uid — the seeded
    *  value plus everything it dealt this fight (attacks, retaliation, incidental). Persisted to the run board so
-   *  the meter survives combat → shop → combat. */
+   *  the meter survives combat → shop → combat. A once-per-combat meter (Goldvein — `DAMAGE_METER_MARKERS`
+   *  `resetEachCombat`) reports `total: 0` instead, which the settle turns into a CLEARED run card (0/N). */
   playerDamageMeters?: { sourceUid: string; total: number }[];
   /** Permanent stats a minion keeps from this combat, keyed by the recipient's board card uid — applied
    *  to the run board after combat, win or lose. Two sources: Flowing Monk's overflow gift (`engraved:

@@ -80,6 +80,10 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'UI / Info',
         text: "A minion whose Attack or Health reaches the top milestone (5000) gains a glowing effect on that badge — in the shop, your warband and combat alike. It stays lit for the rest of that minion's life, even if the stat later drops.",
       },
+      {
+        category: 'UI / Info',
+        text: 'The top-milestone Attack and Health badge effects have a refreshed look.',
+      },
     ],
   },
   {
@@ -94,13 +98,38 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-19',
+    label: 'Damage meters: reset + live counter',
+    changes: [
+      {
+        category: 'Card Change',
+        text: "Goldvein's damage meter now resets after every combat: it reads 0/6 in the shop instead of sitting at 6/6 once it has fired.",
+        details: [
+          "Once per combat means the meter starts every fight fresh — progress and the payout both. Damage it dealt in an earlier fight no longer counts toward the next one.",
+          'In combat the counter climbs with each hit and stops at 6/6 once the Gold is banked; it does not lap around to promise a second payout.',
+        ],
+      },
+      {
+        category: 'UI / Info',
+        text: "Damage-meter counters (Goldvein, Han Gover) show progress toward the NEXT payout — Han Gover at 47 damage reads 7/40, not 47/40 — and a payout lands on 0.",
+      },
+      {
+        category: 'UI / Info',
+        text: "Damage-meter counters tick in real time in combat as each hit lands, including the blow that ends the fight, and the final reading stays on the card through the end of combat.",
+        details: [
+          "Goldvein's counter did not move in combat at all before this; only Han Gover's did.",
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-19',
     label: 'Overflow keyword, Yeti, Goldvein, Han Gover cap',
     changes: [
       {
         category: 'New Card',
         text: 'Goldvein joins the Kobolds: a Tier 1 2/3 that banks 3 Gold for next turn the first time it has dealt 6 damage in a combat.',
         details: [
-          "Its damage meter works like Han Gover's: every landed hit it deals counts, and the total carries from fight to fight. When it crosses a multiple of 6, you gain 3 Gold next turn — on top of the Gold cap.",
+          "Its damage meter works like Han Gover's: every landed hit it deals counts. When it reaches 6, you gain 3 Gold next turn — on top of the Gold cap. (Unlike Han Gover's, the meter resets after every combat — see the follow-up patch.)",
           'Once per combat: a second crossing in the same fight pays nothing, and a Goldvein that Rises does not get a second payout. The next fight re-arms it.',
           'Gilded: 6 Gold, still once per combat.',
         ],

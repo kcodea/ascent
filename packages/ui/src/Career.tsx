@@ -15,8 +15,8 @@ import { RankBar } from './rank/RankBar';
 import { scalarCaption } from './rank/rankFormat';
 import { rankPositionOf } from './rank/types';
 import {
-  TREND_WINDOWS, TRIBE_LABEL, careerAggregates, heroCareers, ordinalOf, outcomeOf, playedOnText, polylineOf, runLengthText, trendSeries,
-  type CareerRun, type HeroCareer, type TrendSeries, type TrendWindow,
+  TREND_WINDOWS, TRIBE_LABEL, careerAggregates, heroCareers, matchResultOf, ordinalOf, outcomeOf, playedOnText, polylineOf, runLengthText,
+  trendSeries, type CareerRun, type HeroCareer, type TrendSeries, type TrendWindow,
 } from './careerData';
 
 /**
@@ -29,19 +29,26 @@ import {
  *  CENTRE  two tabs in the column header (MATCH HISTORY | HEROES, the choice persisted per browser):
  *          Match History — the account's last 25 runs FROM THE SERVER (`fetchMyRuns`; never local-only runs),
  *          each a TALL BANNER that reads top to bottom (owner 2026-09-20: "chunky and fully readable"):
- *            head   hero portrait + name + W–L record ‖ the outcome block (VICTORY / placement, date · length · Gold)
+ *            head   hero portrait + name + the MATCH result (WIN / LOSS — by placement, see below; the fight
+ *                   record only as a small caption) ‖ the outcome block (VICTORY / placement, date · length · Gold)
  *            team   the final team as 7 full-size card tiles (the real `Card`, sized like the leaderboard's; no
  *                   label — it collided with the gilded crown / tier stars, owner 2026-09-20)
  *            foot   the run's rune selections as emblems + names (hover = the rune's text) ‖ ONE button,
  *                   WATCH REPLAY, live only when a telemetry replay exists.
  *          Heroes — every hero the account has played (folded over ALL the fetched runs, not just the 25
- *          banners): portrait + name, runs, 1st-place wins, the total fight record + win rate, avg / best
- *          placement, last played — sorted by runs played (owner ask 2026-09-20).
+ *          banners) as a PORTRAIT GRID (owner 2026-09-20): each hero in the game's circular frame with its name
+ *          and "N games played", sorted by games played then win rate; hovering / focusing a portrait floats a
+ *          styled panel beside it (portalled, never clipped) with the match W–L + win rate, avg placement, and
+ *          1st-place wins / best placement / last played as secondary lines. No per-hero rows.
  *          Only this column scrolls; the side columns stay put. All three columns share one header row
  *          (`.cv2-colhead`), so their panels start level.
  *  RIGHT   Seasonal Ranked — the account's MMR as a bare number (the server-synced profile rating; no delta,
- *          no divisions) — and Performance Trends: Avg Placement · Fight Win Rate · Avg APM as inline-SVG
- *          lines over a 7 / 30 / 90-day window.
+ *          no divisions) — and Performance Trends: Avg Placement · Win Rate · Avg APM as inline-SVG lines over
+ *          a 7 / 30 / 90-day window.
+ *
+ * A MATCH WIN IS BY PLACEMENT (owner ruling 2026-09-20): top 4 = W, 5th–8th = L (`isMatchWin`). Fights are no
+ * longer the unit anywhere on this page — the banner's result, the Heroes grid's record + win rate and the Win
+ * Rate trend (the share of placed runs finishing top 4) all read this way.
  *
  * Every number comes from `careerData.ts` (pure, tested). The fetch is cached on the store so reopening
  * paints at once and refreshes behind; a finished run or a career reset bumps `careerVersion` and refetches.
@@ -224,11 +231,13 @@ function MatchRow({ run, focus, busy, unplayable, onWatch }: {
   run: CareerRun; focus: boolean; busy: boolean; unplayable: boolean; onWatch: () => void;
 }) {
   const o = outcomeOf(run.placement);
+  const result = matchResultOf(run.placement);
   const when = playedOnText(run.atMs);
   const length = runLengthText(run.durationMs);
   const watchable = run.replayRowId !== null;
   const hasBoard = !!run.board && run.board.minions.length > 0;
   const runes = run.runes.filter((id) => RUNE_INDEX[id]);
+  const fights = run.wins + run.losses + run.draws;
   return (
     <article className={`cv2-row ${o.cls}${focus ? ' focus' : ''}`} aria-label={`${run.heroId ? getHero(run.heroId).name : 'Run'} — ${o.label}`}>
       <header className="cv2-row-head">
@@ -236,11 +245,16 @@ function MatchRow({ run, focus, busy, unplayable, onWatch }: {
           <HeroFrame heroId={run.heroId} small />
           <div className="cv2-row-heroid">
             <div className="cv2-row-heroname">{run.heroId ? getHero(run.heroId).name : '—'}</div>
-            <div className={`cv2-row-record ${run.wins >= run.losses ? 'won' : 'lost'}`} aria-label={`${run.wins} wins, ${run.losses} losses`}>
-              <span className="cv2-row-record-n">{run.wins}</span><span className="cv2-row-record-l">W</span>
-              <span className="cv2-row-record-sep">–</span>
-              <span className="cv2-row-record-n">{run.losses}</span><span className="cv2-row-record-l">L</span>
+            {/* The MATCH result — by placement (top 4 = WIN, 5th–8th = LOSS; owner 2026-09-20). The fight
+                record is only a small caption beneath it, and only when the run recorded any fights. */}
+            <div className={`cv2-row-result ${result.cls}`} aria-label={result.cls === 'none' ? 'No placement recorded' : `Match ${result.label.toLowerCase()}`}>
+              {result.label}
             </div>
+            {fights > 0 && (
+              <div className="cv2-row-fights" aria-label={`Fights: ${run.wins} won, ${run.losses} lost`}>
+                Fights {run.wins}–{run.losses}
+              </div>
+            )}
           </div>
         </div>
         <div className="cv2-row-outcome">
@@ -281,47 +295,88 @@ function MatchRow({ run, focus, busy, unplayable, onWatch }: {
   );
 }
 
-/** One hero's line on the Heroes tab — the same visual language as a match banner's head, plus the stat cells. */
-function HeroRow({ h }: { h: HeroCareer }) {
+/** The hero panel's footprint (px) — used to seat it beside the portrait and keep it on screen. The height is
+ *  the measured render (the content is fixed: a name, two headline rows, three secondary lines). */
+const HERO_TIP_W = 250, HERO_TIP_H = 208;
+
+/** One hero on the Heroes tab (owner 2026-09-20): the portrait in the game's circular frame, the name and
+ *  "N games played". Hovering — or tabbing onto it — floats the hero's career in a styled panel BESIDE the
+ *  portrait (to its right; flipped to the left near the screen edge; vertically centred on the tile and clamped
+ *  to the viewport), portalled to <body> so the scrolling grid never clips it. Never a native `title`. */
+function HeroTile({ h }: { h: HeroCareer }) {
   const name = getHero(h.heroId).name;
+  const [tip, setTip] = useState<{ left: number; top: number; side: 'right' | 'left' } | null>(null);
+  const timer = useRef<number | null>(null);
+  const tipId = `cv2-herotip-${h.heroId}`;
+  useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
+  const place = (el: HTMLElement): void => {
+    // One layout read per show (never per frame).
+    const r = el.getBoundingClientRect();
+    const gap = 12;
+    const fitsRight = r.right + gap + HERO_TIP_W + 8 <= window.innerWidth;
+    const side: 'right' | 'left' = fitsRight ? 'right' : 'left';
+    const left = fitsRight ? r.right + gap : Math.max(8, r.left - gap - HERO_TIP_W);
+    const top = Math.max(8, Math.min(window.innerHeight - HERO_TIP_H - 8, r.top + r.height / 2 - HERO_TIP_H / 2));
+    setTip({ left, top, side });
+  };
+  const show = (el: HTMLElement, delay: number): void => {
+    if (timer.current) window.clearTimeout(timer.current);
+    if (delay <= 0) { place(el); return; }
+    timer.current = window.setTimeout(() => { timer.current = null; place(el); }, delay);
+  };
+  const hide = (): void => {
+    if (timer.current) { window.clearTimeout(timer.current); timer.current = null; }
+    setTip(null);
+  };
+  const games = `${h.runs} game${h.runs === 1 ? '' : 's'} played`;
   const last = playedOnText(h.lastAtMs);
+  const best = h.bestPlacement === null ? null : outcomeOf(h.bestPlacement);
   return (
-    <article className="cv2-hrow" aria-label={`${name} — ${h.runs} run${h.runs === 1 ? '' : 's'}`}>
-      <div className="cv2-row-hero">
-        <HeroFrame heroId={h.heroId} small />
-        <div className="cv2-row-heroid">
-          <div className="cv2-row-heroname">{name}</div>
-          <div className="cv2-hrow-runs">{h.runs} run{h.runs === 1 ? '' : 's'}</div>
-        </div>
-      </div>
-      <div className="cv2-hrow-stats">
-        <div className="cv2-hcell">
-          <span className="cv2-meta-l">1st Place Wins</span>
-          <span className={`cv2-hcell-v${h.firsts > 0 ? ' won' : ''}`}>{h.firsts}</span>
-        </div>
-        <div className="cv2-hcell wide">
-          <span className="cv2-meta-l">Fight Record</span>
-          <span className="cv2-hcell-v cv2-hrow-record" aria-label={`${h.wins} wins, ${h.losses} losses`}>
-            <span className="cv2-row-record-n">{h.wins}</span><span className="cv2-row-record-l">W</span>
-            <span className="cv2-row-record-sep">–</span>
-            <span className="cv2-row-record-n">{h.losses}</span><span className="cv2-row-record-l">L</span>
-          </span>
-          <span className="cv2-hrow-rate">{h.winRate === null ? 'No fights' : `${h.winRate}% win rate`}</span>
-        </div>
-        <div className="cv2-hcell">
-          <span className="cv2-meta-l">Avg Placement</span>
-          <span className="cv2-hcell-v">{h.avgPlacement === null ? '—' : h.avgPlacement}</span>
-        </div>
-        <div className="cv2-hcell">
-          <span className="cv2-meta-l">Best</span>
-          <span className={`cv2-hcell-v ${h.bestPlacement === null ? '' : outcomeOf(h.bestPlacement).cls}`}>{h.bestPlacement === null ? '—' : ordinalOf(h.bestPlacement)}</span>
-        </div>
-        <div className="cv2-hcell">
-          <span className="cv2-meta-l">Last Played</span>
-          <span className="cv2-hcell-v small">{last || '—'}</span>
-        </div>
-      </div>
-    </article>
+    <div
+      className="cv2-hcard"
+      tabIndex={0}
+      aria-label={`${name} — ${games}`}
+      aria-describedby={tip ? tipId : undefined}
+      onMouseEnter={(e) => show(e.currentTarget, 160)}
+      onMouseLeave={hide}
+      onFocus={(e) => show(e.currentTarget, 0)}
+      onBlur={hide}
+    >
+      <HeroFrame heroId={h.heroId} />
+      <div className="cv2-hcard-name">{name}</div>
+      <div className="cv2-hcard-games">{games}</div>
+      {tip && createPortal(
+        <div id={tipId} className={`cv2-herotip ${tip.side}`} role="tooltip" style={{ left: tip.left, top: tip.top }}>
+          <div className="cv2-herotip-name">{name}</div>
+          <div className="cv2-herotip-row">
+            <span className="cv2-herotip-l">Record</span>
+            <span className="cv2-herotip-record" aria-label={`${h.wins} wins, ${h.losses} losses`}>
+              <span className="cv2-herotip-n win">{h.wins}</span><span className="cv2-herotip-wl">W</span>
+              <span className="cv2-herotip-sep">–</span>
+              <span className="cv2-herotip-n loss">{h.losses}</span><span className="cv2-herotip-wl">L</span>
+            </span>
+            <span className="cv2-herotip-rate">{h.winRate === null ? '—' : `${h.winRate}%`}</span>
+          </div>
+          <div className="cv2-herotip-row">
+            <span className="cv2-herotip-l">Avg Placement</span>
+            <span className="cv2-herotip-v">{h.avgPlacement === null ? '—' : h.avgPlacement}</span>
+          </div>
+          <div className="cv2-herotip-sub">
+            <span className="cv2-herotip-l">1st Place Wins</span>
+            <span className={`cv2-herotip-sv${h.firsts > 0 ? ' won' : ''}`}>{h.firsts}</span>
+          </div>
+          <div className="cv2-herotip-sub">
+            <span className="cv2-herotip-l">Best Placement</span>
+            <span className={`cv2-herotip-sv${best ? ` ${best.cls}` : ''}`}>{best ? ordinalOf(h.bestPlacement!) : '—'}</span>
+          </div>
+          <div className="cv2-herotip-sub">
+            <span className="cv2-herotip-l">Last Played</span>
+            <span className="cv2-herotip-sv">{last || '—'}</span>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </div>
   );
 }
 
@@ -470,10 +525,14 @@ export function Career() {
               {heroes.length === 0 ? (
                 <div className="cv2-panel cv2-none">
                   <div className="cv2-state-ico"><Icon name="taunt" /></div>
-                  <div className="cv2-state-title">No heroes yet</div>
+                  <div className="cv2-state-title">No games played yet</div>
                   <div className="cv2-state-body">{viewing ? `${shownName} hasn’t finished a lobby run yet.` : 'Every hero you finish a lobby run with is tallied here.'}</div>
                 </div>
-              ) : heroes.map((h) => <HeroRow key={h.heroId} h={h} />)}
+              ) : (
+                <div className="cv2-herogrid" aria-label="Heroes played">
+                  {heroes.map((h) => <HeroTile key={h.heroId} h={h} />)}
+                </div>
+              )}
             </div>
           ) : (
             <div className="cv2-list" role="tabpanel">
@@ -528,7 +587,7 @@ export function Career() {
               </div>
             </div>
             <TrendChart title="Avg Placement" series={trends.placement} yMin={1} yMax={8} invert empty="No placements in this window" />
-            <TrendChart title="Fight Win Rate" series={trends.winRate} yMin={0} yMax={100} unit="%" empty="No fights in this window" />
+            <TrendChart title="Win Rate" series={trends.winRate} yMin={0} yMax={100} unit="%" empty="No placed runs in this window" />
             <TrendChart title="Avg APM" series={trends.apm} yMin={0} yMax={apmAxisMax(trends.apm)} empty="No replays with a clock in this window" />
           </div>
         </aside>

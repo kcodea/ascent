@@ -56,6 +56,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-21',
+    label: 'Damage-threshold trigger effect',
+    changes: [
+      { category: 'UI / Info', text: "Goldvein and Han Gover now flash and pulse on the card when their damage threshold triggers." },
+    ],
+  },
+  {
+    date: '2026-09-21',
     label: 'Leaderboard crests',
     changes: [
       { category: 'UI / Info', text: 'Leaderboard: rank crests are now the size of the placement medallions, with a readable division plate.' },

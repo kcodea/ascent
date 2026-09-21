@@ -23,9 +23,13 @@ import type { CombatEvent } from '@game/core';
  */
 
 /** Result events — the "impact" of an action. A contiguous run becomes one beat. `keyword` rides here so a
- *  grant fired mid-death-cascade (Mumi's Rise) never splits the impact run (the dmg/death beat). */
+ *  grant fired mid-death-cascade (Mumi's Rise) never splits the impact run (the dmg/death beat).
+ *  `payloadTrigger` (2026-09-21) rides here for the same reason: a damage-meter crossing (Han Gover, Goldvein)
+ *  is emitted BETWEEN the hit that crossed it and the clash's retaliation, and it is a consequence OF that hit —
+ *  the owner's `payload-trigger` flash plays on the body inside the impact moment (the `payloadFx` channel
+ *  scans per event, like `rallyFx`), so the clash stays one moment and the retaliation lands where it did. */
 export const RESULT_TYPES = new Set<CombatEvent['type']>([
-  'dmg', 'shield', 'shieldUp', 'poison', 'venomLost', 'death', 'keyword',
+  'dmg', 'shield', 'shieldUp', 'poison', 'venomLost', 'death', 'keyword', 'payloadTrigger',
 ]);
 
 /** On-attack "flash" events the sim emits between an `attack` and its damage — pulled into the attack's

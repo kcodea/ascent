@@ -64,6 +64,7 @@ export const FAMILY_BY_MOMENT: Record<MomentKind, string> = {
   tribeAura: 'stats',
   questTrigger: 'quest',
   questComplete: 'quest',
+  payloadTrigger: 'reaction', // a damage-meter crossing — a reaction inside the hit that crossed it
 };
 
 /**
@@ -78,6 +79,7 @@ const REACTION_KINDS = new Set<MomentKind>(['scNarrate', 'shieldPop', 'poisonTic
 /** The combat events a moment carries that are worth showing as consequences of it. */
 const CONSEQUENCE_TYPES = new Set<CombatEvent['type']>([
   'dmg', 'buff', 'summon', 'death', 'improve', 'toHand', 'handBuff', 'maxGold', 'keyword', 'shieldUp', 'rally', 'reveal',
+  'payloadTrigger', // a damage-meter crossing lists as a consequence of the hit it rode in on
 ]);
 
 /** A source label for a moment, preferring the unit it happened to. */

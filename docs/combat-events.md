@@ -48,6 +48,7 @@ All events are stamped `{ ...payload, step?: number }` (§4). Grouped by family.
 | `hpGrant` | `target, amount` | Sergeant: live HP-grant amount after each Attack-gain improvement (so the tooltip/telegraph shows the current accrued number). |
 | `spellProgress` | `target, amount` | Archmagus Guel: on-board spell tally after a combat cast (live countdown). |
 | `questTrigger` | `flag, side` | A completed quest / owned rune's COMBAT effect fired — `flag` maps to its badge id so the UI can pulse the node. |
+| `payloadTrigger` | `source, side, marker` | A DAMAGE-METER crossing that PAID OUT (Han Gover's Ale meter, Goldvein's Gold meter — the future "Payload" keyword; 2026-09-21). `source` = the body whose meter crossed, `marker` = the meter's factory id. One event per CREDITED crossing (an 80-damage Han Gover hit emits two; a gilded crossing one; Goldvein's once-per-combat latch one per fight; a crossing that pays nothing emits nothing). Emitted right after the `dmg` that crossed it and BEFORE the payout's `toHand`, stamped `key: factory:<marker>:passive`. Grouped with the RESULT family (it rides the hit's impact beat); the UI's `payloadFx` channel plays the owner's `payload-trigger` on the body's medallion. |
 
 *(23 types total across the three tables above: Actions — sc, attack, summon, rally, shout (5); Impact
 results — dmg, shield, shieldUp, poison, venomLost, death, reborn, reveal, keyword, keywordLost, ascend (11);

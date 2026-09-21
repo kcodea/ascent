@@ -15,6 +15,8 @@ import { applyFloatSpeed } from './floatConfig';
 import { buildAuthoredTimeline, getCombatRampConfig, rampSpeed } from './combatRampConfig';
 import { attackerOfImpact, meleePairOfImpact, type Beat } from './combatBeats';
 import { holdMs } from './choreo/clock';
+import { finalHoldMs, payloadReadMs, payloadRemainingMs, type PayloadFire } from './choreo/finalHold';
+import { PAYLOAD_STACK_MS } from './choreo/channels/payloadFired';
 import type { Moment } from './choreo/compile';
 import { replayBeats, replayOrder } from './choreo/replayOrder';
 import { rallyDeliveredUids, runMomentCues } from './choreo/score';
@@ -585,6 +587,7 @@ function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string;
     case 'shout': return { text: `${n(e.source)} triggers ${n(e.target)}'s Shout.`, kind: 'sc' };
     case 'toHand': return { text: `${cardName(e.cardId)} is added to your hand.`, kind: 'summon' };
     case 'handBuff': return { text: `${cardName(e.cardId)} in your hand grows +${e.attack}/+${e.health}.`, kind: 'buff' };
+    case 'payloadTrigger': return { text: `${n(e.source)}'s damage threshold triggers.`, kind: 'sc' };
     default: return null;
   }
 }
@@ -609,6 +612,7 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
     case 'shout': return `${n(e.source)} triggers ${n(e.target)}'s Shout!`;
     case 'toHand': return `${cardName(e.cardId)} is added to your hand.`;
     case 'handBuff': return `${cardName(e.cardId)} in your hand grows +${e.attack}/+${e.health}.`;
+    case 'payloadTrigger': return `${n(e.source)}'s damage threshold triggers!`;
     default: return null;
   }
 }
@@ -1218,6 +1222,25 @@ export function useCombatReplay(
       bloomFrame(uid);
     }
   }, [bloomFrame]);
+  /** The stock WHITE trigger-medallion pulse on one unit, outside the per-beat scan — the same keyed hold that
+   *  scan uses (a re-fire inside the window restarts its own timer; the clear only removes the uid if this fire
+   *  is still the standing one). Used as the FALLBACK when a cue that normally plays an authored def finds
+   *  nothing bound (a damage-meter crossing with no `payloadTrigger` binding). */
+  const pulseTrigger = useCallback((uid: string): void => {
+    sfx.triggerPulse();
+    setTriggers((prev) => new Set([...prev, uid]));
+    const prevT = pulseTimersRef.current.get(uid);
+    if (prevT !== undefined) window.clearTimeout(prevT);
+    pulseTimersRef.current.set(uid, window.setTimeout(() => {
+      pulseTimersRef.current.delete(uid);
+      setTriggers((prev) => {
+        if (!prev.has(uid)) return prev;
+        const next = new Set(prev);
+        next.delete(uid);
+        return next;
+      });
+    }, 1150));
+  }, []);
   const firePulse = useCallback((uid: string): void => {
     sfx.triggerPulse();
     const n = ++rallyNonceRef.current;
@@ -1457,6 +1480,11 @@ export function useCombatReplay(
   // damage float fully play before the replay reports `done` (which cleans up the dead + triggers the
   // round-end UI). Without it, the last kill was cut off mid-pop with no number.
   const [finished, setFinished] = useState(false);
+  // The most recent PAYLOAD flash (a damage-meter crossing's `payload-trigger`) this replay fired, wall-clock —
+  // so the final hold can wait out one fired a beat or two BEFORE the end (Han Gover's crossing trails its Ale's
+  // `toHand` beat and the death beat). See `choreo/finalHold.ts`. A stale entry from an earlier fight is
+  // harmless (already elapsed → 0), and `resetTo` clears it anyway.
+  const lastPayloadFireRef = useRef<PayloadFire | null>(null);
   // Tab visibility — pause the beat clock while backgrounded so beats/lunges don't pile up and then fire
   // all at once (a loud burst of sounds) when you tab back in.
   const [hidden, setHidden] = useState(() => typeof document !== 'undefined' && document.hidden);
@@ -1502,6 +1530,7 @@ export function useCombatReplay(
     setWatcherPulse(new Map());
     setFramePulse(new Map());
     setFinished(false);
+    lastPayloadFireRef.current = null;
     setAttackUid(null);
     // (the `[data-zone] .unit` kill that stopped any lunge left mid-flight by the previous fight now runs
     //  first, at the top of this callback — see the comment there for why the ordering is load-bearing)
@@ -1859,7 +1888,13 @@ export function useCombatReplay(
     // The floor is that death's OWN pull-home hold + a small buffer for the fade's tail — so a plain trade
     // settles ~200ms sooner than a Deathrattle one instead of everything paying the DR figure.
     const pull = last ? pulledHomeAttackerHold(last, attackerOfImpact(beats, beats.length - 1), events, cardIds) : 0;
-    const hold = Math.max(getChoreoConfig().finalHold / combatSpeed, pull > 0 ? pull + 100 : 0);
+    // A DAMAGE-METER crossing on the killing blow (Goldvein / Han Gover, 2026-09-21) adds a third, WALL-CLOCK
+    // floor: the owner's `payload-trigger` must play out in full before `done` starts the hand-off. Pure —
+    // see `choreo/finalHold.ts` for the argument and the tests.
+    const hold = finalHoldMs(last, events, cardIds, {
+      finalHold: getChoreoConfig().finalHold, combatSpeed, pull,
+      pendingPayloadMs: payloadRemainingMs(lastPayloadFireRef.current, performance.now()),
+    });
     const t = window.setTimeout(() => setFinished(true), hold);
     return () => window.clearTimeout(t);
   }, [active, replayComplete, combatSpeed, beats, events, cardIds]);
@@ -2170,6 +2205,25 @@ export function useCombatReplay(
       onShoutProc: (source: string, target: string) => {
         pulseWatcher(source);
         if (!bindingFor(cardIds.get(source) ?? null, 'shout')) bloomFrame(target);
+      },
+      // A DAMAGE-METER crossing (`payloadTrigger` — Han Gover, Goldvein; the future "Payload" keyword,
+      // 2026-09-21): the `payloadFx` cue plays the owner's `payload-trigger` ON the body's medallion, and that
+      // def carries its own `triggerpulse` sound layer — so the body is deliberately NOT added to the per-beat
+      // `trig` scan (its white CSS pulse + `sfx.triggerPulse()` would stack a second pulse and a second copy of
+      // the same clip under the burst — the shop's rule for a bound Shout). The card's own effect voiceline
+      // still plays; when NOTHING is bound at the kind the stock pulse + sound stand in, so unbinding the def
+      // in the workbench never leaves a crossing silent.
+      onPayloadProc: (uid: string, _marker: string, count: number) => {
+        const cid = cardIds.get(uid) ?? null;
+        if (cid) sfx.cardEffect(cid);
+        if (!bindingFor(cid, 'payloadTrigger')) { pulseTrigger(uid); return; }
+        // Remember the flash's wall-clock end so a fight that ends a beat or two later still waits it out
+        // (the final-hold floor — `choreo/finalHold.ts`). A stacked double crossing reads a stride longer.
+        const read = payloadReadMs(cid);
+        if (read > 0) {
+          const spd = combatSpeedRef.current > 0 ? combatSpeedRef.current : 1;
+          lastPayloadFireRef.current = { at: performance.now(), readMs: read + ((count - 1) * PAYLOAD_STACK_MS) / spd };
+        }
       },
 
       onShake: () => setShake((n) => n + 1),

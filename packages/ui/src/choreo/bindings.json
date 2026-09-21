@@ -27,6 +27,9 @@
     "questTrigger": {
       "def": "quest-trigger"
     },
+    "payloadTrigger": {
+      "def": "payload-trigger"
+    },
     "rally": null,
     "rubyLanded": {
       "def": "ruby-gem-apply"

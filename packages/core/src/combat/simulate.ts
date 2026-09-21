@@ -2222,12 +2222,25 @@ export function simulate(
     dealer.damageDealt = after;
     const crossings = Math.floor(after / every) - Math.floor(before / every);
     if (crossings <= 0) return;
+    // THE TRIGGER MOMENT (2026-09-21, the future "Payload" keyword): a crossing that PAYS emits one
+    // `payloadTrigger` per credited crossing — the presentation cue the owner authored (`payload-trigger`)
+    // plays off it, on the body that crossed, right after the `dmg` that did it and BEFORE the payout's own
+    // events. Wrapped in `withEffect` so the event (and the payout behind it) carries the meter's OWN identity
+    // (`factory:dealtDamage…:passive`) instead of inheriting whatever effect happened to deal the hit (a Fel
+    // Spikes volley, Yeti's reflection). A crossing that pays NOTHING — Goldvein's latch already spent, a set
+    // with no Ales — emits nothing: there is no trigger to show. Emitting touches no RNG; determinism holds.
+    const fired = (n: number): void => {
+      for (let i = 0; i < n; i++) emit({ type: 'payloadTrigger', source: dealer.uid, side: dealer.side, marker: eff.do });
+    };
     if (eff.do === 'dealtDamageGoldNextTurn') {
       if (dealer.goldMeterFired) return;
       const gold = Math.max(0, typeof p.gold === 'number' ? p.gold : 3) * (dealer.golden ? 2 : 1);
       if (gold <= 0) return;
       dealer.goldMeterFired = true;
-      ctx.grantBonusGold(gold, dealer.side);
+      withEffect(dealer, eff, () => {
+        fired(1); // the once-per-combat latch: exactly one trigger per fight, however many thresholds this hit crossed
+        ctx.grantBonusGold(gold, dealer.side);
+      });
       return;
     }
     const count = Math.max(0, typeof p.count === 'number' ? p.count : 1) * (dealer.golden ? 2 : 1);
@@ -2239,7 +2252,12 @@ export function simulate(
     // many thresholds it crosses (gilded: its first crossing's 2 fill the cap). The tally already advanced by
     // the full amount above, so the uncredited crossings are spent, not banked — the next 40 pays again.
     const payout = Math.min(crossings * count, ALE_METER_MAX_PER_HIT);
-    for (let i = 0; i < payout; i++) ctx.grantToHand(draw.pick(ales).id, dealer.side, dealer.uid);
+    withEffect(dealer, eff, () => {
+      // One trigger per CREDITED crossing: the crossings whose Ales were actually paid (plain: min(crossings, 2);
+      // gilded: its single crossing fills the cap → one trigger, two Ales).
+      fired(Math.min(crossings, Math.ceil(payout / count)));
+      for (let i = 0; i < payout; i++) ctx.grantToHand(draw.pick(ales).id, dealer.side, dealer.uid);
+    });
   }
 
   function killOrReborn(minion: Minion, killer?: Minion): void {

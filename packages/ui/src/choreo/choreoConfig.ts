@@ -137,6 +137,7 @@ const KIND_TO_KEY: Record<MomentKind, keyof ChoreoConfig> = {
   hpGrant: 'hpGrant', spellProgress: 'hpGrant', reveal: 'summon',
   tribeAura: 'buff', // hold-times like a buff wave — an aura is a buff cue
   questTrigger: 'dmg', questComplete: 'dmg',
+  payloadTrigger: 'dmg', // a damage-meter crossing rides its hit's impact (RESULT_TYPES); a leading one holds like damage
 };
 export function holdMsForKind(kind: MomentKind): number {
   return beatDelay(KIND_TO_KEY[kind]);

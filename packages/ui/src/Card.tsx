@@ -1,8 +1,9 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
-import type { Keyword, Tribe } from '@game/core';
+import { damageMeterOf, type Keyword, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
+import { bindingFor } from './choreo/bindings';
 import type { StepProgress } from './cardText';
 import { formatStat } from './formatStat';
 import {
@@ -661,6 +662,12 @@ export const Card = memo(function Card({
     }
     if (stepTotal === undefined) return;
     if (!isStepProcTick(prev, stepCur, stepTotal)) return;      // see the rule (+ its tests) in stepProcFxConfig
+    // A DAMAGE-METER card (Han Gover, Goldvein — the future "Payload" keyword, 2026-09-21) whose crossing has an
+    // authored def bound at the `payloadTrigger` kind: the replay plays that def on the medallion off the
+    // engine's `payloadTrigger` event, so the generic counter-pill flourish stands down for it — the same rule
+    // as a bound Shout replacing the stock medallion pulse. (Only the meter cards: every other step counter
+    // keeps this cue. And only while a binding resolves, so unbinding the def restores the stock burst.)
+    if (damageMeterOf(CARD_INDEX[card.cardId]) && bindingFor(card.cardId, 'payloadTrigger')) return;
     if (!el) return;
     const r = el.getBoundingClientRect();
     if (!r.width && !r.height) return;             // not laid out (hidden/unmounted) — nothing to fire from

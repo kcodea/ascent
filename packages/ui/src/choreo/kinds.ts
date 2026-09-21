@@ -14,7 +14,8 @@ export type MomentKind =
   | 'scCast' | 'scNarrate'
   | 'summon' | 'buffWave' | 'reborn' | 'ascend' | 'rally' | 'shout' | 'toHand' | 'handBuff' | 'maxGold' | 'improve'
   | 'keyword' | 'keywordLost' | 'hpGrant' | 'spellProgress' | 'reveal' | 'tribeAura'
-  | 'questTrigger' | 'questComplete';
+  | 'questTrigger' | 'questComplete'
+  | 'payloadTrigger';
 
 export function momentKind(primary: CombatEvent): MomentKind {
   switch (primary.type) {
@@ -68,6 +69,13 @@ export function momentKind(primary: CombatEvent): MomentKind {
     // `dmg` pacing key, so `holdMsForKind` is unchanged from the `damage` classification they had.
     case 'questTrigger': return 'questTrigger';
     case 'questComplete': return 'questComplete';
+    // A DAMAGE-METER crossing (Han Gover / Goldvein — the future "Payload" keyword, 2026-09-21). In a real log it
+    // never LEADS a moment: it is a RESULT_TYPE emitted right after the `dmg` that crossed it, so it folds into
+    // that hit's impact and the `payloadFx` channel (on every kind) finds it there. The kind exists so it is a
+    // `BindingKind` — `bindings.json` binds the owner's `payload-trigger` def at it — and so a synthetic or
+    // future leading instance is scored as its own quiet beat rather than as a `damage` moment (the crimson
+    // hit burst). Paced on the `dmg` key like the quest beats.
+    case 'payloadTrigger': return 'payloadTrigger';
     // Defensive: any future event type falls back to a quiet damage-style moment instead of crashing the replay
     // (momentKind must NEVER return undefined — `getScore()[undefined]` is not iterable).
     default: return 'damage';

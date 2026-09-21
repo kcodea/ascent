@@ -31,16 +31,18 @@ export interface TitleAccountConfig {
   rankY: number;
 }
 
+// Owner's baked tune (2026-09-21): a 264px ring, the name plate at 1.38× still nudged 12px up onto the ring's
+// bottom edge, the rank badge at 1.57× seated 42px below.
 const DEFAULTS: TitleAccountConfig = {
-  ring: 190,
+  ring: 264,
   ringX: 0,
   ringY: 0,
-  nameScale: 1,
+  nameScale: 1.38,
   nameX: 0,
   nameY: -12,
-  rankScale: 1,
+  rankScale: 1.57,
   rankX: 0,
-  rankY: 22,
+  rankY: 42,
 };
 
 /** `[min, max, step]` per knob. */

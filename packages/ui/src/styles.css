@@ -5145,10 +5145,10 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .titleaccount { zoom: var(--ui-zoom); position: absolute; top: 26px; right: 44px; transform: var(--ta-ring-t, translate(0px, 0px)); }
 .titleportrait { display: block; padding: 0; border: none; background: none; transition: transform 0.12s ease; }
 .titleportrait:hover { transform: scale(1.035); }
-.titleportrait .portring { --ring: var(--ta-ring, 190px); }
+.titleportrait .portring { --ring: var(--ta-ring, 264px); }
 /* No avatar picked yet: the old gold disc + the player's initial, inside the ring. */
 .titleportrait.noart .portring > .hero .f { background: linear-gradient(150deg, #f3c96a, #e08a3c); }
-.titleportrait-ph { font-family: var(--font-ui); font-weight: 900; font-size: calc(var(--ta-ring, 190px) * 0.42); line-height: 1; color: #1a1208; }
+.titleportrait-ph { font-family: var(--font-ui); font-weight: 900; font-size: calc(var(--ta-ring, 264px) * 0.42); line-height: 1; color: #1a1208; }
 /* The corner's tooltips (portrait + name) open to the LEFT of their button — the default below-the-element
    seat is where the name plate + rank badge hang. Same bubble; the arrow's visible edges flip to point right. */
 .titlescreen .titleaccount .titleportrait[data-tip]::after,
@@ -5162,7 +5162,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
   border-left: none; border-top: 1.5px solid var(--line); border-right: 1.5px solid var(--line); }
 /* Name plate — seated on the ring's bottom edge: `translate(-50%, 52%)` straddles it (half over the art, half
    below), then the tuner's nudge + scale stack on. z 3 clears the ring's ::after (z 2). */
-.titlename-seat { position: absolute; left: 50%; bottom: 0; z-index: 3; transform: var(--ta-name-t, translate(-50%, 52%) translate(0px, -12px) scale(1)); }
+.titlename-seat { position: absolute; left: 50%; bottom: 0; z-index: 3; transform: var(--ta-name-t, translate(-50%, 52%) translate(0px, -12px) scale(1.38)); }
 .titlename { display: block; max-width: 250px; padding: 5px 22px; border: 2px solid var(--gold); border-radius: 999px;
   background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); box-shadow: 0 2px 6px -2px var(--shadow), 0 8px 22px -10px rgba(0, 0, 0, 0.7);
   font-family: var(--font-ui); font-weight: 800; font-size: 21px; letter-spacing: 0.02em; line-height: 1.1; transition: border-color 0.1s ease; }
@@ -5184,7 +5184,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .titlename-seat .titlename-input::placeholder { color: rgba(42, 32, 23, 0.4); }
 /* Rank badge — the Play card's `.mcrank` recipe (frosted dark pill, mini crest + label), seated centred under
    the ring. Non-interactive. Hidden entirely when the profile carries no rank yet. */
-.titlerank { position: absolute; left: 50%; top: 100%; z-index: 3; transform: var(--ta-rank-t, translate(-50%, 0) translate(0px, 22px) scale(1));
+.titlerank { position: absolute; left: 50%; top: 100%; z-index: 3; transform: var(--ta-rank-t, translate(-50%, 0) translate(0px, 42px) scale(1.57));
   display: flex; align-items: center; gap: 8px; padding: 4px 16px 4px 5px; border-radius: 999px; white-space: nowrap;
   background: rgba(6, 9, 16, 0.74); border: 1px solid rgba(196, 160, 92, 0.5); box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.8); pointer-events: none; }
 .titlerank-label { font-family: var(--font-ui); font-weight: 900; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; color: #fff6e4; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8); }

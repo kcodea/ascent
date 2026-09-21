@@ -104,7 +104,7 @@ export const PATCH_NOTES: PatchNote[] = [
     label: 'Void Panther growl',
     changes: [
       {
-        category: 'UI / Info',
+        category: 'Systems',
         text: 'Void Panther now gives a growl when you play it from hand.',
       },
     ],

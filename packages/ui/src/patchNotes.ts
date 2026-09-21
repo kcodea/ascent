@@ -56,6 +56,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-20',
+    label: 'Career: match wins by placement + Heroes portrait grid',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "On the Career page a match is now won or lost by placement — top 4 is a win, 5th to 8th a loss — so each Match History banner shows WIN or LOSS under the hero (the fight record is a small caption), the Win Rate trend is your share of top-4 finishes, and the Heroes tab is a grid of every hero you've played as a portrait with its games played; hover or tab onto one for its W–L record, win rate, average placement, 1st-place wins, best placement and last played.",
+      },
+    ],
+  },
+  {
+    date: '2026-09-20',
     label: 'Every round counts',
     changes: [
       { category: 'UI / Info', text: "Your W–L record now counts every round of a run. The first two rounds used to be skipped as \"calibration\" (a leftover of the old course), so a 15-round game read 9–4; the HUD, end screen, Career, Recent Games and the Hall all count all rounds now." },

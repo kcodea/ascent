@@ -101,7 +101,7 @@ import { getShopDeathFxConfig } from './shopDeathFxConfig';
 import { getEquipFxConfig } from './equipFxConfig';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { rubyLandHolds, RUBY_BEAT_MS, RUBY_GAP_MS } from './choreo/channels/rubyLanded';
-import { captureRecruitSeqs, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shieldGainMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
+import { captureRecruitSeqs, minionPlayedMoment, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shieldGainMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
 import { bindingFor } from './choreo/bindings';
 import { cascade, scheduleLands, waves as asWaves } from './fx/land';
@@ -1456,6 +1456,13 @@ export function Recruit() {
   // effect below for what's deliberately excluded (buys, gilds, Refrain bounces).
   const prevHandUidsRef = useRef<Set<string> | null>(null);
   prevHandUidsRef.current ??= new Set(run.hand.map((c) => c.uid));
+  // `minionPlayed` cue state — its OWN board/hand snapshots (NOT the coalesce watcher's `prevHandUidsRef`,
+  // which a layout effect advances mid-commit before this effect reads it). A minion played from hand is new
+  // to the board this frame AND was in the hand last frame; tokens and Triple-merges never pass through hand.
+  const playedPrevBoardRef = useRef<Set<string> | null>(null);
+  playedPrevBoardRef.current ??= new Set(run.board.map((c) => c.uid));
+  const playedPrevHandRef = useRef<Set<string> | null>(null);
+  playedPrevHandRef.current ??= new Set(run.hand.map((c) => c.uid));
   const prevTriplesRef = useRef<number>(run.triplesMade ?? 0);
   /* Set at the `buy` dispatch: a bought card was already visible in the tavern, so it is acquired rather
      than conjured. It gets its own shop→hand slide (`buySlide`) instead of the arcane coalesce, so this
@@ -4504,6 +4511,39 @@ export function Recruit() {
       }, 760));
     }
   }, [run.board, inCombat]);
+
+  // `minionPlayed` cue — fire the by-card "played from hand" binding (e.g. Void Panther → its growl). A minion
+  // played from hand is NEW to the board this frame AND was in the hand LAST frame (a played card keeps its
+  // uid moving hand→board), which excludes tokens summoned by other cards and Triple-merges (a merged minion
+  // is a brand-new uid, never in hand). Its own board/hand snapshots — not the Shout effect's `prevBoardUidsRef`
+  // (which that effect mutates) nor the coalesce watcher's `prevHandUidsRef` (advanced mid-commit) — so the
+  // two detectors can't race. Unbound cards cost one `bindingFor` lookup and play nothing.
+  useEffect(() => {
+    if (inCombat) {
+      playedPrevBoardRef.current = new Set(run.board.map((c) => c.uid));
+      playedPrevHandRef.current = new Set(run.hand.map((c) => c.uid));
+      return;
+    }
+    const prevBoard = playedPrevBoardRef.current!; // seeded at render (the ??= above) — never null in effects
+    const prevHand = playedPrevHandRef.current!;
+    const played = run.board.filter((c) => !prevBoard.has(c.uid) && prevHand.has(c.uid));
+    playedPrevBoardRef.current = new Set(run.board.map((c) => c.uid));
+    playedPrevHandRef.current = new Set(run.hand.map((c) => c.uid));
+    // ONE moment per minion, each naming its own card as the source, so two minions played in the same action
+    // each resolve their own binding (mirrors the Shout cue's per-uid loop).
+    for (const c of played) {
+      runRecruitMomentCues(
+        minionPlayedMoment(c.uid, c.cardId),
+        {
+          cardIdOf: (u) => runRef.current.board.find((b) => b.uid === u)?.cardId ?? null,
+          measure: (u) => {
+            const el = document.querySelector<HTMLElement>(`[data-uid="${u}"]`);
+            return el ? restingCenterOf(el) : null;
+          },
+        },
+      );
+    }
+  }, [run.board, run.hand, inCombat]);
 
   // (Removed 2026-08-06, owner call: the golden-deploy self-buff PULSE. It fired `pixiFx.pulse` — the same
   // "this unit was just empowered" flourish combat uses — on every new golden uid landing on the board, even

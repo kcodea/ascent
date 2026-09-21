@@ -216,6 +216,9 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   // on-attack trigger), so `buffWave` alone — no `minionBuffed` shop twin.
   n2_paragon: { buffWave: { def: 'lightning-bolt-blue', fanOut: 'buffed' } },
   n2_standardbearer: { buffWave: { def: 'heavy-beam', fanOut: 'buffed' } },
+  // Void Panther's played-from-hand growl — the first `minionPlayed` binding (the by-card play cue). Its def
+  // is a Sound-primitive effect (`sfx-voidpanther`), so playing the card plays the sound.
+  manasaber: { minionPlayed: { def: 'sfx-voidpanther' } },
   // Paymaster Pimm's Shout pays you next turn — `coin-shout` on the card, with the max-Gold sound, which is
   // the first binding to carry an `sfx` at all (see `BINDING_SFX`).
   dm_butcher: { shout: { def: 'shop-buff-shout' }, scNarrate: { def: 'shop-buff-shout' }, shopBuffAll: { def: 'shop-buff-shout' } },

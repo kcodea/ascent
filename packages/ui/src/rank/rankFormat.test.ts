@@ -104,7 +104,7 @@ describe('points, placement and delta text', () => {
     expect(announcement(8, halt, 'confirmed')).toBe('Finished 8th. −10 RP. Now Gold II, 0 / 100. Demotion game. Finish top 4 to stay in Gold II.');
     const lost = fixtureById('demo-lost-division')!.result!;
     expect(lost.wasDemotionGame && lost.demoted).toBe(true);
-    expect(deltaText(lost), 'the award, not the +60 scalar movement').toBe('−40 RP');
+    expect(deltaText(lost), 'the award (which is also the applied delta: Gold II 0 → Gold III 60 is −40 on the scalar)').toBe('−40 RP');
     expect(cappedDetail(lost)).toBeNull();
     expect(outcomeText(lost)).toBeNull();
     expect(announcement(8, lost, 'confirmed')).toBe('Finished 8th. −40 RP. Now Gold III, 60 / 100. Demoted to Gold III.');

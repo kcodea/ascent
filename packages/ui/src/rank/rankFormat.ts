@@ -64,8 +64,9 @@ export function standingGateText(pos: RankPosition, demotionReady = false): stri
  *  transition + new label + 10 / 100 say the rest (owner 2026-09-20). */
 export function deltaText(r: RankResult): string {
   if (r.promoted) return signedRp(r.baseDelta);
-  // A lost demotion game moves a whole medal (Gold III 0 → Silver I 60 is +60 on the scalar): print the
-  // finish's award — the crest transition says the rest.
+  // A lost demotion game drops ONE division (a medal only at a medal's lowest division: Gold III 0 → Silver I
+  // 60); its applied delta equals the award (600 → 560 is −40 on the scalar), so print the award and let the
+  // crest transition say the rest.
   if (r.demoted && r.wasDemotionGame) return signedRp(r.baseDelta);
   const floored = r.appliedDelta === 0 && r.baseDelta < 0 && r.after.divisionIndex === 0 && r.after.points === 0;
   if (floored) return '0 RP · Bronze floor';

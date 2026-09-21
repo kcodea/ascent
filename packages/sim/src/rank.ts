@@ -147,7 +147,8 @@ export interface RankResult {
    *  cushion, never the award) and 0 on a held medal gate. THIS is the number to show. */
   appliedDelta: number;
   /** Points of the base award that did NOT apply: overflow discarded at the 100 gate, a loss absorbed by the
-   *  Bronze III floor, or the whole award held at a medal gate (2nd–4th). 0 on a won promotion (the award
+   *  Bronze III floor, a loss absorbed by the 0 clamp that arms the demotion gate (Gold II 10, 8th → Gold II 0
+   *  armed: 30 of the −40), or the whole award held at a medal gate (2nd–4th). 0 on a won promotion (the award
    *  converted into the promotion itself). Always ≥ 0. */
   cappedPoints: number;
   /** The game was played AT a gate (the player started it on exactly 100 below the top division). */

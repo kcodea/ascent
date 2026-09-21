@@ -87,8 +87,13 @@ function secrets — the same three the previous `submit-rating` used, so nothin
 
    ```sql
    select pg_get_constraintdef(oid) from pg_constraint where conname = 'profiles_rank_demotion_ready_where';
-   -- expect: CHECK ((NOT rank_demotion_ready) OR ((rank_points = 0) AND (rank_division > 0)))
+   -- expect: CHECK (((NOT rank_demotion_ready) OR ((rank_points = 0) AND (rank_division > 0))))
    ```
+
+   Postgres deparses the constraint with its own parentheses (one pair around every operator and one more
+   around the whole expression), so compare the MEANING, not the exact string: the flag may only be true at
+   `rank_points = 0` with `rank_division > 0`. Any `% 3` term still present means the old constraint is in
+   place and the migration's `drop constraint … add constraint` pair has not been run (§6c).
 3. Optional dedupe check — Edge Functions → **submit-rating → Logs**: re-trigger the same submission from the
    client (DevTools → `useGame.getState().retryRankSubmission()` won't resend a confirmed one, so use the
    Network tab's *Replay XHR* on the `submit-rating` call). The response carries `"deduped": true` and the

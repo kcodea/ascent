@@ -111,10 +111,12 @@ export function Rankings() {
               // duplicates as "YOU" (owner report 2026-08-10).
               const mine = !!myId && r.userId === myId;
               // The row OPENS THEIR CAREER. Rankings stays mounted underneath, so Back returns here rather
-              // than to the title — the Career overlay renders after it and simply covers it.
+              // than to the title — the Career overlay renders after it and simply covers it. The row's medal
+              // rank rides along (when the backend carries one) so the Seasonal Ranked card there paints the
+              // SAME crest + bar this row shows, at once, instead of a bare rating number (owner 2026-09-21).
               const openTheirs = (): void => {
                 sfx.pulse();
-                openCareer({ userId: r.userId, author: r.author, rating: r.rating, gamesPlayed: r.gamesPlayed, favoriteHero: r.favoriteHero });
+                openCareer({ userId: r.userId, author: r.author, rating: r.rating, gamesPlayed: r.gamesPlayed, favoriteHero: r.favoriteHero, ...(r.rank ? { rank: r.rank } : {}) });
               };
               // The CAREER PAGE button does the same thing as the row — stop the bubble so it opens ONCE.
               const openTheirsBtn = (e: React.MouseEvent): void => { e.stopPropagation(); openTheirs(); };

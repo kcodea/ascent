@@ -826,23 +826,39 @@ export async function fetchReplayForSeed(seed: number, opts?: { userId?: string 
 }
 
 /** Fetch ONE player's leaderboard row by user id — the rating / games-played / favorite-hero the Career header
- *  needs when a Career is opened from a Recent Games row (run_telemetry carries no rating). Best-effort +
- *  time-boxed; null when absent / offline / no backend. */
+ *  needs when a Career is opened from a Recent Games row (run_telemetry carries no rating), plus their MEDAL
+ *  RANK (`rank`, parsed by the same `rankedProfileOfRow` the Rankings rows use) so the viewed player's
+ *  Seasonal Ranked card shows the crest + bar rather than a bare number (owner 2026-09-21). A pre-migration
+ *  table without the rank columns errors on that select and falls back to the display columns alone, leaving
+ *  `rank` absent. Best-effort + time-boxed; null when absent / offline / no backend. */
 export async function fetchPlayerById(userId: string): Promise<PlayerRow | null> {
   const c = client();
   if (!c || !userId) return null;
   try {
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
-    const result = await Promise.race([
+    const ranked = await Promise.race([
       Promise.resolve(
-        c.from('profiles').select('user_id, author, discriminator, rating, games_played, favorite_hero')
+        c.from('profiles').select(`user_id, author, discriminator, games_played, favorite_hero, ${RANK_COLUMNS}`)
           .eq('user_id', userId).limit(1),
       ),
       timeout,
     ]);
+    const result = ranked && !ranked.error && ranked.data
+      ? ranked
+      : await Promise.race([
+        Promise.resolve(
+          c.from('profiles').select('user_id, author, discriminator, rating, games_played, favorite_hero')
+            .eq('user_id', userId).limit(1),
+        ),
+        timeout,
+      ]);
     if (!result || result.error || !result.data?.length) return null;
-    const r = result.data[0] as { user_id: string; author: string | null; discriminator: string | null; rating: number; games_played: number; favorite_hero: string | null };
-    return { userId: r.user_id, author: r.author ?? '', discriminator: r.discriminator ?? undefined, rating: r.rating, gamesPlayed: r.games_played, favoriteHero: r.favorite_hero ?? undefined };
+    const r = result.data[0] as Record<string, unknown> & { user_id: string; author: string | null; discriminator: string | null; rating: number; games_played: number; favorite_hero: string | null };
+    return {
+      userId: r.user_id, author: r.author ?? '', discriminator: r.discriminator ?? undefined, rating: r.rating,
+      gamesPlayed: r.games_played, favoriteHero: r.favorite_hero ?? undefined,
+      ...(typeof r.rank_revision === 'number' ? { rank: rankedProfileOfRow(r) } : {}),
+    };
   } catch {
     return null;
   }
@@ -1020,8 +1036,9 @@ function parseSubmitResponse(data: unknown): RankSubmitOutcome {
   return { status: 'confirmed', result, profile, deduped: o.deduped === true };
 }
 
-/** The `profiles` rank columns, as the client reads them. Kept in one place so the boot fetch and the
- *  leaderboard agree on names. */
+/** The `profiles` rank columns, as the client reads them. Kept in one place so the boot fetch, the
+ *  leaderboard and the single-player lookup (`fetchPlayerById`, above — a module const resolves at call
+ *  time, so the earlier declaration order is fine) agree on names. */
 const RANK_COLUMNS = 'rating, rank_season, rank_rules_version, rank_division, rank_points, rank_demotion_ready, rank_highest_division, rank_highest_points, rank_revision';
 
 /** Shape one `profiles` row's rank columns into a `RankedProfile`. A row whose `rank_season` is not the live

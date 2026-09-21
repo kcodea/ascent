@@ -226,6 +226,36 @@ describe('Rankings — the ranked table', () => {
   });
 });
 
+describe('Rankings — the medal rank rides into the Career page', () => {
+  it('a row that carries a rank hands it to openCareer (so the Career card paints the SAME crest + bar, not a bare number)', async () => {
+    // Bronze III 46: the "46 MMR" the owner saw on a viewed Career (rating = 100 × division + points).
+    const rank = { seasonId: 3, rulesVersion: 1, revision: 2, position: { divisionIndex: 0, points: 46, demotionReady: false }, highest: { divisionIndex: 0, points: 46, demotionReady: false } };
+    fetchTopPlayers.mockResolvedValue([{ ...PLAYERS[0]!, rating: 46, rank }, PLAYERS[1]!, PLAYERS[2]!]);
+    useGame.setState({ showRankings: true });
+    ui = mount(<Rankings />);
+    await flush();
+    const rows = [...ui.container.querySelectorAll('.lb-trow-btn')];
+    const ranked = rows.find((r) => r.querySelector('.rankbar'))!;
+    expect(ranked).toBeDefined();
+    const real = useGame.getState().openCareer;
+    const openCareer = vi.fn(real);
+    act(() => { useGame.setState({ openCareer }); });
+    try {
+      click(ranked.querySelector('.lb-career'));
+      expect(openCareer).toHaveBeenCalledTimes(1);
+      expect(openCareer).toHaveBeenCalledWith({ userId: 'u-top', author: 'Nadja', rating: 46, gamesPlayed: 46, favoriteHero: 'brackus', rank });
+      expect(useGame.getState().careerOf?.rank?.position).toEqual({ divisionIndex: 0, points: 46, demotionReady: false });
+      // A rankless row (pre-migration) hands nothing extra over.
+      const plain = rows.find((r) => r.querySelector('.lb-handle')?.textContent?.startsWith('Robin'))!;
+      click(plain.querySelector('.lb-career'));
+      expect(openCareer).toHaveBeenLastCalledWith({ userId: 'u-three', author: 'Robin', rating: 264, gamesPlayed: 2, favoriteHero: undefined });
+      expect('rank' in (openCareer.mock.calls[1]![0] as object)).toBe(false);
+    } finally {
+      act(() => { useGame.setState({ openCareer: real }); });
+    }
+  });
+});
+
 describe('Rankings — designed states', () => {
   it('loading, then empty', async () => {
     let resolve!: (r: PlayerRow[]) => void;
@@ -343,6 +373,19 @@ describe('RecentGames — the recording banners', () => {
     await flush();
     expect(useGame.getState().showCareer).toBe(true);
     expect(useGame.getState().careerOf?.userId).toBe('u-top');
+    expect(useGame.getState().careerOf?.rank).toBeUndefined(); // the profile fetch answered without a rank
+  });
+
+  it('the profile fetch that opens a Career hands its medal rank over too', async () => {
+    const rank = { seasonId: 3, rulesVersion: 1, revision: 2, position: { divisionIndex: 0, points: 46, demotionReady: false }, highest: { divisionIndex: 0, points: 46, demotionReady: false } };
+    fetchPlayerById.mockResolvedValue({ userId: 'u-top', author: 'Nadja', rating: 46, gamesPlayed: 46, favoriteHero: 'brackus', rank });
+    click(ui.container.querySelector('.lb-row'));
+    await flush();
+    expect(fetchPlayerById).toHaveBeenCalledWith('u-top');
+    const of = useGame.getState().careerOf!;
+    expect(of.userId).toBe('u-top');
+    expect(of.rating).toBe(46);
+    expect(of.rank).toEqual(rank);
   });
 });
 

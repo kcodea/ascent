@@ -10,11 +10,11 @@ import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './store';
-import { fetchMyRuns, fetchReplayPayload, remoteEnabled } from './remoteBoards';
+import { fetchMyRuns, fetchPlayerById, fetchReplayPayload, remoteEnabled } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
 import { RankBar } from './rank/RankBar';
 import { scalarCaption } from './rank/rankFormat';
-import { rankPositionOf } from './rank/types';
+import { rankPositionOf, type RankedProfile } from './rank/types';
 import {
   TREND_WINDOWS, TRIBE_LABEL, careerAggregates, heroCareers, matchResultOf, ordinalOf, outcomeOf, playedOnText, polylineOf, runLengthText,
   trendSeries, type CareerRun, type HeroCareer, type TrendSeries, type TrendWindow,
@@ -44,9 +44,11 @@ import {
  *          1st-place wins / best placement / last played as secondary lines. No per-hero rows.
  *          Only this column scrolls; the side columns stay put. All three columns share one header row
  *          (`.cv2-colhead`), so their panels start level.
- *  RIGHT   Seasonal Ranked — the account's MMR as a bare number (the server-synced profile rating; no delta,
- *          no divisions) — and Performance Trends: Avg Placement · Win Rate · Avg APM as inline-SVG lines over
- *          a 7 / 30 / 90-day window.
+ *  RIGHT   Seasonal Ranked — the MEDAL RANK as the shared `RankBar` (crest, bar, points, name; the scalar as a
+ *          caption), for your own profile AND for a viewed player (their rank rides in on `careerOf.rank` from
+ *          the entry point, or is fetched here by user id; owner 2026-09-21) — the bare number only when no
+ *          rank can be sourced — and Performance Trends: Avg Placement · Win Rate · Avg APM as inline-SVG
+ *          lines over a 7 / 30 / 90-day window.
  *
  * A MATCH WIN IS BY PLACEMENT (owner ruling 2026-09-20): top 4 = W, 5th–8th = L (`isMatchWin`). Fights are no
  * longer the unit anywhere on this page — the banner's result, the Heroes grid's record + win rate and the Win
@@ -427,6 +429,22 @@ export function Career() {
     // `cache` is deliberately NOT a dep: the effect writes it, and re-running on that write would refetch forever.
   }, [show, cacheKey, userId, viewing, playerName, fetchTick, setCache]);
 
+  // MEDAL RANK for a VIEWED player (owner 2026-09-21). The entry point hands the rank over when it already
+  // holds it (`careerOf.rank`: a Rankings row, Recent Games' profile fetch); otherwise (the Hall, a stale link)
+  // the profile's rank columns are read ONCE by user id — one request, remembered per user id while the page
+  // is open — so the Seasonal Ranked card paints the same crest + bar your own page shows, not a bare number.
+  // `null` = asked, no rank (a pre-migration backend / no row) → the bare MMR stays.
+  const [viewedRank, setViewedRank] = useState<{ userId: string; rank: RankedProfile | null } | null>(null);
+  useEffect(() => {
+    if (!show) { setViewedRank(null); return; }
+    if (!viewing || viewing.rank || !remoteEnabled()) return;
+    if (viewedRank?.userId === viewing.userId) return;
+    let live = true;
+    const who = viewing.userId;
+    void fetchPlayerById(who).then((row) => { if (live) setViewedRank({ userId: who, rank: row?.rank ?? null }); });
+    return () => { live = false; };
+  }, [show, viewing, viewedRank]);
+
   const aggregates = useMemo(() => careerAggregates(runs ?? []), [runs]);
   const trends = useMemo(() => trendSeries(runs ?? [], window_, Date.now()), [runs, window_]);
   const heroes = useMemo(() => heroCareers(runs ?? []), [runs]);
@@ -438,8 +456,11 @@ export function Career() {
   const shownName = viewing ? (viewing.author || tempHandle(viewing.userId)) : (playerName || tempHandle(myId));
   const mmr = viewing ? viewing.rating : profile.rating;
   // MEDAL RANK (2026-09-20): the Seasonal Ranked card shows the crest + division bar once a rank exists on the
-  // profile (or on the viewed player's row); the scalar stays as a small caption. No rank → the bare number.
-  const rank = rankPositionOf(viewing ? (viewing as { rank?: unknown }).rank : profile.rank);
+  // profile (or, for a viewed player, on the hand-over / the fetch above); the scalar stays as a small caption.
+  // No rank → the bare number.
+  const rank = rankPositionOf(
+    viewing ? (viewing.rank ?? (viewedRank?.userId === viewing.userId ? viewedRank.rank : null)) : profile.rank,
+  );
 
   // Watch a listed run back: the join already resolved the telemetry row id, so this is the same one-row
   // payload fetch Recent Games makes, handed to the same viewer. `startReplay` closes this overlay itself and

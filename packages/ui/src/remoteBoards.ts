@@ -712,64 +712,6 @@ export async function fetchRecentGames(limit = 20): Promise<RecentGameRow[]> {
   }
 }
 
-/** The latest recorded game of one ranked player — the ranked table's "latest board" cell. */
-export interface LatestGameFacts {
-  /** `run_telemetry.id` of that game (the Watch handle when `hasReplay`). */
-  rowId: number;
-  heroId: string;
-  placement: number | null;
-  createdAt: string | null;
-  board: BoardSnapshot | null;
-  hasReplay: boolean;
-}
-
-/** The latest recorded game of EACH listed player, keyed by user id — two light reads: a tiny id probe over
- *  the players' newest telemetry rows (ids only, never a payload), then the facts + final board of just the
- *  one newest row per player (`replay->v2->result->finalBoard`, a few KB each). A player with no recorded
- *  game is simply absent. Best-effort + time-boxed; empty on any failure. */
-export async function fetchLatestGamesForUsers(userIds: string[]): Promise<Map<string, LatestGameFacts>> {
-  const out = new Map<string, LatestGameFacts>();
-  const c = client();
-  const ids = userIds.filter((id) => !!id);
-  if (!c || ids.length === 0) return out;
-  try {
-    const timeout = () => new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
-    const probe = await Promise.race([
-      Promise.resolve(c.from('run_telemetry').select('id, user_id').in('user_id', ids).order('created_at', { ascending: false }).limit(ids.length * 30)),
-      timeout(),
-    ]);
-    if (!probe || probe.error || !probe.data) return out;
-    const newest = new Map<string, number>();
-    for (const r of probe.data as unknown as Array<{ id: unknown; user_id: unknown }>) {
-      if (typeof r.user_id === 'string' && typeof r.id === 'number' && !newest.has(r.user_id)) newest.set(r.user_id, r.id);
-    }
-    if (newest.size === 0) return out;
-    const rowIds = [...newest.values()];
-    const query = (select: string) => Promise.race([
-      Promise.resolve(c.from('run_telemetry').select(select).in('id', rowIds)),
-      timeout(),
-    ]);
-    // A pre-`replay` backend errors the JSON-path select — fall back to the scalar facts (no board tiles).
-    let result = await query('id, user_id, hero_id, placement, created_at, replay_v2_version:replay->v2->version, final_board:replay->v2->result->finalBoard');
-    if (result && result.error) result = await query('id, user_id, hero_id, placement, created_at');
-    if (!result || result.error || !result.data) return out;
-    for (const r of result.data as unknown as Array<Record<string, unknown>>) {
-      if (typeof r.user_id !== 'string' || typeof r.id !== 'number') continue;
-      out.set(r.user_id, {
-        rowId: r.id,
-        heroId: String(r.hero_id ?? ''),
-        placement: r.placement != null ? Number(r.placement) : null,
-        createdAt: (r.created_at as string | null) ?? null,
-        board: boardOf(r.final_board),
-        hasReplay: r.replay_v2_version === 2 || r.replay_v2_version === '2',
-      });
-    }
-    return out;
-  } catch {
-    return out;
-  }
-}
-
 /** Fetch ONE row's full v2 replay by its `run_telemetry` PK — the heavy half of the two-step spectate fetch
  *  (the list read only probed `replay->v2->version`). Selects `replay->v2` alone, so the dormant v1 fields
  *  riding alongside in the jsonb never cross the wire. Best-effort + time-boxed; null on any failure /

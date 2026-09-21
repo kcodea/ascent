@@ -56,6 +56,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-20',
+    label: 'Leaderboard rows',
+    changes: [
+      { category: 'UI / Info', text: "The Leaderboard's rows are now big and clean: a large rank medallion, the hero portrait, the player's handle with their favourite hero, the rating as a big gold MMR number, games played, and a CAREER PAGE button that opens that player's Career (WATCH still plays their latest run). The strip of card tiles showing each player's latest board is gone — that lives on their Career page." },
+    ],
+  },
+  {
+    date: '2026-09-20',
     label: 'Career: match wins by placement + Heroes portrait grid',
     changes: [
       {

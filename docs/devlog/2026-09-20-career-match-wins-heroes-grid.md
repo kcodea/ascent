@@ -19,6 +19,10 @@ definition; a run with no placement is neither. Applied to:
   (share of placed runs finishing top 4, whole percent). Each point is the RUNNING win rate through the
   window (oldest first), so the line shows how the share moved and ends on the headline number — a per-run
   0/100 series would only zig-zag. Unplaced runs contribute no point.
+- **Avg Placement + Avg APM get the same smoothing** (owner follow-up, same day: the placement line was a
+  1↔8 saw-tooth). Every trend point is now the running mean through the window up to that run — it starts
+  at the first run's own value and converges on the headline, which stays the window's exact mean
+  (`runningSeries` in `careerData.ts`; the y-axis stays 1 at the top → 8 at the bottom for placement).
 
 ## Heroes tab → a portrait grid
 

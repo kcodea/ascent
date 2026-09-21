@@ -391,58 +391,58 @@ export const TREND_WINDOWS: readonly TrendWindow[] = [7, 30, 90];
 
 export interface TrendPoint { atMs: number; y: number }
 export interface TrendSeries {
-  /** One point per run in the window that has the value, oldest first. */
+  /** One point per run in the window that has the value, oldest first. Every series is SMOOTHED (owner
+   *  2026-09-20): a point's y is the RUNNING figure through the window up to and including that run — it
+   *  starts at the first run's own value and converges on `avg`, the headline — so the line shows how the
+   *  window's number moved rather than a per-run saw-tooth. */
   points: TrendPoint[];
-  /** The headline: the mean of `points[].y` to one decimal (placement, APM) — or, for `winRate`, the window's
-   *  OVERALL match win rate as a whole percent. Null with no points. */
+  /** The headline: the window's EXACT figure over every contributing run — the mean placement / APM to one
+   *  decimal, or the overall match win rate as a whole percent. Equals the last point's y. Null with no points. */
   avg: number | null;
 }
 export interface TrendSet {
-  /** y = the run's lobby placement (1 best). */
+  /** y = the running mean lobby placement (1 best) to one decimal; `avg` = the window's mean placement. */
   placement: TrendSeries;
   /** The MATCH win rate (owner 2026-09-20): a match is won by placement (`isMatchWin` — top 4 = W, 5th–8th =
-   *  L), and the headline `avg` is the window's overall win rate — the share of placed runs that finished
-   *  top 4, whole percent. Each point's y is the RUNNING win rate through the window (wins so far ÷ placed
-   *  runs so far, oldest first), so the line shows how that share moved and ends on the headline number; a
-   *  per-run 0/100 series would only zig-zag. Runs with no placement contribute no point. */
+   *  L). y = the running win rate (wins so far ÷ placed runs so far, whole percent); `avg` = the window's
+   *  overall share of placed runs that finished top 4. Runs with no placement contribute no point. */
   winRate: TrendSeries;
-  /** y = actions per minute — `apmOf` (needs the entry's APT AND a telemetry clock); runs without are skipped. */
+  /** y = the running mean actions-per-minute to one decimal — `apmOf` per run (needs the entry's APT AND a
+   *  telemetry clock; runs without are skipped); `avg` = the window's mean APM. */
   apm: TrendSeries;
 }
 
-const seriesOf = (points: TrendPoint[]): TrendSeries => ({
-  points,
-  avg: points.length ? Math.round((points.reduce((s, p) => s + p.y, 0) / points.length) * 10) / 10 : null,
-});
+/** Fold per-run values (oldest first) into the running-mean series; `avg` is the exact mean of all of them.
+ *  `decimals` = 1 for placement / APM, 0 for the win rate's whole percent. */
+function runningSeries(values: readonly { atMs: number; v: number }[], decimals: 0 | 1): TrendSeries {
+  const k = decimals === 1 ? 10 : 1;
+  let sum = 0;
+  const points: TrendPoint[] = values.map(({ atMs, v }, i) => {
+    sum += v;
+    return { atMs, y: Math.round((sum / (i + 1)) * k) / k };
+  });
+  return { points, avg: points.length ? points[points.length - 1]!.y : null };
+}
 
-/** The three trend series over the runs that ended within the last `days` days of `nowMs`, oldest first. A
- *  run with no usable end time is outside every window. Pure. */
+/** The three trend series over the runs that ended within the last `days` days of `nowMs`, oldest first — each
+ *  a running mean (see `TrendSeries`). A run with no usable end time is outside every window. Pure. */
 export function trendSeries(runs: readonly CareerRun[], days: TrendWindow, nowMs: number): TrendSet {
   const since = nowMs - days * 86_400_000;
   const inWindow = runs
     .filter((r) => Number.isFinite(r.atMs) && r.atMs >= since && r.atMs <= nowMs + 60_000)
     .slice()
     .sort((a, b) => a.atMs - b.atMs);
-  const placement: TrendPoint[] = [];
-  const winRate: TrendPoint[] = [];
-  const apm: TrendPoint[] = [];
-  let matchWins = 0, matchesPlaced = 0;
+  const placement: { atMs: number; v: number }[] = [];
+  const wins: { atMs: number; v: number }[] = [];
+  const apm: { atMs: number; v: number }[] = [];
   for (const r of inWindow) {
-    if (r.placement !== null) placement.push({ atMs: r.atMs, y: r.placement });
+    if (r.placement !== null) placement.push({ atMs: r.atMs, v: r.placement });
     const won = isMatchWin(r.placement);
-    if (won !== null) {
-      matchesPlaced++;
-      if (won) matchWins++;
-      winRate.push({ atMs: r.atMs, y: Math.round((matchWins / matchesPlaced) * 100) });
-    }
+    if (won !== null) wins.push({ atMs: r.atMs, v: won ? 100 : 0 }); // the running mean of 0/100 IS the win rate %
     const a = apmOf(r);
-    if (a !== null) apm.push({ atMs: r.atMs, y: a });
+    if (a !== null) apm.push({ atMs: r.atMs, v: a });
   }
-  return {
-    placement: seriesOf(placement),
-    winRate: { points: winRate, avg: matchesPlaced ? Math.round((matchWins / matchesPlaced) * 100) : null },
-    apm: seriesOf(apm),
-  };
+  return { placement: runningSeries(placement, 1), winRate: runningSeries(wins, 0), apm: runningSeries(apm, 1) };
 }
 
 /** Points → an SVG polyline `points` attribute inside a `w`×`h` box with `pad` px of margin. `yMin`/`yMax`

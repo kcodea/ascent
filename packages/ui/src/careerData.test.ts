@@ -275,9 +275,10 @@ describe('heroCareers — the Heroes tab, folded over EVERY run', () => {
 });
 
 describe('trendSeries — the three lines over a window', () => {
-  it('7 days: only runs 1 + 2, oldest first; APM skips the run without a recording clock', () => {
+  it('7 days: only runs 1 + 2, oldest first, each line a RUNNING mean that ends on the headline; APM skips the run without a recording clock', () => {
     const t = trendSeries(RUNS, 7, NOW);
-    expect(t.placement.points.map((p) => p.y)).toEqual([4, 1]);
+    // Placements 4 then 1 → running 4 → 2.5; the headline is the window's exact mean.
+    expect(t.placement.points.map((p) => p.y)).toEqual([4, 2.5]);
     expect(t.placement.avg).toBe(2.5);
     // Both placed top 4 → the running match win rate is 100 after each; the headline is the window's overall share.
     expect(t.winRate.points.map((p) => p.y)).toEqual([100, 100]);
@@ -288,15 +289,19 @@ describe('trendSeries — the three lines over a window', () => {
 
   it('30 days adds run 3; 90 days adds run 4; the 120-day-old and the undated runs are never in a window', () => {
     const t30 = trendSeries(RUNS, 30, NOW);
-    expect(t30.placement.points.map((p) => p.y)).toEqual([7, 4, 1]);
-    expect(t30.apm.points.map((p) => p.y)).toEqual([30, 20]);
+    // Placements 7, 4, 1 → running 7 → 5.5 → 4 (avg 4); APM 30, 20 → 30 → 25 (avg 25).
+    expect(t30.placement.points.map((p) => p.y)).toEqual([7, 5.5, 4]);
+    expect(t30.placement.avg).toBe(4);
+    expect(t30.apm.points.map((p) => p.y)).toEqual([30, 25]);
+    expect(t30.apm.avg).toBe(25);
     // 7th (L) → 4th (W) → 1st (W): running 0 → 50 → 67; overall 2 of 3 = 67%.
     expect(t30.winRate.points.map((p) => p.y)).toEqual([0, 50, 67]);
     expect(t30.winRate.avg).toBe(67);
     const t90 = trendSeries(RUNS, 90, NOW);
-    expect(t90.placement.points.map((p) => p.y)).toEqual([2, 7, 4, 1]);
+    // Placements 2, 7, 4, 1 → running 2 → 4.5 → 4.3 → 3.5; APM 20, 30, 20 → 20 → 25 → 23.3.
+    expect(t90.placement.points.map((p) => p.y)).toEqual([2, 4.5, 4.3, 3.5]);
     expect(t90.placement.avg).toBe(3.5);
-    expect(t90.apm.points.map((p) => p.y)).toEqual([20, 30, 20]);
+    expect(t90.apm.points.map((p) => p.y)).toEqual([20, 25, 23.3]);
     expect(t90.apm.avg).toBe(23.3);
     // 2nd (W) → 7th (L) → 4th (W) → 1st (W): running 100 → 50 → 67 → 75; overall 3 of 4 = 75%.
     expect(t90.winRate.points.map((p) => p.y)).toEqual([100, 50, 67, 75]);
@@ -313,6 +318,15 @@ describe('trendSeries — the three lines over a window', () => {
     expect(t.winRate.avg).toBe(50);
     const none = trendSeries([run({ atMs: NOW, placement: null })], 7, NOW);
     expect(none.winRate).toEqual({ points: [], avg: null });
+  });
+
+  it('every series is smoothed: a point is the running mean so far, never the per-run value — a 1↔8 saw-tooth reads as a settling line', () => {
+    const t = trendSeries([1, 8, 1, 8].map((placement, i) => run({ id: i, placement, atMs: NOW - (3 - i) * DAY })), 7, NOW);
+    expect(t.placement.points.map((p) => p.y)).toEqual([1, 4.5, 3.3, 4.5]);
+    expect(t.placement.avg).toBe(4.5);
+    expect(t.placement.points.at(-1)!.y).toBe(t.placement.avg); // the line ends on the headline
+    expect(t.winRate.points.map((p) => p.y)).toEqual([100, 50, 67, 50]);
+    expect(t.winRate.avg).toBe(50);
   });
 
   it('an empty window yields empty series with null averages', () => {

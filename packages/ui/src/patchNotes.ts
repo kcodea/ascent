@@ -56,6 +56,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-20',
+    label: 'Leaderboard rows',
+    changes: [
+      { category: 'UI / Info', text: "The Leaderboard's rows are now big and clean: a large rank medallion, the hero portrait, the player's handle with their favourite hero, the rating as a big gold MMR number, games played, and a CAREER PAGE button that opens that player's Career (WATCH still plays their latest run). The strip of card tiles showing each player's latest board is gone — that lives on their Career page." },
+    ],
+  },
+  {
+    date: '2026-09-20',
     label: 'Every round counts',
     changes: [
       { category: 'UI / Info', text: "Your W–L record now counts every round of a run. The first two rounds used to be skipped as \"calibration\" (a leftover of the old course), so a 15-round game read 9–4; the HUD, end screen, Career, Recent Games and the Hall all count all rounds now." },

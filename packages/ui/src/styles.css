@@ -6491,7 +6491,14 @@ svg { width: 18px; height: 18px; }
 /* Final-team tiles: 7 fixed slots, each the REAL card rendered at `--tile-cw` and scaled down with a
    transform (compositor-only) inside a box pre-sized to the scaled footprint. `--tile-s` steps UP on wide
    screens (2560-class) so the stat pips stay legible there too. A hovered tile lifts (one-shot transform). */
-.lb-team { --tile-cw: 132px; --tile-s: 0.82; display: flex; gap: 8px; align-items: flex-start; padding: 18px 0 8px; }
+/* TOP PADDING (owner 2026-09-21): the tallest thing a tile paints above its box is the authored FRAME's arch —
+   the oval / heater PNG (`.cframe-img` / `.tframe-img`) tops out ~0.23 × the card width above the card's own
+   top edge (measured: 24.6px at --tile-s 0.82, 1.75% of the PNG is transparent lead-in), higher than the
+   tier plaque or a Gilded card's crown badge (both sit inside the box). 18px let the arch overlap the FINAL
+   TEAM / WINNING WARBAND caption by ~1.5px; the padding now scales with the tile (--tile-cw × --tile-s) so
+   the arch clears the caption by ~10px at EVERY --tile-s step (0.5 / 0.62 / 0.82 / 0.95), never more. The
+   bottom trimmed 8 → 4px (nothing hangs below a tile's box) so the row grows ~8px, not 12. */
+.lb-team { --tile-cw: 132px; --tile-s: 0.82; display: flex; gap: 8px; align-items: flex-start; padding: calc(var(--tile-cw) * var(--tile-s) * 0.23 + 5px) 0 4px; }
 .lb-tile { position: relative; flex: none; width: calc(var(--tile-cw) * var(--tile-s)); height: calc(var(--tile-cw) / 0.752 * var(--tile-s)); }
 .lb-tile.empty { border-radius: 8px; border: 1.5px dashed rgba(255, 255, 255, 0.12); background: rgba(0, 0, 0, 0.16); }
 .lb-tile-scale { position: absolute; left: 0; top: 0; width: var(--tile-cw); height: calc(var(--tile-cw) / 0.752); transform: scale(var(--tile-s)); transform-origin: top left; }
@@ -6508,12 +6515,14 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 
 /* Rune emblems + names (Recent Games): the Runeforge art in a purple-ringed disc, the name beside it, the
    standard floating tooltip (.runtrophy-tip) with the rune's text above on hover. */
-.lb-runes { display: flex; flex-wrap: wrap; gap: 6px 10px; }
-.lb-rune { position: relative; display: inline-flex; align-items: center; gap: 7px; padding: 3px 10px 3px 3px; border-radius: 999px; background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(176, 120, 230, 0.35); }
-.lb-rune-em { width: 26px; height: 26px; border-radius: 50%; overflow: hidden; border: 1.5px solid #b078e6; background: #14100c; display: grid; place-items: center; flex: none; }
+.lb-runes { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+/* Pill geometry stepped up 2026-09-21 (owner: "slightly larger"): 32px emblem (was 26), 15px name (was 13),
+   the padding / gaps scaled with it. Still `flex-wrap` — a long rune list wraps to a second line. */
+.lb-rune { position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 3px 12px 3px 3px; border-radius: 999px; background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(176, 120, 230, 0.35); }
+.lb-rune-em { width: 32px; height: 32px; border-radius: 50%; overflow: hidden; border: 1.5px solid #b078e6; background: #14100c; display: grid; place-items: center; flex: none; }
 .lb-rune-em img { width: 100%; height: 100%; object-fit: cover; }
-.lb-rune-em svg { width: 14px; height: 14px; color: #d9cfaa; }
-.lb-rune-name { font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: #f4eee2; white-space: nowrap; }
+.lb-rune-em svg { width: 17px; height: 17px; color: #d9cfaa; }
+.lb-rune-name { font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: #f4eee2; white-space: nowrap; }
 .lb-rune:hover .lb-rune-tip { opacity: 1; transition-delay: 0.25s; }
 .lb-runes-none { font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.45); }
 
@@ -6571,7 +6580,18 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .lb-row-btn[aria-disabled='true'] { opacity: 0.7; }
 .lb-row-rank { display: flex; justify-content: center; }
 .lb-row-hero { display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; }
-.lb-row-hero .lb-heroframe .hero { width: 64px; height: 64px; }
+/* THE BANNER PORTRAIT WEARS THE PORTRAIT RING (owner 2026-09-21): the Hall's and Recent Games' row portrait
+   sits in the game's gold hero-portrait PNG (hero-select/heroportrait.png — the `.portring` recipe, the same
+   re-seat the Career rows got the same morning). The LbHeroFrame markup is untouched: `.lb-heroframe` becomes
+   the ring box and the existing `.hero` disc is re-seated in its hole (0.9 × ring, offset 0.046 / 0.054, the
+   ring 1.0315 × tall for the PNG's drop shadow). --ring 96px → an 86.4px disc, up from the 64px CSS-ring
+   portrait; the 150px hero track holds it with room. Scoped under `.lb-row-hero` so the Rankings table's
+   `.lb-trow-btn .lb-heroframe .hero` (88px, no ring) and the `.big` variant are untouched. */
+.lb-row-hero .lb-heroframe { --ring: 96px; position: relative; display: block; width: var(--ring); height: calc(var(--ring) * 1.0315); }
+.lb-row-hero .lb-heroframe::after { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: url('./hero-select/heroportrait.png') center / 100% 100% no-repeat; }
+.lb-row-hero .lb-heroframe .hero { position: absolute; z-index: 1; width: calc(var(--ring) * 0.9); height: calc(var(--ring) * 0.9);
+  left: calc(var(--ring) * 0.046); top: calc(var(--ring) * 0.054); padding: 0; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.6); overflow: hidden; }
 .lb-row-name { margin-top: 3px; font-family: var(--font-ui); font-weight: 900; font-size: 15px; color: #fff; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lb-row-herosub { font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.62); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lb-row-record { font-family: var(--font-ui); font-weight: 900; font-size: 16px; font-variant-numeric: tabular-nums; }

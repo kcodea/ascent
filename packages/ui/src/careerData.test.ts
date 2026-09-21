@@ -7,13 +7,15 @@
  *     (`replaySummary`) and from the light probe (`telemetryFactsOf`), agreeing with each other;
  *  3. the left-column aggregates;
  *  4. the three trend series over a window;
- *  5. the Heroes tab's per-hero fold (owner ask 2026-09-20).
+ *  5. the Heroes tab's per-hero fold (owner ask 2026-09-20);
+ *  6. the MATCH WIN definition (owner ruling 2026-09-20): a match is won by PLACEMENT — top 4 = W, 5th–8th =
+ *     L — and that is the unit the banner result, the hero fold and the Win Rate trend all use (never fights).
  */
 import { describe, it, expect } from 'vitest';
 import type { ReplayV2 } from '@game/sim';
 import {
-  actionsOf, apmOf, careerAggregates, careerRunOf, heroCareers, joinTelemetry, outcomeOf, polylineOf, replaySummary,
-  runLengthText, telemetryFactsOf, trendSeries, type CareerRun,
+  actionsOf, apmOf, careerAggregates, careerRunOf, heroCareers, isMatchWin, joinTelemetry, matchResultOf, outcomeOf, polylineOf,
+  replaySummary, runLengthText, telemetryFactsOf, trendSeries, type CareerRun,
 } from './careerData';
 
 const DAY = 86_400_000;
@@ -176,6 +178,17 @@ describe('per-run text + derivations', () => {
     expect(outcomeOf(null)).toEqual({ label: '—', cls: 'none' });
   });
 
+  it('a MATCH is won by placement: top 4 = WIN, 5th–8th = LOSS, no placement = neither (owner 2026-09-20)', () => {
+    expect([1, 2, 3, 4].map(isMatchWin)).toEqual([true, true, true, true]);
+    expect([5, 6, 7, 8].map(isMatchWin)).toEqual([false, false, false, false]);
+    expect(isMatchWin(null)).toBeNull();
+    expect(matchResultOf(1)).toEqual({ label: 'WIN', cls: 'win' });
+    expect(matchResultOf(4)).toEqual({ label: 'WIN', cls: 'win' });
+    expect(matchResultOf(5)).toEqual({ label: 'LOSS', cls: 'loss' });
+    expect(matchResultOf(8)).toEqual({ label: 'LOSS', cls: 'loss' });
+    expect(matchResultOf(null)).toEqual({ label: '—', cls: 'none' });
+  });
+
   it('actions ≈ APT × rounds, APM = actions per minute of the recording; either missing → null', () => {
     expect(actionsOf({ apt: 26.1, wave: 15 })).toBe(392);
     expect(apmOf({ apt: 26.1, wave: 15, durationMs: 883_179 })).toBe(26.6);
@@ -223,60 +236,97 @@ describe('careerAggregates — the left column', () => {
 });
 
 describe('heroCareers — the Heroes tab, folded over EVERY run', () => {
-  it('one line per hero played: runs, 1st-place wins, the summed fight record + win rate, avg / best placement, last played', () => {
+  it('one entry per hero played: games, 1st-place wins, the MATCH record (top-4 W / bottom-4 L) + win rate, avg / best placement, last played', () => {
     const h = heroCareers(RUNS);
-    expect(h.map((x) => x.heroId)).toEqual(['brackus', 'sable']); // 4 runs vs 2
+    expect(h.map((x) => x.heroId)).toEqual(['brackus', 'sable']); // 4 games vs 2
     const b = h[0]!;
-    // brackus: runs 1, 3, 5, 6 → placements 1, 7, —, 6 → 1 first, avg 14/3 = 4.7, best 1; fights 8–2, 2–6, 0–0, 6–4 = 16–12 = 57%
-    expect(b).toMatchObject({ runs: 4, firsts: 1, wins: 16, losses: 12, winRate: 57, avgPlacement: 4.7, bestPlacement: 1 });
+    // brackus: runs 1, 3, 5, 6 → placements 1, 7, —, 6 → matches 1 W – 2 L = 33% (the unplaced run counts in
+    // neither), 1 first, avg 14/3 = 4.7, best 1. The fight records (8–2, 2–6, …) play no part.
+    expect(b).toMatchObject({ runs: 4, firsts: 1, wins: 1, losses: 2, winRate: 33, avgPlacement: 4.7, bestPlacement: 1 });
     expect(b.lastAtMs).toBe(NOW - 1 * DAY); // the undated run 6 never wins "last played"
     const s = h[1]!;
-    // sable: runs 2, 4 → placements 4, 2 → 0 firsts, avg 3, best 2; fights 5–5 + 6–3 = 11–8 = 58%
-    expect(s).toMatchObject({ runs: 2, firsts: 0, wins: 11, losses: 8, winRate: 58, avgPlacement: 3, bestPlacement: 2 });
+    // sable: runs 2, 4 → placements 4, 2 → both top 4 = 2 W – 0 L = 100%, 0 firsts, avg 3, best 2
+    expect(s).toMatchObject({ runs: 2, firsts: 0, wins: 2, losses: 0, winRate: 100, avgPlacement: 3, bestPlacement: 2 });
     expect(s.lastAtMs).toBe(NOW - 3 * DAY);
   });
 
-  it('sorts by runs played, then win rate (unknown last), then id; never-played heroes are absent; empties are null', () => {
+  it('a 4th is a win and a 5th a loss regardless of the fight record', () => {
+    const h = heroCareers([
+      run({ heroId: 'x', placement: 4, wins: 0, losses: 9 }),
+      run({ heroId: 'x', placement: 5, wins: 9, losses: 0 }),
+    ]);
+    expect(h[0]).toMatchObject({ runs: 2, wins: 1, losses: 1, winRate: 50 });
+  });
+
+  it('sorts by games played, then match win rate (unknown last), then id; never-played heroes are absent; empties are null', () => {
     const h = heroCareers([
       run({ heroId: 'a', wins: 1, losses: 1, placement: null, atMs: NaN }),
       run({ heroId: 'b', wins: 3, losses: 1, placement: 2 }),
       run({ heroId: 'c', wins: 0, losses: 0, placement: 5 }),
-      run({ heroId: '', wins: 9, losses: 0 }), // a malformed row with no hero is skipped
+      run({ heroId: '', wins: 9, losses: 0, placement: 1 }), // a malformed row with no hero is skipped
     ]);
-    expect(h.map((x) => x.heroId)).toEqual(['b', 'a', 'c']);
-    expect(h[1]).toMatchObject({ winRate: 50, avgPlacement: null, bestPlacement: null });
-    expect(Number.isNaN(h[1]!.lastAtMs)).toBe(true);
-    expect(h[2]).toMatchObject({ winRate: null, avgPlacement: 5, bestPlacement: 5 });
+    expect(h.map((x) => x.heroId)).toEqual(['b', 'c', 'a']); // 100% · 0% · unknown
+    expect(h[0]).toMatchObject({ wins: 1, losses: 0, winRate: 100, avgPlacement: 2, bestPlacement: 2 });
+    expect(h[1]).toMatchObject({ wins: 0, losses: 1, winRate: 0, avgPlacement: 5, bestPlacement: 5 });
+    expect(h[2]).toMatchObject({ wins: 0, losses: 0, winRate: null, avgPlacement: null, bestPlacement: null });
+    expect(Number.isNaN(h[2]!.lastAtMs)).toBe(true);
     expect(heroCareers([])).toEqual([]);
   });
 });
 
 describe('trendSeries — the three lines over a window', () => {
-  it('7 days: only runs 1 + 2, oldest first; APM skips the run without a recording clock', () => {
+  it('7 days: only runs 1 + 2, oldest first, each line a RUNNING mean that ends on the headline; APM skips the run without a recording clock', () => {
     const t = trendSeries(RUNS, 7, NOW);
-    expect(t.placement.points.map((p) => p.y)).toEqual([4, 1]);
+    // Placements 4 then 1 → running 4 → 2.5; the headline is the window's exact mean.
+    expect(t.placement.points.map((p) => p.y)).toEqual([4, 2.5]);
     expect(t.placement.avg).toBe(2.5);
-    expect(t.winRate.points.map((p) => p.y)).toEqual([50, 80]);  // 5/10, 8/10
-    expect(t.winRate.avg).toBe(65);
+    // Both placed top 4 → the running match win rate is 100 after each; the headline is the window's overall share.
+    expect(t.winRate.points.map((p) => p.y)).toEqual([100, 100]);
+    expect(t.winRate.avg).toBe(100);
     expect(t.apm.points.map((p) => p.y)).toEqual([20]);           // run 2 has no clock → skipped
     expect(t.apm.avg).toBe(20);
   });
 
   it('30 days adds run 3; 90 days adds run 4; the 120-day-old and the undated runs are never in a window', () => {
     const t30 = trendSeries(RUNS, 30, NOW);
-    expect(t30.placement.points.map((p) => p.y)).toEqual([7, 4, 1]);
-    expect(t30.apm.points.map((p) => p.y)).toEqual([30, 20]);
+    // Placements 7, 4, 1 → running 7 → 5.5 → 4 (avg 4); APM 30, 20 → 30 → 25 (avg 25).
+    expect(t30.placement.points.map((p) => p.y)).toEqual([7, 5.5, 4]);
+    expect(t30.placement.avg).toBe(4);
+    expect(t30.apm.points.map((p) => p.y)).toEqual([30, 25]);
+    expect(t30.apm.avg).toBe(25);
+    // 7th (L) → 4th (W) → 1st (W): running 0 → 50 → 67; overall 2 of 3 = 67%.
+    expect(t30.winRate.points.map((p) => p.y)).toEqual([0, 50, 67]);
+    expect(t30.winRate.avg).toBe(67);
     const t90 = trendSeries(RUNS, 90, NOW);
-    expect(t90.placement.points.map((p) => p.y)).toEqual([2, 7, 4, 1]);
+    // Placements 2, 7, 4, 1 → running 2 → 4.5 → 4.3 → 3.5; APM 20, 30, 20 → 20 → 25 → 23.3.
+    expect(t90.placement.points.map((p) => p.y)).toEqual([2, 4.5, 4.3, 3.5]);
     expect(t90.placement.avg).toBe(3.5);
-    expect(t90.apm.points.map((p) => p.y)).toEqual([20, 30, 20]);
+    expect(t90.apm.points.map((p) => p.y)).toEqual([20, 25, 23.3]);
     expect(t90.apm.avg).toBe(23.3);
-    expect(t90.winRate.points).toHaveLength(4);
+    // 2nd (W) → 7th (L) → 4th (W) → 1st (W): running 100 → 50 → 67 → 75; overall 3 of 4 = 75%.
+    expect(t90.winRate.points.map((p) => p.y)).toEqual([100, 50, 67, 75]);
+    expect(t90.winRate.avg).toBe(75);
   });
 
-  it('win rate is the FIGHT record (wins ÷ wins+losses); a run with no fights contributes no point', () => {
-    const t = trendSeries([run({ atMs: NOW, wins: 0, losses: 0 }), run({ atMs: NOW - DAY, wins: 3, losses: 1 })], 7, NOW);
-    expect(t.winRate.points.map((p) => p.y)).toEqual([75]);
+  it('Win Rate is the MATCH win rate — the share of placed runs finishing top 4 — never the fight record; an unplaced run contributes no point', () => {
+    const t = trendSeries([
+      run({ atMs: NOW, placement: null, wins: 9, losses: 0 }),          // no placement → no point, whatever the fights
+      run({ atMs: NOW - DAY, placement: 5, wins: 8, losses: 1 }),       // a 5th is a LOSS even at 8–1 in fights
+      run({ atMs: NOW - 2 * DAY, placement: 4, wins: 1, losses: 7 }),   // a 4th is a WIN even at 1–7
+    ], 7, NOW);
+    expect(t.winRate.points.map((p) => p.y)).toEqual([100, 50]);
+    expect(t.winRate.avg).toBe(50);
+    const none = trendSeries([run({ atMs: NOW, placement: null })], 7, NOW);
+    expect(none.winRate).toEqual({ points: [], avg: null });
+  });
+
+  it('every series is smoothed: a point is the running mean so far, never the per-run value — a 1↔8 saw-tooth reads as a settling line', () => {
+    const t = trendSeries([1, 8, 1, 8].map((placement, i) => run({ id: i, placement, atMs: NOW - (3 - i) * DAY })), 7, NOW);
+    expect(t.placement.points.map((p) => p.y)).toEqual([1, 4.5, 3.3, 4.5]);
+    expect(t.placement.avg).toBe(4.5);
+    expect(t.placement.points.at(-1)!.y).toBe(t.placement.avg); // the line ends on the headline
+    expect(t.winRate.points.map((p) => p.y)).toEqual([100, 50, 67, 50]);
+    expect(t.winRate.avg).toBe(50);
   });
 
   it('an empty window yields empty series with null averages', () => {

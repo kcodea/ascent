@@ -6336,6 +6336,10 @@ svg { width: 18px; height: 18px; }
 /* The gold action button (WATCH / WATCH REPLAY) — the Career's `.cv2-btn` shape. */
 .lb-btn { position: relative; font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: #1a1206; background: linear-gradient(180deg, #f0d089, #c99d4e); border: 1.5px solid #8a6428; padding: 9px 16px; border-radius: 10px; white-space: nowrap; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45); --pr-edge: 3px; --pr-edge-c: #8a6428; }
 .lb-btn:disabled { opacity: 0.4; filter: saturate(0.4); cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+/* The SECONDARY action (the ranked table's WATCH beside CAREER PAGE): the same shape, hollow — gold text on the
+   navy plate with the gold frame, so the filled button beside it reads as the primary. */
+.lb-btn-ghost { color: #f0d089; background: rgba(0, 0, 0, 0.28); border-color: rgba(196, 160, 92, 0.6); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.14); --pr-edge-c: rgba(120, 88, 36, 0.9); }
+.lb-btn-ghost:hover { border-color: #e8c877; }
 /* Segmented toggle in the top bar (the Hall's Most recent / Most wins) — the Career's trend-window control. */
 .lb-seg { margin-left: auto; display: inline-flex; border-radius: 9px; overflow: hidden; border: 1px solid rgba(196, 160, 92, 0.45); flex: none; }
 .lb-seg-btn { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.04em; padding: 8px 14px; color: rgba(255, 255, 255, 0.72); background: rgba(0, 0, 0, 0.32); border: none; }
@@ -6372,7 +6376,6 @@ svg { width: 18px; height: 18px; }
    transform (compositor-only) inside a box pre-sized to the scaled footprint. `--tile-s` steps UP on wide
    screens (2560-class) so the stat pips stay legible there too. A hovered tile lifts (one-shot transform). */
 .lb-team { --tile-cw: 132px; --tile-s: 0.82; display: flex; gap: 8px; align-items: flex-start; padding: 18px 0 8px; }
-.lb-table .lb-team { --tile-s: 0.7; }
 .lb-tile { position: relative; flex: none; width: calc(var(--tile-cw) * var(--tile-s)); height: calc(var(--tile-cw) / 0.752 * var(--tile-s)); }
 .lb-tile.empty { border-radius: 8px; border: 1.5px dashed rgba(255, 255, 255, 0.12); background: rgba(0, 0, 0, 0.16); }
 .lb-tile-scale { position: absolute; left: 0; top: 0; width: var(--tile-cw); height: calc(var(--tile-cw) / 0.752); transform: scale(var(--tile-s)); transform-origin: top left; }
@@ -6386,7 +6389,6 @@ svg { width: 18px; height: 18px; }
    the Inspect overlay (500). */
 body:has(.lb-ladder) .cardref { z-index: 490; }
 .lb-team-none { display: inline-flex; align-items: center; min-height: 48px; padding: 0 14px; border-radius: 10px; border: 1.5px dashed rgba(255, 255, 255, 0.16); background: rgba(0, 0, 0, 0.16); font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.5); }
-.lb-team-none.dim { border-style: solid; border-color: rgba(255, 255, 255, 0.08); }
 
 /* Rune emblems + names (Recent Games): the Runeforge art in a purple-ringed disc, the name beside it, the
    standard floating tooltip (.runtrophy-tip) with the rune's text above on hover. */
@@ -6399,36 +6401,47 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .lb-rune:hover .lb-rune-tip { opacity: 1; transition-delay: 0.25s; }
 .lb-runes-none { font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.45); }
 
-/* ── THE RANKED TABLE (Rankings.tsx) — one gold panel, a header row, then a plate per player. Column tracks in
-   px so the smaller-font header computes the SAME tracks as the rows. The board column takes the rest. ── */
-.lb-table { display: flex; flex-direction: column; gap: 6px; }
-.lb-trow { display: grid; grid-template-columns: 56px minmax(220px, 280px) 130px 84px minmax(0, 1fr) 128px; column-gap: 14px; align-items: center; padding: 10px 14px; border-radius: 12px; color: #f4eee2; min-width: 0; }
+/* ── THE RANKED TABLE (Rankings.tsx) — one gold panel, a header row, then a chunky plate per player (owner
+   re-lay 2026-09-20: the "latest board" strip is gone; the row is now # · player · rating · games · actions,
+   each column sized to be READ from across the room). Column tracks in px so the smaller-font header computes
+   the SAME tracks as the rows (the actions track is px too — an `auto` track would size to 0 in the header's
+   empty cell and shift every column left of it); the player column takes the rest. Row height ≈ 88px frame + 2×14px padding +
+   the 2px frame = ~120px. ── */
+.lb-table { display: flex; flex-direction: column; gap: 8px; }
+.lb-trow { display: grid; grid-template-columns: 84px minmax(0, 1fr) 210px 130px 272px; column-gap: 24px; align-items: center; padding: 14px 24px; border-radius: 14px; color: #f4eee2; min-width: 0; }
 .lb-trow > * { min-width: 0; }
-.lb-thead { padding: 2px 14px 8px; border-bottom: 2px solid rgba(196, 160, 92, 0.35); border-radius: 0; font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(232, 200, 119, 0.85); }
+.lb-thead { padding: 4px 24px 10px; border-bottom: 2px solid rgba(196, 160, 92, 0.35); border-radius: 0; font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(232, 200, 119, 0.85); }
 .lb-thead .lb-c-rank { text-align: center; }
-.lb-thead .lb-c-rating, .lb-thead .lb-c-games { text-align: right; }
+.lb-thead .lb-c-rating, .lb-thead .lb-c-games { text-align: right; justify-content: flex-end; }
 /* A row is a plate that opens the player's Career (a div[role=button]); hover warms the frame, YOUR row
    carries the accent ring. */
 .lb-trow-btn { background: linear-gradient(90deg, rgba(13, 22, 40, 0.82), rgba(9, 15, 29, 0.86)); border: 2px solid rgba(196, 160, 92, 0.28); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.08); transition: border-color 0.12s ease, background 0.12s ease; }
 .lb-trow-btn:hover { border-color: rgba(232, 200, 119, 0.75); background: linear-gradient(90deg, rgba(20, 31, 54, 0.9), rgba(13, 21, 40, 0.92)); }
 .lb-trow-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
 .lb-trow-btn.me { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc), inset 0 0 0 1px rgba(240, 144, 46, 0.25); background: linear-gradient(90deg, rgba(60, 34, 12, 0.7), rgba(13, 21, 40, 0.9)); }
+/* The rank medallion, at row size: a 64px coin (the shared `.lb-medal` stays 40px for the Hall's banners). */
 .lb-c-rank { display: flex; justify-content: center; }
-.lb-c-player { display: flex; align-items: center; gap: 12px; }
-.lb-who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.lb-handle { display: flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 900; font-size: 17px; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lb-you { flex: none; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #1a1206; background: var(--acc); padding: 2px 7px; border-radius: 6px; }
-.lb-herosub { font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.62); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lb-c-rating { display: flex; align-items: baseline; justify-content: flex-end; gap: 6px; }
-.lb-rating { font-family: var(--font-ui); font-weight: 900; font-size: 26px; line-height: 1; color: #ffd76a; font-variant-numeric: tabular-nums; }
-.lb-unit { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
-.lb-c-games { display: flex; justify-content: flex-end; }
-.lb-num { font-family: var(--font-ui); font-weight: 800; font-size: 17px; color: #f4eee2; font-variant-numeric: tabular-nums; }
-.lb-c-board { display: flex; flex-direction: column; gap: 5px; padding-left: 14px; border-left: 1px solid rgba(255, 255, 255, 0.1); }
-.lb-latest-place { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.6); }
-.lb-latest-place.won { color: #6fe0a0; }
-.lb-latest-place.lost { color: #ff9a9a; }
-.lb-c-act { display: flex; justify-content: flex-end; }
+.lb-trow-btn .lb-medal { width: 64px; height: 64px; font-size: 28px; }
+.lb-trow-btn .lb-medal svg { top: -12px; width: 22px; height: 22px; }
+.lb-trow-btn .lb-medal.plain { background: rgba(0, 0, 0, 0.28); box-shadow: inset 0 0 0 2px rgba(196, 160, 92, 0.3); color: rgba(255, 255, 255, 0.85); }
+/* The player: the hero frame at portrait size, the handle large with the favourite hero under it. */
+.lb-c-player { display: flex; align-items: center; gap: 18px; }
+.lb-trow-btn .lb-heroframe .hero { width: 88px; height: 88px; padding: 4px; }
+.lb-who { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.lb-handle { display: flex; align-items: center; gap: 10px; font-family: var(--font-ui); font-weight: 900; font-size: 24px; line-height: 1.1; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-you { flex: none; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #1a1206; background: var(--acc); padding: 3px 8px; border-radius: 6px; }
+.lb-herosub { font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: rgba(255, 255, 255, 0.62); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The rating — the big gold number with its unit trailing. ONE element (`.lb-c-rating`, aliased `.rk-rating`)
+   so a medal crest can be slotted into it without re-laying the row. */
+.lb-c-rating { display: flex; align-items: baseline; justify-content: flex-end; gap: 8px; }
+.lb-rating { font-family: var(--font-ui); font-weight: 900; font-size: 40px; line-height: 1; color: #ffd76a; font-variant-numeric: tabular-nums; }
+.lb-unit { font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
+/* Games — the value with its small-caps caption under it, right-aligned under the GAMES header. */
+.lb-c-games { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.lb-num { font-family: var(--font-ui); font-weight: 900; font-size: 28px; line-height: 1; color: #f4eee2; font-variant-numeric: tabular-nums; }
+/* The actions, right-aligned: CAREER PAGE (primary) then WATCH (secondary). */
+.lb-c-act { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+.lb-trow-btn .lb-btn { font-size: 14px; padding: 12px 20px; }
 
 /* ── BANNER ROWS (Hall of Champions + Recent Games) — the Career match banner: hero column · team column ·
    outcome column, plus a leading rank column on the Hall. ── */
@@ -6482,16 +6495,26 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 @media (min-width: 2200px) {
   .lb-ladder .lbscroll { max-width: 2000px; }
   .lb-team { --tile-s: 0.95; }
-  .lb-table .lb-team { --tile-s: 0.9; }
+  /* The ranked row steps up with the panel: a 100px frame, a 72px coin, the rating at 46px (~136px rows). */
+  .lb-trow { grid-template-columns: 96px minmax(0, 1fr) 240px 150px 290px; padding: 16px 28px; }
+  .lb-trow-btn .lb-heroframe .hero { width: 100px; height: 100px; }
+  .lb-trow-btn .lb-medal { width: 72px; height: 72px; font-size: 30px; }
+  .lb-handle { font-size: 26px; }
+  .lb-herosub { font-size: 16px; }
+  .lb-rating { font-size: 46px; }
+  .lb-num { font-size: 32px; }
+  .lb-trow-btn .lb-btn { font-size: 15px; padding: 13px 22px; }
   .lb-row { grid-template-columns: 170px minmax(0, 1fr) 250px; }
   .lb-hall .lb-row { grid-template-columns: 60px 170px minmax(0, 1fr) 260px; }
 }
 /* Narrower viewports: the tiles step down before the columns would overflow. */
-@media (max-width: 1400px) { .lb-team { --tile-s: 0.62; } .lb-table .lb-team { --tile-s: 0.56; } }
+@media (max-width: 1400px) { .lb-team { --tile-s: 0.62; } }
 @media (max-width: 1180px) {
   .lb-team { --tile-s: 0.5; }
-  .lb-table .lb-team { --tile-s: 0.44; }
-  .lb-trow { grid-template-columns: 48px minmax(180px, 240px) 100px 70px minmax(0, 1fr) 110px; }
+  .lb-trow { grid-template-columns: 72px minmax(0, 1fr) 170px 100px 236px; column-gap: 16px; padding: 12px 16px; }
+  .lb-trow-btn .lb-btn { font-size: 13px; padding: 10px 14px; }
+  .lb-trow-btn .lb-heroframe .hero { width: 76px; height: 76px; }
+  .lb-rating { font-size: 34px; }
 }
 .lbentry { background: rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 18px; padding: 14px 18px; }
 .lbentry-head { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
@@ -6612,11 +6635,13 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .cv2-row-hero { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .cv2-row-heroid { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .cv2-row-heroname { font-family: var(--font-ui); font-weight: 900; font-size: 22px; line-height: 1.1; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cv2-row-record { display: inline-flex; align-items: baseline; gap: 3px; font-family: var(--font-ui); font-weight: 900; font-size: 18px; font-variant-numeric: tabular-nums; color: #f4eee2; }
-.cv2-row-record-l { font-size: 13px; letter-spacing: 0.06em; color: rgba(255, 255, 255, 0.6); margin-right: 4px; }
-.cv2-row-record-sep { color: rgba(255, 255, 255, 0.4); margin-right: 4px; }
-.cv2-row-record.won .cv2-row-record-n:first-child { color: #6fe0a0; }
-.cv2-row-record.lost .cv2-row-record-n:first-child { color: #ff9a9a; }
+/* The MATCH result under the hero name — by placement (top 4 = WIN, 5th–8th = LOSS; owner 2026-09-20). The
+   fight record is demoted to a small muted caption beneath it. */
+.cv2-row-result { align-self: flex-start; font-family: var(--font-ui); font-weight: 900; font-size: 15px; letter-spacing: 0.14em; line-height: 1; padding: 5px 10px 4px; border-radius: 6px; color: #f4eee2; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.18); }
+.cv2-row-result.win { color: #6fe0a0; background: rgba(85, 201, 138, 0.14); border-color: rgba(85, 201, 138, 0.45); }
+.cv2-row-result.loss { color: #ff9a9a; background: rgba(217, 102, 106, 0.14); border-color: rgba(217, 102, 106, 0.45); }
+.cv2-row-result.none { color: rgba(255, 255, 255, 0.5); }
+.cv2-row-fights { font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.04em; color: rgba(255, 255, 255, 0.5); font-variant-numeric: tabular-nums; margin-top: 2px; }
 .cv2-row-label { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(232, 200, 119, 0.85); }
 .cv2-row-outcome { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 4px; min-width: 0; flex: none; }
 .cv2-verdict { font-family: var(--font-ui); font-weight: 900; font-size: 30px; letter-spacing: 0.08em; line-height: 1.05; color: #f4eee2; }
@@ -6662,20 +6687,35 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .cv2-rune-tip-kind { font-size: 13px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #a8d8ef; }
 .cv2-rune-tip-body b { color: #a8d8ef; font-weight: 800; }
 .cv2-watch { flex: none; }
-/* HEROES tab rows — one banner per hero played: the match head's portrait + name, then five stat cells. */
-.cv2-hrow { display: grid; grid-template-columns: 200px minmax(0, 1fr); align-items: center; gap: 20px; padding: 14px 20px; color: #f4eee2; background: linear-gradient(180deg, rgba(13, 22, 40, 0.84), rgba(9, 15, 29, 0.9)); border: 2px solid rgba(196, 160, 92, 0.34); border-left-width: 6px; box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.1), 0 8px 22px -12px rgba(0, 0, 0, 0.6); border-radius: 16px; min-width: 0; flex: none; }
-.cv2-hrow-runs { font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: rgba(232, 200, 119, 0.85); }
-/* Sized columns (label widths, not content) so every row's cells line up down the list. */
-.cv2-hrow-stats { display: grid; grid-template-columns: 112px 150px 122px 64px minmax(0, 1fr); gap: 14px; align-items: start; }
-.cv2-hcell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.cv2-hcell .cv2-meta-l { white-space: nowrap; }
-.cv2-hcell-v { font-family: var(--font-ui); font-weight: 900; font-size: 22px; line-height: 1.1; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.cv2-hcell-v.small { font-size: 16px; font-weight: 800; }
-.cv2-hcell-v.won { color: #6fe0a0; }
-.cv2-hcell-v.top4 { color: #f4eee2; }
-.cv2-hcell-v.lost { color: #ff9a9a; }
-.cv2-hrow-record { display: inline-flex; align-items: baseline; gap: 3px; }
-.cv2-hrow-rate { font-family: var(--font-ui); font-size: 14px; font-weight: 800; color: rgba(255, 255, 255, 0.7); white-space: nowrap; }
+/* HEROES tab (owner 2026-09-20) — a portrait grid: every hero played in the game's circular frame (the same
+   `.cv2-heroframe` the left column wears), name + "N games played" beneath. The grid fills the centre column
+   and wraps to the width; only the column's list scrolls. */
+.cv2-herogrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; padding: 4px 2px 8px; }
+.cv2-hcard { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 20px 12px 16px; color: #f4eee2; background: linear-gradient(180deg, rgba(13, 22, 40, 0.84), rgba(9, 15, 29, 0.9)); border: 2px solid rgba(196, 160, 92, 0.34); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.1), 0 8px 22px -12px rgba(0, 0, 0, 0.6); border-radius: 16px; min-width: 0; outline: none; transition: border-color 0.12s, transform 0.12s; }
+.cv2-hcard:hover, .cv2-hcard:focus-visible { border-color: rgba(232, 200, 119, 0.85); transform: translateY(-2px); }
+.cv2-hcard:focus-visible { box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.1), 0 0 0 2px rgba(240, 208, 137, 0.6), 0 8px 22px -12px rgba(0, 0, 0, 0.6); }
+.cv2-hcard .cv2-heroframe .hero { width: 120px; height: 120px; padding: 5px; }
+.cv2-hcard-name { margin-top: 6px; max-width: 100%; font-family: var(--font-ui); font-weight: 900; font-size: 18px; line-height: 1.1; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cv2-hcard-games { font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.04em; color: rgba(232, 200, 119, 0.85); white-space: nowrap; }
+/* The hero panel — portalled to <body> and fixed beside the portrait (never a native title). Same skin as the
+   rune panel; a static shadow, nothing animated past the one-shot fade. */
+.cv2-herotip { position: fixed; z-index: 520; width: 250px; display: flex; flex-direction: column; gap: 6px; background: linear-gradient(180deg, rgba(46, 56, 72, 0.96), rgba(20, 25, 34, 0.98)); border: 1px solid rgba(190, 214, 240, 0.28); border-top-color: rgba(226, 240, 255, 0.45); color: #eef4fb; border-radius: 12px; padding: 12px 16px 14px; font-family: var(--font-ui); font-size: 15px; line-height: 1.35; font-weight: 600; text-align: left; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.16); pointer-events: none; animation: fadein 0.12s ease; }
+.cv2-herotip-name { font-weight: 900; font-size: 17px; color: #ffd98a; padding-bottom: 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); margin-bottom: 2px; }
+.cv2-herotip-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.cv2-herotip-l { font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); white-space: nowrap; }
+.cv2-herotip-record { display: inline-flex; align-items: baseline; gap: 3px; margin-left: auto; font-weight: 900; font-size: 20px; font-variant-numeric: tabular-nums; color: #fff; }
+.cv2-herotip-n.win { color: #6fe0a0; }
+.cv2-herotip-n.loss { color: #ff9a9a; }
+.cv2-herotip-wl { font-size: 12px; letter-spacing: 0.06em; color: rgba(255, 255, 255, 0.6); margin-right: 4px; }
+.cv2-herotip-sep { color: rgba(255, 255, 255, 0.4); margin-right: 4px; }
+.cv2-herotip-rate { font-weight: 900; font-size: 20px; color: #fff; font-variant-numeric: tabular-nums; min-width: 48px; text-align: right; }
+.cv2-herotip-v { font-weight: 900; font-size: 20px; color: #fff; font-variant-numeric: tabular-nums; }
+.cv2-herotip-sub { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.cv2-herotip-sub:first-of-type { margin-top: 4px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+.cv2-herotip-sv { font-weight: 800; font-size: 15px; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cv2-herotip-sv.won { color: #6fe0a0; }
+.cv2-herotip-sv.top4 { color: #f4eee2; }
+.cv2-herotip-sv.lost { color: #ff9a9a; }
 
 /* RIGHT column */
 .cv2-right { gap: 0; overflow-y: auto; }
@@ -6710,7 +6750,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 /* Narrower pages give the tiles the room first (the side columns shrink); under 1100 the columns stack and
    the page scrolls as a whole. */
 @media (max-width: 1700px) { .cv2-cols { grid-template-columns: 270px minmax(0, 1fr) 320px; } }
-@media (max-width: 1360px) { .cv2-cols { grid-template-columns: 250px minmax(0, 1fr) 290px; gap: 14px; } .cv2-verdict { font-size: 26px; } .cv2-hrow { grid-template-columns: 180px minmax(0, 1fr); } .cv2-hrow-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 10px; } }
+@media (max-width: 1360px) { .cv2-cols { grid-template-columns: 250px minmax(0, 1fr) 290px; gap: 14px; } .cv2-verdict { font-size: 26px; } .cv2-herogrid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; } }
 @media (max-width: 1100px) { .cv2-body { overflow-y: auto; } .cv2-cols { grid-template-columns: 1fr; grid-template-rows: none; flex: none; } .cv2-leftcol, .cv2-left, .cv2-right { max-height: none; overflow: visible; } .cv2-list { overflow: visible; } }
 
 /* Recent Games list (RecentGames.tsx) — the last 20 games across all players: portrait · name/hero · place ·

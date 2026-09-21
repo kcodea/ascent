@@ -3,19 +3,20 @@
  * THE LADDER PAGES (owner polish 2026-09-20) — jsdom renders of the ranked Leaderboard (Rankings), the Hall
  * of Champions (Leaderboard) and Recent Games over three-row fixtures from a mocked `remoteBoards`, plus the
  * pure label helpers (`leaderboardData`) and the widened `asRecentGameRow` mapper. Pins: the podium
- * medallions; YOUR row highlighted + scrolled to; real card tiles (7 slots) for a stored board and a labelled
- * empty plate without one; the VICTORY / ordinal outcome block with date, length and record; the rune
- * emblems + names; the "Partial recording" caption; ONE Watch button per row, live only with a replay; and
- * the designed loading / empty / offline states.
+ * medallions; YOUR row highlighted + scrolled to; the ranked table's columns (# · Player · Rating · Games —
+ * NO board tiles since the 2026-09-20 re-lay) with a CAREER PAGE button per row that opens that player's
+ * Career; real card tiles (7 slots) for a stored board and a labelled empty plate without one on the banner
+ * pages; the VICTORY / ordinal outcome block with date, length and record; the rune emblems + names; the
+ * "Partial recording" caption; ONE Watch button per row, live only with a replay; and the designed loading /
+ * empty / offline states.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { mount, type Mounted } from './renderedText.mount';
 import type { BoardSnapshot } from '@game/sim';
-import type { BoardWinStats, LatestGameFacts, PlayerRow, RecentGameRow, VictoryRow } from './remoteBoards';
+import type { BoardWinStats, PlayerRow, RecentGameRow, VictoryRow } from './remoteBoards';
 
 const fetchTopPlayers = vi.fn<() => Promise<PlayerRow[]>>();
-const fetchLatestGamesForUsers = vi.fn<(ids: string[]) => Promise<Map<string, LatestGameFacts>>>();
 const fetchLatestReplayForUser = vi.fn<(id: string) => Promise<unknown>>();
 const fetchVictories = vi.fn<() => Promise<VictoryRow[]>>();
 const fetchBoardStats = vi.fn<() => Promise<Map<string, BoardWinStats>>>();
@@ -29,7 +30,6 @@ vi.mock('./remoteBoards', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./remoteBoards')>()),
   remoteEnabled: () => remote,
   fetchTopPlayers: () => fetchTopPlayers(),
-  fetchLatestGamesForUsers: (ids: string[]) => fetchLatestGamesForUsers(ids),
   fetchLatestReplayForUser: (id: string) => fetchLatestReplayForUser(id),
   fetchVictories: () => fetchVictories(),
   fetchBoardStats: () => fetchBoardStats(),
@@ -59,10 +59,6 @@ const PLAYERS: PlayerRow[] = [
   { userId: 'me-1', author: 'Kev', discriminator: '4821', rating: 763, gamesPlayed: 35, favoriteHero: 'sable' },
   { userId: 'u-three', author: 'Robin', discriminator: '7043', rating: 264, gamesPlayed: 2 },
 ];
-const LATEST = new Map<string, LatestGameFacts>([
-  ['u-top', { rowId: 91, heroId: 'brackus', placement: 1, createdAt: '2026-09-19T14:00:00Z', board: board(7), hasReplay: true }],
-  ['me-1', { rowId: 90, heroId: 'sable', placement: 3, createdAt: '2026-09-18T14:00:00Z', board: null, hasReplay: false }],
-]);
 
 const VICTORIES: VictoryRow[] = [
   { mode: 'lobby', heroId: 'brackus', author: 'Nadja', wave: 15, date: '2026-09-19', board: { ...board(7), id: 'b1', quests: [] }, history: 'LLWLWWWWWWWWWLW', createdAt: '2026-09-19T14:00:00Z', boardId: 'b1' },
@@ -93,7 +89,6 @@ const click = (el: Element | null): void => { act(() => { (el as HTMLElement).cl
 beforeEach(() => {
   remote = true;
   fetchTopPlayers.mockReset().mockResolvedValue(PLAYERS);
-  fetchLatestGamesForUsers.mockReset().mockResolvedValue(LATEST);
   fetchLatestReplayForUser.mockReset().mockResolvedValue({ version: 2, seed: 1, frames: [{}] });
   fetchVictories.mockReset().mockResolvedValue(VICTORIES);
   fetchBoardStats.mockReset().mockResolvedValue(STATS);
@@ -191,20 +186,36 @@ describe('Rankings — the ranked table', () => {
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
   });
 
-  it('shows each player’s latest board as 7 real card tiles, a labelled plate without one, and the latest placement', () => {
+  it('the columns are # · Player · Rating · Games (+ actions) — no board tiles, no latest-game caption', () => {
+    expect(text('.lb-thead > *')).toEqual(['#', 'Player', 'Rating', 'Games', '']);
+    expect(ui.container.querySelectorAll('.lb-tile, .lb-team, .lb-team-none, .lb-latest-place, .lb-c-board')).toHaveLength(0);
+    // The rating cell is ONE element (aliased .rk-rating) so a crest can be slotted into it.
+    expect(ui.container.querySelectorAll('.lb-trow-btn .lb-c-rating.rk-rating')).toHaveLength(3);
+    expect(text('.lb-trow-btn .lb-c-rating')).toEqual(['782MMR', '763MMR', '264MMR']);
+  });
+
+  it('the CAREER PAGE button opens THAT row’s Career (once — the row click underneath does not double-fire)', () => {
     const rows = [...ui.container.querySelectorAll('.lb-trow-btn')];
-    expect(rows[0]!.querySelectorAll('.lb-tile')).toHaveLength(7);
-    expect(rows[0]!.querySelectorAll('.lb-tile .card')).toHaveLength(7);
-    expect(rows[0]!.querySelector('.lb-latest-place')?.textContent).toMatch(/^Victory · /);
-    expect(rows[1]!.querySelector('.lb-team-none')?.textContent).toBe('No board stored for their latest game');
-    expect(rows[1]!.querySelector('.lb-latest-place')?.textContent).toMatch(/^3rd · /);
-    expect(rows[2]!.querySelector('.lb-team-none')?.textContent).toBe('No recorded game yet');
-    expect(fetchLatestGamesForUsers).toHaveBeenCalledWith(['u-top', 'me-1', 'u-three']);
+    const careerBtns = [...ui.container.querySelectorAll('.lb-career')];
+    expect(careerBtns).toHaveLength(3);
+    expect(careerBtns.map((b) => b.textContent)).toEqual(['Career page', 'Career page', 'Career page']);
+    const real = useGame.getState().openCareer;
+    const openCareer = vi.fn(real);
+    act(() => { useGame.setState({ openCareer }); });
+    try {
+      click(rows[2]!.querySelector('.lb-career'));
+      expect(openCareer).toHaveBeenCalledTimes(1);
+      expect(openCareer).toHaveBeenCalledWith({ userId: 'u-three', author: 'Robin', rating: 264, gamesPlayed: 2, favoriteHero: undefined });
+      expect(useGame.getState().careerOf?.userId).toBe('u-three');
+      expect(startReplay).not.toHaveBeenCalled();
+    } finally {
+      act(() => { useGame.setState({ openCareer: real }); });
+    }
   });
 
   it('a row opens that player’s Career; its Watch button plays their latest run without opening the Career', async () => {
     const rows = [...ui.container.querySelectorAll('.lb-trow-btn')];
-    click(rows[0]!.querySelector('.lb-btn'));
+    click(rows[0]!.querySelector('.lb-watch-latest'));
     await flush();
     expect(fetchLatestReplayForUser).toHaveBeenCalledWith('u-top');
     expect(startReplay).toHaveBeenCalledTimes(1);

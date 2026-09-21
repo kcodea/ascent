@@ -461,6 +461,10 @@ export function Career() {
   const rank = rankPositionOf(
     viewing ? (viewing.rank ?? (viewedRank?.userId === viewing.userId ? viewedRank.rank : null)) : profile.rank,
   );
+  // The viewed player's rank is still IN FLIGHT (no hand-over, the fetch above unanswered): the card holds a
+  // quiet empty ring in the crest's slot rather than flashing the bare number the crest is about to replace
+  // (review 2026-09-21). Offline / no backend never fetches, so it never holds: the bare number, at once.
+  const rankPending = !!viewing && !viewing.rank && remoteEnabled() && viewedRank?.userId !== viewing.userId;
 
   // Watch a listed run back: the join already resolved the telemetry row id, so this is the same one-row
   // payload fetch Recent Games makes, handed to the same viewer. `startReplay` closes this overlay itself and
@@ -588,6 +592,8 @@ export function Career() {
           <div className="cv2-panel cv2-ranked">
             {rank ? (
               <RankBar position={rank} size="big" layout="stack" caption={`${scalarCaption(rank)} MMR`} />
+            ) : rankPending ? (
+              <div className="cv2-rank-wait" aria-busy="true" aria-label="Loading rank" />
             ) : (
               <div className="cv2-mmr">
                 <span className="cv2-mmr-v">{mmr}</span>

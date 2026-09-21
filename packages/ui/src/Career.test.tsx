@@ -9,8 +9,9 @@
  * toggle; the designed loading / signed-out / offline / empty states; the HEROES tab (a PORTRAIT GRID folded over
  * every run, with a hover / focus panel per hero; the choice persisted); the three columns sharing one header
  * row; the Seasonal Ranked card as the medal rank (crest in the portrait ring + bar + the scalar caption) — for
- * your own profile and for a VIEWED player (rank handed over on `careerOf.rank`, or fetched by user id; the
- * bare number only when neither yields a rank; owner 2026-09-21).
+ * your own profile and for a VIEWED player (rank handed over on `careerOf.rank`, or fetched by user id, the card
+ * holding a quiet ring while that fetch is in flight; the bare number only when neither yields a rank; owner
+ * 2026-09-21).
  * A MATCH WIN IS BY PLACEMENT (owner 2026-09-20): top 4 = W, 5th–8th = L — the banner result, the hero
  * panel's record and the Win Rate trend all use it. Also pins what must NOT be there: any board-power stat, a
  * Share button, a rating delta, the old Insight grid, per-hero rows, a native `title` tooltip.
@@ -420,6 +421,28 @@ describe('states', () => {
     expect(ui.container.querySelector('.cv2-ranked .rankbar')).toBeNull();
     expect(ui.container.querySelector('.cv2-mmr-v')?.textContent).toBe('46');
     expect(ui.container.querySelector('.cv2-mmr-l')?.textContent).toBe('MMR');
+  });
+
+  it("while a viewed player's rank is still being fetched the card HOLDS (a quiet ring, no bare number, no crest); the crest + bar land with the answer", async () => {
+    ui.unmount();
+    const rank = { ...useGame.getState().profile.rank, position: { divisionIndex: 0, points: 46 }, highest: { divisionIndex: 0, points: 46 } };
+    let answer: (row: PlayerRow | null) => void = () => {};
+    fetchPlayerById.mockReturnValue(new Promise<PlayerRow | null>((resolve) => { answer = resolve; }));
+    useGame.setState({ careerOf: { userId: 'them-7', author: 'LazerLemon', rating: 46, gamesPlayed: 9 }, careerCache: null });
+    ui = mount(<Career />);
+    await flush();
+    expect(fetchPlayerById).toHaveBeenCalledTimes(1);
+    const held = ui.container.querySelector('.cv2-ranked')!;
+    expect(held.querySelector('.cv2-mmr')).toBeNull();
+    expect(held.querySelector('.rankbar')).toBeNull();
+    expect(held.querySelector('.cv2-rank-wait')?.getAttribute('aria-busy')).toBe('true');
+    await act(async () => { answer({ userId: 'them-7', author: 'LazerLemon', rating: 46, gamesPlayed: 9, rank }); });
+    await flush();
+    const card = ui.container.querySelector('.cv2-ranked')!;
+    expect(card.querySelector('.cv2-rank-wait')).toBeNull();
+    expect(card.querySelector('.cv2-mmr')).toBeNull();
+    expect(card.querySelector('.rankbar-label')?.textContent).toBe('Bronze III');
+    expect(card.querySelector('.rankbar-caption')?.textContent).toBe('46 MMR');
   });
 });
 

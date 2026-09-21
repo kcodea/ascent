@@ -6818,12 +6818,16 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
    box — its topmost opaque pixel (frame WebP alpha measured) sits ~0.227 × the tile width above the tile's top,
    higher than the tier plaque / stars, a Gilded crown or the tier-7 halo. A fixed 10px + 2px let the arch
    overlap the banner head (hero name / WIN pill / record ‖ PLAYED · LENGTH · GOLD SPENT) by ~1.4px at 1920.
-   The padding is now the arch's rise (0.23 × tile) + 10px of clearance, less the banner's own 14px gap, so
-   the arch clears the head's bottom edge by ~10px at EVERY tile width: measured 10.3px at 83px tiles (a 1600
-   viewport, three columns), 10.4px at 121px (1920), 10.5px at 132-143px (stacked 1366 / 1440 laptops) and
-   10.6px at the 160px cap (2560). Nothing hangs below a tile's box, so the bottom stays 6px. The row grows
-   ~12px at 1920. */
-.cv2-team { --tile-gap: 14px; --tw: min(160px, calc((100cqw - 6 * var(--tile-gap)) / 7)); display: flex; gap: var(--tile-gap); align-items: flex-start; padding: calc(var(--tw) * 0.23 - 4px) 0 6px; }
+   The padding is now the arch's rise (0.23 × tile) + 0.02 × tile + 10px of clearance, less the banner's own
+   14px gap, so the OPAQUE arch clears the head's bottom edge by ~12px at EVERY tile width and the SOFT paint
+   around it (the tier-7 halo's fade, a Gilded frame's 4px gold drop-shadow) clears it by 8px or more: at the
+   0.23 constant the arch cleared by ~10.4px but the halo by only ~8px at 83px tiles (a 1600 viewport, three
+   columns) and the gilded haze by ~6.5px at 1920 (review 2026-09-21). Measured arch clearance at 0.25:
+   12.0px at 83px tiles (taunt arch 12.9, halo 9.6), 13.0px at 121px / 1920 (taunt 14.2, halo 14.2), 13.2-13.5px
+   at 132-143px (stacked 1366 / 1440 laptops) and 13.9px at the 160px cap / 2560 (taunt 15.5, halo 15.3); the
+   gilded haze sits 4px above the arch, so 8.0px at the narrowest. Nothing hangs below a tile's box, so the
+   bottom stays 6px. The row is ~14px taller at 1920 than with the old fixed padding. */
+.cv2-team { --tile-gap: 14px; --tw: min(160px, calc((100cqw - 6 * var(--tile-gap)) / 7)); display: flex; gap: var(--tile-gap); align-items: flex-start; padding: calc(var(--tw) * 0.25 - 4px) 0 6px; }
 /* A slot is `--tw` wide; the COMPACT card inside is 85% of that (its arch is ~square, height auto), centred so
    its ±8px stat badges overhang into the slot's own margin rather than the neighbour's. */
 .cv2-tile { position: relative; flex: none; width: var(--tw); min-height: calc(var(--tw) * 0.85 + 22px); display: flex; justify-content: center; align-items: flex-start; }
@@ -6887,6 +6891,11 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .cv2-ranked { flex: none; margin-bottom: 14px; padding: 12px 18px 14px; }
 .cv2-trends { flex: none; gap: 8px; padding-top: 14px; }
 .cv2-mmr { display: flex; align-items: baseline; gap: 12px; padding: 2px 2px 0; }
+/* A viewed player's rank still in flight (review 2026-09-21): a quiet empty ring the size of the big crest's
+   ring (`.rankcrest-big --ring`), centred where the crest will land, so the card never flashes the bare number
+   before the crest + bar replace it. Static paint; nothing animates. */
+.cv2-rank-wait { display: grid; place-items: center; padding: 4px 0; }
+.cv2-rank-wait::before { content: ''; width: 150px; height: 150px; border-radius: 50%; border: 2px dashed rgba(255, 255, 255, 0.12); background: rgba(0, 0, 0, 0.16); box-sizing: border-box; }
 .cv2-mmr-v { font-family: var(--font-ui); font-weight: 900; font-size: 48px; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
 .cv2-mmr-l { font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
 .cv2-trends-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }

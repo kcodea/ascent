@@ -88,7 +88,7 @@ export const PATCH_NOTES: PatchNote[] = [
     label: 'Ladder row portraits',
     changes: [
       {
-        category: 'UI / Info',
+        category: 'Systems',
         text: 'Recent Games and the Hall of Champions: bigger hero portraits in the portrait ring, larger rune pills, and the warband sits clear of its caption.',
         details: [
           "Each row's hero portrait now sits in the same gold portrait ring the Career page and hero select use, about a third larger than before.",
@@ -103,7 +103,7 @@ export const PATCH_NOTES: PatchNote[] = [
     label: 'Title screen: your portrait, name and rank',
     changes: [
       {
-        category: 'UI / Info',
+        category: 'Systems',
         text: "The title screen shows your portrait large in the top-right with your name and rank; Sign in / Sign out moved into Settings.",
         details: [
           "Your avatar now sits in the game's gold portrait ring, top-right of the main menu. Click it to change your avatar, or click your name on the ring's edge to rename yourself. Your current rank (say Bronze III) shows in a badge under your name once you have one.",

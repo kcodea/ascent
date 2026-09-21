@@ -1907,7 +1907,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
       // Get the opponent seats built while the player reads their opening shop, not while they wait for it.
       if (run.lobby) warmLobbyDrivers(run);
       writeSave(run, []); // the new run is now the resumable save
-      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, pendingSeed: undefined, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false };
+      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, pendingSeed: undefined, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...RANK_SLICE_RESET };
     });
   },
   newRun: (seed, heroId) => {
@@ -1915,7 +1915,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     set((s) => {
       const run = createRun(seed ?? randomSeed(), heroId, s.pendingMode, s.profile.currentLine);
       writeSave(run, []);
-      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false };
+      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...RANK_SLICE_RESET };
     });
   },
   startAscent: () => set(() => { const seed = randomSeed(); return { showTitle: false, pendingMode: 'ascent', pendingSeed: seed, heroChoices: rollHeroChoices(tribesForSeed(seed)), avatarPickerOpen: false }; }),
@@ -1967,7 +1967,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
       if (Object.keys(runeScript).length > 0) run.tutorialRuneScript = runeScript;
       if (run.lobby) warmLobbyDrivers(run); // authored drivers are cheap; keep the warm path uniform
       writeSave(run, []);
-      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false };
+      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...RANK_SLICE_RESET };
     });
   },
   startSceneBuilder: (heroId = 'warden', setId = activeSet().id, botLevel) => {
@@ -1989,7 +1989,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
       const run: RunState = { ...base, sandbox: true, tier: 1, ...(s.sbRules === 'god' ? { embers: 999 } : {}) };
       warmLobbyDrivers(run); // build the bot seats while the shop opens, not on the first End Turn
       if (level !== s.sbBotLevel) try { localStorage.setItem(SB_BOT_KEY, String(level)); } catch { /* ignore */ }
-      return { run, sbBotLevel: level, savedRun: null, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, sandboxReplay: false };
+      return { run, sbBotLevel: level, savedRun: null, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...RANK_SLICE_RESET, sandboxReplay: false };
     });
   },
   sbRules: loadSbRules(),
@@ -2268,6 +2268,12 @@ export function syncProfileFromServer(_name: string): void {
     useGame.setState({ profile: next });
   });
 }
+
+/** MEDAL RANK — the slice a NEW run starts with. A run that begins (ranked, practice, tutorial, sandbox)
+ *  clears the previous run's result so the post-game screen can never show a stale `rankResult` against the
+ *  wrong run; a still-pending settlement of the PREVIOUS run keeps flushing through the queue regardless and
+ *  its profile is still adopted (`applyRankOutcome` only skips the slice for a non-current run). */
+const RANK_SLICE_RESET = { rankResult: null, rankSubmission: 'unrated' as const, rankSubmissionError: null, rankRunId: null };
 
 /** Mint a rated run's identity. `crypto.randomUUID` is universal in the browsers + Electron the game ships
  *  in; the fallback (older embedded runtimes) is a time + random string — uniqueness per account is all the

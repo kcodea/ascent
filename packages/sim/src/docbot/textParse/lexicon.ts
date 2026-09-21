@@ -106,6 +106,10 @@ export const TRIGGER_LEXICON: readonly TriggerLexeme[] = [
   // Overflow: — the owner's keyword form (2026-09-19) for the `summonOverflow` trigger (a summon that found no room).
   { re: /^Overflow\s*[:：]/, event: 'summonOverflow', display: 'Overflow' },
   { re: /^Avenge \((\d+)\)\s*[:：]/, event: 'avenge', display: 'Avenge' },
+  // Pummel (X): — the owner's keyword (2026-09-21) for the damage-dealt meter (Han Gover, Goldvein). A `text:` id:
+  // the engine names no `on` word for it (a passive `DAMAGE_METER_MARKERS` marker), so the sentence is consumed
+  // but never compared; the number is the threshold X.
+  { re: /^Pummel \((\d+)\)\s*[:：]/, event: 'text:onDealtDamage', display: 'Pummel' },
   { re: /^Sell\s*[:：]/, event: 'onSell', display: 'Sell' },
   // "Equip Comet (4):" — the Equipment trigger; the number is the charge count.
   { re: /^Equip [A-Z][\w'’-]*(?: [A-Z][\w'’-]*)*(?: \((\d+)\))?\s*[:：]/, event: 'equip', display: 'Equip' },
@@ -163,7 +167,7 @@ export const CONDITIONAL_LEXICON: ReadonlyArray<readonly [RegExp, string]> = [
   [/you play (?:a|an) (?:Beast or Dragon|Beast|Demon|Dragon|Dwarf|Kobold|Mech|Undead|Spirit|Celestial|Imp|Attachment|Magnetic)/i, 'onTribePlayed'],
   [/you play/i, 'onTribePlayed'],
   [/you summon/i, 'onSummon'],
-  [/this deals \d+ damage/i, 'text:onDealtDamage'], // Han Gover (2026-09-18): a passive damage meter — the engine names no trigger for it
+  [/this deals \d+ damage/i, 'text:onDealtDamage'], // the pre-Pummel wording of the damage meter (Han Gover 2026-09-18) — the engine names no trigger for it
   [/this(?: minion)? (?:takes damage|is damaged)/i, 'onDamaged'], // \"this minion takes damage\" — Yeti (2026-09-19)
   [/(?:a )?friend(?:ly minion)? dies|friendly .* dies|your (?:last|left-most) minion dies|Ruby-buffed minion dies|(?:an|another friendly|a friendly) (?:Imp|minion) dies|Imp that dies/i, 'onFriendDeath'],
   [/dies in combat/i, 'onFriendDeath'],

@@ -136,18 +136,18 @@ export const SET3_DWARVES: CardDef[] = [
     goldenText: 'When a **Dwarf** gains Attack, this gains **+2/+8**.',
   },
   {
-    // Owner handoff 2026-09-18. Dwarf/Undead: "When this deals 40 damage, get an Ale." A PASSIVE marker the
-    // combat damage site reads (`noteDamageDealt` in simulate.ts): every landed hit this body deals — attack,
-    // retaliation, incidental — adds to its per-instance `damageDealt` tally, which is seeded from the run card
-    // and carried back (`playerDamageMeters`), so it persists combat → shop → combat. Each multiple of 40 it
-    // crosses grants a random Dwarven Ale (the same pool-scoped pick Pourman's Keg / Rune of Last Call use) via
-    // `grantToHand`, so the card flies to hand in the replay and lands in the real hand at settle. Gilded pays
-    // 2 Ales per crossing and doubles nothing else. Progress shows on the step-counter badge (N/40), the
-    // Avenge-style meter every every-N card wears (owner ruling 2026-09-11: trackers, not fractions in the text).
-    // "(Max 2 per hit)" (owner 2026-09-19): ONE damage event pays at most 2 Ales however many thresholds it
-    // crosses — plain: two crossings pay 2, a third pays nothing; gilded: the first crossing's 2 fill the cap and
-    // a second crossing in the same hit pays nothing. The meter still advances by the FULL damage, so the
-    // uncredited crossings are not owed later — the next 40 dealt pays again as normal.
+    // Owner handoff 2026-09-18; PUMMEL keyword 2026-09-21. Dwarf/Undead: "Pummel (40): Get a Dwarven Ale. (Once
+    // per combat)". A PASSIVE marker the combat damage site reads (`noteDamageDealt` in simulate.ts): every landed
+    // hit this body deals — attack, retaliation, incidental — adds to its per-instance `damageDealt` tally, and
+    // the FIRST time it reaches 40 in a fight it grants a random Dwarven Ale (the same pool-scoped pick Pourman's
+    // Keg / Rune of Last Call use) via `grantToHand`, so the card flies to hand in the replay and lands in the
+    // real hand at settle — then it latches for the rest of the fight (`pummelFired`). ONCE PER COMBAT (owner
+    // ruling 2026-09-21, "change this card's effect to match the text"): the meter starts every fight at 0
+    // (`DAMAGE_METER_MARKERS.resetEachCombat`) and carries back 0, so the shop reads 0/40 after any combat; the
+    // lifetime tally and the "(Max 2 per hit)" cap of 2026-09-19 are retired (one payout makes a cap moot).
+    // Gilded pays 2 Ales and doubles nothing else. Progress shows on the step-counter badge (N/40, clamped at
+    // 40/40 once it fired — the Avenge-style meter every every-N card wears; owner ruling 2026-09-11: trackers,
+    // not fractions in the text). The `pummelTrigger` event + the owner's `pummel-trigger` def present the fire.
     id: 'dw3_hangover',
     name: 'Han Gover',
     tribe: 'dwarf',
@@ -157,7 +157,7 @@ export const SET3_DWARVES: CardDef[] = [
     health: 7,
     keywords: [],
     effects: [{ on: 'passive', do: 'dealtDamageAleMeter', params: { every: 40, count: 1 } }],
-    text: 'When this deals **40 damage**, get an **Ale**. (Max 2 per hit)',
-    goldenText: 'When this deals **40 damage**, get **2 Ales**. (Max 2 per hit)',
+    text: '**Pummel (40):** Get a **Dwarven Ale**. (Once per combat)',
+    goldenText: '**Pummel (40):** Get **2 Dwarven Ales**. (Once per combat)',
   },
 ];

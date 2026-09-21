@@ -24,6 +24,14 @@ describe('MECHANICS detection', () => {
     expect(has('gryphon', 'taunt')).toBe(true);      // T
     expect(has('bronzewarden', 'ward')).toBe(true);  // DS
   });
+  it('detects Pummel (the damage-meter family) on Han Gover and Goldvein, off the core registry, with the fist glyph', () => {
+    expect(has('dw3_hangover', 'pummel')).toBe(true);
+    expect(has('k3_goldvein', 'pummel')).toBe(true);
+    expect(has('dm_grobbus', 'pummel')).toBe(false);   // an Avenge card is not a Pummel card
+    expect(has('dw3_hangover', 'watcher')).toBe(false); // a passive meter is not a watcher
+    expect(MECHANICS.find((m) => m.id === 'pummel')!.glyph).toBe('fist');
+    expect(MECHANICS.find((m) => m.id === 'pummel')!.term).toBe('Pummel (X)');
+  });
   it('detects Choose One', () => {
     expect(has('shaper', 'chooseOne')).toBe(true);   // Wildwood Shaper
   });

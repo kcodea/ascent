@@ -8,13 +8,12 @@ describe('stepProgress', () => {
     expect(stepProgress('guel', { spellProgress: 4 })).toEqual({ current: 4, total: 4 });
     expect(stepProgress('guel', { spellProgress: 5 })).toEqual({ current: 1, total: 4 });
   });
-  it('Han Gover: the persistent damage meter shows progress toward the NEXT crossing — total mod 40 (owner rule 2026-09-19)', () => {
-    expect(stepProgress('dw3_hangover', {})).toEqual({ current: 0, total: 40 });
+  it('Han Gover: Pummel (40) is once per combat (owner 2026-09-21) — the meter counts up and clamps at 40/40 once it fired; the shop reads 0/40 after the reset', () => {
+    expect(stepProgress('dw3_hangover', {}), 'fresh (and the shop after any combat — the sim carries back 0)').toEqual({ current: 0, total: 40 });
     expect(stepProgress('dw3_hangover', { damageDealt: 27 })).toEqual({ current: 27, total: 40 });
-    expect(stepProgress('dw3_hangover', { damageDealt: 40 }), 'the crossing resets the badge').toEqual({ current: 0, total: 40 });
-    expect(stepProgress('dw3_hangover', { damageDealt: 43 }), 'carried into the next combat').toEqual({ current: 3, total: 40 });
-    expect(stepProgress('dw3_hangover', { damageDealt: 47 }), 'never a cumulative 47/40').toEqual({ current: 7, total: 40 });
-    expect(stepProgress('dw3_hangover', { damageDealt: 80 })).toEqual({ current: 0, total: 40 });
+    expect(stepProgress('dw3_hangover', { damageDealt: 40 }), 'fired — cannot fire again this fight').toEqual({ current: 40, total: 40 });
+    expect(stepProgress('dw3_hangover', { damageDealt: 47 }), 'still 40/40, never a second lap').toEqual({ current: 40, total: 40 });
+    expect(stepProgress('dw3_hangover', { damageDealt: 80 })).toEqual({ current: 40, total: 40 });
   });
   it('Goldvein: the once-per-combat meter counts up and clamps at 6/6 for the rest of the fight; the shop reads 0/6 after the reset', () => {
     expect(stepProgress('k3_goldvein', {}), 'fresh (and the shop after any combat — the sim carries back 0)').toEqual({ current: 0, total: 6 });

@@ -122,6 +122,20 @@ export interface FxDef {
    * keeps its original single-clock arithmetic rather than routing through an identity curve.
    */
   ease?: ReadonlyArray<readonly [number, number]>;
+  /**
+   * When true, a play RE-ANCHORS to its source every frame instead of snapshotting the anchors once — so the
+   * whole effect rides the source unit as it moves: a warband reorder, a combat lunge, and (the case that
+   * motivated it) a card being dragged around the shop. This is the def-authored equivalent of the caller
+   * passing `playDef`'s per-frame `follow` callback; an explicit `follow` still wins, and a play whose caller
+   * gave no source uid has nothing to track, so the flag is a no-op there.
+   *
+   * Like a single-anchor emitter under `follow`, the source point overrides source/target/cursor together, so
+   * this is for effects that sit ON a unit (badges, auras) rather than ones that travel between two.
+   *
+   * OPTIONAL and omitted-unless-true on the same terms as `slot`/`ease`: a def that never sets it is
+   * byte-identical to before the field existed, so `FX_DEF_VERSION` is not bumped.
+   */
+  followSource?: boolean;
   layers: FxLayer[];
 }
 

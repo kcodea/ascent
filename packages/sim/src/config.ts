@@ -9,13 +9,12 @@ export const CONFIG = {
   embersPerWave: 1,
   embersCap: 10,
 
-  // Course structure (A1). A run plays a fixed course of `courseRounds` rounds. The first
-  // `calibrationRounds` are calibration: they still cost Resolve + run the economy, but do NOT count
-  // toward your record. The run ALWAYS completes the course unless Resolve hits 0 (the failure). Your
-  // final W–L record over the scored rounds is the score — see `runRecord`. The per-wave stat scaling
-  // (`curve.statScalePerWave`) is the difficulty dial.
-  calibrationRounds: 2,
-  courseRounds: 17, // 2 calibration + 15 scored
+  // Course structure (A1 — RETIRED with the lobby; see CLAUDE.md). `calibrationRounds` used to hide the first
+  // two rounds from the W–L record. EVERY ROUND COUNTS now (owner 2026-09-20: "are we not counting every round for
+  // the record? this game says 9-4 but the game was 15 rounds"): 0 calibration rounds, so `runRecord`,
+  // `isCalibrationRound`, the HUD, the end-screen pips and every stored record agree with the round count.
+  calibrationRounds: 0,
+  courseRounds: 17, // legacy course length (unused by the lobby; a stalemate backstop lives in maxRounds)
   // Par / line (A2): the default target number of scored wins a run is graded against. Static for now
   // (mid-tier); becomes rating-driven with the career system (new ~7 / mid ~9 / high ~11 / elite ~12+).
   defaultLine: 9,

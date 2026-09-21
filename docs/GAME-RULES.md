@@ -12,7 +12,9 @@ medal + division — see *Ranked ladder* below).
 > are no longer the game. Their constants (`CONFIG.courseRounds: 17`, `defaultLine`, `calibrationRounds`,
 > `maxWave`) and helpers (`metLine`, `lineResult`) still exist in code, and are still read by balance tools,
 > older saved runs, and the non-lobby modes — but the live `Play` route is the lobby, which has no course
-> clock and no Line verdict. Legacy sections of this document were rewritten on 2026-08-20; the historical
+> clock and no Line verdict. **Your W–L record counts every round** — `calibrationRounds` is 0 since
+> 2026-09-20 (the old "first two rounds don't count" made a 15-round game read 9–4). Legacy sections of this
+> document were rewritten on 2026-08-20; the historical
 > detail lives in [`devlog.md`](devlog.md).
 
 > **Player-facing vocabulary:** the UI displays some systems under themed names while the code keeps the

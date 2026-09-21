@@ -370,12 +370,14 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
 
   // The workbench now stages a LIST of layers (a composition), not a single primitive. `layers[selected]` is
   // the one the top primitive row / Inspector / timing controls edit; every layer is played together.
-  const [layers, setLayers] = useState<EditorLayer[]>(() => {
-    if (restoredSession !== null) return restoredSession.layers;
-    const first = listPrimitives()[0]?.id ?? 'ribbon';
-    return [createEditorLayer(first, defaultsOf(getPrimitive(first)?.params ?? {}))];
-  });
-  const [selected, setSelected] = useState(restoredSession?.selected ?? 0);
+  //
+  // OPENS EMPTY (owner ask 2026-09-20): a fresh mount always starts with NO layers — a blank stage that
+  // prompts you to "Add a primitive" — rather than restoring the last autosaved composition or seeding a
+  // default layer. This also ends the session-shadowing where reopening the workbench quietly replayed a stale
+  // localStorage session over a committed def. The autosaved `restoredSession` still seeds the non-layer
+  // preferences below (duration / slot / seed / ease), which are harmless until a layer exists.
+  const [layers, setLayers] = useState<EditorLayer[]>(() => []);
+  const [selected, setSelected] = useState(0);
   // `realBoard` while the stage is up (below): it reads anchors off the live DOM, and with the stage there
   // that DOM is six real cards at their real size and spacing — the honest default. Falls back to whatever
   // is first if that scenario ever goes away.
@@ -548,6 +550,12 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // slot flip cost an undo step the author has to walk back past.
   const [slot, setSlot] = useState<FxSlot>(restoredSession?.slot ?? 'over');
 
+  // Def-level "ride my source": when on, the effect re-anchors to its source unit every frame in-game so it
+  // follows a drag / reorder / lunge (see `FxDef.followSource`). Def-level and outside the undo snapshot for
+  // the same reason as `slot` — a single-click toggle whose inverse is the same click. Not previewable in the
+  // workbench (the stage has no source uid to track); it takes effect where the def is bound in-game.
+  const [followSource, setFollowSource] = useState<boolean>(restoredSession?.followSource ?? false);
+
   // The def-level EASE — a curve on the composition's own clock (see `FxDef.ease`). Def-level like `slot`,
   // and like it deliberately outside the undo snapshot: it is one control whose inverse is dragging the
   // point back, and folding it in would make every drag cost an undo step.
@@ -703,6 +711,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
 
     const build = (): void => {
       if (disposed) return;
+      // Nothing staged (the empty open state, or every layer just deleted): there is no effect to preview, so
+      // build no player at all. Adding the first layer changes `structKey`, which re-runs this effect and
+      // builds for real. Returning before `container`/`player` are assigned leaves the cleanup a clean no-op.
+      if (layersRef.current.length === 0) return;
       // The slot decides WHICH renderer builds the layers — the under-card canvas is a second GL context,
       // and a layer built against one renderer and drawn by the other is undefined behaviour. Asking for it
       // also brings that canvas up (it is created lazily, on first use), and the existing retry loop below
@@ -1161,8 +1173,8 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // the workbench restores the composition you were looking at, not a half-consumed history to step through.
   // The latest composition, mirrored into a ref so the flush below can write it from a context that has no
   // render closure (a `beforeunload` handler, an unmount cleanup).
-  const sessionRef = useRef({ layers, selected, durationMs, seed, seedLocked, slot, ease });
-  sessionRef.current = { layers, selected, durationMs, seed, seedLocked, slot, ease };
+  const sessionRef = useRef({ layers, selected, durationMs, seed, seedLocked, slot, ease, followSource });
+  sessionRef.current = { layers, selected, durationMs, seed, seedLocked, slot, ease, followSource };
   // True while a debounced autosave is scheduled but not yet written — the window in which a reload would
   // otherwise drop the edit.
   const autosavePendingRef = useRef(false);
@@ -1175,7 +1187,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       autosavePendingRef.current = false;
     }, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [layers, selected, durationMs, seed, seedLocked, slot, ease]);
+  }, [layers, selected, durationMs, seed, seedLocked, slot, ease, followSource]);
 
   // Persist the Stage Setter layout (debounced, same style as the session autosave above) whenever it
   // changes — dragging a point handle or a card fires this on every pointermove via `onChange`, so without
@@ -1558,7 +1570,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     // shipped the milestone badge FX without its seamless loop. Omit the defaults, matching toDef's own
     // omit-when-default convention, so an untouched composition serialises byte-identically.
     const def = {
-      ...toDef('workbench', durationMs, layers, slot, ease),
+      ...toDef('workbench', durationMs, layers, slot, ease, followSource),
       ...(loopMode !== 'playOut' ? { loopMode } : {}),
       ...(loopJoinMs !== 0 ? { loopJoinMs } : {}),
     };
@@ -1655,6 +1667,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         ease,
         loopMode,
         loopJoinMs,
+        followSource,
       );
       const result = await saveDef(stored);
       if (!result.ok) {
@@ -1745,9 +1758,12 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         slot,
         undefined,
         ease,
+        undefined,
+        undefined,
+        followSource,
       ),
     );
-  }, [railMode, harnessCard, harnessKind, layers, durationMs, seed, seedLocked, slot, ease]);
+  }, [railMode, harnessCard, harnessKind, layers, durationMs, seed, seedLocked, slot, ease, followSource]);
 
   // Point the selected (card, moment) at the draft, and take it back down again on the way out.
   //
@@ -1853,6 +1869,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         slot,
         getDef(plan.defId),
         ease,
+        undefined,
+        undefined,
+        followSource,
       );
       const defResult = await saveDef(stored);
       if (!defResult.ok) {
@@ -2018,6 +2037,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     // The slot is part of what the def IS — an under-card slam loaded into the over slot is a different
     // effect. A def without one means the default, which is what every def written before the toggle meant.
     setSlot(def.slot ?? 'over');
+    // "Ride my source" is part of what the def IS, like the slot: an effect authored to follow a dragged card
+    // is a different effect from one pinned in place. Absent means the default (doesn't follow).
+    setFollowSource(def.followSource ?? false);
     // The ease is part of what the def IS, exactly like the slot: a composition that rushes its opening is a
     // different effect from one that doesn't. Absent means the identity ramp, which is what "no ease" means.
     setEase((def.ease ?? [[0, 0], [1, 1]]).map((p) => [p[0], p[1]] as [number, number]));
@@ -2112,9 +2134,11 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   };
 
   // The selected layer drives the top primitive row, the Inspector, and the timing controls. Fallback to the
-  // last layer guards the brief window after a delete before `selected` re-clamps.
-  const selLayer = layers[selected] ?? layers[layers.length - 1];
-  const activePrimitive = getPrimitive(selLayer.primitive);
+  // last layer guards the brief window after a delete before `selected` re-clamps. UNDEFINED when the
+  // composition is empty (the blank open state, or every layer deleted) — every block that reads it below
+  // either guards for that or is replaced by an empty-state prompt.
+  const selLayer: EditorLayer | undefined = layers[selected] ?? layers[layers.length - 1];
+  const activePrimitive = selLayer ? getPrimitive(selLayer.primitive) : undefined;
   const activeScenario = SCENARIOS.find((s) => s.id === scenarioId) ?? SCENARIOS[0];
   // Which layers are silenced right now, mute and solo folded together — the same value pushed to the
   // player, so the list can't disagree with what you're hearing/seeing.
@@ -2264,7 +2288,13 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     />
   );
 
-  const timingBlock = (
+  const timingBlock = selLayer === undefined ? (
+    // The blank open state (or every layer deleted): no layer to place, so the timing/anchor controls are
+    // replaced by a prompt pointing at the one thing you can do — add a primitive.
+    <div className="fxwb-timing fxwb-timing-empty">
+      <p className="fxwb-empty-hint">No layers yet — add a primitive to begin.</p>
+    </div>
+  ) : (
     <div className="fxwb-timing">
       {/* Which staged point this layer's head follows. Lives with At/Life because the three together are
           "when and where this layer happens" — the whole of a layer's placement in the composition. */}
@@ -2668,6 +2698,38 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     </div>
   );
 
+  // "Follow source": a def-level toggle that makes the effect ride its source unit every frame in-game — it
+  // tracks a card being dragged, a warband reorder, a combat lunge (see `FxDef.followSource`). Two buttons
+  // mirroring the Canvas group so the two def-level toggles read alike. Not previewable on the stage (no
+  // source uid there); it takes effect where the def is bound in-game.
+  const followGroup = (
+    <div
+      className="fxwb-slotgroup"
+      title={
+        'FOLLOW SOURCE: in-game, re-anchor to the source unit every frame so the whole effect rides it as it ' +
+        'moves — a shop drag, a warband reorder, a combat lunge. For effects that sit ON a unit (badges, ' +
+        'auras), not ones that travel between two. No visible change here on the stage; it takes effect where ' +
+        'the def is bound in-game.'
+      }
+    >
+      <span className="fxwb-speedlabel">Follow</span>
+      <button
+        className={`fxwb-slotbtn${!followSource ? ' on' : ''}`}
+        onClick={() => setFollowSource(false)}
+        title="The effect stays where it was fired (default)"
+      >
+        Fixed
+      </button>
+      <button
+        className={`fxwb-slotbtn${followSource ? ' on' : ''}`}
+        onClick={() => setFollowSource(true)}
+        title="The effect rides its source unit as it moves (drag, reorder, lunge)"
+      >
+        Source
+      </button>
+    </div>
+  );
+
   const seedGroup = (
     <div
       className="fxwb-seedgroup"
@@ -2869,6 +2931,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           <span className="fxwb-time">{Math.round(timeMs)} / {durationMs} ms</span>
           {loopGroup}
           {slotGroup}
+          {followGroup}
           {seedGroup}
           {playbackControls}
           <div className="fxwb-hint">{hintText}</div>
@@ -2923,8 +2986,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           {layersOpen && (
             <>
               {/* CANVAS Over/Under (which canvas the effect draws on) sits at the top of the Primitives
-                  panel (owner 2026-09-20) rather than in the top bar. */}
+                  panel (owner 2026-09-20) rather than in the top bar; the FOLLOW toggle rides beside it as
+                  the other def-level control. */}
               {slotGroup}
+              {followGroup}
               {restoreBanners}
               {layersEl}
               {timingBlock}

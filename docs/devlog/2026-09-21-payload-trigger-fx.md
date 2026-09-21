@@ -27,10 +27,16 @@ moment is a crossing that pays out.**
   `{ type: 'payloadTrigger'; source: string; side: Side; marker: string }`. `source` = the body whose meter
   crossed (the same field name `sc` / `rally` / `shout` use for the acting unit, so `momentUnits`, the trig scan
   and the harness's `actingUid` all read it unchanged); `marker` = the meter's factory id.
-- **`packages/core/src/combat/simulate.ts`** — `noteDamageDealt` emits it right after the `dmg` that crossed and
-  BEFORE the payout's own events (`toHand`), wrapped in `withEffect(dealer, eff, …)` so the event and the payout
-  carry the meter's own identity (`key: 'factory:dealtDamage…:passive'`) instead of inheriting the outer effect
-  that dealt the hit (a Fel Spikes volley, Yeti's reflection). **Count = one per CREDITED crossing**: a plain
+- **`packages/core/src/combat/simulate.ts`** — `noteDamageDealt` emits it after the `dmg` that crossed and
+  BEFORE the payout's own events (`toHand`). "After" is not "immediately after": `applyDamage` runs the victim's
+  `onDamaged` reactors before it reaches the meter, so a reactor's event (a Target Dummy's `buff`, a Hearth
+  Whisperer's `handBuff`) sits between the `dmg` and the trigger — the core test pins `dmg → reactor buff →
+  payloadTrigger → toHand`. ONLY the trigger emit is wrapped in `withEffect(dealer, eff, …)`, so the event
+  carries the meter's own identity (`key: 'factory:dealtDamage…:passive'`) instead of inheriting the outer
+  effect that dealt the hit (a Fel Spikes volley, Yeti's reflection); the payout stays outside the wrap, exactly
+  as before, so the Ale's `toHand` keeps its prior (unstamped-on-a-plain-swing) identity and its stock hold
+  under the Beat Lab's live toggle (review 2026-09-21 — a stamped `toHand` would have re-paced through the
+  meter's `foldedCue` policy with the flag on). **Count = one per CREDITED crossing**: a plain
   Han Gover 80-damage hit crosses twice and emits twice; a gilded crossing (two Ales fill the cap) emits once; a
   120-damage hit crosses three times but "(Max 2 per hit)" credits two, so two events; Goldvein's latch means
   one per fight. **A crossing that pays nothing emits nothing** — Goldvein's second crossing in a fight, a Han
@@ -51,9 +57,17 @@ moment is a crossing that pays out.**
   emitted between the hit and the clash's retaliation, and it is a consequence OF that hit, so the clash stays
   ONE moment (`[dmg, payloadTrigger, retaliation dmg, death]`) and the flash lands at the lunge's real contact,
   a hair after the damage number (the def's own 90/100 ms internal `at`s). The alternative — its own beat — would
-  have split every clash the way `deferClashBuffs` exists to prevent. `kinds.ts` gets a `payloadTrigger` kind
-  (so it is a `BindingKind`, and a synthetic leading instance is never scored as a `damage` moment), paced on the
-  `dmg` key; the Beat Lab adapter files it under `reaction` and lists it as a consequence.
+  have split every clash the way `deferClashBuffs` exists to prevent. **It CAN lead a moment in a real fight**
+  (review 2026-09-21): an `onDamaged` reactor event that is neither a RESULT_TYPE nor a deferred `buff` — Hearth
+  Whisperer's `handBuff` — lands between the crossing `dmg` and the trigger and splits the run, so an enemy
+  Goldvein hitting a Whisperer compiles to `[attack] [dmg,dmg] [handBuff] [payloadTrigger,death]`. `kinds.ts`
+  gets a `payloadTrigger` kind (so it is a `BindingKind`, and that leading instance is never scored as a `damage`
+  moment) with its OWN pacing key in `choreoConfig` (`payloadTrigger: 460`, = `dmg`) — the clock keys by primary
+  event TYPE, so without a real entry a leading crossing fell to the 300 ms default; the Beat Lab adapter files it
+  under `reaction` and lists it as a consequence. The `fxDef` row stands down for the kind (the Rally one-channel
+  rule): with `payloadFx` on BASE, a leading crossing otherwise played the owner's burst, shockwave and clip
+  TWICE — once from the scan, once from the primary's binding. `choreo/payloadTrigger.test.ts` compiles the real
+  Whisperer fight and asserts exactly one `playDef`.
 - **The channel** (`choreo/channels/payloadFired.ts` + the `payloadFx` row in `score.ts`, on EVERY kind like
   `rallyFx` / `shoutFx`): a per-event scan, counted at the signal — one play per credited crossing, a body that
   crossed twice detonates twice `PAYLOAD_STACK_MS` (240 ms ÷ speed) apart. Plays `bindingFor(cardId,
@@ -70,10 +84,12 @@ moment is a crossing that pays out.**
   (`pulseTrigger`), so unbinding the def in the workbench never leaves a crossing silent. `Card.tsx`'s generic
   counter-pill flourish (`pixiFx.spellPower` on a step-proc tick) stands down for a damage-meter card while a
   `payloadTrigger` binding resolves — otherwise every crossing showed two effects at two positions.
-- **Han Gover's Ale beat is untouched**: its `toHand` still pulses the medallion white, plays `ale-bubbles` and
-  flies the card, one beat after the flash. That is the consequence reading after the trigger, and both are
-  authored — but the `triggerpulse` clip does play twice ~0.5 s apart on a Han Gover crossing (once from the def,
-  once from the Ale beat). Flagged for the owner rather than stripped.
+- **Han Gover's Ale beat is untouched** (the `toHand` event is emitted outside the `withEffect` wrap, so it is
+  byte-identical to before — see the engine note above): it still pulses the medallion white, plays `ale-bubbles`
+  and flies the card, one beat after the flash, with the stock `toHand` hold in prod AND under the Beat Lab. That
+  is the consequence reading after the trigger, and both are authored — but the `triggerpulse` clip does play
+  twice ~0.5 s apart on a Han Gover crossing (once from the def, once from the Ale beat). Flagged for the owner
+  rather than stripped.
 
 ### The last-attack case — how it is guaranteed
 

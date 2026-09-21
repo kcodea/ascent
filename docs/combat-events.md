@@ -36,6 +36,7 @@ All events are stamped `{ ...payload, step?: number }` (§4). Grouped by family.
 | `keyword` | `target, keyword, source?` | A combat effect grants a keyword mid-fight (Mumi → Rise, Ryme-replayed keyword Battlecries). Rides in the RESULT family so it never splits an impact run mid-death-cascade. |
 | `keywordLost` | `target, keyword, source?` | A combat effect STRIPS a keyword (Tauntbreaker → Taunt/Rise off the enemy it hit) — the UI drops that pill. |
 | `ascend` | `target, into` | Mid-combat transform (Tara → Taragosa, Spirit Pup → Spirit Worgen) — keeps current stats/buffs, swaps identity + effects + keywords. |
+| `payloadTrigger` | `source, side, marker` | A DAMAGE-METER crossing that PAID OUT (Han Gover's Ale meter, Goldvein's Gold meter — the future "Payload" keyword; 2026-09-21). `source` = the body whose meter crossed, `marker` = the meter's factory id. One event per CREDITED crossing (an 80-damage Han Gover hit emits two; a gilded crossing one; Goldvein's once-per-combat latch one per fight; a crossing that pays nothing emits nothing). Emitted AFTER the `dmg` that crossed it — and after the victim's `onDamaged` reactors, which run before the meter, so a reactor's `buff`/`handBuff` can sit between — and BEFORE the payout's `toHand`; stamped `key: factory:<marker>:passive` (the payout's own events are not). In the RESULT family (`RESULT_TYPES`): it usually rides the hit's impact beat, and leads a `payloadTrigger` moment of its own only when a non-result reactor event (Hearth Whisperer's `handBuff`) split it off. The UI's `payloadFx` channel plays the owner's `payload-trigger` on the body's medallion either way. |
 
 ### Board/economy changes (carried-back effects, telegraphed live)
 
@@ -48,12 +49,10 @@ All events are stamped `{ ...payload, step?: number }` (§4). Grouped by family.
 | `hpGrant` | `target, amount` | Sergeant: live HP-grant amount after each Attack-gain improvement (so the tooltip/telegraph shows the current accrued number). |
 | `spellProgress` | `target, amount` | Archmagus Guel: on-board spell tally after a combat cast (live countdown). |
 | `questTrigger` | `flag, side` | A completed quest / owned rune's COMBAT effect fired — `flag` maps to its badge id so the UI can pulse the node. |
-| `payloadTrigger` | `source, side, marker` | A DAMAGE-METER crossing that PAID OUT (Han Gover's Ale meter, Goldvein's Gold meter — the future "Payload" keyword; 2026-09-21). `source` = the body whose meter crossed, `marker` = the meter's factory id. One event per CREDITED crossing (an 80-damage Han Gover hit emits two; a gilded crossing one; Goldvein's once-per-combat latch one per fight; a crossing that pays nothing emits nothing). Emitted right after the `dmg` that crossed it and BEFORE the payout's `toHand`, stamped `key: factory:<marker>:passive`. Grouped with the RESULT family (it rides the hit's impact beat); the UI's `payloadFx` channel plays the owner's `payload-trigger` on the body's medallion. |
 
-*(23 types total across the three tables above: Actions — sc, attack, summon, rally, shout (5); Impact
-results — dmg, shield, shieldUp, poison, venomLost, death, reborn, reveal, keyword, keywordLost, ascend (11);
-Board/meta — buff, improve, maxGold, toHand, hpGrant, spellProgress, questTrigger (7). This line is just the
-tally; the tables above are the authoritative per-type payload/meaning.)*
+*(The `CombatEvent` union in `packages/core/src/types.ts` is the source of truth for the event count and the
+full member list — the tables above document the types the replay reads by family, not an exhaustive tally,
+and the count is deliberately not hardcoded here.)*
 
 ## 2. Combat lifecycle (trigger order, top to bottom)
 

@@ -3,6 +3,11 @@ import type { CombatEvent } from '@game/core';
 import { compileMoments } from './compile';
 import { finalHoldMs, payloadReadMs, payloadRemainingMs } from './finalHold';
 import { PAYLOAD_STACK_MS } from './channels/payloadFired';
+import { getDef } from '../fx/fxDefs';
+// Side-effect import (as `fx/defs.test.ts` does): the primitives self-register at load, and WITHOUT them
+// `coerceLayer` drops every layer of every def (`getPrimitive` is empty), so `payloadReadMs` would fall back to
+// the def's bare `duration` and the layer-span read below would be proven by nothing.
+import '../fx/primitives';
 
 /**
  * THE FINAL HOLD's payload floor (owner ask 2026-09-21: a crossing on the last attack must still play its
@@ -65,9 +70,12 @@ describe('payloadRemainingMs', () => {
 });
 
 describe('payloadReadMs — the real registry', () => {
-  it('reads the owner’s payload-trigger: past its 900ms duration (the burst’s diamonds live to ~980ms), well under the 3s an unmodelled sound tail would add', () => {
+  it('reads the owner’s payload-trigger PAST its 900ms duration — the burst (at 100, life 880) ends at 980 — and well under the 3s an unmodelled sound tail would add', () => {
+    const def = getDef('payload-trigger')!;
+    expect(def.layers.length).toBeGreaterThan(0); // the primitives ARE registered (else this test proves only `duration`)
     const read = payloadReadMs('k3_goldvein');
-    expect(read).toBeGreaterThanOrEqual(900);
+    expect(read).toBeGreaterThan(def.duration); // the layer-span path, not the duration floor
+    expect(read).toBe(980);
     expect(read).toBeLessThan(2000);
     expect(payloadReadMs('dw3_hangover')).toBe(read);
   });

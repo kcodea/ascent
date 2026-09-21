@@ -27,7 +27,9 @@ import type { CombatEvent } from '@game/core';
  *  `payloadTrigger` (2026-09-21) rides here for the same reason: a damage-meter crossing (Han Gover, Goldvein)
  *  is emitted BETWEEN the hit that crossed it and the clash's retaliation, and it is a consequence OF that hit —
  *  the owner's `payload-trigger` flash plays on the body inside the impact moment (the `payloadFx` channel
- *  scans per event, like `rallyFx`), so the clash stays one moment and the retaliation lands where it did. */
+ *  scans per event, like `rallyFx`), so the clash stays one moment and the retaliation lands where it did.
+ *  (An `onDamaged` reactor's non-result event — Hearth Whisperer's `handBuff` — emitted before the meter can
+ *  still split the run; the trigger then leads a `payloadTrigger` moment, which the same per-event scan plays.) */
 export const RESULT_TYPES = new Set<CombatEvent['type']>([
   'dmg', 'shield', 'shieldUp', 'poison', 'venomLost', 'death', 'keyword', 'payloadTrigger',
 ]);

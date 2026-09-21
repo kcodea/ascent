@@ -3,12 +3,14 @@
  * future "Payload" keyword) happened inside a moment, on which bodies, and how many times each.
  *
  * The Rally/Shout channels' cousin (`rallyFired.ts`, `shoutFired.ts`). The engine logs one `payloadTrigger`
- * event PER CREDITED CROSSING (`noteDamageDealt` in core), emitted right after the `dmg` that crossed it —
- * which is why it never LEADS a moment: it is a RESULT_TYPE, so it folds into that hit's impact moment, and a
- * cue reached only through a moment's primary event could never see it. This scan is per event, per moment,
- * exactly the shape the choreography skill asks for ("a repeated trigger must be COUNTED at the signal"): a
- * Han Gover whose one 80-damage hit crosses twice yields `count: 2`, and the runner plays the owner's
- * `payload-trigger` def twice, spaced as a stack, so the double reads as a double.
+ * event PER CREDITED CROSSING (`noteDamageDealt` in core), emitted after the `dmg` that crossed it — usually
+ * folded into that hit's impact moment (it is a RESULT_TYPE), where a cue reached only through the moment's
+ * primary event could never see it; occasionally LEADING a moment of its own, when the victim's `onDamaged`
+ * reactor emitted a non-result event in between (Hearth Whisperer's `handBuff` — the sim runs `onDamaged`
+ * before the meter). Either way this scan is per event, per moment, exactly the shape the choreography skill
+ * asks for ("a repeated trigger must be COUNTED at the signal"): a Han Gover whose one 80-damage hit crosses
+ * twice yields `count: 2`, and the runner plays the owner's `payload-trigger` def twice, spaced as a stack, so
+ * the double reads as a double.
  *
  * Pure, and deliberately so: it is the whole testable surface of this channel. `score.ts` holds the
  * scheduling, which needs a live Pixi renderer and cannot be tested here (no jsdom in this repo).
@@ -46,9 +48,3 @@ export function payloadsFiredIn(moment: Pick<Moment, 'start' | 'end'>, events: C
  * combat speed by the scheduler, like every other stride.
  */
 export const PAYLOAD_STACK_MS = 240;
-
-/** Does the moment carry any crossing at all? Cheap pre-check for the replay's final-hold floor. */
-export function hasPayloadTrigger(moment: Pick<Moment, 'start' | 'end'>, events: CombatEvent[]): boolean {
-  for (let i = moment.start; i < moment.end; i++) if (events[i]?.type === 'payloadTrigger') return true;
-  return false;
-}

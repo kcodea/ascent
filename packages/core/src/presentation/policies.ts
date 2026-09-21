@@ -1084,8 +1084,10 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // The DAMAGE METERS (the future "Payload" keyword). A crossing that pays emits `payloadTrigger` (2026-09-21)
   // stamped with these keys, and the replay plays the owner's `payload-trigger` flash INSIDE the hit's impact
   // moment — credit without a pause, so `foldedCue`. The consequences ride their own channels: Han Gover's
-  // Ale is a `toHand` beat; Goldvein's Gold is `playerBonusGold` at settle (there is NO `bonusGold` event —
-  // an earlier comment here claimed one).
+  // Ale is a `toHand` beat (deliberately NOT stamped with this key — only the trigger emit sits inside the
+  // meter's `withEffect`, so the Ale's beat keeps the stock `toHand` hold under the Beat Lab instead of
+  // folding through this policy); Goldvein's Gold is `playerBonusGold` at settle (there is NO `bonusGold`
+  // event — an earlier comment here claimed one).
   'factory:dealtDamageAleMeter:passive': { policy: 'foldedCue', family: 'react' },                // Han Gover — the meter reads at the damage site; the crossing flashes on the hit, the Ale flies on its own `toHand` beat
   'factory:dealtDamageGoldNextTurn:passive': { policy: 'foldedCue', family: 'react' },            // Goldvein (2026-09-19) — the same meter; the crossing flashes on the hit, the Gold lands at settle
   'factory:buffShopOffersThisTurn:onBuy': { policy: 'foldedCue', family: 'economyReact' },        // Night Market Horror — cf. buffBoardOnBuy

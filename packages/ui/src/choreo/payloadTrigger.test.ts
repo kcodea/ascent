@@ -7,7 +7,8 @@ import { replayBeats, replayOrder } from './replayOrder';
 import { momentKind } from './kinds';
 import { runMomentCues, SCORE_DEFAULTS } from './score';
 import { bindingFor } from './bindings';
-import { holdMsForKind } from './choreoConfig';
+import { beatDelay, getChoreoConfig, holdMsForKind } from './choreoConfig';
+import { holdMs } from './clock';
 import { PAYLOAD_STACK_MS } from './channels/payloadFired';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { anchorsForUnits } from '../fx/combatAnchors';
@@ -52,8 +53,16 @@ describe('the beat — a crossing rides the impact of the hit that crossed it', 
     expect(holdMsForKind('payloadTrigger')).toBe(holdMsForKind('damage'));
     expect(Array.isArray(SCORE_DEFAULTS.payloadTrigger)).toBe(true);
     expect(SCORE_DEFAULTS.payloadTrigger.some((c) => c.ch === 'payloadFx')).toBe(true);
-    // …and the channel is on EVERY kind, because the event never leads a real moment.
+    // …and the channel is on EVERY kind, because the event usually rides another kind's moment (its hit's impact)
+    // and only sometimes leads its own.
     for (const cues of Object.values(SCORE_DEFAULTS)) expect(cues.some((c) => c.ch === 'payloadFx')).toBe(true);
+  });
+
+  it('a LEADING crossing holds like the hit it belongs to: the clock keys by primary event type, and `payloadTrigger` has a real pacing key (= dmg), not the 300 fallback', () => {
+    const ev = [attack('gv', 'foe'), dmg('foe', 'gv'), trigger('gv'), death('foe')];
+    const lead: Moment = { start: 2, end: 4, primary: ev[2]!, kind: 'payloadTrigger' } as Moment;
+    expect(beatDelay('payloadTrigger')).toBe(beatDelay('dmg'));
+    expect(holdMs(lead, undefined, 1)).toBeCloseTo(beatDelay('dmg') * getChoreoConfig().speed, 5);
   });
 
   it('a mid-clash crossing never splits the impact: [dmg, payloadTrigger, retaliation dmg, death] is ONE beat (and the oracle agrees)', () => {
@@ -141,6 +150,51 @@ describe('the cue — payloadFx plays the def ON the body that crossed', () => {
     runMomentCues(lastMoment(ev), baseCtx(ev, new Map([['gv', 'k3_goldvein']]), { onPayloadProc }));
     expect(onPayloadProc).not.toHaveBeenCalled();
     expect(mockPlayDef).not.toHaveBeenCalled();
+  });
+});
+
+describe('a REAL fight — the crossing LEADS its moment (the one-channel rule)', () => {
+  // The sim runs the victim's `onDamaged` reactors BEFORE the dealer's meter, so a reactor event that is neither a
+  // RESULT_TYPE nor a deferred `buff` lands between the crossing `dmg` and its `payloadTrigger` and splits the
+  // impact run. Hearth Whisperer (Set 3 Spirit, Taunt, `onDamagedBuffRandomHand`) emits a player-side `handBuff`
+  // when it has a hand minion to buff — and an enemy Goldvein's crossing on that hit then HEADS a moment of its
+  // own: `[attack] [dmg,dmg] [handBuff] [payloadTrigger,death]`. That moment is `payloadTrigger`-kind, whose
+  // score is BASE — which carries BOTH `payloadFx` (the per-event scan) and `fxDef` (the primary's binding).
+  // Without the stand-down in the `fxDef` row the owner's burst played TWICE for one crossing (review 2026-09-21).
+  const SET3 = poolFor('set3').all.map((c) => c.id);
+  const whisperer = { cardId: 'sp3_hearthwhisperer', attack: 2, health: 6, keywords: ['T'] } as unknown as BoardMinion;
+  const enemyVein = { cardId: 'k3_goldvein', attack: 6, health: 30, keywords: [] } as unknown as BoardMinion;
+  const handStray = { uid: 'h1', cardId: 'stray', attack: 1, health: 1, keywords: [], golden: false };
+  const fight = () => simulate([whisperer], [enemyVein], makeRng(7), CARD_INDEX,
+    combatSide({ tier: 6, poolIds: SET3, handMinions: [handStray] }), combatSide({ tier: 6 }));
+  const cardIdsOf = (r: ReturnType<typeof fight>): Map<string, string> =>
+    new Map([...r.initial.player, ...r.initial.enemy].map((u) => [u.uid, u.cardId] as const));
+
+  it('Hearth Whisperer’s handBuff splits the clash, the enemy Goldvein’s crossing leads its own moment — and the def plays ONCE, on Goldvein', () => {
+    const r = fight();
+    const gv = r.initial.enemy[0]!.uid;
+    const ordered = replayOrder(r.events);
+    const beats = replayBeats(r.events);
+    expect(beats.map((b) => ordered.slice(b.start, b.end).map((e) => e.type))).toEqual([
+      ['attack'], ['dmg', 'dmg'], ['handBuff'], ['payloadTrigger', 'death'],
+    ]);
+    const last = beats.at(-1)!;
+    expect(last.kind).toBe('payloadTrigger');
+    expect(SCORE_DEFAULTS.payloadTrigger.some((c) => c.ch === 'fxDef')).toBe(true); // the row IS there — it must stand down
+    runMomentCues(last, baseCtx(ordered, cardIdsOf(r)));
+    expect(mockPlayDef).toHaveBeenCalledTimes(1);
+    expect(mockPlayDef).toHaveBeenCalledWith('payload-trigger', { target: { x: 5, y: 7 } }, { uids: { source: gv, target: gv }, index: 0 });
+  });
+
+  it('the synthetic shape of the same log: [attack, dmg, dmg, handBuff, payloadTrigger, death] → one play', () => {
+    const handBuff = { type: 'handBuff', uid: 'h1', cardId: 'stray', side: 'player', attack: 1, health: 2 } as CombatEvent;
+    const ev = [attack('gv', 'hw'), dmg('hw', 'gv', 6, 0), dmg('gv', 'hw', 2, 28), handBuff, trigger('gv'), death('hw')];
+    const moments = compileMoments(ev);
+    const lead = moments.find((m) => m.kind === 'payloadTrigger');
+    expect(lead).toBeDefined();
+    runMomentCues(lead!, baseCtx(ev, new Map([['gv', 'k3_goldvein'], ['hw', 'sp3_hearthwhisperer']])));
+    expect(mockPlayDef).toHaveBeenCalledTimes(1);
+    expect(mockPlayDef).toHaveBeenCalledWith('payload-trigger', { target: { x: 5, y: 7 } }, { uids: { source: 'gv', target: 'gv' }, index: 0 });
   });
 });
 

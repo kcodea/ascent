@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CombatEvent } from '@game/core';
-import { hasPayloadTrigger, payloadsFiredIn, PAYLOAD_STACK_MS } from './payloadFired';
+import { payloadsFiredIn, PAYLOAD_STACK_MS } from './payloadFired';
 import { RUBY_GAP_MS } from './rubyLanded';
 
 /** The PAYLOAD-FIRED channel's pure scan: per body, counted at the signal, in first-seen order. */
@@ -32,13 +32,6 @@ describe('payloadsFiredIn', () => {
     const ev = [trigger('early'), dmg('foe', 'hg'), trigger('hg'), dmg('hg', 'foe'), trigger('late')];
     expect(payloadsFiredIn(span(1, 4), ev)).toEqual([{ uid: 'hg', marker: 'dealtDamageAleMeter', count: 1 }]);
     expect(payloadsFiredIn(span(1, 2), ev)).toEqual([]);
-  });
-
-  it('hasPayloadTrigger is the cheap yes/no over the same bounds', () => {
-    const ev = [dmg('foe', 'hg'), trigger('hg'), dmg('hg', 'foe')];
-    expect(hasPayloadTrigger(span(0, 3), ev)).toBe(true);
-    expect(hasPayloadTrigger(span(0, 1), ev)).toBe(false);
-    expect(hasPayloadTrigger(span(2, 3), ev)).toBe(false);
   });
 
   /** A stack's stride must read as a stride: clearly longer than the Ruby beat (50ms thickens one burst) and

@@ -53,6 +53,13 @@ describe('payloadTrigger — Han Gover (the Ale meter, every 40, max 2 per hit)'
     expect(before).toMatchObject({ type: 'dmg', amount: 20, source: r.initial.player[0]!.uid });
     expect(r.events[i + 1]).toMatchObject({ type: 'toHand', side: 'player', source: r.initial.player[0]!.uid });
     expect(r.events[i]!.step).toBe(before.step); // the crossing shares the hit's resolution step
+    // ONLY the trigger carries the meter's identity. The Ale's `toHand` is emitted outside the `withEffect` wrap —
+    // unstamped on a plain swing, exactly as it was before the trigger existed — so its beat keeps the stock
+    // `toHand` hold under the Beat Lab rather than folding through the meter's `foldedCue` policy (review
+    // 2026-09-21). The order pinned above: `dmg → (the victim's onDamaged reactor) → payloadTrigger → toHand`.
+    expect(r.events[i]!.key).toBe('factory:dealtDamageAleMeter:passive');
+    expect(r.events[i + 1]!.key).toBeUndefined();
+    expect(r.events[i + 1]!.srcCard).toBeUndefined();
   });
 
   it('one 80-damage hit crosses twice → TWO triggers (two Ales)', () => {

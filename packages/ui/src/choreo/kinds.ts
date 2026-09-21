@@ -69,12 +69,16 @@ export function momentKind(primary: CombatEvent): MomentKind {
     // `dmg` pacing key, so `holdMsForKind` is unchanged from the `damage` classification they had.
     case 'questTrigger': return 'questTrigger';
     case 'questComplete': return 'questComplete';
-    // A DAMAGE-METER crossing (Han Gover / Goldvein — the future "Payload" keyword, 2026-09-21). In a real log it
-    // never LEADS a moment: it is a RESULT_TYPE emitted right after the `dmg` that crossed it, so it folds into
-    // that hit's impact and the `payloadFx` channel (on every kind) finds it there. The kind exists so it is a
-    // `BindingKind` — `bindings.json` binds the owner's `payload-trigger` def at it — and so a synthetic or
-    // future leading instance is scored as its own quiet beat rather than as a `damage` moment (the crimson
-    // hit burst). Paced on the `dmg` key like the quest beats.
+    // A DAMAGE-METER crossing (Han Gover / Goldvein — the future "Payload" keyword, 2026-09-21). It is a
+    // RESULT_TYPE emitted after the `dmg` that crossed it, so it USUALLY folds into that hit's impact and the
+    // `payloadFx` channel (on every kind) finds it there. It DOES lead a moment of its own in a real fight when
+    // the victim's `onDamaged` reactor emits a non-result, non-`buff` event between the `dmg` and the trigger
+    // (the sim runs `onDamaged` before the meter): Hearth Whisperer's `handBuff` splits the impact run, and the
+    // trigger heads `[payloadTrigger, death]`. The kind exists so it is a `BindingKind` — `bindings.json` binds
+    // the owner's `payload-trigger` def at it — and so that leading instance is scored as its own quiet beat
+    // (the `payloadFx` scan plays it once; the `fxDef` row stands down) rather than as a `damage` moment (the
+    // crimson hit burst). Paced on its own `payloadTrigger` key, tuned equal to `dmg`, so the clock holds a
+    // leading crossing (and the death riding in it) like the hit it belongs to.
     case 'payloadTrigger': return 'payloadTrigger';
     // Defensive: any future event type falls back to a quiet damage-style moment instead of crashing the replay
     // (momentKind must NEVER return undefined — `getScore()[undefined]` is not iterable).

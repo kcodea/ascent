@@ -81,11 +81,14 @@ const BASE: Cue[] = [
   { ch: 'shoutFx', at: 'start', offset: 0 },
   // `payloadFx` — a DAMAGE-METER crossing (`payloadTrigger`: Han Gover, Goldvein — the future "Payload" keyword)
   // in this moment: play the def bound at the `payloadTrigger` kind ON the body that crossed. On every kind for
-  // the same reason `rallyFx` is: the event is a RESULT_TYPE emitted right after the `dmg` that crossed it, so
-  // it folds into that hit's impact (an `attackExchange`-led clash, a `damage` moment, a Fel Spikes wave, a
-  // `death` moment…) and never leads one of its own. Offset 0: the cue fires the instant the impact becomes
-  // current (at a lunge's real contact), and the def carries its own 90/100ms internal `at`s, so the flash
-  // lands a hair AFTER the damage number — with the hit, not before it. See `channels/payloadFired.ts`.
+  // the same reason `rallyFx` is: the event is a RESULT_TYPE emitted after the `dmg` that crossed it, so it
+  // USUALLY folds into that hit's impact (an `attackExchange`-led clash, a `damage` moment, a Fel Spikes wave,
+  // a `death` moment…) — but not always: the sim runs the victim's `onDamaged` reactors BEFORE the meter, and
+  // a reactor event that is neither a RESULT_TYPE nor a deferred `buff` (Hearth Whisperer's `handBuff`) splits
+  // the impact run, leaving the trigger to LEAD a `payloadTrigger`-kind moment of its own. The per-event scan
+  // is what makes both shapes play the same. Offset 0: the cue fires the instant the impact becomes current
+  // (at a lunge's real contact), and the def carries its own 90/100ms internal `at`s, so the flash lands a hair
+  // AFTER the damage number — with the hit, not before it. See `channels/payloadFired.ts`.
   { ch: 'payloadFx', at: 'start', offset: 0 },
 ];
 const withReform = (): Cue[] => [...BASE, { ch: 'auraReform', at: 'start', offset: 460, scaled: false }];
@@ -174,8 +177,10 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   // DORMANT until the score can anchor them to a badge/HUD node rather than a board unit.
   questTrigger: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }],
   questComplete: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }],
-  // A damage-meter crossing LEADING a moment (synthetic / future only — in a real log it rides its hit's impact,
-  // see `payloadFx` in BASE). Plain BASE: the `payloadFx` scan plays it; NO `damageFx` (it is not a hit).
+  // A damage-meter crossing LEADING a moment — reachable in a real fight when an `onDamaged` reactor's
+  // non-result event (Hearth Whisperer's `handBuff`) splits it off its hit's impact (see `payloadFx` in BASE).
+  // Plain BASE: the `payloadFx` scan plays it (the `fxDef` row stands down for this kind — the one-channel
+  // rule below); NO `damageFx` (it is not a hit).
   payloadTrigger: [...BASE],
 };
 
@@ -728,7 +733,12 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       // by `rallyFx`, which scans every rally event in the moment and plays one per PROC at that proc's own
       // pair. This row would play the `rally` binding a second time — once, at the primary event's pair — for
       // any moment that happened to be classified `rally`. Standing down is what keeps the count honest.
-      if (moment.kind === 'rally') continue;
+      // The same rule for a damage-meter crossing: `payloadFx` scans every `payloadTrigger` in the moment and
+      // plays one per CREDITED crossing on the body. When the trigger LEADS its moment (a Hearth Whisperer's
+      // `handBuff` reactor split it off the hit — a real Set 3 fight, not a synthetic log) this row would play
+      // the `payload-trigger` binding a second time at the primary's (source, null) pair: the owner's burst,
+      // shockwave and `triggerpulse` clip twice for one crossing (review finding 2026-09-21).
+      if (moment.kind === 'rally' || moment.kind === 'payloadTrigger') continue;
       // The card comes from `ctx.cardIds` — the replay's own uid→card map, already threaded in for the sfx
       // channel's death voicelines. It replaces a DOM lookup (`[data-card]`), which was the most suspect link
       // in this chain: it depended on the unit being rendered, findable by selector, and carrying an attribute

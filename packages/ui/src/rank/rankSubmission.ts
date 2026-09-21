@@ -27,7 +27,6 @@ import type { RankSubmitOutcome, RankSubmitRequest } from './types';
 
 const QUEUE_KEY = 'ascent.rankqueue';
 const QUEUE_MAX = 50;
-/** A request that has failed this many times is still kept — the cap only bounds the queue's LENGTH. */
 
 export interface PendingRank extends RankSubmitRequest {
   /** The account the run was played under. The item is submitted ONLY while this account is live. */
@@ -112,20 +111,21 @@ let flushing: Promise<void> | null = null;
  */
 export function flushPendingRanks(onSettled: RankSettleListener): Promise<void> {
   if (flushing) return flushing;
-  flushing = (async () => {
-    try {
-      for (const item of pendingRanks()) {
-        if (currentUserId() !== item.userId) return; // the account changed under us — never cross-submit
-        const outcome = await submitRating(item);
-        if (outcome.status === 'retryable') { recordAttempt(item, outcome.reason); onSettled(item, outcome); return; }
-        removeItem(item);
-        onSettled(item, outcome);
-      }
-    } finally {
-      flushing = null;
+  const run = async (): Promise<void> => {
+    for (const item of pendingRanks()) {
+      if (currentUserId() !== item.userId) return; // the account changed under us — never cross-submit
+      const outcome = await submitRating(item);
+      if (outcome.status === 'retryable') { recordAttempt(item, outcome.reason); onSettled(item, outcome); return; }
+      removeItem(item);
+      onSettled(item, outcome);
     }
-  })();
-  return flushing;
+  };
+  // The reset rides `.finally` (a microtask), never the body: an empty queue runs the body synchronously to
+  // completion BEFORE the assignment below, and a `flushing = null` inside it would then be overwritten by
+  // the settled promise — every later flush would short-circuit forever.
+  const p = run().finally(() => { if (flushing === p) flushing = null; });
+  flushing = p;
+  return p;
 }
 
 /** Wire the environment triggers once: network return → flush. (Boot + identity triggers ride the store's

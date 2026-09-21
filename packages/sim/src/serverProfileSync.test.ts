@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { adoptServerRating, initialProfile, resolveServerProfile } from './playerRating';
+import { adoptServerRank, adoptServerRating, initialProfile, legacyRatingChangeOf, resolveServerProfile, resolveServerRank } from './playerRating';
+import { RANK_SEASON, initialRankedProfile, rankScalar, settleRank } from './rank';
 
 /**
  * THE LOCAL MIRROR vs THE SERVER (owner report 2026-08-19).
@@ -47,5 +48,67 @@ describe('resolveServerProfile — reconciling the local mirror with the server'
   it('reports NO CHANGE when an already-fresh profile is told it is unranked', () => {
     // Boot on a fresh install with an empty ladder: nothing to write, so nothing should re-render.
     expect(resolveServerProfile(initialProfile(), null)).toBeNull();
+  });
+});
+
+
+/**
+ * MEDAL RANK (2026-09-20) — the same three-way ruling for the RANKED profile, plus the revision compare that
+ * keeps a late, older answer from rolling a newer mirror back.
+ */
+describe('resolveServerRank / adoptServerRank — the medal mirror', () => {
+  const fresh = initialProfile();
+  const two = settleRank(settleRank(initialRankedProfile(), 1, 'a').profile, 1, 'b'); // rev 2, Bronze III 80
+  const three = settleRank(two.profile, 2, 'c');                                     // rev 3, Bronze III 100 (gate)
+  const mirrorAt2 = adoptServerRank(fresh, two.profile)!;
+
+  it('KEEPS the local mirror when we could not ask', () => {
+    expect(resolveServerRank(mirrorAt2, undefined)).toBeNull();
+  });
+
+  it('RESETS to a fresh profile when the server answers "no row" — and reports no change when already fresh', () => {
+    const next = resolveServerRank(mirrorAt2, null);
+    expect(next).not.toBeNull();
+    expect(next!.rank).toEqual(initialRankedProfile());
+    expect(next!.rating).toBe(0);
+    expect(next!.highestRating).toBe(0);
+    expect(resolveServerRank(fresh, null)).toBeNull();
+  });
+
+  it('ADOPTS a newer server profile and re-derives the numeric fields from it', () => {
+    const next = resolveServerRank(mirrorAt2, three.profile)!;
+    expect(next.rank).toEqual(three.profile);
+    expect(next.rating).toBe(rankScalar(three.profile.position));
+    expect(next.highestRating).toBe(rankScalar(three.profile.highest));
+    expect(next.season).toBe(RANK_SEASON);
+  });
+
+  it('REFUSES an OLDER server profile in the same season (a late answer never rolls the mirror back)', () => {
+    const mirrorAt3 = adoptServerRank(fresh, three.profile)!;
+    expect(adoptServerRank(mirrorAt3, two.profile)).toBeNull();
+    expect(resolveServerRank(mirrorAt3, two.profile)).toBeNull();
+  });
+
+  it('reports NO CHANGE when the server agrees with the mirror', () => {
+    expect(adoptServerRank(mirrorAt2, two.profile)).toBeNull();
+  });
+
+  it('a DIFFERENT season always adopts, whatever the revisions (a new season is newer by definition)', () => {
+    const older = { ...two.profile, seasonId: RANK_SEASON - 1, revision: 40 };
+    const mirror = adoptServerRank(fresh, older)!;
+    expect(mirror.rank.revision).toBe(40);
+    const next = adoptServerRank(mirror, { ...initialRankedProfile(), revision: 1 });
+    expect(next).not.toBeNull();
+    expect(next!.rank.seasonId).toBe(RANK_SEASON);
+  });
+
+  it('legacyRatingChangeOf projects the APPLIED delta + scalars for the surfaces still reading numbers', () => {
+    const won = settleRank(three.profile, 1, 'd'); // gate won → Bronze II 0
+    const change = legacyRatingChangeOf(won.result, adoptServerRank(fresh, won.profile)!);
+    expect(change.ratingBefore).toBe(100);
+    expect(change.ratingAfter).toBe(100);
+    expect(change.ratingDelta).toBe(0);
+    expect(change.promoted).toBe(true);
+    expect(change.profile.rating).toBe(100);
   });
 });

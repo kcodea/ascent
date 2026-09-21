@@ -56,6 +56,24 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-20',
+    label: 'Medal ranks — season 3',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "The ladder is now a medal and a division instead of a number: Bronze, Silver, Gold, Platinum, Diamond and Ascendant, three divisions each (III up to I), 100 points per division. Everyone starts season 3 at Bronze III. Your rank is settled by the server after every ranked lobby, and a result that can't reach the server is kept and retried — it's never lost.",
+        details: [
+          'Points by finish: 1st +40, 2nd +28, 3rd +16, 4th +6, 5th -6, 6th -16, 7th -28, 8th -40. Only ranked lobbies count; Practice and the tutorial never move your rank.',
+          "Reaching 100 points unlocks a PROMOTION GAME rather than promoting on the spot (anything past 100 is discarded). Moving up a division (say Gold III to Gold II) takes a top-4 finish in that game; moving up a medal (Gold I to Platinum III) takes 1st place. A won promotion starts the next division at 0 — not the game's points.",
+          'A lost promotion game (5th–8th) just costs its normal points from 100; climb back to 100 and the gate reopens. At a medal gate, a 2nd–4th finish neither promotes nor gains — you stay at 100, still promotion-ready.',
+          'Dropping below 0 demotes one division and keeps the remainder (Gold II 10 after an 8th place lands on Gold III 70). Bronze III can never fall below 0. Ascendant I has no cap — points keep climbing.',
+          "Your career-best rank never goes down. Leaderboards sort by division first, then points.",
+          'Previous-season ratings are archived, not deleted; the new season starts everyone fresh.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-20',
     label: 'Leaderboard, Hall of Champions + Recent Games redesign',
     changes: [
       {

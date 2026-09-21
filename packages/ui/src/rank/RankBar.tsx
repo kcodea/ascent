@@ -67,7 +67,7 @@ export function RankBar({ position, size = 'row', layout = 'row', showGate = tru
   /** Print the "Promotion game ready — …" / "Demotion game — …" line when on a gate. */
   showGate?: boolean;
   /** The standing's STORED demotion-ready flag (`standingDemotionReady(profile.rank)` — never derived from the
-   *  position: a 0 at a medal floor is also where a won medal promotion lands). */
+   *  position: the rules own the flag; a bare 0 at a medal floor says nothing on its own). */
   demotionReady?: boolean;
   /** An optional small caption under the points (the Career card's scalar). */
   caption?: string;

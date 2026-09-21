@@ -46,17 +46,22 @@ export function planRankSequence(r: RankResult): RankStep[] {
   const medalChange = medalOf(r.before.divisionIndex) !== medalOf(r.after.divisionIndex);
   if (r.promoted) {
     // The old bar is already full (the gate). Transition the crest/tier, then the NEW division fills from
-    // zero to wherever it landed (owner decision: 0/100 — so the fill is a beat of "here is your new bar").
+    // zero to wherever it landed (owner decision 2026-09-21: the 10/100 landing cushion — so the fill is a
+    // small tick of "here is your new bar", kept on purpose; it was a 0 → 0 beat when the landing was 0).
     steps.push({ kind: 'transition', ms: RANK_BEAT_MS.transitionUp, from: r.before.divisionIndex, to: r.after.divisionIndex, direction: 'up', medal: medalChange });
     steps.push({ kind: 'bar', ms: RANK_BEAT_MS.barHalf, divisionIndex: r.after.divisionIndex, from: 0, to: r.after.points, uncapped: isUncapped(r.after.divisionIndex) });
   } else if (r.demoted && r.wasDemotionGame) {
-    // A LOST DEMOTION GAME (owner 2026-09-20): the bar already sits at 0 — hold it there a beat, transition
-    // the crest down a medal, then the landing division's bar fills to the landing points.
+    // A LOST DEMOTION GAME (owner 2026-09-20; since 2026-09-21 the ONLY way down — a division or a medal): the
+    // bar already sits at 0 — hold it there a beat, transition the crest down, then the landing division's bar
+    // fills to the landing points (100 + the award).
     steps.push({ kind: 'bar', ms: RANK_BEAT_MS.barHalf, divisionIndex: r.before.divisionIndex, from: 0, to: 0, uncapped: false });
     steps.push({ kind: 'transition', ms: RANK_BEAT_MS.transitionDown, from: r.before.divisionIndex, to: r.after.divisionIndex, direction: 'down', medal: medalChange });
     steps.push({ kind: 'bar', ms: RANK_BEAT_MS.barHalf, divisionIndex: r.after.divisionIndex, from: 0, to: r.after.points, uncapped: false });
   } else if (r.demoted) {
-    // Drain the old division to zero, transition down, then the previous division retreats from 100.
+    // An INSTANT demotion: drain the old division to zero, transition down, then the previous division retreats
+    // from 100. The rules no longer produce one (owner 2026-09-21: a loss that hits 0 halts there and arms; the
+    // clamping loss plans as a plain bar drain to 0 + the demotion-game outcome line) — kept so a result settled
+    // under the 2026-09-20 rules still replays truthfully.
     steps.push({ kind: 'bar', ms: RANK_BEAT_MS.barHalf, divisionIndex: r.before.divisionIndex, from: r.before.points, to: 0, uncapped: false });
     steps.push({ kind: 'transition', ms: RANK_BEAT_MS.transitionDown, from: r.before.divisionIndex, to: r.after.divisionIndex, direction: 'down', medal: medalChange });
     steps.push({ kind: 'bar', ms: RANK_BEAT_MS.barHalf, divisionIndex: r.after.divisionIndex, from: POINTS_PER_DIVISION, to: r.after.points, uncapped: false });

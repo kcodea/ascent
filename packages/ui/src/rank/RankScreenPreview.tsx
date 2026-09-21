@@ -10,7 +10,7 @@ import { planRankSequence, sequenceDurationMs } from './rankSequence';
 /**
  * DEV-only RANK SCREEN PREVIEW (blueprint §10.5: fixture-driven previews) — plays the post-game rank screen
  * for every fixture state (gain, loss, gate unlocked, promotion won, medal promotion, promotion failed,
- * demotion, floor, Ascendant uncapped, pending, retryable, rejected, unrated) over the live app, so the owner
+ * demotion game set up / lost, floor, Ascendant uncapped, pending, retryable, rejected, unrated) over the live app, so the owner
  * can review each variant without playing eight games. The overlay is the SAME chrome + component the real
  * end screen mounts (`.heroselect.endscreen.lobbyend.rankend` → `RankScreen`), in `preview` mode so it never
  * writes the presentation-consumed marker. "Pending → confirmed" exercises the arrival path (a result landing
@@ -25,7 +25,7 @@ export function RankScreenPreview(): JSX.Element {
   const [arrival, setArrival] = useState(false);
   // From the TITLE there is no FX canvas (Game mounts `PixiFxLayer` only with the board / picker), so the
   // rank-up / down-rank defs would silently fall back to the fade. Mount the layer here while a fixture is open
-  // so the owner sees the real hits (promotion, and the `demotion` / `demo-lost` demotion fixtures); with a run
+  // so the owner sees the real hits (promotion, and the `demo-lost-division` / `demo-lost` demotion fixtures); with a run
   // up the game's own layer is already attached and this stays out.
   const preRun = useGame(isPreRun);
 

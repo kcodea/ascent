@@ -10,32 +10,39 @@
  *     Overflow past 100 is discarded (`cappedPoints`); the delta shown is the delta applied.
  *   • DIVISION promotion (Gold III → Gold II) needs a TOP-4 finish in that promotion game. MEDAL promotion
  *     (Gold I → Platinum III) needs a 1st PLACE.
- *   • A WON promotion game lands the player at **0 / 100 in the next division** — NOT the game's award.
+ *   • A WON promotion game lands the player at **`promotionLanding` / 100 in the next division** (10 — owner
+ *     2026-09-21; it was 0/100 on 2026-09-20) — NOT the game's award. The 10-point cushion absorbs a 5th (−6)
+ *     straight after promoting (4/100, still in the division); a bigger loss still crosses 0 and follows the
+ *     demotion rule below (it clamps at 0 and arms the demotion game — never an instant drop).
  *   • A LOST promotion game (5th–8th) applies the normal negative award from 100; the gate reopens when the
  *     player climbs back to 100.
  *   • At a MEDAL gate, a 2nd–4th finish neither promotes nor gains: the player STAYS at 100, still
  *     promotion-ready (`appliedDelta` 0, the award reported in `cappedPoints`). Only 5th–8th drops points.
- *   • DEMOTION within a medal (Gold II → Gold III): crossing below 0 demotes one division to `100 + result`.
- *     Exactly 0 stays in the division.
- *   • DEMOTION across a MEDAL boundary is GATED (owner addition 2026-09-20): a negative result at a medal's
- *     LOWEST division (Gold III) CLAMPS at 0 (the absorbed loss in `cappedPoints`) and ARMS the gate — the
- *     STORED `demotionReady` flag on the position. It is set ONLY by a loss that lands on 0 there (from
- *     points > 0; a loss that reaches exactly 0 by subtraction counts too), cleared by ANY non-negative
- *     result, and never set by a promotion landing: 0/100 after a won medal promotion is NOT ready — the
- *     first loss there clamps at 0 and arms, the second demotes. While armed, the NEXT rated game is a
- *     *demotion game*: a bottom-4 finish (5th–8th) demotes one division to the previous medal's division I
- *     at **`100 + that game's award`** (8th → Silver I 60 — the mirror of the promotion landing rule); a
- *     top-4 finish ESCAPES and applies its positive award normally from 0 (3rd → Gold III 16).
+ *   • THERE ARE NO INSTANT DEMOTIONS (owner 2026-09-21: "Hitting 0 MMR should halt the loss and put you in a
+ *     demotion game. You need to then bottom-4 that game to demote." — this WIDENED the 2026-09-20 rule, which
+ *     gated only the drop OUT of a medal, to EVERY division). In ANY division above Bronze III, a negative
+ *     result that would cross below 0 CLAMPS at 0 (the absorbed loss in `cappedPoints`) and ARMS the gate —
+ *     the STORED `demotionReady` flag on the position. It is set ONLY by a loss that lands on 0 (by clamp, or
+ *     by exact subtraction: a loss that reaches exactly 0 counts too), cleared by ANY non-negative result,
+ *     and never set by a promotion landing: 10/100 after a won promotion is NOT ready — the first loss there
+ *     (any loss of 10 or more) clamps at 0 and arms, the second demotes. While armed, the NEXT rated game is
+ *     a *demotion game*: a bottom-4 finish (5th–8th) demotes ONE division to the previous division at
+ *     **`100 + that game's award`** (5th → 94, 6th → 84, 7th → 72, 8th → 60 — the mirror of the promotion
+ *     landing rule; across a medal boundary the previous division is the previous medal's I: Gold III armed,
+ *     8th → Silver I 60); a top-4 finish ESCAPES and applies its positive award normally from 0 (3rd → 16).
  *   • BRONZE III floors at 0 with no gate (nothing below it).
- *   • ASCENDANT I is uncapped: points keep climbing past 100, no gate; a negative result there still demotes
- *     (within the medal).
+ *   • ASCENDANT I is uncapped: points keep climbing past 100, no promotion gate; a negative result there
+ *     clamps at 0 and arms like everywhere else (its demotion game drops to Ascendant II).
  *   • No same-game promotion, no multi-division jumps, `highest` never decreases.
  *
  * The SERVER is the authority: `supabase/functions/_shared/lobbyRating.ts` (TypeScript, what the Edge Function
  * checks against) and the `settle_rank` plpgsql function (what actually writes) mirror these rules; the
  * parity test in `packages/ui/src/lobbyRatingParity.test.ts` drives the same fixtures through this file and
  * the shared TS mirror. Change the rules in ALL of them, bump `RANK_RULES.rulesVersion`, and the client +
- * server refuse to settle across a version mismatch instead of silently disagreeing.
+ * server refuse to settle across a version mismatch instead of silently disagreeing. (The version bump is for
+ * a change an OLD client would mis-show or refuse — the client never resolves locally, it adopts the server's
+ * result verbatim, so a landing-only change like the 2026-09-21 10-point cushion shipped WITHOUT a bump: an
+ * old client only mis-predicts the landing until the server answers.)
  *
  * Pure and side-effect-free: no storage, no `Math.random`, no clock. `resolveRank` throws on an invalid
  * placement or position (callers validate at the boundary — the Edge Function and the SQL both reject first).
@@ -64,6 +71,9 @@ export interface RankRules {
   readonly medalPromotionFinish: number;
   /** Worst placement that still ESCAPES a demotion game (top-4 stays; 5th–8th demotes). */
   readonly demotionEscapeFinish: number;
+  /** Points a WON promotion game lands on in the next division (owner 2026-09-21: 10, a cushion so a narrow
+   *  loss straight after promoting does not demote; it was 0). Never the game's award. */
+  readonly promotionLanding: number;
 }
 
 export const RANK_RULES: RankRules = Object.freeze({
@@ -75,6 +85,7 @@ export const RANK_RULES: RankRules = Object.freeze({
   divisionPromotionFinish: 4,
   medalPromotionFinish: 1,
   demotionEscapeFinish: 4,
+  promotionLanding: 10,
 });
 
 /** The medal-ladder season. Season 1 = the course-rating era, 2 = the numeric lobby ladder, 3 = medals.
@@ -94,9 +105,9 @@ export interface RankPosition {
   divisionIndex: number;
   /** Integer 0 … `divisionPoints` — uncapped only in the top division. */
   points: number;
-  /** STORED (owner 2026-09-20): the demotion gate is ARMED — the next rated game is a demotion game. Only ever
-   *  true on a medal's lowest division above Bronze at exactly 0 points, and only set by a LOSS that landed
-   *  there (never by a promotion landing). Absent = false (a `highest` never carries it). */
+  /** STORED (owner 2026-09-20, widened 2026-09-21): the demotion gate is ARMED — the next rated game is a
+   *  demotion game. Only ever true at exactly 0 points in a division above Bronze III, and only set by a LOSS
+   *  that landed there (never by a promotion landing). Absent = false (a `highest` never carries it). */
   demotionReady?: boolean;
 }
 
@@ -131,12 +142,13 @@ export interface RankResult {
   after: RankPosition;
   /** The placement's table award (+40 … −40), before gates / caps / floors. */
   baseDelta: number;
-  /** What actually moved: `rankScalar(after) − rankScalar(before)`. 0 on a won promotion game (0/100 in the
-   *  new division equals 100/100 in the old one as a scalar) and on a held medal gate. THIS is the number to
-   *  show. */
+  /** What actually moved: `rankScalar(after) − rankScalar(before)`. `+promotionLanding` (+10) on a won
+   *  promotion game (10/100 in the new division against 100/100 in the old one as a scalar — the landing
+   *  cushion, never the award) and 0 on a held medal gate. THIS is the number to show. */
   appliedDelta: number;
   /** Points of the base award that did NOT apply: overflow discarded at the 100 gate, a loss absorbed by the
-   *  Bronze III floor, or the whole award held at a medal gate (2nd–4th). 0 on a won promotion (the award
+   *  Bronze III floor, a loss absorbed by the 0 clamp that arms the demotion gate (Gold II 10, 8th → Gold II 0
+   *  armed: 30 of the −40), or the whole award held at a medal gate (2nd–4th). 0 on a won promotion (the award
    *  converted into the promotion itself). Always ≥ 0. */
   cappedPoints: number;
   /** The game was played AT a gate (the player started it on exactly 100 below the top division). */
@@ -152,7 +164,7 @@ export interface RankResult {
   /** The game was played AT an armed demotion gate (`before.demotionReady`). A bottom-4 then demotes, a top-4
    *  escapes (and disarms). */
   wasDemotionGame: boolean;
-  /** This game ARMED the gate (`after.demotionReady`): a loss clamped at 0 on a medal's lowest division. The
+  /** This game ARMED the gate (`after.demotionReady`): a loss clamped at 0 in a division above Bronze III. The
    *  NEXT rated game is a demotion game. Never true after a promotion landing or a demotion game. */
   demotionUnlocked: boolean;
   demoted: boolean;
@@ -204,8 +216,8 @@ export function isPromotionReady(pos: RankPosition, rules: RankRules = RANK_RULE
 }
 
 /** The STORED demotion-gate flag, read safely (absent = false). True → the next rated game is a demotion
- *  game: a bottom-4 drops to the previous medal's division I, a top-4 stays. Armed only by a loss that lands
- *  on 0 at a medal's lowest division above Bronze (owner 2026-09-20); never by merely standing at 0. */
+ *  game: a bottom-4 drops one division, a top-4 stays. Armed only by a loss that lands on 0 in any division
+ *  above Bronze III (owner 2026-09-20, widened 2026-09-21); never by merely standing at 0. */
 export function isDemotionReady(pos: RankPosition): boolean {
   return pos.demotionReady === true;
 }
@@ -223,10 +235,12 @@ export function requiredFinishFor(kind: PromotionKind, rules: RankRules = RANK_R
   return null;
 }
 
-/** True for a division that sits at the bottom of its medal above Bronze — the only place a demotion gate
- *  exists (Silver III, Gold III, Platinum III, Diamond III, Ascendant III). */
+/** True for every division above Bronze III — everywhere a demotion gate exists (owner 2026-09-21: a loss that
+ *  hits 0 in ANY division arms a demotion game; there are no instant demotions). Until 2026-09-21 this was
+ *  only a medal's lowest division above Bronze (Silver III, Gold III, …); the name is kept, the reach widened.
+ *  `rules` is accepted for signature parity with the other helpers (nothing in it changes the answer). */
 export function hasDemotionGate(divisionIndex: number, rules: RankRules = RANK_RULES): boolean {
-  return divisionIndex > 0 && divisionIndex % rules.divisionsPerMedal === 0;
+  return divisionIndex > 0 && divisionIndex <= rankTopDivision(rules);
 }
 
 export const initialRankPosition = (): RankPosition => ({ divisionIndex: 0, points: 0, demotionReady: false });
@@ -247,7 +261,7 @@ export function isRankPosition(x: unknown, rules: RankRules = RANK_RULES): x is 
   if (d < rankTopDivision(rules) && p > rules.divisionPoints) return false;
   const r = o.demotionReady;
   if (r !== undefined && typeof r !== 'boolean') return false;
-  // The flag may only be armed where a gate exists AND the player is on 0 — anything else is corrupt state.
+  // The flag may only be armed at 0 points in a division above Bronze III — anything else is corrupt state.
   if (r === true && !(hasDemotionGate(d, rules) && p === 0)) return false;
   return true;
 }
@@ -279,19 +293,19 @@ function assertPosition(pos: RankPosition, rules: RankRules): void {
 /**
  * Resolve ONE rated game from a position. Pure; identical on the client and (by parity test) the server.
  *
- * Order (owner rules 2026-09-20):
+ * Order (owner rules 2026-09-20, demotion widened 2026-09-21):
  *   1. Invalid placement / position → throw (the boundaries reject before this runs).
- *   2. Top division (Ascendant I): add the award, uncapped. Below 0 → demote to Ascendant II at `100 + result`.
- *   3. At a promotion gate (points === 100 below the top): a finish at or better than the gate's required
- *      placement promotes ONE division to 0/100. A positive award that does not clear a MEDAL gate (2nd–4th)
- *      HOLDS at 100 (still promotion-ready). A negative award applies normally from 100.
- *   4. At an ARMED demotion gate (`before.demotionReady` — the STORED flag): a bottom-4 (5th–8th) demotes ONE
- *      division to the previous medal's I at `100 + award`; a top-4 escapes with its award from 0. Either way
- *      the game disarms the flag.
- *   5. Otherwise add the award. ≥ 100 → exactly 100 and promotion-ready (overflow discarded). A LOSS that lands
- *      on 0 at a medal's lowest division above Bronze (by clamp, or by exact subtraction) stops at 0 and ARMS
- *      the gate. < 0 elsewhere → demote one division to `100 + result`, except Bronze III, which floors at 0
- *      with no gate. Every other result (any non-negative award, a promotion landing) leaves the flag false.
+ *   2. At a promotion gate (points === 100 below the top): a finish at or better than the gate's required
+ *      placement promotes ONE division to `promotionLanding`/100 (10). A positive award that does not clear a
+ *      MEDAL gate (2nd–4th) HOLDS at 100 (still promotion-ready). A negative award applies normally from 100.
+ *   3. At an ARMED demotion gate (`before.demotionReady` — the STORED flag): a bottom-4 (5th–8th) demotes ONE
+ *      division to the previous division at `100 + award` (across a medal boundary, the previous medal's I);
+ *      a top-4 escapes with its award from 0. Either way the game disarms the flag.
+ *   4. Otherwise add the award. A LOSS that lands on 0 (by clamp, or by exact subtraction) in ANY division
+ *      above Bronze III stops at 0 and ARMS the gate — never an instant demotion. Below 0 in Bronze III floors
+ *      at 0 with no gate. Ascendant I: a non-negative total is uncapped. Elsewhere ≥ 100 → exactly 100 and
+ *      promotion-ready (overflow discarded). Every other result (any non-negative award, a promotion landing)
+ *      leaves the flag false.
  */
 export function resolveRank(before: RankPosition, placement: number, rules: RankRules = RANK_RULES): RankOutcome {
   assertPlacement(placement, rules);
@@ -310,25 +324,18 @@ export function resolveRank(before: RankPosition, placement: number, rules: Rank
   let wasDemotionGame = false;
   let demoted = false;
 
-  /** Add `delta` to a NON-gate position: cap at 100 (gate unlocked), demote below 0 within a medal, clamp at
-   *  0 at a medal floor and ARM the demotion gate (a loss landing on 0 there — by clamp or by exact
-   *  subtraction), floor at Bronze III. Every result here is disarmed except that arming loss. */
+  /** Add `delta` to a NON-gate position: a loss that lands on 0 (by clamp or by exact subtraction) in any
+   *  division above Bronze III clamps at 0 and ARMS the demotion gate — it never demotes; Bronze III floors at
+   *  0; Ascendant I is uncapped upward; elsewhere cap at 100 (gate unlocked). Every result here is disarmed
+   *  except that arming loss. */
   const applyAward = (delta: number): RankPosition => {
     const pts = start.points + delta;
-    if (start.divisionIndex === top) {
-      if (pts >= 0) return { divisionIndex: top, points: pts, demotionReady: false }; // uncapped
-      demoted = true;
-      return { divisionIndex: top - 1, points: cap + pts, demotionReady: false };
-    }
-    if (pts >= cap) { promotionUnlocked = true; return { divisionIndex: start.divisionIndex, points: cap, demotionReady: false }; }
     if (delta < 0 && pts <= 0 && hasDemotionGate(start.divisionIndex, rules)) {
-      return { divisionIndex: start.divisionIndex, points: 0, demotionReady: true }; // medal floor: a loss lands on 0 → ARMED
+      return { divisionIndex: start.divisionIndex, points: 0, demotionReady: true }; // a loss lands on 0 → ARMED (no instant demotion)
     }
-    if (pts < 0) {
-      if (start.divisionIndex === 0) return { divisionIndex: 0, points: 0, demotionReady: false }; // Bronze floor, no gate
-      demoted = true;
-      return { divisionIndex: start.divisionIndex - 1, points: cap + pts, demotionReady: false };
-    }
+    if (pts < 0) return { divisionIndex: 0, points: 0, demotionReady: false };        // Bronze III floor, no gate (the only division left here)
+    if (start.divisionIndex === top) return { divisionIndex: top, points: pts, demotionReady: false }; // Ascendant I: uncapped
+    if (pts >= cap) { promotionUnlocked = true; return { divisionIndex: start.divisionIndex, points: cap, demotionReady: false }; }
     return { divisionIndex: start.divisionIndex, points: pts, demotionReady: false };
   };
 
@@ -338,7 +345,7 @@ export function resolveRank(before: RankPosition, placement: number, rules: Rank
     requiredFinish = requiredFinishFor(promotionKind, rules);
     if (requiredFinish != null && placement <= requiredFinish) {
       promoted = true;
-      after = { divisionIndex: start.divisionIndex + 1, points: 0, demotionReady: false }; // a won gate starts the next division at 0 — NOT armed
+      after = { divisionIndex: start.divisionIndex + 1, points: rules.promotionLanding, demotionReady: false }; // a won gate starts the next division at the landing (10) — NOT armed
     } else if (baseDelta >= 0) {
       after = { ...start, demotionReady: false }; // MEDAL gate, 2nd–4th: hold at 100, still promotion-ready — no gain, no loss
     } else {
@@ -350,7 +357,7 @@ export function resolveRank(before: RankPosition, placement: number, rules: Rank
     if (placement <= requiredFinish) {
       after = applyAward(baseDelta); // escape: the positive award applies normally from 0 — and disarms
     } else {
-      demoted = true;                // a bottom-4 drops to the previous medal's I at 100 + award (the mirror of the promotion landing)
+      demoted = true;                // a bottom-4 drops ONE division at 100 + award (the mirror of the promotion landing; across a medal boundary that is the previous medal's I)
       after = { divisionIndex: start.divisionIndex - 1, points: cap + baseDelta, demotionReady: false };
     }
   } else {

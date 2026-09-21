@@ -4,7 +4,7 @@
  * an index → label, a points readout, or what a delta at a cap/floor says. Pure; no React, no store.
  */
 import {
-  isMedalGate, isPromotionReady, isUncapped, medalOf, POINTS_PER_DIVISION, rankLabel, rankScalar,
+  isMedalGate, isPromotionReady, isUncapped, POINTS_PER_DIVISION, rankLabel, rankScalar,
   type RankPosition, type RankResult,
 } from './types';
 
@@ -42,14 +42,15 @@ export function gateText(pos: RankPosition): string {
     : 'Promotion game ready. Finish top 4 to advance.';
 }
 
-/** The DEMOTION-gate line (owner 2026-09-20): a loss clamped at 0 on a medal floor makes the next rated game a
- *  demotion game — top 4 stays in the medal, bottom 4 drops to the previous medal's I. */
+/** The DEMOTION-gate line (owner 2026-09-20, every division since 2026-09-21): a loss that hit 0 makes the next
+ *  rated game a demotion game — top 4 stays in the division, bottom 4 drops one division (out of the medal at a
+ *  medal's lowest division). Names the DIVISION, which is what is at stake everywhere ("stay in Gold II"). */
 export function demotionGateText(pos: RankPosition): string {
-  return `Demotion game. Finish top 4 to stay in ${medalOf(pos.divisionIndex)}.`;
+  return `Demotion game. Finish top 4 to stay in ${rankLabel(pos.divisionIndex)}.`;
 }
 
 /** The line a surface prints for a position on EITHER gate (`demotionReady` is the profile's STORED flag — a 0
- *  at a medal floor alone is ambiguous, since a won medal promotion also lands on 0, and is never derived). */
+ *  alone is ambiguous, since a division that was never lost from also reads 0, and is never derived). */
 export function standingGateText(pos: RankPosition, demotionReady = false): string | null {
   if (isPromotionReady(pos)) return gateText(pos);
   if (demotionReady) return demotionGateText(pos);
@@ -58,12 +59,14 @@ export function standingGateText(pos: RankPosition, demotionReady = false): stri
 
 /** The primary delta line: the ACTUAL movement, and the floor reading when nothing could be lost. A WON
  *  promotion is the one case that prints the finish's base award instead: the owner's rule lands the new
- *  division at 0 / 100, so the "actual" scalar movement is 0 — and a big "0 RP" over a promotion reads as a
- *  bug, not a rule. The crest transition + new label + 0 / 100 say the rest (owner 2026-09-20). */
+ *  division at 10 / 100 (2026-09-21; it was 0), so the "actual" scalar movement is the +10 landing cushion
+ *  whatever the finish — and a "+10 RP" over a 1st-place promotion reads as a bug, not a rule. The crest
+ *  transition + new label + 10 / 100 say the rest (owner 2026-09-20). */
 export function deltaText(r: RankResult): string {
   if (r.promoted) return signedRp(r.baseDelta);
-  // A lost demotion game moves a whole medal (Gold III 0 → Silver I 60 is +60 on the scalar): print the
-  // finish's award — the crest transition says the rest.
+  // A lost demotion game drops ONE division (a medal only at a medal's lowest division: Gold III 0 → Silver I
+  // 60); its applied delta equals the award (600 → 560 is −40 on the scalar), so print the award and let the
+  // crest transition say the rest.
   if (r.demoted && r.wasDemotionGame) return signedRp(r.baseDelta);
   const floored = r.appliedDelta === 0 && r.baseDelta < 0 && r.after.divisionIndex === 0 && r.after.points === 0;
   if (floored) return '0 RP · Bronze floor';
@@ -71,14 +74,15 @@ export function deltaText(r: RankResult): string {
 }
 
 /** A secondary detail ONLY when the delta alone would mislead: the award was capped at the gate or floored
- *  ("base +40 RP · capped at the gate"). A promotion's reset needs no words — the new bar reads 0 / 100
- *  (owner 2026-09-20). */
+ *  ("base +40 RP · capped at the gate"). A promotion's landing needs no words — the new bar reads 10 / 100
+ *  (owner 2026-09-20; landing 10 since 2026-09-21). */
 export function cappedDetail(r: RankResult): string | null {
   if (r.promoted || (r.demoted && r.wasDemotionGame)) return null;
   if (r.appliedDelta === r.baseDelta) return null;
   if (r.baseDelta > 0) return `base ${signedRp(r.baseDelta)} · capped at the gate`;
   if (r.after.divisionIndex === 0 && r.after.points === 0) return `base ${signedRp(r.baseDelta)} · Bronze floor`;
-  if (r.demotionUnlocked && r.baseDelta < 0) return `base ${signedRp(r.baseDelta)} · clamped at the ${medalOf(r.after.divisionIndex)} floor`;
+  // The arming loss stops at 0 in ANY division (owner 2026-09-21): the detail names what it stopped at.
+  if (r.demotionUnlocked && r.baseDelta < 0) return `base ${signedRp(r.baseDelta)} · stopped at 0`;
   return `base ${signedRp(r.baseDelta)}`;
 }
 
@@ -89,8 +93,9 @@ export function cappedDetail(r: RankResult): string | null {
 export function outcomeText(r: RankResult): string | null {
   if (r.promoted || r.demoted) return null;
   if (r.promotionUnlocked) return gateText(r.after);
-  // The rules' flag, never derived here: armed only by a loss clamped at 0 on a medal floor (a medal
-  // promotion landing on the new medal's III does NOT arm it).
+  // The rules' flag, never derived here: armed only by a loss that hit 0, in ANY division above Bronze III
+  // (owner 2026-09-21; a promotion landing does NOT arm it). The line is the only thing that says the next
+  // game is a demotion game.
   if (r.demotionUnlocked) return demotionGateText(r.after);
   if (r.wasPromotionGame && !r.promoted) {
     // Factual (blueprint §7: no punitive spectacle). Still on the gate if the loss was absorbed.
@@ -109,7 +114,7 @@ export function announcement(placement: number, r: RankResult | null, submission
     return `${place}. Unrated.`;
   }
   // The live region is the one place a promotion / demotion is SAID — a screen reader can't see the crest change.
-  const outcome = r.promoted ? `Promoted to ${rankLabel(r.after)}` : r.demoted ? `Demoted to ${rankLabel(r.after)}` : outcomeText(r);
+  const outcome = r.promoted ? `Promoted to ${rankLabel(r.after)}` : r.demoted ? `Demoted to ${rankLabel(r.after)}` : outcomeText(r)?.replace(/\.$/, '');
   return `${place}. ${deltaText(r)}. Now ${rankLabel(r.after)}, ${pointsText(r.after)}.${outcome ? ` ${outcome}.` : ''}`;
 }
 

@@ -101,7 +101,7 @@ describe('every fixture state renders its labels, and Continue is always there',
 
   it('the live region carries one final announcement', () => {
     render(fixtureById('promo-won')!);
-    expect(text('.rankend-live')).toBe('Finished 3rd. +16 RP. Now Gold I, 0 / 100. Promoted to Gold I.');
+    expect(text('.rankend-live')).toBe('Finished 3rd. +16 RP. Now Gold I, 10 / 100. Promoted to Gold I.');
   });
 
   it('carries NO Rewatch and NO Final warband (owner 2026-09-20) — the settled screen has no secondary links at all', () => {
@@ -127,23 +127,38 @@ describe('every fixture state renders its labels, and Continue is always there',
 
 describe('the animated path: skip settles, the marker stops a replay, an arriving result arms it', () => {
   it('starts on the BEFORE state with the Skip action, and a click on the rank display settles it', () => {
-    const f = fixtureById('demotion')!;
+    const f = fixtureById('demo-lost-division')!; // a LOST demotion game: the only way down a division since 2026-09-21
     render(f, { reducedMotion: false });
     const c = ui!.container;
     expect(c.querySelector('.rankend-panel')!.className).toContain('playing');
     expect(text('.rankbar-label')).toBe(rankLabel(f.result!.before)); // Gold II while playing
     expect(c.querySelector('.rankcrest-next')).not.toBeNull();         // the Gold III crest is staged
     expect([...c.querySelectorAll('.rankend-link')].map((b) => b.textContent)).toContain('Skip animation');
-    expect(wasRankPresented('run:demotion')).toBe(false);
+    expect(wasRankPresented('run:demo-lost-division')).toBe(false);
     act(() => { (c.querySelector('.rankend-rank') as HTMLElement).click(); });
     expect(c.querySelector('.rankend-panel')!.className).toContain('settled');
     expect(text('.rankbar-label')).toBe('Gold III');
-    expect(text('.rankbar-points')).toBe('70 / 100');
+    expect(text('.rankbar-points')).toBe('60 / 100');
     expect(c.querySelector('.rankend-outcome')).toBeNull(); // the crest/label change says it (owner 2026-09-20)
     expect(text('.rankend-live')).toContain('Demoted to Gold III');
     expect(c.querySelector('.rankcrest-next')).toBeNull();
     expect([...c.querySelectorAll('.rankend-link')].map((b) => b.textContent)).not.toContain('Skip animation');
-    expect(wasRankPresented('run:demotion')).toBe(true);
+    expect(wasRankPresented('run:demo-lost-division')).toBe(true);
+  });
+
+  it('a clamping loss (owner 2026-09-21): no crest transition, stays in the division at 0, and the settled screen prints the demotion-game line', () => {
+    const f = fixtureById('demotion')!;
+    render(f, { reducedMotion: false });
+    const c = ui!.container;
+    expect(text('.rankbar-label')).toBe('Gold II');
+    expect(c.querySelector('.rankcrest-next'), 'no crest is staged: the division does not change').toBeNull();
+    act(() => { (c.querySelector('.rankend-rank') as HTMLElement).click(); });
+    expect(text('.rankbar-label')).toBe('Gold II');
+    expect(text('.rankbar-points')).toBe('0 / 100');
+    expect(text('.rankend-outcome')).toBe('Demotion game. Finish top 4 to stay in Gold II.');
+    expect(c.querySelector('.rankend-outcome')!.className).toContain('demogate');
+    expect(text('.rankend-live')).toContain('Demotion game. Finish top 4 to stay in Gold II.');
+    expect(text('.rankend-live')).not.toContain('Demoted');
   });
 
   it('Enter / Space on the rank display also skips (keyboard activation)', () => {
@@ -205,11 +220,11 @@ describe('the animated path: skip settles, the marker stops a replay, an arrivin
   });
 
   it('Continue mid-sequence settles the screen first, so the clone is the after-state', () => {
-    render(fixtureById('demotion')!, { reducedMotion: false });
+    render(fixtureById('demo-lost-division')!, { reducedMotion: false });
     expect(text('.rankbar-label')).toBe('Gold II');
     act(() => { ui!.container.querySelector<HTMLButtonElement>('.rankend-continue')!.click(); });
     expect(document.querySelector('.rankend-exit .rankbar-label')?.textContent).toBe('Gold III');
-    expect(wasRankPresented('run:demotion')).toBe(true);
+    expect(wasRankPresented('run:demo-lost-division')).toBe(true);
   });
 
   it('the consumed marker survives a reload (localStorage) and dedupes in memory', () => {

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { RANK_RULES, RANK_SEASON, compareRank, rankTopDivision, resolveRank, type RankPosition } from '@game/sim';
 import {
   RANK_DEMOTION_ESCAPE_FINISH, RANK_DIVISION_POINTS, RANK_DIVISION_PROMOTION_FINISH, RANK_DIVISIONS_PER_MEDAL, RANK_MEDAL_PROMOTION_FINISH,
-  RANK_PLACEMENT_AWARDS, RANK_RULES_VERSION, RANK_SEASON as SERVER_SEASON, RANK_TOP_DIVISION, resolveRankOutcome,
+  RANK_PLACEMENT_AWARDS, RANK_PROMOTION_LANDING, RANK_RULES_VERSION, RANK_SEASON as SERVER_SEASON, RANK_TOP_DIVISION, resolveRankOutcome,
 } from '../../../supabase/functions/_shared/lobbyRating';
 
 /**
@@ -39,6 +39,8 @@ describe('medal rank — constants agree across the three copies', () => {
     expect(RANK_DIVISION_PROMOTION_FINISH).toBe(RANK_RULES.divisionPromotionFinish);
     expect(RANK_MEDAL_PROMOTION_FINISH).toBe(RANK_RULES.medalPromotionFinish);
     expect(RANK_DEMOTION_ESCAPE_FINISH).toBe(RANK_RULES.demotionEscapeFinish);
+    expect(RANK_PROMOTION_LANDING, 'a won promotion lands at 10 (owner 2026-09-21)').toBe(RANK_RULES.promotionLanding);
+    expect(RANK_RULES.promotionLanding).toBe(10);
     expect(RANK_RULES_VERSION).toBe(RANK_RULES.rulesVersion);
     expect(SERVER_SEASON).toBe(RANK_SEASON);
   });
@@ -52,9 +54,25 @@ describe('medal rank — constants agree across the three copies', () => {
     expect(sqlConst('c_division_finish')).toBe(String(RANK_RULES.divisionPromotionFinish));
     expect(sqlConst('c_medal_finish')).toBe(String(RANK_RULES.medalPromotionFinish));
     expect(sqlConst('c_demotion_finish')).toBe(String(RANK_RULES.demotionEscapeFinish));
+    expect(sqlConst('c_promo_landing')).toBe(String(RANK_RULES.promotionLanding));
+    expect(sqlSrc, 'the won gate must land on the constant, not a literal').toContain('p1 := c_promo_landing;');
     const awards = /array\[([^\]]*)\]/.exec(sqlConst('c_awards'));
     expect(awards, 'c_awards must be an array literal').toBeTruthy();
     expect(awards![1]!.split(',').map((n) => Number(n.trim()))).toEqual([...RANK_RULES.placementAwards]);
+  });
+
+  it('the SQL carries the widened demotion gate (owner 2026-09-21): the flag is valid at 0 in ANY division above Bronze III, and no branch demotes outside a demotion game', () => {
+    // The check constraint: the medal-floor `% 3` term is gone.
+    expect(sqlSrc).toContain('check (not rank_demotion_ready or (rank_points = 0 and rank_division > 0));');
+    expect(sqlSrc).not.toContain('rank_division % 3 = 0');
+    // settle_rank: the medal-floor test `(d0 % c_per_medal) = 0` no longer exists anywhere in the body — the only
+    // `% c_per_medal` left is the promotion-gate KIND test. The instant `d0 - 1` demotion exists ONLY in the
+    // demotion-game branch (one occurrence).
+    const body = sqlSrc.slice(sqlSrc.indexOf('create or replace function public.settle_rank'));
+    expect(body).not.toContain('(d0 % c_per_medal) = 0');
+    expect(body.match(/d1 := d0 - 1/g) ?? [], 'exactly one place drops a division: the demotion game').toHaveLength(1);
+    expect(body).not.toContain('d1 := c_top - 1');
+    expect(body, 'the arming branch reads: a loss to 0 in any division above Bronze III').toContain('if v_base < 0 and v_pts <= 0 and d0 > 0 then');
   });
 
   it('schema.sql carries the SAME migration block (the cumulative paste file must not drift)', () => {
@@ -74,12 +92,16 @@ describe('medal rank — constants agree across the three copies', () => {
 describe('medal rank — transition parity (sim resolver ↔ Edge Function mirror)', () => {
   const starts: RankPosition[] = [];
   for (let d = 0; d <= rankTopDivision(); d++) {
-    for (const p of [0, 1, 5, 6, 39, 40, 59, 60, 61, 72, 93, 94, 99, 100, 101, 140]) {
+    for (const p of [0, 1, 5, 6, RANK_RULES.promotionLanding, 39, 40, 59, 60, 61, 72, 93, 94, 99, 100, 101, 140]) {
       if (d < rankTopDivision() && p > 100) continue;
       starts.push({ divisionIndex: d, points: p, demotionReady: false });
-      if (p === 0 && d > 0 && d % 3 === 0) starts.push({ divisionIndex: d, points: p, demotionReady: true }); // an ARMED gate
+      if (p === 0 && d > 0) starts.push({ divisionIndex: d, points: p, demotionReady: true }); // an ARMED gate — every division above Bronze III (owner 2026-09-21)
     }
   }
+
+  it('the walk visits an ARMED start in every division above Bronze III (not just the medal floors)', () => {
+    expect(starts.filter((s) => s.demotionReady).map((s) => s.divisionIndex)).toEqual([...Array(rankTopDivision()).keys()].map((i) => i + 1));
+  });
 
   it('every division × points × placement agrees field-for-field', () => {
     let checked = 0;
@@ -107,12 +129,14 @@ describe('medal rank — transition parity (sim resolver ↔ Edge Function mirro
     expect(checked).toBeGreaterThan(1500);
   });
 
-  it('the owner\'s sequence agrees on both: medal promotion → loss ARMS → loss DEMOTES', () => {
+  it('the owner\'s sequence agrees on both: medal promotion lands at 10 → loss ARMS → loss DEMOTES', () => {
     const seq = [[{ divisionIndex: 5, points: 100 }, 1], 8, 8] as const;
     let c = resolveRank(seq[0][0], seq[0][1]);
     let s = resolveRankOutcome(seq[0][0], seq[0][1]);
     expect(s.after).toEqual(c.after);
-    expect(c.after.demotionReady).toBe(false);
+    expect(c.after).toEqual({ divisionIndex: 6, points: 10, demotionReady: false });
+    expect(s.appliedDelta, 'the landing cushion is the applied delta').toBe(10);
+    expect(s.cappedPoints).toBe(0);
     c = resolveRank(c.after, 8); s = resolveRankOutcome(s.after, 8);
     expect(s.after).toEqual(c.after);
     expect(c.after).toEqual({ divisionIndex: 6, points: 0, demotionReady: true });
@@ -121,6 +145,32 @@ describe('medal rank — transition parity (sim resolver ↔ Edge Function mirro
     expect(s.after).toEqual(c.after);
     expect(c.after).toEqual({ divisionIndex: 5, points: 60, demotionReady: false });
     expect(s.wasDemotionGame && s.demoted).toBe(true);
+  });
+
+  it('the owner\'s 2026-09-21 sequence agrees on both: inside a medal a loss HALTS at 0 (armed) → bottom-4 in the demotion game drops one division', () => {
+    let c = resolveRank({ divisionIndex: 7, points: 10 }, 8);
+    let s = resolveRankOutcome({ divisionIndex: 7, points: 10 }, 8);
+    expect(s.after).toEqual(c.after);
+    expect(c.after, 'Gold II 10, 8th: no instant drop to Gold III 70').toEqual({ divisionIndex: 7, points: 0, demotionReady: true });
+    expect(s.demoted).toBe(false);
+    expect(s.demotionUnlocked).toBe(true);
+    expect(s.appliedDelta).toBe(-10);
+    expect(s.cappedPoints).toBe(30);
+    c = resolveRank(c.after, 6); s = resolveRankOutcome(s.after, 6);
+    expect(s.after).toEqual(c.after);
+    expect(c.after, 'the demotion game, 6th → Gold III 84').toEqual({ divisionIndex: 6, points: 84, demotionReady: false });
+    expect(s.wasDemotionGame && s.demoted).toBe(true);
+    // …and a top-4 in the demotion game keeps the division, applying its award from 0
+    const kc = resolveRank({ divisionIndex: 7, points: 0, demotionReady: true }, 2);
+    const ks = resolveRankOutcome({ divisionIndex: 7, points: 0, demotionReady: true }, 2);
+    expect(ks.after).toEqual(kc.after);
+    expect(kc.after).toEqual({ divisionIndex: 7, points: 28, demotionReady: false });
+    expect(ks.wasDemotionGame && !ks.demoted).toBe(true);
+    // the top division too: Ascendant I below 0 arms instead of dropping
+    const tc = resolveRank({ divisionIndex: 17, points: 10 }, 8);
+    const ts = resolveRankOutcome({ divisionIndex: 17, points: 10 }, 8);
+    expect(ts.after).toEqual(tc.after);
+    expect(tc.after).toEqual({ divisionIndex: 17, points: 0, demotionReady: true });
   });
 
   it('both reject the same invalid placements', () => {

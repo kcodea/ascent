@@ -6,7 +6,7 @@
  * formatting helper) and adds the few presentation-only helpers the rules module has no reason to carry.
  */
 import {
-  RANK_MEDALS, RANK_RULES, divisionTierOf, hasDemotionGate, isRankPosition, medalOf as medalOfRules, promotionKindAt, rankTopDivision,
+  RANK_MEDALS, RANK_RULES, divisionTierOf, isRankPosition, medalOf as medalOfRules, promotionKindAt, rankTopDivision,
   type RankPosition, type RankResult, type RankedProfile,
 } from '@game/sim';
 
@@ -71,15 +71,13 @@ export const isUncapped = (divisionIndex: number): boolean => divisionIndex >= T
 /** Promoting OUT of a medal's division I is a MEDAL step (needs 1st); any other step is a division step. */
 export const isMedalGate = (divisionIndex: number): boolean => promotionKindAt(divisionIndex) === 'medal';
 
-/** A medal's lowest division above Bronze (Silver III, Gold III, …) — where the demotion gate lives. */
-export const isMedalFloor = (divisionIndex: number): boolean => hasDemotionGate(divisionIndex);
-
 /**
  * Whether a STANDING (profile / position) is demotion-ready — the rules' STORED flag, read off the profile
  * (`profile.rank.demotionReady`) or its position (`position.demotionReady`), whichever the rules carry it on.
- * The flag is armed ONLY by a loss that clamps at 0 on a medal floor, cleared by any non-negative result and
- * never set by a promotion landing (rules 2026-09-20) — so a 0 at a medal floor is NOT derived into a gate
- * here (a won medal promotion lands on that same 0). No flag → not demotion-ready.
+ * The flag is armed ONLY by a loss that hit 0 in a division above Bronze III (rules 2026-09-20, every
+ * division since 2026-09-21), cleared by any non-negative result and never set by a promotion landing — so
+ * a 0 is NOT derived into a gate here (the flag is the rules' to set, never the shape's). No flag → not
+ * demotion-ready.
  */
 export function standingDemotionReady(rank: unknown): boolean {
   if (!rank || typeof rank !== 'object') return false;

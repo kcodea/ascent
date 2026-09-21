@@ -9,7 +9,9 @@
  *     (`LOBBY_PLACEMENT_DELTAS` + `resolveLobbyRating`, including the 0-floor).
  *   · MEDAL RANK (season 3, 2026-09-20): a better placement never lands LOWER by the explicit rank order
  *     (`compareRank`: division first, then points) from any start; gates only ever move ONE division; a
- *     lobby's eight placements settle to eight distinct, monotone results; `highest` never decreases.
+ *     division is only ever left DOWNWARD through a demotion game (owner 2026-09-21: a loss that hits 0 halts
+ *     there and arms; there are no instant demotions); a lobby's eight placements settle to eight distinct,
+ *     monotone results; `highest` never decreases.
  *   · Pairing: every living seat fights exactly once per round or takes the documented bye; an eliminated
  *     seat is never paired; no seat fights itself.
  *   · Elimination: a seat at zero is eliminated exactly once and stays out; final placements follow the
@@ -28,7 +30,7 @@ import type { LobbyState } from '../lobby/types';
 import type { SeatDriver } from '../lobby/types';
 import type { BoardSnapshot } from '../snapshot';
 import { LOBBY_PLACEMENT_DELTAS, initialProfile, resolveLobbyRating } from '../playerRating';
-import { RANK_RULES, compareRank, initialRankedProfile, isPromotionReady, rankTopDivision, resolveRank, settleRank, type RankPosition } from '../rank';
+import { RANK_RULES, compareRank, hasDemotionGate, initialRankedProfile, isDemotionReady, isPromotionReady, rankTopDivision, resolveRank, settleRank, type RankPosition } from '../rank';
 
 /** A recorded seat that fields the same synthetic board every round — strength scales with `power`.
  *  (`sandbag` at attack=power: the same stub the shipped lobby tests drive the loop with.) */
@@ -86,9 +88,10 @@ describe('Doc Bot — Rating monotonicity across placements', () => {
 
 describe('Doc Bot — MEDAL RANK monotonicity + gate properties (season 3)', () => {
   const starts: RankPosition[] = [];
-  for (let d = 0; d <= rankTopDivision(); d++) for (const p of [0, 6, 40, 94, 100, 160]) {
+  for (let d = 0; d <= rankTopDivision(); d++) for (const p of [0, 6, RANK_RULES.promotionLanding, 40, 94, 100, 160]) {
     if (d < rankTopDivision() && p > RANK_RULES.divisionPoints) continue;
     starts.push({ divisionIndex: d, points: p });
+    if (p === 0 && hasDemotionGate(d)) starts.push({ divisionIndex: d, points: p, demotionReady: true }); // an ARMED demotion game, every division above Bronze III
   }
 
   it('the award table covers all 8 seats and is strictly decreasing (1st best … 8th worst)', () => {
@@ -113,9 +116,35 @@ describe('Doc Bot — MEDAL RANK monotonicity + gate properties (season 3)', () 
       const r = resolveRank(start, placement);
       if (r.promoted) {
         expect(isPromotionReady(start), 'no same-game promotion').toBe(true);
-        expect(r.after).toEqual({ divisionIndex: start.divisionIndex + 1, points: 0, demotionReady: false });
+        expect(r.after, 'a won gate lands at the 10-point cushion (owner 2026-09-21), never the award').toEqual({ divisionIndex: start.divisionIndex + 1, points: RANK_RULES.promotionLanding, demotionReady: false });
+        expect(r.appliedDelta).toBe(RANK_RULES.promotionLanding);
+        expect(r.cappedPoints).toBe(0);
       }
       if (r.promotionUnlocked) expect(r.after.points).toBe(RANK_RULES.divisionPoints);
+    }
+  });
+
+  it('a division is only ever left downward through a demotion game: a loss that hits 0 halts there and arms (owner 2026-09-21)', () => {
+    expect(starts.filter((s) => s.demotionReady).map((s) => s.divisionIndex), 'an armed start in every division above Bronze III').toEqual([...Array(rankTopDivision()).keys()].map((i) => i + 1));
+    for (const start of starts) for (let placement = 1; placement <= 8; placement++) {
+      const r = resolveRank(start, placement);
+      const label = `division ${start.divisionIndex} @ ${start.points}${start.demotionReady ? ' armed' : ''}, placement ${placement}`;
+      if (r.demoted) {
+        expect(r.wasDemotionGame, `${label}: a demotion outside a demotion game`).toBe(true);
+        expect(isDemotionReady(start), label).toBe(true);
+        expect(r.after.divisionIndex, label).toBe(start.divisionIndex - 1);
+        expect(r.after.points, 'the landing is 100 + the award').toBe(RANK_RULES.divisionPoints + r.baseDelta);
+      }
+      if (r.baseDelta < 0 && !r.wasDemotionGame) {
+        expect(r.after.divisionIndex, `${label}: a loss never changes the division on its own`).toBe(start.divisionIndex);
+        expect(r.after.points, label).toBeGreaterThanOrEqual(0);
+        if (start.divisionIndex > 0 && start.points + r.baseDelta <= 0) {
+          expect(r.after, `${label}: hitting 0 halts the loss and arms`).toEqual({ divisionIndex: start.divisionIndex, points: 0, demotionReady: true });
+          expect(r.demotionUnlocked, label).toBe(true);
+        }
+      }
+      if (r.demotionUnlocked) expect(r.baseDelta, `${label}: only a loss arms`).toBeLessThan(0);
+      if (r.wasDemotionGame) expect(r.after.demotionReady, `${label}: a demotion game always disarms`).toBe(false);
     }
   });
 

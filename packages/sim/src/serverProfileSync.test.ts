@@ -103,12 +103,12 @@ describe('resolveServerRank / adoptServerRank — the medal mirror', () => {
   });
 
   it('legacyRatingChangeOf projects the APPLIED delta + scalars for the surfaces still reading numbers', () => {
-    const won = settleRank(three.profile, 1, 'd'); // gate won → Bronze II 0
+    const won = settleRank(three.profile, 1, 'd'); // gate won → Bronze II 10 (the landing cushion, owner 2026-09-21)
     const change = legacyRatingChangeOf(won.result, adoptServerRank(fresh, won.profile)!);
     expect(change.ratingBefore).toBe(100);
-    expect(change.ratingAfter).toBe(100);
-    expect(change.ratingDelta).toBe(0);
+    expect(change.ratingAfter).toBe(110);
+    expect(change.ratingDelta, 'the scalar moved by the landing, not the award').toBe(10);
     expect(change.promoted).toBe(true);
-    expect(change.profile.rating).toBe(100);
+    expect(change.profile.rating).toBe(110);
   });
 });

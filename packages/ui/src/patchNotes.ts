@@ -52,6 +52,23 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-21',
+    label: 'No instant demotions',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Dropping to 0 points in any division now stops there and sets up a demotion game. You only move down after a 5th to 8th place finish in that game; a top-4 finish keeps your division and adds its points from 0.',
+        details: [
+          'Before this, only the lowest division of a medal stopped at 0. Inside a medal a big loss could drop you a division in one game. That no longer happens anywhere.',
+          'A loss that lands on exactly 0 also sets up the demotion game. The rank screen says "Demotion game. Finish top 4 to stay in Gold II" and names your division.',
+          "Losing the demotion game moves you down one division and lands you at 100 plus that game's points: 5th lands at 94, 6th at 84, 7th at 72, 8th at 60. From the lowest division of a medal that is the division I of the medal below.",
+          'Winning it (top 4) keeps your division. The points of that finish count from 0, so a 3rd place leaves you at 16.',
+          'Promotion games, the 10 point landing after a won promotion and the Bronze III floor are unchanged.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-21',
     label: 'Career page fixes',
     changes: [
       {
@@ -76,6 +93,22 @@ export const PATCH_NOTES: PatchNote[] = [
           'Patch Notes is a main plaque now. The Compendium link is gone from the title; press Tab to open it.',
           'Losses counts your 5th to 8th place finishes. Practice and tutorial games do not count.',
           'Balance covers card, spell, hero and rune changes plus every ranked-ladder change. Systems covers the rest.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-21',
+    label: 'Promotion landing',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Winning a promotion game now starts the next division at 10 points instead of 0, so a narrow loss right after promoting no longer drops you straight back down.',
+        details: [
+          "The 10 points are a cushion, not the game's award. A 1st or a 4th in the promotion game both land you at 10 / 100.",
+          'A 5th place straight after promoting costs 6 and leaves you at 4, still in your new division.',
+          'Bigger losses cross 0. They stop at 0 and set up a demotion game (see the "No instant demotions" note above).',
+          'The rank screen shows the new bar ticking from 0 to 10 after the crest changes.',
         ],
       },
     ],

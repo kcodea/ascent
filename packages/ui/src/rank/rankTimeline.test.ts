@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
  * The rank timeline's FX wiring, driven by SCRUBBING the paused GSAP timeline (jsdom has no paint or clock;
- * `tl.time(t)` fires the callbacks the playhead crosses): a demotion — the plain division drop AND the lost
- * demotion game's medal drop — fires the owner's `down-rank` def ONCE at the transition beat, anchored on the
+ * `tl.time(t)` fires the callbacks the playhead crosses): a demotion — a lost demotion game's division drop AND
+ * its medal drop (since 2026-09-21 the only way down) — fires the owner's `down-rank` def ONCE at the transition beat, anchored on the
  * old crest's centre, holds the old label until the 90 ms hit, then swaps, reserves the def's full length before
  * the landing bar starts, and fires NO promotion cue (the def's own sound layer is the sound); a promotion
  * still fires `rank-up` + the clang at ITS hit; and a skip (`progress(1, true)`) never fires either def.
@@ -54,7 +54,7 @@ beforeEach(() => { playDef.mockClear(); });
 afterEach(() => { document.body.innerHTML = ''; });
 
 describe.each([
-  ['demotion', 'a plain division demotion'],
+  ['demo-lost-division', "a lost demotion game's division drop"],
   ['demo-lost', "a lost demotion game's medal drop"],
 ])('%s (%s)', (id) => {
   it('fires `down-rank` once at the beat on the old crest, holds the label to the hit, reserves the def, and fires no promotion cue', () => {

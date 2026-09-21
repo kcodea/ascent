@@ -77,26 +77,50 @@ describe('points, placement and delta text', () => {
     const zero = fixtureById('floor-zero')!.result!;
     expect(deltaText(zero)).toBe('0 RP · Bronze floor');
   });
-  it('a won promotion prints the base award and NO detail / outcome line — the crest transition + 0 / 100 say it (owner 2026-09-20)', () => {
+  it('a won promotion prints the base award and NO detail / outcome line — the crest transition + 10 / 100 say it (owner 2026-09-20; landing 10 since 2026-09-21)', () => {
     const promo = fixtureById('promo-won')!.result!;
-    expect(deltaText(promo)).toBe('+16 RP');
+    expect(promo.after.points, 'the fixture carries the 10-point landing').toBe(10);
+    expect(promo.appliedDelta).toBe(10);
+    expect(promo.cappedPoints).toBe(0);
+    expect(deltaText(promo), 'the award, not the +10 scalar movement').toBe('+16 RP');
     expect(cappedDetail(promo)).toBeNull();
     expect(outcomeText(promo)).toBeNull();
     expect(outcomeText(fixtureById('promo-medal')!.result!)).toBeNull();
   });
-  it('a failed promotion says so (nothing else would); a demotion prints no line (the crest/label change says it)', () => {
+  it('a failed promotion says so (nothing else would); a lost demotion game prints no line (the crest/label change says it)', () => {
     expect(outcomeText(fixtureById('promo-failed')!.result!)).toBe('Promotion unsuccessful');
     expect(deltaText(fixtureById('promo-failed')!.result!)).toBe('−40 RP');
-    expect(outcomeText(fixtureById('demotion')!.result!)).toBeNull();
-    expect(cappedDetail(fixtureById('demotion')!.result!)).toBeNull();
+    expect(outcomeText(fixtureById('demo-lost-division')!.result!)).toBeNull();
+    expect(cappedDetail(fixtureById('demo-lost-division')!.result!)).toBeNull();
   });
-  it('the MEDAL-DEMOTION GATE (owner 2026-09-20): a clamped loss at a medal floor prints the demotion-game line; a lost demotion game drops a medal; an escape is a plain fill', () => {
+  it('NO instant demotions (owner 2026-09-21): a loss that hits 0 in ANY division prints the demotion-game line; a lost demotion game drops one division', () => {
+    const halt = fixtureById('demotion')!.result!;
+    expect(halt.demotionUnlocked).toBe(true);
+    expect(halt.demoted).toBe(false);
+    expect(halt.after, 'Gold II 10, 8th: stopped at Gold II 0, not Gold III 70').toEqual({ divisionIndex: 7, points: 0 });
+    expect(deltaText(halt)).toBe('−10 RP');
+    expect(cappedDetail(halt)).toBe('base −40 RP · stopped at 0');
+    expect(outcomeText(halt)).toBe('Demotion game. Finish top 4 to stay in Gold II.');
+    expect(announcement(8, halt, 'confirmed')).toBe('Finished 8th. −10 RP. Now Gold II, 0 / 100. Demotion game. Finish top 4 to stay in Gold II.');
+    const lost = fixtureById('demo-lost-division')!.result!;
+    expect(lost.wasDemotionGame && lost.demoted).toBe(true);
+    expect(deltaText(lost), 'the award (which is also the applied delta: Gold II 0 → Gold III 60 is −40 on the scalar)').toBe('−40 RP');
+    expect(cappedDetail(lost)).toBeNull();
+    expect(outcomeText(lost)).toBeNull();
+    expect(announcement(8, lost, 'confirmed')).toBe('Finished 8th. −40 RP. Now Gold III, 60 / 100. Demoted to Gold III.');
+    // The line names the division at stake, everywhere — including the top division.
+    expect(demotionGateText({ divisionIndex: 1, points: 0 })).toBe('Demotion game. Finish top 4 to stay in Bronze II.');
+    expect(demotionGateText({ divisionIndex: 17, points: 0 })).toBe('Demotion game. Finish top 4 to stay in Ascendant I.');
+    expect(standingGateText({ divisionIndex: 7, points: 0 }, true)).toBe('Demotion game. Finish top 4 to stay in Gold II.');
+    expect(standingGateText({ divisionIndex: 7, points: 0 })).toBeNull();
+  });
+  it('the MEDAL-boundary demotion game (owner 2026-09-20): a clamped loss at a medal floor prints the demotion-game line; a lost demotion game drops a medal; an escape is a plain fill', () => {
     const gate = fixtureById('demo-gate')!.result!;
     expect(gate.demotionUnlocked).toBe(true); // the RULES' field — nothing here derives it
     expect(deltaText(gate)).toBe('−10 RP');
-    expect(cappedDetail(gate)).toBe('base −40 RP · clamped at the Gold floor');
-    expect(outcomeText(gate)).toBe('Demotion game. Finish top 4 to stay in Gold.');
-    expect(demotionGateText({ divisionIndex: 9, points: 0 })).toBe('Demotion game. Finish top 4 to stay in Platinum.');
+    expect(cappedDetail(gate)).toBe('base −40 RP · stopped at 0');
+    expect(outcomeText(gate)).toBe('Demotion game. Finish top 4 to stay in Gold III.');
+    expect(demotionGateText({ divisionIndex: 9, points: 0 })).toBe('Demotion game. Finish top 4 to stay in Platinum III.');
     // A result WITHOUT the flag prints no gate line, whatever its shape.
     expect(outcomeText({ ...gate, demotionUnlocked: false })).toBeNull();
     expect(cappedDetail({ ...gate, demotionUnlocked: false })).toBe('base −40 RP');
@@ -112,7 +136,7 @@ describe('points, placement and delta text', () => {
     // The standing line the Title plate / Career print: promotion gate from the position, demotion gate from the flag.
     expect(standingGateText({ divisionIndex: 7, points: 100 })).toBe('Promotion game ready. Finish top 4 to advance.');
     expect(standingGateText({ divisionIndex: 6, points: 0 })).toBeNull();
-    expect(standingGateText({ divisionIndex: 6, points: 0 }, true)).toBe('Demotion game. Finish top 4 to stay in Gold.');
+    expect(standingGateText({ divisionIndex: 6, points: 0 }, true)).toBe('Demotion game. Finish top 4 to stay in Gold III.');
     // `standingDemotionReady`: ONLY the stored flag (profile or position level) — never derived from the shape:
     // a 0 at a medal floor without the flag is a won medal promotion's landing, not a demotion game.
     expect(standingDemotionReady({ position: { divisionIndex: 6, points: 0 }, demotionReady: false })).toBe(false);
@@ -130,8 +154,9 @@ describe('points, placement and delta text', () => {
   });
   it("the live-region sentence carries placement, delta, the new rank — and SAYS a promotion/demotion (a reader can't see the crest)", () => {
     expect(announcement(3, fixtureById('gain')!.result, 'confirmed')).toBe('Finished 3rd. +16 RP. Now Gold II, 76 / 100.');
-    expect(announcement(1, fixtureById('promo-medal')!.result, 'confirmed')).toBe('Victory. +40 RP. Now Platinum III, 0 / 100. Promoted to Platinum III.');
-    expect(announcement(8, fixtureById('demotion')!.result, 'confirmed')).toBe('Finished 8th. −40 RP. Now Gold III, 70 / 100. Demoted to Gold III.');
+    expect(announcement(1, fixtureById('promo-medal')!.result, 'confirmed')).toBe('Victory. +40 RP. Now Platinum III, 10 / 100. Promoted to Platinum III.');
+    expect(announcement(8, fixtureById('demo-lost-division')!.result, 'confirmed')).toBe('Finished 8th. −40 RP. Now Gold III, 60 / 100. Demoted to Gold III.');
+    expect(announcement(1, fixtureById('gate')!.result, 'confirmed'), 'an outcome line that ends in a period is not doubled').toBe('Victory. +12 RP. Now Gold II, 100 / 100. Promotion game ready. Finish top 4 to advance.');
     expect(announcement(2, null, 'pending')).toBe('Finished 2nd. Updating rank.');
     expect(announcement(4, null, 'unrated')).toBe('Finished 4th. Unrated.');
   });
@@ -147,22 +172,38 @@ describe('the planned sequence per fixture', () => {
   it('a gate unlock fills to 100 then lights the endpoint', () => {
     expect(kinds('gate')).toEqual(['reveal', 'establish', 'bar', 'gate', 'outcome']);
   });
-  it('a promotion: old full bar → crest transition up → new bar from zero', () => {
+  it('a promotion: old full bar → crest transition up → new bar ticks from zero to the 10-point landing', () => {
     const steps = planRankSequence(fixtureById('promo-won')!.result!);
     expect(steps.map((s) => s.kind)).toEqual(['reveal', 'establish', 'transition', 'bar', 'outcome']);
     expect(steps[2]).toMatchObject({ from: 7, to: 8, direction: 'up', medal: false, ms: 900 }); // the rank-up def's length
-    expect(steps[3]).toMatchObject({ divisionIndex: 8, from: 0, to: 0 });
-    const medal = planRankSequence(fixtureById('promo-medal')!.result!)[2];
-    expect(medal).toMatchObject({ kind: 'transition', from: 8, to: 9, medal: true });
+    expect(steps[3]).toMatchObject({ divisionIndex: 8, from: 0, to: 10 }); // a small tick: the landing cushion (owner 2026-09-21)
+    const medalSteps = planRankSequence(fixtureById('promo-medal')!.result!);
+    expect(medalSteps[2]).toMatchObject({ kind: 'transition', from: 8, to: 9, medal: true });
+    expect(medalSteps[3]).toMatchObject({ divisionIndex: 9, from: 0, to: 10 });
   });
-  it('a demotion: drain to zero → transition down → previous division retreats from 100', () => {
+  it('a clamping loss (the demotion game set up): ONE bar drain to 0, no transition, the demotion-game outcome line (owner 2026-09-21: no instant demotion)', () => {
     const steps = planRankSequence(fixtureById('demotion')!.result!);
+    expect(steps.map((s) => s.kind)).toEqual(['reveal', 'establish', 'bar', 'outcome']);
+    expect(steps[2]).toMatchObject({ divisionIndex: 7, from: 10, to: 0 });
+    expect(steps[3]).toMatchObject({ kind: 'outcome', text: 'Demotion game. Finish top 4 to stay in Gold II.' });
+    expect(planRankSequence(fixtureById('demo-gate')!.result!).map((s) => s.kind)).toEqual(['reveal', 'establish', 'bar', 'outcome']);
+  });
+  it('a lost demotion game inside a medal: the bar holds at 0 → crest/tier transitions down ONE division → the landing bar fills to 100 + the award', () => {
+    const steps = planRankSequence(fixtureById('demo-lost-division')!.result!);
+    expect(steps.map((s) => s.kind)).toEqual(['reveal', 'establish', 'bar', 'transition', 'bar', 'outcome']);
+    expect(steps[2]).toMatchObject({ divisionIndex: 7, from: 0, to: 0 });
+    expect(steps[3]).toMatchObject({ from: 7, to: 6, direction: 'down', medal: false, ms: 900 }); // the down-rank def's length
+    expect(steps[4]).toMatchObject({ divisionIndex: 6, from: 0, to: 60 });
+    expect(steps[5]).toMatchObject({ kind: 'outcome', text: null });
+  });
+  it('a legacy INSTANT demotion result (settled under the 2026-09-20 rules) still plans drain → transition down → retreat from 100', () => {
+    const legacy = { ...fixtureById('demo-lost-division')!.result!, before: { divisionIndex: 7, points: 10 }, after: { divisionIndex: 6, points: 70 }, appliedDelta: -40, cappedPoints: 0, wasDemotionGame: false, requiredFinish: null };
+    const steps = planRankSequence(legacy);
     expect(steps.map((s) => s.kind)).toEqual(['reveal', 'establish', 'bar', 'transition', 'bar', 'outcome']);
     expect(steps[2]).toMatchObject({ divisionIndex: 7, from: 10, to: 0 });
-    expect(steps[3]).toMatchObject({ from: 7, to: 6, direction: 'down', medal: false, ms: 900 }); // the down-rank def's length
     expect(steps[4]).toMatchObject({ divisionIndex: 6, from: 100, to: 70 });
   });
-  it('a lost demotion game: the bar holds at 0 → crest transitions down a medal → the landing bar fills to the landing points', () => {
+  it('a lost demotion game across a medal boundary: the bar holds at 0 → crest transitions down a medal → the landing bar fills to the landing points', () => {
     const steps = planRankSequence(fixtureById('demo-lost')!.result!);
     expect(steps.map((s) => s.kind)).toEqual(['reveal', 'establish', 'bar', 'transition', 'bar', 'outcome']);
     expect(steps[2]).toMatchObject({ divisionIndex: 6, from: 0, to: 0 });

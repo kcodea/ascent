@@ -79,8 +79,21 @@ function secrets — the same three the previous `submit-rating` used, so nothin
 
    Expect one `rank_results` row; the profile's `rank_season = 3`, `rank_revision = 1`, `rating` equal to
    `100 × rank_division + rank_points`, `rank_demotion_ready = false` (a first game from Bronze III can never
-   arm the medal-boundary demotion gate — it is a STORED flag, set only by a loss that lands on 0 at Silver
-   III or higher, and `settle_rank` writes it in the same transaction as the points).
+   arm the demotion gate — it is a STORED flag, set only by a loss that lands on 0 in a division above Bronze
+   III, and `settle_rank` writes it in the same transaction as the points). The check constraint
+   `profiles_rank_demotion_ready_where` must read `(not rank_demotion_ready or (rank_points = 0 and
+   rank_division > 0))` — since 2026-09-21 the flag is valid at 0 in ANY division above Bronze III, no
+   longer only at a medal's lowest division:
+
+   ```sql
+   select pg_get_constraintdef(oid) from pg_constraint where conname = 'profiles_rank_demotion_ready_where';
+   -- expect: CHECK (((NOT rank_demotion_ready) OR ((rank_points = 0) AND (rank_division > 0))))
+   ```
+
+   Postgres deparses the constraint with its own parentheses (one pair around every operator and one more
+   around the whole expression), so compare the MEANING, not the exact string: the flag may only be true at
+   `rank_points = 0` with `rank_division > 0`. Any `% 3` term still present means the old constraint is in
+   place and the migration's `drop constraint … add constraint` pair has not been run (§6c).
 3. Optional dedupe check — Edge Functions → **submit-rating → Logs**: re-trigger the same submission from the
    client (DevTools → `useGame.getState().retryRankSubmission()` won't resend a confirmed one, so use the
    Network tab's *Replay XHR* on the `submit-rating` call). The response carries `"deduped": true` and the
@@ -155,6 +168,57 @@ same two values the game ships with, so nothing here is secret.
      -H "Content-Type: application/json" \
      -d '{"p_user":"00000000-0000-0000-0000-000000000000","p_run_id":"x","p_placement":1,"p_season":3,"p_rules_version":1}'
    ```
+
+## 6b. Rule updates after launch (the 2026-09-21 promotion landing)
+
+A rules change that only alters what the server WRITES (no version bump — the client never resolves locally,
+it adopts the server's answer) ships as a re-run of the function block plus a function redeploy. For the
+promotion landing (a won gate now lands at **10 / 100**, was 0 / 100):
+
+1. SQL Editor → paste the whole `create or replace function public.settle_rank …` block from
+   `supabase/migrations/2026-09-20-medal-rank.sql` (from that line down to and including its closing `$$;`)
+   → **Run**. Re-running the entire migration file is equally fine; it is idempotent and the season reset at
+   the bottom stays commented out.
+2. `supabase functions deploy submit-rating` (the bundled `_shared/lobbyRating.ts` carries the same constant;
+   without the redeploy every WON promotion settlement logs `rank parity mismatch` — every other transition
+   still agrees field-for-field, and even on a promotion the write is still correct; the function's runtime
+   check is what disagrees).
+3. Smoke test: play one promotion game on a throwaway account at 100 points and win it. Expect
+   `rank_results.points_after = 10`, `applied_delta = 10`, `capped_points = 0`, `promoted = true`, and the
+   profile's `rank_points = 10`. A 5th place from there must leave `rank_points = 4` with no demotion.
+4. Order: SQL first, then the function. The SQL is the writer: until the block is re-run, promotions keep
+   landing at 0 (the old rule) and a redeployed function only logs a parity mismatch about it. Nothing is
+   corrupted either way; once both copies agree the log goes quiet and the next promotion lands at 10.
+
+## 6c. Rule updates after launch (the 2026-09-21 demotion widening: no instant demotions)
+
+The owner's ruling: *"Hitting 0 MMR should halt the loss and put you in a demotion game. You need to then
+bottom-4 that game to demote."* A loss that would cross 0 in ANY division above Bronze III now clamps at 0 and
+arms the demotion game (it used to demote to `100 + result` inside a medal, and only a medal's lowest division
+was gated). Same shape as 6b, with ONE extra statement pair, because the check constraint changes too:
+
+1. SQL Editor → run the two constraint statements from `supabase/migrations/2026-09-20-medal-rank.sql`
+   (`alter table public.profiles drop constraint if exists profiles_rank_demotion_ready_where;` and the
+   `add constraint … check (not rank_demotion_ready or (rank_points = 0 and rank_division > 0));` that
+   follows) → **Run**. Without this the widened `settle_rank` raises a check-constraint violation the first
+   time it arms the flag inside a medal (the transaction rolls back; the game is retried by the client as
+   `settle_failed`, so nothing is lost, but nothing settles either).
+2. SQL Editor → paste the whole `create or replace function public.settle_rank …` block (down to and
+   including its closing `$$;`) → **Run**. Re-running the entire migration file is equally fine (idempotent;
+   the season reset at the bottom stays commented out) and does both steps at once.
+3. `supabase functions deploy submit-rating` (the bundled `_shared/lobbyRating.ts` carries the widened rule;
+   without the redeploy every settlement that crosses 0 inside a medal logs `rank parity mismatch` — the SQL
+   write is still what stands).
+4. Verify the constraint (the `pg_get_constraintdef` query in section 4 prints it) and smoke test on a
+   throwaway account: from
+   Gold II 10 (or any division above Bronze III, off a medal floor) finish 8th. Expect
+   `rank_results.division_after = division_before`, `points_after = 0`, `demotion_ready_after = true`,
+   `demoted = false`, `demotion_unlocked = true`, `applied_delta = -10`, `capped_points = 30`, and the profile
+   `rank_demotion_ready = true`. Then finish 5th: expect `was_demotion_game = true`, `demoted = true`,
+   `division_after = division_before - 1`, `points_after = 94`, profile `rank_demotion_ready = false`. (A
+   top-4 instead: same division, `points_after` = the award, flag cleared.)
+5. Order: constraint → function → Edge Function. No client change is required (the client adopts the
+   server's result; the rules version stays 1).
 
 ## 7. Ship the client
 

@@ -574,7 +574,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onGetRubyDuplicate',           // Gem Sage
   'goldSpentScaleSelf',           // Ancient Wanderer
   'cardDeathScaler',              // Spear Warden (2026-09-18): HAS +A/+H per death of its card type this run
-  'dealtDamageAleMeter',          // Han Gover (2026-09-18): every N damage this deals, get an Ale (persistent per-instance meter)
+  'dealtDamageAleMeter',          // Han Gover (2026-09-18; Pummel 2026-09-21): Pummel (N) — the first time this deals N damage in a combat, get an Ale (once per combat)
   'buffShopOffersThisTurn',       // Night Market Horror
   'onSellDiscoverSingleton',      // Traveling Salesman
   'onGainAleBuffSelf',            // Kegheart Dwarf
@@ -592,7 +592,7 @@ export const EffectFactoryIdSchema = z.enum([
   // ── Set 3 Neutrals, owner handoff 2026-09-19 ──
   'onDamagedReflectRandomEnemies', // Yeti: the first time this takes damage each combat, deal that amount to N random enemies
   // ── Set 3 Kobolds, owner handoff 2026-09-19 ──
-  'dealtDamageGoldNextTurn',      // Goldvein: Han Gover's damage-dealt meter with a Gold-next-turn body, once per combat
+  'dealtDamageGoldNextTurn',      // Goldvein: Pummel (N) — Han Gover's damage-dealt meter with a Gold-next-turn body, once per combat
 ]);
 
 export const EffectDefSchema = z.object({

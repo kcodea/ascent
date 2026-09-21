@@ -5,19 +5,19 @@ import { createRun, reduce, type Action, type BoardCard, type RunState } from '.
 import { snapshotBoard } from './snapshot';
 
 /**
- * GOLDVEIN (owner handoff 2026-09-19) — T1 Kobold 2/3: "When this deals **6 damage**, gain **3 Gold** next turn.
- * (Once per combat)". Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body: the meter is
- * the same per-instance `damageDealt` tally (seeded from the run card, carried back through `playerDamageMeters`),
- * the payout is `grantBonusGold` → `playerBonusGold` → `bonusEmbersNextTurn` (Tromboneer's channel), latched ONCE
- * per combat on the instance (`goldMeterFired` — Yeti's convention: a Risen body does not re-arm). Gilded 6 Gold.
+ * GOLDVEIN (owner handoff 2026-09-19; Pummel keyword 2026-09-21) — T1 Kobold 2/3: "**Pummel (6):** Gain **3 Gold**
+ * next turn. (Once per combat)". Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body: the
+ * meter is the same per-instance `damageDealt` tally (carried back through `playerDamageMeters`), the payout is
+ * `grantBonusGold` → `playerBonusGold` → `bonusEmbersNextTurn` (Tromboneer's channel), latched ONCE per combat on
+ * the instance (`pummelFired` — Yeti's convention: a Risen body does not re-arm). Gilded 6 Gold.
  * Chipwick Prospector left set 3 the same day (still a set-2 card) — pinned at the bottom.
  *
  * RESET SEMANTICS (owner report 2026-09-19 — the shop badge read "6/6" after the combat Goldvein fired in: *"it
  * should show 0/6 since the trigger should reset if it hits 6/6, after combat"*): the "(Once per combat)" rider
  * is data on the marker (`DAMAGE_METER_MARKERS.dealtDamageGoldNextTurn.resetEachCombat`), and it means the meter
  * starts EVERY fight at 0 — progress and latch — and carries back 0, so the run card is cleared at settle and the
- * shop reads 0/6 after ANY combat (4 dealt → 0/6 too; it does not bank a partial toward the next fight). Han
- * Gover's "(Max 2 per hit)" is not once-per-combat, so his tally still persists (set3Dwarves.test.ts).
+ * shop reads 0/6 after ANY combat (4 dealt → 0/6 too; it does not bank a partial toward the next fight). Since the
+ * Pummel ruling (2026-09-21) Han Gover is once per combat too — the same flag (set3Dwarves.test.ts).
  */
 
 const body = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
@@ -39,19 +39,19 @@ const fight = (board: BoardMinion[], foes: BoardMinion[]) =>
   simulate(board, foes, makeRng(5), CARD_INDEX,
     combatSide({ tier: 6, poolIds: poolFor('set3').all.map((c) => c.id) }), combatSide({ tier: 6 }));
 
-describe('Goldvein — "When this deals 6 damage, gain 3 Gold next turn. (Once per combat)"', () => {
+describe('Goldvein — "Pummel (6): Gain 3 Gold next turn. (Once per combat)"', () => {
   it('the card: T1 2/3 Kobold, a passive damage-meter marker, both texts, in set 3', () => {
     const d = CARD_INDEX['k3_goldvein']!;
     expect([d.tier, d.attack, d.health, d.tribe]).toEqual([1, 2, 3, 'kobold']);
     expect(d.effects).toEqual([{ on: 'passive', do: 'dealtDamageGoldNextTurn', params: { every: 6, gold: 3 } }]);
-    expect(d.text).toBe('When this deals **6 damage**, gain **3 Gold** next turn. (Once per combat)');
-    expect(d.goldenText).toBe('When this deals **6 damage**, gain **6 Gold** next turn. (Once per combat)');
+    expect(d.text).toBe('**Pummel (6):** Gain **3 Gold** next turn. (Once per combat)');
+    expect(d.goldenText).toBe('**Pummel (6):** Gain **6 Gold** next turn. (Once per combat)');
     expect(poolFor('set3').buyable.some((c) => c.id === 'k3_goldvein')).toBe(true);
   });
 
-  it('the meter is declared once-per-combat in core: resetEachCombat, every 6; Han Gover is not', () => {
+  it('the meter is declared once-per-combat in core: resetEachCombat, every 6; Han Gover is too (Pummel 2026-09-21)', () => {
     expect(damageMeterOf(CARD_INDEX['k3_goldvein'])).toEqual({ do: 'dealtDamageGoldNextTurn', every: 6, resetEachCombat: true });
-    expect(damageMeterOf(CARD_INDEX['dw3_hangover'])).toEqual({ do: 'dealtDamageAleMeter', every: 40, resetEachCombat: false });
+    expect(damageMeterOf(CARD_INDEX['dw3_hangover'])).toEqual({ do: 'dealtDamageAleMeter', every: 40, resetEachCombat: true });
     expect(damageMeterOf(CARD_INDEX['k_chipwick'])).toBeNull();
   });
 
@@ -86,7 +86,7 @@ describe('Goldvein — "When this deals 6 damage, gain 3 Gold next turn. (Once p
     expect(fight([vein({ attack: 12, golden: true })], [foe(0, 1)]).playerBonusGold).toBe(6);
   });
 
-  it('the meter does NOT carry across combats (unlike Han Gover): 4 then 4 → the second fight starts at 0 and does not pay', () => {
+  it('the meter does NOT carry across combats: 4 then 4 → the second fight starts at 0 and does not pay', () => {
     const r1 = fight([vein({ attack: 4 })], [foe(0, 4)]);
     expect(r1.playerBonusGold ?? 0).toBe(0);
     let s = run({ phase: 'combat', board: [body('gv', 'k3_goldvein')], hand: [], lastCombat: r1 });

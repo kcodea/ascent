@@ -74,14 +74,15 @@ describe('the combat damage-meter badge ticks per landed hit, including the blow
     expect(r.playerDamageMeters).toEqual([{ sourceUid: 'me', total: 0 }]); // → the shop's 0/6
   });
 
-  it('Han Gover seeded at 30: 30/40 → 0/40 → 10/40 → 20/40 per hit (mod 40), and the crossing lands on 0/40', () => {
-    const r = fight([body('dw3_hangover', { attack: 10, damageDealt: 30 })], [foe(0, 1), foe(0, 1), foe(0, 1)]);
+  it('Han Gover (Pummel (40), once per combat): a seeded tally is ignored — 0/40 → 15/40 → 30/40 → 40/40 per hit, clamped once it fired; the shop then reads 0/40', () => {
+    const r = fight([body('dw3_hangover', { attack: 15, damageDealt: 30 })], [foe(0, 1), foe(0, 1), foe(0, 1)]);
     const uid = r.initial.player[0]!.uid;
-    expect(dmgBy(r.events, uid)).toEqual([10, 10, 10]);
+    expect(dmgBy(r.events, uid)).toEqual([15, 15, 15]);
     const readings = badgePerBeat(r, uid);
     const distinct = readings.filter((v, i) => i === 0 || v !== readings[i - 1]);
-    expect(distinct).toEqual(['30/40', '0/40', '10/40', '20/40']);
-    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'me', total: 60 }]); // persists: the shop reads 20/40
+    expect(distinct).toEqual(['0/40', '15/40', '30/40', '40/40']); // 45 dealt: clamped at 40/40 once the Pummel fired
+    expect(r.events.filter((e) => e.type === 'pummelTrigger')).toHaveLength(1);
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'me', total: 0 }]); // → the shop's 0/40
   });
 
   it('a hit that never lands (a popped Ward) does not tick the badge', () => {

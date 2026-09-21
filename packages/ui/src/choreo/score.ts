@@ -13,6 +13,7 @@ import {
   type RallyFired,
 } from './channels/rallyFired';
 import { shoutsFiredIn } from './channels/shoutFired';
+import { pummelsFiredIn, PUMMEL_STACK_MS } from './channels/pummelFired';
 import { releaseSummons } from '../fx/summonHold';
 import { getLungeConfig } from '../lungeConfig';
 import type { FxBinding } from './bindings';
@@ -34,7 +35,7 @@ import { bindingFor } from './bindings';
  * instead by `engine.ts`'s `runAttackExchangeCues` from a `useLayoutEffect` — this file still owns the score
  * DATA for both.
  */
-export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx' | 'rallyFx' | 'shoutFx' | 'bounceFx';
+export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx' | 'rallyFx' | 'shoutFx' | 'bounceFx' | 'pummelFx';
 /** When a cue fires within its moment. `start`/`contact` are used today; `landed`/`end` are reserved for
  *  phase 3c (aura bursts) and phase 4 (authoring). */
 export type Anchor = 'start' | 'contact' | 'landed' | 'end';
@@ -78,6 +79,17 @@ const BASE: Cue[] = [
   // owner, play a def bound at the `shout` kind. On every kind because a fire's moment is its own (`shout`
   // kind) on the swing path AND the death path, but the scan is per event so nothing depends on the kind.
   { ch: 'shoutFx', at: 'start', offset: 0 },
+  // `pummelFx` — a PUMMEL (X) fire (`pummelTrigger`: Han Gover, Goldvein — the damage-dealt threshold keyword)
+  // in this moment: play the def bound at the `pummelTrigger` kind ON the body that fired. On every kind for
+  // the same reason `rallyFx` is: the event is a RESULT_TYPE emitted after the `dmg` that reached X, so it
+  // USUALLY folds into that hit's impact (an `attackExchange`-led clash, a `damage` moment, a Fel Spikes wave,
+  // a `death` moment…) — but not always: the sim runs the victim's `onDamaged` reactors BEFORE the meter, and
+  // a reactor event that is neither a RESULT_TYPE nor a deferred `buff` (Hearth Whisperer's `handBuff`) splits
+  // the impact run, leaving the trigger to LEAD a `pummelTrigger`-kind moment of its own. The per-event scan
+  // is what makes both shapes play the same. Offset 0: the cue fires the instant the impact becomes current
+  // (at a lunge's real contact), and the def carries its own 90/100ms internal `at`s, so the flash lands a hair
+  // AFTER the damage number — with the hit, not before it. See `channels/pummelFired.ts`.
+  { ch: 'pummelFx', at: 'start', offset: 0 },
 ];
 const withReform = (): Cue[] => [...BASE, { ch: 'auraReform', at: 'start', offset: 460, scaled: false }];
 /** Every kind runs sfx + float + auraBurst + auraBreak + executeFx + fxDef at start (all adapters no-op for
@@ -116,6 +128,9 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
     // The kind a Rally actually arrives in — every Rally is an `onAttack` trigger, so `absorbIntoWindup` folds
     // its event into this exchange. If `rallyFx` were on only one kind, this would be the one.
     { ch: 'rallyFx', at: 'start', offset: 0 },
+    // A Pummel fire cannot reach a wind-up today (it follows a `dmg`, which ends the absorb), but the
+    // per-event scan is free and keeps the channel's "on every kind" contract honest.
+    { ch: 'pummelFx', at: 'start', offset: 0 },
   ],
   // `damageFx` = a NON-melee hit burst (damageBurst + impact ring) at each dmg target. On `damage` (SC nukes,
   // split damage) and `death` (Blaster's Deathrattle AoE lands in its death moment). Melee dmg stays in
@@ -162,6 +177,11 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   // DORMANT until the score can anchor them to a badge/HUD node rather than a board unit.
   questTrigger: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }],
   questComplete: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }],
+  // A Pummel fire LEADING a moment — reachable in a real fight when an `onDamaged` reactor's
+  // non-result event (Hearth Whisperer's `handBuff`) splits it off its hit's impact (see `pummelFx` in BASE).
+  // Plain BASE: the `pummelFx` scan plays it (the `fxDef` row stands down for this kind — the one-channel
+  // rule below); NO `damageFx` (it is not a hit).
+  pummelTrigger: [...BASE],
 };
 
 const KEY = 'ascent.choreoScore';
@@ -278,6 +298,10 @@ export interface CueContext {
   /** A Shout RE-FIRE in this moment (one per fire — each fire is its own moment, see `compileMoments`): the
    *  caller pulses the re-triggering unit and blooms the Shout's owner. Optional like `onRallyPulse`. */
   onShoutProc?: (source: string, target: string) => void;
+  /** A PUMMEL fire in this moment (`channels/pummelFired.ts`) — called once per body that fired, at
+   *  the cue's fire time, whether or not a def is bound/playable, so the caller can play the card's own effect
+   *  voiceline and fall back to the stock medallion pulse when nothing is bound. Optional like `onRallyPulse`. */
+  onPummelProc?: (uid: string, marker: string, count: number) => void;
 }
 
 /** The two units a moment is ABOUT, read off its PRIMARY event — what an authored def anchors to. `attack`
@@ -656,6 +680,40 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
         }
       });
     }
+    // A PUMMEL FIRE in this moment (`pummelTrigger` — Han Gover's Ale meter, Goldvein's Gold meter): tell the
+    // caller (voiceline / fallback pulse), then play the def bound at the `pummelTrigger` kind for the body's
+    // card — the owner's `pummel-trigger` (2026-09-21) — ON that body: both anchors are the same unit, and the
+    // def's `anchorPart: medallion` layers resolve to its trigger gem inside `playDef` (the `uids` are what make
+    // that resolution possible). One play per event, spaced by `PUMMEL_STACK_MS` when a body fired more than
+    // once in the moment (every shipped Pummel is once per combat; the counter is the contract). Like `shoutFx`,
+    // the proc callback fires even when defs cannot play; the def itself is skipped silently if the body has
+    // already left the screen.
+    else if (cue.ch === 'pummelFx') {
+      const fired = pummelsFiredIn(moment, ctx.events);
+      if (!fired.length) continue;
+      if (import.meta.env.DEV) {
+        for (const f of fired) console.info(`[fx] pummel ${f.uid} (${f.marker})${f.count > 1 ? ` ×${f.count}` : ''}`);
+      }
+      at(cue, () => {
+        for (const f of fired) ctx.onPummelProc?.(f.uid, f.marker, f.count);
+        if (!canPlayDefs()) return;
+        const speed = ctx.combatSpeed > 0 ? ctx.combatSpeed : 1;
+        for (const land of scheduleLands(cascade(fired.map((f) => ({ uid: f.uid, count: f.count }))), { gap: 0, beat: PUMMEL_STACK_MS, speed })) {
+          const f = fired[land.group];
+          if (!f) continue;
+          const binding = bindingFor(ctx.cardIds?.get(f.uid) ?? null, 'pummelTrigger');
+          if (!binding) continue;
+          // Anchors resolve INSIDE the timer for a stacked second play, like the Ruby sweep: the body can die in
+          // this very clash (a fatal trade), and the first play has already sampled its slot.
+          const fire = (): void => {
+            const a = anchorsForUnits(f.uid, f.uid);
+            if (a) playDef(binding.def, a, { uids: { source: f.uid, target: f.uid }, index: land.member });
+          };
+          if (land.at <= 0) fire();
+          else timers.push(setTimeout(fire, land.at));
+        }
+      });
+    }
     else if (cue.ch === 'summonFx') at(cue, () => {
       const uids: string[] = [];
       for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'summon') uids.push(e.minion.uid); }
@@ -676,7 +734,12 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       // by `rallyFx`, which scans every rally event in the moment and plays one per PROC at that proc's own
       // pair. This row would play the `rally` binding a second time — once, at the primary event's pair — for
       // any moment that happened to be classified `rally`. Standing down is what keeps the count honest.
-      if (moment.kind === 'rally') continue;
+      // The same rule for a Pummel fire: `pummelFx` scans every `pummelTrigger` in the moment and plays one
+      // per event on the body. When the trigger LEADS its moment (a Hearth Whisperer's `handBuff` reactor split
+      // it off the hit — a real Set 3 fight, not a synthetic log) this row would play the `pummel-trigger`
+      // binding a second time at the primary's (source, null) pair: the owner's burst, shockwave and
+      // `triggerpulse` clip twice for one fire (review finding 2026-09-21).
+      if (moment.kind === 'rally' || moment.kind === 'pummelTrigger') continue;
       // The card comes from `ctx.cardIds` — the replay's own uid→card map, already threaded in for the sfx
       // channel's death voicelines. It replaces a DOM lookup (`[data-card]`), which was the most suspect link
       // in this chain: it depended on the unit being rendered, findable by selector, and carrying an attribute

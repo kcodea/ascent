@@ -19,6 +19,13 @@ import { endReplay } from './replay/replayPlayer';
 export function EscMenu({ onClose }: { onClose: () => void }) {
   const openTitle = useGame((s) => s.openTitle);
   const replaying = useGame((s) => s.replaying);
+  // Where the modal was opened FROM decides its primary action (the menu sidebar can open it from every ladder
+  // page and the mode picker, not only from a run — review 2026-09-21): a replay leaves the replay; a title
+  // surface (a ladder page or a picker view over the title) goes to the main menu; the main menu itself has
+  // nowhere to go, so the section is omitted; a run saves & quits.
+  const onTitle = useGame((s) => s.showTitle);
+  const onPage = useGame((s) => s.showCareer || s.showRankings || s.showLeaderboard || s.showRecentGames || s.titleView !== 'menu');
+  const primary: 'replay' | 'menu' | 'none' | 'run' = replaying ? 'replay' : onTitle ? (onPage ? 'menu' : 'none') : 'run';
   // Audio is owned by sfx.ts (persisted to localStorage); mirror it into local state so the slider +
   // mute button re-render as they change. Dragging the slider previews the level on release.
   const [vol, setVol] = useState(getVolume());
@@ -40,12 +47,13 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
     <div className="escov" onPointerDown={onClose}>
       <div className="escpanel" onPointerDown={(e) => e.stopPropagation()}>
         <div className="esch disp">Settings</div>
-        <div className="escsec">{replaying ? 'Replay' : 'Run'}</div>
+        {primary !== 'none' && <div className="escsec">{primary === 'replay' ? 'Replay' : primary === 'menu' ? 'Menu' : 'Run'}</div>}
         {/* SAVE & QUIT — promoted to the top and styled as the primary action (owner ask 2026-08-24). The
             run is already saved continuously; this button makes that explicit and one obvious tap. During a
             REPLAY the quit path must END THE PLAYBACK first (owner report 2026-08-19: quitting left the replay
-            HUD floating over the title) — endReplay restores the snapshot, then opening the title wins. */}
-        {replaying ? (
+            HUD floating over the title) — endReplay restores the snapshot, then opening the title wins. From a
+            ladder page / the picker there is nothing to save: the same openTitle, labelled for what it does. */}
+        {primary === 'replay' && (
           <button
             className="escbtn escbtn-primary pressable"
             onPointerDown={() => { endReplay(); openTitle(); onClose(); }}
@@ -53,7 +61,17 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
             <span className="ebl">Leave replay</span>
             <span className="ebs">Back to the main menu — the replay closes</span>
           </button>
-        ) : (
+        )}
+        {primary === 'menu' && (
+          <button
+            className="escbtn escbtn-primary pressable"
+            onPointerDown={() => { openTitle(); onClose(); }}
+          >
+            <span className="ebl">Main menu</span>
+            <span className="ebs">Closes this page and returns to the main menu</span>
+          </button>
+        )}
+        {primary === 'run' && (
           <button
             className="escbtn escbtn-primary pressable"
             onPointerDown={() => { openTitle(); onClose(); }}

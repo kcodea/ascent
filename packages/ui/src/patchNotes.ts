@@ -56,6 +56,23 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-21',
+    label: 'Menu sidebar',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "Career, Leaderboard, Hall of Champions, Recent Games and the Mode screen now carry a left sidebar with Back and the main menu, so you can jump between them without returning to the title; the Career page's side columns grew to fill wide screens; the Mode screen sits on the same navy backdrop.",
+        details: [
+          'The sidebar holds Back at the top and, centred below it, Play, Career, Leaderboard, Hall of Champions, Recent Games and Settings — the screen you are on is the blue plaque.',
+          "Back keeps doing what it did on each screen: a player's Career opened from the Leaderboard still returns to the Leaderboard; the Mode screen's Back returns to the title menu.",
+          "On the Career page the centre column now stops growing once the seven cards are at full size, and any extra width goes to the stats and Seasonal Ranked columns instead of sitting empty beside the cards.",
+          'The Mode screen (Play / Learn / Practice) uses the same navy backdrop as the ladder pages.',
+          'Settings opened from one of these screens now offers Main menu instead of a Save & Quit no run could honour; on a laptop-width window the Career page stacks its columns so the seven cards stay readable.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-21',
     label: 'Leaderboard crests',
     changes: [
       { category: 'UI / Info', text: 'Leaderboard: rank crests are now the size of the placement medallions, with a readable division plate.' },

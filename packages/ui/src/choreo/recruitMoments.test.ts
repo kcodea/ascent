@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { RunState } from '@game/sim';
 import {
   captureRecruitSeqs, RECRUIT_MOMENT_KINDS, recruitMomentsSince, recruitSeqsOf, type RecruitSeqs, shoutMoment,
-  selfBuffMoment, shieldGainMoment, spellCastMoment } from './recruitMoments';
+  selfBuffMoment, shieldGainMoment, spellCastMoment, minionPlayedMoment } from './recruitMoments';
 
 /** Only the FX fields are read; the rest of a RunState is irrelevant to this scan. `rubyLanded` is per-card
  *  (board or a lone shop offer); the shop SPAN comes from the sim's `veinstormFx`, not from any zone here. */
@@ -167,6 +167,7 @@ describe('recruitMomentsSince', () => {
       selfBuffMoment('a', 'ashscribe').kind,
       spellCastMoment('wo_mine', { x: 0, y: 0 }).kind,
       shieldGainMoment('a', 'ashscribe').kind,
+      minionPlayedMoment('a', 'manasaber').kind,
     ]);
     expect([...produced].sort()).toEqual([...RECRUIT_MOMENT_KINDS].sort());
   });

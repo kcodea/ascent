@@ -213,6 +213,11 @@
         "def": "heavy-beam",
         "fanOut": "buffed"
       }
+    },
+    "manasaber": {
+      "minionPlayed": {
+        "def": "sfx-voidpanther"
+      }
     }
   }
 }

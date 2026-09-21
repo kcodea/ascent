@@ -69,6 +69,20 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-21',
+    label: 'Career page fixes',
+    changes: [
+      {
+        category: 'Systems',
+        text: "Viewing another player's Career now shows their medal crest and bar instead of a bare rating number, and the match history rows leave room above the warband so the header text is never covered.",
+        details: [
+          "Another player's Seasonal Ranked card reads the same way yours does: crest, division bar, points and rank name, with the rating as a small caption.",
+          'Each match history row keeps a clear gap between the hero name, result and PLAYED / LENGTH / GOLD SPENT line and the top of the warband cards, at every screen width.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-21',
     label: 'Social menu',
     changes: [
       {

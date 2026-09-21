@@ -555,13 +555,16 @@ create policy "delete own perf_runs" on public.perf_runs for delete to authentic
 --
 -- WHAT THIS IS. The numeric ladder (`profiles.rating` moved by a ±100 placement table) becomes a MEDAL ladder:
 -- six medals × three divisions (index 0 = Bronze III … 17 = Ascendant I), 100 points each, promotion GAMES
--- at 100 (top-4 to move a division, 1st to move a medal), demotion below 0 within a medal, a DEMOTION GAME
+-- at 100 (top-4 to move a division, 1st to move a medal; a won gate lands at 10/100 in the next division —
+-- owner 2026-09-21, was 0/100), demotion below 0 within a medal, a DEMOTION GAME
 -- once a LOSS has clamped the player at 0 on a medal's lowest division (the STORED `rank_demotion_ready`
 -- flag; bottom-4 then drops to the previous medal's I at 100 + award, top-4 escapes and disarms),
 -- Bronze III floored, Ascendant I uncapped. The rules live in THREE places that must agree: `settle_rank` below (the WRITER — the only thing
 -- that moves a rank), `supabase/functions/_shared/lobbyRating.ts` (the Edge Function's runtime parity check)
 -- and `packages/sim/src/rank.ts` (the client, CI-parity-tested against the shared TS file). Change all three
--- together and bump the rules version in all three.
+-- together and bump the rules version in all three when an old client would mis-show or refuse the result
+-- (the client never resolves locally; the 2026-09-21 landing change shipped without a bump — re-run the
+-- `create or replace function public.settle_rank` block below and redeploy `submit-rating` to apply it).
 --
 -- WHY A DATABASE FUNCTION. The old C3 function inserted the dedupe ledger row, THEN updated the profile in a
 -- second statement: a failure between the two consumed the dedupe key without awarding points, two
@@ -731,8 +734,8 @@ $$;
 -- The resolver branches are the same as `resolveRank` in packages/sim/src/rank.ts, in the same order:
 --   top division: add the award uncapped; below 0 → demote to 100 + result.
 --   at a gate (points = 100 below the top): placement ≤ required (4 for a division gate, 1 for a medal gate)
---     → promote ONE division to 0/100; a positive award short of a MEDAL gate (2nd–4th) HOLDS at 100, still
---     promotion-ready; a negative award applies normally from 100.
+--     → promote ONE division to c_promo_landing/100 (10 — owner 2026-09-21, was 0); a positive award short of
+--     a MEDAL gate (2nd–4th) HOLDS at 100, still promotion-ready; a negative award applies normally from 100.
 --   at an ARMED demotion gate (the STORED rank_demotion_ready flag): a bottom-4 (5th–8th) demotes ONE
 --     division to the previous medal's I at 100 + award; a top-4 escapes, applies its positive award normally
 --     from 0, and disarms.
@@ -760,6 +763,7 @@ declare
   c_division_finish constant int := 4;
   c_medal_finish    constant int := 1;
   c_demotion_finish constant int := 4;   -- worst placement that still ESCAPES a demotion game
+  c_promo_landing   constant int := 10;  -- points a WON promotion lands on in the next division (owner 2026-09-21; was 0)
   c_rate_max        constant int := 20;
   c_rate_window     constant interval := interval '10 minutes';
 
@@ -819,7 +823,7 @@ begin
     if (d0 % c_per_medal) = c_per_medal - 1 then v_kind := 'medal'; v_required := c_medal_finish;
     else v_kind := 'division'; v_required := c_division_finish; end if;
     if p_placement <= v_required then
-      v_promoted := true; d1 := d0 + 1; p1 := 0;              -- a won gate starts the next division at 0
+      v_promoted := true; d1 := d0 + 1; p1 := c_promo_landing; -- a won gate starts the next division at the landing (10)
     elsif v_base >= 0 then
       d1 := d0; p1 := p0;                                     -- medal gate, 2nd–4th: hold at 100
     else

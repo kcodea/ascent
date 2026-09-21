@@ -79,7 +79,8 @@ export const isMedalFloor = (divisionIndex: number): boolean => hasDemotionGate(
  * (`profile.rank.demotionReady`) or its position (`position.demotionReady`), whichever the rules carry it on.
  * The flag is armed ONLY by a loss that clamps at 0 on a medal floor, cleared by any non-negative result and
  * never set by a promotion landing (rules 2026-09-20) — so a 0 at a medal floor is NOT derived into a gate
- * here (a won medal promotion lands on that same 0). No flag → not demotion-ready.
+ * here (the landing is 10 since 2026-09-21, but the flag is the rules' to set, never the shape's). No flag
+ * → not demotion-ready.
  */
 export function standingDemotionReady(rank: unknown): boolean {
   if (!rank || typeof rank !== 'object') return false;

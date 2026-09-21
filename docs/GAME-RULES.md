@@ -73,16 +73,23 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
 - **Promotion games.** Reaching **100** does not promote; it makes the **next** rated game a promotion game
   (overflow past 100 is discarded; the delta shown is the delta applied). To move up **a division** (Gold III
   → Gold II) the promotion game needs a **top-4 finish**; to move up **a medal** (Gold I → Platinum III) it
-  needs **1st place**. A won promotion game starts the next division at **0 / 100** — not the game's award.
-  A lost promotion game (5th–8th) applies its normal negative points from 100; the gate reopens when the
-  player climbs back to 100. At a **medal** gate, a 2nd–4th finish neither promotes nor gains — the player
-  stays at 100, still promotion-ready.
+  needs **1st place**. A won promotion game starts the next division at **10 / 100** — not the game's award
+  (owner 2026-09-21; it was 0 / 100 the day before). The 10-point landing is a cushion so a narrow loss
+  straight after promoting does not drop the player back down: a 5th (−6) leaves them at 4, still in the new
+  division; a bigger loss crosses 0 and follows the normal demotion rules below (inside a medal it demotes
+  to `100 + result`; at a medal's lowest division it stops at 0 and arms the demotion game first). The
+  applied delta of a won promotion is therefore +10 on the scalar (`100 × division + points`), whatever the
+  finish; the game's award is reported as converted into the promotion, not as capped. A lost promotion
+  game (5th–8th) applies its normal negative points from 100; the gate reopens when the player climbs back
+  to 100. At a **medal** gate, a 2nd–4th finish neither promotes nor gains — the player stays at 100, still
+  promotion-ready.
 - **Demotion within a medal.** Dropping below 0 demotes one division to `100 + result` (Gold II 10 → 8th →
   Gold III 70). Exactly 0 stays.
 - **Demotion games** (owner addition 2026-09-20). Dropping out of a **medal** is gated: a **loss** at a
   medal's lowest division (Gold III) that lands on 0 **stops at 0** and *arms* the gate (a stored
   `demotionReady` flag — set only by such a loss, cleared by any non-negative result, never by a promotion
-  landing: 0/100 after a won medal promotion is not armed; the first loss there arms it, the second demotes).
+  landing: 10/100 after a won medal promotion is not armed; the first loss of 10 or more there clamps at 0
+  and arms it, the second demotes).
   While armed, the **next** rated game is a demotion game: a **bottom-4 finish (5th–8th) demotes** one
   division to the previous medal's division I at **`100 + that game's award`** (8th → Silver I 60, 5th →
   Silver I 94 — the mirror of the promotion landing rule); a **top-4 finish escapes**, applies its positive

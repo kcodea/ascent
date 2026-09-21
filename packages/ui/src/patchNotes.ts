@@ -56,6 +56,22 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-21',
+    label: 'Promotion landing',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Winning a promotion game now starts the next division at 10 points instead of 0, so a narrow loss right after promoting no longer drops you straight back down.',
+        details: [
+          "The 10 points are a cushion, not the game's award. A 1st or a 4th in the promotion game both land you at 10 / 100.",
+          'A 5th place straight after promoting costs 6 and leaves you at 4, still in your new division.',
+          'Bigger losses work as before. Inside a medal they can still demote you one division and carry the rest. At the lowest division of a medal a loss stops at 0 and sets up a demotion game first.',
+          'The rank screen shows the new bar ticking from 0 to 10 after the crest changes.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-21',
     label: 'Plain-language text pass',
     changes: [
       {

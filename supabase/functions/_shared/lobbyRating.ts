@@ -12,7 +12,8 @@
  *
  * Deno module (no npm) — dependency-free so it bundles cleanly into the function AND imports into the repo's
  * Node test without a runtime bridge. Change the numbers here, in `rank.ts`, and in `settle_rank` together,
- * and bump `RANK_RULES_VERSION` in all three.
+ * and bump `RANK_RULES_VERSION` in all three when an OLD client would mis-show or refuse the result (the
+ * client never resolves locally, so the 2026-09-21 landing change from 0 to 10 shipped without a bump).
  */
 
 export const RANK_SEASON = 3;
@@ -28,6 +29,9 @@ export const RANK_DIVISION_PROMOTION_FINISH = 4;
 export const RANK_MEDAL_PROMOTION_FINISH = 1;
 /** Worst placement that still ESCAPES a demotion game (top-4 stays; 5th–8th demotes). */
 export const RANK_DEMOTION_ESCAPE_FINISH = 4;
+/** Points a WON promotion game lands on in the next division (owner 2026-09-21: 10, a cushion so a narrow
+ *  loss straight after promoting does not demote; it was 0). MUST equal `RANK_RULES.promotionLanding`. */
+export const RANK_PROMOTION_LANDING = 10;
 
 export interface RankPosition { divisionIndex: number; points: number; demotionReady?: boolean }
 
@@ -62,8 +66,9 @@ export const isValidPlacement = (p: unknown): p is number =>
 /**
  * Resolve ONE rated game — identical to `resolveRank` in the sim and to the branches of `settle_rank`:
  *   • top division: add the award uncapped; below 0 → demote to `100 + result`.
- *   • at a gate (100 below the top): placement ≤ required (4 division / 1 medal) → promote to 0/100 of the
- *     next division; a positive award short of a MEDAL gate holds at 100; a negative award applies from 100.
+ *   • at a gate (100 below the top): placement ≤ required (4 division / 1 medal) → promote to the landing
+ *     (10/100) of the next division; a positive award short of a MEDAL gate holds at 100; a negative award
+ *     applies from 100.
  *   • at an ARMED demotion gate (`before.demotionReady`): a bottom-4 demotes one division to the previous
  *     medal's I at `100 + award`; a top-4 escapes with its award from 0 (and disarms).
  *   • otherwise add the award: ≥ 100 → exactly 100 + promotion unlocked; a LOSS landing on 0 at a medal's
@@ -110,7 +115,7 @@ export function resolveRankOutcome(before: RankPosition, placement: number): Ran
     requiredFinish = promotionKind === 'medal' ? RANK_MEDAL_PROMOTION_FINISH : RANK_DIVISION_PROMOTION_FINISH;
     if (placement <= requiredFinish) {
       promoted = true;
-      after = { divisionIndex: start.divisionIndex + 1, points: 0, demotionReady: false };
+      after = { divisionIndex: start.divisionIndex + 1, points: RANK_PROMOTION_LANDING, demotionReady: false };
     } else if (baseDelta >= 0) {
       after = { ...start, demotionReady: false };
     } else {

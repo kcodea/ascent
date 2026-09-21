@@ -77,9 +77,12 @@ describe('points, placement and delta text', () => {
     const zero = fixtureById('floor-zero')!.result!;
     expect(deltaText(zero)).toBe('0 RP · Bronze floor');
   });
-  it('a won promotion prints the base award and NO detail / outcome line — the crest transition + 0 / 100 say it (owner 2026-09-20)', () => {
+  it('a won promotion prints the base award and NO detail / outcome line — the crest transition + 10 / 100 say it (owner 2026-09-20; landing 10 since 2026-09-21)', () => {
     const promo = fixtureById('promo-won')!.result!;
-    expect(deltaText(promo)).toBe('+16 RP');
+    expect(promo.after.points, 'the fixture carries the 10-point landing').toBe(10);
+    expect(promo.appliedDelta).toBe(10);
+    expect(promo.cappedPoints).toBe(0);
+    expect(deltaText(promo), 'the award, not the +10 scalar movement').toBe('+16 RP');
     expect(cappedDetail(promo)).toBeNull();
     expect(outcomeText(promo)).toBeNull();
     expect(outcomeText(fixtureById('promo-medal')!.result!)).toBeNull();
@@ -130,7 +133,7 @@ describe('points, placement and delta text', () => {
   });
   it("the live-region sentence carries placement, delta, the new rank — and SAYS a promotion/demotion (a reader can't see the crest)", () => {
     expect(announcement(3, fixtureById('gain')!.result, 'confirmed')).toBe('Finished 3rd. +16 RP. Now Gold II, 76 / 100.');
-    expect(announcement(1, fixtureById('promo-medal')!.result, 'confirmed')).toBe('Victory. +40 RP. Now Platinum III, 0 / 100. Promoted to Platinum III.');
+    expect(announcement(1, fixtureById('promo-medal')!.result, 'confirmed')).toBe('Victory. +40 RP. Now Platinum III, 10 / 100. Promoted to Platinum III.');
     expect(announcement(8, fixtureById('demotion')!.result, 'confirmed')).toBe('Finished 8th. −40 RP. Now Gold III, 70 / 100. Demoted to Gold III.');
     expect(announcement(2, null, 'pending')).toBe('Finished 2nd. Updating rank.');
     expect(announcement(4, null, 'unrated')).toBe('Finished 4th. Unrated.');
@@ -147,13 +150,14 @@ describe('the planned sequence per fixture', () => {
   it('a gate unlock fills to 100 then lights the endpoint', () => {
     expect(kinds('gate')).toEqual(['reveal', 'establish', 'bar', 'gate', 'outcome']);
   });
-  it('a promotion: old full bar → crest transition up → new bar from zero', () => {
+  it('a promotion: old full bar → crest transition up → new bar ticks from zero to the 10-point landing', () => {
     const steps = planRankSequence(fixtureById('promo-won')!.result!);
     expect(steps.map((s) => s.kind)).toEqual(['reveal', 'establish', 'transition', 'bar', 'outcome']);
     expect(steps[2]).toMatchObject({ from: 7, to: 8, direction: 'up', medal: false, ms: 900 }); // the rank-up def's length
-    expect(steps[3]).toMatchObject({ divisionIndex: 8, from: 0, to: 0 });
-    const medal = planRankSequence(fixtureById('promo-medal')!.result!)[2];
-    expect(medal).toMatchObject({ kind: 'transition', from: 8, to: 9, medal: true });
+    expect(steps[3]).toMatchObject({ divisionIndex: 8, from: 0, to: 10 }); // a small tick: the landing cushion (owner 2026-09-21)
+    const medalSteps = planRankSequence(fixtureById('promo-medal')!.result!);
+    expect(medalSteps[2]).toMatchObject({ kind: 'transition', from: 8, to: 9, medal: true });
+    expect(medalSteps[3]).toMatchObject({ divisionIndex: 9, from: 0, to: 10 });
   });
   it('a demotion: drain to zero → transition down → previous division retreats from 100', () => {
     const steps = planRankSequence(fixtureById('demotion')!.result!);

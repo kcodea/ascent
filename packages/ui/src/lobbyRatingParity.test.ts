@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { RANK_RULES, RANK_SEASON, compareRank, rankTopDivision, resolveRank, type RankPosition } from '@game/sim';
 import {
   RANK_DEMOTION_ESCAPE_FINISH, RANK_DIVISION_POINTS, RANK_DIVISION_PROMOTION_FINISH, RANK_DIVISIONS_PER_MEDAL, RANK_MEDAL_PROMOTION_FINISH,
-  RANK_PLACEMENT_AWARDS, RANK_RULES_VERSION, RANK_SEASON as SERVER_SEASON, RANK_TOP_DIVISION, resolveRankOutcome,
+  RANK_PLACEMENT_AWARDS, RANK_PROMOTION_LANDING, RANK_RULES_VERSION, RANK_SEASON as SERVER_SEASON, RANK_TOP_DIVISION, resolveRankOutcome,
 } from '../../../supabase/functions/_shared/lobbyRating';
 
 /**
@@ -39,6 +39,8 @@ describe('medal rank — constants agree across the three copies', () => {
     expect(RANK_DIVISION_PROMOTION_FINISH).toBe(RANK_RULES.divisionPromotionFinish);
     expect(RANK_MEDAL_PROMOTION_FINISH).toBe(RANK_RULES.medalPromotionFinish);
     expect(RANK_DEMOTION_ESCAPE_FINISH).toBe(RANK_RULES.demotionEscapeFinish);
+    expect(RANK_PROMOTION_LANDING, 'a won promotion lands at 10 (owner 2026-09-21)').toBe(RANK_RULES.promotionLanding);
+    expect(RANK_RULES.promotionLanding).toBe(10);
     expect(RANK_RULES_VERSION).toBe(RANK_RULES.rulesVersion);
     expect(SERVER_SEASON).toBe(RANK_SEASON);
   });
@@ -52,6 +54,8 @@ describe('medal rank — constants agree across the three copies', () => {
     expect(sqlConst('c_division_finish')).toBe(String(RANK_RULES.divisionPromotionFinish));
     expect(sqlConst('c_medal_finish')).toBe(String(RANK_RULES.medalPromotionFinish));
     expect(sqlConst('c_demotion_finish')).toBe(String(RANK_RULES.demotionEscapeFinish));
+    expect(sqlConst('c_promo_landing')).toBe(String(RANK_RULES.promotionLanding));
+    expect(sqlSrc, 'the won gate must land on the constant, not a literal').toContain('p1 := c_promo_landing;');
     const awards = /array\[([^\]]*)\]/.exec(sqlConst('c_awards'));
     expect(awards, 'c_awards must be an array literal').toBeTruthy();
     expect(awards![1]!.split(',').map((n) => Number(n.trim()))).toEqual([...RANK_RULES.placementAwards]);
@@ -107,12 +111,14 @@ describe('medal rank — transition parity (sim resolver ↔ Edge Function mirro
     expect(checked).toBeGreaterThan(1500);
   });
 
-  it('the owner\'s sequence agrees on both: medal promotion → loss ARMS → loss DEMOTES', () => {
+  it('the owner\'s sequence agrees on both: medal promotion lands at 10 → loss ARMS → loss DEMOTES', () => {
     const seq = [[{ divisionIndex: 5, points: 100 }, 1], 8, 8] as const;
     let c = resolveRank(seq[0][0], seq[0][1]);
     let s = resolveRankOutcome(seq[0][0], seq[0][1]);
     expect(s.after).toEqual(c.after);
-    expect(c.after.demotionReady).toBe(false);
+    expect(c.after).toEqual({ divisionIndex: 6, points: 10, demotionReady: false });
+    expect(s.appliedDelta, 'the landing cushion is the applied delta').toBe(10);
+    expect(s.cappedPoints).toBe(0);
     c = resolveRank(c.after, 8); s = resolveRankOutcome(s.after, 8);
     expect(s.after).toEqual(c.after);
     expect(c.after).toEqual({ divisionIndex: 6, points: 0, demotionReady: true });

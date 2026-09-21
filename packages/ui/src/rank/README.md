@@ -19,12 +19,16 @@ import {
 - 18 divisions, index `0` = Bronze III … `17` = Ascendant I; order within a medal is **III → II → I**.
 - `RankResult` (blueprint §4 plus `promotionKind: 'division' | 'medal' | null`, `requiredFinish: 4 | 1 | null`,
   `wasDemotionGame`, `demotionUnlocked`, `highestAfter`) is what the screen animates. `appliedDelta` is
-  **the number to show** — it is `0` on a won promotion (0/100 in the new division) and on a held medal gate
-  (2nd–4th at Gold I 100 stays at 100). `cappedPoints` is what the base award lost to the cap / floor / hold.
+  **the number to show** — it is `+10` on a won promotion (the `RANK_RULES.promotionLanding` cushion: 10/100
+  in the new division, owner 2026-09-21; it was 0/100 before) and `0` on a held medal gate (2nd–4th at Gold I
+  100 stays at 100). `cappedPoints` is what the base award lost to the cap / floor / hold; it is `0` on a won
+  promotion (the award converted into the promotion). The screen's `deltaText` prints the base award on a
+  promotion, not the +10.
 - **Demotion gate** (owner addition): a **STORED** flag, `position.demotionReady` (read it through
   `isDemotionReady(pos)`; absent = false). It is armed ONLY by a loss that lands on 0 at a medal's lowest
   division above Bronze (Gold III, …), cleared by any non-negative result, and never set by a promotion
-  landing — 0/100 after a won medal promotion is NOT armed (the first loss there arms, the second demotes).
+  landing — 10/100 after a won medal promotion is NOT armed (the first loss of 10 or more there clamps at 0
+  and arms, the second demotes).
   Show *"Demotion game — finish top 4 to stay in Gold"* when `isDemotionReady(profile.rank.position)` before
   the next ranked game; after a game, `result.demotionUnlocked` (= `result.after.demotionReady`) means THIS
   game armed it, `result.wasDemotionGame` means this game WAS the demotion game (`requiredFinish` 4 = the

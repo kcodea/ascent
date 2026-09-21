@@ -1,6 +1,7 @@
 /**
  * RANK SCREEN FIXTURES — every state the post-game screen can show, as data (blueprint §3 acceptance rows +
- * owner decisions 2026-09-20: a won promotion lands at 0/100; a medal step needs 1st). Drives the DEV preview
+ * owner decisions 2026-09-20: a medal step needs 1st; 2026-09-21: a won promotion lands at 10/100, so its
+ * applied delta is +10 and its capped points 0 — the award converted into the promotion). Drives the DEV preview
  * (`RankScreenPreview`) and the jsdom tests, so the owner can review each variant without playing eight games
  * and a test can pin each one's text. No fixture is ever shown to a player outside DEV.
  */
@@ -59,14 +60,14 @@ export const RANK_FIXTURES: readonly RankFixture[] = [
     result: base({ placement: 4, before: pos(8, 94), after: pos(8, 100), baseDelta: 6, promotionUnlocked: true }),
   },
   {
-    id: 'promo-won', label: 'Promotion won', expect: 'Gold II 100 → Gold I 0: full old bar, crest/tier transition, new bar from 0, +16 RP — no outcome line (the visuals say it)',
+    id: 'promo-won', label: 'Promotion won', expect: 'Gold II 100 → Gold I 10: full old bar, crest/tier transition, new bar ticks 0 → 10 (the landing cushion), +16 RP — no outcome line (the visuals say it)',
     placement: 3, submission: 'confirmed', current: null,
-    result: base({ placement: 3, before: pos(7, 100), after: pos(8, 0), baseDelta: 16, appliedDelta: 0, wasPromotionGame: true, promotionKind: 'division', requiredFinish: 4, promoted: true }),
+    result: base({ placement: 3, before: pos(7, 100), after: pos(8, 10), baseDelta: 16, appliedDelta: 10, cappedPoints: 0, wasPromotionGame: true, promotionKind: 'division', requiredFinish: 4, promoted: true }),
   },
   {
-    id: 'promo-medal', label: 'Medal promotion won', expect: 'Gold I 100 → Platinum III 0: crest changes medal, medal fanfare',
+    id: 'promo-medal', label: 'Medal promotion won', expect: 'Gold I 100 → Platinum III 10: crest changes medal, medal fanfare, new bar ticks 0 → 10',
     placement: 1, submission: 'confirmed', current: null,
-    result: base({ placement: 1, before: pos(8, 100), after: pos(9, 0), baseDelta: 40, appliedDelta: 0, wasPromotionGame: true, promotionKind: 'medal', requiredFinish: 1, promoted: true }),
+    result: base({ placement: 1, before: pos(8, 100), after: pos(9, 10), baseDelta: 40, appliedDelta: 10, cappedPoints: 0, wasPromotionGame: true, promotionKind: 'medal', requiredFinish: 1, promoted: true }),
   },
   {
     id: 'promo-failed', label: 'Promotion failed', expect: 'Gold II 100 → 60: bar retreats from full, −40 RP, "Promotion unsuccessful"',

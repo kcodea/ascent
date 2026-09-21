@@ -58,8 +58,9 @@ export function standingGateText(pos: RankPosition, demotionReady = false): stri
 
 /** The primary delta line: the ACTUAL movement, and the floor reading when nothing could be lost. A WON
  *  promotion is the one case that prints the finish's base award instead: the owner's rule lands the new
- *  division at 0 / 100, so the "actual" scalar movement is 0 — and a big "0 RP" over a promotion reads as a
- *  bug, not a rule. The crest transition + new label + 0 / 100 say the rest (owner 2026-09-20). */
+ *  division at 10 / 100 (2026-09-21; it was 0), so the "actual" scalar movement is the +10 landing cushion
+ *  whatever the finish — and a "+10 RP" over a 1st-place promotion reads as a bug, not a rule. The crest
+ *  transition + new label + 10 / 100 say the rest (owner 2026-09-20). */
 export function deltaText(r: RankResult): string {
   if (r.promoted) return signedRp(r.baseDelta);
   // A lost demotion game moves a whole medal (Gold III 0 → Silver I 60 is +60 on the scalar): print the
@@ -71,8 +72,8 @@ export function deltaText(r: RankResult): string {
 }
 
 /** A secondary detail ONLY when the delta alone would mislead: the award was capped at the gate or floored
- *  ("base +40 RP · capped at the gate"). A promotion's reset needs no words — the new bar reads 0 / 100
- *  (owner 2026-09-20). */
+ *  ("base +40 RP · capped at the gate"). A promotion's landing needs no words — the new bar reads 10 / 100
+ *  (owner 2026-09-20; landing 10 since 2026-09-21). */
 export function cappedDetail(r: RankResult): string | null {
   if (r.promoted || (r.demoted && r.wasDemotionGame)) return null;
   if (r.appliedDelta === r.baseDelta) return null;

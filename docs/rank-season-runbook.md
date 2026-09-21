@@ -156,6 +156,26 @@ same two values the game ships with, so nothing here is secret.
      -d '{"p_user":"00000000-0000-0000-0000-000000000000","p_run_id":"x","p_placement":1,"p_season":3,"p_rules_version":1}'
    ```
 
+## 6b. Rule updates after launch (the 2026-09-21 promotion landing)
+
+A rules change that only alters what the server WRITES (no version bump — the client never resolves locally,
+it adopts the server's answer) ships as a re-run of the function block plus a function redeploy. For the
+promotion landing (a won gate now lands at **10 / 100**, was 0 / 100):
+
+1. SQL Editor → paste the whole `create or replace function public.settle_rank …` block from
+   `supabase/migrations/2026-09-20-medal-rank.sql` (from that line down to and including its closing `$$;`)
+   → **Run**. Re-running the entire migration file is equally fine; it is idempotent and the season reset at
+   the bottom stays commented out.
+2. `supabase functions deploy submit-rating` (the bundled `_shared/lobbyRating.ts` carries the same constant;
+   without the redeploy every settlement logs `rank parity mismatch` — the write is still correct, the
+   function's runtime check is what disagrees).
+3. Smoke test: play one promotion game on a throwaway account at 100 points and win it. Expect
+   `rank_results.points_after = 10`, `applied_delta = 10`, `capped_points = 0`, `promoted = true`, and the
+   profile's `rank_points = 10`. A 5th place from there must leave `rank_points = 4` with no demotion.
+4. Order: SQL first, then the function. The SQL is the writer: until the block is re-run, promotions keep
+   landing at 0 (the old rule) and a redeployed function only logs a parity mismatch about it. Nothing is
+   corrupted either way; once both copies agree the log goes quiet and the next promotion lands at 10.
+
 ## 7. Ship the client
 
 Merge the client PR(s) only after steps 2–3. An OLD client (the numeric build) hitting the NEW function gets

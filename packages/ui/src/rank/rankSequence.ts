@@ -46,7 +46,8 @@ export function planRankSequence(r: RankResult): RankStep[] {
   const medalChange = medalOf(r.before.divisionIndex) !== medalOf(r.after.divisionIndex);
   if (r.promoted) {
     // The old bar is already full (the gate). Transition the crest/tier, then the NEW division fills from
-    // zero to wherever it landed (owner decision: 0/100 — so the fill is a beat of "here is your new bar").
+    // zero to wherever it landed (owner decision 2026-09-21: the 10/100 landing cushion — so the fill is a
+    // small tick of "here is your new bar", kept on purpose; it was a 0 → 0 beat when the landing was 0).
     steps.push({ kind: 'transition', ms: RANK_BEAT_MS.transitionUp, from: r.before.divisionIndex, to: r.after.divisionIndex, direction: 'up', medal: medalChange });
     steps.push({ kind: 'bar', ms: RANK_BEAT_MS.barHalf, divisionIndex: r.after.divisionIndex, from: 0, to: r.after.points, uncapped: isUncapped(r.after.divisionIndex) });
   } else if (r.demoted && r.wasDemotionGame) {

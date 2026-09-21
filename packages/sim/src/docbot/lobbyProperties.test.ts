@@ -86,7 +86,7 @@ describe('Doc Bot — Rating monotonicity across placements', () => {
 
 describe('Doc Bot — MEDAL RANK monotonicity + gate properties (season 3)', () => {
   const starts: RankPosition[] = [];
-  for (let d = 0; d <= rankTopDivision(); d++) for (const p of [0, 6, 40, 94, 100, 160]) {
+  for (let d = 0; d <= rankTopDivision(); d++) for (const p of [0, 6, RANK_RULES.promotionLanding, 40, 94, 100, 160]) {
     if (d < rankTopDivision() && p > RANK_RULES.divisionPoints) continue;
     starts.push({ divisionIndex: d, points: p });
   }
@@ -113,7 +113,9 @@ describe('Doc Bot — MEDAL RANK monotonicity + gate properties (season 3)', () 
       const r = resolveRank(start, placement);
       if (r.promoted) {
         expect(isPromotionReady(start), 'no same-game promotion').toBe(true);
-        expect(r.after).toEqual({ divisionIndex: start.divisionIndex + 1, points: 0, demotionReady: false });
+        expect(r.after, 'a won gate lands at the 10-point cushion (owner 2026-09-21), never the award').toEqual({ divisionIndex: start.divisionIndex + 1, points: RANK_RULES.promotionLanding, demotionReady: false });
+        expect(r.appliedDelta).toBe(RANK_RULES.promotionLanding);
+        expect(r.cappedPoints).toBe(0);
       }
       if (r.promotionUnlocked) expect(r.after.points).toBe(RANK_RULES.divisionPoints);
     }

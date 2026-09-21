@@ -101,7 +101,7 @@ describe('every fixture state renders its labels, and Continue is always there',
 
   it('the live region carries one final announcement', () => {
     render(fixtureById('promo-won')!);
-    expect(text('.rankend-live')).toBe('Finished 3rd. +16 RP. Now Gold I, 0 / 100. Promoted to Gold I.');
+    expect(text('.rankend-live')).toBe('Finished 3rd. +16 RP. Now Gold I, 10 / 100. Promoted to Gold I.');
   });
 
   it('carries NO Rewatch and NO Final warband (owner 2026-09-20) — the settled screen has no secondary links at all', () => {

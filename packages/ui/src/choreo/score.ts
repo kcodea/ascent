@@ -642,7 +642,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           // own Echo can kill it), and a dead unit should be skipped rather than played over an empty slot.
           const fire = (): void => {
             const rallyAnchors = anchorsForUnits(r.source, r.target);
-            if (rallyAnchors) playDef(r.binding.def, rallyAnchors, { uids: { source: r.source, target: r.target }, index: land.group });
+            if (rallyAnchors) playDef(r.binding.def, rallyAnchors, { uids: { source: r.source, target: r.target }, index: land.group, gain: r.binding.gain });
             // Released whether or not the def could anchor. The hold is a PRESENTATION debt: if the effect
             // can't play there is nothing left to deliver the unit, and leaving it withheld to time out would
             // hide a live minion for the sake of an effect that never happened.
@@ -823,7 +823,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
             // marked enemy), so travel to each unit it actually damaged instead of collapsing onto the source.
             claimed.forEach((uid, i) => {
               const fanAnchors = anchorsForUnits(source, uid);
-              if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source, target: uid }, index: i });
+              if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source, target: uid }, index: i, gain: binding.gain });
             });
           });
         }
@@ -833,7 +833,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           // resolve to the same card and a travelling layer simply stays put on it.
           for (const sb of groupSelfBuffs(moment, ctx.events)) {
             const selfAnchors = anchorsForUnits(sb.uid, sb.uid);
-            if (selfAnchors) playDef(binding.def, selfAnchors, { uids: { source: sb.uid, target: sb.uid } });
+            if (selfAnchors) playDef(binding.def, selfAnchors, { uids: { source: sb.uid, target: sb.uid }, gain: binding.gain });
           }
         });
       } else if (binding.fanOut === 'buffed') {
@@ -844,7 +844,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           // `index` drives per-recipient `stagger`, matching the `damaged` fan-out.
           groupBuffCasts(moment, ctx.events).forEach((c, i) => {
             const fanAnchors = anchorsForUnits(c.source, c.target);
-            if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source: c.source, target: c.target }, index: i });
+            if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source: c.source, target: c.target }, index: i, gain: binding.gain });
           });
         });
       } else if (binding.fanOut === 'buffedOn') {
@@ -857,7 +857,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           // whichever phase the player saw second (owner 2026-09-01, Dragonflame).
           groupBuffCasts(moment, ctx.events).forEach((c, i) => {
             const fanAnchors = anchorsForUnits(c.target, c.target);
-            if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source: c.target, target: c.target }, index: i });
+            if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source: c.target, target: c.target }, index: i, gain: binding.gain });
           });
         });
       } else {
@@ -869,7 +869,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           // returned stop() is deliberately NOT wired into this runner's cleanup: every channel here is
           // fire-and-forget (an aura burst outlives its moment too), and cancelling on moment-change would cut
           // the effect off mid-play.
-          playDef(binding.def, anchors, { uids: { source, target } });
+          playDef(binding.def, anchors, { uids: { source, target }, gain: binding.gain });
         });
       }
     }

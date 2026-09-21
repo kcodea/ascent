@@ -37,6 +37,15 @@ export type StatMilestoneBindingKind =
 export const STAT_MILESTONE_BINDING_KINDS: readonly StatMilestoneBindingKind[] =
   ['statMilestone1', 'statMilestone2', 'statMilestone3', 'statMilestone4', 'statMilestone5'];
 
+/**
+ * A combat-DERIVED binding kind not produced by a moment: a WATCHER answering an ally's attack (the
+ * watcher-pulse channel in `useCombatReplay`, keyed by the reacting card). Its own family, like the HUD /
+ * stat-milestone kinds, because it is fired directly from the watcher-pulse detection rather than a compiled
+ * moment — so it must NOT join `MomentKind` (no `SCORE_DEFAULTS` row) or `RecruitMomentKind` (no emitter).
+ */
+export type WatcherBindingKind = 'watcher';
+export const WATCHER_BINDING_KINDS: readonly WatcherBindingKind[] = ['watcher'];
+
 /** The binding kind for a milestone tier (1..5). Clamped so an out-of-range tier resolves to a real key. */
 export function statMilestoneKind(tier: number): StatMilestoneBindingKind {
   const n = Math.min(STAT_MILESTONE_BINDING_KINDS.length, Math.max(1, Math.round(tier)));
@@ -53,7 +62,7 @@ export function statMilestoneKind(tier: number): StatMilestoneBindingKind {
  * A shop kind has no combat cues and never should, and widening would have forced a meaningless row per
  * kind and made the exhaustive-score test lie.
  */
-export type BindingKind = MomentKind | RecruitMomentKind | HudBindingKind | StatMilestoneBindingKind;
+export type BindingKind = MomentKind | RecruitMomentKind | HudBindingKind | StatMilestoneBindingKind | WatcherBindingKind;
 import rawBindings from './bindings.json';
 
 /**
@@ -137,6 +146,13 @@ export interface FxBinding {
    * launch, the lead, and the suppression all key off this one flag (see `useCombatReplay` death handling +
    * beat clock, and the `fxDef` fan-out). Requires `fanOut: 'struck'`/`'damaged'`. */
   launchOnDeath?: boolean;
+  /**
+   * A per-binding VOLUME for this card's assigned sound, as a multiplier on the def's own authored gain:
+   * `1` (the default, omitted) plays it exactly as authored, `0.5` at half, `0` silent. Set from the By-card
+   * binder's 0–100 box (100 → `1`). Applied in `playDef` by scaling every Sound layer's `gain`, so the same
+   * sound def can sit at a different level on each card without editing the shared def. A no-op on a def with
+   * no Sound layer. Omitted-unless-set on the same terms as the fields above. */
+  gain?: number;
 }
 
 const FAN_OUTS: readonly string[] = ['primary', 'damaged', 'struck', 'selfBuffed', 'buffed', 'buffedOn'];
@@ -240,11 +256,18 @@ function coerceBinding(v: unknown, where: string): FxBinding | null {
     devError(`[fx] bindings.json: ${where}.launchOnDeath must be a boolean — dropped.`);
     return null;
   }
+  // A per-binding volume multiplier: a finite number ≥ 0. `1` is the authored level and is dropped (the
+  // omitted default), like every other optional field here.
+  if (v.gain !== undefined && (typeof v.gain !== 'number' || !Number.isFinite(v.gain) || v.gain < 0)) {
+    devError(`[fx] bindings.json: ${where}.gain must be a number ≥ 0 — dropped.`);
+    return null;
+  }
   const out: FxBinding = { def: v.def };
   if (v.fanOut !== undefined) out.fanOut = v.fanOut as FxBinding['fanOut'];
   if (v.sfx !== undefined) out.sfx = v.sfx as BindingSfx;
   if (v.critDef !== undefined) out.critDef = v.critDef;
   if (v.launchOnDeath === true) out.launchOnDeath = true;
+  if (typeof v.gain === 'number' && Number.isFinite(v.gain) && v.gain >= 0 && v.gain !== 1) out.gain = v.gain;
   return out;
 }
 

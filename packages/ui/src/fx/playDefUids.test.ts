@@ -46,6 +46,7 @@ const UNIT_LESS: { file: string; id: string; why: string }[] = [
   { file: 'QuestBadges.tsx', id: 'rune-slot-break', why: 'fires at the locked 3rd rune slot in the HUD badge row, not a unit' },
   { file: 'runeTriggerFx.ts', id: '<dynamic>', why: 'fires on a rune BADGE in the status bar — a HUD node, not a unit, so there is no uid to pass' },
   { file: 'Recruit.tsx', id: '<dynamic>', why: "a Choose One EQUIPMENT's flourish, fired as its prompt opens (Prismatic Pick). The subject is the window, not a body — it is camera-anchored on the above-modal canvas, and no card on the board is involved in the decision" },
+  { file: 'LibraryBrowser.tsx', id: '<dynamic>', why: "the By-card binder's ▶ PREVIEW STAGE — plays the selected def at the screen centre in the above-modal canvas, with no run and no unit; the real per-card cues (recruit + score + watcher) carry the card's uid" },
 ];
 
 function sourceFiles(dir: string, out: string[] = []): string[] {

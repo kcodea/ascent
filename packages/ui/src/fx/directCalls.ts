@@ -166,7 +166,10 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // own on-attack buff has no spell behind it (Paragon's rally-buff → `lightning-bolt-blue`), resolved through
   // `sourceBuffDefFor`. The source-card mirror of the spell path above — same absorbed-into-the-wind-up reason
   // it can't be a moment binding, same data-resolved shape.
-  'useCombatReplay.ts': 5,
+  // SIX since 2026-09-21: the By-card binder's ON WATCHER cue — one `playDef(wb.def, …)` resolving
+  // `bindingFor(cardId, 'watcher')` on each watcher uid answering an ally's attack. A derived-pulse binding
+  // (no moment kind), so it fires at the watcher-pulse site rather than through the score.
+  'useCombatReplay.ts': 6,
   // PER-TRIBE BUFF RIBBON (2026-09-09). One `playDef(`tendril-trail-${tribe}`, …)` in `fireBuffFx`: the buffer's
   // TRIBE picks its ribbon variant, so the id is data-resolved (from the tribe) rather than a literal — the
   // same shape as a binding, keyed on the source's tribe instead of a `bindings.json` row. The generic

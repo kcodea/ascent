@@ -155,3 +155,13 @@ and then MERGED that branch the same day (see "Owner review rounds" below) — `
   + crest change; reduced motion never builds the timeline, so the def is skipped and the crest just swaps.
   The DEV preview mounts `PixiFxLayer` itself while a fixture is open from the title (Game only mounts it with
   the board), so the owner can watch the hit without playing a game.
+- **Rules branch re-merged (its rebased push with the medal-boundary gate)**: `RankResult` now carries
+  `wasDemotionGame` / `demotionUnlocked` for real, so the presentation's optionals and its local
+  `isDemotionUnlocked` derivation are GONE — the screen prints the demotion-gate line from `r.demotionUnlocked`
+  and nothing else. The standing (Title plate, Career bar) reads `standingDemotionReady(profile.rank)`: the
+  rules' STORED `demotionReady` flag when the profile / position carries one (the rules agent is moving it
+  from a derived predicate to a stored flag armed only by a clamped loss), else the rules module's own
+  `isDemotionReady(position)` — never a local shape check. The lost-demotion fixture is an 8th (−40 → Silver I
+  60), matching the confirmed `100 + award` landing. Conflicting rules-owned files (rank.ts, schema, edge
+  function, GAME-RULES, their devlog, parity test, README) were taken from the rules branch wholesale; the
+  patch note keeps their two rule bullets and this branch's three screen bullets in one entry.

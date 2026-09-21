@@ -29,6 +29,7 @@ const base = (over: Partial<RankResult> & Pick<RankResult, 'placement' | 'before
     appliedDelta,
     cappedPoints: Math.abs(over.baseDelta - appliedDelta),
     wasPromotionGame: false, promotionKind: null, requiredFinish: null, promotionUnlocked: false, promoted: false, demoted: false,
+    wasDemotionGame: false, demotionUnlocked: false,
     highestAfter: higher ? { ...over.after } : { ...over.before },
     ...over,
   };
@@ -84,14 +85,14 @@ export const RANK_FIXTURES: readonly RankFixture[] = [
     result: base({ placement: 8, before: pos(6, 10), after: pos(6, 0), baseDelta: -40, demotionUnlocked: true }),
   },
   {
-    id: 'demo-lost', label: 'Demotion game lost', expect: 'Gold III 0 → Silver I: bar sits at 0, crest transitions down a MEDAL, Silver I bar shows the landing points (60 here — the rules agent owns the number)',
-    placement: 7, submission: 'confirmed', current: null,
-    result: base({ placement: 7, before: pos(6, 0), after: pos(5, 60), baseDelta: -28, wasDemotionGame: true, demoted: true }),
+    id: 'demo-lost', label: 'Demotion game lost', expect: 'Gold III 0 → Silver I 60 (the rules land at 100 + the award: an 8th is −40): bar sits at 0, crest transitions down a MEDAL, Silver I bar fills to 60',
+    placement: 8, submission: 'confirmed', current: null,
+    result: base({ placement: 8, before: pos(6, 0), after: pos(5, 60), baseDelta: -40, wasDemotionGame: true, requiredFinish: 4, demoted: true }),
   },
   {
     id: 'demo-escape', label: 'Demotion game escaped', expect: 'Gold III 0 → 16 (top 4 from 0): the normal fill, no gate line',
     placement: 3, submission: 'confirmed', current: null,
-    result: base({ placement: 3, before: pos(6, 0), after: pos(6, 16), baseDelta: 16, wasDemotionGame: true }),
+    result: base({ placement: 3, before: pos(6, 0), after: pos(6, 16), baseDelta: 16, wasDemotionGame: true, requiredFinish: 4 }),
   },
   {
     id: 'floor', label: 'Bronze floor', expect: 'Bronze III 10 → 0 shows −10 RP (the actual loss) with "base −40 · Bronze floor"',

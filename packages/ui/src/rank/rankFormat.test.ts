@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { RANK_FIXTURES, fixtureById } from './fixtures';
 import { announcement, barFraction, cappedDetail, deltaText, demotionGateText, gateText, outcomeText, placementText, pointsText, rankLabel, signedRp, standingGateText } from './rankFormat';
 import { planRankSequence, sequenceDurationMs } from './rankSequence';
-import { compareRankDesc, DIVISION_COUNT, isDemotionUnlocked, isMedalGate, isPromotionReady, medalOf, rankPositionOf, rankScalar } from './types';
+import { compareRankDesc, DIVISION_COUNT, isMedalGate, isPromotionReady, medalOf, rankPositionOf, rankScalar, standingDemotionReady } from './types';
 
 /**
  * The ONE formatting helper + the sequence planner, pinned per fixture (blueprint §3 rows + the owner's
@@ -92,19 +92,19 @@ describe('points, placement and delta text', () => {
   });
   it('the MEDAL-DEMOTION GATE (owner 2026-09-20): a clamped loss at a medal floor prints the demotion-game line; a lost demotion game drops a medal; an escape is a plain fill', () => {
     const gate = fixtureById('demo-gate')!.result!;
-    expect(isDemotionUnlocked(gate)).toBe(true);
+    expect(gate.demotionUnlocked).toBe(true); // the RULES' field — nothing here derives it
     expect(deltaText(gate)).toBe('−10 RP');
     expect(cappedDetail(gate)).toBe('base −40 RP · clamped at the Gold floor');
     expect(outcomeText(gate)).toBe('Demotion game — finish top 4 to stay in Gold');
     expect(demotionGateText({ divisionIndex: 9, points: 0 })).toBe('Demotion game — finish top 4 to stay in Platinum');
-    // Derived when the rules do not carry the flag: the same shape without `demotionUnlocked`.
-    expect(isDemotionUnlocked({ ...gate, demotionUnlocked: undefined })).toBe(true);
-    expect(isDemotionUnlocked({ ...gate, demotionUnlocked: undefined, before: { divisionIndex: 5, points: 100 } })).toBe(false); // a promotion landing on 0
+    // A result WITHOUT the flag prints no gate line, whatever its shape.
+    expect(outcomeText({ ...gate, demotionUnlocked: false })).toBeNull();
+    expect(cappedDetail({ ...gate, demotionUnlocked: false })).toBe('base −40 RP');
     const lost = fixtureById('demo-lost')!.result!;
-    expect(deltaText(lost)).toBe('−28 RP');
+    expect(deltaText(lost)).toBe('−40 RP');
     expect(cappedDetail(lost)).toBeNull();
     expect(outcomeText(lost)).toBeNull();
-    expect(announcement(7, lost, 'confirmed')).toBe('Finished 7th. −28 RP. Now Silver I, 60 / 100. Demoted to Silver I.');
+    expect(announcement(8, lost, 'confirmed')).toBe('Finished 8th. −40 RP. Now Silver I, 60 / 100. Demoted to Silver I.');
     const escaped = fixtureById('demo-escape')!.result!;
     expect(deltaText(escaped)).toBe('+16 RP');
     expect(outcomeText(escaped)).toBeNull();
@@ -113,6 +113,12 @@ describe('points, placement and delta text', () => {
     expect(standingGateText({ divisionIndex: 7, points: 100 })).toBe('Promotion game ready — finish top 4 to advance');
     expect(standingGateText({ divisionIndex: 6, points: 0 })).toBeNull();
     expect(standingGateText({ divisionIndex: 6, points: 0 }, true)).toBe('Demotion game — finish top 4 to stay in Gold');
+    // `standingDemotionReady`: the stored flag wins (profile or position level); without one, the rules' own predicate.
+    expect(standingDemotionReady({ position: { divisionIndex: 6, points: 0 }, demotionReady: false })).toBe(false);
+    expect(standingDemotionReady({ position: { divisionIndex: 6, points: 0, demotionReady: true } })).toBe(true);
+    expect(standingDemotionReady({ position: { divisionIndex: 6, points: 0 } })).toBe(true);  // rules' isDemotionReady
+    expect(standingDemotionReady({ position: { divisionIndex: 0, points: 0 } })).toBe(false); // Bronze III has no gate
+    expect(standingDemotionReady(null)).toBe(false);
   });
   it('Ascendant I never announces a false promotion, and its counter needs no caption', () => {
     const top = fixtureById('ascendant')!.result!;

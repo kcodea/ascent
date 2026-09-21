@@ -12,7 +12,14 @@ store slice documented in `packages/ui/src/rank/README.md`.
   Platinum III) needs **1st**. A won gate lands at **0/100** in the next division (not the award). A lost
   gate applies the normal negative award from 100. **At a medal gate a 2nd–4th neither promotes nor gains:
   hold at 100, still promotion-ready** (`appliedDelta` 0, the award reported in `cappedPoints`).
-- Below 0 demotes one division to `100 + result`; Bronze III floors at 0; Ascendant I uncapped.
+- Below 0 inside a medal demotes one division to `100 + result`; Bronze III floors at 0; Ascendant I uncapped.
+- **Demotion gate (owner addition, same day):** a negative result at a medal's lowest division CLAMPS at 0 →
+  demotion-ready (derived: `divisionIndex % 3 === 0 && divisionIndex > 0 && points === 0`). The next rated
+  game is a demotion game: bottom-4 demotes to the previous medal's I at **`100 + award`** (the mirror of the
+  promotion landing — 8th → Silver I 60; chosen as the owner suggested), top-4 escapes with its award from 0.
+  Consequence of the derived definition, flagged for the owner: a player who has just WON a medal promotion
+  (landing at 0 in Gold III) is demotion-ready for their first game there. `RankResult` gained
+  `wasDemotionGame` + `demotionUnlocked`; `isDemotionReady` / `hasDemotionGate` are the helpers.
 - New season: everyone starts Bronze III 0/100 — prepared as migration SQL + `docs/rank-season-runbook.md`;
   **nothing was run against production**.
 - A pending result never blocks a new ranked run; results settle in accepted order and a late older answer

@@ -4,7 +4,7 @@
  * an index → label, a points readout, or what a delta at a cap/floor says. Pure; no React, no store.
  */
 import {
-  isDemotionUnlocked, isMedalGate, isPromotionReady, isUncapped, medalOf, POINTS_PER_DIVISION, rankLabel, rankScalar,
+  isMedalGate, isPromotionReady, isUncapped, medalOf, POINTS_PER_DIVISION, rankLabel, rankScalar,
   type RankPosition, type RankResult,
 } from './types';
 
@@ -78,7 +78,7 @@ export function cappedDetail(r: RankResult): string | null {
   if (r.appliedDelta === r.baseDelta) return null;
   if (r.baseDelta > 0) return `base ${signedRp(r.baseDelta)} · capped at the gate`;
   if (r.after.divisionIndex === 0 && r.after.points === 0) return `base ${signedRp(r.baseDelta)} · Bronze floor`;
-  if (isDemotionUnlocked(r)) return `base ${signedRp(r.baseDelta)} · clamped at the ${medalOf(r.after.divisionIndex)} floor`;
+  if (r.demotionUnlocked && r.baseDelta < 0) return `base ${signedRp(r.baseDelta)} · clamped at the ${medalOf(r.after.divisionIndex)} floor`;
   return `base ${signedRp(r.baseDelta)}`;
 }
 
@@ -89,7 +89,9 @@ export function cappedDetail(r: RankResult): string | null {
 export function outcomeText(r: RankResult): string | null {
   if (r.promoted || r.demoted) return null;
   if (r.promotionUnlocked) return gateText(r.after);
-  if (isDemotionUnlocked(r)) return demotionGateText(r.after);
+  // The rules flag the standing (a clamped loss at a medal floor — and, in the rules' current form, a medal
+  // promotion landing on the new medal's III); the line reads the same either way.
+  if (r.demotionUnlocked) return demotionGateText(r.after);
   if (r.wasPromotionGame && !r.promoted) {
     // Factual (blueprint §7: no punitive spectacle). Still on the gate if the loss was absorbed.
     return isPromotionReady(r.after) ? 'Promotion unsuccessful — still promotion-ready' : 'Promotion unsuccessful';

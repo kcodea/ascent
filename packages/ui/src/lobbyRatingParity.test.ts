@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { RANK_RULES, RANK_SEASON, compareRank, rankTopDivision, resolveRank, type RankPosition } from '@game/sim';
 import {
-  RANK_DIVISION_POINTS, RANK_DIVISION_PROMOTION_FINISH, RANK_DIVISIONS_PER_MEDAL, RANK_MEDAL_PROMOTION_FINISH,
+  RANK_DEMOTION_ESCAPE_FINISH, RANK_DIVISION_POINTS, RANK_DIVISION_PROMOTION_FINISH, RANK_DIVISIONS_PER_MEDAL, RANK_MEDAL_PROMOTION_FINISH,
   RANK_PLACEMENT_AWARDS, RANK_RULES_VERSION, RANK_SEASON as SERVER_SEASON, RANK_TOP_DIVISION, resolveRankOutcome,
 } from '../../../supabase/functions/_shared/lobbyRating';
 
@@ -38,6 +38,7 @@ describe('medal rank — constants agree across the three copies', () => {
     expect(RANK_TOP_DIVISION).toBe(rankTopDivision());
     expect(RANK_DIVISION_PROMOTION_FINISH).toBe(RANK_RULES.divisionPromotionFinish);
     expect(RANK_MEDAL_PROMOTION_FINISH).toBe(RANK_RULES.medalPromotionFinish);
+    expect(RANK_DEMOTION_ESCAPE_FINISH).toBe(RANK_RULES.demotionEscapeFinish);
     expect(RANK_RULES_VERSION).toBe(RANK_RULES.rulesVersion);
     expect(SERVER_SEASON).toBe(RANK_SEASON);
   });
@@ -50,6 +51,7 @@ describe('medal rank — constants agree across the three copies', () => {
     expect(sqlConst('c_per_medal')).toBe(String(RANK_RULES.divisionsPerMedal));
     expect(sqlConst('c_division_finish')).toBe(String(RANK_RULES.divisionPromotionFinish));
     expect(sqlConst('c_medal_finish')).toBe(String(RANK_RULES.medalPromotionFinish));
+    expect(sqlConst('c_demotion_finish')).toBe(String(RANK_RULES.demotionEscapeFinish));
     const awards = /array\[([^\]]*)\]/.exec(sqlConst('c_awards'));
     expect(awards, 'c_awards must be an array literal').toBeTruthy();
     expect(awards![1]!.split(',').map((n) => Number(n.trim()))).toEqual([...RANK_RULES.placementAwards]);
@@ -63,7 +65,7 @@ describe('medal rank — constants agree across the three copies', () => {
   it('the JSON shapes name every RankResult / RankedProfile key the client parses', () => {
     for (const key of ['runId', 'seasonId', 'rulesVersion', 'revisionBefore', 'revisionAfter', 'placement', 'before', 'after',
       'baseDelta', 'appliedDelta', 'cappedPoints', 'wasPromotionGame', 'promotionKind', 'requiredFinish',
-      'promotionUnlocked', 'promoted', 'demoted', 'highestAfter', 'divisionIndex', 'points', 'revision', 'position', 'highest']) {
+      'promotionUnlocked', 'promoted', 'wasDemotionGame', 'demotionUnlocked', 'demoted', 'highestAfter', 'divisionIndex', 'points', 'revision', 'position', 'highest']) {
       expect(sqlSrc, `settle_rank JSON must emit '${key}'`).toContain(`'${key}'`);
     }
   });
@@ -94,6 +96,8 @@ describe('medal rank — transition parity (sim resolver ↔ Edge Function mirro
         expect(server.requiredFinish, label).toBe(client.requiredFinish);
         expect(server.promotionUnlocked, label).toBe(client.promotionUnlocked);
         expect(server.promoted, label).toBe(client.promoted);
+        expect(server.wasDemotionGame, label).toBe(client.wasDemotionGame);
+        expect(server.demotionUnlocked, label).toBe(client.demotionUnlocked);
         expect(server.demoted, label).toBe(client.demoted);
         expect(compareRank(server.after, client.after), label).toBe(0);
         checked++;

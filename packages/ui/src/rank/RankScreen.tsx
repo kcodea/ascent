@@ -6,7 +6,7 @@ import { markRankPresented, wasRankPresented } from './presented';
 import { planRankSequence } from './rankSequence';
 import { buildRankTimeline } from './rankTimeline';
 import { beginExitFade } from './exitFade';
-import { isDemotionUnlocked, type RankPosition, type RankResult, type RankSubmission } from './types';
+import type { RankPosition, RankResult, RankSubmission } from './types';
 
 /**
  * THE POST-GAME RANK SCREEN (owner ask 2026-09-20: "the game should dim and the animation plays VICTORY or
@@ -204,7 +204,7 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
               <div className={`rankend-delta ${deltaTone}`} ref={deltaRef}>{delta}</div>
               {detail && <div className="rankend-detail" ref={detailRef}>{detail}</div>}
               {outcome && (
-                <div className={`rankend-outcome${result.promoted ? ' promo' : result.demoted ? ' demo' : result.promotionUnlocked ? ' gate' : isDemotionUnlocked(result) ? ' demogate' : ''}`} ref={outcomeRef}>
+                <div className={`rankend-outcome${result.promoted ? ' promo' : result.demoted ? ' demo' : result.promotionUnlocked ? ' gate' : result.demotionUnlocked ? ' demogate' : ''}`} ref={outcomeRef}>
                   {outcome}
                 </div>
               )}

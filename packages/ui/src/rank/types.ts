@@ -6,28 +6,16 @@
  * formatting helper) and adds the few presentation-only helpers the rules module has no reason to carry.
  */
 import {
-  RANK_MEDALS, RANK_RULES, divisionTierOf, isRankPosition, medalOf as medalOfRules, promotionKindAt, rankTopDivision,
-  type RankPosition, type RankResult as RulesRankResult, type RankedProfile,
+  RANK_MEDALS, RANK_RULES, divisionTierOf, hasDemotionGate, isDemotionReady, isRankPosition, medalOf as medalOfRules, promotionKindAt, rankTopDivision,
+  type RankPosition, type RankResult, type RankedProfile,
 } from '@game/sim';
 
 // ── The rules contract, re-exported so every presentation file imports through here ──────────────────────
-export type { RankPosition, RankedProfile, PromotionKind, RankMedal } from '@game/sim';
-export { RANK_RULES, RANK_MEDALS, rankLabel, rankScalar, medalOf, divisionTierOf, isPromotionReady, promotionKindAt, requiredFinishFor, rankTopDivision } from '@game/sim';
-
-/**
- * The result the screen animates — the rules module's `RankResult`, plus the MEDAL-DEMOTION GATE fields the
- * owner added on 2026-09-20 (a loss at a medal's lowest division clamps at 0 and marks the player
- * demotion-ready; the NEXT rated game is a demotion game — bottom 4 demotes to the previous medal's I, top 4
- * escapes with its normal award). The rules resolver is still deciding the landing points, so these are
- * OPTIONAL here: absent → derived from the position shape (see `isDemotionUnlocked`). Delete the optionals
- * once `@game/sim` carries them.
- */
-export interface RankResult extends RulesRankResult {
-  /** This game was played FROM a demotion-ready position (0 at a medal floor after a clamped loss). */
-  wasDemotionGame?: boolean;
-  /** This game's loss clamped at 0 on a medal floor: the next rated game is the demotion game. */
-  demotionUnlocked?: boolean;
-}
+export type { RankPosition, RankedProfile, RankResult, PromotionKind, RankMedal } from '@game/sim';
+export {
+  RANK_RULES, RANK_MEDALS, rankLabel, rankScalar, medalOf, divisionTierOf, isPromotionReady, isDemotionReady, hasDemotionGate,
+  promotionKindAt, requiredFinishFor, rankTopDivision,
+} from '@game/sim';
 
 /** Where the run-just-finished's rank settlement stands (blueprint §7 "Submission states"):
  *   • `pending`    — submitted (or queued) and awaiting the server's answer.
@@ -57,7 +45,7 @@ export interface RankSubmitRequest {
 
 /** The typed answer from `submitRating`. */
 export type RankSubmitOutcome =
-  | { status: 'confirmed'; result: RulesRankResult; profile: RankedProfile; deduped: boolean }
+  | { status: 'confirmed'; result: RankResult; profile: RankedProfile; deduped: boolean }
   | { status: 'retryable'; reason: string }
   | { status: 'rejected'; reason: string };
 
@@ -83,17 +71,23 @@ export const isUncapped = (divisionIndex: number): boolean => divisionIndex >= T
 /** Promoting OUT of a medal's division I is a MEDAL step (needs 1st); any other step is a division step. */
 export const isMedalGate = (divisionIndex: number): boolean => promotionKindAt(divisionIndex) === 'medal';
 
-/** A medal's lowest division above Bronze (Silver III, Gold III, …) — where a loss meets the demotion gate. */
-export function isMedalFloor(divisionIndex: number): boolean {
-  return divisionIndex > 0 && divisionIndex % DIVISIONS_PER_MEDAL === 0;
-}
+/** A medal's lowest division above Bronze (Silver III, Gold III, …) — where the demotion gate lives. */
+export const isMedalFloor = (divisionIndex: number): boolean => hasDemotionGate(divisionIndex);
 
-/** The demotion gate: `demotionUnlocked` when the rules carry it, else derived — a loss that clamped at 0 on
- *  a medal floor without demoting (so the next rated game is the demotion game). */
-export function isDemotionUnlocked(r: RankResult): boolean {
-  if (typeof r.demotionUnlocked === 'boolean') return r.demotionUnlocked;
-  return r.baseDelta < 0 && !r.demoted && r.after.points === 0 && isMedalFloor(r.after.divisionIndex)
-    && r.before.divisionIndex === r.after.divisionIndex;
+/**
+ * Whether a STANDING (profile / position) is demotion-ready — the rules' STORED flag when the profile or
+ * position carries one (`demotionReady: boolean`, armed only by a loss that clamps at 0, cleared by any
+ * non-negative result, never set by a promotion landing — rules agent 2026-09-20), else the rules module's
+ * own `isDemotionReady(position)`. Nothing here derives the gate from the position shape locally; when the
+ * stored flag ships, the fallback simply stops being reached.
+ */
+export function standingDemotionReady(rank: unknown): boolean {
+  if (!rank || typeof rank !== 'object') return false;
+  const o = rank as { demotionReady?: unknown; position?: { demotionReady?: unknown } };
+  if (typeof o.demotionReady === 'boolean') return o.demotionReady;
+  if (o.position && typeof o.position.demotionReady === 'boolean') return o.position.demotionReady;
+  const pos = rankPositionOf(rank);
+  return pos ? isDemotionReady(pos) : false;
 }
 
 /** Leaderboard / surface ordering: HIGHER rank first (division desc, then points desc). */

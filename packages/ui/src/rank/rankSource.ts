@@ -6,7 +6,7 @@
  */
 import { useShallow } from 'zustand/react/shallow';
 import { useGame } from '../store';
-import { rankPositionOf, type RankPosition, type RankResult, type RankSubmission } from './types';
+import { rankPositionOf, standingDemotionReady, type RankPosition, type RankResult, type RankSubmission } from './types';
 
 /** The slice fields this seam reads (the store's own types are the source of truth; this is the subset). */
 export interface RankStoreSlice {
@@ -65,13 +65,11 @@ export function useCurrentRank(): RankPosition | null {
   return picked.d !== undefined && picked.p !== undefined ? { divisionIndex: picked.d, points: picked.p } : null;
 }
 
-/** The profile's DEMOTION-READY flag (owner rule 2026-09-20), once the rules carry it on `profile.rank`;
- *  false until then. Read separately from the position so the position selector stays a two-number pick. */
+/** Whether the profile's standing is DEMOTION-READY (owner rule 2026-09-20) — the rules' stored flag when the
+ *  profile carries it, else the rules' `isDemotionReady(position)` (see `standingDemotionReady`). Read
+ *  separately from the position so the position selector stays a two-number pick. */
 export function useDemotionReady(): boolean {
-  return useGame((s) => {
-    const rank = (s as unknown as RankStoreSlice).profile?.rank as { demotionReady?: unknown } | undefined;
-    return rank?.demotionReady === true;
-  });
+  return useGame((s) => standingDemotionReady((s as unknown as RankStoreSlice).profile?.rank));
 }
 
 /** Non-hook read for one-off callers (the Title's Play card renders from this too via the hook above). */

@@ -219,6 +219,25 @@ export function outcomeOf(placement: number | null): { label: string; cls: 'won'
   return { label: ordinalOf(placement).toUpperCase(), cls: placement <= 4 ? 'top4' : 'lost' };
 }
 
+// ── The MATCH win (owner ruling 2026-09-20) ─────────────────────────────────────────────────────────────
+//
+// A match is WON by PLACEMENT — top 4 = W, 5th–8th = L. Fights (the per-round combat W–L the entry also
+// carries) are no longer the unit anywhere on the Career page: the banner's record, the Heroes tab's record +
+// win rate and the Win Rate trend all use this definition. A run with no placement is neither.
+
+/** Top 4 = a match win; 5th–8th = a loss; no placement = null (unknown, counted in neither column). */
+export function isMatchWin(placement: number | null): boolean | null {
+  if (placement === null) return null;
+  return placement <= 4;
+}
+
+/** The banner's placement outcome under the hero name: WIN (green) / LOSS (red) / "—". */
+export function matchResultOf(placement: number | null): { label: string; cls: 'win' | 'loss' | 'none' } {
+  const w = isMatchWin(placement);
+  if (w === null) return { label: '—', cls: 'none' };
+  return w ? { label: 'WIN', cls: 'win' } : { label: 'LOSS', cls: 'loss' };
+}
+
 /** "Sep 19, 2026" for the outcome block; '' when the time is unknown. */
 export function playedOnText(atMs: number): string {
   if (!Number.isFinite(atMs)) return '';
@@ -309,17 +328,18 @@ export function careerAggregates(runs: readonly CareerRun[]): CareerAggregates {
 
 // ── Heroes tab (owner ask 2026-09-20) ───────────────────────────────────────────────────────────────────
 
-/** One hero's career line — every run the account played it, folded. */
+/** One hero's career — every run the account played it, folded. Feeds the portrait grid + its hover panel. */
 export interface HeroCareer {
   heroId: string;
-  /** Runs played on this hero. */
+  /** Games played on this hero (every run, placed or not). */
   runs: number;
   /** 1st-place finishes. */
   firsts: number;
-  /** Total FIGHT record across the hero's runs (combat wins / losses; draws not counted). */
+  /** The MATCH record across the hero's runs — `isMatchWin`: top-4 finishes are wins, 5th–8th losses; a run
+   *  with no placement counts in neither. */
   wins: number;
   losses: number;
-  /** wins ÷ (wins + losses) as a whole percent; null with no fights. */
+  /** wins ÷ (wins + losses) as a whole percent; null when no run recorded a placement. */
   winRate: number | null;
   /** Mean placement to one decimal over the runs that recorded one; null when none did. */
   avgPlacement: number | null;
@@ -329,33 +349,37 @@ export interface HeroCareer {
   lastAtMs: number;
 }
 
-/** Every hero the account has played, folded over ALL the runs handed in, sorted by runs played (desc), then
- *  win rate (desc, unknown last), then hero id — heroes never played are simply absent. Pure. */
+/** Every hero the account has played, folded over ALL the runs handed in, sorted by games played (desc), then
+ *  match win rate (desc, unknown last), then hero id — heroes never played are simply absent. Pure. */
 export function heroCareers(runs: readonly CareerRun[]): HeroCareer[] {
-  const by = new Map<string, HeroCareer & { placed: number; placementSum: number }>();
+  const by = new Map<string, HeroCareer & { placementSum: number }>();
   for (const r of runs) {
     if (!r.heroId) continue;
     let h = by.get(r.heroId);
     if (!h) {
-      h = { heroId: r.heroId, runs: 0, firsts: 0, wins: 0, losses: 0, winRate: null, avgPlacement: null, bestPlacement: null, lastAtMs: NaN, placed: 0, placementSum: 0 };
+      h = { heroId: r.heroId, runs: 0, firsts: 0, wins: 0, losses: 0, winRate: null, avgPlacement: null, bestPlacement: null, lastAtMs: NaN, placementSum: 0 };
       by.set(r.heroId, h);
     }
     h.runs++;
-    h.wins += r.wins;
-    h.losses += r.losses;
+    const won = isMatchWin(r.placement);
+    if (won !== null) {
+      if (won) h.wins++; else h.losses++;
+    }
     if (r.placement !== null) {
-      h.placed++;
       h.placementSum += r.placement;
       if (r.placement === 1) h.firsts++;
       if (h.bestPlacement === null || r.placement < h.bestPlacement) h.bestPlacement = r.placement;
     }
     if (Number.isFinite(r.atMs) && !(h.lastAtMs >= r.atMs)) h.lastAtMs = r.atMs;
   }
-  const out: HeroCareer[] = [...by.values()].map(({ placed, placementSum, ...h }) => ({
-    ...h,
-    winRate: h.wins + h.losses > 0 ? Math.round((h.wins / (h.wins + h.losses)) * 100) : null,
-    avgPlacement: placed ? Math.round((placementSum / placed) * 10) / 10 : null,
-  }));
+  const out: HeroCareer[] = [...by.values()].map(({ placementSum, ...h }) => {
+    const placed = h.wins + h.losses;
+    return {
+      ...h,
+      winRate: placed > 0 ? Math.round((h.wins / placed) * 100) : null,
+      avgPlacement: placed ? Math.round((placementSum / placed) * 10) / 10 : null,
+    };
+  });
   out.sort((a, b) => b.runs - a.runs || (b.winRate ?? -1) - (a.winRate ?? -1) || a.heroId.localeCompare(b.heroId));
   return out;
 }
@@ -369,15 +393,18 @@ export interface TrendPoint { atMs: number; y: number }
 export interface TrendSeries {
   /** One point per run in the window that has the value, oldest first. */
   points: TrendPoint[];
-  /** Mean of `points[].y` to one decimal; null with no points. */
+  /** The headline: the mean of `points[].y` to one decimal (placement, APM) — or, for `winRate`, the window's
+   *  OVERALL match win rate as a whole percent. Null with no points. */
   avg: number | null;
 }
 export interface TrendSet {
   /** y = the run's lobby placement (1 best). */
   placement: TrendSeries;
-  /** y = the run's FIGHT win rate — wins ÷ (wins + losses) as a percent (draws excluded). This is the
-   *  fight-record definition, not "share of runs finishing 1st": the records carry W–L, so the per-run
-   *  number is meaningful as a line; a 0/1 per-run "won the lobby" series is not. */
+  /** The MATCH win rate (owner 2026-09-20): a match is won by placement (`isMatchWin` — top 4 = W, 5th–8th =
+   *  L), and the headline `avg` is the window's overall win rate — the share of placed runs that finished
+   *  top 4, whole percent. Each point's y is the RUNNING win rate through the window (wins so far ÷ placed
+   *  runs so far, oldest first), so the line shows how that share moved and ends on the headline number; a
+   *  per-run 0/100 series would only zig-zag. Runs with no placement contribute no point. */
   winRate: TrendSeries;
   /** y = actions per minute — `apmOf` (needs the entry's APT AND a telemetry clock); runs without are skipped. */
   apm: TrendSeries;
@@ -399,14 +426,23 @@ export function trendSeries(runs: readonly CareerRun[], days: TrendWindow, nowMs
   const placement: TrendPoint[] = [];
   const winRate: TrendPoint[] = [];
   const apm: TrendPoint[] = [];
+  let matchWins = 0, matchesPlaced = 0;
   for (const r of inWindow) {
     if (r.placement !== null) placement.push({ atMs: r.atMs, y: r.placement });
-    const fights = r.wins + r.losses;
-    if (fights > 0) winRate.push({ atMs: r.atMs, y: Math.round((r.wins / fights) * 100) });
+    const won = isMatchWin(r.placement);
+    if (won !== null) {
+      matchesPlaced++;
+      if (won) matchWins++;
+      winRate.push({ atMs: r.atMs, y: Math.round((matchWins / matchesPlaced) * 100) });
+    }
     const a = apmOf(r);
     if (a !== null) apm.push({ atMs: r.atMs, y: a });
   }
-  return { placement: seriesOf(placement), winRate: seriesOf(winRate), apm: seriesOf(apm) };
+  return {
+    placement: seriesOf(placement),
+    winRate: { points: winRate, avg: matchesPlaced ? Math.round((matchWins / matchesPlaced) * 100) : null },
+    apm: seriesOf(apm),
+  };
 }
 
 /** Points → an SVG polyline `points` attribute inside a `w`×`h` box with `pad` px of margin. `yMin`/`yMax`

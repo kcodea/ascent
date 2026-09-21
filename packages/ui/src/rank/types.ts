@@ -6,14 +6,14 @@
  * formatting helper) and adds the few presentation-only helpers the rules module has no reason to carry.
  */
 import {
-  RANK_MEDALS, RANK_RULES, divisionTierOf, hasDemotionGate, isDemotionReady, isRankPosition, medalOf as medalOfRules, promotionKindAt, rankTopDivision,
+  RANK_MEDALS, RANK_RULES, divisionTierOf, hasDemotionGate, isRankPosition, medalOf as medalOfRules, promotionKindAt, rankTopDivision,
   type RankPosition, type RankResult, type RankedProfile,
 } from '@game/sim';
 
 // ── The rules contract, re-exported so every presentation file imports through here ──────────────────────
 export type { RankPosition, RankedProfile, RankResult, PromotionKind, RankMedal } from '@game/sim';
 export {
-  RANK_RULES, RANK_MEDALS, rankLabel, rankScalar, medalOf, divisionTierOf, isPromotionReady, isDemotionReady, hasDemotionGate,
+  RANK_RULES, RANK_MEDALS, rankLabel, rankScalar, medalOf, divisionTierOf, isPromotionReady, hasDemotionGate,
   promotionKindAt, requiredFinishFor, rankTopDivision,
 } from '@game/sim';
 
@@ -75,19 +75,18 @@ export const isMedalGate = (divisionIndex: number): boolean => promotionKindAt(d
 export const isMedalFloor = (divisionIndex: number): boolean => hasDemotionGate(divisionIndex);
 
 /**
- * Whether a STANDING (profile / position) is demotion-ready — the rules' STORED flag when the profile or
- * position carries one (`demotionReady: boolean`, armed only by a loss that clamps at 0, cleared by any
- * non-negative result, never set by a promotion landing — rules agent 2026-09-20), else the rules module's
- * own `isDemotionReady(position)`. Nothing here derives the gate from the position shape locally; when the
- * stored flag ships, the fallback simply stops being reached.
+ * Whether a STANDING (profile / position) is demotion-ready — the rules' STORED flag, read off the profile
+ * (`profile.rank.demotionReady`) or its position (`position.demotionReady`), whichever the rules carry it on.
+ * The flag is armed ONLY by a loss that clamps at 0 on a medal floor, cleared by any non-negative result and
+ * never set by a promotion landing (rules 2026-09-20) — so a 0 at a medal floor is NOT derived into a gate
+ * here (a won medal promotion lands on that same 0). No flag → not demotion-ready.
  */
 export function standingDemotionReady(rank: unknown): boolean {
   if (!rank || typeof rank !== 'object') return false;
   const o = rank as { demotionReady?: unknown; position?: { demotionReady?: unknown } };
   if (typeof o.demotionReady === 'boolean') return o.demotionReady;
-  if (o.position && typeof o.position.demotionReady === 'boolean') return o.position.demotionReady;
-  const pos = rankPositionOf(rank);
-  return pos ? isDemotionReady(pos) : false;
+  if (o.position && typeof o.position === 'object' && typeof o.position.demotionReady === 'boolean') return o.position.demotionReady;
+  return false;
 }
 
 /** Leaderboard / surface ordering: HIGHER rank first (division desc, then points desc). */

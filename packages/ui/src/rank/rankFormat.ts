@@ -48,8 +48,8 @@ export function demotionGateText(pos: RankPosition): string {
   return `Demotion game — finish top 4 to stay in ${medalOf(pos.divisionIndex)}`;
 }
 
-/** The line a surface prints for a position on EITHER gate (`demotionReady` comes from the profile — a 0 at a
- *  medal floor alone is ambiguous, since a won promotion also lands on 0). */
+/** The line a surface prints for a position on EITHER gate (`demotionReady` is the profile's STORED flag — a 0
+ *  at a medal floor alone is ambiguous, since a won medal promotion also lands on 0, and is never derived). */
 export function standingGateText(pos: RankPosition, demotionReady = false): string | null {
   if (isPromotionReady(pos)) return gateText(pos);
   if (demotionReady) return demotionGateText(pos);
@@ -89,8 +89,8 @@ export function cappedDetail(r: RankResult): string | null {
 export function outcomeText(r: RankResult): string | null {
   if (r.promoted || r.demoted) return null;
   if (r.promotionUnlocked) return gateText(r.after);
-  // The rules flag the standing (a clamped loss at a medal floor — and, in the rules' current form, a medal
-  // promotion landing on the new medal's III); the line reads the same either way.
+  // The rules' flag, never derived here: armed only by a loss clamped at 0 on a medal floor (a medal
+  // promotion landing on the new medal's III does NOT arm it).
   if (r.demotionUnlocked) return demotionGateText(r.after);
   if (r.wasPromotionGame && !r.promoted) {
     // Factual (blueprint §7: no punitive spectacle). Still on the gate if the loss was absorbed.

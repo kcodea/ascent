@@ -159,9 +159,10 @@ and then MERGED that branch the same day (see "Owner review rounds" below) — `
   `wasDemotionGame` / `demotionUnlocked` for real, so the presentation's optionals and its local
   `isDemotionUnlocked` derivation are GONE — the screen prints the demotion-gate line from `r.demotionUnlocked`
   and nothing else. The standing (Title plate, Career bar) reads `standingDemotionReady(profile.rank)`: the
-  rules' STORED `demotionReady` flag when the profile / position carries one (the rules agent is moving it
-  from a derived predicate to a stored flag armed only by a clamped loss), else the rules module's own
-  `isDemotionReady(position)` — never a local shape check. The lost-demotion fixture is an 8th (−40 → Silver I
+  rules' STORED `demotionReady` flag on the profile / position (armed only by a loss that clamps at 0 on a
+  medal floor, cleared by any non-negative result, never set by a promotion landing) — and NOTHING else: no
+  fallback to a derived predicate, no local shape check, since a won medal promotion lands on the same 0 as a
+  clamped loss. Without the flag the standing is simply not on a gate. The lost-demotion fixture is an 8th (−40 → Silver I
   60), matching the confirmed `100 + award` landing. Conflicting rules-owned files (rank.ts, schema, edge
   function, GAME-RULES, their devlog, parity test, README) were taken from the rules branch wholesale; the
   patch note keeps their two rule bullets and this branch's three screen bullets in one entry.

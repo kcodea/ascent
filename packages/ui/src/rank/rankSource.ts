@@ -65,8 +65,8 @@ export function useCurrentRank(): RankPosition | null {
   return picked.d !== undefined && picked.p !== undefined ? { divisionIndex: picked.d, points: picked.p } : null;
 }
 
-/** Whether the profile's standing is DEMOTION-READY (owner rule 2026-09-20) — the rules' stored flag when the
- *  profile carries it, else the rules' `isDemotionReady(position)` (see `standingDemotionReady`). Read
+/** Whether the profile's standing is DEMOTION-READY (owner rule 2026-09-20) — the rules' STORED
+ *  `demotionReady` flag on `profile.rank` (see `standingDemotionReady`; never derived from the position). Read
  *  separately from the position so the position selector stays a two-number pick. */
 export function useDemotionReady(): boolean {
   return useGame((s) => standingDemotionReady((s as unknown as RankStoreSlice).profile?.rank));

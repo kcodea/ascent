@@ -113,10 +113,12 @@ describe('points, placement and delta text', () => {
     expect(standingGateText({ divisionIndex: 7, points: 100 })).toBe('Promotion game ready — finish top 4 to advance');
     expect(standingGateText({ divisionIndex: 6, points: 0 })).toBeNull();
     expect(standingGateText({ divisionIndex: 6, points: 0 }, true)).toBe('Demotion game — finish top 4 to stay in Gold');
-    // `standingDemotionReady`: the stored flag wins (profile or position level); without one, the rules' own predicate.
+    // `standingDemotionReady`: ONLY the stored flag (profile or position level) — never derived from the shape:
+    // a 0 at a medal floor without the flag is a won medal promotion's landing, not a demotion game.
     expect(standingDemotionReady({ position: { divisionIndex: 6, points: 0 }, demotionReady: false })).toBe(false);
+    expect(standingDemotionReady({ position: { divisionIndex: 6, points: 0 }, demotionReady: true })).toBe(true);
     expect(standingDemotionReady({ position: { divisionIndex: 6, points: 0, demotionReady: true } })).toBe(true);
-    expect(standingDemotionReady({ position: { divisionIndex: 6, points: 0 } })).toBe(true);  // rules' isDemotionReady
+    expect(standingDemotionReady({ position: { divisionIndex: 6, points: 0 } })).toBe(false); // no flag → no gate
     expect(standingDemotionReady({ position: { divisionIndex: 0, points: 0 } })).toBe(false); // Bronze III has no gate
     expect(standingDemotionReady(null)).toBe(false);
   });

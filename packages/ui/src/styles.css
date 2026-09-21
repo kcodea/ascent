@@ -11074,7 +11074,8 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 /* ── THE POST-GAME RANK SCREEN ──
    Same overlay chrome as the lobby end screen (`.heroselect.endscreen.lobbyend`), with the dim-in stretched
    to the Reveal beat. Placement headline (VICTORY in green for 1st, the ordinal otherwise) → crest + bar →
-   delta → outcome → CONTINUE, with Rewatch / Final warband as secondary links. */
+   delta → outcome → CONTINUE; the only secondary link is Skip animation (owner 2026-09-20: no Rewatch /
+   Final warband here — Rewatch lives in Recent Games). */
 /* The board dims into the LOADING SPLASH's deep-navy radial (apps/web/index.html's boot backdrop; owner
    2026-09-20, replacing an earlier blue-wipe direction) — not the title's castle art. One centred column:
    the overlay's two-row grid (brand row + picker row) collapses to a single centred cell here. */

@@ -297,9 +297,9 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 5,
     health: 6,
     keywords: ['T'],
-    effects: [{ on: 'onDamaged', do: 'onDamagedPlayRubiesSelfAndAdjacentTribe', params: { tribe: 'kobold', count: 3, permanent: true } }],
-    text: '**Taunt.** When this takes damage, play **3 permanent Rubies** on this and adjacent **Kobolds**.',
-    goldenText: '**Taunt.** When this takes damage, play **6 permanent Rubies** on this and adjacent **Kobolds**.',
+    effects: [{ on: 'onDamaged', do: 'onDamagedPlayRubiesSelfAndAdjacentTribe', params: { tribe: 'kobold', count: 1, permanent: true } }], // 3 → 1 (owner nerf 2026-09-20)
+    text: '**Taunt.** When this takes damage, play a **permanent Ruby** on this and adjacent **Kobolds**.',
+    goldenText: '**Taunt.** When this takes damage, play **2 permanent Rubies** on this and adjacent **Kobolds**.',
   },
   {
     // Rally: each attack plays PERMANENT Rubies on itself. Golden doubles the count.

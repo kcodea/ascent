@@ -55,6 +55,13 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-21',
+    label: 'Leaderboard crests',
+    changes: [
+      { category: 'UI / Info', text: 'Leaderboard: rank crests are now the size of the placement medallions, with a readable division plate.' },
+    ],
+  },
+  {
     date: '2026-09-20',
     label: 'Medal ranks — season 3 + the post-game rank screen',
     changes: [

@@ -36,6 +36,8 @@ export type TitleView = 'menu' | 'modes' | 'learn';
 export type MenuDest = 'menu' | 'modes' | 'career' | 'rankings' | 'hall' | 'recent';
 /** Every ladder page closed — the set `goTo` / `openTitle` clear (and the one `startReplay` clears). */
 const PAGES_CLOSED = { showCareer: false, careerOf: null, showRankings: false, showLeaderboard: false, showRecentGames: false } as const;
+/** The clock `navHopAt` is stamped with — the reader (`useMountedFromHop`) MUST use the same one. */
+export const navClockNow = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
 import type { CardView } from './Card';
 import type { CareerRun } from './careerData';
@@ -644,6 +646,11 @@ interface GameStore {
    *  page destination leaves `titleView` alone, so Back from that page still returns to the view beneath
    *  (a Career opened from the mode picker's sidebar backs out to the picker). */
   goTo: (dest: MenuDest) => void;
+  /** `performance.now()` of the last sidebar hop (`goTo` to a page or the picker). A host that mounts within
+   *  `HOP_WINDOW_MS` of it was opened BY the sidebar: it skips its page-level entry fade so the sidebar stays
+   *  solid across the hop and only the content beside it fades (`useMountedFromHop`). Self-expiring, so no
+   *  consumer has to clear it. */
+  navHopAt: number;
   /** The Settings modal (Esc menu) is open. In the store so the menu sidebar can open it from any page. */
   settingsOpen: boolean;
   openSettings: () => void;
@@ -2078,15 +2085,18 @@ export const useGame = create<GameStore>((rawSet, get) => {
   setTitleView: (view) => set({ titleView: view }),
   goTo: (dest) => {
     // Every ladder page closes first — the same set `startReplay` clears — so the destination is what paints.
+    // The hop stamp lets the destination skip its entry fade (the sidebar it shares with the source stays put).
+    const navHopAt = dest === 'menu' ? get().navHopAt : navClockNow();
     switch (dest) {
       case 'menu': set({ ...PAGES_CLOSED, titleView: 'menu' }); break;
-      case 'modes': set({ ...PAGES_CLOSED, titleView: 'modes' }); break;
-      case 'career': set({ ...PAGES_CLOSED, showCareer: true }); break;
-      case 'rankings': set({ ...PAGES_CLOSED, showRankings: true }); break;
-      case 'hall': set({ ...PAGES_CLOSED, showLeaderboard: true }); break;
-      case 'recent': set({ ...PAGES_CLOSED, showRecentGames: true }); break;
+      case 'modes': set({ ...PAGES_CLOSED, titleView: 'modes', navHopAt }); break;
+      case 'career': set({ ...PAGES_CLOSED, showCareer: true, navHopAt }); break;
+      case 'rankings': set({ ...PAGES_CLOSED, showRankings: true, navHopAt }); break;
+      case 'hall': set({ ...PAGES_CLOSED, showLeaderboard: true, navHopAt }); break;
+      case 'recent': set({ ...PAGES_CLOSED, showRecentGames: true, navHopAt }); break;
     }
   },
+  navHopAt: -1e9,
   settingsOpen: false,
   openSettings: () => set({ settingsOpen: true }),
   closeSettings: () => set({ settingsOpen: false }),

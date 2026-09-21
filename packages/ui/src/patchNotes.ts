@@ -66,6 +66,7 @@ export const PATCH_NOTES: PatchNote[] = [
           "Back keeps doing what it did on each screen: a player's Career opened from the Leaderboard still returns to the Leaderboard; the Mode screen's Back returns to the title menu.",
           "On the Career page the centre column now stops growing once the seven cards are at full size, and any extra width goes to the stats and Seasonal Ranked columns instead of sitting empty beside the cards.",
           'The Mode screen (Play / Learn / Practice) uses the same navy backdrop as the ladder pages.',
+          'Settings opened from one of these screens now offers Main menu instead of a Save & Quit no run could honour; on a laptop-width window the Career page stacks its columns so the seven cards stay readable.',
         ],
       },
     ],

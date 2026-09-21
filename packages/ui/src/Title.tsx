@@ -8,7 +8,7 @@ import { applyTitleVeilVars } from './titleVeilConfig';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame, tempHandle } from './store';
-import { MenuSidebar } from './MenuSidebar';
+import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { Crest, IconHelm, IconTrophy } from './menuIcons';
 import { startReplay } from './replay/replayPlayer';
 import { getCourseProgress, skipCourse } from './tutorial/tutorialProfile';
@@ -248,9 +248,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           active rift's rules (opt-in as of this screen); Practice is unscored. The Rift card is mounted only
           while a rift is actually live. */}
       {titleView !== 'menu' && (
-        <div className="modepick sb-host" role="dialog" aria-label="Choose a mode">
+        <SidebarHost className="modepick sb-host" role="dialog" aria-label="Choose a mode">
           {/* The menu sidebar carries Back (→ the main menu) + the main menu itself (owner ask 2026-09-21). */}
-          <MenuSidebar current="modes" onBack={() => setTitleView('menu')} />
+          <MenuSidebar current="modes" onBack={() => { sfx.pulse(); setTitleView('menu'); }} />
           <div className="mpbox">
             <h1 className="disp mptitle">MODE</h1>
             {/* PLAY is the hero of the screen — a wide 21:9 banner (PlayMode2 art). The mode id stays `lobby`
@@ -303,14 +303,14 @@ export function Title({ onSettings }: { onSettings: () => void }) {
               </button>
             </div>
           </div>
-        </div>
+        </SidebarHost>
       )}
 
       {/* LEARN HUB — opened from the Learn card in the mode picker. Holds the guided Tutorial today; the
           advanced-lessons slots are placeholders for lessons we add later (owner 2026-08-17). */}
       {titleView === 'learn' && (
-        <div className="modepick sb-host" role="dialog" aria-label="Learn">
-          <MenuSidebar current="modes" onBack={() => setTitleView('modes')} />
+        <SidebarHost className="modepick sb-host" role="dialog" aria-label="Learn">
+          <MenuSidebar current="modes" onBack={() => { sfx.pulse(); setTitleView('modes'); }} />
           <div className="mpbox">
             <h1 className="disp mptitle">LEARN</h1>
             <div className="mprow">
@@ -333,7 +333,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
               </button>
             </div>
           </div>
-        </div>
+        </SidebarHost>
       )}
 
       {/* TUTORIAL NUDGE — a new player who hits Play is offered the guided course first (owner 2026-08-17:

@@ -16,13 +16,41 @@
  * native tooltips — the saved-run note rides a `data-tip` on a positioned wrapper, never on the pressable
  * plaque whose `::after` is the sheen), no `lb-` / `cv2-` classes, no `.lbtitle`, and no `scrollIntoView`.
  * No `cursor` on the plaques — the global `button` rule paints the gauntlet (CLAUDE.md).
+ *
+ * SOUND: the plaques pulse here; Back does NOT — the host's `onBack` owns the click sound along with the
+ * close (every page's `back` already pulses; a second pulse from the sidebar doubled the clip — review
+ * 2026-09-21).
+ *
+ * THE HOP FADE: every host wears a page-level `fadein`. A sidebar hop unmounts the source host and mounts the
+ * destination in one store write, so that fade re-faded the sidebar itself and showed the title through it.
+ * `SidebarHost` is the shell every host renders through: when it mounts within `HOP_WINDOW_MS` of the store's
+ * `navHopAt` stamp it wears `.hop`, which turns the page fade off and fades only the content beside the
+ * sidebar (see the `.hop` rules in styles.css).
  */
-import type { ReactNode } from 'react';
+import { useState, type HTMLAttributes, type ReactNode } from 'react';
 import { Icon } from './Icon';
 import { Crest, IconHelm, IconTrophy } from './menuIcons';
 import { sfx } from './sfx';
-import { useGame, type MenuDest } from './store';
+import { navClockNow, useGame, type MenuDest } from './store';
 import { getTitleText } from './titleTextConfig';
+
+/** How long after a `goTo` a mounting host counts as "opened by the sidebar". A hop mounts its destination in
+ *  the same event turn (a few ms); a title-plaque open or a row click carries no fresh stamp. */
+const HOP_WINDOW_MS = 400;
+
+/** True when the calling component mounted as the destination of a sidebar hop. Frozen at mount: a class that
+ *  came and went later would restart the fade it exists to skip. */
+export function useMountedFromHop(): boolean {
+  const [hop] = useState(() => navClockNow() - useGame.getState().navHopAt < HOP_WINDOW_MS);
+  return hop;
+}
+
+/** The shell a sidebar host renders as: the given classes plus `.hop` when the sidebar opened it. The ladder
+ *  pages pass `lbpage …`, the title's picker / Learn hub `modepick sb-host`. */
+export function SidebarHost({ className, children, ...rest }: HTMLAttributes<HTMLDivElement> & { className: string; children: ReactNode }) {
+  const hop = useMountedFromHop();
+  return <div className={`${className}${hop ? ' hop' : ''}`} {...rest}>{children}</div>;
+}
 
 /** The screen the sidebar is rendered on — its plaque is the blue one. */
 export type SidebarCurrent = Exclude<MenuDest, 'menu'>;
@@ -45,7 +73,7 @@ export function MenuSidebar({ current, onBack }: { current: SidebarCurrent; onBa
 
   return (
     <aside className="msb" aria-label="Menu">
-      <button className="lbback pressable msb-back" onClick={() => { sfx.pulse(); onBack(); }}>← Back</button>
+      <button className="lbback pressable msb-back" onClick={onBack}>← Back</button>
       <nav className="msb-nav" aria-label="Main menu">
         {items.map((it) => {
           const active = it.dest === current;

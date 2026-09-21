@@ -25,6 +25,8 @@ import { Career } from './Career';
 import { Rankings } from './Rankings';
 import { Leaderboard } from './Leaderboard';
 import { RecentGames } from './RecentGames';
+import { EscMenu } from './EscMenu';
+import { sfx } from './sfx';
 import { useGame } from './store';
 
 const LABELS = ['Play', 'Career', 'Leaderboard', 'Hall of Champions', 'Recent Games', 'Settings'];
@@ -43,9 +45,9 @@ const current = (root: ParentNode): string | undefined => (root.querySelector('.
 beforeEach(() => {
   scrollIntoView.mockReset();
   (Element.prototype as unknown as { scrollIntoView: unknown }).scrollIntoView = scrollIntoView;
-  useGame.setState({ ...PAGES_CLOSED, titleView: 'menu', settingsOpen: false, savedRun: null, account: { userId: 'me-1', email: null, anonymous: true, discriminator: '4821' } });
+  useGame.setState({ ...PAGES_CLOSED, titleView: 'menu', settingsOpen: false, savedRun: null, navHopAt: -1e9, account: { userId: 'me-1', email: null, anonymous: true, discriminator: '4821' } });
 });
-afterEach(() => { ui?.unmount(); ui = null; useGame.setState({ ...PAGES_CLOSED, titleView: 'menu', settingsOpen: false }); });
+afterEach(() => { ui?.unmount(); ui = null; vi.restoreAllMocks(); useGame.setState({ ...PAGES_CLOSED, titleView: 'menu', settingsOpen: false, navHopAt: -1e9 }); });
 
 describe('the sidebar on each ladder page', () => {
   const cases: [string, () => JSX.Element, Partial<ReturnType<typeof flagsOf>>, string][] = [
@@ -124,6 +126,46 @@ describe('navigation', () => {
     ui = mount(<Career />);
     click(ui.container.querySelector('.msb .lbback'));
     expect(flagsOf()).toEqual({ ...PAGES_CLOSED, showRankings: true });
+  });
+
+  it("Back pulses ONCE: the host's close owns the click sound, the sidebar adds none (review 2026-09-21)", () => {
+    const pulse = vi.spyOn(sfx, 'pulse').mockImplementation(() => {});
+    useGame.setState({ showRankings: true });
+    ui = mount(<Rankings />);
+    click(ui.container.querySelector('.msb .lbback'));
+    expect(pulse).toHaveBeenCalledTimes(1);
+    expect(flagsOf()).toEqual(PAGES_CLOSED);
+  });
+
+  it('a host mounted BY a sidebar hop wears .hop (no page fade — the sidebar stays put); one opened from the title does not', () => {
+    // From the title: no fresh hop stamp → the page-level fade.
+    useGame.setState({ showCareer: true });
+    ui = mount(<Career />);
+    expect(ui.container.querySelector('.lbpage')?.classList.contains('hop')).toBe(false);
+    // A plaque hop from that page → the destination mounts within the hop window → `.hop`.
+    click([...ui.container.querySelectorAll('.sbbtn')].find((b) => b.textContent?.trim() === 'Recent Games'));
+    ui.unmount();
+    ui = mount(<RecentGames />);
+    expect(ui.container.querySelector('.lbpage')?.classList.contains('hop')).toBe(true);
+    // The sidebar itself never wears it — the fade the class turns off is the host's; the content beside the
+    // sidebar still fades (a CSS rule, not asserted here).
+    expect(ui.container.querySelector('.msb')?.classList.contains('hop')).toBe(false);
+  });
+
+  it('Settings over a ladder page offers MAIN MENU (not a Save & Quit no run can honour); over the bare title, no primary at all', () => {
+    useGame.setState({ showRankings: true, showTitle: true, replaying: false });
+    ui = mount(<EscMenu onClose={() => {}} />);
+    const primary = ui.container.querySelector('.escbtn-primary');
+    expect(primary?.textContent).toMatch(/^Main menu/);
+    expect(primary?.textContent).not.toMatch(/Save/);
+    ui.unmount();
+    useGame.setState({ ...PAGES_CLOSED, titleView: 'menu', showTitle: true });
+    ui = mount(<EscMenu onClose={() => {}} />);
+    expect(ui.container.querySelector('.escbtn-primary')).toBeNull();
+    ui.unmount();
+    useGame.setState({ showTitle: false });
+    ui = mount(<EscMenu onClose={() => {}} />);
+    expect(ui.container.querySelector('.escbtn-primary')?.textContent).toMatch(/^Save & Quit/);
   });
 
   it('Settings opens the store\'s modal flag from a page', () => {

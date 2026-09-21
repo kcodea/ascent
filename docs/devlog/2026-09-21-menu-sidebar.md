@@ -55,3 +55,46 @@ plaques centred, blue current plaque, gauntlet cursor from the global button rul
 `MenuSidebar.test.tsx` (renders on each page, current plaque, `goTo` closes the stack, Back keeps the page's
 own close, Settings flag, `openTitle` lands on the menu, no `[title]`, no `scrollIntoView`, no `lb-`/`cv2-`
 classes); `Career.test` / `ladderPages.test` unchanged and green. Player-facing entry in `patchNotes.ts`.
+
+## Review fixes (same day, same branch)
+
+Three reviewers examined the build; what changed in response:
+
+- **Back pulsed twice** on the four ladder pages (the sidebar's Back handler pulsed, then the page's `back`
+  pulsed again — two copies of the clip on one tick). The sidebar's Back now carries NO sound: the host's
+  `onBack` owns the click along with the close (the pages' `back` already pulses; Title's two picker/Learn
+  `onBack`s now pulse too). Pinned by a spy test.
+- **Laptop widths starved the Career cards.** With the sidebar's 240px, the old ≤1100 container stack point
+  let a 1366 laptop hit ~51px tiles (250/290 side minimums + gaps in a 1126px page). The stack point moved to
+  `@container cv2 (max-width: 1300px)` (≤1540 viewport): 1366 / 1440 / 1536 laptops get the single-column
+  layout with the strip at the tile cap (measured 133 / 143 / 157px tiles); 1600 keeps three columns at 85px;
+  1920 (270 / 994 / 320, 122.6px) and 2560 (477 / 1270 / 477, 160px) are unchanged. An icon-only sidebar rail
+  under ~1600px would keep three columns on laptops instead — a design the owner has not seen, so it was
+  not built; owner's call.
+- **Sides at ~2000px are NOT wider** (300 / 340, exactly the old minimums; tiles 127px instead of 150). This
+  is the budget, not a bug: at 1920–2245px the sidebar's 240px came out of the centre's dead space plus the
+  card size, and the sides only grow once 240 + 60 + 300 + 1270 + 340 + 36 = 2246px of viewport exist. Left
+  as built and flagged for the owner: the knobs are `--cv2-center-max` / the 160px tile cap (lowering them
+  hands surplus to the sides sooner, at the cost of card size) or the ≥1700 side minimums.
+- **Settings from a ladder page / the picker** showed "Save & Quit — Saves this exact moment…" with no run on
+  screen. `EscMenu` now picks its primary action by where it opened: a replay → Leave replay (unchanged); a
+  title surface with a page or picker view open → **Main menu** ("Closes this page and returns to the main
+  menu"); the bare title menu → no primary section at all; a run → Save & Quit (unchanged).
+- **The Play plaque's saved-run bubble** dropped BELOW the plaque (the shared `.lbpage [data-tip]` placement)
+  and covered the Career plaque. `.msb .msb-item[data-tip]` (after the shared rules) places it to the RIGHT,
+  vertically centred, with the pointer square showing its left vertex.
+- **Short viewports**: `.msb-nav` is `justify-content: safe center` (a stack taller than the column aligns
+  under Back instead of overflowing both ends), and under `max-height: 560px` the plaques compact (44px, 6px
+  gaps, 14px labels) — measured at 1280×440: Back bottom 60, first plaque top 101, last bottom 395 of 440. Not
+  a scroll container: `overflow-y: auto` would clip the plaques' shadows and the Play bubble beside the column.
+- **Every hop re-faded the sidebar** (`.lbpage { animation: fadein }` on the remounted page; the title showed
+  through it for 200ms). The store's `goTo` now stamps `navHopAt` (a `performance.now()`, self-expiring); a
+  host that mounts within 400ms of it renders through `SidebarHost` with `.hop`, which turns the page fade off
+  and fades only the content beside the sidebar (`.lbpage.hop > :not(.msb)`, `.modepick.hop > :not(.msb)`).
+  Opening a page from the title or a row click carries no stamp, so those still fade as before.
+- **HALL OF CHAMPIONS was 55px** against 54 for the rest: `.sbbtn { min-height: 56px }` (the two-line plaque's
+  own height) — measured [56 × 6].
+- **The picker's sidebar is `position: fixed`** inside `.modepick.sb-host` (the picker scrolls as a whole on a
+  short viewport; an absolute sidebar scrolled away with the cards).
+- Left as built (owner's call, flagged): Settings → Leave replay lands on the main MENU while the replay bar's
+  ✕ returns to the page the replay was launched from — the button's own subtitle says "Back to the main menu".

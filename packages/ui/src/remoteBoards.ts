@@ -72,7 +72,7 @@ export function friendlyAuthError(message: string): string {
     return 'The sign-in service didn’t respond properly. Wait a moment and try again.';
   }
   const m = raw.toLowerCase();
-  if (m.includes('rate limit') || m.includes('too many')) return 'Too many attempts — wait a minute and try again.';
+  if (m.includes('rate limit') || m.includes('too many')) return 'Too many attempts. Wait a minute and try again.';
   if (m.includes('invalid') && m.includes('email')) return 'That doesn’t look like a valid email address.';
   // "Signups not allowed for otp" / "not authorized" / "disabled" all mean the Supabase project hasn't enabled
   // email sign-in (or has signups off) — a config the PLAYER can't fix, so don't imply they did something wrong.

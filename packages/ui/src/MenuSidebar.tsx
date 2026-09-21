@@ -91,7 +91,7 @@ export function MenuSidebar({ current, onBack }: { current: SidebarCurrent; onBa
           // Play with a run saved: the same warning the title's Play carries, as a styled bubble on a WRAPPER
           // (the plaque's own ::after is its sheen). Attribute text, not visible textContent.
           return it.dest === 'modes' && savedRun
-            ? <div key={it.dest} className="msb-item" data-tip="New run — replaces your saved run">{btn}</div>
+            ? <div key={it.dest} className="msb-item" data-tip="New run. Replaces your saved run.">{btn}</div>
             : btn;
         })}
         <button className="sbbtn" onClick={() => { sfx.pulse(); openSettings(); }}>

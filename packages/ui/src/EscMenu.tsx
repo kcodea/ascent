@@ -66,7 +66,7 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
             onPointerDown={() => { endReplay(); openTitle(); onClose(); }}
           >
             <span className="ebl">Leave replay</span>
-            <span className="ebs">Back to the main menu — the replay closes</span>
+            <span className="ebs">Back to the main menu. The replay closes.</span>
           </button>
         )}
         {primary === 'menu' && (
@@ -84,7 +84,7 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
             onPointerDown={() => { openTitle(); onClose(); }}
           >
             <span className="ebl">Save &amp; Quit</span>
-            <span className="ebs">Saves this exact moment and returns to the menu — Continue picks up right here</span>
+            <span className="ebs">Saves this exact moment and returns to the menu. Continue picks up right here.</span>
           </button>
         )}
         <div className="escsec">Audio</div>
@@ -155,7 +155,7 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
             </button>
           ))}
         </div>
-        <div className="escnote">Effects frame cap — combat effects and card motion only; the rest of the game runs at your display's refresh. To cap the whole game, use your GPU driver's per-app frame limit. Options above your display's refresh have no effect.</div>
+        <div className="escnote">Effects frame cap. Caps combat effects and card motion only. The rest of the game runs at your display's refresh. To cap the whole game, use your GPU driver's per-app frame limit. Options above your display's refresh have no effect.</div>
         {/* Desktop shell only. The run is saved continuously, so closing the app loses nothing — but it is
             still the one button that ends the session, hence the confirm. */}
         {isDesktop() && (
@@ -166,14 +166,14 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
               onPointerDown={() => { toggleFullscreen(); }}
             >
               <span className="ebl">Toggle fullscreen</span>
-              <span className="ebs">Borderless fullscreen by default — F11 does the same</span>
+              <span className="ebs">Borderless fullscreen by default. F11 does the same.</span>
             </button>
             <button
               className={`escbtn pressable${confirmQuit ? ' danger' : ''}`}
               onPointerDown={() => { if (!confirmQuit) { setConfirmQuit(true); return; } quitGame(); }}
             >
               <span className="ebl">{confirmQuit ? 'Tap again to quit' : 'Quit game'}</span>
-              <span className="ebs">Closes ASCENT — your run stays saved</span>
+              <span className="ebs">Closes ASCENT. Your run stays saved.</span>
             </button>
           </>
         )}
@@ -193,10 +193,10 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
             onPointerDown={() => { sfx.pulse(); onClose(); openAccountPanel(); }}
           >
             <span className="ebl">Sign in</span>
-            <span className="ebs">Save your progress — email, no password</span>
+            <span className="ebs">Save your progress. Email only, no password.</span>
           </button>
         ) : (
-          <div className="escnote">Not signed in — sign in from the main menu to keep your progress across devices.</div>
+          <div className="escnote">Not signed in. Sign in from the main menu to keep your progress across devices.</div>
         )}
         <button className="escclose pressable" onPointerDown={onClose}>Resume</button>
       </div>

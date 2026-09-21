@@ -15,19 +15,19 @@ export function combatGains(r: CombatResult | null | undefined): string[] {
   const out: string[] = [];
 
   if (r.playerSpellPower && (r.playerSpellPower.attack || r.playerSpellPower.health)) {
-    out.push(`Your spells gain ${sv(r.playerSpellPower.attack, r.playerSpellPower.health)} — permanent`);
+    out.push(`Your spells permanently gain ${sv(r.playerSpellPower.attack, r.playerSpellPower.health)}`);
   }
   if (r.playerMaxGoldGain) out.push(`Maximum Gold +${r.playerMaxGoldGain}`);
-  if (r.playerUndeadBuyAtkGain) out.push(`Your Undead gain +${r.playerUndeadBuyAtkGain} Attack — permanent`);
+  if (r.playerUndeadBuyAtkGain) out.push(`Your Undead permanently gain +${r.playerUndeadBuyAtkGain} Attack`);
   if (r.playerImpBuffGain && (r.playerImpBuffGain.attack || r.playerImpBuffGain.health)) {
-    out.push(`Your Imps gain ${sv(r.playerImpBuffGain.attack, r.playerImpBuffGain.health)} — permanent`);
+    out.push(`Your Imps permanently gain ${sv(r.playerImpBuffGain.attack, r.playerImpBuffGain.health)}`);
   }
   if (r.playerFodderBuffGain && (r.playerFodderBuffGain.attack || r.playerFodderBuffGain.health)) {
-    out.push(`Your Fodder gains ${sv(r.playerFodderBuffGain.attack, r.playerFodderBuffGain.health)} — permanent`);
+    out.push(`Your Fodder permanently gains ${sv(r.playerFodderBuffGain.attack, r.playerFodderBuffGain.health)}`);
   }
   // Per-card run-wide enchants (Grave Knit / Eternal Knight).
   for (const b of r.playerCardBuffs ?? []) {
-    if (b.attack || b.health) out.push(`${nameOf(b.cardId)} gains ${sv(b.attack, b.health)} — run-wide`);
+    if (b.attack || b.health) out.push(`Every ${nameOf(b.cardId)} permanently gains ${sv(b.attack, b.health)}`);
   }
   // Engraved / kept combat stats — aggregate total across minions.
   const eng = (r.playerPermaBuffs ?? []).reduce(

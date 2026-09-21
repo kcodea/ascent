@@ -79,7 +79,7 @@ export function QuestCard({ quest, onBuy, readOnly = false }: { quest: QuestDef;
       onClick={readOnly ? undefined : onBuy}
       onMouseEnter={hasPreview ? (e) => show(e.currentTarget) : undefined}
       onMouseLeave={hasPreview ? hide : undefined}
-      aria-label={readOnly ? `${quest.name} — ${questObjectiveText(quest.objective)}` : `${quest.name} — take this quest (free)`}
+      aria-label={readOnly ? `${quest.name}: ${questObjectiveText(quest.objective)}` : `${quest.name}: take this quest for free`}
     >
       {art && <img decoding="sync" className="questcard-art" src={art} alt="" aria-hidden />}
       <span className="questcard-emblem" aria-hidden><Icon name={TRIBE_ICON[quest.tribe]} /></span>

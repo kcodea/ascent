@@ -54,7 +54,7 @@ describe('RankBar', () => {
     ui.render(<RankBar position={{ divisionIndex: 8, points: 100 }} size="big" caption="900 MMR" />);
     const gate = ui.container.querySelector('.rankbar')!;
     expect(gate.className).toContain('on-gate');
-    expect(gate.querySelector('.rankbar-gate')?.textContent).toBe('Promotion game ready — finish 1st to advance');
+    expect(gate.querySelector('.rankbar-gate')?.textContent).toBe('Promotion game ready. Finish 1st to advance.');
     expect(gate.querySelector('.rankbar-caption')?.textContent).toBe('900 MMR');
 
     ui.render(<RankBar position={{ divisionIndex: 8, points: 100 }} showGate={false} />);
@@ -65,7 +65,7 @@ describe('RankBar', () => {
     ui = mount(<RankBar position={{ divisionIndex: 6, points: 0 }} size="mini" />);
     expect(ui.container.querySelector('.rankbar-gate')).toBeNull();
     ui.render(<RankBar position={{ divisionIndex: 6, points: 0 }} size="mini" demotionReady />);
-    expect(ui.container.querySelector('.rankbar-gate')?.textContent).toBe('Demotion game — finish top 4 to stay in Gold');
+    expect(ui.container.querySelector('.rankbar-gate')?.textContent).toBe('Demotion game. Finish top 4 to stay in Gold.');
     expect(ui.container.querySelector('.rankbar-gate')!.className).toContain('demo');
     expect(ui.container.querySelector('.rankbar')!.className).not.toContain('on-gate'); // no endpoint glow at 0
   });

@@ -23,7 +23,7 @@ export const RiftButton = memo(function RiftButton({ rift }: { rift: RiftDef }) 
     <button
       className={`riftbtn${pinned ? ' pinned' : ''}`}
       onClick={() => setPinned((v) => !v)}
-      aria-label={`Rift: ${rift.name} — ${rift.blurb}`}
+      aria-label={`Rift: ${rift.name}. ${rift.blurb}`}
       aria-expanded={pinned}
     >
       {/* The swirl lives in its own layer so the label never re-rasterises with it. */}

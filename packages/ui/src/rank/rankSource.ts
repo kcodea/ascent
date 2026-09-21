@@ -24,14 +24,14 @@ export function rankErrorText(code: string | null | undefined, submission: RankS
   const KNOWN: Record<string, string> = {
     timeout: 'The rank server did not answer in time.',
     offline: 'You are offline.',
-    no_session: 'Not signed in yet — the result is saved and will rank once you are.',
-    no_account: 'No account to rank under — sign in to keep a ranked record.',
+    no_session: 'Not signed in yet. The result is saved and will rank once you are.',
+    no_account: 'No account to rank under. Sign in to keep a ranked record.',
     rate_limited: 'The rank server is busy.',
     server_error: 'The rank server hit an error.',
     unsupported_rules: 'The server no longer accepts this version of the rank rules. Update the game to rank this run.',
     unsupported_season: 'This run belongs to a season the server no longer ranks.',
     bad_input: 'The server rejected this result as invalid.',
-    server_predates_medals: 'The server does not know medal ranks yet — this run cannot be ranked.',
+    server_predates_medals: 'The server does not know medal ranks yet. This run cannot be ranked.',
   };
   const text = KNOWN[code] ?? `Rank update failed (${code}).`;
   return submission === 'rejected' ? `This result could not be ranked. ${text}` : text;

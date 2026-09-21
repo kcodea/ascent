@@ -88,11 +88,11 @@ export function Rankings() {
 
       <div className="lbscroll">
         {!remoteEnabled() ? (
-          <div className="lbempty lb-state"><Icon name="gear" /><div>Leaderboard unavailable — no backend configured.</div></div>
+          <div className="lbempty lb-state"><Icon name="gear" /><div>Leaderboard unavailable. No backend configured.</div></div>
         ) : rows === null ? (
           <div className="lbempty lb-state loading"><span className="lb-spin" aria-hidden /><div>Summoning the ladder…</div></div>
         ) : rows.length === 0 ? (
-          <div className="lbempty lb-state"><Icon name="crown" /><div>No ranked players yet — finish a run to claim a slot.</div></div>
+          <div className="lbempty lb-state"><Icon name="crown" /><div>No ranked players yet. Finish a run to claim a slot.</div></div>
         ) : (
           <div className="lb-panel lb-table" role="table" aria-label="Top players by rating">
             <div className="lb-trow lb-thead" role="row">

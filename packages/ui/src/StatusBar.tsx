@@ -701,7 +701,7 @@ export function StatusBar() {
             title={`Health: ${run.resolve} of ${run.maxResolve}${run.maxArmor ? ` · Armor ${run.armor} of ${run.maxArmor}` : ''}`}
           >
             <Icon name="heart" />
-            <span className="hpval">{run.resolve}{run.armor > 0 && <b className="armval" title="Armor — extra effective HP">+{run.armor}</b>}</span>
+            <span className="hpval">{run.resolve}{run.armor > 0 && <b className="armval" title="Armor. Absorbs damage before your Health.">+{run.armor}</b>}</span>
             {hit && <span className="resfx" key={hit.key}>−{hit.amt}</span>}
           </div>
         </div>
@@ -719,7 +719,7 @@ export function StatusBar() {
               type="button"
               className={`heropowerbtn${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}${committed ? ' committed' : ''}`}
               disabled={isPassive || (!canHero && !heroArmed)}
-              aria-label={`${grantQuestDef?.name ?? grantRuneDef?.name ?? power.name} — ${renameTerms(powerRule).replace(/\*\*/g, '')}`}
+              aria-label={`${grantQuestDef?.name ?? grantRuneDef?.name ?? power.name}: ${renameTerms(powerRule).replace(/\*\*/g, '')}`}
               // Hunch only: reveal the spell this would grant. Cheap — the state is a boolean and the preview
               // is only built while hovering (and only for that hero).
               onPointerEnter={previewCardId ? (e) => showHunchTip(e.currentTarget) : undefined}
@@ -878,7 +878,7 @@ export function StatusBar() {
               className="hmn-btn"
               disabled={run.embers < henchman.cost || eotAnimating}
               onClick={() => dispatch({ type: 'buyHenchman' })}
-              title={`Recruit ${henchmanDef.name} — your hero's henchman. Costs ${henchman.cost} Gold (gets cheaper every round: win −3, loss −2).`}
+              title={`Recruit ${henchmanDef.name}, your hero's henchman. Costs ${henchman.cost} Gold. It gets cheaper every round: win −3, loss −2.`}
             >
               {henchmanDef.name} · {henchman.cost === 0 ? 'FREE' : `${henchman.cost}g`}
             </button>
@@ -948,7 +948,7 @@ export function StatusBar() {
               <button
                 className={`heropowerbtn${passive2 ? ' passive' : armed2 ? ' armed' : ready2 ? ' ready' : ''}`}
                 disabled={passive2 || (!ready2 && !armed2)}
-                aria-label={`${p2.name} — ${renameTerms(heroPowerText(run, 1, heroPowerLive)).replace(/\*\*/g, '')}`}
+                aria-label={`${p2.name}: ${renameTerms(heroPowerText(run, 1, heroPowerLive)).replace(/\*\*/g, '')}`}
                 onPointerDown={(e) => {
                   e.stopPropagation();
                   if (passive2 || !ready2 || armed2) return;
@@ -1022,7 +1022,7 @@ export function StatusBar() {
                 type="button"
                 className={`heropowerbtn${equipArmed ? ' armed' : equipReady ? ' ready' : ''}`}
                 disabled={!equipReady && !equipArmed}
-                aria-label={`${selectedEquipDef.name} — ${renameTerms(equipRule).replace(/\*\*/g, '')}`}
+                aria-label={`${selectedEquipDef.name}: ${renameTerms(equipRule).replace(/\*\*/g, '')}`}
                 onPointerDown={(e) => {
                   e.stopPropagation();
                   if (!equipReady || equipArmed) return;

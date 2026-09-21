@@ -31,7 +31,7 @@ export function Inspect() {
         clearInspect();
       }}
       role="dialog"
-      aria-label={`${inspect.name} — close to dismiss`}
+      aria-label={`${inspect.name}. Close to dismiss.`}
     >
       <div className="inspect-card" onClick={(e) => e.stopPropagation()}>
         {inspect.buffs && inspect.buffs.length > 0 && (

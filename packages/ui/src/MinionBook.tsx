@@ -453,21 +453,21 @@ export function MinionBook() {
   };
 
   return (
-    <div className="book-ov" onClick={closeBook} role="dialog" aria-label="Compendium — Esc or Tab to close">
+    <div className="book-ov" onClick={closeBook} role="dialog" aria-label="Compendium. Press Esc or Tab to close.">
       <div className="book" onClick={(e) => e.stopPropagation()}>
         <div className="book-head">
           <div className="book-title"><Icon name="house" /> Compendium</div>
           <div className="book-sub">
             {glossary
-              ? 'Keywords & abilities — click one to see its minions'
+              ? 'Keywords & abilities. Click one to see its minions.'
               : query
                 ? `${(cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length)} result${
                     (cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length) === 1 ? '' : 's'
                   } for "${search.trim().replace(/^"(.*)"$/, '$1')}"`
               : cats.has('heroes')
-                ? `${heroesToShow.length} heroes — every champion and their power`
+                ? `${heroesToShow.length} heroes. Every champion and their power.`
                 : cats.has('runes')
-                ? `${runesToShow.length} runes — this set's Basic + Epic Runeforge stock`
+                ? `${runesToShow.length} runes. This set's Basic and Epic Runeforge stock.`
                 : cats.has('quests')
                 ? `${questsToShow.length} quests ${showTitle ? 'in the game' : 'available this run'}`
                 : `${filtered.length} ${
@@ -490,7 +490,7 @@ export function MinionBook() {
             className={`book-gloss${glossary ? ' on' : ''}`}
             onClick={() => setGlossary((g) => !g)}
             aria-pressed={glossary}
-            title="Glossary — every keyword and trigger, defined"
+            title="Glossary. Every keyword and trigger, defined."
           >
             <Icon name="sc" /> Glossary
           </button>
@@ -511,7 +511,7 @@ export function MinionBook() {
                 onClick={() => setZoom((z) => Math.max(ZOOM_MIN, Math.round((z - ZOOM_STEP) * 10) / 10))}
                 disabled={zoom <= ZOOM_MIN}
                 aria-label="Smaller cards (more per screen)"
-                title="Smaller cards — more per screen"
+                title="Smaller cards, more per screen"
               >−</button>
               <span className="book-zoom-val">{Math.round(zoom * 100)}%</span>
               <button
@@ -519,7 +519,7 @@ export function MinionBook() {
                 onClick={() => setZoom((z) => Math.min(ZOOM_MAX, Math.round((z + ZOOM_STEP) * 10) / 10))}
                 disabled={zoom >= ZOOM_MAX}
                 aria-label="Bigger cards (fewer per screen)"
-                title="Bigger cards — fewer per screen"
+                title="Bigger cards, fewer per screen"
               >+</button>
             </div>
           )}

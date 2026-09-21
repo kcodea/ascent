@@ -29,7 +29,7 @@ export function FirstLaunchPanel(): JSX.Element | null {
       <div className="tut-fl-card">
         <div className="tut-fl-eyebrow">Welcome to Ascent</div>
         <h1 className="tut-fl-title">First time here?</h1>
-        <p className="tut-fl-sub">A quick guided game teaches you everything — build a warband, use your power, and win a lobby.</p>
+        <p className="tut-fl-sub">A quick guided game teaches you everything: build a warband, use your power, and win a lobby.</p>
         <div className="tut-fl-actions">
           <button
             className="tut-fl-primary"
@@ -43,7 +43,7 @@ export function FirstLaunchPanel(): JSX.Element | null {
             onClick={() => { sfx.pulse(); skipCourse(LEARN_ASCENT.id, LEARN_ASCENT.version); }}
           >
             <span className="tut-fl-btntitle">Play Now</span>
-            <span className="tut-fl-btnsub">Skip for now — you can start it later from Learn</span>
+            <span className="tut-fl-btnsub">Skip for now. You can start it later from Learn.</span>
           </button>
         </div>
       </div>

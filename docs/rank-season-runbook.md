@@ -167,8 +167,9 @@ promotion landing (a won gate now lands at **10 / 100**, was 0 / 100):
    → **Run**. Re-running the entire migration file is equally fine; it is idempotent and the season reset at
    the bottom stays commented out.
 2. `supabase functions deploy submit-rating` (the bundled `_shared/lobbyRating.ts` carries the same constant;
-   without the redeploy every settlement logs `rank parity mismatch` — the write is still correct, the
-   function's runtime check is what disagrees).
+   without the redeploy every WON promotion settlement logs `rank parity mismatch` — every other transition
+   still agrees field-for-field, and even on a promotion the write is still correct; the function's runtime
+   check is what disagrees).
 3. Smoke test: play one promotion game on a throwaway account at 100 points and win it. Expect
    `rank_results.points_after = 10`, `applied_delta = 10`, `capped_points = 0`, `promoted = true`, and the
    profile's `rank_points = 10`. A 5th place from there must leave `rank_points = 4` with no demotion.

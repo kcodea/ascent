@@ -78,7 +78,7 @@ describe('medal rank — constants agree across the three copies', () => {
 describe('medal rank — transition parity (sim resolver ↔ Edge Function mirror)', () => {
   const starts: RankPosition[] = [];
   for (let d = 0; d <= rankTopDivision(); d++) {
-    for (const p of [0, 1, 5, 6, 39, 40, 59, 60, 61, 72, 93, 94, 99, 100, 101, 140]) {
+    for (const p of [0, 1, 5, 6, RANK_RULES.promotionLanding, 39, 40, 59, 60, 61, 72, 93, 94, 99, 100, 101, 140]) {
       if (d < rankTopDivision() && p > 100) continue;
       starts.push({ divisionIndex: d, points: p, demotionReady: false });
       if (p === 0 && d > 0 && d % 3 === 0) starts.push({ divisionIndex: d, points: p, demotionReady: true }); // an ARMED gate

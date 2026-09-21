@@ -104,6 +104,7 @@ export const COMBAT_TRACE_COVERAGE: Record<CombatEvent['type'], CombatTraceCover
   spellProgress: { source: 'never', target: 'always', amount: 'always', note: 'live tally tick on the target itself' },
   questTrigger: { source: 'never', target: 'never', amount: 'never', note: 'a badge-pulse marker — flag + side in detail; the quest/rune id resolves via content, post-hoc' },
   questComplete: { source: 'never', target: 'never', amount: 'never', note: 'questId + side in detail' },
+  pummelTrigger: { source: 'always', target: 'never', amount: 'never', note: 'PUMMEL (X) fired and PAID OUT (the damage-meter keyword): source = the body whose meter reached X; marker (the meter factory) + side in detail; one event per body per combat' },
 };
 
 const defined = <T extends Record<string, unknown>>(o: T): T => {
@@ -168,6 +169,8 @@ function project(e: CombatEvent): Pick<CombatSemanticEvent, 'source' | 'target' 
       return { detail: { flag: e.flag, side: e.side } };
     case 'questComplete':
       return { detail: { questId: e.questId, side: e.side } };
+    case 'pummelTrigger':
+      return { source: { uid: e.source, side: e.side }, detail: { marker: e.marker, side: e.side } };
   }
 }
 

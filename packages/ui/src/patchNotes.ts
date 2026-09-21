@@ -72,6 +72,59 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-21',
+    label: 'Ladder row portraits',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Recent Games and the Hall of Champions: bigger hero portraits in the portrait ring, larger rune pills, and the warband sits clear of its caption.',
+        details: [
+          "Each row's hero portrait now sits in the same gold portrait ring the Career page and hero select use, about a third larger than before.",
+          'The rune pills on Recent Games grew — a bigger emblem and larger name text — and still wrap when a run took many runes.',
+          'The seven warband cards moved down so their frames no longer run into the FINAL TEAM / WINNING WARBAND caption, on every screen size.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-21',
+    label: 'Title screen — your portrait, name and rank',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "The title screen shows your portrait large in the top-right with your name and rank; Sign in / Sign out moved into Settings.",
+        details: [
+          "Your avatar now sits in the game's gold portrait ring, top-right of the main menu — click it to change your avatar, or click your name on the ring's edge to rename yourself. Your current rank (say Bronze III) shows in a badge under your name once you have one.",
+          "The old \"Sign in\" / \"Account\" button in that corner is gone. Sign in (and Sign out, once you're signed in) now live at the bottom of Settings; signing in still only takes an email and a one-time code.",
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-21',
+    label: 'Menu sidebar',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "Career, Leaderboard, Hall of Champions, Recent Games and the Mode screen now carry a left sidebar with Back and the main menu, so you can jump between them without returning to the title; the Career page's side columns grew to fill wide screens; the Mode screen sits on the same navy backdrop.",
+        details: [
+          'The sidebar holds Back at the top and, centred below it, Play, Career, Leaderboard, Hall of Champions, Recent Games and Settings — the screen you are on is the blue plaque.',
+          "Back keeps doing what it did on each screen: a player's Career opened from the Leaderboard still returns to the Leaderboard; the Mode screen's Back returns to the title menu.",
+          "On the Career page the centre column now stops growing once the seven cards are at full size, and any extra width goes to the stats and Seasonal Ranked columns instead of sitting empty beside the cards.",
+          'The Mode screen (Play / Learn / Practice) uses the same navy backdrop as the ladder pages.',
+          'Settings opened from one of these screens now offers Main menu instead of a Save & Quit no run could honour; on a laptop-width window the Career page stacks its columns so the seven cards stay readable.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-21',
+    label: 'Career match history',
+    changes: [
+      { category: 'UI / Info', text: 'Career match history: hero portraits now wear the portrait ring, and the fight record reads as a bare N–M.' },
+    ],
+  },
+  {
+    date: '2026-09-21',
     label: 'Leaderboard crests',
     changes: [
       { category: 'UI / Info', text: 'Leaderboard: rank crests are now the size of the placement medallions, with a readable division plate.' },
@@ -113,7 +166,7 @@ export const PATCH_NOTES: PatchNote[] = [
           "Dropping OUT of a medal is gated too: a loss at a medal's lowest division (Gold III) stops at 0 and arms a DEMOTION GAME for your next ranked lobby — a top-4 finish keeps you in the medal (your points apply from 0), a 5th–8th drops you to the previous medal's division I with 100 minus that game's loss (an 8th lands on Silver I 60). Arriving at 0 by winning a medal promotion does not arm it; only a loss there does.",
           "The post-game screen shows the actual points applied (a capped award at the gate says so), the outcome line when there is one — \"Promotion game ready\" / \"Demotion game\" — and CONTINUE, which is always usable and fades you back to the menu; click the rank display or Skip to settle the animation instantly.",
           "If the rank update hasn't come back yet the screen says \"Updating rank…\"; a result that can't reach the server is kept and retried — it's never lost — and shows \"Rank update pending\" with a Retry. Practice games show your placement and \"Unrated\".",
-          "Your crest, division and bar now appear on the title screen's Play card (with the promotion- or demotion-game line when you're on a gate), on your Career page's Seasonal Ranked card, and on the Leaderboard, which orders players by division first, then points.",
+          "Your crest, division and bar now appear on your Career page's Seasonal Ranked card and on the Leaderboard, which orders players by division first, then points.",
           "Your career-best rank never goes down. Leaderboards sort by division first, then points.",
           'Previous-season ratings are archived, not deleted; the new season starts everyone fresh.',
         ],

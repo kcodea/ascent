@@ -5,14 +5,17 @@ import { avatarSrc, modeArt } from './art';
 import { getTitleText, subscribeTitleText, titleContinueNote } from './titleTextConfig';
 import { applyTitleVars } from './titleConfig';
 import { applyTitleVeilVars } from './titleVeilConfig';
+import { applyTitleAccountVars } from './titleAccountConfig';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame, tempHandle } from './store';
+import { MenuSidebar, SidebarHost } from './MenuSidebar';
+import { Crest, IconHelm, IconTrophy } from './menuIcons';
 import { startReplay } from './replay/replayPlayer';
 import { getCourseProgress, skipCourse } from './tutorial/tutorialProfile';
-import { RankBar } from './rank/RankBar';
-import { useCurrentRank, useDemotionReady } from './rank/rankSource';
-import { pointsText, rankLabel } from './rank/rankFormat';
+import { RankCrest } from './rank/RankBar';
+import { useCurrentRank } from './rank/rankSource';
+import { rankLabel } from './rank/rankFormat';
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
@@ -25,22 +28,7 @@ import { pointsText, rankLabel } from './rank/rankFormat';
  * lost while the top-level menu mirrors the mockup.
  */
 
-const Crest = () => (
-  <svg viewBox="0 0 24 24" className="crest" aria-hidden="true">
-    <path d="M12 1.5l3.4 3.9 5-1-1 5 3.6 3.6-3.6 3.6 1 5-5-1L12 24l-3.4-3.8-5 1 1-5L1 12.6l3.6-3.6-1-5 5 1z" fill="#c9a24e" />
-    <path d="M12 4.6l6.4 7.4L12 19.4 5.6 12z" fill="#0f1c34" />
-    <path d="M12 6.6l4.7 5.4L12 17.4 7.3 12z" fill="#3f9ae0" />
-    <path d="M12 6.6l4.7 5.4L12 12z" fill="#7fd0ff" opacity="0.9" />
-  </svg>
-);
-
-const IconTrophy = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 3h12v2h3v3a4 4 0 0 1-4 4h-.4A6 6 0 0 1 13 15.9V18h3v3H8v-3h3v-2.1A6 6 0 0 1 7.4 12H7a4 4 0 0 1-4-4V5h3V3zm0 4H5v1a2 2 0 0 0 1 1.7V7zm12 0v2.7A2 2 0 0 0 19 8V7h-1z" /></svg>
-);
-
-const IconHelm = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a8 8 0 0 0-8 8v5a3 3 0 0 0 3 3h1v3h8v-3h1a3 3 0 0 0 3-3v-5a8 8 0 0 0-8-8zm-3 8h1.5v4H9a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1zm6 0a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-1.5v-4H15z" /></svg>
-);
+// The Crest / helm / trophy glyphs live in `menuIcons.tsx`, shared with the ladder pages' menu sidebar.
 
 const IconTrash = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9 3h6l1 2h4v2H4V5h4l1-2zM6 9h12l-1 11a2 2 0 0 1-2 1.9H9a2 2 0 0 1-2-1.9L6 9zm3.5 2v8H11v-8H9.5zm3.5 0v8h1.5v-8H13z" /></svg>
@@ -48,6 +36,10 @@ const IconTrash = () => (
 
 export function Title({ onSettings }: { onSettings: () => void }) {
   const showTitle = useGame((s) => s.showTitle);
+  // Which view the title shows (main menu / mode picker / Learn hub) — store-held so the menu sidebar on any
+  // ladder page can open the picker, and so `openTitle` lands on the main menu.
+  const titleView = useGame((s) => s.titleView);
+  const setTitleView = useGame((s) => s.setTitleView);
   const startPractice = useGame((s) => s.startPractice);
   const startLobby = useGame((s) => s.startLobby);
   const startTutorial = useGame((s) => s.startTutorial);
@@ -66,39 +58,29 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const playerAvatar = useGame((s) => s.playerAvatar);
   const openAvatarPicker = useGame((s) => s.openAvatarPicker);
   const account = useGame((s) => s.account);
-  const openAccountPanel = useGame((s) => s.openAccountPanel);
   const savedRun = useGame((s) => s.savedRun);
   const lastReplay = useGame((s) => s.lastReplay);
   const continueRun = useGame((s) => s.continueRun);
   const clearRun = useGame((s) => s.clearRun);
-  const rating = useGame((s) => s.profile.rating); // shown on the Play card (legacy, until the medal rank exists)
-  // MEDAL RANK (2026-09-20): the Play card wears the crest + division bar once the profile carries a rank,
-  // with the promotion-ready line — the gate must be visible BEFORE entering the next ranked match.
+  // The account corner's rank badge (owner 2026-09-21) — the crest + division under the name plate.
   const rank = useCurrentRank();
-  const demotionReady = useDemotionReady();
 
   // FRONT-PAGE COPY (dev Title Text tuner). Re-render on change so edits land live behind the panel; with no
   // override this returns the shipped defaults, so production is byte-identical to the hard-coded strings.
   const [, bumpText] = useState(0);
   useEffect(() => subscribeTitleText(() => bumpText((n) => n + 1)), []);
   // Apply the persisted Title Logo tuner values (dev) / DEFAULTS (prod) to `--title-*` when the menu mounts.
-  // Same for the Title Veil (`--tv-*`, the navy background vignette).
-  useEffect(() => { applyTitleVars(); applyTitleVeilVars(); }, []);
+  // Same for the Title Veil (`--tv-*`, the navy background vignette) and the account corner (`--ta-*`).
+  useEffect(() => { applyTitleVars(); applyTitleVeilVars(); applyTitleAccountVars(); }, []);
   const txt = getTitleText();
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [confirmClear, setConfirmClear] = useState(false); // two-step guard on the destructive Clear Run
-  const [modePick, setModePick] = useState(false); // PLAY opens the mode picker rather than starting straight away
-  const [learnPick, setLearnPick] = useState(false); // LEARN opens the learning hub (Tutorial + future lessons)
-  const [tutorialPrompt, setTutorialPrompt] = useState(false); // a new player hitting Play is offered the tutorial first
-
-  // Returning to the title (Save & Quit, or a run ending) lands on the MAIN menu, not whatever sub-menu was open
-  // when the run started (owner ask 2026-08-24: Save & Quit went back to the play/mode picker). These view flags
-  // are local, so `openTitle` can't clear them from the store — reset them here whenever the title reappears.
-  useEffect(() => {
-    if (showTitle) { setModePick(false); setLearnPick(false); setTutorialPrompt(false); }
-  }, [showTitle]);
+  // A new player hitting Play is offered the tutorial first. Local: a transient nudge, and both of its buttons
+  // retire it. (The mode picker / Learn hub views are `titleView` in the store — returning to the title lands
+  // on the MAIN menu because `openTitle` / `cancelPracticeSetup` reset it; owner ask 2026-08-24.)
+  const [tutorialPrompt, setTutorialPrompt] = useState(false);
 
   if (!showTitle) return null;
 
@@ -126,41 +108,61 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       {/* Static homescreen background — the looping menu video is disabled for now (owner request 2026-07-08);
           the full-bleed sky-castle art comes from the `.titlescreen` CSS background (homescreen.webp). */}
 
-      {/* Account (top-right) — the avatar opens the picker; the name is click-to-rename. */}
+      {/* ACCOUNT CORNER (owner ask 2026-09-21) — the player's portrait LARGE in the game's gold portrait ring
+          (the `.portring` the Career page + rank screen wear; click opens the avatar picker), their NAME as a
+          plate eclipsing the ring's bottom edge like the in-game hero-name pill (click-to-rename), and their
+          current RANK in a badge beneath. Sign in / Sign out live in Settings now. Sizes + offsets are the
+          👤 Title Account dev tuner's `--ta-*` vars (see titleAccountConfig.ts). No `data-tip` on `.portring`
+          itself — its ::after IS the ring; the tip rides the wrapping button. */}
       <div className="titleaccount">
-        <button className="titleavatar" onClick={openAvatarPicker} data-tip="Change your avatar" aria-label="Change your avatar">
-          {avatarSrc(playerAvatar)
-            ? <img decoding="sync" src={avatarSrc(playerAvatar)} alt="Your avatar" draggable={false} />
-            : <span className="titleavatar-ph">{(effectiveName.trim()[0] ?? '').toUpperCase() || '☺'}</span>}
-        </button>
-        {editing ? (
-          <input
-            className="acctinput"
-            autoFocus
-            maxLength={24}
-            value={draft}
-            placeholder="Your name"
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
-          />
-        ) : (
-          <button
-            className={`acctname${unnamed ? ' acctname-nudge' : ''}`}
-            onClick={beginEdit}
-            title={unnamed ? 'This is a temporary name — click to make it your own' : 'Click to change your name'}
-          >
-            {effectiveName}
-          </button>
-        )}
-        {/* ACCOUNTS C2 — sign-in status / entry. Signed in = a portable account; otherwise an invite to save. */}
         <button
-          className={`acctsignin${account.anonymous ? '' : ' linked'}`}
-          onClick={() => { sfx.pulse(); openAccountPanel(); }}
-          title={account.anonymous ? 'Save your progress — sign in with your email' : `Signed in as ${account.email ?? ''}`}
+          className={`titleportrait${avatarSrc(playerAvatar) ? '' : ' noart'}`}
+          onClick={openAvatarPicker}
+          data-tip="Change your avatar"
+          aria-label="Change your avatar"
         >
-          {account.anonymous ? 'Sign in' : 'Account ✓'}
+          <div className="portring">
+            <div className="hero">
+              <div className="f">
+                {avatarSrc(playerAvatar)
+                  ? <img decoding="sync" className="heroimg" src={avatarSrc(playerAvatar)} alt="" draggable={false} />
+                  : <span className="titleportrait-ph">{(effectiveName.trim()[0] ?? '').toUpperCase() || '☺'}</span>}
+              </div>
+            </div>
+          </div>
         </button>
+        <div className="titlename-seat">
+          {editing ? (
+            <input
+              className="acctinput titlename-input"
+              autoFocus
+              maxLength={24}
+              value={draft}
+              placeholder="Your name"
+              aria-label="Your name"
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
+            />
+          ) : (
+            <button
+              className="titlename"
+              onClick={beginEdit}
+              data-tip={unnamed ? 'This is a temporary name — click to make it your own' : 'Click to change your name'}
+            >
+              {/* First-time nudge: a real element (not a pseudo — the tooltip owns this button's ::before/::after)
+                  with a STATIC ring shadow whose OPACITY pulses (compositor-only). */}
+              {unnamed && <span className="titlename-nudge" aria-hidden="true" />}
+              <span className="titlename-txt">{effectiveName}</span>
+            </button>
+          )}
+        </div>
+        {rank && (
+          <div className="titlerank" aria-label={`Rank ${rankLabel(rank)}`}>
+            <RankCrest divisionIndex={rank.divisionIndex} size="mini" hideDivision />
+            <span className="titlerank-label">{rankLabel(rank)}</span>
+          </div>
+        )}
       </div>
 
       <div className="titlemenu">
@@ -193,7 +195,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
               </button>
             </div>
           )}
-          <button className={`menubtn${savedRun ? '' : ' active'}`} onClick={() => { sfx.pulse(); setModePick(true); }} title={savedRun ? 'Start a new run (replaces your saved run)' : undefined}>
+          <button className={`menubtn${savedRun ? '' : ' active'}`} onClick={() => { sfx.pulse(); setTitleView('modes'); }} title={savedRun ? 'Start a new run (replaces your saved run)' : undefined}>
             <span className="mbicon"><Crest /></span>
             <span className="mblabel">{txt.play}</span>
           </button>
@@ -262,9 +264,10 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           description fading in on hover. Ascent is the clean scored climb; Rift is the SAME climb with the
           active rift's rules (opt-in as of this screen); Practice is unscored. The Rift card is mounted only
           while a rift is actually live. */}
-      {modePick && (
-        <div className="modepick" role="dialog" aria-label="Choose a mode">
-          <button className="hsback" onClick={() => { sfx.pulse(); setModePick(false); }}>← Back</button>
+      {titleView !== 'menu' && (
+        <SidebarHost className="modepick sb-host" role="dialog" aria-label="Choose a mode">
+          {/* The menu sidebar carries Back (→ the main menu) + the main menu itself (owner ask 2026-09-21). */}
+          <MenuSidebar current="modes" onBack={() => { sfx.pulse(); setTitleView('menu'); }} />
           <div className="mpbox">
             <h1 className="disp mptitle">MODE</h1>
             {/* PLAY is the hero of the screen — a wide 21:9 banner (PlayMode2 art). The mode id stays `lobby`
@@ -287,8 +290,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                   {modeArt('lobby')
                     ? <div className="mcart-clip"><img decoding="sync" className="mcframe-art" src={modeArt('lobby')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
-                  <div className="mcdesc">{rank ? `${rankLabel(rank)} · ${pointsText(rank)}` : `Rating ${rating}`}</div>
-                  {rank && <div className="mcrank"><RankBar position={rank} size="mini" demotionReady={demotionReady} /></div>}
+                  {/* No rank on the Play card (owner 2026-09-21): the crest + bar live on the Career page and the
+                      Leaderboard; the card is just the door to the ranked lobby. */}
+                  <div className="mcdesc">The ranked eight-seat lobby.</div>
                 </div>
               </button>
             </div>
@@ -296,7 +300,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             {/* LEARN + Practice below. Learn opens the learning hub (Tutorial + future lessons); it does not
                 launch a run directly. */}
             <div className="mprow">
-              <button className="modecard" data-mp="learn" onClick={() => { sfx.pulse(); setLearnPick(true); }}>
+              <button className="modecard" data-mp="learn" onClick={() => { sfx.pulse(); setTitleView('learn'); }}>
                 <div className="mcframe" data-mode="learn" data-mp="learn">
                   <div className="mcname">Learn</div>
                   {modeArt('learn')
@@ -317,14 +321,14 @@ export function Title({ onSettings }: { onSettings: () => void }) {
               </button>
             </div>
           </div>
-        </div>
+        </SidebarHost>
       )}
 
       {/* LEARN HUB — opened from the Learn card in the mode picker. Holds the guided Tutorial today; the
           advanced-lessons slots are placeholders for lessons we add later (owner 2026-08-17). */}
-      {learnPick && (
-        <div className="modepick" role="dialog" aria-label="Learn">
-          <button className="hsback" onClick={() => { sfx.pulse(); setLearnPick(false); }}>← Back</button>
+      {titleView === 'learn' && (
+        <SidebarHost className="modepick sb-host" role="dialog" aria-label="Learn">
+          <MenuSidebar current="modes" onBack={() => { sfx.pulse(); setTitleView('modes'); }} />
           <div className="mpbox">
             <h1 className="disp mptitle">LEARN</h1>
             <div className="mprow">
@@ -347,7 +351,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
               </button>
             </div>
           </div>
-        </div>
+        </SidebarHost>
       )}
 
       {/* TUTORIAL NUDGE — a new player who hits Play is offered the guided course first (owner 2026-08-17:

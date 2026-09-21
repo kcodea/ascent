@@ -96,7 +96,11 @@ export function Game() {
   // See `isPreRun`: the board must not render (or tick) until a run is actually entered.
   const preRun = useGame(isPreRun);
   const heroPicking = useGame((s) => s.heroChoices !== null);
-  const [menuOpen, setMenuOpen] = useState(false);
+  // The Settings modal's open flag lives in the store (`settingsOpen`) so the ladder pages' menu sidebar can
+  // open it from anywhere, not only the title's plaque and the in-run gear.
+  const settingsOpen = useGame((s) => s.settingsOpen);
+  const openSettings = useGame((s) => s.openSettings);
+  const closeSettings = useGame((s) => s.closeSettings);
   const [perfOn, setPerfOn] = useState(perfEnabledByFlag);
 
   // The OS `title` tooltip never shows anywhere in the game (owner ruling 2026-09-18) — see noNativeTooltips.ts.
@@ -352,11 +356,9 @@ export function Game() {
       if (e.key !== 'Escape') return;
       const st = useGame.getState();
       if (st.showBook) { st.closeBook(); return; }
-      setMenuOpen((open) => {
-        if (open) return false;
-        if (st.inspect) return false;
-        return true;
-      });
+      if (st.settingsOpen) { st.closeSettings(); return; }
+      if (st.inspect) return;
+      st.openSettings();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -419,14 +421,14 @@ export function Game() {
       {!preRun && <StatusBar key={`sb:${runKey}`} />}
       {showBook && <MinionBook />}
       <Inspect />
-      <button className="gearbtn" onPointerDown={() => setMenuOpen(true)} title="Settings (Esc)" aria-label="Settings">
+      <button className="gearbtn" onPointerDown={openSettings} title="Settings (Esc)" aria-label="Settings">
         <Icon name="gear" />
       </button>
       {/* Build badge above the gear — version + short git SHA, so you can tell at a glance which build is live. */}
       <div className="version" title={`ASCENT v${__APP_VERSION__} · build ${__BUILD_SHA__}`}>
         v{__APP_VERSION__} <span>{__BUILD_SHA__}</span>
       </div>
-      {menuOpen && <EscMenu onClose={() => setMenuOpen(false)} />}
+      {settingsOpen && <EscMenu onClose={closeSettings} />}
       {/* DEV-only tuning menu — one 🛠️ button opening every live tuner (stripped from production). */}
       {import.meta.env.DEV && <DevMenu />}
       {/* DEV-only in-run UI editor overlay — direct-manipulation move/resize/restyle of live UI, toggled
@@ -459,7 +461,7 @@ export function Game() {
       {/* The hero-select launch curtain: mounted in Game (NOT in HeroSelect) so it survives the unmount
           pickHero causes, and after HeroSelect so it z-orders above it (blueprint §7). */}
       <HeroLaunchCurtain />
-      <Title onSettings={() => setMenuOpen(true)} />
+      <Title onSettings={openSettings} />
       <Leaderboard />
       <Rankings />
       <RecentGames />

@@ -30,6 +30,15 @@ export interface CareerView {
   focus?: CareerFocus;
 }
 
+/** The title screen's view: the main menu, the MODE picker, or the LEARN hub inside it. */
+export type TitleView = 'menu' | 'modes' | 'learn';
+/** Where the menu sidebar can send the player: the title menu / mode picker, or one of the four ladder pages. */
+export type MenuDest = 'menu' | 'modes' | 'career' | 'rankings' | 'hall' | 'recent';
+/** Every ladder page closed — the set `goTo` / `openTitle` clear (and the one `startReplay` clears). */
+const PAGES_CLOSED = { showCareer: false, careerOf: null, showRankings: false, showLeaderboard: false, showRecentGames: false } as const;
+/** The clock `navHopAt` is stamped with — the reader (`useMountedFromHop`) MUST use the same one. */
+export const navClockNow = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
 import type { CardView } from './Card';
 import type { CareerRun } from './careerData';
 import type { CombatBuffDelta } from './runBuffs';
@@ -625,6 +634,27 @@ interface GameStore {
   exitReplay: () => void;
   /** Return to the title screen (from the end screen). */
   openTitle: () => void;
+  /** WHICH VIEW the title screen shows: the main menu, the MODE picker (Play / Learn / Practice) or the LEARN
+   *  hub. In the store rather than Title-local so the menu sidebar on any ladder page can open the picker
+   *  (`goTo('modes')`), and so returning to the title (`openTitle`, `cancelPracticeSetup`) lands on the MAIN
+   *  menu, never a sub-menu (owner ask 2026-08-24). Restored with the replay snapshot. */
+  titleView: TitleView;
+  setTitleView: (view: TitleView) => void;
+  /** THE MENU SIDEBAR's navigation (owner ask 2026-09-21): close EVERY ladder page and open the destination.
+   *  The four pages are z-470 siblings that stack in DOM order, so a nav that merely opens a flag leaves the
+   *  current page painted on top — every hop clears the whole set first (the list `startReplay` clears). A
+   *  page destination leaves `titleView` alone, so Back from that page still returns to the view beneath
+   *  (a Career opened from the mode picker's sidebar backs out to the picker). */
+  goTo: (dest: MenuDest) => void;
+  /** `performance.now()` of the last sidebar hop (`goTo` to a page or the picker). A host that mounts within
+   *  `HOP_WINDOW_MS` of it was opened BY the sidebar: it skips its page-level entry fade so the sidebar stays
+   *  solid across the hop and only the content beside it fades (`useMountedFromHop`). Self-expiring, so no
+   *  consumer has to clear it. */
+  navHopAt: number;
+  /** The Settings modal (Esc menu) is open. In the store so the menu sidebar can open it from any page. */
+  settingsOpen: boolean;
+  openSettings: () => void;
+  closeSettings: () => void;
   /** The Hall of Champions overlay (latest victory runs + their warbands) is open. */
   showLeaderboard: boolean;
   openLeaderboard: () => void;
@@ -1937,7 +1967,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     const seed = randomSeed();
     return { practiceSetupOpen: false, practiceTimer: s.practiceDraft.timeMult, pendingMode: 'practice', pendingSeed: seed, heroChoices: practiceHeroes(tribesForSeed(seed)).map((h) => h.id) };
   }),
-  cancelPracticeSetup: () => set({ practiceSetupOpen: false, showTitle: true }),
+  cancelPracticeSetup: () => set({ practiceSetupOpen: false, showTitle: true, titleView: 'menu' }),
   startRift: () => set(() => { const seed = randomSeed(); return { showTitle: false, pendingMode: 'rift', pendingSeed: seed, heroChoices: rollHeroChoices(tribesForSeed(seed)), avatarPickerOpen: false }; }),
   // LOBBY: eight seats, elimination, no fixed round count. Uses the ASCENT offer — three heroes, not the whole
   // roster (owner 2026-07-29). A lobby is a real run you can lose, so the pick should be a decision made under
@@ -2047,7 +2077,29 @@ export const useGame = create<GameStore>((rawSet, get) => {
   },
   // Quitting mid-turn: persist first (while `showTitle` is still false, so flushSave's guard lets it through),
   // otherwise the turn in progress would roll back to the last phase boundary on Continue.
-  openTitle: () => { get().flushSave(); set({ showTitle: true, heroChoices: null }); },
+  // Returning to the title lands on the MAIN menu, not whatever sub-menu was open when the run started (owner
+  // ask 2026-08-24: Save & Quit went back to the mode picker) — and with every ladder page closed, since the
+  // menu sidebar can open Settings (Save & Quit / Leave replay, "back to the main menu") from any page.
+  openTitle: () => { get().flushSave(); set({ showTitle: true, heroChoices: null, titleView: 'menu', ...PAGES_CLOSED }); },
+  titleView: 'menu',
+  setTitleView: (view) => set({ titleView: view }),
+  goTo: (dest) => {
+    // Every ladder page closes first — the same set `startReplay` clears — so the destination is what paints.
+    // The hop stamp lets the destination skip its entry fade (the sidebar it shares with the source stays put).
+    const navHopAt = dest === 'menu' ? get().navHopAt : navClockNow();
+    switch (dest) {
+      case 'menu': set({ ...PAGES_CLOSED, titleView: 'menu' }); break;
+      case 'modes': set({ ...PAGES_CLOSED, titleView: 'modes', navHopAt }); break;
+      case 'career': set({ ...PAGES_CLOSED, showCareer: true, navHopAt }); break;
+      case 'rankings': set({ ...PAGES_CLOSED, showRankings: true, navHopAt }); break;
+      case 'hall': set({ ...PAGES_CLOSED, showLeaderboard: true, navHopAt }); break;
+      case 'recent': set({ ...PAGES_CLOSED, showRecentGames: true, navHopAt }); break;
+    }
+  },
+  navHopAt: -1e9,
+  settingsOpen: false,
+  openSettings: () => set({ settingsOpen: true }),
+  closeSettings: () => set({ settingsOpen: false }),
   openLeaderboard: () => set({ showLeaderboard: true }),
   closeLeaderboard: () => set({ showLeaderboard: false }),
   showRankings: false,

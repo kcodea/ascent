@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getHero } from '@game/sim';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
+import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame, displayHandle } from './store';
 import { fetchTopPlayers, fetchLatestReplayForUser, remoteEnabled, type PlayerRow } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
@@ -73,9 +74,9 @@ export function Rankings() {
   const back = (): void => { sfx.pulse(); close(); };
 
   return (
-    <div className="lbpage rankpage lb-ladder">
+    <SidebarHost className="lbpage rankpage lb-ladder">
+      <MenuSidebar current="rankings" onBack={back} />
       <div className="lbtopbar">
-        <button className="lbback pressable" onClick={back}>← Back</button>
         <div className="lbtitle">
           <Icon name="crown" />
           <div>
@@ -181,6 +182,6 @@ export function Rankings() {
           </div>
         )}
       </div>
-    </div>
+    </SidebarHost>
   );
 }

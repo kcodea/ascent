@@ -56,6 +56,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-21',
+    label: 'Leaderboard crests',
+    changes: [
+      { category: 'UI / Info', text: 'Leaderboard: rank crests are now the size of the placement medallions, with a readable division plate.' },
+    ],
+  },
+  {
+    date: '2026-09-21',
     label: 'Career match history',
     changes: [
       { category: 'UI / Info', text: 'Career match history: hero portraits now wear the portrait ring, and the fight record reads as a bare N–M.' },

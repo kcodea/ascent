@@ -61,11 +61,13 @@ describe('RankBar', () => {
     expect(ui.container.querySelector('.rankbar-gate')).toBeNull();
     expect(ui.container.querySelector('.rankbar')!.className).toContain('on-gate'); // the tip still lights
   });
-  it('prints the DEMOTION-game line only from the profile flag — a 0 at a medal floor alone is ambiguous', () => {
+  it('prints the DEMOTION-game line only from the profile flag — a 0 alone is ambiguous — and names the division at stake', () => {
     ui = mount(<RankBar position={{ divisionIndex: 6, points: 0 }} size="mini" />);
     expect(ui.container.querySelector('.rankbar-gate')).toBeNull();
     ui.render(<RankBar position={{ divisionIndex: 6, points: 0 }} size="mini" demotionReady />);
-    expect(ui.container.querySelector('.rankbar-gate')?.textContent).toBe('Demotion game. Finish top 4 to stay in Gold.');
+    expect(ui.container.querySelector('.rankbar-gate')?.textContent).toBe('Demotion game. Finish top 4 to stay in Gold III.');
+    ui.render(<RankBar position={{ divisionIndex: 7, points: 0 }} size="mini" demotionReady />);
+    expect(ui.container.querySelector('.rankbar-gate')?.textContent, 'every division has the gate now (owner 2026-09-21)').toBe('Demotion game. Finish top 4 to stay in Gold II.');
     expect(ui.container.querySelector('.rankbar-gate')!.className).toContain('demo');
     expect(ui.container.querySelector('.rankbar')!.className).not.toContain('on-gate'); // no endpoint glow at 0
   });

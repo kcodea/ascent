@@ -56,6 +56,23 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-21',
+    label: 'No instant demotions',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Dropping to 0 points in any division now stops there and sets up a demotion game. You only move down after a 5th to 8th place finish in that game; a top-4 finish keeps your division and adds its points from 0.',
+        details: [
+          'Before this, only the lowest division of a medal stopped at 0. Inside a medal a big loss could drop you a division in one game. That no longer happens anywhere.',
+          'A loss that lands on exactly 0 also sets up the demotion game. The rank screen says "Demotion game. Finish top 4 to stay in Gold II" and names your division.',
+          "Losing the demotion game moves you down one division and lands you at 100 plus that game's points: 5th lands at 94, 6th at 84, 7th at 72, 8th at 60. From the lowest division of a medal that is the division I of the medal below.",
+          'Winning it (top 4) keeps your division. The points of that finish count from 0, so a 3rd place leaves you at 16.',
+          'Promotion games, the 10 point landing after a won promotion and the Bronze III floor are unchanged.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-21',
     label: 'Promotion landing',
     changes: [
       {
@@ -64,7 +81,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           "The 10 points are a cushion, not the game's award. A 1st or a 4th in the promotion game both land you at 10 / 100.",
           'A 5th place straight after promoting costs 6 and leaves you at 4, still in your new division.',
-          'Bigger losses work as before. Inside a medal they can still demote you one division and carry the rest. At the lowest division of a medal a loss stops at 0 and sets up a demotion game first.',
+          'Bigger losses cross 0. They stop at 0 and set up a demotion game (see the "No instant demotions" note above).',
           'The rank screen shows the new bar ticking from 0 to 10 after the crest changes.',
         ],
       },

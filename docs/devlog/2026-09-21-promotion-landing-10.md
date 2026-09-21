@@ -72,3 +72,78 @@ Runbook section 6b carries the same steps.
   gate kinds — a small tick, kept on purpose), `RankScreen.test.tsx` (live-region sentence).
 - Docs: `docs/GAME-RULES.md` (Ranked ladder), `docs/rank-season-runbook.md` (6b), `packages/ui/src/rank/README.md`,
   the header comments of all three rules copies, and a player-facing patch note.
+
+---
+
+# Same day, part 2 — No instant demotions: hitting 0 arms a demotion game in EVERY division
+
+Owner ruling (2026-09-21, later the same day): *"Hitting 0 MMR should halt the loss and put you in a demotion
+game. You need to then bottom-4 that game to demote."* This WIDENS the 2026-09-20 rule, which gated only the
+drop OUT of a medal (a loss at a medal's lowest division clamped at 0 and armed; everywhere else a loss below 0
+demoted instantly to `100 + result`), to every division. The paragraph above that says "inside a medal it
+demotes one division to `100 + result`" is superseded by this section.
+
+## The rule
+
+- Any negative award that would take a position below 0 in ANY division above Bronze III **clamps at 0 and
+  arms** the stored `demotionReady` flag. A loss landing on exactly 0 by subtraction arms too (unchanged from
+  the medal-floor rule). Bronze III (division index 0) floors at 0 with no gate, as before.
+- A demotion game (`demotionReady` true): a top-4 finish **escapes** (its positive award applies from 0, flag
+  cleared; reaching 100 that way unlocks the promotion gate as usual); a bottom-4 finish **demotes one
+  division** to `100 + that game's award` (5th → 94, 6th → 84, 7th → 72, 8th → 60) in the previous division,
+  flag cleared. Across a medal boundary the previous division is the previous medal's I (unchanged).
+- Promotion gates, the 10/100 landing, the medal-gate hold at 100 and Ascendant I's uncapped top are
+  untouched. A promotion landing is never armed; any non-negative result clears the flag.
+- **Ascendant I** is a division above Bronze III, so a loss that hits 0 there now arms a demotion game too
+  (before: an instant drop to Ascendant II at `100 + result`). Its demotion game drops to Ascendant II at
+  `100 + award`. The task statement said "every division"; this is the literal reading and it is flagged in
+  the implementation report in case the owner wants the top division exempt.
+
+## The three copies
+
+| Copy | What changed |
+| --- | --- |
+| `packages/sim/src/rank.ts` | `hasDemotionGate(d)` is now `d > 0 && d <= top` (name kept, doc rewritten: every division above Bronze III). `applyAward` lost its "inside a medal → demote to `100 + result`" branch and its top-division demote: the order is now *loss lands on ≤ 0 above Bronze III → clamp 0 + arm*; *below 0 → Bronze III floor*; *top division → uncapped*; *≥ 100 → gate*. The demotion-game branch is unchanged (`divisionIndex − 1` at `cap + award`). `isRankPosition`'s corruption guard accepts the flag at 0 in any division > 0. Header + "Order" doc rewritten. |
+| `supabase/functions/_shared/lobbyRating.ts` | The same, line for line (`hasDemotionGate = d > 0 && d <= RANK_TOP_DIVISION`; the same `applyAward` order). |
+| `settle_rank` (`supabase/migrations/2026-09-20-medal-rank.sql` = the trailing block of `schema.sql`, byte-identical) | The `(d0 % c_per_medal) = 0` medal-floor tests became `d0 > 0` in both the promotion-game negative-award branch and the normal branch; the normal branch is reordered to the TS order (arm → Bronze floor → top uncapped → gate → plain); the top division's `v_demoted … c_top - 1` branch is gone; `v_demoted` is set only in the demotion-game branch. The comment block above the function is rewritten. |
+
+No `rulesVersion` bump (still 1 in all three): the client never resolves locally, so an old client only
+mis-predicts until the server answers. The parity test now walks an ARMED start in every division above
+Bronze III (17 armed starts instead of 5; ~2,300 transitions) and pins the SQL text: the constraint reads
+`(rank_points = 0 and rank_division > 0)`, `(d0 % c_per_medal) = 0` no longer occurs in the function body, and
+exactly one `d1 := d0 - 1` (the demotion game) is left.
+
+## The check constraint
+
+`profiles_rank_demotion_ready_where` dropped its `rank_division % 3 = 0` term:
+
+```sql
+alter table public.profiles drop constraint if exists profiles_rank_demotion_ready_where;
+alter table public.profiles add  constraint profiles_rank_demotion_ready_where
+  check (not rank_demotion_ready or (rank_points = 0 and rank_division > 0));
+```
+
+This matters operationally: the widened `settle_rank` writes `rank_demotion_ready = true` at, say, Gold II 0,
+which the OLD constraint rejects, so the settlement transaction would raise and roll back (the client retries
+it as `settle_failed`; nothing is lost, nothing settles). **The owner must re-run the WHOLE migration block**:
+the two constraint statements AND the `create or replace function public.settle_rank …` block (re-running the
+entire idempotent migration file does both; the season reset at its bottom stays commented out), THEN
+`supabase functions deploy submit-rating`. Runbook section 6c carries the steps and the smoke test (8th from
+Gold II 10 → Gold II 0 armed, `applied_delta −10`, `capped_points 30`; then 5th → Gold III 94, flag cleared).
+
+## Presentation
+
+- `demotionGateText` names the DIVISION at stake everywhere ("Demotion game. Finish top 4 to stay in Gold
+  II.") — the medal name alone was only right at a medal floor. `cappedDetail`'s arming line is "base −40 RP ·
+  stopped at 0" (was "clamped at the Gold floor"). `announcement` no longer doubles the period after an outcome
+  line that ends in one.
+- Fixtures: `demotion` is now the division-level arming (Gold II 10 → Gold II 0, outcome line, −10 RP,
+  `demotionUnlocked`); new `demo-lost-division` (Gold II armed → Gold III 60, a lost demotion game inside a
+  medal, the `down-rank` transition); `demo-gate` / `demo-lost` / `demo-escape` (the medal boundary) kept.
+  The instant-demotion plan in `rankSequence.ts` (drain → transition down → retreat from 100) is kept only for
+  results settled under the 2026-09-20 rules, pinned by a legacy-shape test; a clamping loss plans one bar
+  drain to 0 + the demotion-game outcome line. `isMedalFloor` (unused, and now misleading) was removed from
+  `rank/types.ts`.
+- Docs: `docs/GAME-RULES.md` (Ranked ladder), `docs/rank-season-runbook.md` (the constraint expectation in
+  section 4 + the new 6c), `packages/ui/src/rank/README.md`, the header comments of all three rules copies,
+  and a player-facing patch note ("No instant demotions").

@@ -13,7 +13,8 @@
  * Deno module (no npm) — dependency-free so it bundles cleanly into the function AND imports into the repo's
  * Node test without a runtime bridge. Change the numbers here, in `rank.ts`, and in `settle_rank` together,
  * and bump `RANK_RULES_VERSION` in all three when an OLD client would mis-show or refuse the result (the
- * client never resolves locally, so the 2026-09-21 landing change from 0 to 10 shipped without a bump).
+ * client never resolves locally, so the 2026-09-21 landing change from 0 to 10 and the same day's widening of
+ * the demotion gate to every division both shipped without a bump).
  */
 
 export const RANK_SEASON = 3;
@@ -54,10 +55,12 @@ export interface RankOutcome {
 
 export const rankScalar = (p: RankPosition): number => RANK_DIVISION_POINTS * p.divisionIndex + p.points;
 
-/** The STORED demotion-gate flag (absent = false): armed only by a loss that lands on 0 at a medal's lowest
- *  division above Bronze; cleared by any non-negative result; never set by a promotion landing. */
+/** The STORED demotion-gate flag (absent = false): armed only by a loss that lands on 0 in any division above
+ *  Bronze III (owner 2026-09-20, widened to every division 2026-09-21); cleared by any non-negative result;
+ *  never set by a promotion landing. */
 export const isDemotionReady = (p: RankPosition): boolean => p.demotionReady === true;
-const hasDemotionGate = (d: number): boolean => d > 0 && d % RANK_DIVISIONS_PER_MEDAL === 0;
+/** Every division above Bronze III has a demotion gate (there are no instant demotions). */
+const hasDemotionGate = (d: number): boolean => d > 0 && d <= RANK_TOP_DIVISION;
 
 /** True for a placement the ladder accepts (an integer 1–8). */
 export const isValidPlacement = (p: unknown): p is number =>
@@ -65,15 +68,16 @@ export const isValidPlacement = (p: unknown): p is number =>
 
 /**
  * Resolve ONE rated game — identical to `resolveRank` in the sim and to the branches of `settle_rank`:
- *   • top division: add the award uncapped; below 0 → demote to `100 + result`.
  *   • at a gate (100 below the top): placement ≤ required (4 division / 1 medal) → promote to the landing
  *     (10/100) of the next division; a positive award short of a MEDAL gate holds at 100; a negative award
  *     applies from 100.
- *   • at an ARMED demotion gate (`before.demotionReady`): a bottom-4 demotes one division to the previous
- *     medal's I at `100 + award`; a top-4 escapes with its award from 0 (and disarms).
- *   • otherwise add the award: ≥ 100 → exactly 100 + promotion unlocked; a LOSS landing on 0 at a medal's
- *     lowest division clamps at 0 and ARMS the gate; < 0 elsewhere → demote to `100 + result` within a medal,
- *     Bronze III floors at 0. A promotion landing is never armed.
+ *   • at an ARMED demotion gate (`before.demotionReady`): a bottom-4 demotes ONE division to the previous
+ *     division at `100 + award` (across a medal boundary, the previous medal's I); a top-4 escapes with its
+ *     award from 0 (and disarms).
+ *   • otherwise add the award: a LOSS landing on 0 (by clamp or exact subtraction) in ANY division above
+ *     Bronze III clamps at 0 and ARMS the gate — there are no instant demotions (owner 2026-09-21); Bronze III
+ *     floors at 0; Ascendant I is uncapped upward; elsewhere ≥ 100 → exactly 100 + promotion unlocked. A
+ *     promotion landing is never armed.
  */
 export function resolveRankOutcome(before: RankPosition, placement: number): RankOutcome {
   if (!isValidPlacement(placement)) throw new RangeError(`placement ${String(placement)}`);
@@ -92,20 +96,12 @@ export function resolveRankOutcome(before: RankPosition, placement: number): Ran
 
   const applyAward = (delta: number): RankPosition => {
     const pts = start.points + delta;
-    if (start.divisionIndex === top) {
-      if (pts >= 0) return { divisionIndex: top, points: pts, demotionReady: false };
-      demoted = true;
-      return { divisionIndex: top - 1, points: cap + pts, demotionReady: false };
-    }
-    if (pts >= cap) { promotionUnlocked = true; return { divisionIndex: start.divisionIndex, points: cap, demotionReady: false }; }
     if (delta < 0 && pts <= 0 && hasDemotionGate(start.divisionIndex)) {
-      return { divisionIndex: start.divisionIndex, points: 0, demotionReady: true };
+      return { divisionIndex: start.divisionIndex, points: 0, demotionReady: true }; // a loss lands on 0 → ARMED (no instant demotion)
     }
-    if (pts < 0) {
-      if (start.divisionIndex === 0) return { divisionIndex: 0, points: 0, demotionReady: false };
-      demoted = true;
-      return { divisionIndex: start.divisionIndex - 1, points: cap + pts, demotionReady: false };
-    }
+    if (pts < 0) return { divisionIndex: 0, points: 0, demotionReady: false };        // Bronze III floor, no gate
+    if (start.divisionIndex === top) return { divisionIndex: top, points: pts, demotionReady: false }; // Ascendant I: uncapped
+    if (pts >= cap) { promotionUnlocked = true; return { divisionIndex: start.divisionIndex, points: cap, demotionReady: false }; }
     return { divisionIndex: start.divisionIndex, points: pts, demotionReady: false };
   };
 

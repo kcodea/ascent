@@ -4,7 +4,7 @@
  * an index → label, a points readout, or what a delta at a cap/floor says. Pure; no React, no store.
  */
 import {
-  isMedalGate, isPromotionReady, isUncapped, medalOf, POINTS_PER_DIVISION, rankLabel, rankScalar,
+  isMedalGate, isPromotionReady, isUncapped, POINTS_PER_DIVISION, rankLabel, rankScalar,
   type RankPosition, type RankResult,
 } from './types';
 
@@ -42,14 +42,15 @@ export function gateText(pos: RankPosition): string {
     : 'Promotion game ready. Finish top 4 to advance.';
 }
 
-/** The DEMOTION-gate line (owner 2026-09-20): a loss clamped at 0 on a medal floor makes the next rated game a
- *  demotion game — top 4 stays in the medal, bottom 4 drops to the previous medal's I. */
+/** The DEMOTION-gate line (owner 2026-09-20, every division since 2026-09-21): a loss that hit 0 makes the next
+ *  rated game a demotion game — top 4 stays in the division, bottom 4 drops one division (out of the medal at a
+ *  medal's lowest division). Names the DIVISION, which is what is at stake everywhere ("stay in Gold II"). */
 export function demotionGateText(pos: RankPosition): string {
-  return `Demotion game. Finish top 4 to stay in ${medalOf(pos.divisionIndex)}.`;
+  return `Demotion game. Finish top 4 to stay in ${rankLabel(pos.divisionIndex)}.`;
 }
 
 /** The line a surface prints for a position on EITHER gate (`demotionReady` is the profile's STORED flag — a 0
- *  at a medal floor alone is ambiguous, since a won medal promotion also lands on 0, and is never derived). */
+ *  alone is ambiguous, since a division that was never lost from also reads 0, and is never derived). */
 export function standingGateText(pos: RankPosition, demotionReady = false): string | null {
   if (isPromotionReady(pos)) return gateText(pos);
   if (demotionReady) return demotionGateText(pos);
@@ -79,7 +80,8 @@ export function cappedDetail(r: RankResult): string | null {
   if (r.appliedDelta === r.baseDelta) return null;
   if (r.baseDelta > 0) return `base ${signedRp(r.baseDelta)} · capped at the gate`;
   if (r.after.divisionIndex === 0 && r.after.points === 0) return `base ${signedRp(r.baseDelta)} · Bronze floor`;
-  if (r.demotionUnlocked && r.baseDelta < 0) return `base ${signedRp(r.baseDelta)} · clamped at the ${medalOf(r.after.divisionIndex)} floor`;
+  // The arming loss stops at 0 in ANY division (owner 2026-09-21): the detail names what it stopped at.
+  if (r.demotionUnlocked && r.baseDelta < 0) return `base ${signedRp(r.baseDelta)} · stopped at 0`;
   return `base ${signedRp(r.baseDelta)}`;
 }
 
@@ -90,8 +92,9 @@ export function cappedDetail(r: RankResult): string | null {
 export function outcomeText(r: RankResult): string | null {
   if (r.promoted || r.demoted) return null;
   if (r.promotionUnlocked) return gateText(r.after);
-  // The rules' flag, never derived here: armed only by a loss clamped at 0 on a medal floor (a medal
-  // promotion landing on the new medal's III does NOT arm it).
+  // The rules' flag, never derived here: armed only by a loss that hit 0, in ANY division above Bronze III
+  // (owner 2026-09-21; a promotion landing does NOT arm it). The line is the only thing that says the next
+  // game is a demotion game.
   if (r.demotionUnlocked) return demotionGateText(r.after);
   if (r.wasPromotionGame && !r.promoted) {
     // Factual (blueprint §7: no punitive spectacle). Still on the gate if the loss was absorbed.
@@ -110,7 +113,7 @@ export function announcement(placement: number, r: RankResult | null, submission
     return `${place}. Unrated.`;
   }
   // The live region is the one place a promotion / demotion is SAID — a screen reader can't see the crest change.
-  const outcome = r.promoted ? `Promoted to ${rankLabel(r.after)}` : r.demoted ? `Demoted to ${rankLabel(r.after)}` : outcomeText(r);
+  const outcome = r.promoted ? `Promoted to ${rankLabel(r.after)}` : r.demoted ? `Demoted to ${rankLabel(r.after)}` : outcomeText(r)?.replace(/\.$/, '');
   return `${place}. ${deltaText(r)}. Now ${rankLabel(r.after)}, ${pointsText(r.after)}.${outcome ? ` ${outcome}.` : ''}`;
 }
 

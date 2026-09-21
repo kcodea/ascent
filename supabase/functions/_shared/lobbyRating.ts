@@ -26,6 +26,8 @@ export const RANK_PLACEMENT_AWARDS: readonly number[] = [40, 28, 16, 6, -6, -16,
 export const RANK_DIVISION_PROMOTION_FINISH = 4;
 /** Worst placement that still wins a MEDAL promotion game (1st only). */
 export const RANK_MEDAL_PROMOTION_FINISH = 1;
+/** Worst placement that still ESCAPES a demotion game (top-4 stays; 5th–8th demotes). */
+export const RANK_DEMOTION_ESCAPE_FINISH = 4;
 
 export interface RankPosition { divisionIndex: number; points: number }
 
@@ -41,10 +43,16 @@ export interface RankOutcome {
   requiredFinish: number | null;
   promotionUnlocked: boolean;
   promoted: boolean;
+  wasDemotionGame: boolean;
+  demotionUnlocked: boolean;
   demoted: boolean;
 }
 
 export const rankScalar = (p: RankPosition): number => RANK_DIVISION_POINTS * p.divisionIndex + p.points;
+
+/** Derived: on exactly 0 at a medal's lowest division above Bronze → the next game is a demotion game. */
+export const isDemotionReady = (p: RankPosition): boolean =>
+  p.divisionIndex > 0 && p.divisionIndex % RANK_DIVISIONS_PER_MEDAL === 0 && p.points === 0;
 
 /** True for a placement the ladder accepts (an integer 1–8). */
 export const isValidPlacement = (p: unknown): p is number =>
@@ -55,8 +63,10 @@ export const isValidPlacement = (p: unknown): p is number =>
  *   • top division: add the award uncapped; below 0 → demote to `100 + result`.
  *   • at a gate (100 below the top): placement ≤ required (4 division / 1 medal) → promote to 0/100 of the
  *     next division; a positive award short of a MEDAL gate holds at 100; a negative award applies from 100.
- *   • otherwise add the award: ≥ 100 → exactly 100 + promotion unlocked; < 0 → demote to `100 + result`,
- *     Bronze III floors at 0.
+ *   • at a demotion gate (0 at a medal's lowest division above Bronze): a bottom-4 demotes one division to
+ *     the previous medal's I at `100 + award`; a top-4 escapes with its award from 0.
+ *   • otherwise add the award: ≥ 100 → exactly 100 + promotion unlocked; < 0 → demote to `100 + result`
+ *     within a medal, CLAMP at 0 at a medal's lowest division (demotion-ready), Bronze III floors at 0.
  */
 export function resolveRankOutcome(before: RankPosition, placement: number): RankOutcome {
   if (!isValidPlacement(placement)) throw new RangeError(`placement ${String(placement)}`);
@@ -70,6 +80,7 @@ export function resolveRankOutcome(before: RankPosition, placement: number): Ran
   let requiredFinish: number | null = null;
   let promotionUnlocked = false;
   let promoted = false;
+  let wasDemotionGame = false;
   let demoted = false;
 
   const applyAward = (delta: number): RankPosition => {
@@ -82,6 +93,7 @@ export function resolveRankOutcome(before: RankPosition, placement: number): Ran
     if (pts >= cap) { promotionUnlocked = true; return { divisionIndex: start.divisionIndex, points: cap }; }
     if (pts < 0) {
       if (start.divisionIndex === 0) return { divisionIndex: 0, points: 0 };
+      if (start.divisionIndex % RANK_DIVISIONS_PER_MEDAL === 0) return { divisionIndex: start.divisionIndex, points: 0 };
       demoted = true;
       return { divisionIndex: start.divisionIndex - 1, points: cap + pts };
     }
@@ -100,13 +112,23 @@ export function resolveRankOutcome(before: RankPosition, placement: number): Ran
     } else {
       after = applyAward(baseDelta);
     }
+  } else if (isDemotionReady(start)) {
+    wasDemotionGame = true;
+    requiredFinish = RANK_DEMOTION_ESCAPE_FINISH;
+    if (placement <= requiredFinish) {
+      after = applyAward(baseDelta);
+    } else {
+      demoted = true;
+      after = { divisionIndex: start.divisionIndex - 1, points: cap + baseDelta };
+    }
   } else {
     after = applyAward(baseDelta);
   }
 
   const appliedDelta = rankScalar(after) - rankScalar(start);
   const cappedPoints = promoted ? 0 : Math.max(0, Math.abs(baseDelta) - Math.abs(appliedDelta));
-  return { placement, before: start, after, baseDelta, appliedDelta, cappedPoints, wasPromotionGame, promotionKind, requiredFinish, promotionUnlocked, promoted, demoted };
+  const demotionUnlocked = isDemotionReady(after);
+  return { placement, before: start, after, baseDelta, appliedDelta, cappedPoints, wasPromotionGame, promotionKind, requiredFinish, promotionUnlocked, promoted, wasDemotionGame, demotionUnlocked, demoted };
 }
 
 /** Field-by-field equality of two outcomes (what the runtime parity check compares). */
@@ -116,5 +138,6 @@ export function sameRankOutcome(a: RankOutcome, b: RankOutcome): boolean {
     && a.after.divisionIndex === b.after.divisionIndex && a.after.points === b.after.points
     && a.baseDelta === b.baseDelta && a.appliedDelta === b.appliedDelta && a.cappedPoints === b.cappedPoints
     && a.wasPromotionGame === b.wasPromotionGame && a.promotionKind === b.promotionKind && a.requiredFinish === b.requiredFinish
-    && a.promotionUnlocked === b.promotionUnlocked && a.promoted === b.promoted && a.demoted === b.demoted;
+    && a.promotionUnlocked === b.promotionUnlocked && a.promoted === b.promoted
+    && a.wasDemotionGame === b.wasDemotionGame && a.demotionUnlocked === b.demotionUnlocked && a.demoted === b.demoted;
 }

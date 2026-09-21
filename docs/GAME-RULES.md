@@ -77,9 +77,18 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   A lost promotion game (5th–8th) applies its normal negative points from 100; the gate reopens when the
   player climbs back to 100. At a **medal** gate, a 2nd–4th finish neither promotes nor gains — the player
   stays at 100, still promotion-ready.
-- **Demotion.** Dropping below 0 demotes one division to `100 + result` (Gold II 10 → 8th → Gold III 70).
-  Exactly 0 stays. **Bronze III floors at 0**. **Ascendant I is uncapped** (points keep climbing past 100,
-  no further gate); a negative result there still demotes.
+- **Demotion within a medal.** Dropping below 0 demotes one division to `100 + result` (Gold II 10 → 8th →
+  Gold III 70). Exactly 0 stays.
+- **Demotion games** (owner addition 2026-09-20). Dropping out of a **medal** is gated: a negative result at
+  a medal's lowest division (Gold III) **clamps at 0** and the player is *demotion-ready* (derived: 0 points
+  on a division whose index is a multiple of 3, above Bronze). The **next** rated game is a demotion game: a
+  **bottom-4 finish (5th–8th) demotes** one division to the previous medal's division I at **`100 + that
+  game's award`** (8th → Silver I 60, 5th → Silver I 94 — the mirror of the promotion landing rule); a
+  **top-4 finish escapes** and applies its positive award normally from 0 (3rd → Gold III 16). Because the
+  state is derived, a player who has just won a **medal** promotion (landing at 0 in the new medal's III) is
+  demotion-ready for their first game there — the gate guards the boundary in both directions.
+- **Bronze III floors at 0** with no gate (nothing below it). **Ascendant I is uncapped** (points keep
+  climbing past 100, no further gate); a negative result there still demotes within the medal.
 - **Career best** (division first, then points) never decreases. **Leaderboards sort by division, then
   points** — the reporting scalar `100 × division + points` still exists (`profile.rating`) but ties Gold II
   100 with Gold I 0, so it is never the sort key.

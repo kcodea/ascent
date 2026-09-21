@@ -10,7 +10,7 @@ computes a rank locally: the server's `settle_rank` transaction is the only auth
 import {
   RANK_RULES, RANK_SEASON, RANK_MEDALS,           // config: awards [40,28,16,6,-6,-16,-28,-40], gates 4 / 1, 100 pts
   rankLabel, medalOf, divisionTierOf, rankScalar, // "Gold II", 'Gold', 2 (II), 100*division+points
-  compareRank, isPromotionReady, promotionKindAt, requiredFinishFor,
+  compareRank, isPromotionReady, isDemotionReady, hasDemotionGate, promotionKindAt, requiredFinishFor,
   resolveRank, settleRank,                        // the pure resolver (for previews / fixtures — never as authority)
   type RankPosition, type RankedProfile, type RankResult, type PromotionKind,
 } from '@game/sim';
@@ -18,9 +18,16 @@ import {
 
 - 18 divisions, index `0` = Bronze III … `17` = Ascendant I; order within a medal is **III → II → I**.
 - `RankResult` (blueprint §4 plus `promotionKind: 'division' | 'medal' | null`, `requiredFinish: 4 | 1 | null`,
-  `highestAfter`) is what the screen animates. `appliedDelta` is **the number to show** — it is `0` on a won
-  promotion (0/100 in the new division) and on a held medal gate (2nd–4th at Gold I 100 stays at 100).
-  `cappedPoints` is what the base award lost to the cap / floor / hold.
+  `wasDemotionGame`, `demotionUnlocked`, `highestAfter`) is what the screen animates. `appliedDelta` is
+  **the number to show** — it is `0` on a won promotion (0/100 in the new division) and on a held medal gate
+  (2nd–4th at Gold I 100 stays at 100). `cappedPoints` is what the base award lost to the cap / floor / hold.
+- **Demotion gate** (owner addition): `isDemotionReady(pos)` — 0 points on a medal's lowest division above
+  Bronze (`divisionIndex % 3 === 0 && divisionIndex > 0 && points === 0`). Show *"Demotion game — finish
+  top 4 to stay in Gold"* when `isDemotionReady(profile.rank.position)` before the next ranked game; after a
+  game, `result.demotionUnlocked` means the player ENDS demotion-ready (a loss clamped at the medal floor, or
+  a medal promotion that landed at 0), `result.wasDemotionGame` means this game WAS the demotion game
+  (`requiredFinish` 4 = the worst finish that escaped; `demoted` says whether they dropped — to the previous
+  medal's I at `100 + award`). A promotion game never coincides with a demotion game.
 - `rankLabel` is the ONE index→label mapping; do not hand-roll medal names anywhere else.
 
 ## Store slice (`useGame`)

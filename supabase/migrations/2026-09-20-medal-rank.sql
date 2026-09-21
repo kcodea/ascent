@@ -9,8 +9,9 @@
 --
 -- WHAT THIS IS. The numeric ladder (`profiles.rating` moved by a ±100 placement table) becomes a MEDAL ladder:
 -- six medals × three divisions (index 0 = Bronze III … 17 = Ascendant I), 100 points each, promotion GAMES
--- at 100 (top-4 to move a division, 1st to move a medal), demotion below 0, Bronze III floored, Ascendant I
--- uncapped. The rules live in THREE places that must agree: `settle_rank` below (the WRITER — the only thing
+-- at 100 (top-4 to move a division, 1st to move a medal), demotion below 0 within a medal, a DEMOTION GAME
+-- at 0 on a medal's lowest division (bottom-4 drops to the previous medal's I at 100 + award, top-4 escapes),
+-- Bronze III floored, Ascendant I uncapped. The rules live in THREE places that must agree: `settle_rank` below (the WRITER — the only thing
 -- that moves a rank), `supabase/functions/_shared/lobbyRating.ts` (the Edge Function's runtime parity check)
 -- and `packages/sim/src/rank.ts` (the client, CI-parity-tested against the shared TS file). Change all three
 -- together and bump the rules version in all three.
@@ -81,6 +82,8 @@ create table if not exists public.rank_results (
   required_finish        int,
   promotion_unlocked     boolean not null,
   promoted               boolean not null,
+  was_demotion_game      boolean not null default false,
+  demotion_unlocked      boolean not null default false,
   demoted                boolean not null,
   created_at             timestamptz not null default now(),
   primary key (user_id, run_id)
@@ -89,6 +92,9 @@ alter table public.rank_results enable row level security;
 drop policy if exists "read own rank_results" on public.rank_results;
 create policy "read own rank_results" on public.rank_results for select to authenticated using (auth.uid() = user_id);
 create index if not exists rank_results_user_time on public.rank_results (user_id, created_at desc);
+-- (idempotent for a table created before the demotion gate landed the same day)
+alter table public.rank_results add column if not exists was_demotion_game boolean not null default false;
+alter table public.rank_results add column if not exists demotion_unlocked boolean not null default false;
 
 -- ── 3. RLS: a client can never write a rank field ─────────────────────────────────────────────────────────
 -- INSERT: a brand-new profile row is a PLACEHOLDER only — rating 0, Bronze III, revision 0, no season. The
@@ -140,7 +146,8 @@ as $$
     'after',  jsonb_build_object('divisionIndex', r.division_after,  'points', r.points_after),
     'baseDelta', r.base_delta, 'appliedDelta', r.applied_delta, 'cappedPoints', r.capped_points,
     'wasPromotionGame', r.was_promotion_game, 'promotionKind', r.promotion_kind, 'requiredFinish', r.required_finish,
-    'promotionUnlocked', r.promotion_unlocked, 'promoted', r.promoted, 'demoted', r.demoted,
+    'promotionUnlocked', r.promotion_unlocked, 'promoted', r.promoted,
+    'wasDemotionGame', r.was_demotion_game, 'demotionUnlocked', r.demotion_unlocked, 'demoted', r.demoted,
     'highestAfter', jsonb_build_object('divisionIndex', r.highest_division_after, 'points', r.highest_points_after)
   );
 $$;
@@ -168,8 +175,12 @@ $$;
 --   at a gate (points = 100 below the top): placement ≤ required (4 for a division gate, 1 for a medal gate)
 --     → promote ONE division to 0/100; a positive award short of a MEDAL gate (2nd–4th) HOLDS at 100, still
 --     promotion-ready; a negative award applies normally from 100.
+--   at a demotion gate (points = 0 on a medal's lowest division above Bronze — DERIVED, never stored): a
+--     bottom-4 (5th–8th) demotes ONE division to the previous medal's I at 100 + award; a top-4 escapes and
+--     applies its positive award normally from 0.
 --   otherwise add the award: ≥ 100 → exactly 100, promotion unlocked (overflow discarded); < 0 → demote one
---     division to 100 + result, Bronze III floors at 0; exactly 0 stays.
+--     division to 100 + result within a medal, CLAMP at 0 on a medal's lowest division (demotion-ready),
+--     Bronze III floors at 0 with no gate; exactly 0 stays.
 --   highest = max(highest, after) by division then points; revision + 1; rating = the scalar.
 create or replace function public.settle_rank(
   p_user uuid, p_run_id text, p_placement int, p_season int, p_rules_version int, p_seed bigint default null
@@ -189,6 +200,7 @@ declare
   c_awards          constant int[] := array[40, 28, 16, 6, -6, -16, -28, -40];
   c_division_finish constant int := 4;
   c_medal_finish    constant int := 1;
+  c_demotion_finish constant int := 4;   -- worst placement that still ESCAPES a demotion game
   c_rate_max        constant int := 20;
   c_rate_window     constant interval := interval '10 minutes';
 
@@ -202,6 +214,8 @@ declare
   v_required int := null;
   v_unlocked boolean := false;
   v_promoted boolean := false;
+  v_dgate    boolean := false;
+  v_dunlock  boolean := false;
   v_demoted  boolean := false;
   v_applied  int;
   v_capped   int;
@@ -249,13 +263,23 @@ begin
     elsif v_base >= 0 then
       d1 := d0; p1 := p0;                                     -- medal gate, 2nd–4th: hold at 100
     else
-      v_pts := p0 + v_base;                                   -- the normal negative award from 100
+      v_pts := p0 + v_base;                                   -- the normal negative award from 100 (≥ 60 with this table)
       if v_pts < 0 then
         if d0 = 0 then d1 := 0; p1 := 0;
+        elsif (d0 % c_per_medal) = 0 then d1 := d0; p1 := 0;  -- medal floor: clamp → demotion-ready
         else v_demoted := true; d1 := d0 - 1; p1 := c_cap + v_pts; end if;
       else
         d1 := d0; p1 := v_pts;
       end if;
+    end if;
+  elsif d0 > 0 and (d0 % c_per_medal) = 0 and p0 = 0 then
+    -- demotion game (derived: 0 points on a medal's lowest division above Bronze)
+    v_dgate := true; v_required := c_demotion_finish;
+    if p_placement <= v_required then
+      d1 := d0; p1 := p0 + v_base;                            -- escape: the positive award from 0 (< 100 with this table)
+      if p1 >= c_cap then v_unlocked := true; p1 := c_cap; end if;
+    else
+      v_demoted := true; d1 := d0 - 1; p1 := c_cap + v_base;  -- to the previous medal's I at 100 + award
     end if;
   else
     v_pts := p0 + v_base;
@@ -265,12 +289,14 @@ begin
     elsif v_pts >= c_cap then
       v_unlocked := true; d1 := d0; p1 := c_cap;              -- gate reached; overflow discarded
     elsif v_pts < 0 then
-      if d0 = 0 then d1 := 0; p1 := 0;                        -- Bronze III floor
+      if d0 = 0 then d1 := 0; p1 := 0;                        -- Bronze III floor, no gate
+      elsif (d0 % c_per_medal) = 0 then d1 := d0; p1 := 0;    -- medal floor: clamp → demotion-ready
       else v_demoted := true; d1 := d0 - 1; p1 := c_cap + v_pts; end if;
     else
       d1 := d0; p1 := v_pts;
     end if;
   end if;
+  v_dunlock := (d1 > 0 and (d1 % c_per_medal) = 0 and p1 = 0);  -- ends demotion-ready
 
   v_applied := (c_cap * d1 + p1) - (c_cap * d0 + p0);
   if v_promoted then v_capped := 0; else v_capped := greatest(0, abs(v_base) - abs(v_applied)); end if;
@@ -292,14 +318,16 @@ begin
     division_before, points_before, division_after, points_after,
     highest_division_after, highest_points_after,
     base_delta, applied_delta, capped_points,
-    was_promotion_game, promotion_kind, required_finish, promotion_unlocked, promoted, demoted
+    was_promotion_game, promotion_kind, required_finish, promotion_unlocked, promoted,
+    was_demotion_game, demotion_unlocked, demoted
   ) values (
     p_user, p_run_id, p_seed, c_season, c_rules, p_placement,
     prof.rank_revision, prof.rank_revision + 1,
     d0, p0, d1, p1,
     hd, hp,
     v_base, v_applied, v_capped,
-    v_gate, v_kind, v_required, v_unlocked, v_promoted, v_demoted
+    v_gate, v_kind, v_required, v_unlocked, v_promoted,
+    v_dgate, v_dunlock, v_demoted
   ) returning * into prev;
 
   -- 7. best-effort: stamp the confirmed result onto the matching career row (it usually exists by now — the

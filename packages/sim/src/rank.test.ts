@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   RANK_MEDALS, RANK_RULES, RANK_SEASON,
-  compareRank, divisionTierOf, initialRankedProfile, isPromotionReady, isRankPosition, isRankedProfile, medalOf,
+  compareRank, divisionTierOf, hasDemotionGate, initialRankedProfile, isDemotionReady, isPromotionReady, isRankPosition, isRankedProfile, medalOf,
   parseRankResult, parseRankedProfile, promotionKindAt, rankDivisionCount, rankLabel, rankScalar, rankTopDivision,
   rankedRunIdOf, requiredFinishFor, resolveRank, settleRank,
   type RankPosition, type RankResult,
@@ -12,7 +12,9 @@ import {
  *
  * The fixture table is the blueprint's §3 acceptance table ADJUSTED to the owner's rulings: a won promotion
  * lands at 0/100 in the next division (not the game's award), a MEDAL gate needs 1st (a 2nd–4th holds at 100),
- * a DIVISION gate needs top-4. Then every boundary, and the structural properties §11 asks for: better
+ * a DIVISION gate needs top-4; and the owner's same-day addition: demotion across a MEDAL boundary is gated
+ * (clamp at 0 on the medal's lowest division → demotion game: bottom-4 drops to the previous medal's I at
+ * 100 + award, top-4 escapes). Then every boundary, and the structural properties §11 asks for: better
  * placement never lands lower, no same-game promotion, no multi-division jump, highest never decreases.
  *
  * These same fixtures drive the server mirror in packages/ui/src/lobbyRatingParity.test.ts.
@@ -29,7 +31,7 @@ const D = (label: string): number => {
 const at = (label: string, points: number): RankPosition => ({ divisionIndex: D(label), points });
 
 /** [before, placement, after, appliedDelta, flags] */
-type Row = [RankPosition, number, RankPosition, number, Partial<Pick<RankResult, 'promoted' | 'demoted' | 'promotionUnlocked' | 'wasPromotionGame' | 'promotionKind' | 'cappedPoints' | 'requiredFinish'>>, string];
+type Row = [RankPosition, number, RankPosition, number, Partial<Pick<RankResult, 'promoted' | 'demoted' | 'promotionUnlocked' | 'wasPromotionGame' | 'promotionKind' | 'cappedPoints' | 'requiredFinish' | 'wasDemotionGame' | 'demotionUnlocked'>>, string];
 export const RANK_FIXTURES: Row[] = [
   [at('Gold II', 60), 3, at('Gold II', 76), 16, { promotionUnlocked: false }, 'plain gain'],
   [at('Gold II', 88), 1, at('Gold II', 100), 12, { promotionUnlocked: true, cappedPoints: 28 }, 'reaching 100 unlocks, does not promote; overflow discarded'],
@@ -43,9 +45,23 @@ export const RANK_FIXTURES: Row[] = [
   [at('Gold I', 100), 4, at('Gold I', 100), 0, { wasPromotionGame: true, promotionKind: 'medal', promoted: false, cappedPoints: 6 }, 'medal gate: 4th holds at 100'],
   [at('Gold I', 100), 5, at('Gold I', 94), -6, { wasPromotionGame: true, promotionKind: 'medal', promoted: false }, 'medal gate: 5th drops normally'],
   [at('Gold I', 100), 8, at('Gold I', 60), -40, { wasPromotionGame: true, promotionKind: 'medal', promoted: false }, 'medal gate: 8th drops −40'],
-  [at('Gold II', 10), 8, at('Gold III', 70), -40, { demoted: true }, 'demotion carries the remainder'],
-  [at('Gold II', 6), 5, at('Gold II', 0), -6, { demoted: false }, 'exactly 0 stays'],
-  [at('Gold II', 0), 5, at('Gold III', 94), -6, { demoted: true }, 'from 0 a loss demotes'],
+  [at('Gold II', 10), 8, at('Gold III', 70), -40, { demoted: true, demotionUnlocked: false }, 'demotion within a medal carries the remainder'],
+  [at('Gold II', 6), 5, at('Gold II', 0), -6, { demoted: false, demotionUnlocked: false }, 'exactly 0 stays (Gold II has no demotion gate)'],
+  [at('Gold II', 0), 5, at('Gold III', 94), -6, { demoted: true }, 'from 0 a loss demotes within the medal'],
+  // ── the MEDAL-boundary demotion gate (owner addition 2026-09-20) ──
+  [at('Gold III', 10), 8, at('Gold III', 0), -10, { demoted: false, demotionUnlocked: true, wasDemotionGame: false, cappedPoints: 30 }, 'medal floor: a loss CLAMPS at 0 → demotion-ready'],
+  [at('Gold III', 6), 5, at('Gold III', 0), -6, { demoted: false, demotionUnlocked: true, cappedPoints: 0 }, 'landing exactly on 0 at a medal floor is demotion-ready too'],
+  [at('Gold III', 0), 8, at('Silver I', 60), -40, { wasDemotionGame: true, requiredFinish: 4, demoted: true, demotionUnlocked: false, cappedPoints: 0 }, 'demotion game: 8th drops to Silver I at 100 + award'],
+  [at('Gold III', 0), 5, at('Silver I', 94), -6, { wasDemotionGame: true, demoted: true }, 'demotion game: 5th drops to Silver I 94'],
+  [at('Gold III', 0), 4, at('Gold III', 6), 6, { wasDemotionGame: true, demoted: false, demotionUnlocked: false }, 'demotion game: 4th escapes with its award from 0'],
+  [at('Gold III', 0), 3, at('Gold III', 16), 16, { wasDemotionGame: true, demoted: false }, 'demotion game: 3rd → Gold III 16'],
+  [at('Gold III', 0), 1, at('Gold III', 40), 40, { wasDemotionGame: true, demoted: false, promotionUnlocked: false }, 'demotion game: 1st → Gold III 40'],
+  [at('Silver I', 100), 1, at('Gold III', 0), 0, { promoted: true, promotionKind: 'medal', demotionUnlocked: true }, 'a won MEDAL promotion lands at 0 in the new medal — demotion-ready by the derived rule'],
+  [at('Gold II', 100), 4, at('Gold I', 0), 0, { promoted: true, demotionUnlocked: false }, 'a won DIVISION promotion lands at 0 with no demotion gate'],
+  [at('Ascendant III', 5), 8, at('Ascendant III', 0), -5, { demoted: false, demotionUnlocked: true }, 'Ascendant III is a medal floor too'],
+  [at('Ascendant III', 0), 6, at('Diamond I', 84), -16, { wasDemotionGame: true, demoted: true }, 'Ascendant III demotion game: 6th → Diamond I 84'],
+  [at('Silver III', 0), 7, at('Bronze I', 72), -28, { wasDemotionGame: true, demoted: true }, 'Silver III demotion game: 7th → Bronze I 72'],
+  [at('Bronze III', 0), 8, at('Bronze III', 0), 0, { wasDemotionGame: false, demoted: false, demotionUnlocked: false, cappedPoints: 40 }, 'Bronze III at 0: floor, NO gate'],
   [at('Bronze III', 10), 8, at('Bronze III', 0), -10, { demoted: false, cappedPoints: 30 }, 'Bronze floor absorbs the rest'],
   [at('Bronze III', 0), 8, at('Bronze III', 0), 0, { demoted: false, cappedPoints: 40 }, 'Bronze floor at 0 applies nothing'],
   [at('Ascendant II', 100), 1, at('Ascendant I', 0), 0, { wasPromotionGame: true, promotionKind: 'division', promoted: true }, 'into the top division at 0'],
@@ -112,6 +128,16 @@ describe('rank — the configuration', () => {
     expect(isPromotionReady(at('Gold II', 100))).toBe(true);
     expect(isPromotionReady(at('Gold II', 99))).toBe(false);
     expect(isPromotionReady(at('Ascendant I', 100))).toBe(false);
+  });
+
+  it('demotion-ready is derived: 0 on a medal\'s lowest division above Bronze (index % 3 === 0, > 0)', () => {
+    expect(isDemotionReady(at('Gold III', 0))).toBe(true);
+    expect(isDemotionReady(at('Gold III', 1))).toBe(false);
+    expect(isDemotionReady(at('Gold II', 0))).toBe(false);
+    expect(isDemotionReady(at('Bronze III', 0))).toBe(false);
+    expect(isDemotionReady(at('Ascendant III', 0))).toBe(true);
+    expect([...Array(18).keys()].filter((d) => hasDemotionGate(d))).toEqual([3, 6, 9, 12, 15]);
+    expect(RANK_RULES.demotionEscapeFinish).toBe(4);
   });
 });
 
@@ -183,11 +209,35 @@ describe('rank — boundaries', () => {
     }
   });
 
-  it('every division above Bronze III demotes below 0 to 100 + result; Bronze III floors', () => {
+  it('below 0: divisions inside a medal demote to 100 + result; medal floors clamp at 0 (gate); Bronze III floors', () => {
     for (let d = 1; d <= 17; d++) {
       const r = resolveRank({ divisionIndex: d, points: 5 }, 8);
-      expect(r.after).toEqual({ divisionIndex: d - 1, points: 65 });
-      expect(r.demoted).toBe(true);
+      if (hasDemotionGate(d)) {
+        expect(r.after, `division ${d} is a medal floor`).toEqual({ divisionIndex: d, points: 0 });
+        expect(r.demoted).toBe(false);
+        expect(r.demotionUnlocked).toBe(true);
+        expect(r.appliedDelta).toBe(-5);
+        expect(r.cappedPoints).toBe(35);
+        // …and the demotion game that follows: bottom-4 drops to the previous medal's I at 100 + award
+        for (let placement = 5; placement <= 8; placement++) {
+          const g = resolveRank(r.after, placement);
+          expect(g.wasDemotionGame).toBe(true);
+          expect(g.demoted).toBe(true);
+          expect(g.after).toEqual({ divisionIndex: d - 1, points: 100 + RANK_RULES.placementAwards[placement - 1]! });
+          expect(g.appliedDelta).toBe(RANK_RULES.placementAwards[placement - 1]);
+          expect(g.cappedPoints).toBe(0);
+        }
+        for (let placement = 1; placement <= 4; placement++) {
+          const g = resolveRank(r.after, placement);
+          expect(g.wasDemotionGame).toBe(true);
+          expect(g.demoted).toBe(false);
+          expect(g.after).toEqual({ divisionIndex: d, points: RANK_RULES.placementAwards[placement - 1]! });
+        }
+      } else {
+        expect(r.after).toEqual({ divisionIndex: d - 1, points: 65 });
+        expect(r.demoted).toBe(true);
+        expect(r.demotionUnlocked).toBe(false);
+      }
     }
     const floor = resolveRank({ divisionIndex: 0, points: 5 }, 8);
     expect(floor.after).toEqual({ divisionIndex: 0, points: 0 });
@@ -233,6 +283,10 @@ describe('rank — properties (blueprint §11)', () => {
       if (r.promotionUnlocked) expect(r.promoted).toBe(false);
       if (r.promoted) expect(start.points).toBe(100);
       expect(r.promoted && r.demoted).toBe(false);
+      expect(r.wasPromotionGame && r.wasDemotionGame).toBe(false);
+      if (r.wasDemotionGame) expect(isDemotionReady(start)).toBe(true);
+      if (r.demoted && hasDemotionGate(start.divisionIndex)) expect(r.wasDemotionGame, 'a medal boundary is only crossed downward through a demotion game').toBe(true);
+      expect(r.demotionUnlocked).toBe(isDemotionReady(r.after));
       expect(isRankPosition(r.after)).toBe(true);
     }
   });

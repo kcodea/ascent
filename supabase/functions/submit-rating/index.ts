@@ -95,13 +95,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
       placement: number; before: { divisionIndex: number; points: number }; after: { divisionIndex: number; points: number };
       baseDelta: number; appliedDelta: number; cappedPoints: number; wasPromotionGame: boolean;
       promotionKind: 'division' | 'medal' | null; requiredFinish: number | null;
-      promotionUnlocked: boolean; promoted: boolean; demoted: boolean;
+      promotionUnlocked: boolean; promoted: boolean; wasDemotionGame: boolean; demotionUnlocked: boolean; demoted: boolean;
     };
     const expected = resolveRankOutcome(r.before, r.placement);
     parity = sameRankOutcome(expected, {
       placement: r.placement, before: r.before, after: r.after, baseDelta: r.baseDelta, appliedDelta: r.appliedDelta,
       cappedPoints: r.cappedPoints, wasPromotionGame: r.wasPromotionGame, promotionKind: r.promotionKind ?? null,
-      requiredFinish: r.requiredFinish ?? null, promotionUnlocked: r.promotionUnlocked, promoted: r.promoted, demoted: r.demoted,
+      requiredFinish: r.requiredFinish ?? null, promotionUnlocked: r.promotionUnlocked, promoted: r.promoted,
+      wasDemotionGame: r.wasDemotionGame === true, demotionUnlocked: r.demotionUnlocked === true, demoted: r.demoted,
     });
     if (!parity) console.error('rank parity mismatch', { user: user.id, runId, sql: out.result, ts: expected });
   } catch (e) {

@@ -95,12 +95,16 @@ describe('the left column', () => {
     expect(ui.container.querySelector('.cv2-left .cv2-playername')?.textContent).toBe('Kev');
   });
 
-  it('prints the four tiles from the server runs: 1st Place Wins · Top 4 Finish · Avg Placement · Favorite Tribe', () => {
+  it('prints the five tiles from the server runs: 1st Place Wins · Top 4 Finish · Losses · Avg Placement · Favorite Tribe', () => {
     const labels = text('.cv2-left .cv2-stat-l');
     const values = text('.cv2-left .cv2-stat-v');
-    expect(labels).toEqual(['1st Place Wins', 'Top 4 Finish', 'Avg Placement', 'Favorite Tribe']);
-    // placements 1, 3, 7 → 1 first; top-4 = 2/3 = 67%; avg = 11/3 = 3.7; tribes beast, mech, beast → Beast
-    expect(values).toEqual(['1', '67%', '3.7', 'Beast']);
+    expect(labels).toEqual(['1st Place Wins', 'Top 4 Finish', 'Losses', 'Avg Placement', 'Favorite Tribe']);
+    // placements 1, 3, 7 → 1 first; top-4 = 2/3 = 67%; losses (5th–8th) = 1 (the 7th); avg = 11/3 = 3.7;
+    // tribes beast, mech, beast → Beast
+    expect(values).toEqual(['1', '67%', '1', '3.7', 'Beast']);
+    // Losses sits directly under Top 4 Finish (owner ask 2026-09-21) and wears its own icon.
+    const tiles = [...ui.container.querySelectorAll('.cv2-left .cv2-stat')];
+    expect(tiles[2]!.querySelector('.cv2-stat-ico svg')).not.toBeNull();
   });
 });
 
@@ -342,7 +346,7 @@ describe('states', () => {
     expect(none!.querySelector('.cv2-state-ico svg')).not.toBeNull();
     expect(ui.container.querySelector('.cv2-row')).toBeNull();
     expect(ui.container.querySelector('.cv2-ranked .rankbar-caption')?.textContent).toBe('1234 MMR');
-    expect(text('.cv2-left .cv2-stat-v')).toEqual(['0', '—', '—', '—']);
+    expect(text('.cv2-left .cv2-stat-v')).toEqual(['0', '—', '0', '—', '—']);
   });
 
   it('another player\'s career reads by their id, titles as theirs and prints THEIR rating', async () => {

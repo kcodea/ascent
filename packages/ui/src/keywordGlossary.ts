@@ -66,6 +66,10 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   { id: 'startofturn', name: 'Start of Turn', aliases: [], section: 'triggers', icon: 'refresh', def: 'Triggers at the start of each of your shop turns.' },
   { id: 'endofturn', name: 'End of Turn', aliases: [], section: 'triggers', mechanic: 'endTurn', def: 'Triggers at the end of each of your shop turns, before you fight.' },
   { id: 'avenge', name: 'Avenge', aliases: [], section: 'triggers', mechanic: 'avenge', def: 'Avenge (N): triggers each time N of your minions have died this combat.' },
+  // Pummel (owner keyword 2026-09-21): the damage-dealt threshold trigger — "**Pummel (40):** …" on Han Gover,
+  // "**Pummel (6):** …" on Goldvein. Declared like Avenge (N): the name matches the printed "Pummel (X)" on its
+  // word boundary, the number stays in the card text, and the `pummel` mechanic supplies the medallion glyph.
+  { id: 'pummel', name: 'Pummel', aliases: ['Pummels'], section: 'triggers', mechanic: 'pummel', def: 'Pummel (X): Triggers once this minion has dealt X damage in a combat.' },
   { id: 'rally', name: 'Rally', aliases: [], badge: 'RL', section: 'triggers', mechanic: 'rally', def: 'Triggers each time this minion begins to attack in combat.' },
   { id: 'slaughter', name: 'Slaughter', aliases: [], badge: 'SL', section: 'triggers', mechanic: 'slaughter', def: 'Triggers whenever this minion kills an enemy.' },
   // Overflow (owner keyword 2026-09-19): the `summonOverflow` trigger's printed form — "**Overflow:** …" on every

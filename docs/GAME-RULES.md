@@ -503,7 +503,8 @@ data are unchanged) via `packages/ui/src/terms.ts`:
 | Golden | **Gilded** |
 
 **Kept as-is** (no rename): Taunt, Avenge, Choose One, Start of Combat, End of Turn, Rally, Cleave,
-Consume, Discover, Overflow (a keyword since 2026-09-19 — see the Rise ordering section).
+Consume, Discover, Overflow (a keyword since 2026-09-19 — see the Rise ordering section), Pummel (a keyword
+since 2026-09-21 — see "Pummel (X)" below).
 
 Source: `packages/ui/src/terms.ts`.
 
@@ -645,6 +646,28 @@ a Rise-vs-Rebirth parity fixture whose flow of deaths, returns and Avenge payout
   the `rise` glyph) as PLACEHOLDERS until the owner authors a Rebirth cue.
 
 ---
+
+### Pummel (X) — the damage-dealt threshold trigger (owner keyword 2026-09-21)
+
+**Pummel (X): Triggers once this minion has dealt X damage in a combat.** It is the printed form of the
+damage-dealt meter (`DAMAGE_METER_MARKERS` in `packages/core/src/types.ts`; the `noteDamageDealt` site in
+`simulate.ts`): every landed hit the body deals — attack, retaliation, incidental — counts toward X; a hit
+that never lands (Immune, a popped Ward, 0 damage) does not. Overkill counts in full. The meter starts every
+combat at **0**, fires the **first** time it reaches X in that combat, then **latches for the rest of the
+fight** (a Rise / Rebirth return is the same combat instance and does not re-arm it), and carries back **0**,
+so the shop always reads 0/X after a combat. Every Pummel is once per combat; one enormous hit that passes X
+several times over still pays once. Gilded doubles the payout, never the fire count. Both bodies wear the
+Avenge-style step counter (N/X, clamped at X/X once fired) in combat, and it holds through the end-of-combat
+sequence. Bodies today:
+
+- **Han Gover** (T4 Dwarf/Undead): *"Pummel (40): Get a Dwarven Ale. (Once per combat)"* (gilded: 2 Dwarven
+  Ales). This **replaced** the 2026-09-18 lifetime tally and its 2026-09-19 "(Max 2 per hit)" cap (owner
+  2026-09-21: *"change this card's effect to match the text"*).
+- **Goldvein** (T1 Kobold): *"Pummel (6): Gain 3 Gold next turn. (Once per combat)"* (gilded: 6 Gold).
+
+The fire is a combat event (`pummelTrigger`, one per body per combat, emitted after the `dmg` that reached X
+and before the payout's own events), which the replay presents with the owner-authored `pummel-trigger` FX on
+the body's medallion (see `docs/combat-events.md`).
 
 ### A named-spell caster prints the spell, not its value (owner rule 2026-09-09, R-TEXT-01)
 

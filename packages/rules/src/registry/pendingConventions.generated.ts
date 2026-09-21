@@ -322,16 +322,14 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-passive",
-    "title": "'passive' family · 6 cards",
-    "statement": "All 6 'passive' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'passive' family · 4 cards",
+    "statement": "All 4 'passive' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "6 effect factories across 6 cards dispatch through the 'passive' presentation family, all on the single trigger 'passive' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Fuse Aldrin: \"When you Collapse a Starform, it buffs 2 additional random Celestials.\" · Members: Fuse Aldrin · Han Gover · Goldvein · Deepdelve Paragon · Spear Warden · Ancient Wanderer",
+    "currentBehaviour": "4 effect factories across 4 cards dispatch through the 'passive' presentation family, all on the single trigger 'passive' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Fuse Aldrin: \"When you Collapse a Starform, it buffs 2 additional random Celestials.\" · Members: Fuse Aldrin · Deepdelve Paragon · Spear Warden · Ancient Wanderer",
     "example": "Fuse Aldrin follows the 'passive' convention — its trigger fires on passive. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_novaherald",
-      "dw3_hangover",
-      "k3_goldvein",
       "k_deepdelve",
       "knit",
       "n2_wanderer"

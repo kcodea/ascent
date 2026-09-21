@@ -27,6 +27,9 @@
     "questTrigger": {
       "def": "quest-trigger"
     },
+    "pummelTrigger": {
+      "def": "pummel-trigger"
+    },
     "rally": null,
     "rubyLanded": {
       "def": "ruby-gem-apply"

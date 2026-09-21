@@ -299,7 +299,7 @@ describe('Thymepiece — all cards cost 1 less Gold for the next 8 seconds (owne
   });
 });
 
-describe('Han Gover — "When this deals 40 damage, get an Ale" (owner handoff 2026-09-18)', () => {
+describe('Han Gover — "Pummel (40): Get a Dwarven Ale. (Once per combat)" (owner handoff 2026-09-18; Pummel keyword 2026-09-21)', () => {
   const ALES = ['wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack'];
   const foe = (attack: number, health: number, keywords: string[] = []): BoardMinion =>
     ({ cardId: 'sandbag', attack, health, keywords } as unknown as BoardMinion);
@@ -314,31 +314,40 @@ describe('Han Gover — "When this deals 40 damage, get an Ale" (owner handoff 2
   const toHandFromGover = (r: ReturnType<typeof fight>) =>
     r.events.filter((e) => e.type === 'toHand' && (e as { source?: string }).source === r.initial.player[0]!.uid);
 
-  it('the card: T4 4/7 Dwarf/Undead, a passive marker, both texts', () => {
+  it('the card: T4 4/7 Dwarf/Undead, a passive marker, both texts in the Pummel form (no dash, no cap)', () => {
     const d = CARD_INDEX['dw3_hangover']!;
     expect([d.tier, d.attack, d.health, d.tribe, d.tribe2]).toEqual([4, 4, 7, 'dwarf', 'undead']);
     expect(d.effects).toEqual([{ on: 'passive', do: 'dealtDamageAleMeter', params: { every: 40, count: 1 } }]);
-    expect(d.text).toContain('40 damage');
-    expect(d.goldenText).toContain('2 Ales');
+    expect(d.text).toBe('**Pummel (40):** Get a **Dwarven Ale**. (Once per combat)');
+    expect(d.goldenText).toBe('**Pummel (40):** Get **2 Dwarven Ales**. (Once per combat)');
+    expect(d.text).not.toContain('Max 2 per hit');
   });
 
-  it('39 damage → nothing; the tally still carries back', () => {
-    // 13 Attack into three 0/13 sandbags: three clean kills, 39 damage dealt, no threshold crossed.
+  it('the meter is declared once per combat in core (resetEachCombat, every 40) — the owner ruling made the text the rule', () => {
+    expect(damageMeterOf(CARD_INDEX['dw3_hangover'])).toEqual({ do: 'dealtDamageAleMeter', every: 40, resetEachCombat: true });
+  });
+
+  it('39 damage → nothing; a once-per-combat meter carries back 0 (the shop reads 0/40, nothing banks toward the next fight)', () => {
+    // 13 Attack into three 0/13 sandbags: three clean kills, 39 damage dealt, X not reached.
     const r = fight([gover({ attack: 13 })], [foe(0, 13), foe(0, 13), foe(0, 13)]);
     expect(alesGranted(r)).toEqual([]);
-    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 39 }]);
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 0 }]);
+    let s = run({ phase: 'combat', board: [body('hg', 'dw3_hangover', { damageDealt: 30 })], hand: [], lastCombat: r });
+    s = act(s, { type: 'settleCombat' });
+    expect(at(s, 'hg').damageDealt, 'a stale tally on the run card is wiped too').toBeUndefined();
   });
 
-  it('40 damage → ONE Ale, flown to hand mid-fight (a `toHand` from Han Gover) and landed at settle', () => {
+  it('40 damage → ONE Ale, flown to hand mid-fight (a `toHand` from Han Gover) and landed at settle; the run card is cleared', () => {
     const r = fight([gover({ attack: 20 })], [foe(0, 20), foe(0, 20)]);
     expect(alesGranted(r).length).toBe(1);
     expect(toHandFromGover(r).length).toBe(1);
-    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 40 }]);
-    // The real settle: the Ale is in the hand and the meter persists on the run card.
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 0 }]);
+    // The real settle: the Ale is in the hand and the meter is reset for the next fight.
     let s = run({ phase: 'combat', board: [body('hg', 'dw3_hangover')], hand: [], lastCombat: r });
     s = act(s, { type: 'settleCombat' });
     expect(s.hand.filter((c) => ALES.includes(c.cardId)).length).toBe(1);
-    expect(at(s, 'hg').damageDealt).toBe(40);
+    expect(at(s, 'hg').damageDealt).toBeUndefined();
+    expect(damageMeterReading(at(s, 'hg').damageDealt ?? 0, damageMeterOf(CARD_INDEX['dw3_hangover'])!)).toEqual({ current: 0, total: 40 });
   });
 
   it('overkill counts: a 20-Attack swing into a 1-Health body is 20 damage dealt', () => {
@@ -346,81 +355,65 @@ describe('Han Gover — "When this deals 40 damage, get an Ale" (owner handoff 2
     expect(alesGranted(r).length).toBe(1);
   });
 
-  it('GILDED: each crossing pays TWO Ales, and nothing else doubles', () => {
+  it('ONCE PER COMBAT: 80 damage in one fight (40 + 40) pays ONE Ale — the latch holds after the first payout', () => {
+    const r = fight([gover({ attack: 40 })], [foe(0, 40), foe(0, 40)]);
+    expect(alesGranted(r).length).toBe(1);
+    expect(toHandFromGover(r).length).toBe(1);
+  });
+
+  it('ONCE PER COMBAT: one enormous hit that passes 40 twice over (85) still pays ONE Ale — no cap needed, no second crossing', () => {
+    const r = fight([gover({ attack: 85 })], [foe(0, 1)]);
+    expect(alesGranted(r).length).toBe(1);
+    expect(fight([gover({ attack: 120 })], [foe(0, 1)]).playerHandGrants?.filter((id) => ALES.includes(id)).length).toBe(1);
+  });
+
+  it('GILDED: the one Pummel pays TWO Ales, and nothing else doubles', () => {
     const r = fight([gover({ attack: 20, golden: true })], [foe(0, 20), foe(0, 20)]);
     expect(alesGranted(r).length).toBe(2);
-    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 40 }]);
+    expect(toHandFromGover(r).length).toBe(2);
+    expect(fight([gover({ attack: 85, golden: true })], [foe(0, 1)]).playerHandGrants?.filter((id) => ALES.includes(id)).length, 'still 2 on one huge hit').toBe(2);
   });
 
-  it('the tally persists ACROSS combats: 43 after fight one (one Ale), 82 after fight two (a second Ale)', () => {
-    // Fight one: seeded at 30, deals 13 → 43, crosses 40 once.
-    const r1 = fight([gover({ attack: 13, damageDealt: 30 })], [foe(0, 13)]);
-    expect(alesGranted(r1).length).toBe(1);
-    let s = run({ phase: 'combat', board: [body('hg', 'dw3_hangover', { damageDealt: 30 })], hand: [], lastCombat: r1 });
-    s = act(s, { type: 'settleCombat' });
-    expect(at(s, 'hg').damageDealt).toBe(43);
-    expect(s.hand.filter((c) => ALES.includes(c.cardId)).length).toBe(1);
-    // Fight two, seeded from the run card exactly as the reducer seeds it: 43 + 39 = 82, crosses 80 once.
-    const r2 = fight([gover({ attack: 13, damageDealt: at(s, 'hg').damageDealt })], [foe(0, 13), foe(0, 13), foe(0, 13)]);
-    expect(alesGranted(r2).length).toBe(1);
-    expect(r2.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 82 }]);
-    s = act({ ...s, phase: 'combat', lastCombat: r2, combatSettled: false } as RunState, { type: 'settleCombat' });
-    expect(at(s, 'hg').damageDealt).toBe(82);
-    expect(s.hand.filter((c) => ALES.includes(c.cardId)).length, 'two Ales across the two combats').toBe(2);
-  });
-
-  it('the badge reads progress toward the NEXT crossing (owner rule 2026-09-19): 47 dealt → 7/40 in the shop; 33 more → fires', () => {
-    // Persistent (NOT once-per-combat — "(Max 2 per hit)" is a cap, not a rider): the tally carries as before,
-    // only the READING is `total mod 40`, so the shop never shows a cumulative 47/40.
-    const meter = damageMeterOf(CARD_INDEX['dw3_hangover'])!;
-    expect(meter.resetEachCombat).toBe(false);
-    const r1 = fight([gover({ attack: 47 })], [foe(0, 1)]);
-    expect(alesGranted(r1).length).toBe(1);
+  it('RESET EACH COMBAT: the meter does NOT carry across fights — 30 then 13 never pays; a seeded tally is ignored; the next fight re-arms', () => {
+    const r1 = fight([gover({ attack: 30 })], [foe(0, 30)]);
+    expect(alesGranted(r1)).toEqual([]);
     let s = run({ phase: 'combat', board: [body('hg', 'dw3_hangover')], hand: [], lastCombat: r1 });
     s = act(s, { type: 'settleCombat' });
-    expect(at(s, 'hg').damageDealt).toBe(47);
-    expect(damageMeterReading(at(s, 'hg').damageDealt!, meter)).toEqual({ current: 7, total: 40 });
-    const r2 = fight([gover({ attack: 33, damageDealt: at(s, 'hg').damageDealt })], [foe(0, 1)]);
-    expect(alesGranted(r2).length).toBe(1);
-    expect(r2.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 80 }]);
-    expect(damageMeterReading(80, meter), 'the crossing lands on 0/40').toEqual({ current: 0, total: 40 });
+    expect(at(s, 'hg').damageDealt).toBeUndefined();
+    const r2 = fight([gover({ attack: 13, damageDealt: at(s, 'hg').damageDealt })], [foe(0, 13)]);
+    expect(alesGranted(r2)).toEqual([]);
+    // A seeded tally (a pre-Pummel save, a served snapshot) is IGNORED: the fight starts at 0 regardless …
+    const r3 = fight([gover({ attack: 13, damageDealt: 39 })], [foe(0, 13)]);
+    expect(r3.initial.player[0]!.damageDealt).toBeUndefined();
+    expect(alesGranted(r3)).toEqual([]);
+    // … and a fresh combat re-arms the latch: 40 in the next fight pays again.
+    expect(alesGranted(fight([gover({ attack: 40 })], [foe(0, 40)])).length).toBe(1);
   });
 
-  it('one enormous hit can cross two thresholds and pays both', () => {
-    const r = fight([gover({ attack: 85 })], [foe(0, 1)]);
-    expect(alesGranted(r).length).toBe(2);
+  it('the badge: counts up from 0/40 and CLAMPS at 40/40 once it fired (owner rule 2026-09-19, the once-per-combat reading); the shop reads 0/40 after the reset', () => {
+    const meter = damageMeterOf(CARD_INDEX['dw3_hangover'])!;
+    expect(damageMeterReading(27, meter)).toEqual({ current: 27, total: 40 });
+    expect(damageMeterReading(40, meter)).toEqual({ current: 40, total: 40 });
+    expect(damageMeterReading(85, meter), 'never a second lap').toEqual({ current: 40, total: 40 });
+    expect(damageMeterReading(0, meter)).toEqual({ current: 0, total: 40 });
   });
 
-  it('"(Max 2 per hit)" (owner 2026-09-19): a 120-damage hit crosses three thresholds but pays 2 Ales, not 3', () => {
-    const d = CARD_INDEX['dw3_hangover']!;
-    expect(d.text).toContain('(Max 2 per hit)');
-    expect(d.goldenText).toContain('(Max 2 per hit)');
-    const r = fight([gover({ attack: 120 })], [foe(0, 1)]);
-    expect(alesGranted(r).length).toBe(2);
-    expect(toHandFromGover(r).length).toBe(2);
-    // The meter still advanced by the FULL 120 — the third crossing is spent, not banked.
-    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 120 }]);
-  });
-
-  it('…and the next 40 pays again: after a capped 120 hit (meter 120), a 40 hit crosses 160 and pays 1', () => {
-    const r = fight([gover({ attack: 40, damageDealt: 120 })], [foe(0, 1)]);
+  it('once per COMBAT survives a Rise: the risen body does not re-arm', () => {
+    // 40 Attack, 1 Health, Rise: the first clash lands 40 (pays) and kills it; it rises at its printed 4 Attack and
+    // lands more before the second foe finishes it. No second Ale: the latch rode through the Rise.
+    const r = fight([gover({ attack: 40, health: 1, keywords: ['R'] })], [foe(1, 40), foe(1, 100)]);
     expect(alesGranted(r).length).toBe(1);
-    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 160 }]);
-  });
-
-  it('GILDED under the cap: one crossing pays its 2; a second crossing in the SAME hit pays nothing more', () => {
-    const r = fight([gover({ attack: 85, golden: true })], [foe(0, 1)]);
-    expect(alesGranted(r).length).toBe(2);
+    expect(r.events.some((e) => e.type === 'death' && e.target === r.initial.player[0]!.uid && (e as { rise?: boolean }).rise)).toBe(true);
   });
 
   it('a hit that never lands (a Ward) adds nothing', () => {
     // First swing pops the Ward (0 damage dealt), the second kills: 40 dealt in total — one Ale, not two.
     const r = fight([gover({ attack: 40 })], [foe(0, 40, ['DS'])]);
     expect(alesGranted(r).length).toBe(1);
-    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 40 }]);
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 0 }]);
   });
 
-  it('a snapshot (served board) carries the meter, so a served Han Gover pays out from its real total', () => {
+  it('a snapshot (served board) still carries the meter field (a served copy ignores it: every fight starts at 0)', () => {
     const s = run({ board: [body('hg', 'dw3_hangover', { damageDealt: 39 })] });
     expect(snapshotBoard(s).minions[0]!.damageDealt).toBe(39);
   });

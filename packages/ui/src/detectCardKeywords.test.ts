@@ -57,4 +57,21 @@ describe('detectCardKeywords', () => {
     expect(ids({ keywords: [], text: '**Amplify** your Equipment. **Start of Turn:** repeat this.' })).toEqual(['startofturn', 'equipment', 'amplified']);
     expect(ids({ keywords: [], text: 'Whenever another minion is summoned, gain +1/+1.' })).toEqual([]); // no Watcher pill
   });
+
+  // PUMMEL (owner keyword 2026-09-21): "**Pummel (40):** …" (Han Gover) and "**Pummel (6):** …" (Goldvein) raise the
+  // Pummel pill off the word on its boundary, the number stays in the card text (it is the threshold X, not a
+  // buff number), and the definition is the owner's. Declared like Avenge (N).
+  it('Pummel (X) pills: Han Gover (40) and Goldvein (6) raise the pill; the wording is pinned', () => {
+    const gover = CARD_INDEX['dw3_hangover']!;
+    const vein = CARD_INDEX['k3_goldvein']!;
+    expect(gover.text).toBe('**Pummel (40):** Get a **Dwarven Ale**. (Once per combat)');
+    expect(vein.text).toBe('**Pummel (6):** Gain **3 Gold** next turn. (Once per combat)');
+    expect(ids({ keywords: gover.keywords, text: gover.text ?? '' })).toEqual(['pummel', 'ale']);
+    expect(ids({ keywords: vein.keywords, text: vein.text ?? '' })).toEqual(['pummel']);
+    expect(ids({ keywords: gover.keywords, text: gover.goldenText ?? '' })).toEqual(['pummel', 'ale']);
+    expect(KEYWORD_GLOSSARY.find((d) => d.id === 'pummel')!.def).toBe('Pummel (X): Triggers once this minion has dealt X damage in a combat.');
+    expect(KEYWORD_GLOSSARY.find((d) => d.id === 'pummel')!.section).toBe('triggers');
+    // Word boundary: "Pummeled" / "pummel" (lower-case verb) never raise it.
+    expect(ids({ keywords: [], text: 'It gets Pummeled. You pummel it.' })).toEqual([]);
+  });
 });

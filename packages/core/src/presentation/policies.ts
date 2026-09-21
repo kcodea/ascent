@@ -1081,8 +1081,15 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onGetRubyDuplicate:onGetRuby': { policy: 'foldedCue', family: 'economyReact' },        // Gem Sage — cf. rubyGainedCast
   'factory:goldSpentScaleSelf:passive': { policy: 'passive', family: 'passive' },                 // Ancient Wanderer — a synced stat, never a beat
   'factory:cardDeathScaler:passive': { policy: 'passive', family: 'passive' },                    // Spear Warden — a death-count enchant read at the death site, never a beat
-  'factory:dealtDamageAleMeter:passive': { policy: 'passive', family: 'passive' },                // Han Gover — a damage meter read at the damage site; the Ale grant is its own `toHand` beat
-  'factory:dealtDamageGoldNextTurn:passive': { policy: 'passive', family: 'passive' },            // Goldvein (2026-09-19) — the same meter; the Gold bank is a `bonusGold` moment of its own
+  // PUMMEL (X) — the damage meters. A Pummel that pays emits `pummelTrigger` (2026-09-21, once per body per
+  // combat) stamped with these keys, and the replay plays the owner's `pummel-trigger` flash INSIDE the hit's impact
+  // moment — credit without a pause, so `foldedCue`. The consequences ride their own channels: Han Gover's
+  // Ale is a `toHand` beat (deliberately NOT stamped with this key — only the trigger emit sits inside the
+  // meter's `withEffect`, so the Ale's beat keeps the stock `toHand` hold under the Beat Lab instead of
+  // folding through this policy); Goldvein's Gold is `playerBonusGold` at settle (there is NO `bonusGold`
+  // event — an earlier comment here claimed one).
+  'factory:dealtDamageAleMeter:passive': { policy: 'foldedCue', family: 'react' },                // Han Gover (Pummel (40)) — the meter reads at the damage site; the fire flashes on the hit, the Ale flies on its own `toHand` beat
+  'factory:dealtDamageGoldNextTurn:passive': { policy: 'foldedCue', family: 'react' },            // Goldvein (Pummel (6), 2026-09-19) — the same meter; the fire flashes on the hit, the Gold lands at settle
   'factory:buffShopOffersThisTurn:onBuy': { policy: 'foldedCue', family: 'economyReact' },        // Night Market Horror — cf. buffBoardOnBuy
   'factory:buffShopOffersThisTurn:spellBought': { policy: 'foldedCue', family: 'economyReact' },  // …its "a spell is a card too" half
   'factory:onSellDiscoverSingleton:onSell': { policy: 'ownBeat', family: 'economy' },             // Traveling Salesman — cf. onSellDiscover

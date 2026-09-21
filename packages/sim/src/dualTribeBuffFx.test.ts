@@ -86,10 +86,12 @@ describe('a tribe-aura wash includes dual-type members', () => {
 
 describe('a COMBAT grant settling into hand re-fires Gangplank on the run board (the report as it happened)', () => {
   it('settleCombat captures Gangplank → Han Gover with the seq bumped while the phase is still combat', () => {
-    // Han Gover one hit short of its 40-damage Ale, against a sandbag: the real fight grants an Ale to hand.
+    // Han Gover at 40 Attack against a sandbag: his first landed hit reaches Pummel (40) and the real fight grants
+    // an Ale to hand. (The meter is once per combat and starts at 0 every fight since 2026-09-21, so a seeded
+    // lifetime tally would be ignored — the hit itself has to reach 40.)
     const r = simulate(
       [{ cardId: 'dw_gangplank', attack: 3, health: 5 } as BoardMinion,
-        { cardId: 'dw3_hangover', attack: 5, health: 9, damageDealt: 39 } as unknown as BoardMinion],
+        { cardId: 'dw3_hangover', attack: 40, health: 9 } as unknown as BoardMinion],
       [{ cardId: 'sandbag', attack: 0, health: 300 } as BoardMinion],
       makeRng(1), CARD_INDEX, combatSide({ tier: 4 }), combatSide({ tier: 4 }));
     expect(r.playerHandGrants?.length ?? 0, 'the fight granted an Ale to hand').toBeGreaterThan(0);
@@ -99,7 +101,7 @@ describe('a COMBAT grant settling into hand re-fires Gangplank on the run board 
     // ...and pays out AGAIN, permanently, when the Ale comes home at settle — the wave the shop must show.
     let s: RunState = {
       ...createRun(11, 'aster'), phase: 'combat', tier: 4,
-      board: [card('gp', 'dw_gangplank', 3, 5), card('hg', 'dw3_hangover', 5, 9, { damageDealt: 39 })],
+      board: [card('gp', 'dw_gangplank', 3, 5), card('hg', 'dw3_hangover', 5, 9)],
       hand: [], shop: [],
       lastCombat: r,
     };

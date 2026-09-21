@@ -56,6 +56,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-20',
+    label: 'Kobe nerf',
+    changes: [
+      { category: 'Card Change', text: 'Kobe now plays one permanent Ruby (gilded: two) on itself and adjacent Kobolds when it takes damage, down from three (gilded six).' },
+    ],
+  },
+  {
+    date: '2026-09-20',
     label: 'Ladder pages backdrop',
     changes: [
       { category: 'UI / Info', text: 'Career, Leaderboard, Hall of Champions and Recent Games now sit on the deep navy backdrop the loading screen uses (the same one as the new rank screen) instead of the title art.' },

@@ -11,7 +11,7 @@ import { cardTypeTallyText } from '../../ui/src/cardText';
  *
  *  1. Dual Rubetta's: improve your Rubies +1/+1, then a Ruby on your left-most AND right-most Kobold.
  *  2. Korn: Rally → a PERMANENT Ruby on itself (carries back).
- *  3. Kobe: Taunt; WHEN THIS TAKES DAMAGE, 3 permanent Rubies on this + adjacent Kobolds (carry back).
+ *  3. Kobe: Taunt; WHEN THIS TAKES DAMAGE, 1 permanent Ruby (3 until the 2026-09-20 nerf)es on this + adjacent Kobolds (carry back).
  *  4. Boulderdash: Flurry + Rally: 3 permanent Rubies on this (two swings, two Rallies).
  *  5. Livewire: a Shop spell → a Ruby on this + 2 RANDOM OTHER Kobolds.
  *  6. Paragon: +5/+5 (pinned by finalTranche / ownerBatchSep01 — the magnitude moved there).
@@ -92,23 +92,23 @@ describe('Korn — Rally: Cast a permanent Ruby on this', () => {
   });
 });
 
-// ── 3. Kobe — Taunt. When this takes damage, play 3 permanent Rubies on this and adjacent Kobolds ─────────
-describe('Kobe — Taunt. When this takes damage, play 3 permanent Rubies on this and adjacent Kobolds', () => {
+// ── 3. Kobe — Taunt. When this takes damage, play 1 permanent Rubies on this and adjacent Kobolds ─────────
+describe('Kobe — Taunt. When this takes damage, play 1 permanent Rubies on this and adjacent Kobolds', () => {
   it('has Taunt and no Start of Combat any more', () => {
     const d = CARD_INDEX['k_kobe']!;
     expect(d.keywords).toContain('T');
     expect(d.effects.map((e) => e.on)).toEqual(['onDamaged']);
-    expect(d.text).toBe('**Taunt.** When this takes damage, play **3 permanent Rubies** on this and adjacent **Kobolds**.');
+    expect(d.text).toBe('**Taunt.** When this takes damage, play a **permanent Ruby** on this and adjacent **Kobolds**.'); // 3 → 1 (owner nerf 2026-09-20)
   });
 
-  it('every landed hit plays 3 Rubies on Kobe and its adjacent Kobold — not the non-Kobold on the other side', () => {
+  it('every landed hit plays 1 Ruby on Kobe and its adjacent Kobold — not the non-Kobold on the other side (3 → 1, owner nerf 2026-09-20)', () => {
     // A 1-Attack foe that swings into the Taunt each turn; Kobe's own retaliation never kills it.
     const r = fight([bm('k3_korn', 'L', 0, 60), bm('k_kobe', 'K', 0, 60), bm('venom', 'V', 0, 60)], [foe('omen', 1, 400)]);
     const kobe = uidOf(r, 'k_kobe');
     const hits = r.events.filter((e) => e.type === 'dmg' && (e as { target: string }).target === kobe).length;
     expect(hits, 'Kobe took hits').toBeGreaterThan(0);
-    expect(rubyAttackOn(r, kobe, kobe), '3 Rubies (3 Attack at base strength) on itself per hit').toBe(hits * 3);
-    expect(rubyAttackOn(r, uidOf(r, 'k3_korn'), kobe), '3 on the adjacent Kobold per hit').toBe(hits * 3);
+    expect(rubyAttackOn(r, kobe, kobe), '1 Ruby (1 Attack at base strength) on itself per hit').toBe(hits * 1);
+    expect(rubyAttackOn(r, uidOf(r, 'k3_korn'), kobe), '1 on the adjacent Kobold per hit').toBe(hits * 1);
     const onVenom = r.events.some((e) => e.type === 'buff' && (e as { target: string }).target === uidOf(r, 'venom') && (e as { source: string }).source === kobe);
     expect(onVenom, 'the adjacent non-Kobold gets none').toBe(false);
   });

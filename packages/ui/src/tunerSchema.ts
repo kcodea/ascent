@@ -49,6 +49,7 @@ export const PANEL_EMBLEMS: Record<string, string> = {
   lobbyraillook: '🎨',
   scoutcard: '🔎',
   opponentsbackplate: '🖼️',
+  titleaccount: '👤',
   loadscreen: '⏳',
   heroduel: '⚔️',
   rankscreen: '🎖️',

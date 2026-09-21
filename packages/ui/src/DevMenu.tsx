@@ -22,6 +22,7 @@ import { RulebookTriage } from './RulebookTriage';
 import { BugBoard } from './BugBoard';
 import { QaWorkbench } from './QaWorkbench';
 import { TitleVeilTuner } from './TitleVeilTuner';
+import { TitleAccountTuner } from './TitleAccountTuner';
 import { BoardEdgeTuner } from './BoardEdgeTuner';
 import { SecondPowerTuner } from './SecondPowerTuner';
 import { CombatRampTuner } from './CombatRampTuner';
@@ -152,6 +153,7 @@ const GROUPS: Group[] = [
       { key: 'runesheen', icon: '💠', label: 'Rune Nodes', C: RuneSheenTuner, hint: 'The owned-rune node row — size/position + per-node nudges — and the glossy sheen over them', alt: 'rune sheen quest node badge row' },
       { key: 'titlelogo', icon: '🏔️', label: 'Title Logo', C: TitleLogoTuner, hint: 'The main-menu peak mark + ASCENT wordmark — size, spacing, and position', alt: 'main menu title wordmark' },
       { key: 'titleveil', icon: '🌒', label: 'Title Veil', C: TitleVeilTuner, hint: 'The dark navy gradient behind the main menu — colour, intensity and the bowed clear zone over the floating city', alt: 'main menu background darken vignette overlay' },
+      { key: 'titleaccount', icon: '👤', label: 'Title Account', C: TitleAccountTuner, hint: 'The main-menu account corner — the portrait ring, the name plate on its bottom edge and the rank badge beneath: size + position of each', alt: 'main menu avatar portrait name plate rank badge account corner' },
       { key: 'loadscreen', icon: '⏳', label: 'Load Screen', C: LoadScreenTuner, hint: 'The boot splash — resize the AscentIcon and size/position the loading bar. "Toggle load screen" re-shows it live', alt: 'boot loading splash screen' },
       { key: 'heroduel', icon: '⚔️', label: 'Hero Duel', C: HeroDuelTuner, hint: 'The post-combat sequence — foe portrait, attack pill, and the winning hero lunge. Has Test buttons', alt: 'combat end hero attack strike pill' },
       { key: 'rankscreen', icon: '🎖️', label: 'Rank Screen', C: RankScreenPreview, hint: 'The post-game medal rank screen — plays every fixture state (gain, loss, gate unlocked, promotion won, medal promotion, promotion failed, demotion, floor, Ascendant uncapped, pending, retryable, rejected, unrated) plus the pending → confirmed arrival, the demotion-gate variants, the rank-up FX hit and the Continue cross-fade', alt: 'medal mmr rank end screen placement promotion division points bar' },

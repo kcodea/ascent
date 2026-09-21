@@ -19,6 +19,14 @@ import { endReplay } from './replay/replayPlayer';
 export function EscMenu({ onClose }: { onClose: () => void }) {
   const openTitle = useGame((s) => s.openTitle);
   const replaying = useGame((s) => s.replaying);
+  // ACCOUNT row (owner ask 2026-09-21): Sign in / Sign out moved here from the Title's top-right chip. The
+  // AccountPanel only ever renders over the Title (its own gate), so the Sign-in button is offered on the title
+  // and in-game the row just says where to go; Sign out is safe anywhere (it only resets the local identity).
+  const onTitle = useGame((s) => s.showTitle);
+  const account = useGame((s) => s.account);
+  const signOutAccount = useGame((s) => s.signOutAccount);
+  const openAccountPanel = useGame((s) => s.openAccountPanel);
+  const signedIn = !account.anonymous && !!account.email;
   // Audio is owned by sfx.ts (persisted to localStorage); mirror it into local state so the slider +
   // mute button re-render as they change. Dragging the slider previews the level on release.
   const [vol, setVol] = useState(getVolume());
@@ -151,6 +159,27 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
               <span className="ebs">Closes ASCENT — your run stays saved</span>
             </button>
           </>
+        )}
+        <div className="escsec">Account</div>
+        {signedIn ? (
+          <button
+            className="escbtn pressable"
+            onPointerDown={() => { sfx.pulse(); void signOutAccount(); }}
+          >
+            <span className="ebl">Sign out</span>
+            <span className="ebs ebs-plain">Signed in as {account.email}</span>
+          </button>
+        ) : onTitle ? (
+          <button
+            className="escbtn pressable"
+            // The panel paints ABOVE this modal (z 540 vs 500); close the modal first so it does not linger underneath.
+            onPointerDown={() => { sfx.pulse(); onClose(); openAccountPanel(); }}
+          >
+            <span className="ebl">Sign in</span>
+            <span className="ebs">Save your progress — email, no password</span>
+          </button>
+        ) : (
+          <div className="escnote">Not signed in — sign in from the main menu to keep your progress across devices.</div>
         )}
         <button className="escclose pressable" onPointerDown={onClose}>Resume</button>
       </div>

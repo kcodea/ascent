@@ -55,6 +55,20 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-21',
+    label: 'Title screen — your portrait, name and rank',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: "The title screen shows your portrait large in the top-right with your name and rank; Sign in / Sign out moved into Settings.",
+        details: [
+          "Your avatar now sits in the game's gold portrait ring, top-right of the main menu — click it to change your avatar, or click your name on the ring's edge to rename yourself. Your current rank (say Bronze III) shows in a badge under your name once you have one.",
+          "The old \"Sign in\" / \"Account\" button in that corner is gone. Sign in (and Sign out, once you're signed in) now live at the bottom of Settings; signing in still only takes an email and a one-time code.",
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-20',
     label: 'Medal ranks — season 3 + the post-game rank screen',
     changes: [

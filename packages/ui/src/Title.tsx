@@ -5,12 +5,13 @@ import { avatarSrc, modeArt } from './art';
 import { getTitleText, subscribeTitleText, titleContinueNote } from './titleTextConfig';
 import { applyTitleVars } from './titleConfig';
 import { applyTitleVeilVars } from './titleVeilConfig';
+import { applyTitleAccountVars } from './titleAccountConfig';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame, tempHandle } from './store';
 import { startReplay } from './replay/replayPlayer';
 import { getCourseProgress, skipCourse } from './tutorial/tutorialProfile';
-import { RankBar } from './rank/RankBar';
+import { RankBar, RankCrest } from './rank/RankBar';
 import { useCurrentRank, useDemotionReady } from './rank/rankSource';
 import { pointsText, rankLabel } from './rank/rankFormat';
 
@@ -66,7 +67,6 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const playerAvatar = useGame((s) => s.playerAvatar);
   const openAvatarPicker = useGame((s) => s.openAvatarPicker);
   const account = useGame((s) => s.account);
-  const openAccountPanel = useGame((s) => s.openAccountPanel);
   const savedRun = useGame((s) => s.savedRun);
   const lastReplay = useGame((s) => s.lastReplay);
   const continueRun = useGame((s) => s.continueRun);
@@ -82,8 +82,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const [, bumpText] = useState(0);
   useEffect(() => subscribeTitleText(() => bumpText((n) => n + 1)), []);
   // Apply the persisted Title Logo tuner values (dev) / DEFAULTS (prod) to `--title-*` when the menu mounts.
-  // Same for the Title Veil (`--tv-*`, the navy background vignette).
-  useEffect(() => { applyTitleVars(); applyTitleVeilVars(); }, []);
+  // Same for the Title Veil (`--tv-*`, the navy background vignette) and the account corner (`--ta-*`).
+  useEffect(() => { applyTitleVars(); applyTitleVeilVars(); applyTitleAccountVars(); }, []);
   const txt = getTitleText();
 
   const [editing, setEditing] = useState(false);
@@ -126,41 +126,61 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       {/* Static homescreen background — the looping menu video is disabled for now (owner request 2026-07-08);
           the full-bleed sky-castle art comes from the `.titlescreen` CSS background (homescreen.webp). */}
 
-      {/* Account (top-right) — the avatar opens the picker; the name is click-to-rename. */}
+      {/* ACCOUNT CORNER (owner ask 2026-09-21) — the player's portrait LARGE in the game's gold portrait ring
+          (the `.portring` the Career page + rank screen wear; click opens the avatar picker), their NAME as a
+          plate eclipsing the ring's bottom edge like the in-game hero-name pill (click-to-rename), and their
+          current RANK in a badge beneath. Sign in / Sign out live in Settings now. Sizes + offsets are the
+          👤 Title Account dev tuner's `--ta-*` vars (see titleAccountConfig.ts). No `data-tip` on `.portring`
+          itself — its ::after IS the ring; the tip rides the wrapping button. */}
       <div className="titleaccount">
-        <button className="titleavatar" onClick={openAvatarPicker} data-tip="Change your avatar" aria-label="Change your avatar">
-          {avatarSrc(playerAvatar)
-            ? <img decoding="sync" src={avatarSrc(playerAvatar)} alt="Your avatar" draggable={false} />
-            : <span className="titleavatar-ph">{(effectiveName.trim()[0] ?? '').toUpperCase() || '☺'}</span>}
-        </button>
-        {editing ? (
-          <input
-            className="acctinput"
-            autoFocus
-            maxLength={24}
-            value={draft}
-            placeholder="Your name"
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
-          />
-        ) : (
-          <button
-            className={`acctname${unnamed ? ' acctname-nudge' : ''}`}
-            onClick={beginEdit}
-            title={unnamed ? 'This is a temporary name — click to make it your own' : 'Click to change your name'}
-          >
-            {effectiveName}
-          </button>
-        )}
-        {/* ACCOUNTS C2 — sign-in status / entry. Signed in = a portable account; otherwise an invite to save. */}
         <button
-          className={`acctsignin${account.anonymous ? '' : ' linked'}`}
-          onClick={() => { sfx.pulse(); openAccountPanel(); }}
-          title={account.anonymous ? 'Save your progress — sign in with your email' : `Signed in as ${account.email ?? ''}`}
+          className={`titleportrait${avatarSrc(playerAvatar) ? '' : ' noart'}`}
+          onClick={openAvatarPicker}
+          data-tip="Change your avatar"
+          aria-label="Change your avatar"
         >
-          {account.anonymous ? 'Sign in' : 'Account ✓'}
+          <div className="portring">
+            <div className="hero">
+              <div className="f">
+                {avatarSrc(playerAvatar)
+                  ? <img decoding="sync" className="heroimg" src={avatarSrc(playerAvatar)} alt="" draggable={false} />
+                  : <span className="titleportrait-ph">{(effectiveName.trim()[0] ?? '').toUpperCase() || '☺'}</span>}
+              </div>
+            </div>
+          </div>
         </button>
+        <div className="titlename-seat">
+          {editing ? (
+            <input
+              className="acctinput titlename-input"
+              autoFocus
+              maxLength={24}
+              value={draft}
+              placeholder="Your name"
+              aria-label="Your name"
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
+            />
+          ) : (
+            <button
+              className="titlename"
+              onClick={beginEdit}
+              data-tip={unnamed ? 'This is a temporary name — click to make it your own' : 'Click to change your name'}
+            >
+              {/* First-time nudge: a real element (not a pseudo — the tooltip owns this button's ::before/::after)
+                  with a STATIC ring shadow whose OPACITY pulses (compositor-only). */}
+              {unnamed && <span className="titlename-nudge" aria-hidden="true" />}
+              <span className="titlename-txt">{effectiveName}</span>
+            </button>
+          )}
+        </div>
+        {rank && (
+          <div className="titlerank" aria-label={`Rank ${rankLabel(rank)}`}>
+            <RankCrest divisionIndex={rank.divisionIndex} size="mini" hideDivision />
+            <span className="titlerank-label">{rankLabel(rank)}</span>
+          </div>
+        )}
       </div>
 
       <div className="titlemenu">

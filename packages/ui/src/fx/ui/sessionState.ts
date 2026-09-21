@@ -44,6 +44,9 @@ export interface WorkbenchSession {
    *  workbench's state can be a plain curve rather than a nullable one — `toDef` drops the identity again on
    *  the way out, so "no ease" still serialises as an omission. */
   ease: [number, number][];
+  /** Whether the composition rides its source unit each frame (see `FxDef.followSource`). Restored on the
+   *  same "explicit `true` or the default" terms as `seedLocked`/`slot`: an older snapshot comes back `false`. */
+  followSource: boolean;
 }
 
 /** Duration clamp bounds, injected so this module never has to know the workbench's slider constants. */
@@ -180,6 +183,9 @@ export function normalizeSession(raw: unknown, bounds: DurationBounds): Workbenc
     // Same discipline again: a snapshot predating the ease control, or one whose curve is unusable, restores
     // to the identity ramp — i.e. no ease — rather than to a shape the author never drew.
     ease: readEase(s.ease),
+    // Same discipline as `seedLocked`/`slot`: only an explicit `true` opts in, so an older snapshot restores
+    // to not-following rather than to a surprise.
+    followSource: s.followSource === true,
   };
 }
 

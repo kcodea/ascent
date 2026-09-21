@@ -336,6 +336,7 @@ describe('coerceDef / toStoredDef', () => {
       ease: [[0, 0], [0.4, 0.9], [1, 1]],
       loopMode: 'seamless',
       loopJoinMs: -60,
+      followSource: true,
       layers: [{ primitive: 'test-prim', anchor: 'target', at: 0, params: { size: 3 } }],
     };
     // Exactly what the workbench does on Save, with an editor that reproduces the prior def's state.
@@ -349,6 +350,7 @@ describe('coerceDef / toStoredDef', () => {
       prior.ease,
       prior.loopMode,
       prior.loopJoinMs,
+      prior.followSource,
     );
     expect(saved).toEqual(prior);
   });
@@ -389,6 +391,24 @@ describe('coerceDef / toStoredDef', () => {
     const legacy = coerceDef({ version: 1, id: 'd', duration: 100, layers: [] });
     expect(legacy?.loopMode).toBeUndefined();
     expect(legacy?.loopJoinMs).toBeUndefined();
+  });
+
+  // ── `followSource` follows the exact same omit-unless-`true` discipline as `slot` ─────────────────────
+
+  it('round-trips followSource: true and omits false/undefined as the default', () => {
+    const following = toStoredDef('d', 100, [], undefined, undefined, undefined, undefined, undefined, 0, true);
+    expect(following.followSource).toBe(true);
+    expect(coerceDef(JSON.parse(JSON.stringify(following)))?.followSource).toBe(true);
+    expect('followSource' in toStoredDef('d', 100, [], undefined, undefined, undefined, undefined, undefined, 0, false)).toBe(false);
+    expect('followSource' in toStoredDef('d', 100, [], undefined, undefined, undefined)).toBe(false);
+  });
+
+  it('coerceDef takes only a literal true for followSource, and omits it otherwise', () => {
+    expect(coerceDef({ duration: 100, layers: [], followSource: true })?.followSource).toBe(true);
+    expect('followSource' in (coerceDef({ duration: 100, layers: [] }) ?? {})).toBe(false);
+    expect('followSource' in (coerceDef({ duration: 100, layers: [], followSource: false }) ?? {})).toBe(false);
+    expect('followSource' in (coerceDef({ duration: 100, layers: [], followSource: 'yes' }) ?? {})).toBe(false);
+    expect('followSource' in (coerceDef({ duration: 100, layers: [], followSource: 1 }) ?? {})).toBe(false);
   });
 
   it('coerceDef takes only the literal "under" slot, and omits it otherwise', () => {

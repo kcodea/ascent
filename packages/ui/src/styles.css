@@ -11082,9 +11082,9 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 .heroselect.rankend { grid-template-rows: 1fr; place-items: center; padding: 24px;
   background: radial-gradient(ellipse 60% 60% at 50% 50%, #24468a 0%, #0a1730 100%);
   animation: fadein 0.45s ease; }
-/* The rank-up FX draws on the ABOVE canvas (z200), which the rank overlay (z400) would otherwise cover: while
-   the screen is up the canvas is lifted over it (and under the dev panels at 600+; the exit clone at 480 is
-   above it, by which time the burst has finished). */
+/* The rank-up / down-rank FX draw on the ABOVE canvas (z200), which the rank overlay (z400) would otherwise
+   cover: while the screen is up the canvas is lifted over it (and under the dev panels at 600+; the exit clone
+   at 480 is above it, by which time the burst / shard fall has finished). */
 body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 /* The CONTINUE cross-fade: a static clone of the settled screen, parked above the title (z450) while GSAP
    fades its opacity; `animation: none` stops the overlay's own fade-in from replaying on the copy. */

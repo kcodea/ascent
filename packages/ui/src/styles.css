@@ -5134,12 +5134,60 @@ body:has(.titlescreen) .version { visibility: hidden; }
 /* Shared crest gem — used in the logo, rank chip, and the Play button. */
 .crest { width: 1em; height: 1em; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
 
-/* Account name (top-right) — click to set/rename yourself; wires to the real account when that lands. */
-.titleaccount { zoom: var(--ui-zoom); position: absolute; top: 24px; right: 30px; display: flex; align-items: center; gap: 12px; }
-.titleavatar { width: 92px; height: 92px; border-radius: 50%; overflow: hidden; padding: 0; display: grid; place-items: center; background: linear-gradient(150deg, #f3c96a, #e08a3c); border: 2px solid rgba(255, 255, 255, 0.35); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s ease, border-color 0.1s ease; }
-.titleavatar:hover { transform: scale(1.07); border-color: rgba(255, 255, 255, 0.7); }
-.titleavatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.titleavatar-ph { font-family: var(--font-ui); font-weight: 900; font-size: 44px; color: #1a1208; }
+/* ACCOUNT CORNER (owner ask 2026-09-21) — the player's portrait LARGE in the game's gold portrait ring
+   (`.portring`, the same treatment the Career page + rank screen wear), top-right of the title; the NAME plate
+   eclipses the ring's bottom edge the way the in-game hero-name pill (`.statusbar .hero .heroname`) straddles
+   the portrait; the RANK badge sits beneath the name. Sign in / out moved into Settings. Ring size, the corner's
+   seat and each plate's scale + nudge come from the 👤 Title Account dev tuner (`titleAccountConfig.ts` →
+   `--ta-*`); the fallbacks here mirror its DEFAULTS — keep them in sync when baking a tune. The `.titleaccount`
+   box IS the ring box (the button is its only in-flow child), so `bottom: 0` / `top: 100%` on the seats mean
+   the ring's bottom edge. Hover is a transform only; nothing here loops on a paint property. */
+.titleaccount { zoom: var(--ui-zoom); position: absolute; top: 26px; right: 44px; transform: var(--ta-ring-t, translate(0px, 0px)); }
+.titleportrait { display: block; padding: 0; border: none; background: none; transition: transform 0.12s ease; }
+.titleportrait:hover { transform: scale(1.035); }
+.titleportrait .portring { --ring: var(--ta-ring, 190px); }
+/* No avatar picked yet: the old gold disc + the player's initial, inside the ring. */
+.titleportrait.noart .portring > .hero .f { background: linear-gradient(150deg, #f3c96a, #e08a3c); }
+.titleportrait-ph { font-family: var(--font-ui); font-weight: 900; font-size: calc(var(--ta-ring, 190px) * 0.42); line-height: 1; color: #1a1208; }
+/* The corner's tooltips (portrait + name) open to the LEFT of their button — the default below-the-element
+   seat is where the name plate + rank badge hang. Same bubble; the arrow's visible edges flip to point right. */
+.titlescreen .titleaccount .titleportrait[data-tip]::after,
+.titlescreen .titleaccount .titlename[data-tip]::after { left: auto; right: calc(100% + 12px); top: 50%; transform: translateY(-50%) translateX(4px); }
+.titlescreen .titleaccount .titleportrait[data-tip]:hover::after,
+.titlescreen .titleaccount .titleportrait[data-tip]:focus-visible::after,
+.titlescreen .titleaccount .titlename[data-tip]:hover::after,
+.titlescreen .titleaccount .titlename[data-tip]:focus-visible::after { transform: translateY(-50%) translateX(0); }
+.titlescreen .titleaccount .titleportrait[data-tip]::before,
+.titlescreen .titleaccount .titlename[data-tip]::before { left: auto; right: calc(100% + 8px); top: 50%; transform: translateY(-50%) rotate(45deg);
+  border-left: none; border-top: 1.5px solid var(--line); border-right: 1.5px solid var(--line); }
+/* Name plate — seated on the ring's bottom edge: `translate(-50%, 52%)` straddles it (half over the art, half
+   below), then the tuner's nudge + scale stack on. z 3 clears the ring's ::after (z 2). */
+.titlename-seat { position: absolute; left: 50%; bottom: 0; z-index: 3; transform: var(--ta-name-t, translate(-50%, 52%) translate(0px, -12px) scale(1)); }
+.titlename { display: block; max-width: 250px; padding: 5px 22px; border: 2px solid var(--gold); border-radius: 999px;
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); box-shadow: 0 2px 6px -2px var(--shadow), 0 8px 22px -10px rgba(0, 0, 0, 0.7);
+  font-family: var(--font-ui); font-weight: 800; font-size: 21px; letter-spacing: 0.02em; line-height: 1.1; transition: border-color 0.1s ease; }
+.titlename:hover { border-color: #e6b640; }
+.titlename-txt { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* First-time nudge: the temp-name plate pulses an accent ring so the player notices it's editable. Perf-safe —
+   a REAL element (the tooltip owns the button's pseudos) with a STATIC shadow whose OPACITY animates
+   (compositor-only), never a looping paint property (see the kwglow pattern + docs/performance.md). */
+.titlename-nudge { position: absolute; inset: -4px; border-radius: 999px; pointer-events: none;
+  box-shadow: 0 0 0 2px rgba(236, 200, 120, 0.95), 0 0 16px 2px rgba(236, 200, 120, 0.55);
+  opacity: 0; animation: acctnudge 1.25s ease-in-out infinite; }
+@keyframes acctnudge { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .titlename-nudge { animation: none; opacity: 0.7; } }
+/* Editing: the same pill, now a text field. The `.acctinput` base (shared with the Account panel's inputs)
+   sits LATER in the sheet, so this restyle is scoped under the seat to out-rank it. */
+.titlename-seat .titlename-input { width: 230px; min-width: 0; padding: 5px 22px; border: 2px solid var(--gold); border-radius: 999px; text-align: center;
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); box-shadow: 0 2px 6px -2px var(--shadow), 0 8px 22px -10px rgba(0, 0, 0, 0.7);
+  font-size: 21px; letter-spacing: 0.02em; line-height: 1.1; }
+.titlename-seat .titlename-input::placeholder { color: rgba(42, 32, 23, 0.4); }
+/* Rank badge — the Play card's `.mcrank` recipe (frosted dark pill, mini crest + label), seated centred under
+   the ring. Non-interactive. Hidden entirely when the profile carries no rank yet. */
+.titlerank { position: absolute; left: 50%; top: 100%; z-index: 3; transform: var(--ta-rank-t, translate(-50%, 0) translate(0px, 22px) scale(1));
+  display: flex; align-items: center; gap: 8px; padding: 4px 16px 4px 5px; border-radius: 999px; white-space: nowrap;
+  background: rgba(6, 9, 16, 0.74); border: 1px solid rgba(196, 160, 92, 0.5); box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.8); pointer-events: none; }
+.titlerank-label { font-family: var(--font-ui); font-weight: 900; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; color: #fff6e4; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8); }
 
 /* Font Lab (dev) — bottom-right of the title; a small toggle that opens the per-role font pickers. */
 .fontlab { position: fixed; right: 18px; bottom: 18px; z-index: 460; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
@@ -5151,34 +5199,15 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .fontlab-row select { flex: none; width: 140px; padding: 5px 8px; border-radius: 8px; border: 1.5px solid rgba(255, 255, 255, 0.2); background: rgba(0, 0, 0, 0.35); color: #fff; font-size: 12px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .fontlab-reset { margin-top: 2px; align-self: stretch; padding: 7px; border-radius: 8px; border: none; background: rgba(255, 255, 255, 0.1); color: #ddd2c0; font-family: var(--font-ui); font-weight: 700; font-size: 12px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .fontlab-reset:hover { background: rgba(255, 255, 255, 0.18); color: #fff; }
-.acctname, .acctinput { font-family: var(--font-ui); font-weight: 800; font-size: 26px; letter-spacing: 0.06em; color: #ecdcb2;
+/* The account-panel input base (the Title's name field shares it and restyles into the name plate above). */
+.acctinput { font-family: var(--font-ui); font-weight: 800; font-size: 26px; letter-spacing: 0.06em; color: #ecdcb2;
   padding: 8px 20px; border-radius: 12px; border: 1.5px solid rgba(196, 160, 92, 0.55);
   background: linear-gradient(180deg, rgba(20, 30, 50, 0.82), rgba(11, 19, 34, 0.86)); box-shadow: 0 6px 20px -8px rgba(0, 0, 0, 0.6);
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.acctname:hover { border-color: rgba(230, 200, 130, 0.95); color: #f4ecda; }
-/* First-time nudge: the temp-name chip pulses an accent ring so the player notices it's editable. Perf-safe —
-   the shadow is STATIC on a pseudo-element and only its OPACITY animates (compositor-only), never a looping
-   paint property (see the kwglow pattern + docs/performance.md). */
-.acctname-nudge { position: relative; }
-.acctname-nudge::after {
-  content: ''; position: absolute; inset: -3px; border-radius: 14px; pointer-events: none;
-  box-shadow: 0 0 0 2px rgba(236, 200, 120, 0.95), 0 0 16px 2px rgba(236, 200, 120, 0.55);
-  opacity: 0; animation: acctnudge 1.25s ease-in-out infinite;
-}
-@keyframes acctnudge { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .acctname-nudge::after { animation: none; opacity: 0.7; } }
-.acctinput { outline: none; text-align: right; min-width: 220px; cursor: text; }
+  outline: none; text-align: right; min-width: 220px; cursor: text; }
 .acctinput::placeholder { color: rgba(236, 220, 178, 0.45); }
 
-/* ACCOUNTS C2 — the Title sign-in chip + the account overlay. Themed off the shared glass vars so the UI
+/* ACCOUNTS C2 — the account overlay (sign-in lives in Settings now). Themed off the shared glass vars so the UI
    Theme tuner reaches it; PRESENTATION IS MIKE'S SEAM, this is a plain functional shell for him to restyle. */
-.acctsignin { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--gl-accent, #a8d8ef); padding: 6px 12px; border-radius: 10px; border: 1.5px solid var(--gl-border, rgba(190, 214, 240, 0.4));
-  background: linear-gradient(180deg, var(--gl-top, rgba(46, 56, 72, 0.86)), var(--gl-bot, rgba(20, 25, 34, 0.9)));
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: border-color 0.1s, color 0.1s; }
-.acctsignin:hover { border-color: var(--gl-border-top, rgba(226, 240, 255, 0.6)); color: var(--gl-text, #eef4fb); }
-.acctsignin.linked { color: #8fe3a4; }
-
 .acctpanel { position: fixed; inset: 0; z-index: 540; display: grid; place-items: center; background: rgba(8, 10, 20, 0.74); backdrop-filter: blur(3px); }
 .acctpanel-box { display: flex; flex-direction: column; width: min(440px, 92vw); border-radius: var(--gl-radius, 16px);
   background: linear-gradient(180deg, var(--gl-top, rgba(46, 56, 72, 0.96)), var(--gl-bot, rgba(20, 25, 34, 0.98)));
@@ -6203,6 +6232,8 @@ svg { width: 18px; height: 18px; }
 .escbtn.on { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 15%, var(--card)); box-shadow: inset 0 0 0 1px var(--acc); }
 .escbtn .ebl { font-family: var(--font-ui); font-weight: 800; font-size: 17px; color: var(--ink); }
 .escbtn .ebs { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.06em; }
+/* A subtext that carries an email (Settings → Account): case + spacing left as typed, and it may wrap. */
+.escbtn .ebs.ebs-plain { text-transform: none; letter-spacing: 0.02em; word-break: break-all; text-align: right; }
 .escbtn.on .ebs { color: var(--acc-dk); }
 .escbtn.danger { border-color: color-mix(in srgb, var(--threat) 45%, var(--line)); }
 .escbtn.danger:hover { border-color: var(--threat); background: color-mix(in srgb, var(--threat) 12%, var(--card)); }

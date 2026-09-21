@@ -19,11 +19,18 @@ import { endReplay } from './replay/replayPlayer';
 export function EscMenu({ onClose }: { onClose: () => void }) {
   const openTitle = useGame((s) => s.openTitle);
   const replaying = useGame((s) => s.replaying);
+  // ACCOUNT row (owner ask 2026-09-21): Sign in / Sign out moved here from the Title's top-right chip. The
+  // AccountPanel only ever renders over the Title (its own gate), so the Sign-in button is offered on the title
+  // and in-game the row just says where to go; Sign out is safe anywhere (it only resets the local identity).
+  const onTitle = useGame((s) => s.showTitle);
+  const account = useGame((s) => s.account);
+  const signOutAccount = useGame((s) => s.signOutAccount);
+  const openAccountPanel = useGame((s) => s.openAccountPanel);
+  const signedIn = !account.anonymous && !!account.email;
   // Where the modal was opened FROM decides its primary action (the menu sidebar can open it from every ladder
   // page and the mode picker, not only from a run — review 2026-09-21): a replay leaves the replay; a title
   // surface (a ladder page or a picker view over the title) goes to the main menu; the main menu itself has
   // nowhere to go, so the section is omitted; a run saves & quits.
-  const onTitle = useGame((s) => s.showTitle);
   const onPage = useGame((s) => s.showCareer || s.showRankings || s.showLeaderboard || s.showRecentGames || s.titleView !== 'menu');
   const primary: 'replay' | 'menu' | 'none' | 'run' = replaying ? 'replay' : onTitle ? (onPage ? 'menu' : 'none') : 'run';
   // Audio is owned by sfx.ts (persisted to localStorage); mirror it into local state so the slider +
@@ -169,6 +176,27 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
               <span className="ebs">Closes ASCENT — your run stays saved</span>
             </button>
           </>
+        )}
+        <div className="escsec">Account</div>
+        {signedIn ? (
+          <button
+            className="escbtn pressable"
+            onPointerDown={() => { sfx.pulse(); void signOutAccount(); }}
+          >
+            <span className="ebl">Sign out</span>
+            <span className="ebs ebs-plain">Signed in as {account.email}</span>
+          </button>
+        ) : onTitle ? (
+          <button
+            className="escbtn pressable"
+            // The panel paints ABOVE this modal (z 540 vs 500); close the modal first so it does not linger underneath.
+            onPointerDown={() => { sfx.pulse(); onClose(); openAccountPanel(); }}
+          >
+            <span className="ebl">Sign in</span>
+            <span className="ebs">Save your progress — email, no password</span>
+          </button>
+        ) : (
+          <div className="escnote">Not signed in — sign in from the main menu to keep your progress across devices.</div>
         )}
         <button className="escclose pressable" onPointerDown={onClose}>Resume</button>
       </div>

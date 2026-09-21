@@ -11,7 +11,8 @@ import { useGame, formatHandle } from './store';
  * same email signs back into that one account.
  *
  * Plain by design — the shell is functional and themed off the shared glass vars; PRESENTATION IS MIKE'S SEAM
- * (packages/ui), so this is deliberately minimal for him to restyle. Reachable from the Title account chip.
+ * (packages/ui), so this is deliberately minimal for him to restyle. Reachable from Settings → Account → Sign in
+ * (the Title account chip it used to hang off is gone — the corner is the portrait + name + rank now).
  */
 export function AccountPanel() {
   const open = useGame((s) => s.accountPanelOpen);

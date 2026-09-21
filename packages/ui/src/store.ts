@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroes, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, resolveLobbyRating, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroes, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -55,13 +55,15 @@ import { clearAllHandBuffs } from './handBuffFx';
 import { liveBoardView } from './instView';
 import { saveCapturedBoards, saveRunBoards } from './boardLibrary';
 import { perfMonitor } from './perfMonitor';
-import { fetchPlayerRating, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
+import { fetchRankedProfile, remoteEnabled, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
 import { initIdentity, currentIdentity } from './identity';
 import { notifyTutorialActions } from './tutorial/actionBus';
 import { gateBlocks, notifyGateNudge } from './tutorial/gateBus';
 import { beginCourseFresh } from './tutorial/tutorialProfile';
 import { buildRunHistoryEntry, careerStats, clearRunHistory, type RunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
+import { enqueuePendingRank, flushPendingRanks, installRankRetryTriggers, rankRequestFor, type PendingRank } from './rank/rankSubmission';
+import type { RankSubmissionState, RankSubmitOutcome } from './rank/types';
 import { turnClock } from './turnClock';
 import { BUG_REPORT_TX_TOAST, bugReportAvailability, buildBugReportEnvelope, buildClientContext, captureIncidentCapsule, captureMenuCapsule, exportBugReportJson } from './bug-report/bugReportCapture';
 import { recordActionEntry } from './bug-report/actionRing';
@@ -502,6 +504,19 @@ interface GameStore {
   /** The most recent scored run's rating change, for the end screen to show (+N / −N, promotion, etc.).
    *  null until a scored run finishes this session; stays null for Practice. */
   lastRating: RatingChange | null;
+  // ── MEDAL RANK (2026-09-20) — the slice the post-game screen reads. Contract: packages/ui/src/rank/README.md ──
+  /** The SERVER-confirmed, immutable rank result of the run that just finished (`rankRunId`) — null until
+   *  `rankSubmission` is `'confirmed'`, and for unrated runs. Never computed locally. */
+  rankResult: RankResult | null;
+  /** Where that run's settlement stands — see `RankSubmissionState`. `'unrated'` before any run finishes. */
+  rankSubmission: RankSubmissionState;
+  /** The reason behind `'retryable'` / `'rejected'` / `'unrated'` (a short server/transport code), else null. */
+  rankSubmissionError: string | null;
+  /** The ranked identity of the run the slice describes — the screen's key for "consumed once". Null when
+   *  no run has finished this session. */
+  rankRunId: string | null;
+  /** Re-submit the pending/retryable result now (also fires on boot, on `online`, and when identity lands). */
+  retryRankSubmission: () => void;
   /** Reset the local career: wipe the persisted profile (rating/Line) + match history back to a fresh start.
    *  Does NOT touch the in-progress run, captured boards, or the shared Supabase pool/leaderboard. */
   resetCareer: () => void;
@@ -1364,13 +1379,14 @@ function commitResolvedAction(
           ? lobbySeat?.placement ?? next.lobby.seats.filter((seat) => seat.alive).length + 1
           : null;
         const lobbyWon = lobbyPlacement === 1;
-        const change = lobbyPlacement != null ? resolveLobbyRating(s.profile, lobbyPlacement) : null;
-        if (change) {
-          saveProfile(change.profile);
-          set({ profile: change.profile, lastRating: change });
-        } else {
-          set({ lastRating: null });
-        }
+        // MEDAL RANK (2026-09-20): a RATED lobby's placement settles on the SERVER (`settle_rank`) — never
+        // locally. The request goes into the durable pending queue first, then submits; `rankSubmission`
+        // tells the post-game screen where it stands and the confirmed answer is adopted into `profile`.
+        // Independent of everything below (history upload, Career fetch, telemetry, replay encoding): none of
+        // those can delay or block awarding points. Practice / tutorial / sandbox never reach this block.
+        const rankedRunId = next.mode === 'lobby' && lobbyPlacement != null ? rankedRunIdOf(next) : null;
+        if (rankedRunId && lobbyPlacement != null) beginRankSubmission(rankedRunId, lobbyPlacement, next.seed);
+        else set({ lastRating: null, rankResult: null, rankSubmission: 'unrated', rankSubmissionError: null, rankRunId: null });
         // REPLAY V2 (state replay): the recorded frames + the recorded outcome. Assembled for EVERY run that
         // reaches this block (lobby or not) and stashed on the store so "Rewatch last game" (Phase B) can play
         // it back locally; the lobby telemetry upload below rides the same object.
@@ -1397,7 +1413,7 @@ function commitResolvedAction(
           result: {
             placement: lobbyPlacement ?? 0,
             record: runRecord(next),
-            ...(change ? { ratingDelta: change.ratingDelta } : {}),
+            // `ratingDelta` + `rank` are patched in by `applyRankOutcome` once the server confirms.
             finalBoard,
           },
         };
@@ -1408,7 +1424,9 @@ function commitResolvedAction(
         discardReplayDraft();
         // CAREER (server-side since 2026-08-03): the entry posts to `run_history` rather than localStorage, so
         // a career follows the PLAYER instead of the browser.
-        const entry = buildRunHistoryEntry(next, { date, at: nowIso, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed, rating: change ?? undefined });
+        // The rank fields are NOT known yet (the server settles them) — `settle_rank` stamps the confirmed
+        // result onto this row server-side, keyed by seed, so history never carries a locally-guessed delta.
+        const entry = buildRunHistoryEntry(next, { date, at: nowIso, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed });
         void uploadRunHistory({ ...entry, placement: lobbyPlacement ?? undefined, mode: next.mode, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` })
           .then(() => fetchRunHistory<RunHistoryEntry>())
           .then((remote) => {
@@ -1416,13 +1434,11 @@ function commitResolvedAction(
             // games-played 0 over a real number — the read is the only source of those totals now.
             if (!remote) return;
             const career = careerStats(remote);
+            // DISPLAY columns only — the ladder itself settled through `beginRankSubmission` above, on its own
+            // path, so a failed history read here can no longer keep a result from being ranked.
             void uploadPlayerProfile({
-              author, rating: (change ?? { profile: s.profile }).profile.rating, gamesPlayed: career.runs,
+              author, gamesPlayed: career.runs,
               favoriteHero: career.perHero[0]?.heroId, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
-              // C3: the SERVER derives the rating from the placement — `rating` above is only the pre-deploy
-              // fallback. `runId` (the run seed) dedupes so one lobby run rates exactly once. Non-lobby runs
-              // pass no placement and don't move the ladder.
-              runId: String(next.seed), placement: lobbyPlacement ?? undefined,
             });
             set((st: GameStore) => ({ careerVersion: st.careerVersion + 1 })); // an open Career view picks the new run up
           });
@@ -1545,6 +1561,16 @@ export const useGame = create<GameStore>((rawSet, get) => {
   lastRunBoards: 0,
   profile: loadProfile(),
   lastRating: null,
+  rankResult: null,
+  rankSubmission: 'unrated',
+  rankSubmissionError: null,
+  rankRunId: null,
+  retryRankSubmission: () => {
+    const st = get();
+    if (st.rankSubmission !== 'retryable' && st.rankSubmission !== 'pending') return;
+    set({ rankSubmission: 'pending', rankSubmissionError: null });
+    void flushPendingRanks(applyRankOutcome);
+  },
   // Reset the local career (rating + match history) to a fresh start. Doesn't touch the in-progress run,
   // captured boards, or the shared backend (those are separate resets). The Career reads history fresh on
   // open, so wiping the store fields + localStorage is enough.
@@ -1552,7 +1578,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
   resetCareer: () => {
     clearProfile();
     clearRunHistory();
-    set((s) => ({ profile: initialProfile(), lastRating: null, careerVersion: s.careerVersion + 1 }));
+    set((s) => ({ profile: initialProfile(), lastRating: null, rankResult: null, rankSubmission: 'unrated', rankSubmissionError: null, rankRunId: null, careerVersion: s.careerVersion + 1 }));
   },
   // Resuming a run starts the turn with the clock ALREADY expired (you can End Turn / reorder, but not shop),
   // so leaving to the title mid-shop can't be used to bank thinking time / reset the timer. A fresh combat
@@ -1875,6 +1901,9 @@ export const useGame = create<GameStore>((rawSet, get) => {
         // tribe surge); a plain lobby uses none.
         ? createLobbyRun(seed, heroId, {}, s.pendingMode, s.pendingMode === 'practice' ? s.practiceDraft : undefined)
         : createRun(seed, heroId, s.pendingMode, s.profile.currentLine);
+      // MEDAL RANK: a RATED lobby is minted its stable ranked identity HERE, once, and it travels with the save
+      // — a retried settlement always names the same run. Practice (and every other mode) gets none.
+      if (s.pendingMode === 'lobby') run.runId = mintRunId();
       // Get the opponent seats built while the player reads their opening shop, not while they wait for it.
       if (run.lobby) warmLobbyDrivers(run);
       writeSave(run, []); // the new run is now the resumable save
@@ -2222,18 +2251,79 @@ if (typeof window !== 'undefined') {
  *  local one. Editing a row in Supabase therefore overrides any client on its next launch; a missing row (a
  *  fresh season, a new player, offline) leaves the local profile alone. Best-effort and deferred — never
  *  blocks startup. */
-export function syncProfileFromServer(name: string): void {
-  // The NAME no longer selects the row — `fetchPlayerRating` reads this user's own profile. The parameter is
+export function syncProfileFromServer(_name: string): void {
+  // The NAME no longer selects the row — `fetchRankedProfile` reads this user's own profile. The parameter is
   // kept so callers (and the rename path) read unchanged, and because C2's handle model will want it back.
-  void fetchPlayerRating(name).then((serverRating) => {
-    // The reconciliation is PURE MATH in @game/sim (`resolveServerProfile`), which owns the three-way ruling:
+  // MEDAL RANK (2026-09-20): the read is the whole `RankedProfile` (division / points / highest / revision),
+  // not a bare number; `profile.rating` re-derives as the scalar so the numeric surfaces keep working.
+  void fetchRankedProfile().then((server) => {
+    // The reconciliation is PURE MATH in @game/sim (`resolveServerRank`), which owns the three-way ruling:
     // couldn't-ask keeps the local mirror silently, an answered "no row" resets to a fresh profile (so a
-    // wiped/deleted `profiles` row actually reaches the client), a number is adopted. `null` = no change.
-    const next = resolveServerProfile(useGame.getState().profile, serverRating);
+    // wiped/deleted `profiles` row actually reaches the client), a profile is adopted — unless it is OLDER
+    // (by revision) than what a settlement already delivered, so a boot read racing a queued flush can't
+    // roll the mirror back. `null` = no change.
+    const next = resolveServerRank(useGame.getState().profile, server);
     if (!next) return;
     saveProfile(next);
     useGame.setState({ profile: next });
   });
+}
+
+/** Mint a rated run's identity. `crypto.randomUUID` is universal in the browsers + Electron the game ships
+ *  in; the fallback (older embedded runtimes) is a time + random string — uniqueness per account is all the
+ *  ledger needs. UI-side randomness, never the seeded sim. */
+function mintRunId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  } catch { /* fall through */ }
+  return `r-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/**
+ * MEDAL RANK — begin settling the run that just finished: persist the request (bound to this account), mark
+ * the slice `pending`, and flush the queue. A run with nothing to bind to — no backend configured, or no
+ * account at finish (the C2 rule: a run finished with no live session is unrated) — is reported `unrated`
+ * with the reason, and nothing is queued.
+ */
+function beginRankSubmission(runId: string, placement: number, seed: number): void {
+  const item = enqueuePendingRank(rankRequestFor(runId, placement, seed));
+  if (!item) {
+    useGame.setState({ rankRunId: runId, rankResult: null, rankSubmission: 'unrated', rankSubmissionError: remoteEnabled() ? 'no_account' : 'no_backend', lastRating: null });
+    return;
+  }
+  useGame.setState({ rankRunId: runId, rankResult: null, rankSubmission: 'pending', rankSubmissionError: null, lastRating: null });
+  void flushPendingRanks(applyRankOutcome);
+}
+
+/**
+ * MEDAL RANK — one submission's answer lands in the store. The server's profile is adopted through
+ * `adoptServerRank` (revision-compared: a late, older answer never rolls a newer profile back — but it is
+ * still THAT run's result, so a queued older run that is the current `rankRunId` still shows its own
+ * animation data). The legacy `lastRating` / replay `ratingDelta` are projected from the result so the
+ * surfaces that still read numbers show the applied delta.
+ */
+function applyRankOutcome(item: Pick<PendingRank, 'runId'>, outcome: RankSubmitOutcome): void {
+  const st = useGame.getState();
+  const isCurrent = st.rankRunId === item.runId;
+  if (outcome.status === 'confirmed') {
+    const adopted = adoptServerRank(st.profile, outcome.profile);
+    if (adopted) saveProfile(adopted);
+    const profile = adopted ?? st.profile;
+    useGame.setState((cur) => ({
+      ...(adopted ? { profile: adopted } : {}),
+      ...(isCurrent
+        ? {
+            rankResult: outcome.result, rankSubmission: 'confirmed' as const, rankSubmissionError: null,
+            lastRating: legacyRatingChangeOf(outcome.result, profile),
+            lastReplay: cur.lastReplay
+              ? { ...cur.lastReplay, result: { ...cur.lastReplay.result, ratingDelta: outcome.result.appliedDelta, rank: outcome.result } }
+              : cur.lastReplay,
+          }
+        : {}),
+    }));
+    return;
+  }
+  if (isCurrent) useGame.setState({ rankSubmission: outcome.status, rankSubmissionError: outcome.reason });
 }
 if (typeof window !== 'undefined') syncProfileFromServer(loadPlayerName());
 
@@ -2249,6 +2339,7 @@ function initAccounts(): void {
     if (!id) return;
     useGame.setState((st) => ({ account: { ...st.account, userId: id.userId, email: id.email, anonymous: id.anonymous } }));
     void flushUploadQueue(); // a session now exists — replay anything queued while offline
+    void flushPendingRanks(applyRankOutcome); // …and any rated result stranded pending under THIS account
     void flushBugReportQueue(); // …and any bug reports stranded offline / pre-handshake (§6.2 auth trigger)
     // Ensure this account carries a `#tag` (and its author/email are current) once identity exists.
     if (name) void claimHandle(name).then((h) => { if (h) useGame.setState((st) => ({ account: { ...st.account, discriminator: h.discriminator } })); });
@@ -2260,6 +2351,7 @@ function initAccounts(): void {
         : { userId: null, email: null, anonymous: true, discriminator: null },
     }));
     if (id) void flushUploadQueue(); // session (re)established → flush the offline queue
+    if (id) void flushPendingRanks(applyRankOutcome); // rated results parked under this account resume here
     if (id) void flushBugReportQueue(); // §6.2: retry bug reports after authentication restoration
     if (id && !id.anonymous) {
       syncProfileFromServer(loadPlayerName()); // a real account just landed — pull its authoritative row
@@ -2270,6 +2362,7 @@ function initAccounts(): void {
   });
 }
 initAccounts();
+installRankRetryTriggers(applyRankOutcome); // MEDAL RANK: network return → retry pending settlements
 
 // BUG REPORTER (PR 2): wire the environment retry triggers — flush at app boot (reports stranded by a
 // previous session) + on the browser `online` event. The auth trigger rides `initAccounts` above.

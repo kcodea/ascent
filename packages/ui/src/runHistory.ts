@@ -1,6 +1,6 @@
 import { CARD_INDEX } from '@game/content';
 import type { Tribe } from '@game/core';
-import { buildTags, lineResult, metLine, runMvp, runRecord, topMechanic, type BoardSnapshot, type LineStatus, type RatingChange, type RunState } from '@game/sim';
+import { buildTags, lineResult, metLine, runMvp, runRecord, topMechanic, type BoardSnapshot, type LineStatus, type RankResult, type RatingChange, type RunState } from '@game/sim';
 
 /**
  * Career / match history (A7) — the persistence layer. On run-end, a compact per-run entry is appended to
@@ -43,6 +43,11 @@ export interface RunHistoryEntry {
   ratingAfter?: number;
   ratingDelta?: number;
   lineDelta?: number;
+  /** MEDAL RANK (2026-09-20): the server-confirmed, immutable result of this run. Stamped onto the server's
+   *  `run_history` row by `settle_rank` (keyed by seed) when the settlement commits — the client never writes
+   *  it. Absent on pre-medal entries, unrated runs, and rows whose settlement landed after the history row
+   *  was read; those show their legacy numeric fields or no rank change. NEVER recomputed from later rules. */
+  rank?: RankResult;
   /** Lobby finish position (1 = won the lobby). Already written by `uploadRunHistory`, which spreads it onto
    *  the entry; declared here so the Career can read it. It is the WIN/LOSS answer now that the Oath verdict
    *  is no longer shown (owner 2026-08-04) — absent on pre-lobby entries, which fall back to the Line. */

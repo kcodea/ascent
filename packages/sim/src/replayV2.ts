@@ -13,6 +13,7 @@ import { combatSide, type BoardMinion, type CombatResult, type EnemyScalers, typ
 import { CARD_INDEX } from '@game/content';
 import type { Action, RunMode, RunState } from './state';
 import type { BoardSnapshot } from './snapshot';
+import type { RankResult } from './rank';
 import { nextOpponent, playerBoardMinions, playerCombatSideState, playerCombatConfig, questCombatMods } from './reducer';
 import { defIsTribe } from './recruit';
 import { pairRunLobby, type RunLobby } from './lobby/runLobby';
@@ -189,7 +190,12 @@ export interface ReplayV2 {
     /** Lobby finish, 1..8 (1 = won). */
     placement: number;
     record: { wins: number; losses: number; draws: number };
+    /** Legacy numeric delta; since medals the APPLIED rank delta (patched in when the server confirms). */
     ratingDelta?: number;
+    /** MEDAL RANK (2026-09-20): the server-confirmed, immutable result of this run — patched onto the local
+     *  recording when the settlement lands. Optional: a recording from before medals, an unrated run, or one
+     *  whose settlement is still pending simply lacks it. NEVER recomputed from later rules. */
+    rank?: RankResult;
     /** The end-state board the leaderboard/Career shows (null for an empty board). */
     finalBoard: BoardSnapshot | null;
   };

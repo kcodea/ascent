@@ -8,7 +8,10 @@
  * Watch button, live only with a replay); the MMR as a bare number (no delta); the three trend charts + window
  * toggle; the designed loading / signed-out / offline / empty states; the HEROES tab (a PORTRAIT GRID folded over
  * every run, with a hover / focus panel per hero; the choice persisted); the three columns sharing one header
- * row; the Seasonal Ranked card as the medal rank (crest in the portrait ring + bar + the scalar caption).
+ * row; the Seasonal Ranked card as the medal rank (crest in the portrait ring + bar + the scalar caption) — for
+ * your own profile and for a VIEWED player (rank handed over on `careerOf.rank`, or fetched by user id, the card
+ * holding a quiet ring while that fetch is in flight; the bare number only when neither yields a rank; owner
+ * 2026-09-21).
  * A MATCH WIN IS BY PLACEMENT (owner 2026-09-20): top 4 = W, 5th–8th = L — the banner result, the hero
  * panel's record and the Win Rate trend all use it. Also pins what must NOT be there: any board-power stat, a
  * Share button, a rating delta, the old Insight grid, per-hero rows, a native `title` tooltip.
@@ -17,6 +20,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { mount, type Mounted } from './renderedText.mount';
 import type { CareerRun } from './careerData';
+import type { PlayerRow } from './remoteBoards';
 
 // The real `Card` mounts a <canvas> sprite fallback; jsdom has no 2D context (and logs "not implemented" per
 // card without this). `drawSprite` returns early on a null context.
@@ -24,6 +28,7 @@ HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasEl
 
 const fetchMyRuns = vi.fn<(limit?: number, opts?: { userId?: string }) => Promise<CareerRun[] | null>>();
 const fetchReplayPayload = vi.fn<(rowId: number) => Promise<unknown>>();
+const fetchPlayerById = vi.fn<(userId: string) => Promise<PlayerRow | null>>();
 const startReplay = vi.fn();
 
 vi.mock('./remoteBoards', async (importOriginal) => ({
@@ -31,6 +36,7 @@ vi.mock('./remoteBoards', async (importOriginal) => ({
   remoteEnabled: () => true,
   fetchMyRuns: (...a: [number?, { userId?: string }?]) => fetchMyRuns(...a),
   fetchReplayPayload: (id: number) => fetchReplayPayload(id),
+  fetchPlayerById: (id: string) => fetchPlayerById(id),
   fetchPlayerRating: async () => undefined, // syncProfileFromServer: "couldn't ask" → keep the local rating
 }));
 vi.mock('./replay/replayPlayer', () => ({ startReplay: (...a: unknown[]) => startReplay(...a) }));
@@ -74,6 +80,7 @@ beforeEach(async () => {
   try { localStorage.removeItem('ascent.career.tab'); } catch { /* jsdom */ }
   fetchMyRuns.mockReset().mockResolvedValue(RUNS);
   fetchReplayPayload.mockReset().mockResolvedValue({ version: 2, seed: 1, frames: [{}] });
+  fetchPlayerById.mockReset().mockResolvedValue(null);
   startReplay.mockReset();
   useGame.setState({
     showCareer: true, careerOf: null, careerCache: null, playerName: 'Kev',
@@ -357,9 +364,85 @@ describe('states', () => {
     await flush();
     expect(fetchMyRuns).toHaveBeenCalledWith(1000, { userId: 'them-9' }); // ALL their runs (the Heroes tab folds every one)
     expect(ui.container.querySelector('.lbtitle .esch')?.textContent).toBe('Mika’s Career');
-    // A viewed row without a medal rank (pre-migration) keeps the bare number.
+    // No rank handed over → the page asks the server ONCE by user id; a viewed profile without a medal rank
+    // (pre-migration backend / no row) keeps the bare number.
+    expect(fetchPlayerById).toHaveBeenCalledTimes(1);
+    expect(fetchPlayerById).toHaveBeenCalledWith('them-9');
     expect(ui.container.querySelector('.cv2-mmr-v')?.textContent).toBe('763');
+    expect(ui.container.querySelector('.cv2-ranked .rankbar')).toBeNull();
     expect(ui.container.querySelector('.cv2-left .cv2-playername')?.textContent).toBe('Mika');
+  });
+
+  it('a viewed player whose rank rode in on careerOf (a Rankings row) gets the SAME crest + bar card as the own page: no bare MMR, no fetch', async () => {
+    ui.unmount();
+    // "46 MMR" on the server is Bronze III 46 (rating = 100 × division + points; owner report 2026-09-21).
+    const rank = { ...useGame.getState().profile.rank, position: { divisionIndex: 0, points: 46 }, highest: { divisionIndex: 0, points: 46 } };
+    useGame.setState({ careerOf: { userId: 'them-7', author: 'LazerLemon', rating: 46, gamesPlayed: 9, rank }, careerCache: null });
+    ui = mount(<Career />);
+    await flush();
+    const card = ui.container.querySelector('.cv2-ranked')!;
+    expect(card.querySelector('.cv2-mmr')).toBeNull();
+    expect(card.querySelector('.rankcrest.portring .hero .f img.heroimg')).not.toBeNull();
+    expect(card.querySelector('.rankcrest-plate')?.textContent).toBe('III');
+    expect(card.querySelector('.rankbar-label')?.textContent).toBe('Bronze III');
+    expect(card.querySelector('.rankbar-points')?.textContent).toBe('46 / 100');
+    expect(card.querySelector('.rankbar-caption')?.textContent).toBe('46 MMR');
+    expect(card.querySelector('.rankbar')!.className).toContain('rankbar-stack');
+    expect(card.querySelector('.rankbar-track')!.compareDocumentPosition(card.querySelector('.rankbar-label')!) & 4).toBe(4);
+    expect(fetchPlayerById).not.toHaveBeenCalled();
+  });
+
+  it('a viewed player opened WITHOUT a rank (the Hall, a stale link) has it fetched by user id and painted the same way; a rankless answer keeps the bare MMR', async () => {
+    ui.unmount();
+    const rank = { ...useGame.getState().profile.rank, position: { divisionIndex: 0, points: 46 }, highest: { divisionIndex: 0, points: 46 } };
+    fetchPlayerById.mockResolvedValue({ userId: 'them-7', author: 'LazerLemon', rating: 46, gamesPlayed: 9, rank });
+    useGame.setState({ careerOf: { userId: 'them-7', author: 'LazerLemon', rating: 46, gamesPlayed: 9 }, careerCache: null });
+    ui = mount(<Career />);
+    await flush();
+    expect(fetchPlayerById).toHaveBeenCalledTimes(1);
+    expect(fetchPlayerById).toHaveBeenCalledWith('them-7');
+    const card = ui.container.querySelector('.cv2-ranked')!;
+    expect(card.querySelector('.cv2-mmr')).toBeNull();
+    expect(card.querySelector('.rankbar-label')?.textContent).toBe('Bronze III');
+    expect(card.querySelector('.rankbar-points')?.textContent).toBe('46 / 100');
+    expect(card.querySelector('.rankbar-caption')?.textContent).toBe('46 MMR');
+    // Re-rendering the open page never re-asks: the answer is remembered per user id while the page is open.
+    act(() => { useGame.setState({ playerName: 'Kev2' }); });
+    await flush();
+    expect(fetchPlayerById).toHaveBeenCalledTimes(1);
+
+    // The same player, but the server has no rank for them (pre-migration / no row) → the bare number, once.
+    ui.unmount();
+    fetchPlayerById.mockClear().mockResolvedValue({ userId: 'them-7', author: 'LazerLemon', rating: 46, gamesPlayed: 9 });
+    useGame.setState({ careerOf: { userId: 'them-7', author: 'LazerLemon', rating: 46, gamesPlayed: 9 }, careerCache: null });
+    ui = mount(<Career />);
+    await flush();
+    expect(fetchPlayerById).toHaveBeenCalledTimes(1);
+    expect(ui.container.querySelector('.cv2-ranked .rankbar')).toBeNull();
+    expect(ui.container.querySelector('.cv2-mmr-v')?.textContent).toBe('46');
+    expect(ui.container.querySelector('.cv2-mmr-l')?.textContent).toBe('MMR');
+  });
+
+  it("while a viewed player's rank is still being fetched the card HOLDS (a quiet ring, no bare number, no crest); the crest + bar land with the answer", async () => {
+    ui.unmount();
+    const rank = { ...useGame.getState().profile.rank, position: { divisionIndex: 0, points: 46 }, highest: { divisionIndex: 0, points: 46 } };
+    let answer: (row: PlayerRow | null) => void = () => {};
+    fetchPlayerById.mockReturnValue(new Promise<PlayerRow | null>((resolve) => { answer = resolve; }));
+    useGame.setState({ careerOf: { userId: 'them-7', author: 'LazerLemon', rating: 46, gamesPlayed: 9 }, careerCache: null });
+    ui = mount(<Career />);
+    await flush();
+    expect(fetchPlayerById).toHaveBeenCalledTimes(1);
+    const held = ui.container.querySelector('.cv2-ranked')!;
+    expect(held.querySelector('.cv2-mmr')).toBeNull();
+    expect(held.querySelector('.rankbar')).toBeNull();
+    expect(held.querySelector('.cv2-rank-wait')?.getAttribute('aria-busy')).toBe('true');
+    await act(async () => { answer({ userId: 'them-7', author: 'LazerLemon', rating: 46, gamesPlayed: 9, rank }); });
+    await flush();
+    const card = ui.container.querySelector('.cv2-ranked')!;
+    expect(card.querySelector('.cv2-rank-wait')).toBeNull();
+    expect(card.querySelector('.cv2-mmr')).toBeNull();
+    expect(card.querySelector('.rankbar-label')?.textContent).toBe('Bronze III');
+    expect(card.querySelector('.rankbar-caption')?.textContent).toBe('46 MMR');
   });
 });
 

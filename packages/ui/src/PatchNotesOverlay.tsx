@@ -3,19 +3,15 @@ import { useGame } from './store';
 import { sfx } from './sfx';
 import { PATCH_NOTES, PATCH_CATEGORY_ORDER, type PatchCategory, type PatchChange } from './patchNotes';
 
-/** A category → CSS-class-suffix map, so each tag wears its own hue (defined in styles.css). */
+/** A category → CSS-class-suffix map, so each tag wears its own hue (defined in styles.css): Balance in the
+ *  warm gold, Systems in the neutral ink (owner's two buckets, 2026-09-21). */
 const CAT_CLASS: Record<PatchCategory, string> = {
-  'New Hero': 'newhero',
-  'Hero Change': 'herochange',
-  'New Card': 'newcard',
-  'Card Change': 'cardchange',
-  'New Rune': 'newrune',
-  'Rune Change': 'runechange',
-  'UI / Info': 'ui',
+  Balance: 'balance',
+  Systems: 'systems',
 };
 
 /** Group a patch's flat change list by category, in the fixed display order, so a patch reads
- *  "New Heroes … then Hero Changes … then …" rather than in authoring order. Carries each change whole
+ *  "Balance … then Systems" rather than in authoring order. Carries each change whole
  *  (text + optional details) so the Detailed view can expand the sub-bullets. */
 function grouped(changes: PatchChange[]): { category: PatchCategory; items: PatchChange[] }[] {
   const byCat = new Map<PatchCategory, PatchChange[]>();

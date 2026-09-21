@@ -3,10 +3,12 @@
  * (Career, Leaderboard, Hall of Champions, Recent Games) and of the title's mode picker + Learn hub, so the
  * player can jump between them without returning to the title. Back sits top-left (each host keeps its own
  * Back semantics: a page closes itself, so a Career opened from the Leaderboard still returns there; the
- * mode picker backs out to the main menu, the Learn hub to the picker), and the main menu's plaques stack
- * vertically centred in the remaining height, in the title's order: Play · Career · Leaderboard · Hall of
- * Champions · Recent Games · Settings. The current screen's plaque wears the title's blue (`.active`) and
- * `aria-current="page"`.
+ * mode picker backs out to the main menu, the Learn hub to the picker), and the menu plaques stack
+ * vertically centred in the remaining height: Play · Career · Leaderboard · Hall of Champions · Recent
+ * Games · Settings. Since 2026-09-21 the TITLE folds the four ladder pages into one SOCIAL plaque (which
+ * opens Career through `openCareer()`, NOT `goTo`, so it carries no hop stamp and the page fades in whole);
+ * this sidebar is where the four are reached from, so it keeps them listed one by one. The current
+ * screen's plaque wears the title's blue (`.active`) and `aria-current="page"`.
  *
  * Every hop goes through the store's `goTo`, which closes ALL four page flags before opening the destination
  * — the pages are z-470 siblings that stack in DOM order, so merely opening a flag would leave the current

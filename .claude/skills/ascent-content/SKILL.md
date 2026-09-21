@@ -67,7 +67,10 @@ unattributed file; flag the ambiguity instead. Art is keyed by id, so a retribe 
 A gameplay change is not shipped until it is in the PLAYER changelog. When you add or change a card, rune,
 hero, or an in-game UI/information behaviour, PREPEND a plain-English, spoiler-light entry to
 `packages/ui/src/patchNotes.ts` (title-screen Patch Notes) in the SAME PR — newest first, tagged with the
-right category. Skip build/test/tooling/refactor work; that is not player-facing (owner ask 2026-08-24).
+right category. There are TWO (owner 2026-09-21): `Balance` for any card, spell, hero or rune change or
+addition and for every ranked-ladder change (medals, seasons, rating / placement points, promotion and
+demotion rules, the rank screen); `Systems` for mostly everything else (screens, menus, effects, sounds,
+tooltips, fixes). Skip build/test/tooling/refactor work; that is not player-facing (owner ask 2026-08-24).
 
 ## Verification
 

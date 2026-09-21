@@ -214,19 +214,21 @@ const RUNS: CareerRun[] = [
 ];
 
 describe('careerAggregates — the left column', () => {
-  it('most-played hero, 1st-place wins, top-4 %, average placement, favorite tribe', () => {
+  it('most-played hero, 1st-place wins, top-4 %, losses, average placement, favorite tribe', () => {
     const a = careerAggregates(RUNS);
     expect(a.runs).toBe(6);
     expect(a.mostPlayedHero).toBe('brackus');    // 4 of 6
     expect(a.firsts).toBe(1);
-    // placements 1, 4, 7, 2, 6 (run 5 has none): top-4 = 3/5 = 60%; avg = 20/5 = 4.0
+    // placements 1, 4, 7, 2, 6 (run 5 has none): top-4 = 3/5 = 60%; losses = the 7th + the 6th = 2 (the
+    // unplaced run counts in neither); avg = 20/5 = 4.0
     expect(a.top4Pct).toBe(60);
+    expect(a.losses).toBe(2);
     expect(a.avgPlacement).toBe(4);
     expect(a.favoriteTribe).toBe('beast');       // 3 beast vs 2 mech
   });
 
   it('empties read null / 0 rather than NaN', () => {
-    expect(careerAggregates([])).toEqual({ runs: 0, mostPlayedHero: null, firsts: 0, top4Pct: null, avgPlacement: null, favoriteTribe: null });
+    expect(careerAggregates([])).toEqual({ runs: 0, mostPlayedHero: null, firsts: 0, top4Pct: null, losses: 0, avgPlacement: null, favoriteTribe: null });
   });
 
   it('a hero tie goes to the one played most recently', () => {

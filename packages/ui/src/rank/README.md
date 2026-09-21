@@ -51,6 +51,8 @@ Rules of the road for the screen:
 - Key your "celebration consumed" marker on `rankRunId` (persist it yourself if you need it across reload).
   Remounting, Rewatch, a reload, or a duplicate server answer must not replay the animation.
 - Never call the resolver as a mutation. `resolveRank` / `settleRank` are for fixture previews only.
+- The slice RESETS at every run start (`rankRunId` null, `rankSubmission` `'unrated'`, `rankResult` null) —
+  ranked, practice, tutorial or sandbox — so a stale result can never be shown against the wrong run.
 - `profile.rank` may update WITHOUT `rankResult` changing (a late older result from the queue; a boot sync).
   Read `rankResult` for the animation, `profile.rank` for the current standing.
 - Reload with a pending result: the queue resubmits on boot; `rankSubmission` starts `'unrated'` with

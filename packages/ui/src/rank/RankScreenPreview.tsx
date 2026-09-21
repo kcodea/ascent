@@ -24,8 +24,9 @@ export function RankScreenPreview(): JSX.Element {
   const [replayKey, setReplayKey] = useState(0);
   const [arrival, setArrival] = useState(false);
   // From the TITLE there is no FX canvas (Game mounts `PixiFxLayer` only with the board / picker), so the
-  // rank-up def would silently fall back to the fade. Mount the layer here while a fixture is open so the
-  // owner sees the real hit; with a run up the game's own layer is already attached and this stays out.
+  // rank-up / down-rank defs would silently fall back to the fade. Mount the layer here while a fixture is open
+  // so the owner sees the real hits (promotion, and the `demotion` / `demo-lost` demotion fixtures); with a run
+  // up the game's own layer is already attached and this stays out.
   const preRun = useGame(isPreRun);
 
   // "Pending → confirmed": mount the gain fixture as pending, then flip it confirmed after a beat.

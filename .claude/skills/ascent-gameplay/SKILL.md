@@ -79,7 +79,9 @@ boundary — if both the caller and the resolver multiply, the effect fires twic
    presentation policy registry (`packages/core/src/presentation/policies.ts`) — a tripwire test fails otherwise.
 5. If the change is PLAYER-FACING (a hero/card/rune add-or-change, or an in-game UI/info behaviour),
    PREPEND a plain-English entry to `packages/ui/src/patchNotes.ts` — the title-screen Patch Notes — in this
-   same PR (owner ask 2026-08-24). Skip pure engine/tooling/test work.
+   same PR (owner ask 2026-08-24), tagged `Balance` (card / spell / hero / rune changes and additions, and
+   every ranked-ladder change) or `Systems` (mostly everything else; owner 2026-09-21). Skip pure
+   engine/tooling/test work.
 6. Add focused tests from the matrix above. **Verify they fail without your fix** — a green test that was
    always green proves nothing.
 7. Run focused vitest, `npm run typecheck`, `npm run lint` (it carries a wiring audit that fails a granted-but-

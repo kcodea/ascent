@@ -13,13 +13,16 @@ store slice documented in `packages/ui/src/rank/README.md`.
   gate applies the normal negative award from 100. **At a medal gate a 2nd–4th neither promotes nor gains:
   hold at 100, still promotion-ready** (`appliedDelta` 0, the award reported in `cappedPoints`).
 - Below 0 inside a medal demotes one division to `100 + result`; Bronze III floors at 0; Ascendant I uncapped.
-- **Demotion gate (owner addition, same day):** a negative result at a medal's lowest division CLAMPS at 0 →
-  demotion-ready (derived: `divisionIndex % 3 === 0 && divisionIndex > 0 && points === 0`). The next rated
-  game is a demotion game: bottom-4 demotes to the previous medal's I at **`100 + award`** (the mirror of the
-  promotion landing — 8th → Silver I 60; chosen as the owner suggested), top-4 escapes with its award from 0.
-  Consequence of the derived definition, flagged for the owner: a player who has just WON a medal promotion
-  (landing at 0 in Gold III) is demotion-ready for their first game there. `RankResult` gained
-  `wasDemotionGame` + `demotionUnlocked`; `isDemotionReady` / `hasDemotionGate` are the helpers.
+- **Demotion gate (owner addition, same day; ruling refined the same evening):** a LOSS at a medal's lowest
+  division that lands on 0 clamps there and ARMS a **stored** `demotionReady` flag on the position (never
+  derived from merely standing at 0 — a fresh medal promotion at 0/100 is NOT armed; its first loss arms, the
+  second demotes). While armed, the next rated game is a demotion game: bottom-4 demotes to the previous
+  medal's I at **`100 + award`** (the mirror of the promotion landing — 8th → Silver I 60; chosen as the
+  owner suggested), top-4 escapes with its award from 0 and disarms. Any non-negative result disarms.
+  `RankPosition.demotionReady` (stored; `profiles.rank_demotion_ready`, `rank_results.demotion_ready_before /
+  _after`, emitted in the profile + result JSON), `RankResult.wasDemotionGame` + `demotionUnlocked`,
+  `isDemotionReady` / `hasDemotionGate` helpers; `isRankPosition` rejects an armed flag anywhere but 0 on a
+  medal floor.
 - New season: everyone starts Bronze III 0/100 — prepared as migration SQL + `docs/rank-season-runbook.md`;
   **nothing was run against production**.
 - A pending result never blocks a new ranked run; results settle in accepted order and a late older answer

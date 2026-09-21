@@ -79,14 +79,14 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   stays at 100, still promotion-ready.
 - **Demotion within a medal.** Dropping below 0 demotes one division to `100 + result` (Gold II 10 → 8th →
   Gold III 70). Exactly 0 stays.
-- **Demotion games** (owner addition 2026-09-20). Dropping out of a **medal** is gated: a negative result at
-  a medal's lowest division (Gold III) **clamps at 0** and the player is *demotion-ready* (derived: 0 points
-  on a division whose index is a multiple of 3, above Bronze). The **next** rated game is a demotion game: a
-  **bottom-4 finish (5th–8th) demotes** one division to the previous medal's division I at **`100 + that
-  game's award`** (8th → Silver I 60, 5th → Silver I 94 — the mirror of the promotion landing rule); a
-  **top-4 finish escapes** and applies its positive award normally from 0 (3rd → Gold III 16). Because the
-  state is derived, a player who has just won a **medal** promotion (landing at 0 in the new medal's III) is
-  demotion-ready for their first game there — the gate guards the boundary in both directions.
+- **Demotion games** (owner addition 2026-09-20). Dropping out of a **medal** is gated: a **loss** at a
+  medal's lowest division (Gold III) that lands on 0 **stops at 0** and *arms* the gate (a stored
+  `demotionReady` flag — set only by such a loss, cleared by any non-negative result, never by a promotion
+  landing: 0/100 after a won medal promotion is not armed; the first loss there arms it, the second demotes).
+  While armed, the **next** rated game is a demotion game: a **bottom-4 finish (5th–8th) demotes** one
+  division to the previous medal's division I at **`100 + that game's award`** (8th → Silver I 60, 5th →
+  Silver I 94 — the mirror of the promotion landing rule); a **top-4 finish escapes**, applies its positive
+  award normally from 0 (3rd → Gold III 16), and disarms the gate.
 - **Bronze III floors at 0** with no gate (nothing below it). **Ascendant I is uncapped** (points keep
   climbing past 100, no further gate); a negative result there still demotes within the medal.
 - **Career best** (division first, then points) never decreases. **Leaderboards sort by division, then

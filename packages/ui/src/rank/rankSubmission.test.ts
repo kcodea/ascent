@@ -79,7 +79,7 @@ describe('submitRating — typed outcomes', () => {
     if (out.status !== 'confirmed') throw new Error('unreachable');
     expect(out.deduped).toBe(false);
     expect(out.result.placement).toBe(2);
-    expect(out.result.after).toEqual({ divisionIndex: 0, points: 28 });
+    expect(out.result.after).toEqual({ divisionIndex: 0, points: 28, demotionReady: false });
     expect(out.profile.revision).toBe(1);
     expect(invokes[0]!.body, 'never a rating, never a division — placement + identity + version pins').toEqual({ runId: 'run-1', placement: 2, seasonId: RANK_SEASON, rulesVersion: RANK_RULES.rulesVersion, seed: 777 });
   });

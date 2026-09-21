@@ -10,7 +10,8 @@
 -- WHAT THIS IS. The numeric ladder (`profiles.rating` moved by a ±100 placement table) becomes a MEDAL ladder:
 -- six medals × three divisions (index 0 = Bronze III … 17 = Ascendant I), 100 points each, promotion GAMES
 -- at 100 (top-4 to move a division, 1st to move a medal), demotion below 0 within a medal, a DEMOTION GAME
--- at 0 on a medal's lowest division (bottom-4 drops to the previous medal's I at 100 + award, top-4 escapes),
+-- once a LOSS has clamped the player at 0 on a medal's lowest division (the STORED `rank_demotion_ready`
+-- flag; bottom-4 then drops to the previous medal's I at 100 + award, top-4 escapes and disarms),
 -- Bronze III floored, Ascendant I uncapped. The rules live in THREE places that must agree: `settle_rank` below (the WRITER — the only thing
 -- that moves a rank), `supabase/functions/_shared/lobbyRating.ts` (the Edge Function's runtime parity check)
 -- and `packages/sim/src/rank.ts` (the client, CI-parity-tested against the shared TS file). Change all three
@@ -34,6 +35,9 @@ alter table public.profiles add column if not exists rank_division         int n
 alter table public.profiles add column if not exists rank_points           int not null default 0;
 alter table public.profiles add column if not exists rank_highest_division int not null default 0;
 alter table public.profiles add column if not exists rank_highest_points   int not null default 0;
+-- The demotion gate, STORED (owner 2026-09-20): armed only by a loss that lands on 0 at a medal's lowest
+-- division; cleared by any non-negative result; never set by a promotion landing.
+alter table public.profiles add column if not exists rank_demotion_ready   boolean not null default false;
 -- Monotonic per account (+1 per settlement, +1 on a reset). The client adopts a server profile only when its
 -- revision is not older than the mirror's — so a late answer never rolls a newer profile back. HAND-EDITS TO
 -- A RANK MUST BUMP THIS TOO, or the edited client keeps its mirror.
@@ -47,6 +51,9 @@ alter table public.profiles add  constraint profiles_rank_division_range
 alter table public.profiles drop constraint if exists profiles_rank_points_range;
 alter table public.profiles add  constraint profiles_rank_points_range
   check (rank_points >= 0 and (rank_division = 17 or rank_points <= 100));
+alter table public.profiles drop constraint if exists profiles_rank_demotion_ready_where;
+alter table public.profiles add  constraint profiles_rank_demotion_ready_where
+  check (not rank_demotion_ready or (rank_points = 0 and rank_division > 0 and rank_division % 3 = 0));
 alter table public.profiles drop constraint if exists profiles_rank_highest_range;
 alter table public.profiles add  constraint profiles_rank_highest_range
   check (rank_highest_division between 0 and 17 and rank_highest_points >= 0
@@ -70,8 +77,10 @@ create table if not exists public.rank_results (
   revision_after         int not null,
   division_before        int not null,
   points_before          int not null,
+  demotion_ready_before  boolean not null default false,
   division_after         int not null,
   points_after           int not null,
+  demotion_ready_after   boolean not null default false,
   highest_division_after int not null,
   highest_points_after   int not null,
   base_delta             int not null,
@@ -95,6 +104,8 @@ create index if not exists rank_results_user_time on public.rank_results (user_i
 -- (idempotent for a table created before the demotion gate landed the same day)
 alter table public.rank_results add column if not exists was_demotion_game boolean not null default false;
 alter table public.rank_results add column if not exists demotion_unlocked boolean not null default false;
+alter table public.rank_results add column if not exists demotion_ready_before boolean not null default false;
+alter table public.rank_results add column if not exists demotion_ready_after  boolean not null default false;
 
 -- ── 3. RLS: a client can never write a rank field ─────────────────────────────────────────────────────────
 -- INSERT: a brand-new profile row is a PLACEHOLDER only — rating 0, Bronze III, revision 0, no season. The
@@ -104,7 +115,7 @@ create policy "insert own profile" on public.profiles for insert to authenticate
   with check (
     auth.uid() = user_id
     and rating = 0
-    and rank_season = 0 and rank_division = 0 and rank_points = 0
+    and rank_season = 0 and rank_division = 0 and rank_points = 0 and rank_demotion_ready = false
     and rank_highest_division = 0 and rank_highest_points = 0 and rank_revision = 0
     and season2_rating is null
   );
@@ -122,6 +133,7 @@ create policy "update own profile" on public.profiles for update to authenticate
     and rank_rules_version    = (select p.rank_rules_version    from public.profiles p where p.user_id = auth.uid())
     and rank_division         = (select p.rank_division         from public.profiles p where p.user_id = auth.uid())
     and rank_points           = (select p.rank_points           from public.profiles p where p.user_id = auth.uid())
+    and rank_demotion_ready   = (select p.rank_demotion_ready   from public.profiles p where p.user_id = auth.uid())
     and rank_highest_division = (select p.rank_highest_division from public.profiles p where p.user_id = auth.uid())
     and rank_highest_points   = (select p.rank_highest_points   from public.profiles p where p.user_id = auth.uid())
     and rank_revision         = (select p.rank_revision         from public.profiles p where p.user_id = auth.uid())
@@ -142,8 +154,8 @@ as $$
     'runId', r.run_id, 'seasonId', r.season, 'rulesVersion', r.rules_version,
     'revisionBefore', r.revision_before, 'revisionAfter', r.revision_after,
     'placement', r.placement,
-    'before', jsonb_build_object('divisionIndex', r.division_before, 'points', r.points_before),
-    'after',  jsonb_build_object('divisionIndex', r.division_after,  'points', r.points_after),
+    'before', jsonb_build_object('divisionIndex', r.division_before, 'points', r.points_before, 'demotionReady', r.demotion_ready_before),
+    'after',  jsonb_build_object('divisionIndex', r.division_after,  'points', r.points_after,  'demotionReady', r.demotion_ready_after),
     'baseDelta', r.base_delta, 'appliedDelta', r.applied_delta, 'cappedPoints', r.capped_points,
     'wasPromotionGame', r.was_promotion_game, 'promotionKind', r.promotion_kind, 'requiredFinish', r.required_finish,
     'promotionUnlocked', r.promotion_unlocked, 'promoted', r.promoted,
@@ -159,7 +171,7 @@ immutable
 as $$
   select jsonb_build_object(
     'seasonId', p.rank_season, 'rulesVersion', p.rank_rules_version, 'revision', p.rank_revision,
-    'position', jsonb_build_object('divisionIndex', p.rank_division, 'points', p.rank_points),
+    'position', jsonb_build_object('divisionIndex', p.rank_division, 'points', p.rank_points, 'demotionReady', p.rank_demotion_ready),
     'highest',  jsonb_build_object('divisionIndex', p.rank_highest_division, 'points', p.rank_highest_points)
   );
 $$;
@@ -175,12 +187,13 @@ $$;
 --   at a gate (points = 100 below the top): placement ≤ required (4 for a division gate, 1 for a medal gate)
 --     → promote ONE division to 0/100; a positive award short of a MEDAL gate (2nd–4th) HOLDS at 100, still
 --     promotion-ready; a negative award applies normally from 100.
---   at a demotion gate (points = 0 on a medal's lowest division above Bronze — DERIVED, never stored): a
---     bottom-4 (5th–8th) demotes ONE division to the previous medal's I at 100 + award; a top-4 escapes and
---     applies its positive award normally from 0.
---   otherwise add the award: ≥ 100 → exactly 100, promotion unlocked (overflow discarded); < 0 → demote one
---     division to 100 + result within a medal, CLAMP at 0 on a medal's lowest division (demotion-ready),
---     Bronze III floors at 0 with no gate; exactly 0 stays.
+--   at an ARMED demotion gate (the STORED rank_demotion_ready flag): a bottom-4 (5th–8th) demotes ONE
+--     division to the previous medal's I at 100 + award; a top-4 escapes, applies its positive award normally
+--     from 0, and disarms.
+--   otherwise add the award: ≥ 100 → exactly 100, promotion unlocked (overflow discarded); a LOSS landing on
+--     0 at a medal's lowest division (by clamp or exact subtraction) CLAMPS at 0 and ARMS the gate; < 0
+--     elsewhere → demote one division to 100 + result within a medal, Bronze III floors at 0 with no gate;
+--     exactly 0 stays. A promotion landing is never armed; any non-negative result disarms.
 --   highest = max(highest, after) by division then points; revision + 1; rating = the scalar.
 create or replace function public.settle_rank(
   p_user uuid, p_run_id text, p_placement int, p_season int, p_rules_version int, p_seed bigint default null
@@ -209,6 +222,7 @@ declare
   v_base     int;
   v_pts      int;
   d0 int; p0 int; d1 int; p1 int; hd int; hp int;
+  r0 boolean; r1 boolean := false;
   v_gate     boolean := false;
   v_kind     text := null;
   v_required int := null;
@@ -244,9 +258,9 @@ begin
 
   -- 5. resolve from the LOCKED profile. A profile from another season (or never ranked) starts fresh.
   if prof.rank_season is distinct from c_season then
-    d0 := 0; p0 := 0; hd := 0; hp := 0;
+    d0 := 0; p0 := 0; r0 := false; hd := 0; hp := 0;
   else
-    d0 := prof.rank_division; p0 := prof.rank_points;
+    d0 := prof.rank_division; p0 := prof.rank_points; r0 := coalesce(prof.rank_demotion_ready, false);
     hd := prof.rank_highest_division; hp := prof.rank_highest_points;
   end if;
 
@@ -264,16 +278,16 @@ begin
       d1 := d0; p1 := p0;                                     -- medal gate, 2nd–4th: hold at 100
     else
       v_pts := p0 + v_base;                                   -- the normal negative award from 100 (≥ 60 with this table)
-      if v_pts < 0 then
+      if v_pts <= 0 and d0 > 0 and (d0 % c_per_medal) = 0 then d1 := d0; p1 := 0; r1 := true; -- (unreachable with this table) medal floor: ARM
+      elsif v_pts < 0 then
         if d0 = 0 then d1 := 0; p1 := 0;
-        elsif (d0 % c_per_medal) = 0 then d1 := d0; p1 := 0;  -- medal floor: clamp → demotion-ready
         else v_demoted := true; d1 := d0 - 1; p1 := c_cap + v_pts; end if;
       else
         d1 := d0; p1 := v_pts;
       end if;
     end if;
-  elsif d0 > 0 and (d0 % c_per_medal) = 0 and p0 = 0 then
-    -- demotion game (derived: 0 points on a medal's lowest division above Bronze)
+  elsif r0 then
+    -- demotion game (the STORED flag — armed by an earlier loss that clamped at 0 on this medal's lowest division)
     v_dgate := true; v_required := c_demotion_finish;
     if p_placement <= v_required then
       d1 := d0; p1 := p0 + v_base;                            -- escape: the positive award from 0 (< 100 with this table)
@@ -288,15 +302,16 @@ begin
       else v_demoted := true; d1 := c_top - 1; p1 := c_cap + v_pts; end if;
     elsif v_pts >= c_cap then
       v_unlocked := true; d1 := d0; p1 := c_cap;              -- gate reached; overflow discarded
+    elsif v_base < 0 and v_pts <= 0 and d0 > 0 and (d0 % c_per_medal) = 0 then
+      d1 := d0; p1 := 0; r1 := true;                          -- medal floor: a LOSS lands on 0 → ARMED
     elsif v_pts < 0 then
       if d0 = 0 then d1 := 0; p1 := 0;                        -- Bronze III floor, no gate
-      elsif (d0 % c_per_medal) = 0 then d1 := d0; p1 := 0;    -- medal floor: clamp → demotion-ready
       else v_demoted := true; d1 := d0 - 1; p1 := c_cap + v_pts; end if;
     else
       d1 := d0; p1 := v_pts;
     end if;
   end if;
-  v_dunlock := (d1 > 0 and (d1 % c_per_medal) = 0 and p1 = 0);  -- ends demotion-ready
+  v_dunlock := r1;                                            -- this game ARMED the gate
 
   v_applied := (c_cap * d1 + p1) - (c_cap * d0 + p0);
   if v_promoted then v_capped := 0; else v_capped := greatest(0, abs(v_base) - abs(v_applied)); end if;
@@ -305,7 +320,7 @@ begin
   -- 6. write profile + revision + the immutable result in this same transaction
   update public.profiles set
     rank_season = c_season, rank_rules_version = c_rules,
-    rank_division = d1, rank_points = p1,
+    rank_division = d1, rank_points = p1, rank_demotion_ready = r1,
     rank_highest_division = hd, rank_highest_points = hp,
     rank_revision = prof.rank_revision + 1,
     rating = c_cap * d1 + p1,
@@ -315,7 +330,7 @@ begin
   insert into public.rank_results (
     user_id, run_id, seed, season, rules_version, placement,
     revision_before, revision_after,
-    division_before, points_before, division_after, points_after,
+    division_before, points_before, demotion_ready_before, division_after, points_after, demotion_ready_after,
     highest_division_after, highest_points_after,
     base_delta, applied_delta, capped_points,
     was_promotion_game, promotion_kind, required_finish, promotion_unlocked, promoted,
@@ -323,7 +338,7 @@ begin
   ) values (
     p_user, p_run_id, p_seed, c_season, c_rules, p_placement,
     prof.rank_revision, prof.rank_revision + 1,
-    d0, p0, d1, p1,
+    d0, p0, r0, d1, p1, r1,
     hd, hp,
     v_base, v_applied, v_capped,
     v_gate, v_kind, v_required, v_unlocked, v_promoted,
@@ -363,6 +378,7 @@ grant execute on function public.rank_profile_json(public.profiles) to service_r
 -- update public.profiles set season2_rating = coalesce(season2_rating, rating);
 -- update public.profiles set
 --   rank_season = 3, rank_rules_version = 1,
---   rank_division = 0, rank_points = 0, rank_highest_division = 0, rank_highest_points = 0,
+--   rank_division = 0, rank_points = 0, rank_demotion_ready = false,
+--   rank_highest_division = 0, rank_highest_points = 0,
 --   rank_revision = rank_revision + 1,
 --   rating = 0, updated_at = now();

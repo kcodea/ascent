@@ -92,7 +92,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
   let parity = true;
   try {
     const r = out.result as {
-      placement: number; before: { divisionIndex: number; points: number }; after: { divisionIndex: number; points: number };
+      placement: number;
+      before: { divisionIndex: number; points: number; demotionReady?: boolean };
+      after: { divisionIndex: number; points: number; demotionReady?: boolean };
       baseDelta: number; appliedDelta: number; cappedPoints: number; wasPromotionGame: boolean;
       promotionKind: 'division' | 'medal' | null; requiredFinish: number | null;
       promotionUnlocked: boolean; promoted: boolean; wasDemotionGame: boolean; demotionUnlocked: boolean; demoted: boolean;

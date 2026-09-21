@@ -134,7 +134,8 @@ export function resolveServerRank(
 
 function sameRankedProfile(a: RankedProfile, b: RankedProfile): boolean {
   return a.seasonId === b.seasonId && a.rulesVersion === b.rulesVersion && a.revision === b.revision
-    && compareRank(a.position, b.position) === 0 && compareRank(a.highest, b.highest) === 0;
+    && compareRank(a.position, b.position) === 0 && compareRank(a.highest, b.highest) === 0
+    && (a.position.demotionReady === true) === (b.position.demotionReady === true);
 }
 
 /** Project a confirmed `RankResult` onto the legacy `RatingChange` shape, so the surfaces that still read

@@ -65,7 +65,7 @@ describe('medal rank — constants agree across the three copies', () => {
   it('the JSON shapes name every RankResult / RankedProfile key the client parses', () => {
     for (const key of ['runId', 'seasonId', 'rulesVersion', 'revisionBefore', 'revisionAfter', 'placement', 'before', 'after',
       'baseDelta', 'appliedDelta', 'cappedPoints', 'wasPromotionGame', 'promotionKind', 'requiredFinish',
-      'promotionUnlocked', 'promoted', 'wasDemotionGame', 'demotionUnlocked', 'demoted', 'highestAfter', 'divisionIndex', 'points', 'revision', 'position', 'highest']) {
+      'promotionUnlocked', 'promoted', 'wasDemotionGame', 'demotionUnlocked', 'demoted', 'highestAfter', 'divisionIndex', 'points', 'demotionReady', 'revision', 'position', 'highest']) {
       expect(sqlSrc, `settle_rank JSON must emit '${key}'`).toContain(`'${key}'`);
     }
   });
@@ -76,7 +76,8 @@ describe('medal rank — transition parity (sim resolver ↔ Edge Function mirro
   for (let d = 0; d <= rankTopDivision(); d++) {
     for (const p of [0, 1, 5, 6, 39, 40, 59, 60, 61, 72, 93, 94, 99, 100, 101, 140]) {
       if (d < rankTopDivision() && p > 100) continue;
-      starts.push({ divisionIndex: d, points: p });
+      starts.push({ divisionIndex: d, points: p, demotionReady: false });
+      if (p === 0 && d > 0 && d % 3 === 0) starts.push({ divisionIndex: d, points: p, demotionReady: true }); // an ARMED gate
     }
   }
 
@@ -104,6 +105,22 @@ describe('medal rank — transition parity (sim resolver ↔ Edge Function mirro
       }
     }
     expect(checked).toBeGreaterThan(1500);
+  });
+
+  it('the owner\'s sequence agrees on both: medal promotion → loss ARMS → loss DEMOTES', () => {
+    const seq = [[{ divisionIndex: 5, points: 100 }, 1], 8, 8] as const;
+    let c = resolveRank(seq[0][0], seq[0][1]);
+    let s = resolveRankOutcome(seq[0][0], seq[0][1]);
+    expect(s.after).toEqual(c.after);
+    expect(c.after.demotionReady).toBe(false);
+    c = resolveRank(c.after, 8); s = resolveRankOutcome(s.after, 8);
+    expect(s.after).toEqual(c.after);
+    expect(c.after).toEqual({ divisionIndex: 6, points: 0, demotionReady: true });
+    expect(s.demotionUnlocked).toBe(true);
+    c = resolveRank(c.after, 8); s = resolveRankOutcome(s.after, 8);
+    expect(s.after).toEqual(c.after);
+    expect(c.after).toEqual({ divisionIndex: 5, points: 60, demotionReady: false });
+    expect(s.wasDemotionGame && s.demoted).toBe(true);
   });
 
   it('both reject the same invalid placements', () => {

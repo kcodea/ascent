@@ -3,6 +3,7 @@ import { getHero, isCalibrationRound } from '@game/sim';
 import { RunTrophies } from './RunTrophies';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
+import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame } from './store';
 import { fetchBoardStats, fetchVictories, remoteEnabled, type BoardWinStats, type VictoryRow } from './remoteBoards';
 import { LbHeroFrame, LbLabel, LbMedallion, LbTeam } from './LadderBits';
@@ -74,9 +75,9 @@ export function Leaderboard() {
     : sort === 'wins' ? [...rows].sort((a, b) => winsOf(b) - winsOf(a)) : rows;
 
   return (
-    <div className="lbpage lb-ladder lb-hall">
+    <SidebarHost className="lbpage lb-ladder lb-hall">
+      <MenuSidebar current="hall" onBack={back} />
       <div className="lbtopbar">
-        <button className="lbback pressable" onClick={back}>← Back</button>
         <div className="lbtitle">
           <Icon name="crown" />
           <div>
@@ -145,6 +146,6 @@ export function Leaderboard() {
           </div>
         )}
       </div>
-    </div>
+    </SidebarHost>
   );
 }

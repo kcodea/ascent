@@ -6259,6 +6259,91 @@ svg { width: 18px; height: 18px; }
 .lbscroll { flex: 1; overflow-y: auto; padding: 8px 30px 40px; display: flex; flex-direction: column; gap: 14px; }
 .lbempty { margin: 56px auto; color: rgba(255, 255, 255, 0.72); font-family: var(--font-ui); font-weight: 700; font-size: 18px; text-align: center; }
 
+/* ── MENU SIDEBAR (owner ask 2026-09-21) — a 240px column pinned to the left edge of every ladder page and of
+   the title's mode picker / Learn hub (`MenuSidebar.tsx`). The host reserves the column with `padding-left`
+   (so `.lb-ladder .lbscroll`'s `margin: 0 auto` and the picker's `.mpbox` centre in the REMAINING width, no
+   DOM restructure); the sidebar itself is absolute at left:0, full height, z-indexed within the page (≤ 470)
+   so the portalled tooltips (z 520) and the card hover reveal still sit above it. Its fill is a vertical
+   blue → near-black gradient that leaves the navy band the page radial and the .lb-panel/.cv2-panel fills
+   sit in, with the game's gold rim on its right edge + the inset hairline so it reads as one system with the
+   panels. STATIC — no animation; the plaques' hover/press are one-shot transitions (transform/filter). ── */
+.lbpage, .modepick.sb-host { --sb-w: 240px; padding-left: var(--sb-w); }
+.msb { position: absolute; left: 0; top: 0; bottom: 0; width: var(--sb-w); z-index: 5; display: flex; flex-direction: column; gap: 14px; padding: 20px 16px 22px;
+  background: linear-gradient(180deg, #1f4380 0%, #14305c 40%, #0c1d3d 72%, #070f22 100%);
+  border-right: 2px solid rgba(196, 160, 92, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 72px rgba(70, 130, 220, 0.16), 12px 0 32px -14px rgba(0, 0, 0, 0.8);
+  cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+/* The picker SCROLLS as a whole on a short viewport (`.modepick { overflow-y: auto }`), so its sidebar is fixed
+   to the viewport rather than absolute in the scroller — it would scroll away with the cards otherwise. */
+.modepick.sb-host .msb { position: fixed; }
+/* Back top-left: the page's .lbback pill, unchanged. */
+.msb .msb-back { align-self: flex-start; }
+/* The main menu, vertically centred in the height left under Back. `safe` so a stack taller than the column
+   (a short window) aligns to the top under Back instead of overflowing both ends into it; NOT a scroll
+   container — that would clip the plaques' shadows and the Play bubble beside the column — the plaques compact
+   on a short viewport instead (below). */
+.msb-nav { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: safe center; gap: 10px; }
+.msb-item { display: block; }
+/* The compact plaque — the title's `.menubtn` language (navy plaque, gold rim, 4px hard edge, lamp-catch sheen,
+   press compresses) sized for the column: 15px label, a 28px icon cell, full sidebar width minus the gutters.
+   No hover slide (it would push into the page) and no seat-in stagger (it would re-fire on every page hop).
+   No `cursor` — the global button rule paints the gauntlet. Long labels (HALL OF CHAMPIONS) wrap to two
+   lines; the min-height is that two-line plaque's height (2 × 16.5 + 20 padding + 3 border) so every plaque is
+   the same height and the stack stays even. */
+.sbbtn { position: relative; overflow: hidden; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 10px 12px; border-radius: 9px; text-align: left;
+  border: 1.5px solid rgba(196, 160, 92, 0.6); background: linear-gradient(180deg, rgba(24, 36, 58, 0.92), rgba(13, 22, 39, 0.94));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 4px 0 #0a1526, 0 9px 18px -9px rgba(0, 0, 0, 0.7);
+  color: #e7d9b5; transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), filter 0.14s ease, border-color 0.14s ease; }
+.sbbtn::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 38%; z-index: 0; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255, 244, 214, 0.16) 44%, rgba(255, 250, 232, 0.28) 52%, rgba(255, 244, 214, 0.14) 60%, transparent);
+  transform: translateX(-140%) skewX(-18deg); opacity: 0;
+}
+.sbbtn:hover::after { animation: mbsheen 0.62s cubic-bezier(0.22, 0.6, 0.28, 1); }
+.sbbtn > * { position: relative; z-index: 1; }
+.sbbtn .mbicon { display: grid; place-items: center; width: 28px; height: 28px; flex: none; color: #d9b86a; transition: color 0.14s ease; }
+.sbbtn .mbicon svg { width: 22px; height: 22px; }
+.sbbtn .mbicon .crest { font-size: 22px; }
+.sbbtn .mblabel { font-size: 15px; letter-spacing: 0.08em; line-height: 1.1; white-space: normal; }
+.sbbtn:hover { border-color: rgba(230, 200, 130, 0.95); filter: brightness(1.08); }
+.sbbtn:hover .mbicon { color: #f2d698; }
+/* PRESS — the edge collapses 4px → 1px as the plaque travels 3px down (the title's press, minus the slide).
+   `:hover:active` restated so the press wins whatever the order (see `.menubtn`). */
+.sbbtn:active, .sbbtn:hover:active {
+  transform: translateY(3px) scale(0.988); filter: brightness(0.9); transition-duration: 0.06s;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), inset 0 0 0 1px rgba(0, 0, 0, 0.4), 0 1px 0 #0a1526, 0 3px 8px -6px rgba(0, 0, 0, 0.75);
+}
+.sbbtn:focus-visible { outline: 2px solid rgba(230, 200, 130, 0.95); outline-offset: 3px; border-color: rgba(230, 200, 130, 0.95); }
+/* CURRENT screen — the title's blue Play treatment. Later in the file than `.sbbtn:active` and tying it on
+   specificity, so the press is restated at `.sbbtn.active:active` or the blue plaque never compresses. */
+.sbbtn.active { background: linear-gradient(180deg, #3f7fc4, #245a97); border-color: rgba(150, 200, 245, 0.9); color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 0 0 1px rgba(120, 175, 255, 0.35), 0 4px 0 #173f6b, 0 9px 18px -9px rgba(0, 0, 0, 0.6); }
+.sbbtn.active:active, .sbbtn.active:hover:active {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 0 1px rgba(120, 175, 255, 0.3), 0 1px 0 #173f6b, 0 3px 8px -6px rgba(0, 0, 0, 0.6); }
+.sbbtn.active .mbicon, .sbbtn.active:hover .mbicon { color: #fff; }
+.sbbtn.active .mblabel { font-weight: 900; }
+@media (prefers-reduced-motion: reduce) {
+  .sbbtn:hover::after { animation: none; }
+  .sbbtn { transition: filter 0.1s ease, border-color 0.1s ease; }
+  .sbbtn:hover, .sbbtn:active { transform: none; }
+}
+/* SHORT viewports: the six-plaque stack (6 × 56 + 5 × 10 = 386px) plus Back needs ~500px; under that the
+   plaques compact (44px, 6px gaps, 14px labels → 6 × 44 + 30 + a two-line Hall ≈ 300px) so the column fits
+   down to a ~400px window without scrolling or overlapping Back. */
+@media (max-height: 560px) {
+  .msb { gap: 10px; padding-top: 14px; padding-bottom: 14px; }
+  .msb-nav { gap: 6px; }
+  .sbbtn { min-height: 44px; padding: 5px 10px; gap: 10px; }
+  .sbbtn .mblabel { font-size: 14px; letter-spacing: 0.06em; }
+}
+/* A HOP between two sidebar hosts (the store's `goTo`): the destination mounts as the source unmounts, in one
+   store write, so the hosts' page-level `fadein` re-faded the sidebar and showed the title through it on every
+   hop (review 2026-09-21). The host mounted BY the sidebar wears `.hop` (`SidebarHost` — see MenuSidebar.tsx)
+   and skips its own fade; only the content beside the sidebar fades in, so the column reads as one persistent
+   surface. Opacity-only, one-shot. */
+.lbpage.hop, .modepick.hop { animation: none; }
+.lbpage.hop > :not(.msb), .modepick.hop > :not(.msb) { animation: fadein 0.2s ease; }
+
 /* DEV-only Balance Report panel — reuses the .lbpage shell; adds a controls row + progress bar + dense tables. */
 .balpage { position: fixed; inset: 0; z-index: 480; display: flex; flex-direction: column; background: linear-gradient(rgba(6, 11, 22, 0.9), rgba(6, 11, 22, 0.95)); animation: fadein 0.2s ease; font-family: var(--font-ui); }
 /* Top bar: the section picker + Refresh sit CENTRED; Back is pinned top-left (owner 2026-07-14). */
@@ -6530,6 +6615,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
   .lb-trow { grid-template-columns: 96px minmax(0, 1fr) 240px 150px 290px; padding: 16px 28px; }
   .lb-trow-btn .lb-heroframe .hero { width: 100px; height: 100px; }
   .lb-trow-btn .lb-medal { width: 72px; height: 72px; font-size: 30px; }
+  .lb-trow-btn .rankcrest-row { --ring: 72px; }
   .lb-handle { font-size: 26px; }
   .lb-herosub { font-size: 16px; }
   .lb-rating { font-size: 46px; }
@@ -6538,11 +6624,14 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
   .lb-row { grid-template-columns: 170px minmax(0, 1fr) 250px; }
   .lb-hall .lb-row { grid-template-columns: 60px 170px minmax(0, 1fr) 260px; }
 }
-/* Narrower viewports: the tiles step down before the columns would overflow. */
-@media (max-width: 1400px) { .lb-team { --tile-s: 0.62; } }
-@media (max-width: 1180px) {
+/* Narrower viewports: the tiles step down before the columns would overflow. The thresholds carry the menu
+   sidebar's 240px (owner ask 2026-09-21): the rows have `viewport − 240` to work with, so 1400/1180 of page
+   width are 1640/1420 of viewport. */
+@media (max-width: 1640px) { .lb-team { --tile-s: 0.62; } }
+@media (max-width: 1420px) {
   .lb-team { --tile-s: 0.5; }
-  .lb-trow { grid-template-columns: 72px minmax(0, 1fr) 170px 100px 236px; column-gap: 16px; padding: 12px 16px; }
+  /* The rating track holds the 64px crest + 14px gap + the widest label ("Ascendant III", ~116px) = 194px. */
+  .lb-trow { grid-template-columns: 72px minmax(0, 1fr) 196px 100px 236px; column-gap: 16px; padding: 12px 16px; }
   .lb-trow-btn .lb-btn { font-size: 13px; padding: 10px 14px; }
   .lb-trow-btn .lb-heroframe .hero { width: 76px; height: 76px; }
   .lb-rating { font-size: 34px; }
@@ -6595,8 +6684,19 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
    cover-fit) and only undoes the tray's transforms. READABILITY FLOOR (owner 2026-09-20): every label ≥ 13px,
    every value ≥ 15px; only the Match History column scrolls. Nothing here animates in a loop except the
    loading spinner (transform-only). ── */
+/* The page is the size container the column breakpoints below query (`@container cv2`): its content box is
+   the viewport MINUS the menu sidebar, so the thresholds keep meaning "the width the columns actually have"
+   now that a 240px sidebar sits beside them (owner ask 2026-09-21). */
+.cv2-page { container: cv2 / inline-size; }
 .cv2-body { overflow: hidden; padding-bottom: 22px; }
-.cv2-cols { display: grid; grid-template-columns: 300px minmax(0, 1fr) 340px; grid-template-rows: minmax(0, 1fr); gap: 18px; align-items: stretch; flex: 1; min-height: 0; margin-top: 4px; }
+/* COLUMNS (owner ask 2026-09-21: wider side columns, less dead space beside the cards). The centre is CAPPED
+   (`--cv2-center-max` = the 7-tile strip at the 160px tile cap + the banner's padding/borders + the list's
+   gutter, with a few px of slack for the badges) and the sides are `minmax(min, 1fr)`, so a wide page grows
+   the cards up to their cap FIRST and then hands every further pixel to the side columns instead of leaving
+   it right of the 7th card; below the cap nothing changes (the sides sit at their minimums, the centre takes
+   the rest, exactly the old layout). `max-width` + auto margins clamp an ultrawide so the stat tiles and
+   trend charts never stretch absurdly (sides ≤ ~540px). */
+.cv2-cols { --cv2-center-max: 1270px; display: grid; grid-template-columns: minmax(300px, 1fr) minmax(0, var(--cv2-center-max)) minmax(340px, 1fr); grid-template-rows: minmax(0, 1fr); gap: 18px; align-items: stretch; flex: 1; min-height: 0; margin: 4px auto 0; width: 100%; max-width: 2390px; }
 /* Ornate gold-framed panel: deep navy fill + double gold frame (border + inset hairline). */
 .cv2-panel { background: linear-gradient(180deg, rgba(13, 22, 40, 0.8), rgba(9, 15, 29, 0.88)); border: 2px solid rgba(196, 160, 92, 0.5); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), inset 0 0 40px rgba(0, 0, 0, 0.3), 0 10px 30px -12px rgba(0, 0, 0, 0.55); border-radius: 16px; padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .cv2-sec { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 900; font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; color: #e8c877; }
@@ -6687,11 +6787,11 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .cv2-row-none { font-family: var(--font-ui); font-weight: 600; font-size: 15px; color: rgba(255, 255, 255, 0.55); padding: 6px 0; }
 /* The final team: 7 fixed slots holding the REAL card at the leaderboard's size — `--cw` is set directly (the
    card's typography is fixed-px, so a 2-digit stat reads at any of these widths) off the row's own width
-   (container units), capped at 150px so a 2560-wide page grows the tiles instead of the gutters. */
+   (container units), capped at 160px so a 2560-wide page grows the tiles instead of the gutters. */
 .cv2-team { container-type: inline-size; --tile-gap: 14px; display: flex; gap: var(--tile-gap); align-items: flex-start; padding: 2px 0 6px; }
 /* A slot is `--tw` wide; the COMPACT card inside is 85% of that (its arch is ~square, height auto), centred so
    its ±8px stat badges overhang into the slot's own margin rather than the neighbour's. */
-.cv2-tile { --tw: min(150px, calc((100cqw - 6 * var(--tile-gap)) / 7)); position: relative; flex: none; width: var(--tw); min-height: calc(var(--tw) * 0.85 + 22px); display: flex; justify-content: center; align-items: flex-start; }
+.cv2-tile { --tw: min(160px, calc((100cqw - 6 * var(--tile-gap)) / 7)); position: relative; flex: none; width: var(--tw); min-height: calc(var(--tw) * 0.85 + 22px); display: flex; justify-content: center; align-items: flex-start; }
 .cv2-tile.empty::before { content: ''; width: calc(var(--tw) * 0.85); height: calc(var(--tw) * 0.85); border-radius: var(--arch-radius); border: 2px dashed rgba(255, 255, 255, 0.14); background: rgba(0, 0, 0, 0.18); box-sizing: border-box; }
 .cv2-tile .card { --cw: var(--tw); --ch: calc(var(--cw) / 0.752); --ccw: calc(var(--cw) * 0.85); min-width: 0; }
 /* A hovered tile lifts above its neighbours so the card's own hover popups aren't clipped by the next tile. */
@@ -6777,11 +6877,18 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .cv2-trend-foot { font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.45); text-align: right; }
 
 @media (min-height: 1000px) { .cv2-chart svg { height: 120px; } .cv2-trend { gap: 6px; padding-top: 12px; } .cv2-trends { gap: 12px; } }
-/* Narrower pages give the tiles the room first (the side columns shrink); under 1100 the columns stack and
-   the page scrolls as a whole. */
-@media (max-width: 1700px) { .cv2-cols { grid-template-columns: 270px minmax(0, 1fr) 320px; } }
-@media (max-width: 1360px) { .cv2-cols { grid-template-columns: 250px minmax(0, 1fr) 290px; gap: 14px; } .cv2-verdict { font-size: 26px; } .cv2-herogrid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; } }
-@media (max-width: 1100px) { .cv2-body { overflow-y: auto; } .cv2-cols { grid-template-columns: 1fr; grid-template-rows: none; flex: none; } .cv2-leftcol, .cv2-left, .cv2-right { max-height: none; overflow: visible; } .cv2-list { overflow: visible; } }
+/* Narrower pages give the tiles the room first (the side columns shrink); under 1300 the columns stack and
+   the page scrolls as a whole. CONTAINER queries on `.cv2-page` (the width beside the sidebar), not viewport
+   media queries — the 1700 / 1360 thresholds the page had before the sidebar took its 240px; the stack point
+   moved up from 1100 (below). */
+@container cv2 (max-width: 1700px) { .cv2-cols { grid-template-columns: minmax(270px, 1fr) minmax(0, var(--cv2-center-max)) minmax(320px, 1fr); } }
+@container cv2 (max-width: 1360px) { .cv2-cols { grid-template-columns: minmax(250px, 1fr) minmax(0, var(--cv2-center-max)) minmax(290px, 1fr); gap: 14px; } .cv2-verdict { font-size: 26px; } .cv2-herogrid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; } }
+/* STACK at ≤1300 of page width (a ≤1540 viewport beside the 240px sidebar — 1366 / 1440 / 1536 laptops). Three
+   columns below that starve the 7-card strip (the sides' 250/290 minimums + gaps leave ~50–75px tiles at
+   1366–1536; the old ≤1100 stack point let a 1366 laptop hit 51px — review 2026-09-21); stacked, the strip is
+   full-width at the tile cap and the page scrolls as a whole. Between 1301 and 1360 the three columns hold
+   with ~75–83px tiles (the ladder's own ≤1420 card size). */
+@container cv2 (max-width: 1300px) { .cv2-body { overflow-y: auto; } .cv2-cols { grid-template-columns: 1fr; grid-template-rows: none; flex: none; } .cv2-leftcol, .cv2-left, .cv2-right { max-height: none; overflow: visible; } .cv2-list { overflow: visible; } }
 
 /* Recent Games list (RecentGames.tsx) — the last 20 games across all players: portrait · name/hero · place ·
    verdict. Reuses the .lbpage/.lbscroll page frame from the leaderboards. */
@@ -7224,7 +7331,10 @@ body:has(.book-ov) .cardref { z-index: 490; }
 .modepick {
   position: fixed; inset: 0; z-index: 400;
   display: grid; place-items: safe center; overflow-y: auto; padding: 24px 0;
-  background: linear-gradient(rgba(6, 11, 22, 0.86), rgba(6, 11, 22, 0.92)), url('/homescreen.webp') center / cover no-repeat, var(--bg);
+  /* The ladder pages' navy radial (owner ask 2026-09-21: "the blue background behind Play as well, so it is
+     consistent"), replacing the dimmed title art. Inherited by the Learn hub, the tutorial nudge and Practice
+     options, which reuse the class. */
+  background: radial-gradient(ellipse 60% 60% at 50% 50%, #24468a 0%, #0a1730 100%);
   animation: fadein 0.3s ease;
   cursor: url('/cursors/gauntlet_default.svg') 6 2, auto;
 }
@@ -10308,8 +10418,8 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    menu buttons own their ::before/::after for the sheen wave, and a tooltip pseudo-element would clobber it
    (owner report 2026-08-24). The big buttons carry visible labels, so they need no bubble. Compositor-only (opacity/transform), a short delay so it does
    not flash on a passing cursor. ── */
-.titlescreen [data-tip]:not(.menubtn) { position: relative; }
-.titlescreen [data-tip]:not(.menubtn)::after {
+.titlescreen [data-tip]:not(.menubtn), .lbpage [data-tip]:not(.menubtn) { position: relative; }
+.titlescreen [data-tip]:not(.menubtn)::after, .lbpage [data-tip]:not(.menubtn)::after {
   content: attr(data-tip);
   position: absolute; left: 50%; top: calc(100% + 9px); transform: translateX(-50%) translateY(-4px);
   white-space: nowrap; max-width: 60vw;
@@ -10320,17 +10430,25 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   transition: opacity 0.12s ease, transform 0.12s ease; transition-delay: 0s;
 }
 /* The little pointer under the bubble — a rotated square sharing the bubble's fill + top-left borders. */
-.titlescreen [data-tip]:not(.menubtn)::before {
+.titlescreen [data-tip]:not(.menubtn)::before, .lbpage [data-tip]:not(.menubtn)::before {
   content: ''; position: absolute; left: 50%; top: calc(100% + 4px); transform: translateX(-50%) rotate(45deg);
   width: 9px; height: 9px; background: color-mix(in srgb, var(--bg2) 92%, #000);
   border-left: 1.5px solid var(--line); border-top: 1.5px solid var(--line);
   opacity: 0; pointer-events: none; z-index: 600; transition: opacity 0.12s ease; transition-delay: 0s;
 }
-.titlescreen [data-tip]:not(.menubtn):hover::after,
-.titlescreen [data-tip]:not(.menubtn):focus-visible::after { opacity: 1; transform: translateX(-50%) translateY(0); transition-delay: 0.25s; }
-.titlescreen [data-tip]:not(.menubtn):hover::before,
-.titlescreen [data-tip]:not(.menubtn):focus-visible::before { opacity: 1; transition-delay: 0.25s; }
-@media (prefers-reduced-motion: reduce) { .titlescreen [data-tip]:not(.menubtn)::after, .titlescreen [data-tip]:not(.menubtn)::before { transition: none; } }
+.titlescreen [data-tip]:not(.menubtn):hover::after, .lbpage [data-tip]:not(.menubtn):hover::after,
+.titlescreen [data-tip]:not(.menubtn):focus-visible::after, .lbpage [data-tip]:not(.menubtn):focus-visible::after { opacity: 1; transform: translateX(-50%) translateY(0); transition-delay: 0.25s; }
+.titlescreen [data-tip]:not(.menubtn):hover::before, .lbpage [data-tip]:not(.menubtn):hover::before,
+.titlescreen [data-tip]:not(.menubtn):focus-visible::before, .lbpage [data-tip]:not(.menubtn):focus-visible::before { opacity: 1; transition-delay: 0.25s; }
+@media (prefers-reduced-motion: reduce) { .titlescreen [data-tip]:not(.menubtn)::after, .titlescreen [data-tip]:not(.menubtn)::before, .lbpage [data-tip]:not(.menubtn)::after, .lbpage [data-tip]:not(.menubtn)::before { transition: none; } }
+/* THE MENU SIDEBAR's Play bubble (the saved-run note, `MenuSidebar.tsx`) sits to the RIGHT of the plaque: the
+   rules above drop a bubble BELOW its element, which in the sidebar's 10px-gap stack landed on the Career
+   plaque (review 2026-09-21). Same bubble, same pointer square showing its LEFT vertex. After the shared rules
+   and one class deeper, so it wins on both surfaces (the picker is inside `.titlescreen`, the pages are
+   `.lbpage`). */
+.msb .msb-item[data-tip]::after { left: calc(100% + 12px); top: 50%; transform: translateY(-50%) translateX(-4px); }
+.msb .msb-item[data-tip]:hover::after, .msb .msb-item[data-tip]:focus-visible::after { transform: translateY(-50%) translateX(0); }
+.msb .msb-item[data-tip]::before { left: calc(100% + 7px); top: 50%; transform: translateY(-50%) rotate(45deg); border-top: none; border-bottom: 1.5px solid var(--line); }
 
 
 /* ══ SHOP → COMBAT → SHOP (owner ask 2026-08-25) ═════════════════════════════════════════════════════════
@@ -11016,6 +11134,9 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 /* The rank crest IS a portrait ring; the size classes set its width. */
 .rankcrest { --ring: 56px; }
 .rankcrest-mini { --ring: 44px; }
+/* row — the Rankings table: the ring matches the 1/2/3 placement medallion's 64px coin (owner 2026-09-21;
+   the ≥2200px step to 72px lives with the medallion's, in the Rankings block). */
+.rankcrest-row { --ring: 64px; }
 .rankcrest-big { --ring: 150px; }
 .rankcrest-xl { --ring: clamp(200px, 26vh, 260px); }
 /* The division plate — a gold coin pill on the ring's bottom edge, in the game's gold-medal ramp. */
@@ -11025,6 +11146,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   background: linear-gradient(160deg, #ffe9a3, #e0aa3a 55%, #a8780f);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -2px 0 rgba(0, 0, 0, 0.25), 0 0 0 2px rgba(20, 30, 50, 0.9), 0 3px 8px rgba(0, 0, 0, 0.5); }
 .rankcrest-mini .rankcrest-plate { font-size: 9px; }
+.rankcrest-row .rankcrest-plate { font-size: 10px; }
 /* The crest a transition lands on stacks under the current one, hidden until the timeline reveals it. */
 .rankbar-crests { position: relative; display: grid; place-items: center; flex: none; }
 .rankbar-crests > .rankcrest { grid-area: 1 / 1; }
@@ -11081,13 +11203,6 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 .rankbar-xl .rankbar-track { width: min(380px, 72vw); height: 16px; }
 .rankbar-xl .rankbar-tip { width: 36px; height: 36px; margin-top: -18px; right: -12px; }
 .rankbar-xl .rankbar-points { font-size: 20px; color: #fff6e4; }
-
-/* The Title's Play card wears its rank on a frosted plate pinned inside the frame's bottom edge (always
-   visible — the promotion gate has to be readable BEFORE the next ranked match). Non-interactive: the card is
-   the button. */
-.mcrank { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 3; display: flex;
-  padding: 6px 16px 6px 8px; border-radius: 999px; background: rgba(6, 9, 16, 0.74); border: 1px solid rgba(196, 160, 92, 0.5);
-  box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.8); pointer-events: none; }
 
 /* EVERY Career hero portrait wears the SAME portrait ring — the left column + Heroes tab (owner 2026-09-20)
    and the small match-row portraits (owner 2026-09-21) — the markup is untouched; these rules re-seat the

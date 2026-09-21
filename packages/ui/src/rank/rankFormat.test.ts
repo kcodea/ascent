@@ -77,28 +77,29 @@ describe('points, placement and delta text', () => {
     const zero = fixtureById('floor-zero')!.result!;
     expect(deltaText(zero)).toBe('0 RP · Bronze floor');
   });
-  it('a won promotion prints the base award and states the 0 / 100 reset (owner decision)', () => {
+  it('a won promotion prints the base award and NO detail / outcome line — the crest transition + 0 / 100 say it (owner 2026-09-20)', () => {
     const promo = fixtureById('promo-won')!.result!;
     expect(deltaText(promo)).toBe('+16 RP');
-    expect(cappedDetail(promo)).toBe('promotion — Gold I starts at 0 / 100');
-    expect(outcomeText(promo)).toBe('Promoted to Gold I');
-    expect(outcomeText(fixtureById('promo-medal')!.result!)).toBe('Promoted to Platinum III');
+    expect(cappedDetail(promo)).toBeNull();
+    expect(outcomeText(promo)).toBeNull();
+    expect(outcomeText(fixtureById('promo-medal')!.result!)).toBeNull();
   });
-  it('a failed promotion and a demotion stay factual', () => {
+  it('a failed promotion says so (nothing else would); a demotion prints no line (the crest/label change says it)', () => {
     expect(outcomeText(fixtureById('promo-failed')!.result!)).toBe('Promotion unsuccessful');
     expect(deltaText(fixtureById('promo-failed')!.result!)).toBe('−40 RP');
-    expect(outcomeText(fixtureById('demotion')!.result!)).toBe('Demoted to Gold III');
+    expect(outcomeText(fixtureById('demotion')!.result!)).toBeNull();
     expect(cappedDetail(fixtureById('demotion')!.result!)).toBeNull();
   });
-  it('Ascendant I never announces a false promotion', () => {
+  it('Ascendant I never announces a false promotion, and its counter needs no caption', () => {
     const top = fixtureById('ascendant')!.result!;
-    expect(outcomeText(top)).toBe('Ascendant I · uncapped');
+    expect(outcomeText(top)).toBeNull();
     expect(deltaText(top)).toBe('+40 RP');
     expect(planRankSequence(top).some((s) => s.kind === 'transition' || s.kind === 'gate')).toBe(false);
   });
-  it('the live-region sentence carries placement, delta, the new rank and the outcome', () => {
+  it("the live-region sentence carries placement, delta, the new rank — and SAYS a promotion/demotion (a reader can't see the crest)", () => {
     expect(announcement(3, fixtureById('gain')!.result, 'confirmed')).toBe('Finished 3rd. +16 RP. Now Gold II, 76 / 100.');
     expect(announcement(1, fixtureById('promo-medal')!.result, 'confirmed')).toBe('Victory. +40 RP. Now Platinum III, 0 / 100. Promoted to Platinum III.');
+    expect(announcement(8, fixtureById('demotion')!.result, 'confirmed')).toBe('Finished 8th. −40 RP. Now Gold III, 70 / 100. Demoted to Gold III.');
     expect(announcement(2, null, 'pending')).toBe('Finished 2nd. Updating rank.');
     expect(announcement(4, null, 'unrated')).toBe('Finished 4th. Unrated.');
   });

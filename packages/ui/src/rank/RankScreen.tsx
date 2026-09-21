@@ -1,10 +1,11 @@
-import { createRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { sfx } from '../sfx';
 import { RankBar, type RankBarAnimRefs } from './RankBar';
 import { announcement, cappedDetail, deltaText, ordinal, outcomeText, placementText } from './rankFormat';
 import { markRankPresented, wasRankPresented } from './presented';
 import { planRankSequence } from './rankSequence';
 import { buildRankTimeline } from './rankTimeline';
+import { beginExitFade } from './exitFade';
 import type { RankPosition, RankResult, RankSubmission } from './types';
 
 /**
@@ -17,8 +18,8 @@ import type { RankPosition, RankResult, RankSubmission } from './types';
  * refs — no React re-render per frame; when it settles the bar REMOUNTS on the after-state (`key`), so React's
  * view and GSAP's inline styles can never disagree.
  *
- * CONTINUE is always visible and usable; clicking the rank display (or Skip) settles instantly; neither touches
- * the submission. The celebration plays ONCE per run — `presented.ts` keeps a consumed marker apart from rank
+ * CONTINUE is always visible and usable — single-fire, and it cross-fades the screen into the main menu (see
+ * `exitFade.ts`); clicking the rank display (or Skip) settles instantly; neither touches the submission. No Rewatch / Final warband on this screen (owner 2026-09-20) — Rewatch lives in Recent Games. The celebration plays ONCE per run — `presented.ts` keeps a consumed marker apart from rank
  * state, so a remount after Rewatch, a reload or a duplicate confirmation settles silently. Reduced motion:
  * no timeline, everything present, the container's short CSS fade only. Timelines are killed on unmount.
  */
@@ -39,9 +40,6 @@ export interface RankScreenProps {
   runId: string;
   onContinue: () => void;
   onRetry?: () => void;
-  onRewatch?: () => void;
-  /** The final warband, rendered when the player expands it. */
-  warband?: ReactNode;
   /** DEV preview: never writes the consumed marker. */
   preview?: boolean;
   /** Test/DEV override for `prefers-reduced-motion`. */
@@ -60,14 +58,17 @@ const cues = {
 };
 
 export function RankScreen(props: RankScreenProps): JSX.Element {
-  const { placement, seatCount, submission, result, current, error, unratedReason, runId, onContinue, onRetry, onRewatch, warband, preview = false } = props;
+  const { placement, seatCount, submission, result, current, error, unratedReason, runId, onContinue, onRetry, preview = false } = props;
   const reduced = props.reducedMotion ?? prefersReducedMotion();
   const confirmed = submission === 'confirmed' && !!result;
   // The celebration plays only for a freshly confirmed result that has not been presented before.
   const shouldAnimate = confirmed && !reduced && (preview || !wasRankPresented(runId));
   const [settled, setSettled] = useState(!shouldAnimate);
   const [announce, setAnnounce] = useState('');
-  const [warbandOpen, setWarbandOpen] = useState(false);
+  // CONTINUE is single-fire: the first press disables it (mouse and keyboard alike) and starts the exit.
+  const [leaving, setLeaving] = useState(false);
+  const leavingRef = useRef(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   const tlRef = useRef<ReturnType<typeof buildRankTimeline> | null>(null);
   const finishedRef = useRef(false);
   const continueRef = useRef<HTMLButtonElement>(null);
@@ -135,6 +136,28 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
 
   useEffect(() => { continueRef.current?.focus(); }, []);
 
+  // Continue → the rank layer CROSS-FADES into the main menu (owner 2026-09-20): the settled overlay is cloned
+  // above the title, `onContinue` (→ openTitle) mounts the title and releases this element, and the clone
+  // fades out. A sequence still playing is settled first so the clone is the after-state, not a mid-tween.
+  const leave = useCallback((): void => {
+    if (leavingRef.current) return;
+    leavingRef.current = true;
+    const tl = tlRef.current;
+    if (tl) { tl.progress(1, true); tl.kill(); tlRef.current = null; }
+    finish();
+    setLeaving(true);
+  }, [finish]);
+  // The clone is taken in an EFFECT so it captures the settled (after-state) DOM React has just committed —
+  // a synchronous clone inside the click handler would copy the pre-settle frame.
+  const onContinueRef = useRef(onContinue);
+  onContinueRef.current = onContinue;
+  useEffect(() => {
+    if (!leaving) return;
+    const overlay = rootRef.current?.closest<HTMLElement>('.rankend');
+    if (overlay) beginExitFade(overlay, reduced);
+    onContinueRef.current();
+  }, [leaving, reduced]);
+
   const skip = useCallback((): void => {
     const tl = tlRef.current;
     if (tl) { tl.progress(1, true); tl.kill(); tlRef.current = null; }
@@ -150,10 +173,9 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
   const deltaTone = result ? (result.promoted || result.appliedDelta > 0 ? 'up' : result.appliedDelta < 0 ? 'down' : 'flat') : 'flat';
 
   return (
-    <div className={`rankend-panel${settled ? ' settled' : ' playing'}`}>
+    <div className={`rankend-panel${settled ? ' settled' : ' playing'}${leaving ? ' leaving' : ''}`} ref={rootRef}>
       <div className={`rankend-place${won ? ' won' : ''}`} ref={placementRef} aria-label={`Finished ${ordinal(placement)} of ${seatCount}`}>
         <span className="rankend-place-text">{placementText(placement)}</span>
-        <span className="rankend-place-of">{won ? `1st of ${seatCount}` : `of ${seatCount}`}</span>
       </div>
 
       {shownPos && (
@@ -202,21 +224,16 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
       )}
 
       <div className="rankend-actions">
-        <button ref={continueRef} type="button" className="endplay pressable rankend-continue" onClick={onContinue}>Continue</button>
+        <button ref={continueRef} type="button" className="endplay pressable rankend-continue" onClick={leave} disabled={leaving}>Continue</button>
         {submission === 'retryable' && onRetry && (
           <button type="button" className="endplay pressable rankend-retry" onClick={onRetry}>Retry</button>
         )}
       </div>
+      {/* The only secondary action (owner 2026-09-20: no Rewatch / Final warband here — Rewatch lives in
+          Recent Games). The row keeps its height while settled so the layout never jumps. */}
       <div className="rankend-secondary">
         {!settled && <button type="button" className="rankend-link" onClick={skip}>Skip animation</button>}
-        {onRewatch && <button type="button" className="rankend-link" onClick={onRewatch}>Rewatch</button>}
-        {warband && (
-          <button type="button" className="rankend-link" aria-expanded={warbandOpen} onClick={() => setWarbandOpen((o) => !o)}>
-            {warbandOpen ? 'Hide warband' : 'Final warband'}
-          </button>
-        )}
       </div>
-      {warband && warbandOpen && <div className="rankend-warband">{warband}</div>}
       <div className="rankend-live" aria-live="polite">{announce}</div>
     </div>
   );

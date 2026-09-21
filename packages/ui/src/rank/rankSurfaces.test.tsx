@@ -3,7 +3,8 @@
  * The SHARED rank presentation the other surfaces mount — the Title's Play card plate, the Career card, the
  * Rankings rows — pinned once here: the crest is the in-run hero frame with a division plate, the bar prints
  * the one helper's label / points / gate line, and the Rankings ordering is division-then-points with legacy
- * (rank-less) rows kept behind, untouched.
+ * (rank-less) rows kept behind, untouched. The crest's ring is the hero-select ceremony's heroportrait.png,
+ * painted by CSS — so the DOM carries the disc and the plate only.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { mount, type Mounted } from '../renderedText.mount';
@@ -19,10 +20,10 @@ let ui: Mounted | null = null;
 afterEach(() => { ui?.unmount(); ui = null; });
 
 describe('RankCrest', () => {
-  it('is the in-run circular hero frame (.lb-heroframe > .hero > .f > img.heroimg) with a composited division plate', () => {
+  it('is the medal disc seated in the game\'s portrait ring (.portring > .hero > .f > img.heroimg) with a composited division plate', () => {
     ui = mount(<RankCrest divisionIndex={7} size="big" />);
     const crest = ui.container.querySelector('.rankcrest')!;
-    expect(crest.className).toContain('lb-heroframe');
+    expect(crest.className).toContain('portring');
     expect(crest.className).toContain('rankcrest-big');
     expect(crest.className).toContain('rankcrest-gold');
     expect(crest.querySelector('.hero > .f > img.heroimg')).not.toBeNull();

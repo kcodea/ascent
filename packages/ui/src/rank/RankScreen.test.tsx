@@ -15,7 +15,10 @@ import { deltaText, outcomeText, pointsText, rankLabel } from './rankFormat';
 import { markRankPresented, resetRankPresented, wasRankPresented } from './presented';
 
 let ui: Mounted | null = null;
-afterEach(() => { ui?.unmount(); ui = null; });
+afterEach(() => {
+  ui?.unmount(); ui = null;
+  for (const ghost of document.querySelectorAll('.rankend-exit')) ghost.remove();
+});
 beforeEach(() => { resetRankPresented(); });
 
 const text = (sel: string): string => (ui!.container.querySelector(sel)?.textContent ?? '').replace(/\s+/g, ' ').trim();
@@ -28,7 +31,8 @@ function render(f: RankFixture, over: Partial<Parameters<typeof RankScreen>[0]> 
     error: f.error, unratedReason: f.submission === 'unrated' ? 'Practice' : undefined,
     runId: `run:${f.id}`, onContinue, onRetry, reducedMotion: true, ...over,
   };
-  ui = mount(<RankScreen {...props} />);
+  // Inside the same `.rankend` overlay chrome the end screen mounts it in, so the exit fade has its target.
+  ui = mount(<div className="heroselect endscreen lobbyend rankend"><RankScreen {...props} /></div>);
   return { onContinue, onRetry, props };
 }
 
@@ -36,13 +40,19 @@ describe('every fixture state renders its labels, and Continue is always there',
   it.each(RANK_FIXTURES.map((f) => [f.id, f] as const))('%s', (_id, f) => {
     const { onContinue } = render(f);
     const c = ui!.container;
-    // Placement headline: VICTORY for 1st, the ordinal otherwise.
+    // Placement headline: VICTORY for 1st, the ordinal otherwise — and no "of 8" (owner 2026-09-20).
     expect(text('.rankend-place-text')).toBe(f.placement === 1 ? 'VICTORY' : `${f.placement}${['', 'ST', 'ND', 'RD'][f.placement] ?? 'TH'}`);
-    // Continue: present, focused, and fires exactly once.
+    expect(text('.rankend-place')).toBe(text('.rankend-place-text'));
+    expect(c.querySelector('.rankend-place-of')).toBeNull();
+    // Continue: present, focused, and SINGLE-FIRE — a second press (mouse or Enter) does nothing.
     const cont = c.querySelector<HTMLButtonElement>('.rankend-continue')!;
     expect(cont).not.toBeNull();
     expect(document.activeElement).toBe(cont);
     act(() => cont.click());
+    expect(onContinue).toHaveBeenCalledTimes(1);
+    expect(cont.disabled).toBe(true);
+    act(() => cont.click());
+    act(() => { cont.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
     expect(onContinue).toHaveBeenCalledTimes(1);
     if (f.result) {
       // Reduced motion: the after-state, delta and outcome are all present at once.
@@ -94,16 +104,24 @@ describe('every fixture state renders its labels, and Continue is always there',
     expect(text('.rankend-live')).toBe('Finished 3rd. +16 RP. Now Gold I, 0 / 100. Promoted to Gold I.');
   });
 
-  it('the final warband is a secondary, expandable section; Rewatch is a secondary action', () => {
-    const onRewatch = vi.fn();
-    render(fixtureById('gain')!, { onRewatch, warband: <div className="fake-warband">seven minions</div> });
-    expect(ui!.container.querySelector('.fake-warband')).toBeNull();
-    const links = [...ui!.container.querySelectorAll<HTMLButtonElement>('.rankend-link')];
-    expect(links.map((b) => b.textContent)).toEqual(['Rewatch', 'Final warband']);
-    act(() => links[1]!.click());
-    expect(ui!.container.querySelector('.fake-warband')).not.toBeNull();
-    act(() => links[0]!.click());
-    expect(onRewatch).toHaveBeenCalledTimes(1);
+  it('carries NO Rewatch and NO Final warband (owner 2026-09-20) — the settled screen has no secondary links at all', () => {
+    render(fixtureById('gain')!);
+    const c = ui!.container;
+    expect(c.textContent).not.toMatch(/Rewatch|warband/i);
+    expect(c.querySelectorAll('.rankend-link')).toHaveLength(0);
+    expect(c.querySelector('.endboard')).toBeNull();
+  });
+
+  it('reads top → bottom: placement → crest → label → bar → points → delta → outcome → CONTINUE', () => {
+    render(fixtureById('gate')!);
+    const c = ui!.container;
+    const order = ['.rankend-place', '.rankcrest', '.rankbar-label', '.rankbar-track', '.rankbar-points', '.rankend-delta', '.rankend-outcome', '.rankend-continue']
+      .map((sel) => c.querySelector(sel)!);
+    for (const el of order) expect(el).not.toBeNull();
+    for (let i = 1; i < order.length; i++) {
+      // DOCUMENT_POSITION_FOLLOWING (4): the previous element precedes this one in the tree.
+      expect(order[i - 1]!.compareDocumentPosition(order[i]!) & 4, `${i}`).toBe(4);
+    }
   });
 });
 
@@ -121,7 +139,8 @@ describe('the animated path: skip settles, the marker stops a replay, an arrivin
     expect(c.querySelector('.rankend-panel')!.className).toContain('settled');
     expect(text('.rankbar-label')).toBe('Gold III');
     expect(text('.rankbar-points')).toBe('70 / 100');
-    expect(text('.rankend-outcome')).toBe('Demoted to Gold III');
+    expect(c.querySelector('.rankend-outcome')).toBeNull(); // the crest/label change says it (owner 2026-09-20)
+    expect(text('.rankend-live')).toContain('Demoted to Gold III');
     expect(c.querySelector('.rankcrest-next')).toBeNull();
     expect([...c.querySelectorAll('.rankend-link')].map((b) => b.textContent)).not.toContain('Skip animation');
     expect(wasRankPresented('run:demotion')).toBe(true);
@@ -169,6 +188,28 @@ describe('the animated path: skip settles, the marker stops a replay, an arrivin
     act(() => { (c.querySelector('.rankend-rank') as HTMLElement).click(); });
     expect(text('.rankbar-points')).toBe('76 / 100');
     expect(c.querySelector('.rankend-panel')!.className).toContain('settled');
+  });
+
+  it('Continue cross-fades: a static clone of the overlay is parked above the title and the real one is released', () => {
+    render(fixtureById('gain')!);
+    act(() => { ui!.container.querySelector<HTMLButtonElement>('.rankend-continue')!.click(); });
+    const ghost = document.querySelector('.rankend-exit')!;
+    expect(ghost).not.toBeNull();
+    expect(ghost.classList.contains('rankend')).toBe(true);
+    expect(ghost.getAttribute('aria-hidden')).toBe('true');
+    expect(ghost.querySelector('.rankend-place-text')?.textContent).toBe('3RD');
+    // The copy can never be a second Continue.
+    expect(ghost.querySelector<HTMLButtonElement>('.rankend-continue')!.disabled).toBe(true);
+    expect(ghost.querySelector('.rankend-continue')!.getAttribute('tabindex')).toBe('-1');
+    expect(document.querySelectorAll('.rankend-exit')).toHaveLength(1);
+  });
+
+  it('Continue mid-sequence settles the screen first, so the clone is the after-state', () => {
+    render(fixtureById('demotion')!, { reducedMotion: false });
+    expect(text('.rankbar-label')).toBe('Gold II');
+    act(() => { ui!.container.querySelector<HTMLButtonElement>('.rankend-continue')!.click(); });
+    expect(document.querySelector('.rankend-exit .rankbar-label')?.textContent).toBe('Gold III');
+    expect(wasRankPresented('run:demotion')).toBe(true);
   });
 
   it('the consumed marker survives a reload (localStorage) and dedupes in memory', () => {

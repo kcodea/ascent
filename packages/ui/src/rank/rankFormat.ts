@@ -45,7 +45,7 @@ export function gateText(pos: RankPosition): string {
 /** The primary delta line: the ACTUAL movement, and the floor reading when nothing could be lost. A WON
  *  promotion is the one case that prints the finish's base award instead: the owner's rule lands the new
  *  division at 0 / 100, so the "actual" scalar movement is 0 — and a big "0 RP" over a promotion reads as a
- *  bug, not a rule. The detail line beneath states the reset in words. */
+ *  bug, not a rule. The crest transition + new label + 0 / 100 say the rest (owner 2026-09-20). */
 export function deltaText(r: RankResult): string {
   if (r.promoted) return signedRp(r.baseDelta);
   const floored = r.appliedDelta === 0 && r.baseDelta < 0 && r.after.divisionIndex === 0 && r.after.points === 0;
@@ -53,27 +53,28 @@ export function deltaText(r: RankResult): string {
   return signedRp(r.appliedDelta);
 }
 
-/** A secondary detail when the award was capped/floored ("base +40 · capped at the gate") or a promotion
- *  reset the bar ("promotion — Gold I starts at 0 / 100"), else null. */
+/** A secondary detail ONLY when the delta alone would mislead: the award was capped at the gate or floored
+ *  ("base +40 RP · capped at the gate"). A promotion's reset needs no words — the new bar reads 0 / 100
+ *  (owner 2026-09-20). */
 export function cappedDetail(r: RankResult): string | null {
-  if (r.promoted) return `promotion — ${rankLabel(r.after)} starts at ${pointsText(r.after)}`;
+  if (r.promoted) return null;
   if (r.appliedDelta === r.baseDelta) return null;
   if (r.baseDelta > 0) return `base ${signedRp(r.baseDelta)} · capped at the gate`;
   if (r.after.divisionIndex === 0 && r.after.points === 0) return `base ${signedRp(r.baseDelta)} · Bronze floor`;
   return `base ${signedRp(r.baseDelta)}`;
 }
 
-/** The resolve-beat outcome line (null when nothing beyond the delta happened). */
+/** The resolve-beat outcome line — ONLY what the visuals don't already say (owner 2026-09-20). A promotion or
+ *  demotion is told by the crest transition + the new label, so neither prints a line; the gate line stays
+ *  (nothing else shows that the next game is a promotion game), as does a failed promotion (the retreat
+ *  alone doesn't say it was one). Ascendant I's uncapped counter speaks for itself. */
 export function outcomeText(r: RankResult): string | null {
-  if (r.promoted) return `Promoted to ${rankLabel(r.after)}`;
-  if (r.demoted) return `Demoted to ${rankLabel(r.after)}`;
+  if (r.promoted || r.demoted) return null;
   if (r.promotionUnlocked) return gateText(r.after);
   if (r.wasPromotionGame && !r.promoted) {
-    // A failed promotion — factual (blueprint §7: no punitive spectacle). Still on the gate if the loss was
-    // absorbed; otherwise say where it retreated to.
+    // Factual (blueprint §7: no punitive spectacle). Still on the gate if the loss was absorbed.
     return isPromotionReady(r.after) ? 'Promotion unsuccessful — still promotion-ready' : 'Promotion unsuccessful';
   }
-  if (isUncapped(r.after.divisionIndex)) return 'Ascendant I · uncapped';
   return null;
 }
 
@@ -86,7 +87,8 @@ export function announcement(placement: number, r: RankResult | null, submission
     if (submission === 'rejected') return `${place}. Rank update failed.`;
     return `${place}. Unrated.`;
   }
-  const outcome = outcomeText(r);
+  // The live region is the one place a promotion / demotion is SAID — a screen reader can't see the crest change.
+  const outcome = r.promoted ? `Promoted to ${rankLabel(r.after)}` : r.demoted ? `Demoted to ${rankLabel(r.after)}` : outcomeText(r);
   return `${place}. ${deltaText(r)}. Now ${rankLabel(r.after)}, ${pointsText(r.after)}.${outcome ? ` ${outcome}.` : ''}`;
 }
 

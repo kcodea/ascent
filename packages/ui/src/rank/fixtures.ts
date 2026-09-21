@@ -56,7 +56,7 @@ export const RANK_FIXTURES: readonly RankFixture[] = [
     result: base({ placement: 4, before: pos(8, 94), after: pos(8, 100), baseDelta: 6, promotionUnlocked: true }),
   },
   {
-    id: 'promo-won', label: 'Promotion won', expect: 'Gold II 100 → Gold I 0: full old bar, crest/tier transition, new bar from 0, "Promoted to Gold I"',
+    id: 'promo-won', label: 'Promotion won', expect: 'Gold II 100 → Gold I 0: full old bar, crest/tier transition, new bar from 0, +16 RP — no outcome line (the visuals say it)',
     placement: 3, submission: 'confirmed', current: null,
     result: base({ placement: 3, before: pos(7, 100), after: pos(8, 0), baseDelta: 16, appliedDelta: 0, wasPromotionGame: true, promotionKind: 'division', promoted: true }),
   },
@@ -71,7 +71,7 @@ export const RANK_FIXTURES: readonly RankFixture[] = [
     result: base({ placement: 8, before: pos(7, 100), after: pos(7, 60), baseDelta: -40, wasPromotionGame: true, promotionKind: 'division' }),
   },
   {
-    id: 'demotion', label: 'Demotion', expect: 'Gold II 10 → Gold III 70: drain to 0, crest/tier transition, previous bar retreats from 100 to 70, "Demoted to Gold III"',
+    id: 'demotion', label: 'Demotion', expect: 'Gold II 10 → Gold III 70: drain to 0, crest/tier transition, previous bar retreats from 100 to 70, −40 RP — no outcome line',
     placement: 8, submission: 'confirmed', current: null,
     result: base({ placement: 8, before: pos(7, 10), after: pos(6, 70), baseDelta: -40, demoted: true }),
   },
@@ -86,7 +86,7 @@ export const RANK_FIXTURES: readonly RankFixture[] = [
     result: base({ placement: 7, before: pos(0, 0), after: pos(0, 0), baseDelta: -28 }),
   },
   {
-    id: 'ascendant', label: 'Ascendant I (uncapped)', expect: 'Ascendant I 90 → 130: uncapped counter in place of x/100, no false promotion',
+    id: 'ascendant', label: 'Ascendant I (uncapped)', expect: 'Ascendant I 90 → 130: uncapped RP counter in place of x/100, no false promotion, no outcome line',
     placement: 1, submission: 'confirmed', current: null,
     result: base({ placement: 1, before: pos(17, 90), after: pos(17, 130), baseDelta: 40 }),
   },

@@ -10924,19 +10924,33 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
    DIVISION PLATE (I / II / III) eclipsing the frame's bottom edge — one painting per medal, the numeral is
    composited (owner decision). The bar fill is a `scaleX` transform so the end screen animates it on the
    compositor; every rank-screen beat is transform/opacity and nothing loops. */
-.rankcrest { position: relative; display: inline-block; flex: none; }
-.rankcrest .hero { width: 44px; height: 44px; padding: 3px; }
-.rankcrest .hero .f { background: #0b0f18; width: 100%; height: 100%; }
-.rankcrest-mini .hero { width: 36px; height: 36px; padding: 2px; }
-.rankcrest-big .hero { width: 84px; height: 84px; padding: 4px; }
-.rankcrest-xl .hero { width: 168px; height: 168px; padding: 6px; box-shadow: 0 0 0 3px rgba(20, 30, 50, 0.9), 0 0 0 5px rgba(196, 160, 92, 0.55), 0 16px 40px -12px rgba(0, 0, 0, 0.7); }
-.rankcrest-plate { position: absolute; left: 50%; bottom: 0; transform: translate(-50%, 42%); z-index: 2; white-space: nowrap;
-  font-family: var(--font-ui); font-weight: 900; font-size: 12px; line-height: 1; letter-spacing: 0.08em;
-  padding: 3px 9px; border-radius: 999px; background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink);
-  border: 2px solid var(--gold); box-shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.7); }
-.rankcrest-mini .rankcrest-plate { font-size: 9px; padding: 2px 6px; border-width: 1px; }
-.rankcrest-big .rankcrest-plate { font-size: 14px; padding: 4px 12px; }
-.rankcrest-xl .rankcrest-plate { font-size: 24px; padding: 6px 20px; border-width: 3px; transform: translate(-50%, 36%); }
+/* THE PORTRAIT RING (owner 2026-09-20): the game's gold hero-portrait PNG (hero-select/heroportrait.png — the
+   ring the hero-select ceremony snaps the champion into) painted as a ::after over a disc seated in its hole.
+   The PNG is 1524×1572 (a drop shadow under the ring makes it taller than wide); its hole is centred at
+   (49.6%, 48.9%) with an inner diameter of 86% of the width — measured off the alpha. The disc is 90% so its
+   edge sits UNDER the ring's inner lip. `--ring` is the ring's rendered width; everything scales off it. */
+.portring { position: relative; display: block; flex: none; width: var(--ring, 160px); height: calc(var(--ring, 160px) * 1.0315); }
+.portring::after { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: url('./hero-select/heroportrait.png') center / 100% 100% no-repeat; }
+.portring > .hero { position: absolute; z-index: 1; display: block; box-sizing: border-box;
+  width: calc(var(--ring, 160px) * 0.9); height: calc(var(--ring, 160px) * 0.9);
+  left: calc(var(--ring, 160px) * 0.046); top: calc(var(--ring, 160px) * 0.054);
+  padding: 0; border: none; border-radius: 50%; overflow: hidden; background: #0b0f18;
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.6); }
+.portring > .hero .f { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; }
+.portring > .hero .f svg { width: 40%; height: 40%; }
+/* The rank crest IS a portrait ring; the size classes set its width. */
+.rankcrest { --ring: 56px; }
+.rankcrest-mini { --ring: 44px; }
+.rankcrest-big { --ring: 112px; }
+.rankcrest-xl { --ring: clamp(200px, 26vh, 260px); }
+/* The division plate — a gold coin pill on the ring's bottom edge, in the game's gold-medal ramp. */
+.rankcrest-plate { position: absolute; left: 50%; bottom: calc(var(--ring, 160px) * 0.02); transform: translate(-50%, 40%); z-index: 3; white-space: nowrap;
+  font-family: var(--font-ui); font-weight: 900; font-size: calc(var(--ring, 160px) * 0.11); line-height: 1; letter-spacing: 0.08em;
+  padding: 0.28em 0.7em; border-radius: 999px; color: #1a1206;
+  background: linear-gradient(160deg, #ffe9a3, #e0aa3a 55%, #a8780f);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -2px 0 rgba(0, 0, 0, 0.25), 0 0 0 2px rgba(20, 30, 50, 0.9), 0 3px 8px rgba(0, 0, 0, 0.5); }
+.rankcrest-mini .rankcrest-plate { font-size: 9px; }
 /* The crest a transition lands on stacks under the current one, hidden until the timeline reveals it. */
 .rankbar-crests { position: relative; display: grid; place-items: center; flex: none; }
 .rankbar-crests > .rankcrest { grid-area: 1 / 1; }
@@ -10976,12 +10990,13 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 .rankbar-row .rankbar-track { width: 110px; height: 8px; }
 .rankbar-row .rankbar-points { font-size: 12px; }
 /* big — the Career card. */
-.rankbar-big { gap: 18px; }
-.rankbar-big .rankbar-label { font-size: 22px; }
+.rankbar-big { gap: 14px; }
+.rankbar-big .rankbar-body { flex: 1 1 0; }          /* basis 0 → the bar shrinks to the card, never past it */
+.rankbar-big .rankbar-label { font-size: 19px; letter-spacing: 0.04em; white-space: normal; }
 .rankbar-big .rankbar-track { width: auto; max-width: 240px; height: 12px; } /* stretches to the card, never past it */
 .rankbar-big .rankbar-points { font-size: 15px; }
 /* xl — the post-game screen: stacked, centred. */
-.rankbar-xl { flex-direction: column; align-items: center; text-align: center; gap: 22px; }
+.rankbar-xl { flex-direction: column; align-items: center; text-align: center; gap: 26px; }
 .rankbar-xl .rankbar-body { align-items: center; gap: 10px; }
 .rankbar-xl .rankbar-label { font-size: 34px; letter-spacing: 0.12em; }
 .rankbar-xl .rankbar-track { width: min(380px, 72vw); height: 16px; }
@@ -10995,6 +11010,15 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   padding: 6px 16px 6px 8px; border-radius: 999px; background: rgba(6, 9, 16, 0.74); border: 1px solid rgba(196, 160, 92, 0.5);
   box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.8); pointer-events: none; }
 
+/* The Career page's hero portrait (left column) wears the SAME portrait ring (owner 2026-09-20) — the markup
+   is untouched; these rules re-seat the existing `.hero` disc into the ring's hole. The small match-row
+   portraits keep their CSS ring. */
+.cv2-heroframe:not(.small) { --ring: 176px; position: relative; display: block; flex: none; width: var(--ring); height: calc(var(--ring) * 1.0315); }
+.cv2-heroframe:not(.small)::after { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: url('./hero-select/heroportrait.png') center / 100% 100% no-repeat; }
+.cv2-heroframe:not(.small) .hero { position: absolute; z-index: 1; width: calc(var(--ring) * 0.9); height: calc(var(--ring) * 0.9);
+  left: calc(var(--ring) * 0.046); top: calc(var(--ring) * 0.054); padding: 0; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.6); overflow: hidden; }
+
 /* Rankings rows: the rank cell holds the row-size bar instead of the bare MMR. */
 .lb-c-rating .rankbar-row { justify-content: flex-end; }
 
@@ -11002,22 +11026,31 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
    Same overlay chrome as the lobby end screen (`.heroselect.endscreen.lobbyend`), with the dim-in stretched
    to the Reveal beat. Placement headline (VICTORY in green for 1st, the ordinal otherwise) → crest + bar →
    delta → outcome → CONTINUE, with Rewatch / Final warband as secondary links. */
-.heroselect.rankend { animation: fadein 0.45s ease; }
-.rankend-panel { display: flex; flex-direction: column; align-items: center; gap: 16px; padding-bottom: 12px; }
+/* The board dims into the LOADING SPLASH's deep-navy radial (apps/web/index.html's boot backdrop; owner
+   2026-09-20, replacing an earlier blue-wipe direction) — not the title's castle art. One centred column:
+   the overlay's two-row grid (brand row + picker row) collapses to a single centred cell here. */
+.heroselect.rankend { grid-template-rows: 1fr; place-items: center; padding: 24px;
+  background: radial-gradient(ellipse 60% 60% at 50% 50%, #24468a 0%, #0a1730 100%);
+  animation: fadein 0.45s ease; }
+/* The CONTINUE cross-fade: a static clone of the settled screen, parked above the title (z450) while GSAP
+   fades its opacity; `animation: none` stops the overlay's own fade-in from replaying on the copy. */
+.heroselect.rankend.rankend-exit { z-index: 480; pointer-events: none; animation: none; }
+.rankend-panel.leaving .rankend-continue { opacity: 0.85; }
+.rankend .endbox { margin: auto; }
+.rankend-panel { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .rankend-place { display: flex; flex-direction: column; align-items: center; line-height: 0.92; will-change: transform, opacity; }
 .rankend-place-text { font-family: var(--font-disp, var(--font-ui)); font-weight: 900; font-size: clamp(64px, 11vh, 132px); letter-spacing: -0.01em;
   background: linear-gradient(180deg, #fff6df, #d8a94e 62%, #a2762c); -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.35)); }
 /* VICTORY reads green (owner ask 2026-09-20). `background-image`, not the shorthand — the shorthand un-clips. */
 .rankend.won .rankend-place-text { background-image: linear-gradient(180deg, #f2fff2, #8ff0a4 50%, #2f9a4a); }
-.rankend-place-of { font-family: var(--font-ui); font-weight: 700; font-size: clamp(13px, 1.7vh, 19px); letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); margin-top: 0.35em; }
 /* The rank display is the skip target while the sequence plays (role=button → the global gauntlet pointer). */
-.rankend-rank { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 10px 28px 14px; border-radius: 24px; }
+.rankend-rank { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 6px 28px 10px; border-radius: 24px; }
 .rankend-panel.settled .rankend-rank { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
 .rankend-delta { font-family: var(--font-ui); font-weight: 900; font-size: 36px; line-height: 1; font-variant-numeric: tabular-nums; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9); will-change: transform, opacity; }
 .rankend-delta.up { color: #6fe089; }
 .rankend-delta.down { color: #ff7d7d; }
-.rankend-delta.flat { color: rgba(255, 246, 228, 0.85); }
+.rankend-delta.flat { color: #fff6e4; }
 .rankend-detail { font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
 .rankend-outcome { font-family: var(--font-ui); font-weight: 800; font-size: 19px; letter-spacing: 0.08em; text-transform: uppercase; color: #ffe08a; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9); will-change: transform, opacity; }
 .rankend-outcome.promo { color: #8ff0a4; }
@@ -11030,12 +11063,10 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 .rankend-actions .endplay { margin-top: 14px; }
 .rankend-retry { background: linear-gradient(180deg, #6a9ce0, #3f74bd); border-color: #22467a; box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.3), 0 7px 0 #22467a, 0 14px 34px -8px rgba(0, 0, 0, 0.55); }
 .rankend-retry:hover { background: linear-gradient(180deg, #5f90d4, #366aae); }
-.rankend-secondary { display: flex; align-items: center; gap: 26px; }
+.rankend-secondary { display: flex; align-items: center; justify-content: center; gap: 26px; min-height: 34px; }
 .rankend-link { font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 246, 228, 0.7);
   background: none; border: none; border-bottom: 2px solid transparent; padding: 6px 2px; }
 .rankend-link:hover, .rankend-link:focus-visible { color: #fff; border-bottom-color: var(--acc); outline: none; }
-.rankend-warband { display: flex; flex-direction: column; align-items: center; }
-.rankend-warband .endboardlabel { margin-top: 6px; }
 /* The single live-region announcement: present for assistive tech, invisible on screen. */
 .rankend-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) {

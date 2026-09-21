@@ -8,10 +8,10 @@ import { divisionNumeralOf, isPromotionReady, medalOf, type RankPosition } from 
  * THE SHARED RANK PRESENTATION (blueprint §8: one component so the end screen, the Title's Play card, the
  * Rankings rows and the Career card cannot disagree). Two pieces:
  *
- *  • `RankCrest` — the medal crest composited INSIDE the game's circular hero-portrait frame: the very same
- *    `.lb-heroframe > .hero > .f > img.heroimg` markup `LbHeroFrame` re-seats from the in-run StatusBar, so the
- *    gold ring / disc / cover-fit rules are shared, plus a small division PLATE (I / II / III) eclipsing the
- *    frame's bottom edge (owner decision 2026-09-20: the marker is composited, not eighteen paintings).
+ *  • `RankCrest` — the medal crest seated inside the game's gold hero-portrait RING (the heroportrait.png the
+ *    hero-select ceremony and the Career portrait wear), the disc keeping the in-run `.hero > .f > img.heroimg`
+ *    markup, plus a small division PLATE (I / II / III) on the ring's bottom edge (owner decision 2026-09-20:
+ *    the marker is composited, not eighteen paintings).
  *  • `RankBar` — crest + label + the division progress bar + points, with the promotion-ready line when the
  *    player sits on the gate. `size` picks the footprint; `anim` hands the end screen the refs GSAP drives.
  *
@@ -32,8 +32,11 @@ export function RankCrest({ divisionIndex, size = 'row', className = '', style, 
 }): JSX.Element {
   const medal = medalOf(divisionIndex);
   const art = rankArt(medal);
+  // `.portring` is the game's gold hero-portrait ring (hero-select/heroportrait.png, painted by CSS as the
+  // ring's ::after) with the crest disc seated in its hole — the same composition the Career hero portrait
+  // wears (owner ask 2026-09-20). The disc keeps the in-run `.hero > .f > img.heroimg` markup.
   return (
-    <div className={`lb-heroframe rankcrest rankcrest-${size} rankcrest-${medal.toLowerCase()} ${className}`.trim()} style={style} ref={crestRef} aria-hidden="true">
+    <div className={`rankcrest portring rankcrest-${size} rankcrest-${medal.toLowerCase()} ${className}`.trim()} style={style} ref={crestRef} aria-hidden="true">
       <div className="hero">
         <div className="f">
           {art ? <img decoding="sync" className="heroimg" src={art} alt="" draggable={false} /> : <Icon name="crown" />}

@@ -63,7 +63,8 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
   const lastReplay = useGame((s) => s.lastReplay);
   const canRewatch = !!lastReplay && lastReplay.seed === run.seed;
   // MEDAL RANK (2026-09-20): the store's rank slice (rules branch) — null until it merges, in which case the
-  // legacy rating block below still renders. Practice is always unrated, whatever the slice says.
+  // legacy rating block below still renders. Practice is always unrated, whatever the slice says. The rank
+  // screen shows NO warband and no Rewatch (owner 2026-09-20) — Rewatch stays reachable from Recent Games.
   const rankSource = useRankSource();
   const warband = (
     <>
@@ -91,8 +92,6 @@ function LobbyEndScreen({ lobby, run, onPlayAgain }: {
             runId={rankSource?.result?.runId ?? String(run.seed)}
             onContinue={onPlayAgain}
             onRetry={practice ? undefined : rankSource!.retry}
-            onRewatch={canRewatch ? () => startReplay(lastReplay!) : undefined}
-            warband={warband}
           />
         </div>
       </div>

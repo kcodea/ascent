@@ -12,7 +12,8 @@ import { planRankSequence, sequenceDurationMs } from './rankSequence';
  * can review each variant without playing eight games. The overlay is the SAME chrome + component the real
  * end screen mounts (`.heroselect.endscreen.lobbyend.rankend` → `RankScreen`), in `preview` mode so it never
  * writes the presentation-consumed marker. "Pending → confirmed" exercises the arrival path (a result landing
- * while the screen is up). Stripped from production with the rest of the dev menu.
+ * while the screen is up). CONTINUE on the previewed screen plays the real cross-fade exit (the clone fades
+ * over the title, exactly as it will over the menu after a run). Stripped from production with the rest of the dev menu.
  */
 export function RankScreenPreview(): JSX.Element {
   const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('rankscreen');
@@ -74,7 +75,7 @@ export function RankScreenPreview(): JSX.Element {
             <button type="button" className="sfxmix-copy" onClick={() => fixture && open(fixture, arrival)} disabled={!fixture} title="Play the open fixture again from the top">
               Replay
             </button>
-            <button type="button" className="sfxmix-copy" onClick={close} disabled={!fixture}>Close screen</button>
+            <button type="button" className="sfxmix-copy" onClick={close} disabled={!fixture} title="Hard-close the overlay. CONTINUE on the screen itself plays the real cross-fade exit.">Close screen</button>
           </div>
           <div className="lunge-btns rankpreview-cues">
             <button type="button" className="sfxmix-copy" onClick={() => sfx.rankProgress()}>♪ progress</button>
@@ -99,10 +100,8 @@ export function RankScreenPreview(): JSX.Element {
               runId={`preview:${shown.id}`}
               onContinue={close}
               onRetry={shown.submission === 'retryable' ? () => open(RANK_FIXTURES[0]!, true) : undefined}
-              onRewatch={() => { /* preview: no replay to play */ }}
               preview
               reducedMotion={reduced}
-              warband={<div className="endboardlabel">Final warband (preview — no board)</div>}
             />
           </div>
         </div>

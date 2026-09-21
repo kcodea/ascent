@@ -56,6 +56,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-21',
+    label: 'Ladder row portraits',
+    changes: [
+      {
+        category: 'UI / Info',
+        text: 'Recent Games and the Hall of Champions: bigger hero portraits in the portrait ring, larger rune pills, and the warband sits clear of its caption.',
+        details: [
+          "Each row's hero portrait now sits in the same gold portrait ring the Career page and hero select use, about a third larger than before.",
+          'The rune pills on Recent Games grew — a bigger emblem and larger name text — and still wrap when a run took many runes.',
+          'The seven warband cards moved down so their frames no longer run into the FINAL TEAM / WINNING WARBAND caption, on every screen size.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-21',
     label: 'Title screen — your portrait, name and rank',
     changes: [
       {

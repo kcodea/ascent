@@ -19,7 +19,9 @@ import { medalOf } from './leaderboardData';
 /** The in-run hero frame, re-seated: the same `.hero > .f > img.heroimg` markup StatusBar renders (so the
  *  ring, disc and portrait rules are shared), scoped under `.lb-heroframe` which only sets the geometry.
  *  `size` picks the diameter: `row` (default) for a table/banner row, `big` for a page hero. (Never a bare
- *  `row` class — that is the board row's class and its layout rules would apply.) */
+ *  `row` class — that is the board row's class and its layout rules would apply.) On the BANNER rows (the
+ *  Hall + Recent Games, inside `.lb-row-hero`) CSS alone re-seats this same markup in the game's gold
+ *  portrait-ring PNG (owner 2026-09-21, the `.portring` recipe) — no wrapper, no extra class. */
 export function LbHeroFrame({ heroId, size = 'row' }: { heroId: string | null | undefined; size?: 'row' | 'big' }) {
   const art = heroId ? heroArt(heroId) : undefined;
   const name = heroId ? getHero(heroId).name : '';

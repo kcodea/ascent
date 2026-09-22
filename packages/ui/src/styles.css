@@ -2256,6 +2256,9 @@ img.tierbadge.tierstars,
    Out-specifies the base `.cgem` rules; the pulse pseudo-glows are independent and still fire without a circle. */
 :root.cgem-nobg .card.compact .cgem,
 :root.cgem-nobg .medprev .cgem { background: none; border: none; }
+/* Gilded cards: the medallion art is naturally GOLD, so skip the global silvering (desaturate + tint) that the
+   tuner applies to normal cards — a golden card shows the art's own gold (owner ask 2026-09-22). */
+.card.compact.golden .cgem { --cgem-desat: 0%; --cgem-tint-amt: 0; }
 /* Trigger pulse — the medallion flares with a VERY brief glow, then releases a slow ring of energy,
    when the unit's effect fires (Start-of-Combat, Deathrattle, Battlecry, aura, Avenge, Reborn, …).
    Compositor-only: only opacity/transform animate; each pseudo's glow (radial bg + box-shadow) is
@@ -2456,6 +2459,17 @@ img.tierbadge.tierstars,
 /* Bold keywords/numbers take the card's TRIBE colour so they pop off the pure-white body text (owner
    2026-07-25). `--c` is the primary tribe hue the card already sets inline. */
 .card.compact.showtext .drawer .desc b { color: var(--c); }
+/* Dragon's tribe colour is white (= body text), so its coloured terms don't stand out. Give dragon cards' terms a
+   subtle static pastel-rainbow halo — the white letters stay, but read as special. Static text-shadow only (no
+   looped paint), per docs/performance.md. */
+.card.compact[data-tribe="dragon"] .drawer .desc .term {
+  text-shadow:
+    -1px 0 2px rgba(255, 150, 190, 0.6),
+    1px 0 2px rgba(150, 200, 255, 0.6),
+    0 -1px 2px rgba(160, 255, 190, 0.55),
+    0 1px 2px rgba(255, 225, 150, 0.55),
+    0 0 7px rgba(210, 175, 255, 0.5);
+}
 .card.compact.showtext .drawer .dtribe { display: flex; align-items: center; gap: calc(var(--ccw) * 0.02); margin-top: calc(var(--ccw) * 0.05); font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.062); letter-spacing: 0.05em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 60%, #f4ecdb); }
 .card.compact.showtext .drawer .dtribe svg { width: calc(var(--ccw) * 0.075); height: calc(var(--ccw) * 0.075); color: var(--c); }
 .card.compact.showtext .drawer .dtribe svg:last-of-type { color: var(--c2); }   /* 2nd tribe in its own hue */

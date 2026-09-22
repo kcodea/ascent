@@ -52,6 +52,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Spiritbinder cascade',
+    changes: [
+      { category: 'Systems', text: 'An Amplified or repeated Spiritbinder now throws one beam per trigger, each on its own beat.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Thymepiece',
     changes: [
       { category: 'Balance', text: 'An Amplified Thymepiece now runs for 16 seconds instead of 8. The discount stays at 1 Gold (2 when gilded). The rule on the slot shows the doubled window while the charge is armed.' },

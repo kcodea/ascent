@@ -137,6 +137,11 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // the activation resolves (owner ask), so the same `eq.useFxId` is fired from a second site. Both are the
   // same data-resolved id; both go away together when the moment moves into `recruitCues.ts`.
   'Recruit.tsx': 2,
+  // A THIRD site for the same data-resolved id since 2026-09-22 (owner ruling "spiritbinder one beam per fire"):
+  // the beam cascade plays `playDef(beam.fxId, …)` once PER FIRE for an Equipment flagged `useFxTargetsBuffed`,
+  // where `beam.fxId` is that Equipment's own `useFxId` (Spiritbinder's `spiritbinder`). Same debt, same fix —
+  // the moment belongs in `recruitCues.ts`, and moving it there retires this line with the two above.
+  'equipBeamCascade.ts': 1,
   // The same resolution in the TUNER's test fire: it plays the SELECTED Equipment's def so both cues can be
   // timed, rather than being hardwired to Bloodpot's. Same debt, same fix — moving the moment into
   // `recruitCues.ts` retires this line with the one above it.

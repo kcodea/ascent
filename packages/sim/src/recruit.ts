@@ -2516,29 +2516,29 @@ export function noteEquipmentFxBuff(state: RunState, uid: string, attack: number
 }
 
 /**
- * The `use`-cue destination for an Equipment flagged `useFxTargetsBuffed` (owner ask 2026-09-22: Spiritbinder's
- * beam must fly at the board Spirit it chose), or `undefined` when it chose none / is not flagged.
+ * The `use`-cue destinations of an Equipment flagged `useFxTargetsBuffed` (owner ask 2026-09-22: Spiritbinder's
+ * beam must fly at the board Spirit it chose): ONE entry per BOARD pick recorded since `from`, in pick order,
+ * each carrying that pick's own gain — nothing summed. Empty when the Equipment is not flagged or picked nobody.
  *
- * ONE cue per ACTIVATION is the standing rule for repeats, so a multi-trigger fire (extra triggers, Amplified)
- * still gets ONE destination: the LAST body it picked, owing the total of that body's own gains this fire. The
- * earlier picks move their numbers without a beam, exactly as a three-trigger Bloodpot is one travel.
- *
- * WHAT THAT LOOKS LIKE, so nobody has to rediscover it (review 2026-09-22): with an extra trigger and three
- * board Spirits, the LAST pick gets the beam and holds its badge to it, while an EARLIER pick falls through to
- * `Recruit`'s generic self-buff burst and rolls its numbers immediately. Two fires therefore read as one beam
- * plus one unrelated pulse rather than as two beams. Stamping one `use` cue per fire would read better, and is
- * what the beat rule on repeats would prefer, but a `use` cue is also the slot's used-up presentation and its
- * sound - N of them is N clicks and N used-up flourishes for one press. Left as one cue, deliberately, pending
- * an owner call; the earlier picks are at least never silent.
+ * ONE PER PICK IS ONE PER FIRE (owner ruling 2026-09-22: "spiritbinder one beam per fire"). The only factory
+ * that records picks, `equipmentBuffRandomTribeBoardAndHand`, draws AT MOST ONE board body per fire, so a
+ * multi-trigger or Amplified activation reads back exactly one entry per fire that found a recipient, in fire
+ * order, and the reducer stamps one `use` cue per entry — the way Rally and Shout count repeated triggers at
+ * the signal. (Before this ruling the entries were folded into ONE cue aimed at the LAST pick, so an earlier
+ * pick fell through to the generic self-buff burst and two fires read as one beam plus one unrelated pulse.)
+ * A factory that ever recorded two picks in one fire would earn two cues for that fire, one per body hit, which
+ * is still one beam per recipient.
  */
+export function buffedFxTargets(state: RunState, def: EquipmentDefinition, from: number): EquipUseFxTarget[] {
+  if (!def.useFxTargetsBuffed) return [];
+  return (state.equipmentFxBuffed ?? []).slice(from).map((p) => ({ targetUid: p.uid, buffAttack: p.attack, buffHealth: p.health }));
+}
+
+/** The destination of a SINGLE fire — `fireEquipmentFree` (a Dismantling sale, a Counterrotation re-fire) runs
+ *  exactly one trigger, so this is the one pick it made, or `undefined` when it made none / is not flagged. */
 export function buffedFxTarget(state: RunState, def: EquipmentDefinition, from: number): EquipUseFxTarget | undefined {
-  if (!def.useFxTargetsBuffed) return undefined;
-  const picks = (state.equipmentFxBuffed ?? []).slice(from);
-  const last = picks[picks.length - 1];
-  if (!last) return undefined;
-  let attack = 0, health = 0;
-  for (const p of picks) if (p.uid === last.uid) { attack += p.attack; health += p.health; }
-  return { targetUid: last.uid, buffAttack: attack, buffHealth: health };
+  const hits = buffedFxTargets(state, def, from);
+  return hits[hits.length - 1];
 }
 
 export function stampShopFx(state: RunState, fx: ShopDeathFx): void {
@@ -3737,6 +3737,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // The BOARD pick is recorded for the `use` cue (owner ask 2026-09-22): the Equipment's beam flies at it and
     // its numbers are withheld until the beam lands. The HAND pick is NOT recorded and must not be - its pop is
     // the generic hand-buff cue, a pure render diff in the UI, and a second channel would double it.
+    // AT MOST ONE board pick per fire (`pickRandom(…, 1)`): `buffedFxTargets` turns each recorded pick into one
+    // `use` cue, so this is what makes "one cue per pick" equal "one beam per fire" (owner 2026-09-22). Recording
+    // a second board pick here would stamp a second cue for the same fire.
     for (const t of pickRandom(ctx.state, onBoard, 1)) { addBuff(t, nameOf(self), a, h); noteEquipmentFxBuff(ctx.state, t.uid, a, h); }
     for (const t of pickRandom(ctx.state, inHand, 1)) addBuff(t, nameOf(self), a, h);
   },

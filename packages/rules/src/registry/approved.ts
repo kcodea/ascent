@@ -1871,4 +1871,45 @@ export const APPROVED_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-22',
     },
   },
+  {
+    id: 'R-PRESENT-03',
+    title: 'A repeated Equipment fire is one cue per fire: each recipient gets its own beam on its own beat',
+    statement:
+      'When an Equipment whose authored def flies at the body its own effect picked (`useFxTargetsBuffed`, '
+      + 'Spiritbinder) fires more than once in one activation (Amplified, an extra trigger, a Calibration charge), '
+      + 'the engine stamps one `use` cue PER FIRE, in fire order, each carrying that fire\'s own recipient and gain, '
+      + 'never one cue folded onto the last pick. The screen plays those cues as one beam per fire, staggered, each '
+      + 'landing on its own recipient with that recipient\'s numbers held to its own contact, and suppresses the '
+      + 'generic self-buff pulse on every beamed body. A fire that picked nobody stamps nothing; an activation that '
+      + 'picked nobody at all stamps the single target-less cue that means "play nothing". A single fire stamps '
+      + 'exactly the cue it always did. Nothing about which bodies grow, by how much, or in what order changes: the '
+      + 'cue is a signal, and the reducer resolved every buff before the first beam drew. An Equipment that plays on '
+      + 'the slot or on what it was aimed at keeps one cue per activation however many triggers it had; a '
+      + 'three-trigger Bloodpot is one travel.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (Spiritbinder multi-beam)', quote: 'spiritbinder one beam per fire' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts buffedFxTargets; packages/sim/src/reducer.ts case activateEquipment (the per-fire stamp); packages/ui/src/equipBeamCascade.ts useEquipBeamCascade' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22. PR #1628 shipped the beam with one cue per activation: a multi-trigger press '
+      + 'folded every board pick into one cue aimed at the LAST body, so an earlier recipient fell through to the '
+      + 'generic self-buff burst and two fires read as one beam plus one unrelated flash (flagged in that PR\'s '
+      + 'review, declined pending an owner call, now ruled). `buffedFxTargets` returns one entry per recorded pick; '
+      + 'the recording factory draws at most one board body per fire, which is what makes one-per-pick equal '
+      + 'one-per-fire; the reducer stamps one cue per entry, scoped to `useFxTargetsBuffed` so Bloodpot, the Keg and '
+      + 'every aimed Equipment are byte-identical. `useEquipBeamCascade` plays the cues 300 ms apart (the lasso\'s '
+      + 'gap), measures each recipient at launch, skips a body that left the board rather than redirecting to the '
+      + 'slot, holds each recipient once (two fires on one body are two beams and one continuous roll spanning both '
+      + 'contacts, because the stat-hold store keeps one hold per uid; two separate rolls would need a multi-segment '
+      + 'hold in the shared store, an open owner fork), keeps every launch timer and retire fn outside the per-action '
+      + 'effect so a later action never cuts a beam (owner 2026-09-09), and retires them when the shop leaves and on '
+      + 'unmount.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/spiritbinderBeamCues.test.ts', 'packages/ui/src/equipBeamCascade.test.tsx', 'packages/ui/src/spiritbinderBeamGuard.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
 ];

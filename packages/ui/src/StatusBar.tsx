@@ -21,6 +21,7 @@ import { getEquipSlotConfig } from './equipSlotConfig';
 import { DiscountWindowReadout } from './DiscountWindowReadout';
 import { sfx } from './sfx';
 import { canPlayDefs, playDef } from './fx/playDef';
+import { useAmplifiedSlotFx } from './useAmplifiedSlotFx';
 import { DiceRoll } from './DiceRoll';
 import { diceSeed, type DieFace } from './diceRollTimeline';
 import { useGame } from './store';
@@ -254,6 +255,42 @@ export function StatusBar() {
   }, [shownEquipId]);
 
   const hasEquip = equipOptions.length > 0 && !!selectedEquip && !!selectedEquipDef;
+
+  /**
+   * THE AMPLIFIED LOOP (owner ask 2026-09-22): *"it should only play when a usable equipment is equipped/selected.
+   * if an equipment has 0 charges it should not show the animation."*
+   *
+   * The owner's `amplified-slot` def rides the slot button while the SELECTED Equipment will Amplify its next
+   * activation (`equipAmplified` — its own stack, Empty Hands' permanent Amplification, or a pending Calibration
+   * it can spend: the same read that paints the charge number blue) AND has a charge to spend (`equipUses`: its
+   * own once-per-turn charge plus the shared pool). Zero charges = no loop, exactly as the owner said, so using
+   * the Equipment stops it in the same render that drops the number (unless Overcharge kept the charge and
+   * Empty Hands kept the Amplification, in which case both stay true and so does the glow).
+   *
+   * `run.phase === 'recruit'` is LOAD-BEARING, not decoration: End of Turn resets every Equipment's own charge in
+   * the same action that flips the phase to combat, and this bar stays mounted through the fight — without the
+   * gate an Amplified Equipment reads a charge again during the whole combat and the loop runs over the arena.
+   *
+   * Paused (torn down, never left running unseen) under anything that covers the slot. Two reads, because the
+   * overlays live in two places:
+   *  - RUN-state overlays (`overlayCovering`): a Discover, a Choose One, a quest / power / Runeforge offer, a
+   *    scouted board. The FX canvas (`.pixifx`, z 110) sits BENEATH them, so the loop would spend its particles
+   *    behind a backdrop, and inside a Discover its size alone is over the scene's particle cap. A minimised
+   *    Discover counts as covering (this bar cannot read the minimise flag), which errs on the side of not paying.
+   *  - UI-store overlays (`uiCovering`): the Compendium (Tab), the Inspect view, the Ctrl+B bug reporter, the
+   *    ladder / balance pages and the title. Every one is a fixed full-viewport backdrop above that canvas too
+   *    (review finding 2026-09-22: the Book left the ring burning behind its blur). The set is the one Recruit
+   *    folds into `overlayOpen`, which pauses the shop clock, the combat replay and the sibling `useChooseBothFx`
+   *    loop, PLUS the Inspect view: Recruit exempts that one only because the inspected card is exactly where a
+   *    "(Both)" ring wants to be, and nothing on it wants this glow. Keep the two lists in step. ONE boolean
+   *    selector, so the bar re-renders when the answer flips and not when any one flag does. (`showTitle` is
+   *    here for parity: today `isPreRun` unmounts this bar with the title and the unmount teardown catches it.)
+   */
+  const overlayCovering = !!(run.discover?.length || run.chooseOne || run.questOffer || run.powerOffer
+    || run.runeforgeOffer || run.scoutedNextOpponent?.length);
+  const uiCovering = useGame((s) => s.showTitle || s.showLeaderboard || s.showRankings || s.showCareer || s.showBook
+    || s.showBalance || s.bugReportOpen || !!s.inspect);
+  useAmplifiedSlotFx(hasEquip && equipAmplified > 0 && equipUses > 0 && run.phase === 'recruit' && !overlayCovering && !uiCovering);
 
   /**
    * "EMPTY" — the Equipment ran out of uses (owner ask 2026-08-29).
@@ -1055,8 +1092,9 @@ export function StatusBar() {
                   above zero: the number is modified above the Equipment's own baseline of 1, and spending the
                   pool through ANY Equipment drops every one of them back to plain. */}
               {/* AMPLIFIED wins the colour: BLUE says "the next press triggers twice", which matters more than the
-                  pool's green. `data-fx="equipment-amplified"` is the BINDING POINT for the owner's future Amplified
-                  cue (an authored def can anchor on it; nothing plays yet — the colour is the whole tell today). */}
+                  pool's green. `data-fx="equipment-amplified"` marks the tally for tooling; the owner's authored
+                  cue is the `amplified-slot` loop on the button itself (`useAmplifiedSlotFx`, 2026-09-22), which
+                  adds the "and it has a charge to spend" half the colour alone does not carry. */}
               <span
                 className={`hpb-tally${equipAmplified > 0 ? ' amplified' : equipPool > 0 ? ' boosted' : ''}`}
                 data-fx={equipAmplified > 0 ? 'equipment-amplified' : undefined}

@@ -52,6 +52,30 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Avenge counter on summoned minions',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'A minion summoned during combat now shows its Avenge counter starting at 0. It used to show the deaths that happened before it arrived, which the Avenge itself never counted.',
+        details: [
+          "The rule is unchanged: a summoned Avenge minion only counts friendly deaths from the moment it lands. A Dunkey that Bullseye's Echo summons after two deaths still needs four more before it summons its Armadiyo.",
+          'Only the number printed on the card in combat was wrong. It read 2/4 on arrival in that case; it now reads 0/4 and ticks up from there.',
+          'Minions that start the fight on your board, and minions returning with Rise, count exactly as before.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: "A minion Soren's Reclaim brings back now counts its Avenge from the moment it returns. It used to count its own start-of-combat destruction as its first death.",
+        details: [
+          'A reclaimed Avenge (4) minion now needs four friendly deaths after it returns. Before this it paid one death early.',
+          'This follows the same rule as every other body that enters mid-combat: deaths before it arrived are not its progress.',
+          'The counter printed on the card already showed 0/4 on return. The rule now matches the card.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Final team after the last fight',
     changes: [
       {

@@ -2800,6 +2800,14 @@ export function simulate(
       applyCombatGains(copy); // re-apply per-card stacks banked this fight (player-gated inside; enemy has no run)
       const at = boards[side].indexOf(anchor);
       boards[side].splice(at >= 0 ? at + 1 : boards[side].length, 0, copy);
+      // A RECLAIMED body is a body placed mid-combat, so its Avenge counts from its return (rule R-AVWIN-01 "Late
+      // entry starts at zero"; docs/GAME-RULES.md: progress restarts "as any body placed mid-combat"). This path
+      // inserts the copy directly rather than through `placeSummon`, so it missed the stamp that every other
+      // summon, Rise and Rebirth gets: a Reclaimed Kennelmaster counted its OWN Start-of-Combat destruction and
+      // paid its Avenge (4) at the side's 4th death instead of the 4th after its return. `killOrReborn` tallied
+      // that destruction before we got here, so stamping now leaves the copy reading 0 on arrival, exactly what
+      // the combat card prints (computeFrame stamps the same floor on every `summon` event).
+      copy.avengeBaseline = deaths[side];
       registerEffects(copy);
       emit({ type: 'summon', minion: snapshot(copy), side, index: boards[side].indexOf(copy), source: anchor.uid });
       applyTribeAuras(copy); // a resummoned Beast (The Reclaimer) inherits the aura too — AURAS FIRST (owner 2026-08-12)

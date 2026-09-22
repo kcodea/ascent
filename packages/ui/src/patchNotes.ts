@@ -63,6 +63,15 @@ export const PATCH_NOTES: PatchNote[] = [
           'Minions that start the fight on your board, and minions returning with Rise, count exactly as before.',
         ],
       },
+      {
+        category: 'Balance',
+        text: "A minion Soren's Reclaim brings back now counts its Avenge from the moment it returns. It used to count its own start-of-combat destruction as its first death.",
+        details: [
+          'A reclaimed Avenge (4) minion now needs four friendly deaths after it returns. Before this it paid one death early.',
+          'This follows the same rule as every other body that enters mid-combat: deaths before it arrived are not its progress.',
+          'The counter printed on the card already showed 0/4 on return. The rule now matches the card.',
+        ],
+      },
     ],
   },
   {

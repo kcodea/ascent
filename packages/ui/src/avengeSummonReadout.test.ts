@@ -13,7 +13,8 @@
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import type { CombatEvent, MinionSnapshot } from '@game/core';
+import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent, type MinionSnapshot } from '@game/core';
+import { CARD_INDEX } from '@game/content';
 import { computeFrame } from './useCombatReplay';
 import { stepProgress } from './cardText';
 import { deferClashBuffs } from './choreo/clashOrder';
@@ -101,5 +102,48 @@ describe('a summoned Avenge minion counts from its own arrival (hand-built log)'
     expect(readout(at(2), 'p1')).toBe('2/4');
     expect(readout(at(4), 'p1')).toBe('4/4');
     expect(readout(at(6), 'p1')).toBe('2/4'); // 6 deaths: the counter wrapped after its payout at 4
+  });
+});
+
+/**
+ * The RECLAIMED shape (Soren): the sim brings the copy back through `flushResummons`, which now stamps the same
+ * baseline as `placeSummon`, so the printed counter and the fired effect agree on this path too. Same scenario as
+ * the sim guard in packages/core/src/combat/avengeSummonBaseline.test.ts, folded through the arena's frame: the
+ * copy reads 0/4 on return, ticks once per later friendly death, and prints 4/4 on the very beat its Avenge pays.
+ */
+describe('a Reclaimed (Soren) Avenge minion reads 0/4 on its return and pays on the beat it prints 4/4', () => {
+  const fodder: BoardMinion = { cardId: 'b2_elderhorn', attack: 1, health: 1 };
+  const player: BoardMinion[] = [{ cardId: 'kennel', attack: 1, health: 20, resummon: true }, fodder, fodder, fodder, fodder, fodder];
+  const enemy: BoardMinion[] = [{ cardId: 'b2_elderhorn', attack: 1, health: 400 }];
+  const r = simulate(player, enemy, makeRng(1), CARD_INDEX,
+    combatSide({ tier: 6, tribes: ['beast', 'dragon', 'undead', 'mech', 'demon', 'kobold', 'dwarf'] }), combatSide({ tier: 1 }));
+  const events = deferAvengeAfterSummons(deferClashBuffs(r.events));
+  const names = namesOf(r.initial, events);
+  const returnAt = events.findIndex((e) => e.type === 'summon' && e.minion.cardId === 'kennel');
+  const copy = (events[returnAt] as Extract<CombatEvent, { type: 'summon' }>).minion.uid;
+  const deathsAfter = events.map((e, i) => i).filter((i) => i > returnAt && events[i]!.type === 'death' && (events[i] as { side?: string }).side === 'player');
+  const improveAt = events.findIndex((e) => e.type === 'improve' && e.avenge && e.target === copy);
+  const at = (i: number) => computeFrame(r.initial, events, i + 1, i, names);
+
+  it('the scenario reclaims the copy after its own destruction and reaches its payout', () => {
+    expect(returnAt).toBeGreaterThan(0);
+    expect(events.slice(0, returnAt).filter((e) => e.type === 'death' && e.side === 'player')).toHaveLength(1);
+    expect(improveAt).toBeGreaterThan(returnAt);
+  });
+
+  it('reads 0/4 on the beat it returns', () => {
+    expect(readout(at(returnAt), copy)).toBe('0/4');
+  });
+
+  it('ticks once per friendly death after its return: 1/4, 2/4, 3/4', () => {
+    expect(readout(at(deathsAfter[0]!), copy)).toBe('1/4');
+    expect(readout(at(deathsAfter[1]!), copy)).toBe('2/4');
+    expect(readout(at(deathsAfter[2]!), copy)).toBe('3/4');
+  });
+
+  it('prints 4/4 on the beat its Avenge fires (the readout and the sim agree on the window)', () => {
+    expect(deathsAfter[3]).toBeLessThan(improveAt);
+    expect(readout(at(deathsAfter[3]!), copy)).toBe('4/4');
+    expect(readout(at(improveAt), copy)).toBe('4/4');
   });
 });

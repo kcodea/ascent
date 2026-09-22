@@ -328,8 +328,9 @@ export function computeFrame(
   const avengeBase = new Map<string, number>();
   const find = (uid: string) => player.find((u) => u.uid === uid) ?? enemy.find((u) => u.uid === uid);
   const gone = new Set<string>();
-  // Running tallies for the live Avenge / Bleed step counters: FRIENDLY deaths per side (a Rise death doesn't count —
-  // matches the sim's Avenge gate) and total GLOBAL attack swings (Bloodbinder's Bleed fires every N, either side).
+  // Running tallies for the live Avenge / Bleed step counters: FRIENDLY deaths per side (a Rise death counts too,
+  // owner 2026-07-27 — matches the sim's Avenge gate) and total GLOBAL attack swings (Bloodbinder's Bleed fires
+  // every N, either side).
   const deaths: Record<'player' | 'enemy', number> = { player: 0, enemy: 0 };
   let attackCount = 0;
   // Spells cast per side THIS combat (Vaultkeeper's live umbrella). Counted here rather than read off the event's

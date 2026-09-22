@@ -3524,8 +3524,13 @@ describe('simulate (handoff A.3)', () => {
     // Same shape as the Kennelmaster carry-back test above, but the Kennelmaster is MARKED — destroyed at
     // Start of Combat and resummoned as a copy. The copy's Avenge improvements must still reach the run
     // card via sourceUid (the copy used to drop it, silently discarding the permanent progression).
+    // FOUR tokens, not three: the reclaimed copy is a body placed mid-combat, so its Avenge (4) counts from
+    // its RETURN and its own Start-of-Combat destruction is outside its window (rule R-AVWIN-01). Four deaths
+    // after the return are what makes it improve at all — this test is about the carry-back, not the timing
+    // (the timing itself is guarded in avengeSummonBaseline.test.ts).
     const p: BoardMinion[] = [
       { cardId: 'kennel', attack: 2, health: 50, sourceUid: 'K', resummon: true },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },

@@ -33,7 +33,7 @@ function summonedSolarisWards(seed: number): { summoned: number; wards: number; 
   const solaris = new Set<string>();
   let deaths = 0, wards = 0, summonAtDeath = -1;
   for (const e of r.events) {
-    if (e.type === 'death' && e.side === 'player' && !e.rise) deaths++;
+    if (e.type === 'death' && e.side === 'player') deaths++; // every death counts, a Rise death too (owner 2026-07-27)
     if (e.type === 'summon' && (e as { minion?: { cardId?: string; uid: string } }).minion?.cardId === 'b2_solaris') {
       const m = (e as { minion: { uid: string } }).minion; solaris.add(m.uid); if (summonAtDeath < 0) summonAtDeath = deaths;
     }
@@ -78,7 +78,7 @@ describe('a Dunkey summoned after 2 friendly deaths pays only after 4 MORE', () 
     }
     let deaths = 0, deathsAtDunkey = -1, deathsAtArmadiyo = -1;
     for (const e of r.events) {
-      if (e.type === 'death' && e.side === 'player' && !e.rise) deaths++;
+      if (e.type === 'death' && e.side === 'player') deaths++; // every death counts, a Rise death too (owner 2026-07-27)
       if (e.type === 'summon' && e.minion.cardId === 'b2_dunkey' && deathsAtDunkey < 0) deathsAtDunkey = deaths;
       if (e.type === 'summon' && e.minion.cardId === 'b2_armadiyo' && deathsAtArmadiyo < 0) deathsAtArmadiyo = deaths;
     }
@@ -103,5 +103,58 @@ describe('a Dunkey summoned after 2 friendly deaths pays only after 4 MORE', () 
       expect(o.seen).toBe(o.count - 2);
     }
     expect(obs[0]!.seen).toBe(0); // the death that summoned it is outside its window (R-AVWIN-02)
+  });
+});
+
+/**
+ * The RECLAIMED shape of the same rule. Soren's Reclaim destroys a marked minion at Start of Combat and brings an
+ * exact copy back through `flushResummons`, which inserts the body directly rather than through `placeSummon`,
+ * so the copy never got the baseline stamp: a Reclaimed Kennelmaster counted its OWN destruction and paid its
+ * Avenge (4) at the side's 4th death. A reclaimed body is a body placed mid-combat, so it counts from its return
+ * (rule R-AVWIN-01): the improve lands at the side's 5th death, the observer reads baseline 1, seen = count - 1.
+ */
+describe('a Reclaimed (Soren) Avenge minion counts deaths from its return, not its own destruction', () => {
+  const fodder: BoardMinion = { cardId: 'b2_elderhorn', attack: 1, health: 1 };
+  const player: BoardMinion[] = [{ cardId: 'kennel', attack: 1, health: 20, resummon: true }, fodder, fodder, fodder, fodder, fodder]; // tough enough to outlive the 5 fodder
+  const enemy: BoardMinion[] = [{ cardId: 'b2_elderhorn', attack: 1, health: 400 }];
+
+  function run(): { copyUid: string | undefined; deathsAtReturn: number; deathsAtImprove: number; obs: AvengeWindowObservation[] } {
+    const obs: AvengeWindowObservation[] = [];
+    setAvengeWindowObserver((o) => obs.push({ ...o }));
+    let r: ReturnType<typeof simulate>;
+    try {
+      r = simulate(player, enemy, makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES }), combatSide({ tier: 1 }));
+    } finally {
+      setAvengeWindowObserver();
+    }
+    let deaths = 0, deathsAtReturn = -1, deathsAtImprove = -1;
+    let copyUid: string | undefined;
+    for (const e of r.events) {
+      if (e.type === 'death' && e.side === 'player') deaths++;
+      if (e.type === 'summon' && e.minion.cardId === 'kennel' && copyUid === undefined) { copyUid = e.minion.uid; deathsAtReturn = deaths; }
+      if (e.type === 'improve' && e.avenge && e.target === copyUid && deathsAtImprove < 0) deathsAtImprove = deaths;
+    }
+    return { copyUid, deathsAtReturn, deathsAtImprove, obs: obs.filter((o) => o.sourceUid === copyUid) };
+  }
+
+  it('the scenario reclaims the Kennelmaster after its own Start-of-Combat destruction (the 1st friendly death)', () => {
+    const { copyUid, deathsAtReturn } = run();
+    expect(copyUid, 'the copy must actually return').toBeDefined();
+    expect(deathsAtReturn).toBe(1);
+  });
+
+  it("its Avenge (4) pays at the side's 5th death (the 4th after its return), not the 4th", () => {
+    const { deathsAtImprove } = run();
+    expect(deathsAtImprove, 'the fight must reach the payout, or the assertion is vacuous').toBeGreaterThan(0);
+    expect(deathsAtImprove).toBe(5);
+  });
+
+  it('the sim reads the copy at 0 on return: baseline 1, seen = count - 1 on every later death', () => {
+    const { obs } = run();
+    expect(obs.length).toBeGreaterThan(0);
+    for (const o of obs) {
+      expect(o.baseline).toBe(1);
+      expect(o.seen).toBe(o.count - 1);
+    }
   });
 });

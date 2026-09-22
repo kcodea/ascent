@@ -11408,3 +11408,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .rankpreview-btn { display: flex; justify-content: space-between; gap: 8px; text-align: left; }
 .rankpreview-btn.on { outline: 2px solid var(--acc); }
 .rankpreview-btn-ms { opacity: 0.6; font-variant-numeric: tabular-nums; }
+
+/* Hall of Champions (owner layout 2026-09-22): the rank a champion held when they won, under the record and
+   the last-win date. Static text, no animation. */
+.lb-hall .lb-hallrank { margin-top: 6px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: .92; }

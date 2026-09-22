@@ -14,12 +14,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { mount, type Mounted } from './renderedText.mount';
 import type { BoardSnapshot } from '@game/sim';
-import type { BoardWinStats, PlayerRow, RecentGameRow, VictoryRow } from './remoteBoards';
+import type { PlayerRow, RecentGameRow, SeatRecord, VictoryRow } from './remoteBoards';
+import type { RankPosition } from '@game/sim';
 
 const fetchTopPlayers = vi.fn<() => Promise<PlayerRow[]>>();
 const fetchLatestReplayForUser = vi.fn<(id: string) => Promise<unknown>>();
 const fetchVictories = vi.fn<() => Promise<VictoryRow[]>>();
-const fetchBoardStats = vi.fn<() => Promise<Map<string, BoardWinStats>>>();
+const fetchSeatRecords = vi.fn<() => Promise<Map<string, SeatRecord>>>();
+const fetchHallRanks = vi.fn<() => Promise<Map<number, RankPosition>>>();
 const fetchRecentGames = vi.fn<() => Promise<RecentGameRow[]>>();
 const fetchReplayPayload = vi.fn<(id: number) => Promise<unknown>>();
 const fetchPlayerById = vi.fn<(id: string) => Promise<PlayerRow | null>>();
@@ -32,7 +34,8 @@ vi.mock('./remoteBoards', async (importOriginal) => ({
   fetchTopPlayers: () => fetchTopPlayers(),
   fetchLatestReplayForUser: (id: string) => fetchLatestReplayForUser(id),
   fetchVictories: () => fetchVictories(),
-  fetchBoardStats: () => fetchBoardStats(),
+  fetchSeatRecords: () => fetchSeatRecords(),
+  fetchHallRanks: () => fetchHallRanks(),
   fetchRecentGames: () => fetchRecentGames(),
   fetchReplayPayload: (id: number) => fetchReplayPayload(id),
   fetchPlayerById: (id: string) => fetchPlayerById(id),
@@ -65,7 +68,11 @@ const VICTORIES: VictoryRow[] = [
   { mode: 'lobby', heroId: 'sable', author: 'Kev', wave: 14, date: '2026-09-18', board: { ...board(5), id: 'b2' }, history: 'WWWDWWLWWWWW', createdAt: '2026-09-18T14:00:00Z', boardId: 'b2' },
   { mode: 'lobby', heroId: 'brackus', author: 'Robin', wave: 12, date: '2026-09-17', board: null, createdAt: '2026-09-17T14:00:00Z' },
 ];
-const STATS = new Map<string, BoardWinStats>([['b1', { wins: 6, losses: 2, ties: 0, fights: 8, winRate: 75 }]]);
+// The seat ledger, keyed by run key: Nadja's board carries no author of its own, so the key falls back to the
+// row's author (`hallRunKeyOf(board, row.author)`), which is how the pool serves that run.
+const STATS = new Map<string, SeatRecord>([['Nadja|brackus|7', { wins: 6, losses: 2, played: 8, lastWinAt: '2026-09-21T10:00:00Z' }]]);
+// The rank each champion held when they won, by the run's seed (every fixture board carries seed 7).
+const RANKS = new Map<number, RankPosition>([[7, { divisionIndex: 1, points: 40, demotionReady: false }]]);
 
 const game = (over: Partial<RecentGameRow>): RecentGameRow => ({
   userId: 'u-top', author: 'Nadja', heroId: 'brackus', wins: 9, placement: 1, createdAt: '2026-09-19T14:00:00Z', rowId: 91, hasReplay: true,
@@ -91,7 +98,8 @@ beforeEach(() => {
   fetchTopPlayers.mockReset().mockResolvedValue(PLAYERS);
   fetchLatestReplayForUser.mockReset().mockResolvedValue({ version: 2, seed: 1, frames: [{}] });
   fetchVictories.mockReset().mockResolvedValue(VICTORIES);
-  fetchBoardStats.mockReset().mockResolvedValue(STATS);
+  fetchSeatRecords.mockReset().mockResolvedValue(STATS);
+  fetchHallRanks.mockReset().mockResolvedValue(RANKS);
   fetchRecentGames.mockReset().mockResolvedValue(GAMES);
   fetchReplayPayload.mockReset().mockResolvedValue({ version: 2, seed: 1, frames: [{}] });
   fetchPlayerById.mockReset().mockResolvedValue(null);
@@ -286,38 +294,47 @@ describe('Leaderboard — the Hall of Champions banners', () => {
     await flush();
   });
 
-  it('one banner per victory: medallion · hero frame + author + hero + W–L · warband tiles · VICTORY block', () => {
+  it('one banner per victory: medallion · hero frame + author + hero · final team + runes · the record block', () => {
     const rows = [...ui.container.querySelectorAll('.lb-row')];
     expect(rows).toHaveLength(3);
     expect([...ui.container.querySelectorAll('.lb-medal')].map((m) => m.className)).toEqual(['lb-medal gold', 'lb-medal silver', 'lb-medal bronze']);
     expect(rows[0]!.querySelector('.lb-heroframe .hero .f img.heroimg') ?? rows[0]!.querySelector('.lb-heroframe .hero .f svg')).not.toBeNull();
     expect(text('.lb-row-name')).toEqual(['Nadja', 'Kev', 'Robin']);
     expect(text('.lb-row-herosub')).toEqual(['Brackus', 'Sable', 'Brackus']);
-    // history LLWLWWWWWWWWWLW → 11–4 ; WWWDWWLWWWWW → 10–1–1 ; no history → no record line
-    expect(text('.lb-row-record')).toEqual(['11–4', '10–1–1']);
+    // The left is the player and the hero only (owner 2026-09-22): no W–L–D of the run's own rounds, no pips.
+    expect(ui.container.querySelectorAll('.lb-row-record, .lbpip, .runtrophy')).toHaveLength(0);
     expect(rows[0]!.querySelectorAll('.lb-tile .card')).toHaveLength(7);
     expect(rows[1]!.querySelectorAll('.lb-tile .card')).toHaveLength(5);
     expect(rows[1]!.querySelectorAll('.lb-tile.empty')).toHaveLength(2);
     expect(rows[2]!.querySelector('.lb-team-none')?.textContent).toBe('No warband stored for this run');
-    expect(text('.lb-verdict')).toEqual(['VICTORY', 'VICTORY', 'VICTORY']);
-    expect(text('.lb-when')[0]).toMatch(/2026 · Round 15$/);
+    // No VICTORY verdict — every row is a winner — the record stands in its place: Nadja's run knocked out 6
+    // players and was knocked out twice, plus her own win → 7–2; the other two have never been served → 1–0.
+    expect(text('.lb-verdict')).toEqual(['7–2', '1–0', '1–0']);
+    // The runes read exactly as a Recent Games row shows them.
+    expect(rows[0]!.querySelectorAll('.lb-runes .lb-rune, .lb-runes > *').length).toBeGreaterThan(0);
+    expect(rows[2]!.querySelector('.lb-runes-none')?.textContent).toBe('No runes taken');
   });
 
-  it('prints the round-17 fight record where the ledger has one, the round pips and the rune trophies', () => {
+  it('the right side: the record, the date of the last win, and the rank the player held when they won', () => {
     const rows = [...ui.container.querySelectorAll('.lb-row')];
-    expect(rows[0]!.querySelector('.lb-fights')?.textContent).toBe('8 fights6 W2 L75%');
-    expect(rows[1]!.querySelector('.lb-fights.none')?.textContent).toBe('No round-17 fights logged yet');
-    expect(rows[0]!.querySelectorAll('.lbpip')).toHaveLength(15);
-    expect(rows[0]!.querySelectorAll('.lbpip.cal')).toHaveLength(0); // no calibration rounds since 2026-09-20 — every round counts
-    expect(rows[0]!.querySelectorAll('.runtrophy')).toHaveLength(1); // the stored board's one rune
+    expect(rows[0]!.querySelector('.lb-hallrecord')?.textContent).toBe('7–2');
+    // Nadja's newest knockout is the 21st; Kev has never been served, so his last win is the victory itself.
+    expect(rows[0]!.querySelector('.lb-when')?.textContent).toBe('Last win Sep 21, 2026');
+    expect(rows[1]!.querySelector('.lb-when')?.textContent).toBe('Last win Sep 18, 2026');
+    // Division index 1 = Bronze II under the ascending numerals (2026-09-22). Robin's row has no board, hence
+    // no seed, hence no rank line.
+    expect(rows[0]!.querySelector('.lb-hallrank')?.textContent).toBe('Bronze II');
+    expect(rows[1]!.querySelector('.lb-hallrank')?.textContent).toBe('Bronze II');
+    expect(rows[2]!.querySelector('.lb-hallrank')).toBeNull();
   });
 
-  it('the Most wins toggle re-orders by round-17 wins', () => {
+  it('Most wins is the default sort (owner 2026-09-22); Most recent is the second view', () => {
     const btns = ui.container.querySelectorAll('.lb-seg-btn');
-    expect(btns[0]!.getAttribute('aria-pressed')).toBe('true');
-    click(btns[1]!);
-    expect(text('.lb-row-name')).toEqual(['Nadja', 'Kev', 'Robin']); // b1 has the only wins → already first
     expect(btns[1]!.getAttribute('aria-pressed')).toBe('true');
+    expect(text('.lb-row-name')).toEqual(['Nadja', 'Kev', 'Robin']); // Nadja 7–2, then two 1–0s in fetch order
+    click(btns[0]!);
+    expect(btns[0]!.getAttribute('aria-pressed')).toBe('true');
+    expect(text('.lb-row-name')).toEqual(['Nadja', 'Kev', 'Robin']); // the fetch order is the same here
   });
 });
 

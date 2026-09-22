@@ -11301,7 +11301,6 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .rankend-delta.up { color: #6fe089; }
 .rankend-delta.down { color: #ff7d7d; }
 .rankend-delta.flat { color: #fff6e4; }
-.rankend-detail { font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
 .rankend-outcome { font-family: var(--font-ui); font-weight: 800; font-size: 19px; letter-spacing: 0.08em; text-transform: uppercase; color: #ffe08a; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9); will-change: transform, opacity; }
 .rankend-outcome.promo { color: #8ff0a4; }
 .rankend-outcome.demo, .rankend-outcome.demogate { color: #ff9a9a; }

@@ -1,7 +1,7 @@
 import { createRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { sfx } from '../sfx';
 import { RankBar, type RankBarAnimRefs } from './RankBar';
-import { announcement, cappedDetail, deltaText, ordinal, outcomeText, placementText } from './rankFormat';
+import { announcement, deltaText, ordinal, outcomeText, placementText } from './rankFormat';
 import { markRankPresented, wasRankPresented } from './presented';
 import { planRankSequence } from './rankSequence';
 import { buildRankTimeline } from './rankTimeline';
@@ -77,7 +77,6 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
   const continueRef = useRef<HTMLButtonElement>(null);
   const placementRef = useRef<HTMLDivElement>(null);
   const deltaRef = useRef<HTMLDivElement>(null);
-  const detailRef = useRef<HTMLDivElement>(null);
   const outcomeRef = useRef<HTMLDivElement>(null);
   // Stable refs for the bar GSAP drives (one object for the lifetime of the screen).
   const anim = useMemo<RankBarAnimRefs>(() => ({
@@ -124,7 +123,7 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
     const tl = buildRankTimeline(steps, {
       placement: placementRef.current, crestOld: anim.crest.current, crestNew: anim.crestNext.current,
       label: anim.label.current, track: anim.track.current, fill: anim.fill.current, tip: anim.tip.current,
-      points: anim.points.current, delta: deltaRef.current, detail: detailRef.current, outcome: outcomeRef.current,
+      points: anim.points.current, delta: deltaRef.current, detail: null, outcome: outcomeRef.current,
     }, cues, () => finishRef.current());
     tlRef.current = tl;
     tl.play();
@@ -171,7 +170,6 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
   const transitions = !!result && (result.promoted || result.demoted);
   const shownPos: RankPosition | null = result ? (settled ? result.after : result.before) : current;
   const delta = result ? deltaText(result) : null;
-  const detail = result ? cappedDetail(result) : null;
   const outcome = result ? outcomeText(result) : null;
   const deltaTone = result ? (result.promoted || result.appliedDelta > 0 ? 'up' : result.appliedDelta < 0 ? 'down' : 'flat') : 'flat';
 
@@ -203,7 +201,6 @@ export function RankScreen(props: RankScreenProps): JSX.Element {
           {result && (
             <>
               <div className={`rankend-delta ${deltaTone}`} ref={deltaRef}>{delta}</div>
-              {detail && <div className="rankend-detail" ref={detailRef}>{detail}</div>}
               {outcome && (
                 <div className={`rankend-outcome${result.promoted ? ' promo' : result.demoted ? ' demo' : result.promotionUnlocked ? ' gate' : result.demotionUnlocked ? ' demogate' : ''}`} ref={outcomeRef}>
                   {outcome}

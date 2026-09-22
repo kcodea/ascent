@@ -52,6 +52,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-21',
+    label: 'Rank screen: plain RP line',
+    changes: [
+      { category: 'Systems', text: 'The rank screen shows the points you won or lost, the bar and your rank. The extra lines such as Bronze floor, capped at the gate and base RP are gone.' },
+    ],
+  },
+  {
+    date: '2026-09-21',
     label: 'No instant demotions',
     changes: [
       {

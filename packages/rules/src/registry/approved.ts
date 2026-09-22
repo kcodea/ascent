@@ -1260,7 +1260,6 @@ export const APPROVED_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22', quote: 'kindness hero power needs turn counter text' },
       { kind: 'code', ref: 'packages/sim/src/recruit.ts heroPowerText (the greatPresence branch); packages/sim/src/reducer.ts (the `wave % 4 === 0` schedule it reads)' },
     ],
-    contentIds: ['kindness'],
     currentBehaviour:
       'Conforms as of 2026-09-22. Kindness (Great Presence, a Gift Discover every 4th turn) printed a bare rule '
       + 'with no countdown; it now prints the turns remaining, and This turn on the turn itself. Odelle and '

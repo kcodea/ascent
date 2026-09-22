@@ -259,7 +259,7 @@ describe('the right column', () => {
   it('Seasonal Ranked prints the MEDAL RANK — crest in the portrait ring, label, bar, points, the scalar as a caption — no delta', () => {
     const card = ui.container.querySelector('.cv2-ranked')!;
     expect(card.querySelector('.rankcrest.portring .hero .f img.heroimg')).not.toBeNull();
-    expect(card.querySelector('.rankcrest-plate')?.textContent).toBe('I');
+    expect(card.querySelector('.rankcrest-plate')?.textContent).toBe('1');
     expect(card.querySelector('.rankbar-label')?.textContent).toBe('Diamond I');
     expect(card.querySelector('.rankbar-points')?.textContent).toBe('34 / 100');
     expect(card.querySelector('.rankbar-caption')?.textContent).toBe('1234 MMR');
@@ -385,7 +385,7 @@ describe('states', () => {
     const card = ui.container.querySelector('.cv2-ranked')!;
     expect(card.querySelector('.cv2-mmr')).toBeNull();
     expect(card.querySelector('.rankcrest.portring .hero .f img.heroimg')).not.toBeNull();
-    expect(card.querySelector('.rankcrest-plate')?.textContent).toBe('I');
+    expect(card.querySelector('.rankcrest-plate')?.textContent).toBe('1');
     expect(card.querySelector('.rankbar-label')?.textContent).toBe('Bronze I');
     expect(card.querySelector('.rankbar-points')?.textContent).toBe('46 / 100');
     expect(card.querySelector('.rankbar-caption')?.textContent).toBe('46 MMR');

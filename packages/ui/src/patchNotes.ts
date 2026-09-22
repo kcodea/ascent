@@ -63,6 +63,13 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-22',
+    label: 'Crest digits',
+    changes: [
+      { category: 'Balance', text: 'The rank crest now shows your division as a plain digit: 1, 2 or 3. The rank name still reads Bronze II.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Hall of Champions',
     changes: [
       { category: 'Systems', text: 'The Hall of Champions is now a showcase of the runs that have won the most games.', details: [

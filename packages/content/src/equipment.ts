@@ -410,6 +410,8 @@ export const REVELMAKER: EquipmentDefinition = {
   effectId: 'battlecryGrantRandomReveler',
   params: { count: 1 },
   gildedParams: { count: 1 },
+  // Owner-authored 2026-09-22: warm shards and a ring off the Equipment button as the Reveler is handed out.
+  useFxId: 'revelmaker',
 };
 
 /**
@@ -447,6 +449,9 @@ export const STELLAR_LENS: EquipmentDefinition = {
   effectId: 'equipmentCreateStarformThenBuffThisShop',
   params: { attack: 7, health: 7 },
   gildedParams: { attack: 14, health: 14 },
+  // Owner-authored 2026-09-22: a camera-wide star flare as the lens fires. Camera-anchored, so it reads as the
+  // shop itself lighting up rather than a spark on the button.
+  useFxId: 'stellar-lens',
 };
 
 /**

@@ -1544,4 +1544,145 @@ export const APPROVED_RULES: GameRule[] = [
       + 'Leaderboard and Hall rows already used; the end screen already carried its own draw suffix.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/Career.test.tsx', 'packages/ui/src/ladderPages.test.tsx'], lastVerifiedAt: '2026-09-22' },
   },
+  {
+    id: 'R-TEXT-07',
+    title: 'A hero power on a schedule prints its countdown',
+    statement:
+      'The live-value rule covers hero powers, and a power that fires on a SCHEDULE has a live value even when '
+      + 'its magnitude is fixed: when it next fires. A scheduled power prints the countdown beside its rule, and '
+      + 'says so plainly on the turn it fires, so a player never has to count turns to know what this shop brings. '
+      + 'The countdown reads the same expression the reducer schedules on, so the two cannot drift.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22', quote: 'kindness hero power needs turn counter text' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts heroPowerText (the greatPresence branch); packages/sim/src/reducer.ts (the `wave % 4 === 0` schedule it reads)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22. Kindness (Great Presence, a Gift Discover every 4th turn) printed a bare rule '
+      + 'with no countdown; it now prints the turns remaining, and This turn on the turn itself. Odelle and '
+      + 'Tempest already carried countdowns for their improving grants, which is the same rule for a magnitude.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/gifts.test.ts'], lastVerifiedAt: '2026-09-22' },
+  },
+  {
+    id: 'R-TEXT-08',
+    title: 'A printed number keeps moving during combat',
+    statement:
+      'The hard live-text rule does not pause for the fight. Whenever a card\'s magnitude depends on state the '
+      + 'COMBAT changes (spell power gained mid-fight, an escalating spell improving itself, a counter a combat '
+      + 'event feeds), every surface that prints it (hand, board, arena, a grant flying in) must show the value it '
+      + 'would produce at that moment of the fight, and must land on exactly the number settle banks. The live '
+      + 'value is DERIVED from the event log the simulator already emits, never computed by the UI, and the '
+      + 'derivation is display-only: it may never reach the cast math.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (live spell text report)', quote: 'front to backs text/maybe all spells? not updating in real time from buffs in combat.' },
+      { kind: 'fix-pr', ref: 'Live spell text + Voicekeeper fix — packages/sim/src/reducer.ts (the display-only previews are exempt from the phase guard), packages/sim/src/recruit.ts (spellAttackBonusLive / spellHealthBonusLive / spellEscalationLive), packages/ui/src/Recruit.tsx, packages/ui/src/Unit.tsx' },
+    ],
+    currentBehaviour:
+      'Conforms for spell power and for escalating spells as of 2026-09-22. The root cause was not the readouts: '
+      + 'the reducer\'s phase guard admitted only resolveCombat / settleCombat while the phase was combat, so ALL '
+      + 'five display-only combat previews (escalation, spell power, spells cast, friendly deaths, blade attacks) '
+      + 'were silently swallowed at exactly the moment the replay dispatched them. Yirin\'s Attunement, Cindara\'s '
+      + 'Hoard and Gorun\'s Blade Mastery pills were frozen for the same reason and are fixed by the same change. '
+      + 'Spell power additionally had no text channel at all: the narration drove a flourish and a card pop while '
+      + 'the printed number stayed at its pre-combat value. The live value is published as an ABSOLUTE FOLD over '
+      + 'the events played so far, never as a per-event bump (review 2026-09-22): a bump is only correct when '
+      + 'every beat plays exactly once, and Skip, a seek and a mid-fight Save & Quit each break that, leaving a '
+      + 'readout that no longer equals what settle banks. deserialize clears all five previews for the same '
+      + 'reason. PARTIAL beyond these: rubyBonus, growthBonus, '
+      + 'clueBonus, starCrashBonus, undeadBuyAtk, cardBuffs and impAura are settle-only carry-backs read raw by the '
+      + 'combat surfaces and are stale in combat by the same mechanism. Their follow-up is scoped separately.',
+    example:
+      'Chorus Drake Rallies eleven times in a fight, each Rally giving your Shop spells +1 Health. A Front to Back '
+      + 'held in hand must read its Health up by 11 by the end of the fight, not snap to it when the shop reopens.',
+    contentIds: ['fronttoback', 'd2_chorus', 'b2_quil'],
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/liveSpellTextInCombat.test.ts', 'packages/sim/src/heroPillReadouts.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-MULT-05',
+    title: 'A multiplier reaches the printed number, not only the outcome',
+    statement:
+      'When an effect repeats a trigger, everything the repeat PRODUCES must reach the player\'s readouts as well '
+      + 'as the board. A Rally that fires twice grants twice, so every number those grants FEED must show the '
+      + 'doubled total on every surface, in the shop and during the fight: the value printed on a spell whose '
+      + 'magnitude rides the spell power they gave, an escalating spell\'s step, a tally they advance. The way to '
+      + 'get this for free is to derive the readout from the events the simulator emits per fire, rather than '
+      + 're-deriving the magnitude in the UI from a rate and a count. The rule is about the TOTAL, not the rate: '
+      + 'a rune that repeats a trigger leaves the repeating card\'s own per-trigger text alone, because one '
+      + 'trigger still grants what it printed and the rune itself tells the player the trigger fires twice. A '
+      + 'rune that multiplies a SINGLE fire is the other case, and there the printed step must change.',
+    domain: 'multipliers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (live spell text report)', quote: 'rune of adventuring should affect the # shown for spell buffs too, since it re-triggers things like chorus drake etc.' },
+      { kind: 'fix-pr', ref: 'Live spell text + Voicekeeper fix — no simulation change was needed; the doubling was already correct and only the readout was stale (packages/ui/src/liveSpellTextInCombat.test.ts pins both halves)' },
+    ],
+    currentBehaviour:
+      'Conforms for the totals — 2026-09-22. Probed through simulate() first: a Chorus Drake under Rune of '
+      + 'Adventuring (rallyExtraAlways) already rallied 90 times instead of 45 and banked exactly double the '
+      + 'spell power, and emitted one narration per fire. The SIM was right the whole time; only the printed '
+      + 'number was stale, and it was stale for the reason in R-TEXT-06. Because the readout is now a fold over '
+      + 'those per-fire narrations, the doubling reaches the text with no multiplier arithmetic in the UI at all. '
+      + 'Deliberately NOT folded, and not counted as a gap (review 2026-09-22): the repeating card\'s own '
+      + 'per-trigger text. Chorus Drake still prints "+1 Health" under the rune, because one Rally really does '
+      + 'grant 1 and the rune already states that Rally fires twice. Contrast Rune of Mastery, which multiplies a '
+      + 'single improve and therefore IS folded into card text through improveReps. If the owner ever rules that '
+      + 'a repeat-the-trigger rune must double the repeating card\'s printed rate as well, that is its own text '
+      + 'change and this statement widens with it.',
+    cardText: 'Rune of Adventuring: "Your **Rally** effects trigger **twice**."',
+    example:
+      'Chorus Drake plus Rune of Adventuring: 45 Rallies become 90, spell power gained goes from +0/+45 to +0/+90, '
+      + 'and a Front to Back in hand must print the +90 version while the fight is still running. The Drake itself '
+      + 'still prints +1 Health per Rally, because that is still what one Rally grants.',
+    contentIds: ['rune_adventuring', 'd2_chorus'],
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/liveSpellTextInCombat.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-SHOP-03',
+    title: 'A card granted by a sale can complete a Gild',
+    statement:
+      'Selling is an action that can GIVE you a card: the copy of the first Dragon sold, a rune\'s payout, a '
+      + 'Shout replayed as the body leaves. A card granted that way is an ordinary card in your hand. If it is '
+      + 'your third copy it combines into the Gilded version immediately, and that Gilded card pays its Triple '
+      + 'Reward when played, exactly as a bought or conjured third copy would. No route that adds a card to hand '
+      + 'is exempt from the combine check.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (Voicekeeper report)', quote: 'also voicekeeper selling needs a triple check' },
+      { kind: 'fix-pr', ref: 'Live spell text + Voicekeeper fix — packages/sim/src/reducer.ts, the sell case now runs checkTriples when the sale grew the hand' },
+    ],
+    currentBehaviour:
+      'Conforms — 2026-09-22. The reducer uses an explicit-call convention: each case that can grow the hand calls '
+      + 'checkTriples itself, and the sell case was the one that never did. It returns early, and the shared '
+      + 'post-action hand-growth check in reduce() cannot help because its baseline is captured after reduceCore '
+      + 'has already landed the grant. Three plain copies simply sat in hand. The fix is gated on the hand '
+      + 'actually growing, so a sale that grants nothing leaves loose copies alone. The gate decides whether the '
+      + 'check RUNS, not what it may combine: checkTriples is board-wide, exactly as it is on every other '
+      + 'hand-growth path, so a sale that does grant something also combines any other id already sitting at the '
+      + 'threshold. Every other sale route (Dissipate, Parting Gifts, Rune of the Altar) already ran the check '
+      + 'through the spell-play or rune-buy path, and checkTriples is idempotent, so nothing combines twice.',
+    cardText: 'Voicekeeper: "Get a **plain copy** of the first Dragon you sell each turn."',
+    example:
+      'Two plain Scalefeathers in hand, a Voicekeeper and a third Scalefeather on board. Sell the Scalefeather: '
+      + 'the granted copy is a plain third copy, so you end with one Gilded Scalefeather, and playing it opens the '
+      + 'Triple Reward Discover. "Plain" is load-bearing: the granted copy carries no buffs and is never itself '
+      + 'Gilded, and it still counts toward the combine.',
+    contentIds: ['d2_voicekeeper', 'd2_chronicler'],
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/set2Dragons.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
 ];

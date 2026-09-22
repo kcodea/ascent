@@ -5,6 +5,7 @@ import {
   type Action, type BoardCard, type RunState, type ShopCard,
 } from './index';
 import { createStarform } from './starform';
+import { amplifyEquipment, equipmentAmplifiedOf, equipmentText } from './equipment';
 
 /**
  * THYMEPIECE — "All cards cost −1 Gold for the next 8 seconds" (owner design 2026-09-12; gilded −2, same 8s).
@@ -179,5 +180,54 @@ describe('lifecycle', () => {
     expect(healed.bonusTurnSeconds).toBeUndefined();
     expect(healed.bonusTurnSecondsNextTurn).toBeUndefined();
     expect(healed.cardDiscountWindow).toBeUndefined();
+  });
+});
+
+/**
+ * AMPLIFIED (owner 2026-09-22: "an amplified timepiece should double the duration"). An Amplified activation
+ * opens a 16-second window (both of its triggers open the same one); an extra trigger from any other source
+ * keeps the pinned 8 (set3Dwarves.test.ts: "a rate, not a bank"). The rule the slot prints says 16 while the
+ * stack is armed.
+ */
+describe('Amplified', () => {
+  it('an Amplified activation at clock 40 closes at 24 (16 seconds), spends the stack, and keeps the amount at −1', () => {
+    const s = armed();
+    amplifyEquipment(s, 'thymepiece');
+    expect(equipmentAmplifiedOf(s, 'thymepiece')).toBe(1);
+    const t = activate(s, 40);
+    expect(t.cardDiscountWindow).toEqual({ amount: 1, untilClock: 24 });
+    expect(equipmentAmplifiedOf(t, 'thymepiece')).toBe(0);
+  });
+
+  it('a plain activation still closes at 32 (8 seconds); gilded doubles the amount, not the window', () => {
+    expect(activate(armed(), 40).cardDiscountWindow).toEqual({ amount: 1, untilClock: 32 });
+    expect(activate(armed(true), 40).cardDiscountWindow).toEqual({ amount: 2, untilClock: 32 });
+  });
+
+  it('an extra trigger that is NOT Amplified still closes at 32 — only Amplified doubles', () => {
+    expect(activate(armed(false, { equipmentExtraTriggers: 1 }), 40).cardDiscountWindow).toEqual({ amount: 1, untilClock: 32 });
+  });
+
+  it('gilded and Amplified together: −2 for 16 seconds', () => {
+    const s = armed(true);
+    amplifyEquipment(s, 'thymepiece');
+    expect(activate(s, 40).cardDiscountWindow).toEqual({ amount: 2, untilClock: 24 });
+  });
+
+  it('Amplified with no clock reading still runs to the end of the turn', () => {
+    const s = armed();
+    amplifyEquipment(s, 'thymepiece');
+    expect(activate(s).cardDiscountWindow).toEqual({ amount: 1, untilClock: null });
+  });
+
+  it('the printed rule doubles the window while Amplified, on both versions, and nothing else', () => {
+    const eq = EQUIPMENT_INDEX['thymepiece']!;
+    expect(equipmentText(eq, 'plain')).toContain('**8 seconds**');
+    expect(equipmentText(eq, 'plain', { amplified: true })).toContain('**16 seconds**');
+    expect(equipmentText(eq, 'gilded', { amplified: true })).toContain('**2** less Gold for the next **16 seconds**');
+    expect(equipmentText(eq, 'plain', { amplified: false })).toBe(eq.text);
+    // An Equipment without a printed window is untouched by the flag.
+    const other = EQUIPMENT_INDEX['revelmaker']!;
+    expect(equipmentText(other, 'plain', { amplified: true })).toBe(other.text);
   });
 });

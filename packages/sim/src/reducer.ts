@@ -2665,7 +2665,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // press. A stand-in source (the granter was sold) is not a living minion → the descend plays instead.
       let fired = true;
       const fxMark = equipmentFxMark(s);
-      const fire = (): void => { fired = fireEquipmentTriggers(s, fireDef, granted.version, fireSelf, target, triggers, action.clockSeconds); };
+      const fire = (): void => { fired = fireEquipmentTriggers(s, fireDef, granted.version, fireSelf, target, triggers, action.clockSeconds, amplified); };
       if (fireDef.useFxId) fire();
       else captureBuffFx(s, src, src ? 'minion' : 'spell', fire);
       if (!fired) return state;

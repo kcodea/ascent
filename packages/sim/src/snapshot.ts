@@ -268,9 +268,11 @@ function cleanBoard(s: RunState): BoardMinion[] {
 /**
  * The player board at Start of Combat AFTER SoC effects fire (buffs / keywords / shields / SoC summons) but BEFORE
  * the first attack — reconstructed from a CombatResult's `initial.player` + its SoC-phase events (every event up to
- * the first `attack`). Lets the Hall of Champions show the *buffed* board the player fought with (Pack Leader's Beast
- * buff, a Whelp summoned at SoC), not the base recruit warband. Pure; order matches the combat-start board, with
- * SoC-summoned minions appended.
+ * the first `attack`). Pure; order matches the combat-start board, with SoC-summoned minions appended.
+ *
+ * A test / fidelity helper only (2026-09-21). It USED to feed the Hall of Champions / Career final board (the
+ * 2026-08 "board WITH its Start-of-Combat buffs" ask); the recorded final board is now the POST-SETTLE run board
+ * (`endStateBoard` in the UI store, owner ask 2026-09-21), so nothing player-facing reads this any more.
  */
 export function socBoard(result: CombatResult): BoardMinion[] {
   const units = result.initial.player.map((m) => ({

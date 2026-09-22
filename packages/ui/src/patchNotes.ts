@@ -52,6 +52,20 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Final team after the last fight',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The final team shown on your Career, Recent Games and the Hall of Champions is now the board as it stood after the last combat, with the gains that carry over, instead of the board from before it.',
+        details: [
+          'Gains that carry between fights, such as Engraved growth and Ruby carry-backs, now show on the final team when the last combat earned them.',
+          'Start of Combat buffs, shields and summons that only last for one fight no longer show. The final team is exactly what your next Shop would have opened with.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Pummel carries over',
     changes: [
       {

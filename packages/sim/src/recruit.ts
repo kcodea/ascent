@@ -8,7 +8,7 @@ import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
 import { getHero, type HeroPower, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool } from './heroes';
-import { handCap, recordBounceFx, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
+import { handCap, recordBounceFx, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CardBuff, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 export { ALE_IDS };
 import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
 import { runeStacksOf } from './runeDup';
@@ -481,6 +481,25 @@ export function addOfferBuff(offer: ShopCard, source: string, attack: number, he
   const e = offer.buffs.find((b) => b.source === source);
   if (e) { e.attack += attack; e.health += health; e.count += 1; }
   else offer.buffs.push({ source, attack, health, count: 1 });
+}
+
+/**
+ * Bake a tavern offer's accrued buffs (`atk`/`hp` + the per-source `buffs` ledger) onto a body that is leaving
+ * the Shop — the ONE fold every exit shares: the buy, the Displacement restore (`restoreHeldOffer`), a Darah /
+ * Displacement swap-in. Each ledger entry lands under its REAL source name through `addBuff`, so a Ruby stays a
+ * Ruby (stealable, counted by every Ruby reader) and the inspect breakdown names the source. Whatever `atk`/`hp`
+ * carry BEYOND the ledger (a legacy save with no breakdown, or a writer that bypassed `addOfferBuff`) lands as
+ * 'Tavern buff', so the body always receives exactly what the row advertised: `offerBuyStats` and the shop view
+ * both read the TOTALS, and a fold that read the ledger alone paid less than the row promised (the 2026-08-26
+ * shape — found again 2026-09-21 on a Shop spell cast over an offer that already carried a ledger).
+ */
+export function foldOfferBuffs(target: BoardCard, offer: ShopCard): void {
+  let restA = offer.atk ?? 0, restH = offer.hp ?? 0;
+  for (const b of offer.buffs ?? []) {
+    addBuff(target, b.source, b.attack, b.health, b.count);
+    restA -= b.attack; restH -= b.health;
+  }
+  if (restA !== 0 || restH !== 0) addBuff(target, 'Tavern buff', restA, restH);
 }
 
 /**
@@ -7452,6 +7471,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const def = pick.def!;
       if (def.spell || def.ruby) {
         st.hand.push({ uid: `b${st.uidSeq++}`, cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false });
+      } else if (pick.o.held) {
+        // A displaced body comes back WHOLE (its own ledger + progression + what it accrued in the row), never a
+        // fresh base body wearing its stats — the same restore the re-buy performs.
+        st.hand.push(restoreHeldOffer(st, pick.o));
       } else {
         const stats = offerBuyStats(st, pick.o);
         st.hand.push({ uid: `b${st.uidSeq++}`, cardId: def.id, tribe: def.tribe, attack: stats.attack, health: stats.health, keywords: [...def.keywords], golden: !!pick.o.golden });
@@ -7654,6 +7677,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const card = CARD_INDEX[offer.cardId];
       if (!card) return;
       state.shop.splice(idx, 1); // stolen — leaves the tavern (the pooled copy travels with it to the hand)
+      // A displaced (held) body is the likeliest top-Tier offer in the row: it comes back WHOLE (its own ledger +
+      // progression + what it accrued there), the same restore the re-buy performs, never a fresh base body.
+      if (offer.held) { state.hand.push(restoreHeldOffer(state, offer)); continue; }
       const cb = cardBuff(state, card.id); // a stolen Fodder carries Ritualist's run buff, like a buy
       state.hand.push({
         uid: `b${state.uidSeq++}`,
@@ -7780,9 +7806,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       for (const i of [shopIdx - 1, shopIdx + 1]) {
         const o = state.shop[i];
         if (!o || CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby) continue;
+        // A Displacement-HELD offer is the stashed body sitting in the row, and the row prints the body's own
+        // Rubies and the ones the offer accrued as ONE tally (`heldOfferLedger`) — so Transfer takes the whole
+        // printed tally: the accrued stamp off the offer, the body's own off the stash. Each ledger nets to zero,
+        // and the drained body is what `restoreHeldOffer` hands back. (Judgement call 2026-09-21: the printed
+        // number and what the spell steals must agree; the alternative was two separate Ruby lines.)
+        const offerRuby = (): CardBuff | undefined => o.buffs?.find((b) => b.source === 'Ruby');
+        const heldRuby = (): CardBuff | undefined => o.held?.buffs?.find((b) => b.source === 'Ruby');
         donors.push({
-          rubyOf: () => { const e = o.buffs?.find((b) => b.source === 'Ruby'); return { attack: e?.attack ?? 0, health: e?.health ?? 0 }; },
-          take: (a, h) => addOfferBuff(o, 'Ruby', -a, -h),
+          rubyOf: () => {
+            const e = offerRuby(), hb = heldRuby();
+            return { attack: (e?.attack ?? 0) + (hb?.attack ?? 0), health: (e?.health ?? 0) + (hb?.health ?? 0) };
+          },
+          take: () => {
+            const e = offerRuby(); if (e) addOfferBuff(o, 'Ruby', -e.attack, -e.health);
+            const hb = heldRuby(); if (hb && o.held) addBuff(o.held, 'Ruby', -hb.attack, -hb.health);
+          },
         });
       }
     } else {
@@ -10346,6 +10385,44 @@ export function applyBattlecryTarget(state: RunState, card: BoardCard, target: B
  * fired — the hero charge is only spent when it did.
  */
 /**
+ * Restore a Displacement-held minion out of its tavern offer: the SAME body that went in (every buff / stat /
+ * progression intact) PLUS whatever the offer accrued while it sat in the Shop — Veinstorm's Rubies, Fortify,
+ * Fried Circuits, a rune's shop enchant, a keyword a Shop spell added. Shared by BOTH restore paths (the re-buy
+ * in the reducer and the swap-back in `swapWithTavern`) so they can never disagree.
+ *
+ * Owner bug report 2026-09-21: "I swapped Chimerus to the Shop (Darah) and used Veinstorm and it did not buff
+ * it." Veinstorm DID stamp the held offer (`addOfferBuff` writes `offer.atk`/`hp`/`buffs` like any other offer),
+ * but both restore paths rebuilt the body from `held` verbatim and never read the offer's buffs — the
+ * 2026-07-29 fix had patched only `golden` on this path, so every other offer-level buff was silently
+ * dropped. The accrued buffs now land through `addBuff` under their OWN source names, exactly as the normal buy
+ * bakes them, so a Ruby stays a Ruby (stealable by Ruby Transfer, counted by every Ruby reader) and the
+ * inspect breakdown names the source. A held offer's `atk`/`hp` are ONLY ever the accrued Shop buffs (never
+ * seeded from the held body — see the offer build in `swapWithTavern`), so adding them here cannot double-count.
+ *
+ * Deliberately NO `applyOnBuy` and none of the run-wide buy channels (Staff of Guel, tribe buy-auras): this is
+ * a restoration, not a fresh purchase, so Broker & co. don't re-bake. The Golden Touch re-gild stays.
+ */
+export function restoreHeldOffer(state: RunState, offer: ShopCard): BoardCard {
+  const held = offer.held!;
+  // Deep-copy the mutable arrays (and the buff ledger's entries — `addBuff` bumps them in place) so the restored
+  // minion never SHARES `keywords`/`buffs` with anything (a shared array + an in-place weld/buff would leak onto
+  // the alias — the Bounty Bot Ward bug).
+  const restored: BoardCard = {
+    ...held,
+    uid: `b${state.uidSeq++}`,
+    keywords: [...held.keywords, ...(offer.keywords ?? []).filter((k) => !held.keywords.includes(k))],
+    buffs: held.buffs ? held.buffs.map((b) => ({ ...b })) : undefined,
+  };
+  // The offer's accrued Shop buffs bake in under their REAL source names (the same fold as the normal buy);
+  // anything `atk`/`hp` carry beyond the ledger lands under the generic label, so the body gets the row's total.
+  foldOfferBuffs(restored, offer);
+  // A HELD offer that was GILDED in the tavern must come back golden (owner bug report 2026-07-29: Golden
+  // Touch appeared to do nothing on a displaced minion). Gild AFTER the buffs so the doubling stays base-only.
+  if (offer.golden && !restored.golden) gildMinion(restored);
+  return restored;
+}
+
+/**
  * Swap a friendly board minion with a RANDOM tavern offer (shared by the Displacement spell + Darah's
  * Displace power). The displaced minion goes to the tavern KEEPING all its state (buffs / stats / progression),
  * stashed on the offer's `held` and restored intact when re-bought or swapped back. The incoming tavern minion
@@ -10369,24 +10446,33 @@ export function swapWithTavern(state: RunState, boardMinion: BoardCard): boolean
   if (!def) return false;
   let incoming: BoardCard;
   if (offer.held) {
-    // Deep-copy the mutable arrays so the restored minion never SHARES `keywords`/`buffs` with anything (a
-    // shared array + an in-place weld/buff would leak onto the alias — the Bounty Bot Ward bug).
-    incoming = { ...offer.held, uid: `b${state.uidSeq++}`, keywords: [...offer.held.keywords], buffs: offer.held.buffs ? [...offer.held.buffs] : undefined }; // a previously-displaced minion returns intact
+    // A previously-displaced minion returns intact — PLUS every buff the offer accrued in the Shop and a Golden
+    // Touch gild (`restoreHeldOffer`, shared with the re-buy path). Folded BEFORE it lands on the board, like a
+    // bought body, so the Soulbind / Shared Spoils mirrors in `addBuff` don't see it as a board gain.
+    incoming = restoreHeldOffer(state, offer);
   } else {
     incoming = {
       uid: `b${state.uidSeq++}`,
       cardId: offer.cardId,
       tribe: def.tribe,
-      attack: def.attack + (offer.atk ?? 0),
-      health: def.health + (offer.hp ?? 0),
+      attack: def.attack,
+      health: def.health,
       keywords: [...def.keywords, ...(offer.keywords ?? []).filter((k) => !def.keywords.includes(k))],
       golden: offer.golden ?? false,
     };
-    if (incoming.golden) { incoming.attack += def.attack; incoming.health += def.health; } // golden doubles BASE only (offer buffs single)
+    // The offer's accrued buffs land under their OWN names (the same fold as a buy), so a Veinstorm-stamped
+    // offer swapped in still carries its Rubies as Rubies (Ruby Transfer, Gemheart's Golem and the inspect
+    // breakdown all read the 'Ruby' entry; a bare stat fold used to lose the attribution), then the gild as its
+    // own line: golden doubles the BASE only (offer buffs stay single). Folded BEFORE it lands on the board.
+    foldOfferBuffs(incoming, offer);
+    if (incoming.golden) addBuff(incoming, 'Golden Touch', def.attack, def.health);
   }
   state.board[bi] = incoming;
   // The displaced minion → the tavern, its FULL state stashed on the offer (restored on buy / swap-back).
-  state.shop[si] = { uid: `s${state.uidSeq++}`, cardId: boardMinion.cardId, held: { ...boardMinion, keywords: [...boardMinion.keywords], buffs: boardMinion.buffs ? [...boardMinion.buffs] : undefined } };
+  // INVARIANT: the new offer carries NO `atk`/`hp`/`buffs` of its own — those fields are reserved for the buffs
+  // it ACCRUES while it sits in the Shop (Veinstorm, Fortify, …), which `restoreHeldOffer` adds on top of the
+  // held body. Seeding them from the body here would pay its stats twice on the way back.
+  state.shop[si] = { uid: `s${state.uidSeq++}`, cardId: boardMinion.cardId, held: { ...boardMinion, keywords: [...boardMinion.keywords], buffs: boardMinion.buffs ? boardMinion.buffs.map((b) => ({ ...b })) : undefined } };
   // Signal the UI to fire the circular swap-arrows FX between the two new cards (one-shot, like chaosGrantSeq).
   state.swapFxSeq = (state.swapFxSeq ?? 0) + 1;
   state.swapFxBoardUid = incoming.uid;
@@ -10683,7 +10769,14 @@ function fodderMultiplier(consumer: BoardCard): number {
  * Undead on the board / in combat, so transferring it onto a Demon would double-dip a temporary aura).
  */
 export function offerBuyStats(state: RunState, offer: ShopCard): { attack: number; health: number } {
-  if (offer.held) return { attack: offer.held.attack, health: offer.held.health };
+  // A held body is worth what `restoreHeldOffer` hands back: its preserved stats + the buffs the offer accrued
+  // in the Shop (Veinstorm Rubies, Fortify) + a Golden Touch re-gild's base doubling. Never the run-wide
+  // channels (a restoration, not a purchase).
+  if (offer.held) {
+    const def = CARD_INDEX[offer.held.cardId];
+    const gild = offer.golden && !offer.held.golden ? { attack: def?.attack ?? 0, health: def?.health ?? 0 } : { attack: 0, health: 0 };
+    return { attack: Math.max(0, offer.held.attack + (offer.atk ?? 0)) + gild.attack, health: offer.held.health + (offer.hp ?? 0) + gild.health };
+  }
   const def = CARD_INDEX[offer.cardId];
   if (!def) return { attack: 0, health: 0 };
   // THE STARFORM: its whole total is BAKED onto the offer (`starform.ts` folds the run-wide / this-turn shop
@@ -11496,20 +11589,36 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
  *  folds the net stat + added-keyword changes back onto the ShopCard so they bake in when bought (the way
  *  the Fortify hero power's offer buff already does). The rest of `castSpell` (tally, spell power,
  *  spellCast triggers) still runs on the run. NB: a spell that *removes* a base keyword can't subtract it
- *  from an offer (offers only carry added keywords) — a rare edge that resolves once the minion is bought. */
+ *  from an offer (offers only carry added keywords) — a rare edge that resolves once the minion is bought.
+ *
+ *  THE LEDGER FOLLOWS THE TOTAL: whatever the spell changed lands in `offer.buffs` under the spell's name, so
+ *  the per-source breakdown keeps summing to `atk`/`hp`. This fold used to write the totals alone, and every
+ *  exit that bakes the ledger (the buy, `restoreHeldOffer`) then dropped the spell's share whenever the offer
+ *  already carried a ledger (a Shatter over a Veinstorm stamp paid the Rubies and lost the +2/+4). A factory
+ *  that writes the offer ledger itself during the cast (Ruby Transfer's `addOfferBuff`) is netted out, never
+ *  counted twice.
+ *
+ *  A Displacement-HELD offer is the stashed BODY sitting in the row, so the spell acts on that body's stats and
+ *  keywords (Perfect Vision sets the displaced minion to 20/20, Turnabout swaps ITS Attack and Health) and the
+ *  delta folds back relative to the body, exactly what `restoreHeldOffer` adds on top of it. A transform
+ *  (Strange Revision) re-identifies the stash too, keeping its bonus above base the way the factory did. */
 export function castSpellOnOffer(state: RunState, spellDef: CardDef, offer: ShopCard): void {
   const card = CARD_INDEX[offer.cardId];
   if (!card) return;
-  const base = card.keywords;
+  const held = offer.held; // a displaced body: the spell reads and re-bases on ITS stats, not the printed card's
+  const base = held ? held.keywords : card.keywords;
   const temp: BoardCard = {
     uid: offer.uid,
     cardId: offer.cardId,
     tribe: card.tribe,
-    attack: card.attack + (offer.atk ?? 0),
-    health: card.health + (offer.hp ?? 0),
+    attack: (held ? held.attack : card.attack) + (offer.atk ?? 0),
+    health: (held ? held.health : card.health) + (offer.hp ?? 0),
     keywords: [...base, ...(offer.keywords ?? []).filter((k) => !base.includes(k))],
     golden: false,
   };
+  const ledgerSum = (o: ShopCard): { a: number; h: number } =>
+    (o.buffs ?? []).reduce((acc, b) => ({ a: acc.a + b.attack, h: acc.h + b.health }), { a: 0, h: 0 });
+  const pre = { atk: offer.atk ?? 0, hp: offer.hp ?? 0, ...ledgerSum(offer) };
   castSpell(state, spellDef, temp);
   // Fold the result back against what the card IS NOW — a transform (Strange Revision, owner 2026-08-04)
   // rewrites `temp.cardId`, so the offer becomes the new minion and the deltas re-base on ITS printed stats
@@ -11522,10 +11631,27 @@ export function castSpellOnOffer(state: RunState, spellDef: CardDef, offer: Shop
     return;
   }
   const after = CARD_INDEX[temp.cardId] ?? card;
+  if (held && temp.cardId !== held.cardId) {
+    // The transform re-identifies the stashed body: new printed base + the bonus it had above its old one.
+    held.attack = after.attack + (held.attack - card.attack);
+    held.health = after.health + (held.health - card.health);
+    held.cardId = temp.cardId;
+    held.tribe = temp.tribe;
+  }
   offer.cardId = temp.cardId;
-  offer.atk = temp.attack - after.attack;
-  offer.hp = temp.health - after.health;
-  offer.keywords = temp.keywords.filter((k) => !after.keywords.includes(k)); // keep only the keywords the spell added
+  const atk = temp.attack - (held ? held.attack : after.attack);
+  const hp = temp.health - (held ? held.health : after.health);
+  // The spell's own share of the change: the total delta minus whatever its factories already ledgered on the
+  // offer during the cast. Written through `addOfferBuff` so it lands under the spell's name and the totals end
+  // exactly at `atk`/`hp`.
+  const now = ledgerSum(offer);
+  const spellA = (atk - pre.atk) - (now.a - pre.a);
+  const spellH = (hp - pre.hp) - (now.h - pre.h);
+  offer.atk = atk - spellA;
+  offer.hp = hp - spellH;
+  addOfferBuff(offer, spellDef.name, spellA, spellH);
+  // Keep only the keywords the spell ADDED (a held body's own keywords already live on the stash).
+  offer.keywords = temp.keywords.filter((k) => !after.keywords.includes(k) && !(held && held.keywords.includes(k)));
 }
 
 /**

@@ -52,6 +52,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Division numbers',
+    changes: [
+      { category: 'Balance', text: 'Division numbers now count up as you climb. A medal runs I, II, III instead of III, II, I.', details: [
+        'You start a medal at I and promote to II, then III, then the next medal at I. Bronze I is the floor, Ascendant III is the top.',
+        'This is a name change only. Nobody moved, your points did not change, and every promotion and demotion rule works exactly as before.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Equipment effects',
     changes: [
       { category: 'Systems', text: 'Stellar Lens and Revelmaker now play their own effect when you use them.' },

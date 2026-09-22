@@ -1463,7 +1463,7 @@ export const APPROVED_RULES: GameRule[] = [
     ],
     currentBehaviour:
       'Conforms — 2026-09-21 (PR #1611). The gate was first (2026-09-20) only across a MEDAL boundary; the owner '
-      + 'widened it to every division above Bronze III the next day. Same domain note as R-RANK-01.',
+      + 'widened it to every division above Bronze I the next day. Same domain note as R-RANK-01.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/rank.test.ts', 'packages/ui/src/lobbyRatingParity.test.ts'],
@@ -1682,6 +1682,33 @@ export const APPROVED_RULES: GameRule[] = [
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/set2Dragons.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-RANK-03',
+    title: 'Ranked: the division numerals ascend with the climb',
+    statement:
+      'Within a medal the divisions read I, II, III from lowest to highest, so a player climbs Bronze I to '
+      + 'Bronze II to Bronze III and then Silver I. The stored division INDEX is unchanged by this: 0 is still '
+      + 'the floor and 17 still the top, and nothing compares, settles, promotes or demotes by the numeral. The '
+      + 'numeral is a label derived from the index, and every surface derives it from the one helper.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (ranked numerals)', quote: 'change the ranks to 1->2->3 instead of 3->2->1' },
+      { kind: 'fix-pr', ref: 'Rank numerals ascending — packages/sim/src/rank.ts divisionTierOf, packages/ui/src/rank/types.ts DIVISION_NUMERALS' },
+    ],
+    currentBehaviour:
+      'Conforms — 2026-09-22. The flip is display-only and lives in two places: divisionTierOf now returns '
+      + '(index % divisionsPerMedal) + 1 instead of divisionsPerMedal - (index % divisionsPerMedal), and the UI '
+      + 'numeral plate table is reversed to match. Because no rule reads the numeral, the server copies needed no '
+      + 'change: settle_rank and the Edge Function mirror move indexes, and stored profiles keep the index they '
+      + 'had, so nothing was migrated and no player moved. The rank suites assert the new labels at both ends '
+      + '(index 0 is Bronze I, index 17 is Ascendant III) while every settlement fixture keeps its old indexes.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/rank.test.ts', 'packages/ui/src/rank/rankFormat.test.ts'],
       lastVerifiedAt: '2026-09-22',
     },
   },

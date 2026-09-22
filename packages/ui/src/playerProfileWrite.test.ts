@@ -21,7 +21,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
  * profile row's display columns travel here, the rank settles through `submitRating` → `settle_rank` on its
  * OWN durable path (`rank/rankSubmission.ts`). This write must therefore carry NO ladder column at all — the
  * medal RLS policy rejects an update that changes `rating` or any `rank_*` column, and an insert with
- * anything but the Bronze III placeholder.
+ * anything but the Bronze I placeholder.
  *
  * These tests drive a fake Supabase client, so they pin the SHAPE of the calls: what a real Postgres would
  * accept or reject is the thing under test, and it is decided entirely by which columns we send.
@@ -110,7 +110,7 @@ describe('writing a player profile', () => {
     for (const col of RANK_COLUMNS) expect(Object.keys(update!.payload), col).not.toContain(col);
   });
 
-  it('inserts a rating-0 / Bronze III PLACEHOLDER when there is no row — the server fills the real values', async () => {
+  it('inserts a rating-0 / Bronze I PLACEHOLDER when there is no row — the server fills the real values', async () => {
     existingRows = []; // no profile yet
     await (await load())(lobby);
     const insert = calls.find((c) => c.op === 'insert');

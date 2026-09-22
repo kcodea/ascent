@@ -1100,7 +1100,7 @@ export async function uploadPlayerProfile(p: {
     // The RLS policy rejects any change to `rating` / the `rank_*` columns on a row UPDATE (its `with check`
     // requires them to equal the stored values), so the display columns and the ladder travel by DIFFERENT
     // doors. Here we write ONLY the display columns; the ladder moves through `submitRating` → the
-    // `settle_rank` transaction. A brand-new row gets a rating-0 / Bronze III PLACEHOLDER (the insert policy
+    // `settle_rank` transaction. A brand-new row gets a rating-0 / Bronze I PLACEHOLDER (the insert policy
     // requires exactly that) and the server fills in the real values. (History: a single `upsert()` sent
     // rating on every write and, once it moved, Postgres rejected the WHOLE row — freezing games_played/author
     // at run one, the "1 game for four runs" report 2026-08-04. Split writes fixed that; medals remove the
@@ -1132,7 +1132,7 @@ export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
   try {
     // Only RANKED players — a profile with zero finished games hasn't earned a slot (and a stray 0-game
     // ghost row shouldn't clutter the board). Defensive alongside `claimHandle` no longer minting them.
-    // MEDALS: order by division, then points (the scalar `rating` ties Gold II 100 with Gold I 0 — the
+    // MEDALS: order by division, then points (the scalar `rating` ties Gold II 100 with Gold III 0 — the
     // promoted player must rank above the one still waiting at the gate); games-played breaks the rest.
     // A pre-migration table has no rank columns → that query errors → fall back to the legacy ordering.
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));

@@ -56,10 +56,10 @@ export interface RankOutcome {
 export const rankScalar = (p: RankPosition): number => RANK_DIVISION_POINTS * p.divisionIndex + p.points;
 
 /** The STORED demotion-gate flag (absent = false): armed only by a loss that lands on 0 in any division above
- *  Bronze III (owner 2026-09-20, widened to every division 2026-09-21); cleared by any non-negative result;
+ *  Bronze I (owner 2026-09-20, widened to every division 2026-09-21); cleared by any non-negative result;
  *  never set by a promotion landing. */
 export const isDemotionReady = (p: RankPosition): boolean => p.demotionReady === true;
-/** Every division above Bronze III has a demotion gate (there are no instant demotions). */
+/** Every division above Bronze I has a demotion gate (there are no instant demotions). */
 const hasDemotionGate = (d: number): boolean => d > 0 && d <= RANK_TOP_DIVISION;
 
 /** True for a placement the ladder accepts (an integer 1–8). */
@@ -72,11 +72,11 @@ export const isValidPlacement = (p: unknown): p is number =>
  *     (10/100) of the next division; a positive award short of a MEDAL gate holds at 100; a negative award
  *     applies from 100.
  *   • at an ARMED demotion gate (`before.demotionReady`): a bottom-4 demotes ONE division to the previous
- *     division at `100 + award` (across a medal boundary, the previous medal's I); a top-4 escapes with its
+ *     division at `100 + award` (across a medal boundary, the previous medal's III); a top-4 escapes with its
  *     award from 0 (and disarms).
  *   • otherwise add the award: a LOSS landing on 0 (by clamp or exact subtraction) in ANY division above
- *     Bronze III clamps at 0 and ARMS the gate — there are no instant demotions (owner 2026-09-21); Bronze III
- *     floors at 0; Ascendant I is uncapped upward; elsewhere ≥ 100 → exactly 100 + promotion unlocked. A
+ *     Bronze I clamps at 0 and ARMS the gate — there are no instant demotions (owner 2026-09-21); Bronze I
+ *     floors at 0; Ascendant III is uncapped upward; elsewhere ≥ 100 → exactly 100 + promotion unlocked. A
  *     promotion landing is never armed.
  */
 export function resolveRankOutcome(before: RankPosition, placement: number): RankOutcome {
@@ -99,8 +99,8 @@ export function resolveRankOutcome(before: RankPosition, placement: number): Ran
     if (delta < 0 && pts <= 0 && hasDemotionGate(start.divisionIndex)) {
       return { divisionIndex: start.divisionIndex, points: 0, demotionReady: true }; // a loss lands on 0 → ARMED (no instant demotion)
     }
-    if (pts < 0) return { divisionIndex: 0, points: 0, demotionReady: false };        // Bronze III floor, no gate
-    if (start.divisionIndex === top) return { divisionIndex: top, points: pts, demotionReady: false }; // Ascendant I: uncapped
+    if (pts < 0) return { divisionIndex: 0, points: 0, demotionReady: false };        // Bronze I floor, no gate
+    if (start.divisionIndex === top) return { divisionIndex: top, points: pts, demotionReady: false }; // Ascendant III: uncapped
     if (pts >= cap) { promotionUnlocked = true; return { divisionIndex: start.divisionIndex, points: cap, demotionReady: false }; }
     return { divisionIndex: start.divisionIndex, points: pts, demotionReady: false };
   };

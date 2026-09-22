@@ -136,10 +136,14 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   'EquipFxTuner.tsx': 1,
   // SIX since 2026-09-01: the `buffedOn` fan-out is a sixth `playDef(binding.def, …)`, playing ON each buffed
   // unit rather than travelling to it (Dragonflame). Same binding path, one more anchor convention.
+  // +1 on 2026-09-01: the `shoutFx` cue plays a `shout`-kind binding per re-fire proc.
   // EIGHT since 2026-09-21: the `pummelFx` cue plays a `pummelTrigger`-kind binding (the owner's
   // `pummel-trigger`) per damage-meter crossing, resolved per EVENT like `rallyFx`/`shoutFx` — see
   // `channels/pummelFired.ts`. Same binding path; not a direct call.
-  'choreo/score.ts': 8, // +1 on 2026-09-01: the `shoutFx` cue plays a `shout`-kind binding per re-fire proc
+  // NINE since 2026-09-21: `playCardMechanic` — ONE `playDef(binding.def, …)` shared by the `startOfCombatFx`
+  // and `avengeFx` scan channels (the By-card binder's "On Start of Combat" / "On Avenge" cues), resolving
+  // `bindingFor(cardId, 'startOfCombat'|'avenge')` per acting card. One helper, one play, both channels.
+  'choreo/score.ts': 9,
   // The shop's binding path, the recruit-phase twin of score.ts's. Six `playDef(binding.def, …)`: the
   // per-card cascade (`fireLand`), the shop-gem volley's single spanning play (`runShopRubiedSpan`), the
   // shop-wide buff aura's single camera-anchored play (`runShopBuffAllFire`), the `spellCast` cast-FX

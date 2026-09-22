@@ -46,6 +46,21 @@ export const STAT_MILESTONE_BINDING_KINDS: readonly StatMilestoneBindingKind[] =
 export type WatcherBindingKind = 'watcher';
 export const WATCHER_BINDING_KINDS: readonly WatcherBindingKind[] = ['watcher'];
 
+/**
+ * A per-card COMBAT MECHANIC binding kind fired by a dedicated SCAN CHANNEL in `score.ts`, not by a moment's
+ * own kind — the By-card binder's "On Start of Combat" / "On Avenge" slots.
+ *
+ * Its own family, like `WatcherBindingKind`, for the same reason: neither is a `MomentKind` (no `SCORE_DEFAULTS`
+ * row) and neither is a `RecruitMomentKind` (no `recruitMoments.ts` emitter). They exist because the effect that
+ * produces them scatters across whatever kind its consequence lands in — a Start-of-Combat cast is a `scCast`,
+ * a SoC summon is a `summon`, an Avenge payoff is a `summon`/`buff`/`toHand`/… — so a binding reached through
+ * the primary event's kind could never name "this card's Start of Combat" as one slot. The score's
+ * `startOfCombatFx` / `avengeFx` channels scan the moment's events for the simulator's own `key`/`avenge`
+ * stamps instead (see the header on those channels), exactly as `rallyFx`/`shoutFx` scan for their events.
+ */
+export type CombatMechanicBindingKind = 'startOfCombat' | 'avenge';
+export const COMBAT_MECHANIC_BINDING_KINDS: readonly CombatMechanicBindingKind[] = ['startOfCombat', 'avenge'];
+
 /** The binding kind for a milestone tier (1..5). Clamped so an out-of-range tier resolves to a real key. */
 export function statMilestoneKind(tier: number): StatMilestoneBindingKind {
   const n = Math.min(STAT_MILESTONE_BINDING_KINDS.length, Math.max(1, Math.round(tier)));
@@ -62,7 +77,7 @@ export function statMilestoneKind(tier: number): StatMilestoneBindingKind {
  * A shop kind has no combat cues and never should, and widening would have forced a meaningless row per
  * kind and made the exhaustive-score test lie.
  */
-export type BindingKind = MomentKind | RecruitMomentKind | HudBindingKind | StatMilestoneBindingKind | WatcherBindingKind;
+export type BindingKind = MomentKind | RecruitMomentKind | HudBindingKind | StatMilestoneBindingKind | WatcherBindingKind | CombatMechanicBindingKind;
 import rawBindings from './bindings.json';
 
 /**

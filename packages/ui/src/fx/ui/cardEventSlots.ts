@@ -10,6 +10,9 @@ const hasKeyword = (card: FxCardRow, kw: string): boolean =>
 const hasEffectOn = (card: FxCardRow, on: string): boolean =>
   CARD_INDEX[card.cardId]?.effects?.some((e) => e.on === on) ?? false;
 
+/** True when the card OFFERS a Choose One (a `chooseOne` branch array), minion or spell. */
+const hasChooseOne = (card: FxCardRow): boolean => (CARD_INDEX[card.cardId]?.chooseOne?.length ?? 0) > 0;
+
 /**
  * The BINDABLE CARD EVENTS the "By card" library lens exposes — one assignable effect/sound slot per event.
  *
@@ -67,5 +70,37 @@ export const CARD_EVENT_SLOTS: readonly CardEventSlot[] = [
     // its OWN attack). The combat `watcher-pulse` detection (`useCombatReplay`) fires `bindingFor(cardId,
     // 'watcher')` on each reacting unit, so the row is keyed to that.
     kindFor: (card) => (!card.spell && hasEffectOn(card, 'onAttack') && !hasKeyword(card, 'RL') ? 'watcher' : null),
+  },
+  {
+    id: 'startOfCombat',
+    label: 'On Start of Combat',
+    blurb: 'Plays when this minion’s Start of Combat effect fires, at the start of a fight. Start-of-Combat minions only.',
+    // A `startOfCombat` effect. The combat score’s `startOfCombatFx` channel scans the fight for this card’s
+    // Start-of-Combat events and plays `bindingFor(cardId, 'startOfCombat')` on it, whatever the effect does.
+    kindFor: (card) => (hasEffectOn(card, 'startOfCombat') ? 'startOfCombat' : null),
+  },
+  {
+    id: 'endOfTurn',
+    label: 'On End of Turn',
+    blurb: 'Plays when this minion’s End of Turn effect fires in the shop. End-of-Turn minions only.',
+    // An `endOfTurn` effect. Fired in the recruit phase from the End-of-Turn beat player, keyed by this card
+    // (see `endOfTurnMoment`). It is the TRIGGER flourish; a buff it hands other minions rides its own cue.
+    kindFor: (card) => (hasEffectOn(card, 'endOfTurn') ? 'endOfTurn' : null),
+  },
+  {
+    id: 'avenge',
+    label: 'On Avenge',
+    blurb: 'Plays when this minion’s Avenge triggers in combat — only when it completes (Avenge 3 fires on the 3rd friendly death). Avenge minions only.',
+    // An `avenge` effect. The combat score’s `avengeFx` channel scans for this card’s Avenge payoff events —
+    // which the simulator emits only when the Avenge count is met — and plays `bindingFor(cardId, 'avenge')`.
+    kindFor: (card) => (hasEffectOn(card, 'avenge') ? 'avenge' : null),
+  },
+  {
+    id: 'chooseOne',
+    label: 'On Choose One',
+    blurb: 'Plays when you pick a branch of this Choose One card. Choose One cards only.',
+    // A `chooseOne` card. Fired in the recruit phase as the branch is picked, keyed by this card (see
+    // `chooseOneMoment`). Distinct from On Play, which also fires as the card lands.
+    kindFor: (card) => (hasChooseOne(card) ? 'chooseOne' : null),
   },
 ];

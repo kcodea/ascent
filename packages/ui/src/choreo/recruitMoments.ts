@@ -95,9 +95,23 @@ export type RecruitMomentKind =
    * by a board-diff intersected with the PREVIOUS frame's hand uids (a played card keeps its uid moving
    * hand→board), so tokens and Triple-merges — never in hand — are excluded. Recipient IS the source, keyed
    * by its card id so each played minion resolves its OWN binding (the by-card play cue). */
-  | 'minionPlayed';
+  | 'minionPlayed'
+  /**
+   * A minion's OWN End of Turn effect fired in the shop (the By-card binder's "On End of Turn" slot). Fired
+   * once per End-of-Turn card as its beat activates — the recipient IS the source, keyed by its card id so
+   * each resolves its own binding, exactly like `shout`/`minionPlayed`. Distinct from the CONSEQUENCE cues an
+   * End of Turn can also raise (a Kringle buffing Dwarves still fires `minionBuffed` on the recipients): this
+   * is the trigger flourish ON the card whose End of Turn went off. Emitted from `Recruit.tsx`'s authoritative
+   * End-of-Turn beat player (`onBeatActivate`, gated `beat.family === 'endOfTurn'`), not a counter. */
+  | 'endOfTurn'
+  /**
+   * A Choose One card's branch was PICKED in the shop (the By-card binder's "On Choose One" slot). Fired at the
+   * choice-dispatch site for a MINION Choose One, keyed by the choosing card so each resolves its own binding.
+   * The recipient is the previewed body. Distinct from `minionPlayed` (which also fires as the card lands): this
+   * is the moment the player commits the choice. Emitted from `Recruit.tsx`'s Choose One prompt, not a counter. */
+  | 'chooseOne';
 
-export const RECRUIT_MOMENT_KINDS: readonly RecruitMomentKind[] = ['rubyLanded', 'shopRubied', 'shopBuffAll', 'minionBuffed', 'minionSelfBuffed', 'shout', 'spellCast', 'shieldGain', 'minionPlayed'];
+export const RECRUIT_MOMENT_KINDS: readonly RecruitMomentKind[] = ['rubyLanded', 'shopRubied', 'shopBuffAll', 'minionBuffed', 'minionSelfBuffed', 'shout', 'spellCast', 'shieldGain', 'minionPlayed', 'endOfTurn', 'chooseOne'];
 
 /**
  * A `shout` moment, built here rather than inline at the call site so the kind has a NAMED emitter in this
@@ -133,6 +147,26 @@ export function selfBuffMoment(uid: string, cardId: string): RecruitMoment {
  */
 export function minionPlayedMoment(uid: string, cardId: string): RecruitMoment {
   return { kind: 'minionPlayed', sourceCardId: cardId, recipients: [{ uid, count: 1 }] };
+}
+
+/**
+ * An `endOfTurn` moment — a minion whose OWN End of Turn effect just fired in the shop. Same shape as
+ * `shoutMoment` (recipient IS the source, keyed by its card so each resolves its OWN binding), emitted from
+ * `Recruit.tsx`'s authoritative End-of-Turn beat player as each End-of-Turn beat activates — a beat diff, not
+ * a counter, so it is named here to give the kind a source the `recruitMoments.test.ts` invariant can see.
+ */
+export function endOfTurnMoment(uid: string, cardId: string): RecruitMoment {
+  return { kind: 'endOfTurn', sourceCardId: cardId, recipients: [{ uid, count: 1 }] };
+}
+
+/**
+ * A `chooseOne` moment — a minion Choose One whose branch was just picked. Same shape as `shoutMoment` (the
+ * recipient IS the previewed body, keyed by the choosing card so each resolves its OWN binding), emitted from
+ * `Recruit.tsx`'s Choose One prompt at the branch-dispatch click. Named here so the kind has a source the
+ * `recruitMoments.test.ts` invariant can see.
+ */
+export function chooseOneMoment(uid: string, cardId: string): RecruitMoment {
+  return { kind: 'chooseOne', sourceCardId: cardId, recipients: [{ uid, count: 1 }] };
 }
 
 /**

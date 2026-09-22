@@ -11747,8 +11747,15 @@ export function fireStartOfCombats(state: RunState): void {
  *
  * THE single source shared by `applyEndOfTurn` (the commit), `projectEndOfTurnSteps` (the projection) and
  * `questEndOfTurnBeats` (the UI beat sequence) — the Lasting Cadence single-list rule. Chronos/Parliament
- * repeats apply (the caller multiplies); combat's SC multipliers (Twilight/Uron) do NOT — in combat they
- * multiply only the MINION SC pass, never the rune blocks, and the shop mirrors that boundary exactly.
+ * repeats apply (the caller multiplies). Uron's card-data SC multiplier does NOT — in combat it multiplies
+ * only the MINION SC pass, never the rune blocks, and the shop mirrors that. Rune of Twilight is the OPEN
+ * case: since 2026-09-21 combat's Twilight ALSO repeats the rune Start-of-Combat blocks (owner ruling, see
+ * `runRuneStartOfCombat` in simulate.ts), but this shop replay deliberately does NOT fold it yet — these
+ * replays are PERMANENT and per-turn (Underdog ×4, Warding ×9, Sylus ×4 EVERY turn under Twilight), so the
+ * fold is an explicit owner balance decision, not a silent mirror. Until ruled, the shop replays each rune
+ * block once per Prowess stack × Chronos repeat (`prowessReps`), Twilight or not. This shop/combat difference
+ * is a STATED rule in `docs/GAME-RULES.md` (Runes: "Shop vs combat under Twilight"); if the owner folds it,
+ * multiply `prowessReps` at ALL THREE `socRuneReplaysOf` consumers (commit, projection, beat list) together.
  */
 export interface SocRuneReplay {
   /** Owning content id — the badge the beat is sourced on (`procRuneId` pulses a rune's rail badge). */

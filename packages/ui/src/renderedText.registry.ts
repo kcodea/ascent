@@ -39,7 +39,8 @@ export const RENDER_EXCUSED: Readonly<Record<string, RenderExcuse>> = {
   // Han Gover (2026-09-18; Pummel keyword 2026-09-21): "Pummel (40): Get a Dwarven Ale. (Once per combat)" — the
   // printed threshold X never scales; the running damage tally is the N/40 step counter (stepProgress reads
   // `damageDealt`, the Avenge-style tracker per the owner's 2026-09-11 "trackers, not fractions in the text"
-  // ruling), on the board AND in combat, clamped at 40/40 once the Pummel fired.
+  // ruling), on the board AND in combat, printed as `total mod 40` (a lifetime tally since the carry-over ruling
+  // 2026-09-21: 47 reads 7/40, never clamped).
   dw3_hangover: { kind: 'accurate-at-any-value', why: 'no scaling number in the text; the damage meter is the damageDealt step counter (stepProgress)' },
   // Goldvein (2026-09-19): the same Pummel meter with a Gold-next-turn body — "Pummel (6): Gain 3 Gold next turn.
   // (Once per combat)"; the printed threshold never scales, the tally is the N/6 step counter.

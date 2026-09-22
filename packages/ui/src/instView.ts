@@ -334,17 +334,16 @@ export function instView(
             ascendProgress: inst.ascendProgress, eotTick: eotTickShown, goldTick: inst.goldTick, buyTick: inst.buyTick, playTick: inst.playTick, rubyCastTick: inst.rubyCastTick,
             shoutTick: inst.shoutTick, soldProgress: inst.soldProgress, grimoireCharged: live?.grimoireCharged,
             orbitTick: inst.orbitTick, // CELESTIAL Orbit (N) — the shop-phase cadence counter
-            // PUMMEL (Han Gover, Goldvein): the damage meter (N/X). A once-per-combat meter (every meter since the
-            // Pummel ruling 2026-09-21) starts each fight at 0 whatever the run card carries — the sim ignores the
-            // seed — so the shop reads 0 here too; a stale lifetime tally on an old save (a pre-Pummel Han Gover)
-            // never prints as progress it does not have. A persistent meter would read the run card.
-            damageDealt: damageMeterOf(c)?.resetEachCombat ? 0 : inst.damageDealt,
+            // PUMMEL (Han Gover, Goldvein): the LIFETIME damage meter, read straight off the run card — the shop
+            // prints progress toward the NEXT payout (`total mod X`: 47 → 7/40), the same value the next fight
+            // seeds from (carry-over ruling 2026-09-21).
+            damageDealt: inst.damageDealt,
           });
           // Normally a fresh 0/N is hidden as noise (owner ruling). Two deliberate exceptions: the Living
           // Grimoire — 0/3 is the whole point there, it's how you see the card is SPENT and how far the recharge
-          // has come (owner ask 2026-07-24) — and the PUMMEL METERS (Han Gover, Goldvein): a meter that resets
-          // every combat reads 0/X in the shop on purpose (owner 2026-09-19: Goldvein "should show 0/6" in the
-          // shop after the combat it fired in) — it advertises the threshold the next fight counts toward.
+          // has come (owner ask 2026-07-24) — and the PUMMEL METERS (Han Gover, Goldvein): 0/X is a real reading
+          // there (a fresh body, or a lifetime tally sitting exactly on a multiple of X after a payout — 40 reads
+          // 0/40), and it advertises the threshold the next fight counts toward (owner 2026-09-19).
           const showsZero = inst.cardId === 'd2_grimoire' || !!damageMeterOf(c);
           return sp && (sp.current > 0 || showsZero) ? sp : null;
         })() ?? undefined

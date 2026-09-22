@@ -1,4 +1,4 @@
-import { damageMeterOf, type BoardMinion, type CardDef, type Minion, type Side } from '../types';
+import { type BoardMinion, type CardDef, type Minion, type Side } from '../types';
 
 export type CardIndex = Record<string, CardDef>;
 
@@ -77,10 +77,10 @@ export function instantiate(
     hpGrantBonus: board.hpGrantBonus, // Sergeant: seed the Deathrattle HP-grant accrual from the run board
     ascendProgress: board.ascendProgress, // Tara: seed the ascend tally so the live tracker shows the total
     spiritTally: board.spiritTally, // Set 3 Spirits: Forest Colossus's Start of Combat reads it
-    // Pummel (Han Gover, Goldvein): a once-per-combat meter (`resetEachCombat` — every meter since 2026-09-21)
-    // starts every fight at 0 whatever the board card carries (a pre-reset snapshot, an old lifetime tally); a
-    // persistent meter would seed from the run total.
-    damageDealt: damageMeterOf(card)?.resetEachCombat ? undefined : board.damageDealt,
+    // Pummel (Han Gover, Goldvein): seed the LIFETIME damage meter from the run card (or the served snapshot), so
+    // the tally continues from where the last fight left it — carry-over ruling 2026-09-21. Only the PAYOUT is
+    // once per combat (`pummelFired`, fresh on this new instance); the count never resets.
+    damageDealt: board.damageDealt,
     soldProgress: board.soldProgress, // Runic Archivist: display-only, so the combat card reads its live count
     boardFirstSpellId: board.boardFirstSpellId, // Spell Warden: display-only
     spellProgress: board.spellProgress, // Guel: seed the per-instance spell tally for the live combat text

@@ -175,7 +175,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
       spellProgress: u.spellProgress, spiritTally: u.spiritTally, summonBonus: u.summonBonus,
       ascendProgress: u.ascendProgress, attackSeen: u.attackSeen,
       avengeSeen: u.avengeSeen, bleedAttacks: u.bleedAttacks,
-      damageDealt: u.damageDealt, // Pummel (Han Gover 40, Goldvein 6): the N/X damage meter ticks on each landed hit it deals, clamps at X/X once fired
+      damageDealt: u.damageDealt, // Pummel (Han Gover 40, Goldvein 6): the lifetime damage meter, seeded from the run card and ticking on each landed hit it deals; prints `total mod X`
       // orbitTick deliberately absent: Orbits are a shop mechanic, no combat counter (audit 2026-08-06).
     }) ?? undefined,
     // Combat: the counter fades in on each tick and fades out after ~3s (see `.stepcounter.ephemeral`).

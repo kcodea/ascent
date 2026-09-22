@@ -463,9 +463,19 @@ order as the first pass, after the whole first pass (minions and runes) for that
 board as the first pass left it: Underdog re-picks the two lowest-Attack minions (so it may choose a different
 pair), Forthcoming / First Claws strike again with the living front / end Beasts, Rebirth and Rising Graves
 skip bodies that already carry the keyword, and the Crucible destroys the NEXT three (all of them return
-together). Rune copies still multiply WITHIN a pass. Runes whose text merely mentions Start of Combat (Warden,
-Dawnclaw, Sylus) and quest / hero Start-of-Combat grants fire once. The shop's Rune of Combat Prowess replay
-does not fold Twilight into its rune replays (open owner question; see `docs/devlog/2026-09-21-twilight-rune-soc.md`).
+together). On a board of six or fewer the Crucible's second pass empties the board, so everything returns at
+once at Start of Combat and the return is spent (no later comeback); seven bodies leave one survivor and the
+six return when it dies. Rune copies still multiply WITHIN a pass. **Rune of Sylus is IN**: the ability it grants
+is printed on the Sylus as "Start of Combat: double this minion's Health", so Twilight doubles it again (×4
+Health) — a review call of 2026-09-21 pending the owner's confirmation. Runes whose text merely mentions Start
+of Combat (Warden, Dawnclaw) and quest / hero Start-of-Combat grants fire once.
+
+**Shop vs combat under Twilight (a stated rule, not a comment).** Rune of Combat Prowess replays your Start-of-
+Combat effects at End of Turn in the shop. Its MINION replays fold Twilight (one extra fire per Twilight copy,
+the shared `socTwilightExtraFires`); its RUNE replays do NOT: each rune Start-of-Combat block replays once per
+Prowess copy × Chronos repeat, Twilight or not. So Prowess + Twilight + Underdog is ×2 per turn in the shop and
+×4 in combat. The shop replays are permanent and compound every turn, so folding Twilight there is an explicit
+owner balance decision, not a silent mirror (open; see `docs/devlog/2026-09-21-twilight-rune-soc.md`).
 
 Source: `packages/sim/src/heroes.ts` (`runeforge`, `epicRuneforge`),
 `packages/content/src/runes.ts`, `packages/sim/src/runeDup.ts`.

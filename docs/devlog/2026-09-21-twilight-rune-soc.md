@@ -31,11 +31,18 @@ grep for `**Start of Combat` undercounts at 17), Food Chain, Forthcoming, Five B
 Time, Herald, Crucible, Underdog, Stoked Menagerie, Vanguard, Warding, Held Strength, Rallying, Rebirth,
 Rising Graves, First Claws.
 
+**IN — Sylus (review call, pending the owner's confirmation):** the rune's own text begins "Get a Sylus", but
+the ability it grants is printed on the minion as "Start of Combat: double this minion's Health", so a player
+holding Twilight reads it exactly as they read Underdog. The build left it OUT by the letter of the rune-text
+rule; review flagged it as the same class of report waiting to happen (Sylus + Twilight would look "broken"
+just as Underdog + Twilight did), so the fixer folded it IN: `runeSylus` fires on every pass (×4 Health),
+pinned in `twilightRuneSoc.test.ts`. It stays a rune block rather than a real granted minion effect (that
+would move its beat into the minion pass and change the no-Twilight log for every Sylus-rune fight, which the
+byte-identical contract forbids), so Uron's minion-pass multiplier still does not see it. **If the owner wants
+it OUT**, re-add `base &&` on the block, drop its `twilightPulse`, and flip the test.
+
 **OUT — rune text says something else (base pass only):** Warden ("When you have room in combat, summon a
-Spear Warden"), Dawnclaw ("Your Dawnclaws also trigger their Echo at Start of Combat"), Sylus ("Your Sylus
-gain Start of Combat: double this minion's Health" — the one open case: it GRANTS a minion Start-of-Combat
-ability but is implemented as a rune block, so Twilight's minion pass never sees it; the parity fix would be
-a real granted minion effect, out of scope), Spellhide (archived).
+Spear Warden"), Dawnclaw ("Your Dawnclaws also trigger their Echo at Start of Combat"), Spellhide (archived).
 
 **OUT — not runes:** Shared Circuit (also registers a listener), Weaken, United Front, Echoing Coop, Empty
 Graves, and the pre-loop quest/hero grants (Rulebreaker's Crown, Possession, Umbral Energy, Contract Rewrite).
@@ -47,9 +54,15 @@ Graves, and the pre-loop quest/hero grants (Rulebreaker's Crown, Possession, Umb
 - **Forthcoming** re-picks the living front; a Ward the first strike spent is granted again; nothing left to
   pick → no second trigger and no pulse. **First Claws**: the end Beasts strike again; a Beast lost on pass 1
   is not there to pick.
-- **Crucible** APPENDS to the bank (was an overwrite, which would have dropped pass 1's bodies): pass 2
-  destroys the NEXT three and all six return on the wipe. On a ≤3-body board pass 1 wipes the side, they return
-  at once, pass 2 destroys the returned bodies and they return again (the "all" ruling, stated plainly).
+- **Crucible** APPENDS to the bank (was an overwrite, which would have dropped pass 1's bodies): on a 7-body
+  board pass 2 destroys the NEXT three, one survives, and all six return when it dies. **On a board of six or
+  fewer the second pass empties the board**: pass 1 takes three, pass 2 takes whatever is left, the side is
+  empty, so the comeback fires AT Start of Combat (three `runeCrucible` triggers: pass 1, pass 2, the return)
+  and the bank is spent before the first attack; there is no later return once the enemy kills them. The rune's
+  late-fight value is gone on those boards. On a ≤3-body board pass 1 wipes the side, they return at once, pass
+  2 destroys the returned bodies and they return again. All of this is the "all" ruling stated plainly and
+  pinned for 3, 4, 5, 6 and 7 bodies. The alternative (skip the extra pass when fewer than three bodies remain)
+  is an owner call, not taken.
 - **Rebirth / Rising Graves** skip bodies that already carry the keyword, so a second body gets it; none
   eligible → no second trigger.
 - **Herald** triggers every Echo again. **Stoked Menagerie** re-checks the full house and doubles three more
@@ -62,8 +75,13 @@ Graves, and the pre-loop quest/hero grants (Rulebreaker's Crown, Possession, Umb
 ## Not changed, flagged
 
 - **Rune of Combat Prowess (shop End of Turn)** already replays the rune Start-of-Combat blocks
-  (`socRuneReplaysOf`) once per Prowess stack × Chronos repeat, WITHOUT a Twilight fold. Its header comment
-  claimed this mirrored combat; it no longer does, and the comment now says so. Folding Twilight there would
-  compound Underdog ×4 / Warding ×9 / Sylus ×4 PERMANENTLY every turn — an owner balance call, not shipped.
+  (`socRuneReplaysOf`) once per Prowess stack × Chronos repeat, WITHOUT a Twilight fold, while its MINION
+  replays (`runeCombatProwessBeats`) DO fold Twilight. Its header comment claimed the rune replays mirrored
+  combat; they no longer do, and the comment now says so. So Prowess + Twilight + Underdog is ×4 in combat and
+  ×2 per turn in the shop. Folding Twilight there would compound Underdog ×4 / Warding ×9 / Sylus ×4
+  PERMANENTLY every turn — an owner balance call, not shipped; the difference is now a STATED rule in
+  `docs/GAME-RULES.md` ("Shop vs combat under Twilight"). If folded, multiply `prowessReps` at all three
+  `socRuneReplaysOf` consumers (commit, projection, beat list) so they cannot drift. Pre-existing drift noted:
+  `applyEndOfTurn` multiplies rune replays by Prowess stacks; the projection and beat list do not.
 - **Uron** ("Start of Combats trigger 1 more time", card data) still multiplies only the minion pass.
-- **Rune of Sylus** membership (above).
+- **Rune of Sylus** is IN as a review call (above); the owner may reverse it.

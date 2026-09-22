@@ -3693,10 +3693,11 @@ export function simulate(
   // passes 1..N are Twilight's extra fires, run AFTER the whole base pass for the side so a no-Twilight log is
   // byte-identical and every second-pass block reads the board the first pass left (Underdog re-sorts by the
   // doubled Attack, Forthcoming re-picks the living front, Rebirth skips the body it already marked).
-  // MEMBERSHIP IS BY PRINTED TEXT: a rune whose text begins "Start of Combat:" fires on every pass; a block that
-  // merely RUNS here (Warden's room summon, Dawnclaw's + Sylus's granted minion abilities, Shared Circuit's
-  // listener, the spell marks, the quest and hero grants) is gated to the base pass. Same block order on every
-  // pass; `flagCopiesOf` multiplies WITHIN a pass — Twilight multiplies passes, copies multiply within a pass.
+  // MEMBERSHIP IS BY PRINTED TEXT: a rune whose text begins "Start of Combat:" fires on every pass, and so does
+  // Sylus (the ability it GRANTS is printed "Start of Combat:"); a block that merely RUNS here (Warden's room
+  // summon, Dawnclaw's granted Echo, Shared Circuit's listener, the spell marks, the quest and hero grants) is
+  // gated to the base pass. Same block order on every pass; `flagCopiesOf` multiplies WITHIN a pass — Twilight
+  // multiplies passes, copies multiply within a pass.
   // Rune of First Claws runs its own passes at its later site (after the Avenge / Inheritance listeners exist).
   /** Rune of Twilight's ONE badge pulse per side, on the beat of its FIRST extra effect — minion or rune. */
   const twilightFired: Record<Side, boolean> = { player: false, enemy: false };
@@ -3988,12 +3989,14 @@ export function simulate(
         }, m);
       }
     }
-    // Rune of Sylus: your Sylus double their own Health at Start of Combat. Base pass only: the rune's text begins
-    // "Get a Sylus", and the ability it grants lives here as a rune block rather than as a minion effect (the
-    // one case the printed-text rule leaves open — see the 2026-09-21 devlog).
-    if (base && rmods.runeSylus) {
+    // Rune of Sylus: your Sylus double their own Health at Start of Combat. EVERY pass (review call 2026-09-21,
+    // pending the owner's confirmation): the ability the rune grants is printed on the Sylus as "Start of
+    // Combat: double this minion's Health", so Twilight's "your Start-of-Combat effects trigger an additional
+    // time" reaches it exactly as it reaches Underdog. It lives here as a rune block rather than as a granted
+    // minion effect (so Uron's minion-pass multiplier still does not see it — see the 2026-09-21 devlog).
+    if (rmods.runeSylus) {
       for (const m of boards[rside].filter((x) => !x.dead && x.health > 0 && x.cardId === 'sylus')) {
-        nextStep(); fireTrigger('runeSylus', rside);
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeSylus', rside);
         ctx.buff(m, 0, m.health, m.uid);
       }
     }

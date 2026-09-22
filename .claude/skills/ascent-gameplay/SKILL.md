@@ -70,11 +70,12 @@ boundary — if both the caller and the resolver multiply, the effect fires twic
 
 Rune of Twilight (`socTwilightExtraFires`) multiplies BOTH halves of combat's Start of Combat: the minion pass
 and the rune pass (`runRuneStartOfCombat` in `simulate.ts`, owner ruling 2026-09-21). Membership of the rune
-pass is by PRINTED TEXT — a rune whose text begins "Start of Combat:" repeats; a block that merely runs at
-Start of Combat (Warden, Dawnclaw, Sylus, quest and hero grants, spell marks) fires once. A new SoC rune
-gets a `twilightPulse(rside, pass)` call after its `nextStep()`; a new non-SoC block goes behind `base`. The
-shop's Combat Prowess replay does NOT fold Twilight into its rune replays (an open owner question, see
-`socRuneReplaysOf`).
+pass is by PRINTED TEXT — a rune whose text begins "Start of Combat:" repeats, and so does a rune whose GRANTED
+minion ability is printed "Start of Combat:" (Sylus, review call 2026-09-21 pending owner confirmation); a block
+that merely runs at Start of Combat (Warden, Dawnclaw, quest and hero grants, spell marks) fires once. A new SoC
+rune gets a `twilightPulse(rside, pass)` call after its `nextStep()`; a new non-SoC block goes behind `base`.
+The shop's Combat Prowess replay folds Twilight into its MINION replays only, never its rune replays
+(`socRuneReplaysOf`; stated in GAME-RULES, an open owner balance question).
 
 ## Workflow
 

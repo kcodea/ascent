@@ -167,6 +167,19 @@ describe('Rune of Twilight repeats RUNE Start-of-Combat effects (owner ruling 20
     expect(r.events.filter((ev) => ev.type === 'summon' && ev.side === 'player')).toHaveLength(6); // the bank is spent: no third return
   });
 
+  it('Crucible on a 4-to-6 body board: the second pass empties the board, EVERYTHING returns at once and the bank is spent', () => {
+    // Stated plainly (review 2026-09-21): pass 1 takes three, pass 2 takes whatever is left, the side is empty, so
+    // the comeback fires at Start of Combat and there is no later return once the enemy kills them.
+    for (const n of [4, 5, 6]) {
+      const r = sim(Array.from({ length: n }, () => v(2, 3)), [{ cardId: 'omen', attack: 40, health: 4000 }], 2, { runeTwilight: true, runeCrucible: 3 });
+      const soc = beforeFirstAttack(r);
+      expect(triggers(r, 'runeCrucible')).toHaveLength(3); // pass 1, pass 2, the wipe-return
+      expect(soc.filter((ev) => ev.type === 'death' && ev.side === 'player')).toHaveLength(n);
+      expect(soc.filter((ev) => ev.type === 'summon' && ev.side === 'player')).toHaveLength(n);
+      expect(r.events.filter((ev) => ev.type === 'summon' && ev.side === 'player')).toHaveLength(n); // no later return
+    }
+  });
+
   it('Rebirth: the second grant lands on a body that does not already carry Rebirth; none left means no second trigger', () => {
     const two = sim([v(3, 4), v(3, 4)], [v(5, 400)], 1, { runeTwilight: true, runeRebirth: true });
     const rb = two.events.filter((ev) => ev.type === 'keyword' && ev.keyword === 'RB');
@@ -226,12 +239,26 @@ describe('Rune of Twilight repeats RUNE Start-of-Combat effects (owner ruling 20
     expect(g.events.filter((ev) => ev.type === 'shieldUp')).toHaveLength(3); // one Ward each, granted once
   });
 
-  it('runes whose text does NOT begin "Start of Combat:" fire once: Warden, Sylus, Dawnclaw', () => {
+  it("Sylus: the granted 'Start of Combat: double this minion's Health' fires again (x4 Health, two runeSylus triggers)", () => {
+    // Review call 2026-09-21 (pending the owner's confirmation): the rune's own text begins "Get a Sylus", but the
+    // ability it grants is printed on the minion as a Start-of-Combat effect, the exact shape of the Underdog report.
+    const r = sim([v(1, 7, 'sylus')], wall, 1, { runeTwilight: true, runeSylus: true });
+    expect(triggers(r, 'runeSylus')).toHaveLength(2);
+    const sylus = r.initial.player[0]!;
+    const buffs = r.events.flatMap((ev) => (ev.type === 'buff' && ev.target === sylus.uid ? [[ev.attack, ev.health]] : []));
+    expect(buffs).toEqual([[0, 7], [0, 14]]); // 7 -> 14 -> 28: each pass doubles the CURRENT Health
+    expect(triggers(r, 'runeTwilight')).toHaveLength(1);
+    expect(stepOf(triggers(r, 'runeTwilight')[0])).toBe(stepOf(triggers(r, 'runeSylus')[1]));
+    // Without Twilight: once, and the log is the base pass alone.
+    const one = sim([v(1, 7, 'sylus')], wall, 1, { runeSylus: true });
+    expect(triggers(one, 'runeSylus')).toHaveLength(1);
+    expect(one.events.filter((ev) => ev.type === 'buff' && ev.target === one.initial.player[0]!.uid)).toHaveLength(1);
+  });
+
+  it('runes whose text does NOT begin "Start of Combat:" fire once: Warden, Dawnclaw', () => {
     const w = sim([v(2, 2)], wall, 1, { runeTwilight: true, runeWarden: true });
     expect(triggers(w, 'runeWarden')).toHaveLength(1);
     expect(w.events.filter((ev) => ev.type === 'summon' && ev.minion?.cardId === 'knit')).toHaveLength(1);
-    const s = sim([v(2, 2, 'sylus')], wall, 1, { runeTwilight: true, runeSylus: true });
-    expect(triggers(s, 'runeSylus')).toHaveLength(1);
     const d = sim([v(2, 2, 'b2_dawnclaw'), v(2, 2)], wall, 1, { runeTwilight: true, runeDawnclaw: true });
     expect(triggers(d, 'runeDawnclaw')).toHaveLength(1);
   });

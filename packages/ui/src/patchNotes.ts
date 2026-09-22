@@ -52,6 +52,33 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-21',
+    label: 'Displaced minions keep Shop buffs',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'A minion swapped into the Shop by Darah now keeps any Shop buff it gets there, such as Veinstorm Rubies, when it comes back to your board.',
+        details: [
+          'Before this, a buff landing on the swapped minion while it sat in the Shop was lost when you bought it back or swapped it home. Only a Golden Touch carried over.',
+          'Every Shop buff now rides back under its own name: Veinstorm Rubies stay Rubies, so Ruby Transfer and cards that count Rubies see them.',
+          'The swapped minion in the Shop now shows the buffed stats in green, and its inspect view lists the buffs it picked up there.',
+          'The Displacement spell works the same way.',
+          'Lasso, Whiplass-o, Deep Delve Writ, Ironclad Requisition and Buyout now return the swapped minion whole too, with all of its stats and buffs, instead of a fresh copy.',
+          'A Shop spell aimed at the swapped minion now acts on its real stats. Perfect Vision sets it to 20/20 and Turnabout swaps its own Attack and Health.',
+          'Ruby Transfer now takes every Ruby the swapped minion shows, its own and the ones it picked up in the Shop, so the number on the card is what the spell steals.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'A Shop spell cast on a Shop minion that already has a buff, such as Shatter after Veinstorm, now pays both when you buy it.',
+        details: [
+          'Before this, the card showed both buffs but only the first one came with the purchase. The inspect view now names the spell next to the other buffs.',
+          'A Shop minion Darah swaps onto your board keeps its buffs under their own names as well, so its Rubies count as Rubies.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-21',
     label: 'Twilight repeats rune effects',
     changes: [
       {

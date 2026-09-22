@@ -20,7 +20,7 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale } from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale } from './recruit';
 import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
@@ -1017,10 +1017,15 @@ export function reduce(state: RunState, action: Action): RunState {
       // excluded here — otherwise a gemmed offer would fire both. A lone Ruby dragged onto an offer is NOT in
       // this set (it never went through `stampVeinstormRubies`) and so still lands as an ordinary gem.
       const veinstormUids = new Set(next.veinstormStamped?.uids ?? []);
+      // A body SWAPPED IN this action (Darah's Displace / the Displacement spell) lands under a fresh uid with
+      // no `before` entry, carrying Rubies it already had — a displaced body's own, and the Veinstorm stamp the
+      // offer accrued (which already played the shop-gem span over the offer). Those are a carry, not a landing;
+      // the swap-arrows FX is its arrival beat. Same double-play class as the hand seeding above.
+      const swappedIn = next.swapFxSeq !== state.swapFxSeq ? next.swapFxBoardUid : undefined;
       // The DELTA, not the total — a minion already carrying Rubies from earlier this turn must report only
       // the ones that just arrived.
       const landed = (c: { uid: string; buffs?: { source: string; count: number }[] }): void => {
-        if (veinstormUids.has(c.uid)) return;
+        if (veinstormUids.has(c.uid) || c.uid === swappedIn) return;
         const n = rubyCountOf(c) - (before.get(c.uid) ?? 0);
         if (n > 0) rubyLanded.push({ uid: c.uid, count: n });
       };
@@ -1492,13 +1497,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         spendGold(s, heldCost);
         s.shop.splice(i, 1);
         ciaBuyEnchanted(s, offer); // Croupier Ayse: an Enchanted buy advances her prize counter
-        // Clone the mutable arrays so the re-bought minion doesn't SHARE keywords/buffs with its held copy.
-        const restored: BoardCard = { ...offer.held, uid: `b${s.uidSeq++}`, keywords: [...offer.held.keywords], buffs: offer.held.buffs ? [...offer.held.buffs] : undefined };
-        // A HELD offer that was GILDED in the tavern must come back golden (owner bug report 2026-07-29: Golden
-        // Touch appeared to do nothing on a displaced minion). This branch restores `held` verbatim and never
-        // read `offer.golden`, so the gild was silently discarded — it looked tier-related because displacement
-        // is how a high-tier minion tends to end up in the shop, but it affected every displaced minion.
-        if (offer.golden && !restored.golden) gildMinion(restored);
+        // The held body comes back intact PLUS every buff the offer accrued in the Shop (Veinstorm Rubies,
+        // Fortify, …) and a Golden Touch re-gild — `restoreHeldOffer`, the one fold shared with the swap-back
+        // path (owner bug report 2026-09-21: Veinstorm on a displaced Chimerus "did not buff it").
+        const restored: BoardCard = restoreHeldOffer(s, offer);
         s.hand.push(restored);
         drakkoQuestBuy(s, card); // a paid buy still progresses Drakko's quest (it used to be skipped)
         chronosQuestBuy(s, card); // …and Chronos's End-of-Turn quest
@@ -1570,9 +1572,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         ...(offer.sellZero ? { sellOverride: 0 } : {}), // Rune of the Bargain Bin: bought from the bin → sells for 0
       };
       // Tavern buffs on the offer (Apples / Fortify / Fried Circuits / next-shop) bake in under their REAL
-      // source names, not a blanket "Fortify"; fall back to a generic label for any legacy offer with no breakdown.
-      if (offer.buffs?.length) for (const b of offer.buffs) addBuff(bought, b.source, b.attack, b.health, b.count);
-      else addBuff(bought, 'Tavern buff', offer.atk ?? 0, offer.hp ?? 0);
+      // source names, not a blanket "Fortify"; whatever `atk`/`hp` carry beyond the ledger (a legacy offer with
+      // no breakdown) lands under a generic label, so the buy always pays what the row advertised
+      // (`foldOfferBuffs`, the one fold every Shop exit shares).
+      foldOfferBuffs(bought, offer);
       const buyAuraHp = buyHealthAura(s, card); // Scrap Herald: Magnetic minions also carry a Health aura
       if (buyAura > 0 || buyAuraHp > 0) addBuff(bought, 'Tribe Bond', buyAura, buyAuraHp);
       // Staff of Guel — the run-wide "every minion you buy" buff bakes in too (tavern purchases only).
@@ -3119,6 +3122,9 @@ function reduceCore(state: RunState, action: Action): RunState {
           const def = CARD_INDEX[offer.cardId];
           if (!def || offer.starform) continue; // the Starform is never bought into hand (rule 5) — it stays
           if (s.hand.length >= handCap(s)) { returnToPool(s, offer.cardId); continue; }
+          // A displaced (held) body comes back WHOLE — its own ledger, progression and what it accrued in the
+          // row — the same restore the re-buy performs, never a fresh base body.
+          if (offer.held) { s.hand.push(restoreHeldOffer(s, offer)); continue; }
           s.hand.push({
             uid: `b${s.uidSeq++}`, cardId: def.id, tribe: def.tribe,
             ...conjuredStats(s, def, cardBuff(s, def.id)),
@@ -3135,6 +3141,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             const d = CARD_INDEX[offer.cardId];
             if (!d || offer.starform) continue; // (rule 5) the Starform stays
             if (s.hand.length >= handCap(s)) { returnToPool(s, offer.cardId); continue; }
+            if (offer.held) { s.hand.push(restoreHeldOffer(s, offer)); continue; } // (a Layaway-kept held offer survives the roll)
             s.hand.push({
               uid: `b${s.uidSeq++}`, cardId: d.id, tribe: d.tribe,
               ...conjuredStats(s, d, cardBuff(s, d.id)),

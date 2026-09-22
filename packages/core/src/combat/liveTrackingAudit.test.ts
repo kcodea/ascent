@@ -21,8 +21,8 @@ import path from 'node:path';
 /** Carry-backs with a LIVE in-fight signal, and what carries them. */
 const LIVE: Record<string, string> = {
   playerSpellsCast: "the 'spellcast' event → combatSpellCastPreview (Yirin's Attunement ticks live)",
-  playerSpellEscalationGain: "the '<spell> improves +A/+H' sc narration → combatEscalationPreview",
-  playerSpellPower: "the '+A/+H Spell Power' sc narration → spellPower flourish + hand-spell pop",
+  playerSpellEscalationGain: "the '<spell> improves +A/+H' sc narration → combatEscalationPreview → the …Live text accessors (liveSpellTextInCombat.test.ts)",
+  playerSpellPower: "the '+A/+H Spell Power' sc narration → spellPower flourish + hand-spell pop, and combatBuffDelta's fold → combatSpellPowerPreview → the …Live text accessors, so the printed NUMBER moves too (2026-09-22: 'flourish only' was the whole of it before, and the card's value sat at its pre-combat figure for the fight)",
   playerHandGrants: "the 'toHand' event — the card flies to hand on the trigger beat",
   playerHandBuffs: "the 'handBuff' event — the hand card grows on the trigger beat (R-HAND-02; useCombatReplay.handBuffsShownThrough)",
   playerRubyMints: "the 'toHand'-style mint beat in the replay (each Ruby flies to hand on its trigger)",

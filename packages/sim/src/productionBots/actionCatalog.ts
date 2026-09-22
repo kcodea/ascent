@@ -53,6 +53,7 @@ export const ACTION_CATALOG = {
   faceOmen: { generation: 'terminal', reveal: false, note: 'ends the turn — only after final arrangement' },
   settleCombat: { generation: 'automatic', reveal: false, note: 'controller transition, never a strategic choice' },
   combatEscalationPreview: { generation: 'never', reveal: false, note: 'display-only replay bookkeeping — not a choice' },
+  combatSpellPowerPreview: { generation: 'never', reveal: false, note: 'display-only replay bookkeeping — not a choice' },
   combatSpellCastPreview: { generation: 'never', reveal: false, note: 'display-only replay bookkeeping — not a choice' },
   combatFriendlyDeathPreview: { generation: 'never', reveal: false, note: 'display-only replay bookkeeping — not a choice' },
   combatBladeAttackPreview: { generation: 'never', reveal: false, note: 'display-only replay bookkeeping — not a choice' },

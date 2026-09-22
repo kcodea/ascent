@@ -52,6 +52,32 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Live numbers in combat',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Card numbers now move during a fight. Spell power and improving spells update while combat plays, instead of jumping once the shop reopens.',
+        details: [
+          'A spell in your hand or on your board shows what it would cast for right now, at every moment of the fight.',
+          'Front to Back and the other improving spells tick up as they are cast in combat, not at the end.',
+          'Rune of Adventuring is counted in the number you see. A Rally that fires twice pumps a spell twice, and the spell prints the doubled total.',
+          'The hero trackers that read combat totals were stuck for the same reason and now tick too: Attunement, Hoard and Blade Mastery.',
+          'Skipping a fight, or scrubbing back through one, lands on the same numbers as watching it through.',
+          'Nothing about the fight itself changed. Only the numbers you were shown were behind.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: "A card you are given for selling a minion can now complete a Gild. Voicekeeper's copy combines into the Gilded version if it is your third, and pays its Triple Reward.",
+        details: [
+          'This covers every card a sale hands you, not just Voicekeeper: the sell runes pay into the same check.',
+          'A sale that gives you nothing leaves your loose copies alone.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Kindness countdown',
     changes: [
       { category: 'Systems', text: "Kindness's hero power now says when the next Gift arrives. It counts down the turns and reads This turn on the turn it fires." },

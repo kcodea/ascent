@@ -91,10 +91,10 @@ exists, else `<Icon name={glyph} />`. Used by:
 - `MinionBook.tsx` glossary rows (currently `{ icon: m.glyph }`) → render the PNG when present.
 
 ### 5.4 `mechanics.ts` + glossary (content addition)
-- Add `{ id: 'spend', term: 'Spend', glyph: 'spend', detect: hasOn('goldSpent'), termRe: /spend .*gold|gold spent/i, order: ~20 }`
-  and a `keywordGlossary` entry (required — `glossaryDefOf` throws otherwise). Confirm the exact trigger id
-  against Tapkeeper (`set2/dwarves.ts`); `cardsBought` is a sibling — include if the mechanic means both (owner
-  to confirm during impl).
+- Add `{ id: 'spend', term: 'Spend', glyph: 'spend', detect: hasOn('goldSpent'), termRe: /spend .*gold|gold spent/i, order: 20 }`
+  and a `keywordGlossary` entry (required — `glossaryDefOf` throws otherwise). `spend` is **gold-spent only**
+  (the `goldSpent` trigger) — NOT `cardsBought` (owner decision 2026-09-21). Verify Tapkeeper (`set2/dwarves.ts`)
+  fires `on:'goldSpent'`; a card that instead uses `cardsBought` is deliberately not a `spend` medallion.
 - Change `rebirth` glyph from `'rise'` to `'rebirth'`.
 - `Icon.tsx`: add SVG entries for `rebirth` and `spend` (defensive fallbacks; PNGs normally cover them). `rebirth`
   can reuse the `rise` SVG; `spend` a simple coin/gold glyph.
@@ -107,8 +107,8 @@ exists, else `<Icon name={glyph} />`. Used by:
 ### 5.6 Tuner — `medallionConfig.ts` + `MedallionTuner.tsx` (new), registered
 Schema-driven tuner (mirror `milestoneFrameConfig.ts` / `equipSlotConfig.ts`):
 - **Size** (medallion diameter/scale), **X/Y placement** (offset of `.cgem` in the frame), and the **art inset**
-  (the PNG's scale within the medallion box). Global (one medallion per card); a compact-card variant only if the
-  owner asks.
+  (the PNG's scale within the medallion box). **Global** — one setting for all cards, no separate compact-card
+  value (owner decision 2026-09-21).
 - CSS custom properties (`--cgem-size`, `--cgem-dx`, `--cgem-dy`, `--cgem-art-scale`) read by `styles.css`;
   values ship via DEFAULTS. Registered in `tunerAll.ts`, `PANEL_EMBLEMS`, and `DevMenu.tsx` (🎖️).
 - Live preview: a small grid of the wired mechanic medallions (like the milestone tuner's preview) so size/

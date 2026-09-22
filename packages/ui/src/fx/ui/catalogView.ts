@@ -77,6 +77,9 @@ export interface FxCardRow {
   cardId: string;
   name: string;
   tribe: string;
+  /** Whether this card is a SPELL (vs a minion) — the "By card" lens picks the per-card binding kind by this
+   *  (a played spell rides `spellCast`, a played minion rides `minionPlayed`). See `cardEventSlots.ts`. */
+  spell: boolean;
   /** The def explicitly bound to this card, or null = "uses whatever its moment kinds give it". */
   defId: string | null;
 }

@@ -101,7 +101,7 @@ import { getShopDeathFxConfig } from './shopDeathFxConfig';
 import { getEquipFxConfig } from './equipFxConfig';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { rubyLandHolds, RUBY_BEAT_MS, RUBY_GAP_MS } from './choreo/channels/rubyLanded';
-import { captureRecruitSeqs, minionPlayedMoment, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shieldGainMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
+import { captureRecruitSeqs, chooseOneMoment, endOfTurnMoment, minionPlayedMoment, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shieldGainMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
 import { bindingFor } from './choreo/bindings';
 import { cascade, scheduleLands, waves as asWaves } from './fx/land';
@@ -5618,6 +5618,17 @@ export function Recruit() {
         if (uid) {
           const card = run.board.find((c) => c.uid === uid);
           if (card) setEotAnimTick((prev) => ({ ...(prev ?? {}), [uid]: (card.eotTick ?? 0) + 1 }));
+          // `endOfTurn` cue — the By-card binder's "On End of Turn" flourish, ON the card whose OWN End of Turn
+          // just fired. Gated on the beat's own family so a rune/consequence beat riding this player doesn't
+          // trip it, and on `ownBeat` so a cadence tick that only glows (didn't fire) plays nothing. The buff
+          // it lands on OTHERS still rides its own `minionBuffed`/`selfBuff` consequence cue — this is the
+          // trigger, not the payoff. Plays nothing unless the card is bound (one `bindingFor` lookup).
+          if (card && beat.family === 'endOfTurn' && beat.mode === 'ownBeat' && canPlayDefs()) {
+            runRecruitMomentCues(endOfTurnMoment(uid, card.cardId), {
+              cardIdOf: (u) => runRef.current.board.find((b) => b.uid === u)?.cardId ?? null,
+              measure: (u) => { const el = document.querySelector<HTMLElement>(`[data-uid="${u}"]`); return el ? restingCenterOf(el) : null; },
+            });
+          }
         }
       },
       onProjection: (p) => {
@@ -7953,7 +7964,19 @@ const ChooseOneOverlay = memo(function ChooseOneOverlay({ overlaysHeld, run, spe
                       // `plated` so the option wears the same carved stone plate it has in hand / the Compendium
                       // (owner ask 2026-08-19) — a Choose One is picking the real card, so it should look like one.
                       plated
-                      onClick={() => dispatch({ type: 'chooseOne', index: i })}
+                      onClick={() => {
+                        // `chooseOne` cue — the By-card binder's "On Choose One" flourish, fired as the player
+                        // commits the branch, ON the chosen minion. Keyed by the choosing card. Distinct from the
+                        // `minionPlayed` cue that also fires as the body settles — this is the pick itself. Plays
+                        // nothing unless the card is bound; the runner skips gracefully if the body isn't measurable.
+                        if (canPlayDefs() && co.uid) {
+                          runRecruitMomentCues(chooseOneMoment(co.uid, co.cardId), {
+                            cardIdOf: (u) => run.board.find((b) => b.uid === u)?.cardId ?? null,
+                            measure: (u) => { const el = document.querySelector<HTMLElement>(`[data-uid="${u}"]`); return el ? restingCenterOf(el) : null; },
+                          });
+                        }
+                        dispatch({ type: 'chooseOne', index: i });
+                      }}
                     />
                   </div>
                 ));

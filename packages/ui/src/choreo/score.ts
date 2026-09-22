@@ -35,7 +35,7 @@ import { bindingFor } from './bindings';
  * instead by `engine.ts`'s `runAttackExchangeCues` from a `useLayoutEffect` — this file still owns the score
  * DATA for both.
  */
-export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx' | 'rallyFx' | 'shoutFx' | 'bounceFx' | 'pummelFx';
+export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx' | 'rallyFx' | 'shoutFx' | 'bounceFx' | 'pummelFx' | 'startOfCombatFx' | 'avengeFx';
 /** When a cue fires within its moment. `start`/`contact` are used today; `landed`/`end` are reserved for
  *  phase 3c (aura bursts) and phase 4 (authoring). */
 export type Anchor = 'start' | 'contact' | 'landed' | 'end';
@@ -90,6 +90,16 @@ const BASE: Cue[] = [
   // (at a lunge's real contact), and the def carries its own 90/100ms internal `at`s, so the flash lands a hair
   // AFTER the damage number — with the hit, not before it. See `channels/pummelFired.ts`.
   { ch: 'pummelFx', at: 'start', offset: 0 },
+  // `startOfCombatFx` / `avengeFx` — per-card MECHANIC cues (the By-card binder's "On Start of Combat" / "On
+  // Avenge" slots). On EVERY kind for the same reason `rallyFx`/`shoutFx` are: neither mechanic is a moment
+  // kind of its own — a Start-of-Combat effect's events scatter into whatever it DID (a `scCast`, a `summon`,
+  // a `buffWave`), and an Avenge is a bus event whose payoff lands in its consequence's kind (`summon`,
+  // `buff`, `toHand`, `maxGold`, …). A binding reached through the primary event's kind could never name
+  // "this card's Start of Combat" as one slot, so these scan the moment's events for the simulator's own
+  // `key`/`avenge` stamps instead (see the runner blocks). Inert wherever nothing carries the stamp, and free
+  // wherever defs can't play (the runner checks `canPlayDefs()` before it allocates).
+  { ch: 'startOfCombatFx', at: 'start', offset: 0 },
+  { ch: 'avengeFx', at: 'start', offset: 0 },
 ];
 const withReform = (): Cue[] => [...BASE, { ch: 'auraReform', at: 'start', offset: 460, scaled: false }];
 /** Every kind runs sfx + float + auraBurst + auraBreak + executeFx + fxDef at start (all adapters no-op for
@@ -131,6 +141,11 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
     // A Pummel fire cannot reach a wind-up today (it follows a `dmg`, which ends the absorb), but the
     // per-event scan is free and keeps the channel's "on every kind" contract honest.
     { ch: 'pummelFx', at: 'start', offset: 0 },
+    // An Avenge triggered by a friendly killed in THIS clash pays out here — its payoff can be absorbed into the
+    // exchange that caused the death, so `avengeFx` rides the exchange too (its scan no-ops when nothing in the
+    // moment carries the `avenge` stamp). Start-of-Combat never lands in an attack, so `startOfCombatFx` is not
+    // added here.
+    { ch: 'avengeFx', at: 'start', offset: 0 },
   ],
   // `damageFx` = a NON-melee hit burst (damageBurst + impact ring) at each dmg target. On `damage` (SC nukes,
   // split damage) and `death` (Blaster's Deathrattle AoE lands in its death moment). Melee dmg stays in
@@ -395,6 +410,59 @@ function momentBindingCard(moment: Moment, ctx: Pick<CueContext, 'events' | 'car
   return ctx.cardIds?.get(momentSourceUid(moment, ctx) ?? '') ?? null;
 }
 
+/**
+ * The cards that fired a MECHANIC in this moment → a body uid to anchor each on.
+ *
+ * `startOfCombatFx` / `avengeFx` cannot key off the moment's kind (a Start of Combat scatters into a `scCast`
+ * or a `summon` or a `buffWave`; an Avenge's payoff lands in its consequence's kind), so they scan the
+ * simulator's own per-event stamps instead: `key: 'factory:<do>:<on>'` (so `:startOfCombat` names a SoC
+ * effect's events) and `avenge: true` (set on every event an Avenge handler emits — and the Avenge factories
+ * self-gate on the count, so these exist ONLY when the Avenge actually completed). `srcCard` on those events
+ * is the ACTING CARD — its cardId, which is what `bindingFor` needs — but the sim stamps no uid there, so the
+ * anchor comes from the event's own `source` uid when it carried one (a cast/buff does), else the first living
+ * body of that card (a summon-only SoC / Avenge carries no source). Grouped by card so one fire per acting card.
+ */
+function cardMechanicActors(
+  moment: Moment,
+  events: CombatEvent[],
+  matches: (e: CombatEvent) => boolean,
+): Map<string, string | null> {
+  const out = new Map<string, string | null>();
+  for (let i = moment.start; i < moment.end; i++) {
+    const e = events[i];
+    if (!e || typeof e.srcCard !== 'string' || !matches(e)) continue;
+    const uid = 'source' in e && typeof e.source === 'string' ? e.source : null;
+    if (!out.has(e.srcCard)) out.set(e.srcCard, uid);
+    else if (out.get(e.srcCard) === null && uid !== null) out.set(e.srcCard, uid); // prefer a real anchor
+  }
+  return out;
+}
+
+/** The first living body of `cardId` whose slot resolves — the anchor fallback for a mechanic event that
+ *  carried no `source` uid (a summon-only Start of Combat, an Avenge that summons). Ambiguous only when two
+ *  copies of the same card fired together, a deliberate simplification (they are acting in concert anyway). */
+function firstBodyOfCard(cardId: string, ctx: Pick<CueContext, 'cardIds'>): string | null {
+  if (!ctx.cardIds) return null;
+  for (const [uid, id] of ctx.cardIds) if (id === cardId && anchorsForUnits(uid, uid)) return uid;
+  return null;
+}
+
+/** Fire a per-card mechanic binding once, ON the acting body. Shared by the `startOfCombatFx` / `avengeFx`
+ *  channels so there is ONE `playDef` for both (the count in `directCalls.ts` is per file). */
+function playCardMechanic(
+  cardId: string,
+  srcUid: string | null,
+  kind: 'startOfCombat' | 'avenge',
+  ctx: Pick<CueContext, 'cardIds'>,
+): void {
+  const binding = bindingFor(cardId, kind);
+  if (!binding) return;
+  const uid = srcUid ?? firstBodyOfCard(cardId, ctx);
+  if (uid === null) return;
+  const anchors = anchorsForUnits(uid, uid);
+  if (anchors) playDef(binding.def, anchors, { uids: { source: uid, target: uid }, gain: binding.gain });
+}
+
 /** Run one moment's plain-effect cues (sfx + float + the three aura sub-channels). Each cue fires at
  *  `start + offset`: an offset ≤0 fires synchronously; a positive offset schedules a timer (÷combatSpeed
  *  unless `scaled:false`, e.g. the reborn re-form's fixed wall-clock). Returns a cleanup that cancels any
@@ -642,7 +710,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           // own Echo can kill it), and a dead unit should be skipped rather than played over an empty slot.
           const fire = (): void => {
             const rallyAnchors = anchorsForUnits(r.source, r.target);
-            if (rallyAnchors) playDef(r.binding.def, rallyAnchors, { uids: { source: r.source, target: r.target }, index: land.group });
+            if (rallyAnchors) playDef(r.binding.def, rallyAnchors, { uids: { source: r.source, target: r.target }, index: land.group, gain: r.binding.gain });
             // Released whether or not the def could anchor. The hold is a PRESENTATION debt: if the effect
             // can't play there is nothing left to deliver the unit, and leaving it withheld to time out would
             // hide a live minion for the sake of an effect that never happened.
@@ -713,6 +781,27 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           else timers.push(setTimeout(fire, land.at));
         }
       });
+    }
+    // A START-OF-COMBAT effect fired in this moment (the By-card "On Start of Combat" cue): its events carry
+    // `key: 'factory:<do>:startOfCombat'`. One fire per SoC card, on that card. Guarded before `at()` like the
+    // scan channels above — no defs ready, no allocation. See `cardMechanicActors` for why this scans rather
+    // than reading the moment's kind, and the KNOWN LIMIT: a SoC that does two DIFFERENT things (a nuke AND a
+    // buff) lands in two moments, so the cue fires once per consequence moment — a double for those rare cards.
+    else if (cue.ch === 'startOfCombatFx') {
+      if (!canPlayDefs()) continue;
+      const actors = cardMechanicActors(moment, ctx.events, (e) => typeof e.key === 'string' && e.key.endsWith(':startOfCombat'));
+      if (!actors.size) continue;
+      at(cue, () => { for (const [cardId, uid] of actors) playCardMechanic(cardId, uid, 'startOfCombat', ctx); });
+    }
+    // An AVENGE paid out in this moment (the By-card "On Avenge" cue): the sim stamps `avenge: true` on every
+    // event an Avenge handler emits, and the factories self-gate on the count, so these exist ONLY when the
+    // Avenge completed (Avenge 3 fires on the third friendly death). One fire per avenging card, on that card.
+    // Same known limit as SoC: an Avenge that does two different things spans two moments and cues twice.
+    else if (cue.ch === 'avengeFx') {
+      if (!canPlayDefs()) continue;
+      const actors = cardMechanicActors(moment, ctx.events, (e) => e.avenge === true);
+      if (!actors.size) continue;
+      at(cue, () => { for (const [cardId, uid] of actors) playCardMechanic(cardId, uid, 'avenge', ctx); });
     }
     else if (cue.ch === 'summonFx') at(cue, () => {
       const uids: string[] = [];
@@ -823,7 +912,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
             // marked enemy), so travel to each unit it actually damaged instead of collapsing onto the source.
             claimed.forEach((uid, i) => {
               const fanAnchors = anchorsForUnits(source, uid);
-              if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source, target: uid }, index: i });
+              if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source, target: uid }, index: i, gain: binding.gain });
             });
           });
         }
@@ -833,7 +922,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           // resolve to the same card and a travelling layer simply stays put on it.
           for (const sb of groupSelfBuffs(moment, ctx.events)) {
             const selfAnchors = anchorsForUnits(sb.uid, sb.uid);
-            if (selfAnchors) playDef(binding.def, selfAnchors, { uids: { source: sb.uid, target: sb.uid } });
+            if (selfAnchors) playDef(binding.def, selfAnchors, { uids: { source: sb.uid, target: sb.uid }, gain: binding.gain });
           }
         });
       } else if (binding.fanOut === 'buffed') {
@@ -844,7 +933,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           // `index` drives per-recipient `stagger`, matching the `damaged` fan-out.
           groupBuffCasts(moment, ctx.events).forEach((c, i) => {
             const fanAnchors = anchorsForUnits(c.source, c.target);
-            if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source: c.source, target: c.target }, index: i });
+            if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source: c.source, target: c.target }, index: i, gain: binding.gain });
           });
         });
       } else if (binding.fanOut === 'buffedOn') {
@@ -857,7 +946,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           // whichever phase the player saw second (owner 2026-09-01, Dragonflame).
           groupBuffCasts(moment, ctx.events).forEach((c, i) => {
             const fanAnchors = anchorsForUnits(c.target, c.target);
-            if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source: c.target, target: c.target }, index: i });
+            if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source: c.target, target: c.target }, index: i, gain: binding.gain });
           });
         });
       } else {
@@ -869,7 +958,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           // returned stop() is deliberately NOT wired into this runner's cleanup: every channel here is
           // fire-and-forget (an aura burst outlives its moment too), and cancelling on moment-change would cut
           // the effect off mid-play.
-          playDef(binding.def, anchors, { uids: { source, target } });
+          playDef(binding.def, anchors, { uids: { source, target }, gain: binding.gain });
         });
       }
     }

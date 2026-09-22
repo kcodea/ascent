@@ -316,6 +316,6 @@ export function buildCardRows(): FxCardRow[] {
   return Object.values(CARD_INDEX).map((card) => {
     const byKind = cards[card.id];
     const first = byKind ? Object.values(byKind).find((b) => b !== undefined) : undefined;
-    return { cardId: card.id, name: card.name, tribe: card.tribe, defId: first?.def ?? null };
+    return { cardId: card.id, name: card.name, tribe: card.tribe, spell: card.spell === true, defId: first?.def ?? null };
   });
 }

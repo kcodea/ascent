@@ -136,10 +136,14 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   'EquipFxTuner.tsx': 1,
   // SIX since 2026-09-01: the `buffedOn` fan-out is a sixth `playDef(binding.def, …)`, playing ON each buffed
   // unit rather than travelling to it (Dragonflame). Same binding path, one more anchor convention.
+  // +1 on 2026-09-01: the `shoutFx` cue plays a `shout`-kind binding per re-fire proc.
   // EIGHT since 2026-09-21: the `pummelFx` cue plays a `pummelTrigger`-kind binding (the owner's
   // `pummel-trigger`) per damage-meter crossing, resolved per EVENT like `rallyFx`/`shoutFx` — see
   // `channels/pummelFired.ts`. Same binding path; not a direct call.
-  'choreo/score.ts': 8, // +1 on 2026-09-01: the `shoutFx` cue plays a `shout`-kind binding per re-fire proc
+  // NINE since 2026-09-21: `playCardMechanic` — ONE `playDef(binding.def, …)` shared by the `startOfCombatFx`
+  // and `avengeFx` scan channels (the By-card binder's "On Start of Combat" / "On Avenge" cues), resolving
+  // `bindingFor(cardId, 'startOfCombat'|'avenge')` per acting card. One helper, one play, both channels.
+  'choreo/score.ts': 9,
   // The shop's binding path, the recruit-phase twin of score.ts's. Six `playDef(binding.def, …)`: the
   // per-card cascade (`fireLand`), the shop-gem volley's single spanning play (`runShopRubiedSpan`), the
   // shop-wide buff aura's single camera-anchored play (`runShopBuffAllFire`), the `spellCast` cast-FX
@@ -166,7 +170,10 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // own on-attack buff has no spell behind it (Paragon's rally-buff → `lightning-bolt-blue`), resolved through
   // `sourceBuffDefFor`. The source-card mirror of the spell path above — same absorbed-into-the-wind-up reason
   // it can't be a moment binding, same data-resolved shape.
-  'useCombatReplay.ts': 5,
+  // SIX since 2026-09-21: the By-card binder's ON WATCHER cue — one `playDef(wb.def, …)` resolving
+  // `bindingFor(cardId, 'watcher')` on each watcher uid answering an ally's attack. A derived-pulse binding
+  // (no moment kind), so it fires at the watcher-pulse site rather than through the score.
+  'useCombatReplay.ts': 6,
   // PER-TRIBE BUFF RIBBON (2026-09-09). One `playDef(`tendril-trail-${tribe}`, …)` in `fireBuffFx`: the buffer's
   // TRIBE picks its ribbon variant, so the id is data-resolved (from the tribe) rather than a literal — the
   // same shape as a binding, keyed on the source's tribe instead of a `bindings.json` row. The generic

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { RunState } from '@game/sim';
 import {
   captureRecruitSeqs, RECRUIT_MOMENT_KINDS, recruitMomentsSince, recruitSeqsOf, type RecruitSeqs, shoutMoment,
-  selfBuffMoment, shieldGainMoment, spellCastMoment, minionPlayedMoment } from './recruitMoments';
+  selfBuffMoment, shieldGainMoment, spellCastMoment, minionPlayedMoment, endOfTurnMoment, chooseOneMoment } from './recruitMoments';
 
 /** Only the FX fields are read; the rest of a RunState is irrelevant to this scan. `rubyLanded` is per-card
  *  (board or a lone shop offer); the shop SPAN comes from the sim's `veinstormFx`, not from any zone here. */
@@ -168,6 +168,8 @@ describe('recruitMomentsSince', () => {
       spellCastMoment('wo_mine', { x: 0, y: 0 }).kind,
       shieldGainMoment('a', 'ashscribe').kind,
       minionPlayedMoment('a', 'manasaber').kind,
+      endOfTurnMoment('a', 'dw_brunni').kind,
+      chooseOneMoment('a', 'shaper').kind,
     ]);
     expect([...produced].sort()).toEqual([...RECRUIT_MOMENT_KINDS].sort());
   });
@@ -219,6 +221,16 @@ describe('recruitMomentsSince', () => {
   it('a self-buff names its own card as the source (recipient IS the source)', () => {
     const m = selfBuffMoment('u1', 'ashscribe');
     expect(m).toEqual({ kind: 'minionSelfBuffed', sourceCardId: 'ashscribe', recipients: [{ uid: 'u1', count: 1 }] });
+  });
+
+  it('an endOfTurn names its own card as the source (the trigger flourish ON the card)', () => {
+    const m = endOfTurnMoment('u1', 'dw_brunni');
+    expect(m).toEqual({ kind: 'endOfTurn', sourceCardId: 'dw_brunni', recipients: [{ uid: 'u1', count: 1 }] });
+  });
+
+  it('a chooseOne names the choosing card as the source (the pick, on the previewed body)', () => {
+    const m = chooseOneMoment('u1', 'shaper');
+    expect(m).toEqual({ kind: 'chooseOne', sourceCardId: 'shaper', recipients: [{ uid: 'u1', count: 1 }] });
   });
 
   it('a spellCast names its card as the source and carries the release point', () => {

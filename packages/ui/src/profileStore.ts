@@ -24,7 +24,7 @@ function isValid(p: unknown): p is PlayerProfile {
   );
 }
 
-/** Load the player profile, or a fresh one (Bronze III 0/100, rating 0 / Line 7) on anything missing/corrupt. */
+/** Load the player profile, or a fresh one (Bronze I 0/100, rating 0 / Line 7) on anything missing/corrupt. */
 export function loadProfile(): PlayerProfile {
   try {
     const raw = localStorage.getItem(KEY);
@@ -34,7 +34,7 @@ export function loadProfile(): PlayerProfile {
     // SEASON GATE (the true reset, owner ask 2026-07-31): a profile from an older season — including every
     // pre-season profile, which carries no season at all — starts fresh. Bumping CURRENT_SEASON resets
     // every client on its next launch, no server round-trip needed. Season 3 (medals) is such a bump: every
-    // season-2 numeric mirror starts over at Bronze III, matching the server-side season reset.
+    // season-2 numeric mirror starts over at Bronze I, matching the server-side season reset.
     if ((parsed as PlayerProfile).season !== CURRENT_SEASON) return initialProfile();
     // RANK VALIDATION / MIGRATION: a same-season mirror whose `rank` is missing or malformed (a build from
     // the first hours of season 3, or a hand-edited store) heals to a fresh rank rather than crashing a read;

@@ -91,7 +91,7 @@ describe('Doc Bot — MEDAL RANK monotonicity + gate properties (season 3)', () 
   for (let d = 0; d <= rankTopDivision(); d++) for (const p of [0, 6, RANK_RULES.promotionLanding, 40, 94, 100, 160]) {
     if (d < rankTopDivision() && p > RANK_RULES.divisionPoints) continue;
     starts.push({ divisionIndex: d, points: p });
-    if (p === 0 && hasDemotionGate(d)) starts.push({ divisionIndex: d, points: p, demotionReady: true }); // an ARMED demotion game, every division above Bronze III
+    if (p === 0 && hasDemotionGate(d)) starts.push({ divisionIndex: d, points: p, demotionReady: true }); // an ARMED demotion game, every division above Bronze I
   }
 
   it('the award table covers all 8 seats and is strictly decreasing (1st best … 8th worst)', () => {
@@ -125,7 +125,7 @@ describe('Doc Bot — MEDAL RANK monotonicity + gate properties (season 3)', () 
   });
 
   it('a division is only ever left downward through a demotion game: a loss that hits 0 halts there and arms (owner 2026-09-21)', () => {
-    expect(starts.filter((s) => s.demotionReady).map((s) => s.divisionIndex), 'an armed start in every division above Bronze III').toEqual([...Array(rankTopDivision()).keys()].map((i) => i + 1));
+    expect(starts.filter((s) => s.demotionReady).map((s) => s.divisionIndex), 'an armed start in every division above Bronze I').toEqual([...Array(rankTopDivision()).keys()].map((i) => i + 1));
     for (const start of starts) for (let placement = 1; placement <= 8; placement++) {
       const r = resolveRank(start, placement);
       const label = `division ${start.divisionIndex} @ ${start.points}${start.demotionReady ? ' armed' : ''}, placement ${placement}`;
@@ -155,7 +155,7 @@ describe('Doc Bot — MEDAL RANK monotonicity + gate properties (season 3)', () 
       const table = standings(state);
       let prevPlacement = 0;
       let prevAfter: RankPosition | null = null;
-      const profile = settleRank(initialRankedProfile(), 1, 'warm').profile; // Bronze III 40 — off the floor
+      const profile = settleRank(initialRankedProfile(), 1, 'warm').profile; // Bronze I 40 — off the floor
       for (const row of table) {
         const placement = row.placement ?? 0;
         expect(placement, 'every seat of a finished lobby holds a placement').toBeGreaterThanOrEqual(1);

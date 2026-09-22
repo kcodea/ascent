@@ -913,6 +913,17 @@ export function heroPowerText(state: RunState, which = 0, live: HeroPowerLive = 
     const grant = g.health > 0 ? `+${g.attack}/+${g.health}` : `+${g.attack} Attack`;
     return `Give a friendly minion **Ward**, then give your minions with **Ward** **${grant}**.`;
   }
+  if (power.kind === 'greatPresence') {
+    // Kindness: a PASSIVE schedule (a Gift Discover at the start of every 4th turn, waves 4, 8, 12 …), so the
+    // only live number it has is the countdown — and without it the player cannot tell whether the next shop
+    // brings a Gift (owner ask 2026-09-22). The card-text live-value rule covers hero powers too (see
+    // `exhibition`). `s.wave % 4 === 0` in the reducer IS the schedule, so the countdown reads off the same
+    // expression: on a Gift turn the shop is already open with the Discover queued, so it prints "This turn".
+    const toNext = 4 - (state.wave % 4);
+    return toNext === 4
+      ? 'Discover a **Gift** every 4 turns. **This turn.**'
+      : `Discover a **Gift** every 4 turns. Next in **${toNext}** turn${toNext === 1 ? '' : 's'}.`;
+  }
   if (power.kind === 'exhibition') {
     // Odelle: the grant IMPROVES every 4 cards played, so the printed rule has to move with it — the
     // card-text live-value rule applies to hero powers too. It read a static "+1/+1" while she was actually
@@ -9282,6 +9293,36 @@ export function spellAttackBonus(state: RunState): number {
  */
 export function spellHealthBonus(state: RunState): number {
   return spellStatBonus(state) + (state.spellBonus?.health ?? 0) + (state.nextSpellBonus?.health ?? 0);
+}
+
+/* ------------------------------------------------------------------------------------------------------
+ * DISPLAY-ONLY live readouts. Combat is a pure simulation: `simulate` keeps its own spell power and its own
+ * escalation step live inside the fight, and the run only learns the totals at settle. These three fold the
+ * replay's display previews (`fxSpellPowerPreview` / `fxEscalationPreview`) on top of the banked run value so
+ * a card's PRINTED number ticks as the fight plays and lands exactly where settle banks it (owner report
+ * 2026-09-22: spell text "not updating in real time from buffs in combat").
+ *
+ * NEVER call these from cast math. `spellAttackBonus` / `spellHealthBonus` are the reducer's real buff
+ * magnitude; folding a replay preview into those would let a cosmetic value change actual stats. Outside a
+ * combat replay every preview is `undefined`, so each of these is exactly its non-Live twin.
+ * ---------------------------------------------------------------------------------------------------- */
+
+/** `spellAttackBonus` plus the combat replay's display-only spell-power preview. Display only. */
+export function spellAttackBonusLive(state: RunState): number {
+  return spellAttackBonus(state) + (state.fxSpellPowerPreview?.attack ?? 0);
+}
+
+/** `spellHealthBonus` plus the combat replay's display-only spell-power preview. Display only. */
+export function spellHealthBonusLive(state: RunState): number {
+  return spellHealthBonus(state) + (state.fxSpellPowerPreview?.health ?? 0);
+}
+
+/** The run's escalating-spell step (Front to Back) plus the replay's display-only preview. Display only. */
+export function spellEscalationLive(state: RunState): { attack: number; health: number } {
+  return {
+    attack: state.frontToBackBonus + (state.fxEscalationPreview?.attack ?? 0),
+    health: (state.frontToBackBonusH ?? state.frontToBackBonus) + (state.fxEscalationPreview?.health ?? 0),
+  };
 }
 
 /**

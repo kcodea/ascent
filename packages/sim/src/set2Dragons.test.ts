@@ -434,6 +434,40 @@ describe('set 2 — Voicekeeper copies the first Dragon sold each turn', () => {
     expect(copy).toBeDefined();
     expect([copy.attack, copy.health]).toEqual([3, 5]); // base stats — the 30/40 buffs did NOT come along
   });
+
+  it('a granted copy that completes a triple COMBINES into a golden, and the golden pays its Discover', () => {
+    // Owner report 2026-09-22: "voicekeeper selling needs a triple check". The sale grants the copy from
+    // inside the reducer's `sell` case, which returns early — so before the fix nothing ever looked for a
+    // triple and three plain copies just sat in hand.
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 20,
+      board: [
+        minion('vk', 'd2_voicekeeper', 'dragon', 5, 9),
+        minion('d1', 'd2_chronicler', 'dragon', 3, 5),
+      ],
+      hand: [minion('h1', 'd2_chronicler', 'dragon', 3, 5), minion('h2', 'd2_chronicler', 'dragon', 3, 5)],
+    };
+    s = reduce(s, { type: 'sell', uid: 'd1' });
+    const copies = [...s.board, ...s.hand].filter((c) => c.cardId === 'd2_chronicler');
+    expect(copies.length).toBe(1);               // three collapsed into one
+    expect(copies[0]!.golden).toBe(true);        // ...and it is the golden
+    // The Triple Reward is paid when the golden is PLAYED (grantGoldenDiscover lives on the play paths).
+    const golden = s.hand.find((c) => c.cardId === 'd2_chronicler' && c.golden)!;
+    expect(golden).toBeDefined();
+    s = reduce(s, { type: 'play', uid: golden.uid });
+    expect(s.hand.filter((c) => c.cardId === 'discoverspell').length).toBe(1);
+  });
+
+  it('a sale that grants nothing triple-worthy leaves the two loose copies alone', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 20,
+      board: [minion('vk', 'd2_voicekeeper', 'dragon', 5, 9), minion('d1', 'd2_embermouth', 'dragon', 2, 2)],
+      hand: [minion('h1', 'd2_chronicler', 'dragon', 3, 5), minion('h2', 'd2_chronicler', 'dragon', 3, 5)],
+    };
+    s = reduce(s, { type: 'sell', uid: 'd1' });
+    expect(s.hand.filter((c) => c.cardId === 'd2_chronicler' && !c.golden).length).toBe(2); // no retroactive combine
+    expect(s.hand.some((c) => c.golden)).toBe(false);
+  });
 });
 
 describe('set 2 — spells cast ON a minion (Mirrorwing / Runefire)', () => {

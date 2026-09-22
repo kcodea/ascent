@@ -554,13 +554,13 @@ create policy "delete own perf_runs" on public.perf_runs for delete to authentic
 -- Owner runbook: docs/rank-season-runbook.md.
 --
 -- WHAT THIS IS. The numeric ladder (`profiles.rating` moved by a ±100 placement table) becomes a MEDAL ladder:
--- six medals × three divisions (index 0 = Bronze III … 17 = Ascendant I), 100 points each, promotion GAMES
+-- six medals × three divisions (index 0 = Bronze I … 17 = Ascendant III), 100 points each, promotion GAMES
 -- at 100 (top-4 to move a division, 1st to move a medal; a won gate lands at 10/100 in the next division —
 -- owner 2026-09-21, was 0/100), NO instant demotions (owner 2026-09-21, widening the 2026-09-20 medal-floor
--- gate to every division): a LOSS that hits 0 in any division above Bronze III clamps there and ARMS a
+-- gate to every division): a LOSS that hits 0 in any division above Bronze I clamps there and ARMS a
 -- DEMOTION GAME (the STORED `rank_demotion_ready` flag; a bottom-4 in that game then drops ONE division to
--- 100 + award — across a medal boundary, to the previous medal's I — and a top-4 escapes and disarms),
--- Bronze III floored, Ascendant I uncapped. The rules live in THREE places that must agree: `settle_rank` below (the WRITER — the only thing
+-- 100 + award — across a medal boundary, to the previous medal's III — and a top-4 escapes and disarms),
+-- Bronze I floored, Ascendant III uncapped. The rules live in THREE places that must agree: `settle_rank` below (the WRITER — the only thing
 -- that moves a rank), `supabase/functions/_shared/lobbyRating.ts` (the Edge Function's runtime parity check)
 -- and `packages/sim/src/rank.ts` (the client, CI-parity-tested against the shared TS file). Change all three
 -- together and bump the rules version in all three when an old client would mis-show or refuse the result
@@ -579,7 +579,7 @@ create policy "delete own perf_runs" on public.perf_runs for delete to authentic
 -- `rating` STAYS and becomes the derived reporting scalar `100 × rank_division + rank_points`, maintained by
 -- `settle_rank`, so every numeric surface (leaderboard order, the title chip) keeps working until it is
 -- medal-aware. `rank_season = 0` means "never ranked under medals"; `settle_rank` treats any season other
--- than the live one as a fresh Bronze III start on that account's first settlement.
+-- than the live one as a fresh Bronze I start on that account's first settlement.
 alter table public.profiles add column if not exists rank_season           int not null default 0;
 alter table public.profiles add column if not exists rank_rules_version    int not null default 1;
 alter table public.profiles add column if not exists rank_division         int not null default 0;
@@ -587,7 +587,7 @@ alter table public.profiles add column if not exists rank_points           int n
 alter table public.profiles add column if not exists rank_highest_division int not null default 0;
 alter table public.profiles add column if not exists rank_highest_points   int not null default 0;
 -- The demotion gate, STORED (owner 2026-09-20, widened 2026-09-21): armed only by a loss that lands on 0 in
--- any division above Bronze III; cleared by any non-negative result; never set by a promotion landing.
+-- any division above Bronze I; cleared by any non-negative result; never set by a promotion landing.
 alter table public.profiles add column if not exists rank_demotion_ready   boolean not null default false;
 -- Monotonic per account (+1 per settlement, +1 on a reset). The client adopts a server profile only when its
 -- revision is not older than the mirror's — so a late answer never rolls a newer profile back. HAND-EDITS TO
@@ -602,7 +602,7 @@ alter table public.profiles add  constraint profiles_rank_division_range
 alter table public.profiles drop constraint if exists profiles_rank_points_range;
 alter table public.profiles add  constraint profiles_rank_points_range
   check (rank_points >= 0 and (rank_division = 17 or rank_points <= 100));
--- (2026-09-21: the flag may be armed at 0 in ANY division above Bronze III — the medal-floor `% 3` term is gone.
+-- (2026-09-21: the flag may be armed at 0 in ANY division above Bronze I — the medal-floor `% 3` term is gone.
 --  Re-running these two statements is how an existing database picks the widened rule up.)
 alter table public.profiles drop constraint if exists profiles_rank_demotion_ready_where;
 alter table public.profiles add  constraint profiles_rank_demotion_ready_where
@@ -611,7 +611,7 @@ alter table public.profiles drop constraint if exists profiles_rank_highest_rang
 alter table public.profiles add  constraint profiles_rank_highest_range
   check (rank_highest_division between 0 and 17 and rank_highest_points >= 0
          and (rank_highest_division = 17 or rank_highest_points <= 100));
--- Leaderboard order: division first, then points (the scalar ties Gold II 100 with Gold I 0 — the promoted
+-- Leaderboard order: division first, then points (the scalar ties Gold II 100 with Gold III 0 — the promoted
 -- player ranks above the one still waiting at the gate).
 create index if not exists profiles_rank on public.profiles (rank_division desc, rank_points desc);
 
@@ -661,7 +661,7 @@ alter table public.rank_results add column if not exists demotion_ready_before b
 alter table public.rank_results add column if not exists demotion_ready_after  boolean not null default false;
 
 -- ── 3. RLS: a client can never write a rank field ─────────────────────────────────────────────────────────
--- INSERT: a brand-new profile row is a PLACEHOLDER only — rating 0, Bronze III, revision 0, no season. The
+-- INSERT: a brand-new profile row is a PLACEHOLDER only — rating 0, Bronze I, revision 0, no season. The
 -- client (`uploadPlayerProfile`) inserts exactly that; anything else is refused.
 drop policy if exists "insert own profile" on public.profiles;
 create policy "insert own profile" on public.profiles for insert to authenticated
@@ -740,12 +740,12 @@ $$;
 --     → promote ONE division to c_promo_landing/100 (10 — owner 2026-09-21, was 0); a positive award short of
 --     a MEDAL gate (2nd–4th) HOLDS at 100, still promotion-ready; a negative award applies normally from 100.
 --   at an ARMED demotion gate (the STORED rank_demotion_ready flag): a bottom-4 (5th–8th) demotes ONE
---     division to the previous division at 100 + award (across a medal boundary: the previous medal's I);
+--     division to the previous division at 100 + award (across a medal boundary: the previous medal's III);
 --     a top-4 escapes, applies its positive award normally from 0, and disarms.
 --   otherwise add the award: a LOSS landing on 0 (by clamp or exact subtraction) in ANY division above
---     Bronze III CLAMPS at 0 and ARMS the gate — there are NO instant demotions (owner 2026-09-21; until then
---     only a medal's lowest division clamped and the rest demoted to 100 + result); Bronze III floors at 0
---     with no gate; Ascendant I is uncapped upward; elsewhere ≥ 100 → exactly 100, promotion unlocked
+--     Bronze I CLAMPS at 0 and ARMS the gate — there are NO instant demotions (owner 2026-09-21; until then
+--     only a medal's lowest division clamped and the rest demoted to 100 + result); Bronze I floors at 0
+--     with no gate; Ascendant III is uncapped upward; elsewhere ≥ 100 → exactly 100, promotion unlocked
 --     (overflow discarded). A promotion landing is never armed; any non-negative result disarms.
 --   highest = max(highest, after) by division then points; revision + 1; rating = the scalar.
 create or replace function public.settle_rank(
@@ -833,7 +833,7 @@ begin
     else
       v_pts := p0 + v_base;                                   -- the normal negative award from 100 (≥ 60 with this table)
       if v_pts <= 0 and d0 > 0 then d1 := d0; p1 := 0; r1 := true; -- (unreachable with this table) a loss to 0 → ARM
-      elsif v_pts < 0 then d1 := 0; p1 := 0;                  -- (unreachable with this table) Bronze III floor
+      elsif v_pts < 0 then d1 := 0; p1 := 0;                  -- (unreachable with this table) Bronze I floor
       else d1 := d0; p1 := v_pts;
       end if;
     end if;
@@ -844,16 +844,16 @@ begin
       d1 := d0; p1 := p0 + v_base;                            -- escape: the positive award from 0 (< 100 with this table)
       if d0 < c_top and p1 >= c_cap then v_unlocked := true; p1 := c_cap; end if;
     else
-      v_demoted := true; d1 := d0 - 1; p1 := c_cap + v_base;  -- ONE division down at 100 + award (across a medal boundary: the previous medal's I)
+      v_demoted := true; d1 := d0 - 1; p1 := c_cap + v_base;  -- ONE division down at 100 + award (across a medal boundary: the previous medal's III)
     end if;
   else
     v_pts := p0 + v_base;
     if v_base < 0 and v_pts <= 0 and d0 > 0 then
-      d1 := d0; p1 := 0; r1 := true;                          -- a LOSS lands on 0 in any division above Bronze III → ARMED (no instant demotion)
+      d1 := d0; p1 := 0; r1 := true;                          -- a LOSS lands on 0 in any division above Bronze I → ARMED (no instant demotion)
     elsif v_pts < 0 then
-      d1 := 0; p1 := 0;                                       -- Bronze III floor, no gate (the only division that reaches here)
+      d1 := 0; p1 := 0;                                       -- Bronze I floor, no gate (the only division that reaches here)
     elsif d0 = c_top then
-      d1 := c_top; p1 := v_pts;                               -- Ascendant I: uncapped
+      d1 := c_top; p1 := v_pts;                               -- Ascendant III: uncapped
     elsif v_pts >= c_cap then
       v_unlocked := true; d1 := d0; p1 := c_cap;              -- gate reached; overflow discarded
     else
@@ -919,7 +919,7 @@ grant execute on function public.rank_result_json(public.rank_results) to servic
 revoke all on function public.rank_profile_json(public.profiles) from public, anon, authenticated;
 grant execute on function public.rank_profile_json(public.profiles) to service_role;
 
--- ── 6. SEASON RESET — run ONCE, deliberately (owner decision 2026-09-20: everyone starts Bronze III 0/100) ──
+-- ── 6. SEASON RESET — run ONCE, deliberately (owner decision 2026-09-20: everyone starts Bronze I 0/100) ──
 -- Commented out so a re-run of this file can never reset the ladder by accident. `season2_rating` keeps the
 -- old number; `rank_revision + 1` makes every client adopt the reset on its next boot (a revision that went
 -- DOWN would be ignored as stale). Old `rated_runs` rows and all `run_history` stay untouched.

@@ -30,9 +30,9 @@ describe('RankCrest', () => {
     expect(crest.querySelector('.rankcrest-plate')?.textContent).toBe('II');
     expect(crest.getAttribute('aria-hidden')).toBe('true');
   });
-  it('III / II / I plates, and one art file per medal', () => {
+  it('I / II / III plates, and one art file per medal', () => {
     ui = mount(<><RankCrest divisionIndex={0} /><RankCrest divisionIndex={1} /><RankCrest divisionIndex={2} /><RankCrest divisionIndex={17} /></>);
-    expect([...ui.container.querySelectorAll('.rankcrest-plate')].map((p) => p.textContent)).toEqual(['III', 'II', 'I', 'I']);
+    expect([...ui.container.querySelectorAll('.rankcrest-plate')].map((p) => p.textContent)).toEqual(['I', 'II', 'III', 'III']);
     const srcs = [...ui.container.querySelectorAll<HTMLImageElement>('img.heroimg')].map((i) => i.getAttribute('src') ?? '');
     expect(srcs[0]).toMatch(/bronze/);
     expect(srcs[3]).toMatch(/ascendant/);
@@ -65,7 +65,7 @@ describe('RankBar', () => {
     ui = mount(<RankBar position={{ divisionIndex: 6, points: 0 }} size="mini" />);
     expect(ui.container.querySelector('.rankbar-gate')).toBeNull();
     ui.render(<RankBar position={{ divisionIndex: 6, points: 0 }} size="mini" demotionReady />);
-    expect(ui.container.querySelector('.rankbar-gate')?.textContent).toBe('Demotion game. Finish top 4 to stay in Gold III.');
+    expect(ui.container.querySelector('.rankbar-gate')?.textContent).toBe('Demotion game. Finish top 4 to stay in Gold I.');
     ui.render(<RankBar position={{ divisionIndex: 7, points: 0 }} size="mini" demotionReady />);
     expect(ui.container.querySelector('.rankbar-gate')?.textContent, 'every division has the gate now (owner 2026-09-21)').toBe('Demotion game. Finish top 4 to stay in Gold II.');
     expect(ui.container.querySelector('.rankbar-gate')!.className).toContain('demo');
@@ -79,7 +79,7 @@ describe('RankBar', () => {
     for (let i = 1; i < order.length; i++) expect(order[i - 1]!.compareDocumentPosition(order[i]!) & 4, `${i}`).toBe(4);
     expect(bar.querySelector('.rankbar-label')?.textContent).toBe('Gold II');
   });
-  it('Ascendant I reads an uncapped RP counter over a full bar', () => {
+  it('Ascendant III reads an uncapped RP counter over a full bar', () => {
     ui = mount(<RankBar position={{ divisionIndex: 17, points: 130 }} />);
     expect(ui.container.querySelector('.rankbar-points')?.textContent).toBe('130 RP');
     expect((ui.container.querySelector('.rankbar-fill') as HTMLElement).style.transform).toBe('scaleX(1)');

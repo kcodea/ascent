@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { damageMeterOf } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { chooseBothActive, hasTier7Access, unusedEquipmentCount, runeStacksOf, spellAttackBonus, spellHealthBonus, spiritsPlayedThisTurn, tribesPlayedThisTurn } from '@game/sim';
+import { chooseBothActive, hasTier7Access, unusedEquipmentCount, runeStacksOf, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, spiritsPlayedThisTurn, tribesPlayedThisTurn } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { stepProgress } from './cardText';
 import { liveCardText } from './instView';
@@ -50,8 +50,16 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
   // captured snapshot (`lastCombat.enemyScalers`) — so an enemy Grim / Taragosa / Watcher / Hoardbreaker /
   // Pack Leader / Runescale reads at the value THAT player had, not ours (mirrors the per-side sim math).
   const foe = side === 'foe';
-  const runSpA = useGame((s) => spellAttackBonus(s.run));
-  const runSpH = useGame((s) => spellHealthBonus(s.run));
+  // …Live: the run banks spell power only at settle, so a spell's combat text used to print its PRE-COMBAT
+  // value for the whole fight (owner report 2026-09-22). The replay folds the simulator's own "+A/+H Spell
+  // Power" narrations into a display-only preview, and these readers add it — primitive selectors, so a unit
+  // re-renders only when the printed number actually moves.
+  const runSpA = useGame((s) => spellAttackBonusLive(s.run));
+  const runSpH = useGame((s) => spellHealthBonusLive(s.run));
+  // Front to Back's escalation, same treatment: a cast that happens DURING the fight (a Rally that casts, an
+  // Echo, Chorus Drake, a Rune of Adventuring re-trigger) moves the printed step as it lands.
+  const runFtbA = useGame((s) => spellEscalationLive(s.run).attack);
+  const runFtbH = useGame((s) => spellEscalationLive(s.run).health);
   const runDrTally = useGame((s) => s.run.deathrattlesTriggered);
   const runSpellsThisTurn = useGame((s) => s.run.spellsThisTurn);
   const runPlayedThisTurn = useGame((s) => s.run.playedThisTurn);
@@ -80,8 +88,8 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         // through `enemyScalers` — an enemy Vaultkeeper / Chef Raag / Steward / Oaf / Archivist prints its OWNER's
         // value. What stays player-only is what the snapshot genuinely does not carry (Gold meters, Soulsman,
         // Squirl Scout, rune flags) — those fall back to base text on the foe side, stats still right.
-        frontToBackBonus: foe ? (enemyScalers?.spellEscalation.attack ?? 0) : run.frontToBackBonus,
-        frontToBackBonusH: foe ? (enemyScalers?.spellEscalation.health ?? 0) : run.frontToBackBonusH,
+        frontToBackBonus: foe ? (enemyScalers?.spellEscalation.attack ?? 0) : runFtbA,
+        frontToBackBonusH: foe ? (enemyScalers?.spellEscalation.health ?? 0) : runFtbH,
         // Vaultkeeper's umbrella ticks LIVE: the run's lifetime count + this side's casts so far THIS fight (the
         // carry-back only lands on `run.spellsCast` at settle — owner report 2026-09-18).
         spellsThisTurn, spellsCast: (foe ? (enemyScalers?.spellsCast ?? 0) : run.spellsCast) + (u.spellsCastCombat ?? 0), deathrattlesTriggered: drTally,

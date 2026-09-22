@@ -69,6 +69,41 @@ describe('spawnFloats', () => {
   });
 });
 
+describe('spawnFloats — milestone burst tier (owner ask 2026-09-22)', () => {
+  it('tags the attacker\'s swing by the damage tier — even when the attack is in an EARLIER moment', () => {
+    // compile.ts gives a swing's impact its own beat, so the `attack` and its `dmg` land in different moments.
+    // spawnFloats scans the full log to pair them.
+    const evs: CombatEvent[] = [
+      { type: 'attack', attacker: 'a', defender: 'b', swing: 600 },              // moment A
+      { type: 'dmg', target: 'b', amount: 600, remainingHp: 0, source: 'a' },   // moment B
+    ];
+    const momentB: Moment = { start: 1, end: 2, primary: evs[1]!, stepGroups: [[1]], kind: 'damage' };
+    const { floats } = spawnFloats(momentB, evs, rect, 'a');
+    expect(floats[0]?.atkTier).toBe(4); // 600 ≥ 500 → tier 4
+  });
+
+  it('ALSO tags the clash RETALIATION (defender striking back has no attack event of its own)', () => {
+    // a attacks b; b retaliates for 1034. The retaliation dmg (source b → a) has no `attack b` event, but the
+    // pair {a,b} is named by `attack a→b`, so it's a clash hit and recolours by its amount (owner report: a
+    // big retaliation stayed gold).
+    const evs: CombatEvent[] = [
+      { type: 'attack', attacker: 'a', defender: 'b', swing: 5 },
+      { type: 'dmg', target: 'a', amount: 1034, remainingHp: 0, source: 'b' }, // b's retaliation
+    ];
+    // The retaliation lands in its OWN beat, whose `attackerOfImpact` is null (no attack primary before it), so
+    // the float is NOT suppressed — exactly the case that was showing gold.
+    const m: Moment = { start: 1, end: 2, primary: evs[1]!, stepGroups: [[1]], kind: 'damage' };
+    const { floats } = spawnFloats(m, evs, rect, null);
+    expect(floats[0]?.atkTier).toBe(4); // 1034 → tier 4
+  });
+
+  it('leaves spell / AoE damage untagged (no attack for the pair) — the burst stays gold', () => {
+    const evs: CombatEvent[] = [{ type: 'dmg', target: 'b', amount: 3000, remainingHp: 5, source: 'caster' }];
+    const { floats } = spawnFloats(moment(evs), evs, rect, 'caster');
+    expect(floats[0]?.atkTier).toBeUndefined();
+  });
+});
+
 const M = (start: number, end: number): Moment =>
   ({ start, end, primary: { type: 'buff' } as CombatEvent, stepGroups: [[start]], kind: 'buffWave' });
 

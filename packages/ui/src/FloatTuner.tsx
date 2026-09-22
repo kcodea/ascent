@@ -48,6 +48,7 @@ const controls: TunerControl<Extract<keyof FloatConfig, string>>[] = ORDER.map((
   const [label, unit, hint, group] = SPECS[key];
   if (key === 'numStrokeColor') return { key, label, hint, group, kind: 'color', min: 0, max: 0, step: 0 };
   if (key === 'splashImg') return { key, label, hint, group, kind: 'select', options: SPLASH_IMG_OPTIONS, optionLabels: SPLASH_IMG_LABELS, min: 0, max: 0, step: 0 };
+  // The colour + select keys returned above, narrowing `key` to exactly FLOAT_RANGES's numeric keys.
   const [min, max, step] = FLOAT_RANGES[key];
   if (key === 'rotRandom') return { key, label, hint, group, kind: 'toggle', onValue: 1, offValue: 0, onOffLabels: ['on', 'off'] as [string, string], min, max, step };
   return { key, label, unit, hint, group, min, max, step };

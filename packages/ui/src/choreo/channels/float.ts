@@ -1,5 +1,6 @@
 import type { CombatEvent } from '@game/core';
 import type { Moment } from '../compile';
+import { tierOf } from '../statMilestones';
 
 /**
  * A floating number/glyph shown over a unit for a few seconds (damage/poison/shield/buff/keyword/gold).
@@ -33,6 +34,11 @@ export interface Float {
    *  place — instead of re-popping each volley or fading out mid-spray. The LAST volley to a victim clears this
    *  (normal `floatupc`, fades out), and a victim's death removes the float, so a dead unit shows no number. */
   climb?: boolean;
+  /** The ATTACKER's attack-milestone tier (1..6) for a MELEE-hit damage float — the burst art hue-shifts to
+   *  this tier's colour (owner ask 2026-09-22). Set only when the hit is the moment's attacker striking its
+   *  target (a real "card attacks card"); a spell/AoE `dmg`, a self-hit or a sourceless hit leaves it
+   *  undefined and the burst stays gold. */
+  atkTier?: number;
 }
 
 /** Keyword-proc floats (shield/reborn/rally) that bloom big in the card centre, staggered after the damage
@@ -50,6 +56,8 @@ export interface DeathFloat {
   y: number;
   text: string;
   kind: string;
+  /** The killing attacker's attack-milestone tier (1..6), for the melee-hit burst recolour — see `Float.atkTier`. */
+  atkTier?: number;
 }
 
 /** Player-facing labels for granted keywords (the renamed terms — Reborn → Rise, etc.). Shared with
@@ -162,11 +170,30 @@ export function spawnFloats(
       text = `${sum}`;
       climb = hasLater; // HOLD (stay on, climb in place) while more volleys are coming; the LAST volley fades out
     }
+    // Colour the burst by the milestone of a card-attacks-card hit (owner ask 2026-09-22). BOTH sides of a clash
+    // qualify — the attacker's swing AND the defender's retaliation — so we key on the pair, not on who initiated
+    // (the retaliation carries no `attack` event of its own and `attackerUid` names only the initiator). A dmg is
+    // a melee clash hit iff SOME `attack` event names its two units in EITHER direction; a spell/AoE dmg (no such
+    // event, or a `wave` spray) has none and stays gold. Tier off the damage AMOUNT — what the number shows, and
+    // ≈ the striking card's attack — so both directions and the visible digits stay consistent. compile.ts splits
+    // a swing's impact into its own beat, so scan the WHOLE log, not just this moment.
+    let atkTier: number | undefined;
+    if (e.type === 'dmg' && typeof e.source === 'string' && e.wave === undefined) {
+      const src = e.source;
+      const tgt = e.target;
+      for (let j = 0; j < events.length; j++) {
+        const a = events[j];
+        if (a?.type === 'attack' && ((a.attacker === src && a.defender === tgt) || (a.attacker === tgt && a.defender === src))) {
+          atkTier = tierOf('attack', e.amount);
+          break;
+        }
+      }
+    }
     if (f.kind === 'dmg' && dying.has(f.uid)) {
-      deaths.push({ id, x: r.cx, y: r.cy, text, kind: f.kind });
+      deaths.push({ id, x: r.cx, y: r.cy, text, kind: f.kind, atkTier });
       continue;
     }
-    spawned.push({ id, uid: f.uid, text, kind: f.kind, x: r.cx, y: r.cy, w: r.w, h: r.h, climb });
+    spawned.push({ id, uid: f.uid, text, kind: f.kind, x: r.cx, y: r.cy, w: r.w, h: r.h, climb, atkTier });
   }
   return { floats: spawned, deathFloats: deaths };
 }

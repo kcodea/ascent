@@ -52,6 +52,20 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Milestone damage bursts',
+    changes: [
+      {
+        category: 'Systems',
+        text: "A big enough melee hit now bursts in its attack-milestone colour instead of the usual gold.",
+        details: [
+          'The burst behind the damage number turns pink, then purple, then blue as the attacker crosses the higher attack milestones.',
+          'Only real card-versus-card hits recolour; spell and area damage keep the gold burst.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Career MMR trend',
     changes: [
       { category: 'Systems', text: 'Performance Trends on the Career page now show your MMR over time, and an All time tab joins 7, 30 and 90 days.', details: [

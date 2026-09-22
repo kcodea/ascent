@@ -50,10 +50,6 @@ const SCALING_SPELLS = ALL_CARDS.filter(
  * whose exemption is lifted must come off the list in the same PR.
  */
 const FLAT_EXEMPT: Record<string, string> = {
-  // OPEN (PR #1619): the owner reported Crest of the Climb "not getting spell power buffs" (Bug Board
-  // 23c340fb, 2026-09-22). #1619 takes `flat: true` off both branches — when it lands, delete this entry AND
-  // flip the chooseOneBranchText.test.ts case that asserts Crest never greens.
-  crestclimb: 'open bug: PR #1619 removes the exemption',
   // Owner ruling 2026-09-09 ("as of now"): a card-minted Gift spell takes no spell power and no other buff.
   tower_shield: 'owner ruling 2026-09-09: minted Gift spells take no buffs',
 };

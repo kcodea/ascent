@@ -1377,7 +1377,7 @@ export const APPROVED_RULES: GameRule[] = [
     ],
     contentIds: ['crestclimb'],
     currentBehaviour:
-      'PARTIAL as of 2026-09-22. What each ref pins, so the gap is not mistaken for coverage. The PRINTING half '
+      'Conforms as of 2026-09-22 (PR #1619). What each ref pins, so coverage is not overstated. The PRINTING half '
       + 'conforms: the derived sweep in `spellPowerText.test.ts` fails any spell whose factory folds spell power and '
       + 'whose text does not print it, and `chooseOneBranchText.test.ts` greens every folding branch and checks the '
       + 'printed number against the delta the real reducer lands. `chooseOneBoth.test.tsx` pins the EVERY SURFACE '
@@ -1385,11 +1385,10 @@ export const APPROVED_RULES: GameRule[] = [
       + 'spell power. The FOLDING half was unpinned until 2026-09-22: `flat: true` on a cast effect opts a grant out '
       + 'of spell power inside the factory, and both sweeps skip such a spell, so an exemption could be added with no '
       + 'owner ruling and no alarm. `spellPowerText.test.ts` now also pins the exemption list itself, to an exact set '
-      + '(FLAT_EXEMPT), so a new `flat: true` fails until its ruling is written down. The open case is Crest of the '
-      + 'Climb, whose two branches still carry `flat: true` and so never scale; PR #1619 removes it. Two things must '
-      + 'move in that same PR: its FLAT_EXEMPT entry comes out, and `chooseOneBranchText.test.ts` today asserts the '
-      + 'opposite of this rule for that card (Crest never greens, its +4 lands exactly as printed), so that '
-      + 'assertion flips. The Set 3 Tower Shield keeps its exemption on the owner ruling of 2026-09-09.',
+      + '(FLAT_EXEMPT), so a new `flat: true` fails until its ruling is written down. Crest of the Climb was the open '
+      + 'case and closed on 2026-09-22 (PR #1619): both branches fold spell power now and their text greens, so its '
+      + 'FLAT_EXEMPT entry is gone and `chooseOneBranchText.test.ts` asserts the greened values. The Set 3 Tower '
+      + 'Shield keeps its exemption on the owner ruling of 2026-09-09.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/spellPowerText.test.ts', 'packages/sim/src/chooseOneBranchText.test.ts', 'packages/ui/src/chooseOneBoth.test.tsx'],

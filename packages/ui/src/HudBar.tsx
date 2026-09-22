@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { RIFTS, CONFIG, isCalibrationRound, lossDamageCap, runRecord } from '@game/sim';
+import { recordText } from './leaderboardData';
 import { RiftPill } from './RiftPill';
 import { Icon } from './Icon';
 import { OpponentFrame } from './OpponentFrame';
@@ -9,8 +10,9 @@ import { useGame } from './store';
 export const HudBar = memo(function HudBar() {
   const run = useGame((s) => s.run);
   const lobby = run.lobby;
-  // Your W–L record over the SCORED rounds (calibration rounds 1–2 don't count) — the run's score (A1).
-  const { wins, losses } = runRecord(run);
+  // Your record over every round of the run. Draws print as the third number (a fight where both boards wipe
+  // is a draw, and dropping it made a 14-round run read as 8-3; owner report 2026-09-22).
+  const record = runRecord(run);
   // Practice runs the SAME course as Ascent, so the plaque reads identically (round count, dashes, Setup, Line).
   // The one difference the HUD reflects is invulnerability: the "Max −X" loss row is hidden (no Resolve at risk).
   const practice = run.mode === 'practice';
@@ -64,7 +66,7 @@ export const HudBar = memo(function HudBar() {
           <span className="lbl calib" title="Setup rounds (1–2) don't count toward your record">Setup</span>
         ) : (
           <span className="lbl record" title="Your record over the scored rounds (calibration rounds 1–2 don't count)">
-            <Icon name="crown" />{wins}–{losses}
+            <Icon name="crown" />{recordText(record)}
           </span>
         )}
         <span className="lbl line" title={`Your Oath for this run. Fulfill it with ${run.line} wins.`}>Oath {run.line}</span>

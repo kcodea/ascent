@@ -1525,6 +1525,26 @@ export const APPROVED_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-TEXT-06',
+    title: 'A printed record accounts for every round played, draws included',
+    statement:
+      'Wherever the game prints a run record, the numbers add up to the rounds that were played. A fight where '
+      + 'both boards wipe is a DRAW and is still a round, so a record that prints only wins and losses is wrong '
+      + 'whenever a draw happened. Every surface prints the same shape through one helper: wins and losses, plus '
+      + 'a third number only when there was a draw.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (bug report on a Career row)', quote: 'this was a 14 round game, why is my record 8-3? fix that.' },
+      { kind: 'code', ref: 'packages/ui/src/leaderboardData.ts recordText (the one helper); packages/ui/src/Career.tsx (the match row); packages/ui/src/HudBar.tsx (the in-run plaque); packages/core/src/combat/simulate.ts (both boards wiped = draw)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22. The Career match row and the in-run HUD plaque printed wins-losses and dropped '
+      + 'draws, so a 14-round run with three draws read as 8-3. Both now call `recordText`, the helper the '
+      + 'Leaderboard and Hall rows already used; the end screen already carried its own draw suffix.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/Career.test.tsx', 'packages/ui/src/ladderPages.test.tsx'], lastVerifiedAt: '2026-09-22' },
+  },
+  {
     id: 'R-TEXT-07',
     title: 'A hero power on a schedule prints its countdown',
     statement:

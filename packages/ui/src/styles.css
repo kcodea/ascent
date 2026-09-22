@@ -2213,19 +2213,26 @@ img.tierbadge.tierstars,
 .card.compact .badge:not([data-milestone='0']) > .value { font-size: var(--msnum-size, 33px); }
 .card.compact .atk { left: calc(var(--ccw) * -0.02); }
 .card.compact .hp { right: calc(var(--ccw) * -0.02); }
-/* mechanic medallion — eclipses the arch's bottom-centre, between the attack/health badges */
+/* mechanic medallion — eclipses the arch's bottom-centre, between the attack/health badges.
+   `--cgem-dx`/`--cgem-dy`/`--cgem-size` (🎖️ Medallions tuner, medallionConfig.ts) layer a further px nudge +
+   scale ON TOP of the box's own centering (`left: 50%` + the `translateX(-50%)` that precedes them below) — a
+   GLOBAL setting, one dial for every card, not per-mechanic. Fallbacks equal the tuner's DEFAULTS, so an absent
+   var reproduces today's look exactly. */
 .card.compact .cgem {
   position: absolute; bottom: calc(var(--ccw) * -0.10); left: 50%; z-index: 7;
   width: calc(var(--ccw) * 0.21); height: calc(var(--ccw) * 0.21);
-  transform: translateX(-50%); border-radius: 50%;
+  transform: translateX(-50%) translate(var(--cgem-dx, 0px), var(--cgem-dy, 0px)) scale(var(--cgem-size, 1));
+  border-radius: 50%;
   background: radial-gradient(circle at 50% 32%, color-mix(in srgb, var(--c) 55%, #2c2535), #1b1722);
   border: calc(var(--ccw) * 0.014) solid #f6e3ad; box-shadow: 0 calc(var(--ccw) * 0.014) calc(var(--ccw) * 0.05) rgba(0, 0, 0, 0.5);
   display: grid; place-items: center;
 }
 .card.compact .cgem svg { width: 62%; height: 62%; color: #f6e3ad; }
 /* PNG medallion art (hybrid — mechMedallionSrc): full-colour art replaces the gold SVG tint, so no `color`
-   applies. The `.cgem` box already sizes/positions the medallion; the img just fills it. */
-.cgem > .cgem-img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+   applies. The `.cgem` box already sizes/positions the medallion; the img just fills it. `--cgem-art-scale`
+   (🎖️ Medallions tuner) insets the art smaller or lets it overflow the box, independent of the box's own size —
+   unscoped so it also drives the tuner's own `.medprev` preview swatches. */
+.cgem > .cgem-img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; transform: scale(var(--cgem-art-scale, 1)); }
 .card.compact .cgem > .cgem-img { width: 100%; height: 100%; }
 /* Trigger pulse — the medallion flares with a VERY brief glow, then releases a slow ring of energy,
    when the unit's effect fires (Start-of-Combat, Deathrattle, Battlecry, aura, Avenge, Reborn, …).
@@ -2293,6 +2300,25 @@ img.tierbadge.tierstars,
   15% { opacity: 1; }
   40% { opacity: 0.85; }
   100% { opacity: 0; transform: scale(3.4); }
+}
+/* 🎖️ Medallions tuner preview (MedallionTuner.tsx) — a handful of `.cgem` swatches OUTSIDE any `.card.compact`
+   ancestor, so the tuner can be judged without a mock card behind it. `.card.compact .cgem` never matches here
+   (no such ancestor exists), so this restates just enough of that box's look (size/gradient/border) at RELATIVE
+   position instead of the in-card absolute placement — the `.msprev` reset pattern, but as a fresh rule rather
+   than an override, since the source rule needs an ancestor this preview doesn't have. The live transform/art
+   vars are identical to the in-card rule, so dragging the tuner moves these swatches exactly as it moves cards. */
+.medprev { background: rgba(0, 0, 0, 0.28); border-radius: 8px; padding: 4px 6px 10px; }
+.medprev-row { display: flex; flex-wrap: wrap; gap: 22px; justify-content: center; align-items: center; padding: 20px 10px; }
+.medprev-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.medprev-label { font: 600 11px/1.6 var(--font-ui); opacity: 0.7; text-align: center; }
+.medprev .cgem {
+  position: relative; z-index: auto;
+  width: 60px; height: 60px;
+  transform: translate(var(--cgem-dx, 0px), var(--cgem-dy, 0px)) scale(var(--cgem-size, 1));
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 32%, color-mix(in srgb, var(--c, #8a6dd6) 55%, #2c2535), #1b1722);
+  border: 1px solid #f6e3ad; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  display: grid; place-items: center;
 }
 /* WATCHER card-frame bloom — a one-shot light-blue ring on the whole card, the CSS fallback for the Pixi def
    (see fx/watcherPulse.ts). Direct child of .archbox (position: relative), so inset: 0 rings the whole frame. */

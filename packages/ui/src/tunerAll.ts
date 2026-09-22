@@ -54,6 +54,7 @@ import { SPEC as LobbyRailLookSpec } from './LobbyRailLookTuner';
 import { SPEC as ScoutCardSpec } from './ScoutCardTuner';
 import { SPEC as OpponentsBackplateSpec } from './OpponentsBackplateTuner';
 import { SPEC as ModePickSpec } from './ModePickTuner';
+import { SPEC as MedallionSpec } from './medallionConfig';
 import { SPEC as MilestoneFrameSpec } from './milestoneFrameConfig';
 import { SPEC as HeroDuelSpec } from './HeroDuelTuner';
 import { SPEC as LoadScreenSpec } from './LoadScreenTuner';
@@ -124,6 +125,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   OpponentsBackplateSpec,
   ModePickSpec,
   MilestoneFrameSpec,
+  MedallionSpec,
   HeroDuelSpec,
   LoadScreenSpec,
   LungeSpec,

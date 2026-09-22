@@ -54,6 +54,7 @@ export const PANEL_EMBLEMS: Record<string, string> = {
   heroduel: '⚔️',
   rankscreen: '🎖️',
   milestoneframe: '🏅',
+  medallion: '🎖️',
   boardedge: '🌫️',
   buffdrawer: '🧪',
   book: '📖',

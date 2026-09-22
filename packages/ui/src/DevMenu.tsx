@@ -33,6 +33,7 @@ import { AuraFxTuner } from './AuraFxTuner';
 import { ShopDeathFxTuner } from './ShopDeathFxTuner';
 import { EquipFxTuner } from './EquipFxTuner';
 import { EquipSlotTuner } from './EquipSlotTuner';
+import { MedallionTuner } from './MedallionTuner';
 import { MilestoneFrameTuner } from './MilestoneFrameTuner';
 import { RuneLockInTuner } from './RuneLockInTuner';
 import { WeldFxTuner } from './WeldFxTuner';
@@ -134,6 +135,7 @@ const GROUPS: Group[] = [
       { key: 'cardplate', icon: '🂠', label: 'Card Plate', C: CardPlateTuner, hint: "The hand card's backplate geometry" },
       { key: 'cardtext', icon: '🔤', label: 'Card Text', C: CardTextTuner, hint: 'Where the rules-text box sits on a card' },
       { key: 'cardpills', icon: '🏷️', label: 'Card Pills', C: CardPillsTuner, hint: 'Cost coin, tier badge, attack and health badges' },
+      { key: 'medallion', icon: '🎖️', label: 'Medallions', C: MedallionTuner, hint: 'Card mechanic medallion — size, placement, and the art inset', alt: 'medallion mechanic icon size position' },
       { key: 'milestoneframe', icon: '🏅', label: 'Milestone Badges', C: MilestoneFrameTuner, hint: 'The per-tier frame discs an Attack/Health badge sits in past 50/100/500/1000/5000 — frame size/position, the state tint, and the number size/colour', alt: 'stat badge milestone frame tier disc sword heart tint number' },
       { key: 'cardart', icon: '🖌️', label: 'Card Art', C: CardArtTuner, hint: "One card's illustration: framing inside the window, plus hue/saturation/contrast" },
       { key: 'heropanel', icon: '🧍', label: 'Hero Panel', C: HeroPanelTuner, hint: 'The bottom-left hero tray' },

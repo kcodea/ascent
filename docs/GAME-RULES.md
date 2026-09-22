@@ -670,25 +670,38 @@ a Rise-vs-Rebirth parity fixture whose flow of deaths, returns and Avenge payout
 
 ### Pummel (X) — the damage-dealt threshold trigger (owner keyword 2026-09-21)
 
-**Pummel (X): Triggers once this minion has dealt X damage in a combat.** It is the printed form of the
-damage-dealt meter (`DAMAGE_METER_MARKERS` in `packages/core/src/types.ts`; the `noteDamageDealt` site in
-`simulate.ts`): every landed hit the body deals — attack, retaliation, incidental — counts toward X; a hit
-that never lands (Immune, a popped Ward, 0 damage) does not. Overkill counts in full. The meter starts every
-combat at **0**, fires the **first** time it reaches X in that combat, then **latches for the rest of the
-fight** (a Rise / Rebirth return is the same combat instance and does not re-arm it), and carries back **0**,
-so the shop always reads 0/X after a combat. Every Pummel is once per combat; one enormous hit that passes X
-several times over still pays once. Gilded doubles the payout, never the fire count. Both bodies wear the
-Avenge-style step counter (N/X, clamped at X/X once fired) in combat, and it holds through the end-of-combat
-sequence. Bodies today:
+**Pummel (X): Triggers each time this minion has dealt another X damage. The damage count carries over
+between combats.** It is the printed form of the damage-dealt meter (`DAMAGE_METER_MARKERS` in
+`packages/core/src/types.ts`; the `noteDamageDealt` site in `simulate.ts`): every landed hit the body deals —
+attack, retaliation, incidental — counts toward X; a hit that never lands (Immune, a popped Ward, 0 damage)
+does not. Overkill counts in full. THE ONE RULE (owner 2026-09-21, later the same day as the keyword: *"it is
+resetting to 0/X after combat. It needs to carry over from turn to turn and combat to shop etc."*):
+
+- The damage tally is **lifetime per instance**. It is seeded into every combat from the run card, carried
+  back whole at settle, snapshotted with a served board (so a served copy pays out from its real total), kept
+  by a Rise / Rebirth body (the same combat instance), and merged as the higher of the copies on a triple. It
+  never resets.
+- A payout happens **each time the tally crosses a multiple of X** (35 → 40 pays; 47 → 52 does not).
+- But **at most one payout per combat**: the "(Once per combat)" rider is a latch on the combat body, fresh
+  every fight. A second crossing in the same fight pays nothing, and one enormous hit that crosses several
+  multiples still pays once; the uncredited crossings are **spent, not banked** (a 120 hit from 0 pays once and
+  the next payout waits for 160). Gilded doubles the payout, never the fire count.
+- The readout on every surface (shop, board, hand, combat) is progress toward the **next** payout: `total mod
+  X`. Han Gover at 47 damage reads **7/40** in the shop and in combat; a crossing lands on 0/40; nothing clamps
+  at X/X, so after this fight's payout the combat badge keeps showing live progress toward the multiple that
+  pays next combat. The combat badge holds through the end-of-combat sequence.
+
+Bodies today:
 
 - **Han Gover** (T4 Dwarf/Undead): *"Pummel (40): Get a Dwarven Ale. (Once per combat)"* (gilded: 2 Dwarven
-  Ales). This **replaced** the 2026-09-18 lifetime tally and its 2026-09-19 "(Max 2 per hit)" cap (owner
-  2026-09-21: *"change this card's effect to match the text"*).
-- **Goldvein** (T1 Kobold): *"Pummel (6): Gain 3 Gold next turn. (Once per combat)"* (gilded: 6 Gold).
+  Ales). The 2026-09-19 "(Max 2 per hit)" cap stays retired (one payout per combat makes a cap moot); the
+  2026-09-21 per-combat reset that briefly shipped with the keyword was reversed the same day.
+- **Goldvein** (T1 Kobold): *"Pummel (6): Gain 3 Gold next turn. (Once per combat)"* (gilded: 6 Gold). Its
+  tally carries over now too (it reset each combat from 2026-09-19 until the carry-over ruling).
 
-The fire is a combat event (`pummelTrigger`, one per body per combat, emitted after the `dmg` that reached X
-and before the payout's own events), which the replay presents with the owner-authored `pummel-trigger` FX on
-the body's medallion (see `docs/combat-events.md`).
+The fire is a combat event (`pummelTrigger`, one per body per combat, emitted after the `dmg` that crossed
+the multiple and before the payout's own events), which the replay presents with the owner-authored
+`pummel-trigger` FX on the body's medallion (see `docs/combat-events.md`).
 
 ### A named-spell caster prints the spell, not its value (owner rule 2026-09-09, R-TEXT-01)
 

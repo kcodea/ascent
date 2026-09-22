@@ -8,18 +8,20 @@ describe('stepProgress', () => {
     expect(stepProgress('guel', { spellProgress: 4 })).toEqual({ current: 4, total: 4 });
     expect(stepProgress('guel', { spellProgress: 5 })).toEqual({ current: 1, total: 4 });
   });
-  it('Han Gover: Pummel (40) is once per combat (owner 2026-09-21) — the meter counts up and clamps at 40/40 once it fired; the shop reads 0/40 after the reset', () => {
-    expect(stepProgress('dw3_hangover', {}), 'fresh (and the shop after any combat — the sim carries back 0)').toEqual({ current: 0, total: 40 });
+  it('Han Gover: Pummel (40) — the LIFETIME meter prints progress toward the NEXT payout, `total mod 40`, on every surface (carry-over ruling 2026-09-21); never a clamp at 40/40', () => {
+    expect(stepProgress('dw3_hangover', {}), 'fresh').toEqual({ current: 0, total: 40 });
     expect(stepProgress('dw3_hangover', { damageDealt: 27 })).toEqual({ current: 27, total: 40 });
-    expect(stepProgress('dw3_hangover', { damageDealt: 40 }), 'fired — cannot fire again this fight').toEqual({ current: 40, total: 40 });
-    expect(stepProgress('dw3_hangover', { damageDealt: 47 }), 'still 40/40, never a second lap').toEqual({ current: 40, total: 40 });
-    expect(stepProgress('dw3_hangover', { damageDealt: 80 })).toEqual({ current: 40, total: 40 });
+    expect(stepProgress('dw3_hangover', { damageDealt: 40 }), 'a crossing lands on 0/40').toEqual({ current: 0, total: 40 });
+    expect(stepProgress('dw3_hangover', { damageDealt: 47 }), '47 reads 7/40 in the shop and in combat').toEqual({ current: 7, total: 40 });
+    expect(stepProgress('dw3_hangover', { damageDealt: 80 })).toEqual({ current: 0, total: 40 });
+    expect(stepProgress('dw3_hangover', { damageDealt: 85 }), 'never clamped at 40/40 — live progress toward the multiple that pays next combat').toEqual({ current: 5, total: 40 });
   });
-  it('Goldvein: the once-per-combat meter counts up and clamps at 6/6 for the rest of the fight; the shop reads 0/6 after the reset', () => {
-    expect(stepProgress('k3_goldvein', {}), 'fresh (and the shop after any combat — the sim carries back 0)').toEqual({ current: 0, total: 6 });
+  it('Goldvein: the lifetime meter prints `total mod 6` — 7 reads 1/6, never a clamp at 6/6', () => {
+    expect(stepProgress('k3_goldvein', {}), 'fresh').toEqual({ current: 0, total: 6 });
     expect(stepProgress('k3_goldvein', { damageDealt: 4 })).toEqual({ current: 4, total: 6 });
-    expect(stepProgress('k3_goldvein', { damageDealt: 6 }), 'fired — cannot fire again this fight').toEqual({ current: 6, total: 6 });
-    expect(stepProgress('k3_goldvein', { damageDealt: 13 }), 'still 6/6, never a second lap').toEqual({ current: 6, total: 6 });
+    expect(stepProgress('k3_goldvein', { damageDealt: 6 }), 'a crossing lands on 0/6').toEqual({ current: 0, total: 6 });
+    expect(stepProgress('k3_goldvein', { damageDealt: 7 })).toEqual({ current: 1, total: 6 });
+    expect(stepProgress('k3_goldvein', { damageDealt: 13 })).toEqual({ current: 1, total: 6 });
   });
   it('Spirit Pup clamps up to its one-time transform threshold', () => {
     const sp = stepProgress('spiritpup', { spellProgress: 3 });

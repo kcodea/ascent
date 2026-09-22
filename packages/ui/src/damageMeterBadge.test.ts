@@ -58,31 +58,44 @@ describe('the combat damage-meter badge ticks per landed hit, including the blow
     const readings = badgePerBeat(r, uid);
     // Every distinct reading in order — the badge climbs monotonically and never skips a hit.
     const distinct = readings.filter((v, i) => i === 0 || v !== readings[i - 1]);
-    expect(distinct).toEqual(['0/6', '2/6', '4/6', '6/6']);
+    // The third hit crosses 6: the badge prints `total mod 6`, so the crossing lands on 0/6 (owner rule
+    // 2026-09-19, reaffirmed with the carry-over ruling 2026-09-21 — the tally is lifetime, never clamped).
+    expect(distinct).toEqual(['0/6', '2/6', '4/6', '0/6']);
     // The LAST blow's increment is on the `done` frame (what the end-of-combat sequence shows).
-    expect(readings[readings.length - 1]).toBe('6/6');
+    expect(readings[readings.length - 1]).toBe('0/6');
+    expect(r.playerDamageMeters, 'the whole 6 carries back (the shop reads 0/6 from a real 6)').toEqual([{ sourceUid: 'me', total: 6 }]);
   });
 
-  it('Goldvein reads 6/6 (fired) for the rest of the fight — never a second lap — and the shop then reads 0/6', () => {
+  it('Goldvein keeps ticking past its one payout — 4 → 8 → 12 prints 4/6 → 2/6 → 0/6 (no clamp at 6/6), pays once, and the shop then reads 0/6 from a real 12', () => {
     const r = fight([body('k3_goldvein', { attack: 4 })], [foe(0, 1), foe(0, 1), foe(0, 1)]);
     const uid = r.initial.player[0]!.uid;
     expect(dmgBy(r.events, uid)).toEqual([4, 4, 4]);
     const readings = badgePerBeat(r, uid);
     const distinct = readings.filter((v, i) => i === 0 || v !== readings[i - 1]);
-    expect(distinct).toEqual(['0/6', '4/6', '6/6']); // 4 → 8 → 12: clamped at 6/6 once it fired
-    expect(r.playerBonusGold).toBe(3);
-    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'me', total: 0 }]); // → the shop's 0/6
+    expect(distinct).toEqual(['0/6', '4/6', '2/6', '0/6']); // 4 → 8 → 12: `total mod 6` all the way
+    expect(r.playerBonusGold, 'the 12-crossing pays nothing: once per combat').toBe(3);
+    expect(r.events.filter((e) => e.type === 'pummelTrigger')).toHaveLength(1);
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'me', total: 12 }]); // → the shop's 0/6
   });
 
-  it('Han Gover (Pummel (40), once per combat): a seeded tally is ignored — 0/40 → 15/40 → 30/40 → 40/40 per hit, clamped once it fired; the shop then reads 0/40', () => {
+  it('Han Gover (Pummel (40)): the seeded tally SEEDS the badge — 30/40 → 5/40 (45: the payout fires) → 20/40 → 35/40 per hit; the shop then reads 35/40 from a real 75', () => {
     const r = fight([body('dw3_hangover', { attack: 15, damageDealt: 30 })], [foe(0, 1), foe(0, 1), foe(0, 1)]);
     const uid = r.initial.player[0]!.uid;
     expect(dmgBy(r.events, uid)).toEqual([15, 15, 15]);
     const readings = badgePerBeat(r, uid);
     const distinct = readings.filter((v, i) => i === 0 || v !== readings[i - 1]);
-    expect(distinct).toEqual(['0/40', '15/40', '30/40', '40/40']); // 45 dealt: clamped at 40/40 once the Pummel fired
+    expect(distinct).toEqual(['30/40', '5/40', '20/40', '35/40']); // 30 → 45 → 60 → 75: `total mod 40`, never clamped
     expect(r.events.filter((e) => e.type === 'pummelTrigger')).toHaveLength(1);
-    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'me', total: 0 }]); // → the shop's 0/40
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'me', total: 75 }]); // → the shop's 35/40
+  });
+
+  it('Han Gover at 47: 7/40 in combat (the badge) and 7/40 in the shop (the run card) — one formula, two surfaces', () => {
+    const r = fight([body('dw3_hangover', { attack: 47 })], [foe(0, 1)]);
+    const uid = r.initial.player[0]!.uid;
+    const readings = badgePerBeat(r, uid);
+    expect(readings[readings.length - 1]).toBe('7/40');
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'me', total: 47 }]);
+    expect(stepProgress('dw3_hangover', { damageDealt: 47 })).toEqual({ current: 7, total: 40 });
   });
 
   it('a hit that never lands (a popped Ward) does not tick the badge', () => {

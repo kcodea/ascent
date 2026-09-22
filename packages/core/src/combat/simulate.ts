@@ -697,7 +697,7 @@ export function simulate(
     ascendProgress: m.ascendProgress,
     spellProgress: m.spellProgress, // Guel: the live combat text reads his on-board spell tally
     spiritTally: m.spiritTally, // Set 3 Spirits: Forest Colossus's Start of Combat reads it; Keeper / Aspect print it
-    damageDealt: m.damageDealt, // Pummel (Han Gover, Goldvein): the seeded damage tally (a once-per-combat meter arrives here undefined)
+    damageDealt: m.damageDealt, // Pummel (Han Gover, Goldvein): the seeded lifetime damage tally (the replay counts this fight's hits on top)
     soldProgress: m.soldProgress, // Runic Archivist (display-only)
     boardFirstSpellId: m.boardFirstSpellId, // Spell Warden (display-only)
 
@@ -2195,18 +2195,23 @@ export function simulate(
   /**
    * PUMMEL (X) — the damage meter ("Pummel (40): Get a Dwarven Ale. (Once per combat)" — Han Gover, Set 3
    * Dwarf/Undead; "Pummel (6): Gain 3 Gold next turn. (Once per combat)" — Goldvein, Set 3 Kobold). Owner keyword
-   * 2026-09-21: "Triggers once this minion has dealt X damage in a combat."
+   * 2026-09-21: "Triggers each time this minion has dealt another X damage. The damage count carries over
+   * between combats."
    *
    * Called from the ONE place every landed hit passes through (`applyDamage`, right after the `dmg` event), so
    * attacks, retaliation and incidental damage (an Echo volley, a bolt) all count, and a hit that never landed
    * (Immune, a popped Ward, 0 damage) never does — exactly the hits the replay's `dmg` events carry, which is
    * what the UI re-derives the live meter from. A body whose card carries a `DAMAGE_METER_MARKERS` passive adds
-   * the FULL amount of the hit to its per-instance `damageDealt` (fresh every fight — `resetEachCombat`), and the
-   * FIRST time the tally reaches `every` in a combat its marker pays out ONCE and latches (`pummelFired`, on the
-   * instance like Yeti's `reflectFired`, so a Risen body does not re-arm and a fresh combat does). Overkill
-   * counts (a 30-Attack swing into a 1-Health body is 30 damage dealt); one enormous hit that crosses several
-   * multiples of X still pays once — the meter is a threshold, not a cadence (the lifetime tally and its
-   * "(Max 2 per hit)" cap retired with the Pummel ruling).
+   * the FULL amount of the hit to its per-instance `damageDealt`, a LIFETIME tally: seeded from the run card at
+   * instantiate, carried back whole at settle, kept by a Rise / Rebirth body (carry-over ruling 2026-09-21 —
+   * "it needs to carry over from turn to turn and combat to shop"). Each time the tally crosses a MULTIPLE of
+   * `every` the marker pays out — but at most ONCE per combat: the "(Once per combat)" rider is the
+   * `pummelFired` latch (on the instance like Yeti's `reflectFired`, so a Risen body does not re-arm and a fresh
+   * combat does). Overkill counts (a 30-Attack swing into a 1-Health body is 30 damage dealt). One enormous hit
+   * that crosses several multiples still pays once, and the uncredited crossings are SPENT, not banked — the
+   * tally already advanced by the full amount, so a 120 hit from 0 pays once and the next payout waits for 160.
+   * A second crossing in the same fight likewise pays nothing (the latch holds); the tally still moves, and the
+   * badge keeps printing `total mod X` toward the multiple that pays next combat.
    */
   function noteDamageDealt(dealer: Minion, amount: number): void {
     // ONE meter, several bodies (`DAMAGE_METER_DOS`): the tally advances the same way for every marker; the
@@ -2218,10 +2223,16 @@ export function simulate(
     if (!meter) return;
     const eff = cards[dealer.cardId]!.effects.find((e) => e.do === meter.do)!;
     const p = eff.params ?? {};
+    const every = meter.every;
     const before = dealer.damageDealt ?? 0;
     const after = before + amount;
     dealer.damageDealt = after;
-    if (dealer.pummelFired || after < meter.every) return;
+    // The crossing math (pre-#1607, restored 2026-09-21): a payout is owed only when this hit carried the
+    // lifetime tally over a multiple of X (47 → 52 owes nothing; 35 → 40 owes one; 0 → 120 owes one, not three).
+    // The latch comes FIRST so a second crossing in the same fight is spent silently.
+    if (dealer.pummelFired) return;
+    const crossings = Math.floor(after / every) - Math.floor(before / every);
+    if (crossings <= 0) return;
     // THE TRIGGER MOMENT (2026-09-21): a Pummel that PAYS emits one `pummelTrigger` — the presentation cue the
     // owner authored (`pummel-trigger`) plays off it, on the body that fired, AFTER the `dmg` that did it and
     // BEFORE the payout's own events. "After" is not "immediately after": `applyDamage` runs the victim's
@@ -4587,13 +4598,13 @@ export function simulate(
     const spellProgress = board
       .filter((m) => m.sourceUid !== undefined && (m.spellProgress ?? 0) > 0)
       .map((m) => ({ sourceUid: m.sourceUid!, progress: m.spellProgress! }));
-    // Pummel (Han Gover, Goldvein): the damage tally carries back per body. A once-per-combat meter (every
-    // meter since the Pummel ruling 2026-09-21 — `resetEachCombat`) carries back 0 whenever it moved, so the run
-    // card is wiped at settle and the shop reads 0/N (owner 2026-09-19); its next fight starts from 0
-    // regardless. A persistent meter would carry its seeded total plus this fight's hits.
+    // Pummel (Han Gover, Goldvein): the LIFETIME damage tally (seeded + this fight's hits) carries back whole per
+    // body, so the meter persists shop → combat → shop (carry-over ruling 2026-09-21) and the shop reads
+    // `total mod X`. `boards[side]` still holds a body that died this fight, so its hits carry too — the run
+    // card outlives the combat death.
     const damageMeters = board
       .filter((m) => m.sourceUid !== undefined && (m.damageDealt ?? 0) > 0 && damageMeterOf(cards[m.cardId]))
-      .map((m) => ({ sourceUid: m.sourceUid!, total: damageMeterOf(cards[m.cardId])!.resetEachCombat ? 0 : m.damageDealt! }));
+      .map((m) => ({ sourceUid: m.sourceUid!, total: m.damageDealt! }));
     // Tara's stat-grant tally this combat, per board card (for the ascend-at-settle accumulation).
     const ascendCount = board
       .filter((m) => m.sourceUid !== undefined && (buffCounts.get(m.uid) ?? 0) > 0)

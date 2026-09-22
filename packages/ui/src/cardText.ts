@@ -1175,12 +1175,12 @@ export function stepProgress(
   if (def.effects.some((e) => e.do === 'spellCastBuffOthers')) return cyc(p.spellProgress ?? 0, 4); // Guel
   // PUMMEL (X) — the DAMAGE meter ("Pummel (40): Get a Dwarven Ale. (Once per combat)" — Han Gover; "Pummel (6):
   // Gain 3 Gold next turn. (Once per combat)" — Goldvein): the running per-instance tally toward X. Tracker, not a
-  // fraction in the text (owner 2026-09-11). The READING is core's `damageMeterReading` (owner rule 2026-09-19):
-  // a once-per-combat meter (every Pummel body since 2026-09-21) counts up in combat and clamps at X/X once it
-  // fired — the "spent for this fight" reading — then resets to 0/X in the shop; a persistent meter would read
-  // progress toward its next crossing (`total mod X`). Han Gover (40) + Goldvein (6): the `DAMAGE_METER_DOS`
-  // family, spelled out as literals here so the rendered-text lanes (which scrape `e.do === '…'` from this file)
-  // list both bodies as subjects.
+  // fraction in the text (owner 2026-09-11). The READING is core's `damageMeterReading` (owner rule 2026-09-19,
+  // reaffirmed with the carry-over ruling 2026-09-21): the tally is LIFETIME and the badge prints progress toward
+  // the NEXT payout, `total mod X`, on every surface — 47 reads 7/40 in the shop and in combat, a crossing lands
+  // on 0/40, and nothing clamps at X/X (the count keeps growing past this fight's one payout). Han Gover (40) +
+  // Goldvein (6): the `DAMAGE_METER_DOS` family, spelled out as literals here so the rendered-text lanes (which
+  // scrape `e.do === '…'` from this file) list both bodies as subjects.
   const dmgMeter = def.effects.find((e) => e.do === 'dealtDamageAleMeter' || e.do === 'dealtDamageGoldNextTurn');
   if (dmgMeter) return damageMeterReading(p.damageDealt ?? 0, damageMeterOf(def)!);
   // Astral Spellcore: every N Shop spells cast while on the board — the same per-copy `spellProgress` meter as

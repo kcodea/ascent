@@ -24,8 +24,8 @@ performance trends an 'MMR' line graph that tracks mmr over time. also add an 'A
   change; the doc reads "for MMR: the latest point"). On a 7d window with no rated run this week the chart is
   EMPTY ("No rated runs in this window") while the crest above still prints the current scalar — correct: the
   chart is what happened in the window, the crest is where you stand.
-- **Skips, never zeros.** `!== null`, never truthiness: the live Bronze I floor rows (5th / 7th / 8th at 0 → 0,
-  delta 0) plot as three real points; practice, unrated and unstamped runs contribute nothing. A season reset
+- **Skips, never zeros.** `!== null`, never truthiness: the live Bronze I floor rows (five bottom-half finishes
+  at 0 → 0, delta 0) plot as five real points; practice, unrated and unstamped runs contribute nothing. A season reset
   inside the window (everyone back to 0 on 2026-09-20/21) draws as the cliff it is.
 - **Axis** (`mmrAxisOf`, pure + tested): the window's ratings snapped OUT to whole 100-point divisions — from
   the division floor strictly below the lowest rating (clamped at 0) to the division ceiling strictly above the
@@ -71,6 +71,20 @@ performance trends an 'MMR' line graph that tracks mmr over time. also add an 'A
 - Oracle: `R-CAREER-01` (approved; refs the three tests). `docs/docbot2/final-report.md` totals moved
   168 / 82 → 169 / 83.
 
+## Four charts in one column (review fix, 2026-09-22)
+
+- The right column is ~320px wide at 1920 and holds the Seasonal Ranked card (287px) above the panel; four
+  charts at the old steps (92px plots, 120px from a 1000px viewport) overflowed it by 280px at 1920×1080, and
+  the column's scrollbar is an overlay one, so the fourth chart was simply not there for a 1080p player (three
+  already overflowed by 79px). Fixed in CSS only, scoped to the three-column layout (`@container cv2
+  (width > 1300px)` nested in viewport media queries, `styles.css` beside the trend rules): a viewport of 1199
+  or less compacts the plots to 60px (column 967 = 50 colhead + 301 card + 608 panel, 8px spare at 1080p),
+  1200 to 1359 keeps the 92px plots, and the 120px step now waits for 1360+ (the 1247 the tall stack needs).
+  The stacked single-column layout keeps the old steps: the page scrolls as a whole there and the plots are
+  full-width. Measured live, not derived. A 2×2 grid was rejected because a 320px column leaves ~95px of plot
+  per chart; a browser window at 1080p (a ~950px viewport) and 1600×900 still scroll the column, as the
+  three-chart panel already did there.
+
 ## Verified
 
 - `npm run typecheck` green (pkgs + web); `npm run lint` 0 errors (46 pre-existing warnings, none in these
@@ -79,10 +93,12 @@ performance trends an 'MMR' line graph that tracks mmr over time. also add an 'A
   runs) shows the MMR chart first with "No rated runs in this window", axis 100 / 0, "0 runs", and the tabs
   7d · 30d · 90d · All time. A viewed Career (the Leaderboard's #1, 12 lobby runs, Bronze II 10/100 = 110 MMR)
   shows the crest's "110 MMR" and, directly under it, the MMR chart with headline 110, axis 200 / 0 and the
-  line climbing from the floor's three 0s through 16 → 56 → 40 → 46 → 86 → 100 → 110 — raw, dips included —
+  line climbing from the floor's five 0s through 16 → 56 → 40 → 46 → 86 → 100 → 110 — raw, dips included —
   then Avg Placement 4.5 · Win Rate 50% · Avg APM 16.8, each "12 runs", on 30d and on All time (every run is
-  from this week, so the two agree). The right column scrolls to the fourth chart at 1600×900 as it already
-  did (`.cv2-right { overflow-y: auto }`). No console errors.
+  from this week, so the two agree). With the fold fix below: at 1920×1080 the column holds the crest card and
+  all four charts with 0px of overflow (60px plots, the panel's bottom frame in view); 1920×1250 draws the
+  92px plots and 1920×1400 the 120px ones, both without overflow; 1600×900 still scrolls the column (172px,
+  down from 300px), as the three-chart panel already did there. No console errors.
 
 ## Follow-ups
 

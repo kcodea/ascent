@@ -1837,9 +1837,9 @@ export const APPROVED_RULES: GameRule[] = [
       + 'time reads the newest 1000 light rows the page fetches (FETCH_LIMIT), which is every run any account has '
       + 'today. A season reset inside a window is drawn as the drop it is.',
     example:
-      'A player finishes 5th, 7th and 8th on the Bronze I floor, then climbs 16, 56, 40, 46, 86, 100, 110. The 30d '
-      + 'MMR line reads 0, 0, 0, 16, 56, 40, 46, 86, 100, 110 with the headline 110 on a 0 to 200 axis; the Avg '
-      + 'Placement line beside it is still a running mean.',
+      'A player takes five bottom-half finishes on the Bronze I floor (0 MMR each), then climbs 16, 56, 40, 46, '
+      + '86, 100, 110. The 30d MMR line reads 0, 0, 0, 0, 0, 16, 56, 40, 46, 86, 100, 110 with the headline 110 on '
+      + 'a 0 to 200 axis; the Avg Placement line beside it is still a running mean.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/ui/src/careerData.test.ts', 'packages/ui/src/Career.test.tsx', 'packages/ui/src/careerFetch.test.ts'],

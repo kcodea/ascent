@@ -57,6 +57,7 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: 'Performance Trends on the Career page now show your MMR over time, and an All time tab joins 7, 30 and 90 days.', details: [
         'The MMR chart plots your rating after each rated run, exactly as it was, with the latest one as its headline. Practice and unrated runs are left out.',
         'All time covers every run on your account. The 7, 30 and 90 day tabs work as before.',
+        'The trend panel keeps all four charts in view on a 1080p screen. The plots shrink to fit the column instead of hiding the last chart below its edge.',
       ] },
     ],
   },

@@ -52,6 +52,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Warden voice line',
+    changes: [
+      { category: 'Systems', text: 'The Warden no longer speaks a line when you pick him in hero select.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Crest of the Climb scales',
     changes: [
       {

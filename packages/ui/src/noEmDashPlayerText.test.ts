@@ -73,6 +73,7 @@ const TOOLTIP_SOURCES = [
   'RefreshButton.tsx',
   'PracticeOptions.tsx',
   'AvatarPicker.tsx',
+  'BalancePanel.tsx', // dev-only, but the owner reads every hover on it (2026-09-22 rework)
 ];
 
 /** The JSX attributes a player reads: hover tips, native titles, screen-reader labels and the option hints. */

@@ -14,7 +14,8 @@
  * seeds should still pin to the committed pool only (see docs/board-pool.md).
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { CONFIG, RANK_SEASON, initialRankedProfile, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type RankedProfile, type ReplayV2, type RunTelemetry } from '@game/sim';
+import { CONFIG, RANK_SEASON, initialRankedProfile, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource } from '@game/sim';
+import type { SetId } from '@game/content';
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
 import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
 import { careerRunOf, joinTelemetry, type CareerRun, type RunHistoryRowLike, type TelemetryProbeRow } from './careerData';
@@ -522,48 +523,123 @@ export async function uploadRunTelemetry(
     const withDerived = meta.derived
       ? { ...withBuys, derived: meta.derived, replay: meta.replay ?? null, content_revision: meta.derived.contentRevision }
       : withBuys;
-    const res0 = meta.derived ? await c.from('run_telemetry').insert([withDerived]) : { error: true };
-    const res = res0?.error ? await c.from('run_telemetry').insert([withBuys]) : res0;
-    if (res?.error) {
-      const res2 = await c.from('run_telemetry').insert([withSplit]);
-      // `placement` must be dropped on the way down. It rides in `base`, which every fallback spreads, so
-      // before this a DB without that column failed ALL THREE inserts identically and the row was lost —
-      // the fallback ladder existed but could never reach the ground (owner report 2026-08-03).
-      if (res2?.error) {
-        const res3 = await c.from('run_telemetry').insert([base]);
-        if (res3?.error) {
-          const noPlacement: Record<string, unknown> = { ...base };
-          delete noPlacement.placement;
-          await c.from('run_telemetry').insert([noPlacement]);
-        }
-      }
+    // 2026-09-22: the SET + SOURCE stamps (the Balance Report reads one set and never a sandbox row). A NEW
+    // top rung, never a key in `base`: `base` is spread into every rung below, so a column there that the
+    // backend lacks would fail every insert and LOSE the row — exactly the 2026-08-03 `placement` bug. On a
+    // pre-migration table this rung errors and the walk continues one rung down, costing only the stamps
+    // (both also ride inside `derived`, so a stamped payload still survives).
+    const withSet = { ...withDerived, set_id: t.setId ?? null, source: t.source ?? 'ladder' };
+    // `placement` must be dropped on the way down. It rides in `base`, which every fallback spreads, so
+    // before this a DB without that column failed ALL THREE inserts identically and the row was lost —
+    // the fallback ladder existed but could never reach the ground (owner report 2026-08-03).
+    const noPlacement: Record<string, unknown> = { ...base };
+    delete noPlacement.placement;
+    // Walk the ladder richest → plainest; the first insert the backend accepts ends it.
+    const ladder: Record<string, unknown>[] = [withSet, ...(meta.derived ? [withDerived] : []), withBuys, withSplit, base, noPlacement];
+    for (const row of ladder) {
+      const res = await c.from('run_telemetry').insert([row]);
+      if (!res?.error) break;
     }
   } catch {
     /* best-effort — telemetry must never disrupt the end screen */
   }
 }
 
-/** Fetch the most recent `limit` run-telemetry rows (newest first) for the player balance report. Best-effort +
- *  time-boxed; [] on any failure / no backend / un-migrated table. */
-/** Fetch recent runs' DERIVED payloads (the runDerive streams stored in the `derived` jsonb column) for the
- *  Balance Report's derived views. Best-effort like everything here: [] on no backend / pre-migration DB
- *  (the column doesn't exist until the 2026-08-05 schema.sql section is run) / timeout. */
-export async function fetchDerivedRuns(limit = 200): Promise<DerivedRun[]> {
+/** The Balance Report's select ladder — richest first. Each rung drops the columns of one migration, NEWEST
+ *  migration first, so a backend that has not run a migration answers from the rung below it (PostgREST
+ *  rejects an unknown column in `select=` with 42703; a walk that never dropped the newest columns first
+ *  would error on every rung and empty the whole report). Exported for tests. */
+const BALANCE_BASE = 'id, created_at, patch, author, hero_id, hero_offer, won, wins, offered_quests, picked_quests, quest_turns, offered_runes, picked_runes, offered_cards, bought_cards, tier_by_wave';
+const BALANCE_SPLIT = `${BALANCE_BASE}, discover_offered_cards, discover_bought_cards`; // 2026-07-15
+const BALANCE_BUYS = `${BALANCE_SPLIT}, buy_events`; // 2026-07-16
+const BALANCE_PLACE = `${BALANCE_BUYS}, placement`; // 2026-08-02
+const BALANCE_REV = `${BALANCE_PLACE}, content_revision`; // 2026-08-05
+export const BALANCE_SELECTS: readonly string[] = [
+  `${BALANCE_REV}, set_id, source`, // 2026-09-22 — the set + source stamps
+  BALANCE_REV,
+  BALANCE_PLACE,
+  BALANCE_BUYS,
+  BALANCE_SPLIT,
+  BALANCE_BASE,
+];
+/** The derived payloads are the heavy half (~100 KB per run today, ~16 MB for the live table): fetched in
+ *  their OWN query, id-keyed, capped at the newest `derivedLimit` rows, and joined onto the flat rows by id.
+ *  A pre-2026-08-05 backend errors this query and the flat report still loads, exactly as before. */
+const BALANCE_DERIVED_SELECT = 'id, derived';
+/** The Balance Report is a dev panel reading a multi-megabyte table, not a boot-path fetch: it gets a longer
+ *  box than `FETCH_TIMEOUT_MS`, and the derived query longer still. */
+const BALANCE_FLAT_TIMEOUT_MS = 12000;
+const BALANCE_DERIVED_TIMEOUT_MS = 45000;
+
+/** Fetch the most recent `limit` run-telemetry rows (newest first) for the player Balance Report, each joined
+ *  with its derived payload when it has one (the newest `derivedLimit` payloads are fetched). Best-effort +
+ *  time-boxed; [] on any failure / no backend / un-migrated table. The set / ladder filtering happens in
+ *  `@game/sim`'s `applyReportFilters`, on the caller's side, so the export and the screen share one path. */
+export async function fetchRunTelemetry(limit = 500, derivedLimit = 300): Promise<RunTelemetryRow[]> {
   const c = client();
   if (!c) return [];
   try {
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
-    const result = await Promise.race([
-      Promise.resolve(
-        c.from('run_telemetry').select('derived').not('derived', 'is', null)
-          .order('created_at', { ascending: false }).limit(limit),
-      ),
-      timeout,
+    const timeout = (ms: number) => new Promise<null>((resolve) => setTimeout(() => resolve(null), ms));
+    const query = (select: string) => Promise.race([
+      Promise.resolve(c.from('run_telemetry').select(select).order('created_at', { ascending: false }).limit(limit)),
+      timeout(BALANCE_FLAT_TIMEOUT_MS),
     ]);
+    const derivedQuery = Promise.race([
+      Promise.resolve(
+        c.from('run_telemetry').select(BALANCE_DERIVED_SELECT).not('derived', 'is', null)
+          .order('created_at', { ascending: false }).limit(derivedLimit),
+      ),
+      timeout(BALANCE_DERIVED_TIMEOUT_MS),
+    ]);
+    // Walk the ladder: a query ERROR (an unknown column on this backend) tries the next, plainer select; a
+    // timeout or a clean answer ends the walk. The derived query runs alongside, in parallel.
+    let result: Awaited<ReturnType<typeof query>> = null;
+    for (const select of BALANCE_SELECTS) {
+      result = await query(select);
+      if (!result || !result.error) break;
+    }
     if (!result || result.error || !result.data) return [];
-    return (result.data as unknown as Array<{ derived: DerivedRun | null }>)
-      .map((r) => r.derived)
-      .filter((d): d is DerivedRun => !!d && Array.isArray((d as DerivedRun).offers));
+    const derivedById = new Map<number, DerivedRun>();
+    const derivedResult = await derivedQuery;
+    if (derivedResult && !derivedResult.error && derivedResult.data) {
+      for (const r of derivedResult.data as unknown as Array<{ id: number; derived: DerivedRun | null }>) {
+        if (r.derived && Array.isArray(r.derived.offers)) derivedById.set(r.id, r.derived);
+      }
+    }
+    // The select list is built at runtime (columns are dropped on a pre-migration DB), so supabase-js can't
+    // infer a row type and falls back to `GenericStringError[]` — go via `unknown` and read the columns by hand.
+    return (result.data as unknown as Array<Record<string, unknown>>).map((r) => {
+      const id = typeof r.id === 'number' ? r.id : null;
+      const setId = typeof r.set_id === 'string' ? (r.set_id as SetId) : undefined;
+      const source = typeof r.source === 'string' ? (r.source as TelemetrySource) : undefined;
+      return {
+        id,
+        createdAt: (r.created_at as string | null) ?? null,
+        patch: (r.patch as string | null) ?? null,
+        author: (r.author as string | null) ?? null,
+        contentRevision: (r.content_revision as string | null) ?? null,
+        derived: id != null ? (derivedById.get(id) ?? null) : null,
+        mode: (((r.hero_offer as string[]) ?? []).find((h) => h.startsWith('mode:')) ?? '').slice(5) || undefined,
+        ...(setId ? { setId } : {}),
+        ...(source ? { source } : {}),
+        heroId: (r.hero_id as string) ?? '',
+        heroOffer: ((r.hero_offer as string[]) ?? []).filter((h) => !h.startsWith('mode:')),
+        won: !!r.won,
+        wins: (r.wins as number) ?? 0,
+        offeredQuests: (r.offered_quests as string[]) ?? [],
+        pickedQuests: (r.picked_quests as string[]) ?? [],
+        questTurns: (r.quest_turns as Record<string, number>) ?? {},
+        offeredRunes: (r.offered_runes as string[]) ?? [],
+        pickedRunes: (r.picked_runes as string[]) ?? [],
+        offeredCards: (r.offered_cards as string[]) ?? [],
+        boughtCards: (r.bought_cards as string[]) ?? [],
+        discoverOfferedCards: (r.discover_offered_cards as string[]) ?? [],
+        discoverBoughtCards: (r.discover_bought_cards as string[]) ?? [],
+        tierByWave: (r.tier_by_wave as number[]) ?? [],
+        buyEvents: (r.buy_events as { id: string; wave: number; src: 'shop' | 'discover' }[]) ?? undefined,
+        placement: (r.placement as number | null) ?? undefined,
+      };
+    });
   } catch {
     return [];
   }
@@ -864,49 +940,6 @@ export async function fetchPlayerById(userId: string): Promise<PlayerRow | null>
   }
 }
 
-export async function fetchRunTelemetry(limit = 500): Promise<RunTelemetry[]> {
-  const c = client();
-  if (!c) return [];
-  try {
-    // `placement` is load-bearing for the whole placement half of the report AND for `runWon` (placement 1 is
-    // what a lobby win IS — a lobby never reaches phase 'victory'). It was written by the insert but never
-    // selected here, so every placement column read empty (owner report 2026-08-03).
-    const cols = 'hero_id, hero_offer, won, wins, offered_quests, picked_quests, quest_turns, offered_runes, picked_runes, offered_cards, bought_cards, discover_offered_cards, discover_bought_cards, tier_by_wave, buy_events, placement';
-    const query = (select: string) => Promise.resolve(
-      c.from('run_telemetry').select(select).order('created_at', { ascending: false }).limit(limit),
-    );
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
-    let result = await Promise.race([query(cols), timeout]);
-    // Pre-migration DB (missing newer columns) errors the select — retry progressively so the report still loads.
-    if (result && result.error) result = await Promise.race([query(cols.replace(', placement', '')), timeout]);
-    if (result && result.error) result = await Promise.race([query(cols.replace(', buy_events', '').replace(', placement', '')), timeout]);
-    if (result && result.error) result = await Promise.race([query(cols.replace(', discover_offered_cards, discover_bought_cards', '').replace(', buy_events', '').replace(', placement', '')), timeout]);
-    if (!result || result.error || !result.data) return [];
-    // The select list is built at runtime (columns are dropped on a pre-migration DB), so supabase-js can't
-    // infer a row type and falls back to `GenericStringError[]` — go via `unknown` and read the columns by hand.
-    return (result.data as unknown as Array<Record<string, unknown>>).map((r) => ({
-      mode: (((r.hero_offer as string[]) ?? []).find((h) => h.startsWith('mode:')) ?? '').slice(5) || undefined,
-      heroId: (r.hero_id as string) ?? '',
-      heroOffer: ((r.hero_offer as string[]) ?? []).filter((h) => !h.startsWith('mode:')),
-      won: !!r.won,
-      wins: (r.wins as number) ?? 0,
-      offeredQuests: (r.offered_quests as string[]) ?? [],
-      pickedQuests: (r.picked_quests as string[]) ?? [],
-      questTurns: (r.quest_turns as Record<string, number>) ?? {},
-      offeredRunes: (r.offered_runes as string[]) ?? [],
-      pickedRunes: (r.picked_runes as string[]) ?? [],
-      offeredCards: (r.offered_cards as string[]) ?? [],
-      boughtCards: (r.bought_cards as string[]) ?? [],
-      discoverOfferedCards: (r.discover_offered_cards as string[]) ?? [],
-      discoverBoughtCards: (r.discover_bought_cards as string[]) ?? [],
-      tierByWave: (r.tier_by_wave as number[]) ?? [],
-      buyEvents: (r.buy_events as { id: string; wave: number; src: 'shop' | 'discover' }[]) ?? undefined,
-      placement: (r.placement as number | null) ?? undefined,
-    }));
-  } catch {
-    return [];
-  }
-}
 
 // ── Player leaderboard (profiles) ───────────────────────────────────────────────────────────────────────────
 // One row per NAMED player, upserted on every finished Ascent run: their skill rating (the "MMR"), total games

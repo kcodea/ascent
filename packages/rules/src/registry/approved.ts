@@ -1747,4 +1747,33 @@ export const APPROVED_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-22',
     },
   },
+  {
+    id: 'R-REPORT-01',
+    title: 'The Balance Report reads one set, never a sandbox, and exports exactly what it shows',
+    statement:
+      'The player Balance Report reads ONLY ladder runs of the ACTIVE card set. A telemetry row that carries no '
+      + 'set stamp is read as set 1, the codebase-wide legacy default, and is never substituted with the live '
+      + 'set; the real value is backfilled by SQL, by the owner, from the registry timeline. A Scene Builder '
+      + 'sandbox run never uploads telemetry, whatever mode the loaded run kept, and every uploaded row is '
+      + 'stamped with its set and its source so a sandbox row could never pass for a ladder row even if a '
+      + 'gate slipped. The export is built from the SAME filtered rows the screen renders, through the same '
+      + 'pure functions, so the file and the screen can never disagree.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (the Balance Report rework)', quote: 'fix up our balance report. it should only have data for the active set in it, and nothing from scene builder. also make the export export everything so that an ai can analyze all of the data for me at once.' },
+      { kind: 'code', ref: 'packages/sim/src/playerReport.ts (applyReportFilters, telemetrySetOf, isLadderRow, buildBalanceExport); packages/sim/src/runTelemetry.ts telemetrySourceOf; packages/ui/src/store.ts the run-end telemetry gate; packages/ui/src/remoteBoards.ts BALANCE_SELECTS + the upload ladder' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22. The run-end block was already gated on the sandbox flag (#1236, 2026-08-26) '
+      + 'and the rig launches under mode practice (#1385), so no sandbox row had ever uploaded; the gate is now '
+      + 'repeated on the telemetry upload itself and every row is stamped set_id + source (on the flat row and '
+      + 'inside derived). The report filters in @game/sim, the header prints the set and the counts, and Export '
+      + 'all serialises the same filtered rows. Legacy rows read as set 1 and the runbook backfills them to set 2.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/reportFilters.test.ts', 'packages/sim/src/balanceExport.test.ts', 'packages/sim/src/cardImpact.test.ts', 'packages/ui/src/telemetrySandboxGate.test.ts', 'packages/ui/src/balanceFetch.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
 ];

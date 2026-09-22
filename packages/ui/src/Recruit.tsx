@@ -192,6 +192,15 @@ const RUBY_DELIVER_OFFSET_MS = 120;
  *  later than the board's 120ms so the numbers move just as the gems arrive. Owner-set 2026-08-11. */
 const SHOP_RUBY_DELIVER_MS = 200;
 
+/** How long the body an Equipment's own effect buffed holds its pre-buff badge, measured from the moment that
+ *  Equipment's use def starts (the `useDelayMs` the tuner owns is added on top). Set to CONTACT — the
+ *  `travelMs` of the owner's `spiritbinder` beam, the point at which the strand has finished growing from the
+ *  slot to the card — so the roll opens as the beam arrives rather than while it is still crossing. The
+ *  shockwave layer's earlier `at` (90ms) is a flare on the destination, not the arrival; opening the roll
+ *  there put the badge 110ms ahead of the strand and read as the numbers moving on their own (review
+ *  2026-09-22). Only an Equipment flagged `useFxTargetsBuffed` reaches this. */
+const EQUIP_BUFF_LAND_MS = 200;
+
 /** Delay between the cursor volley and each Edward Keg-hands echo of a buff-ale cast (owner-set 2026-08-12). */
 const SPELLCAST_EDWARD_ECHO_MS = 80;
 
@@ -2203,18 +2212,38 @@ export function Recruit() {
       const tR = tEl?.getBoundingClientRect();
       // No target (an untargeted Equipment) → the effect plays ON the slot rather than travelling nowhere.
       const to = tR ? { x: tR.left + tR.width / 2, y: tR.top + tR.height / 2 } : slot;
-      if (eq.useFxId && slot && to && canPlayDefs()) {
+      // … EXCEPT for one whose def is aimed at the body its own effect buffed (`useFxTargetsBuffed`,
+      // Spiritbinder — owner ask 2026-09-22). When that effect picked NO board body the cue carries no
+      // `targetUid`, and the slot fallback above would fire the owner's beam from the button to the button.
+      // That reads as a misfire, so the right answer is no beam at all: the hand recipient still pops on its
+      // own channel, and nothing claims a board hit that never happened.
+      const aimlessBeam = eq.useFxTargetsBuffed === true && !cue.targetUid;
+      if (eq.useFxId && slot && to && !aimlessBeam && canPlayDefs()) {
         const fire = (): void => {
           // The Equipment is ALWAYS the `source` (owner 2026-09-12: "equipment can always be a starting point of an
           // effect") — a travelling def (Bloodpot, Titan Hammer, the Deathfibrillator bolt) leaves the button; a def
           // that wants to play on the body anchors its layers `target`. The per-item `useFxAt` override is gone.
           const from = slot;
-          // Fixed points, no unit binding: the def must outlive the aimed body (it may die on the next beat).
-          const stop = playDef(eq.useFxId!, { source: from, target: to, cursor: to });
+          // Fixed POINTS for the geometry, so the def outlives the aimed body (it may die on the next beat) —
+          // but the uids travel too, so a `react` layer added to a use def later animates the card it landed on
+          // instead of nobody. The Equipment slot is HUD chrome and has no uid of its own.
+          const stop = playDef(eq.useFxId!, { source: from, target: to, cursor: to }, { uids: { source: null, target: cue.targetUid ?? null } });
           if (stop) useDefStopsRef.current.push(stop);
         };
         // The delayed fire lives with the def, not the cue effect's timer list (which the next action clears).
         if (cfg.useDelayMs > 0) { const t = window.setTimeout(fire, cfg.useDelayMs); useDefStopsRef.current.push(() => window.clearTimeout(t)); } else fire();
+        // THE BEAM CAUSES THE NUMBERS (owner ask 2026-09-22). The reducer already committed the buff, so without
+        // a hold the board Spirit's badge jumps the instant the press registers and the beam arrives at a body
+        // that visibly changed before it was hit. A `cue` hold withholds exactly this fire's gain — carried on
+        // the signal, never re-derived from the run-total buff ledger — until the def's impact moment, and
+        // outranks the intrinsic roll `Card` would otherwise place on the same change.
+        //
+        // This is the same `useLayoutEffect` the def is fired from, deliberately: in a plain effect the new
+        // number paints for one frame and then jumps backwards before rolling, which is worse than no hold.
+        if (cue.targetUid && (cue.buffAttack || cue.buffHealth)) {
+          holdStat(cue.targetUid, { attack: cue.buffAttack ?? 0, health: cue.buffHealth ?? 0 },
+            { origin: 'cue', startAt: cfg.useDelayMs + EQUIP_BUFF_LAND_MS });
+        }
       }
       if (eq.useSfxId && cfg.useSfxOn) sfx.equipmentUse(eq.useSfxId, cfg.useSfxDelayMs);
       // An Equipment that CAST Shop spells (Pourman's Keg → a random Ale) plays each spell's own cast
@@ -4319,14 +4348,27 @@ export function Recruit() {
     const freshWeld = run.weldFxSeq !== undefined && run.weldFxSeq !== weldStatSeqRef.current;
     weldStatSeqRef.current = run.weldFxSeq;
     const weldedNow = freshWeld ? new Set(run.weldFxUids ?? []) : new Set<string>();
-    const burstable = newly.filter((u) => !fxTargets.has(u) && !weldedNow.has(u));
+    // …and the same for the body an Equipment's own use def is landing ON (`useFxTargetsBuffed` — Spiritbinder's
+    // beam, 2026-09-22). That body has no `recruitBuffFx` entry by design (an Equipment with an authored def
+    // skips the capture, so its def is the one cue), which would otherwise drop it straight into this pulse and
+    // give one press a beam AND a burst — the double the 2026-08-11 ruling forbids. Narrow to the flagged
+    // Equipment on purpose: an AIMED one's behaviour here is unchanged.
+    const beamedNow = new Set(
+      (run.equipFx ?? [])
+        .filter((f) => f.kind === 'use' && f.targetUid && EQUIPMENT_INDEX[f.equipmentId ?? '']?.useFxTargetsBuffed)
+        .map((f) => f.targetUid!),
+    );
+    const burstable = newly.filter((u) => !fxTargets.has(u) && !weldedNow.has(u) && !beamedNow.has(u));
     // The pulse channel = shop SELF-buffs (a minion buffing itself — Ashscribe): `captureBuffFx` skips them (no
     // source→target pair for a tendril) so they land here rather than in `recruitBuffFx`. Played through the
     // bound self-buff def for the minion's card, via the SAME recruit cue runner rubyLanded/minionBuffed use.
-    // The GENERIC `self-buff-gold` default on `minionSelfBuffed` was REMOVED 2026-09-02 (owner ask), so this now
-    // plays NOTHING unless the card carries its own `minionSelfBuffed` override — the moment is still fired
-    // (kept as the hook for a replacement effect) and there is no generic fallback cue. One moment per
-    // self-buffer, keyed by its own card; only fires when defs can play. Fire-and-forget (no teardown collected).
+    // WHAT THIS PLAYS, checked against `choreo/bindings.json` on 2026-09-22: `kinds.minionSelfBuffed` still
+    // carries a GENERIC default — `self-buff-burst` — so every uid that reaches `burstable` DOES play something,
+    // whether or not its card has its own `minionSelfBuffed` override. (The comment that used to sit here said
+    // the 2026-09-02 owner ask had removed the default and that this fired nothing; that was wrong, and it is
+    // exactly the fact the `beamedNow` filter above depends on. Deleting that filter on the strength of the old
+    // comment would put a beam AND a burst on one press again.) One moment per self-buffer, keyed by its own
+    // card; only fires when defs can play. Fire-and-forget (no teardown collected).
     if (burstable.length > 0 && canPlayDefs()) {
       for (const uid of burstable) {
         const cardId = runRef.current.board.find((c) => c.uid === uid)?.cardId;

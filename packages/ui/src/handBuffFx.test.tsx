@@ -13,6 +13,8 @@
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import type { CombatEvent } from '@game/core';
+import { CARD_INDEX, poolFor } from '@game/content';
+import { createRun, reduce, type Action, type BoardCard, type RunState } from '@game/sim';
 
 const plays: { id: string; anchors: unknown; opts: unknown }[] = [];
 vi.mock('./fx/playDef', () => ({
@@ -131,5 +133,44 @@ describe('fireHandBuff — the play', () => {
     stop();
     vi.advanceTimersByTime(1000);
     expect(plays.map((p) => (p.opts as { uids: { target: string } }).uids.target)).toEqual(['a']);
+  });
+});
+
+/**
+ * SPIRITBINDER KEEPS ITS HAND POP (owner ask 2026-09-22: "the minion in hand should still get the generic hand
+ * buffed effect that it currently has"). The BOARD half of that activation moved onto the Equipment's own `use`
+ * cue and the owner's beam; this pins that the hand half did NOT move with it.
+ *
+ * Driven through the real sim rather than hand-built views, because the thing at risk is the SEAM: the hand pop
+ * is a pure render diff over the hand and reads no FX signal, so it survives exactly as long as the hand
+ * recipient keeps gaining stats. A change that routed the hand pick through the FX channel too would show up
+ * here as a hand card that stopped moving.
+ */
+describe('the Spiritbinder hand recipient keeps the generic pop', () => {
+  beforeEach(() => { plays.length = 0; vi.useFakeTimers(); });
+  afterEach(() => { clearAllHandBuffs(); vi.useRealTimers(); document.body.innerHTML = ''; });
+
+  it('comes out of the shop fan-out and gets its own `hand-buff` play', () => {
+    const card = (uid: string, cardId: string): BoardCard => {
+      const d = CARD_INDEX[cardId]!;
+      return { uid, cardId, tribe: d.tribe, attack: d.attack, health: d.health, keywords: [...d.keywords], golden: false };
+    };
+    const view = (c: BoardCard) => ({ uid: c.uid, text: 'x', attack: c.attack, health: c.health });
+    let s = {
+      ...createRun(1), setId: 'set3', phase: 'recruit', embers: 20, tier: 6, tribes: ['spirit', 'undead', 'kobold'],
+      pool: Object.fromEntries(poolFor('set3').buyable.map((c) => [c.id, 5])),
+      board: [], hand: [card('bw', 'sp3_bondweaver'), card('h', 'sp3_nurturer')],
+    } as unknown as RunState;
+    s = reduce(s, { type: 'play', uid: 'bw', toIndex: 0 } as Action);
+    const before = diffHandBuffs(new Map(), s.hand.map(view)).next;
+    s = reduce(s, { type: 'activateEquipment' } as Action);
+    expect((s.equipFx ?? []).some((f) => f.kind === 'use' && f.equipmentId === 'spiritbringer'), 'the board half really did fire').toBe(true);
+
+    const after = diffHandBuffs(before, s.hand.map(view));
+    expect(after.changed, 'the hand Spirit gained +6/+6, so the diff still names it').toEqual(['h']);
+    stubHandCard('h', 100);
+    fireHandBuff(after.changed);
+    expect(plays.map((p) => p.id), 'and it plays the generic hand-buff def, not the beam').toEqual(['hand-buff']);
+    expect((plays[0]!.opts as { uids: { target: string } }).uids.target).toBe('h');
   });
 });

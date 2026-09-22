@@ -2422,7 +2422,7 @@ function tickResonantArms(state: RunState): void {
  * One fires a random branch (owner note 2026-09-16: no prompt outside the slot); the Star Destroyer never counts.
  * Returns whether anything fired.
  */
-export function fireEquipmentFree(state: RunState, def: EquipmentDefinition, version: 'plain' | 'gilded', self: BoardCard, exclude?: string): { targetUid?: string } | false {
+export function fireEquipmentFree(state: RunState, def: EquipmentDefinition, version: 'plain' | 'gilded', self: BoardCard, exclude?: string): EquipUseFxTarget | false {
   if (def.id === STAR_DESTROYER.id) return false;
   const rng = makeRng(state.rngCursor);
   let fireDef = def;
@@ -2438,10 +2438,11 @@ export function fireEquipmentFree(state: RunState, def: EquipmentDefinition, ver
   }
   state.rngCursor = rng.state();
   const fireSelf = fireDef !== def ? { ...self, golden: false } : self; // one gilding channel (see the reducer's activate case)
+  const fxMark = equipmentFxMark(state);
   if (!fireEquipmentTriggers(state, fireDef, version, fireSelf, target, 1)) return false;
   // The caller stamps the `use` cue — WITH the random target, so the authored def travels to the body it hit
   // (owner 2026-09-18: every Dismantling fire must play; a cue without a destination played on the slot).
-  return target ? { targetUid: target.uid } : {};
+  return target ? { targetUid: target.uid } : (buffedFxTarget(state, fireDef, fxMark) ?? {});
 }
 
 /**
@@ -2489,6 +2490,47 @@ export function withEquipmentTriggerBeat(state: RunState, equipmentId: string, i
 export function stampEquipFx(state: RunState, fx: EquipFx): void {
   (state.equipFx ??= []).push(fx);
   state.equipFxSeq = (state.equipFxSeq ?? 0) + 1;
+}
+
+/** What a `use` cue carries about the body an Equipment's own effect chose. Exactly the `EquipFx` fields it
+ *  fills, so a caller can spread it straight onto the cue. */
+export type EquipUseFxTarget = Pick<EquipFx, 'targetUid' | 'buffAttack' | 'buffHealth'>;
+
+/** Where to read `equipmentFxBuffed` from for the fire that is about to run. Taken BEFORE the fire, so a
+ *  Counterrotation re-fire inside the same action never inherits the player activation's pick. */
+export function equipmentFxMark(state: RunState): number {
+  return (state.equipmentFxBuffed ??= []).length;
+}
+
+/** A BOARD body an Equipment's effect just buffed, recorded for the `use` cue. Display metadata only. */
+export function noteEquipmentFxBuff(state: RunState, uid: string, attack: number, health: number): void {
+  (state.equipmentFxBuffed ??= []).push({ uid, attack, health });
+}
+
+/**
+ * The `use`-cue destination for an Equipment flagged `useFxTargetsBuffed` (owner ask 2026-09-22: Spiritbinder's
+ * beam must fly at the board Spirit it chose), or `undefined` when it chose none / is not flagged.
+ *
+ * ONE cue per ACTIVATION is the standing rule for repeats, so a multi-trigger fire (extra triggers, Amplified)
+ * still gets ONE destination: the LAST body it picked, owing the total of that body's own gains this fire. The
+ * earlier picks move their numbers without a beam, exactly as a three-trigger Bloodpot is one travel.
+ *
+ * WHAT THAT LOOKS LIKE, so nobody has to rediscover it (review 2026-09-22): with an extra trigger and three
+ * board Spirits, the LAST pick gets the beam and holds its badge to it, while an EARLIER pick falls through to
+ * `Recruit`'s generic self-buff burst and rolls its numbers immediately. Two fires therefore read as one beam
+ * plus one unrelated pulse rather than as two beams. Stamping one `use` cue per fire would read better, and is
+ * what the beat rule on repeats would prefer, but a `use` cue is also the slot's used-up presentation and its
+ * sound - N of them is N clicks and N used-up flourishes for one press. Left as one cue, deliberately, pending
+ * an owner call; the earlier picks are at least never silent.
+ */
+export function buffedFxTarget(state: RunState, def: EquipmentDefinition, from: number): EquipUseFxTarget | undefined {
+  if (!def.useFxTargetsBuffed) return undefined;
+  const picks = (state.equipmentFxBuffed ?? []).slice(from);
+  const last = picks[picks.length - 1];
+  if (!last) return undefined;
+  let attack = 0, health = 0;
+  for (const p of picks) if (p.uid === last.uid) { attack += p.attack; health += p.health; }
+  return { targetUid: last.uid, buffAttack: attack, buffHealth: health };
 }
 
 export function stampShopFx(state: RunState, fx: ShopDeathFx): void {
@@ -3684,7 +3726,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // targeted version let the player aim it at the Shaman too).
     const onBoard = ctx.state.board.filter((c) => isTribe(c, tribe));
     const inHand = ctx.state.hand.filter((c) => isTribe(c, tribe) && !CARD_INDEX[c.cardId]?.spell);
-    for (const t of pickRandom(ctx.state, onBoard, 1)) addBuff(t, nameOf(self), a, h);
+    // The BOARD pick is recorded for the `use` cue (owner ask 2026-09-22): the Equipment's beam flies at it and
+    // its numbers are withheld until the beam lands. The HAND pick is NOT recorded and must not be - its pop is
+    // the generic hand-buff cue, a pure render diff in the UI, and a second channel would double it.
+    for (const t of pickRandom(ctx.state, onBoard, 1)) { addBuff(t, nameOf(self), a, h); noteEquipmentFxBuff(ctx.state, t.uid, a, h); }
     for (const t of pickRandom(ctx.state, inHand, 1)) addBuff(t, nameOf(self), a, h);
   },
 

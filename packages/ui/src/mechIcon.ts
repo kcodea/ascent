@@ -14,7 +14,7 @@ export function firstMentionIndex(text: string, m: Mechanic): number {
   return match ? match.index : -1;
 }
 
-export function resolveMechIcon(view: CardView): string | null {
+export function resolveMech(view: CardView): Mechanic | null {
   const def = CARD_INDEX[view.cardId];
   const input: MechInput = {
     keywords: view.keywords,
@@ -24,7 +24,7 @@ export function resolveMechIcon(view: CardView): string | null {
   };
   const owned = MECHANICS.filter((m) => m.detect(input));
   if (owned.length === 0) return null;
-  if (owned.length === 1) return owned[0]!.glyph;
+  if (owned.length === 1) return owned[0]!;
   const kwPos = (m: Mechanic): number => (m.kw ? input.keywords.indexOf(m.kw) : -1);
   const winner = owned.slice().sort((a, b) => {
     const pa = firstMentionIndex(input.text, a), pb = firstMentionIndex(input.text, b);
@@ -37,5 +37,5 @@ export function resolveMechIcon(view: CardView): string | null {
     if (kb !== -1) return 1;
     return a.order - b.order;                           // …then global order
   })[0]!;
-  return winner.glyph;
+  return winner;
 }

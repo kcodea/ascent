@@ -2223,6 +2223,10 @@ img.tierbadge.tierstars,
   display: grid; place-items: center;
 }
 .card.compact .cgem svg { width: 62%; height: 62%; color: #f6e3ad; }
+/* PNG medallion art (hybrid — mechMedallionSrc): full-colour art replaces the gold SVG tint, so no `color`
+   applies. The `.cgem` box already sizes/positions the medallion; the img just fills it. */
+.cgem > .cgem-img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.card.compact .cgem > .cgem-img { width: 100%; height: 100%; }
 /* Trigger pulse — the medallion flares with a VERY brief glow, then releases a slow ring of energy,
    when the unit's effect fires (Start-of-Combat, Deathrattle, Battlecry, aura, Avenge, Reborn, …).
    Compositor-only: only opacity/transform animate; each pseudo's glow (radial bg + box-shadow) is
@@ -7137,12 +7141,14 @@ body:has(.book-ov) .cardref { z-index: 490; }
 .gloss-row.is-click:hover .gloss-ico { background: var(--acc); color: #fff; }
 .gloss-ico { flex: none; width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; background: color-mix(in srgb, var(--acc) 14%, var(--card)); color: var(--acc); margin-top: 1px; transition: background 0.1s, color 0.1s; }
 .gloss-ico svg { width: 19px; height: 19px; }
+.gloss-ico .cgem-img { width: 19px; height: 19px; object-fit: contain; }
 .gloss-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .gloss-term { font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: var(--ink); }
 .gloss-def { font-family: var(--font-body), sans-serif; font-size: 13px; line-height: 1.4; color: var(--ink2); }
 /* Active keyword filter — a clearable chip at the right of the tier bar (accent normally, threat on hover). */
 .book-kwchip { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px; border-radius: 10px; border: 2px solid var(--acc); background: color-mix(in srgb, var(--acc) 15%, var(--card)); color: var(--acc-dk); font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.03em; text-transform: uppercase; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: background 0.1s, border-color 0.1s, color 0.1s; }
 .book-kwchip svg { width: 16px; height: 16px; color: var(--acc); transition: color 0.1s; }
+.book-kwchip .cgem-img { width: 16px; height: 16px; object-fit: contain; }
 .book-kwchip:hover { border-color: var(--threat); background: color-mix(in srgb, var(--threat) 14%, var(--card)); color: var(--threat-dk); }
 .book-kwchip:hover svg { color: var(--threat); }
 .book-kwx { font-size: 12px; opacity: 0.75; }

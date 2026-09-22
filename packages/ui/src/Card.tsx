@@ -12,7 +12,8 @@ import {
 import { CardArtEditor } from './CardArtEditor';
 import { perfMonitor } from './perfMonitor';
 import { heldFor, holdStat, statHoldKey, subscribeStatHolds } from './fx/statHold';
-import { resolveMechIcon } from './mechIcon';
+import { resolveMech } from './mechIcon';
+import { mechMedallionSrc } from './mechMedallion';
 import { crossedUp, tierOf } from './choreo/statMilestones';
 import { fireStatMilestone } from './fx/statMilestone';
 import { useMilestoneBadgeFx } from './fx/milestoneBadgeFx';
@@ -682,7 +683,7 @@ export const Card = memo(function Card({
   const rulesHtmlMemo = useMemo(() => rulesHtml(shownText), [shownText]);
   // The card's primary mechanic glyph for the medallion — the first mechanic the card itself has (see
   // mechIcon.ts). `null` → a blank badge. Never the tribe.
-  const mechIcon = resolveMechIcon(card);
+  const mech = resolveMech(card);
   // Hover reveal (portalled to <body> so it floats over neighbours). In compact mode, hovering shows
   // the FULL card (art + name + rules text); any referenced cards (the token it summons / Fodder it
   // buffs / its Stray) trail off to the right of it. In full-text mode the card already shows its text,
@@ -1156,7 +1157,9 @@ export const Card = memo(function Card({
               <span className="value">{formatStat(shownHealth)}</span>
             </span>
             {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre */}
-            <span key={`cgem-${pulseCrit ?? 0}-${pulseRally ?? 0}-${pulseWatcher ?? 0}`} className={`cgem${pulseCrit ? ' pulsing crit' : pulseRally ? ' pulsing rally' : pulseWatcher ? ' pulsing watcher' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true">{mechIcon && <Icon name={mechIcon} />}</span>
+            <span key={`cgem-${pulseCrit ?? 0}-${pulseRally ?? 0}-${pulseWatcher ?? 0}`} className={`cgem${pulseCrit ? ' pulsing crit' : pulseRally ? ' pulsing rally' : pulseWatcher ? ' pulsing watcher' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true">{mech && (mechMedallionSrc(mech.id)
+              ? <img decoding="sync" className="cgem-img" src={mechMedallionSrc(mech.id)!} alt="" aria-hidden="true" />
+              : <Icon name={mech.glyph} />)}</span>
           </>
         )}
         {/* WATCHER frame bloom — a one-shot light-blue ring on the whole card frame (CSS fallback for the

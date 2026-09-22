@@ -51,6 +51,10 @@ type RecruitFn = (
   /** EQUIPMENT activation: the turn clock's reading the action carried (seconds left) — a clock-window
    *  Equipment (Thymepiece) anchors to it. Absent = no reading. */
   clockSeconds?: number;
+  /** EQUIPMENT activation: this activation is AMPLIFIED (its own stack, Rune of Empty Hands, or a Calibration
+   *  Wrench charge). Most effects express that by firing twice; a clock-window Equipment doubles its window
+   *  instead — an Amplified Thymepiece runs 16 seconds (owner 2026-09-22). Absent = not Amplified. */
+  amplified?: boolean;
   /** `equipmentActivated` (set 3 Neutrals, 2026-09-18): WHICH Equipment the player just activated. */
   equipmentId?: string },
 ) => void;
@@ -2382,6 +2386,8 @@ export function fireEquipmentTriggers(
   triggers: number,
   /** The turn clock's reading the activation carried (seconds left), for a clock-window Equipment. */
   clockSeconds?: number,
+  /** The activation is Amplified (see the payload field): a clock-window Equipment doubles its window. */
+  amplified = false,
 ): boolean {
   const fn = RECRUIT_FACTORIES[def.effectId];
   if (!fn) return false; // an unknown effect id is a content error — never a paid-for no-op
@@ -2391,7 +2397,7 @@ export function fireEquipmentTriggers(
   const params = { ...equipmentParamsFor(def, version), _origin: 'equipment' };
   for (let t = 0; t < triggers; t += 1) {
     withEquipmentTriggerBeat(state, def.id, t, () => {
-      fn(ctx, self, params, { minion: self, ...(target ? { target } : {}), ...(clockSeconds !== undefined ? { clockSeconds } : {}) });
+      fn(ctx, self, params, { minion: self, ...(amplified ? { amplified } : {}), ...(target ? { target } : {}), ...(clockSeconds !== undefined ? { clockSeconds } : {}) });
     });
     tickResonantArms(state);
   }
@@ -4542,13 +4548,19 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    * Thymepiece (one Equipment TRIGGER; owner design 2026-09-12): every shop CARD costs `amount` less Gold for
    * the next `seconds` of the turn clock. The activation carries the clock's reading (`payload.clockSeconds`,
    * seconds LEFT — the clock counts down), so the window closes at `clockSeconds − seconds`; with no reading
-   * (a test, an old recording) the window runs to the end of the turn (`untilClock: null`). A second trigger
-   * or activation while a window is open REPLACES it with the fresher, larger one — the amounts do not stack
-   * (the design is "−1 for 8 seconds", not a bank), but a re-use never shortens a window already running.
+   * (a test, an old recording) the window runs to the end of the turn (`untilClock: null`). A later activation
+   * while a window is open REPLACES it with the fresher, larger one — the amounts do not stack (the design is
+   * "−1 for 8 seconds", not a bank), but a re-use never shortens a window already running.
+   *
+   * AMPLIFIED DOUBLES IT (owner 2026-09-22: "an amplified timepiece should double the duration"). An Amplified
+   * activation fires this twice, and a second 8-second window would just replace the first; so the window is
+   * `seconds × 2` whenever the activation is Amplified (both triggers open the same 16-second window and the
+   * rule below keeps it). An EXTRA trigger from any other source does not lengthen it — that stays "a rate,
+   * not a bank" (set3Dwarves.test.ts). The AMOUNT is never multiplied: "−1 for 16 seconds", never "−2".
    */
   equipmentCardDiscountWindow: (ctx, _self, params, payload) => {
     const amount = Math.max(0, num(params.amount, 1));
-    const seconds = Math.max(0, num(params.seconds, 8));
+    const seconds = Math.max(0, num(params.seconds, 8)) * (payload.amplified ? 2 : 1);
     const reading = payload.clockSeconds;
     const untilClock = typeof reading === 'number' && Number.isFinite(reading) ? reading - seconds : null;
     const cur = ctx.state.cardDiscountWindow;

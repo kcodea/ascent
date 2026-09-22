@@ -245,9 +245,16 @@ export function equipmentParams(
   return (version === 'gilded' ? def.gildedParams ?? def.params : def.params) ?? {};
 }
 
-/** The wording to print for a version, so text and behaviour read off the same switch. */
-export function equipmentText(def: EquipmentDefinition, version: 'plain' | 'gilded'): string {
-  return version === 'gilded' ? def.goldenText ?? def.text : def.text;
+/** The wording to print for a version, so text and behaviour read off the same switch.
+ *
+ *  `amplified` (owner 2026-09-22): while the Equipment will fire twice, a clock-window rule prints the window it
+ *  will actually open — an Amplified Thymepiece reads "for the next **16 seconds**" (CLAUDE.md: card text shows
+ *  the CURRENT value, never the base rate alone). Only a `**N seconds**` span is touched; every other Equipment
+ *  expresses "twice" through what it does, not a printed number. */
+export function equipmentText(def: EquipmentDefinition, version: 'plain' | 'gilded', opts?: { amplified?: boolean }): string {
+  const text = version === 'gilded' ? def.goldenText ?? def.text : def.text;
+  if (!opts?.amplified) return text;
+  return text.replace(/\*\*(\d+) seconds\*\*/g, (_m, n: string) => `**${Number(n) * 2} seconds**`);
 }
 
 /** Is this Equipment still backed by a body on the board? Sources are tracked per-uid, so a duplicate keeps

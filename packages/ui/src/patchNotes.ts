@@ -52,6 +52,14 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Thymepiece',
+    changes: [
+      { category: 'Balance', text: 'An Amplified Thymepiece now runs for 16 seconds instead of 8. The discount stays at 1 Gold (2 when gilded). The rule on the slot shows the doubled window while the charge is armed.' },
+      { category: 'Systems', text: 'The Thymepiece countdown now sits above the Equipment slot and no longer shifts anything around it.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Crest digits',
     changes: [
       { category: 'Balance', text: 'The rank crest now shows your division as a plain digit: 1, 2 or 3. The rank name still reads Bronze II.' },

@@ -1776,4 +1776,31 @@ export const APPROVED_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-22',
     },
   },
+  {
+    id: 'R-EQUIP-01',
+    title: 'Thymepiece: Amplified doubles the window; the readout sits above the slot',
+    statement:
+      'An Amplified Thymepiece activation opens one window of twice the printed seconds (16), plain or gilded; an '
+      + 'extra trigger from any other source does not lengthen it, and the discount amount is never multiplied. '
+      + 'While the Equipment will fire twice, the rule the slot prints shows the doubled window. The countdown '
+      + 'readout sits above the slot, out of layout flow, and moves nothing.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (Thymepiece)', quote: 'an amplified timepiece should double the duration' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (Thymepiece)', quote: "make timepiece's buff show above the equipment instead of below, and dont let it nudge anything on the screen at all" },
+      { kind: 'fix-pr', ref: 'Thymepiece Amplified + readout — packages/sim/src/recruit.ts equipmentCardDiscountWindow (Amplified doubles the window), fireEquipmentTriggers (the amplified flag in the payload), packages/sim/src/equipment.ts equipmentText (amplified), packages/ui/src/styles.css .discountwin' },
+    ],
+    currentBehaviour:
+      'Conforms — 2026-09-22. Before this the factory replaced a window with the fresher, larger one, so the second '
+      + 'trigger of an Amplified activation re-opened the same 8-second window and Amplified did nothing for the '
+      + 'Thymepiece; and the readout was a flow child under the name pill, so its appearance grew the '
+      + 'translate-centred slot and shifted the button and the name by half its height.',
+    cardText: 'Thymepiece: "All cards cost **1** less Gold for the next **8 seconds**." (Amplified: "**16 seconds**").',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/thymepiece.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
 ];

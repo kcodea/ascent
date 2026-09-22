@@ -86,6 +86,11 @@ import { getConsumeFxConfig } from './consumeFxConfig';
 import { consumeTransform } from './fx/consumeTransform';
 import { playPlateDissolve } from './plateDissolve';
 import { playPlateCoalesce } from './plateCoalesce';
+/* THE LASSO BEAM (owner ask 2026-09-22). Stealing a Shop minion throws the owner-authored `lasso` def from
+   wherever the steal came FROM — the spell's drop point, Rope Wrangler's medallion, the Equipment slot, the
+   rune badge — to the offer it takes, and the card only leaves the Shop (and only reaches the hand) when the
+   rope gets there. The hold state machine and its escape hatches live in `lassoHolds.ts`, pinned by a test. */
+import { EMPTY_LASSO_HOLDS, foldLassoHolds, holdLassoSteals, lassoBeamSchedule, lassoCascadeMs, lassoHoldsForPhase, releaseLassoSteal, resolveAllLassoHolds, LASSO_CONTACT_MS, LASSO_STAGGER_MS, type LassoHolds } from './lassoHolds';
 import { playPlateGild } from './plateGild';
 import { playBuySlide, type BuyFrom } from './buySlide';
 import { fireBuffFx } from './buffFxRender';
@@ -1572,6 +1577,33 @@ export function Recruit() {
     return to;
   };
   const [gambleHold, setGambleHold] = useState<readonly string[] | null>(null);
+  /* THE LASSO HOLDS (`lassoHolds.ts`). `holds.shop` keeps a STOLEN Shop offer rendered in its own slot — the
+     real card, not a placeholder, because the beam has to have something to hit — and `holds.hand` keeps its
+     copy out of the fan, both until that steal's beam lands. The sim spliced the offer and pushed the hand
+     copy in the same commit; these two put the moment back where the player can read it.
+
+     Derived DURING RENDER (like `heldConsume`), never in an effect: a passive effect runs after the FLIP layout
+     effect has already animated the row closing, and the whole point is that the row must not move yet.
+
+     The hand side is keyed by the arrival's own uid, never a blanket flag — a flag threw away every other fresh
+     card in the same tick once already (2026-07-23), and the sim hands us the exact uid.
+
+     PHASE GATE: recruit only. An End-of-Turn steal stamps this channel from inside `faceOmen`, after the phase
+     has flipped, so it rides its own beat instead — the `cardGranted` presenter on the authoritative path,
+     `EotStepFx.steals` on the legacy one. */
+  const [rawLassoHolds, setLassoHolds] = useState<LassoHolds>(EMPTY_LASSO_HOLDS);
+  const [lassoHoldSeq, setLassoHoldSeq] = useState(run.lassoFxSeq ?? 0);
+  if ((run.lassoFxSeq ?? 0) !== lassoHoldSeq) {
+    setLassoHoldSeq(run.lassoFxSeq ?? 0);
+    const fresh = run.phase === 'recruit' ? (run.lassoFx ?? []) : [];
+    if (fresh.length) setLassoHolds((prev) => holdLassoSteals(prev, fresh));
+  }
+  // Applied during render, not in an effect: off the recruit screen there are no holds at all, so a cancelled
+  // release timer can never leave a card stranded invisible in a row that has already gone.
+  const lassoHolds = lassoHoldsForPhase(rawLassoHolds, run.phase);
+  /** Where the player let a SPELL go, stashed beside the dispatch that plays it (the `buyPendingRef` /
+   *  `placePendingRef` pattern). A Lasso cast throws its beam from that point; cleared once read. */
+  const lassoDropRef = useRef<{ x: number; y: number } | null>(null);
   const pointerRef = useRef({ x: 0, y: 0 });
   // The last ~150 ms of pointer motion (a small ring, newest last) — the THROW's direction is the flick the mouse
   // made just before the card was released (owner ask 2026-09-17), read by `flickOf` at roll start.
@@ -1631,7 +1663,12 @@ export function Recruit() {
   const handShown = chooseOnePreviewUid
     ? run.hand.filter((c) => c.uid !== chooseOnePreviewUid)
     : run.hand;
-  const gambleHand = gambleHold ? handShown.filter((c) => !gambleHold.includes(c.uid)) : handShown;
+  // …and a LASSOED card is held out of the fan until its beam lands (see `lassoHolds`), on top of the gamble
+  // hold. BOTH hiders narrow `handShown` in the one expression, so the row can only ever iterate cards the
+  // view map was built from (`handRowViews.test.ts` pins that rule) — and the unheld case keeps the array's
+  // identity, so the memoized hand row still bails out.
+  const handHeldBack = (uid: string): boolean => !!gambleHold?.includes(uid) || lassoHolds.hand.has(uid);
+  const gambleHand = gambleHold || lassoHolds.hand.size ? handShown.filter((c) => !handHeldBack(c.uid)) : handShown;
   // Minions summoned to the BOARD during End-of-Turn playback (Moira re-firing a summoner) — injected into the
   // rendered board on their beat so they arrive in real time, replaced by the real cards at commit (same uid).
   const [eotSummons, setEotSummons] = useState<{ uid: string; cardId: string; index?: number }[]>([]);
@@ -3157,6 +3194,15 @@ export function Recruit() {
     () => chooseBothStateOf(run),
     [run.runeFacetwright, run.runeUnbrokenVein, run.chooseBothCharges],
   );
+  /* THE SHOP ROW, WITH LASSOED OFFERS STILL IN IT. A stolen offer is gone from `run.shop`, so every downstream
+     read — the view builder, `displayShop`, `rowsKey`/`flipKey`, the drag's home-slot order — would drop it the
+     instant the reducer resolved. Folding the holds back in HERE, above the view memo, is what lets the held
+     card render as its real self (the view builder only ever sees offers) instead of an invisible placeholder
+     like a consumed slot.
+
+     REVERSE order on re-insertion: each record's `index` was taken against the row as it stood when THAT steal
+     spliced, so the later (smaller) row is rebuilt first and the earlier indices then land correctly. */
+  const shopWithHolds = useMemo(() => foldLassoHolds(run.shop, lassoHolds) as ShopCard[], [run.shop, lassoHolds]);
   const shopViewCache = useRef(new Map<string, ShopViewCacheEntry<CardView>>()); // per-offer signature memo — see shopViewCache.ts
   const spellViewCache = useRef<CardView | null>(null);
   const refViewCache = useRef(new Map<string, CardView[]>());
@@ -3170,7 +3216,7 @@ export function Recruit() {
     // `shopViewCache.ts`. `stabilizeView` still value-compares a rebuilt view against its predecessor.
     () => perfMonitor.measure('view:shop', () => {
       const optsFor = (o: ShopCard): ShopViewOpts => ({ freeFirstBuy: (run.rift === 'freedom' || !!run.questFreeFirstBuy) && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk + (run.tavernBuyBonusTurn?.atk ?? 0), tavernHp: run.tavernBuyBonus.hp + (run.tavernBuyBonusTurn?.hp ?? 0), tavernSources: run.tavernBuyBonusSources, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, impAura: run.impBuff, rubyCasts: run.rubyCasts, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run, CARD_INDEX[o.cardId]), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, growthBonus: run.growthBonus, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, unusedEquipment: unusedEquipmentCount(run), lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run), tier: run.tier, minionCost: o.held ? minionCostOf(run) : offerBuyPrice(run, o).cost /* the charged price, every discount folded (Treasurer / Trade-In / Gift / Cadence) — owner report 2026-09-12 */, juggler: getHero(run.heroId).power.kind === 'baldgecoin', castMult: CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined, eotBuff: eotShopStats?.[o.uid], chooseBothState: bothState });
-      const built = buildShopViews(run.shop, optsFor, (o, opts) => shopView(o, opts), shopViewCache.current, (fresh, prev) => stabilizeView(fresh, prev) ?? fresh);
+      const built = buildShopViews(shopWithHolds, optsFor, (o, opts) => shopView(o, opts), shopViewCache.current, (fresh, prev) => stabilizeView(fresh, prev) ?? fresh);
       shopViewCache.current = built.cache;
       return built.views;
     }),
@@ -3183,7 +3229,7 @@ export function Recruit() {
     // the shop row stayed on the old ones). Listing them makes the memo honest rather than relying on that
     // incidental rebuild; `stabilizeViewMap` keeps the `Card` bailout, so the added deps cost nothing when the
     // rendered content is unchanged.
-    [run.shop, run.rift, run.questFreeFirstBuy, run.freeBuyUsedThisTurn, run.spiritDiscount, run.minionCostOffTurn, run.tradeInTribe, run.runeTradeIn, run.minionCostOverride, run.cardDiscountWindow /* every input of offerBuyPrice (2026-09-12) — the Thymepiece window changes the price on expiry with no shop rebuild */, run.cardBuffs, run.tavernBuyBonus, run.tavernBuyBonusSources, run.tavernBuyBonusTurn, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.conductorBuff, run.alesCastThisTurn, run.frankClearanceTurn, eotShopStats, run.impBuff, run.rubyCasts, run.growthBonus, run.frontToBackBonusH, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.cadenceMinionOff, run.tier, bothState, run.revelerX, run.rubyBonus, run.clueBonus, run.tier, run.playedThisTurn],
+    [shopWithHolds, run.rift, run.questFreeFirstBuy, run.freeBuyUsedThisTurn, run.spiritDiscount, run.minionCostOffTurn, run.tradeInTribe, run.runeTradeIn, run.minionCostOverride, run.cardDiscountWindow /* every input of offerBuyPrice (2026-09-12) — the Thymepiece window changes the price on expiry with no shop rebuild */, run.cardBuffs, run.tavernBuyBonus, run.tavernBuyBonusSources, run.tavernBuyBonusTurn, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellExtraCasts, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.conductorBuff, run.alesCastThisTurn, run.frankClearanceTurn, eotShopStats, run.impBuff, run.rubyCasts, run.growthBonus, run.frontToBackBonusH, run.lastSpellCastId, run.firstSpellThisTurnId, run.lastSpellThisTurnId, run.cadenceMinionOff, run.tier, bothState, run.revelerX, run.rubyBonus, run.clueBonus, run.tier, run.playedThisTurn],
   );
   const spellView = useMemo(
     () => {
@@ -5113,6 +5159,99 @@ export function Recruit() {
     // Keyed on the seq ONLY (see the Starform watcher above): the array ref changes every action.
   }, [run.bounceFxSeq]);
 
+  /* ------------------------------------------------------------------- THE LASSO CASCADE (owner 2026-09-22)
+     One beam per steal, in resolution order, `LASSO_STAGGER_MS` apart, each landing `LASSO_CONTACT_MS` after
+     its own launch — and the card only leaves the Shop (and only appears in hand) when ITS beam lands. Keyed
+     on `run.lassoFxSeq`, the sim's per-action channel.
+
+     THREE ORIGINS, one def. A hand-cast Lasso leaves the point the card was dropped on; Rope Wrangler's casts
+     leave Rope Wrangler's medallion; Whiplass-o leaves the Equipment slot; Rune of Lassoing leaves the rune
+     badge. Each is resolved to a screen point ONCE, at the start of its own beat — never per frame.
+
+     ESCAPE HATCHES, because a stuck hold means an invisible card. The effect's own cleanup resolves every
+     outstanding hold (a second lasso mid-cascade never strands the first — `gambleHold`'s rule), the phase
+     watcher below does the same when the shop leaves, and both clear the timers. */
+  const lassoTimersRef = useRef<number[]>([]);
+  const resolveLassoHolds = useCallback((): void => {
+    for (const t of lassoTimersRef.current.splice(0)) window.clearTimeout(t);
+    setLassoHolds(resolveAllLassoHolds);
+  }, []);
+  /** Throw ONE lasso: origin → the stolen offer's card. Every caller (the action cascade below, both
+   *  End-of-Turn paths) goes through here, so the three sources can never drift apart. `drop` is the spell's
+   *  release point when there is one. Each end is measured ONCE, here, at the start of this beat. */
+  const fireLassoBeam = useCallback((ev: NonNullable<RunState['lassoFx']>[number], index: number, drop: { x: number; y: number } | null): void => {
+    if (!canPlayDefs()) return;
+    const centre = (el: Element | null | undefined): { x: number; y: number } | null => {
+      const r = el?.getBoundingClientRect();
+      return r && r.width > 0 ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+    };
+    let from: { x: number; y: number } | null = null;
+    let fromUid: string | null = null;
+    if (ev.origin.startsWith('board:')) {
+      // ROPE WRANGLER (and any other minion that casts Lasso): out of its own medallion.
+      fromUid = ev.origin.slice('board:'.length);
+      const card = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${fromUid}"]`);
+      from = centre(card?.querySelector('.cgem')) ?? centre(card);
+    } else if (ev.origin === 'equipment') {
+      // WHIPLASS-O: out of the Equipment slot beside the hero power (owner 2026-09-12: "equipment can always
+      // be a starting point of an effect"). Whiplass-o has no `useFxId`, so this is the slot's only cue.
+      from = centre(document.querySelector('.equipslot .heropowerbtn'));
+    } else if (ev.origin === 'rune') {
+      // RUNE OF LASSOING: out of the rune's own badge in the HUD tray — the rune is the actor, as the
+      // arrival implosion already treats it (`useRuneArrivalFx`).
+      from = centre(document.querySelector('.runebadge')) ?? centre(document.querySelector('.questbadges'));
+    } else {
+      // THE SPELL: where the player let the card go. The hand row's centre is the fallback so a cast that
+      // never came from a drag still launches from where the card lived, never the screen's top-left corner.
+      from = drop ?? centre(document.querySelector('.row.hand'));
+    }
+    const snap = shopRectsRef.current.cur.get(ev.offer.uid) ?? shopRectsRef.current.prev.get(ev.offer.uid);
+    const to = centre(document.querySelector(`[data-zone="tavern"] .card[data-uid="${ev.offer.uid}"]`))
+      ?? (snap ? { x: snap.cx, y: snap.cy } : null);
+    if (!from || !to) return;
+    playDef('lasso', { source: from, target: to }, { uids: { source: fromUid, target: ev.offer.uid }, index });
+  }, []);
+  /** The arcane materialise on a lassoed card, fired when the rope delivers it rather than when the reducer
+   *  pushed it — the universal hand-diff watcher never sees it, because the card was held out of the row. */
+  const coalesceHandUid = useCallback((handUid: string): void => {
+    if (!handUid) return;
+    // Two frames: after the render that reveals the card, and after the layout effect that measures it.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>(`[data-zone="hand"] .card[data-uid="${handUid}"]`);
+      if (!el) return;
+      const plate = el.querySelector<HTMLElement>('.cardplate');
+      const r = (plate ?? el).getBoundingClientRect();
+      if (r.width > 0) playPlateCoalesce(r, el);
+    }));
+  }, []);
+  const prevLassoFxSeq = useRef(run.lassoFxSeq ?? 0);
+  useEffect(() => {
+    const seq = run.lassoFxSeq ?? 0;
+    if (seq === prevLassoFxSeq.current) return;
+    prevLassoFxSeq.current = seq; // advance FIRST — exactly once per action (the #947 lesson)
+    const events = run.phase === 'recruit' ? (run.lassoFx ?? []) : [];
+    const drop = lassoDropRef.current;
+    lassoDropRef.current = null; // one release point, one cast
+    if (events.length === 0) return;
+    const schedule = lassoBeamSchedule(events.length);
+    events.forEach((ev, i) => {
+      const { launchAt, contactAt } = schedule[i]!;
+      lassoTimersRef.current.push(window.setTimeout(() => fireLassoBeam(ev, i, drop), launchAt));
+      lassoTimersRef.current.push(window.setTimeout(() => {
+        // CONTACT. The rope has the card: drop the Shop hold (which changes `flipKey`, so the survivors glide
+        // closed from where they were holding) and let the copy into the hand, materialising as it arrives.
+        setLassoHolds((prev) => releaseLassoSteal(prev, ev.offer.uid, ev.handUid));
+        coalesceHandUid(ev.handUid);
+      }, contactAt));
+    });
+    return resolveLassoHolds;
+    // Keyed on the seq ONLY (see the Starform watcher above): the array ref changes every action.
+  }, [run.lassoFxSeq]);
+  // Leaving the shop (End Turn, a combat, a restore) resolves every outstanding hold at once, so a card can
+  // never be stranded invisible in a row that is no longer on screen.
+  useEffect(() => { if (run.phase !== 'recruit') resolveLassoHolds(); }, [run.phase, resolveLassoHolds]);
+  useEffect(() => resolveLassoHolds, [resolveLassoHolds]); // unmount
+
   // RELEASE the held consumed slots (see `heldConsume` above) once the ghost has been pulled into the eater —
   // matched to the taffy pull's own clock (`getConsumeFxConfig().durationMs`). Dropping them here changes
   // `flipKey`, which fires the committed-move FLIP branch and glides the survivors closed from where they were
@@ -5168,7 +5307,7 @@ export function Recruit() {
       return [...prev, ...fresh.filter((h) => !seen.has(h.uid))];
     });
   }
-  let displayShop = eotConsumedUids.size ? run.shop.filter((o) => !eotConsumedUids.has(o.uid)) : run.shop;
+  let displayShop = eotConsumedUids.size ? shopWithHolds.filter((o) => !eotConsumedUids.has(o.uid)) : shopWithHolds;
   if (heldConsume.length) {
     const arr = [...displayShop];
     for (const h of [...heldConsume].sort((a, b) => a.index - b.index)) {
@@ -5214,7 +5353,7 @@ export function Recruit() {
   // `dragStore` slice (perf 2026-09-17); the FLIP that glides them, the shop-rect snapshot and the death cues
   // run in `RowFlip` below the rows. The rows only need each zone's uid ORDER for the dragged card's home slot.
   const boardOrder = useMemo(() => run.board.map((m) => m.uid), [run.board]);
-  const shopOrder = useMemo(() => run.shop.map((o) => o.uid), [run.shop]);
+  const shopOrder = useMemo(() => shopWithHolds.map((o) => o.uid), [shopWithHolds]);
   const handOrder = useMemo(() => run.hand.map((c) => c.uid), [run.hand]);
   // Row composition + order — the non-pointer half of the FLIP key (`RowFlip` folds the live gap indices in).
   const rowsKey = displayShop.map((o) => o.uid).join(',') + '|' + spellShown + '|' + displayBoard.map((m) => m.uid).join(',');
@@ -5408,6 +5547,29 @@ export function Recruit() {
     const baseStats: Record<string, { attack: number; health: number }> = {};
     for (const c of [...run.board, ...run.hand]) baseStats[c.uid] = { attack: c.attack, health: c.health };
 
+    /* THE LASSO, AT END OF TURN (owner ask 2026-09-22). Rope Wrangler's casts and Rune of Lassoing steal from
+       the Shop, and the batch emits one `cardGranted` per steal — the records come off the already-resolved
+       `after` state (this path resolves once, then plays), keyed by the hand uid the grant hands us.
+
+       THE PACING IS A FLOOR, NOT A STAGGER, and that is deliberate. Measured live on 2026-09-22, a gilded Rope
+       Wrangler's five grants all deliver inside the same millisecond, so firing on the delivery alone put five
+       ropes on screen at once — the opposite of the owner's ask. Each beam therefore launches no earlier than
+       300 ms after the previous one; a beat sequence that IS spread out further than that pays nothing extra.
+       Self-correcting either way, rather than an index-times-300 that would double-space real beats.
+
+       The card is held on BOTH sides until its own beam lands: the offer stays in the Shop row (the row is
+       still showing `before`, so nothing has to hold it open) and leaves at contact, and the hand PREVIEW is
+       filtered out of the projection's grant list until then. Without that the preview appeared as the rope
+       left. The completion pad below waits out whatever cascade is still in the air. */
+    const lassoSteals = prepared.after.lassoFx ?? [];
+    const lassoByHandUid = new Map(lassoSteals.map((e) => [e.handUid, e]));
+    const lassoPendingHandUids = new Set(lassoSteals.map((e) => e.handUid).filter(Boolean));
+    let lassoNextLaunchAt = 0; // a `performance.now()` floor for the next rope
+    let lassoGrantedCards: { zone: string; uid: string; cardId: string }[] = [];
+    const applyEotGrants = (): void => {
+      setEotGrants(lassoGrantedCards.filter((g) => g.zone === 'hand' && !lassoPendingHandUids.has(g.uid)).map((g) => g.cardId));
+    };
+
     if (heroArmed) armHero(); // a stray armed Hero Power must not fire mid-animation
     if (equipArmed) armEquipment(); // …and a stray armed Equipment likewise
     eotPadFiredRef.current = false;
@@ -5530,6 +5692,23 @@ export function Recruit() {
         fireHandBuffOnHandRubies(runRef.current.hand);
       },
       cardGranted: (cardId, _uid, sourceUid) => {
+        // A LASSOED card: throw the rope on this beat, and let the offer leave the Shop (and the preview enter
+        // the hand) only when it lands. `_uid` is the arrival's own uid, which is what the sim's record is
+        // keyed by — a uid, never a blanket flag, so everything else granted on this beat is untouched.
+        const steal = _uid ? lassoByHandUid.get(_uid) : undefined;
+        if (steal) {
+          const now = performance.now();
+          const launchAt = Math.max(now, lassoNextLaunchAt);
+          lassoNextLaunchAt = launchAt + LASSO_STAGGER_MS;
+          const delay = launchAt - now;
+          const index = lassoSteals.indexOf(steal);
+          window.setTimeout(() => fireLassoBeam(steal, index, null), delay);
+          window.setTimeout(() => {
+            setEotConsumedUids((s2) => new Set([...s2, steal.offer.uid]));
+            lassoPendingHandUids.delete(steal.handUid);
+            applyEotGrants();
+          }, delay + LASSO_CONTACT_MS);
+        }
         // The hand preview is driven by the projection; arrival FX lands with the commit. The one thing that
         // must play HERE (while the board is still on screen) is ale-bubbles for a Dwarf's End-of-Turn Ale —
         // Brunni. The reactive `aleGrantSeq` watcher can't reach it: that only bumps at the `faceOmen` commit,
@@ -5696,7 +5875,8 @@ export function Recruit() {
         }
         // Hand grants (conjures) preview in the hand; board summons (Moira re-firing a summoner) inject onto
         // the board — split by zone so a summon no longer wrongly shows as a hand card.
-        setEotGrants(p.grantedCards.filter((g) => g.zone === 'hand').map((g) => g.cardId));
+        lassoGrantedCards = p.grantedCards.map((g) => ({ zone: g.zone, uid: g.uid, cardId: g.cardId }));
+        applyEotGrants(); // a lassoed card's preview waits for its beam (see `lassoPendingHandUids`)
         setEotSummons(p.grantedCards.filter((g) => g.zone === 'board').map((g) => ({ uid: g.uid, cardId: g.cardId, index: g.index })));
         setEotKeywords(p.keywordChanges.size ? new Map([...p.keywordChanges].map(([u, s]) => [u, new Set(s)])) : EMPTY_KW);
         setEotTransforms(p.transformedCards.size ? new Map(p.transformedCards) : EMPTY_TRANSFORMS);
@@ -5704,6 +5884,13 @@ export function Recruit() {
       onComplete: () => {
         // Same +pad as the legacy path's completion (see EOT_COMBAT_PAD_MS). Once-guarded because the
         // unmount safety net's `finish()` can re-deliver completion while the pad timer is pending.
+        // RESERVE the rest of the lasso cascade. Counting beats is not the same as giving them room: without
+        // this the commit (and the flip to combat) could land on top of a rope still in the air. Computed
+        // ABOVE the once-guard so the completion block below stays contiguous (`reliquaryRibbon.test.ts`
+        // source-pins the trackers it advances by slicing from the line under this one).
+        const lassoTail = lassoNextLaunchAt > 0
+          ? Math.max(0, lassoNextLaunchAt - LASSO_STAGGER_MS + LASSO_CONTACT_MS + 250 - performance.now())
+          : 0;
         if (eotPadFiredRef.current) return;
         eotPadFiredRef.current = true;
         window.setTimeout(() => {
@@ -5740,7 +5927,7 @@ export function Recruit() {
         // Echo) — the second stamp would still replay at the flip. Advance the stamp tracker like the rest.
         prevShopFxSeq.current = committed.shopFxSeq;
         setEotConsumedUids(new Set());
-        }, EOT_COMBAT_PAD_MS);
+        }, EOT_COMBAT_PAD_MS + lassoTail);
       },
     });
 
@@ -5956,7 +6143,23 @@ export function Recruit() {
         if (bfx.eaten.length > 0) playFodderEat(bfx.eaten, ++eotEatKey.current);
         // Cards this beat grants to hand arrive ON the beat — each coalesces beside the pulse that produced
         // it, instead of the whole turn's batch materialising at once when `faceOmen` finally commits.
-        if (bfx.handGrants.length > 0) setEotGrants((g) => [...g, ...bfx.handGrants]);
+        // LEGACY PATH ONLY (`ascent.choreo = '0'`). All of a Rope Wrangler's casts land in ONE projection beat
+        // here, so the cascade is staggered by hand at the owner's 300 ms — the same floor the authoritative
+        // path applies to its own deliveries. The stolen cards' previews are pulled out of this beat's grants
+        // and re-added as each beam lands, so the Shop card and the hand copy still move together.
+        const steals = bfx.steals ?? [];
+        const grants = [...bfx.handGrants];
+        for (const ev of steals) { const k = grants.indexOf(ev.offer.cardId); if (k >= 0) grants.splice(k, 1); }
+        if (grants.length > 0) setEotGrants((g) => [...g, ...grants]);
+        const stealSchedule = lassoBeamSchedule(steals.length);
+        steals.forEach((ev, k) => {
+          const { launchAt, contactAt } = stealSchedule[k]!;
+          window.setTimeout(() => fireLassoBeam(ev, k, null), launchAt);
+          window.setTimeout(() => {
+            setEotConsumedUids((s2) => new Set([...s2, ev.offer.uid]));
+            setEotGrants((g) => [...g, ev.offer.cardId]);
+          }, contactAt);
+        });
         // Auto-welds on this beat (Combinator / Cling Drones / Money Bots) — ring each host as it fuses.
         fireWeldFxBatch(bfx.welds, 'auto');
         // Shop offers this beat grew (a Moira re-firing Market Tormentor's Shout at End of Turn; Soul Defiler's
@@ -6054,12 +6257,15 @@ export function Recruit() {
       // End-of-turn cue: every proc plays the glow sound. For a glow-only beat this is the SAME sound the
       // medallion cue above just fired for the same card — the built-in dedup collapses them to one play.
       sfx.triggerGlow();
+      // A beat that threw lassos RESERVES the time its cascade needs — counting beats is not the same as
+      // giving them room (the choreography rule), and five casts at 300 ms overrun a 760 ms beat by half.
+      const beatMs = Math.max(BEAT, lassoCascadeMs(bfx?.steals?.length ?? 0));
       window.setTimeout(() => {
         setEotProcUids(new Set());
         setEotPulseUids(new Set());
         setElectrifyUids(new Set());
         window.setTimeout(() => playBeat(i + 1), GAP);
-      }, BEAT);
+      }, beatMs);
     };
     playBeat(0);
   };
@@ -6324,6 +6530,7 @@ export function Recruit() {
         return true;
       }
       if (up) {
+        lassoDropRef.current = { x, y }; // where the card left the hand — a Lasso beam launches from here
         dispatch({ type: 'play', uid: d.uid });
         // A Choose One that is about to open its prompt casts nothing yet — firing the cast FX here would
         // flash a spell that has not resolved (and would fire again on the real cast).

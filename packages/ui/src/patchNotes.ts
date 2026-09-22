@@ -52,6 +52,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'The lasso',
+    changes: [
+      { category: 'Systems', text: "Stealing a minion from the Shop now throws a lasso: the beam snaps out from the spell, from Rope Wrangler, or from the equipment slot, and the card comes to hand when it lands. Several steals cascade one after another." },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Draws count in your record',
     changes: [
       { category: 'Systems', text: 'A fight where both boards wipe is a draw, and it is still a round. Your Career row and the in-run plaque now show it as a third number, so a 14 round run reads 8-3-3 instead of 8-3.' },

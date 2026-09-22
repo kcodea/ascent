@@ -2375,7 +2375,9 @@ export function fireEquipmentTriggers(
   const fn = RECRUIT_FACTORIES[def.effectId];
   if (!fn) return false; // an unknown effect id is a content error — never a paid-for no-op
   const ctx = makeContext(state);
-  const params = equipmentParamsFor(def, version);
+  // `_origin: 'equipment'` (2026-09-22): a Whiplass-o steal throws its lasso from the Equipment SLOT — the
+  // owner's 2026-09-12 ruling that "equipment can always be a starting point of an effect", carried in data.
+  const params = { ...equipmentParamsFor(def, version), _origin: 'equipment' };
   for (let t = 0; t < triggers; t += 1) {
     withEquipmentTriggerBeat(state, def.id, t, () => {
       fn(ctx, self, params, { minion: self, ...(target ? { target } : {}), ...(clockSeconds !== undefined ? { clockSeconds } : {}) });
@@ -7679,9 +7681,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const card = CARD_INDEX[offer.cardId];
       if (!card) return;
       state.shop.splice(idx, 1); // stolen — leaves the tavern (the pooled copy travels with it to the hand)
+      // THE LASSO BEAM's signal (owner ask 2026-09-22). Recorded HERE, at the one place every steal resolves, so
+      // the spell, Rope Wrangler, Whiplass-o and Rune of Lassoing all feed one channel. The reducer still resolves
+      // the theft immediately — the record is only what lets the UI pace it. `_origin` is set by the caller that
+      // knows where the beam should launch from; a plain hand cast leaves it unset and means the drop point.
+      const recordSteal = (): void => {
+        state.lassoFx = [...(state.lassoFx ?? []), {
+          offer,
+          index: idx,
+          handUid: state.hand[state.hand.length - 1]?.uid ?? '',
+          origin: str(params._origin) || 'spell',
+        }];
+        state.lassoFxSeq = (state.lassoFxSeq ?? 0) + 1;
+      };
       // A displaced (held) body is the likeliest top-Tier offer in the row: it comes back WHOLE (its own ledger +
       // progression + what it accrued there), the same restore the re-buy performs, never a fresh base body.
-      if (offer.held) { state.hand.push(restoreHeldOffer(state, offer)); continue; }
+      if (offer.held) { state.hand.push(restoreHeldOffer(state, offer)); recordSteal(); continue; }
       const cb = cardBuff(state, card.id); // a stolen Fodder carries Ritualist's run buff, like a buy
       state.hand.push({
         uid: `b${state.uidSeq++}`,
@@ -7693,6 +7708,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         keywords: [...card.keywords, ...(offer.keywords ?? []).filter((k) => !card.keywords.includes(k))],
         golden: false,
       });
+      recordSteal();
     }
   },
 
@@ -8283,7 +8299,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (let i = 0; i < n; i++) {
       const friends = ctx.state.board.filter((c) => c !== self);
       const target = friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
-      applyCastEffects(ctx, spellDef, target);
+      // The CASTER is the origin of a lasso beam (Rope Wrangler), not the carry the untargeted spell was
+      // handed — `applyCastEffects` passes `target` down as `self`, so the factory cannot tell them apart.
+      applyCastEffects(ctx, spellDef, target, self ? `board:${self.uid}` : undefined);
       ctx.state.spellsCast += 1;
       ctx.state.spellsThisTurn += 1;
     }
@@ -8300,7 +8318,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!spellDef || spellDef.singleCast) return;
     const times = num(params.times, 1) * gold(self);
     for (let i = 0; i < times; i++) {
-      applyCastEffects(ctx, spellDef, self);
+      applyCastEffects(ctx, spellDef, self, self ? `board:${self.uid}` : undefined);
       ctx.state.spellsCast += 1;
       ctx.state.spellsThisTurn += 1;
     }
@@ -8315,7 +8333,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (let i = 0; i < times; i++) {
       const friends = ctx.state.board.filter((c) => c !== self);
       const target = friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
-      applyCastEffects(ctx, spellDef, target);
+      // The CASTER is the origin of a lasso beam (Rope Wrangler), not the carry the untargeted spell was
+      // handed — `applyCastEffects` passes `target` down as `self`, so the factory cannot tell them apart.
+      applyCastEffects(ctx, spellDef, target, self ? `board:${self.uid}` : undefined);
       ctx.state.spellsCast += 1;
       ctx.state.spellsThisTurn += 1;
     }
@@ -9641,14 +9661,16 @@ export function chooseOneBranchText(cardId: string, index: number, golden: boole
 
 /** Apply a spell's `cast` effects to its chosen target. The spell's name is injected as `_source`
  *  so target buffs (Spirit Fire) record it for the inspect breakdown. */
-export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?: BoardCard): void {
+export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?: BoardCard, origin?: string): void {
   for (const effect of spellDef.effects) {
     if (effect.on !== 'cast') continue;
     const fn = RECRUIT_FACTORIES[effect.do];
     // Board-wide cast effects (Growth) ignore `self`; targeted ones (Spirit Fire) always get a target.
     // `_source` labels target buffs in the inspect breakdown; `_maxTier` carries the spell's gild cap
     // (Eyes of Aresmar) down to the factory.
-    const params = { ...(effect.params ?? {}), _source: spellDef.name, _spellId: spellDef.id, _maxTier: spellDef.targetMaxTier };
+    // `_origin` (2026-09-22) rides the same private-param channel as `_source`: it tells `stealTavernMinion`
+    // where the lasso beam should launch from. Presentation only — no factory branches on it.
+    const params = { ...(effect.params ?? {}), _source: spellDef.name, _spellId: spellDef.id, _maxTier: spellDef.targetMaxTier, ...(origin ? { _origin: origin } : {}) };
     if (!fn) continue;
     // CHOREOGRAPHER PR 15 — a cast is a SOURCE moment. Every `cast` effect in the game flows through here,
     // so instrumenting this one site gives the whole spell surface a beat rather than touching 66 factories.
@@ -11290,7 +11312,7 @@ export function fireRecruitDeathrattlesForTest(state: RunState, minion: BoardCar
   fireRecruitDeathrattles(makeContext(state), minion);
 }
 
-export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard): void {
+export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard, origin?: string): void {
   const ctx = makeContext(state);
   // SPELLHIDE + SPELLMARKET both key off "the first STAT-GRANTING Shop spell you cast on a minion this turn",
   // so "stat-granting" is measured across the cast rather than inferred from the card: the spell qualifies
@@ -11307,7 +11329,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   // is lifted out for the duration of a Gift's cast and put back after.
   const heldNextBonus = spellDef.gift ? state.nextSpellBonus : undefined;
   if (heldNextBonus) state.nextSpellBonus = undefined;
-  applyCastEffects(ctx, spellDef, target); // board-wide spells (Growth) run without a target
+  applyCastEffects(ctx, spellDef, target, origin); // board-wide spells (Growth) run without a target
   if (heldNextBonus) state.nextSpellBonus = heldNextBonus;
   if (weaveBefore) {
     let wa = 0, wh = 0;
@@ -12903,7 +12925,7 @@ function runRecurringEndOfTurn(
     // minion +2/+2. Untargeted Lasso resolves on the tavern; the buff picks a seeded-random board minion.
     step(() => {
       const lasso = CARD_INDEX['lasso'];
-      if (lasso) castSpell(state, lasso);
+      if (lasso) castSpell(state, lasso, undefined, 'rune'); // the beam leaves the rune badge — the rune is the actor
       if (state.board.length > 0) {
         const rng = makeRng(state.rngCursor);
         const target = state.board[rng.int(state.board.length)]!;
@@ -13005,6 +13027,12 @@ export interface EotStepFx {
    *  the End-of-Turn beat can fire the SAME gem cascade the shop plays. Diffed from the 'Ruby' buff counts, so
    *  any future End-of-Turn Ruby source animates without per-effect wiring. */
   ruby?: { uid: string; count: number }[];
+  /** SHOP MINIONS this beat STOLE (Rope Wrangler's Lasso casts, Rune of Lassoing) — the same records the
+   *  action-level `lassoFx` channel carries, sliced per beat. End-of-Turn steals commit inside `faceOmen`,
+   *  AFTER the phase has flipped, so the action channel would fire with the Shop already gone: the same
+   *  reason `handGrants`, `shopBuff`, `ruby` and `welds` are here. The UI cascades one beam per entry, in
+   *  order, and the offer only leaves the row when its own beam lands. */
+  steals?: NonNullable<RunState['lassoFx']>;
 }
 
 /**
@@ -13063,6 +13091,7 @@ export function projectEndOfTurnSteps(state: RunState): {
     // Rune-buff magnitude before the beat (board + hand), so a rune buffing a unit at End of Turn (Spending,
     // Action, Lassoing, …) fires `rune-buff-unit` on it, on the beat — the same source-label diff the shop uses.
     const runeBuffBefore = new Map([...clone.board, ...clone.hand].map((c) => [c.uid, runeBuffMagnitude(c)]));
+    const lassoStart = (clone.lassoFx ?? []).length; // this beat's Shop steals, sliced like `eaten`
     captureBuffFx(clone, source, 'minion', run); // sourceless (quest/rune beat) → sourceUid stays unset → the UI descends
     // Gainers are resolved BEFORE any reactor runs: an `onGainAttack` watcher (Tankerchief) grants itself Attack
     // while reacting, and reading `c.attack` live would then count that grant as a fresh gain and re-fire the
@@ -13116,6 +13145,7 @@ export function projectEndOfTurnSteps(state: RunState): {
     // Units a RUNE buffed this beat — the rune-buff-magnitude diff, board + hand.
     const runeBuffUnits: string[] = [];
     for (const c of [...clone.board, ...clone.hand]) if (runeBuffMagnitude(c) > (runeBuffBefore.get(c.uid) ?? 0)) runeBuffUnits.push(c.uid);
+    const steals = (clone.lassoFx ?? []).slice(lassoStart);
     steps.push(snap());
     fx.push({
       buffFx: clone.recruitBuffFx.slice(fxStart),
@@ -13128,6 +13158,7 @@ export function projectEndOfTurnSteps(state: RunState): {
       ...(shopAllDelta.attack > 0 || shopAllDelta.health > 0 ? { shopBuffAll: shopAllDelta } : {}),
       ...(ruby.length ? { ruby } : {}),
       ...(runeBuffUnits.length ? { runeBuffUnits } : {}),
+      ...(steals.length ? { steals } : {}),
     });
   };
   for (const card of [...clone.board]) {

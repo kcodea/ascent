@@ -1543,4 +1543,5 @@ export const APPROVED_RULES: GameRule[] = [
       + 'with no countdown; it now prints the turns remaining, and This turn on the turn itself. Odelle and '
       + 'Tempest already carried countdowns for their improving grants, which is the same rule for a magnitude.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/gifts.test.ts'], lastVerifiedAt: '2026-09-22' },
+  },
 ];

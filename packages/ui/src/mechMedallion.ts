@@ -5,7 +5,7 @@
  */
 export const MECH_MEDALLION_PNGS: ReadonlySet<string> = new Set([
   'shout', 'echo', 'startCombat', 'endTurn', 'avenge', 'rally', 'chooseOne', 'cleave',
-  'crit', 'flurry', 'rise', 'rebirth', 'attachment', 'watcher', 'spend',
+  'crit', 'flurry', 'rise', 'rebirth', 'attachment', 'watcher', 'spend', 'pummel',
 ]);
 
 /** The webp URL for a mechanic's medallion art, or null when it has none. BASE_URL-relative (itch/exe serve from

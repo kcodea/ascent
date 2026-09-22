@@ -63,11 +63,10 @@ art (shout/echo/rally/crit/spend/watcher), registered in `DevMenu.tsx` under the
 
 ## What's deliberately NOT covered
 
-Per the spec's decision table: `pummel` and `equip` art is **held**, not staged in this PR.
-- `pummel` is a live mechanic in code (shipped the same day in the unrelated `pummel-trigger` FX work,
-  `docs/devlog/2026-09-21-pummel-trigger-fx.md`) — it already renders a medallion via its `fist` glyph — but its
-  own PNG art is deferred per owner; it stays on the SVG fallback until that art is authored.
-- `equip` is not a mechanic in code at all yet (Set 3), so there is nothing to wire.
+- `pummel` **is wired** (owner ask 2026-09-22): it is a live mechanic (glyph `fist`, shared with startCombat),
+  but the medallion is keyed by mechanic **id**, so `pummel.webp` renders on pummel cards while startCombat keeps
+  its own art. No pummel card ships yet, so it's forward-ready.
+- `equip` is **held** — it is not a mechanic in code at all yet (Set 3), so there is nothing to wire.
 
 Everything else without art (slaughter, bleed, overflow, taunt, ward, execute, immune, stealth, consume, fodder,
 engraved, discover) also stays on its SVG glyph — the hybrid is designed so each mechanic upgrades independently

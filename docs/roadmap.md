@@ -355,9 +355,10 @@ The counter matrix is balance *truth*; stat numbers are dials. With all six trib
 the game wants a real tuning pass driven by human play (not just the bot).
 - **Real-player telemetry is the primary balance lens** (owner call 2026-07-16). The greedy bot buys
   `shop[0]` / picks index 0 — making it "understand the game" is a real project, not a quick fix — so treat
-  bot sims as RELATIVE A/B deltas only, never absolute truth. The wave-tagged buy analytics + Balance Report
-  CSV export (shipped 2026-07-17) is the data source; a parallel mass-sim runner is a cheap add if relative
-  deltas are wanted at scale.
+  bot sims as RELATIVE A/B deltas only, never absolute truth. The Balance Report's per-card impact table
+  (placement delta vs the field, 2026-09-22) and its **Export all** JSON (the whole active-set dataset in one
+  file, for an AI pass) are the data source, on top of the 2026-07-17 CSV; a parallel mass-sim runner is a
+  cheap add if relative deltas are wanted at scale.
 - **Smooth the curve.** Difficulty is mid-heavy then a victory lap — enemy power steps 45→75→91 across waves
   5–7 (bot win% troughs ~9%), then waves 13–17 read 54–75%. Soften the wave-5–7 wall + steepen the late
   curve. Per-turn scalers also run away (a greedy bot's Target Dummy hits 76/50 by wave 12 with no synergy).

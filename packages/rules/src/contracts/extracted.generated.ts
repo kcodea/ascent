@@ -4758,10 +4758,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "medium",
-      "unparsed": [
-        "spellBuffTarget.flat"
-      ]
+      "confidence": "high"
     },
     "setIds": [
       "set1",

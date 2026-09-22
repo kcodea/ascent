@@ -1,5 +1,6 @@
 import { damageMeterOf, damageMeterReading, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
+import { chooseOneBranchText } from '@game/sim';
 
 /** Effect `do` names that summon a fresh Imp (the `impscrap` token) — the gate for the live "(X/Y)" Imp-stat
  *  annotation below. `deathrattleSummon` / `onFriendDeathSummon` are generic summoners, so they only count when
@@ -328,13 +329,19 @@ export function runeModifiedNote(cardId: string, flags: RuneTextFlags | undefine
  *
  * Golden-aware, like every other live-text helper: a golden instance reads each option's `goldenText`, which
  * is where the doubled magnitude lives. Returns null for a card with no Choose One.
+ *
+ * Spell-power-aware too (review finding 2026-09-22, bug 23c340fb): a SPELL Choose One under (Both) — a Crest
+ * of the Climb in hand off a forked Crown / Prismpick charge, an armed Dealer, or the Facetwright rune — casts
+ * BOTH branches through the folding factories, so each branch prints through the same `chooseOneBranchText`
+ * the Choose One window uses (`{{+4/+1}}` / `{{+5 Health}}` under +0/+1 power), never the authored base. A
+ * minion Choose One (a Battlecry, never a cast) is returned untouched by that helper, so its text is unchanged.
  */
-export function chooseBothText(cardId: string, golden: boolean): string | null {
+export function chooseBothText(cardId: string, golden: boolean, bonusA = 0, bonusH = 0): string | null {
   const opts = CARD_INDEX[cardId]?.chooseOne;
   if (!opts?.length) return null;
   // `<<…>>` is the TRIBE-coloured marker (owner 2026-08-28) — not `{{…}}`, whose green means "a modified
   // value of this card's own rule". A Kobold's (Both) reads in the Kobold orange, a Beast's in Beast green.
-  return `<<(Both)>> ${opts.map((o) => (golden ? (o.goldenText ?? o.text) : o.text)).join(' ')}`;
+  return `<<(Both)>> ${opts.map((_o, i) => chooseOneBranchText(cardId, i, golden, bonusA, bonusH)).join(' ')}`;
 }
 
 export function cadenceProgressText(cardId: string, eotTick: number, golden = false): string | null {

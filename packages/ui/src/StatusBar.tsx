@@ -19,7 +19,6 @@ import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { getEquipFxConfig } from './equipFxConfig';
 import { getEquipSlotConfig } from './equipSlotConfig';
 import { DiscountWindowReadout } from './DiscountWindowReadout';
-import { KeywordDefs } from './KeywordDefs';
 import { sfx } from './sfx';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { DiceRoll } from './DiceRoll';
@@ -30,8 +29,6 @@ import { pixiFx } from './pixiFx';
 import { getAimFxConfig } from './aimFxConfig'; // also reflects the --hpb-* vars at load (side-effect)
 import './heroPanelConfig'; // side-effect: reflects the --hpn-* hero-panel transform vars at load
 
-/** Equipment carries no badge keywords — one stable empty list so `KeywordDefs`' memo key never churns. */
-const NO_KEYWORDS: Keyword[] = [];
 
 /** Shrink a pill's TEXT to fit its box (owner note 2026-07-16: no ellipsis — "Lord of the Risen" should
  *  fit): after layout, if the text overflows the pill's max-width, scale the font down by the overflow
@@ -1079,9 +1076,9 @@ export function StatusBar() {
                 {equipCost > 0 && run.embers < equipCost ? ' · not enough Gold' : ''}
                 {equipAmplified > 0 ? ' · Amplified: triggers twice on its next activation' : ''}
               </span>
-              {/* The glossary pills the Equipment's text raises (Equipment, Amplified, Starform, …) — the same
-                  definitions a card hover shows, stacked under the rule (owner ask 2026-09-18). */}
-              <KeywordDefs card={{ keywords: NO_KEYWORDS, text: equipRule }} />
+              {/* NO glossary pills here (owner 2026-09-22): the Equipment tooltip is a rule plus its charges,
+                  and a stacked definition box under it made a small hover into a wall of text. The same
+                  definitions are one hover away on any card that carries the keyword. */}
             </div>
             {/* THE SELECTOR — a rail that slides out to the RIGHT on hover (owner ask 2026-08-28: "when i
                 mouse over the equipment, can it show the available equipment options slide out to the right?

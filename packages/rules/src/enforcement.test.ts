@@ -71,6 +71,40 @@ describe('the approved-but-unenforced queue (§10.3, two-sided ratchet)', () => 
   });
 });
 
+/**
+ * OPEN PINS — a rule whose currentBehaviour says PARTIAL because the test that would pin the missing half
+ * is still in flight on another branch. A note in a PR body is not a gate: nothing fails if the ref is never
+ * appended. This is the gate. Each entry names the file the rule is waiting for; the moment that file lands
+ * on disk, the rule must cite it or this test reddens. Delete the entry when you append the ref.
+ */
+const OPEN_PINS: { rule: string; ref: string; why: string }[] = [
+  {
+    rule: 'R-AVWIN-12',
+    ref: 'packages/ui/src/avengeSummonReadout.test.ts',
+    why: "PR #1618 (the Reclaim insert + the combat readout). The one current ref pins the ORDINARY summon path (the #1176 baseline stamp, which is already R-AVWIN-01 ground); neither half R-AVWIN-12 adds is pinned until this file lands.",
+  },
+];
+
+describe('open pins (a PARTIAL rule cannot quietly stay unpinned)', () => {
+  it('every open pin names a live rule', () => {
+    const live = new Map(allRules().map((r) => [r.id, r]));
+    for (const p of OPEN_PINS) {
+      expect(live.has(p.rule), `open pin names rule '${p.rule}', which is not live — retire the entry`).toBe(true);
+      expect(p.why.length, `open pin ${p.rule} gives no reason`).toBeGreaterThan(20);
+    }
+  });
+
+  it('once the awaited test exists on disk, its rule cites it', () => {
+    const live = new Map(allRules().map((r) => [r.id, r]));
+    for (const p of OPEN_PINS) {
+      if (!env.fileExists(p.ref)) continue; // still in flight — the rule stays honestly PARTIAL
+      const refs = enforcementOf(live.get(p.rule)!)?.refs ?? [];
+      expect(refs, `${p.ref} has landed: append it to ${p.rule}'s enforcement refs, flip its currentBehaviour to Conforms, and delete its OPEN_PINS entry`)
+        .toContain(p.ref);
+    }
+  });
+});
+
 describe('sabotage (§3.5): the validator fails for the intended reason', () => {
   it('a fabricated approved rule with a nonexistent scenario ref fails', () => {
     const errs = enforcementErrors('R-FAKE-01', { kind: 'scenario', refs: ['packages/sim/src/doesNotExist.test.ts'] }, env);

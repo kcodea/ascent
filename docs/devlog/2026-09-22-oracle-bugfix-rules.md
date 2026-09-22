@@ -23,10 +23,38 @@ the merged PR as `fix-pr`, and the regression test that shipped with the fix as 
 | `R-TEXT-05` | player-facing text never uses an em dash or a double hyphen | text |
 | `R-LOBBY-01` | a ghost fight is never a rematch | foundation |
 
-Two read **PARTIAL** on purpose. `R-AVWIN-12` and `R-TEXT-04` state intent the engine does not fully meet yet
-because their fix PRs (#1618, #1619) were still in flight; each `currentBehaviour` names the open half and the
-pin to append on merge. That is the registry working as designed: a rule is a statement of intent, and the
-implementation conforms to it or is recorded as not yet conforming. It never approves itself.
+Three read **PARTIAL** on purpose. `R-AVWIN-12` and `R-TEXT-04` state intent the engine does not fully meet
+yet because their fix PRs (#1618, #1619) were still in flight; `R-TEXT-05` states the owner's writing rule for
+every surface a player reads, and card text does not obey it yet. Each `currentBehaviour` names the open half.
+That is the registry working as designed: a rule is a statement of intent, and the implementation conforms to
+it or is recorded as not yet conforming. It never approves itself.
+
+## What the review changed: three real pins instead of three comfortable claims
+
+A review of the first pass found the failure mode this whole exercise exists to prevent — a rule that reads as
+enforced while its ref pins something else:
+
+- **`R-TEXT-05` claimed conformance on card text, and nothing scanned card text.** The tripwire from #1606
+  covers the glossary, the patch notes, screen labels and the run-time helpers, but never `def.text`. A sweep
+  of live content found **29 cards** carrying an em dash (Gryphon, Mama Bear, Taragosa Heir, most of the Set 3
+  Celestials). `noEmDashPlayerText.test.ts` now sweeps every card and every rune against a frozen debt list:
+  a card that is not on the list fails CI, and a card on the list that has been rewritten must come off it, so
+  the debt can only shrink. Runes were already clean. Clearing the 29 is a content pass with its own patch
+  note, not a registry edit.
+- **`R-TEXT-04` said a stat spell folds spell power, and `flat: true` was a silent way out.** Both sweeps skip
+  an effect carrying `flat: true`, so a spell could opt out of spell power with no owner ruling and no alarm.
+  `spellPowerText.test.ts` now pins the exemption list itself to an exact set (`FLAT_EXEMPT`: Crest of the
+  Climb, open on #1619, and the Tower Shield on the owner ruling of 2026-09-09).
+- **`R-AVWIN-12`'s one ref pins the ordinary summon path**, which is already `R-AVWIN-01` ground — so neither
+  half the new rule adds was machine-checked, and a note in a PR body would not have caught it. The new
+  `OPEN_PINS` list in `packages/rules/src/enforcement.test.ts` reddens CI the moment
+  `packages/ui/src/avengeSummonReadout.test.ts` lands on disk without being cited by the rule. A PARTIAL rule
+  can no longer quietly stay unpinned.
+
+`R-SNAP-01` and `R-LOBBY-01` also had their statements trimmed to what their pins actually carry: `R-SNAP-01`
+no longer enumerates carried state its test never asserts, and `R-LOBBY-01` now names the deliberate floor its
+own test pins (with no non-rematch ghost available the selector still returns the most recent fallen seat,
+because a fight beats a free round) so a future agent does not "fix" it.
 
 The ladder rules file under `foundation` rather than `economy`: the ladder is a structural contract of the
 lobby, while `economy` covers Gold, embers and the shop inside a run.
@@ -52,5 +80,6 @@ Recomputed from the registry rather than added by hand: **159** live rules, **73
 "114 rules total: 31 approved" line); both now derive from the generator, which `npm run docbot:report --
 --check` gates.
 
-The approved-but-unenforced ratchet did not move: `R-PLAY-01` and `R-AURA-01` remain the only two honest gaps,
-and all ten new rules are enforced.
+The approved-but-unenforced ratchet did not move: `R-PLAY-01` and `R-AURA-01` remain the only two honest gaps.
+All ten new rules carry a pin, and the three PARTIAL ones say in `currentBehaviour` exactly which half of the
+rule that pin covers.

@@ -232,6 +232,8 @@ each doc when the thing it describes actually changes:
   PREPEND a plain-English, spoiler-light entry in the SAME PR (owner ask 2026-08-24). Non-gameplay work
   (build, tests, docs, refactors, dev tools) does NOT go here. This is enforced by convention, not a test.
 
+summary → commit them together.
+
 ## Bug fixes become rules — every single one, in the same PR
 
 **A bug is not fixed until the oracle knows the rule.** Whatever its size, every fix we find and solve adds
@@ -253,9 +255,10 @@ The one-line recipe, on top of the fix and its regression test:
 4. **`currentBehaviour`** = what the code does today and since when. Honest: "PARTIAL" is a legal answer.
 5. **`enforcement: { kind: 'scenario', refs: [<the regression test>], lastVerifiedAt: '<today>' }`.** Every
    ref must exist on disk and must genuinely pin the rule — the registry integrity test fails on a missing
-   path, and the approved-but-unenforced ratchet must not grow.
+   path, and the approved-but-unenforced ratchet must not grow. A ref that pins something *near* the rule is
+   worse than none: say so in `currentBehaviour`. If the real pin is still on another branch, add an
+   `OPEN_PINS` entry in `packages/rules/src/enforcement.test.ts` — CI then reddens the moment that file lands
+   without being cited, so the follow-up cannot be forgotten.
 
 Then `npx vitest run packages/rules` and `npm run docbot:report -- --check` (the rule totals in
 `docs/docbot2/final-report.md` move with the registry).
-
-summary → commit them together.

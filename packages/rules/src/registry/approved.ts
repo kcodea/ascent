@@ -1325,11 +1325,14 @@ export const APPROVED_RULES: GameRule[] = [
       { kind: 'fix-pr', ref: 'PR #1176 (placeSummon stamps avengeBaseline) and PR #1618 (the Reclaim insert + the combat readout) — packages/core/src/combat/simulate.ts, packages/ui/src/useCombatReplay.ts' },
     ],
     currentBehaviour:
-      'PARTIAL as of 2026-09-22. The ordinary summon path conforms and is pinned below (PR #1176). The two halves '
-      + 'this rule adds land with PR #1618, in flight at the time of writing: the Reclaim (Soren) insert kept the '
-      + 'side tally, and the combat readout re-derived the counter from the whole fight, so a freshly summoned '
-      + 'Avenge body printed 2 of 4. When #1618 merges, append its pin `packages/ui/src/avengeSummonReadout.test.ts` '
-      + 'to the refs below and flip this line to Conforms.',
+      'PARTIAL as of 2026-09-22, and UNDER-PINNED: read the enforcement ref with that in mind. The single ref below '
+      + 'pins only the ORDINARY summon path (the #1176 baseline stamp), which is already R-AVWIN-01 ground, so '
+      + 'NEITHER half this rule adds is machine-checked yet. Those two halves land with PR #1618, in flight at the '
+      + 'time of writing: the Reclaim (Soren) insert kept the side tally, and the combat readout re-derived the '
+      + 'counter from the whole fight, so a freshly summoned Avenge body printed 2 of 4. When #1618 merges, append '
+      + 'its pin `packages/ui/src/avengeSummonReadout.test.ts` to the refs below and flip this line to Conforms. '
+      + 'That is a gated follow-up, not a reminder: the OPEN_PINS list in `packages/rules/src/enforcement.test.ts` '
+      + 'reddens CI the moment that file exists on disk without being cited here.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/core/src/combat/avengeSummonBaseline.test.ts'],
@@ -1378,12 +1381,19 @@ export const APPROVED_RULES: GameRule[] = [
     ],
     contentIds: ['crestclimb'],
     currentBehaviour:
-      'PARTIAL as of 2026-09-22. The general rule conforms and is pinned below: the derived sweep in '
-      + '`spellPowerText.test.ts` fails any spell whose factory folds spell power and whose text does not print it, '
-      + 'and `chooseOneBranchText.test.ts` greens every folding branch and checks the printed number against the '
-      + 'delta the real reducer lands. The open case is Crest of the Climb, whose two branches still carry '
-      + '`flat: true` and so never scale; PR #1619 removes it. An owner-sanctioned exemption keeps `flat: true` '
-      + '(the Set 3 Tower Shield) and the sweep skips it by design.',
+      'PARTIAL as of 2026-09-22. What each ref pins, so the gap is not mistaken for coverage. The PRINTING half '
+      + 'conforms: the derived sweep in `spellPowerText.test.ts` fails any spell whose factory folds spell power and '
+      + 'whose text does not print it, and `chooseOneBranchText.test.ts` greens every folding branch and checks the '
+      + 'printed number against the delta the real reducer lands. `chooseOneBoth.test.tsx` pins the EVERY SURFACE '
+      + 'half (both branch texts render on every chain, the (Both) label, gilded magnitudes); it says nothing about '
+      + 'spell power. The FOLDING half was unpinned until 2026-09-22: `flat: true` on a cast effect opts a grant out '
+      + 'of spell power inside the factory, and both sweeps skip such a spell, so an exemption could be added with no '
+      + 'owner ruling and no alarm. `spellPowerText.test.ts` now also pins the exemption list itself, to an exact set '
+      + '(FLAT_EXEMPT), so a new `flat: true` fails until its ruling is written down. The open case is Crest of the '
+      + 'Climb, whose two branches still carry `flat: true` and so never scale; PR #1619 removes it. Two things must '
+      + 'move in that same PR: its FLAT_EXEMPT entry comes out, and `chooseOneBranchText.test.ts` today asserts the '
+      + 'opposite of this rule for that card (Crest never greens, its +4 lands exactly as printed), so that '
+      + 'assertion flips. The Set 3 Tower Shield keeps its exemption on the owner ruling of 2026-09-09.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/spellPowerText.test.ts', 'packages/sim/src/chooseOneBranchText.test.ts', 'packages/ui/src/chooseOneBoth.test.tsx'],
@@ -1396,9 +1406,8 @@ export const APPROVED_RULES: GameRule[] = [
     statement:
       'The board a finished run records for the Career row, Recent Games and the Hall of Champions is the run board '
       + 'as it stands after the final combat SETTLES, which is exactly what the next shop would have opened with. '
-      + 'Gains the run carries are in: Engraved growth, permanent buffs, Ruby carry-backs, the Pummel tally and '
-      + 'every progress counter. Combat-only state is out: temporary Start-of-Combat buffs, shields, and bodies '
-      + 'summoned during the fight.',
+      + 'Everything the settle writes to the run board is in, Engraved growth and permanent buffs among them. '
+      + 'Combat-only state is out: temporary Start-of-Combat buffs, shields, and bodies summoned during the fight.',
     domain: 'persistence',
     status: 'approved',
     evidence: [
@@ -1408,7 +1417,10 @@ export const APPROVED_RULES: GameRule[] = [
     currentBehaviour:
       'Conforms — 2026-09-21 (PR #1617). The recorded board used to be the last combat\'s START-OF-COMBAT board '
       + '(`socBoard` merged onto the end-state snapshot), so it showed SoC buffs, shields and summons but none of '
-      + 'the gains made during the fight, because those land on the run board only when `settleCombat` runs.',
+      + 'the gains made during the fight, because those land on the run board only when `settleCombat` runs. The '
+      + 'pin covers four cases: an Engraved carry-back present, combat-only buffs, shields and summons absent, the '
+      + 'course-victory path settling first, and the lobby path. The general claim rests on `endStateBoard(next)` '
+      + 'reading the settled run board, so any carry-back the settle writes is structurally included.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/ui/src/finalBoardPostSettle.test.ts'],
@@ -1478,8 +1490,15 @@ export const APPROVED_RULES: GameRule[] = [
       { kind: 'fix-pr', ref: 'PR #1606 — packages/ui/src/noEmDashPlayerText.test.ts is the CI tripwire; the glossary, patch notes and screen labels were rewritten in the same PR' },
     ],
     currentBehaviour:
-      'Conforms — 2026-09-21 (PR #1606). The tripwire scans the source of the screens it covers plus the run-time '
-      + 'text helpers, so a new label carrying an em dash fails CI rather than reaching a player.',
+      'PARTIAL as of 2026-09-22, and the split matters. CONFORMS on the surfaces PR #1606 rewrote and the tripwire '
+      + 'scans: the keyword glossary, the patch notes, the label and tooltip attributes of the scanned screens, the '
+      + 'run-time text helpers and the rank sentences. Rune text conforms too, and is swept from 2026-09-22. CARD '
+      + 'text does NOT: 29 cards authored before the ruling still separate clauses with an em dash (Gryphon, Mama '
+      + 'Bear, Taragosa Heir and 26 more), and until 2026-09-22 nothing scanned card text at all, so a new card '
+      + 'could ship one unnoticed. `noEmDashPlayerText.test.ts` now sweeps every card and every rune against a '
+      + 'frozen debt list (EM_DASH_CARD_DEBT): a card NOT on the list fails CI, and a card on it that has been '
+      + 'rewritten must come off, so the debt can only shrink. Clearing the 29 is a player-facing content pass with '
+      + 'its own patch note, not part of this registry entry.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/ui/src/noEmDashPlayerText.test.ts'],
@@ -1492,7 +1511,9 @@ export const APPROVED_RULES: GameRule[] = [
     statement:
       'The seat that draws the bye never faces, as a ghost, the seat it fought the round before or the seat it '
       + 'eliminated. The next most recent fallen seat stands in. When the only ghost on offer would be a rematch, '
-      + 'the bye moves to another seat instead.',
+      + 'the bye moves to another seat instead. One deliberate floor: asked for a ghost when no non-rematch seat is '
+      + 'available at all, the selector still returns the most recent fallen seat, because a fight beats a free '
+      + 'round. It is the bye reassignment that keeps that case off the table, so the floor is not a hole to close.',
     domain: 'foundation',
     status: 'approved',
     evidence: [

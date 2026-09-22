@@ -1912,4 +1912,40 @@ export const APPROVED_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-22',
     },
   },
+  {
+    id: 'R-CAREER-01',
+    title: 'The Career page trends MMR over rated runs, with an All time window',
+    statement:
+      'The Career page\'s Performance Trends carry an MMR line: one point per rated run in the window, plotted '
+      + 'as the rating the run settled to (the same scalar the Seasonal Ranked crest prints), oldest first and '
+      + 'exactly as recorded, never a running mean; its headline is the latest rated run\'s MMR in the window. A '
+      + 'run with no settled rating (practice, unrated, a row the settle stamp never reached) contributes no '
+      + 'point and is never drawn as 0, while a real 0 is a point. The window tabs are 7, 30 and 90 days and All '
+      + 'time; All time applies no lower bound at all and is bounded only by the rows the page fetches. The three '
+      + 'rate lines beside it keep their running-mean smoothing.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (the Career page\'s Performance Trends panel)', quote: 'add to the performance trends an "MMR" line graph that tracks mmr over time. also add an "All time" tab so there is 7/30/90 days and all time.' },
+      { kind: 'code', ref: 'packages/ui/src/careerData.ts (trendSeries: the mmr series via rawSeries, TrendWindow \'all\', mmrAxisOf); packages/ui/src/remoteBoards.ts CAREER_LIGHT_SELECT rating_after:entry->>ratingAfter; packages/ui/src/Career.tsx (the MMR chart, first in the panel; the All time tab); the value is settle_rank\'s stamp on run_history.entry.ratingAfter (schema.sql)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22 (the feature PR). The rating plotted is the server\'s settle stamp on the '
+      + 'history row (entry.ratingAfter, projected as rating_after on the light select); since #1594 the client '
+      + 'never writes it, so an unstamped row reads null and is skipped. Plotting the line raw rather than as a '
+      + 'running mean is the implementation\'s reading of "tracks mmr over time" (a rating is a state, not a rate; '
+      + 'the 2026-09-20 smoothing ruling was for the three rate lines), decided 2026-09-22 and open to the '
+      + 'owner\'s correction. The axis is snapped to whole 100-point divisions around the window\'s ratings. All '
+      + 'time reads the newest 1000 light rows the page fetches (FETCH_LIMIT), which is every run any account has '
+      + 'today. A season reset inside a window is drawn as the drop it is.',
+    example:
+      'A player takes five bottom-half finishes on the Bronze I floor (0 MMR each), then climbs 16, 56, 40, 46, '
+      + '86, 100, 110. The 30d MMR line reads 0, 0, 0, 0, 0, 16, 56, 40, 46, 86, 100, 110 with the headline 110 on '
+      + 'a 0 to 200 axis; the Avg Placement line beside it is still a running mean.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/careerData.test.ts', 'packages/ui/src/Career.test.tsx', 'packages/ui/src/careerFetch.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
 ];

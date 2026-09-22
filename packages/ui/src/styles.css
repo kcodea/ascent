@@ -7012,6 +7012,16 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .cv2-trend-foot { font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.45); text-align: right; }
 
 @media (min-height: 1000px) { .cv2-chart svg { height: 120px; } .cv2-trend { gap: 6px; padding-top: 12px; } .cv2-trends { gap: 12px; } }
+/* FOUR charts stack in the right column since MMR joined (2026-09-22), under a ~300px Seasonal Ranked card, in a
+   column that is only ~320px wide at 1920 and scrolls with no visible scrollbar (overlay scrollbars), so a chart
+   below the fold is a chart nobody finds (review 2026-09-22: at 1080p the fourth sat 260px under the column's
+   edge). In the THREE-column layout the tall step above therefore waits for the room four tall charts need (a
+   viewport of 1360+: 50 colhead + 301 card + 896 panel in a 1247 column) and a viewport of 1199 or less compacts
+   the plots to 60px so the whole panel sits in view at 1080p (column 967 = 50 + 301 + a 608 panel, 8px spare).
+   Measured, not guessed. The stacked single-column layout (1300 and under) keeps the plain steps: the page scrolls
+   as a whole there and the plots are full-width. A 2x2 grid was rejected: at 320px it leaves ~95px of plot. */
+@media (max-height: 1359px) { @container cv2 (width > 1300px) { .cv2-chart svg { height: 92px; } .cv2-trend { gap: 4px; padding-top: 8px; } .cv2-trends { gap: 8px; } } }
+@media (max-height: 1199px) { @container cv2 (width > 1300px) { .cv2-chart svg { height: 60px; } } }
 /* Narrower pages give the tiles the room first (the side columns shrink); under 1300 the columns stack and
    the page scrolls as a whole. CONTAINER queries on `.cv2-page` (the width beside the sidebar), not viewport
    media queries — the 1700 / 1360 thresholds the page had before the sidebar took its 240px; the stack point

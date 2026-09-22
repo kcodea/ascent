@@ -53,13 +53,14 @@ const isDetail = (q: Query): boolean => q.table === 'run_history' && !!q.select 
 const isProbe = (q: Query): boolean => q.table === 'run_telemetry';
 
 const LIGHT = [
-  { id: 12, created_at: '2026-09-19T05:39:50Z', hero_id: 'sable', wave: 15, wins: 9, placement: 1, mode: 'lobby', losses: '4', draws: '1', apt: '26.1', seed: '1465984878', gold_spent: '120', rating_delta: '41', at: '2026-09-19T05:39:48Z', dominant_tribe: 'beast' },
-  { id: 11, created_at: '2026-09-19T05:24:42Z', hero_id: 'repete', wave: 11, wins: 5, placement: 3, mode: 'lobby', losses: '5', draws: '0', apt: '22', seed: '2068602420', gold_spent: '90', rating_delta: '9', at: '2026-09-19T05:24:40Z', dominant_tribe: 'mech' },
-  { id: 10, created_at: '2026-09-18T01:00:00Z', hero_id: 'cia', wave: 8, wins: 2, placement: 7, mode: 'lobby', losses: '5', draws: '0', apt: '18', seed: '55', gold_spent: '40', rating_delta: '-30', at: '2026-09-18T00:59:00Z', dominant_tribe: null },
+  // `rating_after` is the settle stamp (`->>` returns it as text); row 10 was never stamped and projects NULL.
+  { id: 12, created_at: '2026-09-19T05:39:50Z', hero_id: 'sable', wave: 15, wins: 9, placement: 1, mode: 'lobby', losses: '4', draws: '1', apt: '26.1', seed: '1465984878', gold_spent: '120', rating_delta: '41', rating_after: '110', at: '2026-09-19T05:39:48Z', dominant_tribe: 'beast' },
+  { id: 11, created_at: '2026-09-19T05:24:42Z', hero_id: 'repete', wave: 11, wins: 5, placement: 3, mode: 'lobby', losses: '5', draws: '0', apt: '22', seed: '2068602420', gold_spent: '90', rating_delta: '9', rating_after: '69', at: '2026-09-19T05:24:40Z', dominant_tribe: 'mech' },
+  { id: 10, created_at: '2026-09-18T01:00:00Z', hero_id: 'cia', wave: 8, wins: 2, placement: 7, mode: 'lobby', losses: '5', draws: '0', apt: '18', seed: '55', gold_spent: '40', rating_delta: '-30', rating_after: null, at: '2026-09-18T00:59:00Z', dominant_tribe: null },
 ];
 const DETAIL = [
-  { id: 12, created_at: '2026-09-19T05:39:50Z', placement: 1, entry: { v: 1, at: '2026-09-19T05:39:48Z', seed: 1465984878, heroId: 'sable', wins: 9, losses: 4, draws: 1, wave: 15, placement: 1, goldSpent: 120, apt: 26.1, ratingDelta: 41, dominantTribe: 'beast', board: { minions: [{ cardId: 'alleycat', attack: 5, health: 5 }, { cardId: 'stray', attack: 2, health: 2 }], wave: 15, heroId: 'sable', runes: ['rune_broodpit', 'rune_epic_forge'] } } },
-  { id: 11, created_at: '2026-09-19T05:24:42Z', placement: 3, entry: { v: 1, at: '2026-09-19T05:24:40Z', seed: 2068602420, heroId: 'repete', wins: 5, losses: 5, draws: 0, wave: 11, placement: 3, goldSpent: 90, apt: 22, ratingDelta: 9, dominantTribe: 'mech', board: null } },
+  { id: 12, created_at: '2026-09-19T05:39:50Z', placement: 1, entry: { v: 1, at: '2026-09-19T05:39:48Z', seed: 1465984878, heroId: 'sable', wins: 9, losses: 4, draws: 1, wave: 15, placement: 1, goldSpent: 120, apt: 26.1, ratingDelta: 41, ratingAfter: 110, dominantTribe: 'beast', board: { minions: [{ cardId: 'alleycat', attack: 5, health: 5 }, { cardId: 'stray', attack: 2, health: 2 }], wave: 15, heroId: 'sable', runes: ['rune_broodpit', 'rune_epic_forge'] } } },
+  { id: 11, created_at: '2026-09-19T05:24:42Z', placement: 3, entry: { v: 1, at: '2026-09-19T05:24:40Z', seed: 2068602420, heroId: 'repete', wins: 5, losses: 5, draws: 0, wave: 11, placement: 3, goldSpent: 90, apt: 22, ratingDelta: 9, ratingAfter: 69, dominantTribe: 'mech', board: null } },
 ];
 const PROBE = [
   { id: 97, created_at: '2026-09-19T05:39:50Z', placement: 1, seed: '1465984878', v2_version: '2', first_t: '0', last_t: '883179.2' },
@@ -81,6 +82,7 @@ describe('fetchMyRuns — the query shape', () => {
     const light = queries.find(isLight)!;
     expect(light.select).toContain('apt:entry->>apt');
     expect(light.select).toContain('seed:entry->>seed');
+    expect(light.select).toContain('rating_after:entry->>ratingAfter'); // the MMR trend's value — the settle stamp, same alias shape as its neighbours
     expect(light.select).not.toMatch(/(^|, )entry(,|$)/);
     expect(light.limit).toBe(100);
     // The detailed select is capped to the match-history rows.
@@ -98,13 +100,13 @@ describe('fetchMyRuns — the query shape', () => {
     const runs = (await (await load()).fetchMyRuns(100))!;
     expect(runs.map((r) => r.id)).toEqual([12, 11, 10]);
     // Row 12: detailed (board), watchable (v2 + id), 883 s long.
-    expect(runs[0]).toMatchObject({ heroId: 'sable', wins: 9, losses: 4, placement: 1, goldSpent: 120, apt: 26.1, ratingDelta: 41, detailed: true, replayRowId: 97, durationMs: 883179.2 });
+    expect(runs[0]).toMatchObject({ heroId: 'sable', wins: 9, losses: 4, placement: 1, goldSpent: 120, apt: 26.1, ratingDelta: 41, ratingAfter: 110, detailed: true, replayRowId: 97, durationMs: 883179.2 });
     expect(runs[0]!.board?.minions).toHaveLength(2);
     expect(runs[0]!.runes, "the run's runes ride on the detailed row's board snapshot").toEqual(['rune_broodpit', 'rune_epic_forge']);
     // Row 11: detailed but no stored board (outcome-only banner, "No runes recorded"); v1-only telemetry → no Watch, clock still read.
-    expect(runs[1]).toMatchObject({ heroId: 'repete', detailed: true, board: null, runes: [], replayRowId: null, durationMs: 690108, placement: 3 });
-    // Row 10: light only (beyond the detail cap) and no telemetry row at all.
-    expect(runs[2]).toMatchObject({ heroId: 'cia', detailed: false, board: null, replayRowId: null, durationMs: null, goldSpent: 40, placement: 7 });
+    expect(runs[1]).toMatchObject({ heroId: 'repete', detailed: true, board: null, runes: [], replayRowId: null, durationMs: 690108, placement: 3, ratingAfter: 69 });
+    // Row 10: light only (beyond the detail cap), no telemetry row at all, and no settle stamp → no MMR (null, not 0).
+    expect(runs[2]).toMatchObject({ heroId: 'cia', detailed: false, board: null, replayRowId: null, durationMs: null, goldSpent: 40, placement: 7, ratingAfter: null });
   });
 
   it('retries the telemetry probe WITHOUT the frame clocks when the rich select errors (older PostgREST)', async () => {

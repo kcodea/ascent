@@ -6,7 +6,9 @@
  *  2. the per-run derivations the outcome block prints — placement, run length, Gold — from a FIXTURE REPLAY
  *     (`replaySummary`) and from the light probe (`telemetryFactsOf`), agreeing with each other;
  *  3. the left-column aggregates;
- *  4. the three trend series over a window;
+ *  4. the four trend series over a window — the three rates smoothed, MMR raw (the rating after each rated run,
+ *     a real 0 plotted, a missing stamp skipped) — and the All time window with no lower bound (owner ask
+ *     2026-09-22);
  *  5. the Heroes tab's per-hero fold (owner ask 2026-09-20);
  *  6. the MATCH WIN definition (owner ruling 2026-09-20): a match is won by PLACEMENT — top 4 = W, 5th–8th =
  *     L — and that is the unit the banner result, the hero fold and the Win Rate trend all use (never fights).
@@ -14,8 +16,8 @@
 import { describe, it, expect } from 'vitest';
 import type { ReplayV2 } from '@game/sim';
 import {
-  actionsOf, apmOf, careerAggregates, careerRunOf, heroCareers, isMatchWin, joinTelemetry, matchResultOf, outcomeOf, polylineOf,
-  replaySummary, runLengthText, telemetryFactsOf, trendSeries, type CareerRun,
+  TREND_WINDOWS, actionsOf, apmOf, careerAggregates, careerRunOf, heroCareers, isMatchWin, joinTelemetry, matchResultOf, mmrAxisOf, outcomeOf,
+  polylineOf, replaySummary, runLengthText, telemetryFactsOf, trendSeries, trendWindowLabel, type CareerRun, type TrendSeries,
 } from './careerData';
 
 const DAY = 86_400_000;
@@ -27,7 +29,7 @@ const detailedRow = (over: Record<string, unknown> = {}, entryOver: Record<strin
   id: 7, created_at: iso(1), hero_id: 'brackus', wave: 12, wins: 6, placement: 2, mode: 'lobby',
   entry: {
     v: 1, date: iso(1).slice(0, 10), at: iso(1), seed: 4242, heroId: 'brackus', wins: 6, losses: 4, draws: 1,
-    wave: 12, placement: 2, mode: 'lobby', goldSpent: 88, apt: 25.5, ratingDelta: 37, dominantTribe: 'beast',
+    wave: 12, placement: 2, mode: 'lobby', goldSpent: 88, apt: 25.5, ratingDelta: 37, ratingAfter: 137, dominantTribe: 'beast',
     board: { minions: [{ cardId: 'alleycat', attack: 3, health: 3 }], wave: 12, heroId: 'brackus', runes: ['rune_broodpit', 'rune_epic_forge'] },
     ...entryOver,
   },
@@ -37,7 +39,7 @@ const detailedRow = (over: Record<string, unknown> = {}, entryOver: Record<strin
 /** A light `run_history` row — the JSON-path aliases come back as TEXT. */
 const lightRow = (over: Record<string, unknown> = {}) => ({
   id: 8, created_at: iso(3), hero_id: 'sable', wave: 9, wins: 3, placement: 6, mode: 'lobby',
-  losses: '5', draws: '0', apt: '20', seed: '9001', gold_spent: '61', rating_delta: '-18', at: iso(3), dominant_tribe: 'mech',
+  losses: '5', draws: '0', apt: '20', seed: '9001', gold_spent: '61', rating_delta: '-18', rating_after: '0', at: iso(3), dominant_tribe: 'mech',
   ...over,
 });
 
@@ -46,7 +48,7 @@ describe('careerRunOf — one run_history row → one CareerRun', () => {
     const r = careerRunOf(detailedRow());
     expect(r).toMatchObject({
       id: 7, heroId: 'brackus', wave: 12, wins: 6, losses: 4, draws: 1, placement: 2, goldSpent: 88, apt: 25.5,
-      ratingDelta: 37, seed: 4242, dominantTribe: 'beast', mode: 'lobby', detailed: true, replayRowId: null, durationMs: null,
+      ratingDelta: 37, ratingAfter: 137, seed: 4242, dominantTribe: 'beast', mode: 'lobby', detailed: true, replayRowId: null, durationMs: null,
     });
     expect(r.board?.minions).toHaveLength(1);
     expect(r.at).toBe(iso(1));
@@ -68,9 +70,19 @@ describe('careerRunOf — one run_history row → one CareerRun', () => {
     const r = careerRunOf(lightRow());
     expect(r).toMatchObject({
       id: 8, heroId: 'sable', wave: 9, wins: 3, losses: 5, draws: 0, placement: 6, goldSpent: 61, apt: 20,
-      ratingDelta: -18, seed: 9001, dominantTribe: 'mech', board: null, detailed: false,
+      ratingDelta: -18, ratingAfter: 0, seed: 9001, dominantTribe: 'mech', board: null, detailed: false,
     });
     expect(r.atMs).toBe(NOW - 3 * DAY);
+  });
+
+  it('the MMR after settle: the server stamp on either row shape; "0" is a REAL 0 (the Bronze I floor), a row the stamp never reached is null — never 0', () => {
+    expect(careerRunOf(detailedRow()).ratingAfter).toBe(137);
+    expect(careerRunOf(lightRow()).ratingAfter).toBe(0);
+    expect(careerRunOf(lightRow({ rating_after: '110' })).ratingAfter).toBe(110);
+    expect(careerRunOf(lightRow({ rating_after: null })).ratingAfter).toBeNull();   // PostgREST projects a missing key as NULL
+    expect(careerRunOf(lightRow({ rating_after: undefined })).ratingAfter).toBeNull();
+    expect(careerRunOf(detailedRow({}, { ratingAfter: undefined })).ratingAfter).toBeNull(); // an unstamped entry
+    expect(careerRunOf(detailedRow({ rating_after: '99' }, { ratingAfter: 0 })).ratingAfter).toBe(0); // the entry wins over the alias, 0 included
   });
 
   it('a pre-lobby row with no placement / Gold / APT / seed reads null for each (the page prints "—")', () => {
@@ -80,6 +92,7 @@ describe('careerRunOf — one run_history row → one CareerRun', () => {
     expect(r.apt).toBeNull();
     expect(r.seed).toBeNull();
     expect(r.dominantTribe).toBeNull();
+    expect(r.ratingAfter).toBeNull(); // never rated → no MMR point, not a 0
     expect(r.at).toBe(iso(40)); // falls back to the row's created_at
   });
 
@@ -198,19 +211,19 @@ describe('per-run text + derivations', () => {
   });
 });
 
-/** Fixture runs, newest first, spanning the 7 / 30 / 90-day windows. */
+/** Fixture runs, newest first, spanning the 7 / 30 / 90-day windows and, beyond them, All time. */
 const run = (over: Partial<CareerRun>): CareerRun => ({
   id: 1, heroId: 'brackus', at: iso(0), atMs: NOW, wave: 12, wins: 6, losses: 4, draws: 0, placement: 3, goldSpent: 80,
-  apt: 25, ratingDelta: 10, seed: 1, dominantTribe: 'beast', mode: 'lobby', board: null, detailed: false, runes: [], replayRowId: null,
+  apt: 25, ratingDelta: 10, ratingAfter: null, seed: 1, dominantTribe: 'beast', mode: 'lobby', board: null, detailed: false, runes: [], replayRowId: null,
   durationMs: 12 * 60_000, ...over,
 });
 const RUNS: CareerRun[] = [
-  run({ id: 1, atMs: NOW - 1 * DAY, heroId: 'brackus', placement: 1, wins: 8, losses: 2, dominantTribe: 'beast', durationMs: 10 * 60_000, apt: 20, wave: 10 }), // 200 actions / 10 min = 20 APM
-  run({ id: 2, atMs: NOW - 3 * DAY, heroId: 'sable', placement: 4, wins: 5, losses: 5, dominantTribe: 'mech', durationMs: null }),
-  run({ id: 3, atMs: NOW - 10 * DAY, heroId: 'brackus', placement: 7, wins: 2, losses: 6, dominantTribe: 'beast', durationMs: 8 * 60_000, apt: 30, wave: 8 }), // 240 / 8 = 30 APM
-  run({ id: 4, atMs: NOW - 45 * DAY, heroId: 'sable', placement: 2, wins: 6, losses: 3, dominantTribe: 'mech', durationMs: 20 * 60_000, apt: 20, wave: 20 }), // 400 / 20 = 20
-  run({ id: 5, atMs: NOW - 120 * DAY, heroId: 'brackus', placement: null, wins: 0, losses: 0, dominantTribe: null, apt: null }),
-  run({ id: 6, atMs: NaN, heroId: 'brackus', placement: 6 }), // no end time → in no window, still counts for the tiles
+  run({ id: 1, atMs: NOW - 1 * DAY, heroId: 'brackus', placement: 1, wins: 8, losses: 2, dominantTribe: 'beast', durationMs: 10 * 60_000, apt: 20, wave: 10, ratingAfter: 110 }), // 200 actions / 10 min = 20 APM
+  run({ id: 2, atMs: NOW - 3 * DAY, heroId: 'sable', placement: 4, wins: 5, losses: 5, dominantTribe: 'mech', durationMs: null, ratingAfter: null }), // the settle stamp missed this row → no MMR point
+  run({ id: 3, atMs: NOW - 10 * DAY, heroId: 'brackus', placement: 7, wins: 2, losses: 6, dominantTribe: 'beast', durationMs: 8 * 60_000, apt: 30, wave: 8, ratingAfter: 86 }), // 240 / 8 = 30 APM
+  run({ id: 4, atMs: NOW - 45 * DAY, heroId: 'sable', placement: 2, wins: 6, losses: 3, dominantTribe: 'mech', durationMs: 20 * 60_000, apt: 20, wave: 20, ratingAfter: 46 }), // 400 / 20 = 20
+  run({ id: 5, atMs: NOW - 120 * DAY, heroId: 'brackus', placement: null, wins: 0, losses: 0, dominantTribe: null, apt: null, ratingAfter: 0 }), // a REAL 0 — the Bronze I floor — plots (All time only)
+  run({ id: 6, atMs: NaN, heroId: 'brackus', placement: 6, ratingAfter: 500 }), // no end time → in no window (All time included), still counts for the tiles
 ];
 
 describe('careerAggregates — the left column', () => {
@@ -276,7 +289,7 @@ describe('heroCareers — the Heroes tab, folded over EVERY run', () => {
   });
 });
 
-describe('trendSeries — the three lines over a window', () => {
+describe('trendSeries — the four lines over a window', () => {
   it('7 days: only runs 1 + 2, oldest first, each line a RUNNING mean that ends on the headline; APM skips the run without a recording clock', () => {
     const t = trendSeries(RUNS, 7, NOW);
     // Placements 4 then 1 → running 4 → 2.5; the headline is the window's exact mean.
@@ -331,10 +344,87 @@ describe('trendSeries — the three lines over a window', () => {
     expect(t.winRate.avg).toBe(50);
   });
 
+  it('MMR is plotted RAW — the rating after each rated run, oldest first, never a running mean; the headline is the LATEST rating; a run the stamp missed contributes no point', () => {
+    // 7d: run 2 (3 days ago) carries no rating → only run 1's 110.
+    const t7 = trendSeries(RUNS, 7, NOW);
+    expect(t7.mmr.points.map((p) => p.y)).toEqual([110]);
+    expect(t7.mmr.avg).toBe(110);
+    // 30d: 86 → 110, each the actual rating (a running mean would have drawn 86 → 98, a number never held).
+    const t30 = trendSeries(RUNS, 30, NOW);
+    expect(t30.mmr.points.map((p) => p.y)).toEqual([86, 110]);
+    expect(t30.mmr.points.map((p) => p.atMs)).toEqual([NOW - 10 * DAY, NOW - 1 * DAY]);
+    expect(t30.mmr.avg).toBe(110);
+    // 90d: 46 → 86 → 110; the headline is where the line ENDS, not the window's mean (which would be 81).
+    const t90 = trendSeries(RUNS, 90, NOW);
+    expect(t90.mmr.points.map((p) => p.y)).toEqual([46, 86, 110]);
+    expect(t90.mmr.avg).toBe(110);
+    expect(t90.mmr.avg).toBe(t90.mmr.points.at(-1)!.y);
+  });
+
+  it('a season reset inside the window is drawn as the drop it is; the Bronze I floor (0 → 0 → 0) plots as real points; no rated run at all → an empty series, never a line of zeros', () => {
+    const reset = trendSeries([
+      run({ id: 1, atMs: NOW - 1 * DAY, ratingAfter: 16 }),
+      run({ id: 2, atMs: NOW - 2 * DAY, ratingAfter: 0 }),
+      run({ id: 3, atMs: NOW - 3 * DAY, ratingAfter: 0 }),
+      run({ id: 4, atMs: NOW - 4 * DAY, ratingAfter: 0 }),    // the new season's restart at Bronze I 0
+      run({ id: 5, atMs: NOW - 5 * DAY, ratingAfter: 1234 }), // last season's Diamond
+    ], 7, NOW);
+    expect(reset.mmr.points.map((p) => p.y)).toEqual([1234, 0, 0, 0, 16]);
+    expect(reset.mmr.avg).toBe(16);
+    const none = trendSeries([run({ atMs: NOW, ratingAfter: null }), run({ atMs: NOW - DAY, ratingAfter: null })], 7, NOW);
+    expect(none.mmr).toEqual({ points: [], avg: null });
+    // A non-integer legacy value prints as a whole number.
+    expect(trendSeries([run({ atMs: NOW, ratingAfter: 1187.6 })], 7, NOW).mmr.avg).toBe(1188);
+  });
+
+  it('All time has NO lower bound: every dated run counts (the 120-day-old run joins), the undated run still never does; the day windows keep their numbers', () => {
+    const all = trendSeries(RUNS, 'all', NOW);
+    expect(all.mmr.points.map((p) => p.y)).toEqual([0, 46, 86, 110]); // run 5's real 0 leads; run 6 (undated, 500) is absent
+    expect(all.mmr.avg).toBe(110);
+    // Run 5 has no placement, APT or clock, so the three rate series read exactly as they do at 90d.
+    expect(all.placement.points.map((p) => p.y)).toEqual([2, 4.5, 4.3, 3.5]);
+    expect(all.placement.avg).toBe(3.5);
+    expect(all.winRate.avg).toBe(75);
+    expect(all.apm.avg).toBe(23.3);
+    // With placed runs from years back the bound really is absent: 100, 400 and 3000 days ago are all in.
+    const old = [
+      run({ id: 1, atMs: NOW - 1 * DAY, placement: 1 }),
+      run({ id: 2, atMs: NOW - 100 * DAY, placement: 3 }),
+      run({ id: 3, atMs: NOW - 400 * DAY, placement: 5 }),
+      run({ id: 4, atMs: NOW - 3000 * DAY, placement: 7 }),
+      run({ id: 5, atMs: NaN, placement: 8 }),
+    ];
+    expect(trendSeries(old, 'all', NOW).placement.points.map((p) => p.y)).toEqual([7, 6, 5, 4]); // 7 → 12/2 → 15/3 → 16/4
+    expect(trendSeries(old, 'all', NOW).placement.avg).toBe(4);
+    expect(trendSeries(old, 90, NOW).placement.points.map((p) => p.y)).toEqual([1]);
+    // A run dated in the future (a skewed clock) stays out of All time too, as it does of every window.
+    expect(trendSeries([run({ atMs: NOW + DAY, placement: 1 })], 'all', NOW).placement.points).toEqual([]);
+  });
+
   it('an empty window yields empty series with null averages', () => {
     const t = trendSeries(RUNS, 7, NOW + 400 * DAY);
     expect(t.placement).toEqual({ points: [], avg: null });
     expect(t.apm).toEqual({ points: [], avg: null });
+    expect(t.mmr).toEqual({ points: [], avg: null });
+  });
+});
+
+describe('the trend window tabs + the MMR axis', () => {
+  it('the windows are 7 / 30 / 90 days and All time, labelled "7d" … "All time"', () => {
+    expect(TREND_WINDOWS).toEqual([7, 30, 90, 'all']);
+    expect(TREND_WINDOWS.map(trendWindowLabel)).toEqual(['7d', '30d', '90d', 'All time']);
+  });
+
+  it('the MMR axis snaps to whole 100-point divisions: at least one tall, a rating on a promotion gate never on an edge, 0 the floor, a reset widens down to 0', () => {
+    const s = (ys: number[]): TrendSeries => ({ points: ys.map((y, i) => ({ atMs: i, y })), avg: ys.at(-1) ?? null });
+    expect(mmrAxisOf(s([]))).toEqual({ yMin: 0, yMax: 100 });
+    expect(mmrAxisOf(s([0, 0, 0]))).toEqual({ yMin: 0, yMax: 100 });        // the Bronze I floor rows
+    expect(mmrAxisOf(s([40, 46]))).toEqual({ yMin: 0, yMax: 100 });         // a wobble inside one division is not inflated
+    expect(mmrAxisOf(s([86, 100, 110]))).toEqual({ yMin: 0, yMax: 200 });   // the gate at 100 sits on the middle grid line
+    expect(mmrAxisOf(s([100]))).toEqual({ yMin: 0, yMax: 200 });
+    expect(mmrAxisOf(s([1201, 1234]))).toEqual({ yMin: 1200, yMax: 1300 }); // Diamond reads within its own division
+    expect(mmrAxisOf(s([1200, 1234]))).toEqual({ yMin: 1100, yMax: 1300 });
+    expect(mmrAxisOf(s([1234, 0, 16]))).toEqual({ yMin: 0, yMax: 1300 });   // a season reset inside the window
   });
 });
 

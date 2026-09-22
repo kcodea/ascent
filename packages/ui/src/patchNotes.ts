@@ -59,6 +59,13 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-22',
+    label: 'Spiritbinder beam',
+    changes: [
+      { category: 'Systems', text: "Spiritbinder now throws a beam at the board Spirit it buffs. The Spirit in your hand still flashes as before." },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Division numbers',
     changes: [
       { category: 'Balance', text: 'Division numbers now count up as you climb. A medal runs I, II, III instead of III, II, I.', details: [

@@ -9275,6 +9275,36 @@ export function spellHealthBonus(state: RunState): number {
   return spellStatBonus(state) + (state.spellBonus?.health ?? 0) + (state.nextSpellBonus?.health ?? 0);
 }
 
+/* ------------------------------------------------------------------------------------------------------
+ * DISPLAY-ONLY live readouts. Combat is a pure simulation: `simulate` keeps its own spell power and its own
+ * escalation step live inside the fight, and the run only learns the totals at settle. These three fold the
+ * replay's display previews (`fxSpellPowerPreview` / `fxEscalationPreview`) on top of the banked run value so
+ * a card's PRINTED number ticks as the fight plays and lands exactly where settle banks it (owner report
+ * 2026-09-22: spell text "not updating in real time from buffs in combat").
+ *
+ * NEVER call these from cast math. `spellAttackBonus` / `spellHealthBonus` are the reducer's real buff
+ * magnitude; folding a replay preview into those would let a cosmetic value change actual stats. Outside a
+ * combat replay every preview is `undefined`, so each of these is exactly its non-Live twin.
+ * ---------------------------------------------------------------------------------------------------- */
+
+/** `spellAttackBonus` plus the combat replay's display-only spell-power preview. Display only. */
+export function spellAttackBonusLive(state: RunState): number {
+  return spellAttackBonus(state) + (state.fxSpellPowerPreview?.attack ?? 0);
+}
+
+/** `spellHealthBonus` plus the combat replay's display-only spell-power preview. Display only. */
+export function spellHealthBonusLive(state: RunState): number {
+  return spellHealthBonus(state) + (state.fxSpellPowerPreview?.health ?? 0);
+}
+
+/** The run's escalating-spell step (Front to Back) plus the replay's display-only preview. Display only. */
+export function spellEscalationLive(state: RunState): { attack: number; health: number } {
+  return {
+    attack: state.frontToBackBonus + (state.fxEscalationPreview?.attack ?? 0),
+    health: (state.frontToBackBonusH ?? state.frontToBackBonus) + (state.fxEscalationPreview?.health ?? 0),
+  };
+}
+
 /**
  * A spell's display text with its stat value updated to reflect spell power (and highlighted green via
  * `{{…}}`). `bonusA` is the +Attack bonus; `bonusH` the +Health bonus (defaults to `bonusA` so existing

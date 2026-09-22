@@ -68,6 +68,52 @@ export function combatBuffDelta(events: readonly CombatEvent[], upto: number): C
   return { spellAttack, spellHealth, rubyAttack, rubyHealth, gold, auras };
 }
 
+/**
+ * The display-only COMBAT PREVIEW counters, folded over `events[0, upto)` exactly the way `combatBuffDelta`
+ * and `enemyDeaths` are folded: one absolute reading of "what the fight has done so far", recomputed from the
+ * log for the beat now on screen.
+ *
+ * A FOLD, never an accumulate (review 2026-09-22). These four used to be bumped one reducer dispatch per
+ * event, which is only correct when every beat is played exactly once: the Skip button jumps `beatIdx` to the
+ * end and runs the beat effect for the LAST beat alone (every skipped beat's bumps lost), a seek re-runs the
+ * same beat (its bumps counted twice), and a Save & Quit taken mid-fight persists the counter and then replays
+ * the log from beat 0 on Continue (everything counted twice). Derived from the log, all three land on the same
+ * number, which is the invariant the live readouts promise: ticks during the fight, equals settle at the end.
+ */
+export interface CombatPreviewFold {
+  /** Front to Back and friends improving themselves mid-fight — summed "<spell> improves +A/+H" narrations. */
+  escalation: { attack: number; health: number };
+  /** Player Shop-spell casts so far this fight — Yirin's Attunement counter. */
+  spellsCast: number;
+  /** Player-side deaths so far this fight — Cindara's Hoard Avenge tracker. A Rise is not a death (it
+   *  returns), matching `simulate`'s own avenge count on the common path. */
+  friendlyDeaths: number;
+  /** Player `bladeMastery` quest triggers so far — one per buffed attack, Gorun's live grant + countdown. */
+  bladeAttacks: number;
+}
+
+const ESCALATION_RE = /improves \+(\d+)\/\+(\d+)$/;
+
+/** Fold the four display-only preview counters over `events[0, upto)`. Pure; one pass. */
+export function combatPreviewFold(events: readonly CombatEvent[], upto: number): CombatPreviewFold {
+  let escA = 0, escH = 0, spellsCast = 0, friendlyDeaths = 0, bladeAttacks = 0;
+  const n = Math.min(upto, events.length);
+  for (let i = 0; i < n; i++) {
+    const e = events[i];
+    if (!e) continue;
+    // Every one of these is the PLAYER's own readout, so each channel checks `side` after narrowing (an enemy
+    // Quil's casts must not move your hand). `side` lives on the individual event shapes, not the union base.
+    if (e.type === 'spellcast') { if (e.side === 'player') spellsCast++; }
+    else if (e.type === 'death') { if (e.side === 'player' && !e.rise) friendlyDeaths++; }
+    else if (e.type === 'questTrigger') { if (e.side === 'player' && e.flag === 'bladeMastery') bladeAttacks++; }
+    else if (e.type === 'sc' && e.side === 'player') {
+      const m = ESCALATION_RE.exec(e.text);
+      if (m) { escA += Number(m[1]); escH += Number(m[2]); }
+    }
+  }
+  return { escalation: { attack: escA, health: escH }, spellsCast, friendlyDeaths, bladeAttacks };
+}
+
 /** Read a card def's first effect of a given `do` id and pull a numeric param (for live magnitudes). */
 function effectParam(cardId: string, doId: string, param: string, fallback: number): number {
   const eff = CARD_INDEX[cardId]?.effects.find((e) => e.do === doId);

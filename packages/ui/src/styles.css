@@ -9294,7 +9294,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   background: rgba(0, 0, 0, 0.58);
 }
 .fxlib {
-  width: min(1180px, 92vw); height: min(80vh, 820px); display: flex; flex-direction: column;
+  width: min(1680px, 97vw); height: min(94vh, 1040px); display: flex; flex-direction: column;
   background: #100d08; color: #efe7db; font-family: var(--font-ui);
   border: 1px solid #4a4136; border-radius: 12px; overflow: hidden;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
@@ -9357,6 +9357,86 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 /* A binding pointing at a def that does not exist plays NOTHING at runtime, silently. It must look wrong. */
 .fxlib-missing { font-size: 11px; font-weight: 700; color: #ff6b6b; }
 .fxlib-note { font-size: 11px; color: #7d7159; font-style: italic; padding: 6px 4px 0; line-height: 1.4; }
+/* "By card" binder (see `cardEventSlots.ts`) — ONE tribe shown at a time (picked in the sidebar), each card
+   rendered INLINE (its real `<Card>`) beside its bindable-event slot rows (On Play / On Death / card
+   mechanics). Buttons/inputs carry NO `cursor` so the global gauntlet rule paints it (UI convention). */
+.fxlib-tribe-btn { text-transform: capitalize; text-align: left; }
+.fxlib-tiergrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.fxlib-tier-btn { text-align: center; padding: 4px 0; }
+.fxlib-cardtribe-title {
+  font-size: 30px; font-weight: 800; text-transform: capitalize; letter-spacing: 0.01em; color: #f0d9a4;
+  margin: 2px 2px 14px; padding-bottom: 8px; border-bottom: 1px solid #2a2419;
+}
+.fxlib-cardgrid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 20px; align-items: start;
+}
+.fxlib-cardcell {
+  display: flex; align-items: flex-start; gap: 12px; padding: 8px 10px;
+  border: 1px solid #2a2419; border-radius: 8px; background: #14100b; min-width: 0;
+}
+/* The card sits INSIDE its own padded box (owner ask). `zoom` on the CARD (not the wrapper) so the wrapper's
+   padding stays real; `zoom` (not `transform: scale`) so the shrunk card reserves its scaled footprint rather
+   than leaving a full-size gap — fine in this dev-only, Chromium/Electron surface. */
+.fxlib-cardcell-art {
+  flex: none; align-self: flex-start; padding: 58px 48px 92px; border-radius: 8px; background: #0e0b07;
+  border: 1px solid #2a2419;
+  /* Size the card via its own metric vars (the way the Compendium grid does), not `zoom`, so it scales
+     cleanly and its internals — including the absolutely-positioned text drawer — sit exactly where the card
+     design puts them. We do NOT reposition the drawer; instead the generous box padding below reserves the
+     room its absolute overflow needs, so the card reads exactly as it does in game with no cross-cell bleed. */
+  --ch: 190px; --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85);
+}
+/* Flow the text drawer in-layout so the box auto-sizes to any text length (no per-card padding), and set its
+   gap below the art. `--fxlib-textgap` is the one knob for "text too high / too low" — raise it to lower the
+   text, lower it to raise it. */
+.fxlib-cardcell-art .card.compact.showtext .drawer {
+  position: relative; inset: auto; margin-top: var(--fxlib-textgap, 12px);
+}
+.fxlib-cardcell-slots { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
+.fxlib-slot { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.fxlib-slot-label { flex: 0 0 66px; font-size: 11px; font-weight: 700; color: #c9b891; }
+.fxlib-slot-input {
+  flex: 1 1 auto; min-width: 0; padding: 3px 7px; font-family: var(--font-ui); font-size: 11px;
+  color: #efe7db; background: #16120e; border: 1px solid #4a4136; border-radius: 5px; outline: none;
+}
+.fxlib-slot-input:focus { border-color: #c8a45c; }
+.fxlib-slot-play, .fxlib-slot-edit {
+  flex: none; border: 1px solid #4a4136; border-radius: 5px; background: #241f17;
+  font-size: 11px; line-height: 1; padding: 3px 6px;
+}
+.fxlib-slot-play { color: #7bbf7b; }
+.fxlib-slot-play:hover { border-color: #7bbf7b; color: #a6e0a6; }
+.fxlib-slot-edit { color: #c8a45c; }
+.fxlib-slot-edit:hover:not(:disabled) { border-color: #c8a45c; color: #f0d9a4; }
+.fxlib-slot-edit:disabled { opacity: 0.35; }
+.fxlib-slot-vol {
+  flex: 0 0 36px; width: 36px; text-align: right; padding: 3px 4px; font-family: var(--font-ui);
+  font-size: 11px; color: #efe7db; background: #16120e; border: 1px solid #4a4136; border-radius: 5px; outline: none;
+}
+.fxlib-slot-vol:focus { border-color: #c8a45c; }
+.fxlib-slot-pct { flex: none; font-size: 10px; color: #9a8c74; margin-left: -3px; }
+.fxlib-slot-clear {
+  flex: none; border: 1px solid #4a4136; border-radius: 5px; background: #241f17; color: #c9b891;
+  font-size: 12px; line-height: 1; padding: 2px 7px;
+}
+.fxlib-slot-clear:hover { border-color: #c8a45c; color: #f0d9a4; }
+.fxlib-slot-import {
+  flex: none; margin-left: auto; border: 1px solid #4a4136; border-radius: 5px; background: #241f17;
+  color: #9a8c74; font-family: var(--font-ui); font-size: 10px; font-weight: 700; line-height: 1;
+  padding: 4px 9px; white-space: nowrap;
+}
+.fxlib-slot-import:hover { border-color: #c8a45c; color: #f0d9a4; }
+.fxlib-bindnote { color: #c8a45c; font-style: normal; font-weight: 700; }
+/* PREVIEW STAGE (▶) — renders a def OVER everything by lifting the above-modal Pixi canvas above the workbench
+   while open. Scrim (below the effect) catches outside clicks to close; ✕ sits above the effect. */
+.fxlib-previewstage-scrim { position: fixed; inset: 0; z-index: 1100; background: rgba(0, 0, 0, 0.74); }
+body.fxlib-previewing .pixifx-above { z-index: 1150 !important; }
+.fxlib-previewstage-close {
+  position: fixed; top: 20px; right: 24px; z-index: 1200;
+  border: 1px solid #4a4136; border-radius: 8px; background: #241f17; color: #f0d9a4;
+  font-size: 18px; font-weight: 800; padding: 6px 14px;
+}
+.fxlib-previewstage-close:hover { border-color: #c8a45c; }
 
 /* WIRING BADGE — the three ways a def relates to the game, which one label used to flatten into "unbound".
    The colours carry the distinction that matters: `bound` and `code` are both PLAYS (two greens, differing

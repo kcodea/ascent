@@ -82,9 +82,9 @@ describe('groupByLook', () => {
 
 describe('groupByCard', () => {
   const cards = [
-    { cardId: 'bloodbinder', name: 'Bloodbinder', tribe: 'demon', defId: 'ruby-lance' },
-    { cardId: 'imp', name: 'Imp', tribe: 'demon', defId: null },
-    { cardId: 'wolf', name: 'Wolf', tribe: 'beast', defId: null },
+    { cardId: 'bloodbinder', name: 'Bloodbinder', tribe: 'demon', spell: false, defId: 'ruby-lance' },
+    { cardId: 'imp', name: 'Imp', tribe: 'demon', spell: false, defId: null },
+    { cardId: 'wolf', name: 'Wolf', tribe: 'beast', spell: false, defId: null },
   ];
 
   it('groups by tribe, sorted, with cards sorted inside', () => {
@@ -120,8 +120,8 @@ describe('purity', () => {
 
   it("does not reorder the caller's card array either", () => {
     const cards = [
-      { cardId: 'w', name: 'Wolf', tribe: 'beast', defId: null },
-      { cardId: 'b', name: 'Bloodbinder', tribe: 'demon', defId: 'ruby-lance' },
+      { cardId: 'w', name: 'Wolf', tribe: 'beast', spell: false, defId: null },
+      { cardId: 'b', name: 'Bloodbinder', tribe: 'demon', spell: false, defId: 'ruby-lance' },
     ];
     const before = cards.map((c) => c.cardId);
     groupByCard(cards);

@@ -1977,6 +1977,16 @@ export function useCombatReplay(
           setFramePulse((prev) => new Map(prev).set(uid, fn));
           window.setTimeout(() => setFramePulse((prev) => { const m = new Map(prev); if (m.get(uid) === fn) m.delete(uid); return m; }), 1150);
         }
+        // A card can bind an effect/sound to WATCHING (the By-card binder's On Watcher slot) — play it on the
+        // reacting card as it answers an ally's swing, layered over the stock watcher pulse above. Per-card
+        // volume rides the binding's `gain`, like the other cues. No-op when nothing is bound / defs don't ship.
+        if (canPlayDefs()) {
+          const wb = bindingFor(cardIds.get(uid) ?? null, 'watcher');
+          if (wb) {
+            const a = anchorsForUnits(uid, uid);
+            if (a) playDef(wb.def, a, { uids: { source: uid, target: uid }, gain: wb.gain });
+          }
+        }
       }
     }
     // SPELL POWER gained mid-combat: `grantSpellPower` already emits an `sc` narration carrying the SOURCE
@@ -2351,6 +2361,9 @@ export function useCombatReplay(
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
       if (e?.type !== 'death' || e.target === impactAtk) continue;
+      // NOTE: a card's On-Death FX/sound binding (the By-card binder's `death` kind) is NOT played here — the
+      // combat SCORE's `fxDef` channel already resolves `bindingFor(cardId, 'death')` for every death moment
+      // (see `score.ts`), so firing it here too would double it. This block only owns the GENERIC death visual.
       if (!CARD_INDEX[cardIds.get(e.target) ?? '']?.effects?.some((f) => f.on === 'onDeath')) {
         // …and a PLAIN death (no Deathrattle) gets the authored `death-dissolve` def instead. It lives in the
         // `else` of the SKULL's own gate, in the skull's own loop, so the two can never both fire for one unit

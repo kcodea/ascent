@@ -4,7 +4,7 @@ import { perfMonitor } from '../perfMonitor';
 import { pixiFx } from '../pixiFx';
 import { driveLayerHeads, type FxAnchors } from './anchors';
 import { partsUsedByLayers, withUnitParts, type UnitElementLike } from './anchorParts';
-import type { FxDef } from './def';
+import type { FxDef, FxSlot } from './def';
 import type { StoredFxDef, StoredFxLayer } from './defStore';
 import { anchorsForUnits, unitSelector } from './combatAnchors';
 import { getDef, listDefs } from './fxDefs';
@@ -136,6 +136,18 @@ export interface PlayDefOptions extends FxScaleAxes {
    * exact no-op — the def object is not even copied.
    */
   recolor?: readonly number[];
+  /**
+   * A VOLUME multiplier for this play's Sound layers, on the def's own authored `gain`: `1` (or omitted) is an
+   * exact no-op, `0.5` half, `0` silent. Used by a card binding's per-card volume (see `FxBinding.gain`) so the
+   * same sound def can sit at a different level on each card without editing the shared def. Non-Sound layers
+   * are untouched.
+   */
+  gain?: number;
+  /**
+   * Force this play into a specific canvas SLOT, overriding the def's own `slot`. The library's preview uses
+   * `'above'` so any def renders in the above-modal canvas and shows over the browser window.
+   */
+  slot?: FxSlot;
 }
 
 /**
@@ -176,6 +188,24 @@ export function playableLayers(def: StoredFxDef): StoredFxLayer[] {
 /** PURE: the runtime `FxDef` a stored def plays as — its authoring-only fields dropped, muted layers gone. */
 export function playableDef(def: StoredFxDef): FxDef {
   return { id: def.id, duration: def.duration, layers: playableLayers(def) };
+}
+
+/**
+ * Scale every Sound layer's `gain` by `mul` — a per-play VOLUME (see `PlayDefOptions.gain`), used so a card
+ * binding can sit the same sound at a different level per card without editing the shared def. Clones only
+ * when it changes something: `mul` of `1`/undefined, or a def with no Sound layer, returns the def by identity
+ * (an exact no-op). Never mutates the shared def.
+ */
+function gainScaledDef(def: FxDef, mul: number | undefined): FxDef {
+  if (mul === undefined || mul === 1 || !def.layers.some((l) => l.primitive === 'sound')) return def;
+  return {
+    ...def,
+    layers: def.layers.map((l) =>
+      l.primitive === 'sound'
+        ? { ...l, params: { ...l.params, gain: (typeof l.params.gain === 'number' ? l.params.gain : 1) * mul } }
+        : l,
+    ),
+  };
 }
 
 /**
@@ -471,7 +501,7 @@ function playDefInner(
   // canvas parked inside `.app` beneath the cards). Both the renderer the layers are built against and the
   // stage they mount on must come from the SAME app, or the effect builds its GPU resources in one GL
   // context and is drawn by another.
-  const slot = stored.slot ?? 'over';
+  const slot = opts.slot ?? stored.slot ?? 'over';
   const renderer = pixiFx.rendererFor(slot);
   if (!renderer) {
     // AN AUX CANVAS ISN'T UP YET → WAIT FOR IT AND PLAY, rather than dropping the fire.
@@ -512,7 +542,7 @@ function playDefInner(
   // Per-call sizing, applied AFTER `getDef` — `scaleDef` reads the primitive registry, and nothing may do
   // that before `playDef`'s own `canPlayDefs()`-gated path (see `fxDefs.ts`'s ORDER MATTERS note). With both
   // axes at their default 1 this returns `playableDef`'s object by identity: an exact no-op.
-  const def = staggerLayers(recolorDef(scaleDef(playableDef(stored), opts), opts.recolor), opts.index ?? 0);
+  const def = gainScaledDef(staggerLayers(recolorDef(scaleDef(playableDef(stored), opts), opts.recolor), opts.index ?? 0), opts.gain);
   const layers = def.layers;
   // Every layer muted = an effect that renders nothing. Declining is cheaper and more honest than mounting
   // a container and running an updater for a guaranteed-empty play.

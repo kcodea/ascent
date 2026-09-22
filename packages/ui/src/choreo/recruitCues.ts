@@ -236,7 +236,7 @@ function runSpellCastFire(moment: RecruitMoment, ctx: RecruitCueContext): () => 
     // Edward Keg-hands echo below, and stacking a second repeat on top would double-count it.
     const repeats = Math.max(1, moment.casts ?? 1);
     const fire = (): void => {
-      playDef(binding.def, { source: pt, target: pt, cursor: pt, camera }, { uids: { source: src, target: src } });
+      playDef(binding.def, { source: pt, target: pt, cursor: pt, camera }, { uids: { source: src, target: src }, gain: binding.gain });
       if (binding.sfx !== undefined) sfx[binding.sfx]?.();
     };
     fire();
@@ -250,7 +250,7 @@ function runSpellCastFire(moment: RecruitMoment, ctx: RecruitCueContext): () => 
     for (const r of moment.recipients) {
       const c = ctx.measure(r.uid);
       if (!c) continue; // minion left the DOM (sold/tripled) before paint — skip it cleanly
-      playDef(binding.def, { source: pt, target: c, cursor: pt, camera }, { uids: { source: src, target: r.uid } });
+      playDef(binding.def, { source: pt, target: c, cursor: pt, camera }, { uids: { source: src, target: r.uid }, gain: binding.gain });
     }
     if (binding.sfx !== undefined) sfx[binding.sfx]?.(); // one sound for the volley, not one per target
   });
@@ -308,7 +308,7 @@ function fireLand(land: Land, binding: FxBinding, ctx: RecruitCueContext): void 
   if (!p) return;
   // Both anchors are the minion itself: a shop effect lands ON a card, with nothing to travel between.
   // `uids` names it so a `react` layer has a subject — the shop path was the one that had none.
-  playDef(binding.def, { source: p, target: p }, { uids: { source: land.uid, target: land.uid }, index: land.group });
+  playDef(binding.def, { source: p, target: p }, { uids: { source: land.uid, target: land.uid }, index: land.group, gain: binding.gain });
   // The binding's own sound, fired WITH the visual rather than by the caller, so the two cannot drift apart
   // and a re-bind carries its sound along. Whitelisted at parse time (see `BINDING_SFX`), so this lookup is
   // total; the `?.` guards a name whose sfx entry was removed without updating the list.

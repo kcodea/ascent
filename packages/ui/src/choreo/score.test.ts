@@ -11,7 +11,7 @@ import { momentKind, type MomentKind } from './kinds';
 import { holdMsForKind } from './choreoConfig';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { anchorsForUnits } from '../fx/combatAnchors';
-import { bindingFor } from './bindings';
+import { bindingFor, setBinding, resetBindings } from './bindings';
 
 // The `fxDef` channel's collaborators are mocked at the CONTRACT (`playDef`/`canPlayDefs`/`anchorsForUnits`),
 // so these tests prove the SCORE's dispatch/guard/timing wiring without depending on how the fx layer renders.
@@ -1172,5 +1172,95 @@ describe('rallyFx channel — one pulse per Rally', () => {
     }).not.toThrow();
     expect(mockPlayDef).toHaveBeenCalledTimes(2);
     vi.useRealTimers();
+  });
+});
+
+/**
+ * The `startOfCombatFx` / `avengeFx` channels — per-card MECHANIC cues (the By-card binder's "On Start of
+ * Combat" / "On Avenge" slots). Neither mechanic is a moment kind of its own: a Start-of-Combat effect's
+ * events scatter into whatever it DID, and an Avenge is a bus event whose payoff lands in its consequence's
+ * kind. So these scan the moment's events for the simulator's own `key` / `avenge` stamps, exactly as
+ * `rallyFx`/`shoutFx` scan for their events (see the channels' header in `score.ts`).
+ */
+describe('startOfCombatFx / avengeFx channels', () => {
+  const socEvent = (srcCard: string, source: string): CombatEvent =>
+    ({ type: 'sc', source, text: 'x', cast: true, key: `factory:scDamage:startOfCombat`, srcCard } as CombatEvent);
+  const avengeBuff = (srcCard: string, source: string, target: string): CombatEvent =>
+    ({ type: 'buff', target, source, attack: 1, health: 1, avenge: true, srcCard } as CombatEvent);
+
+  beforeEach(() => {
+    mockPlayDef.mockReset(); mockPlayDef.mockImplementation(() => () => {});
+    mockCanPlayDefs.mockReset(); mockCanPlayDefs.mockImplementation(() => true);
+    mockAnchors.mockReset(); mockAnchors.mockImplementation(() => ({ target: { x: 5, y: 7 } }));
+    resetScore(); resetBindings();
+  });
+  afterEach(() => { resetScore(); resetBindings(); });
+
+  it('is on the BASE kinds; avengeFx also rides attackExchange, startOfCombatFx does not', () => {
+    for (const kind of ['summon', 'buffWave', 'toHand', 'death'] as const) {
+      expect(SCORE_DEFAULTS[kind].some((c) => c.ch === 'startOfCombatFx'), kind).toBe(true);
+      expect(SCORE_DEFAULTS[kind].some((c) => c.ch === 'avengeFx'), kind).toBe(true);
+    }
+    // An Avenge from a clash death can be absorbed into the exchange; a Start of Combat never lands in one.
+    expect(SCORE_DEFAULTS.attackExchange.some((c) => c.ch === 'avengeFx')).toBe(true);
+    expect(SCORE_DEFAULTS.attackExchange.some((c) => c.ch === 'startOfCombatFx')).toBe(false);
+  });
+
+  it('fires the card’s Start-of-Combat binding, on the acting body, once', () => {
+    setBinding('runescale', 'startOfCombat', { def: 'soc-fx' });
+    const events = [socEvent('runescale', 'u1')];
+    runMomentCues(moment('scCast', events), baseCtx(events, withCard('u1', 'runescale')));
+    const calls = mockPlayDef.mock.calls.filter(([id]) => id === 'soc-fx');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]![1]).toEqual({ target: { x: 5, y: 7 } });
+    expect(calls[0]![2]).toMatchObject({ uids: { source: 'u1', target: 'u1' } });
+  });
+
+  it('fires the card’s Avenge binding, on the avenger, once', () => {
+    setBinding('dm_grobbus', 'avenge', { def: 'avenge-fx' });
+    const events = [avengeBuff('dm_grobbus', 'g1', 'ally')];
+    runMomentCues(moment('buffWave', events), baseCtx(events));
+    const calls = mockPlayDef.mock.calls.filter(([id]) => id === 'avenge-fx');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]![2]).toMatchObject({ uids: { source: 'g1', target: 'g1' } });
+  });
+
+  it('an Avenge that summons (no `source` uid) anchors on the avenger via its card→uid lookup', () => {
+    setBinding('dm_grobbus', 'avenge', { def: 'avenge-fx' });
+    const events = [{ type: 'summon', side: 'player', index: 0, avenge: true, srcCard: 'dm_grobbus',
+      minion: { uid: 't', cardId: 'imp', name: 'Imp', tribe: 'demon', attack: 1, health: 1, keywords: [], golden: false } }] as CombatEvent[];
+    runMomentCues(moment('summon', events), baseCtx(events, withCard('g1', 'dm_grobbus')));
+    const calls = mockPlayDef.mock.calls.filter(([id]) => id === 'avenge-fx');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]![2]).toMatchObject({ uids: { source: 'g1', target: 'g1' } });
+  });
+
+  it('fires ONCE per avenger even when the Avenge paid out several events', () => {
+    setBinding('dm_grobbus', 'avenge', { def: 'avenge-fx' });
+    const events = [avengeBuff('dm_grobbus', 'g1', 'a1'), avengeBuff('dm_grobbus', 'g1', 'a2')];
+    runMomentCues(moment('buffWave', events), baseCtx(events));
+    expect(mockPlayDef.mock.calls.filter(([id]) => id === 'avenge-fx')).toHaveLength(1);
+  });
+
+  it('plays nothing for an ordinary buff carrying no avenge / start-of-combat stamp', () => {
+    setBinding('dm_grobbus', 'avenge', { def: 'avenge-fx' });
+    setBinding('runescale', 'startOfCombat', { def: 'soc-fx' });
+    const events = [{ type: 'buff', target: 'ally', source: 'g1', attack: 1, health: 1, srcCard: 'dm_grobbus' }] as CombatEvent[];
+    runMomentCues(moment('buffWave', events), baseCtx(events, withCard('g1', 'dm_grobbus')));
+    expect(mockPlayDef.mock.calls.filter(([id]) => id === 'avenge-fx' || id === 'soc-fx')).toHaveLength(0);
+  });
+
+  it('no-ops when canPlayDefs() is false (defs do not ship headless)', () => {
+    mockCanPlayDefs.mockReturnValue(false);
+    setBinding('dm_grobbus', 'avenge', { def: 'avenge-fx' });
+    const events = [avengeBuff('dm_grobbus', 'g1', 'ally')];
+    runMomentCues(moment('buffWave', events), baseCtx(events));
+    expect(mockPlayDef).not.toHaveBeenCalled();
+  });
+
+  it('plays nothing when the card has no mechanic binding', () => {
+    const events = [avengeBuff('dm_grobbus', 'g1', 'ally')];
+    runMomentCues(moment('buffWave', events), baseCtx(events));
+    expect(mockPlayDef.mock.calls.filter(([id]) => id === 'avenge-fx')).toHaveLength(0);
   });
 });

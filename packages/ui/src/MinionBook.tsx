@@ -195,7 +195,7 @@ const ZOOM_STEP = 0.2;
  *  reference, not a live board, so no run buffs. `gilded` shows the tripled/golden form: doubled stats, the
  *  golden frame, and the card's golden text (Card falls back to doubling the printed numbers when a card has
  *  no explicit goldenText). */
-function toView(c: CardDef, gilded = false, run?: RunState): CardView {
+export function toView(c: CardDef, gilded = false, run?: RunState): CardView {
   const mul = gilded ? 2 : 1;
   // (Both): the Compendium is run-scoped (it lists what THIS run can find), so a Choose One the run already
   // makes do both must read that way here as well — the same predicate every other surface uses.

@@ -118,6 +118,22 @@ describe('buildBalanceExport', () => {
     for (const key of Object.keys(x.aggregates)) expect(aggDoc[key], `readme.aggregates lacks ${key}`).toBeTruthy();
     const metaDoc = readme.meta as Record<string, string>;
     for (const key of Object.keys(x.meta)) expect(metaDoc[key], `readme.meta lacks ${key}`).toBeTruthy();
+    // Every column of every aggregate table is NAMED in its section's prose (the promise the readme makes; a
+    // review of the live export found the shop curve's fields, totalRuns and the economy categories missing).
+    const named = (section: string, keys: string[]): void => {
+      for (const key of keys) expect(aggDoc[section], `readme.aggregates.${section} does not name ${key}`).toContain(key);
+    };
+    named('report', Object.keys(x.aggregates.report));
+    named('report', Object.keys(x.aggregates.report.shopCurve));
+    named('report', Object.keys(x.aggregates.report.heroes[0]!));
+    named('impact', Object.keys(x.aggregates.impact.minions[0]!));
+    named('byTier', Object.keys(x.aggregates.byTier.minions[0]!));
+    named('byTribe', Object.keys(x.aggregates.byTribe.minions[0]!));
+    named('demand', Object.keys(x.aggregates.demand[0]!));
+    named('demand', Object.keys(x.aggregates.demand[0]!.bySource));
+    named('economy', Object.keys(x.aggregates.economy[0]!));
+    named('economy', Object.keys(x.aggregates.economy[0]!.avg));
+    named('upgrades', Object.keys(x.aggregates.upgrades[0]!));
     const text = JSON.stringify(readme);
     expect(text).not.toContain('—');
   });

@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
   aggregatePlayerReport, applyReportFilters, buildBalanceExport, buildCardCsv, cardDemand, cardImpact, getHero, goldCurve,
   impactGroups, upgradeShape, wilson, LEGACY_SET, SAMPLE_GATES,
@@ -7,7 +7,7 @@ import {
 import { activeSet, CARD_INDEX, cardRevisions, contentRevision } from '@game/content';
 import { sfx } from './sfx';
 import { useGame } from './store';
-import { fetchRunTelemetry, remoteEnabled } from './remoteBoards';
+import { fetchRunDerived, fetchRunTelemetry, remoteEnabled } from './remoteBoards';
 
 /**
  * Balance Report (owner request 2026-07-13) — the REAL-PLAYER balance report, opened from the home screen. It
@@ -30,6 +30,9 @@ import { fetchRunTelemetry, remoteEnabled } from './remoteBoards';
  *    a ranked diverging bar chart of the delta.
  *  · "Export all" writes ONE JSON file (`buildBalanceExport`) from the SAME filtered rows the screen renders:
  *    meta + a plain-language readme + every aggregate + every raw row + every derived stream.
+ *  · The fetch is TWO stages: the flat rows first (rendered at once), then the derived payloads BY ID for the
+ *    rows that survived the set filter only, merged in when they land (review fix 2026-09-22: 16 MB of payloads
+ *    used to be fetched and parsed on every open, even when the report rendered nothing).
  */
 
 type Col = 'offer' | 'pick' | 'avgWins' | 'avgTurns' | 'n' | 'avgPlace' | 'firstPct' | 'lastPct' | 'pn';
@@ -176,7 +179,8 @@ const IMPACT_COLS: Record<string, ColDef<CardImpactRow>> = {
   discpct: { key: 'discpct', label: 'Disc %', tip: 'Discover picks as a percent of Discover offers.', value: (r) => r.discRate, cell: (r) => ({ text: pctOrDash(r.discRate), cls: 'balnum' }) },
   avgPlace: { key: 'avgPlace', label: 'Avg Place', tip: 'Average final placement of the runs that bought it. 1 is best, 8 is worst.', value: (r) => r.avgPlace, firstDir: 1, cell: (r) => ({ text: fmtNum(r.avgPlace), cls: `balnum${r.avgPlace === null ? '' : ` balwin${placeHeat(r.avgPlace)}`}` }) },
   firstPct: { key: 'firstPct', label: '1st %', tip: 'Percent of buyer runs that won the lobby.', value: (r) => r.firstRate, cell: (r) => ({ text: pctOrDash(r.firstRate), cls: 'balnum' }) },
-  top4: { key: 'top4', label: 'Top 4 %', tip: 'Percent of buyer runs that finished in the top four. Hover a cell for its 95% range.', value: (r) => r.top4Rate, cell: (r) => ({ text: pctOrDash(r.top4Rate), cls: 'balnum' }) },
+  top4: { key: 'top4', label: 'Top 4 %', tip: 'Percent of buyer runs that finished in the top four. Detailed shows its 95% range.', value: (r) => r.top4Rate, cell: (r) => ({ text: pctOrDash(r.top4Rate), cls: 'balnum' }) },
+  top4Ci: { key: 'top4Ci', label: 'Top 4 95%', tip: 'The 95% range the true top-four rate is likely to sit in (Wilson). Sorts by the bottom of the range, so a card whose whole range is high comes first.', value: (r) => (r.top4Ci ? r.top4Ci.lo : null), cell: (r) => ({ text: r.top4Ci ? `${r.top4Ci.lo}% to ${r.top4Ci.hi}%` : '–', cls: 'balnum baldim' }) },
   lastPct: { key: 'lastPct', label: '8th %', tip: 'Percent of buyer runs that finished 8th.', value: (r) => r.lastRate, cell: (r) => ({ text: pctOrDash(r.lastRate), cls: 'balnum' }) },
   delta: { key: 'delta', label: 'Delta', tip: 'Average placement of runs that bought it minus runs that did not. Negative means its buyers finish better than the field.', value: (r) => r.delta, firstDir: 1, cell: (r) => ({ text: signed(r.delta), cls: `balnum${r.delta === null ? '' : ` balwin${deltaHeat(r.delta)}`}` }) },
   vsTier: { key: 'vsTier', label: 'Vs Tier', tip: 'The delta minus the average delta of the card\'s tier. High tiers are bought only by runs that lived long enough to reach them, so a whole tier can read green; this shows who stands out within the tier.', value: (r) => r.tierDelta, firstDir: 1, cell: (r) => ({ text: signed(r.tierDelta), cls: `balnum${r.tierDelta === null ? '' : ` balwin${deltaHeat(r.tierDelta)}`}` }) },
@@ -186,7 +190,7 @@ const IMPACT_COLS: Record<string, ColDef<CardImpactRow>> = {
 };
 const impactCols = (keys: string[]): ColDef<CardImpactRow>[] => keys.map((k) => IMPACT_COLS[k]!);
 const IMPACT_COMPACT = impactCols(['tier', 'tribe', 'n', 'buypct', 'discpct', 'avgPlace', 'top4', 'delta', 'vsTier', 'impact']);
-const IMPACT_DETAILED = impactCols(['tier', 'tribe', 'n', 'runsSeen', 'shopSeen', 'shopBought', 'buypct', 'discSeen', 'discBought', 'discpct', 'avgPlace', 'firstPct', 'top4', 'lastPct', 'delta', 'deltaCi', 'vsTier', 'impact', 'buyWave']);
+const IMPACT_DETAILED = impactCols(['tier', 'tribe', 'n', 'runsSeen', 'shopSeen', 'shopBought', 'buypct', 'discSeen', 'discBought', 'discpct', 'avgPlace', 'firstPct', 'top4', 'top4Ci', 'lastPct', 'delta', 'deltaCi', 'vsTier', 'impact', 'buyWave']);
 
 const impactKey = (r: CardImpactRow): string => r.id;
 const impactName = (r: CardImpactRow): string => r.name;
@@ -298,19 +302,24 @@ type CardView = 'table' | 'chart';
 type Density = 'compact' | 'detailed';
 
 /** The Minions / Spells section: legend, tier + tribe strips (which double as filters), the view toggles, and
- *  the table or the chart over the same rows. */
-function ImpactSection({ rows, tierFilter, tribeFilter, setTier, setTribe, view, setView, density, setDensity }: {
+ *  the table or the chart over the same rows. The tier / tribe filters are THIS section's own state: the panel
+ *  keys the section by Minions / Spells, so switching between them starts clean (a Beast filter picked on
+ *  Minions used to follow the owner onto Spells, which has no Beast chip to clear it with), and a filter that
+ *  leaves nothing shows a Clear filters control instead of an empty table. */
+function ImpactSection({ rows, view, setView, density, setDensity }: {
   rows: CardImpactRow[];
-  tierFilter: string | null; tribeFilter: string | null;
-  setTier: (k: string | null) => void; setTribe: (k: string | null) => void;
   view: CardView; setView: (v: CardView) => void;
   density: Density; setDensity: (d: Density) => void;
 }) {
+  const [tierFilter, setTier] = useState<string | null>(null);
+  const [tribeFilter, setTribe] = useState<string | null>(null);
   const byTier = useMemo(() => impactGroups(rows, 'tier'), [rows]);
   const byTribe = useMemo(() => impactGroups(rows, 'tribe'), [rows]);
   const visible = useMemo(() => rows.filter((r) =>
     (tierFilter === null || String(r.tier) === tierFilter)
     && (tribeFilter === null || r.tribe === tribeFilter || r.tribe2 === tribeFilter)), [rows, tierFilter, tribeFilter]);
+  const filtering = tierFilter !== null || tribeFilter !== null;
+  const clearFilters = (): void => { sfx.tick(); setTier(null); setTribe(null); };
   if (rows.length === 0) return <div className="balempty">No card data in these runs yet.</div>;
   return (
     <>
@@ -331,27 +340,30 @@ function ImpactSection({ rows, tierFilter, tribeFilter, setTier, setTribe, view,
         </div>
         {view === 'table' && (
           <div className="balseg" role="group" aria-label="Columns">
-            <button className={density === 'compact' ? 'on' : ''} onClick={() => { sfx.tick(); setDensity('compact'); }} data-tip="The nine columns that answer the question">Compact</button>
-            <button className={density === 'detailed' ? 'on' : ''} onClick={() => { sfx.tick(); setDensity('detailed'); }} data-tip="Every column, including the raw counts and the 95% range">Detailed</button>
+            <button className={density === 'compact' ? 'on' : ''} onClick={() => { sfx.tick(); setDensity('compact'); }} data-tip="The ten columns that answer the question">Compact</button>
+            <button className={density === 'detailed' ? 'on' : ''} onClick={() => { sfx.tick(); setDensity('detailed'); }} data-tip="Every column, including the raw counts and the two 95% ranges">Detailed</button>
           </div>
         )}
-        <span className="balseg-count">{visible.length} of {rows.length} cards{tierFilter || tribeFilter ? ' (filtered)' : ''}</span>
+        <span className="balseg-count">{visible.length} of {rows.length} cards{filtering ? ' (filtered)' : ''}</span>
+        {filtering && <button className="balrun balimp-more" onClick={clearFilters} data-tip="Show every tier and tribe again">Clear filters</button>}
       </div>
-      {view === 'chart'
-        ? <ImpactChart rows={visible} />
-        : (
-          <DataTable
-            key={density}
-            cols={density === 'compact' ? IMPACT_COMPACT : IMPACT_DETAILED}
-            rows={visible}
-            keyOf={impactKey}
-            nameOf={impactName}
-            dimOf={impactDim}
-            defaultKey="impact"
-            defaultDir={1}
-            dense={density === 'detailed'}
-          />
-        )}
+      {visible.length === 0
+        ? <div className="balempty">No cards match the tier and tribe picked above.</div>
+        : view === 'chart'
+          ? <ImpactChart rows={visible} />
+          : (
+            <DataTable
+              key={density}
+              cols={density === 'compact' ? IMPACT_COMPACT : IMPACT_DETAILED}
+              rows={visible}
+              keyOf={impactKey}
+              nameOf={impactName}
+              dimOf={impactDim}
+              defaultKey="impact"
+              defaultDir={1}
+              dense={density === 'detailed'}
+            />
+          )}
     </>
   );
 }
@@ -359,6 +371,9 @@ function ImpactSection({ rows, tierFilter, tribeFilter, setTier, setTribe, view,
 // ── The panel ──────────────────────────────────────────────────────────────────────────────────────────────
 
 type SectionKey = 'minions' | 'spells' | 'heroes' | 'runes' | 'shopcurve' | 'demand' | 'economy' | 'upgrades';
+
+/** How many of the newest in-set rows get their derived payload fetched (~100 KB each today). */
+const DERIVED_ROWS = 400;
 
 /** Save a text blob as a file download. */
 function download(text: string, name: string, type: string): void {
@@ -381,14 +396,33 @@ export function BalancePanel() {
   // rows rather than filtering the finished tables, so the denominators are that hero's too. A VIEW filter:
   // the export always carries every hero.
   const [heroFilter, setHeroFilter] = useState<string>('');
-  const [tierFilter, setTierFilter] = useState<string | null>(null);
-  const [tribeFilter, setTribeFilter] = useState<string | null>(null);
   const [cardView, setCardView] = useState<CardView>('table');
   const [density, setDensity] = useState<Density>('compact');
+  // STAGE TWO of the load (the derived payloads) is in flight: the derived sections and Export all wait for it.
+  const [derivedLoading, setDerivedLoading] = useState(false);
+  // A Refresh that overtakes an earlier one wins: a stale completion is dropped, never merged.
+  const loadSeq = useRef(0);
 
   const load = (): void => {
+    const seq = ++loadSeq.current;
     setLoading(true);
-    void fetchRunTelemetry(1000, 400).then((all) => { setRows(all); setLoading(false); });
+    setDerivedLoading(false);
+    void (async () => {
+      const all = await fetchRunTelemetry(1000);
+      if (seq !== loadSeq.current) return;
+      setRows(all);
+      setLoading(false);
+      // STAGE TWO: the derived payloads, BY ID, only for the rows the report reads (ladder rows of the active
+      // set), newest first, after the flat rows have rendered. Pre-migration that is no rows and no bytes; with
+      // data it keeps a multi-megabyte parse off the frame that paints the flat report.
+      const ids = applyReportFilters(all, activeSet().id).rows.map((r) => r.id).filter((id): id is number => id != null).slice(0, DERIVED_ROWS);
+      if (ids.length === 0) return;
+      setDerivedLoading(true);
+      const byId = await fetchRunDerived(ids);
+      if (seq !== loadSeq.current) return;
+      if (byId.size > 0) setRows((prev) => prev.map((r) => (r.id != null && byId.has(r.id) ? { ...r, derived: byId.get(r.id)! } : r)));
+      setDerivedLoading(false);
+    })();
   };
   useEffect(() => { if (show) load(); }, [show]);
 
@@ -454,7 +488,7 @@ export function BalancePanel() {
               <option value="heroes">Heroes ({report.heroes.length})</option>
               <option value="runes">Runes ({report.runes.length})</option>
               <option value="shopcurve">Shop Curve</option>
-              <option value="demand">Card Demand (derived){derived.length ? ` (${derived.length} runs)` : ''}</option>
+              <option value="demand">Card Demand (derived){derived.length ? ` (${derived.length} runs)` : derivedLoading ? ' (loading)' : ''}</option>
               <option value="economy">Gold Economy (derived)</option>
               <option value="upgrades">Upgrade Timing (derived)</option>
             </select>
@@ -472,9 +506,9 @@ export function BalancePanel() {
               ))}
             </select>
             <button className="balrun" disabled={loading} onClick={refresh}>{loading ? 'Loading…' : 'Refresh'}</button>
-            <button className="balrun" disabled={loading || filtered.rows.length === 0} onClick={exportAll}
-              data-tip="Downloads every run of the active set as one JSON file: the tables, the raw rows and the derived streams, with a readme inside">
-              Export all
+            <button className="balrun" disabled={loading || derivedLoading || filtered.rows.length === 0} onClick={exportAll}
+              data-tip={derivedLoading ? 'Waits for the derived streams to land, so the file holds everything' : 'Downloads every run of the active set as one JSON file: the tables, the raw rows and the derived streams, with a readme inside'}>
+              {derivedLoading ? 'Export (loading)' : 'Export all'}
             </button>
             <button className="balrun" disabled={loading || filtered.rows.length === 0} onClick={exportCsv}
               data-tip="Downloads the per-card spreadsheet (buy turns, win lift, source split) over the same runs">
@@ -509,14 +543,17 @@ export function BalancePanel() {
           <ImpactSection
             key={sectionKey}
             rows={sectionKey === 'minions' ? impact.minions : impact.spells}
-            tierFilter={tierFilter} tribeFilter={tribeFilter} setTier={setTierFilter} setTribe={setTribeFilter}
             view={cardView} setView={setCardView} density={density} setDensity={setDensity}
           />
         ) : isDerived ? (
           derived.length === 0 ? (
             <div className="balempty">
-              No derived runs in this slice. These views read the <code>derived</code> payload each finished run uploads;
-              empty until the 2026-08-05 <code>run_telemetry</code> migration has been run and runs have banked since.
+              {derivedLoading ? 'Loading the derived streams for these runs…' : (
+                <>
+                  No derived runs in this slice. These views read the <code>derived</code> payload each finished run uploads;
+                  empty until the 2026-08-05 <code>run_telemetry</code> migration has been run and runs have banked since.
+                </>
+              )}
             </div>
           ) : sectionKey === 'demand' ? <DemandTable runs={derived} />
             : sectionKey === 'economy' ? <EconomyTable runs={derived} />
@@ -649,8 +686,9 @@ function DemandTable({ runs }: { runs: DerivedRun[] }) {
       return typeof va === 'string' ? String(va).localeCompare(String(vb)) : Number(vb) - Number(va);
     });
   }, [runs, sortKey]);
+  // Real buttons: the global button rule paints the gauntlet on them (a clickable span showed the OS arrow).
   const H = ({ k, label }: { k: typeof sortKey; label: string }) => (
-    <span role="columnheader" className={`balsort${sortKey === k ? ' on' : ''}`} onClick={() => setSortKey(k)}>{label}</span>
+    <button role="columnheader" className={`balsort${sortKey === k ? ' on' : ''}`} onClick={() => { sfx.tick(); setSortKey(k); }}>{label}</button>
   );
   return (
     <div className="balsolo" style={{ ['--balcols' as string]: 8 }}>

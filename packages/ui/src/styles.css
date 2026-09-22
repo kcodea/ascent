@@ -6356,9 +6356,11 @@ svg { width: 18px; height: 18px; }
 .balsub { font-weight: 600; font-size: 12px; color: rgba(255, 255, 255, 0.58); text-align: center; }
 .balsub code, .balempty code { background: rgba(255, 255, 255, 0.1); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
 .balcontrols { display: flex; align-items: center; gap: 8px; }
-.balchip, .balrun { font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.2); padding: 7px 12px; border-radius: 9px; cursor: pointer; }
+/* No cursor rule on these buttons: the global `button` rule paints the gauntlet (a bare `cursor: pointer` on a
+   class out-specifies it and swaps the OS arrow back in; review fix 2026-09-22). */
+.balchip, .balrun { font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.2); padding: 7px 12px; border-radius: 9px; }
 .balchip.on { border-color: var(--acc); color: var(--acc); }
-.balchip:disabled, .balrun:disabled { opacity: 0.5; cursor: default; }
+.balchip:disabled, .balrun:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
 .balrun { margin-left: 6px; background: var(--acc); color: #1a1206; border-color: var(--acc); padding: 7px 18px; }
 .baldim { color: rgba(255, 255, 255, 0.45); font-weight: 600; font-size: 12px; }
 /* Derived-view explainer line above a report table (Balance Report, 2026-08-06). Static text, no effects. */
@@ -6428,8 +6430,9 @@ svg { width: 18px; height: 18px; }
 .balgrid-solo .balname { white-space: normal; overflow-wrap: anywhere; line-height: 1.15; }
 .balgrid-solo .balrow.balhead { position: sticky; top: 0; z-index: 1; background: #0b1524; font-size: 13px; padding-top: 12px; padding-bottom: 10px; }
 .balgrid-solo .balrow:not(.balhead):hover { background: rgba(255, 255, 255, 0.04); }
-/* Column headers double as sort buttons — reset the button chrome, keep the header look, hint the active one. */
-.balsort { background: none; border: none; font: inherit; color: inherit; cursor: pointer; padding: 0; text-align: right; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
+/* Column headers double as sort buttons — reset the button chrome, keep the header look, hint the active one.
+   They are real <button>s everywhere, so the global rule paints the gauntlet and no cursor rule lives here. */
+.balsort { background: none; border: none; font: inherit; color: inherit; padding: 0; text-align: right; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
 .balsort.balname { text-align: left; }
 .balsort:hover { color: rgba(255, 255, 255, 0.9); }
 .balsort.on { color: var(--acc); }
@@ -6437,8 +6440,9 @@ svg { width: 18px; height: 18px; }
    collide with the next column ("COPIES SEENBought"). In the solo report grid let the header labels wrap to a
    second line instead — the cells below are short numbers, so only the header is affected. */
 .balgrid-solo .balrow-h .balsort { white-space: normal; }
-/* Report picker dropdown (which section to view). */
-.balpick { font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.2); padding: 7px 12px; border-radius: 9px; cursor: pointer; }
+/* Report picker dropdown (which section to view). A <select> is outside the global button rule, so it names
+   the gauntlet itself in the sanctioned URL form rather than a bare keyword. */
+.balpick { font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.2); padding: 7px 12px; border-radius: 9px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .balpick:focus-visible { outline: 2px solid var(--acc); }
 .balpick option { color: #1a1206; }
 
@@ -6466,7 +6470,7 @@ svg { width: 18px; height: 18px; }
 .balseg button + button { border-left: 2px solid rgba(255, 255, 255, 0.2); }
 .balseg button.on { background: var(--acc); color: #1a1206; }
 .balseg-count { font-weight: 700; font-size: 12px; color: rgba(255, 255, 255, 0.5); }
-/* The DETAILED impact table has eighteen numeric columns: a denser grid than the solo table (15px, narrower
+/* The DETAILED impact table has twenty numeric columns: a denser grid than the solo table (15px, narrower
    floors, tighter gaps) so it still fits a 1080p viewport; Compact keeps the large-text solo layout. */
 .balsolo.balwide { width: min(calc(15rem + var(--balcols, 4) * 5.4rem), 100%); }
 .balgrid-solo.balgrid-dense .balrow { grid-template-columns: minmax(10rem, 2.2fr) repeat(var(--balcols, 4), minmax(3rem, 1fr)); gap: 9px; padding: 8px 2px; font-size: 15px; }

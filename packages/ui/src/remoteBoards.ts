@@ -527,8 +527,9 @@ export async function uploadRunTelemetry(
     // top rung, never a key in `base`: `base` is spread into every rung below, so a column there that the
     // backend lacks would fail every insert and LOSE the row — exactly the 2026-08-03 `placement` bug. On a
     // pre-migration table this rung errors and the walk continues one rung down, costing only the stamps
-    // (both also ride inside `derived`, so a stamped payload still survives).
-    const withSet = { ...withDerived, set_id: t.setId ?? null, source: t.source ?? 'ladder' };
+    // (both also ride inside `derived`, so a stamped payload still survives). A MISSING stamp stays null:
+    // the reader treats null as legacy, and a caller that forgot the stamp must never be labelled ladder.
+    const withSet = { ...withDerived, set_id: t.setId ?? null, source: t.source ?? null };
     // `placement` must be dropped on the way down. It rides in `base`, which every fallback spreads, so
     // before this a DB without that column failed ALL THREE inserts identically and the row was lost —
     // the fallback ladder existed but could never reach the ground (owner report 2026-08-03).
@@ -553,72 +554,61 @@ const BALANCE_BASE = 'id, created_at, patch, author, hero_id, hero_offer, won, w
 const BALANCE_SPLIT = `${BALANCE_BASE}, discover_offered_cards, discover_bought_cards`; // 2026-07-15
 const BALANCE_BUYS = `${BALANCE_SPLIT}, buy_events`; // 2026-07-16
 const BALANCE_PLACE = `${BALANCE_BUYS}, placement`; // 2026-08-02
-const BALANCE_REV = `${BALANCE_PLACE}, content_revision`; // 2026-08-05
+/** 2026-08-05: `content_revision` arrived in the same migration as the `derived` jsonb, so this rung ALSO reads
+ *  the two stamps the client writes INSIDE derived (`derived->>setId`, `derived->>source`): two short scalars
+ *  per row, never the payload. A row uploaded by a 2026-09-22 client to a table that still lacks the columns
+ *  then reads as stamped rather than as legacy, until the owner's migration lands the columns proper. */
+const BALANCE_REV = `${BALANCE_PLACE}, content_revision, derived_set:derived->>setId, derived_source:derived->>source`;
 export const BALANCE_SELECTS: readonly string[] = [
-  `${BALANCE_REV}, set_id, source`, // 2026-09-22 — the set + source stamps
+  `${BALANCE_REV}, set_id, source`, // 2026-09-22 — the set + source stamps as columns
   BALANCE_REV,
   BALANCE_PLACE,
   BALANCE_BUYS,
   BALANCE_SPLIT,
   BALANCE_BASE,
 ];
-/** The derived payloads are the heavy half (~100 KB per run today, ~16 MB for the live table): fetched in
- *  their OWN query, id-keyed, capped at the newest `derivedLimit` rows, and joined onto the flat rows by id.
- *  A pre-2026-08-05 backend errors this query and the flat report still loads, exactly as before. */
-const BALANCE_DERIVED_SELECT = 'id, derived';
 /** The Balance Report is a dev panel reading a multi-megabyte table, not a boot-path fetch: it gets a longer
  *  box than `FETCH_TIMEOUT_MS`, and the derived query longer still. */
 const BALANCE_FLAT_TIMEOUT_MS = 12000;
 const BALANCE_DERIVED_TIMEOUT_MS = 45000;
+const balanceTimeout = (ms: number): Promise<null> => new Promise<null>((resolve) => setTimeout(() => resolve(null), ms));
 
-/** Fetch the most recent `limit` run-telemetry rows (newest first) for the player Balance Report, each joined
- *  with its derived payload when it has one (the newest `derivedLimit` payloads are fetched). Best-effort +
- *  time-boxed; [] on any failure / no backend / un-migrated table. The set / ladder filtering happens in
- *  `@game/sim`'s `applyReportFilters`, on the caller's side, so the export and the screen share one path. */
-export async function fetchRunTelemetry(limit = 500, derivedLimit = 300): Promise<RunTelemetryRow[]> {
+/** Fetch the most recent `limit` run-telemetry rows (newest first) for the player Balance Report: the FLAT
+ *  columns only, `derived` left null. The derived payloads are the heavy half and are fetched afterwards, by id,
+ *  for the rows the report actually reads (`fetchRunDerived`). Best-effort + time-boxed; [] on any failure /
+ *  no backend / un-migrated table. The set / ladder filtering happens in `@game/sim`'s `applyReportFilters`,
+ *  on the caller's side, so the export and the screen share one path. */
+export async function fetchRunTelemetry(limit = 500): Promise<RunTelemetryRow[]> {
   const c = client();
   if (!c) return [];
   try {
-    const timeout = (ms: number) => new Promise<null>((resolve) => setTimeout(() => resolve(null), ms));
     const query = (select: string) => Promise.race([
       Promise.resolve(c.from('run_telemetry').select(select).order('created_at', { ascending: false }).limit(limit)),
-      timeout(BALANCE_FLAT_TIMEOUT_MS),
-    ]);
-    const derivedQuery = Promise.race([
-      Promise.resolve(
-        c.from('run_telemetry').select(BALANCE_DERIVED_SELECT).not('derived', 'is', null)
-          .order('created_at', { ascending: false }).limit(derivedLimit),
-      ),
-      timeout(BALANCE_DERIVED_TIMEOUT_MS),
+      balanceTimeout(BALANCE_FLAT_TIMEOUT_MS),
     ]);
     // Walk the ladder: a query ERROR (an unknown column on this backend) tries the next, plainer select; a
-    // timeout or a clean answer ends the walk. The derived query runs alongside, in parallel.
+    // timeout or a clean answer ends the walk.
     let result: Awaited<ReturnType<typeof query>> = null;
     for (const select of BALANCE_SELECTS) {
       result = await query(select);
       if (!result || !result.error) break;
     }
     if (!result || result.error || !result.data) return [];
-    const derivedById = new Map<number, DerivedRun>();
-    const derivedResult = await derivedQuery;
-    if (derivedResult && !derivedResult.error && derivedResult.data) {
-      for (const r of derivedResult.data as unknown as Array<{ id: number; derived: DerivedRun | null }>) {
-        if (r.derived && Array.isArray(r.derived.offers)) derivedById.set(r.id, r.derived);
-      }
-    }
     // The select list is built at runtime (columns are dropped on a pre-migration DB), so supabase-js can't
     // infer a row type and falls back to `GenericStringError[]` — go via `unknown` and read the columns by hand.
     return (result.data as unknown as Array<Record<string, unknown>>).map((r) => {
       const id = typeof r.id === 'number' ? r.id : null;
-      const setId = typeof r.set_id === 'string' ? (r.set_id as SetId) : undefined;
-      const source = typeof r.source === 'string' ? (r.source as TelemetrySource) : undefined;
+      // The stamps: the column when the backend has it, else the copy the client wrote inside `derived`
+      // (read as two scalars on the rung above); absent on a genuinely legacy row, which then reads as set 1.
+      const setId = typeof r.set_id === 'string' ? (r.set_id as SetId) : typeof r.derived_set === 'string' ? (r.derived_set as SetId) : undefined;
+      const source = typeof r.source === 'string' ? (r.source as TelemetrySource) : typeof r.derived_source === 'string' ? (r.derived_source as TelemetrySource) : undefined;
       return {
         id,
         createdAt: (r.created_at as string | null) ?? null,
         patch: (r.patch as string | null) ?? null,
         author: (r.author as string | null) ?? null,
         contentRevision: (r.content_revision as string | null) ?? null,
-        derived: id != null ? (derivedById.get(id) ?? null) : null,
+        derived: null, // joined afterwards by `fetchRunDerived`, for the rows the report reads
         mode: (((r.hero_offer as string[]) ?? []).find((h) => h.startsWith('mode:')) ?? '').slice(5) || undefined,
         ...(setId ? { setId } : {}),
         ...(source ? { source } : {}),
@@ -643,6 +633,37 @@ export async function fetchRunTelemetry(limit = 500, derivedLimit = 300): Promis
   } catch {
     return [];
   }
+}
+
+/** The derived payloads are the heavy half (~100 KB per run today, ~16 MB for the live table), so they are NOT
+ *  part of the flat fetch: the panel asks for them BY ID, after the flat rows have been filtered to the set and
+ *  rendered, and only for the rows that survived (pre-migration that is no rows and no bytes; a 16 MB parse
+ *  used to land on the title screen's frame even when the report rendered nothing). Fetched in chunks of
+ *  `DERIVED_CHUNK` ids (the `in` filter rides in the URL), in parallel, each time-boxed. A pre-2026-08-05
+ *  backend errors the query and the flat report stands, exactly as before. Malformed payloads are dropped. */
+const BALANCE_DERIVED_SELECT = 'id, derived';
+export const DERIVED_CHUNK = 100;
+export async function fetchRunDerived(ids: readonly number[]): Promise<Map<number, DerivedRun>> {
+  const out = new Map<number, DerivedRun>();
+  const c = client();
+  if (!c || ids.length === 0) return out;
+  try {
+    const chunks: number[][] = [];
+    for (let i = 0; i < ids.length; i += DERIVED_CHUNK) chunks.push(ids.slice(i, i + DERIVED_CHUNK));
+    const results = await Promise.all(chunks.map((chunk) => Promise.race([
+      Promise.resolve(c.from('run_telemetry').select(BALANCE_DERIVED_SELECT).in('id', chunk)),
+      balanceTimeout(BALANCE_DERIVED_TIMEOUT_MS),
+    ])));
+    for (const res of results) {
+      if (!res || res.error || !res.data) continue;
+      for (const r of res.data as unknown as Array<{ id: unknown; derived: DerivedRun | null }>) {
+        if (typeof r.id === 'number' && r.derived && Array.isArray(r.derived.offers)) out.set(r.id, r.derived);
+      }
+    }
+  } catch {
+    /* best-effort — the flat report stands without the payloads */
+  }
+  return out;
 }
 
 /** One row for the Recent Games list (title → "Recent Games"): who played, which hero, how it ended — plus,

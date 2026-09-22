@@ -1753,7 +1753,8 @@ export const APPROVED_RULES: GameRule[] = [
     statement:
       'The player Balance Report reads ONLY ladder runs of the ACTIVE card set. A telemetry row that carries no '
       + 'set stamp is read as set 1, the codebase-wide legacy default, and is never substituted with the live '
-      + 'set; the real value is backfilled by SQL, by the owner, from the registry timeline. A Scene Builder '
+      + 'set; the real value is backfilled by SQL, by the owner, and only where the row\'s own shop offers agree '
+      + 'with that set (a row that saw a card outside the set\'s pool is never stamped into it). A Scene Builder '
       + 'sandbox run never uploads telemetry, whatever mode the loaded run kept, and every uploaded row is '
       + 'stamped with its set and its source so a sandbox row could never pass for a ladder row even if a '
       + 'gate slipped. The export is built from the SAME filtered rows the screen renders, through the same '
@@ -1769,7 +1770,11 @@ export const APPROVED_RULES: GameRule[] = [
       + 'and the rig launches under mode practice (#1385), so no sandbox row had ever uploaded; the gate is now '
       + 'repeated on the telemetry upload itself and every row is stamped set_id + source (on the flat row and '
       + 'inside derived). The report filters in @game/sim, the header prints the set and the counts, and Export '
-      + 'all serialises the same filtered rows. Legacy rows read as set 1 and the runbook backfills them to set 2.',
+      + 'all serialises the same filtered rows. Legacy rows read as set 1; the runbook backfills them to set 2 only '
+      + 'where no shop offer lies outside set 2\'s pool (a 2026-09-22 read-only probe found four live rows carrying '
+      + 'set-3-only cards; they stay unstamped and the runbook lists them). A stamp the client wrote inside derived '
+      + 'is read on the flat rung (derived->>setId) until the columns exist, and the derived payloads are fetched '
+      + 'by id for the surviving rows only, after the flat rows render.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/reportFilters.test.ts', 'packages/sim/src/balanceExport.test.ts', 'packages/sim/src/cardImpact.test.ts', 'packages/ui/src/telemetrySandboxGate.test.ts', 'packages/ui/src/balanceFetch.test.ts'],

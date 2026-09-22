@@ -913,6 +913,17 @@ export function heroPowerText(state: RunState, which = 0, live: HeroPowerLive = 
     const grant = g.health > 0 ? `+${g.attack}/+${g.health}` : `+${g.attack} Attack`;
     return `Give a friendly minion **Ward**, then give your minions with **Ward** **${grant}**.`;
   }
+  if (power.kind === 'greatPresence') {
+    // Kindness: a PASSIVE schedule (a Gift Discover at the start of every 4th turn, waves 4, 8, 12 …), so the
+    // only live number it has is the countdown — and without it the player cannot tell whether the next shop
+    // brings a Gift (owner ask 2026-09-22). The card-text live-value rule covers hero powers too (see
+    // `exhibition`). `s.wave % 4 === 0` in the reducer IS the schedule, so the countdown reads off the same
+    // expression: on a Gift turn the shop is already open with the Discover queued, so it prints "This turn".
+    const toNext = 4 - (state.wave % 4);
+    return toNext === 4
+      ? 'Discover a **Gift** every 4 turns. **This turn.**'
+      : `Discover a **Gift** every 4 turns. Next in **${toNext}** turn${toNext === 1 ? '' : 's'}.`;
+  }
   if (power.kind === 'exhibition') {
     // Odelle: the grant IMPROVES every 4 cards played, so the printed rule has to move with it — the
     // card-text live-value rule applies to hero powers too. It read a static "+1/+1" while she was actually

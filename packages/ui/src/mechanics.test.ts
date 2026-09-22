@@ -42,6 +42,15 @@ describe('MECHANICS detection', () => {
   it('Stealth uses its own glyph, not the eye', () => {
     expect(MECHANICS.find((m) => m.id === 'stealth')!.glyph).toBe('stealth');
   });
+  it('Rebirth has its own glyph, no longer the Rise placeholder', () => {
+    expect(MECHANICS.find((m) => m.id === 'rebirth')!.glyph).toBe('rebirth');
+    expect(MECHANICS.find((m) => m.id === 'rise')!.glyph).toBe('rise'); // unchanged
+  });
+  it('detects Spend via the goldSpent trigger, with its own glyph', () => {
+    expect(has('dw_coinfire', 'spend')).toBe(true);    // effects: goldSpent (Coinfire Forewoman)
+    expect(has('havendrake', 'spend')).toBe(false);    // no goldSpent effect
+    expect(MECHANICS.find((m) => m.id === 'spend')!.glyph).toBe('spend');
+  });
   it('every mechanic has a unique id and a non-empty glyph/term/def', () => {
     const ids = MECHANICS.map((m) => m.id);
     expect(new Set(ids).size).toBe(ids.length);

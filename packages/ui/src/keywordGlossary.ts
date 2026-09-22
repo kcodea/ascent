@@ -104,6 +104,9 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   { id: 'consume', name: 'Consume', aliases: ['Consumes'], badge: 'CN', section: 'build', mechanic: 'consume', def: 'Devours a minion from shop to gain their stats.' },
   { id: 'fodder', name: 'Fodder', aliases: [], badge: 'FD', section: 'build', mechanic: 'fodder', def: 'A minion that is automatically consumed by a random friendly demon when it appears in shop.' },
   { id: 'discover', name: 'Discover', aliases: [], section: 'build', mechanic: 'discover', def: 'Choose one of three offered cards to keep.' },
+  // Card text spells this lower-case ("When you spend 5 Gold, …"), never as the capitalised term, so the name
+  // match never fires — `detectRe` is the only hit (Coinfire Forewoman, Tapkeeper, and the other gold-sink cards).
+  { id: 'spend', name: 'Spend', aliases: [], section: 'build', mechanic: 'spend', detectRe: /\bspend\b/i, def: 'Triggers an effect based on how much Gold you spend this turn.' },
   // LG-IMPROVE-01: "Improve(s) this by +X/+X per N" — the raised number is run-permanent and printed live.
   { id: 'improve', name: 'Improve', aliases: ['Improves', 'Improving'], section: 'build', icon: 'up', detectRe: /\bimprov(?:e|es|ing)\b/, def: 'Raises the number this effect uses for the rest of the run. The card always shows the current value.' },
   // Aura — the run-wide scope noun (owner ruling 2026-08-28): "your <Tribe> Aura". Wording is the owner's

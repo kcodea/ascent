@@ -9423,6 +9423,16 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
       const a = Number((e.params as { attack?: number } | undefined)?.attack ?? 0), h = Number((e.params as { health?: number } | undefined)?.health ?? 0);
       t = t.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
     }
+    // A sibling Choose One branch that folds too (Aspect's Blessing's "+2/+1" random-friendly branch) greens in
+    // the same pass: returning here with only the flat3 token live left the card face and the Choose One window
+    // (`chooseOneBranchTextFor`) disagreeing on that branch (review finding 2026-09-22, bug 23c340fb).
+    for (const opt of def.chooseOne ?? []) {
+      for (const e of opt.effects ?? []) {
+        if (flat3.includes(e) || !effectFoldsSpellPower(e)) continue;
+        const p = e.params as { attack?: number; health?: number } | undefined;
+        t = liveStatToken(t, num(p?.attack, 0), num(p?.health, 0), bonusA, bonusH);
+      }
+    }
     return t;
   }
   // Great Pot: its one-per-type "+A/+H" folds spell power on both stats (bug a17a48ab, Bug Board round 1 —

@@ -127,8 +127,12 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
   if (picked) return { text: picked.text, goldenText: picked.goldenText ?? picked.text };
   // (BOTH) — the branches are all enabled, so there is no choice to print. Deliberately AFTER `picked`: a body
   // that already resolved one branch keeps doing only that branch even if a rune arrives afterwards.
+  // Spell power threads through (minus the Gift's own pending bonus, as the plain spell chain below does), so a
+  // Crest of the Climb doing both branches prints the numbers both casts will land (bug 23c340fb follow-up).
   if (p.chooseBoth) {
-    const both = chooseBothText(cardId, p.golden);
+    const both = chooseBothText(cardId, p.golden,
+      p.spellBonus - (c.gift ? (p.nextSpellBonus?.attack ?? 0) : 0),
+      p.spellBonusH - (c.gift ? (p.nextSpellBonus?.health ?? 0) : 0));
     if (both) return { text: both, goldenText: both };
   }
   // A taught Mage-Pup prints the spell it will cast, resolved through the SAME live spell-text chain the shop

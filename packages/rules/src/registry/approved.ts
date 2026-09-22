@@ -1325,17 +1325,13 @@ export const APPROVED_RULES: GameRule[] = [
       { kind: 'fix-pr', ref: 'PR #1176 (placeSummon stamps avengeBaseline) and PR #1618 (the Reclaim insert + the combat readout) — packages/core/src/combat/simulate.ts, packages/ui/src/useCombatReplay.ts' },
     ],
     currentBehaviour:
-      'PARTIAL as of 2026-09-22, and UNDER-PINNED: read the enforcement ref with that in mind. The single ref below '
-      + 'pins only the ORDINARY summon path (the #1176 baseline stamp), which is already R-AVWIN-01 ground, so '
-      + 'NEITHER half this rule adds is machine-checked yet. Those two halves land with PR #1618, in flight at the '
-      + 'time of writing: the Reclaim (Soren) insert kept the side tally, and the combat readout re-derived the '
-      + 'counter from the whole fight, so a freshly summoned Avenge body printed 2 of 4. When #1618 merges, append '
-      + 'its pin `packages/ui/src/avengeSummonReadout.test.ts` to the refs below and flip this line to Conforms. '
-      + 'That is a gated follow-up, not a reminder: the OPEN_PINS list in `packages/rules/src/enforcement.test.ts` '
-      + 'reddens CI the moment that file exists on disk without being cited here.',
+      'Conforms — 2026-09-22 (PR #1618 merged). Both halves this rule adds are pinned: the sim side, where the '
+      + 'Reclaim (Soren) insert kept the side tally until `flushResummons` stamped the baseline, and the combat '
+      + 'readout, which re-derived the counter from the whole fight so a freshly summoned Avenge body printed 2 of '
+      + '4. The ordinary summon path stays pinned by the #1176 baseline stamp (R-AVWIN-01 ground).',
     enforcement: {
       kind: 'scenario',
-      refs: ['packages/core/src/combat/avengeSummonBaseline.test.ts'],
+      refs: ['packages/core/src/combat/avengeSummonBaseline.test.ts', 'packages/ui/src/avengeSummonReadout.test.ts'],
       lastVerifiedAt: '2026-09-22',
     },
   },

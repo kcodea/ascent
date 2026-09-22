@@ -259,8 +259,8 @@ describe('the right column', () => {
   it('Seasonal Ranked prints the MEDAL RANK — crest in the portrait ring, label, bar, points, the scalar as a caption — no delta', () => {
     const card = ui.container.querySelector('.cv2-ranked')!;
     expect(card.querySelector('.rankcrest.portring .hero .f img.heroimg')).not.toBeNull();
-    expect(card.querySelector('.rankcrest-plate')?.textContent).toBe('III');
-    expect(card.querySelector('.rankbar-label')?.textContent).toBe('Diamond III');
+    expect(card.querySelector('.rankcrest-plate')?.textContent).toBe('I');
+    expect(card.querySelector('.rankbar-label')?.textContent).toBe('Diamond I');
     expect(card.querySelector('.rankbar-points')?.textContent).toBe('34 / 100');
     expect(card.querySelector('.rankbar-caption')?.textContent).toBe('1234 MMR');
     // The card stacks: crest → bar → points → name → caption (owner 2026-09-20).
@@ -377,7 +377,7 @@ describe('states', () => {
 
   it('a viewed player whose rank rode in on careerOf (a Rankings row) gets the SAME crest + bar card as the own page: no bare MMR, no fetch', async () => {
     ui.unmount();
-    // "46 MMR" on the server is Bronze III 46 (rating = 100 × division + points; owner report 2026-09-21).
+    // "46 MMR" on the server is Bronze I 46 (rating = 100 × division + points; owner report 2026-09-21).
     const rank = { ...useGame.getState().profile.rank, position: { divisionIndex: 0, points: 46 }, highest: { divisionIndex: 0, points: 46 } };
     useGame.setState({ careerOf: { userId: 'them-7', author: 'LazerLemon', rating: 46, gamesPlayed: 9, rank }, careerCache: null });
     ui = mount(<Career />);
@@ -385,8 +385,8 @@ describe('states', () => {
     const card = ui.container.querySelector('.cv2-ranked')!;
     expect(card.querySelector('.cv2-mmr')).toBeNull();
     expect(card.querySelector('.rankcrest.portring .hero .f img.heroimg')).not.toBeNull();
-    expect(card.querySelector('.rankcrest-plate')?.textContent).toBe('III');
-    expect(card.querySelector('.rankbar-label')?.textContent).toBe('Bronze III');
+    expect(card.querySelector('.rankcrest-plate')?.textContent).toBe('I');
+    expect(card.querySelector('.rankbar-label')?.textContent).toBe('Bronze I');
     expect(card.querySelector('.rankbar-points')?.textContent).toBe('46 / 100');
     expect(card.querySelector('.rankbar-caption')?.textContent).toBe('46 MMR');
     expect(card.querySelector('.rankbar')!.className).toContain('rankbar-stack');
@@ -405,7 +405,7 @@ describe('states', () => {
     expect(fetchPlayerById).toHaveBeenCalledWith('them-7');
     const card = ui.container.querySelector('.cv2-ranked')!;
     expect(card.querySelector('.cv2-mmr')).toBeNull();
-    expect(card.querySelector('.rankbar-label')?.textContent).toBe('Bronze III');
+    expect(card.querySelector('.rankbar-label')?.textContent).toBe('Bronze I');
     expect(card.querySelector('.rankbar-points')?.textContent).toBe('46 / 100');
     expect(card.querySelector('.rankbar-caption')?.textContent).toBe('46 MMR');
     // Re-rendering the open page never re-asks: the answer is remembered per user id while the page is open.
@@ -443,7 +443,7 @@ describe('states', () => {
     const card = ui.container.querySelector('.cv2-ranked')!;
     expect(card.querySelector('.cv2-rank-wait')).toBeNull();
     expect(card.querySelector('.cv2-mmr')).toBeNull();
-    expect(card.querySelector('.rankbar-label')?.textContent).toBe('Bronze III');
+    expect(card.querySelector('.rankbar-label')?.textContent).toBe('Bronze I');
     expect(card.querySelector('.rankbar-caption')?.textContent).toBe('46 MMR');
   });
 });

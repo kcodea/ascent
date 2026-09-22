@@ -10,7 +10,7 @@ import {
 
 export { rankLabel, rankScalar } from './types';
 
-/** "76 / 100", or the uncapped "130 RP" at Ascendant I. */
+/** "76 / 100", or the uncapped "130 RP" at Ascendant III. */
 export function pointsText(pos: RankPosition): string {
   return isUncapped(pos.divisionIndex) ? `${pos.points} RP` : `${pos.points} / ${POINTS_PER_DIVISION}`;
 }
@@ -66,11 +66,11 @@ export function deltaText(r: RankResult): string {
 /** The resolve-beat outcome line — ONLY what the visuals don't already say (owner 2026-09-20). A promotion or
  *  demotion is told by the crest transition + the new label, so neither prints a line; the gate line stays
  *  (nothing else shows that the next game is a promotion game), as does a failed promotion (the retreat
- *  alone doesn't say it was one). Ascendant I's uncapped counter speaks for itself. */
+ *  alone doesn't say it was one). Ascendant III's uncapped counter speaks for itself. */
 export function outcomeText(r: RankResult): string | null {
   if (r.promoted || r.demoted) return null;
   if (r.promotionUnlocked) return gateText(r.after);
-  // The rules' flag, never derived here: armed only by a loss that hit 0, in ANY division above Bronze III
+  // The rules' flag, never derived here: armed only by a loss that hit 0, in ANY division above Bronze I
   // (owner 2026-09-21; a promotion landing does NOT arm it). The line is the only thing that says the next
   // game is a demotion game.
   if (r.demotionUnlocked) return demotionGateText(r.after);
@@ -95,7 +95,7 @@ export function announcement(placement: number, r: RankResult | null, submission
   return `${place}. ${deltaText(r)}. Now ${rankLabel(r.after)}, ${pointsText(r.after)}.${outcome ? ` ${outcome}.` : ''}`;
 }
 
-/** The fraction of a (capped) division bar a position fills — Ascendant I reads as full. */
+/** The fraction of a (capped) division bar a position fills — Ascendant III reads as full. */
 export function barFraction(pos: RankPosition): number {
   if (isUncapped(pos.divisionIndex)) return 1;
   return Math.min(1, Math.max(0, pos.points / POINTS_PER_DIVISION));

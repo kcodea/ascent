@@ -65,14 +65,14 @@ The visible ladder is a **medal + division**, not a number. Only a finished **ra
 route) moves it; Practice, the tutorial and sandbox runs never do.
 
 - **Six medals — Bronze, Silver, Gold, Platinum, Diamond, Ascendant — three divisions each**, ordered
-  **III → II → I** and then the next medal's III (18 divisions, `Bronze III` lowest, `Ascendant I` highest).
+  **I → II → III** and then the next medal's I (18 divisions, `Bronze I` lowest, `Ascendant III` highest).
   Each division is **100 points** wide.
 - **Points by final placement** (`RANK_RULES.placementAwards`): 1st **+40**, 2nd **+28**, 3rd **+16**, 4th
   **+6**, 5th **−6**, 6th **−16**, 7th **−28**, 8th **−40**. Nothing else moves the ladder — no round-wins
   modifier, no opponent-strength adjustment.
 - **Promotion games.** Reaching **100** does not promote; it makes the **next** rated game a promotion game
-  (overflow past 100 is discarded; the delta shown is the delta applied). To move up **a division** (Gold III
-  → Gold II) the promotion game needs a **top-4 finish**; to move up **a medal** (Gold I → Platinum III) it
+  (overflow past 100 is discarded; the delta shown is the delta applied). To move up **a division** (Gold I
+  → Gold II) the promotion game needs a **top-4 finish**; to move up **a medal** (Gold III → Platinum I) it
   needs **1st place**. A won promotion game starts the next division at **10 / 100** — not the game's award
   (owner 2026-09-21; it was 0 / 100 the day before). The 10-point landing is a cushion so a narrow loss
   straight after promoting does not drop the player back down: a 5th (−6) leaves them at 4, still in the new
@@ -85,7 +85,7 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   promotion-ready.
 - **There are no instant demotions** (owner ruling 2026-09-21: *"Hitting 0 MMR should halt the loss and put
   you in a demotion game. You need to then bottom-4 that game to demote."* This widened the 2026-09-20 rule,
-  which gated only the drop out of a medal, to every division). In **any division above Bronze III**, a loss
+  which gated only the drop out of a medal, to every division). In **any division above Bronze I**, a loss
   that would take the player below 0 **stops at 0** and *arms* the demotion gate (a stored `demotionReady`
   flag — set only by a loss that lands on 0, by clamp or by exact subtraction; cleared by any non-negative
   result; never set by a promotion landing: 10/100 after a won promotion is not armed; the first loss of 10 or
@@ -94,21 +94,21 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   a top-4 from there is an ordinary gain.
 - **Demotion games.** While armed, the **next** rated game is a demotion game: a **bottom-4 finish (5th–8th)
   demotes one division** to **`100 + that game's award`** in the division below (5th → 94, 6th → 84, 7th →
-  72, 8th → 60 — the mirror of the promotion landing rule): Gold II armed → 8th → Gold III 60. Across a medal
-  boundary the division below is the previous medal's division I: Gold III armed → 8th → Silver I 60. A
+  72, 8th → 60 — the mirror of the promotion landing rule): Gold II armed → 8th → Gold I 60. Across a medal
+  boundary the division below is the previous medal's division III: Gold I armed → 8th → Silver III 60. A
   **top-4 finish escapes**, applies its positive award normally from 0 (3rd → Gold II 16), and disarms the
   gate (reaching 100 that way unlocks the promotion gate as usual).
-- **Bronze III floors at 0** with no gate (nothing below it). **Ascendant I is uncapped** (points keep
+- **Bronze I floors at 0** with no gate (nothing below it). **Ascendant III is uncapped** (points keep
   climbing past 100, no promotion gate); a loss that hits 0 there arms a demotion game like everywhere else
   (its demotion game drops to Ascendant II).
 - **Career best** (division first, then points) never decreases. **Leaderboards sort by division, then
   points** — the reporting scalar `100 × division + points` still exists (`profile.rating`) but ties Gold II
-  100 with Gold I 0, so it is never the sort key.
+  100 with Gold III 0, so it is never the sort key.
 - **The server is the authority.** A finished rated lobby submits `{ run id, placement, season, rules
   version }` and the `settle_rank` transaction (lock → dedupe → resolve → commit) returns the immutable
   result the post-game screen animates plus the account's current rank; the client only mirrors it. A result
   that cannot be sent (offline) is kept and retried; it never resolves locally. **Season 3 started everyone at
-  Bronze III 0/100.**
+  Bronze I 0/100.**
 
 Source: `packages/sim/src/rank.ts` (`RANK_RULES`, `resolveRank`, `settleRank`), `supabase/functions/
 _shared/lobbyRating.ts`, `supabase/migrations/2026-09-20-medal-rank.sql` (`settle_rank`),

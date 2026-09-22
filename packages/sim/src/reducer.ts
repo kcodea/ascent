@@ -1,4 +1,4 @@
-import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
+import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, socTwilightExtraFires, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -4060,7 +4060,9 @@ function preparePlayerCombatSide(s: RunState): PreparedCombatSide {
   // Open the Gates' Imps) are pre-baked HERE, before the simulator's Start-of-Combat pass, so the sim's
   // Twilight loop (which re-fires minion `startOfCombat` effects) never sees them — they were silently
   // exempt (owner report 2026-08-12). Apply the extra trigger here instead: ×2 when Twilight is armed.
-  const twilightMult = s.questFlags?.runeTwilight ? 2 : 1;
+  // One extra pass per Twilight COPY (`socTwilightExtraFires`, the definition combat's pass consults) — a second
+  // copy used to triple minion effects in combat but only double these (reviewer 2026-09-21).
+  const twilightMult = 1 + socTwilightExtraFires({ runeTwilight: !!s.questFlags?.runeTwilight, flagCopies: s.flagCopies });
   // CHOREOGRAPHER PR 7 — these pending Start-of-Combat payouts now EMIT. They were the archetype of the
   // problem this project exists to fix: applied silently into the combat board here, before the
   // simulator's Start-of-Combat pass, with no source-attributed event anywhere. The result was a buff

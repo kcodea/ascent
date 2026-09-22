@@ -57,13 +57,15 @@ export const DIVISIONS_PER_MEDAL = RANK_RULES.divisionsPerMedal;
 export const POINTS_PER_DIVISION = RANK_RULES.divisionPoints;
 export const TOP_DIVISION = rankTopDivision();
 export const DIVISION_COUNT = TOP_DIVISION + 1;
-/** Lowest first: the numerals ASCEND with the climb (owner 2026-09-22). Indexed by `divisionTierOf - 1`. */
-export const DIVISION_NUMERALS = ['I', 'II', 'III'] as const;
+/** Lowest first: the numerals ASCEND with the climb (owner 2026-09-22), and the CREST PLATE prints them as plain
+ *  digits (owner 2026-09-22, "1/2/3 on crest") while the spoken label (`rankLabel`, "Bronze II") keeps its Roman
+ *  numeral. Indexed by `divisionTierOf - 1`. */
+export const DIVISION_NUMERALS = ['1', '2', '3'] as const;
 export type DivisionNumeral = (typeof DIVISION_NUMERALS)[number];
 
 /** The numeral within its medal as a string plate ("II" for Gold II). */
 export function divisionNumeralOf(divisionIndex: number): DivisionNumeral {
-  return DIVISION_NUMERALS[divisionTierOf(divisionIndex) - 1] ?? 'I';
+  return DIVISION_NUMERALS[divisionTierOf(divisionIndex) - 1] ?? '1';
 }
 
 /** Ascendant III has no cap. */

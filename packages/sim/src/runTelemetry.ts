@@ -10,16 +10,41 @@
  * Hero offers aren't in the seeded replay (the 3-hero picker rolls off UI randomness), so the caller passes the
  * offered trio in via `heroOffer`.
  */
-import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX } from '@game/content';
+import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, type SetId } from '@game/content';
 import { createRun, type RunState, type Action } from './state';
 import { HEROES } from './heroes';
 import { reduce } from './reducer';
 import type { Replay } from './snapshot';
 
+/**
+ * What PRODUCED a telemetry row (2026-09-22). `ladder` is a real, rated lobby run — the only thing the run-end
+ * gates ever let upload. Everything else names the run's mode, with `sandbox` overriding the mode for any
+ * Scene Builder run (the rig launches under mode 'practice', but a LOADED bug/QA scenario keeps its original
+ * mode, so the flag, not the mode, is what identifies it). Stamped so a row's origin is SQL-filterable and a
+ * sandbox row can never be mistaken for a ladder row even if a future gate slips.
+ */
+export type TelemetrySource = 'ladder' | 'sandbox' | 'practice' | 'tutorial' | 'ascent' | 'rift';
+
+/** The source stamp for a run — pure over the two fields that decide it, so the store and the tests agree. */
+export function telemetrySourceOf(run: Pick<RunState, 'mode' | 'sandbox'>): TelemetrySource {
+  if (run.sandbox) return 'sandbox';
+  const mode = run.mode ?? 'ascent';
+  return mode === 'lobby' ? 'ladder' : mode;
+}
+
 /** One finished run's offers + picks + outcome — the row uploaded per run + aggregated for the player report. */
 export interface RunTelemetry {
   /** The run's mode — the balance report only shows LOBBY rows since 2026-07-31. Absent on old rows. */
   mode?: string;
+  /** The card SET the run was pinned to (`RunState.setId` via `setIdOf`), stamped at upload since 2026-09-22 so
+   *  the Balance Report can read ONE set (owner ask 2026-09-22: "it should only have data for the active set").
+   *  Absent on every row written before that date. A reader treats an absent set as `set1` — the same legacy
+   *  default as every other pre-sets surface — and NEVER as the live set: the owner backfills the real value
+   *  by SQL (see the 2026-09-22 devlog runbook) rather than the client guessing it. */
+  setId?: SetId;
+  /** What produced the row — see `TelemetrySource`. Absent on rows written before 2026-09-22, which were all
+   *  ladder rows by construction (only `mode === 'lobby'` runs have ever uploaded). */
+  source?: TelemetrySource;
   heroId: string;
   /** The 3 heroes offered in the pre-run picker (UI-supplied; empty if unknown). */
   heroOffer: string[];

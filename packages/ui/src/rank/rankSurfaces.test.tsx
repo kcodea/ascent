@@ -27,12 +27,12 @@ describe('RankCrest', () => {
     expect(crest.className).toContain('rankcrest-big');
     expect(crest.className).toContain('rankcrest-gold');
     expect(crest.querySelector('.hero > .f > img.heroimg')).not.toBeNull();
-    expect(crest.querySelector('.rankcrest-plate')?.textContent).toBe('II');
+    expect(crest.querySelector('.rankcrest-plate')?.textContent).toBe('2');
     expect(crest.getAttribute('aria-hidden')).toBe('true');
   });
-  it('I / II / III plates, and one art file per medal', () => {
+  it('1 / 2 / 3 plates (digits on the crest, owner 2026-09-22), and one art file per medal', () => {
     ui = mount(<><RankCrest divisionIndex={0} /><RankCrest divisionIndex={1} /><RankCrest divisionIndex={2} /><RankCrest divisionIndex={17} /></>);
-    expect([...ui.container.querySelectorAll('.rankcrest-plate')].map((p) => p.textContent)).toEqual(['I', 'II', 'III', 'III']);
+    expect([...ui.container.querySelectorAll('.rankcrest-plate')].map((p) => p.textContent)).toEqual(['1', '2', '3', '3']);
     const srcs = [...ui.container.querySelectorAll<HTMLImageElement>('img.heroimg')].map((i) => i.getAttribute('src') ?? '');
     expect(srcs[0]).toMatch(/bronze/);
     expect(srcs[3]).toMatch(/ascendant/);

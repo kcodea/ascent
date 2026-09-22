@@ -40,6 +40,7 @@ export * from './semanticTrace'; // WP C — the unified recruit+combat semantic
 export * from './runTelemetry';
 export * from './runeDup'; // rune duplicate stacking (owner rulings 2026-08-27): stack counts + sweetener/unique/forge-filter sets
 export * from './runDerive';
+export * from './playerReport'; // the Balance Report's read side (2026-09-22): set/ladder filters, per-card impact, the whole-dataset export
 export * from './opponentPool.data';
 export { MATCHMAKING, adjustedWinRate, bandWeight, boardRecord, clearBoardRecords, registerBoardRecords, selectionWeight, type BoardRecord } from './matchmaking';
 export { RECRUIT_FACTORY_IDS } from './recruit'; // Doc Bot: the recruit dispatch surface, keys only

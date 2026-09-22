@@ -20,7 +20,7 @@ Two owner-authored FX defs from the workbench, both on Equipment.
 `packages/ui/src/useAmplifiedSlotFx.ts`, called from `StatusBar`:
 
 ```
-useAmplifiedSlotFx(hasEquip && equipAmplified > 0 && equipUses > 0 && run.phase === 'recruit' && !overlayCovering)
+useAmplifiedSlotFx(hasEquip && equipAmplified > 0 && equipUses > 0 && run.phase === 'recruit' && !overlayCovering && !uiCovering)
 ```
 
 - `equipAmplified` is `equipmentWillAmplify(run, selected.id)` — the same read that paints the charge number
@@ -36,6 +36,13 @@ useAmplifiedSlotFx(hasEquip && equipAmplified > 0 && equipUses > 0 && run.phase 
   a backdrop, and inside a Discover its size alone is over the scene's 2,000 cap. Judgement call: a minimised
   Discover also counts as covering (the bar has no way to read the minimise flag); the glow comes back the
   moment the overlay closes.
+- `uiCovering` (same-day review fix) = the UI-store overlays: the Compendium (Tab), the Inspect view, the Ctrl+B
+  bug reporter, the ladder / balance pages and the title. Each is a fixed full-viewport backdrop above the FX
+  canvas too (`.book-ov` z480, `.inspect-ov` z500, `.bgrov` z560, `.lbpage` z470), and the review caught the
+  ring burning behind the Book's blur. The set is Recruit's `overlayOpen` (which already pauses the shop clock,
+  the combat replay and the sibling `useChooseBothFx` loop) plus the Inspect view, which Recruit exempts only
+  because the inspected card wants its own "(Both)" ring. One boolean selector. The Esc / Settings menu is NOT
+  in it, matching the sibling loop and the clock (both keep running behind it).
 
 The hook follows the `useChooseBothFx` contract: `loop: true`, caller-owned teardown, one loop at a time (a
 swap between two Amplified Equipment keeps the same loop on the same point), disposed when the condition ends,
@@ -106,14 +113,15 @@ records the cost.
 
 ## Tests
 
-`packages/ui/src/useAmplifiedSlotFx.test.tsx` (25 cases, mounting the real `StatusBar` against the store with
+`packages/ui/src/useAmplifiedSlotFx.test.tsx` (30 cases, mounting the real `StatusBar` against the store with
 `playDef` stubbed): starts once, `loop: true`, on the slot centre, only when selected + Amplified + charged in
 the shop phase, for all three `equipmentWillAmplify` branches and never for the Wrench on its own Calibration;
 never twice (unrelated re-render, swap between two Amplified Equipment); stops exactly once on each ending
 (stack spent, charge spent, selection moved, phase left, Equipment state gone, overlay, hidden tab, unmount)
-and restarts when the condition returns; the readiness / unpainted waits re-check the condition, are bounded,
-and are cancelled; `follow` reads the cache and moves one frame after a resize. Sabotaging the gate (dropping
-the charge / phase / overlay terms) fails six of them.
+and restarts when the condition returns; the UI-store overlays (the Book, the Inspect view, the bug reporter, a
+ladder page) stop it once and restart it on close, and a Book already open starts nothing; the readiness /
+unpainted waits re-check the condition, are bounded, and are cancelled; `follow` reads the cache and moves one
+frame after a resize. Sabotaging the gate (dropping the charge / phase / overlay terms) fails six of them.
 
 The rule is in the oracle as `R-PRESENT-02` (`packages/rules/src/registry/approved.ts`, enforced by that test
 file); `docs/docbot2/final-report.md` bumped to 167 rules / 81 approved.
@@ -127,9 +135,29 @@ prod-build measurement (a saved `amplified: { comet: 1 }` came back undefined; t
 rides `equipmentAmplifiedCards` and `sourceCardIds`, survives and is what the measurement used). Engine seam,
 its own fix: flagged as a follow-up task rather than folded into this presentation PR.
 
+Found by the review, pre-existing, not this PR's: one-shot def plays that are still live when `PixiFxLayer`
+detaches (a trip to the title) throw `external updater threw ... Cannot read properties of null (reading
+'fxUniforms')` after it re-attaches (`packages/ui/src/pixiFx.ts`, the external-updater guard), and they stay
+in the FX budget registry as ghosts. The Amplified loop is not affected: across the same round trip it is
+disposed on unmount and restarts on return, with an empty registry at the title. The fix belongs in
+`pixiFx.detach()` (retire every registered live play through the budget's registry instead of leaving their
+updaters to throw on the next context); flagged as its own follow-up task.
+
 ## Not done
 
 - No browser check of the hidden-tab teardown (the embedded browser cannot background the tab); unit-tested.
 - The owner should confirm one consequence of the rule as stated: under Rune of Empty Hands (permanent
   Amplification) with Rune of Overcharge (no charge spent), using the Equipment ends nothing, so the slot glows
   for the whole shop turn, every turn.
+- The owner should confirm what "usable" means (review question, same day). It is read as HAS A CHARGE, the
+  owner's own clarifying sentence, so Gold is not a term: an Amplified Equipment with a charge the player cannot
+  afford this moment still glows while its button is disabled. If "usable" should also mean affordable, the fix
+  is one term (`run.embers >= equipCost`) in the StatusBar condition plus a hook case with `embers: 0`.
+  Recorded in R-PRESENT-02's `currentBehaviour` as open.
+
+## Same-day review
+
+Three findings, all minor. (1) FIXED: the loop kept running under UI-store overlays (the Book) while the
+sibling looping marker paused for them; `uiCovering` above, four hook cases plus the already-open case.
+(2) NEEDS THE OWNER: "usable" as charges-only versus affordable; left as built, recorded above and in the
+oracle. (3) OUT OF SCOPE, pre-existing: the `pixiFx` detach ghosts, recorded above and flagged as a follow-up.

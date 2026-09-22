@@ -271,14 +271,26 @@ export function StatusBar() {
    * the same action that flips the phase to combat, and this bar stays mounted through the fight — without the
    * gate an Amplified Equipment reads a charge again during the whole combat and the loop runs over the arena.
    *
-   * Paused (torn down, never left running unseen) under a board-covering overlay: the FX canvas sits BENEATH the
-   * Discover / Choose One / quest / rune / scouting overlays, so the loop would spend its particles behind a
-   * backdrop, and inside a Discover its size alone is over the scene's particle cap. Read off the run so this
-   * bar needs no overlay plumbing; a minimised Discover counts as covering, which errs on the side of not paying.
+   * Paused (torn down, never left running unseen) under anything that covers the slot. Two reads, because the
+   * overlays live in two places:
+   *  - RUN-state overlays (`overlayCovering`): a Discover, a Choose One, a quest / power / Runeforge offer, a
+   *    scouted board. The FX canvas (`.pixifx`, z 110) sits BENEATH them, so the loop would spend its particles
+   *    behind a backdrop, and inside a Discover its size alone is over the scene's particle cap. A minimised
+   *    Discover counts as covering (this bar cannot read the minimise flag), which errs on the side of not paying.
+   *  - UI-store overlays (`uiCovering`): the Compendium (Tab), the Inspect view, the Ctrl+B bug reporter, the
+   *    ladder / balance pages and the title. Every one is a fixed full-viewport backdrop above that canvas too
+   *    (review finding 2026-09-22: the Book left the ring burning behind its blur). The set is the one Recruit
+   *    folds into `overlayOpen`, which pauses the shop clock, the combat replay and the sibling `useChooseBothFx`
+   *    loop, PLUS the Inspect view: Recruit exempts that one only because the inspected card is exactly where a
+   *    "(Both)" ring wants to be, and nothing on it wants this glow. Keep the two lists in step. ONE boolean
+   *    selector, so the bar re-renders when the answer flips and not when any one flag does. (`showTitle` is
+   *    here for parity: today `isPreRun` unmounts this bar with the title and the unmount teardown catches it.)
    */
   const overlayCovering = !!(run.discover?.length || run.chooseOne || run.questOffer || run.powerOffer
     || run.runeforgeOffer || run.scoutedNextOpponent?.length);
-  useAmplifiedSlotFx(hasEquip && equipAmplified > 0 && equipUses > 0 && run.phase === 'recruit' && !overlayCovering);
+  const uiCovering = useGame((s) => s.showTitle || s.showLeaderboard || s.showRankings || s.showCareer || s.showBook
+    || s.showBalance || s.bugReportOpen || !!s.inspect);
+  useAmplifiedSlotFx(hasEquip && equipAmplified > 0 && equipUses > 0 && run.phase === 'recruit' && !overlayCovering && !uiCovering);
 
   /**
    * "EMPTY" — the Equipment ran out of uses (owner ask 2026-08-29).

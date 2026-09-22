@@ -14,7 +14,8 @@
  *   2. it never starts TWICE — not on an unrelated re-render, not on a swap between two Amplified Equipment;
  *   3. it STOPS, exactly once, on each way the condition ends: the stack spent, the charge spent, the
  *      selection moved to an unamplified Equipment, the phase leaving the shop, the Equipment state gone, a
- *      board-covering overlay, a hidden tab, and unmount;
+ *      board-covering overlay in the run state OR a UI-store overlay over the slot (the Compendium, the Inspect
+ *      view, the bug reporter, a ladder page), a hidden tab, and unmount;
  *   4. the "can't start yet" waits (FX runtime not ready, slot not painted) re-check the LATEST condition and
  *      are bounded, so a stale start can never fire and nothing retries forever;
  *   5. `follow` hands the player a CACHED point — re-measured on resize, once per frame — never a live read.
@@ -97,8 +98,10 @@ const spent = (): EquipOver['available'] => [
 ];
 
 let ui: Mounted;
+/** Mount / re-render the real StatusBar against the store. `showTitle: false` because the store boots on the
+ *  title and the loop's UI-overlay gate reads it (in the app `isPreRun` unmounts the bar with the title). */
 const show = (run: RunState, extra: Record<string, unknown> = {}): void => {
-  act(() => { useGame.setState({ run, equipArmed: false, heroArmed: false, ...extra }); });
+  act(() => { useGame.setState({ run, equipArmed: false, heroArmed: false, showTitle: false, ...extra }); });
   ui.render(<StatusBar />);
 };
 
@@ -116,6 +119,8 @@ afterEach(() => {
   ui.unmount();
   vi.restoreAllMocks();
   delete (document as { hidden?: boolean }).hidden;
+  // The store is a module singleton: put back every UI-overlay flag a test opened.
+  useGame.setState({ showBook: false, bugReportOpen: false, showCareer: false, inspect: null });
 });
 
 describe('the Amplified loop — when it STARTS', () => {
@@ -250,6 +255,41 @@ describe('the Amplified loop — when it STOPS (exactly once each)', () => {
     ui.unmount();
     expect(disposed()).toEqual([1]);
     ui = mount(<div />); // for afterEach
+  });
+});
+
+describe('the Amplified loop — UI-store overlays cover the slot too (review finding 2026-09-22)', () => {
+  // Every one of these is a fixed full-viewport backdrop ABOVE the FX canvas (`.pixifx`, z 110): the Compendium
+  // (`.book-ov`, z 480), the Inspect view (`.inspect-ov`, z 500), the Ctrl+B bug reporter (`.bgrov`, z 560) and
+  // the ladder pages (`.lbpage`, z 470). The Book is the one the review caught with the ring burning behind
+  // its blur; the rest are the same shape. The set mirrors Recruit's `overlayOpen` plus the Inspect view.
+  const covers: [string, Record<string, unknown>, Record<string, unknown>][] = [
+    ['the Compendium (Tab)', { showBook: true }, { showBook: false }],
+    ['the Inspect view', { inspect: { name: 'Alley Cat', cardId: 'alley', tribe: 'neutral' } }, { inspect: null }],
+    ['the bug reporter (Ctrl+B)', { bugReportOpen: true }, { bugReportOpen: false }],
+    ['a ladder page (Career)', { showCareer: true }, { showCareer: false }],
+  ];
+  for (const [what, open, close] of covers) {
+    it(`stops once when ${what} opens over the shop, and restarts when it closes`, () => {
+      show(amplifiedRun());
+      expect(plays().length).toBe(1);
+      show(amplifiedRun(), open);
+      expect(disposed(), 'the loop was disposed once').toEqual([1]);
+      expect(plays().length, 'and nothing else started').toBe(1);
+      show(amplifiedRun({}, { embers: 5 }), open);
+      expect(disposed(), 'a re-render under the overlay disposes nothing again').toEqual([1]);
+      expect(plays().length, 'and starts nothing').toBe(1);
+      show(amplifiedRun(), close);
+      expect(plays().length, 'closed: a fresh loop').toBe(2);
+      expect(disposed()).toEqual([1, 0]);
+    });
+  }
+
+  it('starts nothing while the Compendium is already open, and starts once it closes', () => {
+    show(amplifiedRun(), { showBook: true });
+    expect(plays()).toEqual([]);
+    show(amplifiedRun(), { showBook: false });
+    expect(plays().map((p) => p.id)).toEqual(['amplified-slot']);
   });
 });
 

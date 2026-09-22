@@ -201,11 +201,13 @@ minion alive. Duplicates collapse into one entry; a single Gilded source upgrade
   sources all left. Presentation: the Equipment's **charge number turns BLUE** while Amplified (over the pool's
   green), the tooltip says so, and the tally carries `data-fx="equipment-amplified"` as a tooling mark. The
   owner's authored cue (2026-09-22) is the **`amplified-slot` loop on the slot button**: it plays only while
-  the SELECTED Equipment will Amplify AND has a charge to spend, in the shop phase, with no board-covering
-  overlay open — zero charges means no glow ("if an equipment has 0 charges it should not show the
-  animation"), so using the Equipment ends it. Engine: `PlayerEquipmentState.amplified` + `sim/equipment.ts`
-  (`amplifyEquipment` / `amplifyUnactivated` / `amplifyAllHeld` / `consumeAmplified`), pinned in
-  `set3RunesTrancheC.test.ts`.
+  the SELECTED Equipment will Amplify AND has a charge to spend, in the shop phase, with nothing covering the
+  slot (a board-covering overlay, the Compendium, the Inspect view, the bug reporter and the ladder pages all
+  pause it) — zero charges means no glow ("if an equipment has 0 charges it should not show the
+  animation"), so using the Equipment ends it. Gold is not a term: a charged Amplified Equipment the player
+  cannot afford right now still glows while its button is disabled (open owner question, 2026-09-22).
+  Engine: `PlayerEquipmentState.amplified` + `sim/equipment.ts` (`amplifyEquipment` / `amplifyUnactivated` /
+  `amplifyAllHeld` / `consumeAmplified`), pinned in `set3RunesTrancheC.test.ts`.
 
 ### The Starform — the Celestials' shop token (owner design 2026-09-12; rules v2 2026-09-13)
 

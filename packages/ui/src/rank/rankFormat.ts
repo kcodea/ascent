@@ -57,33 +57,10 @@ export function standingGateText(pos: RankPosition, demotionReady = false): stri
   return null;
 }
 
-/** The primary delta line: the ACTUAL movement, and the floor reading when nothing could be lost. A WON
- *  promotion is the one case that prints the finish's base award instead: the owner's rule lands the new
- *  division at 10 / 100 (2026-09-21; it was 0), so the "actual" scalar movement is the +10 landing cushion
- *  whatever the finish — and a "+10 RP" over a 1st-place promotion reads as a bug, not a rule. The crest
- *  transition + new label + 10 / 100 say the rest (owner 2026-09-20). */
+/** The primary delta line: the finish's award, signed (owner 2026-09-21: "just the +/- RP, the x/100, the bar
+ *  and the rank"). No floor / cap / landing flavour: the bar and the points readout carry what actually moved. */
 export function deltaText(r: RankResult): string {
-  if (r.promoted) return signedRp(r.baseDelta);
-  // A lost demotion game drops ONE division (a medal only at a medal's lowest division: Gold III 0 → Silver I
-  // 60); its applied delta equals the award (600 → 560 is −40 on the scalar), so print the award and let the
-  // crest transition say the rest.
-  if (r.demoted && r.wasDemotionGame) return signedRp(r.baseDelta);
-  const floored = r.appliedDelta === 0 && r.baseDelta < 0 && r.after.divisionIndex === 0 && r.after.points === 0;
-  if (floored) return '0 RP · Bronze floor';
-  return signedRp(r.appliedDelta);
-}
-
-/** A secondary detail ONLY when the delta alone would mislead: the award was capped at the gate or floored
- *  ("base +40 RP · capped at the gate"). A promotion's landing needs no words — the new bar reads 10 / 100
- *  (owner 2026-09-20; landing 10 since 2026-09-21). */
-export function cappedDetail(r: RankResult): string | null {
-  if (r.promoted || (r.demoted && r.wasDemotionGame)) return null;
-  if (r.appliedDelta === r.baseDelta) return null;
-  if (r.baseDelta > 0) return `base ${signedRp(r.baseDelta)} · capped at the gate`;
-  if (r.after.divisionIndex === 0 && r.after.points === 0) return `base ${signedRp(r.baseDelta)} · Bronze floor`;
-  // The arming loss stops at 0 in ANY division (owner 2026-09-21): the detail names what it stopped at.
-  if (r.demotionUnlocked && r.baseDelta < 0) return `base ${signedRp(r.baseDelta)} · stopped at 0`;
-  return `base ${signedRp(r.baseDelta)}`;
+  return signedRp(r.baseDelta);
 }
 
 /** The resolve-beat outcome line — ONLY what the visuals don't already say (owner 2026-09-20). A promotion or

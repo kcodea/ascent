@@ -9,7 +9,7 @@ import { combatGains } from './combatGains';
 import { questObjectiveLines, questObjectiveText, questRewardText } from './questText';
 import { copyCastSpellText, guelProgressText, monkProgressText, packLeaderText, taughtSpellText } from './cardText';
 import { rankErrorText } from './rank/rankSource';
-import { announcement, cappedDetail, deltaText, demotionGateText, gateText, outcomeText, standingGateText } from './rank/rankFormat';
+import { announcement, deltaText, demotionGateText, gateText, outcomeText, standingGateText } from './rank/rankFormat';
 import { RANK_FIXTURES } from './rank/fixtures';
 import type { RankSubmission } from './rank/types';
 
@@ -240,7 +240,7 @@ describe('player-facing text carries no em dash and no double hyphen (owner rule
     }
     for (const f of RANK_FIXTURES) {
       const lines = [announcement(f.placement, f.result, f.submission), f.error ?? ''];
-      if (f.result) lines.push(deltaText(f.result), cappedDetail(f.result) ?? '', outcomeText(f.result) ?? '');
+      if (f.result) lines.push(deltaText(f.result), outcomeText(f.result) ?? '');
       for (const t of lines) if (offends(t)) bad.push(`fixture ${f.id}: ${t}`);
     }
     expect(bad).toEqual([]);

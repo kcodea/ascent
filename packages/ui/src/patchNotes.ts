@@ -52,6 +52,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Kindness countdown',
+    changes: [
+      { category: 'Systems', text: "Kindness's hero power now says when the next Gift arrives. It counts down the turns and reads This turn on the turn it fires." },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Draws count in your record',
     changes: [
       { category: 'Systems', text: 'A fight where both boards wipe is a draw, and it is still a round. Your Career row and the in-run plaque now show it as a third number, so a 14 round run reads 8-3-3 instead of 8-3.' },

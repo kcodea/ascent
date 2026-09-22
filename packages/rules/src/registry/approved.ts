@@ -1544,4 +1544,24 @@ export const APPROVED_RULES: GameRule[] = [
       + 'Leaderboard and Hall rows already used; the end screen already carried its own draw suffix.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/Career.test.tsx', 'packages/ui/src/ladderPages.test.tsx'], lastVerifiedAt: '2026-09-22' },
   },
+  {
+    id: 'R-TEXT-07',
+    title: 'A hero power on a schedule prints its countdown',
+    statement:
+      'The live-value rule covers hero powers, and a power that fires on a SCHEDULE has a live value even when '
+      + 'its magnitude is fixed: when it next fires. A scheduled power prints the countdown beside its rule, and '
+      + 'says so plainly on the turn it fires, so a player never has to count turns to know what this shop brings. '
+      + 'The countdown reads the same expression the reducer schedules on, so the two cannot drift.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22', quote: 'kindness hero power needs turn counter text' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts heroPowerText (the greatPresence branch); packages/sim/src/reducer.ts (the `wave % 4 === 0` schedule it reads)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22. Kindness (Great Presence, a Gift Discover every 4th turn) printed a bare rule '
+      + 'with no countdown; it now prints the turns remaining, and This turn on the turn itself. Odelle and '
+      + 'Tempest already carried countdowns for their improving grants, which is the same rule for a magnitude.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/gifts.test.ts'], lastVerifiedAt: '2026-09-22' },
+  },
 ];

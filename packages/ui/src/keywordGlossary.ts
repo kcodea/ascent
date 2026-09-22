@@ -69,7 +69,7 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   // Pummel (owner keyword 2026-09-21): the damage-dealt threshold trigger — "**Pummel (40):** …" on Han Gover,
   // "**Pummel (6):** …" on Goldvein. Declared like Avenge (N): the name matches the printed "Pummel (X)" on its
   // word boundary, the number stays in the card text, and the `pummel` mechanic supplies the medallion glyph.
-  { id: 'pummel', name: 'Pummel', aliases: ['Pummels'], section: 'triggers', mechanic: 'pummel', def: 'Pummel (X): Triggers once this minion has dealt X damage in a combat.' },
+  { id: 'pummel', name: 'Pummel', aliases: ['Pummels'], section: 'triggers', mechanic: 'pummel', def: 'Pummel (X): Triggers each time this minion has dealt another X damage. The damage count carries over between combats.' },
   { id: 'rally', name: 'Rally', aliases: [], badge: 'RL', section: 'triggers', mechanic: 'rally', def: 'Triggers each time this minion begins to attack in combat.' },
   { id: 'slaughter', name: 'Slaughter', aliases: [], badge: 'SL', section: 'triggers', mechanic: 'slaughter', def: 'Triggers whenever this minion kills an enemy.' },
   // Overflow (owner keyword 2026-09-19): the `summonOverflow` trigger's printed form — "**Overflow:** …" on every

@@ -57,24 +57,27 @@ export const DIVISIONS_PER_MEDAL = RANK_RULES.divisionsPerMedal;
 export const POINTS_PER_DIVISION = RANK_RULES.divisionPoints;
 export const TOP_DIVISION = rankTopDivision();
 export const DIVISION_COUNT = TOP_DIVISION + 1;
-export const DIVISION_NUMERALS = ['III', 'II', 'I'] as const;
+/** Lowest first: the numerals ASCEND with the climb (owner 2026-09-22), and the CREST PLATE prints them as plain
+ *  digits (owner 2026-09-22, "1/2/3 on crest") while the spoken label (`rankLabel`, "Bronze II") keeps its Roman
+ *  numeral. Indexed by `divisionTierOf - 1`. */
+export const DIVISION_NUMERALS = ['1', '2', '3'] as const;
 export type DivisionNumeral = (typeof DIVISION_NUMERALS)[number];
 
 /** The numeral within its medal as a string plate ("II" for Gold II). */
 export function divisionNumeralOf(divisionIndex: number): DivisionNumeral {
-  return DIVISION_NUMERALS[DIVISIONS_PER_MEDAL - divisionTierOf(divisionIndex)] ?? 'III';
+  return DIVISION_NUMERALS[divisionTierOf(divisionIndex) - 1] ?? '1';
 }
 
-/** Ascendant I has no cap. */
+/** Ascendant III has no cap. */
 export const isUncapped = (divisionIndex: number): boolean => divisionIndex >= TOP_DIVISION;
 
-/** Promoting OUT of a medal's division I is a MEDAL step (needs 1st); any other step is a division step. */
+/** Promoting OUT of a medal's division III is a MEDAL step (needs 1st); any other step is a division step. */
 export const isMedalGate = (divisionIndex: number): boolean => promotionKindAt(divisionIndex) === 'medal';
 
 /**
  * Whether a STANDING (profile / position) is demotion-ready — the rules' STORED flag, read off the profile
  * (`profile.rank.demotionReady`) or its position (`position.demotionReady`), whichever the rules carry it on.
- * The flag is armed ONLY by a loss that hit 0 in a division above Bronze III (rules 2026-09-20, every
+ * The flag is armed ONLY by a loss that hit 0 in a division above Bronze I (rules 2026-09-20, every
  * division since 2026-09-21), cleared by any non-negative result and never set by a promotion landing — so
  * a 0 is NOT derived into a gate here (the flag is the rules' to set, never the shape's). No flag → not
  * demotion-ready.

@@ -58,6 +58,12 @@ Each worked report should end in a structured `BugTriageResult` (exported from `
 (test/scenario files), the source of the expected behavior, and either a proposed fix or an owner-ruling
 escalation. `bugs:close` stores the resolution note in the row's `resolution` jsonb.
 
+**A report worked from the board ends in a RULE.** When a fix ships, add an approved rule to
+`packages/rules/src/registry/approved.ts` in the same PR: a stable `R-<TOPIC>-<NN>` id, the owner's own
+words as `owner-chat` evidence, and the new regression test as `enforcement.refs`. That is what makes Doc
+Bot catch the regression next time instead of the player (owner ask 2026-09-22). The recipe is in
+CLAUDE.md under "Bug fixes become rules".
+
 ## Reproduction contract (`bugs:repro`)
 
 The captured serialized `RunState` is the **primary** reproduction — deserialize it and look. The

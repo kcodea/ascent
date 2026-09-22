@@ -763,8 +763,11 @@ export const SPELLS: CardDef[] = [
 
   // --- New spells (2026-07-23 batch, tranche A — set-agnostic; carried into Set 2 via SET1_SPELLS_IN_SET2). ---
   {
-    // Choose One flat stat grant. `flat: true` opts the buffs OUT of spell power, so the printed "+4" is always
-    // exact — Choose-One option text isn't greened by spellDisplayText. `any` → a warband minion OR a tavern offer.
+    // Choose One single-stat grant. Both branches FOLD spell power like every other stat-granting Shop spell
+    // (owner report 2026-09-21, bug 23c340fb: "crest of the climb not getting spell power buffs"). They shipped
+    // `flat: true` on 2026-07-23 only because Choose One option text had no live-value path then (a flagged
+    // judgement call, never a ruling); the window greens branches since 2026-09-12 (`chooseOneBranchText`) and
+    // the card's own text greens each branch token (`spellDisplayText`). `any` → a warband minion OR a tavern offer.
     id: 'crestclimb',
     name: 'Crest of the Climb',
     tribe: 'neutral',
@@ -777,8 +780,8 @@ export const SPELLS: CardDef[] = [
     target: 'any',
     effects: [],
     chooseOne: [
-      { text: 'Give **+4 Attack**.', effects: [{ on: 'cast', do: 'spellBuffTarget', params: { attack: 4, health: 0, flat: true } }] },
-      { text: 'Give **+4 Health**.', effects: [{ on: 'cast', do: 'spellBuffTarget', params: { attack: 0, health: 4, flat: true } }] },
+      { text: 'Give **+4 Attack**.', effects: [{ on: 'cast', do: 'spellBuffTarget', params: { attack: 4, health: 0 } }] },
+      { text: 'Give **+4 Health**.', effects: [{ on: 'cast', do: 'spellBuffTarget', params: { attack: 0, health: 4 } }] },
     ],
     text: '**Choose One:** give a minion **+4 Attack**, or **+4 Health**.',
   },

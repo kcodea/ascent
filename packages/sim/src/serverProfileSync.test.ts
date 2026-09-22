@@ -58,8 +58,8 @@ describe('resolveServerProfile — reconciling the local mirror with the server'
  */
 describe('resolveServerRank / adoptServerRank — the medal mirror', () => {
   const fresh = initialProfile();
-  const two = settleRank(settleRank(initialRankedProfile(), 1, 'a').profile, 1, 'b'); // rev 2, Bronze III 80
-  const three = settleRank(two.profile, 2, 'c');                                     // rev 3, Bronze III 100 (gate)
+  const two = settleRank(settleRank(initialRankedProfile(), 1, 'a').profile, 1, 'b'); // rev 2, Bronze I 80
+  const three = settleRank(two.profile, 2, 'c');                                     // rev 3, Bronze I 100 (gate)
   const mirrorAt2 = adoptServerRank(fresh, two.profile)!;
 
   it('KEEPS the local mirror when we could not ask', () => {

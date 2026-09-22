@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { CombatResult, QuestObjective } from '@game/core';
-import { CARD_INDEX, QUEST_DEFS } from '@game/content';
+import { ALL_CARDS, ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES } from '@game/content';
 import { KEYWORD_GLOSSARY } from './keywordGlossary';
 import { PATCH_NOTES } from './patchNotes';
 import { combatGains } from './combatGains';
@@ -73,6 +73,7 @@ const TOOLTIP_SOURCES = [
   'RefreshButton.tsx',
   'PracticeOptions.tsx',
   'AvatarPicker.tsx',
+  'BalancePanel.tsx', // dev-only, but the owner reads every hover on it (2026-09-22 rework)
 ];
 
 /** The JSX attributes a player reads: hover tips, native titles, screen-reader labels and the option hints. */
@@ -220,6 +221,48 @@ describe('player-facing text carries no em dash and no double hyphen (owner rule
           taughtSpellText(id, spell!.id, 'Give a friendly minion +2/+2.'),
         ];
         for (const t of outs) if (t && offends(t)) bad.push(`${id}${golden ? ' (gilded)' : ''}: ${t}`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  /**
+   * CARD AND RUNE TEXT (added 2026-09-22 with R-TEXT-05). The owner's rule names every surface a player
+   * reads, and card text is the surface they read most, but the sweeps above never touched it: 29 cards
+   * authored before the rule still separate clauses with an em dash. Rewriting them is a player-facing
+   * content pass with its own patch note, so this pin is a TWO-SIDED RATCHET instead of a flat ban.
+   *  · A card NOT on the list below must never carry one: a new card with an em dash fails here.
+   *  · A card on the list that has been rewritten must come OFF the list, so the debt only shrinks.
+   * Delete an id when you clean its text. When the list empties, delete it and assert `[]` outright.
+   */
+  const EM_DASH_CARD_DEBT = [
+    'anomalyreactor', 'ashen_heir', 'betterbot', 'bloodbinder', 'c3_acolyte', 'c3_cartographer',
+    'c3_channeler', 'c3_courier', 'c3_equinox', 'c3_familiar', 'c3_gardener', 'c3_nym', 'c3_relay',
+    'c3_sentinel', 'c3_tender', 'c3_twilight', 'c3_vendor', 'ce3_coronadevotee', 'consume', 'copycat',
+    'd2_orivax', 'fred', 'gryphon', 'hm_test_squire', 'k3_prismpick', 'mamabear', 'moe', 'spellcart',
+    'taragosaheir',
+  ];
+
+  it('card text: no NEW card carries an em dash, and the legacy debt only shrinks', () => {
+    const offenders = ALL_CARDS.filter((c) => {
+      const strings = [
+        c.name, c.text, c.goldenText ?? '',
+        ...(c.chooseOne ?? []).flatMap((b) => [b.text, b.goldenText ?? '']),
+      ];
+      return strings.some((t) => t && offends(t));
+    }).map((c) => c.id).sort();
+    expect(offenders.length, 'the sweep found no cards at all; is ALL_CARDS still populated?').toBeGreaterThan(0);
+    const fresh = offenders.filter((id) => !EM_DASH_CARD_DEBT.includes(id));
+    expect(fresh, 'new card text with an em dash: house style is one or two short plain sentences').toEqual([]);
+    const cleaned = EM_DASH_CARD_DEBT.filter((id) => !offenders.includes(id));
+    expect(cleaned, 'these cards read clean now: delete them from EM_DASH_CARD_DEBT so the debt cannot grow back').toEqual([]);
+  });
+
+  it('rune text: clean, and stays clean', () => {
+    const bad: string[] = [];
+    for (const r of [...RUNES, ...EPIC_RUNES, ...ARCHIVED_RUNES]) {
+      for (const [where, t] of [['name', r.name], ['text', r.text]] as const) {
+        if (offends(t)) bad.push(`rune ${r.id}.${where}: ${t}`);
       }
     }
     expect(bad).toEqual([]);

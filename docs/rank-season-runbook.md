@@ -78,11 +78,11 @@ function secrets — the same three the previous `submit-rating` used, so nothin
    ```
 
    Expect one `rank_results` row; the profile's `rank_season = 3`, `rank_revision = 1`, `rating` equal to
-   `100 × rank_division + rank_points`, `rank_demotion_ready = false` (a first game from Bronze III can never
+   `100 × rank_division + rank_points`, `rank_demotion_ready = false` (a first game from Bronze I can never
    arm the demotion gate — it is a STORED flag, set only by a loss that lands on 0 in a division above Bronze
    III, and `settle_rank` writes it in the same transaction as the points). The check constraint
    `profiles_rank_demotion_ready_where` must read `(not rank_demotion_ready or (rank_points = 0 and
-   rank_division > 0))` — since 2026-09-21 the flag is valid at 0 in ANY division above Bronze III, no
+   rank_division > 0))` — since 2026-09-21 the flag is valid at 0 in ANY division above Bronze I, no
    longer only at a medal's lowest division:
 
    ```sql
@@ -102,7 +102,7 @@ function secrets — the same three the previous `submit-rating` used, so nothin
 
 ## 5. The season reset — run ONCE, deliberately
 
-This is the owner decision (2026-09-20): everyone starts season 3 at Bronze III 0/100. Old ratings are
+This is the owner decision (2026-09-20): everyone starts season 3 at Bronze I 0/100. Old ratings are
 archived into `season2_rating`; nothing is deleted. Do this only after step 4 proved a settlement works.
 
 ```sql
@@ -193,7 +193,7 @@ promotion landing (a won gate now lands at **10 / 100**, was 0 / 100):
 ## 6c. Rule updates after launch (the 2026-09-21 demotion widening: no instant demotions)
 
 The owner's ruling: *"Hitting 0 MMR should halt the loss and put you in a demotion game. You need to then
-bottom-4 that game to demote."* A loss that would cross 0 in ANY division above Bronze III now clamps at 0 and
+bottom-4 that game to demote."* A loss that would cross 0 in ANY division above Bronze I now clamps at 0 and
 arms the demotion game (it used to demote to `100 + result` inside a medal, and only a medal's lowest division
 was gated). Same shape as 6b, with ONE extra statement pair, because the check constraint changes too:
 
@@ -211,7 +211,7 @@ was gated). Same shape as 6b, with ONE extra statement pair, because the check c
    write is still what stands).
 4. Verify the constraint (the `pg_get_constraintdef` query in section 4 prints it) and smoke test on a
    throwaway account: from
-   Gold II 10 (or any division above Bronze III, off a medal floor) finish 8th. Expect
+   Gold II 10 (or any division above Bronze I, off a medal floor) finish 8th. Expect
    `rank_results.division_after = division_before`, `points_after = 0`, `demotion_ready_after = true`,
    `demoted = false`, `demotion_unlocked = true`, `applied_delta = -10`, `capped_points = 30`, and the profile
    `rank_demotion_ready = true`. Then finish 5th: expect `was_demotion_game = true`, `demoted = true`,

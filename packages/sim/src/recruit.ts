@@ -8,7 +8,7 @@ import { lobbyOpponentBoard } from './lobby/runLobby';
 import { poolOf } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
 import { getHero, type HeroPower, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool } from './heroes';
-import { handCap, recordBounceFx, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
+import { handCap, recordBounceFx, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CardBuff, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 export { ALE_IDS };
 import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
 import { runeStacksOf } from './runeDup';
@@ -51,6 +51,10 @@ type RecruitFn = (
   /** EQUIPMENT activation: the turn clock's reading the action carried (seconds left) — a clock-window
    *  Equipment (Thymepiece) anchors to it. Absent = no reading. */
   clockSeconds?: number;
+  /** EQUIPMENT activation: this activation is AMPLIFIED (its own stack, Rune of Empty Hands, or a Calibration
+   *  Wrench charge). Most effects express that by firing twice; a clock-window Equipment doubles its window
+   *  instead — an Amplified Thymepiece runs 16 seconds (owner 2026-09-22). Absent = not Amplified. */
+  amplified?: boolean;
   /** `equipmentActivated` (set 3 Neutrals, 2026-09-18): WHICH Equipment the player just activated. */
   equipmentId?: string },
 ) => void;
@@ -484,6 +488,25 @@ export function addOfferBuff(offer: ShopCard, source: string, attack: number, he
 }
 
 /**
+ * Bake a tavern offer's accrued buffs (`atk`/`hp` + the per-source `buffs` ledger) onto a body that is leaving
+ * the Shop — the ONE fold every exit shares: the buy, the Displacement restore (`restoreHeldOffer`), a Darah /
+ * Displacement swap-in. Each ledger entry lands under its REAL source name through `addBuff`, so a Ruby stays a
+ * Ruby (stealable, counted by every Ruby reader) and the inspect breakdown names the source. Whatever `atk`/`hp`
+ * carry BEYOND the ledger (a legacy save with no breakdown, or a writer that bypassed `addOfferBuff`) lands as
+ * 'Tavern buff', so the body always receives exactly what the row advertised: `offerBuyStats` and the shop view
+ * both read the TOTALS, and a fold that read the ledger alone paid less than the row promised (the 2026-08-26
+ * shape — found again 2026-09-21 on a Shop spell cast over an offer that already carried a ledger).
+ */
+export function foldOfferBuffs(target: BoardCard, offer: ShopCard): void {
+  let restA = offer.atk ?? 0, restH = offer.hp ?? 0;
+  for (const b of offer.buffs ?? []) {
+    addBuff(target, b.source, b.attack, b.health, b.count);
+    restA -= b.attack; restH -= b.health;
+  }
+  if (restA !== 0 || restH !== 0) addBuff(target, 'Tavern buff', restA, restH);
+}
+
+/**
  * Run a recruit factory dispatch and capture any buff it applied to OTHER board minions as `BuffFxEvent`s on
  * `state.recruitBuffFx`, for the UI to replay as a tendril (living `source`) or a descend (`source` undefined /
  * kind spell|deathrattle). Diffs board `{attack,health}` by uid around `run()`, attributing each other card's
@@ -893,6 +916,17 @@ export function heroPowerText(state: RunState, which = 0, live: HeroPowerLive = 
     const g = aegisGrantOf(state);
     const grant = g.health > 0 ? `+${g.attack}/+${g.health}` : `+${g.attack} Attack`;
     return `Give a friendly minion **Ward**, then give your minions with **Ward** **${grant}**.`;
+  }
+  if (power.kind === 'greatPresence') {
+    // Kindness: a PASSIVE schedule (a Gift Discover at the start of every 4th turn, waves 4, 8, 12 …), so the
+    // only live number it has is the countdown — and without it the player cannot tell whether the next shop
+    // brings a Gift (owner ask 2026-09-22). The card-text live-value rule covers hero powers too (see
+    // `exhibition`). `s.wave % 4 === 0` in the reducer IS the schedule, so the countdown reads off the same
+    // expression: on a Gift turn the shop is already open with the Discover queued, so it prints "This turn".
+    const toNext = 4 - (state.wave % 4);
+    return toNext === 4
+      ? 'Discover a **Gift** every 4 turns. **This turn.**'
+      : `Discover a **Gift** every 4 turns. Next in **${toNext}** turn${toNext === 1 ? '' : 's'}.`;
   }
   if (power.kind === 'exhibition') {
     // Odelle: the grant IMPROVES every 4 cards played, so the printed rule has to move with it — the
@@ -1811,8 +1845,9 @@ export const isStatSpellFactory = (name: string): boolean =>
  * Does this cast effect FOLD the run's spell power into what it grants? The rule the factories follow, stated
  * once: a stat-family factory (`isStatSpellFactory`) that is not documented flat (`SPELL_POWER_EXCUSED`:
  * Apples' shop buffs, Rubies' own channel, Equalize's derived magnitude) and whose params do not opt out with
- * `flat: true` (Crest of the Climb, Tower Shield). Only `on: 'cast'` effects — a Battlecry branch
- * (Wildwood Shaper, Dealer) never reads spell power.
+ * `flat: true` (Tower Shield, a Gift — owner 2026-09-09; Crest of the Climb opted out too until the owner's
+ * 2026-09-21 report, bug 23c340fb). Only `on: 'cast'` effects — a Battlecry branch (Wildwood Shaper, Dealer)
+ * never reads spell power.
  */
 export function effectFoldsSpellPower(e: EffectDef): boolean {
   return e.on === 'cast' && isStatSpellFactory(e.do) && !SPELL_POWER_EXCUSED[e.do]
@@ -2351,14 +2386,18 @@ export function fireEquipmentTriggers(
   triggers: number,
   /** The turn clock's reading the activation carried (seconds left), for a clock-window Equipment. */
   clockSeconds?: number,
+  /** The activation is Amplified (see the payload field): a clock-window Equipment doubles its window. */
+  amplified = false,
 ): boolean {
   const fn = RECRUIT_FACTORIES[def.effectId];
   if (!fn) return false; // an unknown effect id is a content error — never a paid-for no-op
   const ctx = makeContext(state);
-  const params = equipmentParamsFor(def, version);
+  // `_origin: 'equipment'` (2026-09-22): a Whiplass-o steal throws its lasso from the Equipment SLOT — the
+  // owner's 2026-09-12 ruling that "equipment can always be a starting point of an effect", carried in data.
+  const params = { ...equipmentParamsFor(def, version), _origin: 'equipment' };
   for (let t = 0; t < triggers; t += 1) {
     withEquipmentTriggerBeat(state, def.id, t, () => {
-      fn(ctx, self, params, { minion: self, ...(target ? { target } : {}), ...(clockSeconds !== undefined ? { clockSeconds } : {}) });
+      fn(ctx, self, params, { minion: self, ...(amplified ? { amplified } : {}), ...(target ? { target } : {}), ...(clockSeconds !== undefined ? { clockSeconds } : {}) });
     });
     tickResonantArms(state);
   }
@@ -2391,7 +2430,7 @@ function tickResonantArms(state: RunState): void {
  * One fires a random branch (owner note 2026-09-16: no prompt outside the slot); the Star Destroyer never counts.
  * Returns whether anything fired.
  */
-export function fireEquipmentFree(state: RunState, def: EquipmentDefinition, version: 'plain' | 'gilded', self: BoardCard, exclude?: string): { targetUid?: string } | false {
+export function fireEquipmentFree(state: RunState, def: EquipmentDefinition, version: 'plain' | 'gilded', self: BoardCard, exclude?: string): EquipUseFxTarget | false {
   if (def.id === STAR_DESTROYER.id) return false;
   const rng = makeRng(state.rngCursor);
   let fireDef = def;
@@ -2407,10 +2446,11 @@ export function fireEquipmentFree(state: RunState, def: EquipmentDefinition, ver
   }
   state.rngCursor = rng.state();
   const fireSelf = fireDef !== def ? { ...self, golden: false } : self; // one gilding channel (see the reducer's activate case)
+  const fxMark = equipmentFxMark(state);
   if (!fireEquipmentTriggers(state, fireDef, version, fireSelf, target, 1)) return false;
   // The caller stamps the `use` cue — WITH the random target, so the authored def travels to the body it hit
   // (owner 2026-09-18: every Dismantling fire must play; a cue without a destination played on the slot).
-  return target ? { targetUid: target.uid } : {};
+  return target ? { targetUid: target.uid } : (buffedFxTarget(state, fireDef, fxMark) ?? {});
 }
 
 /**
@@ -2458,6 +2498,47 @@ export function withEquipmentTriggerBeat(state: RunState, equipmentId: string, i
 export function stampEquipFx(state: RunState, fx: EquipFx): void {
   (state.equipFx ??= []).push(fx);
   state.equipFxSeq = (state.equipFxSeq ?? 0) + 1;
+}
+
+/** What a `use` cue carries about the body an Equipment's own effect chose. Exactly the `EquipFx` fields it
+ *  fills, so a caller can spread it straight onto the cue. */
+export type EquipUseFxTarget = Pick<EquipFx, 'targetUid' | 'buffAttack' | 'buffHealth'>;
+
+/** Where to read `equipmentFxBuffed` from for the fire that is about to run. Taken BEFORE the fire, so a
+ *  Counterrotation re-fire inside the same action never inherits the player activation's pick. */
+export function equipmentFxMark(state: RunState): number {
+  return (state.equipmentFxBuffed ??= []).length;
+}
+
+/** A BOARD body an Equipment's effect just buffed, recorded for the `use` cue. Display metadata only. */
+export function noteEquipmentFxBuff(state: RunState, uid: string, attack: number, health: number): void {
+  (state.equipmentFxBuffed ??= []).push({ uid, attack, health });
+}
+
+/**
+ * The `use`-cue destinations of an Equipment flagged `useFxTargetsBuffed` (owner ask 2026-09-22: Spiritbinder's
+ * beam must fly at the board Spirit it chose): ONE entry per BOARD pick recorded since `from`, in pick order,
+ * each carrying that pick's own gain — nothing summed. Empty when the Equipment is not flagged or picked nobody.
+ *
+ * ONE PER PICK IS ONE PER FIRE (owner ruling 2026-09-22: "spiritbinder one beam per fire"). The only factory
+ * that records picks, `equipmentBuffRandomTribeBoardAndHand`, draws AT MOST ONE board body per fire, so a
+ * multi-trigger or Amplified activation reads back exactly one entry per fire that found a recipient, in fire
+ * order, and the reducer stamps one `use` cue per entry — the way Rally and Shout count repeated triggers at
+ * the signal. (Before this ruling the entries were folded into ONE cue aimed at the LAST pick, so an earlier
+ * pick fell through to the generic self-buff burst and two fires read as one beam plus one unrelated pulse.)
+ * A factory that ever recorded two picks in one fire would earn two cues for that fire, one per body hit, which
+ * is still one beam per recipient.
+ */
+export function buffedFxTargets(state: RunState, def: EquipmentDefinition, from: number): EquipUseFxTarget[] {
+  if (!def.useFxTargetsBuffed) return [];
+  return (state.equipmentFxBuffed ?? []).slice(from).map((p) => ({ targetUid: p.uid, buffAttack: p.attack, buffHealth: p.health }));
+}
+
+/** The destination of a SINGLE fire — `fireEquipmentFree` (a Dismantling sale, a Counterrotation re-fire) runs
+ *  exactly one trigger, so this is the one pick it made, or `undefined` when it made none / is not flagged. */
+export function buffedFxTarget(state: RunState, def: EquipmentDefinition, from: number): EquipUseFxTarget | undefined {
+  const hits = buffedFxTargets(state, def, from);
+  return hits[hits.length - 1];
 }
 
 export function stampShopFx(state: RunState, fx: ShopDeathFx): void {
@@ -3653,7 +3734,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // targeted version let the player aim it at the Shaman too).
     const onBoard = ctx.state.board.filter((c) => isTribe(c, tribe));
     const inHand = ctx.state.hand.filter((c) => isTribe(c, tribe) && !CARD_INDEX[c.cardId]?.spell);
-    for (const t of pickRandom(ctx.state, onBoard, 1)) addBuff(t, nameOf(self), a, h);
+    // The BOARD pick is recorded for the `use` cue (owner ask 2026-09-22): the Equipment's beam flies at it and
+    // its numbers are withheld until the beam lands. The HAND pick is NOT recorded and must not be - its pop is
+    // the generic hand-buff cue, a pure render diff in the UI, and a second channel would double it.
+    // AT MOST ONE board pick per fire (`pickRandom(…, 1)`): `buffedFxTargets` turns each recorded pick into one
+    // `use` cue, so this is what makes "one cue per pick" equal "one beam per fire" (owner 2026-09-22). Recording
+    // a second board pick here would stamp a second cue for the same fire.
+    for (const t of pickRandom(ctx.state, onBoard, 1)) { addBuff(t, nameOf(self), a, h); noteEquipmentFxBuff(ctx.state, t.uid, a, h); }
     for (const t of pickRandom(ctx.state, inHand, 1)) addBuff(t, nameOf(self), a, h);
   },
 
@@ -4464,13 +4551,19 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    * Thymepiece (one Equipment TRIGGER; owner design 2026-09-12): every shop CARD costs `amount` less Gold for
    * the next `seconds` of the turn clock. The activation carries the clock's reading (`payload.clockSeconds`,
    * seconds LEFT — the clock counts down), so the window closes at `clockSeconds − seconds`; with no reading
-   * (a test, an old recording) the window runs to the end of the turn (`untilClock: null`). A second trigger
-   * or activation while a window is open REPLACES it with the fresher, larger one — the amounts do not stack
-   * (the design is "−1 for 8 seconds", not a bank), but a re-use never shortens a window already running.
+   * (a test, an old recording) the window runs to the end of the turn (`untilClock: null`). A later activation
+   * while a window is open REPLACES it with the fresher, larger one — the amounts do not stack (the design is
+   * "−1 for 8 seconds", not a bank), but a re-use never shortens a window already running.
+   *
+   * AMPLIFIED DOUBLES IT (owner 2026-09-22: "an amplified timepiece should double the duration"). An Amplified
+   * activation fires this twice, and a second 8-second window would just replace the first; so the window is
+   * `seconds × 2` whenever the activation is Amplified (both triggers open the same 16-second window and the
+   * rule below keeps it). An EXTRA trigger from any other source does not lengthen it — that stays "a rate,
+   * not a bank" (set3Dwarves.test.ts). The AMOUNT is never multiplied: "−1 for 16 seconds", never "−2".
    */
   equipmentCardDiscountWindow: (ctx, _self, params, payload) => {
     const amount = Math.max(0, num(params.amount, 1));
-    const seconds = Math.max(0, num(params.seconds, 8));
+    const seconds = Math.max(0, num(params.seconds, 8)) * (payload.amplified ? 2 : 1);
     const reading = payload.clockSeconds;
     const untilClock = typeof reading === 'number' && Number.isFinite(reading) ? reading - seconds : null;
     const cur = ctx.state.cardDiscountWindow;
@@ -7246,9 +7339,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     let health = num(params.health);
     // Stat-granting spells pick up the run's spell power (Spellbinder hero + cards: Cinderwing on
     // Health, Skullblade on Attack). The UI shows the same effective value via spellDisplayText — one
-    // source of truth (spellAttackBonus / spellHealthBonus). `flat: true` opts OUT (Crest of the Climb's
-    // Choose-One single-stat grants stay exactly as printed; `chooseOneBranchText` reads the same flag, so the
-    // Choose One window never greens a flat branch).
+    // source of truth (spellAttackBonus / spellHealthBonus). `flat: true` opts OUT (Tower Shield, a Gift that
+    // takes no buff by owner ruling 2026-09-09; `chooseOneBranchText` reads the same flag, so the Choose One
+    // window never greens a flat branch). Crest of the Climb's single-stat branches used to opt out as well —
+    // they fold since 2026-09-21 (owner report, bug 23c340fb), so "+4 Health" under +0/+1 power lands +5.
     if (!params.flat && (attack > 0 || health > 0)) {
       attack += spellAttackBonus(ctx.state);
       health += spellHealthBonus(ctx.state);
@@ -7452,6 +7546,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const def = pick.def!;
       if (def.spell || def.ruby) {
         st.hand.push({ uid: `b${st.uidSeq++}`, cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false });
+      } else if (pick.o.held) {
+        // A displaced body comes back WHOLE (its own ledger + progression + what it accrued in the row), never a
+        // fresh base body wearing its stats — the same restore the re-buy performs.
+        st.hand.push(restoreHeldOffer(st, pick.o));
       } else {
         const stats = offerBuyStats(st, pick.o);
         st.hand.push({ uid: `b${st.uidSeq++}`, cardId: def.id, tribe: def.tribe, attack: stats.attack, health: stats.health, keywords: [...def.keywords], golden: !!pick.o.golden });
@@ -7654,6 +7752,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const card = CARD_INDEX[offer.cardId];
       if (!card) return;
       state.shop.splice(idx, 1); // stolen — leaves the tavern (the pooled copy travels with it to the hand)
+      // THE LASSO BEAM's signal (owner ask 2026-09-22). Recorded HERE, at the one place every steal resolves, so
+      // the spell, Rope Wrangler, Whiplass-o and Rune of Lassoing all feed one channel. The reducer still resolves
+      // the theft immediately — the record is only what lets the UI pace it. `_origin` is set by the caller that
+      // knows where the beam should launch from; a plain hand cast leaves it unset and means the drop point.
+      const recordSteal = (): void => {
+        state.lassoFx = [...(state.lassoFx ?? []), {
+          offer,
+          index: idx,
+          handUid: state.hand[state.hand.length - 1]?.uid ?? '',
+          origin: str(params._origin) || 'spell',
+        }];
+        state.lassoFxSeq = (state.lassoFxSeq ?? 0) + 1;
+      };
+      // A displaced (held) body is the likeliest top-Tier offer in the row: it comes back WHOLE (its own ledger +
+      // progression + what it accrued there), the same restore the re-buy performs, never a fresh base body.
+      if (offer.held) { state.hand.push(restoreHeldOffer(state, offer)); recordSteal(); continue; }
       const cb = cardBuff(state, card.id); // a stolen Fodder carries Ritualist's run buff, like a buy
       state.hand.push({
         uid: `b${state.uidSeq++}`,
@@ -7665,6 +7779,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         keywords: [...card.keywords, ...(offer.keywords ?? []).filter((k) => !card.keywords.includes(k))],
         golden: false,
       });
+      recordSteal();
     }
   },
 
@@ -7780,9 +7895,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       for (const i of [shopIdx - 1, shopIdx + 1]) {
         const o = state.shop[i];
         if (!o || CARD_INDEX[o.cardId]?.spell || CARD_INDEX[o.cardId]?.ruby) continue;
+        // A Displacement-HELD offer is the stashed body sitting in the row, and the row prints the body's own
+        // Rubies and the ones the offer accrued as ONE tally (`heldOfferLedger`) — so Transfer takes the whole
+        // printed tally: the accrued stamp off the offer, the body's own off the stash. Each ledger nets to zero,
+        // and the drained body is what `restoreHeldOffer` hands back. (Judgement call 2026-09-21: the printed
+        // number and what the spell steals must agree; the alternative was two separate Ruby lines.)
+        const offerRuby = (): CardBuff | undefined => o.buffs?.find((b) => b.source === 'Ruby');
+        const heldRuby = (): CardBuff | undefined => o.held?.buffs?.find((b) => b.source === 'Ruby');
         donors.push({
-          rubyOf: () => { const e = o.buffs?.find((b) => b.source === 'Ruby'); return { attack: e?.attack ?? 0, health: e?.health ?? 0 }; },
-          take: (a, h) => addOfferBuff(o, 'Ruby', -a, -h),
+          rubyOf: () => {
+            const e = offerRuby(), hb = heldRuby();
+            return { attack: (e?.attack ?? 0) + (hb?.attack ?? 0), health: (e?.health ?? 0) + (hb?.health ?? 0) };
+          },
+          take: () => {
+            const e = offerRuby(); if (e) addOfferBuff(o, 'Ruby', -e.attack, -e.health);
+            const hb = heldRuby(); if (hb && o.held) addBuff(o.held, 'Ruby', -hb.attack, -hb.health);
+          },
         });
       }
     } else {
@@ -8242,7 +8370,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (let i = 0; i < n; i++) {
       const friends = ctx.state.board.filter((c) => c !== self);
       const target = friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
-      applyCastEffects(ctx, spellDef, target);
+      // The CASTER is the origin of a lasso beam (Rope Wrangler), not the carry the untargeted spell was
+      // handed — `applyCastEffects` passes `target` down as `self`, so the factory cannot tell them apart.
+      applyCastEffects(ctx, spellDef, target, self ? `board:${self.uid}` : undefined);
       ctx.state.spellsCast += 1;
       ctx.state.spellsThisTurn += 1;
     }
@@ -8259,7 +8389,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!spellDef || spellDef.singleCast) return;
     const times = num(params.times, 1) * gold(self);
     for (let i = 0; i < times; i++) {
-      applyCastEffects(ctx, spellDef, self);
+      applyCastEffects(ctx, spellDef, self, self ? `board:${self.uid}` : undefined);
       ctx.state.spellsCast += 1;
       ctx.state.spellsThisTurn += 1;
     }
@@ -8274,7 +8404,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (let i = 0; i < times; i++) {
       const friends = ctx.state.board.filter((c) => c !== self);
       const target = friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
-      applyCastEffects(ctx, spellDef, target);
+      // The CASTER is the origin of a lasso beam (Rope Wrangler), not the carry the untargeted spell was
+      // handed — `applyCastEffects` passes `target` down as `self`, so the factory cannot tell them apart.
+      applyCastEffects(ctx, spellDef, target, self ? `board:${self.uid}` : undefined);
       ctx.state.spellsCast += 1;
       ctx.state.spellsThisTurn += 1;
     }
@@ -8451,8 +8583,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  the combat death site (`noteCardDeath`) reads it and grants the run-wide `cardBuffs` enchant, which the shop
    *  already bakes into every copy (board, hand, future). Nothing to do here; the stub keeps the phase map honest. */
   cardDeathScaler: () => {},
-  dealtDamageAleMeter: () => {}, // Han Gover (Pummel (40)): combat-only meter, once per combat; starts every fight at 0 and carries back 0
-  dealtDamageGoldNextTurn: () => {}, // Goldvein (2026-09-19): the same combat-only meter, a Gold-next-turn body
+  dealtDamageAleMeter: () => {}, // Han Gover (Pummel (40)): a combat-read meter (`noteDamageDealt`); the LIFETIME tally carries shop → combat → shop (carry-over ruling 2026-09-21), one payout per combat
+  dealtDamageGoldNextTurn: () => {}, // Goldvein (2026-09-19): the same combat-read meter, a Gold-next-turn body
 
   /** NIGHT MARKET HORROR — "After you buy a card, give minions in the shop +2/+2 THIS TURN."
    *
@@ -9223,6 +9355,36 @@ export function spellHealthBonus(state: RunState): number {
   return spellStatBonus(state) + (state.spellBonus?.health ?? 0) + (state.nextSpellBonus?.health ?? 0);
 }
 
+/* ------------------------------------------------------------------------------------------------------
+ * DISPLAY-ONLY live readouts. Combat is a pure simulation: `simulate` keeps its own spell power and its own
+ * escalation step live inside the fight, and the run only learns the totals at settle. These three fold the
+ * replay's display previews (`fxSpellPowerPreview` / `fxEscalationPreview`) on top of the banked run value so
+ * a card's PRINTED number ticks as the fight plays and lands exactly where settle banks it (owner report
+ * 2026-09-22: spell text "not updating in real time from buffs in combat").
+ *
+ * NEVER call these from cast math. `spellAttackBonus` / `spellHealthBonus` are the reducer's real buff
+ * magnitude; folding a replay preview into those would let a cosmetic value change actual stats. Outside a
+ * combat replay every preview is `undefined`, so each of these is exactly its non-Live twin.
+ * ---------------------------------------------------------------------------------------------------- */
+
+/** `spellAttackBonus` plus the combat replay's display-only spell-power preview. Display only. */
+export function spellAttackBonusLive(state: RunState): number {
+  return spellAttackBonus(state) + (state.fxSpellPowerPreview?.attack ?? 0);
+}
+
+/** `spellHealthBonus` plus the combat replay's display-only spell-power preview. Display only. */
+export function spellHealthBonusLive(state: RunState): number {
+  return spellHealthBonus(state) + (state.fxSpellPowerPreview?.health ?? 0);
+}
+
+/** The run's escalating-spell step (Front to Back) plus the replay's display-only preview. Display only. */
+export function spellEscalationLive(state: RunState): { attack: number; health: number } {
+  return {
+    attack: state.frontToBackBonus + (state.fxEscalationPreview?.attack ?? 0),
+    health: (state.frontToBackBonusH ?? state.frontToBackBonus) + (state.fxEscalationPreview?.health ?? 0),
+  };
+}
+
 /**
  * A spell's display text with its stat value updated to reflect spell power (and highlighted green via
  * `{{…}}`). `bonusA` is the +Attack bonus; `bonusH` the +Health bonus (defaults to `bonusA` so existing
@@ -9421,6 +9583,16 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
       const a = Number((e.params as { attack?: number } | undefined)?.attack ?? 0), h = Number((e.params as { health?: number } | undefined)?.health ?? 0);
       t = t.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
     }
+    // A sibling Choose One branch that folds too (Aspect's Blessing's "+2/+1" random-friendly branch) greens in
+    // the same pass: returning here with only the flat3 token live left the card face and the Choose One window
+    // (`chooseOneBranchTextFor`) disagreeing on that branch (review finding 2026-09-22, bug 23c340fb).
+    for (const opt of def.chooseOne ?? []) {
+      for (const e of opt.effects ?? []) {
+        if (flat3.includes(e) || !effectFoldsSpellPower(e)) continue;
+        const p = e.params as { attack?: number; health?: number } | undefined;
+        t = liveStatToken(t, num(p?.attack, 0), num(p?.health, 0), bonusA, bonusH);
+      }
+    }
     return t;
   }
   // Great Pot: its one-per-type "+A/+H" folds spell power on both stats (bug a17a48ab, Bug Board round 1 —
@@ -9508,6 +9680,21 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     const h = Number((impBuff.params as { health?: number } | undefined)?.health ?? 2);
     return def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
   }
+  // A spell Choose One whose branches are plain stat grants (Crest of the Climb: "+4 Attack" / "+4 Health"): each
+  // branch that folds spell power greens its OWN token in the card's text, in the shape the Choose One window
+  // prints it (`liveStatToken`), so the shop / hand / hover card and the window never disagree. Crest opted out
+  // via `flat: true` until the owner's 2026-09-21 report (bug 23c340fb); the fold rule decides, not a card list.
+  if (def.chooseOne?.length) {
+    let t = def.text;
+    for (const opt of def.chooseOne) {
+      for (const e of opt.effects ?? []) {
+        if (!effectFoldsSpellPower(e) || (e.do !== 'spellBuffTarget' && e.do !== 'spellBuffAll')) continue;
+        const p = e.params as { attack?: number; health?: number } | undefined;
+        t = liveStatToken(t, num(p?.attack, 0), num(p?.health, 0), bonusA, bonusH);
+      }
+    }
+    if (t !== def.text) return t;
+  }
   const eff = def.effects.find((e) => e.do === 'spellBuffTarget' || e.do === 'spellBuffAll');
   if (!eff) return def.text;
   const ba = Number((eff.params as { attack?: number } | undefined)?.attack ?? 0);
@@ -9525,11 +9712,12 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
  * windows as well"; the hard live-text rule in CLAUDE.md).
  *
  * Which magnitudes move is decided by `effectFoldsSpellPower` — the fold rule the factories follow, not a
- * per-card list — so a flat branch (Crest of the Climb's `flat: true`, Apples' documented-flat shop buff) keeps
- * its authored number, and a MINION Choose One (a Battlecry, never a cast) is returned untouched. Shapes:
- * "+A/+H" → "{{+A'/+H'}}"; a single-stat "+A Attack" becomes the full live pair once the other stat's power is
- * up (the factories add both bonuses to any grant), else "{{+A' Attack}}". Golden reads the branch's
- * `goldenText` (its doubled magnitudes) — no spell is golden today, kept for symmetry with every other helper.
+ * per-card list — so a flat branch (`flat: true`) or an excused one keeps its authored number, and a MINION
+ * Choose One (a Battlecry, never a cast) is returned untouched. Shapes (`liveStatToken`): "+A/+H" →
+ * "{{+A'/+H'}}"; a single-stat "+A Attack" becomes the full live pair once the other stat's power is up (the
+ * factories add both bonuses to any grant), else "{{+A' Attack}}" — Crest of the Climb's "+4 Health" under
+ * +0/+1 power reads "{{+5 Health}}", under +1/+1 "{{+1/+5}}". Golden reads the branch's `goldenText` (its
+ * doubled magnitudes) — no spell is golden today, kept for symmetry with every other helper.
  */
 export function chooseOneBranchTextFor(def: CardDef | undefined, index: number, golden: boolean, bonusA: number, bonusH: number): string {
   const opt = def?.chooseOne?.[index];
@@ -9545,14 +9733,25 @@ export function chooseOneBranchTextFor(def: CardDef | undefined, index: number, 
     // The printed magnitude: the authored params, or their double on a golden branch (where `goldenText` prints
     // the doubled number). Try the authored value first so an un-doubled golden text still greens.
     for (const k of golden ? [1, 2] : [1]) {
-      const a = a0 * k, h = h0 * k;
       const before = t;
-      if (a > 0 && h > 0) t = t.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
-      else if (a > 0) t = t.replace(`+${a} Attack`, bonusH > 0 ? `{{+${a + bonusA}/+${bonusH}}}` : `{{+${a + bonusA} Attack}}`);
-      else t = t.replace(`+${h} Health`, bonusA > 0 ? `{{+${bonusA}/+${h + bonusH}}}` : `{{+${h + bonusH} Health}}`);
+      t = liveStatToken(t, a0 * k, h0 * k, bonusA, bonusH);
       if (t !== before) break;
     }
   }
+  return t;
+}
+
+/**
+ * Rewrite ONE printed stat token as the live value a spell-power-folding factory grants: "+A/+H" →
+ * "{{+A'/+H'}}"; a single-stat "+A Attack" / "+H Health" keeps its single-stat shape while the other stat's
+ * power is 0, else becomes the full live pair (`spellBuffTarget` adds BOTH bonuses to any grant). Shared by the
+ * Choose One window (`chooseOneBranchTextFor`) and the card's own text (`spellDisplayText`), so the two
+ * surfaces print the same number for the same branch. Untouched when nothing matches.
+ */
+function liveStatToken(t: string, a: number, h: number, bonusA: number, bonusH: number): string {
+  if (a > 0 && h > 0) return t.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
+  if (a > 0) return t.replace(`+${a} Attack`, bonusH > 0 ? `{{+${a + bonusA}/+${bonusH}}}` : `{{+${a + bonusA} Attack}}`);
+  if (h > 0) return t.replace(`+${h} Health`, bonusA > 0 ? `{{+${bonusA}/+${h + bonusH}}}` : `{{+${h + bonusH} Health}}`);
   return t;
 }
 
@@ -9563,14 +9762,16 @@ export function chooseOneBranchText(cardId: string, index: number, golden: boole
 
 /** Apply a spell's `cast` effects to its chosen target. The spell's name is injected as `_source`
  *  so target buffs (Spirit Fire) record it for the inspect breakdown. */
-export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?: BoardCard): void {
+export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?: BoardCard, origin?: string): void {
   for (const effect of spellDef.effects) {
     if (effect.on !== 'cast') continue;
     const fn = RECRUIT_FACTORIES[effect.do];
     // Board-wide cast effects (Growth) ignore `self`; targeted ones (Spirit Fire) always get a target.
     // `_source` labels target buffs in the inspect breakdown; `_maxTier` carries the spell's gild cap
     // (Eyes of Aresmar) down to the factory.
-    const params = { ...(effect.params ?? {}), _source: spellDef.name, _spellId: spellDef.id, _maxTier: spellDef.targetMaxTier };
+    // `_origin` (2026-09-22) rides the same private-param channel as `_source`: it tells `stealTavernMinion`
+    // where the lasso beam should launch from. Presentation only — no factory branches on it.
+    const params = { ...(effect.params ?? {}), _source: spellDef.name, _spellId: spellDef.id, _maxTier: spellDef.targetMaxTier, ...(origin ? { _origin: origin } : {}) };
     if (!fn) continue;
     // CHOREOGRAPHER PR 15 — a cast is a SOURCE moment. Every `cast` effect in the game flows through here,
     // so instrumenting this one site gives the whole spell surface a beat rather than touching 66 factories.
@@ -10346,6 +10547,44 @@ export function applyBattlecryTarget(state: RunState, card: BoardCard, target: B
  * fired — the hero charge is only spent when it did.
  */
 /**
+ * Restore a Displacement-held minion out of its tavern offer: the SAME body that went in (every buff / stat /
+ * progression intact) PLUS whatever the offer accrued while it sat in the Shop — Veinstorm's Rubies, Fortify,
+ * Fried Circuits, a rune's shop enchant, a keyword a Shop spell added. Shared by BOTH restore paths (the re-buy
+ * in the reducer and the swap-back in `swapWithTavern`) so they can never disagree.
+ *
+ * Owner bug report 2026-09-21: "I swapped Chimerus to the Shop (Darah) and used Veinstorm and it did not buff
+ * it." Veinstorm DID stamp the held offer (`addOfferBuff` writes `offer.atk`/`hp`/`buffs` like any other offer),
+ * but both restore paths rebuilt the body from `held` verbatim and never read the offer's buffs — the
+ * 2026-07-29 fix had patched only `golden` on this path, so every other offer-level buff was silently
+ * dropped. The accrued buffs now land through `addBuff` under their OWN source names, exactly as the normal buy
+ * bakes them, so a Ruby stays a Ruby (stealable by Ruby Transfer, counted by every Ruby reader) and the
+ * inspect breakdown names the source. A held offer's `atk`/`hp` are ONLY ever the accrued Shop buffs (never
+ * seeded from the held body — see the offer build in `swapWithTavern`), so adding them here cannot double-count.
+ *
+ * Deliberately NO `applyOnBuy` and none of the run-wide buy channels (Staff of Guel, tribe buy-auras): this is
+ * a restoration, not a fresh purchase, so Broker & co. don't re-bake. The Golden Touch re-gild stays.
+ */
+export function restoreHeldOffer(state: RunState, offer: ShopCard): BoardCard {
+  const held = offer.held!;
+  // Deep-copy the mutable arrays (and the buff ledger's entries — `addBuff` bumps them in place) so the restored
+  // minion never SHARES `keywords`/`buffs` with anything (a shared array + an in-place weld/buff would leak onto
+  // the alias — the Bounty Bot Ward bug).
+  const restored: BoardCard = {
+    ...held,
+    uid: `b${state.uidSeq++}`,
+    keywords: [...held.keywords, ...(offer.keywords ?? []).filter((k) => !held.keywords.includes(k))],
+    buffs: held.buffs ? held.buffs.map((b) => ({ ...b })) : undefined,
+  };
+  // The offer's accrued Shop buffs bake in under their REAL source names (the same fold as the normal buy);
+  // anything `atk`/`hp` carry beyond the ledger lands under the generic label, so the body gets the row's total.
+  foldOfferBuffs(restored, offer);
+  // A HELD offer that was GILDED in the tavern must come back golden (owner bug report 2026-07-29: Golden
+  // Touch appeared to do nothing on a displaced minion). Gild AFTER the buffs so the doubling stays base-only.
+  if (offer.golden && !restored.golden) gildMinion(restored);
+  return restored;
+}
+
+/**
  * Swap a friendly board minion with a RANDOM tavern offer (shared by the Displacement spell + Darah's
  * Displace power). The displaced minion goes to the tavern KEEPING all its state (buffs / stats / progression),
  * stashed on the offer's `held` and restored intact when re-bought or swapped back. The incoming tavern minion
@@ -10369,24 +10608,33 @@ export function swapWithTavern(state: RunState, boardMinion: BoardCard): boolean
   if (!def) return false;
   let incoming: BoardCard;
   if (offer.held) {
-    // Deep-copy the mutable arrays so the restored minion never SHARES `keywords`/`buffs` with anything (a
-    // shared array + an in-place weld/buff would leak onto the alias — the Bounty Bot Ward bug).
-    incoming = { ...offer.held, uid: `b${state.uidSeq++}`, keywords: [...offer.held.keywords], buffs: offer.held.buffs ? [...offer.held.buffs] : undefined }; // a previously-displaced minion returns intact
+    // A previously-displaced minion returns intact — PLUS every buff the offer accrued in the Shop and a Golden
+    // Touch gild (`restoreHeldOffer`, shared with the re-buy path). Folded BEFORE it lands on the board, like a
+    // bought body, so the Soulbind / Shared Spoils mirrors in `addBuff` don't see it as a board gain.
+    incoming = restoreHeldOffer(state, offer);
   } else {
     incoming = {
       uid: `b${state.uidSeq++}`,
       cardId: offer.cardId,
       tribe: def.tribe,
-      attack: def.attack + (offer.atk ?? 0),
-      health: def.health + (offer.hp ?? 0),
+      attack: def.attack,
+      health: def.health,
       keywords: [...def.keywords, ...(offer.keywords ?? []).filter((k) => !def.keywords.includes(k))],
       golden: offer.golden ?? false,
     };
-    if (incoming.golden) { incoming.attack += def.attack; incoming.health += def.health; } // golden doubles BASE only (offer buffs single)
+    // The offer's accrued buffs land under their OWN names (the same fold as a buy), so a Veinstorm-stamped
+    // offer swapped in still carries its Rubies as Rubies (Ruby Transfer, Gemheart's Golem and the inspect
+    // breakdown all read the 'Ruby' entry; a bare stat fold used to lose the attribution), then the gild as its
+    // own line: golden doubles the BASE only (offer buffs stay single). Folded BEFORE it lands on the board.
+    foldOfferBuffs(incoming, offer);
+    if (incoming.golden) addBuff(incoming, 'Golden Touch', def.attack, def.health);
   }
   state.board[bi] = incoming;
   // The displaced minion → the tavern, its FULL state stashed on the offer (restored on buy / swap-back).
-  state.shop[si] = { uid: `s${state.uidSeq++}`, cardId: boardMinion.cardId, held: { ...boardMinion, keywords: [...boardMinion.keywords], buffs: boardMinion.buffs ? [...boardMinion.buffs] : undefined } };
+  // INVARIANT: the new offer carries NO `atk`/`hp`/`buffs` of its own — those fields are reserved for the buffs
+  // it ACCRUES while it sits in the Shop (Veinstorm, Fortify, …), which `restoreHeldOffer` adds on top of the
+  // held body. Seeding them from the body here would pay its stats twice on the way back.
+  state.shop[si] = { uid: `s${state.uidSeq++}`, cardId: boardMinion.cardId, held: { ...boardMinion, keywords: [...boardMinion.keywords], buffs: boardMinion.buffs ? boardMinion.buffs.map((b) => ({ ...b })) : undefined } };
   // Signal the UI to fire the circular swap-arrows FX between the two new cards (one-shot, like chaosGrantSeq).
   state.swapFxSeq = (state.swapFxSeq ?? 0) + 1;
   state.swapFxBoardUid = incoming.uid;
@@ -10683,7 +10931,14 @@ function fodderMultiplier(consumer: BoardCard): number {
  * Undead on the board / in combat, so transferring it onto a Demon would double-dip a temporary aura).
  */
 export function offerBuyStats(state: RunState, offer: ShopCard): { attack: number; health: number } {
-  if (offer.held) return { attack: offer.held.attack, health: offer.held.health };
+  // A held body is worth what `restoreHeldOffer` hands back: its preserved stats + the buffs the offer accrued
+  // in the Shop (Veinstorm Rubies, Fortify) + a Golden Touch re-gild's base doubling. Never the run-wide
+  // channels (a restoration, not a purchase).
+  if (offer.held) {
+    const def = CARD_INDEX[offer.held.cardId];
+    const gild = offer.golden && !offer.held.golden ? { attack: def?.attack ?? 0, health: def?.health ?? 0 } : { attack: 0, health: 0 };
+    return { attack: Math.max(0, offer.held.attack + (offer.atk ?? 0)) + gild.attack, health: offer.held.health + (offer.hp ?? 0) + gild.health };
+  }
   const def = CARD_INDEX[offer.cardId];
   if (!def) return { attack: 0, health: 0 };
   // THE STARFORM: its whole total is BAKED onto the offer (`starform.ts` folds the run-wide / this-turn shop
@@ -11158,7 +11413,7 @@ export function fireRecruitDeathrattlesForTest(state: RunState, minion: BoardCar
   fireRecruitDeathrattles(makeContext(state), minion);
 }
 
-export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard): void {
+export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard, origin?: string): void {
   const ctx = makeContext(state);
   // SPELLHIDE + SPELLMARKET both key off "the first STAT-GRANTING Shop spell you cast on a minion this turn",
   // so "stat-granting" is measured across the cast rather than inferred from the card: the spell qualifies
@@ -11175,7 +11430,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   // is lifted out for the duration of a Gift's cast and put back after.
   const heldNextBonus = spellDef.gift ? state.nextSpellBonus : undefined;
   if (heldNextBonus) state.nextSpellBonus = undefined;
-  applyCastEffects(ctx, spellDef, target); // board-wide spells (Growth) run without a target
+  applyCastEffects(ctx, spellDef, target, origin); // board-wide spells (Growth) run without a target
   if (heldNextBonus) state.nextSpellBonus = heldNextBonus;
   if (weaveBefore) {
     let wa = 0, wh = 0;
@@ -11496,20 +11751,36 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
  *  folds the net stat + added-keyword changes back onto the ShopCard so they bake in when bought (the way
  *  the Fortify hero power's offer buff already does). The rest of `castSpell` (tally, spell power,
  *  spellCast triggers) still runs on the run. NB: a spell that *removes* a base keyword can't subtract it
- *  from an offer (offers only carry added keywords) — a rare edge that resolves once the minion is bought. */
+ *  from an offer (offers only carry added keywords) — a rare edge that resolves once the minion is bought.
+ *
+ *  THE LEDGER FOLLOWS THE TOTAL: whatever the spell changed lands in `offer.buffs` under the spell's name, so
+ *  the per-source breakdown keeps summing to `atk`/`hp`. This fold used to write the totals alone, and every
+ *  exit that bakes the ledger (the buy, `restoreHeldOffer`) then dropped the spell's share whenever the offer
+ *  already carried a ledger (a Shatter over a Veinstorm stamp paid the Rubies and lost the +2/+4). A factory
+ *  that writes the offer ledger itself during the cast (Ruby Transfer's `addOfferBuff`) is netted out, never
+ *  counted twice.
+ *
+ *  A Displacement-HELD offer is the stashed BODY sitting in the row, so the spell acts on that body's stats and
+ *  keywords (Perfect Vision sets the displaced minion to 20/20, Turnabout swaps ITS Attack and Health) and the
+ *  delta folds back relative to the body, exactly what `restoreHeldOffer` adds on top of it. A transform
+ *  (Strange Revision) re-identifies the stash too, keeping its bonus above base the way the factory did. */
 export function castSpellOnOffer(state: RunState, spellDef: CardDef, offer: ShopCard): void {
   const card = CARD_INDEX[offer.cardId];
   if (!card) return;
-  const base = card.keywords;
+  const held = offer.held; // a displaced body: the spell reads and re-bases on ITS stats, not the printed card's
+  const base = held ? held.keywords : card.keywords;
   const temp: BoardCard = {
     uid: offer.uid,
     cardId: offer.cardId,
     tribe: card.tribe,
-    attack: card.attack + (offer.atk ?? 0),
-    health: card.health + (offer.hp ?? 0),
+    attack: (held ? held.attack : card.attack) + (offer.atk ?? 0),
+    health: (held ? held.health : card.health) + (offer.hp ?? 0),
     keywords: [...base, ...(offer.keywords ?? []).filter((k) => !base.includes(k))],
     golden: false,
   };
+  const ledgerSum = (o: ShopCard): { a: number; h: number } =>
+    (o.buffs ?? []).reduce((acc, b) => ({ a: acc.a + b.attack, h: acc.h + b.health }), { a: 0, h: 0 });
+  const pre = { atk: offer.atk ?? 0, hp: offer.hp ?? 0, ...ledgerSum(offer) };
   castSpell(state, spellDef, temp);
   // Fold the result back against what the card IS NOW — a transform (Strange Revision, owner 2026-08-04)
   // rewrites `temp.cardId`, so the offer becomes the new minion and the deltas re-base on ITS printed stats
@@ -11522,10 +11793,27 @@ export function castSpellOnOffer(state: RunState, spellDef: CardDef, offer: Shop
     return;
   }
   const after = CARD_INDEX[temp.cardId] ?? card;
+  if (held && temp.cardId !== held.cardId) {
+    // The transform re-identifies the stashed body: new printed base + the bonus it had above its old one.
+    held.attack = after.attack + (held.attack - card.attack);
+    held.health = after.health + (held.health - card.health);
+    held.cardId = temp.cardId;
+    held.tribe = temp.tribe;
+  }
   offer.cardId = temp.cardId;
-  offer.atk = temp.attack - after.attack;
-  offer.hp = temp.health - after.health;
-  offer.keywords = temp.keywords.filter((k) => !after.keywords.includes(k)); // keep only the keywords the spell added
+  const atk = temp.attack - (held ? held.attack : after.attack);
+  const hp = temp.health - (held ? held.health : after.health);
+  // The spell's own share of the change: the total delta minus whatever its factories already ledgered on the
+  // offer during the cast. Written through `addOfferBuff` so it lands under the spell's name and the totals end
+  // exactly at `atk`/`hp`.
+  const now = ledgerSum(offer);
+  const spellA = (atk - pre.atk) - (now.a - pre.a);
+  const spellH = (hp - pre.hp) - (now.h - pre.h);
+  offer.atk = atk - spellA;
+  offer.hp = hp - spellH;
+  addOfferBuff(offer, spellDef.name, spellA, spellH);
+  // Keep only the keywords the spell ADDED (a held body's own keywords already live on the stash).
+  offer.keywords = temp.keywords.filter((k) => !after.keywords.includes(k) && !(held && held.keywords.includes(k)));
 }
 
 /**
@@ -11747,8 +12035,15 @@ export function fireStartOfCombats(state: RunState): void {
  *
  * THE single source shared by `applyEndOfTurn` (the commit), `projectEndOfTurnSteps` (the projection) and
  * `questEndOfTurnBeats` (the UI beat sequence) — the Lasting Cadence single-list rule. Chronos/Parliament
- * repeats apply (the caller multiplies); combat's SC multipliers (Twilight/Uron) do NOT — in combat they
- * multiply only the MINION SC pass, never the rune blocks, and the shop mirrors that boundary exactly.
+ * repeats apply (the caller multiplies). Uron's card-data SC multiplier does NOT — in combat it multiplies
+ * only the MINION SC pass, never the rune blocks, and the shop mirrors that. Rune of Twilight is the OPEN
+ * case: since 2026-09-21 combat's Twilight ALSO repeats the rune Start-of-Combat blocks (owner ruling, see
+ * `runRuneStartOfCombat` in simulate.ts), but this shop replay deliberately does NOT fold it yet — these
+ * replays are PERMANENT and per-turn (Underdog ×4, Warding ×9, Sylus ×4 EVERY turn under Twilight), so the
+ * fold is an explicit owner balance decision, not a silent mirror. Until ruled, the shop replays each rune
+ * block once per Prowess stack × Chronos repeat (`prowessReps`), Twilight or not. This shop/combat difference
+ * is a STATED rule in `docs/GAME-RULES.md` (Runes: "Shop vs combat under Twilight"); if the owner folds it,
+ * multiply `prowessReps` at ALL THREE `socRuneReplaysOf` consumers (commit, projection, beat list) together.
  */
 export interface SocRuneReplay {
   /** Owning content id — the badge the beat is sourced on (`procRuneId` pulses a rune's rail badge). */
@@ -12731,7 +13026,7 @@ function runRecurringEndOfTurn(
     // minion +2/+2. Untargeted Lasso resolves on the tavern; the buff picks a seeded-random board minion.
     step(() => {
       const lasso = CARD_INDEX['lasso'];
-      if (lasso) castSpell(state, lasso);
+      if (lasso) castSpell(state, lasso, undefined, 'rune'); // the beam leaves the rune badge — the rune is the actor
       if (state.board.length > 0) {
         const rng = makeRng(state.rngCursor);
         const target = state.board[rng.int(state.board.length)]!;
@@ -12833,6 +13128,12 @@ export interface EotStepFx {
    *  the End-of-Turn beat can fire the SAME gem cascade the shop plays. Diffed from the 'Ruby' buff counts, so
    *  any future End-of-Turn Ruby source animates without per-effect wiring. */
   ruby?: { uid: string; count: number }[];
+  /** SHOP MINIONS this beat STOLE (Rope Wrangler's Lasso casts, Rune of Lassoing) — the same records the
+   *  action-level `lassoFx` channel carries, sliced per beat. End-of-Turn steals commit inside `faceOmen`,
+   *  AFTER the phase has flipped, so the action channel would fire with the Shop already gone: the same
+   *  reason `handGrants`, `shopBuff`, `ruby` and `welds` are here. The UI cascades one beam per entry, in
+   *  order, and the offer only leaves the row when its own beam lands. */
+  steals?: NonNullable<RunState['lassoFx']>;
 }
 
 /**
@@ -12891,6 +13192,7 @@ export function projectEndOfTurnSteps(state: RunState): {
     // Rune-buff magnitude before the beat (board + hand), so a rune buffing a unit at End of Turn (Spending,
     // Action, Lassoing, …) fires `rune-buff-unit` on it, on the beat — the same source-label diff the shop uses.
     const runeBuffBefore = new Map([...clone.board, ...clone.hand].map((c) => [c.uid, runeBuffMagnitude(c)]));
+    const lassoStart = (clone.lassoFx ?? []).length; // this beat's Shop steals, sliced like `eaten`
     captureBuffFx(clone, source, 'minion', run); // sourceless (quest/rune beat) → sourceUid stays unset → the UI descends
     // Gainers are resolved BEFORE any reactor runs: an `onGainAttack` watcher (Tankerchief) grants itself Attack
     // while reacting, and reading `c.attack` live would then count that grant as a fresh gain and re-fire the
@@ -12944,6 +13246,7 @@ export function projectEndOfTurnSteps(state: RunState): {
     // Units a RUNE buffed this beat — the rune-buff-magnitude diff, board + hand.
     const runeBuffUnits: string[] = [];
     for (const c of [...clone.board, ...clone.hand]) if (runeBuffMagnitude(c) > (runeBuffBefore.get(c.uid) ?? 0)) runeBuffUnits.push(c.uid);
+    const steals = (clone.lassoFx ?? []).slice(lassoStart);
     steps.push(snap());
     fx.push({
       buffFx: clone.recruitBuffFx.slice(fxStart),
@@ -12956,6 +13259,7 @@ export function projectEndOfTurnSteps(state: RunState): {
       ...(shopAllDelta.attack > 0 || shopAllDelta.health > 0 ? { shopBuffAll: shopAllDelta } : {}),
       ...(ruby.length ? { ruby } : {}),
       ...(runeBuffUnits.length ? { runeBuffUnits } : {}),
+      ...(steals.length ? { steals } : {}),
     });
   };
   for (const card of [...clone.board]) {

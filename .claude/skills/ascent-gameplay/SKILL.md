@@ -68,6 +68,15 @@ An "extra trigger" effect applies wherever its trigger fires, not only in the ph
 every multiplier through the same shared function so combat and shop cannot drift. Apply it at exactly ONE
 boundary — if both the caller and the resolver multiply, the effect fires twice as often as printed.
 
+Rune of Twilight (`socTwilightExtraFires`) multiplies BOTH halves of combat's Start of Combat: the minion pass
+and the rune pass (`runRuneStartOfCombat` in `simulate.ts`, owner ruling 2026-09-21). Membership of the rune
+pass is by PRINTED TEXT — a rune whose text begins "Start of Combat:" repeats, and so does a rune whose GRANTED
+minion ability is printed "Start of Combat:" (Sylus, review call 2026-09-21 pending owner confirmation); a block
+that merely runs at Start of Combat (Warden, Dawnclaw, quest and hero grants, spell marks) fires once. A new SoC
+rune gets a `twilightPulse(rside, pass)` call after its `nextStep()`; a new non-SoC block goes behind `base`.
+The shop's Combat Prowess replay folds Twilight into its MINION replays only, never its rune replays
+(`socRuneReplaysOf`; stated in GAME-RULES, an open owner balance question).
+
 ## Workflow
 
 1. Find the live definition, the effect primitive, the reducer/simulator path, the text path, and the tests.
@@ -84,7 +93,11 @@ boundary — if both the caller and the resolver multiply, the effect fires twic
    engine/tooling/test work.
 6. Add focused tests from the matrix above. **Verify they fail without your fix** — a green test that was
    always green proves nothing.
-7. Run focused vitest, `npm run typecheck`, `npm run lint` (it carries a wiring audit that fails a granted-but-
+7. **If this was a BUG FIX, write the rule into the oracle in the same PR** — a new approved rule in
+   `packages/rules/src/registry/approved.ts` (stable `R-<TOPIC>-<NN>` id, the owner's words as evidence,
+   the new regression test as `enforcement.refs`), so Doc Bot catches the regression. Every fix, every
+   size (owner ask 2026-09-22). Recipe: CLAUDE.md, "Bug fixes become rules".
+8. Run focused vitest, `npm run typecheck`, `npm run lint` (it carries a wiring audit that fails a granted-but-
    unread flag), `npm run text:audit` on text changes, `npm run beats:audit` on trigger changes, and
    `npm run harness` for combat determinism.
 

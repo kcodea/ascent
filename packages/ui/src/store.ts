@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroes, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, socBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroes, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, seatOutcomesOf } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -68,7 +68,7 @@ import { clearAllHandBuffs } from './handBuffFx';
 import { liveBoardView } from './instView';
 import { saveCapturedBoards, saveRunBoards } from './boardLibrary';
 import { perfMonitor } from './perfMonitor';
-import { fetchRankedProfile, remoteEnabled, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
+import { fetchRankedProfile, remoteEnabled, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, recordSeatResults, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
 import { initIdentity, currentIdentity } from './identity';
 import { notifyTutorialActions } from './tutorial/actionBus';
 import { gateBlocks, notifyGateNudge } from './tutorial/gateBus';
@@ -1132,25 +1132,20 @@ function warmLobbyDrivers(run: RunState): void {
   idle(step);
 }
 
-/** Build the run's END-STATE board for the leaderboard / Career: a snapshot of the post-combat `run.board`
- *  (combat carry-backs already baked in), with each minion enriched by the same live view the end screen shows
- *  — final Attack/Health incl. run-wide auras + the live, scaling rule text — so the static leaderboard/Career
- *  cards read the end-of-run magnitude rather than the printed base. Null for an empty board. */
 /**
- * Stamp a snapshot minion with the card's NAME and TRIBE from the CAPTURING build's index.
+ * Build the run's END-STATE board for the leaderboard / Career / Recent Games: a snapshot of the post-combat
+ * `run.board` (combat carry-backs already baked in), with each minion enriched by the same live view the end
+ * screen shows — final Attack/Health incl. run-wide auras + the live, scaling rule text — so the static
+ * leaderboard/Career cards read the end-of-run magnitude rather than the printed base. Null for an empty board.
  *
- * A stored board is read back by whatever build opens the Career/Leaderboard, which is not necessarily the one
- * that wrote it (server-fetched history + two devs on divergent content branches). The writer always knows the
- * card; the reader may not. Anything the reader would look up must therefore travel with the row — see
- * `storedBoardView.ts`. Idempotent, and leaves a minion alone when the identity is already baked.
+ * THE FINAL BOARD IS THE POST-SETTLE BOARD (owner ask 2026-09-21, replacing the 2026-08 "board WITH its
+ * Start-of-Combat buffs" ask). It is exactly the board the NEXT shop would have opened with: every gain the
+ * last combat carried back through `settleCombat` (Engraved / Permanent keyword growth, Ruby carry-backs,
+ * Pummel payouts, per-instance accruals) is on it, and nothing combat-only is — a plain Start-of-Combat +N/+N on
+ * a non-Engraved body, a combat-granted shield or keyword, a Start-of-Combat summon (a token with no run card).
+ * The run-end block is reached only through `resolveCombat`, which settles the last combat before `advanceCombat`
+ * flips the phase, so `run.board` here is already settled; the DEV warn at the seam pins that assumption.
  */
-function bakeIdentity(m: BoardMinion): BoardMinion {
-  if (m.name && m.tribe) return m;
-  const def = CARD_INDEX[m.cardId];
-  if (!def) return m; // nothing to add — the writer does not know it either (a token id, say)
-  return { ...m, ...(m.name ? {} : { name: def.name }), ...(m.tribe ? {} : { tribe: def.tribe }) };
-}
-
 function endStateBoard(run: RunState): BoardSnapshot | null {
   if (run.board.length === 0) return null;
   const snap = snapshotBoard(run);
@@ -1173,29 +1168,6 @@ function endStateBoard(run: RunState): BoardSnapshot | null {
   });
   snap.power = snap.minions.reduce((sum, m) => sum + m.attack + m.health, 0);
   return snap;
-}
-
-/**
- * The board the player fought their LAST combat with, captured at Start of Combat AFTER SoC effects fire (buffs /
- * keywords / shields / SoC summons) but BEFORE the first attack — so the Hall of Champions shows the *buffed* board
- * (e.g. Pack Leader's Beast buff, a Whelp summoned at SoC), not the base recruit warband. It merges the SoC-buffed
- * combat stats onto the live-text recruit snapshot (matched by combat-start index, so scaling cards keep their live
- * text) and appends any SoC-summoned minions. Falls back to the plain end-state board when there's no combat to read.
- */
-function combatStartBoard(run: RunState): BoardSnapshot | null {
-  const base = endStateBoard(run);
-  const lc = run.lastCombat;
-  if (!base || !lc || lc.initial.player.length === 0) return base;
-  const soc = socBoard(lc); // the SoC-buffed combat board (buffs / keywords / shields / summons applied)
-  // Keep each recruit minion's live text but take the SoC-buffed stats/keywords (matched by combat-start order);
-  // append any SoC-summoned minions beyond the recruit board.
-  const merged: BoardMinion[] = base.minions.map((m, i) => (soc[i] ? { ...m, attack: soc[i]!.attack, health: soc[i]!.health, keywords: soc[i]!.keywords } : m));
-  for (let i = base.minions.length; i < soc.length; i++) merged.push(soc[i]!);
-  // The appended SoC-summoned bodies come straight from combat, so they never passed through `endStateBoard`'s
-  // bake — stamp every minion here so a summoned body is as identifiable as a recruited one.
-  base.minions = merged.map(bakeIdentity);
-  base.power = merged.reduce((sum, m) => sum + m.attack + m.health, 0);
-  return base;
 }
 
 
@@ -1375,15 +1347,26 @@ function commitResolvedAction(
         // fresh remote boards (registerOpponents dedupes) + fresh ledger weights. Delayed a beat so this
         // run's own uploads above land first and can flow back in. Never mid-run — the run just ended.
         setTimeout(() => refreshOpponentPoolAndRecords(`${__APP_VERSION__}+`), 4000);
-        // The final board shown on the leaderboard + Career: the END-STATE board (the post-combat run.board,
-        // with combat carry-backs baked in), enriched with the SAME live view the end screen renders — final
-        // stats incl. run-wide auras + live scaling text (a maxed-out Sergeant reads its real grant, not the
-        // printed base). This replaces the old pre-combat, printed-text replay snapshot. Falls back to that
-        // snapshot only if the end-state board is empty (shouldn't happen for a real finish).
+        // The final board shown on the leaderboard + Career + Recent Games: the END-STATE board (the post-SETTLE
+        // run.board, with the last combat's carry-backs baked in), enriched with the SAME live view the end screen
+        // renders — final stats incl. run-wide auras + live scaling text (a maxed-out Sergeant reads its real
+        // grant, not the printed base). Owner ask 2026-09-21: this is what a fresh board would look like AFTER
+        // that final combat, gains that carry included, combat-only buffs and Start-of-Combat summons excluded.
+        // It replaces the 2026-08 Start-of-Combat merge (`socBoard`), which showed the board from BEFORE the
+        // final combat's gains landed. Falls back to the highest-wave captured pool board only if the end-state
+        // board is empty (shouldn't happen for a real finish).
         const highestFresh = fresh.reduce<BoardSnapshot | null>((best, b) => (!best || b.wave > best.wave ? b : best), null);
-        // Show the board WITH its final combat's Start-of-Combat buffs (owner request) — the impressive version the
-        // player actually fought with — falling back to the plain end-state board, then a captured pool board.
-        const finalBoard = combatStartBoard(next) ?? highestFresh;
+        // `resolveCombat` settles the last combat before `advanceCombat` flips the phase, so `next.board` is
+        // already the settled board here. Pinned in DEV: a second terminal writer that skipped the settle would
+        // silently regress the recorded board to the pre-combat one.
+        if (import.meta.env.DEV && next.lastCombat && !next.combatSettled) console.warn('[run-end] the last combat was not settled before the run ended; the recorded final board is pre-settle');
+        // One accepted approximation: `advanceCombat` returns early on a terminal round, so the per-turn
+        // reset block (`spellsThisTurn` / `playedThisTurn` / `goldSpentThisTurn` / the per-instance spell
+        // counters) never runs. Stats and carry-backs are exact; a card whose LIVE TEXT prints a per-turn
+        // tally reads the closing turn's value rather than the 0 the next shop would open with. Zeroing
+        // those here would re-derive reducer logic in the UI, which the architecture forbids — if strict
+        // next-shop text is ever wanted, the reset belongs in the reducer's terminal branch.
+        const finalBoard = endStateBoard(next) ?? highestFresh;
         // Link the leaderboard/Career final board to the SAME id as the highest-wave pool board (the one served
         // as the round-17 opponent), so a fight-result recorded against that served board also counts for this
         // leaderboard slot.
@@ -1413,6 +1396,15 @@ function commitResolvedAction(
           ? lobbySeat?.placement ?? next.lobby.seats.filter((seat) => seat.alive).length + 1
           : null;
         const lobbyWon = lobbyPlacement === 1;
+        // SEAT LEDGER (owner 2026-09-22): every RECORDED seat at this table — another player's run, replayed —
+        // with a result against THIS player gets one row: a win for the run that knocked the player out, a loss
+        // for every run knocked out while the player still stood. The Hall of Champions ranks runs by those
+        // wins plus their own victory. Nothing is simulated past the player's own run. The player's seat is not
+        // a row. Real lobbies only, never a sandbox or the tutorial (neither uploads anything).
+        if (next.mode === 'lobby' && !next.sandbox && next.lobby) {
+          const rows = seatOutcomesOf(next.lobby, `${__APP_VERSION__}+${__BUILD_SHA__}`);
+          if (rows.length > 0) void recordSeatResults(rows);
+        }
         // MEDAL RANK (2026-09-20): a RATED lobby's placement settles on the SERVER (`settle_rank`) — never
         // locally. The request goes into the durable pending queue first, then submits; `rankSubmission`
         // tells the post-game screen where it stands and the confirmed answer is adopted into `profile`.
@@ -1480,7 +1472,10 @@ function commitResolvedAction(
         // it never hitches the end screen) + upload one telemetry row. `lastHeroOffer` = the picked hero's trio.
         // Balance-report telemetry: LOBBY runs only (owner rework 2026-07-31) — the report is a read on the
         // real ladder, and course/rift rows would dilute it.
-        if (next.mode === 'lobby') {
+        // `!next.sandbox` is already the enclosing block's gate (2026-08-26, #1236); it is repeated HERE so
+        // the one upload the Balance Report reads can never be reached by a sandbox run even if the block
+        // above is ever reshaped (owner ask 2026-09-22: "nothing from scene builder").
+        if (next.mode === 'lobby' && !next.sandbox) {
           try {
             // `won` MUST be overridden here: the reconstruction reads phase 'victory', which a lobby never
             // reaches, so every lobby row uploaded as a loss (owner report 2026-08-02 — the shop curve was
@@ -1488,14 +1483,19 @@ function commitResolvedAction(
             // The acquisition streams come from the LIVE log, not the replay: a lobby replay is not
             // guaranteed faithful (the same reason `saveRunBoards` refuses to replay one), and a divergence
             // silently keeps every sighting while dropping every buy. See `withLiveTelemetry`.
+            // SET + SOURCE STAMPS (2026-09-22): the run's pinned set (so the report reads one set) and what
+            // produced the row (so a sandbox row could never pass for a ladder row). Both ride on the flat
+            // row AND inside `derived`, so a backend without the new columns still keeps them.
+            const stampSet = setIdOf(next);
+            const stampSource = telemetrySourceOf(next);
             const base = withLiveTelemetry(reconstructRunTelemetry(replay, heroOffer), telemetryLog);
-            const telemetry = { ...base, mode: 'lobby', won: lobbyWon, placement: lobbyPlacement ?? undefined };
+            const telemetry = { ...base, mode: 'lobby', won: lobbyWon, placement: lobbyPlacement ?? undefined, setId: stampSet, source: stampSource };
             // The BALANCE DERIVATION rides alongside the legacy summary: `derived` is the observed-live
             // streams (offers / acquisitions-by-source / Gold ledger / upgrades / combats / Avenge details),
             // and `replay` is the raw material to RE-derive them later — a metric we haven't thought of yet
             // is then a new function over runs already banked, not a migration plus a fresh data window.
             const derived = finishDerive(deriveState, next, {
-              heroId: next.heroId, mode: 'lobby', seed: next.seed, won: lobbyWon,
+              heroId: next.heroId, mode: 'lobby', seed: next.seed, won: lobbyWon, setId: stampSet, source: stampSource,
             });
             // REPLAY V2 rides INSIDE the same `replay` jsonb as the v1 action log (which balance
             // re-derivation still reads — both stay). Viewers gate on `replay.v2?.version === 2`.

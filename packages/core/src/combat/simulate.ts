@@ -697,7 +697,7 @@ export function simulate(
     ascendProgress: m.ascendProgress,
     spellProgress: m.spellProgress, // Guel: the live combat text reads his on-board spell tally
     spiritTally: m.spiritTally, // Set 3 Spirits: Forest Colossus's Start of Combat reads it; Keeper / Aspect print it
-    damageDealt: m.damageDealt, // Pummel (Han Gover, Goldvein): the seeded damage tally (a once-per-combat meter arrives here undefined)
+    damageDealt: m.damageDealt, // Pummel (Han Gover, Goldvein): the seeded lifetime damage tally (the replay counts this fight's hits on top)
     soldProgress: m.soldProgress, // Runic Archivist (display-only)
     boardFirstSpellId: m.boardFirstSpellId, // Spell Warden (display-only)
 
@@ -2195,18 +2195,23 @@ export function simulate(
   /**
    * PUMMEL (X) — the damage meter ("Pummel (40): Get a Dwarven Ale. (Once per combat)" — Han Gover, Set 3
    * Dwarf/Undead; "Pummel (6): Gain 3 Gold next turn. (Once per combat)" — Goldvein, Set 3 Kobold). Owner keyword
-   * 2026-09-21: "Triggers once this minion has dealt X damage in a combat."
+   * 2026-09-21: "Triggers each time this minion has dealt another X damage. The damage count carries over
+   * between combats."
    *
    * Called from the ONE place every landed hit passes through (`applyDamage`, right after the `dmg` event), so
    * attacks, retaliation and incidental damage (an Echo volley, a bolt) all count, and a hit that never landed
    * (Immune, a popped Ward, 0 damage) never does — exactly the hits the replay's `dmg` events carry, which is
    * what the UI re-derives the live meter from. A body whose card carries a `DAMAGE_METER_MARKERS` passive adds
-   * the FULL amount of the hit to its per-instance `damageDealt` (fresh every fight — `resetEachCombat`), and the
-   * FIRST time the tally reaches `every` in a combat its marker pays out ONCE and latches (`pummelFired`, on the
-   * instance like Yeti's `reflectFired`, so a Risen body does not re-arm and a fresh combat does). Overkill
-   * counts (a 30-Attack swing into a 1-Health body is 30 damage dealt); one enormous hit that crosses several
-   * multiples of X still pays once — the meter is a threshold, not a cadence (the lifetime tally and its
-   * "(Max 2 per hit)" cap retired with the Pummel ruling).
+   * the FULL amount of the hit to its per-instance `damageDealt`, a LIFETIME tally: seeded from the run card at
+   * instantiate, carried back whole at settle, kept by a Rise / Rebirth body (carry-over ruling 2026-09-21 —
+   * "it needs to carry over from turn to turn and combat to shop"). Each time the tally crosses a MULTIPLE of
+   * `every` the marker pays out — but at most ONCE per combat: the "(Once per combat)" rider is the
+   * `pummelFired` latch (on the instance like Yeti's `reflectFired`, so a Risen body does not re-arm and a fresh
+   * combat does). Overkill counts (a 30-Attack swing into a 1-Health body is 30 damage dealt). One enormous hit
+   * that crosses several multiples still pays once, and the uncredited crossings are SPENT, not banked — the
+   * tally already advanced by the full amount, so a 120 hit from 0 pays once and the next payout waits for 160.
+   * A second crossing in the same fight likewise pays nothing (the latch holds); the tally still moves, and the
+   * badge keeps printing `total mod X` toward the multiple that pays next combat.
    */
   function noteDamageDealt(dealer: Minion, amount: number): void {
     // ONE meter, several bodies (`DAMAGE_METER_DOS`): the tally advances the same way for every marker; the
@@ -2218,10 +2223,16 @@ export function simulate(
     if (!meter) return;
     const eff = cards[dealer.cardId]!.effects.find((e) => e.do === meter.do)!;
     const p = eff.params ?? {};
+    const every = meter.every;
     const before = dealer.damageDealt ?? 0;
     const after = before + amount;
     dealer.damageDealt = after;
-    if (dealer.pummelFired || after < meter.every) return;
+    // The crossing math (pre-#1607, restored 2026-09-21): a payout is owed only when this hit carried the
+    // lifetime tally over a multiple of X (47 → 52 owes nothing; 35 → 40 owes one; 0 → 120 owes one, not three).
+    // The latch comes FIRST so a second crossing in the same fight is spent silently.
+    if (dealer.pummelFired) return;
+    const crossings = Math.floor(after / every) - Math.floor(before / every);
+    if (crossings <= 0) return;
     // THE TRIGGER MOMENT (2026-09-21): a Pummel that PAYS emits one `pummelTrigger` — the presentation cue the
     // owner authored (`pummel-trigger`) plays off it, on the body that fired, AFTER the `dmg` that did it and
     // BEFORE the payout's own events. "After" is not "immediately after": `applyDamage` runs the victim's
@@ -2800,6 +2811,14 @@ export function simulate(
       applyCombatGains(copy); // re-apply per-card stacks banked this fight (player-gated inside; enemy has no run)
       const at = boards[side].indexOf(anchor);
       boards[side].splice(at >= 0 ? at + 1 : boards[side].length, 0, copy);
+      // A RECLAIMED body is a body placed mid-combat, so its Avenge counts from its return (rule R-AVWIN-01 "Late
+      // entry starts at zero"; docs/GAME-RULES.md: progress restarts "as any body placed mid-combat"). This path
+      // inserts the copy directly rather than through `placeSummon`, so it missed the stamp that every other
+      // summon, Rise and Rebirth gets: a Reclaimed Kennelmaster counted its OWN Start-of-Combat destruction and
+      // paid its Avenge (4) at the side's 4th death instead of the 4th after its return. `killOrReborn` tallied
+      // that destruction before we got here, so stamping now leaves the copy reading 0 on arrival, exactly what
+      // the combat card prints (computeFrame stamps the same floor on every `summon` event).
+      copy.avengeBaseline = deaths[side];
       registerEffects(copy);
       emit({ type: 'summon', minion: snapshot(copy), side, index: boards[side].indexOf(copy), source: anchor.uid });
       applyTribeAuras(copy); // a resummoned Beast (The Reclaimer) inherits the aura too — AURAS FIRST (owner 2026-08-12)
@@ -3686,12 +3705,30 @@ export function simulate(
       }
     }
   }
-  // Start-of-Combat RUNE grants, PER SIDE (a served enemy runs its own runes): Warden, Twilight, Shared Circuit,
-  // Warding, Echoing Coop, Rallying, Rising Graves. Enemy mods come from the captured snapshot.
-  for (const rside of ['player', 'enemy'] as const) {
+  // Start-of-Combat RUNE grants, PER SIDE (a served enemy runs its own runes). Enemy mods come from the captured
+  // snapshot. The whole section is ONE function so Rune of Twilight can run it again (owner ruling 2026-09-21:
+  // "Twilight repeats all rune Start-of-Combat effects too" — it used to re-fire only the MINION pass, so Rune
+  // of the Underdog never doubled twice). `pass` 0 is the base pass and emits the same log it always did;
+  // passes 1..N are Twilight's extra fires, run AFTER the whole base pass for the side so a no-Twilight log is
+  // byte-identical and every second-pass block reads the board the first pass left (Underdog re-sorts by the
+  // doubled Attack, Forthcoming re-picks the living front, Rebirth skips the body it already marked).
+  // MEMBERSHIP IS BY PRINTED TEXT: a rune whose text begins "Start of Combat:" fires on every pass, and so does
+  // Sylus (the ability it GRANTS is printed "Start of Combat:"); a block that merely RUNS here (Warden's room
+  // summon, Dawnclaw's granted Echo, Shared Circuit's listener, the spell marks, the quest and hero grants) is
+  // gated to the base pass. Same block order on every pass; `flagCopiesOf` multiplies WITHIN a pass — Twilight
+  // multiplies passes, copies multiply within a pass.
+  // Rune of First Claws runs its own passes at its later site (after the Avenge / Inheritance listeners exist).
+  /** Rune of Twilight's ONE badge pulse per side, on the beat of its FIRST extra effect — minion or rune. */
+  const twilightFired: Record<Side, boolean> = { player: false, enemy: false };
+  const twilightPulse = (side: Side, pass: number): void => {
+    if (pass > 0 && !twilightFired[side]) { twilightFired[side] = true; fireTrigger('runeTwilight', side); }
+  };
+  const runRuneStartOfCombat = (rside: Side, pass: number): void => {
     const rmods = modsFor(rside);
-    // Rune of the Warden: if the board has room (< 7), summon a Spear Warden.
-    if (rmods.runeWarden && boards[rside].length < 7) {
+    const base = pass === 0;
+    // Rune of the Warden: if the board has room (< 7), summon a Spear Warden. Base pass only: its text is "when
+    // you have room in combat", not a Start-of-Combat effect.
+    if (base && rmods.runeWarden && boards[rside].length < 7) {
       const knit = cards['knit'];
       if (knit) { nextStep(); fireTrigger('runeWarden', rside); summonMinion(rside, knit, undefined); }
     }
@@ -3702,6 +3739,7 @@ export function simulate(
       const leadDef = lead ? cards[lead.cardId] : undefined;
       if (lead && leadDef) {
         nextStep();
+        twilightPulse(rside, pass);
         fireTrigger('runeMirrorMarch', rside);
         // One copy per rune copy held (boolean-flag family, owner 2026-08-27) — room permitting.
         for (let k = 0; k < flagCopiesOf(rside, 'runeMirrorMarch') && boards[rside].length < 7; k++) {
@@ -3727,6 +3765,7 @@ export function simulate(
         const def = cards[top.cardId];
         if (raw && def) {
           nextStep();
+          twilightPulse(rside, pass);
           fireTrigger('runeWakingReserve', rside);
           for (let k = 0; k < flagCopiesOf(rside, 'runeWakingReserve') && occupied(rside) < 7; k++) {
             pendingHandSummon[rside] = true; // a hand-summon for Dreamed Graves / the Open Hand — the card itself stays unmarked
@@ -3737,29 +3776,32 @@ export function simulate(
         }
       }
     }
-    // Rune of Twilight: Start-of-Combat effects trigger an ADDITIONAL time — extra SoC pass(es) for this
-    // board. The pass count comes from `socTwilightExtraFires`, THE shared definition the shop End-of-Turn
-    // replay (Rune of Combat Prowess) also consults — owner reversal 2026-08-20: the two runes STACK, so the
-    // count must have one home. One extra pass today; the loop keeps this byte-identical while letting the
-    // definition grow.
-    let twilightFired = false; // one badge pulse announcing the extra SoC pass (on its first effect's beat)
-    for (let twPass = 0; twPass < socTwilightExtraFires(rmods); twPass++) {
-      for (const minion of [...boards[rside]]) {
-        if (minion.dead || minion.health <= 0) continue;
-        for (const effect of minion.effects) {
-          if (effect.on !== 'startOfCombat') continue;
-          if (!alignAllows(effect, minion.align)) continue; // CELESTIAL gate (see above)
-          const fn = FACTORIES[effect.do];
-          if (fn) {
-            nextStep();
-            if (!twilightFired) { twilightFired = true; fireTrigger('runeTwilight', rside); }
-            withEffect(minion, effect, () => fn(ctx, minion, effect.params ?? {}, {}));
+    // Rune of Twilight, MINION half: the board's Start-of-Combat effects trigger an ADDITIONAL time — extra
+    // minion SoC pass(es), run here (base pass only) so the log keeps its shape; the RUNE half is the extra
+    // `runRuneStartOfCombat` passes the driver below adds. The pass count comes from `socTwilightExtraFires`,
+    // THE shared definition the shop End-of-Turn replay (Rune of Combat Prowess) also consults — owner
+    // reversal 2026-08-20: the two runes STACK, so the count must have one home. The badge pulse is shared
+    // with the rune passes: whichever extra effect lands first announces the rune.
+    if (base) {
+      for (let twPass = 0; twPass < socTwilightExtraFires(rmods); twPass++) {
+        for (const minion of [...boards[rside]]) {
+          if (minion.dead || minion.health <= 0) continue;
+          for (const effect of minion.effects) {
+            if (effect.on !== 'startOfCombat') continue;
+            if (!alignAllows(effect, minion.align)) continue; // CELESTIAL gate (see above)
+            const fn = FACTORIES[effect.do];
+            if (fn) {
+              nextStep();
+              twilightPulse(rside, twPass + 1);
+              withEffect(minion, effect, () => fn(ctx, minion, effect.params ?? {}, {}));
+            }
           }
         }
       }
     }
-    // Shared Circuit: give up to N friendly Mechs (leftmost first, skipping already-shielded) a Ward.
-    if ((rmods.sharedCircuitWard ?? 0) > 0) {
+    // Shared Circuit: give up to N friendly Mechs (leftmost first, skipping already-shielded) a Ward. Base pass
+    // only: a quest/hero grant, not a rune, and its listener must register once.
+    if (base && (rmods.sharedCircuitWard ?? 0) > 0) {
       const sideMods = rmods.sharedCircuitWard!;
       let left = sideMods;
       let sharedFired = false;
@@ -3803,11 +3845,11 @@ export function simulate(
         // The captured stats land × copies held on the first summon (boolean-flag family, owner 2026-08-27).
         const fcN = flagCopiesOf(rside, 'runeFoodChain');
         foodChainStats[rside] = { attack: demon.attack * fcN, health: demon.health * fcN };
-        nextStep(); fireTrigger('runeFoodChain', rside);
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeFoodChain', rside);
       }
     }
-    // Weaken (next-combat spell): set N random living ENEMIES (from this side's view) to 1 Health.
-    const weaken = rmods.weakenTargets ?? 0;
+    // Weaken (next-combat spell): set N random living ENEMIES (from this side's view) to 1 Health. Base pass only.
+    const weaken = base ? (rmods.weakenTargets ?? 0) : 0;
     if (weaken > 0) {
       const other: Side = rside === 'player' ? 'enemy' : 'player';
       const pool = boards[other].filter((m) => !m.dead && m.health > 1);
@@ -3824,7 +3866,7 @@ export function simulate(
     if (rmods.runeForthcoming) {
       const front = boards[rside].filter((m) => !m.dead && m.health > 0)[0];
       if (front) {
-        nextStep(); fireTrigger('runeForthcoming', rside);
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeForthcoming', rside);
         if (!front.divineShield) {
           front.divineShield = true;
           if (!front.keywords.includes('DS')) front.keywords.push('DS');
@@ -3842,7 +3884,8 @@ export function simulate(
     // shop. The spell RUNS again rather than its stats being copied, so anything that scales with run state
     // pays its live value here. The uid is the run board card's, which `instantiate` carries onto the combat
     // body, so the same Beast is found; if it isn't on the board any more, the re-cast is simply skipped.
-    const hide = (rside === 'player' ? playerState : enemyState).spellhide ?? [];
+    // Base pass only: its text is "cast on it again at Start of Combat", a spell replay, not a Start-of-Combat rune.
+    const hide = base ? ((rside === 'player' ? playerState : enemyState).spellhide ?? []) : [];
     for (const rec of hide) {
       const def = cards[rec.spellId];
       const onto = boards[rside].find((m) => m.uid === rec.uid && !m.dead);
@@ -3867,16 +3910,16 @@ export function simulate(
         }
       }
       if (recipients.length > 0) {
-        nextStep(); fireTrigger('runeFiveBanners', rside);
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeFiveBanners', rside);
         // +6/+6 per copy held (boolean-flag family, owner 2026-08-27: "+6/+6 twice").
         const fb = 6 * flagCopiesOf(rside, 'runeFiveBanners');
         for (const m of recipients) ctx.buff(m, fb, fb, 'Rune of the Five Banners');
       }
     }
-    if (rmods.unitedFront && rmods.unitedFront > 0) {
-      // Emissary (United Front): the Five Banners rule — one friendly of each type gains +N/+N, where N is
-      // the number of spells cast this GAME (owner respec 2026-08-17; it was the hero's tavern tier). Same
-      // one-banner-per-body selection: a body claims the first type nobody has claimed yet.
+    if (base && rmods.unitedFront && rmods.unitedFront > 0) {
+      // Emissary (United Front), a hero power (base pass only): the Five Banners rule — one friendly of each
+      // type gains +N/+N, where N is the number of spells cast this GAME (owner respec 2026-08-17; it was the
+      // hero's tavern tier). Same one-banner-per-body selection: a body claims the first type nobody has claimed yet.
       const n = rmods.unitedFront;
       const living = boards[rside].filter((m) => !m.dead && m.health > 0);
       const recipients: Minion[] = living.filter((m) => !!cards[m.cardId]?.universalTribe);
@@ -3908,7 +3951,7 @@ export function simulate(
         const lt = typeOf(left);
         const rt = typeOf(right);
         if (lt && rt && lt !== rt) {
-          nextStep(); fireTrigger('runeCenterline', rside);
+          nextStep(); twilightPulse(rside, pass); fireTrigger('runeCenterline', rside);
           if (!mid.keywords.includes('CR')) mid.keywords.push('CR');
           if (!mid.divineShield) {
             mid.divineShield = true;
@@ -3923,7 +3966,7 @@ export function simulate(
       const living = boards[rside].filter((m) => !m.dead && m.health > 0);
       const gains = living.filter((m) => Math.floor(m.attack / 2) > 0);
       if (gains.length > 0) {
-        nextStep(); fireTrigger('runeTemperedTime', rside);
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeTemperedTime', rside);
         // The grant lands once per copy held (boolean-flag family, owner 2026-08-27).
         const tt = flagCopiesOf(rside, 'runeTemperedTime');
         for (const m of gains) ctx.buff(m, 0, Math.floor(m.attack / 2) * tt, 'Rune of Tempered Time');
@@ -3935,7 +3978,7 @@ export function simulate(
       // simply fires once, and every Echo multiplier the side has (Sylus, Uron, Elderhorn…) applies.
       const echoes = boards[rside].filter((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onDeath'));
       if (echoes.length > 0) {
-        nextStep(); fireTrigger('runeHerald', rside);
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeHerald', rside);
         // The whole pass runs once per copy held (boolean-flag family, owner 2026-08-27).
         const heraldReps = flagCopiesOf(rside, 'runeHerald');
         for (const target of echoes) {
@@ -3955,7 +3998,8 @@ export function simulate(
       }
     }
     // Rune of Dawnclaw: your Dawnclaws ALSO fire their adjacent-Shout Echo at Start of Combat (they don't die).
-    if (rmods.runeDawnclaw) {
+    // Base pass only: the rune's text is "also trigger their Echo at Start of Combat", not a Start-of-Combat rune.
+    if (base && rmods.runeDawnclaw) {
       for (const m of boards[rside].filter((x) => !x.dead && x.health > 0 && x.cardId === 'b2_dawnclaw')) {
         nextStep(); fireTrigger('runeDawnclaw', rside);
         // A Dawnclaw firing its own Echo without dying is still an Echo TRIGGER (see `asEcho`).
@@ -3964,10 +4008,14 @@ export function simulate(
         }, m);
       }
     }
-    // Rune of Sylus: your Sylus double their own Health at Start of Combat.
+    // Rune of Sylus: your Sylus double their own Health at Start of Combat. EVERY pass (review call 2026-09-21,
+    // pending the owner's confirmation): the ability the rune grants is printed on the Sylus as "Start of
+    // Combat: double this minion's Health", so Twilight's "your Start-of-Combat effects trigger an additional
+    // time" reaches it exactly as it reaches Underdog. It lives here as a rune block rather than as a granted
+    // minion effect (so Uron's minion-pass multiplier still does not see it — see the 2026-09-21 devlog).
     if (rmods.runeSylus) {
       for (const m of boards[rside].filter((x) => !x.dead && x.health > 0 && x.cardId === 'sylus')) {
-        nextStep(); fireTrigger('runeSylus', rside);
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeSylus', rside);
         ctx.buff(m, 0, m.health, m.uid);
       }
     }
@@ -3977,11 +4025,13 @@ export function simulate(
       const n = rmods.runeCrucible ?? 3;
       const doomed = boards[rside].filter((m) => !m.dead && m.health > 0).slice(0, n);
       if (doomed.length > 0) {
-        nextStep(); fireTrigger('runeCrucible', rside);
-        crucibleBank[rside] = doomed.map((m) => ({
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeCrucible', rside);
+        // APPEND, never assign: a Twilight pass destroys the NEXT three and they must return with the first
+        // three (assigning would drop pass 1's bodies). Empty on the base pass, so append reads the same.
+        crucibleBank[rside].push(...doomed.map((m) => ({
           cardId: m.cardId, attack: m.attack, health: m.maxHealth ?? m.health,
           keywords: [...m.keywords], golden: !!m.golden,
-        }));
+        })));
         for (const m of doomed) killOrReborn(m);
       }
     }
@@ -3991,7 +4041,7 @@ export function simulate(
       const lowest = boards[rside].filter((m) => !m.dead && m.health > 0)
         .slice().sort((a, b) => a.attack - b.attack).slice(0, 2);
       if (lowest.length > 0) {
-        nextStep(); fireTrigger('runeUnderdog', rside);
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeUnderdog', rside);
         // One doubling per copy held (boolean-flag family, owner 2026-08-27) — each reads the grown body.
         for (let k = 0; k < flagCopiesOf(rside, 'runeUnderdog'); k++) {
           for (const m of lowest) ctx.buff(m, m.attack, m.health, 'Rune of the Underdog');
@@ -4016,7 +4066,7 @@ export function simulate(
         const pool = living.slice();
         const picked: typeof pool = [];
         for (let i = 0; i < 3 && pool.length > 0; i++) picked.push(...pool.splice(rng.int(pool.length), 1));
-        nextStep(); fireTrigger('runeStokedMenagerie', rside);
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeStokedMenagerie', rside);
         // One doubling per copy held (boolean-flag family, owner 2026-08-27) — same three bodies.
         for (let k = 0; k < flagCopiesOf(rside, 'runeStokedMenagerie'); k++) {
           for (const m of picked) ctx.buff(m, m.attack, m.health, 'Rune of the Stoked Menagerie');
@@ -4026,7 +4076,7 @@ export function simulate(
     if (rmods.runeVanguard) {
       const front = boards[rside].filter((m) => !m.dead && m.health > 0).slice(0, 3);
       if (front.length > 0) {
-        nextStep(); fireTrigger('runeVanguard', rside);
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeVanguard', rside);
         for (const m of front) {
           if (!m.keywords.includes('CR')) m.keywords.push('CR');
           if (!m.divineShield) {
@@ -4041,7 +4091,7 @@ export function simulate(
       const living = boards[rside].filter((m) => !m.dead && m.health > 0);
       const lead = living[living.length - 1];
       if (lead) {
-        nextStep(); fireTrigger('runeWarding', rside);
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeWarding', rside);
         if (!lead.divineShield) {
           lead.divineShield = true;
           if (!lead.keywords.includes('DS')) lead.keywords.push('DS');
@@ -4066,14 +4116,14 @@ export function simulate(
       const alive = boards[rside].filter((m) => !m.dead && m.health > 0);
       const ends = alive.length === 0 ? [] : alive.length === 1 ? [alive[0]!] : [alive[0]!, alive[alive.length - 1]!];
       if (ends.length > 0) {
-        nextStep(); fireTrigger('runeHeldStrength', rside);
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeHeldStrength', rside);
         const reps = Math.max(1, hs.copies ?? 1);
         for (const m of ends) ctx.buff(m, hs.attack * reps, hs.health * reps, 'Rune of Held Strength');
       }
     }
     // Echoing Coop: trigger every minion's Echo once, without killing the body (Sylus doubles them). The
     // Deathrattle tally (Grim) is player-only.
-    if (rmods.echoingCoop) {
+    if (base && rmods.echoingCoop) { // a quest, base pass only
       let coopFired = false;
       for (const minion of [...boards[rside]]) {
         if (minion.dead || minion.health <= 0 || !minion.effects.some((e) => e.on === 'onDeath')) continue;
@@ -4091,6 +4141,7 @@ export function simulate(
       const first = [...boards[rside]].find((m) => canRally(m));
       if (first) {
         nextStep();
+        twilightPulse(rside, pass);
         fireTrigger('runeRallying', rside);
         // One Rally fire per copy held (boolean-flag family, owner 2026-08-27: "trigger your left-most Rally twice").
         for (let k = 0; k < flagCopiesOf(rside, 'runeRallying'); k++) fireFreeRally(first, rside);
@@ -4099,7 +4150,7 @@ export function simulate(
     // Empty Graves (reworked 2026-07-21): give your LEFT-MOST minion "Rally: trigger your left-most Echo".
     // Previously the first friendly death summoned a Gravebody. The grant rides the body (not the position),
     // so it dies with that minion rather than sliding onto whoever is leftmost later.
-    if (rmods.emptyGraves) {
+    if (base && rmods.emptyGraves) { // a quest, base pass only
       const lm = boards[rside].find((m) => !m.dead && m.health > 0);
       if (lm) {
         nextStep();
@@ -4123,6 +4174,7 @@ export function simulate(
         if (eligible.length === 0) break;
         const m = eligible[ctx.rng.int(eligible.length)]!;
         nextStep(); // step FIRST so the badge pulse lands on the grant's own beat
+        twilightPulse(rside, pass);
         fireTrigger('runeRebirth', rside);
         m.keywords.push('RB');
         emit({ type: 'keyword', target: m.uid, keyword: 'RB' });
@@ -4137,6 +4189,7 @@ export function simulate(
         if (given >= graveCap) break;
         if (m.dead || m.health <= 0 || m.rebornAvailable || !isUndeadMinion(m)) continue;
         nextStep(); // step FIRST so the badge pulse lands on the grant's own beat, not the previous one
+        twilightPulse(rside, pass);
         if (given === 0) fireTrigger('runeRisingGraves', rside);
         m.rebornAvailable = true;
         if (!m.keywords.includes('R')) m.keywords.push('R');
@@ -4144,6 +4197,11 @@ export function simulate(
         given++;
       }
     }
+  };
+  for (const rside of ['player', 'enemy'] as const) {
+    // The base pass, then one full extra rune pass per Twilight fire (0 without the rune).
+    const twilightPasses = socTwilightExtraFires(modsFor(rside));
+    for (let pass = 0; pass <= twilightPasses; pass++) runRuneStartOfCombat(rside, pass);
   }
   // Rune-granted run-wide AVENGE effects (no minion source): a bus handler fires every N friendly deaths. Rune of
   // Fury doubles them, matching how a minion's Avenge doubles (see registerEffect). Registered before the attack
@@ -4343,13 +4401,17 @@ export function simulate(
       });
     }
   }
-  // Rune of First Claws: at Start of Combat, the left-most + right-most Beasts attack immediately. Per side.
+  // Rune of First Claws: at Start of Combat, the left-most + right-most Beasts attack immediately. Per side. It
+  // stays at THIS site (after the Avenge / Inheritance / Passing Spears listeners exist, so its kills feed them)
+  // and repeats its own Twilight passes here: a "Start of Combat:" rune, so each extra pass re-picks the living
+  // Beasts and strikes again (a Beast the first pass lost is simply not there to pick).
   for (const fside of ['player', 'enemy'] as const) {
     if (!modsFor(fside).runeFirstClaws) continue;
-    const beasts = boards[fside].filter((m) => !m.dead && m.health > 0 && m.attack > 0 && isBeast(m));
-    const targets = beasts.length <= 2 ? beasts : [beasts[0]!, beasts[beasts.length - 1]!];
-    if (targets.length > 0) {
-      nextStep(); fireTrigger('runeFirstClaws', fside);
+    for (let pass = 0; pass <= socTwilightExtraFires(modsFor(fside)); pass++) {
+      const beasts = boards[fside].filter((m) => !m.dead && m.health > 0 && m.attack > 0 && isBeast(m));
+      const targets = beasts.length <= 2 ? beasts : [beasts[0]!, beasts[beasts.length - 1]!];
+      if (targets.length === 0) continue;
+      nextStep(); twilightPulse(fside, pass); fireTrigger('runeFirstClaws', fside);
       // One immediate attack each per copy held (boolean-flag family, owner 2026-08-27).
       for (let k = 0; k < flagCopiesOf(fside, 'runeFirstClaws'); k++) {
         for (const m of targets) if (!m.dead && m.health > 0) ctx.attackNow?.(m, false);
@@ -4544,13 +4606,13 @@ export function simulate(
     const spellProgress = board
       .filter((m) => m.sourceUid !== undefined && (m.spellProgress ?? 0) > 0)
       .map((m) => ({ sourceUid: m.sourceUid!, progress: m.spellProgress! }));
-    // Pummel (Han Gover, Goldvein): the damage tally carries back per body. A once-per-combat meter (every
-    // meter since the Pummel ruling 2026-09-21 — `resetEachCombat`) carries back 0 whenever it moved, so the run
-    // card is wiped at settle and the shop reads 0/N (owner 2026-09-19); its next fight starts from 0
-    // regardless. A persistent meter would carry its seeded total plus this fight's hits.
+    // Pummel (Han Gover, Goldvein): the LIFETIME damage tally (seeded + this fight's hits) carries back whole per
+    // body, so the meter persists shop → combat → shop (carry-over ruling 2026-09-21) and the shop reads
+    // `total mod X`. `boards[side]` still holds a body that died this fight, so its hits carry too — the run
+    // card outlives the combat death.
     const damageMeters = board
       .filter((m) => m.sourceUid !== undefined && (m.damageDealt ?? 0) > 0 && damageMeterOf(cards[m.cardId]))
-      .map((m) => ({ sourceUid: m.sourceUid!, total: damageMeterOf(cards[m.cardId])!.resetEachCombat ? 0 : m.damageDealt! }));
+      .map((m) => ({ sourceUid: m.sourceUid!, total: m.damageDealt! }));
     // Tara's stat-grant tally this combat, per board card (for the ascend-at-settle accumulation).
     const ascendCount = board
       .filter((m) => m.sourceUid !== undefined && (buffCounts.get(m.uid) ?? 0) > 0)

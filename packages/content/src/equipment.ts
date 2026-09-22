@@ -65,6 +65,18 @@ export interface EquipmentDefinition {
    */
   useFxId?: string;
   useSfxId?: string;
+  /**
+   * AIM THE USE DEF AT WHAT THE EFFECT BUFFED (owner ask 2026-09-22, Spiritbinder: "It should target the board
+   * minion"). An UNTARGETED Equipment normally plays its def on the slot, because there is nothing to travel to.
+   * This flag says: this Equipment's own effect PICKS a board body, so stamp that body on the `use` cue and let
+   * the def fly to it - and, when the effect picked none, play NOTHING rather than a beam from the slot to the
+   * slot, which reads as a misfire instead of "no target".
+   *
+   * Opt-in per definition on purpose: Blast Pump and Dueling Rubettas are untargeted too and their authored defs
+   * are meant to stay on the button. Only a factory that records its board pick (`equipmentFxBuffed`) can honour
+   * this; today that is `equipmentBuffRandomTribeBoardAndHand`.
+   */
+  useFxTargetsBuffed?: true;
   // `useFxAt` (2026-09-09 → 2026-09-12) is gone: the Equipment is ALWAYS the `source` of its use def and the
   // aimed body its `target`, so a def authored to travel (the owner's Deathfibrillator bolt) needs no per-item
   // flag to start from the button. A def that wants to play ON the target anchors its layers `target`.
@@ -375,6 +387,10 @@ export const SPIRITBRINGER: EquipmentDefinition = {
   goldenText: 'Give a random Spirit on your board and in your hand **+12/+12**.',
   baseCost: 2,
   targetMode: 'none',
+  // The owner's beam (2026-09-22): it leaves the slot and lands on the BOARD Spirit this fire chose. The HAND
+  // Spirit keeps the generic hand-buff pop, which is a pure render diff and owes nothing to this channel.
+  useFxId: 'spiritbinder',
+  useFxTargetsBuffed: true,
   effectId: 'equipmentBuffRandomTribeBoardAndHand',
   params: { tribe: 'spirit', attack: 6, health: 6 },
   gildedParams: { tribe: 'spirit', attack: 12, health: 12 },
@@ -394,6 +410,8 @@ export const REVELMAKER: EquipmentDefinition = {
   effectId: 'battlecryGrantRandomReveler',
   params: { count: 1 },
   gildedParams: { count: 1 },
+  // Owner-authored 2026-09-22: warm shards and a ring off the Equipment button as the Reveler is handed out.
+  useFxId: 'revelmaker',
 };
 
 /**
@@ -411,6 +429,9 @@ export const COMET: EquipmentDefinition = {
   effectId: 'equipmentExtraNextSpellCasts',
   params: { extra: 2 },
   gildedParams: { extra: 4 },
+  // Owner-authored 2026-09-22: three shard bursts off the Equipment button with a swoosh. Untargeted, so the
+  // `use` cue carries no target and every `source`-anchored burst fires at the slot-button centre.
+  useFxId: 'comet',
 };
 
 /**
@@ -431,6 +452,9 @@ export const STELLAR_LENS: EquipmentDefinition = {
   effectId: 'equipmentCreateStarformThenBuffThisShop',
   params: { attack: 7, health: 7 },
   gildedParams: { attack: 14, health: 14 },
+  // Owner-authored 2026-09-22: a camera-wide star flare as the lens fires. Camera-anchored, so it reads as the
+  // shop itself lighting up rather than a spark on the button.
+  useFxId: 'stellar-lens',
 };
 
 /**

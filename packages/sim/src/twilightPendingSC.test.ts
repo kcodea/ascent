@@ -47,4 +47,9 @@ describe('Rune of Twilight doubles pending Start-of-Combat effects', () => {
     const s = eot({ questFlags: { runeTwilight: true } as RunState['questFlags'] });
     expect(combatStats(s)).toEqual({ attack: 6, health: 4 });
   });
+
+  it('a SECOND Twilight copy (Rune of Duplication) is one more pass, like combat: THREE times (+6/+3 → 8/5)', () => {
+    const s = eot({ questFlags: { runeTwilight: true } as RunState['questFlags'], flagCopies: { runeTwilight: 2 } });
+    expect(combatStats(s)).toEqual({ attack: 8, health: 5 });
+  });
 });

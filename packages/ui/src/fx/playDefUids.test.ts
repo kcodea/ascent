@@ -36,6 +36,7 @@ const UNIT_LESS: { file: string; id: string; why: string }[] = [
   { file: 'TavernUpButton.tsx', id: 'shop-tier-up', why: 'fires at the button' },
   { file: 'FreezeButton.tsx', id: 'freeze-blast', why: 'fires at the button' },
   { file: 'StatusBar.tsx', id: 'hero-power-spark', why: 'fires at the hero power button, not a unit' },
+  { file: 'useAmplifiedSlotFx.ts', id: 'amplified-slot', why: "the AMPLIFIED glow loops on the Equipment slot button — HUD chrome with no unit uid; the subject is the selected Equipment's next activation, not a body on the board (2026-09-22)" },
   { file: 'DiceRoll.tsx', id: 'dice-land', why: "the die's landing burst — at the power button or the cast point, never a unit" },
   { file: 'rankTimeline.ts', id: 'rank-up', why: "the promotion hit on the post-game rank screen — anchored on the medal crest's screen centre; there is no run on screen and no unit" },
   { file: 'rankTimeline.ts', id: 'down-rank', why: "the demotion hit on the same screen (2026-09-21) — the down twin of `rank-up`, anchored on the old crest's screen centre; no run, no unit" },

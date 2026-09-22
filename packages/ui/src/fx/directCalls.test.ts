@@ -136,7 +136,12 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
     // A THIRD of the same kind (2026-09-09): `buffFxRender.ts` picks a per-tribe `tendril-trail-<tribe>` from
     // the buffer's tribe — a data-resolved id (like a binding, keyed on tribe rather than a bindings.json row),
     // not a fourth caller pattern. Listed for the same reason.
-    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['EquipFxTuner.tsx', 'Recruit.tsx', 'buffFxRender.ts', 'choreo/recruitCues.ts', 'choreo/score.ts', 'fx/statMilestone.ts', 'runeTriggerFx.ts', 'useCombatReplay.ts']);
+    //
+    // A FOURTH, and it is the EQUIPMENT USE cue again (2026-09-22, owner ruling "spiritbinder one beam per fire"):
+    // `equipBeamCascade.ts` plays an Equipment's own `useFxId` once per fire for an Equipment flagged
+    // `useFxTargetsBuffed`. The same data-resolved id as `Recruit.tsx`'s, split out so the cascade can be mounted
+    // in a test; the same debt, and moving the moment into `recruitCues.ts` retires it with the other two.
+    expect(Object.keys(DYNAMIC_CALL_SITES).sort()).toEqual(['EquipFxTuner.tsx', 'Recruit.tsx', 'buffFxRender.ts', 'choreo/recruitCues.ts', 'choreo/score.ts', 'equipBeamCascade.ts', 'fx/statMilestone.ts', 'runeTriggerFx.ts', 'useCombatReplay.ts']);
   });
 
   // The seven migrated effects the library used to call inert, plus `ruby-gem-apply` — authored in the
@@ -150,7 +155,11 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // 'board-wipe' left on 2026-08-29: the curtain moved above the FX canvas and the streak call was retired.
       // 'shop-buff-aura' left on 2026-09-02: the mid-combat Shop-buff bloom was removed (owner ask: every stock
       // buff cue is being replaced by an authored pixi effect); the number float carries the read now.
-      'ale-bubbles', 'auctioneer-hp', 'choose-one-both', 'cia-hp', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
+      'ale-bubbles',
+      // 'amplified-slot' joined on 2026-09-22: the owner-authored Amplified glow, a looping play on the Equipment slot
+      // button from `useAmplifiedSlotFx.ts` while the selected Equipment will Amplify and has a charge to spend.
+      'amplified-slot',
+      'auctioneer-hp', 'choose-one-both', 'cia-hp', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
       // 'dice-land' joined on 2026-09-17: the landing burst of the shared 3D die (`DiceRoll.tsx`), fired at the anchor.
       'dice-land',
       // 'down-rank' joined on 2026-09-21: the owner-authored demotion hit on the post-game rank screen (`rank/rankTimeline.ts`),
@@ -162,6 +171,9 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // 'ruby-bounce' + 'spell-bounce' joined on 2026-09-15: the cross-target re-cast ribbon, fired from the `bounceFx`
       // watcher in `Recruit.tsx` (shop) and the `bounceFx` channel in `choreo/score.ts` (combat).
       'freeze-blast', 'hand-buff', 'hero-power-spark', 'hero-power-target', 'impact-dust', 'landing-dust',
+      // 'lasso' joined on 2026-09-22: the owner-authored Shop-steal rope, fired from `Recruit.tsx` for all four
+      // steal sources (the Lasso spell, Rope Wrangler, Whiplass-o, Rune of Lassoing).
+      'lasso',
       // 'rank-up' joined on 2026-09-20: the owner-authored promotion hit on the post-game rank screen (`rank/rankTimeline.ts`).
       'rank-up',
       'ruby-bounce', 'ruby-gem-apply',

@@ -30,7 +30,7 @@ import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
 import { setTransition } from './choreo/channels/lunge';
 import { burstDeathAuras, breakShieldAura, reformReborn } from './choreo/channels/aura';
 import { type Float, type DeathFloat, KW_FLOAT } from './choreo/channels/float';
-import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
+import { combatBuffDelta, combatPreviewFold, type CombatBuffDelta, type CombatPreviewFold } from './runBuffs';
 import type { CombatQuestDelta } from './store'; // type-only (erased) — no runtime edge back to the store
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
@@ -39,7 +39,7 @@ import { resolveBuffSource } from './choreo/buffSource';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { authoredBuffDefFor, bindingFor, heroPowerBuffLabelFor, labelBuffFxFor, sourceBuffDefFor } from './choreo/bindings';
-import { isRuneBuffSource, hasPower } from '@game/sim';
+import { isRuneBuffSource } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { getDef } from './fx/fxDefs';
 import { WATCHER_PULSE_DEF_ID, watcherPixiReady } from './fx/watcherPulse';
@@ -218,7 +218,7 @@ const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   ascendProgress: s.ascendProgress, // Tara: seed the ascend tracker from the run-board total, then count up
   spellProgress: s.spellProgress, // Guel: seed his on-board spell tally for the live combat text
   spiritTally: s.spiritTally, // Set 3 Spirits: the carried tally, so Forest Colossus / Keeper / Aspect print live in combat
-  damageDealt: s.damageDealt, // Pummel (Han Gover, Goldvein): the snapshot's seed (undefined for a once-per-combat meter), then count each landed hit it deals
+  damageDealt: s.damageDealt, // Pummel (Han Gover, Goldvein): the snapshot's seed (the run card's lifetime tally), then count each landed hit it deals on top
   soldProgress: s.soldProgress, // Runic Archivist (display-only)
   boardFirstSpellId: s.boardFirstSpellId, // Spell Warden (display-only)
   eotBonus: s.eotBonus, // Ritualist: seed the per-tick grant so the combat text isn't stuck at base
@@ -322,13 +322,15 @@ export function computeFrame(
   // by every Health buff, which is exactly how the sim's `maxHealth` moves.
   const maxHp = new Map<string, number>();
   for (const u of [...player, ...enemy]) maxHp.set(u.uid, u.health);
-  // Per-uid Avenge floors, stamped on Rise — a risen body's counter restarts at 0 (mirrors the sim's
-  // `avengeBaseline`; assigned where `avengeSeen` is stamped at the bottom).
+  // Per-uid Avenge floors, stamped on Rise AND on every mid-combat summon — a risen body's counter restarts at 0
+  // and a summoned body counts from its own arrival (mirrors the sim's `avengeBaseline`; subtracted where
+  // `avengeSeen` is stamped at the bottom).
   const avengeBase = new Map<string, number>();
   const find = (uid: string) => player.find((u) => u.uid === uid) ?? enemy.find((u) => u.uid === uid);
   const gone = new Set<string>();
-  // Running tallies for the live Avenge / Bleed step counters: FRIENDLY deaths per side (a Rise death doesn't count —
-  // matches the sim's Avenge gate) and total GLOBAL attack swings (Bloodbinder's Bleed fires every N, either side).
+  // Running tallies for the live Avenge / Bleed step counters: FRIENDLY deaths per side (a Rise death counts too,
+  // owner 2026-07-27 — matches the sim's Avenge gate) and total GLOBAL attack swings (Bloodbinder's Bleed fires
+  // every N, either side).
   const deaths: Record<'player' | 'enemy', number> = { player: 0, enemy: 0 };
   let attackCount = 0;
   // Spells cast per side THIS combat (Vaultkeeper's live umbrella). Counted here rather than read off the event's
@@ -344,8 +346,8 @@ export function computeFrame(
       if (u) u.health = e.remainingHp;
       // The PUMMEL meters (Han Gover, Goldvein — core's `DAMAGE_METER_MARKERS`): a meter is the sum of every
       // landed hit its body dealt — the `dmg` events stamped with it as `source`, the same amounts the sim's
-      // `noteDamageDealt` added — on top of the seeded value (none for a once-per-combat meter, so the badge
-      // counts from 0 and `damageMeterReading` clamps it at X/X once the Pummel fired). Keyed off the card's MARKER, not an id: the
+      // `noteDamageDealt` added — on top of the seeded value (the run card's lifetime tally, so the badge picks
+      // up where the shop left it and `damageMeterReading` prints `total mod X`). Keyed off the card's MARKER, not an id: the
       // id gate (`dw3_hangover` only) is why Goldvein's badge never moved in combat (owner report 2026-09-19).
       // This fold runs to the END of the beat being cued, so the badge ticks on the beat the damage lands —
       // the same moment the damage number pops — including the blow that ends the fight (the `done` frame
@@ -487,6 +489,12 @@ export function computeFrame(
       const arr = e.side === 'player' ? player : enemy;
       arr.splice(Math.min(e.index, arr.length), 0, fromSnap(e.minion));
       maxHp.set(e.minion.uid, e.minion.health);
+      // A SUMMONED body's Avenge counts from its own arrival (rule R-AVWIN-01 "Late entry starts at zero"): the
+      // sim stamps `avengeBaseline = deaths[side]` in `placeSummon`, AFTER the death that summoned it was
+      // tallied, and the log carries that death before this summon, so the current side tally IS the baseline.
+      // Only the Rise branch stamped it before, so a Dunkey that Bullseye's Echo summoned after two friendly
+      // deaths landed reading 2/4 while the sim's own window for it read 0/4 (owner report 2026-09-21).
+      avengeBase.set(e.minion.uid, deaths[e.side]);
       // Ashen Heir, the paying half: an arriving Imp inherits the bank, so the bank empties (see the death branch).
       if (CARD_INDEX[e.minion.cardId]?.imp) {
         for (const h of arr) if (h.cardId === 'ashen_heir' && h.alive) h.impBank = undefined;
@@ -730,6 +738,10 @@ export interface CombatReplay {
   enemyDeaths: number;
   /** Run-buff gains telegraphed so far this fight (spell power, max Gold) — drives the live Buffs window. */
   combatBuffs: CombatBuffDelta;
+  /** The four display-only preview counters folded over the events played so far (escalation, spells cast,
+   *  friendly deaths, Blade Mastery attacks). Recruit publishes them into run state ABSOLUTELY, so a skip, a
+   *  scrub and a resumed save all land on the number settle banks — see `combatPreviewFold`. */
+  combatPreviews: CombatPreviewFold;
   /** Combat quest progress landed so far this fight (up to the replayed beat) — quest nodes tick live off it. */
   questDelta: CombatQuestDelta;
   /** Badge id → times its combat effect has fired so far this fight; each bump pulses the node once. */
@@ -1201,6 +1213,9 @@ export function useCombatReplay(
     // text, and run state doesn't change until settle — so mid-fight there is nothing for that diff to see.
     // Firing from the narration beat puts it on the moment the gain actually happens.
     fireHandBuffOnHandSpells(useGame.getState().run.hand);
+    // The printed NUMBER is not moved here: it rides `combatBuffDelta`'s fold of the same narrations over
+    // `events[0, processedEnd)` (see the `fxSpellPowerPreview` bridge in Recruit). A fold is scrub-safe — a
+    // skip or a re-played beat recomputes it — where accumulating per event would double-count.
   }, []);
   /** The card-frame bloom alone (nonce → remount → the animation restarts), so a Shout's owner can bloom once
    *  PER FIRE — the beat-level `sccast` flash class fires once per beat and cannot repeat within it. */
@@ -1993,33 +2008,12 @@ export function useCombatReplay(
     // unit and a "+A/+H Spell Power" text, so the flourish rides that rather than needing a new choreo
     // channel. Fired over the unit that caused it, matching the shop behaviour (owner ask 2026-07-21).
     for (let i = beat.start; i < beat.end; i++) spellPowerNarration(events[i], playerUids, anchorOf);
-    // SPELLS CAST mid-combat (owner ask 2026-08-07, for Yirin's Attunement): every player-side `spellcast`
-    // event bumps the display-only counter, so the hero-power tracker ticks AS the casts happen.
-    for (let i = beat.start; i < beat.end; i++) {
-      const e = events[i];
-      if (e?.type === 'spellcast' && e.side === 'player') useGame.getState().dispatch({ type: 'combatSpellCastPreview' });
-    }
-    // FRIENDLY DEATHS mid-combat (owner ask 2026-08-24, for Cindara's Hoard): every player-side death ticks
-    // her Avenge (4) tracker live. Gated on wielding Hoard because deaths are FAR more common than spellcasts,
-    // so a per-death reducer dispatch for every other hero would be pure waste. `!e.rise` matches `simulate`'s
-    // avenge count exactly on the common path: a first Rise returns and is not avenged. (A board-full Rise that
-    // stays dead is a rise-flagged death that DID count — the one case this cosmetic tracker can lag by one; it
-    // re-syncs at settle, where the preview clears.)
-    if (hasPower(useGame.getState().run, 'hoard')) {
-      for (let i = beat.start; i < beat.end; i++) {
-        const e = events[i];
-        if (e?.type === 'death' && e.side === 'player' && !e.rise) useGame.getState().dispatch({ type: 'combatFriendlyDeathPreview' });
-      }
-    }
-    // GORUN's Blade Mastery grant climbs live (owner ask 2026-08-24): each player-side `bladeMastery`
-    // questTrigger is exactly one buffed attack, so the +N grant and its "every 8" countdown tick as the swings
-    // land rather than jumping at settle. Gated on wielding it, same reason as Cindara's above.
-    if (hasPower(useGame.getState().run, 'bladeMastery')) {
-      for (let i = beat.start; i < beat.end; i++) {
-        const e = events[i];
-        if (e?.type === 'questTrigger' && e.flag === 'bladeMastery' && e.side === 'player') useGame.getState().dispatch({ type: 'combatBladeAttackPreview' });
-      }
-    }
+    // SPELLS CAST / FRIENDLY DEATHS / BLADE MASTERY ATTACKS mid-combat (owner asks 2026-08-07 + 2026-08-24, for
+    // Yirin's Attunement, Cindara's Hoard and Gorun's Blade Mastery) no longer dispatch from here. They ride
+    // `combatPreviews` — one FOLD over the events played so far, published absolutely by Recruit's bridge, the
+    // same shape spell power uses. Per-event bumps could not survive a Skip (the beat effect runs for the last
+    // beat only), a seek (the same beat re-runs) or a mid-fight Save & Quit (Continue replays from beat 0), and
+    // a fold also collapses what was one reducer dispatch PER EVENT into at most one per beat per counter.
     // A HAND CARD BUFFED mid-combat (owner ask 2026-09-15): every player-side `handBuff` event — Nurturer's
     // Echo, Shared Spirit, a Rising Tide proc — plays the owner-authored `hand-buff` def on THAT hand card, on
     // the same beat R-HAND-02 grows its badge (`handBuffsShownThrough`). One play per event, so a card hit
@@ -2033,7 +2027,8 @@ export function useCombatReplay(
       if (!e || e.type !== 'sc' || !e.text || e.side !== 'player') continue;
       const m = /improves \+(\d+)\/\+(\d+)$/.exec(e.text);
       if (!m) continue;
-      useGame.getState().dispatch({ type: 'combatEscalationPreview', attack: Number(m[1]), health: Number(m[2]) });
+      // The printed NUMBER rides the `combatPreviews` fold (see above), not a bump from here — this loop keeps
+      // only the per-fire CUE, which genuinely belongs on the moment the improvement lands.
       fireHandBuffOnHandSpells(useGame.getState().run.hand); // pop the held spells, same cue as spell power
     }
     // RUBY POWER gained mid-combat (owner ask 2026-07-24) — Veinbreaker's Avenge and friends. `gainRubyBonus`
@@ -3032,6 +3027,12 @@ export function useCombatReplay(
   // accumulation as `enemyDeaths`.
   const combatBuffs = useMemo(() => combatBuffDelta(events, processedEnd), [events, processedEnd]);
 
+  // The four display-only PREVIEW counters, folded the same way and for the same reason (review 2026-09-22):
+  // escalation, spells cast, friendly deaths, Blade Mastery attacks. Derived from the log rather than bumped
+  // per event, so a skip, a scrub and a resumed save all land on the number settle banks. Recruit publishes
+  // these into run state, where the card-text and hero-pill chains read them.
+  const combatPreviews = useMemo(() => combatPreviewFold(events, processedEnd), [events, processedEnd]);
+
   // Combat quest progress landed so far this fight — for the quest panel to LIVE-TICK. Counts the engine's
   // step-tagged `playerQuestEvents` up to the current step (= the last processed event's step), so it agrees
   // exactly with the settled tally. Same shape as `playerQuestTally` (total + by-tribe per kind).
@@ -3184,7 +3185,7 @@ export function useCombatReplay(
     watcherPulseUids: watcherPulse,
     framePulseUids: framePulse,
     done, result: combat ? combat.result : null, shaking, critShaking,
-    beatCount: beats.length, enemyDeaths, combatBuffs, questDelta, triggeredQuests, completedQuests, skip: () => setBeatIdx(beats.length),
+    beatCount: beats.length, enemyDeaths, combatBuffs, combatPreviews, questDelta, triggeredQuests, completedQuests, skip: () => setBeatIdx(beats.length),
     // Clamped here rather than at the call site: an out-of-range seek from a stale moment list (the fight
     // was re-staged while the harness still showed the old one) must land somewhere valid, not wedge the
     // replay past its end. The outer `max` also floors the no-combat case (`beats.length === 0`, where the

@@ -6,7 +6,7 @@ import { socBoard } from './snapshot';
 
 const ALL = ['beast', 'undead', 'mech', 'dragon', 'demon'];
 
-describe('socBoard — the board WITH Start-of-Combat buffs (Hall of Champions)', () => {
+describe('socBoard — the board WITH Start-of-Combat buffs (a pure fidelity helper; the Hall/Career final board is the post-settle run board since 2026-09-21)', () => {
   it('folds Pack Leader\'s SoC Beast buff into the captured board', () => {
     // Pack Leader spends its accrued on-board tally (summonBonus) as a Beast-wide +N/+N Start of Combat. With a
     // tally of 6 (2 Beasts played while present, +3 each) both the Pack Leader (a Beast) and the Alleycat read +6/+6.

@@ -7,6 +7,7 @@ import { Card, mdBold } from './Card';
 import { storedCardView } from './storedBoardView';
 import { heroArt, runeArt } from './art';
 import { Icon } from './Icon';
+import { recordText } from './leaderboardData';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './store';
@@ -16,8 +17,8 @@ import { RankBar } from './rank/RankBar';
 import { scalarCaption } from './rank/rankFormat';
 import { rankPositionOf, type RankedProfile } from './rank/types';
 import {
-  TREND_WINDOWS, TRIBE_LABEL, careerAggregates, heroCareers, matchResultOf, ordinalOf, outcomeOf, playedOnText, polylineOf, runLengthText,
-  trendSeries, type CareerRun, type HeroCareer, type TrendSeries, type TrendWindow,
+  TREND_WINDOWS, TRIBE_LABEL, careerAggregates, heroCareers, matchResultOf, mmrAxisOf, ordinalOf, outcomeOf, playedOnText, polylineOf, runLengthText,
+  trendSeries, trendWindowLabel, type CareerRun, type HeroCareer, type TrendSeries, type TrendWindow,
 } from './careerData';
 
 /**
@@ -47,8 +48,10 @@ import {
  *  RIGHT   Seasonal Ranked — the MEDAL RANK as the shared `RankBar` (crest, bar, points, name; the scalar as a
  *          caption), for your own profile AND for a viewed player (their rank rides in on `careerOf.rank` from
  *          the entry point, or is fetched here by user id; owner 2026-09-21) — the bare number only when no
- *          rank can be sourced — and Performance Trends: Avg Placement · Win Rate · Avg APM as inline-SVG
- *          lines over a 7 / 30 / 90-day window.
+ *          rank can be sourced — and Performance Trends: MMR · Avg Placement · Win Rate · Avg APM as inline-SVG
+ *          lines over a 7 / 30 / 90-day or All-time window (owner ask 2026-09-22). MMR comes FIRST: it sits
+ *          right under the crest whose caption prints the same scalar, so the eye reads crest → number → line,
+ *          and the three rates that explain it follow.
  *
  * A MATCH WIN IS BY PLACEMENT (owner ruling 2026-09-20): top 4 = W, 5th–8th = L (`isMatchWin`). Fights are no
  * longer the unit anywhere on this page — the banner's result, the Heroes grid's record + win rate and the Win
@@ -60,7 +63,8 @@ import {
  */
 
 /** Rows fetched light (scalars only) for the trends, the tiles and the Heroes tab — effectively every run the
- *  account has (a light row is ~200 bytes); the newest `CAREER_DETAIL_ROWS` of them also carry the board. */
+ *  account has (a light row is ~200 bytes); the newest `CAREER_DETAIL_ROWS` of them also carry the board. The
+ *  trends' "All time" window is therefore, precisely, the newest 1000 runs — honest today by a wide margin. */
 const FETCH_LIMIT = 1000;
 /** Which centre tab is open, persisted per browser (owner ask 2026-09-20). */
 const TAB_KEY = 'ascent.career.tab';
@@ -162,8 +166,9 @@ function StatTile({ label, value, icon }: { label: string; value: string; icon?:
 
 const CHART_W = 300, CHART_H = 110, CHART_PAD = 10;
 
-/** One trend: a static inline-SVG polyline (no library, nothing animated) with the window average as the
- *  headline and the axis extremes labelled. `invert` puts `yMin` at the top (placement: 1st reads high). */
+/** One trend: a static inline-SVG polyline (no library, nothing animated) with the series' headline (the window
+ *  average; for MMR the latest rating) and the axis extremes labelled. `invert` puts `yMin` at the top
+ *  (placement: 1st reads high). */
 function TrendChart({ title, series, yMin, yMax, invert, unit, empty }: {
   title: string; series: TrendSeries; yMin: number; yMax: number; invert?: boolean; unit?: string; empty: string;
 }) {
@@ -256,8 +261,8 @@ function MatchRow({ run, focus, busy, unplayable, onWatch }: {
               {result.label}
             </div>
             {fights > 0 && (
-              <div className="cv2-row-fights" aria-label={`Fights: ${run.wins} won, ${run.losses} lost`}>
-                {run.wins}–{run.losses}
+              <div className="cv2-row-fights" aria-label={`Fights: ${run.wins} won, ${run.losses} lost${run.draws ? `, ${run.draws} drawn` : ''}`}>
+                {recordText(run)}
               </div>
             )}
           </div>
@@ -613,11 +618,15 @@ export function Career() {
                     aria-pressed={window_ === d}
                     onClick={() => { if (window_ !== d) { sfx.pulse(); setWindow(d); } }}
                   >
-                    {d}d
+                    {trendWindowLabel(d)}
                   </button>
                 ))}
               </div>
             </div>
+            {/* MMR FIRST (owner ask 2026-09-22): the crest above prints "N MMR" and, with a rated run in the window,
+                this headline is that same number — crest → number → line — before the three rates that explain it.
+                Raw ratings on a division-snapped axis (`mmrAxisOf`); nothing here animates. */}
+            <TrendChart title="MMR" series={trends.mmr} {...mmrAxisOf(trends.mmr)} empty="No rated runs in this window" />
             <TrendChart title="Avg Placement" series={trends.placement} yMin={1} yMax={8} invert empty="No placements in this window" />
             <TrendChart title="Win Rate" series={trends.winRate} yMin={0} yMax={100} unit="%" empty="No placed runs in this window" />
             <TrendChart title="Avg APM" series={trends.apm} yMin={0} yMax={apmAxisMax(trends.apm)} empty="No replays with a clock in this window" />

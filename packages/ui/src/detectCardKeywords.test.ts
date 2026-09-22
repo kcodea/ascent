@@ -69,7 +69,7 @@ describe('detectCardKeywords', () => {
     expect(ids({ keywords: gover.keywords, text: gover.text ?? '' })).toEqual(['pummel', 'ale']);
     expect(ids({ keywords: vein.keywords, text: vein.text ?? '' })).toEqual(['pummel']);
     expect(ids({ keywords: gover.keywords, text: gover.goldenText ?? '' })).toEqual(['pummel', 'ale']);
-    expect(KEYWORD_GLOSSARY.find((d) => d.id === 'pummel')!.def).toBe('Pummel (X): Triggers once this minion has dealt X damage in a combat.');
+    expect(KEYWORD_GLOSSARY.find((d) => d.id === 'pummel')!.def).toBe('Pummel (X): Triggers each time this minion has dealt another X damage. The damage count carries over between combats.');
     expect(KEYWORD_GLOSSARY.find((d) => d.id === 'pummel')!.section).toBe('triggers');
     // Word boundary: "Pummeled" / "pummel" (lower-case verb) never raise it.
     expect(ids({ keywords: [], text: 'It gets Pummeled. You pummel it.' })).toEqual([]);

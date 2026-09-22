@@ -28,6 +28,9 @@
 /** def id → the `packages/ui/src`-relative files that fire it. Generated; see the header. */
 export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'ale-bubbles': ['Recruit.tsx', 'choreo/score.ts'],
+  // The persistent AMPLIFIED glow on the Equipment slot (owner-authored 2026-09-22): a looping, slot-centred play
+  // started while the selected Equipment will Amplify AND has a charge to spend, fired by literal id from its hook.
+  'amplified-slot': ['useAmplifiedSlotFx.ts'],
   // The Auctioneer's Pulse — played on the TARGET minion instead of the generic `hero-power-target` spark.
   'auctioneer-hp': ['Recruit.tsx'],
   'choose-one-both': ['useChooseBothFx.ts'],   // the persistent (Both) marker on hand / shop / Discover cards
@@ -69,6 +72,10 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'hero-power-target': ['Recruit.tsx'],
   'impact-dust': ['EndTurnButton.tsx', 'RefreshButton.tsx', 'choreo/channels/impact.ts'],
   'landing-dust': ['Recruit.tsx', 'useCombatReplay.ts'],
+  // THE LASSO (owner-authored 2026-09-22): stealing a Shop minion throws a rope at it — from the spell's drop
+  // point, from Rope Wrangler's medallion, from the Equipment slot (Whiplass-o) or from the rune badge (Rune of
+  // Lassoing). One `fireLassoBeam` in Recruit.tsx serves the action cascade and both End-of-Turn paths.
+  lasso: ['Recruit.tsx'],
   // Recruit.tsx dropped off this list on 2026-08-08: the SHOP half is now played through a
   // `bindings.json` row (`rubyLanded`) by the recruit cue runner, not by a hardcoded id. The combat
   // half in score.ts is still a literal — see RUBY_LANDED_DEF.
@@ -130,6 +137,11 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   // the activation resolves (owner ask), so the same `eq.useFxId` is fired from a second site. Both are the
   // same data-resolved id; both go away together when the moment moves into `recruitCues.ts`.
   'Recruit.tsx': 2,
+  // A THIRD site for the same data-resolved id since 2026-09-22 (owner ruling "spiritbinder one beam per fire"):
+  // the beam cascade plays `playDef(beam.fxId, …)` once PER FIRE for an Equipment flagged `useFxTargetsBuffed`,
+  // where `beam.fxId` is that Equipment's own `useFxId` (Spiritbinder's `spiritbinder`). Same debt, same fix —
+  // the moment belongs in `recruitCues.ts`, and moving it there retires this line with the two above.
+  'equipBeamCascade.ts': 1,
   // The same resolution in the TUNER's test fire: it plays the SELECTED Equipment's def so both cues can be
   // timed, rather than being hardwired to Bloodpot's. Same debt, same fix — moving the moment into
   // `recruitCues.ts` retires this line with the one above it.

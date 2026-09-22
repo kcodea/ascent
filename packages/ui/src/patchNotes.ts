@@ -61,16 +61,257 @@ export const PATCH_NOTES: PatchNote[] = [
     ],
   },
   {
-    date: '2026-09-21',
-    label: 'Mechanic medallions',
+    date: '2026-09-22',
+    label: 'Career MMR trend',
+    changes: [
+      { category: 'Systems', text: 'Performance Trends on the Career page now show your MMR over time, and an All time tab joins 7, 30 and 90 days.', details: [
+        'The MMR chart plots your rating after each rated run, exactly as it was, with the latest one as its headline. Practice and unrated runs are left out.',
+        'All time covers every run on your account. The 7, 30 and 90 day tabs work as before.',
+        'The trend panel keeps all four charts in view on a 1080p screen. The plots shrink to fit the column instead of hiding the last chart below its edge.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Spiritbinder cascade',
+    changes: [
+      { category: 'Systems', text: 'An Amplified or repeated Spiritbinder now throws one beam per trigger, each on its own beat.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Thymepiece',
+    changes: [
+      { category: 'Balance', text: 'An Amplified Thymepiece now runs for 16 seconds instead of 8. The discount stays at 1 Gold (2 when gilded). The rule on the slot shows the doubled window while the charge is armed.' },
+      { category: 'Systems', text: 'The Thymepiece countdown now sits above the Equipment slot and no longer shifts anything around it.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Amplified glow and Comet',
+    changes: [
+      { category: 'Systems', text: 'An Amplified Equipment now glows on its slot while it has a charge to spend. The glow stops when you use it or switch to an Equipment that is not Amplified.' },
+      { category: 'Systems', text: 'Comet plays its own effect when you use it.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Balance Report',
+    changes: [
+      { category: 'Systems', text: 'The Balance Report now reads only the active set and never a Scene Builder run. Export all downloads the whole dataset as one file.', details: [
+        'The header names the set it is reading and how many runs it found.',
+        "Minions and Spells show each card's buyers, buy rate, average place, top 4 rate and a placement delta against the field, with a hot and cold colour and a chart view.",
+        'Tier and tribe chips above the table summarise each group and filter the table when clicked.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Crest digits',
+    changes: [
+      { category: 'Balance', text: 'The rank crest now shows your division as a plain digit: 1, 2 or 3. The rank name still reads Bronze II.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Hall of Champions',
+    changes: [
+      { category: 'Systems', text: 'The Hall of Champions is now a showcase of the runs that have won the most games.', details: [
+        'Every entry is a lobby winner. Its record is the win that put it there, plus every player it has knocked out since, when its warband was served into other lobbies. Getting knocked out while that player still stood counts as a loss.',
+        'Each entry shows its record, the date of its last win, and the rank its player held when they won it. A run nobody has faced yet reads 1 and 0.',
+        'Sorted by most wins. Most recent is still there as a second sort.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'The lasso',
+    changes: [
+      { category: 'Systems', text: "Stealing a minion from the Shop now throws a lasso: the beam snaps out from the spell, from Rope Wrangler, or from the equipment slot, and the card comes to hand when it lands. Several steals cascade one after another." },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Spiritbinder beam',
+    changes: [
+      { category: 'Systems', text: "Spiritbinder now throws a beam at the board Spirit it buffs. The Spirit in your hand still flashes as before." },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Division numbers',
+    changes: [
+      { category: 'Balance', text: 'Division numbers now count up as you climb. A medal runs I, II, III instead of III, II, I.', details: [
+        'You start a medal at I and promote to II, then III, then the next medal at I. Bronze I is the floor, Ascendant III is the top.',
+        'This is a name change only. Nobody moved, your points did not change, and every promotion and demotion rule works exactly as before.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Equipment effects',
+    changes: [
+      { category: 'Systems', text: 'Stellar Lens and Revelmaker now play their own effect when you use them.' },
+      { category: 'Systems', text: 'The Equipment tooltip no longer stacks keyword definitions under the rule. Hover any card that carries the keyword to read it.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Live numbers in combat',
     changes: [
       {
         category: 'Systems',
-        text: 'Card mechanic medallions are now authored art instead of flat glyphs, with a new Spend medallion for gold-spender minions.',
+        text: 'Card numbers now move during a fight. Spell power and improving spells update while combat plays, instead of jumping once the shop reopens.',
         details: [
-          'Shout, Echo, Start of Combat, End of Turn, Avenge, Rally, Choose One, Cleave, Crit, Flurry, Rise, Rebirth, Attachment, Watcher and Spend now show their own medallion art; every other mechanic keeps its glyph.',
-          'Spend is a new keyword: it triggers on how much Gold you spend in a turn (the Dwarf gold-spender minions, like Coinfire Forewoman).',
-          "Rebirth has its own glyph now, no longer borrowing Rise's.",
+          'A spell in your hand or on your board shows what it would cast for right now, at every moment of the fight.',
+          'Front to Back and the other improving spells tick up as they are cast in combat, not at the end.',
+          'Rune of Adventuring is counted in the number you see. A Rally that fires twice pumps a spell twice, and the spell prints the doubled total.',
+          'The hero trackers that read combat totals were stuck for the same reason and now tick too: Attunement, Hoard and Blade Mastery.',
+          'Skipping a fight, or scrubbing back through one, lands on the same numbers as watching it through.',
+          'Nothing about the fight itself changed. Only the numbers you were shown were behind.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: "A card you are given for selling a minion can now complete a Gild. Voicekeeper's copy combines into the Gilded version if it is your third, and pays its Triple Reward.",
+        details: [
+          'This covers every card a sale hands you, not just Voicekeeper: the sell runes pay into the same check.',
+          'A sale that gives you nothing leaves your loose copies alone.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Kindness countdown',
+    changes: [
+      { category: 'Systems', text: "Kindness's hero power now says when the next Gift arrives. It counts down the turns and reads This turn on the turn it fires." },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Draws count in your record',
+    changes: [
+      { category: 'Systems', text: 'A fight where both boards wipe is a draw, and it is still a round. Your Career row and the in-run plaque now show it as a third number, so a 14 round run reads 8-3-3 instead of 8-3.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Warden voice line',
+    changes: [
+      { category: 'Systems', text: 'The Warden no longer speaks a line when you pick him in hero select.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Crest of the Climb scales',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Crest of the Climb now gets your spell power. Its +4 Attack or +4 Health grows with the Shop spell buffs you hold, and the card and the Choose One window both print the number it will give.',
+        details: [
+          'With +1 Health spell power the Health option gives +5 Health and the Attack option gives +4/+1, because spell power adds both of its stats to any stat spell, the same way it does for Growth or the Ales.',
+          'The card in the Shop, in your hand and on hover, and both options in the Choose One window, print the live number in green once you have any spell power. With none, the printed +4 stands.',
+          "Tower Shield (Defender's Shout) is unchanged and stays at +2/+1.",
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Avenge counter on summoned minions',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'A minion summoned during combat now shows its Avenge counter starting at 0. It used to show the deaths that happened before it arrived, which the Avenge itself never counted.',
+        details: [
+          "The rule is unchanged: a summoned Avenge minion only counts friendly deaths from the moment it lands. A Dunkey that Bullseye's Echo summons after two deaths still needs four more before it summons its Armadiyo.",
+          'Only the number printed on the card in combat was wrong. It read 2/4 on arrival in that case; it now reads 0/4 and ticks up from there.',
+          'Minions that start the fight on your board, and minions returning with Rise, count exactly as before.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: "A minion Soren's Reclaim brings back now counts its Avenge from the moment it returns. It used to count its own start-of-combat destruction as its first death.",
+        details: [
+          'A reclaimed Avenge (4) minion now needs four friendly deaths after it returns. Before this it paid one death early.',
+          'This follows the same rule as every other body that enters mid-combat: deaths before it arrived are not its progress.',
+          'The counter printed on the card already showed 0/4 on return. The rule now matches the card.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Final team after the last fight',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The final team shown on your Career, Recent Games and the Hall of Champions is now the board as it stood after the last combat, with the gains that carry over, instead of the board from before it.',
+        details: [
+          'Gains that carry between fights, such as Engraved growth and Ruby carry-backs, now show on the final team when the last combat earned them.',
+          'Start of Combat buffs, shields and summons that only last for one fight no longer show. The final team is exactly what your next Shop would have opened with.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Pummel carries over',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Pummel damage now carries over between combats again. The count keeps building from shop to combat to shop, pays out at each multiple of X, and pays at most once per combat.',
+        details: [
+          'Pummel (X): Triggers each time this minion has dealt another X damage. The damage count carries over between combats.',
+          'The counter on the card shows progress toward the next payout. Han Gover at 47 damage reads 7/40 in the shop and in combat, and it no longer holds at 40/40 after a payout.',
+          "One huge hit that passes several multiples of X still pays once. The extra multiples are spent, not saved, so a 120 damage hit pays once and Han Gover's next Ale comes at 160.",
+          'A second crossing in the same combat pays nothing that fight. The count still moves, and the next multiple pays next combat.',
+          "Goldvein's count carries over now too. It used to reset each combat.",
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-21',
+    label: 'Displaced minions keep Shop buffs',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'A minion swapped into the Shop by Darah now keeps any Shop buff it gets there, such as Veinstorm Rubies, when it comes back to your board.',
+        details: [
+          'Before this, a buff landing on the swapped minion while it sat in the Shop was lost when you bought it back or swapped it home. Only a Golden Touch carried over.',
+          'Every Shop buff now rides back under its own name: Veinstorm Rubies stay Rubies, so Ruby Transfer and cards that count Rubies see them.',
+          'The swapped minion in the Shop now shows the buffed stats in green, and its inspect view lists the buffs it picked up there.',
+          'The Displacement spell works the same way.',
+          'Lasso, Whiplass-o, Deep Delve Writ, Ironclad Requisition and Buyout now return the swapped minion whole too, with all of its stats and buffs, instead of a fresh copy.',
+          'A Shop spell aimed at the swapped minion now acts on its real stats. Perfect Vision sets it to 20/20 and Turnabout swaps its own Attack and Health.',
+          'Ruby Transfer now takes every Ruby the swapped minion shows, its own and the ones it picked up in the Shop, so the number on the card is what the spell steals.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'A Shop spell cast on a Shop minion that already has a buff, such as Shatter after Veinstorm, now pays both when you buy it.',
+        details: [
+          'Before this, the card showed both buffs but only the first one came with the purchase. The inspect view now names the spell next to the other buffs.',
+          'A Shop minion Darah swaps onto your board keeps its buffs under their own names as well, so its Rubies count as Rubies.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-21',
+    label: 'Twilight repeats rune effects',
+    changes: [
+      {
+        category: 'Balance',
+        text: "Rune of Twilight now also repeats your runes' Start of Combat effects, such as Rune of the Underdog, not only your minions' effects.",
+        details: [
+          'Every rune whose text begins with Start of Combat fires one extra time per Rune of Twilight you hold, in the same order as the first pass, after your minions and runes have all fired once.',
+          'Rune of the Underdog doubles again on the second pass. It picks the two lowest Attack minions again at that moment, so after the first doubling it can choose a different pair.',
+          'Rune of the Crucible destroys the next three left-most minions on the second pass and they all return together when your last minion dies. On a board of six or fewer that second pass empties the board, so everything returns at once at Start of Combat and the return is spent.',
+          'Rune of Sylus counts too. The Start of Combat ability it gives your Sylus doubles their Health again, so a Sylus ends up with four times its Health.',
+          'Runes that grant a keyword once, such as Rebirth or Rise, pick a minion that does not have it yet.',
         ],
       },
     ],

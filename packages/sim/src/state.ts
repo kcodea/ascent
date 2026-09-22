@@ -260,10 +260,10 @@ export interface BoardCard {
   /** Set 3 Spirits — per-instance `onTribePlayed` tally (Festival Keeper progress, Aspect's trigger
    *  count, Forest Colossus's Spirits-since-played). Carried into combat on the body. */
   spiritTally?: number;
-  /** Pummel (Han Gover, Goldvein) — the damage meter's run-card tally (per-instance). Every meter is once per
-   *  combat (core `DAMAGE_METER_MARKERS.resetEachCombat`, all bodies since 2026-09-21): the settle clears it
-   *  (`playerDamageMeters` reports 0) and the next fight starts at 0, so between fights this is undefined and the
-   *  shop reads 0/X. A persistent meter would seed combat from it and carry its lifetime total back here. */
+  /** Pummel (Han Gover, Goldvein) — the damage meter's LIFETIME run-card tally (per-instance). Seeds every
+   *  combat and takes the fight's total back at settle (`playerDamageMeters`), so it carries shop → combat →
+   *  shop (owner ruling 2026-09-21); the shop badge prints `total mod X`. Snapshotted with a served board, merged
+   *  as the max on a triple. Only the payout is once per combat (the combat instance's `pummelFired`). */
   damageDealt?: number;
   /** The wave this card was bought on — drives Hoarder's climbing sell value (currentWave - boughtWave
    *  + 1, ×2 golden). Set in the reducer's `buy` case; absent on cards from other sources (a Hoarder that
@@ -469,6 +469,13 @@ export interface EquipFx {
   /** `use` only: the Shop spells this activation cast (Pourman's Keg → its random Ale), in cast order. The UI
    *  plays each one's authored cast presentation from the slot — the same path a hand-cast Ale takes. */
   spellIds?: string[];
+  /** `use` only, and only for an Equipment flagged `useFxTargetsBuffed` (Spiritbinder): how much `targetUid`
+   *  gained from THIS fire. The UI withholds exactly this much until the def lands on it, so the beam reads as
+   *  the cause of the numbers. Carried rather than re-derived: the recipient's buff ledger is a run total, and
+   *  an Amplified activation buffs the same body twice — as TWO cues, one per fire (owner 2026-09-22: "one beam
+   *  per fire"), so neither survives division. */
+  buffAttack?: number;
+  buffHealth?: number;
 }
 
 export interface ShopDeathFx {
@@ -954,10 +961,20 @@ export interface RunState {
    *  advance), then cleared. Stacks if cast more than once before the next roll. */
   nextShopBuff?: { attack: number; health: number };
   /** TRANSIENT combat-replay preview of Front-to-Back escalation earned mid-fight (owner ask 2026-08-07: the
-   *  held card's printed value moves AS the cast happens, not at settle). The replay accumulates it via
-   *  `combatEscalationPreview`; settle clears it — the REAL gain arrives through `playerSpellEscalationGain`,
-   *  so this is display-only and can never double-count. */
+   *  held card's printed value moves AS the cast happens, not at settle). The replay publishes its FOLD of the
+   *  narrations played so far through `combatEscalationPreview`; settle clears it — the REAL gain arrives
+   *  through `playerSpellEscalationGain`, so this is display-only and can never double-count. */
   fxEscalationPreview?: { attack: number; health: number };
+  /** TRANSIENT combat-replay preview of SPELL POWER gained mid-fight (owner report 2026-09-22: spell text was
+   *  "not updating in real time from buffs in combat"). `grantSpellPower` keeps `ctx.spellPower` live inside
+   *  `simulate`, but the run's own `spellBonus` is only written at settle — so every spell whose printed value
+   *  is greened by spell power sat at its pre-combat number for the whole fight. The replay FOLDS the
+   *  simulator's own "+A/+H Spell Power" narrations over the events played so far (`combatBuffDelta`) and
+   *  publishes the running total through `combatSpellPowerPreview` — an absolute set, so scrubbing or
+   *  skipping the fight lands on the right number. Settle clears it, where the REAL total arrives through
+   *  `playerSpellPower`. DISPLAY ONLY — never fold it into
+   *  `spellAttackBonus` / `spellHealthBonus`, which the reducer's cast math reads (use the `…Live` helpers). */
+  fxSpellPowerPreview?: { attack: number; health: number };
   /** TRANSIENT combat-replay preview of spells cast this fight — Yirin's Attunement counter (and any other
    *  spells-cast reader) ticks live instead of jumping at settle. Cleared at settle, where the REAL count
    *  arrives via `playerSpellsCast`; display-only, so it can never double-count. */
@@ -1298,6 +1315,27 @@ export interface RunState {
   /** Bumps per recorded bounce hop — the UI keys the `spell-bounce` / `ruby-bounce` plays off this. Optional:
    *  a save from before the field existed restores without it (`?? 0` at every read). */
   bounceFxSeq?: number;
+  /** THE LASSO CHANNEL (owner ask 2026-09-22) — every Shop minion `stealTavernMinion` took this action, in
+   *  resolution order, so the UI can throw the authored `lasso` beam at each one and hold the card in the Shop
+   *  until the beam lands. Modelled on `starformFx`: appended by the effect, cleared per action at the top of
+   *  `reduce`, seq bumped per record so the watcher can dedupe.
+   *
+   *  `offer` is the WHOLE stolen `ShopCard`, not a partial snapshot, because the hold RE-RENDERS the card in
+   *  its Shop slot while the beam travels — and the shop view builder needs a real offer to build a view from.
+   *  It is transient and cleared per action, so it never grows the save. `index` is the offer's index in
+   *  `state.shop` at the moment it was spliced out (so the hold can put it back where it was; several steals
+   *  in one action must be re-inserted in REVERSE order, each index being relative to the already-shrunken
+   *  row). `handUid` is the copy that landed in hand — the arrival is held back by that uid, never by a
+   *  blanket flag, so anything else conjured in the same tick keeps its own cue. `origin` says where the beam
+   *  launches from: `'spell'` (the drop point), `'board:<uid>'` (Rope Wrangler), `'equipment'` (Whiplass-o's
+   *  slot) or `'rune'` (Rune of Lassoing's badge).
+   *
+   *  End of Turn reads the SAME records through `EotStepFx.steals` instead: an End-of-Turn steal commits inside
+   *  `faceOmen`, after the phase has flipped, so the action-level channel would fire with the Shop gone. */
+  lassoFx?: { offer: ShopCard; index: number; handUid: string; origin: string }[];
+  /** Bumps once per recorded steal — the UI keys the `lasso` cascade off this. Optional: a save from before
+   *  the field existed restores without it (`?? 0` at every read). */
+  lassoFxSeq?: number;
   /** Wolvie's borrowed Echo (`deathrattleBuffNextSummon`): buff the NEXT minion summoned in the shop of this
    *  tribe, then clear. One-shot; also cleared at End of Turn so it never leaks into the next shop. */
   pendingSummonBuff?: { tribe: Tribe; attack: number; health: number; source: string };
@@ -1941,6 +1979,12 @@ export interface RunState {
    *  order. Stamped onto the `use` EquipFx cue so the UI plays each spell's own cast animation + clip from the
    *  slot. Cleared at the top of every action. */
   equipmentSpellCasts?: string[];
+  /** Per-action: the BOARD bodies an Equipment's own effect buffed this action, in the order it picked them, with
+   *  the gain each pick added. Read by the `use` cues of an Equipment flagged `useFxTargetsBuffed` (Spiritbinder)
+   *  so its def flies at the body it chose — ONE cue per entry (owner 2026-09-22: "one beam per fire"). Display
+   *  metadata only: no RNG, no stats. Cleared at the top of every action, and each activation reads only the
+   *  entries pushed since its own mark (see `buffedFxTargets`). */
+  equipmentFxBuffed?: { uid: string; attack: number; health: number }[];
   /** FUNERAL ON LOAN: the uid of a board body that occupies its slot but is ALREADY DOOMED — the borrowed
    *  minion, spliced in only so positional Echoes (Dawnclaw's neighbours, Legion Shepherd's counting) see a
    *  real board, and removed the instant its Echo finishes. Summon capacity must not count it: it is leaving,
@@ -2336,12 +2380,19 @@ export interface DeferredFight {
 }
 
 export type Action =
-  /** Combat replay: an escalating spell improved itself mid-fight — bump the display-only preview. */
+  /** THE DISPLAY-ONLY COMBAT PREVIEWS. Each payload is the replay's ABSOLUTE fold over the events played so
+   *  far, never a delta — see the block comment on their reducer cases for why an accumulate cannot survive
+   *  a Skip, a seek or a mid-fight Save & Quit. Zero clears the preview. */
+  /** Combat replay: total escalation an escalating spell (Front to Back) has earned so far this fight. */
   | { type: 'combatEscalationPreview'; attack: number; health: number }
-  /** Combat replay: a Shop Spell resolved mid-fight — bump the display-only spells-cast preview. */
-  | { type: 'combatSpellCastPreview' }
-  | { type: 'combatFriendlyDeathPreview' }
-  | { type: 'combatBladeAttackPreview' }
+  /** Combat replay: total spell power gained so far this fight. */
+  | { type: 'combatSpellPowerPreview'; attack: number; health: number }
+  /** Combat replay: Shop Spells resolved so far this fight (Yirin's Attunement). */
+  | { type: 'combatSpellCastPreview'; count: number }
+  /** Combat replay: friendly deaths so far this fight (Cindara's Hoard). */
+  | { type: 'combatFriendlyDeathPreview'; count: number }
+  /** Combat replay: Blade Mastery attacks so far this fight (Gorun). */
+  | { type: 'combatBladeAttackPreview'; count: number }
   | { type: 'buy'; uid: string }
   /** Recruit your hero's HENCHMAN for its current (decayed) cost — once per run. See `henchmanCostOf`. */
   | { type: 'buyHenchman' }
@@ -2765,6 +2816,15 @@ export function deserialize(json: string, opts: { turnRemaining?: number } = {})
   // still carries them, and an open clock-window discount is healed against the saved clock (see above).
   delete (state as { bonusTurnSeconds?: number }).bonusTurnSeconds;
   delete (state as { bonusTurnSecondsNextTurn?: number }).bonusTurnSecondsNextTurn;
+  // THE DISPLAY-ONLY COMBAT PREVIEWS never survive a save (review 2026-09-22). The store saves DURING combat
+  // ("the clock is irrelevant"), and on Continue the replay re-mounts at beat 0 and re-publishes its fold from
+  // the top — so a persisted reading would be the fight's progress counted twice until settle cleared it. They
+  // describe a replay that is no longer running; a resumed fight rebuilds them from the event log in one beat.
+  state.fxEscalationPreview = undefined;
+  state.fxSpellPowerPreview = undefined;
+  state.fxSpellsCastPreview = undefined;
+  state.fxFriendlyDeathPreview = undefined;
+  state.fxBladeAttacksPreview = undefined;
   const win = state.cardDiscountWindow;
   if (win && (typeof win.amount !== 'number' || win.amount <= 0)) state.cardDiscountWindow = undefined;
   else if (win && win.untilClock !== null && typeof opts.turnRemaining === 'number' && opts.turnRemaining <= win.untilClock) {

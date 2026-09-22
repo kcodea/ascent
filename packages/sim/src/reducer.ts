@@ -1,4 +1,4 @@
-import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
+import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, socTwilightExtraFires, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -20,7 +20,7 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale } from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale } from './recruit';
 import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
@@ -1017,10 +1017,15 @@ export function reduce(state: RunState, action: Action): RunState {
       // excluded here — otherwise a gemmed offer would fire both. A lone Ruby dragged onto an offer is NOT in
       // this set (it never went through `stampVeinstormRubies`) and so still lands as an ordinary gem.
       const veinstormUids = new Set(next.veinstormStamped?.uids ?? []);
+      // A body SWAPPED IN this action (Darah's Displace / the Displacement spell) lands under a fresh uid with
+      // no `before` entry, carrying Rubies it already had — a displaced body's own, and the Veinstorm stamp the
+      // offer accrued (which already played the shop-gem span over the offer). Those are a carry, not a landing;
+      // the swap-arrows FX is its arrival beat. Same double-play class as the hand seeding above.
+      const swappedIn = next.swapFxSeq !== state.swapFxSeq ? next.swapFxBoardUid : undefined;
       // The DELTA, not the total — a minion already carrying Rubies from earlier this turn must report only
       // the ones that just arrived.
       const landed = (c: { uid: string; buffs?: { source: string; count: number }[] }): void => {
-        if (veinstormUids.has(c.uid)) return;
+        if (veinstormUids.has(c.uid) || c.uid === swappedIn) return;
         const n = rubyCountOf(c) - (before.get(c.uid) ?? 0);
         if (n > 0) rubyLanded.push({ uid: c.uid, count: n });
       };
@@ -1297,8 +1302,19 @@ function reduceCore(state: RunState, action: Action): RunState {
   // No window open — a late or duplicate expiry tick (Thymepiece) is a free no-op, not a clone.
   if (action.type === 'discountWindowExpired' && !state.cardDiscountWindow) return state;
 
+  // THE DISPLAY-ONLY COMBAT PREVIEWS (owner report 2026-09-22: spell text "not updating in real time from
+  // buffs in combat"). These carry no gameplay: the replay publishes what the EVENT LOG already says has
+  // happened so far this fight, so a printed number ticks with the fight instead of jumping at settle. They
+  // are dispatched WHILE `phase === 'combat'`, which is the one thing the guard below forbade — so every one
+  // of them was silently swallowed and every live readout they feed (Front to Back's step, spell power,
+  // Yirin's Attunement, Cindara's Hoard, Gorun's Blade Mastery) sat frozen for the whole combat. `settleCombat`
+  // clears all of them and applies the REAL carry-backs, so letting them through can never double-count, and a
+  // Discover raised mid-fight must not freeze them either (hence the modal guard below exempts them too).
+  const combatPreview = action.type === 'combatEscalationPreview' || action.type === 'combatSpellPowerPreview'
+    || action.type === 'combatSpellCastPreview' || action.type === 'combatFriendlyDeathPreview'
+    || action.type === 'combatBladeAttackPreview';
   // Recruit actions apply only in the recruit phase; `settleCombat` / `resolveCombat` only in combat.
-  if (state.phase !== 'recruit' && action.type !== 'resolveCombat' && action.type !== 'settleCombat') return state;
+  if (state.phase !== 'recruit' && !combatPreview && action.type !== 'resolveCombat' && action.type !== 'settleCombat') return state;
 
   // Modal recruit states — a pending Discover / Choose One / targeted Battlecry — block every other board
   // action until they resolve. The player can still inspect (a UI-only concern), so a Discover can be
@@ -1330,7 +1346,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // before the pick resolves either way — it only lets the settle be its own commit, so the shop can play the
   // dissolve and THEN raise the Discover (Recruit.tsx holds the overlay on `pendingDeath`).
   const settlesDeath = action.type === 'resolveShopDeath' && !!state.pendingDeath;
-  if (modalOpen(state) && !combatTransition && !settlesDeath && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'cancelChoice' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'pickPower' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout' && !endTurnEscapesAim) {
+  if (modalOpen(state) && !combatTransition && !combatPreview && !settlesDeath && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'cancelChoice' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'pickPower' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout' && !endTurnEscapesAim) {
     return state;
   }
 
@@ -1388,10 +1404,12 @@ function reduceCore(state: RunState, action: Action): RunState {
   s.shopEaten = []; // Set 2's shop-minion consume swirl — same per-action contract, separate channel
   s.starformFx = []; // Set 3's Starform pulls (consume-shop / consumed / collapse) — same per-action contract
   s.bounceFx = []; // the cross-target re-cast hops (spell-bounce / ruby-bounce) — same per-action contract
+  s.lassoFx = []; // the Shop steals this action (the `lasso` beam cascade) — same per-action contract
   s.gainCardFiredUids = []; // per-action: which hand arrivals already fired onGainCard (see the hand diff in `reduce`)
   s.gainAttackFiredUids = []; // per-action: Attack gains already dispatched inside the action (per-card EoT waves)
   s.starformGainFired = undefined; // per-action: Starform growth already dispatched as `starformGained` (see the diff in `reduce`)
   s.equipmentSpellCasts = []; // per-action: spells an Equipment activation cast (the Keg's Ale) — for the use cue
+  s.equipmentFxBuffed = []; // per-action: board bodies an Equipment's effect buffed — the use cue's destination
 
   switch (action.type) {
     case 'buy': {
@@ -1492,13 +1510,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         spendGold(s, heldCost);
         s.shop.splice(i, 1);
         ciaBuyEnchanted(s, offer); // Croupier Ayse: an Enchanted buy advances her prize counter
-        // Clone the mutable arrays so the re-bought minion doesn't SHARE keywords/buffs with its held copy.
-        const restored: BoardCard = { ...offer.held, uid: `b${s.uidSeq++}`, keywords: [...offer.held.keywords], buffs: offer.held.buffs ? [...offer.held.buffs] : undefined };
-        // A HELD offer that was GILDED in the tavern must come back golden (owner bug report 2026-07-29: Golden
-        // Touch appeared to do nothing on a displaced minion). This branch restores `held` verbatim and never
-        // read `offer.golden`, so the gild was silently discarded — it looked tier-related because displacement
-        // is how a high-tier minion tends to end up in the shop, but it affected every displaced minion.
-        if (offer.golden && !restored.golden) gildMinion(restored);
+        // The held body comes back intact PLUS every buff the offer accrued in the Shop (Veinstorm Rubies,
+        // Fortify, …) and a Golden Touch re-gild — `restoreHeldOffer`, the one fold shared with the swap-back
+        // path (owner bug report 2026-09-21: Veinstorm on a displaced Chimerus "did not buff it").
+        const restored: BoardCard = restoreHeldOffer(s, offer);
         s.hand.push(restored);
         drakkoQuestBuy(s, card); // a paid buy still progresses Drakko's quest (it used to be skipped)
         chronosQuestBuy(s, card); // …and Chronos's End-of-Turn quest
@@ -1570,9 +1585,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         ...(offer.sellZero ? { sellOverride: 0 } : {}), // Rune of the Bargain Bin: bought from the bin → sells for 0
       };
       // Tavern buffs on the offer (Apples / Fortify / Fried Circuits / next-shop) bake in under their REAL
-      // source names, not a blanket "Fortify"; fall back to a generic label for any legacy offer with no breakdown.
-      if (offer.buffs?.length) for (const b of offer.buffs) addBuff(bought, b.source, b.attack, b.health, b.count);
-      else addBuff(bought, 'Tavern buff', offer.atk ?? 0, offer.hp ?? 0);
+      // source names, not a blanket "Fortify"; whatever `atk`/`hp` carry beyond the ledger (a legacy offer with
+      // no breakdown) lands under a generic label, so the buy always pays what the row advertised
+      // (`foldOfferBuffs`, the one fold every Shop exit shares).
+      foldOfferBuffs(bought, offer);
       const buyAuraHp = buyHealthAura(s, card); // Scrap Herald: Magnetic minions also carry a Health aura
       if (buyAura > 0 || buyAuraHp > 0) addBuff(bought, 'Tribe Bond', buyAura, buyAuraHp);
       // Staff of Guel — the run-wide "every minion you buy" buff bakes in too (tavern purchases only).
@@ -2397,7 +2413,9 @@ function reduceCore(state: RunState, action: Action): RunState {
           const fired = fireEquipmentFree(s, eq, version, body, body.uid);
           if (fired) {
             procRuneId(s, 'rune_dismantling');
-            stampEquipFx(s, { kind: 'use', uid: body.uid, cardId: body.cardId, equipmentId: eq.id, ...(fired.targetUid ? { targetUid: fired.targetUid } : {}) });
+            // `fireEquipmentFree` returns exactly the cue fields its fire earned (the aimed body, or the board
+            // body a `useFxTargetsBuffed` effect chose, with its gain), so it spreads straight on.
+            stampEquipFx(s, { kind: 'use', uid: body.uid, cardId: body.cardId, equipmentId: eq.id, ...fired });
           }
         }
       }
@@ -2415,7 +2433,21 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Every post-removal sale ritual (Gold, the sell runes, on-sell + minion-sold notifications, Robin's
       // Spoils, the pool return) lives in `settleMinionSale` so a spell that SELLS a minion (Dissipate) walks
       // exactly the same path as this manual sale.
+      // A sale can GRANT a minion to hand (Voicekeeper's copy of the first Dragon sold, Rune of the Foundry,
+      // Rune of the Festival Circuit, a Last Word Shout) — and that copy can be your third. This case returns
+      // early, so the shared post-action hand-growth check in `reduce` never sees it: that check reads its
+      // `handBefore` AFTER `reduceCore` has already landed the grant. Every other hand-growing case calls
+      // `checkTriples` itself; the sale forgot (owner report 2026-09-22, "voicekeeper selling needs a triple
+      // check"). Gated on the hand actually GROWING, exactly like the shared block, so a sale that grants
+      // nothing leaves loose copies alone. The gate decides WHETHER to run the check, not what it may combine:
+      // `checkTriples` is board-wide, so a sale that DOES grant something also combines any other id sitting at
+      // the threshold. That is the same board-wide behaviour every other hand-growth path already has, and it
+      // is deliberate — a narrower, grant-scoped check would make selling the one route where a third copy did
+      // not combine. `checkTriples` is idempotent, and the spell-driven sale paths (Dissipate, Parting Gifts)
+      // run it again on the play path, so nothing here can combine twice.
+      const handBeforeSale = s.hand.length;
       if (sold) settleMinionSale(s, sold);
+      if (s.hand.length > handBeforeSale) checkTriples(s);
       return s;
     }
 
@@ -2632,17 +2664,30 @@ function reduceCore(state: RunState, action: Action): RunState {
       // def (Bloodpot, Titan Hammer, …) already draws the moment, and a tendril on top would be two cues for one
       // press. A stand-in source (the granter was sold) is not a living minion → the descend plays instead.
       let fired = true;
-      const fire = (): void => { fired = fireEquipmentTriggers(s, fireDef, granted.version, fireSelf, target, triggers, action.clockSeconds); };
+      const fxMark = equipmentFxMark(s);
+      const fire = (): void => { fired = fireEquipmentTriggers(s, fireDef, granted.version, fireSelf, target, triggers, action.clockSeconds, amplified); };
       if (fireDef.useFxId) fire();
       else captureBuffFx(s, src, src ? 'minion' : 'spell', fire);
       if (!fired) return state;
-      // ONE use cue per ACTIVATION, not per trigger — the handoff's rule for repeats is that they "communicate
-      // repetition without replaying the full animation", so a three-trigger Bloodpot is one travel, not three.
-      stampEquipFx(s, {
-        kind: 'use', uid: self.uid, cardId: self.cardId, equipmentId: def.id,
-        ...(target ? { targetUid: target.uid } : {}),
-        ...(s.equipmentSpellCasts?.length ? { spellIds: [...s.equipmentSpellCasts] } : {}),
-      });
+      // THE USE CUE(S). ONE per ACTIVATION for an Equipment whose def plays on the slot or on what it was aimed
+      // at — the handoff's rule for repeats is that they "communicate repetition without replaying the full
+      // animation", so a three-trigger Bloodpot is one travel, not three. But ONE PER FIRE for an Equipment whose
+      // def flies at the body its own effect picked (`useFxTargetsBuffed`, Spiritbinder — owner ruling
+      // 2026-09-22: "spiritbinder one beam per fire"): each cue carries that fire's own recipient and gain, in
+      // fire order, so an Amplified or repeated activation cascades N beams onto N recipients, the way Rally and
+      // Shout count repeated triggers at the signal. Nothing about the picks changes — only the signal. A fire
+      // that picked no body stamps nothing; an activation that picked none at all still stamps the single
+      // target-less cue below, which is what tells the UI to play nothing at all. The Keg's `spellIds` ride the
+      // first cue only (two pours on ONE cue is the pinned contract); no flagged Equipment casts anything today.
+      const cueBase = { kind: 'use' as const, uid: self.uid, cardId: self.cardId, equipmentId: def.id };
+      const cueAim = target ? { targetUid: target.uid } : {};
+      const cueSpells = s.equipmentSpellCasts?.length ? { spellIds: [...s.equipmentSpellCasts] } : {};
+      const perFire = buffedFxTargets(s, fireDef, fxMark);
+      if (perFire.length > 0) {
+        perFire.forEach((hit, i) => stampEquipFx(s, { ...cueBase, ...cueAim, ...hit, ...(i === 0 ? cueSpells : {}) }));
+      } else {
+        stampEquipFx(s, { ...cueBase, ...cueAim, ...cueSpells });
+      }
       // `equipmentActivated` watchers (Rig, set 3 Neutrals 2026-09-18): the player USED an Equipment — once per
       // activation, after its own triggers, before any Counterrotation re-fire (which is not the player pressing).
       fireEquipmentActivated(s, def.id);
@@ -2663,7 +2708,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             const src = s.board.find((c) => g.sourceUids.includes(c.uid));
             const selfAgain: BoardCard = src ?? { uid: `eq:${d.id}`, cardId: d.id, tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false };
             const fired = fireEquipmentFree(s, d, g.version, selfAgain);
-            if (fired) stampEquipFx(s, { kind: 'use', uid: selfAgain.uid, cardId: selfAgain.cardId, equipmentId: d.id, ...(fired.targetUid ? { targetUid: fired.targetUid } : {}) });
+            if (fired) stampEquipFx(s, { kind: 'use', uid: selfAgain.uid, cardId: selfAgain.cardId, equipmentId: d.id, ...fired });
           }
         }
       }
@@ -3119,6 +3164,9 @@ function reduceCore(state: RunState, action: Action): RunState {
           const def = CARD_INDEX[offer.cardId];
           if (!def || offer.starform) continue; // the Starform is never bought into hand (rule 5) — it stays
           if (s.hand.length >= handCap(s)) { returnToPool(s, offer.cardId); continue; }
+          // A displaced (held) body comes back WHOLE — its own ledger, progression and what it accrued in the
+          // row — the same restore the re-buy performs, never a fresh base body.
+          if (offer.held) { s.hand.push(restoreHeldOffer(s, offer)); continue; }
           s.hand.push({
             uid: `b${s.uidSeq++}`, cardId: def.id, tribe: def.tribe,
             ...conjuredStats(s, def, cardBuff(s, def.id)),
@@ -3135,6 +3183,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             const d = CARD_INDEX[offer.cardId];
             if (!d || offer.starform) continue; // (rule 5) the Starform stays
             if (s.hand.length >= handCap(s)) { returnToPool(s, offer.cardId); continue; }
+            if (offer.held) { s.hand.push(restoreHeldOffer(s, offer)); continue; } // (a Layaway-kept held offer survives the roll)
             s.hand.push({
               uid: `b${s.uidSeq++}`, cardId: d.id, tribe: d.tribe,
               ...conjuredStats(s, d, cardBuff(s, d.id)),
@@ -3494,24 +3543,43 @@ function reduceCore(state: RunState, action: Action): RunState {
       return s;
     }
 
+    /* ---------------------------------------------------------------------------------------------------
+     * THE FIVE DISPLAY-ONLY COMBAT PREVIEWS. Every one of them is an ABSOLUTE publish of a FOLD the replay
+     * computed over `events[0, processedEnd)` — never a per-event accumulate (review 2026-09-22). An
+     * accumulate is only correct when each beat is played exactly once, and three ordinary things break that:
+     * the Skip button jumps to the last beat and runs the beat effect for that beat alone (every skipped
+     * bump lost), a seek re-runs the same beat (bumped twice), and a Save & Quit taken mid-fight persists the
+     * counter and then replays the log from beat 0 on Continue (everything counted twice). Publishing the
+     * fold makes all three land on the same number, which is exactly what these readouts promise: tick with
+     * the fight, equal what settle banks. `settleCombat` clears them all and applies the REAL carry-backs, and
+     * `deserialize` clears them too, so nothing here can ever stack with the banked value.
+     * ------------------------------------------------------------------------------------------------- */
     case 'combatEscalationPreview': {
-      // Display-only (see `fxEscalationPreview`): the replay narrates an escalating spell improving itself
-      // mid-fight, and the held card's printed value moves with it. The REAL gain lands at settle through
-      // `playerSpellEscalationGain`; settle clears this, so the two can never stack.
-      const cur = s.fxEscalationPreview ?? { attack: 0, health: 0 };
-      s.fxEscalationPreview = { attack: cur.attack + action.attack, health: cur.health + action.health };
+      // An escalating spell (Front to Back) improving itself mid-fight — the held card's printed step moves
+      // with it. The REAL gain lands at settle through `playerSpellEscalationGain`.
+      s.fxEscalationPreview = action.attack === 0 && action.health === 0
+        ? undefined
+        : { attack: action.attack, health: action.health };
+      return s;
+    }
+    case 'combatSpellPowerPreview': {
+      // Spell power gained mid-fight — the fold of the simulator's own "+A/+H Spell Power" narrations. The
+      // real total lands at settle through `playerSpellPower`.
+      s.fxSpellPowerPreview = action.attack === 0 && action.health === 0
+        ? undefined
+        : { attack: action.attack, health: action.health };
       return s;
     }
     case 'combatSpellCastPreview': {
-      s.fxSpellsCastPreview = (s.fxSpellsCastPreview ?? 0) + 1; // display-only — see fxSpellsCastPreview
+      s.fxSpellsCastPreview = action.count === 0 ? undefined : action.count; // Yirin's Attunement counter
       return s;
     }
     case 'combatFriendlyDeathPreview': {
-      s.fxFriendlyDeathPreview = (s.fxFriendlyDeathPreview ?? 0) + 1; // display-only — Cindara's live Avenge tracker
+      s.fxFriendlyDeathPreview = action.count === 0 ? undefined : action.count; // Cindara's live Avenge tracker
       return s;
     }
     case 'combatBladeAttackPreview': {
-      s.fxBladeAttacksPreview = (s.fxBladeAttacksPreview ?? 0) + 1; // display-only — Gorun's live grant/countdown
+      s.fxBladeAttacksPreview = action.count === 0 ? undefined : action.count; // Gorun's live grant/countdown
       return s;
     }
     case 'settleCombat': {
@@ -3825,8 +3893,8 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   // Tara that's close to ascending doesn't reset it back to 20-to-go.
   const goldenAscend = def.ascendAt ? Math.max(...combined.map((c) => c.ascendProgress ?? 0)) : 0;
   // Pummel (Han Gover, Goldvein): the golden keeps the HIGHEST damage tally of the copies (the same rule as
-  // Tara's ascend progress). Moot while every meter resets each combat (the run card holds 0 between fights),
-  // kept for a persistent meter.
+  // Tara's ascend progress) — the tally is lifetime (carry-over ruling 2026-09-21), so tripling a Han Gover close
+  // to its next Ale does not throw the progress away.
   const goldenDamageDealt = Math.max(...combined.map((c) => c.damageDealt ?? 0));
   // Hoarder: the golden keeps the EARLIEST (minimum) boughtWave of the copies, so a golden Hoarder
   // inherits the oldest copy's age → its highest sell value as the starting point (sell =
@@ -4009,8 +4077,8 @@ export function playerBoardMinions(board: readonly BoardCard[]): BoardMinion[] {
     ascendProgress: b.ascendProgress ?? 0, // Tara: seed the prior ascend tally so the live tracker shows the total
     spellProgress: b.spellProgress, // Guel: seed his on-board spell tally so the live combat text scales (not stuck at base)
     spiritTally: b.spiritTally, // Set 3 Spirits: Forest Colossus's Start of Combat reads it; Festival Keeper / Aspect print it
-    // Pummel (Han Gover, Goldvein): carried for a persistent meter. A once-per-combat meter (every meter since
-    // 2026-09-21, `resetEachCombat`) ignores it in core's `instantiate` and starts the fight at 0.
+    // Pummel (Han Gover, Goldvein): the LIFETIME damage tally, seeded into the fight so the meter continues from
+    // the run card (carry-over ruling 2026-09-21); core's `instantiate` copies it onto the combat body.
     damageDealt: b.damageDealt,
     soldProgress: b.soldProgress, // Runic Archivist: display-only, so the combat card prints its live count
     boardFirstSpellId: b.boardFirstSpellId, // Spell Warden: display-only
@@ -4053,7 +4121,9 @@ function preparePlayerCombatSide(s: RunState): PreparedCombatSide {
   // Open the Gates' Imps) are pre-baked HERE, before the simulator's Start-of-Combat pass, so the sim's
   // Twilight loop (which re-fires minion `startOfCombat` effects) never sees them — they were silently
   // exempt (owner report 2026-08-12). Apply the extra trigger here instead: ×2 when Twilight is armed.
-  const twilightMult = s.questFlags?.runeTwilight ? 2 : 1;
+  // One extra pass per Twilight COPY (`socTwilightExtraFires`, the definition combat's pass consults) — a second
+  // copy used to triple minion effects in combat but only double these (reviewer 2026-09-21).
+  const twilightMult = 1 + socTwilightExtraFires({ runeTwilight: !!s.questFlags?.runeTwilight, flagCopies: s.flagCopies });
   // CHOREOGRAPHER PR 7 — these pending Start-of-Combat payouts now EMIT. They were the archetype of the
   // problem this project exists to fix: applied silently into the combat board here, before the
   // simulator's Start-of-Combat pass, with no source-attributed event anywhere. The result was a buff
@@ -4401,10 +4471,11 @@ function settleCombat(s: RunState, result: CombatResult): void {
       }
     }
   }
-  // PUMMEL (Han Gover, Goldvein): the damage meter's carry-back. Every meter is once per combat (`resetEachCombat`,
-  // core `DAMAGE_METER_MARKERS` — all bodies since the Pummel ruling 2026-09-21), so it carries back 0 → the
-  // card's tally is CLEARED, and the shop badge reads 0/X after the fight (owner 2026-09-19). The Ales themselves
-  // already came home through `playerHandGrants` above. A persistent meter would land its running total here.
+  // PUMMEL (Han Gover, Goldvein): the damage meter's carry-back — the LIFETIME tally (seeded + this fight's
+  // hits) lands on the run card whole, so the shop badge reads `total mod X` (47 → 7/40) and the next fight
+  // seeds from it (carry-over ruling 2026-09-21: "it needs to carry over from turn to turn and combat to shop").
+  // The Ales themselves already came home through `playerHandGrants` above. A body that dealt nothing is not
+  // reported and keeps whatever the card carried.
   if (result.playerDamageMeters) {
     for (const { sourceUid, total } of result.playerDamageMeters) {
       const card = s.board.find((c) => c.uid === sourceUid);
@@ -4681,6 +4752,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
     s.frontToBackBonusH += result.playerSpellEscalationGain.health;
   }
   s.fxEscalationPreview = undefined; // the display preview retires — the real gain just landed above
+  s.fxSpellPowerPreview = undefined; // ditto: `playerSpellPower` was applied above
   s.fxSpellsCastPreview = undefined; // ditto: `playerSpellsCast` was applied above
   s.fxFriendlyDeathPreview = undefined; // Cindara's live Avenge tracker retires — a new fight re-counts from 0
   s.fxBladeAttacksPreview = undefined; // Gorun's live counter retires — `bladeAttacks` already banked the real total

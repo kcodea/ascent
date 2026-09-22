@@ -76,6 +76,9 @@ tooltips, fixes). Skip build/test/tooling/refactor work; that is not player-faci
 
 - Plain and Gilded text agree with the implementation.
 - A gameplay change added a `patchNotes.ts` entry (or you confirmed it is not player-facing).
+- A BUG FIX added its rule to the oracle in the same PR — an approved rule in
+  `packages/rules/src/registry/approved.ts` with the owner's words as evidence and the new regression test
+  as its `enforcement.refs`, so Doc Bot catches the regression (owner ask 2026-09-22; recipe in CLAUDE.md).
 - Tier, stats, tribe(s), keywords, token status, set membership are right.
 - Discover/random pools can actually produce what the text promises.
 - Named granted cards exist in the global index.

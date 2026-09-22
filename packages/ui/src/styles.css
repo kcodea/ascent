@@ -3644,15 +3644,25 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
    one-shot `stepbump` are inherited, so nothing here repaints per frame. */
 .hpwrap .hpb-tally.boosted { color: #8ff0a4; }
 /* AMPLIFIED (owner design 2026-09-16): the Equipment's next activation triggers twice — the charge reads BLUE.
-   Colour only (no per-frame paint); the owner's authored cue will bind on `[data-fx="equipment-amplified"]`. */
+   Colour only (no per-frame paint). The owner's authored cue is a Pixi loop on the slot button, not CSS
+   (`useAmplifiedSlotFx`, 2026-09-22); `[data-fx="equipment-amplified"]` on the tally stays as the tooling mark. */
 .hpwrap .hpb-tally.amplified { color: #7fc4ff; }
 .equipslot .hplabel {
   transform: translate(calc(var(--eqn-x, 0) * 1px), calc(var(--eqn-y, 0) * 1px)) scale(var(--eqn-scale, 1)); }
-/* THE CLOCK-WINDOW READOUT (Thymepiece, 2026-09-12): a second pill under the name — "−1 Gold · 6s" — in the
-   same discount GREEN the shop coins turn while the window is open, so the slot and the prices tell one story.
-   Static colours only; the per-second text change is a React render of one tiny leaf, no animation. */
+/* THE CLOCK-WINDOW READOUT (Thymepiece, 2026-09-12): a pill — "−1 Gold · 6s" — in the same discount GREEN the
+   shop coins turn while the window is open, so the slot and the prices tell one story. Static colours only;
+   the per-second text change is a React render of one tiny leaf, no animation.
+
+   ABOVE the slot and OUT OF FLOW (owner 2026-09-22: "show above the equipment instead of below, and dont let
+   it nudge anything on the screen at all"). The slot is a translate(-50%, -50%)-centred flex column, so a pill
+   in flow grew the column and shifted the button and the name by half its height every time it appeared.
+   Absolute against the slot, anchored to the slot's top edge, it adds no height anywhere. The 16u gap clears
+   the cost coin, which protrudes 14u above the button's wrap. It overrides the name pill's tuner transform
+   (`.equipslot .hplabel` above) on purpose: the readout is not the name and must not follow the name nudge. */
 .equipslot .hplabel.discountwin {
-  margin-top: calc(3 * var(--u)); color: #8ff0a4; border-color: color-mix(in srgb, #8ff0a4 55%, #000);
+  position: absolute; bottom: calc(100% + 16 * var(--u)); left: 50%; transform: translateX(-50%);
+  margin: 0; white-space: nowrap; pointer-events: none; z-index: 5;
+  color: #8ff0a4; border-color: color-mix(in srgb, #8ff0a4 55%, #000);
   font-variant-numeric: tabular-nums; }
 /* No `cursor` declaration here on purpose — the global gauntlet rule paints `.btn, button`, and a plain
    keyword cursor on a class selector out-specifies it and swaps in the OS arrow (CLAUDE.md's UI convention). */
@@ -6435,9 +6445,11 @@ svg { width: 18px; height: 18px; }
 .balsub { font-weight: 600; font-size: 12px; color: rgba(255, 255, 255, 0.58); text-align: center; }
 .balsub code, .balempty code { background: rgba(255, 255, 255, 0.1); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
 .balcontrols { display: flex; align-items: center; gap: 8px; }
-.balchip, .balrun { font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.2); padding: 7px 12px; border-radius: 9px; cursor: pointer; }
+/* No cursor rule on these buttons: the global `button` rule paints the gauntlet (a bare `cursor: pointer` on a
+   class out-specifies it and swaps the OS arrow back in; review fix 2026-09-22). */
+.balchip, .balrun { font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.2); padding: 7px 12px; border-radius: 9px; }
 .balchip.on { border-color: var(--acc); color: var(--acc); }
-.balchip:disabled, .balrun:disabled { opacity: 0.5; cursor: default; }
+.balchip:disabled, .balrun:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
 .balrun { margin-left: 6px; background: var(--acc); color: #1a1206; border-color: var(--acc); padding: 7px 18px; }
 .baldim { color: rgba(255, 255, 255, 0.45); font-weight: 600; font-size: 12px; }
 /* Derived-view explainer line above a report table (Balance Report, 2026-08-06). Static text, no effects. */
@@ -6507,8 +6519,9 @@ svg { width: 18px; height: 18px; }
 .balgrid-solo .balname { white-space: normal; overflow-wrap: anywhere; line-height: 1.15; }
 .balgrid-solo .balrow.balhead { position: sticky; top: 0; z-index: 1; background: #0b1524; font-size: 13px; padding-top: 12px; padding-bottom: 10px; }
 .balgrid-solo .balrow:not(.balhead):hover { background: rgba(255, 255, 255, 0.04); }
-/* Column headers double as sort buttons — reset the button chrome, keep the header look, hint the active one. */
-.balsort { background: none; border: none; font: inherit; color: inherit; cursor: pointer; padding: 0; text-align: right; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
+/* Column headers double as sort buttons — reset the button chrome, keep the header look, hint the active one.
+   They are real <button>s everywhere, so the global rule paints the gauntlet and no cursor rule lives here. */
+.balsort { background: none; border: none; font: inherit; color: inherit; padding: 0; text-align: right; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
 .balsort.balname { text-align: left; }
 .balsort:hover { color: rgba(255, 255, 255, 0.9); }
 .balsort.on { color: var(--acc); }
@@ -6516,10 +6529,88 @@ svg { width: 18px; height: 18px; }
    collide with the next column ("COPIES SEENBought"). In the solo report grid let the header labels wrap to a
    second line instead — the cells below are short numbers, so only the header is affected. */
 .balgrid-solo .balrow-h .balsort { white-space: normal; }
-/* Report picker dropdown (which section to view). */
-.balpick { font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.2); padding: 7px 12px; border-radius: 9px; cursor: pointer; }
+/* Report picker dropdown (which section to view). A <select> is outside the global button rule, so it names
+   the gauntlet itself in the sanctioned URL form rather than a bare keyword. */
+.balpick { font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.2); padding: 7px 12px; border-radius: 9px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .balpick:focus-visible { outline: 2px solid var(--acc); }
 .balpick option { color: #1a1206; }
+
+/* ── BALANCE REPORT REWORK (owner ask 2026-09-22): the header states what is read; the Minions / Spells
+   sections become the per-card impact table with per-tier / per-tribe chip strips (which double as filters),
+   a Table / Chart switch, a Compact / Detailed column switch, and a ranked diverging bar chart of the placement
+   delta. Everything static: no looping animation, no per-frame layout reads, no bare cursor rules (the global
+   button rule paints the gauntlet). ── */
+.balsub b { color: var(--acc); }
+/* The unstamped-rows warning under the header: amber so it reads as "act on this", not as an error. */
+.balsub.balwarn { color: #ffd76a; }
+/* Chip strips: one chip per tier / tribe, label + buyer runs + delta, the delta wearing the table's heat. */
+.balstrip { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; margin: 0 auto 8px; max-width: 1400px; }
+.balstrip-label { font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(255, 255, 255, 0.5); margin-right: 4px; }
+.balgchip { display: inline-flex; align-items: baseline; gap: 7px; font-family: var(--font-ui); font-size: 13px; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.16); padding: 5px 10px; border-radius: 9px; }
+.balgchip:hover { border-color: rgba(255, 255, 255, 0.4); }
+.balgchip.on { border-color: var(--acc); background: rgba(255, 170, 60, 0.12); }
+.balgchip-l { font-weight: 800; }
+.balgchip-n { font-weight: 600; font-size: 12px; color: rgba(255, 255, 255, 0.5); font-variant-numeric: tabular-nums; }
+.balgchip-d { font-weight: 800; font-variant-numeric: tabular-nums; }
+/* The view / columns switches beside the count of cards shown. */
+.balseg-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 4px auto 12px; }
+.balseg { display: inline-flex; border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 9px; overflow: hidden; }
+.balseg button { font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: rgba(255, 255, 255, 0.72); background: rgba(0, 0, 0, 0.34); border: none; padding: 6px 14px; }
+.balseg button + button { border-left: 2px solid rgba(255, 255, 255, 0.2); }
+.balseg button.on { background: var(--acc); color: #1a1206; }
+.balseg-count { font-weight: 700; font-size: 12px; color: rgba(255, 255, 255, 0.5); }
+/* The DETAILED impact table has twenty numeric columns: a denser grid than the solo table (15px, narrower
+   floors, tighter gaps) so it still fits a 1080p viewport; Compact keeps the large-text solo layout. */
+.balsolo.balwide { width: min(calc(15rem + var(--balcols, 4) * 5.4rem), 100%); }
+.balgrid-solo.balgrid-dense .balrow { grid-template-columns: minmax(10rem, 2.2fr) repeat(var(--balcols, 4), minmax(3rem, 1fr)); gap: 9px; padding: 8px 2px; font-size: 15px; }
+.balgrid-solo.balgrid-dense .balrow.balhead { font-size: 11.5px; }
+/* The ranked diverging bar chart: name | buyers | a centred track with a hairline baseline | the delta.
+   Bars are thin (14px), square at the baseline and rounded at the data end, and FADE with a thin sample. */
+.balimp { width: min(1000px, 100%); background: rgba(0, 0, 0, 0.32); border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 16px; padding: 14px 22px 16px; }
+.balimp .balnote { margin-bottom: 10px; }
+.balimp-axis { display: grid; grid-template-columns: minmax(10rem, 2fr) 3rem minmax(12rem, 6fr) 4.5rem; gap: 10px; margin-bottom: 6px; }
+.balimp-axis span { grid-column: 3; display: flex; justify-content: space-between; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255, 255, 255, 0.45); }
+.balimp-axis span:first-child, .balimp-axis span:last-child { display: none; }
+.balimp-row { display: grid; grid-template-columns: minmax(10rem, 2fr) 3rem minmax(12rem, 6fr) 4.5rem; gap: 10px; align-items: center; padding: 4px 4px; border-radius: 8px; font-size: 15px; color: #f0e8da; }
+.balimp-row:hover, .balimp-row:focus-visible { background: rgba(255, 255, 255, 0.05); outline: none; }
+.balimp-row.baldim .balimp-name { opacity: 0.55; }
+.balimp-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.balimp-n { text-align: right; font-size: 12px; font-weight: 600; color: rgba(255, 255, 255, 0.5); font-variant-numeric: tabular-nums; }
+.balimp-track { position: relative; height: 18px; }
+.balimp-track::before { content: ''; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: rgba(255, 255, 255, 0.28); }
+.balimp-bar { position: absolute; top: 2px; height: 14px; }
+.balimp-bar.neg { right: 50%; background: #57e08a; border-radius: 4px 0 0 4px; }
+.balimp-bar.pos { left: 50%; background: #f07a6a; border-radius: 0 4px 4px 0; }
+.balimp-val { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
+.balimp-gap { display: flex; justify-content: center; padding: 8px 0; border-top: 1px dashed rgba(255, 255, 255, 0.12); border-bottom: 1px dashed rgba(255, 255, 255, 0.12); margin: 6px 0; }
+.balimp-more { margin: 0; padding: 5px 14px; font-size: 12px; }
+/* The balance page's hover bubbles: the same `data-tip` bubble as the title / ladder pages (see the TITLE-SCREEN
+   TOOLTIPS block), allowed to WRAP because a column's meaning is a sentence, not a label. */
+.balpage [data-tip] { position: relative; }
+.balpage [data-tip]::after {
+  content: attr(data-tip);
+  position: absolute; left: 50%; top: calc(100% + 9px); transform: translateX(-50%) translateY(-4px);
+  width: max-content; max-width: 24rem; white-space: normal; text-align: left; line-height: 1.35;
+  font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.02em; text-transform: none;
+  color: var(--ink); background: color-mix(in srgb, var(--bg2) 92%, #000); border: 1.5px solid var(--line);
+  padding: 6px 11px; border-radius: 10px; box-shadow: 0 10px 26px -10px rgba(0, 0, 0, 0.7);
+  opacity: 0; pointer-events: none; z-index: 600;
+  transition: opacity 0.12s ease, transform 0.12s ease; transition-delay: 0s;
+}
+.balpage [data-tip]::before {
+  content: ''; position: absolute; left: 50%; top: calc(100% + 4px); transform: translateX(-50%) rotate(45deg);
+  width: 9px; height: 9px; background: color-mix(in srgb, var(--bg2) 92%, #000);
+  border-left: 1.5px solid var(--line); border-top: 1.5px solid var(--line);
+  opacity: 0; pointer-events: none; z-index: 600; transition: opacity 0.12s ease; transition-delay: 0s;
+}
+.balpage [data-tip]:hover::after, .balpage [data-tip]:focus-visible::after { opacity: 1; transform: translateX(-50%) translateY(0); transition-delay: 0.25s; }
+.balpage [data-tip]:hover::before, .balpage [data-tip]:focus-visible::before { opacity: 1; transition-delay: 0.25s; }
+/* A column header's bubble anchors to the header's RIGHT edge (numeric headers sit at the right of narrow
+   tracks, so a centred bubble on the last column would run off the table). */
+.balpage .balhead .balsort.balnum::after { left: auto; right: 0; transform: translateX(0) translateY(-4px); }
+.balpage .balhead .balsort.balnum:hover::after, .balpage .balhead .balsort.balnum:focus-visible::after { transform: translateX(0) translateY(0); }
+.balpage .balhead .balsort.balnum::before { left: auto; right: 12px; transform: rotate(45deg); }
+@media (prefers-reduced-motion: reduce) { .balpage [data-tip]::after, .balpage [data-tip]::before { transition: none; } }
 
 /* ── LADDER PAGES (owner polish 2026-09-20) — the ranked Leaderboard (Rankings.tsx), the Hall of Champions
    (Leaderboard.tsx) and Recent Games (RecentGames.tsx), in the Career page's visual language: the gold-framed
@@ -7000,6 +7091,16 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .cv2-trend-foot { font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.45); text-align: right; }
 
 @media (min-height: 1000px) { .cv2-chart svg { height: 120px; } .cv2-trend { gap: 6px; padding-top: 12px; } .cv2-trends { gap: 12px; } }
+/* FOUR charts stack in the right column since MMR joined (2026-09-22), under a ~300px Seasonal Ranked card, in a
+   column that is only ~320px wide at 1920 and scrolls with no visible scrollbar (overlay scrollbars), so a chart
+   below the fold is a chart nobody finds (review 2026-09-22: at 1080p the fourth sat 260px under the column's
+   edge). In the THREE-column layout the tall step above therefore waits for the room four tall charts need (a
+   viewport of 1360+: 50 colhead + 301 card + 896 panel in a 1247 column) and a viewport of 1199 or less compacts
+   the plots to 60px so the whole panel sits in view at 1080p (column 967 = 50 + 301 + a 608 panel, 8px spare).
+   Measured, not guessed. The stacked single-column layout (1300 and under) keeps the plain steps: the page scrolls
+   as a whole there and the plots are full-width. A 2x2 grid was rejected: at 320px it leaves ~95px of plot. */
+@media (max-height: 1359px) { @container cv2 (width > 1300px) { .cv2-chart svg { height: 92px; } .cv2-trend { gap: 4px; padding-top: 8px; } .cv2-trends { gap: 8px; } } }
+@media (max-height: 1199px) { @container cv2 (width > 1300px) { .cv2-chart svg { height: 60px; } } }
 /* Narrower pages give the tiles the room first (the side columns shrink); under 1300 the columns stack and
    the page scrolls as a whole. CONTAINER queries on `.cv2-page` (the width beside the sidebar), not viewport
    media queries — the 1700 / 1360 thresholds the page had before the sidebar took its 240px; the stack point
@@ -11489,3 +11590,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .rankpreview-btn { display: flex; justify-content: space-between; gap: 8px; text-align: left; }
 .rankpreview-btn.on { outline: 2px solid var(--acc); }
 .rankpreview-btn-ms { opacity: 0.6; font-variant-numeric: tabular-nums; }
+
+/* Hall of Champions (owner layout 2026-09-22): the rank a champion held when they won, under the record and
+   the last-win date. Static text, no animation. */
+.lb-hall .lb-hallrank { margin-top: 6px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: .92; }

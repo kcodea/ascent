@@ -14,7 +14,9 @@
  * seeds should still pin to the committed pool only (see docs/board-pool.md).
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { CONFIG, RANK_SEASON, initialRankedProfile, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type RankedProfile, type ReplayV2, type RunTelemetry } from '@game/sim';
+import type { SetId } from '@game/content';
+import type { SeatResultRow } from '@game/sim';
+import { CONFIG, RANK_SEASON, initialRankedProfile, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, isRankPosition, type RankPosition } from '@game/sim';
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
 import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
 import { careerRunOf, joinTelemetry, type CareerRun, type RunHistoryRowLike, type TelemetryProbeRow } from './careerData';
@@ -208,7 +210,7 @@ export const supabaseAuthProvider: AuthProvider = {
 // handshake. Those uploads used to silently no-op and the run was lost. Now they QUEUE to localStorage and
 // replay when a session next establishes, tagged UNRATED (a run finished with no live session doesn't move the
 // ladder — see `uploadPlayerProfile`). Fire-and-forget throughout, like the rest of this seam.
-type QueueKind = 'boards' | 'victory' | 'telemetry' | 'profile' | 'history' | 'fight';
+type QueueKind = 'boards' | 'victory' | 'telemetry' | 'profile' | 'history' | 'fight' | 'seat';
 interface QueuedItem { kind: QueueKind; payload: unknown; at: string }
 const QUEUE_KEY = 'ascent.uploadqueue';
 const QUEUE_MAX = 100; // a hard cap so a long offline stretch can't grow localStorage without bound
@@ -251,6 +253,7 @@ export async function flushUploadQueue(): Promise<void> {
           case 'profile':   await uploadPlayerProfile({ ...(item.payload as Parameters<typeof uploadPlayerProfile>[0]), unrated: true }); break;
           case 'history':   await uploadRunHistory(item.payload as Parameters<typeof uploadRunHistory>[0]); break;
           case 'fight':     await recordFightResult(item.payload as Parameters<typeof recordFightResult>[0]); break;
+          case 'seat':      await recordSeatResults(item.payload as Parameters<typeof recordSeatResults>[0]); break;
         }
       } catch { /* best-effort — a failed item is dropped, matching every other write here */ }
     }
@@ -522,51 +525,147 @@ export async function uploadRunTelemetry(
     const withDerived = meta.derived
       ? { ...withBuys, derived: meta.derived, replay: meta.replay ?? null, content_revision: meta.derived.contentRevision }
       : withBuys;
-    const res0 = meta.derived ? await c.from('run_telemetry').insert([withDerived]) : { error: true };
-    const res = res0?.error ? await c.from('run_telemetry').insert([withBuys]) : res0;
-    if (res?.error) {
-      const res2 = await c.from('run_telemetry').insert([withSplit]);
-      // `placement` must be dropped on the way down. It rides in `base`, which every fallback spreads, so
-      // before this a DB without that column failed ALL THREE inserts identically and the row was lost —
-      // the fallback ladder existed but could never reach the ground (owner report 2026-08-03).
-      if (res2?.error) {
-        const res3 = await c.from('run_telemetry').insert([base]);
-        if (res3?.error) {
-          const noPlacement: Record<string, unknown> = { ...base };
-          delete noPlacement.placement;
-          await c.from('run_telemetry').insert([noPlacement]);
-        }
-      }
+    // 2026-09-22: the SET + SOURCE stamps (the Balance Report reads one set and never a sandbox row). A NEW
+    // top rung, never a key in `base`: `base` is spread into every rung below, so a column there that the
+    // backend lacks would fail every insert and LOSE the row — exactly the 2026-08-03 `placement` bug. On a
+    // pre-migration table this rung errors and the walk continues one rung down, costing only the stamps
+    // (both also ride inside `derived`, so a stamped payload still survives). A MISSING stamp stays null:
+    // the reader treats null as legacy, and a caller that forgot the stamp must never be labelled ladder.
+    const withSet = { ...withDerived, set_id: t.setId ?? null, source: t.source ?? null };
+    // `placement` must be dropped on the way down. It rides in `base`, which every fallback spreads, so
+    // before this a DB without that column failed ALL THREE inserts identically and the row was lost —
+    // the fallback ladder existed but could never reach the ground (owner report 2026-08-03).
+    const noPlacement: Record<string, unknown> = { ...base };
+    delete noPlacement.placement;
+    // Walk the ladder richest → plainest; the first insert the backend accepts ends it.
+    const ladder: Record<string, unknown>[] = [withSet, ...(meta.derived ? [withDerived] : []), withBuys, withSplit, base, noPlacement];
+    for (const row of ladder) {
+      const res = await c.from('run_telemetry').insert([row]);
+      if (!res?.error) break;
     }
   } catch {
     /* best-effort — telemetry must never disrupt the end screen */
   }
 }
 
-/** Fetch the most recent `limit` run-telemetry rows (newest first) for the player balance report. Best-effort +
- *  time-boxed; [] on any failure / no backend / un-migrated table. */
-/** Fetch recent runs' DERIVED payloads (the runDerive streams stored in the `derived` jsonb column) for the
- *  Balance Report's derived views. Best-effort like everything here: [] on no backend / pre-migration DB
- *  (the column doesn't exist until the 2026-08-05 schema.sql section is run) / timeout. */
-export async function fetchDerivedRuns(limit = 200): Promise<DerivedRun[]> {
+/** The Balance Report's select ladder — richest first. Each rung drops the columns of one migration, NEWEST
+ *  migration first, so a backend that has not run a migration answers from the rung below it (PostgREST
+ *  rejects an unknown column in `select=` with 42703; a walk that never dropped the newest columns first
+ *  would error on every rung and empty the whole report). Exported for tests. */
+const BALANCE_BASE = 'id, created_at, patch, author, hero_id, hero_offer, won, wins, offered_quests, picked_quests, quest_turns, offered_runes, picked_runes, offered_cards, bought_cards, tier_by_wave';
+const BALANCE_SPLIT = `${BALANCE_BASE}, discover_offered_cards, discover_bought_cards`; // 2026-07-15
+const BALANCE_BUYS = `${BALANCE_SPLIT}, buy_events`; // 2026-07-16
+const BALANCE_PLACE = `${BALANCE_BUYS}, placement`; // 2026-08-02
+/** 2026-08-05: `content_revision` arrived in the same migration as the `derived` jsonb, so this rung ALSO reads
+ *  the two stamps the client writes INSIDE derived (`derived->>setId`, `derived->>source`): two short scalars
+ *  per row, never the payload. A row uploaded by a 2026-09-22 client to a table that still lacks the columns
+ *  then reads as stamped rather than as legacy, until the owner's migration lands the columns proper. */
+const BALANCE_REV = `${BALANCE_PLACE}, content_revision, derived_set:derived->>setId, derived_source:derived->>source`;
+export const BALANCE_SELECTS: readonly string[] = [
+  `${BALANCE_REV}, set_id, source`, // 2026-09-22 — the set + source stamps as columns
+  BALANCE_REV,
+  BALANCE_PLACE,
+  BALANCE_BUYS,
+  BALANCE_SPLIT,
+  BALANCE_BASE,
+];
+/** The Balance Report is a dev panel reading a multi-megabyte table, not a boot-path fetch: it gets a longer
+ *  box than `FETCH_TIMEOUT_MS`, and the derived query longer still. */
+const BALANCE_FLAT_TIMEOUT_MS = 12000;
+const BALANCE_DERIVED_TIMEOUT_MS = 45000;
+const balanceTimeout = (ms: number): Promise<null> => new Promise<null>((resolve) => setTimeout(() => resolve(null), ms));
+
+/** Fetch the most recent `limit` run-telemetry rows (newest first) for the player Balance Report: the FLAT
+ *  columns only, `derived` left null. The derived payloads are the heavy half and are fetched afterwards, by id,
+ *  for the rows the report actually reads (`fetchRunDerived`). Best-effort + time-boxed; [] on any failure /
+ *  no backend / un-migrated table. The set / ladder filtering happens in `@game/sim`'s `applyReportFilters`,
+ *  on the caller's side, so the export and the screen share one path. */
+export async function fetchRunTelemetry(limit = 500): Promise<RunTelemetryRow[]> {
   const c = client();
   if (!c) return [];
   try {
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
-    const result = await Promise.race([
-      Promise.resolve(
-        c.from('run_telemetry').select('derived').not('derived', 'is', null)
-          .order('created_at', { ascending: false }).limit(limit),
-      ),
-      timeout,
+    const query = (select: string) => Promise.race([
+      Promise.resolve(c.from('run_telemetry').select(select).order('created_at', { ascending: false }).limit(limit)),
+      balanceTimeout(BALANCE_FLAT_TIMEOUT_MS),
     ]);
+    // Walk the ladder: a query ERROR (an unknown column on this backend) tries the next, plainer select; a
+    // timeout or a clean answer ends the walk.
+    let result: Awaited<ReturnType<typeof query>> = null;
+    for (const select of BALANCE_SELECTS) {
+      result = await query(select);
+      if (!result || !result.error) break;
+    }
     if (!result || result.error || !result.data) return [];
-    return (result.data as unknown as Array<{ derived: DerivedRun | null }>)
-      .map((r) => r.derived)
-      .filter((d): d is DerivedRun => !!d && Array.isArray((d as DerivedRun).offers));
+    // The select list is built at runtime (columns are dropped on a pre-migration DB), so supabase-js can't
+    // infer a row type and falls back to `GenericStringError[]` — go via `unknown` and read the columns by hand.
+    return (result.data as unknown as Array<Record<string, unknown>>).map((r) => {
+      const id = typeof r.id === 'number' ? r.id : null;
+      // The stamps: the column when the backend has it, else the copy the client wrote inside `derived`
+      // (read as two scalars on the rung above); absent on a genuinely legacy row, which then reads as set 1.
+      const setId = typeof r.set_id === 'string' ? (r.set_id as SetId) : typeof r.derived_set === 'string' ? (r.derived_set as SetId) : undefined;
+      const source = typeof r.source === 'string' ? (r.source as TelemetrySource) : typeof r.derived_source === 'string' ? (r.derived_source as TelemetrySource) : undefined;
+      return {
+        id,
+        createdAt: (r.created_at as string | null) ?? null,
+        patch: (r.patch as string | null) ?? null,
+        author: (r.author as string | null) ?? null,
+        contentRevision: (r.content_revision as string | null) ?? null,
+        derived: null, // joined afterwards by `fetchRunDerived`, for the rows the report reads
+        mode: (((r.hero_offer as string[]) ?? []).find((h) => h.startsWith('mode:')) ?? '').slice(5) || undefined,
+        ...(setId ? { setId } : {}),
+        ...(source ? { source } : {}),
+        heroId: (r.hero_id as string) ?? '',
+        heroOffer: ((r.hero_offer as string[]) ?? []).filter((h) => !h.startsWith('mode:')),
+        won: !!r.won,
+        wins: (r.wins as number) ?? 0,
+        offeredQuests: (r.offered_quests as string[]) ?? [],
+        pickedQuests: (r.picked_quests as string[]) ?? [],
+        questTurns: (r.quest_turns as Record<string, number>) ?? {},
+        offeredRunes: (r.offered_runes as string[]) ?? [],
+        pickedRunes: (r.picked_runes as string[]) ?? [],
+        offeredCards: (r.offered_cards as string[]) ?? [],
+        boughtCards: (r.bought_cards as string[]) ?? [],
+        discoverOfferedCards: (r.discover_offered_cards as string[]) ?? [],
+        discoverBoughtCards: (r.discover_bought_cards as string[]) ?? [],
+        tierByWave: (r.tier_by_wave as number[]) ?? [],
+        buyEvents: (r.buy_events as { id: string; wave: number; src: 'shop' | 'discover' }[]) ?? undefined,
+        placement: (r.placement as number | null) ?? undefined,
+      };
+    });
   } catch {
     return [];
   }
+}
+
+/** The derived payloads are the heavy half (~100 KB per run today, ~16 MB for the live table), so they are NOT
+ *  part of the flat fetch: the panel asks for them BY ID, after the flat rows have been filtered to the set and
+ *  rendered, and only for the rows that survived (pre-migration that is no rows and no bytes; a 16 MB parse
+ *  used to land on the title screen's frame even when the report rendered nothing). Fetched in chunks of
+ *  `DERIVED_CHUNK` ids (the `in` filter rides in the URL), in parallel, each time-boxed. A pre-2026-08-05
+ *  backend errors the query and the flat report stands, exactly as before. Malformed payloads are dropped. */
+const BALANCE_DERIVED_SELECT = 'id, derived';
+export const DERIVED_CHUNK = 100;
+export async function fetchRunDerived(ids: readonly number[]): Promise<Map<number, DerivedRun>> {
+  const out = new Map<number, DerivedRun>();
+  const c = client();
+  if (!c || ids.length === 0) return out;
+  try {
+    const chunks: number[][] = [];
+    for (let i = 0; i < ids.length; i += DERIVED_CHUNK) chunks.push(ids.slice(i, i + DERIVED_CHUNK));
+    const results = await Promise.all(chunks.map((chunk) => Promise.race([
+      Promise.resolve(c.from('run_telemetry').select(BALANCE_DERIVED_SELECT).in('id', chunk)),
+      balanceTimeout(BALANCE_DERIVED_TIMEOUT_MS),
+    ])));
+    for (const res of results) {
+      if (!res || res.error || !res.data) continue;
+      for (const r of res.data as unknown as Array<{ id: unknown; derived: DerivedRun | null }>) {
+        if (typeof r.id === 'number' && r.derived && Array.isArray(r.derived.offers)) out.set(r.id, r.derived);
+      }
+    }
+  } catch {
+    /* best-effort — the flat report stands without the payloads */
+  }
+  return out;
 }
 
 /** One row for the Recent Games list (title → "Recent Games"): who played, which hero, how it ended — plus,
@@ -864,49 +963,6 @@ export async function fetchPlayerById(userId: string): Promise<PlayerRow | null>
   }
 }
 
-export async function fetchRunTelemetry(limit = 500): Promise<RunTelemetry[]> {
-  const c = client();
-  if (!c) return [];
-  try {
-    // `placement` is load-bearing for the whole placement half of the report AND for `runWon` (placement 1 is
-    // what a lobby win IS — a lobby never reaches phase 'victory'). It was written by the insert but never
-    // selected here, so every placement column read empty (owner report 2026-08-03).
-    const cols = 'hero_id, hero_offer, won, wins, offered_quests, picked_quests, quest_turns, offered_runes, picked_runes, offered_cards, bought_cards, discover_offered_cards, discover_bought_cards, tier_by_wave, buy_events, placement';
-    const query = (select: string) => Promise.resolve(
-      c.from('run_telemetry').select(select).order('created_at', { ascending: false }).limit(limit),
-    );
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
-    let result = await Promise.race([query(cols), timeout]);
-    // Pre-migration DB (missing newer columns) errors the select — retry progressively so the report still loads.
-    if (result && result.error) result = await Promise.race([query(cols.replace(', placement', '')), timeout]);
-    if (result && result.error) result = await Promise.race([query(cols.replace(', buy_events', '').replace(', placement', '')), timeout]);
-    if (result && result.error) result = await Promise.race([query(cols.replace(', discover_offered_cards, discover_bought_cards', '').replace(', buy_events', '').replace(', placement', '')), timeout]);
-    if (!result || result.error || !result.data) return [];
-    // The select list is built at runtime (columns are dropped on a pre-migration DB), so supabase-js can't
-    // infer a row type and falls back to `GenericStringError[]` — go via `unknown` and read the columns by hand.
-    return (result.data as unknown as Array<Record<string, unknown>>).map((r) => ({
-      mode: (((r.hero_offer as string[]) ?? []).find((h) => h.startsWith('mode:')) ?? '').slice(5) || undefined,
-      heroId: (r.hero_id as string) ?? '',
-      heroOffer: ((r.hero_offer as string[]) ?? []).filter((h) => !h.startsWith('mode:')),
-      won: !!r.won,
-      wins: (r.wins as number) ?? 0,
-      offeredQuests: (r.offered_quests as string[]) ?? [],
-      pickedQuests: (r.picked_quests as string[]) ?? [],
-      questTurns: (r.quest_turns as Record<string, number>) ?? {},
-      offeredRunes: (r.offered_runes as string[]) ?? [],
-      pickedRunes: (r.picked_runes as string[]) ?? [],
-      offeredCards: (r.offered_cards as string[]) ?? [],
-      boughtCards: (r.bought_cards as string[]) ?? [],
-      discoverOfferedCards: (r.discover_offered_cards as string[]) ?? [],
-      discoverBoughtCards: (r.discover_bought_cards as string[]) ?? [],
-      tierByWave: (r.tier_by_wave as number[]) ?? [],
-      buyEvents: (r.buy_events as { id: string; wave: number; src: 'shop' | 'discover' }[]) ?? undefined,
-      placement: (r.placement as number | null) ?? undefined,
-    }));
-  } catch {
-    return [];
-  }
-}
 
 // ── Player leaderboard (profiles) ───────────────────────────────────────────────────────────────────────────
 // One row per NAMED player, upserted on every finished Ascent run: their skill rating (the "MMR"), total games
@@ -1100,7 +1156,7 @@ export async function uploadPlayerProfile(p: {
     // The RLS policy rejects any change to `rating` / the `rank_*` columns on a row UPDATE (its `with check`
     // requires them to equal the stored values), so the display columns and the ladder travel by DIFFERENT
     // doors. Here we write ONLY the display columns; the ladder moves through `submitRating` → the
-    // `settle_rank` transaction. A brand-new row gets a rating-0 / Bronze III PLACEHOLDER (the insert policy
+    // `settle_rank` transaction. A brand-new row gets a rating-0 / Bronze I PLACEHOLDER (the insert policy
     // requires exactly that) and the server fills in the real values. (History: a single `upsert()` sent
     // rating on every write and, once it moved, Postgres rejected the WHOLE row — freezing games_played/author
     // at run one, the "1 game for four runs" report 2026-08-04. Split writes fixed that; medals remove the
@@ -1132,7 +1188,7 @@ export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
   try {
     // Only RANKED players — a profile with zero finished games hasn't earned a slot (and a stray 0-game
     // ghost row shouldn't clutter the board). Defensive alongside `claimHandle` no longer minting them.
-    // MEDALS: order by division, then points (the scalar `rating` ties Gold II 100 with Gold I 0 — the
+    // MEDALS: order by division, then points (the scalar `rating` ties Gold II 100 with Gold III 0 — the
     // promoted player must rank above the one still waiting at the gate); games-played breaks the rest.
     // A pre-migration table has no rank columns → that query errors → fall back to the legacy ordering.
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
@@ -1243,8 +1299,10 @@ export async function fetchRunHistory<T>(limit = 50, forUserId?: string): Promis
 export const CAREER_DETAIL_ROWS = 25;
 
 /** The light `run_history` select — every scalar the trends + left-column tiles need, projected out of the
- *  `entry` jsonb server-side so a 100-row pull stays a few KB instead of shipping 100 boards. */
-const CAREER_LIGHT_SELECT = 'id, created_at, hero_id, wave, wins, placement, mode, losses:entry->>losses, draws:entry->>draws, apt:entry->>apt, seed:entry->>seed, gold_spent:entry->>goldSpent, rating_delta:entry->>ratingDelta, at:entry->>at, dominant_tribe:entry->>dominantTribe';
+ *  `entry` jsonb server-side so a 100-row pull stays a few KB instead of shipping 100 boards. `rating_after` is
+ *  the MMR after settle that `settle_rank` stamps onto the row (the MMR trend); a row the stamp never reached
+ *  simply projects NULL for it — a JSON path to a missing key is never an error. */
+const CAREER_LIGHT_SELECT = 'id, created_at, hero_id, wave, wins, placement, mode, losses:entry->>losses, draws:entry->>draws, apt:entry->>apt, seed:entry->>seed, gold_spent:entry->>goldSpent, rating_delta:entry->>ratingDelta, rating_after:entry->>ratingAfter, at:entry->>at, dominant_tribe:entry->>dominantTribe';
 
 /** The light `run_telemetry` probe: the row id (the Watch handle), the seed (the join), the v2 stamp (the
  *  watchability gate) and the first/last frame clocks (the run length). PostgREST resolves `frames->-1` as
@@ -1319,6 +1377,117 @@ export async function recordFightResult(r: { boardId: string; round: number; out
     await c.from('board_results').insert([{ user_id: currentUserId(), board_id: r.boardId, round: r.round, outcome: r.outcome, patch: r.patch }]);
   } catch {
     /* best-effort — win-tracking must never disrupt play */
+  }
+}
+
+// ── Seat ledger (the Hall of Champions record) ─────────────────────────────────────────────────────────────
+// One row per RECORDED SEAT with a result against the reporting player: 'win' when that run knocked the player
+// out, 'loss' when it was knocked out while the player still stood (owner 2026-09-22: "track the run that beat
+// the player when they were knocked out … that board should probably get a win … my board should get a loss
+// recorded"). Built by `seatOutcomesOf` from what the player's own run witnessed — nothing is simulated after
+// it ends — and written once at run end; de-duplicated server-side on (lobby_seed, run_key) so a re-uploaded
+// run never counts a table twice. Same fire-and-forget / no-op-when-unconfigured contract as the rest of this
+// seam. The per-combat `board_results` ledger above is a different question (single fights) and still feeds
+// matchmaking weights.
+
+export async function recordSeatResults(rows: SeatResultRow[]): Promise<void> {
+  const c = client();
+  if (!c || rows.length === 0) return;
+  if (!currentUserId()) { enqueueUpload('seat', rows); return; }
+  try {
+    const uid = currentUserId();
+    await c.from('seat_results').upsert(
+      rows.map((r) => ({ user_id: uid, lobby_seed: r.lobbySeed, run_key: r.runKey, outcome: r.outcome, round: r.round, player_placement: r.playerPlacement, seats: r.seats, mode: r.mode, patch: r.patch })),
+      { onConflict: 'lobby_seed,run_key', ignoreDuplicates: true },
+    );
+  } catch {
+    /* best-effort — the Hall must never disrupt the end screen */
+  }
+}
+
+/** A recorded run's record against other players, aggregated from the seat ledger. */
+export interface SeatRecord {
+  /** Players it knocked out. */
+  wins: number;
+  /** Times it was knocked out while the player it was served to still stood. */
+  losses: number;
+  /** wins + losses — decided results, not every lobby it was served into (a seat still standing when the
+   *  player fell decided nothing). */
+  played: number;
+  /** ISO time of its most recent win, if it has one — the Hall prints "the last date it won a game". */
+  lastWinAt?: string;
+}
+
+/** PostgREST puts an `in(...)` list in the query string, and a run key is ~40 characters, so the Hall's whole
+ *  candidate pool in one call would build a URL right at the size servers start refusing. Chunked and merged. */
+const SEAT_CHUNK = 50;
+
+/** Aggregate the seat ledger for a set of run keys. Best-effort + time-boxed; an empty map on any failure / no
+ *  backend / a not-yet-migrated table — every run then reads as its own single victory, which is honest. */
+export async function fetchSeatRecords(runKeys: string[]): Promise<Map<string, SeatRecord>> {
+  const c = client();
+  if (!c || runKeys.length === 0) return new Map();
+  const chunks: string[][] = [];
+  for (let i = 0; i < runKeys.length; i += SEAT_CHUNK) chunks.push(runKeys.slice(i, i + SEAT_CHUNK));
+  try {
+    const request = Promise.all(chunks.map((keys) => Promise.resolve(
+      c.from('seat_results').select('run_key, outcome, created_at').in('run_key', keys).limit(FETCH_LIMIT * 5),
+    )));
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const results = await Promise.race([request, timeout]);
+    if (!results) return new Map();
+    return tallySeatRecords(results.flatMap((r) => (r.error || !r.data ? [] : (r.data as Array<{ run_key: string; outcome: string; created_at?: string | null }>))));
+  } catch {
+    return new Map();
+  }
+}
+
+/** Fold ledger rows into per-run records. Exported pure for the Hall tests. A row with any outcome other than
+ *  'win' / 'loss' is ignored rather than guessed at. */
+export function tallySeatRecords(rows: Array<{ run_key: string; outcome: string; created_at?: string | null }>): Map<string, SeatRecord> {
+  const map = new Map<string, SeatRecord>();
+  for (const row of rows) {
+    if (row.outcome !== 'win' && row.outcome !== 'loss') continue;
+    const rec = map.get(row.run_key) ?? { wins: 0, losses: 0, played: 0 };
+    if (row.outcome === 'win') {
+      rec.wins += 1;
+      if (row.created_at && (!rec.lastWinAt || row.created_at > rec.lastWinAt)) rec.lastWinAt = row.created_at;
+    } else rec.losses += 1;
+    rec.played += 1;
+    map.set(row.run_key, rec);
+  }
+  return map;
+}
+
+/** The rank a champion HELD when they won (owner 2026-09-22: "the rank that the player was from that snapshot,
+ *  aka Bronze II"), keyed by the run's seed. `settle_rank` stamps the rated result onto the run's career row
+ *  (`run_history.entry.rank`, the same shape as `RankResult`), so this reads that row by seed and returns the
+ *  position the game was played FROM (`before`). Absent for a run that was never rated (practice, pre-season-3,
+ *  or a row the server has not stamped). Best-effort + time-boxed like everything here. */
+export async function fetchHallRanks(seeds: number[]): Promise<Map<number, RankPosition>> {
+  const c = client();
+  if (!c || seeds.length === 0) return new Map();
+  const chunks: number[][] = [];
+  for (let i = 0; i < seeds.length; i += SEAT_CHUNK) chunks.push(seeds.slice(i, i + SEAT_CHUNK));
+  try {
+    const request = Promise.all(chunks.map((ids) => Promise.resolve(
+      c.from('run_history').select('entry').eq('mode', 'lobby').eq('placement', 1).in('entry->>seed', ids.map(String)).limit(FETCH_LIMIT),
+    )));
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const results = await Promise.race([request, timeout]);
+    if (!results) return new Map();
+    const map = new Map<number, RankPosition>();
+    for (const r of results) {
+      if (r.error || !r.data) continue;
+      for (const row of r.data as Array<{ entry: { seed?: unknown; rank?: { before?: unknown } } | null }>) {
+        const seed = Number(row.entry?.seed);
+        const before = row.entry?.rank?.before;
+        if (Number.isFinite(seed) && isRankPosition(before) && !map.has(seed)) map.set(seed, before);
+      }
+    }
+    return map;
+  } catch {
+    return new Map();
   }
 }
 

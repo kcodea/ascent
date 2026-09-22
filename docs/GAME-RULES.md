@@ -65,14 +65,14 @@ The visible ladder is a **medal + division**, not a number. Only a finished **ra
 route) moves it; Practice, the tutorial and sandbox runs never do.
 
 - **Six medals — Bronze, Silver, Gold, Platinum, Diamond, Ascendant — three divisions each**, ordered
-  **III → II → I** and then the next medal's III (18 divisions, `Bronze III` lowest, `Ascendant I` highest).
+  **I → II → III** and then the next medal's I (18 divisions, `Bronze I` lowest, `Ascendant III` highest).
   Each division is **100 points** wide.
 - **Points by final placement** (`RANK_RULES.placementAwards`): 1st **+40**, 2nd **+28**, 3rd **+16**, 4th
   **+6**, 5th **−6**, 6th **−16**, 7th **−28**, 8th **−40**. Nothing else moves the ladder — no round-wins
   modifier, no opponent-strength adjustment.
 - **Promotion games.** Reaching **100** does not promote; it makes the **next** rated game a promotion game
-  (overflow past 100 is discarded; the delta shown is the delta applied). To move up **a division** (Gold III
-  → Gold II) the promotion game needs a **top-4 finish**; to move up **a medal** (Gold I → Platinum III) it
+  (overflow past 100 is discarded; the delta shown is the delta applied). To move up **a division** (Gold I
+  → Gold II) the promotion game needs a **top-4 finish**; to move up **a medal** (Gold III → Platinum I) it
   needs **1st place**. A won promotion game starts the next division at **10 / 100** — not the game's award
   (owner 2026-09-21; it was 0 / 100 the day before). The 10-point landing is a cushion so a narrow loss
   straight after promoting does not drop the player back down: a 5th (−6) leaves them at 4, still in the new
@@ -85,7 +85,7 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   promotion-ready.
 - **There are no instant demotions** (owner ruling 2026-09-21: *"Hitting 0 MMR should halt the loss and put
   you in a demotion game. You need to then bottom-4 that game to demote."* This widened the 2026-09-20 rule,
-  which gated only the drop out of a medal, to every division). In **any division above Bronze III**, a loss
+  which gated only the drop out of a medal, to every division). In **any division above Bronze I**, a loss
   that would take the player below 0 **stops at 0** and *arms* the demotion gate (a stored `demotionReady`
   flag — set only by a loss that lands on 0, by clamp or by exact subtraction; cleared by any non-negative
   result; never set by a promotion landing: 10/100 after a won promotion is not armed; the first loss of 10 or
@@ -94,21 +94,21 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   a top-4 from there is an ordinary gain.
 - **Demotion games.** While armed, the **next** rated game is a demotion game: a **bottom-4 finish (5th–8th)
   demotes one division** to **`100 + that game's award`** in the division below (5th → 94, 6th → 84, 7th →
-  72, 8th → 60 — the mirror of the promotion landing rule): Gold II armed → 8th → Gold III 60. Across a medal
-  boundary the division below is the previous medal's division I: Gold III armed → 8th → Silver I 60. A
+  72, 8th → 60 — the mirror of the promotion landing rule): Gold II armed → 8th → Gold I 60. Across a medal
+  boundary the division below is the previous medal's division III: Gold I armed → 8th → Silver III 60. A
   **top-4 finish escapes**, applies its positive award normally from 0 (3rd → Gold II 16), and disarms the
   gate (reaching 100 that way unlocks the promotion gate as usual).
-- **Bronze III floors at 0** with no gate (nothing below it). **Ascendant I is uncapped** (points keep
+- **Bronze I floors at 0** with no gate (nothing below it). **Ascendant III is uncapped** (points keep
   climbing past 100, no promotion gate); a loss that hits 0 there arms a demotion game like everywhere else
   (its demotion game drops to Ascendant II).
 - **Career best** (division first, then points) never decreases. **Leaderboards sort by division, then
   points** — the reporting scalar `100 × division + points` still exists (`profile.rating`) but ties Gold II
-  100 with Gold I 0, so it is never the sort key.
+  100 with Gold III 0, so it is never the sort key.
 - **The server is the authority.** A finished rated lobby submits `{ run id, placement, season, rules
   version }` and the `settle_rank` transaction (lock → dedupe → resolve → commit) returns the immutable
   result the post-game screen animates plus the account's current rank; the client only mirrors it. A result
   that cannot be sent (offline) is kept and retried; it never resolves locally. **Season 3 started everyone at
-  Bronze III 0/100.**
+  Bronze I 0/100.**
 
 Source: `packages/sim/src/rank.ts` (`RANK_RULES`, `resolveRank`, `settleRank`), `supabase/functions/
 _shared/lobbyRating.ts`, `supabase/migrations/2026-09-20-medal-rank.sql` (`settle_rank`),
@@ -199,10 +199,15 @@ minion alive. Duplicates collapse into one entry; a single Gilded source upgrade
   held Equipment now, and again every Start of Turn). The stack **survives the Start-of-Turn rebuild** for every
   Equipment still held (it is the one piece of Equipment state meant to carry) and is pruned for one whose
   sources all left. Presentation: the Equipment's **charge number turns BLUE** while Amplified (over the pool's
-  green), the tooltip says so, and the tally carries `data-fx="equipment-amplified"` as the binding point for
-  the owner's future authored cue. Engine: `PlayerEquipmentState.amplified` + `sim/equipment.ts`
-  (`amplifyEquipment` / `amplifyUnactivated` / `amplifyAllHeld` / `consumeAmplified`), pinned in
-  `set3RunesTrancheC.test.ts`.
+  green), the tooltip says so, and the tally carries `data-fx="equipment-amplified"` as a tooling mark. The
+  owner's authored cue (2026-09-22) is the **`amplified-slot` loop on the slot button**: it plays only while
+  the SELECTED Equipment will Amplify AND has a charge to spend, in the shop phase, with nothing covering the
+  slot (a board-covering overlay, the Compendium, the Inspect view, the bug reporter and the ladder pages all
+  pause it) — zero charges means no glow ("if an equipment has 0 charges it should not show the
+  animation"), so using the Equipment ends it. Gold is not a term: a charged Amplified Equipment the player
+  cannot afford right now still glows while its button is disabled (open owner question, 2026-09-22).
+  Engine: `PlayerEquipmentState.amplified` + `sim/equipment.ts` (`amplifyEquipment` / `amplifyUnactivated` /
+  `amplifyAllHeld` / `consumeAmplified`), pinned in `set3RunesTrancheC.test.ts`.
 
 ### The Starform — the Celestials' shop token (owner design 2026-09-12; rules v2 2026-09-13)
 
@@ -456,6 +461,27 @@ free refresh — and the Runeforge stops OFFERING owned runes whose duplicate wo
 (Rune of Duplication still reaches them deliberately). Rune of the Ornate Clock is ruled unique: a duplicate
 does nothing. Classification lives in `packages/sim/src/runeDup.ts`.
 
+**Rune of Twilight repeats RUNE Start-of-Combat effects too** (owner ruling 2026-09-21; it used to repeat only
+your minions' Start-of-Combat effects, so Underdog + Twilight paid ×2 while two Underdog copies paid ×4). Every
+rune whose printed text begins "Start of Combat:" fires one extra time per Twilight copy held, in the same
+order as the first pass, after the whole first pass (minions and runes) for that side. Each extra pass reads the
+board as the first pass left it: Underdog re-picks the two lowest-Attack minions (so it may choose a different
+pair), Forthcoming / First Claws strike again with the living front / end Beasts, Rebirth and Rising Graves
+skip bodies that already carry the keyword, and the Crucible destroys the NEXT three (all of them return
+together). On a board of six or fewer the Crucible's second pass empties the board, so everything returns at
+once at Start of Combat and the return is spent (no later comeback); seven bodies leave one survivor and the
+six return when it dies. Rune copies still multiply WITHIN a pass. **Rune of Sylus is IN**: the ability it grants
+is printed on the Sylus as "Start of Combat: double this minion's Health", so Twilight doubles it again (×4
+Health) — a review call of 2026-09-21 pending the owner's confirmation. Runes whose text merely mentions Start
+of Combat (Warden, Dawnclaw) and quest / hero Start-of-Combat grants fire once.
+
+**Shop vs combat under Twilight (a stated rule, not a comment).** Rune of Combat Prowess replays your Start-of-
+Combat effects at End of Turn in the shop. Its MINION replays fold Twilight (one extra fire per Twilight copy,
+the shared `socTwilightExtraFires`); its RUNE replays do NOT: each rune Start-of-Combat block replays once per
+Prowess copy × Chronos repeat, Twilight or not. So Prowess + Twilight + Underdog is ×2 per turn in the shop and
+×4 in combat. The shop replays are permanent and compound every turn, so folding Twilight there is an explicit
+owner balance decision, not a silent mirror (open; see `docs/devlog/2026-09-21-twilight-rune-soc.md`).
+
 Source: `packages/sim/src/heroes.ts` (`runeforge`, `epicRuneforge`),
 `packages/content/src/runes.ts`, `packages/sim/src/runeDup.ts`.
 
@@ -649,25 +675,38 @@ a Rise-vs-Rebirth parity fixture whose flow of deaths, returns and Avenge payout
 
 ### Pummel (X) — the damage-dealt threshold trigger (owner keyword 2026-09-21)
 
-**Pummel (X): Triggers once this minion has dealt X damage in a combat.** It is the printed form of the
-damage-dealt meter (`DAMAGE_METER_MARKERS` in `packages/core/src/types.ts`; the `noteDamageDealt` site in
-`simulate.ts`): every landed hit the body deals — attack, retaliation, incidental — counts toward X; a hit
-that never lands (Immune, a popped Ward, 0 damage) does not. Overkill counts in full. The meter starts every
-combat at **0**, fires the **first** time it reaches X in that combat, then **latches for the rest of the
-fight** (a Rise / Rebirth return is the same combat instance and does not re-arm it), and carries back **0**,
-so the shop always reads 0/X after a combat. Every Pummel is once per combat; one enormous hit that passes X
-several times over still pays once. Gilded doubles the payout, never the fire count. Both bodies wear the
-Avenge-style step counter (N/X, clamped at X/X once fired) in combat, and it holds through the end-of-combat
-sequence. Bodies today:
+**Pummel (X): Triggers each time this minion has dealt another X damage. The damage count carries over
+between combats.** It is the printed form of the damage-dealt meter (`DAMAGE_METER_MARKERS` in
+`packages/core/src/types.ts`; the `noteDamageDealt` site in `simulate.ts`): every landed hit the body deals —
+attack, retaliation, incidental — counts toward X; a hit that never lands (Immune, a popped Ward, 0 damage)
+does not. Overkill counts in full. THE ONE RULE (owner 2026-09-21, later the same day as the keyword: *"it is
+resetting to 0/X after combat. It needs to carry over from turn to turn and combat to shop etc."*):
+
+- The damage tally is **lifetime per instance**. It is seeded into every combat from the run card, carried
+  back whole at settle, snapshotted with a served board (so a served copy pays out from its real total), kept
+  by a Rise / Rebirth body (the same combat instance), and merged as the higher of the copies on a triple. It
+  never resets.
+- A payout happens **each time the tally crosses a multiple of X** (35 → 40 pays; 47 → 52 does not).
+- But **at most one payout per combat**: the "(Once per combat)" rider is a latch on the combat body, fresh
+  every fight. A second crossing in the same fight pays nothing, and one enormous hit that crosses several
+  multiples still pays once; the uncredited crossings are **spent, not banked** (a 120 hit from 0 pays once and
+  the next payout waits for 160). Gilded doubles the payout, never the fire count.
+- The readout on every surface (shop, board, hand, combat) is progress toward the **next** payout: `total mod
+  X`. Han Gover at 47 damage reads **7/40** in the shop and in combat; a crossing lands on 0/40; nothing clamps
+  at X/X, so after this fight's payout the combat badge keeps showing live progress toward the multiple that
+  pays next combat. The combat badge holds through the end-of-combat sequence.
+
+Bodies today:
 
 - **Han Gover** (T4 Dwarf/Undead): *"Pummel (40): Get a Dwarven Ale. (Once per combat)"* (gilded: 2 Dwarven
-  Ales). This **replaced** the 2026-09-18 lifetime tally and its 2026-09-19 "(Max 2 per hit)" cap (owner
-  2026-09-21: *"change this card's effect to match the text"*).
-- **Goldvein** (T1 Kobold): *"Pummel (6): Gain 3 Gold next turn. (Once per combat)"* (gilded: 6 Gold).
+  Ales). The 2026-09-19 "(Max 2 per hit)" cap stays retired (one payout per combat makes a cap moot); the
+  2026-09-21 per-combat reset that briefly shipped with the keyword was reversed the same day.
+- **Goldvein** (T1 Kobold): *"Pummel (6): Gain 3 Gold next turn. (Once per combat)"* (gilded: 6 Gold). Its
+  tally carries over now too (it reset each combat from 2026-09-19 until the carry-over ruling).
 
-The fire is a combat event (`pummelTrigger`, one per body per combat, emitted after the `dmg` that reached X
-and before the payout's own events), which the replay presents with the owner-authored `pummel-trigger` FX on
-the body's medallion (see `docs/combat-events.md`).
+The fire is a combat event (`pummelTrigger`, one per body per combat, emitted after the `dmg` that crossed
+the multiple and before the payout's own events), which the replay presents with the owner-authored
+`pummel-trigger` FX on the body's medallion (see `docs/combat-events.md`).
 
 ### A named-spell caster prints the spell, not its value (owner rule 2026-09-09, R-TEXT-01)
 

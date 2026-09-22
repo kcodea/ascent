@@ -40,12 +40,16 @@ describe('chooseOneBranchText — a spell branch prints the number its factory w
     expect(chooseOneBranchText('aspectsblessing', 0, false, 0, 0)).not.toContain('{{');
   });
 
-  it('Crest of the Climb (flat: true) never greens — its +4 lands exactly as printed', () => {
-    for (const i of [0, 1]) {
-      const t = chooseOneBranchText('crestclimb', i, false, 3, 3);
-      expect(t).toBe(CARD_INDEX['crestclimb']!.chooseOne![i]!.text);
-      expect(t).not.toContain('{{');
-    }
+  it('Crest of the Climb folds spell power (owner report 2026-09-21, bug 23c340fb) — both branches green', () => {
+    // The capsule's exact power: +0/+1 (Coppercoat Spellsword's Health option). "+4 Health" is really +5 Health;
+    // "+4 Attack" is really +4/+1, since the factory adds both bonuses to any grant.
+    expect(chooseOneBranchText('crestclimb', 0, false, 0, 1)).toBe('Give **{{+4/+1}}**.');
+    expect(chooseOneBranchText('crestclimb', 1, false, 0, 1)).toBe('Give **{{+5 Health}}**.');
+    // Attack-only power mirrors it.
+    expect(chooseOneBranchText('crestclimb', 0, false, 1, 0)).toBe('Give **{{+5 Attack}}**.');
+    expect(chooseOneBranchText('crestclimb', 1, false, 1, 0)).toBe('Give **{{+1/+4}}**.');
+    // No power: the authored text stands, un-greened.
+    for (const i of [0, 1]) expect(chooseOneBranchText('crestclimb', i, false, 0, 0)).toBe(CARD_INDEX['crestclimb']!.chooseOne![i]!.text);
   });
 
   it('Apples: BOTH branches green with spell power — the shop branch folds since 2026-09-16 (owner: "shop spell buffs on both ends")', () => {
@@ -60,15 +64,10 @@ describe('chooseOneBranchText — a spell branch prints the number its factory w
   });
 
   it('a single-stat grant: Attack-only power greens only the Attack; Health power turns it into the live pair', () => {
-    // No live spell Choose One prints a non-flat single-stat branch (Crest opts out), so this pins the SHAPE
-    // on a synthetic def wired to the real `spellBuffTarget` factory — the one the factories would grant.
-    const def = {
-      ...CARD_INDEX['crestclimb']!, id: 'synthetic_single',
-      chooseOne: [
-        { text: 'Give **+4 Attack**.', effects: [{ on: 'cast', do: 'spellBuffTarget', params: { attack: 4, health: 0 } }] },
-        { text: 'Give **+4 Health**.', effects: [{ on: 'cast', do: 'spellBuffTarget', params: { attack: 0, health: 4 } }] },
-      ],
-    } as unknown as CardDef;
+    // Crest of the Climb IS this shape since 2026-09-21; the pin stays on its def so a future re-wording of the
+    // card cannot silently retire the shape test.
+    const def = CARD_INDEX['crestclimb']!;
+    expect(def.chooseOne!.map((o) => o.effects![0]!.do), 'the shape under test').toEqual(['spellBuffTarget', 'spellBuffTarget']);
     expect(chooseOneBranchTextFor(def, 0, false, 1, 0)).toBe('Give **{{+5 Attack}}**.');
     expect(chooseOneBranchTextFor(def, 1, false, 0, 1)).toBe('Give **{{+5 Health}}**.');
     // The factory adds BOTH bonuses to any non-flat grant (`spellBuffTarget`), so under +1/+1 the printed
@@ -159,6 +158,28 @@ describe('SABOTAGE — the greened number equals what the reducer actually grant
     for (const uid of ['a', 'b']) {
       const m = s.board.find((c) => c.uid === uid)!;
       expect([m.attack - CARD_INDEX[m.cardId]!.attack, m.health - CARD_INDEX[m.cardId]!.health], uid).toEqual(printed);
+    }
+  });
+
+  it('Crest of the Climb: each branch lands exactly the number the window prints (+0/+1 power, the capsule shape)', () => {
+    // A single-stat marker ("{{+5 Health}}") or a pair ("{{+4/+1}}") — read either into a [attack, health] delta.
+    const delta = (t: string): [number, number] => {
+      const pair = /\{\{\+(\d+)\/\+(\d+)\}\}/.exec(t);
+      if (pair) return [Number(pair[1]), Number(pair[2])];
+      const one = /\{\{\+(\d+) (Attack|Health)\}\}/.exec(t);
+      if (!one) throw new Error(`no marker in "${t}"`);
+      return one[2] === 'Attack' ? [Number(one[1]), 0] : [0, Number(one[1])];
+    };
+    for (const i of [0, 1]) {
+      const printed = delta(chooseOneBranchText('crestclimb', i, false, 0, 1));
+      let s = run([card('sp', 'crestclimb')], [card('b', 'drummer')]);
+      s = { ...s, spellBonus: { attack: 0, health: 1 } };
+      const [a0, h0] = [s.board[0]!.attack, s.board[0]!.health];
+      s = reduce(s, { type: 'play', uid: 'sp' });
+      s = reduce(s, { type: 'chooseOne', index: i });
+      s = reduce(s, { type: 'battlecryTarget', targetUid: 'b' });
+      const m = s.board.find((c) => c.uid === 'b')!;
+      expect([m.attack - a0, m.health - h0], `branch ${i}`).toEqual(printed);
     }
   });
 

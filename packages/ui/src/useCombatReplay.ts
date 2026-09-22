@@ -322,8 +322,9 @@ export function computeFrame(
   // by every Health buff, which is exactly how the sim's `maxHealth` moves.
   const maxHp = new Map<string, number>();
   for (const u of [...player, ...enemy]) maxHp.set(u.uid, u.health);
-  // Per-uid Avenge floors, stamped on Rise — a risen body's counter restarts at 0 (mirrors the sim's
-  // `avengeBaseline`; assigned where `avengeSeen` is stamped at the bottom).
+  // Per-uid Avenge floors, stamped on Rise AND on every mid-combat summon — a risen body's counter restarts at 0
+  // and a summoned body counts from its own arrival (mirrors the sim's `avengeBaseline`; subtracted where
+  // `avengeSeen` is stamped at the bottom).
   const avengeBase = new Map<string, number>();
   const find = (uid: string) => player.find((u) => u.uid === uid) ?? enemy.find((u) => u.uid === uid);
   const gone = new Set<string>();
@@ -487,6 +488,12 @@ export function computeFrame(
       const arr = e.side === 'player' ? player : enemy;
       arr.splice(Math.min(e.index, arr.length), 0, fromSnap(e.minion));
       maxHp.set(e.minion.uid, e.minion.health);
+      // A SUMMONED body's Avenge counts from its own arrival (rule R-AVWIN-01 "Late entry starts at zero"): the
+      // sim stamps `avengeBaseline = deaths[side]` in `placeSummon`, AFTER the death that summoned it was
+      // tallied, and the log carries that death before this summon, so the current side tally IS the baseline.
+      // Only the Rise branch stamped it before, so a Dunkey that Bullseye's Echo summoned after two friendly
+      // deaths landed reading 2/4 while the sim's own window for it read 0/4 (owner report 2026-09-21).
+      avengeBase.set(e.minion.uid, deaths[e.side]);
       // Ashen Heir, the paying half: an arriving Imp inherits the bank, so the bank empties (see the death branch).
       if (CARD_INDEX[e.minion.cardId]?.imp) {
         for (const h of arr) if (h.cardId === 'ashen_heir' && h.alive) h.impBank = undefined;

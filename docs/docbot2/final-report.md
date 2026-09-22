@@ -189,7 +189,7 @@ docbot:report` derives it from the catalog every time.
 - Approved-but-unenforced: `R-PLAY-01`, `R-AURA-01` — pinned, shrink-only. The 2026-09-22 bug-fix sweep added
   ten approved rules (`R-PUMMEL-01`, `R-MULT-04`, `R-AVWIN-12`, `R-HOLD-01`, `R-TEXT-04`, `R-SNAP-01`,
   `R-RANK-01`, `R-RANK-02`, `R-TEXT-05`, `R-LOBBY-01`) and the queue did not grow — every one is enforced.
-  `R-PRESENT-02` (the Spiritbinder one-beam-per-fire cascade, 2026-09-22) landed the same way, enforced by its
+  `R-PRESENT-03` (the Spiritbinder one-beam-per-fire cascade, 2026-09-22) landed the same way, enforced by its
   sim and mounted-UI pins.
 - Release blockers (approved rules the engine violates, visible every run, never silently green):
   none — `R-AVWIN-02` and `R-AVWIN-10` were the two, fixed in the engine on 2026-09-10. Two rules read

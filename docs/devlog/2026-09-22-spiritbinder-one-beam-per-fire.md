@@ -105,7 +105,7 @@ but takes the new `startAt`). The multi-segment hold fixes both.
   recipient must be measured with `restingCenterOf`, `EQUIP_BUFF_LAND_MS` (now in the module) still equals the
   def's `travelMs`, the hold still carries the cue's gain, and the loop must not measure a cascaded cue (the
   cascade does, at launch). Sabotage-checked: removing `!cascaded` fails it; so does measuring before the guard.
-- Oracle: `R-PRESENT-02` in `packages/rules/src/registry/approved.ts`. The report's two rule-count lines must equal
+- Oracle: `R-PRESENT-03` in `packages/rules/src/registry/approved.ts`. The report's two rule-count lines must equal
   the MERGED registry, not this branch's alone: `main` took `R-REPORT-01` (#1632) while this branch was open, so
   after taking `main` in the count is 169 rules / 83 approved (`npm run docbot:report -- --check` is the tripwire).
 

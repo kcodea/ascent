@@ -52,6 +52,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Kindness countdown',
+    changes: [
+      { category: 'Systems', text: "Kindness's hero power now says when the next Gift arrives. It counts down the turns and reads This turn on the turn it fires." },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Crest of the Climb scales',
     changes: [
       {

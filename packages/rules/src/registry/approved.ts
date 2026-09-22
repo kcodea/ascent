@@ -1246,4 +1246,25 @@ export const APPROVED_RULES: GameRule[] = [
       + 'Twilight Emissary re-fires, Rot Weaver, Spell Drummer, named-spell casters with an aimed spell.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/docbot/noSelfTarget.test.ts', 'packages/sim/src/reworks0918.test.ts'], lastVerifiedAt: '2026-09-18' },
   },
+  {
+    id: 'R-TEXT-07',
+    title: 'A hero power on a schedule prints its countdown',
+    statement:
+      'The live-value rule covers hero powers, and a power that fires on a SCHEDULE has a live value even when '
+      + 'its magnitude is fixed: when it next fires. A scheduled power prints the countdown beside its rule, and '
+      + 'says so plainly on the turn it fires, so a player never has to count turns to know what this shop brings. '
+      + 'The countdown reads the same expression the reducer schedules on, so the two cannot drift.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22', quote: 'kindness hero power needs turn counter text' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts heroPowerText (the greatPresence branch); packages/sim/src/reducer.ts (the `wave % 4 === 0` schedule it reads)' },
+    ],
+    contentIds: ['kindness'],
+    currentBehaviour:
+      'Conforms as of 2026-09-22. Kindness (Great Presence, a Gift Discover every 4th turn) printed a bare rule '
+      + 'with no countdown; it now prints the turns remaining, and This turn on the turn itself. Odelle and '
+      + 'Tempest already carried countdowns for their improving grants, which is the same rule for a magnitude.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/gifts.test.ts'], lastVerifiedAt: '2026-09-22' },
+  },
 ];

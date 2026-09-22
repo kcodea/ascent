@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { ALL_CARDS, CARD_INDEX, GIFTS, GIFT_IDS, SETS } from '@game/content';
-import { createRun, reduce, type Action, type RunState } from './index';
+import { createRun, heroPowerText, reduce, type Action, type RunState } from './index';
 import { HEROES } from './heroes';
 
 describe('the Gift class', () => {
@@ -82,6 +82,21 @@ describe('the Gift sources', () => {
     const h = HEROES.find((x) => x.id === 'kindness')!;
     expect(h.armor).toBe(15);
     expect([h.power.kind, h.power.passive]).toEqual(['greatPresence', true]);
+  });
+
+  it('the power text counts down to the next Gift turn, and says so on the turn itself (owner 2026-09-22)', () => {
+    // The schedule is `wave % 4 === 0` in the reducer; the printed countdown reads the same expression, so the
+    // two can never drift. Wave 1 is three turns away, wave 4 IS the Gift turn.
+    const base = createRun(5, 'kindness');
+    const at = (wave: number): string => heroPowerText({ ...base, wave });
+    expect(at(1)).toContain('Next in **3** turns.');
+    expect(at(2)).toContain('Next in **2** turns.');
+    expect(at(3)).toContain('Next in **1** turn.');
+    expect(at(4)).toContain('**This turn.**');
+    expect(at(5)).toContain('Next in **3** turns.');
+    expect(at(8)).toContain('**This turn.**');
+    // The rule itself still prints, ahead of the countdown.
+    expect(at(1)).toContain('Discover a **Gift** every 4 turns.');
   });
 });
 

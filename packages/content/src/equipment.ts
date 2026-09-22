@@ -429,6 +429,9 @@ export const COMET: EquipmentDefinition = {
   effectId: 'equipmentExtraNextSpellCasts',
   params: { extra: 2 },
   gildedParams: { extra: 4 },
+  // Owner-authored 2026-09-22: three shard bursts off the Equipment button with a swoosh. Untargeted, so the
+  // `use` cue carries no target and every `source`-anchored burst fires at the slot-button centre.
+  useFxId: 'comet',
 };
 
 /**

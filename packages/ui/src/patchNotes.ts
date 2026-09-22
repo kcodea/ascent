@@ -63,6 +63,29 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-22',
+    label: 'Spiritbinder cascade',
+    changes: [
+      { category: 'Systems', text: 'An Amplified or repeated Spiritbinder now throws one beam per trigger, each on its own beat.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Thymepiece',
+    changes: [
+      { category: 'Balance', text: 'An Amplified Thymepiece now runs for 16 seconds instead of 8. The discount stays at 1 Gold (2 when gilded). The rule on the slot shows the doubled window while the charge is armed.' },
+      { category: 'Systems', text: 'The Thymepiece countdown now sits above the Equipment slot and no longer shifts anything around it.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Amplified glow and Comet',
+    changes: [
+      { category: 'Systems', text: 'An Amplified Equipment now glows on its slot while it has a charge to spend. The glow stops when you use it or switch to an Equipment that is not Amplified.' },
+      { category: 'Systems', text: 'Comet plays its own effect when you use it.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Balance Report',
     changes: [
       { category: 'Systems', text: 'The Balance Report now reads only the active set and never a Scene Builder run. Export all downloads the whole dataset as one file.', details: [

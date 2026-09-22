@@ -53,6 +53,36 @@ export function recordText(rec: { wins: number; losses: number; draws?: number }
   return d > 0 ? `${rec.wins}–${rec.losses}–${d}` : `${rec.wins}–${rec.losses}`;
 }
 
+/** The key a recorded run is served under — `author|heroId|seed`, exactly as `playerRunsFrom` groups the pool
+ *  (packages/sim/src/lobby/snapshotSeats.ts). Built from the Hall row's own stored board so it can never
+ *  disagree with the seat that replayed that run somewhere else. `fallbackAuthor` is the victory row's own
+ *  author column, used only when the stored board carries no author of its own (both are stamped from the same
+ *  name at run end, so they agree whenever both exist). Null when the board predates seeds (such a run was never
+ *  served as a seat and has no record to look up). */
+export function hallRunKeyOf(board: { author?: string; heroId: string; seed?: number } | null | undefined, fallbackAuthor?: string): string | null {
+  if (!board || typeof board.seed !== 'number' || !Number.isFinite(board.seed)) return null;
+  return `${board.author ?? fallbackAuthor ?? 'anon'}|${board.heroId}|${board.seed}`;
+}
+
+/** A run's record for the Hall of Champions: the TABLES it has won (owner ask 2026-09-22 — "if i win a game and
+ *  it gets served 30 times and wins 19, it should show an overall record of 20-10 … i want to see what player's
+ *  run basically wins the most times").
+ *
+ *  Two sources, added together:
+ *   • the ONE lobby the run won for the player who built it. Every Hall row is a VICTORY run, so that win is
+ *     implied by the row existing; it is never in the seat ledger, which only records a run being SERVED to
+ *     someone else. Counting it is the whole point of the owner's "20", not "19".
+ *   • every other player's lobby its seat has since placed 1st in (`SeatRecord.wins`); the tables it sat in and
+ *     did not win are its losses.
+ *
+ *  A run nobody has been served yet reads 1–0: it won once and has never lost a table. A lobby has exactly one
+ *  winner, so there are no draws here. */
+export function hallRecordOf(rec: { wins: number; losses: number } | undefined): { wins: number; losses: number; games: number } {
+  const wins = (rec?.wins ?? 0) + 1;      // + the victory that put it in the Hall
+  const losses = rec?.losses ?? 0;
+  return { wins, losses, games: wins + losses };
+}
+
 /** The W–L–D record folded out of a Hall row's per-round spread ("LLWLWWW…", one char per round: W/L/D).
  *  Null for a row logged before the `history` column existed. */
 export function recordOfHistory(history: string | undefined | null): { wins: number; losses: number; draws: number } | null {

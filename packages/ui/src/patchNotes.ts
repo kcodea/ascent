@@ -60,6 +60,17 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-22',
+    label: 'Hall of Champions',
+    changes: [
+      { category: 'Systems', text: 'The Hall of Champions is now a showcase of the runs that have won the most games.', details: [
+        'Every entry is a lobby winner. Its record is the win that put it there, plus every player it has knocked out since, when its warband was served into other lobbies. Getting knocked out while that player still stood counts as a loss.',
+        'Each entry shows its record, the date of its last win, and the rank its player held when they won it. A run nobody has faced yet reads 1 and 0.',
+        'Sorted by most wins. Most recent is still there as a second sort.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'The lasso',
     changes: [
       { category: 'Systems', text: "Stealing a minion from the Shop now throws a lasso: the beam snaps out from the spell, from Rope Wrangler, or from the equipment slot, and the card comes to hand when it lands. Several steals cascade one after another." },

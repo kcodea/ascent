@@ -13,7 +13,7 @@ import { CardArtEditor } from './CardArtEditor';
 import { perfMonitor } from './perfMonitor';
 import { heldFor, holdStat, statHoldKey, subscribeStatHolds } from './fx/statHold';
 import { resolveMech } from './mechIcon';
-import { mechMedallionSrc } from './mechMedallion';
+import { mechMedallionArtScale, mechMedallionSrc } from './mechMedallion';
 import { crossedUp, tierOf } from './choreo/statMilestones';
 import { fireStatMilestone } from './fx/statMilestone';
 import { useMilestoneBadgeFx } from './fx/milestoneBadgeFx';
@@ -1156,10 +1156,18 @@ export const Card = memo(function Card({
               <span className="plate" aria-hidden="true" />
               <span className="value">{formatStat(shownHealth)}</span>
             </span>
-            {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre */}
-            <span key={`cgem-${pulseCrit ?? 0}-${pulseRally ?? 0}-${pulseWatcher ?? 0}`} className={`cgem${pulseCrit ? ' pulsing crit' : pulseRally ? ' pulsing rally' : pulseWatcher ? ' pulsing watcher' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true">{mech && (mechMedallionSrc(mech.id)
-              ? <img decoding="sync" className="cgem-img" src={mechMedallionSrc(mech.id)!} alt="" aria-hidden="true" />
-              : <Icon name={mech.glyph} />)}</span>
+            {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre. Rendered
+                ONLY when a mechanic resolves: no icon → no gem at all (owner ask 2026-09-22), never an empty circle. */}
+            {mech && (() => {
+              // PNG art → the hybrid img PLUS a same-shape tint overlay (🎖️ Medallions tuner; inert at amount 0).
+              // `--cgem-artsrc` masks the overlay to this exact art. SVG-glyph mechanics keep the plain <Icon>.
+              const medSrc = mechMedallionSrc(mech.id);
+              return (
+                <span key={`cgem-${pulseCrit ?? 0}-${pulseRally ?? 0}-${pulseWatcher ?? 0}`} className={`cgem${pulseCrit ? ' pulsing crit' : pulseRally ? ' pulsing rally' : pulseWatcher ? ' pulsing watcher' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true">{medSrc
+                  ? <><img decoding="sync" className="cgem-img" src={medSrc} alt="" aria-hidden="true" style={{ '--cgem-art-mech': mechMedallionArtScale(mech.id) } as CSSProperties} /><span className="cgem-tint" style={{ '--cgem-artsrc': `url("${medSrc}")`, '--cgem-art-mech': mechMedallionArtScale(mech.id) } as CSSProperties} aria-hidden="true" /></>
+                  : <Icon name={mech.glyph} />}</span>
+              );
+            })()}
           </>
         )}
         {/* WATCHER frame bloom — a one-shot light-blue ring on the whole card frame (CSS fallback for the
@@ -1247,11 +1255,11 @@ export const Card = memo(function Card({
             {/* When the reveal opens LEFT (flipped, origin 'right'), the cards sit nearest the hovered tile and
                 the defs go on the far (outward) side, so the column never laps back over the source. Opening
                 right, it's the reverse: cards first, defs on the far right. */}
-            {refPos.origin === 'right' && <KeywordDefs card={card} />}
+            {refPos.origin === 'right' && <KeywordDefs card={card} mech={mech} />}
             {popupCards.map((rc, i) => (
               <Card key={`${rc.cardId ?? i}-${i}`} card={rc} forceFull plated />
             ))}
-            {refPos.origin === 'left' && <KeywordDefs card={card} />}
+            {refPos.origin === 'left' && <KeywordDefs card={card} mech={mech} />}
           </div>
         </div>,
         document.body,

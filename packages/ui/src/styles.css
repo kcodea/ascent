@@ -2223,8 +2223,14 @@ img.tierbadge.tierstars,
   width: calc(var(--ccw) * 0.21); height: calc(var(--ccw) * 0.21);
   transform: translateX(-50%) translate(var(--cgem-dx, 0px), var(--cgem-dy, 0px)) scale(var(--cgem-size, 1));
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 32%, color-mix(in srgb, var(--c) 55%, #2c2535), #1b1722);
-  border: calc(var(--ccw) * 0.014) solid #f6e3ad; box-shadow: 0 calc(var(--ccw) * 0.014) calc(var(--ccw) * 0.05) rgba(0, 0, 0, 0.5);
+  /* Backing circle — fill + rim are now tuner colours (🎖️ Medallions, medallionConfig.ts), NOT the per-tribe
+     `--c`. The fill derives a subtle gem gradient from one colour (lighter top, darker base); the rim colour and
+     width are their own dials. Fallbacks equal the tuner DEFAULTS so an absent var reproduces the shipped look. */
+  background: radial-gradient(circle at 50% 32%, color-mix(in srgb, var(--cgem-bg, #2a2430) 85%, #fff), color-mix(in srgb, var(--cgem-bg, #2a2430) 80%, #000));
+  border: calc(var(--ccw) * 0.014 * var(--cgem-outline-w, 1)) solid var(--cgem-outline, #f6e3ad);
+  /* Tunable drop shadow (🎖️ Medallions tuner). A `filter` rather than `box-shadow` so it follows the rendered
+     SHAPE — the circle when on, the bare art silhouette when the circle is toggled off. Fallbacks equal DEFAULTS. */
+  filter: drop-shadow(var(--cgem-shadow-x, 0px) var(--cgem-shadow-y, 2px) var(--cgem-shadow-blur, 6px) var(--cgem-shadow-color, rgba(0, 0, 0, 0.5)));
   display: grid; place-items: center;
 }
 .card.compact .cgem svg { width: 62%; height: 62%; color: #f6e3ad; }
@@ -2232,8 +2238,24 @@ img.tierbadge.tierstars,
    applies. The `.cgem` box already sizes/positions the medallion; the img just fills it. `--cgem-art-scale`
    (🎖️ Medallions tuner) insets the art smaller or lets it overflow the box, independent of the box's own size —
    unscoped so it also drives the tuner's own `.medprev` preview swatches. */
-.cgem > .cgem-img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; transform: scale(var(--cgem-art-scale, 1)); }
+.cgem > .cgem-img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; transform: scale(calc(var(--cgem-art-scale, 1) * var(--cgem-art-mech, 1))); filter: grayscale(var(--cgem-desat, 0%)); }
 .card.compact .cgem > .cgem-img { width: 100%; height: 100%; }
+/* Art TINT overlay (🎖️ Medallions tuner: Tint colour + amount) — a colour wash the SHAPE of the art, so it
+   colours the glyph and not the box. `--cgem-artsrc` is set inline per card to the same art URL so the mask
+   matches; `--cgem-tint-amt` defaults to 0, making it inert so untinted art is untouched. Static paint (no loop),
+   scaled with the art so it tracks the Art-inset dial. */
+.cgem > .cgem-tint {
+  position: absolute; inset: 0; pointer-events: none;
+  background: var(--cgem-tint, #ffd24a);
+  -webkit-mask: var(--cgem-artsrc) center / contain no-repeat;
+  mask: var(--cgem-artsrc) center / contain no-repeat;
+  opacity: var(--cgem-tint-amt, 0);
+  transform: scale(calc(var(--cgem-art-scale, 1) * var(--cgem-art-mech, 1)));
+}
+/* Background-circle toggle OFF (🎖️ Medallions tuner) — strip the fill, rim and shadow so only the art shows.
+   Out-specifies the base `.cgem` rules; the pulse pseudo-glows are independent and still fire without a circle. */
+:root.cgem-nobg .card.compact .cgem,
+:root.cgem-nobg .medprev .cgem { background: none; border: none; }
 /* Trigger pulse — the medallion flares with a VERY brief glow, then releases a slow ring of energy,
    when the unit's effect fires (Start-of-Combat, Deathrattle, Battlecry, aura, Avenge, Reborn, …).
    Compositor-only: only opacity/transform animate; each pseudo's glow (radial bg + box-shadow) is
@@ -2248,14 +2270,14 @@ img.tierbadge.tierstars,
 .card.compact .cgem.glowing::before,
 .card.compact .cgem.pulsing::before {
   inset: -3px; will-change: opacity;
-  background: radial-gradient(circle, color-mix(in srgb, var(--c) 60%, #fff8e0) 0%, transparent 72%);
-  box-shadow: 0 0 12px 4px rgba(255, 246, 214, 0.98), 0 0 22px 9px color-mix(in srgb, var(--c) 70%, transparent);
+  background: radial-gradient(circle, color-mix(in srgb, var(--cgem-pulse, #f6e3ad) 60%, #fff8e0) 0%, transparent 72%);
+  box-shadow: 0 0 12px 4px rgba(255, 246, 214, 0.98), 0 0 22px 9px color-mix(in srgb, var(--cgem-pulse, #f6e3ad) 70%, transparent);
   animation: cgemglow 0.22s ease-out;
 }
 .card.compact .cgem.pulsing::after {
   inset: -4px; will-change: transform, opacity;
-  background: radial-gradient(circle, color-mix(in srgb, var(--c) 75%, #fff6d8) 0%, color-mix(in srgb, var(--c) 55%, transparent) 45%, transparent 70%);
-  box-shadow: 0 0 16px 6px rgba(255, 244, 210, 0.95), 0 0 34px 16px color-mix(in srgb, var(--c) 70%, transparent);
+  background: radial-gradient(circle, color-mix(in srgb, var(--cgem-pulse, #f6e3ad) 75%, #fff6d8) 0%, color-mix(in srgb, var(--cgem-pulse, #f6e3ad) 55%, transparent) 45%, transparent 70%);
+  box-shadow: 0 0 16px 6px rgba(255, 244, 210, 0.95), 0 0 34px 16px color-mix(in srgb, var(--cgem-pulse, #f6e3ad) 70%, transparent);
   animation: cgempulse 0.9s ease-out 0.15s; /* delayed so the ring releases AFTER the glow flares */
 }
 /* Rally pulse — the same flash + ring as a normal trigger pulse, forced YELLOW (a Rally fired as this unit
@@ -2316,8 +2338,9 @@ img.tierbadge.tierstars,
   width: 60px; height: 60px;
   transform: translate(var(--cgem-dx, 0px), var(--cgem-dy, 0px)) scale(var(--cgem-size, 1));
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 32%, color-mix(in srgb, var(--c, #8a6dd6) 55%, #2c2535), #1b1722);
-  border: 1px solid #f6e3ad; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  background: radial-gradient(circle at 50% 32%, color-mix(in srgb, var(--cgem-bg, #2a2430) 85%, #fff), color-mix(in srgb, var(--cgem-bg, #2a2430) 80%, #000));
+  border: calc(1px * var(--cgem-outline-w, 1)) solid var(--cgem-outline, #f6e3ad);
+  filter: drop-shadow(var(--cgem-shadow-x, 0px) var(--cgem-shadow-y, 2px) var(--cgem-shadow-blur, 6px) var(--cgem-shadow-color, rgba(0, 0, 0, 0.5)));
   display: grid; place-items: center;
 }
 /* WATCHER card-frame bloom — a one-shot light-blue ring on the whole card, the CSS fallback for the Pixi def
@@ -2366,7 +2389,7 @@ img.tierbadge.tierstars,
   /* Box boundaries are tunable via the 🔤 Card Text tuner (`--ctx-*`); fallbacks MUST mirror
      cardTextConfig.ts DEFAULTS. */
   position: absolute; top: calc(var(--ccw) * var(--ctx-top, 1.085)); left: 0; right: 0;
-  padding: calc(var(--ccw) * var(--ctx-pad-top, 0.075)) calc(var(--ccw) * var(--ctx-pad-x, 0)) calc(var(--ccw) * var(--ctx-pad-bottom, 0.07));
+  padding: calc(var(--ccw) * var(--ctx-pad-top, 0.125)) calc(var(--ccw) * var(--ctx-pad-x, 0)) calc(var(--ccw) * var(--ctx-pad-bottom, 0.07));
 }
 /* With the backing removed entirely, this shadow is the ONLY thing separating the panel's text from the
    plate's stone — it's load-bearing for legibility, not decoration (owner 2026-07-21). Tuned dark and TIGHT:
@@ -2429,7 +2452,7 @@ img.tierbadge.tierstars,
 .card.compact.showtext .drawer .desc,
 .card.compact.showtext .drawer .dtribe,
 .card.compact.showtext .drawer .plate-tribe { position: relative; }
-.card.compact.showtext .drawer .desc { font-size: calc(var(--ccw) * 0.072); line-height: var(--ctx-line, 1.43); color: var(--card-desc-color, #fff); text-align: center; background: none; box-shadow: none; padding: 0; flex: none; display: block; }
+.card.compact.showtext .drawer .desc { font-size: calc(var(--ccw) * 0.072); line-height: var(--ctx-line, 1.34); color: var(--card-desc-color, #fff); text-align: center; background: none; box-shadow: none; padding: 0; flex: none; display: block; }
 /* Bold keywords/numbers take the card's TRIBE colour so they pop off the pure-white body text (owner
    2026-07-25). `--c` is the primary tribe hue the card already sets inline. */
 .card.compact.showtext .drawer .desc b { color: var(--c); }
@@ -2842,7 +2865,11 @@ body.modalup .app { z-index: auto; }
    reveal's width/flip math (which counts the defs column) is unaffected. */
 .cardref .kwdefs { align-self: flex-start; transform: translateY(-14px); }
 .kwbox { background: linear-gradient(180deg, #241a13, #17110c); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: 9px; padding: 6px 9px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px -6px rgba(0, 0, 0, 0.45); }
-.kwbox-name { font-family: var(--font-ui); font-weight: 800; font-size: 10px; letter-spacing: 0.03em; color: var(--acc, #ff9d4d); }
+.kwbox-name { display: flex; align-items: center; gap: 4px; font-family: var(--font-ui); font-weight: 800; font-size: 10px; letter-spacing: 0.03em; color: var(--acc, #ff9d4d); }
+/* Medallion icon beside the title of the term shown on the unit's gem (KeywordDefs). Sized to the 10px title so
+   it sits on the same line; PNG art fills it, an SVG glyph inherits the title's accent colour. */
+.kwbox-ico { flex: none; width: 13px; height: 13px; display: inline-flex; }
+.kwbox-ico img, .kwbox-ico svg { width: 100%; height: 100%; object-fit: contain; display: block; }
 .kwbox-def { font-family: var(--font-ui); font-weight: 500; font-size: 8.4px; line-height: 1.35; color: #e9dcc4; margin-top: 2px; }
 /* The source name flexes + ellipsizes if a name is unusually long; the +atk/+hp amount never clips. */
 .ib-src { font-family: var(--font-ui); font-weight: 700; color: #f4ecdb; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }

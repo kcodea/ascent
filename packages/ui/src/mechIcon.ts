@@ -14,6 +14,14 @@ export function firstMentionIndex(text: string, m: Mechanic): number {
   return match ? match.index : -1;
 }
 
+/**
+ * Mechanics that are signified on the card some OTHER way and must NOT also claim the medallion gem — a glyph for
+ * them there is redundant (owner ask 2026-09-22): Taunt is a forged shield frame + a silver Pixi aura, and Ward
+ * (Divine Shield) is the CSS dome. This only affects the CARD medallion — the compendium/glossary iterates
+ * `MECHANICS` directly, so both still list there with their glyphs.
+ */
+const MEDALLION_EXCLUDED: ReadonlySet<string> = new Set(['taunt', 'ward']);
+
 export function resolveMech(view: CardView): Mechanic | null {
   const def = CARD_INDEX[view.cardId];
   const input: MechInput = {
@@ -22,7 +30,7 @@ export function resolveMech(view: CardView): Mechanic | null {
     chooseOne: def?.chooseOne,
     text: view.text ?? '',
   };
-  const owned = MECHANICS.filter((m) => m.detect(input));
+  const owned = MECHANICS.filter((m) => !MEDALLION_EXCLUDED.has(m.id) && m.detect(input));
   if (owned.length === 0) return null;
   if (owned.length === 1) return owned[0]!;
   const kwPos = (m: Mechanic): number => (m.kw ? input.keywords.indexOf(m.kw) : -1);

@@ -22,18 +22,27 @@ describe('resolveMech', () => {
     // so it resolves to the watcher glyph. It owns no other mechanic, so eye is unambiguous.
     expect(resolveMech(view('d2_embermouth'))?.glyph).toBe('eye');
   });
-  it('Karwind (Ward + Shout-watcher, text leads with Ward) → shield, not battlecry', () => {
-    // Karwind now carries Ward (keywords ['DS']) and a battlecryTriggered watcher. Its text reads
-    // "**Ward.** Whenever a **Shout** triggers, …", so by first-mention Ward wins. It has no onPlay
-    // effect, so it is never battlecry — the point the original example guarded.
-    expect(resolveMech(view('karwind'))?.glyph).toBe('shield');
+  it('Karwind (Ward + Shout-watcher) → eye — Ward is excluded from the gem, so the watcher shows', () => {
+    // Karwind carries Ward (keywords ['DS']) and a battlecryTriggered watcher. Ward is signified by the CSS dome,
+    // so it is EXCLUDED from the medallion (owner ask 2026-09-22); the next owned mechanic — the watcher — wins.
+    // It has no onPlay effect, so it is never battlecry.
+    expect(resolveMech(view('karwind'))?.glyph).toBe('eye');
   });
-  it('keyword-only empty-text card → its keyword glyph', () => {
-    expect(resolveMech(view('bronzewarden'))?.glyph).toBe('shield'); // Guardian Drake, DS (+CR), no text
+  it('Ward-keyword card → its OTHER mechanic (Ward excluded from the gem)', () => {
+    // bronzewarden (Guardian Drake) is DS (+CR), no text. Ward is excluded, so Crit takes the gem.
+    expect(resolveMech(view('bronzewarden'))?.glyph).toBe('target');
   });
-  it('multi-mechanic in text → first mentioned wins', () => {
-    // b2_armadiyo text: "**Taunt. Echo:** …" — Taunt appears first.
-    expect(resolveMech(view('b2_armadiyo'))?.glyph).toBe('taunt');
+  it('multi-mechanic in text → first NON-excluded mention wins', () => {
+    // b2_armadiyo text: "**Taunt. Echo:** …" — Taunt appears first but is excluded from the gem (shield frame),
+    // so Echo, the next mention, takes the medallion.
+    expect(resolveMech(view('b2_armadiyo'))?.glyph).toBe('echo');
+  });
+  it('Taunt and Ward never claim the medallion (frame / dome signify them instead)', () => {
+    for (const c of ALL_CARDS) {
+      if ((c as { spell?: unknown }).spell || (c as { ruby?: unknown }).ruby) continue; // no medallion
+      const id = resolveMech(view(c.id))?.id;
+      expect(id === 'taunt' || id === 'ward', `${c.id} → ${id}`).toBe(false);
+    }
   });
   it('Choose One → choose1; Engraved → engrave', () => {
     expect(resolveMech(view('shaper'))?.glyph).toBe('choose1');

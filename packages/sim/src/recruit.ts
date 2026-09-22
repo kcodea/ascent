@@ -1811,8 +1811,9 @@ export const isStatSpellFactory = (name: string): boolean =>
  * Does this cast effect FOLD the run's spell power into what it grants? The rule the factories follow, stated
  * once: a stat-family factory (`isStatSpellFactory`) that is not documented flat (`SPELL_POWER_EXCUSED`:
  * Apples' shop buffs, Rubies' own channel, Equalize's derived magnitude) and whose params do not opt out with
- * `flat: true` (Crest of the Climb, Tower Shield). Only `on: 'cast'` effects — a Battlecry branch
- * (Wildwood Shaper, Dealer) never reads spell power.
+ * `flat: true` (Tower Shield, a Gift — owner 2026-09-09; Crest of the Climb opted out too until the owner's
+ * 2026-09-21 report, bug 23c340fb). Only `on: 'cast'` effects — a Battlecry branch (Wildwood Shaper, Dealer)
+ * never reads spell power.
  */
 export function effectFoldsSpellPower(e: EffectDef): boolean {
   return e.on === 'cast' && isStatSpellFactory(e.do) && !SPELL_POWER_EXCUSED[e.do]
@@ -7246,9 +7247,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     let health = num(params.health);
     // Stat-granting spells pick up the run's spell power (Spellbinder hero + cards: Cinderwing on
     // Health, Skullblade on Attack). The UI shows the same effective value via spellDisplayText — one
-    // source of truth (spellAttackBonus / spellHealthBonus). `flat: true` opts OUT (Crest of the Climb's
-    // Choose-One single-stat grants stay exactly as printed; `chooseOneBranchText` reads the same flag, so the
-    // Choose One window never greens a flat branch).
+    // source of truth (spellAttackBonus / spellHealthBonus). `flat: true` opts OUT (Tower Shield, a Gift that
+    // takes no buff by owner ruling 2026-09-09; `chooseOneBranchText` reads the same flag, so the Choose One
+    // window never greens a flat branch). Crest of the Climb's single-stat branches used to opt out as well —
+    // they fold since 2026-09-21 (owner report, bug 23c340fb), so "+4 Health" under +0/+1 power lands +5.
     if (!params.flat && (attack > 0 || health > 0)) {
       attack += spellAttackBonus(ctx.state);
       health += spellHealthBonus(ctx.state);
@@ -9508,6 +9510,21 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     const h = Number((impBuff.params as { health?: number } | undefined)?.health ?? 2);
     return def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
   }
+  // A spell Choose One whose branches are plain stat grants (Crest of the Climb: "+4 Attack" / "+4 Health"): each
+  // branch that folds spell power greens its OWN token in the card's text, in the shape the Choose One window
+  // prints it (`liveStatToken`), so the shop / hand / hover card and the window never disagree. Crest opted out
+  // via `flat: true` until the owner's 2026-09-21 report (bug 23c340fb); the fold rule decides, not a card list.
+  if (def.chooseOne?.length) {
+    let t = def.text;
+    for (const opt of def.chooseOne) {
+      for (const e of opt.effects ?? []) {
+        if (!effectFoldsSpellPower(e) || (e.do !== 'spellBuffTarget' && e.do !== 'spellBuffAll')) continue;
+        const p = e.params as { attack?: number; health?: number } | undefined;
+        t = liveStatToken(t, num(p?.attack, 0), num(p?.health, 0), bonusA, bonusH);
+      }
+    }
+    if (t !== def.text) return t;
+  }
   const eff = def.effects.find((e) => e.do === 'spellBuffTarget' || e.do === 'spellBuffAll');
   if (!eff) return def.text;
   const ba = Number((eff.params as { attack?: number } | undefined)?.attack ?? 0);
@@ -9525,11 +9542,12 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
  * windows as well"; the hard live-text rule in CLAUDE.md).
  *
  * Which magnitudes move is decided by `effectFoldsSpellPower` — the fold rule the factories follow, not a
- * per-card list — so a flat branch (Crest of the Climb's `flat: true`, Apples' documented-flat shop buff) keeps
- * its authored number, and a MINION Choose One (a Battlecry, never a cast) is returned untouched. Shapes:
- * "+A/+H" → "{{+A'/+H'}}"; a single-stat "+A Attack" becomes the full live pair once the other stat's power is
- * up (the factories add both bonuses to any grant), else "{{+A' Attack}}". Golden reads the branch's
- * `goldenText` (its doubled magnitudes) — no spell is golden today, kept for symmetry with every other helper.
+ * per-card list — so a flat branch (`flat: true`) or an excused one keeps its authored number, and a MINION
+ * Choose One (a Battlecry, never a cast) is returned untouched. Shapes (`liveStatToken`): "+A/+H" →
+ * "{{+A'/+H'}}"; a single-stat "+A Attack" becomes the full live pair once the other stat's power is up (the
+ * factories add both bonuses to any grant), else "{{+A' Attack}}" — Crest of the Climb's "+4 Health" under
+ * +0/+1 power reads "{{+5 Health}}", under +1/+1 "{{+1/+5}}". Golden reads the branch's `goldenText` (its
+ * doubled magnitudes) — no spell is golden today, kept for symmetry with every other helper.
  */
 export function chooseOneBranchTextFor(def: CardDef | undefined, index: number, golden: boolean, bonusA: number, bonusH: number): string {
   const opt = def?.chooseOne?.[index];
@@ -9545,14 +9563,25 @@ export function chooseOneBranchTextFor(def: CardDef | undefined, index: number, 
     // The printed magnitude: the authored params, or their double on a golden branch (where `goldenText` prints
     // the doubled number). Try the authored value first so an un-doubled golden text still greens.
     for (const k of golden ? [1, 2] : [1]) {
-      const a = a0 * k, h = h0 * k;
       const before = t;
-      if (a > 0 && h > 0) t = t.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
-      else if (a > 0) t = t.replace(`+${a} Attack`, bonusH > 0 ? `{{+${a + bonusA}/+${bonusH}}}` : `{{+${a + bonusA} Attack}}`);
-      else t = t.replace(`+${h} Health`, bonusA > 0 ? `{{+${bonusA}/+${h + bonusH}}}` : `{{+${h + bonusH} Health}}`);
+      t = liveStatToken(t, a0 * k, h0 * k, bonusA, bonusH);
       if (t !== before) break;
     }
   }
+  return t;
+}
+
+/**
+ * Rewrite ONE printed stat token as the live value a spell-power-folding factory grants: "+A/+H" →
+ * "{{+A'/+H'}}"; a single-stat "+A Attack" / "+H Health" keeps its single-stat shape while the other stat's
+ * power is 0, else becomes the full live pair (`spellBuffTarget` adds BOTH bonuses to any grant). Shared by the
+ * Choose One window (`chooseOneBranchTextFor`) and the card's own text (`spellDisplayText`), so the two
+ * surfaces print the same number for the same branch. Untouched when nothing matches.
+ */
+function liveStatToken(t: string, a: number, h: number, bonusA: number, bonusH: number): string {
+  if (a > 0 && h > 0) return t.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
+  if (a > 0) return t.replace(`+${a} Attack`, bonusH > 0 ? `{{+${a + bonusA}/+${bonusH}}}` : `{{+${a + bonusA} Attack}}`);
+  if (h > 0) return t.replace(`+${h} Health`, bonusA > 0 ? `{{+${bonusA}/+${h + bonusH}}}` : `{{+${h + bonusH} Health}}`);
   return t;
 }
 

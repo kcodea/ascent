@@ -15,8 +15,8 @@ import type { CardDef } from '@game/core';
  */
 export const SET3_HAND_SPELLS: CardDef[] = [
   {
-    // Defender's Shout mints two. Fixed +2/+1 and Taunt — `flat: true` opts the stat grant out of spell power,
-    // exactly as Crest of the Climb's single-stat branches do. `target: 'friendly'`: Taunt needs a real body.
+    // Defender's Shout mints two. Fixed +2/+1 and Taunt — `flat: true` opts the stat grant out of spell power
+    // (owner 2026-09-09, the Gift rule above). `target: 'friendly'`: Taunt needs a real body.
     id: 'tower_shield',
     name: 'Tower Shield',
     tribe: 'neutral',

@@ -9,7 +9,7 @@
  * KEEP THIS MODULE OFF THE REDUCER PATH — it is capture/replay metadata, not run state. Nothing in
  * reducer.ts / recruit.ts may import it (it imports THEM, one-way).
  */
-import { combatSide, type BoardMinion, type CombatResult, type EnemyScalers, type Keyword, type MinionSnapshot } from '@game/core';
+import { combatSide, socTwilightExtraFires, type BoardMinion, type CombatResult, type EnemyScalers, type Keyword, type MinionSnapshot } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import type { Action, RunMode, RunState } from './state';
 import type { BoardSnapshot } from './snapshot';
@@ -438,7 +438,9 @@ export function oddsInputFromCombatFrame(
   // (pinned in `replayOdds.test.ts`), so the view stands in for the run.
   const run = view as unknown as RunState;
   const playerState = playerCombatSideState(run);
-  const twilightMult = run.questFlags?.runeTwilight ? 2 : 1;
+  // One extra pass per Twilight COPY (`socTwilightExtraFires`, the definition combat's pass consults) — a second
+  // copy used to triple minion effects in combat but only double these (reviewer 2026-09-21).
+  const twilightMult = 1 + socTwilightExtraFires({ runeTwilight: !!run.questFlags?.runeTwilight, flagCopies: run.flagCopies });
   const fleeting = run.fleetingVigor && (run.fleetingVigor.attack !== 0 || run.fleetingVigor.health !== 0)
     ? { attack: run.fleetingVigor.attack * twilightMult, health: run.fleetingVigor.health * twilightMult }
     : null;

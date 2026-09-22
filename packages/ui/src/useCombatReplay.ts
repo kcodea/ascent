@@ -218,7 +218,7 @@ const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   ascendProgress: s.ascendProgress, // Tara: seed the ascend tracker from the run-board total, then count up
   spellProgress: s.spellProgress, // Guel: seed his on-board spell tally for the live combat text
   spiritTally: s.spiritTally, // Set 3 Spirits: the carried tally, so Forest Colossus / Keeper / Aspect print live in combat
-  damageDealt: s.damageDealt, // Pummel (Han Gover, Goldvein): the snapshot's seed (undefined for a once-per-combat meter), then count each landed hit it deals
+  damageDealt: s.damageDealt, // Pummel (Han Gover, Goldvein): the snapshot's seed (the run card's lifetime tally), then count each landed hit it deals on top
   soldProgress: s.soldProgress, // Runic Archivist (display-only)
   boardFirstSpellId: s.boardFirstSpellId, // Spell Warden (display-only)
   eotBonus: s.eotBonus, // Ritualist: seed the per-tick grant so the combat text isn't stuck at base
@@ -322,13 +322,15 @@ export function computeFrame(
   // by every Health buff, which is exactly how the sim's `maxHealth` moves.
   const maxHp = new Map<string, number>();
   for (const u of [...player, ...enemy]) maxHp.set(u.uid, u.health);
-  // Per-uid Avenge floors, stamped on Rise — a risen body's counter restarts at 0 (mirrors the sim's
-  // `avengeBaseline`; assigned where `avengeSeen` is stamped at the bottom).
+  // Per-uid Avenge floors, stamped on Rise AND on every mid-combat summon — a risen body's counter restarts at 0
+  // and a summoned body counts from its own arrival (mirrors the sim's `avengeBaseline`; subtracted where
+  // `avengeSeen` is stamped at the bottom).
   const avengeBase = new Map<string, number>();
   const find = (uid: string) => player.find((u) => u.uid === uid) ?? enemy.find((u) => u.uid === uid);
   const gone = new Set<string>();
-  // Running tallies for the live Avenge / Bleed step counters: FRIENDLY deaths per side (a Rise death doesn't count —
-  // matches the sim's Avenge gate) and total GLOBAL attack swings (Bloodbinder's Bleed fires every N, either side).
+  // Running tallies for the live Avenge / Bleed step counters: FRIENDLY deaths per side (a Rise death counts too,
+  // owner 2026-07-27 — matches the sim's Avenge gate) and total GLOBAL attack swings (Bloodbinder's Bleed fires
+  // every N, either side).
   const deaths: Record<'player' | 'enemy', number> = { player: 0, enemy: 0 };
   let attackCount = 0;
   // Spells cast per side THIS combat (Vaultkeeper's live umbrella). Counted here rather than read off the event's
@@ -344,8 +346,8 @@ export function computeFrame(
       if (u) u.health = e.remainingHp;
       // The PUMMEL meters (Han Gover, Goldvein — core's `DAMAGE_METER_MARKERS`): a meter is the sum of every
       // landed hit its body dealt — the `dmg` events stamped with it as `source`, the same amounts the sim's
-      // `noteDamageDealt` added — on top of the seeded value (none for a once-per-combat meter, so the badge
-      // counts from 0 and `damageMeterReading` clamps it at X/X once the Pummel fired). Keyed off the card's MARKER, not an id: the
+      // `noteDamageDealt` added — on top of the seeded value (the run card's lifetime tally, so the badge picks
+      // up where the shop left it and `damageMeterReading` prints `total mod X`). Keyed off the card's MARKER, not an id: the
       // id gate (`dw3_hangover` only) is why Goldvein's badge never moved in combat (owner report 2026-09-19).
       // This fold runs to the END of the beat being cued, so the badge ticks on the beat the damage lands —
       // the same moment the damage number pops — including the blow that ends the fight (the `done` frame
@@ -487,6 +489,12 @@ export function computeFrame(
       const arr = e.side === 'player' ? player : enemy;
       arr.splice(Math.min(e.index, arr.length), 0, fromSnap(e.minion));
       maxHp.set(e.minion.uid, e.minion.health);
+      // A SUMMONED body's Avenge counts from its own arrival (rule R-AVWIN-01 "Late entry starts at zero"): the
+      // sim stamps `avengeBaseline = deaths[side]` in `placeSummon`, AFTER the death that summoned it was
+      // tallied, and the log carries that death before this summon, so the current side tally IS the baseline.
+      // Only the Rise branch stamped it before, so a Dunkey that Bullseye's Echo summoned after two friendly
+      // deaths landed reading 2/4 while the sim's own window for it read 0/4 (owner report 2026-09-21).
+      avengeBase.set(e.minion.uid, deaths[e.side]);
       // Ashen Heir, the paying half: an arriving Imp inherits the bank, so the bank empties (see the death branch).
       if (CARD_INDEX[e.minion.cardId]?.imp) {
         for (const h of arr) if (h.cardId === 'ashen_heir' && h.alive) h.impBank = undefined;

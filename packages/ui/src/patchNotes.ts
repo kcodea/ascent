@@ -66,6 +66,61 @@ export const PATCH_NOTES: PatchNote[] = [
     ],
   },
   {
+    date: '2026-09-22',
+    label: 'Avenge counter on summoned minions',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'A minion summoned during combat now shows its Avenge counter starting at 0. It used to show the deaths that happened before it arrived, which the Avenge itself never counted.',
+        details: [
+          "The rule is unchanged: a summoned Avenge minion only counts friendly deaths from the moment it lands. A Dunkey that Bullseye's Echo summons after two deaths still needs four more before it summons its Armadiyo.",
+          'Only the number printed on the card in combat was wrong. It read 2/4 on arrival in that case; it now reads 0/4 and ticks up from there.',
+          'Minions that start the fight on your board, and minions returning with Rise, count exactly as before.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: "A minion Soren's Reclaim brings back now counts its Avenge from the moment it returns. It used to count its own start-of-combat destruction as its first death.",
+        details: [
+          'A reclaimed Avenge (4) minion now needs four friendly deaths after it returns. Before this it paid one death early.',
+          'This follows the same rule as every other body that enters mid-combat: deaths before it arrived are not its progress.',
+          'The counter printed on the card already showed 0/4 on return. The rule now matches the card.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Final team after the last fight',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The final team shown on your Career, Recent Games and the Hall of Champions is now the board as it stood after the last combat, with the gains that carry over, instead of the board from before it.',
+        details: [
+          'Gains that carry between fights, such as Engraved growth and Ruby carry-backs, now show on the final team when the last combat earned them.',
+          'Start of Combat buffs, shields and summons that only last for one fight no longer show. The final team is exactly what your next Shop would have opened with.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Pummel carries over',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Pummel damage now carries over between combats again. The count keeps building from shop to combat to shop, pays out at each multiple of X, and pays at most once per combat.',
+        details: [
+          'Pummel (X): Triggers each time this minion has dealt another X damage. The damage count carries over between combats.',
+          'The counter on the card shows progress toward the next payout. Han Gover at 47 damage reads 7/40 in the shop and in combat, and it no longer holds at 40/40 after a payout.',
+          "One huge hit that passes several multiples of X still pays once. The extra multiples are spent, not saved, so a 120 damage hit pays once and Han Gover's next Ale comes at 160.",
+          'A second crossing in the same combat pays nothing that fight. The count still moves, and the next multiple pays next combat.',
+          "Goldvein's count carries over now too. It used to reset each combat.",
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-21',
     label: 'Displaced minions keep Shop buffs',
     changes: [

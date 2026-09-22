@@ -40,10 +40,10 @@ describe('Kringle — +1/+2 per card played (was +1/+1)', () => {
     expect(def.goldenText).toContain('+2/+4');
   });
 
-  it('the left-most Dwarf gains 1/2 per card played this turn', () => {
+  it('the left-most Dwarf gains 1/2 once, then once more per card played this turn (the REPEAT form, owner 2026-09-22)', () => {
     const kringle = Object.values(CARD_INDEX).find((c) => c.name === 'Kringle')!;
     const s: RunState = {
-      ...createRun(5), phase: 'recruit', playedThisTurn: ['a', 'b'], // 2 cards played
+      ...createRun(5), phase: 'recruit', playedThisTurn: ['a', 'b'], // 2 cards played → base + 2 repeats = 3 ticks
       board: [
         { uid: 'd1', cardId: 'dw_brunni', tribe: 'dwarf', attack: 2, health: 2, keywords: [], golden: false },
         { uid: 'k', cardId: kringle.id, tribe: 'dwarf', attack: 3, health: 7, keywords: [], golden: false },
@@ -52,8 +52,8 @@ describe('Kringle — +1/+2 per card played (was +1/+1)', () => {
     const before = { a: s.board[0]!.attack, h: s.board[0]!.health };
     applyEndOfTurn(s);
     const left = s.board.find((c) => c.uid === 'd1')!;
-    expect(left.attack - before.a, '+1 Attack per card × 2').toBe(2);
-    expect(left.health - before.h, '+2 Health per card × 2').toBe(4);
+    expect(left.attack - before.a, '+1 Attack × (1 base + 2 repeats)').toBe(3);
+    expect(left.health - before.h, '+2 Health × (1 base + 2 repeats)').toBe(6);
   });
 });
 

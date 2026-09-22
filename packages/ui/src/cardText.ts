@@ -1081,15 +1081,20 @@ export function tallyBuffText(cardId: string, deathrattlesTriggered: number, gol
  * itself.
  */
 /**
- * Kringle (ex-Closing-Time Foreman) — "+N/+N for each card played this turn" folded into what it will really give.
+ * Kringle (ex-Closing-Time Foreman) and Striker — the "cards played this turn" End-of-Turn pair, two PATTERNS
+ * (owner ruling 2026-09-22, R-REPEAT-01):
  *
- * Same rule as `perGoldSpentText`: a live magnitude prints the number it produces, not the rate. Nothing played
- * yet means the rate IS the answer, so the printed text stands.
+ *   - Striker is the LUMP form ("+1 Attack for each card you played this turn"): one instance whose magnitude is
+ *     the count × the rate, so the live text folds the TOTAL in place and keeps the rate in the parenthetical.
+ *   - Kringle is the REPEAT form ("give … +1/+2. Repeat for every card you played this turn"): the base +1/+2
+ *     lands once, then once more per card, each its own tick — so the per-tick rate IS the printed number and
+ *     the live count is how many times it lands: `(×N)`, N = 1 + cards played, Mother Moss's house style.
+ *
+ * Same rule as `perGoldSpentText` underneath: a live magnitude prints what it will really produce. Nothing
+ * played yet means the printed text is already exact, so it stands.
  */
 export function perCardPlayedText(cardId: string, cardsPlayedThisTurn: number, golden = false): string | null {
   const def = CARD_INDEX[cardId];
-  // Kringle (the Dwarf line's two ends) and Striker (set 3: its two neighbours, any tribe) share the counter and
-  // the per-card rate; only the recipients differ, so one helper prints both.
   const eff = def?.effects.find((e) => e.do === 'endOfTurnBuffEndsTribePerCard' || e.do === 'endOfTurnBuffAdjacentPerCard');
   if (!def || !eff) return null;
   if (cardsPlayedThisTurn <= 0) return null;
@@ -1102,13 +1107,14 @@ export function perCardPlayedText(cardId: string, cardsPlayedThisTurn: number, g
   // card the live text replaced the printed "+1/+2" with "+1 Attack" and the Health silently vanished from the
   // card (owner report 2026-08-26). It reads the effect's params now, so a future reprice needs no edit here.
   const rate = perH > 0 ? `+${perA}/+${perH}` : `+${perA} Attack`;
-  const grant = perH > 0 ? `+${perA * cardsPlayedThisTurn}/+${perH * cardsPlayedThisTurn}` : `+${perA * cardsPlayedThisTurn} Attack`;
   // Plain parentheses, no `_italics_` — the Card renderer only knows **bold**, so underscores print literally.
   if (eff.do === 'endOfTurnBuffAdjacentPerCard') {
+    const grant = perH > 0 ? `+${perA * cardsPlayedThisTurn}/+${perH * cardsPlayedThisTurn}` : `+${perA * cardsPlayedThisTurn} Attack`;
     return `**End of Turn:** give adjacent minions **{{${grant}}}** (${rate} for each card you played this turn).`;
   }
-  // Owner change 2026-08-28: both ENDS of the Dwarf line, so the live text names both too.
-  return `**End of Turn:** give your **left and right-most Dwarves {{${grant}}}** (${rate} for each card you played this turn).`;
+  // Kringle, the REPEAT form: the per-tick grant stays as printed and the live count says how many ticks land
+  // right now (the base plus one per card played). Both ENDS of the Dwarf line (owner change 2026-08-28).
+  return `**End of Turn:** give your **left and right-most Dwarves ${rate}**. Repeat for every card you played this turn {{(×${1 + cardsPlayedThisTurn})}}.`;
 }
 
 export function perGoldSpentText(cardId: string, goldSpentThisTurn: number, golden = false): string | null {

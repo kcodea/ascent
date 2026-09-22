@@ -52,6 +52,27 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Repeat per tick',
+    changes: [
+      { category: 'Balance', text: 'Mother Moss now lands its buffs one at a time. It gives a random Spirit +3/+4, then repeats that once for every Spirit you played this turn, each repeat on its own beat with a fresh pick.', details: [
+        'The total is unchanged: the base plus one repeat per Spirit played, each +3/+4 (gilded +6/+8).',
+        'Every repeat is its own buff. A Spirit picked twice is buffed twice, and you see both land.',
+        'The card shows how many times it will land right now, for example (×3).',
+      ] },
+      { category: 'Balance', text: 'Kringle now reads: give your left and right-most Dwarves +1/+2. Repeat for every card you played this turn. That is the base buff plus one repeat per card, so it pays one more time than before.', details: [
+        'Before: +1/+2 for each card played, so 3 cards paid +3/+6 per end. Now: +1/+2 once, then once per card, so 3 cards pay +4/+8 per end. A turn with nothing played still pays the base once.',
+        'Gilded Kringle pays +2/+4 per tick. The number of ticks never doubles.',
+        'Dwarves that react when a Dwarf gains Attack (Kneel, Tankerchief) react once per tick.',
+        'The card shows how many times it will land right now, for example (×4).',
+      ] },
+      { category: 'Systems', text: 'A buff that repeats now plays one beat per repeat at End of Turn, with the stats rolling up on each one. End of Turn takes a little longer when a card repeats many times.', details: [
+        'Mother Moss and Kringle: one beat and one ribbon per repeat, in order, on both the animated and the classic End of Turn.',
+        'Squirl Scout and Dragonflame draw one ribbon per repeat, spaced apart, instead of one burst.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Balance Report',
     changes: [
       { category: 'Systems', text: 'The Balance Report now reads only the active set and never a Scene Builder run. Export all downloads the whole dataset as one file.', details: [

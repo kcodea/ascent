@@ -710,6 +710,30 @@ A minion whose effect **casts a named spell** — Watcher, Wick Mortis, Anubis �
 spell-power-aware value, the way a Ruby is previewed from the Kobolds that cast it. The caster never restates
 the number.
 
+### "Give X. Repeat for every C" is the base plus one tick per C (owner rule 2026-09-22, R-REPEAT-01)
+
+Two wordings, two resolutions:
+
+- **LUMP** — *"give a minion +x/+y, +a/+b for every C you played"* and *"+x/+y for each C"*: **one** buff
+  instance whose magnitude is computed from the count. One tick, one beat, one ribbon per target. Striker
+  (*"+1 Attack for each card you played this turn"*) and Baby Gastrid (*"+2 Health per Gold spent"*) are this.
+- **REPEAT** — *"give a minion +x/+y. Repeat for every C played this turn"*: the **base** buff lands once, then
+  once more per C, `1 + count` ticks in all, and **every tick is its own instance** — its own stat delta, its own
+  buff signal, its own beat — so the buffs visibly land one after another and the End of Turn runs longer when
+  a card repeats many times. A random target is re-rolled per tick (seeded, replay-faithful); a fixed target is
+  hit every tick; "when a Dwarf gains Attack" watchers react once per tick; a turn with zero C still pays the base
+  once. Gilding doubles the per-tick grant, never the tick count; Chronos repeats the whole tick sequence and
+  counts one End-of-Turn trigger per repeat, not one per tick. The live text keeps the per-tick grant as printed
+  and adds how many times it lands right now: *"Repeat for every card you played this turn (×4)"*.
+
+**Mother Moss** (*"give a random Spirit +3/+4. Repeat for every Spirit played this turn"*) and **Kringle**
+(*"give your left and right-most Dwarves +1/+2. Repeat for every card you played this turn"*) are the REPEAT
+form. Kringle moved to it on 2026-09-22 (it was the LUMP form, `n ×` the rate); its total is now `(n + 1) ×`.
+Squirl Scout's Battlecry and Dragonflame's shop cast are REPEAT in the sim and draw one ribbon per repeat.
+Open (owner forks, unchanged): Rocket Power reads REPEAT but is computed as one summed shop-row instance;
+Mother Moss keeps itself in its random pool; Squirl Scout counts itself as the base rather than `1 +` Beasts;
+combat-phase repeats still collapse into one buff wave.
+
 ### An Aura-affecting spell is permanent from any phase (owner rule 2026-09-09, R-AURA-02)
 
 Lantern of Souls raises the **Undead Aura** for the rest of the run whether it is cast in the shop or in

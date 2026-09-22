@@ -92,7 +92,8 @@ describe('Striker — End of Turn: adjacent minions +1 Attack per card played', 
     expect(at(s, 'b').attack).toBe(3 + 3);
     expect(at(s, 'k').attack).toBe(4 + 3);
     expect(at(s, 'k').health, 'one Kneel trigger per wave').toBe(6 + 3 * 2);
-    // The same three waves through Kringle: its ends are Kneel and Brunni, so Kneel again pays once per wave.
+    // Through Kringle: its ends are Kneel and Brunni, and Kringle is the REPEAT form (owner 2026-09-22,
+    // R-REPEAT-01) — the base tick plus one per card, 2 cards → 3 ticks — so Kneel pays once per TICK.
     let t = run({
       board: [body('k', 'dw3_kneel'), body('kr', 'dw_foreman'), body('b', 'dw_brunni')],
       hand: [body('p1', 'wo_mine', { tribe: 'neutral', attack: 0, health: 1 }), body('p2', 'wo_mine', { tribe: 'neutral', attack: 0, health: 1 })],
@@ -100,8 +101,8 @@ describe('Striker — End of Turn: adjacent minions +1 Attack per card played', 
     t = act(t, { type: 'play', uid: 'p1' });
     t = act(t, { type: 'play', uid: 'p2' });
     t = act(t, { type: 'faceOmen' });
-    expect(at(t, 'b').attack).toBe(3 + 2);
-    expect(at(t, 'k').health, 'Kringle: +2 from its own waves ×2, +2 Kneel per wave ×2').toBe(6 + 2 * 2 + 2 * 2);
+    expect(at(t, 'b').attack).toBe(3 + 3);
+    expect(at(t, 'k').health, 'Kringle: +2 from its own ticks ×3, +2 Kneel per tick ×3').toBe(6 + 3 * 2 + 3 * 2);
   });
   it('does nothing when nothing was played', () => {
     let s = run({ board: [body('l', 'e3_frank'), body('st', 'dw3_striker'), body('r', 'dw_brunni')] });

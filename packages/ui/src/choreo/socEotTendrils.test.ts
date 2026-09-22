@@ -131,14 +131,19 @@ function presentEndOfTurn(state: RunState) {
 }
 
 describe('END OF TURN — one ribbon per recipient, from the buffer', () => {
-  it('Kringle (Dwarf): the two end Dwarves each get their own statGain, sourced on Kringle', () => {
+  it('Kringle (Dwarf): the two end Dwarves each get their own statGain PER TICK, sourced on Kringle', () => {
     const ctx = presentEndOfTurn(run('set2', {
       board: [body('l', 'dw_brakka'), body('k', 'dw_foreman'), body('r', 'dw_edward')],
       playedThisTurn: ['x', 'y'] as never,
     }));
-    expect(ctx.statGain).toHaveBeenCalledTimes(2);
-    expect(ctx.statGain).toHaveBeenCalledWith('l', 'board', expect.any(Number), expect.any(Number), { uid: 'k', cardId: 'dw_foreman' });
-    expect(ctx.statGain).toHaveBeenCalledWith('r', 'board', expect.any(Number), expect.any(Number), { uid: 'k', cardId: 'dw_foreman' });
+    // THE REPEAT PATTERN (owner 2026-09-22, R-REPEAT-01): two cards played → the base tick plus two repeats, and
+    // each tick is its own beat with its own ribbon to each end — 3 ticks × 2 ends. Until then the one scope
+    // summed the ticks into a single +2/+4 ribbon per end.
+    expect(ctx.statGain).toHaveBeenCalledTimes(6);
+    expect(ctx.statGain).toHaveBeenCalledWith('l', 'board', 1, 2, { uid: 'k', cardId: 'dw_foreman' });
+    expect(ctx.statGain).toHaveBeenCalledWith('r', 'board', 1, 2, { uid: 'k', cardId: 'dw_foreman' });
+    expect(ctx.statGain.mock.calls.filter((c) => c[0] === 'l').length, 'three ticks on the left end').toBe(3);
+    expect(ctx.statGain.mock.calls.filter((c) => c[0] === 'r').length, 'three ticks on the right end').toBe(3);
     expect(ctx.selfBuff, 'Kringle pays OTHERS').not.toHaveBeenCalled();
     expect(CARD_INDEX['dw_foreman']!.tribe).toBe('dwarf'); // → `tendril-trail-dwarf`, read off the source card
   });

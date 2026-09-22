@@ -52,7 +52,13 @@ type RecruitFn = (
    *  Equipment (Thymepiece) anchors to it. Absent = no reading. */
   clockSeconds?: number;
   /** `equipmentActivated` (set 3 Neutrals, 2026-09-18): WHICH Equipment the player just activated. */
-  equipmentId?: string },
+  equipmentId?: string;
+  /** REPEAT-PER-TICK (owner 2026-09-22): for a "give X. Repeat for every Y" End-of-Turn effect, WHICH tick of
+   *  this trigger to resolve — 0 is the base grant, 1..n the repeats. The End-of-Turn loops (`applyEndOfTurn`,
+   *  `projectEndOfTurnSteps`) dispatch one call PER TICK, each under its own root trigger / projection beat, so
+   *  every repeat is its own state delta, its own buff signal and its own beat. Absent = resolve EVERY tick in
+   *  one call (Djinn's replay and any other single-shot caller keep the full total). Read `eotTickCount`. */
+  tick?: number },
 ) => void;
 
 import { SPELL_POWER_EXCUSED } from './docbot/historyRegistry';
@@ -3666,16 +3672,26 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (let i = 0; i < gold(self); i++) queueDiscover(ctx.state, { kind: 'minion', tier: ctx.state.tier, tribe, exclude: self.cardId });
   },
 
-  /** Nurturer (End of Turn): a random `tribe` minion +atk/+hp, then once more per Spirit played this turn — each
-   *  fire picks afresh. Golden doubles the grant. */
-  endOfTurnBuffRandomTribeRepeatPerPlayed: (ctx, self, params) => {
+  /** Mother Moss (End of Turn; ex-Nurturer): a random `tribe` minion +atk/+hp, then once more per Spirit played
+   *  this turn — the REPEAT pattern (owner 2026-09-22, R-REPEAT-01): `1 + played` TICKS, each its own tick. The
+   *  End-of-Turn loops call this once PER TICK (`payload.tick`), each under its own root trigger / projection
+   *  beat, so every pick is its own beat with its own ribbon; a single-shot caller (no `tick`) runs them all.
+   *  Each tick draws ONE pick off the run cursor (`pickRandom`), so the commit and the projection roll the same
+   *  targets, and a replay rolls them again. The pool is every Spirit on the board, this body included (a self
+   *  pick reads as a pulse — 2026-09-15). Golden doubles the grant. */
+  endOfTurnBuffRandomTribeRepeatPerPlayed: (ctx, self, params, payload) => {
     const tribe = str(params.tribe) as Tribe;
     const a = num(params.attack, 0) * gold(self), h = num(params.health, 0) * gold(self);
-    const fires = 1 + spiritsPlayedThisTurn(ctx.state);
-    for (let i = 0; i < fires; i++) {
+    forEachTick(payload, eotTickCount(ctx.state, { do: 'endOfTurnBuffRandomTribeRepeatPerPlayed' }), (tick) => {
       const pool = ctx.state.board.filter((c) => isTribe(c, tribe));
-      for (const t of pickRandom(ctx.state, pool, 1)) addBuff(t, nameOf(self), a, h);
-    }
+      // Its own capture per tick, tagged with the tick: the legacy replay paces tick from tick (and never
+      // collapses two picks of the same Spirit into one ribbon — `coalesceBuffFxByTarget` keys on the wave).
+      const before = ctx.state.recruitBuffFx.length;
+      captureBuffFx(ctx.state, self, 'minion', () => {
+        for (const t of pickRandom(ctx.state, pool, 1)) addBuff(t, nameOf(self), a, h);
+      });
+      for (let i = before; i < ctx.state.recruitBuffFx.length; i++) ctx.state.recruitBuffFx[i]!.fxWave = tick;
+    });
   },
 
   /** Old Timber (Start of Combat, shop twin — a Twilight / End-of-Turn SoC replay): your `tribe` minions
@@ -4206,15 +4222,27 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  Each card played is one WAVE: both ends are buffed inside a single `captureBuffFx` so they pulse
    *  together, and the wave tag lets the UI stagger BETWEEN waves. Without the per-wave capture the diff would
    *  collapse the whole loop back into one event — `captureBuffFx` measures before/after, so the nesting is
-   *  what produces separate animations, not the loop. */
-  endOfTurnBuffEndsTribePerCard: (ctx, self, params) => {
+   *  what produces separate animations, not the loop.
+   *
+   *  ── THE REPEAT PATTERN, base + one per card (owner ask 2026-09-22, R-REPEAT-01) ─────────────────────────
+   *
+   *  *"give the individual stat buff and repeat it x times … 'give a minion +x/+y. repeat for ever c played
+   *  this turn.' that should give the base buff and repeat it z times for every c played that turn."*
+   *
+   *  The text moved to the repeat form ("give your left and right-most Dwarves +1/+2. Repeat for every card you
+   *  played this turn"), and so did the magnitude: `1 + n` ticks of +1/+2 (n cards played → n + 1 ticks; a turn
+   *  with nothing played still pays the base once). The 2026-08-29 itemization only ever reached the legacy
+   *  `fxWave` channel; the Choreographer path — the one players see — summed the waves back into one beat.
+   *  Now the End-of-Turn loops call this once PER TICK (`payload.tick`), each under its OWN root trigger /
+   *  projection beat, so every tick is its own beat, its own ribbons and its own Kneel / Tankerchief fire. */
+  endOfTurnBuffEndsTribePerCard: (ctx, self, params, payload) => {
     const tribe = str(params.tribe);
     const matches = ctx.state.board.filter((c) => !tribe || isTribe(c, tribe as never));
     if (matches.length === 0) return;
     const ends = matches.length === 1 ? [matches[0]!] : [matches[0]!, matches[matches.length - 1]!];
     const a = num(params.attack, 1) * gold(self);
     const h = num(params.health, 0) * gold(self); // Kringle +1/+2 (owner balance 2026-08-15)
-    eotPerCardWaves(ctx.state, self, ends, a, h);
+    forEachTick(payload, eotTickCount(ctx.state, { do: 'endOfTurnBuffEndsTribePerCard' }), (tick) => eotRepeatTick(ctx.state, self, ends, a, h, tick));
   },
 
   /** Chirurgeon: every `every` cards bought, get a random Shop spell. The buy tally lives on the CARD
@@ -8276,7 +8304,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       health += spellHealthBonus(ctx.state);
     }
     const rng = makeRng(ctx.state.rngCursor);
-    for (let i = 0; i < reps; i++) addBuff(board[rng.int(board.length)]!, 'Dragonflame', attack, health);
+    for (let i = 0; i < reps; i++) {
+      // REPEAT pattern (R-REPEAT-01, owner 2026-09-22): one capture per repeat, tagged with the repeat, so the
+      // shop replay lands one descend per repeat instead of one summed descend per target. Sourceless: a spell.
+      const before = ctx.state.recruitBuffFx.length;
+      captureBuffFx(ctx.state, undefined, 'spell', () => addBuff(board[rng.int(board.length)]!, 'Dragonflame', attack, health));
+      for (let k = before; k < ctx.state.recruitBuffFx.length; k++) ctx.state.recruitBuffFx[k]!.fxWave = i;
+    }
     ctx.state.rngCursor = rng.state();
   },
 
@@ -8451,8 +8485,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (amount <= 0 || beasts === 0 || pool.length === 0) return;
     const rng = makeRng(state.rngCursor);
     for (let i = 0; i < beasts; i++) {
-      const target = pool[rng.int(pool.length)]!; // a random OTHER friendly minion (may repeat)
-      addBuff(target, nameOf(self), amount, amount);
+      // REPEAT pattern (R-REPEAT-01, owner 2026-09-22): every repeat is its OWN buff signal — its own capture,
+      // tagged with the repeat — so the replay draws one ribbon per repeat (two picks of the same body are two
+      // ribbons, paced apart) instead of the outer capture's one summed ribbon per target.
+      const before = state.recruitBuffFx.length;
+      captureBuffFx(state, self, 'minion', () => {
+        const target = pool[rng.int(pool.length)]!; // a random OTHER friendly minion (may repeat)
+        addBuff(target, nameOf(self), amount, amount);
+      });
+      for (let k = before; k < state.recruitBuffFx.length; k++) state.recruitBuffFx[k]!.fxWave = i;
     }
     state.rngCursor = rng.state();
   },
@@ -10402,8 +10443,78 @@ function fireBattlecryTriggered(state: RunState): void {
  *  double-fires across the two phases. */
 
 /**
- * "REPEAT for every card played this turn" (Kringle, Striker — owner ruling 2026-09-09): one End-of-Turn grant
- * per card played, each a SEPARATE INSTANCE rather than one grant of N× the rate. The difference is what the
+ * THE TWO TEXT PATTERNS (owner ruling 2026-09-22, R-REPEAT-01):
+ *
+ *   LUMP   — "give a minion +x/+y, +a/+b for every C you played" / "+x/+y for each C": ONE buff instance whose
+ *            magnitude is computed from the count. One tick, one beat, one buff-FX ribbon per target.
+ *   REPEAT — "give a minion +x/+y. Repeat for every C played this turn": the BASE buff applied once, then
+ *            repeated once per C — `1 + count` ticks, EACH its own tick: its own state delta, its own buff-FX
+ *            event (`fxWave` = the tick), its own root trigger / projection beat. A random target is re-rolled per
+ *            tick; a fixed target is hit each tick.
+ *
+ * *"mother moss and kringle give the individual stat buff and repeat it x times … if something says 'give a
+ * minion +x/+y. repeat for ever c played this turn.' that should give the base buff and repeat it z times for
+ * every c played that turn."*
+ *
+ * `eotTickCount` is the ONE place that says how many ticks an End-of-Turn effect fires: the commit
+ * (`applyEndOfTurn`), the projection (`projectEndOfTurnSteps`), the legacy beat list (Recruit.tsx) and the
+ * factories' single-shot fallback all read it, so none of them can disagree about the count. Anything not listed
+ * fires once per trigger, exactly as before.
+ */
+export function eotTickCount(state: Pick<RunState, 'playedThisTurn'>, effect: { do: string }): number {
+  switch (effect.do) {
+    case 'endOfTurnBuffRandomTribeRepeatPerPlayed': return 1 + spiritsPlayedThisTurn(state); // Mother Moss
+    case 'endOfTurnBuffEndsTribePerCard': return 1 + (state.playedThisTurn?.length ?? 0);     // Kringle
+    default: return 1;
+  }
+}
+
+/** How many End-of-Turn beats one board card takes per trigger: the most ticks any of its End-of-Turn effects
+ *  fires (a plain card = 1). Beat `t` runs tick `t` of every effect that still has a tick `t` to run, so a card
+ *  with one repeating effect plays one beat per tick and every other card keeps its single beat. Read by the
+ *  projection AND the legacy beat runner, which must agree 1:1. */
+export function endOfTurnTicksOf(state: Pick<RunState, 'playedThisTurn'>, card: Pick<BoardCard, 'cardId'>): number {
+  const def = CARD_INDEX[card.cardId];
+  if (!def) return 1;
+  let ticks = 1;
+  for (const e of def.effects) if (e.on === 'endOfTurn') ticks = Math.max(ticks, eotTickCount(state, e));
+  return ticks;
+}
+
+/** Run `fn` for the ONE tick the payload names, or for every tick when the caller is single-shot (no `tick`). */
+function forEachTick(payload: { tick?: number } | undefined, ticks: number, fn: (tick: number) => void): void {
+  if (payload?.tick !== undefined) { if (payload.tick < ticks) fn(payload.tick); return; }
+  for (let t = 0; t < ticks; t++) fn(t);
+}
+
+/**
+ * ONE TICK of a "give your <ends> +a/+h. Repeat for every card played" End-of-Turn effect (Kringle): both ends
+ * buffed inside ONE `captureBuffFx` (they pulse together), tagged `fxWave = tick` so the legacy replay can pace
+ * tick from tick, then each end's `onGainAttack` reactors fired for THIS tick (Kneel / Tankerchief / Hunter pay
+ * once per tick — the 2026-09-09 per-instance ruling) and recorded in `gainAttackFiredUids` so the action
+ * boundary and the projection do not dispatch the same gain again.
+ */
+function eotRepeatTick(state: RunState, self: BoardCard, targets: readonly BoardCard[], a: number, h: number, tick: number): void {
+  if ((a <= 0 && h <= 0) || targets.length === 0) return;
+  const before = state.recruitBuffFx.length;
+  captureBuffFx(state, self, 'minion', () => {
+    for (const target of targets) addBuff(target, nameOf(self), a, h);
+  });
+  for (let i = before; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fxWave = tick;
+  if (a > 0) {
+    for (const target of targets) {
+      if (!state.board.some((c) => c.uid === target.uid)) continue;
+      (state.gainAttackFiredUids ??= []).push(target.uid);
+      captureBuffFx(state, target, 'minion', () => fireOnGainAttack(state, target));
+    }
+  }
+}
+
+/**
+ * "+N Attack for each card played this turn" (Striker — owner ruling 2026-09-09): the LUMP text, itemized as one
+ * End-of-Turn grant per card played, each a SEPARATE INSTANCE rather than one grant of N× the rate. (Kringle
+ * used this too until 2026-09-22, when the owner moved it to the REPEAT pattern — `eotRepeatTick`, base + one
+ * per card, each its own beat. Striker keeps its n waves inside its one beat.) The difference is what the
  * board's watchers see: "when a Dwarf gains Attack" (Kneel / Tankerchief) and the self-reactors (Hunter,
  * Sergeant) must fire once per wave, so each wave dispatches `fireOnGainAttack` for the bodies it lifted —
  * instead of leaving it to the action boundary, which diffs the whole action once and would pay one trigger
@@ -12326,13 +12437,24 @@ export function applyEndOfTurn(state: RunState): void {
       if (!fn) continue;
       // CHOREOGRAPHER PR 1: the factory key is known HERE and nowhere downstream — stamp it on the event.
       const identity = beatIdentity(`factory:${effect.do}:endOfTurn`);
+      // REPEAT PER TICK (owner 2026-09-22, R-REPEAT-01): a "give X. Repeat for every Y" effect (Mother Moss,
+      // Kringle) resolves one TICK per call, each under its OWN ROOT trigger — never nested inside one scope for
+      // the card, because the compiler places children at the parent's delivery (all at once) and a scope's
+      // close-diff sums every tick into one `statsChanged` per target. One root trigger per tick is what makes
+      // the Choreographer play one beat per repeat, in order, with the stats rolling per tick. The repeat fields
+      // count FIRES of this source+trigger this End of Turn (Chronos repeats × ticks), so Beat Lab's ×k/N reads
+      // honestly; `proc` stays the Chronos repeat the per-proc random rolls (Combinator) key on. A plain effect
+      // has one tick and emits exactly what it did before.
+      const ticks = eotTickCount(state, effect);
       for (let r = 0; r < repeats; r++) {
-        withRecruitTrigger(
-          ctx,
-          { phase: 'endOfTurn', source: beatSource('minion', card.cardId, def.name, card.uid), trigger: 'endOfTurn', ...identity, repeatIndex: r, repeatCount: repeats },
-          () => fn(ctx, card, effect.params ?? {}, { minion: card, proc: r }),
-        );
-        fires++;
+        for (let t = 0; t < ticks; t++) {
+          withRecruitTrigger(
+            ctx,
+            { phase: 'endOfTurn', source: beatSource('minion', card.cardId, def.name, card.uid), trigger: 'endOfTurn', ...identity, repeatIndex: r * ticks + t, repeatCount: repeats * ticks },
+            () => fn(ctx, card, effect.params ?? {}, { minion: card, proc: r, tick: t }),
+          );
+        }
+        fires++; // one End-of-Turn TRIGGER per Chronos repeat: Parliament of Flame counts triggers, never ticks
       }
       if (effect.align) noteAlignSpark(state, effect.align); // an aligned EoT half firing sparks its side
     }
@@ -13251,15 +13373,23 @@ export function projectEndOfTurnSteps(state: RunState): {
     const def = CARD_INDEX[card.cardId];
     if (!def?.effects.some((e) => e.on === 'endOfTurn')) continue;
     const projAlign = alignmentOf(clone.board, card.uid); // CELESTIAL: the projection must gate exactly as applyEndOfTurn
+    // REPEAT PER TICK (owner 2026-09-22): one projected beat PER TICK of a repeating effect (Mother Moss,
+    // Kringle), mirroring `applyEndOfTurn`'s root triggers and the legacy runner's beat list 1:1
+    // (`endOfTurnTicksOf` is the shared count). Beat `t` runs tick `t` of every effect that has one; a plain
+    // effect has only tick 0, so a card with no repeating effect keeps its single beat per Chronos repeat.
+    const ticks = endOfTurnTicksOf(clone, card);
     for (let r = 0; r < repeats; r++) {
-      beat(card, () => {
-        for (const effect of def.effects) {
-          if (effect.on !== 'endOfTurn') continue;
-          if (!alignAllows(effect, projAlign)) continue;
-          const fn = RECRUIT_FACTORIES[effect.do];
-          if (fn) fn(ctx, card, effect.params ?? {}, { minion: card, proc: r });
-        }
-      });
+      for (let t = 0; t < ticks; t++) {
+        beat(card, () => {
+          for (const effect of def.effects) {
+            if (effect.on !== 'endOfTurn') continue;
+            if (!alignAllows(effect, projAlign)) continue;
+            if (t >= eotTickCount(clone, effect)) continue; // this effect already ran its only tick in beat 0
+            const fn = RECRUIT_FACTORIES[effect.do];
+            if (fn) fn(ctx, card, effect.params ?? {}, { minion: card, proc: r, tick: t });
+          }
+        });
+      }
     }
   }
   // Quest/rune-granted recurring End-of-Turn rewards fire AFTER the warband's own effects (mirrors

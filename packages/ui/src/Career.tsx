@@ -7,6 +7,7 @@ import { Card, mdBold } from './Card';
 import { storedCardView } from './storedBoardView';
 import { heroArt, runeArt } from './art';
 import { Icon } from './Icon';
+import { recordText } from './leaderboardData';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './store';
@@ -256,8 +257,8 @@ function MatchRow({ run, focus, busy, unplayable, onWatch }: {
               {result.label}
             </div>
             {fights > 0 && (
-              <div className="cv2-row-fights" aria-label={`Fights: ${run.wins} won, ${run.losses} lost`}>
-                {run.wins}–{run.losses}
+              <div className="cv2-row-fights" aria-label={`Fights: ${run.wins} won, ${run.losses} lost${run.draws ? `, ${run.draws} drawn` : ''}`}>
+                {recordText(run)}
               </div>
             )}
           </div>

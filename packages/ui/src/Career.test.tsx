@@ -67,7 +67,7 @@ const FULL_TEAM = {
 const RUNS: CareerRun[] = [
   run({ id: 12, heroId: 'sable', atMs: NOW - 1 * DAY, wins: 9, losses: 4, placement: 1, goldSpent: 120, apt: 26.1, wave: 15, ratingDelta: 41, dominantTribe: 'beast', replayRowId: 97, durationMs: 883_179,
     board: FULL_TEAM, runes: ['rune_broodpit', 'rune_epic_forge'] }),
-  run({ id: 11, heroId: 'brackus', atMs: NOW - 2 * DAY, wins: 5, losses: 5, placement: 3, goldSpent: 90, apt: null, durationMs: 690_108, board: null, runes: [], dominantTribe: 'mech' }), // no APT → no APM point, length still known
+  run({ id: 11, heroId: 'brackus', atMs: NOW - 2 * DAY, wins: 5, losses: 5, draws: 2, placement: 3, goldSpent: 90, apt: null, durationMs: 690_108, board: null, runes: [], dominantTribe: 'mech' }), // no APT → no APM point, length still known
   run({ id: 10, heroId: 'brackus', atMs: NOW - 40 * DAY, wins: 2, losses: 5, placement: 7, goldSpent: null, apt: null, durationMs: null, board: null, runes: [], dominantTribe: 'beast', detailed: false }),
 ];
 
@@ -141,8 +141,10 @@ describe('Match History', () => {
     expect(rows.map((r) => r.querySelector('.cv2-row-result')?.getAttribute('aria-label'))).toEqual(['Match win', 'Match win', 'Match loss']);
     // The fight record survives only as a small bare "N–M" caption (no "Fights" word — owner 2026-09-21; the
     // aria-label carries the meaning) — never the headline W–L any more.
-    expect(text('.cv2-row .cv2-row-fights')).toEqual(['9–4', '5–5', '2–5']);
-    expect(rows.map((r) => r.querySelector('.cv2-row-fights')?.getAttribute('aria-label'))).toEqual(['Fights: 9 won, 4 lost', 'Fights: 5 won, 5 lost', 'Fights: 2 won, 5 lost']);
+    // A DRAW is a round too (owner report 2026-09-22: a 14-round run read as "8-3"): the caption carries it as a
+    // third number, and only when one happened, so the common case stays two.
+    expect(text('.cv2-row .cv2-row-fights')).toEqual(['9–4', '5–5–2', '2–5']);
+    expect(rows.map((r) => r.querySelector('.cv2-row-fights')?.getAttribute('aria-label'))).toEqual(['Fights: 9 won, 4 lost', 'Fights: 5 won, 5 lost, 2 drawn', 'Fights: 2 won, 5 lost']);
     expect(ui.container.querySelector('.cv2-row-record')).toBeNull();
     // Reading order inside a banner: head (hero ‖ outcome) → team → foot (runes ‖ watch).
     for (const r of rows) {

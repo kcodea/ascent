@@ -456,6 +456,17 @@ free refresh — and the Runeforge stops OFFERING owned runes whose duplicate wo
 (Rune of Duplication still reaches them deliberately). Rune of the Ornate Clock is ruled unique: a duplicate
 does nothing. Classification lives in `packages/sim/src/runeDup.ts`.
 
+**Rune of Twilight repeats RUNE Start-of-Combat effects too** (owner ruling 2026-09-21; it used to repeat only
+your minions' Start-of-Combat effects, so Underdog + Twilight paid ×2 while two Underdog copies paid ×4). Every
+rune whose printed text begins "Start of Combat:" fires one extra time per Twilight copy held, in the same
+order as the first pass, after the whole first pass (minions and runes) for that side. Each extra pass reads the
+board as the first pass left it: Underdog re-picks the two lowest-Attack minions (so it may choose a different
+pair), Forthcoming / First Claws strike again with the living front / end Beasts, Rebirth and Rising Graves
+skip bodies that already carry the keyword, and the Crucible destroys the NEXT three (all of them return
+together). Rune copies still multiply WITHIN a pass. Runes whose text merely mentions Start of Combat (Warden,
+Dawnclaw, Sylus) and quest / hero Start-of-Combat grants fire once. The shop's Rune of Combat Prowess replay
+does not fold Twilight into its rune replays (open owner question; see `docs/devlog/2026-09-21-twilight-rune-soc.md`).
+
 Source: `packages/sim/src/heroes.ts` (`runeforge`, `epicRuneforge`),
 `packages/content/src/runes.ts`, `packages/sim/src/runeDup.ts`.
 

@@ -52,6 +52,22 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-21',
+    label: 'Twilight repeats rune effects',
+    changes: [
+      {
+        category: 'Balance',
+        text: "Rune of Twilight now also repeats your runes' Start of Combat effects, such as Rune of the Underdog, not only your minions' effects.",
+        details: [
+          'Every rune whose text begins with Start of Combat fires one extra time per Rune of Twilight you hold, in the same order as the first pass, after your minions and runes have all fired once.',
+          'Rune of the Underdog doubles again on the second pass. It picks the two lowest Attack minions again at that moment, so after the first doubling it can choose a different pair.',
+          'Rune of the Crucible destroys the next three left-most minions on the second pass and they all return together when your last minion dies.',
+          'Runes that grant a keyword once, such as Rebirth or Rise, pick a minion that does not have it yet.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-21',
     label: 'Rank screen: plain RP line',
     changes: [
       { category: 'Systems', text: 'The rank screen shows the points you won or lost, the bar and your rank. The extra lines such as Bronze floor, capped at the gate and base RP are gone.' },

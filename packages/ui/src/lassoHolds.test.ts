@@ -45,6 +45,17 @@ describe('lasso holds — the Shop row while the rope is in the air', () => {
     expect(again.shop).toHaveLength(1);
     expect(again).toBe(one);
   });
+
+  it('DROPS a hold whose row was refreshed away, instead of showing a dead card among the new offers', () => {
+    // Steal `b` out of [a,b,c], then Refresh before the beam lands: every uid in the recorded row is replaced.
+    const holds = holdLassoSteals(EMPTY_LASSO_HOLDS, [steal('b', 'stray', 1, 'h1')], ['a', 'c']);
+    const rolled = [{ uid: 'n1' }, { uid: 'n2' }, { uid: 'n3' }];
+    expect(foldLassoHolds(rolled, holds)).toBe(rolled);
+    // …while the row it was actually taken from still folds normally.
+    expect(foldLassoHolds([{ uid: 'a' }, { uid: 'c' }], holds).map((o) => o.uid)).toEqual(['a', 'b', 'c']);
+    // A partial refresh (a frozen/layaway offer survived) is still the same row, so the hold stands.
+    expect(foldLassoHolds([{ uid: 'a' }, { uid: 'n9' }], holds).map((o) => o.uid)).toEqual(['a', 'b', 'n9']);
+  });
 });
 
 describe('lasso holds — the hand arrival', () => {
@@ -58,7 +69,7 @@ describe('lasso holds — the hand arrival', () => {
   it('a contact releases ONE card on both sides and leaves the rest held', () => {
     const holds = holdLassoSteals(EMPTY_LASSO_HOLDS, [steal('b', 'stray', 1, 'h1'), steal('c', 'stray', 1, 'h2')]);
     const after = releaseLassoSteal(holds, 'b', 'h1');
-    expect(after.shop.map((h) => h.offer.uid)).toEqual(['c']);
+    expect(after.shop.map((h) => h.steal.offer.uid)).toEqual(['c']);
     expect([...after.hand]).toEqual(['h2']);
   });
 });

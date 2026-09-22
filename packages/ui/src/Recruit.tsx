@@ -90,7 +90,7 @@ import { playPlateCoalesce } from './plateCoalesce';
    wherever the steal came FROM — the spell's drop point, Rope Wrangler's medallion, the Equipment slot, the
    rune badge — to the offer it takes, and the card only leaves the Shop (and only reaches the hand) when the
    rope gets there. The hold state machine and its escape hatches live in `lassoHolds.ts`, pinned by a test. */
-import { EMPTY_LASSO_HOLDS, foldLassoHolds, holdLassoSteals, lassoBeamSchedule, lassoCascadeMs, lassoHoldsForPhase, releaseLassoSteal, resolveAllLassoHolds, LASSO_CONTACT_MS, LASSO_STAGGER_MS, type LassoHolds } from './lassoHolds';
+import { foldLassoHolds, lassoBeamSchedule, lassoCascadeMs, useLassoCascade, LASSO_CONTACT_MS, LASSO_STAGGER_MS, type LassoCascadeHandlers, type LassoSteal } from './lassoHolds';
 import { playPlateGild } from './plateGild';
 import { playBuySlide, type BuyFrom } from './buySlide';
 import { fireBuffFx } from './buffFxRender';
@@ -148,6 +148,8 @@ const DEATH_DISSOLVE_MS = 600;
 
 const EMPTY_KW: ReadonlyMap<string, ReadonlySet<string>> = new Map();
 const EMPTY_TRANSFORMS: ReadonlyMap<string, string> = new Map();
+/** A stable empty batch, so a run with no steals never hands `useLassoCascade` a fresh array each render. */
+const EMPTY_LASSO_EVENTS: readonly LassoSteal[] = [];
 
 /** A cast that should play the `ruby-target` aim effect instead of `spell-target`: a Ruby token (`ruby:true`)
  *  or an explicitly ruby-themed TARGETABLE spell. Kept as an explicit id set rather than an effect scan on
@@ -1590,17 +1592,22 @@ export function Recruit() {
 
      PHASE GATE: recruit only. An End-of-Turn steal stamps this channel from inside `faceOmen`, after the phase
      has flipped, so it rides its own beat instead — the `cardGranted` presenter on the authoritative path,
-     `EotStepFx.steals` on the legacy one. */
-  const [rawLassoHolds, setLassoHolds] = useState<LassoHolds>(EMPTY_LASSO_HOLDS);
-  const [lassoHoldSeq, setLassoHoldSeq] = useState(run.lassoFxSeq ?? 0);
-  if ((run.lassoFxSeq ?? 0) !== lassoHoldSeq) {
-    setLassoHoldSeq(run.lassoFxSeq ?? 0);
-    const fresh = run.phase === 'recruit' ? (run.lassoFx ?? []) : [];
-    if (fresh.length) setLassoHolds((prev) => holdLassoSteals(prev, fresh));
-  }
-  // Applied during render, not in an effect: off the recruit screen there are no holds at all, so a cancelled
-  // release timer can never leave a card stranded invisible in a row that has already gone.
-  const lassoHolds = lassoHoldsForPhase(rawLassoHolds, run.phase);
+     `EotStepFx.steals` on the legacy one.
+
+     The wiring is `useLassoCascade` (seed, clock, escape hatches). It is declared HERE, where the holds are
+     rendered, and reaches the beam code far below through `lassoHandlersRef` — assigned during render at its
+     definition site, so it is always current before any effect runs. */
+  const lassoHandlersRef = useRef<LassoCascadeHandlers>({ onLaunch: () => {}, onContact: () => {} });
+  const lassoShopUids = useMemo(() => run.shop.map((o) => o.uid), [run.shop]);
+  const lassoCascade = useLassoCascade({
+    seq: run.lassoFxSeq ?? 0,
+    events: run.lassoFx ?? EMPTY_LASSO_EVENTS,
+    phase: run.phase,
+    shopUids: lassoShopUids,
+    handlers: lassoHandlersRef,
+  });
+  const lassoHolds = lassoCascade.holds;
+  const trackLassoBeatTimer = lassoCascade.trackBeatTimer;
   /** Where the player let a SPELL go, stashed beside the dispatch that plays it (the `buyPendingRef` /
    *  `placePendingRef` pattern). A Lasso cast throws its beam from that point; cleared once read. */
   const lassoDropRef = useRef<{ x: number; y: number } | null>(null);
@@ -5168,14 +5175,13 @@ export function Recruit() {
      leave Rope Wrangler's medallion; Whiplass-o leaves the Equipment slot; Rune of Lassoing leaves the rune
      badge. Each is resolved to a screen point ONCE, at the start of its own beat — never per frame.
 
-     ESCAPE HATCHES, because a stuck hold means an invisible card. The effect's own cleanup resolves every
-     outstanding hold (a second lasso mid-cascade never strands the first — `gambleHold`'s rule), the phase
-     watcher below does the same when the shop leaves, and both clear the timers. */
-  const lassoTimersRef = useRef<number[]>([]);
-  const resolveLassoHolds = useCallback((): void => {
-    for (const t of lassoTimersRef.current.splice(0)) window.clearTimeout(t);
-    setLassoHolds(resolveAllLassoHolds);
-  }, []);
+     ESCAPE HATCHES, because a stuck hold means an invisible card, live in `useLassoCascade` (declared up beside
+     the holds it renders): a second lasso mid-cascade resolves the first IN THE SEED — `gambleHold`'s rule,
+     moved out of an effect cleanup after the cleanup ate the very batch the render had just seeded — the phase
+     watcher does the same when the shop leaves, and an unmount drops every pending timer.
+
+     What lives HERE is only what has to touch the DOM: where each beam comes from and what plays when it
+     lands. Both are handed to the cascade through `lassoHandlersRef`. */
   /** Throw ONE lasso: origin → the stolen offer's card. Every caller (the action cascade below, both
    *  End-of-Turn paths) goes through here, so the three sources can never drift apart. `drop` is the spell's
    *  release point when there is one. Each end is measured ONCE, here, at the start of this beat. */
@@ -5198,8 +5204,13 @@ export function Recruit() {
       from = centre(document.querySelector('.equipslot .heropowerbtn'));
     } else if (ev.origin === 'rune') {
       // RUNE OF LASSOING: out of the rune's own badge in the HUD tray — the rune is the actor, as the
-      // arrival implosion already treats it (`useRuneArrivalFx`).
-      from = centre(document.querySelector('.runebadge')) ?? centre(document.querySelector('.questbadges'));
+      // arrival implosion already treats it (`useRuneArrivalFx`). SCOPED to `.questbadges`, and named by
+      // `data-source-id`, the way the quest-tendril lookups below already do it: the opponent frame renders
+      // its own `.runebadge` nodes EARLIER in the document, so a bare `.runebadge` threw the rope out of the
+      // opponent's tray whenever the previewed seat held a rune (fixed 2026-09-22).
+      from = centre(document.querySelector('.questbadges [data-source-id="rune_lassoing"]'))
+        ?? centre(document.querySelector('.questbadges .runebadge'))
+        ?? centre(document.querySelector('.questbadges'));
     } else {
       // THE SPELL: where the player let the card go. The hand row's centre is the fallback so a cast that
       // never came from a drag still launches from where the card lived, never the screen's top-left corner.
@@ -5224,33 +5235,16 @@ export function Recruit() {
       if (r.width > 0) playPlateCoalesce(r, el);
     }));
   }, []);
-  const prevLassoFxSeq = useRef(run.lassoFxSeq ?? 0);
-  useEffect(() => {
-    const seq = run.lassoFxSeq ?? 0;
-    if (seq === prevLassoFxSeq.current) return;
-    prevLassoFxSeq.current = seq; // advance FIRST — exactly once per action (the #947 lesson)
-    const events = run.phase === 'recruit' ? (run.lassoFx ?? []) : [];
-    const drop = lassoDropRef.current;
-    lassoDropRef.current = null; // one release point, one cast
-    if (events.length === 0) return;
-    const schedule = lassoBeamSchedule(events.length);
-    events.forEach((ev, i) => {
-      const { launchAt, contactAt } = schedule[i]!;
-      lassoTimersRef.current.push(window.setTimeout(() => fireLassoBeam(ev, i, drop), launchAt));
-      lassoTimersRef.current.push(window.setTimeout(() => {
-        // CONTACT. The rope has the card: drop the Shop hold (which changes `flipKey`, so the survivors glide
-        // closed from where they were holding) and let the copy into the hand, materialising as it arrives.
-        setLassoHolds((prev) => releaseLassoSteal(prev, ev.offer.uid, ev.handUid));
-        coalesceHandUid(ev.handUid);
-      }, contactAt));
-    });
-    return resolveLassoHolds;
-    // Keyed on the seq ONLY (see the Starform watcher above): the array ref changes every action.
-  }, [run.lassoFxSeq]);
-  // Leaving the shop (End Turn, a combat, a restore) resolves every outstanding hold at once, so a card can
-  // never be stranded invisible in a row that is no longer on screen.
-  useEffect(() => { if (run.phase !== 'recruit') resolveLassoHolds(); }, [run.phase, resolveLassoHolds]);
-  useEffect(() => resolveLassoHolds, [resolveLassoHolds]); // unmount
+  /* The cascade's three hooks into the screen, handed over by plain assignment DURING render — the component
+     body runs top to bottom before any effect, so what `useLassoCascade` reads is always this render's. */
+  const lassoBatchDropRef = useRef<{ x: number; y: number } | null>(null);
+  lassoHandlersRef.current = {
+    // One release point, one cast: the spell's drop point is snapshotted (and cleared) as the batch opens, so
+    // every beam in it leaves where the card was let go and the next action starts clean.
+    onBatch: () => { lassoBatchDropRef.current = lassoDropRef.current; lassoDropRef.current = null; },
+    onLaunch: (ev, i) => fireLassoBeam(ev, i, lassoBatchDropRef.current),
+    onContact: (ev) => coalesceHandUid(ev.handUid),
+  };
 
   // RELEASE the held consumed slots (see `heldConsume` above) once the ghost has been pulled into the eater —
   // matched to the taffy pull's own clock (`getConsumeFxConfig().durationMs`). Dropping them here changes
@@ -5702,12 +5696,15 @@ export function Recruit() {
           lassoNextLaunchAt = launchAt + LASSO_STAGGER_MS;
           const delay = launchAt - now;
           const index = lassoSteals.indexOf(steal);
-          window.setTimeout(() => fireLassoBeam(steal, index, null), delay);
-          window.setTimeout(() => {
+          // Tracked so an UNMOUNT drops them (they outlive the beat they were scheduled on). Deliberately not
+          // on the phase-change hatch: these beams play across the flip to combat by design, and the beat has
+          // already reserved room for the whole cascade (`lassoCascadeMs`).
+          trackLassoBeatTimer(window.setTimeout(() => fireLassoBeam(steal, index, null), delay));
+          trackLassoBeatTimer(window.setTimeout(() => {
             setEotConsumedUids((s2) => new Set([...s2, steal.offer.uid]));
             lassoPendingHandUids.delete(steal.handUid);
             applyEotGrants();
-          }, delay + LASSO_CONTACT_MS);
+          }, delay + LASSO_CONTACT_MS));
         }
         // The hand preview is driven by the projection; arrival FX lands with the commit. The one thing that
         // must play HERE (while the board is still on screen) is ale-bubbles for a Dwarf's End-of-Turn Ale —
@@ -6154,11 +6151,12 @@ export function Recruit() {
         const stealSchedule = lassoBeamSchedule(steals.length);
         steals.forEach((ev, k) => {
           const { launchAt, contactAt } = stealSchedule[k]!;
-          window.setTimeout(() => fireLassoBeam(ev, k, null), launchAt);
-          window.setTimeout(() => {
+          // Tracked for the unmount hatch — see the note on the authoritative path above.
+          trackLassoBeatTimer(window.setTimeout(() => fireLassoBeam(ev, k, null), launchAt));
+          trackLassoBeatTimer(window.setTimeout(() => {
             setEotConsumedUids((s2) => new Set([...s2, ev.offer.uid]));
             setEotGrants((g) => [...g, ev.offer.cardId]);
-          }, contactAt);
+          }, contactAt));
         });
         // Auto-welds on this beat (Combinator / Cling Drones / Money Bots) — ring each host as it fuses.
         fireWeldFxBatch(bfx.welds, 'auto');

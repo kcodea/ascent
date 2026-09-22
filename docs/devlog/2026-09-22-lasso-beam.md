@@ -84,3 +84,36 @@ The def's audio clip (`universfield-whip-snap-242215.mp3`) had been written into
 dev `/__fx/sound` endpoint, because port 5173 runs on `main` while the def was authored in the worktree. It was
 untracked in both. `sfx.ts` globs the directory, so a missing clip is a silent no-sound with no failing test —
 it is committed here with the def.
+
+## Review pass — three things the first cut got wrong
+
+**Only the first steal of a recruit phase actually held its card.** The holds are seeded during render, and
+the cascade watcher returned `resolveAllLassoHolds` as its cleanup. React runs a changed-dep effect's cleanup
+*after* the render that bumped the dep has committed, so from the second steal action onward the cleanup wiped
+the batch that very render had just seeded: the offer left the Shop and the copy reached the hand before the
+rope was drawn, which is the one thing the feature exists to prevent. Measured with three separate Lasso casts
+(hold, then nothing, then nothing). Cancelling a previous cascade now happens **in the seed** —
+`holdLassoSteals(resolveAllLassoHolds(prev), fresh, row)` — and the old batch's timers are dropped at the top
+of the effect body. The watcher registers no cleanup at all; the phase gate and the unmount hatch are the only
+two, and neither can race a render.
+
+No pure test could see that, so the whole wiring moved out of `Recruit.tsx` into `useLassoCascade`
+(`lassoHolds.ts`) and `lassoCascade.test.tsx` drives two steal actions through a real mounted component. Put
+the cleanup back and it fails on the second action.
+
+**The rune beam launched from the opponent's tray.** `document.querySelector('.runebadge')` is unscoped, and
+`OpponentFrame` renders its own rune badges earlier in the document than the player's `.questbadges`. Scoped
+and named now, the way the quest-tendril lookups in the same file already do it:
+`.questbadges [data-source-id="rune_lassoing"]`.
+
+**A Refresh mid-beam left the stolen offer sitting among the new ones.** The hold was folded back by its
+splice-time index with no check that the row was still the row it came from. A hold now records the Shop uids
+it was taken out of, and `foldLassoHolds` drops one whose row has been replaced outright. Harmless before (a
+buy on a missing uid is a no-op in the reducer) but it read as a bug.
+
+Also: the End-of-Turn presenters' timers are registered so an unmount clears them, on a list the phase watcher
+deliberately leaves alone — those beams play across the flip to combat by design. And the "byte-identical
+either way" sim test was comparing `reduce` with `reduceWithPresentation`, which both carry the new fields, so
+it could not have failed; it now asserts the outcome directly (the row lost exactly the recorded offers and
+kept its order, the hand gained one matching copy per record) and compares the two entry points with the
+channel stripped.

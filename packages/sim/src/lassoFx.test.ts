@@ -77,10 +77,27 @@ describe('lassoFx — the Shop-steal channel', () => {
     expect(later.lassoFx ?? []).toEqual([]);
   });
 
-  it('changes nothing about what RESOLVES — the record is metadata, byte-identical either way', () => {
+  it('changes nothing about what RESOLVES — the record only DESCRIBES a theft that already happened', () => {
     const s = base({ goldSpentThisTurn: 12, board: [mk('b1', 'ropewrangler')], shop: shopOf('s1', 's2', 's3') });
-    const plain = reduce(s, { type: 'faceOmen' });
-    expect(JSON.stringify(reduceWithPresentation(s, { type: 'faceOmen' }, true).state)).toBe(JSON.stringify(plain));
+    const next = reduce(s, { type: 'faceOmen' });
+    const fx = next.lassoFx ?? [];
+    expect(fx.length).toBeGreaterThan(0);
+    const stolen = new Set(fx.map((e) => e.offer.uid));
+    // The row lost EXACTLY the offers the records name, and the survivors kept their order.
+    expect(next.shop.map((o) => o.uid)).toEqual(s.shop.map((o) => o.uid).filter((u) => !stolen.has(u)));
+    // The hand gained one copy per record, in the same order, each of the card its record names.
+    const arrivals = next.hand.filter((c) => fx.some((e) => e.handUid === c.uid));
+    expect(arrivals.map((c) => c.uid)).toEqual(fx.map((e) => e.handUid));
+    expect(arrivals.map((c) => c.cardId)).toEqual(fx.map((e) => e.offer.cardId));
+    // …and CAPTURING adds the channel and nothing else: strip it and the two entry points are byte-identical,
+    // with the same rng cursor, so recording a steal can never move the run off its seeded line.
+    const strip = (st: RunState): string => {
+      const { lassoFx: _fx, lassoFxSeq: _seq, ...rest } = st;
+      return JSON.stringify(rest);
+    };
+    const captured = reduceWithPresentation(s, { type: 'faceOmen' }, true).state;
+    expect(strip(captured)).toBe(strip(next));
+    expect(captured.rngCursor).toBe(next.rngCursor);
   });
 
   it("an End-of-Turn steal's hand uid is the one the batch's `cardGranted` names — that is how the UI pairs them", () => {

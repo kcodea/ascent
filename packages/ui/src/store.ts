@@ -1360,6 +1360,12 @@ function commitResolvedAction(
         // already the settled board here. Pinned in DEV: a second terminal writer that skipped the settle would
         // silently regress the recorded board to the pre-combat one.
         if (import.meta.env.DEV && next.lastCombat && !next.combatSettled) console.warn('[run-end] the last combat was not settled before the run ended; the recorded final board is pre-settle');
+        // One accepted approximation: `advanceCombat` returns early on a terminal round, so the per-turn
+        // reset block (`spellsThisTurn` / `playedThisTurn` / `goldSpentThisTurn` / the per-instance spell
+        // counters) never runs. Stats and carry-backs are exact; a card whose LIVE TEXT prints a per-turn
+        // tally reads the closing turn's value rather than the 0 the next shop would open with. Zeroing
+        // those here would re-derive reducer logic in the UI, which the architecture forbids — if strict
+        // next-shop text is ever wanted, the reset belongs in the reducer's terminal branch.
         const finalBoard = endStateBoard(next) ?? highestFresh;
         // Link the leaderboard/Career final board to the SAME id as the highest-wave pool board (the one served
         // as the round-17 opponent), so a fight-result recorded against that served board also counts for this

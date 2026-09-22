@@ -1,19 +1,23 @@
 import { describe, it, expect } from 'vitest';
-import { combatSide, damageMeterOf, makeRng, simulate, type BoardMinion, type CombatEvent } from '../index';
+import { combatSide, damageMeterOf, damageMeterReading, makeRng, simulate, type BoardMinion, type CombatEvent } from '../index';
 import { CARD_INDEX, poolFor } from '@game/content';
 
 /**
  * `pummelTrigger` (2026-09-21) — PUMMEL (X) as an observable combat event. The owner's keyword for the
- * damage-dealt meter: "Pummel (X): Triggers once this minion has dealt X damage in a combat." Han Gover reads
- * "Pummel (40): Get a Dwarven Ale. (Once per combat)" and Goldvein "Pummel (6): Gain 3 Gold next turn. (Once per
- * combat)". The owner authored `pummel-trigger` for "when cards like Goldvein and Han Gover trigger"; before the
- * event the UI could only re-derive a crossing from `dmg.source` amounts, Goldvein's payout was silent
- * (`grantBonusGold` emits nothing) and an ENEMY meter was invisible.
+ * damage-dealt meter: "Pummel (X): Triggers each time this minion has dealt another X damage. The damage count
+ * carries over between combats." Han Gover reads "Pummel (40): Get a Dwarven Ale. (Once per combat)" and
+ * Goldvein "Pummel (6): Gain 3 Gold next turn. (Once per combat)". The owner authored `pummel-trigger` for "when
+ * cards like Goldvein and Han Gover trigger"; before the event the UI could only re-derive a crossing from
+ * `dmg.source` amounts, Goldvein's payout was silent (`grantBonusGold` emits nothing) and an ENEMY meter was
+ * invisible.
  *
- * The contract pinned here: ONE event per body per combat (every Pummel is once per combat — the meter starts
- * at 0 every fight and latches when it fires), emitted on the body that fired, right after the `dmg` that
- * reached X and BEFORE the payout's own events, stamped with the meter's own effect identity; a meter that pays
- * nothing emits nothing; determinism untouched.
+ * THE ONE RULE (carry-over ruling 2026-09-21, later the same day as the keyword — "it is resetting to 0/X after
+ * combat … it needs to carry over from turn to turn and combat to shop"): the tally is LIFETIME per instance
+ * (seeded from the run card, carried back whole); a payout is owed each time the tally crosses a MULTIPLE of X;
+ * but at most ONE payout per combat (`pummelFired`, fresh every fight). The contract pinned here: ONE event per
+ * body per combat, emitted on the body that fired, right after the `dmg` that crossed and BEFORE the payout's
+ * own events, stamped with the meter's own effect identity; a meter that pays nothing emits nothing; the
+ * uncredited crossings are spent, not banked; determinism untouched.
  */
 const foe = (attack: number, health: number, keywords: string[] = []): BoardMinion =>
   ({ cardId: 'sandbag', attack, health, keywords } as unknown as BoardMinion);
@@ -33,8 +37,9 @@ const triggers = (events: CombatEvent[]) => events.filter((e) => e.type === 'pum
 const types = (events: CombatEvent[]): string[] => events.map((e) => e.type);
 
 describe('pummelTrigger — Han Gover (Pummel (40): Get a Dwarven Ale. (Once per combat))', () => {
-  it('the meter is declared once per combat in core (resetEachCombat, every 40) — the lifetime tally is gone', () => {
-    expect(damageMeterOf(CARD_INDEX['dw3_hangover'])).toEqual({ do: 'dealtDamageAleMeter', every: 40, resetEachCombat: true });
+  it('the meter is declared in core with its threshold only (every 40) — there is no per-combat reset flag any more', () => {
+    expect(damageMeterOf(CARD_INDEX['dw3_hangover'])).toEqual({ do: 'dealtDamageAleMeter', every: 40 });
+    expect(damageMeterOf(CARD_INDEX['k3_goldvein'])).toEqual({ do: 'dealtDamageGoldNextTurn', every: 6 });
   });
 
   it('40 damage → ONE trigger on Han Gover, player side, the Ale marker, stamped with the meter’s own key', () => {
@@ -82,11 +87,16 @@ describe('pummelTrigger — Han Gover (Pummel (40): Get a Dwarven Ale. (Once per
     expect(r.result).toBe('win');
   });
 
-  it('NO CAP: a 120-damage hit is one Pummel, one trigger, one Ale — "(Max 2 per hit)" is retired', () => {
+  it('NO CAP: a 120-damage hit is one Pummel, one trigger, one Ale — "(Max 2 per hit)" is retired; the tally is 120 and the next payout waits for 160', () => {
     const r = fight([gover({ attack: 120 })], [foe(0, 120)]);
     expect(triggers(r.events).length).toBe(1);
     expect(r.events.filter((e) => e.type === 'toHand').length).toBe(1);
     expect(CARD_INDEX['dw3_hangover']!.text).not.toContain('Max 2 per hit');
+    // The uncredited crossings (80, 120) are SPENT, not banked: the tally carries back as 120 …
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 120 }]);
+    // … so next combat 39 more (159) crosses nothing and 40 more (160) pays.
+    expect(triggers(fight([gover({ attack: 39, damageDealt: 120 })], [foe(0, 39)]).events)).toEqual([]);
+    expect(triggers(fight([gover({ attack: 40, damageDealt: 120 })], [foe(0, 40)]).events)).toHaveLength(1);
   });
 
   it('GILDED: the one Pummel pays TWO Ales — one trigger, two toHands', () => {
@@ -95,14 +105,50 @@ describe('pummelTrigger — Han Gover (Pummel (40): Get a Dwarven Ale. (Once per
     expect(r.events.filter((e) => e.type === 'toHand').length).toBe(2);
   });
 
-  it('RESET EACH COMBAT: a seeded lifetime tally is ignored — the fight starts at 0 and 13 more does not reach 40; a fresh fight re-arms', () => {
-    const r = fight([gover({ attack: 13, damageDealt: 30 })], [foe(0, 13)]);
-    expect(r.initial.player[0]!.damageDealt).toBeUndefined();
+  it('CARRY-OVER: a body seeded at 35 pays on a 5-damage hit — the tally continues from the run card', () => {
+    const r = fight([gover({ attack: 5, damageDealt: 35 })], [foe(0, 5)]);
+    expect(r.initial.player[0]!.damageDealt, 'the seed is on the combat body (and in the replay snapshot)').toBe(35);
+    expect(triggers(r.events)).toHaveLength(1);
+    expect(r.events.filter((e) => e.type === 'toHand')).toHaveLength(1);
+    expect(r.playerDamageMeters, 'carries back the lifetime total, not 0').toEqual([{ sourceUid: 'hg', total: 40 }]);
+  });
+
+  it('CARRY-OVER: 47 reads 7/40 — the readout is progress toward the NEXT payout, no clamp at 40/40', () => {
+    const meter = damageMeterOf(CARD_INDEX['dw3_hangover'])!;
+    const r = fight([gover({ attack: 47 })], [foe(0, 47)]);
+    expect(triggers(r.events)).toHaveLength(1);
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 47 }]);
+    expect(damageMeterReading(47, meter)).toEqual({ current: 7, total: 40 });
+    expect(damageMeterReading(40, meter), 'a crossing lands on 0/40').toEqual({ current: 0, total: 40 });
+    expect(damageMeterReading(85, meter), 'never clamped at 40/40').toEqual({ current: 5, total: 40 });
+  });
+
+  it('CARRY-OVER: two combats in a row each pay once — 30 (no pay), then 15 more crosses 40 (pays), then 40 more crosses 80 (pays again)', () => {
+    const r1 = fight([gover({ attack: 30 })], [foe(0, 30)]);
+    expect(triggers(r1.events)).toEqual([]);
+    expect(r1.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 30 }]);
+    const r2 = fight([gover({ attack: 15, damageDealt: 30 })], [foe(0, 15)]);
+    expect(triggers(r2.events)).toHaveLength(1);
+    expect(r2.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 45 }]);
+    const r3 = fight([gover({ attack: 40, damageDealt: 45 })], [foe(0, 40)]);
+    expect(triggers(r3.events), 'a fresh combat re-arms the latch: 45 → 85 crosses 80').toHaveLength(1);
+    expect(r3.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 85 }]);
+  });
+
+  it('CARRY-OVER + LATCH: a second crossing in the SAME combat pays nothing, but the tally still moves (37 → 52 pays, → 82 does not; carries back 82)', () => {
+    const r = fight([gover({ attack: 15, damageDealt: 37 })], [foe(0, 15), foe(0, 15), foe(0, 15)]);
+    expect(triggers(r.events)).toHaveLength(1);
+    expect(r.events.filter((e) => e.type === 'toHand')).toHaveLength(1);
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 82 }]);
+    // Next combat: 82 → 120 needs 38 more; 37 crosses nothing.
+    expect(triggers(fight([gover({ attack: 37, damageDealt: 82 })], [foe(0, 37)]).events)).toEqual([]);
+    expect(triggers(fight([gover({ attack: 38, damageDealt: 82 })], [foe(0, 38)]).events)).toHaveLength(1);
+  });
+
+  it('CARRY-OVER: a seeded tally that sits between multiples does not pay on a hit that crosses nothing (47 + 5 = 52)', () => {
+    const r = fight([gover({ attack: 5, damageDealt: 47 })], [foe(0, 5)]);
     expect(triggers(r.events)).toEqual([]);
-    expect(r.events.filter((e) => e.type === 'toHand')).toEqual([]);
-    expect(r.playerDamageMeters, 'carries back 0 → the shop reads 0/40').toEqual([{ sourceUid: 'hg', total: 0 }]);
-    // …and the next combat is a fresh meter: 40 in one fight pays again.
-    expect(triggers(fight([gover({ attack: 40 })], [foe(0, 40)]).events)).toHaveLength(1);
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 52 }]);
   });
 
   it('a Warded hit never reaches the meter: the first swing pops the Ward (no trigger), the second reaches 40 (one)', () => {
@@ -120,7 +166,7 @@ describe('pummelTrigger — Han Gover (Pummel (40): Get a Dwarven Ale. (Once per
       combatSide({ tier: 6, poolIds: noAles }), combatSide({ tier: 6 }));
     expect(r.events.filter((e) => e.type === 'toHand')).toEqual([]);
     expect(triggers(r.events)).toEqual([]);
-    expect(r.playerDamageMeters, 'the tally still advanced, and a once-per-combat meter carries back 0').toEqual([{ sourceUid: 'hg', total: 0 }]);
+    expect(r.playerDamageMeters, 'the tally still advanced and carries back whole').toEqual([{ sourceUid: 'hg', total: 40 }]);
   });
 
   it('an ENEMY Han Gover fires too — the trigger carries side: enemy', () => {

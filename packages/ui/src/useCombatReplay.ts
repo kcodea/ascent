@@ -218,7 +218,7 @@ const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   ascendProgress: s.ascendProgress, // Tara: seed the ascend tracker from the run-board total, then count up
   spellProgress: s.spellProgress, // Guel: seed his on-board spell tally for the live combat text
   spiritTally: s.spiritTally, // Set 3 Spirits: the carried tally, so Forest Colossus / Keeper / Aspect print live in combat
-  damageDealt: s.damageDealt, // Pummel (Han Gover, Goldvein): the snapshot's seed (undefined for a once-per-combat meter), then count each landed hit it deals
+  damageDealt: s.damageDealt, // Pummel (Han Gover, Goldvein): the snapshot's seed (the run card's lifetime tally), then count each landed hit it deals on top
   soldProgress: s.soldProgress, // Runic Archivist (display-only)
   boardFirstSpellId: s.boardFirstSpellId, // Spell Warden (display-only)
   eotBonus: s.eotBonus, // Ritualist: seed the per-tick grant so the combat text isn't stuck at base
@@ -344,8 +344,8 @@ export function computeFrame(
       if (u) u.health = e.remainingHp;
       // The PUMMEL meters (Han Gover, Goldvein — core's `DAMAGE_METER_MARKERS`): a meter is the sum of every
       // landed hit its body dealt — the `dmg` events stamped with it as `source`, the same amounts the sim's
-      // `noteDamageDealt` added — on top of the seeded value (none for a once-per-combat meter, so the badge
-      // counts from 0 and `damageMeterReading` clamps it at X/X once the Pummel fired). Keyed off the card's MARKER, not an id: the
+      // `noteDamageDealt` added — on top of the seeded value (the run card's lifetime tally, so the badge picks
+      // up where the shop left it and `damageMeterReading` prints `total mod X`). Keyed off the card's MARKER, not an id: the
       // id gate (`dw3_hangover` only) is why Goldvein's badge never moved in combat (owner report 2026-09-19).
       // This fold runs to the END of the beat being cued, so the badge ticks on the beat the damage lands —
       // the same moment the damage number pops — including the blow that ends the fight (the `done` frame

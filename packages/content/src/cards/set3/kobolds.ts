@@ -333,16 +333,17 @@ export const SET3_KOBOLDS: CardDef[] = [
     goldenText: "**Avenge (3):** Summon a **2/2 Gemheart Golem**, plus double this minion's Rubies.",
   },
   {
-    // GOLDVEIN (owner handoff 2026-09-19; PUMMEL keyword 2026-09-21). "Pummel (6): Gain 3 Gold next turn. (Once
-    // per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt` in simulate.ts — every landed hit this body
-    // deals) with a Gold body: the first time the meter reaches 6 in a fight, +3 Gold is banked for next turn
-    // through the same `grantBonusGold` channel Tromboneer / Bounty Bot use. ONCE per combat — the latch rides the
-    // combat instance (`pummelFired`, Yeti's convention), so a Risen body does not re-arm and a fresh combat does.
-    // Gilded: 6 Gold, still once. Progress shows on the step-counter badge (N/6), clamped at 6/6 once it fired.
-    // The meter does NOT persist across combats: the "(Once per combat)" rider is `resetEachCombat` on core's
-    // `DAMAGE_METER_MARKERS`, so every fight starts at 0 and the shop reads 0/6 after any combat (owner
-    // 2026-09-19 — it read "6/6" before). The `pummelTrigger` event + the owner's `pummel-trigger` def present
-    // the fire on the medallion.
+    // GOLDVEIN (owner handoff 2026-09-19; PUMMEL keyword 2026-09-21; carry-over ruling later that day). "Pummel
+    // (6): Gain 3 Gold next turn. (Once per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt` in
+    // simulate.ts — every landed hit this body deals) with a Gold body: each time the LIFETIME tally crosses a
+    // multiple of 6, +3 Gold is banked for next turn through the same `grantBonusGold` channel Tromboneer /
+    // Bounty Bot use — at most ONCE per combat: the latch rides the combat instance (`pummelFired`, Yeti's
+    // convention), so a Risen body does not re-arm and a fresh combat does. Gilded: 6 Gold, still once. The
+    // tally itself carries over between combats (seeded from the run card, carried back whole, snapshotted —
+    // owner 2026-09-21: "it needs to carry over from turn to turn and combat to shop etc."; the 2026-09-19
+    // per-combat reset is retired), and the step-counter badge prints `total mod 6` on every surface (7 dealt
+    // → 1/6, never clamped at 6/6). The `pummelTrigger` event + the owner's `pummel-trigger` def present the
+    // fire on the medallion.
     id: 'k3_goldvein',
     name: 'Goldvein',
     tribe: 'kobold',

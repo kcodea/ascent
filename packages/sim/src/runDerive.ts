@@ -1,7 +1,8 @@
-import { CARD_INDEX, contentRevision, revisionOf } from '@game/content';
+import { CARD_INDEX, contentRevision, revisionOf, type SetId } from '@game/content';
 import { createRun, isPlayerAction, runRecord, type Action, type BoardCard, type RunState } from './state';
 import { reduce, upgradeCostOf } from './reducer';
 import type { Replay } from './snapshot';
+import type { TelemetrySource } from './runTelemetry';
 
 /**
  * THE RUN DERIVATION — every balance event stream, derived from a replay.
@@ -152,6 +153,11 @@ export interface DerivedRun {
   contentRevision: string;
   heroId: string;
   mode: string;
+  /** The run's card set + what produced it (2026-09-22) — carried INSIDE the payload so the stamps survive a
+   *  backend that has not run the `set_id` / `source` column migration, and so the export carries them.
+   *  Absent on payloads written before that date. Same legacy rules as `RunTelemetry`. */
+  setId?: SetId;
+  source?: TelemetrySource;
   seed: number;
   finalWave: number;
   wins: number;
@@ -466,7 +472,10 @@ export function observeAction(st: DeriveState, before: RunState, action: Action,
 
 /** Close the derivation against the run's final state. `won` is an override for LOBBY runs, which never
  *  reach phase 'victory' — a lobby win is placement 1, which only the caller knows. */
-export function finishDerive(st: DeriveState, final: RunState, meta: { heroId: string; mode?: string; seed: number; won?: boolean }): DerivedRun {
+export function finishDerive(
+  st: DeriveState, final: RunState,
+  meta: { heroId: string; mode?: string; seed: number; won?: boolean; setId?: SetId; source?: TelemetrySource },
+): DerivedRun {
   for (const c of final.board) {
     const row = st.acquisitions[st.acqIdx[c.uid] ?? -1];
     if (row) row.finalBoard = true;
@@ -475,6 +484,8 @@ export function finishDerive(st: DeriveState, final: RunState, meta: { heroId: s
     contentRevision: contentRevision(),
     heroId: meta.heroId,
     mode: meta.mode ?? 'ascent',
+    ...(meta.setId ? { setId: meta.setId } : {}),
+    ...(meta.source ? { source: meta.source } : {}),
     seed: meta.seed,
     finalWave: final.wave,
     wins: runRecord(final).wins, // SCORED wins — runRecord excludes the calibration rounds, as the report must

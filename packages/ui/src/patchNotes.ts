@@ -60,6 +60,25 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-22',
+    label: 'Amplified glow and Comet',
+    changes: [
+      { category: 'Systems', text: 'An Amplified Equipment now glows on its slot while it has a charge to spend. The glow stops when you use it or switch to an Equipment that is not Amplified.' },
+      { category: 'Systems', text: 'Comet plays its own effect when you use it.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Balance Report',
+    changes: [
+      { category: 'Systems', text: 'The Balance Report now reads only the active set and never a Scene Builder run. Export all downloads the whole dataset as one file.', details: [
+        'The header names the set it is reading and how many runs it found.',
+        "Minions and Spells show each card's buyers, buy rate, average place, top 4 rate and a placement delta against the field, with a hot and cold colour and a chart view.",
+        'Tier and tribe chips above the table summarise each group and filter the table when clicked.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Crest digits',
     changes: [
       { category: 'Balance', text: 'The rank crest now shows your division as a plain digit: 1, 2 or 3. The rank name still reads Bronze II.' },

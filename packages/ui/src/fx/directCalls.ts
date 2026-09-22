@@ -28,6 +28,9 @@
 /** def id → the `packages/ui/src`-relative files that fire it. Generated; see the header. */
 export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'ale-bubbles': ['Recruit.tsx', 'choreo/score.ts'],
+  // The persistent AMPLIFIED glow on the Equipment slot (owner-authored 2026-09-22): a looping, slot-centred play
+  // started while the selected Equipment will Amplify AND has a charge to spend, fired by literal id from its hook.
+  'amplified-slot': ['useAmplifiedSlotFx.ts'],
   // The Auctioneer's Pulse — played on the TARGET minion instead of the generic `hero-power-target` spark.
   'auctioneer-hp': ['Recruit.tsx'],
   'choose-one-both': ['useChooseBothFx.ts'],   // the persistent (Both) marker on hand / shop / Discover cards

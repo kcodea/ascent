@@ -1777,6 +1777,74 @@ export const APPROVED_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-REPORT-01',
+    title: 'The Balance Report reads one set, never a sandbox, and exports exactly what it shows',
+    statement:
+      'The player Balance Report reads ONLY ladder runs of the ACTIVE card set. A telemetry row that carries no '
+      + 'set stamp is read as set 1, the codebase-wide legacy default, and is never substituted with the live '
+      + 'set; the real value is backfilled by SQL, by the owner, and only where the row\'s own shop offers agree '
+      + 'with that set (a row that saw a card outside the set\'s pool is never stamped into it). A Scene Builder '
+      + 'sandbox run never uploads telemetry, whatever mode the loaded run kept, and every uploaded row is '
+      + 'stamped with its set and its source so a sandbox row could never pass for a ladder row even if a '
+      + 'gate slipped. The export is built from the SAME filtered rows the screen renders, through the same '
+      + 'pure functions, so the file and the screen can never disagree.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (the Balance Report rework)', quote: 'fix up our balance report. it should only have data for the active set in it, and nothing from scene builder. also make the export export everything so that an ai can analyze all of the data for me at once.' },
+      { kind: 'code', ref: 'packages/sim/src/playerReport.ts (applyReportFilters, telemetrySetOf, isLadderRow, buildBalanceExport); packages/sim/src/runTelemetry.ts telemetrySourceOf; packages/ui/src/store.ts the run-end telemetry gate; packages/ui/src/remoteBoards.ts BALANCE_SELECTS + the upload ladder' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22. The run-end block was already gated on the sandbox flag (#1236, 2026-08-26) '
+      + 'and the rig launches under mode practice (#1385), so no sandbox row had ever uploaded; the gate is now '
+      + 'repeated on the telemetry upload itself and every row is stamped set_id + source (on the flat row and '
+      + 'inside derived). The report filters in @game/sim, the header prints the set and the counts, and Export '
+      + 'all serialises the same filtered rows. Legacy rows read as set 1; the runbook backfills them to set 2 only '
+      + 'where no shop offer lies outside set 2\'s pool (a 2026-09-22 read-only probe found four live rows carrying '
+      + 'set-3-only cards; they stay unstamped and the runbook lists them). A stamp the client wrote inside derived '
+      + 'is read on the flat rung (derived->>setId) until the columns exist, and the derived payloads are fetched '
+      + 'by id for the surviving rows only, after the flat rows render.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/reportFilters.test.ts', 'packages/sim/src/balanceExport.test.ts', 'packages/sim/src/cardImpact.test.ts', 'packages/ui/src/telemetrySandboxGate.test.ts', 'packages/ui/src/balanceFetch.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-PRESENT-02',
+    title: 'The Amplified glow plays only on a selected Equipment that can fire',
+    statement:
+      'The Equipment slot carries the Amplified cue (the owner\'s looping `amplified-slot` def) only while the '
+      + 'SELECTED Equipment will Amplify its next activation AND has at least one charge to spend, in the shop '
+      + 'phase. An Amplified Equipment with zero charges shows no glow; an unselected Amplified Equipment shows '
+      + 'none until it is picked; the glow ends the moment any of that stops being true (the activation that spends '
+      + 'the stack or the charge, a swap to an unamplified Equipment, the turn ending, the phase leaving the shop, '
+      + 'the slot going away) and is never left running unseen (a hidden tab, any overlay covering the slot, unmount). '
+      + 'The cue decorates state the reducer already resolved; it never decides anything.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (the amplified effect)', quote: 'it should only play when a usable equipment is equipped/selected. if an equipment has 0 charges it should not show the animation.' },
+      { kind: 'code', ref: 'packages/ui/src/useAmplifiedSlotFx.ts (one loop, caller-owned teardown); packages/ui/src/StatusBar.tsx (the condition: hasEquip && equipmentWillAmplify && equipmentUsesLeft > 0 && phase recruit && no covering overlay, run-state (Discover / Choose One / offers / scouting) or UI-store (Compendium, Inspect view, bug reporter, ladder and balance pages, title))' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22 (the day the cue shipped). The condition is derived from the same `run.equipment` '
+      + 'reads that paint the charge number blue (`equipmentWillAmplify`) and print it (`equipmentUsesLeft`), so '
+      + 'the glow and the number cannot disagree. The phase gate is load-bearing: End of Turn hands every own '
+      + 'charge back in the same action that starts combat, and the bar stays mounted through the fight. Same-day '
+      + 'review fix: the UI-store overlays pause it too (the Compendium, the Inspect view, the Ctrl+B bug reporter, '
+      + 'the ladder / balance pages, the title), the set Recruit folds into `overlayOpen` plus the Inspect view; '
+      + 'the Book had left the ring burning behind its blur. OPEN, not ruled: "usable" is read as HAS A CHARGE, the '
+      + 'owner\'s own clarifying sentence. Gold is not a term, so an Amplified Equipment with a charge the player '
+      + 'cannot afford this moment still glows while its button is disabled. If "usable" should also mean '
+      + 'affordable, AND `run.embers >= equipmentCostOf(run, def)` into the condition and add the hook case.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/useAmplifiedSlotFx.test.tsx'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
     id: 'R-EQUIP-01',
     title: 'Thymepiece: Amplified doubles the window; the readout sits above the slot',
     statement:

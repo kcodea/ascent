@@ -52,6 +52,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Spiritbinder cascade',
+    changes: [
+      { category: 'Systems', text: 'An Amplified or repeated Spiritbinder now throws one beam per trigger, each on its own beat.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Hall of Champions',
     changes: [
       { category: 'Systems', text: 'The Hall of Champions is now a showcase of the runs that have won the most games.', details: [

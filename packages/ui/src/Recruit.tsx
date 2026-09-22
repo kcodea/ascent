@@ -91,6 +91,7 @@ import { playPlateCoalesce } from './plateCoalesce';
    rune badge — to the offer it takes, and the card only leaves the Shop (and only reaches the hand) when the
    rope gets there. The hold state machine and its escape hatches live in `lassoHolds.ts`, pinned by a test. */
 import { foldLassoHolds, lassoBeamSchedule, lassoCascadeMs, useLassoCascade, LASSO_CONTACT_MS, LASSO_STAGGER_MS, type LassoCascadeHandlers, type LassoSteal } from './lassoHolds';
+import { useEquipBeamCascade, type EquipBeamAnchors } from './equipBeamCascade';
 import { playPlateGild } from './plateGild';
 import { playBuySlide, type BuyFrom } from './buySlide';
 import { fireBuffFx } from './buffFxRender';
@@ -199,14 +200,8 @@ const RUBY_DELIVER_OFFSET_MS = 120;
  *  later than the board's 120ms so the numbers move just as the gems arrive. Owner-set 2026-08-11. */
 const SHOP_RUBY_DELIVER_MS = 200;
 
-/** How long the body an Equipment's own effect buffed holds its pre-buff badge, measured from the moment that
- *  Equipment's use def starts (the `useDelayMs` the tuner owns is added on top). Set to CONTACT — the
- *  `travelMs` of the owner's `spiritbinder` beam, the point at which the strand has finished growing from the
- *  slot to the card — so the roll opens as the beam arrives rather than while it is still crossing. The
- *  shockwave layer's earlier `at` (90ms) is a flare on the destination, not the arrival; opening the roll
- *  there put the badge 110ms ahead of the strand and read as the numbers moving on their own (review
- *  2026-09-22). Only an Equipment flagged `useFxTargetsBuffed` reaches this. */
-const EQUIP_BUFF_LAND_MS = 200;
+// The beam-contact hold (`EQUIP_BUFF_LAND_MS`) and the one-beam-per-fire cascade an Equipment flagged
+// `useFxTargetsBuffed` plays live in `equipBeamCascade.ts` (owner ruling 2026-09-22).
 
 /** Delay between the cursor volley and each Edward Keg-hands echo of a buff-ale cast (owner-set 2026-08-12). */
 const SPELLCAST_EDWARD_ECHO_MS = 80;
@@ -2221,13 +2216,39 @@ export function Recruit() {
    * player. Nothing here gates gameplay — the state has already committed.
    */
   const prevEquipFxSeq = useRef(run.equipFxSeq);
-  /** Retire fns for USE defs (Deathfibrillator, Bloodpot). Held OUTSIDE the cue effect on purpose: that effect
-   *  re-runs (and cleans up) on the very next action — and an aimed Equipment's next action is the target's
-   *  two-step death, ~200ms later — which was cutting the def off mid-play (owner report 2026-09-09: "it should
-   *  just play out over top of whatever happens in that slot"). A use def now runs to its own end; these are
-   *  only retired on unmount. */
-  const useDefStopsRef = useRef<Array<() => void>>([]);
-  useEffect(() => () => { for (const f of useDefStopsRef.current.splice(0)) f(); }, []);
+  /* THE BEAM CASCADE (owner ruling 2026-09-22: "spiritbinder one beam per fire"). An Equipment whose def flies
+     at the body its own effect picked (`useFxTargetsBuffed`) stamps one `use` cue PER FIRE, and
+     `useEquipBeamCascade` plays them as N beams `EQUIP_BEAM_STAGGER_MS` apart, each landing on ITS recipient
+     with that recipient's badge held to its own contact. Declared here, beside the cue effect it takes those
+     cues away from; the DOM work (where the slot is, where a body rests) is handed over through
+     `equipBeamAnchorsRef`, assigned during render so it is always this render's before any effect runs. */
+  const equipBeamAnchorsRef = useRef<EquipBeamAnchors>({ slot: () => null, body: () => null });
+  equipBeamAnchorsRef.current = {
+    slot: () => {
+      const r = document.querySelector<HTMLElement>('.equipslot .heropowerbtn')?.getBoundingClientRect();
+      return r && r.width > 0 ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+    },
+    // Measured at LAUNCH, inside the beam's own beat, and transform-immune — so the second beam lands where the
+    // card IS after any FLIP the meantime caused, never where it was when the press registered.
+    body: (uid) => { const el = findEl(uid); return el ? restingCenterOf(el as HTMLElement) : null; },
+    // The Equipment's clip rides each beam's launch, one per beat (no flagged Equipment names one today).
+    onLaunch: (beam) => {
+      const eq = EQUIPMENT_INDEX[beam.cue.equipmentId ?? ''];
+      const cfg = getEquipFxConfig();
+      if (eq?.useSfxId && cfg.useSfxOn) sfx.equipmentUse(eq.useSfxId, cfg.useSfxDelayMs);
+    },
+  };
+  const equipBeams = useEquipBeamCascade({
+    seq: run.equipFxSeq, cues: run.equipFx, phase: run.phase,
+    baseDelayMs: () => getEquipFxConfig().useDelayMs, anchors: equipBeamAnchorsRef,
+  });
+  /** Retire fns for USE defs (Deathfibrillator, Bloodpot) and for every beam of the cascade above — ONE list.
+   *  Held OUTSIDE the cue effect on purpose: that effect re-runs (and cleans up) on the very next action — and
+   *  an aimed Equipment's next action is the target's two-step death, ~200ms later — which was cutting the def
+   *  off mid-play (owner report 2026-09-09: "it should just play out over top of whatever happens in that
+   *  slot"). A use def runs to its own end; the list is retired only when the shop leaves (the cascade's phase
+   *  watcher) and on unmount. */
+  const useDefStopsRef = equipBeams.stops;
   useLayoutEffect(() => {
     const seq = run.equipFxSeq;
     if (seq === undefined || seq === prevEquipFxSeq.current) return;
@@ -2262,7 +2283,10 @@ export function Recruit() {
       // That reads as a misfire, so the right answer is no beam at all: the hand recipient still pops on its
       // own channel, and nothing claims a board hit that never happened.
       const aimlessBeam = eq.useFxTargetsBuffed === true && !cue.targetUid;
-      if (eq.useFxId && slot && to && !aimlessBeam && canPlayDefs()) {
+      // …and one that DID pick a body belongs to the beam cascade (`useEquipBeamCascade`, declared above): one
+      // beam per fire, staggered, each holding its recipient's badge to its own contact. Nothing plays here.
+      const cascaded = eq.useFxTargetsBuffed === true && !!cue.targetUid;
+      if (eq.useFxId && slot && to && !aimlessBeam && !cascaded && canPlayDefs()) {
         const fire = (): void => {
           // The Equipment is ALWAYS the `source` (owner 2026-09-12: "equipment can always be a starting point of an
           // effect") — a travelling def (Bloodpot, Titan Hammer, the Deathfibrillator bolt) leaves the button; a def
@@ -2276,20 +2300,10 @@ export function Recruit() {
         };
         // The delayed fire lives with the def, not the cue effect's timer list (which the next action clears).
         if (cfg.useDelayMs > 0) { const t = window.setTimeout(fire, cfg.useDelayMs); useDefStopsRef.current.push(() => window.clearTimeout(t)); } else fire();
-        // THE BEAM CAUSES THE NUMBERS (owner ask 2026-09-22). The reducer already committed the buff, so without
-        // a hold the board Spirit's badge jumps the instant the press registers and the beam arrives at a body
-        // that visibly changed before it was hit. A `cue` hold withholds exactly this fire's gain — carried on
-        // the signal, never re-derived from the run-total buff ledger — until the def's impact moment, and
-        // outranks the intrinsic roll `Card` would otherwise place on the same change.
-        //
-        // This is the same `useLayoutEffect` the def is fired from, deliberately: in a plain effect the new
-        // number paints for one frame and then jumps backwards before rolling, which is worse than no hold.
-        if (cue.targetUid && (cue.buffAttack || cue.buffHealth)) {
-          holdStat(cue.targetUid, { attack: cue.buffAttack ?? 0, health: cue.buffHealth ?? 0 },
-            { origin: 'cue', startAt: cfg.useDelayMs + EQUIP_BUFF_LAND_MS });
-        }
       }
-      if (eq.useSfxId && cfg.useSfxOn) sfx.equipmentUse(eq.useSfxId, cfg.useSfxDelayMs);
+      // A CASCADED cue's clip rides its beam's launch instead (`equipBeamAnchorsRef.onLaunch`): N fires are N
+      // clips on N beats, not N clips at once.
+      if (eq.useSfxId && cfg.useSfxOn && !cascaded) sfx.equipmentUse(eq.useSfxId, cfg.useSfxDelayMs);
       // An Equipment that CAST Shop spells (Pourman's Keg → a random Ale) plays each spell's own cast
       // presentation from the slot — the authored def / spark, the trail onto the minions it buffed, Edward's
       // echo and the cast clip — exactly the path a hand-cast Ale takes on release (owner ask 2026-09-09).

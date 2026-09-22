@@ -1748,6 +1748,35 @@ export const APPROVED_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-LOBBY-02',
+    title: 'Hall of Champions: a run is ranked by the players it has beaten',
+    statement:
+      'The Hall of Champions lists lobby winners and ranks them by wins, where a run\'s wins are the lobby it '
+      + 'won for its builder plus every player it knocked out when served as a recorded seat; every time it was '
+      + 'knocked out while the player it was served to still stood is a loss; a seat still standing when that '
+      + 'player fell, or falling in the same round without felling them, decided nothing and records nothing. '
+      + 'There are no draws. Everything is read from what the player\'s own run witnessed; nothing is simulated '
+      + 'after it ends. Practice, the tutorial and a sandbox never record.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (Hall of Champions rework)', quote: 'if i win a game and it gets served 30 times and wins 19, it should show an overall record of 20-10. this should only be lobby mode wins, and it should be sorted by most wins' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (Hall of Champions rework)', quote: 'track the run that beat the player when they were knocked out … if i play a board that wins on turn 14 and it knocks a player out on turn 9, that board should probably get a win. subsequently, if that same board is served to a player and it comes in 3rd against the player on turn 13, my board should get a loss recorded' },
+      { kind: 'fix-pr', ref: 'Hall of Champions — packages/sim/src/lobby/runLobby.ts seatOutcomesOf, packages/ui/src/leaderboardData.ts hallRecordOf, packages/ui/src/Leaderboard.tsx, the seat_results table' },
+    ],
+    currentBehaviour:
+      'Conforms — 2026-09-22. Before this the Hall read a per-combat ledger filtered to round 17 (a course number '
+      + 'that no longer exists) and never knew a served run\'s result against anyone. A first cut played the table '
+      + 'out after the player\'s knockout to count lobby wins; the owner replaced it with this knockout rule, which '
+      + 'needs no simulation past the player\'s run and leaves the balance instrument\'s own play-out alone. The '
+      + 'seat ledger starts from zero; until the owner creates the table every Hall entry reads 1 and 0.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/lobby/seatOutcomes.test.ts', 'packages/ui/src/hallRecord.test.ts', 'packages/ui/src/seatLedger.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
     id: 'R-REPORT-01',
     title: 'The Balance Report reads one set, never a sandbox, and exports exactly what it shows',
     statement:

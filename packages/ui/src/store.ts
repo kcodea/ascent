@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroes, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroes, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, seatOutcomesOf } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -68,7 +68,7 @@ import { clearAllHandBuffs } from './handBuffFx';
 import { liveBoardView } from './instView';
 import { saveCapturedBoards, saveRunBoards } from './boardLibrary';
 import { perfMonitor } from './perfMonitor';
-import { fetchRankedProfile, remoteEnabled, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
+import { fetchRankedProfile, remoteEnabled, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, recordSeatResults, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
 import { initIdentity, currentIdentity } from './identity';
 import { notifyTutorialActions } from './tutorial/actionBus';
 import { gateBlocks, notifyGateNudge } from './tutorial/gateBus';
@@ -1396,6 +1396,15 @@ function commitResolvedAction(
           ? lobbySeat?.placement ?? next.lobby.seats.filter((seat) => seat.alive).length + 1
           : null;
         const lobbyWon = lobbyPlacement === 1;
+        // SEAT LEDGER (owner 2026-09-22): every RECORDED seat at this table — another player's run, replayed —
+        // with a result against THIS player gets one row: a win for the run that knocked the player out, a loss
+        // for every run knocked out while the player still stood. The Hall of Champions ranks runs by those
+        // wins plus their own victory. Nothing is simulated past the player's own run. The player's seat is not
+        // a row. Real lobbies only, never a sandbox or the tutorial (neither uploads anything).
+        if (next.mode === 'lobby' && !next.sandbox && next.lobby) {
+          const rows = seatOutcomesOf(next.lobby, `${__APP_VERSION__}+${__BUILD_SHA__}`);
+          if (rows.length > 0) void recordSeatResults(rows);
+        }
         // MEDAL RANK (2026-09-20): a RATED lobby's placement settles on the SERVER (`settle_rank`) — never
         // locally. The request goes into the durable pending queue first, then submits; `rankSubmission`
         // tells the post-game screen where it stands and the confirmed answer is adopted into `profile`.

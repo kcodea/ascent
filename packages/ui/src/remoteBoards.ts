@@ -14,8 +14,9 @@
  * seeds should still pin to the committed pool only (see docs/board-pool.md).
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { CONFIG, RANK_SEASON, initialRankedProfile, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource } from '@game/sim';
 import type { SetId } from '@game/content';
+import type { SeatResultRow } from '@game/sim';
+import { CONFIG, RANK_SEASON, initialRankedProfile, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, isRankPosition, type RankPosition } from '@game/sim';
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
 import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
 import { careerRunOf, joinTelemetry, type CareerRun, type RunHistoryRowLike, type TelemetryProbeRow } from './careerData';
@@ -209,7 +210,7 @@ export const supabaseAuthProvider: AuthProvider = {
 // handshake. Those uploads used to silently no-op and the run was lost. Now they QUEUE to localStorage and
 // replay when a session next establishes, tagged UNRATED (a run finished with no live session doesn't move the
 // ladder — see `uploadPlayerProfile`). Fire-and-forget throughout, like the rest of this seam.
-type QueueKind = 'boards' | 'victory' | 'telemetry' | 'profile' | 'history' | 'fight';
+type QueueKind = 'boards' | 'victory' | 'telemetry' | 'profile' | 'history' | 'fight' | 'seat';
 interface QueuedItem { kind: QueueKind; payload: unknown; at: string }
 const QUEUE_KEY = 'ascent.uploadqueue';
 const QUEUE_MAX = 100; // a hard cap so a long offline stretch can't grow localStorage without bound
@@ -252,6 +253,7 @@ export async function flushUploadQueue(): Promise<void> {
           case 'profile':   await uploadPlayerProfile({ ...(item.payload as Parameters<typeof uploadPlayerProfile>[0]), unrated: true }); break;
           case 'history':   await uploadRunHistory(item.payload as Parameters<typeof uploadRunHistory>[0]); break;
           case 'fight':     await recordFightResult(item.payload as Parameters<typeof recordFightResult>[0]); break;
+          case 'seat':      await recordSeatResults(item.payload as Parameters<typeof recordSeatResults>[0]); break;
         }
       } catch { /* best-effort — a failed item is dropped, matching every other write here */ }
     }
@@ -1373,6 +1375,117 @@ export async function recordFightResult(r: { boardId: string; round: number; out
     await c.from('board_results').insert([{ user_id: currentUserId(), board_id: r.boardId, round: r.round, outcome: r.outcome, patch: r.patch }]);
   } catch {
     /* best-effort — win-tracking must never disrupt play */
+  }
+}
+
+// ── Seat ledger (the Hall of Champions record) ─────────────────────────────────────────────────────────────
+// One row per RECORDED SEAT with a result against the reporting player: 'win' when that run knocked the player
+// out, 'loss' when it was knocked out while the player still stood (owner 2026-09-22: "track the run that beat
+// the player when they were knocked out … that board should probably get a win … my board should get a loss
+// recorded"). Built by `seatOutcomesOf` from what the player's own run witnessed — nothing is simulated after
+// it ends — and written once at run end; de-duplicated server-side on (lobby_seed, run_key) so a re-uploaded
+// run never counts a table twice. Same fire-and-forget / no-op-when-unconfigured contract as the rest of this
+// seam. The per-combat `board_results` ledger above is a different question (single fights) and still feeds
+// matchmaking weights.
+
+export async function recordSeatResults(rows: SeatResultRow[]): Promise<void> {
+  const c = client();
+  if (!c || rows.length === 0) return;
+  if (!currentUserId()) { enqueueUpload('seat', rows); return; }
+  try {
+    const uid = currentUserId();
+    await c.from('seat_results').upsert(
+      rows.map((r) => ({ user_id: uid, lobby_seed: r.lobbySeed, run_key: r.runKey, outcome: r.outcome, round: r.round, player_placement: r.playerPlacement, seats: r.seats, mode: r.mode, patch: r.patch })),
+      { onConflict: 'lobby_seed,run_key', ignoreDuplicates: true },
+    );
+  } catch {
+    /* best-effort — the Hall must never disrupt the end screen */
+  }
+}
+
+/** A recorded run's record against other players, aggregated from the seat ledger. */
+export interface SeatRecord {
+  /** Players it knocked out. */
+  wins: number;
+  /** Times it was knocked out while the player it was served to still stood. */
+  losses: number;
+  /** wins + losses — decided results, not every lobby it was served into (a seat still standing when the
+   *  player fell decided nothing). */
+  played: number;
+  /** ISO time of its most recent win, if it has one — the Hall prints "the last date it won a game". */
+  lastWinAt?: string;
+}
+
+/** PostgREST puts an `in(...)` list in the query string, and a run key is ~40 characters, so the Hall's whole
+ *  candidate pool in one call would build a URL right at the size servers start refusing. Chunked and merged. */
+const SEAT_CHUNK = 50;
+
+/** Aggregate the seat ledger for a set of run keys. Best-effort + time-boxed; an empty map on any failure / no
+ *  backend / a not-yet-migrated table — every run then reads as its own single victory, which is honest. */
+export async function fetchSeatRecords(runKeys: string[]): Promise<Map<string, SeatRecord>> {
+  const c = client();
+  if (!c || runKeys.length === 0) return new Map();
+  const chunks: string[][] = [];
+  for (let i = 0; i < runKeys.length; i += SEAT_CHUNK) chunks.push(runKeys.slice(i, i + SEAT_CHUNK));
+  try {
+    const request = Promise.all(chunks.map((keys) => Promise.resolve(
+      c.from('seat_results').select('run_key, outcome, created_at').in('run_key', keys).limit(FETCH_LIMIT * 5),
+    )));
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const results = await Promise.race([request, timeout]);
+    if (!results) return new Map();
+    return tallySeatRecords(results.flatMap((r) => (r.error || !r.data ? [] : (r.data as Array<{ run_key: string; outcome: string; created_at?: string | null }>))));
+  } catch {
+    return new Map();
+  }
+}
+
+/** Fold ledger rows into per-run records. Exported pure for the Hall tests. A row with any outcome other than
+ *  'win' / 'loss' is ignored rather than guessed at. */
+export function tallySeatRecords(rows: Array<{ run_key: string; outcome: string; created_at?: string | null }>): Map<string, SeatRecord> {
+  const map = new Map<string, SeatRecord>();
+  for (const row of rows) {
+    if (row.outcome !== 'win' && row.outcome !== 'loss') continue;
+    const rec = map.get(row.run_key) ?? { wins: 0, losses: 0, played: 0 };
+    if (row.outcome === 'win') {
+      rec.wins += 1;
+      if (row.created_at && (!rec.lastWinAt || row.created_at > rec.lastWinAt)) rec.lastWinAt = row.created_at;
+    } else rec.losses += 1;
+    rec.played += 1;
+    map.set(row.run_key, rec);
+  }
+  return map;
+}
+
+/** The rank a champion HELD when they won (owner 2026-09-22: "the rank that the player was from that snapshot,
+ *  aka Bronze II"), keyed by the run's seed. `settle_rank` stamps the rated result onto the run's career row
+ *  (`run_history.entry.rank`, the same shape as `RankResult`), so this reads that row by seed and returns the
+ *  position the game was played FROM (`before`). Absent for a run that was never rated (practice, pre-season-3,
+ *  or a row the server has not stamped). Best-effort + time-boxed like everything here. */
+export async function fetchHallRanks(seeds: number[]): Promise<Map<number, RankPosition>> {
+  const c = client();
+  if (!c || seeds.length === 0) return new Map();
+  const chunks: number[][] = [];
+  for (let i = 0; i < seeds.length; i += SEAT_CHUNK) chunks.push(seeds.slice(i, i + SEAT_CHUNK));
+  try {
+    const request = Promise.all(chunks.map((ids) => Promise.resolve(
+      c.from('run_history').select('entry').eq('mode', 'lobby').eq('placement', 1).in('entry->>seed', ids.map(String)).limit(FETCH_LIMIT),
+    )));
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const results = await Promise.race([request, timeout]);
+    if (!results) return new Map();
+    const map = new Map<number, RankPosition>();
+    for (const r of results) {
+      if (r.error || !r.data) continue;
+      for (const row of r.data as Array<{ entry: { seed?: unknown; rank?: { before?: unknown } } | null }>) {
+        const seed = Number(row.entry?.seed);
+        const before = row.entry?.rank?.before;
+        if (Number.isFinite(seed) && isRankPosition(before) && !map.has(seed)) map.set(seed, before);
+      }
+    }
+    return map;
+  } catch {
+    return new Map();
   }
 }
 

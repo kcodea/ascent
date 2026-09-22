@@ -193,10 +193,13 @@ const RUBY_DELIVER_OFFSET_MS = 120;
 const SHOP_RUBY_DELIVER_MS = 200;
 
 /** How long the body an Equipment's own effect buffed holds its pre-buff badge, measured from the moment that
- *  Equipment's use def starts (the `useDelayMs` the tuner owns is added on top). Set to the IMPACT beat of the
- *  owner's `spiritbinder` def — its shockwave layer's `at` — so the numbers move as the beam bites rather
- *  than when it launches. Only an Equipment flagged `useFxTargetsBuffed` reaches this. */
-const EQUIP_BUFF_LAND_MS = 90;
+ *  Equipment's use def starts (the `useDelayMs` the tuner owns is added on top). Set to CONTACT — the
+ *  `travelMs` of the owner's `spiritbinder` beam, the point at which the strand has finished growing from the
+ *  slot to the card — so the roll opens as the beam arrives rather than while it is still crossing. The
+ *  shockwave layer's earlier `at` (90ms) is a flare on the destination, not the arrival; opening the roll
+ *  there put the badge 110ms ahead of the strand and read as the numbers moving on their own (review
+ *  2026-09-22). Only an Equipment flagged `useFxTargetsBuffed` reaches this. */
+const EQUIP_BUFF_LAND_MS = 200;
 
 /** Delay between the cursor volley and each Edward Keg-hands echo of a buff-ale cast (owner-set 2026-08-12). */
 const SPELLCAST_EDWARD_ECHO_MS = 80;
@@ -4315,10 +4318,13 @@ export function Recruit() {
     // The pulse channel = shop SELF-buffs (a minion buffing itself — Ashscribe): `captureBuffFx` skips them (no
     // source→target pair for a tendril) so they land here rather than in `recruitBuffFx`. Played through the
     // bound self-buff def for the minion's card, via the SAME recruit cue runner rubyLanded/minionBuffed use.
-    // The GENERIC `self-buff-gold` default on `minionSelfBuffed` was REMOVED 2026-09-02 (owner ask), so this now
-    // plays NOTHING unless the card carries its own `minionSelfBuffed` override — the moment is still fired
-    // (kept as the hook for a replacement effect) and there is no generic fallback cue. One moment per
-    // self-buffer, keyed by its own card; only fires when defs can play. Fire-and-forget (no teardown collected).
+    // WHAT THIS PLAYS, checked against `choreo/bindings.json` on 2026-09-22: `kinds.minionSelfBuffed` still
+    // carries a GENERIC default — `self-buff-burst` — so every uid that reaches `burstable` DOES play something,
+    // whether or not its card has its own `minionSelfBuffed` override. (The comment that used to sit here said
+    // the 2026-09-02 owner ask had removed the default and that this fired nothing; that was wrong, and it is
+    // exactly the fact the `beamedNow` filter above depends on. Deleting that filter on the strength of the old
+    // comment would put a beam AND a burst on one press again.) One moment per self-buffer, keyed by its own
+    // card; only fires when defs can play. Fire-and-forget (no teardown collected).
     if (burstable.length > 0 && canPlayDefs()) {
       for (const uid of burstable) {
         const cardId = runRef.current.board.find((c) => c.uid === uid)?.cardId;

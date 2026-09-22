@@ -2503,6 +2503,14 @@ export function noteEquipmentFxBuff(state: RunState, uid: string, attack: number
  * ONE cue per ACTIVATION is the standing rule for repeats, so a multi-trigger fire (extra triggers, Amplified)
  * still gets ONE destination: the LAST body it picked, owing the total of that body's own gains this fire. The
  * earlier picks move their numbers without a beam, exactly as a three-trigger Bloodpot is one travel.
+ *
+ * WHAT THAT LOOKS LIKE, so nobody has to rediscover it (review 2026-09-22): with an extra trigger and three
+ * board Spirits, the LAST pick gets the beam and holds its badge to it, while an EARLIER pick falls through to
+ * `Recruit`'s generic self-buff burst and rolls its numbers immediately. Two fires therefore read as one beam
+ * plus one unrelated pulse rather than as two beams. Stamping one `use` cue per fire would read better, and is
+ * what the beat rule on repeats would prefer, but a `use` cue is also the slot's used-up presentation and its
+ * sound - N of them is N clicks and N used-up flourishes for one press. Left as one cue, deliberately, pending
+ * an owner call; the earlier picks are at least never silent.
  */
 export function buffedFxTarget(state: RunState, def: EquipmentDefinition, from: number): EquipUseFxTarget | undefined {
   if (!def.useFxTargetsBuffed) return undefined;

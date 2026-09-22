@@ -110,7 +110,8 @@ Caught in the browser, not by a test. Removing the `recruitBuffFx` capture (whic
 the board recipient into `Recruit.tsx`'s **self-buff pulse channel** — the `minionSelfBuffed` moment fired for
 any board minion that gained stats and is *not* a `recruitBuffFx` target. Its kind default in `bindings.json`
 is `self-buff-burst`, so one press played the beam **and** a burst on the same body. (The comment at that site
-saying the generic default was removed in 2026-09-02 is stale; the kind default is still there.)
+saying the generic default was removed in 2026-09-02 was stale; the default is still there, and the comment
+has since been corrected in place.)
 
 Fixed by excluding the body a `useFxTargetsBuffed` cue is landing on from `burstable`, alongside the existing
 `fxTargets` and `weldedNow` exclusions. Deliberately narrow: an *aimed* Equipment's behaviour on this channel
@@ -131,3 +132,25 @@ One measurement note for whoever repeats this: the Browser pane throttles `reque
 frame per 500 ms when it is not painting, so a polled read of the badge shows the hold sitting still and then
 snapping at `HOLD_TTL_MS` (1200 ms). That is the failsafe, not the hold's schedule. Interleaving screenshots
 forces real frames and the 90 ms + 420 ms roll appears as designed.
+
+## Review pass, same day
+
+Four review findings, all minor. Three applied:
+
+- **The roll opened before the beam arrived.** `EQUIP_BUFF_LAND_MS` was 90, the shockwave layer's `at`. The
+  beam layer's `travelMs` is 200, so the badge started moving 110 ms before the strand reached the card, which
+  is the opposite of the ask. Now 200: the roll opens on contact.
+- **The stale binding comment was corrected**, not just noted. It claimed `minionSelfBuffed` has no generic
+  default, which is the exact fact the new `beamedNow` filter depends on being false. A reader trusting it
+  would have deleted the filter and brought the beam-plus-burst double back.
+- **`spiritbinderBeamGuard.test.ts`** pins the three things CI could not see: the `beamedNow` exclusion still
+  narrows `burstable`, the no-target guard still gates the def, and `EQUIP_BUFF_LAND_MS` still equals the
+  def's own `travelMs`. Source-level, the same technique `rubyStatHoldGuard.test.ts` uses, for the same reason
+  (no render harness for `Recruit`). Sabotage-checked both ways. If the owner retunes the beam's `travelMs`,
+  that last case fails and names the constant to re-sync, which is the point.
+
+One declined, and written down at `buffedFxTarget` instead: on a multi-trigger or Amplified activation the
+earlier board pick plays the generic self-buff burst while the last pick gets the beam, so two fires read as
+one beam plus one unrelated pulse. One `use` cue per fire would read better, but a `use` cue also carries the
+slot's used-up flourish and its sound, so N cues is N clicks for one press. Left as one cue pending an owner
+call; the earlier picks are never silent, only unbeamed.

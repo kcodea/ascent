@@ -3565,7 +3565,8 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
    one-shot `stepbump` are inherited, so nothing here repaints per frame. */
 .hpwrap .hpb-tally.boosted { color: #8ff0a4; }
 /* AMPLIFIED (owner design 2026-09-16): the Equipment's next activation triggers twice — the charge reads BLUE.
-   Colour only (no per-frame paint); the owner's authored cue will bind on `[data-fx="equipment-amplified"]`. */
+   Colour only (no per-frame paint). The owner's authored cue is a Pixi loop on the slot button, not CSS
+   (`useAmplifiedSlotFx`, 2026-09-22); `[data-fx="equipment-amplified"]` on the tally stays as the tooling mark. */
 .hpwrap .hpb-tally.amplified { color: #7fc4ff; }
 .equipslot .hplabel {
   transform: translate(calc(var(--eqn-x, 0) * 1px), calc(var(--eqn-y, 0) * 1px)) scale(var(--eqn-scale, 1)); }

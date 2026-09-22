@@ -52,6 +52,14 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Amplified glow and Comet',
+    changes: [
+      { category: 'Systems', text: 'An Amplified Equipment now glows on its slot while it has a charge to spend. The glow stops when you use it or switch to an Equipment that is not Amplified.' },
+      { category: 'Systems', text: 'Comet plays its own effect when you use it.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'The lasso',
     changes: [
       { category: 'Systems', text: "Stealing a minion from the Shop now throws a lasso: the beam snaps out from the spell, from Rope Wrangler, or from the equipment slot, and the card comes to hand when it lands. Several steals cascade one after another." },

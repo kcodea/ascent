@@ -1747,4 +1747,32 @@ export const APPROVED_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-22',
     },
   },
+  {
+    id: 'R-PRESENT-02',
+    title: 'The Amplified glow plays only on a selected Equipment that can fire',
+    statement:
+      'The Equipment slot carries the Amplified cue (the owner\'s looping `amplified-slot` def) only while the '
+      + 'SELECTED Equipment will Amplify its next activation AND has at least one charge to spend, in the shop '
+      + 'phase. An Amplified Equipment with zero charges shows no glow; an unselected Amplified Equipment shows '
+      + 'none until it is picked; the glow ends the moment any of that stops being true (the activation that spends '
+      + 'the stack or the charge, a swap to an unamplified Equipment, the turn ending, the phase leaving the shop, '
+      + 'the slot going away) and is never left running unseen (a hidden tab, a board-covering overlay, unmount). '
+      + 'The cue decorates state the reducer already resolved; it never decides anything.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (the amplified effect)', quote: 'it should only play when a usable equipment is equipped/selected. if an equipment has 0 charges it should not show the animation.' },
+      { kind: 'code', ref: 'packages/ui/src/useAmplifiedSlotFx.ts (one loop, caller-owned teardown); packages/ui/src/StatusBar.tsx (the condition: hasEquip && equipmentWillAmplify && equipmentUsesLeft > 0 && phase recruit && no covering overlay)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22 (the day the cue shipped). The condition is derived from the same `run.equipment` '
+      + 'reads that paint the charge number blue (`equipmentWillAmplify`) and print it (`equipmentUsesLeft`), so '
+      + 'the glow and the number cannot disagree. The phase gate is load-bearing: End of Turn hands every own '
+      + 'charge back in the same action that starts combat, and the bar stays mounted through the fight.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/useAmplifiedSlotFx.test.tsx'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
 ];

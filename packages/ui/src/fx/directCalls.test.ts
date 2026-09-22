@@ -150,7 +150,11 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // 'board-wipe' left on 2026-08-29: the curtain moved above the FX canvas and the streak call was retired.
       // 'shop-buff-aura' left on 2026-09-02: the mid-combat Shop-buff bloom was removed (owner ask: every stock
       // buff cue is being replaced by an authored pixi effect); the number float carries the read now.
-      'ale-bubbles', 'auctioneer-hp', 'choose-one-both', 'cia-hp', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
+      'ale-bubbles',
+      // 'amplified-slot' joined on 2026-09-22: the owner-authored Amplified glow, a looping play on the Equipment slot
+      // button from `useAmplifiedSlotFx.ts` while the selected Equipment will Amplify and has a charge to spend.
+      'amplified-slot',
+      'auctioneer-hp', 'choose-one-both', 'cia-hp', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
       // 'dice-land' joined on 2026-09-17: the landing burst of the shared 3D die (`DiceRoll.tsx`), fired at the anchor.
       'dice-land',
       // 'down-rank' joined on 2026-09-21: the owner-authored demotion hit on the post-game rank screen (`rank/rankTimeline.ts`),

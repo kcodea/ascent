@@ -62,6 +62,14 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-22',
+    label: 'Equipment effects',
+    changes: [
+      { category: 'Systems', text: 'Stellar Lens and Revelmaker now play their own effect when you use them.' },
+      { category: 'Systems', text: 'The Equipment tooltip no longer stacks keyword definitions under the rule. Hover any card that carries the keyword to read it.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Live numbers in combat',
     changes: [
       {

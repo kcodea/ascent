@@ -41,6 +41,11 @@ export interface CareerRun {
   /** Actions per round as stamped at run end (player decisions / rounds). Null on entries before it existed. */
   apt: number | null;
   ratingDelta: number | null;
+  /** The player's MMR AFTER this run settled — the rank scalar (100 × division index + points), the same number
+   *  the Seasonal Ranked crest prints. Stamped onto the history row server-side by `settle_rank`; null when the
+   *  run was never rated (practice, no account, a pre-season row, a stamp that missed the row). A real 0 (the
+   *  Bronze I floor) is a rating; only a MISSING value is null — never coerced to 0. */
+  ratingAfter: number | null;
   seed: number | null;
   dominantTribe: Tribe | null;
   mode: string | null;
@@ -74,7 +79,7 @@ export interface RunHistoryRowLike {
   entry?: unknown;
   /** Light-select aliases (`x:entry->>x`) — PostgREST returns `->>` scalars as TEXT, so these are parsed. */
   losses?: unknown; draws?: unknown; apt?: unknown; seed?: unknown; gold_spent?: unknown;
-  rating_delta?: unknown; at?: unknown; dominant_tribe?: unknown;
+  rating_delta?: unknown; rating_after?: unknown; at?: unknown; dominant_tribe?: unknown;
 }
 
 /** One `run_telemetry` row as the LIGHT probe projects it — scalars only, never the replay payload. */
@@ -132,6 +137,9 @@ export function careerRunOf(row: RunHistoryRowLike): CareerRun {
     goldSpent: num(e.goldSpent) ?? num(row.gold_spent),
     apt: num(e.apt) ?? num(row.apt),
     ratingDelta: num(e.ratingDelta) ?? num(row.rating_delta),
+    // The server's settle stamp (`->>` hands it back as text on a light row): "0" reads as a real 0; a row the
+    // stamp never reached has no key at all → null, never 0.
+    ratingAfter: num(e.ratingAfter) ?? num(row.rating_after),
     seed: num(e.seed) ?? num(row.seed),
     dominantTribe: tribeOf(e.dominantTribe) ?? tribeOf(row.dominant_tribe),
     mode: str(e.mode) ?? str(row.mode),
@@ -391,18 +399,33 @@ export function heroCareers(runs: readonly CareerRun[]): HeroCareer[] {
 
 // ── Performance trends ──────────────────────────────────────────────────────────────────────────────────
 
-export type TrendWindow = 7 | 30 | 90;
-export const TREND_WINDOWS: readonly TrendWindow[] = [7, 30, 90];
+/** The window a trend reads: the last N days, or `'all'` — no lower bound at all (owner ask 2026-09-22: "an
+ *  'All time' tab so there is 7/30/90 days and all time"). `'all'` is handled by NAME, never as a large day
+ *  count, so the bound is genuinely absent rather than approximately so. All time still only sees the runs the
+ *  page hands in — the newest `FETCH_LIMIT` (1000) rows it fetched. */
+export type TrendWindow = 7 | 30 | 90 | 'all';
+export const TREND_WINDOWS: readonly TrendWindow[] = [7, 30, 90, 'all'];
+
+/** The window's tab label: "7d" / "30d" / "90d" / "All time". */
+export function trendWindowLabel(w: TrendWindow): string {
+  return w === 'all' ? 'All time' : `${w}d`;
+}
 
 export interface TrendPoint { atMs: number; y: number }
 export interface TrendSeries {
-  /** One point per run in the window that has the value, oldest first. Every series is SMOOTHED (owner
-   *  2026-09-20): a point's y is the RUNNING figure through the window up to and including that run — it
-   *  starts at the first run's own value and converges on `avg`, the headline — so the line shows how the
-   *  window's number moved rather than a per-run saw-tooth. */
+  /** One point per run in the window that has the value, oldest first. The three RATE series (placement, win
+   *  rate, APM) are SMOOTHED (owner 2026-09-20): a point's y is the RUNNING figure through the window up to and
+   *  including that run — it starts at the first run's own value and converges on `avg`, the headline — so the
+   *  line shows how the window's number moved rather than a per-run saw-tooth.
+   *  The MMR series is the ONE exception and is plotted RAW — each point is the actual rating after that run.
+   *  A rating is already a STATE (the ladder position the player held), not a rate to be averaged: a running
+   *  mean of it would draw a number no player ever held and would smooth a season reset into a slope. Do not
+   *  "fix" it back into `runningSeries`. */
   points: TrendPoint[];
-  /** The headline: the window's EXACT figure over every contributing run — the mean placement / APM to one
-   *  decimal, or the overall match win rate as a whole percent. Equals the last point's y. Null with no points. */
+  /** The headline. Rate series: the window's EXACT figure over every contributing run — the mean placement /
+   *  APM to one decimal, or the overall match win rate as a whole percent. MMR: the LATEST point's rating (the
+   *  player's MMR at the end of the window), a whole number. Always equals the last point's y. Null with no
+   *  points. */
   avg: number | null;
 }
 export interface TrendSet {
@@ -415,6 +438,12 @@ export interface TrendSet {
   /** y = the running mean actions-per-minute to one decimal — `apmOf` per run (needs the entry's APT AND a
    *  telemetry clock; runs without are skipped); `avg` = the window's mean APM. */
   apm: TrendSeries;
+  /** y = the player's MMR AFTER each rated run (`ratingAfter` — the rank scalar the Seasonal Ranked crest
+   *  prints), RAW, never a running mean (owner ask 2026-09-22: "an 'MMR' line graph that tracks mmr over
+   *  time"); `avg` = the latest point's MMR. A run with no rating after settle (practice, unrated, a stamp that
+   *  missed) contributes no point — never a 0; a real 0 (the Bronze I floor) does. A season reset inside the
+   *  window is a real drop and is drawn as one. */
+  mmr: TrendSeries;
 }
 
 /** Fold per-run values (oldest first) into the running-mean series; `avg` is the exact mean of all of them.
@@ -429,25 +458,55 @@ function runningSeries(values: readonly { atMs: number; v: number }[], decimals:
   return { points, avg: points.length ? points[points.length - 1]!.y : null };
 }
 
-/** The three trend series over the runs that ended within the last `days` days of `nowMs`, oldest first — each
- *  a running mean (see `TrendSeries`). A run with no usable end time is outside every window. Pure. */
-export function trendSeries(runs: readonly CareerRun[], days: TrendWindow, nowMs: number): TrendSet {
-  const since = nowMs - days * 86_400_000;
+/** The per-run values exactly as they are (oldest first) — the MMR line; `avg` is the LAST value, the latest
+ *  state. Deliberately not `runningSeries`: see `TrendSeries`. */
+function rawSeries(values: readonly { atMs: number; v: number }[]): TrendSeries {
+  const points: TrendPoint[] = values.map(({ atMs, v }) => ({ atMs, y: v }));
+  return { points, avg: points.length ? points[points.length - 1]!.y : null };
+}
+
+/** The four trend series over the runs that ended within the window — the last `window_` days of `nowMs`, or
+ *  every dated run handed in for `'all'` — oldest first: the three rates as running means, MMR raw (see
+ *  `TrendSeries`). A run with no usable end time is outside every window, All time included. Pure. */
+export function trendSeries(runs: readonly CareerRun[], window_: TrendWindow, nowMs: number): TrendSet {
+  // All time = NO lower bound: an explicit branch, not a day count that only approximates "ever".
+  const since = window_ === 'all' ? null : nowMs - window_ * 86_400_000;
   const inWindow = runs
-    .filter((r) => Number.isFinite(r.atMs) && r.atMs >= since && r.atMs <= nowMs + 60_000)
+    .filter((r) => Number.isFinite(r.atMs) && (since === null || r.atMs >= since) && r.atMs <= nowMs + 60_000)
     .slice()
     .sort((a, b) => a.atMs - b.atMs);
   const placement: { atMs: number; v: number }[] = [];
   const wins: { atMs: number; v: number }[] = [];
   const apm: { atMs: number; v: number }[] = [];
+  const mmr: { atMs: number; v: number }[] = [];
   for (const r of inWindow) {
     if (r.placement !== null) placement.push({ atMs: r.atMs, v: r.placement });
     const won = isMatchWin(r.placement);
     if (won !== null) wins.push({ atMs: r.atMs, v: won ? 100 : 0 }); // the running mean of 0/100 IS the win rate %
     const a = apmOf(r);
     if (a !== null) apm.push({ atMs: r.atMs, v: a });
+    // `!== null`, never truthiness: a real 0 (the Bronze I floor) is a rating and plots; only a missing one is skipped.
+    if (r.ratingAfter !== null) mmr.push({ atMs: r.atMs, v: Math.round(r.ratingAfter) });
   }
-  return { placement: runningSeries(placement, 1), winRate: runningSeries(wins, 0), apm: runningSeries(apm, 1) };
+  return { placement: runningSeries(placement, 1), winRate: runningSeries(wins, 0), apm: runningSeries(apm, 1), mmr: rawSeries(mmr) };
+}
+
+/** The MMR chart's axis: the window's ratings snapped OUT to the ladder's 100-point divisions — from the
+ *  division floor strictly below the lowest rating (clamped at 0) to the division ceiling strictly above the
+ *  highest — so the box is always a whole number of divisions tall and at least one. Why not 0-based like APM:
+ *  a rating is a ladder POSITION, and the divisions are its natural grid — a Diamond player's 1,200s would be a
+ *  flat line at the top of a 0-based box, while here they read within 1100–1300 with the middle grid line on a
+ *  promotion gate. Why not bare min..max: the Bronze I floor rows (0 → 0 → 0) would degenerate and a 40 → 46
+ *  wobble would inflate to full height; snapped to divisions they sit low in a 0–100 box, as they should. A
+ *  rating exactly on a gate (a fresh promotion, 0/100) never sits on a box edge. A season reset inside the
+ *  window widens the box down to 0 and the line simply drops. Empty → 0–100. */
+export function mmrAxisOf(series: TrendSeries): { yMin: number; yMax: number } {
+  if (series.points.length === 0) return { yMin: 0, yMax: 100 };
+  let lo = Infinity, hi = -Infinity;
+  for (const p of series.points) { lo = Math.min(lo, p.y); hi = Math.max(hi, p.y); }
+  const yMin = Math.max(0, Math.floor((lo - 1) / 100) * 100);
+  const yMax = Math.max(yMin + 100, Math.ceil((hi + 1) / 100) * 100);
+  return { yMin, yMax };
 }
 
 /** Points → an SVG polyline `points` attribute inside a `w`×`h` box with `pad` px of margin. `yMin`/`yMax`

@@ -1299,8 +1299,10 @@ export async function fetchRunHistory<T>(limit = 50, forUserId?: string): Promis
 export const CAREER_DETAIL_ROWS = 25;
 
 /** The light `run_history` select — every scalar the trends + left-column tiles need, projected out of the
- *  `entry` jsonb server-side so a 100-row pull stays a few KB instead of shipping 100 boards. */
-const CAREER_LIGHT_SELECT = 'id, created_at, hero_id, wave, wins, placement, mode, losses:entry->>losses, draws:entry->>draws, apt:entry->>apt, seed:entry->>seed, gold_spent:entry->>goldSpent, rating_delta:entry->>ratingDelta, at:entry->>at, dominant_tribe:entry->>dominantTribe';
+ *  `entry` jsonb server-side so a 100-row pull stays a few KB instead of shipping 100 boards. `rating_after` is
+ *  the MMR after settle that `settle_rank` stamps onto the row (the MMR trend); a row the stamp never reached
+ *  simply projects NULL for it — a JSON path to a missing key is never an error. */
+const CAREER_LIGHT_SELECT = 'id, created_at, hero_id, wave, wins, placement, mode, losses:entry->>losses, draws:entry->>draws, apt:entry->>apt, seed:entry->>seed, gold_spent:entry->>goldSpent, rating_delta:entry->>ratingDelta, rating_after:entry->>ratingAfter, at:entry->>at, dominant_tribe:entry->>dominantTribe';
 
 /** The light `run_telemetry` probe: the row id (the Watch handle), the seed (the join), the v2 stamp (the
  *  watchability gate) and the first/last frame clocks (the run length). PostgREST resolves `frames->-1` as

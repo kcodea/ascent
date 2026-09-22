@@ -251,14 +251,99 @@ describe('board-and-hand recipients', () => {
     expect(stats(inHand(s, 'w')), 'non-Spirit in hand').toEqual([1, 1]);
   });
 
-  it('Spiritbinder records a buff-FX event from the Shaman to the board Spirit it buffed (the generic tendril); an Equipment with its own use-def records none', () => {
-    let s = run({ board: [body('x', 'sp3_kindled')], hand: [body('bw', 'sp3_bondweaver')], embers: 10 });
+  /*
+   * THE SPIRITBINDER BEAM (owner ask 2026-09-22: *"It should target the board minion, but the minion in hand
+   * should still get the generic hand buffed effect that it currently has."*)
+   *
+   * Spiritbinder now carries an authored `useFxId` (the owner's `spiritbinder` beam) plus `useFxTargetsBuffed`,
+   * so it takes the reducer's `fire()` branch instead of `captureBuffFx` and its destination rides the `use`
+   * cue. The generic buff-FX tendril it used to record (asserted here until 2026-09-22) is GONE ON PURPOSE:
+   * one press must produce one cue, not a beam and a ribbon (owner ruling 2026-08-11).
+   *
+   * The HAND recipient is untouched by all of this. Its pop is `handBuffFx`, a pure render diff over the hand
+   * views, which reads no FX signal from the sim — so the only thing these tests can and must pin on the sim
+   * side is that the hand Spirit still GAINS, which is what the diff fires on.
+   */
+  const spiritbinderCues = (s: RunState) => (s.equipFx ?? []).filter((f) => f.kind === 'use' && f.equipmentId === 'spiritbringer');
+
+  it('Spiritbinder stamps ONE use cue carrying the board recipient and its gain, and records no generic tendril (owner 2026-09-22)', () => {
+    let s = run({ board: [body('x', 'sp3_kindled')], hand: [body('bw', 'sp3_bondweaver'), body('h', 'sp3_nurturer')], embers: 10 });
+    s = play(s, 'bw');
+    const handBefore = stats(inHand(s, 'h'));
+    s = reduce(s, { type: 'activateEquipment' } as Action);
+    const cues = spiritbinderCues(s);
+    expect(cues, 'one cue per activation').toHaveLength(1);
+    const cue = cues[0]!;
+    expect(cue.uid, 'the source is the granting body').toBe('bw');
+    expect(['x', 'bw'], 'the destination is a board Spirit').toContain(cue.targetUid);
+    expect([cue.buffAttack, cue.buffHealth], 'the beam owes exactly what this fire added').toEqual([6, 6]);
+    const got = at(s, cue.targetUid!);
+    expect(stats(got), 'the body the beam names is the body that grew').toEqual([
+      CARD_INDEX[got.cardId]!.attack + 6, CARD_INDEX[got.cardId]!.health + 6,
+    ]);
+    expect((s.recruitBuffFx ?? []).filter((e) => e.targetUid === cue.targetUid), 'no second cue for one press').toHaveLength(0);
+    expect(stats(inHand(s, 'h')), 'the hand Spirit still gains, which is what the hand-buff render diff fires on')
+      .toEqual([handBefore[0] + 6, handBefore[1] + 6]);
+  });
+
+  it('Spiritbinder with NO Spirit on the board stamps no destination (so: no beam) and still buffs the hand', () => {
+    let s = run({ board: [body('v', 'stray')], hand: [body('bw', 'sp3_bondweaver'), body('h', 'sp3_nurturer')], embers: 10 });
+    s = play(s, 'bw', 1);
+    s = reduce(s, { type: 'sell', uid: 'bw' } as Action); // the grant outlives its source, so the board holds no Spirit
+    expect(s.board.some((c) => c.cardId === 'sp3_bondweaver')).toBe(false);
+    s = reduce(s, { type: 'activateEquipment' } as Action);
+    const cue = spiritbinderCues(s).at(-1)!;
+    expect(cue.targetUid, 'nothing to fly at').toBeUndefined();
+    expect(cue.buffAttack, 'and nothing to hold').toBeUndefined();
+    expect(stats(inHand(s, 'h')), 'the hand recipient is unaffected by the board being empty').toEqual([2 + 6, 6 + 6]);
+    expect(stats(at(s, 'v')), 'the non-Spirit is never a fallback target').toEqual([1, 1]);
+  });
+
+  it('Spiritbinder with NO Spirit in hand still beams the board recipient', () => {
+    let s = run({ board: [body('x', 'sp3_kindled')], hand: [body('bw', 'sp3_bondweaver'), body('w', 'stray')], embers: 10 });
     s = play(s, 'bw');
     s = reduce(s, { type: 'activateEquipment' } as Action);
-    const ev = (s.recruitBuffFx ?? []).filter((e) => e.targetUid === 'x' || e.targetUid === 'bw');
-    expect(ev, 'one event for the one board Spirit that gained (the Shaman or the Kindled — a random draw)').toHaveLength(1);
-    expect(ev[0]).toMatchObject({ sourceUid: 'bw', sourceCardId: 'sp3_bondweaver', sourceTribe: 'spirit', kind: 'minion', attack: 6, health: 6 });
-    // Bloodpot has an authored `useFxId`: its own def is the cue, so the capture is skipped (no double).
+    const cue = spiritbinderCues(s).at(-1)!;
+    expect(cue.targetUid).toBeDefined();
+    expect([cue.buffAttack, cue.buffHealth]).toEqual([6, 6]);
+    expect(stats(inHand(s, 'w')), 'the non-Spirit in hand is never a recipient').toEqual([1, 1]);
+  });
+
+  it('Spiritbinder can pick the granting body itself, and the beam still leaves the SLOT, so a self-draw needs no special case', () => {
+    // The Shaman is the ONLY Spirit on the board, so the draw is forced onto the source.
+    let s = run({ board: [body('v', 'stray')], hand: [body('bw', 'sp3_bondweaver')], embers: 10 });
+    s = play(s, 'bw');
+    s = reduce(s, { type: 'activateEquipment' } as Action);
+    const cue = spiritbinderCues(s).at(-1)!;
+    expect(cue.targetUid, 'the source is an eligible recipient').toBe('bw');
+    expect(cue.uid, 'source and destination are the same body; the def flies slot to body either way').toBe('bw');
+    expect([cue.buffAttack, cue.buffHealth]).toEqual([6, 6]);
+  });
+
+  it('a GILDED Spiritbinder beams the same single board recipient, owing +12/+12', () => {
+    let s = run({ board: [body('x', 'sp3_kindled')], hand: [body('bw', 'sp3_bondweaver', { golden: true }), body('h', 'sp3_nurturer')], embers: 10 });
+    s = play(s, 'bw');
+    s = reduce(s, { type: 'activateEquipment' } as Action);
+    const cue = spiritbinderCues(s).at(-1)!;
+    expect([cue.buffAttack, cue.buffHealth]).toEqual([12, 12]);
+    expect(stats(inHand(s, 'h')), 'still exactly one hand recipient').toEqual([2 + 12, 6 + 12]);
+  });
+
+  it('several activations in one turn stamp one cue each, and each cue names its own recipient', () => {
+    let s = run({ board: [body('x', 'sp3_kindled')], hand: [body('bw', 'sp3_bondweaver')], embers: 30 });
+    s = play(s, 'bw');
+    s = reduce(s, { type: 'activateEquipment' } as Action);
+    const first = spiritbinderCues(s);
+    expect(first, 'one per press').toHaveLength(1);
+    expect(['x', 'bw']).toContain(first[0]!.targetUid);
+    s = reduce(s, { type: 'activateEquipment' } as Action);
+    const second = spiritbinderCues(s);
+    expect(second, 'the cue list is per ACTION, so the second press stamps its own').toHaveLength(1);
+    expect(['x', 'bw'], 'and names a board Spirit of its own draw').toContain(second[0]!.targetUid);
+    expect([second[0]!.buffAttack, second[0]!.buffHealth]).toEqual([6, 6]);
+  });
+
+  it('an Equipment with its own use-def records no generic tendril (Bloodpot, unchanged)', () => {
     let b = run({ board: [body('t', 'stray')], hand: [body('c', 'e3_frank')], embers: 10 });
     b = play(b, 'c');
     expect(equipmentState(b).available.map((g) => g.equipmentId)).toContain('bloodpot');
@@ -267,6 +352,9 @@ describe('board-and-hand recipients', () => {
     b = reduce(b, { type: 'activateEquipment', targetUid: 't' } as Action);
     expect(stats(at(b, 't')), 'the Bloodpot did land').not.toEqual(before);
     expect((b.recruitBuffFx ?? []).filter((e) => e.targetUid === 't')).toHaveLength(0);
+    const cue = (b.equipFx ?? []).find((f) => f.kind === 'use' && f.equipmentId === 'bloodpot')!;
+    expect(cue.targetUid, 'an AIMED Equipment still names what it was cast on').toBe('t');
+    expect(cue.buffAttack, 'and carries no hold: it is not `useFxTargetsBuffed`').toBeUndefined();
   });
 
   it('Spiritbinder ignores a targetUid — it can no longer be aimed at a non-Spirit', () => {

@@ -20,7 +20,7 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale } from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTarget, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale } from './recruit';
 import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
@@ -1397,6 +1397,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   s.gainAttackFiredUids = []; // per-action: Attack gains already dispatched inside the action (per-card EoT waves)
   s.starformGainFired = undefined; // per-action: Starform growth already dispatched as `starformGained` (see the diff in `reduce`)
   s.equipmentSpellCasts = []; // per-action: spells an Equipment activation cast (the Keg's Ale) — for the use cue
+  s.equipmentFxBuffed = []; // per-action: board bodies an Equipment's effect buffed — the use cue's destination
 
   switch (action.type) {
     case 'buy': {
@@ -2400,7 +2401,9 @@ function reduceCore(state: RunState, action: Action): RunState {
           const fired = fireEquipmentFree(s, eq, version, body, body.uid);
           if (fired) {
             procRuneId(s, 'rune_dismantling');
-            stampEquipFx(s, { kind: 'use', uid: body.uid, cardId: body.cardId, equipmentId: eq.id, ...(fired.targetUid ? { targetUid: fired.targetUid } : {}) });
+            // `fireEquipmentFree` returns exactly the cue fields its fire earned (the aimed body, or the board
+            // body a `useFxTargetsBuffed` effect chose, with its gain), so it spreads straight on.
+            stampEquipFx(s, { kind: 'use', uid: body.uid, cardId: body.cardId, equipmentId: eq.id, ...fired });
           }
         }
       }
@@ -2635,6 +2638,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // def (Bloodpot, Titan Hammer, …) already draws the moment, and a tendril on top would be two cues for one
       // press. A stand-in source (the granter was sold) is not a living minion → the descend plays instead.
       let fired = true;
+      const fxMark = equipmentFxMark(s);
       const fire = (): void => { fired = fireEquipmentTriggers(s, fireDef, granted.version, fireSelf, target, triggers, action.clockSeconds); };
       if (fireDef.useFxId) fire();
       else captureBuffFx(s, src, src ? 'minion' : 'spell', fire);
@@ -2644,6 +2648,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       stampEquipFx(s, {
         kind: 'use', uid: self.uid, cardId: self.cardId, equipmentId: def.id,
         ...(target ? { targetUid: target.uid } : {}),
+        // An untargeted Equipment whose own effect picks a BOARD body (Spiritbinder) aims its def there instead
+        // of at the slot, and carries the gain so the UI can hold the numbers until the def lands. Absent when
+        // it picked none, which is what tells the UI to play nothing at all.
+        ...buffedFxTarget(s, fireDef, fxMark),
         ...(s.equipmentSpellCasts?.length ? { spellIds: [...s.equipmentSpellCasts] } : {}),
       });
       // `equipmentActivated` watchers (Rig, set 3 Neutrals 2026-09-18): the player USED an Equipment — once per
@@ -2666,7 +2674,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             const src = s.board.find((c) => g.sourceUids.includes(c.uid));
             const selfAgain: BoardCard = src ?? { uid: `eq:${d.id}`, cardId: d.id, tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false };
             const fired = fireEquipmentFree(s, d, g.version, selfAgain);
-            if (fired) stampEquipFx(s, { kind: 'use', uid: selfAgain.uid, cardId: selfAgain.cardId, equipmentId: d.id, ...(fired.targetUid ? { targetUid: fired.targetUid } : {}) });
+            if (fired) stampEquipFx(s, { kind: 'use', uid: selfAgain.uid, cardId: selfAgain.cardId, equipmentId: d.id, ...fired });
           }
         }
       }

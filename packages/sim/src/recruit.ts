@@ -10346,6 +10346,45 @@ export function applyBattlecryTarget(state: RunState, card: BoardCard, target: B
  * fired — the hero charge is only spent when it did.
  */
 /**
+ * Restore a Displacement-held minion out of its tavern offer: the SAME body that went in (every buff / stat /
+ * progression intact) PLUS whatever the offer accrued while it sat in the Shop — Veinstorm's Rubies, Fortify,
+ * Fried Circuits, a rune's shop enchant, a keyword a Shop spell added. Shared by BOTH restore paths (the re-buy
+ * in the reducer and the swap-back in `swapWithTavern`) so they can never disagree.
+ *
+ * Owner bug report 2026-09-21: "I swapped Chimerus to the Shop (Darah) and used Veinstorm and it did not buff
+ * it." Veinstorm DID stamp the held offer (`addOfferBuff` writes `offer.atk`/`hp`/`buffs` like any other offer),
+ * but both restore paths rebuilt the body from `held` verbatim and never read the offer's buffs — the
+ * 2026-07-29 fix had patched only `golden` on this path, so every other offer-level buff was silently
+ * dropped. The accrued buffs now land through `addBuff` under their OWN source names, exactly as the normal buy
+ * bakes them, so a Ruby stays a Ruby (stealable by Ruby Transfer, counted by every Ruby reader) and the
+ * inspect breakdown names the source. A held offer's `atk`/`hp` are ONLY ever the accrued Shop buffs (never
+ * seeded from the held body — see the offer build in `swapWithTavern`), so adding them here cannot double-count.
+ *
+ * Deliberately NO `applyOnBuy` and none of the run-wide buy channels (Staff of Guel, tribe buy-auras): this is
+ * a restoration, not a fresh purchase, so Broker & co. don't re-bake. The Golden Touch re-gild stays.
+ */
+export function restoreHeldOffer(state: RunState, offer: ShopCard): BoardCard {
+  const held = offer.held!;
+  // Deep-copy the mutable arrays (and the buff ledger's entries — `addBuff` bumps them in place) so the restored
+  // minion never SHARES `keywords`/`buffs` with anything (a shared array + an in-place weld/buff would leak onto
+  // the alias — the Bounty Bot Ward bug).
+  const restored: BoardCard = {
+    ...held,
+    uid: `b${state.uidSeq++}`,
+    keywords: [...held.keywords, ...(offer.keywords ?? []).filter((k) => !held.keywords.includes(k))],
+    buffs: held.buffs ? held.buffs.map((b) => ({ ...b })) : undefined,
+  };
+  // The offer's accrued Shop buffs bake in under their REAL source names (the same fold as the normal buy);
+  // a legacy offer with `atk`/`hp` but no breakdown lands under the generic label.
+  if (offer.buffs?.length) for (const b of offer.buffs) addBuff(restored, b.source, b.attack, b.health, b.count);
+  else addBuff(restored, 'Tavern buff', offer.atk ?? 0, offer.hp ?? 0);
+  // A HELD offer that was GILDED in the tavern must come back golden (owner bug report 2026-07-29: Golden
+  // Touch appeared to do nothing on a displaced minion). Gild AFTER the buffs so the doubling stays base-only.
+  if (offer.golden && !restored.golden) gildMinion(restored);
+  return restored;
+}
+
+/**
  * Swap a friendly board minion with a RANDOM tavern offer (shared by the Displacement spell + Darah's
  * Displace power). The displaced minion goes to the tavern KEEPING all its state (buffs / stats / progression),
  * stashed on the offer's `held` and restored intact when re-bought or swapped back. The incoming tavern minion
@@ -10369,9 +10408,10 @@ export function swapWithTavern(state: RunState, boardMinion: BoardCard): boolean
   if (!def) return false;
   let incoming: BoardCard;
   if (offer.held) {
-    // Deep-copy the mutable arrays so the restored minion never SHARES `keywords`/`buffs` with anything (a
-    // shared array + an in-place weld/buff would leak onto the alias — the Bounty Bot Ward bug).
-    incoming = { ...offer.held, uid: `b${state.uidSeq++}`, keywords: [...offer.held.keywords], buffs: offer.held.buffs ? [...offer.held.buffs] : undefined }; // a previously-displaced minion returns intact
+    // A previously-displaced minion returns intact — PLUS every buff the offer accrued in the Shop and a Golden
+    // Touch gild (`restoreHeldOffer`, shared with the re-buy path). Folded BEFORE it lands on the board, like a
+    // bought body, so the Soulbind / Shared Spoils mirrors in `addBuff` don't see it as a board gain.
+    incoming = restoreHeldOffer(state, offer);
   } else {
     incoming = {
       uid: `b${state.uidSeq++}`,
@@ -10386,7 +10426,10 @@ export function swapWithTavern(state: RunState, boardMinion: BoardCard): boolean
   }
   state.board[bi] = incoming;
   // The displaced minion → the tavern, its FULL state stashed on the offer (restored on buy / swap-back).
-  state.shop[si] = { uid: `s${state.uidSeq++}`, cardId: boardMinion.cardId, held: { ...boardMinion, keywords: [...boardMinion.keywords], buffs: boardMinion.buffs ? [...boardMinion.buffs] : undefined } };
+  // INVARIANT: the new offer carries NO `atk`/`hp`/`buffs` of its own — those fields are reserved for the buffs
+  // it ACCRUES while it sits in the Shop (Veinstorm, Fortify, …), which `restoreHeldOffer` adds on top of the
+  // held body. Seeding them from the body here would pay its stats twice on the way back.
+  state.shop[si] = { uid: `s${state.uidSeq++}`, cardId: boardMinion.cardId, held: { ...boardMinion, keywords: [...boardMinion.keywords], buffs: boardMinion.buffs ? boardMinion.buffs.map((b) => ({ ...b })) : undefined } };
   // Signal the UI to fire the circular swap-arrows FX between the two new cards (one-shot, like chaosGrantSeq).
   state.swapFxSeq = (state.swapFxSeq ?? 0) + 1;
   state.swapFxBoardUid = incoming.uid;
@@ -10683,7 +10726,14 @@ function fodderMultiplier(consumer: BoardCard): number {
  * Undead on the board / in combat, so transferring it onto a Demon would double-dip a temporary aura).
  */
 export function offerBuyStats(state: RunState, offer: ShopCard): { attack: number; health: number } {
-  if (offer.held) return { attack: offer.held.attack, health: offer.held.health };
+  // A held body is worth what `restoreHeldOffer` hands back: its preserved stats + the buffs the offer accrued
+  // in the Shop (Veinstorm Rubies, Fortify) + a Golden Touch re-gild's base doubling. Never the run-wide
+  // channels (a restoration, not a purchase).
+  if (offer.held) {
+    const def = CARD_INDEX[offer.held.cardId];
+    const gild = offer.golden && !offer.held.golden ? { attack: def?.attack ?? 0, health: def?.health ?? 0 } : { attack: 0, health: 0 };
+    return { attack: Math.max(0, offer.held.attack + (offer.atk ?? 0)) + gild.attack, health: offer.held.health + (offer.hp ?? 0) + gild.health };
+  }
   const def = CARD_INDEX[offer.cardId];
   if (!def) return { attack: 0, health: 0 };
   // THE STARFORM: its whole total is BAKED onto the offer (`starform.ts` folds the run-wide / this-turn shop

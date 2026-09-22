@@ -52,6 +52,22 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-21',
+    label: 'Displaced minions keep Shop buffs',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'A minion swapped into the Shop by Darah now keeps any Shop buff it gets there, such as Veinstorm Rubies, when it comes back to your board.',
+        details: [
+          'Before this, a buff landing on the swapped minion while it sat in the Shop was lost when you bought it back or swapped it home. Only a Golden Touch carried over.',
+          'Every Shop buff now rides back under its own name: Veinstorm Rubies stay Rubies, so Ruby Transfer and cards that count Rubies see them.',
+          'The swapped minion in the Shop now shows the buffed stats in green, and its inspect view lists the buffs it picked up there.',
+          'The Displacement spell works the same way.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-21',
     label: 'Rank screen: plain RP line',
     changes: [
       { category: 'Systems', text: 'The rank screen shows the points you won or lost, the bar and your rank. The extra lines such as Bronze floor, capped at the gate and base RP are gone.' },

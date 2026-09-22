@@ -5,7 +5,7 @@
   "focus": "ARCHITECTURE ONLY \u2014 how the game is coded/structured. NEVER ask game-rules questions (see daily-prompt.md).",
   "difficulty": 1,
   "difficultyScale": "1 = gentlest (what is a function, what is a package). 5 = deep (trace an event through the architecture). Ramp only per the rules in daily-prompt.md.",
-  "totalQuizzes": 40,
+  "totalQuizzes": 41,
   "recentScores": [],
   "topics": {
     "what-is-a-function": {
@@ -49,44 +49,44 @@
       "lastAsked": "2026-09-21"
     },
     "reducer-run-state": {
-      "asked": 19,
-      "lastAsked": "2026-09-20"
+      "asked": 20,
+      "lastAsked": "2026-09-22"
     },
     "zustand-store": {
-      "asked": 19,
-      "lastAsked": "2026-09-20"
+      "asked": 20,
+      "lastAsked": "2026-09-22"
     },
     "event-bus": {
-      "asked": 19,
-      "lastAsked": "2026-09-20"
+      "asked": 20,
+      "lastAsked": "2026-09-22"
     },
     "cards-in-sets": {
-      "asked": 19,
-      "lastAsked": "2026-09-20"
+      "asked": 20,
+      "lastAsked": "2026-09-22"
     },
     "package-boundaries": {
-      "asked": 19,
-      "lastAsked": "2026-09-20"
+      "asked": 20,
+      "lastAsked": "2026-09-22"
     },
     "effects-as-subscriptions": {
-      "asked": 19,
-      "lastAsked": "2026-09-20"
+      "asked": 20,
+      "lastAsked": "2026-09-22"
     },
     "effect-timing-pipeline": {
-      "asked": 19,
-      "lastAsked": "2026-09-20"
+      "asked": 20,
+      "lastAsked": "2026-09-22"
     },
     "testing-vitest": {
-      "asked": 19,
-      "lastAsked": "2026-09-20"
+      "asked": 20,
+      "lastAsked": "2026-09-22"
     },
     "types-basics": {
-      "asked": 19,
-      "lastAsked": "2026-09-20"
+      "asked": 20,
+      "lastAsked": "2026-09-22"
     },
     "immutability": {
-      "asked": 19,
-      "lastAsked": "2026-09-20"
+      "asked": 20,
+      "lastAsked": "2026-09-22"
     }
   },
   "curriculum": [
@@ -959,6 +959,24 @@
       ],
       "scored": null,
       "note": "Still no score ever reported (39 quizzes in), so mastery/difficulty stayed untouched. Picked the topic group with the older lastAsked (2026-09-19, vs. the other group's 2026-09-20) to keep the spaced two-group rotation going. All 10 questions are freshly written against the current checkout (referencedCardIds/CARD_REF_EFFECTS in content/src/index.ts, CombatBus.emit in core/src/events.ts, rng.ts fork(), the tools-package Math.random ban, the plateGild worst-frame example) rather than reused from prior archived quizzes on these same topics."
+    },
+    {
+      "date": "2026-09-22",
+      "quizNumber": 41,
+      "difficulty": 1,
+      "topics": [
+        "types-basics",
+        "immutability",
+        "reducer-run-state",
+        "zustand-store",
+        "event-bus",
+        "cards-in-sets",
+        "package-boundaries",
+        "effects-as-subscriptions",
+        "effect-timing-pipeline",
+        "testing-vitest"
+      ],
+      "scored": null
     }
   ],
   "notes": "2026-08-15: refocused to ARCHITECTURE ONLY per Mike \u2014 removed game-rules topics (shop-vs-combat, auto-battler-loop) and expanded the code-architecture curriculum. Do not quiz on game rules; see the hard constraint in daily-prompt.md."

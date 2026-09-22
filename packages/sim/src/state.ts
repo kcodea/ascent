@@ -954,9 +954,9 @@ export interface RunState {
    *  advance), then cleared. Stacks if cast more than once before the next roll. */
   nextShopBuff?: { attack: number; health: number };
   /** TRANSIENT combat-replay preview of Front-to-Back escalation earned mid-fight (owner ask 2026-08-07: the
-   *  held card's printed value moves AS the cast happens, not at settle). The replay accumulates it via
-   *  `combatEscalationPreview`; settle clears it — the REAL gain arrives through `playerSpellEscalationGain`,
-   *  so this is display-only and can never double-count. */
+   *  held card's printed value moves AS the cast happens, not at settle). The replay publishes its FOLD of the
+   *  narrations played so far through `combatEscalationPreview`; settle clears it — the REAL gain arrives
+   *  through `playerSpellEscalationGain`, so this is display-only and can never double-count. */
   fxEscalationPreview?: { attack: number; health: number };
   /** TRANSIENT combat-replay preview of SPELL POWER gained mid-fight (owner report 2026-09-22: spell text was
    *  "not updating in real time from buffs in combat"). `grantSpellPower` keeps `ctx.spellPower` live inside
@@ -2346,13 +2346,19 @@ export interface DeferredFight {
 }
 
 export type Action =
-  /** Combat replay: an escalating spell improved itself mid-fight — bump the display-only preview. */
+  /** THE DISPLAY-ONLY COMBAT PREVIEWS. Each payload is the replay's ABSOLUTE fold over the events played so
+   *  far, never a delta — see the block comment on their reducer cases for why an accumulate cannot survive
+   *  a Skip, a seek or a mid-fight Save & Quit. Zero clears the preview. */
+  /** Combat replay: total escalation an escalating spell (Front to Back) has earned so far this fight. */
   | { type: 'combatEscalationPreview'; attack: number; health: number }
+  /** Combat replay: total spell power gained so far this fight. */
   | { type: 'combatSpellPowerPreview'; attack: number; health: number }
-  /** Combat replay: a Shop Spell resolved mid-fight — bump the display-only spells-cast preview. */
-  | { type: 'combatSpellCastPreview' }
-  | { type: 'combatFriendlyDeathPreview' }
-  | { type: 'combatBladeAttackPreview' }
+  /** Combat replay: Shop Spells resolved so far this fight (Yirin's Attunement). */
+  | { type: 'combatSpellCastPreview'; count: number }
+  /** Combat replay: friendly deaths so far this fight (Cindara's Hoard). */
+  | { type: 'combatFriendlyDeathPreview'; count: number }
+  /** Combat replay: Blade Mastery attacks so far this fight (Gorun). */
+  | { type: 'combatBladeAttackPreview'; count: number }
   | { type: 'buy'; uid: string }
   /** Recruit your hero's HENCHMAN for its current (decayed) cost — once per run. See `henchmanCostOf`. */
   | { type: 'buyHenchman' }
@@ -2776,6 +2782,15 @@ export function deserialize(json: string, opts: { turnRemaining?: number } = {})
   // still carries them, and an open clock-window discount is healed against the saved clock (see above).
   delete (state as { bonusTurnSeconds?: number }).bonusTurnSeconds;
   delete (state as { bonusTurnSecondsNextTurn?: number }).bonusTurnSecondsNextTurn;
+  // THE DISPLAY-ONLY COMBAT PREVIEWS never survive a save (review 2026-09-22). The store saves DURING combat
+  // ("the clock is irrelevant"), and on Continue the replay re-mounts at beat 0 and re-publishes its fold from
+  // the top — so a persisted reading would be the fight's progress counted twice until settle cleared it. They
+  // describe a replay that is no longer running; a resumed fight rebuilds them from the event log in one beat.
+  state.fxEscalationPreview = undefined;
+  state.fxSpellPowerPreview = undefined;
+  state.fxSpellsCastPreview = undefined;
+  state.fxFriendlyDeathPreview = undefined;
+  state.fxBladeAttacksPreview = undefined;
   const win = state.cardDiscountWindow;
   if (win && (typeof win.amount !== 'number' || win.amount <= 0)) state.cardDiscountWindow = undefined;
   else if (win && win.untilClock !== null && typeof opts.turnRemaining === 'number' && opts.turnRemaining <= win.untilClock) {

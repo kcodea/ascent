@@ -2434,10 +2434,13 @@ function reduceCore(state: RunState, action: Action): RunState {
       // early, so the shared post-action hand-growth check in `reduce` never sees it: that check reads its
       // `handBefore` AFTER `reduceCore` has already landed the grant. Every other hand-growing case calls
       // `checkTriples` itself; the sale forgot (owner report 2026-09-22, "voicekeeper selling needs a triple
-      // check"). Gated on the hand actually GROWING, exactly like the shared block: an ungated call would
-      // also combine copies that were merely standing there before the sale, which is a different rule.
-      // `checkTriples` is idempotent, and the spell-driven sale paths (Dissipate, Parting Gifts) run it again
-      // on the play path, so nothing here can combine twice.
+      // check"). Gated on the hand actually GROWING, exactly like the shared block, so a sale that grants
+      // nothing leaves loose copies alone. The gate decides WHETHER to run the check, not what it may combine:
+      // `checkTriples` is board-wide, so a sale that DOES grant something also combines any other id sitting at
+      // the threshold. That is the same board-wide behaviour every other hand-growth path already has, and it
+      // is deliberate — a narrower, grant-scoped check would make selling the one route where a third copy did
+      // not combine. `checkTriples` is idempotent, and the spell-driven sale paths (Dissipate, Parting Gifts)
+      // run it again on the play path, so nothing here can combine twice.
       const handBeforeSale = s.hand.length;
       if (sold) settleMinionSale(s, sold);
       if (s.hand.length > handBeforeSale) checkTriples(s);
@@ -3523,34 +3526,43 @@ function reduceCore(state: RunState, action: Action): RunState {
       return s;
     }
 
+    /* ---------------------------------------------------------------------------------------------------
+     * THE FIVE DISPLAY-ONLY COMBAT PREVIEWS. Every one of them is an ABSOLUTE publish of a FOLD the replay
+     * computed over `events[0, processedEnd)` — never a per-event accumulate (review 2026-09-22). An
+     * accumulate is only correct when each beat is played exactly once, and three ordinary things break that:
+     * the Skip button jumps to the last beat and runs the beat effect for that beat alone (every skipped
+     * bump lost), a seek re-runs the same beat (bumped twice), and a Save & Quit taken mid-fight persists the
+     * counter and then replays the log from beat 0 on Continue (everything counted twice). Publishing the
+     * fold makes all three land on the same number, which is exactly what these readouts promise: tick with
+     * the fight, equal what settle banks. `settleCombat` clears them all and applies the REAL carry-backs, and
+     * `deserialize` clears them too, so nothing here can ever stack with the banked value.
+     * ------------------------------------------------------------------------------------------------- */
     case 'combatEscalationPreview': {
-      // Display-only (see `fxEscalationPreview`): the replay narrates an escalating spell improving itself
-      // mid-fight, and the held card's printed value moves with it. The REAL gain lands at settle through
-      // `playerSpellEscalationGain`; settle clears this, so the two can never stack.
-      const cur = s.fxEscalationPreview ?? { attack: 0, health: 0 };
-      s.fxEscalationPreview = { attack: cur.attack + action.attack, health: cur.health + action.health };
+      // An escalating spell (Front to Back) improving itself mid-fight — the held card's printed step moves
+      // with it. The REAL gain lands at settle through `playerSpellEscalationGain`.
+      s.fxEscalationPreview = action.attack === 0 && action.health === 0
+        ? undefined
+        : { attack: action.attack, health: action.health };
       return s;
     }
     case 'combatSpellPowerPreview': {
-      // Display-only (see `fxSpellPowerPreview`). ABSOLUTE, not a delta: the replay hands over its running
-      // FOLD of the simulator's "+A/+H Spell Power" narrations over the events played so far, so a skip or a
-      // re-played beat resets to the right number instead of double-counting. The real total lands at settle
-      // through `playerSpellPower`, which also clears this, so the two can never stack.
+      // Spell power gained mid-fight — the fold of the simulator's own "+A/+H Spell Power" narrations. The
+      // real total lands at settle through `playerSpellPower`.
       s.fxSpellPowerPreview = action.attack === 0 && action.health === 0
         ? undefined
         : { attack: action.attack, health: action.health };
       return s;
     }
     case 'combatSpellCastPreview': {
-      s.fxSpellsCastPreview = (s.fxSpellsCastPreview ?? 0) + 1; // display-only — see fxSpellsCastPreview
+      s.fxSpellsCastPreview = action.count === 0 ? undefined : action.count; // Yirin's Attunement counter
       return s;
     }
     case 'combatFriendlyDeathPreview': {
-      s.fxFriendlyDeathPreview = (s.fxFriendlyDeathPreview ?? 0) + 1; // display-only — Cindara's live Avenge tracker
+      s.fxFriendlyDeathPreview = action.count === 0 ? undefined : action.count; // Cindara's live Avenge tracker
       return s;
     }
     case 'combatBladeAttackPreview': {
-      s.fxBladeAttacksPreview = (s.fxBladeAttacksPreview ?? 0) + 1; // display-only — Gorun's live grant/countdown
+      s.fxBladeAttacksPreview = action.count === 0 ? undefined : action.count; // Gorun's live grant/countdown
       return s;
     }
     case 'settleCombat': {

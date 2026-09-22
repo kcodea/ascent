@@ -83,8 +83,11 @@ the grant — that check exists for quest-granted cards.
 
 Fixed in the `sell` case, gated on the hand actually growing. The gate matters: an ungated `checkTriples` after
 every sale would also combine copies that were merely standing there before the sale, which is a different rule
-and broke the Runic Archivist tests (five identical sandbags on a board). With the gate, a sale can only ever
-combine a copy the sale itself just granted.
+and broke the Runic Archivist tests (five identical sandbags on a board). The gate decides whether the check
+RUNS, not what it may combine: `checkTriples` is board-wide, so a sale that does grant something also combines
+any other id already at the threshold. That is the same board-wide behaviour every other hand-growth path has,
+and it is deliberate — a grant-scoped check would make selling the one route where a third copy did not
+combine.
 
 Not moved into `settleMinionSale`: `checkTriples` is private to `reducer.ts`, and `recruit.ts` imports nothing
 from `reducer.ts` (the reverse is a cycle). No double-trigger: the other sale routes (Dissipate, Parting Gifts,
@@ -108,6 +111,57 @@ One parity gap found and **not** touched, because it is a gameplay change needin
 not, though `ctx.improveRepsFor(side)` exists. So under Rune of Mastery a recruit cast improves twice and a
 combat cast improves once. Whichever way that is resolved, the narration must carry the same total the gain
 carries, or the derived readout will disagree with what settle banks.
+
+## Review pass (same day, same branch)
+
+Six findings; five applied, one rejected with reasons.
+
+**The one that mattered: four of the five previews still accumulated.** The commit made spell power an
+absolute publish and argued in its own prose that a fold is right "where a per-event accumulate would
+double-count" — then left escalation, spells cast, friendly deaths and blade attacks bumping once per event.
+Before the phase-guard fix that was unreachable; after it, it is reachable. An accumulate is only correct when
+every beat plays exactly once, and three ordinary things break that:
+
+- **Skip.** `replay.skip()` is `setBeatIdx(beats.length)`, and the beat effect then runs for the LAST beat
+  only. Every bump in the skipped beats is lost, while the spell-power fold jumps to the true total, so the two
+  readouts disagree for the length of the skip hold.
+- **Seek.** `seekTo` bumps `seekNonce` and re-runs the same beat, counting it twice.
+- **Save & Quit mid-fight.** `flushSave` deliberately saves during combat, `serialize` is `JSON.stringify` and
+  `deserialize` healed the preview straight back in. Continue re-mounts the replay at beat 0 and replays the
+  log from the top, so a resumed fight printed double the escalation step and a doubled Attunement / Hoard /
+  Blade Mastery pill until settle.
+
+All four now ride `combatPreviewFold(events, upto)` in `runBuffs.ts` — one pure pass over the events played so
+far, next to `combatBuffDelta` and `enemyDeaths`, published absolutely by the same Recruit bridge spell power
+uses. `deserialize` clears all five as well, so a save can never carry a replay's progress back into a run.
+
+It is also **cheaper than what it replaced**, which answers the review's perf question directly. Measured in
+this worktree on a 405-event Chorus Drake fight: the whole fold costs **5.4 us**, one `reduce` dispatch costs
+**30.7 us**. The old code paid a dispatch per matching event; the new code pays one fold per beat plus a
+dispatch only when a number actually moved. `npm run perf` is green on every budget (`reduce` with a populated
+`lastCombat` 0.0453 ms/op against a 0.5 ms budget; full greedy run 193 ms/op against 600 ms).
+
+Also applied:
+
+- **`StatusBar.tsx`'s Hunch preview** was still reading `spellAttackBonus(run)` / `run.frontToBackBonus`, so a
+  stat spell hovered during a fight printed its pre-combat value. It is now on the `…Live` accessors, and the
+  source-scan regression test reads **every `.tsx` under `packages/ui/src`** instead of a two-file allowlist —
+  which is exactly why it missed this one.
+- **`R-MULT-05` was overclaiming.** Its statement said "the number printed on every affected card must be the
+  doubled one", which no surface delivers: Chorus Drake still prints "+1 Health" under Rune of Adventuring.
+  That is correct, not a gap — one Rally still grants 1, and the rune's own text says the trigger fires twice.
+  Contrast Rune of Mastery, which multiplies a SINGLE fire and therefore IS folded into card text through
+  `improveReps`. The rule now says what it enforces: the multiplier must reach the TOTAL the repeated effect
+  feeds, and a repeat-the-trigger rune leaves the repeating card's per-trigger rate alone. The other reading is
+  recorded as an owner question, not silently claimed as done.
+- **`R-SHOP-03`'s `cardText` was a paraphrase** ("After you sell a Dragon, get a copy of it. Once per turn.")
+  that dropped the load-bearing word *plain*, and its example named "Chronicler", which is the id, not the
+  card. `d2_chronicler` is **Scalefeather**. Both corrected, verbatim from the def.
+
+**Rejected:** the suggestion to give the sale a grant-scoped triple check. The gate is about whether the check
+runs; `checkTriples` being board-wide is the behaviour every other hand-growth path already has, and narrowing
+it would make selling the one route where a third copy did not combine. The misleading comment was the real
+defect, and it is reworded.
 
 ## Oracle
 

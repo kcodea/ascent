@@ -4,10 +4,10 @@ import path from 'node:path';
 import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatResult } from '@game/core';
 import {
-  createRun, reduce, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, spellDisplayText,
-  type Action, type RunState,
+  createRun, deserialize, reduce, serialize, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive,
+  spellDisplayText, type Action, type RunState,
 } from '@game/sim';
-import { combatBuffDelta } from './runBuffs';
+import { combatBuffDelta, combatPreviewFold } from './runBuffs';
 
 /**
  * LIVE SPELL TEXT DURING COMBAT (owner report 2026-09-22: "front to backs text / maybe all spells? not
@@ -63,17 +63,11 @@ const printed = (s: RunState): string =>
   spellDisplayText('fronttoback', spellAttackBonusLive(s), spellEscalationLive(s).attack,
     spellHealthBonusLive(s), 0, spellEscalationLive(s).health);
 
-/** The replay's escalation channel: one dispatch per "<spell> improves +A/+H" narration, player side. */
+/** The replay's escalation channel: the ABSOLUTE fold over the events played so far, exactly as Recruit
+ *  publishes it. Never a per-narration bump — see the "absolute" block below for why. */
 function replayEscalation(s: RunState, result: CombatResult, upto: number): RunState {
-  let next = s;
-  for (let i = 0; i < Math.min(upto, result.events.length); i++) {
-    const e = result.events[i]!;
-    if (e.type !== 'sc' || !e.text || e.side !== 'player') continue;
-    const m = /improves \+(\d+)\/\+(\d+)$/.exec(e.text);
-    if (!m) continue;
-    next = reduce(next, { type: 'combatEscalationPreview', attack: Number(m[1]), health: Number(m[2]) } as Action);
-  }
-  return next;
+  const f = combatPreviewFold(result.events, upto);
+  return reduce(s, { type: 'combatEscalationPreview', attack: f.escalation.attack, health: f.escalation.health } as Action);
 }
 
 /** The replay's spell-power channel: the absolute FOLD over the events played so far. */
@@ -108,6 +102,61 @@ describe('live spell text in combat: Front to Back escalating mid-fight (owner r
     expect(printed(settled)).toBe(live);
     // The preview retires at settle, so the real carry-back can never be counted twice.
     expect(settled.fxEscalationPreview).toBeUndefined();
+  });
+});
+
+describe('every preview is a FOLD, so skipping, scrubbing and resuming all land on the same number', () => {
+  // The asymmetry this review caught: spell power was published as an absolute fold while escalation, spells
+  // cast, friendly deaths and blade attacks were still bumped once per event. A per-event bump is only right
+  // when each beat plays exactly once — and three ordinary things break that. Skip jumps to the last beat and
+  // runs the beat effect for that beat alone (every skipped bump lost). A seek re-runs the beat it lands on
+  // (counted twice). A mid-fight Save & Quit persists the counter, then Continue replays from beat 0 (counted
+  // twice). Folding over the log removes all three failure modes at once.
+  it('SKIP: publishing only the final fold equals having published every beat along the way', () => {
+    const r = escalationFight();
+    const base = runInCombat(r);
+    let stepped = base;
+    for (let i = 0; i <= r.events.length; i += 3) stepped = replayEscalation(stepped, r, i); // every "beat"
+    stepped = replayEscalation(stepped, r, r.events.length);
+    const skipped = replayEscalation(base, r, r.events.length); // straight to the end, one publish
+    expect(printed(skipped)).toBe(printed(stepped));
+  });
+
+  it('SEEK: re-publishing the beat you land on cannot double the number', () => {
+    const r = escalationFight();
+    const once = replayEscalation(runInCombat(r), r, r.events.length);
+    const twice = replayEscalation(once, r, r.events.length);
+    expect(spellEscalationLive(twice)).toEqual(spellEscalationLive(once));
+    // …and scrubbing back to the top of the fight goes back DOWN, not to a high-water mark.
+    expect(spellEscalationLive(replayEscalation(once, r, 0))).toEqual(spellEscalationLive(runInCombat(r)));
+  });
+
+  it('SAVE & QUIT mid-fight: the resumed run carries no preview, so Continue replays from zero', () => {
+    const r = escalationFight();
+    const mid = replayEscalation(runInCombat(r), r, Math.floor(r.events.length / 2));
+    expect(mid.fxEscalationPreview, 'the fixture published nothing, so the case proves nothing').toBeTruthy();
+    const resumed = deserialize(serialize(mid));
+    expect(resumed.fxEscalationPreview).toBeUndefined();
+    expect(resumed.fxSpellPowerPreview).toBeUndefined();
+    // Replaying the whole log on the resumed run lands exactly where settle banks it — not at double.
+    expect(printed(replayEscalation(resumed, r, r.events.length))).toBe(printed(settle(runInCombat(r))));
+  });
+
+  it('the fold counts the SAME bodies the per-event channels used to count', () => {
+    // A straight port check: the fold is only safe if its predicates match the loops it replaced.
+    const r = escalationFight();
+    const f = combatPreviewFold(r.events, r.events.length);
+    let casts = 0, deaths = 0, blades = 0;
+    for (const e of r.events) {
+      if (e.type === 'spellcast' && e.side === 'player') casts++;
+      else if (e.type === 'death' && e.side === 'player' && !e.rise) deaths++;
+      else if (e.type === 'questTrigger' && e.flag === 'bladeMastery' && e.side === 'player') blades++;
+    }
+    expect(f.spellsCast).toBe(casts);
+    expect(f.friendlyDeaths).toBe(deaths);
+    expect(f.bladeAttacks).toBe(blades);
+    // And the fold's escalation total is exactly what settle banks.
+    expect(f.escalation.attack).toBe(r.playerSpellEscalationGain?.attack ?? 0);
   });
 });
 
@@ -172,8 +221,13 @@ describe('no card-text surface may go back to the raw run counters', () => {
   // nothing in play, which is exactly how the owner's report survived the previous live-text passes.
   const read = (f: string): string => fs.readFileSync(path.join(__dirname, f), 'utf8');
 
-  it('Recruit.tsx and Unit.tsx read the Live accessors, never the raw counters', () => {
-    for (const f of ['Recruit.tsx', 'Unit.tsx']) {
+  it('no .tsx surface reads the raw counters — not Recruit, not Unit, not the StatusBar preview', () => {
+    // EVERY .tsx under packages/ui/src, not a two-file allowlist: the StatusBar's Hunch preview was outside the
+    // original list and kept printing the pre-combat value for a spell hovered during a fight (review
+    // 2026-09-22). A surface added tomorrow is inside this scan by default.
+    const files = fs.readdirSync(__dirname).filter((f) => f.endsWith('.tsx') && !f.includes('.test.'));
+    expect(files.length, 'the scan found no surfaces at all').toBeGreaterThan(10);
+    for (const f of files) {
       const src = read(f);
       expect(src.includes('run.frontToBackBonus'), `${f} still reads the raw escalation counter`).toBe(false);
       expect(/[^a-zA-Z]spellAttackBonus\(/.test(src), `${f} still reads the raw spell-power bonus`).toBe(false);

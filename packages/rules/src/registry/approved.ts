@@ -1547,7 +1547,11 @@ export const APPROVED_RULES: GameRule[] = [
       + 'were silently swallowed at exactly the moment the replay dispatched them. Yirin\'s Attunement, Cindara\'s '
       + 'Hoard and Gorun\'s Blade Mastery pills were frozen for the same reason and are fixed by the same change. '
       + 'Spell power additionally had no text channel at all: the narration drove a flourish and a card pop while '
-      + 'the printed number stayed at its pre-combat value. PARTIAL beyond these: rubyBonus, growthBonus, '
+      + 'the printed number stayed at its pre-combat value. The live value is published as an ABSOLUTE FOLD over '
+      + 'the events played so far, never as a per-event bump (review 2026-09-22): a bump is only correct when '
+      + 'every beat plays exactly once, and Skip, a seek and a mid-fight Save & Quit each break that, leaving a '
+      + 'readout that no longer equals what settle banks. deserialize clears all five previews for the same '
+      + 'reason. PARTIAL beyond these: rubyBonus, growthBonus, '
       + 'clueBonus, starCrashBonus, undeadBuyAtk, cardBuffs and impAura are settle-only carry-backs read raw by the '
       + 'combat surfaces and are stale in combat by the same mechanism. Their follow-up is scoped separately.',
     example:
@@ -1564,11 +1568,15 @@ export const APPROVED_RULES: GameRule[] = [
     id: 'R-MULT-05',
     title: 'A multiplier reaches the printed number, not only the outcome',
     statement:
-      'When an effect repeats a trigger, everything the repeat produces must reach the player\'s readouts as well '
-      + 'as the board. A Rally that fires twice and casts twice escalates twice and grants twice, so the number '
-      + 'printed on every affected card must be the doubled one on every surface, in the shop and during the '
-      + 'fight. The way to get this for free is to derive the readout from the events the simulator emits per '
-      + 'fire, rather than re-deriving the magnitude in the UI from a rate and a count.',
+      'When an effect repeats a trigger, everything the repeat PRODUCES must reach the player\'s readouts as well '
+      + 'as the board. A Rally that fires twice grants twice, so every number those grants FEED must show the '
+      + 'doubled total on every surface, in the shop and during the fight: the value printed on a spell whose '
+      + 'magnitude rides the spell power they gave, an escalating spell\'s step, a tally they advance. The way to '
+      + 'get this for free is to derive the readout from the events the simulator emits per fire, rather than '
+      + 're-deriving the magnitude in the UI from a rate and a count. The rule is about the TOTAL, not the rate: '
+      + 'a rune that repeats a trigger leaves the repeating card\'s own per-trigger text alone, because one '
+      + 'trigger still grants what it printed and the rune itself tells the player the trigger fires twice. A '
+      + 'rune that multiplies a SINGLE fire is the other case, and there the printed step must change.',
     domain: 'multipliers',
     status: 'approved',
     evidence: [
@@ -1576,15 +1584,22 @@ export const APPROVED_RULES: GameRule[] = [
       { kind: 'fix-pr', ref: 'Live spell text + Voicekeeper fix — no simulation change was needed; the doubling was already correct and only the readout was stale (packages/ui/src/liveSpellTextInCombat.test.ts pins both halves)' },
     ],
     currentBehaviour:
-      'Conforms — 2026-09-22. Probed through simulate() first: a Chorus Drake under Rune of Adventuring '
-      + '(rallyExtraAlways) already rallied 90 times instead of 45 and banked exactly double the spell power, and '
-      + 'emitted one narration per fire. The SIM was right the whole time; only the printed number was stale, and '
-      + 'it was stale for the reason in R-TEXT-06. Because the readout is now a fold over those per-fire '
-      + 'narrations, the doubling reaches the text with no multiplier arithmetic in the UI at all.',
-    cardText: 'Rune of Adventuring: "Your Rally effects trigger twice."',
+      'Conforms for the totals — 2026-09-22. Probed through simulate() first: a Chorus Drake under Rune of '
+      + 'Adventuring (rallyExtraAlways) already rallied 90 times instead of 45 and banked exactly double the '
+      + 'spell power, and emitted one narration per fire. The SIM was right the whole time; only the printed '
+      + 'number was stale, and it was stale for the reason in R-TEXT-06. Because the readout is now a fold over '
+      + 'those per-fire narrations, the doubling reaches the text with no multiplier arithmetic in the UI at all. '
+      + 'Deliberately NOT folded, and not counted as a gap (review 2026-09-22): the repeating card\'s own '
+      + 'per-trigger text. Chorus Drake still prints "+1 Health" under the rune, because one Rally really does '
+      + 'grant 1 and the rune already states that Rally fires twice. Contrast Rune of Mastery, which multiplies a '
+      + 'single improve and therefore IS folded into card text through improveReps. If the owner ever rules that '
+      + 'a repeat-the-trigger rune must double the repeating card\'s printed rate as well, that is its own text '
+      + 'change and this statement widens with it.',
+    cardText: 'Rune of Adventuring: "Your **Rally** effects trigger **twice**."',
     example:
       'Chorus Drake plus Rune of Adventuring: 45 Rallies become 90, spell power gained goes from +0/+45 to +0/+90, '
-      + 'and a Front to Back in hand must print the +90 version while the fight is still running.',
+      + 'and a Front to Back in hand must print the +90 version while the fight is still running. The Drake itself '
+      + 'still prints +1 Health per Rally, because that is still what one Rally grants.',
     contentIds: ['rune_adventuring', 'd2_chorus'],
     enforcement: {
       kind: 'scenario',
@@ -1612,16 +1627,18 @@ export const APPROVED_RULES: GameRule[] = [
       + 'checkTriples itself, and the sell case was the one that never did. It returns early, and the shared '
       + 'post-action hand-growth check in reduce() cannot help because its baseline is captured after reduceCore '
       + 'has already landed the grant. Three plain copies simply sat in hand. The fix is gated on the hand '
-      + 'actually growing, so a sale can only ever combine a copy the sale itself just granted, never copies that '
-      + 'were merely standing there. Every other sale route (Dissipate, Parting Gifts, Rune of the Altar) already '
-      + 'ran the check through the spell-play or rune-buy path, and checkTriples is idempotent, so nothing '
-      + 'combines twice.',
-    cardText: 'Voicekeeper: "After you sell a Dragon, get a copy of it. Once per turn."',
+      + 'actually growing, so a sale that grants nothing leaves loose copies alone. The gate decides whether the '
+      + 'check RUNS, not what it may combine: checkTriples is board-wide, exactly as it is on every other '
+      + 'hand-growth path, so a sale that does grant something also combines any other id already sitting at the '
+      + 'threshold. Every other sale route (Dissipate, Parting Gifts, Rune of the Altar) already ran the check '
+      + 'through the spell-play or rune-buy path, and checkTriples is idempotent, so nothing combines twice.',
+    cardText: 'Voicekeeper: "Get a **plain copy** of the first Dragon you sell each turn."',
     example:
-      'Two plain Chroniclers in hand, a Voicekeeper and a third Chronicler on board. Sell the Chronicler: the '
-      + 'granted copy is your third, so you end with one Gilded Chronicler, and playing it opens the Triple Reward '
-      + 'Discover.',
-    contentIds: ['d2_voicekeeper'],
+      'Two plain Scalefeathers in hand, a Voicekeeper and a third Scalefeather on board. Sell the Scalefeather: '
+      + 'the granted copy is a plain third copy, so you end with one Gilded Scalefeather, and playing it opens the '
+      + 'Triple Reward Discover. "Plain" is load-bearing: the granted copy carries no buffs and is never itself '
+      + 'Gilded, and it still counts toward the combine.',
+    contentIds: ['d2_voicekeeper', 'd2_chronicler'],
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/set2Dragons.test.ts'],

@@ -30,7 +30,7 @@ import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
 import { setTransition } from './choreo/channels/lunge';
 import { burstDeathAuras, breakShieldAura, reformReborn } from './choreo/channels/aura';
 import { type Float, type DeathFloat, KW_FLOAT } from './choreo/channels/float';
-import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
+import { combatBuffDelta, combatPreviewFold, type CombatBuffDelta, type CombatPreviewFold } from './runBuffs';
 import type { CombatQuestDelta } from './store'; // type-only (erased) — no runtime edge back to the store
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
@@ -39,7 +39,7 @@ import { resolveBuffSource } from './choreo/buffSource';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { authoredBuffDefFor, bindingFor, heroPowerBuffLabelFor, labelBuffFxFor, sourceBuffDefFor } from './choreo/bindings';
-import { isRuneBuffSource, hasPower } from '@game/sim';
+import { isRuneBuffSource } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { getDef } from './fx/fxDefs';
 import { WATCHER_PULSE_DEF_ID, watcherPixiReady } from './fx/watcherPulse';
@@ -738,6 +738,10 @@ export interface CombatReplay {
   enemyDeaths: number;
   /** Run-buff gains telegraphed so far this fight (spell power, max Gold) — drives the live Buffs window. */
   combatBuffs: CombatBuffDelta;
+  /** The four display-only preview counters folded over the events played so far (escalation, spells cast,
+   *  friendly deaths, Blade Mastery attacks). Recruit publishes them into run state ABSOLUTELY, so a skip, a
+   *  scrub and a resumed save all land on the number settle banks — see `combatPreviewFold`. */
+  combatPreviews: CombatPreviewFold;
   /** Combat quest progress landed so far this fight (up to the replayed beat) — quest nodes tick live off it. */
   questDelta: CombatQuestDelta;
   /** Badge id → times its combat effect has fired so far this fight; each bump pulses the node once. */
@@ -2004,33 +2008,12 @@ export function useCombatReplay(
     // unit and a "+A/+H Spell Power" text, so the flourish rides that rather than needing a new choreo
     // channel. Fired over the unit that caused it, matching the shop behaviour (owner ask 2026-07-21).
     for (let i = beat.start; i < beat.end; i++) spellPowerNarration(events[i], playerUids, anchorOf);
-    // SPELLS CAST mid-combat (owner ask 2026-08-07, for Yirin's Attunement): every player-side `spellcast`
-    // event bumps the display-only counter, so the hero-power tracker ticks AS the casts happen.
-    for (let i = beat.start; i < beat.end; i++) {
-      const e = events[i];
-      if (e?.type === 'spellcast' && e.side === 'player') useGame.getState().dispatch({ type: 'combatSpellCastPreview' });
-    }
-    // FRIENDLY DEATHS mid-combat (owner ask 2026-08-24, for Cindara's Hoard): every player-side death ticks
-    // her Avenge (4) tracker live. Gated on wielding Hoard because deaths are FAR more common than spellcasts,
-    // so a per-death reducer dispatch for every other hero would be pure waste. `!e.rise` matches `simulate`'s
-    // avenge count exactly on the common path: a first Rise returns and is not avenged. (A board-full Rise that
-    // stays dead is a rise-flagged death that DID count — the one case this cosmetic tracker can lag by one; it
-    // re-syncs at settle, where the preview clears.)
-    if (hasPower(useGame.getState().run, 'hoard')) {
-      for (let i = beat.start; i < beat.end; i++) {
-        const e = events[i];
-        if (e?.type === 'death' && e.side === 'player' && !e.rise) useGame.getState().dispatch({ type: 'combatFriendlyDeathPreview' });
-      }
-    }
-    // GORUN's Blade Mastery grant climbs live (owner ask 2026-08-24): each player-side `bladeMastery`
-    // questTrigger is exactly one buffed attack, so the +N grant and its "every 8" countdown tick as the swings
-    // land rather than jumping at settle. Gated on wielding it, same reason as Cindara's above.
-    if (hasPower(useGame.getState().run, 'bladeMastery')) {
-      for (let i = beat.start; i < beat.end; i++) {
-        const e = events[i];
-        if (e?.type === 'questTrigger' && e.flag === 'bladeMastery' && e.side === 'player') useGame.getState().dispatch({ type: 'combatBladeAttackPreview' });
-      }
-    }
+    // SPELLS CAST / FRIENDLY DEATHS / BLADE MASTERY ATTACKS mid-combat (owner asks 2026-08-07 + 2026-08-24, for
+    // Yirin's Attunement, Cindara's Hoard and Gorun's Blade Mastery) no longer dispatch from here. They ride
+    // `combatPreviews` — one FOLD over the events played so far, published absolutely by Recruit's bridge, the
+    // same shape spell power uses. Per-event bumps could not survive a Skip (the beat effect runs for the last
+    // beat only), a seek (the same beat re-runs) or a mid-fight Save & Quit (Continue replays from beat 0), and
+    // a fold also collapses what was one reducer dispatch PER EVENT into at most one per beat per counter.
     // A HAND CARD BUFFED mid-combat (owner ask 2026-09-15): every player-side `handBuff` event — Nurturer's
     // Echo, Shared Spirit, a Rising Tide proc — plays the owner-authored `hand-buff` def on THAT hand card, on
     // the same beat R-HAND-02 grows its badge (`handBuffsShownThrough`). One play per event, so a card hit
@@ -2044,7 +2027,8 @@ export function useCombatReplay(
       if (!e || e.type !== 'sc' || !e.text || e.side !== 'player') continue;
       const m = /improves \+(\d+)\/\+(\d+)$/.exec(e.text);
       if (!m) continue;
-      useGame.getState().dispatch({ type: 'combatEscalationPreview', attack: Number(m[1]), health: Number(m[2]) });
+      // The printed NUMBER rides the `combatPreviews` fold (see above), not a bump from here — this loop keeps
+      // only the per-fire CUE, which genuinely belongs on the moment the improvement lands.
       fireHandBuffOnHandSpells(useGame.getState().run.hand); // pop the held spells, same cue as spell power
     }
     // RUBY POWER gained mid-combat (owner ask 2026-07-24) — Veinbreaker's Avenge and friends. `gainRubyBonus`
@@ -3043,6 +3027,12 @@ export function useCombatReplay(
   // accumulation as `enemyDeaths`.
   const combatBuffs = useMemo(() => combatBuffDelta(events, processedEnd), [events, processedEnd]);
 
+  // The four display-only PREVIEW counters, folded the same way and for the same reason (review 2026-09-22):
+  // escalation, spells cast, friendly deaths, Blade Mastery attacks. Derived from the log rather than bumped
+  // per event, so a skip, a scrub and a resumed save all land on the number settle banks. Recruit publishes
+  // these into run state, where the card-text and hero-pill chains read them.
+  const combatPreviews = useMemo(() => combatPreviewFold(events, processedEnd), [events, processedEnd]);
+
   // Combat quest progress landed so far this fight — for the quest panel to LIVE-TICK. Counts the engine's
   // step-tagged `playerQuestEvents` up to the current step (= the last processed event's step), so it agrees
   // exactly with the settled tally. Same shape as `playerQuestTally` (total + by-tribe per kind).
@@ -3195,7 +3185,7 @@ export function useCombatReplay(
     watcherPulseUids: watcherPulse,
     framePulseUids: framePulse,
     done, result: combat ? combat.result : null, shaking, critShaking,
-    beatCount: beats.length, enemyDeaths, combatBuffs, questDelta, triggeredQuests, completedQuests, skip: () => setBeatIdx(beats.length),
+    beatCount: beats.length, enemyDeaths, combatBuffs, combatPreviews, questDelta, triggeredQuests, completedQuests, skip: () => setBeatIdx(beats.length),
     // Clamped here rather than at the call site: an out-of-range seek from a stale moment list (the fight
     // was re-staged while the harness still showed the old one) must land somewhere valid, not wedge the
     // replay past its end. The outer `max` also floors the no-combat case (`beats.length === 0`, where the

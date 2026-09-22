@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
-import { dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonus, spellHealthBonus, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
+import { dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, COMMISSION_DELAY, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
 import { henchmanOffer } from '@game/sim';
 import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
@@ -461,8 +461,10 @@ export function StatusBar() {
         health: (previewBase?.health ?? 0) + previewRb.health,
         keywords: [], golden: false,
       },
-      run.tier, undefined, spellAttackBonus(run), spellHealthBonus(run), run.spellsThisTurn, run.deathrattlesTriggered,
-      run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, undefined, undefined,
+      // …Live, like every other card-text surface: a Hunch preview hovered DURING a fight must print the value
+      // the spell would cast for at this moment, not the pre-combat one (review 2026-09-22).
+      run.tier, undefined, spellAttackBonusLive(run), spellHealthBonusLive(run), run.spellsThisTurn, run.deathrattlesTriggered,
+      run.undeadAttackBonus, run.undeadHealthBonus, spellEscalationLive(run).attack, run.wave, run.spellsCast, undefined, undefined,
       { rubyBonus: previewRuby ? previewRb : run.rubyBonus, impAura: run.impBuff, topTribe: null },
     )
     : null;

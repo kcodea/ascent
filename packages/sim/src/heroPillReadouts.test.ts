@@ -8,7 +8,7 @@
  * through the REAL reducer action so the plumbing is proven end to end, not just the arithmetic.
  */
 import { describe, expect, it } from 'vitest';
-import { createRun, reduce, type RunState } from './index';
+import { createRun, deserialize, reduce, serialize, type RunState } from './index';
 import {
   tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf,
   TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP,
@@ -109,11 +109,24 @@ describe('Cindara — Hoard pill + centre', () => {
 
   it('the live Avenge tracker ticks through the REAL preview action and wraps at 4', () => {
     let s = runWith('cindara');
-    const tick = (): void => { s = reduce(s, { type: 'combatFriendlyDeathPreview' }); };
-    tick(); expect(hoardPill(s)).toBe('1/4');
-    tick(); tick(); expect(hoardPill(s)).toBe('3/4');
-    tick(); expect(hoardPill(s), 'the 4th death fires the Avenge and the display wraps').toBe('0/4');
-    tick(); expect(hoardPill(s)).toBe('1/4');
+    // The replay publishes an ABSOLUTE fold, not a bump, so each step is the running total so far this fight.
+    const at = (n: number): void => { s = reduce(s, { type: 'combatFriendlyDeathPreview', count: n }); };
+    at(1); expect(hoardPill(s)).toBe('1/4');
+    at(3); expect(hoardPill(s)).toBe('3/4');
+    at(4); expect(hoardPill(s), 'the 4th death fires the Avenge and the display wraps').toBe('0/4');
+    at(5); expect(hoardPill(s)).toBe('1/4');
+  });
+
+  it('re-publishing the same fold is a NO-OP, and rewinding goes back down', () => {
+    // The failure an accumulate cannot avoid: a seek re-runs the beat it lands on, Skip runs the beat effect
+    // for the last beat only, and a mid-fight Save & Quit replays the log from beat 0 on Continue. Publishing
+    // the fold absolutely makes all three land on the same number.
+    let s = runWith('cindara');
+    s = reduce(s, { type: 'combatFriendlyDeathPreview', count: 3 });
+    s = reduce(s, { type: 'combatFriendlyDeathPreview', count: 3 }); // the same beat published twice
+    expect(s.fxFriendlyDeathPreview).toBe(3);
+    s = reduce(s, { type: 'combatFriendlyDeathPreview', count: 0 }); // scrubbed back to the top of the fight
+    expect(s.fxFriendlyDeathPreview).toBeUndefined();
   });
 
   it('settle retires the preview, so the next fight opens at 0/4 rather than leaking the last count', () => {
@@ -152,13 +165,46 @@ describe('the display-only combat previews reach the reducer DURING combat', () 
       .toEqual({ attack: 2, health: 2 });
     expect(reduce(inCombat(), { type: 'combatSpellPowerPreview', attack: 0, health: 7 }).fxSpellPowerPreview)
       .toEqual({ attack: 0, health: 7 });
-    expect(reduce(inCombat(), { type: 'combatSpellCastPreview' }).fxSpellsCastPreview).toBe(1);
-    expect(reduce(inCombat(), { type: 'combatFriendlyDeathPreview' }).fxFriendlyDeathPreview).toBe(1);
-    expect(reduce(inCombat(), { type: 'combatBladeAttackPreview' }).fxBladeAttacksPreview).toBe(1);
+    expect(reduce(inCombat(), { type: 'combatSpellCastPreview', count: 1 }).fxSpellsCastPreview).toBe(1);
+    expect(reduce(inCombat(), { type: 'combatFriendlyDeathPreview', count: 1 }).fxFriendlyDeathPreview).toBe(1);
+    expect(reduce(inCombat(), { type: 'combatBladeAttackPreview', count: 1 }).fxBladeAttacksPreview).toBe(1);
   });
 
   it('an open modal does not freeze them either — a Discover can be raised mid-fight', () => {
     const s = { ...inCombat(), discover: { options: [], source: 'triple' } } as unknown as RunState;
-    expect(reduce(s, { type: 'combatSpellCastPreview' }).fxSpellsCastPreview).toBe(1);
+    expect(reduce(s, { type: 'combatSpellCastPreview', count: 1 }).fxSpellsCastPreview).toBe(1);
+  });
+
+  it('EVERY one of them is an absolute publish — re-publishing the same fold changes nothing', () => {
+    // Pinned for all five together: one of them being a fold and the other four accumulating is exactly the
+    // asymmetry this review caught, and it is invisible until someone skips, scrubs or resumes a fight.
+    let s = inCombat();
+    const publish = (): void => {
+      s = reduce(s, { type: 'combatEscalationPreview', attack: 2, health: 2 });
+      s = reduce(s, { type: 'combatSpellPowerPreview', attack: 0, health: 7 });
+      s = reduce(s, { type: 'combatSpellCastPreview', count: 3 });
+      s = reduce(s, { type: 'combatFriendlyDeathPreview', count: 4 });
+      s = reduce(s, { type: 'combatBladeAttackPreview', count: 5 });
+    };
+    publish(); publish(); publish();
+    expect(s.fxEscalationPreview).toEqual({ attack: 2, health: 2 });
+    expect(s.fxSpellPowerPreview).toEqual({ attack: 0, health: 7 });
+    expect(s.fxSpellsCastPreview).toBe(3);
+    expect(s.fxFriendlyDeathPreview).toBe(4);
+    expect(s.fxBladeAttacksPreview).toBe(5);
+  });
+
+  it('a save taken MID-FIGHT comes back with no preview, so Continue cannot double-count', () => {
+    // `flushSave` deliberately saves during combat, and Continue re-mounts the replay at beat 0 and republishes
+    // its fold from the top. A persisted preview would be the fight's progress counted twice until settle.
+    let s = inCombat();
+    s = reduce(s, { type: 'combatEscalationPreview', attack: 2, health: 2 });
+    s = reduce(s, { type: 'combatSpellCastPreview', count: 3 });
+    const resumed = deserialize(serialize(s));
+    expect(resumed.fxEscalationPreview).toBeUndefined();
+    expect(resumed.fxSpellPowerPreview).toBeUndefined();
+    expect(resumed.fxSpellsCastPreview).toBeUndefined();
+    expect(resumed.fxFriendlyDeathPreview).toBeUndefined();
+    expect(resumed.fxBladeAttacksPreview).toBeUndefined();
   });
 });

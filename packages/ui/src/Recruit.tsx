@@ -2410,19 +2410,34 @@ export function Recruit() {
   // live inside the fight, but the run's `spellBonus` is written only at settle — so a Chorus Drake pumping
   // spell power mid-combat left every stat spell in hand, on the board and in the arena printing its
   // pre-combat value until the fight ended. Published into run state as a display-only preview because that
-  // is what the card-text chain reads (`spellAttackBonusLive` / `spellHealthBonusLive`); the fold itself is
-  // the authority, and the dispatch is absolute, so a skip or scrub can never double-count. Its own effect,
-  // keyed on the two numbers alone, so the Ruby/Gold/aura rows ticking cannot cost a store write here.
+  // is what the card-text chain reads (`spellAttackBonusLive` / `spellHealthBonusLive`).
+  //
+  // THE SAME BRIDGE now carries the other four display-only previews — Front to Back's escalation, Yirin's
+  // spells cast, Cindara's friendly deaths, Gorun's Blade Mastery attacks (review 2026-09-22). All five are
+  // ABSOLUTE publishes of a fold over the events played so far, never per-event bumps: an accumulate is only
+  // right when every beat plays exactly once, and Skip (runs the beat effect for the LAST beat alone), a seek
+  // (re-runs the same beat) and a mid-fight Save & Quit (Continue replays from beat 0) each break that. A fold
+  // is also CHEAPER than what it replaces: at most one dispatch per counter per beat instead of one per event.
+  const { escalation: cpEsc, spellsCast: cpCasts, friendlyDeaths: cpDeaths, bladeAttacks: cpBlades } = replay.combatPreviews;
   useEffect(() => {
     const live = inCombat && !run.combatSettled;
-    const a = live ? cbA : 0, h = live ? cbH : 0;
-    // Only write when the number actually moved: a reducer dispatch mints a new state object and re-renders
-    // the hand and board rows, and this effect would otherwise fire a no-op on every Recruit mount and on
-    // every combat exit. CLAUDE.md treats a frame drop as a defect, so the hot path stays quiet.
-    const cur = useGame.getState().run.fxSpellPowerPreview;
-    if ((cur?.attack ?? 0) === a && (cur?.health ?? 0) === h) return;
-    dispatch({ type: 'combatSpellPowerPreview', attack: a, health: h });
-  }, [inCombat, run.combatSettled, cbA, cbH, dispatch]);
+    const spA = live ? cbA : 0, spH = live ? cbH : 0;
+    const escA = live ? cpEsc.attack : 0, escH = live ? cpEsc.health : 0;
+    const casts = live ? cpCasts : 0, deaths = live ? cpDeaths : 0, blades = live ? cpBlades : 0;
+    // Only write when a number actually moved: a reducer dispatch mints a new state object and re-renders the
+    // hand and board rows, and this effect would otherwise fire five no-ops on every Recruit mount and on every
+    // combat exit. CLAUDE.md treats a frame drop as a defect, so the hot path stays quiet.
+    const cur = useGame.getState().run;
+    if ((cur.fxSpellPowerPreview?.attack ?? 0) !== spA || (cur.fxSpellPowerPreview?.health ?? 0) !== spH) {
+      dispatch({ type: 'combatSpellPowerPreview', attack: spA, health: spH });
+    }
+    if ((cur.fxEscalationPreview?.attack ?? 0) !== escA || (cur.fxEscalationPreview?.health ?? 0) !== escH) {
+      dispatch({ type: 'combatEscalationPreview', attack: escA, health: escH });
+    }
+    if ((cur.fxSpellsCastPreview ?? 0) !== casts) dispatch({ type: 'combatSpellCastPreview', count: casts });
+    if ((cur.fxFriendlyDeathPreview ?? 0) !== deaths) dispatch({ type: 'combatFriendlyDeathPreview', count: deaths });
+    if ((cur.fxBladeAttacksPreview ?? 0) !== blades) dispatch({ type: 'combatBladeAttackPreview', count: blades });
+  }, [inCombat, run.combatSettled, cbA, cbH, cpEsc.attack, cpEsc.health, cpCasts, cpDeaths, cpBlades, dispatch]);
 
   // Entering combat: hold on the "shop closing" intro, then let the enemies arrive
   // and the replay begin. Also flash the "End of Turn" banner (end-of-turn effects just

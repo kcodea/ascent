@@ -42,6 +42,35 @@ const SCALING_SPELLS = ALL_CARDS.filter(
   (c) => c.spell && !c.token && castEffectsOf(c).some((e) => e.on === 'cast' && APPLIES.has(e.do) && e.params?.flat !== true),
 );
 
+/**
+ * THE `flat: true` EXEMPTION LIST (added 2026-09-22 with R-TEXT-04). `flat: true` on a cast effect opts that
+ * grant OUT of spell power, which makes it a silent exemption from the rule that a stat spell folds the run's
+ * spell power. R-TEXT-04 says only an OWNER ruling may exempt a spell, so the switch is pinned to an exact
+ * list: a new spell that reaches for `flat: true` fails here until its ruling is written down, and a spell
+ * whose exemption is lifted must come off the list in the same PR.
+ */
+const FLAT_EXEMPT: Record<string, string> = {
+  // Owner ruling 2026-09-09 ("as of now"): a card-minted Gift spell takes no spell power and no other buff.
+  tower_shield: 'owner ruling 2026-09-09: minted Gift spells take no buffs',
+};
+
+/** Every cast effect on a card, its Choose One branches included. */
+function castEffects(card: (typeof ALL_CARDS)[number]) {
+  return [...(card.effects ?? []), ...(card.chooseOne ?? []).flatMap((b) => b.effects ?? [])]
+    .filter((e) => e.on === 'cast');
+}
+
+describe('a stat spell folds spell power unless an owner ruling exempts it (R-TEXT-04)', () => {
+  it('every `flat: true` opt-out is a recorded owner exemption', () => {
+    const flat = ALL_CARDS
+      .filter((c) => c.spell && castEffects(c).some((e) => APPLIES.has(e.do) && e.params?.flat === true))
+      .map((c) => c.id)
+      .sort();
+    expect(flat, 'an unrecorded `flat: true`: a stat spell may skip spell power only on an owner ruling, written into FLAT_EXEMPT and into R-TEXT-04')
+      .toEqual(Object.keys(FLAT_EXEMPT).sort());
+  });
+});
+
 describe('spell power is visible on every spell that gets it', () => {
   it('the sweep found the factories and the spells (guards against a vacuous audit)', () => {
     expect(APPLIES.size, 'factories reading spell power').toBeGreaterThan(3);

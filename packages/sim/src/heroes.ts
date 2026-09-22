@@ -952,10 +952,12 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'voidhero',
-    // ARCHIVED 2026-09-16 (owner: "archive the hero Void from all sets — I don't want the second-hero-power mechanic
-    // active right now"). `wip` = out of Play, Practice and the Mimic / Power-Shifter Discover pools while the def
-    // stays in HEROES so old saves and replays resolve. Restore by deleting the flag.
-    wip: true,
+    // ARCHIVED from PLAY 2026-09-16 (owner: "archive the hero Void — I don't want the second-hero-power mechanic
+    // active right now"), but returned to PRACTICE 2026-09-19 (owner ask: play Void there to test its power frame).
+    // `practiceOnly` keeps him out of the Ascent picker and generated rival seats (playableHeroes) while
+    // practiceHeroes still offers him. His `voidTwin` power stays out of the Mimic / Power-Shifter / Void Discover
+    // pools regardless — it's in UNDISCOVERABLE_KINDS ("the discoverers themselves"). Fully out of Play: set `wip`.
+    practiceOnly: true,
     name: 'Void',
     blurb: 'It reached into the space between heroes and pulled out two.',
     resolve: 30,

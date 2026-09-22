@@ -938,6 +938,9 @@ export function StatusBar() {
                 {art2
                   ? <span className="hpb-artwrap" aria-hidden="true"><img decoding="sync" className="hpb-art" src={art2} alt="" draggable={false} /></span>
                   : <span className="hpb-glyph" aria-hidden="true">✦</span>}
+                {/* Bronze ring FRAME around Void's second power only (owner ask 2026-09-16). Size/offset come
+                    from the 👥 Second Power tuner in the button's own unit, so it holds its seat at every res. */}
+                <img decoding="sync" className="hpb-frame" src={`${import.meta.env.BASE_URL}frames/hero-power-frame.webp`} alt="" aria-hidden="true" draggable={false} />
               </button>
               {/* Cost coin, tracker pill and centre magnitude — the same three the main power shows, from
                   slot-1 state. `liveCost2` (not `p2.cost`) so an escalating/shrinking cost reads its live price. */}

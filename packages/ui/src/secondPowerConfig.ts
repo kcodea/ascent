@@ -19,14 +19,21 @@ export interface SecondPowerConfig {
   y: number;
   /** Uniform scale on the whole second-power block. */
   scale: number;
+  /** Bronze ring FRAME around the second-power button (owner ask 2026-09-16). Size is a MULTIPLE of the button
+   *  (1 = exactly the button box); X/Y are offsets in the button's OWN unit (`--u`), so the frame keeps its seat
+   *  on the button at every resolution — baked in place, it doesn't drift with screen size. */
+  frameSize: number; frameX: number; frameY: number;
 }
 
-const DEFAULTS: SecondPowerConfig = { x: 81, y: 201, scale: 0.9 }; // owner-placed 2026-08-24
+const DEFAULTS: SecondPowerConfig = { x: 81, y: 201, scale: 0.9, frameSize: 1.15, frameX: 0, frameY: 0 }; // owner-placed 2026-08-24 / frame 2026-09-16
 
 const RANGES: Record<keyof SecondPowerConfig, [number, number, number]> = {
   x: [-300, 500, 1],
   y: [-300, 300, 1],
   scale: [0.4, 1.6, 0.01],
+  frameSize: [0.5, 3, 0.01],
+  frameX: [-100, 100, 0.5],
+  frameY: [-100, 100, 0.5],
 };
 
 export { DEFAULTS as SECOND_POWER_DEFAULTS };
@@ -53,6 +60,9 @@ export function applySecondPowerVars(): void {
   root.setProperty('--hp2-x', String(cfg.x));
   root.setProperty('--hp2-y', String(cfg.y));
   root.setProperty('--hp2-scale', String(cfg.scale));
+  root.setProperty('--hp2frame-size', String(cfg.frameSize));
+  root.setProperty('--hp2frame-x', String(cfg.frameX));
+  root.setProperty('--hp2frame-y', String(cfg.frameY));
 }
 
 export function setSecondPowerValue(key: keyof SecondPowerConfig, value: number | string): void {
@@ -71,6 +81,9 @@ const controls: TunerControl<Extract<keyof SecondPowerConfig, string>>[] = [
   { key: 'x', label: 'Offset X', unit: 'px', hint: 'Right of the hero panel seat. Reference px — scales with the stage.', group: 'Second power', min: RANGES.x[0], max: RANGES.x[1], step: RANGES.x[2] },
   { key: 'y', label: 'Offset Y', unit: 'px', hint: 'Down from the seat (under the main power button).', group: 'Second power', min: RANGES.y[0], max: RANGES.y[1], step: RANGES.y[2] },
   { key: 'scale', label: 'Scale', unit: '×', hint: 'Size of the whole second-power block.', group: 'Second power', min: RANGES.scale[0], max: RANGES.scale[1], step: RANGES.scale[2] },
+  { key: 'frameSize', label: 'Frame size', unit: '×', hint: 'Bronze ring size as a multiple of the button (1 = exactly the button).', group: 'Power frame', min: RANGES.frameSize[0], max: RANGES.frameSize[1], step: RANGES.frameSize[2] },
+  { key: 'frameX', label: 'Frame X', unit: 'px', hint: 'Nudge the ring left/right on the button (holds at every screen size).', group: 'Power frame', min: RANGES.frameX[0], max: RANGES.frameX[1], step: RANGES.frameX[2] },
+  { key: 'frameY', label: 'Frame Y', unit: 'px', hint: 'Nudge the ring up/down on the button (holds at every screen size).', group: 'Power frame', min: RANGES.frameY[0], max: RANGES.frameY[1], step: RANGES.frameY[2] },
 ];
 
 export const SPEC: TunerSpec<SecondPowerConfig> = {

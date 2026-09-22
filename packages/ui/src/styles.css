@@ -3433,6 +3433,31 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
   z-index: 42; }
 .heropanel2 .hpb-glyph { display: grid; place-items: center; width: 100%; height: 100%; font-size: 26px; color: #d8ccb6; }
 .heropanel2 .hplabel { pointer-events: none; }
+/* Bronze ring FRAME around Void's second-power button (owner ask 2026-09-16). Only on `.heropanel2`, so the
+   main power is untouched. Size is a multiple of the 128·--u button box and the X/Y offsets are in the button's
+   OWN unit (--u), so the ring keeps its seat on the button at every resolution — baked in place, no drift.
+   Vars come from the 👥 Second Power tuner (secondPowerConfig.ts); the literals here are the shipped fallback.
+   z-index 3 sits it above the art (2) / glow (1) — its transparent centre lets the art show through. */
+.heropanel2 .heropowerbtn .hpb-frame {
+  position: absolute; left: 50%; top: 50%; pointer-events: none;
+  width: calc(128 * var(--u) * var(--hp2frame-size, 1.15)); height: auto;
+  transform: translate(-50%, -50%) translate(calc(var(--hp2frame-x, 0) * var(--u)), calc(var(--hp2frame-y, 0) * var(--u)));
+  z-index: 3;
+}
+/* 👥 Second Power tuner PREVIEW — a mock button + the ring so the frame is tunable without Void in play. A
+   local `--u` sizes the 128·--u button to fit the panel; the real `.hpb-frame` rule above then reacts live. */
+.hp2prev {
+  --u: 0.86px;
+  display: grid; place-items: center; min-height: 150px;
+  margin-top: 6px; padding: 12px;
+  background: rgba(0, 0, 0, 0.3); border-radius: 8px; overflow: hidden;
+}
+.hp2prev .heropowerbtn {
+  background: radial-gradient(circle at 50% 42%, #4a3d28, #241c12 70%);
+  border-radius: 50%;
+  box-shadow: inset 0 0 calc(10 * var(--u)) rgba(0, 0, 0, 0.6);
+}
+.hp2prev .hpb-glyph { color: #d8ccb6; }
 
 /* EQUIPMENT (owner handoff 2026-08-28) — the minion-granted ability, in its OWN slot with its own seat.
    Driven by the ⚒️ Equipment Slot tuner (`--eqs-*`, equipSlotConfig.ts), NOT by the Second Power tuner: it

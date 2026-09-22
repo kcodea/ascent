@@ -13942,7 +13942,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "activation:adopted-secondary",
       "power-kind:voidTwin",
       "passive",
-      "wip"
+      "practice-only"
     ],
     "triggers": [
       {

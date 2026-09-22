@@ -61,12 +61,22 @@ describe('archived heroes (Fi + Coran, owner ruling 2026-08-28)', () => {
     }
   });
 
-  it('no hero is both wip and practiceOnly, and practiceOnly currently has no members', () => {
+  it('no hero is both wip and practiceOnly; Void is the sole practice-only hero (returned 2026-09-19)', () => {
     // A hero cannot be both: `wip` already means "withheld everywhere", so carrying both hides the intent.
     for (const h of HEROES) expect(h.wip && h.practiceOnly, `${h.id} is both wip and practiceOnly`).toBeFalsy();
-    // Fi and Coran were the flag's only users. If this starts failing, someone added a practice-only hero —
-    // that is fine, but the two rosters below then differ and the assertion after it must be revisited.
-    expect(HEROES.filter((h) => h.practiceOnly).map((h) => h.id)).toEqual([]);
-    expect(practiceHeroes().map((h) => h.id)).toEqual(playableHeroes().map((h) => h.id));
+    // Void returned to Practice-only on 2026-09-19 (owner ask: play it there to test its power frame). It is the
+    // only practice-only hero, so the two rosters now differ by EXACTLY Void.
+    expect(HEROES.filter((h) => h.practiceOnly).map((h) => h.id)).toEqual(['voidhero']);
+    const play = playableHeroes().map((h) => h.id);
+    const practice = practiceHeroes().map((h) => h.id);
+    expect(play, 'Void must stay OFF the Play roster').not.toContain('voidhero');
+    expect(practice, 'Void must be ON the Practice roster').toContain('voidhero');
+    expect(practice.filter((id) => id !== 'voidhero')).toEqual(play); // the two rosters differ by exactly Void
+  });
+
+  it('Void stays out of every power Discover even as a practice-only hero (its voidTwin power is a discoverer)', () => {
+    for (const who of ['mimic', 'void'] as const) {
+      expect(powerDiscoverPool(who), `Void leaked into the ${who} Discover pool`).not.toContain('voidhero');
+    }
   });
 });

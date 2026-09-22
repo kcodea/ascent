@@ -1,0 +1,677 @@
+{
+ "_": "Captured fight from bug report 8e0b4757 (wave 7, Merrin, seed 1182491190): the authoritative sim output (initial boards + CombatEvent[]) as the client stored it in lastCombat. Bullseye (m0) dies as the 2nd friendly death; its Echo summons Dunkey (m14). Data only, no player text.",
+ "initial": {
+  "player": [
+   {
+    "uid": "m0",
+    "cardId": "b2_bullseye",
+    "name": "Bullseye",
+    "tribe": "beast",
+    "attack": 3,
+    "health": 2,
+    "keywords": [],
+    "golden": false,
+    "summonBonus": 0,
+    "hpGrantBonus": 0,
+    "ascendProgress": 0
+   },
+   {
+    "uid": "m1",
+    "cardId": "manasaber",
+    "name": "Void Panther",
+    "tribe": "beast",
+    "attack": 4,
+    "health": 2,
+    "keywords": [
+     "T"
+    ],
+    "golden": false,
+    "summonBonus": 0,
+    "hpGrantBonus": 0,
+    "ascendProgress": 0,
+    "buffs": [
+     {
+      "source": "Bulwark",
+      "attack": 0,
+      "health": 1,
+      "count": 1
+     }
+    ]
+   },
+   {
+    "uid": "m2",
+    "cardId": "n2_conductor",
+    "name": "Conductor",
+    "tribe": "neutral",
+    "attack": 2,
+    "health": 4,
+    "keywords": [],
+    "golden": false,
+    "summonBonus": 0,
+    "hpGrantBonus": 0,
+    "ascendProgress": 0
+   },
+   {
+    "uid": "m3",
+    "cardId": "n2_bellringer",
+    "name": "Bellringer Voss",
+    "tribe": "neutral",
+    "attack": 6,
+    "health": 7,
+    "keywords": [],
+    "golden": false,
+    "summonBonus": 0,
+    "eotTick": 2,
+    "hpGrantBonus": 0,
+    "ascendProgress": 0,
+    "buffs": [
+     {
+      "source": "Conductor",
+      "attack": 2,
+      "health": 3,
+      "count": 1
+     }
+    ]
+   },
+   {
+    "uid": "m4",
+    "cardId": "kennel",
+    "name": "Kennelmaster",
+    "tribe": "beast",
+    "attack": 3,
+    "health": 6,
+    "keywords": [
+     "SC"
+    ],
+    "golden": false,
+    "summonBonus": 3,
+    "hpGrantBonus": 0,
+    "ascendProgress": 0,
+    "buffs": [
+     {
+      "source": "Conductor",
+      "attack": 2,
+      "health": 3,
+      "count": 1
+     }
+    ]
+   }
+  ],
+  "enemy": [
+   {
+    "uid": "m5",
+    "cardId": "d2_chorus",
+    "name": "Chorus Drake",
+    "tribe": "dragon",
+    "attack": 25,
+    "health": 28,
+    "keywords": [
+     "RL"
+    ],
+    "golden": true,
+    "summonBonus": 0,
+    "buffs": [
+     {
+      "count": 1,
+      "attack": 2,
+      "health": 2,
+      "source": "Broodfire"
+     },
+     {
+      "count": 5,
+      "attack": 15,
+      "health": 15,
+      "source": "Karwind"
+     },
+     {
+      "count": 1,
+      "attack": 2,
+      "health": 3,
+      "source": "Earthbreaker"
+     }
+    ]
+   },
+   {
+    "uid": "m6",
+    "cardId": "d2_mirrorwing",
+    "name": "Mirrorwing",
+    "tribe": "dragon",
+    "attack": 16,
+    "health": 19,
+    "keywords": [],
+    "golden": false,
+    "summonBonus": 0,
+    "buffs": [
+     {
+      "count": 4,
+      "attack": 12,
+      "health": 12,
+      "source": "Karwind"
+     },
+     {
+      "count": 1,
+      "attack": 2,
+      "health": 3,
+      "source": "Earthbreaker"
+     }
+    ]
+   },
+   {
+    "uid": "m7",
+    "cardId": "d2_mirrorwing",
+    "name": "Mirrorwing",
+    "tribe": "dragon",
+    "attack": 21,
+    "health": 24,
+    "keywords": [],
+    "golden": false,
+    "summonBonus": 0,
+    "buffs": [
+     {
+      "count": 1,
+      "attack": 2,
+      "health": 2,
+      "source": "Broodfire"
+     },
+     {
+      "count": 5,
+      "attack": 15,
+      "health": 15,
+      "source": "Karwind"
+     },
+     {
+      "count": 1,
+      "attack": 2,
+      "health": 3,
+      "source": "Earthbreaker"
+     }
+    ]
+   },
+   {
+    "uid": "m8",
+    "cardId": "d2_recaller",
+    "name": "Recaller",
+    "tribe": "dragon",
+    "attack": 6,
+    "health": 7,
+    "keywords": [],
+    "golden": false,
+    "summonBonus": 0,
+    "buffs": [
+     {
+      "count": 1,
+      "attack": 3,
+      "health": 3,
+      "source": "Karwind"
+     }
+    ]
+   },
+   {
+    "uid": "m9",
+    "cardId": "d2_herzog",
+    "name": "Vaultkeeper",
+    "tribe": "dragon",
+    "attack": 30,
+    "health": 34,
+    "keywords": [],
+    "golden": false,
+    "summonBonus": 0,
+    "buffs": [
+     {
+      "count": 3,
+      "attack": 18,
+      "health": 18,
+      "source": "Vaultkeeper"
+     },
+     {
+      "count": 2,
+      "attack": 6,
+      "health": 6,
+      "source": "Karwind"
+     }
+    ]
+   },
+   {
+    "uid": "m10",
+    "cardId": "d2_voicekeeper",
+    "name": "Voicekeeper",
+    "tribe": "dragon",
+    "attack": 18,
+    "health": 22,
+    "keywords": [],
+    "golden": true,
+    "summonBonus": 0,
+    "buffs": [
+     {
+      "count": 2,
+      "attack": 4,
+      "health": 4,
+      "source": "Broodfire"
+     },
+     {
+      "count": 2,
+      "attack": 6,
+      "health": 6,
+      "source": "Karwind"
+     }
+    ]
+   },
+   {
+    "uid": "m11",
+    "cardId": "karwind",
+    "name": "Karwind",
+    "tribe": "dragon",
+    "attack": 21,
+    "health": 30,
+    "keywords": [
+     "DS"
+    ],
+    "golden": false,
+    "summonBonus": 0,
+    "buffs": [
+     {
+      "count": 5,
+      "attack": 15,
+      "health": 15,
+      "source": "Karwind"
+     },
+     {
+      "count": 1,
+      "attack": 2,
+      "health": 3,
+      "source": "Earthbreaker"
+     }
+    ]
+   }
+  ]
+ },
+ "events": [
+  {
+   "type": "sc",
+   "source": "m4",
+   "text": "Kennelmaster rallies the pack",
+   "step": 1,
+   "key": "factory:scBeastAura:startOfCombat",
+   "srcCard": "kennel"
+  },
+  {
+   "type": "tribeAura",
+   "side": "player",
+   "tribe": "beast",
+   "attack": 4,
+   "health": 0,
+   "aura": "beast",
+   "step": 1,
+   "key": "factory:scBeastAura:startOfCombat",
+   "srcCard": "kennel"
+  },
+  {
+   "type": "buff",
+   "target": "m0",
+   "attack": 4,
+   "health": 0,
+   "source": "m4",
+   "step": 1,
+   "key": "factory:scBeastAura:startOfCombat",
+   "srcCard": "kennel"
+  },
+  {
+   "type": "buff",
+   "target": "m1",
+   "attack": 4,
+   "health": 0,
+   "source": "m4",
+   "step": 1,
+   "key": "factory:scBeastAura:startOfCombat",
+   "srcCard": "kennel"
+  },
+  {
+   "type": "buff",
+   "target": "m4",
+   "attack": 4,
+   "health": 0,
+   "source": "m4",
+   "step": 1,
+   "key": "factory:scBeastAura:startOfCombat",
+   "srcCard": "kennel"
+  },
+  {
+   "type": "attack",
+   "attacker": "m5",
+   "defender": "m1",
+   "swing": 0,
+   "step": 2
+  },
+  {
+   "type": "dmg",
+   "target": "m1",
+   "amount": 25,
+   "remainingHp": 0,
+   "source": "m5",
+   "step": 2
+  },
+  {
+   "type": "dmg",
+   "target": "m5",
+   "amount": 8,
+   "remainingHp": 20,
+   "source": "m1",
+   "step": 2
+  },
+  {
+   "type": "death",
+   "target": "m1",
+   "side": "player",
+   "step": 3
+  },
+  {
+   "type": "summon",
+   "minion": {
+    "uid": "m12",
+    "cardId": "sabercub",
+    "name": "Void Cub",
+    "tribe": "beast",
+    "attack": 0,
+    "health": 2,
+    "keywords": [
+     "T"
+    ],
+    "golden": false,
+    "summonBonus": 0
+   },
+   "side": "player",
+   "index": 2,
+   "source": "m1",
+   "step": 4,
+   "key": "factory:deathrattleSummon:onDeath",
+   "srcCard": "manasaber"
+  },
+  {
+   "type": "buff",
+   "target": "m12",
+   "attack": 4,
+   "health": 0,
+   "source": "m4",
+   "step": 4,
+   "key": "factory:deathrattleSummon:onDeath",
+   "srcCard": "manasaber"
+  },
+  {
+   "type": "summon",
+   "minion": {
+    "uid": "m13",
+    "cardId": "sabercub",
+    "name": "Void Cub",
+    "tribe": "beast",
+    "attack": 0,
+    "health": 2,
+    "keywords": [
+     "T"
+    ],
+    "golden": false,
+    "summonBonus": 0
+   },
+   "side": "player",
+   "index": 2,
+   "source": "m1",
+   "step": 4,
+   "key": "factory:deathrattleSummon:onDeath",
+   "srcCard": "manasaber"
+  },
+  {
+   "type": "buff",
+   "target": "m13",
+   "attack": 4,
+   "health": 0,
+   "source": "m4",
+   "step": 4,
+   "key": "factory:deathrattleSummon:onDeath",
+   "srcCard": "manasaber"
+  },
+  {
+   "type": "attack",
+   "attacker": "m0",
+   "defender": "m9",
+   "swing": 0,
+   "step": 6
+  },
+  {
+   "type": "dmg",
+   "target": "m9",
+   "amount": 7,
+   "remainingHp": 27,
+   "source": "m0",
+   "step": 6
+  },
+  {
+   "type": "dmg",
+   "target": "m0",
+   "amount": 30,
+   "remainingHp": 0,
+   "source": "m9",
+   "step": 6
+  },
+  {
+   "type": "death",
+   "target": "m0",
+   "side": "player",
+   "step": 7
+  },
+  {
+   "type": "summon",
+   "minion": {
+    "uid": "m14",
+    "cardId": "b2_dunkey",
+    "name": "Dunkey",
+    "tribe": "beast",
+    "attack": 7,
+    "health": 7,
+    "keywords": [],
+    "golden": false,
+    "summonBonus": 0
+   },
+   "side": "player",
+   "index": 1,
+   "source": "m0",
+   "step": 8,
+   "key": "factory:deathrattleSummonRandomTribeSetStats:onDeath",
+   "srcCard": "b2_bullseye"
+  },
+  {
+   "type": "buff",
+   "target": "m14",
+   "attack": 4,
+   "health": 0,
+   "source": "m4",
+   "step": 8,
+   "key": "factory:deathrattleSummonRandomTribeSetStats:onDeath",
+   "srcCard": "b2_bullseye"
+  },
+  {
+   "type": "attack",
+   "attacker": "m6",
+   "defender": "m12",
+   "swing": 0,
+   "step": 10
+  },
+  {
+   "type": "dmg",
+   "target": "m12",
+   "amount": 16,
+   "remainingHp": 0,
+   "source": "m6",
+   "step": 10
+  },
+  {
+   "type": "dmg",
+   "target": "m6",
+   "amount": 4,
+   "remainingHp": 15,
+   "source": "m12",
+   "step": 10
+  },
+  {
+   "type": "death",
+   "target": "m12",
+   "side": "player",
+   "step": 11
+  },
+  {
+   "type": "attack",
+   "attacker": "m14",
+   "defender": "m9",
+   "swing": 0,
+   "step": 14
+  },
+  {
+   "type": "dmg",
+   "target": "m9",
+   "amount": 11,
+   "remainingHp": 16,
+   "source": "m14",
+   "step": 14
+  },
+  {
+   "type": "dmg",
+   "target": "m14",
+   "amount": 30,
+   "remainingHp": 0,
+   "source": "m9",
+   "step": 14
+  },
+  {
+   "type": "death",
+   "target": "m14",
+   "side": "player",
+   "step": 15
+  },
+  {
+   "type": "improve",
+   "target": "m4",
+   "amount": 1,
+   "step": 16,
+   "avenge": true,
+   "key": "factory:avengeImproveSummon:avenge",
+   "srcCard": "kennel"
+  },
+  {
+   "type": "attack",
+   "attacker": "m7",
+   "defender": "m13",
+   "swing": 0,
+   "step": 18
+  },
+  {
+   "type": "dmg",
+   "target": "m13",
+   "amount": 21,
+   "remainingHp": 0,
+   "source": "m7",
+   "step": 18
+  },
+  {
+   "type": "dmg",
+   "target": "m7",
+   "amount": 4,
+   "remainingHp": 20,
+   "source": "m13",
+   "step": 18
+  },
+  {
+   "type": "death",
+   "target": "m13",
+   "side": "player",
+   "step": 19
+  },
+  {
+   "type": "attack",
+   "attacker": "m2",
+   "defender": "m11",
+   "swing": 0,
+   "step": 22
+  },
+  {
+   "type": "shield",
+   "target": "m11",
+   "step": 22
+  },
+  {
+   "type": "dmg",
+   "target": "m2",
+   "amount": 21,
+   "remainingHp": 0,
+   "source": "m11",
+   "step": 22
+  },
+  {
+   "type": "death",
+   "target": "m2",
+   "side": "player",
+   "step": 23
+  },
+  {
+   "type": "attack",
+   "attacker": "m8",
+   "defender": "m4",
+   "swing": 0,
+   "step": 26
+  },
+  {
+   "type": "dmg",
+   "target": "m4",
+   "amount": 6,
+   "remainingHp": 0,
+   "source": "m8",
+   "step": 26
+  },
+  {
+   "type": "dmg",
+   "target": "m8",
+   "amount": 7,
+   "remainingHp": 0,
+   "source": "m4",
+   "step": 26
+  },
+  {
+   "type": "death",
+   "target": "m4",
+   "side": "player",
+   "step": 27
+  },
+  {
+   "type": "death",
+   "target": "m8",
+   "side": "enemy",
+   "step": 29
+  },
+  {
+   "type": "attack",
+   "attacker": "m3",
+   "defender": "m7",
+   "swing": 0,
+   "step": 32
+  },
+  {
+   "type": "dmg",
+   "target": "m7",
+   "amount": 6,
+   "remainingHp": 14,
+   "source": "m3",
+   "step": 32
+  },
+  {
+   "type": "dmg",
+   "target": "m3",
+   "amount": 21,
+   "remainingHp": 0,
+   "source": "m7",
+   "step": 32
+  },
+  {
+   "type": "death",
+   "target": "m3",
+   "side": "player",
+   "step": 33
+  }
+ ]
+}

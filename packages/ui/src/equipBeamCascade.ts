@@ -112,6 +112,12 @@ export interface EquipBeamHold {
  *
  * Two visibly SEPARATE rolls on one body would need a multi-segment hold in the shared store (combat uses it
  * too) — surfaced as a design fork for the owner rather than bolted on here.
+ *
+ * The same one-hold-per-uid fact reaches ACROSS presses: a second press whose beam lands on a body still waiting
+ * for a beam from the first press re-holds it at equal rank, which carries the unrevealed remainder but takes
+ * the SECOND press's `startAt` / `rollMs` (`holdStat`). Nothing is lost and the badge still settles on the truth;
+ * only that body's roll-to-landing pairing for the earlier beam slips. The multi-segment hold would fix this case
+ * too (review 2026-09-22).
  */
 export function equipBeamHoldPlan(beams: readonly EquipBeam[], baseDelayMs = 0): EquipBeamHold[] {
   const schedule = equipBeamSchedule(beams.length, baseDelayMs);

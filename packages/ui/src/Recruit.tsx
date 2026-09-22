@@ -2273,19 +2273,22 @@ export function Recruit() {
       // is the moment that reads as pressing it. Playing again here would be two flourishes for one press —
       // and the second would land on a screen that has moved on to the result.
       if (eq.chooseOne?.length) continue;
-      const tEl = cue.targetUid ? findEl(cue.targetUid) : null;
+      // An Equipment whose def is aimed at the body its own effect buffed (`useFxTargetsBuffed`, Spiritbinder,
+      // owner ask 2026-09-22) is sorted out BEFORE the target is measured, because neither of its two shapes
+      // uses a measurement taken here. When that effect picked NO board body the cue carries no `targetUid`,
+      // and the slot fallback below would fire the owner's beam from the button to the button. That reads as a
+      // misfire, so the right answer is no beam at all: the hand recipient still pops on its own channel, and
+      // nothing claims a board hit that never happened.
+      const aimlessBeam = eq.useFxTargetsBuffed === true && !cue.targetUid;
+      // …and one that DID pick a body belongs to the beam cascade (`useEquipBeamCascade`, declared above): one
+      // beam per fire, staggered, each holding its recipient's badge to its own contact. Nothing plays here, and
+      // nothing is MEASURED here either: the cascade reads each recipient at its own launch (`restingCenterOf`),
+      // so a rect read in this loop would be one no beam ever uses, N times per press (review 2026-09-22).
+      const cascaded = eq.useFxTargetsBuffed === true && !!cue.targetUid;
+      const tEl = cue.targetUid && !cascaded ? findEl(cue.targetUid) : null;
       const tR = tEl?.getBoundingClientRect();
       // No target (an untargeted Equipment) → the effect plays ON the slot rather than travelling nowhere.
       const to = tR ? { x: tR.left + tR.width / 2, y: tR.top + tR.height / 2 } : slot;
-      // … EXCEPT for one whose def is aimed at the body its own effect buffed (`useFxTargetsBuffed`,
-      // Spiritbinder — owner ask 2026-09-22). When that effect picked NO board body the cue carries no
-      // `targetUid`, and the slot fallback above would fire the owner's beam from the button to the button.
-      // That reads as a misfire, so the right answer is no beam at all: the hand recipient still pops on its
-      // own channel, and nothing claims a board hit that never happened.
-      const aimlessBeam = eq.useFxTargetsBuffed === true && !cue.targetUid;
-      // …and one that DID pick a body belongs to the beam cascade (`useEquipBeamCascade`, declared above): one
-      // beam per fire, staggered, each holding its recipient's badge to its own contact. Nothing plays here.
-      const cascaded = eq.useFxTargetsBuffed === true && !!cue.targetUid;
       if (eq.useFxId && slot && to && !aimlessBeam && !cascaded && canPlayDefs()) {
         const fire = (): void => {
           // The Equipment is ALWAYS the `source` (owner 2026-09-12: "equipment can always be a starting point of an

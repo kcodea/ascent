@@ -24,7 +24,9 @@ import { describe, expect, it } from 'vitest';
  * `equipBeamCascade.ts` (one beam per cue, staggered, one hold per recipient) rather than by `Recruit`'s cue
  * loop, so the hold pin moved there, and a fourth pin checks the loop actually hands those cues over — a loop
  * that played them AND the cascade played them would be two beams per fire. The cascade's behaviour itself is
- * pinned by a mounted test (`equipBeamCascade.test.tsx`); this file only pins the wiring text.
+ * pinned by a mounted test (`equipBeamCascade.test.tsx`); this file only pins the wiring text,
+ * including that the loop leaves the recipient's measurement to the cascade (one rect read per beam, at launch,
+ * none in the loop).
  */
 const SRC = readFileSync(new URL('./Recruit.tsx', import.meta.url), 'utf8');
 const CASCADE = readFileSync(new URL('./equipBeamCascade.ts', import.meta.url), 'utf8');
@@ -95,6 +97,15 @@ describe('Spiritbinder beam guard', () => {
     // The recipient is measured at LAUNCH and transform-immune, so a later beam lands where the card rests.
     const anchors = SRC.slice(SRC.indexOf('equipBeamAnchorsRef.current = {'), call);
     expect(anchors).toContain('restingCenterOf(');
+  });
+
+  it('does not measure a cascaded cue in the loop: the cascade reads each recipient at its own launch', () => {
+    const body = defGate();
+    // The guard is decided first, then the rect read is skipped for a cascaded cue. Measured here it would be a
+    // layout read no beam ever uses, N times per press (review 2026-09-22).
+    expect(body.indexOf('const cascaded = '), 'the cascade guard must be decided before the target is measured')
+      .toBeLessThan(body.indexOf('findEl(cue.targetUid)'));
+    expect(body).toContain('cue.targetUid && !cascaded ? findEl(cue.targetUid)');
   });
 
   it('opens the badge roll at the beam contact the def actually authors', () => {

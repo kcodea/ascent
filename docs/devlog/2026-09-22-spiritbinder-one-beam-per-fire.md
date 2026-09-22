@@ -54,9 +54,11 @@ differences that matter written at the top of the file. What it does per action:
 | **`beamedNow`** | untouched: it was already a set over every `use` cue of a flagged Equipment, so N cues cover N bodies and none of them gets the generic pulse. |
 
 `Recruit`'s use-cue loop hands a flagged cue that carries a `targetUid` to the cascade (`const cascaded = …; if
-(… && !cascaded …)`) and plays nothing for it; the aimless guard stays for the target-less cue. The Equipment's
-clip, if it had one, rides each beam's launch (`onLaunch`) rather than N-at-once in the loop — moot today,
-Spiritbinder names no `useSfxId`, and `equipment-used-up` fires on the charge edge, not per cue.
+(… && !cascaded …)`) and plays nothing for it, nor measures it: the `findEl` / `getBoundingClientRect` read is
+skipped for a cascaded cue, because the cascade measures each recipient at its own launch and a rect read here
+would be one no beam ever uses (review 2026-09-22). The aimless guard stays for the target-less cue. The
+Equipment's clip, if it had one, rides each beam's launch (`onLaunch`) rather than N-at-once in the loop — moot
+today, Spiritbinder names no `useSfxId`, and `equipment-used-up` fires on the charge edge, not per cue.
 
 ## Edge cases
 
@@ -70,7 +72,7 @@ Spiritbinder names no `useSfxId`, and `equipment-used-up` fires on the charge ed
 | the Shaman as a recipient on one of the fires | its cue names it; the beam leaves the slot and lands on it like any other (pinned by seed search) |
 | a fire with no board Spirit between two that do | **unreachable** within one activation: Spiritbinder only buffs, so the board Spirit set cannot change between its fires. Either every fire finds one or none does; the all-none case is pinned |
 | the recipient is sold before its beam | that beam is skipped; its hold fails open on the TTL (the card is gone anyway) |
-| a second press mid-cascade | its own cascade starts; the first finishes on its own clock |
+| a second press mid-cascade | its own cascade starts; the first finishes on its own clock. If the second press lands on a body still waiting for a beam from the first, the store's equal-rank re-hold re-times that body's roll to the second contact (one hold per uid), so the earlier beam can arrive on unmoved numbers there; the badge still settles on the truth (review 2026-09-22, same root as the design fork below) |
 | End Turn mid-cascade | the phase watcher retires every pending launch and playing def |
 
 ## The design fork to surface
@@ -82,6 +84,9 @@ unmoved numbers. The aggregated hold above (open at the first contact, roll to t
 continuous roll. Two distinct rolls need a multi-segment hold in the store — a per-uid queue of
 `{delta, startAt, rollMs}` summed in `heldFor` and stepped independently. The store is shared with combat
 (`Card.tsx`, `choreo/score.ts`, `useCombatReplay.ts`), so that is the owner's call, not a bolt-on here.
+The same limit reaches across presses: a second press mid-cascade that lands on a body still waiting for a beam
+from the first re-times that body's roll to the second press's contact (`holdStat` keeps the carried remainder
+but takes the new `startAt`). The multi-segment hold fixes both.
 
 ## Tests
 
@@ -98,8 +103,11 @@ continuous roll. Two distinct rolls need a multi-segment hold in the store — a
 - `packages/ui/src/spiritbinderBeamGuard.test.ts` — extended: the loop must hand cascaded cues over (`!cascaded`),
   the cascade must be mounted on `run.equipFxSeq` / `run.equipFx`, the stop list must be the cascade's, the
   recipient must be measured with `restingCenterOf`, `EQUIP_BUFF_LAND_MS` (now in the module) still equals the
-  def's `travelMs`, and the hold still carries the cue's gain. Sabotage-checked: removing `!cascaded` fails it.
-- Oracle: `R-PRESENT-02` in `packages/rules/src/registry/approved.ts` (168 rules / 82 approved in the report).
+  def's `travelMs`, the hold still carries the cue's gain, and the loop must not measure a cascaded cue (the
+  cascade does, at launch). Sabotage-checked: removing `!cascaded` fails it; so does measuring before the guard.
+- Oracle: `R-PRESENT-02` in `packages/rules/src/registry/approved.ts`. The report's two rule-count lines must equal
+  the MERGED registry, not this branch's alone: `main` took `R-REPORT-01` (#1632) while this branch was open, so
+  after taking `main` in the count is 169 rules / 83 approved (`npm run docbot:report -- --check` is the tripwire).
 
 ## Verified in the browser
 

@@ -222,7 +222,7 @@ const MODES = new Set<QaScenarioMode>(['recruit', 'combat', 'lobby']);
 /** EXHAUSTIVE map of the Action union's discriminants — a `Record` keyed on `Action['type']` so adding an
  *  action to the union without listing it here is a TYPE error, not a silently-permissive validator. */
 const ACTION_TYPES: Record<Action['type'], true> = {
-  combatEscalationPreview: true, combatSpellCastPreview: true, combatFriendlyDeathPreview: true,
+  combatEscalationPreview: true, combatSpellPowerPreview: true, combatSpellCastPreview: true, combatFriendlyDeathPreview: true,
   combatBladeAttackPreview: true, buy: true, buyHenchman: true, play: true, sell: true, roll: true,
   freeze: true, upgrade: true, reposition: true, reorderShop: true, reorderHand: true, heroPower: true,
   pickPower: true, discover: true, buyQuest: true, buyRune: true, skipRuneforge: true, rerollRuneforge: true,

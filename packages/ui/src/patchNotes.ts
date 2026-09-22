@@ -52,6 +52,31 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Live numbers in combat',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Card numbers now move during a fight. Spell power and improving spells update while combat plays, instead of jumping once the shop reopens.',
+        details: [
+          'A spell in your hand or on your board shows what it would cast for right now, at every moment of the fight.',
+          'Front to Back and the other improving spells tick up as they are cast in combat, not at the end.',
+          'Rune of Adventuring is counted in the number you see. A Rally that fires twice shows the doubled value.',
+          'The hero trackers that read combat totals were stuck for the same reason and now tick too: Attunement, Hoard and Blade Mastery.',
+          'Nothing about the fight itself changed. Only the numbers you were shown were behind.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: "A card you are given for selling a minion can now complete a Gild. Voicekeeper's copy combines into the Gilded version if it is your third, and pays its Triple Reward.",
+        details: [
+          'This covers every card a sale hands you, not just Voicekeeper: the sell runes pay into the same check.',
+          'Only the card the sale just gave you can combine. Copies already sitting in your hand are left alone.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Crest of the Climb scales',
     changes: [
       {

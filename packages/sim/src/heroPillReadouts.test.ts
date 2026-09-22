@@ -138,3 +138,27 @@ describe('Vale — United Front centre', () => {
     expect(valeCentre(r)).toBe('+5/+5');
   });
 });
+
+describe('the display-only combat previews reach the reducer DURING combat', () => {
+  // THE ROOT CAUSE of the owner's 2026-09-22 report ("front to backs text / maybe all spells? not updating in
+  // real time from buffs in combat"). Every one of these is dispatched by the combat replay, i.e. while
+  // `phase === 'combat'` — and the reducer's phase guard admitted only `resolveCombat` / `settleCombat`, so
+  // all five were silently swallowed and every live readout they feed sat frozen for the whole fight. They
+  // carry no gameplay (settle clears them and applies the real carry-backs), so the guard must let them past.
+  const inCombat = (): RunState => ({ ...createRun(5, 'cindara', 'practice'), phase: 'combat' }) as RunState;
+
+  it('the phase guard does not swallow them', () => {
+    expect(reduce(inCombat(), { type: 'combatEscalationPreview', attack: 2, health: 2 }).fxEscalationPreview)
+      .toEqual({ attack: 2, health: 2 });
+    expect(reduce(inCombat(), { type: 'combatSpellPowerPreview', attack: 0, health: 7 }).fxSpellPowerPreview)
+      .toEqual({ attack: 0, health: 7 });
+    expect(reduce(inCombat(), { type: 'combatSpellCastPreview' }).fxSpellsCastPreview).toBe(1);
+    expect(reduce(inCombat(), { type: 'combatFriendlyDeathPreview' }).fxFriendlyDeathPreview).toBe(1);
+    expect(reduce(inCombat(), { type: 'combatBladeAttackPreview' }).fxBladeAttacksPreview).toBe(1);
+  });
+
+  it('an open modal does not freeze them either — a Discover can be raised mid-fight', () => {
+    const s = { ...inCombat(), discover: { options: [], source: 'triple' } } as unknown as RunState;
+    expect(reduce(s, { type: 'combatSpellCastPreview' }).fxSpellsCastPreview).toBe(1);
+  });
+});

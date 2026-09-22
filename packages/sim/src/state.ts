@@ -958,6 +958,16 @@ export interface RunState {
    *  `combatEscalationPreview`; settle clears it — the REAL gain arrives through `playerSpellEscalationGain`,
    *  so this is display-only and can never double-count. */
   fxEscalationPreview?: { attack: number; health: number };
+  /** TRANSIENT combat-replay preview of SPELL POWER gained mid-fight (owner report 2026-09-22: spell text was
+   *  "not updating in real time from buffs in combat"). `grantSpellPower` keeps `ctx.spellPower` live inside
+   *  `simulate`, but the run's own `spellBonus` is only written at settle — so every spell whose printed value
+   *  is greened by spell power sat at its pre-combat number for the whole fight. The replay FOLDS the
+   *  simulator's own "+A/+H Spell Power" narrations over the events played so far (`combatBuffDelta`) and
+   *  publishes the running total through `combatSpellPowerPreview` — an absolute set, so scrubbing or
+   *  skipping the fight lands on the right number. Settle clears it, where the REAL total arrives through
+   *  `playerSpellPower`. DISPLAY ONLY — never fold it into
+   *  `spellAttackBonus` / `spellHealthBonus`, which the reducer's cast math reads (use the `…Live` helpers). */
+  fxSpellPowerPreview?: { attack: number; health: number };
   /** TRANSIENT combat-replay preview of spells cast this fight — Yirin's Attunement counter (and any other
    *  spells-cast reader) ticks live instead of jumping at settle. Cleared at settle, where the REAL count
    *  arrives via `playerSpellsCast`; display-only, so it can never double-count. */
@@ -2338,6 +2348,7 @@ export interface DeferredFight {
 export type Action =
   /** Combat replay: an escalating spell improved itself mid-fight — bump the display-only preview. */
   | { type: 'combatEscalationPreview'; attack: number; health: number }
+  | { type: 'combatSpellPowerPreview'; attack: number; health: number }
   /** Combat replay: a Shop Spell resolved mid-fight — bump the display-only spells-cast preview. */
   | { type: 'combatSpellCastPreview' }
   | { type: 'combatFriendlyDeathPreview' }

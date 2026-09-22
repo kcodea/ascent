@@ -1302,8 +1302,19 @@ function reduceCore(state: RunState, action: Action): RunState {
   // No window open — a late or duplicate expiry tick (Thymepiece) is a free no-op, not a clone.
   if (action.type === 'discountWindowExpired' && !state.cardDiscountWindow) return state;
 
+  // THE DISPLAY-ONLY COMBAT PREVIEWS (owner report 2026-09-22: spell text "not updating in real time from
+  // buffs in combat"). These carry no gameplay: the replay publishes what the EVENT LOG already says has
+  // happened so far this fight, so a printed number ticks with the fight instead of jumping at settle. They
+  // are dispatched WHILE `phase === 'combat'`, which is the one thing the guard below forbade — so every one
+  // of them was silently swallowed and every live readout they feed (Front to Back's step, spell power,
+  // Yirin's Attunement, Cindara's Hoard, Gorun's Blade Mastery) sat frozen for the whole combat. `settleCombat`
+  // clears all of them and applies the REAL carry-backs, so letting them through can never double-count, and a
+  // Discover raised mid-fight must not freeze them either (hence the modal guard below exempts them too).
+  const combatPreview = action.type === 'combatEscalationPreview' || action.type === 'combatSpellPowerPreview'
+    || action.type === 'combatSpellCastPreview' || action.type === 'combatFriendlyDeathPreview'
+    || action.type === 'combatBladeAttackPreview';
   // Recruit actions apply only in the recruit phase; `settleCombat` / `resolveCombat` only in combat.
-  if (state.phase !== 'recruit' && action.type !== 'resolveCombat' && action.type !== 'settleCombat') return state;
+  if (state.phase !== 'recruit' && !combatPreview && action.type !== 'resolveCombat' && action.type !== 'settleCombat') return state;
 
   // Modal recruit states — a pending Discover / Choose One / targeted Battlecry — block every other board
   // action until they resolve. The player can still inspect (a UI-only concern), so a Discover can be
@@ -1335,7 +1346,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // before the pick resolves either way — it only lets the settle be its own commit, so the shop can play the
   // dissolve and THEN raise the Discover (Recruit.tsx holds the overlay on `pendingDeath`).
   const settlesDeath = action.type === 'resolveShopDeath' && !!state.pendingDeath;
-  if (modalOpen(state) && !combatTransition && !settlesDeath && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'cancelChoice' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'pickPower' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout' && !endTurnEscapesAim) {
+  if (modalOpen(state) && !combatTransition && !combatPreview && !settlesDeath && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'cancelChoice' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'pickPower' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && action.type !== 'closeScout' && !endTurnEscapesAim) {
     return state;
   }
 
@@ -2418,7 +2429,18 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Every post-removal sale ritual (Gold, the sell runes, on-sell + minion-sold notifications, Robin's
       // Spoils, the pool return) lives in `settleMinionSale` so a spell that SELLS a minion (Dissipate) walks
       // exactly the same path as this manual sale.
+      // A sale can GRANT a minion to hand (Voicekeeper's copy of the first Dragon sold, Rune of the Foundry,
+      // Rune of the Festival Circuit, a Last Word Shout) — and that copy can be your third. This case returns
+      // early, so the shared post-action hand-growth check in `reduce` never sees it: that check reads its
+      // `handBefore` AFTER `reduceCore` has already landed the grant. Every other hand-growing case calls
+      // `checkTriples` itself; the sale forgot (owner report 2026-09-22, "voicekeeper selling needs a triple
+      // check"). Gated on the hand actually GROWING, exactly like the shared block: an ungated call would
+      // also combine copies that were merely standing there before the sale, which is a different rule.
+      // `checkTriples` is idempotent, and the spell-driven sale paths (Dissipate, Parting Gifts) run it again
+      // on the play path, so nothing here can combine twice.
+      const handBeforeSale = s.hand.length;
       if (sold) settleMinionSale(s, sold);
+      if (s.hand.length > handBeforeSale) checkTriples(s);
       return s;
     }
 
@@ -3507,6 +3529,16 @@ function reduceCore(state: RunState, action: Action): RunState {
       // `playerSpellEscalationGain`; settle clears this, so the two can never stack.
       const cur = s.fxEscalationPreview ?? { attack: 0, health: 0 };
       s.fxEscalationPreview = { attack: cur.attack + action.attack, health: cur.health + action.health };
+      return s;
+    }
+    case 'combatSpellPowerPreview': {
+      // Display-only (see `fxSpellPowerPreview`). ABSOLUTE, not a delta: the replay hands over its running
+      // FOLD of the simulator's "+A/+H Spell Power" narrations over the events played so far, so a skip or a
+      // re-played beat resets to the right number instead of double-counting. The real total lands at settle
+      // through `playerSpellPower`, which also clears this, so the two can never stack.
+      s.fxSpellPowerPreview = action.attack === 0 && action.health === 0
+        ? undefined
+        : { attack: action.attack, health: action.health };
       return s;
     }
     case 'combatSpellCastPreview': {
@@ -4691,6 +4723,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
     s.frontToBackBonusH += result.playerSpellEscalationGain.health;
   }
   s.fxEscalationPreview = undefined; // the display preview retires — the real gain just landed above
+  s.fxSpellPowerPreview = undefined; // ditto: `playerSpellPower` was applied above
   s.fxSpellsCastPreview = undefined; // ditto: `playerSpellsCast` was applied above
   s.fxFriendlyDeathPreview = undefined; // Cindara's live Avenge tracker retires — a new fight re-counts from 0
   s.fxBladeAttacksPreview = undefined; // Gorun's live counter retires — `bladeAttacks` already banked the real total

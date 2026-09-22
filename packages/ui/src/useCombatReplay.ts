@@ -1209,6 +1209,9 @@ export function useCombatReplay(
     // text, and run state doesn't change until settle — so mid-fight there is nothing for that diff to see.
     // Firing from the narration beat puts it on the moment the gain actually happens.
     fireHandBuffOnHandSpells(useGame.getState().run.hand);
+    // The printed NUMBER is not moved here: it rides `combatBuffDelta`'s fold of the same narrations over
+    // `events[0, processedEnd)` (see the `fxSpellPowerPreview` bridge in Recruit). A fold is scrub-safe — a
+    // skip or a re-played beat recomputes it — where accumulating per event would double-count.
   }, []);
   /** The card-frame bloom alone (nonce → remount → the animation restarts), so a Shout's owner can bloom once
    *  PER FIRE — the beat-level `sccast` flash class fires once per beat and cannot repeat within it. */

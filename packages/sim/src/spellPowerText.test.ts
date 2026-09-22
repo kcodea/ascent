@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ALL_CARDS, CARD_INDEX } from '@game/content';
-import { spellDisplayText } from './recruit';
+import { chooseOneBranchText, spellDisplayText } from './recruit';
 
 /**
  * SPELL POWER MUST SHOW (owner report 2026-07-26). Hoardflame printed "+4/+4" while a Spellbinder's +0/+1 was
@@ -33,11 +33,13 @@ function factoriesApplyingSpellPower(): Set<string> {
 
 const APPLIES = factoriesApplyingSpellPower();
 
-/** Every shop spell whose cast effect picks up spell power. */
-// `flat: true` on a cast effect opts that grant OUT of spell power inside the factory (Crest of the Climb's
-// branches; the set-3 Tower Shield), so such a spell never scales and must not be swept.
+/** Every shop spell whose cast effect picks up spell power — Choose One BRANCHES included (Crest of the Climb,
+ *  Apples, Aspect's Blessing keep their scaling grants in `chooseOne[].effects`, with `effects: []`). */
+// `flat: true` on a cast effect opts that grant OUT of spell power inside the factory (the set-3 Tower Shield),
+// so such a spell never scales and must not be swept.
+const castEffectsOf = (c: (typeof ALL_CARDS)[number]) => [...(c.effects ?? []), ...(c.chooseOne ?? []).flatMap((o) => o.effects ?? [])];
 const SCALING_SPELLS = ALL_CARDS.filter(
-  (c) => c.spell && !c.token && (c.effects ?? []).some((e) => e.on === 'cast' && APPLIES.has(e.do) && e.params?.flat !== true),
+  (c) => c.spell && !c.token && castEffectsOf(c).some((e) => e.on === 'cast' && APPLIES.has(e.do) && e.params?.flat !== true),
 );
 
 /**
@@ -88,6 +90,22 @@ describe('spell power is visible on every spell that gets it', () => {
       expect(live, `${id}: no live value injected`).toContain('{{');
     },
   );
+
+  it("Aspect's Blessing greens BOTH Choose One branches on the card face, in the window's shape", () => {
+    // The sweep above only proves at least one live token per spell; this pins the second branch, which the
+    // flat3 early return used to leave at its authored "+2/+1" while the Choose One window printed the live
+    // number (review finding 2026-09-22, bug 23c340fb).
+    const live = spellDisplayText('aspectsblessing', 0, 0, 1, 0, 0, 0, {});
+    expect(live).toContain('{{+3/+3}}');
+    expect(live).toContain('{{+2/+2}}');
+    expect(live).not.toContain('+2/+1');
+    // The window prints each branch as its own sentence; the greened token is what the two surfaces share.
+    for (const i of [0, 1]) {
+      const tok = chooseOneBranchText('aspectsblessing', i, false, 0, 1).match(/\{\{[^}]+\}\}/)?.[0];
+      expect(tok, `branch ${i} greens in the window`).toBeTruthy();
+      expect(live, `branch ${i}: card face prints the window's number`).toContain(tok!);
+    }
+  });
 
   it('Hoardflame specifically — the card that prompted this', () => {
     // The owner's case: a +0/+1 spell buff and no Dragons played yet.

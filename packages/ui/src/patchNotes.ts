@@ -52,6 +52,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Crest of the Climb scales',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Crest of the Climb now gets your spell power. Its +4 Attack or +4 Health grows with the Shop spell buffs you hold, and the card and the Choose One window both print the number it will give.',
+        details: [
+          'With +1 Health spell power the Health option gives +5 Health and the Attack option gives +4/+1, because spell power adds both of its stats to any stat spell, the same way it does for Growth or the Ales.',
+          'The card in the Shop, in your hand and on hover, and both options in the Choose One window, print the live number in green once you have any spell power. With none, the printed +4 stands.',
+          "Tower Shield (Defender's Shout) is unchanged and stays at +2/+1.",
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Avenge counter on summoned minions',
     changes: [
       {

@@ -14,7 +14,7 @@ const mkMinion = (uid: string, attack: number, health: number): BoardCard =>
   ({ uid, cardId: 'sandbag', tribe: 'neutral', attack, health, keywords: [], golden: false });
 
 describe('spell batch — tranche A (set-agnostic)', () => {
-  it('Crest of the Climb: +4 Attack lands on a friendly minion, flat (no spell-power leak)', () => {
+  it('Crest of the Climb: +4 Attack lands on a friendly minion (exactly +4 at zero spell power)', () => {
     let s: RunState = { ...createRun(1), board: [mkMinion('m1', 2, 5)], hand: [mkSpell('sp', 'crestclimb')] };
     s = reduce(reduce(s, { type: 'play', uid: 'sp', targetUid: 'm1' }), { type: 'resolveShopDeath' });
     expect(s.chooseOne).toBeTruthy();
@@ -30,6 +30,18 @@ describe('spell batch — tranche A (set-agnostic)', () => {
     s = reduce(s, { type: 'chooseOne', index: 1 }); // option 1 = +4 Health
     const m = s.board.find((c) => c.uid === 'm1')!;
     expect([m.attack, m.health]).toEqual([2, 9]);
+  });
+
+  it('Crest of the Climb folds spell power (owner report 2026-09-21): +4 Attack under +1/+0 lands +5', () => {
+    let s: RunState = { ...createRun(1), board: [mkMinion('m1', 2, 5)], hand: [mkSpell('sp', 'crestclimb')], spellBonus: { attack: 1, health: 0 } };
+    s = reduce(reduce(s, { type: 'play', uid: 'sp', targetUid: 'm1' }), { type: 'resolveShopDeath' });
+    s = reduce(s, { type: 'chooseOne', index: 0 });
+    const m = s.board.find((c) => c.uid === 'm1')!;
+    expect([m.attack, m.health]).toEqual([7, 5]);
+    // The card's own text says so on every surface (shop / hand / hover), in the window's shape.
+    expect(spellDisplayText('crestclimb', 1, 0, 0)).toBe('**Choose One:** give a minion **{{+5 Attack}}**, or **{{+1/+4}}**.');
+    expect(spellDisplayText('crestclimb', 0, 0, 1)).toBe('**Choose One:** give a minion **{{+4/+1}}**, or **{{+5 Health}}**.');
+    expect(spellDisplayText('crestclimb', 0, 0, 0)).toBe(CARD_INDEX['crestclimb']!.text);
   });
 
   it('Crest of the Climb: `any` can target a tavern offer (buffs it pre-buy)', () => {

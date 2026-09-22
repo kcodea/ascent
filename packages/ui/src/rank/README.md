@@ -16,24 +16,24 @@ import {
 } from '@game/sim';
 ```
 
-- 18 divisions, index `0` = Bronze III … `17` = Ascendant I; order within a medal is **III → II → I**.
+- 18 divisions, index `0` = Bronze I … `17` = Ascendant III; order within a medal is **I → II → III** (owner 2026-09-22: the numerals ascend with the climb).
 - `RankResult` (blueprint §4 plus `promotionKind: 'division' | 'medal' | null`, `requiredFinish: 4 | 1 | null`,
   `wasDemotionGame`, `demotionUnlocked`, `highestAfter`) is what the screen animates. `appliedDelta` is
   **the number to show** — it is `+10` on a won promotion (the `RANK_RULES.promotionLanding` cushion: 10/100
-  in the new division, owner 2026-09-21; it was 0/100 before) and `0` on a held medal gate (2nd–4th at Gold I
+  in the new division, owner 2026-09-21; it was 0/100 before) and `0` on a held medal gate (2nd–4th at Gold III
   100 stays at 100). `cappedPoints` is what the base award lost to the cap / floor / hold; it is `0` on a won
   promotion (the award converted into the promotion). The screen's `deltaText` prints the base award on a
   promotion, not the +10.
 - **Demotion gate** (owner 2026-09-20, widened to EVERY division 2026-09-21: there are no instant demotions):
   a **STORED** flag, `position.demotionReady` (read it through `isDemotionReady(pos)`; absent = false). It is
-  armed ONLY by a loss that lands on 0 in any division above Bronze III (`hasDemotionGate(d)` = `d > 0`),
+  armed ONLY by a loss that lands on 0 in any division above Bronze I (`hasDemotionGate(d)` = `d > 0`),
   cleared by any non-negative result, and never set by a promotion landing — 10/100 after a won promotion is
   NOT armed (the first loss of 10 or more there clamps at 0 and arms, the second demotes).
   Show *"Demotion game. Finish top 4 to stay in Gold II."* (`demotionGateText` names the division at stake)
   when `isDemotionReady(profile.rank.position)` before the next ranked game; after a game,
   `result.demotionUnlocked` (= `result.after.demotionReady`) means THIS game armed it, `result.wasDemotionGame`
   means this game WAS the demotion game (`requiredFinish` 4 = the worst finish that escapes; `demoted` says
-  whether they dropped — ONE division, to `100 + award`: Gold II → Gold III 60 on an 8th, Gold III → Silver I
+  whether they dropped — ONE division, to `100 + award`: Gold II → Gold I 60 on an 8th, Gold I → Silver III
   60 across the medal boundary). `demoted` is therefore only ever true together with `wasDemotionGame` on a
   result settled under the current rules; the sequence planner keeps an instant-demotion plan (drain →
   transition → retreat from 100) only for results settled before 2026-09-21. A promotion game never coincides

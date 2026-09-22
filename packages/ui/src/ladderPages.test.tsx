@@ -228,7 +228,7 @@ describe('Rankings — the ranked table', () => {
 
 describe('Rankings — the medal rank rides into the Career page', () => {
   it('a row that carries a rank hands it to openCareer (so the Career card paints the SAME crest + bar, not a bare number)', async () => {
-    // Bronze III 46: the "46 MMR" the owner saw on a viewed Career (rating = 100 × division + points).
+    // Bronze I 46: the "46 MMR" the owner saw on a viewed Career (rating = 100 × division + points).
     const rank = { seasonId: 3, rulesVersion: 1, revision: 2, position: { divisionIndex: 0, points: 46, demotionReady: false }, highest: { divisionIndex: 0, points: 46, demotionReady: false } };
     fetchTopPlayers.mockResolvedValue([{ ...PLAYERS[0]!, rating: 46, rank }, PLAYERS[1]!, PLAYERS[2]!]);
     useGame.setState({ showRankings: true });

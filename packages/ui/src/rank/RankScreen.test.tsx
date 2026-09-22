@@ -101,7 +101,7 @@ describe('every fixture state renders its labels, and Continue is always there',
 
   it('the live region carries one final announcement', () => {
     render(fixtureById('promo-won')!);
-    expect(text('.rankend-live')).toBe('Finished 3rd. +16 RP. Now Gold I, 10 / 100. Promoted to Gold I.');
+    expect(text('.rankend-live')).toBe('Finished 3rd. +16 RP. Now Gold III, 10 / 100. Promoted to Gold III.');
   });
 
   it('carries NO Rewatch and NO Final warband (owner 2026-09-20) — the settled screen has no secondary links at all', () => {
@@ -132,15 +132,15 @@ describe('the animated path: skip settles, the marker stops a replay, an arrivin
     const c = ui!.container;
     expect(c.querySelector('.rankend-panel')!.className).toContain('playing');
     expect(text('.rankbar-label')).toBe(rankLabel(f.result!.before)); // Gold II while playing
-    expect(c.querySelector('.rankcrest-next')).not.toBeNull();         // the Gold III crest is staged
+    expect(c.querySelector('.rankcrest-next')).not.toBeNull();         // the Gold I crest is staged
     expect([...c.querySelectorAll('.rankend-link')].map((b) => b.textContent)).toContain('Skip animation');
     expect(wasRankPresented('run:demo-lost-division')).toBe(false);
     act(() => { (c.querySelector('.rankend-rank') as HTMLElement).click(); });
     expect(c.querySelector('.rankend-panel')!.className).toContain('settled');
-    expect(text('.rankbar-label')).toBe('Gold III');
+    expect(text('.rankbar-label')).toBe('Gold I');
     expect(text('.rankbar-points')).toBe('60 / 100');
     expect(c.querySelector('.rankend-outcome')).toBeNull(); // the crest/label change says it (owner 2026-09-20)
-    expect(text('.rankend-live')).toContain('Demoted to Gold III');
+    expect(text('.rankend-live')).toContain('Demoted to Gold I');
     expect(c.querySelector('.rankcrest-next')).toBeNull();
     expect([...c.querySelectorAll('.rankend-link')].map((b) => b.textContent)).not.toContain('Skip animation');
     expect(wasRankPresented('run:demo-lost-division')).toBe(true);
@@ -175,7 +175,7 @@ describe('the animated path: skip settles, the marker stops a replay, an arrivin
     render(f, { reducedMotion: false });
     const c = ui!.container;
     expect(c.querySelector('.rankend-panel')!.className).toContain('settled');
-    expect(text('.rankbar-label')).toBe('Platinum III');
+    expect(text('.rankbar-label')).toBe('Platinum I');
     expect([...c.querySelectorAll('.rankend-link')].map((b) => b.textContent)).not.toContain('Skip animation');
   });
 
@@ -223,7 +223,7 @@ describe('the animated path: skip settles, the marker stops a replay, an arrivin
     render(fixtureById('demo-lost-division')!, { reducedMotion: false });
     expect(text('.rankbar-label')).toBe('Gold II');
     act(() => { ui!.container.querySelector<HTMLButtonElement>('.rankend-continue')!.click(); });
-    expect(document.querySelector('.rankend-exit .rankbar-label')?.textContent).toBe('Gold III');
+    expect(document.querySelector('.rankend-exit .rankbar-label')?.textContent).toBe('Gold I');
     expect(wasRankPresented('run:demo-lost-division')).toBe(true);
   });
 

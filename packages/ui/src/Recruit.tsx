@@ -697,13 +697,29 @@ function offerLiveTextParams(golden: boolean, o: ShopViewOpts, cardId?: string):
   };
 }
 /**
+ * The accrued buffs a tavern offer carries, as the sim's `foldOfferBuffs` will bake them: the per-source ledger,
+ * then whatever `atk`/`hp` carry beyond it (a legacy offer with no breakdown) as 'Tavern buff' — so the inspect
+ * lines always sum to the stats the row prints and the buy pays.
+ */
+function offerAccruedBuffs(card: ShopCard): CardBuff[] {
+  const out: CardBuff[] = [];
+  let restA = card.atk ?? 0, restH = card.hp ?? 0;
+  for (const b of card.buffs ?? []) {
+    if (b.attack || b.health) out.push({ ...b });
+    restA -= b.attack; restH -= b.health;
+  }
+  if (restA || restH) out.push({ source: 'Tavern buff', attack: restA, health: restH, count: 1 });
+  return out;
+}
+/**
  * The ledger a Displacement-HELD offer would hand back if it were restored right now: the stashed body's own
  * buffs, then everything the offer accrued while it sat in the Shop (Veinstorm Rubies, Fortify, a legacy
  * `atk`/`hp` with no breakdown as 'Tavern buff'), merged by source, then a Golden Touch gild's base doubling
  * as its own line — the exact fold `restoreHeldOffer` (sim) performs on buy / swap-back. ONE reader for every
  * surface that asks "what buffs does this held offer carry" (the shop card's stats + inspect breakdown, the
  * hover popup that sizes a Gemheart Golem off the owner's Rubies), so none of them can count the body alone
- * (the way the row did before the owner's 2026-09-21 Veinstorm report) or the accrued stamp alone.
+ * (the way the row did before the owner's 2026-09-21 Veinstorm report) or the accrued stamp alone. The merged
+ * Ruby line is also exactly what Ruby Transfer steals from a held neighbour (the sim drains both ledgers).
  */
 export function heldOfferLedger(card: ShopCard): { buffs: CardBuff[]; golden: boolean; gild: { attack: number; health: number } } {
   const h = card.held!;
@@ -711,8 +727,7 @@ export function heldOfferLedger(card: ShopCard): { buffs: CardBuff[]; golden: bo
   const gilded = !!card.golden && !h.golden; // a Golden Touch on the held offer re-gilds it on the way back
   const gild = { attack: gilded ? c.attack : 0, health: gilded ? c.health : 0 };
   const buffs: CardBuff[] = (h.buffs ?? []).map((b) => ({ ...b }));
-  const accrued = card.buffs?.length ? card.buffs : (card.atk || card.hp) ? [{ source: 'Tavern buff', attack: card.atk ?? 0, health: card.hp ?? 0, count: 1 }] : [];
-  for (const b of accrued) {
+  for (const b of offerAccruedBuffs(card)) {
     if (!b.attack && !b.health) continue;
     const e = buffs.find((x) => x.source === b.source);
     if (e) { e.attack += b.attack; e.health += b.health; e.count += b.count; }
@@ -813,10 +828,9 @@ export function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView { //
   // tavern inspect shows WHERE the boosted stats come from — the same sources the reducer's buy path records.
   const offerBuffs: { source: string; attack: number; health: number; count: number }[] = [];
   const pushBuff = (source: string, a: number, h: number, count = 1): void => { if (a || h) offerBuffs.push({ source, attack: a, health: h, count }); };
-  // Tavern buffs on the offer (Apples / Fortify / Fried Circuits / next-shop) — read their real per-source
-  // breakdown when present (so the inspect names the actual source), else fall back to the raw atk/hp total.
-  if (card.buffs?.length) for (const b of card.buffs) pushBuff(b.source, b.attack, b.health, b.count);
-  else pushBuff('Tavern buff', card.atk ?? 0, card.hp ?? 0);
+  // Tavern buffs on the offer (Apples / Fortify / Fried Circuits / next-shop) — their real per-source breakdown
+  // (so the inspect names the actual source), then anything the raw atk/hp carry beyond it as 'Tavern buff'.
+  for (const b of offerAccruedBuffs(card)) pushBuff(b.source, b.attack, b.health, b.count);
   pushBuff(c.name, cb.attack, cb.health); // persistent per-card run enchant (Ritualist Fodder, Staff of Guel target…)
   // The run-wide shop channel, ONE LINE PER SOURCE (owner ask 2026-09-10) — the same names the buy path bakes
   // onto the bought minion — then whatever the ledger does not name (the per-turn Shop Enchant layer, a legacy

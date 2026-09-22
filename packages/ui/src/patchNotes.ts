@@ -62,6 +62,17 @@ export const PATCH_NOTES: PatchNote[] = [
           'Every Shop buff now rides back under its own name: Veinstorm Rubies stay Rubies, so Ruby Transfer and cards that count Rubies see them.',
           'The swapped minion in the Shop now shows the buffed stats in green, and its inspect view lists the buffs it picked up there.',
           'The Displacement spell works the same way.',
+          'Lasso, Whiplass-o, Deep Delve Writ, Ironclad Requisition and Buyout now return the swapped minion whole too, with all of its stats and buffs, instead of a fresh copy.',
+          'A Shop spell aimed at the swapped minion now acts on its real stats. Perfect Vision sets it to 20/20 and Turnabout swaps its own Attack and Health.',
+          'Ruby Transfer now takes every Ruby the swapped minion shows, its own and the ones it picked up in the Shop, so the number on the card is what the spell steals.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'A Shop spell cast on a Shop minion that already has a buff, such as Shatter after Veinstorm, now pays both when you buy it.',
+        details: [
+          'Before this, the card showed both buffs but only the first one came with the purchase. The inspect view now names the spell next to the other buffs.',
+          'A Shop minion Darah swaps onto your board keeps its buffs under their own names as well, so its Rubies count as Rubies.',
         ],
       },
     ],

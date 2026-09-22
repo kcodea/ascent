@@ -83,4 +83,27 @@ describe('heldOfferLedger (the one reader the row, the inspect and the hover pop
     expect(golden).toBe(false);
     expect(gild).toEqual({ attack: 0, health: 0 });
   });
+
+  it('whatever atk/hp carry beyond the ledger (a legacy offer) shows as Tavern buff, so the lines sum to the stats', () => {
+    const offer: ShopCard = { uid: 'o', cardId: 'sandbag', held: held(), atk: 4, hp: 3, buffs: [{ source: 'Fortify', attack: 2, health: 2, count: 1 }] };
+    const v = shopView(offer);
+    expect([v.attack, v.health]).toEqual([13, 11]);
+    expect(v.buffs).toEqual([
+      { source: 'Growth', attack: 3, health: 3, count: 1 },
+      { source: 'Fortify', attack: 2, health: 2, count: 1 },
+      { source: 'Tavern buff', attack: 2, health: 1, count: 1 },
+    ]);
+  });
+});
+
+describe('a plain offer breakdown follows the same rule', () => {
+  it('ledger lines first, then the unattributed remainder as Tavern buff (the sim fold pays exactly this)', () => {
+    const v = shopView({ uid: 'o', cardId: 'sandbag', atk: 4, hp: 3, buffs: [{ source: 'Shatter', attack: 2, health: 2, count: 1 }] });
+    const def = CARD_INDEX['sandbag']!;
+    expect([v.attack, v.health]).toEqual([def.attack + 4, def.health + 3]);
+    expect(v.buffs).toEqual([
+      { source: 'Shatter', attack: 2, health: 2, count: 1 },
+      { source: 'Tavern buff', attack: 2, health: 1, count: 1 },
+    ]);
+  });
 });

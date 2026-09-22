@@ -93,7 +93,11 @@ The shop's Combat Prowess replay folds Twilight into its MINION replays only, ne
    engine/tooling/test work.
 6. Add focused tests from the matrix above. **Verify they fail without your fix** — a green test that was
    always green proves nothing.
-7. Run focused vitest, `npm run typecheck`, `npm run lint` (it carries a wiring audit that fails a granted-but-
+7. **If this was a BUG FIX, write the rule into the oracle in the same PR** — a new approved rule in
+   `packages/rules/src/registry/approved.ts` (stable `R-<TOPIC>-<NN>` id, the owner's words as evidence,
+   the new regression test as `enforcement.refs`), so Doc Bot catches the regression. Every fix, every
+   size (owner ask 2026-09-22). Recipe: CLAUDE.md, "Bug fixes become rules".
+8. Run focused vitest, `npm run typecheck`, `npm run lint` (it carries a wiring audit that fails a granted-but-
    unread flag), `npm run text:audit` on text changes, `npm run beats:audit` on trigger changes, and
    `npm run harness` for combat determinism.
 

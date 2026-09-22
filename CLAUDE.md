@@ -232,4 +232,30 @@ each doc when the thing it describes actually changes:
   PREPEND a plain-English, spoiler-light entry in the SAME PR (owner ask 2026-08-24). Non-gameplay work
   (build, tests, docs, refactors, dev tools) does NOT go here. This is enforced by convention, not a test.
 
+## Bug fixes become rules — every single one, in the same PR
+
+**A bug is not fixed until the oracle knows the rule.** Whatever its size, every fix we find and solve adds
+(or updates) an **approved rule** in [`packages/rules/src/registry/approved.ts`](packages/rules/src/registry/approved.ts)
+in the SAME PR as the fix, so Doc Bot catches the regression instead of us finding it again (owner ask
+2026-09-22: *"every single bug fix we find and solve gets written into the oracle so that docbot always
+catches issues"*). No exceptions for one-liners, UI-only fixes or "obvious" ones.
+
+The one-line recipe, on top of the fix and its regression test:
+
+1. **New id** in the `R-<TOPIC>-<NN>` scheme (`R-PUMMEL-01`, `R-RANK-02`, …). Check the file for the highest
+   `NN` on that topic. **Ids are stable and never recycled** — amend an existing rule instead when the ruling
+   is the same rule, wider.
+2. **`statement`** = the RULE in plain language, not the fix. What must always be true, phrased so it would
+   still read right on a card we have not written yet.
+3. **`evidence`** = at least one `owner-chat` entry quoting the owner's actual words, plus a `fix-pr` or
+   `code` entry naming the PR and the implementing file. *Evidence never approves a rule; only an owner
+   decision does* — so if the owner never ruled, it is a `needs-ruling` question, not an approved rule.
+4. **`currentBehaviour`** = what the code does today and since when. Honest: "PARTIAL" is a legal answer.
+5. **`enforcement: { kind: 'scenario', refs: [<the regression test>], lastVerifiedAt: '<today>' }`.** Every
+   ref must exist on disk and must genuinely pin the rule — the registry integrity test fails on a missing
+   path, and the approved-but-unenforced ratchet must not grow.
+
+Then `npx vitest run packages/rules` and `npm run docbot:report -- --check` (the rule totals in
+`docs/docbot2/final-report.md` move with the registry).
+
 summary → commit them together.

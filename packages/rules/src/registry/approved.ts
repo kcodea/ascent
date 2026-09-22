@@ -1246,4 +1246,266 @@ export const APPROVED_RULES: GameRule[] = [
       + 'Twilight Emissary re-fires, Rot Weaver, Spell Drummer, named-spell casters with an aimed spell.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/docbot/noSelfTarget.test.ts', 'packages/sim/src/reworks0918.test.ts'], lastVerifiedAt: '2026-09-18' },
   },
+  // ── THE 2026-09-21/22 BUG-FIX SWEEP ────────────────────────────────────────────────────────────────
+  // Every fix below shipped with a regression test; the owner ruled each one in chat. This block is the
+  // standing contract in action: a bug fix is not done until its rule is here (CLAUDE.md, "Bug fixes
+  // become rules").
+  {
+    id: 'R-PUMMEL-01',
+    title: 'A Pummel tally is per instance and LIFETIME, and pays at most once per combat',
+    statement:
+      'Pummel (X) counts the damage THIS BODY has dealt over its whole life. The tally is per instance and never '
+      + 'resets: it carries from combat to settle to shop to the next combat, it rides a served snapshot, and a '
+      + 'Rise or Rebirth return keeps it. A payout is owed each time the tally crosses a multiple of X, but at '
+      + 'most ONE payout per combat; crossings past the first in a fight are spent, not banked. Every readout '
+      + 'prints progress toward the NEXT payout (the tally modulo X, over X), on the board, in the shop and in '
+      + 'combat, and the combat badge ticks on the beat the damage lands.',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-21 (Pummel carry-over report)', quote: 'Pummel is broken, it is resetting to 0/X after combat. It needs to carry over from turn to turn and combat to shop' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-21 (Han Gover, once per combat)', quote: 'change this card\'s effect to match the text' },
+      { kind: 'fix-pr', ref: 'PR #1607 (the PUMMEL keyword + the pummel-trigger effect) and PR #1616 (carry-over) — packages/core/src/combat/simulate.ts damageMeterOf/pummelFired, packages/sim/src/recruit.ts carry-back, packages/ui/src/cardText.ts stepProgress' },
+    ],
+    contentIds: ['dw3_hangover', 'k3_goldvein'],
+    currentBehaviour:
+      'Conforms — 2026-09-21 (PRs #1607 and #1616). The tally used to be rebuilt from the current fight\'s `dmg` '
+      + 'events, so it read 0/X again in every shop; it is now seeded from the run card, carried back whole, and '
+      + 'the once-per-combat rider is a per-fight `pummelFired` flag rather than a reset of the meter.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/core/src/combat/pummelTrigger.test.ts',
+        'packages/sim/src/set3Dwarves.test.ts',
+        'packages/sim/src/goldvein.test.ts',
+        'packages/ui/src/damageMeterBadge.test.ts',
+      ],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-MULT-04',
+    title: 'A Start-of-Combat multiplier repeats RUNE Start-of-Combat effects too, not just minion ones',
+    statement:
+      'A multiplier that repeats a side\'s Start of Combat repeats EVERY Start-of-Combat effect that side has. A '
+      + 'rune counts whenever its printed text is a Start of Combat line, exactly as a minion\'s Start of Combat '
+      + 'does. The extra pass runs after the whole base pass for that side and in the same order as the base pass, '
+      + 'and the base pass is unchanged. A Start-of-Combat buff that is pre-baked into the combat board before the '
+      + 'simulator\'s pass folds the same number of copies.',
+    domain: 'multipliers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-21 (Twilight x Underdog report)', quote: 'Rune of Twilight just did not work with Rune of the Underdog. Why not?' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-21 (the scope call)', quote: 'Yes, all rune SoC effects' },
+      { kind: 'fix-pr', ref: 'PR #1614 — packages/core/src/combat/simulate.ts (the rune Start-of-Combat block runs one extra pass per Twilight fire); packages/sim/src/recruit.ts faceOmen (the pending-SoC bake folds every copy)' },
+    ],
+    contentIds: ['rune_twilight', 'rune_underdog'],
+    currentBehaviour:
+      'Conforms — 2026-09-21 (PR #1614). Twilight used to re-fire only the MINION Start-of-Combat pass, so every '
+      + 'rune block fired once however many Twilight copies were forged. Underdog now pays four times under two '
+      + 'Twilights, and the pre-baked Fleeting Vigor path folds the same count.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/core/src/combat/twilightRuneSoc.test.ts', 'packages/sim/src/twilightPendingSC.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-AVWIN-12',
+    title: 'Late entry starts at zero on EVERY placement path, and the printed counter shows that same window',
+    statement:
+      'R-AVWIN-01 binds every way a body reaches the board mid-combat, the Reclaim / resummon insert included, not '
+      + 'just the ordinary summon. A fresh body observes only what happens after it arrives. The PRINTED counter '
+      + 'must read the same window the simulator uses: a body summoned onto a board that has already lost minions '
+      + 'shows 0 of N, never the side\'s running death tally.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Bug Board 8e0b4757 (owner report, 2026-09-22)', quote: 'the bull beast card summoned dunkey which summoned with 2/4 avenge stacks when it should be 0 since it is a fresh body on board' },
+      { kind: 'fix-pr', ref: 'PR #1176 (placeSummon stamps avengeBaseline) and PR #1618 (the Reclaim insert + the combat readout) — packages/core/src/combat/simulate.ts, packages/ui/src/useCombatReplay.ts' },
+    ],
+    currentBehaviour:
+      'PARTIAL as of 2026-09-22. The ordinary summon path conforms and is pinned below (PR #1176). The two halves '
+      + 'this rule adds land with PR #1618, in flight at the time of writing: the Reclaim (Soren) insert kept the '
+      + 'side tally, and the combat readout re-derived the counter from the whole fight, so a freshly summoned '
+      + 'Avenge body printed 2 of 4. When #1618 merges, append its pin `packages/ui/src/avengeSummonReadout.test.ts` '
+      + 'to the refs below and flip this line to Conforms.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/core/src/combat/avengeSummonBaseline.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-HOLD-01',
+    title: 'A displaced minion keeps the Shop buffs it accrues while it sits on an offer',
+    statement:
+      'A minion stashed on a Shop offer (Darah\'s Displace) is an offer like any other: a Veinstorm Ruby, a Fortify, '
+      + 'a targeted spell and a rune\'s shop enchant all stamp it. Every path that hands it back to the player, the '
+      + 're-buy, the swap back, a Lasso, a Requisition and Harlan, restores those accrued buffs on top of the body\'s '
+      + 'own, each under its own source name, and the shop row displays the total the restore will actually hand back.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-21 (displaced Chimerus report)', quote: 'i swapped chimerus to shop and used veinstorms and it did not buff it' },
+      { kind: 'fix-pr', ref: 'PR #1615 — packages/sim/src/recruit.ts restoreHeldOffer (one helper for both restore paths); packages/ui/src/Recruit.tsx shopView held branch + heldOfferLedger' },
+    ],
+    contentIds: ['chimerus'],
+    currentBehaviour:
+      'Conforms — 2026-09-21 (PR #1615). Both restore paths used to rebuild the body from the stashed card alone '
+      + 'and never read the offer\'s buffs, so every offer-level gain vanished on the way back; only `golden` had '
+      + 'been patched (2026-07-29). The row used to render the stashed body alone, so the stamp was invisible too.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/displacedOfferBuffs.test.ts', 'packages/ui/src/heldOfferView.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-TEXT-04',
+    title: 'A stat spell folds spell power and prints it live, in every Choose One branch',
+    statement:
+      'A spell that grants stats folds the run\'s spell power into what it grants, unless an owner ruling exempts '
+      + 'that spell. Whatever it will actually grant is what it prints, on every surface: the card face, the shop '
+      + 'offer, the hand, Discover and the Choose One window. A Choose One prints the live value of EVERY branch, '
+      + 'not just the one the player ends up taking, so the choice is made on the real numbers.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Bug Board 23c340fb (owner report, 2026-09-22)', quote: 'crest of the climb not getting spell power buffs' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-12 (the Choose One half)', quote: 'if a Choose One spell is buffed, it should show the buffed spell numbers in the Choose One windows as well' },
+      { kind: 'fix-pr', ref: 'PR #1619 (Crest of the Climb folds spell power) — packages/content/src/cards/set1/spells.ts (the `flat: true` exemption comes off both branches); packages/sim/src/recruit.ts spellDisplayText + chooseOneBranchText' },
+    ],
+    contentIds: ['crestclimb'],
+    currentBehaviour:
+      'PARTIAL as of 2026-09-22. The general rule conforms and is pinned below: the derived sweep in '
+      + '`spellPowerText.test.ts` fails any spell whose factory folds spell power and whose text does not print it, '
+      + 'and `chooseOneBranchText.test.ts` greens every folding branch and checks the printed number against the '
+      + 'delta the real reducer lands. The open case is Crest of the Climb, whose two branches still carry '
+      + '`flat: true` and so never scale; PR #1619 removes it. An owner-sanctioned exemption keeps `flat: true` '
+      + '(the Set 3 Tower Shield) and the sweep skips it by design.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/spellPowerText.test.ts', 'packages/sim/src/chooseOneBranchText.test.ts', 'packages/ui/src/chooseOneBoth.test.tsx'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-SNAP-01',
+    title: 'The recorded final board is the POST-SETTLE board',
+    statement:
+      'The board a finished run records for the Career row, Recent Games and the Hall of Champions is the run board '
+      + 'as it stands after the final combat SETTLES, which is exactly what the next shop would have opened with. '
+      + 'Gains the run carries are in: Engraved growth, permanent buffs, Ruby carry-backs, the Pummel tally and '
+      + 'every progress counter. Combat-only state is out: temporary Start-of-Combat buffs, shields, and bodies '
+      + 'summoned during the fight.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-21 (final snapshot ask)', quote: 'can we make it so that the final snapshot is actually what a fresh board would look like after that final combat, so that it carries the in-combat buffs for boards that carry them' },
+      { kind: 'fix-pr', ref: 'PR #1617 — packages/ui/src/store.ts run-end block records `endStateBoard(next)` instead of the start-of-combat board' },
+    ],
+    currentBehaviour:
+      'Conforms — 2026-09-21 (PR #1617). The recorded board used to be the last combat\'s START-OF-COMBAT board '
+      + '(`socBoard` merged onto the end-state snapshot), so it showed SoC buffs, shields and summons but none of '
+      + 'the gains made during the fight, because those land on the run board only when `settleCombat` runs.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/finalBoardPostSettle.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-RANK-01',
+    title: 'Ranked: a won promotion lands at 10 points, never 0',
+    statement:
+      'Winning a promotion game puts the player at 10 of 100 in the new division, not 0. The landing is a fixed '
+      + 'constant and is never the game\'s own award, so one loss straight after a promotion can never demote. A '
+      + 'fresh promotion is not armed for demotion. The client, the Edge Function and the SQL writer all use the '
+      + 'same landing constant.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-21 (ranked ladder ruling)', quote: 'when a player promotes to the next medal/division, set their rating at 10/100 instead of 0/100 so they cant lose 1 game and demote' },
+      { kind: 'fix-pr', ref: 'PR #1611 — packages/sim/src/rank.ts RANK_RULES.promotionLanding; supabase/functions/_shared/lobbyRating.ts RANK_PROMOTION_LANDING; the settle_rank migration' },
+    ],
+    currentBehaviour:
+      'Conforms — 2026-09-21 (PR #1611). It was 0 the day before. Domain note: the ladder is a structural contract '
+      + 'of the lobby rather than an in-run resource, so it files under `foundation`, not `economy` (which covers '
+      + 'Gold, embers and the shop economy inside a run).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/rank.test.ts', 'packages/ui/src/lobbyRatingParity.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-RANK-02',
+    title: 'Ranked: no instant demotions, a demotion game stands in the way',
+    statement:
+      'A loss that would take a player below 0 points in any division above the floor clamps at 0 and ARMS a '
+      + 'demotion game instead of demoting. Only a bottom-4 finish in that next game demotes, by one division, '
+      + 'landing at 100 plus that game\'s award; across a medal boundary that is the previous medal\'s division I. '
+      + 'A top-4 finish keeps the division and disarms the gate. The armed state is stored on the profile, so it '
+      + 'survives between sessions, and the client, the Edge Function and the SQL writer agree on all of it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-21 (ranked ladder ruling)', quote: 'hitting 0 mmr should halt the loss and put you in a demotion game. you need to then bottom 4 that game to demote' },
+      { kind: 'fix-pr', ref: 'PR #1611 — packages/sim/src/rank.ts resolveRank/settleRank (`demotionReady`); supabase/functions/_shared/lobbyRating.ts resolveRankOutcome' },
+    ],
+    currentBehaviour:
+      'Conforms — 2026-09-21 (PR #1611). The gate was first (2026-09-20) only across a MEDAL boundary; the owner '
+      + 'widened it to every division above Bronze III the next day. Same domain note as R-RANK-01.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/rank.test.ts', 'packages/ui/src/lobbyRatingParity.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-TEXT-05',
+    title: 'Player-facing text never uses an em dash or a double hyphen',
+    statement:
+      'No player-facing string uses an em dash or a double hyphen as a clause separator. House style is one or two '
+      + 'short plain sentences that say what the thing does first. This binds every surface the player reads: card '
+      + 'and rune text, the keyword glossary, patch notes, screen labels and tooltips, and the helpers whose output '
+      + 'only exists at run time (post-combat gains, quest lines, the rank sentences). Developer text is not bound.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-21 (writing style ruling)', quote: 'we do not ever use \'--\' in a description. you should never either. whenever you decide to write text that is player facing, write it in our writing style. clear language, to the point.' },
+      { kind: 'fix-pr', ref: 'PR #1606 — packages/ui/src/noEmDashPlayerText.test.ts is the CI tripwire; the glossary, patch notes and screen labels were rewritten in the same PR' },
+    ],
+    currentBehaviour:
+      'Conforms — 2026-09-21 (PR #1606). The tripwire scans the source of the screens it covers plus the run-time '
+      + 'text helpers, so a new label carrying an em dash fails CI rather than reaching a player.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/noEmDashPlayerText.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-LOBBY-01',
+    title: 'A ghost fight is never a rematch',
+    statement:
+      'The seat that draws the bye never faces, as a ghost, the seat it fought the round before or the seat it '
+      + 'eliminated. The next most recent fallen seat stands in. When the only ghost on offer would be a rematch, '
+      + 'the bye moves to another seat instead.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-19 (ghost rematch report, the Hearthstone rule)', quote: 'player just fought and killed the dead ghost opponent that he is fighting now. that shouldn\'t be possible.' },
+      { kind: 'fix-pr', ref: 'PR #1563 — packages/sim/src/lobby/runLobby.ts ghostFor / ghostIsRematch, and the bye reassignment' },
+    ],
+    currentBehaviour:
+      'Conforms — 2026-09-19 (PR #1563). At a 3-alive table the bye holder used to be served the most recently '
+      + 'fallen seat, which is exactly the seat it had just eliminated.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/lobby/ghostNoRematch.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
 ];

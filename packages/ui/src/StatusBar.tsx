@@ -189,9 +189,10 @@ export function StatusBar() {
   // Visible but DISABLED when unaffordable or spent — the handoff is explicit that the slot keeps showing the
   // Equipment and explains why it cannot be used, rather than vanishing.
   const equipReady = !!selectedEquipDef && run.phase === 'recruit' && equipUses > 0 && run.embers >= equipCost;
-  // The wording for the version this player actually holds — a Gilded source prints the Gilded rule.
+  // The wording for the version this player actually holds — a Gilded source prints the Gilded rule, and an
+  // Amplified clock-window Equipment prints the doubled window it will really open (owner 2026-09-22).
   const equipRule = selectedEquipDef && selectedEquip
-    ? equipmentText(selectedEquipDef, selectedEquip.version)
+    ? equipmentText(selectedEquipDef, selectedEquip.version, { amplified: equipAmplified > 0 })
     : '';
   const equipArt = equipmentArtFor(selectedEquipDef?.id);
 

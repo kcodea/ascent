@@ -185,6 +185,9 @@ let tierStarsAvailable = true;
    cards get the gold variant. Shows on every card type: minion oval, spell square and Taunt heater alike. */
 const tierPlateSrc = (golden: boolean): string =>
   `${import.meta.env.BASE_URL}frames/tierplate${golden ? '-gilded' : ''}.webp`;
+/** The gilded (tripled) corner badge — authored art replacing the old CSS gold-circle + crown glyph (owner ask
+ *  2026-09-22). Shown top-left on a golden card. */
+const GILDED_BADGE_SRC = `${import.meta.env.BASE_URL}frames/gilded.webp`;
 /** The dark shape seated behind the rules-text panel (see `.descbox`). Owner art, a full card-body silhouette. */
 const DESC_BOX_SRC = `${import.meta.env.BASE_URL}frames/desc-backbox.webp`;
 const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.webp`;
@@ -1133,9 +1136,9 @@ export const Card = memo(function Card({
             <span className="cframe-tint" aria-hidden="true" />
           </>
         )}
-        {/* Golden (tripled) marker — a gold crown emblem; pairs with the gold arch frame so a tripled
-            minion is instantly findable in a row. */}
-        {card.golden && <span className="goldcrown" aria-hidden="true"><Icon name="crown" /></span>}
+        {/* Golden (tripled) marker — authored gilded badge PNG (was a CSS gold-circle + crown glyph); pairs with
+            the gold arch frame so a tripled minion is instantly findable in a row. */}
+        {card.golden && <span className="goldcrown" aria-hidden="true"><img decoding="sync" className="goldcrown-img" src={GILDED_BADGE_SRC} alt="" aria-hidden="true" /></span>}
         {spellLike ? (
           <span className="ctype spell">{card.ruby ? '◆ Ruby' : '✦ Spell'}</span>
         ) : (

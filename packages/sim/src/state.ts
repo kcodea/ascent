@@ -260,10 +260,10 @@ export interface BoardCard {
   /** Set 3 Spirits — per-instance `onTribePlayed` tally (Festival Keeper progress, Aspect's trigger
    *  count, Forest Colossus's Spirits-since-played). Carried into combat on the body. */
   spiritTally?: number;
-  /** Pummel (Han Gover, Goldvein) — the damage meter's run-card tally (per-instance). Every meter is once per
-   *  combat (core `DAMAGE_METER_MARKERS.resetEachCombat`, all bodies since 2026-09-21): the settle clears it
-   *  (`playerDamageMeters` reports 0) and the next fight starts at 0, so between fights this is undefined and the
-   *  shop reads 0/X. A persistent meter would seed combat from it and carry its lifetime total back here. */
+  /** Pummel (Han Gover, Goldvein) — the damage meter's LIFETIME run-card tally (per-instance). Seeds every
+   *  combat and takes the fight's total back at settle (`playerDamageMeters`), so it carries shop → combat →
+   *  shop (owner ruling 2026-09-21); the shop badge prints `total mod X`. Snapshotted with a served board, merged
+   *  as the max on a triple. Only the payout is once per combat (the combat instance's `pummelFired`). */
   damageDealt?: number;
   /** The wave this card was bought on — drives Hoarder's climbing sell value (currentWave - boughtWave
    *  + 1, ×2 golden). Set in the reducer's `buy` case; absent on cards from other sources (a Hoarder that

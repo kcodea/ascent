@@ -3825,8 +3825,8 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   // Tara that's close to ascending doesn't reset it back to 20-to-go.
   const goldenAscend = def.ascendAt ? Math.max(...combined.map((c) => c.ascendProgress ?? 0)) : 0;
   // Pummel (Han Gover, Goldvein): the golden keeps the HIGHEST damage tally of the copies (the same rule as
-  // Tara's ascend progress). Moot while every meter resets each combat (the run card holds 0 between fights),
-  // kept for a persistent meter.
+  // Tara's ascend progress) — the tally is lifetime (carry-over ruling 2026-09-21), so tripling a Han Gover close
+  // to its next Ale does not throw the progress away.
   const goldenDamageDealt = Math.max(...combined.map((c) => c.damageDealt ?? 0));
   // Hoarder: the golden keeps the EARLIEST (minimum) boughtWave of the copies, so a golden Hoarder
   // inherits the oldest copy's age → its highest sell value as the starting point (sell =
@@ -4009,8 +4009,8 @@ export function playerBoardMinions(board: readonly BoardCard[]): BoardMinion[] {
     ascendProgress: b.ascendProgress ?? 0, // Tara: seed the prior ascend tally so the live tracker shows the total
     spellProgress: b.spellProgress, // Guel: seed his on-board spell tally so the live combat text scales (not stuck at base)
     spiritTally: b.spiritTally, // Set 3 Spirits: Forest Colossus's Start of Combat reads it; Festival Keeper / Aspect print it
-    // Pummel (Han Gover, Goldvein): carried for a persistent meter. A once-per-combat meter (every meter since
-    // 2026-09-21, `resetEachCombat`) ignores it in core's `instantiate` and starts the fight at 0.
+    // Pummel (Han Gover, Goldvein): the LIFETIME damage tally, seeded into the fight so the meter continues from
+    // the run card (carry-over ruling 2026-09-21); core's `instantiate` copies it onto the combat body.
     damageDealt: b.damageDealt,
     soldProgress: b.soldProgress, // Runic Archivist: display-only, so the combat card prints its live count
     boardFirstSpellId: b.boardFirstSpellId, // Spell Warden: display-only
@@ -4403,10 +4403,11 @@ function settleCombat(s: RunState, result: CombatResult): void {
       }
     }
   }
-  // PUMMEL (Han Gover, Goldvein): the damage meter's carry-back. Every meter is once per combat (`resetEachCombat`,
-  // core `DAMAGE_METER_MARKERS` — all bodies since the Pummel ruling 2026-09-21), so it carries back 0 → the
-  // card's tally is CLEARED, and the shop badge reads 0/X after the fight (owner 2026-09-19). The Ales themselves
-  // already came home through `playerHandGrants` above. A persistent meter would land its running total here.
+  // PUMMEL (Han Gover, Goldvein): the damage meter's carry-back — the LIFETIME tally (seeded + this fight's
+  // hits) lands on the run card whole, so the shop badge reads `total mod X` (47 → 7/40) and the next fight
+  // seeds from it (carry-over ruling 2026-09-21: "it needs to carry over from turn to turn and combat to shop").
+  // The Ales themselves already came home through `playerHandGrants` above. A body that dealt nothing is not
+  // reported and keeps whatever the card carried.
   if (result.playerDamageMeters) {
     for (const { sourceUid, total } of result.playerDamageMeters) {
       const card = s.board.find((c) => c.uid === sourceUid);

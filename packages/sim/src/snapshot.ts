@@ -235,7 +235,7 @@ function cleanBoard(s: RunState): BoardMinion[] {
     ...(c.ascendProgress ? { ascendProgress: c.ascendProgress } : {}),
     ...(c.spellProgress ? { spellProgress: c.spellProgress } : {}), // Archmagus Guel: on-board spell tally
     ...(c.spiritTally ? { spiritTally: c.spiritTally } : {}), // Set 3 Spirits: Forest Colossus's Spirits-since-played (SoC reads it)
-    ...(c.damageDealt ? { damageDealt: c.damageDealt } : {}), // Pummel (Han Gover, Goldvein): the damage-meter field is carried, but a once-per-combat meter ignores it (every fight starts at 0)
+    ...(c.damageDealt ? { damageDealt: c.damageDealt } : {}), // Pummel (Han Gover, Goldvein): the lifetime damage meter, so a served copy pays out from its real total (carry-over ruling 2026-09-21)
     ...(c.soldProgress ? { soldProgress: c.soldProgress } : {}), // Runic Archivist: display-only, so a served copy prints its count
     ...(c.boardFirstSpellId ? { boardFirstSpellId: c.boardFirstSpellId } : {}), // Spell Warden: display-only
     ...(c.overflowBonus ? { overflowBonus: c.overflowBonus } : {}), // Flowing Monk: flat triple-combine grant bonus

@@ -51,6 +51,23 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-22',
+    label: 'Pummel carries over',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Pummel damage now carries over between combats again. The count keeps building from shop to combat to shop, pays out at each multiple of X, and pays at most once per combat.',
+        details: [
+          'Pummel (X): Triggers each time this minion has dealt another X damage. The damage count carries over between combats.',
+          'The counter on the card shows progress toward the next payout. Han Gover at 47 damage reads 7/40 in the shop and in combat, and it no longer holds at 40/40 after a payout.',
+          "One huge hit that passes several multiples of X still pays once. The extra multiples are spent, not saved, so a 120 damage hit pays once and Han Gover's next Ale comes at 160.",
+          'A second crossing in the same combat pays nothing that fight. The count still moves, and the next multiple pays next combat.',
+          "Goldvein's count carries over now too. It used to reset each combat.",
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-21',
     label: 'Twilight repeats rune effects',
     changes: [

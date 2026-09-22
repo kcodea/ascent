@@ -69,6 +69,10 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'hero-power-target': ['Recruit.tsx'],
   'impact-dust': ['EndTurnButton.tsx', 'RefreshButton.tsx', 'choreo/channels/impact.ts'],
   'landing-dust': ['Recruit.tsx', 'useCombatReplay.ts'],
+  // THE LASSO (owner-authored 2026-09-22): stealing a Shop minion throws a rope at it — from the spell's drop
+  // point, from Rope Wrangler's medallion, from the Equipment slot (Whiplass-o) or from the rune badge (Rune of
+  // Lassoing). One `fireLassoBeam` in Recruit.tsx serves the action cascade and both End-of-Turn paths.
+  lasso: ['Recruit.tsx'],
   // Recruit.tsx dropped off this list on 2026-08-08: the SHOP half is now played through a
   // `bindings.json` row (`rubyLanded`) by the recruit cue runner, not by a hardcoded id. The combat
   // half in score.ts is still a literal — see RUBY_LANDED_DEF.

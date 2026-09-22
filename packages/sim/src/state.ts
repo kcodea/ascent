@@ -1314,6 +1314,27 @@ export interface RunState {
   /** Bumps per recorded bounce hop — the UI keys the `spell-bounce` / `ruby-bounce` plays off this. Optional:
    *  a save from before the field existed restores without it (`?? 0` at every read). */
   bounceFxSeq?: number;
+  /** THE LASSO CHANNEL (owner ask 2026-09-22) — every Shop minion `stealTavernMinion` took this action, in
+   *  resolution order, so the UI can throw the authored `lasso` beam at each one and hold the card in the Shop
+   *  until the beam lands. Modelled on `starformFx`: appended by the effect, cleared per action at the top of
+   *  `reduce`, seq bumped per record so the watcher can dedupe.
+   *
+   *  `offer` is the WHOLE stolen `ShopCard`, not a partial snapshot, because the hold RE-RENDERS the card in
+   *  its Shop slot while the beam travels — and the shop view builder needs a real offer to build a view from.
+   *  It is transient and cleared per action, so it never grows the save. `index` is the offer's index in
+   *  `state.shop` at the moment it was spliced out (so the hold can put it back where it was; several steals
+   *  in one action must be re-inserted in REVERSE order, each index being relative to the already-shrunken
+   *  row). `handUid` is the copy that landed in hand — the arrival is held back by that uid, never by a
+   *  blanket flag, so anything else conjured in the same tick keeps its own cue. `origin` says where the beam
+   *  launches from: `'spell'` (the drop point), `'board:<uid>'` (Rope Wrangler), `'equipment'` (Whiplass-o's
+   *  slot) or `'rune'` (Rune of Lassoing's badge).
+   *
+   *  End of Turn reads the SAME records through `EotStepFx.steals` instead: an End-of-Turn steal commits inside
+   *  `faceOmen`, after the phase has flipped, so the action-level channel would fire with the Shop gone. */
+  lassoFx?: { offer: ShopCard; index: number; handUid: string; origin: string }[];
+  /** Bumps once per recorded steal — the UI keys the `lasso` cascade off this. Optional: a save from before
+   *  the field existed restores without it (`?? 0` at every read). */
+  lassoFxSeq?: number;
   /** Wolvie's borrowed Echo (`deathrattleBuffNextSummon`): buff the NEXT minion summoned in the shop of this
    *  tribe, then clear. One-shot; also cleared at End of Turn so it never leaks into the next shop. */
   pendingSummonBuff?: { tribe: Tribe; attack: number; health: number; source: string };

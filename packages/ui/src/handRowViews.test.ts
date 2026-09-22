@@ -29,8 +29,9 @@ describe('hand row ↔ hand views', () => {
   });
 
   it('the row renders a FILTERED list, and every filter narrows the same source', () => {
-    // `gambleHand` is the row's source. Both hiders (the Gamble hold, the Choose One preview) narrow it, so
-    // the row can only ever iterate cards the view map was built from.
+    // `gambleHand` is the row's source. Every hider (the Gamble hold, the Choose One preview, and since
+    // 2026-09-22 the lasso hold that keeps a stolen card back until its beam lands) narrows it, so the row can
+    // only ever iterate cards the view map was built from.
     const i = RECRUIT.indexOf('const gambleHand =');
     expect(i).toBeGreaterThan(-1);
     const line = RECRUIT.slice(i, RECRUIT.indexOf('\n', i));

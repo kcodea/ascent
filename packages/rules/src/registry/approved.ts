@@ -1712,4 +1712,39 @@ export const APPROVED_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-22',
     },
   },
+  {
+    id: 'R-PRESENT-01',
+    title: 'Presentation may hold a card back, never change what resolved',
+    statement:
+      'When an effect is animated, the reducer has already resolved it. Presentation may DELAY what the player '
+      + 'sees so a consequence reads in the right order, and may show a card that state has already moved, but it '
+      + 'never alters, re-orders or re-rolls the outcome. Every such hold is keyed on the uid of the one card it '
+      + 'is about, never a blanket flag, so nothing else changing in the same tick is swallowed with it. And every '
+      + 'hold resolves on its own without a timer when the surface it belongs to goes away, because a hold that '
+      + 'outlives its screen leaves a card invisible in both places at once. A hold seeded during render is '
+      + 'never released from an effect cleanup: React runs a changed-dep cleanup after that render has '
+      + 'committed, so the cleanup eats the batch the render just seeded and every repeat of the effect past '
+      + 'the first silently stops holding anything.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (the lasso beam)', quote: 'Make sure that the beam hits the target before the card is stolen from shop and granted to hand.' },
+      { kind: 'code', ref: 'packages/ui/src/lassoHolds.ts (the hold state machine + lassoHoldsForPhase); packages/ui/src/Recruit.tsx gambleHold / heldConsume / the lasso cascade; packages/sim/src/recruit.ts stealTavernMinion (resolves immediately, records only metadata)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22. The lasso cascade is the case that made the rule explicit: a stolen Shop offer '
+      + 'is spliced and its copy pushed to hand in one commit, so the beam had nothing to hit. The offer is now '
+      + 'rendered back into its own slot and the arrival held out of the fan until that steal\'s beam lands, while '
+      + 'the resolved state is untouched. The phase gate is applied during render rather than by the release '
+      + 'timer, so leaving the shop cannot strand a card. Cancelling a previous cascade happens in that same seed '
+      + 'rather than in the effect cleanup, after the cleanup form shipped a bug where only the FIRST steal of '
+      + 'a recruit phase held its card (caught in review, fixed 2026-09-22). The earlier holds of the same family '
+      + '(`gambleHold` since 2026-09-17, `heldConsume` since 2026-08-17) follow the same shape; `heldConsume` '
+      + 'still resolves only on its own timer, which is the remaining gap in the family.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/lassoHolds.test.ts', 'packages/ui/src/lassoCascade.test.tsx', 'packages/sim/src/lassoFx.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
 ];

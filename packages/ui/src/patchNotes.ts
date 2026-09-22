@@ -52,6 +52,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'The lasso',
+    changes: [
+      { category: 'Systems', text: "Stealing a minion from the Shop now throws a lasso: the beam snaps out from the spell, from Rope Wrangler, or from the equipment slot, and the card comes to hand when it lands. Several steals cascade one after another." },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Spiritbinder beam',
     changes: [
       { category: 'Systems', text: "Spiritbinder now throws a beam at the board Spirit it buffs. The Spirit in your hand still flashes as before." },

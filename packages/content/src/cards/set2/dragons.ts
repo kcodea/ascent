@@ -341,8 +341,8 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 3,
     keywords: [],
     effects: [{ on: 'onSell', do: 'battlecryGrantRandomSpell', params: { count: 1 } }],
-    text: 'When you **sell** this, get a **random Spell**.',
-    goldenText: 'When you **sell** this, get **2 random Spells**.',
+    text: '**Sell:** get a **random Spell**.',
+    goldenText: '**Sell:** get **2 random Spells**.',
   },
   {
     // A board-wide Dragonflame engine: every Dragon's swing (its own included) casts Dragonflame. Golden casts

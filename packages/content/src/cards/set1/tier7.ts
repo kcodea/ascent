@@ -107,8 +107,8 @@ export const TIER7: CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'onSell', do: 'onSellDiscover', params: { tier: 6, count: 2 } }],
-    text: 'When you sell this, **Discover** 2 Tier 6 minions.',
-    goldenText: 'When you sell this, **Discover** 2 **golden** Tier 6 minions.',
+    text: '**Sell:** **Discover** 2 Tier 6 minions.',
+    goldenText: '**Sell:** **Discover** 2 **golden** Tier 6 minions.',
   },
   {
     // The multiplier capstone: SIX trigger families at once, through the shared `triggerMultiplier` system

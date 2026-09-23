@@ -28,13 +28,19 @@ const esc = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
  *  "summon … from your hand") raises a pill but is body text, so it is NOT coloured. Exported for the sweep test. */
 export const COLOURED_TERMS: readonly string[] = Array.from(new Set([
   ...TRIBE_TERMS,
-  ...KEYWORD_GLOSSARY.flatMap((d) => [d.name, ...d.aliases]),
+  ...KEYWORD_GLOSSARY.filter((d) => !d.match).flatMap((d) => [d.name, ...d.aliases]),
 ]));
+
+/** Glossary entries whose `match` pins them to a keyword FORM (Sell → "Sell:" only): coloured by that pattern,
+ *  never by the bare word, so "Sell a friendly minion" and "Sells for 2 Gold" stay body text. */
+const FORM_MATCHERS: readonly string[] = KEYWORD_GLOSSARY.filter((d) => d.match).map((d) => d.match!.source);
 
 // Longest first so "Start of Combat" beats "Combat"-like prefixes and "Dwarven Ale" beats "Ale". The optional
 // trailing `s` covers the plural of any single-word term the glossary lists only in the singular (Shouts, Wards).
 const TERM_RE = new RegExp(
-  `(?<![A-Za-z])(?:${[...COLOURED_TERMS].sort((a, b) => b.length - a.length).map(esc).join('|')})s?(?![A-Za-z])`,
+  `(?:${FORM_MATCHERS.map((src) => `(?:${src})`).concat(
+    `(?<![A-Za-z])(?:${[...COLOURED_TERMS].sort((a, b) => b.length - a.length).map(esc).join('|')})s?(?![A-Za-z])`,
+  ).join('|')})`,
   'g',
 );
 const TAG_RE = /<[^>]+>/g;

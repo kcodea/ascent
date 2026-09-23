@@ -34,6 +34,49 @@ export const RANK_DEMOTION_ESCAPE_FINISH = 4;
  *  loss straight after promoting does not demote; it was 0). MUST equal `RANK_RULES.promotionLanding`. */
 export const RANK_PROMOTION_LANDING = 10;
 
+// ── LOBBY STRENGTH + the 1st-place bonus (owner 2026-09-22) — mirror of packages/sim/src/lobbyStrength.ts ──
+// The strength of a table is the mean over the seven opponent seats of each seat's SMOOTHED win rate from the
+// `run_fight_records` view: `(wins + 10) / (fights + 20)` (an unserved run reads 0.5), a generated seat
+// (`bot:` key) a fixed 0.25; `round(100 × mean)`. A 1st place in a lobby of strength `s` adds
+// `round(15 × clamp((s − 55) / 45, 0, 1))` to its award BEFORE the gate / cap logic. `settle_rank` computes
+// the same number in SQL from the same view; MUST equal the sim's constants.
+export const STRENGTH_PRIOR_WINS = 10;
+export const STRENGTH_PRIOR_FIGHTS = 20;
+export const STRENGTH_BOT_RATE = 0.25;
+export const STRENGTH_BONUS_MAX = 15;
+export const STRENGTH_BONUS_FLOOR = 55;
+export const STRENGTH_BONUS_SPAN = 100 - STRENGTH_BONUS_FLOOR;
+/** Tier cuts (labels only; the bonus reads the number): Easy < 35, Even 35–54, Hard 55–69, Brutal ≥ 70. */
+export const STRENGTH_TIER_EVEN = 35;
+export const STRENGTH_TIER_HARD = 55;
+export const STRENGTH_TIER_BRUTAL = 70;
+
+export interface StrengthInput { key: string; fights: number; wins: number }
+
+export const seatStrengthRate = (i: StrengthInput): number => {
+  if (i.key.startsWith('bot:')) return STRENGTH_BOT_RATE;
+  const fights = Math.max(0, i.fights);
+  const wins = Math.min(fights, Math.max(0, i.wins));
+  return (wins + STRENGTH_PRIOR_WINS) / (fights + STRENGTH_PRIOR_FIGHTS);
+};
+
+/** 0–100; an empty list (no opponents known) reads 50. */
+export function lobbyStrengthValue(inputs: readonly StrengthInput[]): number {
+  const mean = inputs.length === 0 ? 0.5 : inputs.reduce((sum, i) => sum + seatStrengthRate(i), 0) / inputs.length;
+  return Math.max(0, Math.min(100, Math.round(100 * mean)));
+}
+
+export function strengthTierOf(value: number): 'Easy' | 'Even' | 'Hard' | 'Brutal' {
+  return value >= STRENGTH_TIER_BRUTAL ? 'Brutal' : value >= STRENGTH_TIER_HARD ? 'Hard' : value >= STRENGTH_TIER_EVEN ? 'Even' : 'Easy';
+}
+
+/** The 1st-place bonus at strength `value`; 0 for every other placement and for a null strength. */
+export function strengthBonusOf(value: number | null | undefined, placement: number): number {
+  if (placement !== 1 || value == null || !Number.isFinite(value)) return 0;
+  const t = Math.max(0, Math.min(1, (value - STRENGTH_BONUS_FLOOR) / STRENGTH_BONUS_SPAN));
+  return Math.round(STRENGTH_BONUS_MAX * t);
+}
+
 export interface RankPosition { divisionIndex: number; points: number; demotionReady?: boolean }
 
 export interface RankOutcome {
@@ -41,6 +84,8 @@ export interface RankOutcome {
   before: RankPosition;
   after: RankPosition;
   baseDelta: number;
+  /** The 1st-place lobby-strength bonus folded into `baseDelta` (0 otherwise). */
+  strengthBonus: number;
   appliedDelta: number;
   cappedPoints: number;
   wasPromotionGame: boolean;
@@ -79,11 +124,12 @@ export const isValidPlacement = (p: unknown): p is number =>
  *     floors at 0; Ascendant III is uncapped upward; elsewhere ≥ 100 → exactly 100 + promotion unlocked. A
  *     promotion landing is never armed.
  */
-export function resolveRankOutcome(before: RankPosition, placement: number): RankOutcome {
+export function resolveRankOutcome(before: RankPosition, placement: number, bonus = 0): RankOutcome {
   if (!isValidPlacement(placement)) throw new RangeError(`placement ${String(placement)}`);
   const cap = RANK_DIVISION_POINTS;
   const top = RANK_TOP_DIVISION;
-  const baseDelta = RANK_PLACEMENT_AWARDS[placement - 1]!;
+  const strengthBonus = placement === 1 ? Math.max(0, Math.round(bonus)) : 0; // 1st only, never negative, before every branch
+  const baseDelta = RANK_PLACEMENT_AWARDS[placement - 1]! + strengthBonus;
   const start: RankPosition = { divisionIndex: before.divisionIndex, points: before.points, demotionReady: before.demotionReady === true };
   let after: RankPosition;
   let wasPromotionGame = false;
@@ -133,7 +179,7 @@ export function resolveRankOutcome(before: RankPosition, placement: number): Ran
   const appliedDelta = rankScalar(after) - rankScalar(start);
   const cappedPoints = promoted ? 0 : Math.max(0, Math.abs(baseDelta) - Math.abs(appliedDelta));
   const demotionUnlocked = isDemotionReady(after);
-  return { placement, before: start, after, baseDelta, appliedDelta, cappedPoints, wasPromotionGame, promotionKind, requiredFinish, promotionUnlocked, promoted, wasDemotionGame, demotionUnlocked, demoted };
+  return { placement, before: start, after, baseDelta, strengthBonus, appliedDelta, cappedPoints, wasPromotionGame, promotionKind, requiredFinish, promotionUnlocked, promoted, wasDemotionGame, demotionUnlocked, demoted };
 }
 
 /** Field-by-field equality of two outcomes (what the runtime parity check compares). */
@@ -143,7 +189,7 @@ export function sameRankOutcome(a: RankOutcome, b: RankOutcome): boolean {
     && (a.before.demotionReady === true) === (b.before.demotionReady === true)
     && a.after.divisionIndex === b.after.divisionIndex && a.after.points === b.after.points
     && (a.after.demotionReady === true) === (b.after.demotionReady === true)
-    && a.baseDelta === b.baseDelta && a.appliedDelta === b.appliedDelta && a.cappedPoints === b.cappedPoints
+    && a.baseDelta === b.baseDelta && a.strengthBonus === b.strengthBonus && a.appliedDelta === b.appliedDelta && a.cappedPoints === b.cappedPoints
     && a.wasPromotionGame === b.wasPromotionGame && a.promotionKind === b.promotionKind && a.requiredFinish === b.requiredFinish
     && a.promotionUnlocked === b.promotionUnlocked && a.promoted === b.promoted
     && a.wasDemotionGame === b.wasDemotionGame && a.demotionUnlocked === b.demotionUnlocked && a.demoted === b.demoted;

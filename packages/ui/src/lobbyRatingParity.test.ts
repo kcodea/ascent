@@ -1,10 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { RANK_RULES, RANK_SEASON, compareRank, rankTopDivision, resolveRank, type RankPosition } from '@game/sim';
+import {
+  RANK_RULES, RANK_SEASON, STRENGTH_BONUS_FLOOR, STRENGTH_BONUS_MAX, STRENGTH_BOT_RATE, STRENGTH_PRIOR_FIGHTS, STRENGTH_PRIOR_WINS, STRENGTH_TIERS,
+  compareRank, lobbyStrengthOf, rankTopDivision, resolveRank, strengthBonusOf, strengthTierOf, type RankPosition, type StrengthInput,
+} from '@game/sim';
 import {
   RANK_DEMOTION_ESCAPE_FINISH, RANK_DIVISION_POINTS, RANK_DIVISION_PROMOTION_FINISH, RANK_DIVISIONS_PER_MEDAL, RANK_MEDAL_PROMOTION_FINISH,
   RANK_PLACEMENT_AWARDS, RANK_PROMOTION_LANDING, RANK_RULES_VERSION, RANK_SEASON as SERVER_SEASON, RANK_TOP_DIVISION, resolveRankOutcome,
+  STRENGTH_BONUS_FLOOR as SERVER_BONUS_FLOOR, STRENGTH_BONUS_MAX as SERVER_BONUS_MAX, STRENGTH_BOT_RATE as SERVER_BOT_RATE,
+  STRENGTH_PRIOR_FIGHTS as SERVER_PRIOR_FIGHTS, STRENGTH_PRIOR_WINS as SERVER_PRIOR_WINS, STRENGTH_TIER_BRUTAL, STRENGTH_TIER_EVEN, STRENGTH_TIER_HARD,
+  lobbyStrengthValue, strengthBonusOf as serverStrengthBonusOf, strengthTierOf as serverStrengthTierOf,
 } from '../../../supabase/functions/_shared/lobbyRating';
 
 /**
@@ -21,12 +27,16 @@ import {
  * placement runs through both TS resolvers and must agree field-for-field.
  */
 const repoRoot = join(__dirname, '../../..');
-const sqlSrc = readFileSync(join(repoRoot, 'supabase/migrations/2026-09-20-medal-rank.sql'), 'utf8');
+/** The medal-rank migration (2026-09-20) still owns the profile constraints; the FIGHT-LEDGER migration
+ *  (2026-09-22) redefines `settle_rank` with the lobby-strength bonus, so the function body and its constants
+ *  are read from THAT file. Historical migrations are never edited. */
+const medalSrc = readFileSync(join(repoRoot, 'supabase/migrations/2026-09-20-medal-rank.sql'), 'utf8');
+const sqlSrc = readFileSync(join(repoRoot, 'supabase/migrations/2026-09-22-fight-ledger.sql'), 'utf8');
 const schemaSrc = readFileSync(join(repoRoot, 'schema.sql'), 'utf8');
 
 function sqlConst(name: string): string {
-  const m = new RegExp(`${name}\\s+constant\\s+[a-z\\[\\]]+\\s*:=\\s*([^;]+);`).exec(sqlSrc);
-  if (!m) throw new Error(`could not find ${name} in the medal-rank migration`);
+  const m = new RegExp(`${name}\\s+constant\\s+[a-z0-9\\[\\]]+\\s*:=\\s*([^;]+);`).exec(sqlSrc);
+  if (!m) throw new Error(`could not find ${name} in the fight-ledger migration`);
   return m[1]!.trim();
 }
 
@@ -43,6 +53,55 @@ describe('medal rank — constants agree across the three copies', () => {
     expect(RANK_RULES.promotionLanding).toBe(10);
     expect(RANK_RULES_VERSION).toBe(RANK_RULES.rulesVersion);
     expect(SERVER_SEASON).toBe(RANK_SEASON);
+  });
+
+  it('the lobby-strength constants agree (sim, Edge Function module, settle_rank SQL) — owner 2026-09-22', () => {
+    expect(SERVER_PRIOR_WINS).toBe(STRENGTH_PRIOR_WINS);
+    expect(SERVER_PRIOR_FIGHTS).toBe(STRENGTH_PRIOR_FIGHTS);
+    expect(SERVER_BOT_RATE).toBe(STRENGTH_BOT_RATE);
+    expect(SERVER_BONUS_MAX).toBe(STRENGTH_BONUS_MAX);
+    expect(SERVER_BONUS_FLOOR).toBe(STRENGTH_BONUS_FLOOR);
+    expect(STRENGTH_TIER_EVEN).toBe(STRENGTH_TIERS.even);
+    expect(STRENGTH_TIER_HARD).toBe(STRENGTH_TIERS.hard);
+    expect(STRENGTH_TIER_BRUTAL).toBe(STRENGTH_TIERS.brutal);
+    expect([STRENGTH_PRIOR_WINS, STRENGTH_PRIOR_FIGHTS, STRENGTH_BOT_RATE, STRENGTH_BONUS_MAX, STRENGTH_BONUS_FLOOR]).toEqual([10, 20, 0.25, 15, 55]);
+    expect(sqlConst('c_prior_wins')).toBe(String(STRENGTH_PRIOR_WINS));
+    expect(sqlConst('c_prior_fights')).toBe(String(STRENGTH_PRIOR_FIGHTS));
+    expect(Number(sqlConst('c_bot_rate'))).toBe(STRENGTH_BOT_RATE);
+    expect(sqlConst('c_bonus_max')).toBe(String(STRENGTH_BONUS_MAX));
+    expect(sqlConst('c_bonus_floor')).toBe(String(STRENGTH_BONUS_FLOOR));
+    expect(sqlConst('c_bonus_span')).toBe(String(100 - STRENGTH_BONUS_FLOOR));
+    expect(sqlConst('c_tier_even')).toBe(String(STRENGTH_TIERS.even));
+    expect(sqlConst('c_tier_hard')).toBe(String(STRENGTH_TIERS.hard));
+    expect(sqlConst('c_tier_brutal')).toBe(String(STRENGTH_TIERS.brutal));
+    // The SQL folds the bonus into the award BEFORE every branch, 1st place only, and the old overload is gone.
+    expect(sqlSrc).toContain('v_base := c_awards[p_placement] + v_bonus;');
+    expect(sqlSrc).toContain('if p_placement = 1 then');
+    expect(sqlSrc).toContain('drop function if exists public.settle_rank(uuid, text, int, int, int, bigint);');
+    expect(sqlSrc).toContain('p_seat_keys text[] default null');
+    expect(sqlSrc).toContain('revoke all on function public.settle_rank(uuid, text, int, int, int, bigint, text[])');
+  });
+
+  it('the strength formula and the bonus agree (sim vs the Edge Function module) on fixtures', () => {
+    const tables: StrengthInput[][] = [
+      [], // no opponents known: 50
+      Array.from({ length: 7 }, (_, i) => ({ key: `bot:hybrid:h${i}`, fights: 0, wins: 0 })), // all bots: 25
+      Array.from({ length: 7 }, (_, i) => ({ key: `a|h${i}|1`, fights: 0, wins: 0 })), // unserved: 50
+      Array.from({ length: 7 }, (_, i) => ({ key: `a|h${i}|1`, fights: 200, wins: 140 })), // proven 70%: ~68
+      Array.from({ length: 7 }, (_, i) => ({ key: `a|h${i}|1`, fights: 40, wins: 36 })), // a strong field
+      [{ key: 'a|h|1', fights: 12, wins: 10 }, { key: 'b|h|2', fights: 3, wins: 0 }, { key: 'bot:hybrid:x', fights: 0, wins: 0 }, { key: 'c|h|3', fights: 0, wins: 0 }, { key: 'd|h|4', fights: 30, wins: 22 }, { key: 'e|h|5', fights: 9, wins: 9 }, { key: 'f|h|6', fights: 100, wins: 20 }],
+    ];
+    for (const inputs of tables) {
+      const client = lobbyStrengthOf(inputs);
+      expect(lobbyStrengthValue(inputs), JSON.stringify(inputs)).toBe(client.value);
+      expect(serverStrengthTierOf(client.value)).toBe(client.tier);
+      expect(strengthTierOf(client.value)).toBe(client.tier);
+      for (let placement = 1; placement <= 8; placement++) expect(serverStrengthBonusOf(client.value, placement)).toBe(strengthBonusOf(client.value, placement));
+    }
+    for (let s = 0; s <= 100; s++) {
+      expect(serverStrengthBonusOf(s, 1)).toBe(strengthBonusOf(s, 1));
+      expect(serverStrengthBonusOf(s, 2)).toBe(0);
+    }
   });
 
   it('the settle_rank SQL carries the same numbers', () => {
@@ -62,9 +121,9 @@ describe('medal rank — constants agree across the three copies', () => {
   });
 
   it('the SQL carries the widened demotion gate (owner 2026-09-21): the flag is valid at 0 in ANY division above Bronze I, and no branch demotes outside a demotion game', () => {
-    // The check constraint: the medal-floor `% 3` term is gone.
-    expect(sqlSrc).toContain('check (not rank_demotion_ready or (rank_points = 0 and rank_division > 0));');
-    expect(sqlSrc).not.toContain('rank_division % 3 = 0');
+    // The check constraint (still owned by the medal-rank migration): the medal-floor `% 3` term is gone.
+    expect(medalSrc).toContain('check (not rank_demotion_ready or (rank_points = 0 and rank_division > 0));');
+    expect(medalSrc).not.toContain('rank_division % 3 = 0');
     // settle_rank: the medal-floor test `(d0 % c_per_medal) = 0` no longer exists anywhere in the body — the only
     // `% c_per_medal` left is the promotion-gate KIND test. The instant `d0 - 1` demotion exists ONLY in the
     // demotion-game branch (one occurrence).
@@ -83,9 +142,11 @@ describe('medal rank — constants agree across the three copies', () => {
   it('the JSON shapes name every RankResult / RankedProfile key the client parses', () => {
     for (const key of ['runId', 'seasonId', 'rulesVersion', 'revisionBefore', 'revisionAfter', 'placement', 'before', 'after',
       'baseDelta', 'appliedDelta', 'cappedPoints', 'wasPromotionGame', 'promotionKind', 'requiredFinish',
-      'promotionUnlocked', 'promoted', 'wasDemotionGame', 'demotionUnlocked', 'demoted', 'highestAfter', 'divisionIndex', 'points', 'demotionReady', 'revision', 'position', 'highest']) {
+      'promotionUnlocked', 'promoted', 'wasDemotionGame', 'demotionUnlocked', 'demoted', 'highestAfter', 'divisionIndex', 'points', 'demotionReady',
+      'strengthBonus', 'lobbyStrength']) {
       expect(sqlSrc, `settle_rank JSON must emit '${key}'`).toContain(`'${key}'`);
     }
+    for (const key of ['revision', 'position', 'highest']) expect(medalSrc, `rank_profile_json must emit '${key}'`).toContain(`'${key}'`);
   });
 });
 
@@ -171,6 +232,45 @@ describe('medal rank — transition parity (sim resolver ↔ Edge Function mirro
     const ts = resolveRankOutcome({ divisionIndex: 17, points: 10 }, 8);
     expect(ts.after).toEqual(tc.after);
     expect(tc.after).toEqual({ divisionIndex: 17, points: 0, demotionReady: true });
+  });
+
+  it('the lobby-strength bonus agrees on both (owner 2026-09-22): 1st at Brutal, 1st at Even = +0, 2nd at Brutal = +0, the gate and the landing', () => {
+    const brutal = 74; // round(15 * 19 / 45) = 6
+    const bonus = (s: number, placement: number) => strengthBonusOf(s, placement);
+    expect(bonus(brutal, 1)).toBe(6);
+    expect(bonus(100, 1)).toBe(15);
+    expect(bonus(55, 1)).toBe(0);
+    expect(bonus(50, 1)).toBe(0);
+    expect(bonus(brutal, 2)).toBe(0);
+    const cases: [RankPosition, number, number][] = [
+      [{ divisionIndex: 7, points: 20 }, 1, bonus(brutal, 1)],   // a mid-division 1st at Brutal 74: +46
+      [{ divisionIndex: 7, points: 20 }, 1, bonus(100, 1)],      // +55
+      [{ divisionIndex: 7, points: 20 }, 1, bonus(50, 1)],       // Even: +40
+      [{ divisionIndex: 7, points: 20 }, 2, bonus(brutal, 2)],   // 2nd: +28, no bonus
+      [{ divisionIndex: 7, points: 90 }, 1, bonus(100, 1)],      // the cap: 90 + 55 lands on 100, overflow discarded
+      [{ divisionIndex: 7, points: 100 }, 1, bonus(100, 1)],     // the gate: promoted, landing 10, bonus converted
+      [{ divisionIndex: 8, points: 100 }, 1, bonus(100, 1)],     // the medal gate
+      [{ divisionIndex: 17, points: 130 }, 1, bonus(100, 1)],    // Ascendant III takes the full +55
+      [{ divisionIndex: 7, points: 0, demotionReady: true }, 1, bonus(100, 1)], // a demotion game escaped with the bonus
+    ];
+    for (const [start, placement, b] of cases) {
+      const c = resolveRank(start, placement, RANK_RULES, { bonus: b, lobbyStrength: 100 });
+      const s = resolveRankOutcome(start, placement, b);
+      const label = `division ${start.divisionIndex} @ ${start.points}, placement ${placement}, bonus ${b}`;
+      expect(s.after, label).toEqual(c.after);
+      expect(s.baseDelta, label).toBe(c.baseDelta);
+      expect(s.strengthBonus, label).toBe(c.strengthBonus);
+      expect(s.appliedDelta, label).toBe(c.appliedDelta);
+      expect(s.cappedPoints, label).toBe(c.cappedPoints);
+      expect(s.promoted, label).toBe(c.promoted);
+      expect(s.promotionUnlocked, label).toBe(c.promotionUnlocked);
+    }
+    // The numbers themselves, on the sim copy (the server copy just agreed with it).
+    expect(resolveRank({ divisionIndex: 7, points: 20 }, 1, RANK_RULES, { bonus: 6 })).toMatchObject({ baseDelta: 46, strengthBonus: 6, appliedDelta: 46, after: { divisionIndex: 7, points: 66 } });
+    expect(resolveRank({ divisionIndex: 7, points: 20 }, 1, RANK_RULES, { bonus: 0 })).toMatchObject({ baseDelta: 40, strengthBonus: 0, appliedDelta: 40 });
+    expect(resolveRank({ divisionIndex: 7, points: 20 }, 2, RANK_RULES, { bonus: 6 })).toMatchObject({ baseDelta: 28, strengthBonus: 0, appliedDelta: 28 });
+    expect(resolveRank({ divisionIndex: 7, points: 90 }, 1, RANK_RULES, { bonus: 15 })).toMatchObject({ baseDelta: 55, strengthBonus: 15, appliedDelta: 10, cappedPoints: 45, promotionUnlocked: true, after: { divisionIndex: 7, points: 100 } });
+    expect(resolveRank({ divisionIndex: 7, points: 100 }, 1, RANK_RULES, { bonus: 15 })).toMatchObject({ baseDelta: 55, strengthBonus: 15, appliedDelta: 10, cappedPoints: 0, promoted: true, after: { divisionIndex: 8, points: 10 } });
   });
 
   it('both reject the same invalid placements', () => {

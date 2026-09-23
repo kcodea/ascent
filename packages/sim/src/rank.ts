@@ -2,9 +2,10 @@
  * MEDAL RANK — the ladder's rules, as one pure, deterministic resolver (owner decisions 2026-09-20).
  *
  * Six medals × three divisions = 18 divisions (index 0 = Bronze I … 17 = Ascendant III), each 100 points wide.
- * A finished RATED lobby moves the player by its final placement ONLY (the placement-award table below): no
- * round-wins modifier, no opponent-strength adjustment, no hidden MMR. The rules that make it a *medal* ladder
- * rather than a number:
+ * A finished RATED lobby moves the player by its final placement (the placement-award table below) plus, for a
+ * 1st place ONLY, the LOBBY-STRENGTH BONUS (owner 2026-09-22, `lobbyStrength.ts`): up to +15 for winning a
+ * hard table, never on 2nd to 8th, never negative. No round-wins modifier, no hidden MMR. The rules that make
+ * it a *medal* ladder rather than a number:
  *
  *   • PROMOTION GATE. Reaching 100 points does NOT promote — it makes the NEXT rated game a *promotion game*.
  *     Overflow past 100 is discarded (`cappedPoints`); the delta shown is the delta applied.
@@ -63,7 +64,7 @@ export interface RankRules {
   readonly divisionsPerMedal: number;
   /** Points per division — the promotion gate sits at exactly this value. */
   readonly divisionPoints: number;
-  /** Points by final placement, index 0 = 1st … 7 = 8th. Sums to zero. */
+  /** Points by final placement, index 0 = 1st … 7 = 8th. Sums to zero (before the 1st-place strength bonus). */
   readonly placementAwards: readonly number[];
   /** Worst placement that still WINS a division promotion game (top-4). */
   readonly divisionPromotionFinish: number;
@@ -140,8 +141,17 @@ export interface RankResult {
   placement: number;
   before: RankPosition;
   after: RankPosition;
-  /** The placement's table award (+40 … −40), before gates / caps / floors. */
+  /** The placement's table award (+40 … −40) PLUS the lobby-strength bonus (1st place only), before gates /
+   *  caps / floors. `strengthBonus` says how much of it is the bonus. */
   baseDelta: number;
+  /** The lobby-strength bonus folded into `baseDelta` (owner 2026-09-22): `round(15 × clamp((s − 55) / 45))`
+   *  for a 1st place in a lobby of strength `s`, 0 otherwise. Added BEFORE the gate / cap logic, so a 1st at a
+   *  promotion gate still lands on the landing and a 1st near 100 still caps at 100 with the overflow in
+   *  `cappedPoints`. Missing on a pre-bonus row → parsed as 0. */
+  strengthBonus: number;
+  /** The lobby strength the server computed at settle time (0 to 100), when it had the seat keys; null when
+   *  the settlement predates the bonus or the keys were not sent. */
+  lobbyStrength: number | null;
   /** What actually moved: `rankScalar(after) − rankScalar(before)`. `+promotionLanding` (+10) on a won
    *  promotion game (10/100 in the new division against 100/100 in the old one as a scalar — the landing
    *  cushion, never the award) and 0 on a held medal gate. THIS is the number to show. */
@@ -310,12 +320,15 @@ function assertPosition(pos: RankPosition, rules: RankRules): void {
  *      promotion-ready (overflow discarded). Every other result (any non-negative award, a promotion landing)
  *      leaves the flag false.
  */
-export function resolveRank(before: RankPosition, placement: number, rules: RankRules = RANK_RULES): RankOutcome {
+export function resolveRank(before: RankPosition, placement: number, rules: RankRules = RANK_RULES, strength: { bonus?: number; lobbyStrength?: number | null } = {}): RankOutcome {
   assertPlacement(placement, rules);
   assertPosition(before, rules);
   const cap = rules.divisionPoints;
   const top = rankTopDivision(rules);
-  const baseDelta = rules.placementAwards[placement - 1]!;
+  // THE LOBBY-STRENGTH BONUS (owner 2026-09-22): 1st place only, never negative, folded into the award BEFORE
+  // every branch below — the gate, the cap and the floor all see one number.
+  const strengthBonus = placement === 1 ? Math.max(0, Math.round(strength.bonus ?? 0)) : 0;
+  const baseDelta = rules.placementAwards[placement - 1]! + strengthBonus;
   const start: RankPosition = { divisionIndex: before.divisionIndex, points: before.points, demotionReady: before.demotionReady === true };
 
   let after: RankPosition;
@@ -372,7 +385,8 @@ export function resolveRank(before: RankPosition, placement: number, rules: Rank
   const demotionUnlocked = isDemotionReady(after);
   return {
     placement, before: start, after,
-    baseDelta, appliedDelta, cappedPoints,
+    baseDelta, strengthBonus, lobbyStrength: strength.lobbyStrength ?? null,
+    appliedDelta, cappedPoints,
     wasPromotionGame, promotionKind, requiredFinish, promotionUnlocked, promoted,
     wasDemotionGame, demotionUnlocked, demoted,
   };
@@ -386,8 +400,9 @@ export function resolveRank(before: RankPosition, placement: number, rules: Rank
  */
 export function settleRank(
   profile: RankedProfile, placement: number, runId: string, rules: RankRules = RANK_RULES,
+  strength: { bonus?: number; lobbyStrength?: number | null } = {},
 ): { result: RankResult; profile: RankedProfile } {
-  const outcome = resolveRank(profile.position, placement, rules);
+  const outcome = resolveRank(profile.position, placement, rules, strength);
   // `highest` is a plain standing — it never carries the gate flag.
   const highestAfter: RankPosition = compareRank(outcome.after, profile.highest) > 0
     ? { divisionIndex: outcome.after.divisionIndex, points: outcome.after.points, demotionReady: false }
@@ -432,11 +447,14 @@ export function parseRankResult(x: unknown, rules: RankRules = RANK_RULES): Rank
   if (!Number.isInteger(o.revisionBefore) || !Number.isInteger(o.revisionAfter)) return null;
   if (!Number.isInteger(o.baseDelta) || !Number.isInteger(o.appliedDelta) || !Number.isInteger(o.cappedPoints)) return null;
   const kind = o.promotionKind === 'division' || o.promotionKind === 'medal' ? o.promotionKind : null;
+  // Pre-bonus rows carry neither key: the bonus reads 0 and the strength null (never fabricated).
+  const strengthBonus = Number.isInteger(o.strengthBonus) && (o.strengthBonus as number) >= 0 ? (o.strengthBonus as number) : 0;
+  const lobbyStrength = typeof o.lobbyStrength === 'number' && Number.isFinite(o.lobbyStrength) ? o.lobbyStrength : null;
   return {
     runId: o.runId, seasonId: o.seasonId as number, rulesVersion: o.rulesVersion as number,
     revisionBefore: o.revisionBefore as number, revisionAfter: o.revisionAfter as number,
     placement: o.placement as number, before, after,
-    baseDelta: o.baseDelta as number, appliedDelta: o.appliedDelta as number, cappedPoints: o.cappedPoints as number,
+    baseDelta: o.baseDelta as number, strengthBonus, lobbyStrength, appliedDelta: o.appliedDelta as number, cappedPoints: o.cappedPoints as number,
     wasPromotionGame: o.wasPromotionGame === true, promotionKind: kind,
     requiredFinish: Number.isInteger(o.requiredFinish) ? (o.requiredFinish as number) : null,
     promotionUnlocked: o.promotionUnlocked === true, promoted: o.promoted === true,

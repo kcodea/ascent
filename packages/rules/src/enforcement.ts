@@ -6,7 +6,7 @@
  *    integrity test fs-checks every backing file).
  *  · `RULE_ENFORCEMENT` — enforcement for GENERATED rules (pending.generated.ts is rewritten by
  *    `npm run rules:seed`, so inline metadata there would be lost; this map is keyed by stable rule id
- *    and survives re-seeding). Hand-authored rules in approved.ts / retired.ts declare theirs inline.
+ *    and survives re-seeding). Hand-authored rules in registry/approved/<domain>.ts / retired.ts declare theirs inline.
  *  · `enforcementErrors` — the pure validator both the integrity test and the sabotage tests run.
  *  · `unenforcedApproved` — the approved-but-unenforced queue (§10.3), ratcheted in enforcement.test.ts.
  */

@@ -1,0 +1,308 @@
+/**
+ * APPROVED RULES — domain `triggers`.
+ *
+ * One file per `RuleDomain` so concurrent PRs stop colliding on one tail: a new rule is APPENDED to the end
+ * of THIS array (`R-<TOPIC>-<NN>`, ids stable and never recycled, the owner's words as evidence, the
+ * regression test as `enforcement.refs` — recipe in CLAUDE.md, "Bug fixes become rules"). The index
+ * (`./index.ts`) concatenates every domain file in a fixed order into `APPROVED_RULES`; `approved.test.ts`
+ * fails a rule filed under the wrong domain. Never hand-edit the array's shape; never move a rule between
+ * files without an owner ruling that its domain changed.
+ */
+import type { GameRule } from '../../schema';
+import { AVWIN_HANDOFF } from './shared';
+
+export const TRIGGERS_RULES: GameRule[] = [
+
+  // ── Per-instance temporal windows (Docbot handoff §5.0, owner rulings 2026-08-26) ──────────────────────
+  {
+    id: 'R-AVWIN-01',
+    enforcement: { kind: 'oracle', refs: ['temporalWindow'] },
+    title: 'Late entry starts at zero',
+    statement:
+      'An Avenge source summoned after earlier friendly deaths does not count those earlier deaths. Its '
+      + 'observation window opens when the instance enters play; nothing before that is its progress.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [{ kind: 'owner-handoff', ref: AVWIN_HANDOFF, quote: 'Late entry starts at zero.' }],
+    currentBehaviour:
+      'Conforms: `placeSummon` stamps `avengeBaseline = deaths[side]` on every mid-combat summon '
+      + '(the #1176 fix, owner report 2026-08-24); start-of-fight bodies keep baseline 0.',
+  },
+  {
+    id: 'R-AVWIN-02',
+    enforcement: { kind: 'oracle', refs: ['temporalWindow'] },
+    title: 'The summoning death does not count',
+    statement:
+      'If a friendly death summons an Avenge source, that same death is outside the new source\'s '
+      + 'observation window — the source must not count the death that created it.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [{ kind: 'owner-handoff', ref: AVWIN_HANDOFF, quote: 'The summoning death does not count.' }],
+    currentBehaviour:
+      'Conforms — 2026-09-10: both combat death paths count `deaths[side]` BEFORE the Echo fires, so a source the '
+      + 'Echo summons stamps a baseline that already includes the death that created it. Was VIOLATED (pinned in '
+      + 'temporalWindow KNOWN_VIOLATIONS 2026-08-27 → 2026-09-10): the Deathrattle fired before the increment.',
+  },
+  {
+    id: 'R-AVWIN-06',
+    enforcement: { kind: 'oracle', refs: ['temporalWindow'] },
+    title: 'Deaths count individually',
+    statement:
+      'Avenge evaluates each friendly death separately. A source with Avenge (3) observing six eligible '
+      + 'deaths reaches its threshold twice.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [{ kind: 'owner-handoff', ref: AVWIN_HANDOFF, quote: 'Deaths count individually.' }],
+    currentBehaviour: 'Conforms: every factory thresholds `seen % count === 0` per death.',
+  },
+  {
+    id: 'R-AVWIN-09',
+    enforcement: { kind: 'oracle', refs: ['temporalWindow'] },
+    title: 'Rise creates a fresh observation window',
+    statement:
+      'When an Avenge source dies and Rises, the returned instance restarts with zero accrued Avenge '
+      + 'progress.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [{ kind: 'owner-handoff', ref: AVWIN_HANDOFF, quote: 'Rise creates a fresh observation window.' }],
+    currentBehaviour:
+      'Conforms: the Rise return re-stamps `avengeBaseline = deaths[side]` AFTER its own rise-death was '
+      + 'tallied, so neither prior progress nor the rise-death itself counts (owner ruling 2026-08-08).',
+  },
+  {
+    id: 'R-AVWIN-10',
+    enforcement: { kind: 'oracle', refs: ['temporalWindow'] },
+    title: 'A source dying in a simultaneous batch observes none of that batch',
+    statement:
+      'If an Avenge source dies in the same death instance/batch as other friendly minions, it counts '
+      + 'none of those simultaneous deaths. Resolution order within the batch must not leak partial '
+      + 'progress to the dying source.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [{ kind: 'owner-handoff', ref: AVWIN_HANDOFF, quote: 'A source dying in a simultaneous batch observes none of that batch.' }],
+    currentBehaviour:
+      'Conforms — 2026-09-10: the avenge broadcast skips a source at ≤0 Health, so the sequential clash resolution '
+      + '(cleave victims → target → attacker) leaks no batch-mate to a mortally wounded source. Was VIOLATED (pinned '
+      + 'in temporalWindow KNOWN_VIOLATIONS 2026-08-27 → 2026-09-10): the guard checked only the `dead` flag.',
+  },
+  {
+    id: 'R-SHOUT-01',
+    title: '"First Shout each turn" charges are per-phase: shop and combat each carry their own',
+    statement:
+      'A "first Shout each turn/round triggers twice" charge (Warm Embers family) means the first Shout '
+      + 'triggered in EACH shop or combat phase: a Shout doubled via Parting Cry in turn 7\'s combat spends '
+      + 'that combat\'s charge, and the first Shout in turn 8\'s shop is a separate charge — both work. '
+      + 'Combat use is not a double-dip of one charge; the phases account separately.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [{
+      kind: 'owner-chat', ref: 'decisions.json q-carry-warm-embers-double-dip (triage round 2, 2026-08-27)',
+      quote: 'first shout each turn = the first shout triggered EACH shop or combat phase. so if a shout gets triggered through parting cry in combat on turn 7, then the first shout in turn 8 is a separate charge, so both should work.',
+    }],
+    currentBehaviour: 'Conforms — shipped in #1262 (2026-08-27, the THIS TURN rule): each phase carries its own first-Shout charge; pinned by the carryOver lane.',
+    enforcement: { kind: 'oracle', refs: ['carryOver'], lastVerifiedAt: '2026-08-27' },
+  },
+  // ── Late-2026-08 / early-2026-09 fixes and rulings (owner reports + Bug Board rounds 1–2), entered 2026-09-09 ──
+  {
+    id: 'R-TIER-01',
+    title: 'Skybound Ascendant reaches Tier 7 on every run — an authored Tier-7 source is not bound by the Tier-7 access gate',
+    statement:
+      'A card that prints "up to Tier 7" transforms up to Tier 7 on EVERY run. The Shop\'s Tier-7 access gate '
+      + '(Summit runs, quest grants) governs what the Shop can OFFER, not what an authored effect can produce: '
+      + 'Skybound Ascendant steps its left neighbour up to seven on a plain run, and a neighbour already at '
+      + 'seven re-rolls at seven. The printed 7 is always true, so the live text never rewrites it to 6.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [{
+      kind: 'owner-chat', ref: 'Bug Board cb45dc41 (round 2, 2026-09-09) — overruling the first by-design close',
+      quote: 'it should work up to tier 7 always. it is not bound by t6 rules.',
+    }],
+    cardText: '**End of Turn:** transform the minion to the **left** into a random minion **one Tier higher** (up to **Tier 7**).',
+    contentIds: ['d2_ascendant'],
+    currentBehaviour:
+      'Conforms — #1374: `endOfTurnTransformLeftTierUp` clamps to a constant 7 (was `hasTier7Access ? 7 : 6`), '
+      + 'and the `ascendantTierText` live-text rewrite is deleted. Clockwork Assistant\'s Discover still reads the '
+      + 'run ceiling — it is a Shop offer, which is exactly what the gate governs.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeMinionsAug20.test.ts', 'packages/ui/src/instView.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
+  {
+    id: 'R-RALLY-01',
+    title: 'A free Rally is a triggered Rally — the "when a Rally is triggered" watchers fire on it',
+    statement:
+      'A Rally fired without a swing (Rune of Rallying at Start of Combat, Backbeat, Hunting Bell) is a Rally '
+      + 'TRIGGERED, so every watcher whose text says "when a Rally is triggered" / "whenever you trigger a Rally" '
+      + '(Hawkus → your left-most Echo, Paragon, Rubies-on-Rally) fires on it exactly as on a swing\'s Rally. No '
+      + 'attack happens and no on-attack bus event is emitted — the watchers are reached directly.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'fix-pr', ref: '#1374 (Bug Board 7e04222d, priority 8)', quote: 'hawkus doesnt seem to be triggering dawnclaw after a rally unit triggers its rally effect' },
+      { kind: 'card-text', ref: 'b2_hawkus', quote: 'When a **Rally** is triggered, trigger your **left-most Echo**.' },
+    ],
+    contentIds: ['b2_hawkus', 'rune_rallying'],
+    currentBehaviour:
+      'Conforms — #1374: `fireFreeRally` in simulate.ts runs `FREE_RALLY_WATCHER_EFFECTS` (onRallyBuffOnePerTribe, '
+      + 'onRallyProcLeftmostEcho, onRallyPlayRubiesTribe) over the rallier\'s board after its own on-attack effects.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/freeRallyWatchers.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
+  {
+    id: 'R-RALLY-02',
+    title: '"Rally:" is the card\'s own swing; "whenever you trigger a Rally" is a watcher — sharing a factory does not share the trigger',
+    statement:
+      'A card that prints "**Rally:**" fires on ITS OWN swing only (Standard Bearer). A card that prints '
+      + '"whenever you trigger a Rally" / "when a Rally is triggered" is a WATCHER and fires on every friendly '
+      + 'Rally (Paragon). Two cards sharing one effect factory must still honour their own printed wording — '
+      + 'the wiring carries a `selfOnly` gate, not a second factory.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [{
+      kind: 'fix-pr', ref: '#1361 (owner report 2026-09-03)',
+      quote: 'standard bearer is acting as a watcher … whenever ANY rally minion attacks, it is buffing other units.',
+    }],
+    cardText: '**Rally:** give a minion of **each type** **+3/+3**.',
+    contentIds: ['n2_standardbearer'],
+    currentBehaviour:
+      'Conforms — #1361: `onRallyBuffOnePerTribe` takes `selfOnly`, gating `attacker.uid !== arena.self.uid` in both '
+      + 'dispatch paths (combat\'s refireRallyWatchers, the shop\'s fireShopRally); Standard Bearer sets it, Paragon does not. '
+      + 'The rallyGuard lane classifies every Rally wording against its dispatch.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/docbot/rallyGuard.test.ts', 'packages/sim/src/rallyDispatch.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
+  {
+    id: 'R-REFLECT-01',
+    title: 'Reflector: Spells and Rubies share ONE once-per-turn re-cast',
+    statement:
+      'Reflector\'s "(Once per turn)" is a single allowance shared by both things it reacts to: the first Spell '
+      + 'OR Ruby cast on it each turn is re-cast on a random friendly minion, and nothing else cast on it that '
+      + 'turn reflects. Two Rubies then a Crest of the Climb reflects only the first Ruby; Crest first on a fresh '
+      + 'Reflector reflects the Crest.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'fix-pr', ref: '#1326 (Bug Board 224af0ee, priority 2) — the text was the defect, the engine was right', quote: 'Spells and **Rubies** cast on this also cast on a random friendly minion. (Once per turn)' },
+      { kind: 'test', ref: 'packages/sim/src/reflectorSharedAllowance.test.ts (#1374 — the behaviour lane the text PR shipped without)' },
+    ],
+    cardText: 'Spells and **Rubies** cast on this **also cast** on a random friendly minion. **(Once per turn)**',
+    contentIds: ['n2_reflector'],
+    currentBehaviour:
+      'Conforms: both factories (`spellCastOnThis`, `onRubyPlayed`) guard on `spellsOnThisTurn + rubiesOnThisTurn === 1`, '
+      + 'so the allowance is one per turn across both kinds. Pinned in both orders through the real reducer.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/reflectorSharedAllowance.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
+  {
+    id: 'R-HAND-01',
+    title: 'Hand-gain watchers fire in combat, when the card arrives — not at carry-back',
+    statement:
+      '"When a card is added to your hand" (Gangplank) fires the moment a card reaches the hand, in EITHER phase: '
+      + 'a card granted mid-combat (`grantToHand`, `grantRubies`) triggers the watcher during that fight, so the '
+      + 'payout can affect the fight that earned it. A payout that lands on the shop board after the fight is late, '
+      + 'and late is a defect.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [{ kind: 'fix-pr', ref: '#1297 (owner report 2026-08-29)', quote: 'GANGPLANK DOESN\'T TRIGGER WHEN CARDS ARE ADDED TO HAND IN COMBAT' }],
+    cardText: 'When a card is added to your hand, give a **random** friendly **Dwarf +1/+2**.',
+    contentIds: ['dw_gangplank'],
+    currentBehaviour:
+      'Conforms — #1297: `onGainCard` bodies moved to ARENA_EFFECTS so both phases run one implementation; combat emits '
+      + 'from `ctx.grantToHand` / `ctx.grantRubies`, the only two ways a card reaches a hand mid-fight.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/handGainInCombat.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
+  {
+    id: 'R-RISE-03',
+    title: 'Rise watchers fire in both phases — a shop Rise pays out, permanently',
+    statement:
+      '"When a friendly minion Rises" is an event of its own, and it fires wherever the Rise happens: in combat '
+      + 'when a body returns, and in the shop when a destroyed body returns (R-RISE-02). The payout of a watcher in '
+      + 'the shop is permanent — the stats AND any keyword it grants (the Ward of Revenant) — exactly as any recruit-phase '
+      + 'gain is; in combat the board half is a normal combat gain and a hand half is permanent (R-HAND-02). Only a '
+      + 'FRIENDLY Rise counts: an enemy body returning wakes nothing on your side.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-09 (set-3 Undead roster review, answers 3–5)', quote: 'friendly only … if minions rise in shop, that would trigger rising tide and that buff would be permanent since it\'s in recruit. this will be a common trigger/effect in set 3 so make sure that logic is wired correctly for minions rising in recruit.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts (the onRise bus emit after the reborn return); packages/sim/src/recruit.ts fireOnRise (off riseReturn in settlePendingDeath)' },
+    ],
+    contentIds: ['u3_revenant', 'u3_risingtide'],
+    currentBehaviour:
+      'Conforms (built with the ruling, 2026-09-09). One trigger, `onRise`, dispatched from the single Rise site of each '
+      + 'phase with the risen body in the payload; the watchers are side-guarded in combat and land shop grants through '
+      + '`addBuff` / the keyword list. Pinned for Revenant and Rising Tide in both phases, including an enemy Rise doing nothing.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Undead.test.ts'], lastVerifiedAt: '2026-09-09' },
+  },
+  {
+    id: 'R-AVWIN-12',
+    title: 'Late entry starts at zero on EVERY placement path, and the printed counter shows that same window',
+    statement:
+      'R-AVWIN-01 binds every way a body reaches the board mid-combat, the Reclaim / resummon insert included, not '
+      + 'just the ordinary summon. A fresh body observes only what happens after it arrives. The PRINTED counter '
+      + 'must read the same window the simulator uses: a body summoned onto a board that has already lost minions '
+      + 'shows 0 of N, never the side\'s running death tally.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Bug Board 8e0b4757 (owner report, 2026-09-22)', quote: 'the bull beast card summoned dunkey which summoned with 2/4 avenge stacks when it should be 0 since it is a fresh body on board' },
+      { kind: 'fix-pr', ref: 'PR #1176 (placeSummon stamps avengeBaseline) and PR #1618 (the Reclaim insert + the combat readout) — packages/core/src/combat/simulate.ts, packages/ui/src/useCombatReplay.ts' },
+    ],
+    currentBehaviour:
+      'Conforms — 2026-09-22 (PR #1618 merged). Both halves this rule adds are pinned: the sim side, where the '
+      + 'Reclaim (Soren) insert kept the side tally until `flushResummons` stamped the baseline, and the combat '
+      + 'readout, which re-derived the counter from the whole fight so a freshly summoned Avenge body printed 2 of '
+      + '4. The ordinary summon path stays pinned by the #1176 baseline stamp (R-AVWIN-01 ground).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/core/src/combat/avengeSummonBaseline.test.ts', 'packages/ui/src/avengeSummonReadout.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-REPEAT-01',
+    title: 'LUMP versus REPEAT: "for every C" is one instance; "Repeat for every C" is the base plus one tick per C',
+    statement:
+      'Two wordings, two resolutions. LUMP: "give a minion +x/+y, +a/+b for every C you played" (and "+x/+y for '
+      + 'each C") is ONE buff instance whose magnitude is computed from the count: one tick, one beat, one buff '
+      + 'signal per target. REPEAT: "give a minion +x/+y. Repeat for every C played this turn" is the BASE buff '
+      + 'applied once and then repeated once per C, 1 + count ticks in all, and EVERY tick is its own instance: '
+      + 'its own state delta, its own buff-FX event, its own root trigger and beat, so the presentation lands the '
+      + 'buffs one after another and the sequence is naturally longer. A random target is re-rolled per tick, '
+      + 'deterministically off the run cursor; a fixed target is hit every tick. Watchers that react to a gain '
+      + '(when a Dwarf gains Attack) react once per tick. A turn with zero C still pays the base once. Gilding '
+      + 'doubles the per-tick grant, never the tick count; an End-of-Turn multiplier (Chronos) repeats the whole '
+      + 'tick sequence and counts as one trigger per repeat, never one per tick. The live text of a REPEAT card '
+      + 'prints the per-tick grant as written and the number of times it will land right now.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (Mother Moss + Kringle repeat per tick)', quote: 'mother moss and kringle give the individual stat buff and repeat it x times. there are different ways of building these buffs. for example, a lot of our stuff is... give a minion +x/+y, +a/+b for every c you played. that should give a lump sum amount in one instance. however, if something says \'give a minion +x/+y. repeat for ever c played this turn.\' that should give the base buff and repeat it z times for every c played that turn. both kringle and mother moss should function with the repeat logic. their animation beats will also naturally be longer since they\'ll spew out all of the different buffs repeated times instead of 1 per target.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts eotTickCount / endOfTurnTicksOf / forEachTick / eotRepeatTick (the shared tick count, the per-tick End-of-Turn root triggers in applyEndOfTurn, the per-tick projection beats in projectEndOfTurnSteps); packages/ui/src/Recruit.tsx (the legacy beat list per tick, the per-action tagged-wave pacing); packages/ui/src/cardText.ts perCardPlayedText' },
+    ],
+    contentIds: ['sp3_nurturer', 'dw_foreman', 'squirlscout', 'sp_dragonflame', 'dw3_striker', 'dw_dorrin', 'ce3_shootingstar'],
+    currentBehaviour:
+      'Conforms for the End-of-Turn pair as of 2026-09-22. Mother Moss already computed 1 + Spirits played picks '
+      + 'but both End-of-Turn channels summed them into one beat per target; Kringle was the LUMP form (n x +1/+2 '
+      + 'in one lump, itemized only on the legacy FX channel). Both now resolve one tick per root trigger: base + '
+      + 'one per count, each its own beat on the Choreographer path and its own projected step on the legacy path, '
+      + 'with a fresh pick per Moss tick. Kringle\'s text moved to the repeat form and its magnitude from n to n + 1 '
+      + 'ticks (a balance change, stated in the patch note). Squirl Scout and Dragonflame (shop cast) were already '
+      + 'per-repeat in the sim and now emit one tagged buff-FX event per repeat, paced apart on the play path. '
+      + 'Striker keeps its LUMP text and its n itemized waves inside one beat; Baby Gastrid is one instance. Rocket '
+      + 'Power ("give this shop +3/+3. Repeat for every Shop spell you cast this turn") resolves as 1 + spells ticks '
+      + 'in the sim (review fix 2026-09-22): one buffThisShopOffers call per tick at the per-tick rate, so the offer '
+      + 'ledger counts the ticks (Inspect prints "Rocket Power x3") and the bought body inherits that count; the '
+      + 'row total is unchanged and Twinning still hears ONE starformGained for the whole sequence, because the '
+      + 'token\'s growth is a per-action boundary diff, not a per-call watcher. Its live text moved to the house '
+      + 'style: the per-tick rate as printed plus "(xN)" on the Repeat sentence, in place of the summed total it '
+      + 'used to green. OPEN (owner forks, not changed): the shop ROW has no per-offer buff-FX channel '
+      + '(captureBuffFx diffs the board), so Rocket Power\'s ticks re-render the row once with the summed stats; a '
+      + 'per-offer, per-tick cue on the play path is the remaining presentation half. Mother Moss keeps itself in '
+      + 'its random pool. Squirl Scout ("Repeat for every Beast you own") fires once per Beast owned with the Scout '
+      + 'itself as one of those Beasts, so the Scout IS the base tick: the "1 + count" arithmetic of this rule is '
+      + 'stated for "played this turn" counts, and an "own" count that already includes the source is not one tick '
+      + 'short (flip the loop to 1 + Beasts only on an owner ruling). Combat-phase repeats (an archived Oaf, a '
+      + 'combat-cast Dragonflame) still collapse into one buffWave moment: separating them needs a per-fire wave tag '
+      + 'on the combat buff event (a shared-types boundary), tracked on the roadmap.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/repeatPerTick.test.ts', 'packages/ui/src/choreographer/repeatPerTickBeats.test.ts', 'packages/ui/src/choreo/socEotTendrils.test.ts', 'packages/sim/src/balanceBatch0804.test.ts', 'packages/sim/src/promisedNumbers.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+];

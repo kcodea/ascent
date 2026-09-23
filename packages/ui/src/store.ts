@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroes, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroes, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -1405,11 +1405,13 @@ function commitResolvedAction(
         // view here for the strength the Career and Recent Games rows print — never the post-game screen, never
         // the rail. Real lobbies only, never a sandbox or the tutorial (neither uploads anything).
         let seatKeys: string[] = [];
+        let ownRows: FightRow[] = [];
         let strengthPromise: Promise<LobbyStrength | null> = Promise.resolve(null);
         if (next.mode === 'lobby' && !next.sandbox && next.lobby) {
           const ledger = { reporterKey: `${author}|${next.heroId}|${next.seed}`, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` };
           try {
             const rows = fightRowsOf(next.lobby, ledger);
+            ownRows = rows;
             if (rows.length > 0) void recordLobbyFights(rows);
             seatKeys = opponentFightKeys(next.lobby, ledger);
           } catch (e) {
@@ -1417,7 +1419,8 @@ function commitResolvedAction(
           }
           // Time-boxed inside `fetchLobbyStrength` (FETCH_TIMEOUT_MS): a dead view costs at most that wait on
           // the history + telemetry uploads below, never the rank submission and never the end screen.
-          strengthPromise = seatKeys.length > 0 ? fetchLobbyStrength(seatKeys).catch(() => null) : Promise.resolve(null);
+          // Fed this lobby's own rows so the stamp is the field GOING IN (the server excludes them by seed too).
+          strengthPromise = seatKeys.length > 0 ? fetchLobbyStrength(seatKeys, ownRows).catch(() => null) : Promise.resolve(null);
         }
         // CAREER (server-side since 2026-08-03): the entry posts to `run_history` rather than localStorage, so
         // a career follows the PLAYER instead of the browser.

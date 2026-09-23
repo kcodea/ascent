@@ -8555,7 +8555,7 @@ const PowerOverlay = memo(function PowerOverlay({ overlaysHeld, powerOffer, disp
 
 /** The Runeforge overlay + its toggle, and the two rune lock-in ceremony mounts (the live one and the replay
  *  cue's) that sit between them in the tree. Takes `run` (offer, discounts, Gold, the re-roll flags). */
-const RuneforgeOverlay = memo(function RuneforgeOverlay({ overlaysHeld, run, forgeMin, setForgeMin, lockIn, lockInSlow, setLockIn, runeLockInCue, cueRuneArrival, startRuneLockIn, dispatch }: {
+export const RuneforgeOverlay = memo(function RuneforgeOverlay({ overlaysHeld, run, forgeMin, setForgeMin, lockIn, lockInSlow, setLockIn, runeLockInCue, cueRuneArrival, startRuneLockIn, dispatch }: {
   overlaysHeld: boolean; run: RunState; forgeMin: boolean; setForgeMin: React.Dispatch<React.SetStateAction<boolean>>;
   lockIn: RuneLockInCard[] | null; lockInSlow: number; setLockIn: React.Dispatch<React.SetStateAction<RuneLockInCard[] | null>>;
   runeLockInCue: RuneLockInCard[] | null; cueRuneArrival: (cards: RuneLockInCard[] | null, phase: 'pending' | 'arrived') => void;
@@ -8627,16 +8627,27 @@ const RuneforgeOverlay = memo(function RuneforgeOverlay({ overlaysHeld, run, for
                 );
               })}
             </div>
+            {/* The re-roll STAYS MOUNTED once spent (hidden, disabled, out of the tab order) rather than
+                unmounting. The overlay centres the panel vertically, so a footer that collapsed to zero height
+                re-centred the whole panel and the rune tablets visibly dropped by half the button's height on
+                the click (owner report 2026-09-22: "the runes move down when the player uses the free
+                re-roll"). Reserving the space keeps the row pinned; nothing else about the button changes. */}
             <div className="forge-actions">
-              {!run.runeforgeRerolled && !run.runeforgeRerollUsed && (
-                <button
-                  className="forge-reroll"
-                  onClick={() => dispatch({ type: 'rerollRuneforge' })}
-                  title="Re-roll the offered Runes for free, once per game. Spending it here forfeits the other forge's re-roll."
-                >
-                  <Icon name="refresh" /> Re-roll · <b className="forge-reroll-cost">Free</b>
-                </button>
-              )}
+              {(() => {
+                const spent = !!run.runeforgeRerolled || !!run.runeforgeRerollUsed;
+                return (
+                  <button
+                    className={`forge-reroll${spent ? ' forge-reroll-spent' : ''}`}
+                    onClick={() => dispatch({ type: 'rerollRuneforge' })}
+                    disabled={spent}
+                    aria-hidden={spent || undefined}
+                    tabIndex={spent ? -1 : undefined}
+                    title={spent ? undefined : "Re-roll the offered Runes for free, once per game. Spending it here forfeits the other forge's re-roll."}
+                  >
+                    <Icon name="refresh" /> Re-roll · <b className="forge-reroll-cost">Free</b>
+                  </button>
+                );
+              })()}
             </div>
           </div>
         </div>

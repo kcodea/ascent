@@ -1162,8 +1162,10 @@ export const Card = memo(function Card({
               <span className="value">{formatStat(shownHealth)}</span>
             </span>
             {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre. Rendered
-                ONLY when a mechanic resolves: no icon → no gem at all (owner ask 2026-09-22), never an empty circle. */}
-            {mech && (() => {
+                ONLY when a mechanic resolves: no icon → no gem at all (owner ask 2026-09-22), never an empty circle.
+                Epic units wear the epic badge INSTEAD of a mechanic gem, so suppress the gem for them (owner ask
+                2026-09-23 — Elderhorn / Orivax carried both Choose One + epic). */}
+            {mech && !isEpicUnit(card.cardId) && (() => {
               // PNG art → the hybrid img PLUS a same-shape tint overlay (🎖️ Medallions tuner; inert at amount 0).
               // `--cgem-artsrc` masks the overlay to this exact art. SVG-glyph mechanics keep the plain <Icon>.
               const medSrc = mechMedallionSrc(mech.id);

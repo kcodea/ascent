@@ -42,12 +42,12 @@ const pos = (divisionIndex: number, points: number): RankPosition => ({ division
 
 export const RANK_FIXTURES: readonly RankFixture[] = [
   {
-    id: 'gain', label: 'Gain', expect: 'Gold II 60 → 76, bar fills, +16 RP',
+    id: 'gain', label: 'Gain', expect: 'Gold II 60 → 76, bar fills, +16 MMR',
     placement: 3, submission: 'confirmed', current: null,
     result: base({ placement: 3, before: pos(7, 60), after: pos(7, 76), baseDelta: 16 }),
   },
   {
-    id: 'loss', label: 'Loss', expect: 'Gold II 60 → 44, bar drains, −16 RP',
+    id: 'loss', label: 'Loss', expect: 'Gold II 60 → 44, bar drains, −16 MMR',
     placement: 6, submission: 'confirmed', current: null,
     result: base({ placement: 6, before: pos(7, 60), after: pos(7, 44), baseDelta: -16 }),
   },
@@ -62,7 +62,7 @@ export const RANK_FIXTURES: readonly RankFixture[] = [
     result: base({ placement: 4, before: pos(8, 94), after: pos(8, 100), baseDelta: 6, promotionUnlocked: true }),
   },
   {
-    id: 'promo-won', label: 'Promotion won', expect: 'Gold II 100 → Gold III 10: full old bar, crest/tier transition, new bar ticks 0 → 10 (the landing cushion), +16 RP — no outcome line (the visuals say it)',
+    id: 'promo-won', label: 'Promotion won', expect: 'Gold II 100 → Gold III 10: full old bar, crest/tier transition, new bar ticks 0 → 10 (the landing cushion), +16 MMR — no outcome line (the visuals say it)',
     placement: 3, submission: 'confirmed', current: null,
     result: base({ placement: 3, before: pos(7, 100), after: pos(8, 10), baseDelta: 16, appliedDelta: 10, cappedPoints: 0, wasPromotionGame: true, promotionKind: 'division', requiredFinish: 4, promoted: true }),
   },
@@ -72,7 +72,7 @@ export const RANK_FIXTURES: readonly RankFixture[] = [
     result: base({ placement: 1, before: pos(8, 100), after: pos(9, 10), baseDelta: 40, appliedDelta: 10, cappedPoints: 0, wasPromotionGame: true, promotionKind: 'medal', requiredFinish: 1, promoted: true }),
   },
   {
-    id: 'promo-failed', label: 'Promotion failed', expect: 'Gold II 100 → 60: bar retreats from full, −40 RP, "Promotion unsuccessful"',
+    id: 'promo-failed', label: 'Promotion failed', expect: 'Gold II 100 → 60: bar retreats from full, −40 MMR, "Promotion unsuccessful"',
     placement: 8, submission: 'confirmed', current: null,
     result: base({ placement: 8, before: pos(7, 100), after: pos(7, 60), baseDelta: -40, wasPromotionGame: true, promotionKind: 'division', requiredFinish: 4 }),
   },
@@ -80,17 +80,17 @@ export const RANK_FIXTURES: readonly RankFixture[] = [
   //    division 2026-09-21). A loss that hits 0 halts there and sets up a demotion game; a bottom-4 in that
   //    game drops one division to 100 + its award; a top-4 escapes. ──
   {
-    id: 'demotion', label: 'Demotion game set up (division)', expect: 'Gold II 10 → 0 (base −40 clamps at 0, −10 RP; no instant drop to Gold I): "Demotion game. Finish top 4 to stay in Gold II."',
+    id: 'demotion', label: 'Demotion game set up (division)', expect: 'Gold II 10 → 0 (base −40 clamps at 0, −10 MMR; no instant drop to Gold I): "Demotion game. Finish top 4 to stay in Gold II."',
     placement: 8, submission: 'confirmed', current: null,
     result: base({ placement: 8, before: pos(7, 10), after: pos(7, 0), baseDelta: -40, demotionUnlocked: true }),
   },
   {
-    id: 'demo-lost-division', label: 'Demotion game lost (division)', expect: 'Gold II 0 → Gold I 60 (100 + the award: an 8th is −40): bar sits at 0, crest/tier transitions down ONE division inside Gold, Gold I bar fills to 60, −40 RP, no outcome line',
+    id: 'demo-lost-division', label: 'Demotion game lost (division)', expect: 'Gold II 0 → Gold I 60 (100 + the award: an 8th is −40): bar sits at 0, crest/tier transitions down ONE division inside Gold, Gold I bar fills to 60, −40 MMR, no outcome line',
     placement: 8, submission: 'confirmed', current: null,
     result: base({ placement: 8, before: pos(7, 0), after: pos(6, 60), baseDelta: -40, wasDemotionGame: true, requiredFinish: 4, demoted: true }),
   },
   {
-    id: 'demo-gate', label: 'Demotion game set up (medal floor)', expect: 'Gold I 10 → 0 (base −40 clamps at 0, −10 RP): "Demotion game. Finish top 4 to stay in Gold I."',
+    id: 'demo-gate', label: 'Demotion game set up (medal floor)', expect: 'Gold I 10 → 0 (base −40 clamps at 0, −10 MMR): "Demotion game. Finish top 4 to stay in Gold I."',
     placement: 8, submission: 'confirmed', current: null,
     result: base({ placement: 8, before: pos(6, 10), after: pos(6, 0), baseDelta: -40, demotionUnlocked: true }),
   },
@@ -105,17 +105,17 @@ export const RANK_FIXTURES: readonly RankFixture[] = [
     result: base({ placement: 3, before: pos(6, 0), after: pos(6, 16), baseDelta: 16, wasDemotionGame: true, requiredFinish: 4 }),
   },
   {
-    id: 'floor', label: 'Bronze floor', expect: 'Bronze I 10 → 0 shows −10 RP (the actual loss) with "base −40 · Bronze floor"',
+    id: 'floor', label: 'Bronze floor', expect: 'Bronze I 10 → 0 shows −10 MMR (the actual loss) with "base −40 · Bronze floor"',
     placement: 8, submission: 'confirmed', current: null,
     result: base({ placement: 8, before: pos(0, 10), after: pos(0, 0), baseDelta: -40 }),
   },
   {
-    id: 'floor-zero', label: 'Bronze floor (at 0)', expect: 'Bronze I 0 → 0: "0 RP · Bronze floor"',
+    id: 'floor-zero', label: 'Bronze floor (at 0)', expect: 'Bronze I 0 → 0: "0 MMR · Bronze floor"',
     placement: 7, submission: 'confirmed', current: null,
     result: base({ placement: 7, before: pos(0, 0), after: pos(0, 0), baseDelta: -28 }),
   },
   {
-    id: 'ascendant', label: 'Ascendant III (uncapped)', expect: 'Ascendant III 90 → 130: uncapped RP counter in place of x/100, no false promotion, no outcome line',
+    id: 'ascendant', label: 'Ascendant III (uncapped)', expect: 'Ascendant III 90 → 130: uncapped MMR counter in place of x/100, no false promotion, no outcome line',
     placement: 1, submission: 'confirmed', current: null,
     result: base({ placement: 1, before: pos(17, 90), after: pos(17, 130), baseDelta: 40 }),
   },

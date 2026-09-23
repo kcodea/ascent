@@ -14,6 +14,7 @@ import { CARD_INDEX } from '@game/content';
 import type { Action, RunMode, RunState } from './state';
 import type { BoardSnapshot } from './snapshot';
 import type { RankResult } from './rank';
+import type { LobbyStrength } from './lobbyStrength';
 import { nextOpponent, playerBoardMinions, playerCombatSideState, playerCombatConfig, questCombatMods } from './reducer';
 import { defIsTribe } from './recruit';
 import { pairRunLobby, type RunLobby } from './lobby/runLobby';
@@ -198,6 +199,9 @@ export interface ReplayV2 {
     rank?: RankResult;
     /** The end-state board the leaderboard/Career shows (null for an empty board). */
     finalBoard: BoardSnapshot | null;
+    /** LOBBY STRENGTH (owner 2026-09-22) — stamped at run end so the Recent Games row (which reads this replay
+     *  result, never the history row) can print it. Optional: absent when the view could not be read. */
+    lobbyStrength?: LobbyStrength;
   };
 }
 

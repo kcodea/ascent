@@ -41,6 +41,10 @@ export interface RankSubmitRequest {
   rulesVersion: number;
   /** The run seed — lets the server stamp the result onto the matching `run_history` row. */
   seed?: number;
+  /** The seven opponent seats' fight-ledger keys (2026-09-22): the SERVER recomputes the lobby strength from
+   *  the fight ledger at settle time and applies the top-4 bonus. Never a strength, never a bonus. Absent
+   *  on a request queued before the bonus existed (settles with no bonus). */
+  seatKeys?: string[];
 }
 
 /** The typed answer from `submitRating`. */

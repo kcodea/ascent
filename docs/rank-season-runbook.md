@@ -56,8 +56,11 @@ every settlement with `settle_failed` (retryable — nothing is lost, nothing is
 From the repo root (needs the Supabase CLI logged into the project):
 
 ```
-supabase functions deploy submit-rating
+npx.cmd supabase@2 functions deploy submit-rating
 ```
+
+(`npx.cmd supabase@2 …` is the repo's convention since 2026-09-22 — no global CLI install; on macOS/Linux use
+`npx supabase@2 …`. Claude can run this step from the repo root when asked.)
 
 The function reads `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` from the project's
 function secrets — the same three the previous `submit-rating` used, so nothing new to set. Confirm in

@@ -55,7 +55,7 @@ export const PATCH_NOTES: PatchNote[] = [
     label: 'Card readability & gilded polish',
     changes: [
       { category: 'Systems', text: 'The keyword panel beside a card now leads with the keyword shown on the card’s medallion and marks that entry with the medallion icon, so the gem and its definition line up.' },
-      { category: 'Systems', text: 'Taunt and Ward no longer repeat in the medallion — the shield frame and the divine-shield dome already show them — and a minion with no keyword mechanic shows no medallion at all instead of an empty gem.' },
+      { category: 'Systems', text: 'Taunt and Ward no longer repeat in the medallion (the shield frame and the divine shield dome already show them), and a minion with no keyword mechanic shows no medallion at all instead of an empty gem.' },
       { category: 'Systems', text: 'Gilded (tripled) minions now wear an authored gold corner badge, and their medallion shows its natural gold.' },
       { category: 'Systems', text: 'Dragon cards’ keyword words get a soft pastel glow so they stand out against the white Dragon text colour.' },
     ],

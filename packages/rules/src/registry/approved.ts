@@ -1749,14 +1749,13 @@ export const APPROVED_RULES: GameRule[] = [
   },
   {
     id: 'R-LOBBY-02',
-    title: 'Hall of Champions: a run is ranked by the players it has beaten',
+    title: 'Hall of Champions: the knockout ledger is retired; R-HALL-01 defines the Hall',
     statement:
-      'The Hall of Champions lists lobby winners and ranks them by wins, where a run\'s wins are the lobby it '
-      + 'won for its builder plus every player it knocked out when served as a recorded seat; every time it was '
-      + 'knocked out while the player it was served to still stood is a loss; a seat still standing when that '
-      + 'player fell, or falling in the same round without felling them, decided nothing and records nothing. '
-      + 'There are no draws. Everything is read from what the player\'s own run witnessed; nothing is simulated '
-      + 'after it ends. Practice, the tutorial and a sandbox never record.',
+      'REVISED 2026-09-22 (same day). The knockout ledger this rule first pinned (a win for the run that knocked '
+      + 'the player out, a loss for every run knocked out while the player stood, written to seat_results) is no '
+      + 'longer written and nothing is derived from it: a knockout is only the fight the reporter lost in their '
+      + 'last round, which the fight ledger (R-HALL-01) records like every other fight. The seat_results table is '
+      + 'left in place for the owner to drop. Practice, the tutorial and a sandbox still never record anything.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -1765,14 +1764,139 @@ export const APPROVED_RULES: GameRule[] = [
       { kind: 'fix-pr', ref: 'Hall of Champions — packages/sim/src/lobby/runLobby.ts seatOutcomesOf, packages/ui/src/leaderboardData.ts hallRecordOf, packages/ui/src/Leaderboard.tsx, the seat_results table' },
     ],
     currentBehaviour:
-      'Conforms — 2026-09-22. Before this the Hall read a per-combat ledger filtered to round 17 (a course number '
-      + 'that no longer exists) and never knew a served run\'s result against anyone. A first cut played the table '
-      + 'out after the player\'s knockout to count lobby wins; the owner replaced it with this knockout rule, which '
-      + 'needs no simulation past the player\'s run and leaves the balance instrument\'s own play-out alone. The '
-      + 'seat ledger starts from zero; until the owner creates the table every Hall entry reads 1 and 0.',
+      'Superseded — 2026-09-22. The knockout rule shipped in #1630 that morning; the same afternoon the owner '
+      + 'asked for the Hall to answer "what board has been the best against everything else" with a start-to-'
+      + 'finish record ("a 15 round game may mean it was 12-3"), which needs every fight, not only knockouts. '
+      + 'seatOutcomesOf / recordSeatResults / fetchSeatRecords are deleted; the fight ledger (R-HALL-01) and the '
+      + 'play-out on a clone replace them. The store no longer writes seat_results.',
     enforcement: {
       kind: 'scenario',
-      refs: ['packages/sim/src/lobby/seatOutcomes.test.ts', 'packages/ui/src/hallRecord.test.ts', 'packages/ui/src/seatLedger.test.ts'],
+      refs: ['packages/ui/src/fightLedgerFetch.test.ts', 'packages/ui/src/hallRecord.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-HALL-01',
+    title: 'Hall of Champions: the fight ledger, and the top 10 by record against everyone',
+    statement:
+      'At the end of every real lobby the client records EVERY fight the table resolved: one row per fought, '
+      + 'non-ghost pairing, both sides named by run key (author|heroId|seed for a recorded run and for the '
+      + 'reporter; bot:<kind>:<heroId> for a generated seat, and for a recorded seat whose run the session could '
+      + 'not resolve, since a hybrid drove it). If the player fell before the table finished, the remaining '
+      + 'rounds are played out deterministically on a COPY of the lobby (same seed, same drivers, never the '
+      + 'reducer\'s lobby) and recorded as unobserved fights. Ghost fights, sit-outs, unfieldable pairings and '
+      + 'bot-versus-bot fights are never rows. The upload is one batched upsert, unique on (lobby_seed, round, '
+      + 'run_a, run_b), so a run finished twice never counts a fight twice. The server aggregates per run key '
+      + '(fights, W-L-D, distinct lobbies, win rate, a Wilson 95% lower bound). The Hall is the top 10 runs by '
+      + 'that lower bound with at least 10 fights, from every recorded run, not only lobby winners; the client '
+      + 'reads the view, never a row pool. Each row shows the W-L-D across everything, the win rate, the lobbies, '
+      + 'the run\'s own game (its career row\'s record, which counts the player\'s ghost fights), the date of its '
+      + 'last fight and the rank its player held. A run\'s own career row is joined by its FULL run key (the '
+      + 'history entry carries the author it was played under since 2026-09-22), never by seed + hero alone, so two '
+      + 'players on the same shared seed with the same hero each keep their own row; only a row older than the '
+      + 'author stamp is joined by seed + hero. Practice, the tutorial and a sandbox never record.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (Hall of Champions rework, afternoon)', quote: 'we want the hall of champions to answer \'what board has been the best against everything else\' basically, and what the top 10 are in that category' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (Hall of Champions rework, afternoon)', quote: 'we would want to know its strength start to finish though, like overall win/loss across games. so a 15 round game may mean it was 12-3' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (scoping answers)', quote: 'Play out after elimination — yes … Minimum fights to qualify for the Hall — let\'s start at 10' },
+      { kind: 'code', ref: 'packages/sim/src/lobby/fightLedger.ts (fightRowsOf, playOutRunLobby, seatFightKey); packages/ui/src/remoteBoards.ts (recordLobbyFights, fetchHallRecords, fetchHallHistory, fetchRunFinalBoards); packages/ui/src/leaderboardData.ts hallRowsOf; supabase/migrations/2026-09-22-fight-ledger.sql (lobby_fights, run_fight_records)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22 (the feature branch). The play-out lives in the store\'s run-end path on a '
+      + 'shallow clone (seats copied, encounters copied), never in the reducer, because a reducer-side play-out '
+      + 'collided with the balance instrument\'s own play-out earlier the same day. Bot-versus-bot fights are '
+      + 'skipped as an implementation call (they count for nobody the Hall or the strength read). The Hall\'s '
+      + 'final warband comes from the run\'s career row (entry.board) and falls back to the run\'s highest-wave '
+      + 'pool snapshot by author + hero + seed. Until the owner runs the migration the view 404s and the Hall '
+      + 'shows "No records yet".',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/lobby/fightLedger.test.ts', 'packages/ui/src/fightLedgerFetch.test.ts', 'packages/ui/src/hallRecord.test.ts', 'packages/ui/src/ladderPages.test.tsx'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-LOBBY-03',
+    title: 'Lobby strength: the average smoothed win rate of the seven opponents, 0 to 100',
+    statement:
+      'Every finished real lobby has a strength from 0 to 100: the mean over the seven opponent seats of each '
+      + 'seat\'s smoothed win rate from the fight ledger, (wins + 10) / (fights + 20), so a run with no data reads '
+      + '0.5; a generated seat (a bot key) reads a fixed 0.25; the strength is round(100 × mean) with no further '
+      + 'rescale. It is monotonic in every opponent\'s record and rank is not an input. Tiers, in one place: Easy '
+      + 'below 35, Even 35 to 54, Hard 55 to 69, Brutal 70 and up. The client computes it at run end from one '
+      + 'fetch of the view and stamps it on the replay result inside the telemetry row (the Recent Games read, '
+      + 'which can never be back-stamped); the history row\'s stamp is the SERVER\'s own computation at settle '
+      + 'time, because the history insert is issued in the run-end tick ahead of the rank request and never waits '
+      + 'on the fetch (a delayed insert would miss settle_rank\'s rank stamp for good). It is shown only after '
+      + 'the game, on the Career match rows and the Recent Games '
+      + 'rows, as the tier and the number ("Brutal 74"); never on the post-game screen, never on the rail before '
+      + 'or during a game. A run with no stamp shows nothing rather than a guess.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (lobby strength)', quote: 'make an algorithm that can essentially assign a lobby strength value/indicator … we can then make winning really difficult lobbies more rewarding' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (scoping answers)', quote: 'we dont want to use rank as a metric. we want to use raw data on win rate across all rounds served for the board. rank is not important right now as a factor in this small playtest. eventually it will be' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (scoping answers)', quote: 'both, but put it in the career page match results instead of post game information … no only post game in careers and recent games pages' },
+      { kind: 'code', ref: 'packages/sim/src/lobbyStrength.ts (lobbyStrengthOf, STRENGTH_TIERS); supabase/functions/_shared/lobbyRating.ts lobbyStrengthValue; settle_rank step 5 in supabase/migrations/2026-09-22-fight-ledger.sql; packages/ui/src/Career.tsx + RecentGames.tsx' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22 (the feature branch). The prior (10 in 20) and the identity mapping are the '
+      + 'implementation\'s call: the prior already puts a no-information table at exactly 50, a bot table at 25 '
+      + 'and a proven 70% field near 70, so no rescale is applied — while the field is young most lobbies will read '
+      + 'Even, which is expected and must not be tuned away by hand. The tier cuts are a starting cut.',
+    example:
+      'Seven opponents: a 31-7-1 run (0.695), a 0-3 run (0.435), a bot (0.25), an unserved run (0.5), a 22-8 run '
+      + '(0.64), a 9-0 run (0.655) and a 20-80 run (0.25): mean 0.489, strength 49, Even. A table of seven bots is '
+      + '25, Easy. Seven runs at 36-4 each is 77, Brutal.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/lobbyStrength.test.ts', 'packages/ui/src/lobbyRatingParity.test.ts', 'packages/ui/src/fightLedgerFetch.test.ts', 'packages/ui/src/runEndUploadOrder.test.ts', 'packages/ui/src/Career.test.tsx', 'packages/ui/src/ladderPages.test.tsx'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-RANK-04',
+    title: 'Ranked: a top-4 finish in a hard lobby earns a bonus of up to 15 points, scaled by placement and strength; 5th to 8th never scale',
+    statement:
+      'A top-4 finish in a lobby of strength s adds round(15 × placementWeight × strengthFactor) rating points on '
+      + 'top of the normal placement award, where placementWeight is 1.0 for 1st, 0.8 for 2nd, 0.62 for 3rd and 0.47 '
+      + 'for 4th, and strengthFactor = clamp((s − 30) / 70, 0, 1) (0 at strength 30 and below, 1 at 100). The '
+      + 'owner\'s anchors: 1st at 100 = +15, 1st at 75 = +10, 4th at 100 = +7, 2nd at 100 = +12, 3rd at 100 = +9, '
+      + '1st at 50 = +4, 4th at 50 = +2. It is never granted on 5th to 8th, it is never negative, and a loss is '
+      + 'never scaled. The bonus is added to the award BEFORE the gate, cap and floor rules, so a top-4 at a '
+      + 'promotion gate still lands on 10 of 100 (the bonus converts into the promotion like the award), a 4th at '
+      + 'a medal gate still holds at 100, and a 1st at 90 of 100 still stops at 100 with the overflow discarded; '
+      + 'only a mid-division finish feels the full bonus, and Ascendant III takes all of it. The weights and the '
+      + '30 / 70 line live in ONE place per copy. The server is the authority: the client sends the seven opponent '
+      + 'keys and the settle recomputes the strength from the fight ledger and applies the bonus itself; the sim '
+      + 'and the Edge Function mirror agree with it. The result records the bonus apart (strengthBonus, '
+      + 'lobbyStrength) and the rank screen prints the two parts apart ("+40 RP +12 lobby", "+6 RP +7 lobby"). '
+      + 'It is on now, mid-season, with a patch note.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (the revised bonus rule, after the build started; supersedes the same day\'s "only winning hard lobbies should scale, and only upwards of 15 rating")', quote: 'the strength bonus applies to any TOP-4 finish, scaled by BOTH placement and lobby strength' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (the revised bonus rule, the anchors)', quote: '1st at 100 = +15, 1st at 75 = +10, 4th at 100 = +7' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (scoping answers)', quote: 'turn that on now, but explain the full rating gain algorithm to me as well' },
+      { kind: 'code', ref: 'packages/sim/src/rank.ts resolveRank (the strength argument) + packages/sim/src/lobbyStrength.ts strengthBonusOf / STRENGTH_PLACEMENT_WEIGHTS; supabase/functions/_shared/lobbyRating.ts resolveRankOutcome(bonus); settle_rank in supabase/migrations/2026-09-22-fight-ledger.sql (c_bonus_weights, v_bonus, p_seat_keys); packages/ui/src/rank/rankFormat.ts deltaText' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22 (the feature branch, after the owner\'s same-day revision from a 1st-only bonus '
+      + 'to the top-4 rule). The anchor table is pinned in packages/sim/src/lobbyStrength.test.ts, '
+      + 'packages/sim/src/rank.test.ts and packages/ui/src/lobbyRatingParity.test.ts; the three copies multiply '
+      + 'in the same order (max × weight × factor) so the doubles agree before the round. cappedPoints is honest '
+      + 'about the bonus (|award + bonus| − |applied|). The rules version was not bumped: an old client only '
+      + 'mis-predicts the number until the server answers, and a client that sends no seat keys settles with no bonus.',
+    example:
+      'Gold II 20, 1st in a Brutal 74 lobby: +40 +9 = 69. Gold II 20, 4th at Brutal 74: +6 +4 = 30. Gold II 20, '
+      + '1st at Even 50: +40 +4 = 64. Gold II 20, 5th at strength 100: −6, no bonus. Gold II 90, 1st at strength '
+      + '100: +55 requested, lands on 100, 45 capped, promotion game ready. Gold II 100, 4th at 100: promoted to '
+      + 'Gold III 10. Gold III 100, 4th at 100: holds at 100 (a medal gate needs a 1st).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/lobbyStrength.test.ts', 'packages/sim/src/rank.test.ts', 'packages/ui/src/lobbyRatingParity.test.ts', 'packages/ui/src/rank/rankFormat.test.ts', 'packages/ui/src/rank/rankSubmission.test.ts'],
       lastVerifiedAt: '2026-09-22',
     },
   },
@@ -2049,6 +2173,36 @@ export const APPROVED_RULES: GameRule[] = [
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/repeatPerTick.test.ts', 'packages/ui/src/choreographer/repeatPerTickBeats.test.ts', 'packages/ui/src/choreo/socEotTendrils.test.ts', 'packages/sim/src/balanceBatch0804.test.ts', 'packages/sim/src/promisedNumbers.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-REPORT-02',
+    title: 'Every new run starts a fresh live observer: one derived payload holds one run',
+    statement:
+      'The live balance derivation (`beginDerive` / `observeAction` / `finishDerive`) and the flat telemetry log '
+      + 'are per-run observers. Every door a run starts through (the hero picker for a lobby, Ascent or Practice, '
+      + '`newRun`, a tutorial, `clearRun`, the Scene Builder rigs) primes BOTH against that run\'s opening state, '
+      + 'so the `derived` payload an upload carries holds exactly the uploaded run\'s events: `gold`, `offers`, '
+      + '`boards`, `acquisitions` and `upgrades` never carry an earlier run\'s rows in front of their own and a '
+      + 'stream\'s wave never drops. A RESUMED run keeps the observers its save carries. The report\'s read side '
+      + 'keeps `ledgerSegment` (the last wave-monotone segment) so rows uploaded before this fix still read as '
+      + 'one run.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (reset the live derive state between runs)', quote: 'The live derived telemetry ... accumulates across runs in one browser session. A read-only probe of the 114 live rows on 2026-09-22 found that 53 payloads\' gold[], boards[] and offers[] contain earlier runs\' events in front of the uploaded run\'s own ... make every new run (newRun, lobby create, resume of a different run id) start from a fresh state.' },
+      { kind: 'code', ref: 'packages/ui/src/store.ts freshObservers (spread into pickHero, newRun and startTutorial beside RANK_SLICE_RESET; clearRun and the sandbox rigs already reset); packages/sim/src/runDerive.ts beginDerive; packages/sim/src/playerReport.ts ledgerSegment (the read-side guard for older rows)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22. Until then only `clearRun` and the sandbox rigs reset the observers; the hero '
+      + 'picker, `newRun` and `startTutorial` installed a new run and kept the previous run\'s `deriveState` and '
+      + '`telemetryLog`, so a session that played several runs stacked them into one payload (53 of 114 live rows; '
+      + 'one row held three runs; `combats` did not stack because it is keyed per wave from the run). The three '
+      + 'doors now spread `freshObservers(run)`; the read-side `ledgerSegment` stays for the rows already banked.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/deriveResetBetweenRuns.test.ts', 'packages/ui/src/telemetrySandboxGate.test.ts', 'packages/ui/src/flushSaveDerive.test.ts'],
       lastVerifiedAt: '2026-09-22',
     },
   },

@@ -129,11 +129,12 @@ const REGISTRY: Omit<Mechanic, 'def'>[] = [
   { id: 'flurry', term: 'Flurry', glyph: 'windfury', detect: kwMatch('W'), kw: 'W', termRe: /windfury|flurr(?:y|ies)/i, order: 33 },
   { id: 'crit', term: 'Critical Strike', glyph: 'target', detect: kwMatch('CR'), kw: 'CR', termRe: /critical strike/i, order: 34 },
   { id: 'rise', term: 'Rise', glyph: 'rise', detect: kwMatch('R'), kw: 'R', termRe: /reborn|\brises?\b/i, order: 35 },
-  // REBIRTH (owner 2026-09-16): a new keyword, not the Rise rename. Reuses the Rise glyph as a PLACEHOLDER until one is authored.
-  { id: 'rebirth', term: 'Rebirth', glyph: 'rise', detect: kwMatch('RB'), kw: 'RB', termRe: /\brebirth\b/i, order: 36 },
+  // REBIRTH (owner 2026-09-16): a new keyword, not the Rise rename. Now has its own glyph (medallion PNG rework).
+  { id: 'rebirth', term: 'Rebirth', glyph: 'rebirth', detect: kwMatch('RB'), kw: 'RB', termRe: /\brebirth\b/i, order: 36 },
   { id: 'cleave', term: 'Cleave', glyph: 'cleave', detect: kwMatch('C'), kw: 'C', termRe: /\bcleaves?\b/i, order: 36 },
   { id: 'immune', term: 'Immune', glyph: 'immune', detect: kwMatch('IMM'), kw: 'IMM', termRe: /\bimmune\b/i, order: 37 },
   { id: 'stealth', term: 'Stealth', glyph: 'stealth', detect: kwMatch('ST'), kw: 'ST', termRe: /\bstealth\b/i, order: 38 },
+  { id: 'spend', term: 'Spend', glyph: 'spend', detect: hasOn('goldSpent'), termRe: /spend .*gold|gold spent/i, order: 20 },
   // — Build & shop —
   { id: 'attachment', term: 'Attachment', glyph: 'magnetic', detect: kwMatch('M'), kw: 'M', termRe: /magneti[cz]e?[sd]?|attachments?|\battaches?\b|\battach\b/i, order: 40 },
   { id: 'consume', term: 'Consume', glyph: 'consume', detect: kwMatch('CN'), kw: 'CN', termRe: /\bconsumes?\b/i, order: 41 },

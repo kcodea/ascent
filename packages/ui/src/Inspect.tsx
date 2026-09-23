@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Card } from './Card';
 import { KeywordDefs } from './KeywordDefs';
+import { resolveMech } from './mechIcon';
 import { useGame } from './store';
 
 /**
@@ -63,7 +64,7 @@ export function Inspect() {
           forceFull
           plated
         />
-        <KeywordDefs card={inspect} />
+        <KeywordDefs card={inspect} mech={resolveMech(inspect)} />
       </div>
     </div>
   );

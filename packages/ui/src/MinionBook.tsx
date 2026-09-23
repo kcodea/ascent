@@ -11,6 +11,7 @@ import { RuneCard } from './RuneCard';
 import { heroArt } from './art';
 import { Icon } from './Icon';
 import { MECHANICS, toMechInput } from './mechanics';
+import { mechMedallionSrc } from './mechMedallion';
 import { GLOSSARY_SECTIONS, KEYWORD_GLOSSARY, type KeywordDef } from './keywordGlossary';
 import { detectCardKeywords } from './detectCardKeywords';
 import { useGame } from './store';
@@ -136,7 +137,7 @@ const TIERS = [1, 2, 3, 4, 5, 6, 7] as const;
 
 /** One glossary entry. `match` (when present) makes the row a live filter: clicking it scopes the gallery
  *  to the cards it matches. Terms with no sensible card filter (Gilded) omit it and render inert. */
-type GlossItem = { icon: string; term: string; def: string; match?: (c: CardDef) => boolean };
+type GlossItem = { icon: string; mechId?: string; term: string; def: string; match?: (c: CardDef) => boolean };
 
 /** Build a text predicate from the raw search-box value. Two modes:
  *  - **Quoted** (`"Imp"`) → WHOLE-WORD match, so it hits "Imp" / "Imp King" but NOT "Improve" / "Imps" / "Impala".
@@ -169,12 +170,21 @@ const row = (d: KeywordDef): GlossItem => {
   if (d.mechanic) {
     const m = byId[d.mechanic];
     if (!m) throw new Error(`MinionBook glossary: '${d.id}' links unknown mechanic '${d.mechanic}'`);
-    return { icon: m.glyph, term: d.name, def: d.def, match: (c: CardDef) => m.detect(toMechInput(c)) };
+    return { icon: m.glyph, mechId: m.id, term: d.name, def: d.def, match: (c: CardDef) => m.detect(toMechInput(c)) };
   }
   const icon = d.icon ?? 'star';
   if (d.inert) return { icon, term: d.name, def: d.def };
   return { icon, term: d.name, def: d.def, match: (c: CardDef) => detectCardKeywords({ keywords: c.keywords, text: c.text ?? '' }).some((k) => k.id === d.id) };
 };
+
+/** A glossary row's icon: the PNG medallion when its linked mechanic has authored art, else its `<Icon>` SVG
+ *  glyph — same hybrid rule as the card's `.cgem` badge. Non-mechanic rows (no `mechId`) always stay SVG. */
+function glossIcon(it: { icon: string; mechId?: string }): JSX.Element {
+  const src = it.mechId ? mechMedallionSrc(it.mechId) : null;
+  return src
+    ? <img decoding="sync" className="cgem-img" src={src} alt="" aria-hidden="true" />
+    : <Icon name={it.icon} />;
+}
 
 /** The registry ids the glossary renders, in section+display order. Exported for the drift test. */
 export const GLOSSARY_MECHANIC_IDS: readonly string[] = GLOSSARY_SECTIONS.flatMap((sec) =>
@@ -251,7 +261,7 @@ export function MinionBook() {
   });
   useEffect(() => { try { localStorage.setItem('ascent.bookzoom', String(zoom)); } catch { /* ignore */ } }, [zoom]);
   const [glossary, setGlossary] = useState(false); // swap the gallery for the keyword codex
-  const [kw, setKw] = useState<{ term: string; icon: string; match: (c: CardDef) => boolean } | null>(null); // active keyword filter (from the glossary)
+  const [kw, setKw] = useState<{ term: string; icon: string; mechId?: string; match: (c: CardDef) => boolean } | null>(null); // active keyword filter (from the glossary)
   // RUNES TAB tribe filter (owner ask 2026-09-18): the tier row's chart space shows one button per tribe; a rune
   // is "related" to a tribe when its `tribes` gate names it (the gate exists exactly where the text names a
   // tribe — ruling 2026-09-16). No button lit = every rune.
@@ -446,7 +456,7 @@ export function MinionBook() {
   // (so you see the full set), swaps back to the gallery, and shows a clearable chip in the tier bar.
   const filterByKeyword = (it: GlossItem): void => {
     if (!it.match) return;
-    setKw({ term: it.term, icon: it.icon, match: it.match });
+    setKw({ term: it.term, icon: it.icon, mechId: it.mechId, match: it.match });
     setCats(new Set());
     setTiers(new Set());
     setGlossary(false);
@@ -535,7 +545,7 @@ export function MinionBook() {
                 {group.items.map((it) =>
                   clickableTerms.has(it.term) ? (
                     <button className="gloss-row is-click" key={it.term} onClick={() => filterByKeyword(it)} title={`Show minions with ${it.term}`}>
-                      <span className="gloss-ico"><Icon name={it.icon} /></span>
+                      <span className="gloss-ico">{glossIcon(it)}</span>
                       <span className="gloss-txt">
                         <span className="gloss-term">{it.term}</span>
                         <span className="gloss-def">{it.def}</span>
@@ -543,7 +553,7 @@ export function MinionBook() {
                     </button>
                   ) : (
                     <div className="gloss-row" key={it.term}>
-                      <span className="gloss-ico"><Icon name={it.icon} /></span>
+                      <span className="gloss-ico">{glossIcon(it)}</span>
                       <span className="gloss-txt">
                         <span className="gloss-term">{it.term}</span>
                         <span className="gloss-def">{it.def}</span>
@@ -625,7 +635,7 @@ export function MinionBook() {
           </div>
           {kw && (
             <button className="book-kwchip" onClick={() => setKw(null)} title="Clear keyword filter">
-              <Icon name={kw.icon} /> {kw.term} <span className="book-kwx">✕</span>
+              {glossIcon(kw)} {kw.term} <span className="book-kwx">✕</span>
             </button>
           )}
         </div>

@@ -12,7 +12,8 @@ import {
 import { CardArtEditor } from './CardArtEditor';
 import { perfMonitor } from './perfMonitor';
 import { heldFor, holdStat, statHoldKey, subscribeStatHolds } from './fx/statHold';
-import { resolveMechIcon } from './mechIcon';
+import { resolveMech } from './mechIcon';
+import { mechMedallionArtScale, mechMedallionSrc } from './mechMedallion';
 import { crossedUp, tierOf } from './choreo/statMilestones';
 import { fireStatMilestone } from './fx/statMilestone';
 import { useMilestoneBadgeFx } from './fx/milestoneBadgeFx';
@@ -184,6 +185,9 @@ let tierStarsAvailable = true;
    cards get the gold variant. Shows on every card type: minion oval, spell square and Taunt heater alike. */
 const tierPlateSrc = (golden: boolean): string =>
   `${import.meta.env.BASE_URL}frames/tierplate${golden ? '-gilded' : ''}.webp`;
+/** The gilded (tripled) corner badge — authored art replacing the old CSS gold-circle + crown glyph (owner ask
+ *  2026-09-22). Shown top-left on a golden card. */
+const GILDED_BADGE_SRC = `${import.meta.env.BASE_URL}frames/gilded.webp`;
 /** The dark shape seated behind the rules-text panel (see `.descbox`). Owner art, a full card-body silhouette. */
 const DESC_BOX_SRC = `${import.meta.env.BASE_URL}frames/desc-backbox.webp`;
 const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.webp`;
@@ -682,7 +686,7 @@ export const Card = memo(function Card({
   const rulesHtmlMemo = useMemo(() => rulesHtml(shownText), [shownText]);
   // The card's primary mechanic glyph for the medallion — the first mechanic the card itself has (see
   // mechIcon.ts). `null` → a blank badge. Never the tribe.
-  const mechIcon = resolveMechIcon(card);
+  const mech = resolveMech(card);
   // Hover reveal (portalled to <body> so it floats over neighbours). In compact mode, hovering shows
   // the FULL card (art + name + rules text); any referenced cards (the token it summons / Fodder it
   // buffs / its Stray) trail off to the right of it. In full-text mode the card already shows its text,
@@ -794,6 +798,7 @@ export const Card = memo(function Card({
     <div
       className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') || card.keywords.includes('RB') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
       data-uid={uid}
+      data-tribe={card.tribe}
       data-choose-both={card.chooseBothKey}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
@@ -1131,9 +1136,9 @@ export const Card = memo(function Card({
             <span className="cframe-tint" aria-hidden="true" />
           </>
         )}
-        {/* Golden (tripled) marker — a gold crown emblem; pairs with the gold arch frame so a tripled
-            minion is instantly findable in a row. */}
-        {card.golden && <span className="goldcrown" aria-hidden="true"><Icon name="crown" /></span>}
+        {/* Golden (tripled) marker — authored gilded badge PNG (was a CSS gold-circle + crown glyph); pairs with
+            the gold arch frame so a tripled minion is instantly findable in a row. */}
+        {card.golden && <span className="goldcrown" aria-hidden="true"><img decoding="sync" className="goldcrown-img" src={GILDED_BADGE_SRC} alt="" aria-hidden="true" /></span>}
         {spellLike ? (
           <span className="ctype spell">{card.ruby ? '◆ Ruby' : '✦ Spell'}</span>
         ) : (
@@ -1155,8 +1160,18 @@ export const Card = memo(function Card({
               <span className="plate" aria-hidden="true" />
               <span className="value">{formatStat(shownHealth)}</span>
             </span>
-            {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre */}
-            <span key={`cgem-${pulseCrit ?? 0}-${pulseRally ?? 0}-${pulseWatcher ?? 0}`} className={`cgem${pulseCrit ? ' pulsing crit' : pulseRally ? ' pulsing rally' : pulseWatcher ? ' pulsing watcher' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true">{mechIcon && <Icon name={mechIcon} />}</span>
+            {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre. Rendered
+                ONLY when a mechanic resolves: no icon → no gem at all (owner ask 2026-09-22), never an empty circle. */}
+            {mech && (() => {
+              // PNG art → the hybrid img PLUS a same-shape tint overlay (🎖️ Medallions tuner; inert at amount 0).
+              // `--cgem-artsrc` masks the overlay to this exact art. SVG-glyph mechanics keep the plain <Icon>.
+              const medSrc = mechMedallionSrc(mech.id);
+              return (
+                <span key={`cgem-${pulseCrit ?? 0}-${pulseRally ?? 0}-${pulseWatcher ?? 0}`} className={`cgem${pulseCrit ? ' pulsing crit' : pulseRally ? ' pulsing rally' : pulseWatcher ? ' pulsing watcher' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true">{medSrc
+                  ? <><img decoding="sync" className="cgem-img" src={medSrc} alt="" aria-hidden="true" style={{ '--cgem-art-mech': mechMedallionArtScale(mech.id) } as CSSProperties} /><span className="cgem-tint" style={{ '--cgem-artsrc': `url("${medSrc}")`, '--cgem-art-mech': mechMedallionArtScale(mech.id) } as CSSProperties} aria-hidden="true" /></>
+                  : <Icon name={mech.glyph} />}</span>
+              );
+            })()}
           </>
         )}
         {/* WATCHER frame bloom — a one-shot light-blue ring on the whole card frame (CSS fallback for the
@@ -1244,11 +1259,11 @@ export const Card = memo(function Card({
             {/* When the reveal opens LEFT (flipped, origin 'right'), the cards sit nearest the hovered tile and
                 the defs go on the far (outward) side, so the column never laps back over the source. Opening
                 right, it's the reverse: cards first, defs on the far right. */}
-            {refPos.origin === 'right' && <KeywordDefs card={card} />}
+            {refPos.origin === 'right' && <KeywordDefs card={card} mech={mech} />}
             {popupCards.map((rc, i) => (
               <Card key={`${rc.cardId ?? i}-${i}`} card={rc} forceFull plated />
             ))}
-            {refPos.origin === 'left' && <KeywordDefs card={card} />}
+            {refPos.origin === 'left' && <KeywordDefs card={card} mech={mech} />}
           </div>
         </div>,
         document.body,

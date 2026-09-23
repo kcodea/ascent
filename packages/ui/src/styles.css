@@ -2473,7 +2473,7 @@ img.tierbadge.tierstars,
 /* Dragon's tribe colour is white (= body text), so its coloured terms don't stand out. Give dragon cards' terms a
    subtle static pastel-rainbow halo — the white letters stay, but read as special. Static text-shadow only (no
    looped paint), per docs/performance.md. */
-.card.compact[data-tribe="dragon"] .drawer .desc .term {
+.card.compact[data-tribe="dragon"] .drawer .desc b {
   text-shadow:
     -1px 0 2px rgba(255, 150, 190, 0.6),
     1px 0 2px rgba(150, 200, 255, 0.6),

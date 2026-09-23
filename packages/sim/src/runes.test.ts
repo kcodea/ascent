@@ -951,19 +951,19 @@ describe('The Epic Runeforge — the greater quest that opens the Epic Runeforge
       hand: [{ uid: 'sp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
     s = reduce(s, { type: 'play', uid: 'sp' }); // 15th spell → completes
     expect(s.activeQuests![0]!.completed).toBe(true);
-    expect(s.pendingEpicRuneforge).toBe(true); // armed…
+    expect(s.pendingEpicRuneforge).toBe(1); // armed (one forge)…
     expect(s.runeforgeOffer).toBeUndefined(); // …but NOT opened this turn
     expect(s.bonusEmbersNextTurn).toBe(8); // +8 Gold banked for the turn the forge opens
   });
 
   it('the armed forge opens at the start of the next (non-quest) turn, then disarms', () => {
-    const s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'combat', pendingEpicRuneforge: true, lastCombat: win };
+    const s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'combat', pendingEpicRuneforge: 1, lastCombat: win };
     const next = reduce(s, { type: 'resolveCombat' }); // → turn 7 (not a quest turn)
     expect(next.wave).toBe(7);
     expect(next.runeforgeOffer!.length).toBe(Math.min(4, EPIC_RUNES.length));
     expect(next.runeforgeEpic).toBe(true);
     for (const id of next.runeforgeOffer!) expect(EPIC_RUNES.some((rn) => rn.id === id)).toBe(true);
-    expect(next.pendingEpicRuneforge).toBe(false); // disarmed once opened
+    expect(next.pendingEpicRuneforge).toBe(0); // disarmed once opened (a count: 0 left)
   });
 
   it('The Runeforge quest: the basic forge is DEFERRED — opens NEXT turn, not mid-turn (owner bug 2026-07-13)', () => {
@@ -986,13 +986,13 @@ describe('The Epic Runeforge — the greater quest that opens the Epic Runeforge
     // until the quest was bought. With quests archived there is nothing in front of it, so the forge must open
     // on arrival. This is the regression that matters here — an armed `pendingEpicRuneforge` waiting behind a
     // modal that can never appear would strand the rune the player was owed.
-    const s: RunState = { ...createRun(1, 'soren'), wave: 10, phase: 'combat', pendingEpicRuneforge: true, lastCombat: win };
+    const s: RunState = { ...createRun(1, 'soren'), wave: 10, phase: 'combat', pendingEpicRuneforge: 1, lastCombat: win };
     const t11 = reduce(s, { type: 'resolveCombat' }); // → turn 11
     expect(t11.wave).toBe(11);
     expect(t11.questOffer, 'turn 11 is an ordinary shop turn now').toBeUndefined();
     expect(t11.runeforgeEpic).toBe(true);
     expect(t11.runeforgeOffer!.length).toBe(Math.min(4, EPIC_RUNES.length));
-    expect(t11.pendingEpicRuneforge).toBe(false); // consumed on arrival, not left armed
+    expect(t11.pendingEpicRuneforge).toBe(0); // consumed on arrival, not left armed
   });
 });
 

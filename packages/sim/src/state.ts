@@ -1415,12 +1415,15 @@ export interface RunState {
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */
   questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; crateringMissive?: boolean; passingSpears?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean; runeRebirth?: boolean; runeAftershocks?: boolean; runeEngraving?: boolean; runeUnderdog?: boolean; runeGemGolem?: boolean; runeChef?: boolean; runeCarrionCoin?: number; runeFiveBanners?: boolean; runeCenterline?: boolean; runeSecondLitter?: boolean; runeDragonscale?: number; runeTemperedTime?: boolean; runeSavagery?: boolean; runeCrucible?: number; runeHerald?: boolean; runeUndertow?: number | boolean; runeMirrorMarch?: boolean; runeTrophy?: boolean; avengeFirstDouble?: boolean; candlelightToll?: boolean; gemheartCharge?: boolean; burningLegion?: number; runeVanguard?: boolean; runeFinality?: number; runeHatchery?: boolean; runeLastCall?: boolean; runeCinderLedger?: number; runeProcession?: boolean; runeGemstorm?: number; runeBloodAndCoin?: number; runeWildHunt?: number; runeLivingTreasure?: boolean; runeRemains?: number; runeReinvestment?: number; runeHuntingBell?: boolean; runeBrood?: number; runeLivingEchoes?: number; runeWarChorus?: boolean; runeFoodChain?: boolean; runeAttackingGems?: number; runeOverflow?: number; runeCounterpoint?: boolean; runeMammoth?: boolean; runeWarpath?: boolean; runeEmberline?: boolean; runeAshenPayroll?: number; runeBackbeat?: boolean; runeSpareChair?: boolean; runeAncestralRoar?: boolean; runeRubyShrapnel?: boolean; runeSharedScripture?: boolean; runeMoonhowl?: boolean; runeFloodedVault?: boolean; runeBattleRefraction?: boolean; runeWrangler?: boolean; runeLivingGeode?: boolean; runeDawnclaw?: boolean; runeSylus?: boolean; oldPack?: boolean; runeJungle?: boolean; runeBurrow?: boolean; runeBeastialSwarm?: boolean; runeZoo?: boolean; runeRuins?: boolean; runeGolems?: boolean; runeEngravingGems?: boolean; runeHerdingHorn?: boolean; runeDeathtouchedApple?: boolean; runeStokedMenagerie?: boolean; runeReturningPack?: number; runeGraveRefreshment?: number; runeShiftingFacets?: boolean; runeDeepeningVein?: boolean; runeFinalGate?: boolean; runeDreamedGraves?: boolean; runeOpenHand?: boolean; runeWakingReserve?: boolean };
-  // ── Runeforge (Runesmith) ──
-  /** The Runeforge is open (turn 6): a pending offer of rune ids to buy for their Gold cost. Like `questOffer`,
-   *  while set the reducer blocks every non-`buyRune`/`skipRuneforge` action and the UI pauses the timer; buying
-   *  (or skipping) clears it. Opens exactly once (the hero power is `oncePerGame`). */
+  // ── Runeforge ──
+  /** A Runeforge is open: a pending offer of rune ids to buy for their Gold cost. Like `questOffer`, while set
+   *  the reducer blocks every non-`buyRune`/`skipRuneforge`/`rerollRuneforge` action and the UI pauses the
+   *  timer; buying (or skipping) clears it. Every hero visits a Basic forge on turn 6 and an Epic forge on
+   *  turn 9; Runesmith adds a Basic forge on turn 5, Guardian an Epic forge on turn 8, and runes can book more
+   *  (see `epicForgeWave` / `pendingEpicRuneforge`). */
   runeforgeOffer?: string[];
-  /** The Runeforge's single re-roll (2 Gold) has been used this visit — the offer can't be re-rolled again. */
+  /** The forge's re-roll has been used this visit — the offer can't be re-rolled again. (The re-roll is FREE
+   *  and once per GAME: `runeforgeRerollUsed`.) */
   runeforgeRerolled?: boolean;
   /** Per-slot Gold discounts aligned with `runeforgeOffer` — the PIVOT discount (a seeded chance on offered
    *  runes that do NOT follow the board, easing a direction change; owner ask 2026-07-31). Cleared with the
@@ -1429,17 +1432,33 @@ export interface RunState {
   /** The open forge is the EPIC Runeforge (drawn from `EPIC_RUNES`, opened by a quest — not the Runesmith's
    *  hero-power forge). Drives the reroll pool, the "Epic" UI label, and skips consuming the hero-power charge. */
   runeforgeEpic?: boolean;
-  /** A completed quest (The Epic Runeforge) has armed the Epic Runeforge — it opens at the START of the next turn
-   *  (`advanceCombat`), not immediately, so the forge modal doesn't interrupt the turn it completed on. */
-  pendingEpicRuneforge?: boolean;
+  /** How many Epic Runeforges are waiting to open — a COUNT, not a flag (owner 2026-09-22: a Guardian holding
+   *  Rune of the Epic Forge books TWO on turn 8, opened one after the other). The start-of-turn sequencer
+   *  (`openNextStartOfTurnModal`) opens one per pass and decrements; buying or skipping the open forge drains
+   *  the next. Armed either at the start of a turn (the universal turn 9, a booked `epicForgeWave`, a tutorial
+   *  script) or MID-turn by a rune (Rune of the Ornate Clock) / a quest, in which case `pendingForgeDeferred`
+   *  holds it until the next turn's start. Saves written before 2026-09-22 carry a boolean here; read it
+   *  through `pendingEpicForges()` in the reducer, which coerces `true` to 1. */
+  pendingEpicRuneforge?: number;
   /** A forge armed MID-TURN (Epic, by a quest) is deferred until the next turn's start — `advanceCombat` clears
    *  this, and until then `openNextStartOfTurnModal`'s mid-turn drains skip it (owner bug 2026-07-13). */
   pendingForgeDeferred?: boolean;
   /** The Runeforge quest armed a BASIC Runeforge visit for next turn (any hero), granting `gold` that turn.
    *  `deferred` mirrors `pendingForgeDeferred` for the basic forge (armed mid-turn → wait for next turn's start). */
   pendingBasicForge?: { gold?: number; deferred?: boolean };
-  /** Rune of the Epic Forge: open the Epic Runeforge when the run reaches this wave (turn 9). */
+  /** The wave an Epic Runeforge is BOOKED for: Guardian's turn 8 (written at run creation / on adopting the
+   *  power) and Rune of the Epic Forge's turn 8. When the run reaches it, `epicForgeCount` forges become
+   *  pending and both fields clear. The StatusBar counts down to it for Guardian. */
   epicForgeWave?: number;
+  /** How many Epic Runeforges are booked for `epicForgeWave` (absent = 1). A second booking for the same turn
+   *  (Guardian + Rune of the Epic Forge, owner 2026-09-22: "just book 2 runeforges") counts up here instead of
+   *  sliding to the turn after purchase, so both open on turn 8. Cleared with `epicForgeWave`. */
+  epicForgeCount?: number;
+  /** The Epic Runeforges that have already opened THIS wave — one entry per forge, each the offer it showed —
+   *  so a second forge on the same turn draws from its own seeded stream (turn + index) and avoids the runes
+   *  the first one showed. Self-keyed by `wave` so a stale entry from an earlier turn is ignored. Persisted, so
+   *  a save mid-way through the first forge restores the second one's stream. */
+  epicForgesOpened?: { wave: number; offers: string[][] };
   /** The open forge is quest-/rune-scheduled (not the Runesmith hero power) — buying/skipping spends no charge. */
   runeforgeNoCharge?: boolean;
   /**
@@ -2408,9 +2427,9 @@ export type Action =
   | { type: 'pickPower'; index: number } // power Discover (Mimic every turn / Void turn 4): adopt the offered hero's power
   | { type: 'discover'; index: number }
   | { type: 'buyQuest'; index: number } // quest shop (waves 4/8/12): "buy" the offered quest at `index` for 0 Gold
-  | { type: 'buyRune'; index: number } // Runeforge (turn 6): buy the offered rune at `index` for its Gold cost
+  | { type: 'buyRune'; index: number } // Runeforge: buy the offered rune at `index` for its Gold cost
   | { type: 'skipRuneforge' } // Runeforge: leave without buying (closes the forge)
-  | { type: 'rerollRuneforge' } // Runeforge: re-roll the offered runes once, for 2 Gold
+  | { type: 'rerollRuneforge' } // Runeforge: re-roll the offered runes — free, once per game
   | { type: 'chooseOne'; index: number }
   /** Click away from a Choose One (the option prompt OR its target step) — the card returns to hand exactly
    *  as it was: no effects, no Gold moved, no triggers fired, no RNG drawn. It is a real ACTION rather than a
@@ -2650,8 +2669,10 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
   // `createRun` fills the first shop directly rather than through the reducer's `refreshTavern`, so before
   // this the very first shop was guaranteed plain — the one fill her power could never touch.
   rollCiaEnchants(state);
-  // Guardian (Runeguard): schedule the Epic Runeforge for turn 8 — advanceCombat's start-of-turn
-  // sequencing opens it (behind any quest offer). Cleared once it fires.
+  // Guardian (Runeguard): book the Epic Runeforge for turn 8 — advanceCombat's start-of-turn sequencing opens
+  // it (behind any quest offer). Cleared once it fires. A fresh run holds no other booking, so this is the
+  // plain write; a booking made LATER (Rune of the Epic Forge, an adopted power) goes through the reducer's
+  // `bookEpicForge`, which counts a second forge for the same turn instead of overwriting this one.
   if (hero.power.kind === 'epicRuneforge') state.epicForgeWave = 8; // hero forge, one turn ahead of the system's 9
   // Croupier Ayse (Lucky Seat): queue the OPENING suit so her power button has art from turn 1 and the player
   // can see what the first payout will be. Seeded off the run's own cursor like every other pick.

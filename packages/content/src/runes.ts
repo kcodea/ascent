@@ -1544,8 +1544,10 @@ export const RUNES: RuneDef[] = [
 
 /**
  * Epic Runes — the **Epic Runeforge's** stock. A second, higher-power forge that functions identically to the
- * normal Runeforge (offer a random few, buy ONE for Gold, re-roll once for 2 Gold) but draws from THIS set and is
- * NOT tied to a hero power — reached by a quest reward (`openEpicRuneforge`, the Epic Commission quest).
+ * Basic Runeforge (4 offered, buy ONE for Gold, one FREE re-roll per game shared with the Basic forge) but draws
+ * from THIS set. Every hero visits it on turn 9; Guardian's power books one for turn 8, Rune of the Epic Forge
+ * books another for turn 8, Rune of the Ornate Clock moves the turn-9 visit to next turn, and a quest reward can
+ * open one too (`openEpicRuneforge`).
  *
  * The designed Epic roster is now wired out — **31 Epic runes** across grants, discovers, recurring-end-of-turn,
  * Start-of-Combat / Avenge combat flags, and recruit-phase mechanics (Copies, Reliquary, Rising Graves, Broodpit,

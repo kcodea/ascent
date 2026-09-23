@@ -2351,4 +2351,96 @@ export const APPROVED_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-23',
     },
   },
+  {
+    id: 'R-RUNE-01',
+    title: 'Rune of the Ornate Clock pays its printed 2 Gold on resolve, exactly once',
+    statement:
+      'A `scheduleRuneforge` reward that carries `gold` pays it when the reward RESOLVES on the Epic branch: '
+      + 'Rune of the Ornate Clock ("Gain 2 Gold. Visit the Epic Runeforge next turn instead of turn 9") adds 2 Gold '
+      + 'to the run the moment it is bought, arms one deferred Epic forge for the next turn and stands the turn-9 '
+      + 'visit down. The Gold is paid once: nothing is banked for the turn the forge opens, and a duplicate Clock '
+      + '(a ruled-unique rune) pays nothing. The Basic branch (The Runeforge quest) keeps paying its Gold on the turn '
+      + 'its forge opens. The printed number and the reward\'s `gold` agree.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (Runeforge batch)', quote: 'fix rune of ornate clock' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts applyQuestRewardInner case scheduleRuneforge (the Epic branch pays `r.gold` via gainGold); packages/content/src/runes.ts rune_ornate_clock; packages/sim/src/docbot/textOracleEconomy.ts runeEconomySubjects (the Epic-branch Gold is an immediate leaf)' },
+    ],
+    contentIds: ['rune_ornate_clock'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Until then the reward carried `gold: 2` but only the Basic branch of '
+      + '`scheduleRuneforge` ever read it, so the Clock moved the forge and never paid; the text oracle had the rune '
+      + 'pinned OUT of its economy check for that reason. The reducer now pays on resolve, the oracle reads the '
+      + 'Epic-branch Gold as an immediate promise and the Clock is back inside the reconciliation.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeforgeClockEpicBoardfit.test.ts', 'packages/sim/src/docbot/textOracleEconomy.test.ts', 'packages/sim/src/ownerBugs0826.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-RUNE-02',
+    title: 'Two Epic forges booked for one turn are both opened, never dropped',
+    statement:
+      'Epic Runeforge bookings are COUNTED, not flagged. `epicForgeWave` names the turn and `epicForgeCount` how '
+      + 'many forges are booked for it; `pendingEpicRuneforge` is the number waiting to open. A Guardian (Runeguard, '
+      + 'turn 8 booked at run creation) who buys Rune of the Epic Forge (turn 8) gets TWO Epic forges on turn 8, '
+      + 'opened one after the other: the second opens the moment the first is bought or skipped, on the same turn, '
+      + 'ahead of the Basic forge and any Discover in the start-of-turn order (power pick, Epic forges, Basic forge, '
+      + 'Discovers). Each forge draws its own offer from its own seeded stream (run seed, turn, and the forge\'s '
+      + 'index on that turn) and prefers runes the earlier forge did not show, so the two offers differ and a replay '
+      + 'reproduces both. A non-Guardian holding the rune gets one forge on turn 8. The universal turn-9 Epic forge, '
+      + 'the Runesmith\'s turn 5 and the universal turn-6 Basic forge are unchanged, and the Ornate Clock still '
+      + 'moves rather than adds. A save taken while the first forge is open restores with the second still pending; '
+      + 'a save written before the count existed reads its boolean as one forge.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (Runeforge batch, Guardian + Rune of the Epic Forge)', quote: 'can we just book 2 runeforges here' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts bookEpicForge / pendingEpicForges / openEpicRuneforge (per-index stream + avoid set) / openNextStartOfTurnModal (one Epic forge per pass) / advanceCombat (the booked count becomes pending); packages/sim/src/state.ts epicForgeCount, epicForgesOpened, pendingEpicRuneforge' },
+    ],
+    contentIds: ['rune_epic_forge'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Until then `pendingEpicRuneforge` was a boolean and `epicForgeWave` a single '
+      + 'slot: the rune bought by a Guardian found turn 8 taken and slid to a deferred next-turn forge (audit find '
+      + '2026-08-06), and any two arms on one turn collapsed into one forge. Open edge, unchanged in kind from '
+      + 'before: an ADOPTED Guardian power (Void, Power Shifter) books a forge each time it is adopted; the old '
+      + '`!epicForgeWave` guard only suppressed a re-adoption while a booking was still ahead.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeforgeClockEpicBoardfit.test.ts', 'packages/sim/src/runes.test.ts', 'packages/sim/src/docbot/heroPowerStagers.test.ts', 'packages/sim/src/heroBatchAug22.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-RUNE-03',
+    title: 'A tribe rune fits the board at 2 of the tribe (Basic forge) or 3 (Epic forge); All types count as one of every tribe',
+    statement:
+      'A rune whose text names a TRIBE "fits the board" only when the 7 board slots hold at least '
+      + 'BASIC_FORGE_TRIBE_FIT (2) minions of that tribe at a Basic forge and at least EPIC_FORGE_TRIBE_FIT (3) at an '
+      + 'Epic forge. The hand does not count. A minion that counts as every tribe (`universalTribe`, or the '
+      + 'per-instance `allTribes` flag) counts as ONE toward EVERY tribe; a dual-tribe minion counts once for each '
+      + 'of its tribes. This one threshold drives BOTH halves of the forge: the guarantee (one offered slot follows '
+      + 'the board when any following rune exists) and the pivot discount (40%, Basic 1-2 / Epic 2-4 Gold, only on '
+      + 'runes that do NOT fit). Mechanic tags (Rally, Echo, Shout, Avenge, Consume, Ruby, Ale, spells, Gold, '
+      + 'summon) remain PRESENCE tags: one card carrying the mechanic is enough.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (Runeforge batch, the board-fit rule)', quote: 'what is the logic for a rune that \'fits the board\' though? for basic, it should be at least 2 of a tribe type, and for epic it should be at least 3 of a tribe type. make sure all types count as 1 of everything.' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts BASIC_FORGE_TRIBE_FIT / EPIC_FORGE_TRIBE_FIT / boardTribeCounts / boardSynergyTags / drawRuneOffer; packages/content/src/runeSynergy.ts (the rune-side tags); packages/sim/src/recruit.ts isTribe' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Until then one minion of a tribe tagged the board with that tribe at either '
+      + 'forge, so a single stray Beast made every Beast rune "follow the board" and shielded it from the pivot '
+      + 'discount. Deferred by the owner ("thats fine for now, but flag it for when set 3 is live"): Spirit / '
+      + 'Celestial / Starform / Reveler are not yet rune-side keywords, so a Set 3 rune draws the pivot discount '
+      + 'against a Set 3 board until they are added (roadmap, Rune build-out).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeforgeClockEpicBoardfit.test.ts', 'packages/sim/src/runes.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
 ];

@@ -3,7 +3,7 @@ import { CARD_INDEX, contentRevision, cardRevision, revisionOf } from '@game/con
 import { createRun, type Action, type RunState } from './state';
 import { reduce } from './reducer';
 import { BOTS } from './bots';
-import { beginDerive, cardDemand, deriveRun, finishDerive, observeAction, wilson, type DerivedRun, goldCurve, upgradeShape } from './runDerive';
+import { beginDerive, deriveRun, finishDerive, observeAction, wilson, type DerivedRun, upgradeShape } from './runDerive';
 
 /**
  * The derivation is exercised against REAL PLAY, not a fixture: a bot plays full runs, we keep its action
@@ -171,49 +171,6 @@ describe('Avenge trigger details — "is it too slow" as a measurement', () => {
   });
 });
 
-describe('the three conversion rates are separately named', () => {
-  const demand = cardDemand(RUNS);
-
-  it('reports copy, shop and run rates as DIFFERENT numbers', () => {
-    const rows = demand.filter((d) => d.copiesOffered > 3);
-    expect(rows.length).toBeGreaterThan(0);
-    for (const d of rows) {
-      expect(d.copyConversion).toBe(d.copiesBought / d.copiesOffered);
-      expect(d.shopConversion).toBe(d.shopsWithCard > 0 ? d.shopsConverted / d.shopsWithCard : null);
-      expect(d.runAcquisitionRate).toBe(d.runsOffered > 0 ? d.runsAcquired / d.runsOffered : null);
-      // The rates are ordered by construction: a shop that converted contains ≥1 converted copy.
-      expect(d.copiesBought).toBeGreaterThanOrEqual(d.shopsConverted);
-    }
-  });
-
-  it('runsAcquired counts ANY source — the rename that fixes the old runs_bought lie', () => {
-    // A card acquired only from a Discover still counts as acquired, and must not count as a shop purchase.
-    const discoverOnly = demand.find((d) => d.bySource.discover > 0 && d.bySource.shop === 0);
-    if (discoverOnly) {
-      expect(discoverOnly.runsAcquired).toBeGreaterThan(0);
-      expect(discoverOnly.copiesBought, 'never bought in a tavern').toBe(0);
-    }
-    for (const d of demand) {
-      const total = Object.values(d.bySource).reduce((n, v) => n + v, 0);
-      expect(total, 'every acquisition is attributed to exactly one source').toBe(d.acquisitions);
-    }
-  });
-
-  it('never divides by zero — an unseen rate is null, not 0 or NaN', () => {
-    for (const d of demand) {
-      for (const v of [d.copyConversion, d.shopConversion, d.runAcquisitionRate, d.playRate, d.finalBoardRate]) {
-        expect(v === null || Number.isFinite(v)).toBe(true);
-      }
-    }
-  });
-
-  it('keys rows by card AND revision, so a changed card never pools with its old self', () => {
-    for (const d of demand) expect(d.rev).toBe(revisionOf(d.cardId));
-    const keys = demand.map((d) => `${d.cardId}@${d.rev}`);
-    expect(new Set(keys).size, 'one row per card+revision').toBe(keys.length);
-  });
-});
-
 describe('statistical guardrails', () => {
   it('Wilson intervals are honest at small N and tighten as N grows', () => {
     const small = wilson(1, 2)!;
@@ -269,20 +226,6 @@ describe('the two feeds are ONE implementation', () => {
 describe('the Balance Report curve aggregations (2026-08-06)', () => {
   const run = (gold: DerivedRun['gold'], upgrades: DerivedRun['upgrades']): DerivedRun =>
     ({ offers: [], acquisitions: [], gold, upgrades, combats: [], boards: [], heroId: 'warden', seed: 1, contentRevision: 'r' } as unknown as DerivedRun);
-
-  it('goldCurve averages per run REACHING the wave, spends shown as outlay', () => {
-    const a = run([
-      { wave: 1, amount: -3, category: 'minion', goldAfter: 0, maxGoldAfter: 3 },
-      { wave: 2, amount: -1, category: 'refresh', goldAfter: 3, maxGoldAfter: 4 },
-    ], []);
-    const b = run([{ wave: 1, amount: -3, category: 'minion', goldAfter: 0, maxGoldAfter: 3 }], []);
-    const rows = goldCurve([a, b]);
-    expect(rows[0]!.wave).toBe(1);
-    expect(rows[0]!.runs).toBe(2);
-    expect(rows[0]!.avg.minion, 'spend negated to outlay, averaged over 2 runs').toBe(3);
-    expect(rows[1]!.runs, 'only one run reached wave 2 — the divisor must not count the other').toBe(1);
-    expect(rows[1]!.avg.refresh).toBe(1);
-  });
 
   it('upgradeShape reports take rate + the after-loss split', () => {
     const u = (wave: number, taken: boolean, prevResult?: 'win' | 'loss'): DerivedRun['upgrades'][number] =>

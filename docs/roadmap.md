@@ -933,6 +933,16 @@ trigger"; avoid true undo until the rules are sturdier).
   clash (2026-07-17), but the re-trigger BONUSES (Law of Teeth, Author's Hand's "first Slaughter each
   combat", Feeding Line) stay gated on `killerAlive` — a dead killer gets its base Slaughter but not the
   extra procs. Decide whether the doublers should also fire on a mutual kill (owner call).
+- **Repeat per tick, the two halves the shop pass left open (2026-09-22, R-REPEAT-01).** (a) COMBAT-phase
+  repeats (the archived Drunken Oaf's Start of Combat, a Dragonflame cast mid-fight by Flamebeat Drake /
+  Warflame) still land as one summed `buffWave` moment: separating them needs a per-fire `wave` tag on the
+  combat `buff` event (`packages/core/src/types.ts`, the shared boundary — coordinate first) and one moment
+  per fire in the combat presenter. (b) End of Turn now grows linearly with the tick count, ~710 ms per tick
+  per card, no cap: two REPEAT cards with 8 cards played spend ~12.8 s before the rest of the board's beats.
+  Owner accepted a longer End of Turn; decide whether a source past N ticks should accelerate (keeping one
+  beat per tick), and profile one long End of Turn in a prod build with DevTools before ruling. Also open:
+  a per-offer, per-tick cue on the shop row for Rocket Power (the Shop has no buff-FX channel), Mother Moss
+  in its own random pool, Squirl Scout as its own base tick.
 
 ---
 

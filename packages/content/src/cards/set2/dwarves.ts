@@ -112,6 +112,8 @@ export const SET2_DWARVES: CardDef[] = [
     // The two ENDS of your line rather than targeted, so you pick the recipients by ARRANGING it —
     // deterministic, no RNG. Owner change 2026-08-28: left-most only → left AND right-most Dwarf. With a single
     // Dwarf on board both ends ARE that Dwarf, and it is buffed ONCE: the card names two bodies, not two grants.
+    // THE REPEAT PATTERN (owner 2026-09-22, R-REPEAT-01): the base +1/+2 lands once, then once more per card
+    // played — n cards → n + 1 ticks, each its own beat (was n × the rate as one lump).
     id: 'dw_foreman',
     name: 'Kringle', // renamed from Closing-Time Foreman (owner 2026-08-02); the id stays
     tribe: 'dwarf',
@@ -120,8 +122,8 @@ export const SET2_DWARVES: CardDef[] = [
     health: 7,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffEndsTribePerCard', params: { tribe: 'dwarf', attack: 1, health: 2 } }], // owner balance 2026-08-04: +1 Attack → +1/+1; 2026-08-15: → +1/+2
-    text: '**End of Turn:** give your **left and right-most Dwarves +1/+2** for each card you played this turn.',
-    goldenText: '**End of Turn:** give your **left and right-most Dwarves +2/+4** for each card you played this turn.',
+    text: '**End of Turn:** give your **left and right-most Dwarves +1/+2**. Repeat for every card you played this turn.',
+    goldenText: '**End of Turn:** give your **left and right-most Dwarves +2/+4**. Repeat for every card you played this turn.',
   },
   {
     // Both halves: the Shout pours in the shop, the Echo pours from combat via `ctx.grantToHand`.

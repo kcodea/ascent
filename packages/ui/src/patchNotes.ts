@@ -62,6 +62,31 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-22',
+    label: 'Repeat per tick',
+    changes: [
+      { category: 'Balance', text: 'Mother Moss now lands its buffs one at a time. It gives a random Spirit +3/+4, then repeats that once for every Spirit you played this turn, each repeat on its own beat with a fresh pick.', details: [
+        'The total is unchanged: the base plus one repeat per Spirit played, each +3/+4 (gilded +6/+8).',
+        'Every repeat is its own buff. A Spirit picked twice is buffed twice, and you see both land.',
+        'The card shows how many times it will land right now, for example (×3).',
+      ] },
+      { category: 'Balance', text: 'Kringle now reads: give your left and right-most Dwarves +1/+2. Repeat for every card you played this turn. That is the base buff plus one repeat per card, so it pays one more time than before.', details: [
+        'Before: +1/+2 for each card played, so 3 cards paid +3/+6 per end. Now: +1/+2 once, then once per card, so 3 cards pay +4/+8 per end. A turn with nothing played still pays the base once.',
+        'Gilded Kringle pays +2/+4 per tick. The number of ticks never doubles.',
+        'Dwarves that react when a Dwarf gains Attack (Kneel, Tankerchief) react once per tick.',
+        'The card shows how many times it will land right now, for example (×4).',
+      ] },
+      { category: 'Balance', text: 'Rocket Power now lands its shop buff as separate repeats: +3/+3 once, then once more for every Shop spell you cast this turn. The total is unchanged.', details: [
+        'The offer breakdown counts each repeat, for example Rocket Power ×3, and a minion you buy keeps that count.',
+        'The card shows how many times it will land right now, for example (×3), instead of the summed total.',
+      ] },
+      { category: 'Systems', text: 'A buff that repeats now plays one beat per repeat at End of Turn, with the stats rolling up on each one. End of Turn takes a little longer when a card repeats many times.', details: [
+        'Mother Moss and Kringle: one beat and one ribbon per repeat, in order, on both the animated and the classic End of Turn.',
+        'Squirl Scout and Dragonflame draw one ribbon per repeat, spaced apart, instead of one burst.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Milestone damage bursts',
     changes: [
       {
@@ -82,6 +107,17 @@ export const PATCH_NOTES: PatchNote[] = [
         'The MMR chart plots your rating after each rated run, exactly as it was, with the latest one as its headline. Practice and unrated runs are left out.',
         'All time covers every run on your account. The 7, 30 and 90 day tabs work as before.',
         'The trend panel keeps all four charts in view on a 1080p screen. The plots shrink to fit the column instead of hiding the last chart below its edge.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Balance Report',
+    changes: [
+      { category: 'Systems', text: 'The Balance Report now reads only the active set and never a Scene Builder run. Export all downloads the whole dataset as one file.', details: [
+        'The header names the set it is reading and how many runs it found.',
+        "Minions and Spells show each card's buyers, buy rate, average place, top 4 rate and a placement delta against the field, with a hot and cold colour and a chart view.",
+        'Tier and tribe chips above the table summarise each group and filter the table when clicked.',
       ] },
     ],
   },

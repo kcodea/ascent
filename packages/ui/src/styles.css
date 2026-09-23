@@ -4506,6 +4506,10 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
      `--dmg-splash-x/y` nudge the backplate relative to the number (tuner). */
   transform: translate(calc(-50% + var(--dmg-splash-x, -2px)), calc(-50% + var(--dmg-splash-y, 0px))) rotate(var(--dmg-splash-rot, 0deg));
 }
+/* Milestone burst art (owner ask 2026-09-22): a real melee card-attacks-card hit swaps the gold burst PNG for a
+   colour-authored one at the top three attack tiers — pink (t4) / purple (t5) / blue (t6). The swap is on the
+   <img> `src` by tier (splashImgSrc in floatConfig.ts), so there is no CSS recolour; spell/AoE bursts stay gold.
+   Covers both the in-unit float and the `.deathfloat` killing blow (both render the same `.dmgsplash`). */
 /* A damage number sits in the CENTRE of the struck card (not the corner) so it reads as the hit landing on
    the minion. Centred via top/left 50% + a translate(-50%,-50%) baked into `floatupc` (a plain transform here
    would be overwritten by the animation) — resolved against the `.floatanchor` box, which is the unit's card

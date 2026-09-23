@@ -6907,7 +6907,7 @@ export function Recruit() {
                   aria-hidden="true"
                 >
                   <span className={`float ${f.kind}${sym ? ' sym' : ''}${f.climb ? ' climb' : ''}`} style={splashStyle}>
-                    {f.kind === 'dmg' && <img className="dmgsplash" src={splashImgSrc()} alt="" aria-hidden draggable={false} decoding="sync" />}
+                    {f.kind === 'dmg' && <img className="dmgsplash" src={splashImgSrc(f.atkTier)} alt="" aria-hidden draggable={false} decoding="sync" />}
                     {f.text}
                   </span>
                 </div>
@@ -6918,7 +6918,7 @@ export function Recruit() {
             {replay.deathFloats.map((f) => (
               <div key={`death-${f.id}`} className="deathfloat" style={{ left: f.x, top: f.y } as CSSProperties} aria-hidden="true">
                 <span className={`float ${f.kind}`}>
-                  {f.kind === 'dmg' && <img className="dmgsplash" src={splashImgSrc()} alt="" aria-hidden draggable={false} decoding="sync" />}
+                  {f.kind === 'dmg' && <img className="dmgsplash" src={splashImgSrc(f.atkTier)} alt="" aria-hidden draggable={false} decoding="sync" />}
                   {f.text}
                 </span>
               </div>

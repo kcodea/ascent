@@ -1913,6 +1913,52 @@ export const APPROVED_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-PRESENT-04',
+    title: 'No FX play outlives the Pixi context it was built on: detach retires every live def play',
+    statement:
+      'When the board FX overlay detaches (`PixiFxLayer` unmounts at the title screen and around the rank '
+      + 'preview), `pixiFx.detach()` retires EVERY def play still registered in the FX budget - one-shots and '
+      + 'caller-owned loops alike - through the play\'s own idempotent `retire` (updater off, player and layers '
+      + 'destroyed with their filters and particles, container unmounted and destroyed) BEFORE the stage and '
+      + 'Application are torn down, and then clears its external-updater and pending-mount lists. After a detach '
+      + 'the budget registry is empty, no updater is left to tick against a destroyed object, and a re-attach is '
+      + 'a new world that throws nothing. A caller-owned loop that detach retired must make its owner\'s later '
+      + 'dispose a harmless no-op, never a second teardown. Retiring at detach is not a budget trim and never '
+      + 'moves the `fx:culled` counter.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Review finding on feat/equipment-amplified-comet-fx, relayed by the owner 2026-09-22',
+        quote:
+          'After the round trip the console shows exactly one [pixiFx] external updater threw - removing it to '
+          + 'protect the overlay error per play that was still live at detach (Cannot read properties of null '
+          + '(reading \'fxUniforms\')) ... Those plays also remain in the FX budget registry ... so they keep '
+          + 'counting against maxParticles as ghosts.',
+      },
+      { kind: 'code', ref: 'packages/ui/src/pixiFx.ts detach; packages/ui/src/fx/fxBudget.ts retireLivePlays; packages/ui/src/fx/playDef.ts createRetire' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22. Before the fix `detach()` tore down its own hand-written effect state and '
+      + 'destroyed the Application with `{ children: true }`, but never touched `extraUpdaters` or the budget '
+      + 'registry: a one-shot still live at detach kept its per-frame updater, its registry entry, its pooled '
+      + 'particle layer and its filter counters after Pixi had destroyed its containers and nulled its shader '
+      + 'resources. The next context\'s first tick hit `setParticleTime` on a null-resources shader, the '
+      + 'external-updater guard logged and evicted the updater, and because `retire` never ran the ghost sat '
+      + 'in the registry for the rest of the session. Loops were fine only because their owners disposed them '
+      + 'on the same unmount. `retireLivePlays` empties the registry first and retires a snapshot (remove-then-'
+      + 'retire, as `trim` does; one throwing retire is logged and skipped); `detach()` calls it before '
+      + '`resetFxPools()` and `app.destroy` so each pooled pair files back normally, gated to the board '
+      + 'controller (`!this.label`) because `playDef` only ever plays through `pixiFx`, then clears '
+      + '`extraUpdaters` (the DEV workbench updater) and `pendingMounts`.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/fx/detachRetiresLivePlays.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
     id: 'R-CAREER-01',
     title: 'The Career page trends MMR over rated runs, with an All time window',
     statement:

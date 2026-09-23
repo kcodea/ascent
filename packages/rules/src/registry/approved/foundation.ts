@@ -551,7 +551,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     },
   },
   {
-    id: 'R-PRESENT-07',
+    id: 'R-PRESENT-08',
     title: 'In combat the minions and the striking heroes paint OVER the hero cluster; its popovers still open over the board',
     statement:
       'During a combat replay every unit on either board (idle, dying, attacking / lunging, struck, poisoned, reborn), '

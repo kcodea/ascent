@@ -51,5 +51,5 @@ Specificity is load-bearing: the new rules are wrapped in `:where()` so a bare `
   the "1/3 Lucky Seat" diamond. After: the card over the diamond. Hovering the diamond lifts the bar to 41; its
   tooltip and a rune node's tooltip render over the card.
 - `packages/ui/src/combatZOrder.test.ts` pins the ladder tokens, their order, and the `:where()` shape.
-- Oracle rule `R-PRESENT-07` in `packages/rules/src/registry/approved/foundation.ts`.
+- Oracle rule `R-PRESENT-08` in `packages/rules/src/registry/approved/foundation.ts`.
 - Patch note under Systems (2026-09-23, "Fixes").

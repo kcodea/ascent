@@ -60,8 +60,13 @@ reddened three of the four cases.
 **The script stays** as the merge tool. A branch opened before this change that still appends to the
 monolith takes `main`, keeps ITS `approved.ts` in the "deleted by them / modified by us" conflict, runs
 `node scripts/split-registry.mjs --rm`, and every rule the domain files do not yet hold is appended to the
-right file byte-for-byte (an id already filed with different text stops the run and names the rule). That
-is exactly how this PR took the three rules #1646/#1647/#1648 landed on `main` after the split was cut.
+right file byte-for-byte. An id already filed with DIFFERENT text stops the run and names the rule;
+`--prefer-monolith` re-files the monolith's text in place (same position) when the monolith is known to be
+the newer side. That is exactly how this PR took what landed on `main` after the split was cut: #1646
+(R-HALL-02, and an amendment to the already-filed R-HALL-01 — re-filed with `--prefer-monolith`) and #1647
+(R-RUNE-01..03) — 98 rules, sorted-canonical sha256 `fcc1b7a26b62cb88…` identical between main's monolith
+and the split index, zero differing rules. The report conflict on the two count lines was resolved by
+keeping the placeholders — the last time that conflict will exist.
 
 ## What an agent does now to add a rule
 

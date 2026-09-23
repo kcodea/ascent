@@ -13,6 +13,9 @@
  *   node scripts/split-registry.mjs --from <path>    # read the monolith from another path (e.g. a git show)
  *   node scripts/split-registry.mjs --dry            # report what would change, write nothing
  *   node scripts/split-registry.mjs --rm             # also delete the monolith after a successful run
+ *   node scripts/split-registry.mjs --prefer-monolith  # an id filed with DIFFERENT text: re-file the monolith's
+ *                                                    # text in place (same position) instead of stopping — only
+ *                                                    # when the monolith is known to be the newer side
  *
  * How a rule is found: the monolith's array body is walked at its top level — a rule is one `  {` … `  },`
  * object (two-space indent), together with any top-level comment lines directly above it. Its `domain`

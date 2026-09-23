@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-interface Query { table: string; select?: string; nots: [string, string, unknown][]; ins: [string, readonly unknown[]][]; limit?: number }
+interface Query { table: string; select?: string; nots: [string, string, unknown][]; ins: [string, readonly unknown[]][]; limit?: number; range?: [number, number] }
 
 const queries: Query[] = [];
 let respond: (q: Query) => { data: unknown[] | null; error: unknown } = () => ({ data: [], error: null });
@@ -30,6 +30,7 @@ vi.mock('@supabase/supabase-js', () => ({
         in: (col: string, vals: readonly unknown[]) => { q.ins.push([col, vals]); return chain; },
         order: () => chain,
         limit: (n: number) => { q.limit = n; return chain; },
+        range: (from: number, to: number) => { q.range = [from, to]; return chain; },
         then: (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) => Promise.resolve(respond(q)).then(res, rej),
       };
       return chain;
@@ -69,12 +70,15 @@ const DERIVED = [
 describe('fetchRunTelemetry — the select ladder', () => {
   it('reads the stamps and the row metadata from the top rung when the backend has every column, and never a payload', async () => {
     respond = () => ({ data: FLAT, error: null });
-    const rows = await (await load()).fetchRunTelemetry(1000);
-    expect(queries, 'ONE flat query; the payloads are a separate, id-keyed fetch').toHaveLength(1);
+    const res = await (await load()).fetchRunTelemetry({ cap: 5000, pageSize: 1000 });
+    const rows = res.rows;
+    expect(queries, 'ONE flat page (a short page ends the walk); the payloads are a separate, id-keyed fetch').toHaveLength(1);
     expect(queries[0]!.select).toContain('set_id, source');
     expect(queries[0]!.select, 'the stamps inside derived ride as two scalars, never the payload').toContain('derived_set:derived->>setId');
     expect(queries[0]!.select).not.toMatch(/(^|, )derived(,|$)/);
-    expect(queries[0]!.limit).toBe(1000);
+    expect(queries[0]!.range, 'paged with range, never limit: PostgREST caps a single query at its max-rows').toEqual([0, 999]);
+    expect(queries[0]!.limit).toBeUndefined();
+    expect(res).toMatchObject({ fetched: 2, truncated: false, cap: 5000, pageSize: 1000 });
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({ id: 12, createdAt: '2026-09-22T10:00:00Z', patch: '0.1.0+bbb', author: 'Kev', contentRevision: 'r2', setId: 'set2', source: 'ladder', mode: 'lobby', heroId: 'warden', placement: 2, derived: null });
     expect(rows[0]!.heroOffer, 'the mode tag is stripped back out of the offer').toEqual(['warden', 'drakko']);
@@ -84,7 +88,7 @@ describe('fetchRunTelemetry — the select ladder', () => {
 
   it('a backend WITHOUT the 2026-09-22 columns errors the first rung and answers from the second, where a stamp written inside derived still reads', async () => {
     respond = (q) => (q.select!.includes('set_id') ? missingColumn('set_id') : { data: FLAT_RUNG2, error: null });
-    const rows = await (await load()).fetchRunTelemetry(500);
+    const { rows } = await (await load()).fetchRunTelemetry({ cap: 500 });
     expect(queries).toHaveLength(2);
     expect(queries[0]!.select).toContain('set_id');
     expect(queries[1]!.select).not.toContain('set_id');
@@ -104,7 +108,7 @@ describe('fetchRunTelemetry — the select ladder', () => {
       return { data: FLAT.map((r) => ({ id: r.id, created_at: r.created_at, patch: r.patch, author: r.author, hero_id: r.hero_id, hero_offer: r.hero_offer, won: r.won, wins: r.wins, offered_cards: r.offered_cards, bought_cards: r.bought_cards, tier_by_wave: r.tier_by_wave })), error: null };
     };
     const mod = await load();
-    const rows = await mod.fetchRunTelemetry(500);
+    const { rows } = await mod.fetchRunTelemetry({ cap: 500 });
     expect(queries).toHaveLength(mod.BALANCE_SELECTS.length);
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({ id: 12, heroId: 'warden', mode: 'lobby', offeredCards: ['alley'], placement: undefined, derived: null });
@@ -122,6 +126,41 @@ describe('fetchRunTelemetry — the select ladder', () => {
     expect(rungs[2]).not.toContain('derived');
     expect(rungs[rungs.length - 1]).not.toContain('placement');
     expect(rungs[rungs.length - 1]).toContain('hero_offer');
+  });
+});
+
+describe('fetchRunTelemetry — pagination and the cap (the honest-associations pass)', () => {
+  const rowsOf = (n: number, from: number) => Array.from({ length: n }, (_, i) => ({ ...FLAT[0]!, id: 10000 - from - i }));
+
+  it('pages with range until a short page and reports the exact count, untruncated', async () => {
+    // 2 full pages of 3, then a page of 1: 7 rows over 3 queries, the select reused from the first page.
+    respond = (q) => { const [from] = q.range!; return { data: from >= 6 ? rowsOf(1, from) : rowsOf(3, from), error: null }; };
+    const res = await (await load()).fetchRunTelemetry({ cap: 100, pageSize: 3 });
+    expect(queries.map((q) => q.range)).toEqual([[0, 2], [3, 5], [6, 8]]);
+    expect(new Set(queries.map((q) => q.select)).size, 'one select for every page').toBe(1);
+    expect(res).toMatchObject({ fetched: 7, truncated: false, cap: 100, pageSize: 3 });
+    expect(res.rows).toHaveLength(7);
+    expect(res.rows.map((r) => r.id).slice(0, 4)).toEqual([10000, 9999, 9998, 9997]);
+  });
+
+  it('more rows than the cap: the walk stops at the cap and says so (bounded, never an unqualified all)', async () => {
+    respond = (q) => ({ data: rowsOf(3, q.range![0]), error: null }); // every page full, forever
+    const res = await (await load()).fetchRunTelemetry({ cap: 6, pageSize: 3 });
+    expect(queries).toHaveLength(2);
+    expect(res).toMatchObject({ fetched: 6, truncated: true, cap: 6 });
+  });
+
+  it('a page that fails mid-walk keeps what landed and flags the result as truncated', async () => {
+    respond = (q) => (q.range![0] >= 3 ? { data: null, error: { code: '57014', message: 'timeout' } } : { data: rowsOf(3, 0), error: null });
+    const res = await (await load()).fetchRunTelemetry({ cap: 100, pageSize: 3 });
+    expect(res).toMatchObject({ fetched: 3, truncated: true });
+  });
+
+  it('a page size above the cap is clamped to the cap', async () => {
+    respond = () => ({ data: FLAT, error: null });
+    const res = await (await load()).fetchRunTelemetry({ cap: 2, pageSize: 1000 });
+    expect(queries[0]!.range).toEqual([0, 1]);
+    expect(res).toMatchObject({ fetched: 2, truncated: true, pageSize: 2 });
   });
 });
 

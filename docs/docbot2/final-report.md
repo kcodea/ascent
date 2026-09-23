@@ -46,7 +46,7 @@ axis, with any gap visible as a typed queue entry rather than as silence.
 | **Text classification bucket** | 1051 | 1051 (100%) | `textParse.test.ts` — every object lands in exactly one of four buckets; an unresolved parse is a queue entry, never a pass |
 | **Contract-oracle applicability** | 1051 | 1051 (100%) | `contractOracle.test.ts` — every contract is planned into §10.1 case templates; every unexecuted applicable case carries a typed skip reason |
 | **Interaction-graph membership** | 1051 | 1051 (100%) | `interactionGraph.test.ts` — every contract is a graph node; unmapped triggers are reported as a visible to-do (29 today) |
-| **Rulebook** | 181 rules (95 approved) | — | `enforcement.test.ts` — every approved rule names a backing lane file that must exist on disk |
+| **Rulebook** | 182 rules (96 approved) | — | `enforcement.test.ts` — every approved rule names a backing lane file that must exist on disk |
 
 **The inventory itself:** 588 cards (127 spells, 82 tokens), 59 hero powers, 142 + 139 runes, 117 quests —
 1051 contracted objects in total (1050 before Goldvein, the 2026-09-19 Set 3 Kobold; 1049 before Yeti, the 2026-09-19 Set 3 Neutral; 1048 before Kurse, the 2026-09-19 Set 3 Kobold; 1047 before Dissipate, the 2026-09-18 sell-to-Shop spell; 1044 before the 2026-09-18 Set 3 Neutral Equipment trio — Shredder, Calibration Master, Rig; 1040 after the Yazzus fold, +2 for tranche D's two deferred combat-side runes; 1041 for a few hours on 2026-09-16, until the owner folded the set-3 Yazzus fork into the one `yazzus`; 990 until 2026-09-16, when Set 3 batch 2 — tranches A, B and C — added 49 runes + the Handy Flame and Skeleton tokens; 901 until 2026-08-28, when the owner archived the 16 Celestials — "leaving set 3 empty of minions now" — and every count in this report moved with them; +2 again the same day for the two Equipment reference cards; +8 on 2026-09-09 for the eight new set-3 Dwarves, −1 the same day when Gem Bus was archived; +11 the same day for the eleven new set-3 Undead; +3 the same day for Set 3 Neutrals tranche 1 — Splitboon Adept, the set-3 Yazzus, and Blaster back from the archive; +4 for tranche 2 — Defender, Inspector Pell and the two hand spells they mint, Tower Shield and Clue; +3 for tranche 3 — Highway Hustler, Warband Recruiter, Equipment Charger; +17 for the Set 3 Spirits tranche 1, a new tribe; +7 for tranche 2, the hand-summon cards; +9 on 2026-09-10 for the nine new Set 3 spells; +8 on 2026-09-11 for the eight reworked Set 3 Celestials; +1 on 2026-09-12 for the Starform shop token; +17 the same day for the Starform roster — sixteen Celestials and the Accretion spell; +1 on 2026-09-18 for Bicycle Bob, the twelfth new set-3 Undead).  Of those contracts, 16 are hand-authored curated ones and the rest are
@@ -182,7 +182,7 @@ docbot:report` derives it from the catalog every time.
 
 ## 6. Rules and the owner's queue
 
-- **181** live rules: **95** hand-authored approved (`registry/approved.ts`), the rest the owner's seeded
+- **182** live rules: **96** hand-authored approved (`registry/approved.ts`), the rest the owner's seeded
   queues folded through `decisions.json` — **145** read approved, 12 revised, **2** still needs-ruling.
   Separately, 55 hand-retired rulings + 1 auto tombstone. Recount with `npm run docbot:report`; the numbers
   are derived from the registry, never added by hand.

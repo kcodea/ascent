@@ -577,30 +577,62 @@ const BALANCE_FLAT_TIMEOUT_MS = 12000;
 const BALANCE_DERIVED_TIMEOUT_MS = 45000;
 const balanceTimeout = (ms: number): Promise<null> => new Promise<null>((resolve) => setTimeout(() => resolve(null), ms));
 
-/** Fetch the most recent `limit` run-telemetry rows (newest first) for the player Balance Report: the FLAT
- *  columns only, `derived` left null. The derived payloads are the heavy half and are fetched afterwards, by id,
- *  for the rows the report actually reads (`fetchRunDerived`). Best-effort + time-boxed; [] on any failure /
- *  no backend / un-migrated table. The set / ladder filtering happens in `@game/sim`'s `applyReportFilters`,
- *  on the caller's side, so the export and the screen share one path. */
-export async function fetchRunTelemetry(limit = 500): Promise<RunTelemetryRow[]> {
+/** The flat fetch's coverage (the honest-associations pass, 2026-09-22): PostgREST caps any single query at the
+ *  server's max-rows (1000 by default) whatever `.limit()` asks, so the eligible rows are PAGED with `.range()`
+ *  until a short page or the cap. `truncated` = the cap stopped the walk: the report is then a bounded
+ *  preview and the export must say so, never "all". */
+export interface RunTelemetryFetch {
+  rows: RunTelemetryRow[];
+  fetched: number;
+  truncated: boolean;
+  cap: number;
+  pageSize: number;
+}
+/** The default cap and page: 5 pages of the server's default max-rows. ~10 KB per flat row today, so the cap
+ *  is ~50 MB of JSON at the very most; the live table is 114 rows. */
+export const BALANCE_FLAT_CAP = 5000;
+export const BALANCE_FLAT_PAGE = 1000;
+
+/** Fetch the run-telemetry rows (newest first) for the player Balance Report: the FLAT columns only, `derived`
+ *  left null, paged until a short page or `cap`. The derived payloads are the heavy half and are fetched
+ *  afterwards, by id, for the rows the report actually reads (`fetchRunDerived`). Best-effort + time-boxed;
+ *  no rows on any failure / no backend / un-migrated table. The set / ladder filtering happens in `@game/sim`'s
+ *  `applyReportFilters`, on the caller's side, so the export and the screen share one path. */
+export async function fetchRunTelemetry(opts: { cap?: number; pageSize?: number } = {}): Promise<RunTelemetryFetch> {
+  const cap = opts.cap ?? BALANCE_FLAT_CAP;
+  const pageSize = Math.min(opts.pageSize ?? BALANCE_FLAT_PAGE, cap);
+  const empty: RunTelemetryFetch = { rows: [], fetched: 0, truncated: false, cap, pageSize };
   const c = client();
-  if (!c) return [];
+  if (!c) return empty;
   try {
-    const query = (select: string) => Promise.race([
-      Promise.resolve(c.from('run_telemetry').select(select).order('created_at', { ascending: false }).limit(limit)),
+    const query = (select: string, from: number) => Promise.race([
+      Promise.resolve(c.from('run_telemetry').select(select).order('created_at', { ascending: false }).range(from, from + pageSize - 1)),
       balanceTimeout(BALANCE_FLAT_TIMEOUT_MS),
     ]);
-    // Walk the ladder: a query ERROR (an unknown column on this backend) tries the next, plainer select; a
-    // timeout or a clean answer ends the walk.
+    // Walk the ladder on the FIRST page: a query ERROR (an unknown column on this backend) tries the next,
+    // plainer select; a timeout or a clean answer ends the walk. Later pages reuse the select that answered.
     let result: Awaited<ReturnType<typeof query>> = null;
-    for (const select of BALANCE_SELECTS) {
-      result = await query(select);
+    let select = BALANCE_SELECTS[0]!;
+    for (const s of BALANCE_SELECTS) {
+      select = s;
+      result = await query(s, 0);
       if (!result || !result.error) break;
     }
-    if (!result || result.error || !result.data) return [];
+    if (!result || result.error || !result.data) return empty;
+    const raw: Array<Record<string, unknown>> = [...(result.data as unknown as Array<Record<string, unknown>>)];
+    let truncated = false;
+    // Page on while the page came back full and the cap has room. A page that fails or times out ends the walk
+    // with what landed so far, flagged as truncated (never silently short).
+    while (result.data.length === pageSize) {
+      if (raw.length >= cap) { truncated = true; break; }
+      result = await query(select, raw.length);
+      if (!result || result.error || !result.data) { truncated = true; break; }
+      raw.push(...(result.data as unknown as Array<Record<string, unknown>>));
+    }
+    if (raw.length > cap) { raw.length = cap; truncated = true; }
     // The select list is built at runtime (columns are dropped on a pre-migration DB), so supabase-js can't
     // infer a row type and falls back to `GenericStringError[]` — go via `unknown` and read the columns by hand.
-    return (result.data as unknown as Array<Record<string, unknown>>).map((r) => {
+    const rows = raw.map((r) => {
       const id = typeof r.id === 'number' ? r.id : null;
       // The stamps: the column when the backend has it, else the copy the client wrote inside `derived`
       // (read as two scalars on the rung above); absent on a genuinely legacy row, which then reads as set 1.
@@ -634,8 +666,9 @@ export async function fetchRunTelemetry(limit = 500): Promise<RunTelemetryRow[]>
         placement: (r.placement as number | null) ?? undefined,
       };
     });
+    return { rows, fetched: rows.length, truncated, cap, pageSize };
   } catch {
-    return [];
+    return empty;
   }
 }
 

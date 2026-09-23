@@ -1,14 +1,16 @@
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  aggregatePlayerReport, applyReportFilters, buildBalanceExport, buildCardCsv, cardImpact, getHero, goldEconomy, heroImpact,
-  impactGroups, runeGroups, runeImpact, tierImpact, upgradeShape, LEGACY_SET, SAMPLE_GATES, SPEND_CATEGORIES,
-  type CardImpactRow, type DerivedRun, type EconomyBucket, type EconomyWaveRow, type GoldEconomy, type HeroImpactRow, type ImpactGroupRow,
-  type PlacementStats, type RuneImpactRow, type RunTelemetryRow, type SampleGate, type ShopCurve, type SpendCategory, type TierImpactRow,
+  aggregatePlayerReport, applyReportFilters, buildBalanceExport, buildCardCsv, cardImpactWithCoverage, dataQuality, defaultEpoch, epochsOf, getHero,
+  goldEconomy, heroImpact, impactGroups, mostProlificPlayer, performanceSortValue, runeGroups, runeImpact, scopeReport, tierDecisions, tierImpact,
+  upgradeShape, ALL_EPOCHS, EPOCH_MIN_RUNS, EVIDENCE_GATES, LEGACY_SET, SAMPLE_GATES, SPEND_CATEGORIES, WELCH_MIN_N,
+  type AdjustedStats, type CardImpactRow, type CohortCoverage, type DataQuality, type DerivedRun, type EconomyBucket, type EconomyWaveRow, type EpochInfo,
+  type EvidenceLabel, type GoldEconomy, type HeroImpactRow, type ImpactGroupRow, type Interval, type PlacementStats, type ReportScope, type RuneImpactRow,
+  type RunTelemetryRow, type SampleGate, type ShopCurve, type SpendCategory, type TierDecisionRow, type TierImpactRow,
 } from '@game/sim';
 import { activeSet, contentRevision } from '@game/content';
 import { sfx } from './sfx';
 import { useGame } from './store';
-import { fetchRunDerived, fetchRunTelemetry, remoteEnabled } from './remoteBoards';
+import { fetchRunDerived, fetchRunTelemetry, remoteEnabled, BALANCE_FLAT_CAP, BALANCE_FLAT_PAGE } from './remoteBoards';
 
 /**
  * Balance Report (owner request 2026-07-13) — the REAL-PLAYER balance report, opened from the home screen. It
@@ -19,38 +21,44 @@ import { fetchRunDerived, fetchRunTelemetry, remoteEnabled } from './remoteBoard
  * column (Name included) is click-to-sort.
  *
  * Rework (owner ask 2026-09-22): "it should only have data for the active set in it, and nothing from scene
- * builder. also make the export export everything so that an ai can analyze all of the data for me at once.
- * Make sure the balance report is extremely thorough and represented well so it's easy to glean insights into
- * overpowered and underpowered units."
+ * builder. also make the export export everything so that an ai can analyze all of the data for me at once."
  *  · The DATA filters live in `@game/sim` (`applyReportFilters`): ladder rows only, the ACTIVE set only, a row
- *    with no set stamp read as set 1 and never as the live set. The header prints the set and the counts so
- *    the owner can SEE what the report is reading.
- *  · The Minions / Spells sections are the per-card IMPACT table (`cardImpact`): per-run samples with a
- *    visible gate, shop + Discover conversion, placement, and the placement DELTA against the report-wide
- *    baseline with its interval, a hot / cold heat, per-tier and per-tribe strips that double as filters, and
- *    a ranked diverging bar chart of the delta.
- *  · "Export all" writes ONE JSON file (`buildBalanceExport`) from the SAME filtered rows the screen renders:
- *    meta + a plain-language readme + every aggregate + every raw row + every derived stream.
- *  · The fetch is TWO stages: the flat rows first (rendered at once), then the derived payloads BY ID for the
- *    rows that survived the set filter only, merged in when they land (review fix 2026-09-22: 16 MB of payloads
- *    used to be fetched and parsed on every open, even when the report rendered nothing).
+ *    with no set stamp read as set 1 and never as the live set.
+ *  · "Export all" writes ONE JSON file (`buildBalanceExport`) from the SAME filtered rows the screen renders.
+ *  · The fetch is TWO stages: the flat rows first (rendered at once), then the derived payloads BY ID.
  *
- * Round 2 (owner ask 2026-09-22): "apply the same updates to heroes, runes, shop tiers ... clean up and improve
- * the overall economy table ... the average gold a player has/spends per round ... remove the card demand one".
- *  · `ImpactSection` is GENERIC: one section component (legend, group strips that filter, Table / Chart,
- *    Compact / Detailed, the sortable table with hover explanations, the ranked bar chart) over any row that
- *    carries the shared `PlacementStats`. Cards, heroes, runes and shop tiers all feed it; the sim computes
- *    every delta through the one `placementImpact` helper.
- *  · The Shop Tiers section keeps the leveling curve and adds the per-tier impact table under it.
- *  · The Gold Economy table is rebuilt from the derived ledgers: per round, the Gold a player HAS at the start,
- *    SPENDS (and on what), and LEAVES unspent, for every run and by placement bucket, with a static line chart.
- *  · Card Demand is gone (redundant with the Minions table); `cardDemand` left the sim with it.
+ * Round 2 (owner ask 2026-09-22): `ImpactSection` is GENERIC over any row carrying `PlacementStats`; heroes,
+ * runes and shop tiers feed it; the Gold economy is rebuilt from the derived ledgers.
+ *
+ * THE HONEST-ASSOCIATIONS PASS (owner audit handoff 2026-09-22). The raw arithmetic was right; the labels and the
+ * comparison groups were not: buyers against ALL other runs rewards survival and card access (a run out on wave 4
+ * never saw the wave-12 card it is counted against). What changed on this screen:
+ *  · HONEST LABELS: Delta is the Raw buyer association, Impact the Sample-weighted association, Vs Tier the
+ *    Relative raw association within tier. No unconditional overpowered / underpowered claim anywhere; the
+ *    count-only actionable / confident badges are gone; a thin row is dimmed and described, not judged.
+ *  · COUNTS SHOWN SEPARATELY: placed buyers, placed controls, unique players (display names, a labelled proxy:
+ *    no trusted pseudonymous key exists yet), missing placement.
+ *  · THE EVIDENCE BANNER above every table: eligible runs, players, period, epoch, flat / derived coverage with
+ *    the exact caps and truncation, the integrity counts, and the one-sentence limitation.
+ *  · FILTERS shared with the export: the balance epoch (content revision; defaults to the build's own or the
+ *    newest, and shows "insufficient current data" with an explicit historical toggle rather than pooling old
+ *    runs silently), the date window, and the sensitivity toggle that excludes the most prolific player.
+ *  · THE FOUR VIEWS on Minions / Spells: Demand, Performance (raw, exposed diagnostic and adjusted association
+ *    side by side, each with its own Welch interval, evidence label first), Role and timing, Evidence. One table
+ *    at a time; the Performance order puts rows with a supported comparison first and never ranks an
+ *    insufficient row as the worst card.
+ *  · HEROES compare chosen against offered-not-chosen; RUNES keep the offered-and-skipped baseline (replay-
+ *    derived offers, said so); SHOP TIERS keep the replay-derived table under a disclosure and add the decision
+ *    table (took against declined among runs that could afford it); the ECONOMY states both denominators.
+ *  · The fetch pages the flat rows and reports its exact coverage; the export carries schema version 2.
+ *  All cohort math runs ONCE per rows / filter version in the memo chain below; rows are memoised.
  */
 
 const fmtNum = (n: number | null): string => (n === null ? '–' : String(n));
 const pctOrDash = (n: number | null): string => (n === null ? '–' : `${n}%`);
 const signed = (n: number | null, dp = 2): string => (n === null ? '–' : `${n > 0 ? '+' : ''}${n.toFixed(dp)}`);
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+const day = (iso: string | null | undefined): string => (iso ? iso.slice(0, 10) : '?');
 
 /** Avg-placement heat: a LOW number is a good finish. */
 function placeHeat(avg: number | null): string {
@@ -59,7 +67,8 @@ function placeHeat(avg: number | null): string {
   if (avg >= 5.5) return ' cold';
   return '';
 }
-/** Delta heat: negative = the group finishes better than its baseline (green), positive = worse (red). */
+/** Association heat: negative = the group finishes better than its comparison (green), positive = worse (red).
+ *  Heat is a reading aid on the number's sign and size, never a verdict on the card. */
 function deltaHeat(d: number | null): string {
   if (d === null) return '';
   if (d <= -0.75) return ' hot';
@@ -72,6 +81,12 @@ function deltaHeat(d: number | null): string {
 /** One hue per placement: 1st green → 8th red, evenly around the good→bad arc. */
 const placeHue = (place: number): string => `hsl(${Math.round(140 - ((place - 1) / 7) * 140)} 70% 58%)`;
 const ordinal = (n: number): string => `${n}${['th', 'st', 'nd', 'rd'][n % 10 > 3 || (n % 100 >= 11 && n % 100 <= 13) ? 0 : n % 10] ?? 'th'}`;
+
+const EVIDENCE_TEXT: Record<EvidenceLabel, string> = { insufficient: 'Insufficient', candidate: 'Candidate', supported: 'Supported' };
+const EVIDENCE_LONG: Record<EvidenceLabel, string> = { insufficient: 'Insufficient evidence', candidate: 'Candidate for review', supported: 'Supported association' };
+const EVIDENCE_RANK: Record<EvidenceLabel, number> = { supported: 0, candidate: 1, insufficient: 2 };
+const evidenceTip = `${EVIDENCE_LONG.insufficient}: under ${EVIDENCE_GATES.candidate.side} runs on a side or under ${EVIDENCE_GATES.candidate.players} players. ${EVIDENCE_LONG.candidate}: ${EVIDENCE_GATES.candidate.side} a side and ${EVIDENCE_GATES.candidate.players} players. ${EVIDENCE_LONG.supported}: ${EVIDENCE_GATES.supported.side} a side and ${EVIDENCE_GATES.supported.players} players. Players are display names, a proxy. None of the three means confirmed overpowered or underpowered.`;
+const ciText = (ci: Interval | null): string => (ci ? `${signed(ci.lo, 1)} to ${signed(ci.hi, 1)}` : '–');
 
 // ── The generic sortable table ─────────────────────────────────────────────────────────────────────────────
 
@@ -96,7 +111,7 @@ interface TableProps<R> {
   nameLabel?: string;
   /** How the name column sorts when it is not alphabetical (a wave number). */
   nameValue?: (r: R) => number;
-  /** A row under the sample gate renders dimmed. */
+  /** A thin row renders dimmed. */
   dimOf?: (r: R) => boolean;
   /** The plain-words read of one row, shown on hover of its name. */
   tipOf?: (r: R) => string;
@@ -161,21 +176,25 @@ function DataTable<R extends object>({ cols, rows, keyOf, nameOf, nameLabel, nam
 
 // ── The shared placement columns ───────────────────────────────────────────────────────────────────────────
 
-/** The columns every impact table shares, worded for its own group and baseline ("buyer runs" against "runs
- *  that did not buy it"; "runs with the hero" against "every other run"; ...). The numbers come from the one
- *  `placementImpact` helper in the sim, so the columns are the same object with different words. */
-function placementCols<R extends PlacementStats>(group: string, baseline: string): Record<string, ColDef<R>> {
+const THIN_TIP = `Rows under ${SAMPLE_GATES.preliminary} are dimmed: a thin sample, described, not judged.`;
+
+/** The columns every impact table shares, worded for its own group and comparison. The numbers come from the
+ *  one `placementImpact` helper in the sim, so the columns are the same object with different words. The
+ *  raw association is what it always was (audit continuity); the LABELS now say what it is. */
+function placementCols<R extends PlacementStats>(group: string, baseline: string, rawLabel = 'Raw association'): Record<string, ColDef<R>> {
   return {
-    placedN: { key: 'placedN', label: 'Placed n', tip: `${cap(group)} that carry a placement: the runs behind the placement columns.`, value: (r) => r.placedN, cell: (r) => ({ text: String(r.placedN), cls: 'balnum baldim' }) },
+    placedN: { key: 'placedN', label: 'Placed n', tip: `${cap(group)} that carry a placement: the runs behind the placement columns. A run with no placement supports no placement finding.`, value: (r) => r.placedN, cell: (r) => ({ text: String(r.placedN), cls: 'balnum baldim' }) },
+    controls: { key: 'controls', label: 'Placed controls', tip: `Placed runs on the other side of the raw comparison: ${baseline}.`, value: (r) => r.baselineN, cell: (r) => ({ text: String(r.baselineN), cls: 'balnum baldim' }) },
     avgPlace: { key: 'avgPlace', label: 'Avg Place', tip: `Average final placement of ${group}. 1 is best, 8 is worst.`, value: (r) => r.avgPlace, firstDir: 1, cell: (r) => ({ text: fmtNum(r.avgPlace), cls: `balnum${r.avgPlace === null ? '' : ` balwin${placeHeat(r.avgPlace)}`}` }) },
     firstPct: { key: 'firstPct', label: '1st %', tip: `Percent of ${group} that won the lobby.`, value: (r) => r.firstRate, cell: (r) => ({ text: pctOrDash(r.firstRate), cls: 'balnum' }) },
     top4: { key: 'top4', label: 'Top 4 %', tip: `Percent of ${group} that finished in the top four. Detailed shows its 95% range.`, value: (r) => r.top4Rate, cell: (r) => ({ text: pctOrDash(r.top4Rate), cls: 'balnum' }) },
-    top4Ci: { key: 'top4Ci', label: 'Top 4 95%', tip: 'The 95% range the true top-four rate is likely to sit in (Wilson). Sorts by the bottom of the range, so a row whose whole range is high comes first.', value: (r) => (r.top4Ci ? r.top4Ci.lo : null), cell: (r) => ({ text: r.top4Ci ? `${r.top4Ci.lo}% to ${r.top4Ci.hi}%` : '–', cls: 'balnum baldim' }) },
+    top4Ci: { key: 'top4Ci', label: 'Top 4 95%', tip: 'The 95% range the true top-four rate is likely to sit in (Wilson). Sorts by the bottom of the range.', value: (r) => (r.top4Ci ? r.top4Ci.lo : null), cell: (r) => ({ text: r.top4Ci ? `${r.top4Ci.lo}% to ${r.top4Ci.hi}%` : '–', cls: 'balnum baldim' }) },
     lastPct: { key: 'lastPct', label: '8th %', tip: `Percent of ${group} that finished 8th.`, value: (r) => r.lastRate, cell: (r) => ({ text: pctOrDash(r.lastRate), cls: 'balnum' }) },
-    baseline: { key: 'baseline', label: 'Base Avg', tip: `Average placement of ${baseline}: the other side of the delta. Detailed only.`, value: (r) => r.baselineAvgPlace, firstDir: 1, cell: (r) => ({ text: r.baselineAvgPlace === null ? '–' : `${r.baselineAvgPlace} (${r.baselineN})`, cls: 'balnum baldim' }) },
-    delta: { key: 'delta', label: 'Delta', tip: `Average placement of ${group} minus ${baseline}. Negative means ${group} finish better.`, value: (r) => r.delta, firstDir: 1, cell: (r) => ({ text: signed(r.delta), cls: `balnum${r.delta === null ? '' : ` balwin${deltaHeat(r.delta)}`}` }) },
-    deltaCi: { key: 'deltaCi', label: 'Delta 95%', tip: 'The 95% range the true delta is likely to sit in. A range that crosses zero is not a finding yet. Sorts by the top of the range, so a row whose whole range is below zero comes first.', value: (r) => (r.deltaCi ? r.deltaCi.hi : null), firstDir: 1, cell: (r) => ({ text: r.deltaCi ? `${signed(r.deltaCi.lo, 1)} to ${signed(r.deltaCi.hi, 1)}` : '–', cls: 'balnum baldim' }) },
-    impact: { key: 'impact', label: 'Impact', tip: `The delta shrunk toward zero for a small sample. A row keeps half its delta at ${SAMPLE_GATES.preliminary} placed ${group} and most of it past ${SAMPLE_GATES.confident}. The default order: the strongest, best-supported advantage first.`, value: (r) => r.impact, firstDir: 1, cell: (r) => ({ text: signed(r.impact), cls: `balnum${r.impact === null ? '' : ` balwin${deltaHeat(r.impact)}`}` }) },
+    baseline: { key: 'baseline', label: 'Control Avg', tip: `Average placement of ${baseline}: the other side of the raw association, with their count.`, value: (r) => r.baselineAvgPlace, firstDir: 1, cell: (r) => ({ text: r.baselineAvgPlace === null ? '–' : `${r.baselineAvgPlace} (${r.baselineN})`, cls: 'balnum baldim' }) },
+    delta: { key: 'delta', label: rawLabel, tip: `Average placement of ${group} minus ${baseline}. Negative means ${group} finished better among the runs observed. It is an association, not a guaranteed benefit: it rewards surviving long enough to make the choice.`, value: (r) => r.delta, firstDir: 1, cell: (r) => ({ text: signed(r.delta), cls: `balnum${r.delta === null ? '' : ` balwin${deltaHeat(r.delta)}`}` }) },
+    deltaRanked: { key: 'deltaRanked', label: rawLabel, tip: `Average placement of ${group} minus ${baseline}. Negative means ${group} finished better among the runs that had the choice. Sorts rows with candidate or supported evidence first; insufficient rows sit below, alphabetical, never ranked as worst.`, value: (r) => ((r as unknown as { evidence?: EvidenceLabel }).evidence === 'insufficient' ? null : r.delta), firstDir: 1, cell: (r) => ({ text: signed(r.delta), cls: `balnum${r.delta === null ? '' : ` balwin${deltaHeat(r.delta)}`}` }) },
+    deltaCi: { key: 'deltaCi', label: 'Raw 95%', tip: `Welch 95% range of the raw association (unequal variances). Shown only with ${WELCH_MIN_N} or more runs on each side; a range that crosses zero is not a finding. Sorts by the top of the range.`, value: (r) => (r.deltaWelch ? r.deltaWelch.hi : null), firstDir: 1, cell: (r) => ({ text: ciText(r.deltaWelch), cls: 'balnum baldim' }) },
+    impact: { key: 'impact', label: 'Sample-weighted association', tip: `The raw association shrunk toward zero for a small sample: raw times n / (n + ${SAMPLE_GATES.preliminary}) over placed ${group}. A heuristic weighting, not a correction for who got to make the choice.`, value: (r) => r.impact, firstDir: 1, cell: (r) => ({ text: signed(r.impact), cls: `balnum${r.impact === null ? '' : ` balwin${deltaHeat(r.impact)}`}` }) },
   };
 }
 
@@ -183,92 +202,167 @@ const pick = <R,>(cols: Record<string, ColDef<R>>, keys: string[]): ColDef<R>[] 
 const dimBelow = (r: { gate: SampleGate }): boolean => r.gate === 'below';
 const better = (d: number | null): string => ((d ?? 0) <= 0 ? 'better' : 'worse');
 const abs2 = (d: number | null): string => Math.abs(d ?? 0).toFixed(2);
-const ciText = (ci: { lo: number; hi: number } | null): string => (ci ? ` (95% ${signed(ci.lo, 1)} to ${signed(ci.hi, 1)})` : '');
+const ciWords = (ci: Interval | null): string => (ci ? ` (95% ${signed(ci.lo, 1)} to ${signed(ci.hi, 1)})` : '');
+const evidenceCol = <R extends { evidence: EvidenceLabel }>(): ColDef<R> => ({
+  key: 'evidence', label: 'Evidence', tip: evidenceTip, value: (r) => EVIDENCE_RANK[r.evidence], firstDir: 1,
+  cell: (r) => ({ text: EVIDENCE_TEXT[r.evidence], cls: `balnum balev balev-${r.evidence}` }),
+});
+const adjustedText = (a: AdjustedStats): string => (a.association === null ? 'insufficient' : signed(a.association));
+const adjustedCls = (a: AdjustedStats): string => (a.association === null ? 'balnum baldim' : `balnum balwin${deltaHeat(a.association)}`);
+
+/** A named column set: one of the four views of a card section, or Compact / Detailed elsewhere. */
+interface ColSet<R> { key: string; label: string; tip: string; cols: ColDef<R>[]; defaultKey: string; dense?: boolean }
 
 // ── Minions / Spells: the card columns ─────────────────────────────────────────────────────────────────────
 
-const GATE_TIP = `Runs that acquired the card, counted once per run. Rows under ${SAMPLE_GATES.preliminary} are dimmed as noise.`;
 const CARD_COLS: Record<string, ColDef<CardImpactRow>> = {
-  ...placementCols<CardImpactRow>('buyer runs', 'runs that did not buy it'),
-  tier: { key: 'tier', label: 'Tier', tip: 'The card\'s shop tier.', value: (r) => r.tier, firstDir: 1, cell: (r) => ({ text: `T${r.tier}`, cls: 'balnum baldim' }) },
+  ...placementCols<CardImpactRow>('buyer runs', 'every other placed run', 'Raw buyer association'),
+  tier: { key: 'tier', label: 'Tier', tip: 'The card\'s CURRENT shop tier. Evidence shows the tiers the shop actually offered it at in these runs.', value: (r) => r.tier, firstDir: 1, cell: (r) => ({ text: r.observedTiers.some((t) => t !== r.tier) ? `T${r.tier} (was T${r.observedTiers.filter((t) => t !== r.tier).join('/T')})` : `T${r.tier}`, cls: 'balnum baldim' }) },
   tribe: { key: 'tribe', label: 'Tribe', tip: 'The card\'s tribe. Two names for a dual-tribe card.', value: (r) => r.tribe, firstDir: 1, cell: (r) => ({ text: r.tribe2 ? `${cap(r.tribe)}/${cap(r.tribe2)}` : cap(r.tribe), cls: 'balnum baldim' }) },
-  n: { key: 'n', label: 'Buyers', tip: GATE_TIP, value: (r) => r.runsBought, cell: (r) => ({ text: String(r.runsBought), cls: 'balnum' }) },
-  runsSeen: { key: 'runsSeen', label: 'Runs Seen', tip: 'Runs where the card showed up at all, in the shop or a Discover.', value: (r) => r.runsSeen, cell: (r) => ({ text: String(r.runsSeen), cls: 'balnum' }) },
+  n: { key: 'n', label: 'Raw buyers', tip: `Runs that acquired the card by the upload-time arrays, once per run. Those arrays can carry earlier runs of the same session; Buyers this run is the honest count. ${THIN_TIP}`, value: (r) => r.runsBought, cell: (r) => ({ text: String(r.runsBought), cls: 'balnum' }) },
+  segBuyers: { key: 'segBuyers', label: 'Buyers this run', tip: 'Runs whose OWN derived streams (last segment) show the card acquired by shop or Discover. Where it is lower than Raw buyers, the difference bought the card in an earlier run of the same session.', value: (r) => r.segmentedBuyers, cell: (r) => ({ text: String(r.segmentedBuyers), cls: 'balnum' }) },
+  runsSeen: { key: 'runsSeen', label: 'Runs Seen', tip: 'Runs where the card showed up at all, in the shop or a Discover (upload-time arrays).', value: (r) => r.runsSeen, cell: (r) => ({ text: String(r.runsSeen), cls: 'balnum' }) },
   shopSeen: { key: 'shopSeen', label: 'Shop Seen', tip: 'Shop sightings. A card seen four times in one run counts four.', value: (r) => r.shopSeen, cell: (r) => ({ text: String(r.shopSeen), cls: 'balnum' }) },
   shopBought: { key: 'shopBought', label: 'Shop Buy', tip: 'Shop purchases, one per buy.', value: (r) => r.shopBought, cell: (r) => ({ text: String(r.shopBought), cls: 'balnum' }) },
   buypct: { key: 'buypct', label: 'Buy %', tip: 'Shop purchases as a percent of shop sightings. Do players want it when they see it.', value: (r) => r.shopBuyRate, cell: (r) => ({ text: pctOrDash(r.shopBuyRate), cls: 'balnum' }) },
   discSeen: { key: 'discSeen', label: 'Disc Seen', tip: 'Times offered as a Discover option.', value: (r) => r.discSeen, cell: (r) => ({ text: String(r.discSeen), cls: 'balnum' }) },
   discBought: { key: 'discBought', label: 'Disc Pick', tip: 'Times picked from a Discover.', value: (r) => r.discBought, cell: (r) => ({ text: String(r.discBought), cls: 'balnum' }) },
   discpct: { key: 'discpct', label: 'Disc %', tip: 'Discover picks as a percent of Discover offers.', value: (r) => r.discRate, cell: (r) => ({ text: pctOrDash(r.discRate), cls: 'balnum' }) },
-  vsTier: { key: 'vsTier', label: 'Vs Tier', tip: 'The delta minus the average delta of the card\'s tier. High tiers are bought only by runs that lived long enough to reach them, so a whole tier can read green; this shows who stands out within the tier.', value: (r) => r.tierDelta, firstDir: 1, cell: (r) => ({ text: signed(r.tierDelta), cls: `balnum${r.tierDelta === null ? '' : ` balwin${deltaHeat(r.tierDelta)}`}` }) },
+  episodes: { key: 'episodes', label: 'Affordable offers', tip: 'Runs with a primary shop decision for the card: the first wave it was on offer and affordable, before any prior copy. One per run, however many copies or rerolls.', value: (r) => r.episodes, cell: (r) => ({ text: String(r.episodes), cls: 'balnum' }) },
+  episodePct: { key: 'episodePct', label: 'Decision buy %', tip: 'Of those affordable first offers, the percent bought in that wave.', value: (r) => (r.episodes > 0 ? Math.round((100 * r.episodeBuyers) / r.episodes) : null), cell: (r) => ({ text: r.episodes > 0 ? `${Math.round((100 * r.episodeBuyers) / r.episodes)}%` : '–', cls: 'balnum' }) },
+  vsTier: { key: 'vsTier', label: 'Relative raw association within tier', tip: 'The raw buyer association minus the buyer-weighted average of the card\'s tier (minions against minions, spells against spells). A secondary read of who stands out within a tier. Not a survival correction: the whole tier still carries the survival bias.', value: (r) => r.tierDelta, firstDir: 1, cell: (r) => ({ text: signed(r.tierDelta), cls: `balnum${r.tierDelta === null ? '' : ` balwin${deltaHeat(r.tierDelta)}`}` }) },
   buyWave: { key: 'buyWave', label: 'Buy Wave', tip: 'Average wave the card was acquired on.', value: (r) => r.avgBuyWave, firstDir: 1, cell: (r) => ({ text: fmtNum(r.avgBuyWave), cls: 'balnum baldim' }) },
+  missing: { key: 'missing', label: 'Missing placement', tip: 'Buyer runs with no placement. They count toward demand only and never toward a placement finding.', value: (r) => r.missingPlacement, cell: (r) => ({ text: String(r.missingPlacement), cls: 'balnum baldim' }) },
+  buyerPlayers: { key: 'buyerPlayers', label: 'Buyer players', tip: 'Distinct display names among the placed buyer runs. A proxy: no trusted account key exists yet.', value: (r) => r.buyerPlayers, cell: (r) => ({ text: r.buyerPlayers === null ? 'n/a' : String(r.buyerPlayers), cls: 'balnum baldim' }) },
+  controlPlayers: { key: 'controlPlayers', label: 'Control players', tip: 'Distinct display names among the placed control runs (every other placed run).', value: (r) => r.controlPlayers, cell: (r) => ({ text: r.controlPlayers === null ? 'n/a' : String(r.controlPlayers), cls: 'balnum baldim' }) },
+  expBuyers: { key: 'expBuyers', label: 'Exposed buyers', tip: 'Placed runs whose own shop offers included the card and that acquired it (shop or Discover) in that run.', value: (r) => r.exposed.buyers, cell: (r) => ({ text: String(r.exposed.buyers), cls: 'balnum' }) },
+  expSkippers: { key: 'expSkippers', label: 'Exposed skippers', tip: 'Placed runs whose own shop offers included the card and that never acquired it.', value: (r) => r.exposed.skippers, cell: (r) => ({ text: String(r.exposed.skippers), cls: 'balnum' }) },
+  exposed: { key: 'exposed', label: 'Exposed diagnostic', tip: 'Average placement of exposed buyers minus exposed skippers: both sides saw the card. Negative means buyers finished better than the runs that saw it and passed. A diagnostic only: a sighting at any time is not a comparable decision.', value: (r) => r.exposed.delta, firstDir: 1, cell: (r) => ({ text: r.exposed.delta === null ? '–' : signed(r.exposed.delta), cls: `balnum${r.exposed.delta === null ? '' : ` balwin${deltaHeat(r.exposed.delta)}`}` }) },
+  exposedCi: { key: 'exposedCi', label: 'Exposed 95%', tip: `Welch 95% range of the exposed diagnostic. Shown only with ${WELCH_MIN_N} or more runs on each side.`, value: (r) => (r.exposed.ci ? r.exposed.ci.hi : null), firstDir: 1, cell: (r) => ({ text: ciText(r.exposed.ci), cls: 'balnum baldim' }) },
+  notExposed: { key: 'notExposed', label: 'Buyers unseen', tip: 'Placed buyer runs with no recorded shop sighting of the card (a Discover pick, or a sighting the streams missed). A coverage mismatch, reported rather than repaired.', value: (r) => r.exposed.notExposedBuyers, cell: (r) => ({ text: String(r.exposed.notExposedBuyers), cls: 'balnum baldim' }) },
+  adjN: { key: 'adjN', label: 'Comparable buy / pass', tip: 'Placed runs in the supported strata (round band by shop tier, each holding both a buyer and a passer): the runs the adjusted association actually compares. Sorts by the smaller side.', value: (r) => Math.min(r.adjusted.buyersInSupport, r.adjusted.skippersInSupport), cell: (r) => ({ text: `${r.adjusted.buyersInSupport} / ${r.adjusted.skippersInSupport}`, cls: 'balnum' }) },
+  adjusted: { key: 'adjusted', label: 'Adjusted association', tip: 'Buy against pass inside the first affordable shop offer, among runs in the same round band and shop tier, weighted by where buyers were. Negative means buying went with a better finish in those situations. "insufficient" means no stratum holds both a buyer and a passer: a valid answer, not zero. The default order: rows with candidate or supported evidence first by this number; insufficient rows below, never ranked as worst.', value: performanceSortValue, firstDir: 1, cell: (r) => ({ text: adjustedText(r.adjusted), cls: adjustedCls(r.adjusted) }) },
+  adjustedCi: { key: 'adjustedCi', label: 'Adjusted 95%', tip: `A stratified Welch-type 95% range of the adjusted association. Shown only with ${WELCH_MIN_N} or more comparable runs on each side and two or more on each side of every supported stratum.`, value: (r) => (r.adjusted.ci ? r.adjusted.ci.hi : null), firstDir: 1, cell: (r) => ({ text: ciText(r.adjusted.ci), cls: 'balnum baldim' }) },
+  outside: { key: 'outside', label: 'Buyers outside support %', tip: 'Percent of placed buyer decisions in a stratum with no passer to compare with. High means the adjusted number speaks for few of the buyers.', value: (r) => r.adjusted.outsideSupportPct, cell: (r) => ({ text: pctOrDash(r.adjusted.outsideSupportPct), cls: 'balnum baldim' }) },
+  strata: { key: 'strata', label: 'Strata (used / seen)', tip: 'Round band by shop tier strata holding both sides, over strata seen at all.', value: (r) => r.adjusted.supportedStrata, cell: (r) => ({ text: `${r.adjusted.supportedStrata} / ${r.adjusted.strata}`, cls: 'balnum baldim' }) },
+  crossover: { key: 'crossover', label: 'Crossover', tip: 'Passes followed by a later acquisition of the card. Reported; the pass is never relabelled as a buy.', value: (r) => r.adjusted.crossover, cell: (r) => ({ text: String(r.adjusted.crossover), cls: 'balnum baldim' }) },
+  unaffordable: { key: 'unaffordable', label: 'Unaffordable offers', tip: 'Offer waves skipped because no copy was affordable at sighting (base cost against Gold at first sighting: approximate, a discount can make a copy affordable that reads unaffordable here). An unaffordable offer is not a rejection.', value: (r) => r.episodeExclusions.unaffordable, cell: (r) => ({ text: String(r.episodeExclusions.unaffordable), cls: 'balnum baldim' }) },
+  prior: { key: 'prior', label: 'Prior owned', tip: 'Runs offered the card after already owning a copy (any source), so they had no first decision. Plus runs where a grant landed in the offer wave (ambiguous, excluded).', value: (r) => r.episodeExclusions.priorAcquisition + r.episodeExclusions.sameWaveGrant, cell: (r) => ({ text: String(r.episodeExclusions.priorAcquisition + r.episodeExclusions.sameWaveGrant), cls: 'balnum baldim' }) },
+  tiersSeen: { key: 'tiersSeen', label: 'Tiers seen', tip: 'The card tiers the shop actually offered the card at in these runs. A moved tier shows here; the Tier column is the current one.', value: (r) => (r.observedTiers.length ? r.observedTiers.join('/') : null), firstDir: 1, cell: (r) => ({ text: r.observedTiers.length ? r.observedTiers.map((t) => `T${t}`).join(' ') : '–', cls: 'balnum baldim' }) },
+  early: { key: 'early', label: 'Early buyers', tip: 'Buyer runs (this run) whose first copy came in waves 1 to 4.', value: (r) => r.role.earlyBuyers, cell: (r) => ({ text: String(r.role.earlyBuyers), cls: 'balnum' }) },
+  mid: { key: 'mid', label: 'Mid buyers', tip: 'Buyer runs whose first copy came in waves 5 to 8.', value: (r) => r.role.midBuyers, cell: (r) => ({ text: String(r.role.midBuyers), cls: 'balnum' }) },
+  late: { key: 'late', label: 'Late buyers', tip: 'Buyer runs whose first copy came in wave 9 or later.', value: (r) => r.role.lateBuyers, cell: (r) => ({ text: String(r.role.lateBuyers), cls: 'balnum' }) },
+  acqs: { key: 'acqs', label: 'Copies', tip: 'Copies acquired by shop or Discover across these runs (this run only).', value: (r) => r.role.acquisitions, cell: (r) => ({ text: String(r.role.acquisitions), cls: 'balnum baldim' }) },
+  played: { key: 'played', label: 'Played %', tip: 'Percent of copies played to the board.', value: (r) => r.role.playedPct, cell: (r) => ({ text: pctOrDash(r.role.playedPct), cls: 'balnum' }) },
+  finalBoard: { key: 'finalBoard', label: 'Final board %', tip: 'Percent of copies that survived to the run\'s final board. Descriptive: an economy minion that did its job and was sold is not a failure.', value: (r) => r.role.finalBoardPct, cell: (r) => ({ text: pctOrDash(r.role.finalBoardPct), cls: 'balnum' }) },
+  sold: { key: 'sold', label: 'Sold %', tip: 'Percent of copies sold at some point.', value: (r) => r.role.soldPct, cell: (r) => ({ text: pctOrDash(r.role.soldPct), cls: 'balnum' }) },
+  nextWin: { key: 'nextWin', label: 'Next combat won %', tip: 'Percent of copies whose same-wave combat (the next fight after acquiring it) was won. Descriptive, not causal.', value: (r) => r.role.nextCombatWinPct, cell: (r) => ({ text: pctOrDash(r.role.nextCombatWinPct), cls: 'balnum' }) },
+  evidence: evidenceCol<CardImpactRow>(),
 };
-const CARD_COMPACT = pick(CARD_COLS, ['tier', 'tribe', 'n', 'buypct', 'discpct', 'avgPlace', 'top4', 'delta', 'vsTier', 'impact']);
-const CARD_DETAILED = pick(CARD_COLS, ['tier', 'tribe', 'n', 'runsSeen', 'shopSeen', 'shopBought', 'buypct', 'discSeen', 'discBought', 'discpct', 'avgPlace', 'firstPct', 'top4', 'top4Ci', 'lastPct', 'delta', 'deltaCi', 'vsTier', 'impact', 'buyWave']);
-const cardTip = (r: CardImpactRow): string =>
-  `${r.name}: ${r.runsBought} buyer runs, average place ${fmtNum(r.avgPlace)} vs ${fmtNum(r.baselineAvgPlace)} for the field. Buyers finish ${abs2(r.delta)} places ${better(r.delta)}${ciText(r.deltaCi)}.`;
+const CARD_VIEWS: ColSet<CardImpactRow>[] = [
+  { key: 'demand', label: 'Demand', tip: 'Do players want it when it is offered: sightings, buys, conversion, the first affordable decision', cols: pick(CARD_COLS, ['tier', 'tribe', 'n', 'segBuyers', 'runsSeen', 'shopSeen', 'shopBought', 'buypct', 'discSeen', 'discpct', 'episodes', 'episodePct', 'buyWave']), defaultKey: 'segBuyers', dense: true },
+  { key: 'performance', label: 'Performance', tip: 'Three comparisons side by side: raw buyer association, exposed diagnostic, adjusted association, each with its own 95% range, evidence first', cols: pick(CARD_COLS, ['tier', 'n', 'placedN', 'controls', 'delta', 'deltaCi', 'impact', 'vsTier', 'expBuyers', 'expSkippers', 'exposed', 'exposedCi', 'adjN', 'adjusted', 'adjustedCi', 'evidence']), defaultKey: 'adjusted', dense: true },
+  { key: 'role', label: 'Role and timing', tip: 'When it is bought and what happens to it: descriptive, never causal', cols: pick(CARD_COLS, ['tier', 'tribe', 'buyWave', 'early', 'mid', 'late', 'acqs', 'played', 'finalBoard', 'sold', 'nextWin']), defaultKey: 'acqs', dense: true },
+  { key: 'evidence', label: 'Evidence', tip: 'How much to trust each row: samples, players, missingness, overlap, coverage mismatches', cols: pick(CARD_COLS, ['n', 'segBuyers', 'placedN', 'missing', 'controls', 'buyerPlayers', 'controlPlayers', 'notExposed', 'strata', 'outside', 'crossover', 'unaffordable', 'prior', 'tiersSeen', 'evidence']), defaultKey: 'evidence', dense: true },
+];
+const cardTip = (r: CardImpactRow): string => {
+  const raw = r.delta === null ? 'no raw placement read yet' : `raw: buyers finished ${abs2(r.delta)} places ${better(r.delta)} than every other run${ciWords(r.deltaWelch)}`;
+  const exp = r.exposed.delta === null ? 'no exposed comparison' : `exposed: ${abs2(r.exposed.delta)} places ${better(r.exposed.delta)} than the ${r.exposed.skippers} runs that saw it and passed${ciWords(r.exposed.ci)}`;
+  const adj = r.adjusted.association === null ? 'adjusted: insufficient comparable data' : `adjusted: ${abs2(r.adjusted.association)} places ${better(r.adjusted.association)} than passers in the same round band and shop tier (${r.adjusted.buyersInSupport} buy vs ${r.adjusted.skippersInSupport} pass)${ciWords(r.adjusted.ci)}`;
+  return `${r.name}: ${r.runsBought} raw buyer runs (${r.segmentedBuyers} this run), ${r.placedN} placed. ${EVIDENCE_LONG[r.evidence]}. ${cap(raw)}. ${cap(exp)}. ${cap(adj)}.`;
+};
 
 // ── Heroes ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 const HERO_COLS: Record<string, ColDef<HeroImpactRow>> = {
   ...placementCols<HeroImpactRow>('runs with the hero', 'every other run'),
-  n: { key: 'n', label: 'Runs', tip: `Runs that picked the hero. Rows under ${SAMPLE_GATES.preliminary} are dimmed as noise.`, value: (r) => r.runs, cell: (r) => ({ text: String(r.runs), cls: 'balnum' }) },
-  offered: { key: 'offered', label: 'Offered', tip: 'Runs whose hero picker offered it.', value: (r) => r.offered, cell: (r) => ({ text: String(r.offered), cls: 'balnum' }) },
+  n: { key: 'n', label: 'Runs', tip: `Runs that picked the hero. ${THIN_TIP}`, value: (r) => r.runs, cell: (r) => ({ text: String(r.runs), cls: 'balnum' }) },
+  offered: { key: 'offered', label: 'Offered', tip: 'Runs whose recorded hero picker offered it.', value: (r) => r.offered, cell: (r) => ({ text: String(r.offered), cls: 'balnum' }) },
   offer: { key: 'offer', label: 'Offer %', tip: 'Percent of all runs where the picker offered it.', value: (r) => r.offerRate, cell: (r) => ({ text: pctOrDash(r.offerRate), cls: 'balnum' }) },
   pick: { key: 'pick', label: 'Pick %', tip: 'Percent of offers that were taken. Do players want it when they see it.', value: (r) => r.pickRate, cell: (r) => ({ text: pctOrDash(r.pickRate), cls: 'balnum' }) },
   avgWins: { key: 'avgWins', label: 'Round Wins', tip: 'Average combat rounds won per run with it.', value: (r) => r.avgWins, cell: (r) => ({ text: fmtNum(r.avgWins), cls: 'balnum' }) },
+  offSkip: { key: 'offSkip', label: 'Offered, chose other', tip: 'Placed runs whose recorded trio offered the hero and that picked another one: the comparison group of the offered association. Runs with no recorded trio cannot be here.', value: (r) => r.offeredSkippers, cell: (r) => ({ text: String(r.offeredSkippers), cls: 'balnum' }) },
+  offDelta: { key: 'offDelta', label: 'Offered association', tip: 'Average placement of runs with the hero minus runs that were offered it and chose another. Negative means choosing it went with a better finish among runs that had the choice. Picking a hero is selected behaviour, not a random treatment. Sorts rows with candidate or supported evidence first; insufficient rows sit below, alphabetical, never ranked as worst.', value: (r) => (r.evidence === 'insufficient' ? null : r.offeredDelta), firstDir: 1, cell: (r) => ({ text: signed(r.offeredDelta), cls: `balnum${r.offeredDelta === null ? '' : ` balwin${deltaHeat(r.offeredDelta)}`}` }) },
+  offCi: { key: 'offCi', label: 'Offered 95%', tip: `Welch 95% range of the offered association. Shown only with ${WELCH_MIN_N} or more runs on each side.`, value: (r) => (r.offeredCi ? r.offeredCi.hi : null), firstDir: 1, cell: (r) => ({ text: ciText(r.offeredCi), cls: 'balnum baldim' }) },
+  players: { key: 'players', label: 'Players', tip: 'Distinct display names among the placed runs with the hero, and among the offered runs that chose another.', value: (r) => r.players, cell: (r) => ({ text: `${r.players === null ? 'n/a' : r.players} / ${r.skipperPlayers === null ? 'n/a' : r.skipperPlayers}`, cls: 'balnum baldim' }) },
+  evidence: evidenceCol<HeroImpactRow>(),
 };
-const HERO_COMPACT = pick(HERO_COLS, ['n', 'offer', 'pick', 'avgWins', 'avgPlace', 'firstPct', 'top4', 'lastPct', 'delta', 'impact']);
-const HERO_DETAILED = pick(HERO_COLS, ['offered', 'n', 'offer', 'pick', 'avgWins', 'placedN', 'avgPlace', 'firstPct', 'top4', 'top4Ci', 'lastPct', 'baseline', 'delta', 'deltaCi', 'impact']);
+const HERO_VIEWS: ColSet<HeroImpactRow>[] = [
+  { key: 'compact', label: 'Compact', tip: 'The columns that answer the question', cols: pick(HERO_COLS, ['n', 'offer', 'pick', 'avgWins', 'avgPlace', 'top4', 'offSkip', 'offDelta', 'offCi', 'delta', 'evidence']), defaultKey: 'offDelta' },
+  { key: 'detailed', label: 'Detailed', tip: 'Every column, including the raw counts and the 95% ranges', cols: pick(HERO_COLS, ['offered', 'n', 'offer', 'pick', 'avgWins', 'placedN', 'avgPlace', 'firstPct', 'top4', 'top4Ci', 'lastPct', 'offSkip', 'offDelta', 'offCi', 'baseline', 'delta', 'deltaCi', 'impact', 'players', 'evidence']), defaultKey: 'offDelta', dense: true },
+];
 const heroTip = (r: HeroImpactRow): string =>
-  `${r.name}: ${r.runs} runs, average place ${fmtNum(r.avgPlace)} vs ${fmtNum(r.baselineAvgPlace)} for every other run. Its runs finish ${abs2(r.delta)} places ${better(r.delta)}${ciText(r.deltaCi)}.`;
+  `${r.name}: ${r.runs} runs, average place ${fmtNum(r.avgPlace)}. ${EVIDENCE_LONG[r.evidence]}. Offered comparison: ${r.offeredDelta === null ? 'no offered runs that chose another yet' : `${abs2(r.offeredDelta)} places ${better(r.offeredDelta)} than the ${r.offeredSkippers} runs offered it that chose another${ciWords(r.offeredCi)}`}. Raw: ${abs2(r.delta)} places ${better(r.delta)} than every other run.`;
 
 // ── Runes ──────────────────────────────────────────────────────────────────────────────────────────────────
 
 const RUNE_COLS: Record<string, ColDef<RuneImpactRow>> = {
-  ...placementCols<RuneImpactRow>('taker runs', 'the runs offered it that skipped it'),
+  ...placementCols<RuneImpactRow>('taker runs', 'the runs offered it that skipped it', 'Offered association'),
   forge: { key: 'forge', label: 'Forge', tip: 'Which Runeforge offers it: Basic on turn 6, Epic on turn 9.', value: (r) => (r.forge === 'basic' ? 0 : 1), firstDir: 1, cell: (r) => ({ text: cap(r.forge), cls: 'balnum baldim' }) },
   cost: { key: 'cost', label: 'Cost', tip: 'The rune\'s Gold cost.', value: (r) => r.cost, firstDir: 1, cell: (r) => ({ text: fmtNum(r.cost), cls: 'balnum baldim' }) },
   tribe: { key: 'tribe', label: 'Tribe', tip: 'The rune\'s tribe gate, when it has one. Most runes have none.', value: (r) => (r.tribes.length ? r.tribes.join('/') : null), firstDir: 1, cell: (r) => ({ text: r.tribes.length ? r.tribes.map(cap).join('/') : '–', cls: 'balnum baldim' }) },
-  offered: { key: 'offered', label: 'Offered', tip: 'Runs the Runeforge offered it to, counted once per run.', value: (r) => r.offered, cell: (r) => ({ text: String(r.offered), cls: 'balnum' }) },
-  n: { key: 'n', label: 'Takers', tip: `Runs that took the rune, counted once per run. Rows under ${SAMPLE_GATES.preliminary} are dimmed as noise.`, value: (r) => r.picked, cell: (r) => ({ text: String(r.picked), cls: 'balnum' }) },
+  offered: { key: 'offered', label: 'Offered', tip: 'Runs the Runeforge offered it to, counted once per run. Replay-derived: the offers come from re-running the action log, which is not guaranteed faithful for a lobby run.', value: (r) => r.offered, cell: (r) => ({ text: String(r.offered), cls: 'balnum' }) },
+  n: { key: 'n', label: 'Takers', tip: `Runs that took the rune, counted once per run. ${THIN_TIP}`, value: (r) => r.picked, cell: (r) => ({ text: String(r.picked), cls: 'balnum' }) },
   pick: { key: 'pick', label: 'Pick %', tip: 'Percent of runs offered it that took it.', value: (r) => r.pickRate, cell: (r) => ({ text: pctOrDash(r.pickRate), cls: 'balnum' }) },
-  vsField: { key: 'vsField', label: 'Vs Field', tip: 'The uncontrolled read: average placement of taker runs minus every other run in the report, including runs eliminated before any forge. Reads green for most runes, because only a run that survived to turn 6 or 9 is offered one.', value: (r) => r.fieldDelta, firstDir: 1, cell: (r) => ({ text: signed(r.fieldDelta), cls: `balnum${r.fieldDelta === null ? '' : ` balwin${deltaHeat(r.fieldDelta)}`}` }) },
-  vsFieldCi: { key: 'vsFieldCi', label: 'Vs Field 95%', tip: 'The 95% range of Vs Field. Sorts by the top of the range.', value: (r) => (r.fieldDeltaCi ? r.fieldDeltaCi.hi : null), firstDir: 1, cell: (r) => ({ text: r.fieldDeltaCi ? `${signed(r.fieldDeltaCi.lo, 1)} to ${signed(r.fieldDeltaCi.hi, 1)}` : '–', cls: 'balnum baldim' }) },
+  vsField: { key: 'vsField', label: 'Raw association vs field', tip: 'The uncontrolled read: average placement of taker runs minus every other run in the report, including runs eliminated before any forge. Reads green for most runes, because only a run that survived to turn 6 or 9 is offered one.', value: (r) => r.fieldDelta, firstDir: 1, cell: (r) => ({ text: signed(r.fieldDelta), cls: `balnum${r.fieldDelta === null ? '' : ` balwin${deltaHeat(r.fieldDelta)}`}` }) },
+  players: { key: 'players', label: 'Players', tip: 'Distinct display names among the placed takers, and among the offered runs that skipped.', value: (r) => r.players, cell: (r) => ({ text: `${r.players === null ? 'n/a' : r.players} / ${r.skipperPlayers === null ? 'n/a' : r.skipperPlayers}`, cls: 'balnum baldim' }) },
+  evidence: evidenceCol<RuneImpactRow>(),
 };
-const RUNE_COMPACT = pick(RUNE_COLS, ['forge', 'cost', 'offered', 'n', 'pick', 'avgPlace', 'top4', 'delta', 'vsField', 'impact']);
-const RUNE_DETAILED = pick(RUNE_COLS, ['forge', 'cost', 'tribe', 'offered', 'n', 'pick', 'placedN', 'avgPlace', 'firstPct', 'top4', 'top4Ci', 'lastPct', 'baseline', 'delta', 'deltaCi', 'vsField', 'vsFieldCi', 'impact']);
+const RUNE_VIEWS: ColSet<RuneImpactRow>[] = [
+  { key: 'compact', label: 'Compact', tip: 'The columns that answer the question', cols: pick(RUNE_COLS, ['forge', 'cost', 'offered', 'n', 'pick', 'avgPlace', 'top4', 'deltaRanked', 'deltaCi', 'vsField', 'evidence']), defaultKey: 'deltaRanked' },
+  { key: 'detailed', label: 'Detailed', tip: 'Every column, including the raw counts and the 95% ranges', cols: pick(RUNE_COLS, ['forge', 'cost', 'tribe', 'offered', 'n', 'pick', 'placedN', 'controls', 'avgPlace', 'firstPct', 'top4', 'top4Ci', 'lastPct', 'baseline', 'deltaRanked', 'deltaCi', 'impact', 'vsField', 'players', 'evidence']), defaultKey: 'deltaRanked', dense: true },
+];
 const runeTip = (r: RuneImpactRow): string =>
-  `${r.name}: taken in ${r.picked} of the ${r.offered} runs offered it. Takers average place ${fmtNum(r.avgPlace)} vs ${fmtNum(r.baselineAvgPlace)} for the ${r.baselineN} placed runs that skipped it, so takers finish ${abs2(r.delta)} places ${better(r.delta)}${ciText(r.deltaCi)}.`;
+  `${r.name}: taken in ${r.picked} of the ${r.offered} runs offered it. ${EVIDENCE_LONG[r.evidence]}. Takers average place ${fmtNum(r.avgPlace)} vs ${fmtNum(r.baselineAvgPlace)} for the ${r.baselineN} placed runs that skipped it, so takers finished ${abs2(r.delta)} places ${better(r.delta)}${ciWords(r.deltaWelch)}.`;
 
 // ── Shop tiers ─────────────────────────────────────────────────────────────────────────────────────────────
 
 const TIER_COLS: Record<string, ColDef<TierImpactRow>> = {
   ...placementCols<TierImpactRow>('early runs', 'runs that reached the tier later or never'),
-  reached: { key: 'reached', label: 'Reached', tip: 'Runs whose shop ever reached this tier.', value: (r) => r.runsReached, cell: (r) => ({ text: String(r.runsReached), cls: 'balnum' }) },
+  reached: { key: 'reached', label: 'Reached', tip: 'Runs whose replay-derived shop tier ever reached this tier.', value: (r) => r.runsReached, cell: (r) => ({ text: String(r.runsReached), cls: 'balnum' }) },
   reachPct: { key: 'reachPct', label: 'Reach %', tip: 'Percent of all runs that reached this tier.', value: (r) => r.reachRate, cell: (r) => ({ text: pctOrDash(r.reachRate), cls: 'balnum' }) },
   avgWave: { key: 'avgWave', label: 'Avg Wave', tip: 'The average wave a run first reached this tier, over the runs that did.', value: (r) => r.avgWaveReached, firstDir: 1, cell: (r) => ({ text: fmtNum(r.avgWaveReached), cls: 'balnum' }) },
   reachedPlaced: { key: 'reachedPlaced', label: 'Reached Placed', tip: 'Runs that reached the tier and carry a placement.', value: (r) => r.reachedPlacedN, cell: (r) => ({ text: String(r.reachedPlacedN), cls: 'balnum baldim' }) },
   reachedAvg: { key: 'reachedAvg', label: 'Reached Avg', tip: 'Average final placement of every run that reached this tier, early or late.', value: (r) => r.reachedAvgPlace, firstDir: 1, cell: (r) => ({ text: fmtNum(r.reachedAvgPlace), cls: `balnum${r.reachedAvgPlace === null ? '' : ` balwin${placeHeat(r.reachedAvgPlace)}`}` }) },
-  vsNever: { key: 'vsNever', label: 'Vs Never', tip: 'Average placement of runs that reached the tier minus runs that never did. Reads green for every tier, because the runs that never reached it are the early eliminations. Delta is the useful one.', value: (r) => r.reachedDelta, firstDir: 1, cell: (r) => ({ text: signed(r.reachedDelta), cls: `balnum${r.reachedDelta === null ? '' : ` balwin${deltaHeat(r.reachedDelta)}`}` }) },
+  vsNever: { key: 'vsNever', label: 'Reached vs never', tip: 'Average placement of runs that reached the tier minus runs that never did. A survival statistic: the runs that never got there are the early eliminations.', value: (r) => r.reachedDelta, firstDir: 1, cell: (r) => ({ text: signed(r.reachedDelta), cls: `balnum${r.reachedDelta === null ? '' : ` balwin${deltaHeat(r.reachedDelta)}`}` }) },
   cut: { key: 'cut', label: 'By Wave', tip: 'The cut that defines early: the average wave rounded. Early runs reached the tier on or before this wave.', value: (r) => r.cutWave, firstDir: 1, cell: (r) => ({ text: r.cutWave === null ? '–' : `wave ${r.cutWave}`, cls: 'balnum baldim' }) },
-  early: { key: 'early', label: 'Early Runs', tip: `Runs that reached the tier by the cut wave: the sample behind the placement columns. Rows under ${SAMPLE_GATES.preliminary} are dimmed as noise.`, value: (r) => r.earlyRuns, cell: (r) => ({ text: String(r.earlyRuns), cls: 'balnum' }) },
+  early: { key: 'early', label: 'Early Runs', tip: `Runs that reached the tier by the cut wave: the sample behind the placement columns. ${THIN_TIP}`, value: (r) => r.earlyRuns, cell: (r) => ({ text: String(r.earlyRuns), cls: 'balnum' }) },
 };
-const TIER_COMPACT = pick(TIER_COLS, ['reached', 'reachPct', 'avgWave', 'reachedAvg', 'vsNever', 'cut', 'early', 'avgPlace', 'delta', 'impact']);
-const TIER_DETAILED = pick(TIER_COLS, ['reached', 'reachPct', 'avgWave', 'reachedPlaced', 'reachedAvg', 'vsNever', 'cut', 'early', 'placedN', 'avgPlace', 'firstPct', 'top4', 'top4Ci', 'lastPct', 'baseline', 'delta', 'deltaCi', 'impact']);
+const TIER_VIEWS: ColSet<TierImpactRow>[] = [
+  { key: 'compact', label: 'Compact', tip: 'The columns that answer the question', cols: pick(TIER_COLS, ['reached', 'reachPct', 'avgWave', 'reachedAvg', 'vsNever', 'cut', 'early', 'avgPlace', 'delta', 'deltaCi']), defaultKey: 'name' },
+  { key: 'detailed', label: 'Detailed', tip: 'Every column, including the raw counts and the 95% ranges', cols: pick(TIER_COLS, ['reached', 'reachPct', 'avgWave', 'reachedPlaced', 'reachedAvg', 'vsNever', 'cut', 'early', 'placedN', 'controls', 'avgPlace', 'firstPct', 'top4', 'top4Ci', 'lastPct', 'baseline', 'delta', 'deltaCi', 'impact']), defaultKey: 'name', dense: true },
+];
 const tierTip = (r: TierImpactRow): string => {
   if (r.cutWave === null) return `${r.name}: no run reached this tier.`;
   if (r.delta === null) return `${r.name}: ${r.earlyRuns} runs reached it by wave ${r.cutWave}. No placement to compare yet.`;
-  return `Runs that reached ${r.name} by wave ${r.cutWave} (${r.earlyRuns} runs) finished ${abs2(r.delta)} places ${better(r.delta)} than runs that reached it later or never: average place ${fmtNum(r.avgPlace)} vs ${fmtNum(r.baselineAvgPlace)}${ciText(r.deltaCi)}.`;
+  return `Runs that reached ${r.name} by wave ${r.cutWave} (${r.earlyRuns} runs) finished ${abs2(r.delta)} places ${better(r.delta)} than runs that reached it later or never: average place ${fmtNum(r.avgPlace)} vs ${fmtNum(r.baselineAvgPlace)}${ciWords(r.deltaWelch)}. Replay-derived; read the decision table for the live view.`;
 };
+
+const TIERDEC_COLS: ColDef<TierDecisionRow>[] = [
+  { key: 'decisions', label: 'Decisions', tip: 'Runs with a primary decision: the first wave a tier-up to this tier was affordable (taken, or still affordable when the wave ended and not taken). Runs that never could afford it are in neither group.', value: (r) => r.decisions, cell: (r) => ({ text: String(r.decisions), cls: 'balnum' }) },
+  { key: 'took', label: 'Took', tip: 'Runs that took the tier-up in that wave.', value: (r) => r.took, cell: (r) => ({ text: String(r.took), cls: 'balnum' }) },
+  { key: 'declined', label: 'Declined', tip: 'Runs that ended that wave with the tier-up still affordable and did not take it. A run that spent its Gold on cards first is not a decliner.', value: (r) => r.declined, cell: (r) => ({ text: String(r.declined), cls: 'balnum' }) },
+  { key: 'crossover', label: 'Crossover', tip: 'Declines followed by a take in a later wave. Reported; the decline is never relabelled.', value: (r) => r.crossover, cell: (r) => ({ text: String(r.crossover), cls: 'balnum baldim' }) },
+  { key: 'avgWave', label: 'Avg Wave', tip: 'Mean wave of the primary decision.', value: (r) => r.avgWave, firstDir: 1, cell: (r) => ({ text: fmtNum(r.avgWave), cls: 'balnum baldim' }) },
+  { key: 'tookAvg', label: 'Took Avg', tip: 'Average placement of the placed runs that took it, with their count in Decisions.', value: (r) => r.tookAvg, firstDir: 1, cell: (r) => ({ text: r.tookAvg === null ? '–' : `${r.tookAvg} (${r.tookPlaced})`, cls: 'balnum' }) },
+  { key: 'declinedAvg', label: 'Declined Avg', tip: 'Average placement of the placed runs that declined.', value: (r) => r.declinedAvg, firstDir: 1, cell: (r) => ({ text: r.declinedAvg === null ? '–' : `${r.declinedAvg} (${r.declinedPlaced})`, cls: 'balnum' }) },
+  { key: 'rawDelta', label: 'Raw association', tip: 'Took average minus declined average, among runs that had the decision. Negative means taking went with a better finish.', value: (r) => r.rawDelta, firstDir: 1, cell: (r) => ({ text: signed(r.rawDelta), cls: `balnum${r.rawDelta === null ? '' : ` balwin${deltaHeat(r.rawDelta)}`}` }) },
+  { key: 'rawCi', label: 'Raw 95%', tip: `Welch 95% range of the raw association. Shown only with ${WELCH_MIN_N} or more runs on each side.`, value: (r) => (r.rawCi ? r.rawCi.hi : null), firstDir: 1, cell: (r) => ({ text: ciText(r.rawCi), cls: 'balnum baldim' }) },
+  { key: 'adjN', label: 'Comparable took / declined', tip: 'Placed runs in strata (round band by spare Gold after paying) that hold both a taker and a decliner.', value: (r) => Math.min(r.adjusted.buyersInSupport, r.adjusted.skippersInSupport), cell: (r) => ({ text: `${r.adjusted.buyersInSupport} / ${r.adjusted.skippersInSupport}`, cls: 'balnum' }) },
+  { key: 'adjusted', label: 'Adjusted association', tip: 'Took against declined among runs alive at the same round band with similar spare Gold, taker weighted. "insufficient" means no stratum holds both.', value: (r) => r.adjusted.association, firstDir: 1, cell: (r) => ({ text: adjustedText(r.adjusted), cls: adjustedCls(r.adjusted) }) },
+  { key: 'adjustedCi', label: 'Adjusted 95%', tip: 'A stratified Welch-type 95% range, shown only with enough runs on each side of every supported stratum.', value: (r) => (r.adjusted.ci ? r.adjusted.ci.hi : null), firstDir: 1, cell: (r) => ({ text: ciText(r.adjusted.ci), cls: 'balnum baldim' }) },
+  evidenceCol<TierDecisionRow>(),
+];
+const tierDecTip = (r: TierDecisionRow): string =>
+  `${r.name}: ${r.decisions} runs had the decision, ${r.took} took it and ${r.declined} declined. ${EVIDENCE_LONG[r.evidence]}. ${r.adjusted.association === null ? 'Insufficient comparable data for an adjusted read.' : `Among comparable runs, taking went with a finish ${abs2(r.adjusted.association)} places ${better(r.adjusted.association)}${ciWords(r.adjusted.ci)}.`}`;
 
 // ── The generic impact section ─────────────────────────────────────────────────────────────────────────────
 
 /** The plain-words read of a group chip, for its hover. */
 function groupTip(g: ImpactGroupRow, what: string, noun: string, sample: string, baseline: string): string {
-  const head = `${what} ${g.label}: ${g.cards} ${noun}, ${g.runsBought} ${sample}.`;
+  const head = `${what} ${g.label}: ${g.cards} ${noun}, ${g.runsBought} ${sample} (incidences summed over the ${noun}, not unique runs: a run that bought five counts five).`;
   if (g.delta === null) return `${head} No placement data yet.`;
-  return `${head} They finish ${Math.abs(g.delta).toFixed(2)} places ${g.delta <= 0 ? 'better' : 'worse'} than ${baseline} on average.`;
+  return `${head} Raw association: ${Math.abs(g.delta).toFixed(2)} places ${g.delta <= 0 ? 'better' : 'worse'} than ${baseline} on average.`;
 }
 
 /** A group strip: one chip per tier / tribe / forge, its sample and its delta with the delta heat. Clicking a
@@ -283,7 +377,7 @@ function GroupStrip({ what, groups, active, onPick, noun, sample, baseline }: { 
   if (groups.length === 0) return null;
   return (
     <div className="balstrip" role="group" aria-label={`${what} summary`}>
-      <span className="balstrip-label">{what}</span>
+      <span className="balstrip-label" data-tip="Card-buyer incidences: each chip sums its rows, so a run that bought several counts several times">{what}</span>
       {groups.map((g) => (
         <button
           key={g.key}
@@ -304,14 +398,14 @@ function GroupStrip({ what, groups, active, onPick, noun, sample, baseline }: { 
 type BarRow = PlacementStats & { name: string; gate: SampleGate };
 
 /**
- * The ranked diverging bar chart of the placement delta: bars grow LEFT (green) when a row's group finishes
- * better than its baseline and RIGHT (red) when worse, strongest at the top, and FADE with a thin sample so a
+ * The ranked diverging bar chart of the RAW association: bars grow LEFT (green) when a row's group finishes
+ * better than its comparison and RIGHT (red) when worse, strongest at the top, and FADE with a thin sample so a
  * 3-run outlier never reads as a finding. Plain HTML bars (thin, rounded data-end, a hairline baseline),
- * every bar a hover target, the table beside it the WCAG twin.
+ * every bar a hover target, the table beside it the WCAG twin. The chart says which metric it draws.
  */
-function ImpactChart<R extends BarRow>({ rows, keyOf, nOf, tipOf, noun, group, baseline }: {
+function ImpactChart<R extends BarRow>({ rows, keyOf, nOf, tipOf, noun, group, baseline, metric }: {
   rows: R[]; keyOf: (r: R) => string; nOf: (r: R) => number; tipOf: (r: R) => string;
-  noun: string; group: string; baseline: string;
+  noun: string; group: string; baseline: string; metric: string;
 }) {
   const [showAll, setShowAll] = useState(false);
   // Thin samples are hidden by default whenever anything clears the gate: a ranked chart whose top is a column
@@ -338,9 +432,9 @@ function ImpactChart<R extends BarRow>({ rows, keyOf, nOf, tipOf, noun, group, b
   return (
     <div className="balimp">
       <div className="balnote">
-        Each bar is the row's <b>Delta</b>: the average placement of {group} minus {baseline}.
-        A bar to the <b>left</b> means they finish better, to the <b>right</b> worse.
-        Bars fade with a thin sample and are solid at {SAMPLE_GATES.actionable} {group}. Hover a bar for its numbers.
+        Each bar is the row's <b>{metric}</b>: the average placement of {group} minus {baseline}.
+        A bar to the <b>left</b> means they finished better among the runs observed, to the <b>right</b> worse. This is the raw read, not the
+        adjusted one: it rewards surviving long enough to make the choice. Bars fade with a thin sample and are solid at {SAMPLE_GATES.actionable} {group}. Hover a bar for its numbers.
       </div>
       {thinToggle}
       <div className="balimp-axis"><span>finish better</span><span>0</span><span>finish worse</span></div>
@@ -373,29 +467,29 @@ type Density = 'compact' | 'detailed';
 
 /**
  * ONE impact section for every kind of row: the legend, the group strips (which double as filters), the view
- * toggles, and the table or the chart over the same rows. The strip filters are the section's own state: the
- * panel keys the section by its kind, so switching kinds starts clean (a Beast filter picked on Minions used
- * to follow the owner onto Spells, which has no Beast chip to clear it with), and a filter that leaves nothing
- * shows a Clear filters control instead of an empty table.
+ * toggles, and the table or the chart over the same rows. The column sets are the section's VIEWS (the four
+ * card views, or Compact / Detailed), one table at a time. The strip filters are the section's own state: the
+ * panel keys the section by its kind, so switching kinds starts clean, and a filter that leaves nothing shows
+ * a Clear filters control instead of an empty table.
  */
-function ImpactSection<R extends BarRow>({ rows, cols, strips, keyOf, nOf, tipOf, legend, noun, group, baseline, defaultKey, nameLabel, nameValue, view, setView, density, setDensity }: {
+function ImpactSection<R extends BarRow>({ rows, views, strips, keyOf, nOf, tipOf, legend, noun, group, baseline, metric, nameLabel, nameValue, view, setView }: {
   rows: R[];
-  cols: { compact: ColDef<R>[]; detailed: ColDef<R>[] };
+  views: ColSet<R>[];
   strips: StripDef<R>[];
   keyOf: (r: R) => string;
   nOf: (r: R) => number;
   tipOf: (r: R) => string;
   legend: ReactNode;
   /** The plural noun of the rows (cards, heroes, runes, tiers), the group's runs (buyer runs, taker runs,
-   *  ...) and the baseline, in plain words, for every hover and the chart's axis. */
-  noun: string; group: string; baseline: string;
-  defaultKey?: string;
+   *  ...) and the baseline, in plain words, for every hover and the chart's axis; `metric` names the chart's bar. */
+  noun: string; group: string; baseline: string; metric: string;
   nameLabel?: string;
   nameValue?: (r: R) => number;
   view: SectionView; setView: (v: SectionView) => void;
-  density: Density; setDensity: (d: Density) => void;
 }) {
   const [filters, setFilters] = useState<(string | null)[]>(() => strips.map(() => null));
+  const [viewKey, setViewKey] = useState<string>(views[0]!.key);
+  const colset = views.find((v) => v.key === viewKey) ?? views[0]!;
   const visible = useMemo(() => rows.filter((r) => strips.every((s, i) => filters[i] == null || s.matches(r, filters[i]!))), [rows, strips, filters]);
   const filtering = filters.some((f) => f !== null);
   const clearFilters = (): void => { sfx.tick(); setFilters(strips.map(() => null)); };
@@ -414,8 +508,9 @@ function ImpactSection<R extends BarRow>({ rows, cols, strips, keyOf, nOf, tipOf
         </div>
         {view === 'table' && (
           <div className="balseg" role="group" aria-label="Columns">
-            <button className={density === 'compact' ? 'on' : ''} onClick={() => { sfx.tick(); setDensity('compact'); }} data-tip={`The ${cols.compact.length} columns that answer the question`}>Compact</button>
-            <button className={density === 'detailed' ? 'on' : ''} onClick={() => { sfx.tick(); setDensity('detailed'); }} data-tip={`Every column (${cols.detailed.length}), including the raw counts and the 95% ranges`}>Detailed</button>
+            {views.map((v) => (
+              <button key={v.key} className={colset.key === v.key ? 'on' : ''} onClick={() => { sfx.tick(); setViewKey(v.key); }} data-tip={`${v.tip} (${v.cols.length} columns)`}>{v.label}</button>
+            ))}
           </div>
         )}
         <span className="balseg-count">{visible.length} of {rows.length} {noun}{filtering ? ' (filtered)' : ''}</span>
@@ -424,11 +519,11 @@ function ImpactSection<R extends BarRow>({ rows, cols, strips, keyOf, nOf, tipOf
       {visible.length === 0
         ? <div className="balempty">No {noun} match the groups picked above.</div>
         : view === 'chart'
-          ? <ImpactChart rows={visible} keyOf={keyOf} nOf={nOf} tipOf={tipOf} noun={noun} group={group} baseline={baseline} />
+          ? <ImpactChart rows={visible} keyOf={keyOf} nOf={nOf} tipOf={tipOf} noun={noun} group={group} baseline={baseline} metric={metric} />
           : (
             <DataTable
-              key={density}
-              cols={density === 'compact' ? cols.compact : cols.detailed}
+              key={colset.key}
+              cols={colset.cols}
               rows={visible}
               keyOf={keyOf}
               nameOf={nameOfRow}
@@ -436,36 +531,78 @@ function ImpactSection<R extends BarRow>({ rows, cols, strips, keyOf, nOf, tipOf
               nameValue={nameValue}
               dimOf={dimBelow}
               tipOf={tipOf}
-              defaultKey={defaultKey ?? 'impact'}
+              defaultKey={colset.defaultKey}
               defaultDir={1}
-              dense={density === 'detailed'}
+              dense={!!colset.dense}
             />
           )}
     </>
   );
 }
 
-const CARD_COLSET = { compact: CARD_COMPACT, detailed: CARD_DETAILED };
-const HERO_COLSET = { compact: HERO_COMPACT, detailed: HERO_DETAILED };
-const RUNE_COLSET = { compact: RUNE_COMPACT, detailed: RUNE_DETAILED };
-const TIER_COLSET = { compact: TIER_COMPACT, detailed: TIER_DETAILED };
 const NO_STRIPS: StripDef<any>[] = [];
 const idOf = (r: { id: string }): string => r.id;
 /** Module-level so DataTable's sort memo sees a stable reference (an inline arrow re-sorted on every render). */
 const nameOfRow = (r: { name: string }): string => r.name;
-const tierKey = (r: TierImpactRow): string => String(r.tier);
+const tierKey = (r: { tier: number }): string => String(r.tier);
 const tierN = (r: TierImpactRow): number => r.earlyRuns;
-const tierOrder = (r: TierImpactRow): number => r.tier;
+const tierOrder = (r: { tier: number }): number => r.tier;
 const cardN = (r: CardImpactRow): number => r.runsBought;
 const heroN = (r: HeroImpactRow): number => r.runs;
 const runeN = (r: RuneImpactRow): number => r.picked;
+
+// ── The evidence banner ────────────────────────────────────────────────────────────────────────────────────
+
+interface FetchState { flatFetched: number; flatTruncated: boolean; derivedRequested: number; derivedFetched: number }
+
+/**
+ * What the tables below can and cannot support, above every table: eligible runs and players, the period, the
+ * epoch and revisions, flat and derived coverage with the exact caps, the integrity counts, and the comparison
+ * limitation in one plain sentence. Every figure carries its meaning on hover.
+ */
+function EvidenceBanner({ setName, runs, quality, coverage, scope, epochs, fetch, derivedCap, derivedLoading, prolific, oldest, newest }: {
+  setName: string; runs: number; quality: DataQuality; coverage: CohortCoverage; scope: ReportScope; epochs: EpochInfo[];
+  fetch: FetchState; derivedCap: number; derivedLoading: boolean; prolific: { key: string; runs: number } | null; oldest: string | null; newest: string | null;
+}) {
+  const epochLabel = scope.epoch === ALL_EPOCHS ? `all ${epochs.length} content revisions (historical)` : `content revision ${scope.epoch} (1 of ${epochs.length} in the set)`;
+  const windowLabel = scope.from || scope.to ? `window ${scope.from ?? 'oldest'} to ${scope.to ?? 'newest'}` : 'no date window';
+  const players = coverage.uniquePlayers === null ? 'n/a players' : `${coverage.uniquePlayers} display names`;
+  const derivedDropped = fetch.derivedRequested - fetch.derivedFetched;
+  return (
+    <div className="balbanner" role="note" aria-label="Evidence summary">
+      <div className="balbanner-row">
+        <b>{setName}</b>
+        <span data-tip="Ladder runs of the active set inside the epoch and window, after dropping duplicate ids and clearing malformed placements">{runs} eligible runs</span>
+        <span data-tip="Distinct display names across those runs. A proxy, not accounts: no trusted pseudonymous key exists yet (it needs a server-side hash of the account id). Unique players sit on every evidence label.">{players}</span>
+        <span data-tip="The oldest and newest run in scope">{day(oldest)} to {day(newest)}</span>
+        <span data-tip="The balance epoch is the content revision the runs were played under. It is a filter, never a stratum.">{epochLabel}</span>
+        <span>{windowLabel}</span>
+        {prolific && <span className="balwarn" data-tip="The sensitivity toggle is on: every table below leaves this player's runs out">excluding {prolific.runs} runs of the most prolific player</span>}
+      </div>
+      <div className="balbanner-row balbanner-dim">
+        <span data-tip={`Flat rows are paged from the database, ${BALANCE_FLAT_PAGE} a page, up to ${BALANCE_FLAT_CAP}. Truncated means the cap stopped the walk and the report is a bounded preview.`}>flat rows {fetch.flatFetched} fetched, cap {BALANCE_FLAT_CAP}, {fetch.flatTruncated ? 'TRUNCATED' : 'complete'}</span>
+        <span data-tip={`Derived payloads are fetched by id for the newest ${derivedCap} in-set rows. Dropped = asked for and not returned. The exposed and adjusted reads need them.`}>derived {derivedLoading ? 'loading' : `${fetch.derivedFetched} of ${fetch.derivedRequested} requested`}, cap {derivedCap}{derivedDropped > 0 && !derivedLoading ? `, ${derivedDropped} dropped` : ''}</span>
+        <span data-tip="Runs in scope with a usable derived payload; the rest are left out of the exposed and adjusted reads and counted, never invented">{coverage.withDerived} of {runs} with usable streams</span>
+        <span data-tip="Payloads whose streams carried earlier runs of the same browser session in front of their own. Read by their last segment. The upload-time card arrays stack the same way and cannot be cut, which is why Raw buyers can exceed Buyers this run.">{quality.stackedStreams} stacked payloads</span>
+        <span data-tip="Rows whose replay-derived tier-by-wave does not span the live final wave. The Shop Tiers reach table and the shop curve are unreliable for them.">{quality.replayDisagree} replay tier tables disagree</span>
+        <span data-tip="Rows with no placement, rows whose placement was not an integer 1 to 8 (cleared), and rows dropped for a duplicate id">{quality.placementMissing} missing placement, {quality.placementMalformed} malformed, {quality.duplicateIds} duplicate ids</span>
+        <span data-tip="Rows with no recorded hero picker trio; they cannot enter the offered-not-chosen hero comparison">{quality.heroOfferMissing} without a hero trio</span>
+        {quality.diverged > 0 && <span data-tip="Partial payloads, left out of every derived read">{quality.diverged} diverged</span>}
+      </div>
+      <div className="balbanner-row balbanner-dim">
+        <span>Every number below is an association among the runs observed, not a measured effect: comparing buyers with all other runs rewards survival and card access, the exposed and adjusted reads narrow the comparison to runs that had the chance, and no label here means confirmed overpowered or underpowered.</span>
+      </div>
+    </div>
+  );
+}
 
 // ── The panel ──────────────────────────────────────────────────────────────────────────────────────────────
 
 type SectionKey = 'minions' | 'spells' | 'heroes' | 'runes' | 'shopcurve' | 'economy' | 'upgrades';
 
-/** How many of the newest in-set rows get their derived payload fetched (~100 KB each today). */
-const DERIVED_ROWS = 400;
+/** How many of the newest in-set rows get their derived payload fetched (~100 KB each today). Stated on the
+ *  banner and in the export meta; a slice past it is bounded, never silently short. */
+const DERIVED_CAP = 800;
 
 /** Save a text blob as a file download. */
 function download(text: string, name: string, type: string): void {
@@ -482,6 +619,7 @@ export function BalancePanel() {
   const show = useGame((s) => s.showBalance);
   const close = useGame((s) => s.closeBalance);
   const [rows, setRows] = useState<RunTelemetryRow[]>([]); // every fetched row; the filters run below
+  const [fetchState, setFetchState] = useState<FetchState>({ flatFetched: 0, flatTruncated: false, derivedRequested: 0, derivedFetched: 0 });
   const [loading, setLoading] = useState(false);
   const [sectionKey, setSectionKey] = useState<SectionKey>('minions');
   // HERO FILTER (owner ask 2026-08-02: "what minions does Robin buy vs Guardian"). Re-AGGREGATES from the raw
@@ -490,6 +628,13 @@ export function BalancePanel() {
   const [heroFilter, setHeroFilter] = useState<string>('');
   const [view, setView] = useState<SectionView>('table');
   const [density, setDensity] = useState<Density>('compact');
+  // THE SCOPE (A4): the balance epoch (null = the default, decided from the data), the date window, the thin-
+  // epoch override, and the sensitivity toggle. Data filters: the export follows them.
+  const [epochPick, setEpochPick] = useState<string | null>(null);
+  const [from, setFrom] = useState<string>('');
+  const [to, setTo] = useState<string>('');
+  const [showThin, setShowThin] = useState(false);
+  const [excludeProlific, setExcludeProlific] = useState(false);
   // STAGE TWO of the load (the derived payloads) is in flight: the derived sections and Export all wait for it.
   const [derivedLoading, setDerivedLoading] = useState(false);
   // A Refresh that overtakes an earlier one wins: a stale completion is dropped, never merged.
@@ -500,34 +645,44 @@ export function BalancePanel() {
     setLoading(true);
     setDerivedLoading(false);
     void (async () => {
-      const all = await fetchRunTelemetry(1000);
+      const flat = await fetchRunTelemetry();
       if (seq !== loadSeq.current) return;
-      setRows(all);
+      setRows(flat.rows);
+      setFetchState({ flatFetched: flat.fetched, flatTruncated: flat.truncated, derivedRequested: 0, derivedFetched: 0 });
       setLoading(false);
       // STAGE TWO: the derived payloads, BY ID, only for the rows the report reads (ladder rows of the active
       // set), newest first, after the flat rows have rendered. Pre-migration that is no rows and no bytes; with
       // data it keeps a multi-megabyte parse off the frame that paints the flat report.
-      const ids = applyReportFilters(all, activeSet().id).rows.map((r) => r.id).filter((id): id is number => id != null).slice(0, DERIVED_ROWS);
+      const ids = applyReportFilters(flat.rows, activeSet().id).rows.map((r) => r.id).filter((id): id is number => id != null).slice(0, DERIVED_CAP);
       if (ids.length === 0) return;
       setDerivedLoading(true);
       const byId = await fetchRunDerived(ids);
       if (seq !== loadSeq.current) return;
       if (byId.size > 0) setRows((prev) => prev.map((r) => (r.id != null && byId.has(r.id) ? { ...r, derived: byId.get(r.id)! } : r)));
+      setFetchState((f) => ({ ...f, derivedRequested: ids.length, derivedFetched: byId.size }));
       setDerivedLoading(false);
     })();
   };
   useEffect(() => { if (show) load(); }, [show]);
 
   // THE DATA FILTERS: ladder rows only, the active set only (a row with no set stamp is set 1, never the
-  // live set). One pure function in @game/sim, shared with the export so the screen and the file agree.
+  // live set), then the epoch and window scope. Pure functions in @game/sim, shared with the export.
   const set = activeSet();
+  const buildRev = contentRevision();
   const filtered = useMemo(() => applyReportFilters(rows, set.id), [rows, set.id]);
-  const heroRows = useMemo(() => (heroFilter ? filtered.rows.filter((r) => r.heroId === heroFilter) : filtered.rows), [filtered, heroFilter]);
+  const epochs = useMemo(() => epochsOf(filtered.rows), [filtered]);
+  const epoch = epochPick ?? defaultEpoch(epochs, buildRev);
+  const scope = useMemo((): ReportScope => ({ epoch, from: from || null, to: to || null }), [epoch, from, to]);
+  const scoped = useMemo(() => scopeReport(filtered, scope), [filtered, scope]);
+  const insufficient = scope.epoch !== ALL_EPOCHS && scoped.rows.length < EPOCH_MIN_RUNS && !showThin;
+  const prolific = useMemo(() => mostProlificPlayer(scoped.rows), [scoped]);
+  const baseRows = useMemo(() => (excludeProlific && prolific ? scoped.rows.filter((r) => r.author !== prolific.key) : scoped.rows), [scoped, excludeProlific, prolific]);
+  const heroRows = useMemo(() => (heroFilter ? baseRows.filter((r) => r.heroId === heroFilter) : baseRows), [baseRows, heroFilter]);
+  const quality = useMemo(() => dataQuality(baseRows), [baseRows]);
   const report = useMemo(() => aggregatePlayerReport(heroRows), [heroRows]);
-  const impact = useMemo(() => {
-    const all = cardImpact(heroRows);
-    return { minions: all.filter((r) => !r.spell), spells: all.filter((r) => r.spell) };
-  }, [heroRows]);
+  // ALL cohort math for the cards, once per rows / filter version.
+  const impactRes = useMemo(() => cardImpactWithCoverage(heroRows), [heroRows]);
+  const impact = useMemo(() => ({ minions: impactRes.rows.filter((r) => !r.spell), spells: impactRes.rows.filter((r) => r.spell) }), [impactRes]);
   const cardStrips = useMemo(() => {
     const strips = (list: CardImpactRow[]): StripDef<CardImpactRow>[] => [
       { what: 'Tier', groups: impactGroups(list, 'tier'), matches: (r, k) => String(r.tier) === k },
@@ -535,35 +690,44 @@ export function BalancePanel() {
     ];
     return { minions: strips(impact.minions), spells: strips(impact.spells) };
   }, [impact]);
-  // Heroes read the WHOLE set slice: the hero picker slicing the hero table to one row against nobody answers
+  // Heroes read the WHOLE scope: the hero picker slicing the hero table to one row against nobody answers
   // nothing, so the picker is disabled on this section and the legend says so.
-  const heroes = useMemo(() => heroImpact(filtered.rows), [filtered]);
+  const heroes = useMemo(() => heroImpact(baseRows), [baseRows]);
   const runes = useMemo(() => runeImpact(heroRows), [heroRows]);
   const runeStrips = useMemo((): StripDef<RuneImpactRow>[] => [{ what: 'Forge', groups: runeGroups(runes), matches: (r, k) => r.forge === k }], [runes]);
   const tiers = useMemo(() => tierImpact(heroRows), [heroRows]);
+  const tierDec = useMemo(() => tierDecisions(heroRows), [heroRows]);
   const economy = useMemo(() => goldEconomy(heroRows), [heroRows]);
   const derived = useMemo(() => heroRows.map((r) => r.derived).filter((d): d is DerivedRun => d != null), [heroRows]);
   // Every hero that actually appears in the slice, so the dropdown never offers an empty choice.
-  const heroIds = useMemo(() => [...new Set(filtered.rows.map((r) => r.heroId))].sort(), [filtered]);
+  const heroIds = useMemo(() => [...new Set(scoped.rows.map((r) => r.heroId))].sort(), [scoped]);
+  const dates = useMemo(() => { const d = baseRows.map((r) => r.createdAt).filter((x): x is string => !!x).sort(); return { oldest: d[0] ?? null, newest: d[d.length - 1] ?? null }; }, [baseRows]);
 
-  // EXPORT ALL (owner ask 2026-09-22): ONE JSON file from the SAME filtered rows the screen renders (every
-  // hero; the hero / tier / tribe pickers are view filters). Meta + readme + aggregates + raw rows + derived.
+  // EXPORT ALL (owner ask 2026-09-22): ONE JSON file from the SAME scoped rows the screen renders (every hero;
+  // the hero / tier / tribe pickers are view filters). Meta + readme + aggregates + raw rows + derived.
   const exportAll = (): void => {
     sfx.pulse();
-    const data = buildBalanceExport(filtered.rows, {
+    const data = buildBalanceExport(baseRows, {
       activeSet: { id: set.id, name: set.name },
       appVersion: `${__APP_VERSION__}+${__BUILD_SHA__}`,
       generatedAt: new Date().toISOString(),
-      contentRevision: contentRevision(),
-      counts: filtered.counts,
-      filters: filtered.applied,
+      contentRevision: buildRev,
+      counts: scoped.counts,
+      filters: scoped.applied,
+      scope,
+      epochs,
+      fetch: {
+        flatCap: BALANCE_FLAT_CAP, flatPageSize: BALANCE_FLAT_PAGE, flatFetched: fetchState.flatFetched, flatTruncated: fetchState.flatTruncated,
+        derivedCap: DERIVED_CAP, derivedRequested: fetchState.derivedRequested, derivedFetched: fetchState.derivedFetched, derivedDropped: fetchState.derivedRequested - fetchState.derivedFetched,
+      },
+      excludedProlificRuns: excludeProlific && prolific ? prolific.runs : 0,
     });
     download(JSON.stringify(data), `ascent-balance-${set.id}-${new Date().toISOString().slice(0, 10)}.json`, 'application/json');
   };
-  // The per-card CSV (owner ask 2026-07-16) stays as the second button, over the same filtered rows.
+  // The per-card CSV (owner ask 2026-07-16) stays as the second button, over the same rows.
   const exportCsv = (): void => {
     sfx.pulse();
-    download(buildCardCsv(filtered.rows), `ascent-cards-${set.id}-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv;charset=utf-8');
+    download(buildCardCsv(baseRows), `ascent-cards-${set.id}-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv;charset=utf-8');
   };
 
   if (!show) return null;
@@ -571,11 +735,14 @@ export function BalancePanel() {
   const back = (): void => { sfx.pulse(); close(); };
   const refresh = (): void => { sfx.pulse(); load(); };
   const pickSection = (k: SectionKey): void => { sfx.pulse(); setSectionKey(k); };
-  const counts = filtered.counts;
+  const pickEpoch = (v: string): void => { sfx.pulse(); setEpochPick(v); setShowThin(false); };
+  const counts = scoped.counts;
   const isDerived = sectionKey === 'economy' || sectionKey === 'upgrades';
   const hasData = heroRows.length > 0;
-  const toggles = { view, setView, density, setDensity };
+  const toggles = { view, setView };
   const derivedHint = derived.length ? ` (${derived.length} runs)` : derivedLoading ? ' (loading)' : '';
+  const epochOption = (e: EpochInfo): string => `${e.rev === buildRev ? 'This build: ' : ''}${e.rev} (${e.runs} ${e.runs === 1 ? 'run' : 'runs'}, ${day(e.oldest)} to ${day(e.newest)})`;
+  const revisionWord = scope.epoch === ALL_EPOCHS ? 'all revisions' : `revision ${scope.epoch}`;
 
   return (
     <div className="balpage">
@@ -612,19 +779,28 @@ export function BalancePanel() {
               ))}
             </select>
             <button className="balrun" disabled={loading} onClick={refresh}>{loading ? 'Loading…' : 'Refresh'}</button>
-            <button className="balrun" disabled={loading || derivedLoading || filtered.rows.length === 0} onClick={exportAll}
-              data-tip={derivedLoading ? 'Waits for the derived streams to land, so the file holds everything' : 'Downloads every run of the active set as one JSON file: the tables, the raw rows and the derived streams, with a readme inside'}>
+            <button className="balrun" disabled={loading || derivedLoading || baseRows.length === 0} onClick={exportAll}
+              data-tip={derivedLoading ? 'Waits for the derived streams to land, so the file holds everything it can' : `Downloads the runs in scope (${revisionWord}, the window, the sensitivity toggle) as one JSON file: the tables, the raw rows and the derived streams, with a readme, the caps and the exclusions inside. Schema version 2.`}>
               {derivedLoading ? 'Export (loading)' : 'Export all'}
             </button>
-            <button className="balrun" disabled={loading || filtered.rows.length === 0} onClick={exportCsv}
+            <button className="balrun" disabled={loading || baseRows.length === 0} onClick={exportCsv}
               data-tip="Downloads the per-card spreadsheet (buy turns, win lift, source split) over the same runs">
               Export CSV
             </button>
           </div>
-          {/* What the report is READING, spelled out (owner ask 2026-09-22): the set, the row counts, the filters. */}
-          <div className="balsub">
-            <b>{set.name}</b> only · {counts.inSet} of {counts.fetched} runs · ladder only
-            {heroFilter && sectionKey !== 'heroes' ? ` · ${getHero(heroFilter).name} only (${heroRows.length} runs)` : ''}
+          {/* THE SCOPE (A4): epoch, window, sensitivity. Shared with the export. */}
+          <div className="balcontrols balscope">
+            <select className="balpick" value={epoch} onChange={(e) => pickEpoch(e.target.value)} aria-label="Balance epoch" disabled={epochs.length === 0}>
+              {epochs.map((e) => <option key={e.rev} value={e.rev}>{epochOption(e)}</option>)}
+              {!epochs.some((e) => e.rev === buildRev) && <option value={buildRev}>This build: {buildRev} (0 runs)</option>}
+              <option value={ALL_EPOCHS}>All revisions, historical ({filtered.rows.length} runs, {epochs.length} revisions)</option>
+            </select>
+            <label className="ballabel">from <input className="balpick baldate" type="date" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Window start" /></label>
+            <label className="ballabel">to <input className="balpick baldate" type="date" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Window end" /></label>
+            <button className={`balchip${excludeProlific ? ' on' : ''}`} disabled={!prolific} onClick={() => { sfx.tick(); setExcludeProlific((v) => !v); }}
+              data-tip={prolific ? `Sensitivity view: leave out the ${prolific.runs} runs of the most prolific display name (${prolific.key}). If a conclusion reverses, it rested on one player.` : 'No player to exclude yet'}>
+              {excludeProlific ? 'Prolific player excluded' : 'Exclude most prolific player'}
+            </button>
           </div>
           {counts.unstamped > 0 && set.id !== LEGACY_SET && (
             <div className="balsub balwarn">
@@ -639,112 +815,152 @@ export function BalancePanel() {
           <div className="balempty">Balance report unavailable. No backend configured.</div>
         ) : loading ? (
           <div className="balempty">Loading player data…</div>
-        ) : !hasData ? (
+        ) : counts.inSet === 0 ? (
           <div className="balempty">
-            {heroFilter ? `No ${set.name} runs for ${getHero(heroFilter).name} yet.`
-              : counts.ladder === 0 ? 'No player data yet. Finished lobby runs upload their telemetry to run_telemetry; this report fills once runs have banked.'
-                : `No ${set.name} runs yet. ${counts.ladder} ladder runs were fetched and none is stamped ${set.name}; ${counts.unstamped} carry no stamp and count as Set 1. The 2026-09-22 devlog runbook stamps them by SQL.`}
+            {counts.ladder === 0 ? 'No player data yet. Finished lobby runs upload their telemetry to run_telemetry; this report fills once runs have banked.'
+              : `No ${set.name} runs yet. ${counts.ladder} ladder runs were fetched and none is stamped ${set.name}; ${counts.unstamped} carry no stamp and count as Set 1. The 2026-09-22 devlog runbook stamps them by SQL.`}
           </div>
-        ) : sectionKey === 'minions' || sectionKey === 'spells' ? (
-          <ImpactSection
-            key={sectionKey}
-            rows={sectionKey === 'minions' ? impact.minions : impact.spells}
-            cols={CARD_COLSET}
-            strips={sectionKey === 'minions' ? cardStrips.minions : cardStrips.spells}
-            keyOf={idOf} nOf={cardN} tipOf={cardTip}
-            noun="cards" group="buyer runs" baseline="runs that did not buy it"
-            legend={(
-              <>
-                Every column is PER RUN: a run that bought a card three times is one buyer run. <b>Delta</b> is the average placement
-                of runs that bought the card minus runs that did not, so a negative delta (green) means its buyers finish better
-                than the field and a positive one (red) worse. <b>Vs Tier</b> compares a card with its own tier, because a high
-                tier is bought only by runs that survived long enough to reach it and reads green as a whole. <b>Impact</b> is the
-                delta shrunk toward zero for a thin sample and is the default order. Rows under {SAMPLE_GATES.preliminary} buyer
-                runs are dimmed. Hover any column header for its meaning, or a name for its row in plain words.
-              </>
-            )}
-            {...toggles}
-          />
-        ) : sectionKey === 'heroes' ? (
-          <ImpactSection
-            key="heroes"
-            rows={heroes}
-            cols={HERO_COLSET}
-            strips={NO_STRIPS}
-            keyOf={idOf} nOf={heroN} tipOf={heroTip}
-            noun="heroes" group="runs with the hero" baseline="every other run"
-            legend={(
-              <>
-                One row per hero over every {set.name} run (the hero picker does not apply here). <b>Delta</b> is the average placement
-                of runs with the hero minus every other run, so a negative delta (green) means the hero finishes better than the
-                field. Every run has one hero, so the deltas balance out across the roster and there is no tier-style adjustment.
-                <b> Impact</b> is the delta shrunk toward zero for a thin sample and is the default order. With {filtered.rows.length} runs
-                across {heroes.length} heroes most rows sit under the {SAMPLE_GATES.preliminary}-run gate and are dimmed: read the 95%
-                ranges before reading the deltas. Hover any column header for its meaning, or a name for its row in plain words.
-              </>
-            )}
-            {...toggles}
-          />
-        ) : sectionKey === 'runes' ? (
-          <ImpactSection
-            key={`runes:${heroFilter}`}
-            rows={runes}
-            cols={RUNE_COLSET}
-            strips={runeStrips}
-            keyOf={idOf} nOf={runeN} tipOf={runeTip}
-            noun="runes" group="taker runs" baseline="the runs offered it that skipped it"
-            legend={(
-              <>
-                One row per rune, counted once per run. <b>Delta</b> is the average placement of runs that took the rune minus the
-                runs that were <b>offered it and skipped it</b>. That baseline is the fair one: a rune is only offered to runs that
-                survived to its forge (turn 6 for Basic, turn 9 for Epic), so against the whole field every rune reads green.
-                <b> Vs Field</b> is that uncontrolled read, kept for reference. <b>Impact</b> is the delta shrunk toward zero for a
-                thin sample and is the default order. With {heroRows.length} runs across {runes.length} runes most rows sit
-                under the {SAMPLE_GATES.preliminary}-taker gate and are dimmed: read the 95% ranges before reading the deltas. The
-                Forge chips roll the runes up and filter the table. Hover any column header for its meaning, or a name for its row
-                in plain words.
-              </>
-            )}
-            {...toggles}
-          />
-        ) : sectionKey === 'shopcurve' ? (
-          <>
-            <ShopCurveChart curve={report.shopCurve} />
-            <div className="balgap" />
-            <ImpactSection
-              key={`tiers:${heroFilter}`}
-              rows={tiers}
-              cols={TIER_COLSET}
-              strips={NO_STRIPS}
-              keyOf={tierKey} nOf={tierN} tipOf={tierTip}
-              noun="tiers" group="early runs" baseline="runs that reached the tier later or never"
-              defaultKey="name" nameLabel="Tier" nameValue={tierOrder}
-              legend={(
-                <>
-                  One row per shop tier. <b>Reached</b> and <b>Avg Wave</b> say how many runs got there and when. <b>By Wave</b> is that
-                  average rounded, and the <b>early runs</b> are the runs that reached the tier on or before it. <b>Delta</b> is the
-                  average placement of the early runs minus the runs that reached the tier later or never, so a negative delta (green)
-                  means leveling by that wave goes with a better finish. <b>Vs Never</b> compares everyone who reached the tier with
-                  everyone who never did; it reads green for every tier, because the runs that never got there are the early
-                  eliminations. Hover a tier name for its row in plain words.
-                </>
-              )}
-              {...toggles}
-            />
-          </>
-        ) : isDerived ? (
-          derived.length === 0 ? (
-            <div className="balempty">
-              {derivedLoading ? 'Loading the derived streams for these runs…' : (
-                <>
-                  No derived runs in this slice. These views read the <code>derived</code> payload each finished run uploads;
-                  empty until the 2026-08-05 <code>run_telemetry</code> migration has been run and runs have banked since.
-                </>
-              )}
+        ) : insufficient ? (
+          <div className="balempty">
+            <b>Insufficient current data.</b> {scoped.rows.length} of {filtered.rows.length} {set.name} runs were played on {scope.epoch === buildRev ? 'this build\'s content revision' : 'content revision'} {scope.epoch}{scope.from || scope.to ? ' inside the window' : ''}; a revision needs {EPOCH_MIN_RUNS} to be read on its own.
+            Older revisions are not pooled in on their own: choose it.
+            <div className="balseg-row">
+              <button className="balrun" onClick={() => { sfx.pulse(); setEpochPick(ALL_EPOCHS); }} data-tip={`Read every revision together (${filtered.rows.length} runs across ${epochs.length}). Cards, heroes and runes may have changed between them; the tables then show mixed versions under current names and tiers.`}>Include historical ({filtered.rows.length} runs)</button>
+              {scoped.rows.length > 0 && <button className="balrun" onClick={() => { sfx.pulse(); setShowThin(true); }} data-tip="Read this revision alone anyway. Every table will be thin.">Show these {scoped.rows.length} runs anyway</button>}
             </div>
-          ) : sectionKey === 'economy' ? <EconomySection key={heroFilter} economy={economy} {...toggles} />
-            : <UpgradeTable runs={derived} />
-        ) : null}
+          </div>
+        ) : !hasData ? (
+          <div className="balempty">{heroFilter ? `No ${set.name} runs for ${getHero(heroFilter).name} in this scope.` : `No ${set.name} runs in this scope.`}</div>
+        ) : (
+          <>
+            <EvidenceBanner setName={set.name} runs={baseRows.length} quality={quality} coverage={impactRes.coverage} scope={scope} epochs={epochs}
+              fetch={fetchState} derivedCap={DERIVED_CAP} derivedLoading={derivedLoading} prolific={excludeProlific ? prolific : null} oldest={dates.oldest} newest={dates.newest} />
+            {heroFilter && sectionKey !== 'heroes' && <div className="balsub">{getHero(heroFilter).name} only ({heroRows.length} runs)</div>}
+            {sectionKey === 'minions' || sectionKey === 'spells' ? (
+              <ImpactSection
+                key={sectionKey}
+                rows={sectionKey === 'minions' ? impact.minions : impact.spells}
+                views={CARD_VIEWS}
+                strips={sectionKey === 'minions' ? cardStrips.minions : cardStrips.spells}
+                keyOf={idOf} nOf={cardN} tipOf={cardTip}
+                noun="cards" group="buyer runs" baseline="every other placed run" metric="Raw buyer association"
+                legend={(
+                  <>
+                    Every column is PER RUN. Four views, one table at a time. <b>Performance</b> puts three comparisons side by side: the <b>Raw buyer
+                    association</b> (buyers minus every other run: it rewards surviving long enough to see the card, which is why most cards read
+                    green), the <b>Exposed diagnostic</b> (buyers minus the runs that saw the card and passed) and the <b>Adjusted association</b>
+                    (buy minus pass inside the first affordable shop offer, among runs in the same round band and shop tier). Each has its own
+                    95% range and none is causal. <b>Evidence</b> comes first: rows with a supported comparison sort to the top and insufficient
+                    rows sit below, never ranked as worst. The tier and tribe chips sum card-buyer incidences, not unique runs. Rows under
+                    {' '}{SAMPLE_GATES.preliminary} raw buyer runs are dimmed. Hover any header or name for its meaning.
+                  </>
+                )}
+                {...toggles}
+              />
+            ) : sectionKey === 'heroes' ? (
+              <ImpactSection
+                key="heroes"
+                rows={heroes}
+                views={HERO_VIEWS}
+                strips={NO_STRIPS}
+                keyOf={idOf} nOf={heroN} tipOf={heroTip}
+                noun="heroes" group="runs with the hero" baseline="every other run" metric="Raw association"
+                legend={(
+                  <>
+                    One row per hero over every run in scope (the hero picker does not apply here). The <b>Offered association</b> compares runs
+                    that chose the hero with runs whose picker offered it and that chose another: the runs that had the choice. The <b>Raw
+                    association</b> against every other run is kept beside it. Picking a hero is a choice, not a random treatment, and
+                    {' '}{quality.heroOfferMissing} runs have no recorded trio. With {baseRows.length} runs across {heroes.length} heroes most rows are
+                    thin: read the evidence label and the 95% ranges before the numbers.
+                  </>
+                )}
+                {...toggles}
+              />
+            ) : sectionKey === 'runes' ? (
+              <ImpactSection
+                key={`runes:${heroFilter}`}
+                rows={runes}
+                views={RUNE_VIEWS}
+                strips={runeStrips}
+                keyOf={idOf} nOf={runeN} tipOf={runeTip}
+                noun="runes" group="taker runs" baseline="the runs offered it that skipped it" metric="Offered association"
+                legend={(
+                  <>
+                    One row per rune, counted once per run. The <b>Offered association</b> is takers minus the runs that were <b>offered it and
+                    skipped it</b>: equivalent forge access, so surviving to turn 6 or 9 does not make every rune look good. The uncontrolled read
+                    against the whole field is kept as <b>Raw association vs field</b>. The offers are replay-derived (re-running the action
+                    log, which is not guaranteed faithful for a lobby run), so reaching the forge is inferred, not observed. With {heroRows.length}
+                    {' '}runs across {runes.length} runes most rows are thin: read the evidence label and the 95% ranges first. The Forge chips
+                    sum rune-picker incidences and filter the table.
+                  </>
+                )}
+                {...toggles}
+              />
+            ) : sectionKey === 'shopcurve' ? (
+              <>
+                <div className="balnote balwarn">
+                  The curve and the reach table below are REPLAY-derived: the run is re-run without its lobby seats, and on {quality.replayDisagree} of
+                  {' '}{baseRows.length} runs the replayed tier-by-wave does not span the live final wave. The decision table further down reads the
+                  live upgrade rows instead.
+                </div>
+                <ShopCurveChart curve={report.shopCurve} />
+                <div className="balgap" />
+                <ImpactSection
+                  key={`tiers:${heroFilter}`}
+                  rows={tiers}
+                  views={TIER_VIEWS}
+                  strips={NO_STRIPS}
+                  keyOf={tierKey} nOf={tierN} tipOf={tierTip}
+                  noun="tiers" group="early runs" baseline="runs that reached the tier later or never" metric="Raw association"
+                  nameLabel="Tier" nameValue={tierOrder}
+                  legend={(
+                    <>
+                      One row per shop tier, replay-derived. <b>Reached</b> and <b>Avg Wave</b> say how many runs got there and when. <b>By Wave</b> is
+                      that average rounded, and the <b>early runs</b> reached the tier on or before it. The <b>Raw association</b> is the early runs
+                      minus the runs that reached the tier later or never. <b>Reached vs never</b> is a survival statistic (the never-reached runs
+                      are the early eliminations), kept for reference.
+                    </>
+                  )}
+                  {...toggles}
+                />
+                <div className="balgap" />
+                <div className="balnote">
+                  <b>Tier-ups as decisions</b>, from the live upgrade rows (last segment): one primary decision per run per tier, the first wave a
+                  tier-up to it was affordable, took or declined. A decline means the run ended that wave still able to afford it; a run that
+                  spent its Gold on cards first is in neither group, and a later take never relabels a decline. The <b>Adjusted association</b>
+                  compares took with declined among runs in the same round band with similar spare Gold. Most rows read insufficient: players
+                  who can afford a tier-up almost always take it.
+                </div>
+                {tierDec.length === 0 ? <div className="balempty">No upgrade rows in these runs yet.</div> : (
+                  <DataTable
+                    cols={TIERDEC_COLS}
+                    rows={tierDec}
+                    keyOf={tierKey}
+                    nameOf={nameOfRow}
+                    nameLabel="Tier"
+                    nameValue={tierOrder}
+                    tipOf={tierDecTip}
+                    defaultKey="name"
+                    defaultDir={1}
+                    dense
+                  />
+                )}
+              </>
+            ) : isDerived ? (
+              derived.length === 0 ? (
+                <div className="balempty">
+                  {derivedLoading ? 'Loading the derived streams for these runs…' : (
+                    <>
+                      No derived runs in this slice. These views read the <code>derived</code> payload each finished run uploads;
+                      empty until the 2026-08-05 <code>run_telemetry</code> migration has been run and runs have banked since.
+                    </>
+                  )}
+                </div>
+              ) : sectionKey === 'economy' ? <EconomySection key={heroFilter} economy={economy} view={view} setView={setView} density={density} setDensity={setDensity} />
+                : <UpgradeTable runs={derived} />
+            ) : null}
+          </>
+        )}
       </div>
     </div>
   );
@@ -871,7 +1087,8 @@ const SPEND_TIP: Record<SpendCategory, string> = {
 const gold1 = (n: number): string => (n === 0 ? '–' : n.toFixed(1));
 
 const ECONOMY_COLS: Record<string, ColDef<EconomyWaveRow>> = {
-  runs: { key: 'runs', label: 'Runs', tip: 'Runs of the picked bucket that played this round: the divisor of every average in the row.', value: (r) => r.runs, cell: (r) => ({ text: String(r.runs), cls: 'balnum baldim' }) },
+  runs: { key: 'runs', label: 'Runs', tip: 'Runs of the picked bucket whose ledger reached this round: the divisor of every average in the row. A run counts for every round up to its last wave, whether or not Gold moved.', value: (r) => r.runs, cell: (r) => ({ text: String(r.runs), cls: 'balnum baldim' }) },
+  moved: { key: 'moved', label: 'Moved', tip: 'Runs of the bucket with at least one Gold movement logged this round. Not the divisor; shown because "runs with a logged Gold movement" and "runs alive at the round" are different counts.', value: (r) => r.moved, cell: (r) => ({ text: String(r.moved), cls: 'balnum baldim' }) },
   goldStart: { key: 'goldStart', label: 'Start', tip: 'Average Gold a player has when the round opens, after the refill. Wave 1 opens on 3.', value: (r) => r.goldStart, cell: (r) => ({ text: r.goldStart.toFixed(1), cls: 'balnum balwin' }) },
   income: { key: 'income', label: 'Income', tip: 'Average Gold that came in during the round from cards and hero effects. The refill is not counted here; it is the next round\'s Start.', value: (r) => r.income, cell: (r) => ({ text: gold1(r.income), cls: 'balnum' }) },
   sold: { key: 'sold', label: 'Sold', tip: 'Average Gold recovered by selling during the round.', value: (r) => r.sold, cell: (r) => ({ text: gold1(r.sold), cls: 'balnum' }) },
@@ -881,12 +1098,12 @@ const ECONOMY_COLS: Record<string, ColDef<EconomyWaveRow>> = {
   ...Object.fromEntries(SPEND_CATEGORIES.map((c): [string, ColDef<EconomyWaveRow>] => [c, { key: c, label: SPEND_LABEL[c], tip: SPEND_TIP[c], value: (r) => r.split[c], cell: (r) => ({ text: gold1(r.split[c]), cls: 'balnum' }) }])),
 };
 const ECONOMY_COMPACT = pick(ECONOMY_COLS, ['runs', 'goldStart', 'spent', 'spentPct', 'unspent', 'minion', 'spell', 'upgrade', 'refresh']);
-const ECONOMY_DETAILED = pick(ECONOMY_COLS, ['runs', 'goldStart', 'income', 'sold', 'spent', 'spentPct', 'unspent', 'minion', 'spell', 'upgrade', 'refresh', 'rune', 'heroPower', 'other']);
+const ECONOMY_DETAILED = pick(ECONOMY_COLS, ['runs', 'moved', 'goldStart', 'income', 'sold', 'spent', 'spentPct', 'unspent', 'minion', 'spell', 'upgrade', 'refresh', 'rune', 'heroPower', 'other']);
 const waveKey = (r: EconomyWaveRow): string => String(r.wave);
 const waveName = (r: EconomyWaveRow): string => `Wave ${r.wave}`;
 const waveOrder = (r: EconomyWaveRow): number => r.wave;
 const economyTip = (r: EconomyWaveRow): string =>
-  `Wave ${r.wave}, ${r.runs} runs: a player opens on ${r.goldStart.toFixed(1)} Gold, spends ${r.spent.toFixed(1)} and leaves ${r.unspent.toFixed(1)} on the table.`;
+  `Wave ${r.wave}, ${r.runs} runs reached it (${r.moved} moved Gold): a player opens on ${r.goldStart.toFixed(1)} Gold, spends ${r.spent.toFixed(1)} and leaves ${r.unspent.toFixed(1)} on the table.`;
 
 /**
  * The Gold curve (owner ask 2026-09-22: "the average gold a player has/spends per round"). ONE table at a time:
@@ -903,8 +1120,10 @@ function EconomySection({ economy, view, setView, density, setDensity }: { econo
         Each row is one round, averaged over the runs of the picked bucket that played it. <b>Start</b> is the Gold a player has
         when the round opens, after the refill. <b>Spent</b> is everything paid out that round, split by what it bought.
         <b> Unspent</b> is what was left when the round ended; it is not carried over, so it is lost. Start plus Income plus
-        Sold equals Spent plus Unspent for every run. Gold rules have not changed across builds, so every run with a ledger
-        counts{economy.skipped > 0 ? `, except ${economy.skipped} left out because the ledger was partial or did not open on the game's 3 Gold (a dev build)` : ''}.
+        Sold equals Spent plus Unspent for every run. <b>Runs</b> is the divisor: runs whose ledger reached the round, whether or not Gold
+        moved that round (Detailed shows <b>Moved</b>, the runs with a logged movement, beside it). Every run with a ledger in scope
+        counts{economy.skipped > 0 ? `, except ${economy.skipped} left out because the ledger was partial or did not open on the game's 3 Gold (a dev build)` : ''}; the
+        rows pool every content revision in scope, and Gold rules are assumed unchanged across them, not checked.
         Hover any column header for its meaning, or a wave for its row in plain words.
       </div>
       <div className="balseg-row">
@@ -1016,7 +1235,7 @@ function UpgradeTable({ runs }: { runs: DerivedRun[] }) {
   const rows = useMemo(() => upgradeShape(runs), [runs]);
   return (
     <div className="balsolo" style={{ ['--balcols' as string]: 6 }}>
-      <div className="balnote">Turns where a tier-up was affordable or visible, and what players did. Declines are data too.</div>
+      <div className="balnote">Turns where a tier-up was affordable or visible, and what players did. Declines are data too. Read as stored: a payload that carries earlier runs of the same session counts them here as well.</div>
       <div className="balgrid balgrid-solo" role="table">
         <div className="balrow balrow-h" role="row">
           <span role="columnheader">Wave</span><span role="columnheader">Offered</span><span role="columnheader">Taken</span>

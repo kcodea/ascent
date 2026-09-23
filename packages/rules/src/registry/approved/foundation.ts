@@ -550,4 +550,46 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-23',
     },
   },
+  {
+    id: 'R-PRESENT-07',
+    title: 'In combat the minions and the striking heroes paint OVER the hero cluster; its popovers still open over the board',
+    statement:
+      'During a combat replay every unit on either board (idle, dying, attacking / lunging, struck, poisoned, reborn), '
+      + 'the Pixi FX canvas and the damage floats paint ABOVE the bottom-left hero cluster: the hero portrait, the '
+      + 'hero-power diamond with its counter and name pill, the equipment slot, the rune nodes. A minion wound up or '
+      + 'lunging over that corner is never drawn behind it. The cluster still paints above the plain board art and '
+      + 'the under-card FX canvas, still receives the pointer over its own diamonds, and its popovers keep opening '
+      + 'over the board: while a hero-power or equipment diamond or a rune node is hovered (or the run-buffs pop-out '
+      + 'is open) the whole cluster lifts above every unit, still below the foe portrait and the FX canvas. The '
+      + 'hero-duel lift (the striking side at z100) keeps winning over both. Mechanism: `.app.combat` dissolves the '
+      + 'app\x27s stacking context (z-index auto, the move `body.modalup` and the hand-hover rule already make), the '
+      + 'bar drops to z0 in combat (`:where(body:has(.app.combat)) .statusbar`) and the idle unit rises to z1 '
+      + '(`:where(.app.combat) .unit`, dying z2), with every attacking / struck / reborn value and the lunge\x27s '
+      + 'inline z12 untouched so the defender still sorts over the attacker in the one root context. The bar must '
+      + 'never go NEGATIVE (a z-1 bar sits under `.app`\x27s transparent box and loses the pointer over the diamond), '
+      + 'and `.app` must never be RAISED instead (`.boardbg` is its child and would cover the cluster). The shop '
+      + 'order (bar z40 over `.app` z1) is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-23 (hero cluster z-order)',
+        quote: 'can you fix the z axis of the hero power art etc? it is on top of minions and heroes so when they attack they are behind it.',
+      },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (the COMBAT Z-ORDER LADDER comment at `.app.combat`; the `:where(body:has(.app.combat)) .statusbar` rules; the DUEL Z-ORDER block); packages/ui/src/choreo/channels/lunge.ts (the inline zIndex 12)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Before the fix `.statusbar` (a #root sibling at z40) painted over the whole '
+      + '`.app` (z1) in every phase, so a minion lunging out of the leftmost slot, or wound up over the power diamond, '
+      + 'was drawn behind the portrait / diamond / equipment slot / rune nodes; a frozen wind-up of the leftmost '
+      + 'minion showed its attack badge hidden under the "1/3 Lucky Seat" diamond. Verified live on port 5255: the '
+      + 'same frozen frame with the fix shows the card over the diamond; hovering the diamond lifts the bar to z41 '
+      + 'and its tooltip (and a rune node\x27s tooltip) renders over the card.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/combatZOrder.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
 ];

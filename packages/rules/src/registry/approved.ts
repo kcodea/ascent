@@ -1832,11 +1832,12 @@ export const APPROVED_RULES: GameRule[] = [
       + 'time, because the history insert is issued in the run-end tick ahead of the rank request and never waits '
       + 'on the fetch (a delayed insert would miss settle_rank\'s rank stamp for good). It is shown only after '
       + 'the game, on the Career match rows and the Recent Games '
-      + 'rows, as the tier and the number ("Brutal 74"); never on the post-game screen, never on the rail before '
+      + 'rows, as a percentage with no tier word ("47%", owner 2026-09-22; the tier is stored, never printed); never on the post-game screen, never on the rail before '
       + 'or during a game. A run with no stamp shows nothing rather than a guess.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (lobby strength as a percentage)', quote: 'can you remove the easy/medium/hard etc and just have it say for example, 47% since its basically a percentile.' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (lobby strength)', quote: 'make an algorithm that can essentially assign a lobby strength value/indicator … we can then make winning really difficult lobbies more rewarding' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (scoping answers)', quote: 'we dont want to use rank as a metric. we want to use raw data on win rate across all rounds served for the board. rank is not important right now as a factor in this small playtest. eventually it will be' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (scoping answers)', quote: 'both, but put it in the career page match results instead of post game information … no only post game in careers and recent games pages' },
@@ -1863,21 +1864,23 @@ export const APPROVED_RULES: GameRule[] = [
     statement:
       'A top-4 finish in a lobby of strength s adds round(15 × placementWeight × strengthFactor) rating points on '
       + 'top of the normal placement award, where placementWeight is 1.0 for 1st, 0.8 for 2nd, 0.62 for 3rd and 0.47 '
-      + 'for 4th, and strengthFactor = clamp((s − 30) / 70, 0, 1) (0 at strength 30 and below, 1 at 100). The '
-      + 'owner\'s anchors: 1st at 100 = +15, 1st at 75 = +10, 4th at 100 = +7, 2nd at 100 = +12, 3rd at 100 = +9, '
-      + '1st at 50 = +4, 4th at 50 = +2. It is never granted on 5th to 8th, it is never negative, and a loss is '
+      + 'for 4th, and strengthFactor = clamp((s − 50) / 50, 0, 1) (0 at strength 50, an even lobby, and below; 1 at '
+      + '100; the floor was 30 until the owner asked why a 45% lobby paid +3). The anchors: 1st at 100 = +15, 1st at '
+      + '75 = +8, 4th at 100 = +7, 2nd at 100 = +12, 3rd at 100 = +9, 1st at 50 = 0, 4th at 50 = 0. It is never granted on 5th to 8th, it is never negative, and a loss is '
       + 'never scaled. The bonus is added to the award BEFORE the gate, cap and floor rules, so a top-4 at a '
       + 'promotion gate still lands on 10 of 100 (the bonus converts into the promotion like the award), a 4th at '
       + 'a medal gate still holds at 100, and a 1st at 90 of 100 still stops at 100 with the overflow discarded; '
       + 'only a mid-division finish feels the full bonus, and Ascendant III takes all of it. The weights and the '
-      + '30 / 70 line live in ONE place per copy. The server is the authority: the client sends the seven opponent '
+      + '50 / 50 line live in ONE place per copy. The server is the authority: the client sends the seven opponent '
       + 'keys and the settle recomputes the strength from the fight ledger and applies the bonus itself; the sim '
       + 'and the Edge Function mirror agree with it. The result records the bonus apart (strengthBonus, '
-      + 'lobbyStrength) and the rank screen prints the two parts apart ("+40 RP +12 lobby", "+6 RP +7 lobby"). '
+      + 'lobbyStrength) but the rank screen prints ONE summed number in MMR ("+43 MMR", never "+40 +3"). '
       + 'It is on now, mid-season, with a patch note.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (late: the floor moves to 50)', quote: 'why did i get +3 bonus mmr for winning a 45% lobby? isnt that an extremely even game?' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (late: one number on the rank screen)', quote: 'dont say +40 +3 in the mmr post game rank screen, just say +43 MMR.' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (the revised bonus rule, after the build started; supersedes the same day\'s "only winning hard lobbies should scale, and only upwards of 15 rating")', quote: 'the strength bonus applies to any TOP-4 finish, scaled by BOTH placement and lobby strength' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (the revised bonus rule, the anchors)', quote: '1st at 100 = +15, 1st at 75 = +10, 4th at 100 = +7' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (scoping answers)', quote: 'turn that on now, but explain the full rating gain algorithm to me as well' },
@@ -1891,8 +1894,8 @@ export const APPROVED_RULES: GameRule[] = [
       + 'about the bonus (|award + bonus| − |applied|). The rules version was not bumped: an old client only '
       + 'mis-predicts the number until the server answers, and a client that sends no seat keys settles with no bonus.',
     example:
-      'Gold II 20, 1st in a Brutal 74 lobby: +40 +9 = 69. Gold II 20, 4th at Brutal 74: +6 +4 = 30. Gold II 20, '
-      + '1st at Even 50: +40 +4 = 64. Gold II 20, 5th at strength 100: −6, no bonus. Gold II 90, 1st at strength '
+      'Gold II 20, 1st in a 74% lobby: +40 +7 = +47 MMR, to 67. Gold II 20, 4th at 74%: +6 +3 = +9 MMR, to 29. Gold II 20, '
+      + '1st at 50% (even): the plain +40, no bonus. Gold II 20, 5th at strength 100: −6, no bonus. Gold II 90, 1st at strength '
       + '100: +55 requested, lands on 100, 45 capped, promotion game ready. Gold II 100, 4th at 100: promoted to '
       + 'Gold III 10. Gold III 100, 4th at 100: holds at 100 (a medal gate needs a 1st).',
     enforcement: {
@@ -2236,6 +2239,33 @@ export const APPROVED_RULES: GameRule[] = [
     enforcement: {
       kind: 'scenario',
       refs: ['packages/ui/src/runeforgeRerollNudge.test.tsx'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-LOBBY-04',
+    title: 'Lobby strength is the field GOING IN, printed as a percentage, and the two stamps agree',
+    statement:
+      'A lobby\'s strength describes its seven opponents\' records BEFORE the game it is stamped on: the fights of '
+      + 'the lobby being stamped are excluded on BOTH copies (`settle_rank` aggregates `lobby_fights` where '
+      + '`lobby_seed <> p_seed`; the client subtracts the rows it is about to upload from what the view reports), '
+      + 'so the Career row (the server\'s stamp) and the Recent Games row (the client\'s stamp) print the same '
+      + 'number and that number never depends on how the game itself went. It is printed as a percentage with no '
+      + 'tier word ("47%") on every surface; the tier is stored, never shown.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (lobby strength 47 vs 50)', quote: 'the lobby difficulty shows 47 in my career and 50 in recent games, why' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (lobby strength as a percentage)', quote: 'can you remove the easy/medium/hard etc and just have it say for example, 47% since its basically a percentile.' },
+      { kind: 'code', ref: 'packages/sim/src/lobbyStrength.ts excludeOwnFights + strengthText; packages/ui/src/remoteBoards.ts fetchLobbyStrength(keys, ownRows); packages/ui/src/store.ts the run-end tick; supabase/migrations/2026-09-22-lobby-strength-going-in.sql settle_rank step 5' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22. The first cut read the view on both sides "moments apart": the client before its '
+      + 'own upload landed (seven unserved seats at the prior, 50), the server after it (the same seats carrying '
+      + 'this game\'s 45 rows, 47). Both now exclude the lobby\'s own fights. Labels went from "Even 47" to "47%".',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/lobbyStrength.test.ts', 'packages/ui/src/lobbyStrengthGoingIn.test.ts', 'packages/ui/src/lobbyRatingParity.test.ts', 'packages/ui/src/Career.test.tsx', 'packages/ui/src/ladderPages.test.tsx'],
       lastVerifiedAt: '2026-09-22',
     },
   },

@@ -148,7 +148,7 @@ export interface RankResult {
    *  floors. `strengthBonus` says how much of it is the bonus. */
   baseDelta: number;
   /** The lobby-strength bonus folded into `baseDelta` (owner 2026-09-22): `round(15 × placementWeight ×
-   *  clamp((s − 30) / 70, 0, 1))` for a top-4 finish (weights 1.0 / 0.8 / 0.62 / 0.47) in a lobby of strength
+   *  clamp((s − 50) / 50, 0, 1))` for a top-4 finish (weights 1.0 / 0.8 / 0.62 / 0.47) in a lobby of strength
    *  `s`, 0 for 5th to 8th. Added BEFORE the gate / cap logic, so a top-4 at a promotion gate still lands on the
    *  landing and a finish near 100 still caps at 100 with the overflow in `cappedPoints`. Missing on a pre-bonus
    *  row → parsed as 0. */

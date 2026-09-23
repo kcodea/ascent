@@ -53,7 +53,7 @@ function crestCentre(el: HTMLElement | null): { x: number; y: number } | null {
 }
 
 const pointsLabel = (v: number, uncapped: boolean): string =>
-  uncapped ? `${Math.round(v)} RP` : `${Math.round(v)} / ${POINTS_PER_DIVISION}`;
+  uncapped ? `${Math.round(v)} MMR` : `${Math.round(v)} / ${POINTS_PER_DIVISION}`;
 
 const frac = (points: number): number => Math.min(1, Math.max(0, points / POINTS_PER_DIVISION));
 

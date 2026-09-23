@@ -221,7 +221,7 @@ describe('Match History', () => {
     expect(text('.cv2-row-outcome .cv2-row-label')).toEqual(['Match Outcome', 'Match Outcome', 'Match Outcome']);
     // The LOBBY STRENGTH (owner 2026-09-22) is a fourth labelled fact, only on a run that carries a stamp.
     expect(text('.cv2-row .cv2-meta-l')).toEqual(['Played', 'Length', 'Gold spent', 'Lobby', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);
-    expect(text('.cv2-row-lobby')).toEqual(['Brutal 74']);
+    expect(text('.cv2-row-lobby')).toEqual(['74%']);
     const when = text('.cv2-row-when');
     expect(when[0]).toMatch(/\d{4}$/);          // a real date
     expect(text('.cv2-row-length')).toEqual(['15 min', '12 min', '—']);   // 883 s · 690 s · no telemetry clock

@@ -365,8 +365,8 @@ describe('rank — boundaries', () => {
 });
 
 describe('rank — the lobby-strength bonus on a top-4 (owner 2026-09-22: "the strength bonus applies to any TOP-4 finish, scaled by BOTH placement and lobby strength")', () => {
-  it('the owner\'s anchors land on the award: 1st at 100 = +40 +15, 1st at 75 = +40 +10, 4th at 100 = +6 +7, 2nd at 100 = +28 +12, 3rd at 100 = +16 +9, 1st at 50 = +40 +4, 4th at 50 = +6 +2', () => {
-    const anchors: [number, number, number][] = [[1, 100, 15], [1, 75, 10], [4, 100, 7], [2, 100, 12], [3, 100, 9], [1, 50, 4], [4, 50, 2]];
+  it('the owner\'s anchors land on the award (floor 50): 1st at 100 = +40 +15, 1st at 75 = +40 +8, 4th at 100 = +6 +7, 2nd at 100 = +28 +12, 3rd at 100 = +16 +9, 1st at 50 = +40, 4th at 50 = +6', () => {
+    const anchors: [number, number, number][] = [[1, 100, 15], [1, 75, 8], [4, 100, 7], [2, 100, 12], [3, 100, 9], [1, 50, 0], [4, 50, 0]];
     for (const [placement, strength, bonus] of anchors) {
       expect(strengthBonusOf(strength, placement), `${placement} at ${strength}`).toBe(bonus);
       const award = RANK_RULES.placementAwards[placement - 1]!;

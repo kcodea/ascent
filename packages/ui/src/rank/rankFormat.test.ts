@@ -46,9 +46,9 @@ describe('rank index → label (the shared mapping)', () => {
 });
 
 describe('points, placement and delta text', () => {
-  it('prints x / 100 below the top and an uncapped RP counter at Ascendant III', () => {
+  it('prints x / 100 below the top and an uncapped MMR counter at Ascendant III', () => {
     expect(pointsText({ divisionIndex: 7, points: 76 })).toBe('76 / 100');
-    expect(pointsText({ divisionIndex: 17, points: 130 })).toBe('130 RP');
+    expect(pointsText({ divisionIndex: 17, points: 130 })).toBe('130 MMR');
     expect(barFraction({ divisionIndex: 17, points: 130 })).toBe(1);
     expect(barFraction({ divisionIndex: 7, points: 25 })).toBe(0.25);
   });
@@ -59,42 +59,43 @@ describe('points, placement and delta text', () => {
     expect(placementText(8)).toBe('8TH');
   });
   it('signs with a real minus', () => {
-    expect(signedRp(16)).toBe('+16 RP');
-    expect(signedRp(-40)).toBe('−40 RP');
-    expect(signedRp(0)).toBe('0 RP');
+    expect(signedRp(16)).toBe('+16 MMR');
+    expect(signedRp(-40)).toBe('−40 MMR');
+    expect(signedRp(0)).toBe('0 MMR');
   });
   it('prints the award at the gate cap (the bar shows 100 / 100; no cap flavour, owner 2026-09-21)', () => {
     const gate = fixtureById('gate')!.result!;
-    expect(deltaText(gate)).toBe('+40 RP');
+    expect(deltaText(gate)).toBe('+40 MMR');
     expect(outcomeText(gate)).toBe('Promotion game ready. Finish top 4 to advance.');
     expect(outcomeText(fixtureById('gate-medal')!.result!)).toBe('Promotion game ready. Finish 1st to advance.');
   });
   it('prints the award at the Bronze floor too: no "Bronze floor" flavour (owner 2026-09-21), the 0 / 100 readout says it', () => {
     const floor = fixtureById('floor')!.result!;
-    expect(deltaText(floor)).toBe('−40 RP');
+    expect(deltaText(floor)).toBe('−40 MMR');
     const zero = fixtureById('floor-zero')!.result!;
-    expect(deltaText(zero)).toBe('−28 RP');
+    expect(deltaText(zero)).toBe('−28 MMR');
   });
   it('a won promotion prints the base award and NO detail / outcome line — the crest transition + 10 / 100 say it (owner 2026-09-20; landing 10 since 2026-09-21)', () => {
     const promo = fixtureById('promo-won')!.result!;
     expect(promo.after.points, 'the fixture carries the 10-point landing').toBe(10);
     expect(promo.appliedDelta).toBe(10);
     expect(promo.cappedPoints).toBe(0);
-    expect(deltaText(promo), 'the award, not the +10 scalar movement').toBe('+16 RP');
+    expect(deltaText(promo), 'the award, not the +10 scalar movement').toBe('+16 MMR');
     expect(outcomeText(promo)).toBeNull();
     expect(outcomeText(fixtureById('promo-medal')!.result!)).toBeNull();
   });
-  it('a top-4 that earned the lobby-strength bonus (owner 2026-09-22) prints the award and the bonus apart: "+40 RP +12 lobby", "+6 RP +7 lobby"', () => {
+  it('a top-4 that earned the lobby-strength bonus prints ONE summed number (owner 2026-09-22: "just say +43 MMR"): "+52 MMR", "+13 MMR"', () => {
     const gain = fixtureById('gain')!.result!;
-    expect(deltaText({ ...gain, placement: 1, baseDelta: 52, strengthBonus: 12, lobbyStrength: 91 })).toBe('+40 RP +12 lobby');
-    expect(deltaText({ ...gain, placement: 4, baseDelta: 13, strengthBonus: 7, lobbyStrength: 100 })).toBe('+6 RP +7 lobby');
-    expect(deltaText({ ...gain, placement: 1, baseDelta: 40, strengthBonus: 0, lobbyStrength: 30 })).toBe('+40 RP');
+    expect(deltaText({ ...gain, placement: 1, baseDelta: 52, strengthBonus: 12, lobbyStrength: 91 })).toBe('+52 MMR');
+    expect(deltaText({ ...gain, placement: 1, baseDelta: 43, strengthBonus: 3, lobbyStrength: 60 })).toBe('+43 MMR');
+    expect(deltaText({ ...gain, placement: 4, baseDelta: 13, strengthBonus: 7, lobbyStrength: 100 })).toBe('+13 MMR');
+    expect(deltaText({ ...gain, placement: 1, baseDelta: 40, strengthBonus: 0, lobbyStrength: 30 })).toBe('+40 MMR');
     // A pre-bonus row (no strength settled) prints the plain award.
-    expect(deltaText({ ...gain, placement: 2, baseDelta: 28, strengthBonus: 0, lobbyStrength: null })).toBe('+28 RP');
+    expect(deltaText({ ...gain, placement: 2, baseDelta: 28, strengthBonus: 0, lobbyStrength: null })).toBe('+28 MMR');
   });
   it('a failed promotion says so (nothing else would); a lost demotion game prints no line (the crest/label change says it)', () => {
     expect(outcomeText(fixtureById('promo-failed')!.result!)).toBe('Promotion unsuccessful');
-    expect(deltaText(fixtureById('promo-failed')!.result!)).toBe('−40 RP');
+    expect(deltaText(fixtureById('promo-failed')!.result!)).toBe('−40 MMR');
     expect(outcomeText(fixtureById('demo-lost-division')!.result!)).toBeNull();
   });
   it('NO instant demotions (owner 2026-09-21): a loss that hits 0 in ANY division prints the demotion-game line; a lost demotion game drops one division', () => {
@@ -102,14 +103,14 @@ describe('points, placement and delta text', () => {
     expect(halt.demotionUnlocked).toBe(true);
     expect(halt.demoted).toBe(false);
     expect(halt.after, 'Gold II 10, 8th: stopped at Gold II 0, not Gold I 70').toEqual({ divisionIndex: 7, points: 0 });
-    expect(deltaText(halt)).toBe('−40 RP');
+    expect(deltaText(halt)).toBe('−40 MMR');
     expect(outcomeText(halt)).toBe('Demotion game. Finish top 4 to stay in Gold II.');
-    expect(announcement(8, halt, 'confirmed')).toBe('Finished 8th. −40 RP. Now Gold II, 0 / 100. Demotion game. Finish top 4 to stay in Gold II.');
+    expect(announcement(8, halt, 'confirmed')).toBe('Finished 8th. −40 MMR. Now Gold II, 0 / 100. Demotion game. Finish top 4 to stay in Gold II.');
     const lost = fixtureById('demo-lost-division')!.result!;
     expect(lost.wasDemotionGame && lost.demoted).toBe(true);
-    expect(deltaText(lost), 'the award (which is also the applied delta: Gold II 0 → Gold I 60 is −40 on the scalar)').toBe('−40 RP');
+    expect(deltaText(lost), 'the award (which is also the applied delta: Gold II 0 → Gold I 60 is −40 on the scalar)').toBe('−40 MMR');
     expect(outcomeText(lost)).toBeNull();
-    expect(announcement(8, lost, 'confirmed')).toBe('Finished 8th. −40 RP. Now Gold I, 60 / 100. Demoted to Gold I.');
+    expect(announcement(8, lost, 'confirmed')).toBe('Finished 8th. −40 MMR. Now Gold I, 60 / 100. Demoted to Gold I.');
     // The line names the division at stake, everywhere — including the top division.
     expect(demotionGateText({ divisionIndex: 1, points: 0 })).toBe('Demotion game. Finish top 4 to stay in Bronze II.');
     expect(demotionGateText({ divisionIndex: 17, points: 0 })).toBe('Demotion game. Finish top 4 to stay in Ascendant III.');
@@ -119,17 +120,17 @@ describe('points, placement and delta text', () => {
   it('the MEDAL-boundary demotion game (owner 2026-09-20): a clamped loss at a medal floor prints the demotion-game line; a lost demotion game drops a medal; an escape is a plain fill', () => {
     const gate = fixtureById('demo-gate')!.result!;
     expect(gate.demotionUnlocked).toBe(true); // the RULES' field — nothing here derives it
-    expect(deltaText(gate)).toBe('−40 RP');
+    expect(deltaText(gate)).toBe('−40 MMR');
     expect(outcomeText(gate)).toBe('Demotion game. Finish top 4 to stay in Gold I.');
     expect(demotionGateText({ divisionIndex: 9, points: 0 })).toBe('Demotion game. Finish top 4 to stay in Platinum I.');
     // A result WITHOUT the flag prints no gate line, whatever its shape.
     expect(outcomeText({ ...gate, demotionUnlocked: false })).toBeNull();
     const lost = fixtureById('demo-lost')!.result!;
-    expect(deltaText(lost)).toBe('−40 RP');
+    expect(deltaText(lost)).toBe('−40 MMR');
     expect(outcomeText(lost)).toBeNull();
-    expect(announcement(8, lost, 'confirmed')).toBe('Finished 8th. −40 RP. Now Silver III, 60 / 100. Demoted to Silver III.');
+    expect(announcement(8, lost, 'confirmed')).toBe('Finished 8th. −40 MMR. Now Silver III, 60 / 100. Demoted to Silver III.');
     const escaped = fixtureById('demo-escape')!.result!;
-    expect(deltaText(escaped)).toBe('+16 RP');
+    expect(deltaText(escaped)).toBe('+16 MMR');
     expect(outcomeText(escaped)).toBeNull();
     expect(planRankSequence(escaped).map((s) => s.kind)).toEqual(['reveal', 'establish', 'bar', 'outcome']);
     // The standing line the Title plate / Career print: promotion gate from the position, demotion gate from the flag.
@@ -148,14 +149,14 @@ describe('points, placement and delta text', () => {
   it('Ascendant III never announces a false promotion, and its counter needs no caption', () => {
     const top = fixtureById('ascendant')!.result!;
     expect(outcomeText(top)).toBeNull();
-    expect(deltaText(top)).toBe('+40 RP');
+    expect(deltaText(top)).toBe('+40 MMR');
     expect(planRankSequence(top).some((s) => s.kind === 'transition' || s.kind === 'gate')).toBe(false);
   });
   it("the live-region sentence carries placement, delta, the new rank — and SAYS a promotion/demotion (a reader can't see the crest)", () => {
-    expect(announcement(3, fixtureById('gain')!.result, 'confirmed')).toBe('Finished 3rd. +16 RP. Now Gold II, 76 / 100.');
-    expect(announcement(1, fixtureById('promo-medal')!.result, 'confirmed')).toBe('Victory. +40 RP. Now Platinum I, 10 / 100. Promoted to Platinum I.');
-    expect(announcement(8, fixtureById('demo-lost-division')!.result, 'confirmed')).toBe('Finished 8th. −40 RP. Now Gold I, 60 / 100. Demoted to Gold I.');
-    expect(announcement(1, fixtureById('gate')!.result, 'confirmed'), 'an outcome line that ends in a period is not doubled').toBe('Victory. +40 RP. Now Gold II, 100 / 100. Promotion game ready. Finish top 4 to advance.');
+    expect(announcement(3, fixtureById('gain')!.result, 'confirmed')).toBe('Finished 3rd. +16 MMR. Now Gold II, 76 / 100.');
+    expect(announcement(1, fixtureById('promo-medal')!.result, 'confirmed')).toBe('Victory. +40 MMR. Now Platinum I, 10 / 100. Promoted to Platinum I.');
+    expect(announcement(8, fixtureById('demo-lost-division')!.result, 'confirmed')).toBe('Finished 8th. −40 MMR. Now Gold I, 60 / 100. Demoted to Gold I.');
+    expect(announcement(1, fixtureById('gate')!.result, 'confirmed'), 'an outcome line that ends in a period is not doubled').toBe('Victory. +40 MMR. Now Gold II, 100 / 100. Promotion game ready. Finish top 4 to advance.');
     expect(announcement(2, null, 'pending')).toBe('Finished 2nd. Updating rank.');
     expect(announcement(4, null, 'unrated')).toBe('Finished 4th. Unrated.');
   });

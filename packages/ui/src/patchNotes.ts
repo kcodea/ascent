@@ -52,6 +52,38 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-23',
+    label: 'Balance 9/23: rune reworks B',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Nineteen runes reworked: the summon, board and token runes. Several now hand over their minion every turn, a few scale as you play, and the rest got new numbers.',
+        details: [
+          'Rune of Full Measure: get a Baby Gastrid, and another at every Start of Turn. Baby Gastrids also grant Attack this game.',
+          'Rune of Open Appetite: get an Appetite Agent, and another at every Start of Turn. They can target a minion of any type.',
+          'Rune of Packcraft: when you summon a minion in combat, give it +2/+1 and improve this permanently. The rune badge shows the current grant.',
+          'Rune of Reinvestment: when you summon a minion in combat, give minions in the Shop +3/+4 permanently (was +1/+1).',
+          'Rune of Slaying: every 5 kills (was 6) gets you a minion of your most common type. The counter carries across fights.',
+          'Rune of the Display Case: get a Market Tormentor, and another at every Start of Turn. They buff the left-most Shop slot, too.',
+          'Rune of the Five Banners: now an End of Turn effect. Give a minion of each type +5/+4 (was Start of Combat +6/+6).',
+          'Rune of the Hatchery: minions summoned in combat have +5/+5 and Taunt (was +3/+3).',
+          'Rune of the Muckbroker: get a Muckslinger right away, then another every 2 turns.',
+          'Rune of the Unbroken Vein: get a Veinbreaker, and another at every Start of Turn. They grant both effects.',
+          'Rune of Beastial Swarm: a friendly Beast dying now grows your Beast Aura +2/+2 for good. Avenge (2) still improves it.',
+          'Rune of Copies: now reads Start of Turn.',
+          'Rune of Finality: when your last minion dies, summon 3 Imps with Ward (was 7).',
+          'Rune of Living Treasure: your Gemheart Golems gain Rebirth.',
+          'Rune of the Banquet Hall: the first minion you buy each turn gives its stats to 2 random friendly minions.',
+          'Rune of the Deep: get a random Tier 7 minion right away, and another at every Start of Turn.',
+          'Rune of the Food Chain: the first minion you summon in combat gains the stats of your left-most Demon, read at that moment.',
+          'Rune of the Gem Golem: when a friendly Kobold dies, summon a Gemheart Golem carrying its Rubies. Rubies are no longer required.',
+          'Rune of Lassoing: get a Rope Wrangler. Whenever Lasso is cast, give your minions +2/+2.',
+          'New art for Rune of Full Measure and Rune of the Gem Golem.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-23',
     label: 'Milestone glow fix',
     changes: [
       { category: 'Systems', text: 'Fixed the blue top-tier milestone glow lingering on units that had not reached the top stat tier, including opponent minions carrying it over between fights.' },

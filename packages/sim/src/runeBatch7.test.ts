@@ -82,20 +82,38 @@ describe("Rune of the Wild Hunt — the ATTACKER's Attack escalates (owner rewor
   });
 });
 
-describe("Rune of Living Treasure — Gemheart Golems gain Rise", () => {
-  it("gives the Golem token Rise, and nothing else", () => {
+describe("Rune of Living Treasure — Gemheart Golems gain Rebirth (owner rework 2026-09-23)", () => {
+  it("is still the runeLivingTreasure combat flag", () => {
     expect(CARD_INDEX['gemheart-shard'], 'the Gemheart Golem token is missing').toBeDefined();
-    const carver = Object.values(CARD_INDEX).find((c) => c.effects.some((e) => e.do === 'deathrattleSummon'
-      && (e.params as { cardId?: string } | undefined)?.cardId === 'gemheart-shard'));
-    // If no card summons the token, assert the wiring on the flag rather than silently passing.
     const r = byName('Rune of Living Treasure')!.reward as { flag?: string };
     expect(r.flag).toBe('runeLivingTreasure');
-    if (!carver) return;
+  });
+
+  it("a Golem on the board at the bell gains Rebirth and comes back ONCE with its full body", () => {
+    // A grown 7/3 shard: the whole point of the 2026-07-31 report was that Rise brought it back a 1/1.
+    const board: BoardMinion[] = [{ cardId: 'gemheart-shard', attack: 7, health: 3 }];
+    const enemy: BoardMinion[] = [{ cardId: 'sandbag', attack: 9, health: 60 }];
+    const r = sim(board, enemy, { runeLivingTreasure: true });
+    const shard = r.initial.player[0]!.uid;
+    expect(r.events.some((e) => e.type === 'keyword' && e.target === shard && (e as { keyword?: string }).keyword === 'RB'), 'no Rebirth granted at the bell').toBe(true);
+    const returns = r.events.filter((e): e is Extract<CombatEvent, { type: 'reborn' }> => e.type === 'reborn' && e.target === shard);
+    expect(returns, 'exactly one return').toHaveLength(1);
+    expect(returns[0]!.rebirth, 'a REBIRTH return, not a Rise').toBe(true);
+    expect(returns[0]!.attack, 'the full 7 Attack came back (Rise would print 1)').toBe(7);
+    // Unarmed, the shard just dies.
+    expect(sim(board, enemy, {}).events.some((e) => e.type === 'reborn'), 'unarmed: no return').toBe(false);
+  });
+
+  it("a Golem summoned MID-fight gains Rebirth at the summon site", () => {
+    const carver = Object.values(CARD_INDEX).find((c) => c.effects.some((e) => e.do === 'deathrattleSummon'
+      && (e.params as { cardId?: string } | undefined)?.cardId === 'gemheart-shard'));
+    if (!carver) return; // no set currently summons the token from an Echo — the bell case above covers the grant
     const board: BoardMinion[] = [{ cardId: carver.id, attack: 0, health: 1 }];
     const enemy: BoardMinion[] = [{ cardId: 'sandbag', attack: 9, health: 60 }];
-    const rises = (mods: object) => sim(board, enemy, mods).events
-      .filter((e) => e.type === 'keyword' && (e as { keyword?: string }).keyword === 'R').length;
-    expect(rises({ runeLivingTreasure: true })).toBeGreaterThanOrEqual(rises({}));
+    const summoned = sim(board, enemy, { runeLivingTreasure: true }).events
+      .find((e): e is Extract<CombatEvent, { type: 'summon' }> => e.type === 'summon' && e.side === 'player' && e.minion.cardId === 'gemheart-shard');
+    expect(summoned, 'the carver never summoned a Golem').toBeDefined();
+    expect(summoned!.minion.keywords, 'the summoned Golem carries Rebirth from frame one').toContain('RB');
   });
 });
 

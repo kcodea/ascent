@@ -3,7 +3,7 @@ import { simulate, makeRng, combatSide, type BoardMinion, type QuestCombatMods }
 import { CARD_INDEX, RUNE_INDEX } from '@game/content';
 import { createRun, type RunState } from './state';
 import { reduce, questCombatMods, wishboneReps } from './reducer';
-import { noteSpellCast, spellCostReduction } from './recruit';
+import { applyEndOfTurn, noteSpellCast, recurringEotEffects, spellCostReduction } from './recruit';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 
 /**
@@ -96,7 +96,7 @@ describe('family 4 — one-shot runes: the reward simply fires again', () => {
   });
 });
 
-describe('family 5 — boolean combat flags fire once per copy', () => {
+describe('family 5 — boolean combat flags fire once per copy (the LEGACY Five Banners Start-of-Combat flag)', () => {
   const bannerBuff = (mods: QuestCombatMods): number => {
     const player: BoardMinion[] = [{ cardId: 'pack', attack: 3, health: 400 }];
     const r = simulate(player, [{ cardId: 'sandbag', attack: 0, health: 50 }], makeRng(5), CARD_INDEX,
@@ -106,11 +106,26 @@ describe('family 5 — boolean combat flags fire once per copy', () => {
       .reduce((n, e) => n + (e as { attack: number }).attack, 0);
   };
 
-  it('two Rune of the Five Banners grant +12/+12 (the owner\'s "+6/+6 twice")', () => {
-    const one = bannerBuff(questCombatMods(buy(fresh(), 'rune_five_banners')));
-    const two = bannerBuff(questCombatMods(buyTwice('rune_five_banners')));
+  it('a pinned replay carrying two copies of the old combat flag still grants +12/+12 (the owner\'s "+6/+6 twice")', () => {
+    // The rune itself became an End-of-Turn grant on 2026-09-23 (next test); the engine keeps reading the old
+    // flag so a recorded seat / replay that still carries it resolves byte-identically.
+    const one = bannerBuff({ runeFiveBanners: true });
+    const two = bannerBuff({ runeFiveBanners: true, flagCopies: { runeFiveBanners: 2 } });
     expect(one).toBe(6);
     expect(two).toBe(12);
+  });
+
+  it('two Rune of the Five Banners fire the End-of-Turn grant twice: +10/+8 on the one Beast (owner rework 2026-09-23)', () => {
+    const board = (): RunState['board'] => [{ uid: 'b', cardId: 'pack', tribe: 'beast', attack: 3, health: 3, keywords: [], golden: false }];
+    const one = buy(fresh({ board: board() }), 'rune_five_banners');
+    const two = buyTwice('rune_five_banners', { board: board() });
+    expect(questCombatMods(one).runeFiveBanners, 'no longer a combat flag').toBeUndefined();
+    expect(recurringEotEffects(one).filter((e) => e === 'runeFiveBanners'), 'one virtual entry per copy').toHaveLength(1);
+    expect(recurringEotEffects(two).filter((e) => e === 'runeFiveBanners')).toHaveLength(2);
+    applyEndOfTurn(one);
+    applyEndOfTurn(two);
+    expect([one.board[0]!.attack, one.board[0]!.health]).toEqual([3 + 5, 3 + 4]);
+    expect([two.board[0]!.attack, two.board[0]!.health]).toEqual([3 + 10, 3 + 8]);
   });
 });
 

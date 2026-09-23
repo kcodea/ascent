@@ -164,36 +164,30 @@ describe('Rune of Shared Scripture', () => {
   });
 });
 
-describe('Rune of the Banquet Hall', () => {
-  /** Buy the single Shop offer and report the total stats the rune handed the board. */
+describe('Rune of the Banquet Hall (owner rework 2026-09-23: the first buy each turn feeds 2 random friends)', () => {
+  /** Buy the single Shop offer and report the total stats the rune handed the two board bodies. */
   const buyAndMeasure = (offer: { uid: string; cardId: string; atk?: number; hp?: number }, armed: boolean) => {
-    const board = [bm('d', 'emissary', 2, 3), bm('b', 'stray', 1, 1)]; // a Dragon and a Beast — two types
+    const board = [bm('d', 'emissary', 2, 3), bm('b', 'stray', 1, 1)]; // a Dragon and a Beast
     const base: Partial<RunState> = { board, shop: [offer] as never, embers: 40 };
     const s = armed ? withRune('rune_banquet_hall', base) : ({ ...createRun(3), phase: 'recruit', wave: 7, ...base } as RunState);
     const before = s.board.reduce((n, c) => n + c.attack + c.health, 0);
     const next = reduce(s, { type: 'buy', uid: offer.uid }) as RunState;
-    // Only the two ORIGINAL bodies are compared — the bought minion joins the board and would otherwise
-    // dwarf the delta being measured.
+    // The bought minion goes to hand, so the board delta is exactly what the rune handed out.
     const after = next.board.filter((c) => c.uid === 'd' || c.uid === 'b')
       .reduce((n, c) => n + c.attack + c.health, 0);
     return after - before;
   };
 
-  it('a Shop-buffed buy SPLITS its bonus among one friendly minion of each type', () => {
-    const buffed = { uid: 'o', cardId: 'stray', atk: 3, hp: 3 };
+  it('a Shop-buffed buy hands its FULL buffed stats to each of the 2 random recipients', () => {
+    const buffed = { uid: 'o', cardId: 'stray', atk: 3, hp: 3 }; // a 1/1 Stray offered as a 4/4
     expect(buyAndMeasure(buffed, false), 'baseline: a plain buy feeds nobody').toBe(0);
-    // Owner ruling 2026-08-07: DISPERSED, not handed to each in full. The +3/+3 bonus is 6 stats, and 6 stats
-    // is exactly what the board gains however many types share it — the Dragon takes 2/2, the Beast 1/1.
-    expect(buyAndMeasure(buffed, true), 'the board should gain the bonus, not a multiple of it').toBe(6);
+    // Two recipients, each gaining the whole 4/4 (owner rework 2026-09-23; it used to disperse the +3/+3 bonus
+    // among one minion of each type, 6 stats total).
+    expect(buyAndMeasure(buffed, true)).toBe(2 * (4 + 4));
   });
 
-  it('every point of the bonus lands, even when it does not divide evenly', () => {
-    // +1/+1 across two types: one recipient takes it, the other nothing — the point is never rounded away.
-    expect(buyAndMeasure({ uid: 'o', cardId: 'stray', atk: 1, hp: 1 }, true)).toBe(2);
-  });
-
-  it('an UNBUFFED buy does not arm it — "Shop-buffed" is the condition', () => {
-    expect(buyAndMeasure({ uid: 'o', cardId: 'stray' }, true)).toBe(0);
+  it('an UNBUFFED buy counts too now: "the first minion you buy", not "the first Shop-buffed minion"', () => {
+    expect(buyAndMeasure({ uid: 'o', cardId: 'stray' }, true)).toBe(2 * (1 + 1));
   });
 });
 

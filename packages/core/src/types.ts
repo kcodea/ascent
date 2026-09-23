@@ -1446,7 +1446,9 @@ export type QuestReward =
   | { kind: 'runeSpellmarket' } // …and also feeds the right-most Shop minion
   | { kind: 'runeLastWord' } // selling a Dragon with a Shout triggers it first
   | { kind: 'runeRunicHoard' } // a copied Shop spell gives your Dragons +1/+1
-  | { kind: 'runeBanquetHall' } // the turn's first Shop-buffed buy feeds one minion of each type
+  | { kind: 'runeBanquetHall' } // the turn's first buy hands its stats to 2 random friendly minions (owner 2026-09-23)
+  | { kind: 'runeFiveBanners' } // End of Turn: one friendly minion of each type +5/+4 (owner 2026-09-23; was a Start-of-Combat flag)
+  | { kind: 'runeLassoing' } // whenever Lasso is cast in the shop, your minions gain +2/+2 (owner 2026-09-23)
   | { kind: 'runeCrucibleChoir' } // End of Turn: the left-most Shout, then the left-most Echo
   | { kind: 'runeFullMeasure' } // Baby Gastrid also grants Attack, 1:1 with the Health
   | { kind: 'runeMountainTrade' } // a Mountainbond Ruby play also hands over an Ale
@@ -1866,8 +1868,9 @@ export interface QuestCombatMods {
   runeLivingTreasure?: boolean;
   /** Rune of the Remains: Shop buff per 5 friendly minions summoned in combat. */
   runeRemains?: number;
-  /** Rune of Reinvestment: Shop buff per friendly minion summoned, paid once when the fight settles. */
-  runeReinvestment?: number;
+  /** Rune of Reinvestment: the Shop buff per friendly minion summoned (owner 2026-09-23: +3/+4, × copies held),
+   *  paid once when the fight settles; the badge pulses on each summon. */
+  runeReinvestment?: { attack: number; health: number };
   /** Rune of the Hunting Bell: every 3 friendly deaths, fire your left-most Rally without an attack. */
   runeHuntingBell?: boolean;
   /** Rune of the Brood: how many times a free board slot summons a Warded, Taunting Imp this combat. */
@@ -1967,8 +1970,12 @@ export interface QuestCombatMods {
   runeSoulTaxes?: boolean;
   /** Rune of First Claws: at Start of Combat, your leftmost + rightmost Beasts attack immediately. */
   runeFirstClaws?: boolean;
-  /** Rune of Packcraft: whenever you summon a minion in combat, your Beasts gain +1 Attack (aura, carried back). */
+  /** Rune of Packcraft (owner rework 2026-09-23): every body summoned in combat gains the CURRENT level, then the
+   *  level grows by the printed step (+2/+1) permanently — the grown level carries back (`packcraftLevel`). */
   runePackcraft?: boolean;
+  /** Rune of Packcraft — the current per-summon grant (starts +2/+1, grows by +2/+1 per summon, run-persisted).
+   *  Absent = the base step. */
+  packcraftLevel?: { attack: number; health: number };
   /** Rune of Inheritance: when your leftmost minion dies, your rightmost living minion gains its stats. */
   runeInheritance?: boolean;
   /** Rune of Salvage: whenever a friendly Mech loses its Ward, a random Attachment lands in your hand next shop. */
@@ -2837,6 +2844,7 @@ export interface CombatCarryBacks {
   hoardGain?: { attack: number; health: number };
   rightmostSlotBuff?: { attack: number; health: number };
   beastialSwarmLevel?: number;
+  packcraftLevel?: { attack: number; health: number };
   boardBuffGain?: { attack: number; health: number };
   magneticBuffGain?: { attack: number; health: number };
   fodderBuffGain?: { attack: number; health: number };
@@ -3063,6 +3071,9 @@ export interface CombatResult {
   /** Rune of Beastial Swarm — the grown per-death buff amount, if the Avenge(2) improvement fired this combat.
    *  Written to RunState.beastialSwarmLevel so the bigger per-death buff persists. Absent if unchanged. */
   playerBeastialSwarmLevel?: number;
+  /** Rune of Packcraft — the grown per-summon grant, if any friendly summon improved it this combat. Written to
+   *  RunState.packcraftLevel so the next fight's first summon starts from the bigger number. Absent if unchanged. */
+  playerPackcraftLevel?: { attack: number; health: number };
   /** A PERMANENT buff earned in combat for your whole warband, carried back onto the run's board (Rune of
    *  Overflow). Every other carry-back is tribe-scoped — Imps, Beasts, Fodder, Rubies — so "your minions"
    *  needed its own untyped channel; without one, a combat buff simply vanishes at settle and a rune whose

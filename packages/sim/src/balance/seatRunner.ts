@@ -391,6 +391,7 @@ export function mirrorForEnemySeat(result: CombatResult): CombatResult {
     playerHoardGain: c.hoardGain,
     playerRightmostSlotBuff: c.rightmostSlotBuff,
     playerBeastialSwarmLevel: c.beastialSwarmLevel,
+    playerPackcraftLevel: c.packcraftLevel,
     playerBoardBuffGain: c.boardBuffGain,
     playerMagneticBuffGain: c.magneticBuffGain,
     playerFodderBuffGain: c.fodderBuffGain,

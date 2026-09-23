@@ -314,7 +314,7 @@ export function runeModifiedNote(cardId: string, flags: RuneTextFlags | undefine
   if (!flags) return null;
   if (flags.matriarch && cardId === 'b2_runebloom') return '{{Triggers twice (Rune of the Matriarch).}}';
   if (flags.brokerage && cardId === 'k_rubybroker') return '{{No per-turn limit (Rune of Brokerage).}}';
-  if (flags.livingTreasure && cardId === 'gemheart-shard') return '{{Echo: summon an exact copy of this without Echo (Rune of Living Treasure).}}';
+  if (flags.livingTreasure && cardId === 'gemheart-shard') return '{{Rebirth (Rune of Living Treasure).}}';
   // (Facetwright's "gives both effects" note used to live here. It is now the general (Both) rendering below,
   // which every "does both branches" source shares — a card that does both must READ as doing both, not carry
   // a footnote under a "Choose One:" label that is no longer true.)

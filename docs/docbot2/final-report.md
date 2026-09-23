@@ -143,9 +143,9 @@ rule-per-sentence would not honestly cover.
 
 ## 4. Interaction intelligence (§18-F)
 
-- Graph: **1828** nodes / **5739** edges over the contract registry (content, effect-family, trigger-family,
+- Graph: **1830** nodes / **5742** edges over the contract registry (content, effect-family, trigger-family,
   channel, keyword, multiplier, copy-mode, counter, zone, phase-boundary nodes).
-- Applicability: **144644** candidate pairs against 551775 naive all-pairs (26%) — the producer → channel →
+- Applicability: **144646** candidate pairs against 551775 naive all-pairs (26%) — the producer → channel →
   consumer join is what makes pairwise tractable at all.
 - Sweep (full pairwise + §10.4 triples): 154 rows — 112 covered, 0 failed, 12 inapplicable, 30 blocked.
 - Families with at least one covered row: 12 of 23.

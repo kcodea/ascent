@@ -27,7 +27,7 @@ const runeKey = (r: RuneDef): string => {
   // `applyEndOfTurn` is where they emit) but bucketed as `:recruit`, so the key gameplay emits didn't match
   // the key the registry classified. Phase must be TRUTHFUL — an emitter cannot stamp a phase-lie just to
   // find a registry row.
-  if (kinds.includes('recurringEndOfTurn') || kinds.some((k) => /lapidary|crucibleChoir|runeCoffers|runeShopkeep|lastingCadence|combatProwess/i.test(k))) return `rune:${r.id}:endOfTurn`;
+  if (kinds.includes('recurringEndOfTurn') || kinds.some((k) => /lapidary|crucibleChoir|runeCoffers|runeShopkeep|lastingCadence|combatProwess|runeFiveBanners/i.test(k))) return `rune:${r.id}:endOfTurn`;
   if (kinds.includes('combatFlag')) return `rune:${r.id}:combat`;
   if (kinds.every((k) => k === 'grant' || k === 'gildRandom' || k === 'gold' || k === 'discover')) return `rune:${r.id}:onAcquire`;
   return `rune:${r.id}:recruit`;
@@ -60,10 +60,10 @@ export function recurringEotOwner(effect: string): { key: string; kind: 'rune' |
     };
     for (const r of [...RUNES, ...EPIC_RUNES]) scan(r.reward, 'rune', r.id, runeKey(r));
     for (const q of QUEST_DEFS) scan(q.reward, 'quest', q.id, questKey(q));
-    // The two flag-armed rune recurrences are stored as booleans (save compatibility) rather than as
+    // The flag-armed rune recurrences are stored as booleans (save compatibility) rather than as
     // `recurringEndOfTurn` rewards, so the walk above cannot see them — named here, and asserted against
-    // the registry by the identity test.
-    for (const [effect, id] of [['runeLapidary', 'rune_lapidary'], ['runeCrucibleChoir', 'rune_crucible_choir']] as const) {
+    // the registry by the identity test. Five Banners joined on its 2026-09-23 End-of-Turn rework.
+    for (const [effect, id] of [['runeLapidary', 'rune_lapidary'], ['runeCrucibleChoir', 'rune_crucible_choir'], ['runeFiveBanners', 'rune_five_banners']] as const) {
       recurringOwners.set(effect, { key: `rune:${id}:endOfTurn`, kind: 'rune', id });
     }
   }

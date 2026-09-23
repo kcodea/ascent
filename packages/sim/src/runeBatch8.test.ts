@@ -32,17 +32,26 @@ describe("Rune of the Remains — every 5 summons buffs the Shop", () => {
 });
 
 describe("Rune of Reinvestment — one combined buff at settle", () => {
-  it("scales with the number of friendly summons", () => {
-    const r = sim(board, killer, { runeReinvestment: 1 });
+  // The per-summon amount is an OBJECT since the owner balance 2026-09-23 (+3/+4, was a flat +1/+1 number).
+  const per = { attack: 3, health: 4 };
+  it("scales with the number of friendly summons, Attack and Health at their own rates", () => {
+    const r = sim(board, killer, { runeReinvestment: per });
     const n = summonsIn(r);
-    expect(r.playerTavernBuyGain?.attack ?? 0, 'the Shop buff did not scale with summons').toBe(n);
+    expect(r.playerTavernBuyGain?.attack ?? 0, 'the Shop Attack did not scale with summons').toBe(3 * n);
+    expect(r.playerTavernBuyGain?.health ?? 0, 'the Shop Health did not scale with summons').toBe(4 * n);
+  });
+
+  it("the badge pulses on EACH friendly summon (owner text 2026-09-23: 'When you summon a minion in combat')", () => {
+    const r = sim(board, killer, { runeReinvestment: per });
+    const pulses = r.events.filter((e) => e.type === 'questTrigger' && e.flag === 'runeReinvestment' && e.side === 'player').length;
+    expect(pulses, 'one pulse per friendly summon').toBe(summonsIn(r));
   });
 
   it("stacks with the Remains rather than one replacing the other", () => {
     // Both write the same carry-back channel; a naive implementation could overwrite instead of add.
-    const both = sim(board, killer, { runeReinvestment: 1, runeRemains: 3 });
+    const both = sim(board, killer, { runeReinvestment: per, runeRemains: 3 });
     const n = summonsIn(both);
-    expect(both.playerTavernBuyGain?.attack ?? 0).toBe(n + Math.floor(n / 5) * 3);
+    expect(both.playerTavernBuyGain?.attack ?? 0).toBe(3 * n + Math.floor(n / 5) * 3);
   });
 });
 

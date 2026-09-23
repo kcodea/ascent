@@ -238,8 +238,8 @@ export const DEMONS: CardDef[] = [
     name: 'Imp Overseer',
     tribe: 'demon',
     tier: 2,
-    attack: 1,
-    health: 2,
+    attack: 3, // owner balance 2026-09-23: 1/2 → 3/3
+    health: 3,
     keywords: [],
     effects: [
       { on: 'onPlay', do: 'battlecryBuffImps', params: { attack: 2, health: 1 } },

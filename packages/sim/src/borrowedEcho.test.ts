@@ -25,9 +25,10 @@ const playBorrowed = (s: RunState, uid: string, toIndex: number): RunState =>
   reduce(reduce(s, { type: 'play', uid, toIndex }), { type: 'resolveShopDeath' });
 
 describe('a borrowed minion occupies its drop slot while the Echo fires', () => {
-  it('Legion Shepherd (rework 2026-08-18): its shop Echo buffs Imps +5/+5 and summons an Imp', () => {
-    // The old "summon 4 Imps, overflow → aura" shape is gone. Now the Echo is a flat +5/+5 Imp aura plus one Imp
-    // summoned. On a full board (6 + the ghost Shepherd) the Imp can't land, but the +5/+5 aura is unconditional.
+  it('Legion Shepherd (rework 2026-08-18): its shop Echo buffs Imps +5/+5 and summons 2 Imps (1 until 2026-09-23)', () => {
+    // The old "summon 4 Imps, overflow → aura" shape is gone. Now the Echo is a flat +5/+5 Imp aura plus the Imps
+    // it summons (two since the owner's 2026-09-23 balance pass). On a full board (6 + the ghost Shepherd) no Imp
+    // can land, but the +5/+5 aura is unconditional.
     const s: RunState = {
       ...createRun(11), embers: 30, shop: [],
       board: [body('b1', 'sandbag'), body('b2', 'sandbag'), body('b3', 'sandbag'), body('b4', 'sandbag'), body('b5', 'sandbag'), body('b6', 'sandbag')],
@@ -37,10 +38,10 @@ describe('a borrowed minion occupies its drop slot while the Echo fires', () => 
     expect(after.board.some((c) => c.uid === 'sh'), 'the borrowed body must not STAY').toBe(false);
     expect(after.impBuff, 'the flat +5/+5 Imp aura landed').toEqual({ attack: 5, health: 5 });
 
-    // …and on an EMPTIER board the Imp it summons actually lands (room in the line).
+    // …and on an EMPTIER board the Imps it summons actually land (room in the line).
     const roomy: RunState = { ...s, board: s.board.slice(0, 3), hand: [borrowed('sh', 'dm_shepherd')] };
     const a2 = playBorrowed(roomy, 'sh', 0);
-    expect(a2.board.filter((c) => c.cardId === 'impscrap').length, 'the summoned Imp lands with room to spare').toBe(1);
+    expect(a2.board.filter((c) => c.cardId === 'impscrap').length, 'both summoned Imps land with room to spare').toBe(2);
     expect(a2.impBuff, 'the +5/+5 aura is unconditional').toEqual({ attack: 5, health: 5 });
   });
 

@@ -26,8 +26,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     name: 'Deepvein Tender',
     tribe: 'kobold',
     tier: 2,
-    attack: 1,
-    health: 2,
+    attack: 2, // owner balance 2026-09-23: 1/2 → 2/3
+    health: 3,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'rubyStatGain', params: { attack: 0, health: 1 } }],
     text: '**Shout:** Your Rubies gain **+1 Health**.',
@@ -43,10 +43,10 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 5,
     health: 10,
     keywords: [], // Avenge has no keyword pill (matches set-1 Avenge cards); the text conveys it
-    // Owner balance 2026-08-18: now Kobolds-only.
-    effects: [{ on: 'avenge', do: 'avengePlayRubies', params: { count: 2, rubies: 2, tribe: 'kobold' } }],
-    text: '**Avenge (2):** Cast **2 Rubies** on your **Kobolds**.',
-    goldenText: '**Avenge (2):** Cast **4 Rubies** on your **Kobolds**.',
+    // Owner balance 2026-08-18: now Kobolds-only. Owner balance 2026-09-23: 2 Rubies → 3 (gilded 6).
+    effects: [{ on: 'avenge', do: 'avengePlayRubies', params: { count: 2, rubies: 3, tribe: 'kobold' } }],
+    text: '**Avenge (2):** Cast **3 Rubies** on your **Kobolds**.',
+    goldenText: '**Avenge (2):** Cast **6 Rubies** on your **Kobolds**.',
   },
   {
     // Two Avenge effects at one trigger (both fire): get a Ruby (to hand) AND play Rubies on your left-most
@@ -55,8 +55,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     name: 'Gemline Martyr',
     tribe: 'kobold',
     tier: 4,
-    attack: 3,
-    health: 5,
+    attack: 4, // owner balance 2026-09-23: 3/5 → 4/6
+    health: 6,
     keywords: [],
     // Owner rework 2026-08-19: back to End of Turn, and the Ruby-improvement half is dropped — it is a plain
     // spell faucet again. `battlecryGrantSpell` is trigger-agnostic, so no End-of-Turn-specific factory is
@@ -196,7 +196,7 @@ export const SET2_KOBOLDS: CardDef[] = [
     name: 'Geode Guardian',
     tribe: 'kobold',
     tier: 2,
-    attack: 3,
+    attack: 4, // owner balance 2026-09-23: 3/3 → 4/3
     health: 3,
     keywords: ['T'],
     // Owner rework 2026-07-31 (from "play a Ruby on adjacent"). The COUNT is fixed — a Gilded copy still
@@ -321,8 +321,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     name: 'Beggy',
     tribe: 'kobold',
     tier: 1,
-    attack: 1,
-    health: 2,
+    attack: 2, // owner balance 2026-09-23: 1/2 → 2/3
+    health: 3,
     keywords: [],
     effects: [{ on: 'onSell', do: 'onSellGetRubies', params: { count: 2 } }],
     text: '**Sell:** get **2 Rubies**.',
@@ -343,15 +343,13 @@ export const SET2_KOBOLDS: CardDef[] = [
   },
   {
     // -- RUNE-ONLY (Source: Rune), owner batch 2026-08-20 --------------------------------------------------
-    // GEM SAGE - the Ruby engine's multiplier. Every Ruby source in the set (Chipwick, Motherlode, the
-    // Jeweler, a Kobold Shout) pays double while it is out, which makes it the piece the whole Kobold build
-    // wants to find rather than another body that mints on its own.
+    // GEM SAGE - the Ruby engine's spell magnet. Owner balance 2026-09-23: it no longer duplicates every
+    // Ruby you get (the old `onGetRubyDuplicate` shape); it pays 3 Rubies whenever a Shop spell is cast ON
+    // it — the same `spellCastOnThis` trigger Mirrorwing / Runefire ride (a targeted spell resolving on this
+    // body; a Ruby is NOT one, it lands through `playRubyOn` and never enters `castSpell`, so there is no
+    // Ruby-for-Rubies loop), through the plain `getRubies` mint. Gilded doubles the mint.
     //
     // `token: true`, like `dw_baal`: forge-only, never in the tavern.
-    //
-    // The duplicate is minted SILENTLY (see `onGetRubyDuplicate`) - a Ruby-gained reaction that itself gains
-    // a Ruby is the one shape in this system that can recurse, so the extra copy deliberately does not
-    // re-open the `onGetRuby` round. It still counts as a card arriving in hand (Gangplank sees it).
     id: 'k_gemsage',
     name: 'Gem Sage',
     tribe: 'kobold',
@@ -360,8 +358,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     health: 7,
     keywords: [],
     token: true, // forge-only: Source = Rune
-    effects: [{ on: 'onGetRuby', do: 'onGetRubyDuplicate', params: { count: 1 } }],
-    text: 'Whenever you get a **Ruby**, get an additional copy.',
-    goldenText: 'Whenever you get a **Ruby**, get **2** additional copies.',
+    effects: [{ on: 'spellCastOnThis', do: 'getRubies', params: { count: 3 } }],
+    text: 'When you cast a **Shop spell** on this, get **3 Rubies**.',
+    goldenText: 'When you cast a **Shop spell** on this, get **6 Rubies**.',
   },
 ];

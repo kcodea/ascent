@@ -15,14 +15,13 @@ Decide them in the DEV MENU → Rulebook board (clicks write to decisions.json),
 
 - **q-watch-gravebody** — Grave Body: never reacts to things played past it — confirm the reading
 
-## Doc Bot verification backlog (62) — NOT owner questions
+## Doc Bot verification backlog (65) — NOT owner questions
 
 Items Doc Bot could not yet verify with a staged scenario. Claude works these; they reach the board only if a
 staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 
 - Reflector ("Spells and Rubies cast on this also cast on a random friendly minion. (Once per turn)") — needs a staged scenario Doc Bot cannot build yet
-- Seedling Spirit ("Rally: summon a random Spirit from your hand.") — needs a staged scenario Doc Bot cannot build yet
-- Kindled Sprite ("Rally: gain +1 Attack for each Spirit you played this turn.") — needs a staged scenario Doc Bot cannot build yet
+- Kindled Sprite ("Rally: gain +1 Attack permanently for every Spirit played this turn.") — needs a staged scenario Doc Bot cannot build yet
 - combat mod flashCopies — Rune of the Wishbone on Flash: how many copies the claim grants (2 while armed, else 1).
 - combat mod bloodTrail (Blood Trail: "") — Blood Trail: at Start of Combat your leftmost minion gains "Slaughter: get a random Beast" for this fight.
 - combat mod lawOfTeeth (Law of Teeth: "") — Law of Teeth: your Beasts' Slaughters (on-kill) AND Rallies (on-attack) each trigger one extra time.
@@ -48,7 +47,11 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod runeMatriarch — Rune of the Matriarch: Runebloom Matriarchs trigger twice — threaded so the COMBAT half of her per-spell proc doubles exactly like the shop half (owner audit 2026-08-02).
 - combat mod runeMammoth — Rune of the Mammoth: Menagerie Mammoths' grant is 1:1 symmetric (+3/+3 instead of +3 Attack).
 - combat mod baneDemonWiden — Bane's Existence (quest): the Demon-widen amounts. Carried into combat since the 2026-08-04 owner ruling — the widen fires on combat-triggered Battlecries too.
-- combat mod runeOverflow (Rune of the Crowded Crypt: "Whenever a summoned minion does not fit, give your minions +1/+1 permanently. Triggers twice in the Shop.") — Rune of Overflow: stats granted to your whole board, permanently, per summon that does not fit.
+- combat mod runeOverflow (Rune of the Crowded Crypt: "Overflow: give your minions +1/+1 permanently. Triggers twice in the Shop.") — Rune of Overflow: stats granted to your whole board, permanently, per summon that does not fit.
+- combat mod runeFinalGate (Rune of the Final Gate: "The first time each combat your board becomes empty, summon three random Undead that died this combat.") — Rune of the Final Gate: the first time each combat this side's board becomes EMPTY, summon three random Undead (printed bodies) that died this combat. Once per fight.
+- combat mod runeDreamedGraves (Rune of Dreamed Graves: "The first minion summoned from your hand each combat gains Rebirth.") — Rune of Dreamed Graves: the first minion summoned FROM THE HAND each combat (a Spirit hand-summon, Rope Wrangler's Echo) gains Rebirth. Once per fight.
+- combat mod runeOpenHand (Rune of the Open Hand: "When you summon a minion from your hand, give its stats to another friendly minion.") — Rune of the Open Hand: whenever a minion is summoned FROM THE HAND (the same `pendingHandSummon` moment Dreamed Graves reads), another random friendly minion gains its current Attack/Health. Every hand-summon, one grant per copy held.
+- combat mod runeWakingReserve (Rune of the Waking Reserve: "Start of Combat: summon a copy of your highest-stat minion in hand when you have room. This does not mark that hand card as summoned.") — Rune of the Waking Reserve: Start of Combat — summon a COPY of the highest-stat (Attack + Health) minion in hand when the board has room. The hand card is NOT marked as summoned. One copy per rune copy held.
 - combat mod candlelightToll (Candlelight Toll: "") — Rune of Lasting Cadence: at Start of Combat, EVERY rally-capable friendly fires its Rally once (the board-wide sibling of `runeRallying`, which fires only the left-most). */ /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant).
 - combat mod gemheartCharge (Heart of the Mountain: "") — Heart of the Mountain: Gemheart Golems attack immediately when summoned.
 - combat mod burningLegionUses — The Burning Legion: how many times an attacking Imp may summon a copy of itself this combat.

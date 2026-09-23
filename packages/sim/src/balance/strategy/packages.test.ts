@@ -43,7 +43,7 @@ describe('strategy packages — set-2 census', () => {
       echo: '39/14/9/6', // 7 → 6 on 2026-09-16: same Rune of Rebirth rework
       mechAttach: '2/0/0/0',
       rally: '26/8/11/6', // Boulderdash gained Flurry (owner 2026-09-18)
-      tempo: '37/5/20/35',
+      tempo: '38/6/20/35', // 37/5 → 38/6 on 2026-09-23: the balance 9/23 stat pass moved a body into the tempo package
       economy: '20/1/16/25', // 26 → 25 on 2026-09-18: rune tag pass
     });
   });

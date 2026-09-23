@@ -1,4 +1,4 @@
-# The fight ledger, the Hall by record against everyone, lobby strength, and the 1st-place bonus
+# The fight ledger, the Hall by record against everyone, lobby strength, and the top-4 strength bonus
 
 **Date:** 2026-09-22 · **Branch:** `feat/hall-fight-ledger-lobby-strength` · **Owner asks (verbatim):** "we want
 the hall of champions to answer 'what board has been the best against everything else' basically, and what the
@@ -109,22 +109,41 @@ percentage, where an unknown run counts as 50 and a bot as 25.**
 
 ## 5. The bonus (server-owned, on now)
 
-`bonus = round(15 × clamp((s − 55) / 45, 0, 1))` on a **1st place only**: 0 at 55 and below, +5 at 70, +6 at 74,
-+10 at 85, +15 at 100; never on 2nd–8th, never negative, losses untouched. Added to the award **before** every
+**Revised by the owner the same day, after the build started** (the first cut was a 1st-only bonus on a 55 / 45
+line: *"only winning hard lobbies should scale, and only upwards of 15 rating"*). The rule now: *"the strength
+bonus applies to any TOP-4 finish, scaled by BOTH placement and lobby strength"*:
+
+```
+bonus           = round(15 × placementWeight × strengthFactor)
+placementWeight = 1.0 (1st) / 0.8 (2nd) / 0.62 (3rd) / 0.47 (4th)      — 5th to 8th: no bonus, ever
+strengthFactor  = clamp((s − 30) / 70, 0, 1)                             — 0 at strength 30 and below, 1 at 100
+```
+
+The owner's anchors, pinned in `lobbyStrength.test.ts`, `rank.test.ts` and the parity test: 1st at 100 = **+15**,
+1st at 75 = +10, 4th at 100 = +7, 2nd at 100 = +12, 3rd at 100 = +9, 1st at 50 = +4, 4th at 50 = +2. Never on
+5th–8th, never negative, losses untouched. The weights and the 30 / 70 line live in ONE place per copy
+(`STRENGTH_PLACEMENT_WEIGHTS` + `STRENGTH_BONUS_FLOOR` / `SPAN` in `lobbyStrength.ts`; the same names in
+`lobbyRating.ts`; `c_bonus_weights` + `c_bonus_floor` / `c_bonus_span` in `settle_rank`), and all three multiply
+in the same order (max × weight × factor) so the doubles agree bit for bit before the round (checked: the float
+result equals exact rational rounding at every placement × strength 0–100). Added to the award **before** every
 gate / cap / floor branch in all three copies (`rank.ts resolveRank(before, placement, rules, { bonus,
 lobbyStrength })`, `lobbyRating.ts resolveRankOutcome(before, placement, bonus)`, `settle_rank` step 5):
 
 | Start | Finish | Strength | Award | Applied | Result |
 |---|---|---|---|---|---|
-| Gold II 20 | 1st | Brutal 74 | +40 +6 = 46 | +46 | Gold II 66 |
-| Gold II 20 | 1st | Even 50 | +40 | +40 | Gold II 60 |
-| Gold II 20 | 2nd | Brutal 74 | +28 (no bonus) | +28 | Gold II 48 |
+| Gold II 20 | 1st | Brutal 74 | +40 +9 = 49 | +49 | Gold II 69 |
+| Gold II 20 | 4th | Brutal 74 | +6 +4 = 10 | +10 | Gold II 30 |
+| Gold II 20 | 1st | Even 50 | +40 +4 = 44 | +44 | Gold II 64 |
+| Gold II 20 | 1st | 30 | +40 | +40 | Gold II 60 |
+| Gold II 20 | 5th | 100 | −6 (no bonus) | −6 | Gold II 14 |
 | Gold II 90 | 1st | 100 | +55 | +10 (45 capped) | Gold II 100, promotion game ready |
 | Gold II 100 | 1st | 100 | +55 (converted) | +10 | Gold III 10 |
+| Gold II 100 | 4th | 100 | +13 (converted) | +10 | Gold III 10 |
+| Gold III 100 | 4th | 100 | +13 | 0 (13 capped) | Gold III 100, still ready (a medal gate needs a 1st) |
 | Ascendant III 130 | 1st | 100 | +55 | +55 | Ascendant III 185 |
 
 **The full rating gain algorithm, for the owner:** `award = placementAwards[placement]` (+40/+28/+16/+6/−6/−16/
-−28/−40) `+ (placement == 1 ? bonus(strength) : 0)`. Then, unchanged: at a promotion gate (100/100 below the top)
+−28/−40) `+ (placement <= 4 ? bonus(strength, placement) : 0)`. Then, unchanged: at a promotion gate (100/100 below the top)
 a finish at or better than the required placement (top-4 for a division, 1st for a medal) promotes to 10/100 of
 the next division, a positive award short of a medal gate holds at 100, a negative one applies from 100; at an
 armed demotion gate a bottom-4 drops one division to 100 + award, a top-4 applies its award from 0; otherwise
@@ -139,8 +158,9 @@ and `lobbyStrength` (`rank_results.strength_bonus` / `lobby_strength`, `rank_res
 rank screen prints "+40 RP +12 lobby" (`deltaText`). The rules version is NOT bumped: an old client only
 mis-predicts the number until the server answers, and a client that sends no keys settles with no bonus.
 
-**Assumption flagged:** "only upwards of 15 rating" is read as "a bonus of up to +15 on a 1st". The season
-question: on now, mid-season, with a patch note (owner answer 7).
+The earlier assumption ("only upwards of 15 rating" read as a 1st-only +15) is retired by the owner's revision
+above: the +15 is the 1st-at-100 corner of a placement × strength scale. The season question: on now,
+mid-season, with a patch note (owner answer 7).
 
 ## 6. Owner runbook
 

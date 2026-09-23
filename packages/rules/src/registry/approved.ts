@@ -1858,34 +1858,42 @@ export const APPROVED_RULES: GameRule[] = [
   },
   {
     id: 'R-RANK-04',
-    title: 'Ranked: a 1st place in a hard lobby earns up to 15 bonus points, and nothing else scales',
+    title: 'Ranked: a top-4 finish in a hard lobby earns a bonus of up to 15 points, scaled by placement and strength; 5th to 8th never scale',
     statement:
-      'A 1st-place finish in a lobby of strength s adds round(15 × clamp((s − 55) / 45, 0, 1)) rating points on '
-      + 'top of the normal +40: 0 at Hard\'s floor of 55 and below, +15 at 100. It is never granted on 2nd to 8th, '
-      + 'it is never negative, and a loss is never scaled. The bonus is added to the award BEFORE the gate, cap and '
-      + 'floor rules, so a 1st at a promotion gate still lands on 10 of 100 (the bonus converts into the promotion '
-      + 'like the award) and a 1st at 90 of 100 still stops at 100 with the overflow discarded; only a mid-division '
-      + '1st feels the full bonus, and Ascendant III takes all of it. The server is the authority: the client '
-      + 'sends the seven opponent keys and the settle recomputes the strength from the fight ledger and applies the '
-      + 'bonus itself; the sim and the Edge Function mirror agree with it. The result records the bonus apart '
-      + '(strengthBonus, lobbyStrength) and the rank screen prints the two parts apart ("+40 RP +12 lobby"). It '
-      + 'is on now, mid-season, with a patch note.',
+      'A top-4 finish in a lobby of strength s adds round(15 × placementWeight × strengthFactor) rating points on '
+      + 'top of the normal placement award, where placementWeight is 1.0 for 1st, 0.8 for 2nd, 0.62 for 3rd and 0.47 '
+      + 'for 4th, and strengthFactor = clamp((s − 30) / 70, 0, 1) (0 at strength 30 and below, 1 at 100). The '
+      + 'owner\'s anchors: 1st at 100 = +15, 1st at 75 = +10, 4th at 100 = +7, 2nd at 100 = +12, 3rd at 100 = +9, '
+      + '1st at 50 = +4, 4th at 50 = +2. It is never granted on 5th to 8th, it is never negative, and a loss is '
+      + 'never scaled. The bonus is added to the award BEFORE the gate, cap and floor rules, so a top-4 at a '
+      + 'promotion gate still lands on 10 of 100 (the bonus converts into the promotion like the award), a 4th at '
+      + 'a medal gate still holds at 100, and a 1st at 90 of 100 still stops at 100 with the overflow discarded; '
+      + 'only a mid-division finish feels the full bonus, and Ascendant III takes all of it. The weights and the '
+      + '30 / 70 line live in ONE place per copy. The server is the authority: the client sends the seven opponent '
+      + 'keys and the settle recomputes the strength from the fight ledger and applies the bonus itself; the sim '
+      + 'and the Edge Function mirror agree with it. The result records the bonus apart (strengthBonus, '
+      + 'lobbyStrength) and the rank screen prints the two parts apart ("+40 RP +12 lobby", "+6 RP +7 lobby"). '
+      + 'It is on now, mid-season, with a patch note.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (scoping answers)', quote: 'only winning hard lobbies should scale, and only upwards of 15 rating' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (the revised bonus rule, after the build started; supersedes the same day\'s "only winning hard lobbies should scale, and only upwards of 15 rating")', quote: 'the strength bonus applies to any TOP-4 finish, scaled by BOTH placement and lobby strength' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (the revised bonus rule, the anchors)', quote: '1st at 100 = +15, 1st at 75 = +10, 4th at 100 = +7' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (scoping answers)', quote: 'turn that on now, but explain the full rating gain algorithm to me as well' },
-      { kind: 'code', ref: 'packages/sim/src/rank.ts resolveRank (the strength argument) + packages/sim/src/lobbyStrength.ts strengthBonusOf; supabase/functions/_shared/lobbyRating.ts resolveRankOutcome(bonus); settle_rank in supabase/migrations/2026-09-22-fight-ledger.sql (v_bonus, p_seat_keys); packages/ui/src/rank/rankFormat.ts deltaText' },
+      { kind: 'code', ref: 'packages/sim/src/rank.ts resolveRank (the strength argument) + packages/sim/src/lobbyStrength.ts strengthBonusOf / STRENGTH_PLACEMENT_WEIGHTS; supabase/functions/_shared/lobbyRating.ts resolveRankOutcome(bonus); settle_rank in supabase/migrations/2026-09-22-fight-ledger.sql (c_bonus_weights, v_bonus, p_seat_keys); packages/ui/src/rank/rankFormat.ts deltaText' },
     ],
     currentBehaviour:
-      'Conforms as of 2026-09-22 (the feature branch). The "up to +15 on a 1st" reading of the owner\'s "only '
-      + 'upwards of 15 rating" is flagged as an assumption for the owner to correct. cappedPoints is honest about '
-      + 'the bonus (|award + bonus| − |applied|). The rules version was not bumped: an old client only mis-predicts '
-      + 'the number until the server answers, and a client that sends no seat keys settles with no bonus.',
+      'Conforms as of 2026-09-22 (the feature branch, after the owner\'s same-day revision from a 1st-only bonus '
+      + 'to the top-4 rule). The anchor table is pinned in packages/sim/src/lobbyStrength.test.ts, '
+      + 'packages/sim/src/rank.test.ts and packages/ui/src/lobbyRatingParity.test.ts; the three copies multiply '
+      + 'in the same order (max × weight × factor) so the doubles agree before the round. cappedPoints is honest '
+      + 'about the bonus (|award + bonus| − |applied|). The rules version was not bumped: an old client only '
+      + 'mis-predicts the number until the server answers, and a client that sends no seat keys settles with no bonus.',
     example:
-      'Gold II 20, 1st in a Brutal 74 lobby: +40 +6 = 66. Gold II 20, 1st at Even 50: +40. Gold II 20, 2nd at '
-      + 'Brutal 74: +28. Gold II 90, 1st at strength 100: +55 requested, lands on 100, 45 capped, promotion game '
-      + 'ready. Gold II 100, 1st at 100: promoted to Gold III 10.',
+      'Gold II 20, 1st in a Brutal 74 lobby: +40 +9 = 69. Gold II 20, 4th at Brutal 74: +6 +4 = 30. Gold II 20, '
+      + '1st at Even 50: +40 +4 = 64. Gold II 20, 5th at strength 100: −6, no bonus. Gold II 90, 1st at strength '
+      + '100: +55 requested, lands on 100, 45 capped, promotion game ready. Gold II 100, 4th at 100: promoted to '
+      + 'Gold III 10. Gold III 100, 4th at 100: holds at 100 (a medal gate needs a 1st).',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/lobbyStrength.test.ts', 'packages/sim/src/rank.test.ts', 'packages/ui/src/lobbyRatingParity.test.ts', 'packages/ui/src/rank/rankFormat.test.ts', 'packages/ui/src/rank/rankSubmission.test.ts'],

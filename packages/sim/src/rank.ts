@@ -3,9 +3,10 @@
  *
  * Six medals × three divisions = 18 divisions (index 0 = Bronze I … 17 = Ascendant III), each 100 points wide.
  * A finished RATED lobby moves the player by its final placement (the placement-award table below) plus, for a
- * 1st place ONLY, the LOBBY-STRENGTH BONUS (owner 2026-09-22, `lobbyStrength.ts`): up to +15 for winning a
- * hard table, never on 2nd to 8th, never negative. No round-wins modifier, no hidden MMR. The rules that make
- * it a *medal* ladder rather than a number:
+ * TOP-4 finish, the LOBBY-STRENGTH BONUS (owner 2026-09-22, `lobbyStrength.ts`): `round(15 × placementWeight ×
+ * strengthFactor)`, up to +15 for a 1st at strength 100, scaled by placement (1st 1.0, 2nd 0.8, 3rd 0.62, 4th
+ * 0.47) and by strength (0 at 30 and below, 1 at 100); never on 5th to 8th, never negative. No round-wins
+ * modifier, no hidden MMR. The rules that make it a *medal* ladder rather than a number:
  *
  *   • PROMOTION GATE. Reaching 100 points does NOT promote — it makes the NEXT rated game a *promotion game*.
  *     Overflow past 100 is discarded (`cappedPoints`); the delta shown is the delta applied.
@@ -49,6 +50,8 @@
  * placement or position (callers validate at the boundary — the Edge Function and the SQL both reject first).
  */
 
+import { strengthPlacementWeight } from './lobbyStrength';
+
 // ── Rules (one config object) ─────────────────────────────────────────────────────────────────────────────
 
 export const RANK_MEDALS = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Ascendant'] as const;
@@ -64,7 +67,7 @@ export interface RankRules {
   readonly divisionsPerMedal: number;
   /** Points per division — the promotion gate sits at exactly this value. */
   readonly divisionPoints: number;
-  /** Points by final placement, index 0 = 1st … 7 = 8th. Sums to zero (before the 1st-place strength bonus). */
+  /** Points by final placement, index 0 = 1st … 7 = 8th. Sums to zero (before the top-4 strength bonus). */
   readonly placementAwards: readonly number[];
   /** Worst placement that still WINS a division promotion game (top-4). */
   readonly divisionPromotionFinish: number;
@@ -141,13 +144,14 @@ export interface RankResult {
   placement: number;
   before: RankPosition;
   after: RankPosition;
-  /** The placement's table award (+40 … −40) PLUS the lobby-strength bonus (1st place only), before gates /
-   *  caps / floors. `strengthBonus` says how much of it is the bonus. */
+  /** The placement's table award (+40 … −40) PLUS the lobby-strength bonus (top-4 only), before gates / caps /
+   *  floors. `strengthBonus` says how much of it is the bonus. */
   baseDelta: number;
-  /** The lobby-strength bonus folded into `baseDelta` (owner 2026-09-22): `round(15 × clamp((s − 55) / 45))`
-   *  for a 1st place in a lobby of strength `s`, 0 otherwise. Added BEFORE the gate / cap logic, so a 1st at a
-   *  promotion gate still lands on the landing and a 1st near 100 still caps at 100 with the overflow in
-   *  `cappedPoints`. Missing on a pre-bonus row → parsed as 0. */
+  /** The lobby-strength bonus folded into `baseDelta` (owner 2026-09-22): `round(15 × placementWeight ×
+   *  clamp((s − 30) / 70, 0, 1))` for a top-4 finish (weights 1.0 / 0.8 / 0.62 / 0.47) in a lobby of strength
+   *  `s`, 0 for 5th to 8th. Added BEFORE the gate / cap logic, so a top-4 at a promotion gate still lands on the
+   *  landing and a finish near 100 still caps at 100 with the overflow in `cappedPoints`. Missing on a pre-bonus
+   *  row → parsed as 0. */
   strengthBonus: number;
   /** The lobby strength the server computed at settle time (0 to 100), when it had the seat keys; null when
    *  the settlement predates the bonus or the keys were not sent. */
@@ -325,9 +329,9 @@ export function resolveRank(before: RankPosition, placement: number, rules: Rank
   assertPosition(before, rules);
   const cap = rules.divisionPoints;
   const top = rankTopDivision(rules);
-  // THE LOBBY-STRENGTH BONUS (owner 2026-09-22): 1st place only, never negative, folded into the award BEFORE
-  // every branch below — the gate, the cap and the floor all see one number.
-  const strengthBonus = placement === 1 ? Math.max(0, Math.round(strength.bonus ?? 0)) : 0;
+  // THE LOBBY-STRENGTH BONUS (owner 2026-09-22): top-4 only (the placements that carry a weight), never
+  // negative, folded into the award BEFORE every branch below — the gate, the cap and the floor all see one number.
+  const strengthBonus = strengthPlacementWeight(placement) > 0 ? Math.max(0, Math.round(strength.bonus ?? 0)) : 0;
   const baseDelta = rules.placementAwards[placement - 1]! + strengthBonus;
   const start: RankPosition = { divisionIndex: before.divisionIndex, points: before.points, demotionReady: before.demotionReady === true };
 

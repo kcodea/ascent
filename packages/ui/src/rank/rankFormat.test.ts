@@ -84,11 +84,13 @@ describe('points, placement and delta text', () => {
     expect(outcomeText(promo)).toBeNull();
     expect(outcomeText(fixtureById('promo-medal')!.result!)).toBeNull();
   });
-  it('a 1st that earned the lobby-strength bonus (owner 2026-09-22) prints the award and the bonus apart: "+40 RP +12 lobby"', () => {
+  it('a top-4 that earned the lobby-strength bonus (owner 2026-09-22) prints the award and the bonus apart: "+40 RP +12 lobby", "+6 RP +7 lobby"', () => {
     const gain = fixtureById('gain')!.result!;
     expect(deltaText({ ...gain, placement: 1, baseDelta: 52, strengthBonus: 12, lobbyStrength: 91 })).toBe('+40 RP +12 lobby');
-    expect(deltaText({ ...gain, placement: 1, baseDelta: 40, strengthBonus: 0, lobbyStrength: 50 })).toBe('+40 RP');
-    expect(deltaText({ ...gain, placement: 2, baseDelta: 28, strengthBonus: 0, lobbyStrength: 91 })).toBe('+28 RP');
+    expect(deltaText({ ...gain, placement: 4, baseDelta: 13, strengthBonus: 7, lobbyStrength: 100 })).toBe('+6 RP +7 lobby');
+    expect(deltaText({ ...gain, placement: 1, baseDelta: 40, strengthBonus: 0, lobbyStrength: 30 })).toBe('+40 RP');
+    // A pre-bonus row (no strength settled) prints the plain award.
+    expect(deltaText({ ...gain, placement: 2, baseDelta: 28, strengthBonus: 0, lobbyStrength: null })).toBe('+28 RP');
   });
   it('a failed promotion says so (nothing else would); a lost demotion game prints no line (the crest/label change says it)', () => {
     expect(outcomeText(fixtureById('promo-failed')!.result!)).toBe('Promotion unsuccessful');

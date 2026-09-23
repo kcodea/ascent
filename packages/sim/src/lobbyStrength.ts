@@ -35,13 +35,26 @@ export type LobbyStrengthTier = 'Easy' | 'Even' | 'Hard' | 'Brutal';
  *  69, Brutal 70 and up. */
 export const STRENGTH_TIERS: { readonly even: number; readonly hard: number; readonly brutal: number } = Object.freeze({ even: 35, hard: 55, brutal: 70 });
 
-/** THE BONUS (owner answer (6): "only winning hard lobbies should scale, and only upwards of 15 rating"): a
- *  1st-place finish in a lobby of strength `s` adds `round(15 × clamp((s − 55) / 45, 0, 1))` rating points on
- *  top of the normal award — 0 at Hard's floor (55), +15 at 100, nothing below 55, never on 2nd to 8th, never
- *  negative. */
+/** THE BONUS (owner 2026-09-22, revised the same day: "the strength bonus applies to any TOP-4 finish, scaled
+ *  by BOTH placement and lobby strength"): a top-4 finish in a lobby of strength `s` adds
+ *
+ *      bonus = round(15 × placementWeight × strengthFactor)
+ *      placementWeight = 1.0 (1st) / 0.8 (2nd) / 0.62 (3rd) / 0.47 (4th)
+ *      strengthFactor  = clamp((s − 30) / 70, 0, 1)        — 0 at strength 30 and below, 1 at 100
+ *
+ *  rating points on top of the normal award. The owner's anchors: 1st at 100 = +15, 1st at 75 = +10, 4th at 100
+ *  = +7, 2nd at 100 = +12, 3rd at 100 = +9, 1st at 50 = +4, 4th at 50 = +2. Never on 5th to 8th, never
+ *  negative, a loss is never scaled. The weights and the 30 / 70 line live HERE and nowhere else in this copy;
+ *  `lobbyRating.ts` and `settle_rank` carry the same numbers (the parity test pins them). */
 export const STRENGTH_BONUS_MAX = 15;
-export const STRENGTH_BONUS_FLOOR = 55;
+/** The strength the factor starts rising from (0 here and below). */
+export const STRENGTH_BONUS_FLOOR = 30;
+/** The strength span to the full factor: 1 at `STRENGTH_BONUS_FLOOR + STRENGTH_BONUS_SPAN` = 100. */
 export const STRENGTH_BONUS_SPAN = 100 - STRENGTH_BONUS_FLOOR;
+/** The placement weights, index 0 = 1st … 3 = 4th. 5th to 8th have no entry: no bonus. */
+export const STRENGTH_PLACEMENT_WEIGHTS: readonly number[] = Object.freeze([1.0, 0.8, 0.62, 0.47]);
+/** The worst placement that still earns a bonus (a top-4). */
+export const STRENGTH_BONUS_WORST_PLACEMENT = STRENGTH_PLACEMENT_WEIGHTS.length;
 
 /** One opponent's record as the view reports it. A key with no row is passed with 0 fights. */
 export interface StrengthInput {
@@ -81,11 +94,26 @@ export function lobbyStrengthOf(inputs: readonly StrengthInput[]): LobbyStrength
   return { value, tier: strengthTierOf(value), inputs: list };
 }
 
-/** The rating bonus a 1st-place finish earns at strength `value` (0 for any other placement or a null strength). */
+/** The placement's weight on the bonus: 1.0 / 0.8 / 0.62 / 0.47 for 1st to 4th, 0 for 5th to 8th (and for
+ *  anything that is not a placement). */
+export function strengthPlacementWeight(placement: number): number {
+  return Number.isInteger(placement) && placement >= 1 && placement <= STRENGTH_PLACEMENT_WEIGHTS.length
+    ? STRENGTH_PLACEMENT_WEIGHTS[placement - 1]!
+    : 0;
+}
+
+/** The strength factor: `clamp((s − 30) / 70, 0, 1)` — 0 at 30 and below, 1 at 100. */
+export function strengthFactorOf(value: number): number {
+  return Math.max(0, Math.min(1, (value - STRENGTH_BONUS_FLOOR) / STRENGTH_BONUS_SPAN));
+}
+
+/** The rating bonus a top-4 finish earns at strength `value`: `round(15 × weight × factor)`; 0 for 5th to 8th
+ *  or a null strength. The multiplication order (max × weight × factor) is the SAME in all three copies so the
+ *  doubles agree bit for bit before the round. */
 export function strengthBonusOf(value: number | null | undefined, placement: number): number {
-  if (placement !== 1 || value == null || !Number.isFinite(value)) return 0;
-  const t = Math.max(0, Math.min(1, (value - STRENGTH_BONUS_FLOOR) / STRENGTH_BONUS_SPAN));
-  return Math.round(STRENGTH_BONUS_MAX * t);
+  const weight = strengthPlacementWeight(placement);
+  if (weight <= 0 || value == null || !Number.isFinite(value)) return 0;
+  return Math.round(STRENGTH_BONUS_MAX * weight * strengthFactorOf(value));
 }
 
 /** "Brutal 74" — the one label the Career and Recent Games rows print. */

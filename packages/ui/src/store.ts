@@ -1401,7 +1401,7 @@ function commitResolvedAction(
         // (never the reducer's lobby, never `run.lobby`: see `playOutRunLobby`) — goes up as ONE batched upsert,
         // both sides named by run key. The reporter's own key is `author|heroId|seed`, the same shape the pool
         // groups this run under once its boards land. Then the seven opponent keys: they ride with the rank
-        // request (the SERVER recomputes the strength and applies the 1st-place bonus) and feed ONE fetch of the
+        // request (the SERVER recomputes the strength and applies the top-4 bonus) and feed ONE fetch of the
         // view here for the strength the Career and Recent Games rows print — never the post-game screen, never
         // the rail. Real lobbies only, never a sandbox or the tutorial (neither uploads anything).
         let seatKeys: string[] = [];

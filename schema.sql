@@ -1045,7 +1045,7 @@ update public.run_telemetry
        ]::text[]);
 
 -- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
--- FIGHT LEDGER + LOBBY STRENGTH + the 1st-place strength bonus  (2026-09-22)
+-- FIGHT LEDGER + LOBBY STRENGTH + the top-4 strength bonus  (2026-09-22)
 -- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 --
 -- Paste into the Supabase SQL Editor and Run. Idempotent (safe to re-run). The same block is appended to
@@ -1070,9 +1070,11 @@ update public.run_telemetry
 --      above a 3-0 run). Public read through PostgREST like every other ledger.
 --   3. `settle_rank` learns `p_seat_keys` — the seven opponent keys of the finished lobby. It recomputes the
 --      LOBBY STRENGTH from the view at settle time (the mean over the seven of `(wins + 10) / (fights + 20)`,
---      a bot key a fixed 0.25, `round(100 × mean)`) and, for a 1st PLACE ONLY, adds
---      `round(15 × clamp((strength − 55) / 45, 0, 1))` to the award BEFORE the gate / cap logic. Never on
---      2nd–8th, never negative, losses untouched. The result records `strength_bonus` and `lobby_strength`.
+--      a bot key a fixed 0.25, `round(100 × mean)`) and, for a TOP-4 finish, adds
+--      `round(15 × placementWeight × clamp((strength − 30) / 70, 0, 1))` to the award BEFORE the gate / cap
+--      logic, the weights 1.0 / 0.8 / 0.62 / 0.47 for 1st to 4th (owner anchors: 1st at 100 = +15, 1st at 75 =
+--      +10, 4th at 100 = +7). Never on 5th–8th, never negative, losses untouched. The result records
+--      `strength_bonus` and `lobby_strength`.
 --      The old six-argument overload is DROPPED (a second overload would make the PostgREST rpc ambiguous);
 --      the deployed Edge Function retries without the keys against a database that has not run this yet.
 --
@@ -1172,7 +1174,7 @@ drop function if exists public.settle_rank(uuid, text, int, int, int, bigint);
 -- career row → return both the result and the current authoritative profile. Any `raise` rolls everything back.
 --
 -- The resolver branches are the same as `resolveRank` in packages/sim/src/rank.ts, in the same order, with
--- v_base = the placement award + the 1st-place strength bonus (0 for 2nd–8th):
+-- v_base = the placement award + the top-4 strength bonus (0 for 5th–8th):
 --   at a gate (points = 100 below the top): placement ≤ required (4 for a division gate, 1 for a medal gate)
 --     → promote ONE division to c_promo_landing/100 (10 — owner 2026-09-21, was 0); a positive award short of
 --     a MEDAL gate (2nd–4th) HOLDS at 100, still promotion-ready; a negative award applies normally from 100.
@@ -1208,13 +1210,14 @@ declare
   c_promo_landing   constant int := 10;  -- points a WON promotion lands on in the next division (owner 2026-09-21; was 0)
   c_rate_max        constant int := 20;
   c_rate_window     constant interval := interval '10 minutes';
-  -- LOBBY STRENGTH + the 1st-place bonus (mirror of packages/sim/src/lobbyStrength.ts — owner 2026-09-22)
+  -- LOBBY STRENGTH + the top-4 bonus (mirror of packages/sim/src/lobbyStrength.ts — owner 2026-09-22)
   c_prior_wins      constant int := 10;      -- the smoothing prior: 10 wins in 20 fights (an unserved run reads 50)
   c_prior_fights    constant int := 20;
   c_bot_rate        constant float8 := 0.25; -- a generated seat's fixed win rate
-  c_bonus_max       constant int := 15;      -- +15 at strength 100
-  c_bonus_floor     constant int := 55;      -- nothing below Hard's floor
-  c_bonus_span      constant int := 45;      -- 100 - c_bonus_floor
+  c_bonus_max       constant int := 15;      -- +15 for a 1st at strength 100
+  c_bonus_floor     constant int := 30;      -- the factor is 0 at this strength and below
+  c_bonus_span      constant int := 70;      -- 100 - c_bonus_floor: the factor is 1 at 100
+  c_bonus_weights   constant float8[] := array[1.0, 0.8, 0.62, 0.47]; -- 1st, 2nd, 3rd, 4th; 5th-8th earn nothing
   c_tier_even       constant int := 35;      -- Easy < 35, Even 35-54, Hard 55-69, Brutal >= 70
   c_tier_hard       constant int := 55;
   c_tier_brutal     constant int := 70;
@@ -1263,7 +1266,9 @@ begin
 
   -- 5. LOBBY STRENGTH from the fight ledger (owner 2026-09-22): the mean over the seven opponent keys of each
   --    run's smoothed win rate; a bot key is a fixed 0.25; a key with no row reads the prior (0.5). Then the
-  --    1st-PLACE bonus. No keys (an older client) → no strength, no bonus — exactly the pre-bonus ladder.
+  --    TOP-4 bonus: round(c_bonus_max × c_bonus_weights[placement] × clamp((strength − c_bonus_floor) /
+  --    c_bonus_span, 0, 1)), the SAME multiplication order as the two TS copies so the doubles agree before
+  --    the round. No keys (an older client) → no strength, no bonus — exactly the pre-bonus ladder.
   if p_seat_keys is not null and cardinality(p_seat_keys) > 0 then
     select round((100 * avg(
              case when k like 'bot:%' then c_bot_rate
@@ -1278,8 +1283,8 @@ begin
                    when v_strength >= c_tier_hard then 'Hard'
                    when v_strength >= c_tier_even then 'Even'
                    else 'Easy' end;
-    if p_placement = 1 then
-      v_bonus := round((c_bonus_max * least(1.0::float8, greatest(0.0::float8, (v_strength - c_bonus_floor)::float8 / c_bonus_span)))::numeric)::int;
+    if p_placement <= cardinality(c_bonus_weights) then
+      v_bonus := round((c_bonus_max * c_bonus_weights[p_placement] * least(1.0::float8, greatest(0.0::float8, (v_strength - c_bonus_floor)::float8 / c_bonus_span)))::numeric)::int;
     end if;
   end if;
 
@@ -1291,7 +1296,7 @@ begin
     hd := prof.rank_highest_division; hp := prof.rank_highest_points;
   end if;
 
-  v_base := c_awards[p_placement] + v_bonus;                  -- the award PLUS the 1st-place strength bonus
+  v_base := c_awards[p_placement] + v_bonus;                  -- the award PLUS the top-4 strength bonus
   d1 := d0; p1 := p0;
 
   if d0 < c_top and p0 = c_cap then

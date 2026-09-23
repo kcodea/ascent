@@ -2,13 +2,15 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  RANK_RULES, RANK_SEASON, STRENGTH_BONUS_FLOOR, STRENGTH_BONUS_MAX, STRENGTH_BOT_RATE, STRENGTH_PRIOR_FIGHTS, STRENGTH_PRIOR_WINS, STRENGTH_TIERS,
+  RANK_RULES, RANK_SEASON, STRENGTH_BONUS_FLOOR, STRENGTH_BONUS_MAX, STRENGTH_BONUS_SPAN, STRENGTH_BOT_RATE, STRENGTH_PLACEMENT_WEIGHTS,
+  STRENGTH_PRIOR_FIGHTS, STRENGTH_PRIOR_WINS, STRENGTH_TIERS,
   compareRank, lobbyStrengthOf, rankTopDivision, resolveRank, strengthBonusOf, strengthTierOf, type RankPosition, type StrengthInput,
 } from '@game/sim';
 import {
   RANK_DEMOTION_ESCAPE_FINISH, RANK_DIVISION_POINTS, RANK_DIVISION_PROMOTION_FINISH, RANK_DIVISIONS_PER_MEDAL, RANK_MEDAL_PROMOTION_FINISH,
   RANK_PLACEMENT_AWARDS, RANK_PROMOTION_LANDING, RANK_RULES_VERSION, RANK_SEASON as SERVER_SEASON, RANK_TOP_DIVISION, resolveRankOutcome,
-  STRENGTH_BONUS_FLOOR as SERVER_BONUS_FLOOR, STRENGTH_BONUS_MAX as SERVER_BONUS_MAX, STRENGTH_BOT_RATE as SERVER_BOT_RATE,
+  STRENGTH_BONUS_FLOOR as SERVER_BONUS_FLOOR, STRENGTH_BONUS_MAX as SERVER_BONUS_MAX, STRENGTH_BONUS_SPAN as SERVER_BONUS_SPAN,
+  STRENGTH_BOT_RATE as SERVER_BOT_RATE, STRENGTH_PLACEMENT_WEIGHTS as SERVER_PLACEMENT_WEIGHTS,
   STRENGTH_PRIOR_FIGHTS as SERVER_PRIOR_FIGHTS, STRENGTH_PRIOR_WINS as SERVER_PRIOR_WINS, STRENGTH_TIER_BRUTAL, STRENGTH_TIER_EVEN, STRENGTH_TIER_HARD,
   lobbyStrengthValue, strengthBonusOf as serverStrengthBonusOf, strengthTierOf as serverStrengthTierOf,
 } from '../../../supabase/functions/_shared/lobbyRating';
@@ -61,22 +63,31 @@ describe('medal rank — constants agree across the three copies', () => {
     expect(SERVER_BOT_RATE).toBe(STRENGTH_BOT_RATE);
     expect(SERVER_BONUS_MAX).toBe(STRENGTH_BONUS_MAX);
     expect(SERVER_BONUS_FLOOR).toBe(STRENGTH_BONUS_FLOOR);
+    expect(SERVER_BONUS_SPAN).toBe(STRENGTH_BONUS_SPAN);
+    expect([...SERVER_PLACEMENT_WEIGHTS]).toEqual([...STRENGTH_PLACEMENT_WEIGHTS]);
     expect(STRENGTH_TIER_EVEN).toBe(STRENGTH_TIERS.even);
     expect(STRENGTH_TIER_HARD).toBe(STRENGTH_TIERS.hard);
     expect(STRENGTH_TIER_BRUTAL).toBe(STRENGTH_TIERS.brutal);
-    expect([STRENGTH_PRIOR_WINS, STRENGTH_PRIOR_FIGHTS, STRENGTH_BOT_RATE, STRENGTH_BONUS_MAX, STRENGTH_BONUS_FLOOR]).toEqual([10, 20, 0.25, 15, 55]);
+    // The owner's numbers (2026-09-22, the revised top-4 rule): the 30 / 70 line and the four weights.
+    expect([STRENGTH_PRIOR_WINS, STRENGTH_PRIOR_FIGHTS, STRENGTH_BOT_RATE, STRENGTH_BONUS_MAX, STRENGTH_BONUS_FLOOR, STRENGTH_BONUS_SPAN]).toEqual([10, 20, 0.25, 15, 30, 70]);
+    expect([...STRENGTH_PLACEMENT_WEIGHTS]).toEqual([1.0, 0.8, 0.62, 0.47]);
     expect(sqlConst('c_prior_wins')).toBe(String(STRENGTH_PRIOR_WINS));
     expect(sqlConst('c_prior_fights')).toBe(String(STRENGTH_PRIOR_FIGHTS));
     expect(Number(sqlConst('c_bot_rate'))).toBe(STRENGTH_BOT_RATE);
     expect(sqlConst('c_bonus_max')).toBe(String(STRENGTH_BONUS_MAX));
     expect(sqlConst('c_bonus_floor')).toBe(String(STRENGTH_BONUS_FLOOR));
-    expect(sqlConst('c_bonus_span')).toBe(String(100 - STRENGTH_BONUS_FLOOR));
+    expect(sqlConst('c_bonus_span')).toBe(String(STRENGTH_BONUS_SPAN));
+    const sqlWeights = /^array\[(.*)\]$/.exec(sqlConst('c_bonus_weights'));
+    expect(sqlWeights, 'c_bonus_weights is a float8 array literal').not.toBeNull();
+    expect(sqlWeights![1]!.split(',').map((w) => Number(w.trim()))).toEqual([...STRENGTH_PLACEMENT_WEIGHTS]);
     expect(sqlConst('c_tier_even')).toBe(String(STRENGTH_TIERS.even));
     expect(sqlConst('c_tier_hard')).toBe(String(STRENGTH_TIERS.hard));
     expect(sqlConst('c_tier_brutal')).toBe(String(STRENGTH_TIERS.brutal));
-    // The SQL folds the bonus into the award BEFORE every branch, 1st place only, and the old overload is gone.
+    // The SQL folds the bonus into the award BEFORE every branch, top-4 only, in the SAME multiplication order
+    // as the TS copies (max × weight × factor), and the old overload is gone.
     expect(sqlSrc).toContain('v_base := c_awards[p_placement] + v_bonus;');
-    expect(sqlSrc).toContain('if p_placement = 1 then');
+    expect(sqlSrc).toContain('if p_placement <= cardinality(c_bonus_weights) then');
+    expect(sqlSrc).toContain('round((c_bonus_max * c_bonus_weights[p_placement] * least(1.0::float8, greatest(0.0::float8, (v_strength - c_bonus_floor)::float8 / c_bonus_span)))::numeric)::int');
     expect(sqlSrc).toContain('drop function if exists public.settle_rank(uuid, text, int, int, int, bigint);');
     expect(sqlSrc).toContain('p_seat_keys text[] default null');
     expect(sqlSrc).toContain('revoke all on function public.settle_rank(uuid, text, int, int, int, bigint, text[])');
@@ -99,8 +110,8 @@ describe('medal rank — constants agree across the three copies', () => {
       for (let placement = 1; placement <= 8; placement++) expect(serverStrengthBonusOf(client.value, placement)).toBe(strengthBonusOf(client.value, placement));
     }
     for (let s = 0; s <= 100; s++) {
-      expect(serverStrengthBonusOf(s, 1)).toBe(strengthBonusOf(s, 1));
-      expect(serverStrengthBonusOf(s, 2)).toBe(0);
+      for (let placement = 1; placement <= 8; placement++) expect(serverStrengthBonusOf(s, placement), `${placement} at ${s}`).toBe(strengthBonusOf(s, placement));
+      for (let placement = 5; placement <= 8; placement++) expect(serverStrengthBonusOf(s, placement)).toBe(0);
     }
   });
 
@@ -234,24 +245,32 @@ describe('medal rank — transition parity (sim resolver ↔ Edge Function mirro
     expect(tc.after).toEqual({ divisionIndex: 17, points: 0, demotionReady: true });
   });
 
-  it('the lobby-strength bonus agrees on both (owner 2026-09-22): 1st at Brutal, 1st at Even = +0, 2nd at Brutal = +0, the gate and the landing', () => {
-    const brutal = 74; // round(15 * 19 / 45) = 6
+  it('the lobby-strength bonus agrees on both (owner 2026-09-22, the top-4 rule): the anchor table, 5th to 8th = +0, the cap, the gates and the landing', () => {
+    // The owner's anchors, pinned on BOTH TS copies: [placement, strength, bonus].
+    const anchors: [number, number, number][] = [[1, 100, 15], [1, 75, 10], [4, 100, 7], [2, 100, 12], [3, 100, 9], [1, 50, 4], [4, 50, 2]];
+    for (const [placement, strength, b] of anchors) {
+      expect(strengthBonusOf(strength, placement), `sim: ${placement} at ${strength}`).toBe(b);
+      expect(serverStrengthBonusOf(strength, placement), `server: ${placement} at ${strength}`).toBe(b);
+    }
+    for (let placement = 5; placement <= 8; placement++) expect(strengthBonusOf(100, placement)).toBe(0);
     const bonus = (s: number, placement: number) => strengthBonusOf(s, placement);
-    expect(bonus(brutal, 1)).toBe(6);
-    expect(bonus(100, 1)).toBe(15);
-    expect(bonus(55, 1)).toBe(0);
-    expect(bonus(50, 1)).toBe(0);
-    expect(bonus(brutal, 2)).toBe(0);
     const cases: [RankPosition, number, number][] = [
-      [{ divisionIndex: 7, points: 20 }, 1, bonus(brutal, 1)],   // a mid-division 1st at Brutal 74: +46
+      [{ divisionIndex: 7, points: 20 }, 1, bonus(74, 1)],       // a mid-division 1st at Brutal 74: +40 +9
+      [{ divisionIndex: 7, points: 20 }, 4, bonus(74, 4)],       // a 4th at Brutal 74: +6 +4
       [{ divisionIndex: 7, points: 20 }, 1, bonus(100, 1)],      // +55
-      [{ divisionIndex: 7, points: 20 }, 1, bonus(50, 1)],       // Even: +40
-      [{ divisionIndex: 7, points: 20 }, 2, bonus(brutal, 2)],   // 2nd: +28, no bonus
+      [{ divisionIndex: 7, points: 20 }, 1, bonus(50, 1)],       // Even 50: +40 +4
+      [{ divisionIndex: 7, points: 20 }, 1, bonus(30, 1)],       // strength 30: the plain +40
+      [{ divisionIndex: 7, points: 20 }, 5, bonus(100, 1)],      // 5th: −6, a bonus handed in is ignored
+      [{ divisionIndex: 7, points: 20 }, 8, bonus(100, 1)],      // 8th: −40, never scaled
       [{ divisionIndex: 7, points: 90 }, 1, bonus(100, 1)],      // the cap: 90 + 55 lands on 100, overflow discarded
       [{ divisionIndex: 7, points: 100 }, 1, bonus(100, 1)],     // the gate: promoted, landing 10, bonus converted
+      [{ divisionIndex: 7, points: 100 }, 4, bonus(100, 4)],     // a 4th at a division gate: promoted, landing 10
       [{ divisionIndex: 8, points: 100 }, 1, bonus(100, 1)],     // the medal gate
+      [{ divisionIndex: 8, points: 100 }, 4, bonus(100, 4)],     // a 4th at a medal gate: holds at 100
       [{ divisionIndex: 17, points: 130 }, 1, bonus(100, 1)],    // Ascendant III takes the full +55
+      [{ divisionIndex: 17, points: 130 }, 4, bonus(100, 4)],    // and a 4th's full +13
       [{ divisionIndex: 7, points: 0, demotionReady: true }, 1, bonus(100, 1)], // a demotion game escaped with the bonus
+      [{ divisionIndex: 7, points: 0, demotionReady: true }, 4, bonus(100, 4)], // escaped by a 4th, with its bonus
     ];
     for (const [start, placement, b] of cases) {
       const c = resolveRank(start, placement, RANK_RULES, { bonus: b, lobbyStrength: 100 });
@@ -266,11 +285,13 @@ describe('medal rank — transition parity (sim resolver ↔ Edge Function mirro
       expect(s.promotionUnlocked, label).toBe(c.promotionUnlocked);
     }
     // The numbers themselves, on the sim copy (the server copy just agreed with it).
-    expect(resolveRank({ divisionIndex: 7, points: 20 }, 1, RANK_RULES, { bonus: 6 })).toMatchObject({ baseDelta: 46, strengthBonus: 6, appliedDelta: 46, after: { divisionIndex: 7, points: 66 } });
+    expect(resolveRank({ divisionIndex: 7, points: 20 }, 1, RANK_RULES, { bonus: 9 })).toMatchObject({ baseDelta: 49, strengthBonus: 9, appliedDelta: 49, after: { divisionIndex: 7, points: 69 } });
+    expect(resolveRank({ divisionIndex: 7, points: 20 }, 4, RANK_RULES, { bonus: 4 })).toMatchObject({ baseDelta: 10, strengthBonus: 4, appliedDelta: 10, after: { divisionIndex: 7, points: 30 } });
     expect(resolveRank({ divisionIndex: 7, points: 20 }, 1, RANK_RULES, { bonus: 0 })).toMatchObject({ baseDelta: 40, strengthBonus: 0, appliedDelta: 40 });
-    expect(resolveRank({ divisionIndex: 7, points: 20 }, 2, RANK_RULES, { bonus: 6 })).toMatchObject({ baseDelta: 28, strengthBonus: 0, appliedDelta: 28 });
+    expect(resolveRank({ divisionIndex: 7, points: 20 }, 5, RANK_RULES, { bonus: 15 })).toMatchObject({ baseDelta: -6, strengthBonus: 0, appliedDelta: -6 });
     expect(resolveRank({ divisionIndex: 7, points: 90 }, 1, RANK_RULES, { bonus: 15 })).toMatchObject({ baseDelta: 55, strengthBonus: 15, appliedDelta: 10, cappedPoints: 45, promotionUnlocked: true, after: { divisionIndex: 7, points: 100 } });
     expect(resolveRank({ divisionIndex: 7, points: 100 }, 1, RANK_RULES, { bonus: 15 })).toMatchObject({ baseDelta: 55, strengthBonus: 15, appliedDelta: 10, cappedPoints: 0, promoted: true, after: { divisionIndex: 8, points: 10 } });
+    expect(resolveRank({ divisionIndex: 7, points: 100 }, 4, RANK_RULES, { bonus: 7 })).toMatchObject({ baseDelta: 13, strengthBonus: 7, appliedDelta: 10, cappedPoints: 0, promoted: true, after: { divisionIndex: 8, points: 10 } });
   });
 
   it('both reject the same invalid placements', () => {

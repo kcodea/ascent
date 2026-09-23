@@ -1062,7 +1062,7 @@ export async function submitRating(req: RankSubmitRequest): Promise<RankSubmitOu
     runId: req.runId, placement: req.placement, seasonId: req.seasonId, rulesVersion: req.rulesVersion,
     ...(req.seed != null ? { seed: req.seed } : {}),
     // The seven opponent keys (2026-09-22): the SERVER recomputes the lobby strength from the fight ledger at
-    // settle time and applies the 1st-place bonus itself; the client never sends a strength or a bonus.
+    // settle time and applies the top-4 bonus itself; the client never sends a strength or a bonus.
     ...(req.seatKeys && req.seatKeys.length > 0 ? { seatKeys: req.seatKeys } : {}),
   };
   try {

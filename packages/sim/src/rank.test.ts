@@ -6,6 +6,7 @@ import {
   rankedRunIdOf, requiredFinishFor, resolveRank, settleRank,
   type RankPosition, type RankResult,
 } from './rank';
+import { strengthBonusOf } from './lobbyStrength';
 
 /**
  * MEDAL RANK — the rules, pinned (owner decisions 2026-09-20).
@@ -363,31 +364,41 @@ describe('rank — boundaries', () => {
   });
 });
 
-describe('rank — the lobby-strength bonus on a 1st (owner 2026-09-22: "only winning hard lobbies should scale, and only upwards of 15 rating")', () => {
-  it('a 1st in a Brutal lobby adds the bonus to the +40; a 1st in an Even lobby and any 2nd to 8th add nothing', () => {
-    // Gold II 20 (the mid-division case: nothing caps).
-    const brutal = resolveRank(at('Gold II', 20), 1, RANK_RULES, { bonus: 6, lobbyStrength: 74 });
-    expect(brutal).toMatchObject({ baseDelta: 46, strengthBonus: 6, lobbyStrength: 74, appliedDelta: 46, cappedPoints: 0, after: at('Gold II', 66) });
-    const even = resolveRank(at('Gold II', 20), 1, RANK_RULES, { bonus: 0, lobbyStrength: 50 });
-    expect(even).toMatchObject({ baseDelta: 40, strengthBonus: 0, lobbyStrength: 50, appliedDelta: 40, after: at('Gold II', 60) });
-    // The bonus is a 1st-place award only: a 2nd in the same Brutal lobby is the plain +28, an 8th the plain −40.
-    expect(resolveRank(at('Gold II', 20), 2, RANK_RULES, { bonus: 6, lobbyStrength: 74 })).toMatchObject({ baseDelta: 28, strengthBonus: 0, appliedDelta: 28, after: at('Gold II', 48) });
+describe('rank — the lobby-strength bonus on a top-4 (owner 2026-09-22: "the strength bonus applies to any TOP-4 finish, scaled by BOTH placement and lobby strength")', () => {
+  it('the owner\'s anchors land on the award: 1st at 100 = +40 +15, 1st at 75 = +40 +10, 4th at 100 = +6 +7, 2nd at 100 = +28 +12, 3rd at 100 = +16 +9, 1st at 50 = +40 +4, 4th at 50 = +6 +2', () => {
+    const anchors: [number, number, number][] = [[1, 100, 15], [1, 75, 10], [4, 100, 7], [2, 100, 12], [3, 100, 9], [1, 50, 4], [4, 50, 2]];
+    for (const [placement, strength, bonus] of anchors) {
+      expect(strengthBonusOf(strength, placement), `${placement} at ${strength}`).toBe(bonus);
+      const award = RANK_RULES.placementAwards[placement - 1]!;
+      // Gold II 20 (the mid-division case: nothing caps).
+      const r = resolveRank(at('Gold II', 20), placement, RANK_RULES, { bonus, lobbyStrength: strength });
+      expect(r, `${placement} at ${strength}`).toMatchObject({ baseDelta: award + bonus, strengthBonus: bonus, lobbyStrength: strength, appliedDelta: award + bonus, cappedPoints: 0, after: at('Gold II', 20 + award + bonus) });
+    }
+  });
+
+  it('5th to 8th and a loss never scale; a 1st at strength 30 earns the plain +40; no strength given means the plain award', () => {
+    expect(resolveRank(at('Gold II', 20), 5, RANK_RULES, { bonus: 15, lobbyStrength: 100 })).toMatchObject({ baseDelta: -6, strengthBonus: 0, lobbyStrength: 100, appliedDelta: -6, after: at('Gold II', 14) });
     expect(resolveRank(at('Gold II', 20), 8, RANK_RULES, { bonus: 15, lobbyStrength: 100 })).toMatchObject({ baseDelta: -40, strengthBonus: 0, appliedDelta: -20, after: armed('Gold II') });
-    // No strength given: the plain award, and the result says so.
+    expect(resolveRank(at('Gold II', 20), 1, RANK_RULES, { bonus: strengthBonusOf(30, 1), lobbyStrength: 30 })).toMatchObject({ baseDelta: 40, strengthBonus: 0, lobbyStrength: 30, appliedDelta: 40, after: at('Gold II', 60) });
     expect(resolveRank(at('Gold II', 20), 1)).toMatchObject({ baseDelta: 40, strengthBonus: 0, lobbyStrength: null });
   });
 
-  it('the bonus rides through the cap and the gates like the award: 90/100 stops at 100 (cappedPoints honest about the bonus), a gate still lands on 10', () => {
+  it('the bonus rides through the cap and the gates like the award: 90/100 stops at 100 (cappedPoints honest about the bonus), a top-4 at a division gate lands on 10, a 4th at a medal gate holds', () => {
     const capped = resolveRank(at('Gold II', 90), 1, RANK_RULES, { bonus: 15, lobbyStrength: 100 });
     expect(capped).toMatchObject({ baseDelta: 55, strengthBonus: 15, appliedDelta: 10, cappedPoints: 45, promotionUnlocked: true, after: at('Gold II', 100) });
     const division = resolveRank(at('Gold II', 100), 1, RANK_RULES, { bonus: 15, lobbyStrength: 100 });
     expect(division).toMatchObject({ promoted: true, promotionKind: 'division', baseDelta: 55, strengthBonus: 15, appliedDelta: 10, after: at('Gold III', 10) });
+    const fourthDivision = resolveRank(at('Gold II', 100), 4, RANK_RULES, { bonus: 7, lobbyStrength: 100 });
+    expect(fourthDivision).toMatchObject({ promoted: true, promotionKind: 'division', baseDelta: 13, strengthBonus: 7, appliedDelta: 10, cappedPoints: 0, after: at('Gold III', 10) });
     const medal = resolveRank(at('Gold III', 100), 1, RANK_RULES, { bonus: 15, lobbyStrength: 100 });
     expect(medal).toMatchObject({ promoted: true, promotionKind: 'medal', appliedDelta: 10, after: at('Platinum I', 10) });
-    // The top division is uncapped: the whole +55 applies.
+    const fourthMedal = resolveRank(at('Gold III', 100), 4, RANK_RULES, { bonus: 7, lobbyStrength: 100 });
+    expect(fourthMedal).toMatchObject({ promoted: false, baseDelta: 13, strengthBonus: 7, appliedDelta: 0, cappedPoints: 13, after: at('Gold III', 100) });
+    // The top division is uncapped: the whole +55 (and a 4th's whole +13) applies.
     expect(resolveRank(at('Ascendant III', 130), 1, RANK_RULES, { bonus: 15, lobbyStrength: 100 })).toMatchObject({ appliedDelta: 55, after: at('Ascendant III', 185) });
+    expect(resolveRank(at('Ascendant III', 130), 4, RANK_RULES, { bonus: 7, lobbyStrength: 100 })).toMatchObject({ appliedDelta: 13, after: at('Ascendant III', 143) });
     // Every bonus result still satisfies the scalar identity and the cappedPoints bounds.
-    for (const r of [brutalOrEven(6), brutalOrEven(0), capped, division, medal]) {
+    for (const r of [brutal(1), brutal(4), capped, division, fourthDivision, medal, fourthMedal]) {
       expect(r.appliedDelta).toBe(rankScalar(r.after) - rankScalar(r.before));
       expect(r.cappedPoints).toBeGreaterThanOrEqual(0);
       expect(r.cappedPoints).toBeLessThanOrEqual(Math.abs(r.baseDelta));
@@ -395,7 +406,7 @@ describe('rank — the lobby-strength bonus on a 1st (owner 2026-09-22: "only wi
   });
 });
 
-const brutalOrEven = (bonus: number): ReturnType<typeof resolveRank> => resolveRank(at('Gold II', 20), 1, RANK_RULES, { bonus, lobbyStrength: bonus > 0 ? 74 : 50 });
+const brutal = (placement: number): ReturnType<typeof resolveRank> => resolveRank(at('Gold II', 20), placement, RANK_RULES, { bonus: strengthBonusOf(74, placement), lobbyStrength: 74 });
 
 describe('rank — properties (blueprint §11)', () => {
   const starts: RankPosition[] = [];

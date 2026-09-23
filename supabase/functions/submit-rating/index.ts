@@ -4,7 +4,8 @@
  * A client sends `{ runId, placement, seasonId, rulesVersion, seed?, seatKeys? }` — never a rating, never a
  * division, never a strength. `seatKeys` (2026-09-22) are the seven opponent seats' fight-ledger keys; the
  * database recomputes the LOBBY STRENGTH from the `run_fight_records` view at settle time and applies the
- * 1st-place bonus itself — the client's own number is only what it shows before the settle.
+ * top-4 bonus itself (scaled by placement and strength) — the client's own number is only what it shows
+ * before the settle.
  * This function, running as the SERVICE ROLE, calls the `settle_rank` database function, which does the whole
  * settlement in ONE transaction: it locks the caller's profile row, checks the `rank_results` ledger under
  * that lock (a duplicate returns the ORIGINAL result — never a second award), resolves the medal rules from

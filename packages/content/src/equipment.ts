@@ -200,8 +200,8 @@ export const BLAST_PUMP: EquipmentDefinition = {
 export const PRISMATIC_PICK: EquipmentDefinition = {
   id: 'prismatic_pick',
   name: 'Prismatic Pick',
-  text: 'Choose One — **Discover** a **Choose One** card; or your next **Choose One** card this turn gains **both** effects.',
-  goldenText: 'Choose One — **Discover** a **Choose One** card, **twice**; or your next **2 Choose One** cards this turn gain **both** effects.',
+  text: 'Choose One. **Discover** a **Choose One** card; or your next **Choose One** card this turn gains **both** effects.',
+  goldenText: 'Choose One. **Discover** a **Choose One** card, **twice**; or your next **2 Choose One** cards this turn gain **both** effects.',
   baseCost: 1,
   targetMode: 'none',
   effectId: 'grantChooseBothCharges',

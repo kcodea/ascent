@@ -90,7 +90,11 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // rule), the Festival Circuit's "Your Revelers buff Celestials" (an audience-widening rider), Quick Release's
 // "(Doesn't discount its own Equipment)" (an exclusion parenthetical) and Empty Hands' "and is Amplified permanently";
 // Charted Skies, Festival Wages, Eventide and the Endless March now parse fully, so the queue nets +1. A conscious move.
-const UNRESOLVED_CAP = 91;
+// 91 → 90 on 2026-09-23: the em-dash sweep (owner style rule 2026-09-21) rewrote 20 live card texts as short
+// sentences and taught the grammar the sentence forms (NOTES for the Engraved / All-types / copy-exact / refresh-
+// spells glosses, "Start of Combat (Bleed):", "Choose One.", ", up to N hits a combat"). Moe's "That shop has a
+// guaranteed Attachment (costs 2)" is a note now, so Moe parses fully and the queue nets -1. Nothing regressed.
+const UNRESOLVED_CAP = 90;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

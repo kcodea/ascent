@@ -225,8 +225,8 @@ export const BEASTS: CardDef[] = [
     health: 5,
     keywords: ['T'],
     effects: [{ on: 'onDamaged', do: 'onDamagedGrantRefresh', params: { count: 1, max: 4 } }],
-    text: '**Taunt.** Each time this takes damage, gain a **free refresh** — up to **4 hits** a combat.',
-    goldenText: '**Taunt.** Each time this takes damage, gain **2 free refreshes** — up to **4 hits** a combat.',
+    text: '**Taunt.** Each time this takes damage, gain a **free refresh**, up to **4 hits** a combat.',
+    goldenText: '**Taunt.** Each time this takes damage, gain **2 free refreshes**, up to **4 hits** a combat.',
   },
   {
     // Play-payoff that snowballs: each Beast you PLAY in the shop gets buffed, and the buff grows +1/+1 every
@@ -240,8 +240,8 @@ export const BEASTS: CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'onSummon', do: 'summonBuffTribeImprove', params: { tribe: 'beast', attack: 2, health: 2 } }],
-    text: 'When you play a **Beast**, give it **+2/+2** — and improve this by **+2/+2**.',
-    goldenText: 'When you play a **Beast**, give it **+4/+4** — and improve this by **+4/+4**.',
+    text: 'When you play a **Beast**, give it **+2/+2**. Improve this by **+2/+2**.',
+    goldenText: 'When you play a **Beast**, give it **+4/+4**. Improve this by **+4/+4**.',
   },
   {
     // Rally payoff for a Den Mother board: each of its own attacks permanently improves every friendly Den

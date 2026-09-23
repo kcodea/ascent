@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { CombatResult, QuestObjective } from '@game/core';
-import { ALL_CARDS, ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES } from '@game/content';
+import { ALL_CARDS, ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, EQUIPMENT, QUEST_DEFS, RUNES } from '@game/content';
+import { HEROES, TUTORIAL_COURSES, type TutorialStep } from '@game/sim';
 import { KEYWORD_GLOSSARY } from './keywordGlossary';
 import { PATCH_NOTES } from './patchNotes';
 import { combatGains } from './combatGains';
@@ -27,7 +28,7 @@ import type { RankSubmission } from './rank/types';
  */
 
 const EM_DASH = '—';
-const DOUBLE_HYPHEN = ' -- ';
+const DOUBLE_HYPHEN = '--';
 
 const offends = (s: string): boolean => s.includes(EM_DASH) || s.includes(DOUBLE_HYPHEN);
 
@@ -227,45 +228,77 @@ describe('player-facing text carries no em dash and no double hyphen (owner rule
   });
 
   /**
-   * CARD AND RUNE TEXT (added 2026-09-22 with R-TEXT-05). The owner's rule names every surface a player
-   * reads, and card text is the surface they read most, but the sweeps above never touched it: 29 cards
-   * authored before the rule still separate clauses with an em dash. Rewriting them is a player-facing
-   * content pass with its own patch note, so this pin is a TWO-SIDED RATCHET instead of a flat ban.
-   *  · A card NOT on the list below must never carry one: a new card with an em dash fails here.
-   *  · A card on the list that has been rewritten must come OFF the list, so the debt only shrinks.
-   * Delete an id when you clean its text. When the list empties, delete it and assert `[]` outright.
+   * AUTHORED CONTENT (2026-09-22 ratchet, cleared 2026-09-23 with the 29-card rewrite). One walk over every
+   * content string a player reads that is authored as DATA rather than rendered by a screen: every card in
+   * the global index (drawable, token, henchman, gift, archived), every rune in every pool, every hero (name,
+   * blurb, power name + text), every quest name, every Equipment (name, text, Gilded text, Choose One branches)
+   * and every tutorial course (titles, bodies, "why" lines, connector labels, seat names). A flat ban: there is
+   * no debt list to come off, so a new card, rune, hero, Equipment or tutorial step with an em dash fails here.
    */
-  const EM_DASH_CARD_DEBT = [
-    'anomalyreactor', 'ashen_heir', 'betterbot', 'bloodbinder', 'c3_acolyte', 'c3_cartographer',
-    'c3_channeler', 'c3_courier', 'c3_equinox', 'c3_familiar', 'c3_gardener', 'c3_nym', 'c3_relay',
-    'c3_sentinel', 'c3_tender', 'c3_twilight', 'c3_vendor', 'ce3_coronadevotee', 'consume', 'copycat',
-    'd2_orivax', 'fred', 'gryphon', 'hm_test_squire', 'k3_prismpick', 'mamabear', 'moe', 'spellcart',
-    'taragosaheir',
-  ];
-
-  it('card text: no NEW card carries an em dash, and the legacy debt only shrinks', () => {
-    const offenders = ALL_CARDS.filter((c) => {
-      const strings = [
-        c.name, c.text, c.goldenText ?? '',
-        ...(c.chooseOne ?? []).flatMap((b) => [b.text, b.goldenText ?? '']),
-      ];
-      return strings.some((t) => t && offends(t));
-    }).map((c) => c.id).sort();
-    expect(offenders.length, 'the sweep found no cards at all; is ALL_CARDS still populated?').toBeGreaterThan(0);
-    const fresh = offenders.filter((id) => !EM_DASH_CARD_DEBT.includes(id));
-    expect(fresh, 'new card text with an em dash: house style is one or two short plain sentences').toEqual([]);
-    const cleaned = EM_DASH_CARD_DEBT.filter((id) => !offenders.includes(id));
-    expect(cleaned, 'these cards read clean now: delete them from EM_DASH_CARD_DEBT so the debt cannot grow back').toEqual([]);
-  });
-
-  it('rune text: clean, and stays clean', () => {
-    const bad: string[] = [];
-    for (const r of [...RUNES, ...EPIC_RUNES, ...ARCHIVED_RUNES]) {
-      for (const [where, t] of [['name', r.name], ['text', r.text]] as const) {
-        if (offends(t)) bad.push(`rune ${r.id}.${where}: ${t}`);
-      }
+  function contentStrings(): { where: string; text: string }[] {
+    const out: { where: string; text: string }[] = [];
+    const push = (where: string, text: string | undefined): void => { if (text) out.push({ where, text }); };
+    for (const c of ALL_CARDS) {
+      push(`card ${c.id}.name`, c.name);
+      push(`card ${c.id}.text`, c.text);
+      push(`card ${c.id}.goldenText`, c.goldenText);
+      (c.chooseOne ?? []).forEach((b, i) => {
+        push(`card ${c.id}.chooseOne[${i}].text`, b.text);
+        push(`card ${c.id}.chooseOne[${i}].goldenText`, b.goldenText);
+      });
     }
-    expect(bad).toEqual([]);
+    for (const r of [...RUNES, ...EPIC_RUNES, ...ARCHIVED_RUNES]) {
+      push(`rune ${r.id}.name`, r.name);
+      push(`rune ${r.id}.text`, r.text);
+    }
+    for (const h of HEROES) {
+      push(`hero ${h.id}.name`, h.name);
+      push(`hero ${h.id}.blurb`, h.blurb);
+      push(`hero ${h.id}.power.name`, h.power.name);
+      push(`hero ${h.id}.power.text`, h.power.text);
+    }
+    for (const q of QUEST_DEFS) push(`quest ${q.id}.name`, q.name);
+    for (const e of EQUIPMENT) {
+      push(`equipment ${e.id}.name`, e.name);
+      push(`equipment ${e.id}.text`, e.text);
+      push(`equipment ${e.id}.goldenText`, e.goldenText);
+      (e.chooseOne ?? []).forEach((b, i) => {
+        push(`equipment ${e.id}.chooseOne[${i}].text`, b.text);
+        push(`equipment ${e.id}.chooseOne[${i}].goldenText`, b.goldenText);
+      });
+    }
+    const step = (where: string, s: TutorialStep): void => {
+      push(`${where}.title`, s.title);
+      push(`${where}.body`, s.body);
+      push(`${where}.why`, s.why);
+      push(`${where}.connector.label`, s.connector?.label);
+    };
+    for (const course of Object.values(TUTORIAL_COURSES)) {
+      const w = `tutorial ${course.id}`;
+      push(`${w}.title`, course.title);
+      push(`${w}.summary`, course.summary);
+      course.opponentNames.forEach((n, i) => push(`${w}.opponentNames[${i}]`, n));
+      for (const p of course.foundation) {
+        push(`${w}.foundation ${p.id}.title`, p.title);
+        push(`${w}.foundation ${p.id}.body`, p.body);
+        push(`${w}.foundation ${p.id}.why`, p.why);
+      }
+      push(`${w}.orderDemo.body`, course.orderDemo?.body);
+      push(`${w}.orderDemo.debrief`, course.orderDemo?.debrief);
+      for (const s of course.lobbyIntro) step(`${w}.lobbyIntro ${s.id}`, s);
+      for (const t of course.turns) for (const s of t.steps) step(`${w}.turn${t.turn} ${s.id}`, s);
+    }
+    return out;
+  }
+
+  it('authored content: every card, rune, hero, quest, Equipment and tutorial string', () => {
+    const all = contentStrings();
+    expect(all.filter((s) => s.where.startsWith('card ')).length, 'no card strings; is ALL_CARDS still populated?').toBeGreaterThan(0);
+    expect(all.filter((s) => s.where.startsWith('hero ')).length, 'no hero strings; is HEROES still populated?').toBeGreaterThan(0);
+    expect(all.filter((s) => s.where.startsWith('equipment ')).length, 'no Equipment strings; is EQUIPMENT still populated?').toBeGreaterThan(0);
+    expect(all.filter((s) => s.where.startsWith('tutorial ')).length, 'no tutorial strings; is TUTORIAL_COURSES still populated?').toBeGreaterThan(0);
+    const bad = all.filter((s) => offends(s.text)).map((s) => `${s.where}: ${s.text}`);
+    expect(bad, 'house style is one or two short plain sentences: a full stop where the dash was, or a comma for a real aside').toEqual([]);
   });
 
   it('rank sentences: every error code, every gate line, every fixture outcome', () => {

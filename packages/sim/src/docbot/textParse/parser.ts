@@ -98,7 +98,7 @@ function recKeywordLine(s: string, ctx: Ctx): Rec | null {
   // Only a run that consumes the whole fragment (bar trailing punctuation) is a bare keyword line.
   if (/^[.\s]*$/.test(s.slice(len))) return { effect: { kind: 'keyword-line', keywords: run.letters }, len: s.length };
   // "Engraved — keeps its combat gains." — the Engraved gloss.
-  const gloss = /^ — keeps its combat gains\.?$/.exec(s.slice(len));
+  const gloss = /^ — keeps its combat gains\.?$/.exec(s.slice(len)); // the pre-2026-09-23 dash form; the sentence form is the 'engraved-gloss' NOTE
   if (gloss) return { effect: { kind: 'keyword-line', keywords: run.letters }, len: s.length };
   return null;
 }
@@ -228,7 +228,7 @@ function recAllTypes(s: string): Rec | null {
   if (!m) return null;
   const tp = targetPhrase(s.slice(m[0].length));
   if (!tp) return null;
-  const t = /^ All types( — it counts as every tribe and gets all of their buffs)?/.exec(s.slice(m[0].length + tp.len));
+  const t = /^ All types( — it counts as every tribe and gets all of their buffs)?/.exec(s.slice(m[0].length + tp.len)); // the sentence form is the 'all-types-gloss' NOTE
   if (!t) return null;
   return { effect: { kind: 'grant-keyword', keywords: ['ALL_TYPES'], verb: 'give', target: tp.target }, len: m[0].length + tp.len + t[0].length };
 }
@@ -350,7 +350,7 @@ function recCopy(s: string): Rec | null {
     const tp = targetPhrase(s.slice(len + onto[0].length));
     if (tp) { target = target ?? tp.target; len += onto[0].length + tp.len; }
   }
-  const tail = /^(?: exactly — stats, buffs and improvements included| without Echo| to your hand)/.exec(s.slice(len));
+  const tail = /^(?: exactly(?: — stats, buffs and improvements included)?| without Echo| to your hand)/.exec(s.slice(len)); // the gloss is its own sentence since 2026-09-23 (the 'copy-exact-gloss' NOTE)
   if (tail) len += tail[0].length;
   return {
     effect: {
@@ -769,7 +769,14 @@ const NOTES: ReadonlyArray<readonly [RegExp, string]> = [
   [/^Next turn it is yours to keep$/, 'keep-next-turn'],
   [/^Henchman$/, 'henchman'],
   [/^Y?ou (?:need only|only need) 2 copies(?: of cards)? to Gild(?: them)?$/, 'gild-at-2'],
-  [/^Magnetic — welds onto a Mech, which then grants the buff \(stacks\)$/, 'magnetic-weld'],
+  [/^Magnetic(?: —|:) welds onto a Mech, which then grants the buff \(stacks\)$/, 'magnetic-weld'],
+  // The em-dash glosses became sentences of their own on 2026-09-23 (owner style rule 2026-09-21): each carries no
+  // magnitude, so it is a note, exactly as its dash form was a consumed tail.
+  [/^It keeps its combat gains$/, 'engraved-gloss'],
+  [/^It counts as every tribe and gets all of their buffs$/, 'all-types-gloss'],
+  [/^Fill it with Shop spells instead of minions$/, 'refresh-spells'],
+  [/^Stats, buffs and improvements included$/, 'copy-exact-gloss'],
+  [/^(?:That shop has|Those shops have) a guaranteed Attachment \(costs \d+\)$/, 'guaranteed-attachment'],
   [/^This power then locks for that many turns$/, 'locks-for-roll'],
   [/^(?:Cast \d+ Shop spells|Grant stats \d+ times in combat) to ascend$/, 'ascend-condition'],
 ];
@@ -884,7 +891,7 @@ function collectModifiers(sentence: string, base: number, stripped: string, out:
 const EFFECT_TAIL = new RegExp('^\\s*(?:,\\s*)?(?:'
   + 'permanently|this turn|next turn|this run|this game|for the rest of the (?:run|game)|for the rest of combat|for the next combat|for that combat|for this turn'
   + '|next combat only|\\(next combat only\\)|next combat|this combat|next fight|next shop|in combat|during combat|in the shop|even in the shop|in the far right position'
-  + '|to your hand|from your hand|\\(\\d+ max\\)|\\(max \\d+\\)|\\(\\d+ times\\)|\\(Once\\)|\\((?:Once|Twice|\\d+ times|\\d+ uses) per (?:turn|combat)\\)|— up to \\d+ \\w+ a combat'
+  + '|to your hand|from your hand|\\(\\d+ max\\)|\\(max \\d+\\)|\\(\\d+ times\\)|\\(Once\\)|\\((?:Once|Twice|\\d+ times|\\d+ uses) per (?:turn|combat)\\)|(?:—|,) up to \\d+ \\w+ a combat'
   + '|twice|three times|\\d+ times|each|too|immediately|instead|as Rubies|before this attacks|before striking|before being sold|after you play them|next to it'
   + '|when summoned in combat|when summoned|when there is room|when you have room|when you first have room|at End of Turn|at Start of Combat|at the start of your next shop|at the start of next combat'
   + '|for the next \\d+ turns|every turn|each turn|per turn|\\(shop or combat\\)|\\(random\\)|\\(as room allows\\)|\\(Deathrattle\\)|\\(up to Tier \\d+\\)|\\(up to your tavern tier\\)'

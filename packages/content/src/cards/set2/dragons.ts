@@ -220,7 +220,7 @@ export const SET2_DRAGONS: CardDef[] = [
     chooseBothWhenGolden: true,
     // No flavour names (owner 2026-07-25) — its OPTIONS never carried them, but the combined card text did.
     text: '**Choose One:** your **Shouts** trigger an additional time, or your first **Shop spell** each turn casts **3 times**.',
-    goldenText: '**Choose One:** gain **both** — your **Shouts** trigger an additional time, and your first **Shop spell** each turn casts **3 times**.',
+    goldenText: '**Choose One:** gain **both**. Your **Shouts** trigger an additional time, and your first **Shop spell** each turn casts **3 times**.',
   },
   {
     // Owner add 2026-08-11 (renamed Herzog → Vaultkeeper 2026-08-12; the id stays — saved runs store ids). A

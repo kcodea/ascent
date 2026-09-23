@@ -258,8 +258,8 @@ export const ARCHIVED_CARDS: CardDef[] = [
       { on: 'onPlay', do: 'battlecryGainRandomMinion', params: { tier: 1, count: 1 }, align: 'dawn' },
       { on: 'onPlay', do: 'battlecryGrantRandomSpell', params: { count: 1 }, align: 'dusk' },
     ],
-    text: '**Shout — Dawn:** get a random Tier 1 minion. **Dusk:** get a random Shop spell.',
-    goldenText: '**Shout — Dawn:** get **2** random Tier 1 minions. **Dusk:** get **2** random Shop spells.',
+    text: '**Shout. Dawn:** get a random Tier 1 minion. **Dusk:** get a random Shop spell.',
+    goldenText: '**Shout. Dawn:** get **2** random Tier 1 minions. **Dusk:** get **2** random Shop spells.',
   },
   {
     // The tribe's Orbit primer: a 3/1 that turns every later play into board value. It buffs a RANDOM friend
@@ -276,8 +276,8 @@ export const ARCHIVED_CARDS: CardDef[] = [
       { on: 'orbit', do: 'orbitBuffRandomFriend', params: { attack: 2 }, align: 'dawn' },
       { on: 'orbit', do: 'orbitBuffRandomFriend', params: { health: 2 }, align: 'dusk' },
     ],
-    text: '**Orbit — Dawn:** give a random friendly minion **+2 Attack**. **Dusk:** give one **+2 Health**.',
-    goldenText: '**Orbit — Dawn:** give a random friendly minion **+4 Attack**. **Dusk:** give one **+4 Health**.',
+    text: '**Orbit. Dawn:** give a random friendly minion **+2 Attack**. **Dusk:** give one **+2 Health**.',
+    goldenText: '**Orbit. Dawn:** give a random friendly minion **+4 Attack**. **Dusk:** give one **+4 Health**.',
   },
   {
     // Economy Orbit. The Dawn half compounds on the Vendor itself (capped, so it can't run away); the Dusk
@@ -294,8 +294,8 @@ export const ARCHIVED_CARDS: CardDef[] = [
       { on: 'orbit', do: 'orbitSellValue', params: { amount: 1, cap: 3 }, align: 'dawn' },
       { on: 'orbit', do: 'buffShopPermanent', params: { attack: 1, health: 1 }, align: 'dusk' },
     ],
-    text: '**Orbit — Dawn:** gain **+1 sell value**, up to **+3**. **Dusk:** give minions in the current Shop **+1/+1**.',
-    goldenText: '**Orbit — Dawn:** gain **+2 sell value**, up to **+3**. **Dusk:** give minions in the current Shop **+2/+2**.',
+    text: '**Orbit. Dawn:** gain **+1 sell value**, up to **+3**. **Dusk:** give minions in the current Shop **+1/+1**.',
+    goldenText: '**Orbit. Dawn:** gain **+2 sell value**, up to **+3**. **Dusk:** give minions in the current Shop **+2/+2**.',
   },
   {
     // A combat-facing Celestial: the same body is an aggressive Flurry in Dawn or a durable Ward in Dusk, so
@@ -312,7 +312,7 @@ export const ARCHIVED_CARDS: CardDef[] = [
       { on: 'startOfCombat', do: 'scGainKeyword', params: { keyword: 'W' }, align: 'dawn' },
       { on: 'startOfCombat', do: 'scGainKeyword', params: { keyword: 'DS' }, align: 'dusk' },
     ],
-    text: '**Start of Combat — Dawn:** gain **Flurry**. **Dusk:** gain **Ward**.',
+    text: '**Start of Combat. Dawn:** gain **Flurry**. **Dusk:** gain **Ward**.',
   },
   {
     // Orbit (4): a slow, permanent spell-power engine. The cadence is what keeps a run-wide buff honest.
@@ -328,8 +328,8 @@ export const ARCHIVED_CARDS: CardDef[] = [
       { on: 'orbit', do: 'orbitGrantSpellPower', params: { every: 4, attack: 1 }, align: 'dawn' },
       { on: 'orbit', do: 'orbitGrantSpellPower', params: { every: 4, health: 1 }, align: 'dusk' },
     ],
-    text: '**Orbit (4) — Dawn:** improve your **Shop spells** by **+1 Attack**. **Dusk:** improve them by **+1 Health**.',
-    goldenText: '**Orbit (4) — Dawn:** improve your **Shop spells** by **+2 Attack**. **Dusk:** improve them by **+2 Health**.',
+    text: '**Orbit (4). Dawn:** improve your **Shop spells** by **+1 Attack**. **Dusk:** improve them by **+1 Health**.',
+    goldenText: '**Orbit (4). Dawn:** improve your **Shop spells** by **+2 Attack**. **Dusk:** improve them by **+2 Health**.',
   },
   {
     // The payoff for committing to one half of the sky — and the card that makes Eclipse feel best, since an
@@ -346,8 +346,8 @@ export const ARCHIVED_CARDS: CardDef[] = [
       { on: 'orbit', do: 'orbitBuffAlignedCelestials', params: { side: 'dawn', attack: 2 }, align: 'dawn' },
       { on: 'orbit', do: 'orbitBuffAlignedCelestials', params: { side: 'dusk', health: 2 }, align: 'dusk' },
     ],
-    text: '**Orbit — Dawn:** give your **Dawn Celestials +2 Attack**. **Dusk:** give your **Dusk Celestials +2 Health**.',
-    goldenText: '**Orbit — Dawn:** give your **Dawn Celestials +4 Attack**. **Dusk:** give your **Dusk Celestials +4 Health**.',
+    text: '**Orbit. Dawn:** give your **Dawn Celestials +2 Attack**. **Dusk:** give your **Dusk Celestials +2 Health**.',
+    goldenText: '**Orbit. Dawn:** give your **Dawn Celestials +4 Attack**. **Dusk:** give your **Dusk Celestials +4 Health**.',
   },
   {
     // A board-wide Orbit WATCHER, not an Orbit itself: it counts everyone's Orbits, so it rewards a tribe
@@ -379,8 +379,8 @@ export const ARCHIVED_CARDS: CardDef[] = [
       { on: 'orbit', do: 'orbitCastSpell', params: { every: 3, spellId: 'sprout' }, align: 'dawn' },
       { on: 'orbit', do: 'orbitCastSpell', params: { every: 3, spellId: 'growth' }, align: 'dusk' },
     ],
-    text: '**Orbit (3) — Dawn:** cast **Sprout**. **Dusk:** cast **Growth**.',
-    goldenText: '**Orbit (3) — Dawn:** cast **Sprout** twice. **Dusk:** cast **Growth** twice.',
+    text: '**Orbit (3). Dawn:** cast **Sprout**. **Dusk:** cast **Growth**.',
+    goldenText: '**Orbit (3). Dawn:** cast **Sprout** twice. **Dusk:** cast **Growth** twice.',
   },
   {
     // Catch-up statting: it always feeds whatever is furthest behind, which keeps a wide board viable rather
@@ -397,8 +397,8 @@ export const ARCHIVED_CARDS: CardDef[] = [
       { on: 'orbit', do: 'orbitBuffLowest', params: { stat: 'attack', amount: 4 }, align: 'dawn' },
       { on: 'orbit', do: 'orbitBuffLowest', params: { stat: 'health', amount: 4 }, align: 'dusk' },
     ],
-    text: '**Orbit — Dawn:** give your **lowest-Attack** minion **+4 Attack**. **Dusk:** give your **lowest-Health** minion **+4 Health**.',
-    goldenText: '**Orbit — Dawn:** give your **lowest-Attack** minion **+8 Attack**. **Dusk:** give your **lowest-Health** minion **+8 Health**.',
+    text: '**Orbit. Dawn:** give your **lowest-Attack** minion **+4 Attack**. **Dusk:** give your **lowest-Health** minion **+4 Health**.',
+    goldenText: '**Orbit. Dawn:** give your **lowest-Attack** minion **+8 Attack**. **Dusk:** give your **lowest-Health** minion **+8 Health**.',
   },
   {
     // A pure positional multiplier — no Orbit of its own, it just makes its NEIGHBOURS' Orbits pay twice.
@@ -465,8 +465,8 @@ export const ARCHIVED_CARDS: CardDef[] = [
       { on: 'onPlay', do: 'triggerAdjacentOrbits', align: 'dawn' },
       { on: 'endOfTurn', do: 'triggerAdjacentOrbits', align: 'dusk' },
     ],
-    text: '**Shout — Dawn:** trigger adjacent **Orbits**. **End of Turn — Dusk:** trigger adjacent **Orbits**.',
-    goldenText: '**Shout — Dawn:** trigger adjacent **Orbits** twice. **End of Turn — Dusk:** trigger adjacent **Orbits** twice.',
+    text: '**Shout. Dawn:** trigger adjacent **Orbits**. **End of Turn. Dusk:** trigger adjacent **Orbits**.',
+    goldenText: '**Shout. Dawn:** trigger adjacent **Orbits** twice. **End of Turn. Dusk:** trigger adjacent **Orbits** twice.',
   },
   {
     // Pays for INVESTMENT rather than for tempo: an unbuffed body is worth nothing to the Crucible, a minion
@@ -577,8 +577,8 @@ export const ARCHIVED_CARDS: CardDef[] = [
       { on: 'startOfCombat', do: 'scDamage', params: { amount: 3, target: 'leftmost', text: 'Dawnfire' }, align: 'dawn' },
       { on: 'startOfCombat', do: 'scDamage', params: { amount: 3, target: 'all', text: 'Duskfall' }, align: 'dusk' },
     ],
-    text: '**Dawn:** Start of Combat — deal **3** to the left-most enemy. **Dusk:** deal **3** to ALL enemies.',
-    goldenText: '**Dawn:** Start of Combat — deal **6** to the left-most enemy. **Dusk:** deal **6** to ALL enemies.',
+    text: '**Start of Combat. Dawn:** deal **3** to the left-most enemy. **Dusk:** deal **3** to ALL enemies.',
+    goldenText: '**Start of Combat. Dawn:** deal **6** to the left-most enemy. **Dusk:** deal **6** to ALL enemies.',
   },
 
   {
@@ -595,8 +595,8 @@ export const ARCHIVED_CARDS: CardDef[] = [
       { on: 'startOfCombat', do: 'scBuffSelf', params: { attack: 2 }, align: 'dawn' },
       { on: 'startOfCombat', do: 'scBuffSelf', params: { health: 2 }, align: 'dusk' },
     ],
-    text: 'Start of Combat — **Dawn:** gain **+2 Attack**. **Dusk:** gain **+2 Health**.',
-    goldenText: 'Start of Combat — **Dawn:** gain **+4 Attack**. **Dusk:** gain **+4 Health**.',
+    text: 'Start of Combat. **Dawn:** gain **+2 Attack**. **Dusk:** gain **+2 Health**.',
+    goldenText: 'Start of Combat. **Dawn:** gain **+4 Attack**. **Dusk:** gain **+4 Health**.',
   },
   {
     // An UNGATED Orbit — fires whatever the Familiar's alignment. The contrast case to the Twinlight
@@ -630,8 +630,8 @@ export const ARCHIVED_CARDS: CardDef[] = [
       { on: 'onAttack', do: 'rallyBuffCelestials', params: { attack: 2 }, align: 'dawn' },
       { on: 'onDeath', do: 'deathrattleBuffCelestials', params: { health: 2 }, align: 'dusk' },
     ],
-    text: '**Dawn — Rally:** give your Celestials **+2 Attack**. **Dusk — Echo:** give them **+2 Health**.',
-    goldenText: '**Dawn — Rally:** give your Celestials **+4 Attack**. **Dusk — Echo:** give them **+4 Health**.',
+    text: '**Dawn. Rally:** give your Celestials **+2 Attack**. **Dusk. Echo:** give them **+2 Health**.',
+    goldenText: '**Dawn. Rally:** give your Celestials **+4 Attack**. **Dusk. Echo:** give them **+4 Health**.',
   },
   {
     // Alignment on END OF TURN — the recruit-phase economy shape (and the reason applyEndOfTurn + its
@@ -648,8 +648,8 @@ export const ARCHIVED_CARDS: CardDef[] = [
       { on: 'endOfTurn', do: 'endOfTurnBonusGold', params: { amount: 2 }, align: 'dawn' },
       { on: 'endOfTurn', do: 'endOfTurnGetRandomSpells', params: { count: 1 }, align: 'dusk' },
     ],
-    text: 'End of Turn — **Dawn:** gain **2 Gold** next turn. **Dusk:** get a **random spell**.',
-    goldenText: 'End of Turn — **Dawn:** gain **4 Gold** next turn. **Dusk:** get **2 random spells**.',
+    text: 'End of Turn. **Dawn:** gain **2 Gold** next turn. **Dusk:** get a **random spell**.',
+    goldenText: 'End of Turn. **Dawn:** gain **4 Gold** next turn. **Dusk:** get **2 random spells**.',
   },
 
   // ── 2026-08-18 owner archive batch (Set 2 Kobold / Dwarf / Demon cull) ───────────────────────────────────

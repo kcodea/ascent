@@ -70,7 +70,7 @@ export const TOKENS: CardDef[] = [
     effects: [{ on: 'cast', do: 'spellCopyTargetExact' }],
     token: true,
     rewardSpell: true,
-    text: 'Copy a friendly minion **exactly** — stats, buffs and improvements included.',
+    text: 'Copy a friendly minion **exactly**. Stats, buffs and improvements included.',
   },
   {
     id: 'discoverspell',

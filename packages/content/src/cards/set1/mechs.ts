@@ -177,7 +177,7 @@ export const MECHS: CardDef[] = [
     keywords: ['M', 'RL'],
     rallyMechAtk: 5,
     effects: [],
-    text: '**Rally:** give your other Mechs **+5 Attack**. **Magnetic** — welds onto a Mech, which then grants the buff (stacks).',
+    text: '**Rally:** give your other Mechs **+5 Attack**. **Magnetic:** welds onto a Mech, which then grants the buff (stacks).',
   },
   {
     // T6 flood-or-pump finisher: its Deathrattle dumps 5 Nanobots (owner trim 2026-07-21, was 6), and any that
@@ -234,8 +234,8 @@ export const MECHS: CardDef[] = [
     health: 3,
     keywords: ['SL'],
     effects: [{ on: 'onKill', do: 'onKillGrantAttachmentRefreshes', params: { count: 1 } }],
-    text: '**Slaughter:** gain **1 free refresh** next turn — that shop has a guaranteed **Attachment** (costs 2).',
-    goldenText: '**Slaughter:** gain **2 free refreshes** next turn — those shops have a guaranteed **Attachment** (costs 2).',
+    text: '**Slaughter:** gain **1 free refresh** next turn. That shop has a guaranteed **Attachment** (costs 2).',
+    goldenText: '**Slaughter:** gain **2 free refreshes** next turn. Those shops have a guaranteed **Attachment** (costs 2).',
   },
   {
     // Slaughter (on kill): grant 2 Gold into your next shop (golden: 4). A high-Attack finisher that snowballs

@@ -1905,6 +1905,7 @@ export function isStatSpell(def: CardDef | undefined): boolean {
  *  they were one function, and broadening the discount silently changed what the Ledger casts. */
 const SHOP_TARGETED_STAT_SPELLS: ReadonlySet<string> = new Set([
   'spellBuffShop', 'spellBuffShopByRuby', 'spellBuffTavern', 'spellBuffNextShop',
+  'spellBuffShopRightmost', // Picnic (2026-09-23): the right-most Shop slot — an offer buff, never a board grant
 ]);
 export function isBoardStatSpell(def: CardDef | undefined): boolean {
   return isStatSpell(def)
@@ -7831,6 +7832,24 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     applyRunShopBuff(ctx.state, a, h, 'Staff of Guel');
   },
 
+  /** Picnic (owner 2026-09-23: "T5 1 cost - Give the right-most Shop minion +8/+8 permanently") — the cast lands
+   *  on the right-most Shop MINION now and, like Market Tormentor's Shout, enchants that SLOT for the rest of the
+   *  run: `rightmostSlotBuff` is the one accumulator, re-landed on every fresh roll by `applyShopRefreshed`, so
+   *  the +8/+8 survives a refresh and rides the offer into whatever is bought. Spell power folds on both stats
+   *  (Staff of Guel's rule for a shop-buff spell); the printed number goes live with it in `spellDisplayText`.
+   *  No Shop minion → the cast is refused before it consumes the card (`spellFizzle.ts`). */
+  spellBuffShopRightmost: (ctx, _self, params) => {
+    const st = ctx.state;
+    const a = num(params.attack, 8) + spellAttackBonus(st);
+    const h = num(params.health, 8) + spellHealthBonus(st);
+    st.rightmostSlotBuff = {
+      attack: (st.rightmostSlotBuff?.attack ?? 0) + a,
+      health: (st.rightmostSlotBuff?.health ?? 0) + h,
+    };
+    const i = rightmostShopMinion(st);
+    if (i >= 0) addOfferBuff(st.shop[i]!, str(params._source) || 'Picnic', a, h);
+  },
+
   /** Lantern of Souls — cast: your Undead get +`amount` Attack (plus spell power on Attack AND Health)
    *  for the rest of the run, wherever they are — shown on the board in the shop and re-derived at
    *  combat start + on summon/reborn inside `simulate`. */
@@ -9711,6 +9730,14 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   if (shopBuff) {
     const a = Number((shopBuff.params as { attack?: number } | undefined)?.attack ?? 2);
     const h = Number((shopBuff.params as { health?: number } | undefined)?.health ?? 2);
+    return def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
+  }
+  // Picnic: its "+A/+B" right-most-slot buff folds spell power on both stats (Staff of Guel's rule), so the
+  // printed magnitude goes live with it — the live-text rule.
+  const rightBuff = def.effects.find((e) => e.do === 'spellBuffShopRightmost');
+  if (rightBuff) {
+    const a = Number((rightBuff.params as { attack?: number } | undefined)?.attack ?? 8);
+    const h = Number((rightBuff.params as { health?: number } | undefined)?.health ?? 8);
     return def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
   }
   // Fleeting Vigor: its banked next-combat "+A/+B" scales with spell power on both stats too.

@@ -601,11 +601,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-spellCast",
-    "title": "'spellCast' family · 108 cards",
-    "statement": "All 108 'spellCast' cards trigger the same way. These are the spells themselves, and spells are never gilded. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'spellCast' family · 109 cards",
+    "statement": "All 109 'spellCast' cards trigger the same way. These are the spells themselves, and spells are never gilded. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "102 effect factories across 108 cards dispatch through the 'spellCast' presentation family, all on the single trigger 'cast' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: INAPPLICABLE — checkTriples skips spells and Rubies, so no member of this family can ever BE gilded (R-GILD-02, owner ruling 2026-08-28).",
-    "cardText": "Exemplar — Black Hole: \"Your Starform consumes 3 random Shop minions.\" · Members: Black Hole · Anomaly Reactor · Eyes of Aresmar · Bloodlust · Bulwark · Carnival Coin · Chrono Staff · Clue · Common Ground · Consume · Copycat · Crescendo · … and 96 more",
+    "currentBehaviour": "103 effect factories across 109 cards dispatch through the 'spellCast' presentation family, all on the single trigger 'cast' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: INAPPLICABLE — checkTriples skips spells and Rubies, so no member of this family can ever BE gilded (R-GILD-02, owner ruling 2026-08-28).",
+    "cardText": "Exemplar — Black Hole: \"Your Starform consumes 3 random Shop minions.\" · Members: Black Hole · Anomaly Reactor · Eyes of Aresmar · Bloodlust · Bulwark · Carnival Coin · Chrono Staff · Clue · Common Ground · Consume · Copycat · Crescendo · … and 97 more",
     "example": "Black Hole follows the 'spellCast' convention — its trigger fires on cast. three copies of it never combine into a golden one, so it has no gilded form at all.",
     "contentIds": [
       "accretion",
@@ -694,6 +694,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "sp_flutter",
       "sp_gamble",
       "sp_partingcry",
+      "sp_picnic",
       "sp_solidground",
       "sp_stoleninitiative",
       "sparkplug",
@@ -780,7 +781,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 12 'summonReact' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "14 effect factories across 12 cards dispatch through the 'summonReact' presentation family, all on the single trigger 'onSummon' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Ashen Heir: \"Whenever an Imp dies, another friendly Imp gains its stats — or the next Imp you summon, if none are alive.\" · Members: Ashen Heir · Beardsley · King Oona · Vaultkeeper · Chipper · Hank Pepe · Chef Gary Toast · Grave Body · Den Mother · Pack Leader · Spirit Worgen · Cratering Hulk",
+    "cardText": "Exemplar — Ashen Heir: \"Whenever an Imp dies, another friendly Imp gains its stats, or the next Imp you summon, if none are alive.\" · Members: Ashen Heir · Beardsley · King Oona · Vaultkeeper · Chipper · Hank Pepe · Chef Gary Toast · Grave Body · Den Mother · Pack Leader · Spirit Worgen · Cratering Hulk",
     "example": "Ashen Heir follows the 'summonReact' convention — its trigger fires on onSummon. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ashen_heir",
@@ -1209,7 +1210,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "Fodder means: a cheap body meant to be Consumed; Fodder-scaling effects count these — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Fodder for all 1 carriers.",
-    "cardText": "Exemplar — Fred: \"A 1/1 Demon Fodder — your Demons devour it from the tavern.\" · Carriers: Fred",
+    "cardText": "Exemplar — Fred: \"A 1/1 Demon Fodder. Your Demons devour it from the tavern.\" · Carriers: Fred",
     "example": "Fred carries Fodder — in play, a cheap body meant to be Consumed; Fodder-scaling effects count these.",
     "contentIds": [
       "fred"
@@ -1258,7 +1259,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "Magnetic means: an Attachment: can be played onto a compatible minion, merging stats and effects into it — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Magnetic for all 7 carriers.",
-    "cardText": "Exemplar — Better Bot: \"Rally: give your other Mechs +5 Attack. Magnetic — welds onto a Mech, which then grants the buff (stacks).\" · Carriers: Better Bot · Cling Drone · Heckbinder · Money Bot · Perfect Core · Speedy · Chaos Attachment",
+    "cardText": "Exemplar — Better Bot: \"Rally: give your other Mechs +5 Attack. Magnetic: welds onto a Mech, which then grants the buff (stacks).\" · Carriers: Better Bot · Cling Drone · Heckbinder · Money Bot · Perfect Core · Speedy · Chaos Attachment",
     "example": "Better Bot carries Magnetic — in play, an Attachment: can be played onto a compatible minion, merging stats and effects into it.",
     "contentIds": [
       "betterbot",
@@ -1732,7 +1733,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "These 2 powers all the activation carries a choice payload the player picks. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "heroes",
     "currentBehaviour": "heroPowerFamilies.ts classifies these 2 powers as 'modal-choice'; the heroPowerLane + stager suites verify each against that reading.",
-    "cardText": "Exemplar — Cassen, Commission: \"Choose a commission — it pays out in a few turns.\" · Members: Cassen — Commission [commission] · Flash — First or Last [firstOrLast]",
+    "cardText": "Exemplar — Cassen, Commission: \"Choose a commission. It pays out in a few turns.\" · Members: Cassen — Commission [commission] · Flash — First or Last [firstOrLast]",
     "example": "Cassen's Commission the activation carries a choice payload the player picks."
   },
   {
@@ -2422,7 +2423,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 15 of these fire on one trigger: you sell a card. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "14 effect factories across 15 cards dispatch on 'minionSold', 'onSell' (recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — River Drake: \"When you sell this, get a random Spell.\" · Members: River Drake · Voicekeeper · Arcane Behemoth · Grevlin & Co. · Shift Broker · Hoard Whelp · Beggy · Cheap Date · Traveling Salesman · Salvatore McKlusky · Flame Reveler · Grand Procession · … and 3 more",
+    "cardText": "Exemplar — River Drake: \"Sell: get a random Spell.\" · Members: River Drake · Voicekeeper · Arcane Behemoth · Grevlin & Co. · Shift Broker · Hoard Whelp · Beggy · Cheap Date · Traveling Salesman · Salvatore McKlusky · Flame Reveler · Grand Procession · … and 3 more",
     "example": "River Drake fires when you sell a card, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "d2_riverdrake",

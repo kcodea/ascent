@@ -34,16 +34,16 @@ describe('strategy packages — set-2 census', () => {
   it('pins the set-2 member counts (a content change that moves a package shows up here)', () => {
     const census = Object.fromEntries(rows.map((r) => [r.id, `${r.members}/${r.engines}/${r.payoffs}/${r.affineRunes}`]));
     expect(census).toEqual({
-      ruby: '30/12/14/11',
+      ruby: '30/12/14/10', // 11 → 10 on 2026-09-23: Rune of the Cindergem archived (Balance 9/23)
       ale: '31/5/4/31', // 32 → 31 on 2026-09-18: rune tag pass
-      demonConsume: '33/13/7/18', // 32 → 33 on 2026-09-18: Dissipate (a sell spell — the consume text match)
-      beastSummon: '30/7/5/13', // 14 → 13 on 2026-09-16: Rune of Rebirth grants the Rebirth keyword now (no longer an Echo-summon text match)
+      demonConsume: '34/14/7/16', // 32 → 33 on 2026-09-18: Dissipate (a sell spell — the consume text match); 33/13 → 34/14 on 2026-09-23: Picnic (a Shop-minion text match); 18 → 16: Emberline + Cindergem archived (Balance 9/23)
+      beastSummon: '30/7/5/10', // 14 → 13 on 2026-09-16: Rune of Rebirth grants the Rebirth keyword now (no longer an Echo-summon text match); 13 → 10 on 2026-09-23: Second Litter, Old Pack, Spare Chair archived (Balance 9/23)
       dragon: '33/16/10/15',
-      spellEngine: '107/16/13/23', // 22 → 23 on 2026-09-17: Rune of Gambling (recurring Gamble, every set); 106 → 107 on 2026-09-18: Dissipate
+      spellEngine: '108/16/13/23', // 22 → 23 on 2026-09-17: Rune of Gambling (recurring Gamble, every set); 106 → 107 on 2026-09-18: Dissipate; 107 → 108 on 2026-09-23: Picnic
       echo: '39/14/9/6', // 7 → 6 on 2026-09-16: same Rune of Rebirth rework
       mechAttach: '2/0/0/0',
       rally: '26/8/11/6', // Boulderdash gained Flurry (owner 2026-09-18)
-      tempo: '37/5/20/35',
+      tempo: '38/5/21/32', // 37/20 → 38/21 on 2026-09-23: Picnic (a shop-buff payoff); 35 → 32: Centerline, Spare Chair, Warpath archived (Balance 9/23)
       economy: '20/1/16/25', // 26 → 25 on 2026-09-18: rune tag pass
     });
   });

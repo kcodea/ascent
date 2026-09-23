@@ -65,6 +65,7 @@ export const SPELL_POLICY: Readonly<Record<string, SpellPolicy>> = {
   sigilkinship: P('never', 0), layaway: P('never', 0), seconddraft: P('never', 0), strangerevision: P('never', 0),
   sp_closedcasket: P('never', 0), commonground: P('never', 0), aresmar: P('statTarget', 2), rubytransfer: P('never', 0), rubyexcavation: P('never', 0),
   sp_dissipate: P('never', 0), // sells a board minion (the engine) — 2026-09-18
+  sp_picnic: P('shopBuff', 1), // right-most Shop slot +8/+8 for the run — cast before buying (2026-09-23)
 };
 
 export function spellPolicyOf(cardId: string): SpellPolicy {

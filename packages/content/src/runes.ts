@@ -180,16 +180,6 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'runeThreshold', meter: 'spellCast', per: 1, buff: { target: 'shop', attack: 1, health: 1 } },
   },
   {
-    id: 'rune_cindergem',
-    tribes: ['demon'], // TRIBE GATE (2026-09-10): Imps are Demons (owner 2026-09-10)
-    name: 'Rune of the Cindergem',
-    cost: 4,
-    text: 'Every **3 Rubies** you cast, improve your **Imps by +4/+4**.',
-    previewCards: ['impscrap'], // text names it — the forge hover shows the card
-    reward: { kind: 'runeThreshold', meter: 'castRuby', per: 3, buff: { target: 'imps', attack: 4, health: 4 } },
-    sets: ['set2'], // Rubies
-  },
-  {
     id: 'rune_showcase',
     name: 'Rune of the Showcase',
     cost: 3,
@@ -689,21 +679,6 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeFiveBanners' },
   },
   {
-    id: 'rune_centerline',
-    name: 'Rune of the Centerline',
-    cost: 3,
-    text: '**Start of Combat:** if your **end minions** have different types, give your **middle** minion **Ward** and **Critical Strike**.',
-    reward: { kind: 'combatFlag', flag: 'runeCenterline' },
-  },
-  {
-    id: 'rune_second_litter',
-    tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
-    name: 'Rune of the Second Litter',
-    cost: 2, // owner balance 2026-08-11
-    text: 'The first **Beast** summoned each combat summons **another copy**.',
-    reward: { kind: 'combatFlag', flag: 'runeSecondLitter' },
-  },
-  {
     id: 'rune_shared_pour',
     tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Shared Pour',
@@ -730,15 +705,6 @@ export const RUNES: RuneDef[] = [
 
   // ── the 2026-08-07 owner batch 4 (tranche 3: the contained-machinery eight) ──
   {
-    id: 'rune_emberline',
-    tribes: ['demon'], // TRIBE GATE (2026-09-10): Imps are Demons (owner 2026-09-10)
-    name: 'Rune of Emberline',
-    cost: 3,
-    text: 'The first **Imp** that dies each combat gives its stats to the next Imp you summon.',
-    previewCards: ['impscrap'],
-    reward: { kind: 'combatFlag', flag: 'runeEmberline' },
-  },
-  {
     id: 'rune_ashen_payroll',
     tribes: ['demon'], // TRIBE GATE (2026-09-10): Imps are Demons (owner 2026-09-10)
     name: 'Rune of Ashen Payroll',
@@ -755,13 +721,6 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: 'The first **Echo** you trigger each combat triggers your left-most **Rally**.',
     reward: { kind: 'combatFlag', flag: 'runeBackbeat' },
-  },
-  {
-    id: 'rune_spare_chair',
-    name: 'Rune of the Spare Chair',
-    cost: 4,
-    text: 'If you begin combat with exactly **6 minions**, the first minion you summon gains **Ward** and attacks immediately.',
-    reward: { kind: 'combatFlag', flag: 'runeSpareChair' },
   },
   {
     id: 'rune_spellmarket',
@@ -1891,15 +1850,6 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'runeLiquidation' },
   },
   {
-    // Owner add 2026-08-02: an extra attack every round, paid for by board ORDER — the two ends of your line.
-    id: 'rune_warpath',
-    name: 'Rune of the Warpath',
-    cost: 5,
-    epic: true,
-    text: 'After your **left-most** minion attacks, your **right-most** minion attacks.',
-    reward: { kind: 'combatFlag', flag: 'runeWarpath' },
-  },
-  {
     // Owner add 2026-08-02: the Gold sink for a Ruby board — 10 Gold spent showers the whole line.
     id: 'rune_gemspam',
     tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
@@ -1920,16 +1870,6 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get a **Copycat**.',
     reward: { kind: 'grant', cards: ['copycat'] },
-  },
-  {
-    // Owner add 2026-08-02: the set-1 Taurus (T6, Engraves its neighbors), rune-granted — same named-minion
-    // shape as Rune of Yazzus. Grants from CARD_INDEX, so it works regardless of the run's pinned set.
-    id: 'rune_taurus',
-    name: 'Rune of Taurus',
-    cost: 3,
-    epic: true,
-    text: 'Get a **Taurus**.',
-    reward: { kind: 'grant', cards: ['taurus'] },
   },
   {
     id: 'rune_yazzus',
@@ -2078,15 +2018,6 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'When your **last minion dies**, summon **7 Imps** with **Ward**.',
     previewCards: ['impscrap'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeFinality', amount: 7 },
-  },
-  {
-    id: 'rune_open_market',
-    name: 'Rune of the Open Market',
-    cost: 2,
-    epic: true,
-    text: 'The first time you **Consume a Shop minion** each turn, give your **Shop +3/+3** permanently.',
-    reward: { kind: 'runeOpenMarket', attack: 3, health: 3 },
-    sets: ['set2', 'set3'], // Shop-minion Consume is a set-2 Demon mechanic // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // The meter excludes Ales — the payout IS an Ale, so counting them would let the rune feed itself.
@@ -2480,16 +2411,6 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   // ── batch 4, tranche 2 (2026-08-07): the three grant runes for the new T6 bodies ──
   {
-    id: 'rune_ashen_heir',
-    tribes: ['demon'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
-    name: 'Rune of the Ashen Heir',
-    cost: 5,
-    text: 'Get an **Ashen Heir**.',
-    previewCards: ['ashen_heir'],
-    epic: true,
-    reward: { kind: 'grant', cards: ['ashen_heir'] },
-  },
-  {
     id: 'rune_ancient_den',
     tribes: ['beast'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Ancient Den',
@@ -2546,16 +2467,6 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'runeCrucibleChoir' },
   },
 
-  {
-    id: 'rune_moonhowl',
-    name: 'Rune of Moonhowl',
-    cost: 5,
-    text: 'Your **Mage-Pups** gain "**Echo:** cast the Shop spell this learned."',
-    previewCards: ['b2_magepup'],
-    epic: true,
-    reward: { kind: 'combatFlag', flag: 'runeMoonhowl' },
-    sets: ['set2'],
-  },
   {
     id: 'rune_shared_reflection',
     tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
@@ -2637,15 +2548,6 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Whenever you **sell** a minion, give your minions **+4/+3**.',
     reward: { kind: 'runeSellersMarket' },
-  },
-  {
-    id: 'rune_old_pack',
-    tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
-    name: 'Rune of the Old Pack',
-    cost: 6,
-    epic: true,
-    text: 'The first **Beast** you **Resummon** each combat returns with its **full stats**.',
-    reward: { kind: 'combatFlag', flag: 'oldPack' },
   },
   {
     // Owner add 2026-08-12. Grants the rune-only Voidmother (T6 Beast 6/1, Echo: summon a Void Panther).
@@ -2814,6 +2716,10 @@ export const EPIC_RUNES: RuneDef[] = [
     // Budgeted at 2 per combat in the sim — re-granting Rise on a Rise is otherwise unbounded, since each
     // return would arm the next forever.
     id: 'rune_deathtouched_apple',
+    // TRIBE GATE (owner 2026-09-23, Balance 9/23: "make deathtouched apple an undead rune, so it is not in set 2"): Rise is
+    // the Undead keyword, so the rune is Undead-related — offered only in a run that rolled Undead. Set 2 fields no
+    // Undead (`SETS.set2.tribes`), so it can never appear there; set 1 and set 3 runs with Undead still see it.
+    tribes: ['undead'],
     name: 'Rune of the Deathtouched Apple',
     cost: 4,
     epic: true,
@@ -3368,6 +3274,119 @@ export const EPIC_RUNES: RuneDef[] = [
  * Brokerage went in alongside its subject: Ruby Broker was archived the same day.
  */
 export const ARCHIVED_RUNES: RuneDef[] = [
+  // ── 2026-09-23 owner archive batch ("Balance 9/23: archives and Picnic") — eleven runes retired from EVERY
+  //    set's forge stock in one pass (owner: "archive rune of emberline from all sets", "archive centerline", …).
+  //    Each def is verbatim, so a saved run or replay that holds one keeps its badge, text and reward machinery
+  //    through `RUNE_INDEX`; `sets` / `tribes` tags are kept as history (an archived rune is in no forge anyway).
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of Emberline.
+    id: 'rune_emberline',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): Imps are Demons (owner 2026-09-10)
+    name: 'Rune of Emberline',
+    cost: 3,
+    text: 'The first **Imp** that dies each combat gives its stats to the next Imp you summon.',
+    previewCards: ['impscrap'],
+    reward: { kind: 'combatFlag', flag: 'runeEmberline' },
+  },
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of the Centerline.
+    id: 'rune_centerline',
+    name: 'Rune of the Centerline',
+    cost: 3,
+    text: '**Start of Combat:** if your **end minions** have different types, give your **middle** minion **Ward** and **Critical Strike**.',
+    reward: { kind: 'combatFlag', flag: 'runeCenterline' },
+  },
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of the Cindergem.
+    id: 'rune_cindergem',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): Imps are Demons (owner 2026-09-10)
+    name: 'Rune of the Cindergem',
+    cost: 4,
+    text: 'Every **3 Rubies** you cast, improve your **Imps by +4/+4**.',
+    previewCards: ['impscrap'], // text names it — the forge hover shows the card
+    reward: { kind: 'runeThreshold', meter: 'castRuby', per: 3, buff: { target: 'imps', attack: 4, health: 4 } },
+    sets: ['set2'], // Rubies
+  },
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of the Second Litter.
+    id: 'rune_second_litter',
+    tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
+    name: 'Rune of the Second Litter',
+    cost: 2, // owner balance 2026-08-11
+    text: 'The first **Beast** summoned each combat summons **another copy**.',
+    reward: { kind: 'combatFlag', flag: 'runeSecondLitter' },
+  },
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of the Spare Chair.
+    id: 'rune_spare_chair',
+    name: 'Rune of the Spare Chair',
+    cost: 4,
+    text: 'If you begin combat with exactly **6 minions**, the first minion you summon gains **Ward** and attacks immediately.',
+    reward: { kind: 'combatFlag', flag: 'runeSpareChair' },
+  },
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of Moonhowl.
+    id: 'rune_moonhowl',
+    name: 'Rune of Moonhowl',
+    cost: 5,
+    text: 'Your **Mage-Pups** gain "**Echo:** cast the Shop spell this learned."',
+    previewCards: ['b2_magepup'],
+    epic: true,
+    reward: { kind: 'combatFlag', flag: 'runeMoonhowl' },
+    sets: ['set2'],
+  },
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of Taurus.
+    // Owner add 2026-08-02: the set-1 Taurus (T6, Engraves its neighbors), rune-granted — same named-minion
+    // shape as Rune of Yazzus. Grants from CARD_INDEX, so it works regardless of the run's pinned set.
+    id: 'rune_taurus',
+    name: 'Rune of Taurus',
+    cost: 3,
+    epic: true,
+    text: 'Get a **Taurus**.',
+    reward: { kind: 'grant', cards: ['taurus'] },
+  },
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of the Ashen Heir.
+    id: 'rune_ashen_heir',
+    tribes: ['demon'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
+    name: 'Rune of the Ashen Heir',
+    cost: 5,
+    text: 'Get an **Ashen Heir**.',
+    previewCards: ['ashen_heir'],
+    epic: true,
+    reward: { kind: 'grant', cards: ['ashen_heir'] },
+  },
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of the Old Pack.
+    id: 'rune_old_pack',
+    tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
+    name: 'Rune of the Old Pack',
+    cost: 6,
+    epic: true,
+    text: 'The first **Beast** you **Resummon** each combat returns with its **full stats**.',
+    reward: { kind: 'combatFlag', flag: 'oldPack' },
+  },
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of the Open Market.
+    id: 'rune_open_market',
+    name: 'Rune of the Open Market',
+    cost: 2,
+    epic: true,
+    text: 'The first time you **Consume a Shop minion** each turn, give your **Shop +3/+3** permanently.',
+    reward: { kind: 'runeOpenMarket', attack: 3, health: 3 },
+    sets: ['set2', 'set3'], // Shop-minion Consume is a set-2 Demon mechanic // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+  },
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of the Warpath.
+    // Owner add 2026-08-02: an extra attack every round, paid for by board ORDER — the two ends of your line.
+    id: 'rune_warpath',
+    name: 'Rune of the Warpath',
+    cost: 5,
+    epic: true,
+    text: 'After your **left-most** minion attacks, your **right-most** minion attacks.',
+    reward: { kind: 'combatFlag', flag: 'runeWarpath' },
+  },
   // ── 2026-08-18 owner archive batch (each retired alongside its now-archived subject minion) ──────────────
   {
     // ARCHIVED 2026-08-18 (owner). Was an Epic rune. Quil (b2_quil) itself stays in the pool.

@@ -2170,4 +2170,34 @@ export const APPROVED_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-22',
     },
   },
+  {
+    id: 'R-REPORT-02',
+    title: 'Every new run starts a fresh live observer: one derived payload holds one run',
+    statement:
+      'The live balance derivation (`beginDerive` / `observeAction` / `finishDerive`) and the flat telemetry log '
+      + 'are per-run observers. Every door a run starts through (the hero picker for a lobby, Ascent or Practice, '
+      + '`newRun`, a tutorial, `clearRun`, the Scene Builder rigs) primes BOTH against that run\'s opening state, '
+      + 'so the `derived` payload an upload carries holds exactly the uploaded run\'s events: `gold`, `offers`, '
+      + '`boards`, `acquisitions` and `upgrades` never carry an earlier run\'s rows in front of their own and a '
+      + 'stream\'s wave never drops. A RESUMED run keeps the observers its save carries. The report\'s read side '
+      + 'keeps `ledgerSegment` (the last wave-monotone segment) so rows uploaded before this fix still read as '
+      + 'one run.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (reset the live derive state between runs)', quote: 'The live derived telemetry ... accumulates across runs in one browser session. A read-only probe of the 114 live rows on 2026-09-22 found that 53 payloads\' gold[], boards[] and offers[] contain earlier runs\' events in front of the uploaded run\'s own ... make every new run (newRun, lobby create, resume of a different run id) start from a fresh state.' },
+      { kind: 'code', ref: 'packages/ui/src/store.ts freshObservers (spread into pickHero, newRun and startTutorial beside RANK_SLICE_RESET; clearRun and the sandbox rigs already reset); packages/sim/src/runDerive.ts beginDerive; packages/sim/src/playerReport.ts ledgerSegment (the read-side guard for older rows)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22. Until then only `clearRun` and the sandbox rigs reset the observers; the hero '
+      + 'picker, `newRun` and `startTutorial` installed a new run and kept the previous run\'s `deriveState` and '
+      + '`telemetryLog`, so a session that played several runs stacked them into one payload (53 of 114 live rows; '
+      + 'one row held three runs; `combats` did not stack because it is keyed per wave from the run). The three '
+      + 'doors now spread `freshObservers(run)`; the read-side `ledgerSegment` stays for the rows already banked.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/deriveResetBetweenRuns.test.ts', 'packages/ui/src/telemetrySandboxGate.test.ts', 'packages/ui/src/flushSaveDerive.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
 ];

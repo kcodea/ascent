@@ -2758,7 +2758,7 @@ export function simulate(
     // Rune of Blood and Coin: every N friendly deaths banks Gold for next turn. Player-only — a served enemy
     // has no run to carry Gold back into.
     const bacStep = modsFor(side).runeBloodAndCoin ?? 0;
-    if (bacStep > 0 && deaths[side] % 5 === 0) { // owner 2026-08-11: Avenge(5) (was every 4 deaths)
+    if (bacStep > 0 && deaths[side] % 4 === 0) { // balance 9/23: Avenge(4) (owner 2026-08-11 had it at 5)
       if (side === 'player') fireTrigger('runeBloodAndCoin', side);
       bonusGoldGain[side] += bacStep;
     }
@@ -4295,8 +4295,8 @@ export function simulate(
     nextStep();
     fireFreeRally(lead, side);
   });
-  runeAvenge(4, 'runeCarrionCoin', (m) => !!m.runeCarrionCoin, (side) => {
-    // Rune of Carrion Coin: every 4th friendly death hands over a random Shop spell. `grantRandomSpell` is
+  runeAvenge(3, 'runeCarrionCoin', (m) => !!m.runeCarrionCoin, (side) => {
+    // Rune of Carrion Coin: every 3rd friendly death (balance 9/23, was 4th) hands over a random Shop spell. `grantRandomSpell` is
     // the shared grant Badgington's Rally uses — it already picks from the run's pinned pool, respects the
     // hand cap and carries back at settle, and it is player-only, so a served enemy's deaths grant nothing.
     nextStep();

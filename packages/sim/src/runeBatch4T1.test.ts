@@ -33,8 +33,8 @@ describe('the nine defs ship as specced', () => {
     expect(rune('rune_carrion_coin').cost).toBe(3);
     expect(rune('rune_five_banners').cost).toBe(4);
     // rune_centerline + rune_second_litter archived 2026-09-23 (ARCHIVED_RUNES, Balance 9/23) — no longer in the active pool.
-    expect(rune('rune_shared_pour').cost).toBe(3); // owner balance 2026-08-11 (4 → 3)
-    expect(rune('rune_aftermarket').cost).toBe(4);
+    expect(rune('rune_shared_pour').cost).toBe(2); // balance 9/23 (3 → 2; owner 2026-08-11 had 4 → 3)
+    expect(rune('rune_aftermarket').cost).toBe(3); // balance 9/23 (4 → 3)
     expect(rune('rune_hoardcalling').cost).toBe(4); // owner balance 2026-08-11 (5 → 4)
     // Gem Dividend needs Rubies and Shared Pour needs Ales, so both are Set-2 only. The rest work in either.
     expect(rune('rune_gem_dividend').sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
@@ -123,15 +123,15 @@ describe('Rune of the Second Litter', () => {
 });
 
 describe('Rune of Carrion Coin', () => {
-  it('grants a Shop spell every 4th friendly death, and nothing before the 4th', () => {
+  it('grants a Shop spell every 3rd friendly death (balance 9/23, was 4th), and nothing before the 3rd', () => {
     const fodder: BoardMinion[] = Array.from({ length: 8 }, () => ({ cardId: 'sandbag', attack: 0, health: 1 }));
     const killer: BoardMinion[] = [{ cardId: 'sandbag', attack: 9, health: 400 }];
     const granted = (mods: object) => sim(fodder, killer, mods).events.filter((e) => e.type === 'toHand' && e.side === 'player').length;
     expect(granted({}), 'baseline should grant nothing').toBe(0);
-    expect(granted({ runeCarrionCoin: 4 }), '8 deaths at Avenge(4) is two payouts').toBe(2);
-    // The threshold is real: three deaths must not pay.
-    const three: BoardMinion[] = Array.from({ length: 3 }, () => ({ cardId: 'sandbag', attack: 0, health: 1 }));
-    expect(sim(three, killer, { runeCarrionCoin: 4 }).events.filter((e) => e.type === 'toHand' && e.side === 'player').length).toBe(0);
+    expect(granted({ runeCarrionCoin: 3 }), '8 deaths at Avenge(3) is two payouts (3 and 6)').toBe(2);
+    // The threshold is real: two deaths must not pay.
+    const two: BoardMinion[] = Array.from({ length: 2 }, () => ({ cardId: 'sandbag', attack: 0, health: 1 }));
+    expect(sim(two, killer, { runeCarrionCoin: 3 }).events.filter((e) => e.type === 'toHand' && e.side === 'player').length).toBe(0);
   });
 });
 

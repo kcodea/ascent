@@ -22,6 +22,7 @@ import { CARD_INDEX } from '@game/content';
 const METER_SUFFIX: Record<string, string> = {
   gold: 'g',
   spellCast: '',
+  anySpell: '',
   spellCastNonAle: '',
   castRuby: '',
   cardsBought: '',
@@ -98,10 +99,10 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_spellslinging' && run.spellDripPer) {
     return `${Math.min(run.spellDripTick ?? 0, run.spellDripPer)}/${run.spellDripPer}g`;
   }
-  // Rune of the Summit counts SHOPS OPENED, and fires every THIRD one (audit fix 2026-08-06: the badge
+  // Rune of the Summit counts SHOPS OPENED, and fires every SECOND one (balance 9/23, was every third; audit fix 2026-08-06: the badge
   // counted x/2 against a fires-every-3rd implementation, so it read 1/2 on the turn it actually fired).
   if (runeId === 'rune_summit' && run.runeSummitTick != null) {
-    return `${run.runeSummitTick % 3}/3`;
+    return `${run.runeSummitTick % 2}/2`;
   }
   // ── Set 3 batch 2, tranche B (2026-09-16) ──
   // Rune of Resonant Arms: Equipment TRIGGERS banked toward the next +8/+5 (a run-wide meter).
@@ -240,8 +241,8 @@ const SLAYING_PER = 6;
 const RUNE_DEATHS_PER: Record<string, number> = {
   rune_broodpit: 4, rune_spearline: 4, rune_appraisal: 3, rune_last_call: 4, rune_cinder_ledger: 3, // Last Call: Avenge (4) — owner 2026-08-11
   rune_hunting_bell: 3, rune_gemstorm: 2, rune_procession: 4, rune_soul_taxes: 4,
-  rune_blood_and_coin: 5, rune_engraving: 3, // Blood and Coin: Avenge (5) — owner 2026-08-11; Engraving: Avenge (3)
-  rune_carrion_coin: 4, // Carrion Coin: Avenge (4) — a random Shop spell per proc
+  rune_blood_and_coin: 4, rune_engraving: 3, // Blood and Coin: Avenge (4) — balance 9/23 (owner 2026-08-11 had 5); Engraving: Avenge (3)
+  rune_carrion_coin: 3, // Carrion Coin: Avenge (3) — balance 9/23 (was 4) — a random Shop spell per proc
   rune_beastial_swarm: 2, // Beastial Swarm: Avenge (2) — raises the per-death buff amount
   // 2026-08-20 batch — both Avenge (3), both improving Rubies.
   rune_shifting_facets: 3, rune_deepening_vein: 3,

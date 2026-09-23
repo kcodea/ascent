@@ -5456,13 +5456,13 @@ function advanceCombat(s: RunState): void {
   // toward "Trigger N End of Turn effects" quests like real ones.
   // (Rune of the Conductor's old start-of-shop EoT re-trigger lived here; the 2026-07-31 rework moved it to
   // `endOfTurnExtra` — the rune now simply repeats your End of Turn twice more, like Parliament of Flame.)
-  // Rune of the Summit: every 2nd shop opens a Tier 7 Discover. `exactTier: 7` is a FIXED-tier offer, so it
+  // Rune of the Summit: every 2nd shop opens a Tier 7 Discover (balance 9/23; was every 3rd). `exactTier: 7` is a FIXED-tier offer, so it
   // resolves with no rift active — which is the entire point (Tier 7 is otherwise unreachable outside one).
   if (s.runeSummit) {
     s.runeSummitTick = (s.runeSummitTick ?? 0) + 1;
-    // Only the 3rd shop pays; the two in between are the countdown, not the rune firing.
-    // Same 3-turn cadence, one Discover per copy held (recurring family, owner 2026-08-27) — they queue in sequence.
-    if (s.runeSummitTick % 3 === 0) { procRune(s, 'runeSummit'); for (let k = 0; k < runeStacksOf(s, 'rune_summit'); k++) queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7 }); } // every 3rd shop (owner sheet 2026-07-31)
+    // Only the 2nd shop pays; the one in between is the countdown, not the rune firing (balance 9/23: every 2nd,
+    // was every 3rd). Same cadence, one Discover per copy held (recurring family, owner 2026-08-27) — they queue in sequence.
+    if (s.runeSummitTick % 2 === 0) { procRune(s, 'runeSummit'); for (let k = 0; k < runeStacksOf(s, 'rune_summit'); k++) queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7 }); } // every 2nd shop
   }
   // Set 2 — the warband's own Start-of-Turn effects (Gemline Martyr), the symmetric twin of End of Turn. Fired
   // here as the shop opens, alongside the Start-of-Turn rune rewards below.
@@ -6342,13 +6342,13 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       else if (r.flag === 'runeLivingEchoes') s.questFlags.runeLivingEchoes = add(s.questFlags.runeLivingEchoes, r.amount ?? 3); // amount = Heralds per combat
       else if (r.flag === 'runeAttackingGems') s.questFlags.runeAttackingGems = add(s.questFlags.runeAttackingGems, r.amount ?? 1); // amount = Rubies per attack
       else if (r.flag === 'runeOverflow') s.questFlags.runeOverflow = add(s.questFlags.runeOverflow, r.amount ?? 4);           // amount = the permanent board buff
-      else if (r.flag === 'runeCarrionCoin') s.questFlags.runeCarrionCoin = add(s.questFlags.runeCarrionCoin, r.amount ?? 4); // amount = the Avenge threshold
+      else if (r.flag === 'runeCarrionCoin') s.questFlags.runeCarrionCoin = add(s.questFlags.runeCarrionCoin, r.amount ?? 3); // amount = the Avenge threshold (3, balance 9/23)
       else if (r.flag === 'runeUndertow') s.questFlags.runeUndertow = add(typeof s.questFlags.runeUndertow === 'number' ? s.questFlags.runeUndertow : 0, r.amount ?? 4); // amount = the Ward budget
       else if (r.flag === 'runeAshenPayroll') s.questFlags.runeAshenPayroll = add(s.questFlags.runeAshenPayroll, r.amount ?? 3); // amount = Imps needed
       // The 2026-08-20 pair: `amount` is a THRESHOLD, not a magnitude, so a second copy must NOT accumulate it
       // (two Returning Packs would mean "every 12 Beasts" — strictly worse than one). Assigned, and the copy
       // count below is what makes the dispatcher pay twice per trip.
-      else if (r.flag === 'runeReturningPack') s.questFlags.runeReturningPack = r.amount ?? 6;   // amount = Beasts per payout
+      else if (r.flag === 'runeReturningPack') s.questFlags.runeReturningPack = r.amount ?? 5;   // amount = Beasts per payout (5, balance 9/23)
       else if (r.flag === 'runeGraveRefreshment') s.questFlags.runeGraveRefreshment = r.amount ?? 2; // amount = Echoes per free refresh
       else s.questFlags[r.flag] = true;
       // Every flag records how many copies are held; the boolean ones are the reason it exists (a second

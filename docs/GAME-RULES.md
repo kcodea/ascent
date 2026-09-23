@@ -47,6 +47,18 @@ medal + division — see *Ranked ladder* below).
   reaches 0 is eliminated and receives a placement.
 - The lobby ends when **one seat remains**. `maxRounds: 60` is a **deterministic stalemate backstop**, not a
   course length or a player-facing target.
+- **The fight ledger** (owner 2026-09-22): at the end of every real lobby (never practice, the tutorial or a
+  sandbox) the client records **every fight the table resolved** — one row per fought, non-ghost pairing, both
+  sides named by run key (`author|heroId|seed`; a generated seat is `bot:<kind>:<heroId>`). If the player was
+  knocked out before the table finished, the remaining rounds are **played out deterministically on a copy** of
+  the lobby (same seed, same drivers, never the reducer's own lobby) and recorded as unobserved fights. Ghost
+  fights, sit-outs and bot-versus-bot fights are not rows. The server aggregates the ledger per run
+  (`run_fight_records`: fights, W–L–D, lobbies, win rate, a Wilson 95% lower bound).
+- **The Hall of Champions** answers *"what board has been the best against everything else"* (owner
+  2026-09-22): the **top 10 runs by the Wilson lower bound of their win rate with at least 10 fights**, from
+  every recorded run (not only lobby winners). A row shows the run's W–L–D across everything, its win rate, the
+  lobbies it fought in, its own game's record (e.g. 12–3, from its career row — that count includes the player's
+  ghost fights, which the ledger does not), its last fight and the rank its player held.
 - **Placement is the result.** A lobby finish resolves a placement-based rank change (the medal ladder
   below); 1st is the win. (A lobby never reaches the `victory` phase — `advanceCombat` ends every lobby at
   `gameover` whether you won or lost, because a lobby has no course clock to complete.)
@@ -55,7 +67,8 @@ medal + division — see *Ranked ladder* below).
 
 Source: `packages/sim/src/lobby/lobby.ts` (`DEFAULT_LOBBY_RULES`, damage application),
 `packages/sim/src/lobby/runLobby.ts`, `packages/sim/src/lobby/seats.ts`,
-`packages/sim/src/lobby/snapshotSeats.ts`, `packages/sim/src/rank.ts`.
+`packages/sim/src/lobby/snapshotSeats.ts`, `packages/sim/src/lobby/fightLedger.ts`, `packages/sim/src/rank.ts`,
+`packages/sim/src/lobbyStrength.ts`, the `run_fight_records` view (`supabase/migrations/2026-09-22-fight-ledger.sql`).
 
 ---
 
@@ -68,8 +81,23 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   **I → II → III** and then the next medal's I (18 divisions, `Bronze I` lowest, `Ascendant III` highest).
   Each division is **100 points** wide.
 - **Points by final placement** (`RANK_RULES.placementAwards`): 1st **+40**, 2nd **+28**, 3rd **+16**, 4th
-  **+6**, 5th **−6**, 6th **−16**, 7th **−28**, 8th **−40**. Nothing else moves the ladder — no round-wins
-  modifier, no opponent-strength adjustment.
+  **+6**, 5th **−6**, 6th **−16**, 7th **−28**, 8th **−40**. No round-wins modifier. The one other thing that
+  moves the ladder is the **lobby-strength bonus** (owner 2026-09-22, *"only winning hard lobbies should scale,
+  and only upwards of 15 rating"*): a **1st place** in a lobby of strength `s` adds
+  `round(15 × clamp((s − 55) / 45, 0, 1))` points on top of the +40 — nothing below 55, +15 at 100, never on
+  2nd–8th, never negative, losses untouched. The bonus is folded into the award BEFORE the gate rules below,
+  so a 1st at 90/100 still caps at 100 and a 1st at a gate still lands on 10. The result records it apart
+  (`strengthBonus`; the rank screen prints "+40 RP +12 lobby"). The SERVER computes the strength itself at
+  settle time from the fight ledger (`settle_rank(p_seat_keys)`), mirrored in `packages/sim/src/lobbyStrength.ts`
+  and `supabase/functions/_shared/lobbyRating.ts`.
+- **Lobby strength** (0–100, `packages/sim/src/lobbyStrength.ts`): the average win rate of the seven opponent
+  runs, as a percentage, where each run's rate is smoothed as `(wins + 10) / (fights + 20)` over its record in
+  the fight ledger (an unserved run counts as 50) and a generated seat (a bot) counts as 25. Tiers: **Easy** below
+  35, **Even** 35–54, **Hard** 55–69, **Brutal** 70 and up (`STRENGTH_TIERS`, one place). Rank is NOT a factor
+  (owner 2026-09-22: *"rank is not important right now as a factor in this small playtest. eventually it will
+  be"*). It is computed at run end, stamped on the run's history entry and replay result, and shown as e.g.
+  "Brutal 74" on the **Career match rows and the Recent Games rows only** — never on the post-game screen, never
+  on the rail before or during a game (owner answers 4 and 5).
 - **Promotion games.** Reaching **100** does not promote; it makes the **next** rated game a promotion game
   (overflow past 100 is discarded; the delta shown is the delta applied). To move up **a division** (Gold I
   → Gold II) the promotion game needs a **top-4 finish**; to move up **a medal** (Gold III → Platinum I) it

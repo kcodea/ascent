@@ -52,6 +52,31 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Hall of Champions + lobby strength',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Winning a hard lobby now pays a bonus of up to 15 rating on top of the usual 40.',
+        details: [
+          'Every lobby now has a strength score from 0 to 100: the average win rate of the seven runs you were seated with, from their record across every game they have played. An unknown run counts as 50. A bot counts as 25.',
+          'Only a 1st place earns the bonus. It starts at strength 55 and rises to 15 extra rating at 100. Finishing 2nd to 8th never scales, and a loss never gets bigger.',
+          'The bonus follows the normal promotion rules. A 1st at 90 of 100 still stops at 100. A 1st at the gate still promotes to 10 of 100.',
+          'The rank screen prints the two parts apart, for example +40 RP +12 lobby.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Hall of Champions now ranks warbands by their record against everyone, not by lobby wins.',
+        details: [
+          'Every fight at your table is recorded, including the rounds played out after you are knocked out. A warband enters the Hall after 10 fights.',
+          'The top 10 are ordered by win rate with a confidence adjustment, so a 30 and 2 warband ranks above a 3 and 0 one. Each row shows its full record, its win rate, how many lobbies it fought in, its own game, its last fight and the rank its player held.',
+          "Your Career match results and the Recent Games rows now show each lobby's strength, such as Brutal 74. Easy is below 35, Even is 35 to 54, Hard is 55 to 69, Brutal is 70 and up. It never shows before or during a game.",
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Milestone damage bursts',
     changes: [
       {

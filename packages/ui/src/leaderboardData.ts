@@ -130,7 +130,7 @@ export function hallRowsOf<B extends { minions: unknown[]; runes?: string[] }>(
     if (!parsed) continue;
     const h = history.get(parsed.seed);
     const own = h && (h.heroId === null || h.heroId === parsed.heroId) ? h : undefined;
-    const { runKey: _k, ...record } = r;
+    const record: HallFightRecord = { fights: r.fights, wins: r.wins, losses: r.losses, draws: r.draws, lobbies: r.lobbies, winRate: r.winRate, wilsonLb: r.wilsonLb, lastFightAt: r.lastFightAt };
     rows.push({
       key: r.runKey, author: parsed.author, heroId: parsed.heroId, seed: parsed.seed,
       record,

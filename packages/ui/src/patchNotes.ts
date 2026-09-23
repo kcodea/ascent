@@ -52,6 +52,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-23',
+    label: 'Balance 9/23: archives and Picnic',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Eleven runes retired from the Runeforge, Rune of the Deathtouched Apple is now an Undead rune, and a new Tier 5 Shop spell, Picnic.',
+        details: [
+          'Retired from every Runeforge: Rune of Emberline, Rune of the Centerline, Rune of the Cindergem, Rune of the Second Litter, Rune of the Spare Chair, Rune of Moonhowl, Rune of Taurus, Rune of the Ashen Heir, Rune of the Old Pack, Rune of the Open Market and Rune of the Warpath. A run that already holds one keeps it.',
+          'Rune of the Deathtouched Apple is now an Undead rune: it is offered only in runs with Undead, so it no longer appears in Set 2.',
+          'New spell: Picnic (Tier 5, 1 Gold). Give the right-most Shop minion +8/+8 permanently. The buff stays on that Shop slot for the rest of the run and comes with the minion you buy from it.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-23',
     label: 'Balance 9/23: minions',
     changes: [
       {
@@ -80,6 +95,13 @@ export const PATCH_NOTES: PatchNote[] = [
           'Staff of Guel now gives minions in the shop +3/+4 permanently (was +3/+3).',
         ],
       },
+    ],
+  },
+  {
+    date: '2026-09-23',
+    label: 'Milestone glow fix',
+    changes: [
+      { category: 'Systems', text: 'Fixed the blue top-tier milestone glow lingering on units that had not reached the top stat tier, including opponent minions carrying it over between fights.' },
     ],
   },
   {

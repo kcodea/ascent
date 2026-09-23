@@ -550,7 +550,8 @@ went when the owner ruled there is **one Yazzus** (2026-09-16) — `yazzus` (Tie
 cast an additional time": Shop spells, Rubies, Tower Shields and Clues alike) is the same card in every set that
 carries him, and the retired `n3_yazzus` id still resolves to it for saved runs and replays (`LEGACY_CARD_IDS`).
 The Open Market's "first Shop consume each turn" hears the Starform's consumes (they ride the one Shop-consume
-chokepoint).
+chokepoint) — Rune of the Open Market was archived 2026-09-23 (Balance 9/23), so only a run that already holds
+it still does.
 
 **Duplicates always do something** (owner rulings 2026-08-27, decisions `q-runedup-*`). Rune ownership is
 COUNTED (`RunState.runeStacks`; combat boolean flags use `flagCopies`), and a second copy stacks per family:

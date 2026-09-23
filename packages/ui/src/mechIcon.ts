@@ -16,11 +16,12 @@ export function firstMentionIndex(text: string, m: Mechanic): number {
 
 /**
  * Mechanics that are signified on the card some OTHER way and must NOT also claim the medallion gem — a glyph for
- * them there is redundant (owner ask 2026-09-22): Taunt is a forged shield frame + a silver Pixi aura, and Ward
- * (Divine Shield) is the CSS dome. This only affects the CARD medallion — the compendium/glossary iterates
- * `MECHANICS` directly, so both still list there with their glyphs.
+ * them there is redundant (owner asks 2026-09-22 / 2026-09-23): Taunt is a forged shield frame + a silver Pixi
+ * aura, Ward (Divine Shield) is the CSS dome, and Flurry has its own attack animation (so a card with Flurry +
+ * another mechanic, e.g. Blazer's Flurry + Rally, shows the OTHER one). This only affects the CARD medallion —
+ * the compendium/glossary iterates `MECHANICS` directly, so all three still list there with their glyphs.
  */
-const MEDALLION_EXCLUDED: ReadonlySet<string> = new Set(['taunt', 'ward']);
+const MEDALLION_EXCLUDED: ReadonlySet<string> = new Set(['taunt', 'ward', 'flurry']);
 
 export function resolveMech(view: CardView): Mechanic | null {
   const def = CARD_INDEX[view.cardId];

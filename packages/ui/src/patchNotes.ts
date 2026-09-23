@@ -27,8 +27,8 @@
  *    trackers, replays, practice, fixes. Never engine/build/tooling (that is not a patch note at all). */
 export type PatchCategory = 'Balance' | 'Systems';
 
-/** Fixed display order + accent hue token for each category (so a patch's changes group predictably and the
- *  same category always wears the same colour). The hue tokens resolve in styles.css (`.pntag-*`). */
+/** Fixed display order of the categories. The viewer shows ONE TAB PER CATEGORY (owner ask 2026-09-23): the
+ *  `Balance` bucket reads as the "Game" tab, `Systems` as the "Systems" tab, in this order. */
 export const PATCH_CATEGORY_ORDER: PatchCategory[] = ['Balance', 'Systems'];
 
 export interface PatchChange {
@@ -50,6 +50,20 @@ export interface PatchNote {
 
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
+  {
+    date: '2026-09-23',
+    label: 'Patch Notes tabs',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Patch Notes now has a Game tab and a Systems tab.',
+        details: [
+          'Game carries card, hero, rune, Equipment, economy and rules changes. Systems carries screens, effects, information and dev updates.',
+          'Each tab lists only its own changes, and remembers which tab you left open.',
+        ],
+      },
+    ],
+  },
   {
     date: '2026-09-23',
     label: 'Music',
@@ -99,7 +113,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: ['The 2 Gold lands the moment you buy the rune. The Epic forge still opens next turn instead of turn 9.'],
       },
       {
-        category: 'Systems',
+        category: 'Balance',
         text: 'Guardian plus Rune of the Epic Forge now opens two Epic forges on turn 8, one after the other. The rune used to slide its forge to the turn after you bought it.',
         details: [
           'The second forge opens as soon as you buy from or leave the first, before anything else that turn.',

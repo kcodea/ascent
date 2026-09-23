@@ -1,4 +1,5 @@
-/** Pause / settings overlay (Esc). Trimmed to what players actually need: audio (master volume + mute), combat
+/** Pause / settings overlay (Esc). Trimmed to what players actually need: audio (two mixes since 2026-09-23: the
+ *  Game-sounds master + mute, and the lobby Music level + mute, see music.ts), combat
  *  pacing, the local-data resets (captured boards + career), Quit back to the main menu, and — in the Electron
  *  shell only — a fullscreen toggle + Quit game (see `desktop.ts`; the web build has no shell to close).
  *

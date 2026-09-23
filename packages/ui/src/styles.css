@@ -2511,12 +2511,12 @@ img.tierbadge.tierstars,
   position: absolute; top: calc(var(--ccw) * -0.045); left: calc(var(--ccw) * -0.035); z-index: 5;
   width: calc(var(--ccw) * 0.21); height: calc(var(--ccw) * 0.21); display: grid; place-items: center;
   /* 👑 Gilded Badge tuner (gildedBadgeConfig.ts): scale + px nudge on top of the corner seat. Fallbacks = DEFAULTS. */
-  transform: translate(calc(var(--gcrown-dx, 62px) * (var(--ccw) / var(--ccw-ref))), calc(var(--gcrown-dy, -36px) * (var(--ccw) / var(--ccw-ref)))) scale(var(--gcrown-size, 1.58));
+  transform: translate(calc(var(--gcrown-dx, 78px) * (var(--ccw) / var(--ccw-ref))), calc(var(--gcrown-dy, -44.5px) * (var(--ccw) / var(--ccw-ref)))) scale(var(--gcrown-size, 1.58));
 }
 .card.compact .goldcrown > .goldcrown-img { width: 100%; height: 100%; object-fit: contain; }
 /* 👑 Gilded Badge tuner preview (GildedBadgeTuner.tsx) — the badge art outside a card, reading the same vars. */
 .gcrownprev { display: grid; place-items: center; padding: 20px; background: rgba(0, 0, 0, 0.28); border-radius: 8px; }
-.gcrownprev-img { width: 64px; height: 64px; object-fit: contain; --ccw: 64px; transform: translate(calc(var(--gcrown-dx, 62px) * (var(--ccw) / var(--ccw-ref))), calc(var(--gcrown-dy, -36px) * (var(--ccw) / var(--ccw-ref)))) scale(var(--gcrown-size, 1.58)); }
+.gcrownprev-img { width: 64px; height: 64px; object-fit: contain; --ccw: 64px; transform: translate(calc(var(--gcrown-dx, 78px) * (var(--ccw) / var(--ccw-ref))), calc(var(--gcrown-dy, -44.5px) * (var(--ccw) / var(--ccw-ref)))) scale(var(--gcrown-size, 1.58)); }
 
 /* ✴️ EPIC medallion — the separate badge on "epic" units (epicMedallion.ts): trigger/cast multipliers like
    Drakko / Sylus / Chronos / Yazzus. Own size/placement (--epic-*), ALWAYS the same icon (no gild/silver, unlike

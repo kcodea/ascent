@@ -68,11 +68,11 @@ export interface MedallionConfig {
 /** Shipped values. Box dials reproduce today's look; the circle drops the per-tribe tint for a fixed neutral +
  *  cream rim (owner ask 2026-09-22); the art tint is inert by default (amount 0, desaturate 0). */
 const DEFAULTS: MedallionConfig = {
-  size: 1, dx: 0, dy: 0, artScale: 1,
-  circleOn: 1, bg: '#2a2430', outline: '#f6e3ad', outlineWidth: 1,
-  shadowX: 0, shadowY: 2, shadowBlur: 6, shadowColor: '#000000', shadowOpacity: 0.5,
-  desat: 0, tint: '#ffd24a', tintAmt: 0,
-  pulse: '#f6e3ad',
+  size: 1.5, dx: 0, dy: 14, artScale: 1,
+  circleOn: 0, bg: '#2a2430', outline: '#f6e3ad', outlineWidth: 1,
+  shadowX: 0, shadowY: 2, shadowBlur: 3, shadowColor: '#000000', shadowOpacity: 1,
+  desat: 71, tint: '#ffd24a', tintAmt: 0,
+  pulse: '#ffcf4d',
 };
 
 type ColorKey = 'bg' | 'outline' | 'shadowColor' | 'tint' | 'pulse';

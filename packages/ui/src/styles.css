@@ -116,6 +116,12 @@
   --ch: calc(var(--ch-base) * var(--card-scale, 0.75)); --cw: calc(var(--ch) * 0.752);
   /* compact-card size: 15% smaller than the full card width, used at rest + in combat (kept in sync). */
   --ccw: calc(var(--cw) * 0.85);
+  /* Reference card width — the board card's --ccw at --scale 1 (384 * card-scale 0.75 * 0.752 * 0.85 ≈ 184px).
+     Badge X/Y offsets (medallion, gilded corner) are tuned in px AT THIS WIDTH, then multiplied by
+     --ccw / --ccw-ref so they land at the SAME RELATIVE spot on every card size — board, hand, and the smaller
+     Compendium / Career / Leaderboard tiles — and at any resolution. On the board at scale 1 the px value is
+     reproduced exactly, so the tuner numbers stay meaningful. */
+  --ccw-ref: 184.09px;
   /* the compact card's arched silhouette — shared by the frame, the card box, and keyword overlays. */
   --arch-radius: 48% 48% 20% 20% / 35% 35% 14% 14%;
   /* a scaled "px" for the chrome (HUD / tavern controls / status tray / timer): 1.34px at the reference, × --scale
@@ -2221,7 +2227,7 @@ img.tierbadge.tierstars,
 .card.compact .cgem {
   position: absolute; bottom: calc(var(--ccw) * -0.10); left: 50%; z-index: 7;
   width: calc(var(--ccw) * 0.21); height: calc(var(--ccw) * 0.21);
-  transform: translateX(-50%) translate(var(--cgem-dx, 0px), var(--cgem-dy, 0px)) scale(var(--cgem-size, 1));
+  transform: translateX(-50%) translate(calc(var(--cgem-dx, 0px) * (var(--ccw) / var(--ccw-ref))), calc(var(--cgem-dy, 14px) * (var(--ccw) / var(--ccw-ref)))) scale(var(--cgem-size, 1.5));
   border-radius: 50%;
   /* Backing circle — fill + rim are now tuner colours (🎖️ Medallions, medallionConfig.ts), NOT the per-tribe
      `--c`. The fill derives a subtle gem gradient from one colour (lighter top, darker base); the rim colour and
@@ -2230,7 +2236,7 @@ img.tierbadge.tierstars,
   border: calc(var(--ccw) * 0.014 * var(--cgem-outline-w, 1)) solid var(--cgem-outline, #f6e3ad);
   /* Tunable drop shadow (🎖️ Medallions tuner). A `filter` rather than `box-shadow` so it follows the rendered
      SHAPE — the circle when on, the bare art silhouette when the circle is toggled off. Fallbacks equal DEFAULTS. */
-  filter: drop-shadow(var(--cgem-shadow-x, 0px) var(--cgem-shadow-y, 2px) var(--cgem-shadow-blur, 6px) var(--cgem-shadow-color, rgba(0, 0, 0, 0.5)));
+  filter: drop-shadow(var(--cgem-shadow-x, 0px) var(--cgem-shadow-y, 2px) var(--cgem-shadow-blur, 3px) var(--cgem-shadow-color, rgba(0, 0, 0, 1)));
   display: grid; place-items: center;
 }
 .card.compact .cgem svg { width: 62%; height: 62%; color: #f6e3ad; }
@@ -2238,7 +2244,7 @@ img.tierbadge.tierstars,
    applies. The `.cgem` box already sizes/positions the medallion; the img just fills it. `--cgem-art-scale`
    (🎖️ Medallions tuner) insets the art smaller or lets it overflow the box, independent of the box's own size —
    unscoped so it also drives the tuner's own `.medprev` preview swatches. */
-.cgem > .cgem-img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; transform: scale(calc(var(--cgem-art-scale, 1) * var(--cgem-art-mech, 1))); filter: grayscale(var(--cgem-desat, 0%)); }
+.cgem > .cgem-img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; transform: scale(calc(var(--cgem-art-scale, 1) * var(--cgem-art-mech, 1))); filter: grayscale(var(--cgem-desat, 71%)); }
 .card.compact .cgem > .cgem-img { width: 100%; height: 100%; }
 /* Art TINT overlay (🎖️ Medallions tuner: Tint colour + amount) — a colour wash the SHAPE of the art, so it
    colours the glyph and not the box. `--cgem-artsrc` is set inline per card to the same art URL so the mask
@@ -2273,14 +2279,14 @@ img.tierbadge.tierstars,
 .card.compact .cgem.glowing::before,
 .card.compact .cgem.pulsing::before {
   inset: -3px; will-change: opacity;
-  background: radial-gradient(circle, color-mix(in srgb, var(--cgem-pulse, #f6e3ad) 60%, #fff8e0) 0%, transparent 72%);
-  box-shadow: 0 0 12px 4px rgba(255, 246, 214, 0.98), 0 0 22px 9px color-mix(in srgb, var(--cgem-pulse, #f6e3ad) 70%, transparent);
+  background: radial-gradient(circle, color-mix(in srgb, var(--cgem-pulse, #ffcf4d) 60%, #fff8e0) 0%, transparent 72%);
+  box-shadow: 0 0 12px 4px rgba(255, 246, 214, 0.98), 0 0 22px 9px color-mix(in srgb, var(--cgem-pulse, #ffcf4d) 70%, transparent);
   animation: cgemglow 0.22s ease-out;
 }
 .card.compact .cgem.pulsing::after {
   inset: -4px; will-change: transform, opacity;
-  background: radial-gradient(circle, color-mix(in srgb, var(--cgem-pulse, #f6e3ad) 75%, #fff6d8) 0%, color-mix(in srgb, var(--cgem-pulse, #f6e3ad) 55%, transparent) 45%, transparent 70%);
-  box-shadow: 0 0 16px 6px rgba(255, 244, 210, 0.95), 0 0 34px 16px color-mix(in srgb, var(--cgem-pulse, #f6e3ad) 70%, transparent);
+  background: radial-gradient(circle, color-mix(in srgb, var(--cgem-pulse, #ffcf4d) 75%, #fff6d8) 0%, color-mix(in srgb, var(--cgem-pulse, #ffcf4d) 55%, transparent) 45%, transparent 70%);
+  box-shadow: 0 0 16px 6px rgba(255, 244, 210, 0.95), 0 0 34px 16px color-mix(in srgb, var(--cgem-pulse, #ffcf4d) 70%, transparent);
   animation: cgempulse 0.9s ease-out 0.15s; /* delayed so the ring releases AFTER the glow flares */
 }
 /* Rally pulse — the same flash + ring as a normal trigger pulse, forced YELLOW (a Rally fired as this unit
@@ -2339,11 +2345,12 @@ img.tierbadge.tierstars,
 .medprev .cgem {
   position: relative; z-index: auto;
   width: 60px; height: 60px;
-  transform: translate(var(--cgem-dx, 0px), var(--cgem-dy, 0px)) scale(var(--cgem-size, 1));
+  --ccw: 60px; /* local ref so the --ccw/--ccw-ref offset scaling below previews at this swatch's size */
+  transform: translate(calc(var(--cgem-dx, 0px) * (var(--ccw) / var(--ccw-ref))), calc(var(--cgem-dy, 14px) * (var(--ccw) / var(--ccw-ref)))) scale(var(--cgem-size, 1.5));
   border-radius: 50%;
   background: radial-gradient(circle at 50% 32%, color-mix(in srgb, var(--cgem-bg, #2a2430) 85%, #fff), color-mix(in srgb, var(--cgem-bg, #2a2430) 80%, #000));
   border: calc(1px * var(--cgem-outline-w, 1)) solid var(--cgem-outline, #f6e3ad);
-  filter: drop-shadow(var(--cgem-shadow-x, 0px) var(--cgem-shadow-y, 2px) var(--cgem-shadow-blur, 6px) var(--cgem-shadow-color, rgba(0, 0, 0, 0.5)));
+  filter: drop-shadow(var(--cgem-shadow-x, 0px) var(--cgem-shadow-y, 2px) var(--cgem-shadow-blur, 3px) var(--cgem-shadow-color, rgba(0, 0, 0, 1)));
   display: grid; place-items: center;
 }
 /* WATCHER card-frame bloom — a one-shot light-blue ring on the whole card, the CSS fallback for the Pixi def
@@ -2500,12 +2507,12 @@ img.tierbadge.tierstars,
   position: absolute; top: calc(var(--ccw) * -0.045); left: calc(var(--ccw) * -0.035); z-index: 5;
   width: calc(var(--ccw) * 0.21); height: calc(var(--ccw) * 0.21); display: grid; place-items: center;
   /* 👑 Gilded Badge tuner (gildedBadgeConfig.ts): scale + px nudge on top of the corner seat. Fallbacks = DEFAULTS. */
-  transform: translate(var(--gcrown-dx, 53px), var(--gcrown-dy, -30px)) scale(var(--gcrown-size, 1.58));
+  transform: translate(calc(var(--gcrown-dx, 62px) * (var(--ccw) / var(--ccw-ref))), calc(var(--gcrown-dy, -36px) * (var(--ccw) / var(--ccw-ref)))) scale(var(--gcrown-size, 1.58));
 }
 .card.compact .goldcrown > .goldcrown-img { width: 100%; height: 100%; object-fit: contain; }
 /* 👑 Gilded Badge tuner preview (GildedBadgeTuner.tsx) — the badge art outside a card, reading the same vars. */
 .gcrownprev { display: grid; place-items: center; padding: 20px; background: rgba(0, 0, 0, 0.28); border-radius: 8px; }
-.gcrownprev-img { width: 64px; height: 64px; object-fit: contain; transform: translate(var(--gcrown-dx, 53px), var(--gcrown-dy, -30px)) scale(var(--gcrown-size, 1.58)); }
+.gcrownprev-img { width: 64px; height: 64px; object-fit: contain; --ccw: 64px; transform: translate(calc(var(--gcrown-dx, 62px) * (var(--ccw) / var(--ccw-ref))), calc(var(--gcrown-dy, -36px) * (var(--ccw) / var(--ccw-ref)))) scale(var(--gcrown-size, 1.58)); }
 
 /* golden (tripled) minion */
 .card.golden { border-color: #ffcf4a; background: color-mix(in srgb, #f4cf6a 24%, var(--card)); box-shadow: 0 0 0 3px #ffd85a, 0 3px 0 var(--shadow), 0 0 28px 2px rgba(255, 190, 50, 0.85); }

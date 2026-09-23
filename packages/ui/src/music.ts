@@ -41,7 +41,7 @@ export const MUSIC_STOP_FADE_MS = 150;
 /** The chain, in play order; the index wraps. Files live at `<BASE_URL>music/<name>.mp3`. */
 export const MUSIC_TRACKS = ['bg', 'bg2'] as const;
 export type MusicTrack = (typeof MUSIC_TRACKS)[number];
-const DEFAULT_MUSIC_VOLUME = 0.7;
+const DEFAULT_MUSIC_VOLUME = 0.2; // owner's 2026-09-23 mix (music sits low under sfx + announcer)
 
 export type MusicPhase =
   | 'idle'     // not inside a lobby run (or stopped); nothing scheduled

@@ -17,7 +17,7 @@ export interface AudioConfig {
 
 /** Per-category gains — the owner's by-ear mix, exported from the dev SFX desk and pasted here as the shipped
  *  defaults (2026-07-15; `cleave` retuned 0.4 → 0.27 → 0.11 on 2026-07-21; whole-mix rebalance on 2026-07-28
- *  alongside masterGain → 0.61). `buff` is a synth-only cue so its gain is inert (see buildCategories) but kept
+ *  alongside masterGain → 0.61; masterGain → 0.50 in the owner's 2026-09-23 mix). `buff` is a synth-only cue so its gain is inert (see buildCategories) but kept
  *  to match the exported config. */
 export const CATEGORY_GAINS: Record<string, number> = {
   buy: 0.5, sell: 0.27, consume: 0.5, runeBreak: 0.35, smack: 0.33, crit: 0.34, attack: 0.29, death: 0.26, shield: 0.37, triple: 0.47, cast: 0.5, maxgold: 0.22, cardlanding: 0.33, castspell: 0.68, discover: 0.5, discoverSelect: 0.375, taunt: 0.3,
@@ -130,7 +130,7 @@ function buildCategories(): Record<string, CategoryConfig> {
 }
 
 export const DEFAULT_AUDIO_CONFIG: AudioConfig = {
-  masterGain: 0.61,
+  masterGain: 0.5,
   master: { threshold: -6, knee: 0, ratio: 20, attack: 0.001, release: 0.25 },
   buses: { ui: { gain: 1, comp: null }, combat: { gain: 1, comp: null }, voice: { gain: 1, comp: null }, hero: { gain: 1, comp: null }, equipment: { gain: 1, comp: null } },
   categories: buildCategories(),

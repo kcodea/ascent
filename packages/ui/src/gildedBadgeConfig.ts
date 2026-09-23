@@ -15,8 +15,8 @@ export interface GildedBadgeConfig {
   dy: number;
 }
 
-/** Shipped values — owner-tuned seat (2026-09-22). CSS fallbacks in styles.css mirror these. */
-const DEFAULTS: GildedBadgeConfig = { size: 1.58, dx: 62, dy: -36 };
+/** Shipped values — owner-tuned seat (2026-09-23). CSS fallbacks in styles.css mirror these. */
+const DEFAULTS: GildedBadgeConfig = { size: 1.58, dx: 78, dy: -44.5 };
 
 const RANGES: Record<keyof GildedBadgeConfig, [number, number, number]> = {
   size: [0.3, 3, 0.01],

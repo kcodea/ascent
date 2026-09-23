@@ -151,8 +151,8 @@ export const SET3_SPIRITS: readonly CardDef[] = [
     health: 3,
     keywords: [],
     effects: [{ on: 'onSell', do: 'revelerSell', params: { stat: 'attack' } }],
-    text: 'When you **sell** this, give your Spirits **+1 Attack**, then increase that by 1.',
-    goldenText: 'When you **sell** this, give your Spirits **+2 Attack**, then increase that by 1.',
+    text: '**Sell:** give your Spirits **+1 Attack**, then increase that by 1.',
+    goldenText: '**Sell:** give your Spirits **+2 Attack**, then increase that by 1.',
   },
   {
     id: 'sp3_tidereveler',
@@ -163,8 +163,8 @@ export const SET3_SPIRITS: readonly CardDef[] = [
     health: 4,
     keywords: [],
     effects: [{ on: 'onSell', do: 'revelerSell', params: { stat: 'health' } }],
-    text: 'When you **sell** this, give your Spirits **+1 Health**, then increase that by 1.',
-    goldenText: 'When you **sell** this, give your Spirits **+2 Health**, then increase that by 1.',
+    text: '**Sell:** give your Spirits **+1 Health**, then increase that by 1.',
+    goldenText: '**Sell:** give your Spirits **+2 Health**, then increase that by 1.',
   },
   {
     // The Grove pays EVERY minion, both stats — the same shared value.
@@ -176,8 +176,8 @@ export const SET3_SPIRITS: readonly CardDef[] = [
     health: 6,
     keywords: [],
     effects: [{ on: 'onSell', do: 'revelerSell', params: { stat: 'both' } }],
-    text: 'When you **sell** this, give your minions **+1/+1**, then increase that by 1.',
-    goldenText: 'When you **sell** this, give your minions **+2/+2**, then increase that by 1.',
+    text: '**Sell:** give your minions **+1/+1**, then increase that by 1.',
+    goldenText: '**Sell:** give your minions **+2/+2**, then increase that by 1.',
   },
   {
     // Equip minion: Spiritbinder (2 Gold; 'Spiritbringer' until 2026-09-13, id unchanged) — a RANDOM Spirit on the board and a random Spirit in hand, +6/+6 each (untargeted since 2026-09-14).

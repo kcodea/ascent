@@ -67,6 +67,7 @@ import { releaseAllStats } from './fx/statHold';
 import { clearAllHandBuffs } from './handBuffFx';
 import { liveBoardView } from './instView';
 import { saveCapturedBoards, saveRunBoards } from './boardLibrary';
+import { type AnnouncedSlice, type AnnouncerEvent, announcedFor, emptyAnnounced, withAnnounced } from './announcerSlice';
 import { perfMonitor } from './perfMonitor';
 import { fetchRankedProfile, remoteEnabled, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
 import { initIdentity, currentIdentity } from './identity';
@@ -449,6 +450,15 @@ interface GameStore {
    *  `replayActions`. UI metadata only (never fed to the sim), so a viewer can play back the real cadence. */
   /** Live-captured acquisition streams for the Balance Report — see `TelemetryLog`. */
   telemetryLog: TelemetryLog;
+  /** THE ANNOUNCER (2026-09-23): which voice lines this run has spoken, at which waves, and how many count
+   *  against the per-game cap. Persisted with the save (a Continue never replays a line), keyed by the run seed,
+   *  fresh on every new run. Written only by `markAnnounced` (announcer.ts); see `announcerSlice.ts`. */
+  announced: AnnouncedSlice;
+  markAnnounced: (event: AnnouncerEvent, wave: number) => void;
+  /** The rail's REAL pre-combat odds for the current wave, once Recruit's deferred probe has run (it stamps
+   *  the replay frame through `stampReplayOdds`; this mirror is what the announcer reads at the verdict).
+   *  Null until the probe lands; a stale wave is ignored by its reader. */
+  combatOdds: { wave: number; odds: CombatOdds } | null;
   /** The live balance derivation for the run in progress (see `sim/runDerive.ts`). Fed on every dispatch,
    *  persisted with the save, uploaded at run end. */
   deriveState: DeriveState;
@@ -850,12 +860,12 @@ export function loadCombatRampUp(): boolean {
 // the save is cleared when the run ends. The run's action log rides along so board capture still works on a
 // resumed run's finish. All best-effort — localStorage may be unavailable; failures never break play.
 const SAVE_KEY = 'ascent.save';
-interface SavedGame { run: RunState; actions: Action[]; boards: BoardSnapshot[]; telemetry?: TelemetryLog; derive?: DeriveState; turnRemaining?: number; }
+interface SavedGame { run: RunState; actions: Action[]; boards: BoardSnapshot[]; telemetry?: TelemetryLog; derive?: DeriveState; turnRemaining?: number; announced?: AnnouncedSlice; }
 function loadSave(): SavedGame | null {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
-    const o = JSON.parse(raw) as { run: string; actions?: Action[]; boards?: BoardSnapshot[]; telemetry?: TelemetryLog; derive?: DeriveState; turnRemaining?: number };
+    const o = JSON.parse(raw) as { run: string; actions?: Action[]; boards?: BoardSnapshot[]; telemetry?: TelemetryLog; derive?: DeriveState; turnRemaining?: number; announced?: AnnouncedSlice };
     const run = deserialize(o.run, { turnRemaining: o.turnRemaining }); // heals older-schema saves (+ closes a Thymepiece window the saved clock is past)
     if (run.phase === 'gameover' || run.phase === 'victory') return null; // finished → not resumable
     // A save can reference a card this build no longer has — a card deleted or renamed during content work, a
@@ -871,10 +881,10 @@ function loadSave(): SavedGame | null {
       clearSave();
       return null;
     }
-    return { run, actions: o.actions ?? [], boards: o.boards ?? [], telemetry: o.telemetry, derive: o.derive, turnRemaining: o.turnRemaining };
+    return { run, actions: o.actions ?? [], boards: o.boards ?? [], telemetry: o.telemetry, derive: o.derive, turnRemaining: o.turnRemaining, announced: o.announced };
   } catch { return null; }
 }
-function writeSave(run: RunState, actions: Action[], boards: BoardSnapshot[] = [], telemetry?: TelemetryLog, derive?: DeriveState, turnRemaining?: number): void {
+function writeSave(run: RunState, actions: Action[], boards: BoardSnapshot[] = [], telemetry?: TelemetryLog, derive?: DeriveState, turnRemaining?: number, announced?: AnnouncedSlice): void {
   // NEVER persist a Scene Builder run. It's a disposable dev rig with 999 Gold and hand-placed boards; letting
   // it reach the autosave overwrites the player's real in-progress run and offers the sandbox as "Continue"
   // (owner hit this on 2026-07-22 — a sandbox session clobbered a live save). The run is already flagged for us.
@@ -891,7 +901,8 @@ function writeSave(run: RunState, actions: Action[], boards: BoardSnapshot[] = [
     // `turnRemaining` rides along so a mid-turn Save & Quit resumes the recruit turn with the SAME seconds left
     // (owner ask 2026-08-24 — quitting at 51s must not come back at 0). Only `flushSave` (the mid-turn path)
     // passes it; the turn-boundary autosave omits it, so resuming from a boundary starts the next turn at full.
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ run: serialize(run), actions, ...(boards.length ? { boards } : {}), ...(telemetry ? { telemetry } : {}), ...(derive ? { derive } : {}), ...(turnRemaining != null ? { turnRemaining } : {}) }));
+    // `announced` (the announcer's spoken lines, announcerSlice.ts) rides along so a Continue never replays a line.
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ run: serialize(run), actions, ...(boards.length ? { boards } : {}), ...(telemetry ? { telemetry } : {}), ...(derive ? { derive } : {}), ...(turnRemaining != null ? { turnRemaining } : {}), ...(announced ? { announced } : {}) }));
   } catch { /* ignore */ }
 }
 function clearSave(): void {
@@ -1577,7 +1588,7 @@ function commitResolvedAction(
       // `next.sandbox` — a Scene Builder run never reaches the autosave OR the Continue slot. Both are
       // guarded here rather than only inside `writeSave`, because `savedRun` is what the title offers.
       else if (next.phase !== s.run.phase && !next.sandbox) {
-        autosave.schedule([next, replayActions, capturedBoards, telemetryLog, deriveState]); // idle time, not this frame
+        autosave.schedule([next, replayActions, capturedBoards, telemetryLog, deriveState, undefined, s.announced]); // idle time, not this frame
         savedRun = next;
       }
     }
@@ -1671,7 +1682,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     discardReplayDraft(); // the in-progress recording goes with the run it was recording
     dropBoardFx();
     const fresh = createRun(randomSeed());
-    set({ savedRun: null, run: fresh, replayActions: [], capturedBoards: [], replayFrames: [], replayPartial: false, telemetryLog: emptyTelemetryLog(), deriveState: beginDerive(fresh) });
+    set({ savedRun: null, run: fresh, replayActions: [], capturedBoards: [], replayFrames: [], replayPartial: false, telemetryLog: emptyTelemetryLog(), deriveState: beginDerive(fresh), announced: emptyAnnounced(fresh.seed), combatOdds: null });
   },
   // Mid-turn durability for the turn-boundary autosave. Guarded on `showTitle` because the `run` held while
   // the title is up is a dormant throwaway (see clearRun) — persisting it would resurrect a phantom Continue.
@@ -1691,7 +1702,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // Only mid-recruit — during combat the clock is irrelevant, and saving its 0 would resume a locked board.
     const turnRemaining = s.run.phase === 'recruit' ? turnClock.get() : undefined;
     autosave.cancel(); // this write carries everything the pending boundary write would, and newer
-    writeSave(s.run, s.replayActions, s.capturedBoards, s.telemetryLog, s.deriveState, turnRemaining);
+    writeSave(s.run, s.replayActions, s.capturedBoards, s.telemetryLog, s.deriveState, turnRemaining, s.announced);
     set({ savedTurnRemaining: turnRemaining ?? null });
     // The Replay V2 frames are far too large for that localStorage payload — they persist to IndexedDB
     // instead, and this is the one place the CURRENT (still open) round gets written. Without it, quitting
@@ -1805,6 +1816,17 @@ export const useGame = create<GameStore>((rawSet, get) => {
   setBeatDraftLive: (beatDraftLive) => set({ beatDraftLive }),
   telemetryLog: BOOT_SAVE?.telemetry ?? emptyTelemetryLog(),
   deriveState: BOOT_SAVE?.derive ?? beginDerive(BOOT_SAVE?.run ?? createRun(randomSeed())),
+  announced: announcedFor(BOOT_SAVE?.announced, BOOT_SAVE?.run.seed ?? -1),
+  combatOdds: null,
+  // A line spoke: record it and persist it on idle time (the phase-boundary autosave alone could leave a line
+  // unrecorded between a reload and the next boundary, and a Continue would then replay it).
+  markAnnounced: (event, wave) => {
+    const s = get();
+    const announced = withAnnounced(announcedFor(s.announced, s.run.seed), event, wave);
+    set({ announced });
+    if (s.showTitle || s.replaying || s.run.sandbox || s.run.phase === 'gameover' || s.run.phase === 'victory') return;
+    autosave.schedule([s.run, s.replayActions, s.capturedBoards, s.telemetryLog, s.deriveState, undefined, announced]);
+  },
   capturedBoards: BOOT_SAVE?.boards ?? [],
   exportReplay: () => ({ seed: get().run.seed, heroId: get().run.heroId, mode: get().run.mode, actions: get().replayActions }),
   dispatch: (action) => {
@@ -1913,6 +1935,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
   stampReplayOdds: (odds) => {
     const s = get();
     if (s.replaying) return;
+    if (s.run.phase === 'combat' && s.combatOdds?.wave !== s.run.wave) set({ combatOdds: { wave: s.run.wave, odds } }); // the announcer's mirror
     const frames = s.replayFrames;
     for (let i = frames.length - 1; i >= 0; i--) {
       const f = frames[i];
@@ -2372,8 +2395,8 @@ const RANK_SLICE_RESET = { rankResult: null, rankSubmission: 'unrated' as const,
  *  did, so one browser session stacked its runs into one `derived` payload (53 of 114 live rows carried an
  *  earlier run's `gold` / `offers` / `boards` in front of their own, the wave dropping back to 1 where the
  *  next run began). A RESUMED run keeps its saved observers (`continueRun` never comes through here). */
-function freshObservers(run: RunState): Pick<GameStore, 'telemetryLog' | 'deriveState'> {
-  return { telemetryLog: emptyTelemetryLog(), deriveState: beginDerive(run) };
+function freshObservers(run: RunState): Pick<GameStore, 'telemetryLog' | 'deriveState' | 'announced' | 'combatOdds'> {
+  return { telemetryLog: emptyTelemetryLog(), deriveState: beginDerive(run), announced: emptyAnnounced(run.seed), combatOdds: null };
 }
 
 /** Mint a rated run's identity. `crypto.randomUUID` is universal in the browsers + Electron the game ships

@@ -550,4 +550,107 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-23',
     },
   },
+  {
+    id: 'R-PRESENT-07',
+    title: 'The announcer speaks each game moment at most once per run, never back to back, through a priority queue with a 12 s cooldown and an eight-line cap; its own audio channel sits behind the Settings Audio panel',
+    statement:
+      'The announcer (announcer.ts) is a set of one-shot voice lines on game moments, spoken ONLY inside a lobby or '
+      + 'Practice run on screen (the music gate: never the title, a tutorial, a sandbox rig or a replay). Each event '
+      + 'speaks at most ONCE per run, recorded in the store\x27s `announced` slice, which is persisted with the '
+      + 'autosave and keyed by the run seed, so a Save & Continue never replays a line and a new run starts fresh; '
+      + 'BackToShop and Triple may speak twice, at least ANNOUNCER_REPEAT_GAP_WAVES (5) waves apart. The variant '
+      + '(1 / 2 / 3) is drawn from the run seed. One global cooldown, ANNOUNCER_COOLDOWN_MS (12 s from the previous '
+      + 'line ending), and never while a line plays: an event landing inside it is DROPPED, not queued, and stays '
+      + 'unfired (it may speak later if its moment recurs and is still valid). Pending events are weighed together by '
+      + 'priority (GameWon = GameLoss > TopTwo > TopFour > SurviveUnder10hp > LosingLowOdds = WinningLowOdds > '
+      + 'ThreeWinStreak > StartCombatUnder10hp > EnteringCombatAfterLoss > MinionHits100Stats > TierSix > '
+      + 'EpicRuneforge > Runeforge > Triple > Equipment > EnteringCombat > GameStart > BackToShop): the highest speaks, '
+      + 'the rest are dropped. Shelf life: combat lines expire when the next shop opens, shop lines when combat starts, '
+      + 'GameWon / GameLoss never expire (they wait out the cooldown). Silence: nothing in the first '
+      + 'ANNOUNCER_COMBAT_SILENCE_MS (3 s) of a combat resolution; nothing over the music\x27s turn-1 fade-in (GameStart '
+      + 'plays ANNOUNCER_GAME_START_DELAY_MS, 4 s, after the first shop); a Skip (`stopAllAudio`) or leaving the run '
+      + 'cancels the queue and the playing line with an ANNOUNCER_STOP_FADE_MS (100 ms) fade. At most '
+      + 'ANNOUNCER_LINE_CAP (8) lines per game, GameWon / GameLoss allowed on top. Triggers: GameStart (wave 1\x27s '
+      + 'first shop), BackToShop (a return from combat, twice per game at most, first no earlier than wave 2), '
+      + 'Equipment (an Equipment acquired, 400 ms after its SFX), Triple (a gilded minion formed), TierSix (tier 6), '
+      + 'Runeforge / EpicRuneforge (the offer opening), EnteringCombat (the first Face Omen, still eligible through '
+      + 'wave 3), EnteringCombatAfterLoss (a Face Omen after two consecutive losses), StartCombatUnder10hp (Resolve '
+      + 'at or below 10 going in, Armor not counted), SurviveUnder10hp (surviving such a fight; it also plays right '
+      + 'after this round\x27s StartCombatUnder10hp, as the round\x27s only line), LosingLowOddsFight (a loss at 65%+ win '
+      + 'odds from the rail\x27s real probe, skipped when absent), WinningLowOddsFight (a win at 35% or less), '
+      + 'ThreeWinStreak (the third consecutive win), MinionHits100Stats (a player minion at 100+ Attack or Health, in '
+      + 'the shop or the fight, never the enemy side), TopFour / TopTwo (four / two seats standing when the rail shows '
+      + 'it, the player among them), GameWon (1st place) and GameLoss (2nd to 8th) 1 s into the end screen. The '
+      + 'announcer is its own channel: a third gain on the SFX AudioContext with its own volume and mute '
+      + '(`ascent.announcervol` default 0.9, `ascent.announcermuted`), not ducked by the Game-sounds mute; the clips '
+      + 'load lazily on first need. Settings shows one "Audio" button (aria-expanded, collapsed by default, its state '
+      + 'remembered) that expands three channel rows, Game sounds / Music / Announcer, each a slider and a mute.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-23 (the announcer)',
+        quote: 'i added announcer sfx here: C:\\Game Assets\\Ascent Art\\SFX\\Announcer \u2014 can you look at them? I named them for when they should trigger. they shouldn\x27t trigger more than once per game, though. and they shouldn\x27t trigger back to back for things like equipment or triples etc.',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-23 (the announcer)',
+        quote: 'with this we\x27ll need an announcer toggle and audio channel as well, similar to music. i think it\x27s best we put an "audio" button in the settings window that expands/collapses these 3 channels with mute toggles for each.',
+      },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-23 (the announcer, on the queue logic)', quote: 'i like your logic you\x27ve shared here' },
+      { kind: 'code', ref: 'packages/ui/src/announcer.ts (the queue, the detectors, the channel); packages/ui/src/announcerSlice.ts (the persisted slice); packages/ui/src/store.ts (announced, markAnnounced, combatOdds, the save round-trip); packages/ui/src/Game.tsx (the subscription + the stopAllAudio hook); packages/ui/src/Recruit.tsx (observeCombatBoard); packages/ui/src/EscMenu.tsx (the Audio panel)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Before this there was no announcer and the Settings Audio section was two flat '
+      + 'rows (Game sounds, Music). Known asset issue: the delivered GameWon.mp3 is byte-identical to TopTwo2.mp3 '
+      + '(a mis-export the owner will replace under the same name); GameWon therefore has one variant today.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/announcer.test.ts', 'packages/ui/src/escMenuAudioPanel.test.tsx'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-PRESENT-08',
+    title: 'In combat the minions and the striking heroes paint OVER the hero cluster; its popovers still open over the board',
+    statement:
+      'During a combat replay every unit on either board (idle, dying, attacking / lunging, struck, poisoned, reborn), '
+      + 'the Pixi FX canvas and the damage floats paint ABOVE the bottom-left hero cluster: the hero portrait, the '
+      + 'hero-power diamond with its counter and name pill, the equipment slot, the rune nodes. A minion wound up or '
+      + 'lunging over that corner is never drawn behind it. The cluster still paints above the plain board art and '
+      + 'the under-card FX canvas, still receives the pointer over its own diamonds, and its popovers keep opening '
+      + 'over the board: while a hero-power or equipment diamond or a rune node is hovered (or the run-buffs pop-out '
+      + 'is open) the whole cluster lifts above every unit, still below the foe portrait and the FX canvas. The '
+      + 'hero-duel lift (the striking side at z100) keeps winning over both. Mechanism: `.app.combat` dissolves the '
+      + 'app\x27s stacking context (z-index auto, the move `body.modalup` and the hand-hover rule already make), the '
+      + 'bar drops to z0 in combat (`:where(body:has(.app.combat)) .statusbar`) and the idle unit rises to z1 '
+      + '(`:where(.app.combat) .unit`, dying z2), with every attacking / struck / reborn value and the lunge\x27s '
+      + 'inline z12 untouched so the defender still sorts over the attacker in the one root context. The bar must '
+      + 'never go NEGATIVE (a z-1 bar sits under `.app`\x27s transparent box and loses the pointer over the diamond), '
+      + 'and `.app` must never be RAISED instead (`.boardbg` is its child and would cover the cluster). The shop '
+      + 'order (bar z40 over `.app` z1) is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-23 (hero cluster z-order)',
+        quote: 'can you fix the z axis of the hero power art etc? it is on top of minions and heroes so when they attack they are behind it.',
+      },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (the COMBAT Z-ORDER LADDER comment at `.app.combat`; the `:where(body:has(.app.combat)) .statusbar` rules; the DUEL Z-ORDER block); packages/ui/src/choreo/channels/lunge.ts (the inline zIndex 12)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Before the fix `.statusbar` (a #root sibling at z40) painted over the whole '
+      + '`.app` (z1) in every phase, so a minion lunging out of the leftmost slot, or wound up over the power diamond, '
+      + 'was drawn behind the portrait / diamond / equipment slot / rune nodes; a frozen wind-up of the leftmost '
+      + 'minion showed its attack badge hidden under the "1/3 Lucky Seat" diamond. Verified live on port 5255: the '
+      + 'same frozen frame with the fix shows the card over the diamond; hovering the diamond lifts the bar to z41 '
+      + 'and its tooltip (and a rune node\x27s tooltip) renders over the card.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/combatZOrder.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
 ];

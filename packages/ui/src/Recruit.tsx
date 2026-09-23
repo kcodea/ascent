@@ -66,6 +66,7 @@ import { TavernUpButton } from './TavernUpButton';
 import { GoldPill } from './GoldPill';
 import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
+import { observeCombatBoard } from './announcer';
 import { pixiFx, discoverFx, RUBY_AIM_DEF_ID } from './pixiFx';
 import { FxUnderSlot } from './PixiFxLayer';
 import { perfMonitor } from './perfMonitor';
@@ -2394,6 +2395,9 @@ export function Recruit() {
   // that commit was a drag decision that never re-rendered `Recruit`. The refs above are theirs to write.
 
   const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed, paused: overlayOpen, rampEnabled });
+  // THE ANNOUNCER's MinionHits100Stats during a fight: the TRUTH frame's player units, per beat (seven reads, no
+  // allocation; the module reports once per fight and only while unfired). Never the enemy / ghost side.
+  useEffect(() => { if (fighting) observeCombatBoard(replay.frame.player, run.wave); }, [fighting, replay.frame, run.wave]);
   /** Latest replay for handlers that must stay referentially stable (`skipCombat`): the hook returns a fresh
    *  object every render, so a `[replay]` dep would hand the memoized shop controls a new callback each render. */
   const replayRef = useRef(replay);

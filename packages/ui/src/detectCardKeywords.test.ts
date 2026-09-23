@@ -74,4 +74,33 @@ describe('detectCardKeywords', () => {
     // Word boundary: "Pummeled" / "pummel" (lower-case verb) never raise it.
     expect(ids({ keywords: [], text: 'It gets Pummeled. You pummel it.' })).toEqual([]);
   });
+
+  // SELL (owner keyword 2026-09-23): "any card that operates on a 'When you sell this' should now say 'Sell: xyz'
+  // with sell being a highlighted keyword … put a pill in for Sell that says 'Triggers when this minion is sold.'"
+  // Every `onSell` minion prints the keyword form and raises the pill; the wording is the owner's verbatim. The pill
+  // fires ONLY on the keyword form: the verb in a sell spell ("Sell a friendly minion") and the sell-value line
+  // ("Sells for 2 Gold") are ordinary text and never raise a pill that says "this minion".
+  it('Sell pills: every onSell minion reads "Sell: …" and raises the pill; the verb never does', () => {
+    const SELLERS = ['hoardwhelp', 'salvatore', 'd2_riverdrake', 'k_beggy', 'k_pouchpincher', 'n2_salesman', 'sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'];
+    for (const id of SELLERS) {
+      const c = CARD_INDEX[id]!;
+      expect(c.effects.some((e) => e.on === 'onSell'), id).toBe(true);
+      expect(c.text, id).toMatch(/\*\*Sell:\*\* /);
+      expect(c.goldenText, id).toMatch(/\*\*Sell:\*\* /);
+      expect(ids({ keywords: c.keywords, text: c.text ?? '' }), id).toContain('sell');
+      expect(ids({ keywords: c.keywords, text: c.goldenText ?? '' }), id).toContain('sell');
+    }
+    expect(CARD_INDEX['salvatore']!.text).toBe('**Sell:** **Discover** 2 Tier 6 minions.');
+    expect(CARD_INDEX['k_beggy']!.text).toBe('**Sell:** get **2 Rubies**.');
+    expect(CARD_INDEX['sp3_grovereveler']!.text).toBe('**Sell:** give your minions **+1/+1**, then increase that by 1.');
+    const def = KEYWORD_GLOSSARY.find((d) => d.id === 'sell')!;
+    expect(def.def).toBe('Triggers when this minion is sold.');
+    expect(def.section).toBe('triggers');
+    // Only the keyword form: the bare verb, the sell-value sentence and a lower-case "sell" never raise it.
+    expect(ids({ keywords: [], text: 'Sell a friendly minion. Give its stats to **2 random** friendly minions.' })).toEqual([]);
+    expect(ids({ keywords: [], text: 'Sells for **2 Gold**.' })).toEqual([]);
+    expect(ids({ keywords: [], text: 'The next minion you **sell** this turn sells for 3 Gold.' })).toEqual([]);
+    expect(ids({ keywords: [], text: 'When you sell a **Demon**, this gains its stats.' })).toEqual([]);
+    expect(ids({ keywords: [], text: '**Sell:** get **6 Gold**. **End of Turn:** get a random Tier 1 Spell or Minion.' })).toEqual(['endofturn', 'sell']);
+  });
 });

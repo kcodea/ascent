@@ -224,4 +224,36 @@ export const TEXT_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-22',
     },
   },
+  {
+    id: 'R-TEXT-09',
+    title: 'A minion that triggers when IT is sold prints the Sell keyword',
+    statement:
+      'Sell is a keyword: "Sell: Triggers when this minion is sold." Every minion whose effect fires on the onSell '
+      + 'trigger (an effect on the minion being sold) prints the keyword form "Sell: …" in place of a "When you sell '
+      + 'this" sentence, the word is highlighted in card text on every surface, and the hover pill and Compendium '
+      + 'carry the definition. The keyword is pinned to its form: a card that reacts to selling ANOTHER minion '
+      + '(the minionSold watchers), a spell that sells a minion, a sell-value line ("Sells for 2 Gold") and a hero '
+      + 'power that counts sales keep their sentences and never raise the pill, because none of them is "this '
+      + 'minion is sold". Text only: no effect, trigger or parameter changes with the keyword.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-23', quote: "i want to make Sell a keyword. any card that operates on a 'When you sell this' should now say 'Sell: xyz' with sell being a highlighted keyword. no mechanical change, just text and keyword updates. put a pill in for Sell that says 'Triggers when this minion is sold.'" },
+      { kind: 'code', ref: 'packages/ui/src/keywordGlossary.ts (the sell entry; `match` pins it to the "Sell:" form); packages/ui/src/detectCardKeywords.ts + packages/ui/src/termColour.ts (the pill + the colouring read `match`); packages/sim/src/docbot/textParse/lexicon.ts (TRIGGER_LEXICON "Sell:" → onSell)' },
+    ],
+    contentIds: ['hoardwhelp', 'salvatore', 'd2_riverdrake', 'k_beggy', 'k_pouchpincher', 'n2_salesman', 'sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Hoard Whelp already printed "Sell: get 6 Gold"; Salvatore McKlusky, River '
+      + 'Drake, Beggy, Cheap Date, Traveling Salesman and the three Revelers moved from "When you sell this, …" to '
+      + '"Sell: …" (the Revelers live-value helper in packages/ui/src/cardText.ts moved with them). The glossary '
+      + 'entry raises the pill and colours the word; the parser already read "Sell:" as onSell.',
+    example:
+      'Beggy reads "Sell: get 2 Rubies." with Sell highlighted; hovering shows "Sell: Triggers when this minion is '
+      + 'sold." Arcane Behemoth still reads "When you sell a Demon, this gains its stats." and shows no Sell pill.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/detectCardKeywords.test.ts', 'packages/ui/src/termColour.test.tsx', 'packages/ui/src/keywordGlossaryCoverage.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
 ];

@@ -5,48 +5,48 @@
   "focus": "ARCHITECTURE ONLY \u2014 how the game is coded/structured. NEVER ask game-rules questions (see daily-prompt.md).",
   "difficulty": 1,
   "difficultyScale": "1 = gentlest (what is a function, what is a package). 5 = deep (trace an event through the architecture). Ramp only per the rules in daily-prompt.md.",
-  "totalQuizzes": 41,
+  "totalQuizzes": 42,
   "recentScores": [],
   "topics": {
     "what-is-a-function": {
-      "asked": 20,
-      "lastAsked": "2026-09-21"
+      "asked": 21,
+      "lastAsked": "2026-09-23"
     },
     "deterministic-sim": {
-      "asked": 20,
-      "lastAsked": "2026-09-21"
+      "asked": 21,
+      "lastAsked": "2026-09-23"
     },
     "seeded-rng": {
-      "asked": 20,
-      "lastAsked": "2026-09-21"
+      "asked": 21,
+      "lastAsked": "2026-09-23"
     },
     "sim-ui-decoupling": {
-      "asked": 20,
-      "lastAsked": "2026-09-21"
+      "asked": 21,
+      "lastAsked": "2026-09-23"
     },
     "monorepo-packages": {
-      "asked": 20,
-      "lastAsked": "2026-09-21"
+      "asked": 21,
+      "lastAsked": "2026-09-23"
     },
     "pure-functions": {
-      "asked": 20,
-      "lastAsked": "2026-09-21"
+      "asked": 21,
+      "lastAsked": "2026-09-23"
     },
     "data-vs-code": {
-      "asked": 20,
-      "lastAsked": "2026-09-21"
+      "asked": 21,
+      "lastAsked": "2026-09-23"
     },
     "event-log-replay": {
-      "asked": 20,
-      "lastAsked": "2026-09-21"
+      "asked": 21,
+      "lastAsked": "2026-09-23"
     },
     "eslint-rules": {
-      "asked": 19,
-      "lastAsked": "2026-09-21"
+      "asked": 20,
+      "lastAsked": "2026-09-23"
     },
     "performance-memo": {
-      "asked": 19,
-      "lastAsked": "2026-09-21"
+      "asked": 20,
+      "lastAsked": "2026-09-23"
     },
     "reducer-run-state": {
       "asked": 20,
@@ -977,6 +977,25 @@
         "testing-vitest"
       ],
       "scored": null
+    },
+    {
+      "date": "2026-09-23",
+      "quizNumber": 42,
+      "difficulty": 1,
+      "topics": [
+        "what-is-a-function",
+        "deterministic-sim",
+        "seeded-rng",
+        "sim-ui-decoupling",
+        "monorepo-packages",
+        "pure-functions",
+        "data-vs-code",
+        "event-log-replay",
+        "eslint-rules",
+        "performance-memo"
+      ],
+      "scored": null,
+      "note": "Still no score ever reported by Mike (42 quizzes in), so mastery/difficulty stayed untouched. Picked this topic group (older lastAsked 2026-09-21) over the other group (2026-09-22) to keep the spaced two-group rotation going. Dispatched a background research agent to extract already-used angles from the 5 most recent archives on this exact topic set (2026-09-13/15/17/19/21), then wrote 10 fresh questions grounded in live source, cross-checked against that extraction plus the exhaustive angle lists recorded in this file's own 2026-09-19 note: simulate.ts's `isTribeOf(m, tribe, cards)` helper as a plain input→output boolean function (what-is-a-function); combat-harness.ts calling `makeRng(SEED)` twice — once per simulate() call — because an Rng object is stateful and reusing one would consume the parent's stream (deterministic-sim); rng.ts's `next()` using `>>> 0` for unsigned coercion so the divide-by-2^32 always lands in [0,1) (seeded-rng); Recruit.tsx importing `computeCombatOdds` from @game/sim rather than approximating odds itself in the UI (sim-ui-decoupling); apps/desktop/package.json omitting `\"type\": \"module\"` (unlike every packages/*) because its Electron main.cjs needs CommonJS require() (monorepo-packages); combat-harness.ts's `nameMap()` as a pure helper living outside packages/core, showing purity is a general habit not an enforced-only-in-core rule (pure-functions); `universalTribe?: boolean` appearing as a plain field on CardDef, Minion, AND BoardMinion rather than a hardcoded card-id branch (data-vs-code); the `improve` event's `amount` vs `display` fields separating real mechanical progress from narration magnitude (event-log-replay); `no-restricted-properties` keying on `{object:'Math', property:'random'}` specifically so other Math methods rng.ts itself needs stay usable (eslint-rules); and docs/performance.md §3c's `.pixifx-below` driven off the main ticker to prevent the over/under halves of one effect visually tearing apart by a frame (performance-memo). Verified all ten facts by reading the live source directly (packages/core/src/combat/simulate.ts, packages/core/src/rng.ts, packages/tools/src/combat-harness.ts, packages/ui/src/Recruit.tsx, apps/desktop/package.json + eslint.config.mjs, packages/content/src/schema.ts + packages/core/src/types.ts, docs/performance.md). Also varied the correct-answer letter across questions (answer indices 1,0,3,1,2,0,3,1,2,0) rather than clustering on A, and verified the embedded QUESTIONS array parses as valid JS (10 questions, 4 choices each, in-range unique answer, all 10 topicIds present and unique) via a node script before publishing. Published as an interactive Artifact and archived to docs/quiz/archive/2026-09-23.html."
     }
   ],
   "notes": "2026-08-15: refocused to ARCHITECTURE ONLY per Mike \u2014 removed game-rules topics (shop-vs-combat, auto-battler-loop) and expanded the code-architecture curriculum. Do not quiz on game rules; see the hard constraint in daily-prompt.md."

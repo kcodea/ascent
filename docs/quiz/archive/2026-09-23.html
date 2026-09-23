@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ascent Quiz #42 — 2026-09-23</title>
+<meta name="description" content="Quiz #42 for Mike — ten questions on functions, determinism, the seeded RNG, the sim/UI split, the monorepo, pure functions, cards-as-data, the event log, ESLint rules, and performance in Ascent's real code.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f8fa;
+    --surface: #ffffff;
+    --surface-2: #eef1f4;
+    --border: #d7dce2;
+    --text: #1f2328;
+    --muted: #57606a;
+    --accent: #1a7f37;
+    --accent-soft: #dafbe1;
+    --bad: #cf222e;
+    --bad-soft: #ffebe9;
+    --warn: #9a6700;
+    --shadow: 0 1px 2px rgba(31,35,40,.06), 0 8px 24px rgba(31,35,40,.06);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1117;
+      --surface: #151b23;
+      --surface-2: #1c2431;
+      --border: #2d3745;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #3fb950;
+      --accent-soft: #123a20;
+      --bad: #ff7b72;
+      --bad-soft: #3c1618;
+      --warn: #d29922;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1117;
+    --surface: #151b23;
+    --surface-2: #1c2431;
+    --border: #2d3745;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #3fb950;
+    --accent-soft: #123a20;
+    --bad: #ff7b72;
+    --bad-soft: #3c1618;
+    --warn: #d29922;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+    padding: 32px 16px 64px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 24px; }
+  header .kicker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  header h1 { font-size: 24px; margin: 0 0 6px; }
+  header p { color: var(--muted); font-size: 14px; margin: 0; }
+
+  .progressbar {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    overflow: hidden;
+    margin: 20px 0 28px;
+    border: 1px solid var(--border);
+  }
+  .progressbar-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width .3s ease;
+  }
+
+  .scoretrack {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .scoretrack .pip {
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted);
+  }
+  .scoretrack .pip.correct { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .scoretrack .pip.wrong { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 24px 22px;
+    margin-bottom: 18px;
+  }
+  .qmeta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .qmeta .num { color: var(--accent); font-weight: 600; }
+  .question { font-size: 17px; line-height: 1.5; margin: 0 0 18px; font-weight: 600; }
+
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    text-align: left;
+    padding: 13px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14.5px;
+    line-height: 1.45;
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease, transform .1s ease;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
+  .choice:disabled { cursor: default; }
+  .choice .letter {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--muted);
+    flex-shrink: 0;
+    width: 20px;
+  }
+  .choice.correct { background: var(--accent-soft); border-color: var(--accent); }
+  .choice.correct .letter { color: var(--accent); }
+  .choice.wrong { background: var(--bad-soft); border-color: var(--bad); }
+  .choice.wrong .letter { color: var(--bad); }
+  .choice.dim { opacity: .55; }
+
+  .result-tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 6px;
+    margin-top: 16px;
+  }
+  .result-tag.correct { background: var(--accent-soft); color: var(--accent); }
+  .result-tag.wrong { background: var(--bad-soft); color: var(--bad); }
+
+  .explanation {
+    margin-top: 12px;
+    padding: 14px 15px;
+    background: var(--surface-2);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--text);
+    display: none;
+  }
+  .explanation.show { display: block; }
+  .explanation code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    background: var(--bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+
+  .nextrow { display: flex; justify-content: flex-end; margin-top: 16px; }
+  .btn {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    display: none;
+  }
+  .btn.show { display: inline-block; }
+  .btn:hover { filter: brightness(1.08); }
+
+  .summary { text-align: center; padding: 36px 24px; }
+  .summary .big { font-size: 44px; font-weight: 700; margin: 8px 0; font-family: 'JetBrains Mono', monospace; }
+  .summary .line { color: var(--muted); font-size: 15px; margin-bottom: 22px; }
+  .summary .topics { font-size: 13px; color: var(--muted); margin-top: 20px; line-height: 1.7; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">Daily Ascent Code Quiz</div>
+    <h1>🎓 Ascent Quiz #42</h1>
+    <p>2026-09-23 · 10 questions on functions, determinism, the seeded RNG, the sim/UI split, the monorepo, purity, cards-as-data, the event log, ESLint rules, and performance</p>
+  </header>
+
+  <div class="progressbar"><div class="progressbar-fill" id="progressFill"></div></div>
+  <div class="scoretrack" id="scoreTrack"></div>
+
+  <div id="quizArea"></div>
+
+  <div id="summaryArea" class="card summary hidden"></div>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    topicId: "what-is-a-function",
+    question: "packages/core/src/combat/simulate.ts has a small helper `isTribeOf(m, tribe, cards)` that takes a minion, a tribe name, and the card index, and returns `true` or `false` — nothing else. It doesn't log anything, summon anything, or change `m`. What does that make it a clean example of?",
+    choices: [
+      "A getter/setter pair for the Minion class",
+      "A pure, single-purpose function: given its inputs, it computes and returns one answer, with no other effect on the program",
+      "An event handler registered on the CombatBus",
+      "A React component, since it takes props-like arguments"
+    ],
+    answer: 1,
+    explanation: "<code>isTribeOf</code> just checks <code>m.tribe === tribe || m.tribe2 === tribe || cards[m.cardId]?.universalTribe</code> and returns a boolean — that's the whole job of a function in the simplest sense: take some inputs, produce an output, touch nothing else. There's no class involved (ruling out A), it never registers with <code>CombatBus.on()</code> (C), and it has nothing to do with React/JSX (D) — it's a plain helper the combat effect factories call to answer 'does this minion count as X tribe?'"
+  },
+  {
+    topicId: "deterministic-sim",
+    question: "npm run harness (packages/tools/src/combat-harness.ts) proves determinism like this: <code>const a = simulate(player, enemy, makeRng(SEED), CARD_INDEX); const b = simulate(player, enemy, makeRng(SEED), CARD_INDEX);</code> then compares a and b. Why call makeRng(SEED) twice — once per line — instead of creating one <code>const rng = makeRng(SEED)</code> and passing that same object to both calls?",
+    choices: [
+      "Because an Rng object is stateful — each next() call advances it — so reusing the SAME object for the second simulate() would hand it an already-advanced stream, not the seed's true starting point, making the comparison meaningless",
+      "Because simulate() deletes its rng argument after it finishes running",
+      "Because makeRng can only be called once per process for licensing reasons",
+      "Because JavaScript doesn't allow the same variable to be passed into two function calls"
+    ],
+    answer: 0,
+    explanation: "rng.ts's mulberry32 implementation keeps its internal counter inside a closure that advances on every <code>next()</code>/<code>int()</code>/<code>pick()</code> call. If the harness reused one <code>rng</code> object for both <code>simulate()</code> calls, the second call would start wherever the first one left the counter — not fresh from SEED — so any difference between <code>a</code> and <code>b</code> might just mean 'the second run started mid-stream,' proving nothing about determinism. Calling <code>makeRng(SEED)</code> fresh each time is what actually tests 'does this exact seed reproduce this exact run.' B and D are simply false, and C isn't a real constraint anywhere in the code."
+  },
+  {
+    topicId: "seeded-rng",
+    question: "rng.ts's next() ends with <code>return ((t ^ (t >>> 14)) >>> 0) / 4294967296;</code>. The final <code>>>> 0</code> doesn't shift any bits (shifting by 0 changes nothing numerically) — so why is it there?",
+    choices: [
+      "It's dead code left over from an earlier version and does nothing",
+      "It converts the number from a string back into a number",
+      "It's required syntax to call .toFixed() later in the pipeline",
+      "`>>>` (unsigned right shift) reinterprets the 32-bit result as an UNSIGNED integer (0 to 2³²−1); without it, the value could be read as a negative signed 32-bit number, and dividing a negative number by 4294967296 would produce results outside the intended [0, 1) range"
+    ],
+    answer: 3,
+    explanation: "JavaScript's bitwise operators work on 32-bit integers, and by default they're SIGNED — the top bit can make a value read as negative. <code>>>> 0</code> is a common idiom that forces the unsigned interpretation (0 to 4294967295) without moving any bits. That matters here because next() promises a result in [0, 1): dividing a possibly-negative signed value by 4294967296 would sometimes yield a negative float, breaking every caller (int(), pick()) that assumes a clean [0, 1) range. It's load-bearing, not dead code (A), and has nothing to do with strings (B) or .toFixed() (C)."
+  },
+  {
+    topicId: "sim-ui-decoupling",
+    question: "Recruit.tsx wants to show the player rough odds of winning their next fight. It imports computeCombatOdds from @game/sim (which runs simulate() many times internally) rather than writing its own quick attack/health comparison in the UI. Why does that matter for the sim/UI split, even though it's 'just an odds estimate,' not the real fight?",
+    choices: [
+      "It's purely to save Mike some typing — there's no architectural reason",
+      "Any outcome-shaped number — even an estimate — has to come from actually running the real combat rules; a UI-side shortcut comparison could disagree with what simulate() would actually produce, showing the player misleading odds",
+      "computeCombatOdds() is faster than writing new code, which is the only reason it's reused",
+      "Every file in packages/ui is required to import something from packages/sim, regardless of what it needs"
+    ],
+    answer: 1,
+    explanation: "CLAUDE.md's core rule is that the UI 'never computes outcomes' — and a rough win-probability estimate is still an outcome-shaped computation. computeCombatOdds() (packages/sim/src/odds.ts) runs the real simulate() many times with different RNGs and reports the actual distribution of results, so the number on screen always agrees with what combat would really do. A hand-rolled UI heuristic ('bigger total attack wins') could easily disagree with the deterministic engine on edge cases like Taunt or Divine Shield, showing the player a number that lies. A and C miss the architectural reason, and D isn't a real rule — only files that need sim's data import from it."
+  },
+  {
+    topicId: "monorepo-packages",
+    question: "Every packages/*/package.json (core, content, sim, ui) includes <code>\"type\": \"module\"</code>. apps/desktop/package.json does NOT — and its entry point is main.cjs, whose code uses require(). Why is that omission consistent, not a mistake?",
+    choices: [
+      "package.json fields other than name and version are purely decorative and never actually affect anything",
+      "Electron doesn't support package.json at all, so the field would be ignored either way",
+      "\"type\": \"module\" makes Node/tooling treat .js files as ES modules (import/export) by default; Electron's main process needs CommonJS (require) to load electron and Node builtins, so leaving the field out keeps the desktop app's default module system as CommonJS",
+      "It's simply a bug that nobody has fixed yet"
+    ],
+    answer: 2,
+    explanation: "\"type\": \"module\" is what tells Node (and bundlers) to default .js files to ES module syntax; every workspace package that uses import/export const sets it. apps/desktop's Electron shell is the one place in the monorepo that's genuinely CommonJS — main.cjs literally requires electron — which is also why eslint.config.mjs carries a specific override turning @typescript-eslint/no-require-imports off just for apps/desktop/**/*.cjs. Leaving type: module off there is what lets require() work as expected. A, B, and D all misdescribe how Node resolves module systems."
+  },
+  {
+    topicId: "pure-functions",
+    question: "packages/tools/src/combat-harness.ts has a small helper: <code>function nameMap(result) { const map = new Map(); for (const m of [...result.initial.player, ...result.initial.enemy]) map.set(m.uid, m.name); return map; }</code> — it builds a lookup table purely from fields already sitting on result, with no network calls or console output. Is this a pure function, and does it matter that it lives in packages/tools rather than packages/core?",
+    choices: [
+      "Yes, it's pure by the same definition simulate() uses — same result in, same Map out, nothing touched outside itself — and purity is a property of HOW a function is written, not which package happens to contain it; only core/content/sim/tools have the ESLint Math.random ban, but writing side-effect-free helpers is just good practice everywhere",
+      "No — only files inside packages/core are allowed to be pure functions",
+      "No, because it returns a Map instead of a plain object or primitive",
+      "Yes, but only because packages/tools is exempt from all of Ascent's coding rules"
+    ],
+    answer: 0,
+    explanation: "Purity just means: given the same input, always produce the same output, with no observable side effects. nameMap reads only its result argument and returns a fresh Map — it doesn't matter that it lives in a tools script instead of the engine itself, or that its return type is a Map rather than a number or string. The Math.random ESLint ban (CLAUDE.md, eslint.config.mjs) is a stricter, ENFORCED rule specific to determinism in core/content/sim/tools — but writing plain, predictable functions like this one is a general habit that's good anywhere, engine or not."
+  },
+  {
+    topicId: "data-vs-code",
+    question: "Anomaly Reactor's 'counts as every tribe' behavior shows up as a plain <code>universalTribe?: boolean</code> field on THREE different types: CardDef (packages/content/src/schema.ts), and both Minion and BoardMinion (packages/core/src/types.ts). What does having the same simple field at every level say about 'cards are data, not code'?",
+    choices: [
+      "It means Minion and BoardMinion both extend CardDef as subclasses",
+      "It's an accidental duplication that should be removed as a bug",
+      "It shows TypeScript forces every related interface to redeclare identical fields",
+      "The fact 'this counts as every tribe' is represented as an inspectable, ordinary data field wherever it's needed — a card's fixed definition, a live combat instance, and a board snapshot — instead of being hardcoded as a one-off `if (cardId === 'labExperiment')` branch buried inside tribe-checking logic"
+    ],
+    answer: 3,
+    explanation: "Rather than special-casing one specific card id inside every function that checks tribes, the game keeps 'does this count as every tribe?' as a plain boolean that travels with the data at each stage: the static CardDef, the per-combat Minion clone, and the BoardMinion snapshot. Any tribe-checking code (like isTribeOf from question 1) just reads the field — it never needs to know Anomaly Reactor exists by name. A is wrong (these are separate types connected by cloning/instantiation, not inheritance); B misreads intentional design as a mistake; C isn't how TypeScript works — nothing forces field repetition across unrelated interfaces."
+  },
+  {
+    topicId: "event-log-replay",
+    question: "The `improve` CombatEvent carries both `amount` (the real accrual delta the replay folds into a minion's stats) and an optional `display` (\"the magnitude to NARRATE when it differs\" — e.g. Mammoth's Improve mechanically ticks by 1, but should be narrated as \"+3\"). Why would the log ever need two different numbers for one moment?",
+    choices: [
+      "Because display is a leftover debug field that no longer does anything",
+      "So the ACTUAL mechanical effect (what the game state changes by) and HOW it's narrated to the player can be decided separately — the sim always resolves the true amount, and display only changes how that moment reads on screen, never what it does",
+      "Because amount is deprecated in favor of display",
+      "Because the two fields are randomly duplicated for every combat event type"
+    ],
+    answer: 1,
+    explanation: "Separating 'what happened' from 'how it's shown' keeps narration purely presentational: amount is what the replay actually applies to the minion's stats (the true mechanical progress), while display exists only for cases like Mammoth where the accrual mechanism ticks by a small internal step but the player should see a bigger, more satisfying number. Since resolution only ever reads amount, an animation/narration choice can never accidentally change the real outcome — A, C, and D all misdescribe real, load-bearing fields that most CombatEvent variants don't even carry."
+  },
+  {
+    topicId: "eslint-rules",
+    question: "eslint.config.mjs bans Math.random with <code>'no-restricted-properties': ['error', { object: 'Math', property: 'random' }]</code> — targeting exactly that one property, not the whole Math global. Why is that the right level of precision?",
+    choices: [
+      "no-restricted-properties is the only ESLint rule capable of matching anything on the Math object at all",
+      "It's scoped that narrowly because Math.random is a deprecated JavaScript API",
+      "It blocks only the one non-deterministic method while leaving every other Math function (Math.floor, Math.max, Math.imul, etc.) completely usable — banning the whole Math object would break rng.ts itself, which relies on several of those other Math methods to implement the seeded RNG",
+      "TypeScript requires ESLint rules to always target a single named property, never a whole object"
+    ],
+    answer: 2,
+    explanation: "rng.ts's own mulberry32 implementation leans on Math.imul, and other files use Math.floor/Math.max/etc. constantly — none of that is non-deterministic, so banning the whole Math global would fail the very file the rule protects, and everywhere else that does ordinary math. no-restricted-properties's { object, property } shape lets the rule name exactly the one culprit (Math.random) with a custom error message pointing at makeRng. A, B, and D are all invented constraints — ESLint has several ways to restrict globals, Math.random isn't deprecated, and there's no such TypeScript requirement."
+  },
+  {
+    topicId: "performance-memo",
+    question: "docs/performance.md says the extra .pixifx-below FX canvas should render off a listener on the MAIN Pixi app's ticker, not a separate ticker of its own. Beyond raw performance, what problem does sharing one clock specifically avoid?",
+    choices: [
+      "Visual tearing between related layers — if .pixifx-below and the main .pixifx canvas each ran on their own independent ticker, the 'over' and 'under' halves of the SAME effect could drift out of sync and visibly fall apart by a frame; one shared clock guarantees they always advance together",
+      "It reduces the final JavaScript bundle size shipped to players",
+      "It's purely about saving battery life on laptops, with no visual consequence",
+      "It prevents TypeScript type errors between the two canvases"
+    ],
+    answer: 0,
+    explanation: "docs/performance.md §3c is explicit: driving .pixifx-below off the main app's ticker (and skipping its render entirely while nothing is mounted) means 'the over and under halves of the same effect can never tear apart by a frame' — a correctness/visual-coherence guarantee, not just a speed one. Two independently-clocked canvases rendering the same conceptual effect could each get scheduled at slightly different moments and visibly desync. B, C, and D are all real-sounding but wrong — this section is about frame-timing coherence, not bundle size, battery, or typechecking."
+  }
+];
+
+let current = 0;
+let score = 0;
+const results = [];
+
+const quizArea = document.getElementById('quizArea');
+const progressFill = document.getElementById('progressFill');
+const scoreTrack = document.getElementById('scoreTrack');
+const summaryArea = document.getElementById('summaryArea');
+
+function initTrack() {
+  scoreTrack.innerHTML = '';
+  QUESTIONS.forEach((_, i) => {
+    const pip = document.createElement('div');
+    pip.className = 'pip';
+    pip.textContent = i + 1;
+    pip.id = 'pip-' + i;
+    scoreTrack.appendChild(pip);
+  });
+}
+
+function renderQuestion(i) {
+  const q = QUESTIONS[i];
+  const letters = ['A', 'B', 'C', 'D'];
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `
+    <div class="qmeta"><span class="num">Question ${i + 1} / ${QUESTIONS.length}</span><span>${q.topicId}</span></div>
+    <p class="question">${q.question}</p>
+    <div class="choices" id="choices-${i}"></div>
+    <div class="explanation" id="explain-${i}"></div>
+    <div class="nextrow"><button class="btn" id="next-${i}">${i === QUESTIONS.length - 1 ? 'See results →' : 'Next question →'}</button></div>
+  `;
+  quizArea.innerHTML = '';
+  quizArea.appendChild(card);
+
+  const choicesEl = document.getElementById('choices-' + i);
+  q.choices.forEach((choiceText, ci) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice';
+    btn.innerHTML = `<span class="letter">${letters[ci]}</span><span>${choiceText}</span>`;
+    btn.addEventListener('click', () => selectAnswer(i, ci));
+    choicesEl.appendChild(btn);
+  });
+
+  progressFill.style.width = ((i) / QUESTIONS.length * 100) + '%';
+}
+
+function selectAnswer(i, ci) {
+  const q = QUESTIONS[i];
+  const choicesEl = document.getElementById('choices-' + i);
+  const buttons = choicesEl.querySelectorAll('.choice');
+  const correct = ci === q.answer;
+
+  buttons.forEach((b, bi) => {
+    b.disabled = true;
+    if (bi === q.answer) b.classList.add('correct');
+    else if (bi === ci) b.classList.add('wrong');
+    else b.classList.add('dim');
+  });
+
+  const explainEl = document.getElementById('explain-' + i);
+  explainEl.classList.add('show');
+  explainEl.innerHTML = `<span class="result-tag ${correct ? 'correct' : 'wrong'}">${correct ? '✓ Correct' : '✗ Not quite'}</span><br><br>${q.explanation}`;
+
+  const pip = document.getElementById('pip-' + i);
+  pip.classList.add(correct ? 'correct' : 'wrong');
+  pip.textContent = correct ? '✓' : '✗';
+
+  if (correct) score++;
+  results.push(correct);
+
+  document.getElementById('next-' + i).classList.add('show');
+  progressFill.style.width = ((i + 1) / QUESTIONS.length * 100) + '%';
+}
+
+quizArea.addEventListener('click', (e) => {
+  if (e.target && e.target.id && e.target.id.startsWith('next-')) {
+    current++;
+    if (current < QUESTIONS.length) {
+      renderQuestion(current);
+    } else {
+      showSummary();
+    }
+  }
+});
+
+function showSummary() {
+  quizArea.innerHTML = '';
+  const pct = Math.round((score / QUESTIONS.length) * 100);
+  let line;
+  if (pct === 100) line = "Perfect score! You're reading this codebase like you wrote it. 🏆";
+  else if (pct >= 80) line = "Really strong — you're building a solid mental map of how this game is built.";
+  else if (pct >= 50) line = "Good progress — a few of these were deep cuts. Keep going, it compounds fast.";
+  else line = "Tough one today — no worries, reply with your score and tomorrow will circle back to what tripped you up.";
+
+  summaryArea.classList.remove('hidden');
+  summaryArea.innerHTML = `
+    <div class="kicker" style="color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:13px;">QUIZ COMPLETE</div>
+    <div class="big">${score} / ${QUESTIONS.length}</div>
+    <div class="line">${line}</div>
+    <div class="topics">Reply to this morning's message with your score (e.g. "${score}/10, missed the RNG one") and tomorrow's quiz will adapt.</div>
+  `;
+  progressFill.style.width = '100%';
+}
+
+initTrack();
+renderQuestion(0);
+</script>
+</body>
+</html>

@@ -1831,11 +1831,12 @@ export const APPROVED_RULES: GameRule[] = [
       + 'time, because the history insert is issued in the run-end tick ahead of the rank request and never waits '
       + 'on the fetch (a delayed insert would miss settle_rank\'s rank stamp for good). It is shown only after '
       + 'the game, on the Career match rows and the Recent Games '
-      + 'rows, as the tier and the number ("Brutal 74"); never on the post-game screen, never on the rail before '
+      + 'rows, as a percentage with no tier word ("47%", owner 2026-09-22; the tier is stored, never printed); never on the post-game screen, never on the rail before '
       + 'or during a game. A run with no stamp shows nothing rather than a guess.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (lobby strength as a percentage)', quote: 'can you remove the easy/medium/hard etc and just have it say for example, 47% since its basically a percentile.' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (lobby strength)', quote: 'make an algorithm that can essentially assign a lobby strength value/indicator … we can then make winning really difficult lobbies more rewarding' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (scoping answers)', quote: 'we dont want to use rank as a metric. we want to use raw data on win rate across all rounds served for the board. rank is not important right now as a factor in this small playtest. eventually it will be' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (scoping answers)', quote: 'both, but put it in the career page match results instead of post game information … no only post game in careers and recent games pages' },
@@ -2197,6 +2198,33 @@ export const APPROVED_RULES: GameRule[] = [
     enforcement: {
       kind: 'scenario',
       refs: ['packages/ui/src/deriveResetBetweenRuns.test.ts', 'packages/ui/src/telemetrySandboxGate.test.ts', 'packages/ui/src/flushSaveDerive.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-LOBBY-04',
+    title: 'Lobby strength is the field GOING IN, printed as a percentage, and the two stamps agree',
+    statement:
+      'A lobby\'s strength describes its seven opponents\' records BEFORE the game it is stamped on: the fights of '
+      + 'the lobby being stamped are excluded on BOTH copies (`settle_rank` aggregates `lobby_fights` where '
+      + '`lobby_seed <> p_seed`; the client subtracts the rows it is about to upload from what the view reports), '
+      + 'so the Career row (the server\'s stamp) and the Recent Games row (the client\'s stamp) print the same '
+      + 'number and that number never depends on how the game itself went. It is printed as a percentage with no '
+      + 'tier word ("47%") on every surface; the tier is stored, never shown.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (lobby strength 47 vs 50)', quote: 'the lobby difficulty shows 47 in my career and 50 in recent games, why' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (lobby strength as a percentage)', quote: 'can you remove the easy/medium/hard etc and just have it say for example, 47% since its basically a percentile.' },
+      { kind: 'code', ref: 'packages/sim/src/lobbyStrength.ts excludeOwnFights + strengthText; packages/ui/src/remoteBoards.ts fetchLobbyStrength(keys, ownRows); packages/ui/src/store.ts the run-end tick; supabase/migrations/2026-09-22-lobby-strength-going-in.sql settle_rank step 5' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22. The first cut read the view on both sides "moments apart": the client before its '
+      + 'own upload landed (seven unserved seats at the prior, 50), the server after it (the same seats carrying '
+      + 'this game\'s 45 rows, 47). Both now exclude the lobby\'s own fights. Labels went from "Even 47" to "47%".',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/lobbyStrength.test.ts', 'packages/ui/src/lobbyStrengthGoingIn.test.ts', 'packages/ui/src/lobbyRatingParity.test.ts', 'packages/ui/src/Career.test.tsx', 'packages/ui/src/ladderPages.test.tsx'],
       lastVerifiedAt: '2026-09-22',
     },
   },

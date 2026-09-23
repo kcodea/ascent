@@ -35,6 +35,7 @@ const repoRoot = join(__dirname, '../../..');
 const medalSrc = readFileSync(join(repoRoot, 'supabase/migrations/2026-09-20-medal-rank.sql'), 'utf8');
 const sqlSrc = readFileSync(join(repoRoot, 'supabase/migrations/2026-09-22-fight-ledger.sql'), 'utf8');
 const schemaSrc = readFileSync(join(repoRoot, 'schema.sql'), 'utf8');
+const goingInSrc = readFileSync(join(repoRoot, 'supabase/migrations/2026-09-22-lobby-strength-going-in.sql'), 'utf8');
 
 function sqlConst(name: string): string {
   const m = new RegExp(`${name}\\s+constant\\s+[a-z0-9\\[\\]]+\\s*:=\\s*([^;]+);`).exec(sqlSrc);
@@ -147,6 +148,20 @@ describe('medal rank — constants agree across the three copies', () => {
 
   it('schema.sql carries the SAME migration block (the cumulative paste file must not drift)', () => {
     const body = sqlSrc.slice(sqlSrc.indexOf('create or replace function public.settle_rank'));
+    expect(schemaSrc.replace(/\r\n/g, '\n')).toContain(body.replace(/\r\n/g, '\n'));
+  });
+
+  it('the going-in block (2026-09-22): the same settle_rank, the strength from lobby_fights minus this seed, the constants untouched, schema.sql carries it', () => {
+    const body = goingInSrc.slice(goingInSrc.indexOf('create or replace function public.settle_rank'));
+    expect(body).toContain('p_seed bigint default null,\n  p_seat_keys text[] default null');
+    expect(body, 'no overload is dropped or added by the going-in swap').not.toContain('drop function');
+    expect(body).toContain('x.lobby_seed <> p_seed');
+    expect(body, 'the view cannot exclude by seed, so the function must not read it').not.toContain('run_fight_records');
+    for (const c of ['c_prior_wins      constant int := 10', 'c_prior_fights    constant int := 20', 'c_bot_rate        constant float8 := 0.25',
+      'c_bonus_max       constant int := 15', 'c_bonus_floor     constant int := 30', 'c_bonus_span      constant int := 70', 'c_bonus_weights   constant float8[] := array[1.0, 0.8, 0.62, 0.47]']) {
+      expect(body, `the going-in body keeps ${c}`).toContain(c);
+      expect(sqlSrc, `the fight-ledger body has ${c}`).toContain(c);
+    }
     expect(schemaSrc.replace(/\r\n/g, '\n')).toContain(body.replace(/\r\n/g, '\n'));
   });
 

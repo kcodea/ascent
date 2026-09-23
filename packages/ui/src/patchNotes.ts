@@ -52,6 +52,20 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Lobby strength as a percentage',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Lobby strength now reads as a percentage, such as 47%, and it is the field before your game.',
+        details: [
+          'The Easy, Even, Hard and Brutal words are gone. The number is the average win rate of the seven runs you were seated with.',
+          'It no longer counts the game you just played, so the Career match row and the Recent Games row show the same number.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Hall of Champions + lobby strength',
     changes: [
       {
@@ -71,7 +85,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'Every fight at your table is recorded, including the rounds played out after you are knocked out. A warband enters the Hall after 10 fights.',
           'The top 10 are ordered by win rate with a confidence adjustment, so a 30 and 2 warband ranks above a 3 and 0 one. Each row shows its full record, its win rate, how many lobbies it fought in, its own game, its last fight and the rank its player held.',
-          "Your Career match results and the Recent Games rows now show each lobby's strength, such as Brutal 74. Easy is below 35, Even is 35 to 54, Hard is 55 to 69, Brutal is 70 and up. It never shows before or during a game.",
+          "Your Career match results and the Recent Games rows now show each lobby's strength as a percentage, such as 47%. Higher means your seven opponents have won more of their recorded fights. It never shows before or during a game.",
         ],
       },
     ],

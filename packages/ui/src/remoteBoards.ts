@@ -16,7 +16,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { SetId } from '@game/content';
 import type { FightRow, LobbyStrength, StrengthInput } from '@game/sim';
-import { CONFIG, RANK_SEASON, initialRankedProfile, lobbyStrengthOf, parseLobbyStrength, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, isRankPosition, type RankPosition } from '@game/sim';
+import { CONFIG, RANK_SEASON, initialRankedProfile, lobbyStrengthOf, excludeOwnFights, parseLobbyStrength, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, isRankPosition, type RankPosition } from '@game/sim';
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
 import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
 import { careerRunOf, joinTelemetry, type CareerRun, type RunHistoryRowLike, type TelemetryProbeRow } from './careerData';
@@ -1484,7 +1484,7 @@ export async function fetchRunFightRecords(runKeys: string[]): Promise<Map<strin
  *  when nothing could be read (no backend, timeout, the view not migrated yet) — the run then carries no
  *  strength stamp rather than a guessed one. The SERVER recomputes its own copy at settle time; this is what the
  *  Career and Recent Games rows print. */
-export async function fetchLobbyStrength(opponentKeys: string[]): Promise<LobbyStrength | null> {
+export async function fetchLobbyStrength(opponentKeys: string[], ownRows: readonly FightRow[] = []): Promise<LobbyStrength | null> {
   const c = client();
   if (!c || opponentKeys.length === 0) return null;
   const real = opponentKeys.filter((k) => !k.startsWith('bot:'));
@@ -1505,7 +1505,9 @@ export async function fetchLobbyStrength(opponentKeys: string[]): Promise<LobbyS
     const rec = records.get(key);
     return { key, fights: rec?.fights ?? 0, wins: rec?.wins ?? 0 };
   });
-  return lobbyStrengthOf(inputs);
+  // The field GOING IN: this lobby's own fights (the rows the run-end tick uploads) are subtracted, exactly as
+  // `settle_rank` excludes them by `lobby_seed`, so the Career and Recent Games stamps agree (owner 2026-09-22).
+  return lobbyStrengthOf(excludeOwnFights(inputs, ownRows));
 }
 
 /** The Hall's page size and its qualifying bar (owner 2026-09-22: "Minimum fights to qualify for the Hall —

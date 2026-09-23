@@ -96,12 +96,14 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   line live in ONE place per copy) and `supabase/functions/_shared/lobbyRating.ts`.
 - **Lobby strength** (0–100, `packages/sim/src/lobbyStrength.ts`): the average win rate of the seven opponent
   runs, as a percentage, where each run's rate is smoothed as `(wins + 10) / (fights + 20)` over its record in
-  the fight ledger (an unserved run counts as 50) and a generated seat (a bot) counts as 25. Tiers: **Easy** below
-  35, **Even** 35–54, **Hard** 55–69, **Brutal** 70 and up (`STRENGTH_TIERS`, one place). Rank is NOT a factor
+  the fight ledger (an unserved run counts as 50) and a generated seat (a bot) counts as 25. It is the field GOING IN:
+  the fights of the lobby being stamped are excluded on both copies (server by `lobby_seed`, client by subtracting
+  the rows it uploads), so the Career and Recent Games stamps agree and never depend on the game itself. Tiers (`STRENGTH_TIERS`, one place, stored
+  with the stamp but NOT printed anywhere): Easy below 35, Even 35–54, Hard 55–69, Brutal 70 and up. Rank is NOT a factor
   (owner 2026-09-22: *"rank is not important right now as a factor in this small playtest. eventually it will
   be"*). It is computed at run end and stamped on the run's replay result (the Recent Games row); the history
   entry (the Career row) carries the server's own computation, stamped at settle time, because the history
-  insert never waits on the client's fetch. Shown as e.g. "Brutal 74" on the **Career match rows and the Recent
+  insert never waits on the client's fetch. Shown as a percentage, e.g. "47%" (no tier word, owner 2026-09-22), on the **Career match rows and the Recent
   Games rows only** — never on the post-game screen, never on the rail before or during a game (owner answers
   4 and 5).
 - **Promotion games.** Reaching **100** does not promote; it makes the **next** rated game a promotion game

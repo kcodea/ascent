@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  lobbyStrengthOf, parseLobbyStrength, seatStrengthRate, strengthBonusOf, strengthFactorOf, strengthPlacementWeight, strengthText, strengthTierOf,
+  excludeOwnFights, lobbyStrengthOf, parseLobbyStrength, seatStrengthRate, strengthBonusOf, strengthFactorOf, strengthPlacementWeight, strengthText, strengthTierOf,
   STRENGTH_BONUS_FLOOR, STRENGTH_BONUS_MAX, STRENGTH_BONUS_SPAN, STRENGTH_BONUS_WORST_PLACEMENT, STRENGTH_PLACEMENT_WEIGHTS, STRENGTH_TIERS, type StrengthInput,
 } from './lobbyStrength';
 import { RANK_RULES, resolveRank } from './rank';
@@ -61,6 +61,18 @@ describe('lobbyStrengthOf — the formula', () => {
     expect(lobbyStrengthOf(seven((i) => ({ fights: i === 0 ? 11 : 10, wins: i === 0 ? 7 : 6 }))).value).toBeGreaterThanOrEqual(base);
   });
 
+  it('the field GOING IN: this lobby\'s own fights are subtracted before the formula (owner 2026-09-22, 47 vs 50)', () => {
+    const rows = [
+      { runA: 'me|h|9', runB: 'a|h|1', outcome: 'a' as const },
+      { runA: 'me|h|9', runB: 'b|h|2', outcome: 'a' as const },
+      { runA: 'a|h|1', runB: 'b|h|2', outcome: 'b' as const },
+    ];
+    const view = [{ key: 'a|h|1', fights: 12, wins: 5 }, { key: 'b|h|2', fights: 3, wins: 1 }, { key: 'bot:hybrid:h', fights: 0, wins: 0 }];
+    expect(excludeOwnFights(view, rows)).toEqual([{ key: 'a|h|1', fights: 10, wins: 5 }, { key: 'b|h|2', fights: 1, wins: 0 }, { key: 'bot:hybrid:h', fights: 0, wins: 0 }]);
+    expect(excludeOwnFights(view, [])).toEqual(view);
+    expect(excludeOwnFights([{ key: 'a|h|1', fights: 1, wins: 0 }], rows)).toEqual([{ key: 'a|h|1', fights: 0, wins: 0 }]); // clamped
+  });
+
   it('the tiers live in one place: Easy < 35, Even 35-54, Hard 55-69, Brutal >= 70', () => {
     expect(STRENGTH_TIERS).toEqual({ even: 35, hard: 55, brutal: 70 });
     expect(strengthTierOf(34)).toBe('Easy');
@@ -69,7 +81,7 @@ describe('lobbyStrengthOf — the formula', () => {
     expect(strengthTierOf(55)).toBe('Hard');
     expect(strengthTierOf(69)).toBe('Hard');
     expect(strengthTierOf(70)).toBe('Brutal');
-    expect(strengthText({ value: 74, tier: 'Brutal' })).toBe('Brutal 74');
+    expect(strengthText({ value: 74, tier: 'Brutal' })).toBe('74%'); // no tier word on any surface (owner 2026-09-22)
   });
 
   it('parses a stored stamp and rejects a malformed one', () => {

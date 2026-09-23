@@ -86,6 +86,30 @@ export function strengthTierOf(value: number): LobbyStrengthTier {
   return 'Easy';
 }
 
+/** THE FIELD GOING IN (owner 2026-09-22: "the lobby difficulty shows 47 in my career and 50 in recent games,
+ *  why"): a lobby's strength describes its opponents' records BEFORE this game, so the fights of the lobby being
+ *  stamped are subtracted from what the view reports. Without this the two stamps disagree: the client reads the
+ *  view before its own upload lands (every unserved seat at the prior, 50) while the server settles after it
+ *  (the same seven seats now carrying this very game's results, 47), and the number would depend on how the
+ *  game you just played went. `settle_rank` applies the same exclusion by `lobby_seed`; this is the client's
+ *  copy, fed the rows it is about to upload. A key's count never goes below 0. */
+export function excludeOwnFights(inputs: readonly StrengthInput[], ownRows: readonly { runA: string; runB: string; outcome: 'a' | 'b' | 'draw' }[]): StrengthInput[] {
+  if (ownRows.length === 0) return inputs.map((i) => ({ key: i.key, fights: i.fights, wins: i.wins }));
+  const fights = new Map<string, number>();
+  const wins = new Map<string, number>();
+  for (const r of ownRows) {
+    fights.set(r.runA, (fights.get(r.runA) ?? 0) + 1);
+    fights.set(r.runB, (fights.get(r.runB) ?? 0) + 1);
+    if (r.outcome === 'a') wins.set(r.runA, (wins.get(r.runA) ?? 0) + 1);
+    if (r.outcome === 'b') wins.set(r.runB, (wins.get(r.runB) ?? 0) + 1);
+  }
+  return inputs.map((i) => ({
+    key: i.key,
+    fights: Math.max(0, i.fights - (fights.get(i.key) ?? 0)),
+    wins: Math.max(0, i.wins - (wins.get(i.key) ?? 0)),
+  }));
+}
+
 /** The lobby's strength from its opponents' records. An empty input list (no opponents known) reads 50 / Even. */
 export function lobbyStrengthOf(inputs: readonly StrengthInput[]): LobbyStrength {
   const list = inputs.map((i) => ({ key: i.key, fights: i.fights, wins: i.wins }));
@@ -116,9 +140,12 @@ export function strengthBonusOf(value: number | null | undefined, placement: num
   return Math.round(STRENGTH_BONUS_MAX * weight * strengthFactorOf(value));
 }
 
-/** "Brutal 74" — the one label the Career and Recent Games rows print. */
+/** "47%" — the one label the Career and Recent Games rows print. A percentile-style number, no tier word
+ *  (owner 2026-09-22: "remove the easy/medium/hard etc and just have it say for example, 47% since its
+ *  basically a percentile"). The tier is still computed and stored (`tier`) for the data and the bonus copies;
+ *  it is simply not printed. */
 export function strengthText(s: Pick<LobbyStrength, 'value' | 'tier'>): string {
-  return `${s.tier} ${s.value}`;
+  return `${s.value}%`;
 }
 
 /** Parse a stored strength stamp (a history entry / a replay result) — null for anything malformed. */

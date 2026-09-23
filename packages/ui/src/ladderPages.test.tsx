@@ -386,8 +386,8 @@ describe('RecentGames — the recording banners', () => {
     expect(text('.lb-verdict')).toEqual(['VICTORY', '5TH', '2ND']);
     expect([...ui.container.querySelectorAll('.lb-verdict')].map((v) => v.className)).toEqual(['lb-verdict won', 'lb-verdict lost', 'lb-verdict top4']);
     // length · rounds · (lobby strength, only on a row that carries the stamp) per row; row 3 has no rounds
-    expect(text('.lb-fact-v')).toEqual(['18 min', '15', 'Brutal 74', '7 min', '11', '—']);
-    expect(text('.lb-fact-lobby')).toEqual(['Brutal 74']);
+    expect(text('.lb-fact-v')).toEqual(['18 min', '15', '74%', '7 min', '11', '—']);
+    expect(text('.lb-fact-lobby')).toEqual(['74%']);
   });
 
   it('labels the partial recording, and the board-less row gets the empty plate', () => {

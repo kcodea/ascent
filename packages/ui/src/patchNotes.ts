@@ -151,6 +151,20 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-22',
+    label: 'Balance Report: honest numbers',
+    changes: [
+      { category: 'Systems', text: 'The Balance Report now says what each number is. Buyers used to be compared with every other run, which made surviving long enough to see a card look like the card being strong. The tables keep that raw read under its real name and add two fairer ones beside it.', details: [
+        'Every comparison is labelled: raw buyer association, exposed diagnostic (against runs that saw the card and passed) and adjusted association (buy against pass inside the first affordable shop offer, among runs at the same round and shop tier). None of them claims a card is overpowered.',
+        'An evidence label on every row: insufficient, candidate for review or supported association. It needs enough runs on both sides and enough different players. Rows without enough go to the bottom, never ranked as the worst card.',
+        'A summary above every table: how many runs and players, the dates, the content revision, how much of the data was fetched, and what the numbers can and cannot say.',
+        'New filters: the balance epoch (one content revision at a time, with an explicit choice to include older ones), a date window, and a toggle that leaves out the most prolific player to see whether a conclusion rests on one person.',
+        "Minions and Spells have four views: Demand, Performance, Role and timing, Evidence. Heroes compare against runs that were offered the hero and chose another. Shop Tiers add a decision table: took against declined among runs that could afford the tier-up.",
+        'The export file carries a schema version, the exact fetch coverage and every exclusion, so an outside reader can tell what fed each table. Runs in the file carry a per-file player number instead of a display name.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Balance Report round 2',
     changes: [
       { category: 'Systems', text: 'The Balance Report now reads Heroes, Runes and Shop Tiers the way it reads Minions: sample size, average place, 1st and top-4 rates, and a placement delta with its 95% range. The Gold Economy table is rebuilt around what a player has, spends and leaves each round.', details: [

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { applyReportFilters, buildBalanceExport, cardImpact, exportReadme, goldEconomy, heroImpact, runeImpact, tierImpact, toExportedRun, type RunTelemetryRow } from './playerReport';
+import { applyReportFilters, buildBalanceExport, cardImpact, exportReadme, goldEconomy, heroImpact, runeImpact, tierImpact, toExportedRun, EXPORT_SCHEMA_VERSION, type RunTelemetryRow } from './playerReport';
+import { epochsOf, tierDecisions } from './reportCohorts';
 import { aggregatePlayerReport } from './runTelemetry';
 import { upgradeShape, type DerivedRun } from './runDerive';
 
@@ -38,6 +39,7 @@ const ROWS: RunTelemetryRow[] = [
   row({ id: 1, createdAt: '2026-09-20T10:00:00Z', patch: '0.1.0+aaa', author: 'Kev', placement: 8, offeredCards: ['alley'] }), // no derived
 ];
 
+const FETCH = { flatCap: 5000, flatPageSize: 1000, flatFetched: 3, flatTruncated: false, derivedCap: 2000, derivedRequested: 3, derivedFetched: 2, derivedDropped: 1 };
 const INFO = {
   activeSet: { id: 'set2' as const, name: 'Set 2' },
   appVersion: '0.1.0+test',
@@ -45,6 +47,9 @@ const INFO = {
   contentRevision: 'buildrev',
   counts: applyReportFilters(ROWS, 'set2').counts,
   filters: applyReportFilters(ROWS, 'set2').applied,
+  scope: { epoch: 'all', from: null, to: null },
+  epochs: epochsOf(ROWS),
+  fetch: FETCH,
 };
 
 describe('buildBalanceExport', () => {
@@ -69,6 +74,7 @@ describe('buildBalanceExport', () => {
     expect(x.aggregates.runeImpact).toEqual(runeImpact(ROWS));
     expect(x.aggregates.byForge.length).toBe(1);
     expect(x.aggregates.tierImpact).toEqual(tierImpact(ROWS));
+    expect(x.aggregates.tierDecisions).toEqual(tierDecisions(ROWS));
     expect(x.aggregates.economy).toEqual(goldEconomy(ROWS));
     expect(x.aggregates.economy.runs.all, 'the two rows with a ledger').toBe(2);
     expect(x.aggregates.upgrades).toEqual(upgradeShape(derived));
@@ -78,7 +84,7 @@ describe('buildBalanceExport', () => {
   it('carries every raw row in full and every derived stream, joined by row id', () => {
     expect(x.runs).toHaveLength(3);
     expect(x.runs.map((r) => r.id)).toEqual([3, 2, 1]);
-    expect(x.runs[0]).toEqual(toExportedRun(ROWS[0]!));
+    expect(x.runs[0]).toEqual(toExportedRun(ROWS[0]!, 'player 1'));
     expect(x.runs[1]!.discoverBoughtCards).toEqual(['joker']);
     expect(x.runs[2]!.set, 'the set the report READ the row as').toBe('set2');
     expect(x.derived).toHaveLength(2);
@@ -87,23 +93,46 @@ describe('buildBalanceExport', () => {
     expect(x.derived[0]!.setId).toBe('set2');
   });
 
-  it('never carries an account id; the display name is the only attribution', () => {
+  it('never carries an account id or a display name; runs carry a per-file player alias that keeps the unique-player count', () => {
     const text = JSON.stringify(x);
     expect(text).not.toContain('user_id');
     expect(text).not.toContain('userId');
-    for (const r of x.runs) expect(Object.keys(r)).not.toContain('user_id');
-    expect(x.runs.map((r) => r.author)).toEqual(['Kev', 'Mike', 'Kev']);
+    for (const r of x.runs) {
+      expect(Object.keys(r)).not.toContain('user_id');
+      expect(Object.keys(r), 'the display name never leaves the report').not.toContain('author');
+    }
+    expect(text, 'no display name anywhere in the file').not.toMatch(/"Kev"|"Mike"/);
+    expect(x.runs.map((r) => r.player), 'aliased in order of first appearance; the same name keeps its alias').toEqual(['player 1', 'player 2', 'player 1']);
+    expect(new Set(x.runs.map((r) => r.player)).size, 'the alias re-derives the unique-player count').toBe(x.meta.coverage.uniquePlayers);
+    expect(toExportedRun({ ...ROWS[0]!, author: null }, null).player, 'no name stays null, never player 0').toBeNull();
   });
 
-  it('meta states the set, the counts before and after every filter, the filters and the patch range', () => {
+  it('meta states the schema version, the set, the counts before and after every filter, the filters and the patch range', () => {
+    expect(x.meta.schemaVersion).toBe(EXPORT_SCHEMA_VERSION);
+    expect(EXPORT_SCHEMA_VERSION, 'bumped by the honest-associations pass; a column is never redefined under a shipped version').toBe(2);
     expect(x.meta.activeSet).toEqual({ id: 'set2', name: 'Set 2' });
-    expect(x.meta.counts).toEqual({ fetched: 3, ladder: 3, inSet: 3, unstamped: 0, withDerived: 2, exportedRuns: 3, exportedDerived: 2, heroes: 2 });
-    expect(x.meta.filters).toHaveLength(2);
+    expect(x.meta.counts).toEqual({ fetched: 3, ladder: 3, inSet: 3, unstamped: 0, withDerived: 2, duplicateIds: 0, placementMalformed: 0, inScope: 3, exportedRuns: 3, exportedDerived: 2, heroes: 2 });
+    expect(x.meta.filters).toHaveLength(3);
     expect(x.meta.patches, 'newest row first, as fetched').toEqual(['0.1.0+bbb', '0.1.0+aaa']);
     expect(x.meta.dateRange).toEqual({ oldest: '2026-09-20T10:00:00Z', newest: '2026-09-22T10:00:00Z' });
     expect(x.meta.appVersion).toBe('0.1.0+test');
     expect(x.meta.contentRevision).toBe('buildrev');
     expect(x.meta.sampleGates.preliminary).toBe(20);
+  });
+
+  it('meta carries the scope, the epochs, the quality counts, the fetch coverage, the cohort coverage, the player-key basis, the thresholds and the per-metric exclusions', () => {
+    expect(x.meta.scope).toEqual({ epoch: 'all', from: null, to: null, epochRuns: 3, revisionsIncluded: ['unknown'] });
+    expect(x.meta.epochs).toEqual(epochsOf(ROWS));
+    expect(x.meta.quality).toMatchObject({ rows: 3, placementMissing: 0, placementMalformed: 0, duplicateIds: 0, withDerived: 2, diverged: 0, stackedStreams: 0, revisionMissing: 3 });
+    expect(x.meta.fetch).toEqual(FETCH);
+    expect(x.meta.coverage).toEqual({ runs: 3, placed: 3, withDerived: 2, excludedNoDerived: 1, stacked: 0, uniquePlayers: 2 });
+    expect(x.meta.playerKey.basis).toBe('displayName');
+    expect(x.meta.playerKey.note).toContain('hash');
+    expect(x.meta.excludedProlificRuns).toBe(0);
+    expect(x.meta.thresholds.welchMinN).toBe(5);
+    expect(x.meta.thresholds.evidenceGates.supported.players).toBe(5);
+    expect(Object.keys(x.meta.exclusions).sort()).toEqual(['adjusted', 'economy', 'exposed', 'heroes', 'raw', 'runes', 'tierDecisions', 'tiers']);
+    expect(x.meta.exclusions.exposed).toContain('2 runs with a usable derived payload');
   });
 
   it('the dictionaries resolve every id the file uses, so a reader needs no codebase', () => {
@@ -133,13 +162,21 @@ describe('buildBalanceExport', () => {
     named('report', Object.keys(x.aggregates.report));
     named('report', Object.keys(x.aggregates.report.shopCurve));
     named('report', Object.keys(x.aggregates.report.heroes[0]!));
-    named('impact', Object.keys(x.aggregates.impact.minions[0]!));
+    const minion = x.aggregates.impact.minions[0]!;
+    named('impact', Object.keys(minion));
+    named('impact', Object.keys(minion.exposed));
+    named('impact', Object.keys(minion.episodeExclusions));
+    named('impact', Object.keys(minion.adjusted));
+    named('impact', Object.keys(minion.role));
+    named('impact', ['key', 'buyers', 'skippers', 'buyerAvg', 'skipperAvg', 'delta']); // adjusted.supported rows
     named('byTier', Object.keys(x.aggregates.byTier.minions[0]!));
     named('byTribe', Object.keys(x.aggregates.byTribe.minions[0]!));
     named('heroImpact', Object.keys(x.aggregates.heroImpact[0]!));
     named('runeImpact', Object.keys(x.aggregates.runeImpact[0]!));
     named('byForge', Object.keys(x.aggregates.byForge[0]!));
     named('tierImpact', Object.keys(x.aggregates.tierImpact[0]!));
+    named('tierDecisions', Object.keys(x.aggregates.tierDecisions[0]!));
+    named('tierDecisions', Object.keys(x.aggregates.tierDecisions[0]!.adjusted));
     named('economy', Object.keys(x.aggregates.economy));
     named('economy', Object.keys(x.aggregates.economy.runs));
     named('economy', Object.keys(x.aggregates.economy.waves.all[0]!));
@@ -147,6 +184,8 @@ describe('buildBalanceExport', () => {
     named('upgrades', Object.keys(x.aggregates.upgrades[0]!));
     const text = JSON.stringify(readme);
     expect(text).not.toContain('—');
+    expect(text).not.toContain('--');
+    expect(text, 'no unconditional verdict anywhere in the readme').not.toMatch(/candidate for overpowered|means underpowered/);
   });
 
   it('round-trips through JSON unchanged (what the file holds is what the panel built)', () => {

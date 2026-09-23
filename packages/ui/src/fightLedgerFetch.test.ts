@@ -45,6 +45,14 @@ vi.mock('./identity', () => ({
 
 const load = async () => await import('./remoteBoards');
 
+// Every case re-imports `remoteBoards` after `vi.resetModules()`, which re-evaluates the whole `@game/sim` graph
+// behind it: cold, under a loaded CI box, that import alone can pass the 5 s default test timeout. A case that
+// times out mid-import then finishes its call DURING the next case and pollutes `queries` (seen 2026-09-22:
+// three overlapping runs failed the first case at 5.0 s and the offline-queue case right after it). The same
+// allowance `balanceFetch.test.ts` carries; the mocked client answers synchronously, so no case is ever slow
+// for a reason the test controls.
+vi.setConfig({ testTimeout: 30000 });
+
 beforeEach(() => { queries.length = 0; userId = 'me-1'; respond = () => ({ data: [], error: null }); vi.resetModules(); try { localStorage.clear(); } catch { /* jsdom-less */ } });
 
 const VIEW_ROW = { run_key: 'Mike|warden|1', fights: 39, wins: 31, losses: 7, draws: 1, lobbies: 4, win_rate: 0.7948, wilson_lb: 0.64, last_fight_at: '2026-09-21T10:00:00Z' };
@@ -136,10 +144,10 @@ describe('fetchLobbyStrength — the seven-key read', () => {
 });
 
 describe('fetchHallHistory + fetchRunFinalBoards — the per-row facts', () => {
-  it('history by seed reads EVERY placement (a candidate need not have won), keyed by seed with the rank held, the own record, the board', async () => {
+  it('history by seed reads EVERY placement (a candidate need not have won), filed by full run key with the rank held, the own record, the board', async () => {
     respond = (q) => ({
       data: q.table === 'run_history'
-        ? [{ placement: 3, entry: { seed: 8, heroId: 'sable', wins: 9, losses: 5, draws: 0, at: '2026-09-18T14:00:00Z', rank: { before: { divisionIndex: 1, points: 40, demotionReady: false } }, board: { minions: [{ cardId: 'x' }], runes: ['r'] } } }]
+        ? [{ placement: 3, entry: { seed: 8, author: 'Kev', heroId: 'sable', wins: 9, losses: 5, draws: 0, at: '2026-09-18T14:00:00Z', rank: { before: { divisionIndex: 1, points: 40, demotionReady: false } }, board: { minions: [{ cardId: 'x' }], runes: ['r'] } } }]
         : [],
       error: null,
     });
@@ -149,9 +157,28 @@ describe('fetchHallHistory + fetchRunFinalBoards — the per-row facts', () => {
     expect(q.table).toBe('run_history');
     expect(q.filters).toEqual([['mode', 'eq', 'lobby'], ['entry->>seed', 'in', ['8', '9']]]);
     expect(q.filters.some(([col]) => col === 'placement')).toBe(false);
-    expect(h.get(8)).toMatchObject({ seed: 8, heroId: 'sable', rank: { divisionIndex: 1, points: 40 }, record: { wins: 9, losses: 5, draws: 0 }, at: '2026-09-18T14:00:00Z', placement: 3 });
-    expect(h.get(8)!.board?.minions).toHaveLength(1);
-    expect(h.has(9)).toBe(false);
+    expect(h.get('Kev|sable|8')).toMatchObject({ seed: 8, author: 'Kev', heroId: 'sable', rank: { divisionIndex: 1, points: 40 }, record: { wins: 9, losses: 5, draws: 0 }, at: '2026-09-18T14:00:00Z', placement: 3 });
+    expect(h.get('Kev|sable|8')!.board?.minions).toHaveLength(1);
+    expect(h.size).toBe(1);
+  });
+
+  it('two players on the SAME shared seed with the same hero each keep their own row; an older row with no author files under the seed', async () => {
+    respond = (q) => ({
+      data: q.table === 'run_history'
+        ? [
+            { placement: 1, entry: { seed: 8, author: 'Kev', heroId: 'sable', wins: 12, losses: 3, draws: 0 } },
+            { placement: 6, entry: { seed: 8, author: 'Mike', heroId: 'sable', wins: 4, losses: 6, draws: 0 } },
+            { placement: 2, entry: { seed: 9, heroId: 'warden', wins: 10, losses: 2, draws: 0 } },
+          ]
+        : [],
+      error: null,
+    });
+    const { fetchHallHistory } = await load();
+    const h = await fetchHallHistory([8, 9]);
+    expect([...h.keys()]).toEqual(['Kev|sable|8', 'Mike|sable|8', 'seed:9']);
+    expect(h.get('Kev|sable|8')).toMatchObject({ author: 'Kev', placement: 1, record: { wins: 12, losses: 3, draws: 0 } });
+    expect(h.get('Mike|sable|8')).toMatchObject({ author: 'Mike', placement: 6, record: { wins: 4, losses: 6, draws: 0 } });
+    expect(h.get('seed:9')).toMatchObject({ author: null, heroId: 'warden', placement: 2 });
   });
 
   it('a pool board is the run\'s highest-wave snapshot by author + hero + seed (one row, the snapshot only)', async () => {

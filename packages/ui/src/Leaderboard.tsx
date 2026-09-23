@@ -6,7 +6,7 @@ import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame } from './store';
 import { HALL_MIN_FIGHTS, HALL_ROWS, fetchHallHistory, fetchHallRecords, fetchRunFinalBoards, remoteEnabled, type HallHistoryFacts, type RunFightRecord } from './remoteBoards';
 import { LbHeroFrame, LbLabel, LbMedallion, LbRunes, LbTeam } from './LadderBits';
-import { hallRowsOf, parseRunKey, playedOnText, recordText, winRateText, type HallSort } from './leaderboardData';
+import { hallHistoryFor, hallRowsOf, parseRunKey, playedOnText, recordText, winRateText, type HallSort } from './leaderboardData';
 
 /**
  * Leaderboard — the "Hall of Champions" PAGE (not a modal): the warbands with the best record against everyone
@@ -32,7 +32,7 @@ export function Leaderboard() {
   const show = useGame((s) => s.showLeaderboard);
   const close = useGame((s) => s.closeLeaderboard);
   const [records, setRecords] = useState<RunFightRecord[] | null>(null);
-  const [history, setHistory] = useState<Map<number, HallHistoryFacts>>(new Map());
+  const [history, setHistory] = useState<Map<string, HallHistoryFacts>>(new Map());
   const [boards, setBoards] = useState<Map<string, BoardSnapshot>>(new Map());
   const [sort, setSort] = useState<HallSort>('rate');
 
@@ -50,7 +50,7 @@ export function Leaderboard() {
       if (!alive) return;
       setHistory(h);
       // The pool lookup only for runs whose career row carried no board (or had no career row at all).
-      const missing = parsed.filter((p) => !h.get(p.seed)?.board);
+      const missing = parsed.filter((p) => !hallHistoryFor(h, p.key)?.board);
       if (missing.length === 0) return;
       const b = await fetchRunFinalBoards(missing);
       if (!alive) return;

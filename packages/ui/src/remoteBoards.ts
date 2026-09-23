@@ -20,6 +20,7 @@ import { CONFIG, RANK_SEASON, initialRankedProfile, lobbyStrengthOf, parseLobbyS
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
 import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
 import { careerRunOf, joinTelemetry, type CareerRun, type RunHistoryRowLike, type TelemetryProbeRow } from './careerData';
+import { hallHistoryKeyOf } from './leaderboardData';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -1542,6 +1543,8 @@ export async function fetchHallRecords(limit = HALL_ROWS, minFights = HALL_MIN_F
  *  placement, and its final warband (`entry.board`, the same end-state board the Career shows). */
 export interface HallHistoryFacts {
   seed: number;
+  /** The display name the row was stamped with at run end (`entry.author`, 2026-09-22); null on older rows. */
+  author: string | null;
   heroId: string | null;
   rank: RankPosition | null;
   record: { wins: number; losses: number; draws: number } | null;
@@ -1551,9 +1554,12 @@ export interface HallHistoryFacts {
 }
 
 /** The career facts for a set of run seeds (owner 2026-09-22: "the rank that the player was from that
- *  snapshot"). Keyed by seed; a seed with no history row (an unrated or pre-history run) is simply absent.
- *  Reads EVERY placement — a Hall candidate need not have won its own lobby. Best-effort + time-boxed. */
-export async function fetchHallHistory(seeds: number[]): Promise<Map<number, HallHistoryFacts>> {
+ *  snapshot"). Fetched by seed (the only key on the row), then filed under `hallHistoryKeyOf`: a row stamped
+ *  with its author under its FULL run key (`author|heroId|seed`), an older row under `seed:<seed>` — so two
+ *  players on the same shared seed with the same hero each keep their own row (review fix 2026-09-22). A run
+ *  with no history row (an unrated or pre-history run) is simply absent. Reads EVERY placement — a Hall
+ *  candidate need not have won its own lobby. Best-effort + time-boxed. */
+export async function fetchHallHistory(seeds: number[]): Promise<Map<string, HallHistoryFacts>> {
   const c = client();
   const ids = [...new Set(seeds.filter((x) => Number.isFinite(x)))];
   if (!c || ids.length === 0) return new Map();
@@ -1566,18 +1572,23 @@ export async function fetchHallHistory(seeds: number[]): Promise<Map<number, Hal
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const results = await Promise.race([request, timeout]);
     if (!results) return new Map();
-    const map = new Map<number, HallHistoryFacts>();
+    const map = new Map<string, HallHistoryFacts>();
     for (const r of results) {
       if (r.error || !r.data) continue;
       for (const row of r.data as Array<{ placement?: unknown; entry: Record<string, unknown> | null }>) {
         const e = row.entry ?? {};
         const seed = Number(e.seed);
-        if (!Number.isFinite(seed) || map.has(seed)) continue;
+        if (!Number.isFinite(seed)) continue;
+        const author = typeof e.author === 'string' ? e.author : null;
+        const heroId = typeof e.heroId === 'string' ? e.heroId : null;
+        const key = hallHistoryKeyOf(author, heroId, seed);
+        if (map.has(key)) continue;
         const before = (e.rank as { before?: unknown } | undefined)?.before;
         const wins = numOf(e.wins); const losses = numOf(e.losses); const draws = numOf(e.draws);
-        map.set(seed, {
+        map.set(key, {
           seed,
-          heroId: typeof e.heroId === 'string' ? e.heroId : null,
+          author,
+          heroId,
           rank: isRankPosition(before) ? before : null,
           record: wins !== null ? { wins, losses: losses ?? 0, draws: draws ?? 0 } : null,
           at: typeof e.at === 'string' ? e.at : typeof e.date === 'string' ? e.date : null,

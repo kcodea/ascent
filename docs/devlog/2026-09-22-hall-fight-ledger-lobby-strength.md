@@ -58,7 +58,11 @@ view only, never a row pool.
 winners. Then ONE `run_history` read by seed (`fetchHallHistory`, every placement — the old `placement = 1` filter
 is gone) for the rank held (`entry.rank.before`), the run's own record (`entry.wins/losses/draws` — "12–3"; it
 counts the player's ghost fights, which the ledger deliberately does not), its date, placement and its final
-warband (`entry.board`, the same end-state board the Career shows).
+warband (`entry.board`, the same end-state board the Career shows). The rows are filed by their FULL run key
+(`hallHistoryKeyOf`: the history entry now carries `author`, the same display name the pool key and the ledger
+key use), so two players who play the same shared seed with the same hero never cross-wire (review fix, same
+day — the first cut joined by seed + hero and kept the first row returned); a row older than the author stamp
+files under `seed:<seed>` and is joined by seed + hero as before (`hallHistoryFor`).
 
 **The final warband, cheapest select:** the career row already carries it, so the common case costs no extra
 query. Only a run whose career row has no board (or no career row at all) falls back to the pool:
@@ -88,14 +92,20 @@ percentage, where an unknown run counts as 50 and a bot as 25.**
 - Three worked examples: seven bots → 25 (Easy); seven unserved runs → 50 (Even); seven runs at 36–4 → 77
   (Brutal); the mixed table in R-LOBBY-03 → 49 (Even).
 - Computed at run end from **one fetch of the seven keys** (`fetchLobbyStrength`, time-boxed by
-  `FETCH_TIMEOUT_MS`; bot keys never hit the network; a dead view stamps NOTHING, never a guessed 50), stored on
-  the history entry as `lobbyStrength: { value, tier, inputs: [{ key, fights, wins }] }` AND on the v2 replay
-  result (`result.lobbyStrength`) inside the telemetry row — Recent Games reads `run_telemetry`, which is
-  insert-only for clients and can never be back-stamped, so the history + telemetry uploads wait for the fetch
-  (at most the timeout) and upload without a stamp if it failed. The rank submission and the end screen never
-  wait. Shown as "Brutal 74" on the Career match rows (a fourth labelled fact, "Lobby") and the Recent Games rows
-  ("Lobby" beside Length / Rounds) — only when the row carries a stamp; never on the post-game screen, never on
-  the rail.
+  `FETCH_TIMEOUT_MS`; bot keys never hit the network; a dead view stamps NOTHING, never a guessed 50), stored as
+  `lobbyStrength: { value, tier, inputs: [{ key, fights, wins }] }` on the v2 replay result
+  (`result.lobbyStrength`) inside the telemetry row — Recent Games reads `run_telemetry`, which is insert-only
+  for clients and can never be back-stamped, so the TELEMETRY upload (and only it) waits for the fetch (at most
+  the timeout) and uploads without a stamp if it failed. The **history row never waits** (review fix, same day):
+  `settle_rank` stamps the rank (and its own `lobbyStrength { value, tier, inputs: [] }`) onto that row with a
+  best-effort update by seed when the settlement commits, and the client has no re-stamp path, so the insert is
+  issued in the run-end tick AHEAD of the rank request — the first cut held it behind the fetch, which on a dead
+  view meant a 4 s gap in which the settlement could land before the row existed and the run would show no rank
+  on the Career and drop out of the MMR trend. The Career row's strength is therefore the server's number; the
+  Recent Games row's is the client's (same formula, same view, moments apart). The rank submission and the end
+  screen never wait. Pinned by `packages/ui/src/runEndUploadOrder.test.ts` against the real store. Shown as
+  "Brutal 74" on the Career match rows (a fourth labelled fact, "Lobby") and the Recent Games rows ("Lobby"
+  beside Length / Rounds) — only when the row carries a stamp; never on the post-game screen, never on the rail.
 
 ## 5. The bonus (server-owned, on now)
 
@@ -187,3 +197,8 @@ text and drives the same fixtures through the two TS copies.
 
 `R-HALL-01` (the ledger + the Hall), `R-LOBBY-03` (the strength), `R-RANK-04` (the bonus); `R-LOBBY-02` revised
 in place as superseded. `docs/docbot2/final-report.md` bumped from 172 rules / 86 approved to 175 / 89.
+
+The same-day review fixes (the history insert ahead of the rank request; the Hall join by full run key) are
+folded INTO `R-LOBBY-03` and `R-HALL-01` rather than added as rules of their own — they correct the feature
+before it shipped, so the counts stay at 175 / 89. `R-RANK-04` now also has real bonus cases in
+`packages/sim/src/rank.test.ts` (its refs named that file before it held any).

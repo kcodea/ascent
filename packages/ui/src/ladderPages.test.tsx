@@ -19,7 +19,7 @@ import type { HallHistoryFacts, PlayerRow, RecentGameRow, RunFightRecord } from 
 const fetchTopPlayers = vi.fn<() => Promise<PlayerRow[]>>();
 const fetchLatestReplayForUser = vi.fn<(id: string) => Promise<unknown>>();
 const fetchHallRecords = vi.fn<() => Promise<RunFightRecord[]>>();
-const fetchHallHistory = vi.fn<(seeds: number[]) => Promise<Map<number, HallHistoryFacts>>>();
+const fetchHallHistory = vi.fn<(seeds: number[]) => Promise<Map<string, HallHistoryFacts>>>();
 const fetchRunFinalBoards = vi.fn<(runs: unknown[]) => Promise<Map<string, BoardSnapshot>>>();
 const fetchRecentGames = vi.fn<() => Promise<RecentGameRow[]>>();
 const fetchReplayPayload = vi.fn<(id: number) => Promise<unknown>>();
@@ -70,11 +70,12 @@ const RECORDS: RunFightRecord[] = [
   { runKey: 'Kev|sable|8', fights: 15, wins: 12, losses: 3, draws: 0, lobbies: 2, winRate: 0.8, wilsonLb: 0.55, lastFightAt: '2026-09-18T14:00:00Z' },
   { runKey: 'Robin|brackus|9', fights: 10, wins: 6, losses: 4, draws: 0, lobbies: 1, winRate: 0.6, wilsonLb: 0.31, lastFightAt: '2026-09-22T09:00:00Z' },
 ];
-// The runs' own career rows by seed: the rank held (division index 1 = Bronze II under the ascending numerals),
-// the run's OWN record, its placement and its final board (Kev's row has no board → the pool lookup).
-const HISTORY = new Map<number, HallHistoryFacts>([
-  [7, { seed: 7, heroId: 'brackus', rank: { divisionIndex: 1, points: 40, demotionReady: false }, record: { wins: 12, losses: 3, draws: 0 }, at: '2026-09-19T14:00:00Z', placement: 1, board: { ...board(7), id: 'b1', quests: [] } as BoardSnapshot }],
-  [8, { seed: 8, heroId: 'sable', rank: { divisionIndex: 1, points: 40, demotionReady: false }, record: { wins: 9, losses: 5, draws: 0 }, at: '2026-09-18T14:00:00Z', placement: 3, board: null }],
+// The runs' own career rows, filed by full run key (Nadja's, stamped with its author) or by the legacy seed key
+// (Kev's, an older row): the rank held (division index 1 = Bronze II under the ascending numerals), the run's
+// OWN record, its placement and its final board (Kev's row has no board → the pool lookup).
+const HISTORY = new Map<string, HallHistoryFacts>([
+  ['Nadja|brackus|7', { seed: 7, author: 'Nadja', heroId: 'brackus', rank: { divisionIndex: 1, points: 40, demotionReady: false }, record: { wins: 12, losses: 3, draws: 0 }, at: '2026-09-19T14:00:00Z', placement: 1, board: { ...board(7), id: 'b1', quests: [] } as BoardSnapshot }],
+  ['seed:8', { seed: 8, author: null, heroId: 'sable', rank: { divisionIndex: 1, points: 40, demotionReady: false }, record: { wins: 9, losses: 5, draws: 0 }, at: '2026-09-18T14:00:00Z', placement: 3, board: null }],
 ]);
 const POOL_BOARDS = new Map<string, BoardSnapshot>([['Kev|sable|8', { ...board(5, 'sable'), id: 'b2' } as BoardSnapshot]]);
 

@@ -1791,7 +1791,10 @@ export const APPROVED_RULES: GameRule[] = [
       + 'that lower bound with at least 10 fights, from every recorded run, not only lobby winners; the client '
       + 'reads the view, never a row pool. Each row shows the W-L-D across everything, the win rate, the lobbies, '
       + 'the run\'s own game (its career row\'s record, which counts the player\'s ghost fights), the date of its '
-      + 'last fight and the rank its player held. Practice, the tutorial and a sandbox never record.',
+      + 'last fight and the rank its player held. A run\'s own career row is joined by its FULL run key (the '
+      + 'history entry carries the author it was played under since 2026-09-22), never by seed + hero alone, so two '
+      + 'players on the same shared seed with the same hero each keep their own row; only a row older than the '
+      + 'author stamp is joined by seed + hero. Practice, the tutorial and a sandbox never record.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -1823,8 +1826,11 @@ export const APPROVED_RULES: GameRule[] = [
       + '0.5; a generated seat (a bot key) reads a fixed 0.25; the strength is round(100 × mean) with no further '
       + 'rescale. It is monotonic in every opponent\'s record and rank is not an input. Tiers, in one place: Easy '
       + 'below 35, Even 35 to 54, Hard 55 to 69, Brutal 70 and up. The client computes it at run end from one '
-      + 'fetch of the view and stamps it on the run\'s history entry and replay result; the server recomputes its '
-      + 'own copy at settle time. It is shown only after the game, on the Career match rows and the Recent Games '
+      + 'fetch of the view and stamps it on the replay result inside the telemetry row (the Recent Games read, '
+      + 'which can never be back-stamped); the history row\'s stamp is the SERVER\'s own computation at settle '
+      + 'time, because the history insert is issued in the run-end tick ahead of the rank request and never waits '
+      + 'on the fetch (a delayed insert would miss settle_rank\'s rank stamp for good). It is shown only after '
+      + 'the game, on the Career match rows and the Recent Games '
       + 'rows, as the tier and the number ("Brutal 74"); never on the post-game screen, never on the rail before '
       + 'or during a game. A run with no stamp shows nothing rather than a guess.',
     domain: 'foundation',
@@ -1846,7 +1852,7 @@ export const APPROVED_RULES: GameRule[] = [
       + '25, Easy. Seven runs at 36-4 each is 77, Brutal.',
     enforcement: {
       kind: 'scenario',
-      refs: ['packages/sim/src/lobbyStrength.test.ts', 'packages/ui/src/lobbyRatingParity.test.ts', 'packages/ui/src/fightLedgerFetch.test.ts', 'packages/ui/src/Career.test.tsx', 'packages/ui/src/ladderPages.test.tsx'],
+      refs: ['packages/sim/src/lobbyStrength.test.ts', 'packages/ui/src/lobbyRatingParity.test.ts', 'packages/ui/src/fightLedgerFetch.test.ts', 'packages/ui/src/runEndUploadOrder.test.ts', 'packages/ui/src/Career.test.tsx', 'packages/ui/src/ladderPages.test.tsx'],
       lastVerifiedAt: '2026-09-22',
     },
   },

@@ -112,14 +112,44 @@ export interface HallRow {
 
 export type HallSort = 'rate' | 'recent';
 
-/** Assemble and order the Hall from the view rows + the per-seed career facts + any pool boards fetched for
+/** The career facts a Hall row joins: the run's own game, as its player saw it. `author` is the display name
+ *  the entry was stamped with at run end (2026-09-22) — null on older rows. */
+export interface HallOwnFacts<B> {
+  author: string | null;
+  heroId: string | null;
+  rank: { divisionIndex: number; points: number } | null;
+  record: { wins: number; losses: number; draws: number } | null;
+  placement: number | null;
+  board: B | null;
+}
+
+/** The key a career row is filed under for the Hall join. A row stamped with its author (every row since
+ *  2026-09-22) files under its FULL run key — `author|heroId|seed`, the same string the fight ledger and the
+ *  pool group the run by — so two players who play the same shared seed with the same hero never cross-wire
+ *  (review fix 2026-09-22). An older row with no author files under `seed:<seed>` and is joined by seed + hero. */
+export function hallHistoryKeyOf(author: string | null | undefined, heroId: string | null | undefined, seed: number): string {
+  return typeof author === 'string' && typeof heroId === 'string' ? `${author}|${heroId}|${seed}` : `seed:${seed}`;
+}
+
+/** The career row for a Hall candidate: by its full run key first, else the legacy seed-keyed row when its hero
+ *  agrees (or is unknown). Undefined when the run has no career row. */
+export function hallHistoryFor<F extends { heroId: string | null }>(history: ReadonlyMap<string, F>, runKey: string): F | undefined {
+  const exact = history.get(runKey);
+  if (exact) return exact;
+  const parsed = parseRunKey(runKey);
+  if (!parsed) return undefined;
+  const legacy = history.get(hallHistoryKeyOf(null, null, parsed.seed));
+  return legacy && (legacy.heroId === null || legacy.heroId === parsed.heroId) ? legacy : undefined;
+}
+
+/** Assemble and order the Hall from the view rows + the per-run career facts + any pool boards fetched for
  *  runs without a career row. Pure. Candidates below `minFights` are dropped (the fetch already filters; this
  *  is the same rule stated once more where the rows are built), bot keys and unparseable keys are dropped, and
  *  the list is cut to `limit`. 'rate' (the default) orders by the Wilson lower bound of the win rate, then more
  *  fights, then the most recent fight; 'recent' by the most recent fight. */
 export function hallRowsOf<B extends { minions: unknown[]; runes?: string[] }>(
   records: ReadonlyArray<{ runKey: string } & HallFightRecord>,
-  history: ReadonlyMap<number, { heroId: string | null; rank: { divisionIndex: number; points: number } | null; record: { wins: number; losses: number; draws: number } | null; placement: number | null; board: B | null }>,
+  history: ReadonlyMap<string, HallOwnFacts<B>>,
   boards: ReadonlyMap<string, B>,
   opts: { minFights: number; limit: number; sort: HallSort },
 ): HallRow[] {
@@ -128,8 +158,7 @@ export function hallRowsOf<B extends { minions: unknown[]; runes?: string[] }>(
     if (r.fights < opts.minFights) continue;
     const parsed = parseRunKey(r.runKey);
     if (!parsed) continue;
-    const h = history.get(parsed.seed);
-    const own = h && (h.heroId === null || h.heroId === parsed.heroId) ? h : undefined;
+    const own = hallHistoryFor(history, r.runKey);
     const record: HallFightRecord = { fights: r.fights, wins: r.wins, losses: r.losses, draws: r.draws, lobbies: r.lobbies, winRate: r.winRate, wilsonLb: r.wilsonLb, lastFightAt: r.lastFightAt };
     rows.push({
       key: r.runKey, author: parsed.author, heroId: parsed.heroId, seed: parsed.seed,

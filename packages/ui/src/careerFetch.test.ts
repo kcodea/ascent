@@ -45,6 +45,11 @@ vi.mock('./identity', () => ({
 
 const load = async () => await import('./remoteBoards');
 
+// The cold re-import of `remoteBoards` (the whole `@game/sim` graph) after `vi.resetModules()` can pass the 5 s
+// default test timeout on a loaded box, and a case that times out mid-import then pollutes the next case's
+// `queries` (reproduced 2026-09-22 with three overlapping runs). Same allowance as `balanceFetch.test.ts`.
+vi.setConfig({ testTimeout: 30000 });
+
 beforeEach(() => { queries.length = 0; userId = 'me-1'; respond = () => ({ data: [], error: null }); vi.resetModules(); });
 
 /** The light select projects `x:entry->>x` scalars; the detailed one selects the `entry` column itself. */

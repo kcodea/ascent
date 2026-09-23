@@ -1419,11 +1419,40 @@ function commitResolvedAction(
           // the history + telemetry uploads below, never the rank submission and never the end screen.
           strengthPromise = seatKeys.length > 0 ? fetchLobbyStrength(seatKeys).catch(() => null) : Promise.resolve(null);
         }
+        // CAREER (server-side since 2026-08-03): the entry posts to `run_history` rather than localStorage, so
+        // a career follows the PLAYER instead of the browser.
+        // The rank fields are NOT known yet (the server settles them) — `settle_rank` stamps the confirmed
+        // result onto this row server-side, keyed by seed, so history never carries a locally-guessed delta.
+        // ISSUED FIRST, in the same synchronous tick as the rank request below and AHEAD of it (review fix
+        // 2026-09-22): `settle_rank`'s stamp is a best-effort UPDATE of the row by seed that runs when the
+        // settlement commits, and the client has no re-stamp path (`run_history` is insert-only for clients),
+        // so the insert must never trail the rank request — in particular it never waits on the strength fetch
+        // (a dead view would have held it for the whole fetch timeout and lost the rank stamp for good). The
+        // strength on THIS row is the server's own computation (`settle_rank` back-fills a value + tier when
+        // the client's stamp is missing); the client's fetch stamps only the telemetry row below. The `author`
+        // rides along (the same value the run's pool key and fight-ledger key carry) so the Hall can join a
+        // run's own career row by its full run key, never by seed + hero alone.
+        const entry = buildRunHistoryEntry(next, { date, at: nowIso, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed });
+        void uploadRunHistory({ ...entry, author, placement: lobbyPlacement ?? undefined, mode: next.mode, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` })
+          .then(() => fetchRunHistory<RunHistoryEntry>())
+          .then((remote) => {
+            // A FAILED read returns null, and we skip the profile write entirely rather than upserting
+            // games-played 0 over a real number — the read is the only source of those totals now.
+            if (!remote) return;
+            const career = careerStats(remote);
+            // DISPLAY columns only — the ladder itself settled through `beginRankSubmission` below, on its own
+            // path, so a failed history read here can no longer keep a result from being ranked.
+            void uploadPlayerProfile({
+              author, gamesPlayed: career.runs,
+              favoriteHero: career.perHero[0]?.heroId, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
+            });
+            set((st: GameStore) => ({ careerVersion: st.careerVersion + 1 })); // an open Career view picks the new run up
+          });
         // MEDAL RANK (2026-09-20): a RATED lobby's placement settles on the SERVER (`settle_rank`) — never
         // locally. The request goes into the durable pending queue first, then submits; `rankSubmission`
         // tells the post-game screen where it stands and the confirmed answer is adopted into `profile`.
-        // Independent of everything below (history upload, Career fetch, telemetry, replay encoding): none of
-        // those can delay or block awarding points. Practice / tutorial / sandbox never reach this block.
+        // Independent of everything else here (history upload, Career fetch, telemetry, replay encoding): none
+        // of those can delay or block awarding points. Practice / tutorial / sandbox never reach this block.
         const rankedRunId = next.mode === 'lobby' && lobbyPlacement != null ? rankedRunIdOf(next) : null;
         if (rankedRunId && lobbyPlacement != null) beginRankSubmission(rankedRunId, lobbyPlacement, next.seed, seatKeys);
         else set({ lastRating: null, rankResult: null, rankSubmission: 'unrated', rankSubmissionError: null, rankRunId: null });
@@ -1462,33 +1491,14 @@ function commitResolvedAction(
         // on-disk draft has done its job. Dropping it here is what keeps IndexedDB from accumulating one
         // several-hundred-KB draft per finished run.
         discardReplayDraft();
-        // The strength stamp rides on BOTH the history row (→ the Career row) and the v2 replay result inside
-        // the telemetry row (→ the Recent Games row, which reads run_telemetry and can never be back-stamped:
-        // that table is insert-only for clients). So both uploads wait for the strength fetch — at most the
-        // fetch timeout — and upload without a stamp when it could not be read.
+        // The client's strength stamp rides on the v2 replay result inside the TELEMETRY row (→ the Recent Games
+        // row, which reads run_telemetry and can never be back-stamped: that table is insert-only for clients,
+        // and the server never touches it). So the telemetry upload — and only it — waits for the strength fetch,
+        // at most the fetch timeout, and uploads without a stamp when the view could not be read. The history
+        // row went up above without waiting; the server stamps its strength at settle time.
         void strengthPromise.then((strength) => {
           const v2Stamped: ReplayV2 = strength ? { ...v2, result: { ...v2.result, lobbyStrength: strength } } : v2;
           if (strength) set((cur) => (cur.lastReplay === v2 ? { lastReplay: v2Stamped } : {}));
-          // CAREER (server-side since 2026-08-03): the entry posts to `run_history` rather than localStorage, so
-          // a career follows the PLAYER instead of the browser.
-          // The rank fields are NOT known yet (the server settles them) — `settle_rank` stamps the confirmed
-          // result onto this row server-side, keyed by seed, so history never carries a locally-guessed delta.
-          const entry = buildRunHistoryEntry(next, { date, at: nowIso, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed });
-          void uploadRunHistory({ ...entry, ...(strength ? { lobbyStrength: strength } : {}), placement: lobbyPlacement ?? undefined, mode: next.mode, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` })
-            .then(() => fetchRunHistory<RunHistoryEntry>())
-            .then((remote) => {
-              // A FAILED read returns null, and we skip the profile write entirely rather than upserting
-              // games-played 0 over a real number — the read is the only source of those totals now.
-              if (!remote) return;
-              const career = careerStats(remote);
-              // DISPLAY columns only — the ladder itself settled through `beginRankSubmission` above, on its own
-              // path, so a failed history read here can no longer keep a result from being ranked.
-              void uploadPlayerProfile({
-                author, gamesPlayed: career.runs,
-                favoriteHero: career.perHero[0]?.heroId, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
-              });
-              set((st: GameStore) => ({ careerVersion: st.careerVersion + 1 })); // an open Career view picks the new run up
-            });
           // Player Balance Report: reconstruct this run's offers/picks from its replay (deterministic, deferred so
           // it never hitches the end screen) + upload one telemetry row. `lastHeroOffer` = the picked hero's trio.
           // Balance-report telemetry: LOBBY runs only (owner rework 2026-07-31) — the report is a read on the

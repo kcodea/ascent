@@ -95,9 +95,11 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   the fight ledger (an unserved run counts as 50) and a generated seat (a bot) counts as 25. Tiers: **Easy** below
   35, **Even** 35–54, **Hard** 55–69, **Brutal** 70 and up (`STRENGTH_TIERS`, one place). Rank is NOT a factor
   (owner 2026-09-22: *"rank is not important right now as a factor in this small playtest. eventually it will
-  be"*). It is computed at run end, stamped on the run's history entry and replay result, and shown as e.g.
-  "Brutal 74" on the **Career match rows and the Recent Games rows only** — never on the post-game screen, never
-  on the rail before or during a game (owner answers 4 and 5).
+  be"*). It is computed at run end and stamped on the run's replay result (the Recent Games row); the history
+  entry (the Career row) carries the server's own computation, stamped at settle time, because the history
+  insert never waits on the client's fetch. Shown as e.g. "Brutal 74" on the **Career match rows and the Recent
+  Games rows only** — never on the post-game screen, never on the rail before or during a game (owner answers
+  4 and 5).
 - **Promotion games.** Reaching **100** does not promote; it makes the **next** rated game a promotion game
   (overflow past 100 is discarded; the delta shown is the delta applied). To move up **a division** (Gold I
   → Gold II) the promotion game needs a **top-4 finish**; to move up **a medal** (Gold III → Platinum I) it

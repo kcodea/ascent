@@ -363,6 +363,40 @@ describe('rank — boundaries', () => {
   });
 });
 
+describe('rank — the lobby-strength bonus on a 1st (owner 2026-09-22: "only winning hard lobbies should scale, and only upwards of 15 rating")', () => {
+  it('a 1st in a Brutal lobby adds the bonus to the +40; a 1st in an Even lobby and any 2nd to 8th add nothing', () => {
+    // Gold II 20 (the mid-division case: nothing caps).
+    const brutal = resolveRank(at('Gold II', 20), 1, RANK_RULES, { bonus: 6, lobbyStrength: 74 });
+    expect(brutal).toMatchObject({ baseDelta: 46, strengthBonus: 6, lobbyStrength: 74, appliedDelta: 46, cappedPoints: 0, after: at('Gold II', 66) });
+    const even = resolveRank(at('Gold II', 20), 1, RANK_RULES, { bonus: 0, lobbyStrength: 50 });
+    expect(even).toMatchObject({ baseDelta: 40, strengthBonus: 0, lobbyStrength: 50, appliedDelta: 40, after: at('Gold II', 60) });
+    // The bonus is a 1st-place award only: a 2nd in the same Brutal lobby is the plain +28, an 8th the plain −40.
+    expect(resolveRank(at('Gold II', 20), 2, RANK_RULES, { bonus: 6, lobbyStrength: 74 })).toMatchObject({ baseDelta: 28, strengthBonus: 0, appliedDelta: 28, after: at('Gold II', 48) });
+    expect(resolveRank(at('Gold II', 20), 8, RANK_RULES, { bonus: 15, lobbyStrength: 100 })).toMatchObject({ baseDelta: -40, strengthBonus: 0, appliedDelta: -20, after: armed('Gold II') });
+    // No strength given: the plain award, and the result says so.
+    expect(resolveRank(at('Gold II', 20), 1)).toMatchObject({ baseDelta: 40, strengthBonus: 0, lobbyStrength: null });
+  });
+
+  it('the bonus rides through the cap and the gates like the award: 90/100 stops at 100 (cappedPoints honest about the bonus), a gate still lands on 10', () => {
+    const capped = resolveRank(at('Gold II', 90), 1, RANK_RULES, { bonus: 15, lobbyStrength: 100 });
+    expect(capped).toMatchObject({ baseDelta: 55, strengthBonus: 15, appliedDelta: 10, cappedPoints: 45, promotionUnlocked: true, after: at('Gold II', 100) });
+    const division = resolveRank(at('Gold II', 100), 1, RANK_RULES, { bonus: 15, lobbyStrength: 100 });
+    expect(division).toMatchObject({ promoted: true, promotionKind: 'division', baseDelta: 55, strengthBonus: 15, appliedDelta: 10, after: at('Gold III', 10) });
+    const medal = resolveRank(at('Gold III', 100), 1, RANK_RULES, { bonus: 15, lobbyStrength: 100 });
+    expect(medal).toMatchObject({ promoted: true, promotionKind: 'medal', appliedDelta: 10, after: at('Platinum I', 10) });
+    // The top division is uncapped: the whole +55 applies.
+    expect(resolveRank(at('Ascendant III', 130), 1, RANK_RULES, { bonus: 15, lobbyStrength: 100 })).toMatchObject({ appliedDelta: 55, after: at('Ascendant III', 185) });
+    // Every bonus result still satisfies the scalar identity and the cappedPoints bounds.
+    for (const r of [brutalOrEven(6), brutalOrEven(0), capped, division, medal]) {
+      expect(r.appliedDelta).toBe(rankScalar(r.after) - rankScalar(r.before));
+      expect(r.cappedPoints).toBeGreaterThanOrEqual(0);
+      expect(r.cappedPoints).toBeLessThanOrEqual(Math.abs(r.baseDelta));
+    }
+  });
+});
+
+const brutalOrEven = (bonus: number): ReturnType<typeof resolveRank> => resolveRank(at('Gold II', 20), 1, RANK_RULES, { bonus, lobbyStrength: bonus > 0 ? 74 : 50 });
+
 describe('rank — properties (blueprint §11)', () => {
   const starts: RankPosition[] = [];
   for (let d = 0; d <= 17; d++) for (const p of [0, 1, 6, 40, 60, 94, 99, 100, 150]) {

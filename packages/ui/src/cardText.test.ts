@@ -156,10 +156,13 @@ describe('cardText helpers', () => {
     expect(stepProgress('ce3_spellcore', { spellProgress: 4 })).toEqual({ current: 1, total: 3 });
   });
 
-  it('shootingStarText (Rocket Power, set 3 Celestials) greens the CURRENT this-shop total = +3/+3 × (1 + spells cast this turn)', () => {
+  it('shootingStarText (Rocket Power, set 3 Celestials) keeps the per-tick +3/+3 and appends the tick count (×N), N = 1 + spells cast this turn', () => {
     expect(shootingStarText('ce3_shootingstar', 0, false)).toBeNull(); // nothing cast → the printed base is the whole truth
-    expect(shootingStarText('ce3_shootingstar', 2, false)).toContain('{{+9/+9}}'); // base + two repeats (owner 2026-09-14)
-    expect(shootingStarText('ce3_shootingstar', 3, true)).toContain('{{+24/+24}}'); // gilded +6/+6 × (1 + 3)
+    // The REPEAT form (R-REPEAT-01): the rate stays as printed, the count rides the "Repeat" sentence — Mother Moss's
+    // house style. It used to green the summed +9/+9 in place of the rate, which under "Repeat …" read as per tick.
+    expect(shootingStarText('ce3_shootingstar', 2, false)).toBe('**Shout:** give **this shop +3/+3**. Repeat for every Shop spell you cast this turn {{(×3)}}.'); // base + two repeats (owner 2026-09-14)
+    expect(shootingStarText('ce3_shootingstar', 3, true)).toBe('**Shout:** give **this shop +6/+6**. Repeat for every Shop spell you cast this turn {{(×4)}}.'); // gilded doubles the rate, never the count
+    expect(shootingStarText('ce3_shootingstar', 2, false)).not.toContain('+9/+9');
     expect(shootingStarText('ce3_twinstar', 3, false)).toBeNull(); // not the scaler
   });
 
@@ -294,11 +297,16 @@ describe('live values on climbing / per-turn cards (owner ask 2026-07-29)', () =
 
   // Kringle (ex-Closing-Time Foreman). This used to assert '{{+4 Attack}}' — written when the card really was
   // Attack-only, and left behind by the two rebalances that made it +1/+1 and then +1/+2. It was therefore
-  // pinning the bug in place: the live text dropped the Health half (owner report 2026-08-26).
-  it('Kringle prints BOTH halves of what it will give for cards played so far', () => {
+  // pinning the bug in place: the live text dropped the Health half (owner report 2026-08-26). Since 2026-09-22
+  // Kringle is the REPEAT form (R-REPEAT-01): the per-tick rate stays printed with both halves and the live
+  // value is the tick count, base + one per card, in Mother Moss's `(×N)` style.
+  it('Kringle prints its per-tick grant with BOTH halves and the live tick count', () => {
     expect(perCardPlayedText('dw_foreman', 0), 'nothing played yet — printed rate stands').toBeNull();
-    expect(perCardPlayedText('dw_foreman', 4, false)!).toContain('{{+4/+8}}');
-    expect(perCardPlayedText('dw_foreman', 4, true)!).toContain('{{+8/+16}}');
+    expect(perCardPlayedText('dw_foreman', 4, false)!).toContain('+1/+2**. Repeat for every card you played this turn {{(×5)}}');
+    expect(perCardPlayedText('dw_foreman', 4, true)!).toContain('+2/+4**. Repeat for every card you played this turn {{(×5)}}');
+    // Striker stays the LUMP form: the total folded in place, the rate in the parenthetical.
+    expect(perCardPlayedText('dw3_striker', 4, false)!).toContain('{{+4 Attack}}');
+    expect(perCardPlayedText('dw3_striker', 4, false)!).toContain('(+1 Attack for each card you played this turn)');
   });
 });
 

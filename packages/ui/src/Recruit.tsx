@@ -33,7 +33,7 @@ if (import.meta.env.DEV) {
 }
 import { chooseBothText } from './cardText';
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
-import { type Action, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, selectedEquipment, selectedEquipmentDef } from '@game/sim';
+import { type Action, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -4605,7 +4605,11 @@ export function Recruit() {
     // the arena, so `findEl` found nothing, the ribbon was dropped and the seq consumed: back in the shop the
     // recipient simply stood there with bigger numbers. Park the wave and play it on the reveal instead.
     if (inCombat) { settleFxRef.current = [...settleFxRef.current, ...events]; return; }
-    replayBuffFxEvents(events);
+    // A REPEAT-pattern play (Squirl Scout's "Repeat for every Beast you own", a Dragonflame cast) tags one wave
+    // per repeat (R-REPEAT-01, owner 2026-09-22). Pace those waves apart, as the End-of-Turn beats do, so the
+    // repeats read as repeats rather than one burst; an untagged action keeps its simultaneous replay.
+    const taggedWaves = new Set(events.filter((e) => e.fxWave !== undefined).map((e) => e.fxWave)).size;
+    replayBuffFxEvents(events, taggedWaves > 1 ? waveGapFor(Math.min(taggedWaves, getBuffFxConfig().waveMaxCount)) : 0);
   }, [run.recruitFxSeq]);
   // …and the parked wave plays once the curtain has revealed the shop (`wipe` back to `idle` with the phase on
   // `recruit`), when the warband is measurable again. A decisive combat (end screen) drops it — no board to land on.
@@ -6081,10 +6085,14 @@ export function Recruit() {
       // Fodder-QUEUEING End-of-Turn effects (Maw's "add a Fodder to your next shop") reach the infusion
       // tendrils on their beat too — same shop-visible timing rationale as the gust.
       const infuse = completes && def.effects.some((e) => e.on === 'endOfTurn' && (e.do === 'addTavernFodder' || e.do === 'addFodderNextShops'));
+      // REPEAT PER TICK (owner 2026-09-22): a "give X. Repeat for every Y" card (Mother Moss, Kringle) takes one
+      // beat PER TICK — `endOfTurnTicksOf` is the same count `projectEndOfTurnSteps` projects, so the beat list
+      // and the projected steps stay aligned 1:1 and each tick's stat roll lands on its own beat.
+      const ticks = endOfTurnTicksOf(run, card);
       for (let r = 0; r < repeats; r++) {
         const targets =
           kind === 'combinator' ? magnetizeTargets(run.board, card.uid, 2, run.seed, run.wave, slot, r) : [];
-        beats.push({ uid: card.uid, kind, targets, completes, gust, infuse });
+        for (let t = 0; t < ticks; t++) beats.push({ uid: card.uid, kind, targets, completes, gust, infuse });
       }
     }
     // Quest/rune recurring End-of-Turn REWARDS (Rune of Spending, Rune of Action, Echoing Roar, …) fire AFTER

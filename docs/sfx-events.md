@@ -114,11 +114,13 @@ call to `playSample(...)` (with the synth as fallback). Rough priority:
 2. **`death`** — every combat has deaths; a real "thud/crumble" lands hard.
 3. **`attack`** — the swing itself (paired with the existing `smack` impact).
 4. **`triple`** — the golden combine is a celebration moment; a real sparkle/chime sells it.
-5. **`win` / `lose`** — the verdict stingers; a short fanfare / sad-trombone beats the synth arpeggios.
-6. **`shield`** — Divine Shield gained (a metallic "ting").
-7. **`buff`** — a combat stat buff lands.
-8. **`proc`** — the End-of-Turn shimmer (heard a lot during the EOT sequence).
-9. **`tick`** — the final-5-seconds countdown click.
+5. **`shield`** — Divine Shield gained (a metallic "ting").
+6. **`buff`** — a combat stat buff lands.
+7. **`proc`** — the End-of-Turn shimmer (heard a lot during the EOT sequence).
+8. **`tick`** — the final-5-seconds countdown click.
+
+(The `win` / `lose` verdict stingers were removed 2026-09-23 with the lobby background music: the replay's end
+plays no chime; see `packages/ui/src/music.ts`.)
 
 ---
 

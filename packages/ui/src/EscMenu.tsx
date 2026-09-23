@@ -11,6 +11,7 @@
 import { useState } from 'react';
 import { isDesktop, quitGame, toggleFullscreen } from './desktop';
 import { getVolume, isMuted, setVolume, sfx, toggleMute } from './sfx';
+import { getMusicVolume, isMusicMuted, setMusicVolume, toggleMusicMute } from './music';
 import { useGame } from './store';
 import { FPS_CAP_OPTIONS, fpsCapLabel } from './fpsCap';
 import { perfThresholds } from './perfMonitor';
@@ -37,6 +38,8 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   // mute button re-render as they change. Dragging the slider previews the level on release.
   const [vol, setVol] = useState(getVolume());
   const [muted, setMuted] = useState(isMuted());
+  const [musicVol, setMusicVol] = useState(getMusicVolume());
+  const [musicMuted, setMusicMuted] = useState(isMusicMuted());
   // Combat pacing — how fast the combat replay animates (owner moved this here from the in-combat HUD
   // 2026-08-11). Live store value; the arena's beat clock + CSS read it.
   const combatSpeed = useGame((s) => s.combatSpeed);
@@ -88,8 +91,10 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
           </button>
         )}
         <div className="escsec">Audio</div>
+        {/* TWO MIXES (owner ask 2026-09-23): "Game sounds" is the SFX master (sfx.ts); "Music" is the lobby
+            background music's own level (music.ts). Each has its slider + its mute; neither touches the other. */}
         <div className="escvol">
-          <span className="evl">Volume</span>
+          <span className="evl">Game sounds</span>
           <input
             type="range"
             min={0}
@@ -97,7 +102,7 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
             step={1}
             value={Math.round(vol * 100)}
             disabled={muted}
-            aria-label="Master volume"
+            aria-label="Game sounds volume"
             onChange={(e) => {
               const v = Number(e.target.value) / 100;
               setVol(v);
@@ -111,8 +116,33 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
           className={`escbtn pressable${muted ? ' on' : ''}`}
           onPointerDown={() => setMuted(toggleMute())}
         >
-          <span className="ebl">{muted ? 'Muted' : 'Sound on'}</span>
-          <span className="ebs">{muted ? 'All audio is off' : 'Tap to mute everything'}</span>
+          <span className="ebl">{muted ? 'Game sounds muted' : 'Game sounds on'}</span>
+          <span className="ebs">{muted ? 'Sound effects are off' : 'Tap to mute the sound effects'}</span>
+        </button>
+        <div className="escvol">
+          <span className="evl">Music</span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={Math.round(musicVol * 100)}
+            disabled={musicMuted}
+            aria-label="Music volume"
+            onChange={(e) => {
+              const v = Number(e.target.value) / 100;
+              setMusicVol(v);
+              setMusicVolume(v);
+            }}
+          />
+          <span className="evv">{musicMuted ? 'Off' : `${Math.round(musicVol * 100)}`}</span>
+        </div>
+        <button
+          className={`escbtn pressable${musicMuted ? ' on' : ''}`}
+          onPointerDown={() => { setMusicMuted(toggleMusicMute()); sfx.pulse(); }}
+        >
+          <span className="ebl">{musicMuted ? 'Music muted' : 'Music on'}</span>
+          <span className="ebs">{musicMuted ? 'The music is off' : 'Tap to mute the music'}</span>
         </button>
         <div className="escsec">Combat</div>
         <div className="escvol">

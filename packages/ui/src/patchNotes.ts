@@ -52,6 +52,22 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-23',
+    label: 'Music',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Background music plays during lobby games. It starts a few seconds into turn 1 and keeps going through every round.',
+        details: [
+          'The music starts 3 seconds into turn 1 and never stops for combat, the end of a turn or the results screen. It only plays inside a lobby or Practice game, and stops the moment you leave.',
+          'Two tracks take turns, with a short pause and a soft fade between them.',
+          'Settings has a Music mute and separate volume sliders for the game sounds and the music.',
+          'The round won and round lost chimes at the end of a fight are gone.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-23',
     label: 'Plain sentences',
     changes: [
       {

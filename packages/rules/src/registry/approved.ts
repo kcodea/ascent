@@ -2452,4 +2452,40 @@ export const APPROVED_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-23',
     },
   },
+  {
+    id: 'R-PRESENT-06',
+    title: 'Background music plays only inside a lobby run, starts 3 s in, chains bg / bg2 with a 3 s gap, and stops the moment the run is left',
+    statement:
+      'Background music sounds ONLY while a lobby-mode run is on screen: `run.mode` is lobby or practice, the run is '
+      + 'not a sandbox rig, no replay is playing, and the player is past the title / hero picker / Practice setup '
+      + '(`isPreRun` false). It never plays on the title or the ladder pages, in a tutorial, in Scene Builder or in a '
+      + 'replay. It starts MUSIC_START_DELAY_MS (3 s) after the run\x27s shop is shown (a fresh run and a Continue alike), '
+      + 'then runs UNINTERRUPTED through shop, combat, end of turn, the rail and the post-game screen: nothing in the '
+      + 'game pauses or ducks it, a Skip\x27s SFX silence does not touch it, and a hidden tab is not a stop. The chain '
+      + 'is bg, MUSIC_GAP_MS (3 s) of silence, bg2, 3 s, bg, ... forever; each play fades in over MUSIC_FADE_MS (600 ms) '
+      + 'and fades out over its last 600 ms, the gap measured from the element\x27s `ended` event (never a timer for the '
+      + 'track length) to the next fade-in. A track that fails to load is skipped for the other; both failing stays '
+      + 'silent without ever throwing or blocking the game. Leaving the run (Save & Quit, Play Again, the run cleared, '
+      + 'a non-lobby run starting) stops it IMMEDIATELY: a MUSIC_STOP_FADE_MS (150 ms) click-guard fade, then pause and '
+      + 'rewind. Settings carry a Music mute and a Music volume separate from the Game-sounds mix (`ascent.musicmuted`, '
+      + '`ascent.musicvol`), applied live and persisted. The round won / round lost verdict chimes are removed.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-23 (lobby background music)',
+        quote: 'can you wire the bg music here: C:\\Game Assets\\Ascent Art\\SFX\\Music \u2014 this should start 3 seconds into turn 1 and play in the background, uninterrupted, on repeat/looping with 3s in between plays. add a button in the settings the mute music, and have a separate mixer for the sound, so that the player can adjust the sound of the game sounds, and music. it should chain through bg-bg2 and repeat, again, with a short delay and small fade in/out. remove the round won and round lost chimes that play currently. this music should ONLY play when a player is in a lobby, and stop immediately if they leave a lobby run or practice etc.',
+      },
+      { kind: 'code', ref: 'packages/ui/src/music.ts (isMusicWanted, syncMusic, the phase machine); packages/ui/src/Game.tsx (the store subscription); packages/ui/src/EscMenu.tsx (the Music slider + mute); packages/ui/src/sfx.ts audioContext (the routing seam)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Before this there was no background music; the combat replay played a synth '
+      + 'win / lose chime at its end (useCombatReplay.ts, sfx.win / sfx.lose), both now deleted.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/music.test.ts', 'packages/ui/src/verdictChimesRemoved.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
 ];

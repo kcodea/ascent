@@ -32,8 +32,8 @@ describe('shopBuffAllFx (the shop-wide buff signal)', () => {
     expect(next.tavernBuyBonus.atk).toBeGreaterThan(s.tavernBuyBonus.atk); // the channel actually rose
     expect(next.shopBuffAllFxSeq).toBe(1);
     const fx = next.shopBuffAllFx!;
-    expect(fx.attack).toBe(3); // +3/+3 since 2026-09-14
-    expect(fx.health).toBe(3);
+    expect(fx.attack).toBe(3); // +3/+4 since 2026-09-23 (+3/+3 from 2026-09-14)
+    expect(fx.health).toBe(4);
     expect(fx.uids).toEqual(['s1', 's2']); // the whole row, in shop order
   });
 

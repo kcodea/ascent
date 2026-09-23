@@ -131,18 +131,20 @@ describe('Rune of the Broodmaster', () => {
 });
 
 describe('Rune of Mountain Trade', () => {
-  it('is a cards-played threshold that Rubies the whole board every 6 (owner rework 2026-08-11)', () => {
+  it('is a cards-played threshold that Rubies the whole board every 5 (balance 9/23, was 6; owner rework 2026-08-11)', () => {
     // The old Mountainbond/Ale behaviour is GONE — it now rides the runeThreshold engine's `cardsPlayed` meter.
     const r = rune('rune_mountain_trade');
-    expect(r.reward).toMatchObject({ kind: 'runeThreshold', meter: 'cardsPlayed', per: 6, rubyAll: true });
+    expect(r.reward).toMatchObject({ kind: 'runeThreshold', meter: 'cardsPlayed', per: 5, rubyAll: true });
     expect(r.previewCards).toEqual(['ruby']);
 
-    // Arm it through the real buyRune path, then drive the meter: playing 6 cards showers every board minion
+    // Arm it through the real buyRune path, then drive the meter: playing 5 cards showers every board minion
     // with a Ruby (base 1/1 + rubyBonus), just like Gemspam does on Gold.
     const s = withRune('rune_mountain_trade', { board: [bm('a', 'sandbag', 2, 2), bm('b', 'sandbag', 3, 3)] });
     const t = (s.runeThresholds ?? []).find((x) => x.rubyAll && x.meter === 'cardsPlayed');
     expect(t, 'the cardsPlayed threshold was never armed').toBeDefined();
-    advanceRuneThresholds(s, 'cardsPlayed', 6);
+    advanceRuneThresholds(s, 'cardsPlayed', 4);
+    expect([s.board[0]!.attack, s.board[0]!.health], 'nothing at 4 cards').toEqual([2, 2]);
+    advanceRuneThresholds(s, 'cardsPlayed', 1);
     expect([s.board[0]!.attack, s.board[0]!.health], 'left minion took a Ruby').toEqual([3, 3]); // 2/2 + 1/1
     expect([s.board[1]!.attack, s.board[1]!.health], 'right minion took a Ruby').toEqual([4, 4]); // 3/3 + 1/1
   });

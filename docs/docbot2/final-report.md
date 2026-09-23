@@ -71,7 +71,7 @@ the distance between those two is the single most important number in this repor
 
 | Contract verification depth | Count of 1051 |
 |---|---|
-| derived status **corroborated** (two independent sources agree — trace + text, or trace + params) | 509 |
+| derived status **corroborated** (two independent sources agree — trace + text, or trace + params) | {{contracts.derived.corroborated}} |
 | derived status **approved** (owner-ruled intent, the strongest authority) | 1 |
 | derived status **extracted** (a draft nobody has corroborated yet) | 541 |
 | **with at least one case a driver actually EXECUTED this sweep** | 490 |
@@ -96,7 +96,7 @@ Every applicable case that did not run says why. This is the §4.3 substrate; no
 | `covered-by-cited-lane` | 398 | an existing vitest lane owns the class; not re-executed per contract |
 | `gild-stated-by-golden-text` | 163 | a 'reshape' gild — the authored golden text states the form; the textOracle golden lane owns it |
 | `runtime-unobserved` | 163 | the driver ran and the engine emitted nothing observable — recorded, not hidden (a scenario-conditional effect the fixture did not reach: Imps, Fodder, Attachments, a lost last combat) |
-| `no-driver-for-shape` | 160 | **the largest real hole, down from 471** — an applicable case with no executable driver yet; the skip detail now names WHY (a scaler amount key such as `every` / `step` / `improve` / `per` that the first activation does not print — 110; a def-level behaviour field the extractor never states, `discoverOnPlay` / `manaPerTurn` / `ruby` … — 29; a trigger no stager fires yet — 10) |
+| `no-driver-for-shape` | {{contracts.noDriverForShape}} | **the largest real hole, down from 471** — an applicable case with no executable driver yet; the skip detail now names WHY (a scaler amount key such as `every` / `step` / `improve` / `per` that the first activation does not print — 110; a def-level behaviour field the extractor never states, `discoverOnPlay` / `manaPerTurn` / `ruby` … — 29; a trigger no stager fires yet — 10) |
 | `gild-not-applicable` | 130 | R-GILD-02 — spells and Rubies are never gilded |
 | `contract-states-no-magnitude` | 87 | the activation family proved the effect ACTS, but the contract states no number a magnitude could be compared to |
 | `gild-shape-not-countable` | 65 | a keyword grant, a Choose One (a gilded body may resolve both branches), an extra-proc, or an activation-only family — no single ×factor to check |
@@ -143,11 +143,11 @@ rule-per-sentence would not honestly cover.
 
 ## 4. Interaction intelligence (§18-F)
 
-- Graph: **1828** nodes / **5739** edges over the contract registry (content, effect-family, trigger-family,
+- Graph: **{{interactions.graphNodes}}** nodes / **{{interactions.graphEdges}}** edges over the contract registry (content, effect-family, trigger-family,
   channel, keyword, multiplier, copy-mode, counter, zone, phase-boundary nodes).
-- Applicability: **144644** candidate pairs against 551775 naive all-pairs (26%) — the producer → channel →
+- Applicability: **{{interactions.candidatePairs}}** candidate pairs against 551775 naive all-pairs (26%) — the producer → channel →
   consumer join is what makes pairwise tractable at all.
-- Sweep (full pairwise + §10.4 triples): 154 rows — 112 covered, 0 failed, 12 inapplicable, 30 blocked.
+- Sweep (full pairwise + §10.4 triples): 154 rows — {{interactions.covered}} covered, 0 failed, 12 inapplicable, 30 blocked.
 - Families with at least one covered row: 12 of 23.
 - §10.5 semantic-combination keys recorded: 12.
 - Anomaly oracle: 0 questions above the confidence floor; 24 suppressed below it. The three §9.7 questions
@@ -238,7 +238,7 @@ Sixteen lines, each marked with a citable artifact. **5 done · 11 partial · 0 
 | 2 | Every approved global rule has an executable oracle | **partial** | `enforcement.test.ts` gates a backing lane per approved rule; two approved rules (`R-PLAY-01`, `R-AURA-01`) remain pinned unenforced |
 | 3 | All meaningful effects are visible in a causal semantic trace | **partial** | recruit envelope + `combatTrace.ts` adapter + `semanticTrace.test.ts`; combat causality is **step grouping, not proven parenthood** — `cause.stepRootEventId` is documented as such and true trigger-stack parenting needs simulate() instrumentation |
 | 4 | Shop and combat bug reports replay exact action sequences | **partial** | `QaScenarioV1.actions` (RecordedActionWindow trail) + `runQaScenario` divergence classification replay shop action trails exactly; combat replays from the pinned board and seed, not from a per-event action trail |
-| 5 | Every active content object passes applicable generated scenarios or has visible failures | **partial** | 485 contracts had a case directly executed (36 before the 2026-09-11 family drivers), 0 metamorphic failures, 0 limit failures, one standing draft disagreement (`shaper`); 155 applicable cases still have no driver, each skip naming the scaler key / def field / trigger that keeps it out |
+| 5 | Every active content object passes applicable generated scenarios or has visible failures | **partial** | {{contracts.withDirectExecution.of}} contracts had a case directly executed (36 before the 2026-09-11 family drivers), 0 metamorphic failures, 0 limit failures, one standing draft disagreement (`shaper`); 155 applicable cases still have no driver, each skip naming the scaler key / def field / trigger that keeps it out |
 | 6 | Applicable pairwise interactions are covered and reported semantically | **partial** | 93491 candidates enumerated and reported by channel; 106 covered rows, 30 blocked rows each with a typed reason. Coverage is by family, not per candidate pair |
 | 7 | High-risk triple interactions are covered | **partial** | §10.4 triples run in the same sweep; 6 of the 8 triple families are blocked with cited reasons |
 | 8 | Verified findings are deterministic, minimized, and reproducible from Scene Builder and CLI | **done** | `seedMinimize.ts` (1-minimal proof), `docbot:scenario -- <id>`, the Scene Builder QA bridge, `qaScenarioParity.test.ts`; findings carry a `reproduction` line |
@@ -284,7 +284,7 @@ Ordered by how much they limit a confident claim. The counted ones are re-derive
 1. **91 unresolved parses, and draft contracts on the other side.** The parser now reads 94% of printed text,
    but a comparison is only as strong as the contract it compares against — and most contracts are
    unreviewed extractor drafts, so a disagreement is a question, not a verdict (§6.1).
-2. **160 contract shapes with no driver.** Still the single largest verification hole, though down from
+2. **{{contracts.noDriverForShape}} contract shapes with no driver.** Still the single largest verification hole, though down from
    471: the family drivers stage every stat / card / economy / keyword / equipment / vanilla / activation
    claim, and what is left is named per skip — scaler magnitudes (110), def-level behaviour the extractor
    does not state (29), and triggers no stager fires (10).

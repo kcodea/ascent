@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { BOTS, BOT_BY_ID } from './index';
+import { BOTS, BOT_BY_ID, DEFAULT_BOT } from './index';
+import { CARD_INDEX } from '@game/content';
+import { reduce } from '../reducer';
 import { createRun, type RunState, type BoardCard } from '../state';
 import { createReportAccumulator, playAndRecordInto, computeBalanceReport, finalizeReport } from '../balanceReport';
 
@@ -84,5 +86,38 @@ describe('balance bots', () => {
     const a = computeBalanceReport(2, BOTS[0]);
     const b = computeBalanceReport(2, BOTS[0]);
     expect(a.heroes.map((h) => `${h.id}:${h.wins}/${h.games}`)).toEqual(b.heroes.map((h) => `${h.id}:${h.wins}/${h.games}`));
+  });
+});
+
+describe('bot aim — the greedy bot only aims where the engine will accept (R-TARGET-04)', () => {
+  // Found 2026-09-23: the balance 9/23 pass made a 2/3 Beggy the highest-scored body on the seed-4 lobby board, the
+  // bot aimed Appetite Agent (a Demon-only Shout) at it, the reducer refused the off-tribe aim and returned the SAME
+  // state, and every play-out loop read "no change" as a stall — the lobby never reached gameover.
+  const body = (uid: string, cardId: string, attack: number, health: number): BoardCard => {
+    const d = CARD_INDEX[cardId]!;
+    return { uid, cardId, tribe: d.tribe, attack, health, keywords: [...d.keywords], golden: false };
+  };
+  const aiming = (): RunState => {
+    const s: RunState = {
+      ...createRun(4), setId: 'set2', phase: 'recruit', embers: 10, tribes: ['kobold', 'demon'], shop: [],
+      board: [body('bg', 'k_beggy', 30, 30), body('lc', 'dm_leech', 1, 1)],
+      hand: [body('ag', 'dm_agent', 2, 2)],
+    };
+    return reduce(s, { type: 'play', uid: 'ag' });
+  };
+
+  it('a Demon-only Shout is aimed at a Demon, never at the juicier off-tribe body (which the reducer refuses)', () => {
+    const s = aiming();
+    expect(s.pendingTarget?.cardId, 'Appetite Agent prompts for a target').toBe('dm_agent');
+    const act = DEFAULT_BOT.act(s);
+    expect(act.type).toBe('battlecryTarget');
+    expect((act as { targetUid: string }).targetUid, 'the only legal aim is the Demon').toBe('lc');
+    expect(reduce(s, act), 'the engine accepted the aim — no stall').not.toBe(s);
+  });
+
+  it('with nothing aimable the bot walks away from the prompt instead of re-aiming at a refused body forever', () => {
+    const s = aiming();
+    const alone: RunState = { ...s, board: s.board.filter((c) => c.uid !== 'lc') }; // only the off-tribe body + itself
+    expect(DEFAULT_BOT.act(alone).type).toBe('cancelChoice');
   });
 });

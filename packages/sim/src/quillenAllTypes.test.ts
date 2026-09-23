@@ -72,7 +72,7 @@ describe('Rune of Pillaging + Rune of Soul Taxes are drawable again (owner 2026-
   });
 
   it('ship at the owner’s costs', () => {
-    expect(find('rune_pillaging').cost).toBe(4);
+    expect(find('rune_pillaging').cost).toBe(2); // 4 → 2 (balance 9/23)
     expect(find('rune_soul_taxes').cost).toBe(3);
   });
 

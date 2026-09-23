@@ -231,9 +231,10 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 2,
     // 2026-09-14 (owner): +3/+3 and the shorter wording — a TEXT change, not a mechanic change: it is still the
-    // permanent buy-buff channel (every minion bought from now on), every set.
-    effects: [{ on: 'cast', do: 'spellBuffShop', params: { attack: 3, health: 3 } }],
-    text: 'Give minions in the shop **+3/+3**.',
+    // permanent buy-buff channel (every minion bought from now on), every set. Owner balance 2026-09-23:
+    // +3/+4, and the text says "permanently" again.
+    effects: [{ on: 'cast', do: 'spellBuffShop', params: { attack: 3, health: 4 } }],
+    text: 'Give minions in the shop **+3/+4** permanently.',
   },
   {
     // Conjure a random buyable Tier 1 minion (active tribes + neutral) into the hand.

@@ -26,6 +26,10 @@ import {
 const bm = (cardId: string, uid: string, attack: number, health: number, keywords: string[] = []): BoardMinion =>
   ({ cardId, attack, health, sourceUid: uid, keywords: keywords as BoardMinion['keywords'] });
 
+const spellInHand = (uid: string, cardId: string): BoardCard =>
+  ({ uid, cardId, tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false });
+const rubiesInHand = (s: RunState): number => s.hand.filter((c) => CARD_INDEX[c.cardId]?.ruby).length;
+
 const recruitBody = (cardId: string, uid: string, golden = false): BoardCard => {
   const d = CARD_INDEX[cardId]!;
   return { uid, cardId, tribe: d.tribe, attack: d.attack, health: d.health, keywords: [...d.keywords], golden };
@@ -119,16 +123,26 @@ describe('rune-only minions — recruit effects', () => {
     expect(tiers, 'exactly the three rostered tiers, one each').toEqual([1, 3, 5]);
   });
 
-  it('Gem Sage: a minted Ruby arrives DOUBLED — and two Sages do not recurse', () => {
+  it('Gem Sage (owner balance 2026-09-23): a Shop spell cast ON it pays 3 Rubies (gilded 6); a minted Ruby is no longer doubled', () => {
+    // The old shape ("Whenever you get a Ruby, get an additional copy") is gone: a plain mint arrives alone.
     const s = recruit({ board: [recruitBody('k_gemsage', 'gs')] });
     mintRubies(s, 1);
-    expect(s.hand.filter((c) => CARD_INDEX[c.cardId]?.ruby).length, '1 minted + 1 duplicate').toBe(2);
+    expect(rubiesInHand(s), 'a minted Ruby arrives alone — no duplicate').toBe(1);
 
-    // The recursion guard is the whole design note: the duplicate is minted silently, so it cannot re-open the
-    // `onGetRuby` round. Two Sages therefore pay 1 + 1 + 1 = 3 and TERMINATE (an un-guarded mint would hang).
-    const two = recruit({ board: [recruitBody('k_gemsage', 'a'), recruitBody('k_gemsage', 'b')] });
-    mintRubies(two, 1);
-    expect(two.hand.filter((c) => CARD_INDEX[c.cardId]?.ruby).length, 'one duplicate per Sage, no chain').toBe(3);
+    // The new trigger is `spellCastOnThis` — the same targeted-spell event Mirrorwing rides. A spell aimed at
+    // ANOTHER minion pays nothing; one aimed at the Sage mints 3.
+    let t = recruit({
+      board: [recruitBody('k_gemsage', 'gs'), recruitBody('k_beggy', 'bg')],
+      hand: [spellInHand('s1', 'spiritfire'), spellInHand('s2', 'spiritfire')],
+    });
+    t = reduce(t, { type: 'play', uid: 's1', targetUid: 'bg' });
+    expect(rubiesInHand(t), 'a spell on another minion pays nothing').toBe(0);
+    t = reduce(t, { type: 'play', uid: 's2', targetUid: 'gs' });
+    expect(rubiesInHand(t), 'a spell on the Sage mints 3 Rubies').toBe(3);
+
+    let g = recruit({ board: [recruitBody('k_gemsage', 'gs', true)], hand: [spellInHand('s1', 'spiritfire')] });
+    g = reduce(g, { type: 'play', uid: 's1', targetUid: 'gs' });
+    expect(rubiesInHand(g), 'gilded doubles the mint').toBe(6);
   });
 
   it('Clockwork Assistant: its Discover is pinned to exactly one Tier above the Shop tier', () => {

@@ -64,7 +64,9 @@ type RecruitFn = (
    *  to vary a per-proc random selection (Combinator) so each weld picks fresh Mechs. `target` is the
    *  player-chosen friendly minion for a targeted Battlecry (Toxin Tender); absent = auto-pick. `replay`
    *  marks a Djinn-driven extra End-of-Turn (it must not advance a cadence counter — see Frontdrake). */
-  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number; spellDef?: CardDef; spellId?: string; /** `onGainCard`: WHICH card just arrived in hand — Kegheart Dwarf filters on it being a Dwarven Ale. The
+  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number;
+    /** `onRubyPlayed`: the landed Ruby's keyword rider (a Warding Ruby's Ward), so a bounce carries the WHOLE Ruby. */
+    rubyKeyword?: Keyword; spellDef?: CardDef; spellId?: string; /** `onGainCard`: WHICH card just arrived in hand — Kegheart Dwarf filters on it being a Dwarven Ale. The
   *  event used to carry only "a card arrived", which no watcher could filter. */ cardId?: string; /** CELESTIAL orbitFired: the minion whose Orbit resolved (Orrery excludes its own). */ source?: BoardCard; /** CELESTIAL: this Orbit was TRIGGERED (Astral Relay), not caused by a card arriving — so `minion` is
   *  a stand-in and any effect that consumes the arriver must stand down. */ noArriver?: boolean;
   /** STARFORM (set 3 Celestials): `starformGained` carries the DELTA the token just gained; `starformRemoved`
@@ -164,7 +166,8 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     isTribe: (t, tribe) => isTribe(t as BoardCard, tribe as Tribe),
     // The bounce primitive (Resonance Idol): `self` is the body the original Ruby landed on, `t` the hop's
     // destination — recorded for the UI's `ruby-bounce` ribbon (self → t). NO fireOnRubyPlayed - the no-rebounce guard.
-    gainRubyStats: (t, a, h) => { addBuff(t as BoardCard, 'Ruby', a, h); recordBounceFx(state, 'ruby', self.uid, t.uid); },
+    // The Ruby's keyword rider (a Warding Ruby's Ward) lands with the hop (owner report 2026-09-23).
+    gainRubyStats: (t, a, h, kw) => { addBuff(t as BoardCard, 'Ruby', a, h); grantRubyKeyword(t as BoardCard, kw as Keyword | undefined); recordBounceFx(state, 'ruby', self.uid, t.uid); },
     neighboursOf: (t) => {
       const idx = state.board.findIndex((c) => c.uid === t.uid);
       if (idx < 0) return [];
@@ -1592,7 +1595,7 @@ export function applyShoutsForShopBuff(state: RunState, n: number): void {
  * separate hooks would drift on the parts that must NOT differ — banking the remainder, and paying every
  * threshold a single large transaction crosses (a 12-Gold buy pays a 5-Gold rune twice).
  */
-export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit', amount: number): void {
+export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit', amount: number): void {
   if (amount <= 0 || !state.runeThresholds?.length) return;
   for (const t of state.runeThresholds) {
     if (t.meter !== meter) continue;
@@ -1933,6 +1936,7 @@ export function isStatSpell(def: CardDef | undefined): boolean {
  *  they were one function, and broadening the discount silently changed what the Ledger casts. */
 const SHOP_TARGETED_STAT_SPELLS: ReadonlySet<string> = new Set([
   'spellBuffShop', 'spellBuffShopByRuby', 'spellBuffTavern', 'spellBuffNextShop',
+  'spellBuffShopRightmost', // Picnic (2026-09-23): the right-most Shop slot — an offer buff, never a board grant
 ]);
 export function isBoardStatSpell(def: CardDef | undefined): boolean {
   return isStatSpell(def)
@@ -3545,7 +3549,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  minions (golden: bounce twice). Uses `addBuff` directly, so a bounce can't re-trigger onRubyPlayed. */
   // ARENA-MIGRATED (Step 3, Ruby family): one body in arena.ts serves both phases.
   rubyPlayedBounce: (ctx, self, params, payload) => {
-    ARENA_EFFECTS.rubyPlayedBounce(shopArena(ctx.state, self), { ...params, rubyAttack: payload.rubyAttack ?? 0, rubyHealth: payload.rubyHealth ?? 0 });
+    ARENA_EFFECTS.rubyPlayedBounce(shopArena(ctx.state, self), { ...params, rubyAttack: payload.rubyAttack ?? 0, rubyHealth: payload.rubyHealth ?? 0, rubyKeyword: payload.rubyKeyword });
   },
 
   /** Set 2 — Embermouth Whelp (recruit half): each Shout you trigger grows this body. Most Shouts fire in the
@@ -7862,6 +7866,24 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     applyRunShopBuff(ctx.state, a, h, 'Staff of Guel');
   },
 
+  /** Picnic (owner 2026-09-23: "T5 1 cost - Give the right-most Shop minion +8/+8 permanently") — the cast lands
+   *  on the right-most Shop MINION now and, like Market Tormentor's Shout, enchants that SLOT for the rest of the
+   *  run: `rightmostSlotBuff` is the one accumulator, re-landed on every fresh roll by `applyShopRefreshed`, so
+   *  the +8/+8 survives a refresh and rides the offer into whatever is bought. Spell power folds on both stats
+   *  (Staff of Guel's rule for a shop-buff spell); the printed number goes live with it in `spellDisplayText`.
+   *  No Shop minion → the cast is refused before it consumes the card (`spellFizzle.ts`). */
+  spellBuffShopRightmost: (ctx, _self, params) => {
+    const st = ctx.state;
+    const a = num(params.attack, 8) + spellAttackBonus(st);
+    const h = num(params.health, 8) + spellHealthBonus(st);
+    st.rightmostSlotBuff = {
+      attack: (st.rightmostSlotBuff?.attack ?? 0) + a,
+      health: (st.rightmostSlotBuff?.health ?? 0) + h,
+    };
+    const i = rightmostShopMinion(st);
+    if (i >= 0) addOfferBuff(st.shop[i]!, str(params._source) || 'Picnic', a, h);
+  },
+
   /** Lantern of Souls — cast: your Undead get +`amount` Attack (plus spell power on Attack AND Health)
    *  for the rest of the run, wherever they are — shown on the board in the shop and re-derived at
    *  combat start + on summon/reborn inside `simulate`. */
@@ -8893,7 +8915,7 @@ export function goldSpentScalerValue(cardId: string, goldSpent: number, golden =
 export function applyGoldSpent(state: RunState, amount: number): void {
   if (amount <= 0) return;
   advanceRuneThresholds(state, 'gold', amount);
-  // Rune of the Brew: every SPEND (however large) pours one +4/+3 onto a seeded-random friendly Dwarf.
+  // Rune of the Brew: every SPEND (however large) pours one +2/+3 (balance 9/23, was +4/+3) onto a seeded-random friendly Dwarf.
   if (state.runeBrew) {
     procRune(state, 'runeBrew');
     const dwarves = state.board.filter((c) => isTribe(c, 'dwarf'));
@@ -8901,7 +8923,7 @@ export function applyGoldSpent(state: RunState, amount: number): void {
       const rng = makeRng(state.rngCursor);
       const pick = dwarves[rng.int(dwarves.length)]!;
       state.rngCursor = rng.state();
-      captureBuffFx(state, undefined, 'spell', () => addBuff(pick, 'Rune of the Brew', 4, 3));
+      captureBuffFx(state, undefined, 'spell', () => addBuff(pick, 'Rune of the Brew', 2, 3));
     }
   }
   const ctx = makeContext(state);
@@ -9759,6 +9781,14 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     const h = Number((shopBuff.params as { health?: number } | undefined)?.health ?? 2);
     return def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
   }
+  // Picnic: its "+A/+B" right-most-slot buff folds spell power on both stats (Staff of Guel's rule), so the
+  // printed magnitude goes live with it — the live-text rule.
+  const rightBuff = def.effects.find((e) => e.do === 'spellBuffShopRightmost');
+  if (rightBuff) {
+    const a = Number((rightBuff.params as { attack?: number } | undefined)?.attack ?? 8);
+    const h = Number((rightBuff.params as { health?: number } | undefined)?.health ?? 8);
+    return def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`);
+  }
   // Fleeting Vigor: its banked next-combat "+A/+B" scales with spell power on both stats too.
   const scBuff = def.effects.find((e) => e.do === 'spellPendingSCBuff');
   if (scBuff) {
@@ -10162,10 +10192,22 @@ export function fireOnRubyCast(state: RunState, before: number, after: number): 
   }
 }
 
+/** The KEYWORD half of a Ruby landing — a Warding Ruby's Ward. Granted only to a KOBOLD (owner spec 2026-07-31:
+ *  "give it Ward if it is a Kobold"); the stat half lands on anyone. ONE place, so a direct cast, the Rune of
+ *  Redirection's second landing, a Candle Conduit hop and a Resonance Idol bounce all resolve the rider the
+ *  same way (owner report 2026-09-23: the Idol's bounce used to carry the stats and drop the Ward). */
+export function grantRubyKeyword(target: BoardCard, kw: Keyword | undefined): void {
+  if (!kw || !isTribe(target, 'kobold') || target.keywords.includes(kw)) return;
+  target.keywords = [...target.keywords, kw];
+}
+
 /** Set 2 — fire a board minion's `onRubyPlayed` effects when a Ruby is cast ONTO it (Ruby Broker → Gold,
  *  Resonance Idol → bounce). The played Ruby's stats ride in the payload so a bounce can re-apply the same
- *  buff. The bounce uses `addBuff` directly (not this path) so it can't cascade into an infinite loop. */
-export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: number, rubyHealth: number): void {
+ *  buff — and so does its keyword rider (`rubyKeyword`, a Warding Ruby's Ward), granted to THIS landing here
+ *  and carried by every hop, so a bounced Ruby is the whole Ruby. The bounce uses `addBuff` directly (not
+ *  this path) so it can't cascade into an infinite loop. */
+export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: number, rubyHealth: number, rubyKeyword?: Keyword): void {
+  grantRubyKeyword(card, rubyKeyword);
   // Counted BEFORE the effects run, mirroring `fireOnSpellCastOnThis` — a spread/recast that lands another Ruby
   // on this body must see a count past 1 or a "first each turn" card recurses.
   card.rubiesOnThisTurn = (card.rubiesOnThisTurn ?? 0) + 1;
@@ -10186,6 +10228,7 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
     const pick = others[rng.int(others.length)]!;
     state.rngCursor = rng.state();
     addBuff(pick, 'Ruby', rubyAttack, rubyHealth);
+    grantRubyKeyword(pick, rubyKeyword); // the hop is the whole Ruby — its keyword rider lands too (Kobold-gated)
     recordBounceFx(state, 'ruby', card.uid, pick.uid); // the hop: the landed-on body → the extra recipient
     if (b === 0 && state.runeConduit) procRuneId(state, 'rune_conduit');
   }
@@ -10194,7 +10237,7 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
   const ctx = makeContext(state);
   for (const eff of def.effects) {
     if (eff.on !== 'onRubyPlayed') continue;
-    RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card, rubyAttack, rubyHealth });
+    RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card, rubyAttack, rubyHealth, rubyKeyword });
   }
 }
 
@@ -10328,8 +10371,8 @@ export function settleMinionSale(state: RunState, sold: BoardCard): void {
   // counting "the first Dragon sold this turn" sees this sale included, the way `playedThisTurn` works.
   state.soldThisTurn = [...(state.soldThisTurn ?? []), sold.cardId];
   fireOnMinionSold(state, sold);
-  // Rune of the Seller's Market: every minion you sell pumps your whole board +4/+3.
-  if (state.runeSellersMarket) { procRuneId(state, 'rune_sellers_market'); const sm = runeStacksOf(state, 'rune_sellers_market'); for (const c of state.board) addBuff(c, "Rune of the Seller's Market", 4 * sm, 3 * sm); }
+  // Rune of the Seller's Market: every minion you sell pumps your whole board +6/+8 (balance 9/23, was +4/+3).
+  if (state.runeSellersMarket) { procRuneId(state, 'rune_sellers_market'); const sm = runeStacksOf(state, 'rune_sellers_market'); for (const c of state.board) addBuff(c, "Rune of the Seller's Market", 6 * sm, 8 * sm); }
   // Rune of Trade-In: your FIRST sale each turn arms a 1-Gold discount on your next minion of that TYPE.
   if (state.runeTradeIn && state.soldThisTurn?.length === 1) {
   const t = CARD_INDEX[sold.cardId]?.tribe;
@@ -11725,6 +11768,10 @@ function grantCountRuneCopy(state: RunState, def: CardDef, n: number): void {
  *     2 per copy held.
  */
 export function noteSpellForCountRunes(state: RunState, spellId: string): void {
+  // The `anySpell` threshold meter (Rune of the Bubble Crown, owner 2026-09-23: "not shop spells, so rubies etc
+  // count") rides this same every-spell chokepoint: a Shop spell, a Gift and a Ruby each advance it once per cast,
+  // unlike `spellCast`, which only Shop-spell casts (and a Spellstone Ruby) advance.
+  advanceRuneThresholds(state, 'anySpell', 1);
   const ids = state.spellIdsThisTurn = [...(state.spellIdsThisTurn ?? []), spellId];
   const n = ids.length;
   const skies = state.runeChartedSkies;
@@ -13103,11 +13150,11 @@ function runRecurringEndOfTurn(
       step(() => { for (const c of mechs) if ((c.attachments ?? 0) > i) addBuff(c, 'Blueprint Cache', 3, 3); });
     }
   } else if (effect === 'runeSpending') {
-    // Rune of Spending (owner re-tune 2026-07-31, from +3/+3): the leftmost minion gets +1/+2 PER Gold spent
-    // this turn. One step per Gold, so the FX ticks like a payout.
+    // Rune of Spending (balance 9/23: +2/+3, was +1/+2; owner re-tune 2026-07-31 from +3/+3): the leftmost minion
+    // gets +2/+3 PER Gold spent this turn. One step per Gold, so the FX ticks like a payout.
     const n = state.goldSpentThisTurn ?? 0;
     const leftmost = state.board[0];
-    if (leftmost && n > 0) for (let i = 0; i < n; i++) step(() => addBuff(leftmost, 'Rune of Spending', 1, 2));
+    if (leftmost && n > 0) for (let i = 0; i < n; i++) step(() => addBuff(leftmost, 'Rune of Spending', 2, 3));
   } else if (effect === 'runeAction') {
     // Rune of Action: give your THREE leftmost minions +1/+1 for every card you played this turn — one
     // step per card played, each step buffing the (up to) three leftmost.

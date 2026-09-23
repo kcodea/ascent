@@ -75,16 +75,16 @@ interface Curriculum {
 }
 
 const CURRICULA: Curriculum[] = [
-  { pkg: 'ruby', ready: { board: ['k_chipwick', 'k_geode', 'k_kobe'], hand: 'k_frenzied' }, engine: 'k_chipwick', forge: { affine: 'rune_resonance', off: 'rune_window_shopping' } },
-  { pkg: 'ale', ready: { board: ['dw_pimm', 'dw_brunni', 'dw_edward'], hand: 'wo_champion' }, engine: 'dw_pimm', forge: { affine: 'rune_flagship', off: 'rune_window_shopping' } },
+  { pkg: 'ruby', ready: { board: ['k_chipwick', 'k_geode', 'k_kobe'], hand: 'k_frenzied' }, engine: 'k_chipwick', forge: { affine: 'rune_resonance', off: 'rune_trade_in' } /* both 1 Gold since balance 9/23 */ },
+  { pkg: 'ale', ready: { board: ['dw_pimm', 'dw_brunni', 'dw_edward'], hand: 'wo_champion' }, engine: 'dw_pimm', forge: { affine: 'rune_flagship', off: 'rune_transcription' } /* both 4 Gold since balance 9/23 */ },
   { pkg: 'demonConsume', ready: { board: ['dm_knocked', 'dm_butcher', 'dm_glutton'], hand: 'dm_agent', shop: 'stray' }, engine: 'dm_agent', forge: { affine: 'rune_infernal_ink', off: 'rune_window_shopping' } },
   { pkg: 'beastSummon', ready: { board: ['b2_trex', 'kennel', 'b2_beardsley'], hand: 'b2_wolvie' }, engine: 'b2_trex', forge: { affine: 'rune_brood', off: 'rune_window_shopping' } /* rune_rebirth until 2026-09-16 — it grants the Rebirth keyword now, no summon affinity */ },
   { pkg: 'dragon', ready: { board: ['d2_embermouth', 'karwind', 'd2_skald'], hand: 'd2_broodfire' }, engine: 'd2_embermouth', forge: { affine: 'rune_chorus', off: 'rune_window_shopping' } },
-  { pkg: 'spellEngine', ready: { board: ['d2_scalechanter', 'n2_spellsword', 'd2_mirrorwing'], hand: 'growth' }, engine: 'n2_spellsword', forge: { affine: 'rune_recollection', off: 'rune_window_shopping' } },
-  { pkg: 'echo', ready: { board: ['dm_knocked', 'sylus', 'b2_trex'], hand: 'n2_lastlight' }, engine: 'dm_knocked', forge: { affine: 'rune_aftershocks', off: 'rune_epic_forge' } },
-  { pkg: 'rally', ready: { board: ['b2_packstrider', 'n2_standardbearer', 'k_blazer'], hand: 'rallyoffensive' }, engine: 'b2_packstrider', forge: { affine: 'rune_rallying', off: 'rune_open_enrollment' } },
+  { pkg: 'spellEngine', ready: { board: ['d2_scalechanter', 'n2_spellsword', 'd2_mirrorwing'], hand: 'growth' }, engine: 'n2_spellsword', forge: { affine: 'rune_recollection', off: 'rune_strange_caravan' } /* both 2 Gold since balance 9/23 */ },
+  { pkg: 'echo', ready: { board: ['dm_knocked', 'sylus', 'b2_trex'], hand: 'n2_lastlight' }, engine: 'dm_knocked', forge: { affine: 'rune_aftershocks', off: 'rune_transcription' } /* both 4 Gold; Epic Forge dropped to 3 in balance 9/23 */ },
+  { pkg: 'rally', ready: { board: ['b2_packstrider', 'n2_standardbearer', 'k_blazer'], hand: 'rallyoffensive' }, engine: 'b2_packstrider', forge: { affine: 'rune_rallying', off: 'rune_transcription' } /* both 4 Gold since balance 9/23 */ },
   { pkg: 'tempo', ready: { board: ['dw_brakka', 'venom', 'dw_orin'], hand: 'spiritfire' }, engine: 'dw_brakka', forge: { affine: 'rune_warding', off: 'rune_window_shopping' } },
-  { pkg: 'economy', ready: { board: ['dw_pimm', 'k_pouchpincher', 'buddy'], hand: 'emberpouch' }, engine: 'dw_pimm', forge: { affine: 'rune_vault', off: 'rune_trade_in' } },
+  { pkg: 'economy', ready: { board: ['dw_pimm', 'k_pouchpincher', 'buddy'], hand: 'emberpouch' }, engine: 'dw_pimm', forge: { affine: 'rune_vault', off: 'rune_strange_caravan' } /* both 2 Gold; Trade-In dropped to 1 in balance 9/23 */ },
 ];
 
 describe.each(CURRICULA)('curriculum — $pkg', ({ pkg, ready, engine, forge }) => {

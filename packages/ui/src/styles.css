@@ -2743,6 +2743,9 @@ body.modalup .app { z-index: auto; }
 .forge-reroll:disabled { opacity: 0.45; filter: saturate(0.7); cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
 .forge-reroll svg { width: calc(15 * var(--u)); height: calc(15 * var(--u)); color: #4a3208; }
 .forge-reroll .forge-reroll-cost { color: #3a2706; }
+/* Spent: the button keeps its box (so the centred panel does not re-flow and drop the rune row) but is invisible
+   and inert. `visibility` rather than `opacity` so it also leaves the accessibility tree and hover/cursor. */
+.forge-reroll.forge-reroll-spent { visibility: hidden; pointer-events: none; }
 
 /* Rune tablet — a carved stone slab: engraved border, a rune sigil, the name, a Gold cost, and its effect. */
 /* Rune tablet — mirrors the art-forward QuestCard (full-bleed art, top emblem, bottom text panel) but framed in a

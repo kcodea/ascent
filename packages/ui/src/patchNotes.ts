@@ -52,6 +52,19 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Runeforge re-roll',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Runeforge: the rune offers no longer shift down when the free re-roll is used.',
+        details: [
+          'The re-roll button used to vanish once spent, and the whole forge panel re-centred around the gap. The row of runes now stays exactly where it was.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Balance Report round 2',
     changes: [
       { category: 'Systems', text: 'The Balance Report now reads Heroes, Runes and Shop Tiers the way it reads Minions: sample size, average place, 1st and top-4 rates, and a placement delta with its 95% range. The Gold Economy table is rebuilt around what a player has, spends and leaves each round.', details: [

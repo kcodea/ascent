@@ -52,6 +52,19 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Balance Report round 2',
+    changes: [
+      { category: 'Systems', text: 'The Balance Report now reads Heroes, Runes and Shop Tiers the way it reads Minions: sample size, average place, 1st and top-4 rates, and a placement delta with its 95% range. The Gold Economy table is rebuilt around what a player has, spends and leaves each round.', details: [
+        'Heroes: each hero against every other run, with the offer and pick rates it had before.',
+        'Runes: each rune against the runs that were offered it and skipped it, so surviving to the forge does not make every rune look good. The Basic and Epic forge chips filter the table.',
+        'Shop Tiers: the leveling curve stays, and a table under it says whether reaching each tier by its usual wave goes with a better finish.',
+        'Gold Economy: one row per round with the Gold a player starts on, spends (split by minions, spells, tier-ups and rolls), and leaves unspent, for all runs or by placement bucket. A chart view draws the spend curve, winners against everyone.',
+        'Card Demand is gone. The Minions table already answers it.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Repeat per tick',
     changes: [
       { category: 'Balance', text: 'Mother Moss now lands its buffs one at a time. It gives a random Spirit +3/+4, then repeats that once for every Spirit you played this turn, each repeat on its own beat with a fresh pick.', details: [

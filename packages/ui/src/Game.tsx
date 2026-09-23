@@ -57,7 +57,8 @@ import { PixiFxLayer } from './PixiFxLayer';
 import { pixiFx, warmDiscoverFx } from './pixiFx';
 import { applyFpsCap } from './fpsCap';
 import { warmArt } from './art';
-import { audioContext, sfx } from './sfx';
+import { audioContext, onStopAllAudio, sfx } from './sfx';
+import { cancelAnnouncer, setAnnouncerAudioContextProvider, syncAnnouncer } from './announcer';
 import { setMusicAudioContextProvider, syncMusic } from './music';
 import { useGame, isPreRun } from './store';
 
@@ -153,6 +154,12 @@ export function Game() {
     setMusicAudioContextProvider(audioContext);
     syncMusic(useGame.getState());
     const unsubMusic = useGame.subscribe((st) => syncMusic(st));
+    // THE ANNOUNCER (owner ask 2026-09-23): same shape as the music (store-driven, React-free, its own gain on
+    // the SFX context); a Skip's `stopAllAudio` cancels its queue + the playing line through the hook.
+    setAnnouncerAudioContextProvider(audioContext);
+    syncAnnouncer(useGame.getState(), null);
+    const unsubAnnouncer = useGame.subscribe((st, prevSt) => syncAnnouncer(st, prevSt));
+    const offStopHook = onStopAllAudio(() => cancelAnnouncer('skip'));
     const unsubWarm = useGame.subscribe((st, prevSt) => {
       if (st.run === prevSt.run) return;
       const start = phaseStartBetween(prevSt.run, st.run);
@@ -232,6 +239,8 @@ export function Game() {
       unsub();
       unsubWarm();
       unsubMusic();
+      unsubAnnouncer();
+      offStopHook();
       setFxScene(null);
       perfMonitor.stop();
     };

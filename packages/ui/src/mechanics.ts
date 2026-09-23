@@ -75,6 +75,7 @@ const REACTIVE_ON = new Set<EffectDef['on']>([
   'onLoseDivineShield',        // this minion's Ward was broken by an incoming hit (no live users yet)
   'battlecryTriggered',        // another minion's Battlecry resolved (Karwind)
   'minionSold',                // another minion was sold (Voicekeeper)
+  'onConsume',                 // a minion was consumed (Enigma) — watches the consume, not a Consume keyword
   'spellCastOnThis',           // a targeted spell resolved on this minion (Mirrorwing, Runefire)
   // recruit-phase reactions to your actions
   'spellCast',                 // you cast any spell (Runescale Drake, Spirit Worgen)
@@ -110,7 +111,11 @@ const REGISTRY: Omit<Mechanic, 'def'>[] = [
   // — Triggers (fire on the card's own play/death/turn/kill/etc.) —
   { id: 'shout', term: 'Shout', glyph: 'battlecry', detect: hasOn('onPlay'), termRe: /battlecr(?:y|ies)|shouts?/i, order: 10 },
   { id: 'echo', term: 'Echo', glyph: 'echo', detect: hasOn('onDeath'), termRe: /deathrattles?|echoe?s?/i, order: 11 },
-  { id: 'startCombat', term: 'Start of Combat', glyph: 'fist', detect: kwMatch('SC'), kw: 'SC', termRe: /start of combat/i, order: 12 },
+  // Start of Combat (SC keyword) — AND Start of Turn effects (`on: 'startOfTurn'`), which the owner wants to
+  // share the same lightning-bolt medallion (owner ask 2026-09-23). Both resolve to this gem; the keyword panel
+  // still labels each card by its own text ("Start of Combat" vs "Start of Turn"), since the term match is
+  // text-based and only "start of combat" is a glossary term.
+  { id: 'startCombat', term: 'Start of Combat', glyph: 'fist', detect: (m) => kwMatch('SC')(m) || hasOn('startOfCombat')(m) || hasOn('startOfTurn')(m), kw: 'SC', termRe: /start of combat/i, order: 12 },
   { id: 'endTurn', term: 'End of Turn', glyph: 'sc', detect: hasOn('endOfTurn'), termRe: /end of turn/i, order: 13 },
   { id: 'avenge', term: 'Avenge (N)', glyph: 'skull', detect: hasOn('avenge'), termRe: /\bavenge\b/i, order: 14 },
   // PUMMEL (owner keyword 2026-09-21): the damage-dealt threshold trigger (Han Gover, Goldvein) — a passive
@@ -135,6 +140,11 @@ const REGISTRY: Omit<Mechanic, 'def'>[] = [
   { id: 'immune', term: 'Immune', glyph: 'immune', detect: kwMatch('IMM'), kw: 'IMM', termRe: /\bimmune\b/i, order: 37 },
   { id: 'stealth', term: 'Stealth', glyph: 'stealth', detect: kwMatch('ST'), kw: 'ST', termRe: /\bstealth\b/i, order: 38 },
   { id: 'spend', term: 'Spend', glyph: 'spend', detect: hasOn('goldSpent'), termRe: /spend .*gold|gold spent/i, order: 20 },
+  // Sell ("When you sell this:", e.g. River Drake) and Equip (Equipment minions) get their own medallions
+  // (owner ask 2026-09-23). Both are effect-trigger families, not badge keywords. Glyphs are SVG fallbacks —
+  // the authored PNGs (sell.webp / equip.webp) are what render.
+  { id: 'sell', term: 'Sell', glyph: 'spend', detect: hasOn('onSell'), termRe: /when you sell/i, order: 21 },
+  { id: 'equip', term: 'Equip', glyph: 'magnetic', detect: hasOn('equip'), termRe: /\bequip\b/i, order: 22 },
   // — Build & shop —
   { id: 'attachment', term: 'Attachment', glyph: 'magnetic', detect: kwMatch('M'), kw: 'M', termRe: /magneti[cz]e?[sd]?|attachments?|\battaches?\b|\battach\b/i, order: 40 },
   { id: 'consume', term: 'Consume', glyph: 'consume', detect: kwMatch('CN'), kw: 'CN', termRe: /\bconsumes?\b/i, order: 41 },

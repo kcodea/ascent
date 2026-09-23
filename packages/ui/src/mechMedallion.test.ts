@@ -7,14 +7,21 @@ describe('mechMedallionSrc', () => {
     expect(mechMedallionSrc('spend')).toBe('/medallions/spend.webp');
     expect(mechMedallionSrc('rebirth')).toBe('/medallions/rebirth.webp');
     expect(mechMedallionSrc('pummel')).toBe('/medallions/pummel.webp');
+    expect(mechMedallionSrc('execute')).toBe('/medallions/execute.webp'); // the two-sword art (ex-flurry)
+    expect(mechMedallionSrc('sell')).toBe('/medallions/sell.webp');
+    expect(mechMedallionSrc('equip')).toBe('/medallions/equip.webp');
+  });
+  it('aliases Overflow to the Watcher eye art', () => {
+    expect(mechMedallionSrc('overflow')).toBe('/medallions/watcher.webp');
   });
   it('returns null for a mechanic with no art (keeps its SVG)', () => {
     expect(mechMedallionSrc('taunt')).toBeNull();
     expect(mechMedallionSrc('ward')).toBeNull();
+    expect(mechMedallionSrc('flurry')).toBeNull(); // art repurposed for Execute; Flurry has its own animation
     expect(mechMedallionSrc('nonsense')).toBeNull();
   });
-  it('has exactly the 16 wired ids', () => {
-    expect(MECH_MEDALLION_PNGS.size).toBe(16);
+  it('has exactly the 19 wired ids', () => {
+    expect(MECH_MEDALLION_PNGS.size).toBe(19);
   });
 });
 

@@ -85,7 +85,7 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   // the sell spells ("Sell a friendly minion") and the sell-value lines ("Sells for 2 Gold"), which must not raise
   // a pill that says "this minion". No schema badge and no medallion mechanic; the pill renders from the text hit,
   // like Shout. Wording is the owner's verbatim.
-  { id: 'sell', name: 'Sell', aliases: [], section: 'triggers', icon: 'mana', match: /(?<![A-Za-z])Sell(?=\s*[:：])/, def: 'Triggers when this minion is sold.' },
+  { id: 'sell', name: 'Sell', aliases: [], section: 'triggers', mechanic: 'sell', match: /(?<![A-Za-z])Sell(?=\s*[:：])/, def: 'Triggers when this minion is sold.' },
   { id: 'bleed', name: 'Bleed', aliases: [], section: 'triggers', mechanic: 'bleed', def: "Marks random enemies at Start of Combat. Every few attacks in the fight, each marked enemy still alive takes this minion's Attack." },
   { id: 'chooseone', name: 'Choose One', aliases: [], section: 'triggers', mechanic: 'chooseOne', def: 'When you play it, pick one of its two effects.' },
   // Compendium-only: no shipped text says "Watcher" — the medallion + codex row name the reactive family.
@@ -127,7 +127,7 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   { id: 'summonfromhand', name: 'Summon from hand', aliases: [], section: 'build', icon: 'house', detectRe: /\bsummon(?:ed|s)?\b[^.]*?\bfrom your hand\b/, def: 'Summons an exact copy of a minion in your hand into combat. The card stays in your hand and can be summoned this way once per combat.' },
   // Equipment minions print "**Equip <Name> (cost):**" — the word "Equip" is the text hit that raises the pill
   // (no schema badge: `on: 'equip'` is an effect trigger, not a keyword). Runes that say "Equip minion" raise it too.
-  { id: 'equip', name: 'Equip', aliases: [], section: 'build', icon: 'anvil', def: 'Can be triggered once per turn, per equipment, for a cost.' },
+  { id: 'equip', name: 'Equip', aliases: [], section: 'build', mechanic: 'equip', def: 'Can be triggered once per turn, per equipment, for a cost.' },
   { id: 'equipment', name: 'Equipment', aliases: [], section: 'build', icon: 'anvil', def: 'An ability granted by an Equip minion, held in a slot beside your hero power. Rebuilt every Start of Turn from the minions you still have.' },
   // Wording is the owner's verbatim (2026-09-18).
   { id: 'amplified', name: 'Amplified', aliases: ['Amplify', 'Amplifies'], section: 'build', icon: 'gear', def: 'An Amplified Equipment will trigger its effect twice for no additional gold.' },

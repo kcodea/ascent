@@ -1790,8 +1790,9 @@ export const APPROVED_RULES: GameRule[] = [
       + '(fights, W-L-D, distinct lobbies, win rate, a Wilson 95% lower bound). The Hall is the top 10 runs by '
       + 'that lower bound with at least 10 fights, from every recorded run, not only lobby winners; the client '
       + 'reads the view, never a row pool. Each row shows the W-L-D across everything, the win rate, the lobbies, '
-      + 'the run\'s own game (its career row\'s record, which counts the player\'s ghost fights), the date of its '
-      + 'last fight and the rank its player held. A run\'s own career row is joined by its FULL run key (the '
+      + 'the run\'s own game (since 2026-09-23 the ledger rows of its own lobby, R-HALL-02; the career row\'s '
+      + 'tally, which counts the player\'s ghost fights, only when the ledger has none), the date of its last '
+      + 'fight and the rank its player held. A run\'s own career row is joined by its FULL run key (the '
       + 'history entry carries the author it was played under since 2026-09-22), never by seed + hero alone, so two '
       + 'players on the same shared seed with the same hero each keep their own row; only a row older than the '
       + 'author stamp is joined by seed + hero. Practice, the tutorial and a sandbox never record.',
@@ -2266,6 +2267,38 @@ export const APPROVED_RULES: GameRule[] = [
       kind: 'scenario',
       refs: ['packages/sim/src/lobbyStrength.test.ts', 'packages/ui/src/lobbyStrengthGoingIn.test.ts', 'packages/ui/src/lobbyRatingParity.test.ts', 'packages/ui/src/Career.test.tsx', 'packages/ui/src/ladderPages.test.tsx'],
       lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-HALL-02',
+    title: 'Hall of Champions: the own-game line counts the same fights as the record line',
+    statement:
+      'A Hall row\'s "Own game" W-L-D is read from the FIGHT LEDGER, not from the run\'s career tally: it is '
+      + 'the ledger rows of the run\'s OWN lobby (lobby_seed = the run\'s seed) that name the run as a side, '
+      + 'counted from the run\'s side. Ghost fights (the odd seat paired against an eliminated seat\'s leftover '
+      + 'board) are never ledger rows, so the own game and the record above it count the same fights and the two '
+      + 'lines agree. The read is ONE batched query of the raw rows for all the Hall\'s lobbies at once, filtered '
+      + 'by key client-side, never a query per row. Only a lobby the ledger has no rows for (a game from before '
+      + 'the ledger existed) falls back to the career row\'s wins/losses/draws, and that row\'s label says "from '
+      + 'the game\'s own tally", so the two definitions are never mixed silently. The record line, the sorts and '
+      + 'the layout are unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (the Hall own-game line)', quote: 'why is the record 12-2-1 but also 13-2-1? what\'s right?' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (the Hall own-game line)', quote: 'ledger number probably i think.' },
+      { kind: 'code', ref: 'packages/ui/src/leaderboardData.ts (ownGameRecordsOf, hallRowsOf ownSource); packages/ui/src/remoteBoards.ts fetchHallOwnGames; packages/ui/src/Leaderboard.tsx (.lb-hallown)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Before the fix the own-game line read the career row\'s entry.wins/losses/draws, '
+      + 'which counts the player\'s ghost fights, while the record line read the run_fight_records view, which '
+      + 'does not; a run that won a ghost fight showed 12-2-1 above 13-2-1 on the same row. No new SQL: the client '
+      + 'reads the existing lobby_fights rows (select lobby_seed, run_a, run_b, outcome where lobby_seed in the '
+      + 'ten seeds) and folds them by key. The tally fallback carries ownSource: tally and the aria-label suffix.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/hallOwnGame.test.ts', 'packages/ui/src/fightLedgerFetch.test.ts'],
+      lastVerifiedAt: '2026-09-23',
     },
   },
 ];

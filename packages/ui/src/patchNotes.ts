@@ -51,6 +51,20 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-23',
+    label: 'Hall of Champions',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Hall of Champions: a warband\'s own game now counts the same fights as its record, so the two lines agree.',
+        details: [
+          'The Own game line used to count the odd-seat fights against a leftover board, which the record above it never did. Both lines now read the same fight ledger.',
+          'A game played before the ledger existed still shows its own tally, and its label says so.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-22',
     label: 'Lobby strength as a percentage',
     changes: [

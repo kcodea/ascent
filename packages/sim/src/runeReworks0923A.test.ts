@@ -316,7 +316,8 @@ describe('Rune of the Spellmarket — every 4 Shop spells casts a Staff of Guel'
     for (let i = 0; i < 3; i++) castSpell(s, CARD_INDEX['growth']!);
     expect(s.tavernBuyBonus.atk, 'three casts bank').toBe(0);
     castSpell(s, CARD_INDEX['growth']!);
-    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp], 'Staff of Guel: minions in the shop +3/+3').toEqual([3, 3]);
+    // 2026-09-23: +3/+3 → +3/+4 — the Balance 9/23 minions pass (merged from main) raised Staff of Guel's Health.
+    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp], 'Staff of Guel: minions in the shop +3/+4').toEqual([3, 4]);
     expect(s.spellsCast, '4 Growths + the Staff itself').toBe(5);
     expect(s.runeThresholds!.find((t) => t.sourceId === 'rune_spellmarket')!.tick, 'the Staff cast ticked the meter once').toBe(1);
   });

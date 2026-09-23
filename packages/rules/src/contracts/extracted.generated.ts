@@ -30872,9 +30872,6 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:runeThreshold.meter"
       ]
     },
-    "tribes": [
-      "dragon"
-    ],
     "tags": [
       "runeforge:basic",
       "cost:4"

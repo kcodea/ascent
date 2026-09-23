@@ -36,14 +36,14 @@ describe('strategy packages — set-2 census', () => {
     expect(census).toEqual({
       ruby: '30/12/14/11',
       ale: '31/5/4/31', // 32 → 31 on 2026-09-18: rune tag pass
-      demonConsume: '33/13/7/18', // 32 → 33 on 2026-09-18: Dissipate (a sell spell — the consume text match)
+      demonConsume: '33/13/7/16', // 32 → 33 on 2026-09-18: Dissipate (a sell spell — the consume text match); runes 18 → 16 on 2026-09-23: Balance 9/23 combined (rune reworks A rewrote rune texts)
       beastSummon: '30/7/5/13', // 14 → 13 on 2026-09-16: Rune of Rebirth grants the Rebirth keyword now (no longer an Echo-summon text match)
       dragon: '33/16/10/15',
-      spellEngine: '107/16/13/23', // 22 → 23 on 2026-09-17: Rune of Gambling (recurring Gamble, every set); 106 → 107 on 2026-09-18: Dissipate
+      spellEngine: '107/16/13/21', // 22 → 23 on 2026-09-17: Rune of Gambling (recurring Gamble, every set); 106 → 107 on 2026-09-18: Dissipate; runes 23 → 21 on 2026-09-23: Balance 9/23 combined (rune reworks A: spell runes rewritten)
       echo: '39/14/9/6', // 7 → 6 on 2026-09-16: same Rune of Rebirth rework
       mechAttach: '2/0/0/0',
       rally: '26/8/11/6', // Boulderdash gained Flurry (owner 2026-09-18)
-      tempo: '38/6/20/35', // 37/5 → 38/6 on 2026-09-23: the balance 9/23 stat pass moved a body into the tempo package
+      tempo: '38/6/20/36', // 37/5 → 38/6 on 2026-09-23: the balance 9/23 stat pass moved a body into the tempo package; runes 35 → 36 on 2026-09-23: Balance 9/23 combined (rune reworks A)
       economy: '20/1/16/25', // 26 → 25 on 2026-09-18: rune tag pass
     });
   });

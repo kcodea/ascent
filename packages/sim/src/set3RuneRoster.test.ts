@@ -32,7 +32,7 @@ const originals = (epic: boolean): number => [...RUNES, ...EPIC_RUNES].filter((r
 describe('the Set 3 static rune pool (handoff 2026-09-14)', () => {
   it('resolves to 115 Basic / 97 Epic before any Set 3-original rune (98 Epic at the handoff; Frontline Glory dropped 2026-09-16)', () => {
     const pool = staticPool('set3', S3).filter((r) => !isOriginal(r));
-    expect(pool.filter((r) => !r.epic)).toHaveLength(112); // 115 at the handoff + Rune of Gambling (all sets, 2026-09-17); −4 on 2026-09-18 (tag pass: Beast/Mech-body runes now gate on tribes set 3 does not field)
+    expect(pool.filter((r) => !r.epic)).toHaveLength(112); // 115 at the handoff + Rune of Gambling (all sets, 2026-09-17); −4 on 2026-09-18 (tag pass: Beast/Mech-body runes now gate on tribes set 3 does not field); Balance 9/23 (2026-09-23) nets 0: −1 Drake Skull (now reads Dragons, gated `dragon`) +1 Hoardcalling (now any Shout, gate dropped)
     expect(pool.filter((r) => r.epic)).toHaveLength(90); // 97 → 90 on 2026-09-18 (tag pass: Beast/Dragon/Mech/Demon-body Epics gate on tribes set 3 does not field)
     expect(pool.some((r) => r.id === 'rune_frontline_glory')).toBe(false);
     expect(RUNE_INDEX['rune_frontline_glory']!.sets).toEqual(['set1']);

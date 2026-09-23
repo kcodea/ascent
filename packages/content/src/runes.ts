@@ -730,8 +730,10 @@ export const RUNES: RuneDef[] = [
   {
     // Balance 9/23: a `shout` THRESHOLD (was the first Dragon Shout each turn → a Shop spell). CROSS-PHASE like
     // the Chorus: combat Shout fires advance the same tick and a mid-fight trip pays into the hand.
+    // TRIBE GATE dropped (Balance 9/23): the old text read a Dragon Shout; the new one counts ANY Shout and pays two
+    // untagged spells (Rune of Hoardflame / Rune of Dragon Breath grant the same cards and carry no tribe gate either),
+    // so nothing on the text names a tribe any more.
     id: 'rune_hoardcalling',
-    tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of Hoardcalling',
     cost: 4, // owner balance 2026-08-11
     text: 'When you trigger **3 Shouts**, get a **Hoardflame** or **Dragonflame**.',

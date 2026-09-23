@@ -598,8 +598,10 @@ export function ledgerSegment(gold: GoldEvent[]): GoldEvent[] {
 /**
  * One run's ledger folded into rounds. How the ledger records a round (see `observeAction` in runDerive):
  * every event is stamped with the wave the ACTION happened on, so the per-turn refill, which happens inside the
- * action that advances the wave, is the LAST event of the wave it closes, an `income` whose `goldAfter` is the
- * next round's opening Gold. Wave 1 opens on `CONFIG.startEmbers` with no event. A round with no event at all
+ * action that advances the wave, is the LAST event of the wave it closes: an `income` whose `goldAfter` is the
+ * next round's opening Gold, or a negative `other` when the round closed holding more Gold than the next cap
+ * (the refill SETS Gold to the cap, so the surplus is lost, not spent). Wave 1 opens on `CONFIG.startEmbers`
+ * with no event. A round with no event at all
  * (nothing bought, nothing sold, and the refill happened to change nothing) carries the previous opening Gold.
  */
 export function runLedger(d: DerivedRun): WaveLedger[] {
@@ -615,9 +617,11 @@ export function runLedger(d: DerivedRun): WaveLedger[] {
     const evs = byWave.get(wave) ?? [];
     // The opening Gold: the Gold before the round's first movement, or the carried refill when nothing moved.
     const goldStart = evs.length > 0 ? evs[0]!.goldAfter - evs[0]!.amount : carry;
-    // The refill closes every round but the last: the last event of the round when it is an income.
+    // The refill closes every round but the last: the last event of the round. It is an income when the round
+    // closed under the next cap, and a negative `other` (the wave advance is the only action categorise sends
+    // there) when the round closed holding MORE Gold than the cap refills to; both are the refill, never a spend.
     const last = evs[evs.length - 1];
-    const refill = wave < lastWave && last && last.category === 'income' && last.amount > 0 ? last : null;
+    const refill = wave < lastWave && last && ((last.category === 'income' && last.amount > 0) || (last.category === 'other' && last.amount < 0)) ? last : null;
     const split = Object.fromEntries(SPEND_CATEGORIES.map((c) => [c, 0])) as Record<SpendCategory, number>;
     let income = 0, sold = 0;
     for (const g of evs) {

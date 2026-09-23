@@ -58,7 +58,12 @@ buckets need `row.placement`) and folds each derived Gold ledger into rounds wit
 
 - The ledger stamps every event with the wave the ACTION happened on, so the per-turn refill, which happens
   inside the action that advances the wave, is the LAST event of the wave it closes: an `income` whose
-  `goldAfter` is the next round's opening Gold. Wave 1 opens on `CONFIG.startEmbers` (3) with no event.
+  `goldAfter` is the next round's opening Gold, OR a negative `other` when the round closed holding more Gold
+  than the next cap (the reducer SETS Gold to the cap, so the surplus is lost; `categorise` sends the wave
+  advance to `other`, and it is the only action that lands there). The review caught the second shape being
+  booked as an Other spend (live: Other 0.2 at wave 12, 1.2 at wave 15, Unspent understated by the same);
+  both shapes are now the refill, never a spend, and a test holds 14 Gold at a cap of 10. Wave 1 opens on
+  `CONFIG.startEmbers` (3) with no event.
 - **Start** = `goldAfter - amount` of the round's first event (the Gold before anything moved), or the carried
   refill when the round has no event at all (nothing bought or sold, and the refill changed nothing).
 - **Income** = positive non-sell, non-refill events (card payouts, hero effects). **Sold** = sell events.
@@ -112,3 +117,7 @@ table, nested keys included).
 - Live check on the worktree's dev server (5228) against the real backend, read-only: the Heroes, Runes and
   Shop Tiers sections, the economy table and chart, the dropdown without Card Demand, and the export parsed.
 - Gate: `npm run typecheck && npm run lint && npm test && npm run build:web`.
+- Review fixes (same day): the refill-down case above; the Runes legend carries the same read-the-ranges
+  caution as Heroes (every live rune sits under the 20-taker gate); the economy chart's end labels are pushed
+  at least 12 px apart where the series converge; `ImpactSection` passes a module-level `nameOfRow` so the
+  table's sort memo keeps a stable reference.

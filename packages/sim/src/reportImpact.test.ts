@@ -205,6 +205,22 @@ describe('goldEconomy: what a player has, spends and leaves per round', () => {
     }
   });
 
+  it('a round that closes holding more Gold than the next cap loses the surplus as Unspent, never as an Other spend', () => {
+    // Live shape (row 92, wave 15, 2026-09-22): the wave advance SETS Gold to the cap, so the ledger records a
+    // negative `other` whose goldAfter is the new cap. 14 Gold sat on the table at a cap of 10: unspent 14, other 0.
+    const rich = derived({ finalWave: 2, gold: [
+      { wave: 1, amount: 11, category: 'income', goldAfter: 14, maxGoldAfter: 3 },
+      { wave: 1, amount: -4, category: 'other', goldAfter: 10, maxGoldAfter: 10 },
+      { wave: 2, amount: -3, category: 'minion', goldAfter: 7, maxGoldAfter: 10 },
+    ] });
+    const r = runLedger(rich);
+    expect(r.map((w) => [w.wave, w.goldStart, w.income, w.unspent, w.split.other])).toEqual([[1, 3, 11, 14, 0], [2, 10, 0, 7, 0]]);
+    for (const w of r) {
+      const spent = Object.values(w.split).reduce((s, v) => s + v, 0);
+      expect(w.goldStart + w.income + w.sold).toBe(spent + w.unspent);
+    }
+  });
+
   it('keeps only the uploaded run when a ledger carries earlier runs of the session in front of it', () => {
     // The live capture can prepend a session's earlier runs: the wave drops back to 1 where the next run began.
     const stacked = derived({ finalWave: 3, gold: [

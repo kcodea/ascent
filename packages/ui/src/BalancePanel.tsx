@@ -399,7 +399,6 @@ function ImpactSection<R extends BarRow>({ rows, cols, strips, keyOf, nOf, tipOf
   const visible = useMemo(() => rows.filter((r) => strips.every((s, i) => filters[i] == null || s.matches(r, filters[i]!))), [rows, strips, filters]);
   const filtering = filters.some((f) => f !== null);
   const clearFilters = (): void => { sfx.tick(); setFilters(strips.map(() => null)); };
-  const nameOf = (r: R): string => r.name;
   if (rows.length === 0) return <div className="balempty">No {noun} in these runs yet.</div>;
   return (
     <>
@@ -432,7 +431,7 @@ function ImpactSection<R extends BarRow>({ rows, cols, strips, keyOf, nOf, tipOf
               cols={density === 'compact' ? cols.compact : cols.detailed}
               rows={visible}
               keyOf={keyOf}
-              nameOf={nameOf}
+              nameOf={nameOfRow}
               nameLabel={nameLabel}
               nameValue={nameValue}
               dimOf={dimBelow}
@@ -452,6 +451,8 @@ const RUNE_COLSET = { compact: RUNE_COMPACT, detailed: RUNE_DETAILED };
 const TIER_COLSET = { compact: TIER_COMPACT, detailed: TIER_DETAILED };
 const NO_STRIPS: StripDef<any>[] = [];
 const idOf = (r: { id: string }): string => r.id;
+/** Module-level so DataTable's sort memo sees a stable reference (an inline arrow re-sorted on every render). */
+const nameOfRow = (r: { name: string }): string => r.name;
 const tierKey = (r: TierImpactRow): string => String(r.tier);
 const tierN = (r: TierImpactRow): number => r.earlyRuns;
 const tierOrder = (r: TierImpactRow): number => r.tier;
@@ -698,8 +699,10 @@ export function BalancePanel() {
                 runs that were <b>offered it and skipped it</b>. That baseline is the fair one: a rune is only offered to runs that
                 survived to its forge (turn 6 for Basic, turn 9 for Epic), so against the whole field every rune reads green.
                 <b> Vs Field</b> is that uncontrolled read, kept for reference. <b>Impact</b> is the delta shrunk toward zero for a
-                thin sample and is the default order. Rows under {SAMPLE_GATES.preliminary} taker runs are dimmed. The Forge chips
-                roll the runes up and filter the table. Hover any column header for its meaning, or a name for its row in plain words.
+                thin sample and is the default order. With {heroRows.length} runs across {runes.length} runes most rows sit
+                under the {SAMPLE_GATES.preliminary}-taker gate and are dimmed: read the 95% ranges before reading the deltas. The
+                Forge chips roll the runes up and filter the table. Hover any column header for its meaning, or a name for its row
+                in plain words.
               </>
             )}
             {...toggles}
@@ -863,7 +866,7 @@ const SPEND_TIP: Record<SpendCategory, string> = {
   refresh: 'Average Gold spent rerolling the shop this round.',
   rune: 'Average Gold spent at the Runeforge this round, buys and rerolls.',
   heroPower: 'Average Gold spent on the hero power this round.',
-  other: 'Average Gold spent on anything else (rubies, henchmen). No live run has used these.',
+  other: 'Average Gold spent on anything else (rubies, henchmen). A dash means nothing in this bucket used them.',
 };
 const gold1 = (n: number): string => (n === 0 ? '–' : n.toFixed(1));
 
@@ -969,6 +972,15 @@ function EconomyChart({ economy }: { economy: GoldEconomy }) {
   for (let g = 0; g <= top; g += step) goldTicks.push(g);
   const waveTicks: number[] = [];
   for (let w = 1; w <= maxWave; w++) if (maxWave <= 12 || w % 2 === 1 || w === maxWave) waveTicks.push(w);
+  // The direct end labels: the series converge at the last wave, so labels closer than 12 px are pushed apart,
+  // top to bottom, keeping their order by value. The dots stay where the data is; only the text moves.
+  const LABEL_GAP = 12;
+  const endLabelY = new Map<string, number>();
+  const ends = series.map((s) => ({ key: s.key, y: y(s.points[s.points.length - 1]![1]) })).sort((a, b) => a.y - b.y);
+  for (let i = 0; i < ends.length; i++) {
+    const prev = i > 0 ? endLabelY.get(ends[i - 1]!.key)! : -Infinity;
+    endLabelY.set(ends[i]!.key, Math.max(ends[i]!.y, prev + LABEL_GAP));
+  }
   return (
     <div className="balchart">
       <svg viewBox={`0 0 ${W} ${H}`} className="balchart-svg" role="img" aria-label="Average Gold available and spent per round, all runs and winners">
@@ -988,7 +1000,7 @@ function EconomyChart({ economy }: { economy: GoldEconomy }) {
             <path d={path(s.points)} className={`balchart-line ${s.cls}`} fill="none" />
             {s.points.map(([w, g]) => <circle key={w} cx={x(w)} cy={y(g)} r={3.4} className={`balchart-dot ${s.cls}`} />)}
             {/* A direct label at the line's end, so the reader never has to look the colour up. */}
-            <text x={x(s.points[s.points.length - 1]![0]) + 8} y={y(s.points[s.points.length - 1]![1]) + 4} className={`balchart-ptl ${s.cls}`} textAnchor="start">{s.points[s.points.length - 1]![1].toFixed(1)}</text>
+            <text x={x(s.points[s.points.length - 1]![0]) + 8} y={endLabelY.get(s.key)! + 4} className={`balchart-ptl ${s.cls}`} textAnchor="start">{s.points[s.points.length - 1]![1].toFixed(1)}</text>
           </g>
         ))}
       </svg>

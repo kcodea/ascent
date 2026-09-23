@@ -46,7 +46,7 @@ describe('Rune of the Ornate Clock: the Epic forge moves, it does not duplicate'
     s = reduce(s, { type: 'buyRune', index: 0 } as Action);
     expect(s.epicForgeClaimed, 'the run has taken its Epic forge').toBe(true);
     // Arrive at turn 9 with the claim in place: no second forge.
-    const at9 = { ...s, wave: 9, pendingEpicRuneforge: false } as unknown as RunState;
+    const at9 = { ...s, wave: 9, pendingEpicRuneforge: 0 } as unknown as RunState;
     expect(at9.epicForgeClaimed).toBe(true);
   });
 

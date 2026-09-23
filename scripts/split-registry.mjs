@@ -207,14 +207,21 @@ for (const domain of DOMAIN_ORDER) {
     if (!cur.lossless) fail(`${path}: could not walk the existing array losslessly — refusing to touch it`);
     const have = new Map(cur.chunks.map((c) => [c.id, c]));
     const fresh = [];
+    const amended = [];
     for (const c of incoming) {
       const filed = have.get(c.id);
       if (!filed) { fresh.push(c); continue; }
-      if (filed.text !== c.text) fail(`${c.id} is already filed in ${path} with DIFFERENT text than the monolith — merge that rule by hand, then re-run`);
+      if (filed.text === c.text) continue;
+      if (!has('prefer-monolith')) fail(`${c.id} is already filed in ${path} with DIFFERENT text than the monolith — merge that rule by hand (or re-run with --prefer-monolith to re-file the monolith's text in place), then re-run`);
+      amended.push(c);
     }
     for (const [id, c] of have) if (c.domain !== domain) fail(`${path} holds ${id} whose domain is '${c.domain}'`);
-    if (!fresh.length) continue;
-    const needed = usedConstants(fresh.map((c) => c.text).join(''));
+    if (!fresh.length && !amended.length) continue;
+    // an amended rule keeps its position in the domain file; only its text is replaced by the monolith's
+    let body = cur.body;
+    for (const c of amended) body = body.replace(have.get(c.id).text, c.text);
+    if (amended.length) console.log(`  ${domain}.ts ⟲ re-filed from the monolith: ${amended.map((c) => c.id).join(', ')}`);
+    const needed = usedConstants([...fresh, ...amended].map((c) => c.text).join(''));
     let prelude = cur.prelude;
     const importRe = /^import \{ ([^}]+) \} from '\.\/shared';\n/m;
     const m = prelude.match(importRe);
@@ -224,8 +231,8 @@ for (const domain of DOMAIN_ORDER) {
       const line = `import { ${union.join(', ')} } from './shared';\n`;
       prelude = m ? prelude.replace(importRe, line) : prelude.replace(/^(import type \{ GameRule \} from '\.\.\/\.\.\/schema';\n)/m, `$1${line}`);
     }
-    const next = prelude + cur.open + '\n' + cur.body + fresh.map((c) => c.text).join('') + cur.close;
-    console.log(`  ${domain}.ts ← +${fresh.length}: ${fresh.map((c) => c.id).join(', ')}`);
+    const next = prelude + cur.open + '\n' + body + fresh.map((c) => c.text).join('') + cur.close;
+    if (fresh.length) console.log(`  ${domain}.ts ← +${fresh.length}: ${fresh.map((c) => c.id).join(', ')}`);
     if (!DRY) writeFileSync(path, next);
     appended += fresh.length;
     continue;

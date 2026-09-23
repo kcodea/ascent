@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   adjustedAssociation, cardCohorts, dataQuality, defaultEpoch, epochsOf, evidenceLabel, exposedDiagnostic, mostProlificPlayer, runFacts,
   sanitizeRows, segmentByWave, segmentRun, shopEpisodesOf, tierDecisions, tQuantile975, uniquePlayers, welchInterval,
+  accountKey, displayNameKey, playerKeyFor,
   ALL_EPOCHS, EPOCH_MIN_RUNS, EVIDENCE_GATES, WELCH_MIN_N, type Episode,
 } from './reportCohorts';
 import { applyReportFilters, cardImpact, cardImpactWithCoverage, goldEconomy, heroImpact, performanceSortValue, scopeReport, type RunTelemetryRow } from './playerReport';
@@ -30,12 +31,16 @@ const derived = (d: Partial<DerivedRun> = {}): DerivedRun => ({
   offers: [], acquisitions: [], gold: [], upgrades: [], combats: [], triggers: [], boards: [], playerActions: 0, ...d,
 });
 let nextId = 1;
+/** The fixture's account key (`player_key`, 2026-09-23): one per display name unless a test says otherwise, so
+ *  every test that names players by `author` keys them the way the live report does. */
+const keyFor = (author: string | null | undefined): string | null => (author == null ? null : `key-${author}`);
 const row = (o: Partial<RunTelemetryRow> = {}): RunTelemetryRow => ({
   id: nextId++, createdAt: '2026-09-22T10:00:00Z', patch: 'p', author: 'Kev', contentRevision: 'rev1', derived: null,
   mode: 'lobby', setId: 'set2', source: 'ladder',
   heroId: 'warden', heroOffer: ['warden', 'drakko', 'fi'], won: false, wins: 0,
   offeredQuests: [], pickedQuests: [], questTurns: {}, offeredRunes: [], pickedRunes: [],
   offeredCards: [], boughtCards: [], discoverOfferedCards: [], discoverBoughtCards: [], tierByWave: [0, 1], ...o,
+  playerKey: o.playerKey !== undefined ? o.playerKey : keyFor('author' in o ? o.author : 'Kev'),
 });
 
 /** A run that saw `card` in a wave-10 T5 shop and bought it or passed, with the flat arrays agreeing. */
@@ -251,15 +256,30 @@ describe('adjustedAssociation', () => {
 // ── Player concentration (8.7), missing outcomes (8.9), reproducibility (8.15) ──────────────────────────────
 
 describe('players, missing outcomes, reproducibility', () => {
-  it('duplicating one player\'s runs raises neither the unique-player count nor the evidence label', () => {
+  it("duplicating one player's runs raises neither the unique-player count nor the evidence label, and a rename does not make a second player: players are keyed by player_key", () => {
     const base = [...[1, 2, 3, 4, 5, 6].map((p) => lateRun('urchin', true, p, 'solo')), ...[1, 2, 3, 4, 5, 6].map((p) => lateRun('urchin', false, p, `q${p}`))];
     const before = cardCohorts(base).byCard.get('urchin')!;
-    const inflated = cardCohorts([...base, ...base.filter((r) => r.author === 'solo').map((r) => ({ ...r, id: nextId++ })), ...base.filter((r) => r.author === 'solo').map((r) => ({ ...r, id: nextId++ }))]).byCard.get('urchin')!;
+    // The same account uploads its duplicates under a NEW display name: the key is what counts, not the name.
+    const solo = base.filter((r) => r.author === 'solo');
+    const inflated = cardCohorts([...base, ...solo.map((r) => ({ ...r, id: nextId++, author: 'solo renamed' })), ...solo.map((r) => ({ ...r, id: nextId++, author: 'solo again' }))]).byCard.get('urchin')!;
     expect(before.adjusted.buyerPlayers).toBe(1);
     expect(inflated.adjusted.buyers, 'the runs tripled').toBe(18);
-    expect(inflated.adjusted.buyerPlayers, 'the players did not').toBe(1);
+    expect(inflated.adjusted.buyerPlayers, 'the players did not, across three display names').toBe(1);
     expect(inflated.evidence, 'eighteen buyers from one player is still insufficient').toBe('insufficient');
-    expect(mostProlificPlayer(base)).toEqual({ key: 'solo', runs: 6 });
+    expect(mostProlificPlayer(base), 'the toggle names the key, never the display name').toEqual({ key: 'key-solo', runs: 6 });
+  });
+
+  it('two accounts sharing a display name are TWO players; the display-name proxy is only the un-migrated fallback', () => {
+    const shared = [...[1, 2, 3].map((p) => ({ ...lateRun('urchin', true, p, 'Kev'), playerKey: 'key-account-a' })), ...[4, 5, 6].map((p) => ({ ...lateRun('urchin', true, p, 'Kev'), playerKey: 'key-account-b' }))];
+    expect(cardCohorts(shared).coverage.uniquePlayers, 'by player_key').toBe(2);
+    expect(cardCohorts(shared, displayNameKey).coverage.uniquePlayers, 'the proxy folds them into one name').toBe(1);
+    expect(cardCohorts(shared, playerKeyFor('playerKey')).byCard.get('urchin')!.buyerPlayers, 'the raw buyer players too').toBe(2);
+    expect(cardCohorts(shared, playerKeyFor('displayName')).byCard.get('urchin')!.buyerPlayers).toBe(1);
+    expect(mostProlificPlayer(shared), 'the toggle excludes one ACCOUNT, not everyone who shares the name').toEqual({ key: 'key-account-a', runs: 3 });
+    expect(mostProlificPlayer(shared, displayNameKey)).toEqual({ key: 'Kev', runs: 6 });
+    // A row with no key on a migrated backend (no account) counts toward no player; the count is never invented.
+    expect(uniquePlayers([accountKey(row({ playerKey: null })), accountKey(row({ playerKey: 'k' }))])).toBe(1);
+    expect(mostProlificPlayer([row({ playerKey: null, author: 'ghost' }), row({ playerKey: null, author: 'ghost' })]), 'no key, no prolific player').toBeNull();
   });
 
   it('hundreds of acquisitions without a placement never satisfy a placement threshold', () => {

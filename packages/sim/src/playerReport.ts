@@ -36,10 +36,10 @@ import { HEROES } from './heroes';
 import { upgradeShape, wilson, SAMPLE_GATES, type DerivedRun, type GoldEvent, type UpgradeWaveRow } from './runDerive';
 import { aggregatePlayerReport, type PlayerReport, type RunTelemetry, type TelemetrySource } from './runTelemetry';
 import {
-  adjustedAssociation, cardCohorts, dataQuality, displayNameKey, epochsOf, evidenceLabel, inScope, sanitizeRows, segmentByWave, tQuantile975,
+  accountKey, adjustedAssociation, cardCohorts, dataQuality, epochsOf, evidenceLabel, inScope, sanitizeRows, segmentByWave, tQuantile975,
   tierDecisions, uniquePlayers, usableDerived, validPlacement, welchInterval, ALL_EPOCHS, EPOCH_MIN_RUNS, EVIDENCE_GATES, WELCH_MIN_N,
   type AdjustedStats, type CardCohorts, type CohortCoverage, type CohortRow, type DataQuality, type EpisodeExclusions, type EpochInfo,
-  type EvidenceLabel, type ExposedStats, type Interval, type PlayerKeyOf, type ReportScope, type RoleStats, type TierDecisionRow,
+  playerKeyFor, type EvidenceLabel, type ExposedStats, type Interval, type PlayerKeyBasis, type PlayerKeyOf, type ReportScope, type RoleStats, type TierDecisionRow,
 } from './reportCohorts';
 
 // ── The fetched row ────────────────────────────────────────────────────────────────────────────────────────
@@ -54,6 +54,10 @@ export interface RunTelemetryRow extends RunTelemetry {
   patch: string | null;
   /** The player's display name at upload. Display-only; the account id is never fetched or exported. */
   author: string | null;
+  /** The pseudonymous player key (`player_key`, a server-side hash of the account id, 2026-09-23): the basis of
+   *  every unique-player count. Null on a row with no account, or everywhere on an un-migrated backend (the
+   *  fetch then reports `playerKeyBasis: 'displayName'` and the report falls back to the name proxy). */
+  playerKey: string | null;
   contentRevision: string | null;
   /** The derived streams (`derived` jsonb) when the row has them; null on a pre-2026-08-05 row or a plainer select. */
   derived: DerivedRun | null;
@@ -336,11 +340,11 @@ interface ImpactAcc {
  * rows, so a card's delta always answers "did the runs that bought it finish better than the runs that
  * did not, in this report".
  */
-export function cardImpact(rows: CohortRow[], keyOf: PlayerKeyOf = displayNameKey): CardImpactRow[] {
+export function cardImpact(rows: CohortRow[], keyOf: PlayerKeyOf = accountKey): CardImpactRow[] {
   return cardImpactWithCoverage(rows, keyOf).rows;
 }
 
-export function cardImpactWithCoverage(rows: CohortRow[], keyOf: PlayerKeyOf = displayNameKey): CardImpactResult {
+export function cardImpactWithCoverage(rows: CohortRow[], keyOf: PlayerKeyOf = accountKey): CardImpactResult {
   const cohorts = cardCohorts(rows, keyOf);
   const acc = new Map<string, ImpactAcc>();
   const get = (id: string): ImpactAcc => {
@@ -508,7 +512,7 @@ export interface HeroImpactRow extends PlacementStats {
 
 const heroNameOf = (id: string): string => HEROES.find((h) => h.id === id)?.name ?? id;
 
-export function heroImpact(rows: CohortRow[], keyOf: PlayerKeyOf = displayNameKey): HeroImpactRow[] {
+export function heroImpact(rows: CohortRow[], keyOf: PlayerKeyOf = accountKey): HeroImpactRow[] {
   const acc = new Map<string, { offered: number; runs: number; winsSum: number; places: number[]; skipperPlaces: number[]; keys: (string | null)[]; skipperKeys: (string | null)[] }>();
   const get = (id: string) => {
     let a = acc.get(id);
@@ -593,7 +597,7 @@ export interface RuneImpactRow extends PlacementStats {
   evidence: EvidenceLabel;
 }
 
-export function runeImpact(rows: CohortRow[], keyOf: PlayerKeyOf = displayNameKey): RuneImpactRow[] {
+export function runeImpact(rows: CohortRow[], keyOf: PlayerKeyOf = accountKey): RuneImpactRow[] {
   const acc = new Map<string, { offered: number; picked: number; places: number[]; offeredPlaces: number[]; keys: (string | null)[]; skipperKeys: (string | null)[] }>();
   const get = (id: string) => {
     let a = acc.get(id);
@@ -863,8 +867,9 @@ export interface ExportedRun {
   id: number | null;
   createdAt: string | null;
   patch: string | null;
-  /** A per-file alias ("player 1", "player 2", ...) for the run's display name, so unique-player counts can be
-   *  re-derived without a name in the file. Null when the row carries no name. See `playerAliases`. */
+  /** A per-file alias ("player 1", "player 2", ...) for the run's player key (or, on the display-name fallback,
+   *  its name), so unique-player counts can be re-derived with neither a name nor a key in the file. Null when
+   *  the row carries no key. See `playerAliases`. */
   player: string | null;
   contentRevision: string | null;
   /** The set the report READ the run as (the stamp, or set1 when unstamped). */
@@ -930,8 +935,9 @@ export interface BalanceExportMeta {
   quality: DataQuality;
   fetch: FetchCoverage;
   coverage: CohortCoverage;
-  /** How unique players are counted, and what a trusted key would need. */
-  playerKey: { basis: 'displayName'; note: string };
+  /** How unique players are counted: the account key (`player_key`), or the display-name proxy when the backend
+   *  has not run the 2026-09-23 migration. */
+  playerKey: { basis: PlayerKeyBasis; note: string };
   /** The sensitivity toggle: the runs of the most prolific player left out (0 when the toggle is off). */
   excludedProlificRuns: number;
   thresholds: { welchMinN: number; evidenceGates: typeof EVIDENCE_GATES; epochMinRuns: number; roundBands: string; goldBands: string };
@@ -962,13 +968,16 @@ export interface BalanceExport {
   derived: (DerivedRun & { rowId: number | null })[];
 }
 
-/** Per-file player aliases: each distinct display name among `rows` becomes "player 1", "player 2", ... in order
- *  of first appearance, and a row with no name stays null. The aliases preserve every unique-player count the
- *  tables print while no display name leaves the report (the handoff: never send display names into an
- *  analytical export to make a player key). Stable only within the one file: a different scope renumbers. */
-export function playerAliases(rows: readonly Pick<RunTelemetryRow, 'author'>[]): Map<string, string> {
+/** Per-file player aliases: each distinct player key among `rows` (by `keyOf`: the account key, or the display
+ *  name on the fallback) becomes "player 1", "player 2", ... in order of first appearance, and a row with no key
+ *  stays null. The aliases preserve every unique-player count the tables print while neither a display name nor
+ *  the raw key leaves the report: the readme calls the file shareable, and the raw `player_key` is an unsalted
+ *  hash of the account id that is stable across every file (and every other surface that might ever print it),
+ *  so it would let two exports be joined on a player. A per-file number cannot. Stable only within the one
+ *  file: a different scope renumbers. */
+export function playerAliases(rows: readonly CohortRow[], keyOf: PlayerKeyOf = accountKey): Map<string, string> {
   const alias = new Map<string, string>();
-  for (const r of rows) if (r.author != null && !alias.has(r.author)) alias.set(r.author, `player ${alias.size + 1}`);
+  for (const r of rows) { const k = keyOf(r); if (k != null && !alias.has(k)) alias.set(k, `player ${alias.size + 1}`); }
   return alias;
 }
 
@@ -1009,15 +1018,15 @@ export function exportReadme(): BalanceExport['readme'] {
       epochs: 'Every content revision in the set slice before the scope was applied, newest first: rev, runs, oldest and newest run. An unknown rev is a row with no revision stamp.',
       quality: 'Data-integrity counts over the exported rows: rows; placementMissing (no placement) and placementMalformed (cleared); duplicateIds; withDerived, diverged (partial payloads, left out of every derived read) and stackedStreams (payloads whose streams carried earlier runs of the same browser session in front of their own, read by their last segment only); replayDisagree = rows whose replay-derived tierByWave does not match the live finalWave, short or long (the flat tier table and shop curve are unreliable for them); heroOfferMissing = rows with no recorded hero trio; revisionMissing = rows with no content revision stamp.',
       fetch: 'What the fetch read: flatCap and flatPageSize (the flat rows are paged with range queries until a short page or the cap), flatFetched, flatTruncated (true when the cap stopped the walk: the file is then BOUNDED, not all); derivedCap, derivedRequested, derivedFetched and derivedDropped (payloads asked for by id that did not come back).',
-      coverage: 'The cohort coverage: runs (in scope), placed, withDerived (usable payloads), excludedNoDerived (runs left out of the exposed and adjusted reads for lacking one), stacked (payloads read by their last segment), uniquePlayers (distinct display names across the runs, see playerKey).',
-      playerKey: 'How unique players are counted. basis = displayName: the display name at upload, a labelled PROXY (a name can change and can be shared, so a count of names is not a count of accounts; with two names behind most runs the player dimension is thin). No trusted pseudonymous key exists yet; the note says what one needs. No name and no account id is ever written into a table, and runs[].player is a per-file alias, not the name.',
-      excludedProlificRuns: 'The sensitivity toggle: how many runs of the most prolific player (by display name) were left out of every table in this file. 0 = the toggle was off.',
+      coverage: 'The cohort coverage: runs (in scope), placed, withDerived (usable payloads), excludedNoDerived (runs left out of the exposed and adjusted reads for lacking one), stacked (payloads read by their last segment), uniquePlayers (distinct players across the runs, counted by the key meta.playerKey names).',
+      playerKey: 'How unique players are counted. basis = playerKey: a server-side hash of the uploading account id (one key per account, stable across renames; two accounts sharing a display name are two players). basis = displayName: the display name at upload, a labelled PROXY used only when the backend has not run the player-key migration (a name can change and can be shared, so a count of names is not a count of accounts). No name, no account id and no raw key is ever written into a table or into this file: runs[].player is a per-file alias.',
+      excludedProlificRuns: 'The sensitivity toggle: how many runs of the most prolific player (by the key meta.playerKey names) were left out of every table in this file. 0 = the toggle was off.',
       thresholds: 'welchMinN = runs needed on each side before a Welch interval is printed; evidenceGates = the group sizes and unique players behind candidate and supported; epochMinRuns = runs an epoch needs before it is read on its own; roundBands and goldBands = the strata definitions in words.',
       exclusions: 'Per metric, which runs fed it and which were left out, with counts: raw (the placement tables), exposed, adjusted, heroes, runes, tiers, tierDecisions, economy.',
     },
     aggregates: {
       report: 'The classic report tables and the run count. totalRuns = the runs every table below was computed from (every run in runs). heroes / runes / quests / minions / spells: one row per id, with its name; offered = runs it was offered in; picked = runs that took it; games = runs played with it; offerRate / pickRate / winRate = whole percents (-1 = no data); avgWins = average round wins per run (heroes; null elsewhere); avgTurns = turns to complete (quests; null elsewhere); avgPlace / firstRate / lastRate / placedGames = placement stats over placed runs that took it (avgPlace is null when none). For minions and spells, offered and picked are RAW COUNTS of sightings and buys (a card seen four times in one run counts four), split by source into shopOffered / shopPicked (the tavern) and discoverOffered / discoverPicked (Discover picks); avgPlace there is credited PER ACQUISITION (a run that bought a card three times contributes three finishes), which is why it can differ from impact.avgPlace. shopCurve = the shop-leveling curve: maxWave = the last wave any run reached; won and lost = the mean shop tier at each wave over runs that won (placement 1) and runs that did not, arrays indexed BY WAVE with index 0 unused and null where no run reached the wave; wonRuns and lostRuns = the runs behind each; avgWaveToTier = the mean wave a run first reaches each shop tier, indexed BY TIER with index 0 unused (tier 1 is always wave 1); byPlacement = the same mean-tier-by-wave series, one per final placement, indexed BY PLACEMENT 1 to 8 with index 0 unused and null where no run finished there; placedRuns = the runs behind each placement series, indexed the same way. The shop curve is REPLAY-derived (see meta.quality.replayDisagree).',
-      impact: `The per-card table, PER RUN, one row per card. id and name = the card (see cards; names and tiers are the current content); spell = true for a spell, false for a minion; tier = its current shop tier; tribe and tribe2 = its tribe and, for a dual-tribe card, its second tribe (else null). DEMAND: runsSeen = runs that saw the card anywhere (shop or Discover, by the upload-time arrays); runsBought = runs that acquired it anywhere by those arrays (a run counts once however many copies); shopSeen / shopBought / shopBuyRate = raw tavern sightings, buys and buys as a percent of sightings; discSeen / discBought / discRate = the same for Discover offers; avgBuyWave = mean wave the card was acquired on; gate = the sample band of runsBought. NOTE the upload-time arrays can carry EARLIER runs of the same browser session (meta.quality.stackedStreams): segmentedBuyers = buyer runs by this run's own derived streams (shop or Discover, last segment), the honest per-run count. RAW PERFORMANCE: ${PLACEMENT_COLS}; missingPlacement = buyer runs with no placement, never counted toward a finding; tierDelta = the RELATIVE raw association within tier: delta minus the placed-buyer-weighted average delta of the card's tier (minions against minions, spells against spells), a secondary read, not a survival correction; buyerPlayers / controlPlayers = unique players (display-name proxy) among the placed buyers and the placed controls; observedTiers = the card tiers the derived shop offers actually carried in these runs (the row's tier is the current one; a moved tier shows here instead of being relabelled). EXPOSED DIAGNOSTIC: exposed = buyers against exposed skippers, both sides restricted to runs whose last-segment derived shop offers included the card (buyers = acquired it by shop or Discover in that run; skippers = saw it and did not): buyers, skippers (placed), buyerAvg, skipperAvg, delta = buyerAvg minus skipperAvg (negative = buyers finished better than the runs that saw it and passed), ci = Welch 95% on that delta (null under 5 a side), notExposedBuyers = placed buyers with no recorded sighting (a coverage mismatch, reported not repaired), buyerPlayers / skipperPlayers; exposedFlat = the same comparison on the upload-time arrays (sightings by shop or Discover), the handoff's section-2 definition, which inherits the stacked-stream contamination; kept for audit continuity. A diagnostic only: a sighting at any time is not a comparable decision. ADJUSTED ASSOCIATION: episodes = runs with a primary observation for the card, one per run: the first shop wave the card was on offer and affordable (any copy with gold at or above its base cost, or bought) before any prior acquisition of it; episodeBuyers = those that bought a copy in that wave; episodeExclusions = why runs offered the card had no episode: priorAcquisition (acquired, any source, in an earlier wave), sameWaveGrant (a non-shop acquisition in the offer wave, buy and grant indistinguishable), unaffordable (offer waves skipped for being unaffordable at sighting) and neverAffordable (every offer wave was). adjusted = the opportunity-based read: buyers and skippers (placed episodes on each side); strata = round band (early waves 1 to 4, mid 5 to 8, late 9 and later) x shop tier at the offer; supportedStrata = strata holding both a buyer and a skipper; buyersInSupport / skippersInSupport; outsideSupportPct = placed buyers in unsupported strata as a percent of placed buyers; association = sum over supported strata of (buyer share of the stratum) x (mean buyer placement minus mean skipper placement), negative = buying went with a better finish in the situations buyers were actually in, NULL when no stratum is supported (insufficient comparable data, never zero); ci = a stratified Welch-type 95% interval (weighted per-stratum variances, Satterthwaite degrees of freedom), null under 5 a side in support or when a supported stratum has one observation on a side; crossover = passes followed by a later acquisition (reported, never relabelled); unplaced = observations with no placement; buyerPlayers / skipperPlayers; supported = the supported strata (key, buyers, skippers, buyerAvg, skipperAvg, delta). Uncontrolled: player intention, hero, board strength, Gold beyond affordability, positioning, synergy, and the offer context being captured at first sighting rather than at the decision. ROLE AND TIMING (descriptive): role = earlyBuyers / midBuyers / lateBuyers (buyer runs by the round band of their first acquisition), playedPct / finalBoardPct / soldPct (of every acquisition: played to the board, survived to the final board, sold; a minion sold after doing its job is not a failure), nextCombatWinPct (percent of acquisitions whose same-wave combat was won), acquisitions. EVIDENCE: evidence = insufficient, candidate or supported, from both sides of the comparison in evidenceBasis (adjusted when an association exists, else exposed, else none) and the unique players on the smaller side; none of them means confirmed overpowered or underpowered.`,
+      impact: `The per-card table, PER RUN, one row per card. id and name = the card (see cards; names and tiers are the current content); spell = true for a spell, false for a minion; tier = its current shop tier; tribe and tribe2 = its tribe and, for a dual-tribe card, its second tribe (else null). DEMAND: runsSeen = runs that saw the card anywhere (shop or Discover, by the upload-time arrays); runsBought = runs that acquired it anywhere by those arrays (a run counts once however many copies); shopSeen / shopBought / shopBuyRate = raw tavern sightings, buys and buys as a percent of sightings; discSeen / discBought / discRate = the same for Discover offers; avgBuyWave = mean wave the card was acquired on; gate = the sample band of runsBought. NOTE the upload-time arrays can carry EARLIER runs of the same browser session (meta.quality.stackedStreams): segmentedBuyers = buyer runs by this run's own derived streams (shop or Discover, last segment), the honest per-run count. RAW PERFORMANCE: ${PLACEMENT_COLS}; missingPlacement = buyer runs with no placement, never counted toward a finding; tierDelta = the RELATIVE raw association within tier: delta minus the placed-buyer-weighted average delta of the card's tier (minions against minions, spells against spells), a secondary read, not a survival correction; buyerPlayers / controlPlayers = unique players (by the key meta.playerKey names) among the placed buyers and the placed controls; observedTiers = the card tiers the derived shop offers actually carried in these runs (the row's tier is the current one; a moved tier shows here instead of being relabelled). EXPOSED DIAGNOSTIC: exposed = buyers against exposed skippers, both sides restricted to runs whose last-segment derived shop offers included the card (buyers = acquired it by shop or Discover in that run; skippers = saw it and did not): buyers, skippers (placed), buyerAvg, skipperAvg, delta = buyerAvg minus skipperAvg (negative = buyers finished better than the runs that saw it and passed), ci = Welch 95% on that delta (null under 5 a side), notExposedBuyers = placed buyers with no recorded sighting (a coverage mismatch, reported not repaired), buyerPlayers / skipperPlayers; exposedFlat = the same comparison on the upload-time arrays (sightings by shop or Discover), the handoff's section-2 definition, which inherits the stacked-stream contamination; kept for audit continuity. A diagnostic only: a sighting at any time is not a comparable decision. ADJUSTED ASSOCIATION: episodes = runs with a primary observation for the card, one per run: the first shop wave the card was on offer and affordable (any copy with gold at or above its base cost, or bought) before any prior acquisition of it; episodeBuyers = those that bought a copy in that wave; episodeExclusions = why runs offered the card had no episode: priorAcquisition (acquired, any source, in an earlier wave), sameWaveGrant (a non-shop acquisition in the offer wave, buy and grant indistinguishable), unaffordable (offer waves skipped for being unaffordable at sighting) and neverAffordable (every offer wave was). adjusted = the opportunity-based read: buyers and skippers (placed episodes on each side); strata = round band (early waves 1 to 4, mid 5 to 8, late 9 and later) x shop tier at the offer; supportedStrata = strata holding both a buyer and a skipper; buyersInSupport / skippersInSupport; outsideSupportPct = placed buyers in unsupported strata as a percent of placed buyers; association = sum over supported strata of (buyer share of the stratum) x (mean buyer placement minus mean skipper placement), negative = buying went with a better finish in the situations buyers were actually in, NULL when no stratum is supported (insufficient comparable data, never zero); ci = a stratified Welch-type 95% interval (weighted per-stratum variances, Satterthwaite degrees of freedom), null under 5 a side in support or when a supported stratum has one observation on a side; crossover = passes followed by a later acquisition (reported, never relabelled); unplaced = observations with no placement; buyerPlayers / skipperPlayers; supported = the supported strata (key, buyers, skippers, buyerAvg, skipperAvg, delta). Uncontrolled: player intention, hero, board strength, Gold beyond affordability, positioning, synergy, and the offer context being captured at first sighting rather than at the decision. ROLE AND TIMING (descriptive): role = earlyBuyers / midBuyers / lateBuyers (buyer runs by the round band of their first acquisition), playedPct / finalBoardPct / soldPct (of every acquisition: played to the board, survived to the final board, sold; a minion sold after doing its job is not a failure), nextCombatWinPct (percent of acquisitions whose same-wave combat was won), acquisitions. EVIDENCE: evidence = insufficient, candidate or supported, from both sides of the comparison in evidenceBasis (adjusted when an association exists, else exposed, else none) and the unique players on the smaller side; none of them means confirmed overpowered or underpowered.`,
       byTier: 'impact rolled up per shop tier: key and label = the tier (1 to 7, shown T1 to T7); cards = cards of that tier seen in the data; runsBought and placedN = CARD-BUYER INCIDENCES summed over those cards (a run that bought five cards of the tier counts five times; not unique runs); avgPlace and delta = weighted by each card\'s placed buyer runs.',
       byTribe: 'impact rolled up per tribe: key = the tribe id and label = its name; cards = cards of that tribe seen in the data; runsBought and placedN = CARD-BUYER INCIDENCES summed over those cards (not unique runs); avgPlace and delta = weighted by each card\'s placed buyer runs. A dual-tribe card counts for both tribes.',
       heroImpact: `The same read per HERO, one row per hero id (see heroes). id and name = the hero; offered = runs whose recorded picker trio offered it (a pick outside the trio counts as offered); runs = runs that picked it (the sample); offerRate = offered as a percent of all runs; pickRate = runs as a percent of offered; avgWins = mean combat rounds won per run with it; gate = the sample band of runs. RAW: ${PLACEMENT_COLS}, where the baseline is every other placed run (every run has exactly one hero). OFFERED COMPARISON (the primary read): offeredSkippers = placed runs whose recorded trio offered the hero and that picked another; offeredSkipperAvg = their mean placement; offeredDelta = avgPlace minus offeredSkipperAvg (negative = runs that chose the hero finished better than runs offered it that chose otherwise); offeredCi = Welch 95% on it (null under 5 a side). Runs with no recorded trio (meta.quality.heroOfferMissing) cannot enter it. Within one revision when the scope is an epoch; pooled across revisions on the historical read. players / skipperPlayers = unique players (display-name proxy) on each side; evidence = the label of the offered comparison. Picking a hero is selected behaviour, not a random treatment.`,
@@ -1097,7 +1106,8 @@ export interface BalanceExportInfo {
   epochs: EpochInfo[];
   fetch: FetchCoverage;
   excludedProlificRuns?: number;
-  keyOf?: PlayerKeyOf;
+  /** The key the fetch could read: `playerKey` (the default) or the display-name fallback of an un-migrated backend. */
+  playerKeyBasis?: PlayerKeyBasis;
 }
 
 /**
@@ -1105,7 +1115,8 @@ export interface BalanceExportInfo {
  * plus the run metadata. Pure; the panel stringifies and downloads it, the tests assert on it.
  */
 export function buildBalanceExport(rows: RunTelemetryRow[], info: BalanceExportInfo): BalanceExport {
-  const keyOf = info.keyOf ?? displayNameKey;
+  const basis: PlayerKeyBasis = info.playerKeyBasis ?? 'playerKey';
+  const keyOf = playerKeyFor(basis);
   const report = aggregatePlayerReport(rows);
   const { rows: impact, coverage } = cardImpactWithCoverage(rows, keyOf);
   const minions = impact.filter((r) => !r.spell);
@@ -1140,7 +1151,7 @@ export function buildBalanceExport(rows: RunTelemetryRow[], info: BalanceExportI
   const economy = goldEconomy(rows);
   const usable = rows.filter((r) => usableDerived(r) != null).length;
   const placed = rows.filter((r) => validPlacement(r.placement)).length;
-  const aliases = playerAliases(rows);
+  const aliases = playerAliases(rows, keyOf);
   return {
     meta: {
       schemaVersion: EXPORT_SCHEMA_VERSION,
@@ -1159,8 +1170,10 @@ export function buildBalanceExport(rows: RunTelemetryRow[], info: BalanceExportI
       fetch: info.fetch,
       coverage,
       playerKey: {
-        basis: 'displayName',
-        note: 'Unique players are distinct display names at upload, a proxy: a name can change and can be shared. A trusted key would be a server-side hash of the account id with a secret (a view or RPC the owner creates), read on its own select rung and never written into the export.',
+        basis,
+        note: basis === 'playerKey'
+          ? 'Unique players are distinct player keys: a server-side hash of the uploading account id (run_telemetry.player_key), one per account and stable across renames. The raw key is never written into the export; runs[].player is a per-file alias derived from it.'
+          : 'Unique players are distinct display names at upload, a proxy: a name can change and can be shared. The backend that answered this fetch has not run the 2026-09-23 player-key migration, so the account key was not available. runs[].player is a per-file alias derived from the name.',
       },
       excludedProlificRuns: info.excludedProlificRuns ?? 0,
       thresholds: {
@@ -1196,7 +1209,7 @@ export function buildBalanceExport(rows: RunTelemetryRow[], info: BalanceExportI
     cards,
     heroes,
     runes: runeNames,
-    runs: rows.map((r) => toExportedRun(r, r.author == null ? null : aliases.get(r.author) ?? null)),
+    runs: rows.map((r) => { const k = keyOf(r); return toExportedRun(r, k == null ? null : aliases.get(k) ?? null); }),
     derived: derivedRuns,
   };
 }

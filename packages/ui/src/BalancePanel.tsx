@@ -1,10 +1,10 @@
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   aggregatePlayerReport, applyReportFilters, buildBalanceExport, buildCardCsv, cardImpactWithCoverage, dataQuality, defaultEpoch, epochsOf, getHero,
-  goldEconomy, heroImpact, impactGroups, mostProlificPlayer, performanceSortValue, runeGroups, runeImpact, scopeReport, tierDecisions, tierImpact,
+  goldEconomy, heroImpact, impactGroups, mostProlificPlayer, performanceSortValue, playerKeyFor, runeGroups, runeImpact, scopeReport, tierDecisions, tierImpact,
   upgradeShape, ALL_EPOCHS, EPOCH_MIN_RUNS, EVIDENCE_GATES, LEGACY_SET, SAMPLE_GATES, SPEND_CATEGORIES, WELCH_MIN_N,
   type AdjustedStats, type CardImpactRow, type CohortCoverage, type DataQuality, type DerivedRun, type EconomyBucket, type EconomyWaveRow, type EpochInfo,
-  type EvidenceLabel, type GoldEconomy, type HeroImpactRow, type ImpactGroupRow, type Interval, type PlacementStats, type ReportScope, type RuneImpactRow,
+  type EvidenceLabel, type GoldEconomy, type HeroImpactRow, type ImpactGroupRow, type Interval, type PlacementStats, type PlayerKeyBasis, type ReportScope, type RuneImpactRow,
   type RunTelemetryRow, type SampleGate, type ShopCurve, type SpendCategory, type TierDecisionRow, type TierImpactRow,
 } from '@game/sim';
 import { activeSet, contentRevision } from '@game/content';
@@ -36,8 +36,8 @@ import { fetchRunDerived, fetchRunTelemetry, remoteEnabled, BALANCE_FLAT_CAP, BA
  *  · HONEST LABELS: Delta is the Raw buyer association, Impact the Sample-weighted association, Vs Tier the
  *    Relative raw association within tier. No unconditional overpowered / underpowered claim anywhere; the
  *    count-only actionable / confident badges are gone; a thin row is dimmed and described, not judged.
- *  · COUNTS SHOWN SEPARATELY: placed buyers, placed controls, unique players (display names, a labelled proxy:
- *    no trusted pseudonymous key exists yet), missing placement.
+ *  · COUNTS SHOWN SEPARATELY: placed buyers, placed controls, unique players (by the server-side player key, a hash
+ *    of the account id; the display name is a labelled proxy only on an un-migrated backend), missing placement.
  *  · THE EVIDENCE BANNER above every table: eligible runs, players, period, epoch, flat / derived coverage with
  *    the exact caps and truncation, the integrity counts, and the one-sentence limitation.
  *  · FILTERS shared with the export: the balance epoch (content revision; defaults to the build's own or the
@@ -85,7 +85,7 @@ const ordinal = (n: number): string => `${n}${['th', 'st', 'nd', 'rd'][n % 10 > 
 const EVIDENCE_TEXT: Record<EvidenceLabel, string> = { insufficient: 'Insufficient', candidate: 'Candidate', supported: 'Supported' };
 const EVIDENCE_LONG: Record<EvidenceLabel, string> = { insufficient: 'Insufficient evidence', candidate: 'Candidate for review', supported: 'Supported association' };
 const EVIDENCE_RANK: Record<EvidenceLabel, number> = { supported: 0, candidate: 1, insufficient: 2 };
-const evidenceTip = `${EVIDENCE_LONG.insufficient}: under ${EVIDENCE_GATES.candidate.side} runs on a side or under ${EVIDENCE_GATES.candidate.players} players. ${EVIDENCE_LONG.candidate}: ${EVIDENCE_GATES.candidate.side} a side and ${EVIDENCE_GATES.candidate.players} players. ${EVIDENCE_LONG.supported}: ${EVIDENCE_GATES.supported.side} a side and ${EVIDENCE_GATES.supported.players} players. Players are display names, a proxy. None of the three means confirmed overpowered or underpowered.`;
+const evidenceTip = `${EVIDENCE_LONG.insufficient}: under ${EVIDENCE_GATES.candidate.side} runs on a side or under ${EVIDENCE_GATES.candidate.players} players. ${EVIDENCE_LONG.candidate}: ${EVIDENCE_GATES.candidate.side} a side and ${EVIDENCE_GATES.candidate.players} players. ${EVIDENCE_LONG.supported}: ${EVIDENCE_GATES.supported.side} a side and ${EVIDENCE_GATES.supported.players} players. Players are counted by the server-side player key (a hash of the account id); the banner says when a backend without it makes the count a display-name proxy. None of the three means confirmed overpowered or underpowered.`;
 const ciText = (ci: Interval | null): string => (ci ? `${signed(ci.lo, 1)} to ${signed(ci.hi, 1)}` : '–');
 
 // ── The generic sortable table ─────────────────────────────────────────────────────────────────────────────
@@ -246,8 +246,8 @@ const CARD_COLS: Record<string, ColDef<CardImpactRow>> = {
   vsTier: { key: 'vsTier', label: 'Relative raw association within tier', tip: 'The raw buyer association minus the buyer-weighted average of the card\'s tier (minions against minions, spells against spells). A secondary read of who stands out within a tier. Not a survival correction: the whole tier still carries the survival bias.', value: (r) => r.tierDelta, firstDir: 1, cell: (r) => ({ text: signed(r.tierDelta), cls: `balnum${r.tierDelta === null ? '' : ` balwin${deltaHeat(r.tierDelta)}`}` }) },
   buyWave: { key: 'buyWave', label: 'Buy Wave', tip: 'Average wave the card was acquired on.', value: (r) => r.avgBuyWave, firstDir: 1, cell: (r) => ({ text: fmtNum(r.avgBuyWave), cls: 'balnum baldim' }) },
   missing: { key: 'missing', label: 'Missing placement', tip: 'Buyer runs with no placement. They count toward demand only and never toward a placement finding.', value: (r) => r.missingPlacement, cell: (r) => ({ text: String(r.missingPlacement), cls: 'balnum baldim' }) },
-  buyerPlayers: { key: 'buyerPlayers', label: 'Buyer players', tip: 'Distinct display names among the placed buyer runs. A proxy: no trusted account key exists yet.', value: (r) => r.buyerPlayers, cell: (r) => ({ text: r.buyerPlayers === null ? 'n/a' : String(r.buyerPlayers), cls: 'balnum baldim' }) },
-  controlPlayers: { key: 'controlPlayers', label: 'Control players', tip: 'Distinct display names among the placed control runs (every other placed run).', value: (r) => r.controlPlayers, cell: (r) => ({ text: r.controlPlayers === null ? 'n/a' : String(r.controlPlayers), cls: 'balnum baldim' }) },
+  buyerPlayers: { key: 'buyerPlayers', label: 'Buyer players', tip: 'Distinct players among the placed buyer runs, by the player key the banner names.', value: (r) => r.buyerPlayers, cell: (r) => ({ text: r.buyerPlayers === null ? 'n/a' : String(r.buyerPlayers), cls: 'balnum baldim' }) },
+  controlPlayers: { key: 'controlPlayers', label: 'Control players', tip: 'Distinct players among the placed control runs (every other placed run).', value: (r) => r.controlPlayers, cell: (r) => ({ text: r.controlPlayers === null ? 'n/a' : String(r.controlPlayers), cls: 'balnum baldim' }) },
   expBuyers: { key: 'expBuyers', label: 'Exposed buyers', tip: 'Placed runs whose own shop offers included the card and that acquired it (shop or Discover) in that run.', value: (r) => r.exposed.buyers, cell: (r) => ({ text: String(r.exposed.buyers), cls: 'balnum' }) },
   expSkippers: { key: 'expSkippers', label: 'Exposed skippers', tip: 'Placed runs whose own shop offers included the card and that never acquired it.', value: (r) => r.exposed.skippers, cell: (r) => ({ text: String(r.exposed.skippers), cls: 'balnum' }) },
   exposed: { key: 'exposed', label: 'Exposed diagnostic', tip: 'Average placement of exposed buyers minus exposed skippers: both sides saw the card. Negative means buyers finished better than the runs that saw it and passed. A diagnostic only: a sighting at any time is not a comparable decision.', value: (r) => r.exposed.delta, firstDir: 1, cell: (r) => ({ text: r.exposed.delta === null ? '–' : signed(r.exposed.delta), cls: `balnum${r.exposed.delta === null ? '' : ` balwin${deltaHeat(r.exposed.delta)}`}` }) },
@@ -297,7 +297,7 @@ const HERO_COLS: Record<string, ColDef<HeroImpactRow>> = {
   offSkip: { key: 'offSkip', label: 'Offered, chose other', tip: 'Placed runs whose recorded trio offered the hero and that picked another one: the comparison group of the offered association. Runs with no recorded trio cannot be here.', value: (r) => r.offeredSkippers, cell: (r) => ({ text: String(r.offeredSkippers), cls: 'balnum' }) },
   offDelta: { key: 'offDelta', label: 'Offered association', tip: 'Average placement of runs with the hero minus runs that were offered it and chose another. Negative means choosing it went with a better finish among runs that had the choice. Picking a hero is selected behaviour, not a random treatment. Sorts rows with candidate or supported evidence first; insufficient rows sit below, alphabetical, never ranked as worst.', value: (r) => (r.evidence === 'insufficient' ? null : r.offeredDelta), firstDir: 1, cell: (r) => ({ text: signed(r.offeredDelta), cls: `balnum${r.offeredDelta === null ? '' : ` balwin${deltaHeat(r.offeredDelta)}`}` }) },
   offCi: { key: 'offCi', label: 'Offered 95%', tip: `Welch 95% range of the offered association. Shown only with ${WELCH_MIN_N} or more runs on each side.`, value: (r) => (r.offeredCi ? r.offeredCi.hi : null), firstDir: 1, cell: (r) => ({ text: ciText(r.offeredCi), cls: 'balnum baldim' }) },
-  players: { key: 'players', label: 'Players', tip: 'Distinct display names among the placed runs with the hero, and among the offered runs that chose another.', value: (r) => r.players, cell: (r) => ({ text: `${r.players === null ? 'n/a' : r.players} / ${r.skipperPlayers === null ? 'n/a' : r.skipperPlayers}`, cls: 'balnum baldim' }) },
+  players: { key: 'players', label: 'Players', tip: 'Distinct players among the placed runs with the hero, and among the offered runs that chose another.', value: (r) => r.players, cell: (r) => ({ text: `${r.players === null ? 'n/a' : r.players} / ${r.skipperPlayers === null ? 'n/a' : r.skipperPlayers}`, cls: 'balnum baldim' }) },
   evidence: evidenceCol<HeroImpactRow>(),
 };
 const HERO_VIEWS: ColSet<HeroImpactRow>[] = [
@@ -318,7 +318,7 @@ const RUNE_COLS: Record<string, ColDef<RuneImpactRow>> = {
   n: { key: 'n', label: 'Takers', tip: `Runs that took the rune, counted once per run. ${THIN_TIP}`, value: (r) => r.picked, cell: (r) => ({ text: String(r.picked), cls: 'balnum' }) },
   pick: { key: 'pick', label: 'Pick %', tip: 'Percent of runs offered it that took it.', value: (r) => r.pickRate, cell: (r) => ({ text: pctOrDash(r.pickRate), cls: 'balnum' }) },
   vsField: { key: 'vsField', label: 'Raw association vs field', tip: 'The uncontrolled read: average placement of taker runs minus every other run in the report, including runs eliminated before any forge. Reads green for most runes, because only a run that survived to turn 6 or 9 is offered one.', value: (r) => r.fieldDelta, firstDir: 1, cell: (r) => ({ text: signed(r.fieldDelta), cls: `balnum${r.fieldDelta === null ? '' : ` balwin${deltaHeat(r.fieldDelta)}`}` }) },
-  players: { key: 'players', label: 'Players', tip: 'Distinct display names among the placed takers, and among the offered runs that skipped.', value: (r) => r.players, cell: (r) => ({ text: `${r.players === null ? 'n/a' : r.players} / ${r.skipperPlayers === null ? 'n/a' : r.skipperPlayers}`, cls: 'balnum baldim' }) },
+  players: { key: 'players', label: 'Players', tip: 'Distinct players among the placed takers, and among the offered runs that skipped.', value: (r) => r.players, cell: (r) => ({ text: `${r.players === null ? 'n/a' : r.players} / ${r.skipperPlayers === null ? 'n/a' : r.skipperPlayers}`, cls: 'balnum baldim' }) },
   evidence: evidenceCol<RuneImpactRow>(),
 };
 const RUNE_VIEWS: ColSet<RuneImpactRow>[] = [
@@ -566,7 +566,7 @@ const runeN = (r: RuneImpactRow): number => r.picked;
 
 // ── The evidence banner ────────────────────────────────────────────────────────────────────────────────────
 
-interface FetchState { flatFetched: number; flatTruncated: boolean; derivedRequested: number; derivedFetched: number }
+interface FetchState { flatFetched: number; flatTruncated: boolean; derivedRequested: number; derivedFetched: number; playerKeyBasis: PlayerKeyBasis }
 
 /**
  * What the tables below can and cannot support, above every table: eligible runs and players, the period, the
@@ -579,14 +579,15 @@ function EvidenceBanner({ setName, runs, sliced, quality, coverage, scope, epoch
 }) {
   const epochLabel = scope.epoch === ALL_EPOCHS ? `all ${epochs.length} content revisions (historical)` : `content revision ${scope.epoch} (1 of ${epochs.length} in the set)`;
   const windowLabel = scope.from || scope.to ? `window ${scope.from ?? 'oldest'} to ${scope.to ?? 'newest'}` : 'no date window';
-  const players = coverage.uniquePlayers === null ? 'n/a players' : `${coverage.uniquePlayers} display names`;
+  const proxy = fetch.playerKeyBasis === 'displayName';
+  const players = coverage.uniquePlayers === null ? 'n/a players' : `${coverage.uniquePlayers} ${proxy ? 'display names' : 'players'}`;
   const derivedDropped = fetch.derivedRequested - fetch.derivedFetched;
   return (
     <div className="balbanner" role="note" aria-label="Evidence summary">
       <div className="balbanner-row">
         <b>{setName}</b>
         <span data-tip={`Ladder runs of the active set inside the epoch and window, after dropping duplicate ids and clearing malformed placements${sliced ? `. The hero picker is on: every figure on this banner and every table except Heroes reads the ${sliced} runs only` : ''}`}>{runs} eligible runs{sliced ? ` (${sliced} only)` : ''}</span>
-        <span data-tip="Distinct display names across those runs. A proxy, not accounts: no trusted pseudonymous key exists yet (it needs a server-side hash of the account id). Unique players sit on every evidence label.">{players}</span>
+        <span data-tip={proxy ? 'Distinct display names across those runs. A PROXY: this backend has not run the 2026-09-23 player-key migration, so accounts cannot be told apart. A name can change and can be shared. Unique players sit on every evidence label.' : 'Distinct players across those runs, by the server-side player key: a hash of the account id, one per account, stable across renames. Unique players sit on every evidence label.'}>{players}{proxy ? ' (proxy: backend not migrated)' : ''}</span>
         <span data-tip="The oldest and newest run in scope">{day(oldest)} to {day(newest)}</span>
         <span data-tip="The balance epoch is the content revision the runs were played under. It is a filter, never a stratum.">{epochLabel}</span>
         <span>{windowLabel}</span>
@@ -633,7 +634,7 @@ export function BalancePanel() {
   const show = useGame((s) => s.showBalance);
   const close = useGame((s) => s.closeBalance);
   const [rows, setRows] = useState<RunTelemetryRow[]>([]); // every fetched row; the filters run below
-  const [fetchState, setFetchState] = useState<FetchState>({ flatFetched: 0, flatTruncated: false, derivedRequested: 0, derivedFetched: 0 });
+  const [fetchState, setFetchState] = useState<FetchState>({ flatFetched: 0, flatTruncated: false, derivedRequested: 0, derivedFetched: 0, playerKeyBasis: 'playerKey' });
   const [loading, setLoading] = useState(false);
   const [sectionKey, setSectionKey] = useState<SectionKey>('minions');
   // HERO FILTER (owner ask 2026-08-02: "what minions does Robin buy vs Guardian"). Re-AGGREGATES from the raw
@@ -662,7 +663,7 @@ export function BalancePanel() {
       const flat = await fetchRunTelemetry();
       if (seq !== loadSeq.current) return;
       setRows(flat.rows);
-      setFetchState({ flatFetched: flat.fetched, flatTruncated: flat.truncated, derivedRequested: 0, derivedFetched: 0 });
+      setFetchState({ flatFetched: flat.fetched, flatTruncated: flat.truncated, derivedRequested: 0, derivedFetched: 0, playerKeyBasis: flat.playerKeyBasis });
       setLoading(false);
       // STAGE TWO: the derived payloads, BY ID, only for the rows the report reads (ladder rows of the active
       // set), newest first, after the flat rows have rendered. Pre-migration that is no rows and no bytes; with
@@ -689,8 +690,10 @@ export function BalancePanel() {
   const scope = useMemo((): ReportScope => ({ epoch, from: from || null, to: to || null }), [epoch, from, to]);
   const scoped = useMemo(() => scopeReport(filtered, scope), [filtered, scope]);
   const insufficient = scope.epoch !== ALL_EPOCHS && scoped.rows.length < EPOCH_MIN_RUNS && !showThin;
-  const prolific = useMemo(() => mostProlificPlayer(scoped.rows), [scoped]);
-  const baseRows = useMemo(() => (excludeProlific && prolific ? scoped.rows.filter((r) => r.author !== prolific.key) : scoped.rows), [scoped, excludeProlific, prolific]);
+  // THE PLAYER KEY (2026-09-23): the account key when the backend has it, else the display-name proxy the banner labels.
+  const keyOf = useMemo(() => playerKeyFor(fetchState.playerKeyBasis), [fetchState.playerKeyBasis]);
+  const prolific = useMemo(() => mostProlificPlayer(scoped.rows, keyOf), [scoped, keyOf]);
+  const baseRows = useMemo(() => (excludeProlific && prolific ? scoped.rows.filter((r) => keyOf(r) !== prolific.key) : scoped.rows), [scoped, excludeProlific, prolific, keyOf]);
   const heroRows = useMemo(() => (heroFilter ? baseRows.filter((r) => r.heroId === heroFilter) : baseRows), [baseRows, heroFilter]);
   const quality = useMemo(() => dataQuality(baseRows), [baseRows]);
   // The banner and the replay note describe the rows the tables below actually read: the hero slice when a hero is
@@ -698,7 +701,7 @@ export function BalancePanel() {
   const tableQuality = useMemo(() => (heroFilter ? dataQuality(heroRows) : quality), [heroFilter, heroRows, quality]);
   const report = useMemo(() => aggregatePlayerReport(heroRows), [heroRows]);
   // ALL cohort math for the cards, once per rows / filter version.
-  const impactRes = useMemo(() => cardImpactWithCoverage(heroRows), [heroRows]);
+  const impactRes = useMemo(() => cardImpactWithCoverage(heroRows, keyOf), [heroRows, keyOf]);
   const impact = useMemo(() => ({ minions: impactRes.rows.filter((r) => !r.spell), spells: impactRes.rows.filter((r) => r.spell) }), [impactRes]);
   const cardStrips = useMemo(() => {
     const strips = (list: CardImpactRow[]): StripDef<CardImpactRow>[] => [
@@ -709,11 +712,11 @@ export function BalancePanel() {
   }, [impact]);
   // Heroes read the WHOLE scope: the hero picker slicing the hero table to one row against nobody answers
   // nothing, so the picker is disabled on this section and the legend says so.
-  const heroes = useMemo(() => heroImpact(baseRows), [baseRows]);
-  const runes = useMemo(() => runeImpact(heroRows), [heroRows]);
+  const heroes = useMemo(() => heroImpact(baseRows, keyOf), [baseRows, keyOf]);
+  const runes = useMemo(() => runeImpact(heroRows, keyOf), [heroRows, keyOf]);
   const runeStrips = useMemo((): StripDef<RuneImpactRow>[] => [{ what: 'Forge', groups: runeGroups(runes), matches: (r, k) => r.forge === k }], [runes]);
   const tiers = useMemo(() => tierImpact(heroRows), [heroRows]);
-  const tierDec = useMemo(() => tierDecisions(heroRows), [heroRows]);
+  const tierDec = useMemo(() => tierDecisions(heroRows, keyOf), [heroRows, keyOf]);
   const economy = useMemo(() => goldEconomy(heroRows), [heroRows]);
   const derived = useMemo(() => heroRows.map((r) => r.derived).filter((d): d is DerivedRun => d != null), [heroRows]);
   // Every hero that actually appears in the slice, so the dropdown never offers an empty choice.
@@ -738,6 +741,7 @@ export function BalancePanel() {
         derivedCap: DERIVED_CAP, derivedRequested: fetchState.derivedRequested, derivedFetched: fetchState.derivedFetched, derivedDropped: fetchState.derivedRequested - fetchState.derivedFetched,
       },
       excludedProlificRuns: excludeProlific && prolific ? prolific.runs : 0,
+      playerKeyBasis: fetchState.playerKeyBasis,
     });
     download(JSON.stringify(data), `ascent-balance-${set.id}-${new Date().toISOString().slice(0, 10)}.json`, 'application/json');
   };
@@ -815,7 +819,7 @@ export function BalancePanel() {
             <label className="ballabel">from <input className="balpick baldate" type="date" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Window start" /></label>
             <label className="ballabel">to <input className="balpick baldate" type="date" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Window end" /></label>
             <button className={`balchip${excludeProlific ? ' on' : ''}`} disabled={!prolific} onClick={() => { sfx.tick(); setExcludeProlific((v) => !v); }}
-              data-tip={prolific ? `Sensitivity view: leave out the ${prolific.runs} runs of the most prolific display name. If a conclusion reverses, it rested on one player.` : 'No player to exclude yet'}>
+              data-tip={prolific ? `Sensitivity view: leave out the ${prolific.runs} runs of the most prolific player${fetchState.playerKeyBasis === 'displayName' ? ' (by display name, a proxy on this backend)' : ''}. If a conclusion reverses, it rested on one player.` : 'No player to exclude yet'}>
               {excludeProlific ? 'Prolific player excluded' : 'Exclude most prolific player'}
             </button>
           </div>

@@ -12,7 +12,7 @@ import { upgradeShape, type DerivedRun } from './runDerive';
  * never disagree.
  */
 const row = (o: Partial<RunTelemetryRow>): RunTelemetryRow => ({
-  id: null, createdAt: null, patch: null, author: null, contentRevision: null, derived: null,
+  id: null, createdAt: null, patch: null, author: null, playerKey: null, contentRevision: null, derived: null,
   mode: 'lobby', setId: 'set2', source: 'ladder',
   heroId: 'warden', heroOffer: ['warden', 'drakko'], won: false, wins: 0,
   offeredQuests: [], pickedQuests: [], questTurns: {}, offeredRunes: [], pickedRunes: [],
@@ -33,10 +33,13 @@ const derivedFor = (seed: number): DerivedRun => ({
   combats: [], triggers: [], boards: [], playerActions: 7,
 });
 
+/** The account keys as the backend generates them: md5 of the user id, one per account. */
+const KEV = 'c4ca4238a0b923820dcc509a6f75849b';
+const MIKE = 'c81e728d9d4c2f636f067f89cc14862c';
 const ROWS: RunTelemetryRow[] = [
-  row({ id: 3, createdAt: '2026-09-22T10:00:00Z', patch: '0.1.0+bbb', author: 'Kev', placement: 1, offeredCards: ['alley', 'drummer'], boughtCards: ['alley'], pickedRunes: ['rune_warpath'], offeredRunes: ['rune_warpath'], derived: derivedFor(3) }),
-  row({ id: 2, createdAt: '2026-09-21T10:00:00Z', patch: '0.1.0+aaa', author: 'Mike', heroId: 'drakko', placement: 5, offeredCards: ['alley', 'growth'], boughtCards: ['growth'], discoverOfferedCards: ['joker', 'drummer', 'alley'], discoverBoughtCards: ['joker'], derived: derivedFor(2) }),
-  row({ id: 1, createdAt: '2026-09-20T10:00:00Z', patch: '0.1.0+aaa', author: 'Kev', placement: 8, offeredCards: ['alley'] }), // no derived
+  row({ id: 3, createdAt: '2026-09-22T10:00:00Z', patch: '0.1.0+bbb', author: 'Kev', playerKey: KEV, placement: 1, offeredCards: ['alley', 'drummer'], boughtCards: ['alley'], pickedRunes: ['rune_warpath'], offeredRunes: ['rune_warpath'], derived: derivedFor(3) }),
+  row({ id: 2, createdAt: '2026-09-21T10:00:00Z', patch: '0.1.0+aaa', author: 'Mike', playerKey: MIKE, heroId: 'drakko', placement: 5, offeredCards: ['alley', 'growth'], boughtCards: ['growth'], discoverOfferedCards: ['joker', 'drummer', 'alley'], discoverBoughtCards: ['joker'], derived: derivedFor(2) }),
+  row({ id: 1, createdAt: '2026-09-20T10:00:00Z', patch: '0.1.0+aaa', author: 'Kev', playerKey: KEV, placement: 8, offeredCards: ['alley'] }), // no derived
 ];
 
 const FETCH = { flatCap: 5000, flatPageSize: 1000, flatFetched: 3, flatTruncated: false, derivedCap: 2000, derivedRequested: 3, derivedFetched: 2, derivedDropped: 1 };
@@ -93,18 +96,45 @@ describe('buildBalanceExport', () => {
     expect(x.derived[0]!.setId).toBe('set2');
   });
 
-  it('never carries an account id or a display name; runs carry a per-file player alias that keeps the unique-player count', () => {
+  it('never carries an account id, a display name or a raw player key; runs carry a per-file player alias that keeps the unique-player count', () => {
     const text = JSON.stringify(x);
     expect(text).not.toContain('user_id');
     expect(text).not.toContain('userId');
     for (const r of x.runs) {
       expect(Object.keys(r)).not.toContain('user_id');
       expect(Object.keys(r), 'the display name never leaves the report').not.toContain('author');
+      expect(Object.keys(r), 'the raw key never leaves the report either: it is stable across files and would join them on a player').not.toContain('playerKey');
     }
     expect(text, 'no display name anywhere in the file').not.toMatch(/"Kev"|"Mike"/);
-    expect(x.runs.map((r) => r.player), 'aliased in order of first appearance; the same name keeps its alias').toEqual(['player 1', 'player 2', 'player 1']);
+    expect(text, 'no raw player key anywhere in the file').not.toContain(KEV);
+    expect(text).not.toContain(MIKE);
+    expect(x.runs.map((r) => r.player), 'aliased in order of first appearance; the same key keeps its alias').toEqual(['player 1', 'player 2', 'player 1']);
+    for (const r of x.runs) {
+      expect(ROWS.map((s) => s.author), 'an alias is never a display name').not.toContain(r.player);
+      expect(ROWS.map((s) => s.playerKey), 'an alias is never a raw key').not.toContain(r.player);
+    }
     expect(new Set(x.runs.map((r) => r.player)).size, 'the alias re-derives the unique-player count').toBe(x.meta.coverage.uniquePlayers);
-    expect(toExportedRun({ ...ROWS[0]!, author: null }, null).player, 'no name stays null, never player 0').toBeNull();
+    expect(toExportedRun({ ...ROWS[0]!, playerKey: null }, null).player, 'no key stays null, never player 0').toBeNull();
+  });
+
+  it('keys players by player_key: a rename is the same player, a shared name is two, and the display name is only the un-migrated fallback', () => {
+    // Kev renames between runs; a second account picks the name "Mike".
+    const rows = [
+      { ...ROWS[0]!, author: 'Kev' }, { ...ROWS[1]!, author: 'Mike' }, { ...ROWS[2]!, author: 'Kevin' },
+      { ...ROWS[1]!, id: 0, author: 'Mike', playerKey: 'e4da3b7fbbce2345d7772b0674a318d5' },
+    ];
+    const byKey = buildBalanceExport(rows, INFO);
+    expect(byKey.meta.playerKey.basis).toBe('playerKey');
+    expect(byKey.meta.coverage.uniquePlayers, 'three accounts').toBe(3);
+    expect(byKey.runs.map((r) => r.player), 'the renamed run keeps its alias; the second Mike gets its own').toEqual(['player 1', 'player 2', 'player 1', 'player 3']);
+    expect(byKey.aggregates.heroImpact.find((h) => h.id === 'drakko')!.players, 'the tables count the same way').toBe(2);
+    const byName = buildBalanceExport(rows, { ...INFO, playerKeyBasis: 'displayName' });
+    expect(byName.meta.playerKey.basis).toBe('displayName');
+    expect(byName.meta.playerKey.note, 'the fallback says why').toContain('migration');
+    expect(byName.meta.coverage.uniquePlayers, 'the proxy: three names').toBe(3);
+    expect(byName.runs.map((r) => r.player), 'aliased by name on the fallback, never the name itself').toEqual(['player 1', 'player 2', 'player 3', 'player 2']);
+    expect(JSON.stringify(byName)).not.toMatch(/"Kev"|"Kevin"|"Mike"/);
+    expect(buildBalanceExport(rows.map((r) => ({ ...r, playerKey: null })), INFO).meta.coverage.uniquePlayers, 'no key on a migrated backend is n/a, never a count of names').toBeNull();
   });
 
   it('meta states the schema version, the set, the counts before and after every filter, the filters and the patch range', () => {
@@ -126,8 +156,9 @@ describe('buildBalanceExport', () => {
     expect(x.meta.quality).toMatchObject({ rows: 3, placementMissing: 0, placementMalformed: 0, duplicateIds: 0, withDerived: 2, diverged: 0, stackedStreams: 0, revisionMissing: 3 });
     expect(x.meta.fetch).toEqual(FETCH);
     expect(x.meta.coverage).toEqual({ runs: 3, placed: 3, withDerived: 2, excludedNoDerived: 1, stacked: 0, uniquePlayers: 2 });
-    expect(x.meta.playerKey.basis).toBe('displayName');
+    expect(x.meta.playerKey.basis, 'the account key by default').toBe('playerKey');
     expect(x.meta.playerKey.note).toContain('hash');
+    expect(x.readme.meta, 'the readme names both bases').toHaveProperty('playerKey', expect.stringContaining('displayName'));
     expect(x.meta.excludedProlificRuns).toBe(0);
     expect(x.meta.thresholds.welchMinN).toBe(5);
     expect(x.meta.thresholds.evidenceGates.supported.players).toBe(5);

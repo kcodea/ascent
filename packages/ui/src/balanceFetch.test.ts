@@ -55,13 +55,14 @@ beforeEach(() => { queries.length = 0; respond = () => ({ data: [], error: null 
 const missingColumn = (col: string) => ({ data: null, error: { code: '42703', message: `column run_telemetry.${col} does not exist` } });
 
 const FLAT = [
-  { id: 12, created_at: '2026-09-22T10:00:00Z', patch: '0.1.0+bbb', author: 'Kev', content_revision: 'r2', set_id: 'set2', source: 'ladder', hero_id: 'warden', hero_offer: ['mode:lobby', 'warden', 'drakko'], won: false, wins: 3, offered_quests: [], picked_quests: [], quest_turns: {}, offered_runes: [], picked_runes: [], offered_cards: ['alley'], bought_cards: ['alley'], discover_offered_cards: [], discover_bought_cards: [], tier_by_wave: [0, 1, 2], buy_events: [{ id: 'alley', wave: 1, src: 'shop' }], placement: 2 },
-  { id: 11, created_at: '2026-09-21T10:00:00Z', patch: '0.1.0+aaa', author: 'Mike', content_revision: 'r1', set_id: null, source: null, hero_id: 'drakko', hero_offer: ['mode:lobby', 'drakko'], won: true, wins: 9, offered_quests: [], picked_quests: [], quest_turns: {}, offered_runes: [], picked_runes: [], offered_cards: [], bought_cards: [], discover_offered_cards: [], discover_bought_cards: [], tier_by_wave: [0, 1], buy_events: [], placement: 1 },
+  { id: 12, created_at: '2026-09-22T10:00:00Z', patch: '0.1.0+bbb', author: 'Kev', player_key: 'c4ca4238a0b923820dcc509a6f75849b', content_revision: 'r2', set_id: 'set2', source: 'ladder', hero_id: 'warden', hero_offer: ['mode:lobby', 'warden', 'drakko'], won: false, wins: 3, offered_quests: [], picked_quests: [], quest_turns: {}, offered_runes: [], picked_runes: [], offered_cards: ['alley'], bought_cards: ['alley'], discover_offered_cards: [], discover_bought_cards: [], tier_by_wave: [0, 1, 2], buy_events: [{ id: 'alley', wave: 1, src: 'shop' }], placement: 2 },
+  { id: 11, created_at: '2026-09-21T10:00:00Z', patch: '0.1.0+aaa', author: 'Mike', player_key: 'c81e728d9d4c2f636f067f89cc14862c', content_revision: 'r1', set_id: null, source: null, hero_id: 'drakko', hero_offer: ['mode:lobby', 'drakko'], won: true, wins: 9, offered_quests: [], picked_quests: [], quest_turns: {}, offered_runes: [], picked_runes: [], offered_cards: [], bought_cards: [], discover_offered_cards: [], discover_bought_cards: [], tier_by_wave: [0, 1], buy_events: [], placement: 1 },
 ];
 /** The same two rows as a backend WITHOUT the 2026-09-22 columns returns them from the rung below: no `set_id` /
  *  `source`, but the stamps the new client wrote inside `derived`, read back as two scalars. Row 11 predates the
  *  client and carries neither. */
-const FLAT_RUNG2 = FLAT.map(({ set_id: _s, source: _o, ...rest }) => ({ ...rest, derived_set: rest.id === 12 ? 'set2' : null, derived_source: rest.id === 12 ? 'ladder' : null }));
+const FLAT_NO_KEY = FLAT.map(({ player_key: _k, ...rest }) => rest); // 2026-09-22 migrated, 2026-09-23 not
+const FLAT_RUNG2 = FLAT.map(({ set_id: _s, source: _o, player_key: _k, ...rest }) => ({ ...rest, derived_set: rest.id === 12 ? 'set2' : null, derived_source: rest.id === 12 ? 'ladder' : null }));
 const DERIVED = [
   { id: 12, derived: { contentRevision: 'r2', heroId: 'warden', mode: 'lobby', seed: 5, finalWave: 2, wins: 3, won: false, diverged: false, offers: [], acquisitions: [], gold: [], upgrades: [], combats: [], triggers: [], boards: [], playerActions: 1 } },
   { id: 99, derived: { notAPayload: true } }, // a malformed payload is dropped, never joined
@@ -73,14 +74,16 @@ describe('fetchRunTelemetry — the select ladder', () => {
     const res = await (await load()).fetchRunTelemetry({ cap: 5000, pageSize: 1000 });
     const rows = res.rows;
     expect(queries, 'ONE flat page (a short page ends the walk); the payloads are a separate, id-keyed fetch').toHaveLength(1);
-    expect(queries[0]!.select).toContain('set_id, source');
+    expect(queries[0]!.select).toContain('set_id, source, player_key');
+    expect(res.playerKeyBasis, 'the top rung read the account key').toBe('playerKey');
     expect(queries[0]!.select, 'the stamps inside derived ride as two scalars, never the payload').toContain('derived_set:derived->>setId');
     expect(queries[0]!.select).not.toMatch(/(^|, )derived(,|$)/);
     expect(queries[0]!.range, 'paged with range, never limit: PostgREST caps a single query at its max-rows').toEqual([0, 999]);
     expect(queries[0]!.limit).toBeUndefined();
     expect(res).toMatchObject({ fetched: 2, truncated: false, cap: 5000, pageSize: 1000 });
     expect(rows).toHaveLength(2);
-    expect(rows[0]).toMatchObject({ id: 12, createdAt: '2026-09-22T10:00:00Z', patch: '0.1.0+bbb', author: 'Kev', contentRevision: 'r2', setId: 'set2', source: 'ladder', mode: 'lobby', heroId: 'warden', placement: 2, derived: null });
+    expect(rows[0]).toMatchObject({ id: 12, createdAt: '2026-09-22T10:00:00Z', patch: '0.1.0+bbb', author: 'Kev', playerKey: 'c4ca4238a0b923820dcc509a6f75849b', contentRevision: 'r2', setId: 'set2', source: 'ladder', mode: 'lobby', heroId: 'warden', placement: 2, derived: null });
+    expect(rows[1]!.playerKey).toBe('c81e728d9d4c2f636f067f89cc14862c');
     expect(rows[0]!.heroOffer, 'the mode tag is stripped back out of the offer').toEqual(['warden', 'drakko']);
     expect(rows[1]!.setId, 'a null stamp reads as absent, so the legacy rule applies').toBeUndefined();
     expect(rows[1]!.source).toBeUndefined();
@@ -88,17 +91,32 @@ describe('fetchRunTelemetry — the select ladder', () => {
 
   it('a backend WITHOUT the 2026-09-22 columns errors the first rung and answers from the second, where a stamp written inside derived still reads', async () => {
     respond = (q) => (q.select!.includes('set_id') ? missingColumn('set_id') : { data: FLAT_RUNG2, error: null });
-    const { rows } = await (await load()).fetchRunTelemetry({ cap: 500 });
-    expect(queries).toHaveLength(2);
-    expect(queries[0]!.select).toContain('set_id');
-    expect(queries[1]!.select).not.toContain('set_id');
-    expect(queries[1]!.select, 'the rung below keeps everything older').toContain('content_revision');
-    expect(queries[1]!.select).toContain('derived_source:derived->>source');
+    const res = await (await load()).fetchRunTelemetry({ cap: 500 });
+    const { rows } = res;
+    expect(queries, 'the player-key rung, the stamps rung, then the answer').toHaveLength(3);
+    expect(queries[0]!.select).toContain('player_key');
+    expect(queries[1]!.select).toContain('set_id');
+    expect(queries[1]!.select).not.toContain('player_key');
+    expect(queries[2]!.select).not.toContain('set_id');
+    expect(queries[2]!.select, 'the rung below keeps everything older').toContain('content_revision');
+    expect(queries[2]!.select).toContain('derived_source:derived->>source');
+    expect(res.playerKeyBasis, 'no account key on this backend: the report counts display names and says so').toBe('displayName');
+    expect(rows[0]!.playerKey).toBeNull();
     expect(rows).toHaveLength(2);
     expect(rows[0]!.setId, 'the payload stamp counts as a stamp: a run played on this build is not legacy').toBe('set2');
     expect(rows[0]!.source).toBe('ladder');
     expect(rows[1]!.setId, 'a row with neither reads as legacy').toBeUndefined();
     expect(rows[1]!.source).toBeUndefined();
+  });
+
+  it('a backend with the 2026-09-22 stamps but WITHOUT the 2026-09-23 player_key answers from the stamps rung and reports the display-name basis', async () => {
+    respond = (q) => (q.select!.includes('player_key') ? missingColumn('player_key') : { data: FLAT_NO_KEY, error: null });
+    const res = await (await load()).fetchRunTelemetry({ cap: 500 });
+    expect(queries).toHaveLength(2);
+    expect(queries[1]!.select).toContain('set_id, source');
+    expect(queries[1]!.select).not.toContain('player_key');
+    expect(res.playerKeyBasis).toBe('displayName');
+    expect(res.rows[0]).toMatchObject({ id: 12, setId: 'set2', source: 'ladder', author: 'Kev', playerKey: null });
   });
 
   it('walks the whole ladder down to the original columns, dropping one migration per rung', async () => {
@@ -119,11 +137,13 @@ describe('fetchRunTelemetry — the select ladder', () => {
   it('the ladder drops the newest migration first: set_id and source go before anything older, and the derived stamps travel with content_revision', async () => {
     const mod = await load();
     const rungs = mod.BALANCE_SELECTS;
-    expect(rungs[0]).toContain('set_id, source');
-    for (const r of rungs.slice(1)) expect(r).not.toContain('set_id');
-    expect(rungs[1]).toContain('content_revision');
-    expect(rungs[1], 'the 2026-08-05 migration brought derived and content_revision together').toContain('derived->>setId');
-    expect(rungs[2]).not.toContain('derived');
+    expect(rungs[0], 'the 2026-09-23 player key is the first thing dropped').toContain('set_id, source, player_key');
+    for (const r of rungs.slice(1)) expect(r).not.toContain('player_key');
+    expect(rungs[1]).toContain('set_id, source');
+    for (const r of rungs.slice(2)) expect(r).not.toContain('set_id');
+    expect(rungs[2]).toContain('content_revision');
+    expect(rungs[2], 'the 2026-08-05 migration brought derived and content_revision together').toContain('derived->>setId');
+    expect(rungs[3]).not.toContain('derived');
     expect(rungs[rungs.length - 1]).not.toContain('placement');
     expect(rungs[rungs.length - 1]).toContain('hero_offer');
   });

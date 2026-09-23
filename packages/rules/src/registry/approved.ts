@@ -1970,15 +1970,17 @@ export const APPROVED_RULES: GameRule[] = [
       + 'insufficient current data with an explicit historical toggle. The flat fetch pages every eligible row '
       + 'and states its cap and truncation; the export carries schema version 2 with the scope, the quality '
       + 'counts, the fetch coverage and the per-metric exclusions, and a version-1 column is never redefined '
-      + 'under a shipped version. No display name or account id is written into a table or into the export\'s '
-      + 'runs (each run carries a per-file alias that preserves the unique-player count); unique players are a '
-      + 'labelled display-name proxy until a trusted pseudonymous key exists.',
+      + 'under a shipped version. No display name, account id or raw player key is written into a table or into '
+      + 'the export\'s runs (each run carries a per-file alias that preserves the unique-player count); unique '
+      + 'players are keyed by run_telemetry.player_key (a server-side hash of the account id, 2026-09-23) on '
+      + 'every count, evidence label, sensitivity toggle and export alias, and by the display name only as a '
+      + 'labelled fallback on a backend that has not run that migration.',
     domain: 'persistence',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'The owner\'s balance-analytics handoff, 2026-09-22 (kept outside the repo)', quote: 'The existing raw delta arithmetic is correct, but comparing buyers with all nonbuyers systematically rewards survival and card access. Preserve raw metrics under honest labels, separate coherent balance versions, expose sample/coverage weaknesses, and add offered-run diagnostics followed by comparable decision-opportunity analysis where telemetry supports it.' },
       { kind: 'owner-chat', ref: 'The same handoff, section 8, acceptance tests', quote: 'create late-round eligible runs where buyers and skippers have identical placement distributions, plus early eliminations that could never encounter the card. Raw delta becomes negative; the eligible comparison stays zero.' },
-      { kind: 'code', ref: 'packages/sim/src/reportCohorts.ts (segmentByWave, exposedDiagnostic, shopEpisodesOf, adjustedAssociation, welchInterval, evidenceLabel, dataQuality, epochsOf); packages/sim/src/playerReport.ts (cardImpactWithCoverage, performanceSortValue, scopeReport, EXPORT_SCHEMA_VERSION, buildBalanceExport); packages/ui/src/remoteBoards.ts fetchRunTelemetry (paged); packages/ui/src/BalancePanel.tsx' },
+      { kind: 'code', ref: 'packages/sim/src/reportCohorts.ts (segmentByWave, exposedDiagnostic, shopEpisodesOf, adjustedAssociation, welchInterval, evidenceLabel, dataQuality, epochsOf, accountKey / displayNameKey / playerKeyFor); packages/sim/src/playerReport.ts (cardImpactWithCoverage, performanceSortValue, scopeReport, EXPORT_SCHEMA_VERSION, buildBalanceExport, playerAliases); packages/ui/src/remoteBoards.ts fetchRunTelemetry (paged; the player_key rung and playerKeyBasis); packages/ui/src/BalancePanel.tsx; supabase/migrations/2026-09-23-player-key-drop-seat-results.sql' },
     ],
     currentBehaviour:
       'Conforms as of 2026-09-22. The audited export (110 Set 2 runs) reproduces every version-1 column to '
@@ -1987,7 +1989,11 @@ export const APPROVED_RULES: GameRule[] = [
       + 'Urchin 47 exposed of 49 raw buyers). Stage C (player-cluster bootstrap, false-discovery screening) is '
       + 'deferred: with two display names behind 100 of 110 runs it would manufacture confidence, and the '
       + 'evidence banner, the export readme (howToRead) and the devlog say so. The export\'s runs carry '
-      + '"player N" aliases in place of the display name (2026-09-23 review fix).',
+      + '"player N" aliases in place of the display name (2026-09-23 review fix). Since 2026-09-23 unique players '
+      + 'are counted by player_key (the owner ran the generated md5(user_id) column on the live backend; 120 rows, '
+      + '8 distinct keys): the fetch reads it on its own select rung and reports playerKeyBasis, every cohort '
+      + 'call, the prolific toggle and the export alias key on it, the banner prints "N players" (or "N display '
+      + 'names (proxy: backend not migrated)" on the fallback), and the raw key never enters the export.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/reportCohorts.test.ts', 'packages/sim/src/balanceExport.test.ts', 'packages/sim/src/cardImpact.test.ts', 'packages/sim/src/reportImpact.test.ts', 'packages/sim/src/reportFilters.test.ts', 'packages/ui/src/balanceFetch.test.ts', 'packages/ui/src/noEmDashPlayerText.test.ts'],

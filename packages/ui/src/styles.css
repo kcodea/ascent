@@ -2877,6 +2877,23 @@ body.modalup .app { z-index: auto; }
    goes back to meaning real separation, and it matches the `cardW` estimate showRefTip places the popup by. */
 .cardref .card.plated { margin-inline: calc(var(--ccw) * (var(--plate-scale, 1.5) - 1) / 2); }
 @keyframes cardrefin { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+/* THE CAST PREVIEW (owner ask 2026-09-23): the spell a rune / minion just cast, floating above its caster as the
+   same plated full card the hover reveal shows — fades in, lingers ~2 s, fades out (`castPreview.ts` owns the
+   clock). A fixed, input-transparent layer: never blocks a click, never shifts layout. The shadow is STATIC; only
+   opacity/transform animate, one-shot (the perf rule). `left`/`top` are set once from a single measure. */
+.castprev-layer { position: fixed; inset: 0; z-index: 460; pointer-events: none; }
+.castprev {
+  position: fixed; pointer-events: none;
+  filter: drop-shadow(0 0 11px rgba(255, 255, 255, 0.75)) drop-shadow(0 0 26px rgba(255, 255, 255, 0.45)) drop-shadow(0 12px 28px rgba(0, 0, 0, 0.45));
+  animation: castprevin 0.18s ease-out both;
+}
+.castprev.leaving { animation: castprevout 0.32s ease-in both; }
+.castprev-inner { zoom: calc(var(--inspect-zoom, 1) * var(--z-inspect-s, 1.52)); }
+.castprev .card.plated { margin-inline: calc(var(--ccw) * (var(--plate-scale, 1.5) - 1) / 2); }
+/* the ×N chip: a same-caster recast refreshed this preview (Rubies in a burst, a gilded double cast) */
+.castprev-count { position: absolute; top: -6px; right: -6px; font-family: var(--font-ui); font-weight: 800; font-size: 12px; line-height: 1; padding: 4px 6px; border-radius: 9px; color: #f4ecdb; background: #241a13; border: 1.5px solid color-mix(in srgb, var(--gold) 55%, #000); }
+@keyframes castprevin { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes castprevout { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-8px); } }
 @keyframes cardreffloat {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-4px); }

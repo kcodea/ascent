@@ -89,4 +89,30 @@ export const TARGETING_RULES: GameRule[] = [
       + 'Twilight Emissary re-fires, Rot Weaver, Spell Drummer, named-spell casters with an aimed spell.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/docbot/noSelfTarget.test.ts', 'packages/sim/src/reworks0918.test.ts'], lastVerifiedAt: '2026-09-18' },
   },
+  {
+    id: 'R-TARGET-04',
+    title: 'A bot aims only where the engine will accept — a refused aim is never a stall',
+    statement:
+      'Every automated player (the greedy DEFAULT_BOT, the balance pilots, the production bots) chooses an aimed '
+      + 'Shout\'s target from the SAME pool the reducer enforces — never the aiming body (R-TARGET-03), never an '
+      + 'off-tribe body for a `targetTribe` Shout — by probing the reducer (or a mirror of its guards) before it '
+      + 'commits. When nothing on the board, in the shop or in hand is aimable it cancels the prompt like a '
+      + 'click-away. It never returns an aim the reducer will refuse: a refused action returns the same state, and '
+      + 'every lobby / replay / balance play-out loop reads "same state" as a stalled seat and stops, so a bad aim '
+      + 'is a lobby that never finishes, not a wasted Shout.',
+    domain: 'targeting',
+    status: 'approved',
+    evidence: [
+      { kind: 'docbot-scan', ref: 'Balance 9/23 tranche 1 (2026-09-23): the seed-4 drakko lobby stalled at round 15 — a 2/3 Beggy out-scored every Demon, the greedy bot aimed Appetite Agent (targetTribe demon) at it, the reducer refused, playOut broke on next === s' },
+      { kind: 'code', ref: 'packages/sim/src/bots/policy.ts (pendingTarget branch probes reduce() per candidate, falls back shop → hand → cancelChoice); packages/sim/src/balance/pilots.ts (the same legal() probe)' },
+      { kind: 'test', ref: 'packages/sim/src/bots/bots.test.ts "bot aim — the greedy bot only aims where the engine will accept"' },
+    ],
+    contentIds: ['dm_agent'],
+    currentBehaviour:
+      'Conforms — 2026-09-23: the greedy bot skips its own body and any candidate the reducer refuses, prefers the '
+      + 'highest-scored legal board body, then a shop or hand target, then cancels. The pilots already probed the '
+      + 'reducer; the production bots mirror the guards in visibleState / legalActions. No owner ruling was needed: '
+      + 'the rule restates R-TARGET-03 and the tribe guard from the automated player\'s side.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/bots/bots.test.ts', 'packages/sim/src/lobby/runLobby.test.ts'], lastVerifiedAt: '2026-09-23' },
+  },
 ];

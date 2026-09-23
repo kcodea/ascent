@@ -1815,11 +1815,17 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Shared with the UI's ×N badge (`rubyCastCount`), so the number shown and the number resolved can't drift.
         const casts = rubyCastCount(s);
         s.nextSpellExtraCasts = undefined; // Comet / Nimbus "next spell" charge spent on this Ruby (folded into `casts`, owner 2026-09-18)
+        // Warding Ruby: its keyword rider (Ward = DS) rides EVERY landing through `fireOnRubyPlayed` — the direct
+        // target, the Redirection tail, and every bounce off it — granted only to a KOBOLD (owner spec 2026-07-31:
+        // "give it Ward if it is a Kobold"; the stat half lands on anyone). It used to be a trailing grant on the
+        // direct target alone, which is why a Ruby bounced by Resonance Idol landed without its Ward (owner
+        // report 2026-09-23).
+        const kw = def.rubyGrantKeyword;
         if (boardTarget) {
           for (let n = 0; n < casts; n++) {
             addBuff(boardTarget, 'Ruby', card.attack, card.health);
             // Set 2 — the target's "when a Ruby is played on this" effects (Ruby Broker → Gold, Resonance → bounce).
-            fireOnRubyPlayed(s, boardTarget, card.attack, card.health);
+            fireOnRubyPlayed(s, boardTarget, card.attack, card.health, kw);
           }
           // Rune of Redirection: a Ruby landing on your LEFT-most minion also casts on your right-most. Fires
           // the target's own on-Ruby watchers too, so the second landing is a real Ruby cast rather than a
@@ -1831,13 +1837,9 @@ function reduceCore(state: RunState, action: Action): RunState {
             for (let n = 0; n < casts * runeStacksOf(s, 'rune_redirection'); n++) {
               addBuff(tail, 'Ruby', card.attack, card.health);
               recordBounceFx(s, 'ruby', boardTarget.uid, tail.uid); // the hop: left-most → right-most
-              fireOnRubyPlayed(s, tail, card.attack, card.health);
+              fireOnRubyPlayed(s, tail, card.attack, card.health, kw);
             }
           }
-          // Warding Ruby: grant its keyword (Ward = DS) — but only to a KOBOLD (owner spec 2026-07-31: "give it
-          // Ward if it is a Kobold"). The stat half lands on anyone; the keyword is the tribe payoff.
-          const kw = def.rubyGrantKeyword;
-          if (kw && isTribe(boardTarget, 'kobold') && !boardTarget.keywords.includes(kw)) boardTarget.keywords.push(kw);
         } else if (offer) {
           for (let n = 0; n < casts; n++) addOfferBuff(offer, 'Ruby', card.attack, card.health);
           // Rune of Distillation says "Spells", not "Shop Spells" (owner 2026-08-04) — a RUBY cast on a Shop

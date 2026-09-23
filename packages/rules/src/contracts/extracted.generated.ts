@@ -5449,7 +5449,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "kind": "const",
           "plain": {
             "attack": 1,
-            "health": 1
+            "health": 2
           }
         }
       }
@@ -7376,7 +7376,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "every": 4,
+            "every": 3,
             "times": 1
           }
         }
@@ -7498,7 +7498,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "count": 1
+            "count": 2
           }
         },
         "refs": [
@@ -7507,16 +7507,17 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "summons": {
           "cardId": "impscrap",
           "count": {
-            "plain": 1
+            "plain": 2
           }
         }
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
+      "kind": "multiply",
+      "factor": 2,
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -16899,27 +16900,28 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "triggers": [
       {
-        "event": "onGetRuby",
+        "event": "spellCastOnThis",
         "phase": "shop",
         "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
       {
-        "kind": "onGetRubyDuplicate",
+        "kind": "getRubies",
         "amount": {
           "kind": "const",
           "plain": {
-            "count": 1
+            "count": 3
           }
         }
       }
     ],
     "gildedDelta": {
-      "kind": "reshape",
+      "kind": "multiply",
+      "factor": 2,
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -16961,7 +16963,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "rubies": 2
+            "rubies": 3
           }
         }
       }
@@ -39025,7 +39027,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "kind": "const",
           "plain": {
             "attack": 3,
-            "health": 3
+            "health": 4
           }
         }
       }

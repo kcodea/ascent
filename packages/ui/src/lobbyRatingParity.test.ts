@@ -36,10 +36,12 @@ const medalSrc = readFileSync(join(repoRoot, 'supabase/migrations/2026-09-20-med
 const sqlSrc = readFileSync(join(repoRoot, 'supabase/migrations/2026-09-22-fight-ledger.sql'), 'utf8');
 const schemaSrc = readFileSync(join(repoRoot, 'schema.sql'), 'utf8');
 const goingInSrc = readFileSync(join(repoRoot, 'supabase/migrations/2026-09-22-lobby-strength-going-in.sql'), 'utf8');
+/** The NEWEST settle_rank body: the bonus floor at 50 (owner 2026-09-22, late). Constants are read from here. */
+const latestSrc = readFileSync(join(repoRoot, 'supabase/migrations/2026-09-22-lobby-strength-bonus-floor.sql'), 'utf8');
 
 function sqlConst(name: string): string {
-  const m = new RegExp(`${name}\\s+constant\\s+[a-z0-9\\[\\]]+\\s*:=\\s*([^;]+);`).exec(sqlSrc);
-  if (!m) throw new Error(`could not find ${name} in the fight-ledger migration`);
+  const m = new RegExp(`${name}\\s+constant\\s+[a-z0-9\\[\\]]+\\s*:=\\s*([^;]+);`).exec(latestSrc);
+  if (!m) throw new Error(`could not find ${name} in the bonus-floor migration`);
   return m[1]!.trim();
 }
 
@@ -69,8 +71,8 @@ describe('medal rank — constants agree across the three copies', () => {
     expect(STRENGTH_TIER_EVEN).toBe(STRENGTH_TIERS.even);
     expect(STRENGTH_TIER_HARD).toBe(STRENGTH_TIERS.hard);
     expect(STRENGTH_TIER_BRUTAL).toBe(STRENGTH_TIERS.brutal);
-    // The owner's numbers (2026-09-22, the revised top-4 rule): the 30 / 70 line and the four weights.
-    expect([STRENGTH_PRIOR_WINS, STRENGTH_PRIOR_FIGHTS, STRENGTH_BOT_RATE, STRENGTH_BONUS_MAX, STRENGTH_BONUS_FLOOR, STRENGTH_BONUS_SPAN]).toEqual([10, 20, 0.25, 15, 30, 70]);
+    // The owner's numbers (2026-09-22, the revised top-4 rule; the floor moved to 50 the same evening): the 50 / 50 line and the four weights.
+    expect([STRENGTH_PRIOR_WINS, STRENGTH_PRIOR_FIGHTS, STRENGTH_BOT_RATE, STRENGTH_BONUS_MAX, STRENGTH_BONUS_FLOOR, STRENGTH_BONUS_SPAN]).toEqual([10, 20, 0.25, 15, 50, 50]);
     expect([...STRENGTH_PLACEMENT_WEIGHTS]).toEqual([1.0, 0.8, 0.62, 0.47]);
     expect(sqlConst('c_prior_wins')).toBe(String(STRENGTH_PRIOR_WINS));
     expect(sqlConst('c_prior_fights')).toBe(String(STRENGTH_PRIOR_FIGHTS));
@@ -162,6 +164,18 @@ describe('medal rank — constants agree across the three copies', () => {
       expect(body, `the going-in body keeps ${c}`).toContain(c);
       expect(sqlSrc, `the fight-ledger body has ${c}`).toContain(c);
     }
+    expect(schemaSrc.replace(/\r\n/g, '\n')).toContain(body.replace(/\r\n/g, '\n'));
+  });
+
+  it('the bonus-floor block (2026-09-22, late): the same settle_rank, floor 50 / span 50, still the field going in, schema.sql carries it', () => {
+    const body = latestSrc.slice(latestSrc.indexOf('create or replace function public.settle_rank'));
+    expect(body).toContain('p_seed bigint default null,\n  p_seat_keys text[] default null');
+    expect(body).not.toContain('drop function');
+    expect(body).toContain('x.lobby_seed <> p_seed');
+    expect(body).not.toContain('run_fight_records');
+    expect(body).toContain('c_bonus_floor     constant int := 50;');
+    expect(body).toContain('c_bonus_span      constant int := 50;');
+    expect(body).toContain('v_base := c_awards[p_placement] + v_bonus;');
     expect(schemaSrc.replace(/\r\n/g, '\n')).toContain(body.replace(/\r\n/g, '\n'));
   });
 
@@ -262,7 +276,7 @@ describe('medal rank — transition parity (sim resolver ↔ Edge Function mirro
 
   it('the lobby-strength bonus agrees on both (owner 2026-09-22, the top-4 rule): the anchor table, 5th to 8th = +0, the cap, the gates and the landing', () => {
     // The owner's anchors, pinned on BOTH TS copies: [placement, strength, bonus].
-    const anchors: [number, number, number][] = [[1, 100, 15], [1, 75, 10], [4, 100, 7], [2, 100, 12], [3, 100, 9], [1, 50, 4], [4, 50, 2]];
+    const anchors: [number, number, number][] = [[1, 100, 15], [1, 75, 8], [4, 100, 7], [2, 100, 12], [3, 100, 9], [1, 50, 0], [4, 50, 0]];
     for (const [placement, strength, b] of anchors) {
       expect(strengthBonusOf(strength, placement), `sim: ${placement} at ${strength}`).toBe(b);
       expect(serverStrengthBonusOf(strength, placement), `server: ${placement} at ${strength}`).toBe(b);
@@ -270,10 +284,10 @@ describe('medal rank — transition parity (sim resolver ↔ Edge Function mirro
     for (let placement = 5; placement <= 8; placement++) expect(strengthBonusOf(100, placement)).toBe(0);
     const bonus = (s: number, placement: number) => strengthBonusOf(s, placement);
     const cases: [RankPosition, number, number][] = [
-      [{ divisionIndex: 7, points: 20 }, 1, bonus(74, 1)],       // a mid-division 1st at Brutal 74: +40 +9
-      [{ divisionIndex: 7, points: 20 }, 4, bonus(74, 4)],       // a 4th at Brutal 74: +6 +4
+      [{ divisionIndex: 7, points: 20 }, 1, bonus(74, 1)],       // a mid-division 1st at 74: +40 +7
+      [{ divisionIndex: 7, points: 20 }, 4, bonus(74, 4)],       // a 4th at 74: +6 +3
       [{ divisionIndex: 7, points: 20 }, 1, bonus(100, 1)],      // +55
-      [{ divisionIndex: 7, points: 20 }, 1, bonus(50, 1)],       // Even 50: +40 +4
+      [{ divisionIndex: 7, points: 20 }, 1, bonus(50, 1)],       // 50 (even): the plain +40, no bonus
       [{ divisionIndex: 7, points: 20 }, 1, bonus(30, 1)],       // strength 30: the plain +40
       [{ divisionIndex: 7, points: 20 }, 5, bonus(100, 1)],      // 5th: −6, a bonus handed in is ignored
       [{ divisionIndex: 7, points: 20 }, 8, bonus(100, 1)],      // 8th: −40, never scaled

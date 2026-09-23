@@ -47,3 +47,19 @@ already the going-in number once this client ships.
 
 Verify in the SQL editor: `select prosrc like '%lobby_seed <> p_seed%' from pg_proc where proname = 'settle_rank';`
 → `true`.
+
+## Later the same evening: the floor moves to 50, and one number on the rank screen
+
+Owner: "why did i get +3 bonus mmr for winning a 45% lobby? isnt that an extremely even game?" The 30 / 70 line
+had been chosen so the anchors sat on one straight line (1st at 75 = +10), with the side effect that everything
+above 30 paid: a 45 lobby paid +3, a dead-even 50 paid +4. The owner chose **floor 50, straight line**: nothing at
+or below even; 1st at 55 = +2, at 60 = +3, at 75 = +8 (was +10), at 100 = +15; 4th at 100 still +7. Changed in
+all three copies (`STRENGTH_BONUS_FLOOR` 30 to 50 in `lobbyStrength.ts` and `_shared/lobbyRating.ts`;
+`c_bonus_floor` / `c_bonus_span` 50 / 50 in `supabase/migrations/2026-09-22-lobby-strength-bonus-floor.sql`, the
+same block at the tail of `schema.sql`; the parity test now reads its constants from that newest body). The anchor
+tables in the three test files moved with it.
+
+Owner: "dont say +40 +3 in the mmr post game rank screen, just say +43 MMR." `deltaText` prints the summed
+`baseDelta` as one number, and the rank screen's unit word is MMR everywhere it printed RP (the delta, the
+uncapped Ascendant counter, the dev-lab fixture captions). Two more SQL pastes for the owner today, then: the
+going-in block (already run) and this floor block.

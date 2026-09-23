@@ -86,13 +86,13 @@ route) moves it; Practice, the tutorial and sandbox runs never do.
   applies to any TOP-4 finish, scaled by BOTH placement and lobby strength"*): a **top-4** finish in a lobby of
   strength `s` adds `round(15 × placementWeight × strengthFactor)` points on top of its award, where
   `placementWeight` is **1.0 / 0.8 / 0.62 / 0.47** for 1st / 2nd / 3rd / 4th and
-  `strengthFactor = clamp((s − 30) / 70, 0, 1)` (0 at strength 30 and below, 1 at 100). The owner's anchors:
-  1st at 100 = **+15**, 1st at 75 = +10, 4th at 100 = +7, 2nd at 100 = +12, 3rd at 100 = +9, 1st at 50 = +4,
-  4th at 50 = +2. Never on 5th–8th, never negative, losses untouched. The bonus is folded into the award BEFORE
+  `strengthFactor = clamp((s − 50) / 50, 0, 1)` (0 at strength 50, an even lobby, and below; 1 at 100; the floor
+  was 30 until the owner's 2026-09-22 ruling that a 45% lobby must pay nothing). The anchors: 1st at 100 = **+15**,
+  1st at 75 = +8, 4th at 100 = +7, 2nd at 100 = +12, 3rd at 100 = +9, 1st at 50 = 0, 4th at 50 = 0. Never on 5th–8th, never negative, losses untouched. The bonus is folded into the award BEFORE
   the gate rules below, so a 1st at 90/100 still caps at 100, a top-4 at a division gate still lands on 10 and
   a 4th at a medal gate still holds at 100. The result records it apart (`strengthBonus`; the rank screen
-  prints "+40 RP +12 lobby"). The SERVER computes the strength itself at settle time from the fight ledger
-  (`settle_rank(p_seat_keys)`), mirrored in `packages/sim/src/lobbyStrength.ts` (the weights and the 30 / 70
+  prints "+52 MMR" (one summed number, owner 2026-09-22)). The SERVER computes the strength itself at settle time from the fight ledger
+  (`settle_rank(p_seat_keys)`), mirrored in `packages/sim/src/lobbyStrength.ts` (the weights and the 50 / 50
   line live in ONE place per copy) and `supabase/functions/_shared/lobbyRating.ts`.
 - **Lobby strength** (0–100, `packages/sim/src/lobbyStrength.ts`): the average win rate of the seven opponent
   runs, as a percentage, where each run's rate is smoothed as `(wins + 10) / (fights + 20)` over its record in

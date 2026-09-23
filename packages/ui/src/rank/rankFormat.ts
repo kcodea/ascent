@@ -10,16 +10,17 @@ import {
 
 export { rankLabel, rankScalar } from './types';
 
-/** "76 / 100", or the uncapped "130 RP" at Ascendant III. */
+/** "76 / 100", or the uncapped "130 MMR" at Ascendant III. */
 export function pointsText(pos: RankPosition): string {
-  return isUncapped(pos.divisionIndex) ? `${pos.points} RP` : `${pos.points} / ${POINTS_PER_DIVISION}`;
+  return isUncapped(pos.divisionIndex) ? `${pos.points} MMR` : `${pos.points} / ${POINTS_PER_DIVISION}`;
 }
 
-/** A signed points delta: "+16 RP" / "−40 RP" / "0 RP". Uses a real minus sign. */
+/** A signed points delta: "+16 MMR" / "−40 MMR" / "0 MMR". Uses a real minus sign. The unit word is MMR
+ *  (owner 2026-09-22: "just say +43 MMR"). */
 export function signedRp(n: number): string {
-  if (n > 0) return `+${n} RP`;
-  if (n < 0) return `−${Math.abs(n)} RP`;
-  return '0 RP';
+  if (n > 0) return `+${n} MMR`;
+  if (n < 0) return `−${Math.abs(n)} MMR`;
+  return '0 MMR';
 }
 
 /** "VICTORY" for 1st, else the upper-case ordinal ("2ND", "3RD", "4TH"…). */
@@ -59,11 +60,11 @@ export function standingGateText(pos: RankPosition, demotionReady = false): stri
 
 /** The primary delta line: the finish's award, signed (owner 2026-09-21: "just the +/- RP, the x/100, the bar
  *  and the rank"). No floor / cap / landing flavour: the bar and the points readout carry what actually moved.
- *  A 1st place that earned the LOBBY-STRENGTH bonus (owner 2026-09-22) prints the award and the bonus apart:
- *  "+40 RP +12 lobby". */
+ *  A top-4 that earned the LOBBY-STRENGTH bonus prints ONE number, the award and the bonus summed (owner
+ *  2026-09-22: "dont say +40 +3 in the mmr post game rank screen, just say +43 MMR."); `baseDelta` already
+ *  carries both. */
 export function deltaText(r: RankResult): string {
-  const bonus = r.strengthBonus ?? 0;
-  return bonus > 0 ? `${signedRp(r.baseDelta - bonus)} +${bonus} lobby` : signedRp(r.baseDelta);
+  return signedRp(r.baseDelta);
 }
 
 /** The resolve-beat outcome line — ONLY what the visuals don't already say (owner 2026-09-20). A promotion or

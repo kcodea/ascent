@@ -97,32 +97,35 @@ describe('lobbyStrengthOf — the formula', () => {
  *  parity test (each carries its own copy: a test file never imports another), so the three copies cannot
  *  drift from it. */
 const OWNER_BONUS_ANCHORS: readonly [number, number, number][] = [
-  [1, 100, 15], [1, 75, 10], [4, 100, 7], [2, 100, 12], [3, 100, 9], [1, 50, 4], [4, 50, 2],
+  [1, 100, 15], [1, 75, 8], [4, 100, 7], [2, 100, 12], [3, 100, 9], [1, 50, 0], [4, 50, 0],
 ];
 
 describe('strengthBonusOf + resolveRank — the top-4 bonus (owner 2026-09-22: "the strength bonus applies to any TOP-4 finish, scaled by BOTH placement and lobby strength")', () => {
-  it('the owner\'s anchors: 1st at 100 = +15, 1st at 75 = +10, 4th at 100 = +7, 2nd at 100 = +12, 3rd at 100 = +9, 1st at 50 = +4, 4th at 50 = +2', () => {
+  it('the owner\'s anchors (floor 50, owner 2026-09-22 late): 1st at 100 = +15, 1st at 75 = +8, 4th at 100 = +7, 2nd at 100 = +12, 3rd at 100 = +9, 1st at 50 = 0, 4th at 50 = 0', () => {
     for (const [placement, strength, bonus] of OWNER_BONUS_ANCHORS) expect(strengthBonusOf(strength, placement), `${placement} at ${strength}`).toBe(bonus);
   });
 
-  it('the weights and the 30 / 70 line live in ONE place: 1.0 / 0.8 / 0.62 / 0.47, factor 0 at 30 and below, 1 at 100', () => {
+  it('the weights and the 50 / 50 line live in ONE place: 1.0 / 0.8 / 0.62 / 0.47, factor 0 at 50 (even) and below, 1 at 100', () => {
     expect([...STRENGTH_PLACEMENT_WEIGHTS]).toEqual([1.0, 0.8, 0.62, 0.47]);
-    expect([STRENGTH_BONUS_MAX, STRENGTH_BONUS_FLOOR, STRENGTH_BONUS_SPAN, STRENGTH_BONUS_WORST_PLACEMENT]).toEqual([15, 30, 70, 4]);
+    expect([STRENGTH_BONUS_MAX, STRENGTH_BONUS_FLOOR, STRENGTH_BONUS_SPAN, STRENGTH_BONUS_WORST_PLACEMENT]).toEqual([15, 50, 50, 4]);
     expect([1, 2, 3, 4, 5, 6, 7, 8].map(strengthPlacementWeight)).toEqual([1.0, 0.8, 0.62, 0.47, 0, 0, 0, 0]);
     expect(strengthPlacementWeight(0)).toBe(0);
     expect(strengthPlacementWeight(1.5)).toBe(0);
     expect(strengthFactorOf(0)).toBe(0);
     expect(strengthFactorOf(30)).toBe(0);
-    expect(strengthFactorOf(65)).toBe(0.5);
+    expect(strengthFactorOf(50)).toBe(0);
+    expect(strengthFactorOf(75)).toBe(0.5);
     expect(strengthFactorOf(100)).toBe(1);
     expect(strengthFactorOf(140)).toBe(1);
   });
 
-  it('nothing at strength 30 and below for every placement; 5th to 8th and a null strength earn nothing; never negative, at most 15, monotonic in strength AND in placement', () => {
+  it('nothing at strength 50 (even) and below for every placement; 5th to 8th and a null strength earn nothing; never negative, at most 15, monotonic in strength AND in placement', () => {
     for (let p = 1; p <= 4; p++) {
       expect(strengthBonusOf(0, p)).toBe(0);
       expect(strengthBonusOf(30, p)).toBe(0);
-      expect(strengthBonusOf(31, p)).toBe(0);
+      expect(strengthBonusOf(45, p), 'the owner\'s 45% lobby pays nothing').toBe(0);
+      expect(strengthBonusOf(50, p)).toBe(0);
+      expect(strengthBonusOf(51, p)).toBe(0);
     }
     for (let p = 5; p <= 8; p++) expect(strengthBonusOf(100, p)).toBe(0);
     expect(strengthBonusOf(null, 1)).toBe(0);
@@ -135,17 +138,17 @@ describe('strengthBonusOf + resolveRank — the top-4 bonus (owner 2026-09-22: "
         if (p > 1) expect(strengthBonusOf(s, p)).toBeLessThanOrEqual(strengthBonusOf(s, p - 1));
       }
     }
-    // A spot row off the anchors: Brutal 74 reads 9 / 8 / 6 / 4.
-    expect([1, 2, 3, 4].map((p) => strengthBonusOf(74, p))).toEqual([9, 8, 6, 4]);
+    // A spot row off the anchors: 74 reads 7 / 6 / 4 / 3.
+    expect([1, 2, 3, 4].map((p) => strengthBonusOf(74, p))).toEqual([7, 6, 4, 3]);
   });
 
-  it('resolveRank at Gold II 20: 1st at Brutal 74 = +40 +9; 4th at 74 = +6 +4; 1st at Even 50 = +40 +4; 5th and 8th never scale', () => {
+  it('resolveRank at Gold II 20: 1st at 74 = +40 +7; 4th at 74 = +6 +3; 1st at 50 = +40, no bonus; 5th and 8th never scale', () => {
     const gold2 = { divisionIndex: 7, points: 20 };
-    expect(resolveRank(gold2, 1, RANK_RULES, { bonus: strengthBonusOf(74, 1), lobbyStrength: 74 })).toMatchObject({ baseDelta: 49, strengthBonus: 9, lobbyStrength: 74, appliedDelta: 49, cappedPoints: 0, after: { divisionIndex: 7, points: 69 } });
-    expect(resolveRank(gold2, 2, RANK_RULES, { bonus: strengthBonusOf(74, 2), lobbyStrength: 74 })).toMatchObject({ baseDelta: 36, strengthBonus: 8, appliedDelta: 36, after: { divisionIndex: 7, points: 56 } });
-    expect(resolveRank(gold2, 3, RANK_RULES, { bonus: strengthBonusOf(74, 3), lobbyStrength: 74 })).toMatchObject({ baseDelta: 22, strengthBonus: 6, appliedDelta: 22, after: { divisionIndex: 7, points: 42 } });
-    expect(resolveRank(gold2, 4, RANK_RULES, { bonus: strengthBonusOf(74, 4), lobbyStrength: 74 })).toMatchObject({ baseDelta: 10, strengthBonus: 4, appliedDelta: 10, after: { divisionIndex: 7, points: 30 } });
-    expect(resolveRank(gold2, 1, RANK_RULES, { bonus: strengthBonusOf(50, 1), lobbyStrength: 50 })).toMatchObject({ baseDelta: 44, strengthBonus: 4, lobbyStrength: 50, appliedDelta: 44, after: { divisionIndex: 7, points: 64 } });
+    expect(resolveRank(gold2, 1, RANK_RULES, { bonus: strengthBonusOf(74, 1), lobbyStrength: 74 })).toMatchObject({ baseDelta: 47, strengthBonus: 7, lobbyStrength: 74, appliedDelta: 47, cappedPoints: 0, after: { divisionIndex: 7, points: 67 } });
+    expect(resolveRank(gold2, 2, RANK_RULES, { bonus: strengthBonusOf(74, 2), lobbyStrength: 74 })).toMatchObject({ baseDelta: 34, strengthBonus: 6, appliedDelta: 34, after: { divisionIndex: 7, points: 54 } });
+    expect(resolveRank(gold2, 3, RANK_RULES, { bonus: strengthBonusOf(74, 3), lobbyStrength: 74 })).toMatchObject({ baseDelta: 20, strengthBonus: 4, appliedDelta: 20, after: { divisionIndex: 7, points: 40 } });
+    expect(resolveRank(gold2, 4, RANK_RULES, { bonus: strengthBonusOf(74, 4), lobbyStrength: 74 })).toMatchObject({ baseDelta: 9, strengthBonus: 3, appliedDelta: 9, after: { divisionIndex: 7, points: 29 } });
+    expect(resolveRank(gold2, 1, RANK_RULES, { bonus: strengthBonusOf(50, 1), lobbyStrength: 50 })).toMatchObject({ baseDelta: 40, strengthBonus: 0, lobbyStrength: 50, appliedDelta: 40, after: { divisionIndex: 7, points: 60 } });
     expect(resolveRank(gold2, 1, RANK_RULES, { bonus: strengthBonusOf(30, 1), lobbyStrength: 30 })).toMatchObject({ baseDelta: 40, strengthBonus: 0, lobbyStrength: 30, appliedDelta: 40 });
     // 5th to 8th: a bonus handed in is ignored, the plain award applies.
     expect(resolveRank(gold2, 5, RANK_RULES, { bonus: 15, lobbyStrength: 100 })).toMatchObject({ baseDelta: -6, strengthBonus: 0, appliedDelta: -6, after: { divisionIndex: 7, points: 14 } });

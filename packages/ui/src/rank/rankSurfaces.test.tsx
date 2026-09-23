@@ -79,9 +79,9 @@ describe('RankBar', () => {
     for (let i = 1; i < order.length; i++) expect(order[i - 1]!.compareDocumentPosition(order[i]!) & 4, `${i}`).toBe(4);
     expect(bar.querySelector('.rankbar-label')?.textContent).toBe('Gold II');
   });
-  it('Ascendant III reads an uncapped RP counter over a full bar', () => {
+  it('Ascendant III reads an uncapped MMR counter over a full bar', () => {
     ui = mount(<RankBar position={{ divisionIndex: 17, points: 130 }} />);
-    expect(ui.container.querySelector('.rankbar-points')?.textContent).toBe('130 RP');
+    expect(ui.container.querySelector('.rankbar-points')?.textContent).toBe('130 MMR');
     expect((ui.container.querySelector('.rankbar-fill') as HTMLElement).style.transform).toBe('scaleX(1)');
     expect(ui.container.querySelector('.rankbar-gate')).toBeNull();
   });

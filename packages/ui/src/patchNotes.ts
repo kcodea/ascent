@@ -60,6 +60,8 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'The Easy, Even, Hard and Brutal words are gone. The number is the average win rate of the seven runs you were seated with.',
           'It no longer counts the game you just played, so the Career match row and the Recent Games row show the same number.',
+          'The top 4 bonus now starts above 50. An even or easier lobby pays nothing. A 1st at 75 pays 8, a 1st at 100 pays 15, a 4th at 100 pays 7.',
+          'The rank screen prints one number, such as +43 MMR, with the bonus already included.',
         ],
       },
     ],
@@ -74,9 +76,9 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'Every lobby now has a strength score from 0 to 100: the average win rate of the seven runs you were seated with, from their record across every game they have played. An unknown run counts as 50. A bot counts as 25.',
           'The bonus scales with your placement and with the lobby strength. A 1st place earns the full scale, a 2nd earns 80 percent of it, a 3rd 62 percent and a 4th 47 percent. The strength part is 0 at 30 or below and full at 100.',
-          'Some examples: a 1st at strength 100 earns 15, a 1st at 75 earns 10, a 4th at 100 earns 7, a 1st at 50 earns 4 and a 4th at 50 earns 2. Finishing 5th to 8th never scales, and a loss never gets bigger.',
+          'Some examples at the time: a 1st at strength 100 earns 15, a 1st at 75 earns 10, a 4th at 100 earns 7, a 1st at 50 earns 4 and a 4th at 50 earns 2 (the floor moved to 50 later the same day, see above). Finishing 5th to 8th never scales, and a loss never gets bigger.',
           'The bonus follows the normal promotion rules. A 1st at 90 of 100 still stops at 100. A top 4 at a division gate still promotes to 10 of 100.',
-          'The rank screen prints the two parts apart, for example +40 RP +12 lobby.',
+          'The rank screen printed the two parts apart at first, for example +40 RP +12 lobby (now one number, see above).',
         ],
       },
       {

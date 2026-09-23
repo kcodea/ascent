@@ -40,15 +40,17 @@ export const STRENGTH_TIERS: { readonly even: number; readonly hard: number; rea
  *
  *      bonus = round(15 × placementWeight × strengthFactor)
  *      placementWeight = 1.0 (1st) / 0.8 (2nd) / 0.62 (3rd) / 0.47 (4th)
- *      strengthFactor  = clamp((s − 30) / 70, 0, 1)        — 0 at strength 30 and below, 1 at 100
+ *      strengthFactor  = clamp((s − 50) / 50, 0, 1)        — 0 at strength 50 (even) and below, 1 at 100
  *
- *  rating points on top of the normal award. The owner's anchors: 1st at 100 = +15, 1st at 75 = +10, 4th at 100
- *  = +7, 2nd at 100 = +12, 3rd at 100 = +9, 1st at 50 = +4, 4th at 50 = +2. Never on 5th to 8th, never
- *  negative, a loss is never scaled. The weights and the 30 / 70 line live HERE and nowhere else in this copy;
+ *  rating points on top of the normal award. The floor moved from 30 to 50 the same evening (owner: "why did i
+ *  get +3 bonus mmr for winning a 45% lobby? isnt that an extremely even game?"; chosen: floor 50, straight
+ *  line): an even or easier lobby pays nothing. The anchors now: 1st at 100 = +15, 1st at 75 = +8, 4th at 100
+ *  = +7, 2nd at 100 = +12, 3rd at 100 = +9, 1st at 50 = 0, 4th at 50 = 0. Never on 5th to 8th, never
+ *  negative, a loss is never scaled. The weights and the 50 / 50 line live HERE and nowhere else in this copy;
  *  `lobbyRating.ts` and `settle_rank` carry the same numbers (the parity test pins them). */
 export const STRENGTH_BONUS_MAX = 15;
-/** The strength the factor starts rising from (0 here and below). */
-export const STRENGTH_BONUS_FLOOR = 30;
+/** The strength the factor starts rising from (0 here and below): even, so an even game never pays. */
+export const STRENGTH_BONUS_FLOOR = 50;
 /** The strength span to the full factor: 1 at `STRENGTH_BONUS_FLOOR + STRENGTH_BONUS_SPAN` = 100. */
 export const STRENGTH_BONUS_SPAN = 100 - STRENGTH_BONUS_FLOOR;
 /** The placement weights, index 0 = 1st … 3 = 4th. 5th to 8th have no entry: no bonus. */
@@ -126,7 +128,7 @@ export function strengthPlacementWeight(placement: number): number {
     : 0;
 }
 
-/** The strength factor: `clamp((s − 30) / 70, 0, 1)` — 0 at 30 and below, 1 at 100. */
+/** The strength factor: `clamp((s − 50) / 50, 0, 1)` — 0 at 50 and below, 1 at 100. */
 export function strengthFactorOf(value: number): number {
   return Math.max(0, Math.min(1, (value - STRENGTH_BONUS_FLOOR) / STRENGTH_BONUS_SPAN));
 }

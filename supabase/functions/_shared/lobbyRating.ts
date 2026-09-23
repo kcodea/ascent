@@ -46,7 +46,7 @@ export const STRENGTH_PRIOR_WINS = 10;
 export const STRENGTH_PRIOR_FIGHTS = 20;
 export const STRENGTH_BOT_RATE = 0.25;
 export const STRENGTH_BONUS_MAX = 15;
-export const STRENGTH_BONUS_FLOOR = 30;
+export const STRENGTH_BONUS_FLOOR = 50;
 export const STRENGTH_BONUS_SPAN = 100 - STRENGTH_BONUS_FLOOR;
 /** Placement weights, index 0 = 1st … 3 = 4th; 5th to 8th have no entry (no bonus). */
 export const STRENGTH_PLACEMENT_WEIGHTS: readonly number[] = Object.freeze([1.0, 0.8, 0.62, 0.47]);

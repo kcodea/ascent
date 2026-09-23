@@ -67,7 +67,7 @@ const round1Steps: TutorialStep[] = [
     phase: 'shop',
     focusMode: 'action',
     title: 'Using your hero power',
-    body: 'Tap Preparation, then pick Packstrider. This gives a friendly minion +1/+1 — free, whenever it is lit. There are over 50 heroes in the game,so this hero power will be very different from hero to hero, game to game!',
+    body: 'Tap Preparation, then pick Packstrider. This gives a friendly minion +1/+1. Free, whenever it is lit. There are over 50 heroes in the game, so this hero power will be very different from hero to hero, game to game!',
     // Spotlight BOTH the power button and Packstrider (the target), with a connector between them, so the
     // "tap here, then pick that" flow reads at a glance.
     anchors: [{ kind: 'ui', id: 'hero-power' }, { kind: 'card', zone: 'board', alias: ROUND1_BUY }],
@@ -848,7 +848,7 @@ export const LEARN_ASCENT: TutorialCourse = {
   setId: 'set2',
   heroId: 'aster',
   title: 'Learn Ascent',
-  summary: 'A coached first game — shop, build, position, and win; bring a synergy engine together; triple, Discover, cast a spell; then graduate.',
+  summary: 'A coached first game. Shop, build, position, and win; bring a synergy engine together; triple, Discover, cast a spell; then graduate.',
   rounds: 12,
   // The table THINS toward a duel (owner ask 2026-08-21). Authored seats all field the same board each round,
   // so their mutual fights draw and nobody was ever knocked out — the rail stayed 8-wide and round 12 felt

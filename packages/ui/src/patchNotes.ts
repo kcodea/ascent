@@ -51,6 +51,19 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-23',
+    label: 'Plain sentences',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Card and rune texts read as short plain sentences. No dashes.',
+        details: [
+          'Every card, hero, Equipment and tutorial line that used a dash to join two thoughts now uses a full stop or a comma. Numbers and effects are unchanged.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-22',
     label: 'Lobby strength as a percentage',
     changes: [

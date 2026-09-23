@@ -272,8 +272,8 @@ export const SET3_KOBOLDS: CardDef[] = [
     health: 8,
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'prismatic_pick' } }],
-    text: '**Equip Prismatic Pick (1): Choose One** — get a random **Choose One** card; or your next **Choose One** card this turn gains **both** effects.',
-    goldenText: '**Equip Prismatic Pick (1): Choose One** — get **2 random Choose One** cards; or your next **2 Choose One** cards this turn gain **both** effects.',
+    text: '**Equip Prismatic Pick (1): Choose One.** Get a random **Choose One** card; or your next **Choose One** card this turn gains **both** effects.',
+    goldenText: '**Equip Prismatic Pick (1): Choose One.** Get **2 random Choose One** cards; or your next **2 Choose One** cards this turn gain **both** effects.',
   },
   {
     // Set 3 — the SPELL-reactive Kobold. "Shop spell" is load-bearing (owner vocabulary rule): a Ruby is not

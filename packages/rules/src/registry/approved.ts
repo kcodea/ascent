@@ -1485,19 +1485,22 @@ export const APPROVED_RULES: GameRule[] = [
       { kind: 'fix-pr', ref: 'PR #1606 — packages/ui/src/noEmDashPlayerText.test.ts is the CI tripwire; the glossary, patch notes and screen labels were rewritten in the same PR' },
     ],
     currentBehaviour:
-      'PARTIAL as of 2026-09-22, and the split matters. CONFORMS on the surfaces PR #1606 rewrote and the tripwire '
-      + 'scans: the keyword glossary, the patch notes, the label and tooltip attributes of the scanned screens, the '
-      + 'run-time text helpers and the rank sentences. Rune text conforms too, and is swept from 2026-09-22. CARD '
-      + 'text does NOT: 29 cards authored before the ruling still separate clauses with an em dash (Gryphon, Mama '
-      + 'Bear, Taragosa Heir and 26 more), and until 2026-09-22 nothing scanned card text at all, so a new card '
-      + 'could ship one unnoticed. `noEmDashPlayerText.test.ts` now sweeps every card and every rune against a '
-      + 'frozen debt list (EM_DASH_CARD_DEBT): a card NOT on the list fails CI, and a card on it that has been '
-      + 'rewritten must come off, so the debt can only shrink. Clearing the 29 is a player-facing content pass with '
-      + 'its own patch note, not part of this registry entry.',
+      'CONFORMS as of 2026-09-23. PR #1606 (2026-09-21) rewrote the keyword glossary, the patch notes and the screen '
+      + 'labels; the 2026-09-22 sweep found 29 cards authored before the ruling still separating clauses with an em '
+      + 'dash and froze them as a debt list; the 2026-09-23 sweep rewrote every one of them (20 live, 9 archived '
+      + 'Celestials), 35 hero blurb / power texts, both Prismatic Pick Equipment texts and two Learn Ascent lines, '
+      + 'each dash becoming a full stop and a new short sentence, or a comma where the clause was a real aside; no '
+      + 'number, keyword, target or mechanic changed. `noEmDashPlayerText.test.ts` is now a FLAT BAN over every '
+      + 'authored content string: every card in the global index (drawable, token, henchman, gift, archived), every '
+      + 'rune in every pool, every hero name / blurb / power, every quest name, every Equipment text and Choose One '
+      + 'branch, and every tutorial course string (titles, bodies, why lines, connector labels, seat names), beside '
+      + 'the glossary, patch-note, screen-attribute, run-time helper and rank-sentence sweeps it already ran. The '
+      + 'double-hyphen check is a bare `--` (it was ` -- ` with spaces). The Doc Bot text parser learned the new '
+      + 'sentence forms in the same PR, so its parse coverage did not move.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/ui/src/noEmDashPlayerText.test.ts'],
-      lastVerifiedAt: '2026-09-22',
+      lastVerifiedAt: '2026-09-23',
     },
   },
   {

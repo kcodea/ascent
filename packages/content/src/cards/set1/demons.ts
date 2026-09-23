@@ -18,7 +18,7 @@ export const DEMONS: CardDef[] = [
     health: 1,
     keywords: ['FD'],
     effects: [],
-    text: 'A 1/1 Demon **Fodder** — your Demons devour it from the tavern.',
+    text: 'A 1/1 Demon **Fodder**. Your Demons devour it from the tavern.',
     token: true,
   },
   {
@@ -259,8 +259,8 @@ export const DEMONS: CardDef[] = [
     health: 2,
     keywords: [],
     effects: [{ on: 'startOfCombat', do: 'scArmBleed', params: { every: 4, targets: 2 } }],
-    text: "**Start of Combat — Bleed:** mark **2** random enemies. Every 4 attacks in combat, deal this minion's Attack to them.",
-    goldenText: "**Start of Combat — Bleed:** mark **4** random enemies. Every 4 attacks in combat, deal this minion's Attack to them.",
+    text: "**Start of Combat (Bleed):** mark **2** random enemies. Every 4 attacks in combat, deal this minion's Attack to them.",
+    goldenText: "**Start of Combat (Bleed):** mark **4** random enemies. Every 4 attacks in combat, deal this minion's Attack to them.",
   },
   {
     // Avenge (3): every 3 friendly deaths in combat, queue a Fodder into your next shop (golden: 2). Feeds the
@@ -378,6 +378,6 @@ export const DEMONS: CardDef[] = [
       { on: 'onDeath', do: 'impInheritOnDeath' },
       { on: 'onSummon', do: 'impInheritOnSummon' },
     ],
-    text: 'Whenever an **Imp** dies, another friendly Imp gains its stats — or the next Imp you summon, if none are alive.',
+    text: 'Whenever an **Imp** dies, another friendly Imp gains its stats, or the next Imp you summon, if none are alive.',
   },
 ];

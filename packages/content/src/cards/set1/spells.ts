@@ -523,7 +523,7 @@ export const SPELLS: CardDef[] = [
     cost: 3,
     target: 'friendly',
     effects: [{ on: 'cast', do: 'spellDemonConsumeFodder', params: { count: 1 } }],
-    text: 'Choose a **Demon** — it consumes a **Fodder**.',
+    text: 'Choose a **Demon**. It consumes a **Fodder**.',
   },
   {
     // Make a random tavern minion Golden — an offer-level golden flag the buy bakes in (goldens store base
@@ -572,7 +572,7 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 2,
     effects: [{ on: 'cast', do: 'spellRefreshToSpells' }],
-    text: 'Refresh the tavern — fill it with **Shop spells** instead of minions.',
+    text: 'Refresh the tavern. Fill it with **Shop spells** instead of minions.',
   },
   {
     // Combat initiative: your board attacks first in the next fight, overriding the more-minions rule
@@ -605,7 +605,7 @@ export const SPELLS: CardDef[] = [
     cost: 2,
     target: 'friendly',
     effects: [{ on: 'cast', do: 'spellAddAllTribes' }],
-    text: 'Give a friendly minion **All** types — it counts as every tribe and gets all of their buffs.',
+    text: 'Give a friendly minion **All** types. It counts as every tribe and gets all of their buffs.',
   },
   {
     // Bloodlust: mark a friendly minion — it takes an immediate immune swing at the start of the next combat.

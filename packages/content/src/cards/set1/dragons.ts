@@ -334,8 +334,8 @@ export const DRAGONS: CardDef[] = [
     keywords: ['EG'],
     token: true,
     effects: [],
-    text: 'Gains **2× stats** from all sources. **Engraved** — keeps its combat gains.',
-    goldenText: 'Gains **3× stats** from all sources. **Engraved** — keeps its combat gains.',
+    text: 'Gains **2× stats** from all sources. **Engraved.** It keeps its combat gains.',
+    goldenText: 'Gains **3× stats** from all sources. **Engraved.** It keeps its combat gains.',
   },
   {
     // Chimerus quest reward (Dragon capstone). Rally: each attack hands its own Health to 2 friendly Dragons —

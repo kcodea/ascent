@@ -19,7 +19,7 @@ describe('the 3 defs ship as specced', () => {
     expect(rune('rune_badger'), 'Badger archived').toBeUndefined();
     expect(rune('rune_groveweaver'), 'Groveweaver archived').toBeUndefined();
     expect(ARCHIVED_RUNES.some((r) => r.id === 'rune_badger' || r.id === 'rune_groveweaver')).toBe(true);
-    expect([rune('rune_conduit').cost, rune('rune_conduit').epic]).toEqual([5, true]);
+    expect([rune('rune_conduit').cost, rune('rune_conduit').epic]).toEqual([4, true]); // 5 → 4 (balance 9/23)
     // Only the Conduit is Ruby-gated.
     expect(rune('rune_conduit').sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
   });

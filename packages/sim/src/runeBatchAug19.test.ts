@@ -111,18 +111,36 @@ describe('rune batch 2026-08-19b — Herding Horn / Bubble Crown / War Drum / Ba
     { type: 'buyRune', index: 0 },
   );
 
-  it('Bubble Crown pays ONCE at 12 spells, raising spell power — then the meter parks at 12/12', () => {
+  it('Bubble Crown pays ONCE at 9 spells (balance 9/23, was 12), raising spell power — then the meter parks at 9/9', () => {
     const s = armed('rune_bubble_crown');
-    advanceRuneThresholds(s, 'spellCast', 11);
-    expect(s.spellBonus?.attack ?? 0, 'nothing at 11 — the threshold is 12').toBe(0);
-    advanceRuneThresholds(s, 'spellCast', 1);
+    advanceRuneThresholds(s, 'anySpell', 8);
+    expect(s.spellBonus?.attack ?? 0, 'nothing at 8 — the threshold is 9').toBe(0);
+    advanceRuneThresholds(s, 'anySpell', 1);
     expect([s.spellBonus?.attack, s.spellBonus?.health], 'spell power rises by the printed +6/+6').toEqual([6, 6]);
-    // ONCE: a further 24 casts must not pay again, and the meter stays at its cap so the x/12 readout doesn't
+    // ONCE: a further 24 casts must not pay again, and the meter stays at its cap so the x/9 readout doesn't
     // reset and imply another payout is coming.
-    advanceRuneThresholds(s, 'spellCast', 24);
+    advanceRuneThresholds(s, 'anySpell', 24);
     expect(s.spellBonus?.attack, 'it must never pay twice').toBe(6);
     const t = s.runeThresholds!.find((x) => x.sourceId === 'rune_bubble_crown')!;
-    expect([t.tick, t.per], 'the counter parks at its cap').toEqual([12, 12]);
+    expect([t.tick, t.per], 'the counter parks at its cap').toEqual([9, 9]);
+  });
+
+  it('Bubble Crown counts EVERY spell — a Ruby and a Shop spell each advance it once (owner 2026-09-23: "not shop spells, so rubies etc count")', () => {
+    const tick = (s: RunState): number => s.runeThresholds!.find((x) => x.sourceId === 'rune_bubble_crown')!.tick;
+    let s: RunState = { ...armed('rune_bubble_crown'), embers: 0,
+      board: [{ uid: 'm', cardId: 'sandbag', tribe: 'neutral', attack: 2, health: 2, keywords: [], golden: false }],
+      hand: [
+        { uid: 'r1', cardId: 'ruby', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 'g1', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false },
+      ] };
+    const t = s.runeThresholds!.find((x) => x.sourceId === 'rune_bubble_crown')!;
+    expect(t.meter, 'the rune rides the every-spell meter, not the Shop-spell one').toBe('anySpell');
+    expect(tick(s)).toBe(0);
+    s = reduce(s, { type: 'play', uid: 'r1', targetUid: 'm' }) as RunState; // a Ruby — no Spellstone in play
+    expect(s.hand.some((c) => c.uid === 'r1'), 'the Ruby was cast').toBe(false);
+    expect(tick(s), 'a Ruby cast counts, even without Rune of the Spellstone').toBe(1);
+    s = reduce(s, { type: 'play', uid: 'g1' }) as RunState; // a Shop spell
+    expect(tick(s), 'a Shop spell counts too').toBe(2);
   });
 
   it('War Drum gives ONE Shout +2 triggers per turn, and the charge comes back next turn', () => {

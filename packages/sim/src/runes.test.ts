@@ -167,7 +167,7 @@ describe('Runeforge — framework', () => {
   });
 
   it("buyRune you can't afford is a no-op (forge stays open)", () => {
-    const s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers: 2, runeforgeOffer: ['rune_pillaging'] }; // cost 8
+    const s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers: 1, runeforgeOffer: ['rune_pillaging'] }; // cost 2 (balance 9/23)
     const after = reduce(s, { type: 'buyRune', index: 0 });
     expect(after).toBe(s); // unchanged ref
   });
@@ -605,14 +605,14 @@ describe('Basic runes — moved-in effects (Rallying / Scale / Action)', () => {
     expect(commit.recruitBuffFx).toHaveLength(0); // …and emits NO events (itemizeFx is projection-only)
   });
 
-  it('Rune of Spending: the projection itemizes one +1/+2 event per Gold spent (owner re-tune 2026-07-31)', () => {
+  it('Rune of Spending: the projection itemizes one +2/+3 event per Gold spent (balance 9/23; owner re-tune 2026-07-31 had +1/+2)', () => {
     const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
       questRecurringEndOfTurn: ['runeSpending'], goldSpentThisTurn: 4, board: [mkAlley('a')] };
     const { steps, fx } = projectEndOfTurnSteps(s);
     const evs = fx[0]!.buffFx.filter((e) => e.targetUid === 'a');
     expect(evs).toHaveLength(4);
-    expect(evs.every((e) => e.sourceUid === undefined && e.attack === 1 && e.health === 2)).toBe(true);
-    expect(steps[0]!['a']).toEqual({ attack: 5, health: 9 }); // 1/1 + 4 × +1/+2
+    expect(evs.every((e) => e.sourceUid === undefined && e.attack === 2 && e.health === 3)).toBe(true);
+    expect(steps[0]!['a']).toEqual({ attack: 9, health: 13 }); // 1/1 + 4 × +2/+3
   });
 
   it('Rune of Action: a spell played counts as a card played (playedThisTurn)', () => {
@@ -1325,19 +1325,17 @@ describe('Rune of the Summit (every 2nd shop → a Tier 7 Discover)', () => {
     return (s.discoverQueue ?? []).some((q) => q.kind === 'minion' && q.exactTier === 7);
   };
 
-  it('fires on the THIRD shop, then repeats every 3rd (owner sheet 2026-07-31)', () => {
+  it('fires on the SECOND shop, then repeats every 2nd (balance 9/23; the owner sheet 2026-07-31 had every 3rd)', () => {
     let s: RunState = { ...buyRune('rune_summit'), wave: 3, hand: [], board: [] };
     s = openShop(s); // shop 1 — nothing yet
     expect(s.runeSummitTick).toBe(1);
     expect(raisedT7(s)).toBe(false);
-    s = openShop(s); // shop 2 — still quiet
-    expect(raisedT7(s)).toBe(false);
-    s = openShop(s); // shop 3 — fires
-    expect(s.runeSummitTick).toBe(3);
+    s = openShop(s); // shop 2 — fires
+    expect(s.runeSummitTick).toBe(2);
     expect(raisedT7(s)).toBe(true);
-    s = openShop(s); s = openShop(s); // shops 4–5 — quiet
+    s = openShop(s); // shop 3 — quiet
     expect(raisedT7(s)).toBe(false);
-    s = openShop(s); // shop 6 — fires again
+    s = openShop(s); // shop 4 — fires again
     expect(raisedT7(s)).toBe(true);
   });
 

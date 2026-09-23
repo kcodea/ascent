@@ -40,17 +40,17 @@ const held = (s: RunState): string[] => [...s.hand, ...s.board].map((c) => c.car
 /** [id, cost, epic]. `runeforgePool` reads ARRAY membership, so the array is the real assertion — the `epic`
  *  flag is only the card's kicker, and the two disagreeing is exactly the bug this catches. */
 const BASIC: [string, number][] = [
-  ['rune_deep_feast', 5], ['rune_gem_sage', 5], ['rune_ancient_expenditure', 4],
-  ['rune_clockwork_promotion', 4], ['rune_night_market', 5], ['rune_muckbroker', 4],
+  ['rune_deep_feast', 4], ['rune_gem_sage', 5], ['rune_ancient_expenditure', 4], // Deep Feast 5 → 4 (balance 9/23)
+  ['rune_clockwork_promotion', 4], ['rune_night_market', 4], ['rune_muckbroker', 4], // Night Market 5 → 4 (balance 9/23)
   ['rune_living_magic', 4], ['rune_draconic_curiosity', 4], ['rune_dragons_pantry', 4],
-  ['rune_returning_pack', 4], ['rune_grave_refreshment', 3], ['rune_seasoned_ledger', 5],
+  ['rune_returning_pack', 4], ['rune_grave_refreshment', 3], ['rune_seasoned_ledger', 4], // Seasoned Ledger 5 → 4 (balance 9/23)
   ['rune_echoed_arrival', 4], ['rune_rare_goods', 4], ['rune_kegheart', 4],
   ['rune_shifting_facets', 3], ['rune_shared_spoils', 4], ['rune_heavy_payroll', 4],
   ['rune_compounding_wages', 4], ['rune_gilded_ledger', 4],
 ];
 const EPIC: [string, number][] = [
-  ['rune_perfect_recall', 6], ['rune_ninefold_commerce', 6], ['rune_borrowed_echoes', 5],
-  ['rune_muster_general', 5], ['rune_delayed_duplication', 5], ['rune_ascension', 5],
+  ['rune_perfect_recall', 3], ['rune_ninefold_commerce', 4], ['rune_borrowed_echoes', 2], // balance 9/23: 6 → 3, 6 → 4, 5 → 2
+  ['rune_muster_general', 4], ['rune_delayed_duplication', 4], ['rune_ascension', 2], // balance 9/23: 5 → 4, 5 → 4, 5 → 2
   ['rune_lasting_cadence', 5], ['rune_deepening_vein', 5], ['rune_abomination', 5],
   ['rune_bottomless_portrait', 5],
 ];
@@ -185,14 +185,14 @@ describe("Rune of the Dragon's Pantry — a DRAGON-play meter that carries betwe
 describe('Rune of Compounding Wages — the ESCALATING threshold', () => {
   const wages = () => armed('rune_compounding_wages', { board: [minion('d', 'dw_orin', 1, 1)], hand: [] });
 
-  it('pays +1/+1 at 10 Gold, then +2/+2 at 20 — the rune improves itself', () => {
+  it('pays +2/+2 at 10 Gold, then +4/+4 at 20 — the rune improves itself (balance 9/23: was +1/+1 then +2/+2)', () => {
     const s = wages();
     advanceRuneThresholds(s, 'gold', 9);
     expect([s.board[0]!.attack, s.board[0]!.health], 'nothing at 9 Gold').toEqual([1, 1]);
     advanceRuneThresholds(s, 'gold', 1);
-    expect([s.board[0]!.attack, s.board[0]!.health], 'the first payout is the printed +1/+1').toEqual([2, 2]);
+    expect([s.board[0]!.attack, s.board[0]!.health], 'the first payout is the printed +2/+2').toEqual([3, 3]);
     advanceRuneThresholds(s, 'gold', 10);
-    expect([s.board[0]!.attack, s.board[0]!.health], 'the second is +2/+2 — 2 + 2 = 4').toEqual([4, 4]);
+    expect([s.board[0]!.attack, s.board[0]!.health], 'the second is +4/+4 — 3 + 4 = 7').toEqual([7, 7]);
   });
 
   it('only DWARVES are paid', () => {
@@ -207,13 +207,13 @@ describe('Rune of Compounding Wages — the ESCALATING threshold', () => {
     const s = wages();
     advanceRuneThresholds(s, 'gold', 30);
     const def = rune('rune_compounding_wages').reward as { buff: { attack: number; health: number } };
-    expect([def.buff.attack, def.buff.health], 'the authored rune must still print +1/+1').toEqual([1, 1]);
+    expect([def.buff.attack, def.buff.health], 'the authored rune must still print +2/+2').toEqual([2, 2]);
   });
 
   it('the badge names the NEXT payout beside the meter (the live-value rule)', () => {
     const s = wages();
-    advanceRuneThresholds(s, 'gold', 13); // one payout, 3 banked → the next grant is +2/+2
-    expect(runeTally(s, 'rune_compounding_wages')).toBe('3/10g · +2/+2');
+    advanceRuneThresholds(s, 'gold', 13); // one payout, 3 banked → the next grant is +4/+4
+    expect(runeTally(s, 'rune_compounding_wages')).toBe('3/10g · +4/+4');
   });
 });
 
@@ -362,7 +362,7 @@ describe('Rune of the Seasoned Ledger', () => {
 });
 
 describe('Rune of Echoed Arrival', () => {
-  it('the 5th ECHO minion played triggers its Echo — the four before it do not', () => {
+  it('the 4th ECHO minion played triggers its Echo — the three before it do not (balance 9/23: was the 5th)', () => {
     // Geode Guardian's Echo summons a Gemheart Golem, so a fired Echo is visible as a board body.
     const s = armed('rune_echoed_arrival', { hand: [], board: [] });
     const play = (i: number): void => {
@@ -370,12 +370,12 @@ describe('Rune of Echoed Arrival', () => {
       s.board = [...s.board, c];
       playCard(s, c);
     };
-    for (let i = 0; i < 4; i++) play(i);
-    expect(s.runeEchoedArrival!.tick).toBe(4);
+    for (let i = 0; i < 3; i++) play(i);
+    expect(s.runeEchoedArrival!.tick).toBe(3);
     const before = s.board.length;
-    play(4);
-    expect(s.runeEchoedArrival!.tick).toBe(5);
-    expect(s.board.length, 'the 5th fired its Echo, summoning a Golem alongside itself').toBeGreaterThan(before + 1);
+    play(3);
+    expect(s.runeEchoedArrival!.tick).toBe(4);
+    expect(s.board.length, 'the 4th fired its Echo, summoning a Golem alongside itself').toBeGreaterThan(before + 1);
   });
 
   it('a minion with NO Echo does not advance the count', () => {
@@ -423,10 +423,10 @@ describe('Rune of Shared Spoils', () => {
 });
 
 describe('Rune of Heavy Payroll', () => {
-  it('a DWARF arriving in hand pays the left-most minion +12/+12', () => {
+  it('a DWARF arriving in hand pays the left-most minion +8/+8 (balance 9/23: was +12/+12)', () => {
     const s = armed('rune_heavy_payroll', { board: [minion('a', 'sandbag', 1, 1), minion('b', 'sandbag', 1, 1)] });
     fireOnGainCard(s, 'dw_orin');
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([13, 13]);
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([9, 9]);
     expect([s.board[1]!.attack, s.board[1]!.health], 'only the left-most').toEqual([1, 1]);
   });
 
@@ -451,14 +451,14 @@ const fight = (player: BoardMinion[], mods: QuestCombatMods, tribes = ['beast', 
 describe('Rune of the Returning Pack — a combat meter paying into the next shop', () => {
   it('arms as a combat flag carrying its THRESHOLD, and the reducer threads it', () => {
     const s = armed('rune_returning_pack');
-    expect(s.questFlags?.runeReturningPack, 'the amount IS the threshold').toBe(6);
-    expect(questCombatMods(s).runeReturningPack).toBe(6);
+    expect(s.questFlags?.runeReturningPack, 'the amount IS the threshold').toBe(5); // balance 9/23: 5 (was 6)
+    expect(questCombatMods(s).runeReturningPack).toBe(5);
   });
 
   it('a second copy must not double the THRESHOLD (that would be strictly worse)', () => {
     let s = armed('rune_returning_pack');
     s = reduce({ ...s, runeforgeOffer: ['rune_returning_pack'], embers: 40 } as RunState, { type: 'buyRune', index: 0 }) as RunState;
-    expect(s.questFlags?.runeReturningPack).toBe(6);
+    expect(s.questFlags?.runeReturningPack).toBe(5);
   });
 
   it('pays a Beast on the Nth Beast summoned, and not before', () => {

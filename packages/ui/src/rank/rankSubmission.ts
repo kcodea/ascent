@@ -55,13 +55,19 @@ function saveQueue(q: PendingRank[]): void {
 function isPendingRank(x: unknown): x is PendingRank {
   if (!x || typeof x !== 'object') return false;
   const o = x as Record<string, unknown>;
-  return typeof o.userId === 'string' && typeof o.runId === 'string' && Number.isInteger(o.placement)
-    && Number.isInteger(o.seasonId) && Number.isInteger(o.rulesVersion);
+  if (!(typeof o.userId === 'string' && typeof o.runId === 'string' && Number.isInteger(o.placement)
+    && Number.isInteger(o.seasonId) && Number.isInteger(o.rulesVersion))) return false;
+  // Optional (2026-09-22): the seat keys, a list of strings when present.
+  return o.seatKeys === undefined || (Array.isArray(o.seatKeys) && o.seatKeys.every((k) => typeof k === 'string'));
 }
 
 /** Build the request a finished rated run submits — season + rules pinned NOW, retried verbatim later. */
-export function rankRequestFor(runId: string, placement: number, seed?: number): RankSubmitRequest {
-  return { runId, placement, seasonId: RANK_SEASON, rulesVersion: RANK_RULES.rulesVersion, ...(seed != null ? { seed } : {}) };
+export function rankRequestFor(runId: string, placement: number, seed?: number, seatKeys?: readonly string[]): RankSubmitRequest {
+  return {
+    runId, placement, seasonId: RANK_SEASON, rulesVersion: RANK_RULES.rulesVersion,
+    ...(seed != null ? { seed } : {}),
+    ...(seatKeys && seatKeys.length > 0 ? { seatKeys: [...seatKeys] } : {}),
+  };
 }
 
 /** Persist a finished rated run's request under the CURRENT account. Returns the queued item, or null when

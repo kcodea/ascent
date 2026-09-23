@@ -48,7 +48,7 @@ describe('careerRunOf — one run_history row → one CareerRun', () => {
     const r = careerRunOf(detailedRow());
     expect(r).toMatchObject({
       id: 7, heroId: 'brackus', wave: 12, wins: 6, losses: 4, draws: 1, placement: 2, goldSpent: 88, apt: 25.5,
-      ratingDelta: 37, ratingAfter: 137, seed: 4242, dominantTribe: 'beast', mode: 'lobby', detailed: true, replayRowId: null, durationMs: null,
+      ratingDelta: 37, ratingAfter: 137, seed: 4242, dominantTribe: 'beast', mode: 'lobby', detailed: true, replayRowId: null, durationMs: null, lobbyStrength: null,
     });
     expect(r.board?.minions).toHaveLength(1);
     expect(r.at).toBe(iso(1));
@@ -215,7 +215,7 @@ describe('per-run text + derivations', () => {
 const run = (over: Partial<CareerRun>): CareerRun => ({
   id: 1, heroId: 'brackus', at: iso(0), atMs: NOW, wave: 12, wins: 6, losses: 4, draws: 0, placement: 3, goldSpent: 80,
   apt: 25, ratingDelta: 10, ratingAfter: null, seed: 1, dominantTribe: 'beast', mode: 'lobby', board: null, detailed: false, runes: [], replayRowId: null,
-  durationMs: 12 * 60_000, ...over,
+  durationMs: 12 * 60_000, lobbyStrength: null, ...over,
 });
 const RUNS: CareerRun[] = [
   run({ id: 1, atMs: NOW - 1 * DAY, heroId: 'brackus', placement: 1, wins: 8, losses: 2, dominantTribe: 'beast', durationMs: 10 * 60_000, apt: 20, wave: 10, ratingAfter: 110 }), // 200 actions / 10 min = 20 APM

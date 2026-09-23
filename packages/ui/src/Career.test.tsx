@@ -50,7 +50,7 @@ const NOW = Date.now();
 const run = (over: Partial<CareerRun>): CareerRun => ({
   id: 1, heroId: 'brackus', at: new Date(NOW).toISOString(), atMs: NOW, wave: 12, wins: 6, losses: 4, draws: 0, placement: 3,
   goldSpent: 80, apt: 25, ratingDelta: 10, ratingAfter: null, seed: 1, dominantTribe: 'beast', mode: 'lobby', board: null, detailed: true, runes: [],
-  replayRowId: null, durationMs: null, ...over,
+  replayRowId: null, durationMs: null, lobbyStrength: null, ...over,
 });
 /** A full 7-minion final team, the 4th one gilded (a triple). */
 const FULL_TEAM = {
@@ -68,7 +68,7 @@ const FULL_TEAM = {
 const RUNS: CareerRun[] = [
   // The settled ratings: 1193 → 1234, so the newest run's MMR IS the profile's 1234 the crest prints.
   run({ id: 12, heroId: 'sable', atMs: NOW - 1 * DAY, wins: 9, losses: 4, placement: 1, goldSpent: 120, apt: 26.1, wave: 15, ratingDelta: 41, ratingAfter: 1234, dominantTribe: 'beast', replayRowId: 97, durationMs: 883_179,
-    board: FULL_TEAM, runes: ['rune_broodpit', 'rune_epic_forge'] }),
+    board: FULL_TEAM, runes: ['rune_broodpit', 'rune_epic_forge'], lobbyStrength: { value: 74, tier: 'Brutal', inputs: [] } }),
   run({ id: 11, heroId: 'brackus', atMs: NOW - 2 * DAY, wins: 5, losses: 5, draws: 2, placement: 3, goldSpent: 90, apt: null, durationMs: 690_108, board: null, runes: [], dominantTribe: 'mech', ratingAfter: 1193 }), // no APT → no APM point, length still known
   run({ id: 10, heroId: 'brackus', atMs: NOW - 40 * DAY, wins: 2, losses: 5, placement: 7, goldSpent: null, apt: null, durationMs: null, board: null, runes: [], dominantTribe: 'beast', detailed: false }), // no settle stamp → no MMR point
 ];
@@ -219,7 +219,9 @@ describe('Match History', () => {
     // The banner's edge carries the same result colour.
     expect([...ui.container.querySelectorAll('.cv2-row')].map((r) => r.classList.contains('won'))).toEqual([true, false, false]);
     expect(text('.cv2-row-outcome .cv2-row-label')).toEqual(['Match Outcome', 'Match Outcome', 'Match Outcome']);
-    expect(text('.cv2-row .cv2-meta-l')).toEqual(['Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);
+    // The LOBBY STRENGTH (owner 2026-09-22) is a fourth labelled fact, only on a run that carries a stamp.
+    expect(text('.cv2-row .cv2-meta-l')).toEqual(['Played', 'Length', 'Gold spent', 'Lobby', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);
+    expect(text('.cv2-row-lobby')).toEqual(['Brutal 74']);
     const when = text('.cv2-row-when');
     expect(when[0]).toMatch(/\d{4}$/);          // a real date
     expect(text('.cv2-row-length')).toEqual(['15 min', '12 min', '—']);   // 883 s · 690 s · no telemetry clock

@@ -52,6 +52,32 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Hall of Champions + lobby strength',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'A top 4 finish in a hard lobby now pays a bonus of up to 15 rating on top of the usual award.',
+        details: [
+          'Every lobby now has a strength score from 0 to 100: the average win rate of the seven runs you were seated with, from their record across every game they have played. An unknown run counts as 50. A bot counts as 25.',
+          'The bonus scales with your placement and with the lobby strength. A 1st place earns the full scale, a 2nd earns 80 percent of it, a 3rd 62 percent and a 4th 47 percent. The strength part is 0 at 30 or below and full at 100.',
+          'Some examples: a 1st at strength 100 earns 15, a 1st at 75 earns 10, a 4th at 100 earns 7, a 1st at 50 earns 4 and a 4th at 50 earns 2. Finishing 5th to 8th never scales, and a loss never gets bigger.',
+          'The bonus follows the normal promotion rules. A 1st at 90 of 100 still stops at 100. A top 4 at a division gate still promotes to 10 of 100.',
+          'The rank screen prints the two parts apart, for example +40 RP +12 lobby.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Hall of Champions now ranks warbands by their record against everyone, not by lobby wins.',
+        details: [
+          'Every fight at your table is recorded, including the rounds played out after you are knocked out. A warband enters the Hall after 10 fights.',
+          'The top 10 are ordered by win rate with a confidence adjustment, so a 30 and 2 warband ranks above a 3 and 0 one. Each row shows its full record, its win rate, how many lobbies it fought in, its own game, its last fight and the rank its player held.',
+          "Your Career match results and the Recent Games rows now show each lobby's strength, such as Brutal 74. Easy is below 35, Even is 35 to 54, Hard is 55 to 69, Brutal is 70 and up. It never shows before or during a game.",
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Card readability & gilded polish',
     changes: [
       { category: 'Systems', text: 'The keyword panel beside a card now leads with the keyword shown on the card’s medallion and marks that entry with the medallion icon, so the gem and its definition line up.' },

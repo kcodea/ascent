@@ -35,6 +35,7 @@ import { EquipFxTuner } from './EquipFxTuner';
 import { EquipSlotTuner } from './EquipSlotTuner';
 import { MedallionTuner } from './MedallionTuner';
 import { GildedBadgeTuner } from './GildedBadgeTuner';
+import { EpicMedallionTuner } from './EpicMedallionTuner';
 import { MilestoneFrameTuner } from './MilestoneFrameTuner';
 import { RuneLockInTuner } from './RuneLockInTuner';
 import { WeldFxTuner } from './WeldFxTuner';
@@ -138,6 +139,7 @@ const GROUPS: Group[] = [
       { key: 'cardpills', icon: '🏷️', label: 'Card Pills', C: CardPillsTuner, hint: 'Cost coin, tier badge, attack and health badges' },
       { key: 'medallion', icon: '🎖️', label: 'Medallions', C: MedallionTuner, hint: 'Card mechanic medallion — size, placement, and the art inset', alt: 'medallion mechanic icon size position' },
       { key: 'gildedbadge', icon: '👑', label: 'Gilded Badge', C: GildedBadgeTuner, hint: 'The golden/tripled corner badge — size and placement', alt: 'gilded crown gold triple corner badge marker' },
+      { key: 'epicmedallion', icon: '✴️', label: 'Epic Medallion', C: EpicMedallionTuner, hint: 'The separate badge on epic units (trigger/cast multipliers — Drakko, Sylus, Chronos, Yazzus) — size and placement', alt: 'epic medallion multiplier repeat drakko sylus chronos yazzus badge' },
       { key: 'milestoneframe', icon: '🏅', label: 'Milestone Badges', C: MilestoneFrameTuner, hint: 'The per-tier frame discs an Attack/Health badge sits in past 50/100/500/1000/5000 — frame size/position, the state tint, and the number size/colour', alt: 'stat badge milestone frame tier disc sword heart tint number' },
       { key: 'cardart', icon: '🖌️', label: 'Card Art', C: CardArtTuner, hint: "One card's illustration: framing inside the window, plus hue/saturation/contrast" },
       { key: 'heropanel', icon: '🧍', label: 'Hero Panel', C: HeroPanelTuner, hint: 'The bottom-left hero tray' },

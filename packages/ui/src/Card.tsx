@@ -13,7 +13,8 @@ import { CardArtEditor } from './CardArtEditor';
 import { perfMonitor } from './perfMonitor';
 import { heldFor, holdStat, statHoldKey, subscribeStatHolds } from './fx/statHold';
 import { resolveMech } from './mechIcon';
-import { mechMedallionArtScale, mechMedallionSrc } from './mechMedallion';
+import { mechMedallionArtRotate, mechMedallionArtScale, mechMedallionArtTint, mechMedallionSrc } from './mechMedallion';
+import { epicMedallionSrc, isEpicUnit } from './epicMedallion';
 import { crossedUp, tierOf } from './choreo/statMilestones';
 import { fireStatMilestone } from './fx/statMilestone';
 import { useMilestoneBadgeFx } from './fx/milestoneBadgeFx';
@@ -1165,17 +1166,23 @@ export const Card = memo(function Card({
               <span className="value">{formatStat(shownHealth)}</span>
             </span>
             {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre. Rendered
-                ONLY when a mechanic resolves: no icon → no gem at all (owner ask 2026-09-22), never an empty circle. */}
-            {mech && (() => {
+                ONLY when a mechanic resolves: no icon → no gem at all (owner ask 2026-09-22), never an empty circle.
+                Epic units wear the epic badge INSTEAD of a mechanic gem, so suppress the gem for them (owner ask
+                2026-09-23 — Elderhorn / Orivax carried both Choose One + epic). */}
+            {mech && !isEpicUnit(card.cardId) && (() => {
               // PNG art → the hybrid img PLUS a same-shape tint overlay (🎖️ Medallions tuner; inert at amount 0).
               // `--cgem-artsrc` masks the overlay to this exact art. SVG-glyph mechanics keep the plain <Icon>.
               const medSrc = mechMedallionSrc(mech.id);
+              const medTint = mechMedallionArtTint(mech.id); // per-mechanic colour sheen (Execute → red multiply)
               return (
                 <span key={`cgem-${pulseCrit ?? 0}-${pulseRally ?? 0}-${pulseWatcher ?? 0}`} className={`cgem${pulseCrit ? ' pulsing crit' : pulseRally ? ' pulsing rally' : pulseWatcher ? ' pulsing watcher' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true">{medSrc
-                  ? <><img decoding="sync" className="cgem-img" src={medSrc} alt="" aria-hidden="true" style={{ '--cgem-art-mech': mechMedallionArtScale(mech.id) } as CSSProperties} /><span className="cgem-tint" style={{ '--cgem-artsrc': `url("${medSrc}")`, '--cgem-art-mech': mechMedallionArtScale(mech.id) } as CSSProperties} aria-hidden="true" /></>
+                  ? <><img decoding="sync" className="cgem-img" src={medSrc} alt="" aria-hidden="true" style={{ '--cgem-art-mech': mechMedallionArtScale(mech.id), '--cgem-art-rot': `${mechMedallionArtRotate(mech.id)}deg` } as CSSProperties} /><span className="cgem-tint" style={{ '--cgem-artsrc': `url("${medSrc}")`, '--cgem-art-mech': mechMedallionArtScale(mech.id), '--cgem-art-rot': `${mechMedallionArtRotate(mech.id)}deg`, ...(medTint ? { '--cgem-tint': medTint.color, '--cgem-tint-amt': medTint.amt, '--cgem-tint-blend': medTint.blend } : {}) } as CSSProperties} aria-hidden="true" /></>
                   : <Icon name={mech.glyph} />}</span>
               );
             })()}
+            {/* EPIC medallion — a SEPARATE badge on "epic" units (trigger/cast multipliers: Drakko, Sylus, …).
+                Own tuner (size/placement, --epic-*), always the same icon (no gild/silver), medallion drop shadow. */}
+            {isEpicUnit(card.cardId) && <img decoding="sync" className="epic-medallion" src={epicMedallionSrc(card.cardId)} alt="" aria-hidden="true" />}
           </>
         )}
         {/* WATCHER frame bloom — a one-shot light-blue ring on the whole card frame (CSS fallback for the

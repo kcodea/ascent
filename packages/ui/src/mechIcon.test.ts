@@ -37,12 +37,26 @@ describe('resolveMech', () => {
     // so Echo, the next mention, takes the medallion.
     expect(resolveMech(view('b2_armadiyo'))?.glyph).toBe('echo');
   });
-  it('Taunt and Ward never claim the medallion (frame / dome signify them instead)', () => {
+  it('Taunt, Ward and Flurry never claim the medallion (signified another way)', () => {
     for (const c of ALL_CARDS) {
       if ((c as { spell?: unknown }).spell || (c as { ruby?: unknown }).ruby) continue; // no medallion
       const id = resolveMech(view(c.id))?.id;
-      expect(id === 'taunt' || id === 'ward', `${c.id} → ${id}`).toBe(false);
+      expect(id === 'taunt' || id === 'ward' || id === 'flurry', `${c.id} → ${id}`).toBe(false);
     }
+  });
+  it('Blazer (Flurry + Rally) → rally, since Flurry is excluded from the gem', () => {
+    expect(resolveMech(view('k_blazer'))?.glyph).toBe('sword'); // rally's glyph
+    expect(resolveMech(view('k_blazer'))?.id).toBe('rally');
+  });
+  it('Start of Turn AND Start of Combat effects share the Start of Combat lightning medallion', () => {
+    // Fel Conjurer — "Start of Turn: …" (on: 'startOfTurn', no SC keyword).
+    expect(resolveMech(view('d2_felconjurer'))?.id).toBe('startCombat');
+    // Arena Heckler — "Start of Combat: …" via an effect trigger (on: 'startOfCombat', no SC keyword).
+    expect(resolveMech(view('arenaheckler'))?.id).toBe('startCombat');
+  });
+  it('a consume-watcher (Enigma) → watcher eye', () => {
+    // Enigma — "When you consume a minion, …" (on: 'onConsume'): watches the consume, so it is a Watcher.
+    expect(resolveMech(view('dm_jumbo'))?.id).toBe('watcher');
   });
   it('Choose One → choose1; Engraved → engrave', () => {
     expect(resolveMech(view('shaper'))?.glyph).toBe('choose1');

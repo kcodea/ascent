@@ -20,14 +20,14 @@ export interface StepCounterConfig {
 const DEFAULTS: StepCounterConfig = {
   size: 20.5, // shipped .stepcounter font-size
   x: 1, // shipped horizontal nudge from centre
-  y: -44, // shipped `bottom` (below the card's bottom edge)
+  y: -53, // shipped `bottom` (below the card's bottom edge) — owner tune 2026-09-23
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
 export const SC_RANGES: Record<keyof StepCounterConfig, [number, number, number]> = {
   size: [6, 30, 0.5],
   x: [-60, 60, 1],
-  y: [-48, 24, 1],
+  y: [-60, 24, 1],
 };
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as SC_DEFAULTS };

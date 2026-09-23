@@ -229,6 +229,36 @@ export function admitPlay(
   return n;
 }
 
+/**
+ * Retire EVERY registered play — protected ones included — and empty the registry. Returns how many retired.
+ *
+ * Called by `pixiFx.detach()` (the overlay unmounts at the title screen and for the rank preview) so no play
+ * outlives the Pixi context it was built on. Before this, a one-shot still live at detach kept its updater,
+ * its registry entry, its pooled particle layer (`fxLiveParticles`) and its filter counters after the stage
+ * had destroyed its containers: the next context's first tick hit a null shader resource
+ * (`Cannot read properties of null (reading 'fxUniforms')`), the guard evicted the updater, and the ghost
+ * sat in the registry counting against `maxParticles` for the rest of the session (found 2026-09-22).
+ *
+ * NOT a budget trim: `culled` / `fx:culled` are left alone so that counter keeps meaning "the cap bit".
+ * Empties the registry FIRST and retires a SNAPSHOT (each `retire()` would otherwise splice `plays` under
+ * the loop, skipping every other play) — the same remove-then-retire shape `trim` uses, so a retire that
+ * never reaches its own unregister still leaves nothing behind. One throwing retire is logged and skipped
+ * rather than allowed to abandon the rest as ghosts. `retire` is idempotent, so a caller-owned loop's later
+ * dispose is a harmless no-op.
+ */
+export function retireLivePlays(): number {
+  const snapshot = [...plays];
+  plays.length = 0;
+  for (const p of snapshot) {
+    try {
+      p.retire();
+    } catch (e) {
+      console.error(`[fx] retiring play '${p.id}' at detach threw — skipping it:`, e);
+    }
+  }
+  return snapshot.length;
+}
+
 /** A read-only snapshot for the DEV console handle (`window.__fx.budget.live()`). */
 export function livePlaysSnapshot(): { id: string; particles: number; filters: number; protected: boolean }[] {
   return plays.map((p) => ({ id: p.id, particles: p.load.particles, filters: p.load.filters, protected: p.protected }));

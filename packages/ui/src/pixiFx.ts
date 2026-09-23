@@ -11,6 +11,9 @@ import { getCleaveFxConfig, type CleaveFxConfig } from './cleaveFxConfig';
 import { getTrailConfig } from './trailConfig';
 import { sfx } from './sfx';
 import { fxActiveFilters, fxLiveLayers, fxLiveParticles, resetFxPools } from './fx/fxRuntime';
+// Cycle-safe: `fxBudget.ts` reaches only perfMonitor / fxRuntime / fxBudgetConfig / registry, none of which
+// import this file.
+import { retireLivePlays } from './fx/fxBudget';
 import type { FxSlot, FxLayer } from './fx/def';
 // Phase 2 aim driver: the live targeting line is now an FX DEF (the `spell-target` composition), whose
 // primitives are spawned from the registry at runtime (never statically imported — that would pull the
@@ -855,9 +858,27 @@ class FxController {
     }
   }
 
-  /** Remove the canvas from the DOM and tear the app down. */
+  /** Remove the canvas from the DOM and tear the app down. A re-attach is a NEW world: every def play still
+   *  live here is retired first (see below), so nothing built on this context survives into the next one. */
   detach(): void {
     if (!this.app) return;
+    // Retire every registered def play (`playDef`) BEFORE anything below is torn down, so each one retires
+    // against a live stage in its own order — updater off, player + layers + filters + particles destroyed,
+    // container unmounted and destroyed — and its pooled particle layer files back into the pool normally
+    // (`resetFxPools()` then drops the pool). Left alone, a play still live at detach kept its updater in
+    // `extraUpdaters` and its entry in the budget registry after `app.destroy({ children: true })` had
+    // destroyed its containers and nulled its shader's resources: the next context's first tick threw
+    // `Cannot read properties of null (reading 'fxUniforms')` once per play (caught by the guard in
+    // `updateInner`, which evicted the updater but never ran `retire`), and the ghost stayed in the registry
+    // counting against `maxParticles` for the rest of the session (found 2026-09-22). The registry belongs to
+    // the BOARD controller only — `playDef` plays through `pixiFx`, never `discoverFx` — so it is gated the
+    // same way as the shared counters in `init()`.
+    if (!this.label) retireLivePlays();
+    // Anything a retire above did not cover (the DEV workbench's own updater; a container queued before
+    // `init()` ever mounted it) must not carry over to the next Application either — an updater would tick
+    // against destroyed objects, a pending container would be added to a stage it was never built for.
+    this.extraUpdaters.length = 0;
+    this.pendingMounts.length = 0;
     for (const p of this.live) p.sprite.destroy();
     this.live.length = 0;
     this.pool.length = 0;

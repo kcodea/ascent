@@ -10,13 +10,19 @@
  *   npm run docbot:report -- --json             # the full FinalReport as JSON (stdout)
  *   npm run docbot:report -- --out artifacts/docbot-report   # writes report.json
  *   npm run docbot:report -- --check            # verify docs/docbot2/final-report.md against these numbers
+ *   npm run docbot:report -- --render [path]    # the final report with every {{placeholder}} filled in
+ *                                               # (stdout, or written to [path]) — for reading, never committed
+ *
+ * GENERATED headline numbers: the document writes `{{rules.total}}` / `{{rules.approved}}` (any headline
+ * key works) instead of a literal, and `--check` / the drift-rail test / `--render` fill them from the
+ * generator at read time. Adding a rule therefore never edits the document.
  *
  * Exit code: 0 always, EXCEPT `--check` with a drifted document (1). This command REPORTS; it never
  * decides that something is broken — the sweeps it summarizes own that verdict.
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildFinalReport, currentCommit, docClaimErrors, headlineNumbers } from './docbot-report.lib';
+import { buildFinalReport, currentCommit, docClaimErrors, headlineNumbers, resolveHeadlinePlaceholders } from './docbot-report.lib';
 
 const argv = process.argv.slice(2);
 const has = (name: string): boolean => argv.includes(`--${name}`);
@@ -110,15 +116,37 @@ if (OUT) {
   console.log(`  artifact → ${join(OUT, 'report.json')}`);
 }
 
+const DOC_PATH = join('docs', 'docbot2', 'final-report.md');
+
+if (has('render')) {
+  if (!existsSync(DOC_PATH)) {
+    console.error(`\n✗ ${DOC_PATH} is missing.`);
+    process.exit(1);
+  }
+  const resolved = resolveHeadlinePlaceholders(readFileSync(DOC_PATH, 'utf8'), report);
+  const target = flag('render');
+  if (target) {
+    writeFileSync(target, resolved.text);
+    console.log(`  rendered → ${target} (${Object.keys(resolved.filled).length} placeholder(s) filled)`);
+  } else {
+    process.stdout.write(resolved.text);
+  }
+  if (resolved.unknown.length) console.error(`\n✗ unknown placeholder(s) left in place: ${resolved.unknown.map((k) => `{{${k}}}`).join(', ')}`);
+}
+
 if (has('check')) {
-  const path = join('docs', 'docbot2', 'final-report.md');
+  const path = DOC_PATH;
   if (!existsSync(path)) {
     console.error(`\n✗ ${path} is missing.`);
     process.exit(1);
   }
-  const errors = docClaimErrors(readFileSync(path, 'utf8'), report);
+  const markdown = readFileSync(path, 'utf8');
+  const errors = docClaimErrors(markdown, report);
   if (errors.length === 0) {
-    console.log(`\n✓ ${path} agrees with the generator on all ${Object.keys(headlineNumbers(report)).length} headline numbers.\n`);
+    const filled = resolveHeadlinePlaceholders(markdown, report).filled;
+    const generated = Object.entries(filled).map(([k, v]) => `{{${k}}}=${v}`).join(', ');
+    console.log(`\n✓ ${path} agrees with the generator on all ${Object.keys(headlineNumbers(report)).length} headline numbers`
+      + `${generated ? ` (generated at read time: ${generated})` : ''}.\n`);
   } else {
     console.error(`\n✗ ${path} has drifted from the generator:`);
     for (const e of errors) console.error(`  · ${e}`);

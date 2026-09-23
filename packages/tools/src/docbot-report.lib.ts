@@ -405,15 +405,57 @@ export function headlineNumbers(r: FinalReport): Record<string, number> {
 }
 
 /**
- * Every headline number must appear, as a standalone token, somewhere in the doc. Deliberately a
- * CONTAINMENT check rather than a parse: it catches the failure that actually happens (a number moves and
- * the prose keeps the old one) without dictating how the prose is written.
+ * `{{key}}` in the final report is a GENERATED headline number: it is filled from `headlineNumbers()` when
+ * the document is read (`--check`, the drift-rail test, `--render`), so the file never carries that value
+ * as a literal. Any headline key may be written this way; `PLACEHOLDER_ONLY_HEADLINES` MUST be, because
+ * every PR that adds a rule moves them and hand-bumping them made concurrent PRs conflict on one line
+ * (2026-09-23 — three same-day PRs, three conflicts).
+ */
+export const HEADLINE_PLACEHOLDER = /\{\{\s*([A-Za-z0-9_.]+)\s*\}\}/g;
+
+/** Headline keys the document may only state as a `{{placeholder}}`, never as a literal number. */
+export const PLACEHOLDER_ONLY_HEADLINES: readonly string[] = ['rules.total', 'rules.approved'];
+
+export interface ResolvedDoc {
+  /** The markdown with every known `{{key}}` replaced by the generator's value. */
+  text: string;
+  /** What was filled in, key → value. */
+  filled: Record<string, number>;
+  /** Placeholder keys the generator does not derive (a typo, or a key that was renamed). */
+  unknown: string[];
+}
+
+export function resolveHeadlinePlaceholders(markdown: string, r: FinalReport): ResolvedDoc {
+  const numbers = headlineNumbers(r);
+  const filled: Record<string, number> = {};
+  const unknown = new Set<string>();
+  const text = markdown.replace(HEADLINE_PLACEHOLDER, (whole, key: string) => {
+    const value = numbers[key];
+    if (value === undefined) { unknown.add(key); return whole; }
+    filled[key] = value;
+    return String(value);
+  });
+  return { text, filled, unknown: [...unknown] };
+}
+
+/**
+ * Every headline number must appear, as a standalone token, somewhere in the doc — after `{{key}}`
+ * placeholders are filled from the generator. Deliberately a CONTAINMENT check rather than a parse: it
+ * catches the failure that actually happens (a number moves and the prose keeps the old one) without
+ * dictating how the prose is written. A placeholder can never drift, which is the point of one.
  */
 export function docClaimErrors(markdown: string, r: FinalReport): string[] {
   const errors: string[] = [];
+  const resolved = resolveHeadlinePlaceholders(markdown, r);
+  for (const key of resolved.unknown) {
+    errors.push(`\`{{${key}}}\` is not a headline number the generator derives (known keys: ${Object.keys(headlineNumbers(r)).join(', ')})`);
+  }
+  for (const key of PLACEHOLDER_ONLY_HEADLINES) {
+    if (!(key in resolved.filled)) errors.push(`${key} must be written as the placeholder \`{{${key}}}\` (it is generated, never a literal) — it is missing from the document`);
+  }
   for (const [key, value] of Object.entries(headlineNumbers(r))) {
     const token = new RegExp(`(^|[^\\d.,])${value}([^\\d.%]|%|$)`, 'm');
-    if (!token.test(markdown)) errors.push(`${key} = ${value} does not appear in the document — run \`${REPORT_COMMAND}\` and update it`);
+    if (!token.test(resolved.text)) errors.push(`${key} = ${value} does not appear in the document — run \`${REPORT_COMMAND}\` and update it`);
   }
   if (!markdown.includes(REPORT_COMMAND)) errors.push(`the document must cite its generator (\`${REPORT_COMMAND}\`)`);
   if (!/commit\s*[`:]/i.test(markdown)) errors.push('the document must stamp the commit it was generated at');

@@ -16,7 +16,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { REPORT_COMMAND, buildFinalReport, docClaimErrors, headlineNumbers } from './docbot-report.lib';
+import { PLACEHOLDER_ONLY_HEADLINES, REPORT_COMMAND, buildFinalReport, docClaimErrors, headlineNumbers, resolveHeadlinePlaceholders } from './docbot-report.lib';
 
 const DOC = join('docs', 'docbot2', 'final-report.md');
 const report = buildFinalReport({ commit: 'test' });
@@ -87,5 +87,35 @@ describe('docs/docbot2/final-report.md — the doc-drift rail', () => {
   it('SABOTAGE — a doc that drops the generator citation is caught', () => {
     expect(docClaimErrors(markdown.split(REPORT_COMMAND).join('the report tool'), report))
       .toContain(`the document must cite its generator (\`${REPORT_COMMAND}\`)`);
+  });
+});
+
+describe('generated headline numbers — `{{key}}` placeholders (2026-09-23)', () => {
+  const markdown = readFileSync(DOC, 'utf8');
+
+  it('the rule counts are placeholders in the committed document, never literals — adding a rule edits no doc', () => {
+    expect(PLACEHOLDER_ONLY_HEADLINES).toEqual(['rules.total', 'rules.approved']);
+    for (const key of PLACEHOLDER_ONLY_HEADLINES) expect(markdown).toContain(`{{${key}}}`);
+    const { filled, unknown } = resolveHeadlinePlaceholders(markdown, report);
+    expect(unknown).toEqual([]);
+    expect(filled['rules.total']).toBe(report.rules.total);
+    expect(filled['rules.approved']).toBe(report.rules.approved);
+  });
+
+  it('a placeholder is filled from the generator, so the resolved text carries the live number', () => {
+    const { text } = resolveHeadlinePlaceholders('rulebook: {{rules.total}} rules ({{ rules.approved }} approved)', report);
+    expect(text).toBe(`rulebook: ${report.rules.total} rules (${report.rules.approved} approved)`);
+  });
+
+  it('SABOTAGE — writing the rule count back as a literal is caught by name', () => {
+    const literal = markdown.split('{{rules.approved}}').join(String(report.rules.approved));
+    expect(docClaimErrors(literal, report))
+      .toContain('rules.approved must be written as the placeholder `{{rules.approved}}` (it is generated, never a literal) — it is missing from the document');
+  });
+
+  it('SABOTAGE — a placeholder for a key the generator does not derive is caught (a typo cannot pass as generated)', () => {
+    const typo = markdown.replace('{{rules.total}}', '{{rules.totl}}');
+    const errors = docClaimErrors(typo, report);
+    expect(errors.some((e) => e.startsWith('`{{rules.totl}}` is not a headline number the generator derives'))).toBe(true);
   });
 });

@@ -1,5 +1,6 @@
-/** Pause / settings overlay (Esc). Trimmed to what players actually need: audio (two mixes since 2026-09-23: the
- *  Game-sounds master + mute, and the lobby Music level + mute, see music.ts), combat
+/** Pause / settings overlay (Esc). Trimmed to what players actually need: audio (an "Audio" button since
+ *  2026-09-23 that expands three channels, each a slider + mute: Game sounds (sfx.ts), Music (music.ts) and the
+ *  Announcer (announcer.ts); collapsed by default, its open state remembered in localStorage), combat
  *  pacing, the local-data resets (captured boards + career), Quit back to the main menu, and — in the Electron
  *  shell only — a fullscreen toggle + Quit game (see `desktop.ts`; the web build has no shell to close).
  *
@@ -13,6 +14,7 @@ import { useState } from 'react';
 import { isDesktop, quitGame, toggleFullscreen } from './desktop';
 import { getVolume, isMuted, setVolume, sfx, toggleMute } from './sfx';
 import { getMusicVolume, isMusicMuted, setMusicVolume, toggleMusicMute } from './music';
+import { getAnnouncerVolume, isAnnouncerMuted, setAnnouncerVolume, toggleAnnouncerMute } from './announcer';
 import { useGame } from './store';
 import { FPS_CAP_OPTIONS, fpsCapLabel } from './fpsCap';
 import { perfThresholds } from './perfMonitor';
@@ -41,6 +43,17 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   const [muted, setMuted] = useState(isMuted());
   const [musicVol, setMusicVol] = useState(getMusicVolume());
   const [musicMuted, setMusicMuted] = useState(isMusicMuted());
+  const [announcerVol, setAnnouncerVol] = useState(getAnnouncerVolume());
+  const [announcerMuted, setAnnouncerMuted] = useState(isAnnouncerMuted());
+  // THE AUDIO PANEL (owner ask 2026-09-23): one "Audio" button expands / collapses the three channels. Collapsed
+  // by default; the choice is remembered per browser.
+  const [audioOpen, setAudioOpen] = useState(readAudioPanelOpen);
+  const toggleAudioPanel = (): void => {
+    const next = !audioOpen;
+    setAudioOpen(next);
+    try { localStorage.setItem(AUDIO_PANEL_KEY, next ? '1' : '0'); } catch { /* ignore */ }
+    sfx.pulse();
+  };
   // Combat pacing — how fast the combat replay animates (owner moved this here from the in-combat HUD
   // 2026-08-11). Live store value; the arena's beat clock + CSS read it.
   const combatSpeed = useGame((s) => s.combatSpeed);
@@ -92,59 +105,44 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
           </button>
         )}
         <div className="escsec">Audio</div>
-        {/* TWO MIXES (owner ask 2026-09-23): "Game sounds" is the SFX master (sfx.ts); "Music" is the lobby
-            background music's own level (music.ts). Each has its slider + its mute; neither touches the other. */}
-        <div className="escvol">
-          <span className="evl">Game sounds</span>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            step={1}
-            value={Math.round(vol * 100)}
-            disabled={muted}
-            aria-label="Game sounds volume"
-            onChange={(e) => {
-              const v = Number(e.target.value) / 100;
-              setVol(v);
-              setVolume(v);
-            }}
-            onPointerUp={() => sfx.buy()}
-          />
-          <span className="evv">{muted ? 'Off' : `${Math.round(vol * 100)}`}</span>
-        </div>
+        {/* THREE CHANNELS behind one button (owner ask 2026-09-23): "Game sounds" is the SFX master (sfx.ts),
+            "Music" the lobby background music's level (music.ts), "Announcer" the voice lines' level
+            (announcer.ts). Each row is its slider + its mute; none touches another. */}
         <button
-          className={`escbtn pressable${muted ? ' on' : ''}`}
-          onPointerDown={() => setMuted(toggleMute())}
+          className={`escbtn pressable${audioOpen ? ' on' : ''}`}
+          onPointerDown={toggleAudioPanel}
+          aria-expanded={audioOpen}
+          aria-controls="esc-audio-panel"
         >
-          <span className="ebl">{muted ? 'Game sounds muted' : 'Game sounds on'}</span>
-          <span className="ebs">{muted ? 'Sound effects are off' : 'Tap to mute the sound effects'}</span>
+          <span className="ebl">Audio</span>
+          <span className="ebs">{audioOpen ? 'Hide the channels' : 'Game sounds, music, announcer'}</span>
         </button>
-        <div className="escvol">
-          <span className="evl">Music</span>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            step={1}
-            value={Math.round(musicVol * 100)}
-            disabled={musicMuted}
-            aria-label="Music volume"
-            onChange={(e) => {
-              const v = Number(e.target.value) / 100;
-              setMusicVol(v);
-              setMusicVolume(v);
-            }}
-          />
-          <span className="evv">{musicMuted ? 'Off' : `${Math.round(musicVol * 100)}`}</span>
-        </div>
-        <button
-          className={`escbtn pressable${musicMuted ? ' on' : ''}`}
-          onPointerDown={() => { setMusicMuted(toggleMusicMute()); sfx.pulse(); }}
-        >
-          <span className="ebl">{musicMuted ? 'Music muted' : 'Music on'}</span>
-          <span className="ebs">{musicMuted ? 'The music is off' : 'Tap to mute the music'}</span>
-        </button>
+        {audioOpen && (
+          <div className="escaudio" id="esc-audio-panel">
+            <AudioChannel
+              label="Game sounds"
+              volume={vol}
+              muted={muted}
+              onVolume={(v) => { setVol(v); setVolume(v); }}
+              onRelease={() => sfx.buy()}
+              onToggleMute={() => setMuted(toggleMute())}
+            />
+            <AudioChannel
+              label="Music"
+              volume={musicVol}
+              muted={musicMuted}
+              onVolume={(v) => { setMusicVol(v); setMusicVolume(v); }}
+              onToggleMute={() => { setMusicMuted(toggleMusicMute()); sfx.pulse(); }}
+            />
+            <AudioChannel
+              label="Announcer"
+              volume={announcerVol}
+              muted={announcerMuted}
+              onVolume={(v) => { setAnnouncerVol(v); setAnnouncerVolume(v); }}
+              onToggleMute={() => { setAnnouncerMuted(toggleAnnouncerMute()); sfx.pulse(); }}
+            />
+          </div>
+        )}
         <div className="escsec">Combat</div>
         <div className="escvol">
           <span className="evl">{combatRampUp ? 'Start speed' : 'Speed'}</span>
@@ -231,6 +229,48 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
         )}
         <button className="escclose pressable" onPointerDown={onClose}>Resume</button>
       </div>
+    </div>
+  );
+}
+
+const AUDIO_PANEL_KEY = 'ascent.audiopanel';
+function readAudioPanelOpen(): boolean {
+  try { return localStorage.getItem(AUDIO_PANEL_KEY) === '1'; } catch { return false; }
+}
+
+/** One channel of the Audio panel: its label, its slider (disabled while muted) and its mute pill. The global
+ *  gauntlet rule paints the cursor on the button; nothing here sets its own. */
+function AudioChannel({ label, volume, muted, onVolume, onRelease, onToggleMute }: {
+  label: string;
+  volume: number;
+  muted: boolean;
+  onVolume: (v: number) => void;
+  onRelease?: () => void;
+  onToggleMute: () => void;
+}) {
+  return (
+    <div className="escvol">
+      <span className="evl">{label}</span>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        step={1}
+        value={Math.round(volume * 100)}
+        disabled={muted}
+        aria-label={`${label} volume`}
+        onChange={(e) => onVolume(Number(e.target.value) / 100)}
+        onPointerUp={onRelease}
+      />
+      <span className="evv">{muted ? 'Off' : `${Math.round(volume * 100)}`}</span>
+      <button
+        className={`escmute pressable${muted ? ' on' : ''}`}
+        onPointerDown={onToggleMute}
+        aria-pressed={muted}
+        aria-label={muted ? `Unmute ${label.toLowerCase()}` : `Mute ${label.toLowerCase()}`}
+      >
+        {muted ? 'Muted' : 'Mute'}
+      </button>
     </div>
   );
 }

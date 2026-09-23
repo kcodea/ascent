@@ -20,9 +20,10 @@ describe('liveCardText — the single source of truth shared by shop + combat', 
     expect(liveCardText('trailforager', base).text).toBe(CARD_INDEX['trailforager']!.text);
   });
 
-  it('resolves Shooting Star’s this-shop total from the turn’s spell tally (set 3 Celestials) — one chain for shop AND combat', () => {
-    expect(liveCardText('ce3_shootingstar', { ...base, spellsThisTurn: 2 }).text).toContain('{{+9/+9}}'); // base + 2 repeats (Rocket Power, owner 2026-09-14)
-    expect(liveCardText('ce3_shootingstar', { ...base, spellsThisTurn: 3, golden: true }).goldenText).toContain('{{+24/+24}}');
+  it('resolves Rocket Power’s tick count from the turn’s spell tally (set 3 Celestials) — one chain for shop AND combat', () => {
+    // The REPEAT form (R-REPEAT-01): the per-tick +3/+3 stays printed and the count rides the "Repeat" sentence.
+    expect(liveCardText('ce3_shootingstar', { ...base, spellsThisTurn: 2 }).text).toContain('+3/+3**. Repeat for every Shop spell you cast this turn {{(×3)}}.'); // base + 2 repeats (Rocket Power, owner 2026-09-14)
+    expect(liveCardText('ce3_shootingstar', { ...base, spellsThisTurn: 3, golden: true }).goldenText).toContain('+6/+6**. Repeat for every Shop spell you cast this turn {{(×4)}}.');
     expect(liveCardText('ce3_shootingstar', base).text).toBe(CARD_INDEX['ce3_shootingstar']!.text); // nothing cast → base
   });
 

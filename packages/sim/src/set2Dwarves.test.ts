@@ -146,12 +146,13 @@ describe('Gold and throughput', () => {
     expect(s.board.find((x) => x.uid === 't')!.health).toBe(CARD_INDEX['dw_brunni']!.health);
   });
 
-  it('Closing-Time Foreman scales with cards played this turn', () => {
+  it('Kringle (ex-Closing-Time Foreman) pays its base once, then repeats per card played this turn', () => {
     let s = set2();
-    // Left-most Dwarf is the recipient; `playedThisTurn` is the multiplier.
+    // Left-most Dwarf is the recipient; `playedThisTurn` is the REPEAT count on top of the base tick (owner
+    // 2026-09-22, R-REPEAT-01): 3 cards → 4 ticks of +1.
     s = { ...s, board: [body('dw_brunni', 'left'), body('dw_foreman', 'f')], playedThisTurn: ['a', 'b', 'c'] };
     s = reduce(s, { type: 'faceOmen' });
-    expect(s.board.find((x) => x.uid === 'left')!.attack).toBe(CARD_INDEX['dw_brunni']!.attack + 3);
+    expect(s.board.find((x) => x.uid === 'left')!.attack).toBe(CARD_INDEX['dw_brunni']!.attack + 4);
   });
 });
 

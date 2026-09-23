@@ -245,9 +245,10 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     goldenText: '**Shout:** give **this shop +8/+6**. Your **Starform** consumes the highest-Health minion and gains **double** its stats.',
   },
   {
-    // T3 Flurry: "this shop" +3/+3 per Shop spell cast this turn (`spellsThisTurn`, the Spirit Worgen read — a
-    // multiplied cast counts each time, as it does for every spells-this-turn scaler). LIVE TEXT prints the
-    // current total (`shootingStarText`) on both chains. Gilded: +6/+6 per spell.
+    // T3: "give this shop +3/+3. Repeat for every Shop spell you cast this turn" — the REPEAT form (R-REPEAT-01):
+    // the base once, then once per spell (`spellsThisTurn`, the Spirit Worgen read — a multiplied cast counts each
+    // time), each tick its own instance on every offer's ledger. LIVE TEXT keeps the rate and prints the tick
+    // count, "(×N)" (`shootingStarText`), on both chains. Gilded: +6/+6 per tick, never more ticks.
     id: 'ce3_shootingstar',
     name: 'Rocket Power', // 'Shooting Star' until 2026-09-14 (owner rename; id + art unchanged); Flurry dropped the same day
     tribe: 'celestial',

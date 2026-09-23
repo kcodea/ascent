@@ -2037,6 +2037,52 @@ export const APPROVED_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-PRESENT-04',
+    title: 'No FX play outlives the Pixi context it was built on: detach retires every live def play',
+    statement:
+      'When the board FX overlay detaches (`PixiFxLayer` unmounts at the title screen and around the rank '
+      + 'preview), `pixiFx.detach()` retires EVERY def play still registered in the FX budget - one-shots and '
+      + 'caller-owned loops alike - through the play\'s own idempotent `retire` (updater off, player and layers '
+      + 'destroyed with their filters and particles, container unmounted and destroyed) BEFORE the stage and '
+      + 'Application are torn down, and then clears its external-updater and pending-mount lists. After a detach '
+      + 'the budget registry is empty, no updater is left to tick against a destroyed object, and a re-attach is '
+      + 'a new world that throws nothing. A caller-owned loop that detach retired must make its owner\'s later '
+      + 'dispose a harmless no-op, never a second teardown. Retiring at detach is not a budget trim and never '
+      + 'moves the `fx:culled` counter.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Review finding on feat/equipment-amplified-comet-fx, relayed by the owner 2026-09-22',
+        quote:
+          'After the round trip the console shows exactly one [pixiFx] external updater threw - removing it to '
+          + 'protect the overlay error per play that was still live at detach (Cannot read properties of null '
+          + '(reading \'fxUniforms\')) ... Those plays also remain in the FX budget registry ... so they keep '
+          + 'counting against maxParticles as ghosts.',
+      },
+      { kind: 'code', ref: 'packages/ui/src/pixiFx.ts detach; packages/ui/src/fx/fxBudget.ts retireLivePlays; packages/ui/src/fx/playDef.ts createRetire' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22. Before the fix `detach()` tore down its own hand-written effect state and '
+      + 'destroyed the Application with `{ children: true }`, but never touched `extraUpdaters` or the budget '
+      + 'registry: a one-shot still live at detach kept its per-frame updater, its registry entry, its pooled '
+      + 'particle layer and its filter counters after Pixi had destroyed its containers and nulled its shader '
+      + 'resources. The next context\'s first tick hit `setParticleTime` on a null-resources shader, the '
+      + 'external-updater guard logged and evicted the updater, and because `retire` never ran the ghost sat '
+      + 'in the registry for the rest of the session. Loops were fine only because their owners disposed them '
+      + 'on the same unmount. `retireLivePlays` empties the registry first and retires a snapshot (remove-then-'
+      + 'retire, as `trim` does; one throwing retire is logged and skipped); `detach()` calls it before '
+      + '`resetFxPools()` and `app.destroy` so each pooled pair files back normally, gated to the board '
+      + 'controller (`!this.label`) because `playDef` only ever plays through `pixiFx`, then clears '
+      + '`extraUpdaters` (the DEV workbench updater) and `pendingMounts`.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/fx/detachRetiresLivePlays.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
     id: 'R-CAREER-01',
     title: 'The Career page trends MMR over rated runs, with an All time window',
     statement:
@@ -2069,6 +2115,58 @@ export const APPROVED_RULES: GameRule[] = [
     enforcement: {
       kind: 'scenario',
       refs: ['packages/ui/src/careerData.test.ts', 'packages/ui/src/Career.test.tsx', 'packages/ui/src/careerFetch.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-REPEAT-01',
+    title: 'LUMP versus REPEAT: "for every C" is one instance; "Repeat for every C" is the base plus one tick per C',
+    statement:
+      'Two wordings, two resolutions. LUMP: "give a minion +x/+y, +a/+b for every C you played" (and "+x/+y for '
+      + 'each C") is ONE buff instance whose magnitude is computed from the count: one tick, one beat, one buff '
+      + 'signal per target. REPEAT: "give a minion +x/+y. Repeat for every C played this turn" is the BASE buff '
+      + 'applied once and then repeated once per C, 1 + count ticks in all, and EVERY tick is its own instance: '
+      + 'its own state delta, its own buff-FX event, its own root trigger and beat, so the presentation lands the '
+      + 'buffs one after another and the sequence is naturally longer. A random target is re-rolled per tick, '
+      + 'deterministically off the run cursor; a fixed target is hit every tick. Watchers that react to a gain '
+      + '(when a Dwarf gains Attack) react once per tick. A turn with zero C still pays the base once. Gilding '
+      + 'doubles the per-tick grant, never the tick count; an End-of-Turn multiplier (Chronos) repeats the whole '
+      + 'tick sequence and counts as one trigger per repeat, never one per tick. The live text of a REPEAT card '
+      + 'prints the per-tick grant as written and the number of times it will land right now.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (Mother Moss + Kringle repeat per tick)', quote: 'mother moss and kringle give the individual stat buff and repeat it x times. there are different ways of building these buffs. for example, a lot of our stuff is... give a minion +x/+y, +a/+b for every c you played. that should give a lump sum amount in one instance. however, if something says \'give a minion +x/+y. repeat for ever c played this turn.\' that should give the base buff and repeat it z times for every c played that turn. both kringle and mother moss should function with the repeat logic. their animation beats will also naturally be longer since they\'ll spew out all of the different buffs repeated times instead of 1 per target.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts eotTickCount / endOfTurnTicksOf / forEachTick / eotRepeatTick (the shared tick count, the per-tick End-of-Turn root triggers in applyEndOfTurn, the per-tick projection beats in projectEndOfTurnSteps); packages/ui/src/Recruit.tsx (the legacy beat list per tick, the per-action tagged-wave pacing); packages/ui/src/cardText.ts perCardPlayedText' },
+    ],
+    contentIds: ['sp3_nurturer', 'dw_foreman', 'squirlscout', 'sp_dragonflame', 'dw3_striker', 'dw_dorrin', 'ce3_shootingstar'],
+    currentBehaviour:
+      'Conforms for the End-of-Turn pair as of 2026-09-22. Mother Moss already computed 1 + Spirits played picks '
+      + 'but both End-of-Turn channels summed them into one beat per target; Kringle was the LUMP form (n x +1/+2 '
+      + 'in one lump, itemized only on the legacy FX channel). Both now resolve one tick per root trigger: base + '
+      + 'one per count, each its own beat on the Choreographer path and its own projected step on the legacy path, '
+      + 'with a fresh pick per Moss tick. Kringle\'s text moved to the repeat form and its magnitude from n to n + 1 '
+      + 'ticks (a balance change, stated in the patch note). Squirl Scout and Dragonflame (shop cast) were already '
+      + 'per-repeat in the sim and now emit one tagged buff-FX event per repeat, paced apart on the play path. '
+      + 'Striker keeps its LUMP text and its n itemized waves inside one beat; Baby Gastrid is one instance. Rocket '
+      + 'Power ("give this shop +3/+3. Repeat for every Shop spell you cast this turn") resolves as 1 + spells ticks '
+      + 'in the sim (review fix 2026-09-22): one buffThisShopOffers call per tick at the per-tick rate, so the offer '
+      + 'ledger counts the ticks (Inspect prints "Rocket Power x3") and the bought body inherits that count; the '
+      + 'row total is unchanged and Twinning still hears ONE starformGained for the whole sequence, because the '
+      + 'token\'s growth is a per-action boundary diff, not a per-call watcher. Its live text moved to the house '
+      + 'style: the per-tick rate as printed plus "(xN)" on the Repeat sentence, in place of the summed total it '
+      + 'used to green. OPEN (owner forks, not changed): the shop ROW has no per-offer buff-FX channel '
+      + '(captureBuffFx diffs the board), so Rocket Power\'s ticks re-render the row once with the summed stats; a '
+      + 'per-offer, per-tick cue on the play path is the remaining presentation half. Mother Moss keeps itself in '
+      + 'its random pool. Squirl Scout ("Repeat for every Beast you own") fires once per Beast owned with the Scout '
+      + 'itself as one of those Beasts, so the Scout IS the base tick: the "1 + count" arithmetic of this rule is '
+      + 'stated for "played this turn" counts, and an "own" count that already includes the source is not one tick '
+      + 'short (flip the loop to 1 + Beasts only on an owner ruling). Combat-phase repeats (an archived Oaf, a '
+      + 'combat-cast Dragonflame) still collapse into one buffWave moment: separating them needs a per-fire wave tag '
+      + 'on the combat buff event (a shared-types boundary), tracked on the roadmap.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/repeatPerTick.test.ts', 'packages/ui/src/choreographer/repeatPerTickBeats.test.ts', 'packages/ui/src/choreo/socEotTendrils.test.ts', 'packages/sim/src/balanceBatch0804.test.ts', 'packages/sim/src/promisedNumbers.test.ts'],
       lastVerifiedAt: '2026-09-22',
     },
   },

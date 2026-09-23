@@ -320,8 +320,9 @@ pinned in `packages/sim/src/set3CelestialRoster.test.ts`):
   **3 random** Shop minions, one real consume each, fewer if the row is short. Ties for "highest" go to the
   **right-most**. With no Starform neither consumes.
 - **Rocket Power** (was Shooting Star; no Flurry) counts Shop spells cast this turn (`spellsThisTurn` — a multiplied
-  cast counts each time); the card prints the live total. **Zenith** counts a spell of **any** kind, Rubies included
-  (the Gravestar Seer ruling).
+  cast counts each time) and is the REPEAT form (R-REPEAT-01): the base **+3/+3** lands once, then once more per
+  spell, each tick its own instance on every offer's ledger; the card prints how many times it lands right now,
+  *"(×3)"*. **Zenith** counts a spell of **any** kind, Rubies included (the Gravestar Seer ruling).
 - **Stardust Peddler** (2026-09-18, 2/5): **when you spend 5 Gold** (a per-instance Gold meter while it stands — the
   Coinfire Forewoman / Billings shape; the remainder carries, a big spend can cross it twice; the step counter shows
   N/5) it **creates** a Starform if you have none, else the token gains **+3/+3** (gilded +6/+6).
@@ -748,6 +749,33 @@ A minion whose effect **casts a named spell** — Watcher, Wick Mortis, Anubis �
 **Lantern of Souls**." and stops. The spell is the minion's associated card, previewed on hover with its live,
 spell-power-aware value, the way a Ruby is previewed from the Kobolds that cast it. The caster never restates
 the number.
+
+### "Give X. Repeat for every C" is the base plus one tick per C (owner rule 2026-09-22, R-REPEAT-01)
+
+Two wordings, two resolutions:
+
+- **LUMP** — *"give a minion +x/+y, +a/+b for every C you played"* and *"+x/+y for each C"*: **one** buff
+  instance whose magnitude is computed from the count. One tick, one beat, one ribbon per target. Striker
+  (*"+1 Attack for each card you played this turn"*) and Baby Gastrid (*"+2 Health per Gold spent"*) are this.
+- **REPEAT** — *"give a minion +x/+y. Repeat for every C played this turn"*: the **base** buff lands once, then
+  once more per C, `1 + count` ticks in all, and **every tick is its own instance** — its own stat delta, its own
+  buff signal, its own beat — so the buffs visibly land one after another and the End of Turn runs longer when
+  a card repeats many times. A random target is re-rolled per tick (seeded, replay-faithful); a fixed target is
+  hit every tick; "when a Dwarf gains Attack" watchers react once per tick; a turn with zero C still pays the base
+  once. Gilding doubles the per-tick grant, never the tick count; Chronos repeats the whole tick sequence and
+  counts one End-of-Turn trigger per repeat, not one per tick. The live text keeps the per-tick grant as printed
+  and adds how many times it lands right now: *"Repeat for every card you played this turn (×4)"*.
+
+**Mother Moss** (*"give a random Spirit +3/+4. Repeat for every Spirit played this turn"*) and **Kringle**
+(*"give your left and right-most Dwarves +1/+2. Repeat for every card you played this turn"*) are the REPEAT
+form. Kringle moved to it on 2026-09-22 (it was the LUMP form, `n ×` the rate); its total is now `(n + 1) ×`.
+Squirl Scout's Battlecry and Dragonflame's shop cast are REPEAT in the sim and draw one ribbon per repeat.
+Rocket Power (*"give this shop +3/+3. Repeat for every Shop spell you cast this turn"*) resolves as `1 + spells`
+ticks on the shop row (one ledger instance per tick; the total is unchanged) and its text prints the tick count;
+the row itself still re-renders once, because the Shop has no per-offer buff cue.
+Open (owner forks, unchanged): a per-offer, per-tick cue on the shop row; Mother Moss keeps itself in its random
+pool; Squirl Scout (*"Repeat for every Beast you own"*) fires once per Beast owned with itself as one of them, so
+the Scout is the base tick rather than `1 +` Beasts; combat-phase repeats still collapse into one buff wave.
 
 ### An Aura-affecting spell is permanent from any phase (owner rule 2026-09-09, R-AURA-02)
 

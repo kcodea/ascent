@@ -90,6 +90,25 @@ const ICONS: Record<string, ReactNode> = {
       <path fill="currentColor" d="M3.6 21.4c-.1-1.6 1.3-2.5 2.6-2 .5-1.5 2.4-1.8 3.5-.8.6-1.3 2.9-1.3 3.6-.1 1-1 3-.8 3.6.8 1.3-.4 2.7.5 2.7 2 0 .3-.2.5-.5.5H4.1c-.3 0-.5-.2-.5-.4z" />
     </>
   ),
+  // Rebirth — a distinct keyword from Rise (owner 2026-09-16); reuses the Rise artwork as a defensive SVG
+  // fallback (PNGs cover the real medallion; this is only for anywhere an Icon renders before art loads).
+  rebirth: (
+    <>
+      {/* fingers, spread + reaching */}
+      <path fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" d="M8.7 12.3L7.4 6.6M11 12L10.6 4.9M13.2 12.2L14.4 6.4M13.8 12.7L16.6 9.6" />
+      {/* palm + forearm */}
+      <path fill="currentColor" d="M8.5 12.2c-.3 3.1.2 5.6 1.4 7.1h4.2c1.2-1.5 1.7-4 1.4-7.1-.3-2-1.8-3.1-3.5-3.1s-3.2 1.1-3.5 3.1z" />
+      {/* dirt mound */}
+      <path fill="currentColor" d="M3.6 21.4c-.1-1.6 1.3-2.5 2.6-2 .5-1.5 2.4-1.8 3.5-.8.6-1.3 2.9-1.3 3.6-.1 1-1 3-.8 3.6.8 1.3-.4 2.7.5 2.7 2 0 .3-.2.5-.5.5H4.1c-.3 0-.5-.2-.5-.4z" />
+    </>
+  ),
+  // Spend — a simple coin with a raised mark, reads as "Gold spent" at badge size. Defensive fallback only.
+  spend: (
+    <>
+      <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" strokeWidth="2.4" />
+      <path fill="currentColor" d="M11 7h2v2h2v2h-2v2h2v2h-2v1h-2v-1H9v-2h2v-2H9V9h2z" />
+    </>
+  ),
   battlecry: (
     <>
       <path fill="currentColor" d="M4 9.5v5h3l6 3.5v-12L7 9.5H4z" />

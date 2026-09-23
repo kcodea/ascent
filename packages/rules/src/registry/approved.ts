@@ -2200,4 +2200,36 @@ export const APPROVED_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-22',
     },
   },
+  {
+    id: 'R-PRESENT-05',
+    title: 'The Runeforge rune row never moves when the free re-roll is spent',
+    statement:
+      'The Runeforge overlay centres its panel vertically, so every element of the panel must keep its box across '
+      + 'the free re-roll: the re-roll button STAYS MOUNTED once spent (`forge-reroll-spent`: visibility hidden, '
+      + 'disabled, aria-hidden, out of the tab order, no title) instead of unmounting, so the `.forge-actions` '
+      + 'footer keeps its height, the panel keeps its height and the rune tablets\x27 top edge does not change by a '
+      + 'pixel on the click. Nothing else about the re-roll changes: it is still once per game, still Free, and '
+      + 'still gone from sight the moment it is used.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-22 (Runeforge free re-roll nudge)',
+        quote: 'the runes move down when the player uses the free re-roll can you fix that?',
+      },
+      { kind: 'code', ref: 'packages/ui/src/Recruit.tsx RuneforgeOverlay (.forge-actions); packages/ui/src/styles.css .forge-reroll.forge-reroll-spent' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22. Before the fix the button rendered only while `!runeforgeRerolled && '
+      + '!runeforgeRerollUsed`, so the spend unmounted it, `.forge-actions` collapsed from 39.46px to 0, the panel '
+      + 'shrank from 520.28px to 486.84px and the centred grid re-flowed the tablets 16.72px lower (measured at '
+      + '1400x760 on the dev build). With the button kept mounted and hidden the same measurement reads a delta of 0 '
+      + 'and the panel holds 520.28px.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/runeforgeRerollNudge.test.tsx'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
 ];

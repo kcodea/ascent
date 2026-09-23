@@ -52,6 +52,19 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Runeforge re-roll',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Runeforge: the rune offers no longer shift down when the free re-roll is used.',
+        details: [
+          'The re-roll button used to vanish once spent, and the whole forge panel re-centred around the gap. The row of runes now stays exactly where it was.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Hall of Champions + lobby strength',
     changes: [
       {

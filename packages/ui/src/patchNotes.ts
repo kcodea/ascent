@@ -67,6 +67,36 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-23',
+    label: 'Sell keyword',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Sell is now a keyword. Cards that did something when sold now read Sell: and the word shows its rule on hover.',
+        details: [
+          'Sell: Triggers when this minion is sold.',
+          'Rewritten to the keyword form: Salvatore McKlusky, River Drake, Beggy, Cheap Date, Traveling Salesman, Flame Reveler, Tide Reveler and Grove Reveler. Hoard Whelp already read this way. What they do is unchanged.',
+          'Cards that react to selling a different minion, spells that sell a minion, and sell-value lines keep their wording. The Sell pill only shows on a minion that triggers when it is sold itself.',
+          'The Compendium glossary lists Sell under Triggers.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-23',
+    label: 'Fixes',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Minions and heroes no longer pass behind the hero portrait and hero power when they attack.',
+        details: [
+          'During a fight, every minion on either board now draws in front of the hero portrait, the hero power, the equipment slot and the rune nodes in the bottom-left corner.',
+          'Hovering the hero power, the equipment slot or a rune node still opens its tooltip over the board.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-23',
     label: 'Patch Notes tabs',
     changes: [
       {

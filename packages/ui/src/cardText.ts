@@ -1356,9 +1356,9 @@ export function spiritText(
   const played = p.spiritsPlayed ?? 0;
   const live = (n: number | string): string => `{{${n}}}`;
   switch (cardId) {
-    case 'sp3_flamereveler': return x * g > g ? `When you **sell** this, give your Spirits **${live(`+${x * g} Attack`)}**, then increase that by 1.` : null;
-    case 'sp3_tidereveler': return x * g > g ? `When you **sell** this, give your Spirits **${live(`+${x * g} Health`)}**, then increase that by 1.` : null;
-    case 'sp3_grovereveler': return x * g > g ? `When you **sell** this, give your minions **${live(`+${x * g}/+${x * g}`)}**, then increase that by 1.` : null;
+    case 'sp3_flamereveler': return x * g > g ? `**Sell:** give your Spirits **${live(`+${x * g} Attack`)}**, then increase that by 1.` : null;
+    case 'sp3_tidereveler': return x * g > g ? `**Sell:** give your Spirits **${live(`+${x * g} Health`)}**, then increase that by 1.` : null;
+    case 'sp3_grovereveler': return x * g > g ? `**Sell:** give your minions **${live(`+${x * g}/+${x * g}`)}**, then increase that by 1.` : null;
     case 'sp3_luminary': {
       const v = (1 + x) * g;
       return `**Shout:** give **3** random Spirits **${live(`+${v}/+${v}`)}** (+${g}/+${g} plus ${golden ? 'twice ' : ''}your **Reveler** bonus).`;

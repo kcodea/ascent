@@ -3185,6 +3185,26 @@ body.modalup .app { z-index: auto; }
    scale instead of drifting off its frame when the board shrinks below 1.0. If the board zoom/aspect/fill is
    re-baked, re-derive the two coefficients. */
 .statusbar { position: fixed; bottom: calc(50% - 0.389444 * var(--_arth) - var(--board-y, 5px) * var(--scale) + env(safe-area-inset-bottom)); left: calc(50% - 0.391888 * var(--_artw) + var(--board-x, 0px) * var(--scale) + env(safe-area-inset-left)); display: flex; flex-direction: column; align-items: stretch; gap: 7px; z-index: 40; pointer-events: none; padding: 7px 10px 9px; }
+/* IN COMBAT THE HERO CLUSTER SITS UNDER THE ARENA (owner report 2026-09-23: "can you fix the z axis of the hero
+   power art etc? it is on top of minions and heroes so when they attack they are behind it"). The z40 above is
+   the SHOP order: the cluster over the whole `.app` (z1). In combat `.app` dissolves (see the COMBAT Z-ORDER
+   LADDER at `.app.combat`) so the board art, this cluster and the units sort at ROOT, and the cluster takes z0
+   there: the same layer as `.boardbg` / `.pixifx-below` (z0) and the app's own box (z auto), which all come
+   EARLIER in the tree, so the cluster still paints over the plain board and still gets the pointer over it;
+   and under every unit (z1 idle, z2 dying, z8 attacking, z12 struck + lunging, z13 poisoned, z14 reborn), the
+   FX canvas (z110) and the floats (z112). A lunging or struck minion now passes OVER the portrait / power
+   diamond / equipment slot / rune nodes instead of behind them. `body:has(.app.combat)` rather than a sibling
+   combinator: the bar is `.app`'s SIBLING under #root, rendered after `.pixifx`.
+   The cluster's own POPOVERS still open above the board: while a hero-power / equipment diamond or a rune node
+   is hovered (their `.herotip` / `.questbadge-tip` are trapped inside this fixed bar's stacking context, so
+   they can only escape by lifting the bar), or the run-buffs pop-out is open, the whole bar lifts to z41:
+   over every unit and level with the combat HUD pills (`.combatsummary` / `.etbwrap` z41, earlier in the
+   tree), still under the foe portrait (z42) and the FX canvas (z110). Both rules are wrapped in `:where()`
+   so they weigh (0,1,0), the same as the base rule above (they win by ORDER, so they must stay below it), and
+   LESS than the DUEL rule (`body.duel-attacker-player .statusbar` z100 at (0,2,1), further down), which must
+   keep winning mid-strike. A bare `body:has(.app.combat)` would weigh (0,3,1) and silently out-rank the duel. */
+:where(body:has(.app.combat)) .statusbar { z-index: 0; }
+:where(body:has(.app.combat)) .statusbar:where(:has(.heropanel:hover, .questbadge:hover, .buffsopen)) { z-index: 41; }
 /* Player name — a small white box above the hero panel; black text (mirrors the opponent name up top). */
 /* Player name — a pill eclipsing the TOP edge of the hero box (mirrors the opponent's `.opp-name` on its frame):
    absolutely centered on the top border, nudged up so it half-overlaps. Cream/gold to read as friendly (the
@@ -3451,10 +3471,12 @@ body.dragging .statusbar .hero { pointer-events: none; }
    `.statusbar`, z40) above the foe's (`.combatopp`, z42) or vice-versa — they are separate stacking contexts.
    These classes, toggled on `.app` for the duration of the swing, raise whichever side is ATTACKING to z100 —
    above the other portrait, still below the Pixi FX layer (z110) so the impact burst reads on top of both. */
-/* Player attacks: the player portrait already paints above the board (statusbar z40 > .app z1), so this is
-   belt-and-braces. Opp attacks: the foe lives INSIDE .app (z1), UNDER the statusbar — so raise the whole .app
-   above the statusbar for the swing, which lifts the lunging foe over the player (still below the FX layer,
-   z110). Classes live on <body> because .app and .statusbar are siblings under #root. */
+/* Player attacks: the bar lifts to 100 — LOAD-BEARING since 2026-09-23, not belt-and-braces: in combat the bar
+   sits at z-1 under the units (see the COMBAT Z-ORDER LADDER at `.app.combat`), so without this the striking
+   player portrait would fly under every minion and under the foe portrait (z42). Opp attacks: `.combatopp` is
+   a <body> portal at z42, above the bar and the units; 100 lifts it over the bar even while a cluster popover
+   holds the bar at 41. Classes live on <body> because .app and .statusbar are siblings under #root; both rules
+   sit AFTER the bar's combat rules so they win at equal specificity. */
 body.duel-attacker-player .statusbar { z-index: 100; }
 body.duel-attacker-opp .combatopp { z-index: 100; }
 
@@ -4744,6 +4766,46 @@ body.aiming, body.aiming * { cursor: none !important; }
    "arrives" where the tavern was. The warband, hero frame, HUD (ASCENT/wave/tribes/mute)
    never move — `Recruit` stays mounted the whole time, only its top-half content swaps. */
 .app { position: relative; }
+
+/* COMBAT Z-ORDER LADDER (owner report 2026-09-23: "can you fix the z axis of the hero power art etc? it is on
+   top of minions and heroes so when they attack they are behind it").
+   In the SHOP `.app` is a `z-index: 1` stacking context and the hero cluster (`.statusbar`, a #root SIBLING at
+   z40) paints over all of it. Nothing inside `.app` can ever beat the cluster, which is exactly the trap the
+   hand-hover and `body.modalup` rules above already document. The combat units live inside `.app` (the tavern
+   and warband zones), so a minion lunging out of the leftmost slot, or wound up over the power diamond, was
+   drawn BEHIND the portrait / hero power / equipment slot / rune nodes.
+   The fix is the move both precedents make, dissolve `.app`'s context for the duration, plus one re-seating:
+   the bar drops to z0 (its own rule) and the idle units rise from `auto` to z1, so the units clear the bar
+   while the bar still clears the app's box, the board art and the ground FX (all z0 / auto and EARLIER in the
+   tree). Raising `.app` instead is WRONG for the reason both precedents give: `.boardbg` is a CHILD of `.app`,
+   so any value that lifts the app past the cluster lifts the board art past it too and the cluster vanishes.
+   Nor can the two unit zones simply take a z-index of their own: the attacker (`.unit.attacking` z8 + the
+   lunge's inline z12) and the struck defender (`.unit.struck` z12) are ALWAYS on opposite boards, and
+   "defender over attacker" only holds while both sort in ONE context; per-zone contexts would let tree order
+   decide every clash instead. Every unit keeps sorting in the one root context here.
+   The resulting root-level ladder in combat, bottom to top:
+      0  `.boardbg` + `.boardbg--combat`  the board art (z0, first in the tree)
+      0  `.pixifx-below`                  the under-card FX canvas (same layer, later in the tree)
+   auto  `.app`'s own box, the zones      transparent stage chrome (same layer, later still)
+      0  `.statusbar`                     the hero cluster: over all of the above by tree order (a #root sibling)
+      1  `.unit` (idle)                   both boards' units (was auto), z2 dying (was 1), z8 attacking,
+                                          z12 struck + lunging, z13 poisoned, z14 reborn, as before
+     25  hand zone                        (70 while a held card is hovered, its own rule)
+     41  `.combatsummary`, `.etbwrap`     the combat HUD pills, and `.statusbar` while one of its popovers is up
+     41  `.heropowerbtn.opp-power`        the foe's power icon (a <body> portal, so it wins its tie by tree order)
+     42  `.combatopp`                     the foe portrait (100 while it strikes; the player's bar also 100)
+    110  `.pixifx`                        the FX canvas: impacts, shields, the duel burst
+    112  `.floatanchor`                   damage / keyword floats (<body> portals)
+   Hit-testing follows the same order, which is why the bar cannot go NEGATIVE: at z-1 it would sit under the
+   app's transparent box, and every pointer over the power diamond would land on `.app` instead (tried
+   2026-09-23; the diamond's tooltip never opened). The hand-hover and `body.modalup` rules set the same
+   `auto`, so they compose with this. The two unit rules are wrapped in `:where()` so they weigh (0,1,0) /
+   (0,2,0): the idle base must LOSE to `.unit.attacking` / `.struck` / `.poisoned` / `.reborn` (0,2,0, earlier
+   in the file) and only beat the bare `.unit`; the dying rule must beat `.unit.dying` (0,2,0, earlier) by
+   order alone. `combatZOrder.test.ts` pins the ladder. */
+.app.combat { z-index: auto; }
+:where(.app.combat) .unit { z-index: 1; }
+:where(.app.combat) .unit.dying { z-index: 2; }
 
 /* the shop closing: the control bar + the tavern offers fold up and fade out */
 /* The old shop fold-up at combat entry is GONE (owner ask 2026-08-29): the offers stand untouched while

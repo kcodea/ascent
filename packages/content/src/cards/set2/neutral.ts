@@ -89,8 +89,8 @@ export const SET2_NEUTRAL: CardDef[] = [
     health: 1,
     keywords: [],
     effects: [{ on: 'onSell', do: 'battlecryGainRandomMinion', params: { tier: 1, count: 1 } }],
-    text: 'When you **sell** this, get a random **Tier 1** minion.',
-    goldenText: 'When you **sell** this, get **2** random **Tier 1** minions.',
+    text: '**Sell:** get a random **Tier 1** minion.',
+    goldenText: '**Sell:** get **2** random **Tier 1** minions.',
   },
   {
     // Owner add 2026-07-28 — the set's ALL-TYPE minion (Taurus was pulled from set 2 earlier in this batch, so
@@ -252,8 +252,8 @@ export const SET2_NEUTRAL: CardDef[] = [
     keywords: [],
     token: true, // forge-only: Source = Rune
     effects: [{ on: 'onSell', do: 'onSellDiscoverSingleton' }],
-    text: 'When you **sell** this, **Discover** a minion you control **exactly one** copy of.',
-    goldenText: 'When you **sell** this, **Discover 2** minions you control **exactly one** copy of.',
+    text: '**Sell:** **Discover** a minion you control **exactly one** copy of.',
+    goldenText: '**Sell:** **Discover 2** minions you control **exactly one** copy of.',
   },
   {
     // NINEFOLD BROKER — nine is the card. A big body whose real cost is that its engine RUNS OUT: the charge

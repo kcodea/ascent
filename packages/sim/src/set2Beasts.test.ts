@@ -98,7 +98,7 @@ describe('set 2 — Beast summon + aura cards', () => {
     // Oona, final owner rebalance 2026-08-02: the flat buff AND the Avenge improve are cut — she is purely
     // the stat multiply now (one effect, no Avenge). Still an onSummon watcher, so no `SC` keyword.
     const oona = CARD_INDEX['b2_oona']!;
-    expect([oona.tier, oona.attack, oona.health]).toEqual([5, 4, 6]);
+    expect([oona.tier, oona.attack, oona.health]).toEqual([5, 6, 6]); // 4/6 → 6/6 owner balance 2026-09-23
     expect(oona.effects.map((e) => e.do)).toEqual(['onSummonTribeBuffThenDouble']);
     expect(oona.keywords).not.toContain('SC');
 

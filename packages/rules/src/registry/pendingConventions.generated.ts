@@ -780,7 +780,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 12 'summonReact' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "14 effect factories across 12 cards dispatch through the 'summonReact' presentation family, all on the single trigger 'onSummon' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Ashen Heir: \"Whenever an Imp dies, another friendly Imp gains its stats — or the next Imp you summon, if none are alive.\" · Members: Ashen Heir · Beardsley · King Oona · Vaultkeeper · Chipper · Hank Pepe · Chef Gary Toast · Grave Body · Den Mother · Pack Leader · Spirit Worgen · Cratering Hulk",
+    "cardText": "Exemplar — Ashen Heir: \"Whenever an Imp dies, another friendly Imp gains its stats, or the next Imp you summon, if none are alive.\" · Members: Ashen Heir · Beardsley · King Oona · Vaultkeeper · Chipper · Hank Pepe · Chef Gary Toast · Grave Body · Den Mother · Pack Leader · Spirit Worgen · Cratering Hulk",
     "example": "Ashen Heir follows the 'summonReact' convention — its trigger fires on onSummon. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ashen_heir",
@@ -1209,7 +1209,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "Fodder means: a cheap body meant to be Consumed; Fodder-scaling effects count these — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Fodder for all 1 carriers.",
-    "cardText": "Exemplar — Fred: \"A 1/1 Demon Fodder — your Demons devour it from the tavern.\" · Carriers: Fred",
+    "cardText": "Exemplar — Fred: \"A 1/1 Demon Fodder. Your Demons devour it from the tavern.\" · Carriers: Fred",
     "example": "Fred carries Fodder — in play, a cheap body meant to be Consumed; Fodder-scaling effects count these.",
     "contentIds": [
       "fred"
@@ -1258,7 +1258,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "Magnetic means: an Attachment: can be played onto a compatible minion, merging stats and effects into it — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Magnetic for all 7 carriers.",
-    "cardText": "Exemplar — Better Bot: \"Rally: give your other Mechs +5 Attack. Magnetic — welds onto a Mech, which then grants the buff (stacks).\" · Carriers: Better Bot · Cling Drone · Heckbinder · Money Bot · Perfect Core · Speedy · Chaos Attachment",
+    "cardText": "Exemplar — Better Bot: \"Rally: give your other Mechs +5 Attack. Magnetic: welds onto a Mech, which then grants the buff (stacks).\" · Carriers: Better Bot · Cling Drone · Heckbinder · Money Bot · Perfect Core · Speedy · Chaos Attachment",
     "example": "Better Bot carries Magnetic — in play, an Attachment: can be played onto a compatible minion, merging stats and effects into it.",
     "contentIds": [
       "betterbot",
@@ -1732,7 +1732,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "These 2 powers all the activation carries a choice payload the player picks. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "heroes",
     "currentBehaviour": "heroPowerFamilies.ts classifies these 2 powers as 'modal-choice'; the heroPowerLane + stager suites verify each against that reading.",
-    "cardText": "Exemplar — Cassen, Commission: \"Choose a commission — it pays out in a few turns.\" · Members: Cassen — Commission [commission] · Flash — First or Last [firstOrLast]",
+    "cardText": "Exemplar — Cassen, Commission: \"Choose a commission. It pays out in a few turns.\" · Members: Cassen — Commission [commission] · Flash — First or Last [firstOrLast]",
     "example": "Cassen's Commission the activation carries a choice payload the player picks."
   },
   {
@@ -2389,16 +2389,15 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-ruby",
-    "title": "Trigger: a Ruby is gained or cast · 4 cards",
-    "statement": "All 4 of these fire on one trigger: a Ruby is gained or cast. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: a Ruby is gained or cast · 3 cards",
+    "statement": "All 3 of these fire on one trigger: a Ruby is gained or cast. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "7 effect factories across 4 cards dispatch on 'onGetRuby', 'onRubyPlayed', 'rubyCast', 'rubyPlayedAnywhere' (both/combat/recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Trouble: \"When a Ruby is cast on another minion in combat, cast a Ruby on this.\" · Members: Trouble · Gemgorge Fiend · Gem Sage · Reflector",
+    "currentBehaviour": "6 effect factories across 3 cards dispatch on 'onGetRuby', 'onRubyPlayed', 'rubyCast', 'rubyPlayedAnywhere' (both/combat/recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Trouble: \"When a Ruby is cast on another minion in combat, cast a Ruby on this.\" · Members: Trouble · Gemgorge Fiend · Reflector",
     "example": "Trouble fires when a Ruby is gained or cast, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "k3_doubletrouble",
       "k_gemgorge",
-      "k_gemsage",
       "n2_reflector"
     ]
   },
@@ -2422,7 +2421,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 15 of these fire on one trigger: you sell a card. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "14 effect factories across 15 cards dispatch on 'minionSold', 'onSell' (recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — River Drake: \"When you sell this, get a random Spell.\" · Members: River Drake · Voicekeeper · Arcane Behemoth · Grevlin & Co. · Shift Broker · Hoard Whelp · Beggy · Cheap Date · Traveling Salesman · Salvatore McKlusky · Flame Reveler · Grand Procession · … and 3 more",
+    "cardText": "Exemplar — River Drake: \"Sell: get a random Spell.\" · Members: River Drake · Voicekeeper · Arcane Behemoth · Grevlin & Co. · Shift Broker · Hoard Whelp · Beggy · Cheap Date · Traveling Salesman · Salvatore McKlusky · Flame Reveler · Grand Procession · … and 3 more",
     "example": "River Drake fires when you sell a card, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "d2_riverdrake",
@@ -2462,7 +2461,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "The 1 card here fires on one trigger: you refresh the Shop. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "1 effect factories across 1 card dispatch on 'shopRefreshed' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Hellrider: \"Ward. Every 4 refreshes, gain the right-most Shop minion's stats.\" · Members: Hellrider",
+    "cardText": "Exemplar — Hellrider: \"Ward. Every 3 refreshes, gain the right-most Shop minion's stats.\" · Members: Hellrider",
     "example": "Hellrider fires when you refresh the Shop, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "dm_maw"
@@ -2484,15 +2483,16 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-spellTargeted",
-    "title": "Trigger: a spell targets this minion · 3 cards",
-    "statement": "All 3 of these fire on one trigger: a spell targets this minion. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: a spell targets this minion · 4 cards",
+    "statement": "All 4 of these fire on one trigger: a spell targets this minion. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "3 effect factories across 3 cards dispatch on 'spellCastOnThis' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Crash Course: \"The first Star Crash you cast on this each turn casts an additional time.\" · Members: Crash Course · Mirrorwing · Reflector",
+    "currentBehaviour": "4 effect factories across 4 cards dispatch on 'spellCastOnThis' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Crash Course: \"The first Star Crash you cast on this each turn casts an additional time.\" · Members: Crash Course · Mirrorwing · Gem Sage · Reflector",
     "example": "Crash Course fires when a spell targets this minion, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_adept",
       "d2_mirrorwing",
+      "k_gemsage",
       "n2_reflector"
     ]
   },

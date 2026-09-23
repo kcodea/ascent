@@ -5,7 +5,7 @@ its id; the texts are the owner's words (bolded, no dashes); the numbers that sc
 Two rune masters re-wired through `npm run art:wire --only=runes` (Rune of Full Measure, Rune of the Gem Golem;
 the other 275 re-encoded webps the pass rewrote were restored, so the diff carries only the two new masters).
 
-## The "Get X. Repeat at Start of Turn" family (R-RUNE-06)
+## The "Get X. Repeat at Start of Turn" family (R-RUNE-08)
 
 Full Measure, Open Appetite, the Unbroken Vein and the Display Case swapped their `grant` for a
 `recurringGrant` inside the same `multi` reward. The reducer's rune rule (an immediate copy on purchase, then the
@@ -15,7 +15,7 @@ the reward site through the same `payDeep` its turn setup runs. The Muckbroker i
 everyTurns 2]`, so the first Muckslinger lands on purchase and the shared cadence keeps paying. Copies is a text
 change only ("Start of Turn", which is what the mechanic always was).
 
-## Combat-summon triggers that carry back (R-RUNE-04)
+## Combat-summon triggers that carry back (R-RUNE-06)
 
 - **Packcraft** escalates: each combat summon gains the current level (starts +2/+1, `PACKCRAFT_STEP`) and the
   level grows by the step. Per side in `simulate` (`packcraftLevel`), carried back as `playerPackcraftLevel`
@@ -30,7 +30,7 @@ change only ("Start of Turn", which is what the mechanic always was).
 
 ## The rest
 
-- **Slaying** pays every 5 kills; `SLAYING_KILLS` replaces two literals (settle + badge) (R-RUNE-05).
+- **Slaying** pays every 5 kills; `SLAYING_KILLS` replaces two literals (settle + badge) (R-RUNE-07).
 - **Hatchery** +5/+5. **Finality** 3 Imps.
 - **Five Banners** is an End-of-Turn grant (+5/+4, one body per type): a boolean `runeFiveBanners` turned into
   virtual recurring-EoT entries by `recurringEotEffects`, exactly like the Lapidary; `bannerRecipientsOf` is now
@@ -64,6 +64,6 @@ change only ("Start of Turn", which is what the mechanic always was).
 ## Rails
 
 `npm run contracts:extract` was re-run (the extracted registry + pending conventions had drifted on earlier
-text-only PRs; the regenerated files are committed). Rules R-RUNE-04..07 appended to
+text-only PRs; the regenerated files are committed). Rules R-RUNE-06..07 appended to
 `packages/rules/src/registry/approved/runes.ts`. Player changelog: one Balance entry, "Balance 9/23: rune
 reworks B".

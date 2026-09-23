@@ -244,7 +244,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   // ── Balance 9/23, tranche 5 — rune reworks, group B (summon / board / token runes; owner list 2026-09-23). ──
   {
-    id: 'R-RUNE-04',
+    id: 'R-RUNE-06',
     title: 'Combat-summon rune triggers pay per summon, and their "permanently" carries back into the run',
     statement:
       'A rune whose text begins "When you summon a minion in combat" fires once per friendly body placed in combat '
@@ -275,7 +275,7 @@ export const RUNES_RULES: GameRule[] = [
     },
   },
   {
-    id: 'R-RUNE-05',
+    id: 'R-RUNE-07',
     title: 'Rune of Slaying banks kills across combats and pays every 5, with a live countdown',
     statement:
       'Rune of Slaying counts enemy kills (the Slaughter tally) across every combat of the run. Every '
@@ -298,7 +298,7 @@ export const RUNES_RULES: GameRule[] = [
     },
   },
   {
-    id: 'R-RUNE-06',
+    id: 'R-RUNE-08',
     title: '"Get X. Repeat at Start of Turn" runes pay one copy on purchase and one more at every turn setup',
     statement:
       'A rune printed "Get X. Repeat at Start of Turn" hands over X the moment it is bought (the Runeforge opens '
@@ -324,7 +324,7 @@ export const RUNES_RULES: GameRule[] = [
     },
   },
   {
-    id: 'R-RUNE-07',
+    id: 'R-RUNE-09',
     title: 'Rune reworks B: the board and token runes (Five Banners, Living Treasure, Gem Golem, Food Chain, Banquet Hall, Lassoing, Finality, Hatchery)',
     statement:
       'Rune of the Five Banners is an END OF TURN grant: one friendly minion of each type gains +5/+4 (universal-'

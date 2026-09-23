@@ -161,16 +161,18 @@ export const SET2_DRAGONS: CardDef[] = [
   {
     // Seeds BOTH halves of the tribe at once — a body to buff and a spell to recur (owner re-spec 2026-07-24:
     // was a Tier-2 Slaughter, now a Tier-4 Shout that grants a minion AND a spell).
+    // Owner balance 2026-09-23: "Stats to 1/3. When another friendly Dragon attacks, give it +3/+2." — the
+    // same on-ally-attack primitive, a smaller body and a bigger grant. Gilded doubles the grant.
     id: 'd2_skald',
     name: 'Traveling Skald',
     tribe: 'dragon',
     tier: 2,
-    attack: 2,
+    attack: 1,
     health: 3,
     keywords: [],
-    effects: [{ on: 'onAttack', do: 'onTribeAttackBuffAttacker', params: { tribe: 'dragon', attack: 2, health: 1 } }],
-    text: 'When **another** friendly **Dragon** attacks, give it **+2/+1**.',
-    goldenText: 'When **another** friendly **Dragon** attacks, give it **+4/+2**.',
+    effects: [{ on: 'onAttack', do: 'onTribeAttackBuffAttacker', params: { tribe: 'dragon', attack: 3, health: 2 } }],
+    text: 'When **another** friendly **Dragon** attacks, give it **+3/+2**.',
+    goldenText: 'When **another** friendly **Dragon** attacks, give it **+6/+4**.',
   },
   {
     // Recursion, on tempo: replay whatever you just cast. Reads `lastSpellCastId` (already tracked for the

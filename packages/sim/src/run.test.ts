@@ -567,7 +567,7 @@ describe('run loop (@game/sim)', () => {
     expect(s.squirlScoutBuff).toBe(2);
   });
 
-  it('Conductor: Shout buffs the two ADJACENT minions, snowballing +2/+3 per Conductor played', () => {
+  it('Conductor: Shout buffs the two ADJACENT minions +2/+3 and improves THAT COPY (owner rework 2026-09-23)', () => {
     let s: RunState = {
       ...createRun(1),
       board: [
@@ -580,21 +580,20 @@ describe('run loop (@game/sim)', () => {
         { uid: 'c3', cardId: 'n2_conductor', tribe: 'neutral', attack: 4, health: 8, keywords: [], golden: true },
       ],
     };
-    // Played BETWEEN the two: both neighbours get the first grant, +2/+3.
+    // Played BETWEEN the two: both neighbours get the printed grant, +2/+3, and the copy improves itself.
     s = reduce(s, { type: 'play', uid: 'c1', toIndex: 1 });
-    expect(s.conductorBuff).toBe(1);
+    expect(s.conductorBuff ?? 0, 'the 2026-08-21 run-wide snowball is dormant').toBe(0);
+    expect(s.board[1]!.summonBonus, 'the copy\'s own accrual').toBe(1);
     expect(s.board.map((c) => [c.attack, c.health])).toEqual([[3, 4], [2, 4], [3, 4]]);
-    // The second Conductor, played on the LEFT edge: one neighbour only, and the grant snowballed to +4/+6.
+    // The second Conductor, played on the LEFT edge: one neighbour only, and a FRESH copy grants the printed +2/+3.
     s = reduce(s, { type: 'play', uid: 'c2', toIndex: 0 });
-    expect(s.conductorBuff).toBe(2);
-    expect(s.board[1]!.attack).toBe(3 + 4); // the old left minion took the new +4/+6
-    expect(s.board[1]!.health).toBe(4 + 6);
+    expect(s.board[1]!.attack).toBe(3 + 2);
+    expect(s.board[1]!.health).toBe(4 + 3);
     expect(s.board[2]!.attack).toBe(2); // the middle Conductor is NOT adjacent to the edge play
-    // A GILDED Conductor weighs its improve double: buff 2 → 4, and grants +8/+12 to its neighbours.
+    // A GILDED Conductor doubles the applied grant: +4/+6 to its neighbour.
     s = reduce(s, { type: 'play', uid: 'c3', toIndex: 4 });
-    expect(s.conductorBuff).toBe(4);
-    expect(s.board[3]!.attack).toBe(3 + 8); // the right Pennycat (already +2/+3 from play one)
-    expect(s.board[3]!.health).toBe(4 + 12);
+    expect(s.board[3]!.attack).toBe(3 + 4); // the right Pennycat (already +2/+3 from play one)
+    expect(s.board[3]!.health).toBe(4 + 6);
   });
 
   it('buying an Undead/Beast bakes the run-wide Attack aura exactly once (no double-count)', () => {

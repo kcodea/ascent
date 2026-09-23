@@ -47,10 +47,15 @@ export const SET2_NEUTRAL: CardDef[] = [
     goldenText: '**Every 2 turns:** get a plain copy of **adjacent** minions.',
   },
   {
-    // CONDUCTOR — the neutral Squirl Scout (owner 2026-08-21): a positional Shout whose grant SNOWBALLS
-    // run-wide. Every Conductor Shout raises `conductorBuff` by one weighted step (×2 gilded, ×2 Mastery),
-    // and the grant to the two adjacent minions is the accumulated total — so the first play gives +2/+3,
-    // the next +4/+6, and so on across the run. Live grant surfaces via cardText's conductorText.
+    // CONDUCTOR — a positional Shout that IMPROVES ITSELF (owner rework 2026-09-23: "Shout: Give adjacent
+    // minions +2/+3 and improve this."). The grant is base + this copy's accrued improvement (`summonBonus`,
+    // the per-instance permanent channel Pack Leader / Hunter / Thundeer ride: carried back after combat,
+    // kept through a gild, served in a snapshot), and every fire of the Shout — the play, a Moira / Ryme /
+    // Dawnclaw re-fire in the shop, a Parting Cry or Rune of Shared Scripture re-fire in combat — grants the
+    // current value and THEN steps the accrual by `step` (+1/+1; × Rune of Mastery). Gilded doubles the applied
+    // grant, not the accrual (the Pack Leader convention). Replaces the 2026-08-21 run-wide `conductorBuff`
+    // snowball ("Every Conductor played improves this by +2/+3"), which is now dormant. The step is a lead
+    // assumption pending owner confirmation — see the 2026-09-23 devlog. Live grant: cardText's conductorText.
     id: 'n2_conductor',
     name: 'Conductor',
     tribe: 'neutral',
@@ -58,9 +63,9 @@ export const SET2_NEUTRAL: CardDef[] = [
     attack: 2,
     health: 4,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryConductorAdjacent', params: { attack: 2, health: 3 } }],
-    text: '**Shout:** give adjacent minions **+2/+3**. Every Conductor played improves this by **+2/+3**.',
-    goldenText: '**Shout:** give adjacent minions **+4/+6**. Every Conductor played improves this by **+4/+6**.',
+    effects: [{ on: 'onPlay', do: 'battlecryConductorAdjacent', params: { attack: 2, health: 3, step: 1 } }],
+    text: '**Shout:** give adjacent minions **+2/+3** and improve this.',
+    goldenText: '**Shout:** give adjacent minions **+4/+6** and improve this.',
   },
   {
     // Echo: its death hands Ward to two survivors — a body that trades early and leaves the line tougher than
@@ -290,9 +295,10 @@ export const SET2_NEUTRAL: CardDef[] = [
   },
   {
     // MUSTER GENERAL — an Avenge that builds an army AND makes the army better. The improvement is permanent
-    // (it rides `summonBonus`, carried back at settle), so the Troopers are 1/1 in the first fight and 4/4 by
-    // the late course. Its printed "1/1 Trooper" is therefore a LIVE value — `musterTrooperText` folds the
-    // current line into every surface (the hard live-text rule).
+    // (it rides `summonBonus`, carried back at settle), so the Troopers are 3/3 in the first fight and 6/6 by
+    // the late course. Its printed "3/3 Trooper" is therefore a LIVE value — `musterTrooperText` folds the
+    // current line into every surface (the hard live-text rule). Owner balance 2026-09-23: the Trooper is a
+    // 3/3 (was 1/1) and the text is the short form; the +1/+1 improve step is unchanged and applies to the 3/3.
     id: 'n2_muster',
     name: 'Muster General',
     tribe: 'dwarf',
@@ -302,9 +308,9 @@ export const SET2_NEUTRAL: CardDef[] = [
     keywords: [],
     token: true, // forge-only: Source = Rune
     effects: [{ on: 'avenge', do: 'avengeSummonAttackImproving', params: { count: 3, cardId: 'n2_trooper', step: 1 } }],
-    text: '**Avenge (3):** summon a **1/1 Trooper** that attacks immediately, then improve future Troopers by **+1/+1** permanently.',
+    text: '**Avenge (3):** summon a **3/3 Trooper** that attacks immediately, and improve your Troopers.',
     // Gilded: the Trooper is summoned GOLDEN (the summon path's `golden` flag) and the improvement steps twice.
-    goldenText: '**Avenge (3):** summon a **Gilded 1/1 Trooper** that attacks immediately, then improve future Troopers by **+2/+2** permanently.',
+    goldenText: '**Avenge (3):** summon a **Gilded 3/3 Trooper** that attacks immediately, and improve your Troopers twice.',
   },
   {
     // EVOLVING ABOMINATION — the batch's ALL-TYPE body. `universalTribe` IS the tribal line: the ALL pill on

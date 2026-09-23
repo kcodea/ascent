@@ -203,9 +203,11 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: '**Rally:** gain **+2 Attack** for every Beast you control.',
   },
   {
-    // Owner add 2026-07-28. A Shout ENGINE that pays in the shop rather than in combat: park it between two
-    // Shouts and it re-fires both every End of Turn. Gilded fires the whole thing twice (not "twice as big"),
-    // so a golden Moira between two summoners really does double the bodies.
+    // Owner add 2026-07-28; owner rework 2026-09-23: "End of Turn: trigger your Shout minions." A Shout ENGINE
+    // that pays in the shop rather than in combat: every friendly Shout minion on the board re-fires at End of
+    // Turn, wherever it stands (was: the two neighbours only). Each re-fire rides `replayBattlecry`, so it is a
+    // real Shout for quests, Spell Drummer and every `battlecryTriggered` watcher (Embermouth Whelp counts each).
+    // Gilded fires the whole thing twice (not "twice as big"), so a golden Moira really does double the bodies.
     id: 'b2_moira',
     name: 'Moira',
     tribe: 'beast',
@@ -213,9 +215,9 @@ export const SET2_BEASTS: CardDef[] = [
     attack: 6,
     health: 8,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnTriggerAdjacentShouts', params: {} }],
-    text: '**End of Turn:** trigger adjacent **Shouts**.',
-    goldenText: '**End of Turn:** trigger adjacent **Shouts** **twice**.',
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnTriggerShouts', params: {} }],
+    text: '**End of Turn:** trigger your **Shout** minions.',
+    goldenText: '**End of Turn:** trigger your **Shout** minions **twice**.',
   },
   {
     // Owner add 2026-08-12. Echo: summon a random Beast from the run pool and STAMP it 7/7 — a fixed body

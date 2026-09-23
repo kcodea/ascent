@@ -135,11 +135,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-echo",
-    "title": "'echo' family · 67 cards",
-    "statement": "All 67 'echo' cards trigger the same way. Gilding doubles their output; a few summon a gilded token instead. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'echo' family · 66 cards",
+    "statement": "All 66 'echo' cards trigger the same way. Gilding doubles their output; a few summon a gilded token instead. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "49 effect factories across 67 cards dispatch through the 'echo' presentation family, all on the single trigger 'onDeath' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline is the safe reading, with Void Panther / T-Rex / Chicken Brawl gilding the token they summon instead of doubling the count (owner ruling 2026-08-28).",
-    "cardText": "Exemplar — Amun Rab: \"Deathrattle: Summon 7 Imps and give your Imps +5/+5.\" · Members: Amun Rab · Anubis, Last Gate · Ashen Heir · Armadiyo · Bullseye · Dawnclaw · Menagerie Mammoth · T-Rex · Voidmother · Wolvie · Blaster · Bone Taxer · … and 55 more",
+    "currentBehaviour": "49 effect factories across 66 cards dispatch through the 'echo' presentation family, all on the single trigger 'onDeath' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline is the safe reading, with Void Panther / T-Rex / Chicken Brawl gilding the token they summon instead of doubling the count (owner ruling 2026-08-28).",
+    "cardText": "Exemplar — Amun Rab: \"Deathrattle: Summon 7 Imps and give your Imps +5/+5.\" · Members: Amun Rab · Anubis, Last Gate · Ashen Heir · Armadiyo · Bullseye · Dawnclaw · Menagerie Mammoth · T-Rex · Voidmother · Wolvie · Blaster · Bone Taxer · … and 54 more",
     "example": "Amun Rab follows the 'echo' convention — its trigger fires on onDeath. Gilded T-Rex summons one GILDED T-Rex Baby, while gilded Wolves Den summons 6 Crypt Wolves instead of 3.",
     "contentIds": [
       "amunrab",
@@ -174,7 +174,6 @@ export const CONVENTION_PENDING: GameRule[] = [
       "dw_anvilshade",
       "dw_brewer",
       "dw_chickenbrawl",
-      "dw_exgalloper",
       "grim",
       "impking",
       "impoverseer",
@@ -780,7 +779,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 12 'summonReact' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "14 effect factories across 12 cards dispatch through the 'summonReact' presentation family, all on the single trigger 'onSummon' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Ashen Heir: \"Whenever an Imp dies, another friendly Imp gains its stats — or the next Imp you summon, if none are alive.\" · Members: Ashen Heir · Beardsley · King Oona · Vaultkeeper · Chipper · Hank Pepe · Chef Gary Toast · Grave Body · Den Mother · Pack Leader · Spirit Worgen · Cratering Hulk",
+    "cardText": "Exemplar — Ashen Heir: \"Whenever an Imp dies, another friendly Imp gains its stats, or the next Imp you summon, if none are alive.\" · Members: Ashen Heir · Beardsley · King Oona · Vaultkeeper · Chipper · Hank Pepe · Chef Gary Toast · Grave Body · Den Mother · Pack Leader · Spirit Worgen · Cratering Hulk",
     "example": "Ashen Heir follows the 'summonReact' convention — its trigger fires on onSummon. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ashen_heir",
@@ -910,7 +909,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Gilding default: ×2",
     "statement": "A gilded card doubles its printed numbers. Outliers instead gild the summoned token, reshape the effect, or add a proc; spells never gild. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "gilding",
-    "currentBehaviour": "366 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
+    "currentBehaviour": "365 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
     "cardText": "Exemplar — Wolves Den: \"Deathrattle: Summon 3 Crypt Wolves.\" → gilded: \"Deathrattle: Summon 6 Crypt Wolves.\"",
     "example": "Wolves Den's gilded text just writes the ×2 out in full — while gilded Dunkey instead summons ONE gilded Armadiyo."
   },
@@ -1209,7 +1208,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "Fodder means: a cheap body meant to be Consumed; Fodder-scaling effects count these — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Fodder for all 1 carriers.",
-    "cardText": "Exemplar — Fred: \"A 1/1 Demon Fodder — your Demons devour it from the tavern.\" · Carriers: Fred",
+    "cardText": "Exemplar — Fred: \"A 1/1 Demon Fodder. Your Demons devour it from the tavern.\" · Carriers: Fred",
     "example": "Fred carries Fodder — in play, a cheap body meant to be Consumed; Fodder-scaling effects count these.",
     "contentIds": [
       "fred"
@@ -1258,7 +1257,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "Magnetic means: an Attachment: can be played onto a compatible minion, merging stats and effects into it — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
     "currentBehaviour": "One shared engine path implements Magnetic for all 7 carriers.",
-    "cardText": "Exemplar — Better Bot: \"Rally: give your other Mechs +5 Attack. Magnetic — welds onto a Mech, which then grants the buff (stacks).\" · Carriers: Better Bot · Cling Drone · Heckbinder · Money Bot · Perfect Core · Speedy · Chaos Attachment",
+    "cardText": "Exemplar — Better Bot: \"Rally: give your other Mechs +5 Attack. Magnetic: welds onto a Mech, which then grants the buff (stacks).\" · Carriers: Better Bot · Cling Drone · Heckbinder · Money Bot · Perfect Core · Speedy · Chaos Attachment",
     "example": "Better Bot carries Magnetic — in play, an Attachment: can be played onto a compatible minion, merging stats and effects into it.",
     "contentIds": [
       "betterbot",
@@ -1317,12 +1316,15 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-rb",
-    "title": "Rebirth [RB] · 0 carriers",
+    "title": "Rebirth [RB] · 1 carriers",
     "statement": "Rebirth means: when this dies it returns once with its FULL current body — stats, buffs, keywords and effects (Rise returns the printed body at 1 Health); resolved before Rise, spent on the return — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
-    "currentBehaviour": "One shared engine path implements Rebirth for all 0 carriers.",
-    "cardText": "(no current carrier of Rebirth)",
-    "example": "any future Rebirth card inherits this meaning."
+    "currentBehaviour": "One shared engine path implements Rebirth for all 1 carriers.",
+    "cardText": "Exemplar — Exgalloper: \"Rebirth.\" · Carriers: Exgalloper",
+    "example": "Exgalloper carries Rebirth — in play, when this dies it returns once with its FULL current body — stats, buffs, keywords and effects (Rise returns the printed body at 1 Health); resolved before Rise, spent on the return.",
+    "contentIds": [
+      "dw_exgalloper"
+    ]
   },
   {
     "status": "needs-ruling",
@@ -1732,7 +1734,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "These 2 powers all the activation carries a choice payload the player picks. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "heroes",
     "currentBehaviour": "heroPowerFamilies.ts classifies these 2 powers as 'modal-choice'; the heroPowerLane + stager suites verify each against that reading.",
-    "cardText": "Exemplar — Cassen, Commission: \"Choose a commission — it pays out in a few turns.\" · Members: Cassen — Commission [commission] · Flash — First or Last [firstOrLast]",
+    "cardText": "Exemplar — Cassen, Commission: \"Choose a commission. It pays out in a few turns.\" · Members: Cassen — Commission [commission] · Flash — First or Last [firstOrLast]",
     "example": "Cassen's Commission the activation carries a choice payload the player picks."
   },
   {
@@ -2422,7 +2424,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 15 of these fire on one trigger: you sell a card. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "14 effect factories across 15 cards dispatch on 'minionSold', 'onSell' (recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — River Drake: \"When you sell this, get a random Spell.\" · Members: River Drake · Voicekeeper · Arcane Behemoth · Grevlin & Co. · Shift Broker · Hoard Whelp · Beggy · Cheap Date · Traveling Salesman · Salvatore McKlusky · Flame Reveler · Grand Procession · … and 3 more",
+    "cardText": "Exemplar — River Drake: \"Sell: get a random Spell.\" · Members: River Drake · Voicekeeper · Arcane Behemoth · Grevlin & Co. · Shift Broker · Hoard Whelp · Beggy · Cheap Date · Traveling Salesman · Salvatore McKlusky · Flame Reveler · Grand Procession · … and 3 more",
     "example": "River Drake fires when you sell a card, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "d2_riverdrake",

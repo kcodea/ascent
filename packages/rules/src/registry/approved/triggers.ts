@@ -305,4 +305,95 @@ export const TRIGGERS_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-22',
     },
   },
+  // ── Balance 9/23, tranche 2 — the minion mechanic rewrites (owner sheet 2026-09-23) ──
+  {
+    id: 'R-SHOUT-02',
+    title: '"Trigger your Shout minions" fires every friendly Shout minion on the board, each a real Shout trigger',
+    statement:
+      'A "trigger your Shout minions" effect (Moira, End of Turn) re-fires the Shout of EVERY friendly Shout minion '
+      + 'on the board, left to right, wherever it stands — position and adjacency play no part. The roster is read '
+      + 'before the first fire, so a Shout minion that arrives during the sequence does not fire until the next '
+      + 'trigger, and a minion consumed or sold mid-sequence is skipped. Every re-fire goes through the shared Shout '
+      + 're-trigger path: it counts as a Shout for quests, takes Spell Drummer\'s repeats, and notifies every '
+      + '"after you trigger a Shout" watcher (Embermouth Whelp, Karwind) once per Shout fired. Gilding repeats the '
+      + 'whole sequence (every Shout twice), never the size of any one Shout. A minion with no printed Shout is not a '
+      + 'Shout minion, and the trigger never fires its own carrier.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Balance batch 9/23 (owner sheet, 2026-09-23) — Moira', quote: 'Moira: "End of Turn: trigger your Shout minions."' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts endOfTurnTriggerShouts (routes every Shout through replayBattlecry, which fires battlecryTriggered per Shout); packages/content/src/cards/set2/beasts.ts b2_moira' },
+    ],
+    contentIds: ['b2_moira', 'd2_embermouth', 'karwind'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Moira fired the two board NEIGHBOURS only (endOfTurnTriggerAdjacentShouts, '
+      + '2026-07-28) until the owner\'s 9/23 rework moved her to the whole board; the neighbour factory is retired. '
+      + 'Each fire rides replayBattlecry, so the shout objective, Spell Drummer and the battlecryTriggered watchers '
+      + 'see one trigger per Shout; gilded fires the loop twice.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/balance923MinionReworks.test.ts', 'packages/sim/src/finalTranche.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-REPEAT-02',
+    title: '"Cast X. Repeat for every N Gold spent this turn" is base + one tick per N Gold, each tick its own End-of-Turn beat, uncapped',
+    statement:
+      'A minion whose End of Turn reads "cast X. Repeat for every N Gold spent this turn" (Rope Wrangler, Lasso, N = '
+      + '10) is the REPEAT form of R-REPEAT-01 applied to a cast: the base cast lands once, then once more per full N '
+      + 'Gold spent this turn — 1 + floor(Gold / N) ticks, no cap — and EVERY tick is its own End-of-Turn tick: its '
+      + 'own root trigger, its own projected step and its own beat, so the shared tick count (eotTickCount), the '
+      + 'projection and the legacy beat list all report the same number. Each tick is a real cast (spell-cast tallies '
+      + 'and payoffs see every one, each Lasso steal is recorded on its own). Gilding doubles the per-tick cast '
+      + '("cast X twice"), never the tick count; an End-of-Turn multiplier (Chronos) repeats the whole sequence. A '
+      + 'single-shot replay (Dusk) with no tick runs every tick in one call. The live text keeps the per-tick cast as '
+      + 'printed and folds the tick count into the Repeat sentence, (×N), only once a repeat is owed.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Balance batch 9/23 (owner sheet, 2026-09-23) — Rope Wrangler', quote: 'Rope Wrangler: "End of Turn: Cast Lasso. Repeat for every 10 gold spent this turn."' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (the lump-vs-repeat ruling, R-REPEAT-01)', quote: 'if something says \'give a minion +x/+y. repeat for ever c played this turn.\' that should give the base buff and repeat it z times for every c played that turn.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts castSpell (perGold → forEachTick) + eotTickCount (the castSpell case); packages/ui/src/cardText.ts castSpellPerGoldText; packages/content/src/cards/set1/neutral.ts ropewrangler' },
+    ],
+    contentIds: ['ropewrangler'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Until then Rope Wrangler cast 1 + floor(Gold / 6) times, capped at 5, all inside '
+      + 'ONE End-of-Turn tick (the lump shape); the 9/23 rework moved it to per-10-Gold ticks with no cap, and the '
+      + 'maxCasts cap left the shared castSpell factory (no live card used it). Soul Defiler\'s flat "cast Staff of '
+      + 'Guel" is the same factory without perGold: one tick.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/balance923MinionReworks.test.ts', 'packages/sim/src/ownerBatchAug18b.test.ts', 'packages/sim/src/balanceBatch0804.test.ts', 'packages/ui/src/balance923LiveText.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-DEALT-01',
+    title: '"When a friendly Demon deals damage" fires once per landed damage instance, self included; the self-gain is permanent, the Imp gain is run-wide',
+    statement:
+      'A "when a friendly Demon deals damage" watcher (Impossible Todd) fires once for EVERY instance of damage a '
+      + 'friendly Demon lands in combat — an attack, a counter-hit, its own swings included; a hit absorbed by a Ward '
+      + 'dealt nothing and does not count. Each instance pays the printed self-gain to the watcher PERMANENTLY (it '
+      + 'carries back to the run card like an Engraved gain) and the printed Imp grant into the run-wide Imp aura '
+      + '("this game": every Imp you own now or later). Gilding doubles both grants per instance, never the count. '
+      + 'The printed numbers are per instance; the aura\'s running total is a run-scoped tally shown in the Buffs '
+      + 'drawer, not on the card.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Balance batch 9/23 (owner sheet, 2026-09-23) — Impossible Todd', quote: 'Impossible Todd: "When a friendly Demon deals damage, gain +1/+2 permanently and give your Imps +2/+1 this game."' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts onFriendlyDemonDamageBuffSelf (permaGain carry-back + grantImpBuff); packages/content/src/cards/set2/demons.ts dm_todd' },
+    ],
+    contentIds: ['dm_todd'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23 at the new numbers (+1/+2 self, +2/+1 Imps per instance; was +4/+4 and +2/+2 '
+      + 'since the 2026-08-18 add). The mechanic is unchanged by the rework: the friendlyDemonDealtDamage trigger, '
+      + 'the permaGain carry-back and the playerImpBuffGain channel are the 2026-08-18 wiring.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/balance923MinionReworks.test.ts', 'packages/sim/src/set2NewMinionsAug18.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
 ];

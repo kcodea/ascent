@@ -501,10 +501,11 @@ function recAlsoCast(s: string): Rec | null {
 }
 
 /** "trigger your left-most Echo (twice)" / "Trigger adjacent minions' Battlecries" / "trigger its Shout" /
- *  "trigger all your Rally effects" / "also trigger their Echo at Start of Combat" — effects that fire
- *  ANOTHER object's trigger. */
+ *  "trigger all your Rally effects" / "also trigger their Echo at Start of Combat" / "trigger your Shout minions
+ *  (twice)" (Moira, 2026-09-23 — the keyword names the minion class, so "minions" may close the clause) — effects
+ *  that fire ANOTHER object's trigger. */
 function recTriggerOther(s: string): Rec | null {
-  const m = /^(?:also )?[Tt]riggers?\s+(?:a friendly minion's|an adjacent minion's|both adjacent minions'|this minion['’]s|a|an|your|all your|all of your|both|all|its|their|the)?\s*(?:(\d+|two|three) )?(?:adjacent |both adjacent |an adjacent |your Dragon |Dragon |left-most |right-most |adjacent minions['’]? |friendly )?(Shouts?|Echo(?:es)?|Deathrattles?|Battlecr(?:y|ies)|Rally effects?|Rall(?:y|ies)|Start of Combat|End of Turn effects?|effects?)\b(?: and (?:Rally|Shout|Echo))?(?:\s+\(Deathrattle\))?(?:\s+(?:minion's|minions['’]?)\s+\w+)?(?:\s+(?:twice|\d+ times|again))?(?:\s+each)?(?:\s+at (?:Start of Combat|the start of your next shop))?(?: to reset this)?/.exec(s);
+  const m = /^(?:also )?[Tt]riggers?\s+(?:a friendly minion's|an adjacent minion's|both adjacent minions'|this minion['’]s|a|an|your|all your|all of your|both|all|its|their|the)?\s*(?:(\d+|two|three) )?(?:adjacent |both adjacent |an adjacent |your Dragon |Dragon |left-most |right-most |adjacent minions['’]? |friendly )?(Shouts?|Echo(?:es)?|Deathrattles?|Battlecr(?:y|ies)|Rally effects?|Rall(?:y|ies)|Start of Combat|End of Turn effects?|effects?)\b(?: and (?:Rally|Shout|Echo))?(?:\s+\(Deathrattle\))?(?:\s+(?:minion's|minions['’]?)(?:\s+\w+)?)?(?:\s+(?:twice|\d+ times|again))?(?:\s+each)?(?:\s+at (?:Start of Combat|the start of your next shop))?(?: to reset this)?/.exec(s);
   if (!m) return null;
   return { effect: { kind: 'trigger-other', verb: 'trigger', refName: m[2]!, ...(m[1] ? { summonCount: countOf(m[1]) } : {}) }, len: m[0].length };
 }

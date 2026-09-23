@@ -255,32 +255,14 @@ describe('tranche B — combat-trigger Dwarves', () => {
     expect(swings.length, 'the Soldier attacked twice on arrival').toBe(1);
   });
 
-  it('Exgalloper copies the BODY, not the corpse, and cannot chain', () => {
-    // At the moment an Echo fires the parent's health is 0, so a literal copy arrives already dead. And exactly
-    // one copy: one that kept its own Echo would summon another on death, up to the board cap.
-    const s = summonsOf(fight([mine('dw_exgalloper', 4, 6)], [foe(20, 20)]), 'dw_exgalloper');
-    expect(s.length, 'the copy chained, or never happened').toBe(1);
-    expect(s[0]!.attack).toBe(4);
-    expect(s[0]!.health, 'the copy was born dead').toBeGreaterThan(0);
-  });
-
-  it('a GILDED Exgalloper summons GILDED exact copies; a plain one stays plain', () => {
-    // q-copy-gilded-badge (owner REVISE 2026-08-27): "gilded exgalloper's summons should be exact copies
-    // without the echo, so they would be gilded too" — matching Mirrorhide's scSummonCopy convention.
-    const copiesOf = (r: { events: readonly { type: string }[] }) => r.events
-      .filter((e) => e.type === 'summon')
-      .map((e) => (e as unknown as { minion?: { cardId?: string; golden?: boolean; attack: number } }).minion)
-      .filter((m): m is { cardId?: string; golden?: boolean; attack: number } => m?.cardId === 'dw_exgalloper');
-    const gilded = { ...mine('dw_exgalloper', 12, 12), golden: true } as BoardMinion;
-    const g = copiesOf(fight([gilded], [foe(20, 40)]));
-    expect(g.length, 'gilded: exactly two exact copies').toBe(2);
-    for (const c of g) {
-      expect(c.golden, 'the copy of a gilded body carries the Gilded badge').toBe(true);
-      expect(c.attack, 'the copy is exact-stat, not re-doubled').toBe(12);
-    }
-    const p = copiesOf(fight([mine('dw_exgalloper', 4, 6)], [foe(20, 20)]));
-    expect(p.length).toBe(1);
-    expect(!!p[0]!.golden, 'a plain source still summons a plain copy').toBe(false);
+  it('Exgalloper is REBIRTH (owner rework 2026-09-23): it returns once with its full body and never summons a copy', () => {
+    // It was "Echo: summon an exact copy of this without Echo" (the owner's 2026-08-27 gilded-copy ruling lived
+    // here). The keyword replaces the whole text: one return with the current body, then a real death.
+    const r = fight([{ ...mine('dw_exgalloper', 9, 9), keywords: ['RB'] } as BoardMinion], [foe(4, 500)]);
+    expect(summonsOf(r, 'dw_exgalloper'), 'no exact-copy Echo').toHaveLength(0);
+    const rb = r.events.filter((e) => e.type === 'reborn') as unknown as { attack: number; hp: number; rebirth?: true }[];
+    expect(rb, 'exactly one return').toHaveLength(1);
+    expect(rb[0]).toMatchObject({ rebirth: true, attack: 9, hp: 9 });
   });
 });
 

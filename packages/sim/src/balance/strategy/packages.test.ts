@@ -36,7 +36,7 @@ describe('strategy packages — set-2 census', () => {
     expect(census).toEqual({
       ruby: '30/12/14/11',
       ale: '31/5/4/31', // 32 → 31 on 2026-09-18: rune tag pass
-      demonConsume: '33/13/7/18', // 32 → 33 on 2026-09-18: Dissipate (a sell spell — the consume text match)
+      demonConsume: '33/12/7/18', // 32 → 33 on 2026-09-18: Dissipate (a sell spell — the consume text match); engines 13 → 12 on 2026-09-23: Soul Defiler casts a Staff of Guel now (no longer a buffShop effect; still a Demon member)
       beastSummon: '30/7/5/13', // 14 → 13 on 2026-09-16: Rune of Rebirth grants the Rebirth keyword now (no longer an Echo-summon text match)
       dragon: '33/16/10/15',
       spellEngine: '107/16/13/23', // 22 → 23 on 2026-09-17: Rune of Gambling (recurring Gamble, every set); 106 → 107 on 2026-09-18: Dissipate

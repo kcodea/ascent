@@ -1224,7 +1224,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "endOfTurnTriggerAdjacentShouts"
+        "kind": "endOfTurnTriggerShouts"
       }
     ],
     "gildedDelta": {
@@ -6068,8 +6068,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 2,
-            "health": 1
+            "attack": 3,
+            "health": 2
           }
         }
       }
@@ -6720,10 +6720,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "medium",
-      "unparsed": [
-        "buffShopPermanent.alternate"
-      ]
+      "confidence": "high"
     },
     "setIds": [
       "set2"
@@ -6744,22 +6741,17 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "buffShopPermanent",
-        "amount": {
-          "kind": "const",
-          "plain": {
-            "attack": 1,
-            "improve": 1
-          }
-        }
+        "kind": "castSpell",
+        "refs": [
+          "staffofguel"
+        ]
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
+      "kind": "reshape",
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
+      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
       "source": "index"
@@ -7557,10 +7549,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 4,
-            "health": 4,
+            "attack": 1,
+            "health": 2,
             "impAttack": 2,
-            "impHealth": 2
+            "impHealth": 1
           }
         }
       }
@@ -9005,32 +8997,17 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tribes": [
       "beast"
     ],
+    "keywords": [
+      "RB"
+    ],
     "tags": [
       "tier:5"
     ],
-    "triggers": [
-      {
-        "event": "onDeath",
-        "phase": "both",
-        "phaseBasis": "derived:phaseRegistry"
-      }
-    ],
-    "effects": [
-      {
-        "kind": "echoSummonCopyNoEcho",
-        "amount": {
-          "kind": "const",
-          "plain": {
-            "count": 1
-          }
-        }
-      }
-    ],
     "gildedDelta": {
-      "kind": "reshape",
-      "basis": "derived:golden-text",
-      "goldenTextSource": "index:goldenText",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:default",
+      "description": "default gilded doubling of printed numbers (the owner's safe baseline)"
     },
     "textContract": {
       "source": "index"
@@ -18812,7 +18789,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "kind": "const",
           "plain": {
             "attack": 2,
-            "health": 3
+            "health": 3,
+            "step": 1
           }
         }
       }
@@ -25498,8 +25476,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "maxCasts": 5,
-            "perGold": 6
+            "perGold": 10
           }
         },
         "refs": [

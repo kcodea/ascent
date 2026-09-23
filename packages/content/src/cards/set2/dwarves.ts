@@ -379,19 +379,21 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     goldenText: 'When you spend **10 Gold**, get **2** random **Dwarves**.',
   },
   {
-    // Beast, not Dwarf — a Rune minion that happens to arrive with this batch. The copy drops its own Echo, which
-    // is what stops it chaining to the board cap.
+    // Beast, not Dwarf — a Rune minion that happens to arrive with this batch. Owner rework 2026-09-23: it IS
+    // the Rebirth keyword now ("replace text") — when it dies it returns once with its full current body (the
+    // `RB` keyword, combat's `killOrReborn` + the shop's `rebirthReturn`; owner 2026-09-16). The 2026-08 "Echo:
+    // summon an exact copy without Echo" is gone (that body, `echoSummonCopyNoEcho`, still serves Rune of
+    // Living Treasure's graft). Gilded: a gilded body returns gilded; the keyword itself does not double.
     id: 'dw_exgalloper',
     name: 'Exgalloper',
     tribe: 'beast',
     tier: 5,
     attack: 6,
     health: 6,
-    keywords: [],
-    effects: [{ on: 'onDeath', do: 'echoSummonCopyNoEcho', params: { count: 1 } }],
+    keywords: ['RB'],
+    effects: [],
     token: true, // forge-only: Source = Rune
-    text: '**Echo:** summon an exact copy of this **without Echo**.',
-    goldenText: '**Echo:** summon **2** exact copies of this **without Echo**.',
+    text: '**Rebirth.**',
   },
   {
     // Owner add 2026-08-04. An aggressive Echo body for the tribe's early game: it dies forward — the

@@ -96,7 +96,7 @@ Every applicable case that did not run says why. This is the §4.3 substrate; no
 | `covered-by-cited-lane` | 398 | an existing vitest lane owns the class; not re-executed per contract |
 | `gild-stated-by-golden-text` | 163 | a 'reshape' gild — the authored golden text states the form; the textOracle golden lane owns it |
 | `runtime-unobserved` | 163 | the driver ran and the engine emitted nothing observable — recorded, not hidden (a scenario-conditional effect the fixture did not reach: Imps, Fodder, Attachments, a lost last combat) |
-| `no-driver-for-shape` | 160 | **the largest real hole, down from 471** — an applicable case with no executable driver yet; the skip detail now names WHY (a scaler amount key such as `every` / `step` / `improve` / `per` that the first activation does not print — 110; a def-level behaviour field the extractor never states, `discoverOnPlay` / `manaPerTurn` / `ruby` … — 29; a trigger no stager fires yet — 10) |
+| `no-driver-for-shape` | 159 | **the largest real hole, down from 471** — an applicable case with no executable driver yet; the skip detail now names WHY (a scaler amount key such as `every` / `step` / `improve` / `per` that the first activation does not print — 110; a def-level behaviour field the extractor never states, `discoverOnPlay` / `manaPerTurn` / `ruby` … — 29; a trigger no stager fires yet — 10) |
 | `gild-not-applicable` | 130 | R-GILD-02 — spells and Rubies are never gilded |
 | `contract-states-no-magnitude` | 87 | the activation family proved the effect ACTS, but the contract states no number a magnitude could be compared to |
 | `gild-shape-not-countable` | 65 | a keyword grant, a Choose One (a gilded body may resolve both branches), an extra-proc, or an activation-only family — no single ×factor to check |
@@ -143,9 +143,9 @@ rule-per-sentence would not honestly cover.
 
 ## 4. Interaction intelligence (§18-F)
 
-- Graph: **1828** nodes / **5739** edges over the contract registry (content, effect-family, trigger-family,
+- Graph: **1828** nodes / **5737** edges over the contract registry (content, effect-family, trigger-family,
   channel, keyword, multiplier, copy-mode, counter, zone, phase-boundary nodes).
-- Applicability: **144644** candidate pairs against 551775 naive all-pairs (26%) — the producer → channel →
+- Applicability: **144322** candidate pairs against 551775 naive all-pairs (26%) — the producer → channel →
   consumer join is what makes pairwise tractable at all.
 - Sweep (full pairwise + §10.4 triples): 154 rows — 112 covered, 0 failed, 12 inapplicable, 30 blocked.
 - Families with at least one covered row: 12 of 23.
@@ -284,7 +284,7 @@ Ordered by how much they limit a confident claim. The counted ones are re-derive
 1. **91 unresolved parses, and draft contracts on the other side.** The parser now reads 94% of printed text,
    but a comparison is only as strong as the contract it compares against — and most contracts are
    unreviewed extractor drafts, so a disagreement is a question, not a verdict (§6.1).
-2. **160 contract shapes with no driver.** Still the single largest verification hole, though down from
+2. **159 contract shapes with no driver.** Still the single largest verification hole, though down from
    471: the family drivers stage every stat / card / economy / keyword / equipment / vanilla / activation
    claim, and what is left is named per skip — scaler magnitudes (110), def-level behaviour the extractor
    does not state (29), and triggers no stager fires (10).

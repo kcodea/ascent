@@ -52,6 +52,19 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-23',
+    label: 'Plain sentences',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Card and rune texts read as short plain sentences. No dashes.',
+        details: [
+          'Every card, hero, Equipment and tutorial line that used a dash to join two thoughts now uses a full stop or a comma. Numbers and effects are unchanged.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-23',
     label: 'Runeforge',
     changes: [
       {
@@ -78,6 +91,17 @@ export const PATCH_NOTES: PatchNote[] = [
           'A run saved between the two forges picks up with the second one still to come.',
         ],
       },
+    ],
+  },
+  {
+    date: '2026-09-23',
+    label: 'Balance Report: real player counts',
+    changes: [
+      { category: 'Systems', text: 'The Balance Report now counts players by account, not by display name. A player who changes their name is still one player, and two players who share a name are two.', details: [
+        'Every player count uses the new key: the summary above the tables, the player columns on both sides of a comparison, the evidence labels, and the toggle that leaves out the most prolific player.',
+        'The summary says "players". If the report ever has to fall back to display names it says so beside the count.',
+        'The export file still carries a per-file player number for each run. It never carries a name or the account key.',
+      ] },
     ],
   },
   {
@@ -147,6 +171,20 @@ export const PATCH_NOTES: PatchNote[] = [
           "Your Career match results and the Recent Games rows now show each lobby's strength as a percentage, such as 47%. Higher means your seven opponents have won more of their recorded fights. It never shows before or during a game.",
         ],
       },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Balance Report: honest numbers',
+    changes: [
+      { category: 'Systems', text: 'The Balance Report now says what each number is. Buyers used to be compared with every other run, which made surviving long enough to see a card look like the card being strong. The tables keep that raw read under its real name and add two fairer ones beside it.', details: [
+        'Every comparison is labelled: raw buyer association, exposed diagnostic (against runs that saw the card and passed) and adjusted association (buy against pass inside the first affordable shop offer, among runs at the same round and shop tier). None of them claims a card is overpowered.',
+        'An evidence label on every row: insufficient, candidate for review or supported association. It needs enough runs on both sides and enough different players. Rows without enough go to the bottom, never ranked as the worst card.',
+        'A summary above every table: how many runs and players, the dates, the content revision, how much of the data was fetched, and what the numbers can and cannot say.',
+        'New filters: the balance epoch (one content revision at a time, with an explicit choice to include older ones), a date window, and a toggle that leaves out the most prolific player to see whether a conclusion rests on one person.',
+        "Minions and Spells have four views: Demand, Performance, Role and timing, Evidence. Heroes compare against runs that were offered the hero and chose another. Shop Tiers add a decision table: took against declined among runs that could afford the tier-up.",
+        'The export file carries a schema version, the exact fetch coverage and every exclusion, so an outside reader can tell what fed each table. Runs in the file carry a per-file player number instead of a display name.',
+      ] },
     ],
   },
   {

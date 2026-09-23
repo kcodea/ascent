@@ -142,7 +142,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'warden',
     name: 'Warden',
-    blurb: 'A shield for the one who needs it — bought and paid for in Gold.',
+    blurb: 'A shield for the one who needs it, bought and paid for in Gold.',
     resolve: 30,
     armor: 11, // owner balance 2026-08-17
     // PLACEHOLDER henchman: proves the whole loop in the Scene Builder (and pins it in tests). The real
@@ -160,7 +160,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'indy',
     name: 'Indy',
-    blurb: 'One perfect moment — gild a single minion and make it count.',
+    blurb: 'One perfect moment. Gild a single minion and make it count.',
     resolve: 30,
     armor: 12, // owner balance 2026-08-17,
     power: {
@@ -173,7 +173,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'myra', // id kept stable (saves / references); display name is Auctioneer
     name: 'Auctioneer',
-    blurb: 'A conductor of entrances — call a minion to take its bow again.',
+    blurb: 'A conductor of entrances. Call a minion to take its bow again.',
     resolve: 30,
     armor: 10, // owner balance 2026-08-17
     power: {
@@ -186,7 +186,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'soren',
     name: 'Soren',
-    blurb: 'Death is a doorway — send a minion through it and it blooms back.',
+    blurb: 'Death is a doorway. Send a minion through it and it blooms back.',
     resolve: 30,
     armor: 10,
     power: {
@@ -198,7 +198,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'rohan', // id kept stable (saves / references); display name is Yirin
     name: 'Yirin',
-    blurb: 'Words sharpen in skilled hands — and sharpen further the more you speak them.',
+    blurb: 'Words sharpen in skilled hands, and sharpen further the more you speak them.',
     resolve: 30,
     armor: 8, // owner balance 2026-08-16: 17 -> 8, alongside the power swap below
     power: {
@@ -213,7 +213,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'djinn',
     name: 'Djinni',
-    blurb: 'Calls the whole board to its close early — once a turn, on your terms.',
+    blurb: 'Calls the whole board to its close early. Once a turn, on your terms.',
     resolve: 30,
     armor: 20,
     wip: true, // disabled by the owner 2026-07-28 (withheld from every picker, incl. Practice)
@@ -227,7 +227,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'nadja',
     name: 'Nadja',
-    blurb: 'The well runs deeper each turn — more Gold, more room to scheme.',
+    blurb: 'The well runs deeper each turn. More Gold, more room to scheme.',
     resolve: 30,
     armor: 17, // owner balance 2026-08-17,
     power: {
@@ -241,7 +241,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'cassen',
     name: 'Cassen',
-    blurb: 'Every clash leaves a mark — break enough of them and the spoils find you.',
+    blurb: 'Every clash leaves a mark. Break enough of them and the spoils find you.',
     resolve: 30,
     armor: 13, // re-enabled 2026-08-16 with a brand-new power (owner)
     power: {
@@ -251,13 +251,13 @@ export const HEROES: HeroDef[] = [
       kind: 'commission',
       untargeted: true,
       // The offered options change every use, so the live text is built by `heroPowerText`.
-      text: 'Choose a commission — it pays out in a few turns.',
+      text: 'Choose a commission. It pays out in a few turns.',
     },
   },
   {
     id: 'drakko',
     name: 'Drakko',
-    blurb: 'Every entrance is a downbeat — buy enough, and he joins the band.',
+    blurb: 'Every entrance is a downbeat. Buy enough, and he joins the band.',
     resolve: 30,
     armor: 13,
     power: {
@@ -271,7 +271,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'chaos',
     name: 'Chaos',
-    blurb: 'A bond that transcends all tribes — every kind bends to the connection.',
+    blurb: 'A bond that transcends all tribes. Every kind bends to the connection.',
     resolve: 30,
     armor: 13,
     wip: true, // temporarily withheld from the picker (owner 2026-07-13)
@@ -285,7 +285,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'robin',
     name: 'Robin',
-    blurb: 'Patience pays — every minion sold lines next turn\'s purse.',
+    blurb: 'Patience pays. Every minion sold lines next turn\'s purse.',
     resolve: 30,
     armor: 4, // owner balance 2026-08-17,
     power: {
@@ -298,7 +298,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'darah',
     name: 'Darah',
-    blurb: 'A sleight of fate — trade a piece on your board for a stranger from the tavern.',
+    blurb: 'A sleight of fate. Trade a piece on your board for a stranger from the tavern.',
     resolve: 30,
     armor: 18,
     power: {
@@ -310,7 +310,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'risen',
     name: 'Lord of the Risen',
-    blurb: 'Death is a rehearsal — each turn, one soldier returns for an encore.',
+    blurb: 'Death is a rehearsal. Each turn, one soldier returns for an encore.',
     resolve: 30,
     armor: 14, // owner balance 2026-08-17,
     power: {
@@ -322,7 +322,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'gildmaster',
     name: 'Gildmaster',
-    blurb: 'The gold never stops coming — a fresh crafter arrives like clockwork.',
+    blurb: 'The gold never stops coming. A fresh crafter arrives like clockwork.',
     resolve: 30,
     armor: 14,
     power: {
@@ -337,7 +337,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'discodan',
     name: 'Disco Dan',
-    blurb: 'All the hits, none of them ready yet — a hand of tomorrows.',
+    blurb: 'All the hits, none of them ready yet. A hand of tomorrows.',
     resolve: 30,
     armor: 14,
     power: {
@@ -365,7 +365,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'baggerben',
     name: 'Rascal',
-    blurb: 'The tip jar only ever grows — a little more set aside each turn.',
+    blurb: 'The tip jar only ever grows. A little more set aside each turn.',
     resolve: 30,
     armor: 9, // owner balance 2026-08-17
     power: {
@@ -383,7 +383,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'hermithank', // id kept stable (saves / art file); display name is Tradesman
     name: 'Tradesman',
-    blurb: 'Cheap to shop, dear to climb — the trader hoards his tiers.',
+    blurb: 'Cheap to shop, dear to climb. The trader hoards his tiers.',
     resolve: 30,
     armor: 9,
     power: {
@@ -401,7 +401,7 @@ export const HEROES: HeroDef[] = [
     // Mimic/Void/Power-Shifter Discover pools, while the def stays in HEROES so old saves and replays resolve.
     wip: true,
     name: 'Fi',
-    blurb: 'Sets out on turn one and never looks back — the road pays early.',
+    blurb: 'Sets out on turn one and never looks back. The road pays early.',
     resolve: 30,
     armor: 11,
     power: {
@@ -429,7 +429,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'runesmith',
     name: 'Runesmith',
-    blurb: 'The forge fires once — spend well, for its rune lasts the whole climb.',
+    blurb: 'The forge fires once. Spend well, for its rune lasts the whole climb.',
     resolve: 30,
     armor: 8, // owner balance 2026-08-17,
     power: {
@@ -443,7 +443,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'runeguard',
     name: 'Guardian',
-    blurb: 'Sworn to the forge — its greater runes answer only to those who hold the line.',
+    blurb: 'Sworn to the forge. Its greater runes answer only to those who hold the line.',
     resolve: 30,
     armor: 10, // owner balance 2026-08-17,
     power: {
@@ -458,7 +458,7 @@ export const HEROES: HeroDef[] = [
     // ARCHIVED 2026-08-28 pending redesign — the quest system is retired. See Fi above; same ruling.
     wip: true,
     name: 'Coran',
-    blurb: 'Reads the whole trail on the first morning — and walks it to the summit.',
+    blurb: 'Reads the whole trail on the first morning, and walks it to the summit.',
     resolve: 30,
     armor: 15,
     power: {
@@ -472,7 +472,7 @@ export const HEROES: HeroDef[] = [
     id: 'tiff',
     tribes: ['dragon'], // Dragon Tamer Discovers a Dragon — no pool without them (owner 2026-09-10: "Tiff for Dragons")
     name: 'Tiff',
-    blurb: 'Every wyrm answers her whistle — and the tavern picks up the tab.',
+    blurb: 'Every wyrm answers her whistle, and the tavern picks up the tab.',
     resolve: 30,
     armor: 12, // owner balance 2026-08-17,
     // Re-added to the pool 2026-08-14 (owner) — the wip withhold is lifted.
@@ -483,13 +483,13 @@ export const HEROES: HeroDef[] = [
       // Dragon/spell bought since the last use, floor 0) is charged in the reducer, and the cost coin shows
       // the LIVE value (the dynamiteDig pattern; a def-level cost would double-charge via the shared block).
       untargeted: true,
-      text: '**Discover** a Dragon. Costs **5 Gold** — reduced by 1 when you buy a Dragon or a spell.',
+      text: '**Discover** a Dragon. Costs **5 Gold**, reduced by 1 when you buy a Dragon or a spell.',
     },
   },
   {
     id: 'jenkins',
     name: 'Jensen',
-    blurb: 'Every dig turns up something — for a price that only ever climbs.',
+    blurb: 'Every dig turns up something, for a price that only ever climbs.',
     resolve: 30,
     armor: 15, // re-enabled by the owner 2026-08-17
     power: {
@@ -559,7 +559,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'gambler',
     name: 'Gambler',
-    blurb: 'The house always wins — unless the house is you.',
+    blurb: 'The house always wins. Unless the house is you.',
     resolve: 30,
     armor: 8, // owner balance 2026-08-17,
     power: {
@@ -588,7 +588,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'frank',
     name: 'Frantic Frank',
-    blurb: 'Everything must go — today only.',
+    blurb: 'Everything must go. Today only.',
     resolve: 30,
     armor: 9, // owner balance 2026-08-17,
     power: {
@@ -642,7 +642,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'quillen',
     name: 'Quillen',
-    blurb: 'Nothing is ever truly gone — only filed.',
+    blurb: 'Nothing is ever truly gone. Only filed.',
     resolve: 30,
     armor: 10, // owner balance 2026-08-17,
     power: {
@@ -657,7 +657,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'hunch',
     name: 'Hunch',
-    blurb: 'He never forgets a page — he just waits for the price to drop.',
+    blurb: 'He never forgets a page. He just waits for the price to drop.',
     resolve: 30,
     armor: 10,
     power: {
@@ -694,7 +694,7 @@ export const HEROES: HeroDef[] = [
       kind: 'soulkeeper',
       cost: 2, // owner balance 2026-08-16: 3 -> 2
       untargeted: true,
-      text: 'Discover a minion that died last combat — from **either** side.',
+      text: 'Discover a minion that died last combat, from **either** side.',
     },
   },
   {
@@ -726,7 +726,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'flash',
     name: 'Flash',
-    blurb: 'He only ever watches the opening blow — or the closing one.',
+    blurb: 'He only ever watches the opening blow, or the closing one.',
     resolve: 30,
     armor: 9,
     power: {
@@ -768,7 +768,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'membrance',
     name: 'Membrance',
-    blurb: 'She remembers every board that ever stood against her — and sells you the copy.',
+    blurb: 'She remembers every board that ever stood against her, and sells you the copy.',
     resolve: 30,
     armor: 8,
     power: {
@@ -856,7 +856,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'keshi',
     name: 'Keshi the Protector',
-    blurb: 'Tend the tavern and it tends you — every card bought coaxes the crown into bloom.',
+    blurb: 'Tend the tavern and it tends you. Every card bought coaxes the crown into bloom.',
     resolve: 30,
     armor: 10, // owner spec 2026-08-16 — a repeatable run-long Triple Reward engine, so the armor sits with
     //            the strong-passive band (Flint/Pete/Merrin 10) rather than the quest heroes' 13
@@ -940,7 +940,7 @@ export const HEROES: HeroDef[] = [
   {
     id: 'mimic',
     name: 'Mimic',
-    blurb: 'Whoever you needed today — that is who sat down.',
+    blurb: 'Whoever you needed today. That is who sat down.',
     resolve: 30,
     armor: 10,
     power: {
@@ -974,7 +974,7 @@ export const HEROES: HeroDef[] = [
     // the course (blueprint §6.2). Its power is deliberately simple: an active, targeted, fixed +1/+1.
     id: 'aster',
     name: 'Aster, the Guide',
-    blurb: 'Steady hands for a first climb — a little help, right where it’s needed.',
+    blurb: 'Steady hands for a first climb. A little help, right where it’s needed.',
     resolve: 30,
     armor: 15,
     wip: true,

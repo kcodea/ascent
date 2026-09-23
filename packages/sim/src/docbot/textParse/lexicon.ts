@@ -98,7 +98,7 @@ export const TRIGGER_LEXICON: readonly TriggerLexeme[] = [
   { re: /^Battlecry\s*[:：]/, event: 'onPlay', display: 'Battlecry' },
   { re: /^Echo\s*[:：]/, event: 'onDeath', display: 'Echo' },
   { re: /^Deathrattle\s*[:：]/, event: 'onDeath', display: 'Deathrattle' },
-  { re: /^Start of [Cc]ombat(?:\s*—[^:]+)?\s*[:：]/, event: 'startOfCombat', display: 'Start of Combat' },
+  { re: /^Start of [Cc]ombat(?:\s*—[^:]+|\s*\([^)]+\))?\s*[:：]/, event: 'startOfCombat', display: 'Start of Combat' }, // "Start of Combat (Bleed):" names the effect
   { re: /^End of Turn\s*[:：]/, event: 'endOfTurn', display: 'End of Turn' },
   { re: /^Start of (?:Turn|shop)\s*[:：]/, event: 'startOfTurn', display: 'Start of Turn' },
   { re: /^Rally\s*[:：]/, event: 'onAttack', display: 'Rally' },
@@ -114,7 +114,7 @@ export const TRIGGER_LEXICON: readonly TriggerLexeme[] = [
   // "Equip Comet (4):" — the Equipment trigger; the number is the charge count.
   { re: /^Equip [A-Z][\w'’-]*(?: [A-Z][\w'’-]*)*(?: \((\d+)\))?\s*[:：]/, event: 'equip', display: 'Equip' },
   { re: /^Every (\d+) turns?[,:]?\s*/, event: 'everyNTurns', display: 'Every N turns' },
-  { re: /^Choose One\s*(?:[:：]|—)\s*/, event: 'chooseOne', display: 'Choose One' },
+  { re: /^Choose One\s*(?:[:：]|—|\.$)\s*/, event: 'chooseOne', display: 'Choose One' }, // "Choose One." closes its sentence (Prismatic Pick)
   // Calendar / phase prefixes (hero powers + runes).
   { re: /^In (\d+) turns?[,:]\s*/, event: 'text:inNTurns', display: 'In N turns' },
   { re: /^On turn (\d+),\s*/, event: 'text:onTurnN', display: 'On turn N' },

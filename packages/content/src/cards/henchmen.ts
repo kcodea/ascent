@@ -37,6 +37,6 @@ export const HENCHMEN: readonly CardDef[] = [
     keywords: [],
     henchman: true,
     effects: [],
-    text: '**Henchman.** Placeholder body — the real roster replaces this.',
+    text: '**Henchman.** Placeholder body. The real roster replaces this.',
   },
 ];

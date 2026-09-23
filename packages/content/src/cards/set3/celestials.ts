@@ -305,7 +305,7 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryCollapseStarform' }],
     text: '**Shout:** Collapse your **Starform**.',
-    goldenText: '**Shout:** Collapse your **Starform** — each gains its **full** stats.',
+    goldenText: '**Shout:** Collapse your **Starform**. Each gains its **full** stats.',
   },
   {
     // T4: Discover a Celestial (Sea Urchin's factory: never itself via `exclude`; the Starform is a token and sits

@@ -270,4 +270,60 @@ export const PERSISTENCE_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-22',
     },
   },
+  {
+    id: 'R-REPORT-03',
+    title: 'The Balance Report prints associations under honest labels and never a survival statistic as card power',
+    statement:
+      'Every placement comparison the Balance Report prints is an ASSOCIATION among the runs observed, labelled '
+      + 'as what it is: the raw buyer association (buyers against every other placed run, kept unchanged for '
+      + 'audit continuity), the sample-weighted association (the same delta shrunk for a thin sample), the '
+      + 'relative raw association within tier (secondary, never called a survival correction), the exposed '
+      + 'diagnostic (both sides restricted to runs whose own shop offers included the card; a diagnostic, never '
+      + 'the adjusted estimate) and the adjusted association (buy against pass inside the first affordable shop '
+      + 'offer, stratified on round band by shop tier inside a balance epoch, buyers weighted, supported strata '
+      + 'only). The exposure fixture is the contract: late-round eligible runs whose buyers and skippers place '
+      + 'identically plus early eliminations that never saw the card make the raw delta negative while the '
+      + 'exposed and adjusted comparisons stay zero. Where no stratum holds both a buyer and a skipper the '
+      + 'adjusted association is unavailable, never zero, and such a row is never ranked as the worst card. '
+      + 'One primary observation per run per card; an unaffordable offer is not a rejection; a later purchase '
+      + 'never relabels an earlier pass; a prior acquisition excludes the run. Every stream is read by its last '
+      + 'wave segment. A Welch interval is printed only on the metric it belongs to and only with the documented '
+      + 'minimum on each side, never collapsed. The evidence label (insufficient, candidate for review, supported '
+      + 'association) needs both group sizes and the unique players behind them, so duplicating one player\'s '
+      + 'runs raises neither; no label means confirmed overpowered. Missing or malformed placements never count '
+      + 'toward a placement finding. The balance epoch is a filter, defaulting to the build\'s own revision or the '
+      + 'newest, and older revisions are never pooled in silently: an epoch under the minimum reads as '
+      + 'insufficient current data with an explicit historical toggle. The flat fetch pages every eligible row '
+      + 'and states its cap and truncation; the export carries schema version 2 with the scope, the quality '
+      + 'counts, the fetch coverage and the per-metric exclusions, and a version-1 column is never redefined '
+      + 'under a shipped version. No display name, account id or raw player key is written into a table or into '
+      + 'the export\'s runs (each run carries a per-file alias that preserves the unique-player count); unique '
+      + 'players are keyed by run_telemetry.player_key (a server-side hash of the account id, 2026-09-23) on '
+      + 'every count, evidence label, sensitivity toggle and export alias, and by the display name only as a '
+      + 'labelled fallback on a backend that has not run that migration.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'The owner\'s balance-analytics handoff, 2026-09-22 (kept outside the repo)', quote: 'The existing raw delta arithmetic is correct, but comparing buyers with all nonbuyers systematically rewards survival and card access. Preserve raw metrics under honest labels, separate coherent balance versions, expose sample/coverage weaknesses, and add offered-run diagnostics followed by comparable decision-opportunity analysis where telemetry supports it.' },
+      { kind: 'owner-chat', ref: 'The same handoff, section 8, acceptance tests', quote: 'create late-round eligible runs where buyers and skippers have identical placement distributions, plus early eliminations that could never encounter the card. Raw delta becomes negative; the eligible comparison stays zero.' },
+      { kind: 'code', ref: 'packages/sim/src/reportCohorts.ts (segmentByWave, exposedDiagnostic, shopEpisodesOf, adjustedAssociation, welchInterval, evidenceLabel, dataQuality, epochsOf, accountKey / displayNameKey / playerKeyFor); packages/sim/src/playerReport.ts (cardImpactWithCoverage, performanceSortValue, scopeReport, EXPORT_SCHEMA_VERSION, buildBalanceExport, playerAliases); packages/ui/src/remoteBoards.ts fetchRunTelemetry (paged; the player_key rung and playerKeyBasis); packages/ui/src/BalancePanel.tsx; supabase/migrations/2026-09-23-player-key-drop-seat-results.sql' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22. The audited export (110 Set 2 runs) reproduces every version-1 column to '
+      + 'rounding and the handoff\'s section-2 diagnostic exactly (Mysterious Joker raw -2.76 reads +0.0018 among '
+      + 'the 62 buyers and 9 skippers that saw it; Black Belt Brian -1.92 reads +1.5077 among 52 and 10; Sea '
+      + 'Urchin 47 exposed of 49 raw buyers). Stage C (player-cluster bootstrap, false-discovery screening) is '
+      + 'deferred: with two display names behind 100 of 110 runs it would manufacture confidence, and the '
+      + 'evidence banner, the export readme (howToRead) and the devlog say so. The export\'s runs carry '
+      + '"player N" aliases in place of the display name (2026-09-23 review fix). Since 2026-09-23 unique players '
+      + 'are counted by player_key (the owner ran the generated md5(user_id) column on the live backend; 120 rows, '
+      + '8 distinct keys): the fetch reads it on its own select rung and reports playerKeyBasis, every cohort '
+      + 'call, the prolific toggle and the export alias key on it, the banner prints "N players" (or "N display '
+      + 'names (proxy: backend not migrated)" on the fallback), and the raw key never enters the export.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/reportCohorts.test.ts', 'packages/sim/src/balanceExport.test.ts', 'packages/sim/src/cardImpact.test.ts', 'packages/sim/src/reportImpact.test.ts', 'packages/sim/src/reportFilters.test.ts', 'packages/ui/src/balanceFetch.test.ts', 'packages/ui/src/noEmDashPlayerText.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
 ];

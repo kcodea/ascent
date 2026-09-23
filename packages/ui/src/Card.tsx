@@ -14,7 +14,7 @@ import { perfMonitor } from './perfMonitor';
 import { heldFor, holdStat, statHoldKey, subscribeStatHolds } from './fx/statHold';
 import { resolveMech } from './mechIcon';
 import { mechMedallionArtRotate, mechMedallionArtScale, mechMedallionArtTint, mechMedallionSrc } from './mechMedallion';
-import { EPIC_MEDALLION_SRC, isEpicUnit } from './epicMedallion';
+import { epicMedallionSrc, isEpicUnit } from './epicMedallion';
 import { crossedUp, tierOf } from './choreo/statMilestones';
 import { fireStatMilestone } from './fx/statMilestone';
 import { useMilestoneBadgeFx } from './fx/milestoneBadgeFx';
@@ -1178,7 +1178,7 @@ export const Card = memo(function Card({
             })()}
             {/* EPIC medallion — a SEPARATE badge on "epic" units (trigger/cast multipliers: Drakko, Sylus, …).
                 Own tuner (size/placement, --epic-*), always the same icon (no gild/silver), medallion drop shadow. */}
-            {isEpicUnit(card.cardId) && <img decoding="sync" className="epic-medallion" src={EPIC_MEDALLION_SRC} alt="" aria-hidden="true" />}
+            {isEpicUnit(card.cardId) && <img decoding="sync" className="epic-medallion" src={epicMedallionSrc(card.cardId)} alt="" aria-hidden="true" />}
           </>
         )}
         {/* WATCHER frame bloom — a one-shot light-blue ring on the whole card frame (CSS fallback for the

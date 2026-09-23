@@ -29,5 +29,19 @@ export function isEpicUnit(cardId: string): boolean {
   return EPIC_UNITS.has(cardId);
 }
 
-/** The epic medallion art. BASE_URL-relative (itch/exe serve from a CDN sub-path). */
+/** Per-card epic art override — a specific epic unit wears its own icon instead of the default (owner ask
+ *  2026-09-23: Elderhorn / Orivax, the Choose One epics, get a bespoke "epic choose one" icon). Keyed cardId → art id. */
+const EPIC_ART_OVERRIDE: Readonly<Record<string, string>> = {
+  b2_elderhorn: 'epic-choose-one',
+  d2_orivax: 'epic-choose-one',
+};
+
+/** The default epic medallion art (used by the tuner preview). BASE_URL-relative (itch/exe serve from a CDN sub-path). */
 export const EPIC_MEDALLION_SRC = `${import.meta.env.BASE_URL}medallions/epic.webp`;
+
+/** The epic art URL for a specific card — its override if any, else the default. All the badge chrome (size,
+ *  placement, glow, drop shadow) is art-agnostic, so an override just swaps the picture. */
+export function epicMedallionSrc(cardId: string): string {
+  const art = EPIC_ART_OVERRIDE[cardId];
+  return art ? `${import.meta.env.BASE_URL}medallions/${art}.webp` : EPIC_MEDALLION_SRC;
+}

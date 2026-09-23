@@ -52,6 +52,10 @@ describe('resolveMech', () => {
     // Fel Conjurer — "Start of Turn: get a Quick Study" (on: 'startOfTurn', no SC keyword).
     expect(resolveMech(view('d2_felconjurer'))?.id).toBe('startCombat');
   });
+  it('a consume-watcher (Enigma) → watcher eye', () => {
+    // Enigma — "When you consume a minion, …" (on: 'onConsume'): watches the consume, so it is a Watcher.
+    expect(resolveMech(view('dm_jumbo'))?.id).toBe('watcher');
+  });
   it('Choose One → choose1; Engraved → engrave', () => {
     expect(resolveMech(view('shaper'))?.glyph).toBe('choose1');
     expect(resolveMech(view('thundeer'))?.glyph).toBe('engrave');

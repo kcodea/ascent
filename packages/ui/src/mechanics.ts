@@ -75,6 +75,7 @@ const REACTIVE_ON = new Set<EffectDef['on']>([
   'onLoseDivineShield',        // this minion's Ward was broken by an incoming hit (no live users yet)
   'battlecryTriggered',        // another minion's Battlecry resolved (Karwind)
   'minionSold',                // another minion was sold (Voicekeeper)
+  'onConsume',                 // a minion was consumed (Enigma) — watches the consume, not a Consume keyword
   'spellCastOnThis',           // a targeted spell resolved on this minion (Mirrorwing, Runefire)
   // recruit-phase reactions to your actions
   'spellCast',                 // you cast any spell (Runescale Drake, Spirit Worgen)

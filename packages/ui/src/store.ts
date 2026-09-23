@@ -2526,6 +2526,22 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
   (window as unknown as { useGame?: typeof useGame }).useGame = useGame;
 }
 
+// THE STORE IS NOT HOT-SWAPPABLE (owner report 2026-09-23: "the scene builder is broken for me ... i dont have
+// infinite money in god mode and cannot add cards to the shop"). `create()` above runs once per EVALUATION of
+// this module, so a Vite HMR patch that re-executes it (this file edited, or any module under it: `@game/sim`,
+// the announcer slice, ...) mints a SECOND Zustand store, booted from the save / a throwaway run. Every module
+// the patch re-executes binds to the new store; every module it does not (or one that failed mid-batch) keeps
+// the old one. The tab then runs two games at once: the Scene Builder panel wrote its 999 Gold and its Library
+// picks into the old store while the board and the Gold pill rendered the new one (the owner's screenshot: the
+// panel on "round 1 · GOD", the pill on 4 Gold, a Library click changing nothing). Reproduced on 2026-09-23 by
+// touching this file with the sandbox open: `window.useGame !== <the store the panel held>`.
+// A full reload is the only honest outcome for an app-root singleton: accept the update and reload the page
+// (the save survives in localStorage; a sandbox is disposable). `import.meta.hot.decline()` is a no-op on Vite
+// 5+, so the reload is explicit. Absent in production (no `import.meta.hot`) and in vitest (same).
+if (import.meta.hot) {
+  import.meta.hot.accept(() => { window.location.reload(); });
+}
+
 /**
  * Is the player in the PRE-RUN flow rather than in a run?
  *

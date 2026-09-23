@@ -653,4 +653,47 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-23',
     },
   },
+  {
+    id: 'R-PRESENT-09',
+    title: 'One store per tab: the game store is never hot-swapped, and the Scene Builder panel writes the store the board reads',
+    statement:
+      'The Zustand game store (`useGame`) is an app-root singleton: a browser tab holds exactly ONE instance, and '
+      + 'every surface (the board, the Gold pill, the status bar, the Scene Builder panel, the announcer and music '
+      + 'subscriptions) reads and writes that same instance. In the dev server a Vite HMR update that would '
+      + 're-evaluate `packages/ui/src/store.ts` (the file itself edited, or any module under it: `@game/sim`, the '
+      + 'announcer slice, the profile) is accepted by reloading the page (`import.meta.hot.accept(() => '
+      + 'window.location.reload())`), never patched in place: a re-evaluation runs `create()` again and mints a '
+      + 'second store, and whichever modules the patch did not re-execute keep the first. The rule is absent in the '
+      + 'player build (no `import.meta.hot`). Consequence for the rig: under GOD rules the Scene Builder opens on '
+      + '999 Gold and the panel tops it back up whenever it dips; a Library click puts that card in the shop row; '
+      + '"+ enemy" pins one more minion onto the enemy row for this wave (`servedBoards[wave]`, `sandboxFoeWave`). '
+      + 'A panel control whose write does not show on the board is a defect, and the first thing to check is '
+      + 'whether the tab holds two stores (`window.useGame !== the store a component holds`).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-23 (Scene Builder regression)',
+        quote: 'the scene builder is broken for me for some reason. can you please fix this? i dont have infinite money in god mode and cannot add cards to the shop',
+      },
+      { kind: 'code', ref: 'packages/ui/src/store.ts (the `import.meta.hot` guard after the DEV `window.useGame` handle); packages/ui/src/SceneBuilder.tsx (`mutate`, the refill, `addToShop`, `addEnemyFromPanel`); packages/ui/src/Game.tsx (the panel mounts on `run.sandbox`)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Before the guard, `store.ts` had no HMR handling at all, so a merge that touched '
+      + 'the store or anything under it while a tab was open was patched in place: the owner\x27s tab (a dev server '
+      + 'up since fd8ee7d18, with #1644 and #1653 both touching store.ts merged under it) ended with the Scene '
+      + 'Builder panel bound to the old store (\x22round 1 · 8 left · GOD\x22, 999 Gold, every Library '
+      + 'click landing there) and the board + Gold pill bound to the new one (the saved run, 4 Gold). Reproduced on '
+      + '2026-09-23 on port 5263 by touching store.ts with the sandbox open (`window.useGame` changed identity; the '
+      + 'old store still held the sandbox) and by touching announcerSlice.ts (the HMR batch re-executed Game, EscMenu, '
+      + 'Recruit and store.ts but not SceneBuilder.tsx). With the guard both touches reload the page '
+      + '(`performance.getEntriesByType(\x27navigation\x27)[0].type === \x27reload\x27`). A page reload was always '
+      + 'the manual workaround; the guard makes it automatic.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/sceneBuilderPanel.test.tsx', 'packages/ui/src/sceneBuilderLaunch.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
 ];

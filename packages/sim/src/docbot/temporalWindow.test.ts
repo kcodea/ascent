@@ -11,7 +11,7 @@
  *    SEQUENCE (`count`), and the in-window counter (`seen`). Trigger EMISSION is read from the authoritative
  *    event log (`avenge:true`-stamped events), never from the side channel.
  *  · CONTRACT — the eleven owner rulings of 2026-08-26 (§5.0), entered as approved rules
- *    `R-AVWIN-01` … `R-AVWIN-11` in packages/rules/src/registry/approved.ts. Each scenario below asserts
+ *    `R-AVWIN-01` … `R-AVWIN-11` in packages/rules/src/registry/approved/ (filed by domain). Each scenario below asserts
  *    the RULED behaviour and names its rule id.
  *  · VERIFY-BEFORE-ALARM — where the engine currently VIOLATES a ruling, the violation is NOT excused into
  *    silence and NOT "fixed" here (this PR changes no gameplay): it is pinned in `KNOWN_VIOLATIONS`, a
@@ -49,7 +49,7 @@ interface WindowViolation {
 
 /** Confirmed rule violations, each with a deterministic reproduction below. This table may only SHRINK:
  *  fixing the engine deletes the entry, flips the pinning assertion to the ruled behaviour, and clears the
- *  rule's `currentBehaviour` violation note in packages/rules/src/registry/approved.ts. */
+ *  rule's `currentBehaviour` violation note in packages/rules/src/registry/approved/<domain>.ts. */
 const KNOWN_VIOLATIONS: readonly WindowViolation[] = [
   // EMPTY as of 2026-09-10: R-AVWIN-02 (the summoning death counted) and R-AVWIN-10 (a dying source observed its
   // batch-mates) were both fixed in the engine — the pins below flipped to the ruled expectations.

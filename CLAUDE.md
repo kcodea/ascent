@@ -237,16 +237,20 @@ summary → commit them together.
 ## Bug fixes become rules — every single one, in the same PR
 
 **A bug is not fixed until the oracle knows the rule.** Whatever its size, every fix we find and solve adds
-(or updates) an **approved rule** in [`packages/rules/src/registry/approved.ts`](packages/rules/src/registry/approved.ts)
+(or updates) an **approved rule** in the registry's **domain file**
+[`packages/rules/src/registry/approved/<domain>.ts`](packages/rules/src/registry/approved/) (one file per
+`RuleDomain` — `combat.ts`, `text.ts`, `runes.ts`, … — appended at the END of that file's array; the index
+`approved/index.ts` concatenates them and is never edited for a new rule)
 in the SAME PR as the fix, so Doc Bot catches the regression instead of us finding it again (owner ask
 2026-09-22: *"every single bug fix we find and solve gets written into the oracle so that docbot always
 catches issues"*). No exceptions for one-liners, UI-only fixes or "obvious" ones.
 
 The one-line recipe, on top of the fix and its regression test:
 
-1. **New id** in the `R-<TOPIC>-<NN>` scheme (`R-PUMMEL-01`, `R-RANK-02`, …). Check the file for the highest
-   `NN` on that topic. **Ids are stable and never recycled** — amend an existing rule instead when the ruling
-   is the same rule, wider.
+1. **New id** in the `R-<TOPIC>-<NN>` scheme (`R-PUMMEL-01`, `R-RANK-02`, …). Grep `registry/approved/` for
+   the highest `NN` on that topic (a topic can span domain files). **Ids are stable and never recycled** —
+   amend an existing rule instead when the ruling is the same rule, wider. File it under its `domain` —
+   `approved.test.ts` fails a rule whose `domain` does not match the file it sits in.
 2. **`statement`** = the RULE in plain language, not the fix. What must always be true, phrased so it would
    still read right on a card we have not written yet.
 3. **`evidence`** = at least one `owner-chat` entry quoting the owner's actual words, plus a `fix-pr` or
@@ -260,5 +264,7 @@ The one-line recipe, on top of the fix and its regression test:
    `OPEN_PINS` entry in `packages/rules/src/enforcement.test.ts` — CI then reddens the moment that file lands
    without being cited, so the follow-up cannot be forgotten.
 
-Then `npx vitest run packages/rules` and `npm run docbot:report -- --check` (the rule totals in
-`docs/docbot2/final-report.md` move with the registry).
+Then `npx vitest run packages/rules` and `npm run docbot:report -- --check`. **Do NOT edit
+`docs/docbot2/final-report.md`**: its rule totals are `{{rules.total}}` / `{{rules.approved}}` placeholders the
+generator fills at read time, so adding a rule never touches the report and two rule PRs never conflict on it
+(the check fails if someone writes a literal back).

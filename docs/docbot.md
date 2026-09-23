@@ -45,6 +45,13 @@ It chains `contracts:extract` (the contract registry), `docbot:text` (classifica
 headline line of the final report drifted, if any — that prose is edited by hand, then re-checked).
 **Never hand-edit a `*.generated.ts` file.**
 
+**Adding a RULE regenerates nothing and edits no report.** An approved rule is appended to its domain file,
+`packages/rules/src/registry/approved/<domain>.ts` (one file per `RuleDomain`; `approved/index.ts`
+concatenates them in a fixed order and is not touched). The rule counts in the final report are the
+placeholders `{{rules.total}}` / `{{rules.approved}}`, filled from the registry when the report is read —
+`--check` fails if a literal is written back. So two PRs that each add a rule touch different lines of
+different files and never conflict on the report.
+
 A content PR may also have to *classify* new things — a new trigger's phases (`phaseRegistry.ts`), a new
 entry site or synthetic fire site (`entryPaths.ts` / `firePaths.ts`), a new per-instance field's snapshot
 fate (`snapshotRegistry.ts`). Each is a completeness check that names exactly what it wants. **Adding an
@@ -84,7 +91,9 @@ Nothing is CAUGHT by argument; only by a run.
 - **A ratchet says a queue grew.** Either the new content is genuinely conditional in a way no stager covers
   (add the stager, or the excuse with its condition) or the lane found the bug it exists for.
 - **`docbot:report -- --check` says a headline number drifted.** Edit that one line of the final report to
-  the generator's value; the check names it.
+  the generator's value; the check names it. The exception is a GENERATED headline (`{{rules.total}}`,
+  `{{rules.approved}}`): it cannot drift, and the check instead fails if it has been replaced by a literal
+  or misspelled — put the placeholder back. `npm run docbot:report -- --render` shows the filled-in copy.
 - **The nightly is red.** See §3 — fix or acknowledge, never ignore.
 - **An anomaly / interaction question.** Unruled composition is a QUESTION, never a verdict. It lands in the
   owner decks (`npm run docbot` prints their sizes) and is decided in DEV MENU → Rulebook Triage; every

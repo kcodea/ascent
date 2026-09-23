@@ -187,7 +187,7 @@ export const RETIRED_RULES: RetiredRule[] = [
   // ════════════════ TRIAGE ROUND 2 (2026-08-27) — all 24 manual cards decided; board drained to 0 ════════════════
   // Implemented-by-sibling rulings cite the LANE that pins the ruled surface (the sibling PRs'
   // dedicated test files are still in flight, so lane-level refs are the durable pin today).
-  // The standing rules the rulings established live in approved.ts (R-RUNEDUP-01..08, R-ORD-01/02,
+  // The standing rules the rulings established live in approved/<domain>.ts (R-RUNEDUP-01..08, R-ORD-01/02,
   // R-MULT-01, R-SHOUT-01).
 
   // ── A. Rune duplicate stacking — all 8 family rules ruled; IMPLEMENTED in feat/rune-duplicate-stacking ──

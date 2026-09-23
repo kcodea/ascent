@@ -1570,7 +1570,7 @@ export function applyShoutsForShopBuff(state: RunState, n: number): void {
  * separate hooks would drift on the parts that must NOT differ — banking the remainder, and paying every
  * threshold a single large transaction crosses (a 12-Gold buy pays a 5-Gold rune twice).
  */
-export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit', amount: number): void {
+export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit', amount: number): void {
   if (amount <= 0 || !state.runeThresholds?.length) return;
   for (const t of state.runeThresholds) {
     if (t.meter !== meter) continue;
@@ -8847,7 +8847,7 @@ export function goldSpentScalerValue(cardId: string, goldSpent: number, golden =
 export function applyGoldSpent(state: RunState, amount: number): void {
   if (amount <= 0) return;
   advanceRuneThresholds(state, 'gold', amount);
-  // Rune of the Brew: every SPEND (however large) pours one +4/+3 onto a seeded-random friendly Dwarf.
+  // Rune of the Brew: every SPEND (however large) pours one +2/+3 (balance 9/23, was +4/+3) onto a seeded-random friendly Dwarf.
   if (state.runeBrew) {
     procRune(state, 'runeBrew');
     const dwarves = state.board.filter((c) => isTribe(c, 'dwarf'));
@@ -8855,7 +8855,7 @@ export function applyGoldSpent(state: RunState, amount: number): void {
       const rng = makeRng(state.rngCursor);
       const pick = dwarves[rng.int(dwarves.length)]!;
       state.rngCursor = rng.state();
-      captureBuffFx(state, undefined, 'spell', () => addBuff(pick, 'Rune of the Brew', 4, 3));
+      captureBuffFx(state, undefined, 'spell', () => addBuff(pick, 'Rune of the Brew', 2, 3));
     }
   }
   const ctx = makeContext(state);
@@ -10270,8 +10270,8 @@ export function settleMinionSale(state: RunState, sold: BoardCard): void {
   // counting "the first Dragon sold this turn" sees this sale included, the way `playedThisTurn` works.
   state.soldThisTurn = [...(state.soldThisTurn ?? []), sold.cardId];
   fireOnMinionSold(state, sold);
-  // Rune of the Seller's Market: every minion you sell pumps your whole board +4/+3.
-  if (state.runeSellersMarket) { procRuneId(state, 'rune_sellers_market'); const sm = runeStacksOf(state, 'rune_sellers_market'); for (const c of state.board) addBuff(c, "Rune of the Seller's Market", 4 * sm, 3 * sm); }
+  // Rune of the Seller's Market: every minion you sell pumps your whole board +6/+8 (balance 9/23, was +4/+3).
+  if (state.runeSellersMarket) { procRuneId(state, 'rune_sellers_market'); const sm = runeStacksOf(state, 'rune_sellers_market'); for (const c of state.board) addBuff(c, "Rune of the Seller's Market", 6 * sm, 8 * sm); }
   // Rune of Trade-In: your FIRST sale each turn arms a 1-Gold discount on your next minion of that TYPE.
   if (state.runeTradeIn && state.soldThisTurn?.length === 1) {
   const t = CARD_INDEX[sold.cardId]?.tribe;
@@ -11667,6 +11667,10 @@ function grantCountRuneCopy(state: RunState, def: CardDef, n: number): void {
  *     2 per copy held.
  */
 export function noteSpellForCountRunes(state: RunState, spellId: string): void {
+  // The `anySpell` threshold meter (Rune of the Bubble Crown, owner 2026-09-23: "not shop spells, so rubies etc
+  // count") rides this same every-spell chokepoint: a Shop spell, a Gift and a Ruby each advance it once per cast,
+  // unlike `spellCast`, which only Shop-spell casts (and a Spellstone Ruby) advance.
+  advanceRuneThresholds(state, 'anySpell', 1);
   const ids = state.spellIdsThisTurn = [...(state.spellIdsThisTurn ?? []), spellId];
   const n = ids.length;
   const skies = state.runeChartedSkies;
@@ -13040,11 +13044,11 @@ function runRecurringEndOfTurn(
       step(() => { for (const c of mechs) if ((c.attachments ?? 0) > i) addBuff(c, 'Blueprint Cache', 3, 3); });
     }
   } else if (effect === 'runeSpending') {
-    // Rune of Spending (owner re-tune 2026-07-31, from +3/+3): the leftmost minion gets +1/+2 PER Gold spent
-    // this turn. One step per Gold, so the FX ticks like a payout.
+    // Rune of Spending (balance 9/23: +2/+3, was +1/+2; owner re-tune 2026-07-31 from +3/+3): the leftmost minion
+    // gets +2/+3 PER Gold spent this turn. One step per Gold, so the FX ticks like a payout.
     const n = state.goldSpentThisTurn ?? 0;
     const leftmost = state.board[0];
-    if (leftmost && n > 0) for (let i = 0; i < n; i++) step(() => addBuff(leftmost, 'Rune of Spending', 1, 2));
+    if (leftmost && n > 0) for (let i = 0; i < n; i++) step(() => addBuff(leftmost, 'Rune of Spending', 2, 3));
   } else if (effect === 'runeAction') {
     // Rune of Action: give your THREE leftmost minions +1/+1 for every card you played this turn — one
     // step per card played, each step buffing the (up to) three leftmost.

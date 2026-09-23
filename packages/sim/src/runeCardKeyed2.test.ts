@@ -27,8 +27,8 @@ describe('the six defs ship as specced', () => {
   it('costs, rarity, all Set-2 scoped', () => {
     const spec: Record<string, [number, boolean]> = {
       rune_unbroken_vein: [5, false],
-      rune_moonhowl: [5, true], rune_shared_reflection: [5, true],
-      rune_living_growth: [5, true],
+      rune_moonhowl: [5, true], rune_shared_reflection: [3, true], // Shared Reflection 5 → 3 (balance 9/23)
+      rune_living_growth: [3, true], // Living Growth 5 → 3 (balance 9/23)
       // rune_battle_refraction + rune_flooded_vault archived 2026-08-18 (ARCHIVED_RUNES) — no longer in the active pool.
     };
     for (const [id, [cost, epic]] of Object.entries(spec)) {

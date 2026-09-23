@@ -122,7 +122,7 @@ describe('Rune of the White Wolf', () => {
 describe('the last four runes ship as specced', () => {
   it('exist at the sheet costs, all epic', () => {
     const want: [string, number][] = [
-      ['Rune of Counterpoint', 7], ['Rune of Overflow', 4], ['Rune of the Spellstone', 3], ['Rune of the White Wolf', 4], // Spellstone 6 → 3 (owner balance 2026-08-18)
+      ['Rune of Counterpoint', 5], ['Rune of Overflow', 4], ['Rune of the Spellstone', 1], ['Rune of the White Wolf', 4], // Counterpoint 7 → 5, Spellstone 3 → 1 (balance 9/23; Spellstone 6 → 3 owner balance 2026-08-18)
     ];
     for (const [name, cost] of want) {
       const r = byName(name);

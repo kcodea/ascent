@@ -22,7 +22,7 @@ function withRune(id: string, extra: Partial<RunState> = {}): RunState {
 describe('the three grant runes hand over the right body', () => {
   it.each([
     ['rune_ashen_heir', 'ashen_heir', 5],
-    ['rune_ancient_den', 'mossmemory_colossus', 6],
+    ['rune_ancient_den', 'mossmemory_colossus', 4], // 6 → 4 (balance 9/23)
   ] as const)('%s grants %s', (runeId, cardId, cost) => {
     expect([rune(runeId).cost, rune(runeId).epic]).toEqual([cost, true]);
     const s = withRune(runeId);

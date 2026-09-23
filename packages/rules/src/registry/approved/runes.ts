@@ -242,4 +242,31 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-23',
     },
   },
+  {
+    id: 'R-RUNE-04',
+    title: 'Rune of the Bubble Crown counts EVERY spell cast (Rubies, Gifts, Shop spells), not only Shop spells',
+    statement:
+      'Rune of the Bubble Crown ("When you cast N spells, your spells gain +6/+6. (Once)") advances on EVERY spell '
+      + 'cast: a Shop spell, a Gift (a Clue included) and a Ruby each count once per cast, whether or not Rune of the '
+      + 'Spellstone is held. It rides the `anySpell` threshold meter, which the every-spell chokepoint '
+      + '(`noteSpellForCountRunes`) advances once per cast on both the Shop-spell path and the Ruby reducer branch; '
+      + 'it is distinct from the `spellCast` meter, which only Shop-spell casts (and a Spellstone Ruby) advance and '
+      + 'which Rune of Infernal Ink ("Whenever you cast a Shop Spell") still reads. The threshold is 9 (balance 9/23, '
+      + 'was 12) and the rune pays once, then parks its x/9 counter at 9/9.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Balance batch 9/23, tranche 3 (rune costs and numbers), 2026-09-23', quote: 'Bubble Crown: 9 spells instead of 12. not shop spells, so rubies etc count' },
+      { kind: 'code', ref: 'packages/content/src/runes.ts rune_bubble_crown (meter anySpell, per 9); packages/sim/src/recruit.ts noteSpellForCountRunes (the anySpell advance) / advanceRuneThresholds; packages/sim/src/reducer.ts the Ruby play branch (calls noteSpellForCountRunes once per cast)' },
+    ],
+    contentIds: ['rune_bubble_crown'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Until then the rune read the `spellCast` meter, which a Ruby only advanced through '
+      + 'Rune of the Spellstone, so a Ruby-heavy run could cast a dozen Rubies and never move the Crown.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeBatchAug19.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
 ];

@@ -149,7 +149,46 @@ is a list to LOOK AT, not a finding: every one is under the supported gate.
 - **Hero trios** are missing on 25 of 110 runs; the offered comparison covers the rest and pools revisions on
   the historical read.
 - **Tier decisions** count a decline only when the run ended the wave still able to afford the tier-up; with
-  live players almost always taking an affordable tier-up, every tier reads insufficient.
+  live players almost always taking an affordable tier-up, every tier reads insufficient. An early decline is
+  mostly a run the player stopped acting in (the audited export's T2 row: 6 decliners averaging 7.67 against
+  109 takers at 4.23, an interval that looks strong and means nothing). `declinedIdle` counts the declines in
+  a wave the run bought no card either (a run holding its Gold, or one that stopped acting), the Declined cell
+  brackets them and the legend says so. They are disclosed, NOT excluded: dropping them would guess at intent.
+  The review suggested excluding a decline whose wave equals the run's final wave; that never fires, because
+  a declined row is written at the turn boundary (`runDerive.ts`), which an eliminated run's final wave never
+  reaches, so "bought nothing that wave" is the signal the data actually carries.
+
+## Review fixes (2026-09-23)
+
+The build commit went through a review; the fixer pass on the same branch:
+
+- **Stage C disclosure (major).** The devlog and R-REPORT-03 claimed the panel and the readme say Stage C is
+  deferred; neither did. The banner's limitation row now carries the sentence ("No bootstrap or
+  multiple-comparison screening is run: over N display names it would manufacture confidence, so each 95%
+  range stands alone and is not a screened discovery"), with the longer explanation on hover, and the readme's
+  `howToRead` says the same. The rule's `currentBehaviour` names the banner and the readme.
+- **Count views opened emptiest first.** Every card view opened ascending, so Demand and Role and timing
+  showed the 0-buyer rows at the top. A column set now opens in its default column's own `firstDir`
+  (`defaultDirOf`): biggest first for a count, most negative first for an association, A to Z for names.
+- **Banner mixed two row sets under a hero pick.** "Eligible runs" came from the whole scope while coverage
+  and players came from the hero slice. The banner now reads the rows the tables read (the hero slice, named
+  in the figure and its hover), with `dataQuality` computed over that slice; the Heroes legend keeps the
+  whole-scope count because Heroes read the whole scope.
+- **Performance sort mixed metrics.** A row whose evidence rested on the exposed diagnostic alone was ranked
+  by that number under the Adjusted association header while its cell printed "insufficient". The cell now
+  prints the exposed number marked "exposed" whenever it is what ranks the row, and the column tip says so.
+- **Replay disagree wording.** The count flags any inequality between the replayed tier table and the live
+  final wave (over the audited export: 33 rows run one wave long, 58 fall short, 19 match), so "does not span"
+  was wrong for a third of them. Banner, note, readme and the type comment now say "does not match, short or
+  long".
+- **Display names in the export.** `runs[].author` carried the display name into the analytical export, which
+  the handoff asked not to do. `runs[].player` is now a per-file alias ("player 1", "player 2", ... in order
+  of first appearance, null when the row has no name; `playerAliases`), so every unique-player count can be
+  re-derived from the file and no name leaves the report; the sensitivity toggle's hover no longer prints the
+  most prolific name (the run count stays). `balanceExport.test.ts` asserts no name and no `author` key
+  anywhere in the file and that the alias set size equals `coverage.uniquePlayers`.
+- **Idle declines** in the tier decision table: counted (`declinedIdle`), bracketed in the Declined cell and
+  explained in the legend; disclosed, not excluded (above).
 
 ## Verification
 

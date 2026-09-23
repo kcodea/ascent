@@ -129,7 +129,7 @@ export const PATCH_NOTES: PatchNote[] = [
         'A summary above every table: how many runs and players, the dates, the content revision, how much of the data was fetched, and what the numbers can and cannot say.',
         'New filters: the balance epoch (one content revision at a time, with an explicit choice to include older ones), a date window, and a toggle that leaves out the most prolific player to see whether a conclusion rests on one person.',
         "Minions and Spells have four views: Demand, Performance, Role and timing, Evidence. Heroes compare against runs that were offered the hero and chose another. Shop Tiers add a decision table: took against declined among runs that could afford the tier-up.",
-        'The export file carries a schema version, the exact fetch coverage and every exclusion, so an outside reader can tell what fed each table.',
+        'The export file carries a schema version, the exact fetch coverage and every exclusion, so an outside reader can tell what fed each table. Runs in the file carry a per-file player number instead of a display name.',
       ] },
     ],
   },

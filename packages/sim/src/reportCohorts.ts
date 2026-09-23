@@ -182,8 +182,8 @@ export interface DataQuality {
   withDerived: number;
   diverged: number;
   stackedStreams: number;
-  /** Rows whose replay-derived `tierByWave` does not span the live `finalWave`: the flat tier table and shop
-   *  curve are unreliable for these. */
+  /** Rows whose replay-derived `tierByWave` does not MATCH the live `finalWave` (its last index falls short of
+   *  it or runs past it; any inequality counts): the flat tier table and shop curve are unreliable for these. */
   replayDisagree: number;
   /** Rows whose hero picker trio was not recorded (they cannot enter an offered-not-chosen comparison). */
   heroOfferMissing: number;
@@ -703,6 +703,12 @@ export interface TierDecisionRow {
   decisions: number;
   took: number;
   declined: number;
+  /** Declines in a wave the run bought NO card either (`cardsBoughtThisTurn` 0 with the tier-up affordable):
+   *  a run holding its Gold, or one the player stopped acting in. Early-wave declines are mostly the second,
+   *  which is why an early tier's decliners place so badly. Disclosed, never excluded: dropping them would
+   *  guess at intent, and a decline is never logged for an eliminated run's own final wave anyway (the row
+   *  is written at the turn boundary, which an elimination never reaches). */
+  declinedIdle: number;
   /** Declines followed by a take in a later wave (reported; the decline is never relabelled). */
   crossover: number;
   /** Mean wave of the primary decision. */
@@ -724,7 +730,7 @@ export interface TierDecisionRow {
  *  tier-up was taken, and for every wave one was affordable and declined). Runs that never had the decision
  *  are not in any group: the comparison is took versus declined among runs that could afford it. */
 export function tierDecisions(rows: CohortRow[], keyOf: PlayerKeyOf = displayNameKey): TierDecisionRow[] {
-  const byTier = new Map<number, { episodes: Episode[]; goldBand: Map<Episode, GoldBand>; waves: number[] }>();
+  const byTier = new Map<number, { episodes: Episode[]; goldBand: Map<Episode, GoldBand>; waves: number[]; declinedIdle: number }>();
   for (const r of rows) {
     const d = usableDerived(r);
     if (!d) continue;
@@ -737,9 +743,10 @@ export function tierDecisions(rows: CohortRow[], keyOf: PlayerKeyOf = displayNam
       us.sort((a, b) => a.wave - b.wave);
       const first = us[0]!;
       let t = byTier.get(tier);
-      if (!t) { t = { episodes: [], goldBand: new Map(), waves: [] }; byTier.set(tier, t); }
+      if (!t) { t = { episodes: [], goldBand: new Map(), waves: [], declinedIdle: 0 }; byTier.set(tier, t); }
       const e: Episode = { wave: first.wave, shopTier: first.fromTier, bought: first.taken, crossover: !first.taken && us.some((u) => u.taken && u.wave > first.wave), placement, key };
       t.episodes.push(e);
+      if (!first.taken && first.cardsBoughtThisTurn === 0) t.declinedIdle++;
       t.goldBand.set(e, goldBandOf(first.goldBefore - first.cost));
       t.waves.push(first.wave);
     }
@@ -755,6 +762,7 @@ export function tierDecisions(rows: CohortRow[], keyOf: PlayerKeyOf = displayNam
     out.push({
       tier, name: `T${tier}`,
       decisions: t.episodes.length, took: took.length, declined: declined.length,
+      declinedIdle: t.declinedIdle,
       crossover: t.episodes.filter((e) => e.crossover).length,
       avgWave: t.waves.length ? Math.round((mean(t.waves)) * 10) / 10 : null,
       tookPlaced: tookPlaces.length, declinedPlaced: declinedPlaces.length,

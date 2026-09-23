@@ -84,7 +84,7 @@ describe('buildBalanceExport', () => {
   it('carries every raw row in full and every derived stream, joined by row id', () => {
     expect(x.runs).toHaveLength(3);
     expect(x.runs.map((r) => r.id)).toEqual([3, 2, 1]);
-    expect(x.runs[0]).toEqual(toExportedRun(ROWS[0]!));
+    expect(x.runs[0]).toEqual(toExportedRun(ROWS[0]!, 'player 1'));
     expect(x.runs[1]!.discoverBoughtCards).toEqual(['joker']);
     expect(x.runs[2]!.set, 'the set the report READ the row as').toBe('set2');
     expect(x.derived).toHaveLength(2);
@@ -93,12 +93,18 @@ describe('buildBalanceExport', () => {
     expect(x.derived[0]!.setId).toBe('set2');
   });
 
-  it('never carries an account id; the display name is the only attribution', () => {
+  it('never carries an account id or a display name; runs carry a per-file player alias that keeps the unique-player count', () => {
     const text = JSON.stringify(x);
     expect(text).not.toContain('user_id');
     expect(text).not.toContain('userId');
-    for (const r of x.runs) expect(Object.keys(r)).not.toContain('user_id');
-    expect(x.runs.map((r) => r.author)).toEqual(['Kev', 'Mike', 'Kev']);
+    for (const r of x.runs) {
+      expect(Object.keys(r)).not.toContain('user_id');
+      expect(Object.keys(r), 'the display name never leaves the report').not.toContain('author');
+    }
+    expect(text, 'no display name anywhere in the file').not.toMatch(/"Kev"|"Mike"/);
+    expect(x.runs.map((r) => r.player), 'aliased in order of first appearance; the same name keeps its alias').toEqual(['player 1', 'player 2', 'player 1']);
+    expect(new Set(x.runs.map((r) => r.player)).size, 'the alias re-derives the unique-player count').toBe(x.meta.coverage.uniquePlayers);
+    expect(toExportedRun({ ...ROWS[0]!, author: null }, null).player, 'no name stays null, never player 0').toBeNull();
   });
 
   it('meta states the schema version, the set, the counts before and after every filter, the filters and the patch range', () => {

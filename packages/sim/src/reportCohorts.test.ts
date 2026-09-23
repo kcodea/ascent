@@ -398,8 +398,8 @@ describe('tierDecisions: took against declined among runs that could afford it',
   it('one primary decision per run per tier; a later take is a crossover; never-affordable runs are in neither group', () => {
     const rows = [
       row({ placement: 1, derived: derived({ upgrades: [upgrade({ wave: 3, toTier: 2, taken: true })] }) }),
-      row({ placement: 2, derived: derived({ upgrades: [upgrade({ wave: 3, toTier: 2, taken: false }), upgrade({ wave: 4, toTier: 2, taken: true })] }) }),
-      row({ placement: 6, derived: derived({ upgrades: [upgrade({ wave: 3, toTier: 2, taken: false })] }) }),
+      row({ placement: 2, derived: derived({ upgrades: [upgrade({ wave: 3, toTier: 2, taken: false, cardsBoughtThisTurn: 2 }), upgrade({ wave: 4, toTier: 2, taken: true })] }) }),
+      row({ placement: 6, derived: derived({ upgrades: [upgrade({ wave: 3, toTier: 2, taken: false, cardsBoughtThisTurn: 1 })] }) }),
       row({ placement: 8, derived: derived({ upgrades: [] }) }),
     ];
     const t2 = tierDecisions(rows).find((t) => t.tier === 2)!;
@@ -408,6 +408,19 @@ describe('tierDecisions: took against declined among runs that could afford it',
     expect(t2.adjusted.association, 'one stratum, early:tight (6 Gold before, cost 5)').toBe(-3);
     expect(t2.adjusted.supported[0]!.key).toBe('early:tight');
     expect(t2.evidence).toBe('insufficient');
+    expect(t2.declinedIdle, 'both decliners bought a card that wave').toBe(0);
+  });
+
+  it('a decline in a wave the run bought nothing is counted as idle and disclosed, never dropped from the decliners', () => {
+    const rows = [
+      row({ placement: 1, derived: derived({ upgrades: [upgrade({ wave: 3, toTier: 2, taken: true })] }) }),
+      // Affordable tier-up, no card bought, no tier-up taken: a run holding its Gold or one that stopped acting.
+      row({ placement: 8, derived: derived({ upgrades: [upgrade({ wave: 3, toTier: 2, taken: false, cardsBoughtThisTurn: 0 })] }) }),
+      row({ placement: 6, derived: derived({ upgrades: [upgrade({ wave: 3, toTier: 2, taken: false, cardsBoughtThisTurn: 1 })] }) }),
+    ];
+    const t2 = tierDecisions(rows).find((t) => t.tier === 2)!;
+    expect([t2.decisions, t2.took, t2.declined, t2.declinedIdle]).toEqual([3, 1, 2, 1]);
+    expect(t2.rawDelta, 'the idle decline stays in the declined average: 1 minus 7').toBe(-6);
   });
 });
 

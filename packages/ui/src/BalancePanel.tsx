@@ -209,9 +209,22 @@ const evidenceCol = <R extends { evidence: EvidenceLabel }>(): ColDef<R> => ({
 });
 const adjustedText = (a: AdjustedStats): string => (a.association === null ? 'insufficient' : signed(a.association));
 const adjustedCls = (a: AdjustedStats): string => (a.association === null ? 'balnum baldim' : `balnum balwin${deltaHeat(a.association)}`);
+/** The card Performance cell: the adjusted association, or, when a row clears the candidate gate on the exposed
+ *  diagnostic alone, THAT number marked "exposed", because it is what ranks the row under this header. A cell
+ *  never prints "insufficient" while a hidden number sorts it. */
+const cardAdjustedCell = (r: CardImpactRow): { text: string; cls: string } => {
+  if (r.adjusted.association === null && r.evidence !== 'insufficient' && r.evidenceBasis === 'exposed' && r.exposed.delta !== null) {
+    return { text: `exposed ${signed(r.exposed.delta)}`, cls: `balnum baldim balwin${deltaHeat(r.exposed.delta)}` };
+  }
+  return { text: adjustedText(r.adjusted), cls: adjustedCls(r.adjusted) };
+};
 
-/** A named column set: one of the four views of a card section, or Compact / Detailed elsewhere. */
+/** A named column set: one of the four views of a card section, or Compact / Detailed elsewhere. The table
+ *  opens on `defaultKey` in that column's own first direction (biggest first for a count, most negative first
+ *  for an association), so a count view never opens on its emptiest rows. */
 interface ColSet<R> { key: string; label: string; tip: string; cols: ColDef<R>[]; defaultKey: string; dense?: boolean }
+/** The direction a column set opens in: its default column's `firstDir`, the name column A to Z. */
+const defaultDirOf = <R,>(set: ColSet<R>): 1 | -1 => (set.defaultKey === 'name' ? 1 : (set.cols.find((c) => c.key === set.defaultKey)?.firstDir ?? -1));
 
 // ── Minions / Spells: the card columns ─────────────────────────────────────────────────────────────────────
 
@@ -241,7 +254,7 @@ const CARD_COLS: Record<string, ColDef<CardImpactRow>> = {
   exposedCi: { key: 'exposedCi', label: 'Exposed 95%', tip: `Welch 95% range of the exposed diagnostic. Shown only with ${WELCH_MIN_N} or more runs on each side.`, value: (r) => (r.exposed.ci ? r.exposed.ci.hi : null), firstDir: 1, cell: (r) => ({ text: ciText(r.exposed.ci), cls: 'balnum baldim' }) },
   notExposed: { key: 'notExposed', label: 'Buyers unseen', tip: 'Placed buyer runs with no recorded shop sighting of the card (a Discover pick, or a sighting the streams missed). A coverage mismatch, reported rather than repaired.', value: (r) => r.exposed.notExposedBuyers, cell: (r) => ({ text: String(r.exposed.notExposedBuyers), cls: 'balnum baldim' }) },
   adjN: { key: 'adjN', label: 'Comparable buy / pass', tip: 'Placed runs in the supported strata (round band by shop tier, each holding both a buyer and a passer): the runs the adjusted association actually compares. Sorts by the smaller side.', value: (r) => Math.min(r.adjusted.buyersInSupport, r.adjusted.skippersInSupport), cell: (r) => ({ text: `${r.adjusted.buyersInSupport} / ${r.adjusted.skippersInSupport}`, cls: 'balnum' }) },
-  adjusted: { key: 'adjusted', label: 'Adjusted association', tip: 'Buy against pass inside the first affordable shop offer, among runs in the same round band and shop tier, weighted by where buyers were. Negative means buying went with a better finish in those situations. "insufficient" means no stratum holds both a buyer and a passer: a valid answer, not zero. The default order: rows with candidate or supported evidence first by this number; insufficient rows below, never ranked as worst.', value: performanceSortValue, firstDir: 1, cell: (r) => ({ text: adjustedText(r.adjusted), cls: adjustedCls(r.adjusted) }) },
+  adjusted: { key: 'adjusted', label: 'Adjusted association', tip: 'Buy against pass inside the first affordable shop offer, among runs in the same round band and shop tier, weighted by where buyers were. Negative means buying went with a better finish in those situations. "insufficient" means no stratum holds both a buyer and a passer: a valid answer, not zero. The default order: rows with candidate or supported evidence first by this number, then rows whose evidence rests on the exposed diagnostic alone (their cell prints that number, marked exposed); insufficient rows below, never ranked as worst.', value: performanceSortValue, firstDir: 1, cell: cardAdjustedCell },
   adjustedCi: { key: 'adjustedCi', label: 'Adjusted 95%', tip: `A stratified Welch-type 95% range of the adjusted association. Shown only with ${WELCH_MIN_N} or more comparable runs on each side and two or more on each side of every supported stratum.`, value: (r) => (r.adjusted.ci ? r.adjusted.ci.hi : null), firstDir: 1, cell: (r) => ({ text: ciText(r.adjusted.ci), cls: 'balnum baldim' }) },
   outside: { key: 'outside', label: 'Buyers outside support %', tip: 'Percent of placed buyer decisions in a stratum with no passer to compare with. High means the adjusted number speaks for few of the buyers.', value: (r) => r.adjusted.outsideSupportPct, cell: (r) => ({ text: pctOrDash(r.adjusted.outsideSupportPct), cls: 'balnum baldim' }) },
   strata: { key: 'strata', label: 'Strata (used / seen)', tip: 'Round band by shop tier strata holding both sides, over strata seen at all.', value: (r) => r.adjusted.supportedStrata, cell: (r) => ({ text: `${r.adjusted.supportedStrata} / ${r.adjusted.strata}`, cls: 'balnum baldim' }) },
@@ -341,7 +354,7 @@ const tierTip = (r: TierImpactRow): string => {
 const TIERDEC_COLS: ColDef<TierDecisionRow>[] = [
   { key: 'decisions', label: 'Decisions', tip: 'Runs with a primary decision: the first wave a tier-up to this tier was affordable (taken, or still affordable when the wave ended and not taken). Runs that never could afford it are in neither group.', value: (r) => r.decisions, cell: (r) => ({ text: String(r.decisions), cls: 'balnum' }) },
   { key: 'took', label: 'Took', tip: 'Runs that took the tier-up in that wave.', value: (r) => r.took, cell: (r) => ({ text: String(r.took), cls: 'balnum' }) },
-  { key: 'declined', label: 'Declined', tip: 'Runs that ended that wave with the tier-up still affordable and did not take it. A run that spent its Gold on cards first is not a decliner.', value: (r) => r.declined, cell: (r) => ({ text: String(r.declined), cls: 'balnum' }) },
+  { key: 'declined', label: 'Declined', tip: 'Runs that ended that wave with the tier-up still affordable and did not take it. A run that spent its Gold on cards first is not a decliner. The bracket counts idle declines: waves the run bought no card either, a run holding its Gold or one the player stopped acting in. Early-wave declines are mostly the second kind, so a strong-looking early interval is not a finding. Disclosed, never excluded: dropping them would guess at intent.', value: (r) => r.declined, cell: (r) => ({ text: r.declinedIdle > 0 ? `${r.declined} (${r.declinedIdle} idle)` : String(r.declined), cls: 'balnum' }) },
   { key: 'crossover', label: 'Crossover', tip: 'Declines followed by a take in a later wave. Reported; the decline is never relabelled.', value: (r) => r.crossover, cell: (r) => ({ text: String(r.crossover), cls: 'balnum baldim' }) },
   { key: 'avgWave', label: 'Avg Wave', tip: 'Mean wave of the primary decision.', value: (r) => r.avgWave, firstDir: 1, cell: (r) => ({ text: fmtNum(r.avgWave), cls: 'balnum baldim' }) },
   { key: 'tookAvg', label: 'Took Avg', tip: 'Average placement of the placed runs that took it, with their count in Decisions.', value: (r) => r.tookAvg, firstDir: 1, cell: (r) => ({ text: r.tookAvg === null ? '–' : `${r.tookAvg} (${r.tookPlaced})`, cls: 'balnum' }) },
@@ -354,7 +367,7 @@ const TIERDEC_COLS: ColDef<TierDecisionRow>[] = [
   evidenceCol<TierDecisionRow>(),
 ];
 const tierDecTip = (r: TierDecisionRow): string =>
-  `${r.name}: ${r.decisions} runs had the decision, ${r.took} took it and ${r.declined} declined. ${EVIDENCE_LONG[r.evidence]}. ${r.adjusted.association === null ? 'Insufficient comparable data for an adjusted read.' : `Among comparable runs, taking went with a finish ${abs2(r.adjusted.association)} places ${better(r.adjusted.association)}${ciWords(r.adjusted.ci)}.`}`;
+  `${r.name}: ${r.decisions} runs had the decision, ${r.took} took it and ${r.declined} declined${r.declinedIdle > 0 ? ` (${r.declinedIdle} of them idle: no card bought that wave either, a run holding its Gold or one that stopped acting)` : ''}. ${EVIDENCE_LONG[r.evidence]}. ${r.adjusted.association === null ? 'Insufficient comparable data for an adjusted read.' : `Among comparable runs, taking went with a finish ${abs2(r.adjusted.association)} places ${better(r.adjusted.association)}${ciWords(r.adjusted.ci)}.`}`;
 
 // ── The generic impact section ─────────────────────────────────────────────────────────────────────────────
 
@@ -532,7 +545,7 @@ function ImpactSection<R extends BarRow>({ rows, views, strips, keyOf, nOf, tipO
               dimOf={dimBelow}
               tipOf={tipOf}
               defaultKey={colset.defaultKey}
-              defaultDir={1}
+              defaultDir={defaultDirOf(colset)}
               dense={!!colset.dense}
             />
           )}
@@ -560,8 +573,8 @@ interface FetchState { flatFetched: number; flatTruncated: boolean; derivedReque
  * epoch and revisions, flat and derived coverage with the exact caps, the integrity counts, and the comparison
  * limitation in one plain sentence. Every figure carries its meaning on hover.
  */
-function EvidenceBanner({ setName, runs, quality, coverage, scope, epochs, fetch, derivedCap, derivedLoading, prolific, oldest, newest }: {
-  setName: string; runs: number; quality: DataQuality; coverage: CohortCoverage; scope: ReportScope; epochs: EpochInfo[];
+function EvidenceBanner({ setName, runs, sliced, quality, coverage, scope, epochs, fetch, derivedCap, derivedLoading, prolific, oldest, newest }: {
+  setName: string; runs: number; sliced: string | null; quality: DataQuality; coverage: CohortCoverage; scope: ReportScope; epochs: EpochInfo[];
   fetch: FetchState; derivedCap: number; derivedLoading: boolean; prolific: { key: string; runs: number } | null; oldest: string | null; newest: string | null;
 }) {
   const epochLabel = scope.epoch === ALL_EPOCHS ? `all ${epochs.length} content revisions (historical)` : `content revision ${scope.epoch} (1 of ${epochs.length} in the set)`;
@@ -572,7 +585,7 @@ function EvidenceBanner({ setName, runs, quality, coverage, scope, epochs, fetch
     <div className="balbanner" role="note" aria-label="Evidence summary">
       <div className="balbanner-row">
         <b>{setName}</b>
-        <span data-tip="Ladder runs of the active set inside the epoch and window, after dropping duplicate ids and clearing malformed placements">{runs} eligible runs</span>
+        <span data-tip={`Ladder runs of the active set inside the epoch and window, after dropping duplicate ids and clearing malformed placements${sliced ? `. The hero picker is on: every figure on this banner and every table except Heroes reads the ${sliced} runs only` : ''}`}>{runs} eligible runs{sliced ? ` (${sliced} only)` : ''}</span>
         <span data-tip="Distinct display names across those runs. A proxy, not accounts: no trusted pseudonymous key exists yet (it needs a server-side hash of the account id). Unique players sit on every evidence label.">{players}</span>
         <span data-tip="The oldest and newest run in scope">{day(oldest)} to {day(newest)}</span>
         <span data-tip="The balance epoch is the content revision the runs were played under. It is a filter, never a stratum.">{epochLabel}</span>
@@ -584,13 +597,14 @@ function EvidenceBanner({ setName, runs, quality, coverage, scope, epochs, fetch
         <span data-tip={`Derived payloads are fetched by id for the newest ${derivedCap} in-set rows. Dropped = asked for and not returned. The exposed and adjusted reads need them.`}>derived {derivedLoading ? 'loading' : `${fetch.derivedFetched} of ${fetch.derivedRequested} requested`}, cap {derivedCap}{derivedDropped > 0 && !derivedLoading ? `, ${derivedDropped} dropped` : ''}</span>
         <span data-tip="Runs in scope with a usable derived payload; the rest are left out of the exposed and adjusted reads and counted, never invented">{coverage.withDerived} of {runs} with usable streams</span>
         <span data-tip="Payloads whose streams carried earlier runs of the same browser session in front of their own. Read by their last segment. The upload-time card arrays stack the same way and cannot be cut, which is why Raw buyers can exceed Buyers this run.">{quality.stackedStreams} stacked payloads</span>
-        <span data-tip="Rows whose replay-derived tier-by-wave does not span the live final wave. The Shop Tiers reach table and the shop curve are unreliable for them.">{quality.replayDisagree} replay tier tables disagree</span>
+        <span data-tip="Rows whose replay-derived tier-by-wave does not match the live final wave, short or long. The Shop Tiers reach table and the shop curve are unreliable for them.">{quality.replayDisagree} replay tier tables disagree</span>
         <span data-tip="Rows with no placement, rows whose placement was not an integer 1 to 8 (cleared), and rows dropped for a duplicate id">{quality.placementMissing} missing placement, {quality.placementMalformed} malformed, {quality.duplicateIds} duplicate ids</span>
         <span data-tip="Rows with no recorded hero picker trio; they cannot enter the offered-not-chosen hero comparison">{quality.heroOfferMissing} without a hero trio</span>
         {quality.diverged > 0 && <span data-tip="Partial payloads, left out of every derived read">{quality.diverged} diverged</span>}
       </div>
       <div className="balbanner-row balbanner-dim">
         <span>Every number below is an association among the runs observed, not a measured effect: comparing buyers with all other runs rewards survival and card access, the exposed and adjusted reads narrow the comparison to runs that had the chance, and no label here means confirmed overpowered or underpowered.</span>
+        <span data-tip="Stage C of the analytics correction (a player-cluster bootstrap that recomputes the whole estimate, and false-discovery screening across every card) is deferred on purpose. Both need many independent players; over a handful they would manufacture confidence. The Welch ranges and the evidence labels are the whole uncertainty read for now.">No bootstrap or multiple-comparison screening is run: over {players} it would manufacture confidence, so each 95% range stands alone and is not a screened discovery.</span>
       </div>
     </div>
   );
@@ -679,6 +693,9 @@ export function BalancePanel() {
   const baseRows = useMemo(() => (excludeProlific && prolific ? scoped.rows.filter((r) => r.author !== prolific.key) : scoped.rows), [scoped, excludeProlific, prolific]);
   const heroRows = useMemo(() => (heroFilter ? baseRows.filter((r) => r.heroId === heroFilter) : baseRows), [baseRows, heroFilter]);
   const quality = useMemo(() => dataQuality(baseRows), [baseRows]);
+  // The banner and the replay note describe the rows the tables below actually read: the hero slice when a hero is
+  // picked, so "eligible runs", the coverage and the players never mix the whole scope with one hero's runs.
+  const tableQuality = useMemo(() => (heroFilter ? dataQuality(heroRows) : quality), [heroFilter, heroRows, quality]);
   const report = useMemo(() => aggregatePlayerReport(heroRows), [heroRows]);
   // ALL cohort math for the cards, once per rows / filter version.
   const impactRes = useMemo(() => cardImpactWithCoverage(heroRows), [heroRows]);
@@ -798,7 +815,7 @@ export function BalancePanel() {
             <label className="ballabel">from <input className="balpick baldate" type="date" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Window start" /></label>
             <label className="ballabel">to <input className="balpick baldate" type="date" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Window end" /></label>
             <button className={`balchip${excludeProlific ? ' on' : ''}`} disabled={!prolific} onClick={() => { sfx.tick(); setExcludeProlific((v) => !v); }}
-              data-tip={prolific ? `Sensitivity view: leave out the ${prolific.runs} runs of the most prolific display name (${prolific.key}). If a conclusion reverses, it rested on one player.` : 'No player to exclude yet'}>
+              data-tip={prolific ? `Sensitivity view: leave out the ${prolific.runs} runs of the most prolific display name. If a conclusion reverses, it rested on one player.` : 'No player to exclude yet'}>
               {excludeProlific ? 'Prolific player excluded' : 'Exclude most prolific player'}
             </button>
           </div>
@@ -833,7 +850,7 @@ export function BalancePanel() {
           <div className="balempty">{heroFilter ? `No ${set.name} runs for ${getHero(heroFilter).name} in this scope.` : `No ${set.name} runs in this scope.`}</div>
         ) : (
           <>
-            <EvidenceBanner setName={set.name} runs={baseRows.length} quality={quality} coverage={impactRes.coverage} scope={scope} epochs={epochs}
+            <EvidenceBanner setName={set.name} runs={heroRows.length} sliced={heroFilter ? getHero(heroFilter).name : null} quality={tableQuality} coverage={impactRes.coverage} scope={scope} epochs={epochs}
               fetch={fetchState} derivedCap={DERIVED_CAP} derivedLoading={derivedLoading} prolific={excludeProlific ? prolific : null} oldest={dates.oldest} newest={dates.newest} />
             {heroFilter && sectionKey !== 'heroes' && <div className="balsub">{getHero(heroFilter).name} only ({heroRows.length} runs)</div>}
             {sectionKey === 'minions' || sectionKey === 'spells' ? (
@@ -899,8 +916,8 @@ export function BalancePanel() {
             ) : sectionKey === 'shopcurve' ? (
               <>
                 <div className="balnote balwarn">
-                  The curve and the reach table below are REPLAY-derived: the run is re-run without its lobby seats, and on {quality.replayDisagree} of
-                  {' '}{baseRows.length} runs the replayed tier-by-wave does not span the live final wave. The decision table further down reads the
+                  The curve and the reach table below are REPLAY-derived: the run is re-run without its lobby seats, and on {tableQuality.replayDisagree} of
+                  {' '}{heroRows.length} runs the replayed tier-by-wave does not match the live final wave (short or long). The decision table further down reads the
                   live upgrade rows instead.
                 </div>
                 <ShopCurveChart curve={report.shopCurve} />
@@ -927,7 +944,10 @@ export function BalancePanel() {
                 <div className="balnote">
                   <b>Tier-ups as decisions</b>, from the live upgrade rows (last segment): one primary decision per run per tier, the first wave a
                   tier-up to it was affordable, took or declined. A decline means the run ended that wave still able to afford it; a run that
-                  spent its Gold on cards first is in neither group, and a later take never relabels a decline. The <b>Adjusted association</b>
+                  spent its Gold on cards first is in neither group, and a later take never relabels a decline. An idle decline (the bracket
+                  in Declined) is a wave the run bought no card either: a run holding its Gold, or one the player stopped acting in. In the
+                  early waves it is mostly the second, so an early row's strong-looking interval is not a finding. They are disclosed, not
+                  excluded, because dropping them would guess at intent. The <b>Adjusted association</b>
                   compares took with declined among runs in the same round band with similar spare Gold. Most rows read insufficient: players
                   who can afford a tier-up almost always take it.
                 </div>

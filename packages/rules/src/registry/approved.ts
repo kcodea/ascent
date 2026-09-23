@@ -1970,7 +1970,8 @@ export const APPROVED_RULES: GameRule[] = [
       + 'insufficient current data with an explicit historical toggle. The flat fetch pages every eligible row '
       + 'and states its cap and truncation; the export carries schema version 2 with the scope, the quality '
       + 'counts, the fetch coverage and the per-metric exclusions, and a version-1 column is never redefined '
-      + 'under a shipped version. No display name or account id is written into a table; unique players are a '
+      + 'under a shipped version. No display name or account id is written into a table or into the export\'s '
+      + 'runs (each run carries a per-file alias that preserves the unique-player count); unique players are a '
       + 'labelled display-name proxy until a trusted pseudonymous key exists.',
     domain: 'persistence',
     status: 'approved',
@@ -1984,8 +1985,9 @@ export const APPROVED_RULES: GameRule[] = [
       + 'rounding and the handoff\'s section-2 diagnostic exactly (Mysterious Joker raw -2.76 reads +0.0018 among '
       + 'the 62 buyers and 9 skippers that saw it; Black Belt Brian -1.92 reads +1.5077 among 52 and 10; Sea '
       + 'Urchin 47 exposed of 49 raw buyers). Stage C (player-cluster bootstrap, false-discovery screening) is '
-      + 'deferred: with two display names behind 100 of 110 runs it would manufacture confidence, and the panel '
-      + 'and the devlog say so.',
+      + 'deferred: with two display names behind 100 of 110 runs it would manufacture confidence, and the '
+      + 'evidence banner, the export readme (howToRead) and the devlog say so. The export\'s runs carry '
+      + '"player N" aliases in place of the display name (2026-09-23 review fix).',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/reportCohorts.test.ts', 'packages/sim/src/balanceExport.test.ts', 'packages/sim/src/cardImpact.test.ts', 'packages/sim/src/reportImpact.test.ts', 'packages/sim/src/reportFilters.test.ts', 'packages/ui/src/balanceFetch.test.ts', 'packages/ui/src/noEmDashPlayerText.test.ts'],

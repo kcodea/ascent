@@ -16,7 +16,7 @@
  *   3. A consequence with no presenter is a COVERAGE GAP that `presenterCoverage()` reports — not a crash,
  *      and not a silent nothing that looks fine until someone notices a missing cue months later.
  */
-import type { ConsequenceEvent } from '@game/core';
+import type { ConsequenceEvent, TriggerSourceRef } from '@game/core';
 import type { CompiledBeat } from './timelineTypes';
 
 /** Every FX capability a presenter may use. Implemented by `Recruit.tsx` from its existing helpers. */
@@ -42,6 +42,10 @@ export interface PresenterContext {
   impAura: () => void;
   /** Ruby strength rose ("Your Rubies gain +X" — Deepvein Tender, Facetwright): float + glow on held Rubies. */
   rubyAura: (sourceUid: string | undefined, attack: number, health: number) => void;
+  /** A spell the beat's source CAST (owner ask 2026-09-23) — a rune's or a minion's, never the player's: the
+   *  spell's card preview floats above the caster for a moment. `source` is the beat's own trigger source, so
+   *  the presenter can find the badge (rune) or the body (minion) it belongs above. */
+  spellCast: (cardId: string, source: TriggerSourceRef) => void;
   /** A card arrived in hand. `sourceUid` is the board minion that granted it (Brunni's End-of-Turn Ale),
    *  or undefined when the grant came from a rune/quest/spell rather than a unit. */
   cardGranted: (cardId: string, uid: string, sourceUid?: string) => void;
@@ -194,8 +198,13 @@ export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], Consequenc
     ctx.counterChanged(c.counter, c.amount, beat.source.uid);
     if (c.counter === 'attachments' && beat.source.uid) ctx.weldPulse(beat.source.uid, c.amount);
   },
-  // A spell resolving is narrated by the beat itself (the source cue) — it has no separate visual of its own.
-  spellResolved: () => {},
+  // A spell a RUNE or MINION cast (the only emitter of this consequence — `castSpell` under a cast actor): the
+  // cast preview above the beat's source (owner ask 2026-09-23). The spell's own consequences (its buffs, its
+  // steals) are their own events with their own presenters.
+  spellResolved: ({ consequence: c, beat, ctx }) => {
+    if (c.type !== 'spellResolved') return;
+    ctx.spellCast(c.cardId, beat.source);
+  },
 };
 
 /** Run the presenter for one consequence. Unknown types are reported by coverage, never thrown. */

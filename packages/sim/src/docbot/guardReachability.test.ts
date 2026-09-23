@@ -137,6 +137,11 @@ const FIXTURES: Record<string, Fixture> = {
     make: () => ({ s: base({ shop: [asOffer(anyMinion(), 'of1')] }) }),
     proof: (next) => expect(next.shop.some((o) => o.golden), 'an offer was gilded').toBe(true),
   },
+  sp_picnic: {
+    arms: 'spellBuffShopRightmost: a minion offer in the tavern to receive the +8/+8',
+    make: () => ({ s: base({ shop: [asOffer(anyMinion(), 'of1')] }) }),
+    proof: (next) => expect(next.rightmostSlotBuff, 'the right-most slot is enchanted for the run').toMatchObject({ attack: 8, health: 8 }),
+  },
   sp_dissipate: {
     arms: 'spellSellToShopRightmost: a friendly target on the board + a minion offer in the tavern to receive its stats',
     make: () => ({ s: base({ board: [onBoard(anyMinion(), 'm1')], shop: [asOffer(anyMinion(), 'of1')] }), targetUid: 'm1' }),

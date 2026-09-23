@@ -42,7 +42,9 @@ type RecruitFn = (
    *  to vary a per-proc random selection (Combinator) so each weld picks fresh Mechs. `target` is the
    *  player-chosen friendly minion for a targeted Battlecry (Toxin Tender); absent = auto-pick. `replay`
    *  marks a Djinn-driven extra End-of-Turn (it must not advance a cadence counter — see Frontdrake). */
-  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number; spellDef?: CardDef; spellId?: string; /** `onGainCard`: WHICH card just arrived in hand — Kegheart Dwarf filters on it being a Dwarven Ale. The
+  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number;
+    /** `onRubyPlayed`: the landed Ruby's keyword rider (a Warding Ruby's Ward), so a bounce carries the WHOLE Ruby. */
+    rubyKeyword?: Keyword; spellDef?: CardDef; spellId?: string; /** `onGainCard`: WHICH card just arrived in hand — Kegheart Dwarf filters on it being a Dwarven Ale. The
   *  event used to carry only "a card arrived", which no watcher could filter. */ cardId?: string; /** CELESTIAL orbitFired: the minion whose Orbit resolved (Orrery excludes its own). */ source?: BoardCard; /** CELESTIAL: this Orbit was TRIGGERED (Astral Relay), not caused by a card arriving — so `minion` is
   *  a stand-in and any effect that consumes the arriver must stand down. */ noArriver?: boolean;
   /** STARFORM (set 3 Celestials): `starformGained` carries the DELTA the token just gained; `starformRemoved`
@@ -142,7 +144,8 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     isTribe: (t, tribe) => isTribe(t as BoardCard, tribe as Tribe),
     // The bounce primitive (Resonance Idol): `self` is the body the original Ruby landed on, `t` the hop's
     // destination — recorded for the UI's `ruby-bounce` ribbon (self → t). NO fireOnRubyPlayed - the no-rebounce guard.
-    gainRubyStats: (t, a, h) => { addBuff(t as BoardCard, 'Ruby', a, h); recordBounceFx(state, 'ruby', self.uid, t.uid); },
+    // The Ruby's keyword rider (a Warding Ruby's Ward) lands with the hop (owner report 2026-09-23).
+    gainRubyStats: (t, a, h, kw) => { addBuff(t as BoardCard, 'Ruby', a, h); grantRubyKeyword(t as BoardCard, kw as Keyword | undefined); recordBounceFx(state, 'ruby', self.uid, t.uid); },
     neighboursOf: (t) => {
       const idx = state.board.findIndex((c) => c.uid === t.uid);
       if (idx < 0) return [];
@@ -3514,7 +3517,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  minions (golden: bounce twice). Uses `addBuff` directly, so a bounce can't re-trigger onRubyPlayed. */
   // ARENA-MIGRATED (Step 3, Ruby family): one body in arena.ts serves both phases.
   rubyPlayedBounce: (ctx, self, params, payload) => {
-    ARENA_EFFECTS.rubyPlayedBounce(shopArena(ctx.state, self), { ...params, rubyAttack: payload.rubyAttack ?? 0, rubyHealth: payload.rubyHealth ?? 0 });
+    ARENA_EFFECTS.rubyPlayedBounce(shopArena(ctx.state, self), { ...params, rubyAttack: payload.rubyAttack ?? 0, rubyHealth: payload.rubyHealth ?? 0, rubyKeyword: payload.rubyKeyword });
   },
 
   /** Set 2 — Embermouth Whelp (recruit half): each Shout you trigger grows this body. Most Shouts fire in the
@@ -10104,10 +10107,22 @@ export function fireOnRubyCast(state: RunState, before: number, after: number): 
   }
 }
 
+/** The KEYWORD half of a Ruby landing — a Warding Ruby's Ward. Granted only to a KOBOLD (owner spec 2026-07-31:
+ *  "give it Ward if it is a Kobold"); the stat half lands on anyone. ONE place, so a direct cast, the Rune of
+ *  Redirection's second landing, a Candle Conduit hop and a Resonance Idol bounce all resolve the rider the
+ *  same way (owner report 2026-09-23: the Idol's bounce used to carry the stats and drop the Ward). */
+export function grantRubyKeyword(target: BoardCard, kw: Keyword | undefined): void {
+  if (!kw || !isTribe(target, 'kobold') || target.keywords.includes(kw)) return;
+  target.keywords = [...target.keywords, kw];
+}
+
 /** Set 2 — fire a board minion's `onRubyPlayed` effects when a Ruby is cast ONTO it (Ruby Broker → Gold,
  *  Resonance Idol → bounce). The played Ruby's stats ride in the payload so a bounce can re-apply the same
- *  buff. The bounce uses `addBuff` directly (not this path) so it can't cascade into an infinite loop. */
-export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: number, rubyHealth: number): void {
+ *  buff — and so does its keyword rider (`rubyKeyword`, a Warding Ruby's Ward), granted to THIS landing here
+ *  and carried by every hop, so a bounced Ruby is the whole Ruby. The bounce uses `addBuff` directly (not
+ *  this path) so it can't cascade into an infinite loop. */
+export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: number, rubyHealth: number, rubyKeyword?: Keyword): void {
+  grantRubyKeyword(card, rubyKeyword);
   // Counted BEFORE the effects run, mirroring `fireOnSpellCastOnThis` — a spread/recast that lands another Ruby
   // on this body must see a count past 1 or a "first each turn" card recurses.
   card.rubiesOnThisTurn = (card.rubiesOnThisTurn ?? 0) + 1;
@@ -10128,6 +10143,7 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
     const pick = others[rng.int(others.length)]!;
     state.rngCursor = rng.state();
     addBuff(pick, 'Ruby', rubyAttack, rubyHealth);
+    grantRubyKeyword(pick, rubyKeyword); // the hop is the whole Ruby — its keyword rider lands too (Kobold-gated)
     recordBounceFx(state, 'ruby', card.uid, pick.uid); // the hop: the landed-on body → the extra recipient
     if (b === 0 && state.runeConduit) procRuneId(state, 'rune_conduit');
   }
@@ -10136,7 +10152,7 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
   const ctx = makeContext(state);
   for (const eff of def.effects) {
     if (eff.on !== 'onRubyPlayed') continue;
-    RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card, rubyAttack, rubyHealth });
+    RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card, rubyAttack, rubyHealth, rubyKeyword });
   }
 }
 

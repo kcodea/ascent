@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { applyReportFilters, buildBalanceExport, cardImpact, exportReadme, toExportedRun, type RunTelemetryRow } from './playerReport';
+import { applyReportFilters, buildBalanceExport, cardImpact, exportReadme, goldEconomy, heroImpact, runeImpact, tierImpact, toExportedRun, type RunTelemetryRow } from './playerReport';
 import { aggregatePlayerReport } from './runTelemetry';
-import { cardDemand, goldCurve, upgradeShape, type DerivedRun } from './runDerive';
+import { upgradeShape, type DerivedRun } from './runDerive';
 
 /**
  * EXPORT ALL (owner ask 2026-09-22: "make the export export everything so that an ai can analyze all of the
@@ -25,7 +25,9 @@ const derivedFor = (seed: number): DerivedRun => ({
     { wave: 2, slot: 1, cardId: 'drummer', rev: 'd1', shopTier: 1, cardTier: 5, cost: 3, gold: 4, maxGold: 4, upgradeCost: 4, resolve: 30, boardSize: 1, boardAttack: 1, boardHealth: 1, bought: false, frozen: false, topTribe: 'beast' },
   ],
   acquisitions: [{ cardId: 'alley', rev: 'a1', wave: 1, source: 'shop', goldPaid: 3, played: true, playedWave: 1, finalBoard: true, golden: false }],
-  gold: [{ wave: 1, amount: 3, category: 'income', goldAfter: 3, maxGoldAfter: 3 }, { wave: 1, amount: -3, category: 'minion', goldAfter: 0, maxGoldAfter: 3 }],
+  // The live ledger shape: wave 1 opens on 3 Gold with no event; the buy, then the refill that closes the wave
+  // (an income stamped wave 1 whose goldAfter is wave 2's opening Gold).
+  gold: [{ wave: 1, amount: -3, category: 'minion', goldAfter: 0, maxGoldAfter: 3 }, { wave: 1, amount: 4, category: 'income', goldAfter: 4, maxGoldAfter: 4 }],
   upgrades: [{ wave: 2, fromTier: 1, toTier: 2, cost: 4, taken: true, goldBefore: 4, goldAfter: 0, resolve: 30, prevResult: 'loss', boardSize: 1, boardAttack: 1, boardHealth: 1, cardsBoughtThisTurn: 0 }],
   combats: [], triggers: [], boards: [], playerActions: 7,
 });
@@ -63,9 +65,14 @@ describe('buildBalanceExport', () => {
     expect(x.aggregates.byTier.minions.length).toBeGreaterThan(0);
     expect(x.aggregates.byTribe.minions.length).toBeGreaterThan(0);
     const derived = ROWS.filter((r) => r.derived).map((r) => r.derived!);
-    expect(x.aggregates.demand).toEqual(cardDemand(derived));
-    expect(x.aggregates.economy).toEqual(goldCurve(derived));
+    expect(x.aggregates.heroImpact).toEqual(heroImpact(ROWS));
+    expect(x.aggregates.runeImpact).toEqual(runeImpact(ROWS));
+    expect(x.aggregates.byForge.length).toBe(1);
+    expect(x.aggregates.tierImpact).toEqual(tierImpact(ROWS));
+    expect(x.aggregates.economy).toEqual(goldEconomy(ROWS));
+    expect(x.aggregates.economy.runs.all, 'the two rows with a ledger').toBe(2);
     expect(x.aggregates.upgrades).toEqual(upgradeShape(derived));
+    expect(Object.keys(x.aggregates)).not.toContain('demand');
   });
 
   it('carries every raw row in full and every derived stream, joined by row id', () => {
@@ -129,10 +136,14 @@ describe('buildBalanceExport', () => {
     named('impact', Object.keys(x.aggregates.impact.minions[0]!));
     named('byTier', Object.keys(x.aggregates.byTier.minions[0]!));
     named('byTribe', Object.keys(x.aggregates.byTribe.minions[0]!));
-    named('demand', Object.keys(x.aggregates.demand[0]!));
-    named('demand', Object.keys(x.aggregates.demand[0]!.bySource));
-    named('economy', Object.keys(x.aggregates.economy[0]!));
-    named('economy', Object.keys(x.aggregates.economy[0]!.avg));
+    named('heroImpact', Object.keys(x.aggregates.heroImpact[0]!));
+    named('runeImpact', Object.keys(x.aggregates.runeImpact[0]!));
+    named('byForge', Object.keys(x.aggregates.byForge[0]!));
+    named('tierImpact', Object.keys(x.aggregates.tierImpact[0]!));
+    named('economy', Object.keys(x.aggregates.economy));
+    named('economy', Object.keys(x.aggregates.economy.runs));
+    named('economy', Object.keys(x.aggregates.economy.waves.all[0]!));
+    named('economy', Object.keys(x.aggregates.economy.waves.all[0]!.split));
     named('upgrades', Object.keys(x.aggregates.upgrades[0]!));
     const text = JSON.stringify(readme);
     expect(text).not.toContain('—');

@@ -92,11 +92,16 @@ export function useMilestoneBadgeFx(
   stat: StatKind,
   tier: number,
   getBadge: () => HTMLElement | null,
+  own = true,
 ): void {
   const disposeRef = useRef<(() => void) | null>(null);
   useEffect(() => {
-    if (uid && tier >= FINAL_TIER) markMilestoneReached(uid, stat);
-    const active = !!uid && (tier >= FINAL_TIER || hasMilestoneReached(uid, stat));
+    // Only OWN units latch (they keep the effect for the unit's life, e.g. after a combat debuff drops them
+    // below the tier). FOE units are static per-fight snapshots whose uid strings REPEAT across runs/opponents,
+    // so latching one lights the ring on a later, non-milestone foe that reuses the uid — read the live tier
+    // for foes instead, never the latch (owner report 2026-09-23).
+    if (own && uid && tier >= FINAL_TIER) markMilestoneReached(uid, stat);
+    const active = !!uid && (tier >= FINAL_TIER || (own && hasMilestoneReached(uid, stat)));
     if (active && uid && !disposeRef.current) {
       // The badge to ride each frame. While THIS card is being dragged, its own badge (`getBadge`) is the
       // parked, dimmed original frozen at the drag-origin slot — so follow the live badge on the floating

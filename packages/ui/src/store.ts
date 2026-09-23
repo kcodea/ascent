@@ -64,6 +64,7 @@ export interface CombatQuestDelta {
 }
 import { sfx } from './sfx';
 import { releaseAllStats } from './fx/statHold';
+import { resetMilestoneLatches } from './fx/milestoneBadgeFx';
 import { clearAllHandBuffs } from './handBuffFx';
 import { liveBoardView } from './instView';
 import { saveCapturedBoards, saveRunBoards } from './boardLibrary';
@@ -1041,6 +1042,10 @@ function discardReplayDraft(): void {
  *  open this run's draft. Every `newRun` / `newLobbyRun` / tutorial / sandbox path goes through here, so a
  *  new mode can never be added that records frames but forgets to persist them. */
 function beginReplayCapture(run: RunState): ReplayFrame[] {
+  // A fresh run reuses uids from scratch (createRun resets the counter), so clear the milestone-badge FX latch
+  // here — the one chokepoint every new-run path shares — or a low uid from this run inherits a prior run's
+  // ≥5000 latch and wears the blue ring without being a milestone unit (owner report 2026-09-23).
+  resetMilestoneLatches();
   const frames = seedReplayFrames(run);
   startReplayDraft(run);
   return frames;

@@ -199,7 +199,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
           way a shop gem does; `autoRoll={false}` keeps damage instant — damage is an unheld change, so the
           number updates immediately and the pop still fires off it, while a buff (an `effect`-origin hold
           the replay itself drives via `driveRoll`) is the only thing that rolls. See `useCombatReplay`. */}
-      <Card card={view} uid={u.uid} autoRoll={false} pulse={triggered} pulseRally={rallyPulse} pulseWatcher={watcherPulse} pulseFrame={framePulse} />
+      <Card card={view} uid={u.uid} own={!foe} autoRoll={false} pulse={triggered} pulseRally={rallyPulse} pulseWatcher={watcherPulse} pulseFrame={framePulse} />
     </div>
   );
 }

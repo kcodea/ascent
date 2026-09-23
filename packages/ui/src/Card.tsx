@@ -404,6 +404,7 @@ export const Card = memo(function Card({
   lockLabel,
   plated,
   autoRoll = true,
+  own = true,
   align,
 }: {
   card: CardView;
@@ -414,6 +415,9 @@ export const Card = memo(function Card({
   align?: 'dawn' | 'dusk' | 'eclipse';
   /** Instance id, exposed as data-uid so layout (FLIP) animations can track the card. */
   uid?: string;
+  /** Is this YOUR unit? Default true (shop / hand / your board). Combat passes `false` for the foe's board, so
+   *  its milestone badge FX reads the live tier instead of the persistent latch (foe uids repeat across fights). */
+  own?: boolean;
   onClick?: () => void;
   highlight?: boolean;
   /** The current aim target of a hero power / single-target ability — strong highlight. */
@@ -591,8 +595,8 @@ export const Card = memo(function Card({
   const hpPopRef = useBadgePop(shownHealth);
   // A persistent Pixi effect rides each badge that has reached the FINAL milestone tier (≥5000), everywhere —
   // shop, warband and combat (combat units render through this same Card). Latches on for the unit's life.
-  useMilestoneBadgeFx(uid, 'attack', atkMs, () => atkPopRef.current);
-  useMilestoneBadgeFx(uid, 'health', hpMs, () => hpPopRef.current);
+  useMilestoneBadgeFx(uid, 'attack', atkMs, () => atkPopRef.current, own);
+  useMilestoneBadgeFx(uid, 'health', hpMs, () => hpPopRef.current, own);
   // The arched frame is universal now. `showText` = also render the drop-down text drawer (the "full"
   // card): on a force-full card (hover reveal / hand / right-click inspect) or when the player turns the
   // compact tiles off. At rest (compact tiles on, not force-full) it's a pure arched art tile.

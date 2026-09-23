@@ -52,6 +52,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-22',
+    label: 'Card readability & gilded polish',
+    changes: [
+      { category: 'Systems', text: 'The keyword panel beside a card now leads with the keyword shown on the card’s medallion and marks that entry with the medallion icon, so the gem and its definition line up.' },
+      { category: 'Systems', text: 'Taunt and Ward no longer repeat in the medallion (the shield frame and the divine shield dome already show them), and a minion with no keyword mechanic shows no medallion at all instead of an empty gem.' },
+      { category: 'Systems', text: 'Gilded (tripled) minions now wear an authored gold corner badge, and their medallion shows its natural gold.' },
+      { category: 'Systems', text: 'Dragon cards’ keyword words get a soft pastel glow so they stand out against the white Dragon text colour.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Repeat per tick',
     changes: [
       { category: 'Balance', text: 'Mother Moss now lands its buffs one at a time. It gives a random Spirit +3/+4, then repeats that once for every Spirit you played this turn, each repeat on its own beat with a fresh pick.', details: [

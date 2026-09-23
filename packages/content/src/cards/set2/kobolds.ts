@@ -325,8 +325,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     health: 2,
     keywords: [],
     effects: [{ on: 'onSell', do: 'onSellGetRubies', params: { count: 2 } }],
-    text: 'When you **sell** this, get **2 Rubies**.',
-    goldenText: 'When you **sell** this, get **4 Rubies**.',
+    text: '**Sell:** get **2 Rubies**.',
+    goldenText: '**Sell:** get **4 Rubies**.',
   },
   {
     // Flurry + Rally: every attack (twice, with Flurry) plays a PERMANENT Ruby on your whole board.

@@ -48,6 +48,10 @@ export interface KeywordDef {
   section: GlossarySection;
   /** Extra detection on a lower-case phrase (never coloured). */
   detectRe?: RegExp;
+  /** When set, REPLACES the name / alias word-boundary matcher for pill detection AND term colouring: the name is
+   *  the displayed header but is never matched on its own. For a term whose bare word is also ordinary text
+   *  (Sell: "Sell a friendly minion", "Sells for 2 Gold") so only its keyword form raises the pill. */
+  match?: RegExp;
   /** The `MECHANICS` registry id this term IS — the Compendium row takes that mechanic's glyph + card predicate. */
   mechanic?: string;
   /** Compendium glyph for a term with no registry mechanic (`Icon.tsx` name). */
@@ -75,6 +79,13 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   // Overflow (owner keyword 2026-09-19): the `summonOverflow` trigger's printed form — "**Overflow:** …" on every
   // card / rune that reacts to a summon finding no room. Wording is the owner's verbatim.
   { id: 'overflow', name: 'Overflow', aliases: [], section: 'triggers', mechanic: 'overflow', def: 'When a minion is summoned, but does not have space on your board.' },
+  // Sell (owner keyword 2026-09-23): the `onSell` trigger's printed form, "**Sell:** …" on every minion that does
+  // something when IT is sold (Hoard Whelp, Salvatore McKlusky, River Drake, Beggy, Cheap Date, Traveling Salesman,
+  // the three Revelers). `match` pins detection + colouring to the keyword form: the bare verb is ordinary text on
+  // the sell spells ("Sell a friendly minion") and the sell-value lines ("Sells for 2 Gold"), which must not raise
+  // a pill that says "this minion". No schema badge and no medallion mechanic; the pill renders from the text hit,
+  // like Shout. Wording is the owner's verbatim.
+  { id: 'sell', name: 'Sell', aliases: [], section: 'triggers', icon: 'mana', match: /(?<![A-Za-z])Sell(?=\s*[:：])/, def: 'Triggers when this minion is sold.' },
   { id: 'bleed', name: 'Bleed', aliases: [], section: 'triggers', mechanic: 'bleed', def: "Marks random enemies at Start of Combat. Every few attacks in the fight, each marked enemy still alive takes this minion's Attack." },
   { id: 'chooseone', name: 'Choose One', aliases: [], section: 'triggers', mechanic: 'chooseOne', def: 'When you play it, pick one of its two effects.' },
   // Compendium-only: no shipped text says "Watcher" — the medallion + codex row name the reactive family.

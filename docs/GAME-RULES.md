@@ -631,7 +631,7 @@ data are unchanged) via `packages/ui/src/terms.ts`:
 
 **Kept as-is** (no rename): Taunt, Avenge, Choose One, Start of Combat, End of Turn, Rally, Cleave,
 Consume, Discover, Overflow (a keyword since 2026-09-19 — see the Rise ordering section), Pummel (a keyword
-since 2026-09-21 — see "Pummel (X)" below).
+since 2026-09-21 — see "Pummel (X)" below), Sell (a keyword since 2026-09-23 — see "Sell" below).
 
 Source: `packages/ui/src/terms.ts`.
 
@@ -808,6 +808,21 @@ Bodies today:
 The fire is a combat event (`pummelTrigger`, one per body per combat, emitted after the `dmg` that crossed
 the multiple and before the payout's own events), which the replay presents with the owner-authored
 `pummel-trigger` FX on the body's medallion (see `docs/combat-events.md`).
+
+### Sell — the self-sold trigger (owner keyword 2026-09-23)
+
+**Sell: Triggers when this minion is sold.** It is the printed form of the `onSell` trigger — an effect that
+fires when THIS minion is sold from your board (a shop action; it has no combat meaning). Every minion with
+an `onSell` effect reads "**Sell:** …" (owner ask 2026-09-23: *"any card that operates on a 'When you sell
+this' should now say 'Sell: xyz' with sell being a highlighted keyword. no mechanical change"*): Hoard Whelp,
+Salvatore McKlusky, River Drake, Beggy, Cheap Date, Traveling Salesman, and the three Revelers. The hover
+pill and the Compendium row carry the definition above; the word is coloured in card text.
+
+The keyword is pinned to its FORM. A card that reacts to selling **another** minion (Arcane Behemoth "When
+you sell a Demon", Shift Broker, Voicekeeper — the `minionSold` watcher), a spell that sells ("Sell a
+friendly minion"), a sell-value line ("Sells for 2 Gold") and a hero power that counts sales (Robin) keep
+their sentences: none of them is "this minion is sold", so none raises the pill. Text only — no effect, param
+or trigger changed.
 
 ### A named-spell caster prints the spell, not its value (owner rule 2026-09-09, R-TEXT-01)
 

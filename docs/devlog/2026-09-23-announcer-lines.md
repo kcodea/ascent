@@ -1,5 +1,8 @@
 # 2026-09-23 — The announcer (voice lines on game moments) + the Audio panel
 
+> Same-day follow-up: [2026-09-23-announcer-runeforge-delays.md](2026-09-23-announcer-runeforge-delays.md) (the forge lines
+> never played; the Face Omen and return delays). The tables below carry the corrected numbers.
+
 Owner asks (verbatim): *"i added announcer sfx here: C:\Game Assets\Ascent Art\SFX\Announcer — can you look at them? I
 named them for when they should trigger. they shouldn't trigger more than once per game, though. and they shouldn't
 trigger back to back for things like equipment or triples etc."* and *"with this we'll need an announcer toggle and
@@ -48,20 +51,20 @@ AudioContext seam and its store-driven shape.
 | Event | Moment (detected from the store) | Delay / floor | Shelf | Repeat |
 |---|---|---|---|---|
 | GameStart | wave 1's first shop lands (fresh run or a Continue that never heard it) | 4 s after the shop (`ANNOUNCER_GAME_START_DELAY_MS` = music start 3 s + 1 s, past the 600 ms fade-in) | shop | once |
-| BackToShop | combat → recruit | none | shop | ≤ 2 per game, first at wave ≥ 2, second ≥ 5 waves later |
+| BackToShop | combat → recruit | 1 s (`ANNOUNCER_BACK_TO_SHOP_DELAY_MS`, the return wipe; was none until the same-day follow-up) | shop | ≤ 2 per game, first at wave ≥ 2, second ≥ 5 waves later |
 | Equipment | `run.equipment.available` grew | 400 ms (the equipment SFX first) | shop | once |
 | Triple | golden count on board + hand grew | none | shop | ≤ 2 per game, ≥ 5 waves apart |
 | TierSix | `tier` reached 6 | none | shop | once |
-| Runeforge / EpicRuneforge | `runeforgeOffer` appeared (`runeforgeEpic` picks) | none | shop | once each |
-| EnteringCombat | recruit → combat (Face Omen), still eligible through wave 3 if the first was dropped | 600 ms (the stinger + wipe) | combat | once |
-| EnteringCombatAfterLoss | Face Omen with the last two `history` entries `lose` | 600 ms | combat | once |
-| StartCombatUnder10hp | Face Omen at `resolve` ≤ 10 (Armor ignored) | 600 ms | combat | once |
+| Runeforge / EpicRuneforge | `runeforgeOffer` appeared (`runeforgeEpic` picks), checked on the RETURN update too (the scheduled forges open inside `resolveCombat`; see the follow-up entry) | none mid-turn, 1 s with the return; bypasses the cooldown | shop | once each |
+| EnteringCombat | recruit → combat (Face Omen), still eligible through wave 3 if the first was dropped | 1.6 s (`ANNOUNCER_FACE_OMEN_DELAY_MS`; was 600 ms until the same-day follow-up) | combat | once |
+| EnteringCombatAfterLoss | Face Omen with the last two `history` entries `lose` | 1.6 s | combat | once |
+| StartCombatUnder10hp | Face Omen at `resolve` ≤ 10 (Armor ignored) | 1.6 s | combat | once |
 | SurviveUnder10hp | the verdict (`combatSettled` flips) of a fight entered at ≤ 10, seat still standing | 3 s combat silence floor | combat | once; bypasses the cooldown when this round's line was StartCombatUnder10hp, and then outranks the other verdict lines (the round's only line) |
 | LosingLowOddsFight | verdict `lose` with `combatOdds.win` ≥ 0.65 for this wave (absent → skip) | 3 s floor | combat | once |
 | WinningLowOddsFight | verdict `win` with `combatOdds.win` ≤ 0.35 | 3 s floor | combat | once |
 | ThreeWinStreak | verdict: the last three `history` entries `win` | 3 s floor | combat | once |
 | MinionHits100Stats | a player board minion reaches ≥ 100 Attack or Health in the shop, or the replay's player frame does in a fight | none / 3 s floor | shop / combat | once |
-| TopFour / TopTwo | combat → recruit (the rail settles on `resolveCombat`) with ≤ 4 / ≤ 2 seats alive, the player among them | none | shop | once each |
+| TopFour / TopTwo | combat → recruit (the rail settles on `resolveCombat`) with ≤ 4 / ≤ 2 seats alive, the player among them | 1 s (with the return) | shop | once each |
 | GameWon / GameLoss | phase → gameover / victory; placement 1 (seat 0's stamped placement, else the standing count, as EndScreen reads it) → GameWon, else GameLoss | 1 s | never | once; outside the cap |
 
 Gate: `isMusicWanted` (lobby / practice on screen, no sandbox, no replay, no title / picker / Practice setup); the
@@ -71,8 +74,8 @@ tutorial is mode `tutorial`, so it never qualifies.
 
 - **Constants** (`announcer.ts`): `ANNOUNCER_COOLDOWN_MS` 12 000 (from the previous line's END, or its cut),
   `ANNOUNCER_LINE_CAP` 8, `ANNOUNCER_GAME_START_DELAY_MS` 4000, `ANNOUNCER_TURN_ONE_QUIET_MS` 3600 (no line over the
-  music's fade-in on a wave-1 entry), `ANNOUNCER_COMBAT_SILENCE_MS` 3000, `ANNOUNCER_FACE_OMEN_DELAY_MS` 600,
-  `ANNOUNCER_END_DELAY_MS` 1000, `ANNOUNCER_EQUIPMENT_DELAY_MS` 400, `ANNOUNCER_STOP_FADE_MS` 100,
+  music's fade-in on a wave-1 entry), `ANNOUNCER_COMBAT_SILENCE_MS` 3000, `ANNOUNCER_FACE_OMEN_DELAY_MS` 1600 (was
+  600; owner ask, same day), `ANNOUNCER_BACK_TO_SHOP_DELAY_MS` 1000 (added the same day), `ANNOUNCER_END_DELAY_MS` 1000, `ANNOUNCER_EQUIPMENT_DELAY_MS` 400, `ANNOUNCER_STOP_FADE_MS` 100,
   `ANNOUNCER_LOW_RESOLVE` 10, `ANNOUNCER_HIGH_ODDS` 0.65, `ANNOUNCER_LOW_ODDS` 0.35, `ANNOUNCER_BIG_STAT` 100,
   `ANNOUNCER_BACK_TO_SHOP_MAX` 2, `ANNOUNCER_BACK_TO_SHOP_MIN_WAVE` 2, `ANNOUNCER_TRIPLE_MAX` 2,
   `ANNOUNCER_REPEAT_GAP_WAVES` 5, `ANNOUNCER_ENTERING_COMBAT_MAX_WAVE` 3, default level 0.9.
@@ -95,7 +98,7 @@ tutorial is mode `tutorial`, so it never qualifies.
 
 ## Judgement calls (flag for the owner)
 
-- **Face Omen lines play 600 ms after the flip**, not after the 3 s silence: "Entering combat" belongs at the
+- **Face Omen lines play 1.6 s after the flip** (600 ms at first), not after the 3 s silence: "Entering combat" belongs at the
   entry; the 3 s silence is applied to everything detected during the resolution (the verdict lines, the combat
   board stat). Move to the 3 s floor by changing `ANNOUNCER_FACE_OMEN_DELAY_MS` to `ANNOUNCER_COMBAT_SILENCE_MS`.
 - **EnteringCombat stays eligible through wave 3**: a turn-1 Equipment bought late puts the first Face Omen inside

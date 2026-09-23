@@ -561,7 +561,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'BackToShop and Triple may speak twice, at least ANNOUNCER_REPEAT_GAP_WAVES (5) waves apart. The variant '
       + '(1 / 2 / 3) is drawn from the run seed. One global cooldown, ANNOUNCER_COOLDOWN_MS (12 s from the previous '
       + 'line ending), and never while a line plays: an event landing inside it is DROPPED, not queued, and stays '
-      + 'unfired (it may speak later if its moment recurs and is still valid). Pending events are weighed together by '
+      + 'unfired (it may speak later if its moment recurs and is still valid); the two forge lines and this round\x27s '
+      + 'SurviveUnder10hp BYPASS the cooldown (never a playing line: they wait for it to end). Pending events are weighed together by '
       + 'priority (GameWon = GameLoss > TopTwo > TopFour > SurviveUnder10hp > LosingLowOdds = WinningLowOdds > '
       + 'ThreeWinStreak > StartCombatUnder10hp > EnteringCombatAfterLoss > MinionHits100Stats > TierSix > '
       + 'EpicRuneforge > Runeforge > Triple > Equipment > EnteringCombat > GameStart > BackToShop): the highest speaks, '
@@ -570,10 +571,13 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'ANNOUNCER_COMBAT_SILENCE_MS (3 s) of a combat resolution; nothing over the music\x27s turn-1 fade-in (GameStart '
       + 'plays ANNOUNCER_GAME_START_DELAY_MS, 4 s, after the first shop); a Skip (`stopAllAudio`) or leaving the run '
       + 'cancels the queue and the playing line with an ANNOUNCER_STOP_FADE_MS (100 ms) fade. At most '
-      + 'ANNOUNCER_LINE_CAP (8) lines per game, GameWon / GameLoss allowed on top. Triggers: GameStart (wave 1\x27s '
+      + 'ANNOUNCER_LINE_CAP (8) lines per game, GameWon / GameLoss allowed on top. Timing: the Face Omen lines play '
+      + 'ANNOUNCER_FACE_OMEN_DELAY_MS (1.6 s) after the flip; the return lines (BackToShop, TopFour / TopTwo, a forge '
+      + 'opening with the return) ANNOUNCER_BACK_TO_SHOP_DELAY_MS (1 s) after resolveCombat. Triggers: GameStart (wave 1\x27s '
       + 'first shop), BackToShop (a return from combat, twice per game at most, first no earlier than wave 2), '
       + 'Equipment (an Equipment acquired, 400 ms after its SFX), Triple (a gilded minion formed), TierSix (tier 6), '
-      + 'Runeforge / EpicRuneforge (the offer opening), EnteringCombat (the first Face Omen, still eligible through '
+      + 'Runeforge / EpicRuneforge (the offer opening; the scheduled forges open INSIDE the resolveCombat step that '
+      + 'returns the run to the shop, so the return update is checked too), EnteringCombat (the first Face Omen, still eligible through '
       + 'wave 3), EnteringCombatAfterLoss (a Face Omen after two consecutive losses), StartCombatUnder10hp (Resolve '
       + 'at or below 10 going in, Armor not counted), SurviveUnder10hp (surviving such a fight; it also plays right '
       + 'after this round\x27s StartCombatUnder10hp, as the round\x27s only line), LosingLowOddsFight (a loss at 65%+ win '
@@ -599,10 +603,24 @@ export const FOUNDATION_RULES: GameRule[] = [
         quote: 'with this we\x27ll need an announcer toggle and audio channel as well, similar to music. i think it\x27s best we put an "audio" button in the settings window that expands/collapses these 3 channels with mute toggles for each.',
       },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-23 (the announcer, on the queue logic)', quote: 'i like your logic you\x27ve shared here' },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-09-23 (the announcer follow-up: the forge lines + the delays)',
+        quote: 'i dont think the runeforge voicelines are playing? and can you slightly delay the combat and return to shop ones? they play too quickly and should be offset by about 1s.',
+      },
       { kind: 'code', ref: 'packages/ui/src/announcer.ts (the queue, the detectors, the channel); packages/ui/src/announcerSlice.ts (the persisted slice); packages/ui/src/store.ts (announced, markAnnounced, combatOdds, the save round-trip); packages/ui/src/Game.tsx (the subscription + the stopAllAudio hook); packages/ui/src/Recruit.tsx (observeCombatBoard); packages/ui/src/EscMenu.tsx (the Audio panel)' },
     ],
     currentBehaviour:
-      'Conforms as of 2026-09-23. Before this there was no announcer and the Settings Audio section was two flat '
+      'Conforms as of 2026-09-23 (same-day follow-up). Owner report after #1653: "i dont think the runeforge '
+      + 'voicelines are playing? and can you slightly delay the combat and return to shop ones? they play too quickly '
+      + 'and should be offset by about 1s." Root cause: the scheduled forges (turn 6 Basic / turn 9 Epic, a hero\x27s '
+      + 'turn 5 / 8, a booked Clock forge) set runeforgeOffer inside the same reducer step as the combat -> recruit '
+      + 'flip (resolveCombat -> advanceCombat -> openNextStartOfTurnModal), and the return branch of syncAnnouncer '
+      + 'returned before the forge check ran, so the line was never detected. Fixed: detectForge runs on the return '
+      + 'update too, and the forge lines bypass the cooldown (never a playing line). ANNOUNCER_FACE_OMEN_DELAY_MS 600 '
+      + '-> 1600 ms; ANNOUNCER_BACK_TO_SHOP_DELAY_MS 1000 ms added (BackToShop, TopFour / TopTwo, a forge opening with '
+      + 'the return); ANNOUNCER_COMBAT_SILENCE_MS stays 3000 ms and applies to the lines detected during the fight, not '
+      + 'the Face Omen lines. Before this there was no announcer and the Settings Audio section was two flat '
       + 'rows (Game sounds, Music). Known asset issue: the delivered GameWon.mp3 is byte-identical to TopTwo2.mp3 '
       + '(a mis-export the owner will replace under the same name); GameWon therefore has one variant today.',
     enforcement: {

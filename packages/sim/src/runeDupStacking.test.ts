@@ -57,9 +57,9 @@ describe('family 2 — threshold runes: same meter, doubled payoff', () => {
     expect(two.runeVault, 'still once per run — spent at the trip').toBeUndefined();
   });
 
-  it('two Rune of the Returning Pack pay 2 Beasts per 6 combat summons (owner wording)', () => {
+  it('two Rune of the Returning Pack pay 2 Beasts per 5 combat summons (owner wording; 5 since balance 9/23)', () => {
     const s = buyTwice('rune_returning_pack');
-    expect(s.questFlags?.runeReturningPack, 'the threshold does NOT accumulate (12 would be strictly worse)').toBe(6);
+    expect(s.questFlags?.runeReturningPack, 'the threshold does NOT accumulate (10 would be strictly worse)').toBe(5);
     expect(s.flagCopies?.runeReturningPack, 'the copy count is the payout multiplier').toBe(2);
   });
 });

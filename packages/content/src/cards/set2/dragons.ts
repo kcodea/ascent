@@ -26,10 +26,10 @@ export const SET2_DRAGONS: CardDef[] = [
     attack: 2,
     health: 2,
     keywords: [],
-    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffSelf', params: { attack: 1, health: 1 } }],
-    text: 'After you trigger a **Shout**, gain **+1/+1**.',
-    // The golden text was a leftover from the card's old buff-another-Dragon Shout shape.
-    goldenText: 'After you trigger a **Shout**, gain **+2/+2**.',
+    // Owner balance 2026-09-23: +1/+1 → +1/+2 (gilded +2/+4).
+    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffSelf', params: { attack: 1, health: 2 } }],
+    text: 'After you trigger a **Shout**, gain **+1/+2**.',
+    goldenText: 'After you trigger a **Shout**, gain **+2/+4**.',
   },
   {
     // Rewards casting TWICE in a turn rather than once — the recursion line's "keep going" piece.
@@ -133,7 +133,7 @@ export const SET2_DRAGONS: CardDef[] = [
     name: 'Mirrorwing',
     tribe: 'dragon',
     tier: 2,
-    attack: 2,
+    attack: 3, // owner balance 2026-09-23: 2/4 → 3/4
     health: 4,
     keywords: [],
     effects: [{ on: 'spellCastOnThis', do: 'onSpellCastOnThisRecast', params: { count: 1 } }],

@@ -52,6 +52,7 @@ const NO_OP: Record<string, (s: RunState, def: CardDef, params: Record<string, u
   spellGildRandomTavern: (s) => shopMinions(s).length === 0, // Golden Touch
   spellRefreshTierUp: (s) => shopMinions(s).length === 0,    // Elevation Ritual
   spellSellToShopRightmost: (s) => shopMinions(s).length === 0, // Dissipate: no Shop minion to receive the stats → the sale never happens
+  spellBuffShopRightmost: (s) => shopMinions(s).length === 0,   // Picnic: no Shop minion to receive the +8/+8
   // The two steal spells read their tribe from OPPOSITE sides, which is easy to get backwards:
   //   • Deep Delve Writ (`tribe`)     — steal a minion OF that tribe FROM THE SHOP → the shop must hold one.
   //   • Ironclad Requisition (`perTribe`) — one steal PER FRIENDLY minion of that tribe → YOUR BOARD must

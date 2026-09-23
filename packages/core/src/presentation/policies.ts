@@ -422,6 +422,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:spellBuffRandomPerTribe:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffHealthGrantFlurryDragon:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffShop:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:spellBuffShopRightmost:cast': { policy: 'ownBeat', family: 'spellCast' }, // Picnic (2026-09-23)
   'factory:spellBuffShopByRuby:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellBuffTarget:cast': { policy: 'ownBeat', family: 'spellCast' },
   // GREAT POT + the GIFTS (owner batch 2026-08-26) — each casts from hand, so each owns its beat.
@@ -527,7 +528,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_appraisal:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_armory:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_ascension:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
-  'rune:rune_ashen_heir:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
+  // rune_ashen_heir archived 2026-09-23 (ARCHIVED_RUNES, Balance 9/23) — entry removed so the registry carries no ghost.
   'rune:rune_ashen_payroll:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_assembly:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_attacking_gems:combat': { policy: 'foldedCue', family: 'combatModifier' },
@@ -551,7 +552,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_burrow:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_cadence:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_carrion_coin:combat': { policy: 'ownBeat', family: 'avenge' },
-  'rune:rune_centerline:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  // rune_centerline archived 2026-09-23 (ARCHIVED_RUNES, Balance 9/23) — entry removed so the registry carries no ghost.
   'rune:rune_champion:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_chef:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_chimerus:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
@@ -619,7 +620,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_ruby_resonance:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_chorus:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_cinder_ledger:combat': { policy: 'ownBeat', family: 'avenge' },
-  'rune:rune_cindergem:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  // rune_cindergem archived 2026-09-23 (ARCHIVED_RUNES, Balance 9/23) — entry removed so the registry carries no ghost.
   'rune:rune_coffers:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_collector:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_conductor:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
@@ -641,7 +642,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_double_fisting:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_dragonscale:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_duplication:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
-  'rune:rune_emberline:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  // rune_emberline archived 2026-09-23 (ARCHIVED_RUNES, Balance 9/23) — entry removed so the registry carries no ghost.
   'rune:rune_empty_plate:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_enchantment:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_endless_appetite:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
@@ -712,15 +713,15 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_menagerie_set2:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_merchants_chorus:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_mirror_march:combat': { policy: 'foldedCue', family: 'combatModifier' },
-  'rune:rune_moonhowl:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  // rune_moonhowl archived 2026-09-23 (ARCHIVED_RUNES, Balance 9/23) — entry removed so the registry carries no ghost.
   'rune:rune_motherlode:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_mountain_trade:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_muster:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
-  'rune:rune_old_pack:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  // rune_old_pack archived 2026-09-23 (ARCHIVED_RUNES, Balance 9/23) — entry removed so the registry carries no ghost.
   'rune:rune_open_appetite:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_open_hand:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_open_enrollment:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
-  'rune:rune_open_market:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
+  // rune_open_market archived 2026-09-23 (ARCHIVED_RUNES, Balance 9/23) — entry removed so the registry carries no ghost.
   'rune:rune_overflow:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_overtime:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_packcraft:combat': { policy: 'foldedCue', family: 'combatModifier' },
@@ -751,7 +752,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_scale:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_scales:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_scout:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
-  'rune:rune_second_litter:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  // rune_second_litter archived 2026-09-23 (ARCHIVED_RUNES, Balance 9/23) — entry removed so the registry carries no ghost.
   'rune:rune_second_path:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_sellers_market:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_shared_pour:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
@@ -763,7 +764,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_slaying:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_small_fortune:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_soul_taxes:combat': { policy: 'ownBeat', family: 'avenge' },
-  'rune:rune_spare_chair:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  // rune_spare_chair archived 2026-09-23 (ARCHIVED_RUNES, Balance 9/23) — entry removed so the registry carries no ghost.
   'rune:rune_spare_parts:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_spearline:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_spellmarket:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
@@ -777,7 +778,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_summit:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_summoning:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_sylus:combat': { policy: 'foldedCue', family: 'combatModifier' },
-  'rune:rune_taurus:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
+  // rune_taurus archived 2026-09-23 (ARCHIVED_RUNES, Balance 9/23) — entry removed so the registry carries no ghost.
   'rune:rune_tempered_time:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_tempering:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_thrift:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
@@ -802,7 +803,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_war_chorus:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_warden:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_warding:combat': { policy: 'foldedCue', family: 'combatModifier' },
-  'rune:rune_warpath:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  // rune_warpath archived 2026-09-23 (ARCHIVED_RUNES, Balance 9/23) — entry removed so the registry carries no ghost.
   'rune:rune_wheel:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   // ── Set 3 batch 2, tranche B (2026-09-16) — Starform / Equipment / Undead runes ──
   'rune:rune_first_light:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
@@ -1076,7 +1077,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'hero:aster:preparation': { policy: 'ownBeat', family: 'heroPower' },
 
   // ── RUNE-ONLY MINION BATCH (2026-08-20). Each entry copies the bucket its closest sibling already sits in. ──
-  'factory:onGetRubyDuplicate:onGetRuby': { policy: 'foldedCue', family: 'economyReact' },        // Gem Sage — cf. rubyGainedCast
+  'factory:getRubies:spellCastOnThis': { policy: 'ownBeat', family: 'economy' },                  // Gem Sage (owner balance 2026-09-23: pays 3 Rubies per Shop spell cast on it) — the bucket its spellCastOnThis siblings sit in
   'factory:goldSpentScaleSelf:passive': { policy: 'passive', family: 'passive' },                 // Ancient Wanderer — a synced stat, never a beat
   'factory:cardDeathScaler:passive': { policy: 'passive', family: 'passive' },                    // Spear Warden — a death-count enchant read at the death site, never a beat
   // PUMMEL (X) — the damage meters. A Pummel that pays emits `pummelTrigger` (2026-09-21, once per body per

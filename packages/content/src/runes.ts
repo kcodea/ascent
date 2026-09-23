@@ -58,7 +58,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_contraband',
     tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Contraband',
-    cost: 6, // owner balance 2026-08-11
+    cost: 3, // balance 9/23 (was 6)
     text: 'The first **Ruby** you cast each turn gives you a random **Dwarven Ale**. The first **Dwarven Ale** you cast gives you a **Ruby**.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'runeContraband' },
@@ -68,7 +68,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_spending',
     name: 'Rune of Spending',
     cost: 3,
-    text: '**End of Turn:** give your left-most minion **+1/+2** for each Gold spent this turn.',
+    text: '**End of Turn:** give your left-most minion **+2/+3** for each Gold spent this turn.', // balance 9/23 (was +1/+2)
     reward: { kind: 'recurringEndOfTurn', effect: 'runeSpending' },
   },
   {
@@ -88,7 +88,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_pillaging',
     tribes: ['undead'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Pillaging',
-    cost: 4,
+    cost: 2, // balance 9/23 (was 4)
     text: 'Get a **Pillager**. Your **Gold Pouches** are worth **2 Gold** for the rest of the run.',
     previewCards: ['emberpouch'], // text names it — the forge hover shows the card
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['pillager'] }, { kind: 'goldPouchValue', value: 2 }] },
@@ -104,7 +104,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_summoning',
     tribes: ['demon'], // TRIBE GATE (2026-09-10): Imps are Demons (owner 2026-09-10)
     name: 'Rune of Summoning',
-    cost: 4, // owner balance 2026-08-11
+    cost: 2, // balance 9/23 (was 4)
     text: 'Whenever you cast a Shop spell, improve your **Imp Aura** by **+2/+2**.',
     previewCards: ['impscrap'], // text names it — the forge hover shows the card
     reward: { kind: 'runeSummoning' },
@@ -120,7 +120,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_rallying',
     name: 'Rune of Rallying',
-    cost: 5,
+    cost: 4, // balance 9/23 (was 5)
     text: '**Start of Combat:** trigger your **left-most Rally** effect.',
     reward: { kind: 'combatFlag', flag: 'runeRallying' },
   },
@@ -138,7 +138,7 @@ export const RUNES: RuneDef[] = [
     // Shares Runic Refrain's EoT primitive — a COPY to hand, not a recast (that is Rune of Recurrence).
     id: 'rune_recollection',
     name: 'Rune of Recollection',
-    cost: 3,
+    cost: 2, // balance 9/23 (was 3)
     text: '**End of Turn:** get a **copy** of the first spell you cast this turn.',
     reward: { kind: 'recurringEndOfTurn', effect: 'copyFirstSpell' },
     sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
@@ -148,7 +148,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_first_round',
     tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the First Round',
-    cost: 5, // owner balance 2026-08-11
+    cost: 4, // balance 9/23 (was 5)
     text: '**End of Turn:** get **2 random Dwarven Ales**.',
     reward: { kind: 'recurringEndOfTurn', effect: 'grantAles' },
     sets: ['set2', 'set3'], // Ales // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
@@ -180,16 +180,6 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'runeThreshold', meter: 'spellCast', per: 1, buff: { target: 'shop', attack: 1, health: 1 } },
   },
   {
-    id: 'rune_cindergem',
-    tribes: ['demon'], // TRIBE GATE (2026-09-10): Imps are Demons (owner 2026-09-10)
-    name: 'Rune of the Cindergem',
-    cost: 4,
-    text: 'Every **3 Rubies** you cast, improve your **Imps by +4/+4**.',
-    previewCards: ['impscrap'], // text names it — the forge hover shows the card
-    reward: { kind: 'runeThreshold', meter: 'castRuby', per: 3, buff: { target: 'imps', attack: 4, health: 4 } },
-    sets: ['set2'], // Rubies
-  },
-  {
     id: 'rune_showcase',
     name: 'Rune of the Showcase',
     cost: 3,
@@ -214,7 +204,7 @@ export const RUNES: RuneDef[] = [
     // Pure data — `rallyRepeat`/`firstEachCombat` already exists (Spark Permit, Overclocked Core).
     id: 'rune_stampede',
     name: 'Rune of the Stampede',
-    cost: 5, // owner balance 2026-08-11
+    cost: 4, // balance 9/23 (was 5)
     text: 'Your **first** friendly **Rally** each combat triggers **twice**.',
     reward: { kind: 'rallyRepeat', scope: 'firstEachCombat' },
   },
@@ -231,7 +221,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_resonance',
     tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Resonance',
-    cost: 3,
+    cost: 1, // balance 9/23 (was 3)
     text: 'Your **first 2 Rubies** played from hand each turn cast an **extra time**. Get **2 Rubies** every turn.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'multi', rewards: [{ kind: 'rubyExtraCasts', amount: 1, scope: 'firstEachTurn', firstN: 2 }, { kind: 'recurringEndOfTurn', effect: 'grantRuby2' }] },
@@ -241,7 +231,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_investment',
     tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Investment',
-    cost: 3, // owner balance 2026-08-04
+    cost: 5, // balance 9/23 (was 3)
     text: 'Get **2 Rubies** when you **sell 2 minions**.',
     previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'runeSellRubies', count: 2 },
@@ -269,7 +259,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_blood_and_coin',
     name: 'Rune of Blood and Coin',
     cost: 3,
-    text: '**Avenge (5):** gain **3 Gold** next turn.', // owner 2026-08-11 (was every 4 deaths / 4 Gold)
+    text: '**Avenge (4):** gain **3 Gold** next turn.', // balance 9/23: Avenge (4) (was 5; owner 2026-08-11 had moved it 4 -> 5)
     reward: { kind: 'combatFlag', flag: 'runeBloodAndCoin', amount: 3 },
   },
   {
@@ -347,7 +337,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_epic_forge',
     name: 'Rune of the Epic Forge',
-    cost: 4, // owner balance 2026-08-11
+    cost: 3, // balance 9/23 (was 4)
     // An EARLY epic forge: turn 8, one turn ahead of the systemic turn-9 visit (owner 2026-07-31). A
     // schedule to wave 9 itself would do nothing — the baseline already sets the same boolean there.
     text: 'Visit an **additional Epic Forge** on turn 8.',
@@ -363,7 +353,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_pair',
     name: 'Rune of the Pair',
-    cost: 5,
+    cost: 3, // balance 9/23 (was 5)
     text: 'Get **2 random Tier 4 minions**.',
     reward: { kind: 'grant', randomTier: 4, randomCount: 2 },
   },
@@ -408,10 +398,10 @@ export const RUNES: RuneDef[] = [
     tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Gemcutting',
     cost: 1, // 4 → 1 (owner 2026-08-02)
-    // Owner sheet 2026-07-31: SEVEN Rubies minted at a fixed 3/3, not the run's 1/1+bonus line.
-    text: 'Get **5 Rubies** that give **+3/+3**.',
+    // Rubies minted at a FIXED line, not the run's 1/1+bonus line (owner sheet 2026-07-31). Balance 9/23: 6 at +4/+4 (was 5 at +3/+3).
+    text: 'Get **6 Rubies** that give **+4/+4**.',
     previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
-    reward: { kind: 'mintRubies', count: 5, attack: 3, health: 3 },
+    reward: { kind: 'mintRubies', count: 6, attack: 4, health: 4 },
     sets: ['set2', 'set3'], // Rubies / Ales / set-2 cards // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   // ── Batch 1 additions (grants / discovers / economy — no new combat mechanics) ──
@@ -427,7 +417,7 @@ export const RUNES: RuneDef[] = [
     // is the general mechanism — see `questRecurringLimited`.
     id: 'rune_quick_study',
     name: 'Rune of Quick Study',
-    cost: 6, // owner balance 2026-08-11
+    cost: 2, // balance 9/23 (was 6)
     text: 'Get a **Gold Font** and **2 random spells** at End of Turn, for the **next 2 turns**.',
     previewCards: ['manafont'], // text names it — the forge hover shows the card
     reward: { kind: 'recurringEndOfTurn', effect: 'quickStudy', turns: 2 },
@@ -439,7 +429,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_summit',
     name: 'Rune of the Summit',
     cost: 3, // owner balance 2026-08-11
-    text: '**In 3 turns:** **Discover** a **Tier 7** minion. Repeats every **3 turns**.',
+    text: '**In 2 turns:** **Discover** a **Tier 7** minion. Repeats every **2 turns**.', // balance 9/23 (was 3 turns)
     reward: { kind: 'runeSummit' },
   },
   {
@@ -497,7 +487,7 @@ export const RUNES: RuneDef[] = [
     // before that "2 random gain Rise". Id kept through every rework.
     id: 'rune_rebirth',
     name: 'Rune of Rebirth',
-    cost: 3, // owner balance 2026-08-11
+    cost: 1, // balance 9/23 (was 3)
     text: '**Start of Combat:** give a random friendly minion **Rebirth**.',
     reward: { kind: 'combatFlag', flag: 'runeRebirth' },
   },
@@ -535,7 +525,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_coffers',
     name: 'Rune of the Coffers',
-    cost: 5,
+    cost: 4, // balance 9/23 (was 5)
     text: '**End of Turn:** increase your **maximum Gold** by **1**.',
     reward: { kind: 'runeCoffers' },
   },
@@ -551,7 +541,7 @@ export const RUNES: RuneDef[] = [
     // real sell path so on-sell effects (Voicekeeper, sell-value cards) behave exactly as a manual sell.
     id: 'rune_altar',
     name: 'Rune of the Altar',
-    cost: 1,
+    cost: 3, // balance 9/23 (was 1)
     text: 'Sell your **entire board**. Gain **3 Gold** for each minion sold.',
     reward: { kind: 'runeAltar', goldPer: 3 },
   },
@@ -593,7 +583,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_flagship',
     tribes: ['dwarf'], // TRIBE GATE (2026-09-10): the text names dwarfs on the board
     name: 'Rune of the Flagship',
-    cost: 3,
+    cost: 4, // balance 9/23 (was 3)
     text: 'Whenever you cast a **Shop spell**, give your **Dwarves +2/+2**.',
     reward: { kind: 'runeFlagship' },
     sets: ['set2', 'set3'], // Dwarves // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
@@ -603,7 +593,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['dwarf'], // TRIBE GATE (2026-09-10): the text names dwarfs on the board
     name: 'Rune of the Brew',
     cost: 4,
-    text: 'Whenever you **spend Gold**, give a friendly **Dwarf +4/+3**.',
+    text: 'Whenever you **spend Gold**, give a friendly **Dwarf +2/+3**.', // balance 9/23 (was +4/+3)
     reward: { kind: 'runeBrew' },
     sets: ['set2', 'set3'], // Dwarves // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
@@ -617,7 +607,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_top_hat',
     name: 'Rune of the Top Hat',
-    cost: 3,
+    cost: 6, // balance 9/23 (was 3)
     text: 'Get **two random minions** each from **Tiers 1, 2, and 3**.',
     reward: { kind: 'multi', rewards: [
       { kind: 'grant', randomTier: 1, randomCount: 2 },
@@ -642,7 +632,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_treasure_map',
     name: 'Rune of the Treasure Map',
-    cost: 2,
+    cost: 3, // balance 9/23 (was 2)
     text: 'In **2 turns**, gain **10 Gold**.',
     reward: { kind: 'runeTreasureMap', turns: 2, gold: 10 },
   },
@@ -678,8 +668,8 @@ export const RUNES: RuneDef[] = [
     id: 'rune_carrion_coin',
     name: 'Rune of Carrion Coin',
     cost: 3,
-    text: '**Avenge (4):** get a random **Shop spell**.',
-    reward: { kind: 'combatFlag', flag: 'runeCarrionCoin', amount: 4 },
+    text: '**Avenge (3):** get a random **Shop spell**.', // balance 9/23 (was Avenge (4))
+    reward: { kind: 'combatFlag', flag: 'runeCarrionCoin', amount: 3 },
   },
   {
     id: 'rune_five_banners',
@@ -689,25 +679,10 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeFiveBanners' },
   },
   {
-    id: 'rune_centerline',
-    name: 'Rune of the Centerline',
-    cost: 3,
-    text: '**Start of Combat:** if your **end minions** have different types, give your **middle** minion **Ward** and **Critical Strike**.',
-    reward: { kind: 'combatFlag', flag: 'runeCenterline' },
-  },
-  {
-    id: 'rune_second_litter',
-    tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
-    name: 'Rune of the Second Litter',
-    cost: 2, // owner balance 2026-08-11
-    text: 'The first **Beast** summoned each combat summons **another copy**.',
-    reward: { kind: 'combatFlag', flag: 'runeSecondLitter' },
-  },
-  {
     id: 'rune_shared_pour',
     tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Shared Pour',
-    cost: 3, // owner balance 2026-08-11
+    cost: 2, // balance 9/23 (was 3)
     text: 'Your first **Dwarven Ale** each turn casts an **additional time**.',
     reward: { kind: 'runeSharedPour' },
     sets: ['set2', 'set3'], // Ales // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
@@ -715,7 +690,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_aftermarket',
     name: 'Rune of the Aftermarket',
-    cost: 4,
+    cost: 3, // balance 9/23 (was 4)
     text: 'The first minion you **sell** each turn gives **half its stats** to the **right-most** minion in the current **Shop**.', // owner 2026-08-11
     reward: { kind: 'runeAftermarket' },
   },
@@ -730,19 +705,10 @@ export const RUNES: RuneDef[] = [
 
   // ── the 2026-08-07 owner batch 4 (tranche 3: the contained-machinery eight) ──
   {
-    id: 'rune_emberline',
-    tribes: ['demon'], // TRIBE GATE (2026-09-10): Imps are Demons (owner 2026-09-10)
-    name: 'Rune of Emberline',
-    cost: 3,
-    text: 'The first **Imp** that dies each combat gives its stats to the next Imp you summon.',
-    previewCards: ['impscrap'],
-    reward: { kind: 'combatFlag', flag: 'runeEmberline' },
-  },
-  {
     id: 'rune_ashen_payroll',
     tribes: ['demon'], // TRIBE GATE (2026-09-10): Imps are Demons (owner 2026-09-10)
     name: 'Rune of Ashen Payroll',
-    cost: 4,
+    cost: 2, // balance 9/23 (was 4)
     // Owner 2026-08-11: per-Imp payout, no threshold and no once-per-combat cap. `amount` stays only to arm the
     // flag truthily — the settle handler now pays 1 Gold for EACH Imp summoned (see reducer runeAshenPayroll).
     text: 'Gain **1 Gold** next turn for each **Imp** you summon in combat.',
@@ -757,13 +723,6 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeBackbeat' },
   },
   {
-    id: 'rune_spare_chair',
-    name: 'Rune of the Spare Chair',
-    cost: 4,
-    text: 'If you begin combat with exactly **6 minions**, the first minion you summon gains **Ward** and attacks immediately.',
-    reward: { kind: 'combatFlag', flag: 'runeSpareChair' },
-  },
-  {
     id: 'rune_spellmarket',
     name: 'Rune of the Spellmarket',
     cost: 4,
@@ -774,7 +733,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_last_word',
     tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of the Last Word',
-    cost: 4,
+    cost: 2, // balance 9/23 (was 4)
     text: 'The first **Dragon** with a **Shout** you sell each turn triggers its Shout before being sold.',
     reward: { kind: 'runeLastWord' },
   },
@@ -804,11 +763,11 @@ export const RUNES: RuneDef[] = [
     tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Mountain Trade',
     cost: 5,
-    // Owner 2026-08-11: full rework — a "cards played" threshold that showers the board with a Ruby every 6.
-    // Uses the runeThreshold engine's new `cardsPlayed` meter (see advanceRuneThresholds / applyCardsPlayed).
-    text: 'After you play **6 cards**, cast a **Ruby** on your minions.',
+    // Owner 2026-08-11: full rework — a "cards played" threshold that showers the board with a Ruby every 5
+    // (balance 9/23; was 6). Uses the runeThreshold engine's `cardsPlayed` meter (see advanceRuneThresholds / applyCardsPlayed).
+    text: 'After you play **5 cards**, cast a **Ruby** on your minions.',
     previewCards: ['ruby'],
-    reward: { kind: 'runeThreshold', meter: 'cardsPlayed', per: 6, rubyAll: true },
+    reward: { kind: 'runeThreshold', meter: 'cardsPlayed', per: 5, rubyAll: true },
     sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
@@ -849,7 +808,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_living_geode',
     tribes: ['kobold'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Living Geode',
-    cost: 4,
+    cost: 1, // balance 9/23 (was 4)
     text: 'Get a **Geode Guardian**. **Gemheart Golems** summoned by your **Geode Guardians** have **Ward**.',
     previewCards: ['k_geode', 'gemheart-shard'],
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['k_geode'] }, { kind: 'combatFlag', flag: 'runeLivingGeode' }] },
@@ -859,14 +818,14 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_open_enrollment',
     name: 'Rune of Open Enrollment',
-    cost: 5,
+    cost: 3, // balance 9/23 (was 5)
     text: 'After you **Refresh**, the Shop offers an additional minion of your **most common type**.',
     reward: { kind: 'runeOpenEnrollment' },
   },
   {
     id: 'rune_strange_caravan',
     name: 'Rune of the Strange Caravan',
-    cost: 3,
+    cost: 2, // balance 9/23 (was 3)
     text: '**Start of Turn:** get a random minion from a type you **do not control**.',
     reward: { kind: 'runeStrangeCaravan' },
   },
@@ -881,14 +840,14 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_restocking',
     name: 'Rune of Restocking',
-    cost: 3,
+    cost: 2, // balance 9/23 (was 3)
     text: 'The first minion you **buy** each turn refills its Shop slot with a minion of the same **Tier** that costs **2 Gold**.',
     reward: { kind: 'runeRestocking' },
   },
   {
     id: 'rune_trade_in',
     name: 'Rune of Trade-In',
-    cost: 2,
+    cost: 1, // balance 9/23 (was 2)
     text: 'After you **sell** your first minion each turn, your next minion of that **type** costs **1 less**.',
     reward: { kind: 'runeTradeIn' },
   },
@@ -909,7 +868,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_collector',
     name: 'Rune of the Collector',
-    cost: 4,
+    cost: 5, // balance 9/23 (was 4)
     text: 'After you buy cards from **3 different types** in a turn, **Discover** a minion from one of those types. Once per turn.',
     reward: { kind: 'runeCollector' },
   },
@@ -935,7 +894,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_refraction',
     name: 'Rune of Refraction',
-    cost: 4,
+    cost: 3, // balance 9/23 (was 4)
     text: 'Get a **Reflector**.',
     previewCards: ['n2_reflector'],
     reward: { kind: 'grant', cards: ['n2_reflector'] },
@@ -1057,7 +1016,7 @@ export const RUNES: RuneDef[] = [
     // rather than adding a second one.
     id: 'rune_ornate_clock',
     name: 'Rune of the Ornate Clock',
-    cost: 2,
+    cost: 1, // balance 9/23 (was 2)
     text: 'Gain **2 Gold**. Visit the **Epic Runeforge** next turn instead of turn 9.',
     reward: { kind: 'scheduleRuneforge', forge: 'epic', gold: 2 },
   },
@@ -1078,8 +1037,10 @@ export const RUNES: RuneDef[] = [
     id: 'rune_bubble_crown',
     name: 'Rune of the Bubble Crown',
     cost: 1,
-    text: 'When you cast **12 spells**, your **spells gain +6/+6**. (Once)',
-    reward: { kind: 'runeThreshold', meter: 'spellCast', per: 12, once: true, buff: { target: 'spells', attack: 6, health: 6 } },
+    // Balance 9/23: 9 spells (was 12), and the meter is `anySpell` — EVERY spell cast counts (Shop spells, Gifts,
+    // Rubies), not only Shop spells (owner 2026-09-23: "not shop spells, so rubies etc count").
+    text: 'When you cast **9 spells**, your **spells gain +6/+6**. (Once)',
+    reward: { kind: 'runeThreshold', meter: 'anySpell', per: 9, once: true, buff: { target: 'spells', attack: 6, health: 6 } },
   },
   {
     // Its own per-turn latch rather than Warm Embers' — so the two stack, and so the charge readout can say
@@ -1119,7 +1080,7 @@ export const RUNES: RuneDef[] = [
     // named body, so nothing in the existing payout palette could hand it over.
     id: 'rune_deep_feast',
     name: 'Rune of the Deep Feast',
-    cost: 5,
+    cost: 4, // balance 9/23 (was 5)
     text: 'Every **25 Gold** spent, get a **Deepwater Chef**.',
     previewCards: ['n2_deepchef'], // the reward is a threshold, not a grant - the hover needs telling
     reward: { kind: 'runeThreshold', meter: 'gold', per: 25, grantCards: ['n2_deepchef'] },
@@ -1155,7 +1116,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_night_market',
     tribes: ['demon'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Night Market',
-    cost: 5,
+    cost: 4, // balance 9/23 (was 5)
     text: 'Get a **Night Market Horror**.',
     reward: { kind: 'grant', cards: ['dm_nightmarket'] },
   },
@@ -1201,8 +1162,8 @@ export const RUNES: RuneDef[] = [
     tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
     name: 'Rune of the Returning Pack',
     cost: 4,
-    text: 'After you summon **6 Beasts** in combat, get a random **Beast**.',
-    reward: { kind: 'combatFlag', flag: 'runeReturningPack', amount: 6 },
+    text: 'After you summon **5 Beasts** in combat, get a random **Beast**.', // balance 9/23 (was 6)
+    reward: { kind: 'combatFlag', flag: 'runeReturningPack', amount: 5 },
   },
   {
     // The other combat meter, paying the OTHER carry-back: `ctx.grantFreeRolls` -> `playerFreeRolls`, the same
@@ -1216,7 +1177,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_seasoned_ledger',
     name: 'Rune of the Seasoned Ledger',
-    cost: 5,
+    cost: 4, // balance 9/23 (was 5)
     text: 'Whenever you play a minion, give it **+1/+1**. Improves by **+1/+1** after every **5** minions played.',
     reward: { kind: 'runeSeasonedLedger', attack: 1, health: 1, per: 5 },
   },
@@ -1224,8 +1185,8 @@ export const RUNES: RuneDef[] = [
     id: 'rune_echoed_arrival',
     name: 'Rune of Echoed Arrival',
     cost: 4,
-    text: 'Every **5th** **Echo** minion you play triggers its Echo.',
-    reward: { kind: 'runeEchoedArrival', per: 5 },
+    text: 'Every **4th** **Echo** minion you play triggers its Echo.', // balance 9/23 (was 5th)
+    reward: { kind: 'runeEchoedArrival', per: 4 },
   },
   {
     id: 'rune_rare_goods',
@@ -1272,8 +1233,8 @@ export const RUNES: RuneDef[] = [
     tribes: ['dwarf'], // TRIBE GATE (2026-09-10): the text names dwarfs on the board
     name: 'Rune of Heavy Payroll',
     cost: 4,
-    text: 'Whenever you get a **Dwarf**, give your **left-most minion +12/+12**.',
-    reward: { kind: 'runeHeavyPayroll', attack: 12, health: 12 },
+    text: 'Whenever you get a **Dwarf**, give your **left-most minion +8/+8**.', // balance 9/23 (was +12/+12)
+    reward: { kind: 'runeHeavyPayroll', attack: 8, health: 8 },
     sets: ['set2', 'set3'], // Dwarves // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
@@ -1283,8 +1244,8 @@ export const RUNES: RuneDef[] = [
     tribes: ['dwarf'], // TRIBE GATE (2026-09-10): the text names dwarfs on the board
     name: 'Rune of Compounding Wages',
     cost: 4,
-    text: 'Every **10 Gold** spent, give your **Dwarves +1/+1** and improve this by **+1/+1**.',
-    reward: { kind: 'runeThreshold', meter: 'gold', per: 10, buff: { target: 'tribe', tribe: 'dwarf', attack: 1, health: 1, step: { attack: 1, health: 1 } } },
+    text: 'Every **10 Gold** spent, give your **Dwarves +2/+2** and improve this by **+2/+2**.', // balance 9/23 (was +1/+1 / +1/+1)
+    reward: { kind: 'runeThreshold', meter: 'gold', per: 10, buff: { target: 'tribe', tribe: 'dwarf', attack: 2, health: 2, step: { attack: 2, health: 2 } } },
     sets: ['set2', 'set3'], // Dwarves // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
@@ -1614,7 +1575,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_appraisal',
     name: 'Rune of Appraisal',
-    cost: 3,
+    cost: 2, // balance 9/23 (was 3)
     epic: true,
     text: '**Avenge (3):** improve your Shop spells by **+1/+1**.',
     reward: { kind: 'combatFlag', flag: 'runeAppraisal' },
@@ -1725,7 +1686,7 @@ export const EPIC_RUNES: RuneDef[] = [
     id: 'rune_first_claws',
     tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
     name: 'Rune of First Claws',
-    cost: 7,
+    cost: 5, // balance 9/23 (was 7)
     epic: true,
     text: '**Start of Combat:** your left-most and right-most **Beasts** attack immediately.',
     reward: { kind: 'combatFlag', flag: 'runeFirstClaws' },
@@ -1828,7 +1789,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_recurrence',
     name: 'Rune of Recurrence',
-    cost: 4,
+    cost: 2, // balance 9/23 (was 4)
     epic: true,
     text: '**End of Turn:** cast the **first Shop spell** you cast this turn again, **twice**.',
     reward: { kind: 'recurringEndOfTurn', effect: 'recastFirstSpell' },
@@ -1891,15 +1852,6 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'runeLiquidation' },
   },
   {
-    // Owner add 2026-08-02: an extra attack every round, paid for by board ORDER — the two ends of your line.
-    id: 'rune_warpath',
-    name: 'Rune of the Warpath',
-    cost: 5,
-    epic: true,
-    text: 'After your **left-most** minion attacks, your **right-most** minion attacks.',
-    reward: { kind: 'combatFlag', flag: 'runeWarpath' },
-  },
-  {
     // Owner add 2026-08-02: the Gold sink for a Ruby board — 10 Gold spent showers the whole line.
     id: 'rune_gemspam',
     tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
@@ -1916,20 +1868,10 @@ export const EPIC_RUNES: RuneDef[] = [
     // copies a friendly minion EXACTLY: stats, buffs, keywords, gilding, per-instance improvements.
     id: 'rune_copycat',
     name: 'Rune of Copycat',
-    cost: 5,
+    cost: 4, // balance 9/23 (was 5)
     epic: true,
     text: 'Get a **Copycat**.',
     reward: { kind: 'grant', cards: ['copycat'] },
-  },
-  {
-    // Owner add 2026-08-02: the set-1 Taurus (T6, Engraves its neighbors), rune-granted — same named-minion
-    // shape as Rune of Yazzus. Grants from CARD_INDEX, so it works regardless of the run's pinned set.
-    id: 'rune_taurus',
-    name: 'Rune of Taurus',
-    cost: 3,
-    epic: true,
-    text: 'Get a **Taurus**.',
-    reward: { kind: 'grant', cards: ['taurus'] },
   },
   {
     id: 'rune_yazzus',
@@ -1944,7 +1886,7 @@ export const EPIC_RUNES: RuneDef[] = [
     id: 'rune_lazarus',
     tribes: ['undead'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Lazarus',
-    cost: 5,
+    cost: 3, // balance 9/23 (was 5)
     epic: true,
     text: 'Get a **Lazarus**.',
     reward: { kind: 'grant', cards: ['lazarus'] },
@@ -1991,7 +1933,7 @@ export const EPIC_RUNES: RuneDef[] = [
     id: 'rune_brisbane',
     tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Mykel',
-    cost: 4,
+    cost: 2, // balance 9/23 (was 4)
     epic: true,
     text: 'Get a **High King Mykel**.',
     reward: { kind: 'grant', cards: ['dw_brisbane'] },
@@ -2025,7 +1967,7 @@ export const EPIC_RUNES: RuneDef[] = [
     id: 'rune_motherlode',
     tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of the Motherlode',
-    cost: 5,
+    cost: 4, // balance 9/23 (was 5)
     epic: true,
     text: 'Whenever you get a **Ruby**, play a copy on **2 random friendly minions**.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
@@ -2035,7 +1977,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_adventuring',
     name: 'Rune of Adventuring',
-    cost: 6,
+    cost: 5, // balance 9/23 (was 6)
     epic: true,
     text: 'Your **Rally** effects trigger **twice**.',
     reward: { kind: 'rallyRepeat', scope: 'always' },
@@ -2078,15 +2020,6 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'When your **last minion dies**, summon **7 Imps** with **Ward**.',
     previewCards: ['impscrap'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeFinality', amount: 7 },
-  },
-  {
-    id: 'rune_open_market',
-    name: 'Rune of the Open Market',
-    cost: 2,
-    epic: true,
-    text: 'The first time you **Consume a Shop minion** each turn, give your **Shop +3/+3** permanently.',
-    reward: { kind: 'runeOpenMarket', attack: 3, health: 3 },
-    sets: ['set2', 'set3'], // Shop-minion Consume is a set-2 Demon mechanic // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // The meter excludes Ales — the payout IS an Ale, so counting them would let the rune feed itself.
@@ -2134,8 +2067,8 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Shared Table',
     cost: 3,
     epic: true,
-    text: 'Your **Dwarven Ale** casts each give **one friendly minion of each type +2/+2**.',
-    reward: { kind: 'runeSharedTable', attack: 2, health: 2 },
+    text: 'Your **Dwarven Ale** casts each give **one friendly minion of each type +5/+5**.', // balance 9/23 (was +2/+2)
+    reward: { kind: 'runeSharedTable', attack: 5, health: 5 },
     sets: ['set2', 'set3'], // Ales // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
@@ -2248,7 +2181,7 @@ export const EPIC_RUNES: RuneDef[] = [
     id: 'rune_spellstone',
     tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of the Spellstone',
-    cost: 3,
+    cost: 1, // balance 9/23 (was 3)
     epic: true,
     // Owner ask 2026-08-14: "counts as a Shop spell" now means it too — a Ruby picks up your Shop-spell buffs
     // on top of your Ruby buffs, and everything downstream of a Ruby's stats inherits that (combat-played
@@ -2262,7 +2195,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_counterpoint',
     name: 'Rune of Counterpoint',
-    cost: 7,
+    cost: 5, // balance 9/23 (was 7)
     epic: true,
     text: 'When a friendly minion **dies**, your **left-most** minion **attacks immediately**.',
     reward: { kind: 'combatFlag', flag: 'runeCounterpoint' },
@@ -2281,7 +2214,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_enchantment',
     name: 'Rune of Enchantment',
-    cost: 5,
+    cost: 2, // balance 9/23 (was 5)
     epic: true,
     text: 'Whenever you cast a **Shop spell**, give your minions **+2/+3** permanently (**+4/+6** during combat).', // owner 2026-08-11
     reward: { kind: 'runeEnchantment' },
@@ -2298,7 +2231,7 @@ export const EPIC_RUNES: RuneDef[] = [
     id: 'rune_lapidary',
     tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of the Lapidary',
-    cost: 5,
+    cost: 3, // balance 9/23 (was 5)
     epic: true,
     text: '**End of Turn:** cast a **Ruby** on a random minion for every card you played this turn.', // owner 2026-08-11
     previewCards: ['ruby'],
@@ -2354,7 +2287,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // more the later the board is built, and rewards holding a wide board rather than a single-tribe stack.
     id: 'rune_stoked_menagerie',
     name: 'Rune of the Stoked Menagerie',
-    cost: 5,
+    cost: 4, // balance 9/23 (was 5)
     epic: true,
     text: '**Start of Combat:** if you control all **5 minion types**, **double** the stats of **3 random minions**.',
     reward: { kind: 'combatFlag', flag: 'runeStokedMenagerie' },
@@ -2437,7 +2370,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_corrupted_tome',
     name: 'Rune of the Corrupted Tome',
-    cost: 4,
+    cost: 1, // balance 9/23 (was 4)
     epic: true,
     text: 'Whenever you get a **Triple Reward**, get **two** Triple Rewards instead.',
     previewCards: ['discoverspell'], // text names it — the forge hover shows the card
@@ -2447,7 +2380,7 @@ export const EPIC_RUNES: RuneDef[] = [
     id: 'rune_conduit',
     tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of the Conduit',
-    cost: 5,
+    cost: 4, // balance 9/23 (was 5)
     epic: true,
     text: 'Your **Rubies** all bounce an additional time.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
@@ -2460,7 +2393,7 @@ export const EPIC_RUNES: RuneDef[] = [
     id: 'rune_chef',
     tribes: ['dwarf'], // TRIBE GATE (2026-09-10): the text names dwarfs on the board
     name: 'Rune of the Chef',
-    cost: 6,
+    cost: 5, // balance 9/23 (was 6)
     epic: true,
     text: 'Your **Chef Gary Toasts** gain **Rally:** buff **another** random Dwarf for the combined stats this granted last turn.',
     previewCards: ['dw_chef'], // text names it — the forge hover shows the card
@@ -2471,7 +2404,7 @@ export const EPIC_RUNES: RuneDef[] = [
     id: 'rune_bucky',
     tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Bucky',
-    cost: 7,
+    cost: 4, // balance 9/23 (was 7)
     epic: true,
     text: 'Get a **Bucky**.',
     previewCards: ['dw_bucky'], // text names it — the forge hover shows the card
@@ -2480,20 +2413,10 @@ export const EPIC_RUNES: RuneDef[] = [
   },
   // ── batch 4, tranche 2 (2026-08-07): the three grant runes for the new T6 bodies ──
   {
-    id: 'rune_ashen_heir',
-    tribes: ['demon'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
-    name: 'Rune of the Ashen Heir',
-    cost: 5,
-    text: 'Get an **Ashen Heir**.',
-    previewCards: ['ashen_heir'],
-    epic: true,
-    reward: { kind: 'grant', cards: ['ashen_heir'] },
-  },
-  {
     id: 'rune_ancient_den',
     tribes: ['beast'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Ancient Den',
-    cost: 6,
+    cost: 4, // balance 9/23 (was 6)
     text: 'Get a **Mossmemory Colossus**.',
     previewCards: ['mossmemory_colossus'],
     epic: true,
@@ -2540,27 +2463,17 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_crucible_choir',
     name: 'Rune of the Crucible Choir',
-    cost: 6,
+    cost: 5, // balance 9/23 (was 6)
     text: '**End of Turn:** trigger your left-most **Shout**, then your left-most **Echo**.',
     epic: true,
     reward: { kind: 'runeCrucibleChoir' },
   },
 
   {
-    id: 'rune_moonhowl',
-    name: 'Rune of Moonhowl',
-    cost: 5,
-    text: 'Your **Mage-Pups** gain "**Echo:** cast the Shop spell this learned."',
-    previewCards: ['b2_magepup'],
-    epic: true,
-    reward: { kind: 'combatFlag', flag: 'runeMoonhowl' },
-    sets: ['set2'],
-  },
-  {
     id: 'rune_shared_reflection',
     tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of Shared Reflection',
-    cost: 5,
+    cost: 3, // balance 9/23 (was 5)
     // Owner 2026-08-11: now also HANDS OVER a Mirrorwing, on top of the cast-on-adjacent-Dragons effect.
     text: 'Get a **Mirrorwing**. The first **Shop spell** cast on each **Mirrorwing** every turn also casts on adjacent **Dragons**.',
     previewCards: ['d2_mirrorwing'],
@@ -2571,7 +2484,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_living_growth',
     name: 'Rune of Living Growth',
-    cost: 5,
+    cost: 3, // balance 9/23 (was 5)
     text: 'Whenever **Mushy** creates a **Growth**, improve future Growths by **+1/+1**.',
     previewCards: ['d2_scalefeather', 'growth'],
     epic: true,
@@ -2603,7 +2516,7 @@ export const EPIC_RUNES: RuneDef[] = [
     id: 'rune_kobold_bebes',
     tribes: ['kobold'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Kobold Bebes',
-    cost: 6,
+    cost: 4, // balance 9/23 (was 6)
     epic: true,
     text: 'Get a **Kobebes** with **Taunt** and **Rise**.',
     previewCards: ['k_kobabyboldies'],
@@ -2625,7 +2538,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_bargain_bin',
     name: 'Rune of the Bargain Bin',
-    cost: 7,
+    cost: 6, // balance 9/23 (was 7)
     epic: true,
     text: 'Your first **Refresh** each turn fills the Shop with minions that cost **1 Gold**. They sell for **0 Gold**.',
     reward: { kind: 'runeBargainBin' },
@@ -2635,17 +2548,8 @@ export const EPIC_RUNES: RuneDef[] = [
     name: "Rune of the Seller's Market",
     cost: 3,
     epic: true,
-    text: 'Whenever you **sell** a minion, give your minions **+4/+3**.',
+    text: 'Whenever you **sell** a minion, give your minions **+6/+8**.', // balance 9/23 (was +4/+3)
     reward: { kind: 'runeSellersMarket' },
-  },
-  {
-    id: 'rune_old_pack',
-    tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
-    name: 'Rune of the Old Pack',
-    cost: 6,
-    epic: true,
-    text: 'The first **Beast** you **Resummon** each combat returns with its **full stats**.',
-    reward: { kind: 'combatFlag', flag: 'oldPack' },
   },
   {
     // Owner add 2026-08-12. Grants the rune-only Voidmother (T6 Beast 6/1, Echo: summon a Void Panther).
@@ -2665,7 +2569,7 @@ export const EPIC_RUNES: RuneDef[] = [
     id: 'rune_jungle',
     tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
     name: 'Rune of the Jungle',
-    cost: 6,
+    cost: 2, // balance 9/23 (was 6)
     epic: true,
     text: 'Your **Beasts** gain **double their Health** when summoned in combat.',
     reward: { kind: 'combatFlag', flag: 'runeJungle' },
@@ -2778,7 +2682,7 @@ export const EPIC_RUNES: RuneDef[] = [
     id: 'rune_engraving_gems',
     tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Engraving Gems',
-    cost: 4,
+    cost: 2, // balance 9/23 (was 4)
     epic: true,
     text: 'Your **Rubies** applied in combat are **permanent**.',
     previewCards: ['ruby'],
@@ -2814,6 +2718,10 @@ export const EPIC_RUNES: RuneDef[] = [
     // Budgeted at 2 per combat in the sim — re-granting Rise on a Rise is otherwise unbounded, since each
     // return would arm the next forever.
     id: 'rune_deathtouched_apple',
+    // TRIBE GATE (owner 2026-09-23, Balance 9/23: "make deathtouched apple an undead rune, so it is not in set 2"): Rise is
+    // the Undead keyword, so the rune is Undead-related — offered only in a run that rolled Undead. Set 2 fields no
+    // Undead (`SETS.set2.tribes`), so it can never appear there; set 1 and set 3 runs with Undead still see it.
+    tribes: ['undead'],
     name: 'Rune of the Deathtouched Apple',
     cost: 4,
     epic: true,
@@ -2871,7 +2779,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // Living Magic's budget at 2 uses - the same reward kind, one number apart.
     id: 'rune_perfect_recall',
     name: 'Rune of Perfect Recall',
-    cost: 6,
+    cost: 3, // balance 9/23 (was 6)
     epic: true,
     text: '**Twice per turn**, after you cast a spell, get a **copy** of it.',
     reward: { kind: 'runeSpellEcho', uses: 2 },
@@ -2879,7 +2787,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_ninefold_commerce',
     name: 'Rune of Ninefold Commerce',
-    cost: 6,
+    cost: 4, // balance 9/23 (was 6)
     epic: true,
     text: 'Get a **Ninefold Broker**.',
     reward: { kind: 'grant', cards: ['n2_ninefold'] },
@@ -2887,7 +2795,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_borrowed_echoes',
     name: 'Rune of Borrowed Echoes',
-    cost: 5,
+    cost: 2, // balance 9/23 (was 5)
     epic: true,
     text: 'Get an **Echo Mimic**.',
     reward: { kind: 'grant', cards: ['n2_echomimic'] },
@@ -2898,7 +2806,7 @@ export const EPIC_RUNES: RuneDef[] = [
     id: 'rune_muster_general',
     tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of the Muster General',
-    cost: 5,
+    cost: 4, // balance 9/23 (was 5)
     epic: true,
     text: 'Get a **Muster General**.',
     reward: { kind: 'grant', cards: ['n2_muster'] },
@@ -2907,7 +2815,7 @@ export const EPIC_RUNES: RuneDef[] = [
     id: 'rune_delayed_duplication',
     tribes: ['beast'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Delayed Duplication',
-    cost: 5,
+    cost: 4, // balance 9/23 (was 5)
     epic: true,
     text: 'Get a **Stonehorn Archivist**.',
     reward: { kind: 'grant', cards: ['b2_stonehorn'] },
@@ -2916,7 +2824,7 @@ export const EPIC_RUNES: RuneDef[] = [
     id: 'rune_ascension',
     tribes: ['dragon'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Ascension',
-    cost: 5,
+    cost: 2, // balance 9/23 (was 5)
     epic: true,
     text: 'Get a **Skybound Ascendant**.',
     reward: { kind: 'grant', cards: ['d2_ascendant'] },
@@ -3368,6 +3276,119 @@ export const EPIC_RUNES: RuneDef[] = [
  * Brokerage went in alongside its subject: Ruby Broker was archived the same day.
  */
 export const ARCHIVED_RUNES: RuneDef[] = [
+  // ── 2026-09-23 owner archive batch ("Balance 9/23: archives and Picnic") — eleven runes retired from EVERY
+  //    set's forge stock in one pass (owner: "archive rune of emberline from all sets", "archive centerline", …).
+  //    Each def is verbatim, so a saved run or replay that holds one keeps its badge, text and reward machinery
+  //    through `RUNE_INDEX`; `sets` / `tribes` tags are kept as history (an archived rune is in no forge anyway).
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of Emberline.
+    id: 'rune_emberline',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): Imps are Demons (owner 2026-09-10)
+    name: 'Rune of Emberline',
+    cost: 3,
+    text: 'The first **Imp** that dies each combat gives its stats to the next Imp you summon.',
+    previewCards: ['impscrap'],
+    reward: { kind: 'combatFlag', flag: 'runeEmberline' },
+  },
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of the Centerline.
+    id: 'rune_centerline',
+    name: 'Rune of the Centerline',
+    cost: 3,
+    text: '**Start of Combat:** if your **end minions** have different types, give your **middle** minion **Ward** and **Critical Strike**.',
+    reward: { kind: 'combatFlag', flag: 'runeCenterline' },
+  },
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of the Cindergem.
+    id: 'rune_cindergem',
+    tribes: ['demon'], // TRIBE GATE (2026-09-10): Imps are Demons (owner 2026-09-10)
+    name: 'Rune of the Cindergem',
+    cost: 4,
+    text: 'Every **3 Rubies** you cast, improve your **Imps by +4/+4**.',
+    previewCards: ['impscrap'], // text names it — the forge hover shows the card
+    reward: { kind: 'runeThreshold', meter: 'castRuby', per: 3, buff: { target: 'imps', attack: 4, health: 4 } },
+    sets: ['set2'], // Rubies
+  },
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of the Second Litter.
+    id: 'rune_second_litter',
+    tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
+    name: 'Rune of the Second Litter',
+    cost: 2, // owner balance 2026-08-11
+    text: 'The first **Beast** summoned each combat summons **another copy**.',
+    reward: { kind: 'combatFlag', flag: 'runeSecondLitter' },
+  },
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of the Spare Chair.
+    id: 'rune_spare_chair',
+    name: 'Rune of the Spare Chair',
+    cost: 4,
+    text: 'If you begin combat with exactly **6 minions**, the first minion you summon gains **Ward** and attacks immediately.',
+    reward: { kind: 'combatFlag', flag: 'runeSpareChair' },
+  },
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of Moonhowl.
+    id: 'rune_moonhowl',
+    name: 'Rune of Moonhowl',
+    cost: 5,
+    text: 'Your **Mage-Pups** gain "**Echo:** cast the Shop spell this learned."',
+    previewCards: ['b2_magepup'],
+    epic: true,
+    reward: { kind: 'combatFlag', flag: 'runeMoonhowl' },
+    sets: ['set2'],
+  },
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of Taurus.
+    // Owner add 2026-08-02: the set-1 Taurus (T6, Engraves its neighbors), rune-granted — same named-minion
+    // shape as Rune of Yazzus. Grants from CARD_INDEX, so it works regardless of the run's pinned set.
+    id: 'rune_taurus',
+    name: 'Rune of Taurus',
+    cost: 3,
+    epic: true,
+    text: 'Get a **Taurus**.',
+    reward: { kind: 'grant', cards: ['taurus'] },
+  },
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of the Ashen Heir.
+    id: 'rune_ashen_heir',
+    tribes: ['demon'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
+    name: 'Rune of the Ashen Heir',
+    cost: 5,
+    text: 'Get an **Ashen Heir**.',
+    previewCards: ['ashen_heir'],
+    epic: true,
+    reward: { kind: 'grant', cards: ['ashen_heir'] },
+  },
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of the Old Pack.
+    id: 'rune_old_pack',
+    tribes: ['beast'], // TRIBE GATE (2026-09-10): the text names beasts on the board
+    name: 'Rune of the Old Pack',
+    cost: 6,
+    epic: true,
+    text: 'The first **Beast** you **Resummon** each combat returns with its **full stats**.',
+    reward: { kind: 'combatFlag', flag: 'oldPack' },
+  },
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of the Open Market.
+    id: 'rune_open_market',
+    name: 'Rune of the Open Market',
+    cost: 2,
+    epic: true,
+    text: 'The first time you **Consume a Shop minion** each turn, give your **Shop +3/+3** permanently.',
+    reward: { kind: 'runeOpenMarket', attack: 3, health: 3 },
+    sets: ['set2', 'set3'], // Shop-minion Consume is a set-2 Demon mechanic // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+  },
+  {
+    // ARCHIVED 2026-09-23 (owner, Balance 9/23). Rune of the Warpath.
+    // Owner add 2026-08-02: an extra attack every round, paid for by board ORDER — the two ends of your line.
+    id: 'rune_warpath',
+    name: 'Rune of the Warpath',
+    cost: 5,
+    epic: true,
+    text: 'After your **left-most** minion attacks, your **right-most** minion attacks.',
+    reward: { kind: 'combatFlag', flag: 'runeWarpath' },
+  },
   // ── 2026-08-18 owner archive batch (each retired alongside its now-archived subject minion) ──────────────
   {
     // ARCHIVED 2026-08-18 (owner). Was an Epic rune. Quil (b2_quil) itself stays in the pool.

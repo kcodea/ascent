@@ -2995,18 +2995,18 @@ describe('run loop (@game/sim)', () => {
     expect(golden.hpGrantBonus).toBe(4);
   });
 
-  it('Staff of Guel permanently buffs every minion bought from the tavern (+3/+3 since 2026-09-14; was +2/+2), not Discovered ones', () => {
+  it('Staff of Guel permanently buffs every minion bought from the tavern (+3/+4 since 2026-09-23; +3/+3 before, +2/+2 before that), not Discovered ones', () => {
     let s: RunState = {
       ...createRun(1), embers: 4, board: [],
       shop: [{ uid: 'x', cardId: 'alley' }],
       hand: [{ uid: 'sp', cardId: 'staffofguel', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'sp' });
-    expect(s.tavernBuyBonus).toEqual({ atk: 3, hp: 3 }); // run-wide buy buff, set on cast
-    expect(spellDisplayText('staffofguel', 1)).toContain('{{+4/+4}}'); // +3/+3 + 1 spell power, live
+    expect(s.tavernBuyBonus).toEqual({ atk: 3, hp: 4 }); // run-wide buy buff, set on cast
+    expect(spellDisplayText('staffofguel', 1)).toContain('{{+4/+5}}'); // +3/+4 + 1 spell power, live
     s = reduce(s, { type: 'buy', uid: 'x' }); // Alleycat 1/1 + the run-wide buy buff
     const bought = s.hand.find((c) => c.cardId === 'alley')!;
-    expect([bought.attack, bought.health]).toEqual([4, 4]); // 1/1 + 3/3
+    expect([bought.attack, bought.health]).toEqual([4, 5]); // 1/1 + 3/4
     // A Discovered minion does NOT get it (tavern purchases only).
     s = reduce({ ...s, discover: ['sandbag'] }, { type: 'discover', index: 0 });
     const disc = s.hand.find((c) => c.cardId === 'sandbag')!;
@@ -3021,15 +3021,15 @@ describe('run loop (@game/sim)', () => {
       hand: [{ uid: 'sp', cardId: 'staffofguel', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'sp' });
-    // The Fodder type is enchanted run-wide (+3/+3), like Ritualist's End-of-Turn buff…
-    expect(s.cardBuffs?.fred).toEqual({ attack: 3, health: 3 });
+    // The Fodder type is enchanted run-wide (+3/+4), like Ritualist's End-of-Turn buff…
+    expect(s.cardBuffs?.fred).toEqual({ attack: 3, health: 4 });
     // …and Fodder already on the board gets it immediately.
     const onBoard = s.board.find((c) => c.cardId === 'fred')!;
-    expect([onBoard.attack, onBoard.health]).toEqual([4, 4]);
+    expect([onBoard.attack, onBoard.health]).toEqual([4, 5]);
     // Buying a Fodder applies the Staff buff ONCE (via the enchant), not twice.
     s = reduce(s, { type: 'buy', uid: 'f' });
     const bought = s.hand.find((c) => c.cardId === 'fred')!;
-    expect([bought.attack, bought.health]).toEqual([4, 4]); // 1/1 + 3/3, not +6/+6
+    expect([bought.attack, bought.health]).toEqual([4, 5]); // 1/1 + 3/4, not +6/+8
   });
 
   it('Undead Army completes a triple (its conjured copies are checked, not just minion plays)', () => {

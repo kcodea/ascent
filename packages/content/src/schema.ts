@@ -361,6 +361,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellCastBuffSelf',
   'summonBuffSelfTribe',
   'spellBuffShop',
+  'spellBuffShopRightmost', // Picnic (2026-09-23): the right-most Shop slot, permanently
   'gainMaxMana',
   'grantFreeRolls',
   'spellGainOfTargetTribe',
@@ -862,7 +863,7 @@ z.object({ kind: z.literal('runeTranscription'), count: z.number().int().positiv
 z.object({ kind: z.literal('runeTreasureMap'), turns: z.number().int().positive(), gold: z.number().int().positive() }).strict(),
 z.object({ kind: z.literal('runeGoldenSplinter'), at: z.number().int().positive(), tier: z.number().int().min(1).max(7) }).strict(),
 z.object({ kind: z.literal('endlessVerse'), per: z.number().int().positive() }).strict(),
-z.object({ kind: z.literal('runeThreshold'), meter: z.enum(['gold', 'spellCast', 'spellCastNonAle', 'castRuby', 'cardsBought', 'cardsPlayed', 'playDragon', 'shout', 'consume', 'playSpirit']), per: z.number().int().positive(),
+z.object({ kind: z.literal('runeThreshold'), meter: z.enum(['gold', 'spellCast', 'anySpell', 'spellCastNonAle', 'castRuby', 'cardsBought', 'cardsPlayed', 'playDragon', 'shout', 'consume', 'playSpirit']), per: z.number().int().positive(),
   grantSpell: z.number().int().positive().optional(), grantAle: z.number().int().positive().optional(), grantRuby: z.number().int().positive().optional(),
   grantCards: z.array(z.string().min(1)).min(1).optional(),
   castStatSpell: z.number().int().positive().optional(),

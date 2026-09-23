@@ -4,6 +4,7 @@ import { compileTimeline } from './choreographer/compileTimeline';
 import { normalizePresentationBatch } from './choreographer/adapters/presentationBatchAdapter';
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
 import { presentConsequence, type PresenterContext } from './choreographer/consequencePresenters';
+import { clearCastPreviews, fireCastPreviewAt, type CastPreviewSource } from './castPreview';
 import { shippedBeatConfig } from './choreographer/beatConfig';
 import { draftToEngine } from './beatLab/labSchedule';
 import type { BeatPolicyOverrides, BeatTimingOverrides } from './beatLab/beatTiming';
@@ -541,7 +542,7 @@ export function tokenRefView( // exported for tokenRefView.test.ts (bug 86340900
  * added the creation-time tribe auras — so a Chorus Engine Attachment flew in looking base and then
  * visibly jumped once combat ended (owner report 2026-07-19). Don't recompute these by hand.
  */
-function conjuredView(cardId: string, run: RunState): CardView | null {
+export function conjuredView(cardId: string, run: RunState): CardView | null { // exported for the cast preview layer (same live chain as the combat fly-ins)
   const def = CARD_INDEX[cardId];
   if (!def) return null;
   // FULLY LIVE (owner report 2026-08-06: "combat granted spells do not show current values until after
@@ -5226,6 +5227,26 @@ export function Recruit() {
     // Keyed on the seq ONLY (see the fodder watcher above): the array ref changes every action.
   }, [run.starformFxSeq]);
 
+  // THE CAST PREVIEW (owner ask 2026-09-23): a spell a RUNE or a MINION cast this action floats its own card
+  // preview above the caster for ~2 s (see `castPreview.ts`). Keyed on `run.castFxSeq`, the sim's per-action
+  // channel (`RunState.castFx`, stamped by `castSpell` off the recruit cast-actor stack). SHOP PHASE ONLY: an
+  // End-of-Turn cast commits after the phase flips and rides its beat instead — the `spellResolved` presenter
+  // on the authoritative path, `EotStepFx.casts` on the legacy one (the `lassoFx` split). The caster's element
+  // can lag the commit a frame (summoned-and-cast in one action), so `fireCastPreviewAt` retries briefly.
+  const prevCastFxSeq = useRef(run.castFxSeq ?? 0);
+  useEffect(() => {
+    const seq = run.castFxSeq ?? 0;
+    if (seq === prevCastFxSeq.current) return;
+    prevCastFxSeq.current = seq;
+    if (run.phase !== 'recruit') return;
+    const cancels = (run.castFx ?? []).filter((c) => c.phase === 'recruit').map((c) => fireCastPreviewAt(c.source, c.spellId));
+    return () => { for (const cancel of cancels) cancel(); };
+    // Keyed on the seq ONLY (see the fodder watcher above): the array ref changes every action.
+  }, [run.castFxSeq]);
+  // A phase flip drops whatever preview is still up: a shop cast must not linger over the combat board, nor a
+  // combat cast over the next shop (positions are meaningless across the flip).
+  useEffect(() => { clearCastPreviews(); }, [run.phase]);
+
   // THE BOUNCE (owner-authored `ruby-bounce` + the placeholder `spell-bounce`, 2026-09-15): a spell or Ruby was
   // RE-CAST onto a DIFFERENT body because of where the original cast landed — Star Crash's random friend, Crash
   // Course's two Celestials, Reflector's spread, Rune of Distillation (a Shop offer → your left-most), Rune of
@@ -5702,6 +5723,13 @@ export function Recruit() {
       return el ? restingCenterOf(el) : null;
     };
     const presenterCtx: PresenterContext = {
+      // A spell the beat's RUNE or MINION cast (owner ask 2026-09-23): its card preview above the caster, on the
+      // beat. A hero / quest / spell-sourced beat has no badge or body to hang it on and is skipped.
+      spellCast: (cardId, source) => {
+        const src: CastPreviewSource | null = source.kind === 'minion' && source.uid ? { kind: 'minion', uid: source.uid }
+          : source.kind === 'rune' ? { kind: 'rune', id: source.id } : null;
+        if (src) fireCastPreviewAt(src, cardId);
+      },
       // The generic green burst is retired (`.cardbuff`), so a stat gain with no SOURCE minion plays nothing
       // here (a rune/quest ribbon, an aura wash and a Ruby are their own cues). A buff FROM another minion —
       // Kringle paying the end Dwarves, an Echo buffing its neighbours — draws what the legacy commit-time
@@ -6273,6 +6301,9 @@ export function Recruit() {
             setEotGrants((g) => [...g, ev.offer.cardId]);
           }, contactAt));
         });
+        // Spells this beat's rune / minion cast (Rope Wrangler's Lasso, Rune of Recurrence) — the cast preview
+        // above the caster, on the beat, while the board is still on screen (owner ask 2026-09-23).
+        for (const c of bfx.casts ?? []) fireCastPreviewAt(c.source, c.spellId);
         // Auto-welds on this beat (Combinator / Cling Drones / Money Bots) — ring each host as it fuses.
         fireWeldFxBatch(bfx.welds, 'auto');
         // Shop offers this beat grew (a Moira re-firing Market Tormentor's Shout at End of Turn; Soul Defiler's

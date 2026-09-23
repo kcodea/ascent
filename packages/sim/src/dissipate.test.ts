@@ -66,9 +66,9 @@ describe('Dissipate', () => {
     expect(s.board.map((c) => c.uid)).toEqual(['other']);
     // 4 + 1 (sell value) + 6 (Hoard Whelp's Sell) = 11
     expect(s.embers).toBe(11);
-    // Rune of the Seller's Market pumped the REMAINING board (+4/+3) — a manual-sale rune, fired by the spell too.
+    // Rune of the Seller's Market pumped the REMAINING board (+6/+8, balance 9/23) — a manual-sale rune, fired by the spell too.
     const other = s.board[0]!;
-    expect([other.attack, other.health]).toEqual([5, 4]);
+    expect([other.attack, other.health]).toEqual([7, 9]);
     expect(s.shop[0]!.atk).toBe(3);
     expect(s.shop[0]!.hp).toBe(2);
   });

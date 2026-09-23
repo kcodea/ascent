@@ -16,9 +16,9 @@ describe('Bucky + Rune of Bucky', () => {
     expect(d.keywords).toContain('SC');
   });
 
-  it('the rune is Epic 7, set-2 scoped, and grants him', () => {
+  it('the rune is Epic 4 (balance 9/23, was 7), set-2 scoped, and grants him', () => {
     const r = rune('rune_bucky');
-    expect([r.cost, r.epic, r.sets]).toEqual([7, true, ['set2', 'set3']]); // + set3 2026-09-14 (rune roster carryover)
+    expect([r.cost, r.epic, r.sets]).toEqual([4, true, ['set2', 'set3']]); // 7 → 4 (balance 9/23); + set3 2026-09-14 (rune roster carryover)
     const s: RunState = { ...createRun(3, 'runesmith'), wave: 7, phase: 'recruit', embers: 20, runeforgeOffer: ['rune_bucky'] };
     const next = reduce(s, { type: 'buyRune', index: 0 }) as RunState;
     expect(next.hand.some((c) => c.cardId === 'dw_bucky'), 'no Bucky granted').toBe(true);

@@ -1608,15 +1608,17 @@ function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThreshol
     if (def) grantMinionToHandOrBoard(state, def, false, true);
   }
   // Rune of the Gilded Ledger: CAST a random stat-granting Shop spell — a real cast, so spell power, the cast
-  // counters and every on-cast watcher see it. Untargeted spells only: the meter trips with no player around
-  // to aim, and `castSpell` with no target is exactly what an untargeted cast is.
+  // counters and every on-cast watcher see it. The pool is THE stat-granting category (`isStatGrantingSpell`,
+  // owner ruling 2026-09-23): board-wide buffs, TARGETED stat spells and the stat Ales alike. Nobody is there to
+  // aim when the meter trips, so a targeted pick lands on a seeded-random legal friendly minion
+  // (`castSpellWithoutAim`), and fizzles cleanly when there is none.
   if (t.castStatSpell) {
-    const pool = runSpells(state).filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id) && !c.token && isBoardStatSpell(c) && c.target !== 'friendly' && c.target !== 'any');
+    const pool = runSpells(state).filter((c) => c.tier <= state.tier && isStatGrantingSpell(c));
     for (let i = 0; i < t.castStatSpell && pool.length > 0; i++) {
       const rng = makeRng(state.rngCursor);
       const pick = pool[rng.int(pool.length)]!;
       state.rngCursor = rng.state();
-      castSpell(state, pick, undefined);
+      castSpellWithoutAim(state, pick);
     }
   }
   // Rune of the Gem Dividend: Gold banked into NEXT turn's opening rather than paid now — the sheet's
@@ -1863,14 +1865,6 @@ export function effectFoldsSpellPower(e: EffectDef): boolean {
     && (e.params as { flat?: boolean } | undefined)?.flat !== true;
 }
 
-const STAT_SPELL_EXTRAS: ReadonlySet<string> = new Set([
-  'spellAverageStats', // Equalize: every friendly ends at the average — it changes stats
-  'rubyStatGain',      // Facetwright's Choice: your Rubies gain +1 Attack / +1 Health
-  // Deliberately NOT here, having been checked rather than assumed: `spellAttackFirst` only sets an initiative
-  // flag, `spellBloodlust` marks an out-of-turn attack, and `spellGainSpellPower` raises FUTURE spells' power.
-  // None of the three puts stats on anything, so none is a "spell that gives stats".
-]);
-
 /** "Gives stats" — Rune of Thrift discounts these, and Rune of the Gilded Ledger casts one, so the two can
  *  never disagree about what a stat spell IS.
  *
@@ -1879,7 +1873,10 @@ const STAT_SPELL_EXTRAS: ReadonlySet<string> = new Set([
  *  since — `spellBuffTargetAndNeighbours`, `spellBuffByTier`, `spellBuffPerDragonPlayed`,
  *  `spellBuffTargetPerGold`, `spellBuffRandomPerTribe`, the shop-buff family, and more. The `spellBuff`
  *  PREFIX is the naming convention the whole buff family already follows, so new members are covered the day
- *  they are authored; `STAT_SPELL_EXTRAS` carries the few stat granters that sit outside that convention. */
+ *  they are authored; `isStatSpellFactory` carries the few stat granters that sit outside that convention
+ *  (Equalize, Facetwright's Ruby gain, Great Pot's one-per-type buff). Deliberately NOT stat granters, having
+ *  been checked rather than assumed: `spellAttackFirst` only sets an initiative flag, `spellBloodlust` marks an
+ *  out-of-turn attack, and `spellGainSpellPower` raises FUTURE spells' power. */
 /**
  * EVERY effect a card can fire, INCLUDING its Choose One branches.
  *
@@ -1899,21 +1896,82 @@ export function allEffectsOf(def: CardDef | undefined): EffectDef[] {
 export function isStatSpell(def: CardDef | undefined): boolean {
   // Branch effects included: a Choose One spell that gives stats down one fork is a stat spell (it is exactly
   // as discountable, and Rune of the Gilded Ledger can cast it). Apples was silently neither.
-  return allEffectsOf(def).some((e) => e.on === 'cast' && (e.do.startsWith('spellBuff') || STAT_SPELL_EXTRAS.has(e.do)));
+  return allEffectsOf(def).some((e) => e.on === 'cast' && isStatSpellFactory(e.do));
 }
 
-/** Stat spells that put their stats on YOUR BOARD. The shop-buff family gives stats too — so Rune of Thrift
- *  rightly discounts them — but "CAST a stat spell" (Rune of the Gilded Ledger) means a payout the player can
- *  see on their minions, not a buff to offers they may never buy. Splitting the two predicates is deliberate:
- *  they were one function, and broadening the discount silently changed what the Ledger casts. */
-const SHOP_TARGETED_STAT_SPELLS: ReadonlySet<string> = new Set([
+/** Stat factories whose grant never reaches YOUR BOARD: the shop-buff family (stats on offers you may never
+ *  buy) and Facetwright's Ruby gain (it raises FUTURE Rubies). Rune of Thrift still discounts them (they are
+ *  `isStatSpell`), but they sit OUTSIDE the stat-granting category below: the owner is "iffy on the shop based
+ *  ones" (2026-09-23), so they stay out until he rules them in. */
+const OFF_BOARD_STAT_FACTORIES: ReadonlySet<string> = new Set([
   'spellBuffShop', 'spellBuffShopByRuby', 'spellBuffTavern', 'spellBuffNextShop',
   'spellBuffShopRightmost', // Picnic (2026-09-23): the right-most Shop slot — an offer buff, never a board grant
+  'rubyStatGain', //           Facetwright's Choice: your Rubies (future ones included) gain stats
 ]);
-export function isBoardStatSpell(def: CardDef | undefined): boolean {
-  return isStatSpell(def)
-    && !!def?.effects.some((e) => e.on === 'cast' && !SHOP_TARGETED_STAT_SPELLS.has(e.do)
-      && (e.do.startsWith('spellBuff') || STAT_SPELL_EXTRAS.has(e.do)));
+
+/**
+ * THE STAT-GRANTING SPELL CATEGORY — the ONE predicate every "cast / pick a random stat-granting spell" reads.
+ *
+ * OWNER RULING 2026-09-23: "all targeted spells should be castable and fit this category, just with random
+ * targets chosen. the shop based ones i'm iffy on. but definitely targeted and board wide stat buff spells".
+ *
+ *   IN  — a drawable Shop spell (not a reward token, Gift or Ruby) whose cast effects include a stat factory
+ *         (`isStatSpellFactory`) and none of whose stat effects is off-board: board-wide buffs (Growth, Might of
+ *         Aeon, Great Pot, Waking Rift, Dragonflame), TARGETED stat spells (Bulwark, Lantern Light, Spirit Fire,
+ *         Crest of the Climb, Shatter, Patch Job, Common Ground, Front to Back, Hoardflame, Blessing, Flutter,
+ *         Beefy) and the stat-granting Dwarven Ales (Champion's, Defensive, Bloody). Targeted members are cast
+ *         through `castSpellWithoutAim`.
+ *   OUT — the shop-buff family and Facetwright's Choice (`OFF_BOARD_STAT_FACTORIES`; a spell with ANY off-board
+ *         stat branch is out, which is what keeps Apples out), and every spell that moves or sets stats outside
+ *         the stat family (Turnabout, Perfect Vision) or buffs only NEXT combat (Fleeting Vigor, Solid Ground).
+ *
+ * Replaces `isBoardStatSpell`, which read `def.effects` alone (blind to Choose One branches) and was paired at
+ * its one call site with a `target` filter that shut every targeted spell out.
+ */
+export function isStatGrantingSpell(def: CardDef | undefined): boolean {
+  if (!def?.spell || def.token || def.gift || def.ruby) return false;
+  const stat = allEffectsOf(def).filter((e) => e.on === 'cast' && isStatSpellFactory(e.do));
+  return stat.length > 0 && !stat.some((e) => OFF_BOARD_STAT_FACTORIES.has(e.do));
+}
+
+/**
+ * CAST a spell nobody is aiming (a rune's meter, a minion's trigger): THE shared no-aim cast.
+ *
+ *   · A Choose One resolves ONE seeded-random branch (there is no window to open).
+ *   · An untargeted spell casts as it is.
+ *   · A TARGETED spell lands on a seeded-random LEGAL friendly minion (`pickRandomSpellTarget`: the tribe the
+ *     aim would require, never a golden for a `targetNoGolden` spell). Common Ground needs TWO, so it draws a
+ *     second distinct friendly and averages the pair. A shop offer is never picked: an `any` spell's shop half
+ *     is the one aim the owner is "iffy" on, and a Ledger payout is meant for your board.
+ *   · No legal target: the cast FIZZLES. Nothing resolves, nothing is counted, and it returns false.
+ *
+ * Every branch goes through `castSpell` → `applyCastEffects`, the normal cast choke point, so spell power, the
+ * cast counters, every on-cast watcher and any cast preview see it exactly as a hand cast. Seeded from the run
+ * cursor (spell pick, then branch, then target), so a replay repeats it.
+ */
+export function castSpellWithoutAim(state: RunState, def: CardDef): boolean {
+  let cast = def;
+  if (def.chooseOne?.length) {
+    const rng = makeRng(state.rngCursor);
+    const branch = def.chooseOne[rng.int(def.chooseOne.length)]!;
+    state.rngCursor = rng.state();
+    cast = { ...def, effects: branch.effects ?? [] };
+  }
+  if (!def.target) { castSpell(state, cast); return true; }
+  const target = pickRandomSpellTarget(state, def);
+  if (!target) return false;
+  if (cast.effects.some((e) => e.do === 'spellAverageStats')) {
+    // Common Ground averages a PAIR: the factory reads the first from `pendingTarget.spellFirstUid`, exactly as
+    // the aim picker's second step leaves it. Borrowed for the cast and put back, so no pending aim leaks.
+    const second = pickRandomSpellTarget(state, def, target);
+    if (!second) return false;
+    const held = state.pendingTarget;
+    state.pendingTarget = { uid: '', cardId: def.id, spell: true, spellFirstUid: target.uid };
+    try { castSpell(state, cast, second); } finally { state.pendingTarget = held; }
+    return true;
+  }
+  castSpell(state, cast, target);
+  return true;
 }
 
 /**
@@ -4750,12 +4808,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       } else if (def.chooseOne?.length) {
         // See the note above: cast the first option rather than stranding the play on a modal we can't open.
         const synthetic = { ...def, effects: def.chooseOne[0]!.effects };
-        for (let n = 0; n < casts; n++) castSpell(st, synthetic, pickTaughtTarget(st, def, self));
+        for (let n = 0; n < casts; n++) castSpell(st, synthetic, pickRandomSpellTarget(st, def, self));
       } else {
         for (let n = 0; n < casts; n++) {
           // The PLAYER's pick when the Pup was played through the aim picker; otherwise a seeded-random
           // friendly (the Pup was re-fired by something that can't prompt, e.g. a Shout-repeater).
-          const target = payload.target ?? pickTaughtTarget(st, def, self);
+          const target = payload.target ?? pickRandomSpellTarget(st, def, self);
           if (def.target && !target) break; // aimed with nothing to aim at → fizzle, like the hand path
           castSpell(st, def, target);
         }
@@ -9329,12 +9387,17 @@ export function taughtAimSpell(card: BoardCard): CardDef | undefined {
   return spell.target === 'friendly' || spell.target === 'any' ? spell : undefined;
 }
 
-/** The friendly a TAUGHT aimed spell lands on: a seeded-random board minion (deterministic — it advances the
- *  run's RNG cursor), or `undefined` when the board is empty so the caller can fizzle. Untargeted spells get
- *  `undefined` and cast normally. Same rule as Rune of Recurrence / Runic Archivist. */
-function pickTaughtTarget(state: RunState, def: CardDef, self: { uid: string }): BoardCard | undefined {
+/** The friendly an UNAIMED spell lands on (a TAUGHT spell from Mage-Pup, a rune's `castSpellWithoutAim`): a
+ *  seeded-random board minion (deterministic: it advances the run's RNG cursor) drawn from the targets the
+ *  player's aim would allow (the spell's tribe restriction after runes, never a golden for `targetNoGolden`),
+ *  never `exclude` (the casting body, R-TARGET-03, or Common Ground's first pick). `undefined` when nothing is
+ *  legal, so the caller can fizzle; untargeted spells get `undefined` and cast normally. Same rule as Rune of
+ *  Recurrence / Runic Archivist. */
+function pickRandomSpellTarget(state: RunState, def: CardDef, exclude?: { uid: string }): BoardCard | undefined {
   if (!def.target) return undefined;
-  const pool = othersOnBoard(state, self); // never the Pup itself (R-TARGET-03)
+  const tribe = effectiveTargetTribe(state, def);
+  const pool = state.board.filter((c) => c.uid !== exclude?.uid
+    && (!tribe || isTribe(c, tribe)) && !(def.targetNoGolden && c.golden));
   if (pool.length === 0) return undefined;
   const rng = makeRng(state.rngCursor);
   const pick = pool[rng.int(pool.length)]!;

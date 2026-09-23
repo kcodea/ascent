@@ -243,7 +243,7 @@ export const RUNES_RULES: GameRule[] = [
     },
   },
   {
-    id: 'R-RUNE-04',
+    id: 'R-RUNE-05',
     title: 'Rune of the Bubble Crown counts EVERY spell cast (Rubies, Gifts, Shop spells), not only Shop spells',
     statement:
       'Rune of the Bubble Crown ("When you cast N spells, your spells gain +6/+6. (Once)") advances on EVERY spell '

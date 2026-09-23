@@ -120,7 +120,7 @@ per resolved cast). Bubble Crown now rides `anySpell` at 9. Spellstone does not 
 `spellCast`, and `anySpell` is advanced exactly once per cast regardless. `questText.ts` prints the meter as
 "spells you cast"; `runeTally.ts` gives it an empty unit suffix like the other cast meters.
 
-Oracle: **R-RUNE-04** in `packages/rules/src/registry/approved/runes.ts`, enforced by the new scenario in
+Oracle: **R-RUNE-05** in `packages/rules/src/registry/approved/runes.ts`, enforced by the new scenario in
 `runeBatchAug19.test.ts` (a Ruby played with no Spellstone advances the Crown by one; a Shop spell by one more).
 
 ## Tests moved (number pins only)

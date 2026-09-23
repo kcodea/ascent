@@ -52,6 +52,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-23',
+    label: 'Milestone glow fix',
+    changes: [
+      { category: 'Systems', text: 'Fixed the blue top-tier milestone glow lingering on units that had not reached the top stat tier, including opponent minions carrying it over between fights.' },
+    ],
+  },
+  {
+    date: '2026-09-23',
     label: 'Announcer timing',
     changes: [
       {

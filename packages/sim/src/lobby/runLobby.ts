@@ -570,67 +570,6 @@ export function playerLossDamage(lobby: Pick<RunLobby, 'rules' | 'round'>, resul
   return Math.min(lossDamageCap(lobby.round), result.playerDamage);
 }
 
-/** One seat-ledger row: a recorded run's OUTCOME against the reporting player. See `seatOutcomesOf`. */
-export interface SeatResultRow {
-  /** The lobby's seed — with `runKey`, the row's identity. */
-  lobbySeed: number;
-  /** `author|heroId|seed` — the recorded run's key, exactly as `playerRunsFrom` builds it. */
-  runKey: string;
-  /** 'win' = this run knocked the player out; 'loss' = it was knocked out while the player still stood. */
-  outcome: 'win' | 'loss';
-  /** The round it happened: the player's knockout round for a win, the run's own knockout round for a loss. */
-  round: number;
-  /** Where the reporting player finished (1-8), for context. */
-  playerPlacement: number;
-  /** Seats at the table (8). */
-  seats: number;
-  mode: string;
-  patch: string;
-}
-
-/**
- * The seat-ledger rows a run produces when it ENDS (owner 2026-09-22, the Hall of Champions record): one per
- * recorded seat that has an outcome against the player.
- *
- * The owner's rule, verbatim: "track the run that beat the player when they were knocked out … if i play a
- * board that wins on turn 14 and it knocks a player out on turn 9, that board should probably get a win.
- * subsequently, if that same board is served to a player and it comes in 3rd against the player on turn 13, my
- * board should get a loss recorded." So:
- *   • the seat the player LOST THEIR LAST FIGHT to — the fight in the round the player was knocked out — is a
- *     WIN for the run that drove it (a ghost counts: it was still that run's board that finished the player);
- *   • every recorded seat knocked out while the player still stood — strictly before the player's own knockout
- *     round, or at any round when the player won the table — is a LOSS for its run;
- *   • a seat still standing when the player fell (other than the one that felled them) has no result: nothing
- *     was decided between them. A seat that fell in the SAME round as the player, without felling them, has no
- *     result either — neither outlasted the other.
- * Everything here was witnessed by the reporting player; nothing is simulated after their run ends, so the
- * balance instrument's own table play-out is untouched. The player's seat is never a row (its own victory is
- * the Hall row itself), and bot / hybrid / authored seats are nobody's run. Pure.
- */
-export function seatOutcomesOf(lobby: RunLobby, patch: string): SeatResultRow[] {
-  const me = lobby.seats.find((s) => s.id === 's0');
-  if (!me) return [];
-  const playerPlacement = me.placement ?? (lobby.seats.filter((s) => s.alive).length + 1);
-  const myKnockout = me.alive ? null : (me.eliminatedRound ?? null);
-  // The seat the player lost their last fight to: the other side of s0's encounter in the knockout round. In a
-  // ghost fight the ghost is `b` (a dead seat's board raised for the odd seat), and it still finished the player.
-  let killer: string | null = null;
-  if (myKnockout !== null) {
-    const last = lobby.encounters.find((e) => e.round === myKnockout && (e.a === 's0' || e.b === 's0'));
-    if (last) killer = last.a === 's0' ? last.b : last.a;
-  }
-  const rows: SeatResultRow[] = [];
-  for (const seat of lobby.seats) {
-    if (seat.id === 's0' || seat.kind !== 'snapshot' || !seat.runKey) continue;
-    const base = { lobbySeed: lobby.seed, runKey: seat.runKey, playerPlacement, seats: lobby.seats.length, mode: 'lobby', patch };
-    if (seat.id === killer) { rows.push({ ...base, outcome: 'win', round: myKnockout! }); continue; }
-    if (seat.alive || seat.eliminatedRound === undefined) continue;
-    const fellBeforeMe = myKnockout === null || seat.eliminatedRound < myKnockout;
-    if (fellBeforeMe) rows.push({ ...base, outcome: 'loss', round: seat.eliminatedRound });
-  }
-  return rows;
-}
-
 export function settleRunLobbyRound(lobby: RunLobby, playerResult: CombatResult): RunLobby {
   if (lobby.finished) return lobby;
   const { pairs, bye } = pairRunLobby(lobby);

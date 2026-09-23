@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroes, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, seatOutcomesOf } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroes, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, rankedRunIdOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, nextOpponent, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, withLiveTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, fightRowsOf, opponentFightKeys, type LobbyStrength } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -68,7 +68,7 @@ import { clearAllHandBuffs } from './handBuffFx';
 import { liveBoardView } from './instView';
 import { saveCapturedBoards, saveRunBoards } from './boardLibrary';
 import { perfMonitor } from './perfMonitor';
-import { fetchRankedProfile, remoteEnabled, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, recordSeatResults, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
+import { fetchRankedProfile, remoteEnabled, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
 import { initIdentity, currentIdentity } from './identity';
 import { notifyTutorialActions } from './tutorial/actionBus';
 import { gateBlocks, notifyGateNudge } from './tutorial/gateBus';
@@ -1396,22 +1396,65 @@ function commitResolvedAction(
           ? lobbySeat?.placement ?? next.lobby.seats.filter((seat) => seat.alive).length + 1
           : null;
         const lobbyWon = lobbyPlacement === 1;
-        // SEAT LEDGER (owner 2026-09-22): every RECORDED seat at this table — another player's run, replayed —
-        // with a result against THIS player gets one row: a win for the run that knocked the player out, a loss
-        // for every run knocked out while the player still stood. The Hall of Champions ranks runs by those
-        // wins plus their own victory. Nothing is simulated past the player's own run. The player's seat is not
-        // a row. Real lobbies only, never a sandbox or the tutorial (neither uploads anything).
+        // THE FIGHT LEDGER + LOBBY STRENGTH (owner 2026-09-22). Every fight this table resolved — the ones this
+        // player witnessed plus, when they fell early, the rounds a deterministic play-out resolves on a CLONE
+        // (never the reducer's lobby, never `run.lobby`: see `playOutRunLobby`) — goes up as ONE batched upsert,
+        // both sides named by run key. The reporter's own key is `author|heroId|seed`, the same shape the pool
+        // groups this run under once its boards land. Then the seven opponent keys: they ride with the rank
+        // request (the SERVER recomputes the strength and applies the top-4 bonus) and feed ONE fetch of the
+        // view here for the strength the Career and Recent Games rows print — never the post-game screen, never
+        // the rail. Real lobbies only, never a sandbox or the tutorial (neither uploads anything).
+        let seatKeys: string[] = [];
+        let strengthPromise: Promise<LobbyStrength | null> = Promise.resolve(null);
         if (next.mode === 'lobby' && !next.sandbox && next.lobby) {
-          const rows = seatOutcomesOf(next.lobby, `${__APP_VERSION__}+${__BUILD_SHA__}`);
-          if (rows.length > 0) void recordSeatResults(rows);
+          const ledger = { reporterKey: `${author}|${next.heroId}|${next.seed}`, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` };
+          try {
+            const rows = fightRowsOf(next.lobby, ledger);
+            if (rows.length > 0) void recordLobbyFights(rows);
+            seatKeys = opponentFightKeys(next.lobby, ledger);
+          } catch (e) {
+            if (import.meta.env.DEV) console.warn('[run-end] the fight ledger could not be assembled', e);
+          }
+          // Time-boxed inside `fetchLobbyStrength` (FETCH_TIMEOUT_MS): a dead view costs at most that wait on
+          // the history + telemetry uploads below, never the rank submission and never the end screen.
+          strengthPromise = seatKeys.length > 0 ? fetchLobbyStrength(seatKeys).catch(() => null) : Promise.resolve(null);
         }
+        // CAREER (server-side since 2026-08-03): the entry posts to `run_history` rather than localStorage, so
+        // a career follows the PLAYER instead of the browser.
+        // The rank fields are NOT known yet (the server settles them) — `settle_rank` stamps the confirmed
+        // result onto this row server-side, keyed by seed, so history never carries a locally-guessed delta.
+        // ISSUED FIRST, in the same synchronous tick as the rank request below and AHEAD of it (review fix
+        // 2026-09-22): `settle_rank`'s stamp is a best-effort UPDATE of the row by seed that runs when the
+        // settlement commits, and the client has no re-stamp path (`run_history` is insert-only for clients),
+        // so the insert must never trail the rank request — in particular it never waits on the strength fetch
+        // (a dead view would have held it for the whole fetch timeout and lost the rank stamp for good). The
+        // strength on THIS row is the server's own computation (`settle_rank` back-fills a value + tier when
+        // the client's stamp is missing); the client's fetch stamps only the telemetry row below. The `author`
+        // rides along (the same value the run's pool key and fight-ledger key carry) so the Hall can join a
+        // run's own career row by its full run key, never by seed + hero alone.
+        const entry = buildRunHistoryEntry(next, { date, at: nowIso, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed });
+        void uploadRunHistory({ ...entry, author, placement: lobbyPlacement ?? undefined, mode: next.mode, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` })
+          .then(() => fetchRunHistory<RunHistoryEntry>())
+          .then((remote) => {
+            // A FAILED read returns null, and we skip the profile write entirely rather than upserting
+            // games-played 0 over a real number — the read is the only source of those totals now.
+            if (!remote) return;
+            const career = careerStats(remote);
+            // DISPLAY columns only — the ladder itself settled through `beginRankSubmission` below, on its own
+            // path, so a failed history read here can no longer keep a result from being ranked.
+            void uploadPlayerProfile({
+              author, gamesPlayed: career.runs,
+              favoriteHero: career.perHero[0]?.heroId, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
+            });
+            set((st: GameStore) => ({ careerVersion: st.careerVersion + 1 })); // an open Career view picks the new run up
+          });
         // MEDAL RANK (2026-09-20): a RATED lobby's placement settles on the SERVER (`settle_rank`) — never
         // locally. The request goes into the durable pending queue first, then submits; `rankSubmission`
         // tells the post-game screen where it stands and the confirmed answer is adopted into `profile`.
-        // Independent of everything below (history upload, Career fetch, telemetry, replay encoding): none of
-        // those can delay or block awarding points. Practice / tutorial / sandbox never reach this block.
+        // Independent of everything else here (history upload, Career fetch, telemetry, replay encoding): none
+        // of those can delay or block awarding points. Practice / tutorial / sandbox never reach this block.
         const rankedRunId = next.mode === 'lobby' && lobbyPlacement != null ? rankedRunIdOf(next) : null;
-        if (rankedRunId && lobbyPlacement != null) beginRankSubmission(rankedRunId, lobbyPlacement, next.seed);
+        if (rankedRunId && lobbyPlacement != null) beginRankSubmission(rankedRunId, lobbyPlacement, next.seed, seatKeys);
         else set({ lastRating: null, rankResult: null, rankSubmission: 'unrated', rankSubmissionError: null, rankRunId: null });
         // REPLAY V2 (state replay): the recorded frames + the recorded outcome. Assembled for EVERY run that
         // reaches this block (lobby or not) and stashed on the store so "Rewatch last game" (Phase B) can play
@@ -1448,63 +1491,52 @@ function commitResolvedAction(
         // on-disk draft has done its job. Dropping it here is what keeps IndexedDB from accumulating one
         // several-hundred-KB draft per finished run.
         discardReplayDraft();
-        // CAREER (server-side since 2026-08-03): the entry posts to `run_history` rather than localStorage, so
-        // a career follows the PLAYER instead of the browser.
-        // The rank fields are NOT known yet (the server settles them) — `settle_rank` stamps the confirmed
-        // result onto this row server-side, keyed by seed, so history never carries a locally-guessed delta.
-        const entry = buildRunHistoryEntry(next, { date, at: nowIso, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed });
-        void uploadRunHistory({ ...entry, placement: lobbyPlacement ?? undefined, mode: next.mode, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` })
-          .then(() => fetchRunHistory<RunHistoryEntry>())
-          .then((remote) => {
-            // A FAILED read returns null, and we skip the profile write entirely rather than upserting
-            // games-played 0 over a real number — the read is the only source of those totals now.
-            if (!remote) return;
-            const career = careerStats(remote);
-            // DISPLAY columns only — the ladder itself settled through `beginRankSubmission` above, on its own
-            // path, so a failed history read here can no longer keep a result from being ranked.
-            void uploadPlayerProfile({
-              author, gamesPlayed: career.runs,
-              favoriteHero: career.perHero[0]?.heroId, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
-            });
-            set((st: GameStore) => ({ careerVersion: st.careerVersion + 1 })); // an open Career view picks the new run up
-          });
-        // Player Balance Report: reconstruct this run's offers/picks from its replay (deterministic, deferred so
-        // it never hitches the end screen) + upload one telemetry row. `lastHeroOffer` = the picked hero's trio.
-        // Balance-report telemetry: LOBBY runs only (owner rework 2026-07-31) — the report is a read on the
-        // real ladder, and course/rift rows would dilute it.
-        // `!next.sandbox` is already the enclosing block's gate (2026-08-26, #1236); it is repeated HERE so
-        // the one upload the Balance Report reads can never be reached by a sandbox run even if the block
-        // above is ever reshaped (owner ask 2026-09-22: "nothing from scene builder").
-        if (next.mode === 'lobby' && !next.sandbox) {
-          try {
-            // `won` MUST be overridden here: the reconstruction reads phase 'victory', which a lobby never
-            // reaches, so every lobby row uploaded as a loss (owner report 2026-08-02 — the shop curve was
-            // all "lost runs"). A lobby win is placement 1, exactly as the Hall of Champions gate reads it.
-            // The acquisition streams come from the LIVE log, not the replay: a lobby replay is not
-            // guaranteed faithful (the same reason `saveRunBoards` refuses to replay one), and a divergence
-            // silently keeps every sighting while dropping every buy. See `withLiveTelemetry`.
-            // SET + SOURCE STAMPS (2026-09-22): the run's pinned set (so the report reads one set) and what
-            // produced the row (so a sandbox row could never pass for a ladder row). Both ride on the flat
-            // row AND inside `derived`, so a backend without the new columns still keeps them.
-            const stampSet = setIdOf(next);
-            const stampSource = telemetrySourceOf(next);
-            const base = withLiveTelemetry(reconstructRunTelemetry(replay, heroOffer), telemetryLog);
-            const telemetry = { ...base, mode: 'lobby', won: lobbyWon, placement: lobbyPlacement ?? undefined, setId: stampSet, source: stampSource };
-            // The BALANCE DERIVATION rides alongside the legacy summary: `derived` is the observed-live
-            // streams (offers / acquisitions-by-source / Gold ledger / upgrades / combats / Avenge details),
-            // and `replay` is the raw material to RE-derive them later — a metric we haven't thought of yet
-            // is then a new function over runs already banked, not a migration plus a fresh data window.
-            const derived = finishDerive(deriveState, next, {
-              heroId: next.heroId, mode: 'lobby', seed: next.seed, won: lobbyWon, setId: stampSet, source: stampSource,
-            });
-            // REPLAY V2 rides INSIDE the same `replay` jsonb as the v1 action log (which balance
-            // re-derivation still reads — both stay). Viewers gate on `replay.v2?.version === 2`.
-            // `v2` itself is assembled above (it also feeds "Rewatch last game" for non-lobby runs).
-            void uploadRunTelemetry(telemetry, {
-              author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`, derived, replay: { ...replay, v2 },
-            });
-          } catch { /* best-effort — telemetry must never disrupt the end screen */ }
-        }
+        // The client's strength stamp rides on the v2 replay result inside the TELEMETRY row (→ the Recent Games
+        // row, which reads run_telemetry and can never be back-stamped: that table is insert-only for clients,
+        // and the server never touches it). So the telemetry upload — and only it — waits for the strength fetch,
+        // at most the fetch timeout, and uploads without a stamp when the view could not be read. The history
+        // row went up above without waiting; the server stamps its strength at settle time.
+        void strengthPromise.then((strength) => {
+          const v2Stamped: ReplayV2 = strength ? { ...v2, result: { ...v2.result, lobbyStrength: strength } } : v2;
+          if (strength) set((cur) => (cur.lastReplay === v2 ? { lastReplay: v2Stamped } : {}));
+          // Player Balance Report: reconstruct this run's offers/picks from its replay (deterministic, deferred so
+          // it never hitches the end screen) + upload one telemetry row. `lastHeroOffer` = the picked hero's trio.
+          // Balance-report telemetry: LOBBY runs only (owner rework 2026-07-31) — the report is a read on the
+          // real ladder, and course/rift rows would dilute it.
+          // `!next.sandbox` is already the enclosing block's gate (2026-08-26, #1236); it is repeated HERE so
+          // the one upload the Balance Report reads can never be reached by a sandbox run even if the block
+          // above is ever reshaped (owner ask 2026-09-22: "nothing from scene builder").
+          if (next.mode === 'lobby' && !next.sandbox) {
+            try {
+              // `won` MUST be overridden here: the reconstruction reads phase 'victory', which a lobby never
+              // reaches, so every lobby row uploaded as a loss (owner report 2026-08-02 — the shop curve was
+              // all "lost runs"). A lobby win is placement 1, exactly as the Hall of Champions gate reads it.
+              // The acquisition streams come from the LIVE log, not the replay: a lobby replay is not
+              // guaranteed faithful (the same reason `saveRunBoards` refuses to replay one), and a divergence
+              // silently keeps every sighting while dropping every buy. See `withLiveTelemetry`.
+              // SET + SOURCE STAMPS (2026-09-22): the run's pinned set (so the report reads one set) and what
+              // produced the row (so a sandbox row could never pass for a ladder row). Both ride on the flat
+              // row AND inside `derived`, so a backend without the new columns still keeps them.
+              const stampSet = setIdOf(next);
+              const stampSource = telemetrySourceOf(next);
+              const base = withLiveTelemetry(reconstructRunTelemetry(replay, heroOffer), telemetryLog);
+              const telemetry = { ...base, mode: 'lobby', won: lobbyWon, placement: lobbyPlacement ?? undefined, setId: stampSet, source: stampSource };
+              // The BALANCE DERIVATION rides alongside the legacy summary: `derived` is the observed-live
+              // streams (offers / acquisitions-by-source / Gold ledger / upgrades / combats / Avenge details),
+              // and `replay` is the raw material to RE-derive them later — a metric we haven't thought of yet
+              // is then a new function over runs already banked, not a migration plus a fresh data window.
+              const derived = finishDerive(deriveState, next, {
+                heroId: next.heroId, mode: 'lobby', seed: next.seed, won: lobbyWon, setId: stampSet, source: stampSource,
+              });
+              // REPLAY V2 rides INSIDE the same `replay` jsonb as the v1 action log (which balance
+              // re-derivation still reads — both stay). Viewers gate on `replay.v2?.version === 2`.
+              // `v2` itself is assembled above (it also feeds "Rewatch last game" for non-lobby runs).
+              void uploadRunTelemetry(telemetry, {
+                author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`, derived, replay: { ...replay, v2: v2Stamped },
+              });
+            } catch { /* best-effort — telemetry must never disrupt the end screen */ }
+          }
+        });
         // Hall of Champions: WINNING LOBBY BOARDS only (owner rework 2026-07-31) — placement #1 finishes.
         // Gated on `lobbyWon`, NOT `won`: a lobby never sets phase 'victory' (see above), so the original
         // `won &&` here meant the Hall could never populate at all (owner report 2026-07-31).
@@ -1941,7 +1973,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
       // Get the opponent seats built while the player reads their opening shop, not while they wait for it.
       if (run.lobby) warmLobbyDrivers(run);
       writeSave(run, []); // the new run is now the resumable save
-      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, pendingSeed: undefined, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...RANK_SLICE_RESET };
+      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, pendingSeed: undefined, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...freshObservers(run), ...RANK_SLICE_RESET };
     });
   },
   newRun: (seed, heroId) => {
@@ -1949,7 +1981,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     set((s) => {
       const run = createRun(seed ?? randomSeed(), heroId, s.pendingMode, s.profile.currentLine);
       writeSave(run, []);
-      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...RANK_SLICE_RESET };
+      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...freshObservers(run), ...RANK_SLICE_RESET };
     });
   },
   startAscent: () => set(() => { const seed = randomSeed(); return { showTitle: false, pendingMode: 'ascent', pendingSeed: seed, heroChoices: rollHeroChoices(tribesForSeed(seed)), avatarPickerOpen: false }; }),
@@ -2001,7 +2033,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
       if (Object.keys(runeScript).length > 0) run.tutorialRuneScript = runeScript;
       if (run.lobby) warmLobbyDrivers(run); // authored drivers are cheap; keep the warm path uniform
       writeSave(run, []);
-      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...RANK_SLICE_RESET };
+      return { run, savedRun: run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...freshObservers(run), ...RANK_SLICE_RESET };
     });
   },
   startSceneBuilder: (heroId = 'warden', setId = activeSet().id, botLevel) => {
@@ -2331,6 +2363,16 @@ export function syncProfileFromServer(_name: string): void {
  *  its profile is still adopted (`applyRankOutcome` only skips the slice for a non-current run). */
 const RANK_SLICE_RESET = { rankResult: null, rankSubmission: 'unrated' as const, rankSubmissionError: null, rankRunId: null };
 
+/** THE OBSERVERS a NEW run starts with: the flat telemetry log and the live balance derivation, both primed
+ *  against THIS run's opening state. Every door a run starts through (the hero picker, `newRun`, a tutorial,
+ *  `clearRun`, the sandbox rigs) must spread this in — until 2026-09-22 only `clearRun` and the sandbox paths
+ *  did, so one browser session stacked its runs into one `derived` payload (53 of 114 live rows carried an
+ *  earlier run's `gold` / `offers` / `boards` in front of their own, the wave dropping back to 1 where the
+ *  next run began). A RESUMED run keeps its saved observers (`continueRun` never comes through here). */
+function freshObservers(run: RunState): Pick<GameStore, 'telemetryLog' | 'deriveState'> {
+  return { telemetryLog: emptyTelemetryLog(), deriveState: beginDerive(run) };
+}
+
 /** Mint a rated run's identity. `crypto.randomUUID` is universal in the browsers + Electron the game ships
  *  in; the fallback (older embedded runtimes) is a time + random string — uniqueness per account is all the
  *  ledger needs. UI-side randomness, never the seeded sim. */
@@ -2347,8 +2389,8 @@ function mintRunId(): string {
  * account at finish (the C2 rule: a run finished with no live session is unrated) — is reported `unrated`
  * with the reason, and nothing is queued.
  */
-function beginRankSubmission(runId: string, placement: number, seed: number): void {
-  const item = enqueuePendingRank(rankRequestFor(runId, placement, seed));
+function beginRankSubmission(runId: string, placement: number, seed: number, seatKeys: readonly string[] = []): void {
+  const item = enqueuePendingRank(rankRequestFor(runId, placement, seed, seatKeys));
   if (!item) {
     useGame.setState({ rankRunId: runId, rankResult: null, rankSubmission: 'unrated', rankSubmissionError: remoteEnabled() ? 'no_account' : 'no_backend', lastRating: null });
     return;

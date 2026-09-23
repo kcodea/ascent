@@ -1,6 +1,6 @@
 import { CARD_INDEX } from '@game/content';
 import type { Tribe } from '@game/core';
-import { buildTags, lineResult, metLine, runMvp, runRecord, topMechanic, type BoardSnapshot, type LineStatus, type RankResult, type RatingChange, type RunState } from '@game/sim';
+import { buildTags, lineResult, metLine, runMvp, runRecord, topMechanic, type BoardSnapshot, type LineStatus, type LobbyStrength, type RankResult, type RatingChange, type RunState } from '@game/sim';
 
 /**
  * Career / match history (A7) — the persistence layer. On run-end, a compact per-run entry is appended to
@@ -53,6 +53,17 @@ export interface RunHistoryEntry {
    *  is no longer shown (owner 2026-08-04) — absent on pre-lobby entries, which fall back to the Line. */
   placement?: number;
   mode?: string;
+  /** LOBBY STRENGTH (owner 2026-09-22): how hard the seven opponents were, 0–100 with a tier. On THIS row it is
+   *  the SERVER's computation: `settle_rank` stamps a value + tier (`inputs: []`) from the fight ledger's view
+   *  when the settlement commits — the client never delays the history insert for its own fetch (that stamp,
+   *  with the seven inputs, rides on the telemetry row's replay result instead). Shown on the Career and Recent
+   *  Games rows only — never on the post-game screen, never on the rail. Absent when the view did not exist at
+   *  settle time, on entries from before it existed, and on a row whose settlement landed before the insert. */
+  lobbyStrength?: LobbyStrength;
+  /** The display name the run was played under (stamped at run end since 2026-09-22): the SAME value the run's
+   *  pool key and fight-ledger key carry (`author|heroId|seed`), so the Hall of Champions can join a run's own
+   *  career row by its full run key. Absent on older rows, which the Hall joins by seed + hero as before. */
+  author?: string;
 }
 
 /** 1st / 2nd / 3rd / 4th … — English ordinals, including the 11th/12th/13th exceptions that a naive

@@ -84,6 +84,19 @@ describe('submitRating — typed outcomes', () => {
     expect(invokes[0]!.body, 'never a rating, never a division — placement + identity + version pins').toEqual({ runId: 'run-1', placement: 2, seasonId: RANK_SEASON, rulesVersion: RANK_RULES.rulesVersion, seed: 777 });
   });
 
+  it('the seven opponent keys ride with the request (2026-09-22) — never a strength, never a bonus; an empty list sends no key at all', async () => {
+    const server = fakeServer();
+    invokeImpl = server.settle;
+    const { submitRating, rankRequestFor } = await load();
+    const keys = ['Mike|warden|1', 'bot:hybrid:gorr'];
+    await submitRating(rankRequestFor('run-2', 1, 778, keys));
+    expect(invokes[0]!.body).toEqual({ runId: 'run-2', placement: 1, seasonId: RANK_SEASON, rulesVersion: RANK_RULES.rulesVersion, seed: 778, seatKeys: keys });
+    expect(Object.keys(invokes[0]!.body as object)).not.toContain('lobbyStrength');
+    expect(Object.keys(invokes[0]!.body as object)).not.toContain('strengthBonus');
+    await submitRating(rankRequestFor('run-3', 1, 779, []));
+    expect(invokes[1]!.body).toEqual({ runId: 'run-3', placement: 1, seasonId: RANK_SEASON, rulesVersion: RANK_RULES.rulesVersion, seed: 779 });
+  });
+
   it('a retry after a timed-out-but-committed attempt returns the ORIGINAL result exactly once (dedupe)', async () => {
     const server = fakeServer();
     invokeImpl = server.settle;

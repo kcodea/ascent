@@ -31,6 +31,11 @@ behaviour from a legacy symbol.**
   round cap is a **stalemate backstop**, not a course length.
 - **Resolve each paired encounter ONCE** and apply both `playerDamage` and `enemyDamage` from that single
   result. Combat is not symmetric — re-running with sides swapped produces a different fight, not the mirror.
+  The run-end **fight-ledger play-out** (`lobby/fightLedger.ts playOutRunLobby`, 2026-09-22) does not break
+  this: it resolves only the rounds the table never reached (after the player's elimination), on a CLONE, in
+  the store's run-end path — never in the reducer and never against `run.lobby`. A reducer-side play-out
+  collided with the balance instrument's own play-out once (devlog 2026-09-22-hall-of-champions-table-wins);
+  keep it out of the reducer.
 - Armor absorbs before Resolve. A seat at zero total is eliminated and takes a placement.
 - Placement drives Rating. A lobby never reaches phase `victory` — `advanceCombat` ends every lobby at
   `gameover`, so a lobby win is placement 1, not a victory phase.

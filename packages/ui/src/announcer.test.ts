@@ -12,7 +12,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  __setAnnouncerDepsForTests, ANNOUNCER_BIG_STAT, ANNOUNCER_COMBAT_SILENCE_MS, ANNOUNCER_COOLDOWN_MS,
+  __setAnnouncerDepsForTests, ANNOUNCER_BACK_TO_SHOP_DELAY_MS, ANNOUNCER_BIG_STAT, ANNOUNCER_COMBAT_SILENCE_MS, ANNOUNCER_COOLDOWN_MS,
   ANNOUNCER_END_DELAY_MS, ANNOUNCER_EQUIPMENT_DELAY_MS, ANNOUNCER_FACE_OMEN_DELAY_MS, ANNOUNCER_GAME_START_DELAY_MS,
   ANNOUNCER_LINE_CAP, ANNOUNCER_LINES, ANNOUNCER_PRIORITY, ANNOUNCER_STOP_FADE_MS, ANNOUNCER_TURN_ONE_QUIET_MS,
   announcerDebug, announcerVariant, cancelAnnouncer, getAnnouncerVolume, isAnnouncerMuted, observeCombatBoard,
@@ -212,17 +212,38 @@ describe('the queue', () => {
     go({ ...r, tier: 6 });
     await tick(0);
     expect(events()).toEqual(['tier-six']);
-    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS - 10); // 10 ms short of the cooldown's end
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS - ANNOUNCER_EQUIPMENT_DELAY_MS - 10); // the line lands 10 ms short of the cooldown's end
+    go({ ...r, tier: 6, equipment: { available: [1] } });
+    await tick(ANNOUNCER_EQUIPMENT_DELAY_MS);
+    expect(events()).toEqual(['tier-six']);
+    expect(dropped('equipment')).toBe(true);
+    await tick(10);
+    go({ ...r, tier: 6, equipment: { available: [1, 2] } }); // the moment recurs (a second Equipment), now outside the cooldown
+    await tick(ANNOUNCER_EQUIPMENT_DELAY_MS);
+    expect(events()).toEqual(['tier-six', 'equipment']);
+    expect(plays[1]!.t - (plays[0]!.t + LINE_MS)).toBe(ANNOUNCER_COOLDOWN_MS + ANNOUNCER_EQUIPMENT_DELAY_MS);
+  });
+  it('the forge lines bypass the cooldown (a once-per-run scheduled moment) but never talk over a playing line', async () => {
+    const r = openShop();
+    go({ ...r, tier: 6 });
+    await tick(0);
+    expect(events()).toEqual(['tier-six']);
+    // Still PLAYING: the forge line waits for the end, then speaks at once (no 12 s).
+    await tick(LINE_MS / 2);
     go({ ...r, tier: 6, runeforgeOffer: ['a'] });
     await tick(0);
     expect(events()).toEqual(['tier-six']);
-    expect(dropped('runeforge')).toBe(true);
-    await tick(10);
-    go({ ...r, tier: 6, runeforgeOffer: undefined });
-    go({ ...r, tier: 6, runeforgeOffer: ['b'] }); // the moment recurs, now outside the cooldown
-    await tick(0);
+    await tick(LINE_MS / 2);
     expect(events()).toEqual(['tier-six', 'runeforge']);
-    expect(plays[1]!.t - (plays[0]!.t + LINE_MS)).toBe(ANNOUNCER_COOLDOWN_MS);
+    expect(plays[1]!.t).toBe(plays[0]!.t + LINE_MS);
+    // Inside the cooldown of THAT line: the Epic forge still speaks; a Triple landing with it is dropped (cooldown).
+    await tick(LINE_MS + 3000);
+    go({ ...r, tier: 6, runeforgeOffer: undefined }); // the Basic forge closes
+    go({ ...r, tier: 6, runeforgeOffer: ['b'], runeforgeEpic: true, board: [{ attack: 1, health: 1, golden: true }] });
+    await tick(0);
+    expect(events()).toEqual(['tier-six', 'runeforge', 'epic-runeforge']);
+    expect(dropped('triple')).toBe(true);
+    expect(announced.fired.triple).toBeUndefined();
   });
   it('the shelf life: a shop line pending when combat starts expires; a combat line pending when the shop opens expires', async () => {
     const r = openShop();
@@ -325,7 +346,7 @@ describe('the detectors', () => {
       r = await fight(r, 'win');
       await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
       r = backToShop(r);
-      await tick(0);
+      await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS);
       if (events().at(-1) === 'back-to-shop' && plays.at(-1)!.t === Date.now()) waves.push(r.wave);
       await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
       r = go({ ...r, history: [] }); // no streak lines in this test
@@ -509,7 +530,7 @@ describe('the detectors', () => {
     r = await fight(r, 'win');
     await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
     r = backToShop(r, { lobby: { seats: seats(4) } });
-    await tick(0);
+    await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS);
     expect(events()).toEqual(['top-four']);
     expect(dropped('backToShop')).toBe(true);
     expect(announced.fired.backToShop).toBeUndefined();
@@ -517,7 +538,7 @@ describe('the detectors', () => {
     r = await fight({ ...r, history: [] }, 'win');
     await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
     r = backToShop(r, { lobby: { seats: seats(2) } });
-    await tick(0);
+    await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS);
     expect(events()).toEqual(['top-four', 'top-two']);
   });
   it('TopFour / TopTwo need the player standing', async () => {
@@ -525,8 +546,70 @@ describe('the detectors', () => {
     r = await fight(r, 'lose');
     await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
     backToShop(r, { lobby: { seats: [{ alive: false }, ...seats(4).slice(1)] } });
-    await tick(0);
+    await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS);
     expect(events()).toEqual(['back-to-shop']);
+  });
+  it('BackToShop waits ANNOUNCER_BACK_TO_SHOP_DELAY_MS after the return, not the instant resolveCombat lands', async () => {
+    let r = openShop();
+    r = await fight(r, 'win');
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    backToShop(r);
+    await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS - 1);
+    expect(events()).toEqual([]);
+    await tick(1);
+    expect(events()).toEqual(['back-to-shop']);
+    expect(plays[0]!.t - Date.now()).toBe(0);
+  });
+  it('the scheduled Runeforge opens WITH the return to the shop (one store update): it plays, and outranks the BackToShop of that same return, which stays unfired', async () => {
+    // The turn-6 Basic forge: `resolveCombat` -> advanceCombat -> the turn-start sequence sets `runeforgeOffer`
+    // in the SAME reducer step that flips the phase (owner report 2026-09-23: the forge lines never played).
+    let r = openShop({ wave: 5 });
+    r = await fight(r, 'win');
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    r = backToShop(r, { runeforgeOffer: ['a', 'b', 'c', 'd'] });
+    expect(r.wave).toBe(6);
+    await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS - 1);
+    expect(events()).toEqual([]);
+    await tick(1);
+    expect(events()).toEqual(['runeforge']);
+    expect(dropped('backToShop')).toBe(true);
+    expect(announced.fired.runeforge).toEqual([6]);
+    expect(announced.fired.backToShop).toBeUndefined();
+    // The forge closes; the shop turn goes on; nothing replays.
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    r = go({ ...r, runeforgeOffer: undefined });
+    await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS);
+    expect(events()).toEqual(['runeforge']);
+    // A later return still hears BackToShop (the dropped one never counted).
+    r = await fight({ ...r, history: [] }, 'win');
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    backToShop(r);
+    await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS);
+    expect(events()).toEqual(['runeforge', 'back-to-shop']);
+  });
+  it('the scheduled Epic Runeforge opens WITH the turn-9 return: the Epic variant plays', async () => {
+    let r = openShop({ wave: 8 });
+    r = await fight(r, 'win');
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    r = backToShop(r, { runeforgeOffer: ['a', 'b', 'c', 'd'], runeforgeEpic: true });
+    expect(r.wave).toBe(9);
+    await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS);
+    expect(events()).toEqual(['epic-runeforge']);
+    expect(announced.fired.epicRuneforge).toEqual([9]);
+    expect(announced.fired.runeforge).toBeUndefined();
+  });
+  it('a forge that opened with the return is not detected twice while it stays open, and TopFour still outranks it', async () => {
+    let r = openShop({ wave: 5, lobby: { seats: seats(6) } });
+    r = await fight(r, 'win');
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    r = backToShop(r, { runeforgeOffer: ['a'], lobby: { seats: seats(4) } });
+    await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS);
+    expect(events()).toEqual(['top-four']);
+    expect(dropped('runeforge')).toBe(true);
+    go({ ...r, tier: 4 }); // an unrelated update while the offer is still open
+    await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS);
+    expect(events()).toEqual(['top-four']);
+    expect(announcerDebug().log.filter((l) => l.kind === 'queue' && l.event === 'runeforge')).toHaveLength(1);
   });
   it('GameWon at 1st place ANNOUNCER_END_DELAY_MS into the end screen; GameLoss at 2nd to 8th', async () => {
     const r = openShop();

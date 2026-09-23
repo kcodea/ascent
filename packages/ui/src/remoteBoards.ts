@@ -20,7 +20,7 @@ import { CONFIG, RANK_SEASON, initialRankedProfile, lobbyStrengthOf, parseLobbyS
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
 import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
 import { careerRunOf, joinTelemetry, type CareerRun, type RunHistoryRowLike, type TelemetryProbeRow } from './careerData';
-import { hallHistoryKeyOf } from './leaderboardData';
+import { hallHistoryKeyOf, ownGameRecordsOf, type HallLedgerFight, type HallOwnRecord } from './leaderboardData';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -1598,6 +1598,37 @@ export async function fetchHallHistory(seeds: number[]): Promise<Map<string, Hal
       }
     }
     return map;
+  } catch {
+    return new Map();
+  }
+}
+
+/** The OWN-GAME record of each Hall candidate, from the fight ledger (owner 2026-09-23: "ledger number probably
+ *  i think" — the Hall's "Own game" line must count the same fights as its RECORD line). ONE batched read of the
+ *  raw ledger rows for all the candidates' lobbies at once (`lobby_fights` where `lobby_seed in (...)`, four
+ *  small columns), then `ownGameRecordsOf` files each run's rows from its side by key, client-side. Never a
+ *  per-row query. The Hall is the one place the client reads ledger ROWS rather than the view: the view has no
+ *  per-lobby cut and ten lobbies are at most a few hundred rows. A run whose lobby has no rows (a game from
+ *  before the ledger) is absent, and the Hall falls back to the career tally and labels it. Best-effort +
+ *  time-boxed; an empty map on any failure. */
+export async function fetchHallOwnGames(runs: Array<{ key: string; seed: number }>): Promise<Map<string, HallOwnRecord>> {
+  const c = client();
+  const seeds = [...new Set(runs.map((r) => r.seed).filter((x) => Number.isFinite(x)))];
+  if (!c || seeds.length === 0) return new Map();
+  try {
+    const request = Promise.resolve(c.from('lobby_fights').select('lobby_seed, run_a, run_b, outcome').in('lobby_seed', seeds).limit(FETCH_LIMIT));
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([request, timeout]);
+    if (!result || result.error || !result.data) return new Map();
+    const fights: HallLedgerFight[] = [];
+    for (const row of result.data as Record<string, unknown>[]) {
+      const lobbySeed = numOf(row.lobby_seed);
+      const outcome = row.outcome;
+      if (lobbySeed === null || typeof row.run_a !== 'string' || typeof row.run_b !== 'string') continue;
+      if (outcome !== 'a' && outcome !== 'b' && outcome !== 'draw') continue;
+      fights.push({ lobbySeed, runA: row.run_a, runB: row.run_b, outcome });
+    }
+    return ownGameRecordsOf(runs, fights);
   } catch {
     return new Map();
   }

@@ -4,9 +4,9 @@ import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame } from './store';
-import { HALL_MIN_FIGHTS, HALL_ROWS, fetchHallHistory, fetchHallRecords, fetchRunFinalBoards, remoteEnabled, type HallHistoryFacts, type RunFightRecord } from './remoteBoards';
+import { HALL_MIN_FIGHTS, HALL_ROWS, fetchHallHistory, fetchHallOwnGames, fetchHallRecords, fetchRunFinalBoards, remoteEnabled, type HallHistoryFacts, type RunFightRecord } from './remoteBoards';
 import { LbHeroFrame, LbLabel, LbMedallion, LbRunes, LbTeam } from './LadderBits';
-import { hallHistoryFor, hallRowsOf, parseRunKey, playedOnText, recordText, winRateText, type HallSort } from './leaderboardData';
+import { hallHistoryFor, hallRowsOf, parseRunKey, playedOnText, recordText, winRateText, type HallOwnRecord, type HallSort } from './leaderboardData';
 
 /**
  * Leaderboard — the "Hall of Champions" PAGE (not a modal): the warbands with the best record against everyone
@@ -23,8 +23,10 @@ import { hallHistoryFor, hallRowsOf, parseRunKey, playedOnText, recordText, winR
  *
  * THE LAYOUT keeps #1630's: the medallion; the hero frame with the player and the hero name; the middle exactly
  * as a Recent Games row (final team + runes); the right the record block — now the W–L–D across everything, the
- * win rate, the lobbies, the run's OWN game ("12–3", from its career row), the date of its last fight, and the
- * rank its player held when they played it. The final warband comes from the run's career row (`entry.board`,
+ * win rate, the lobbies, the run's OWN game ("12–3": the ledger rows of its own lobby, so it counts the same
+ * fights as the record line — owner 2026-09-23 "ledger number probably i think"; a game from before the ledger
+ * falls back to its career tally and says so), the date of its last fight, and the rank its player held when
+ * they played it. The final warband comes from the run's career row (`entry.board`,
  * the same end-state board the Career shows — no extra query); a run with no career row falls back to its
  * highest-wave snapshot in the pool.
  */
@@ -34,6 +36,7 @@ export function Leaderboard() {
   const [records, setRecords] = useState<RunFightRecord[] | null>(null);
   const [history, setHistory] = useState<Map<string, HallHistoryFacts>>(new Map());
   const [boards, setBoards] = useState<Map<string, BoardSnapshot>>(new Map());
+  const [ownGames, setOwnGames] = useState<Map<string, HallOwnRecord>>(new Map());
   const [sort, setSort] = useState<HallSort>('rate');
 
   useEffect(() => {
@@ -41,14 +44,17 @@ export function Leaderboard() {
     setRecords(null); // reset to the loading state each time it opens
     setHistory(new Map());
     setBoards(new Map());
+    setOwnGames(new Map());
     let alive = true;
     void fetchHallRecords(HALL_ROWS, HALL_MIN_FIGHTS).then(async (recs) => {
       if (!alive) return;
       setRecords(recs);
       const parsed = recs.map((r) => ({ key: r.runKey, ...parseRunKey(r.runKey) })).filter((p): p is { key: string; author: string; heroId: string; seed: number } => typeof p.seed === 'number');
-      const h = await fetchHallHistory(parsed.map((p) => p.seed));
+      // The career facts and the own-game ledger rows are independent: one read each, side by side.
+      const [h, og] = await Promise.all([fetchHallHistory(parsed.map((p) => p.seed)), fetchHallOwnGames(parsed)]);
       if (!alive) return;
       setHistory(h);
+      setOwnGames(og);
       // The pool lookup only for runs whose career row carried no board (or had no career row at all).
       const missing = parsed.filter((p) => !hallHistoryFor(h, p.key)?.board);
       if (missing.length === 0) return;
@@ -63,7 +69,7 @@ export function Leaderboard() {
 
   const back = (): void => { sfx.pulse(); close(); };
 
-  const rows = records === null ? null : hallRowsOf(records, history, boards, { minFights: HALL_MIN_FIGHTS, limit: HALL_ROWS, sort });
+  const rows = records === null ? null : hallRowsOf(records, history, boards, { minFights: HALL_MIN_FIGHTS, limit: HALL_ROWS, sort }, ownGames);
 
   return (
     <SidebarHost className="lbpage lb-ladder lb-hall">
@@ -117,7 +123,9 @@ export function Leaderboard() {
                     <LbLabel>Record</LbLabel>
                     <div className={`lb-verdict lb-hallrecord ${r.record.wins >= r.record.losses ? 'won' : 'lost'}`} aria-label={`Won ${r.record.wins}, lost ${r.record.losses}, drawn ${r.record.draws} across ${r.record.fights} fights`}>{recordText(r.record)}</div>
                     <div className="lb-hallrate" aria-label={`Win rate ${winRateText(r.record)} over ${lobbies}`}>{winRateText(r.record)} win rate · {lobbies}</div>
-                    {r.ownRecord && <div className="lb-hallown" aria-label={`Its own game: won ${r.ownRecord.wins}, lost ${r.ownRecord.losses}`}>Own game {recordText(r.ownRecord)}</div>}
+                    {/* Own game: the ledger rows of the run's own lobby, the same fights the record counts. A game the
+                        ledger never saw reads its career tally instead (that one counts ghost fights), and the label says so. */}
+                    {r.ownRecord && <div className="lb-hallown" aria-label={`Its own game: won ${r.ownRecord.wins}, lost ${r.ownRecord.losses}, drawn ${r.ownRecord.draws}${r.ownSource === 'tally' ? ", from the game's own tally" : ''}`}>Own game {recordText(r.ownRecord)}</div>}
                     <div className="lb-when">{lastFight ? `Last fight ${lastFight}` : 'No fights dated'}</div>
                     {r.rank && <div className="lb-hallrank">{rankLabel(r.rank)}</div>}
                   </div>

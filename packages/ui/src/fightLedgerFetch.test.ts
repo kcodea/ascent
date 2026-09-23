@@ -181,6 +181,39 @@ describe('fetchHallHistory + fetchRunFinalBoards — the per-row facts', () => {
     expect(h.get('seed:9')).toMatchObject({ author: null, heroId: 'warden', placement: 2 });
   });
 
+  it('the own game is ONE batched read of the candidates\' lobbies from the ledger (never per row), filed by key from the run\'s side; a lobby with no rows is absent', async () => {
+    respond = (q) => ({
+      data: q.table === 'lobby_fights'
+        ? [
+            { lobby_seed: 8, run_a: 'Kev|sable|8', run_b: 'Mike|warden|1', outcome: 'a' },
+            { lobby_seed: 8, run_a: 'Nadja|brackus|7', run_b: 'Kev|sable|8', outcome: 'a' },
+            { lobby_seed: 8, run_a: 'Kev|sable|8', run_b: 'bot:hybrid:gorr', outcome: 'draw' },
+            { lobby_seed: 8, run_a: 'Mike|warden|1', run_b: 'Nadja|brackus|7', outcome: 'b' },
+            { lobby_seed: 9, run_a: 'Robin|gorr|9', run_b: 'Kev|sable|8', outcome: 'b' },
+            { lobby_seed: 'junk', run_a: 'Robin|gorr|9', run_b: 'x', outcome: 'a' },
+          ]
+        : [],
+      error: null,
+    });
+    const { fetchHallOwnGames } = await load();
+    const own = await fetchHallOwnGames([{ key: 'Kev|sable|8', seed: 8 }, { key: 'Robin|gorr|9', seed: 9 }, { key: 'Old|warden|3', seed: 3 }]);
+    expect(queries).toHaveLength(1);
+    const q = queries[0]!;
+    expect(q.table).toBe('lobby_fights');
+    expect(q.select).toBe('lobby_seed, run_a, run_b, outcome');
+    expect(q.filters).toEqual([['lobby_seed', 'in', [8, 9, 3]]]);
+    expect(own.get('Kev|sable|8')).toEqual({ wins: 1, losses: 1, draws: 1 });
+    expect(own.get('Robin|gorr|9')).toEqual({ wins: 0, losses: 1, draws: 0 });
+    expect(own.has('Old|warden|3')).toBe(false);
+  });
+
+  it('a dead ledger read is an empty own-game map (the Hall then reads the tally and says so), never an error', async () => {
+    respond = () => ({ data: null, error: { message: 'relation not found' } });
+    const { fetchHallOwnGames } = await load();
+    expect(await fetchHallOwnGames([{ key: 'Kev|sable|8', seed: 8 }])).toEqual(new Map());
+    expect(await fetchHallOwnGames([])).toEqual(new Map());
+  });
+
   it('a pool board is the run\'s highest-wave snapshot by author + hero + seed (one row, the snapshot only)', async () => {
     respond = (q) => ({ data: q.table === 'boards' ? [{ snapshot: { minions: [{ cardId: 'x' }], wave: 14, heroId: 'sable' } }] : [], error: null });
     const { fetchRunFinalBoards } = await load();

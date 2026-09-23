@@ -15,8 +15,8 @@
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { SetId } from '@game/content';
-import type { SeatResultRow } from '@game/sim';
-import { CONFIG, RANK_SEASON, initialRankedProfile, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, isRankPosition, type RankPosition } from '@game/sim';
+import type { FightRow, LobbyStrength, StrengthInput } from '@game/sim';
+import { CONFIG, RANK_SEASON, initialRankedProfile, lobbyStrengthOf, parseLobbyStrength, parseRankResult, parseRankedProfile, registerBoardRecords, registerOpponents, type BoardSnapshot, type DerivedRun, type RankedProfile, type ReplayV2, type RunTelemetry, type RunTelemetryRow, type TelemetrySource, isRankPosition, type RankPosition } from '@game/sim';
 import { currentIdentity, currentUserId, setIdentity, type AuthProvider, type Identity } from './identity';
 import type { RankSubmitOutcome, RankSubmitRequest } from './rank/types';
 import { careerRunOf, joinTelemetry, type CareerRun, type RunHistoryRowLike, type TelemetryProbeRow } from './careerData';
@@ -210,7 +210,7 @@ export const supabaseAuthProvider: AuthProvider = {
 // handshake. Those uploads used to silently no-op and the run was lost. Now they QUEUE to localStorage and
 // replay when a session next establishes, tagged UNRATED (a run finished with no live session doesn't move the
 // ladder — see `uploadPlayerProfile`). Fire-and-forget throughout, like the rest of this seam.
-type QueueKind = 'boards' | 'victory' | 'telemetry' | 'profile' | 'history' | 'fight' | 'seat';
+type QueueKind = 'boards' | 'victory' | 'telemetry' | 'profile' | 'history' | 'fight' | 'seat' | 'fights';
 interface QueuedItem { kind: QueueKind; payload: unknown; at: string }
 const QUEUE_KEY = 'ascent.uploadqueue';
 const QUEUE_MAX = 100; // a hard cap so a long offline stretch can't grow localStorage without bound
@@ -253,7 +253,8 @@ export async function flushUploadQueue(): Promise<void> {
           case 'profile':   await uploadPlayerProfile({ ...(item.payload as Parameters<typeof uploadPlayerProfile>[0]), unrated: true }); break;
           case 'history':   await uploadRunHistory(item.payload as Parameters<typeof uploadRunHistory>[0]); break;
           case 'fight':     await recordFightResult(item.payload as Parameters<typeof recordFightResult>[0]); break;
-          case 'seat':      await recordSeatResults(item.payload as Parameters<typeof recordSeatResults>[0]); break;
+          case 'seat':      break; // the retired knockout ledger (2026-09-22): a row queued before the fight ledger is dropped
+          case 'fights':    await recordLobbyFights(item.payload as Parameters<typeof recordLobbyFights>[0]); break;
         }
       } catch { /* best-effort — a failed item is dropped, matching every other write here */ }
     }
@@ -703,6 +704,10 @@ export interface RecentGameRow {
   runes: string[];
   /** The round the run ended on (`derived->>finalWave`); null on rows without a derivation. */
   wave: number | null;
+  /** The LOBBY STRENGTH the run was played at (`replay->v2->result->lobbyStrength`, stamped at run end — owner
+   *  2026-09-22, shown only post-game on the Career and Recent Games rows). Null on rows from before it existed
+   *  and on runs whose strength fetch failed; the row then prints nothing for it. */
+  lobbyStrength: LobbyStrength | null;
 }
 
 // ── Replay v2 (spectate — docs/replay-v2-handoff.md Phase C) ───────────────────────────────────────────────
@@ -769,6 +774,7 @@ export function asRecentGameRow(r: Record<string, unknown>): RecentGameRow {
     firstRecordedWave: numOf(r.first_wave),
     runes: picked.length > 0 ? picked : (board?.runes ?? []),
     wave: numOf(r.final_wave),
+    lobbyStrength: parseLobbyStrength(r.lobby_strength),
   };
 }
 
@@ -778,7 +784,7 @@ export function asRecentGameRow(r: Record<string, unknown>): RecentGameRow {
  *  `picked_runes` / `replay` need their migrations. A backend that rejects a select falls to the next,
  *  plainer rung, costing only what that rung reads (run length → banner facts → Watch). Exported for tests. */
 const RECENT_BASE = 'id, user_id, author, hero_id, wins, placement, created_at';
-const RECENT_FACTS = 'picked_runes, replay_v2_version:replay->v2->version, final_board:replay->v2->result->finalBoard, record:replay->v2->result->record, partial:replay->v2->>partial, first_wave:replay->v2->>firstRecordedWave, final_wave:derived->>finalWave';
+const RECENT_FACTS = 'picked_runes, replay_v2_version:replay->v2->version, final_board:replay->v2->result->finalBoard, record:replay->v2->result->record, partial:replay->v2->>partial, first_wave:replay->v2->>firstRecordedWave, final_wave:derived->>finalWave, lobby_strength:replay->v2->result->lobbyStrength';
 export const RECENT_GAMES_SELECTS: readonly string[] = [
   `${RECENT_BASE}, ${RECENT_FACTS}, first_t:replay->v2->frames->0->>tMs, last_t:replay->v2->frames->-1->>tMs`,
   `${RECENT_BASE}, ${RECENT_FACTS}`,
@@ -1051,7 +1057,13 @@ export async function submitRating(req: RankSubmitRequest): Promise<RankSubmitOu
   const c = client();
   if (!c) return { status: 'retryable', reason: 'no_backend' };
   if (!currentUserId()) return { status: 'retryable', reason: 'no_session' };
-  const body = { runId: req.runId, placement: req.placement, seasonId: req.seasonId, rulesVersion: req.rulesVersion, ...(req.seed != null ? { seed: req.seed } : {}) };
+  const body = {
+    runId: req.runId, placement: req.placement, seasonId: req.seasonId, rulesVersion: req.rulesVersion,
+    ...(req.seed != null ? { seed: req.seed } : {}),
+    // The seven opponent keys (2026-09-22): the SERVER recomputes the lobby strength from the fight ledger at
+    // settle time and applies the 1st-place bonus itself; the client never sends a strength or a bonus.
+    ...(req.seatKeys && req.seatKeys.length > 0 ? { seatKeys: req.seatKeys } : {}),
+  };
   try {
     const timeout = new Promise<{ timedOut: true }>((resolve) => setTimeout(() => resolve({ timedOut: true }), RANK_SUBMIT_TIMEOUT_MS));
     const call = c.functions.invoke('submit-rating', { body }) as Promise<{ data: unknown; error: unknown }>;
@@ -1302,7 +1314,7 @@ export const CAREER_DETAIL_ROWS = 25;
  *  `entry` jsonb server-side so a 100-row pull stays a few KB instead of shipping 100 boards. `rating_after` is
  *  the MMR after settle that `settle_rank` stamps onto the row (the MMR trend); a row the stamp never reached
  *  simply projects NULL for it — a JSON path to a missing key is never an error. */
-const CAREER_LIGHT_SELECT = 'id, created_at, hero_id, wave, wins, placement, mode, losses:entry->>losses, draws:entry->>draws, apt:entry->>apt, seed:entry->>seed, gold_spent:entry->>goldSpent, rating_delta:entry->>ratingDelta, rating_after:entry->>ratingAfter, at:entry->>at, dominant_tribe:entry->>dominantTribe';
+const CAREER_LIGHT_SELECT = 'id, created_at, hero_id, wave, wins, placement, mode, losses:entry->>losses, draws:entry->>draws, apt:entry->>apt, seed:entry->>seed, gold_spent:entry->>goldSpent, rating_delta:entry->>ratingDelta, rating_after:entry->>ratingAfter, at:entry->>at, dominant_tribe:entry->>dominantTribe, lobby_strength:entry->lobbyStrength';
 
 /** The light `run_telemetry` probe: the row id (the Watch handle), the seed (the join), the v2 stamp (the
  *  watchability gate) and the first/last frame clocks (the run length). PostgREST resolves `frames->-1` as
@@ -1380,111 +1392,225 @@ export async function recordFightResult(r: { boardId: string; round: number; out
   }
 }
 
-// ── Seat ledger (the Hall of Champions record) ─────────────────────────────────────────────────────────────
-// One row per RECORDED SEAT with a result against the reporting player: 'win' when that run knocked the player
-// out, 'loss' when it was knocked out while the player still stood (owner 2026-09-22: "track the run that beat
-// the player when they were knocked out … that board should probably get a win … my board should get a loss
-// recorded"). Built by `seatOutcomesOf` from what the player's own run witnessed — nothing is simulated after
-// it ends — and written once at run end; de-duplicated server-side on (lobby_seed, run_key) so a re-uploaded
-// run never counts a table twice. Same fire-and-forget / no-op-when-unconfigured contract as the rest of this
-// seam. The per-combat `board_results` ledger above is a different question (single fights) and still feeds
-// matchmaking weights.
+// ── The FIGHT LEDGER (owner 2026-09-22) ────────────────────────────────────────────────────────────────
+// One row per fight the table resolved — both sides named by run key — written at the end of every REAL lobby
+// (never practice, the tutorial or a Scene Builder run): the fights the player witnessed plus the ones a
+// deterministic play-out resolved after their elimination (`fightRowsOf` in the sim). ONE batched upsert, unique
+// on (lobby_seed, round, run_a, run_b) with `ignoreDuplicates`, so a run restored and finished twice can never
+// count a fight twice. Same fire-and-forget / offline-queue contract as every other write here. The server
+// aggregates the table into the `run_fight_records` view; the client only ever reads THAT (never a row pool).
+// This replaces the knockout ledger (`seat_results`, #1630): a knockout is just the fight the reporter lost in
+// their last round, so the table is left in place, no longer written, and nothing is derived from it.
 
-export async function recordSeatResults(rows: SeatResultRow[]): Promise<void> {
+export async function recordLobbyFights(rows: FightRow[]): Promise<void> {
   const c = client();
   if (!c || rows.length === 0) return;
-  if (!currentUserId()) { enqueueUpload('seat', rows); return; }
+  if (!currentUserId()) { enqueueUpload('fights', rows); return; }
   try {
     const uid = currentUserId();
-    await c.from('seat_results').upsert(
-      rows.map((r) => ({ user_id: uid, lobby_seed: r.lobbySeed, run_key: r.runKey, outcome: r.outcome, round: r.round, player_placement: r.playerPlacement, seats: r.seats, mode: r.mode, patch: r.patch })),
-      { onConflict: 'lobby_seed,run_key', ignoreDuplicates: true },
+    await c.from('lobby_fights').upsert(
+      rows.map((r) => ({ user_id: uid, lobby_seed: r.lobbySeed, round: r.round, run_a: r.runA, run_b: r.runB, outcome: r.outcome, observed: r.observed, patch: r.patch })),
+      { onConflict: 'lobby_seed,round,run_a,run_b', ignoreDuplicates: true },
     );
   } catch {
-    /* best-effort — the Hall must never disrupt the end screen */
+    /* best-effort — the ledger must never disrupt the end screen */
   }
 }
 
-/** A recorded run's record against other players, aggregated from the seat ledger. */
-export interface SeatRecord {
-  /** Players it knocked out. */
+/** One run's aggregate from the `run_fight_records` view. */
+export interface RunFightRecord {
+  runKey: string;
+  fights: number;
   wins: number;
-  /** Times it was knocked out while the player it was served to still stood. */
   losses: number;
-  /** wins + losses — decided results, not every lobby it was served into (a seat still standing when the
-   *  player fell decided nothing). */
-  played: number;
-  /** ISO time of its most recent win, if it has one — the Hall prints "the last date it won a game". */
-  lastWinAt?: string;
+  draws: number;
+  /** Distinct lobbies the run fought in. */
+  lobbies: number;
+  /** wins / fights (a draw is not a win), 0–1. */
+  winRate: number;
+  /** The Wilson score interval's lower bound of `winRate` at 95% — the Hall's sort key (a 30–2 run ranks above
+   *  a 3–0 run). */
+  wilsonLb: number;
+  /** ISO time of the run's most recent fight. */
+  lastFightAt: string | null;
 }
 
-/** PostgREST puts an `in(...)` list in the query string, and a run key is ~40 characters, so the Hall's whole
- *  candidate pool in one call would build a URL right at the size servers start refusing. Chunked and merged. */
-const SEAT_CHUNK = 50;
+const FIGHT_RECORD_SELECT = 'run_key, fights, wins, losses, draws, lobbies, win_rate, wilson_lb, last_fight_at';
 
-/** Aggregate the seat ledger for a set of run keys. Best-effort + time-boxed; an empty map on any failure / no
- *  backend / a not-yet-migrated table — every run then reads as its own single victory, which is honest. */
-export async function fetchSeatRecords(runKeys: string[]): Promise<Map<string, SeatRecord>> {
+/** Shape one view row. Exported pure for the Hall tests; null for a row with no usable key. */
+export function asRunFightRecord(r: Record<string, unknown>): RunFightRecord | null {
+  if (typeof r.run_key !== 'string' || !r.run_key) return null;
+  const n = (v: unknown): number => numOf(v) ?? 0;
+  return {
+    runKey: r.run_key, fights: n(r.fights), wins: n(r.wins), losses: n(r.losses), draws: n(r.draws), lobbies: n(r.lobbies),
+    winRate: n(r.win_rate), wilsonLb: n(r.wilson_lb), lastFightAt: typeof r.last_fight_at === 'string' ? r.last_fight_at : null,
+  };
+}
+
+/** PostgREST puts an `in(...)` list in the query string, and a run key is ~40 characters, so a big key list in
+ *  one call would build a URL right at the size servers start refusing. Chunked and merged. */
+const KEY_CHUNK = 50;
+
+/** The view rows for a set of run keys (the seven seats of a lobby, or the Hall's candidates). Best-effort +
+ *  time-boxed; an EMPTY map on any failure / no backend / a not-yet-migrated view — a key with no row reads
+ *  as unserved, which is honest. */
+export async function fetchRunFightRecords(runKeys: string[]): Promise<Map<string, RunFightRecord>> {
   const c = client();
-  if (!c || runKeys.length === 0) return new Map();
+  const keys = [...new Set(runKeys.filter((k) => k && !k.startsWith('bot:')))];
+  if (!c || keys.length === 0) return new Map();
   const chunks: string[][] = [];
-  for (let i = 0; i < runKeys.length; i += SEAT_CHUNK) chunks.push(runKeys.slice(i, i + SEAT_CHUNK));
+  for (let i = 0; i < keys.length; i += KEY_CHUNK) chunks.push(keys.slice(i, i + KEY_CHUNK));
   try {
-    const request = Promise.all(chunks.map((keys) => Promise.resolve(
-      c.from('seat_results').select('run_key, outcome, created_at').in('run_key', keys).limit(FETCH_LIMIT * 5),
+    const request = Promise.all(chunks.map((ks) => Promise.resolve(
+      c.from('run_fight_records').select(FIGHT_RECORD_SELECT).in('run_key', ks).limit(KEY_CHUNK),
     )));
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const results = await Promise.race([request, timeout]);
     if (!results) return new Map();
-    return tallySeatRecords(results.flatMap((r) => (r.error || !r.data ? [] : (r.data as Array<{ run_key: string; outcome: string; created_at?: string | null }>))));
+    const map = new Map<string, RunFightRecord>();
+    for (const r of results) {
+      if (r.error || !r.data) continue;
+      for (const row of r.data as Record<string, unknown>[]) { const rec = asRunFightRecord(row); if (rec) map.set(rec.runKey, rec); }
+    }
+    return map;
   } catch {
     return new Map();
   }
 }
 
-/** Fold ledger rows into per-run records. Exported pure for the Hall tests. A row with any outcome other than
- *  'win' / 'loss' is ignored rather than guessed at. */
-export function tallySeatRecords(rows: Array<{ run_key: string; outcome: string; created_at?: string | null }>): Map<string, SeatRecord> {
-  const map = new Map<string, SeatRecord>();
-  for (const row of rows) {
-    if (row.outcome !== 'win' && row.outcome !== 'loss') continue;
-    const rec = map.get(row.run_key) ?? { wins: 0, losses: 0, played: 0 };
-    if (row.outcome === 'win') {
-      rec.wins += 1;
-      if (row.created_at && (!rec.lastWinAt || row.created_at > rec.lastWinAt)) rec.lastWinAt = row.created_at;
-    } else rec.losses += 1;
-    rec.played += 1;
-    map.set(row.run_key, rec);
+/** The LOBBY STRENGTH of a finished lobby (owner 2026-09-22): ONE fetch of the seven opponent keys' records
+ *  from the view, folded through the sim's formula. A bot key never hits the network (it is a fixed 25). Null
+ *  when nothing could be read (no backend, timeout, the view not migrated yet) — the run then carries no
+ *  strength stamp rather than a guessed one. The SERVER recomputes its own copy at settle time; this is what the
+ *  Career and Recent Games rows print. */
+export async function fetchLobbyStrength(opponentKeys: string[]): Promise<LobbyStrength | null> {
+  const c = client();
+  if (!c || opponentKeys.length === 0) return null;
+  const real = opponentKeys.filter((k) => !k.startsWith('bot:'));
+  const records = new Map<string, RunFightRecord>();
+  if (real.length > 0) {
+    // `fetchRunFightRecords` swallows failures into an empty map; tell "the view answered" apart from "we
+    // could not ask" with one direct probe of the same shape so a dead backend never stamps a 50.
+    try {
+      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+      const probe = await Promise.race([Promise.resolve(c.from('run_fight_records').select(FIGHT_RECORD_SELECT).in('run_key', real.slice(0, KEY_CHUNK)).limit(KEY_CHUNK)), timeout]);
+      if (!probe || probe.error || !probe.data) return null;
+      for (const row of probe.data as Record<string, unknown>[]) { const rec = asRunFightRecord(row); if (rec) records.set(rec.runKey, rec); }
+    } catch {
+      return null;
+    }
   }
-  return map;
+  const inputs: StrengthInput[] = opponentKeys.map((key) => {
+    const rec = records.get(key);
+    return { key, fights: rec?.fights ?? 0, wins: rec?.wins ?? 0 };
+  });
+  return lobbyStrengthOf(inputs);
 }
 
-/** The rank a champion HELD when they won (owner 2026-09-22: "the rank that the player was from that snapshot,
- *  aka Bronze II"), keyed by the run's seed. `settle_rank` stamps the rated result onto the run's career row
- *  (`run_history.entry.rank`, the same shape as `RankResult`), so this reads that row by seed and returns the
- *  position the game was played FROM (`before`). Absent for a run that was never rated (practice, pre-season-3,
- *  or a row the server has not stamped). Best-effort + time-boxed like everything here. */
-export async function fetchHallRanks(seeds: number[]): Promise<Map<number, RankPosition>> {
+/** The Hall's page size and its qualifying bar (owner 2026-09-22: "Minimum fights to qualify for the Hall —
+ *  let's start at 10"). */
+export const HALL_ROWS = 10;
+export const HALL_MIN_FIGHTS = 10;
+
+/** THE HALL (owner 2026-09-22: "what board has been the best against everything else … what the top 10 are in
+ *  that category"): the top `limit` runs by the Wilson lower bound of their win rate, with at least `minFights`
+ *  fights, from EVERY recorded run in the view — never only lobby winners, never a bot key. Ties break on more
+ *  fights, then the most recent fight. Best-effort + time-boxed; `[]` on any failure / no backend / a
+ *  not-yet-migrated view (the Hall then shows its empty state). */
+export async function fetchHallRecords(limit = HALL_ROWS, minFights = HALL_MIN_FIGHTS): Promise<RunFightRecord[]> {
   const c = client();
-  if (!c || seeds.length === 0) return new Map();
-  const chunks: number[][] = [];
-  for (let i = 0; i < seeds.length; i += SEAT_CHUNK) chunks.push(seeds.slice(i, i + SEAT_CHUNK));
+  if (!c) return [];
   try {
-    const request = Promise.all(chunks.map((ids) => Promise.resolve(
-      c.from('run_history').select('entry').eq('mode', 'lobby').eq('placement', 1).in('entry->>seed', ids.map(String)).limit(FETCH_LIMIT),
+    const request = Promise.resolve(
+      c.from('run_fight_records').select(FIGHT_RECORD_SELECT)
+        .not('run_key', 'like', 'bot:%').gte('fights', minFights)
+        .order('wilson_lb', { ascending: false }).order('fights', { ascending: false }).order('last_fight_at', { ascending: false, nullsFirst: false })
+        .limit(limit),
+    );
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([request, timeout]);
+    if (!result || result.error || !result.data) return [];
+    return (result.data as Record<string, unknown>[]).map(asRunFightRecord).filter((r): r is RunFightRecord => r !== null);
+  } catch {
+    return [];
+  }
+}
+
+/** What a Hall row reads off the run's OWN career row (`run_history`, by seed): the rank its player held when
+ *  the game was played (`entry.rank.before`, stamped by `settle_rank`), the run's own W–L–D ("12–3", what the
+ *  player saw — it counts their ghost fights, which the fight ledger deliberately does not), when it ended, its
+ *  placement, and its final warband (`entry.board`, the same end-state board the Career shows). */
+export interface HallHistoryFacts {
+  seed: number;
+  heroId: string | null;
+  rank: RankPosition | null;
+  record: { wins: number; losses: number; draws: number } | null;
+  at: string | null;
+  placement: number | null;
+  board: BoardSnapshot | null;
+}
+
+/** The career facts for a set of run seeds (owner 2026-09-22: "the rank that the player was from that
+ *  snapshot"). Keyed by seed; a seed with no history row (an unrated or pre-history run) is simply absent.
+ *  Reads EVERY placement — a Hall candidate need not have won its own lobby. Best-effort + time-boxed. */
+export async function fetchHallHistory(seeds: number[]): Promise<Map<number, HallHistoryFacts>> {
+  const c = client();
+  const ids = [...new Set(seeds.filter((x) => Number.isFinite(x)))];
+  if (!c || ids.length === 0) return new Map();
+  const chunks: number[][] = [];
+  for (let i = 0; i < ids.length; i += KEY_CHUNK) chunks.push(ids.slice(i, i + KEY_CHUNK));
+  try {
+    const request = Promise.all(chunks.map((xs) => Promise.resolve(
+      c.from('run_history').select('placement, entry').eq('mode', 'lobby').in('entry->>seed', xs.map(String)).limit(FETCH_LIMIT),
     )));
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const results = await Promise.race([request, timeout]);
     if (!results) return new Map();
-    const map = new Map<number, RankPosition>();
+    const map = new Map<number, HallHistoryFacts>();
     for (const r of results) {
       if (r.error || !r.data) continue;
-      for (const row of r.data as Array<{ entry: { seed?: unknown; rank?: { before?: unknown } } | null }>) {
-        const seed = Number(row.entry?.seed);
-        const before = row.entry?.rank?.before;
-        if (Number.isFinite(seed) && isRankPosition(before) && !map.has(seed)) map.set(seed, before);
+      for (const row of r.data as Array<{ placement?: unknown; entry: Record<string, unknown> | null }>) {
+        const e = row.entry ?? {};
+        const seed = Number(e.seed);
+        if (!Number.isFinite(seed) || map.has(seed)) continue;
+        const before = (e.rank as { before?: unknown } | undefined)?.before;
+        const wins = numOf(e.wins); const losses = numOf(e.losses); const draws = numOf(e.draws);
+        map.set(seed, {
+          seed,
+          heroId: typeof e.heroId === 'string' ? e.heroId : null,
+          rank: isRankPosition(before) ? before : null,
+          record: wins !== null ? { wins, losses: losses ?? 0, draws: draws ?? 0 } : null,
+          at: typeof e.at === 'string' ? e.at : typeof e.date === 'string' ? e.date : null,
+          placement: numOf(row.placement) ?? numOf(e.placement),
+          board: boardOf(e.board),
+        });
       }
     }
+    return map;
+  } catch {
+    return new Map();
+  }
+}
+
+/** The final warband of a run that has no career row to read it from: its HIGHEST-WAVE snapshot in the pool
+ *  (`boards`, by author + hero + seed, `order wave desc limit 1` — one row, one jsonb, a few KB). Ten of these
+ *  in parallel is trivial at friend scale. Keyed by run key; a run with no board in the pool is absent. */
+export async function fetchRunFinalBoards(runs: Array<{ key: string; author: string; heroId: string; seed: number }>): Promise<Map<string, BoardSnapshot>> {
+  const c = client();
+  if (!c || runs.length === 0) return new Map();
+  try {
+    const request = Promise.all(runs.map((r) => Promise.resolve(
+      c.from(TABLE).select('snapshot').eq('author', r.author).eq('hero_id', r.heroId).eq('seed', r.seed).order('wave', { ascending: false }).limit(1),
+    )));
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const results = await Promise.race([request, timeout]);
+    if (!results) return new Map();
+    const map = new Map<string, BoardSnapshot>();
+    results.forEach((res, i) => {
+      if (res.error || !res.data?.length) return;
+      const board = boardOf((res.data[0] as { snapshot?: unknown }).snapshot);
+      if (board) map.set(runs[i]!.key, board);
+    });
     return map;
   } catch {
     return new Map();

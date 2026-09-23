@@ -1,72 +1,60 @@
 import { useEffect, useState } from 'react';
-import { getHero, rankLabel, type RankPosition } from '@game/sim';
+import { getHero, rankLabel, type BoardSnapshot } from '@game/sim';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame } from './store';
-import { fetchHallRanks, fetchSeatRecords, fetchVictories, remoteEnabled, type SeatRecord, type VictoryRow } from './remoteBoards';
+import { HALL_MIN_FIGHTS, HALL_ROWS, fetchHallHistory, fetchHallRecords, fetchRunFinalBoards, remoteEnabled, type HallHistoryFacts, type RunFightRecord } from './remoteBoards';
 import { LbHeroFrame, LbLabel, LbMedallion, LbRunes, LbTeam } from './LadderBits';
-import { hallRecordOf, hallRunKeyOf, playedOnText, recordText } from './leaderboardData';
+import { hallRowsOf, parseRunKey, playedOnText, recordText, winRateText, type HallSort } from './leaderboardData';
 
 /**
- * Leaderboard — the "Hall of Champions" PAGE (not a modal): a BOARD SHOWCASE of the warbands that have won
- * the most games, scrollable, with a Back button top-left. Each champion is one chunky row (owner layout
- * 2026-09-22): the rank medallion (podium gold / silver / bronze); the hero frame with the player and the hero
- * name, and nothing else on the left; the middle EXACTLY as a Recent Games row shows a game — the final team
- * as 7 real card tiles and the runes; and on the right, in place of a verdict (every row is a winner), the run's
- * record "X–Y", the date of its most recent win, and the rank its player held when they won it. Read-only +
- * best-effort.
+ * Leaderboard — the "Hall of Champions" PAGE (not a modal): the warbands with the best record against everyone
+ * (owner 2026-09-22: "we want the hall of champions to answer 'what board has been the best against everything
+ * else' basically, and what the top 10 are in that category … we would want to know its strength start to
+ * finish though, like overall win/loss across games. so a 15 round game may mean it was 12-3").
  *
- * WHAT A ROW RANKS BY (owner rework 2026-09-22, replacing "the latest 20 victories"): the run's WINS AGAINST
- * OTHER PLAYERS — the lobby it won for the player who built it, PLUS every player it knocked out when served as
- * a recorded seat; every time it was knocked out while that player still stood is a loss ("track the run that
- * beat the player when they were knocked out"). See `hallRecordOf`, `seatOutcomesOf` in the sim and the seat
- * ledger (`fetchSeatRecords`). Lobby mode only: the row list is already filtered to lobby victories, and the
- * seat ledger is written only by real lobbies (never practice, the tutorial or a Scene Builder run).
+ * WHAT A ROW IS. Every real lobby writes ONE ROW PER FIGHT its table resolved to the fight ledger (both sides
+ * named by run key; the rounds after the reporter's elimination played out deterministically), and the server
+ * aggregates that per run into the `run_fight_records` view. The Hall is the top `HALL_ROWS` runs by the Wilson
+ * lower bound of their win rate (so a 30–2 run outranks a 3–0 run) with at least `HALL_MIN_FIGHTS` fights
+ * (owner: "let's start at 10") — from EVERY recorded run, not only lobby winners. The page reads the view; it
+ * never pulls a row pool.
  *
- * WHY THE POOL IS BIGGER THAN THE PAGE. Ranking by wins means every candidate's record has to be known
- * BEFORE the top 20 can be chosen — taking the 20 most recent and sorting those would just re-order one
- * page and call it a leaderboard. So the fetch pulls `HALL_POOL` victories, reads every one's record in one
- * chunked ledger call, ranks, and only then cuts to `HALL_ROWS`.
+ * THE LAYOUT keeps #1630's: the medallion; the hero frame with the player and the hero name; the middle exactly
+ * as a Recent Games row (final team + runes); the right the record block — now the W–L–D across everything, the
+ * win rate, the lobbies, the run's OWN game ("12–3", from its career row), the date of its last fight, and the
+ * rank its player held when they played it. The final warband comes from the run's career row (`entry.board`,
+ * the same end-state board the Career shows — no extra query); a run with no career row falls back to its
+ * highest-wave snapshot in the pool.
  */
-const HALL_ROWS = 20;
-/** Victory rows considered for the ranking. Bounded: this is a friend-scale backend and the whole pool's
- *  records are aggregated client-side. */
-const HALL_POOL = 200;
-
 export function Leaderboard() {
   const show = useGame((s) => s.showLeaderboard);
   const close = useGame((s) => s.closeLeaderboard);
-  const [rows, setRows] = useState<VictoryRow[] | null>(null);
-  // Table record per candidate run, keyed by its run key. Populated for the WHOLE pool, because the ranking
-  // needs every candidate's record before the page can be cut (see the header note).
-  const [stats, setStats] = useState<Map<string, SeatRecord>>(new Map());
-  // The rank each champion HELD when they won, keyed by the run's seed (read off the career row `settle_rank`
-  // stamped). Absent for a run that was never rated, which simply shows no rank.
-  const [ranks, setRanks] = useState<Map<number, RankPosition>>(new Map());
-  const [sort, setSort] = useState<'recent' | 'wins'>('wins');
+  const [records, setRecords] = useState<RunFightRecord[] | null>(null);
+  const [history, setHistory] = useState<Map<number, HallHistoryFacts>>(new Map());
+  const [boards, setBoards] = useState<Map<string, BoardSnapshot>>(new Map());
+  const [sort, setSort] = useState<HallSort>('rate');
 
   useEffect(() => {
     if (!show) return;
-    setRows(null); // reset to the loading state each time it opens
-    setStats(new Map());
-    setRanks(new Map());
+    setRecords(null); // reset to the loading state each time it opens
+    setHistory(new Map());
+    setBoards(new Map());
     let alive = true;
-    // WINNING LOBBY BOARDS only (owner rework 2026-07-31, reaffirmed 2026-09-22 "this should only be lobby
-    // mode wins"): rows logged before the rework carry no mode and are filtered out. The fight ledger is
-    // already lobby-only at the source — `store.ts` never records a practice or Scene Builder combat.
-    void fetchVictories(HALL_POOL).then(async (rAll) => {
-      const pool = rAll.filter((v) => v.mode === 'lobby');
+    void fetchHallRecords(HALL_ROWS, HALL_MIN_FIGHTS).then(async (recs) => {
       if (!alive) return;
-      setRows(pool);
-      // Every candidate's table record, in one chunked ledger call (best-effort; an empty map leaves every
-      // run on its own victory, which is 1–0).
-      const keys = pool.map((v) => hallRunKeyOf(v.board, v.author)).filter((k): k is string => !!k);
-      const seeds = pool.map((v) => v.board?.seed).filter((x): x is number => typeof x === 'number' && Number.isFinite(x));
-      const [s, rk] = await Promise.all([keys.length > 0 ? fetchSeatRecords(keys) : Promise.resolve(new Map<string, SeatRecord>()), seeds.length > 0 ? fetchHallRanks(seeds) : Promise.resolve(new Map<number, RankPosition>())]);
+      setRecords(recs);
+      const parsed = recs.map((r) => ({ key: r.runKey, ...parseRunKey(r.runKey) })).filter((p): p is { key: string; author: string; heroId: string; seed: number } => typeof p.seed === 'number');
+      const h = await fetchHallHistory(parsed.map((p) => p.seed));
       if (!alive) return;
-      setStats(s);
-      setRanks(rk);
+      setHistory(h);
+      // The pool lookup only for runs whose career row carried no board (or had no career row at all).
+      const missing = parsed.filter((p) => !h.get(p.seed)?.board);
+      if (missing.length === 0) return;
+      const b = await fetchRunFinalBoards(missing);
+      if (!alive) return;
+      setBoards(b);
     });
     return () => { alive = false; };
   }, [show]);
@@ -75,17 +63,7 @@ export function Leaderboard() {
 
   const back = (): void => { sfx.pulse(); close(); };
 
-  // 'wins' (the default) ranks by TABLE wins — the run's own victory plus every lobby its seat has won since.
-  // Ties break on fewer losses, then on the fetch order, which is recency: of two runs that have won the same
-  // number of tables the cleaner record leads, and of two identical records the newer one does.
-  // 'recent' is the old view, kept as the fetch order (created_at desc).
-  const seatOf = (r: VictoryRow): SeatRecord | undefined => { const k = hallRunKeyOf(r.board, r.author); return k ? stats.get(k) : undefined; };
-  const recOf = (r: VictoryRow) => hallRecordOf(seatOf(r));
-  const ordered = rows === null ? null
-    : (sort === 'wins'
-        ? [...rows].sort((a, b) => { const x = recOf(a), y = recOf(b); return y.wins - x.wins || x.losses - y.losses; })
-        : rows
-      ).slice(0, HALL_ROWS);
+  const rows = records === null ? null : hallRowsOf(records, history, boards, { minFights: HALL_MIN_FIGHTS, limit: HALL_ROWS, sort });
 
   return (
     <SidebarHost className="lbpage lb-ladder lb-hall">
@@ -95,39 +73,36 @@ export function Leaderboard() {
           <Icon name="crown" />
           <div>
             <div className="esch disp">Hall of Champions</div>
-            <div className="lbsub">The {HALL_ROWS} warbands that have won the most games</div>
+            <div className="lbsub">The {HALL_ROWS} warbands with the best record against everyone</div>
           </div>
         </div>
-        {/* Sort toggle — Most wins (the default, owner 2026-09-22) vs the old Most recent view. */}
+        {/* Sort toggle — Win rate (the default, owner 2026-09-22) vs Most recent (by last fight). */}
         <div className="lb-seg" role="group" aria-label="Sort leaderboard">
           <button type="button" className={`lb-seg-btn${sort === 'recent' ? ' on' : ''}`} aria-pressed={sort === 'recent'} onClick={() => { if (sort !== 'recent') { sfx.pulse(); setSort('recent'); } }}>Most recent</button>
-          <button type="button" className={`lb-seg-btn${sort === 'wins' ? ' on' : ''}`} aria-pressed={sort === 'wins'} onClick={() => { if (sort !== 'wins') { sfx.pulse(); setSort('wins'); } }}>Most wins</button>
+          <button type="button" className={`lb-seg-btn${sort === 'rate' ? ' on' : ''}`} aria-pressed={sort === 'rate'} onClick={() => { if (sort !== 'rate') { sfx.pulse(); setSort('rate'); } }}>Win rate</button>
         </div>
       </div>
 
       <div className="lbscroll">
         {!remoteEnabled() ? (
           <div className="lbempty lb-state"><Icon name="gear" /><div>Hall of Champions unavailable. No backend configured.</div></div>
-        ) : ordered === null ? (
+        ) : rows === null ? (
           <div className="lbempty lb-state loading"><span className="lb-spin" aria-hidden /><div>Opening the Hall…</div></div>
-        ) : ordered.length === 0 ? (
-          <div className="lbempty lb-state"><Icon name="crown" /><div>No champions yet. Be the first to summit.</div></div>
+        ) : rows.length === 0 ? (
+          <div className="lbempty lb-state"><Icon name="crown" /><div>No records yet. A warband enters the Hall after {HALL_MIN_FIGHTS} fights.</div></div>
         ) : (
           <div className="lb-rows">
-            {ordered.map((r, i) => {
+            {rows.map((r, i) => {
               const hero = getHero(r.heroId);
-              const seat = seatOf(r);
-              const rec = hallRecordOf(seat);
-              // The date of its most recent win: the newest knockout it has scored, else the victory that put it here.
-              const lastWin = playedOnText(seat?.lastWinAt ?? r.createdAt) || r.date;
-              const rank = typeof r.board?.seed === 'number' ? ranks.get(r.board.seed) : undefined;
-              const board = r.board && r.board.minions.length > 0 ? r.board : null;
+              const board = r.board && r.board.minions.length > 0 ? (r.board as BoardSnapshot) : null;
+              const lastFight = playedOnText(r.record.lastFightAt);
+              const lobbies = `${r.record.lobbies} ${r.record.lobbies === 1 ? 'lobby' : 'lobbies'}`;
               return (
-                <div className="lb-row" key={r.boardId ?? i}>
+                <div className="lb-row" key={r.key}>
                   <div className="lb-row-rank"><LbMedallion rank={i + 1} /></div>
                   <div className="lb-row-hero">
                     <LbHeroFrame heroId={r.heroId} />
-                    <div className="lb-row-name">{r.author || hero.name}</div>
+                    <div className="lb-row-name">{r.author && r.author !== 'anon' ? r.author : hero.name}</div>
                     <div className="lb-row-herosub">{hero.name}</div>
                   </div>
                   {/* The middle reads exactly like a Recent Games row (owner 2026-09-22): the team and the runes. */}
@@ -137,12 +112,14 @@ export function Leaderboard() {
                     <LbLabel>Runes</LbLabel>
                     <LbRunes runes={r.board?.runes ?? []} empty="No runes taken" />
                   </div>
-                  {/* No VICTORY verdict — every row is a winner. The record stands where the verdict stood. */}
+                  {/* The record block: everything the run has fought, then its own game. */}
                   <div className="lb-row-outcome">
                     <LbLabel>Record</LbLabel>
-                    <div className="lb-verdict won lb-hallrecord" aria-label={`Won ${rec.wins}, lost ${rec.losses}`}>{recordText(rec)}</div>
-                    <div className="lb-when">Last win {lastWin}</div>
-                    {rank && <div className="lb-hallrank">{rankLabel(rank)}</div>}
+                    <div className={`lb-verdict lb-hallrecord ${r.record.wins >= r.record.losses ? 'won' : 'lost'}`} aria-label={`Won ${r.record.wins}, lost ${r.record.losses}, drawn ${r.record.draws} across ${r.record.fights} fights`}>{recordText(r.record)}</div>
+                    <div className="lb-hallrate" aria-label={`Win rate ${winRateText(r.record)} over ${lobbies}`}>{winRateText(r.record)} win rate · {lobbies}</div>
+                    {r.ownRecord && <div className="lb-hallown" aria-label={`Its own game: won ${r.ownRecord.wins}, lost ${r.ownRecord.losses}`}>Own game {recordText(r.ownRecord)}</div>}
+                    <div className="lb-when">{lastFight ? `Last fight ${lastFight}` : 'No fights dated'}</div>
+                    {r.rank && <div className="lb-hallrank">{rankLabel(r.rank)}</div>}
                   </div>
                 </div>
               );

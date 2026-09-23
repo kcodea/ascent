@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getHero } from '@game/sim';
+import { getHero, strengthText } from '@game/sim';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
@@ -133,6 +133,7 @@ export function RecentGames(): JSX.Element | null {
                     <div className="lb-facts">
                       <span className="lb-fact"><span className="lb-fact-l">Length</span><span className="lb-fact-v">{length}</span></span>
                       {r.wave !== null && <span className="lb-fact"><span className="lb-fact-l">Rounds</span><span className="lb-fact-v">{r.wave}</span></span>}
+                      {r.lobbyStrength && <span className="lb-fact"><span className="lb-fact-l">Lobby</span><span className="lb-fact-v lb-fact-lobby" aria-label={`Lobby strength ${r.lobbyStrength.tier} ${r.lobbyStrength.value} of 100`}>{strengthText(r.lobbyStrength)}</span></span>}
                     </div>
                     {r.partial && <div className="lb-partial"><Icon name="clock" />{partialText(r.firstRecordedWave)}</div>}
                     <button

@@ -58,9 +58,12 @@ export function standingGateText(pos: RankPosition, demotionReady = false): stri
 }
 
 /** The primary delta line: the finish's award, signed (owner 2026-09-21: "just the +/- RP, the x/100, the bar
- *  and the rank"). No floor / cap / landing flavour: the bar and the points readout carry what actually moved. */
+ *  and the rank"). No floor / cap / landing flavour: the bar and the points readout carry what actually moved.
+ *  A 1st place that earned the LOBBY-STRENGTH bonus (owner 2026-09-22) prints the award and the bonus apart:
+ *  "+40 RP +12 lobby". */
 export function deltaText(r: RankResult): string {
-  return signedRp(r.baseDelta);
+  const bonus = r.strengthBonus ?? 0;
+  return bonus > 0 ? `${signedRp(r.baseDelta - bonus)} +${bonus} lobby` : signedRp(r.baseDelta);
 }
 
 /** The resolve-beat outcome line — ONLY what the visuals don't already say (owner 2026-09-20). A promotion or

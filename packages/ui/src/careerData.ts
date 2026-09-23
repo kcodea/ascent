@@ -1,5 +1,5 @@
 import type { Tribe } from '@game/core';
-import type { BoardSnapshot, ReplayV2 } from '@game/sim';
+import { parseLobbyStrength, type BoardSnapshot, type LobbyStrength, type ReplayV2 } from '@game/sim';
 
 /**
  * CAREER PAGE DATA (owner rebuild 2026-09-19) — the pure half of the Career page: the run row model the page
@@ -63,6 +63,9 @@ export interface CareerRun {
   replayRowId: number | null;
   /** The recording's clock span (last frame − first frame), ms. Null without a telemetry row. */
   durationMs: number | null;
+  /** The LOBBY STRENGTH the run was played at (owner 2026-09-22): `entry.lobbyStrength`, stamped at run end
+   *  (or back-filled by `settle_rank`). Null on rows without a stamp — the row then prints nothing for it. */
+  lobbyStrength: LobbyStrength | null;
 }
 
 /** The subset of a `run_history` row the page reads — either the full `entry` (detailed) or the JSON-path
@@ -80,6 +83,8 @@ export interface RunHistoryRowLike {
   /** Light-select aliases (`x:entry->>x`) — PostgREST returns `->>` scalars as TEXT, so these are parsed. */
   losses?: unknown; draws?: unknown; apt?: unknown; seed?: unknown; gold_spent?: unknown;
   rating_delta?: unknown; rating_after?: unknown; at?: unknown; dominant_tribe?: unknown;
+  /** `lobby_strength:entry->lobbyStrength` (`->`, so the JSON object itself). */
+  lobby_strength?: unknown;
 }
 
 /** One `run_telemetry` row as the LIGHT probe projects it — scalars only, never the replay payload. */
@@ -148,6 +153,7 @@ export function careerRunOf(row: RunHistoryRowLike): CareerRun {
     runes,
     replayRowId: null,
     durationMs: null,
+    lobbyStrength: parseLobbyStrength(e.lobbyStrength) ?? parseLobbyStrength(row.lobby_strength),
   };
 }
 

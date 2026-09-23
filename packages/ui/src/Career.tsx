@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { RUNE_INDEX } from '@game/content';
-import { getHero } from '@game/sim';
+import { getHero, strengthText } from '@game/sim';
 import type { BoardSnapshot } from '@game/sim';
 import { Card, mdBold } from './Card';
 import { storedCardView } from './storedBoardView';
@@ -274,6 +274,11 @@ function MatchRow({ run, focus, busy, unplayable, onWatch }: {
             <span className="cv2-meta"><span className="cv2-meta-l">Played</span><span className="cv2-meta-v cv2-row-when">{when || '—'}</span></span>
             <span className="cv2-meta"><span className="cv2-meta-l">Length</span><span className="cv2-meta-v cv2-row-length">{length}</span></span>
             <span className="cv2-meta"><span className="cv2-meta-l">Gold spent</span><span className="cv2-meta-v cv2-row-gold-v">{run.goldSpent === null ? '—' : run.goldSpent}</span></span>
+            {/* LOBBY STRENGTH (owner 2026-09-22): the tier and the number, post-game only, and only when the run
+                carries a stamp — a row without one prints nothing here rather than a guess. */}
+            {run.lobbyStrength && (
+              <span className="cv2-meta"><span className="cv2-meta-l">Lobby</span><span className="cv2-meta-v cv2-row-lobby" aria-label={`Lobby strength ${run.lobbyStrength.tier} ${run.lobbyStrength.value} of 100`}>{strengthText(run.lobbyStrength)}</span></span>
+            )}
           </div>
         </div>
       </header>

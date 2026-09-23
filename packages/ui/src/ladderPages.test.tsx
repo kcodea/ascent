@@ -14,14 +14,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { mount, type Mounted } from './renderedText.mount';
 import type { BoardSnapshot } from '@game/sim';
-import type { PlayerRow, RecentGameRow, SeatRecord, VictoryRow } from './remoteBoards';
-import type { RankPosition } from '@game/sim';
+import type { HallHistoryFacts, PlayerRow, RecentGameRow, RunFightRecord } from './remoteBoards';
 
 const fetchTopPlayers = vi.fn<() => Promise<PlayerRow[]>>();
 const fetchLatestReplayForUser = vi.fn<(id: string) => Promise<unknown>>();
-const fetchVictories = vi.fn<() => Promise<VictoryRow[]>>();
-const fetchSeatRecords = vi.fn<() => Promise<Map<string, SeatRecord>>>();
-const fetchHallRanks = vi.fn<() => Promise<Map<number, RankPosition>>>();
+const fetchHallRecords = vi.fn<() => Promise<RunFightRecord[]>>();
+const fetchHallHistory = vi.fn<(seeds: number[]) => Promise<Map<number, HallHistoryFacts>>>();
+const fetchRunFinalBoards = vi.fn<(runs: unknown[]) => Promise<Map<string, BoardSnapshot>>>();
 const fetchRecentGames = vi.fn<() => Promise<RecentGameRow[]>>();
 const fetchReplayPayload = vi.fn<(id: number) => Promise<unknown>>();
 const fetchPlayerById = vi.fn<(id: string) => Promise<PlayerRow | null>>();
@@ -33,9 +32,9 @@ vi.mock('./remoteBoards', async (importOriginal) => ({
   remoteEnabled: () => remote,
   fetchTopPlayers: () => fetchTopPlayers(),
   fetchLatestReplayForUser: (id: string) => fetchLatestReplayForUser(id),
-  fetchVictories: () => fetchVictories(),
-  fetchSeatRecords: () => fetchSeatRecords(),
-  fetchHallRanks: () => fetchHallRanks(),
+  fetchHallRecords: () => fetchHallRecords(),
+  fetchHallHistory: (seeds: number[]) => fetchHallHistory(seeds),
+  fetchRunFinalBoards: (runs: unknown[]) => fetchRunFinalBoards(runs),
   fetchRecentGames: () => fetchRecentGames(),
   fetchReplayPayload: (id: number) => fetchReplayPayload(id),
   fetchPlayerById: (id: string) => fetchPlayerById(id),
@@ -63,24 +62,29 @@ const PLAYERS: PlayerRow[] = [
   { userId: 'u-three', author: 'Robin', discriminator: '7043', rating: 264, gamesPlayed: 2 },
 ];
 
-const VICTORIES: VictoryRow[] = [
-  { mode: 'lobby', heroId: 'brackus', author: 'Nadja', wave: 15, date: '2026-09-19', board: { ...board(7), id: 'b1', quests: [] }, history: 'LLWLWWWWWWWWWLW', createdAt: '2026-09-19T14:00:00Z', boardId: 'b1' },
-  { mode: 'lobby', heroId: 'sable', author: 'Kev', wave: 14, date: '2026-09-18', board: { ...board(5), id: 'b2' }, history: 'WWWDWWLWWWWW', createdAt: '2026-09-18T14:00:00Z', boardId: 'b2' },
-  { mode: 'lobby', heroId: 'brackus', author: 'Robin', wave: 12, date: '2026-09-17', board: null, createdAt: '2026-09-17T14:00:00Z' },
+// The `run_fight_records` view, already cut to the top rows by Wilson lower bound with at least 10 fights
+// (owner 2026-09-22). Nadja's run is 31-7-1 (a lobby winner); Kev's 12-3 across two lobbies never won its own
+// game (3rd); Robin's has no career row and no pool board.
+const RECORDS: RunFightRecord[] = [
+  { runKey: 'Nadja|brackus|7', fights: 39, wins: 31, losses: 7, draws: 1, lobbies: 4, winRate: 31 / 39, wilsonLb: 0.64, lastFightAt: '2026-09-21T10:00:00Z' },
+  { runKey: 'Kev|sable|8', fights: 15, wins: 12, losses: 3, draws: 0, lobbies: 2, winRate: 0.8, wilsonLb: 0.55, lastFightAt: '2026-09-18T14:00:00Z' },
+  { runKey: 'Robin|brackus|9', fights: 10, wins: 6, losses: 4, draws: 0, lobbies: 1, winRate: 0.6, wilsonLb: 0.31, lastFightAt: '2026-09-22T09:00:00Z' },
 ];
-// The seat ledger, keyed by run key: Nadja's board carries no author of its own, so the key falls back to the
-// row's author (`hallRunKeyOf(board, row.author)`), which is how the pool serves that run.
-const STATS = new Map<string, SeatRecord>([['Nadja|brackus|7', { wins: 6, losses: 2, played: 8, lastWinAt: '2026-09-21T10:00:00Z' }]]);
-// The rank each champion held when they won, by the run's seed (every fixture board carries seed 7).
-const RANKS = new Map<number, RankPosition>([[7, { divisionIndex: 1, points: 40, demotionReady: false }]]);
+// The runs' own career rows by seed: the rank held (division index 1 = Bronze II under the ascending numerals),
+// the run's OWN record, its placement and its final board (Kev's row has no board → the pool lookup).
+const HISTORY = new Map<number, HallHistoryFacts>([
+  [7, { seed: 7, heroId: 'brackus', rank: { divisionIndex: 1, points: 40, demotionReady: false }, record: { wins: 12, losses: 3, draws: 0 }, at: '2026-09-19T14:00:00Z', placement: 1, board: { ...board(7), id: 'b1', quests: [] } as BoardSnapshot }],
+  [8, { seed: 8, heroId: 'sable', rank: { divisionIndex: 1, points: 40, demotionReady: false }, record: { wins: 9, losses: 5, draws: 0 }, at: '2026-09-18T14:00:00Z', placement: 3, board: null }],
+]);
+const POOL_BOARDS = new Map<string, BoardSnapshot>([['Kev|sable|8', { ...board(5, 'sable'), id: 'b2' } as BoardSnapshot]]);
 
 const game = (over: Partial<RecentGameRow>): RecentGameRow => ({
   userId: 'u-top', author: 'Nadja', heroId: 'brackus', wins: 9, placement: 1, createdAt: '2026-09-19T14:00:00Z', rowId: 91, hasReplay: true,
   board: board(7), record: { wins: 9, losses: 4, draws: 0 }, durationMs: 18 * 60_000, partial: false, firstRecordedWave: null,
-  runes: ['rune_spellslinging', 'rune_happy_birthday'], wave: 15, ...over,
+  runes: ['rune_spellslinging', 'rune_happy_birthday'], wave: 15, lobbyStrength: null, ...over,
 });
 const GAMES: RecentGameRow[] = [
-  game({}),
+  game({ lobbyStrength: { value: 74, tier: 'Brutal', inputs: [] } }),
   // A PARTIAL recording (resumed from round 5), 5th place, one draw in the record.
   game({ userId: 'me-1', author: 'Kev', heroId: 'sable', rowId: 90, placement: 5, record: { wins: 4, losses: 5, draws: 1 }, partial: true, firstRecordedWave: 5, durationMs: 7 * 60_000 + 20_000, runes: [], wave: 11 }),
   // A pre-replay row: no board, no record, no length, no replay (Watch must be dead), no player id (not clickable).
@@ -97,9 +101,9 @@ beforeEach(() => {
   remote = true;
   fetchTopPlayers.mockReset().mockResolvedValue(PLAYERS);
   fetchLatestReplayForUser.mockReset().mockResolvedValue({ version: 2, seed: 1, frames: [{}] });
-  fetchVictories.mockReset().mockResolvedValue(VICTORIES);
-  fetchSeatRecords.mockReset().mockResolvedValue(STATS);
-  fetchHallRanks.mockReset().mockResolvedValue(RANKS);
+  fetchHallRecords.mockReset().mockResolvedValue(RECORDS);
+  fetchHallHistory.mockReset().mockResolvedValue(HISTORY);
+  fetchRunFinalBoards.mockReset().mockResolvedValue(POOL_BOARDS);
   fetchRecentGames.mockReset().mockResolvedValue(GAMES);
   fetchReplayPayload.mockReset().mockResolvedValue({ version: 2, seed: 1, frames: [{}] });
   fetchPlayerById.mockReset().mockResolvedValue(null);
@@ -154,6 +158,11 @@ describe('asRecentGameRow — the widened light-list mapper', () => {
     expect(row.runes).toEqual(['rune_warding']);
     expect(row.wave).toBe(15);
     expect(asRecentGameRow({ ...base, final_board: { ...board(0) } }).board).toBeNull();
+    // The lobby-strength stamp (`replay->v2->result->lobbyStrength`, a JSON object): parsed when present, null otherwise.
+    expect(asRecentGameRow({ ...base, lobby_strength: { value: 74, tier: 'Brutal', inputs: [] } }).lobbyStrength).toEqual({ value: 74, tier: 'Brutal', inputs: [] });
+    expect(asRecentGameRow({ ...base, lobby_strength: null }).lobbyStrength).toBeNull();
+    expect(row.lobbyStrength).toBeNull();
+    expect(RECENT_GAMES_SELECTS[0]).toContain('lobby_strength:replay->v2->result->lobbyStrength');
   });
   it('falls back to the board’s own runes when picked_runes is absent, and to nulls on a sparse row', () => {
     expect(asRecentGameRow({ ...base, final_board: board(2) }).runes).toEqual(['rune_spellslinging']);
@@ -294,47 +303,64 @@ describe('Leaderboard — the Hall of Champions banners', () => {
     await flush();
   });
 
-  it('one banner per victory: medallion · hero frame + author + hero · final team + runes · the record block', () => {
+  it('one banner per view row (top 10, at least 10 fights): medallion · hero frame + author + hero · final team + runes · the record block', () => {
     const rows = [...ui.container.querySelectorAll('.lb-row')];
     expect(rows).toHaveLength(3);
+    expect(fetchHallRecords).toHaveBeenCalledTimes(1);
+    expect(fetchHallHistory).toHaveBeenCalledWith([7, 8, 9]);
+    // The pool lookup only for the runs whose career row carried no board (Kev) or had none (Robin).
+    expect(fetchRunFinalBoards).toHaveBeenCalledWith([{ key: 'Kev|sable|8', author: 'Kev', heroId: 'sable', seed: 8 }, { key: 'Robin|brackus|9', author: 'Robin', heroId: 'brackus', seed: 9 }]);
     expect([...ui.container.querySelectorAll('.lb-medal')].map((m) => m.className)).toEqual(['lb-medal gold', 'lb-medal silver', 'lb-medal bronze']);
     expect(rows[0]!.querySelector('.lb-heroframe .hero .f img.heroimg') ?? rows[0]!.querySelector('.lb-heroframe .hero .f svg')).not.toBeNull();
     expect(text('.lb-row-name')).toEqual(['Nadja', 'Kev', 'Robin']);
     expect(text('.lb-row-herosub')).toEqual(['Brackus', 'Sable', 'Brackus']);
-    // The left is the player and the hero only (owner 2026-09-22): no W–L–D of the run's own rounds, no pips.
+    // The left is the player and the hero only (owner 2026-09-22): no pips.
     expect(ui.container.querySelectorAll('.lb-row-record, .lbpip, .runtrophy')).toHaveLength(0);
-    expect(rows[0]!.querySelectorAll('.lb-tile .card')).toHaveLength(7);
-    expect(rows[1]!.querySelectorAll('.lb-tile .card')).toHaveLength(5);
+    expect(rows[0]!.querySelectorAll('.lb-tile .card')).toHaveLength(7);   // from the career row
+    expect(rows[1]!.querySelectorAll('.lb-tile .card')).toHaveLength(5);   // from the pool
     expect(rows[1]!.querySelectorAll('.lb-tile.empty')).toHaveLength(2);
     expect(rows[2]!.querySelector('.lb-team-none')?.textContent).toBe('No warband stored for this run');
-    // No VICTORY verdict — every row is a winner — the record stands in its place: Nadja's run knocked out 6
-    // players and was knocked out twice, plus her own win → 7–2; the other two have never been served → 1–0.
-    expect(text('.lb-verdict')).toEqual(['7–2', '1–0', '1–0']);
+    // The record across EVERYTHING stands where a verdict would: W–L–D, then the win rate and the lobbies.
+    expect(text('.lb-verdict')).toEqual(['31–7–1', '12–3', '6–4']);
+    expect(text('.lb-hallrate')).toEqual(['79% win rate · 4 lobbies', '80% win rate · 2 lobbies', '60% win rate · 1 lobby']);
     // The runes read exactly as a Recent Games row shows them.
     expect(rows[0]!.querySelectorAll('.lb-runes .lb-rune, .lb-runes > *').length).toBeGreaterThan(0);
     expect(rows[2]!.querySelector('.lb-runes-none')?.textContent).toBe('No runes taken');
   });
 
-  it('the right side: the record, the date of the last win, and the rank the player held when they won', () => {
+  it('the right side: the run\'s own game, the date of its last fight, and the rank the player held', () => {
     const rows = [...ui.container.querySelectorAll('.lb-row')];
-    expect(rows[0]!.querySelector('.lb-hallrecord')?.textContent).toBe('7–2');
-    // Nadja's newest knockout is the 21st; Kev has never been served, so his last win is the victory itself.
-    expect(rows[0]!.querySelector('.lb-when')?.textContent).toBe('Last win Sep 21, 2026');
-    expect(rows[1]!.querySelector('.lb-when')?.textContent).toBe('Last win Sep 18, 2026');
-    // Division index 1 = Bronze II under the ascending numerals (2026-09-22). Robin's row has no board, hence
-    // no seed, hence no rank line.
+    expect(rows[0]!.querySelector('.lb-hallrecord')?.textContent).toBe('31–7–1');
+    // Its OWN game ("12–3", from the career row); Robin's run has no career row, so no own-game line.
+    expect(text('.lb-hallown')).toEqual(['Own game 12–3', 'Own game 9–5']);
+    expect(rows[0]!.querySelector('.lb-when')?.textContent).toBe('Last fight Sep 21, 2026');
+    expect(rows[1]!.querySelector('.lb-when')?.textContent).toBe('Last fight Sep 18, 2026');
+    // Division index 1 = Bronze II under the ascending numerals (2026-09-22). Robin's row has no career row,
+    // hence no rank line — and a run that never won its own lobby (Kev, 3rd) is a candidate all the same.
     expect(rows[0]!.querySelector('.lb-hallrank')?.textContent).toBe('Bronze II');
     expect(rows[1]!.querySelector('.lb-hallrank')?.textContent).toBe('Bronze II');
     expect(rows[2]!.querySelector('.lb-hallrank')).toBeNull();
   });
 
-  it('Most wins is the default sort (owner 2026-09-22); Most recent is the second view', () => {
+  it('Win rate (the Wilson order the view returns) is the default sort (owner 2026-09-22); Most recent re-orders by the last fight', () => {
     const btns = ui.container.querySelectorAll('.lb-seg-btn');
     expect(btns[1]!.getAttribute('aria-pressed')).toBe('true');
-    expect(text('.lb-row-name')).toEqual(['Nadja', 'Kev', 'Robin']); // Nadja 7–2, then two 1–0s in fetch order
+    expect(btns[1]!.textContent).toBe('Win rate');
+    expect(text('.lb-row-name')).toEqual(['Nadja', 'Kev', 'Robin']);
     click(btns[0]!);
     expect(btns[0]!.getAttribute('aria-pressed')).toBe('true');
-    expect(text('.lb-row-name')).toEqual(['Nadja', 'Kev', 'Robin']); // the fetch order is the same here
+    expect(text('.lb-row-name')).toEqual(['Robin', 'Nadja', 'Kev']); // Robin fought most recently (the 22nd)
+    expect(ui.container.querySelector('.lbsub')?.textContent).toBe('The 10 warbands with the best record against everyone');
+  });
+
+  it('an empty view (pre-migration, or nobody at 10 fights yet) shows the designed empty state', async () => {
+    ui.unmount();
+    fetchHallRecords.mockResolvedValue([]);
+    useGame.setState({ showLeaderboard: true });
+    ui = mount(<Leaderboard />);
+    await flush();
+    expect(ui.container.querySelector('.lb-state')?.textContent).toBe('No records yet. A warband enters the Hall after 10 fights.');
+    expect(fetchHallHistory).toHaveBeenCalledWith([]);
   });
 });
 
@@ -358,7 +384,9 @@ describe('RecentGames — the recording banners', () => {
     expect(rows[1]!.querySelector('.lb-runes-none')?.textContent).toBe('No runes taken');
     expect(text('.lb-verdict')).toEqual(['VICTORY', '5TH', '2ND']);
     expect([...ui.container.querySelectorAll('.lb-verdict')].map((v) => v.className)).toEqual(['lb-verdict won', 'lb-verdict lost', 'lb-verdict top4']);
-    expect(text('.lb-fact-v')).toEqual(['18 min', '15', '7 min', '11', '—']); // length · rounds per row (row 3: no rounds)
+    // length · rounds · (lobby strength, only on a row that carries the stamp) per row; row 3 has no rounds
+    expect(text('.lb-fact-v')).toEqual(['18 min', '15', 'Brutal 74', '7 min', '11', '—']);
+    expect(text('.lb-fact-lobby')).toEqual(['Brutal 74']);
   });
 
   it('labels the partial recording, and the board-less row gets the empty plate', () => {

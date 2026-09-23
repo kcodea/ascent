@@ -32,6 +32,7 @@ const base = (over: Partial<RankResult> & Pick<RankResult, 'placement' | 'before
     cappedPoints: Math.abs(over.baseDelta - appliedDelta),
     wasPromotionGame: false, promotionKind: null, requiredFinish: null, promotionUnlocked: false, promoted: false, demoted: false,
     wasDemotionGame: false, demotionUnlocked: false,
+    strengthBonus: 0, lobbyStrength: null,
     highestAfter: higher ? { ...over.after } : { ...over.before },
     ...over,
   };

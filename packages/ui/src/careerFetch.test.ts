@@ -83,6 +83,7 @@ describe('fetchMyRuns — the query shape', () => {
     expect(light.select).toContain('apt:entry->>apt');
     expect(light.select).toContain('seed:entry->>seed');
     expect(light.select).toContain('rating_after:entry->>ratingAfter'); // the MMR trend's value — the settle stamp, same alias shape as its neighbours
+    expect(light.select).toContain('lobby_strength:entry->lobbyStrength'); // the lobby-strength stamp (`->`: the JSON object, not text)
     expect(light.select).not.toMatch(/(^|, )entry(,|$)/);
     expect(light.limit).toBe(100);
     // The detailed select is capped to the match-history rows.

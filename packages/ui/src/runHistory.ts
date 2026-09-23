@@ -1,6 +1,6 @@
 import { CARD_INDEX } from '@game/content';
 import type { Tribe } from '@game/core';
-import { buildTags, lineResult, metLine, runMvp, runRecord, topMechanic, type BoardSnapshot, type LineStatus, type RankResult, type RatingChange, type RunState } from '@game/sim';
+import { buildTags, lineResult, metLine, runMvp, runRecord, topMechanic, type BoardSnapshot, type LineStatus, type LobbyStrength, type RankResult, type RatingChange, type RunState } from '@game/sim';
 
 /**
  * Career / match history (A7) — the persistence layer. On run-end, a compact per-run entry is appended to
@@ -53,6 +53,12 @@ export interface RunHistoryEntry {
    *  is no longer shown (owner 2026-08-04) — absent on pre-lobby entries, which fall back to the Line. */
   placement?: number;
   mode?: string;
+  /** LOBBY STRENGTH (owner 2026-09-22): how hard the seven opponents were, 0–100 with a tier, computed at run
+   *  end from the fight ledger's view (the seven inputs ride along so it can be re-derived). Shown on the
+   *  Career and Recent Games rows only — never on the post-game screen, never on the rail. Absent when the
+   *  view could not be read (or on entries from before it existed); `settle_rank` back-fills a value + tier
+   *  from its own computation when the client's stamp is missing. */
+  lobbyStrength?: LobbyStrength;
 }
 
 /** 1st / 2nd / 3rd / 4th … — English ordinals, including the 11th/12th/13th exceptions that a naive

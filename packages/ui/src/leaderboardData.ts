@@ -54,33 +54,97 @@ export function recordText(rec: { wins: number; losses: number; draws?: number }
 }
 
 /** The key a recorded run is served under — `author|heroId|seed`, exactly as `playerRunsFrom` groups the pool
- *  (packages/sim/src/lobby/snapshotSeats.ts). Built from the Hall row's own stored board so it can never
- *  disagree with the seat that replayed that run somewhere else. `fallbackAuthor` is the victory row's own
- *  author column, used only when the stored board carries no author of its own (both are stamped from the same
- *  name at run end, so they agree whenever both exist). Null when the board predates seeds (such a run was never
- *  served as a seat and has no record to look up). */
+ *  (packages/sim/src/lobby/snapshotSeats.ts) and as the fight ledger names a seat. Built from a run's own stored
+ *  board / history entry; `fallbackAuthor` is used only when the board carries no author of its own (both are
+ *  stamped from the same name at run end, so they agree whenever both exist). Null for a board that predates
+ *  seeds. The REPORTER's own key at run end is built the same way from their run. */
 export function hallRunKeyOf(board: { author?: string; heroId: string; seed?: number } | null | undefined, fallbackAuthor?: string): string | null {
   if (!board || typeof board.seed !== 'number' || !Number.isFinite(board.seed)) return null;
   return `${board.author ?? fallbackAuthor ?? 'anon'}|${board.heroId}|${board.seed}`;
 }
 
-/** A run's record for the Hall of Champions: the TABLES it has won (owner ask 2026-09-22 — "if i win a game and
- *  it gets served 30 times and wins 19, it should show an overall record of 20-10 … i want to see what player's
- *  run basically wins the most times").
- *
- *  Two sources, added together:
- *   • the ONE lobby the run won for the player who built it. Every Hall row is a VICTORY run, so that win is
- *     implied by the row existing; it is never in the seat ledger, which only records a run being SERVED to
- *     someone else. Counting it is the whole point of the owner's "20", not "19".
- *   • every other player's lobby its seat has since placed 1st in (`SeatRecord.wins`); the tables it sat in and
- *     did not win are its losses.
- *
- *  A run nobody has been served yet reads 1–0: it won once and has never lost a table. A lobby has exactly one
- *  winner, so there are no draws here. */
-export function hallRecordOf(rec: { wins: number; losses: number } | undefined): { wins: number; losses: number; games: number } {
-  const wins = (rec?.wins ?? 0) + 1;      // + the victory that put it in the Hall
-  const losses = rec?.losses ?? 0;
-  return { wins, losses, games: wins + losses };
+/** A run key parsed back into its parts — FROM THE RIGHT, because an author name is unsanitized and may itself
+ *  contain a `|`: the seed is the last segment, the hero the second-last, the author everything before. Null
+ *  for a bot key or anything without a numeric seed. */
+export function parseRunKey(key: string): { author: string; heroId: string; seed: number } | null {
+  if (!key || key.startsWith('bot:')) return null;
+  const parts = key.split('|');
+  if (parts.length < 3) return null;
+  const seed = Number(parts[parts.length - 1]);
+  const heroId = parts[parts.length - 2]!;
+  if (!Number.isFinite(seed) || !heroId) return null;
+  return { author: parts.slice(0, -2).join('|'), heroId, seed };
+}
+
+/** A run's aggregate across every fight it has been in (the `run_fight_records` view's shape, minus the key). */
+export interface HallFightRecord {
+  fights: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  lobbies: number;
+  winRate: number;
+  wilsonLb: number;
+  lastFightAt: string | null;
+}
+
+/** "81%" — a run's raw win rate across everything (wins / fights; a draw is not a win). */
+export function winRateText(rec: Pick<HallFightRecord, 'wins' | 'fights'>): string {
+  return rec.fights > 0 ? `${Math.round((100 * rec.wins) / rec.fights)}%` : '—';
+}
+
+/** One Hall row, assembled (owner 2026-09-22: "what board has been the best against everything else … what the
+ *  top 10 are in that category"). */
+export interface HallRow {
+  key: string;
+  author: string;
+  heroId: string;
+  seed: number;
+  /** The record across EVERY fight: the W–L–D, the win rate, the lobbies. */
+  record: HallFightRecord;
+  /** The run's OWN game ("12–3" — what its player saw; it counts their ghost fights, which the ledger does not). */
+  ownRecord: { wins: number; losses: number; draws: number } | null;
+  ownPlacement: number | null;
+  /** The rank its player held when the game was played. */
+  rank: { divisionIndex: number; points: number } | null;
+  board: { minions: unknown[]; runes?: string[] } | null;
+}
+
+export type HallSort = 'rate' | 'recent';
+
+/** Assemble and order the Hall from the view rows + the per-seed career facts + any pool boards fetched for
+ *  runs without a career row. Pure. Candidates below `minFights` are dropped (the fetch already filters; this
+ *  is the same rule stated once more where the rows are built), bot keys and unparseable keys are dropped, and
+ *  the list is cut to `limit`. 'rate' (the default) orders by the Wilson lower bound of the win rate, then more
+ *  fights, then the most recent fight; 'recent' by the most recent fight. */
+export function hallRowsOf<B extends { minions: unknown[]; runes?: string[] }>(
+  records: ReadonlyArray<{ runKey: string } & HallFightRecord>,
+  history: ReadonlyMap<number, { heroId: string | null; rank: { divisionIndex: number; points: number } | null; record: { wins: number; losses: number; draws: number } | null; placement: number | null; board: B | null }>,
+  boards: ReadonlyMap<string, B>,
+  opts: { minFights: number; limit: number; sort: HallSort },
+): HallRow[] {
+  const rows: HallRow[] = [];
+  for (const r of records) {
+    if (r.fights < opts.minFights) continue;
+    const parsed = parseRunKey(r.runKey);
+    if (!parsed) continue;
+    const h = history.get(parsed.seed);
+    const own = h && (h.heroId === null || h.heroId === parsed.heroId) ? h : undefined;
+    const { runKey: _k, ...record } = r;
+    rows.push({
+      key: r.runKey, author: parsed.author, heroId: parsed.heroId, seed: parsed.seed,
+      record,
+      ownRecord: own?.record ?? null,
+      ownPlacement: own?.placement ?? null,
+      rank: own?.rank ?? null,
+      board: own?.board ?? boards.get(r.runKey) ?? null,
+    });
+  }
+  const at = (x: HallRow): number => (x.record.lastFightAt ? Date.parse(x.record.lastFightAt) || 0 : 0);
+  rows.sort(opts.sort === 'recent'
+    ? (a, b) => at(b) - at(a) || b.record.wilsonLb - a.record.wilsonLb
+    : (a, b) => b.record.wilsonLb - a.record.wilsonLb || b.record.fights - a.record.fights || at(b) - at(a));
+  return rows.slice(0, opts.limit);
 }
 
 /** The W–L–D record folded out of a Hall row's per-round spread ("LLWLWWW…", one char per round: W/L/D).

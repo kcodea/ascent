@@ -118,6 +118,12 @@ export function stopAllAudio(): void {
   const a = audio();
   if (a && bus) { bus.gain.cancelScheduledValues(a.currentTime); bus.gain.setTargetAtTime(0, a.currentTime, 0.008); }
 }
+/** The game's (lazily created) AudioContext, for the lobby MUSIC (music.ts) to route its streamed tracks through
+ *  its own gains → destination. Deliberately NOT through the SFX master / mute bus: the music must never be
+ *  ducked by a Skip's `stopAllAudio`, the Game-sounds slider or the sound mute. Null when Web Audio is missing. */
+export function audioContext(): AudioContext | null {
+  return audio();
+}
 /** Un-mute the master bus + allow sounds again (called when the fight is left / a new fight begins). */
 export function resumeAudio(): void {
   audioSuspended = false;
@@ -860,8 +866,8 @@ export const sfx = {
     if (playSample('triplereward', 'triple')) return;
     chord([523, 659, 784, 1046], { dur: 0.13, type: 'triangle', vol: 0.12, category: 'triple' }, 0.06);
   },
-  win: () => chord([523, 659, 784, 1046], { dur: 0.2, type: 'triangle', vol: 0.14, category: 'ui' }, 0.1),
-  lose: () => chord([392, 311, 233], { dur: 0.24, type: 'sawtooth', vol: 0.13, category: 'ui' }, 0.12),
+  // The round WON / LOST verdict chimes (`win` / `lose`) were REMOVED 2026-09-23 (owner ask, with the lobby
+  // background music): the replay's end plays no sting; the music runs through the verdict uninterrupted.
   // ── MEDAL RANK cues (post-game rank screen, 2026-09-20) — four MODEST cues on the `rank` fader: the bar
   //    starting to move, the promotion gate unlocking, a division promotion, a medal promotion. Each tries an
   //    authored clip first (`rankprogress` / `rankgate` / `rankpromote` / `rankmedal`, none committed yet) and

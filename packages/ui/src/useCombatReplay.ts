@@ -2488,12 +2488,8 @@ export function useCombatReplay(
     // `seekNonce`: see the trigger-pulse effect above — a re-seek to the same beat must re-fire these cues.
   }), [active, beatIdx, seekNonce, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
 
-  // Verdict sting when the replay finishes.
-  useEffect(() => {
-    if (!active || !done || !combat) return;
-    if (combat.result === 'win') sfx.win();
-    else if (combat.result === 'lose') sfx.lose();
-  }, [active, done, combat]);
+  // No verdict sting when the replay finishes (the round won / lost chimes were removed 2026-09-23 with the
+  // lobby background music, owner ask): the music carries the verdict through uninterrupted.
 
   // Measure lunge + SC projectiles AFTER the beat commits, so positions reflect the
   // frame on screen (not the previous one). Runs synchronously before paint.

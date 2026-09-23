@@ -57,7 +57,8 @@ import { PixiFxLayer } from './PixiFxLayer';
 import { pixiFx, warmDiscoverFx } from './pixiFx';
 import { applyFpsCap } from './fpsCap';
 import { warmArt } from './art';
-import { sfx } from './sfx';
+import { audioContext, sfx } from './sfx';
+import { setMusicAudioContextProvider, syncMusic } from './music';
 import { useGame, isPreRun } from './store';
 
 /** Root of the playable game. `Recruit` owns the board and stays mounted across every
@@ -146,6 +147,12 @@ export function Game() {
     perfMonitor.start();
     // WARM-UP at every phase start (owner report 2026-09-15: the opening spike "destroys the graph"). The
     // rule for what counts as a phase start is pure and tested in `perfWarmup.ts`; this is only the wiring.
+    // LOBBY BACKGROUND MUSIC (owner ask 2026-09-23): the machine in `music.ts` is store-driven and React-free;
+    // this is only the wiring. It routes through the SFX module's AudioContext (its own gains → destination, never
+    // the SFX mute bus) and reads a handful of booleans per store update — nothing allocates on the hot path.
+    setMusicAudioContextProvider(audioContext);
+    syncMusic(useGame.getState());
+    const unsubMusic = useGame.subscribe((st) => syncMusic(st));
     const unsubWarm = useGame.subscribe((st, prevSt) => {
       if (st.run === prevSt.run) return;
       const start = phaseStartBetween(prevSt.run, st.run);
@@ -224,6 +231,7 @@ export function Game() {
       window.removeEventListener('pointermove', onMove);
       unsub();
       unsubWarm();
+      unsubMusic();
       setFxScene(null);
       perfMonitor.stop();
     };

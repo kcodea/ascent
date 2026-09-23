@@ -51,6 +51,36 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-23',
+    label: 'Runeforge',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Runeforge: a rune that names a tribe now "fits your board" only when you are really playing that tribe. Two of the tribe on the board at a Basic forge, three at an Epic forge.',
+        details: [
+          'Only the minions on your board count, not your hand.',
+          'A minion that counts as every tribe counts as one of each. A minion with two tribes counts for both.',
+          'The forge still guarantees one rune that fits your board when one exists, and still discounts runes that do not fit, to make changing direction cheaper. Both now use this stricter read of your board.',
+          'Runes that name a mechanic (Rally, Echo, Shout and the rest) are unchanged: one card with the mechanic is enough.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: "Rune of the Ornate Clock now pays its 2 Gold. It moved your Epic forge as printed but the Gold never arrived.",
+        details: ['The 2 Gold lands the moment you buy the rune. The Epic forge still opens next turn instead of turn 9.'],
+      },
+      {
+        category: 'Systems',
+        text: 'Guardian plus Rune of the Epic Forge now opens two Epic forges on turn 8, one after the other. The rune used to slide its forge to the turn after you bought it.',
+        details: [
+          'The second forge opens as soon as you buy from or leave the first, before anything else that turn.',
+          'The two forges show different runes. The usual turn-9 Epic forge is unchanged.',
+          'A run saved between the two forges picks up with the second one still to come.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-22',
     label: 'Runeforge re-roll',
     changes: [

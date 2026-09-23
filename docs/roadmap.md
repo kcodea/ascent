@@ -922,6 +922,7 @@ Remaining:
   `base + spellsThisTurn` while the recruit half grants `base × (1 + spells)` — reconcile with the owner
   which is intended, then align the other half + its combat text.
 - **Art:** Epic runes + the batch 7 runes fall back to the sigil glyph — author art.
+- When Set 3 goes live: add Spirit / Celestial / Starform / Reveler to the rune board-fit keywords (packages/content/src/runeSynergy.ts) so Set 3 runes follow a Set 3 board and stop drawing the pivot discount (owner 2026-09-22).
 
 ### New mechanics (depth, later within Next)
 Each its own spec when reached: **Balance** (average two units' stats — a shop puzzle), **Mark / Bind /

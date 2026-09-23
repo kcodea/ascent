@@ -435,18 +435,82 @@ playable hero, that placeholder was reachable in real games until this ruling.
 
 ## Runes (the Runeforge)
 
-Runes are run-long permanent buffs bought from a **Runeforge**, available only to specific heroes
-(never in the regular shop / Discover / quest pool):
+Runes are run-long permanent buffs bought at a **Runeforge** (never in the regular shop / Discover /
+quest pool). Every hero visits the forge; some visit it more. Current rules (rewritten 2026-09-23 from the
+code — `advanceCombat`, `openNextStartOfTurnModal`, `runeforgePool`, `drawRuneOffer` in
+`packages/sim/src/reducer.ts`):
 
-- **Basic Runeforge** — hero **Runesmith**: opens on **turn 5**, offers a random 3 Basic Runes, buy
-  ONE (re-roll once for 2 Gold). Its power text and `oncePerGame` comment both say turn 7 (the
-  internal comment "fires on the turn-6 advance" refers to the setup tick that *opens* the turn-7
-  offer). Verified turn = **7**.
-- **Epic Runeforge** — hero **Runeguard**: opens on **turn 8**, buy one Epic Rune
-  (scheduled at run start via `epicForgeWave`).
+**A visit.** The forge opens at the START of a turn, behind any quest offer and hero-power pick and ahead of
+any queued Discover (`openNextStartOfTurnModal`: power pick → Epic forge(s) → Basic forge → Discovers). It
+offers **4 runes** (`RUNEFORGE_OFFER`; the tutorial's scripted forges offer 3), you buy **ONE** for its Gold
+cost or leave, and the forge closes. There are two forges with two pools: the **Basic forge** stocks `RUNES`,
+the **Epic forge** stocks `EPIC_RUNES` — pool membership is array membership, `epic: true` is only the
+card's kicker.
+
+**The schedule** (`CONFIG.runeforgeEnabled`, the set-2 default):
+- **Every hero**: a Basic forge on **turn 6** and an Epic forge on **turn 9**.
+- **Runesmith** (Forgemaster): an extra Basic forge on **turn 5**, one turn ahead of the universal one.
+- **Guardian** (Runeguard): an extra Epic forge on **turn 8**, booked at run creation (`epicForgeWave`).
+- **Rune of the Epic Forge** (Basic 4): books an extra Epic forge for **turn 8** (next turn, if 8 has
+  passed). A Guardian holding it gets **TWO Epic forges on turn 8**, opened one after the other — the second
+  opens the moment the first is bought or skipped, before the turn's Basic forge or Discovers (owner
+  2026-09-22: "can we just book 2 runeforges here"). Bookings are COUNTED (`epicForgeCount`,
+  `pendingEpicRuneforge` is a count), so two forges booked for one turn are both opened, never dropped and
+  never slid to a later turn.
+- **Rune of the Ornate Clock** (Basic 2): pays **2 Gold on resolve** and MOVES the turn-9 Epic forge to
+  **next turn** (`epicForgeClaimed` stands the turn-9 visit down). Bought late it still opens next turn.
+- A quest reward can also schedule a forge (The Runeforge: a Basic forge next turn with +4 Gold; The Epic
+  Runeforge: an Epic forge next turn) — those quests are archived, but the reward path still resolves.
+- A forge armed MID-turn (a rune bought, a quest completed) is `deferred` to the next turn's start; it never
+  pops on the turn it was earned.
+
+**What a forge can offer** (`runeforgePool`, in order): the forge's pool (Basic / Epic) → a rune that
+`requiresDoublePower` only for a hero whose power can double (Rune of Empowerment) → the run's PINNED
+set (`sets` absent = every set; a scoped rune only where its mechanics exist) → the **tribe gate**: a rune
+with a `tribes` list is offered only when **any one** of those tribes is among the run's rolled tribes →
+owned runes whose duplicate would only pay the sweetener (or, for the ruled-unique Ornate Clock, nothing)
+are never re-offered; stacking runes stay offerable (see *Duplicates* below). Every eligible rune is
+weighted **equally**: no rarity tiers, no pity timer.
+
+**"Fits the board"** (owner 2026-09-22: "for basic, it should be at least 2 of a tribe type, and for epic
+it should be at least 3 of a tribe type. make sure all types count as 1 of everything"). A rune's synergy
+tags come from its printed text (`packages/content/src/runeSynergy.ts`: the tribes it names plus the named
+mechanics — Rally, Echo, Shout, Avenge, Consume, Ruby, Ale, spells, Gold, summon). The board's tags come from
+its cards (`boardSynergyTags`):
+- A **tribe** tag needs at least **2** minions of that tribe on the board at a **Basic** forge and at
+  least **3** at an **Epic** forge (`BASIC_FORGE_TRIBE_FIT` / `EPIC_FORGE_TRIBE_FIT`). Only the **7 board
+  slots** count — the hand is uncommitted and the forge opens at the start of a turn, when the board is what
+  just fought. An **All-types** minion (`universalTribe`, or the per-instance `allTribes` flag) counts as
+  **one of every tribe**; a **dual-tribe** minion counts once for each of its tribes (via the shared
+  `isTribe` helper).
+- A **mechanic** tag is a PRESENCE tag: one card carrying the mechanic is enough (the owner's threshold
+  rule speaks of "a tribe type"; a mechanic threshold would be a separate ruling).
+- Set 3's Spirit / Celestial / Starform / Reveler words are NOT yet in the keyword list — deferred until
+  Set 3 is live (roadmap).
+
+**The guarantee and the pivot discount** (`drawRuneOffer`, owner ask 2026-07-31): if an offer's 4 draws
+contain nothing that follows the board but a following rune exists in the pool, one seeded slot is swapped
+for one that does. Every offered rune that does NOT follow the board rolls a **40%** chance of a **pivot
+discount**: **1–2 Gold** at a Basic forge, **2–4 Gold** at an Epic forge — a nudge toward changing
+direction, never a tax on staying the course. A rune that fits the board never carries one.
+
+**The hero discount** (owner 2026-08-17; the every-forge reach confirmed 2026-09-22): **Runesmith** and
+**Guardian** have EVERY forge they visit discounted on every slot (same spans as the pivot), whichever route
+opened it — their own power's forge, the universal turn-6 / turn-9 visits, a rune-booked forge. A slot that
+already earned a pivot discount keeps it (the pivot can be larger).
+
+**Re-roll**: ONE, **free**, **per game** (`runeforgeRerollUsed`, shared between the Basic and Epic forges).
+It redraws the offer preferring runes not among the 4 just shown, falling back to them only when the pool is
+too small; the pivot / hero discounts are re-rolled with it. (The tutorial's scripted forge re-roll serves the
+same authored runes — known, ruled fine.)
+
+**Determinism**: every offer is drawn from `mixSeed(seed, wave, TAG.QUEST, route)` — the run seed and the
+turn, salted per route (Runesmith's forge, the re-roll, the Epic forge, a scheduled Basic forge), and a
+SECOND Epic forge on the same turn adds its index — so a replay reproduces every offer, every discount and
+both turn-8 forges.
 
 Each rune's effect reuses the quest `QuestReward` application engine — it just takes effect with no
-objective.
+objective. Rune of Duplication copies the FIRST Epic rune forged after it and is spent on that buy.
 
 **Set scoping (`sets`) is MECHANICAL COMPATIBILITY, not set of origin.** A rune with no `sets` is offered in
 every set; a scoped rune is offered only where its mechanics exist. Since the **Set 3 rune roster handoff

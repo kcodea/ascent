@@ -1,4 +1,4 @@
-import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, socTwilightExtraFires, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
+import { type PresentationCollector, type ConsequenceDraft, type CombatEvent, beatIdentity, socTwilightExtraFires, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe, TRIBES } from '@game/core';
 import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
@@ -2779,8 +2779,8 @@ function reduceCore(state: RunState, action: Action): RunState {
     }
 
     case 'buyRune': {
-      // Runeforge (turn 6): buy ONE offered rune for its Gold cost. Its reward applies for the run (via the
-      // shared quest-reward engine), it joins `ownedRunes` (shown as a run-buff badge), and the forge closes.
+      // Runeforge: buy ONE offered rune for its Gold cost. Its reward applies for the run (via the shared
+      // quest-reward engine), it joins `ownedRunes` (shown as a run-buff badge), and the forge closes.
       const offer = s.runeforgeOffer;
       if (!offer) return state;
       const runeId = offer[action.index];
@@ -5212,10 +5212,10 @@ function advanceCombat(s: RunState): void {
   // never pop over a coached step and hijack the turn.
   const questPlan = s.mode === 'tutorial' ? null : questOfferPlan(s);
   const questOffer = questPlan ? generateQuestOffer(s, questPlan) : [];
-  // Runesmith: the Runeforge opens exactly once, on turn 5 — offer a random 3 of the runes for the player to buy
-  // ONE. Like the quest shop, the tavern is rolled behind the overlay so the shop is ready once the forge closes.
-  // The HERO forge is turn 5 — deliberately EARLIER than the universal system's turn-6 basic forge, so a
-  // Runesmith is ahead of the curve rather than redundant with it (owner 2026-07-31).
+  // Runesmith: the Runeforge opens exactly once, on turn 5 — offer RUNEFORGE_OFFER (4) of the runes for the
+  // player to buy ONE. Like the quest shop, the tavern is rolled behind the overlay so the shop is ready once
+  // the forge closes. The HERO forge is turn 5 — deliberately EARLIER than the universal system's turn-6 basic
+  // forge, so a Runesmith is ahead of the curve rather than redundant with it (owner 2026-07-31).
   const forge = s.mode !== 'tutorial' && hasPower(s, 'runeforge') && s.wave === 5 && !s.heroPowerSpent;
   if (forge) {
     s.runeforgeEpic = undefined; // basic forge — set before runeforgePool so it reads the normal set
@@ -5233,7 +5233,7 @@ function advanceCombat(s: RunState): void {
     // Universal basic Runeforge on turn 6 — driven by EITHER the runeforge system (CONFIG.runeforgeEnabled) or
     // the "Runic Behavior" rift. Either way it opens exactly ONE free (no hero-power charge) forge, queued so it
     // slots into the normal start-of-turn modal priority (behind any quest offer, via openNextStartOfTurnModal).
-    // Turn 6 has no quest, so it opens directly. (Runesmith still gets its own turn-7 forge on top — this is an
+    // Turn 6 has no quest, so it opens directly. (Runesmith still gets its own turn-5 forge on top — this is an
     // extra visit, not a replacement.)
     s.pendingBasicForge = { deferred: false };
   }
@@ -5261,18 +5261,24 @@ function advanceCombat(s: RunState): void {
   // offer or the Runesmith forge (set above) shows first; the Epic Runeforge + any queued Discovers wait their
   // turn and open as each higher modal closes (see openNextStartOfTurnModal, called from every modal-close path).
   s.phase = 'recruit';
-  // Rune of the Epic Forge: it armed the Epic Runeforge for THIS wave — turn it into a pending open, which the
-  // start-of-turn sequencing below presents (behind any quest offer / Runesmith forge). Never in a tutorial.
-  if (s.mode !== 'tutorial' && s.epicForgeWave != null && s.wave >= s.epicForgeWave) { s.pendingEpicRuneforge = true; s.epicForgeWave = undefined; }
+  // A BOOKED Epic Runeforge (Guardian's turn 8 / Rune of the Epic Forge's turn 8) has come due — turn every
+  // forge booked for that wave into a pending open (a COUNT: Guardian + the rune book two for turn 8, owner
+  // 2026-09-22), which the start-of-turn sequencing below presents one after the other (behind any quest offer
+  // / Runesmith forge). Never in a tutorial.
+  if (s.mode !== 'tutorial' && s.epicForgeWave != null && s.wave >= s.epicForgeWave) {
+    s.pendingEpicRuneforge = pendingEpicForges(s) + (s.epicForgeCount ?? 1);
+    s.epicForgeWave = undefined;
+    s.epicForgeCount = undefined;
+  }
   // Runeforge system: EVERY hero visits the Epic Runeforge on turn 9 (free — openEpicRuneforge flags it
   // no-charge). Independent of Runeguard's own epic forge on turn 8, which its power schedules separately.
   // The tutorial teaches runes in its own scripted way (or defers them), so it never auto-opens the forge.
   // The standing turn-9 Epic Runeforge — UNLESS the run already claimed its Epic forge early. Rune of the
   // Ornate Clock reads "next turn INSTEAD OF turn 9", so without this guard the player got BOTH (owner report
   // 2026-08-26): the rune opened its forge next turn and this line opened a second one on turn 9.
-  if (s.mode !== 'tutorial' && CONFIG.runeforgeEnabled && s.wave === 9 && !s.epicForgeClaimed) s.pendingEpicRuneforge = true;
+  if (s.mode !== 'tutorial' && CONFIG.runeforgeEnabled && s.wave === 9 && !s.epicForgeClaimed) s.pendingEpicRuneforge = pendingEpicForges(s) + 1;
   // TUTORIAL: the course's own scripted EPIC forge (round 9).
-  if (s.mode === 'tutorial' && s.tutorialRuneScript?.[s.wave]?.epic) s.pendingEpicRuneforge = true;
+  if (s.mode === 'tutorial' && s.tutorialRuneScript?.[s.wave]?.epic) s.pendingEpicRuneforge = pendingEpicForges(s) + 1;
   // Promote any forge armed mid-turn (deferred): now that we're at the START of the next turn, it's openable.
   s.pendingForgeDeferred = false;
   if (s.pendingBasicForge) s.pendingBasicForge.deferred = false;
@@ -5691,15 +5697,43 @@ export function runeforgePool(s: RunState): string[] {
     .map((rn) => rn.id);
 }
 
-/** The synergy tags the player's BOARD currently exhibits: its tribes, plus the mechanics its cards carry
- *  (Rally keyword, Echo/Shout/Avenge triggers, Consume/Ruby/Ale/spell/Gold/summon effect families). Derived
- *  from the card defs, so new cards profile themselves. */
-export function boardSynergyTags(s: RunState): Set<SynergyTag> {
+/**
+ * BOARD-FIT thresholds (owner 2026-09-22): a rune that names a TRIBE "fits the board" only when the board
+ * holds at least this many minions of that tribe — 2 at a Basic forge, 3 at an Epic forge. One minion of a
+ * tribe is a body, not a build. An All-types minion counts as ONE of EVERY tribe and a dual-tribe minion
+ * counts once for each of its tribes ("make sure all types count as 1 of everything").
+ */
+export const BASIC_FORGE_TRIBE_FIT = 2;
+export const EPIC_FORGE_TRIBE_FIT = 3;
+
+/** How many BOARD minions count as each tribe (neutral excluded), through the shared `isTribe` helper so an
+ *  All-types body (universalTribe / `allTribes`), a dual-tribe card and a spell-added tribe each count where
+ *  they should. The 7 board slots only: the hand is uncommitted (it may be sold or never played) and a forge
+ *  opens at the start of a turn, when the board is what just fought — the truest read of the build. */
+export function boardTribeCounts(s: RunState): Map<Tribe, number> {
+  const counts = new Map<Tribe, number>();
+  for (const c of s.board) {
+    for (const t of TRIBES) {
+      if (t === 'neutral' || !isTribe(c, t)) continue;
+      counts.set(t, (counts.get(t) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
+/** The synergy tags the player's BOARD currently exhibits: the tribes it holds at the forge's board-fit
+ *  threshold (`BASIC_FORGE_TRIBE_FIT` / `EPIC_FORGE_TRIBE_FIT`, by `epic`), plus the mechanics its cards
+ *  carry (Rally keyword, Echo/Shout/Avenge triggers, Consume/Ruby/Ale/spell/Gold/summon effect families).
+ *  Mechanic tags are PRESENCE tags — one card carrying the mechanic is enough — because the owner's
+ *  threshold rule (2026-09-22) speaks of "a tribe type"; a mechanic threshold is a separate call. Derived
+ *  from the card defs, so new cards profile themselves. `epic` defaults to the forge that is open. */
+export function boardSynergyTags(s: RunState, epic: boolean = !!s.runeforgeEpic): Set<SynergyTag> {
   const tags = new Set<SynergyTag>();
+  const need = epic ? EPIC_FORGE_TRIBE_FIT : BASIC_FORGE_TRIBE_FIT;
+  for (const [tribe, n] of boardTribeCounts(s)) if (n >= need) tags.add(tribe);
   for (const c of s.board) {
     const def = CARD_INDEX[c.cardId];
     if (!def) continue;
-    for (const t of [def.tribe, def.tribe2]) if (t && t !== 'neutral') tags.add(t);
     if (c.keywords.includes('RL') || def.keywords.includes('RL')) tags.add('rally');
     if (def.ruby) tags.add('ruby');
     for (const e of def.effects) {
@@ -5725,8 +5759,10 @@ export function boardSynergyTags(s: RunState): Set<SynergyTag> {
 const PIVOT_DISCOUNT_CHANCE = 0.4;
 
 /** Build a forge offer with the synergy guarantee (owner ask 2026-07-31): ONE slot is drawn from the runes
- *  that follow something on the player's board (a tribe or a mechanic), when any such rune exists; the rest
- *  draw uniformly. Returns the ids plus the aligned pivot discounts, both seeded off `rng` so replays hold. */
+ *  that follow something on the player's board (a tribe at the forge's board-fit threshold, or a mechanic),
+ *  when any such rune exists; the rest draw uniformly, every eligible rune weighted equally (no pity). Returns
+ *  the ids plus the aligned pivot discounts, both seeded off `rng` so replays hold. `avoid` = runes a re-roll
+ *  or an earlier forge this turn already showed (preferred fresh, never a hard exclusion). */
 function drawRuneOffer(s: RunState, rng: ReturnType<typeof makeRng>, avoid: Set<string> = new Set()): { offer: string[]; discounts: (number | undefined)[] } {
   // TUTORIAL: an AUTHORED offer, never a draw. The coach names what each rune does, which it can only do for
   // runes the course chose. No pivot discounts either — a discounted price is a lesson of its own, and this
@@ -5771,13 +5807,11 @@ function drawRunes(ids: string[], n: number, rng: ReturnType<typeof makeRng>, av
   return picks;
 }
 
-/** Open the EPIC Runeforge (a quest reward): present a random 3 of the eligible Epic runeset. Reuses the same
- *  offer/buy/skip/reroll machinery as the Runesmith's forge, flagged `runeforgeEpic` so the reroll draws from the
- *  Epic pool, the UI labels it "Epic", and closing it doesn't spend a hero-power charge. Salted distinct from the
- *  normal forge's stream. */
 /**
- * Guardian + Runesmith: the forge their OWN power opens is discounted across every slot (owner ask
- * 2026-08-17) — it is their hero power's shop, so it should feel like one.
+ * Guardian + Runesmith: EVERY forge they visit is discounted across every slot (owner ask 2026-08-17, and the
+ * owner confirmed the every-forge reach on 2026-09-22: "fine"). The discount keys off the HERO's power kind,
+ * not off which route opened the forge — the universal turn-6 / turn-9 visits, a rune-booked forge and their
+ * own power's forge are all their shop (see forgeDiscount.test.ts).
  *
  * Fills the gaps rather than overwriting: a slot that already earned a PIVOT discount keeps it, since that one
  * can be larger and the two would otherwise fight. Uses the same span as the pivot so a "discounted rune"
@@ -5791,15 +5825,43 @@ function applyHeroForgeDiscount(s: RunState, rng: ReturnType<typeof makeRng>): v
     s.runeforgeDiscounts?.[i] ?? span[rng.int(span.length)]!);
 }
 
+/** How many Epic Runeforges are waiting to open. Saves written before 2026-09-22 hold a boolean in
+ *  `pendingEpicRuneforge`; `true` reads as one forge. */
+export function pendingEpicForges(s: Pick<RunState, 'pendingEpicRuneforge'>): number {
+  const v = s.pendingEpicRuneforge as number | boolean | undefined;
+  return typeof v === 'number' ? v : v ? 1 : 0;
+}
+
+/** Book an Epic Runeforge for `wave`. A booking on top of one already held COUNTS a second forge for the held
+ *  wave rather than overwriting it or sliding to the next turn (owner 2026-09-22, Guardian + Rune of the Epic
+ *  Forge: "can we just book 2 runeforges here" — yes). The held wave is always ahead of the current turn (it is
+ *  consumed at the start of the turn it names) and every booker today names turn 8 or "next turn", so the fold
+ *  never pulls a forge earlier than its printed turn; `max` keeps that true if a later booker ever names a
+ *  later wave. */
+function bookEpicForge(s: RunState, wave: number): void {
+  if (s.epicForgeWave == null) { s.epicForgeWave = wave; s.epicForgeCount = undefined; return; }
+  s.epicForgeWave = Math.max(s.epicForgeWave, wave);
+  s.epicForgeCount = (s.epicForgeCount ?? 1) + 1;
+}
+
+/** Open the EPIC Runeforge: present RUNEFORGE_OFFER (4) of the eligible Epic runeset. Reuses the same
+ *  offer/buy/skip/reroll machinery as the Basic forge, flagged `runeforgeEpic` so the reroll draws from the Epic
+ *  pool, the UI labels it "Epic", and closing it doesn't spend a hero-power charge. Salted distinct from the
+ *  Basic forge's stream. A SECOND Epic forge on the same turn (Guardian + Rune of the Epic Forge) draws from its
+ *  own stream (turn + its index) and prefers runes the first one did not show; the first forge's stream is
+ *  unchanged, so every replay recorded before the second forge existed still reproduces. */
 export function openEpicRuneforge(s: RunState): void {
   s.runeforgeEpic = true;
   s.runeforgeNoCharge = true; // reached by a quest/rune, not the hero power
   s.runeforgeRerolled = undefined;
-  const epicRng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 2));
-  const drawn = drawRuneOffer(s, epicRng);
+  const opened = s.epicForgesOpened?.wave === s.wave ? s.epicForgesOpened.offers : [];
+  const index = opened.length;
+  const epicRng = makeRng(index === 0 ? mixSeed(s.seed, s.wave, TAG.QUEST, 2) : mixSeed(s.seed, s.wave, TAG.QUEST, 2, index));
+  const drawn = drawRuneOffer(s, epicRng, new Set(opened.flat()));
   s.runeforgeOffer = drawn.offer;
   s.runeforgeDiscounts = drawn.discounts;
   applyHeroForgeDiscount(s, epicRng);
+  s.epicForgesOpened = { wave: s.wave, offers: [...opened, [...drawn.offer]] };
 }
 
 /** Open the BASIC Runeforge from a quest/rune (The Runeforge quest), granting `gold` this turn. Uses the normal
@@ -5933,9 +5995,10 @@ function seedAdoptedPower(s: RunState, heroId: string, slot: 0 | 1): void {
   // Brackus: the Tier-7 pick, still locked behind 70 Gold spent THIS RUN — an adopter who has already spent
   // 70 gets it unlocked, which is the same rule the native hero lives under (the lock reads run.goldSpent).
   if (kind === 'summitLock') queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7, lockGold: 70 });
-  // Guardian: schedule the Epic Runeforge — turn 8 as authored when that is still ahead, else the next turn
-  // (an adopted power must never schedule a visit into the past, which would simply never open).
-  if (kind === 'epicRuneforge' && !s.epicForgeWave) s.epicForgeWave = Math.max(8, s.wave + 1);
+  // Guardian: book the Epic Runeforge — turn 8 as authored when that is still ahead, else the next turn
+  // (an adopted power must never schedule a visit into the past, which would simply never open). Booked
+  // BESIDE any forge the run already holds for that turn (Rune of the Epic Forge), never in its place.
+  if (kind === 'epicRuneforge') bookEpicForge(s, Math.max(8, s.wave + 1));
 }
 
 function openNextStartOfTurnModal(s: RunState): void {
@@ -5945,7 +6008,9 @@ function openNextStartOfTurnModal(s: RunState): void {
   if (s.pendingPowerOffer) { const slot = s.pendingPowerOffer.slot; s.pendingPowerOffer = undefined; mintPowerOffer(s, slot); if (s.powerOffer) return; }
   // A forge armed MID-TURN is `deferred` — it must wait for the NEXT turn's start (advanceCombat promotes it by
   // clearing the flag) so a mid-turn modal-close drain can't open it on the completing turn (owner bug 2026-07-13).
-  if (s.pendingEpicRuneforge && !s.pendingForgeDeferred) { openEpicRuneforge(s); s.pendingEpicRuneforge = false; return; } // Runeforge before Discovers
+  // Epic forges before Discovers — ONE per pass; a second one booked for this turn opens when this one closes
+  // (buyRune / skipRuneforge drain back through here).
+  if (pendingEpicForges(s) > 0 && !s.pendingForgeDeferred) { s.pendingEpicRuneforge = pendingEpicForges(s) - 1; openEpicRuneforge(s); return; }
   if (s.pendingBasicForge && !s.pendingBasicForge.deferred) { const g = s.pendingBasicForge.gold ?? 0; s.pendingBasicForge = undefined; openScheduledBasicRuneforge(s, g); return; }
   if (s.discoverQueue?.length) { openDiscover(s, s.discoverQueue.shift()!); return; } // then any queued start-of-turn Discovers
   // Every start-of-turn modal has cleared — the recruit phase is now interactive, so run any DEFERRED Fodder eat
@@ -6886,25 +6951,28 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       // Deferred: arm it now, open at the START of NEXT turn (after this turn's combat). `pendingForgeDeferred`
       // blocks the mid-turn modal-close drains from opening it early (owner bug 2026-07-13: it opened mid-turn
       // and the player had already spent the Gold they needed for the runes). Reached by The Epic Runeforge quest.
-      s.pendingEpicRuneforge = true;
+      s.pendingEpicRuneforge = pendingEpicForges(s) + 1;
       s.pendingForgeDeferred = true;
       break;
     case 'scheduleRuneforge':
       // Arm a Runeforge visit for a future turn's start (opened by advanceCombat's start-of-turn sequencing).
-      // `onWave` pins the Epic forge to an absolute wave (Rune of the Epic Forge → 8); otherwise it's next turn —
-      // deferred so a mid-turn modal-close can't open it on the turn the quest completed (owner bug 2026-07-13).
-      // The slot already booked (the Runeguard hero schedules its own wave-8 forge): the "ADDITIONAL" forge
-      // must not silently merge into the one they were already getting (audit find 2026-08-06) — it arrives
-      // as a deferred next-turn forge instead.
-      if (r.onWave != null && s.epicForgeWave != null) { s.pendingEpicRuneforge = true; s.pendingForgeDeferred = true; }
-      else if (r.onWave != null) s.epicForgeWave = r.onWave;
+      // `onWave` BOOKS the Epic forge for an absolute wave (Rune of the Epic Forge → 8, or next turn when that
+      // has passed); a booking on top of one the run already holds (Guardian's own turn 8) COUNTS a second
+      // forge for that turn — both open on turn 8, one after the other (owner 2026-09-22: "can we just book 2
+      // runeforges here"; until then the rune's forge slid to the turn after purchase, audit find 2026-08-06).
+      // Otherwise it's next turn — deferred so a mid-turn modal-close can't open it on the turn the rune was
+      // bought (owner bug 2026-07-13).
+      if (r.onWave != null) bookEpicForge(s, Math.max(r.onWave, s.wave + 1));
       else if (r.forge === 'epic') {
-        s.pendingEpicRuneforge = true;
+        s.pendingEpicRuneforge = pendingEpicForges(s) + 1;
         s.pendingForgeDeferred = true;
         // "…next turn INSTEAD OF turn 9": claim the run's Epic forge so the standing turn-9 one stands down.
         s.epicForgeClaimed = true;
+        // Rune of the Ornate Clock: "Gain 2 Gold" is paid NOW, on resolve, exactly once (owner 2026-09-22, "fix
+        // rune of ornate clock": the reward carried `gold: 2` but only the Basic branch below ever paid it).
+        if (r.gold) gainGold(s, r.gold);
       }
-      else s.pendingBasicForge = { gold: r.gold, deferred: true };
+      else s.pendingBasicForge = { gold: r.gold, deferred: true }; // the Basic forge pays its Gold the turn it opens
       break;
     case 'multi':
       // The Hoard Wakes: several rewards at once — apply each sub-reward through this same path.

@@ -52,6 +52,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-23',
+    label: 'Cast preview',
+    changes: [
+      { category: 'Systems', text: 'When a rune or a minion casts a spell, the spell shows above it for a moment.', details: [
+        "The spell's card fades in above the rune's node or the minion's card, stays about two seconds, then fades out, in the shop and in combat.",
+        'In combat a minion that casts the same spell again and again shows it once per fight.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-09-23',
     label: 'Milestone glow fix',
     changes: [
       { category: 'Systems', text: 'Fixed the blue top-tier milestone glow lingering on units that had not reached the top stat tier, including opponent minions carrying it over between fights.' },

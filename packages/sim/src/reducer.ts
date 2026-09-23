@@ -1405,6 +1405,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   s.starformFx = []; // Set 3's Starform pulls (consume-shop / consumed / collapse) — same per-action contract
   s.bounceFx = []; // the cross-target re-cast hops (spell-bounce / ruby-bounce) — same per-action contract
   s.lassoFx = []; // the Shop steals this action (the `lasso` beam cascade) — same per-action contract
+  s.castFx = []; // the rune-/minion-cast spells this action (the cast preview) — same per-action contract
   s.gainCardFiredUids = []; // per-action: which hand arrivals already fired onGainCard (see the hand diff in `reduce`)
   s.gainAttackFiredUids = []; // per-action: Attack gains already dispatched inside the action (per-card EoT waves)
   s.starformGainFired = undefined; // per-action: Starform growth already dispatched as `starformGained` (see the diff in `reduce`)

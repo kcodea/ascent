@@ -33,9 +33,9 @@ describe('Grobbus — Avenge (3) grants a random Demon', () => {
     makeRng(7), CARD_INDEX, combatSide({ tier: 4, tribes: ['demon'] }), combatSide({ tier: 1 }),
   );
 
-  it('the card is a T4 3/6 Demon with no keyword pill', () => {
+  it('the card is a T4 3/7 Demon with no keyword pill', () => {
     const def = CARD_INDEX['dm_grobbus']!;
-    expect([def.tier, def.attack, def.health, def.tribe]).toEqual([4, 3, 6, 'demon']); // owner balance 2026-08-18
+    expect([def.tier, def.attack, def.health, def.tribe]).toEqual([4, 3, 7, 'demon']); // owner balance 2026-08-18; 3/6 → 3/7 on 2026-09-23
     expect(def.keywords, 'Avenge carries no pill, matching the other Avenge cards').toEqual([]);
     expect(poolFor('set2').all.some((c) => c.id === 'dm_grobbus'), 'buyable in set 2').toBe(true);
   });
@@ -207,7 +207,7 @@ describe('Rune of Blart — its clause moved with the card (2026-08-14)', () => 
 });
 
 // ── HELLRIDER — took over the copy-don't-eat shape ─────────────────────────────────────────────────────────
-describe('Hellrider — copies the right-most every 4 refreshes, eating nothing', () => {
+describe('Hellrider — copies the right-most every 3 refreshes (every 4 until 2026-09-23), eating nothing', () => {
   it('the offer it copied is still buyable afterwards', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 99, freeRolls: 99,
@@ -218,6 +218,6 @@ describe('Hellrider — copies the right-most every 4 refreshes, eating nothing'
     expect(s.shop.length, 'the row must be intact').toBe(uidsBefore.length);
     expect(s.shopMinionsEaten ?? 0, 'no Consume may fire — Hellrider only copies').toBe(0);
     const rider = s.board.find((c) => c.uid === 'm')!;
-    expect(rider.attack + rider.health, 'it should have copied on the 4th refresh').toBeGreaterThan(16);
+    expect(rider.attack + rider.health, 'it should have copied on the 3rd refresh').toBeGreaterThan(16);
   });
 });

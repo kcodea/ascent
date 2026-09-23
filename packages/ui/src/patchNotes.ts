@@ -52,6 +52,38 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-23',
+    label: 'Balance 9/23: minions',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'A balance pass over twenty cards: fourteen minions got new stat lines, five minions had a number tuned, and Staff of Guel gives a little more Health.',
+        details: [
+          'Beggy is now 2/3.',
+          'Chicken Brawl is now 4/2.',
+          'Deepvein Tender is now 2/3.',
+          'Geode Guardian is now 4/3.',
+          'Imp Overseer is now 3/3.',
+          'Kennelmaster is now 2/4.',
+          'Mirrorwing is now 3/4.',
+          'Right Hand Hank is now 4/1.',
+          'Axeman is now 2/2.',
+          'Dunkey is now 5/6.',
+          'Gemline Martyr is now 4/6.',
+          'Grobbus is now 3/7.',
+          'King Oona is now 6/6.',
+          'Sunmane Herald is now 5/3.',
+          'Embermouth Whelp now gains +1/+2 after you trigger a Shout (was +1/+1). Gilded gains +2/+4.',
+          "Hellrider now copies the right-most Shop minion's stats every 3 refreshes (was every 4).",
+          'Gemstorm Instigator now casts 3 Rubies on your Kobolds (was 2). Gilded casts 6.',
+          'Gem Sage now reads: When you cast a Shop spell on this, get 3 Rubies. Gilded gets 6. It no longer doubles every Ruby you get.',
+          'Legion Shepherd now summons 2 Imps with its Echo (was 1). Gilded summons 4. The Imp buff is unchanged.',
+          'Staff of Guel now gives minions in the shop +3/+4 permanently (was +3/+3).',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-23',
     label: 'Warding Ruby bounce',
     changes: [
       { category: 'Balance', text: 'A Warding Ruby bounced by Resonance Idol now grants Ward to the minion it lands on.' },

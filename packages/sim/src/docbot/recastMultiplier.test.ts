@@ -61,7 +61,10 @@ describe('Doc Bot — every spell re-cast is a FULL cast', () => {
   });
 
   it.each(SPELL_REACTORS.map((f) => [f] as const))('%s scales its casts by spellCasts', (factoryId) => {
-    const body = bodyAt(`${factoryId}: (ctx, self, params, payload)`);
+    // A reactor that never reads the payload is declared `(ctx, self, params)` (Gem Sage's plain `getRubies`
+    // mint, 2026-09-23); the two-space indent keeps `getRubies` from anchoring inside `endOfTurnGetRubies`.
+    const withPayload = `  ${factoryId}: (ctx, self, params, payload)`;
+    const body = bodyAt(RECRUIT.includes(withPayload) ? withPayload : `  ${factoryId}: (ctx, self, params)`);
     // Only factories that actually re-cast are graded. One that reacts to a spell WITHOUT casting (a counter,
     // a stat grant) has no multiplier to honour, and demanding one would be noise.
     if (!/\bcastSpell\(/.test(body)) return;

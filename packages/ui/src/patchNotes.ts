@@ -68,6 +68,20 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-23',
+    label: 'Fixes',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Minions and heroes no longer pass behind the hero portrait and hero power when they attack.',
+        details: [
+          'During a fight, every minion on either board now draws in front of the hero portrait, the hero power, the equipment slot and the rune nodes in the bottom-left corner.',
+          'Hovering the hero power, the equipment slot or a rune node still opens its tooltip over the board.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-23',
     label: 'Patch Notes tabs',
     changes: [
       {

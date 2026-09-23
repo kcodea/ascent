@@ -2126,9 +2126,10 @@ export interface QuestDef {
   variantGroup?: string;
 }
 
-/** Immutable Rune definition (data). Runes are sold in the Runesmith's turn-6 Runeforge — a random 5 are
- *  offered, you buy ONE for its `cost` in Gold, and its `reward` applies for the rest of the run (no objective,
- *  it just takes effect). Reuses the quest `QuestReward` application engine. */
+/** Immutable Rune definition (data). Runes are sold at a Runeforge — every hero visits a Basic forge on turn 6
+ *  and an Epic forge on turn 9, and heroes / runes / quests book more. Each visit offers 4 runes; you buy ONE
+ *  for its `cost` in Gold, and its `reward` applies for the rest of the run (no objective, it just takes
+ *  effect). Reuses the quest `QuestReward` application engine. */
 export interface RuneDef {
   id: string;
   name: string;

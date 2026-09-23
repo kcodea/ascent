@@ -382,8 +382,11 @@ const CHECKERS: { [K in Leaf['kind']]?: Checker<K> } = {
   },
   scheduleRuneforge: (c, r) => r.forge === 'basic'
     ? eq('pendingBasicForge', c.after.pendingBasicForge, { gold: r.gold, deferred: true })
-    : (c.after.pendingEpicRuneforge || c.after.epicForgeWave != null ? null : 'no epic forge armed'),
-  openEpicRuneforge: (c) => eq('pendingEpicRuneforge', c.after.pendingEpicRuneforge, true),
+    // The Epic branch pays any carried Gold NOW, on resolve (Rune of the Ornate Clock, fixed 2026-09-22).
+    : ((c.after.pendingEpicRuneforge ?? 0) > 0 || c.after.epicForgeWave != null
+      ? (r.onWave == null && r.gold ? eq('epic forge Gold paid on resolve', c.after.embers - c.before.embers, r.gold) : null)
+      : 'no epic forge armed'),
+  openEpicRuneforge: (c) => eq('pendingEpicRuneforge', c.after.pendingEpicRuneforge, 1), // a COUNT since 2026-09-22 (two Epic forges on one turn)
   grantRune: (c, r) => {
     const gained = (c.after.ownedRunes ?? []).filter((id) => !(c.before.ownedRunes ?? []).includes(id));
     if (gained.length !== 1) return `expected exactly 1 granted rune, got ${gained.length}`;

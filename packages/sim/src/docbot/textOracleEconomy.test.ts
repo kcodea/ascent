@@ -99,12 +99,13 @@ describe('Doc Bot — text as oracle tranche 3 (printed economy)', () => {
       }
     }
     expect(failures, `Rune text-vs-engine disagreement(s):\n  ${failures.join('\n  ')}`).toEqual([]);
-    // Gold-mentioning runes OUT of the oracle, typed (§7.5/§7.6) — 7 as of 2026-08-27, each for a named
+    // Gold-mentioning runes OUT of the oracle, typed (§7.5/§7.6) — 6 as of 2026-09-22, each for a named
     // shape: blood_and_coin (Avenge threshold), vault (tier threshold), altar (per-each), treasure_map
-    // (schedule — "In 2 turns"), gem_dividend (Ruby threshold), ashen_payroll (per-each in combat),
-    // ornate_clock (its 2 Gold lives inside a rune-specific reward kind, not a gainGold leaf — checkable in
-    // principle; graduate it by teaching runeEconomySubjects that kind rather than raising this pin).
-    expect(skipped.length, `runes mentioning a flat Gold gain that the grammar did not parse: ${skipped.join(', ')}`).toBeLessThanOrEqual(7);
+    // (schedule — "In 2 turns"), gem_dividend (Ruby threshold), ashen_payroll (per-each in combat).
+    // ornate_clock GRADUATED on 2026-09-22: its 2 Gold lives inside `scheduleRuneforge`, which
+    // runeEconomySubjects now reads as an immediate leaf for the Epic branch, and the reducer now pays it.
+    expect(skipped.length, `runes mentioning a flat Gold gain that the grammar did not parse: ${skipped.join(', ')}`).toBeLessThanOrEqual(6);
+    expect(skipped, 'Rune of the Ornate Clock is IN the oracle (its Gold is paid on resolve)').not.toContain('rune_ornate_clock');
   });
 
   it('every parseable hero-power promise reconciles through the real action', () => {

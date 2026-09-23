@@ -6637,6 +6637,29 @@ svg { width: 18px; height: 18px; }
 .balchart-dot.spent { fill: var(--acc); }
 .balchart-dot.spentwin { fill: #46d17f; }
 .balchart-ptl.avail { fill: rgba(255, 255, 255, 0.7); }
+/* ── HONEST ASSOCIATIONS (owner audit handoff 2026-09-22): the evidence banner above every table, the scope
+   controls (epoch, window, sensitivity), the evidence pills, wrapping headers for the long honest labels. All
+   static; no cursor rules beyond the gauntlet URL form on the date inputs (a <select>/<input> is outside the
+   global button rule, like .balpick). ── */
+.balscope { margin-top: 2px; }
+.ballabel { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 12px; color: rgba(255, 255, 255, 0.6); }
+.baldate { padding: 5px 8px; font-size: 12px; color-scheme: dark; }
+.balbanner { width: min(1400px, 100%); margin: 0 auto 12px; padding: 10px 16px; border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 12px; background: rgba(0, 0, 0, 0.28); display: flex; flex-direction: column; gap: 5px; }
+.balbanner-row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 4px 14px; font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.8); text-align: center; }
+.balbanner-row b { color: var(--acc); }
+.balbanner-row .balwarn { color: #ffd76a; }
+.balbanner-dim { font-weight: 600; font-size: 12px; color: rgba(255, 255, 255, 0.55); }
+.balbanner [data-tip] { border-bottom: 1px dotted rgba(255, 255, 255, 0.3); }
+/* The honest labels are sentences: let a header wrap to a second line instead of overflowing its track. */
+.balgrid-solo .balrow.balhead .balsort { white-space: normal; line-height: 1.15; }
+/* Evidence pills: the label's meaning is in words, the colour is a reading aid only. */
+.balev { font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.8em; }
+.balev-insufficient { color: rgba(255, 255, 255, 0.45); }
+.balev-candidate { color: #f0c04a; }
+.balev-supported { color: #57e08a; }
+.balnote.balwarn { color: #ffd76a; }
+.balempty .balseg-row { margin-top: 12px; }
+
 .balchart-ptl.spent { fill: var(--acc); }
 .balchart-ptl.spentwin { fill: #7ff0aa; }
 .balchart-key.avail::before { background: rgba(255, 255, 255, 0.45); }

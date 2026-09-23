@@ -35,8 +35,8 @@ export type HeroPowerKind =
   | 'recurringGoldcrafter' // RETIRED Gildmaster passive (kept for old saves/replays)
   | 'greatPresence' // Kindness (passive): Discover a Gift at the start of every 4th turn
   | 'gildcrafter' // Gildmaster (active, 3 Gold, 3×/game): complete a triple from 2 copies of a minion
-  | 'runeforge' // Runesmith (passive): on turn 5 the Runeforge opens — buy ONE of a random 3 runes (a run-long buff)
-  | 'epicRuneforge' // Guardian (passive): the EPIC Runeforge opens on turn 8 (scheduled via `epicForgeWave` at run start)
+  | 'runeforge' // Runesmith (passive): on turn 5 a Basic Runeforge opens — 4 runes offered, buy ONE (a run-long buff); on top of the universal turn-6 Basic / turn-9 Epic visits
+  | 'epicRuneforge' // Guardian (passive): an EPIC Runeforge opens on turn 8 (booked via `epicForgeWave` at run start; Rune of the Epic Forge books a SECOND one beside it, both open on turn 8)
   | 'pathfinder' // RETIRED Coran power (2026-08-21). Kept so pre-rework saves/replays still resolve their turn-10 offer
   | 'dynamiteDig' // Jensen: Discover a minion of your tier — free first, +1 Gold each later use (active, untargeted)
   | 'dragonTamer' // Tiff: 5 Gold Discover a Dragon — the cost drops 1 per Dragon/spell bought, resetting on use
@@ -435,8 +435,8 @@ export const HEROES: HeroDef[] = [
     power: {
       name: 'Forgemaster',
       kind: 'runeforge',
-      passive: true, // fires on the turn-6 advance (opens the Runeforge offer); resolved by `buyRune` / `skipRuneforge`
-      oncePerGame: true, // the forge opens exactly once, on turn 5
+      passive: true, // fires on the advance INTO turn 5 (opens the Runeforge offer); resolved by `buyRune` / `skipRuneforge`
+      oncePerGame: true, // the hero's own forge opens exactly once, on turn 5 (the universal turn-6 / turn-9 visits are extra)
       text: 'On turn 5, visit the Runeforge.',
     },
   },

@@ -102,8 +102,13 @@ export interface HallRow {
   seed: number;
   /** The record across EVERY fight: the W–L–D, the win rate, the lobbies. */
   record: HallFightRecord;
-  /** The run's OWN game ("12–3" — what its player saw; it counts their ghost fights, which the ledger does not). */
+  /** The run's OWN game ("12–3"): the fight-ledger rows of its own lobby from the run's side (owner 2026-09-23:
+   *  "ledger number probably i think"), so it counts the SAME fights as `record` and the two lines agree. Only
+   *  a lobby the ledger never saw (a game from before the ledger existed) falls back to the career row's tally,
+   *  which counts the player's ghost fights; `ownSource` says which one this is, so the two are never mixed
+   *  silently. */
   ownRecord: { wins: number; losses: number; draws: number } | null;
+  ownSource: 'ledger' | 'tally' | null;
   ownPlacement: number | null;
   /** The rank its player held when the game was played. */
   rank: { divisionIndex: number; points: number } | null;
@@ -142,6 +147,45 @@ export function hallHistoryFor<F extends { heroId: string | null }>(history: Rea
   return legacy && (legacy.heroId === null || legacy.heroId === parsed.heroId) ? legacy : undefined;
 }
 
+/** A W–L–D triple. */
+export interface HallOwnRecord { wins: number; losses: number; draws: number }
+
+/** One fight-ledger row as the Hall reads it: the lobby it was fought in, both sides by run key, the outcome
+ *  from side A. */
+export interface HallLedgerFight {
+  lobbySeed: number;
+  runA: string;
+  runB: string;
+  outcome: 'a' | 'b' | 'draw';
+}
+
+/** The OWN-GAME record of each Hall candidate from the fight ledger (owner 2026-09-23: "ledger number
+ *  probably i think"): a run's own game is the set of ledger rows of its OWN lobby (`lobbySeed` = the run's
+ *  seed) that name the run as a side, counted from the run's side. Ghost fights are never ledger rows, so this
+ *  is the same definition the RECORD line uses and the two agree. Pure; a run with no rows in its lobby is
+ *  absent from the map (the caller falls back to the career tally and says so). One batched read feeds it:
+ *  the rows of all ten lobbies at once, filtered by key here. */
+export function ownGameRecordsOf(
+  runs: ReadonlyArray<{ key: string; seed: number }>,
+  fights: ReadonlyArray<HallLedgerFight>,
+): Map<string, HallOwnRecord> {
+  const out = new Map<string, HallOwnRecord>();
+  for (const run of runs) {
+    let wins = 0, losses = 0, draws = 0, any = false;
+    for (const f of fights) {
+      if (f.lobbySeed !== run.seed) continue;
+      const side = f.runA === run.key ? 'a' : f.runB === run.key ? 'b' : null;
+      if (!side) continue;
+      any = true;
+      if (f.outcome === 'draw') draws++;
+      else if (f.outcome === side) wins++;
+      else losses++;
+    }
+    if (any) out.set(run.key, { wins, losses, draws });
+  }
+  return out;
+}
+
 /** Assemble and order the Hall from the view rows + the per-run career facts + any pool boards fetched for
  *  runs without a career row. Pure. Candidates below `minFights` are dropped (the fetch already filters; this
  *  is the same rule stated once more where the rows are built), bot keys and unparseable keys are dropped, and
@@ -152,6 +196,9 @@ export function hallRowsOf<B extends { minions: unknown[]; runes?: string[] }>(
   history: ReadonlyMap<string, HallOwnFacts<B>>,
   boards: ReadonlyMap<string, B>,
   opts: { minFights: number; limit: number; sort: HallSort },
+  /** Each run's own-lobby record from the ledger, by run key (`ownGameRecordsOf`). A run absent here reads its
+   *  career tally instead, flagged `ownSource: 'tally'`. */
+  ownGames: ReadonlyMap<string, HallOwnRecord> = new Map(),
 ): HallRow[] {
   const rows: HallRow[] = [];
   for (const r of records) {
@@ -160,10 +207,12 @@ export function hallRowsOf<B extends { minions: unknown[]; runes?: string[] }>(
     if (!parsed) continue;
     const own = hallHistoryFor(history, r.runKey);
     const record: HallFightRecord = { fights: r.fights, wins: r.wins, losses: r.losses, draws: r.draws, lobbies: r.lobbies, winRate: r.winRate, wilsonLb: r.wilsonLb, lastFightAt: r.lastFightAt };
+    const ledgerOwn = ownGames.get(r.runKey) ?? null;
     rows.push({
       key: r.runKey, author: parsed.author, heroId: parsed.heroId, seed: parsed.seed,
       record,
-      ownRecord: own?.record ?? null,
+      ownRecord: ledgerOwn ?? own?.record ?? null,
+      ownSource: ledgerOwn ? 'ledger' : own?.record ? 'tally' : null,
       ownPlacement: own?.placement ?? null,
       rank: own?.rank ?? null,
       board: own?.board ?? boards.get(r.runKey) ?? null,

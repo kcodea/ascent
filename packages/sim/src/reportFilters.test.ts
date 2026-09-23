@@ -10,7 +10,7 @@ import type { DerivedRun } from './runDerive';
  * exercised with explicit set ids so nothing here depends on which set the registry has switched on.
  */
 const row = (o: Partial<RunTelemetryRow>): RunTelemetryRow => ({
-  id: null, createdAt: null, patch: null, author: null, contentRevision: null, derived: null,
+  id: null, createdAt: null, patch: null, author: null, playerKey: null, contentRevision: null, derived: null,
   heroId: 'warden', heroOffer: ['warden'], won: false, wins: 0,
   offeredQuests: [], pickedQuests: [], questTurns: {}, offeredRunes: [], pickedRunes: [],
   offeredCards: [], boughtCards: [], tierByWave: [], ...o,
@@ -66,8 +66,8 @@ describe('applyReportFilters', () => {
   it('keeps only ladder rows of the requested set, and counts every step so the header can say what it read', () => {
     const f = applyReportFilters(all, 'set2');
     expect(f.rows.map((r) => r.heroId)).toEqual(['b', 'c']);
-    expect(f.counts).toEqual({ fetched: 7, ladder: 4, inSet: 2, unstamped: 1, withDerived: 1 });
-    expect(f.applied).toHaveLength(2);
+    expect(f.counts).toEqual({ fetched: 7, ladder: 4, inSet: 2, unstamped: 1, withDerived: 1, duplicateIds: 0, placementMalformed: 0, inScope: 2 });
+    expect(f.applied).toHaveLength(3);
     expect(f.applied[0]).toContain('ladder');
     expect(f.applied[1]).toContain('set2');
   });

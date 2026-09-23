@@ -1793,8 +1793,9 @@ export const APPROVED_RULES: GameRule[] = [
       + '(fights, W-L-D, distinct lobbies, win rate, a Wilson 95% lower bound). The Hall is the top 10 runs by '
       + 'that lower bound with at least 10 fights, from every recorded run, not only lobby winners; the client '
       + 'reads the view, never a row pool. Each row shows the W-L-D across everything, the win rate, the lobbies, '
-      + 'the run\'s own game (its career row\'s record, which counts the player\'s ghost fights), the date of its '
-      + 'last fight and the rank its player held. A run\'s own career row is joined by its FULL run key (the '
+      + 'the run\'s own game (since 2026-09-23 the ledger rows of its own lobby, R-HALL-02; the career row\'s '
+      + 'tally, which counts the player\'s ghost fights, only when the ledger has none), the date of its last '
+      + 'fight and the rank its player held. A run\'s own career row is joined by its FULL run key (the '
       + 'history entry carries the author it was played under since 2026-09-22), never by seed + hero alone, so two '
       + 'players on the same shared seed with the same hero each keep their own row; only a row older than the '
       + 'author stamp is joined by seed + hero. Practice, the tutorial and a sandbox never record.',
@@ -1943,6 +1944,62 @@ export const APPROVED_RULES: GameRule[] = [
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/reportFilters.test.ts', 'packages/sim/src/balanceExport.test.ts', 'packages/sim/src/cardImpact.test.ts', 'packages/sim/src/reportImpact.test.ts', 'packages/ui/src/telemetrySandboxGate.test.ts', 'packages/ui/src/balanceFetch.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-REPORT-03',
+    title: 'The Balance Report prints associations under honest labels and never a survival statistic as card power',
+    statement:
+      'Every placement comparison the Balance Report prints is an ASSOCIATION among the runs observed, labelled '
+      + 'as what it is: the raw buyer association (buyers against every other placed run, kept unchanged for '
+      + 'audit continuity), the sample-weighted association (the same delta shrunk for a thin sample), the '
+      + 'relative raw association within tier (secondary, never called a survival correction), the exposed '
+      + 'diagnostic (both sides restricted to runs whose own shop offers included the card; a diagnostic, never '
+      + 'the adjusted estimate) and the adjusted association (buy against pass inside the first affordable shop '
+      + 'offer, stratified on round band by shop tier inside a balance epoch, buyers weighted, supported strata '
+      + 'only). The exposure fixture is the contract: late-round eligible runs whose buyers and skippers place '
+      + 'identically plus early eliminations that never saw the card make the raw delta negative while the '
+      + 'exposed and adjusted comparisons stay zero. Where no stratum holds both a buyer and a skipper the '
+      + 'adjusted association is unavailable, never zero, and such a row is never ranked as the worst card. '
+      + 'One primary observation per run per card; an unaffordable offer is not a rejection; a later purchase '
+      + 'never relabels an earlier pass; a prior acquisition excludes the run. Every stream is read by its last '
+      + 'wave segment. A Welch interval is printed only on the metric it belongs to and only with the documented '
+      + 'minimum on each side, never collapsed. The evidence label (insufficient, candidate for review, supported '
+      + 'association) needs both group sizes and the unique players behind them, so duplicating one player\'s '
+      + 'runs raises neither; no label means confirmed overpowered. Missing or malformed placements never count '
+      + 'toward a placement finding. The balance epoch is a filter, defaulting to the build\'s own revision or the '
+      + 'newest, and older revisions are never pooled in silently: an epoch under the minimum reads as '
+      + 'insufficient current data with an explicit historical toggle. The flat fetch pages every eligible row '
+      + 'and states its cap and truncation; the export carries schema version 2 with the scope, the quality '
+      + 'counts, the fetch coverage and the per-metric exclusions, and a version-1 column is never redefined '
+      + 'under a shipped version. No display name, account id or raw player key is written into a table or into '
+      + 'the export\'s runs (each run carries a per-file alias that preserves the unique-player count); unique '
+      + 'players are keyed by run_telemetry.player_key (a server-side hash of the account id, 2026-09-23) on '
+      + 'every count, evidence label, sensitivity toggle and export alias, and by the display name only as a '
+      + 'labelled fallback on a backend that has not run that migration.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'The owner\'s balance-analytics handoff, 2026-09-22 (kept outside the repo)', quote: 'The existing raw delta arithmetic is correct, but comparing buyers with all nonbuyers systematically rewards survival and card access. Preserve raw metrics under honest labels, separate coherent balance versions, expose sample/coverage weaknesses, and add offered-run diagnostics followed by comparable decision-opportunity analysis where telemetry supports it.' },
+      { kind: 'owner-chat', ref: 'The same handoff, section 8, acceptance tests', quote: 'create late-round eligible runs where buyers and skippers have identical placement distributions, plus early eliminations that could never encounter the card. Raw delta becomes negative; the eligible comparison stays zero.' },
+      { kind: 'code', ref: 'packages/sim/src/reportCohorts.ts (segmentByWave, exposedDiagnostic, shopEpisodesOf, adjustedAssociation, welchInterval, evidenceLabel, dataQuality, epochsOf, accountKey / displayNameKey / playerKeyFor); packages/sim/src/playerReport.ts (cardImpactWithCoverage, performanceSortValue, scopeReport, EXPORT_SCHEMA_VERSION, buildBalanceExport, playerAliases); packages/ui/src/remoteBoards.ts fetchRunTelemetry (paged; the player_key rung and playerKeyBasis); packages/ui/src/BalancePanel.tsx; supabase/migrations/2026-09-23-player-key-drop-seat-results.sql' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22. The audited export (110 Set 2 runs) reproduces every version-1 column to '
+      + 'rounding and the handoff\'s section-2 diagnostic exactly (Mysterious Joker raw -2.76 reads +0.0018 among '
+      + 'the 62 buyers and 9 skippers that saw it; Black Belt Brian -1.92 reads +1.5077 among 52 and 10; Sea '
+      + 'Urchin 47 exposed of 49 raw buyers). Stage C (player-cluster bootstrap, false-discovery screening) is '
+      + 'deferred: with two display names behind 100 of 110 runs it would manufacture confidence, and the '
+      + 'evidence banner, the export readme (howToRead) and the devlog say so. The export\'s runs carry '
+      + '"player N" aliases in place of the display name (2026-09-23 review fix). Since 2026-09-23 unique players '
+      + 'are counted by player_key (the owner ran the generated md5(user_id) column on the live backend; 120 rows, '
+      + '8 distinct keys): the fetch reads it on its own select rung and reports playerKeyBasis, every cohort '
+      + 'call, the prolific toggle and the export alias key on it, the banner prints "N players" (or "N display '
+      + 'names (proxy: backend not migrated)" on the fallback), and the raw key never enters the export.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/reportCohorts.test.ts', 'packages/sim/src/balanceExport.test.ts', 'packages/sim/src/cardImpact.test.ts', 'packages/sim/src/reportImpact.test.ts', 'packages/sim/src/reportFilters.test.ts', 'packages/ui/src/balanceFetch.test.ts', 'packages/ui/src/noEmDashPlayerText.test.ts'],
       lastVerifiedAt: '2026-09-22',
     },
   },
@@ -2269,6 +2326,130 @@ export const APPROVED_RULES: GameRule[] = [
       kind: 'scenario',
       refs: ['packages/sim/src/lobbyStrength.test.ts', 'packages/ui/src/lobbyStrengthGoingIn.test.ts', 'packages/ui/src/lobbyRatingParity.test.ts', 'packages/ui/src/Career.test.tsx', 'packages/ui/src/ladderPages.test.tsx'],
       lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-HALL-02',
+    title: 'Hall of Champions: the own-game line counts the same fights as the record line',
+    statement:
+      'A Hall row\'s "Own game" W-L-D is read from the FIGHT LEDGER, not from the run\'s career tally: it is '
+      + 'the ledger rows of the run\'s OWN lobby (lobby_seed = the run\'s seed) that name the run as a side, '
+      + 'counted from the run\'s side. Ghost fights (the odd seat paired against an eliminated seat\'s leftover '
+      + 'board) are never ledger rows, so the own game and the record above it count the same fights and the two '
+      + 'lines agree. The read is ONE batched query of the raw rows for all the Hall\'s lobbies at once, filtered '
+      + 'by key client-side, never a query per row. Only a lobby the ledger has no rows for (a game from before '
+      + 'the ledger existed) falls back to the career row\'s wins/losses/draws, and that row\'s label says "from '
+      + 'the game\'s own tally", so the two definitions are never mixed silently. The record line, the sorts and '
+      + 'the layout are unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (the Hall own-game line)', quote: 'why is the record 12-2-1 but also 13-2-1? what\'s right?' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (the Hall own-game line)', quote: 'ledger number probably i think.' },
+      { kind: 'code', ref: 'packages/ui/src/leaderboardData.ts (ownGameRecordsOf, hallRowsOf ownSource); packages/ui/src/remoteBoards.ts fetchHallOwnGames; packages/ui/src/Leaderboard.tsx (.lb-hallown)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Before the fix the own-game line read the career row\'s entry.wins/losses/draws, '
+      + 'which counts the player\'s ghost fights, while the record line read the run_fight_records view, which '
+      + 'does not; a run that won a ghost fight showed 12-2-1 above 13-2-1 on the same row. No new SQL: the client '
+      + 'reads the existing lobby_fights rows (select lobby_seed, run_a, run_b, outcome where lobby_seed in the '
+      + 'ten seeds) and folds them by key. The tally fallback carries ownSource: tally and the aria-label suffix.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/hallOwnGame.test.ts', 'packages/ui/src/fightLedgerFetch.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-RUNE-01',
+    title: 'Rune of the Ornate Clock pays its printed 2 Gold on resolve, exactly once',
+    statement:
+      'A `scheduleRuneforge` reward that carries `gold` pays it when the reward RESOLVES on the Epic branch: '
+      + 'Rune of the Ornate Clock ("Gain 2 Gold. Visit the Epic Runeforge next turn instead of turn 9") adds 2 Gold '
+      + 'to the run the moment it is bought, arms one deferred Epic forge for the next turn and stands the turn-9 '
+      + 'visit down. The Gold is paid once: nothing is banked for the turn the forge opens, and a duplicate Clock '
+      + '(a ruled-unique rune) pays nothing. The Basic branch (The Runeforge quest) keeps paying its Gold on the turn '
+      + 'its forge opens. The printed number and the reward\'s `gold` agree.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (Runeforge batch)', quote: 'fix rune of ornate clock' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts applyQuestRewardInner case scheduleRuneforge (the Epic branch pays `r.gold` via gainGold); packages/content/src/runes.ts rune_ornate_clock; packages/sim/src/docbot/textOracleEconomy.ts runeEconomySubjects (the Epic-branch Gold is an immediate leaf)' },
+    ],
+    contentIds: ['rune_ornate_clock'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Until then the reward carried `gold: 2` but only the Basic branch of '
+      + '`scheduleRuneforge` ever read it, so the Clock moved the forge and never paid; the text oracle had the rune '
+      + 'pinned OUT of its economy check for that reason. The reducer now pays on resolve, the oracle reads the '
+      + 'Epic-branch Gold as an immediate promise and the Clock is back inside the reconciliation.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeforgeClockEpicBoardfit.test.ts', 'packages/sim/src/docbot/textOracleEconomy.test.ts', 'packages/sim/src/ownerBugs0826.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-RUNE-02',
+    title: 'Two Epic forges booked for one turn are both opened, never dropped',
+    statement:
+      'Epic Runeforge bookings are COUNTED, not flagged. `epicForgeWave` names the turn and `epicForgeCount` how '
+      + 'many forges are booked for it; `pendingEpicRuneforge` is the number waiting to open. A Guardian (Runeguard, '
+      + 'turn 8 booked at run creation) who buys Rune of the Epic Forge (turn 8) gets TWO Epic forges on turn 8, '
+      + 'opened one after the other: the second opens the moment the first is bought or skipped, on the same turn, '
+      + 'ahead of the Basic forge and any Discover in the start-of-turn order (power pick, Epic forges, Basic forge, '
+      + 'Discovers). Each forge draws its own offer from its own seeded stream (run seed, turn, and the forge\'s '
+      + 'index on that turn) and prefers runes the earlier forge did not show, so the two offers differ and a replay '
+      + 'reproduces both. A non-Guardian holding the rune gets one forge on turn 8. The universal turn-9 Epic forge, '
+      + 'the Runesmith\'s turn 5 and the universal turn-6 Basic forge are unchanged, and the Ornate Clock still '
+      + 'moves rather than adds. A save taken while the first forge is open restores with the second still pending; '
+      + 'a save written before the count existed reads its boolean as one forge.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (Runeforge batch, Guardian + Rune of the Epic Forge)', quote: 'can we just book 2 runeforges here' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts bookEpicForge / pendingEpicForges / openEpicRuneforge (per-index stream + avoid set) / openNextStartOfTurnModal (one Epic forge per pass) / advanceCombat (the booked count becomes pending); packages/sim/src/state.ts epicForgeCount, epicForgesOpened, pendingEpicRuneforge' },
+    ],
+    contentIds: ['rune_epic_forge'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Until then `pendingEpicRuneforge` was a boolean and `epicForgeWave` a single '
+      + 'slot: the rune bought by a Guardian found turn 8 taken and slid to a deferred next-turn forge (audit find '
+      + '2026-08-06), and any two arms on one turn collapsed into one forge. Open edge, unchanged in kind from '
+      + 'before: an ADOPTED Guardian power (Void, Power Shifter) books a forge each time it is adopted; the old '
+      + '`!epicForgeWave` guard only suppressed a re-adoption while a booking was still ahead.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeforgeClockEpicBoardfit.test.ts', 'packages/sim/src/runes.test.ts', 'packages/sim/src/docbot/heroPowerStagers.test.ts', 'packages/sim/src/heroBatchAug22.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-RUNE-03',
+    title: 'A tribe rune fits the board at 2 of the tribe (Basic forge) or 3 (Epic forge); All types count as one of every tribe',
+    statement:
+      'A rune whose text names a TRIBE "fits the board" only when the 7 board slots hold at least '
+      + 'BASIC_FORGE_TRIBE_FIT (2) minions of that tribe at a Basic forge and at least EPIC_FORGE_TRIBE_FIT (3) at an '
+      + 'Epic forge. The hand does not count. A minion that counts as every tribe (`universalTribe`, or the '
+      + 'per-instance `allTribes` flag) counts as ONE toward EVERY tribe; a dual-tribe minion counts once for each '
+      + 'of its tribes. This one threshold drives BOTH halves of the forge: the guarantee (one offered slot follows '
+      + 'the board when any following rune exists) and the pivot discount (40%, Basic 1-2 / Epic 2-4 Gold, only on '
+      + 'runes that do NOT fit). Mechanic tags (Rally, Echo, Shout, Avenge, Consume, Ruby, Ale, spells, Gold, '
+      + 'summon) remain PRESENCE tags: one card carrying the mechanic is enough.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (Runeforge batch, the board-fit rule)', quote: 'what is the logic for a rune that \'fits the board\' though? for basic, it should be at least 2 of a tribe type, and for epic it should be at least 3 of a tribe type. make sure all types count as 1 of everything.' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts BASIC_FORGE_TRIBE_FIT / EPIC_FORGE_TRIBE_FIT / boardTribeCounts / boardSynergyTags / drawRuneOffer; packages/content/src/runeSynergy.ts (the rune-side tags); packages/sim/src/recruit.ts isTribe' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Until then one minion of a tribe tagged the board with that tribe at either '
+      + 'forge, so a single stray Beast made every Beast rune "follow the board" and shielded it from the pivot '
+      + 'discount. Deferred by the owner ("thats fine for now, but flag it for when set 3 is live"): Spirit / '
+      + 'Celestial / Starform / Reveler are not yet rune-side keywords, so a Set 3 rune draws the pivot discount '
+      + 'against a Set 3 board until they are added (roadmap, Rune build-out).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeforgeClockEpicBoardfit.test.ts', 'packages/sim/src/runes.test.ts'],
+      lastVerifiedAt: '2026-09-23',
     },
   },
 ];

@@ -41,6 +41,7 @@ export * from './semanticTrace'; // WP C — the unified recruit+combat semantic
 export * from './runTelemetry';
 export * from './runeDup'; // rune duplicate stacking (owner rulings 2026-08-27): stack counts + sweetener/unique/forge-filter sets
 export * from './runDerive';
+export * from './reportCohorts'; // the honest-associations cohorts (2026-09-22): segments, exposed diagnostic, episodes, adjusted association, Welch, evidence
 export * from './playerReport'; // the Balance Report's read side (2026-09-22): set/ladder filters, per-card impact, the whole-dataset export
 export * from './opponentPool.data';
 export { MATCHMAKING, adjustedWinRate, bandWeight, boardRecord, clearBoardRecords, registerBoardRecords, selectionWeight, type BoardRecord } from './matchmaking';

@@ -282,7 +282,14 @@ export function runeEconomySubjects(): RuneEconomySubject[] {
     const leaves = leavesOf(rune.reward);
     const gold = leaves.filter((l): l is Extract<QuestReward, { kind: 'gainGold' }> => l.kind === 'gainGold');
     const max = leaves.filter((l): l is Extract<QuestReward, { kind: 'gainMaxGold' }> => l.kind === 'gainMaxGold');
-    if (!gold.length && !max.length) continue;
+    // A `scheduleRuneforge` reward can carry Gold of its own. The EPIC branch pays it the moment the rune
+    // resolves (Rune of the Ornate Clock's "Gain 2 Gold", fixed 2026-09-22 to actually pay), so it is an
+    // immediate leaf here; the BASIC branch pays its Gold the turn the forge opens, a schedule the grammar
+    // does not model, so that shape stays out of the worklist.
+    const forgeGold = leaves
+      .filter((l): l is Extract<QuestReward, { kind: 'scheduleRuneforge' }> => l.kind === 'scheduleRuneforge')
+      .filter((l) => l.forge === 'epic' && l.onWave == null && (l.gold ?? 0) > 0);
+    if (!gold.length && !max.length && !forgeGold.length) continue;
     const printed = parsePrintedEconomy(rune.text);
     if (!printed) continue;
     const params: RuneEconomySubject['params'] = {};
@@ -290,6 +297,7 @@ export function runeEconomySubjects(): RuneEconomySubject[] {
       if (g.immediate) params.immediate = (params.immediate ?? 0) + g.amount;
       else params.future = (params.future ?? 0) + g.amount;
     }
+    for (const f of forgeGold) params.immediate = (params.immediate ?? 0) + (f.gold ?? 0);
     for (const m of max) params.maxGold = (params.maxGold ?? 0) + m.amount;
     out.push({ runeId: rune.id, printed, params });
   }

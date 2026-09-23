@@ -10,6 +10,7 @@
  * fallbacks in styles.css (`.float`, `.float.dmg`, `@keyframes floatup`) so production (which doesn't run the
  * dev tuner) picks them up. "Reset" clears to defaults.
  */
+
 export interface FloatConfig {
   /** Base float font size (px) — poison/shield/reborn numbers (the damage pill has its own size below). */
   size: number;
@@ -122,12 +123,23 @@ const SPLASH_IMG_SRC: Record<string, string> = {
 };
 const SPLASH_IMG_URL: Record<string, string> = Object.fromEntries(Object.entries(SPLASH_IMG_SRC).map(([k, v]) => [k, `url('${v}')`]));
 
+/** Per attack-milestone-tier burst art (owner ask 2026-09-22): a real melee hit swaps the gold burst for a
+ *  colour-authored PNG at the top three tiers — pink at tier 4 (≥500), purple at tier 5 (≥2000), blue at tier 6
+ *  (≥5000). Tiers 1–3 and any untagged hit (spell / AoE) keep the base gold burst the picker chose. This is
+ *  authored ART, not a runtime recolour, so there is nothing to tune — the tier just selects the file. */
+const TIER_SPLASH_SRC: Record<number, string> = {
+  4: publicAssetUrl('fx/burst-pink.png'),
+  5: publicAssetUrl('fx/burst-purple.png'),
+  6: publicAssetUrl('fx/burst-blue.png'),
+};
+
 /** The burst art the damage float renders as an `<img decoding="sync">` (2026-09-03). It used to be a CSS
  *  `::before` background, which has no sync-decode guarantee: the compositor defers any image over ~512 KB
  *  decoded on first sight and can evict it between fights, so the first burst of a session (or after a long
  *  gap) painted a frame after its number. An image element with `decoding="sync"` is the platform's one
  *  guarantee that the burst is drawn on the same frame as the number — every time. */
-export function splashImgSrc(): string {
+export function splashImgSrc(atkTier?: number): string {
+  if (atkTier !== undefined && TIER_SPLASH_SRC[atkTier]) return TIER_SPLASH_SRC[atkTier]!;
   return SPLASH_IMG_SRC[cfg.splashImg] ?? SPLASH_IMG_SRC['1']!;
 }
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
@@ -197,6 +209,8 @@ export function applyFloatConfig(): void {
   s.setProperty('--dmg-num-y', `${cfg.numY}px`);
   s.setProperty('--dmg-splash-x', `${cfg.splashX}px`);
   s.setProperty('--dmg-splash-y', `${cfg.splashY}px`);
+  // The per-milestone-tier burst is a whole authored PNG (see TIER_SPLASH_SRC / splashImgSrc), swapped in on the
+  // <img> src by tier at render time — no CSS recolour vars to push here.
 }
 
 export function getFloatConfig(): FloatConfig {

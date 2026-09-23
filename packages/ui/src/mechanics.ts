@@ -115,7 +115,7 @@ const REGISTRY: Omit<Mechanic, 'def'>[] = [
   // share the same lightning-bolt medallion (owner ask 2026-09-23). Both resolve to this gem; the keyword panel
   // still labels each card by its own text ("Start of Combat" vs "Start of Turn"), since the term match is
   // text-based and only "start of combat" is a glossary term.
-  { id: 'startCombat', term: 'Start of Combat', glyph: 'fist', detect: (m) => kwMatch('SC')(m) || hasOn('startOfTurn')(m), kw: 'SC', termRe: /start of combat/i, order: 12 },
+  { id: 'startCombat', term: 'Start of Combat', glyph: 'fist', detect: (m) => kwMatch('SC')(m) || hasOn('startOfCombat')(m) || hasOn('startOfTurn')(m), kw: 'SC', termRe: /start of combat/i, order: 12 },
   { id: 'endTurn', term: 'End of Turn', glyph: 'sc', detect: hasOn('endOfTurn'), termRe: /end of turn/i, order: 13 },
   { id: 'avenge', term: 'Avenge (N)', glyph: 'skull', detect: hasOn('avenge'), termRe: /\bavenge\b/i, order: 14 },
   // PUMMEL (owner keyword 2026-09-21): the damage-dealt threshold trigger (Han Gover, Goldvein) — a passive

@@ -48,9 +48,11 @@ describe('resolveMech', () => {
     expect(resolveMech(view('k_blazer'))?.glyph).toBe('sword'); // rally's glyph
     expect(resolveMech(view('k_blazer'))?.id).toBe('rally');
   });
-  it('a Start of Turn effect shares the Start of Combat lightning medallion', () => {
-    // Fel Conjurer — "Start of Turn: get a Quick Study" (on: 'startOfTurn', no SC keyword).
+  it('Start of Turn AND Start of Combat effects share the Start of Combat lightning medallion', () => {
+    // Fel Conjurer — "Start of Turn: …" (on: 'startOfTurn', no SC keyword).
     expect(resolveMech(view('d2_felconjurer'))?.id).toBe('startCombat');
+    // Arena Heckler — "Start of Combat: …" via an effect trigger (on: 'startOfCombat', no SC keyword).
+    expect(resolveMech(view('arenaheckler'))?.id).toBe('startCombat');
   });
   it('a consume-watcher (Enigma) → watcher eye', () => {
     // Enigma — "When you consume a minion, …" (on: 'onConsume'): watches the consume, so it is a Watcher.

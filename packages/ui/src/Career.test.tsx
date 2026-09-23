@@ -5,8 +5,9 @@
  * run with no board / no runes / a clock but no watchable replay; and a light 7th-place run with no telemetry
  * at all. Pins the three-column layout's contents: the most-played hero in the in-run frame + the four tiles;
  * the Match History BANNERS (head: hero + the MATCH result ‖ outcome block · team: 7 slots · foot: runes ‖ ONE
- * Watch button, live only with a replay); the MMR as a bare number (no delta); the three trend charts + window
- * toggle; the designed loading / signed-out / offline / empty states; the HEROES tab (a PORTRAIT GRID folded over
+ * Watch button, live only with a replay); the MMR as a bare number (no delta); the four trend charts (MMR first,
+ * plotted raw from each run's settled rating; a run with no stamp is skipped, never a 0) + the 7 / 30 / 90 / All
+ * time window toggle (owner ask 2026-09-22); the designed loading / signed-out / offline / empty states; the HEROES tab (a PORTRAIT GRID folded over
  * every run, with a hover / focus panel per hero; the choice persisted); the three columns sharing one header
  * row; the Seasonal Ranked card as the medal rank (crest in the portrait ring + bar + the scalar caption) — for
  * your own profile and for a VIEWED player (rank handed over on `careerOf.rank`, or fetched by user id, the card
@@ -48,7 +49,7 @@ const DAY = 86_400_000;
 const NOW = Date.now();
 const run = (over: Partial<CareerRun>): CareerRun => ({
   id: 1, heroId: 'brackus', at: new Date(NOW).toISOString(), atMs: NOW, wave: 12, wins: 6, losses: 4, draws: 0, placement: 3,
-  goldSpent: 80, apt: 25, ratingDelta: 10, seed: 1, dominantTribe: 'beast', mode: 'lobby', board: null, detailed: true, runes: [],
+  goldSpent: 80, apt: 25, ratingDelta: 10, ratingAfter: null, seed: 1, dominantTribe: 'beast', mode: 'lobby', board: null, detailed: true, runes: [],
   replayRowId: null, durationMs: null, ...over,
 });
 /** A full 7-minion final team, the 4th one gilded (a triple). */
@@ -65,10 +66,11 @@ const FULL_TEAM = {
   wave: 15, heroId: 'sable', runes: ['rune_broodpit', 'rune_epic_forge'],
 } as never;
 const RUNS: CareerRun[] = [
-  run({ id: 12, heroId: 'sable', atMs: NOW - 1 * DAY, wins: 9, losses: 4, placement: 1, goldSpent: 120, apt: 26.1, wave: 15, ratingDelta: 41, dominantTribe: 'beast', replayRowId: 97, durationMs: 883_179,
+  // The settled ratings: 1193 → 1234, so the newest run's MMR IS the profile's 1234 the crest prints.
+  run({ id: 12, heroId: 'sable', atMs: NOW - 1 * DAY, wins: 9, losses: 4, placement: 1, goldSpent: 120, apt: 26.1, wave: 15, ratingDelta: 41, ratingAfter: 1234, dominantTribe: 'beast', replayRowId: 97, durationMs: 883_179,
     board: FULL_TEAM, runes: ['rune_broodpit', 'rune_epic_forge'] }),
-  run({ id: 11, heroId: 'brackus', atMs: NOW - 2 * DAY, wins: 5, losses: 5, draws: 2, placement: 3, goldSpent: 90, apt: null, durationMs: 690_108, board: null, runes: [], dominantTribe: 'mech' }), // no APT → no APM point, length still known
-  run({ id: 10, heroId: 'brackus', atMs: NOW - 40 * DAY, wins: 2, losses: 5, placement: 7, goldSpent: null, apt: null, durationMs: null, board: null, runes: [], dominantTribe: 'beast', detailed: false }),
+  run({ id: 11, heroId: 'brackus', atMs: NOW - 2 * DAY, wins: 5, losses: 5, draws: 2, placement: 3, goldSpent: 90, apt: null, durationMs: 690_108, board: null, runes: [], dominantTribe: 'mech', ratingAfter: 1193 }), // no APT → no APM point, length still known
+  run({ id: 10, heroId: 'brackus', atMs: NOW - 40 * DAY, wins: 2, losses: 5, placement: 7, goldSpent: null, apt: null, durationMs: null, board: null, runes: [], dominantTribe: 'beast', detailed: false }), // no settle stamp → no MMR point
 ];
 
 let ui: Mounted;
@@ -272,27 +274,72 @@ describe('the right column', () => {
     expect(ui.container.textContent).not.toMatch(/division|tier|bronze|silver|gold rank/i);
   });
 
-  it('Performance Trends: three inline-SVG charts, 30 days by default, the window toggle re-scopes them', () => {
-    expect(text('.cv2-trend-title')).toEqual(['Avg Placement', 'Win Rate', 'Avg APM']);
+  it('Performance Trends: four inline-SVG charts — MMR first, then the three rates — 30 days by default, the 7 / 30 / 90 / All time toggle re-scopes them', () => {
+    expect(text('.cv2-trend-title')).toEqual(['MMR', 'Avg Placement', 'Win Rate', 'Avg APM']);
     expect(ui.container.textContent).not.toMatch(/fight win rate/i);
-    expect(ui.container.querySelectorAll('.cv2-chart svg')).toHaveLength(3);
+    expect(ui.container.querySelectorAll('.cv2-chart svg')).toHaveLength(4);
     expect(ui.container.querySelectorAll('.cv2-chart canvas')).toHaveLength(0);
+    // MMR sits directly under the Seasonal Ranked card (crest → number → line).
+    const charts = [...ui.container.querySelectorAll('.cv2-trend')];
+    expect(charts[0]!.querySelector('.cv2-trend-title')?.textContent).toBe('MMR');
+    expect(ui.container.querySelector('.cv2-ranked')!.compareDocumentPosition(charts[0]!) & 4).toBe(4);
     const seg = [...ui.container.querySelectorAll<HTMLButtonElement>('.cv2-seg-btn')];
-    expect(seg.map((b) => b.textContent)).toEqual(['7d', '30d', '90d']);
-    expect(seg.map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'true', 'false']);
-    // 30 days: the two recent runs → placements 3, 1 (avg 2); both top 4 → MATCH win rate 100%; APM from run 12
-    // only (run 11 has no APT)
-    expect(text('.cv2-trend-foot')).toEqual(['2 runs', '2 runs', '1 run']);
-    expect(text('.cv2-trend-avg')[0]).toBe('2');
-    expect(text('.cv2-trend-avg')[1]).toBe('100%');
+    expect(seg.map((b) => b.textContent)).toEqual(['7d', '30d', '90d', 'All time']);
+    expect(seg.map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'true', 'false', 'false']);
+    // 30 days: the two recent runs → MMR 1193 → 1234 raw, the headline the LATEST rating = the crest's own 1234;
+    // placements 3, 1 (avg 2); both top 4 → MATCH win rate 100%; APM from run 12 only (run 11 has no APT)
+    expect(text('.cv2-trend-foot')).toEqual(['2 runs', '2 runs', '2 runs', '1 run']);
+    expect(text('.cv2-trend-avg')).toEqual(['1234', '2', '100%', '26.6']);
+    expect(ui.container.querySelector('.cv2-ranked .rankbar-caption')?.textContent).toBe('1234 MMR');
+    // The MMR axis is snapped to the ladder's 100-point divisions around the window's ratings, labelled plain.
+    expect(charts[0]!.querySelector('.cv2-axis.top')?.textContent).toBe('1300');
+    expect(charts[0]!.querySelector('.cv2-axis.bottom')?.textContent).toBe('1100');
     click(seg[2]!);
-    // 90 days adds the 7th-place run → 2 of 3 = 67% (the fight records 9–4 / 5–5 / 2–5 would have said otherwise)
-    expect(text('.cv2-trend-foot')).toEqual(['3 runs', '3 runs', '1 run']);
-    expect(text('.cv2-trend-avg')[1]).toBe('67%');
+    // 90 days adds the 7th-place run → 2 of 3 = 67% (the fight records 9–4 / 5–5 / 2–5 would have said
+    // otherwise). Its row carries no settle stamp, so MMR keeps its two points — never a 0 for an unrated run.
+    expect(text('.cv2-trend-foot')).toEqual(['2 runs', '3 runs', '3 runs', '1 run']);
+    expect(text('.cv2-trend-avg')[0]).toBe('1234');
+    expect(text('.cv2-trend-avg')[2]).toBe('67%');
     click(seg[0]!);
-    expect(text('.cv2-trend-foot')).toEqual(['2 runs', '2 runs', '1 run']);
-    expect(ui.container.querySelectorAll('.cv2-chart polyline')).toHaveLength(2); // APM has a lone point → a dot, not a line
+    expect(seg.map((b) => b.getAttribute('aria-pressed'))).toEqual(['true', 'false', 'false', 'false']);
+    expect(text('.cv2-trend-foot')).toEqual(['2 runs', '2 runs', '2 runs', '1 run']);
+    expect(ui.container.querySelectorAll('.cv2-chart polyline')).toHaveLength(3); // APM has a lone point → a dot, not a line
     expect(ui.container.querySelectorAll('.cv2-chart .cv2-dot')).toHaveLength(1);
+    // Static paint only: no SMIL, no canvas, no native tooltip on any chart.
+    expect(ui.container.querySelector('.cv2-chart animate, .cv2-chart animateTransform, .cv2-chart [title]')).toBeNull();
+  });
+
+  it('All time has no lower bound (a run from 400 days back joins the rates); a window with no rated run shows the MMR chart empty, never a line of zeros, while the crest keeps its number', async () => {
+    ui.unmount();
+    fetchMyRuns.mockResolvedValue([
+      ...RUNS,
+      run({ id: 9, heroId: 'brackus', atMs: NOW - 400 * DAY, placement: 5, apt: null, durationMs: null, detailed: false, dominantTribe: 'beast' }), // last year, never rated
+    ]);
+    useGame.setState({ careerCache: null });
+    ui = mount(<Career />);
+    await flush();
+    const seg = [...ui.container.querySelectorAll<HTMLButtonElement>('.cv2-seg-btn')];
+    click(seg[2]!); // 90d: the 400-day-old run is out
+    expect(text('.cv2-trend-foot')).toEqual(['2 runs', '3 runs', '3 runs', '1 run']);
+    click(seg[3]!); // All time: in
+    expect(seg[3]!.textContent).toBe('All time');
+    expect(seg.map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'false', 'true']);
+    expect(text('.cv2-trend-foot')).toEqual(['2 runs', '4 runs', '4 runs', '1 run']);
+    expect(text('.cv2-trend-avg')[0]).toBe('1234');
+    expect(text('.cv2-trend-avg')[2]).toBe('50%'); // 1st, 3rd (W) · 7th, 5th (L)
+
+    ui.unmount();
+    fetchMyRuns.mockResolvedValue([run({ id: 3, atMs: NOW - DAY, placement: 2, ratingAfter: null })]);
+    useGame.setState({ careerCache: null });
+    ui = mount(<Career />);
+    await flush();
+    const mmrChart = ui.container.querySelector('.cv2-trend')!;
+    expect(mmrChart.querySelector('.cv2-trend-title')?.textContent).toBe('MMR');
+    expect(mmrChart.querySelector('.cv2-trend-avg')?.textContent).toBe('—');
+    expect(mmrChart.querySelector('.cv2-chart-empty')?.textContent).toBe('No rated runs in this window');
+    expect(mmrChart.querySelector('.cv2-trend-foot')?.textContent).toBe('0 runs');
+    expect(mmrChart.querySelector('polyline, .cv2-dot')).toBeNull();
+    expect(ui.container.querySelector('.cv2-ranked .rankbar-caption')?.textContent).toBe('1234 MMR');
   });
 });
 

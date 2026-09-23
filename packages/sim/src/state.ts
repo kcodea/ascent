@@ -472,7 +472,8 @@ export interface EquipFx {
   /** `use` only, and only for an Equipment flagged `useFxTargetsBuffed` (Spiritbinder): how much `targetUid`
    *  gained from THIS fire. The UI withholds exactly this much until the def lands on it, so the beam reads as
    *  the cause of the numbers. Carried rather than re-derived: the recipient's buff ledger is a run total, and
-   *  an Amplified activation buffs the same body twice, so neither survives division. */
+   *  an Amplified activation buffs the same body twice — as TWO cues, one per fire (owner 2026-09-22: "one beam
+   *  per fire"), so neither survives division. */
   buffAttack?: number;
   buffHealth?: number;
 }
@@ -1979,9 +1980,10 @@ export interface RunState {
    *  slot. Cleared at the top of every action. */
   equipmentSpellCasts?: string[];
   /** Per-action: the BOARD bodies an Equipment's own effect buffed this action, in the order it picked them, with
-   *  the gain each pick added. Read by the `use` cue for an Equipment flagged `useFxTargetsBuffed` (Spiritbinder)
-   *  so its def flies at the body it chose. Display metadata only: no RNG, no stats. Cleared at the top of every
-   *  action, and each fire reads only the entries it pushed itself (see `buffedFxTarget`). */
+   *  the gain each pick added. Read by the `use` cues of an Equipment flagged `useFxTargetsBuffed` (Spiritbinder)
+   *  so its def flies at the body it chose — ONE cue per entry (owner 2026-09-22: "one beam per fire"). Display
+   *  metadata only: no RNG, no stats. Cleared at the top of every action, and each activation reads only the
+   *  entries pushed since its own mark (see `buffedFxTargets`). */
   equipmentFxBuffed?: { uid: string; attack: number; health: number }[];
   /** FUNERAL ON LOAN: the uid of a board body that occupies its slot but is ALREADY DOOMED — the borrowed
    *  minion, spliced in only so positional Echoes (Dawnclaw's neighbours, Legion Shepherd's counting) see a

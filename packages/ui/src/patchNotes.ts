@@ -77,6 +77,65 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-22',
+    label: 'Milestone damage bursts',
+    changes: [
+      {
+        category: 'Systems',
+        text: "A big enough melee hit now bursts in its attack-milestone colour instead of the usual gold.",
+        details: [
+          'The burst behind the damage number turns pink, then purple, then blue as the attacker crosses the higher attack milestones.',
+          'Only real card-versus-card hits recolour; spell and area damage keep the gold burst.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Career MMR trend',
+    changes: [
+      { category: 'Systems', text: 'Performance Trends on the Career page now show your MMR over time, and an All time tab joins 7, 30 and 90 days.', details: [
+        'The MMR chart plots your rating after each rated run, exactly as it was, with the latest one as its headline. Practice and unrated runs are left out.',
+        'All time covers every run on your account. The 7, 30 and 90 day tabs work as before.',
+        'The trend panel keeps all four charts in view on a 1080p screen. The plots shrink to fit the column instead of hiding the last chart below its edge.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Balance Report',
+    changes: [
+      { category: 'Systems', text: 'The Balance Report now reads only the active set and never a Scene Builder run. Export all downloads the whole dataset as one file.', details: [
+        'The header names the set it is reading and how many runs it found.',
+        "Minions and Spells show each card's buyers, buy rate, average place, top 4 rate and a placement delta against the field, with a hot and cold colour and a chart view.",
+        'Tier and tribe chips above the table summarise each group and filter the table when clicked.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Spiritbinder cascade',
+    changes: [
+      { category: 'Systems', text: 'An Amplified or repeated Spiritbinder now throws one beam per trigger, each on its own beat.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Thymepiece',
+    changes: [
+      { category: 'Balance', text: 'An Amplified Thymepiece now runs for 16 seconds instead of 8. The discount stays at 1 Gold (2 when gilded). The rule on the slot shows the doubled window while the charge is armed.' },
+      { category: 'Systems', text: 'The Thymepiece countdown now sits above the Equipment slot and no longer shifts anything around it.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Amplified glow and Comet',
+    changes: [
+      { category: 'Systems', text: 'An Amplified Equipment now glows on its slot while it has a charge to spend. The glow stops when you use it or switch to an Equipment that is not Amplified.' },
+      { category: 'Systems', text: 'Comet plays its own effect when you use it.' },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Balance Report',
     changes: [
       { category: 'Systems', text: 'The Balance Report now reads only the active set and never a Scene Builder run. Export all downloads the whole dataset as one file.', details: [

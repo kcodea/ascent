@@ -70,9 +70,11 @@ placed inside the **existing** `useLayoutEffect` that fires the use def. Two rea
 the signal, never derived from the recipient's `CardBuff` ledger: the ledger is a run total and an Amplified
 activation buffs the same body twice, so `total / count` would print a number the body never had.
 
-One cue per activation stays the rule. A multi-trigger fire (extra triggers, Amplified) beams the **last** body
-it picked and owes that body's total for the fire; earlier picks move their numbers without a beam, exactly as a
-three-trigger Bloodpot is one travel.
+~~One cue per activation stays the rule.~~ **Superseded the same day** by the owner ruling *"spiritbinder one beam
+per fire"*: a multi-trigger fire now stamps one cue per fire and the screen cascades one beam per cue, each on its
+own recipient with its own hold — see
+[`2026-09-22-spiritbinder-one-beam-per-fire.md`](2026-09-22-spiritbinder-one-beam-per-fire.md). A three-trigger
+Bloodpot is still one travel: per-fire cues are scoped to `useFxTargetsBuffed`.
 
 ## Edge cases
 
@@ -154,3 +156,7 @@ earlier board pick plays the generic self-buff burst while the last pick gets th
 one beam plus one unrelated pulse. One `use` cue per fire would read better, but a `use` cue also carries the
 slot's used-up flourish and its sound, so N cues is N clicks for one press. Left as one cue pending an owner
 call; the earlier picks are never silent, only unbeamed.
+
+**Ruled later the same day.** The owner asked for one beam per fire, and the objection above turned out to be
+moot: `equipment-used-up` fires on the charge-count edge (not per cue) and Spiritbinder names no `useSfxId`. See
+[`2026-09-22-spiritbinder-one-beam-per-fire.md`](2026-09-22-spiritbinder-one-beam-per-fire.md).

@@ -20,7 +20,7 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTarget, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale } from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale } from './recruit';
 import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
@@ -2665,21 +2665,29 @@ function reduceCore(state: RunState, action: Action): RunState {
       // press. A stand-in source (the granter was sold) is not a living minion → the descend plays instead.
       let fired = true;
       const fxMark = equipmentFxMark(s);
-      const fire = (): void => { fired = fireEquipmentTriggers(s, fireDef, granted.version, fireSelf, target, triggers, action.clockSeconds); };
+      const fire = (): void => { fired = fireEquipmentTriggers(s, fireDef, granted.version, fireSelf, target, triggers, action.clockSeconds, amplified); };
       if (fireDef.useFxId) fire();
       else captureBuffFx(s, src, src ? 'minion' : 'spell', fire);
       if (!fired) return state;
-      // ONE use cue per ACTIVATION, not per trigger — the handoff's rule for repeats is that they "communicate
-      // repetition without replaying the full animation", so a three-trigger Bloodpot is one travel, not three.
-      stampEquipFx(s, {
-        kind: 'use', uid: self.uid, cardId: self.cardId, equipmentId: def.id,
-        ...(target ? { targetUid: target.uid } : {}),
-        // An untargeted Equipment whose own effect picks a BOARD body (Spiritbinder) aims its def there instead
-        // of at the slot, and carries the gain so the UI can hold the numbers until the def lands. Absent when
-        // it picked none, which is what tells the UI to play nothing at all.
-        ...buffedFxTarget(s, fireDef, fxMark),
-        ...(s.equipmentSpellCasts?.length ? { spellIds: [...s.equipmentSpellCasts] } : {}),
-      });
+      // THE USE CUE(S). ONE per ACTIVATION for an Equipment whose def plays on the slot or on what it was aimed
+      // at — the handoff's rule for repeats is that they "communicate repetition without replaying the full
+      // animation", so a three-trigger Bloodpot is one travel, not three. But ONE PER FIRE for an Equipment whose
+      // def flies at the body its own effect picked (`useFxTargetsBuffed`, Spiritbinder — owner ruling
+      // 2026-09-22: "spiritbinder one beam per fire"): each cue carries that fire's own recipient and gain, in
+      // fire order, so an Amplified or repeated activation cascades N beams onto N recipients, the way Rally and
+      // Shout count repeated triggers at the signal. Nothing about the picks changes — only the signal. A fire
+      // that picked no body stamps nothing; an activation that picked none at all still stamps the single
+      // target-less cue below, which is what tells the UI to play nothing at all. The Keg's `spellIds` ride the
+      // first cue only (two pours on ONE cue is the pinned contract); no flagged Equipment casts anything today.
+      const cueBase = { kind: 'use' as const, uid: self.uid, cardId: self.cardId, equipmentId: def.id };
+      const cueAim = target ? { targetUid: target.uid } : {};
+      const cueSpells = s.equipmentSpellCasts?.length ? { spellIds: [...s.equipmentSpellCasts] } : {};
+      const perFire = buffedFxTargets(s, fireDef, fxMark);
+      if (perFire.length > 0) {
+        perFire.forEach((hit, i) => stampEquipFx(s, { ...cueBase, ...cueAim, ...hit, ...(i === 0 ? cueSpells : {}) }));
+      } else {
+        stampEquipFx(s, { ...cueBase, ...cueAim, ...cueSpells });
+      }
       // `equipmentActivated` watchers (Rig, set 3 Neutrals 2026-09-18): the player USED an Equipment — once per
       // activation, after its own triggers, before any Counterrotation re-fire (which is not the player pressing).
       fireEquipmentActivated(s, def.id);

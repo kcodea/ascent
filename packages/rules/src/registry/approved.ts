@@ -1811,6 +1811,144 @@ export const APPROVED_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-PRESENT-02',
+    title: 'The Amplified glow plays only on a selected Equipment that can fire',
+    statement:
+      'The Equipment slot carries the Amplified cue (the owner\'s looping `amplified-slot` def) only while the '
+      + 'SELECTED Equipment will Amplify its next activation AND has at least one charge to spend, in the shop '
+      + 'phase. An Amplified Equipment with zero charges shows no glow; an unselected Amplified Equipment shows '
+      + 'none until it is picked; the glow ends the moment any of that stops being true (the activation that spends '
+      + 'the stack or the charge, a swap to an unamplified Equipment, the turn ending, the phase leaving the shop, '
+      + 'the slot going away) and is never left running unseen (a hidden tab, any overlay covering the slot, unmount). '
+      + 'The cue decorates state the reducer already resolved; it never decides anything.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (the amplified effect)', quote: 'it should only play when a usable equipment is equipped/selected. if an equipment has 0 charges it should not show the animation.' },
+      { kind: 'code', ref: 'packages/ui/src/useAmplifiedSlotFx.ts (one loop, caller-owned teardown); packages/ui/src/StatusBar.tsx (the condition: hasEquip && equipmentWillAmplify && equipmentUsesLeft > 0 && phase recruit && no covering overlay, run-state (Discover / Choose One / offers / scouting) or UI-store (Compendium, Inspect view, bug reporter, ladder and balance pages, title))' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22 (the day the cue shipped). The condition is derived from the same `run.equipment` '
+      + 'reads that paint the charge number blue (`equipmentWillAmplify`) and print it (`equipmentUsesLeft`), so '
+      + 'the glow and the number cannot disagree. The phase gate is load-bearing: End of Turn hands every own '
+      + 'charge back in the same action that starts combat, and the bar stays mounted through the fight. Same-day '
+      + 'review fix: the UI-store overlays pause it too (the Compendium, the Inspect view, the Ctrl+B bug reporter, '
+      + 'the ladder / balance pages, the title), the set Recruit folds into `overlayOpen` plus the Inspect view; '
+      + 'the Book had left the ring burning behind its blur. OPEN, not ruled: "usable" is read as HAS A CHARGE, the '
+      + 'owner\'s own clarifying sentence. Gold is not a term, so an Amplified Equipment with a charge the player '
+      + 'cannot afford this moment still glows while its button is disabled. If "usable" should also mean '
+      + 'affordable, AND `run.embers >= equipmentCostOf(run, def)` into the condition and add the hook case.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/useAmplifiedSlotFx.test.tsx'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-EQUIP-01',
+    title: 'Thymepiece: Amplified doubles the window; the readout sits above the slot',
+    statement:
+      'An Amplified Thymepiece activation opens one window of twice the printed seconds (16), plain or gilded; an '
+      + 'extra trigger from any other source does not lengthen it, and the discount amount is never multiplied. '
+      + 'While the Equipment will fire twice, the rule the slot prints shows the doubled window. The countdown '
+      + 'readout sits above the slot, out of layout flow, and moves nothing.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (Thymepiece)', quote: 'an amplified timepiece should double the duration' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (Thymepiece)', quote: "make timepiece's buff show above the equipment instead of below, and dont let it nudge anything on the screen at all" },
+      { kind: 'fix-pr', ref: 'Thymepiece Amplified + readout — packages/sim/src/recruit.ts equipmentCardDiscountWindow (Amplified doubles the window), fireEquipmentTriggers (the amplified flag in the payload), packages/sim/src/equipment.ts equipmentText (amplified), packages/ui/src/styles.css .discountwin' },
+    ],
+    currentBehaviour:
+      'Conforms — 2026-09-22. Before this the factory replaced a window with the fresher, larger one, so the second '
+      + 'trigger of an Amplified activation re-opened the same 8-second window and Amplified did nothing for the '
+      + 'Thymepiece; and the readout was a flow child under the name pill, so its appearance grew the '
+      + 'translate-centred slot and shifted the button and the name by half its height.',
+    cardText: 'Thymepiece: "All cards cost **1** less Gold for the next **8 seconds**." (Amplified: "**16 seconds**").',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/thymepiece.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-PRESENT-03',
+    title: 'A repeated Equipment fire is one cue per fire: each recipient gets its own beam on its own beat',
+    statement:
+      'When an Equipment whose authored def flies at the body its own effect picked (`useFxTargetsBuffed`, '
+      + 'Spiritbinder) fires more than once in one activation (Amplified, an extra trigger, a Calibration charge), '
+      + 'the engine stamps one `use` cue PER FIRE, in fire order, each carrying that fire\'s own recipient and gain, '
+      + 'never one cue folded onto the last pick. The screen plays those cues as one beam per fire, staggered, each '
+      + 'landing on its own recipient with that recipient\'s numbers held to its own contact, and suppresses the '
+      + 'generic self-buff pulse on every beamed body. A fire that picked nobody stamps nothing; an activation that '
+      + 'picked nobody at all stamps the single target-less cue that means "play nothing". A single fire stamps '
+      + 'exactly the cue it always did. Nothing about which bodies grow, by how much, or in what order changes: the '
+      + 'cue is a signal, and the reducer resolved every buff before the first beam drew. An Equipment that plays on '
+      + 'the slot or on what it was aimed at keeps one cue per activation however many triggers it had; a '
+      + 'three-trigger Bloodpot is one travel.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (Spiritbinder multi-beam)', quote: 'spiritbinder one beam per fire' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts buffedFxTargets; packages/sim/src/reducer.ts case activateEquipment (the per-fire stamp); packages/ui/src/equipBeamCascade.ts useEquipBeamCascade' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22. PR #1628 shipped the beam with one cue per activation: a multi-trigger press '
+      + 'folded every board pick into one cue aimed at the LAST body, so an earlier recipient fell through to the '
+      + 'generic self-buff burst and two fires read as one beam plus one unrelated flash (flagged in that PR\'s '
+      + 'review, declined pending an owner call, now ruled). `buffedFxTargets` returns one entry per recorded pick; '
+      + 'the recording factory draws at most one board body per fire, which is what makes one-per-pick equal '
+      + 'one-per-fire; the reducer stamps one cue per entry, scoped to `useFxTargetsBuffed` so Bloodpot, the Keg and '
+      + 'every aimed Equipment are byte-identical. `useEquipBeamCascade` plays the cues 300 ms apart (the lasso\'s '
+      + 'gap), measures each recipient at launch, skips a body that left the board rather than redirecting to the '
+      + 'slot, holds each recipient once (two fires on one body are two beams and one continuous roll spanning both '
+      + 'contacts, because the stat-hold store keeps one hold per uid; two separate rolls would need a multi-segment '
+      + 'hold in the shared store, an open owner fork), keeps every launch timer and retire fn outside the per-action '
+      + 'effect so a later action never cuts a beam (owner 2026-09-09), and retires them when the shop leaves and on '
+      + 'unmount.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/spiritbinderBeamCues.test.ts', 'packages/ui/src/equipBeamCascade.test.tsx', 'packages/ui/src/spiritbinderBeamGuard.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-CAREER-01',
+    title: 'The Career page trends MMR over rated runs, with an All time window',
+    statement:
+      'The Career page\'s Performance Trends carry an MMR line: one point per rated run in the window, plotted '
+      + 'as the rating the run settled to (the same scalar the Seasonal Ranked crest prints), oldest first and '
+      + 'exactly as recorded, never a running mean; its headline is the latest rated run\'s MMR in the window. A '
+      + 'run with no settled rating (practice, unrated, a row the settle stamp never reached) contributes no '
+      + 'point and is never drawn as 0, while a real 0 is a point. The window tabs are 7, 30 and 90 days and All '
+      + 'time; All time applies no lower bound at all and is bounded only by the rows the page fetches. The three '
+      + 'rate lines beside it keep their running-mean smoothing.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (the Career page\'s Performance Trends panel)', quote: 'add to the performance trends an "MMR" line graph that tracks mmr over time. also add an "All time" tab so there is 7/30/90 days and all time.' },
+      { kind: 'code', ref: 'packages/ui/src/careerData.ts (trendSeries: the mmr series via rawSeries, TrendWindow \'all\', mmrAxisOf); packages/ui/src/remoteBoards.ts CAREER_LIGHT_SELECT rating_after:entry->>ratingAfter; packages/ui/src/Career.tsx (the MMR chart, first in the panel; the All time tab); the value is settle_rank\'s stamp on run_history.entry.ratingAfter (schema.sql)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-22 (the feature PR). The rating plotted is the server\'s settle stamp on the '
+      + 'history row (entry.ratingAfter, projected as rating_after on the light select); since #1594 the client '
+      + 'never writes it, so an unstamped row reads null and is skipped. Plotting the line raw rather than as a '
+      + 'running mean is the implementation\'s reading of "tracks mmr over time" (a rating is a state, not a rate; '
+      + 'the 2026-09-20 smoothing ruling was for the three rate lines), decided 2026-09-22 and open to the '
+      + 'owner\'s correction. The axis is snapped to whole 100-point divisions around the window\'s ratings. All '
+      + 'time reads the newest 1000 light rows the page fetches (FETCH_LIMIT), which is every run any account has '
+      + 'today. A season reset inside a window is drawn as the drop it is.',
+    example:
+      'A player takes five bottom-half finishes on the Bronze I floor (0 MMR each), then climbs 16, 56, 40, 46, '
+      + '86, 100, 110. The 30d MMR line reads 0, 0, 0, 0, 0, 16, 56, 40, 46, 86, 100, 110 with the headline 110 on '
+      + 'a 0 to 200 axis; the Avg Placement line beside it is still a running mean.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/careerData.test.ts', 'packages/ui/src/Career.test.tsx', 'packages/ui/src/careerFetch.test.ts'],
+      lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
     id: 'R-REPEAT-01',
     title: 'LUMP versus REPEAT: "for every C" is one instance; "Repeat for every C" is the base plus one tick per C',
     statement:

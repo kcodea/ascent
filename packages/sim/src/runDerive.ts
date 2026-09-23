@@ -518,139 +518,7 @@ export function deriveRun(replay: Replay, initial?: RunState): DerivedRun {
   return finishDerive(st, s, { heroId: replay.heroId, mode: replay.mode, seed: replay.seed });
 }
 
-// ── Aggregation: the three conversion rates, separately named ──────────────────────────────────────────────
-
-/** Per-card demand, with the three DIFFERENT rates Codex asked to stop conflating. */
-export interface CardDemand {
-  cardId: string;
-  rev: string;
-  /** Individual copies offered in a tavern, and how many of those individual copies were bought. */
-  copiesOffered: number;
-  copiesBought: number;
-  /** copiesBought / copiesOffered — the TRUE conversion rate. */
-  copyConversion: number | null;
-  /** Shops that contained ≥1 copy, and how many of those shops produced ≥1 purchase of it. */
-  shopsWithCard: number;
-  shopsConverted: number;
-  shopConversion: number | null;
-  /** Runs that were offered it at all, and how many of those runs ACQUIRED it (any source — hence the name:
-   *  the old `runs_bought` said "bought" while counting this). */
-  runsOffered: number;
-  runsAcquired: number;
-  runAcquisitionRate: number | null;
-  /** Mean copies bought per shop appearance. */
-  copiesPerShopAppearance: number | null;
-  /** Acquisitions split by where they came from. */
-  bySource: Record<AcquisitionEvent['source'], number>;
-  /** Total acquisitions — the sample size every performance claim must be shown beside. */
-  acquisitions: number;
-  playRate: number | null;
-  finalBoardRate: number | null;
-  avgAcquiredWave: number | null;
-}
-
-/** Aggregate per-card demand across derived runs. Rows are keyed by cardId+revision — never pooled across
- *  revisions, which is the whole point of stamping them. */
-export function cardDemand(runs: DerivedRun[]): CardDemand[] {
-  interface Acc extends Omit<CardDemand, 'copyConversion' | 'shopConversion' | 'runAcquisitionRate' | 'copiesPerShopAppearance' | 'playRate' | 'finalBoardRate' | 'avgAcquiredWave'> {
-    played: number; finalBoard: number; waveSum: number;
-  }
-  const acc = new Map<string, Acc>();
-  const key = (id: string, rev: string): string => `${id}@${rev}`;
-  const get = (id: string, rev: string): Acc => {
-    const k = key(id, rev);
-    let a = acc.get(k);
-    if (!a) {
-      a = {
-        cardId: id, rev, copiesOffered: 0, copiesBought: 0, shopsWithCard: 0, shopsConverted: 0,
-        runsOffered: 0, runsAcquired: 0, acquisitions: 0,
-        bySource: { shop: 0, discover: 0, quest: 0, rune: 0, heroPower: 0, henchman: 0, generated: 0 },
-        played: 0, finalBoard: 0, waveSum: 0,
-      };
-      acc.set(k, a);
-    }
-    return a;
-  };
-
-  for (const run of runs) {
-    if (run.diverged) continue; // a partial run would bias every rate it touches
-    // "Shop" here = one wave's tavern; a card seen twice in one wave's shop is one shop appearance.
-    const shopsWith = new Map<string, Set<number>>();
-    const shopsConv = new Map<string, Set<number>>();
-    for (const o of run.offers) {
-      const a = get(o.cardId, o.rev);
-      a.copiesOffered++;
-      if (o.bought) a.copiesBought++;
-      const k = key(o.cardId, o.rev);
-      (shopsWith.get(k) ?? shopsWith.set(k, new Set()).get(k)!).add(o.wave);
-      if (o.bought) (shopsConv.get(k) ?? shopsConv.set(k, new Set()).get(k)!).add(o.wave);
-    }
-    for (const [k, waves] of shopsWith) {
-      const a = acc.get(k)!;
-      a.shopsWithCard += waves.size;
-      a.runsOffered++;
-      a.shopsConverted += shopsConv.get(k)?.size ?? 0;
-    }
-    const acquiredKeys = new Set<string>();
-    for (const q of run.acquisitions) {
-      const a = get(q.cardId, q.rev);
-      a.acquisitions++;
-      a.bySource[q.source]++;
-      a.waveSum += q.wave;
-      if (q.played) a.played++;
-      if (q.finalBoard) a.finalBoard++;
-      acquiredKeys.add(key(q.cardId, q.rev));
-    }
-    for (const k of acquiredKeys) acc.get(k)!.runsAcquired++;
-  }
-
-  const rate = (n: number, d: number): number | null => (d > 0 ? n / d : null);
-  return [...acc.values()].map((a) => ({
-    cardId: a.cardId, rev: a.rev,
-    copiesOffered: a.copiesOffered, copiesBought: a.copiesBought,
-    copyConversion: rate(a.copiesBought, a.copiesOffered),
-    shopsWithCard: a.shopsWithCard, shopsConverted: a.shopsConverted,
-    shopConversion: rate(a.shopsConverted, a.shopsWithCard),
-    runsOffered: a.runsOffered, runsAcquired: a.runsAcquired,
-    runAcquisitionRate: rate(a.runsAcquired, a.runsOffered),
-    copiesPerShopAppearance: rate(a.copiesBought, a.shopsWithCard),
-    bySource: a.bySource, acquisitions: a.acquisitions,
-    playRate: rate(a.played, a.acquisitions),
-    finalBoardRate: rate(a.finalBoard, a.acquisitions),
-    avgAcquiredWave: rate(a.waveSum, a.acquisitions),
-  }));
-}
-
-/** A Wilson score interval — the honest error bar for a rate at small N (a plain ± sqrt(p(1-p)/n) is
- *  nonsense at the sample sizes a friend-scale player base produces). `z` defaults to 95%. */
-/** Per-wave Gold flow, averaged across runs: how much a turn's economy goes to each category. The Balance
- *  Report's economy curve — "where does Gold actually go on turn N". Spends are negated so the table reads
- *  as positive outlay; `income` stays positive. `runs` = how many runs REACHED that wave (the divisor). */
-export interface GoldWaveRow {
-  wave: number;
-  runs: number;
-  /** Mean Gold moved per run that reached this wave, by category (spend categories as positive outlay). */
-  avg: Record<GoldEvent['category'], number>;
-}
-export function goldCurve(all: DerivedRun[]): GoldWaveRow[] {
-  const CATS: GoldEvent['category'][] = ['minion', 'spell', 'ruby', 'refresh', 'upgrade', 'heroPower', 'rune', 'henchman', 'sell', 'income', 'other'];
-  const byWave = new Map<number, { runs: Set<number>; sums: Record<string, number> }>();
-  all.forEach((run, ri) => {
-    for (const g of run.gold) {
-      let w = byWave.get(g.wave);
-      if (!w) { w = { runs: new Set(), sums: Object.fromEntries(CATS.map((c) => [c, 0])) }; byWave.set(g.wave, w); }
-      w.runs.add(ri);
-      // Spends are negative in the ledger; show outlay as positive so the table reads naturally.
-      w.sums[g.category] += g.category === 'income' || g.category === 'sell' ? g.amount : -g.amount;
-    }
-  });
-  return [...byWave.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([wave, w]) => ({
-      wave, runs: w.runs.size,
-      avg: Object.fromEntries(CATS.map((c) => [c, w.runs.size ? +(w.sums[c]! / w.runs.size).toFixed(1) : 0])) as Record<GoldEvent['category'], number>,
-    }));
-}
+// ── Aggregation ─────────────────────────────────────────────────────────────────────────────────────────
 
 /** Per-wave upgrade behaviour: how often the tier-up was TAKEN when available, at what cost, and whether a
  *  loss the round before made players tier up more or less — the aggressive-upgrade-meta questions. */
@@ -687,6 +555,8 @@ export function upgradeShape(all: DerivedRun[]): UpgradeWaveRow[] {
     }));
 }
 
+/** A Wilson score interval — the honest error bar for a rate at small N (a plain ± sqrt(p(1-p)/n) is
+ *  nonsense at the sample sizes a friend-scale player base produces). `z` defaults to 95%. */
 export function wilson(successes: number, total: number, z = 1.96): { lo: number; hi: number } | null {
   if (total <= 0) return null;
   const p = successes / total;

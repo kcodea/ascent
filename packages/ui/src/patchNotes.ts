@@ -68,6 +68,58 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-22',
+    label: 'Runeforge re-roll',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Runeforge: the rune offers no longer shift down when the free re-roll is used.',
+        details: [
+          'The re-roll button used to vanish once spent, and the whole forge panel re-centred around the gap. The row of runes now stays exactly where it was.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Hall of Champions + lobby strength',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'A top 4 finish in a hard lobby now pays a bonus of up to 15 rating on top of the usual award.',
+        details: [
+          'Every lobby now has a strength score from 0 to 100: the average win rate of the seven runs you were seated with, from their record across every game they have played. An unknown run counts as 50. A bot counts as 25.',
+          'The bonus scales with your placement and with the lobby strength. A 1st place earns the full scale, a 2nd earns 80 percent of it, a 3rd 62 percent and a 4th 47 percent. The strength part is 0 at 30 or below and full at 100.',
+          'Some examples at the time: a 1st at strength 100 earns 15, a 1st at 75 earns 10, a 4th at 100 earns 7, a 1st at 50 earns 4 and a 4th at 50 earns 2 (the floor moved to 50 later the same day, see above). Finishing 5th to 8th never scales, and a loss never gets bigger.',
+          'The bonus follows the normal promotion rules. A 1st at 90 of 100 still stops at 100. A top 4 at a division gate still promotes to 10 of 100.',
+          'The rank screen printed the two parts apart at first, for example +40 RP +12 lobby (now one number, see above).',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Hall of Champions now ranks warbands by their record against everyone, not by lobby wins.',
+        details: [
+          'Every fight at your table is recorded, including the rounds played out after you are knocked out. A warband enters the Hall after 10 fights.',
+          'The top 10 are ordered by win rate with a confidence adjustment, so a 30 and 2 warband ranks above a 3 and 0 one. Each row shows its full record, its win rate, how many lobbies it fought in, its own game, its last fight and the rank its player held.',
+          "Your Career match results and the Recent Games rows now show each lobby's strength as a percentage, such as 47%. Higher means your seven opponents have won more of their recorded fights. It never shows before or during a game.",
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-22',
+    label: 'Balance Report round 2',
+    changes: [
+      { category: 'Systems', text: 'The Balance Report now reads Heroes, Runes and Shop Tiers the way it reads Minions: sample size, average place, 1st and top-4 rates, and a placement delta with its 95% range. The Gold Economy table is rebuilt around what a player has, spends and leaves each round.', details: [
+        'Heroes: each hero against every other run, with the offer and pick rates it had before.',
+        'Runes: each rune against the runs that were offered it and skipped it, so surviving to the forge does not make every rune look good. The Basic and Epic forge chips filter the table.',
+        'Shop Tiers: the leveling curve stays, and a table under it says whether reaching each tier by its usual wave goes with a better finish.',
+        'Gold Economy: one row per round with the Gold a player starts on, spends (split by minions, spells, tier-ups and rolls), and leaves unspent, for all runs or by placement bucket. A chart view draws the spend curve, winners against everyone.',
+        'Card Demand is gone. The Minions table already answers it.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-09-22',
     label: 'Hall of Champions + lobby strength',
     changes: [
       {

@@ -10,7 +10,7 @@ import type { DerivedRun } from './runDerive';
  * exercised with explicit set ids so nothing here depends on which set the registry has switched on.
  */
 const row = (o: Partial<RunTelemetryRow>): RunTelemetryRow => ({
-  id: null, createdAt: null, patch: null, author: null, contentRevision: null, derived: null,
+  id: null, createdAt: null, patch: null, author: null, playerKey: null, contentRevision: null, derived: null,
   heroId: 'warden', heroOffer: ['warden'], won: false, wins: 0,
   offeredQuests: [], pickedQuests: [], questTurns: {}, offeredRunes: [], pickedRunes: [],
   offeredCards: [], boughtCards: [], tierByWave: [], ...o,

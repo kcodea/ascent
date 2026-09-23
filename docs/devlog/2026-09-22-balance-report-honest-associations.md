@@ -211,3 +211,64 @@ The build commit went through a review; the fixer pass on the same branch:
   Shop Tiers disclosure, curve, reach table and decision table. The memo chain over 110 rows costs ~60 ms in
   node (cardImpactWithCoverage ~35 ms), computed once per rows / filter version.
 - Gate: `npm run typecheck && npm run lint && npm test && npm run build:web`; `npm run docbot:report -- --check`.
+
+## Follow-up (2026-09-23): unique players are counted by `player_key`
+
+The one open item the honest-associations pass left was the player dimension: every unique-player count (the
+banner, the per-row `buyerPlayers` / `controlPlayers` / `players` / `skipperPlayers` on both sides of every
+comparison, the Candidate / Supported evidence gates, the "exclude the most prolific player" sensitivity
+toggle and the export's per-file alias) was a **display-name proxy**, labelled as such. A name can change (one
+player read as two) and can be shared (two players read as one), and with two names behind 100 of 110 runs
+the whole evidence read hung on it.
+
+**The owner ran the trusted path on the live backend** (2026-09-23):
+
+```sql
+alter table public.run_telemetry add column if not exists player_key text generated always as (md5(user_id::text)) stored;
+create index if not exists run_telemetry_player_key on public.run_telemetry (player_key);
+drop table if exists public.seat_results;   -- plus its two policies
+```
+
+A read-only probe confirmed `player_key` populated on 120 rows with 8 distinct keys, and `seat_results` gone
+(the Hall's "own game" figure is a ledger number, not a built table play-out; nothing read or wrote the table).
+Both blocks are filed as `supabase/migrations/2026-09-23-player-key-drop-seat-results.sql` and appended to
+`schema.sql` (the old `seat_results` create block stays in the paste file with a "dropped 2026-09-23" note
+above it, so the cumulative file still runs top to bottom).
+
+What changed in the report:
+
+- **The fetch reads the column on its own rung.** `BALANCE_SELECTS[0]` in `packages/ui/src/remoteBoards.ts`
+  is now `..., set_id, source, player_key`; a backend without the column errors it (42703) and answers from the
+  stamps rung below, exactly like the 2026-09-22 columns. `RunTelemetryFetch.playerKeyBasis` says which key
+  the rows carry: `'playerKey'` when the top rung answered, else `'displayName'`. Each row carries
+  `playerKey: string | null` (`RunTelemetryRow` in `packages/sim/src/playerReport.ts`; `CohortRow` in
+  `reportCohorts.ts` takes it as optional so the raw tables keep their fixtures).
+- **The cohort math keys on the account.** `accountKey` (`row.playerKey ?? null`) is the DEFAULT `PlayerKeyOf`
+  for `runFacts`, `cardCohorts`, `mostProlificPlayer`, `tierDecisions`, `cardImpact`, `heroImpact`,
+  `runeImpact` and the export; `displayNameKey` stays as the explicit fallback and `playerKeyFor(basis)` picks
+  one. The panel derives `keyOf` from the fetch's basis and passes it to every cohort call, the prolific filter
+  (`keyOf(r) !== prolific.key`, no longer `r.author`) and `buildBalanceExport` (`playerKeyBasis`). A row with
+  no key on a migrated backend (no account) counts toward no player and never toward a name: `uniquePlayers`
+  still prints n/a rather than 0 when no row has a key.
+- **The banner says which it read.** "8 players" on a migrated backend; "8 display names (proxy: backend not
+  migrated)" with a hover that says why on one that is not. The evidence hover, the four player-column hovers
+  and the toggle's hover say "players" and name the key; only the fallback path still says "display name".
+- **The export alias is derived from the key, never the key.** `runs[].player` stays "player 1", "player 2",
+  ... by first appearance (`playerAliases(rows, keyOf)`), so the column keeps its schema-2 meaning and every
+  unique-player count re-derives from the file. The raw `player_key` is NOT written: it is an unsalted md5 of
+  the account id, stable across every file (and every other surface that might ever print it), so two
+  exports would join on a player, and the readme calls the file shareable. A per-file number cannot be joined.
+  `meta.playerKey.basis` is `'playerKey'` or `'displayName'` and the note says which and, on the fallback,
+  why (the backend has not run the migration). The readme's `coverage`, `playerKey`, `excludedProlificRuns`
+  and `impact` entries now say "by the key meta.playerKey names".
+- **Tests.** `reportCohorts.test.ts`: the fixture keys every row by its author unless told otherwise; the
+  player-concentration test duplicates one account's runs under two new display names (still ONE player, the
+  evidence label still insufficient, the toggle names the key); a new test puts two accounts behind one name
+  (TWO players by key, one by the proxy, the toggle excludes one account). `balanceExport.test.ts`: the file
+  carries no `author`, no `playerKey` key, no name and no raw key; no alias equals a display name or a raw
+  key; a rename keeps its alias and a shared name gets its own; the `displayName` basis aliases by name and
+  its note says "migration"; no key on a migrated backend is n/a. `balanceFetch.test.ts`: the top rung selects
+  `player_key` and reports the basis; a backend with the stamps but not the key answers from the stamps rung
+  with `playerKeyBasis: 'displayName'`; the ladder drops `player_key` first.
+- Rule `R-REPORT-03`'s statement and `currentBehaviour` say players are keyed by `player_key` with the name as
+  the labelled fallback; no new rule, counts unchanged.

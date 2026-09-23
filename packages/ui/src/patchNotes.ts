@@ -82,6 +82,17 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-23',
+    label: 'Balance Report: real player counts',
+    changes: [
+      { category: 'Systems', text: 'The Balance Report now counts players by account, not by display name. A player who changes their name is still one player, and two players who share a name are two.', details: [
+        'Every player count uses the new key: the summary above the tables, the player columns on both sides of a comparison, the evidence labels, and the toggle that leaves out the most prolific player.',
+        'The summary says "players". If the report ever has to fall back to display names it says so beside the count.',
+        'The export file still carries a per-file player number for each run. It never carries a name or the account key.',
+      ] },
+    ],
+  },
+  {
+    date: '2026-09-23',
     label: 'Hall of Champions',
     changes: [
       {

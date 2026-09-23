@@ -52,6 +52,13 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-23',
+    label: 'Milestone glow fix',
+    changes: [
+      { category: 'Systems', text: 'Fixed the blue top-tier milestone glow lingering on units that had not reached the top stat tier, including opponent minions carrying it over between fights.' },
+    ],
+  },
+  {
+    date: '2026-09-23',
     label: 'More mechanic medallions',
     changes: [
       { category: 'Systems', text: 'New medallions: an Epic badge on units that multiply how often something happens (Drakko, Sylus, Chronos, Yazzus and other trigger multipliers), a Sell badge on "when you sell this" units, and an Equip badge on Equipment minions. Overflow now shows the Watcher eye.' },

@@ -25,6 +25,9 @@ import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpell
 import { instantiate, type CardIndex } from './minion';
 import { EMPTY_SIDE } from './side';
 
+/** Rune of Enchantment's combat grant (balance 9/23: +4/+6 → +6/+8, and the rune is combat-only). */
+export const ENCHANTMENT_COMBAT = { attack: 6, health: 8 } as const;
+
 const OTHER: Record<Side, Side> = { player: 'enemy', enemy: 'player' };
 // On-attack WATCHERS (on a minion other than the attacker) that are gated on the attacker's Rally and so must
 // scale with Rally doublers. Generic ally-attack watchers (Crypt Drake) are intentionally NOT here — they
@@ -239,6 +242,50 @@ export function simulate(
   const echoRefreshTick: Record<Side, number> = { player: 0, enemy: 0 };
   /** Rune of the Returning Pack's per-side Beast-summon counter. Combat-local for the same reason. */
   const packSummonTick: Record<Side, number> = { player: 0, enemy: 0 };
+  /** Balance 9/23 — the CROSS-PHASE Shout tally: Shout (Battlecry) FIRES this fight per side (one per
+   *  `battlecryTriggered` emit: Ryme / Dawnclaw / Sovereign re-fires, parting cries, Drakko repeats), carried
+   *  back as `shoutFires` so the run's Shout trackers (quest objectives, Bane's Presence, the Author's Hand)
+   *  count combat Shouts too. */
+  const shoutFires: Record<Side, number> = { player: 0, enemy: 0 };
+  /** …and the "when you trigger N Shouts" RUNE METERS (the Chorus / Hoardcalling), copied in from the side's
+   *  mods WITH their shop ticks so the ONE counter continues here: every fire advances them, a trip pays into
+   *  `handGrants` at once, and the final ticks go home (`shoutMeters`) for the next shop to keep counting. */
+  const copyShoutMeters = (side: Side): { sourceId: string; per: number; tick: number; grantSpell?: number; grantOneOf?: string[] }[] =>
+    (modsFor(side).shoutMeters ?? []).map((m) => ({ ...m, grantOneOf: m.grantOneOf ? [...m.grantOneOf] : undefined }));
+  const shoutMeters: Record<Side, ReturnType<typeof copyShoutMeters>> = { player: copyShoutMeters('player'), enemy: copyShoutMeters('enemy') };
+  // THE CROSS-PHASE SHOUT TALLY (balance 9/23): every Shout FIRE on a side counts, and the side's "when you trigger
+  // N Shouts" rune meters tick with it — paying mid-fight through `handGrants` (a random Shop spell, never an Ale,
+  // from the side's own pool at its tier; or one of the named cards), exactly what the shop pays on a trip. The
+  // enemy half accumulates silently (no `toHand` event), like every other symmetric carry-back. Registered HERE,
+  // before the Start-of-Combat pass, so a Herald / Sovereign / Twilight Shout at Start of Combat counts too
+  // (`ctx` / `grantRngFor` are consts declared below; the handler only runs once the fight is underway).
+  bus.on('battlecryTriggered', (payload) => {
+    const { side } = payload as { side: Side };
+    shoutFires[side] += 1;
+    const sideState = side === 'player' ? playerState : enemyState;
+    for (const meter of shoutMeters[side]) {
+      meter.tick += 1;
+      while (meter.tick >= meter.per) {
+        meter.tick -= meter.per;
+        const draw = grantRngFor(side);
+        if (meter.grantSpell) {
+          const pool = ctx.poolCards(side).filter((c) => c.spell && !c.token && c.tier <= sideState.tier && !ALE_IDS.includes(c.id));
+          for (let i = 0; i < meter.grantSpell && pool.length > 0; i++) {
+            const pick = pool[Math.floor(draw.next() * pool.length)]!;
+            handGrants[side].push(pick.id);
+            if (side === 'player') emit({ type: 'toHand', cardId: pick.id, side });
+          }
+        }
+        if (meter.grantOneOf?.length) {
+          const pick = meter.grantOneOf[Math.floor(draw.next() * meter.grantOneOf.length)]!;
+          if (cards[pick]) {
+            handGrants[side].push(pick);
+            if (side === 'player') emit({ type: 'toHand', cardId: pick, side });
+          }
+        }
+      }
+    }
+  });
   const slaughterCopyId: Record<Side, string | undefined> = { player: undefined, enemy: undefined }; // Rune of the Trophy: the first friendly slaughterer's card id
   const spellPowerGain = perSide(zero); // run-wide spell-power gained this combat (Skullblade)
   const rubyGrants = perSide(() => ({ n: 0 })); // Set 2 — Rubies to mint into hand after combat (Rikk / Gemline), carried back
@@ -1283,15 +1330,15 @@ export function simulate(
       spellTotals[side] += 1; // count the cast first (the triggering spell is included, like recruit-phase Guel)
       combatSpells[side] += 1; // carried back → permanently bumps the run's spellsCast
       emit({ type: 'spellcast', side, count: spellTotals[side] }); // the replay's live-counter beat
-      // Rune of Enchantment: a COMBAT cast gives your minions +4/+6 (the shop half gives the printed +2/+3 —
-      // see the recruit tail). Temporary like any combat buff; the shop grant is the permanent half.
+      // Rune of Enchantment (balance 9/23: "When you cast a Shop Spell in combat, give your minions +6/+8" — the
+      // rune is COMBAT-ONLY now; the +2/+3 shop half was retired). Temporary like any combat buff.
       // AFTER the counter beat, so the replay's tick and the buff land in the order they read. (owner 2026-08-11)
       const ench = modsFor(side).runeEnchantment;
       if (ench) {
         fireTrigger('runeEnchantment', side); // burst on the combat cast too, like every other combat rune
-        // +4/+6 per copy held (the mods field carries the copy count; a legacy `true` reads as 1).
+        // +6/+8 per copy held (the mods field carries the copy count; a legacy `true` reads as 1).
         const en = typeof ench === 'number' ? Math.max(1, ench) : 1;
-        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, 4 * en, 6 * en, 'Rune of Enchantment');
+        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, ENCHANTMENT_COMBAT.attack * en, ENCHANTMENT_COMBAT.health * en, 'Rune of Enchantment');
       }
       bus.emit('spellCast', { side, count: spellTotals[side] });
     },
@@ -4652,6 +4699,8 @@ export function simulate(
     return {
       deathrattles: deathrattlesFired[side],
       rallies: ralliesFired[side] > 0 ? ralliesFired[side] : undefined,
+      shoutFires: shoutFires[side] > 0 ? shoutFires[side] : undefined,
+      shoutMeters: shoutMeters[side].length > 0 ? shoutMeters[side].map((m) => ({ sourceId: m.sourceId, tick: m.tick })) : undefined,
       impsSummoned: impsSummoned[side] > 0 ? impsSummoned[side] : undefined,
       deaths: deaths[side],
       survivorCardIds: alive.length > 0 ? alive : undefined,
@@ -4719,6 +4768,8 @@ export function simulate(
     enemyDamage,
     playerDeathrattles: pc.deathrattles,
     playerRallies: pc.rallies,
+    playerShoutFires: pc.shoutFires,
+    playerShoutMeters: pc.shoutMeters,
     playerImpsSummoned: pc.impsSummoned,
     playerDeaths: pc.deaths,
     playerSurvivorCardIds: pc.survivorCardIds,

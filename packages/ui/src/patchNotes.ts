@@ -52,6 +52,42 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-23',
+    label: 'Balance 9/23: rune reworks A',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Twenty-one spell, Shout, Dragon and economy runes reworked. Shout-counting runes now count Shouts you trigger in combat too, with one counter that carries through both halves of the turn.',
+        details: [
+          'Rune of the Chorus: when you trigger 3 Shouts (was 4), get a random spell. Combat Shouts count, and a trip mid-fight sends the spell to your hand.',
+          'Rune of Hoardcalling: when you trigger 3 Shouts, get a Hoardflame or a Dragonflame. Same shared counter, combat included.',
+          'Rune of the Drake Skull: whenever you trigger a Shout, your left and right-most Dragon get +6/+6 (was every minion at the ends of the board, +5/+5).',
+          'Rune of Ancestral Roar: End of Turn, your Dragons get +6/+6 for every Shout you triggered this turn, as one lump. The badge shows the count and the lump.',
+          'Rune of the Runic Hoard: when you cast a spell (any spell, Rubies included), 3 random Dragons get +2/+3.',
+          'Rune of the Glider: a Dragon gets +6/+5 per card played (was +4/+4).',
+          'Rune of Draconic Curiosity: pays a random spell when you buy a Dragon (was on a Dragon Discover pick).',
+          'Rune of the Dragon\'s Pantry: every 5 Dragons played, get a random Dragon and a Shop spell.',
+          'Rune of Distillation: a spell cast on a Shop minion also casts on your left-most and right-most minion.',
+          'Rune of Lorekeeping: any spell cast on a minion (Shop spells, Rubies, Clues) gives it +3/+3 more.',
+          'Rune of Enchantment: when you cast a Shop Spell in combat, your minions get +6/+8. The shop half is gone.',
+          'Rune of the Spellmarket: every 4 Shop Spells cast, it casts a Staff of Guel for you.',
+          'Rune of Quick Study: get a Quick Study and a Gold Font now, and again next turn.',
+          'Rune of Rare Goods: get a Traveling Salesman now, and one every 2 turns.',
+          'Rune of Overtime: every 12 Gold spent (was 15), get a Dwarven Ale.',
+          'Rune of Gemspam: every 15 Gold spent, improve your Rubies +1/+2 and get a Ruby.',
+          'Rune of the Gem Dividend: the first Ruby you cast each turn pays 3 Gold right away.',
+          'Rune of Investment: every 4 minions sold, get 2 Rubies and improve your Rubies +1/+1.',
+          'Rune of the Empty Plate: every 2 minions Consumed (was 3), get a random Shop spell.',
+          'Rune of the Collector: every 3rd minion you buy in a turn hands you a copy of one of those three.',
+          'Rune of the Golden Splinter now says once per game.',
+          'Rune of the Spellstone: a Ruby now also fires your per-spell runes (Flagship, Kindling, Scales, Summoning, Might).',
+          'Rune of Thrift now discounts Great Pot, Perfect Vision, Ruby Excavation, Ruby Transfer and Cupcakes too.',
+          'Rune of Combat Prowess now replays Rune of Held Strength at End of Turn.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-23',
     label: 'Milestone glow fix',
     changes: [
       { category: 'Systems', text: 'Fixed the blue top-tier milestone glow lingering on units that had not reached the top stat tier, including opponent minions carrying it over between fights.' },

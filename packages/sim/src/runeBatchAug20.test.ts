@@ -149,12 +149,16 @@ describe('Rune of the Deep Feast — a NAMED body on the threshold engine', () =
 describe("Rune of the Dragon's Pantry — a DRAGON-play meter that carries between turns", () => {
   const dragons = () => armed('rune_dragons_pantry', { hand: [], board: [] });
 
-  it('pays 2 spells at 5 Dragons, and nothing at 4', () => {
+  it('pays a random Dragon + a Shop spell at 5 Dragons, and nothing at 4 (balance 9/23)', () => {
     const s = dragons();
     advanceRuneThresholds(s, 'playDragon', 4);
     expect(s.hand, 'four Dragons is not five').toHaveLength(0);
     advanceRuneThresholds(s, 'playDragon', 1);
-    expect(s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell), 'two random Shop spells').toHaveLength(2);
+    expect(s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell), 'one random Shop spell').toHaveLength(1);
+    const bodies = s.hand.filter((c) => !CARD_INDEX[c.cardId]?.spell);
+    expect(bodies, 'one random Dragon').toHaveLength(1);
+    const d = CARD_INDEX[bodies[0]!.cardId]!;
+    expect(d.tribe === 'dragon' || d.tribe2 === 'dragon', `${d.id} is a Dragon`).toBe(true);
   });
 
   it('PLAYING a Dragon is what ticks it — an off-tribe play does not', () => {
@@ -251,6 +255,9 @@ describe('the every-2-turns runes — one shared `everyTurns` cadence, not three
   it.each(CADENCE)('%s pays on the SECOND turn, not the first', (id, cardId) => {
     const tank: BoardCard = { uid: 't', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 50, keywords: ['T'], golden: false };
     let s = armed(id, { wave: 1, tier: 6, resolve: 999, maxResolve: 999, armor: 999, board: [tank], hand: [] });
+    // Rare Goods also pays its FIRST Salesman on purchase since balance 9/23 ("Get a Traveling Salesman. Repeat
+    // every 2 turns.") — clear it so the cadence alone is under test here.
+    s = { ...s, hand: s.hand.filter((c) => c.cardId !== cardId) };
     const turn = (): void => {
       s = reduce(s, { type: 'faceOmen' }) as RunState;
       s = reduce(s, { type: 'resolveCombat' }) as RunState;
@@ -323,14 +330,18 @@ describe('Living Magic / Perfect Recall — ONE budget, parameterised', () => {
 
 // ── the recruit-phase watchers ───────────────────────────────────────────────────────────────────────────
 describe('Rune of Draconic Curiosity', () => {
-  it('a DRAGON pick pays a Shop spell; an off-tribe pick pays nothing', () => {
-    const s = armed('rune_draconic_curiosity', { hand: [], discover: ['d2_embermouth', 'sandbag', 'sandbag'] });
-    const after = reduce(s, { type: 'discover', index: 0 }) as RunState;
-    expect(after.hand.filter((c) => CARD_INDEX[c.cardId]?.spell), 'the Dragon paid').toHaveLength(1);
+  it('BUYING a Dragon pays a random spell; a Dragon Discover pick and an off-tribe buy pay nothing (balance 9/23)', () => {
+    const s = armed('rune_draconic_curiosity', { hand: [], embers: 40, shop: [{ uid: 'o1', cardId: 'd2_embermouth' }] });
+    const after = reduce(s, { type: 'buy', uid: 'o1' }) as RunState;
+    expect(after.hand.filter((c) => CARD_INDEX[c.cardId]?.spell), 'the Dragon buy paid').toHaveLength(1);
 
-    const s2 = armed('rune_draconic_curiosity', { hand: [], discover: ['sandbag', 'sandbag', 'sandbag'] });
-    const after2 = reduce(s2, { type: 'discover', index: 0 }) as RunState;
-    expect(after2.hand.filter((c) => CARD_INDEX[c.cardId]?.spell), 'a neutral pick pays nothing').toHaveLength(0);
+    const s2 = armed('rune_draconic_curiosity', { hand: [], embers: 40, shop: [{ uid: 'o1', cardId: 'sandbag' }] });
+    const after2 = reduce(s2, { type: 'buy', uid: 'o1' }) as RunState;
+    expect(after2.hand.filter((c) => CARD_INDEX[c.cardId]?.spell), 'a neutral buy pays nothing').toHaveLength(0);
+
+    const s3 = armed('rune_draconic_curiosity', { hand: [], discover: ['d2_embermouth', 'sandbag', 'sandbag'] });
+    const after3 = reduce(s3, { type: 'discover', index: 0 }) as RunState;
+    expect(after3.hand.filter((c) => CARD_INDEX[c.cardId]?.spell), 'a Discover pick no longer pays').toHaveLength(0);
   });
 });
 

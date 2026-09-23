@@ -111,10 +111,11 @@ describe('Rune of Spellhide', () => {
 });
 
 describe('Rune of the Spellmarket', () => {
-  it('the turn’s first stat spell also hands its stats to the right-most Shop offer', () => {
+  it('arms a `spellCast` threshold that casts a Staff of Guel every 4 Shop spells (balance 9/23)', () => {
     const s = withRune('rune_spellmarket', { board: [bm('b', 'stray', 1, 1)] });
-    expect(s.runeSpellmarket).toBe(true);
-    expect(s.spellmarketUsedThisTurn, 'the once-per-turn latch starts unspent').toBeFalsy();
+    const t = (s.runeThresholds ?? []).find((x) => x.sourceId === 'rune_spellmarket');
+    expect(t, 'the threshold was never armed').toBeDefined();
+    expect([t!.meter, t!.per, t!.castCards]).toEqual(['spellCast', 4, ['staffofguel']]);
   });
 });
 
@@ -130,7 +131,7 @@ describe('Rune of the Runic Hoard', () => {
   it('arms, and its buff lands on Dragons rather than the whole board', () => {
     const s = withRune('rune_runic_hoard', { board: [bm('d', 'emissary', 2, 3), bm('b', 'stray', 1, 1)] });
     expect(s.runeRunicHoard).toBe(true);
-    // Buying alone grants nothing — the rune pays when a Shop spell is COPIED to hand, not on purchase.
+    // Buying alone grants nothing — the rune pays when a spell is CAST (balance 9/23), not on purchase.
     expect(s.board.find((c) => c.uid === 'd')!.attack).toBe(2);
     expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1);
   });

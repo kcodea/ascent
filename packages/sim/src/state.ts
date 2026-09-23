@@ -798,6 +798,14 @@ export interface RunState {
     castStatSpell?: number;
     /** Rune of Gemspam: play a Ruby on EVERY friendly minion when the meter trips. */
     rubyAll?: boolean;
+    /** Balance 9/23 (rune reworks A) — see the `runeThreshold` reward: Gold paid now (the Gem Dividend), a Ruby
+     *  improvement (Gemspam), one-of-these cards (Hoardcalling), a random tribe minion (the Dragon's Pantry),
+     *  spells cast on the trip (the Spellmarket's Staff of Guel). */
+    grantGold?: number;
+    improveRuby?: { attack: number; health: number };
+    grantOneOf?: string[];
+    grantRandomTribe?: Tribe;
+    castCards?: string[];
     /** `step` (Compounding Wages) ESCALATES the payout: the grant grows by `step` after every payout, so the
      *  buff written here is mutated in place and the badge prints the CURRENT size. */
     buff?: { target: 'imps' | 'shop' | 'shopRightmost' | 'shopTurn' | 'spells' | 'tribe' | 'hand'; tribe?: Tribe; attack: number; health: number; step?: { attack: number; health: number } };
@@ -1557,7 +1565,7 @@ export interface RunState {
   runeShopkeep?: boolean;        // upgrade cost −3, repeated each End of Turn
   runeTradeIn?: boolean;         // first sale each turn → next minion of that type costs 1 less
   runeRestocking?: boolean;      // first buy each turn refills its slot with a same-Tier 2-Gold minion
-  runeCollector?: boolean;       // 3 types bought in a turn → Discover from one of them (once/turn)
+  runeCollector?: boolean;       // balance 9/23: every 3rd minion bought in a turn → a random copy of one of those three
   runeBargainBin?: boolean;      // first Refresh each turn fills the Shop with 1-Gold minions that sell for 0
   /** Window Shopping: refreshes used this turn (the first 3 are free). Reset each turn. */
   windowShopRolls?: number;
@@ -1565,11 +1573,12 @@ export interface RunState {
    *  (a duplicate widens its window to one restock per copy — owner 2026-08-27); `true` = 1 in older saves. */
   restockUsedThisTurn?: number | boolean;
   bargainBinUsedThisTurn?: number | boolean; // counts uses since 2026-08-27 (duplicate widens the window); `true` = 1 in older saves
-  collectorUsedThisTurn?: boolean;
   /** Trade-In: the tribe of your first sale this turn — arms a 1-Gold discount on the next minion of that type. */
   tradeInTribe?: Tribe;
-  /** Collector: the distinct minion tribes you've bought this turn (reset each turn). */
-  typesBoughtThisTurn?: Tribe[];
+  /** Rune of the Collector (balance 9/23 rework): the card ids of the MINIONS bought this turn, in order. Every
+   *  third buy hands over a random copy of one of the three that filled the meter; the badge prints
+   *  `(n mod 3)/3`. Reset each turn — "in one turn" is the whole rule. */
+  collectorBoughtThisTurn?: string[];
   /** Rune ids bought this run — shown as permanent run-buff badges (above the hero panel). */
   ownedRunes?: string[];
   /** RUNE DUPLICATE STACKING (owner rulings 2026-08-27): how many times each rune's reward has APPLIED this
@@ -1723,9 +1732,6 @@ export interface RunState {
   runeSpellhide?: boolean;
   spellhidePending?: { spellId: string; uid: string }[];
   spellhideUsedThisTurn?: boolean;
-  /** Rune of the Spellmarket: the turn's first stat spell on a friend also feeds the right-most Shop offer. */
-  runeSpellmarket?: boolean;
-  spellmarketUsedThisTurn?: boolean;
   /** Rune of the Last Word: the turn's first sold Dragon-with-a-Shout triggers it on the way out. */
   runeLastWord?: boolean;
   lastWordUsedThisTurn?: boolean;
@@ -1781,12 +1787,10 @@ export interface RunState {
   runeLivingGrowth?: boolean;
   /** Living Growth's accrued improvement — added to every Growth cast (shop and combat). */
   growthBonus?: number;
-  /** Rune of Hoardcalling: the first Dragon Shout each turn grants a random Shop spell. */
-  runeHoardcalling?: boolean;
-  /** Per-turn gates for the three above — reset at the turn rollover. */
+  /** Per-turn gates for the two above — reset at the turn rollover. (Rune of Hoardcalling left this family on
+   *  2026-09-23: it is a `shout` threshold now — see `runeThresholds`.) */
   sharedPourUsedThisTurn?: boolean;
   aftermarketUsedThisTurn?: boolean;
-  hoardcallingUsedThisTurn?: boolean;
   /** Rune of the Conduit: every Ruby played bounces its stats to one extra random friendly minion. */
   runeConduit?: boolean;
   /** Rune of the Vault: 10 Gold when the shop first reaches tier 5. Cleared when paid. */
@@ -1829,6 +1833,10 @@ export interface RunState {
   attachmentsThisTurn?: number;
   /** Shout (Battlecry) minions played this turn + the board uid of the FIRST one — Rune of Refrain. Reset each wave. */
   shoutsThisTurn?: number;
+  /** Balance 9/23 — Rune of Ancestral Roar: Shout FIRES triggered this turn (every `lastShoutFires` tick, so a
+   *  Drakko repeat is a second Shout, matching the Shout quest objective). Read at End of Turn for the lump
+   *  "+6/+6 for every Shout you triggered this turn"; the badge prints it live. Reset at the rollover. */
+  shoutFiresThisTurn?: number;
   firstShoutUid?: string;
   /** Fodder Consumes performed this turn — Endless Appetite's "first each turn" gate. Reset each wave. */
   consumesThisTurn?: number;
@@ -1963,6 +1971,10 @@ export interface RunState {
   /** Twin Sun Oath (Dragon capstone): every Shout you trigger buffs your leftmost + rightmost board minion by
    *  this much (+atk/+hp), for the rest of the run. Absent = not armed. */
   shoutEdgeBuff?: { attack: number; health: number };
+  /** Rune of the Drake Skull (balance 9/23): every Shout you trigger buffs your left- and right-most minion OF
+   *  THIS TRIBE. Kept apart from the untribed `shoutEdgeBuff` (Twin Sun Oath) so the two never merge into one
+   *  target rule; stacks additively per copy held. */
+  shoutEdgeTribeBuff?: { tribe: Tribe; attack: number; health: number };
   /** Dragon Shout rewards. `shoutExtraAlways` = permanent extra Battlecry triggers (Hoardwake / The Hoard Wakes,
    *  stacks like Drakko). `shoutFirstDoubleEachRound` = the first Shout you play each turn triggers twice (Warm
    *  Embers); `shoutFirstUsedThisTurn` tracks whether that turn's freebie is spent. Absent = off. */
@@ -2164,7 +2176,7 @@ export interface RunState {
    *  than folded into it: every other recurrence is unbounded, and giving them all a counter would mean
    *  touching every read. Each entry ticks down at End of Turn and drops out at 0. */
   questRecurringLimited?: { effect: NonNullable<RunState['questRecurringEndOfTurn']>[number]; turnsLeft: number }[];
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeLapidary' | 'runeCrucibleChoir')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeLapidary' | 'runeCrucibleChoir' | 'runeAncestralRoar')[];
   /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
    *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */
   baneBuffsDemons?: { attack: number; health: number };

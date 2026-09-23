@@ -47,7 +47,7 @@ const stable = (v: unknown): string => {
  *  identically for every Shout card, hiding a dead one behind the watcher's response. */
 const NOISE = new Set([
   'rngCursor', 'uidCounter', 'presentation', 'fx', 'beats', 'log',
-  'shoutsThisTurn', 'firstShoutUid', 'auraFxSeq', 'auraFx', 'lastShoutFires',
+  'shoutsThisTurn', 'firstShoutUid', 'auraFxSeq', 'auraFx', 'lastShoutFires', 'shoutFiresThisTurn', // + Rune of Ancestral Roar's per-turn Shout-fire count (balance 9/23)
 ]);
 const PLAYED = 'PLAYED_CARD';
 

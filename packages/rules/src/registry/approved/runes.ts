@@ -242,4 +242,132 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-23',
     },
   },
+  {
+    id: 'R-RUNE-10',
+    title: 'A "when you trigger N Shouts" rune meter is ONE counter across shop and combat',
+    statement:
+      'A rune whose payout is metered on Shouts triggered (Rune of the Chorus: 3 Shouts, a random Shop spell; Rune of '
+      + 'Hoardcalling: 3 Shouts, a Hoardflame or a Dragonflame) keeps ONE tick across both halves of the turn. Shop Shout '
+      + 'FIRES advance it at the reducer boundary; the fight receives the meter with its shop tick (`QuestCombatMods.shoutMeters`), '
+      + 'every combat Shout fire (`battlecryTriggered`: re-fires, parting cries, Drakko repeats, Start-of-Combat Shouts included) '
+      + 'advances the same tick, a trip pays at once through `playerHandGrants` (a random Shop spell from the run pool at or '
+      + 'below the shop tier, never an Ale, or one of the named cards) and flies to hand in the replay, and the final tick is '
+      + 'written back at settle so the next shop keeps counting from it. The settle also feeds every other Shout tracker with '
+      + 'the combat count: the Shout quest objectives, Bane\'s Presence and the Author\'s Hand Shout half. A meter whose payout '
+      + 'only a shop can deliver (the Merchant\'s Chorus\' this-turn Shop buff) stays a shop meter.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Balance batch 9/23, tranche 4 (rune reworks A)', quote: 'make sure this (and all trackers like this) work in combat too and carries count through both' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts (the battlecryTriggered subscription: shoutFires / shoutMeters, carried as playerShoutFires / playerShoutMeters); packages/sim/src/reducer.ts shoutMetersFor / questCombatMods / settleCombat (the write-back + the tracker feeds); packages/content/src/runes.ts rune_chorus, rune_hoardcalling' },
+    ],
+    contentIds: ['rune_chorus', 'rune_hoardcalling'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Until then the shout meter was shop-only: a combat Shout advanced nothing, and Hoardcalling was a per-turn first-Dragon-Shout freebie rather than a meter at all.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeReworks0923A.test.ts', 'packages/sim/src/docbot/combatModLane.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-RUNE-11',
+    title: 'Rune of Lorekeeping pays on EVERY targeted cast on a friendly minion',
+    statement:
+      'Rune of Lorekeeping ("When you cast a spell on a minion, give it an additional +3/+3") pays +3/+3 (per copy held) '
+      + 'to the friendly minion a spell is cast ON, whatever the spell is: a Shop spell, a Gift (a Clue, a Tower Shield) or a '
+      + 'Ruby, including a Ruby that lands through Redirection, Distillation, Motherlode or the Lapidary. One site pays it '
+      + '(`applyLorekeeping`), called from the Shop-spell cast, the Gift play and the Ruby landing (`fireOnRubyPlayed`). It pays '
+      + 'per resolved cast, so a doubled cast pays twice. An untargeted spell, a spell cast on a Shop offer, and a Candle '
+      + 'Conduit / Resonance stat BOUNCE (stats only, never a cast) pay nothing.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Balance batch 9/23, tranche 4 (rune reworks A)', quote: 'works with all spells, rubies, clues etc' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts applyLorekeeping / castSpell / fireOnRubyPlayed; packages/sim/src/reducer.ts (the Gift play branch)' },
+    ],
+    contentIds: ['rune_lorekeeping'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Until then only a Shop spell paid (+4/+4), and a Ruby or a Clue on a minion paid nothing.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeReworks0923A.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-RUNE-12',
+    title: 'Rune of Distillation casts a Shop-minion spell on BOTH your edge minions',
+    statement:
+      'Rune of Distillation ("Targeted spells cast on Shop minions also cast on your left and right-most minion") gives a '
+      + 'spell or Ruby cast on a Shop offer a real extra cast on your LEFT-most AND your RIGHT-most board minion (per copy '
+      + 'held), the same `castSpell` / Ruby-landing path, so each target\'s own watchers and Rune of Lorekeeping see it. A '
+      + 'one-minion board is both ends and takes ONE extra cast, never two; an empty board takes none. The offer still takes '
+      + 'its own cast.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Balance batch 9/23, tranche 4 (rune reworks A)', quote: 'targeted spells cast on shop minions cast on your left and right-most minion too' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts distillationEdges; packages/sim/src/reducer.ts (the Shop-offer spell branch and the Ruby-on-offer branch)' },
+    ],
+    contentIds: ['rune_distillation'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Until then only the left-most minion took the extra cast.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeReworks0923A.test.ts', 'packages/sim/src/fourRunes.test.ts', 'packages/sim/src/bounceFx.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-RUNE-13',
+    title: 'A Spellstone Ruby fires every per-cast Shop-spell rune',
+    statement:
+      'With Rune of the Spellstone ("Rubies you cast count as Shop spells"), every resolved Ruby cast reaches the whole '
+      + 'Shop-spell trigger surface: the cast counters and `spellCast` thresholds, the board\'s `spellCast` watchers, spell '
+      + 'power on the Ruby\'s stats, the combat spell-cast trigger (Rune of Enchantment fires on a combat Ruby), AND the '
+      + 'per-cast Shop-spell runes (Summoning, Might, Kindling, the Flagship, Scales), which live in ONE function '
+      + '(`fireShopSpellCastRunes`) called by both the Shop-spell cast and the Spellstone Ruby count. Rune of the Runic Hoard '
+      + 'fires on a Ruby with or without the Spellstone ("a spell").',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Balance batch 9/23, tranche 4 (rune reworks A)', quote: 'make sure that this works across all shop spell based triggers. this is important' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts fireShopSpellCastRunes / countRubyAsShopSpell / castSpell; packages/core/src/effects/factories.ts (spellstoneFor -> ctx.castSpell)' },
+    ],
+    contentIds: ['rune_spellstone'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Until then a Spellstone Ruby reached the counters and the board watchers but none of the per-cast runes (a Flagship / Kindling / Scales / Summoning / Might holder got nothing from a Ruby).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeReworks0923A.test.ts', 'packages/sim/src/spellstoneRubySynergy.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-RUNE-14',
+    title: 'Rune of Combat Prowess replays every rune / quest Start-of-Combat block, Held Strength included; Rune of Thrift discounts every stat granter',
+    statement:
+      'Every run-level Start-of-Combat block `simulate()` fires from a rune, quest or hero flag has an End-of-Turn shop '
+      + 'replay under Rune of Combat Prowess (`socRuneReplaysOf`), or a documented combat-only reason (an enemy-facing or '
+      + 'combat-bank effect: Weaken, the Food Chain, the Crucible, Empty Graves). Rune of Held Strength ("Start of Combat: give '
+      + 'your left and right-most minions the stats of the left-most minion card in your hand") replays: the board\'s two ends '
+      + 'gain the held card\'s live stats, permanently, per copy held; the card stays in hand; no held minion means nothing. '
+      + 'Rune of Thrift discounts every Shop spell that grants stats in any way: the `spellBuff*` family plus the extras the '
+      + 'empirical sweep found (Great Pot, Perfect Vision, Ruby Excavation, Ruby Transfer, Cupcakes).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Balance batch 9/23, tranche 4 (rune reworks A)', quote: 'make sure this works with all runes/minions' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts socRuneReplaysOf (rune_held_strength) / STAT_SPELL_EXTRAS / isStatSpell; packages/core/src/combat/simulate.ts (the rmods.* Start-of-Combat section)' },
+    ],
+    contentIds: ['rune_combat_prowess', 'rune_held_strength', 'rune_thrift'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Held Strength was reworked into a Start-of-Combat grant on 2026-08-27, a week after the replay list was built, and never joined it; the five Thrift extras were undiscounted.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeReworks0923A.test.ts', 'packages/sim/src/runeThrift.test.ts', 'packages/sim/src/socDispatch.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
 ];

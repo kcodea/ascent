@@ -637,13 +637,13 @@ describe('Runes batch 1 — grants / discovers / economy', () => {
     expect(s.bonusEmbersNextTurn ?? 0).toBe(0); // nothing banked for next shop
   });
 
-  it('Rune of Quick Study: arms a 2-TURN payout, nothing immediate', () => {
-    // Owner rebalance 2026-08-02: the payout is BOUNDED to 2 turns, so it arms the limited list rather than
-    // the run-long one (the full lifecycle is pinned in quickStudyTurns.test.ts).
+  it('Rune of Quick Study: a Quick Study + a Gold Font NOW, and the pair again next turn (balance 9/23)', () => {
+    // The full lifecycle is pinned in quickStudyTurns.test.ts; this is the buy itself.
     const s = buyRune('rune_quick_study', 10, { tier: 3, hand: [] });
-    expect(s.questRecurringLimited?.[0]).toMatchObject({ effect: 'quickStudy', turnsLeft: 2 });
+    expect(s.hand.map((c) => c.cardId).sort()).toEqual(['manafont', 'quickstudy']);
+    expect(s.pendingQuestRewards).toEqual([{ questId: 'rune_quick_study', turnsLeft: 1 }]);
+    expect(s.questRecurringLimited ?? []).toHaveLength(0);
     expect(s.questRecurringEndOfTurn ?? []).not.toContain('quickStudy');
-    expect(s.hand).toHaveLength(0);
   });
 
   it('Rune of Spare Parts: conjures 5 random Attachments to hand', () => {
@@ -756,7 +756,7 @@ describe('Runes batch 2 — Kindling / Pair / Menagerie / Reliquary + forge sche
     expect(next.epicForgeWave).toBeUndefined(); // consumed — turn 9's visit comes from the baseline, not this
   });
 
-  it('Rune of Quick Study: EVERY turn pays a Gold Font + 2 random Shop spells (owner clarification 2026-07-31)', () => {
+  it('the legacy `quickStudy` End-of-Turn effect still pays a Gold Font + 2 random Shop spells (engine branch kept; no rune arms it since balance 9/23)', () => {
     const armed: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', hand: [],
       questRecurringEndOfTurn: ['quickStudy'] };
     applyEndOfTurn(armed);

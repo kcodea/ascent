@@ -18,15 +18,20 @@ describe('Rune of Investment — selling mints Rubies', () => {
   const pack = CARD_INDEX['pack']!;
   const onBoard = (): BoardCard => ({ uid: 'x', cardId: 'pack', tribe: pack.tribe, attack: pack.attack, health: pack.health, keywords: [], golden: false });
 
-  it("mints every 2 minions sold, at the run's live Ruby strength (owner balance 2026-08-18)", () => {
+  it("every 4 minions sold improves your Rubies +1/+1 and mints 2 at the IMPROVED strength (balance 9/23)", () => {
     const s: RunState = { ...set2(), runeSellRubies: 2, rubyBonus: { attack: 5, health: 5 },
-      board: [onBoard(), { ...onBoard(), uid: 'y' }], hand: [] };
-    const after1 = reduce(s, { type: 'sell', uid: 'x' });
-    expect(rubies(after1), 'the first sell alone must not mint').toBe(0);
-    const after2 = reduce(after1, { type: 'sell', uid: 'y' });
-    expect(rubies(after2), 'the second sell mints the payout').toBe(2);
-    expect(after2.hand.find((c) => c.cardId === RUBY_ID)!.attack, 'minted at base instead of live strength')
-      .toBe(CARD_INDEX[RUBY_ID]!.attack + 5);
+      board: [onBoard(), { ...onBoard(), uid: 'y' }, { ...onBoard(), uid: 'z' }, { ...onBoard(), uid: 'w' }], hand: [] };
+    let cur = reduce(s, { type: 'sell', uid: 'x' });
+    cur = reduce(cur, { type: 'sell', uid: 'y' });
+    cur = reduce(cur, { type: 'sell', uid: 'z' });
+    expect(rubies(cur), 'three sells must not mint').toBe(0);
+    expect(cur.rubyBonus, 'nor improve').toEqual({ attack: 5, health: 5 });
+    cur = reduce(cur, { type: 'sell', uid: 'w' });
+    expect(rubies(cur), 'the fourth sell mints the payout').toBe(2);
+    expect(cur.rubyBonus, 'and improves your Rubies +1/+1').toEqual({ attack: 6, health: 6 });
+    expect(cur.hand.find((c) => c.cardId === RUBY_ID)!.attack, 'minted at the improved strength')
+      .toBe(CARD_INDEX[RUBY_ID]!.attack + 6);
+    expect(cur.runeSellRubiesSold, 'the meter wraps').toBe(0);
   });
 
   it('does nothing without the rune', () => {

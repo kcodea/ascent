@@ -25892,7 +25892,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "low",
       "unparsed": [
-        "reward:combatFlag.flag"
+        "reward:recurringEndOfTurn.effect"
       ]
     },
     "tribes": [
@@ -25904,7 +25904,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "reward:combatFlag"
+        "kind": "reward:recurringEndOfTurn"
       }
     ],
     "textContract": {
@@ -27461,7 +27461,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "kind": "const",
           "plain": {
             "grantSpell": 1,
-            "per": 4
+            "per": 3
           }
         }
       }
@@ -28529,6 +28529,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "medium",
       "unparsed": [
+        "reward:runeThreshold.grantRandomTribe",
         "reward:runeThreshold.meter"
       ]
     },
@@ -28545,7 +28546,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "grantSpell": 2,
+            "grantSpell": 1,
             "per": 5
           }
         }
@@ -28596,8 +28597,14 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "high"
+      "confidence": "medium",
+      "unparsed": [
+        "reward:shoutEdgeBuff.tribe"
+      ]
     },
+    "tribes": [
+      "dragon"
+    ],
     "tags": [
       "runeforge:basic",
       "cost:3"
@@ -28608,8 +28615,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 5,
-            "health": 5
+            "attack": 6,
+            "health": 6
           }
         }
       }
@@ -28847,7 +28854,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "kind": "const",
           "plain": {
             "grantSpell": 1,
-            "per": 3
+            "per": 2
           }
         },
         "refs": [
@@ -30046,7 +30053,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "medium",
       "unparsed": [
         "reward:runeThreshold.meter",
-        "reward:runeThreshold.resetEachTurn"
+        "reward:runeThreshold.oncePerTurn"
       ]
     },
     "setIds": [
@@ -30066,8 +30073,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "grantGoldNextTurn": 3,
-            "per": 5
+            "grantGold": 3,
+            "per": 1
           }
         }
       }
@@ -30215,8 +30222,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "medium",
       "unparsed": [
-        "reward:runeThreshold.meter",
-        "reward:runeThreshold.rubyAll"
+        "reward:runeThreshold.improveRuby",
+        "reward:runeThreshold.meter"
       ]
     },
     "setIds": [
@@ -30236,7 +30243,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "per": 10
+            "grantRuby": 1,
+            "per": 15
           }
         }
       }
@@ -30368,8 +30376,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 4,
-            "health": 4
+            "attack": 6,
+            "health": 5
           }
         }
       }
@@ -30857,7 +30865,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "low"
+      "confidence": "medium",
+      "unparsed": [
+        "reward:runeThreshold.meter"
+      ]
     },
     "tribes": [
       "dragon"
@@ -30868,7 +30879,17 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "reward:runeHoardcalling"
+        "kind": "reward:runeThreshold",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "per": 3
+          }
+        },
+        "refs": [
+          "hoardflame",
+          "sp_dragonflame"
+        ]
       }
     ],
     "textContract": {
@@ -32450,7 +32471,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "kind": "const",
           "plain": {
             "grantAle": 1,
-            "per": 15
+            "per": 12
           }
         }
       }
@@ -32702,10 +32723,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "medium",
-      "unparsed": [
-        "reward:recurringEndOfTurn.effect"
-      ]
+      "confidence": "high"
     },
     "tags": [
       "runeforge:basic",
@@ -32713,13 +32731,17 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "reward:recurringEndOfTurn",
+        "kind": "reward:grant",
         "amount": {
           "kind": "const",
           "plain": {
-            "turns": 2
+            "repeatInTurns": 1
           }
-        }
+        },
+        "refs": [
+          "manafont",
+          "quickstudy"
+        ]
       }
     ],
     "textContract": {
@@ -32765,6 +32787,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "cost:4"
     ],
     "effects": [
+      {
+        "kind": "reward:grant",
+        "refs": [
+          "n2_salesman"
+        ]
+      },
       {
         "kind": "reward:recurringGrant",
         "amount": {
@@ -34191,7 +34219,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "low"
+      "confidence": "medium",
+      "unparsed": [
+        "reward:runeThreshold.meter"
+      ]
     },
     "tags": [
       "runeforge:basic",
@@ -34199,7 +34230,16 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "reward:runeSpellmarket"
+        "kind": "reward:runeThreshold",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "per": 4
+          }
+        },
+        "refs": [
+          "staffofguel"
+        ]
       }
     ],
     "textContract": {

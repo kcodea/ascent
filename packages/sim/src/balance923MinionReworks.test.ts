@@ -205,7 +205,7 @@ describe('Moira — End of Turn: trigger your Shout minions', () => {
     const after = reduce(s, { type: 'faceOmen' });
     const whelp = after.board.find((c) => c.uid === 'w')!;
     const base = CARD_INDEX['d2_embermouth']!;
-    expect([whelp.attack - base.attack, whelp.health - base.health], 'two Shouts → +1/+1 twice').toEqual([2, 2]);
+    expect([whelp.attack - base.attack, whelp.health - base.health], 'two Shouts → +1/+2 twice (Embermouth is +1/+2 since the Balance 9/23 minion pass, #1662)').toEqual([2, 4]);
   });
 
   it('gilded fires the whole thing twice', () => {

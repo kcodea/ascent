@@ -96,8 +96,8 @@ describe('Chicken Brawl — Echo: a Charging Soldier that attacks immediately', 
   });
 });
 
-describe('Kringle — +1/+1 per card played (owner balance 2026-08-04)', () => {
-  it('the End of Turn grant now carries the Health half', () => {
+describe('Kringle — +1/+2 once, then once per card played (owner balance 2026-08-04; the REPEAT form 2026-09-22)', () => {
+  it('the End of Turn grant carries the Health half, and lands base + one tick per card', () => {
     const s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 20, tier: 5,
       board: [card('k', 'dw_foreman'), card('d', 'dw_brunni')],
@@ -105,19 +105,22 @@ describe('Kringle — +1/+1 per card played (owner balance 2026-08-04)', () => {
     };
     applyEndOfTurn(s);
     const lead = s.board.find((c) => c.uid === 'k')!; // left-most Dwarf is Kringle itself
-    expect(lead.attack - 3, '+1 Attack × 3 cards').toBe(3);
-    expect(lead.health - 3, '+2 Health × 3 cards (owner balance 2026-08-15)').toBe(6);
+    // THE REPEAT PATTERN (owner 2026-09-22, R-REPEAT-01): "give +1/+2. Repeat for every card you played" is the
+    // base tick plus one repeat per card — 3 cards → 4 ticks. (It was 3 × the rate as a lump until then.)
+    expect(lead.attack - 3, '+1 Attack × (1 base + 3 cards)').toBe(4);
+    expect(lead.health - 3, '+2 Health × (1 base + 3 cards) (owner balance 2026-08-15)').toBe(8);
   });
 
   /**
    * ITEMIZED (owner ask 2026-08-29): *"give +1/+2 and repeat for every card played this turn, so the animation
-   * triggers for every card played rapidly … much more exciting than 1 single animation."*
+   * triggers for every card played rapidly … much more exciting than 1 single animation."* — and since
+   * 2026-09-22 every tick is its own beat on BOTH channels (`repeatPerTick.test.ts` pins the Choreographer side).
    *
-   * The stat total is unchanged, which is the point — so the assertion that matters is the FX SHAPE, not the
-   * numbers. Without the per-card nesting, `captureBuffFx`'s before/after diff collapses the whole loop back
-   * into a single event and the animation is exactly as it was.
+   * The assertion that matters here is the FX SHAPE, not the numbers. Without the per-tick nesting,
+   * `captureBuffFx`'s before/after diff collapses the whole loop back into a single event and the animation is
+   * exactly as it was.
    */
-  it('itemizes the grant: one FX wave per card played, both ends together in each', () => {
+  it('itemizes the grant: one FX wave per tick (base + one per card played), both ends together in each', () => {
     const s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 20, tier: 5,
       // Kringle at one end and a second Dwarf at the other, so each wave has TWO recipients.
@@ -129,24 +132,24 @@ describe('Kringle — +1/+1 per card played (owner balance 2026-08-04)', () => {
 
     const mine = s.recruitBuffFx.filter((e) => e.sourceCardId === 'dw_foreman');
     const waves = [...new Set(mine.map((e) => e.fxWave))];
-    expect(waves, 'three cards played → three waves, tagged 0,1,2 so the UI can stagger between them')
-      .toEqual([0, 1, 2]);
+    expect(waves, 'three cards played → the base tick plus three repeats, tagged 0..3 so the UI can pace them')
+      .toEqual([0, 1, 2, 3]);
     // Kringle is the LEFT end and buffs itself, but a source never draws a tendril to itself (`captureBuffFx`
     // skips it — self-buffs use the pulse channel), so the recorded target each wave is the right-most Dwarf.
     for (const w of waves) {
       const inWave = mine.filter((e) => e.fxWave === w);
       expect(inWave.every((e) => e.attack === 1 && e.health === 2),
-        `wave ${w} carries the per-card grant, not the lump total`).toBe(true);
+        `wave ${w} carries the per-tick grant, not a lump total`).toBe(true);
     }
 
-    // …and KRINGLE'S OWN contribution still sums to what the single lump gave. Measured from its recorded
-    // events rather than from the board, because the other Dwarf on this board has an End-of-Turn buff of its
-    // own — reading final stats would be measuring both cards and calling it Kringle's.
+    // …and KRINGLE'S OWN contribution sums to (1 + 3) × (+1/+2). Measured from its recorded events rather than
+    // from the board, because the other Dwarf on this board has an End-of-Turn buff of its own — reading final
+    // stats would be measuring both cards and calling it Kringle's.
     const toRight = mine.filter((e) => e.targetUid === 'r');
     expect([
       toRight.reduce((n, e) => n + e.attack, 0),
       toRight.reduce((n, e) => n + e.health, 0),
-    ], 'three waves of +1/+2 sum to the same +3/+6 the single lump gave').toEqual([3, 6]);
+    ], 'four ticks of +1/+2 → +4/+8').toEqual([4, 8]);
   });
 });
 

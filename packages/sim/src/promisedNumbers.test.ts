@@ -9,22 +9,28 @@ import { CARD_INDEX } from '@game/content';
 import { createRun, reduce, offerBuyStats, type RunState } from './index';
 import { perCardPlayedText } from '../../ui/src/cardText';
 
-describe('Kringle prints BOTH halves of its per-card grant', () => {
-  it('the card is +1/+2 per card, so the live text must be too (it used to say only "+1 Attack")', () => {
+describe('Kringle prints BOTH halves of its per-tick grant', () => {
+  it('the card is +1/+2 per tick, so the live text must be too (it used to say only "+1 Attack")', () => {
     // Nothing played: the printed text stands, rate and all.
     expect(perCardPlayedText('dw_foreman', 0)).toBeNull();
     expect(CARD_INDEX['dw_foreman']!.text).toContain('+1/+2');
+    expect(CARD_INDEX['dw_foreman']!.text, 'the REPEAT form (owner 2026-09-22)').toContain('. Repeat for every card you played this turn.');
 
+    // THE REPEAT FORM (owner 2026-09-22, R-REPEAT-01): the per-tick rate is the printed number, so it stays in
+    // place with both halves, and the live part is the tick count — base + one per card — in Mother Moss's
+    // `(×N)` house style.
     const one = perCardPlayedText('dw_foreman', 1)!;
-    expect(one, 'one card played → the full +1/+2, not a bare Attack number').toContain('{{+1/+2}}');
-    expect(one, 'and the rate keeps both halves too').toContain('(+1/+2 for each card you played');
+    expect(one, 'one card played → the base tick plus one repeat').toContain('{{(×2)}}');
+    expect(one, 'the per-tick rate keeps both halves').toContain('left and right-most Dwarves +1/+2**. Repeat for every card you played this turn');
     expect(one, 'both ends of the Dwarf line, as the card prints').toContain('left and right-most Dwarves');
     expect(one, 'no Attack-only phrasing survives').not.toContain('Attack');
 
-    // It scales, both halves together.
-    expect(perCardPlayedText('dw_foreman', 4)!).toContain('{{+4/+8}}');
-    // Golden doubles the rate: +2/+4 per card.
-    expect(perCardPlayedText('dw_foreman', 3, true)!).toContain('{{+6/+12}}');
+    // The count climbs with the cards played; the rate never does.
+    expect(perCardPlayedText('dw_foreman', 4)!).toContain('{{(×5)}}');
+    expect(perCardPlayedText('dw_foreman', 4)!).toContain('+1/+2');
+    // Golden doubles the RATE (+2/+4 per tick), never the count.
+    expect(perCardPlayedText('dw_foreman', 3, true)!).toContain('+2/+4');
+    expect(perCardPlayedText('dw_foreman', 3, true)!).toContain('{{(×4)}}');
   });
 });
 

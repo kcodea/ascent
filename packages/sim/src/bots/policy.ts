@@ -149,10 +149,23 @@ export function decide(state: RunState, w: BotWeights, b: BotBehaviour, pkg?: Bo
     return { type: 'chooseOne', index: bestI };
   }
   if (state.pendingTarget) {
-    // Target the highest-value friendly (most buff-worthy body); fall back to the pending default.
+    // Target the highest-value friendly the ENGINE will actually accept. The reducer refuses an aim onto the
+    // aiming body (R-TARGET-03, global since 2026-09-18) and onto an off-tribe body for a `targetTribe` Shout;
+    // a refused aim returns the SAME state, and every play-out loop reads that as "the bot is stuck" and stops
+    // (found 2026-09-23: the seed-4 lobby stalled at round 15 when a 2/3 Beggy out-scored every Demon and the
+    // bot aimed Appetite Agent at it). Same probe pilots.ts uses; cheap (one reducer call per candidate).
+    const self = state.pendingTarget.uid;
+    const legal = (uid: string): boolean => reduce(state, { type: 'battlecryTarget', targetUid: uid }) !== state;
     let best: BoardCard | undefined; let bestV = -Infinity;
-    for (const c of state.board) { const d = CARD_INDEX[c.cardId]; const v = d ? cardScore(d, state, w, pkg) : 0; if (v > bestV) { bestV = v; best = c; } }
-    return { type: 'battlecryTarget', targetUid: best?.uid ?? state.pendingTarget.uid };
+    for (const c of state.board) {
+      if (c.uid === self) continue;
+      const d = CARD_INDEX[c.cardId]; const v = d ? cardScore(d, state, w, pkg) : 0;
+      if (v > bestV && legal(c.uid)) { bestV = v; best = c; }
+    }
+    if (best) return { type: 'battlecryTarget', targetUid: best.uid };
+    for (const o of state.shop) if (legal(o.uid)) return { type: 'battlecryTarget', targetUid: o.uid };
+    for (const c of state.hand) if (c.uid !== self && legal(c.uid)) return { type: 'battlecryTarget', targetUid: c.uid };
+    return { type: 'cancelChoice' }; // nothing aimable: walk away from the prompt like a click-away
   }
   if (state.questOffer) {
     let bestI = 0, bestV = -Infinity;

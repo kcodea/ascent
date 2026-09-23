@@ -52,6 +52,67 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-23',
+    label: 'Balance 9/23: archives and Picnic',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Eleven runes retired from the Runeforge, Rune of the Deathtouched Apple is now an Undead rune, and a new Tier 5 Shop spell, Picnic.',
+        details: [
+          'Retired from every Runeforge: Rune of Emberline, Rune of the Centerline, Rune of the Cindergem, Rune of the Second Litter, Rune of the Spare Chair, Rune of Moonhowl, Rune of Taurus, Rune of the Ashen Heir, Rune of the Old Pack, Rune of the Open Market and Rune of the Warpath. A run that already holds one keeps it.',
+          'Rune of the Deathtouched Apple is now an Undead rune: it is offered only in runs with Undead, so it no longer appears in Set 2.',
+          'New spell: Picnic (Tier 5, 1 Gold). Give the right-most Shop minion +8/+8 permanently. The buff stays on that Shop slot for the rest of the run and comes with the minion you buy from it.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-23',
+    label: 'Balance 9/23: minions',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'A balance pass over twenty cards: fourteen minions got new stat lines, five minions had a number tuned, and Staff of Guel gives a little more Health.',
+        details: [
+          'Beggy is now 2/3.',
+          'Chicken Brawl is now 4/2.',
+          'Deepvein Tender is now 2/3.',
+          'Geode Guardian is now 4/3.',
+          'Imp Overseer is now 3/3.',
+          'Kennelmaster is now 2/4.',
+          'Mirrorwing is now 3/4.',
+          'Right Hand Hank is now 4/1.',
+          'Axeman is now 2/2.',
+          'Dunkey is now 5/6.',
+          'Gemline Martyr is now 4/6.',
+          'Grobbus is now 3/7.',
+          'King Oona is now 6/6.',
+          'Sunmane Herald is now 5/3.',
+          'Embermouth Whelp now gains +1/+2 after you trigger a Shout (was +1/+1). Gilded gains +2/+4.',
+          "Hellrider now copies the right-most Shop minion's stats every 3 refreshes (was every 4).",
+          'Gemstorm Instigator now casts 3 Rubies on your Kobolds (was 2). Gilded casts 6.',
+          'Gem Sage now reads: When you cast a Shop spell on this, get 3 Rubies. Gilded gets 6. It no longer doubles every Ruby you get.',
+          'Legion Shepherd now summons 2 Imps with its Echo (was 1). Gilded summons 4. The Imp buff is unchanged.',
+          'Staff of Guel now gives minions in the shop +3/+4 permanently (was +3/+3).',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-23',
+    label: 'Milestone glow fix',
+    changes: [
+      { category: 'Systems', text: 'Fixed the blue top-tier milestone glow lingering on units that had not reached the top stat tier, including opponent minions carrying it over between fights.' },
+    ],
+  },
+  {
+    date: '2026-09-23',
+    label: 'Warding Ruby bounce',
+    changes: [
+      { category: 'Balance', text: 'A Warding Ruby bounced by Resonance Idol now grants Ward to the minion it lands on.' },
+    ],
+  },
+  {
+    date: '2026-09-23',
     label: 'Balance 9/23: rune costs and numbers',
     changes: [
       {

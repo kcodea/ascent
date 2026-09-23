@@ -32,21 +32,19 @@ describe('the nine defs ship as specced', () => {
     expect(rune('rune_gem_dividend').cost).toBe(3);
     expect(rune('rune_carrion_coin').cost).toBe(3);
     expect(rune('rune_five_banners').cost).toBe(4);
-    expect(rune('rune_centerline').cost).toBe(3);
-    expect(rune('rune_second_litter').cost).toBe(2); // owner balance 2026-08-11 (4 → 2)
+    // rune_centerline + rune_second_litter archived 2026-09-23 (ARCHIVED_RUNES, Balance 9/23) — no longer in the active pool.
     expect(rune('rune_shared_pour').cost).toBe(2); // balance 9/23 (3 → 2; owner 2026-08-11 had 4 → 3)
     expect(rune('rune_aftermarket').cost).toBe(3); // balance 9/23 (4 → 3)
     expect(rune('rune_hoardcalling').cost).toBe(4); // owner balance 2026-08-11 (5 → 4)
     // Gem Dividend needs Rubies and Shared Pour needs Ales, so both are Set-2 only. The rest work in either.
     expect(rune('rune_gem_dividend').sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
     expect(rune('rune_shared_pour').sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
-    for (const id of ['rune_empty_plate', 'rune_carrion_coin', 'rune_five_banners', 'rune_centerline',
-      'rune_second_litter', 'rune_aftermarket', 'rune_hoardcalling']) {
+    for (const id of ['rune_empty_plate', 'rune_carrion_coin', 'rune_five_banners', 'rune_aftermarket', 'rune_hoardcalling']) {
       expect(rune(id).sets, `${id} should not be set-scoped`).toBeUndefined();
     }
     // All nine are Basic — none carry the Epic flag.
     for (const id of ['rune_empty_plate', 'rune_gem_dividend', 'rune_carrion_coin', 'rune_five_banners',
-      'rune_centerline', 'rune_second_litter', 'rune_shared_pour', 'rune_aftermarket', 'rune_hoardcalling']) {
+      'rune_shared_pour', 'rune_aftermarket', 'rune_hoardcalling']) {
       expect(rune(id).epic, `${id} should be Basic`).toBeFalsy();
     }
   });

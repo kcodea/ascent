@@ -108,7 +108,8 @@ describe('the five runes ship as specced', () => {
   it("exist at the sheet's costs and tiers", () => {
     const want: [string, number, boolean][] = [
       ['Rune of Resonance', 1, false], ['Rune of Investment', 5, false], // balance 9/23: Resonance 3 → 1, Investment 3 → 5 (2026-08-18 / 2026-08-04 had 1 → 3 each)
-      ['Rune of the Open Market', 2, true], ['Rune of Runic Exchange', 2, true],
+      ['Rune of Runic Exchange', 2, true],
+      // Rune of the Open Market moved to the RUNE ARCHIVE 2026-09-23 (Balance 9/23) — out of the forge, still in RUNE_INDEX.
       // Rune of the Brokerage moved to the RUNE ARCHIVE 2026-08-04 (with Ruby Broker) — asserted below.
     ];
     for (const [name, cost, epic] of want) {
@@ -120,7 +121,7 @@ describe('the five runes ship as specced', () => {
   });
 
   it('all five are set-2 scoped — each names a set-2 mechanic', () => {
-    for (const n of ['Rune of Resonance', 'Rune of Investment', 'Rune of the Open Market', 'Rune of Runic Exchange']) {
+    for (const n of ['Rune of Resonance', 'Rune of Investment', 'Rune of Runic Exchange']) { // Open Market archived 2026-09-23
       expect(byName(n)!.sets, `${n} leaks into set 1`).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
     }
   });

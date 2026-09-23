@@ -39,8 +39,8 @@ export const BEASTS: CardDef[] = [
     name: 'Kennelmaster',
     tribe: 'beast',
     tier: 2,
-    attack: 1,
-    health: 3,
+    attack: 2, // owner balance 2026-09-23: 1/3 → 2/4
+    health: 4,
     keywords: ['SC'],
     effects: [
       // Owner rebalance 2026-08-02: back to base +1 Attack improving +1 per Avenge (golden doubles both,

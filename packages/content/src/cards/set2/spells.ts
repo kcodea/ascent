@@ -398,4 +398,23 @@ export const SET2_SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'spellSellToShopRightmost' }],
     text: 'Sell a minion and give its stats to the right-most minion in the Shop.',
   },
+  {
+    // Owner add 2026-09-23 (Balance 9/23): "Picnic - T5 1 cost - Give the right-most Shop minion +8/+8 permanently."
+    // Untargeted. PERMANENT the way Market Tormentor is: the right-most Shop SLOT is enchanted for the run
+    // (`rightmostSlotBuff`), re-landed on every fresh roll, and the buff rides the offer into the bought minion.
+    // Spell power folds on both stats (the shop-buff family's rule; live text greens the number). No minion in
+    // the Shop → the cast is refused (`spellFizzle.ts`). Set-agnostic: also opted into set 3 by id
+    // (`SET3_SHARED_SPELL_IDS`), Dissipate's shape. No art yet: no master named Picnic exists (2026-09-23).
+    id: 'sp_picnic',
+    name: 'Picnic',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 1,
+    effects: [{ on: 'cast', do: 'spellBuffShopRightmost', params: { attack: 8, health: 8 } }],
+    text: 'Give the right-most Shop minion **+8/+8** permanently.',
+  },
 ];

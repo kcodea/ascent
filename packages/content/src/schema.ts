@@ -361,6 +361,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellCastBuffSelf',
   'summonBuffSelfTribe',
   'spellBuffShop',
+  'spellBuffShopRightmost', // Picnic (2026-09-23): the right-most Shop slot, permanently
   'gainMaxMana',
   'grantFreeRolls',
   'spellGainOfTargetTribe',

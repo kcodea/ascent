@@ -98,8 +98,11 @@ export interface EffectArena {
   /** Does `t` belong to `tribe`? Adapters fold in tribe2 + universalTribe, each phase's own way. */
   isTribe(t: ArenaBody, tribe: string): boolean;
   /** Ruby STATS without the onRubyPlayed notification — the bounce primitive. The missing notification is
-   *  the load-bearing no-rebounce guard: two adjacent Resonance Idols must not ping a Ruby forever. */
-  gainRubyStats(t: ArenaBody, attack: number, health: number): void;
+   *  the load-bearing no-rebounce guard: two adjacent Resonance Idols must not ping a Ruby forever.
+   *  `grantKeyword` is the Ruby's keyword rider (a Warding Ruby's Ward): a hop resolves on its destination
+   *  exactly as if the Ruby had been cast there, so the rider lands too — under the same Kobold gate as a direct
+   *  landing (owner report 2026-09-23: a Warding Ruby bounced off the Idol onto a Kobold must grant it Ward). */
+  gainRubyStats(t: ArenaBody, attack: number, health: number, grantKeyword?: string): void;
   /** The nearest living neighbours (left, right) of a body. */
   neighboursOf(t: ArenaBody): ArenaBody[];
   /** Raise the run's MAXIMUM Gold. Combat routes through its carry-back channel (and logs the maxGold
@@ -463,10 +466,12 @@ export const ARENA_EFFECTS = {
    *  UNIFICATION FIXED REAL DRIFT: the rework only ever landed in the shop half — combat ignored `random` and
    *  kept bouncing to neighbours, so the same card behaved differently by phase. One body now implements the
    *  reworked design everywhere. The Ruby amounts arrive via params (`rubyAttack`/`rubyHealth`, merged from
-   *  the dispatch payload by the wrappers). */
+   *  the dispatch payload by the wrappers), and so does the Ruby's keyword rider (`rubyKeyword` — a Warding
+   *  Ruby's Ward): the hop is the WHOLE Ruby, not its stat half (owner report 2026-09-23). */
   rubyPlayedBounce(arena: EffectArena, params: Record<string, unknown>): void {
     const a = typeof params.rubyAttack === 'number' ? params.rubyAttack : 0;
     const h = typeof params.rubyHealth === 'number' ? params.rubyHealth : 0;
+    const kw = typeof params.rubyKeyword === 'string' && params.rubyKeyword ? params.rubyKeyword : undefined;
     if (a <= 0 && h <= 0) return;
     const reps = arena.self.golden ? (typeof params.goldenReps === 'number' ? params.goldenReps : 2) : 1;
     const randomN = typeof params.random === 'number' ? params.random : 0;
@@ -475,12 +480,12 @@ export const ARENA_EFFECTS = {
       const pool = arena.friends().filter((m) => m.uid !== arena.self.uid);
       for (let i = 0; i < randomN && pool.length > 0; i++) {
         const t = pool.splice(rng.int(pool.length), 1)[0]!;
-        for (let r = 0; r < reps; r++) arena.gainRubyStats(t, a, h);
+        for (let r = 0; r < reps; r++) arena.gainRubyStats(t, a, h, kw);
       }
       return;
     }
     for (const adj of arena.neighboursOf(arena.self)) {
-      for (let r = 0; r < reps; r++) arena.gainRubyStats(adj, a, h);
+      for (let r = 0; r < reps; r++) arena.gainRubyStats(adj, a, h, kw);
     }
   },
 

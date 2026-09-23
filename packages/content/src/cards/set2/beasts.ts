@@ -62,7 +62,7 @@ export const SET2_BEASTS: CardDef[] = [
     name: 'Sunmane Herald',
     tribe: 'beast',
     tier: 5,
-    attack: 3,
+    attack: 5, // owner balance 2026-09-23: 3/3 → 5/3
     health: 3,
     keywords: ['RL'],
     // COMBAT-ONLY (owner ruling 2026-08-20): a shop-fired Sunmane under Rune of Lasting Cadence loops the
@@ -83,7 +83,7 @@ export const SET2_BEASTS: CardDef[] = [
     name: 'King Oona',
     tribe: 'beast',
     tier: 5,
-    attack: 4,
+    attack: 6, // owner balance 2026-09-23: 4/6 → 6/6
     health: 6,
     keywords: [],
     effects: [
@@ -282,7 +282,7 @@ export const SET2_BEASTS: CardDef[] = [
     name: 'Dunkey',
     tribe: 'beast',
     tier: 4,
-    attack: 4,
+    attack: 5, // owner balance 2026-09-23: 4/6 → 5/6
     health: 6,
     keywords: [],
     effects: [{ on: 'avenge', do: 'avengeSummon', params: { count: 4, cardId: 'b2_armadiyo' } }],

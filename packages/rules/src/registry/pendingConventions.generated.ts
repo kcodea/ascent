@@ -2390,16 +2390,15 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-ruby",
-    "title": "Trigger: a Ruby is gained or cast · 4 cards",
-    "statement": "All 4 of these fire on one trigger: a Ruby is gained or cast. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: a Ruby is gained or cast · 3 cards",
+    "statement": "All 3 of these fire on one trigger: a Ruby is gained or cast. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "7 effect factories across 4 cards dispatch on 'onGetRuby', 'onRubyPlayed', 'rubyCast', 'rubyPlayedAnywhere' (both/combat/recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Trouble: \"When a Ruby is cast on another minion in combat, cast a Ruby on this.\" · Members: Trouble · Gemgorge Fiend · Gem Sage · Reflector",
+    "currentBehaviour": "6 effect factories across 3 cards dispatch on 'onGetRuby', 'onRubyPlayed', 'rubyCast', 'rubyPlayedAnywhere' (both/combat/recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Trouble: \"When a Ruby is cast on another minion in combat, cast a Ruby on this.\" · Members: Trouble · Gemgorge Fiend · Reflector",
     "example": "Trouble fires when a Ruby is gained or cast, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "k3_doubletrouble",
       "k_gemgorge",
-      "k_gemsage",
       "n2_reflector"
     ]
   },
@@ -2463,7 +2462,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "The 1 card here fires on one trigger: you refresh the Shop. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "1 effect factories across 1 card dispatch on 'shopRefreshed' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Hellrider: \"Ward. Every 4 refreshes, gain the right-most Shop minion's stats.\" · Members: Hellrider",
+    "cardText": "Exemplar — Hellrider: \"Ward. Every 3 refreshes, gain the right-most Shop minion's stats.\" · Members: Hellrider",
     "example": "Hellrider fires when you refresh the Shop, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "dm_maw"
@@ -2485,15 +2484,16 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-spellTargeted",
-    "title": "Trigger: a spell targets this minion · 3 cards",
-    "statement": "All 3 of these fire on one trigger: a spell targets this minion. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: a spell targets this minion · 4 cards",
+    "statement": "All 4 of these fire on one trigger: a spell targets this minion. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "3 effect factories across 3 cards dispatch on 'spellCastOnThis' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Crash Course: \"The first Star Crash you cast on this each turn casts an additional time.\" · Members: Crash Course · Mirrorwing · Reflector",
+    "currentBehaviour": "4 effect factories across 4 cards dispatch on 'spellCastOnThis' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Crash Course: \"The first Star Crash you cast on this each turn casts an additional time.\" · Members: Crash Course · Mirrorwing · Gem Sage · Reflector",
     "example": "Crash Course fires when a spell targets this minion, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_adept",
       "d2_mirrorwing",
+      "k_gemsage",
       "n2_reflector"
     ]
   },

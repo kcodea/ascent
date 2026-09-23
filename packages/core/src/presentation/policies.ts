@@ -1079,7 +1079,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'hero:aster:preparation': { policy: 'ownBeat', family: 'heroPower' },
 
   // ── RUNE-ONLY MINION BATCH (2026-08-20). Each entry copies the bucket its closest sibling already sits in. ──
-  'factory:onGetRubyDuplicate:onGetRuby': { policy: 'foldedCue', family: 'economyReact' },        // Gem Sage — cf. rubyGainedCast
+  'factory:getRubies:spellCastOnThis': { policy: 'ownBeat', family: 'economy' },                  // Gem Sage (owner balance 2026-09-23: pays 3 Rubies per Shop spell cast on it) — the bucket its spellCastOnThis siblings sit in
   'factory:goldSpentScaleSelf:passive': { policy: 'passive', family: 'passive' },                 // Ancient Wanderer — a synced stat, never a beat
   'factory:cardDeathScaler:passive': { policy: 'passive', family: 'passive' },                    // Spear Warden — a death-count enchant read at the death site, never a beat
   // PUMMEL (X) — the damage meters. A Pummel that pays emits `pummelTrigger` (2026-09-21, once per body per

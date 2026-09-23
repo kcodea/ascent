@@ -400,8 +400,8 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     name: 'Chicken Brawl',
     tribe: 'dwarf',
     tier: 2,
-    attack: 3,
-    health: 1,
+    attack: 4, // owner balance 2026-09-23: 3/1 → 4/2
+    health: 2,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'dw_soldier', count: 1, fixed: true, goldenTokens: true } }],
     text: '**Echo:** summon a **Charging Soldier** that attacks immediately.',

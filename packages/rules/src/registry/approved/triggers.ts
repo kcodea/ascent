@@ -305,4 +305,36 @@ export const TRIGGERS_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-22',
     },
   },
+  {
+    id: 'R-RUBY-01',
+    title: 'A bounced Ruby is the whole Ruby: its keyword rider lands on the hop destination',
+    statement:
+      'A Ruby that a minion bounces onward (Resonance Idol, a Candle Conduit or Rune of the Conduit extra hop, '
+      + 'the Rune of Redirection second landing) resolves on its destination exactly as if it had been cast there: '
+      + 'the Ruby\'s current stats (base plus every Ruby improvement in force) AND its keyword rider (a Warding '
+      + 'Ruby\'s Ward). The rider keeps its own landing gate on every hop: Ward is granted only to a Kobold, and '
+      + 'never twice. A Gilded Idol\'s repeated hop stacks the stats and lands the keyword once. The hop is still '
+      + 'stats-and-rider only, never a fresh "Ruby played on" notification: a bounce never re-bounces, so two Idols '
+      + 'cannot ping a Ruby between them, and the destination\'s own Ruby watchers do not fire off a hop.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: '9/23 balance list, Bugs (2026-09-23)', quote: 'warding ruby cast on a resonance idol that then hits a kobold should grant it ward.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts fireOnRubyPlayed / grantRubyKeyword (the one landing primitive: the rider rides the onRubyPlayed payload as rubyKeyword); packages/core/src/effects/arena.ts rubyPlayedBounce + EffectArena.gainRubyStats(t, a, h, grantKeyword?) (the bounce body, both phases); packages/core/src/effects/factories.ts combatArena.gainRubyStats (the combat adapter honours the rider through grantShield / the keyword log); packages/sim/src/reducer.ts play-Ruby branch (the direct landing and the Redirection tail both pass def.rubyGrantKeyword)' },
+    ],
+    contentIds: ['k_resonance', 'warding-ruby', 'k_candleconduit'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Before the fix the Warding Ruby\'s Ward was a trailing grant in the reducer\'s '
+      + 'hand-play branch, applied to the direct target only AFTER fireOnRubyPlayed had already bounced the stats on: '
+      + 'a Resonance Idol hop, a Candle Conduit hop and the Rune of Redirection\'s right-most landing all carried '
+      + '+1/+1 and no Ward. The keyword now rides the landing primitive as part of the Ruby\'s payload, so every '
+      + 'hop resolves the whole Ruby. No combat Ruby source casts a keyworded Ruby today (playRubyOn plays the plain '
+      + 'Ruby), so the combat adapter\'s rider path is wired for parity and reachable only through a payload that '
+      + 'carries one.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/wardingRubyBounce.test.ts', 'packages/sim/src/rubies.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
 ];

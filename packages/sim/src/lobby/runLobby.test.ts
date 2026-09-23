@@ -271,6 +271,7 @@ describe('lobby rules — no rematch inside 3 rounds, and the odd seat faces a g
     // Ghost fights need an ODD living table, i.e. at least one elimination. Which seed produces one inside the
     // played window shifts whenever seat strength changes (the spell-casting fix moved it), so scan seeds like
     // the sibling test does instead of pinning one and asserting behaviour it no longer exhibits.
+    type LobbySeat = NonNullable<RunState['lobby']>['seats'][number];
     let lobby: NonNullable<RunState['lobby']> | null = null;
     for (const seed of [4, 5, 6, 7, 8]) {
       const candidate = playOut(createLobbyRun(seed, 'drakko')).lobby!;
@@ -283,9 +284,15 @@ describe('lobby rules — no rematch inside 3 rounds, and the odd seat faces a g
       expect(ghost.alive, 'the ghost should be an eliminated seat').toBe(false);
       expect(ghost.eliminatedRound, 'the ghost has no death round').toBeDefined();
       expect(ghost.eliminatedRound!, 'the ghost died after the round it was raised for').toBeLessThan(e.round);
-      // Most RECENTLY fallen: nobody died later than it but still before this round.
+      // Most RECENTLY fallen: nobody died later than it but still before this round — UNLESS that fresher corpse
+      // would be a rematch for the bye holder (owner 2026-09-19, the Hearthstone rule: it fought the bye holder
+      // last round, or the bye holder is the seat that eliminated it), in which case `ghostFor` passes it over
+      // for the next most recent. The seed-4 lobby first hit that branch on 2026-09-23 (a balance pass moved its
+      // trajectory), so the exemption is asserted, not assumed: every passed-over corpse MUST be a rematch.
+      const rematch = (x: LobbySeat): boolean => lobby!.encounters.some((f) =>
+        ((f.a === e.a && f.b === x.id) || (f.b === e.a && f.a === x.id)) && (f.round === e.round - 1 || f.round === x.eliminatedRound));
       const laterDead = lobby!.seats.filter((x) => !x.alive && (x.eliminatedRound ?? 0) > ghost.eliminatedRound! && (x.eliminatedRound ?? 0) < e.round);
-      expect(laterDead.map((x) => x.id), 'a more recent corpse was available').toEqual([]);
+      expect(laterDead.filter((x) => !rematch(x)).map((x) => x.id), 'a more recent corpse was available (and was not a rematch)').toEqual([]);
     }
   });
 

@@ -84,6 +84,13 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-23',
+    label: 'Warding Ruby bounce',
+    changes: [
+      { category: 'Balance', text: 'A Warding Ruby bounced by Resonance Idol now grants Ward to the minion it lands on.' },
+    ],
+  },
+  {
+    date: '2026-09-23',
     label: 'Milestone glow fix',
     changes: [
       { category: 'Systems', text: 'Fixed the blue top-tier milestone glow lingering on units that had not reached the top stat tier, including opponent minions carrying it over between fights.' },

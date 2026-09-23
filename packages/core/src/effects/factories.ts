@@ -290,7 +290,9 @@ interface MinionPayload {
  *  `ArenaBody` structurally — and the verbs close over the `CombatContext`, so an arena effect emits the same
  *  events (`shieldUp` etc.) as the legacy body it replaced. `rng()` hands over the fight's threaded stream. */
 function combatArena(ctx: CombatContext, self: Minion): EffectArena {
-  return {
+  // Bound to a name so a verb can lean on a sibling verb (`gainRubyStats` reuses `isTribe`, the ONE body-level
+  // tribe predicate for combat, instead of growing a raw compare the tribe-predicate ratchet forbids).
+  const arena: EffectArena = {
     phase: 'combat',
     self,
     friends: () => ctx.living(self.side),
@@ -336,8 +338,18 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     grantRandomSpells: (count) => ctx.grantRandomSpell(count, self.side, self.uid),
     playRubiesOn: (t, per, permanent) => playRubyOn(ctx, self, t as Minion, per, permanent === true),
     // The bounce primitive (Resonance Idol): `self` is the body the original Ruby landed on, `t` the hop's
-    // destination — stamped so the UI's `ruby-bounce` ribbon travels self → t.
-    gainRubyStats: (t, a, h) => applyRubyStats(ctx, self, t as Minion, a, h, false, { from: self.uid, kind: 'ruby' }),
+    // destination — stamped so the UI's `ruby-bounce` ribbon travels self → t. The Ruby's keyword rider (a
+    // Warding Ruby's Ward) lands with the hop, Kobold-gated like a direct landing (owner report 2026-09-23).
+    // No combat Ruby source names a keyworded Ruby today (`playRubyOn` plays the plain Ruby), so the rider is
+    // only ever present here when a payload carries one — the adapter honours it so the phases cannot drift.
+    gainRubyStats: (t, a, h, kw) => {
+      const m = t as Minion;
+      applyRubyStats(ctx, self, m, a, h, false, { from: self.uid, kind: 'ruby' });
+      if (!kw || m.dead || m.keywords.includes(kw as Keyword)) return;
+      if (!arena.isTribe(m, 'kobold')) return; // the Kobold gate, through the one body-level predicate (all-types counts)
+      if (kw === 'DS') grantShield(ctx, m);
+      else { m.keywords.push(kw as Keyword); ctx.log({ type: 'keyword', target: m.uid, keyword: kw as Keyword, source: self.uid }); }
+    },
     neighboursOf: (t) => livingNeighbours(ctx, t as Minion),
     grantMaxGold: (amount) => {
       ctx.grantMaxGold(amount, self.side);
@@ -567,6 +579,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
 
     rng: () => ctx.rng,
   };
+  return arena;
 }
 
 function grantShield(ctx: CombatContext, m: Minion): void {
@@ -2601,8 +2614,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   // ARENA-MIGRATED (Step 3, Ruby family). This unification FIXED drift: the 2026-07-27 random-N rework had
   // only ever landed in the shop half, so combat still bounced to neighbours while the shop went random.
   rubyPlayedBounce: (ctx, self, params, payload) => {
-    const { rubyAttack, rubyHealth } = payload as { rubyAttack?: number; rubyHealth?: number };
-    ARENA_EFFECTS.rubyPlayedBounce(combatArena(ctx, self), { ...params, rubyAttack, rubyHealth });
+    const { rubyAttack, rubyHealth, rubyKeyword } = payload as { rubyAttack?: number; rubyHealth?: number; rubyKeyword?: string };
+    ARENA_EFFECTS.rubyPlayedBounce(combatArena(ctx, self), { ...params, rubyAttack, rubyHealth, rubyKeyword });
   },
 
   /** Set 2 — Geode Guardian (Echo): on death, play `rubies` Rubies on EACH adjacent minion (permanent carry-back). */

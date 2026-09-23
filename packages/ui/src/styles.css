@@ -2500,12 +2500,12 @@ img.tierbadge.tierstars,
   position: absolute; top: calc(var(--ccw) * -0.045); left: calc(var(--ccw) * -0.035); z-index: 5;
   width: calc(var(--ccw) * 0.21); height: calc(var(--ccw) * 0.21); display: grid; place-items: center;
   /* 👑 Gilded Badge tuner (gildedBadgeConfig.ts): scale + px nudge on top of the corner seat. Fallbacks = DEFAULTS. */
-  transform: translate(var(--gcrown-dx, 53px), var(--gcrown-dy, -30px)) scale(var(--gcrown-size, 1.58));
+  transform: translate(var(--gcrown-dx, 62px), var(--gcrown-dy, -36px)) scale(var(--gcrown-size, 1.58));
 }
 .card.compact .goldcrown > .goldcrown-img { width: 100%; height: 100%; object-fit: contain; }
 /* 👑 Gilded Badge tuner preview (GildedBadgeTuner.tsx) — the badge art outside a card, reading the same vars. */
 .gcrownprev { display: grid; place-items: center; padding: 20px; background: rgba(0, 0, 0, 0.28); border-radius: 8px; }
-.gcrownprev-img { width: 64px; height: 64px; object-fit: contain; transform: translate(var(--gcrown-dx, 53px), var(--gcrown-dy, -30px)) scale(var(--gcrown-size, 1.58)); }
+.gcrownprev-img { width: 64px; height: 64px; object-fit: contain; transform: translate(var(--gcrown-dx, 62px), var(--gcrown-dy, -36px)) scale(var(--gcrown-size, 1.58)); }
 
 /* golden (tripled) minion */
 .card.golden { border-color: #ffcf4a; background: color-mix(in srgb, #f4cf6a 24%, var(--card)); box-shadow: 0 0 0 3px #ffd85a, 0 3px 0 var(--shadow), 0 0 28px 2px rgba(255, 190, 50, 0.85); }

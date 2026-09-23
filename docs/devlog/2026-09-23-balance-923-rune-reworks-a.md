@@ -120,4 +120,7 @@ flags, Gemspam's 10, the Pantry's 2 spells, Draconic Curiosity's Discover trigge
 
 Judgement calls to confirm: Collector pays every 3rd buy within the turn (not once per turn); "random spell" on
 Chorus / Curiosity means the same run-pool Shop spell (never an Ale) the old texts granted; Runic Hoard counts
-Rubies as spells (the Forsaken Mage "a spell" ruling); Drake Skull is now tribe-gated `dragon`.
+Rubies as spells (the Forsaken Mage "a spell" ruling); Drake Skull is now tribe-gated `dragon`. Hoardcalling LOST its `dragon`
+gate (its new text counts any Shout and pays Hoardflame / Dragonflame, which Rune of Hoardflame and Rune of Dragon
+Breath grant untagged too), so it is now offered in Dragon-less runs and in Set 3; say so if it should stay
+Dragon-gated (that needs the tribe-gate test to count the flame spells as naming Dragons).

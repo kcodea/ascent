@@ -6612,6 +6612,31 @@ svg { width: 18px; height: 18px; }
 }
 .balpage [data-tip]:hover::after, .balpage [data-tip]:focus-visible::after { opacity: 1; transform: translateX(-50%) translateY(0); transition-delay: 0.25s; }
 .balpage [data-tip]:hover::before, .balpage [data-tip]:focus-visible::before { opacity: 1; transition-delay: 0.25s; }
+/* ── BALANCE REPORT ROUND 2 (owner ask 2026-09-22): heroes, runes and shop tiers get the impact treatment, the
+   Gold economy is rebuilt. A row's NAME carries its plain-words read as a hover bubble; the economy chart is a
+   static SVG with three named series (gray available, amber spent, green spent by the winners). ── */
+.balgrid-solo .balname.baltipname { border-radius: 6px; }
+.balgrid-solo .balname.baltipname:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+/* A name cell's bubble anchors to its LEFT edge (the name column is the leftmost; a centred bubble on a short
+   name would sit half under the table's edge). */
+.balpage .balname[data-tip]::after { left: 0; transform: translateX(0) translateY(-4px); }
+.balpage .balname[data-tip]:hover::after, .balpage .balname[data-tip]:focus-visible::after { transform: translateX(0) translateY(0); }
+.balpage .balname[data-tip]::before { left: 16px; transform: rotate(45deg); }
+.balgap { height: 22px; flex: none; }
+.balchart-line.avail { stroke: rgba(255, 255, 255, 0.38); }
+.balchart-line.spent { stroke: var(--acc); }
+.balchart-line.spentwin { stroke: #46d17f; }
+.balchart-dot.avail { fill: rgba(255, 255, 255, 0.55); }
+.balchart-dot.spent { fill: var(--acc); }
+.balchart-dot.spentwin { fill: #46d17f; }
+.balchart-ptl.avail { fill: rgba(255, 255, 255, 0.7); }
+.balchart-ptl.spent { fill: var(--acc); }
+.balchart-ptl.spentwin { fill: #7ff0aa; }
+.balchart-key.avail::before { background: rgba(255, 255, 255, 0.45); }
+.balchart-key.spent::before { background: var(--acc); }
+.balchart-key.spentwin::before { background: #46d17f; }
+.balseg button:disabled { opacity: 0.4; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+
 /* A column header's bubble anchors to the header's RIGHT edge (numeric headers sit at the right of narrow
    tracks, so a centred bubble on the last column would run off the table). */
 .balpage .balhead .balsort.balnum::after { left: auto; right: 0; transform: translateX(0) translateY(-4px); }

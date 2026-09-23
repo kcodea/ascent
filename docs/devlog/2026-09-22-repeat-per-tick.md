@@ -72,7 +72,7 @@ than one burst; untagged actions replay exactly as before.
 | Kringle (EoT) | LUMP text; `n ×` one lump; n `fxWave` waves on the legacy channel only | REPEAT text; `(n + 1)` ticks, each its own root trigger / beat / wave / watcher fire |
 | Squirl Scout (Battlecry) | per-rep `addBuff`; one capture → one summed ribbon per target | one tagged event per rep, paced apart on the play path (count unchanged: `beasts`, itself counted — owner fork) |
 | Dragonflame (shop cast) | per-rep `addBuff`; one sourceless capture | one tagged descend per rep, paced apart. Combat cast (Flamebeat / Warflame) unchanged: one `buffWave` moment (combat channel, out of scope) |
-| Rocket Power (Shout, shop row) | one summed `addOfferBuff` of `(1 + n) ×` | unchanged, pinned as one instance — no per-offer per-tick channel exists on the play path; a per-tick loop would also multiply any per-gain Starform watcher. Owner fork. |
+| Rocket Power (Shout, shop row) | one summed `addOfferBuff` of `(1 + n) ×` | `1 + n` ticks, one `buffThisShopOffers` call each at the per-tick rate (review fix): the offer ledger counts the ticks (Inspect "Rocket Power ×3", the bought body inherits the count), the total is unchanged, Twinning still hears ONE `starformGained` (the token's growth is a per-action boundary diff, never per call). Live text moved to the house style, `(×N)` on the Repeat sentence. Still open: the row has no per-offer buff-FX channel, so its ticks re-render once. |
 | Drunken Oaf (archived, SoC) | one combat `buff` event per rep, one summed moment | unchanged (archived; combat channel) |
 | Striker (LUMP text) | n itemized waves in one beat | unchanged, pinned |
 | Baby Gastrid (LUMP) | one instance | unchanged, pinned |
@@ -93,12 +93,29 @@ the projection 1:1, and prepared == reduce byte for byte. Existing pins moved to
 Verified in the browser on port 5220 (see the PR): Mother Moss with two Spirits played plays three separate
 buff beats; Kringle with three cards played plays four, each rolling +1/+2 onto both ends.
 
+## Review pass (same day)
+
+The review found Rocket Power pinned as a lump against its own REPEAT text, and showed the second deferral
+reason was wrong: `reduce` fires `starformGained` from a per-action boundary diff (`fireStarformGainRemainder`),
+so a per-tick loop cannot multiply Twinning. Fixed in the sim (`1 + spells` calls of `buffThisShopOffers` at the
+per-tick rate; the ledger counts ticks, the total is unchanged), pinned with the Twinning single-delta test, and
+the live text moved to the `(×N)` house style. `repeatPerTick.test.ts` is 26 tests now. Not changed: the row cue
+(the Shop has no per-offer buff-FX channel; a new channel is presentation work, an owner fork), and the four
+owner forks below. Rejected as behaviour changes without a ruling: excluding Moss from its own pool, Squirl
+Scout to `1 + Beasts`, a per-fire `wave` on the combat `buff` event (a shared-types boundary; on the roadmap), and
+an End-of-Turn accelerate policy past N ticks (the owner accepted the longer sequence; also on the roadmap, with
+the reviewer's numbers: 710 ms per tick per card, so two REPEAT cards at 8 plays spend ~12.8 s). `npm run perf`
+ran green after the fix; the headless harness does not cover the End-of-Turn beat sequence, and no prod-build
+DevTools profile of a long End of Turn has been taken yet.
+
 ## Owner forks surfaced, not decided
 
 1. Mother Moss keeps itself in its random pool (R-TARGET-03 says a random-friendly picker excludes the source).
 2. Striker prints the LUMP form and itemizes n waves inside one beat — left as is.
 3. Parliament of Flame counts triggers, not ticks (pinned; flip it if the owner wants ticks).
-4. Squirl Scout reads "Repeat for every Beast you own" as `beasts` fires with itself as the base, not `1 + beasts`.
-5. Rocket Power reads REPEAT but resolves as one summed shop-row instance.
+4. Squirl Scout reads "Repeat for every Beast you own" as `beasts` fires with itself as the base, not `1 + beasts`
+   (R-REPEAT-01 now says so explicitly, so the rule is not read literally against it).
+5. Rocket Power's shop ROW has no per-offer, per-tick cue: the sim ticks, the row re-renders once.
 6. Combat-phase repeats (Oaf, a combat-cast Dragonflame) still collapse into one `buffWave` moment; per-tick
    separation there needs a `wave` tag on the combat `buff` event (a `types.ts` boundary change).
+7. End of Turn grows linearly with the tick count (no cap, no acceleration past N ticks).

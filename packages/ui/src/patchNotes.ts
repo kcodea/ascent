@@ -65,6 +65,10 @@ export const PATCH_NOTES: PatchNote[] = [
         'Dwarves that react when a Dwarf gains Attack (Kneel, Tankerchief) react once per tick.',
         'The card shows how many times it will land right now, for example (×4).',
       ] },
+      { category: 'Balance', text: 'Rocket Power now lands its shop buff as separate repeats: +3/+3 once, then once more for every Shop spell you cast this turn. The total is unchanged.', details: [
+        'The offer breakdown counts each repeat, for example Rocket Power ×3, and a minion you buy keeps that count.',
+        'The card shows how many times it will land right now, for example (×3), instead of the summed total.',
+      ] },
       { category: 'Systems', text: 'A buff that repeats now plays one beat per repeat at End of Turn, with the stats rolling up on each one. End of Turn takes a little longer when a card repeats many times.', details: [
         'Mother Moss and Kringle: one beat and one ribbon per repeat, in order, on both the animated and the classic End of Turn.',
         'Squirl Scout and Dragonflame draw one ribbon per repeat, spaced apart, instead of one burst.',

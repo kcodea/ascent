@@ -377,22 +377,23 @@ export function summonScalingText(cardId: string, spellsThisTurn: number, golden
 }
 
 /**
- * Shooting Star (`battlecryBuffThisShopPerSpellsThisTurn`, set 3 Celestials) — "this shop +3/+3 for each Shop spell you
- * cast this turn": fold the CURRENT total (base × spells × golden) in green in place of the printed per-spell rate
- * once a spell has been cast this turn; null before (the printed rate is already the whole truth). Reads
- * `spellsThisTurn`, the same tally the factory multiplies by.
+ * Rocket Power (`battlecryBuffThisShopPerSpellsThisTurn`, set 3 Celestials; was Shooting Star) — "give this shop
+ * +3/+3. Repeat for every Shop spell you cast this turn": the REPEAT form (R-REPEAT-01, owner 2026-09-22), so the
+ * live text keeps the per-tick rate as printed and appends how many times it lands right now, `(×N)` with
+ * N = 1 + spells cast this turn — Mother Moss's and Kringle's house style — once a spell has been cast; null
+ * before (the printed base is the whole truth). It used to green the summed total in place of the rate, which
+ * under the "Repeat" sentence read as the per-tick grant. Reads `spellsThisTurn`, the tally the factory loops on.
  */
 export function shootingStarText(cardId: string, spellsThisTurn: number, golden: boolean): string | null {
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'battlecryBuffThisShopPerSpellsThisTurn');
   if (!def || !eff) return null;
   if (spellsThisTurn <= 0) return null; // the printed base IS the current value
-  // Rocket Power (owner 2026-09-14): the base lands once and repeats per spell — the live total is (1 + n) × rate.
-  const g = golden ? 2 : 1;
-  const a = Number((eff.params as { attack?: number })?.attack ?? 3) * g;
-  const h = Number((eff.params as { health?: number })?.health ?? 3) * g;
   const src = golden ? (def.goldenText ?? def.text) : def.text;
-  return src.replace(`+${a}/+${h}`, `{{+${a * (1 + spellsThisTurn)}/+${h * (1 + spellsThisTurn)}}}`);
+  // Fold the count into the "Repeat …" sentence (before its full stop); a text without that sentence gets it appended.
+  const live = `{{(×${1 + spellsThisTurn})}}`;
+  const m = /(Repeat for every [^.]*?)(\.)(?!.*Repeat for every)/.exec(src);
+  return m ? src.replace(m[0], `${m[1]} ${live}${m[2]}`) : `${src} ${live}`;
 }
 
 /**

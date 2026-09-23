@@ -1840,11 +1840,22 @@ export const APPROVED_RULES: GameRule[] = [
       + 'with a fresh pick per Moss tick. Kringle\'s text moved to the repeat form and its magnitude from n to n + 1 '
       + 'ticks (a balance change, stated in the patch note). Squirl Scout and Dragonflame (shop cast) were already '
       + 'per-repeat in the sim and now emit one tagged buff-FX event per repeat, paced apart on the play path. '
-      + 'Striker keeps its LUMP text and its n itemized waves inside one beat; Baby Gastrid is one instance. OPEN '
-      + '(owner forks, not changed): Rocket Power reads REPEAT but is one summed shop-row instance (no per-offer '
-      + 'per-tick channel exists on the play path); Mother Moss keeps itself in its random pool; Squirl Scout counts '
-      + 'itself as the base rather than firing 1 + Beasts; combat-phase repeats (an archived Oaf, a combat-cast '
-      + 'Dragonflame) still collapse into one buffWave moment.',
+      + 'Striker keeps its LUMP text and its n itemized waves inside one beat; Baby Gastrid is one instance. Rocket '
+      + 'Power ("give this shop +3/+3. Repeat for every Shop spell you cast this turn") resolves as 1 + spells ticks '
+      + 'in the sim (review fix 2026-09-22): one buffThisShopOffers call per tick at the per-tick rate, so the offer '
+      + 'ledger counts the ticks (Inspect prints "Rocket Power x3") and the bought body inherits that count; the '
+      + 'row total is unchanged and Twinning still hears ONE starformGained for the whole sequence, because the '
+      + 'token\'s growth is a per-action boundary diff, not a per-call watcher. Its live text moved to the house '
+      + 'style: the per-tick rate as printed plus "(xN)" on the Repeat sentence, in place of the summed total it '
+      + 'used to green. OPEN (owner forks, not changed): the shop ROW has no per-offer buff-FX channel '
+      + '(captureBuffFx diffs the board), so Rocket Power\'s ticks re-render the row once with the summed stats; a '
+      + 'per-offer, per-tick cue on the play path is the remaining presentation half. Mother Moss keeps itself in '
+      + 'its random pool. Squirl Scout ("Repeat for every Beast you own") fires once per Beast owned with the Scout '
+      + 'itself as one of those Beasts, so the Scout IS the base tick: the "1 + count" arithmetic of this rule is '
+      + 'stated for "played this turn" counts, and an "own" count that already includes the source is not one tick '
+      + 'short (flip the loop to 1 + Beasts only on an owner ruling). Combat-phase repeats (an archived Oaf, a '
+      + 'combat-cast Dragonflame) still collapse into one buffWave moment: separating them needs a per-fire wave tag '
+      + 'on the combat buff event (a shared-types boundary), tracked on the roadmap.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/repeatPerTick.test.ts', 'packages/ui/src/choreographer/repeatPerTickBeats.test.ts', 'packages/ui/src/choreo/socEotTendrils.test.ts', 'packages/sim/src/balanceBatch0804.test.ts', 'packages/sim/src/promisedNumbers.test.ts'],

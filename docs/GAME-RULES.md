@@ -281,8 +281,9 @@ pinned in `packages/sim/src/set3CelestialRoster.test.ts`):
   **3 random** Shop minions, one real consume each, fewer if the row is short. Ties for "highest" go to the
   **right-most**. With no Starform neither consumes.
 - **Rocket Power** (was Shooting Star; no Flurry) counts Shop spells cast this turn (`spellsThisTurn` — a multiplied
-  cast counts each time); the card prints the live total. **Zenith** counts a spell of **any** kind, Rubies included
-  (the Gravestar Seer ruling).
+  cast counts each time) and is the REPEAT form (R-REPEAT-01): the base **+3/+3** lands once, then once more per
+  spell, each tick its own instance on every offer's ledger; the card prints how many times it lands right now,
+  *"(×3)"*. **Zenith** counts a spell of **any** kind, Rubies included (the Gravestar Seer ruling).
 - **Stardust Peddler** (2026-09-18, 2/5): **when you spend 5 Gold** (a per-instance Gold meter while it stands — the
   Coinfire Forewoman / Billings shape; the remainder carries, a big spend can cross it twice; the step counter shows
   N/5) it **creates** a Starform if you have none, else the token gains **+3/+3** (gilded +6/+6).
@@ -730,9 +731,12 @@ Two wordings, two resolutions:
 (*"give your left and right-most Dwarves +1/+2. Repeat for every card you played this turn"*) are the REPEAT
 form. Kringle moved to it on 2026-09-22 (it was the LUMP form, `n ×` the rate); its total is now `(n + 1) ×`.
 Squirl Scout's Battlecry and Dragonflame's shop cast are REPEAT in the sim and draw one ribbon per repeat.
-Open (owner forks, unchanged): Rocket Power reads REPEAT but is computed as one summed shop-row instance;
-Mother Moss keeps itself in its random pool; Squirl Scout counts itself as the base rather than `1 +` Beasts;
-combat-phase repeats still collapse into one buff wave.
+Rocket Power (*"give this shop +3/+3. Repeat for every Shop spell you cast this turn"*) resolves as `1 + spells`
+ticks on the shop row (one ledger instance per tick; the total is unchanged) and its text prints the tick count;
+the row itself still re-renders once, because the Shop has no per-offer buff cue.
+Open (owner forks, unchanged): a per-offer, per-tick cue on the shop row; Mother Moss keeps itself in its random
+pool; Squirl Scout (*"Repeat for every Beast you own"*) fires once per Beast owned with itself as one of them, so
+the Scout is the base tick rather than `1 +` Beasts; combat-phase repeats still collapse into one buff wave.
 
 ### An Aura-affecting spell is permanent from any phase (owner rule 2026-09-09, R-AURA-02)
 

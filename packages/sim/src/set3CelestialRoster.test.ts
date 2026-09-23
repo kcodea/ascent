@@ -263,8 +263,10 @@ describe('Rocket Power (was Shooting Star; no Flurry) — Shout: this shop +3/+3
       expect(sf(s), `${n} spells (Starform)`).toEqual([1 + want, 1 + want]);
     }
   });
-  // The printed text folds in the CURRENT total (hard rule): `shootingStarText` in `packages/ui/src/cardText.ts`,
-  // pinned in `cardText.test.ts` and wired into the one `liveCardText` chain both the shop and combat read.
+  // The per-tick resolution (one ledger instance per tick, Twinning hearing one gain) is pinned in
+  // `repeatPerTick.test.ts`. The printed text keeps the per-tick rate and prints the CURRENT tick count, "(×N)"
+  // (hard rule): `shootingStarText` in `packages/ui/src/cardText.ts`, pinned in `cardText.test.ts` and wired into
+  // the one `liveCardText` chain both the shop and combat read.
 });
 
 describe('Eclipse Warden — Avenge (3): get a Star Crash (combat)', () => {

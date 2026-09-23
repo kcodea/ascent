@@ -6195,15 +6195,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     buffThisShopOffers(ctx.state, 'Stellar Lens', num(params.attack, 7), num(params.health, 7));
   },
 
-  /** Shooting Star (Shout): this shop +a/+h for EACH Shop spell cast this turn (`spellsThisTurn` — the Spirit
-   *  Worgen read; a multiplied cast counts each time, as for every spells-this-turn scaler). Zero spells → nothing.
-   *  The live text (`shootingStarText`) prints the same product. Golden doubles the per-spell rate. */
+  /** Rocket Power (Shout; was Shooting Star): "give this shop +a/+h. Repeat for every Shop spell you cast this
+   *  turn" — the REPEAT pattern (R-REPEAT-01, owner 2026-09-22): the base lands ONCE regardless, then once more per
+   *  Shop spell cast this turn (`spellsThisTurn` — the Spirit Worgen read; a multiplied cast counts each time, as
+   *  for every spells-this-turn scaler), `1 + n` ticks, EACH its own `buffThisShopOffers` call at the per-tick rate
+   *  (owner 2026-09-14: zero spells → the base alone; it used to do nothing). The offer ledger therefore reads
+   *  `count: 1 + n` at the per-tick rate (the Inspect breakdown prints "Rocket Power ×3"), the way Mother Moss's
+   *  board ledger does. Twinning still hears ONE `starformGained` for the whole sequence: the token's growth is
+   *  read as a per-action boundary diff (`fireStarformGainRemainder` in `reduce`), not per `addOfferBuff` call,
+   *  so the loop never multiplies a per-gain Starform watcher. The live text (`shootingStarText`) prints the
+   *  per-tick rate as written plus the tick count, `(×N)`. Golden doubles the per-tick rate, never the count.
+   *  Presentation: the shop row has no per-offer buff-FX channel (`captureBuffFx` diffs the BOARD), so the row
+   *  still re-renders once with the summed stats; a per-offer, per-tick cue is the open half (owner fork). */
   battlecryBuffThisShopPerSpellsThisTurn: (ctx, self, params) => {
-    // Rocket Power (owner 2026-09-14): the base +a/+h lands ONCE regardless, then REPEATS per Shop spell cast this
-    // turn — (1 + n) × the rate. Zero spells → the base alone (it used to do nothing).
-    const n = ctx.state.spellsThisTurn;
-    const a = num(params.attack, 3) * gold(self) * (1 + n), h = num(params.health, 3) * gold(self) * (1 + n);
-    buffThisShopOffers(ctx.state, nameOf(self), a, h);
+    const ticks = 1 + ctx.state.spellsThisTurn;
+    const a = num(params.attack, 3) * gold(self), h = num(params.health, 3) * gold(self);
+    for (let t = 0; t < ticks; t++) buffThisShopOffers(ctx.state, nameOf(self), a, h);
   },
 
   /** Accretion Warden (Shout): the Starform eats the HIGHEST-TIER Shop minion — ties go to the RIGHT-most (owner

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { CARD_INDEX, poolFor } from '@game/content';
 import { createRun, reduce, offerBuyStats, type Action, type BoardCard, type RunState, type ShopCard } from './index';
 import { applyEndOfTurn, endOfTurnTicksOf, eotTickCount, projectEndOfTurnSteps, replayEndOfTurn } from './recruit';
+import { createStarform, starformOf } from './starform';
 
 /**
  * THE TWO TEXT PATTERNS — owner ruling 2026-09-22 (R-REPEAT-01):
@@ -254,17 +255,45 @@ describe('the audit — every other card whose text says "Repeat"', () => {
     expect(s.board.reduce((n, c) => n + from(c, 'Dragonflame').count, 0)).toBe(3);
   });
 
-  it('Rocket Power (Shout, "this shop +3/+3. Repeat for every Shop spell"): STILL ONE instance on the row — flagged, unchanged', () => {
-    // Its text is the repeat form but the shop row has no per-offer, per-tick channel; the grant is one summed
-    // ledger entry ((1 + n) × the rate). Pinned as-is so a change here is a decision, not a drift.
+  it('Rocket Power (Shout, "this shop +3/+3. Repeat for every Shop spell"): 1 + n separate ticks at the per-tick rate, never one summed instance', () => {
+    // The REPEAT form in the sim (review fix 2026-09-22): the base once, then once per Shop spell cast this turn,
+    // each its own `buffThisShopOffers` call — so the offer ledger counts 1 + n instances at +3/+3, the way Mother
+    // Moss's board ledger does, and the row's total is unchanged. (The shop row still has no per-offer buff-FX
+    // channel; the per-tick CUE on the row is the open presentation half.)
     let s = run('set3', { board: [], hand: [body('w', 'ce3_shootingstar')], spellsThisTurn: 2 });
     const offer: ShopCard = { uid: 'o1', cardId: 'ce3_courier' };
     s = { ...s, shop: [offer] };
     s = reduce(s, { type: 'play', uid: 'w', toIndex: 0 } as Action);
     const o = s.shop.find((x) => x.uid === 'o1')!;
     const ledger = o.buffs?.find((b) => b.source === 'Rocket Power');
-    expect(ledger, 'one instance, not three').toMatchObject({ attack: 9, health: 9, count: 1 });
+    expect(ledger, 'three instances of the per-tick rate, not one of the sum').toMatchObject({ attack: 9, health: 9, count: 3 });
     expect(offerBuyStats(s, o)).toMatchObject({ attack: CARD_INDEX['ce3_courier']!.attack + 9, health: CARD_INDEX['ce3_courier']!.health + 9 });
+    // Gilded: the per-tick rate doubles, the tick count never does.
+    let g = run('set3', { board: [], hand: [body('w', 'ce3_shootingstar', { golden: true })], spellsThisTurn: 2 });
+    g = { ...g, shop: [{ uid: 'o1', cardId: 'ce3_courier' }] };
+    g = reduce(g, { type: 'play', uid: 'w', toIndex: 0 } as Action);
+    expect(g.shop.find((x) => x.uid === 'o1')!.buffs?.find((b) => b.source === 'Rocket Power')).toMatchObject({ attack: 18, health: 18, count: 3 });
+    // A turn with nothing cast still pays the base once (owner 2026-09-14).
+    let z = run('set3', { board: [], hand: [body('w', 'ce3_shootingstar')], spellsThisTurn: 0 });
+    z = { ...z, shop: [{ uid: 'o1', cardId: 'ce3_courier' }] };
+    z = reduce(z, { type: 'play', uid: 'w', toIndex: 0 } as Action);
+    expect(z.shop.find((x) => x.uid === 'o1')!.buffs?.find((b) => b.source === 'Rocket Power')).toMatchObject({ attack: 3, health: 3, count: 1 });
+  });
+
+  it('Rocket Power: the Starform grows by the whole sequence and Twinning hears ONE gain, not one per tick', () => {
+    // The token's growth is dispatched as a per-action boundary diff (`fireStarformGainRemainder` in `reduce`),
+    // not per `addOfferBuff` call — so the per-tick loop cannot multiply a per-gain watcher. Pinned because that
+    // was the stated reason the loop was deferred, and it does not hold.
+    let s = run('set3', { board: [body('tw', 'ce3_twinstar')], hand: [body('w', 'ce3_shootingstar')], spellsThisTurn: 2 });
+    createStarform(s, { cardId: 'test', name: 'test' });
+    s = reduce(s, { type: 'play', uid: 'w', toIndex: 0 } as Action);
+    const sf = starformOf(s)!;
+    expect(sf.buffs?.find((b) => b.source === 'Rocket Power'), 'the token takes every tick').toMatchObject({ attack: 9, health: 9, count: 3 });
+    expect(offerBuyStats(s, sf)).toMatchObject({ attack: 1 + 9, health: 1 + 9 });
+    const tw = at(s, 'tw');
+    expect(tw.attack - CARD_INDEX['ce3_twinstar']!.attack, 'Twinning mirrors the summed gain once').toBe(9);
+    expect(tw.health - CARD_INDEX['ce3_twinstar']!.health).toBe(9);
+    expect((tw.buffs ?? []).filter((b) => b.source === 'Twinning').reduce((n, b) => n + b.count, 0), 'one starformGained delta').toBe(1);
   });
 
   it('Striker ("+1 Attack for each card you played") is the LUMP form: n itemized waves, no base tick, one trigger', () => {

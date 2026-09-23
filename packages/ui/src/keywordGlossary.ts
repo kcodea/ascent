@@ -107,6 +107,7 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   // Card text spells this lower-case ("When you spend 5 Gold, …"), never as the capitalised term, so the name
   // match never fires — `detectRe` is the only hit (Coinfire Forewoman, Tapkeeper, and the other gold-sink cards).
   { id: 'spend', name: 'Spend', aliases: [], section: 'build', mechanic: 'spend', detectRe: /\bspend\b/i, def: 'Triggers an effect based on how much Gold you spend this turn.' },
+  { id: 'sell', name: 'Sell', aliases: [], section: 'build', mechanic: 'sell', detectRe: /\bsell\b/i, def: 'Triggers when you sell this minion.' },
   // LG-IMPROVE-01: "Improve(s) this by +X/+X per N" — the raised number is run-permanent and printed live.
   { id: 'improve', name: 'Improve', aliases: ['Improves', 'Improving'], section: 'build', icon: 'up', detectRe: /\bimprov(?:e|es|ing)\b/, def: 'Raises the number this effect uses for the rest of the run. The card always shows the current value.' },
   // Aura — the run-wide scope noun (owner ruling 2026-08-28): "your <Tribe> Aura". Wording is the owner's
@@ -116,7 +117,7 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   { id: 'summonfromhand', name: 'Summon from hand', aliases: [], section: 'build', icon: 'house', detectRe: /\bsummon(?:ed|s)?\b[^.]*?\bfrom your hand\b/, def: 'Summons an exact copy of a minion in your hand into combat. The card stays in your hand and can be summoned this way once per combat.' },
   // Equipment minions print "**Equip <Name> (cost):**" — the word "Equip" is the text hit that raises the pill
   // (no schema badge: `on: 'equip'` is an effect trigger, not a keyword). Runes that say "Equip minion" raise it too.
-  { id: 'equip', name: 'Equip', aliases: [], section: 'build', icon: 'anvil', def: 'Can be triggered once per turn, per equipment, for a cost.' },
+  { id: 'equip', name: 'Equip', aliases: [], section: 'build', mechanic: 'equip', def: 'Can be triggered once per turn, per equipment, for a cost.' },
   { id: 'equipment', name: 'Equipment', aliases: [], section: 'build', icon: 'anvil', def: 'An ability granted by an Equip minion, held in a slot beside your hero power. Rebuilt every Start of Turn from the minions you still have.' },
   // Wording is the owner's verbatim (2026-09-18).
   { id: 'amplified', name: 'Amplified', aliases: ['Amplify', 'Amplifies'], section: 'build', icon: 'gear', def: 'An Amplified Equipment will trigger its effect twice for no additional gold.' },

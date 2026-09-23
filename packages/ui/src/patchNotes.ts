@@ -52,6 +52,15 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-23',
+    label: 'More mechanic medallions',
+    changes: [
+      { category: 'Systems', text: 'New medallions: an Epic badge on units that multiply how often something happens (Drakko, Sylus, Chronos, Yazzus and other trigger multipliers), a Sell badge on "when you sell this" units, and an Equip badge on Equipment minions. Overflow now shows the Watcher eye.' },
+      { category: 'Systems', text: 'Flurry no longer shows a medallion (its attack animation already marks it), and the two-sword icon now marks Execute instead. Start of Turn effects share the Start of Combat lightning medallion.' },
+      { category: 'Systems', text: 'The Flurry aura on your board reads a bit stronger and holds a steady opacity instead of fading in and out.' },
+    ],
+  },
+  {
+    date: '2026-09-23',
     label: 'Music',
     changes: [
       {

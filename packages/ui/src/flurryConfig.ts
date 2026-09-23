@@ -57,6 +57,9 @@ interface FlurryConfig {
   pulse: number;
   /** Breathe dip (opacity floor). */
   pulseMin: number;
+  /** Global opacity multiplier over every ring's `alpha` (clamped to 1 per ring). Owner ask 2026-09-23: +30%
+   *  so the aura reads stronger (it's what distinguishes Flurry units now that they carry no medallion). */
+  opacityMul: number;
   rings: FlurryRing[];
 }
 
@@ -64,8 +67,9 @@ export const FLURRY: FlurryConfig = {
   size: 1.48,
   y: 47,
   squash: 0.48,
-  pulse: 6.7,
+  pulse: 0, // steady — no in/out breathe (owner ask 2026-09-23); 0 freezes the pulse + removes the opacity dip
   pulseMin: 0.2,
+  opacityMul: 1.3,
   rings: [
     { d: 0.945, scaleX: 0.77, scaleY: -1.24, thick: 2,    blades: 3, tail: 39, edge: 40, alpha: 0.87, dimTop: 0, dimSize: 95, blur: 2,    s: 2.3, col: '#ffffff', rev: false },
     { d: 0.945, scaleX: 0.77, scaleY: 1.39,  thick: 2,    blades: 3, tail: 39, edge: 40, alpha: 0.87, dimTop: 0, dimSize: 95, blur: 2,    s: 2.3, col: '#ffffff', rev: false },
@@ -151,7 +155,7 @@ export function flurryRingStyle(r: (typeof FLURRY_RINGS)[number]): CSSProperties
     WebkitMaskImage: r.mask,
     maskImage: r.mask,
     filter: r.blur > 0 ? `blur(${r.blur}px)` : undefined,
-    opacity: r.alpha,
+    opacity: Math.min(1, r.alpha * FLURRY.opacityMul),
     '--fl-s': `${r.s}s`,
     '--fl-dir': r.rev ? 'reverse' : 'normal',
   } as CSSProperties;

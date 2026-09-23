@@ -112,11 +112,19 @@ let master: DynamicsCompressorNode | null = null;
 // while suspended, so nothing sneaks in during the fade; `resumeAudio()` restores the bus for the next fight.
 let bus: GainNode | null = null;
 let audioSuspended = false;
+/** Listeners for `stopAllAudio` — the ANNOUNCER (announcer.ts) registers here so a Skip cancels its queue and the
+ *  playing line, which sit on their own gain outside the mute bus. Registered from Game.tsx (no import cycle). */
+const stopHooks = new Set<() => void>();
+export function onStopAllAudio(cb: () => void): () => void {
+  stopHooks.add(cb);
+  return () => { stopHooks.delete(cb); };
+}
 /** Kill all audio immediately (Skip-combat): ramp the master bus to 0 and block new sounds until resumed. */
 export function stopAllAudio(): void {
   audioSuspended = true;
   const a = audio();
   if (a && bus) { bus.gain.cancelScheduledValues(a.currentTime); bus.gain.setTargetAtTime(0, a.currentTime, 0.008); }
+  for (const cb of stopHooks) { try { cb(); } catch { /* a hook must never break the skip */ } }
 }
 /** The game's (lazily created) AudioContext, for the lobby MUSIC (music.ts) to route its streamed tracks through
  *  its own gains → destination. Deliberately NOT through the SFX master / mute bus: the music must never be

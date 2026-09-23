@@ -27,8 +27,8 @@
  *    trackers, replays, practice, fixes. Never engine/build/tooling (that is not a patch note at all). */
 export type PatchCategory = 'Balance' | 'Systems';
 
-/** Fixed display order + accent hue token for each category (so a patch's changes group predictably and the
- *  same category always wears the same colour). The hue tokens resolve in styles.css (`.pntag-*`). */
+/** Fixed display order of the categories. The viewer shows ONE TAB PER CATEGORY (owner ask 2026-09-23): the
+ *  `Balance` bucket reads as the "Game" tab, `Systems` as the "Systems" tab, in this order. */
 export const PATCH_CATEGORY_ORDER: PatchCategory[] = ['Balance', 'Systems'];
 
 export interface PatchChange {
@@ -60,6 +60,37 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'During a fight, every minion on either board now draws in front of the hero portrait, the hero power, the equipment slot and the rune nodes in the bottom-left corner.',
           'Hovering the hero power, the equipment slot or a rune node still opens its tooltip over the board.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-23',
+    label: 'Patch Notes tabs',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Patch Notes now has a Game tab and a Systems tab.',
+        details: [
+          'Game carries card, hero, rune, Equipment, economy and rules changes. Systems carries screens, effects, information and dev updates.',
+          'Each tab lists only its own changes, and remembers which tab you left open.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-23',
+    label: 'Announcer',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'An announcer now calls the big moments of a lobby game: the first shop, your first Equipment, a Triple, tier 6, the Runeforge, tight fights, streaks, the final four, the final two and how it ended.',
+        details: [
+          'Each line plays at most once per game, and never two in a row. A quiet gap of about 12 seconds sits between lines, so buying an Equipment and making a Triple on the same turn gets one call, not two.',
+          'When several things happen at once the bigger moment speaks. A line about the shop is dropped once combat starts, and a line about the fight is dropped once you are back in the shop.',
+          'At most eight lines per game, plus the line for how your game ended. Nothing plays in the first seconds of a fight, over the opening music, in the tutorial, in Practice setup or in a replay. Skipping a fight silences it at once.',
+          'Save and Continue never repeats a line you already heard.',
+          'Settings has a new Audio button. It opens three channels, Game sounds, Music and Announcer, each with its own volume slider and mute.',
         ],
       },
     ],
@@ -113,7 +144,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: ['The 2 Gold lands the moment you buy the rune. The Epic forge still opens next turn instead of turn 9.'],
       },
       {
-        category: 'Systems',
+        category: 'Balance',
         text: 'Guardian plus Rune of the Epic Forge now opens two Epic forges on turn 8, one after the other. The rune used to slide its forge to the turn after you bought it.',
         details: [
           'The second forge opens as soon as you buy from or leave the first, before anything else that turn.',

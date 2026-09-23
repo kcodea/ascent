@@ -6393,6 +6393,12 @@ svg { width: 18px; height: 18px; }
 .escname:focus { border-color: var(--acc); }
 .escname::placeholder { color: var(--ink3); }
 .escvol input[type='range']:disabled { opacity: 0.4; cursor: default; }
+/* THE AUDIO PANEL (2026-09-23): the three channel rows behind the "Audio" button; each row's mute is a small pill.
+   No cursor keyword here: the global button rule paints the gauntlet. */
+.escaudio { display: flex; flex-direction: column; }
+.escvol .escmute { flex: 0 0 auto; font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink3); background: var(--card); border: 2px solid var(--line); border-radius: 99px; padding: 5px 11px; }
+.escvol .escmute:hover { border-color: var(--acc); }
+.escvol .escmute.on { color: var(--acc-dk); border-color: var(--acc); background: color-mix(in srgb, var(--acc) 15%, var(--card)); }
 .escvol input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
 .escvol input[type='range']::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
 .escbtn { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 12px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; text-align: left; }
@@ -10806,7 +10812,17 @@ body.fxlib-previewing .pixifx-above { z-index: 1150 !important; }
    overlay mirroring the Esc panel's chrome (`.escov`/`.escpanel`), with a scrolling newest-first list. ── */
 .pnov { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; background: rgba(20, 14, 7, 0.62); backdrop-filter: blur(3px); animation: fadein 0.16s ease; }
 .pnpanel { width: min(760px, 92vw); max-height: 86vh; display: flex; flex-direction: column; background: var(--bg2); border: 2px solid var(--line); border-radius: 18px; box-shadow: 0 22px 60px -18px rgba(0, 0, 0, 0.6); overflow: hidden; }
-.pnhead { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 12px; border-bottom: 1px solid var(--line); }
+.pnhead { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 10px; }
+/* The tab bar under the title (owner ask 2026-09-23): the Game / Systems tabs on the left, the Summary /
+   Detailed segment on the right. Both are the same pill-track language; the tabs read a touch larger because
+   they are the primary navigation. */
+.pnbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 22px 12px; border-bottom: 1px solid var(--line); }
+.pntabs { display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line); }
+/* NO explicit `cursor` on `.pntab` — the global `button` rule paints the gauntlet (see the `.pnclose` note). */
+.pntab { font-family: var(--font-ui); font-weight: 800; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink3); background: none; border: none; border-radius: 999px; padding: 6px 18px; transition: color 120ms ease, background 120ms ease; }
+.pntab:hover { color: var(--ink2); }
+.pntab.on { color: var(--bg); background: var(--acc); }
+.pntab:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
 .pntitle { font-size: 26px; color: var(--ink); letter-spacing: 0.02em; }
 /* NO explicit `cursor` here — the global `button` rule (§ line ~151) already paints the custom gauntlet cursor;
    overriding it with plain `cursor: pointer` swaps in the bare OS arrow and "breaks" the cursor (owner report
@@ -10819,13 +10835,7 @@ body.fxlib-previewing .pixifx-above { z-index: 1150 !important; }
 .pnpatchhead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
 .pndate { font-family: var(--font-ui); font-weight: 900; font-size: 18px; color: var(--ink); }
 .pnlabel { font-family: var(--font-ui); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--acc); background: color-mix(in srgb, var(--acc) 14%, transparent); border: 1px solid color-mix(in srgb, var(--acc) 35%, transparent); padding: 2px 9px; border-radius: 999px; }
-.pngroup { display: grid; grid-template-columns: 116px 1fr; gap: 12px; align-items: start; padding: 5px 0; }
-.pntag { justify-self: start; font-family: var(--font-ui); font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 3px 10px; border-radius: 8px; white-space: nowrap; color: var(--pn-c, var(--ink2)); background: color-mix(in srgb, var(--pn-c, var(--ink2)) 14%, transparent); border: 1px solid color-mix(in srgb, var(--pn-c, var(--ink2)) 34%, transparent); }
-/* Per-category hue (the owner's two buckets, 2026-09-21) — reuse the existing palette tokens so patch tags
-   match the rest of the game's language: Balance (cards / heroes / runes / spells + the ranked ladder) wears
-   the HUD's warm gold trim, Systems (everything else) the neutral label ink. */
-.pntag-balance { --pn-c: var(--gold-lt); }
-.pntag-systems { --pn-c: var(--ink3); }
+.pnempty { font-family: var(--font-ui); font-weight: 600; font-size: 14px; color: var(--ink3); padding: 18px 0; margin: 0; }
 .pnlist { margin: 0; padding: 0 0 0 2px; list-style: none; display: flex; flex-direction: column; gap: 6px; }
 .pnlist > li { font-family: var(--font-ui); font-weight: 600; font-size: 14.5px; line-height: 1.4; color: var(--ink2); }
 /* Detailed view: the granular sub-bullets under a change. Indented, dimmer, with a real bullet to read as a
@@ -10838,7 +10848,7 @@ body.fxlib-previewing .pixifx-above { z-index: 1150 !important; }
 .pntoggle-btn { font-family: var(--font-ui); font-weight: 800; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink3); background: none; border: none; border-radius: 999px; padding: 5px 14px; transition: color 120ms ease, background 120ms ease; }
 .pntoggle-btn:hover { color: var(--ink2); }
 .pntoggle-btn.on { color: var(--bg); background: var(--acc); }
-@media (max-width: 620px) { .pngroup { grid-template-columns: 1fr; gap: 5px; } }
+@media (max-width: 620px) { .pnbar { flex-wrap: wrap; } }
 
 /* ── TITLE-SCREEN TOOLTIPS (owner ask 2026-08-24) — a styled bubble in the game's own language, replacing the
    native `title=` OS tooltip on the menu buttons. Driven by `data-tip` (set in Title.tsx); scoped to `.titlescreen` and EXCLUDING `.menubtn` — the big

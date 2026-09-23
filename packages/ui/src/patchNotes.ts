@@ -61,6 +61,21 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-23',
+    label: 'Announcer timing',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Announcer: the Runeforge lines now play, and the combat and return to shop lines wait a moment longer.',
+        details: [
+          'The Runeforge and Epic Runeforge lines were never heard when the forge opened at the start of a turn. They play now.',
+          'The entering combat lines wait about a second longer after the fight starts.',
+          'The return to shop lines wait about a second after you come back from a fight.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-23',
     label: 'Sell keyword',
     changes: [
       {

@@ -18,6 +18,9 @@
  *  · PRIORITY with a SHELF LIFE: when several events are pending at once the highest priority speaks and the
  *    rest are dropped; combat lines expire when the next shop opens, shop lines when combat starts; the two
  *    end-of-game lines never expire and wait out the cooldown.
+ *  · TIMING: the Face Omen lines wait ANNOUNCER_FACE_OMEN_DELAY_MS after the flip, the return-to-shop lines (and a
+ *    forge that opens with the return) ANNOUNCER_BACK_TO_SHOP_DELAY_MS after `resolveCombat` (owner 2026-09-23:
+ *    "they play too quickly and should be offset by about 1s").
  *  · SILENCE RULES: nothing in the first ANNOUNCER_COMBAT_SILENCE_MS of a combat resolution; nothing over the
  *    music's turn-1 fade-in (GameStart waits until ANNOUNCER_GAME_START_DELAY_MS); never on the title, in a
  *    tutorial, a sandbox rig or a replay; a Skip (`stopAllAudio`) or leaving the run cancels the queue and the
@@ -46,10 +49,15 @@ export const ANNOUNCER_LINE_CAP = 8;
 export const ANNOUNCER_GAME_START_DELAY_MS = MUSIC_START_DELAY_MS + 1000;
 /** No line over the music's turn-1 fade-in: the quiet window after a wave-1 run lands. */
 export const ANNOUNCER_TURN_ONE_QUIET_MS = MUSIC_START_DELAY_MS + MUSIC_FADE_MS;
-/** Nothing in the first 3 s of a combat resolution. */
+/** Nothing in the first 3 s of a combat resolution (the lines detected DURING the fight: the verdict lines, the
+ *  combat board stat). The Face Omen lines are the entry itself and sit inside this window on purpose. */
 export const ANNOUNCER_COMBAT_SILENCE_MS = 3000;
-/** The Face Omen lines wait out the combat-start stinger + wipe. */
-export const ANNOUNCER_FACE_OMEN_DELAY_MS = 600;
+/** The Face Omen lines (EnteringCombat / AfterLoss / StartCombatUnder10hp) wait out the combat-start stinger +
+ *  wipe. 600 ms at first; the owner heard them "too quickly" and asked for about a second more (2026-09-23). */
+export const ANNOUNCER_FACE_OMEN_DELAY_MS = 1600;
+/** The return-to-shop lines (BackToShop, TopFour / TopTwo, a forge opening WITH the return) wait out the return
+ *  wipe. They used to fire the instant `resolveCombat` landed (~30 ms); same owner ask, about a second later. */
+export const ANNOUNCER_BACK_TO_SHOP_DELAY_MS = 1000;
 /** GameWon / GameLoss: into the rank / post-game screen. */
 export const ANNOUNCER_END_DELAY_MS = 1000;
 /** Equipment: let the equipment SFX land first. */
@@ -324,7 +332,8 @@ interface PendingLine {
   shelf: AnnouncerShelf;
   notBefore: number;
   wave: number;
-  /** SurviveUnder10hp after this round's StartCombatUnder10hp: it still plays, as the round's only line. */
+  /** Speaks inside the cooldown (never over a playing line: it waits for that to end). SurviveUnder10hp after
+   *  this round's StartCombatUnder10hp (the round's only line), and the two forge lines (see `detectForge`). */
   bypassCooldown?: boolean;
 }
 export type AnnouncerLogKind = 'queue' | 'play' | 'drop' | 'expire' | 'cancel' | 'end';
@@ -421,11 +430,13 @@ function pump(): void {
     return;
   }
   ready.sort((a, b) => ANNOUNCER_PRIORITY[b.event] - ANNOUNCER_PRIORITY[a.event]);
-  const top = ready[0]!;
   const cooldownUntil = lastLineEndedAt + ANNOUNCER_COOLDOWN_MS;
-  if (now < cooldownUntil && !top.bypassCooldown) {
-    // Inside the cooldown: every ready capped line is DROPPED (not delayed into the wrong moment). A terminal
-    // line (GameWon / GameLoss) waits it out instead: it never expires.
+  const cooling = now < cooldownUntil;
+  // Inside the cooldown only a line that BYPASSES it may speak (the highest such one); every other ready capped
+  // line is DROPPED (not delayed into the wrong moment). A terminal line (GameWon / GameLoss) waits it out
+  // instead: it never expires.
+  const top = cooling ? ready.find((p) => p.bypassCooldown) : ready[0];
+  if (!top) {
     for (const p of ready) {
       if (isTerminal(p.event)) continue;
       note('drop', p.event, { why: 'cooldown' });
@@ -434,10 +445,13 @@ function pump(): void {
     if (pending.length) schedulePump(Math.min(cooldownUntil, ...pending.filter((p) => p.notBefore > now).map((p) => p.notBefore)) - now);
     return;
   }
-  // The top ready line speaks; the other READY lines are dropped (outranked). Lines whose time has not come
-  // stay pending and meet the cooldown when it does.
-  for (const p of ready) if (p !== top) note('drop', p.event, { why: `outranked by ${top.event}` });
-  pending = pending.filter((p) => !ready.includes(p));
+  // The top line speaks; the other READY lines are dropped (outranked, or still inside the cooldown); a terminal
+  // line keeps waiting. Lines whose time has not come stay pending and meet the cooldown when it does.
+  for (const p of ready) {
+    if (p === top || isTerminal(p.event)) continue;
+    note('drop', p.event, { why: cooling && !p.bypassCooldown ? 'cooldown' : `outranked by ${top.event}` });
+  }
+  pending = pending.filter((p) => !ready.includes(p) || (isTerminal(p.event) && p !== top));
   speak(top);
   if (pending.length) schedulePump(Math.min(...pending.map((p) => p.notBefore)) - now);
 }
@@ -515,6 +529,22 @@ function repeatAllowed(s: AnnouncedSlice, event: AnnouncerEvent, wave: number, m
   if (waves.length >= max) return false;
   const last = waves[waves.length - 1];
   return last === undefined || wave - last >= ANNOUNCER_REPEAT_GAP_WAVES;
+}
+
+/** THE FORGE OPENING: `runeforgeOffer` appeared (`runeforgeEpic` picks the Epic line). The scheduled forges (turn
+ *  6 Basic / turn 9 Epic for every hero, a Runesmith's turn 5, a Guardian's turn 8, a booked Clock forge) open
+ *  INSIDE the reducer step that returns the run to the shop (`resolveCombat` → `advanceCombat` → the turn-start
+ *  sequence → `openNextStartOfTurnModal`), so the store's ONE update carries the phase flip AND the offer. The
+ *  return branch of `syncAnnouncer` returned before this check ever ran, so those forges were never detected at
+ *  all (owner report 2026-09-23: "i dont think the runeforge voicelines are playing?"). Both the return branch
+ *  and the within-turn branch (a forge behind a quest offer or a Discover arrives on its own update) call this.
+ *  The forge lines BYPASS the cooldown (never a playing line): the forge is a scheduled, once-per-run moment
+ *  that takes the whole screen, and a Face Omen or verdict line followed by a short fight (or an early End
+ *  Combat) would otherwise land the opening inside the previous line's 12 s and drop it for good. */
+function detectForge(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRunLike, notBefore: number): void {
+  if (p.runeforgeOffer || !run.runeforgeOffer) return;
+  const event: AnnouncerEvent = run.runeforgeEpic ? 'epicRuneforge' : 'runeforge';
+  if (!hasFired(s, event)) enqueue({ event, shelf: 'shop', notBefore, wave: run.wave, bypassCooldown: true });
 }
 
 function enterRun(s: AnnouncerStateLike): void {
@@ -601,16 +631,22 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
     return;
   }
   if (p.phase === 'combat' && run.phase === 'recruit') {
-    // BACK TO THE SHOP: the fight's lines are stale; the rail shows the round's eliminations now.
+    // BACK TO THE SHOP: the fight's lines are stale; the rail shows the round's eliminations now. Every line of
+    // this moment shares one `at`, so they are weighed TOGETHER by priority after the return wipe.
     expire('combat');
     combatStartedAt = null;
+    const at = now + ANNOUNCER_BACK_TO_SHOP_DELAY_MS;
     const alive = aliveSeats(run);
     if (run.lobby && playerAlive(run)) {
-      if (alive <= 2 && !hasFired(slice, 'topTwo')) enqueue({ event: 'topTwo', shelf: 'shop', notBefore: now, wave: run.wave });
-      else if (alive <= 4 && !hasFired(slice, 'topFour')) enqueue({ event: 'topFour', shelf: 'shop', notBefore: now, wave: run.wave });
+      if (alive <= 2 && !hasFired(slice, 'topTwo')) enqueue({ event: 'topTwo', shelf: 'shop', notBefore: at, wave: run.wave });
+      else if (alive <= 4 && !hasFired(slice, 'topFour')) enqueue({ event: 'topFour', shelf: 'shop', notBefore: at, wave: run.wave });
     }
+    // A forge that opens WITH the return (the turn-6 / turn-9 forges, a hero's turn-5 / turn-8 one, a booked
+    // Clock forge) arrives in this same update: it outranks BackToShop, which is then dropped as outranked
+    // (and stays unfired, so a later return may still hear it).
+    detectForge(slice, p, run, at);
     if (run.wave >= ANNOUNCER_BACK_TO_SHOP_MIN_WAVE && repeatAllowed(slice, 'backToShop', run.wave, ANNOUNCER_BACK_TO_SHOP_MAX)) {
-      enqueue({ event: 'backToShop', shelf: 'shop', notBefore: now, wave: run.wave });
+      enqueue({ event: 'backToShop', shelf: 'shop', notBefore: at, wave: run.wave });
     }
     return;
   }
@@ -637,10 +673,7 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
     if (p.tier < 6 && run.tier >= 6 && !hasFired(slice, 'tierSix')) {
       enqueue({ event: 'tierSix', shelf: 'shop', notBefore: now, wave: run.wave });
     }
-    if (!p.runeforgeOffer && run.runeforgeOffer) {
-      const event: AnnouncerEvent = run.runeforgeEpic ? 'epicRuneforge' : 'runeforge';
-      if (!hasFired(slice, event)) enqueue({ event, shelf: 'shop', notBefore: now, wave: run.wave });
-    }
+    detectForge(slice, p, run, now);
     if (!hasBigStat(p.board) && hasBigStat(run.board) && !hasFired(slice, 'minionHits100Stats')) {
       enqueue({ event: 'minionHits100Stats', shelf: 'shop', notBefore: now, wave: run.wave });
     }

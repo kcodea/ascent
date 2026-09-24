@@ -52,6 +52,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-24',
+    label: 'Compendium Rubies',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The Spells section of the Compendium now lists every kind of Ruby.',
+        details: [
+          'The plain Ruby, Warding, Golden, Splintered, Ripple and Dark Rubies all show, in the sets that make Rubies.',
+          'They are Tier 1, so the Tier 1 filter and the search box find them like any spell.',
+          'During a run, a Ruby shows the grant it would give right now, your Ruby bonus included.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Picnic effect',
     changes: [
       {

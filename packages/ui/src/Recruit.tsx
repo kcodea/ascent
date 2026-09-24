@@ -95,7 +95,8 @@ import { playPlateCoalesce } from './plateCoalesce';
    rope gets there. The hold state machine and its escape hatches live in `lassoHolds.ts`, pinned by a test. */
 import { foldLassoHolds, lassoBeamSchedule, lassoCascadeMs, useLassoCascade, LASSO_CONTACT_MS, LASSO_STAGGER_MS, type LassoCascadeHandlers, type LassoSteal } from './lassoHolds';
 import { useEquipBeamCascade, type EquipBeamAnchors } from './equipBeamCascade';
-import { playPlateGild } from './plateGild';
+import { playGildTrail } from './gildTrail';
+import { resolveGildSources, snapshotGildCandidates, type GildSnap, type Pt } from './gildTrailSources';
 import { playBuySlide, type BuyFrom } from './buySlide';
 import { fireBuffFx } from './buffFxRender';
 import { resolveBuffSource } from './choreo/buffSource';
@@ -171,6 +172,15 @@ function playsRubyAim(def: (typeof CARD_INDEX)[string] | undefined): boolean {
 const FLIP_SEL_TAVERN = '[data-zone="tavern"] .row .card[data-uid]';
 const FLIP_SEL_WARBAND = '[data-zone="warband"] .row .card[data-uid]';
 const FLIP_SELECTOR = `${FLIP_SEL_TAVERN}, ${FLIP_SEL_WARBAND}`;
+
+/** A hand or warband card's on-screen centre, for the gild's trail sources — null when it isn't laid out. */
+function measureGildCentre(uid: string): Pt | null {
+  const el = document.querySelector<HTMLElement>(
+    `[data-zone="hand"] .card[data-uid="${uid}"], [data-zone="warband"] .row .card[data-uid="${uid}"]`,
+  );
+  const r = el?.getBoundingClientRect();
+  return r && r.width > 0 ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+}
 
 // SANDBOX ONLY: excludes the pinned-opponent cards (`sbfoe-N`, rendered in the tavern row when
 // `sbTavernShowsEnemy` is on) from any selector that resolves an arbitrary DOM point/rect to a `data-uid`
@@ -1551,6 +1561,9 @@ export function Recruit() {
   const playedPrevHandRef = useRef<Set<string> | null>(null);
   playedPrevHandRef.current ??= new Set(run.hand.map((c) => c.uid));
   const prevTriplesRef = useRef<number>(run.triplesMade ?? 0);
+  /** Where each would-be triple copy stood on the LAST commit — the gild's trails start there, because the sim
+   *  consumes the copies inside the commit that reports the triple (see `gildTrailSources.ts`). */
+  const gildSnapRef = useRef<Map<string, GildSnap>>(new Map());
   /* Set at the `buy` dispatch: a bought card was already visible in the tavern, so it is acquired rather
      than conjured. It gets its own shop→hand slide (`buySlide`) instead of the arcane coalesce, so this
      carries the release point the slide starts from (owner ruling 2026-07-22).
@@ -2952,28 +2965,37 @@ export function Recruit() {
     /* ---- GILD: three become one ----------------------------------------------------------------
        Fires on the same `triplesMade` tick the coalesce uses to EXCLUDE gilds, so the two can never both
        claim a card. The new gilded card is normally in hand, but lands on the BOARD when the hand is full,
-       so both are searched. */
-    if (tripled && run.phase === 'recruit') {
-      const goldUid = [...run.hand, ...run.board]
-        .find((c) => c.golden && !prevHand.has(c.uid) && !prevBoard.has(c.uid))?.uid;
-      const el = goldUid
-        ? document.querySelector<HTMLElement>(`.row .card[data-uid="${goldUid}"]`)
-        : null;
-      if (el) {
-        /* The effect opens with the copies already gathered centre screen, so all it needs is HOW MANY were
-           consumed and where the gilded card lives. Take that from the SIM'S OWN RULE — `checkTriples` pulls
-           `runeTwinGilding ? 2 : 3` — rather than counting the uids that disappeared this commit.
+       so both are searched.
 
-           Counting them undercounts by exactly one, every time you complete a triple by BUYING the third
-           copy: that copy arrived and was consumed inside the same commit, so it was never in a previous
-           render's uid set and never shows up as "gone". Three cards became two, and the right-hand flyer
-           was missing (owner report 2026-07-23). */
-        const dest = el.getBoundingClientRect();
-        // Two-copy gilds (Twin-Gilding rune OR Midas) fly 2 copies, not 3 — mirror the sim's `need` rule at
-        // reducer.ts (`runeTwinGilding || midasTouch`), or Midas showed a phantom third flyer.
-        const twoCopyGild = run.runeTwinGilding || getHero(run.heroId).power.kind === 'midasTouch';
-        if (dest.width > 0) playPlateGild(dest, el, twoCopyGild ? 2 : 3);
+       Each consumed copy throws a golden trail from where it stood into the new card (owner redesign
+       2026-09-24). How MANY copies comes from the SIM'S OWN RULE — two-copy gilds (the Twin-Gilding rune OR
+       Midas) mirror `need` at reducer.ts (`runeTwinGilding || midasTouch`) — never from counting the uids
+       that vanished: a third copy you BUY is minted and consumed inside one commit, so it never shows up as
+       "gone" (owner report 2026-07-23). `resolveGildSources` launches that one from the buy's release point. */
+    const gildNeed = run.runeTwinGilding || getHero(run.heroId).power.kind === 'midasTouch' ? 2 : 3;
+    const onScreen = [...run.hand, ...run.board];
+    if (tripled && run.phase === 'recruit') {
+      const gold = onScreen.find((c) => c.golden && !prevHand.has(c.uid) && !prevBoard.has(c.uid));
+      const el = gold ? document.querySelector<HTMLElement>(`.row .card[data-uid="${gold.uid}"]`) : null;
+      if (gold && el) {
+        const sources = resolveGildSources({
+          prev: gildSnapRef.current,
+          present: new Set(onScreen.map((c) => c.uid)),
+          cardId: gold.cardId,
+          need: gildNeed,
+          bought: bought
+            ? { uid: bought.uid, at: { x: bought.from.x + bought.from.w / 2, y: bought.from.y + bought.from.h / 2 } }
+            : null,
+          fallback: { x: window.innerWidth / 2, y: window.innerHeight * 0.46 },
+        });
+        playGildTrail(sources, el, gold.uid);
       }
+    }
+    /* Remember where every would-be triple copy stands NOW, for the next commit's gild above. Refreshed AFTER
+       the read, so the read always sees the previous layout. Skipped mid-drag (renders are frequent there and
+       the settled pre-drag layout is the one worth launching from), and outside the recruit phase. */
+    if (run.phase === 'recruit' && !dragStore.get().drag?.active) {
+      gildSnapRef.current = snapshotGildCandidates(onScreen, gildNeed, measureGildCentre);
     }
 
     if (!fresh.length) return;

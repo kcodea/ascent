@@ -93,7 +93,6 @@ export const PANEL_EMBLEMS: Record<string, string> = {
   runeforgelook: '🔨',
   platedissolve: '🌀',
   platecoalesce: '🪄',
-  plategild: '👑',
   ward: '🔵',
   execute: '☠️',
   swapfx: '↔️',
@@ -218,10 +217,9 @@ export interface TunerSpec<C extends object> {
   title: string;
   /**
    * The small right-hand note in the header (e.g. "dev · next move · drag"). A FUNCTION when the note is
-   * derived from the current values and must re-read on every render: the plate-gild tuner shows the effect's
-   * computed total, which its own controls bend in two directions — `crownLead` overlaps the crown into the
-   * fuse and SHORTENS the run, while a flourish longer than its beat EXTENDS it. A static string there would
-   * be a lie the moment you moved a slider.
+   * derived from the current values and must re-read on every render: a tuner that shows an effect's
+   * computed total, which its own controls can bend both ways — one slider overlapping two beats SHORTENS
+   * the run while another EXTENDS it. A static string there would be a lie the moment you moved a slider.
    */
   note?: string | (() => string);
   controls: TunerControl<Extract<keyof C, string>>[];

@@ -5,6 +5,7 @@ import { normalizePresentationBatch } from './choreographer/adapters/presentatio
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
 import { presentConsequence, type PresenterContext } from './choreographer/consequencePresenters';
 import { clearCastPreviews, fireCastPreviewAt, type CastPreviewSource } from './castPreview';
+import { playRecordedCastFx, playSpellCastFx } from './fx/spellCastFx';
 import { shippedBeatConfig } from './choreographer/beatConfig';
 import { draftToEngine } from './beatLab/labSchedule';
 import type { BeatPolicyOverrides, BeatTimingOverrides } from './beatLab/beatTiming';
@@ -111,7 +112,7 @@ import { anchorsForUnits } from './fx/combatAnchors';
 import { rubyLandHolds, RUBY_BEAT_MS, RUBY_GAP_MS } from './choreo/channels/rubyLanded';
 import { captureRecruitSeqs, chooseOneMoment, endOfTurnMoment, minionPlayedMoment, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shieldGainMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
-import { bindingFor } from './choreo/bindings';
+import { bindingFor, castFxReplacesTendril } from './choreo/bindings';
 import { cascade, scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat, releaseStat } from './fx/statHold';
 import { fodderGainHolds, type FodderGain } from './fx/fodderGains';
@@ -447,7 +448,7 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
   if (!lit && !mounted) return null;
   return (
     <>
-      <div className={`chargeglyph${fading ? ' fading' : ''}`} ref={boxRef} title={`${seconds}s left`} aria-hidden="true">
+      <div className={`chargeglyph${fading ? ' fading' : ''}`} ref={boxRef} aria-label={`${seconds}s left`} aria-hidden="true">
         <div className="masked charge-base" />
         <div className="masked charge-fill" />
         <div className="masked charge-core" ref={coreRef} />
@@ -4525,6 +4526,12 @@ export function Recruit() {
       // Keyed on the SOURCE card and `minionBuffed` — exactly the pair `runRecruitMomentCues` resolves for
       // this event (see its `bindingCard`), so the two can never disagree about whether a def is playing.
       if (bindingFor(ev.sourceCardId, 'minionBuffed')) return;
+      // A SPELL'S OWN EFFECT REPLACES THE CASTER'S TENDRIL (owner ruling 2026-09-24: "the growth and waking rift
+      // effects should replace the tendril for a card that carried those effects, like fatecarver as an example").
+      // The sim tags a buff a minion's cast produced (`spellId`); when that spell has a card-level cast effect, the
+      // effect (played off `castFx`, `fx/spellCastFx.ts`) is the whole presentation of the cast. Unbound spells keep
+      // their tendril. Legacy End-of-Turn beats replay these same events, so they follow the same rule.
+      if (castFxReplacesTendril(ev.spellId)) return;
       const tEl = findEl(ev.targetUid);
       if (!tEl) return;
       // RESTING centres, not raw rects (owner report 2026-09-14): a minion that was JUST DROPPED is still mid-FLIP
@@ -5239,6 +5246,9 @@ export function Recruit() {
     if (seq === prevCastFxSeq.current) return;
     prevCastFxSeq.current = seq;
     if (run.phase !== 'recruit') return;
+    // The spell's OWN cast effect (Growth's `growth-effect`), once per cast — every rune / minion cast in the
+    // Shop (owner 2026-09-24: "by any means … any phase"). Independent of the preview gate. See `fx/spellCastFx.ts`.
+    playRecordedCastFx(run.castFx, 'recruit');
     const cancels = (run.castFx ?? []).filter((c) => c.phase === 'recruit').map((c) => fireCastPreviewAt(c.source, c.spellId));
     return () => { for (const cancel of cancels) cancel(); };
     // Keyed on the seq ONLY (see the fodder watcher above): the array ref changes every action.
@@ -5726,6 +5736,7 @@ export function Recruit() {
       // A spell the beat's RUNE or MINION cast (owner ask 2026-09-23): its card preview above the caster, on the
       // beat. A hero / quest / spell-sourced beat has no badge or body to hang it on and is skipped.
       spellCast: (cardId, source) => {
+        playSpellCastFx(cardId); // the spell's own cast effect, on the cast's beat, whatever the source (fx/spellCastFx.ts)
         const src: CastPreviewSource | null = source.kind === 'minion' && source.uid ? { kind: 'minion', uid: source.uid }
           : source.kind === 'rune' ? { kind: 'rune', id: source.id } : null;
         if (src) fireCastPreviewAt(src, cardId);
@@ -5737,6 +5748,7 @@ export function Recruit() {
       // source→target tendril. ON ITS BEAT now, because the End-of-Turn completion advances the legacy
       // trackers past the commit (nothing may replay after the beats — owner 2026-09-01), and until this the
       // commit replay was the ONLY place these tendrils were drawn under the authoritative path.
+      spellHasCastFx: castFxReplacesTendril,
       statGain: (uid, _zone, _attack, _health, from) => {
         if (!from || from.uid === uid) return;
         // RESTING centres at both ends (owner ask 2026-09-15, the rule #1483 set for the per-action replay): the
@@ -6303,6 +6315,7 @@ export function Recruit() {
         });
         // Spells this beat's rune / minion cast (Rope Wrangler's Lasso, Rune of Recurrence) — the cast preview
         // above the caster, on the beat, while the board is still on screen (owner ask 2026-09-23).
+        playRecordedCastFx(bfx.casts); // each cast's own spell effect (Growth's `growth-effect`), on the beat
         for (const c of bfx.casts ?? []) fireCastPreviewAt(c.source, c.spellId);
         // Auto-welds on this beat (Combinator / Cling Drones / Money Bots) — ring each host as it fuses.
         fireWeldFxBatch(bfx.welds, 'auto');
@@ -7301,7 +7314,7 @@ const ShopControls = memo(function ShopControls({
       {/* Skip the combat replay — pinned ABOVE the End Turn / End Combat diamond (owner move 2026-08-11; it was
           a top-centre HUD, and the replay-speed slider moved to the Esc menu's Combat section). */}
       {inCombat && !replayDone && (
-        <button className="combathud-skip" onClick={onSkip} title="Skip the combat replay">
+        <button className="combathud-skip" onClick={onSkip} aria-description="Skip the combat replay">
           <Icon name="sword" /> Skip
         </button>
       )}
@@ -8202,9 +8215,9 @@ const CombatLogOverlay = memo(function CombatLogOverlay({ showLog, result, comba
             {combatOdds && (
               <div
                 className="logodds"
-                title="Estimated from repeated simulations of this matchup. The actual result was one roll of these odds."
+                aria-label="Estimated from repeated simulations of this matchup. The actual result was one roll of these odds."
               >
-                <div className="oddscap">Outcome odds</div>
+                <div className="oddscap gtip" data-tip="Estimated from repeated simulations of this matchup. The actual result was one roll of these odds.">Outcome odds</div>
                 <div className="oddsbar">
                   <span className="ob win" style={{ width: `${combatOdds.win * 100}%` }} />
                   <span className="ob draw" style={{ width: `${combatOdds.draw * 100}%` }} />
@@ -8216,7 +8229,7 @@ const CombatLogOverlay = memo(function CombatLogOverlay({ showLog, result, comba
                   <span className="ol lose">{Math.round(combatOdds.lose * 100)}% loss</span>
                 </div>
                 {combatOdds.lose > 0 && (
-                  <div className="oddsavg" title="Average Health lost across the losing simulations, capped by the round. This is what a typical loss of this matchup costs.">
+                  <div className="oddsavg gtip" aria-description="Average Health lost across the losing simulations, capped by the round. This is what a typical loss of this matchup costs." data-tip="Average Health lost across the losing simulations, capped by the round. This is what a typical loss of this matchup costs.">
                     Avg damage on loss: <b>{Math.round(combatOdds.avgLossDamage * 10) / 10}</b>
                   </div>
                 )}
@@ -8403,7 +8416,7 @@ const DiscoverOverlay = memo(function DiscoverOverlay({ overlaysHeld, run, disco
         <button
           className="disc-toggle"
           onClick={() => setDiscoverMin((m) => !m)}
-          title={discoverMin ? 'Return to your Discover' : 'Inspect your board, then return to choose'}
+          aria-description={discoverMin ? 'Return to your Discover' : 'Inspect your board, then return to choose'}
         >
           {discoverMin
             ? <><Icon name="up" /> Return to Discover · {run.discover.length} options</>
@@ -8470,7 +8483,7 @@ const ScoutOverlay = memo(function ScoutOverlay({ overlaysHeld, scouted, dispatc
           actual stats (green above the printed base; golden treatment for a triple). No pick; the Close button
           sits where the Discover MINIMIZE toggle usually is (`.disc-toggle`, fixed). Reuses the `.discover-ov` chrome. */}
       {!overlaysHeld && scouted && scouted.length > 0 && (
-        <button className="disc-toggle" onClick={() => dispatch({ type: 'closeScout' })} title="Close the scout">
+        <button className="disc-toggle" onClick={() => dispatch({ type: 'closeScout' })} aria-description="Close the scout">
           <Icon name="eye" /> Close
         </button>
       )}
@@ -8514,7 +8527,7 @@ const QuestOverlay = memo(function QuestOverlay({ overlaysHeld, questOffer, ques
         <button
           className="disc-toggle quest-toggle"
           onClick={() => setQuestMin((m) => !m)}
-          title={questMin ? 'Return to the quest offer' : 'Inspect the shop, then return to choose a quest'}
+          aria-description={questMin ? 'Return to the quest offer' : 'Inspect the shop, then return to choose a quest'}
         >
           {questMin
             ? <><Icon name="up" /> Return to Quests · {questOffer.length} options</>
@@ -8605,7 +8618,7 @@ export const RuneforgeOverlay = memo(function RuneforgeOverlay({ overlaysHeld, r
         <button
           className="disc-toggle forge-toggle"
           onClick={() => setForgeMin((m) => !m)}
-          title={forgeMin ? 'Return to the Runeforge' : 'Inspect the board, then return to the forge'}
+          aria-description={forgeMin ? 'Return to the Runeforge' : 'Inspect the board, then return to the forge'}
         >
           {forgeMin
             ? <><Icon name="up" /> Return to the {run.runeforgeEpic ? 'Epic Runeforge' : 'Runeforge'} · {run.runeforgeOffer.length} runes</>
@@ -8639,7 +8652,7 @@ export const RuneforgeOverlay = memo(function RuneforgeOverlay({ overlaysHeld, r
             <div className="disc-banner forge-banner"><span className="disp">{run.runeforgeEpic ? 'Epic Runeforge' : 'Runeforge'}</span></div>
             {/* The player's CURRENT Gold — the runes charge Gold, so the panel must say what's in the purse
                 (owner ask 2026-07-16). Re-renders with every buy/re-roll (run.embers). */}
-            <div className="forge-gold" title="Your Gold right now"><Icon name="mana" /><b>{run.embers}</b> Gold</div>
+            <div className="forge-gold" aria-description="Your Gold right now"><Icon name="mana" /><b>{run.embers}</b> Gold</div>
             <div className="disc-cards forge-cards">
               {run.runeforgeOffer.map((id, i) => {
                 const rune = RUNE_INDEX[id];
@@ -8672,12 +8685,13 @@ export const RuneforgeOverlay = memo(function RuneforgeOverlay({ overlaysHeld, r
                 const spent = !!run.runeforgeRerolled || !!run.runeforgeRerollUsed;
                 return (
                   <button
-                    className={`forge-reroll${spent ? ' forge-reroll-spent' : ''}`}
+                    className={`forge-reroll gtip${spent ? ' forge-reroll-spent' : ''}`}
                     onClick={() => dispatch({ type: 'rerollRuneforge' })}
                     disabled={spent}
                     aria-hidden={spent || undefined}
                     tabIndex={spent ? -1 : undefined}
-                    title={spent ? undefined : "Re-roll the offered Runes for free, once per game. Spending it here forfeits the other forge's re-roll."}
+                    aria-description={spent ? undefined : "Re-roll the offered Runes for free, once per game. Spending it here forfeits the other forge's re-roll."}
+                    data-tip={spent ? undefined : "Re-roll the offered Runes for free, once per game. Spending it here forfeits the other forge's re-roll."}
                   >
                     <Icon name="refresh" /> Re-roll · <b className="forge-reroll-cost">Free</b>
                   </button>

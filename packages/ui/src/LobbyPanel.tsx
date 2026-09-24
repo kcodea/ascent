@@ -117,7 +117,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         <span className="lobbyalive">{living.length} left</span>
         {/* Max loss — the most Health a loss this round can cost (moved here from the removed top-left plaque,
             owner ask 2026-08-11). */}
-        <span className="lobbymax" title="Most Health you can lose if you lose this combat">
+        <span className="lobbymax gtip gtip-down gtip-end" aria-label="Most Health you can lose if you lose this combat" data-tip="Most Health you can lose if you lose this combat">
           <Icon name="heart" />{Number.isFinite(lossDamageCap(lobby.round)) ? `−${lossDamageCap(lobby.round)}` : 'No cap'}
         </span>
       </div>
@@ -419,7 +419,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
       {/* DEV-only A/B/C layout switch — corner chip, cycles + persists the chosen variant. */}
       {import.meta.env.DEV && (
         <button className="lobbyscout-variant" onClick={(e) => { e.stopPropagation(); cycleVariant(); }}
-          title="Cycle scout-card layout (dev only)">V{variant}</button>
+          aria-description="Cycle scout-card layout (dev only)">V{variant}</button>
       )}
       {body}
     </div>,

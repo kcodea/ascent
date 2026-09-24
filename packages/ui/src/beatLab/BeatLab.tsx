@@ -341,24 +341,24 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
         onPointerDown={onBarPointerDown}
         onPointerMove={onBarPointerMove}
         onPointerUp={onBarPointerUp}
-        title="Drag to move · resize from the bottom-right corner"
+        aria-label="Drag to move · resize from the bottom-right corner"
       >
         <span className="bl-title">Beat Lab</span>
         <button className={`bl-tab${mode === 'capture' ? ' bl-tab-on' : ''}`} onClick={() => setMode('capture')}>Capture</button>
         <button className={`bl-tab${mode === 'library' ? ' bl-tab-on' : ''}`} onClick={() => setMode('library')}>Library</button>
-        <button className={`bl-tab${mode === 'combat' ? ' bl-tab-on' : ''}`} onClick={() => setMode('combat')} title="The last resolved fight on the shared timeline (read-only)">Combat</button>
+        <button className={`bl-tab${mode === 'combat' ? ' bl-tab-on' : ''}`} onClick={() => setMode('combat')} aria-description="The last resolved fight on the shared timeline (read-only)">Combat</button>
         {draftCount > 0 && <span className="bl-draft">draft: {draftCount} key{draftCount === 1 ? '' : 's'}</span>}
         <button
           className={`bl-tab${beatDraftLive ? ' bl-tab-on' : ''}`}
           style={beatDraftLive ? { borderColor: '#e0b34d', color: '#e0b34d' } : undefined}
           onClick={() => setBeatDraftLive(!beatDraftLive)}
-          title="Pace the REAL game with this draft (uncommitted). A banner shows while it is on; committed values are unaffected."
+          aria-label="Pace the REAL game with this draft (uncommitted). A banner shows while it is on; committed values are unaffected."
         >
           {beatDraftLive ? '● LIVE' : 'Live'}
         </button>
-        {draftCount > 0 && <button className="bl-tbtn" onClick={copyDraft} title="Copy the sparse timing overrides as JSON">Copy JSON</button>}
-        {draftCount > 0 && <button className="bl-tbtn" onClick={() => void commitDraft()} title="Write the overrides to beat-defaults.json (dev only)">Commit to repo</button>}
-        {draftCount > 0 && <button className="bl-tbtn" onClick={() => { setDraft({}); setPolicyDraft({}); }} title="Discard every draft override">Reset all</button>}
+        {draftCount > 0 && <button className="bl-tbtn" onClick={copyDraft} aria-description="Copy the sparse timing overrides as JSON">Copy JSON</button>}
+        {draftCount > 0 && <button className="bl-tbtn" onClick={() => void commitDraft()} aria-description="Write the overrides to beat-defaults.json (dev only)">Commit to repo</button>}
+        {draftCount > 0 && <button className="bl-tbtn" onClick={() => { setDraft({}); setPolicyDraft({}); }} aria-description="Discard every draft override">Reset all</button>}
         {commitMsg && <span className="bl-prov">{commitMsg}</span>}
         <span className="bl-meta">
           {mode === 'capture'
@@ -366,7 +366,7 @@ export function BeatLab({ onClose }: { onClose: () => void }): React.ReactElemen
             : mode === 'library' ? 'every registered beat — no playing required'
             : 'the last resolved fight, read-only'}
         </span>
-        <label className="bl-fontslider" title={`Text size: ${ui.fontPx}px`}>
+        <label className="bl-fontslider" aria-label={`Text size: ${ui.fontPx}px`}>
           <span>A</span>
           <input type="range" min={10} max={18} step={1} value={ui.fontPx} onChange={(e) => setUi((u) => ({ ...u, fontPx: Number(e.target.value) }))} />
           <span style={{ fontSize: 15 }}>A</span>

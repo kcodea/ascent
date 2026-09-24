@@ -94,7 +94,7 @@ export function BeatLibrary({ draft, setDraft, policyDraft, setPolicyDraft }: {
           {KINDS.map(({ k, label }) => (
             <button key={k} className={`bl-tab${kind === k ? ' bl-tab-on' : ''}`} onClick={() => setKind(kind === k ? null : k)}>{label}</button>
           ))}
-          <button className={`bl-tab${emptyOnly ? ' bl-tab-on' : ''}`} style={{ borderColor: COVER_TINT.empty }} onClick={() => setEmptyOnly((v) => !v)} title="Show only sources with an unassigned trigger">
+          <button className={`bl-tab${emptyOnly ? ' bl-tab-on' : ''}`} style={{ borderColor: COVER_TINT.empty }} onClick={() => setEmptyOnly((v) => !v)} aria-description="Show only sources with an unassigned trigger">
             EMPTY ({emptyCount})
           </button>
           <span className="bl-kind">{filtered.length}</span>
@@ -124,7 +124,7 @@ export function BeatLibrary({ draft, setDraft, policyDraft, setPolicyDraft }: {
                         : t.live === 'flag'
                           ? { background: '#3a3324', color: '#e0b34d', border: '1px solid #e0b34d' }
                           : { background: '#2f3a2e', color: '#9fc7a0' }}
-                      title={t.live === 'live'
+                      aria-label={t.live === 'live'
                         ? 'Edits here change the real game.'
                         : t.live === 'flag'
                           ? 'One click away: flip the LIVE toggle (top bar) and this combat row paces real fights.'

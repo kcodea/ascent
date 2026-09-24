@@ -71,6 +71,42 @@ export const PATCH_NOTES: PatchNote[] = [
     ],
   },
   {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Discover now shows your real board behind the choices, and the plain browser tooltips are gone.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Growth and Waking Rift have their own effects now, wherever they are cast from.',
+        details: [
+          'The effect plays every time the spell is cast: from your hand, by a rune, by a minion in the Shop, at End of Turn, and in combat.',
+          'Minions that cast Growth in combat (Fatecarver, Taragosa, Hoardbreaker Drake) now show it on every cast.',
+          'When a minion casts one of these spells, its own effect replaces the usual buff trail from that minion.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Spell previews are smaller and only appear for spells cast by your runes for now.',
+        details: [
+          'The spell card that pops up when a rune casts a spell is smaller and quicker, sitting just above the rune.',
+          'Spells cast by minions, in the shop or in combat, no longer show a preview for now.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-23',
     label: 'Balance 9/23: minion reworks',
     changes: [

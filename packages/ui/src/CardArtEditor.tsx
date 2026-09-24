@@ -95,7 +95,6 @@ export function CardArtEditor({ cardId }: { cardId: string }): JSX.Element {
       <button
         type="button"
         className="cardart-edit-btn cancel"
-        title="Discard these changes and put the card back as it was"
         aria-label="Discard card art changes"
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => { e.stopPropagation(); cancelEditCardArt(); }}
@@ -103,7 +102,6 @@ export function CardArtEditor({ cardId }: { cardId: string }): JSX.Element {
       <button
         type="button"
         className="cardart-edit-btn ok"
-        title="Keep these changes and write them to cardArt.data.json"
         aria-label="Save card art changes"
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => {

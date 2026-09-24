@@ -90,3 +90,93 @@ Browser proof on port 5267 (a throwaway Practice run, the rune and casters injec
    than the shop linger, the two clocks are one constant apart.
 5. **Same-source recast in combat when the spell differs**: previews once per spell (a Warflame casting Dragonflame
    then a taught spell shows both). Confirm that is the intent.
+
+## Follow-up 2026-09-24: the tuner, smaller defaults, and Fatecarver's missing Growth
+
+Owner feedback 2026-09-23 (with screenshots):
+
+> "this is far too large. can you build a tuner for me to adjust size, positioning, and linger duration? also, why
+> does fate carver not show the growth preview? warflame does. it is also massive. make sure to add all of the
+> details to the tuner so i can tune both. add an alpha/opacity lever as well."
+
+### The Cast Preview tuner
+
+DEV menu (🛠️) → Buffs & Auras → **🔮 Cast Preview** (panel id `castpreview`, key `ascent.castpreview`, registered
+in `tunerAll.ts` so "Reset all tuners" covers it). `castPreviewConfig.ts` is the ONE accessor: the store reads
+`castPreviewTimings(context)`, the layer reads `castPreviewLook(context)`, the combat feeder reads
+`castPreviewCombatOncePerFight()`; no size, offset or duration is hard-coded in `castPreview.ts`,
+`CastPreviewLayer.tsx` or the CSS any more (the CSS `--cp-scale` fallback mirrors the default). Knobs apply live
+(a change re-renders a preview already on screen and re-runs its one measure; per change, never per frame).
+Two groups, identical knobs:
+
+| Knob | Range | Shop default | Combat default |
+|---|---|---|---|
+| Size (× the old full plated card) | 0.2 to 1.5 | 0.42 | 0.38 |
+| Side of source | above / below / left / right | above | above |
+| Offset X / Offset Y | -300 to 300 px | 0 / 0 | 0 / 0 |
+| Fade in | 0 to 1000 ms | 180 | 180 |
+| Linger | 0 to 6000 ms | 2000 | 1600 |
+| Fade out | 0 to 1500 ms | 320 | 320 |
+| Max opacity | 0 to 1 | 1 | 1 |
+| Once per fight (combat only) | on / off | | on |
+
+**▶ Preview test** fires a Might of Aeon shop preview above the first rune badge and a Growth combat-style preview
+above the first warband card (or combat unit); either falls back to a stand-in spot on the roomier side of the
+panel when that source is not on screen. Judgement calls: combat lingers 1.6 s (the fight is busier than the shop);
+a side with no room flips to the opposite side; the controls carry no hints (the shared panel renders a hint as a
+native tooltip).
+
+Size at a 1600 × 900 viewport: before, the plated card measured **262 × 408 px** against a **115 px** board minion;
+now **110 × 171** (shop) and **100 × 155** (combat), seated just above the source.
+
+### Fatecarver: root cause
+
+The combat preview keys on `sc` events stamped with `spellId`. Warflame / Flamebeat cast through
+`castNamedSpellInCombat`, which always logged "X casts Y". Fatecarver's Growth (`onAllyAttackCastGrowth`) casts
+through the arena's `castRepeat` verb, whose COMBAT implementation (`packages/core/src/effects/factories.ts`, the
+`castRepeat` entry in `combatArena`) was `(_spellId, body) => castInCombat(ctx, self, body)`: a real cast, but the
+spell id was thrown away and nothing was logged. The fix logs one `sc` + `spellId` per cast, from the CASTER, after
+its body. Same path, same bug, same fix: Taragosa and Hoardbreaker Drake (Growth), Watcher and Wick Mortis (Lantern
+of Souls), Ashen Broodlord (Staff of Guel). Anubis's Echo Lantern (`castTribeAttackSpell`) logged a line with no id;
+it now carries `lanternofsouls`. Already correct before: Warflame, Flamebeat Drake, Quil, Sporebat, Runesnout
+Archivist, a Moonhowl Mage-Pup. Not addressed: combat Ruby casts (a Ruby is not announced as a spell cast) and the
+buffs of a `castRepeat` cast are still unmarked by `castingSpellId` (so Growth's buff wave keeps the stock tendril).
+
+Also: the combat feeder now claims the once-per-fight memory only once the caster has an on-screen rect, so a cast
+by a body not yet drawn no longer burns its one preview.
+
+### Proof
+
+Tests: `packages/core/src/combat/combatCastAnnounce.test.ts` (seven casters announce from the caster; Fatecarver one
+per friendly attack, golden two, equal to the genuine cast count; Anubis carries the id; the five `castRepeat`
+rows and Anubis fail on the old code), `castPreviewConfig.test.ts` (defaults, clamp, persistence round-trip,
+reset, independence, panel reachability), `castPreview.test.ts` (tuned timings per context; size, offset, side,
+flip), `CastPreviewLayer.test.tsx` (a live preview picks up size / alpha changes), and
+`choreo/channels/castPreview.test.ts` (real simulator → compiler → scan → memory: many Growth casts, ONE preview,
+from Fatecarver not the attacker; with Warflame beside it, one each). Oracle `R-PRESENT-10` amended.
+
+Browser (port 5273, a throwaway run): the panel opens from the dev menu; Preview test shows both previews at the
+new size; dragging Size / Offset Y / Max opacity wrote and persisted the values, and a preview already on screen
+re-sized live (combat 294 → 157 px wide, shop opacity 1 → 0.5); a fight with Fatecarver (branch B) + an attacker
+(7 Growth casts) showed exactly ONE Growth preview, above Fatecarver's slot (preview 820 to 920 px, Fatecarver 812
+to 927 px, attacker 658 to 811 px).
+
+### Gated to runes only (2026-09-24, owner follow-up on PR #1671)
+
+> "use the values below for the rune triggering one, but let's hide/disable the combat/minion side for now,
+> because it isn't what i want right now."
+
+- **Defaults are the owner's baked values.** Rune/shop: size 0.6, above, offset 0 / -32 px, 150 / 500 / 190 ms,
+  opacity 1. Combat: size 0.6, right, offset -74 / 28 px, 150 / 500 / 190 ms, opacity 1, once per fight. The combat
+  set is baked so it comes back as tuned.
+- **`CAST_PREVIEW_SOURCES = { rune: true, minion: false, combat: false }`** in `castPreviewConfig.ts` is the gate:
+  - `fireCastPreviewAt` is a no-op for a minion source (shop and End of Turn).
+  - The combat feeder, now the pure `showCombatCastPreviews` in `castPreview.ts`, returns without showing anything
+    or claiming the once-per-fight memory.
+  - The tuner shows only a "Rune casts" group.
+  - Preview test fires the rune sample alone.
+- **Re-enabling is one line** (flip the flags); `castPreviewGate.test.ts` flips them and proves the minion and combat
+  previews return.
+- **The engine fix stays.** Fatecarver and the other combat casters still log their `sc` + `spellId` cast events,
+  and the Combat Log names them. The channel test asserts that the cue still carries every Growth cast while the
+  gate shows no preview.

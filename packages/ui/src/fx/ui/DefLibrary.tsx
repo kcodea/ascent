@@ -90,7 +90,7 @@ export function DefLibrary({
                 <button
                   type="button"
                   className="fxwb-def-load"
-                  title={`Load '${def.id}' into the editor`}
+                  aria-label={`Load '${def.id}' into the editor`}
                   onClick={() => {
                     setError(null);
                     onLoad(def);
@@ -104,7 +104,6 @@ export function DefLibrary({
                 <span className="fxwb-def-actions">
                   <button
                     type="button"
-                    title={`Duplicate '${def.id}' as a template (nothing is written until you Save)`}
                     aria-label={`Duplicate ${def.id}`}
                     onClick={() => {
                       setError(null);
@@ -127,7 +126,7 @@ export function DefLibrary({
         <button
           type="button"
           className="fxwb-def-paste-toggle"
-          title={pasteOpen ? 'Hide the manual paste box' : 'Paste JSON by hand instead'}
+          aria-label={pasteOpen ? 'Hide the manual paste box' : 'Paste JSON by hand instead'}
           aria-expanded={pasteOpen}
           onClick={() => setPasteOpen((open) => !open)}
         >

@@ -65,7 +65,7 @@ function CallSite({ file }: { file: string }): React.ReactElement {
   return (
     <button
       className="fxlib-callsite"
-      title={`Copy ${path}`}
+      aria-label={`Copy ${path}`}
       onClick={() => {
         void navigator.clipboard?.writeText(path).then(
           () => setCopied(true),
@@ -307,7 +307,7 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
                   <button
                     key={t}
                     className={`fxwb-btn fxlib-tier-btn${tierFilter.has(t) ? ' on' : ''}`}
-                    title={`Tier ${t}`}
+                    aria-label={`Tier ${t}`}
                     onClick={() => setTierFilter((s) => toggleIn(s, t))}
                   >
                     {t}
@@ -333,7 +333,7 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
                   <button
                     key={h}
                     className={`fxlib-hue ${h}${filter.hues.includes(h) ? ' on' : ''}`}
-                    title={h}
+                    aria-label={h}
                     onClick={() => toggleHue(h)}
                   />
                 ))}
@@ -353,7 +353,7 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
                 <button
                   key={u}
                   className={`fxwb-btn${filter.usage === u ? ' on' : ''}`}
-                  title={USAGE_HELP[u]}
+                  aria-label={USAGE_HELP[u]}
                   onClick={() => set('usage', u)}
                 >
                   {u === 'all' ? 'all' : USAGE_LABEL[u]}
@@ -385,11 +385,11 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
                       reader that no badge = fine, which is exactly how "unbound" came to mean "inert". */}
                   <span
                     className={`fxlib-wire ${e.usage}`}
-                    title={e.usage === 'code' ? `Played from ${callSitesLabel(e.callSites)}` : USAGE_HELP[e.usage]}
+                    aria-label={e.usage === 'code' ? `Played from ${callSitesLabel(e.callSites)}` : USAGE_HELP[e.usage]}
                   >
                     {USAGE_LABEL[e.usage]}
                   </span>
-                  <button title="Duplicate as a fresh template" onClick={() => onDuplicate(e.def)}>⧉</button>
+                  <button aria-label="Duplicate as a fresh template" onClick={() => onDuplicate(e.def)}>⧉</button>
                 </div>
               ))}
             </div>
@@ -480,7 +480,7 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
                         const pct = binding?.gain === undefined ? 100 : Math.round(binding.gain * 100);
                         const editable = bound !== null && knownIds.has(bound);
                         return (
-                          <div className="fxlib-slot" key={slot.id} title={slot.blurb}>
+                          <div className="fxlib-slot" key={slot.id} aria-label={slot.blurb}>
                             <span className="fxlib-slot-label">{slot.label}</span>
                             <input
                               className="fxlib-slot-input"
@@ -500,12 +500,12 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
                               <>
                                 <button
                                   className="fxlib-slot-play"
-                                  title="Preview this effect (plays over everything)"
+                                  aria-label="Preview this effect (plays over everything)"
                                   onClick={() => previewOnCard(bound, binding?.gain)}
                                 >▶</button>
                                 <button
                                   className="fxlib-slot-edit"
-                                  title={editable ? 'Open this def in the workbench editor' : 'This def does not exist yet'}
+                                  aria-label={editable ? 'Open this def in the workbench editor' : 'This def does not exist yet'}
                                   disabled={!editable}
                                   onClick={() => {
                                     const def = catalog.find((e) => e.def.id === bound)?.def;
@@ -516,7 +516,7 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
                                   className="fxlib-slot-vol"
                                   type="text"
                                   inputMode="numeric"
-                                  title="Volume — 0 to 100% (scales the sound)"
+                                  aria-label="Volume — 0 to 100% (scales the sound)"
                                   key={`vol:${c.cardId}:${kind}:${pct}:${bindVersion}`}
                                   defaultValue={String(pct)}
                                   onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
@@ -525,7 +525,7 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
                                 <span className="fxlib-slot-pct">%</span>
                                 <button
                                   className="fxlib-slot-clear"
-                                  title="Clear this effect"
+                                  aria-label="Clear this effect"
                                   onClick={() => commitBinding(c.cardId, kind, '')}
                                 >×</button>
                               </>
@@ -537,7 +537,7 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
                                 far right — a fresh sound even when nothing is bound yet. */}
                             <button
                               className="fxlib-slot-import"
-                              title="Import a WAV/MP3 as this card’s sound"
+                              aria-description="Import a WAV/MP3 as this card’s sound"
                               onClick={() => openImport(c.cardId, kind)}
                             >⭱ import</button>
                           </div>
@@ -558,7 +558,7 @@ export function LibraryBrowser({ onLoad, onDuplicate, onPreview, onClose }: Libr
     {preview !== null && (
       <>
         <div className="fxlib-previewstage-scrim" onClick={closePreview} />
-        <button className="fxlib-previewstage-close" onClick={closePreview} title="Close preview (Esc)">✕</button>
+        <button className="fxlib-previewstage-close" onClick={closePreview} aria-label="Close preview (Esc)">✕</button>
       </>
     )}
     </>

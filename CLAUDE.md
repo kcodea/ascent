@@ -52,6 +52,10 @@ paint it, or, when an element genuinely needs its own cursor, use the gauntlet U
 (`cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer`). Check any new button/overlay for this before
 shipping.
 
+**Never a `title=` attribute (or an SVG `<title>`, or `el.title = …`) on rendered DOM**: the native browser tooltip
+breaks immersion (owner 2026-09-24). Use `aria-label` / `aria-description` for screen readers and the game's own
+`.gtip[data-tip]` bubble for hover text; ESLint (`banTitleTooltips`) fails the build on it.
+
 ## Working with the user
 
 **Ask clarifying questions whenever a direction is confusing or you're unsure what's wanted for a
@@ -66,6 +70,10 @@ The game is a **deterministic simulation, fully decoupled from the UI.**
 - **Combat is a pure function** → event log → replay: `simulate(playerSide, enemySide, rng, cards)` returns
   `{ events, result, playerDamage, initial }` (each side is a `CombatSideState`). The UI animates the event
   log on its own clock; it **never computes outcomes**.
+- **Cross-phase by default** (owner 2026-09-24, oracle rule `R-PHASE-01`): an effect, mechanic, trigger, tally or FX
+  is wired to work in EVERY phase it can occur in (recruit / Shop, End of Turn, combat) and from EVERY source
+  (player, rune, minion, hero, quest) by default. A phase-limited behaviour needs an explicit owner ruling; when
+  unsure, ask the owner.
 - **One seeded RNG** (mulberry32) threaded through everything via `fork()`. **`Math.random` is banned** in
   `core`/`content`/`sim` (ESLint-enforced). This buys replays, shareable seeds, daily runs, and cheap exact
   balance sims.

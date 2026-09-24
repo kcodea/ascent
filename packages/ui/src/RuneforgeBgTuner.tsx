@@ -113,7 +113,7 @@ function ForgePreview(): JSX.Element {
         <button
           className="sfxmix-copy"
           onClick={() => setForced((f) => !f)}
-          title="Opens the real Runeforge over the board so the backdrop can be judged in place. The offer is put back when you turn this off or close the panel."
+          aria-label="Opens the real Runeforge over the board so the backdrop can be judged in place. The offer is put back when you turn this off or close the panel."
           disabled={noRun}
         >
           {forced ? 'Close the forge' : 'Open the forge'}
@@ -121,7 +121,7 @@ function ForgePreview(): JSX.Element {
         <button
           className="sfxmix-copy"
           onClick={() => setEpic((e) => !e)}
-          title="The Epic Runeforge is the same element with re-toned accents — worth a look, since it shares this backdrop."
+          aria-label="The Epic Runeforge is the same element with re-toned accents — worth a look, since it shares this backdrop."
           disabled={noRun || !forced}
         >
           {epic ? 'Showing Epic' : 'Showing Basic'}

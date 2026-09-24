@@ -3111,7 +3111,7 @@
       "at": 0,
       "params": {
         "clip": "fx/blue-impact-hit",
-        "gain": 0.3,
+        "gain": 0.45,
         "gainCurve": [
           [
             0,

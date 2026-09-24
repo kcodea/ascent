@@ -89,9 +89,34 @@ import type { FxBlendMode } from './blendModes';
  *  overlapping combat moments without letting an effect storm grow the pool forever. */
 export const PARTICLE_LAYER_POOL_MAX = 24;
 
-/** The `boundsArea` every particle primitive uses: motes drift, so a tight box would cull them as they leave
- *  it. Was duplicated in all three primitives; the pool is now the one place it is written. */
-const particleBounds = (): Rectangle => new Rectangle(-2000, -2000, 4000, 4000);
+/**
+ * Half the side of the `boundsArea` every particle primitive uses, in the layer's LOCAL px.
+ *
+ * A `ParticleContainer` computes no bounds of its own, so this box IS its bounds, and Pixi sizes a filter's
+ * render texture from it. Every blurred / filtered particle layer (the core Blur, the Filter Lab) is drawn
+ * only inside it: whatever lies outside is cut off with a hard straight edge.
+ *
+ * It used to be a fixed +/-2000 box. That cut real effects (owner report 2026-09-24: "effects gettin cut
+ * off ... these effects shouldnt be cut off by such restrictions and should play their full area"):
+ *  - on a viewport wider or taller than 2000 CSS px (a 2560 monitor) the right / bottom of the screen sat
+ *    outside it, so a haze around a centred lone minion was sliced at x = 2000;
+ *  - it was a guess about how far motes travel, not a statement about the screen: a mote flung past it (a
+ *    fast wide spray, a long drift) was cut even on a small screen.
+ *
+ * Now it is effectively unbounded, so the only bound left is the one Pixi applies anyway: a filter's area is
+ * clipped to the VIEWPORT (`clipToViewport`, on for every filter we build). That is the right bound for
+ * performance, and it costs nothing extra on screens up to 2000 px, which were already clipped to the
+ * viewport. 1e6 keeps the box far past any screen at any sane layer scale, while staying well inside float
+ * precision for the bounds math.
+ */
+export const PARTICLE_BOUNDS_HALF_EXTENT = 1e6;
+
+/** The `boundsArea` every particle primitive uses. Was duplicated in all three primitives; the pool is now the
+ *  one place it is written. See `PARTICLE_BOUNDS_HALF_EXTENT`. */
+const particleBounds = (): Rectangle => new Rectangle(
+  -PARTICLE_BOUNDS_HALF_EXTENT, -PARTICLE_BOUNDS_HALF_EXTENT,
+  PARTICLE_BOUNDS_HALF_EXTENT * 2, PARTICLE_BOUNDS_HALF_EXTENT * 2,
+);
 
 /**
  * All three primitives need per-frame position/rotation/colour/vertex uploads, which is what lets ONE pool

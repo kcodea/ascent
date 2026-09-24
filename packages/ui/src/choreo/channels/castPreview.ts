@@ -16,7 +16,15 @@
 import type { CombatEvent } from '@game/core';
 import type { Moment } from '../compile';
 
-export interface CombatSpellCast { source: string; spellId: string }
+export interface CombatSpellCast {
+  source: string;
+  spellId: string;
+  /** The RUNE that cast it (Rune of Spellhide), when a rune is the caster: `source` is then only the body the cast
+   *  resolved through. Its effect stems from the rune's node (owner ruling 2026-09-24). */
+  rune?: string;
+  /** The side of a rune cast, so only the PLAYER's rune (the one on screen) is used as an anchor. */
+  side?: 'player' | 'enemy';
+}
 
 /** Every "X casts Y" in the moment window, in event order. Only `sc` events carrying a `spellId` are casts;
  *  a plain narration line (a spell-power gain) carries none and is never a preview. */
@@ -24,7 +32,7 @@ export function spellCastsIn(moment: Pick<Moment, 'start' | 'end'>, events: read
   const out: CombatSpellCast[] = [];
   for (let i = moment.start; i < moment.end; i++) {
     const e = events[i];
-    if (e?.type === 'sc' && typeof e.spellId === 'string' && typeof e.source === 'string') out.push({ source: e.source, spellId: e.spellId });
+    if (e?.type === 'sc' && typeof e.spellId === 'string' && typeof e.source === 'string') out.push({ source: e.source, spellId: e.spellId, ...(e.rune ? { rune: e.rune, side: e.side } : {}) });
   }
   return out;
 }

@@ -5,7 +5,7 @@ import { normalizePresentationBatch } from './choreographer/adapters/presentatio
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
 import { presentConsequence, type PresenterContext } from './choreographer/consequencePresenters';
 import { clearCastPreviews, fireCastPreviewAt, type CastPreviewSource } from './castPreview';
-import { playRecordedCastFx, playSpellCastFx } from './fx/spellCastFx';
+import { playRecordedCastFx, playRuneCastBuffFx, playSpellCastFx } from './fx/spellCastFx';
 import { shippedBeatConfig } from './choreographer/beatConfig';
 import { draftToEngine } from './beatLab/labSchedule';
 import type { BeatPolicyOverrides, BeatTimingOverrides } from './beatLab/beatTiming';
@@ -4541,6 +4541,11 @@ export function Recruit() {
       // Ward-gain cue above already measures this way.
       const target = restingCenterOf(tEl as HTMLElement);
       if (!target) return;
+      // A RUNE'S CAST STEMS FROM THE RUNE (owner ruling 2026-09-24: "spells cast from runes and cards should use
+      // the spell effects … they can stem from the rune if there needs to be a source position"). The buff has no
+      // body to leave from, so it used to be routed sourceless and draw nothing; it now plays the spell's per-buff
+      // row (an Ale's volley, Dragonflame's column) or, unbound, the stock trail, from the rune's node.
+      if (ev.sourceRuneId && playRuneCastBuffFx({ runeId: ev.sourceRuneId, spellId: ev.spellId, target, targetUid: ev.targetUid })) return;
       // A FALLEN ECHO STREAMS FROM WHERE IT FELL (owner report 2026-09-16, Dawn Sentinel — `choreo/buffSource.ts`).
       // A `deathrattle` capture's body has already left the board — a shop destroy (Cage Breaker, Graverobber,
       // EMS), a Funeral on Loan return, a Reveler's sell — so `findEl` finds nothing; the departure cache still
@@ -5736,7 +5741,9 @@ export function Recruit() {
       // A spell the beat's RUNE or MINION cast (owner ask 2026-09-23): its card preview above the caster, on the
       // beat. A hero / quest / spell-sourced beat has no badge or body to hang it on and is skipped.
       spellCast: (cardId, source) => {
-        playSpellCastFx(cardId); // the spell's own cast effect, on the cast's beat, whatever the source (fx/spellCastFx.ts)
+        // The spell's own cast effect, on the cast's beat, whatever the source (fx/spellCastFx.ts); a RUNE'S cast
+        // (Rune of Recurrence) stems from its node on the rail (owner ruling 2026-09-24).
+        playSpellCastFx(cardId, { runeId: source.kind === 'rune' ? source.id : null });
         const src: CastPreviewSource | null = source.kind === 'minion' && source.uid ? { kind: 'minion', uid: source.uid }
           : source.kind === 'rune' ? { kind: 'rune', id: source.id } : null;
         if (src) fireCastPreviewAt(src, cardId);
@@ -5749,6 +5756,13 @@ export function Recruit() {
       // trackers past the commit (nothing may replay after the beats — owner 2026-09-01), and until this the
       // commit replay was the ONLY place these tendrils were drawn under the authoritative path.
       spellHasCastFx: castFxReplacesTendril,
+      // A gain a RUNE'S cast produced (Rune of Recurrence's End-of-Turn re-cast): it lands under the spell's own
+      // child beat, which has no body to ribbon from, so it drew nothing. It now stems from the rune's node: the
+      // spell's per-buff row (an Ale, Dragonflame) or the stock trail (owner ruling 2026-09-24).
+      runeCastGain: (runeId, spellId, uid, index) => {
+        const target = restingOf(uid);
+        if (target) playRuneCastBuffFx({ runeId, spellId, target, targetUid: uid, index });
+      },
       statGain: (uid, _zone, _attack, _health, from) => {
         if (!from || from.uid === uid) return;
         // RESTING centres at both ends (owner ask 2026-09-15, the rule #1483 set for the per-action replay): the
@@ -6463,7 +6477,9 @@ export function Recruit() {
     // cast — Kneel gaining Health because a Dwarf the Ale lifted gained Attack — records a `minion`-kind
     // self-buff in the same action, and sweeping that in made the Ale's trail land on Kneel and suppressed
     // his own self-buff cue (owner report 2026-09-09).
-    const spellHits = st.recruitBuffFx.filter((e) => e.kind === 'spell');
+    // A RUNE'S cast in the same action (Rune of Might answering this cast) is not this cast's: it plays from its
+    // own rune node (`sourceRuneId`), so it neither joins this volley nor gets claimed out of the buff replay.
+    const spellHits = st.recruitBuffFx.filter((e) => e.kind === 'spell' && !e.sourceRuneId);
     const targets = Array.from(new Set(spellHits.map((e) => e.targetUid)));
     if (targets.length > 0) spellCastOwnedRef.current = { seq: st.recruitFxSeq, uids: new Set(targets) };
     // `count` is how many BUFFS landed on that body this action, not just that it was hit — a multicast spell

@@ -46,6 +46,11 @@ export interface BuffFxConfig {
   /** Undead Aura cue: a second aura sound within this many ms of the last is dropped (a burst in the same few
    *  frames stays one sound); anything slower overlaps freely (owner 2026-09-18: every 0.3 s should overlap). */
   undeadAuraSfxGapMs: number;
+  /** A spell's own cast effect (Growth's `growth-effect`): a second play of the SAME def within this many ms of the
+   *  last one that sounded plays its visuals but drops its sound, so two Fatecarvers casting Growth on one attack
+   *  (or a doubled cast) ring once (owner 2026-09-24: "give it the same behavior as the undead aura sfx timing").
+   *  Every phase and every source (player, rune, card). */
+  spellCastSfxGapMs: number;
 }
 
 const DEFAULTS: BuffFxConfig = {
@@ -60,6 +65,9 @@ const DEFAULTS: BuffFxConfig = {
   spiritSfxOffsetMs: 0, // relative to the Spirit def's LANDING BURST (its target-anchored `at`), not the ribbon's arrival
   spiritHitStaggerMs: 90,
   undeadAuraSfxGapMs: 120,
+  // Two Fatecarvers' Growths on one attack land in the SAME frame (0 ms apart: both `sc` events sit in one moment
+  // and the cue plays them in one loop), so the aura's 120 ms collapses them with room to spare.
+  spellCastSfxGapMs: 120,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -73,6 +81,7 @@ export const BUFFFX_RANGES: Partial<Record<keyof BuffFxConfig, [number, number, 
   spiritSfxOffsetMs: [-400, 800, 5],
   spiritHitStaggerMs: [0, 300, 5],
   undeadAuraSfxGapMs: [0, 1000, 10],
+  spellCastSfxGapMs: [0, 1000, 10],
 };
 
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
@@ -144,7 +153,7 @@ export function waveGapFor(waveCount: number): number {
  * SWALLOWS Earthbreaker's tendril, which is the more informative read (it shows WHO buffed). So among a key's
  * events we keep the first source-attributed one if any, else the first. Ordering is otherwise preserved.
  */
-export function coalesceBuffFxByTarget<T extends { targetUid: string; fxWave?: number; sourceUid?: string }>(events: readonly T[]): T[] {
+export function coalesceBuffFxByTarget<T extends { targetUid: string; fxWave?: number; sourceUid?: string; sourceRuneId?: string }>(events: readonly T[]): T[] {
   const best = new Map<string, T>();
   const order: string[] = [];
   for (const ev of events) {
@@ -152,7 +161,8 @@ export function coalesceBuffFxByTarget<T extends { targetUid: string; fxWave?: n
     const cur = best.get(k);
     if (cur === undefined) { best.set(k, ev); order.push(k); }
     // Upgrade a sourceless winner to a source-attributed tendril for the same key; a tendril already held stays.
-    else if (cur.sourceUid === undefined && ev.sourceUid !== undefined) best.set(k, ev);
+    // A rune-cast buff (`sourceRuneId`) has a source too: its rune's node (owner ruling 2026-09-24).
+    else if (cur.sourceUid === undefined && cur.sourceRuneId === undefined && (ev.sourceUid !== undefined || ev.sourceRuneId !== undefined)) best.set(k, ev);
   }
   return order.map((k) => best.get(k)!);
 }

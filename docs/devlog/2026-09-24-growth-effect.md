@@ -90,4 +90,55 @@ matching the one cast. No console errors.
 - The perf HUD flagged the Growth effect in the shop: "Growth Effect fx/frame", worst frame about 36 ms while it
   played. That is 3 x 240-particle bursts. The def is owner-authored and was left untouched. It may want a lower count.
 - Rune of Spellhide's Start-of-Combat re-cast still resolves without an `sc` announcement, so it plays no cast
-  effect. Equipment casts still record nothing (R-PRESENT-10). Neither has an owner ruling yet.
+  effect. Equipment casts still record nothing (R-PRESENT-10). Neither has an owner ruling yet. (Spellhide: announced
+  since the rune-cast follow-up below.)
+
+## Follow-up: rune casts use the spell effects (same day)
+
+Owner ruling, verbatim: "spells cast from runes and cards should use the spell effects, like gilded ledger should
+show the animations we build for the spells when it is cast. they can stem from the rune if there needs to be a
+source position."
+
+The shop cast-record watcher already played a rune's cast effect. What was missing was the tag and the source.
+A rune's buffs were untagged and `spell`-kind with no source, so they drew nothing at all.
+
+- **Sim tag.** `applyCastEffects` now tags buffs for any cast actor, not only minions. A rune's records also carry
+  `sourceRuneId`. On the authoritative End-of-Turn path, a rune's re-cast lands its stats under the spell's own
+  child beat (source `spell`), not under the rune's beat. That spell scope now reads the innermost cast actor and
+  stamps `statsChanged.spellId` + `castByRune`.
+- **Combat.** Rune of Spellhide's Start-of-Combat re-cast now logs `sc` with `spellId`, `rune: 'rune_spellhide'`
+  and `side`. Before this, a bound spell would have lost both its effect and its tendril there. The archived
+  Flooded Vault's `sc` gains `rune` too. `sc.rune` is a new optional field in `types.ts`.
+- **Source position.** Every phase uses the rune's node on the rail
+  (`.questbadges .runebadge[data-source-id]`, via `runeNodeCentre`). The StatusBar stays up in combat, so combat
+  uses the same node, for the PLAYER side only. An enemy rune is not on screen, so its cast stays on the body it
+  resolved through. A single-play effect (Growth) gets `source`/`cursor` = node, and `target` stays camera
+  (shop) or the caster (combat).
+- **Buffs.** A bound single-play spell replaces the trail, the rail ribbon included (the presenter checks
+  `spellId` before `questTendril`). A per-buff row (an Ale's `buffed`, Dragonflame's `buffedOn`) now plays per
+  buff from the node. An unbound spell draws the stock `tendril-trail` from the node. Both are in
+  `playRuneCastBuffFx`. Before this it was sourceless and drew nothing, on both the per-action and End-of-Turn
+  paths. If the node is off screen, nothing is drawn, same as before.
+- The player's Ale volley no longer sweeps in a rune's buffs from the same action (Rune of Might answering the
+  cast).
+- **Left alone.** Equipment casts (R-PRESENT-10). Also runes that multiply the PLAYER's own cast (Shared Pour,
+  Astral Draft, Distillation, Shared Reflection): they ride the player's cast path, which the ruling excluded.
+  Rubies speak the Ruby language and have no `spellCast` row.
+
+### One sound per burst
+
+Owner, verbatim: "make it so if 2 fatecarvers are down, or the effect is cast twice or something, that it only
+plays the sound effect one time. give it the same behavior as the undead aura sfx timing."
+
+`spellCastSoundAllowed(defId)` mirrors `sfx.undeadAura`. A second play of the same def within
+`spellCastSfxGapMs` of the last one that sounded is dropped, and a dropped play does not move the clock. The knob
+is in the Buff tuner next to the aura gap, default 120 ms. The dropped play still shows its visuals, with its
+Sound layers removed (new `PlayDefOptions.muteSound`). It is keyed by def, so two different spells each ring. It
+applies to the player's cast (`runSpellCastFire`), rune and minion casts, End of Turn and combat. Two
+Fatecarvers' Growths on one attack are two `sc` events in the same moment, played in one loop. They land 0 ms
+apart, so 120 ms collapses them. A player's multicast repeat is 200 ms apart and still rings each time.
+
+### Found, not fixed
+
+Rune of Spellhide looks its Beast up by combat uid (`m.uid === rec.uid`), but the sim records the RUN uid, which
+lands on `sourceUid`. It likely never fires in real play. This is a gameplay bug and was flagged as its own task.

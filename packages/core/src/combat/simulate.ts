@@ -3991,7 +3991,14 @@ export function simulate(
       if (!def?.spell || !onto || !combatCastable(def)) continue;
       nextStep();
       fireTrigger('runeSpellhide', rside);
-      resolveCombatSpellCast(ctx, onto, def, def.target ? [onto] : undefined);
+      // The re-cast ANNOUNCES itself (owner ruling 2026-09-24: "spells cast from runes and cards should use the
+      // spell effects"): every combat cast logs one "X casts Y" `sc` stamped with the spell, which is what the
+      // spell's own cast effect (`spellCastFx` cue) and the Combat Log key on. Before this Spellhide re-cast
+      // silently. `rune` names the caster — the Beast is only the body the cast resolves through — so the
+      // effect stems from the rune's node; `side` scopes that to the side that owns the rune.
+      if (resolveCombatSpellCast(ctx, onto, def, def.target ? [onto] : undefined)) {
+        emit({ type: 'sc', source: onto.uid, text: `Rune of Spellhide casts ${def.name}`, spellId: def.id, rune: 'rune_spellhide', side: rside });
+      }
     }
     if (rmods.runeFiveBanners) {
       // Rune of the Five Banners: ONE friendly minion of each type gains +6/+6 — the Paragon rule, so a

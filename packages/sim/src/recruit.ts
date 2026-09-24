@@ -578,9 +578,12 @@ export function captureBuffFx(
   source: BoardCard | undefined,
   kind: BuffFxEvent['kind'],
   run: () => void,
-  /** A `spell` capture's spell, when a CARD (a minion) cast it — stamped on its records so a spell with its own
-   *  cast effect replaces the descend/tendril for that cast (owner ruling 2026-09-24). */
+  /** A `spell` capture's spell, when a CARD (a minion) or a RUNE cast it — stamped on its records so a spell with
+   *  its own cast effect replaces the descend/tendril for that cast (owner rulings 2026-09-24). */
   cardCastSpellId?: string,
+  /** The rune that cast it, when the caster was a rune — stamped as `sourceRuneId` so the presentation can stem
+   *  from the rune's node on the rail (owner ruling 2026-09-24). */
+  castRuneId?: string,
 ): void {
   const before = new Map(state.board.map((c) => [c.uid, { a: c.attack, h: c.health }]));
   const fxStart = state.recruitBuffFx.length; // entries pushed DURING run() are nested (deeper) captures
@@ -610,6 +613,7 @@ export function captureBuffFx(
       sourceCardId: source?.cardId ?? '', sourceTribe: source?.tribe ?? 'neutral',
       kind,
       ...(castSpellId ? { spellId: castSpellId } : {}),
+      ...(castSpellId && castRuneId && kind === 'spell' ? { sourceRuneId: castRuneId } : {}),
     });
   }
 }
@@ -10113,10 +10117,14 @@ export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?
   // a collector is capturing (the authoritative End of Turn), the same fact is emitted as a `spellResolved`
   // consequence so the beat that owns the cast delivers the preview on its own clock.
   recordActorCast(ctx.state, spellDef.id, ctx.collector);
-  // Cast BY A CARD (a minion is the innermost actor — Mage-Pup, Sporebat, a Rope Wrangler): its buff records carry
-  // the spell, so a spell with its own cast effect replaces the generic descend for that cast (owner 2026-09-24).
+  // Cast BY A CARD or A RUNE (the innermost actor — Mage-Pup, Sporebat, a Rope Wrangler; Rune of the Gilded Ledger,
+  // Spell Market, Recurrence, Lassoing, Might): its buff records carry the spell, so a spell with its own cast
+  // effect replaces the generic descend for that cast (owner rulings 2026-09-24: "spells cast from runes and cards
+  // should use the spell effects"). A rune's records also name the rune, so a travelling visual stems from its
+  // node on the rail. The player's own cast (no actor) and an Equipment's cast stay untagged.
   const actor = castActorStack[castActorStack.length - 1];
-  const cardCastSpellId = actor?.kind === 'minion' && equipmentCastDepth === 0 ? spellDef.id : undefined;
+  const cardCastSpellId = actor && equipmentCastDepth === 0 ? spellDef.id : undefined;
+  const castRuneId = cardCastSpellId && actor?.kind === 'rune' ? actor.id : undefined;
   for (const effect of spellDef.effects) {
     if (effect.on !== 'cast') continue;
     const fn = RECRUIT_FACTORIES_UNATTRIBUTED[effect.do]; // the spell's OWN effects: the target is not the caster (cast preview)
@@ -10143,7 +10151,7 @@ export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?
       // Gifts read `payload.target`, copying the Battlecry-target call shape, and this site never sent it —
       // so Unbridled Might / Ironclad Favor / Champion's Regalia / Parting Gifts consumed the card, counted the
       // cast, and changed nothing (Bug Board 9852e16f, 2026-09-09).
-      () => captureBuffFx(ctx.state, undefined, 'spell', () => fn(ctx, target as BoardCard, params, { minion: target as BoardCard, target: target as BoardCard }), cardCastSpellId),
+      () => captureBuffFx(ctx.state, undefined, 'spell', () => fn(ctx, target as BoardCard, params, { minion: target as BoardCard, target: target as BoardCard }), cardCastSpellId, castRuneId),
     );
   }
 }
@@ -14125,6 +14133,11 @@ function withRecruitTrigger(
     const shopEatenBefore = (state.shopEaten ?? []).length;
     const rb = state.rubyBonus ?? { attack: 0, health: 0 };
     const castStart = (state.castFx ?? []).length; // a spell THIS beat's minion casts tags its buffs (see below)
+    // A SPELL-sourced scope (`applyCastEffects` opens one per cast effect) cast BY A CARD OR A RUNE — the innermost
+    // cast actor right now: its stat gains carry the spell (and the rune), exactly like the per-action buff records
+    // (owner ruling 2026-09-24: "spells cast from runes and cards should use the spell effects"). Rune of
+    // Recurrence's End-of-Turn re-cast lands its stats HERE, under the spell's child beat, not under the rune's.
+    const castActor = spec.source.kind === 'spell' && equipmentCastDepth === 0 ? castActorStack[castActorStack.length - 1] : undefined;
     // begin/end rather than withTrigger so the handle survives for the empty-scope discard below.
     // CHOREOGRAPHER PR 1: forward the identity fields verbatim (the primitive must not drop them).
     return (): void => {
@@ -14149,8 +14162,10 @@ function withRecruitTrigger(
           if (da === 0 && dh === 0) continue;
           // The spell this beat's MINION cast (Rope Wrangler-style End-of-Turn casts, a Moira-fired Mage-Pup): the
           // presenter lets a spell with its own cast effect replace the caster's tendril (owner ruling 2026-09-24).
-          const castSpellId = spec.source.kind === 'minion' ? spellCastBySince(state, castStart, spec.source.uid) : undefined;
-          collector.emit({ type: 'statsChanged', target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' }, attack: da, health: dh, permanent: true, channel: 'ordinary', ...(castSpellId ? { spellId: castSpellId } : {}) });
+          const castSpellId = spec.source.kind === 'minion' ? spellCastBySince(state, castStart, spec.source.uid)
+            : castActor ? spec.source.id : undefined;
+          const castByRune = castSpellId && castActor?.kind === 'rune' ? castActor.id : undefined;
+          collector.emit({ type: 'statsChanged', target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' }, attack: da, health: dh, permanent: true, channel: 'ordinary', ...(castSpellId ? { spellId: castSpellId } : {}), ...(castByRune ? { castByRune } : {}) });
         }
         // Cards this trigger put in hand (conjures / grants), in arrival order.
         for (const c of state.hand) {

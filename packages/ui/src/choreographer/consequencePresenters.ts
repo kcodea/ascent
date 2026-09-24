@@ -35,6 +35,11 @@ export interface PresenterContext {
    *  does, a buff that spell produced for a casting minion draws NO tendril: the spell's effect replaces it
    *  (owner ruling 2026-09-24). Optional: a context without it keeps every tendril. */
   spellHasCastFx?: (spellId: string) => boolean;
+  /** A gain a RUNE'S cast produced (`statsChanged.castByRune`) on a board unit, for a spell WITHOUT a single cast
+   *  effect: stem it from the rune's node (the spell's per-buff row, else the stock trail). Owner ruling
+   *  2026-09-24: "spells cast from runes and cards should use the spell effects … they can stem from the rune".
+   *  Optional: a context without it keeps the old (silent) path. */
+  runeCastGain?: (runeId: string, spellId: string | undefined, uid: string, index: number) => void;
   /** A minion buffed ITSELF this beat — the authored self-buff def (`self-buff-gold`), the richer twin of the
    *  green `statGain` burst. Matches the per-action path so a self-buff looks the same on any beat. */
   selfBuff: (uid: string) => void;
@@ -113,6 +118,15 @@ export type ConsequencePresenter = (args: PresenterArgs) => void;
 export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], ConsequencePresenter> = {
   statsChanged: ({ consequence: c, beat, ctx, index = 0 }) => {
     if (c.type !== 'statsChanged' || !c.target.uid) return;
+    // A CAST of a spell with its own effect, by a card OR A RUNE (owner rulings 2026-09-24): the effect plays on the
+    // cast's beat (`spellResolved`) and replaces every ribbon for the gains it produced, the rail's included.
+    if (c.spellId && ctx.spellHasCastFx?.(c.spellId)) return;
+    // A RUNE'S cast of any other spell (Rune of Recurrence re-casting an Ale): the gain lands under the spell's own
+    // child beat, with no body to ribbon from, so it stems from the rune's node instead of drawing nothing.
+    if (c.castByRune && c.target.zone === 'board' && ctx.runeCastGain) {
+      ctx.runeCastGain(c.castByRune, c.spellId, c.target.uid, index);
+      return;
+    }
     // A rune/quest reward that lands on a unit draws its ribbon from the rail to that unit.
     if ((beat.source.kind === 'rune' || beat.source.kind === 'quest') && c.target.zone === 'board') {
       ctx.questTendril(beat.source.kind, beat.source.id, c.target.uid, index);
@@ -133,11 +147,10 @@ export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], Consequenc
       ctx.heroPowerGain(c.target.uid, beat.source.id);
       return;
     }
-    // A CARD'S CAST of a spell with its own effect (a Mage-Pup's Growth at End of Turn): the spell's effect plays
-    // on the cast's beat (`spellResolved`) and REPLACES the caster's tendril (owner ruling 2026-09-24: "the growth
-    // and waking rift effects should replace the tendril for a card that carried those effects, like fatecarver
-    // as an example"). The stat change itself still lands through the projection; only the ribbon is dropped.
-    if (c.spellId && ctx.spellHasCastFx?.(c.spellId)) return;
+    // (A CARD'S CAST of a spell with its own effect, a Mage-Pup's Growth at End of Turn, returned above: the
+    // spell's effect REPLACES the caster's tendril, owner ruling 2026-09-24: "the growth and waking rift effects
+    // should replace the tendril for a card that carried those effects, like fatecarver as an example". The stat
+    // change itself still lands through the projection; only the ribbon is dropped.)
     ctx.statGain(c.target.uid, c.target.zone, c.attack, c.health,
       beat.source.kind === 'minion' && beat.source.uid ? { uid: beat.source.uid, cardId: beat.source.id } : undefined);
   },

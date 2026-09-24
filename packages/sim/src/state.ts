@@ -448,6 +448,12 @@ export interface BuffFxEvent {
    *  one was cast by it inside the capture. A spell with its own cast effect REPLACES the source's tendril for
    *  that cast (owner ruling 2026-09-24); the UI decides, keyed on this tag. Absent for every other buff. */
   spellId?: string;
+  /** The RUNE that cast `spellId` (Rune of the Gilded Ledger, Spell Market's Staff of Guel, Rune of Recurrence /
+   *  Lassoing / Might), when a rune was the innermost caster. A rune has no body on the board, so its cast's buffs
+   *  are `spell`-kind (sourceless); this names the rune whose node on the rune rail the presentation stems from
+   *  (owner ruling 2026-09-24: "spells cast from runes and cards should use the spell effects … they can stem
+   *  from the rune if there needs to be a source position"). Absent for every other buff. */
+  sourceRuneId?: string;
 }
 
 /** One card a Ruby landed on this action, and HOW MANY landed on it. The count is the information: a gilded

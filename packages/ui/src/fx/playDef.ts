@@ -144,6 +144,12 @@ export interface PlayDefOptions extends FxScaleAxes {
    */
   gain?: number;
   /**
+   * Play the def WITHOUT its Sound layers — the visuals only. Used when the same sound already rang a moment ago
+   * (two Fatecarvers casting Growth on one attack: owner 2026-09-24, "it only plays the sound effect one time"),
+   * so a burst of identical casts reads as several effects under ONE sound. Omitted/false = an exact no-op.
+   */
+  muteSound?: boolean;
+  /**
    * Force this play into a specific canvas SLOT, overriding the def's own `slot`. The library's preview uses
    * `'above'` so any def renders in the above-modal canvas and shows over the browser window.
    */
@@ -196,7 +202,10 @@ export function playableDef(def: StoredFxDef): FxDef {
  * when it changes something: `mul` of `1`/undefined, or a def with no Sound layer, returns the def by identity
  * (an exact no-op). Never mutates the shared def.
  */
-function gainScaledDef(def: FxDef, mul: number | undefined): FxDef {
+export function gainScaledDef(def: FxDef, mul: number | undefined, muteSound = false): FxDef {
+  // Muted (`PlayDefOptions.muteSound`): the Sound layers are dropped outright rather than played at zero gain, so
+  // no clip is decoded or scheduled for a play that must stay silent.
+  if (muteSound && def.layers.some((l) => l.primitive === 'sound')) return { ...def, layers: def.layers.filter((l) => l.primitive !== 'sound') };
   if (mul === undefined || mul === 1 || !def.layers.some((l) => l.primitive === 'sound')) return def;
   return {
     ...def,
@@ -542,7 +551,7 @@ function playDefInner(
   // Per-call sizing, applied AFTER `getDef` — `scaleDef` reads the primitive registry, and nothing may do
   // that before `playDef`'s own `canPlayDefs()`-gated path (see `fxDefs.ts`'s ORDER MATTERS note). With both
   // axes at their default 1 this returns `playableDef`'s object by identity: an exact no-op.
-  const def = gainScaledDef(staggerLayers(recolorDef(scaleDef(playableDef(stored), opts), opts.recolor), opts.index ?? 0), opts.gain);
+  const def = gainScaledDef(staggerLayers(recolorDef(scaleDef(playableDef(stored), opts), opts.recolor), opts.index ?? 0), opts.gain, opts.muteSound);
   const layers = def.layers;
   // Every layer muted = an effect that renders nothing. Declining is cheaper and more honest than mounting
   // a container and running an updater for a guaranteed-empty play.

@@ -21,7 +21,7 @@ import type { Moment } from './choreo/compile';
 import { replayBeats, replayOrder } from './choreo/replayOrder';
 import { rallyDeliveredUids, runMomentCues } from './choreo/score';
 import { CastPreviewMemory } from './choreo/channels/castPreview';
-import { clearCastPreviews, showCastPreview } from './castPreview';
+import { clearCastPreviews, showCombatCastPreviews } from './castPreview';
 import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, releaseSummons, subscribeSummonHolds, summonHoldVersion } from './fx/summonHold';
 import { notifyTutorialPresented } from './tutorial/presentationBus';
 import { attackSummonUids, ownStrikeAt, rallyProcsFor, strikeFollowsWindup } from './choreo/channels/rallyFired';
@@ -2284,14 +2284,10 @@ export function useCombatReplay(
       onBuffCasts: (casts) => fireBuffCasts(casts),
       // "X casts Y" → the spell's card preview above X (owner ask 2026-09-23), once per (caster, spell) per
       // fight. Anchored from the SLOT reading (`rectOf`), like a float — not a mid-lunge position.
-      onSpellCastPreviews: (casts) => {
-        for (const c of casts) {
-          if (!castPreviewMemoryRef.current.claim(c.source, c.spellId)) continue;
-          const r = rectOf(c.source);
-          if (!r) continue;
-          showCastPreview({ sourceKey: c.source, spellId: c.spellId, anchor: { left: r.cx - r.w / 2, top: r.cy - r.h / 2, width: r.w, height: r.h } });
-        }
-      },
+      // The memory is CLAIMED only once the caster has a rect: a cast whose body is not on screen yet must not
+      // burn its one preview for the fight. `Once per fight` is a Cast Preview tuner switch (default on).
+      // OFF for now (owner 2026-09-24: runes only) — the gate lives in `showCombatCastPreviews`.
+      onSpellCastPreviews: (casts) => { showCombatCastPreviews(casts, rectOf, castPreviewMemoryRef.current); },
       onSelfBuffs: (selfBuffs) => fireSelfBuffs(selfBuffs),
       // An aura STRENGTHENED (Kennelmaster's Avenge bump, Mama Bear / Flowing Monk growth) → a bare in-place pulse
       // at the unit. No badge hold/flash: an `improve` grows the unit's AURA (future grants), not its own Atk/HP.

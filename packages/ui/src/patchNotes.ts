@@ -51,6 +51,19 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Spell previews are smaller and only appear for spells cast by your runes for now.',
+        details: [
+          'The spell card that pops up when a rune casts a spell is smaller and quicker, sitting just above the rune.',
+          'Spells cast by minions, in the shop or in combat, no longer show a preview for now.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-23',
     label: 'Balance 9/23: minion reworks',
     changes: [

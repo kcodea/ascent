@@ -1,7 +1,9 @@
 /**
  * THE CAST PREVIEW LAYER — renders `castPreview.ts`'s entries: the spell a rune or minion just cast, as the
- * SAME plated full-size card the hover reveal shows (`Card` with `forceFull plated`, the same `zoom`), floating
- * above the caster. Mounted once from `Game.tsx` so it serves the shop AND the combat replay.
+ * plated card the hover reveal shows (`Card` with `forceFull plated`), SCALED by the Cast Preview tuner (owner
+ * 2026-09-23: the full-size card was "far too large … massive"), floating beside the caster. Mounted once from
+ * `Game.tsx` so it serves the shop AND the combat replay. Size, side, offset, fade timings and max opacity all
+ * come from `castPreviewConfig.ts` (per context: shop / combat); nothing here is a hard-coded number.
  *
  *   · A fixed, `pointer-events: none` layer: it never blocks input and never shifts layout.
  *   · One layout read per preview, at mount (`useLayoutEffect`, before paint): the card's own size, for the
@@ -17,6 +19,7 @@ import { Card, type CardView } from './Card';
 import { useGame } from './store';
 import { conjuredView } from './Recruit';
 import { getCastPreviews, placeCastPreview, subscribeCastPreviews, type CastPreviewEntry, type OccupiedSpan } from './castPreview';
+import { castPreviewLook, castPreviewTimings, getCastPreviewConfig, subscribeCastPreviewConfig } from './castPreviewConfig';
 
 /** Placements of the previews currently up — read by a newcomer's placement so it can dodge them. Module-level
  *  because the entries live in a module store too; cleared as each preview unmounts. */
@@ -24,6 +27,11 @@ const placed = new Map<number, OccupiedSpan>();
 
 const CastPreviewCard = memo(function CastPreviewCard({ entry, view }: { entry: CastPreviewEntry; view: CardView }) {
   const ref = useRef<HTMLDivElement | null>(null);
+  // The tuned look, LIVE: a knob change re-renders this card and re-runs the one measure below (per change,
+  // never per frame), so a preview already on screen resizes / moves as the owner drags.
+  const cfg = useSyncExternalStore(subscribeCastPreviewConfig, getCastPreviewConfig, getCastPreviewConfig);
+  const look = castPreviewLook(entry.context, cfg);
+  const ms = castPreviewTimings(entry.context, cfg);
   const [pos, setPos] = useState<{ left: number; top: number; chip: { top: number; right: number } } | null>(null);
   // Re-place when the entry is REPLACED (a same-source recast moved the anchor) — the id stays, the anchor changes.
   const { left: aLeft, top: aTop, width: aW, height: aH } = entry.anchor;
@@ -48,18 +56,26 @@ const CastPreviewCard = memo(function CastPreviewCard({ entry, view }: { entry: 
     const p = placeCastPreview({
       anchor: { left: aLeft, top: aTop, width: aW, height: aH }, w, h,
       viewportW: window.innerWidth, viewportH: window.innerHeight, occupied,
+      side: look.side, offsetX: look.offsetX, offsetY: look.offsetY,
     });
     placed.set(entry.id, { left: p.left, right: p.left + w });
     // The count chip rides the VISUAL top-right corner (the plate's), not the tile's.
     setPos({ left: p.left - dx, top: p.top - dy, chip: { top: dy - 6, right: -(right - outer.right) - 6 } });
-  }, [entry.id, aLeft, aTop, aW, aH]);
+  }, [entry.id, aLeft, aTop, aW, aH, look.scale, look.side, look.offsetX, look.offsetY]);
   useLayoutEffect(() => () => { placed.delete(entry.id); }, [entry.id]);
+  // The fade durations ride the one-shot entrance/exit animations; the max opacity is a STATIC opacity on the
+  // inner wrapper (the animation fades the outer 0 → 1, so the composite peaks at `alpha`). `--cp-scale` folds
+  // the tuned size into the inner `zoom` (a layout zoom, so the one measure sees the real footprint).
+  const base: CSSProperties = {
+    animationDuration: `${entry.leaving ? ms.fadeOut : ms.fadeIn}ms`,
+    ['--cp-scale' as string]: String(look.scale),
+  };
   const style: CSSProperties = pos
-    ? { left: pos.left, top: pos.top }
-    : { left: aLeft + aW / 2, top: aTop, visibility: 'hidden' }; // unmeasured: off-paint for one layout pass
+    ? { ...base, left: pos.left, top: pos.top }
+    : { ...base, left: aLeft + aW / 2, top: aTop, visibility: 'hidden' }; // unmeasured: off-paint for one layout pass
   return (
-    <div ref={ref} className={`castprev${entry.leaving ? ' leaving' : ''}`} style={style} data-spell-id={entry.spellId} data-source-key={entry.sourceKey}>
-      <div className="castprev-inner">
+    <div ref={ref} className={`castprev${entry.leaving ? ' leaving' : ''}`} style={style} data-spell-id={entry.spellId} data-source-key={entry.sourceKey} data-context={entry.context}>
+      <div className="castprev-inner" style={{ opacity: look.alpha }}>
         <Card card={view} forceFull plated />
       </div>
       {entry.count > 1 && <span className="castprev-count" style={pos ? { top: pos.chip.top, right: pos.chip.right } : undefined}>×{entry.count}</span>}

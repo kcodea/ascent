@@ -73,6 +73,7 @@ import { SPEC as RuneSheenSpec } from './RuneSheenTuner';
 import { SPEC as CombatCtlSpec } from './CombatCtlTuner';
 import { SPEC as SmokeSpec } from './SmokeTuner';
 import { SPEC as SpellPowerFxSpec } from './SpellPowerFxTuner';
+import { SPEC as CastPreviewSpec } from './castPreviewConfig';
 import { SPEC as StepCounterSpec } from './StepCounterTuner';
 import { SPEC as StepProcFxSpec } from './StepProcFxTuner';
 import { SPEC as SwapFxSpec } from './SwapFxTuner';
@@ -145,6 +146,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   CombatCtlSpec,
   SmokeSpec,
   SpellPowerFxSpec,
+  CastPreviewSpec,
   StepCounterSpec,
   StepProcFxSpec,
   SwapFxSpec,

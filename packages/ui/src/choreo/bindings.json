@@ -242,6 +242,12 @@
       "minionPlayed": {
         "def": "sfx-voidpanther"
       }
+    },
+    "b2_oona": {
+      "buffWave": {
+        "def": "oona-banana",
+        "fanOut": "buffed"
+      }
     }
   }
 }

@@ -52,6 +52,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-24',
+    label: 'Banana',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'King Oona now throws a banana at each Beast it doubles in combat.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Owner Rulings',
     changes: [
       {

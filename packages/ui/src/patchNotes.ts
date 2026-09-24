@@ -52,6 +52,26 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-23',
+    label: 'Balance 9/23: minion reworks',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Eight minions reworked: Conductor, Traveling Skald, Rope Wrangler, Soul Defiler, Moira, Impossible Todd, Muster General and Exgalloper.',
+        details: [
+          'Conductor now reads "Shout: give adjacent minions +2/+3 and improve this." Each time its Shout fires, that copy grows its grant by +1/+1 for the rest of the game. The old rule that every Conductor played improved every other Conductor is gone.',
+          'Traveling Skald is now a 1/3, and gives +3/+2 to another friendly Dragon when it attacks (was +2/+1).',
+          'Rope Wrangler now reads "End of Turn: cast Lasso. Repeat for every 10 Gold spent this turn." The extra casts land one after another, and there is no cap (was one extra cast per 6 Gold, 5 at most).',
+          'Soul Defiler now casts a Staff of Guel at End of Turn instead of its climbing, alternating shop buff.',
+          'Moira now triggers every Shout minion you control at End of Turn, wherever they stand (was the two next to her).',
+          'Impossible Todd gains +1/+2 and gives your Imps +2/+1 each time a friendly Demon deals damage (was +4/+4 and +2/+2).',
+          'Muster General\'s Trooper is now a 3/3 (was 1/1). It still improves your Troopers by +1/+1 each time.',
+          'Exgalloper now has Rebirth instead of its copy-summoning Echo: when it dies, it returns once with everything it had.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-23',
     label: 'Cast preview',
     changes: [
       { category: 'Systems', text: 'When a rune or a minion casts a spell, the spell shows above it for a moment.', details: [

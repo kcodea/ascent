@@ -178,7 +178,6 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     isImp: (t) => !!CARD_INDEX[t.cardId]?.imp,
     isFodder: (t) => !!CARD_INDEX[t.cardId]?.keywords.includes('FD'),
     impAura: () => state.impBuff ?? { attack: 0, health: 0 },
-    conductorTally: () => state.conductorBuff ?? 0,
     deathrattleTally: () => state.deathrattlesTriggered ?? 0,
     addTribeAura: () => {}, // no rest-of-combat in a shop; the legacy shop half never registered one
     grantCardTypeBuff: (cardId, a, h) => buffCardTypeRunWide(state, cardId, a, h, CARD_INDEX[cardId]?.name ?? cardId),
@@ -6881,23 +6880,31 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     conjureToHand(ctx.state, [soldDef], num(params.count, 1) * gold(self));
   },
 
-  /** Set 2 — Moira (owner 2026-07-28): End of Turn, trigger the Shouts of both board NEIGHBOURS. Gilded fires
-   *  the whole thing twice.
+  /** Set 2 — Moira (owner 2026-07-28; owner rework 2026-09-23: "End of Turn: trigger your Shout minions"):
+   *  End of Turn, trigger the Shout of EVERY friendly Shout minion on the board, left to right, wherever it
+   *  stands (it was the two neighbours only). Gilded fires the whole thing twice.
    *
    *  Routed through `replayBattlecry`, the shared re-trigger path (Echoing Roar, Resonance, Myra) — which is
-   *  what makes a re-fired Shout count as a Shout for quests, applies Spell Drummer's repeats, and drives the
-   *  Karwind flash. Rolling a bespoke loop over `onPlay` effects here would have silently skipped all three.
+   *  what makes a re-fired Shout count as a Shout for quests, applies Spell Drummer's repeats, fires
+   *  `battlecryTriggered` once per Shout (Karwind, Embermouth Whelp) and drives the Karwind flash. Rolling a
+   *  bespoke loop over `onPlay` effects here would have silently skipped all of those.
    *
-   *  Neighbours are read BEFORE any firing: a Shout that reorders the board (a summon landing between them)
-   *  must not change who this was pointing at, or the card becomes position-dependent mid-resolution. */
-  endOfTurnTriggerAdjacentShouts: (ctx, self) => {
-    const i = ctx.state.board.findIndex((c) => c.uid === self.uid);
-    if (i < 0) return;
-    const neighbours = [ctx.state.board[i - 1], ctx.state.board[i + 1]].filter((c): c is BoardCard => {
-      const def = c && CARD_INDEX[c.cardId];
+   *  The roster is read BEFORE any firing: a Shout that summons (Pennycat) lands a new body mid-resolution,
+   *  and a Shout minion summoned by another Shout is not "your Shout minion" at the moment Moira looked — the
+   *  card must not chain into bodies that arrived during its own resolution. Moira herself has no Shout; she
+   *  is skipped by uid so a future Shout on this card could never re-enter its own End of Turn. */
+  endOfTurnTriggerShouts: (ctx, self) => {
+    const shouters = ctx.state.board.filter((c) => {
+      if (c.uid === self.uid) return false;
+      const def = CARD_INDEX[c.cardId];
       return !!def && hasBattlecry(def);
     });
-    for (let n = 0; n < gold(self); n++) for (const c of neighbours) replayBattlecry(ctx.state, c);
+    for (let n = 0; n < gold(self); n++) {
+      for (const c of shouters) {
+        if (!ctx.state.board.some((b) => b.uid === c.uid)) continue; // consumed / sold mid-sequence
+        replayBattlecry(ctx.state, c);
+      }
+    }
   },
 
   /**
@@ -7863,7 +7870,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // enchants the Fodder type run-wide (like Ritualist) so Demons eating Fodder, and any Fodder you take, carry
     // the Staff's buff — a directly-bought Fodder gets it through that enchant, not the buy-buff (the buy path
     // + shop view skip FD to avoid double-applying). NO gust: the cue is Fodder-buff exclusive (owner 2026-07-16).
-    applyRunShopBuff(ctx.state, a, h, 'Staff of Guel');
+    // A MINION-cast Staff (Soul Defiler's End of Turn, owner 2026-09-23) names the CASTER for the shop-wide FX
+    // stamp — `_origin` is the caster's `board:<uid>` — so the End-of-Turn beat credits the card that raised the
+    // channel, exactly as a Shout's shop buff does. A hand cast has no origin and keeps the unnamed stamp.
+    const origin = typeof params._origin === 'string' && params._origin.startsWith('board:') ? params._origin.slice('board:'.length) : undefined;
+    const caster = origin ? ctx.state.board.find((c) => c.uid === origin) : undefined;
+    applyRunShopBuff(ctx.state, a, h, 'Staff of Guel', caster?.cardId);
   },
 
   /** Picnic (owner 2026-09-23: "T5 1 cost - Give the right-most Shop minion +8/+8 permanently") — the cast lands
@@ -8449,27 +8461,37 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** A minion casts a named spell from an event, auto-targeting the carry (the
-   *  highest-attack friend). Counts the cast but doesn't re-fire spellCast (no recursion). */
-  castSpell: (ctx, self, params) => {
+   *  highest-attack friend). Counts the cast but doesn't re-fire spellCast (no recursion).
+   *
+   *  A GILDED caster casts twice (owner 2026-07-21, Rope Wrangler) — each cast re-picks its target and counts
+   *  as a real cast, so spell-cast payoffs (Guel, Spirit Pup, Forsaken Weaver) see both.
+   *
+   *  `perGold` is the REPEAT form (owner 2026-09-23, Rope Wrangler: "Cast Lasso. Repeat for every 10 gold
+   *  spent this turn" — R-REPEAT-01): the base cast plus one repeat per that much Gold spent this turn, and
+   *  every repeat is its OWN End-of-Turn tick — `eotTickCount` reports 1 + ⌊Gold / perGold⌋ ticks, the
+   *  End-of-Turn loops call this once per tick under its own root trigger / projected beat, and each tick casts
+   *  gold(self) times (gilding doubles the per-tick grant, never the tick count). A single-shot caller (Dusk's
+   *  replay, a non-End-of-Turn trigger) passes no `tick` and runs every tick in one call. The old `maxCasts`
+   *  cap (5) went with the 2026-09-23 rework; no live card used it. */
+  castSpell: (ctx, self, params, payload) => {
     const spellDef = CARD_INDEX[str(params.spellId)];
     if (!spellDef || spellDef.singleCast) return; // singleCast spells (Devourer) never multi-fire
-    // A GILDED caster casts twice (owner 2026-07-21, Rope Wrangler) — each cast re-picks its target and
-    // counts as a real cast, so spell-cast payoffs (Guel, Spirit Pup, Forsaken Weaver) see both.
-    // Opt-in multicast (Rope Wrangler 2026-08-18): `perGold` grants +1 cast per that much Gold spent this turn,
-    // and `maxCasts` is a hard cap on the total. Absent → plain gold-scaled casting, unchanged.
-    const perGold = num(params.perGold, 0);
-    const maxCasts = num(params.maxCasts, 0);
-    let n = (perGold > 0 ? 1 + Math.floor((ctx.state.goldSpentThisTurn ?? 0) / perGold) : 1) * gold(self);
-    if (maxCasts > 0) n = Math.min(maxCasts, n);
-    for (let i = 0; i < n; i++) {
-      const friends = ctx.state.board.filter((c) => c !== self);
-      const target = friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
-      // The CASTER is the origin of a lasso beam (Rope Wrangler), not the carry the untargeted spell was
-      // handed — `applyCastEffects` passes `target` down as `self`, so the factory cannot tell them apart.
-      applyCastEffects(ctx, spellDef, target, self ? `board:${self.uid}` : undefined);
-      ctx.state.spellsCast += 1;
-      ctx.state.spellsThisTurn += 1;
+    const castOnce = (): void => {
+      for (let i = 0; i < gold(self); i++) {
+        const friends = ctx.state.board.filter((c) => c !== self);
+        const target = friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
+        // The CASTER is the origin of a lasso beam (Rope Wrangler), not the carry the untargeted spell was
+        // handed — `applyCastEffects` passes `target` down as `self`, so the factory cannot tell them apart.
+        applyCastEffects(ctx, spellDef, target, self ? `board:${self.uid}` : undefined);
+        ctx.state.spellsCast += 1;
+        ctx.state.spellsThisTurn += 1;
+      }
+    };
+    if (num(params.perGold, 0) > 0) {
+      forEachTick(payload as { tick?: number } | undefined, eotTickCount(ctx.state, { do: 'castSpell', params }), castOnce);
+      return;
     }
+    castOnce();
   },
 
   /** Vineweaver Drake — End of Turn: cast `spellId` (Growth) once, plus one more cast for each prior End of
@@ -8573,21 +8595,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     state.rngCursor = rng.state();
   },
 
-  /** Conductor — Shout: give the two ADJACENT minions +(2×N)/+(3×N), where N is the run-wide `conductorBuff`
-   *  weighted trigger count each Conductor Shout raises by 1 (×2 gilded, ×2 Mastery) — Squirl Scout's
-   *  snowball, positional. Improve first → THIS play grants the new value (first play = +2/+3). Live grant
-   *  surfaces via cardText's conductorText. */
-  // ARENA-MIGRATED (Shout family): one body in arena.ts serves both phases. The INCREMENT stays here because
-  // it is a play-time event ("every Conductor PLAYED"); the grant itself is the shared arena body, which is
-  // what makes the same Shout resolve during COMBAT re-fires instead of silently deferring to settle.
   /** Splitboon Adept — Shout: adjacent minions +atk/+hp (golden doubles). Arena body; both phases. */
   battlecryBuffAdjacent: (ctx, self, params) => {
     ARENA_EFFECTS.battlecryBuffAdjacent(shopArena(ctx.state, self), params);
   },
+  /** Conductor — Shout: adjacent minions +(2 + accrual)/+(3 + accrual), then improve THIS copy (owner rework
+   *  2026-09-23). One arena body serves both phases: the grant AND the per-copy `summonBonus` step live there,
+   *  so a shop re-fire (Moira, Ryme, Dawnclaw) and a combat re-fire (Parting Cry) improve the copy exactly like
+   *  the play does. The run-wide `conductorBuff` snowball of 2026-08-21 is no longer written. */
   battlecryConductorAdjacent: (ctx, self, params) => {
-    const state = ctx.state;
-    state.conductorBuff = (state.conductorBuff ?? 0) + gold(self) * improveReps(state);
-    ARENA_EFFECTS.battlecryConductorAdjacent(shopArena(state, self), params);
+    ARENA_EFFECTS.battlecryConductorAdjacent(shopArena(ctx.state, self), params);
   },
 
   /** Scrap Herald — Battlecry: your Magnetic minions ("Attachments") get +atk/+hp "wherever they are". Buffs
@@ -10584,10 +10601,16 @@ function fireBattlecryTriggered(state: RunState): void {
  * factories' single-shot fallback all read it, so none of them can disagree about the count. Anything not listed
  * fires once per trigger, exactly as before.
  */
-export function eotTickCount(state: Pick<RunState, 'playedThisTurn'>, effect: { do: string }): number {
+export function eotTickCount(state: Pick<RunState, 'playedThisTurn' | 'goldSpentThisTurn'>, effect: { do: string; params?: Record<string, unknown> }): number {
   switch (effect.do) {
     case 'endOfTurnBuffRandomTribeRepeatPerPlayed': return 1 + spiritsPlayedThisTurn(state); // Mother Moss
     case 'endOfTurnBuffEndsTribePerCard': return 1 + (state.playedThisTurn?.length ?? 0);     // Kringle
+    case 'castSpell': {
+      // Rope Wrangler (owner 2026-09-23): "cast Lasso. Repeat for every 10 Gold spent this turn" — the base
+      // cast plus one tick per `perGold`. A castSpell without `perGold` (Soul Defiler's Staff of Guel) is one tick.
+      const perGold = Number(effect.params?.perGold ?? 0);
+      return perGold > 0 ? 1 + Math.floor(Math.max(0, state.goldSpentThisTurn ?? 0) / perGold) : 1;
+    }
     default: return 1;
   }
 }
@@ -10596,7 +10619,7 @@ export function eotTickCount(state: Pick<RunState, 'playedThisTurn'>, effect: { 
  *  fires (a plain card = 1). Beat `t` runs tick `t` of every effect that still has a tick `t` to run, so a card
  *  with one repeating effect plays one beat per tick and every other card keeps its single beat. Read by the
  *  projection AND the legacy beat runner, which must agree 1:1. */
-export function endOfTurnTicksOf(state: Pick<RunState, 'playedThisTurn'>, card: Pick<BoardCard, 'cardId'>): number {
+export function endOfTurnTicksOf(state: Pick<RunState, 'playedThisTurn' | 'goldSpentThisTurn'>, card: Pick<BoardCard, 'cardId'>): number {
   const def = CARD_INDEX[card.cardId];
   if (!def) return 1;
   let ticks = 1;

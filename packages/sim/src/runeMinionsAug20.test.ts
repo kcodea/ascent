@@ -92,9 +92,9 @@ describe('rune-only minions (2026-08-20) — data shape', () => {
     expect(set2.all.some((c) => c.id === id), `${id} must still be a member of set 2`).toBe(true);
   });
 
-  it('the Trooper token is a plain 1/1 that no pool can offer', () => {
+  it('the Trooper token is a plain 3/3 (owner balance 2026-09-23; was 1/1) that no pool can offer', () => {
     const t = CARD_INDEX['n2_trooper']!;
-    expect([t.tribe, t.tier, t.attack, t.health]).toEqual(['neutral', 1, 1, 1]);
+    expect([t.tribe, t.tier, t.attack, t.health]).toEqual(['neutral', 1, 3, 3]);
     expect(t.token).toBe(true);
     expect(t.effects, 'the attack-now + improve rules live on Muster General, not on the token').toEqual([]);
     // Tokens live globally in ALL_CARDS and in NO set's own list — reachable only through the card that mints
@@ -426,7 +426,7 @@ describe('rune-only minions — combat effects', () => {
     const troopers = summonsOf(r.events, 'n2_trooper');
     expect(troopers.length, 'two Avenge crossings, two Troopers').toBeGreaterThanOrEqual(2);
 
-    // The IMPROVE is the card's second half: the first Trooper lands at 1/1, the next carries +1/+1.
+    // The IMPROVE is the card's second half: the first Trooper lands at the printed 3/3, the next carries +1/+1.
     const improves = r.events.filter((e) => e.type === 'improve' && (e as { target: string }).target === 'm0');
     expect(improves.length, 'each Avenge improves the General').toBeGreaterThanOrEqual(2);
     const second = troopers[1] as unknown as { minion: { uid: string } };

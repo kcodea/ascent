@@ -273,21 +273,21 @@ describe('set 2 — Contract Butcher / Soul Defiler buff the shop', () => {
     expect([later.attack, later.health]).toEqual([base.attack + 2, base.health + 1]);
   });
 
-  it('Curator escalates, and the buff SURVIVES a refresh (it is permanent)', () => {
-    // Owner ruling 2026-07-25: "give minions in the Shop" is a PERMANENT buy-buff like Staff of Guel, not a
-    // per-offer one. The per-offer version made this card nearly worthless — each turn's grant died on the next
-    // refresh, before the escalation could ever compound.
+  it('Soul Defiler casts a Staff of Guel at End of Turn, and the buff SURVIVES a refresh (it is permanent)', () => {
+    // Owner rework 2026-09-23: "End of Turn: Cast Staff of Guel." — the Staff's permanent buy-buff channel
+    // (owner ruling 2026-07-25: "give minions in the Shop" is a PERMANENT buy-buff, not a per-offer one), so a
+    // brand-new shop still carries it. The 2026-08-18 escalate-and-alternate shop buff is gone.
+    const staff = CARD_INDEX['staffofguel']!.effects[0]!.params as { attack: number; health: number };
     const s: RunState = {
       ...createRun(1), phase: 'recruit',
       board: [minion('c', 'dm_curator', 5, 3)], hand: [], shop: shop('sandbag'),
     };
     applyEndOfTurn(s);
-    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp]).toEqual([1, 0]); // trigger 1: +1 Attack (even trigger)
+    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp]).toEqual([staff.attack, staff.health]);
     applyEndOfTurn(s);
-    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp]).toEqual([1, 2]); // trigger 2: +2 Health (odd trigger) — it escalated and swapped
-    // A brand-new shop still carries it, which the per-offer version could not do.
+    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp], 'one Staff per End of Turn, stacking').toEqual([2 * staff.attack, 2 * staff.health]);
     s.shop = shop('alley');
-    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp]).toEqual([1, 2]);
+    expect([s.tavernBuyBonus.atk, s.tavernBuyBonus.hp]).toEqual([2 * staff.attack, 2 * staff.health]);
   });
 });
 

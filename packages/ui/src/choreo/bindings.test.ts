@@ -270,6 +270,10 @@ const SFX_BINDINGS: Record<string, { def: string; sfx: string }> = {
   statMilestone3: { def: 'rune-select-implosion', sfx: 'runeSelectImplosion' },
   statMilestone4: { def: 'rune-select-implosion', sfx: 'runeSelectImplosion' },
   statMilestone5: { def: 'rune-select-implosion', sfx: 'runeSelectImplosion' },
+  // Melee hits by Attack badge tier — pink / purple / blue (owner 2026-09-24).
+  attackHitMilestone4: { def: 'strike-impact-pink' },
+  attackHitMilestone5: { def: 'strike-impact-purple' },
+  attackHitMilestone6: { def: 'strike-impact-blue' },
 };
 
 describe('the bound kinds', () => {

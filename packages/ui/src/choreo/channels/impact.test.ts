@@ -268,7 +268,8 @@ describe('milestone hits', () => {
   it('tiers 1..3 and an unbound tier keep the standard hit', () => {
     bindTier(4, 'hit-pink');
     hit(3);
-    hit(6); // tier 6 unbound
+    setBinding(null, 'attackHitMilestone6', null); // tombstone: tier 6 plays nothing bespoke
+    hit(6);
     expect(firedDefs()).toEqual(['strike-impact', 'impact-dust', 'strike-impact', 'impact-dust']);
   });
 

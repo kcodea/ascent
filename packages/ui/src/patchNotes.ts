@@ -76,6 +76,19 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Casting a spell no longer makes your warband slide across the board.',
+        details: [
+          'Casting Growth, or any spell, could make every minion on your board slide in from the side.',
+          'It could happen after the game window changed size. Your minions now stay put when you cast.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
         text: 'Effects are no longer cut off by a hard edge. They now play over their full area.',
         details: [
           'Soft, blurred effects could stop at an invisible line on wide screens.',

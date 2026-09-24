@@ -52,6 +52,10 @@ paint it, or, when an element genuinely needs its own cursor, use the gauntlet U
 (`cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer`). Check any new button/overlay for this before
 shipping.
 
+**Never a `title=` attribute (or an SVG `<title>`, or `el.title = …`) on rendered DOM**: the native browser tooltip
+breaks immersion (owner 2026-09-24). Use `aria-label` / `aria-description` for screen readers and the game's own
+`.gtip[data-tip]` bubble for hover text; ESLint (`banTitleTooltips`) fails the build on it.
+
 ## Working with the user
 
 **Ask clarifying questions whenever a direction is confusing or you're unsure what's wanted for a

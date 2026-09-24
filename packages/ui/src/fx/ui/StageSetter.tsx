@@ -247,7 +247,7 @@ export function StageSetter({ stage, onChange, selectedActor, onSelectActor, bac
             type="button"
             className="fxwb-stage-add"
             onClick={() => onChange(addActor(stage, zone))}
-            title={`Add a card to ${zone}`}
+            aria-description={`Add a card to ${zone}`}
           >
             ＋ add card
           </button>
@@ -276,7 +276,7 @@ export function StageSetter({ stage, onChange, selectedActor, onSelectActor, bac
               className={`fxwb-stage-handle fxwb-stage-handle-${which}`}
               data-handle={which}
               style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
-              title={which}
+              aria-label={which}
               onPointerDown={beginPointDrag(which)}
             />
           );

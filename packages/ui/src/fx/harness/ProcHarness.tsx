@@ -178,13 +178,13 @@ export function ProcHarness({
         className="fxwb-btn"
         onClick={stage}
         disabled={blockReason !== null}
-        title={blockReason ?? undefined}
+        aria-description={blockReason ?? undefined}
       >
         Stage fight
       </button>
       {blockReason !== null && <p className="fxharness-empty">{blockReason}</p>}
 
-      <label htmlFor="fxh-runup" title="How many beats before the moment to start from, so you see it in context">
+      <label htmlFor="fxh-runup" aria-description="How many beats before the moment to start from, so you see it in context">
         Run-up
       </label>
       <input id="fxh-runup" type="range" min={0} max={8} step={1}

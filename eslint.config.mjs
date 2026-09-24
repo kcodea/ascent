@@ -22,6 +22,29 @@ const banMathRandom = {
   },
 };
 
+/**
+ * No native browser tooltips (owner 2026-09-24: "remove the window tooltips on these buttons (and every button)
+ * they break immersion so badly"). A `title` attribute on a DOM element, an SVG `<title>` child, or an imperative
+ * `el.title = …` / `setAttribute('title', …)` all paint the OS tooltip. Give screen readers `aria-label` /
+ * `aria-description`, and put player-facing hover text in the game's own bubble (`className="gtip"
+ * data-tip="…"`, styles.css). Component props that happen to be NAMED `title` (capitalised JSX tags) are fine.
+ */
+const TITLE_MSG =
+  'No native title tooltips: use aria-label / aria-description, and the game bubble (className="gtip" data-tip="…") for hover text. See CLAUDE.md UI conventions.';
+const banTitleTooltips = {
+  files: ['packages/ui/**/*.{ts,tsx}', 'apps/web/**/*.{ts,tsx}'],
+  ignores: ['**/*.test.{ts,tsx}'],
+  rules: {
+    'no-restricted-syntax': [
+      'error',
+      { selector: "JSXOpeningElement[name.type='JSXIdentifier'][name.name=/^[a-z]/] > JSXAttribute[name.name='title']", message: TITLE_MSG },
+      { selector: "JSXOpeningElement[name.name='title']", message: TITLE_MSG },
+      { selector: "AssignmentExpression > MemberExpression.left[property.name='title']:not([object.name='document'])", message: TITLE_MSG },
+      { selector: "CallExpression[callee.property.name='setAttribute'][arguments.0.value='title']", message: TITLE_MSG },
+    ],
+  },
+};
+
 export default tseslint.config(
   // `apps/desktop/release/**` is packaged build output (a copy of main.cjs plus the whole Electron
   // runtime) — linting it reports the same findings twice and would fail on vendored code.
@@ -47,4 +70,5 @@ export default tseslint.config(
     },
   },
   banMathRandom,
+  banTitleTooltips,
 );

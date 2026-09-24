@@ -2151,7 +2151,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const hintText = activeScenario?.hint;
   const fpsEl = <div className="fxwb-fps">{fps} fps</div>;
   const closeBtn = (
-    <button className="fxwb-close" onClick={onClose} title="Close FX Workbench">✕</button>
+    <button className="fxwb-close" onClick={onClose} aria-label="Close FX Workbench">✕</button>
   );
 
   // The top bar's picker groups: undo/redo, primitive row, scenario row, react-on subject, backdrop.
@@ -2164,7 +2164,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           className="fxwb-btn fxwb-history-btn"
           onClick={undoEdit}
           disabled={!historyFlags.undo}
-          title="Undo (Ctrl+Z)"
           aria-label="Undo"
         >
           ↶
@@ -2173,7 +2172,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           className="fxwb-btn fxwb-history-btn"
           onClick={redoEdit}
           disabled={!historyFlags.redo}
-          title="Redo (Ctrl+Shift+Z or Ctrl+Y)"
           aria-label="Redo"
         >
           ↷
@@ -2203,7 +2201,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             className="fxwb-select"
             value={subjectUid ?? ''}
             disabled={harnessUid !== null}
-            title={harnessUid !== null ? 'The harness has staged a card — it decides the subject.' : 'Which minion a react layer plays on'}
+            aria-label={harnessUid !== null ? 'The harness has staged a card — it decides the subject.' : 'Which minion a react layer plays on'}
             onChange={(e) => setPreviewUid(e.target.value)}
           >
             {previewOptions.map((o) => (
@@ -2219,14 +2217,14 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             key={sw.label}
             className={`fxwb-backdrop-swatch${sw.hex === null ? ' none' : ''}${backdropColor === sw.hex ? ' on' : ''}`}
             style={sw.hex !== null ? { background: `#${sw.hex.toString(16).padStart(6, '0')}` } : undefined}
-            title={sw.label}
+            aria-label={sw.label}
             onClick={() => setBackdropColor(sw.hex)}
           />
         ))}
         <input
           className={`fxwb-backdrop-custom${backdropColor !== null && !BACKDROP_SWATCHES.some((sw) => sw.hex === backdropColor) ? ' on' : ''}`}
           type="color"
-          title="Custom backdrop color"
+          aria-label="Custom backdrop color"
           value={`#${(backdropColor ?? 0x808080).toString(16).padStart(6, '0')}`}
           onChange={(e) => setBackdropColor(parseInt(e.target.value.slice(1), 16))}
         />
@@ -2250,7 +2248,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           <button
             type="button"
             className="fxwb-def-restore-x"
-            title="Dismiss"
             aria-label="Dismiss"
             onClick={() => setRestoredCommitNote(null)}
           >
@@ -2303,10 +2300,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         <select
           id="fxwb-layer-anchor"
           value={selLayer.anchor}
-          title={anchorBlurb(selLayer.anchor)}
+          aria-label={anchorBlurb(selLayer.anchor)}
           onChange={(e) => changeLayerAnchor(e.target.value as FxAnchorId)}
         >
-          {ANCHOR_OPTIONS.map((a) => <option key={a.id} value={a.id} title={a.blurb}>{a.label}</option>)}
+          {ANCHOR_OPTIONS.map((a) => <option key={a.id} value={a.id} aria-label={a.blurb}>{a.label}</option>)}
         </select>
       </label>
       {/* The chosen anchor's one-liner, always visible. A <select> shows one option at a time, so an
@@ -2324,10 +2321,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             <select
               id="fxwb-layer-anchorpart"
               value={selLayer.anchorPart ?? 'card'}
-              title={anchorPartBlurb(selLayer.anchorPart ?? 'card')}
+              aria-label={anchorPartBlurb(selLayer.anchorPart ?? 'card')}
               onChange={(e) => changeLayerAnchorPart(e.target.value as FxAnchorPart)}
             >
-              {ANCHOR_PART_OPTIONS.map((p) => <option key={p.id} value={p.id} title={p.blurb}>{p.label}</option>)}
+              {ANCHOR_PART_OPTIONS.map((p) => <option key={p.id} value={p.id} aria-label={p.blurb}>{p.label}</option>)}
             </select>
           </label>
           {(selLayer.anchorPart ?? 'card') !== 'card' && (
@@ -2340,10 +2337,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
                 <select
                   id="fxwb-layer-anchorpart-to"
                   value={selLayer.anchorPartTo ?? 'card'}
-                  title={anchorPartBlurb(selLayer.anchorPartTo ?? 'card')}
+                  aria-label={anchorPartBlurb(selLayer.anchorPartTo ?? 'card')}
                   onChange={(e) => changeLayerAnchorPartTo(e.target.value as FxAnchorPart)}
                 >
-                  {ANCHOR_PART_OPTIONS.map((p) => <option key={p.id} value={p.id} title={p.blurb}>{p.label}</option>)}
+                  {ANCHOR_PART_OPTIONS.map((p) => <option key={p.id} value={p.id} aria-label={p.blurb}>{p.label}</option>)}
                 </select>
               </label>
               {(selLayer.anchorPartTo ?? 'card') !== 'card' && (
@@ -2358,7 +2355,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           nothing. "Arrives with the layer" (the checkbox) is the default and serialises as an omission. */}
       {selLayer.anchor === 'travel' && (
         <>
-          <label className="fxwb-timing-full" title="The head takes the layer's whole life to cross its arc — untick to make it arrive EARLY and linger">
+          <label className="fxwb-timing-full" aria-description="The head takes the layer's whole life to cross its arc — untick to make it arrive EARLY and linger">
             <input
               type="checkbox"
               checked={selLayer.travelMs === null || selLayer.travelMs === undefined}
@@ -2390,7 +2387,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           {/* The arc's bow. Pinned at 0 this is a laser — a bolt, a beam, a thrown spear — which was
               simply not authorable before: the bow was a module-private constant. The slider reads 0 as
               "Straight" rather than a bare number, because that is the value people come here for. */}
-          <label htmlFor="fxwb-layer-bow" title="How far the arc bows off the straight source→target line. 0 = a dead-straight laser; negative bows the other way.">
+          <label htmlFor="fxwb-layer-bow" aria-description="How far the arc bows off the straight source→target line. 0 = a dead-straight laser; negative bows the other way.">
             Arc
           </label>
           <input
@@ -2420,7 +2417,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           expressible (owner, 2026-08-04), and what lets a whole multi-layer beam fan out one unit at a time
           (set the same stagger on each layer). The cue schedules whole PLAYS; this schedules one LAYER inside
           them. Inert on a single-target moment, where there is only ever recipient 0. */}
-      <label htmlFor="fxwb-layer-stagger" title="Milliseconds this layer slides for each further unit the moment hits. 0 = fires with its copy. Use it to cascade one layer while the rest volley.">
+      <label htmlFor="fxwb-layer-stagger" aria-description="Milliseconds this layer slides for each further unit the moment hits. 0 = fires with its copy. Use it to cascade one layer while the rest volley.">
         Stagger
       </label>
       <input
@@ -2451,7 +2448,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         onChange={(e) => changeLayerTiming(Number(e.target.value), selLayer.life, 'at')}
       />
       <span className="fxwb-val">{selLayer.at} ms</span>
-      <label className="fxwb-timing-full" title="Run this layer for the whole composition">
+      <label className="fxwb-timing-full" aria-description="Run this layer for the whole composition">
         <input
           type="checkbox"
           checked={selLayer.life === null}
@@ -2518,7 +2515,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             <button
               type="button"
               className="fxwb-def-variantwarn-x"
-              title="Dismiss"
               aria-label="Dismiss"
               onClick={() => setVariantWarning(null)}
             >
@@ -2543,7 +2539,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             type="button"
             className="fxwb-def-save"
             disabled={saving}
-            title="Write this composition to packages/ui/src/fx/defs/<name>.json"
+            aria-label="Write this composition to packages/ui/src/fx/defs/<name>.json"
             onClick={() => void save()}
           >
             {saving ? 'Saving…' : 'Save'}
@@ -2583,7 +2579,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     <button
       className="fxwb-play"
       onClick={togglePlay}
-      title={uiPlaying ? 'Pause the timeline where it is (Space)' : 'Play — resume the timeline, or start a pass if nothing is running (Space)'}
       aria-label={uiPlaying ? 'Pause' : 'Play'}
     >
       {uiPlaying ? '⏸' : '▶'}
@@ -2591,11 +2586,11 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   );
 
   const loopGroup = (
-    <div className="fxwb-loopgroup" title="Loop is on by default -- Fire above always stays a single one-shot pass regardless of this toggle">
+    <div className="fxwb-loopgroup" aria-label="Loop is on by default -- Fire above always stays a single one-shot pass regardless of this toggle">
       <button
         className={`fxwb-loop-toggle${loopOn ? ' on' : ''}`}
         onClick={toggleLoop}
-        title={loopOn ? 'Loop is ON -- click to stop (L)' : 'Loop is OFF -- click to loop continuously (L)'}
+        aria-label={loopOn ? 'Loop is ON -- click to stop (L)' : 'Loop is OFF -- click to loop continuously (L)'}
       >
         {loopOn ? '🔁 Loop: On' : '🔁 Loop: Off'}
       </button>
@@ -2610,7 +2605,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           className={`fxwb-loop-toggle${loopMode === 'playOut' ? ' on' : ''}`}
           aria-pressed={loopMode === 'playOut'}
           onClick={() => changeLoopMode('playOut')}
-          title="Play out: each pass finishes before the next begins (a fresh restart at the seam)"
+          aria-description="Play out: each pass finishes before the next begins (a fresh restart at the seam)"
         >
           ▶ Play out
         </button>
@@ -2618,7 +2613,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           className={`fxwb-loop-toggle${loopMode === 'seamless' ? ' on' : ''}`}
           aria-pressed={loopMode === 'seamless'}
           onClick={() => changeLoopMode('seamless')}
-          title="Seamless: the tail cross-fades into the next cycle so a continuous effect never blinks at the seam"
+          aria-description="Seamless: the tail cross-fades into the next cycle so a continuous effect never blinks at the seam"
         >
           ♾ Seamless
         </button>
@@ -2642,7 +2637,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         className="fxwb-fitduration"
         onClick={fitDuration}
         disabled={!canFitDuration}
-        title={
+        aria-description={
           fittedDuration === null
             ? 'Nothing to fit to — every layer runs the full duration, so none of them sets an end. Give a layer a fixed "Lasts for" first.'
             : fittedDuration === durationMs
@@ -2664,7 +2659,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         step={LOOP_JOIN_STEP_MS}
         value={loopJoinMs}
         disabled={!loopOn}
-        title="Signed join at the loop seam: + delays the next cycle (a gap), − overlaps it into the tail (Seamless only)"
+        aria-label="Signed join at the loop seam: + delays the next cycle (a gap), − overlaps it into the tail (Seamless only)"
         onChange={(e) => changeLoopJoin(Number(e.target.value))}
       />
       <span className="fxwb-speedval">{loopJoinMs > 0 ? `+${loopJoinMs}` : loopJoinMs} ms</span>
@@ -2674,7 +2669,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const slotGroup = (
     <div
       className="fxwb-slotgroup"
-      title={
+      aria-label={
         'Which canvas this effect draws on. UNDER puts it beneath EVERY card on the board (not just the ' +
         'one it is anchored to) — the cards are DOM and this is one canvas, so per-card layering is not ' +
         'possible.'
@@ -2684,14 +2679,14 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       <button
         className={`fxwb-slotbtn${slot === 'over' ? ' on' : ''}`}
         onClick={() => setSlot('over')}
-        title="Draw OVER the cards (default)"
+        aria-description="Draw OVER the cards (default)"
       >
         Over
       </button>
       <button
         className={`fxwb-slotbtn${slot === 'under' ? ' on' : ''}`}
         onClick={() => setSlot('under')}
-        title="Draw UNDER every card, above the board art"
+        aria-description="Draw UNDER every card, above the board art"
       >
         Under
       </button>
@@ -2705,7 +2700,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const followGroup = (
     <div
       className="fxwb-slotgroup"
-      title={
+      aria-label={
         'FOLLOW SOURCE: in-game, re-anchor to the source unit every frame so the whole effect rides it as it ' +
         'moves — a shop drag, a warband reorder, a combat lunge. For effects that sit ON a unit (badges, ' +
         'auras), not ones that travel between two. No visible change here on the stage; it takes effect where ' +
@@ -2716,14 +2711,14 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       <button
         className={`fxwb-slotbtn${!followSource ? ' on' : ''}`}
         onClick={() => setFollowSource(false)}
-        title="The effect stays where it was fired (default)"
+        aria-description="The effect stays where it was fired (default)"
       >
         Fixed
       </button>
       <button
         className={`fxwb-slotbtn${followSource ? ' on' : ''}`}
         onClick={() => setFollowSource(true)}
-        title="The effect rides its source unit as it moves (drag, reorder, lunge)"
+        aria-description="The effect rides its source unit as it moves (drag, reorder, lunge)"
       >
         Source
       </button>
@@ -2733,12 +2728,12 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const seedGroup = (
     <div
       className="fxwb-seedgroup"
-      title="Lock the seed to freeze the randomness while you tune other params. Takes effect on the next Fire."
+      aria-label="Lock the seed to freeze the randomness while you tune other params. Takes effect on the next Fire."
     >
       <button
         className={`fxwb-seed-lock${seedLocked ? ' on' : ''}`}
         onClick={toggleSeedLock}
-        title={seedLocked ? 'Seed is LOCKED -- click to roll fresh every spawn' : 'Seed is UNLOCKED (fresh roll every spawn) -- click to freeze this one'}
+        aria-label={seedLocked ? 'Seed is LOCKED -- click to roll fresh every spawn' : 'Seed is UNLOCKED (fresh roll every spawn) -- click to freeze this one'}
       >
         {seedLocked ? '🔒' : '🔓'}
       </button>
@@ -2752,7 +2747,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         spellCheck={false}
         onChange={(e) => changeSeed(e.target.value)}
       />
-      <button className="fxwb-seed-reroll" onClick={rerollSeed} title="Roll a new seed (and lock it)">
+      <button className="fxwb-seed-reroll" onClick={rerollSeed} aria-label="Roll a new seed (and lock it)">
         🎲
       </button>
     </div>
@@ -2890,7 +2885,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             <button
               className="fxwb-fire"
               onClick={fire}
-              title="Retrigger the whole composition from 0 (F) — a single pass, even if one is already playing."
+              aria-description="Retrigger the whole composition from 0 (F) — a single pass, even if one is already playing."
             >
               🔥 Fire
             </button>
@@ -2914,7 +2909,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
             <button
               className="fxwb-fire"
               onClick={fire}
-              title="Retrigger the whole composition from 0 (F) — a single pass, even if one is already playing. Continuous playback is the separate Loop toggle."
+              aria-description="Retrigger the whole composition from 0 (F) — a single pass, even if one is already playing. Continuous playback is the separate Loop toggle."
             >
               🔥 Fire once
             </button>
@@ -2964,7 +2959,6 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           <button
             className="fxwb-btn fxwb-cmdk"
             onClick={openCmd}
-            title="Command palette (⌘K / Ctrl+K)"
             aria-label="Open command palette"
           >
             ⌘K
@@ -2978,7 +2972,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
               className="fxwb-btn fxwb-region-toggle"
               onClick={() => setLayersOpen((v) => !v)}
               aria-expanded={layersOpen}
-              title={layersOpen ? 'Collapse the primitives panel' : 'Expand the primitives panel'}
+              aria-label={layersOpen ? 'Collapse the primitives panel' : 'Expand the primitives panel'}
             >
               <span aria-hidden="true">{layersOpen ? '◂' : '▸'}</span>{layersOpen ? ' Primitives' : ''}
             </button>
@@ -3022,7 +3016,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
               className="fxwb-btn fxwb-region-toggle"
               onClick={() => setEditorOpen((v) => !v)}
               aria-expanded={editorOpen}
-              title={editorOpen ? 'Collapse the editor panel' : 'Expand the editor panel'}
+              aria-label={editorOpen ? 'Collapse the editor panel' : 'Expand the editor panel'}
             >
               <span aria-hidden="true">{editorOpen ? '▸' : '◂'}</span>{editorOpen ? ' Editor' : ''}
             </button>
@@ -3036,7 +3030,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
               className="fxwb-btn fxwb-timeline-toggle"
               onClick={() => setTimelineOpen((v) => !v)}
               aria-expanded={timelineOpen}
-              title={timelineOpen ? 'Collapse the timeline' : 'Expand the timeline'}
+              aria-description={timelineOpen ? 'Collapse the timeline' : 'Expand the timeline'}
             >
               <span aria-hidden="true">{timelineOpen ? '▾' : '▸'}</span> Timeline
             </button>

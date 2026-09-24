@@ -87,7 +87,7 @@ function BugReportPanel() {
             {inMenu ? 'MENU' : `${inCombat ? 'COMBAT' : 'SHOP'} · Round ${cap.wave}`}
           </span>
           {!inCombat && cap.timerSecondsRemaining != null && (
-            <span className="bgrclock" title="The turn timer is paused while this report is open">
+            <span className="bgrclock" aria-description="The turn timer is paused while this report is open">
               ⏸ {cap.timerSecondsRemaining}s
             </span>
           )}

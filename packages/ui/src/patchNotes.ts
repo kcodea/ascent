@@ -55,6 +55,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Discover now shows your real board behind the choices, and the plain browser tooltips are gone.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
         text: 'Growth and Waking Rift have their own effects now, wherever they are cast from.',
         details: [
           'The effect plays every time the spell is cast: from your hand, by a rune, by a minion in the Shop, at End of Turn, and in combat.',

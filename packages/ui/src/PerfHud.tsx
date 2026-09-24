@@ -276,10 +276,10 @@ function PerfHudPanel() {
     >
       <div className="perfhud-h drag" onPointerDown={headerPointerDown}>
         <span className="perfhud-title">◆ Perf</span>
-        <span className="perfhud-warm" ref={warmRef} title="Frames after a phase start are diverted to a startup record until the warm-up passes (docs/performance.md)" />
+        <span className="perfhud-warm" ref={warmRef} aria-label="Frames after a phase start are diverted to a startup record until the warm-up passes (docs/performance.md)" />
         <span className="perfhud-fps" ref={fpsRef}>–</span>
         <span className="perfhud-unit">fps</span>
-        <span className="perfhud-worst" ref={worstRef} title="Worst frame in the last second">–</span>
+        <span className="perfhud-worst" ref={worstRef} aria-label="Worst frame in the last second">–</span>
         {/* THE CONTROLS SIT INSIDE THE DRAG HANDLE, so each one has to stop `pointerdown` reaching it (owner
             report 2026-08-29): the header captures the pointer to drag the panel, and a captured pointer never
             delivers the click that follows. */}
@@ -287,14 +287,12 @@ function PerfHudPanel() {
           className="perfhud-x"
           onPointerDown={(e) => { e.stopPropagation(); }}
           onClick={() => { setMin((m) => !m); }}
-          title={min ? 'Expand the panel' : 'Minimize to the title bar'}
           aria-label={min ? 'Expand' : 'Minimize'}
         >{min ? '▢' : '—'}</button>
         <button
           className="perfhud-x"
           onPointerDown={(e) => { e.stopPropagation(); }}
           onClick={() => { setOpen((o) => !o); }}
-          title={open ? 'Collapse the details' : 'Show the details'}
           aria-label={open ? 'Collapse details' : 'Show details'}
         >{open ? '▾' : '▸'}</button>
         {/* NO ✕ HERE — `useDraggablePanel` injects one, wired through the provider in `PerfHud`. */}
@@ -302,7 +300,7 @@ function PerfHudPanel() {
 
       {!min && (
         <>
-          <canvas className="perfhud-graph" ref={canvasRef} height={GRAPH_H} title="Last 10 s, one column per pixel = the worst frame in that slice. Dashed: per-frame budget. Dotted: dropped-frame line. Ticks on top: a dropped frame. Shaded: warm-up." />
+          <canvas className="perfhud-graph" ref={canvasRef} height={GRAPH_H} aria-label="Last 10 s, one column per pixel = the worst frame in that slice. Dashed: per-frame budget. Dotted: dropped-frame line. Ticks on top: a dropped frame. Shaded: warm-up." />
           <div className="perfhud-legend">
             <span><i style={{ background: PHASE_COLORS[1] }} />{PHASE_LABELS[1]}</span>
             <span><i style={{ background: PHASE_COLORS[2] }} />{PHASE_LABELS[2]}</span>
@@ -310,10 +308,10 @@ function PerfHudPanel() {
             <span className="perfhud-legend-budget">budget {th.frameMs.toFixed(2)} · long {ms1(th.longFrameMs)} · jank {ms1(th.jankMs)} ms</span>
           </div>
           <div className="perfhud-stats">
-            <div className="perfhud-row" title="Rolling window: worst · p95 · frames over the long line · frames over the jank line">
+            <div className="perfhud-row" aria-label="Rolling window: worst · p95 · frames over the long line · frames over the jank line">
               <span>10 s · worst · p95 · long · jank</span><b ref={rollRef}>–</b>
             </div>
-            <div className="perfhud-row" title="Whole capture (warm-ups excluded): worst · p95 (median of per-second p95s) · long · jank">
+            <div className="perfhud-row" aria-label="Whole capture (warm-ups excluded): worst · p95 (median of per-second p95s) · long · jank">
               <span>capture {cap.seconds}s</span>
               <b style={{ color: cap.jank > 0 ? '#ff7a90' : cap.long > 0 ? '#f0902e' : '#fff' }}>
                 {cap.seconds ? `${ms1(cap.worst)} · ${ms1(cap.p95)} · ${cap.long} · ${cap.jank}` : '–'}
@@ -342,7 +340,7 @@ function PerfHudPanel() {
             : (
               <div className="perfhud-off">
                 {offenders.map((o) => (
-                  <div key={o.label} className="perfhud-off-row" title={`${o.label} — ${o.ms.toFixed(1)} ms self time across ${o.frames} dropped frame(s); ${o.n} call(s); worst call ${o.maxMs.toFixed(1)} ms`}>
+                  <div key={o.label} className="perfhud-off-row" aria-label={`${o.label} — ${o.ms.toFixed(1)} ms self time across ${o.frames} dropped frame(s); ${o.n} call(s); worst call ${o.maxMs.toFixed(1)} ms`}>
                     <i style={{ width: `${Math.round(o.share * 100)}%` }} />
                     <span>{shortName(o.label)}</span>
                     <b>{Math.round(o.share * 100)}%</b>
@@ -414,15 +412,15 @@ function PerfHudPanel() {
           <Row k="marks" v={marks.length ? marks.map(([k, v]) => `${shortName(k)}×${v}`).join(' ') : '–'} />
 
           <div className="perfhud-btns">
-            <button onClick={copy} title="Copy a markdown report — offenders, findings, phases, worst moments — ready to paste to Claude">
+            <button onClick={copy} aria-label="Copy a markdown report — offenders, findings, phases, worst moments — ready to paste to Claude">
               {copied ? '✓ copied' : '📋 report'}
             </button>
-            <button onClick={save} title="Save this recording so the Perf Analytics screen can compare it against later ones">
+            <button onClick={save} aria-label="Save this recording so the Perf Analytics screen can compare it against later ones">
               {saved || '💾 save'}
             </button>
-            <button onClick={() => { useGame.getState().openPerf(); }} title="Open Perf Analytics — findings, phases, timeline, comparison">📈</button>
-            <button onClick={() => perfMonitor.exportLog()} title="Download the full timeline as JSON">⬇</button>
-            <button onClick={() => { perfMonitor.clear(); histRef.current = []; setLive(null); lastDiagRef.current = -1; setBucket(null); }} title="Clear the timeline">↺</button>
+            <button onClick={() => { useGame.getState().openPerf(); }} aria-label="Open Perf Analytics — findings, phases, timeline, comparison">📈</button>
+            <button onClick={() => perfMonitor.exportLog()} aria-label="Download the full timeline as JSON">⬇</button>
+            <button onClick={() => { perfMonitor.clear(); histRef.current = []; setLive(null); lastDiagRef.current = -1; setBucket(null); }} aria-label="Clear the timeline">↺</button>
           </div>
         </div>
       )}
@@ -498,7 +496,7 @@ function drawGraph(cv: HTMLCanvasElement | null, cssW: number, now: number): voi
 /** `title` carries the RAW measured label behind a friendly name, so a row stays greppable on hover. */
 function Row({ k, v, warn, title }: { k: string; v: string; warn?: boolean; title?: string }) {
   return (
-    <div className={`perfhud-row${warn ? ' warn' : ''}`} title={title}>
+    <div className={`perfhud-row${warn ? ' warn' : ''}`} aria-label={title}>
       <span>{k}</span><b>{v}</b>
     </div>
   );

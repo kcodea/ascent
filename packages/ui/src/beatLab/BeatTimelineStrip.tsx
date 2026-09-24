@@ -75,7 +75,7 @@ export function BeatTimelineStrip({ batch, overrides, policyOverrides = {}, edit
           const editable = timingKeysFor(b.trigger).includes(editKey) || `family:${b.trigger.policy}` === editKey;
           const tint = POLICY_TINT[b.trigger.policy] ?? '#888';
           return (
-            <div key={b.id} className="bl-tl-beat" style={{ left: r.startPx, width: r.totalPx }} title={`${b.trigger.source.label ?? b.trigger.source.id} — ${b.trigger.trigger}`}>
+            <div key={b.id} className="bl-tl-beat" style={{ left: r.startPx, width: r.totalPx }} aria-label={`${b.trigger.source.label ?? b.trigger.source.id} — ${b.trigger.trigger}`}>
               <div className="bl-tl-windup" style={{ width: r.windupPx }} />
               <div className="bl-tl-hold" style={{ width: r.holdPx, background: tint }} />
               <div className="bl-tl-recovery" style={{ width: r.recoveryPx }} />
@@ -84,7 +84,7 @@ export function BeatTimelineStrip({ batch, overrides, policyOverrides = {}, edit
                   className="bl-tl-handle"
                   style={{ left: r.holdEndPx - r.startPx }}
                   onPointerDown={(e) => onPointerDown(e, i)}
-                  title="Drag to change hold (Alt: no snap)"
+                  aria-label="Drag to change hold (Alt: no snap)"
                 />
               )}
             </div>

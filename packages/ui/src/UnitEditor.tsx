@@ -91,7 +91,7 @@ export function UnitEditor({
         className="uned-card"
         value={value.cardId}
         onChange={(e) => onChange({ cardId: e.target.value })}
-        title="Which card this unit is — swapping adopts its printed stats"
+        aria-label="Which card this unit is — swapping adopts its printed stats"
       >
         {cards.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
       </select>
@@ -108,14 +108,14 @@ export function UnitEditor({
             key={kw}
             className={`uned-kwbtn${value.keywords.includes(kw) ? ' on' : ''}`}
             onClick={() => onToggleKeyword(kw)}
-            title={KEYWORD_LABEL[kw] ?? kw}
+            aria-label={KEYWORD_LABEL[kw] ?? kw}
           >
             {KEYWORD_LABEL[kw] ?? kw}
           </button>
         ))}
       </div>
       {onRemove !== undefined && (
-        <button className="uned-remove" onClick={onRemove} title="Remove this unit from the opponent board">
+        <button className="uned-remove" onClick={onRemove} aria-description="Remove this unit from the opponent board">
           remove
         </button>
       )}

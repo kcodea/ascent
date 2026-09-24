@@ -500,7 +500,7 @@ export function MinionBook() {
             className={`book-gloss${glossary ? ' on' : ''}`}
             onClick={() => setGlossary((g) => !g)}
             aria-pressed={glossary}
-            title="Glossary. Every keyword and trigger, defined."
+            aria-description="Glossary. Every keyword and trigger, defined."
           >
             <Icon name="sc" /> Glossary
           </button>
@@ -509,7 +509,7 @@ export function MinionBook() {
               className={`book-gilded${gilded ? ' on' : ''}`}
               onClick={() => setGilded((g) => !g)}
               aria-pressed={gilded}
-              title="Show every card's tripled (Gilded) form"
+              aria-description="Show every card's tripled (Gilded) form"
             >
               <Icon name="crown" /> Gilded
             </button>
@@ -521,7 +521,6 @@ export function MinionBook() {
                 onClick={() => setZoom((z) => Math.max(ZOOM_MIN, Math.round((z - ZOOM_STEP) * 10) / 10))}
                 disabled={zoom <= ZOOM_MIN}
                 aria-label="Smaller cards (more per screen)"
-                title="Smaller cards, more per screen"
               >−</button>
               <span className="book-zoom-val">{Math.round(zoom * 100)}%</span>
               <button
@@ -529,7 +528,6 @@ export function MinionBook() {
                 onClick={() => setZoom((z) => Math.min(ZOOM_MAX, Math.round((z + ZOOM_STEP) * 10) / 10))}
                 disabled={zoom >= ZOOM_MAX}
                 aria-label="Bigger cards (fewer per screen)"
-                title="Bigger cards, fewer per screen"
               >+</button>
             </div>
           )}
@@ -544,7 +542,7 @@ export function MinionBook() {
                 <h3 className="gloss-grouphead">{group.title}</h3>
                 {group.items.map((it) =>
                   clickableTerms.has(it.term) ? (
-                    <button className="gloss-row is-click" key={it.term} onClick={() => filterByKeyword(it)} title={`Show minions with ${it.term}`}>
+                    <button className="gloss-row is-click" key={it.term} onClick={() => filterByKeyword(it)} aria-label={`Show minions with ${it.term}`}>
                       <span className="gloss-ico">{glossIcon(it)}</span>
                       <span className="gloss-txt">
                         <span className="gloss-term">{it.term}</span>
@@ -579,7 +577,7 @@ export function MinionBook() {
               onClick={() => toggleTier(t)}
               aria-pressed={tiers.has(t)}
               disabled={ownGalleryTab}
-              title={ownGalleryTab ? 'This tab is not organised by tier' : `Tier ${t}`}
+              aria-label={ownGalleryTab ? 'This tab is not organised by tier' : `Tier ${t}`}
             >
               {t}
             </button>
@@ -596,7 +594,7 @@ export function MinionBook() {
                     style={{ '--c': `var(--t-${t})` } as CSSProperties}
                     onClick={() => setRuneTribes((prev) => { const next = new Set(prev); if (next.has(t)) next.delete(t); else next.add(t); return next; })}
                     aria-pressed={runeTribes.has(t)}
-                    title={`Runes that name ${CAT_META[t].label}`}
+                    aria-label={`Runes that name ${CAT_META[t].label}`}
                   >
                     <Icon name={CAT_META[t].icon} />
                     <span>{CAT_META[t].label}</span>
@@ -618,7 +616,7 @@ export function MinionBook() {
                       style={{ '--h': n / tierMax } as CSSProperties}
                       onClick={() => toggleTier(t)}
                       aria-pressed={tiers.has(t)}
-                      title={`Tier ${t}: ${n} ${chartNoun}`}
+                      aria-label={`Tier ${t}: ${n} ${chartNoun}`}
                     >
                       <span className="book-bar-n">{n}</span>
                       <span className="book-bar-fill">
@@ -634,7 +632,7 @@ export function MinionBook() {
             )}
           </div>
           {kw && (
-            <button className="book-kwchip" onClick={() => setKw(null)} title="Clear keyword filter">
+            <button className="book-kwchip" onClick={() => setKw(null)} aria-label="Clear keyword filter">
               {glossIcon(kw)} {kw.term} <span className="book-kwx">✕</span>
             </button>
           )}
@@ -650,7 +648,7 @@ export function MinionBook() {
                 style={{ '--c': c === 'spells' ? 'var(--acc)' : c === 'rewards' ? 'var(--gold)' : c === 'quests' ? 'var(--acc-dk)' : c === 'runes' ? '#b078e6' : c === 'gifts' ? '#ffd27a' : c === 'runeRewards' ? '#c9a4ec' : c === 'heroes' ? '#e0b34a' : `var(--t-${c})` } as CSSProperties}
                 onClick={() => toggleCat(c)}
                 aria-pressed={cats.has(c)}
-                title={CAT_META[c].label}
+                aria-label={CAT_META[c].label}
               >
                 <Icon name={CAT_META[c].icon} />
                 <span className="book-catlabel">{CAT_META[c].label}</span>
@@ -672,9 +670,9 @@ export function MinionBook() {
                           {art ? <img decoding="sync" src={art} alt={h.name} draggable={false} /> : <Icon name="shield" />}
                         </div>
                         <div className="bookhero-name">{h.name}</div>
-                        <div className="bookhero-hp" title="Starting Health + Armor">
+                        <div className="bookhero-hp" aria-label="Starting Health + Armor">
                           <Icon name="heart" />{h.resolve}
-                          {h.armor > 0 && <span className="bookhero-armor" title="Starting Armor">+{h.armor}</span>}
+                          {h.armor > 0 && <span className="bookhero-armor" aria-description="Starting Armor">+{h.armor}</span>}
                         </div>
                         <div className="bookhero-pw"><b>{h.power.name}</b> · <span dangerouslySetInnerHTML={{ __html: mdBold(h.power.text) }} /></div>
                         {h.power.unlockWave && h.power.unlockWave > 1 && (

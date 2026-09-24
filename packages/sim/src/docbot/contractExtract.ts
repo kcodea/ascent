@@ -471,7 +471,9 @@ function extractRune(rune: RuneLike, forge: 'basic' | 'epic'): ContentContract {
     revision: 1,
     reviewStatus: 'extracted',
     extraction: { extractor: EXTRACTOR_ID, confidence: confidenceOf(effects, sortedUnparsed), ...(sortedUnparsed.length ? { unparsed: sortedUnparsed } : {}) },
-    ...(rune.sets?.length ? { setIds: [...rune.sets].sort() } : {}),
+    // `sets: []` (a rune cut from the only set it was in, e.g. the 2026-09-24 Set 3 cuts) is offered in NO set, so it
+    // keeps an empty `setIds` rather than reading as unscoped (every set).
+    ...(rune.sets ? { setIds: [...rune.sets].sort() } : {}),
     ...(rune.tribes?.length ? { tribes: [...rune.tribes] } : {}),
     tags: [`runeforge:${forge}`, `cost:${rune.cost}`],
     ...(effects.length ? { effects } : {}),

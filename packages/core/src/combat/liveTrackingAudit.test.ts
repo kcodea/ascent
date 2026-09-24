@@ -51,6 +51,7 @@ const LIVE: Record<string, string> = {
   playerMagneticBuffGain: "the 'tribeAura' event (Magnetic channel)",
   playerRubyBonusGain: "the '+A/+H Ruby Power' sc narration (same channel as playerRubyGain)",
   playerRubyGrants: "the mint beats — each granted Ruby flies to hand on its trigger",
+  playerRubyGrantIds: "the mint beats — each random Ruby flies to hand (as its drawn type) on its trigger",
   playerSlaughterCopy: "the 'toHand' event on the kill beat — the copy flies to hand as you slaughter (Rune of the Trophy); the plain copy is still conjured for real at settle",
   playerBeastBuyAtkGain: "the 'tribeAura' event (The Old Hunt's live aura pump)",
   playerBeastBuyHpGain: "the 'tribeAura' event (Pack Mentality's Health twin)",

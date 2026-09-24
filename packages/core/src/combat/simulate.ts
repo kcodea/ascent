@@ -18,7 +18,7 @@ import type {
   Side,
   Tribe,
 } from '../types';
-import { ALE_IDS, damageMeterOf, alignAllows, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires } from '../types';
+import { ALE_IDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires } from '../types';
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
 import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
@@ -289,6 +289,7 @@ export function simulate(
   const slaughterCopyId: Record<Side, string | undefined> = { player: undefined, enemy: undefined }; // Rune of the Trophy: the first friendly slaughterer's card id
   const spellPowerGain = perSide(zero); // run-wide spell-power gained this combat (Skullblade)
   const rubyGrants = perSide(() => ({ n: 0 })); // Set 2 — Rubies to mint into hand after combat (Rikk / Gemline), carried back
+  const rubyGrantIds = perSide((): string[] => []); // RANDOM-type Rubies (Kobe's Pummel, 2026-09-24) — the drawn ids, carried back
   // Per SIDE, and read LIVE (owner rule 2026-08-02): a mid-combat Ruby buff (Crownvein Vanguard's Rally)
   // must reach the Rubies played LATER in the same fight (Gemstorm Instigator's Avenge, Mineral Master's
   // Rally, Rune of Attacking Gems) — it used to be a settle-time carry-back only, so every in-combat Ruby
@@ -1141,6 +1142,21 @@ export function simulate(
       for (let i = 0; i < count; i++) {
         emit({ type: 'toHand', cardId: 'ruby', side, source: sourceUid });
         emitGainCard('ruby', side);
+      }
+    },
+    grantRandomRubies: (count, side, sourceUid) => {
+      // "Get a random Ruby" (owner Ruby batch 2026-09-24): each Ruby is drawn SEPARATELY from all six types at
+      // equal odds, on the side's grant stream (the player's is the fight RNG, so a replay reproduces it). The
+      // drawn TYPE rides the `toHand` so the replay flies the real Ruby; the mint happens at settle through the
+      // run's `mintRubies`, baked with the live Ruby strength, the same as `grantRubies`.
+      if (count <= 0) return;
+      const draw = grantRngFor(side);
+      for (let i = 0; i < count; i++) {
+        const id = RUBY_TYPE_IDS[draw.int(RUBY_TYPE_IDS.length)]!;
+        rubyGrantIds[side].push(id);
+        if (side !== 'player') continue; // enemy: carry-back only
+        emit({ type: 'toHand', cardId: id, side, source: sourceUid });
+        emitGainCard(id, side);
       }
     },
     queueNextTurnSpellCopy: (count, side) => {
@@ -2375,6 +2391,15 @@ export function simulate(
       for (let k = 0; k < pays; k++) {
         fired();
         ctx.grantRandomMinion(count, tribe, dealer.side, undefined, dealer.uid);
+      }
+      return;
+    }
+    if (eff.do === 'dealtDamageGetRandomRuby') {
+      // Kobe (owner Ruby batch 2026-09-24): "Pummel (15): Get a random Ruby. (Twice per combat)" — each payout
+      // hands over `count` (x2 gilded) Rubies, each a random type, through the combat Ruby carry-back.
+      for (let k = 0; k < pays; k++) {
+        fired();
+        ctx.grantRandomRubies(count, dealer.side, dealer.uid);
       }
       return;
     }
@@ -4824,6 +4849,7 @@ export function simulate(
       handGrants: handGrants[side].length > 0 ? handGrants[side] : undefined,
       handBuffs: handBuffs[side].length > 0 ? handBuffs[side] : undefined,
       rubyGrants: rubyGrants[side].n > 0 ? rubyGrants[side].n : undefined,
+      rubyGrantIds: rubyGrantIds[side].length > 0 ? [...rubyGrantIds[side]] : undefined,
       nextTurnSpellCopies: nextTurnSpellCopies[side].n > 0 ? nextTurnSpellCopies[side].n : undefined,
       rubyBonusGain: (rubyBonusGain[side].attack > 0 || rubyBonusGain[side].health > 0) ? { ...rubyBonusGain[side] } : undefined,
       rubyMints: rubyMintCount[side] > 0 ? rubyMintCount[side] : undefined,
@@ -4897,6 +4923,7 @@ export function simulate(
     playerHandGrants: pc.handGrants,
     playerHandBuffs: pc.handBuffs,
     playerRubyGrants: pc.rubyGrants,
+    playerRubyGrantIds: pc.rubyGrantIds,
     playerNextTurnSpellCopies: pc.nextTurnSpellCopies,
     playerRubyBonusGain: pc.rubyBonusGain,
     playerRubyMints: pc.rubyMints,

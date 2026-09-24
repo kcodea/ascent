@@ -64,6 +64,40 @@ export const RUBY_GAP_MS = 100;
 export const RUBY_BEAT_MS = 50;
 
 /**
+ * THE SPECIAL-RUBY RIDERS (owner Ruby batch 2026-09-24) space a recipient's own gems further apart than the stack
+ * `beat`, because each gem is a separate event the player must read:
+ *  - RIPPLE: "Play the Ruby-played animation twice in succession" — the second cast lands a clear beat after the
+ *    first, not stacked 50ms behind it.
+ *  - DARK RUBY: "Ruby played -> consume effect -> Ruby played" — the consume ghost starts after the first gem
+ *    (`DARK_RUBY_CONSUME_DELAY_MS`), and the second gem (the eaten stats arriving AS Rubies) lands as the ghost is
+ *    pulled in (the delay plus the consume's own duration; see `darkRubyGemSpacingMs`).
+ */
+export const RIPPLE_GEM_SPACING_MS = 320;
+export const DARK_RUBY_CONSUME_DELAY_MS = 250;
+/** Dark Ruby's gem-to-gem spacing for a consume that runs `consumeMs` (the consume tuner's `durationMs`). */
+export function darkRubyGemSpacingMs(consumeMs: number): number {
+  return DARK_RUBY_CONSUME_DELAY_MS + Math.max(0, consumeMs);
+}
+
+/**
+ * Re-time a recipient's lands when a rider SPACES them: its first land keeps its cascade slot, each later one
+ * lands `spacing` ms after the previous. Recipients with no spacing are untouched. Pure — the cue runner applies
+ * it to the one schedule it walks, so the spaced gems and the sound stay on the same clock.
+ */
+export function spaceLands(lands: readonly Land[], spacingOf: (uid: string) => number | undefined): Land[] {
+  const firstAt = new Map<string, number>();
+  const seen = new Map<string, number>();
+  return lands.map((l) => {
+    const spacing = spacingOf(l.uid);
+    if (spacing === undefined || spacing <= 0) return l;
+    const k = seen.get(l.uid) ?? 0;
+    seen.set(l.uid, k + 1);
+    if (k === 0) { firstAt.set(l.uid, l.at); return l; }
+    return { ...l, at: (firstAt.get(l.uid) ?? l.at) + k * spacing };
+  });
+}
+
+/**
  * The def both call sites play — deliberately duplicated as a STRING LITERAL at each one rather than imported
  * from here, and this constant is documentation of that fact rather than the source of it.
  *

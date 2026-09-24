@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { CardDef, QuestReward, Tribe } from '@game/core';
-import { CARD_INDEX, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, activeSet, poolFor } from '@game/content';
+import { CARD_INDEX, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { HEROES, chooseBothActive, type RunState } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { chooseBothText } from './cardText';
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
 import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
+import { CompendiumSetPicker, type SetPickerOption } from './CompendiumSetPicker';
 import { heroArt } from './art';
 import { Icon } from './Icon';
 import { MECHANICS, toMechInput } from './mechanics';
@@ -240,14 +241,26 @@ export function toView(c: CardDef, gilded = false, run?: RunState): CardView {
  */
 export function MinionBook() {
   const run = useGame((s) => s.run);
-  const showTitleEarly = useGame((s) => s.showTitle);
-  // From the TITLE the book shows the ACTIVE set (what a new run would play); mid-run it shows the run's own
-  // pinned set — which can differ after a set flip, and the book must describe the game being played.
-  const setId = showTitleEarly ? activeSet().id : (run.setId ?? 'set1');
-  const pool = poolFor(setId);
-  const { minions: MINION_POOL_IDS, spells: SPELL_POOL_IDS, evolutions: EVOLUTION_CARDS } = poolIds(setId);
   const showTitle = useGame((s) => s.showTitle);
   const closeBook = useGame((s) => s.closeBook);
+  // THE SET PICKER (owner ask 2026-09-24: "view any card sets, default to the active set"). The DEFAULT is the set
+  // the book has always opened on: from the TITLE the ACTIVE set (what a new run would play; the same question
+  // `createRun` asks, which is why `activeSet()` is read here), mid-run the run's own PINNED set (normally the
+  // same set; it only differs after a set flip, and then the book must still describe the game being played).
+  // The picker is VIEW-ONLY: it swaps which pool the book reads and nothing else. The book remounts on every
+  // open, so it resets to the default each time.
+  const liveSetId = activeSet().id;
+  const runSetId: SetId = run.setId ?? 'set1';
+  const [setId, setSetId] = useState<SetId>(() => (showTitle ? liveSetId : runSetId));
+  // "Findable this run" scoping (the run's active tribes, its Choose One (Both) text) applies ONLY while the
+  // book shows the run's own set. Browsing any other set, or browsing from the title, shows that WHOLE set.
+  const browsingRun = !showTitle && setId === runSetId;
+  const setOptions: SetPickerOption[] = useMemo(
+    () => Object.values(SETS).map((d) => ({ id: d.id, name: d.name, live: d.id === liveSetId })),
+    [liveSetId],
+  );
+  const pool = poolFor(setId);
+  const { minions: MINION_POOL_IDS, spells: SPELL_POOL_IDS, evolutions: EVOLUTION_CARDS } = poolIds(setId);
 
   const [tiers, setTiers] = useState<Set<number>>(() => new Set());
   const [cats, setCats] = useState<Set<Category>>(() => new Set());
@@ -267,9 +280,20 @@ export function MinionBook() {
   // tribe — ruling 2026-09-16). No button lit = every rune.
   const [runeTribes, setRuneTribes] = useState<Set<Tribe>>(() => new Set());
 
-  // Opened from the title (no committed run) → browse the WHOLE card set; in a run → scope to its active
-  // tribes (mirrors `stockPool`: neutral is always findable, so it's added below regardless).
-  const tribes: Tribe[] = showTitle ? [...activeSet().tribes] : run.tribes;
+  // Browsing the run's own set → scope to its active tribes (mirrors `stockPool`: neutral is always findable, so
+  // it's added below regardless). The title, or any other set picked → that set's WHOLE tribe roster.
+  const runTribes = run.tribes;
+  const tribes: Tribe[] = useMemo(() => (browsingRun ? runTribes : [...SETS[setId].tribes]), [browsingRun, runTribes, setId]);
+
+  // Switching sets drops the tribe filters the new set doesn't have (a Mechs chip means nothing in Set 2), so the
+  // gallery can never be stuck filtered on an invisible chip. Tier, search, Gilded and keyword filters carry over.
+  const pickSet = (next: SetId): void => {
+    if (next === setId) return;
+    const nextTribes = new Set<Tribe>(!showTitle && next === runSetId ? runTribes : SETS[next].tribes);
+    setCats((prev) => new Set([...prev].filter((c) => NON_TRIBE_CATS.has(c) || c === 'neutral' || nextTribes.has(c as Tribe))));
+    setRuneTribes((prev) => new Set([...prev].filter((t) => t === 'neutral' || nextTribes.has(t))));
+    setSetId(next);
+  };
 
   // Left-rail categories: the active (or all) tribes, then Neutral (always findable), then Spells, Runes,
   // Rune Rewards and Heroes.
@@ -296,7 +320,10 @@ export function MinionBook() {
   const runesToShow = useMemo(() => {
     const m = makeSearchMatcher(search);
     const match = (r: { name: string; text: string }): boolean => m(r.name) || m(r.text);
-    const tribeOk = (r: { tribes?: readonly Tribe[] }): boolean => runeTribes.size === 0 || !!r.tribes?.some((t) => runeTribes.has(t));
+    // NEUTRAL (owner ask 2026-09-24) = the runes with NO tribe gate (`tribes` absent or empty: the forge offers them
+    // in every run). It ORs with the tribe pills like any other pill, and a tribe-gated rune never matches it.
+    const tribeOk = (r: { tribes?: readonly Tribe[] }): boolean =>
+      runeTribes.size === 0 || !!r.tribes?.some((t) => runeTribes.has(t)) || (runeTribes.has('neutral') && !r.tribes?.length);
     // Set-scoped (owner ask 2026-09-18): only the runes the SHOWN set's Runeforge can offer — a rune with no `sets`
     // is offered everywhere; otherwise its scope must name this set.
     const setOk = (r: { sets?: readonly string[] }): boolean => !r.sets || r.sets.includes(setId);
@@ -479,12 +506,12 @@ export function MinionBook() {
                 : cats.has('runes')
                 ? `${runesToShow.length} runes. This set's Basic and Epic Runeforge stock.`
                 : cats.has('quests')
-                ? `${questsToShow.length} quests ${showTitle ? 'in the game' : 'available this run'}`
+                ? `${questsToShow.length} quests ${browsingRun ? 'available this run' : 'in the game'}`
                 : `${filtered.length} ${
                     [cats.has('spells') && 'spells', cats.has('gifts') && 'gifts', cats.has('rewards') && 'quest rewards', cats.has('runeRewards') && 'rune rewards']
                       .filter(Boolean)
                       .join(' & ') || 'minions'
-                  } ${showTitle || cats.has('runeRewards') || cats.has('gifts') ? 'in the game' : 'findable this run'}`}
+                  } ${!browsingRun || cats.has('runeRewards') || cats.has('gifts') ? 'in the game' : 'findable this run'}`}
           </div>
           {!glossary && (
             <input
@@ -587,14 +614,15 @@ export function MinionBook() {
               /* Runes aren't tiered — the chart space carries the tribe filter instead (owner ask 2026-09-18). */
               <div className="book-runetribes" role="group" aria-label="Filter runes by tribe">
                 <span className="book-chart-cap">runes by tribe</span>
-                {[...tribes].map((t) => (
+                {/* The set's tribes, then NEUTRAL (the untribed runes), styled the same. */}
+                {[...tribes, 'neutral' as Tribe].map((t) => (
                   <button
                     key={t}
                     className={`book-runetribe${runeTribes.has(t) ? ' on' : ''}`}
                     style={{ '--c': `var(--t-${t})` } as CSSProperties}
                     onClick={() => setRuneTribes((prev) => { const next = new Set(prev); if (next.has(t)) next.delete(t); else next.add(t); return next; })}
                     aria-pressed={runeTribes.has(t)}
-                    aria-label={`Runes that name ${CAT_META[t].label}`}
+                    aria-label={t === 'neutral' ? 'Runes with no tribe' : `Runes that name ${CAT_META[t].label}`}
                   >
                     <Icon name={CAT_META[t].icon} />
                     <span>{CAT_META[t].label}</span>
@@ -631,11 +659,15 @@ export function MinionBook() {
               </>
             )}
           </div>
-          {kw && (
-            <button className="book-kwchip" onClick={() => setKw(null)} aria-label="Clear keyword filter">
-              {glossIcon(kw)} {kw.term} <span className="book-kwx">✕</span>
-            </button>
-          )}
+          {/* The far-right cluster: the active keyword chip (when one is on), then the SET PICKER, always last. */}
+          <div className="book-tiers-end">
+            {kw && (
+              <button className="book-kwchip" onClick={() => setKw(null)} aria-label="Clear keyword filter">
+                {glossIcon(kw)} {kw.term} <span className="book-kwx">✕</span>
+              </button>
+            )}
+            <CompendiumSetPicker options={setOptions} value={setId} onChange={pickSet} />
+          </div>
         </div>
 
         <div className="book-main">
@@ -712,7 +744,7 @@ export function MinionBook() {
             <div className="book-grid" style={{ '--book-zoom': zoom } as CSSProperties}>
               {filtered.map((c) => (
                 <div className="book-cell" key={c.id}>
-                  <Card card={toView(c, gilded, run)} forceFull suppressPop plated refCards={refViews.get(c.id)} />
+                  <Card card={toView(c, gilded, browsingRun ? run : undefined)} forceFull suppressPop plated refCards={refViews.get(c.id)} />
                 </div>
               ))}
             </div>

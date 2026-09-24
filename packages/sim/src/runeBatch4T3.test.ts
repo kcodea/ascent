@@ -29,7 +29,9 @@ describe('the eight defs ship as specced', () => {
     for (const [id, cost] of Object.entries(costs)) {
       expect(rune(id).cost, `${id} cost`).toBe(cost);
       expect(rune(id).epic, `${id} should be Basic`).toBeFalsy();
-      expect(rune(id).sets, `${id} should work in either set`).toBeUndefined();
+      // Ashen Payroll (Demon), Last Word + Runic Hoard (Dragon) CUT FROM SET 3 2026-09-24 (owner): scoped to set 1 + set 2.
+      const cut = ['rune_ashen_payroll', 'rune_last_word', 'rune_runic_hoard'].includes(id);
+      expect(rune(id).sets, `${id} should work in either set`).toEqual(cut ? ['set1', 'set2'] : undefined);
     }
   });
 });

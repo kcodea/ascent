@@ -5,6 +5,22 @@ import type { CombatBus } from './events';
  *  BOTH the recruit factories and the combat ones (Slaughter / Rally / Echo grants) need it. */
 export const ALE_IDS: readonly string[] = ['wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack'];
 
+/** THE RUBY TYPES (owner Ruby batch 2026-09-24). "A random Ruby" draws from ALL SIX at equal odds with the seeded
+ *  RNG (owner ruling: "the pool is all 6 types"), so Ruby Shipment, Kobe's Pummel and every future "random Ruby"
+ *  read this one list. Lives in core beside `ALE_IDS` because BOTH phases draw from it (the shop mint and the
+ *  combat `grantRandomRubies` carry-back). Order is load-bearing: a draw is `rng.int(length)` over it. */
+export const RUBY_TYPE_IDS: readonly string[] = ['ruby', 'warding-ruby', 'golden-ruby', 'splintered-ruby', 'ripple-ruby', 'dark-ruby'];
+/** The five SPECIAL Rubies (every type but the plain one) — Prismatic Pick's "Discover a Ruby" offers 3 of these. */
+export const SPECIAL_RUBY_IDS: readonly string[] = RUBY_TYPE_IDS.filter((id) => id !== 'ruby');
+
+/** A Ruby's Kobold RIDER — what a special Ruby does ON TOP of its stats when it lands on a Kobold (owner batch
+ *  2026-09-24). Ward is the older keyword rider (`rubyGrantKeyword`); these are the action riders:
+ *   · `gold`    — Golden Ruby: gain 2 Gold.
+ *   · `bounce`  — Splintered Ruby: the Ruby bounces once (Resonance Idol's hop) to a random other friendly minion.
+ *   · `ripple`  — Ripple Ruby: it casts again on the same minion (a real second Ruby cast; never ripples again).
+ *   · `devour`  — Dark Ruby: the Kobold consumes the Shop minion with the highest Health, gaining it AS RUBIES. */
+export type RubyRider = 'gold' | 'bounce' | 'ripple' | 'devour';
+
 /** PUMMEL (X) — the DAMAGE-DEALT meter family (owner keyword 2026-09-21: "Pummel (X): Triggers each time this
  *  minion has dealt another X damage. The damage count carries over between combats."). Passive markers the
  *  combat damage site reads (`noteDamageDealt` in simulate.ts) — one per-instance `damageDealt` tally. Han Gover
@@ -29,6 +45,7 @@ export const DAMAGE_METER_MARKERS: Readonly<Record<string, true>> = {
   dealtDamageAleMeter: true,     // Han Gover — "Pummel (40): Get a Dwarven Ale. (Once per combat)"
   dealtDamageGoldNextTurn: true, // Goldvein — "Pummel (6): Gain 3 Gold next turn. (Once per combat)"
   dealtDamageGrantRandomTribe: true, // Maestro Lux (2026-09-24) — "Pummel (12): Get a random Celestial. (Once per combat.)"
+  dealtDamageGetRandomRuby: true, // Kobe (Ruby batch 2026-09-24) — "Pummel (15): Get a random Ruby. (Twice per combat)"
 };
 export const DAMAGE_METER_DOS: readonly string[] = Object.keys(DAMAGE_METER_MARKERS);
 
@@ -377,6 +394,12 @@ export type EffectFactoryId =
   | 'battlecryCastNamedSpell' // Facetbound Martyr — cast a named Shop spell N times (recruit)
   | 'grantRandomChooseOne' // Flagrunner / Prismpick Artificer — a random Choose One card to hand
   | 'discoverChooseOne' // Prismatic Pick (branch 1, 2026-09-09) — Discover a Choose One card (minion or spell)
+  | 'discoverRuby' // Prismatic Pick (branch 1, Ruby batch 2026-09-24) — Discover a Ruby: 3 of the 5 special types
+  | 'onGetRubyRandomRuby' // Gem Sage (Ruby batch 2026-09-24) — when you get a Ruby, also get `count` random Rubies (never re-triggered by a Sage's own grant)
+  | 'getRandomRubies' // Ruby Shipment (Ruby batch 2026-09-24) — get N RANDOM Rubies, each drawn separately from all six types
+  | 'battlecryPlayRubiesRandomTribe' // Shardluck (Ruby batch 2026-09-24) — play N Rubies, each on a random friendly `tribe` minion
+  | 'onSummonCardPlayRubiesSelf' // Gemheart Legionnaire (Ruby batch 2026-09-24) — when a friendly `cardId` is summoned, play N permanent Rubies on this
+  | 'dealtDamageGetRandomRuby' // Kobe (Ruby batch 2026-09-24): "Pummel (15): Get a random Ruby. (Twice per combat)" — the shared damage meter with a random-Ruby body (`grantRandomRubies`, x2 gilded), capped by `params.maxPerCombat`
   | 'chooseOnePlayedPlayRubies' // Ruby Roach — a Choose One play casts Rubies on your board
   | 'armChooseBoth' // Dealer — arm THIS body's own first-Choose-One latch (per instance, not a run counter)
   | 'grantChooseBothCharges' // Dealer / Prismpick Artificer — the next N Choose Ones resolve both branches
@@ -1021,6 +1044,9 @@ export interface CardDef {
   /** Warding Ruby (set 2): a Ruby that ALSO grants this keyword (Ward = `DS`) to the minion it's played on —
    *  permanent when cast in the shop phase (the reducer's play-Ruby branch bakes it onto the board card). */
   rubyGrantKeyword?: Keyword;
+  /** A special Ruby's KOBOLD rider (Golden / Splintered / Ripple / Dark — see `RubyRider`). Resolved by the
+   *  reducer's play-Ruby branch on the Ruby's direct landing, only when the target is a Kobold. */
+  rubyRider?: RubyRider;
   /** A **Ruby** (set 2 Kobolds): a spell-like token that is NOT a Shop Spell — it plays from hand like a
    *  targeted spell (drag onto a minion) to grant that minion the Ruby's current Attack/Health as a buff,
    *  but it does NOT count for Shop-Spell triggers (Archmagus Guel, `spellsCast`). Rubies have their own
@@ -1411,6 +1437,8 @@ export type QuestReward =
   | { kind: 'runeScales' }
   // Rune of the Long Shift: at the start of each turn, Discover 2 Shop spells.
   | { kind: 'runeLongShift' }
+  // Rune of Resonance (owner Ruby batch 2026-09-24): a random Ruby now, then one every Start of Turn (per copy held).
+  | { kind: 'runeRubyDrip' }
   | { kind: 'runeHappyBirthday' } // GIFTS: a random Gift now, then another every 2 turns
   | { kind: 'runeMerryChristmas' } // GIFTS (epic): Discover a Gift now, then every Start of Turn
   // Rune of Bartering: your Shout (Battlecry) minions sell for 2 Gold.
@@ -2846,6 +2874,8 @@ export interface CombatCarryBacks {
   handGrants?: string[];
   handBuffs?: CombatResult['playerHandBuffs'];
   rubyGrants?: number;
+  /** Random-type Rubies (Kobe's Pummel, a combat-cast Ruby Shipment) — the drawn ids, in draw order. */
+  rubyGrantIds?: string[];
   nextTurnSpellCopies?: number;
   rubyBonusGain?: { attack: number; health: number };
   rubyMints?: number;
@@ -3019,6 +3049,10 @@ export interface CombatResult {
   /** Set 2 — Rubies to mint into the hand after combat (Rikk / Gemline "Get N Rubies" in combat). Minted with
    *  the run's live `rubyBonus` at settle, so they match a shop-minted Ruby. */
   playerRubyGrants?: number;
+  /** RANDOM Rubies gained in combat (owner Ruby batch 2026-09-24: Kobe's "Pummel (15): Get a random Ruby") — the
+   *  TYPE of each, drawn in combat with the seeded RNG from `RUBY_TYPE_IDS`, so the replay's `toHand` shows the
+   *  real Ruby. Minted at settle with the run's live Ruby strength, exactly like `playerRubyGrants`. */
+  playerRubyGrantIds?: string[];
   /** Set 2 — Ruby STRENGTH gained this combat (Veinbreaker "Avenge: buff your Rubies +X/+Y"). Applied to the
    *  run's `rubyBonus` at settle (grows held + future Rubies). */
   playerRubyBonusGain?: { attack: number; health: number };
@@ -3298,6 +3332,9 @@ export interface CombatContext {
   grantCardBuff(cardId: string, attack: number, health: number, side: Side): void;
   /** Set 2 — mint `count` Rubies into hand after combat (Rikk / Gemline). Player-only; carried back. */
   grantRubies(count: number, side: Side, sourceUid?: string): void;
+  /** Mint `count` RANDOM Rubies (each drawn separately from all six types) into hand after combat. Player-only;
+   *  carried back as `playerRubyGrantIds`. */
+  grantRandomRubies(count: number, side: Side, sourceUid?: string): void;
   /** Set 2 — raise the run's Ruby strength after combat (Veinbreaker). Player-only; carried back. */
   /** Set 2 — raise the run's RUBY strength (player-only; carried back at settle). `sourceUid` is optional and
    *  presentation-only: with it the sim emits an `sc` narration so the UI can telegraph the gain mid-combat,

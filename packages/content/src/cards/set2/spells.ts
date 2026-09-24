@@ -23,8 +23,9 @@ export const SET2_SPELLS: CardDef[] = [
     text: 'Give a minion of each type **+4/+4**.',
   },
   {
-    // Ruby Shipment — cast: mint 2 Rubies into your hand (each base 1/1 + the run's `rubyBonus`). Untargeted;
-    // routes through the same `getRubies` factory the Kobold minions use (self is ignored → no golden multiplier).
+    // Ruby Shipment — cast: mint 2 RANDOM Rubies into your hand (owner Ruby batch 2026-09-24: cost 1 → 2, "Get 2
+    // random Rubies." — each drawn separately from all six types, so the two can differ). Each is base + the run's
+    // Ruby strength like every mint. Untargeted (self is ignored → no golden multiplier).
     id: 'rubyshipment',
     name: 'Ruby Shipment',
     tribe: 'kobold', // TRIBE-GATED (owner 2026-09-10): offered only when this tribe is a run tribe (`runSpells`)
@@ -33,9 +34,9 @@ export const SET2_SPELLS: CardDef[] = [
     health: 1,
     keywords: [],
     spell: true,
-    cost: 1,
-    effects: [{ on: 'cast', do: 'getRubies', params: { count: 2 } }],
-    text: 'Get **2 Rubies**.',
+    cost: 2,
+    effects: [{ on: 'cast', do: 'getRandomRubies', params: { count: 2 } }],
+    text: 'Get **2** random **Rubies**.',
   },
   {
     // Facetwright ("Facetwright's Choice" until 2026-09-24; owner rename, id + art unchanged) — Choose One: your Rubies gain +1 Attack, or +1 Health (`rubyStatGain` → run

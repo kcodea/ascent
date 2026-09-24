@@ -53,19 +53,8 @@ describe('START OF COMBAT — one tendril per recipient, from the buffer, before
     expect(CARD_INDEX[r.initial.player.find((m) => m.uid === casts[0]!.source)!.cardId]!.tribe).toBe('dwarf');
   });
 
-  it('Kobe (Kobold): each adjacent Kobold gets its OWN Ruby event — the gem cue is the authored, per-recipient tell, and no tendril wave opens for it', () => {
-    // Owner rework 2026-09-18: Kobe's Rubies land WHEN IT TAKES DAMAGE (a Taunt soaks the foe's swing), not at
-    // Start of Combat — so the Start-of-Combat window holds no wave from it at all, and the per-recipient
-    // `ruby` events arrive inside the hit that caused them.
-    const { r, waves, uidOf } = socWaves([bm('k_kobe'), bm('k_veinbreaker'), bm('venom')]);
-    const rubies = r.events.filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && !!e.ruby && e.source === uidOf('k_kobe'));
-    expect(rubies.map((e) => e.target)).toContain(uidOf('k_veinbreaker'));
-    expect(rubies.map((e) => e.target)).toContain(uidOf('k_kobe'));
-    expect(rubies.every((e) => e.target !== uidOf('venom')), 'not a Kobold').toBe(true);
-    // A Ruby is TOLD BY THE GEM (`rubyFx`, one detonation per landing) — no ribbon under it (owner 2026-08-02),
-    // and nothing of Kobe's opens a buff wave before the first swing any more.
-    for (const w of waves) expect(groupBuffCasts(w, r.events).filter((c) => c.source === uidOf('k_kobe'))).toEqual([]);
-  });
+  // (Kobe's per-recipient Ruby events left with its Ruby-on-damage ability: the owner Ruby batch 2026-09-24 made
+  // Kobe a Pummel that GETS random Rubies, so it plays no Rubies in combat any more.)
 
   it('Old Timber (Spirit): its Start-of-Combat buffs are sourced on its UID, not its name (the label form drew nothing)', () => {
     const { r, waves, uidOf } = socWaves([bm('sp3_forestcolossus', { spiritTally: 2 } as Partial<BoardMinion>), bm('sp3_kindled'), bm('venom')]);

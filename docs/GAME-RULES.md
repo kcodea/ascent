@@ -521,9 +521,18 @@ every set; a scoped rune is offered only where its mechanics exist. Since the **
 carryovers (30 Basic + 33 Epic) from sets 1/2 — the Ruby, Ale, Dwarf, Kobold, Undead and Shop-consume packages —
 each of which KEPT its original scope (set 1 = 105/90 and set 2 = 135/126 are unchanged). (98 Epic at the
 handoff; Rune of Frontline Glory was dropped from set 3 by the owner on 2026-09-16 and is a set-1 rune again.) Attachment, Mech, Fodder and
-absent-tribe packages stay off set 3. Rune of the Night Market and Rune of Baal are deliberate off-tribe
-bridges (a rune-exclusive body that supplies its own function). The rolled-tribe gate still applies on top:
+absent-tribe packages stay off set 3. (Rune of the Night Market and Rune of Baal were once deliberate off-tribe
+bridges; both left set 3 in the 2026-09-24 cut below.) The rolled-tribe gate still applies on top:
 a "your Dwarves" rune reaches a set-3 run only when Dwarf rolled.
+
+**The Set 3 rune cut (owner 2026-09-24).** 54 runes were cut from set 3 ONLY — each keeps every other set it was in
+(an unscoped rune became `sets: ['set1', 'set2']`), stays in `RUNES` / `EPIC_RUNES` and resolves through
+`RUNE_INDEX`, so saves and replays that own one keep working. Two lists: 20 runes the owner named (Kobold, Dwarf,
+Undead, Spirit and Aftershocks), and all 34 runes whose `tribes` gate names only tribes set 3 does not field
+(Dragon, Beast, Demon/Imp, Mech). Rune of the Grave Orbit and Rune of the Full Hand were set-3-only, so they are
+now `sets: []` — defined, offered in no set. Set 3's static pool is now **120 Basic / 107 Epic** (both counts
+include the set-3 originals). Full list: `docs/devlog/2026-09-24-set3-rune-cuts.md`; pinned by
+`packages/sim/src/set3RuneCuts.test.ts`.
 
 **Set 3-original runes (batch 2, 2026-09-16).** Set 3 now also has runes of its own — `sets: ['set3']` alone,
 no origin scope — starting with tranche A's 24 Spirit / Celestial / Undead runes (11 Basic + 13 Epic, taking the
@@ -657,8 +666,8 @@ hand**, so nothing ever reaches one and an enemy's watcher never fires. The even
 hand actually received the card.
 
 **How it is enforced.** Each phase supplies its own dispatcher — the shop diffs the hand by uid in `reduce`
-(so a new `hand.push` site cannot forget to fire it), combat emits from `ctx.grantToHand` / `ctx.grantRubies`
-(the only two ways a card reaches a hand mid-fight). Both run the *same* effect bodies, in
+(so a new `hand.push` site cannot forget to fire it), combat emits from `ctx.grantToHand` / `ctx.grantRubies` /
+`ctx.grantRandomRubies` (the only ways a card reaches a hand mid-fight). Both run the *same* effect bodies, in
 `ARENA_EFFECTS`, so the two phases cannot drift apart.
 
 ---
@@ -895,6 +904,29 @@ and its machine-checkable predicate live in the language guide as **LG-SCOPE-01*
 
 Unrelated and **reserved**: the owner's own **Rise / Reborn → Rebirth** rename is still in flight and was not
 touched here (LG-KEYWORD-02).
+
+### Ruby types (owner Ruby batch 2026-09-24; R-RUBY-02, R-RUBY-03, R-RAND-02)
+
+There are **six Ruby types**. Every one grants its printed stats plus the run's Ruby improvements; five carry a
+rider that fires only when the Ruby's **target is a Kobold** (dual-tribe and All-types bodies count):
+
+| Ruby | Grant | Kobold rider |
+| --- | --- | --- |
+| Ruby | +1/+1 | none |
+| Warding Ruby | +1/+2 | give it Ward |
+| Golden Ruby | +1/+1 | gain 2 Gold |
+| Splintered Ruby | +1/+1 | the Ruby bounces once to a random other friendly minion |
+| Ripple Ruby | +1/+1 | it casts again on the same minion (a real cast, never a third) |
+| Dark Ruby | +1/+1 | it consumes the Shop minion with the highest Health (ties: leftmost; the Starform counts) and gains its stats as Rubies; no Shop minion, no consume |
+
+- **"A random Ruby"** is any of the six at equal odds, each Ruby drawn separately (Ruby Shipment, Kobe, Gem Sage,
+  Rune of Resonance, Rune of Investment). "Get N Rubies" without "random" stays plain Rubies.
+- A rider resolves **once per cast** on the direct target; a cast multiplier repeats the whole cast (under Rune of
+  Resonance a Ripple lands four times). A **hop** (a bounce, Rune of Redirection / Distillation) carries the
+  stats and the Ward only.
+- **Gem Sage** pays a random Ruby for every Ruby that reaches your hand; a Sage's own Rubies never re-trigger a
+  Sage. A Ruby won in combat reaches the hand at settle, so the Sage pays there.
+- The special Rubies are only ever cast from the hand in the Shop today; no combat effect casts one.
 
 ---
 

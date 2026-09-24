@@ -280,15 +280,17 @@ describe('failure: skip the broken track; both broken stays silent; autoplay ret
 });
 
 describe('settings: the music mute + volume persist and apply live', () => {
-  it('volume persists to ascent.musicvol and scales the playing element', async () => {
+  it('volume persists to ascent.musicvol.v2 and scales the playing element through the default-mix curve', async () => {
     setMusicVolume(0.4);
-    expect(localStorage.getItem('ascent.musicvol')).toBe('0.4');
+    expect(localStorage.getItem('ascent.musicvol.v2')).toBe('0.4');
     expect(getMusicVolume()).toBe(0.4);
     syncMusic(state());
     await tick(MUSIC_START_DELAY_MS + MUSIC_FADE_MS + 50);
-    expect(bg().volume).toBeCloseTo(0.4, 5);
+    expect(bg().volume).toBeCloseTo(0.16, 5); // 0.4 / 0.5 x the 0.2 reference
+    setMusicVolume(0.5);
+    expect(bg().volume).toBeCloseTo(0.2, 5); // the 50 mark = the owner's mix
     setMusicVolume(0.8);
-    expect(bg().volume).toBeCloseTo(0.8, 5);
+    expect(bg().volume).toBeCloseTo(0.68, 5); // 0.2 + 0.6 x 0.8
   });
   it('mute persists to ascent.musicmuted, silences live and restores on unmute', async () => {
     syncMusic(state());

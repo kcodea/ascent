@@ -120,6 +120,20 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'New default audio mix. Game sounds, Music and Announcer all start at 50, and 50 is now a balanced mix.',
+        details: [
+          'Music sits lower and the Announcer a little higher at 50 than the game sounds, so the three blend well out of the box.',
+          '100 is still full volume on every channel, and 0 is still silent.',
+          'Your volume sliders reset to 50 once with this update. Your mute choices are kept.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
         text: 'Effects are no longer cut off by a hard edge. They now play over their full area.',
         details: [
           'Soft, blurred effects could stop at an invisible line on wide screens.',

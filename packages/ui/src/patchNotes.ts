@@ -59,6 +59,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'The effect plays every time the spell is cast: from your hand, by a rune, by a minion in the Shop, at End of Turn, and in combat.',
           'Minions that cast Growth in combat (Fatecarver, Taragosa, Hoardbreaker Drake) now show it on every cast.',
+          'When a minion casts one of these spells, its own effect replaces the usual buff trail from that minion.',
         ],
       },
     ],

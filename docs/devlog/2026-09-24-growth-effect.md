@@ -44,6 +44,26 @@ Stellar Lens / shop-buff-purple convention). Fanning them out per buffed minion 
 identical copies on one point, because a camera layer ignores the minion anchors. The stock buff tendrils still
 play under the combat effect (additive). The owner can swap to "replace" later.
 
+## Owner ruling: the cast effect replaces the tendril
+
+*"the growth and waking rift effects should replace the tendril for a card that carried those effects, like
+fatecarver as an example."* When a CARD casts a spell that has its own cast effect, the buffs that cast produced
+draw NO tendril / descend. The stat change and number still land; the spell's effect is the whole presentation.
+One predicate, `castFxReplacesTendril(spellId)` in `choreo/bindings.ts`, is asked in every phase. Any future bound
+spell behaves the same, and unbound spells keep their tendril.
+
+- **Combat.** `fireBuffCasts` (useCombatReplay.ts) reads the `spellId` that `withCastingSpell` stamps on each buff.
+  It skips the tendril and still rolls the badge on the authored clock.
+- **Shop and legacy End of Turn.** `BuffFxEvent.spellId` is stamped in two places. `applyCastEffects` stamps its
+  `spell` capture when the innermost cast actor is a minion. `captureBuffFx` stamps a `minion` / `deathrattle`
+  capture with the one spell that minion cast inside it (`spellCastBySince`, read off `castFx`).
+  `replayBuffFxEvents` then drops the tendril for that event.
+- **Authoritative End of Turn.** The trigger scope stamps `statsChanged.spellId` for a minion beat's cast. The
+  `statsChanged` presenter then skips `statGain` when `ctx.spellHasCastFx` says the spell is bound.
+- **Not a card:** the player's own cast keeps its release-point cue and descends. A rune's cast keeps its
+  rail ribbon. The ruling named cards; ask before extending it to either.
+- `docbot/retroCatalog.ts`: the Gifts re-injection's find/replace text follows the new `captureBuffFx` argument.
+
 ## Oracle
 
 `R-PHASE-01` (foundation): effects, mechanics, triggers, tallies and FX are wired to work in every phase and from

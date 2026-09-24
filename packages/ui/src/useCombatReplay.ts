@@ -40,7 +40,7 @@ import { fireBuffFx } from './buffFxRender';
 import { resolveBuffSource } from './choreo/buffSource';
 import { cardFxScale } from './fx/cardScale';
 import { canPlayDefs, playDef } from './fx/playDef';
-import { authoredBuffDefFor, bindingFor, heroPowerBuffLabelFor, labelBuffFxFor, sourceBuffDefFor } from './choreo/bindings';
+import { authoredBuffDefFor, bindingFor, heroPowerBuffLabelFor, labelBuffFxFor, sourceBuffDefFor, castFxReplacesTendril } from './choreo/bindings';
 import { isRuneBuffSource } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { getDef } from './fx/fxDefs';
@@ -1625,6 +1625,15 @@ export function useCombatReplay(
         // The tendril's flight time is what normally releases the withheld stats; with no tendril, the roll
         // rides the def's own arrival instead. Kept SHORT on purpose — the number should reconcile while the
         // attacker is still held in its pre-strike pose, which is the whole point of absorbing the cast.
+        if (!perTarget.has(c.target)) perTarget.set(c.target, AUTHORED_BUFF_ROLL_MS);
+        continue;
+      }
+      // A SPELL WITH ITS OWN CAST EFFECT REPLACES THE TENDRIL (owner ruling 2026-09-24: "the growth and waking rift
+      // effects should replace the tendril for a card that carried those effects, like fatecarver as an example").
+      // The effect itself plays once per cast off the `sc` announcement (`spellCastFx` cue); each buff this cast
+      // produced (`spellId`, stamped by `withCastingSpell`) draws no ribbon. The badge still rolls to the new value
+      // on the authored clock. Unbound spells fall through to the tendril.
+      if (castFxReplacesTendril(c.spellId)) {
         if (!perTarget.has(c.target)) perTarget.set(c.target, AUTHORED_BUFF_ROLL_MS);
         continue;
       }

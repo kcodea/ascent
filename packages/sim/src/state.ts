@@ -444,6 +444,10 @@ export interface BuffFxEvent {
    *  waves (never within one), so all the Mechs pulse together and the steps read one at a time. Absent for
    *  ordinary one-shot buffs. */
   fxWave?: number;
+  /** The SPELL this source minion cast to produce the buff (Fatecarver / Mage-Pup casting Growth), when exactly
+   *  one was cast by it inside the capture. A spell with its own cast effect REPLACES the source's tendril for
+   *  that cast (owner ruling 2026-09-24); the UI decides, keyed on this tag. Absent for every other buff. */
+  spellId?: string;
 }
 
 /** One card a Ruby landed on this action, and HOW MANY landed on it. The count is the information: a gilded

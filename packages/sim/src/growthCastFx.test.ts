@@ -17,7 +17,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX, RUNE_INDEX } from '@game/content';
-import { createRun, reduce, type BoardCard, type RunState } from './index';
+import { makeCollector } from '@game/core';
+import { createRun, reduce, withActiveCollector, type BoardCard, type RunState } from './index';
 import { advanceRuneThresholds, applyEndOfTurn, fireShopRally, projectEndOfTurnSteps } from './recruit';
 
 const card = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard =>
@@ -71,5 +72,46 @@ describe('Growth cast records — every shop-side source', () => {
     const { fx } = projectEndOfTurnSteps(run(over));
     const onBeats = fx.flatMap((f) => f.casts ?? []).filter((c) => c.spellId === id);
     expect(onBeats, 'the legacy End-of-Turn player reads the same casts per beat').toHaveLength(2);
+  });
+});
+
+/**
+ * THE CAST EFFECT REPLACES THE CASTER'S TENDRIL (owner ruling 2026-09-24): *"the growth and waking rift effects
+ * should replace the tendril for a card that carried those effects, like fatecarver as an example."* The sim's
+ * half is the TAG: every buff record a CARD'S cast produced carries the spell (`BuffFxEvent.spellId`), and the UI
+ * drops the tendril / descend for a spell that has its own cast effect (packages/ui/src/fx/spellCastFx.test.ts).
+ */
+describe('buff records a card\'s cast produced carry the spell', () => {
+  it.each(SPELLS)('a Mage-Pup casting %s in the Shop: every buff record is tagged with the spell', (_n, id) => {
+    const s = run({ board: [card('a', 'stray'), card('b', 'stray')], hand: [card('p', 'b2_magepup', { attack: 1, health: 1, taughtSpellId: id })] });
+    const next = reduce(s, { type: 'play', uid: 'p', toIndex: 2 });
+    const onA = next.recruitBuffFx.filter((e) => e.targetUid === 'a');
+    expect(onA.length, 'the cast buffed the stray').toBeGreaterThan(0);
+    expect(onA.every((e) => e.spellId === id)).toBe(true);
+  });
+
+  it('the PLAYER casting Growth from hand is not a card cast: no tag (its own release-point effect plays)', () => {
+    const s = run({ board: [card('a', 'stray')], hand: [card('g', 'growth')] });
+    const next = reduce(s, { type: 'play', uid: 'g' });
+    expect(next.recruitBuffFx.length).toBeGreaterThan(0);
+    expect(next.recruitBuffFx.every((e) => e.spellId === undefined)).toBe(true);
+  });
+
+  it('a shop Rally\'s inline "cast Growth" (Hoardbreaker, arena castRepeat): its beat\'s stat gains carry the spell', () => {
+    const drake = card('hb', 'hoardbreaker', { attack: 4, health: 4, keywords: [...CARD_INDEX['hoardbreaker']!.keywords] });
+    const s = run({ board: [drake, card('a', 'stray')] });
+    const collector = makeCollector('t', 'endOfTurn');
+    withActiveCollector(collector, () => fireShopRally(s, drake));
+    const gains = (collector.finish()?.events ?? []).filter((e) => e.type === 'statsChanged' && (e as { target: { uid?: string } }).target.uid === 'a');
+    expect(gains.length, 'the Rally buffed the stray on a beat').toBeGreaterThan(0);
+    expect(gains.every((e) => (e as { spellId?: string }).spellId === 'growth')).toBe(true);
+  });
+
+  it('END OF TURN (Moira firing a Mage-Pup\'s taught Growth): the End-of-Turn beat\'s buff records carry the spell', () => {
+    const s = run({ board: [card('m', 'b2_moira', { attack: 3, health: 3 }), card('p', 'b2_magepup', { attack: 1, health: 1, taughtSpellId: 'growth' }), card('a', 'stray')] });
+    const { fx } = projectEndOfTurnSteps(s);
+    const onA = fx.flatMap((f) => f.buffFx).filter((e) => e.targetUid === 'a');
+    expect(onA.length, 'Moira re-fired the Pup, whose Growth buffed the stray').toBeGreaterThan(0);
+    expect(onA.every((e) => e.spellId === 'growth')).toBe(true);
   });
 });

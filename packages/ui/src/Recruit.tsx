@@ -112,7 +112,7 @@ import { anchorsForUnits } from './fx/combatAnchors';
 import { rubyLandHolds, RUBY_BEAT_MS, RUBY_GAP_MS } from './choreo/channels/rubyLanded';
 import { captureRecruitSeqs, chooseOneMoment, endOfTurnMoment, minionPlayedMoment, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shieldGainMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
-import { bindingFor } from './choreo/bindings';
+import { bindingFor, castFxReplacesTendril } from './choreo/bindings';
 import { cascade, scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat, releaseStat } from './fx/statHold';
 import { fodderGainHolds, type FodderGain } from './fx/fodderGains';
@@ -4526,6 +4526,12 @@ export function Recruit() {
       // Keyed on the SOURCE card and `minionBuffed` — exactly the pair `runRecruitMomentCues` resolves for
       // this event (see its `bindingCard`), so the two can never disagree about whether a def is playing.
       if (bindingFor(ev.sourceCardId, 'minionBuffed')) return;
+      // A SPELL'S OWN EFFECT REPLACES THE CASTER'S TENDRIL (owner ruling 2026-09-24: "the growth and waking rift
+      // effects should replace the tendril for a card that carried those effects, like fatecarver as an example").
+      // The sim tags a buff a minion's cast produced (`spellId`); when that spell has a card-level cast effect, the
+      // effect (played off `castFx`, `fx/spellCastFx.ts`) is the whole presentation of the cast. Unbound spells keep
+      // their tendril. Legacy End-of-Turn beats replay these same events, so they follow the same rule.
+      if (castFxReplacesTendril(ev.spellId)) return;
       const tEl = findEl(ev.targetUid);
       if (!tEl) return;
       // RESTING centres, not raw rects (owner report 2026-09-14): a minion that was JUST DROPPED is still mid-FLIP
@@ -5742,6 +5748,7 @@ export function Recruit() {
       // source→target tendril. ON ITS BEAT now, because the End-of-Turn completion advances the legacy
       // trackers past the commit (nothing may replay after the beats — owner 2026-09-01), and until this the
       // commit replay was the ONLY place these tendrils were drawn under the authoritative path.
+      spellHasCastFx: castFxReplacesTendril,
       statGain: (uid, _zone, _attack, _health, from) => {
         if (!from || from.uid === uid) return;
         // RESTING centres at both ends (owner ask 2026-09-15, the rule #1483 set for the per-action replay): the

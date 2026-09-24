@@ -21,7 +21,8 @@ import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type CombatEvent } from '@game/core';
 import { canPlayDefs, playDef } from './playDef';
 import { playCombatSpellCastFx, playRecordedCastFx, playSpellCastFx } from './spellCastFx';
-import { spellCastFxFor } from '../choreo/bindings';
+import { castFxReplacesTendril, spellCastFxFor } from '../choreo/bindings';
+import { groupBuffCasts } from '../choreo/channels/buffCast';
 import { runRecruitMomentCues } from '../choreo/recruitCues';
 import { spellCastMoment } from '../choreo/recruitMoments';
 import { compileMoments } from '../choreo/compile';
@@ -142,5 +143,71 @@ describe('combat Growth from its dedicated casters (the arena castRepeat path)',
       { type: 'sc', source: 'X', text: 'narration' },
     ] as CombatEvent[]);
     expect(playCombatSpellCastFx(casts)).toBe(2);
+  });
+});
+
+/**
+ * THE CAST EFFECT REPLACES THE CASTER'S TENDRIL (owner ruling 2026-09-24, verbatim): *"the growth and waking rift
+ * effects should replace the tendril for a card that carried those effects, like fatecarver as an example."*
+ * Every phase's buff path asks ONE predicate (`castFxReplacesTendril`) of the spell tag the sim put on the buff.
+ */
+describe('a bound spell cast by a card replaces the tendril; an unbound one keeps it', () => {
+  it('the predicate: bound spells replace, unbound / untagged do not', () => {
+    expect(castFxReplacesTendril('growth')).toBe(true);
+    expect(castFxReplacesTendril('sparkplug')).toBe(true);
+    expect(castFxReplacesTendril('spiritfire')).toBe(false);
+    expect(castFxReplacesTendril('sp_dragonflame'), 'Dragonflame has its own buffedOn def path').toBe(false);
+    expect(castFxReplacesTendril(undefined)).toBe(false);
+  });
+
+  it('COMBAT, Fatecarver: growth-effect plays per cast AND every buff it cast is claimed (no tendril)', () => {
+    vi.useFakeTimers();
+    const r = simulate([{ cardId: 'n2_fatecarver', attack: 4, health: 900, chosenOption: 1 }, { cardId: 'sandbag', attack: 1, health: 900 }],
+      [{ cardId: 'sandbag', attack: 0, health: 90000 }], makeRng(3), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
+    const events = r.events as CombatEvent[];
+    const fc = r.initial.player.find((m) => m.cardId === 'n2_fatecarver')!.uid;
+    // The buff casts `fireBuffCasts` receives (both from the buff-wave cue and the attack wind-up).
+    const casts = groupBuffCasts({ start: 0, end: events.length } as never, events).filter((c) => c.source === fc);
+    expect(casts.length, 'Fatecarver buffed its allies').toBeGreaterThan(0);
+    expect(casts.every((c) => castFxReplacesTendril(c.spellId)), 'every Fatecarver Growth buff drops its tendril').toBe(true);
+    const played = runScore(events, r.initial.player);
+    expect(plays('growth-effect')).toHaveLength(played);
+  });
+
+  it('COMBAT, an UNBOUND spell cast by a card (Sporebat re-casting Spirit Fire) keeps its tendril', () => {
+    const r = simulate([{ cardId: 'sporebat', attack: 2, health: 1 }, { cardId: 'pack', attack: 3, health: 200 }],
+      [{ cardId: 'omen', attack: 5, health: 200 }], makeRng(3), CARD_INDEX,
+      combatSide({ tier: 4, lastSpellCastId: 'spiritfire' }), combatSide({ tier: 1 }));
+    const events = r.events as CombatEvent[];
+    const casts = groupBuffCasts({ start: 0, end: events.length } as never, events).filter((c) => c.spellId === 'spiritfire');
+    expect(casts.length, 'Sporebat cast Spirit Fire on a friendly Beast').toBeGreaterThan(0);
+    expect(casts.some((c) => castFxReplacesTendril(c.spellId))).toBe(false);
+  });
+
+  it('combat and the shop both ask the predicate before drawing the tendril', () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const replay = readFileSync(join(here, '../useCombatReplay.ts'), 'utf8');
+    const fire = replay.slice(replay.indexOf('const fireBuffCasts = useCallback('));
+    expect(fire.indexOf('castFxReplacesTendril(c.spellId)')).toBeGreaterThan(0);
+    expect(fire.indexOf('castFxReplacesTendril(c.spellId)')).toBeLessThan(fire.indexOf('fireBuffFx('));
+    const recruit = readRecruit();
+    const replayFx = recruit.slice(recruit.indexOf('const replayBuffFxEvents = useCallback('));
+    expect(replayFx.indexOf('castFxReplacesTendril(ev.spellId)')).toBeGreaterThan(0);
+    expect(replayFx.indexOf('castFxReplacesTendril(ev.spellId)')).toBeLessThan(replayFx.indexOf('fireBuffFx('));
+    expect(recruit).toContain('spellHasCastFx: castFxReplacesTendril');
+  });
+
+  it('END OF TURN (authoritative beats): a bound spell\'s tagged stat gain draws no tendril; an unbound one does', () => {
+    const statGain = vi.fn();
+    const ctx = { statGain, spellHasCastFx: castFxReplacesTendril, selfBuff: vi.fn(), heroPowerGain: vi.fn(), questTendril: vi.fn() };
+    const beat = { source: { kind: 'minion', id: 'b2_magepup', uid: 'p' } };
+    const gain = (spellId?: string) => ({ type: 'statsChanged', target: { zone: 'board', uid: 'a', cardId: 'stray', side: 'player' },
+      attack: 1, health: 1, permanent: true, channel: 'ordinary', ...(spellId ? { spellId } : {}) });
+    presentConsequence({ consequence: gain('growth'), beat, ctx } as never);
+    presentConsequence({ consequence: gain('sparkplug'), beat, ctx } as never);
+    expect(statGain).not.toHaveBeenCalled();
+    presentConsequence({ consequence: gain('spiritfire'), beat, ctx } as never);
+    presentConsequence({ consequence: gain(), beat, ctx } as never);
+    expect(statGain).toHaveBeenCalledTimes(2);
   });
 });

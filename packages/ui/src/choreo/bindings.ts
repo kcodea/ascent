@@ -607,6 +607,18 @@ export function spellCastFxFor(spellId: string | null | undefined): FxBinding | 
   return b;
 }
 
+/**
+ * Does this spell's own cast effect REPLACE the generic buff tendril / descend for a buff it produced? The one
+ * rule every phase's buff path asks (owner ruling 2026-09-24: *"the growth and waking rift effects should replace
+ * the tendril for a card that carried those effects, like fatecarver as an example"*): true exactly when the spell
+ * has a card-level cast effect (`spellCastFxFor`), so any future bound spell behaves the same and an unbound
+ * spell keeps its tendril. `spellId` is the sim's tag on the buff (combat `buff.spellId`, the shop's
+ * `BuffFxEvent.spellId`, End of Turn's `statsChanged.spellId`), present only for a CARD's cast.
+ */
+export function castFxReplacesTendril(spellId: string | null | undefined): boolean {
+  return !!spellId && spellCastFxFor(spellId) !== null;
+}
+
 export function authoredBuffDefFor(spellId: string | undefined): string | null {
   if (spellId === undefined) return null;
   const b = bindingFor(spellId, 'buffWave');

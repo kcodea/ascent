@@ -95,6 +95,9 @@ export interface StatsChangedConsequence extends ConsequenceBase {
   permanent: boolean;
   /** Which visual channel delivers it — the UI already treats these distinctly (ruby gems, imp aura, …). */
   channel?: 'ordinary' | 'ruby' | 'spellPower' | 'impAura' | 'shopBuff';
+  /** The spell the beat's source MINION cast to produce this gain, when it cast exactly one (owner ruling
+   *  2026-09-24): a spell with its own cast effect replaces the caster's tendril. Absent otherwise. */
+  spellId?: string;
 }
 export interface KeywordChangedConsequence extends ConsequenceBase {
   type: 'keywordChanged';

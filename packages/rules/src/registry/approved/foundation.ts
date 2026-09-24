@@ -783,7 +783,12 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'Drake, Sporebat). Every combat cast announces itself (`sc` + `spellId`) and stamps its buffs with `spellId` '
       + '(`withCastingSpell` at `resolveCombatSpellCast` and the arena\x27s `castRepeat`), and every Shop / End-of-Turn '
       + 'cast by a rune or minion is recorded on `castFx` (`recordActorCast`, shared by `applyCastEffects` and the '
-      + 'arena\x27s `castRepeat`), so a per-spell effect binds to the SPELL in every phase.',
+      + 'arena\x27s `castRepeat`), so a per-spell effect binds to the SPELL in every phase. PRESENTATION (owner ruling '
+      + '2026-09-24): when a CARD casts a spell that has its own cast effect (Fatecarver, Taragosa, Hoardbreaker, a '
+      + 'Mage-Pup, Sporebat), that effect REPLACES the generic buff tendril / descend for the buffs that cast produced, '
+      + 'in every phase: the stat change and number still land, only the travelling ribbon is dropped. One predicate '
+      + '(`castFxReplacesTendril`) reads the sim\x27s spell tag on the buff (combat `buff.spellId`, the shop '
+      + '`BuffFxEvent.spellId`, End of Turn `statsChanged.spellId`); a spell with no cast effect keeps its tendril.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -796,6 +801,11 @@ export const FOUNDATION_RULES: GameRule[] = [
         kind: 'owner-chat',
         ref: 'Owner ask, 2026-09-24 (Waking Rift effect, same PR)',
         quote: 'i added a waking rift effect',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ruling on PR #1672, 2026-09-24 (tendril)',
+        quote: 'the growth and waking rift effects should replace the tendril for a card that carried those effects, like fatecarver as an example.',
       },
       { kind: 'code', ref: 'packages/core/src/effects/factories.ts (`withCastingSpell`, `resolveCombatSpellCast`, the combat arena `castRepeat`); packages/sim/src/recruit.ts (`recordActorCast`, the shop arena `castRepeat`); packages/ui/src/fx/spellCastFx.ts (`playSpellCastFx`, `playRecordedCastFx`, `playCombatSpellCastFx`); packages/ui/src/choreo/bindings.ts (`spellCastFxFor`); packages/ui/src/choreo/score.ts (the `spellCastFx` cue); packages/ui/src/Recruit.tsx (the `castFxSeq` watcher, the `spellCast` presenter context, the legacy End-of-Turn beat); packages/core/src/effects/arena.ts (`ARENA_EFFECTS`, the shared cross-phase bodies)' },
     ],

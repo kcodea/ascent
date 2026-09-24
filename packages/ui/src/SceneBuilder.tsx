@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { CARD_INDEX, GIFTS, RUNES, EPIC_RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
-import { HEROES, runQaScenario, validateQaScenario, type BoardSnapshot, type BotLevel, type QaScenarioV1, type RunState, type ShopCard } from '@game/sim';
+import { HEROES, isArchivedHero, runQaScenario, validateQaScenario, type BoardSnapshot, type BotLevel, type QaScenarioV1, type RunState, type ShopCard } from '@game/sim';
 import { buildQaScenario, reproCommandFor, scenarioFileName, scenarioFileText, QA_SCENARIO_FIXTURE_DIR } from './qaScenarioBridge';
 import type { Keyword } from '@game/core';
 import { useGame } from './store';
@@ -54,7 +54,9 @@ function mutate(fn: (r: RunState) => RunState): void {
 let uidN = 0;
 const uid = (): string => `sb${uidN++}`;
 
-const HERO_OPTIONS = HEROES.map((h) => ({ id: h.id, name: h.name })).sort((a, b) => a.name.localeCompare(b.name));
+/** EVERY hero, archived ones included — the Scene Builder is the one place an archived hero still shows (owner
+ *  2026-09-24: "they should only show in scene builder"). Archived ones are marked, like the set picker's "(live)". */
+export const HERO_OPTIONS = HEROES.map((h) => ({ id: h.id, name: h.name, archived: isArchivedHero(h) })).sort((a, b) => a.name.localeCompare(b.name));
 
 /** Every set in the registry — INCLUDING disabled ones, which is the point: the rig is how you play a set
  *  that is still in development (`enabled: false`) without flipping the global switch and moving real runs
@@ -343,7 +345,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
                 <select className="sb-select" value={run?.heroId ?? 'warden'}
                   onChange={(e) => startSceneBuilder(e.target.value, setId)}
                   aria-label="Switch hero (restarts the sandbox so the hero's opener runs)">
-                  {HERO_OPTIONS.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
+                  {HERO_OPTIONS.map((h) => <option key={h.id} value={h.id}>{h.name}{h.archived ? ' (archived)' : ''}</option>)}
                 </select>
               </label>
               <label className="sb-field">

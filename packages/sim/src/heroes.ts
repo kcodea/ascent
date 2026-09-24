@@ -115,8 +115,15 @@ export interface HeroDef {
    *  today) as a balance dial — a strong power tends to carry less armor. */
   armor: number;
   power: HeroPower;
-  /** Work-in-progress: kept in the registry (so the engine + saves resolve it) but withheld from the hero
-   *  picker until it's fully wired. Cleared once the hero ships (Runesmith → when the Runeforge UI lands). */
+  /** ARCHIVED / work-in-progress: kept in the registry (so the engine, saves, replays, recorded snapshots and
+   *  leaderboards resolve it) but withheld from EVERY hero picker — Play, Practice, the tutorial, generated
+   *  rival seats, Practice bot portraits, the Compendium's Heroes tab and the Mimic / Void / Power Shifter
+   *  power Discovers. Only the Scene Builder still lists it (marked "archived"). Test: `isArchivedHero`.
+   *
+   *  The owner's "archive" rulings all land here (Fi + Coran 2026-08-28, Void 2026-09-16, and the 2026-09-24
+   *  batch: Aevor, Cindara, Devourer, Emissary, Fibbsy, Harlan, Odelle, Tiff, Underdweller, Runesmith,
+   *  Guardian, Foreman Flint, Gorun, Jensen, Membrance, Pete, Rayse, Sable, Yirin). Restore a hero by deleting
+   *  its flag. */
   wip?: boolean;
   /** PRACTICE-ONLY: playable, but withheld from PLAY mode — the Ascent picker and generated rival seats.
    *  Distinct from `wip`, which hides a hero from every picker including Practice. This is for a hero that
@@ -197,6 +204,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'rohan', // id kept stable (saves / references); display name is Yirin
+    wip: true, // ARCHIVED 2026-09-24 (owner: "remove them from all modes but keep them in the game. they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Yirin',
     blurb: 'Words sharpen in skilled hands, and sharpen further the more you speak them.',
     resolve: 30,
@@ -428,6 +436,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'runesmith',
+    wip: true, // ARCHIVED 2026-09-24 (owner: "Archive these heroes ... they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Runesmith',
     blurb: 'The forge fires once. Spend well, for its rune lasts the whole climb.',
     resolve: 30,
@@ -442,6 +451,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'runeguard',
+    wip: true, // ARCHIVED 2026-09-24 (owner: "Archive these heroes ... they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Guardian',
     blurb: 'Sworn to the forge. Its greater runes answer only to those who hold the line.',
     resolve: 30,
@@ -470,6 +480,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'tiff',
+    wip: true, // ARCHIVED 2026-09-24 (owner: "Archive these heroes ... they should only show in scene builder"). See `HeroDef.wip`.
     tribes: ['dragon'], // Dragon Tamer Discovers a Dragon — no pool without them (owner 2026-09-10: "Tiff for Dragons")
     name: 'Tiff',
     blurb: 'Every wyrm answers her whistle, and the tavern picks up the tab.',
@@ -488,6 +499,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'jenkins',
+    wip: true, // ARCHIVED 2026-09-24 (owner: "remove them from all modes but keep them in the game. they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Jensen',
     blurb: 'Every dig turns up something, for a price that only ever climbs.',
     resolve: 30,
@@ -601,6 +613,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'pete',
+    wip: true, // ARCHIVED 2026-09-24 (owner: "remove them from all modes but keep them in the game. they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Pete',
     blurb: 'He knows a guy who knows a guy.',
     resolve: 30,
@@ -614,6 +627,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'flint',
+    wip: true, // ARCHIVED 2026-09-24 (owner: "remove them from all modes but keep them in the game. they should only show in scene builder"). See `HeroDef.wip`.
     tribes: ['dwarf'], // Company Rate prices Dwarves — inert without them
     name: 'Foreman Flint',
     blurb: 'Union rates. Dwarves come cheap by the dozen.',
@@ -628,6 +642,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'vale',
+    wip: true, // ARCHIVED 2026-09-24 (owner: "Archive these heroes ... they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Emissary',
     blurb: 'Every banner rallies to the same horn.',
     resolve: 30,
@@ -685,6 +700,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'underdweller',
+    wip: true, // ARCHIVED 2026-09-24 (owner: "Archive these heroes ... they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Underdweller',
     blurb: 'Nothing that falls down here stays lost for long.',
     resolve: 30,
@@ -712,6 +728,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'devourer',
+    wip: true, // ARCHIVED 2026-09-24 (owner: "Archive these heroes ... they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Devourer',
     blurb: 'Nothing is wasted. What one body cannot use, another will.',
     resolve: 30,
@@ -767,6 +784,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'membrance',
+    wip: true, // ARCHIVED 2026-09-24 (owner: "remove them from all modes but keep them in the game. they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Membrance',
     blurb: 'She remembers every board that ever stood against her, and sells you the copy.',
     resolve: 30,
@@ -812,6 +830,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'odelle',
+    wip: true, // ARCHIVED 2026-09-24 (owner: "Archive these heroes ... they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Odelle',
     blurb: 'She curates the row. Nothing beside anything it merely repeats.',
     resolve: 30,
@@ -825,6 +844,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'harlan',
+    wip: true, // ARCHIVED 2026-09-24 (owner: "Archive these heroes ... they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Harlan',
     blurb: 'He does not browse. He buys the shelf.',
     resolve: 30,
@@ -841,6 +861,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'sable',
+    wip: true, // ARCHIVED 2026-09-24 (owner: "remove them from all modes but keep them in the game. they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Sable',
     blurb: 'Two ends of one chain. Pull on either and both come along.',
     resolve: 30,
@@ -869,6 +890,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'rayse',
+    wip: true, // ARCHIVED 2026-09-24 (owner: "remove them from all modes but keep them in the game. they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Rayse',
     blurb: 'Everything that grows through her garden comes out thorned.',
     resolve: 30,
@@ -885,6 +907,7 @@ export const HEROES: HeroDef[] = [
   // banked Whelp level for Cindara. Nothing here needed a new counter — only somewhere to keep the total.
   {
     id: 'aevor',
+    wip: true, // ARCHIVED 2026-09-24 (owner: "Archive these heroes ... they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Aevor',
     blurb: 'The storm keeps its own count, and settles it at dusk.',
     resolve: 30,
@@ -898,6 +921,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'gorun',
+    wip: true, // ARCHIVED 2026-09-24 (owner: "remove them from all modes but keep them in the game. they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Gorun',
     blurb: 'Every swing is a lesson, and he has never stopped taking notes.',
     resolve: 30,
@@ -911,6 +935,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'cindara',
+    wip: true, // ARCHIVED 2026-09-24 (owner: "Archive these heroes ... they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Cindara',
     blurb: 'She counts the fallen in scales, and the pile only ever grows.',
     resolve: 30,
@@ -924,6 +949,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'fibbsy',
+    wip: true, // ARCHIVED 2026-09-24 (owner: "Archive these heroes ... they should only show in scene builder"). See `HeroDef.wip`.
     name: 'Fibbsy',
     blurb: 'Turns a single coin into a fistful of gems, twice over, every morning.',
     resolve: 30,
@@ -1103,19 +1129,23 @@ const VOID_EXCLUDED = new Set(['discodan', 'runesmith', 'coran', 'fi', 'vale']);
 const tribeAllowed = (h: HeroDef, tribes?: readonly Tribe[]): boolean =>
   !h.tribes || !tribes || h.tribes.some((t) => tribes.includes(t));
 
+/** ARCHIVED (`wip`): kept in the registry so every stored reference resolves, but offered by no picker except
+ *  the Scene Builder. The one predicate for "can a player be handed this hero in a new run?" (negated). */
+export const isArchivedHero = (h: Pick<HeroDef, 'wip'>): boolean => !!h.wip;
+
 export function playableHeroes(tribes?: readonly Tribe[]): HeroDef[] {
-  return HEROES.filter((h) => !h.wip && !h.practiceOnly && tribeAllowed(h, tribes));
+  return HEROES.filter((h) => !isArchivedHero(h) && !h.practiceOnly && tribeAllowed(h, tribes));
 }
 
 /** The heroes PRACTICE may use — everything except `wip`. */
 export function practiceHeroes(tribes?: readonly Tribe[]): HeroDef[] {
-  return HEROES.filter((h) => !h.wip && tribeAllowed(h, tribes));
+  return HEROES.filter((h) => !isArchivedHero(h) && tribeAllowed(h, tribes));
 }
 
 export function powerDiscoverPool(who: 'mimic' | 'void', exclude: readonly string[] = [], tribes?: readonly Tribe[]): string[] {
   const banned = who === 'mimic' ? MIMIC_EXCLUDED : VOID_EXCLUDED;
   return HEROES
-    .filter((h) => !h.wip && !banned.has(h.id) && !UNDISCOVERABLE_KINDS.has(h.power.kind) && !exclude.includes(h.id) && tribeAllowed(h, tribes))
+    .filter((h) => !isArchivedHero(h) && !banned.has(h.id) && !UNDISCOVERABLE_KINDS.has(h.power.kind) && !exclude.includes(h.id) && tribeAllowed(h, tribes))
     .map((h) => h.id);
 }
 

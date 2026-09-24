@@ -16,7 +16,11 @@
 import { makeRng, type BoardMinion, type CardDef, type Rng, type Tribe } from '@game/core';
 import { CARD_INDEX, poolFor, type SetId } from '@game/content';
 import type { BoardSnapshot } from './snapshot';
-import { HEROES } from './heroes';
+import { HEROES, isArchivedHero } from './heroes';
+
+/** Portrait roster for synthesized pool boards: archived heroes (owner 2026-09-24) are never given a NEW board.
+ *  Boards already baked into `opponentPool.data.ts` keep their stored heroId and still resolve. */
+const SYNTH_HEROES = HEROES.filter((h) => !isArchivedHero(h));
 import { opponentBoard } from './opponents';
 import { rateBoardForWave, ratingBand, type WaveLadders } from './rating';
 import { buildEnemyBoard, THREAT_IDS } from './threats';
@@ -218,7 +222,7 @@ export function synthesizeWaveFromCurve(
     out.push({
       v: 1,
       wave,
-      heroId: HEROES[(wave * 7 + i) % HEROES.length]!.id,
+      heroId: SYNTH_HEROES[(wave * 7 + i) % SYNTH_HEROES.length]!.id,
       resolve: 30,
       tier,
       triples: 0,

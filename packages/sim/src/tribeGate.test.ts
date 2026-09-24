@@ -95,8 +95,17 @@ describe('runeforgePool honours the run tribes', () => {
   });
 });
 
+/** Tiff + Flint are the only tribe-gated heroes, and both were ARCHIVED 2026-09-24 (heroArchive.test.ts), so the
+ *  gate is exercised with their archive flag lifted for the test body and restored after. */
+const withUnarchived = (ids: string[], fn: () => void): void => {
+  const defs = ids.map((id) => HEROES.find((h) => h.id === id)!);
+  const saved = defs.map((h) => h.wip);
+  defs.forEach((h) => { h.wip = false; });
+  try { fn(); } finally { defs.forEach((h, i) => { h.wip = saved[i]; }); }
+};
+
 describe('hero tribe gate', () => {
-  it('Tiff needs Dragons, Flint needs Dwarves; no tribes = no filter', () => {
+  it('Tiff needs Dragons, Flint needs Dwarves; no tribes = no filter', () => withUnarchived(['tiff', 'flint'], () => {
     const noDragons: Tribe[] = ['kobold', 'dwarf', 'undead', 'spirit', 'celestial'];
     expect(playableHeroes(noDragons).map((h) => h.id)).not.toContain('tiff');
     expect(playableHeroes(noDragons).map((h) => h.id)).toContain('flint');
@@ -104,12 +113,12 @@ describe('hero tribe gate', () => {
     expect(playableHeroes(['dragon']).map((h) => h.id)).toContain('tiff');
     expect(playableHeroes().map((h) => h.id)).toContain('tiff');
     expect(playableHeroes().length).toBe(HEROES.filter((h) => !h.wip && !h.practiceOnly).length);
-  });
-  it('adoptable powers (Mimic / Void / Power Shifter) obey the same gate', () => {
+  }));
+  it('adoptable powers (Mimic / Void / Power Shifter) obey the same gate', () => withUnarchived(['tiff'], () => {
     expect(powerDiscoverPool('mimic')).toContain('tiff');
     expect(powerDiscoverPool('mimic', [], ['undead', 'spirit'])).not.toContain('tiff');
     expect(powerDiscoverPool('void', [], ['dragon'])).toContain('tiff');
-  });
+  }));
   it('every tagged hero names the tribe in its power text', () => {
     for (const h of HEROES) for (const t of h.tribes ?? []) expect(WORD[t as Exclude<Tribe, 'neutral'>].test(h.power.text), `${h.id} tagged ${t}`).toBe(true);
   });

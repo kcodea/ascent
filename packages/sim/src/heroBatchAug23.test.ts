@@ -14,7 +14,7 @@ import {
   tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, heroPowerText,
   TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, applyEndOfTurn,
 } from './recruit';
-import { getHero } from './heroes';
+import { getHero, powerDiscoverPool } from './heroes';
 
 /** Bodies for a side — `simulate` takes the two boards positionally, with the run-level context after them. */
 const board = (ms: { cardId: string; attack: number; health: number }[]): BoardMinion[] =>
@@ -219,8 +219,12 @@ describe('the shared spine — tallies survive the settle and follow the POWER, 
     for (const id of ['aevor', 'gorun', 'cindara']) {
       const h = getHero(id);
       expect(h.power.passive, `${id} is a passive`).toBe(true);
-      expect(h.wip, `${id} ships enabled`).toBeFalsy();
-      expect(h.practiceOnly, `${id} is available in Play`).toBeFalsy();
+      // All three were ARCHIVED 2026-09-24 (heroArchive.test.ts), which takes them out of the adopted-power pools
+      // too; what stays pinned is that no kind-level ban (`UNDISCOVERABLE_KINDS`) would hide them if restored.
+      expect(h.wip, `${id} archived 2026-09-24`).toBe(true);
+      expect(h.practiceOnly, `${id} is not merely practice-only`).toBeFalsy();
+      h.wip = false;
+      try { expect(powerDiscoverPool('void'), `${id} would be adoptable again once restored`).toContain(id); } finally { h.wip = true; }
     }
   });
 });

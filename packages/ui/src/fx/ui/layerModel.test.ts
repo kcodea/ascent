@@ -10,6 +10,8 @@ import {
   moveLayer,
   removeLayer,
   setLayerAnchor,
+  setLayerBowUp,
+  setLayerMinArc,
   setLayerMuted,
   setLayerName,
   setLayerParam,
@@ -30,6 +32,29 @@ const layer = (primitive: string, over: Partial<EditorLayer> = {}): EditorLayer 
   life: null,
   params: {},
   ...over,
+});
+
+describe('setLayerBowUp / setLayerMinArc (the fountain)', () => {
+  it('turns arc-upward on, and off deletes the key rather than storing false', () => {
+    const on = setLayerBowUp([layer('ribbon')], 0, true);
+    expect(on[0].bowUp).toBe(true);
+    expect('bowUp' in setLayerBowUp(on, 0, false)[0]).toBe(false);
+  });
+
+  it('sets a minimum arc; 0 or null deletes the key (no minimum)', () => {
+    const set = setLayerMinArc([layer('ribbon')], 0, 120);
+    expect(set[0].minArc).toBe(120);
+    expect('minArc' in setLayerMinArc(set, 0, 0)[0]).toBe(false);
+    expect('minArc' in setLayerMinArc(set, 0, null)[0]).toBe(false);
+  });
+
+  it('touches only the addressed layer and returns new objects', () => {
+    const input = [layer('ribbon'), layer('burst')];
+    const out = setLayerMinArc(setLayerBowUp(input, 1, true), 1, 80);
+    expect(out[0]).toBe(input[0]);
+    expect(out[1]).toMatchObject({ bowUp: true, minArc: 80 });
+    expect(input[1]).not.toHaveProperty('bowUp');
+  });
 });
 
 describe('createEditorLayer', () => {

@@ -47,8 +47,44 @@ The gilded card is hidden until the trails land, so every path must end with it 
 each play's `onDone`, an immediate show when no play was admitted, and no hide at all when the FX engine is not
 ready.
 
+## The in-hand gild: the fountain
+
+Owner, reviewing the first pass: *"one situation that can occur that this doesnt account for, is when all
+three cards are in hand when they become gilded."* This is the COMMON case, not an edge: `pullCopies`
+consumes from the **hand first**, and `combineIntoGolden` pushes the gold card to the **end of the hand**, so
+whenever copies are held, every trail starts and ends in the same row. Two things broke there:
+
+- **Flat hops.** `bow` is a fraction of the span, so neighbouring cards got a ~15-30px hump, and a copy that sat
+  where the gold card lands did not move at all.
+- **Arcs under the hand.** The bow's side follows the direction of travel (`pointOnTravel`: the control point
+  is offset along `(dy, -dx)`), so left→right arcs up but right→left arcs DOWN, under the hand and off-screen.
+
+The owner picked the **fountain**: two new optional `travel`-layer fields, default off so every existing def is
+bit-identical (the old formula is untouched when neither is set):
+
+- `bowUp: true` puts the arc on whichever side points up the screen. Diagonal trails then bulge outward and up,
+  so a fan of board→hand trails sprays symmetrically too.
+- `minArc: <px>` floors the arc's PEAK (half the control offset, hence `2 * minArc`), clamped to
+  `MIN_ARC_LIMIT` (600). It only ever raises an arc. Coincident anchors hop straight up.
+
+`gild-trail`'s ribbon ships `bowUp: true, minArc: 100`. Measured on an all-in-hand layout: a left copy's peak
+27px → 100px; a close right copy went from dipping 9px under the hand to rising 100px; a same-slot copy from
+0 → a 100px hop. Workbench: **Arc upward** (checkbox) and **Min arc** (0-300px) sit under the Arc slider.
+
+## Fixed on the way: the workbench dropped `bow` and `stagger` on load and save
+
+`toEditorLayer` (load / session restore) and `toStoredLayers` (save) copy layer fields one by one, and neither
+copied `bow` or `stagger`. So loading any def into the workbench and saving it again silently wiped its arc and
+its cascade (verified: `heavy-beam`'s `stagger: 120` came back as nothing), and those two dials only ever
+worked live, until the next reload or save. Every committed def carrying them was written as JSON by hand. It
+would have wiped `gild-trail`'s tuning on the owner's first save. Both directions now go through one
+`arcFields()` in `fx/ui/sessionState.ts`, on the same terms as the committed-def loader (`coerceLayer`), and the
+round-trip is pinned in `sessionState.test.ts`.
+
 ## Tuning it
 
 Open `gild-trail` in the FX workbench. The Stage Setter previews **one** leg (one source → one target); the game
-plays that leg once per copy. The arc is the ribbon's `bow`, the gap between copies is each layer's `stagger`,
-and the card appears when the `target` layer fires for the last copy, so moving that layer moves the reveal.
+plays that leg once per copy. The arc is the ribbon's `bow` plus **Arc upward** and **Min arc**, the gap
+between copies is each layer's `stagger`, and the card appears when the `target` layer fires for the last
+copy, so moving that layer moves the reveal. To preview the in-hand case, put the source and target handles
+side by side, or on top of each other.

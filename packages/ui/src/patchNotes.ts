@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Tripling a minion has a new effect. Each copy bursts into golden sparks and sends a golden trail to your new golden minion.',
         details: [
           'Every trail starts where its copy was, on your board or in your hand.',
+          'Trails arc upward, so copies already in your hand leap up and drop into your golden minion.',
           'Your golden minion appears in its slot as the last trail arrives.',
         ],
       },

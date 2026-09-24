@@ -35,6 +35,42 @@ const layer = (primitive: string, over: Partial<EditorLayer> = {}): EditorLayer 
   ...over,
 });
 
+/* LOAD → SAVE must keep the arc and the cascade (found 2026-09-24 building the gild). `toEditorLayer` and
+   `toStoredLayers` copy fields one by one, and neither copied `bow` or `stagger`, so loading a def in the
+   workbench and saving it again silently wiped them: `heavy-beam`'s 120ms cascade, any authored laser. */
+describe('workbench load → save keeps the arc, the cascade and the fountain', () => {
+  const roundTrip = (raw: Record<string, unknown>): Record<string, unknown> =>
+    toStoredLayers(editorLayersFromDef([raw as never]), new Map())[0] as unknown as Record<string, unknown>;
+  const base = { primitive: 'ribbon', anchor: 'travel', at: 0, params: {} };
+
+  it('keeps bow — including the meaningful 0 (a straight laser) — and stagger', () => {
+    expect(roundTrip({ ...base, bow: 0.3 }).bow).toBe(0.3);
+    expect(roundTrip({ ...base, bow: 0 }).bow).toBe(0);
+    expect(roundTrip({ ...base, bow: -0.4 }).bow).toBe(-0.4);
+    expect(roundTrip({ ...base, stagger: 120 }).stagger).toBe(120);
+  });
+
+  it('keeps bowUp and minArc', () => {
+    const out = roundTrip({ ...base, bowUp: true, minArc: 120 });
+    expect(out.bowUp).toBe(true);
+    expect(out.minArc).toBe(120);
+  });
+
+  it('keeps every one of them together (the gild ribbon)', () => {
+    const out = roundTrip({ ...base, travelMs: 360, bow: 0.3, bowUp: true, minArc: 120, stagger: 70 });
+    expect(out).toMatchObject({ travelMs: 360, bow: 0.3, bowUp: true, minArc: 120, stagger: 70 });
+  });
+
+  it('an untouched layer gains no new keys', () => {
+    expect(Object.keys(roundTrip(base)).sort()).toEqual(['anchor', 'at', 'params', 'primitive']);
+  });
+
+  it('drops junk the same way the def loader does', () => {
+    const out = roundTrip({ ...base, bow: 'curvy', stagger: -5, bowUp: 'yes', minArc: 0 });
+    for (const k of ['bow', 'stagger', 'bowUp', 'minArc']) expect(k in out, k).toBe(false);
+  });
+});
+
 describe('toEditorLayer', () => {
   it('coerces a well-formed layer through unchanged', () => {
     expect(toEditorLayer({ primitive: 'burst', anchor: 'target', at: 120, life: 400, params: { a: 1 } })).toEqual({

@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { mount, type Mounted } from './renderedText.mount';
 import type { BoardSnapshot } from '@game/sim';
-import type { HallHistoryFacts, PlayerRow, RecentGameRow, RunFightRecord } from './remoteBoards';
+import type { HallHistoryFacts, PlayerRow, PracticeGameRow, RecentGameRow, RunFightRecord } from './remoteBoards';
 
 const fetchTopPlayers = vi.fn<() => Promise<PlayerRow[]>>();
 const fetchLatestReplayForUser = vi.fn<(id: string) => Promise<unknown>>();
@@ -24,6 +24,7 @@ const fetchRunFinalBoards = vi.fn<(runs: unknown[]) => Promise<Map<string, Board
 const fetchRecentGames = vi.fn<() => Promise<RecentGameRow[]>>();
 const fetchReplayPayload = vi.fn<(id: number) => Promise<unknown>>();
 const fetchPlayerById = vi.fn<(id: string) => Promise<PlayerRow | null>>();
+const fetchPracticeGames = vi.fn<() => Promise<PracticeGameRow[]>>();
 const startReplay = vi.fn();
 let remote = true;
 
@@ -38,6 +39,7 @@ vi.mock('./remoteBoards', async (importOriginal) => ({
   fetchRecentGames: () => fetchRecentGames(),
   fetchReplayPayload: (id: number) => fetchReplayPayload(id),
   fetchPlayerById: (id: string) => fetchPlayerById(id),
+  fetchPracticeGames: () => fetchPracticeGames(),
 }));
 vi.mock('./replay/replayPlayer', () => ({ startReplay: (...a: unknown[]) => startReplay(...a) }));
 
@@ -92,6 +94,13 @@ const GAMES: RecentGameRow[] = [
   game({ userId: null, author: 'Robin', heroId: 'brackus', rowId: 12, hasReplay: false, board: null, record: null, durationMs: null, placement: 2, wins: 3, runes: [], wave: null }),
 ];
 
+// Practice games (owner ask 2026-09-24): Nadja's bots game on unlimited Health (no replay, no Watch), and Kev's
+// recorded-opponent game on normal Health.
+const PRACTICE: PracticeGameRow[] = [
+  { ...game({ rowId: 5, hasReplay: false, placement: 3, wave: 15, lobbyStrength: null }), practice: { opponents: 'bots', botDifficulty: 5, health: 'unlimited' } },
+  { ...game({ userId: 'me-1', author: 'Kev', heroId: 'sable', rowId: 4, hasReplay: false, placement: 6, record: { wins: 3, losses: 6, draws: 0 }, wave: 9, runes: [] }), practice: { opponents: 'players', botDifficulty: 3, health: 'normal' } },
+];
+
 let ui: Mounted;
 const scrollIntoView = vi.fn();
 const flush = async (): Promise<void> => { await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); }); };
@@ -108,6 +117,7 @@ beforeEach(() => {
   fetchRecentGames.mockReset().mockResolvedValue(GAMES);
   fetchReplayPayload.mockReset().mockResolvedValue({ version: 2, seed: 1, frames: [{}] });
   fetchPlayerById.mockReset().mockResolvedValue(null);
+  fetchPracticeGames.mockReset().mockResolvedValue(PRACTICE);
   startReplay.mockReset();
   // jsdom has no scrollIntoView — the own-row scroll must call it exactly once when the list lands.
   scrollIntoView.mockReset();
@@ -435,7 +445,74 @@ describe('RecentGames — the recording banners', () => {
   });
 });
 
+describe('RecentGames — the Practice tab (owner ask 2026-09-24)', () => {
+  beforeEach(async () => {
+    useGame.setState({ showRecentGames: true });
+    ui = mount(<RecentGames />);
+    await flush();
+  });
+  const tabs = (): HTMLButtonElement[] => [...ui.container.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+  const selected = (): string => (ui.container.querySelector('[role="tab"][aria-selected="true"]')?.textContent ?? '').trim();
+
+  it('opens on Ranked (the feed as before) and does not read practice games until the tab is picked', () => {
+    expect(ui.container.querySelector('[role="tablist"]')?.classList.contains('cv2-tabs')).toBe(true); // the Career tab style
+    expect(tabs().map((t) => t.textContent?.trim())).toEqual(['Ranked', 'Practice']);
+    expect(selected()).toBe('Ranked');
+    expect(text('.lb-row-name')).toEqual(['Nadja', 'Kev', 'Robin']);
+    expect(fetchPracticeGames).not.toHaveBeenCalled();
+  });
+
+  it('Practice lists the latest practice games: the same banner, the practice options as facts, and no Watch', async () => {
+    click(tabs()[1]!);
+    await flush();
+    expect(selected()).toBe('Practice');
+    expect(fetchPracticeGames).toHaveBeenCalledTimes(1);
+    expect(text('.lb-row-name')).toEqual(['Nadja', 'Kev']);
+    expect(text('.lb-verdict')).toEqual(['3RD', '6TH']);
+    expect(text('.lb-row-record')).toEqual(['9–4', '3–6']);
+    expect(text('.lb-fact-l')).toEqual(['Length', 'Rounds', 'Opponents', 'Health', 'Length', 'Rounds', 'Opponents', 'Health']);
+    expect(text('.lb-fact-v')).toEqual(['18 min', '15', 'Bots Lv 5', 'Unlimited', '18 min', '9', 'Players', 'Normal']);
+    expect(ui.container.querySelectorAll('.lb-watch')).toHaveLength(0);
+    expect(ui.container.querySelector('.lbsub')?.textContent).toContain('practice games');
+  });
+
+  it('a practice banner opens the player’s Career without focusing a run (practice is not in their match history)', async () => {
+    click(tabs()[1]!);
+    await flush();
+    click(ui.container.querySelector('.lb-row'));
+    await flush();
+    expect(useGame.getState().showCareer).toBe(true);
+    expect(useGame.getState().careerOf?.userId).toBe('u-top');
+    expect(useGame.getState().careerOf?.focus).toBeUndefined();
+  });
+
+  it('switching back and forth keeps each list (no refetch, no loading flash)', async () => {
+    click(tabs()[1]!);
+    await flush();
+    click(tabs()[0]!);
+    await flush();
+    expect(selected()).toBe('Ranked');
+    expect(text('.lb-row-name')).toEqual(['Nadja', 'Kev', 'Robin']);
+    click(tabs()[1]!);
+    await flush();
+    expect(text('.lb-row-name')).toEqual(['Nadja', 'Kev']);
+    expect(fetchRecentGames).toHaveBeenCalledTimes(1);
+    expect(fetchPracticeGames).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('RecentGames — designed states', () => {
+  it('Practice empty (none played yet, or the table not migrated): its own empty state', async () => {
+    fetchPracticeGames.mockResolvedValue([]);
+    useGame.setState({ showRecentGames: true });
+    ui = mount(<RecentGames />);
+    await flush();
+    click(ui.container.querySelectorAll('[role="tab"]')[1]!);
+    await flush();
+    expect(ui.container.querySelector('.lb-state')?.textContent).toContain('No practice games yet');
+    expect(ui.container.querySelectorAll('.lb-row')).toHaveLength(0);
+  });
+
   it('empty: "No recordings yet"', async () => {
     fetchRecentGames.mockResolvedValue([]);
     useGame.setState({ showRecentGames: true });

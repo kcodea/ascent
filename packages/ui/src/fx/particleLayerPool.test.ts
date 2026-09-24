@@ -1,6 +1,7 @@
 import { Container, DOMAdapter, Texture } from 'pixi.js';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
+  PARTICLE_BOUNDS_HALF_EXTENT,
   PARTICLE_LAYER_POOL_MAX,
   acquireParticleLayer,
   particleLayerPoolSize,
@@ -210,5 +211,71 @@ describe('particle layer pool', () => {
       const layer = acquireParticleLayer(request());
       expect(layer.pc.destroyed).toBe(false);
     }
+  });
+});
+
+/**
+ * THE FILTER-AREA BOUND (owner report 2026-09-24: "effects gettin cut off ... these effects shouldnt be cut off
+ * by such restrictions and should play their full area/animation").
+ *
+ * A `ParticleContainer` reports no bounds of its own, so its `boundsArea` IS its bounds, and Pixi's
+ * FilterSystem sizes every blurred / filtered particle layer's render texture from
+ * `container.getFastGlobalBounds()` (then clips it to the viewport). Anything outside that box is cut with a
+ * hard straight edge. It was a fixed +/-2000 px box, which sliced a haze at x = 2000 on a 2560-wide screen.
+ *
+ * Pinned here the way the renderer reads it: the layer's container, under the same pivot/position/scale/
+ * rotation envelope `ContainerTransform` applies, must bound at least the WHOLE viewport, for a big (4K)
+ * viewport and wherever the effect's head sits. The viewport, not the board, not a guess about mote travel,
+ * is the only bound a particle layer may have.
+ */
+describe('particle layer bounds never clip an effect short of the viewport', () => {
+  beforeEach(() => {
+    resetParticleLayerPool();
+  });
+
+  const VIEWPORTS = [
+    { w: 1280, h: 720 },
+    { w: 2560, h: 1440 },
+    { w: 3840, h: 2160 },
+  ];
+  // The envelope `transformEnvelope.ts` writes: pivot = head, position = head (+drift), a scale, a spin.
+  const ENVELOPES = [
+    { scale: 1, rotation: 0, drift: [0, 0] },
+    { scale: 0.25, rotation: 0, drift: [0, 0] },
+    { scale: 2.5, rotation: 0.7, drift: [300, -200] },
+  ];
+
+  for (const vp of VIEWPORTS) {
+    for (const env of ENVELOPES) {
+      // A lone minion sits mid-row; a full board puts units near the edges. Try both, plus a corner.
+      const heads = [[vp.w / 2, vp.h / 3], [vp.w * 0.9, vp.h * 0.8], [0, 0]];
+      for (const [hx, hy] of heads) {
+        it(`covers ${vp.w}x${vp.h} (head ${Math.round(hx)},${Math.round(hy)}, scale ${env.scale}, spin ${env.rotation})`, () => {
+          const stage = new Container();
+          const layerRoot = new Container();
+          stage.addChild(layerRoot);
+          acquireParticleLayer(request({ parent: layerRoot }));
+          layerRoot.pivot.set(hx, hy);
+          layerRoot.position.set(hx + env.drift[0], hy + env.drift[1]);
+          layerRoot.scale.set(env.scale);
+          layerRoot.rotation = env.rotation;
+          // `getBounds()` walks the same boundsArea through the live local transforms (the renderer's
+          // `getFastGlobalBounds` reads the same box through world transforms it refreshes each frame).
+          const b = layerRoot.getBounds();
+          expect(b.minX).toBeLessThanOrEqual(0);
+          expect(b.minY).toBeLessThanOrEqual(0);
+          expect(b.maxX).toBeGreaterThanOrEqual(vp.w);
+          expect(b.maxY).toBeGreaterThanOrEqual(vp.h);
+        });
+      }
+    }
+  }
+
+  it('is a real (finite) rectangle, so the bounds math never goes NaN', () => {
+    expect(Number.isFinite(PARTICLE_BOUNDS_HALF_EXTENT)).toBe(true);
+    const layer = acquireParticleLayer(request());
+    const area = layer.pc.boundsArea;
+    expect(area.width).toBe(PARTICLE_BOUNDS_HALF_EXTENT * 2);
+    expect(area.x).toBe(-PARTICLE_BOUNDS_HALF_EXTENT);
   });
 });

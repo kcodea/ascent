@@ -924,4 +924,35 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-24',
     },
   },
+  {
+    id: 'R-PRESENT-12',
+    title: 'An effect plays over its full area: no particle layer is clipped short of the viewport',
+    statement:
+      'Every authored effect renders its whole area and animation wherever it fires (shop, End of Turn, combat), '
+      + 'whatever the board count, the screen size, or where the minion sits. A blurred or filtered particle layer '
+      + 'may be bounded by the VIEWPORT (Pixi clips every filter to it, which is the performance bound) and by '
+      + 'nothing smaller: not the board row, not the card, not a fixed guess at how far motes travel. The particle '
+      + 'layer bounds (`PARTICLE_BOUNDS_HALF_EXTENT` in `particleLayerPool.ts`) must contain the whole viewport '
+      + 'under any transform an effect applies to its layer (head pivot, drift, scale, spin), up to a 4K viewport.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner bug report with screenshot, 2026-09-24 (purple haze around a lone enemy minion sliced by a hard vertical edge)',
+        quote: 'noticing effects gettin cut off in certain cases like this if a board isn\x27t full or something. these effects shouldnt be cut off by such restrictions and should play their full area/animation unless that somehow breaks something.',
+      },
+      { kind: 'code', ref: 'packages/ui/src/fx/particleLayerPool.ts (PARTICLE_BOUNDS_HALF_EXTENT, particleBounds)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-24. Before, every particle layer had a fixed +/-2000 px boundsArea, which Pixi used '
+      + 'as the filter area, so on a 2560x1440 viewport a blurred layer was cut at x = 2000 (measured live: filter '
+      + 'bounds -16..2016 before, -16..2576 after). On viewports up to 2000 px the filter area is unchanged (it was '
+      + 'already clipped to the viewport).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/fx/particleLayerPool.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
 ];

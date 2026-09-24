@@ -36,6 +36,8 @@ describe('set 3 scaffold', () => {
       'k3_forksong', 'k3_forkedcrown', 'k3_rubyroach', 'k3_porkbelly', 'k3_prismpick', 'k3_runespark', 'k3_kaura',
       'k3_kurse', // appended 2026-09-19 (owner handoff 2026-09-18)
       'k3_goldvein', // appended 2026-09-19 (owner handoff)
+      'k3_legionnaire', // appended 2026-09-24 (owner Ruby batch)
+      'k3_dealski', // appended 2026-09-24 (owner Ruby batch)
       // …then the six set-2 Kobolds it keeps (Chipwick Prospector left 2026-09-19 — owner handoff; still a set-2 card).
       'k_gemheart', 'k_geode', 'k_kobabyboldies',
       'k_kobe', 'k_boulderdash', 'k_blazer',

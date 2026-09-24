@@ -494,6 +494,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       ctx.grantUndeadAura(a, h, self.side);
     },
     grantRubies: (count) => ctx.grantRubies(count, self.side, self.uid),
+    grantRandomRubies: (count) => ctx.grantRandomRubies(count, self.side, self.uid),
     grantRandomShoutMinion: (count) => ctx.grantRandomMinion(count, undefined, self.side, undefined, self.uid, undefined, true),
     hasEffect: (t, on, doId) => (t as Minion).effects.some((e) => e.on === on && (!doId || e.do === doId)),
     replayShout: (t) => {
@@ -907,6 +908,7 @@ function resolveCombatSpellCastInner(ctx: CombatContext, self: Minion, def: Card
         ctx.gainNextShopBuff?.(num(eff.params?.attack, 2), num(eff.params?.health, 2), side); did = true; break;
       // ── cards + Rubies ──
       case 'getRubies': ctx.mintRubies(num(eff.params?.count, 1), side, self.uid); did = true; break;
+      case 'getRandomRubies': ctx.grantRandomRubies(num(eff.params?.count, 1), side, self.uid); did = true; break;
       case 'rubyStatGain': {
         for (const t of chosen()) playRubyOn(ctx, self, t, 1);
         did = true; break;
@@ -933,7 +935,7 @@ const COMBAT_TARGETED_SPELL_DOS = new Set(['spellBuffTarget', 'spellBuffTargetEs
 const COMBAT_CASTABLE_SPELL_DOS = new Set([
   'spellBuffTarget', 'spellBuffAll', 'spellBuffRandomFriendlies', 'spellBuffLeftmost', 'spellBuffTargetEscalating',
   'spellGainSpellPower', 'gainEmbers', 'grantFreeRolls', 'spellRefreshToSpells', 'spellRefreshToTribe',
-  'spellRefreshTierUp', 'spellBuffShop', 'spellBuffTavern', 'spellBuffNextShop', 'getRubies', 'rubyStatGain',
+  'spellRefreshTierUp', 'spellBuffShop', 'spellBuffTavern', 'spellBuffNextShop', 'getRubies', 'getRandomRubies', 'rubyStatGain',
   'spellGainRandomMinion', 'spellGrantTopTypeMinion', 'spellBuffRandomPerTribe', 'spellBuffHealthGrantFlurryDragon',
   'spellBuffTargetAndNeighbours', 'spellBuffByTier', // Beefy + Lantern Light (2026-08-19)
 ]);
@@ -1512,6 +1514,22 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
   getRubies: (ctx, self, params) => {
     ctx.mintRubies(num(params.count, 1) * mul(self), self.side, self.uid);
+  },
+  /** Ruby Shipment's body in combat (a combat-cast spell, a Shout replay): `count` RANDOM Rubies, each drawn
+   *  separately — the random-type twin of `getRubies`, through the combat carry-back. */
+  getRandomRubies: (ctx, self, params) => {
+    ctx.grantRandomRubies(num(params.count, 1) * mul(self), self.side, self.uid);
+  },
+  /** Shardluck's Ruby branch in combat (a Shout replay): the shared arena body — each Ruby on a random Kobold. */
+  battlecryPlayRubiesRandomTribe: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryPlayRubiesRandomTribe(combatArena(ctx, self), params);
+  },
+  /** Gemheart Legionnaire in combat: a friendly Golem summoned mid-fight plays PERMANENT Rubies on this body
+   *  (carried back at settle through `playRubyOn`'s permanent channel). */
+  onSummonCardPlayRubiesSelf: (ctx, self, params, payload) => {
+    const { minion, side } = payload as MinionPayload;
+    if (self.dead || side !== self.side || minion === self || !minion) return;
+    ARENA_EFFECTS.onSummonCardPlayRubiesSelf(combatArena(ctx, self), { ...params, arriver: minion });
   },
   addFodderNextShops: (ctx, self, params) => {
     // Soulfeeder — `count` Fodder into each of the next `shops` shops, through Pit Supplier's schedule
@@ -2625,6 +2643,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Spear Warden's passive marker — never dispatched; `noteCardDeath` (simulate.ts) reads it at the death site. */
   cardDeathScaler: () => {},
   dealtDamageAleMeter: () => {}, // Han Gover: a passive marker — the damage site (`noteDamageDealt`) does the work
+  dealtDamageGetRandomRuby: () => {}, // Kobe (2026-09-24): the same meter, a random-Ruby body — `noteDamageDealt` pays it
   dealtDamageGrantRandomTribe: () => {}, // Maestro Lux (2026-09-24): the same meter, a random-Celestial body — `noteDamageDealt` pays it
   dealtDamageGoldNextTurn: () => {}, // Goldvein (2026-09-19): the same meter, a Gold-next-turn body — `noteDamageDealt` pays it
 

@@ -138,7 +138,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "'echo' family · 66 cards",
     "statement": "All 66 'echo' cards trigger the same way. Gilding doubles their output; a few summon a gilded token instead. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "48 effect factories across 66 cards dispatch through the 'echo' presentation family, all on the single trigger 'onDeath' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline is the safe reading, with Void Panther / T-Rex / Chicken Brawl gilding the token they summon instead of doubling the count (owner ruling 2026-08-28).",
+    "currentBehaviour": "47 effect factories across 66 cards dispatch through the 'echo' presentation family, all on the single trigger 'onDeath' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline is the safe reading, with Void Panther / T-Rex / Chicken Brawl gilding the token they summon instead of doubling the count (owner ruling 2026-08-28).",
     "cardText": "Exemplar — Amun Rab: \"Deathrattle: Summon 7 Imps and give your Imps +5/+5.\" · Members: Amun Rab · Anubis, Last Gate · Ashen Heir · Armadiyo · Bullseye · Dawnclaw · Menagerie Mammoth · T-Rex · Voidmother · Wolvie · Blaster · Bone Taxer · … and 54 more",
     "example": "Amun Rab follows the 'echo' convention — its trigger fires on onDeath. Gilded T-Rex summons one GILDED T-Rex Baby, while gilded Wolves Den summons 6 Crypt Wolves instead of 3.",
     "contentIds": [
@@ -424,7 +424,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "'shout' family · 67 cards",
     "statement": "All 67 'shout' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "63 effect factories across 67 cards dispatch through the 'shout' presentation family, all on the single trigger 'onPlay' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "currentBehaviour": "64 effect factories across 67 cards dispatch through the 'shout' presentation family, all on the single trigger 'onPlay' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
     "cardText": "Exemplar — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\" · Members: Pennycat · Mage-Pup · Black Belt Brian · Buddy Buddy · The Great Attractor · Constellation Prime · Solburn · Plummet · Rocket Power · Star Seed · Sugarnova · Wishing Star · … and 55 more",
     "example": "Pennycat follows the 'shout' convention — its trigger fires on onPlay. its printed numbers double when the card is gilded.",
     "contentIds": [
@@ -599,11 +599,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-spellCast",
-    "title": "'spellCast' family · 109 cards",
-    "statement": "All 109 'spellCast' cards trigger the same way. These are the spells themselves, and spells are never gilded. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'spellCast' family · 110 cards",
+    "statement": "All 110 'spellCast' cards trigger the same way. These are the spells themselves, and spells are never gilded. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "103 effect factories across 109 cards dispatch through the 'spellCast' presentation family, all on the single trigger 'cast' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: INAPPLICABLE — checkTriples skips spells and Rubies, so no member of this family can ever BE gilded (R-GILD-02, owner ruling 2026-08-28).",
-    "cardText": "Exemplar — Black Hole: \"Your Starform consumes 3 random Shop minions.\" · Members: Black Hole · Anomaly Reactor · Eyes of Aresmar · Bloodlust · Bulwark · Carnival Coin · Chrono Staff · Clue · Common Ground · Consume · Copycat · Crescendo · … and 97 more",
+    "currentBehaviour": "103 effect factories across 110 cards dispatch through the 'spellCast' presentation family, all on the single trigger 'cast' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: INAPPLICABLE — checkTriples skips spells and Rubies, so no member of this family can ever BE gilded (R-GILD-02, owner ruling 2026-08-28).",
+    "cardText": "Exemplar — Black Hole: \"Your Starform consumes 3 random Shop minions.\" · Members: Black Hole · Anomaly Reactor · Eyes of Aresmar · Bloodlust · Bulwark · Carnival Coin · Chrono Staff · Clue · Common Ground · Consume · Copycat · Crescendo · … and 98 more",
     "example": "Black Hole follows the 'spellCast' convention — its trigger fires on cast. three copies of it never combine into a golden one, so it has no gilded form at all.",
     "contentIds": [
       "accretion",
@@ -676,6 +676,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "refreshtexts",
       "resonance",
       "rivalsreflection",
+      "rubyblast",
       "rubyexcavation",
       "rubyshipment",
       "rubytransfer",
@@ -775,11 +776,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-summonReact",
-    "title": "'summonReact' family · 12 cards",
-    "statement": "All 12 'summonReact' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'summonReact' family · 13 cards",
+    "statement": "All 13 'summonReact' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "14 effect factories across 12 cards dispatch through the 'summonReact' presentation family, all on the single trigger 'onSummon' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Ashen Heir: \"Whenever an Imp dies, another friendly Imp gains its stats, or the next Imp you summon, if none are alive.\" · Members: Ashen Heir · Beardsley · King Oona · Vaultkeeper · Chipper · Hank Pepe · Chef Gary Toast · Grave Body · Den Mother · Pack Leader · Spirit Worgen · Cratering Hulk",
+    "currentBehaviour": "15 effect factories across 13 cards dispatch through the 'summonReact' presentation family, all on the single trigger 'onSummon' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Ashen Heir: \"Whenever an Imp dies, another friendly Imp gains its stats, or the next Imp you summon, if none are alive.\" · Members: Ashen Heir · Beardsley · King Oona · Vaultkeeper · Chipper · Hank Pepe · Chef Gary Toast · Grave Body · Gemheart Legionnaire · Den Mother · Pack Leader · Spirit Worgen · … and 1 more",
     "example": "Ashen Heir follows the 'summonReact' convention — its trigger fires on onSummon. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ashen_heir",
@@ -790,6 +791,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "dw3_hankpepe",
       "dw_chef",
       "gravebody",
+      "k3_legionnaire",
       "mamabear",
       "packleader",
       "spiritworgen",
@@ -909,7 +911,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Gilding default: ×2",
     "statement": "A gilded card doubles its printed numbers. Outliers instead gild the summoned token, reshape the effect, or add a proc; spells never gild. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "gilding",
-    "currentBehaviour": "365 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
+    "currentBehaviour": "367 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
     "cardText": "Exemplar — Wolves Den: \"Deathrattle: Summon 3 Crypt Wolves.\" → gilded: \"Deathrattle: Summon 6 Crypt Wolves.\"",
     "example": "Wolves Den's gilded text just writes the ×2 out in full — while gilded Dunkey instead summons ONE gilded Armadiyo."
   },
@@ -2242,18 +2244,17 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-damaged",
-    "title": "Trigger: a friendly minion takes or deals damage · 8 cards",
-    "statement": "All 8 of these fire on one trigger: a friendly minion takes or deals damage. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: a friendly minion takes or deals damage · 7 cards",
+    "statement": "All 7 of these fire on one trigger: a friendly minion takes or deals damage. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "7 effect factories across 8 cards dispatch on 'friendlyDemonDealtDamage', 'onDamaged' (combat) — re-clustered by TRIGGER out of the 'react' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Axeman: \"Critical Strike (50%). When a friendly Demon deals damage, gain +3/+3 permanently.\" · Members: Axeman · Leech · Impossible Todd · Gryphon · Kobe · Yeti · Target Dummy · Hearth Whisperer",
+    "currentBehaviour": "6 effect factories across 7 cards dispatch on 'friendlyDemonDealtDamage', 'onDamaged' (combat) — re-clustered by TRIGGER out of the 'react' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Axeman: \"Critical Strike (50%). When a friendly Demon deals damage, gain +3/+3 permanently.\" · Members: Axeman · Leech · Impossible Todd · Gryphon · Yeti · Target Dummy · Hearth Whisperer",
     "example": "Axeman fires when a friendly minion takes or deals damage, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "dm_chosenfiend",
       "dm_leech",
       "dm_todd",
       "gryphon",
-      "k_kobe",
       "n3_yeti",
       "sandbag",
       "sp3_hearthwhisperer"
@@ -2391,15 +2392,16 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-ruby",
-    "title": "Trigger: a Ruby is gained or cast · 3 cards",
-    "statement": "All 3 of these fire on one trigger: a Ruby is gained or cast. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: a Ruby is gained or cast · 4 cards",
+    "statement": "All 4 of these fire on one trigger: a Ruby is gained or cast. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "6 effect factories across 3 cards dispatch on 'onGetRuby', 'onRubyPlayed', 'rubyCast', 'rubyPlayedAnywhere' (both/combat/recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Trouble: \"When a Ruby is cast on another minion in combat, cast a Ruby on this.\" · Members: Trouble · Gemgorge Fiend · Reflector",
+    "currentBehaviour": "7 effect factories across 4 cards dispatch on 'onGetRuby', 'onRubyPlayed', 'rubyCast', 'rubyPlayedAnywhere' (both/combat/recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Trouble: \"When a Ruby is cast on another minion in combat, cast a Ruby on this.\" · Members: Trouble · Gemgorge Fiend · Gem Sage · Reflector",
     "example": "Trouble fires when a Ruby is gained or cast, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "k3_doubletrouble",
       "k_gemgorge",
+      "k_gemsage",
       "n2_reflector"
     ]
   },
@@ -2485,16 +2487,15 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-spellTargeted",
-    "title": "Trigger: a spell targets this minion · 4 cards",
-    "statement": "All 4 of these fire on one trigger: a spell targets this minion. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: a spell targets this minion · 3 cards",
+    "statement": "All 3 of these fire on one trigger: a spell targets this minion. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "4 effect factories across 4 cards dispatch on 'spellCastOnThis' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Crash Course: \"The first Star Crash you cast on this each turn casts an additional time.\" · Members: Crash Course · Mirrorwing · Gem Sage · Reflector",
+    "currentBehaviour": "3 effect factories across 3 cards dispatch on 'spellCastOnThis' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Crash Course: \"The first Star Crash you cast on this each turn casts an additional time.\" · Members: Crash Course · Mirrorwing · Reflector",
     "example": "Crash Course fires when a spell targets this minion, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_adept",
       "d2_mirrorwing",
-      "k_gemsage",
       "n2_reflector"
     ]
   },

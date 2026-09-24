@@ -126,6 +126,7 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   battlecryGetHandSpell: 'cardId',             // Defender -> Tower Shield; Magnifying Glass -> Clue (set-3 hand spells)
   endOfTurnGetRubies: 'rubyId',                // Wardstone Jeweler -> Warding Ruby
   getRubies: 'rubyId',                         // Facetbound Martyr -> Warding Ruby (Shout half of the same mint)
+  onSummonCardPlayRubiesSelf: 'cardId',        // Gemheart Legionnaire -> Gemheart Golem (Ruby batch 2026-09-24)
 };
 
 /**

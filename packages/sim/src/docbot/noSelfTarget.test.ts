@@ -50,6 +50,7 @@ const ARENA_PICKERS: Record<string, Record<string, unknown>> = {
   onGainCardBuffTribe: { attack: 1, health: 2 },
   battlecryBuffTarget: { attack: 2, health: 2 },
   battlecryGrantKeyword: { keywords: ['DS'] },
+  battlecryPlayRubiesRandomTribe: { count: 3, tribe: 'dwarf' }, // Shardluck (Ruby batch 2026-09-24) — the fake arena's bodies are Dwarves
 };
 
 /** Arena bodies whose pool is an IDENTITY or POSITIONAL membership, not a choice — named with the reason. */

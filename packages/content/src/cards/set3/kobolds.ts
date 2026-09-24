@@ -124,8 +124,8 @@ export const SET3_KOBOLDS: CardDef[] = [
     goldenText: '**Choose One:** Get **2** random **Kobolds** or increase your max **Gold** by **2**.',
   },
   {
-    // The roster's Equip minion. Blast Pump is an EQUIPMENT SPELL — it casts `rubyexcavation`, the shipped
-    // set-2 Shop spell whose text is already this exact payload, rather than re-implementing it. That
+    // The roster's Equip minion. Blast Pump is an EQUIPMENT SPELL — it casts `rubyblast` (a token Shop spell,
+    // "Cast a Ruby on all of your minions", owner Ruby batch 2026-09-24), rather than re-implementing it. That
     // classification is not cosmetic: the Rubies land through the real Shop-spell pipeline, so using the
     // Equipment counts as casting a Shop spell and every "after you cast a Shop spell" listener sees it.
     id: 'k3_blastsurveyor',
@@ -136,30 +136,30 @@ export const SET3_KOBOLDS: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'blast_pump' } }],
-    text: '**Equip Blast Pump (2):** Cast **2 Rubies** on your minions.',
-    goldenText: '**Equip Blast Pump (2):** Cast **4 Rubies** on your minions.',
+    text: '**Equip Blast Pump (2):** Cast a **Ruby** on all of your minions.',
+    goldenText: '**Equip Blast Pump (2):** Cast **2 Rubies** on all of your minions.',
   },
   {
-    // Owner rework 2026-08-30: the left branch is a WARDING RUBY (the set-2 token that also grants Ward),
-    // not a board-wide Ruby cast. `getRubies` names it through `rubyId`, the same way Wardstone Jeweler does
-    // on its End-of-Turn half. The right branch casts Veinstorm twice through the REAL Shop-spell pipeline,
-    // so each cast counts as a Shop spell cast and wakes every cast-watcher.
+    // Owner Ruby batch 2026-09-24 (T5 5/4 -> T6 8/5): the left branch plays 3 PLAIN Rubies, EACH on a random
+    // OTHER friendly Kobold (`battlecryPlayRubiesRandomTribe` — dual-tribe and All-types bodies count; never itself, R-TARGET-03);
+    // the right branch casts Veinstorm 3 times through the REAL Shop-spell pipeline, so each cast counts as a
+    // Shop spell cast and wakes every cast-watcher. Gilded: 6 Rubies / 6 Veinstorms.
     id: 'k3_facetbound',
     name: 'Shardluck', // 'Facetbound Martyr' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'kobold',
-    tier: 5,
-    attack: 5,
-    health: 4,
+    tier: 6,
+    attack: 8,
+    health: 5,
     keywords: [],
     effects: [],
     chooseOne: [
-      { text: 'Get a **Warding Ruby**.', goldenText: 'Get **2 Warding Rubies**.',
-        effects: [{ on: 'onPlay', do: 'getRubies', params: { count: 1, rubyId: 'warding-ruby' } }] },
-      { text: 'Cast **Veinstorm** 2 times.', goldenText: 'Cast **Veinstorm** 4 times.',
-        effects: [{ on: 'onPlay', do: 'battlecryCastNamedSpell', params: { spellId: 'veinstorm', count: 2 } }] },
+      { text: 'Play **3 Rubies** on your **Kobolds**.', goldenText: 'Play **6 Rubies** on your **Kobolds**.',
+        effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesRandomTribe', params: { count: 3, tribe: 'kobold' } }] },
+      { text: 'Cast **Veinstorm** 3 times.', goldenText: 'Cast **Veinstorm** 6 times.',
+        effects: [{ on: 'onPlay', do: 'battlecryCastNamedSpell', params: { spellId: 'veinstorm', count: 3 } }] },
     ],
-    text: '**Choose One:** get a **Warding Ruby**, or cast **Veinstorm** 2 times.',
-    goldenText: '**Choose One:** get **2 Warding Rubies**, or cast **Veinstorm** 4 times.',
+    text: '**Choose One:** Play **3 Rubies** on your **Kobolds** or cast **Veinstorm** 3 times.',
+    goldenText: '**Choose One:** Play **6 Rubies** on your **Kobolds** or cast **Veinstorm** 6 times.',
   },
   {
     /**
@@ -274,8 +274,8 @@ export const SET3_KOBOLDS: CardDef[] = [
     health: 8,
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'prismatic_pick' } }],
-    text: '**Equip Prismatic Pick (1): Choose One.** Get a random **Choose One** card; or your next **Choose One** card this turn gains **both** effects.',
-    goldenText: '**Equip Prismatic Pick (1): Choose One.** Get **2 random Choose One** cards; or your next **2 Choose One** cards this turn gain **both** effects.',
+    text: '**Equip Prismatic Pick (1): Choose One.** **Discover** a **Ruby** or your next **Choose One** card this turn gains **both** effects.',
+    goldenText: '**Equip Prismatic Pick (1): Choose One.** **Discover** a **Ruby** twice or your next **2 Choose One** cards this turn gain **both** effects.',
   },
   {
     // Set 3 — the SPELL-reactive Kobold. "Shop spell" is load-bearing (owner vocabulary rule): a Ruby is not
@@ -359,5 +359,35 @@ export const SET3_KOBOLDS: CardDef[] = [
     effects: [{ on: 'passive', do: 'dealtDamageGoldNextTurn', params: { every: 6, gold: 3 } }],
     text: '**Pummel (6):** Gain **3 Gold** next turn. (Once per combat)',
     goldenText: '**Pummel (6):** Gain **6 Gold** next turn. (Once per combat)',
+  },
+  {
+    // GEMHEART LEGIONNAIRE (owner Ruby batch 2026-09-24): "When you summon a Gemheart Golem, this casts 5 permanent
+    // Rubies on itself." Every friendly Golem summon counts — Carver, Geode, Kurse, Porkbelly, a rune — in the Shop
+    // and in combat (`onSummon` is dispatched by both phases' summon chokepoints). PERMANENT, so a combat Golem's
+    // Rubies carry back to the run card. Gilded: 10.
+    id: 'k3_legionnaire',
+    name: 'Gemheart Legionnaire',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 4,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'onSummon', do: 'onSummonCardPlayRubiesSelf', params: { cardId: 'gemheart-shard', count: 5 } }],
+    text: 'When you summon a **Gemheart Golem**, this casts **5 permanent Rubies** on itself.',
+    goldenText: 'When you summon a **Gemheart Golem**, this casts **10 permanent Rubies** on itself.',
+  },
+  {
+    // DEALSKI (owner Ruby batch 2026-09-24): "When you play a Choose One card, get 2 Rubies." Plain Rubies, minted
+    // through the shared `getRubies` body on Ruby Roach's `chooseOnePlayed` trigger. Gilded: 4.
+    id: 'k3_dealski',
+    name: 'Dealski',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'chooseOnePlayed', do: 'getRubies', params: { count: 2 } }],
+    text: 'When you play a **Choose One** card, get **2 Rubies**.',
+    goldenText: 'When you play a **Choose One** card, get **4 Rubies**.',
   },
 ];

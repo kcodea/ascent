@@ -1,5 +1,5 @@
 import { makeRng } from '@game/core';
-import type { BoardMinion, BounceKind, CombatConfig, CombatOutcome, CombatResult, CombatSideState, EffectDef, Keyword, QuestObjectiveEvent, Rng, Tribe } from '@game/core';
+import type { BoardMinion, BounceKind, CombatConfig, CombatOutcome, CombatResult, CombatSideState, EffectDef, Keyword, QuestObjectiveEvent, Rng, RubyRider, Tribe } from '@game/core';
 import { CARD_INDEX, LEGACY_CARD_IDS, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { CONFIG, HENCHMEN_ARCHIVED, RIFT_BONUS_ARMOR, activeRift, type RiftId } from './config';
 import { DEFAULT_HERO_ID, getHero, powerDiscoverPool } from './heroes';
@@ -1590,6 +1590,8 @@ export interface RunState {
   /** Rune of Scales: each spell you cast gives your Dragons +1/+1 (board + hand). */
   runeScales?: boolean;
   runeLongShift?: boolean;
+  /** Rune of Resonance (owner Ruby batch 2026-09-24): Start of Turn, get a random Ruby (one per copy held). */
+  runeRubyDrip?: boolean;
   /** RUNE OF HAPPY BIRTHDAY: a random Gift on purchase, then another every 2 turns (`giftBirthdayTick` counts
    *  the waves between payouts). */
   runeHappyBirthday?: boolean;
@@ -1957,6 +1959,16 @@ export interface RunState {
    *  the combat-settle actions: the carry-back re-labels mid-fight Ruby gains as 'Ruby' buffs, and the replay
    *  already played this cue for those. */
   rubyLandedFx?: RubyLandedFx[];
+  /**
+   * SPECIAL-RUBY RIDERS this action (owner Ruby batch 2026-09-24) — presentation only, nothing in the sim reads it
+   * back. One record per rider that FIRED, on the Ruby's direct target: `ripple` (the target takes its second
+   * cast, so the shop spaces its two gems apart), `devour` (Dark Ruby: the target's gems play Ruby → consume →
+   * Ruby, the consume ghost waiting for the first gem) and `gold` (Golden Ruby: Paymaster Pimm's coin cue on the
+   * target). A Splintered bounce needs no record: it rides `bounceFx` like every Ruby hop. Cleared per action at
+   * the top of `reduce`, seq-bumped per record — the `bounceFx` contract.
+   */
+  rubyRiderFx?: { uid: string; rider: RubyRider }[];
+  rubyRiderFxSeq?: number;
   /**
    * SHOP DEATH + ECHO CUES (owner ask 2026-08-28). The shop has no beat playback — only End of Turn plays
    * beats — so these two visuals ride the same per-action scratch channel every other shop FX uses.

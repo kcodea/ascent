@@ -153,30 +153,33 @@ export const TITAN_HAMMER: EquipmentDefinition = {
 /**
  * BLAST PUMP — Blast Surveyor's Equipment (set-3 Kobold roster, 2026-08-30).
  *
- * An EQUIPMENT SPELL: it casts `rubyexcavation`, the shipped set-2 Shop spell whose text is already exactly
- * this payload ("Cast 2 Rubies on all of your minions"). Naming the spell rather than re-implementing the
+ * An EQUIPMENT SPELL: it casts `rubyblast`, a token Shop spell whose text is exactly this payload ("Cast a Ruby
+ * on all of your minions", owner Ruby batch 2026-09-24; it cast the 2-Ruby `rubyexcavation` until then). Naming the spell rather than re-implementing the
  * effect is the whole point of the classification — the Rubies land through the real Shop-spell pipeline, so
  * the activation counts as a Shop spell cast and every cast-watcher sees it.
  *
  * `targetMode: 'none'` because the payload is board-wide; there is nothing to aim at.
  *
  * GILDED casts it TWICE rather than naming a bigger spell — two genuine casts, which is what golden means
- * everywhere else and what makes the printed "4 Rubies" true (2 + 2) without a second spell existing.
+ * everywhere else and what makes the printed "2 Rubies" on each minion true (1 + 1) without a second spell existing.
  */
 export const BLAST_PUMP: EquipmentDefinition = {
   id: 'blast_pump',
   name: 'Blast Pump',
-  text: 'Cast **2 Rubies** on your minions.',
-  goldenText: 'Cast **4 Rubies** on your minions.',
+  // Owner Ruby batch 2026-09-24: "Cast a Ruby on all of your minions." Gilded casts 2 on each. The payload is the
+  // token Shop spell `rubyblast` (1 Ruby on every minion), so the activation keeps its Equipment-Spell
+  // classification; Gilded casts it twice.
+  text: 'Cast a **Ruby** on all of your minions.',
+  goldenText: 'Cast **2 Rubies** on all of your minions.',
   baseCost: 2,
   targetMode: 'none',
   effectId: 'equipmentCastSpell',
   // BOTH: `spellId` is the CLASSIFICATION (this Equipment is an Equipment Spell — see the field's doc), and
   // `params.spellId` is what the factory reads. They name the same spell and must stay in step; Blast Pump is
   // the first Equipment to use the classification at all, so this is the shape that establishes it.
-  spellId: 'rubyexcavation',
-  params: { spellId: 'rubyexcavation' },
-  gildedParams: { spellId: 'rubyexcavation', count: 2 },
+  spellId: 'rubyblast',
+  params: { spellId: 'rubyblast' },
+  gildedParams: { spellId: 'rubyblast', count: 2 },
   // Authored by the owner in the FX tuner and published to `fx/defs/blast-pump.json` (2026-08-31), with a
   // clip to match. Named here rather than in the UI so the Equipment carries its own presentation.
   useFxId: 'blast-pump',
@@ -200,8 +203,10 @@ export const BLAST_PUMP: EquipmentDefinition = {
 export const PRISMATIC_PICK: EquipmentDefinition = {
   id: 'prismatic_pick',
   name: 'Prismatic Pick',
-  text: 'Choose One. **Discover** a **Choose One** card; or your next **Choose One** card this turn gains **both** effects.',
-  goldenText: 'Choose One. **Discover** a **Choose One** card, **twice**; or your next **2 Choose One** cards this turn gain **both** effects.',
+  // Owner Ruby batch 2026-09-24: "Choose One: Discover a Ruby or your next Choose One card gains both effects." The
+  // Discover offers 3 of the 5 special Rubies (Warding, Golden, Splintered, Ripple, Dark).
+  text: 'Choose One: **Discover** a **Ruby** or your next **Choose One** card this turn gains **both** effects.',
+  goldenText: 'Choose One: **Discover** a **Ruby** twice or your next **2 Choose One** cards this turn gain **both** effects.',
   baseCost: 1,
   targetMode: 'none',
   effectId: 'grantChooseBothCharges',
@@ -216,10 +221,10 @@ export const PRISMATIC_PICK: EquipmentDefinition = {
   useSfxId: 'prismaticpick',
   chooseOne: [
     {
-      // Owner 2026-09-09: a Discover, not a random grant — you pick the Choose One card from three.
-      text: '**Discover** a **Choose One** card.',
-      goldenText: '**Discover** a **Choose One** card, **twice**.',
-      effectId: 'discoverChooseOne',
+      // Owner Ruby batch 2026-09-24 (was "Discover a Choose One card"): Discover one of the special Rubies.
+      text: '**Discover** a **Ruby**.',
+      goldenText: '**Discover** a **Ruby** twice.',
+      effectId: 'discoverRuby',
       params: { count: 1 },
       gildedParams: { count: 2 },
     },

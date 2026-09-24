@@ -428,4 +428,54 @@ export const TRIGGERS_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-23',
     },
   },
+  {
+    id: 'R-RUBY-02',
+    title: 'A special Ruby\'s Kobold rider resolves once per cast on its target; hops carry only stats and Ward',
+    statement:
+      'Golden, Splintered, Ripple and Dark Rubies are ordinary Rubies (their grant is the printed base plus every '
+      + 'Ruby improvement in force) with a rider that fires only when the Ruby\'s TARGET is a Kobold (a dual-tribe or '
+      + 'All-types body counts). The rider resolves once per cast, after the stats land: Golden gains 2 Gold; '
+      + 'Splintered bounces the Ruby once to a random other friendly minion (Resonance Idol\'s hop, never doubled '
+      + 'by a Gilded target); Dark consumes the Shop minion with the highest Health (ties: the leftmost; the '
+      + 'Starform counts, as it does for every Shop consume) and adds its stats to the target as Rubies, or does '
+      + 'nothing more with no Shop minion; Ripple casts the Ruby again on the same target, a real second cast that '
+      + 'counts for every Ruby and spell tally but never ripples a third time. A cast multiplier (Rune of '
+      + 'Resonance, Prismcaster, Yazzus, a Comet charge) repeats the whole cast, rider included: under Resonance a '
+      + 'Ripple lands four times, a Golden pays 4 Gold, a Splintered bounces twice, a Dark eats twice. A HOP (a '
+      + 'Splintered bounce, a Resonance Idol or Candle Conduit hop, Rune of Redirection / Distillation) carries '
+      + 'the stats and the Ward rider only, never the Gold, bounce, ripple or consume.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Ruby batch handoff, 2026-09-24', quote: 'Give a minion +1/+1. If it is a Kobold, it casts again.' },
+      { kind: 'owner-chat', ref: 'Ruby batch handoff, 2026-09-24', quote: 'Give a minion +1/+1. If it is a Kobold, it consumes the highest health minion in the shop as Rubies.' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts play-Ruby branch (riderKobold / ripple landings); packages/sim/src/recruit.ts applyRubyRiderAction (gold / bounce / devour) + recordRubyRiderFx' },
+    ],
+    contentIds: ['golden-ruby', 'splintered-ruby', 'ripple-ruby', 'dark-ruby', 'rune_resonance'],
+    currentBehaviour:
+      'Conforms as of 2026-09-24 (new content). No combat source casts a special Ruby today: they only reach play '
+      + 'from the hand in the Shop, so the riders live on the Shop cast path.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/rubyTypes.test.ts', 'packages/sim/src/wardingRubyBounce.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
+  {
+    id: 'R-RUBY-03',
+    title: 'Gem Sage pays a random Ruby for every Ruby you get, from any source, and never for its own',
+    statement:
+      'Whenever a Ruby reaches your hand (a Shop mint, a Discover pick, a Rune, a Ruby won in combat and minted at '
+      + 'settle), each Gem Sage on your board gets you a random Ruby (two if Gilded). A Ruby granted by any Gem Sage '
+      + 'never triggers a Gem Sage, so two Sages turn one Ruby into three, never a loop.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Ruby batch follow-up, 2026-09-24', quote: 'this grants a random ruby from the pool of 6 whenever a player gets a ruby added to hand. recruit, shop etc all count. doesn\'t trigger off itself or copies of itself.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts onGetRubyRandomRuby (the gemSageMinting latch) via fireOnRubyGained / mintRubies' },
+    ],
+    contentIds: ['k_gemsage'],
+    currentBehaviour: 'Conforms as of 2026-09-24.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/rubyTypes.test.ts'], lastVerifiedAt: '2026-09-24' },
+  },
 ];

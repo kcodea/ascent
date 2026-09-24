@@ -98,7 +98,11 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // its own full stop ("(Once per combat.)", "(Max 5 per combat.)") as ONE sentence instead of stranding a ")", and
 // "with (double) this minion's Rubies" (the new Gemheart Golem wording) is a tolerated tail; Maestro Lux, Han
 // Gover, Kurse, Carver and Porkbelly parse fully, and two older ".)" texts stop stranding a ")". Nothing regressed.
-const UNRESOLVED_CAP = 88;
+// 88 → 93 on 2026-09-24: the owner's Ruby batch. The owner's verbatim texts leave five riders the grammar has no
+// rule for: Splintered Ruby's "it bounces once", Dark Ruby's "it consumes the highest Health minion in the Shop as
+// Rubies", Shardluck's "Play 3 Rubies on your Kobolds" (PLAY, not cast, and a random-per-Ruby spread), Geode
+// Guardian's trailing "and Taunt" on the Golem, and Rune of Resonance's "cast twice from hand". A conscious move.
+const UNRESOLVED_CAP = 93;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

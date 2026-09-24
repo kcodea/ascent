@@ -222,24 +222,16 @@ export const RUNES: RuneDef[] = [
   {
     // Reworked 2026-08-06 (owner): first TWO Rubies each turn double, 2 Rubies per turn, and buying it pays
     // the first 2 Rubies immediately (the recurringEndOfTurn Ruby effects fire once on purchase).
+    // Owner Ruby batch 2026-09-24: "Your Rubies cast twice from hand. Start of Turn: get a random Ruby." — no more
+    // first-2-per-turn window (EVERY Ruby played from hand casts twice, `scope: 'always'`), and the drip is ONE
+    // random Ruby (all six types) at each Start of Turn (`runeRubyDrip`), the first one paid on purchase like before.
     id: 'rune_resonance',
     tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Resonance',
     cost: 1, // balance 9/23 (was 3)
-    text: 'Your **first 2 Rubies** played from hand each turn cast an **extra time**. Get **2 Rubies** every turn.',
+    text: 'Your **Rubies** cast twice from hand. **Start of Turn:** get a random **Ruby**.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
-    reward: { kind: 'multi', rewards: [{ kind: 'rubyExtraCasts', amount: 1, scope: 'firstEachTurn', firstN: 2 }, { kind: 'recurringEndOfTurn', effect: 'grantRuby2' }] },
-    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
-  },
-  {
-    id: 'rune_investment',
-    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
-    name: 'Rune of Investment',
-    cost: 5, // balance 9/23 (was 3)
-    // Balance 9/23: 2 sells → 4, and the payout also IMPROVES your Rubies +1/+1 (`INVESTMENT_SELLS` in recruit.ts).
-    text: 'When you **sell 4 minions**, get **2 Rubies** and improve your **Rubies +1/+1**.',
-    previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
-    reward: { kind: 'runeSellRubies', count: 2 },
+    reward: { kind: 'multi', rewards: [{ kind: 'rubyExtraCasts', amount: 1, scope: 'always' }, { kind: 'runeRubyDrip' }] },
     sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
@@ -3331,6 +3323,20 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Start of Combat: summon a copy of your highest-stat minion in hand when you have room. This does not mark that hand card as summoned.',
     reward: { kind: 'combatFlag', flag: 'runeWakingReserve' },
     sets: ['set3'],
+  },
+  {
+    // Moved Basic -> EPIC (owner Ruby batch 2026-09-24; Epic because it lives in EPIC_RUNES, `epic: true` is the
+    // kicker). "When you sell 4 minions, get 2 random Rubies and improve your Rubies by +1/+1." — the payout draws
+    // each Ruby from all six types (`mintRandomRubies`), after the improve (`INVESTMENT_SELLS` in recruit.ts).
+    id: 'rune_investment',
+    tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
+    name: 'Rune of Investment',
+    cost: 5, // balance 9/23 (was 3)
+    epic: true,
+    text: 'When you **sell 4 minions**, get **2 random Rubies** and improve your **Rubies** by **+1/+1**.',
+    previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
+    reward: { kind: 'runeSellRubies', count: 2 },
+    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
 ];
 

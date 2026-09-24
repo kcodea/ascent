@@ -117,15 +117,8 @@ describe('set 2 — permanent Rubies survive combat (carry-back)', () => {
     expect(settled.attack + settled.health, 'the permanent Rubies landed on the run-board body').toBeGreaterThan(before);
   });
 
-  it('Kobe’s Start-of-Combat Rubies carry back for itself (permanent)', () => {
-    const r = simulate(
-      [bm('k_kobe', 'K', 5, 60, ['SC']), bm('k_deepvein', 'N', 1, 60)],
-      [{ cardId: 'sandbag', attack: 0, health: 300 }],
-      makeRng(3), CARD_INDEX, combatSide({ tier: 4 }), combatSide({ tier: 1 }));
-    const kobe = (r.playerPermaBuffs ?? []).filter((p) => p.sourceUid === 'K' && p.ruby);
-    expect(kobe.length, 'Kobe recorded a permanent Ruby gain on itself').toBeGreaterThan(0);
-    expect(kobe[0]!.attack, 'with real stats (2 Rubies × 1/1)').toBeGreaterThanOrEqual(2);
-  });
+  // (Kobe's permanent-Ruby carry-back test left with its Ruby-on-damage ability: the owner Ruby batch 2026-09-24
+  // made Kobe a Pummel that GETS random Rubies — rubyTypes.test.ts.)
 });
 
 // ── RECRUIT: sell / start-of-turn / consume / gold-spent / on-gain-card mechanics ─────────────────────────

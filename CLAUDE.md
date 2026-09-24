@@ -179,7 +179,9 @@ a rule in a skill stops being true, fix it in the same PR as the behaviour chang
   - **CI `verify` is now a REQUIRED gate.** `.github/workflows/ci.yml` (typecheck + lint + test + build:web)
     runs as the `verify` check and MUST be green before a PR can merge. After you push, `gh pr checks <n>
     --watch` until `verify` passes, then merge. It can briefly report *"no checks"* for a minute or two before
-    `verify` starts — that is not "CI disabled", just not-yet-started; wait and re-poll.
+    `verify` starts — that is not "CI disabled", just not-yet-started; wait and re-poll. Since 2026-09-24 the
+    work runs as parallel `checks` + `test (N)` shard jobs and `verify` is the aggregator that `needs:` them
+    all — it stays pending until the slowest shard ends and fails if any job failed, was skipped or cancelled.
   - **Claude MAY merge from the CLI** once `verify` is green — `gh pr merge --squash` then works with no
     override. Anything `gh` does is attributed to the authenticated owner, so "a review from the other person"
     is a convention between the two of you, not something the repo can check. Ask first when the change is

@@ -20,6 +20,7 @@ import {
   undo,
   type DurationBounds,
   type HistoryMark,
+  type StoredEditorLayer,
 } from './sessionState';
 import { setLayerParam, setLayerPrimitive, type EditorLayer } from './layerModel';
 import type { FxParamSpec } from '../params';
@@ -59,6 +60,30 @@ describe('workbench load → save keeps the arc, the cascade and the fountain', 
   it('keeps every one of them together (the gild ribbon)', () => {
     const out = roundTrip({ ...base, travelMs: 360, bow: 0.3, bowUp: true, minArc: 120, stagger: 70 });
     expect(out).toMatchObject({ travelMs: 360, bow: 0.3, bowUp: true, minArc: 120, stagger: 70 });
+  });
+
+  // R-FXSAVE-01. `Required<StoredEditorLayer>` makes the TYPECHECK fail the moment a new layer field is added
+  // and not put here — and once it is here, this round-trip fails unless load AND save both carry it. That is
+  // what keeps "every setting survives" true for fields nobody has thought of yet.
+  it('keeps EVERY layer setting through load → save, exactly', () => {
+    const every = {
+      primitive: 'ribbon',
+      name: 'gold trail',
+      anchor: 'travel',
+      anchorPart: 'medallion',
+      anchorPartTo: 'badge.attack',
+      at: 40,
+      life: 900,
+      travelMs: 360,
+      bow: 0.3,
+      bowUp: true,
+      minArc: 100,
+      stagger: 70,
+      muted: true,
+      solo: true,
+      params: { size: 4, palette: [1, 2, 3, 4] },
+    } satisfies Required<StoredEditorLayer>;
+    expect(roundTrip(every)).toEqual(every);
   });
 
   it('an untouched layer gains no new keys', () => {

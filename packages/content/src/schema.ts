@@ -540,6 +540,7 @@ export const EffectFactoryIdSchema = z.enum([
   // Set 3 Dwarves (2026-09-09)
   'minionSoldBuffSelf', 'endOfTurnBuffAdjacentPerCard', 'equipmentCastRandomAle', 'onTribeSummonedBuffRandomOthers',
   'deathrattleGoldNextTurn', 'onTribeGainAttackBuffSelf', 'equipmentCardDiscountWindow',
+  'shopSpellCastGrowSelf', // Goldilox (2026-09-24): Shop-pool spell cast → grows itself, 2× in hand, every phase
   'deathrattleBuffHandTribe', // R-HAND-02 (2026-09-09): buff hand minions of a tribe — permanent in both phases
   // Set 3 Undead (2026-09-09)
   'onRiseBuffSelfWard', 'onRiseBuffBoardAndHand', 'overflowBuffAllPermanent', 'deathrattleBuffRandomTribe',

@@ -1,4 +1,4 @@
-import { ALE_IDS, TRIBES, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { ALE_IDS, TRIBES, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -4129,6 +4129,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), num(params.attack, 4) * gold(self), num(params.health, 4) * gold(self));
   },
 
+  /** GOLDILOX (set 3 Dwarf/Spirit, owner 2026-09-24): "When you cast a Shop Spell, gain +3/+2. Gains 2x while in
+   *  hand." — the SHOP half, on the board AND in the hand (`alsoInHand`, dispatched by `noteSpellCast`). Only a
+   *  Shop-POOL spell counts — Ales included; never a Ruby, a Clue / Gift or a token spell (owner: "shop spells
+   *  cast from anywhere count, not rubies, clues or generic spells"). Every shop cast path (hand, rune, Equipment,
+   *  a minion's cast, End of Turn) funnels through `noteSpellCast`, so "from anywhere" holds by construction.
+   *  Permanent, as every shop gain is. The combat half is `shopSpellCastGrowSelf` in core + `spellResolved`. */
+  shopSpellCastGrowSelf: (ctx, self, params, payload) => {
+    const spellDef = (payload as { spellDef?: CardDef } | undefined)?.spellDef;
+    if (!isShopPoolSpell(spellDef, poolOf(ctx.state).all)) return;
+    const inHand = ctx.state.hand.includes(self);
+    if (!inHand && !ctx.state.board.includes(self)) return;
+    const g = shopSpellGrowth(params, !!self.golden, inHand);
+    if (g.attack > 0 || g.health > 0) addBuff(self, nameOf(self), g.attack, g.health);
+  },
+
   /** Handy Flame (rune token, Set 3 batch 2): whenever this gains stats — in hand or on the board — a random OTHER
    *  minion in your hand +a/+h (× golden). Never itself: a Handy Flame feeding itself would loop, and "a random
    *  minion in your hand" read from a hand card means another card. Permanent, as every hand buff is. */
@@ -4732,14 +4747,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), a, 0);
   },
 
-  /** Striker (End of Turn): its two NEIGHBOURS (any tribe) gain +N Attack for each card played this turn —
-   *  Kringle's counter (`playedThisTurn`: minions AND spells, Striker's own play included if it was played this
-   *  turn) and Kringle's per-card FX waves, pointed at the adjacent slots instead of the tribe's ends. */
-  endOfTurnBuffAdjacentPerCard: (ctx, self, params) => {
-    const idx = ctx.state.board.findIndex((c) => c.uid === self.uid);
-    if (idx < 0) return;
-    const sides = [ctx.state.board[idx - 1], ctx.state.board[idx + 1]].filter((c): c is BoardCard => !!c);
-    eotPerCardWaves(ctx.state, self, sides, num(params.attack, 1) * gold(self), 0);
+  /** Striker (End of Turn): its two NEIGHBOURS (any tribe) gain +N Attack, then again once per card played this
+   *  turn — Kringle's counter (`playedThisTurn`: minions AND spells, Striker's own play included if it was played
+   *  this turn) and Kringle's REPEAT pattern (owner 2026-09-24, R-REPEAT-01: "Give adjacent minions +1 attack.
+   *  Repeat for every card played this turn"), pointed at the adjacent slots instead of the tribe's ends. `1 + n`
+   *  ticks through `eotTickCount`, each its own state delta, FX wave and beat. The neighbours are re-read per tick,
+   *  so the ticks always land on whoever sits beside Striker when they fire. */
+  endOfTurnBuffAdjacentPerCard: (ctx, self, params, payload) => {
+    const a = num(params.attack, 1) * gold(self);
+    forEachTick(payload, eotTickCount(ctx.state, { do: 'endOfTurnBuffAdjacentPerCard' }), (tick) => {
+      const idx = ctx.state.board.findIndex((c) => c.uid === self.uid);
+      if (idx < 0) return;
+      const sides = [ctx.state.board[idx - 1], ctx.state.board[idx + 1]].filter((c): c is BoardCard => !!c);
+      eotRepeatTick(ctx.state, self, sides, a, 0, tick);
+    });
   },
 
   /** Pourman's Keg (one Equipment TRIGGER): cast `count` RANDOM Dwarven Ales through `castSpell`, the real
@@ -8783,6 +8804,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         applyCastEffects(ctx, spellDef, target, self ? `board:${self.uid}` : undefined);
         ctx.state.spellsCast += 1;
         ctx.state.spellsThisTurn += 1;
+        fireShopSpellGrowers(ctx.state, spellDef); // Goldilox hears an End-of-Turn minion cast too
       }
     };
     if (num(params.perGold, 0) > 0) {
@@ -8806,6 +8828,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       applyCastEffects(ctx, spellDef, self, self ? `board:${self.uid}` : undefined);
       ctx.state.spellsCast += 1;
       ctx.state.spellsThisTurn += 1;
+      fireShopSpellGrowers(ctx.state, spellDef); // Goldilox hears an End-of-Turn minion cast too
     }
   },
 
@@ -8823,6 +8846,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       applyCastEffects(ctx, spellDef, target, self ? `board:${self.uid}` : undefined);
       ctx.state.spellsCast += 1;
       ctx.state.spellsThisTurn += 1;
+      fireShopSpellGrowers(ctx.state, spellDef); // Goldilox hears an End-of-Turn minion cast too
     }
   },
 
@@ -10951,7 +10975,8 @@ function fireBattlecryTriggered(state: RunState): void {
 export function eotTickCount(state: Pick<RunState, 'playedThisTurn' | 'goldSpentThisTurn'>, effect: { do: string; params?: Record<string, unknown> }): number {
   switch (effect.do) {
     case 'endOfTurnBuffRandomTribeRepeatPerPlayed': return 1 + spiritsPlayedThisTurn(state); // Mother Moss
-    case 'endOfTurnBuffEndsTribePerCard': return 1 + (state.playedThisTurn?.length ?? 0);     // Kringle
+    case 'endOfTurnBuffEndsTribePerCard':                                                      // Kringle
+    case 'endOfTurnBuffAdjacentPerCard': return 1 + (state.playedThisTurn?.length ?? 0);       // Striker (owner 2026-09-24)
     case 'castSpell': {
       // Rope Wrangler (owner 2026-09-23): "cast Lasso. Repeat for every 10 Gold spent this turn" — the base
       // cast plus one tick per `perGold`. A castSpell without `perGold` (Soul Defiler's Staff of Guel) is one tick.
@@ -10999,38 +11024,6 @@ function eotRepeatTick(state: RunState, self: BoardCard, targets: readonly Board
       if (!state.board.some((c) => c.uid === target.uid)) continue;
       (state.gainAttackFiredUids ??= []).push(target.uid);
       captureBuffFx(state, target, 'minion', () => fireOnGainAttack(state, target));
-    }
-  }
-}
-
-/**
- * "+N Attack for each card played this turn" (Striker — owner ruling 2026-09-09): the LUMP text, itemized as one
- * End-of-Turn grant per card played, each a SEPARATE INSTANCE rather than one grant of N× the rate. (Kringle
- * used this too until 2026-09-22, when the owner moved it to the REPEAT pattern — `eotRepeatTick`, base + one
- * per card, each its own beat. Striker keeps its n waves inside its one beat.) The difference is what the
- * board's watchers see: "when a Dwarf gains Attack" (Kneel / Tankerchief) and the self-reactors (Hunter,
- * Sergeant) must fire once per wave, so each wave dispatches `fireOnGainAttack` for the bodies it lifted —
- * instead of leaving it to the action boundary, which diffs the whole action once and would pay one trigger
- * for N waves. The uids are recorded in `gainAttackFiredUids` so that boundary (and the End-of-Turn projection)
- * skip them rather than dispatching the same gain a second time.
- *
- * Every wave keeps Kringle's `fxWave` tag, so the UI still plays the grants as N visible pulses.
- */
-function eotPerCardWaves(state: RunState, self: BoardCard, targets: readonly BoardCard[], a: number, h: number): void {
-  const played = state.playedThisTurn?.length ?? 0;
-  if (played <= 0 || (a <= 0 && h <= 0) || targets.length === 0) return;
-  for (let wave = 0; wave < played; wave++) {
-    const before = state.recruitBuffFx.length;
-    captureBuffFx(state, self, 'minion', () => {
-      for (const target of targets) addBuff(target, nameOf(self), a, h);
-    });
-    for (let i = before; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fxWave = wave;
-    if (a > 0) {
-      for (const target of targets) {
-        if (!state.board.some((c) => c.uid === target.uid)) continue;
-        (state.gainAttackFiredUids ??= []).push(target.uid);
-        captureBuffFx(state, target, 'minion', () => fireOnGainAttack(state, target));
-      }
     }
   }
 }
@@ -12207,6 +12200,26 @@ export function noteSpellForCountRunes(state: RunState, spellId: string): void {
   }
 }
 
+/**
+ * The spell-IDENTITY growers (Goldilox, owner 2026-09-24: "shop spells cast from anywhere count") for a cast
+ * that bypasses `noteSpellCast`: the legacy End-of-Turn minion casts (Soul Defiler, Rope Wrangler, Arnold, the
+ * escalating caster) resolve the spell and bump the tallies by hand, so the generic `spellCast` watchers never
+ * hear them. Routing those casts through `noteSpellCast` would change every watcher, rune and copy memory at
+ * once, so this pays ONLY Goldilox (board + hand) — the factory itself decides whether the spell qualifies.
+ */
+function fireShopSpellGrowers(state: RunState, spellDef: CardDef): void {
+  const ctx = makeContext(state);
+  for (const card of [...state.board, ...state.hand]) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def || def.spell) continue;
+    for (const effect of def.effects) {
+      if (effect.on !== 'spellCast' || effect.do !== 'shopSpellCastGrowSelf') continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, spellDef }));
+    }
+  }
+}
+
 export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // A REWARD card (`token: true` — Goldcrafter, Implosion, Copycat, the Triple Reward…) is NOT a Shop spell
   // (owner rule 2026-08-01, extended to every cast path 2026-08-04): it resolves its own effect and nothing
@@ -12322,6 +12335,18 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
       // `spellDef` lets a watcher record WHICH spell was cast (Spellkeeper's "the first one"), not just that
       // one was. Fires only for SHOP SPELLS — Rubies don't route through `castSpell`, so they never count here.
       if (fn) for (let rep = 0; rep < reps; rep++) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, spellDef }));
+    }
+  }
+  // HAND watchers of the cast (`alsoInHand` — Goldilox, owner 2026-09-24: "Gains 2x while in hand"): a card in
+  // hand hears the cast too. Board-only `spellCast` watchers stay asleep in hand, exactly as `fireOnTribePlayed`
+  // keeps a board watcher asleep there.
+  for (const card of [...state.hand]) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def || def.spell) continue;
+    for (const effect of def.effects) {
+      if (effect.on !== 'spellCast' || effect.params?.alsoInHand !== true) continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, spellDef }));
     }
   }
 }

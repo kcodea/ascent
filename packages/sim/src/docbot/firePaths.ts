@@ -159,6 +159,7 @@ export const SYNTHETIC_FIRE_SITES: Readonly<Record<string, FireSiteEntry>> = {
   'simulate.ts#performAttack#onKill': { kind: 'kill-replay', pair: 'none', why: 'Slaughter re-fires per multiplier extra after the natural `onKill` bus emit' },
   // ── factories.ts helpers ──
   'factories.ts#playRubyOn#onRubyPlayed': { kind: 'ruby-replay', pair: 'none', why: "a Ruby played in combat fires the target's onRubyPlayed effects directly (no bus event for Rubies in combat)" },
+  'simulate.ts#spellResolved#spellCast': { kind: 'natural-dispatch', pair: 'none', why: "Goldilox (owner 2026-09-24): the spell-IDENTITY half of a combat cast. The bus `spellCast` fires before the cast body and carries no spell id, so castInCombat reports each finished repetition to ctx.spellResolved, which pays the shopSpellCastGrowSelf watchers (board + hand) for a Shop-pool spell only. The factory ignores the id-less bus emit, so each cast pays once. Natural counterpart: the bus `spellCast` subscription" },
   'factories.ts#triggerEchoOn#onDeath': { kind: 'echo-proc', pair: 'none', why: "the combat arena's triggerEchoOn: runs a living body's onDeath effects under asEcho (Echohorn, Spots, Hawkus)" },
   'factories.ts#fire#onDeath': { kind: 'echo-proc', pair: 'none', why: 'the golden/multiplied inner fire of the arena Echo proc' },
   'factories.ts#replayCombatBattlecry#onPlay': { kind: 'battlecry-replay', pair: 'none', why: 'the shared combat Shout replay — War Drum / Encore extras consumed here; see the phaseRegistry docblock history' },

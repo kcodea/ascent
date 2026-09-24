@@ -52,6 +52,27 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-24',
+    label: 'Kobolds and Dwarves',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'New Dwarf/Spirit Goldilox. Striker now repeats its buff. Pickles, Flagrunner, Tromboneer, Brunni and Kurse changed. Beggy is back, Gemsmith and Double Dealer are retired.',
+        details: [
+          'New: Goldilox, a Tier 3 Dwarf/Spirit 2/2. "When you cast a Shop spell, gain +3/+2. Gains 2x while in hand." Ales count. Rubies and Clues do not. It also grows from spells cast in combat, and those stats stay.',
+          'Striker now reads "End of Turn: give adjacent minions +1 Attack. Repeat for every card played this turn." It gives +1 even if you played nothing, then +1 more for each card.',
+          'Pickles is now Tier 2 and a 3/3 (was Tier 3, 5/3).',
+          'Flagrunner is now Tier 3 and a 5/4 (was Tier 4, 4/6).',
+          'Tromboneer is now Tier 3 and a 4/3 (was Tier 4, 6/3).',
+          'Brunni is now Tier 2 (was Tier 3). Same stats.',
+          'Kurse is now a Kobold and an Undead.',
+          'Beggy is back in the Kobold pool.',
+          'Gemsmith and Double Dealer are no longer in the game.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     changes: [
       {
         category: 'Systems',

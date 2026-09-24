@@ -140,10 +140,14 @@ export function actualDiffOf(before: RunState, after: RunState): ActualDiff {
   const beforeHand = new Set(b.hand.map((x) => x.uid));
   const beforeBoard = new Set(b.board.map((x) => x.uid));
   const afterBoard = new Set(a.board.map((x) => x.uid));
+  // A BORROWED hand card (Funeral on Loan) that lands is a real board ARRIVAL: `landBorrowed` commits the body
+  // under its own `shopArrival` scope (a `cardSummoned` beat), unlike an ordinary play from hand. Surfaced by the
+  // builder sweep on 2026-09-24 when a pool change first steered it into a borrowed play.
+  const borrowedInHand = new Set(before.hand.filter((c) => c.borrowed).map((c) => c.uid));
   return {
     stats,
     handArrivals: a.hand.filter((x) => !beforeHand.has(x.uid) && !beforeBoard.has(x.uid)),
-    boardArrivals: a.board.filter((x) => !beforeBoard.has(x.uid) && !beforeHand.has(x.uid)),
+    boardArrivals: a.board.filter((x) => !beforeBoard.has(x.uid) && (!beforeHand.has(x.uid) || borrowedInHand.has(x.uid))),
     boardDepartures: b.board.filter((x) => !afterBoard.has(x.uid)),
     gold: after.embers - before.embers,
   };

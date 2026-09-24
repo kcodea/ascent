@@ -109,7 +109,7 @@ describe.each(SPELLS)('%s plays its own effect in every phase, from every source
     const src = readRecruit();
     const at = src.indexOf('spellCast: (cardId, source) => {');
     expect(at).toBeGreaterThan(0);
-    expect(src.slice(at, at + 200)).toContain('playSpellCastFx(cardId)');
+    expect(src.slice(at, at + 400)).toContain("playSpellCastFx(cardId, { runeId: source.kind === 'rune' ? source.id : null })");
     expect(plays(def)).toHaveLength(2);
   });
 

@@ -2151,7 +2151,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
           const targets = def.target ? (pool.length > 0 ? [ctx.rng.pick(pool)] : []) : undefined;
           if (def.target && (!targets || targets.length === 0)) return;
           if (resolveCombatSpellCast(ctx, self, def, targets)) {
-            ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
+            // The RUNE is the caster (owner ruling 2026-09-24): `rune` lets the spell's effect stem from its node.
+            ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id, rune: 'rune_flooded_vault', side: self.side });
           }
         });
       }

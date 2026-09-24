@@ -213,8 +213,9 @@ describe('Juggler — Baldgecoin', () => {
 });
 
 describe('Jensen is re-enabled', () => {
-  it('is no longer withheld from the picker', () => {
-    expect(getHero('jenkins').wip ?? false, 'Jensen ships again (owner 2026-08-17)').toBe(false);
+  it('was re-enabled 2026-08-17, then ARCHIVED 2026-09-24 (heroArchive.test.ts): still resolves, withheld from pickers', () => {
+    expect(getHero('jenkins').id).toBe('jenkins');
+    expect(getHero('jenkins').wip, 'archived by the owner 2026-09-24').toBe(true);
   });
 });
 

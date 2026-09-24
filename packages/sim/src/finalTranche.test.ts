@@ -207,8 +207,8 @@ describe('hero disables (owner 2026-07-28)', () => {
     for (const id of RESOLVABLE) expect(createRun(1, id).heroId).toBe(id);
   });
 
-  it('Tiff is back in the pool (owner 2026-08-14)', () => {
-    expect(HEROES.find((h) => h.id === 'tiff')!.wip, 'Tiff is offered again').toBeFalsy();
+  it('Tiff was back in the pool (owner 2026-08-14), then ARCHIVED again 2026-09-24 (heroArchive.test.ts)', () => {
+    expect(HEROES.find((h) => h.id === 'tiff')!.wip, 'archived by the owner 2026-09-24').toBe(true);
   });
 });
 

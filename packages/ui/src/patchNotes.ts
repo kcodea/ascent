@@ -52,6 +52,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-24',
+    label: 'Heroes Retired',
+    changes: [
+      {
+        category: 'Balance',
+        text: '19 heroes are retired from hero select. They are no longer offered in Play or Practice, and no opponent will pick them.',
+        details: [
+          'Retired: Aevor, Cindara, Devourer, Emissary, Fibbsy, Foreman Flint, Gorun, Guardian, Harlan, Jensen, Membrance, Odelle, Pete, Rayse, Runesmith, Sable, Tiff, Underdweller and Yirin.',
+          'Their hero powers can no longer be picked up by Mimic or the Power Shifter spell.',
+          'Your past games with these heroes still show them in your history, replays and leaderboards.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Leaderboard and Recent Games',
     changes: [
       {

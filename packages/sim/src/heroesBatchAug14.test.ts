@@ -9,10 +9,10 @@ const ALL_TRIBES: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'demon'];
 /** Owner batch 2026-08-14: Tiff re-added; new heroes Merrin / Gambler / Xerox (the active-power tranche). */
 
 describe('Tiff is back in the selectable pool', () => {
-  it('is no longer flagged wip', () => {
+  it('was re-added 2026-08-14, then ARCHIVED 2026-09-24 (heroArchive.test.ts): still in the registry, withheld from pickers', () => {
     const tiff = HEROES.find((h) => h.id === 'tiff');
     expect(tiff, 'Tiff exists').toBeTruthy();
-    expect(tiff!.wip, 'Tiff is offered again').toBeFalsy();
+    expect(tiff!.wip, 'archived by the owner 2026-09-24').toBe(true);
   });
 });
 

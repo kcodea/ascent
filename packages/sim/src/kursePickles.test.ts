@@ -42,12 +42,11 @@ describe('Kurse — Avenge (3): a Gemheart Golem plus its Rubies', () => {
   it('is a T4 7/4 Kobold (owner tune 2026-09-19) whose Avenge names the Carver Golem', () => {
     const c = CARD_INDEX['k3_kurse']!;
     expect([c.tribe, c.tier, c.attack, c.health]).toEqual(['kobold', 4, 7, 4]);
-    expect(c.effects).toEqual([{ on: 'avenge', do: 'avengeSummonRubyStats', params: { count: 3, tokenId: 'gemheart-shard' } }]);
-    expect(c.text).toBe("**Avenge (3):** Summon a **1/1 Gemheart Golem**, plus this minion's Rubies.");
-    expect(c.goldenText).toBe("**Avenge (3):** Summon a **2/2 Gemheart Golem**, plus double this minion's Rubies.");
-    // The same printed contract as Gemheart Carver, so the two can never diverge.
-    expect(c.text).toBe(CARD_INDEX['k_gemheart']!.text.replace('**Echo:**', '**Avenge (3):**'));
-    expect(c.goldenText).toBe(CARD_INDEX['k_gemheart']!.goldenText!.replace('**Echo:**', '**Avenge (3):**'));
+    // Owner 2026-09-24: the Golem attacks immediately (`charge`), Kurse only; text + behaviour in koboldCelestialDwarf0924.test.ts.
+    expect(c.effects).toEqual([{ on: 'avenge', do: 'avengeSummonRubyStats', params: { count: 3, tokenId: 'gemheart-shard', charge: true } }]);
+    // The same printed Golem contract as Gemheart Carver, plus Kurse's own "It attacks immediately."
+    expect(c.text).toBe(CARD_INDEX['k_gemheart']!.text.replace('**Echo:**', '**Avenge (3):**') + ' It attacks immediately.');
+    expect(c.goldenText).toBe(CARD_INDEX['k_gemheart']!.goldenText!.replace('**Echo:**', '**Avenge (3):**') + ' It attacks immediately.');
     expect(poolFor('set3').buyable.some((x) => x.id === 'k3_kurse')).toBe(true);
   });
 
@@ -110,20 +109,19 @@ describe('Pickles — the Ruby branch pays 3 (gilded 6)', () => {
 
   it('prints 3 / 6 and declares count 3', () => {
     const c = CARD_INDEX['k3_splitpick']!;
-    expect(c.text).toBe('**Choose One:** get a random **Shop spell**, or get **3 Rubies**.');
-    expect(c.goldenText).toBe('**Choose One:** get **2** random **Shop spells**, or get **6 Rubies**.');
-    expect(c.chooseOne![1]!.text).toBe('Get **3 Rubies**.');
-    expect(c.chooseOne![1]!.goldenText).toBe('Get **6 Rubies**.');
-    expect(c.chooseOne![1]!.effects).toEqual([{ on: 'onPlay', do: 'battlecryGetRubies', params: { count: 3 } }]);
+    // Owner 2026-09-24: "Choose One: Get 3 Rubies or a Facetwright." The Ruby branch is now FIRST (index 0).
+    expect(c.chooseOne![0]!.text).toBe('Get **3 Rubies**.');
+    expect(c.chooseOne![0]!.goldenText).toBe('Get **6 Rubies**.');
+    expect(c.chooseOne![0]!.effects).toEqual([{ on: 'onPlay', do: 'battlecryGetRubies', params: { count: 3 } }]);
   });
 
   it('choosing the Ruby branch hands three Rubies (six gilded)', () => {
     const rubies = (s: RunState) => s.hand.filter((h) => CARD_INDEX[h.cardId]?.ruby).length;
     let s = run({ hand: [body('p', 'k3_splitpick')] });
-    s = act(act(s, { type: 'play', uid: 'p' }), { type: 'chooseOne', index: 1 });
+    s = act(act(s, { type: 'play', uid: 'p' }), { type: 'chooseOne', index: 0 });
     expect(rubies(s)).toBe(3);
     let g = run({ hand: [body('p', 'k3_splitpick', { golden: true })] });
-    g = act(act(g, { type: 'play', uid: 'p' }), { type: 'chooseOne', index: 1 });
+    g = act(act(g, { type: 'play', uid: 'p' }), { type: 'chooseOne', index: 0 });
     expect(rubies(g)).toBe(6);
   });
 });

@@ -9,7 +9,7 @@ const byName = (n: string) => [...RUNES, ...EPIC_RUNES].find((r) => r.name === n
 const FW = 'facetwright';
 
 describe('Rune of Facetwright', () => {
-  it("hands over a Facetwright's Choice each turn", () => {
+  it("hands over a Facetwright each turn", () => {
     const s: RunState = { ...set2(), questRecurringEndOfTurn: ['grantFacetwright'], hand: [] };
     applyEndOfTurn(s);
     expect(s.hand.filter((c) => c.cardId === FW).length).toBe(1);
@@ -39,7 +39,7 @@ describe('Rune of Facetwright', () => {
   });
 
   it('leaves other Choose One spells alone', () => {
-    // Scoped by card id — the rune names Facetwright's Choice, not Choose One in general.
+    // Scoped by card id — the rune names Facetwright, not Choose One in general.
     const other = Object.values(CARD_INDEX).find((c) => c.spell && c.chooseOne?.length && c.id !== FW && !c.target);
     if (!other) return; // no untargeted Choose One spell to contrast with
     const s: RunState = { ...set2(), runeFacetwright: true, hand: [

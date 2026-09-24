@@ -413,7 +413,10 @@ export const ARENA_EFFECTS = {
     const g = arena.self.golden ? 2 : 1;
     const t = arena.rubyTallyOf(arena.self);
     const id = typeof params.tokenId === 'string' && params.tokenId ? params.tokenId : 'gemheart-shard';
-    arena.summonToken(id, { attack: (1 + t.attack) * g, health: (1 + t.health) * g, rubyLabel: true });
+    // `charge` (Kurse, owner 2026-09-24: "It attacks immediately."): the Golem swings the moment it lands via the
+    // immediate-attack lane (combat `attackNow`; meaningless in a shop, where the adapter ignores it). Carver
+    // leaves it off — its Golem waits its turn.
+    arena.summonToken(id, { attack: (1 + t.attack) * g, health: (1 + t.health) * g, rubyLabel: true, charge: params.charge === true });
   },
 
   /** Geode Guardian — Echo: summon `count` Golems (default 2, NOT golden-scaled — owner: a Gilded copy still

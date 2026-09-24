@@ -320,10 +320,10 @@ export const RUNES: RuneDef[] = [
     // Owner fix 2026-08-02: the FIRST copy lands the moment the rune is bought (the plain `grant` up front) —
     // it used to arrive only at the first recurring payout. And the recurring grant fires at END of turn
     // (`recurringEndOfTurn`), which the old text mis-stated as "start of every turn".
-    text: "Get a **Facetwright's Choice**. Repeats at **end of turn**. They give **both** effects.",
+    text: 'Get a **Facetwright**. Repeats at **end of turn**. They give **both** effects.',
     previewCards: ['facetwright'], // text names it — the forge hover shows the card
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['facetwright'] }, { kind: 'runeFacetwright' }, { kind: 'recurringEndOfTurn', effect: 'grantFacetwright' }] },
-    sets: ['set2', 'set3'], // Facetwright's Choice is a set-2 spell // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2', 'set3'], // Facetwright is a set-2 spell // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
     // Owner ruling 2026-07-30: only offered when the rune system is on, and an Epic forge is then guaranteed —

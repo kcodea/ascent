@@ -79,12 +79,13 @@ export const KEYWORDS_RULES: GameRule[] = [
   // become rules").
   {
     id: 'R-PUMMEL-01',
-    title: 'A Pummel tally is per instance and LIFETIME, and pays at most once per combat',
+    title: 'A Pummel tally is per instance and LIFETIME, and pays at most its printed per-combat cap',
     statement:
       'Pummel (X) counts the damage THIS BODY has dealt over its whole life. The tally is per instance and never '
       + 'resets: it carries from combat to settle to shop to the next combat, it rides a served snapshot, and a '
       + 'Rise or Rebirth return keeps it. A payout is owed each time the tally crosses a multiple of X, but at '
-      + 'most ONE payout per combat; crossings past the first in a fight are spent, not banked. Every readout '
+      + 'most the card\'s printed cap per combat (once, unless it prints "(Max N per combat.)", R-PUMMEL-02); '
+      + 'crossings past the cap in a fight are spent, not banked. Every readout '
       + 'prints progress toward the NEXT payout (the tally modulo X, over X), on the board, in the shop and in '
       + 'combat, and the combat badge ticks on the beat the damage lands.',
     domain: 'keywords',
@@ -98,7 +99,8 @@ export const KEYWORDS_RULES: GameRule[] = [
     currentBehaviour:
       'Conforms — 2026-09-21 (PRs #1607 and #1616). The tally used to be rebuilt from the current fight\'s `dmg` '
       + 'events, so it read 0/X again in every shop; it is now seeded from the run card, carried back whole, and '
-      + 'the once-per-combat rider is a per-fight `pummelFired` flag rather than a reset of the meter.',
+      + 'the once-per-combat rider is a per-fight payout count (`pummelFires`, was the `pummelFired` flag until '
+      + '2026-09-24) rather than a reset of the meter.',
     enforcement: {
       kind: 'scenario',
       refs: [
@@ -108,6 +110,36 @@ export const KEYWORDS_RULES: GameRule[] = [
         'packages/ui/src/damageMeterBadge.test.ts',
       ],
       lastVerifiedAt: '2026-09-22',
+    },
+  },
+  {
+    id: 'R-PUMMEL-02',
+    title: 'A Pummel\'s per-combat cap is a card parameter: once by default, "(Max N per combat.)" pays up to N',
+    statement:
+      'Each Pummel (X) card declares how many payouts it may make in one combat (`maxPerCombat`, default 1 = '
+      + '"(Once per combat.)"). Within that cap it pays once for EVERY multiple of X the tally crosses, including '
+      + 'several multiples crossed by one hit, and each payout is its own pummelTrigger. The count is per combat '
+      + 'instance: a Rise does not re-arm it and a fresh combat does. Han Gover prints "(Max 5 per combat.)" and '
+      + 'pays up to 5 Ales, never a 6th; Goldvein and Maestro Lux stay once per combat.',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner content list 2026-09-24 (Han Gover)', quote: 'Han Gover -> (Max 5 per combat.)' },
+      { kind: 'owner-chat', ref: 'Owner content list 2026-09-24 (Maestro Lux)', quote: 'Maestro Lux -> Pummel (12): Get a random Celestial. (Once per combat.)' },
+    ],
+    contentIds: ['dw3_hangover', 'k3_goldvein', 'ce3_starcharter'],
+    currentBehaviour:
+      'Conforms — 2026-09-24. `noteDamageDealt` (packages/core/src/combat/simulate.ts) reads `params.maxPerCombat` '
+      + 'and counts payouts on the instance (`pummelFires`).',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/core/src/combat/pummelTrigger.test.ts',
+        'packages/sim/src/set3Dwarves.test.ts',
+        'packages/sim/src/goldvein.test.ts',
+        'packages/sim/src/koboldCelestialDwarf0924.test.ts',
+      ],
+      lastVerifiedAt: '2026-09-24',
     },
   },
 ];

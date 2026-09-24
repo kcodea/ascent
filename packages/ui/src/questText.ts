@@ -153,7 +153,7 @@ const EOT_EFFECT_TEXT: Record<Extract<QuestReward, { kind: 'recurringEndOfTurn' 
   copyFirstSpell: 'End of Turn: get a copy of the first spell you cast this turn',
   grantRuby: 'End of Turn: get a Ruby',
   grantRuby2: 'End of Turn: get 2 Rubies',
-  grantFacetwright: "Start of every turn: get a Facetwright's Choice",
+  grantFacetwright: 'Start of every turn: get a Facetwright',
   demonEatsRightmostShop: 'End of Turn: your left-most Demon Consumes the right-most Shop minion',
 };
 
@@ -408,7 +408,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return `Every ${r.per} ${METER[r.meter]}, ${parts.join(' and ')}${r.oncePerTurn ? ' (once per turn)' : ''}`;
     }
     case 'runeFacetwright':
-      return "Your Facetwright's Choice casts give both effects";
+      return 'Your Facetwright casts give both effects';
     case 'runeSpellstone':
       return 'Rubies you cast count as Shop spells';
     case 'runeWhiteWolf':

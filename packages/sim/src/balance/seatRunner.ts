@@ -363,6 +363,7 @@ export function mirrorForEnemySeat(result: CombatResult): CombatResult {
     playerHandGrants: c.handGrants,
     playerHandBuffs: c.handBuffs,
     playerRubyGrants: c.rubyGrants,
+    playerRubyGrantIds: c.rubyGrantIds,
     playerNextTurnSpellCopies: c.nextTurnSpellCopies,
     playerRubyBonusGain: c.rubyBonusGain,
     playerRubyMints: c.rubyMints,

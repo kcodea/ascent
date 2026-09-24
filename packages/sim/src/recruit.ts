@@ -1,4 +1,4 @@
-import { ALE_IDS, TRIBES, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -354,6 +354,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       state.undeadHealthBonus += h;
     },
     grantRubies: (count) => { mintRubies(state, count); },
+    grantRandomRubies: (count) => { mintRandomRubies(state, count); },
     grantRandomShoutMinion: (count) => {
       const pool = poolOf(state).buyable.filter((c) => c.tier <= state.tier && c.effects.some((e) => e.on === 'onPlay'));
       conjureToHand(state, pool, count);
@@ -2512,6 +2513,25 @@ export function rubyStatBonus(state: RunState): { attack: number; health: number
  * `rubyStatGain`), so all held Rubies stay equal to base + rubyBonus; only Rubies already CAST onto a minion
  * (their buff baked in) don't grow. Respects the hand cap. Deterministic (no RNG) — same card, same Ruby.
  */
+/** Gem Sage's re-entrancy latch (see `onGetRubyRandomRuby`): true while a Sage is minting its random Ruby, so the
+ *  Rubies a Sage grants never re-trigger a Sage. Synchronous and restored in a `finally`, so a reduce can never
+ *  leave it set. */
+let gemSageMinting = false;
+
+/** "Get a random Ruby" (owner Ruby batch 2026-09-24): `count` Rubies, EACH drawn separately from all six types
+ *  (`RUBY_TYPE_IDS`) at equal odds on the run cursor, then minted through `mintRubies` one at a time so each one
+ *  bakes the run's live Ruby strength and fires the same get-a-Ruby / gain-a-card watchers a plain mint does.
+ *  The draw is made per Ruby BEFORE its mint, so two Rubies can differ (Ruby Shipment's "Get 2 random Rubies"). */
+export function mintRandomRubies(state: RunState, count: number): void {
+  for (let i = 0; i < count; i++) {
+    if (state.hand.length >= handCap(state)) return;
+    const rng = makeRng(state.rngCursor);
+    const id = RUBY_TYPE_IDS[rng.int(RUBY_TYPE_IDS.length)]!;
+    state.rngCursor = rng.state();
+    mintRubies(state, 1, id);
+  }
+}
+
 export function mintRubies(
   state: RunState,
   count: number,
@@ -3819,6 +3839,34 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     mintRubies(ctx.state, num(params.count, 1) * gold(self), str(params.rubyId) || RUBY_ID);
   },
 
+  /** Ruby Shipment (owner Ruby batch 2026-09-24): "Get 2 random Rubies." — each drawn separately from all six
+   *  types. Gilded doubles through the same `gold(self)` convention `getRubies` uses (a spell's self is the
+   *  caster placeholder, so a cast Shipment is never gilded). */
+  getRandomRubies: (ctx, self, params) => {
+    mintRandomRubies(ctx.state, num(params.count, 1) * gold(self));
+  },
+
+  /** Shardluck (owner Ruby batch 2026-09-24): "Play 3 Rubies on your Kobolds" — the shared arena body, each Ruby
+   *  on a random friendly Kobold (shop: a real Ruby landing — `addBuff('Ruby')` + the target's on-Ruby watchers). */
+  battlecryPlayRubiesRandomTribe: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryPlayRubiesRandomTribe(shopArena(ctx.state, self), params);
+  },
+
+  /** Gemheart Legionnaire (owner Ruby batch 2026-09-24): a friendly Golem summoned in the Shop (a Carver's Echo
+   *  forced there, a rune's Golem) plays 5 permanent Rubies on this — the shared arena body. */
+  onSummonCardPlayRubiesSelf: (ctx, self, params, { minion }) => {
+    if (!minion || minion === self) return;
+    ARENA_EFFECTS.onSummonCardPlayRubiesSelf(shopArena(ctx.state, self), { ...params, arriver: minion });
+  },
+
+  /** Prismatic Pick, branch 1 (owner Ruby batch 2026-09-24): "Discover a Ruby" — a pool Discover over the five
+   *  SPECIAL Rubies (Warding, Golden, Splintered, Ripple, Dark), offering 3 of them. The pick is MINTED
+   *  (`takeDiscoverPick`'s Ruby branch), so it carries the run's live Ruby strength. `count` Discovers, queued. */
+  discoverRuby: (ctx, self, params) => {
+    void self;
+    for (let i = 0; i < num(params.count, 1); i++) queueDiscover(ctx.state, { kind: 'pool', ids: [...SPECIAL_RUBY_IDS] });
+  },
+
   /** Set 2 — Gemgorge Fiend (Kobold/Demon): every 3 Rubies cast (the `rubyCast` cadence), Consume a random
    *  non-spell Shop minion (× golden) — remove it and gain its (buffed) stats, Demon-style. */
   rubyCastConsumeShop: (ctx, self) => {
@@ -4127,6 +4175,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   tribePlayedBuffSelfInHand: (ctx, self, params) => {
     if (!ctx.state.hand.includes(self)) return;
     addBuff(self, nameOf(self), num(params.attack, 4) * gold(self), num(params.health, 4) * gold(self));
+  },
+
+  /** GOLDILOX (set 3 Dwarf/Spirit, owner 2026-09-24): "When you cast a Shop Spell, gain +3/+2. Gains 2x while in
+   *  hand." — the SHOP half, on the board AND in the hand (`alsoInHand`, dispatched by `noteSpellCast`). Only a
+   *  Shop-POOL spell counts — Ales included; never a Ruby, a Clue / Gift or a token spell (owner: "shop spells
+   *  cast from anywhere count, not rubies, clues or generic spells"). Every shop cast path (hand, rune, Equipment,
+   *  a minion's cast, End of Turn) funnels through `noteSpellCast`, so "from anywhere" holds by construction.
+   *  Permanent, as every shop gain is. The combat half is `shopSpellCastGrowSelf` in core + `spellResolved`. */
+  shopSpellCastGrowSelf: (ctx, self, params, payload) => {
+    const spellDef = (payload as { spellDef?: CardDef } | undefined)?.spellDef;
+    if (!isShopPoolSpell(spellDef, poolOf(ctx.state).all)) return;
+    const inHand = ctx.state.hand.includes(self);
+    if (!inHand && !ctx.state.board.includes(self)) return;
+    const g = shopSpellGrowth(params, !!self.golden, inHand);
+    if (g.attack > 0 || g.health > 0) addBuff(self, nameOf(self), g.attack, g.health);
   },
 
   /** Handy Flame (rune token, Set 3 batch 2): whenever this gains stats — in hand or on the board — a random OTHER
@@ -4732,14 +4795,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), a, 0);
   },
 
-  /** Striker (End of Turn): its two NEIGHBOURS (any tribe) gain +N Attack for each card played this turn —
-   *  Kringle's counter (`playedThisTurn`: minions AND spells, Striker's own play included if it was played this
-   *  turn) and Kringle's per-card FX waves, pointed at the adjacent slots instead of the tribe's ends. */
-  endOfTurnBuffAdjacentPerCard: (ctx, self, params) => {
-    const idx = ctx.state.board.findIndex((c) => c.uid === self.uid);
-    if (idx < 0) return;
-    const sides = [ctx.state.board[idx - 1], ctx.state.board[idx + 1]].filter((c): c is BoardCard => !!c);
-    eotPerCardWaves(ctx.state, self, sides, num(params.attack, 1) * gold(self), 0);
+  /** Striker (End of Turn): its two NEIGHBOURS (any tribe) gain +N Attack, then again once per card played this
+   *  turn — Kringle's counter (`playedThisTurn`: minions AND spells, Striker's own play included if it was played
+   *  this turn) and Kringle's REPEAT pattern (owner 2026-09-24, R-REPEAT-01: "Give adjacent minions +1 attack.
+   *  Repeat for every card played this turn"), pointed at the adjacent slots instead of the tribe's ends. `1 + n`
+   *  ticks through `eotTickCount`, each its own state delta, FX wave and beat. The neighbours are re-read per tick,
+   *  so the ticks always land on whoever sits beside Striker when they fire. */
+  endOfTurnBuffAdjacentPerCard: (ctx, self, params, payload) => {
+    const a = num(params.attack, 1) * gold(self);
+    forEachTick(payload, eotTickCount(ctx.state, { do: 'endOfTurnBuffAdjacentPerCard' }), (tick) => {
+      const idx = ctx.state.board.findIndex((c) => c.uid === self.uid);
+      if (idx < 0) return;
+      const sides = [ctx.state.board[idx - 1], ctx.state.board[idx + 1]].filter((c): c is BoardCard => !!c);
+      eotRepeatTick(ctx.state, self, sides, a, 0, tick);
+    });
   },
 
   /** Pourman's Keg (one Equipment TRIGGER): cast `count` RANDOM Dwarven Ales through `castSpell`, the real
@@ -8783,6 +8852,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         applyCastEffects(ctx, spellDef, target, self ? `board:${self.uid}` : undefined);
         ctx.state.spellsCast += 1;
         ctx.state.spellsThisTurn += 1;
+        fireShopSpellGrowers(ctx.state, spellDef); // Goldilox hears an End-of-Turn minion cast too
       }
     };
     if (num(params.perGold, 0) > 0) {
@@ -8806,6 +8876,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       applyCastEffects(ctx, spellDef, self, self ? `board:${self.uid}` : undefined);
       ctx.state.spellsCast += 1;
       ctx.state.spellsThisTurn += 1;
+      fireShopSpellGrowers(ctx.state, spellDef); // Goldilox hears an End-of-Turn minion cast too
     }
   },
 
@@ -8823,6 +8894,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       applyCastEffects(ctx, spellDef, target, self ? `board:${self.uid}` : undefined);
       ctx.state.spellsCast += 1;
       ctx.state.spellsThisTurn += 1;
+      fireShopSpellGrowers(ctx.state, spellDef); // Goldilox hears an End-of-Turn minion cast too
     }
   },
 
@@ -8976,6 +9048,18 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  `onGetRuby` for every Ruby it makes, and this factory IS an `onGetRuby` handler — a plain mint would
    *  recurse forever (and two Sages would recurse twice as fast). The duplicate still fires `onGainCard`
    *  (Gangplank sees a card arrive), it just doesn't re-open the Ruby-gained round. */
+  /** GEM SAGE (owner Ruby batch 2026-09-24): "When you get a Ruby, also get a random Ruby." — "this grants a random
+   *  ruby from the pool of 6 whenever a player gets a ruby added to hand. recruit, shop etc all count. doesn't
+   *  trigger off itself or copies of itself." Fired by `fireOnRubyGained`, once per Ruby a mint lands (every Ruby
+   *  source mints: a shop grant, a Discover pick, a combat-won Ruby at settle). The Sage's own Rubies mint UNDER
+   *  the module latch, so neither this Sage nor any other copy hears them — the no-loop rule — while every other
+   *  get-a-Ruby watcher (Motherlode) still does, unlike the blanket `silent` mint. Gilded: 2. */
+  onGetRubyRandomRuby: (ctx, self, params) => {
+    if (gemSageMinting) return;
+    gemSageMinting = true;
+    try { mintRandomRubies(ctx.state, num(params.count, 1) * gold(self)); } finally { gemSageMinting = false; }
+  },
+
   onGetRubyDuplicate: (ctx, self, params) => {
     mintRubies(ctx.state, num(params.count, 1) * gold(self), RUBY_ID, undefined, true);
   },
@@ -9000,6 +9084,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  already bakes into every copy (board, hand, future). Nothing to do here; the stub keeps the phase map honest. */
   cardDeathScaler: () => {},
   dealtDamageAleMeter: () => {}, // Han Gover (Pummel (40)): a combat-read meter (`noteDamageDealt`); the LIFETIME tally carries shop → combat → shop (carry-over ruling 2026-09-21), one payout per combat
+  dealtDamageGetRandomRuby: () => {}, // Kobe (2026-09-24): the same combat-read meter, a random-Ruby body
   dealtDamageGrantRandomTribe: () => {}, // Maestro Lux (2026-09-24): the same combat-read meter, a random-Celestial body
   dealtDamageGoldNextTurn: () => {}, // Goldvein (2026-09-19): the same combat-read meter, a Gold-next-turn body
 
@@ -10536,6 +10621,59 @@ export function grantRubyKeyword(target: BoardCard, kw: Keyword | undefined): vo
   target.keywords = [...target.keywords, kw];
 }
 
+/** Stamp one special-Ruby rider for the shop's presentation (`rubyRiderFx`): the UI spaces the target's gems
+ *  (Ripple's second cast, Dark Ruby's Ruby → consume → Ruby) and plays the Gold cue (Golden Ruby). */
+export function recordRubyRiderFx(state: RunState, uid: string, rider: NonNullable<CardDef['rubyRider']>): void {
+  state.rubyRiderFx = [...(state.rubyRiderFx ?? []), { uid, rider }];
+  state.rubyRiderFxSeq = (state.rubyRiderFxSeq ?? 0) + 1;
+}
+
+/**
+ * The ACTION half of a special Ruby's Kobold rider (owner Ruby batch 2026-09-24), resolved ONCE per cast on the
+ * Ruby's DIRECT target, after its stats landed. (Ripple's "casts again" is not here: it is a second real landing,
+ * which the play branch counts as its own cast.) The hops a Ruby takes afterwards (a Resonance / Conduit bounce,
+ * Rune of Redirection, this Ruby's own Splinter) carry the stats and the Ward rider only, never these: a hop
+ * never re-bounces, and a hop is not a new cast.
+ *
+ *  · `gold`   — Golden Ruby: gain 2 Gold (`gainGold`, so the Golden Splinter mark and every Gold watcher hear it).
+ *  · `bounce` — Splintered Ruby: the Ruby bounces ONCE — Resonance Idol's hop (`rubyPlayedBounce`, one random
+ *               OTHER friendly minion, stats + Ward rider, recorded for the `ruby-bounce` ribbon). Never doubled
+ *               by a gilded target (`goldenReps: 1`): the bounce belongs to the Ruby, not the minion.
+ *  · `devour` — Dark Ruby: consume the Shop minion with the HIGHEST Health (ties: leftmost; the Starform counts,
+ *               exactly as it does for Gemgorge Fiend's consume) and add its stats to this minion AS RUBIES (the
+ *               'Ruby' buff source, so Carver / Geode / Kurse / Porkbelly count them as this minion's Rubies). No
+ *               Shop minion: just the stats (owner ruling).
+ */
+export function applyRubyRiderAction(state: RunState, target: BoardCard, def: CardDef, rubyAttack: number, rubyHealth: number): void {
+  const rider = def.rubyRider;
+  if (!rider || !isTribe(target, 'kobold')) return;
+  if (rider === 'gold') {
+    gainGold(state, 2);
+    recordRubyRiderFx(state, target.uid, 'gold');
+    return;
+  }
+  if (rider === 'bounce') {
+    ARENA_EFFECTS.rubyPlayedBounce(shopArena(state, target), {
+      rubyAttack, rubyHealth, random: 1, goldenReps: 1,
+      ...(def.rubyGrantKeyword ? { rubyKeyword: def.rubyGrantKeyword } : {}),
+    });
+    return;
+  }
+  if (rider === 'devour') {
+    let best = -1;
+    let bestHealth = -Infinity;
+    state.shop.forEach((o, i) => {
+      const d = CARD_INDEX[o.cardId];
+      if (!d || d.spell || d.ruby) return; // spells / Rubies in the row are never edible (the primitive's own rule)
+      const h = offerBuyStats(state, o).health;
+      if (h > bestHealth) { bestHealth = h; best = i; } // strict: a tie keeps the LEFTMOST
+    });
+    if (best < 0) return;
+    recordRubyRiderFx(state, target.uid, 'devour');
+    consumeShopOffer(state, target, best, 1, (a, h) => addBuff(target, 'Ruby', a, h));
+  }
+}
+
 /** Set 2 — fire a board minion's `onRubyPlayed` effects when a Ruby is cast ONTO it (Ruby Broker → Gold,
  *  Resonance Idol → bounce). The played Ruby's stats ride in the payload so a bounce can re-apply the same
  *  buff — and so does its keyword rider (`rubyKeyword`, a Warding Ruby's Ward), granted to THIS landing here
@@ -10671,7 +10809,8 @@ export function settleMinionSale(state: RunState, sold: BoardCard): void {
     if (state.runeSellRubiesSold >= INVESTMENT_SELLS) {
       procRune(state, 'runeSellRubies');
       improveRubies(state, 1, 1); // improve first, so the 2 Rubies arrive at the new strength
-      mintRubies(state, state.runeSellRubies);
+      // "get 2 random Rubies" (owner Ruby batch 2026-09-24): each drawn from all six types.
+      mintRandomRubies(state, state.runeSellRubies);
       state.runeSellRubiesSold -= INVESTMENT_SELLS;
     }
   }
@@ -10951,7 +11090,8 @@ function fireBattlecryTriggered(state: RunState): void {
 export function eotTickCount(state: Pick<RunState, 'playedThisTurn' | 'goldSpentThisTurn'>, effect: { do: string; params?: Record<string, unknown> }): number {
   switch (effect.do) {
     case 'endOfTurnBuffRandomTribeRepeatPerPlayed': return 1 + spiritsPlayedThisTurn(state); // Mother Moss
-    case 'endOfTurnBuffEndsTribePerCard': return 1 + (state.playedThisTurn?.length ?? 0);     // Kringle
+    case 'endOfTurnBuffEndsTribePerCard':                                                      // Kringle
+    case 'endOfTurnBuffAdjacentPerCard': return 1 + (state.playedThisTurn?.length ?? 0);       // Striker (owner 2026-09-24)
     case 'castSpell': {
       // Rope Wrangler (owner 2026-09-23): "cast Lasso. Repeat for every 10 Gold spent this turn" — the base
       // cast plus one tick per `perGold`. A castSpell without `perGold` (Soul Defiler's Staff of Guel) is one tick.
@@ -10999,38 +11139,6 @@ function eotRepeatTick(state: RunState, self: BoardCard, targets: readonly Board
       if (!state.board.some((c) => c.uid === target.uid)) continue;
       (state.gainAttackFiredUids ??= []).push(target.uid);
       captureBuffFx(state, target, 'minion', () => fireOnGainAttack(state, target));
-    }
-  }
-}
-
-/**
- * "+N Attack for each card played this turn" (Striker — owner ruling 2026-09-09): the LUMP text, itemized as one
- * End-of-Turn grant per card played, each a SEPARATE INSTANCE rather than one grant of N× the rate. (Kringle
- * used this too until 2026-09-22, when the owner moved it to the REPEAT pattern — `eotRepeatTick`, base + one
- * per card, each its own beat. Striker keeps its n waves inside its one beat.) The difference is what the
- * board's watchers see: "when a Dwarf gains Attack" (Kneel / Tankerchief) and the self-reactors (Hunter,
- * Sergeant) must fire once per wave, so each wave dispatches `fireOnGainAttack` for the bodies it lifted —
- * instead of leaving it to the action boundary, which diffs the whole action once and would pay one trigger
- * for N waves. The uids are recorded in `gainAttackFiredUids` so that boundary (and the End-of-Turn projection)
- * skip them rather than dispatching the same gain a second time.
- *
- * Every wave keeps Kringle's `fxWave` tag, so the UI still plays the grants as N visible pulses.
- */
-function eotPerCardWaves(state: RunState, self: BoardCard, targets: readonly BoardCard[], a: number, h: number): void {
-  const played = state.playedThisTurn?.length ?? 0;
-  if (played <= 0 || (a <= 0 && h <= 0) || targets.length === 0) return;
-  for (let wave = 0; wave < played; wave++) {
-    const before = state.recruitBuffFx.length;
-    captureBuffFx(state, self, 'minion', () => {
-      for (const target of targets) addBuff(target, nameOf(self), a, h);
-    });
-    for (let i = before; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fxWave = wave;
-    if (a > 0) {
-      for (const target of targets) {
-        if (!state.board.some((c) => c.uid === target.uid)) continue;
-        (state.gainAttackFiredUids ??= []).push(target.uid);
-        captureBuffFx(state, target, 'minion', () => fireOnGainAttack(state, target));
-      }
     }
   }
 }
@@ -12207,6 +12315,26 @@ export function noteSpellForCountRunes(state: RunState, spellId: string): void {
   }
 }
 
+/**
+ * The spell-IDENTITY growers (Goldilox, owner 2026-09-24: "shop spells cast from anywhere count") for a cast
+ * that bypasses `noteSpellCast`: the legacy End-of-Turn minion casts (Soul Defiler, Rope Wrangler, Arnold, the
+ * escalating caster) resolve the spell and bump the tallies by hand, so the generic `spellCast` watchers never
+ * hear them. Routing those casts through `noteSpellCast` would change every watcher, rune and copy memory at
+ * once, so this pays ONLY Goldilox (board + hand) — the factory itself decides whether the spell qualifies.
+ */
+function fireShopSpellGrowers(state: RunState, spellDef: CardDef): void {
+  const ctx = makeContext(state);
+  for (const card of [...state.board, ...state.hand]) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def || def.spell) continue;
+    for (const effect of def.effects) {
+      if (effect.on !== 'spellCast' || effect.do !== 'shopSpellCastGrowSelf') continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, spellDef }));
+    }
+  }
+}
+
 export function noteSpellCast(state: RunState, spellDef: CardDef): void {
   // A REWARD card (`token: true` — Goldcrafter, Implosion, Copycat, the Triple Reward…) is NOT a Shop spell
   // (owner rule 2026-08-01, extended to every cast path 2026-08-04): it resolves its own effect and nothing
@@ -12322,6 +12450,18 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
       // `spellDef` lets a watcher record WHICH spell was cast (Spellkeeper's "the first one"), not just that
       // one was. Fires only for SHOP SPELLS — Rubies don't route through `castSpell`, so they never count here.
       if (fn) for (let rep = 0; rep < reps; rep++) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, spellDef }));
+    }
+  }
+  // HAND watchers of the cast (`alsoInHand` — Goldilox, owner 2026-09-24: "Gains 2x while in hand"): a card in
+  // hand hears the cast too. Board-only `spellCast` watchers stay asleep in hand, exactly as `fireOnTribePlayed`
+  // keeps a board watcher asleep there.
+  for (const card of [...state.hand]) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def || def.spell) continue;
+    for (const effect of def.effects) {
+      if (effect.on !== 'spellCast' || effect.params?.alsoInHand !== true) continue;
+      const fn = RECRUIT_FACTORIES[effect.do];
+      if (fn) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, spellDef }));
     }
   }
 }

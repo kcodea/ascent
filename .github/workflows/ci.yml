@@ -10,8 +10,16 @@ on:
   push:
     branches: [main]
 
+# A new push to a PR cancels that PR's stale run (it can no longer merge anyway). Runs on `main` are
+# NEVER cancelled: each push to main gets its own group (keyed by SHA) and cancel-in-progress is off
+# for push events, so every commit that lands on main keeps a complete verdict.
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  verify:
+  # Everything that is not vitest, in one job that runs alongside the test shards (~2 min total).
+  checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,5 +33,44 @@ jobs:
       - run: npm run typecheck:pkgs  # engine: core/content/sim/tools — the highest-value Claude-break catcher
       - run: npm run typecheck:web   # presentation: @game/ui + apps/web (vite build strips types, so this is the ONLY gate)
       - run: npm run lint        # eslint (incl. the Math.random ban in core/content/sim/tools)
-      - run: npm test            # vitest: determinism + golden + effect tests
       - run: npm run build:web   # vite build MUST succeed = the game compiles
+
+  # vitest: determinism + golden + effect tests, split across parallel runners. The single-job run took
+  # ~26 min; vitest shards BY FILE, so the floor is the slowest single test file (the balance self-play
+  # suites — see the per-file timings in the PR that introduced this). If you change SHARDS, keep the
+  # matrix list and the `--shard=N/<total>` denominator in sync.
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false  # one red shard must not hide the others' failures
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test -- --shard=${{ matrix.shard }}/6
+
+  # THE REQUIRED CHECK. `main`'s org-level policy requires a status named exactly `verify` — do not rename
+  # this job. It always runs (`if: always()`) and fails unless EVERY needed job succeeded, so a failed,
+  # skipped or cancelled shard can never read as green.
+  verify:
+    if: always()
+    needs: [checks, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: All checks and test shards passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "needs results: $RESULTS"
+          [ -n "$RESULTS" ] || { echo "::error::no needed-job results"; exit 1; }
+          for r in $RESULTS; do
+            if [ "$r" != "success" ]; then
+              echo "::error::a required job finished as '$r'"
+              exit 1
+            fi
+          done

@@ -20,7 +20,7 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor } from './recruit';
+import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, COMMISSION_DELAY, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor } from './recruit';
 import { handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS } from './state';
 import { alignmentsOf } from './alignment';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
@@ -548,6 +548,13 @@ function takeDiscoverPick(s: RunState, index: number): boolean {
     }
     // The offer is gone (bought or rerolled behind a queued Discover) — fall through and grant to hand rather
     // than silently dropping the pick.
+  }
+  // A discovered RUBY (Prismatic Pick's "Discover a Ruby", owner Ruby batch 2026-09-24) is MINTED, not conjured:
+  // `mintRubies` bakes the run's live Ruby strength (base + `rubyBonus`) the way every other Ruby arrives, and
+  // fires the get-a-Ruby watchers. Conjuring it would hand over a flat printed 1/1 that ignores your Ruby power.
+  if (def.ruby) {
+    mintRubies(s, 1, def.id);
+    return true;
   }
   const dcb = cardBuff(s, def.id); // a discovered Fodder carries Ritualist's run buff
   // The hand is a hard 10-card cap: a Discover into a full hand adds nothing (the pick is forfeit rather
@@ -1416,6 +1423,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   s.shopEaten = []; // Set 2's shop-minion consume swirl — same per-action contract, separate channel
   s.starformFx = []; // Set 3's Starform pulls (consume-shop / consumed / collapse) — same per-action contract
   s.bounceFx = []; // the cross-target re-cast hops (spell-bounce / ruby-bounce) — same per-action contract
+  if (s.rubyRiderFx?.length) s.rubyRiderFx = []; // the special-Ruby rider cues (Ripple / Dark / Golden) — same per-action contract
   s.lassoFx = []; // the Shop steals this action (the `lasso` beam cascade) — same per-action contract
   s.castFx = []; // the rune-/minion-cast spells this action (the cast preview) — same per-action contract
   s.gainCardFiredUids = []; // per-action: which hand arrivals already fired onGainCard (see the hand diff in `reduce`)
@@ -1822,11 +1830,25 @@ function reduceCore(state: RunState, action: Action): RunState {
         // direct target alone, which is why a Ruby bounced by Resonance Idol landed without its Ward (owner
         // report 2026-09-23).
         const kw = def.rubyGrantKeyword;
+        // THE SPECIAL RUBIES (owner batch 2026-09-24): a Golden / Splintered / Ripple / Dark Ruby carries a KOBOLD
+        // rider. "If it is a Kobold" reads the TARGET's tribes (dual + All-types count). RIPPLE is a second real
+        // cast: every cast that lands on a Kobold lands AGAIN on the same minion (+ its on-Ruby watchers) and
+        // counts as a Ruby cast of its own for every tally below — but never ripples a third time. The action
+        // riders (Gold / bounce / devour) resolve once per cast on the direct target (`applyRubyRiderAction`).
+        const riderKobold = !!def.rubyRider && (boardTarget ? isTribe(boardTarget, 'kobold') : offer ? defIsTribe(CARD_INDEX[offer.cardId], 'kobold') : false);
+        const ripple = riderKobold && def.rubyRider === 'ripple';
+        const landings = ripple ? casts * 2 : casts; // resolved Ruby casts — Ripple's echo is one per cast
+        const riderTargetUid = boardTarget?.uid ?? offer?.uid;
+        if (ripple && riderTargetUid) for (let n = 0; n < casts; n++) recordRubyRiderFx(s, riderTargetUid, 'ripple');
         if (boardTarget) {
           for (let n = 0; n < casts; n++) {
-            addBuff(boardTarget, 'Ruby', card.attack, card.health);
-            // Set 2 — the target's "when a Ruby is played on this" effects (Ruby Broker → Gold, Resonance → bounce).
-            fireOnRubyPlayed(s, boardTarget, card.attack, card.health, kw);
+            for (let r = 0; r < (ripple ? 2 : 1); r++) {
+              addBuff(boardTarget, 'Ruby', card.attack, card.health);
+              // Set 2 — the target's "when a Ruby is played on this" effects (Ruby Broker → Gold, Resonance → bounce).
+              fireOnRubyPlayed(s, boardTarget, card.attack, card.health, kw);
+            }
+            // The action rider, once per cast, after the stats landed (Dark Ruby: "Grant the Ruby, then consume").
+            if (riderKobold && !ripple) applyRubyRiderAction(s, boardTarget, def, card.attack, card.health);
           }
           // Rune of Redirection: a Ruby landing on your LEFT-most minion also casts on your right-most. Fires
           // the target's own on-Ruby watchers too, so the second landing is a real Ruby cast rather than a
@@ -1835,21 +1857,23 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (s.runeRedirection && boardTarget === s.board[0] && tail && tail !== boardTarget) {
             procRuneId(s, 'rune_redirection');
             // One extra landing per copy held (owner 2026-08-27, unique-engine doubling).
-            for (let n = 0; n < casts * runeStacksOf(s, 'rune_redirection'); n++) {
+            for (let n = 0; n < landings * runeStacksOf(s, 'rune_redirection'); n++) {
               addBuff(tail, 'Ruby', card.attack, card.health);
               recordBounceFx(s, 'ruby', boardTarget.uid, tail.uid); // the hop: left-most → right-most
               fireOnRubyPlayed(s, tail, card.attack, card.health, kw);
             }
           }
         } else if (offer) {
-          for (let n = 0; n < casts; n++) addOfferBuff(offer, 'Ruby', card.attack, card.health);
+          for (let n = 0; n < landings; n++) addOfferBuff(offer, 'Ruby', card.attack, card.health);
+          // Golden Ruby on a Kobold OFFER still pays (its target is `any`): the Gold is the rider, not the body's.
+          if (riderKobold && def.rubyRider === 'gold') for (let n = 0; n < casts; n++) { gainGold(s, 2); recordRubyRiderFx(s, offer.uid, 'gold'); }
           // Rune of Distillation says "Spells", not "Shop Spells" (owner 2026-08-04) — a RUBY cast on a Shop
           // minion also casts on your left-most AND right-most minion (balance 9/23): real Ruby landings (stat
           // buff + each target's own on-Ruby watchers), mirroring the spell path's Distillation echo below.
           const edges = s.runeDistillation ? distillationEdges(s) : [];
           if (edges.length > 0) procRune(s, 'runeDistillation');
           // One extra landing per copy held (owner 2026-08-27, unique-engine doubling).
-          for (const edge of edges) for (let n = 0; n < casts * runeStacksOf(s, 'rune_distillation'); n++) {
+          for (const edge of edges) for (let n = 0; n < landings * runeStacksOf(s, 'rune_distillation'); n++) {
             addBuff(edge, 'Ruby', card.attack, card.health);
             recordBounceFx(s, 'ruby', offer.uid, edge.uid); // the hop: the Shop offer → your edge minion
             fireOnRubyPlayed(s, edge, card.attack, card.health);
@@ -1882,22 +1906,22 @@ function reduceCore(state: RunState, action: Action): RunState {
         // measure the SAME number — counting rubies on their own meter here would let the two drift and a
         // 3-cast threshold fire early or late depending on the mix.
         const umbrellaBefore = s.spellsCast + rubyCastsBefore;
-        s.rubyCasts = rubyCastsBefore + casts;
+        s.rubyCasts = rubyCastsBefore + landings;
         // ONE per play (not `casts`): this is the first-N-each-turn gate's meter, and counting resolved
         // casts made the doubled first Ruby consume the whole window (2026-08-06, with the Resonance rework).
         s.rubyCastsThisTurn = (s.rubyCastsThisTurn ?? 0) + 1;
-        advanceRuneThresholds(s, 'castRuby', casts); // Rune of the Cindergem / the Gem Dividend
-        fireRunicHoard(s, casts); // Rune of the Runic Hoard (balance 9/23): "When you cast a Spell" — a Ruby is a spell (Forsaken Mage ruling 2026-09-09)
+        advanceRuneThresholds(s, 'castRuby', landings); // Rune of the Cindergem / the Gem Dividend
+        fireRunicHoard(s, landings); // Rune of the Runic Hoard (balance 9/23): "When you cast a Spell" — a Ruby is a spell (Forsaken Mage ruling 2026-09-09)
         consumeGrimoireCharge(s); // a Ruby spends the Grimoire charge, same as a Shop Spell
         // Rune of the Spellstone: the Ruby ALSO counts as a Shop-spell cast. Deliberately after the Grimoire
         // spend and before the umbrella fire below, and via a narrow counter rather than `noteSpellCast` —
         // that would re-fire the umbrella this path already fires.
-        if (s.runeSpellstone && def) { procRuneId(s, 'rune_spellstone'); countRubyAsShopSpell(s, def, casts); }
+        if (s.runeSpellstone && def) { procRuneId(s, 'rune_spellstone'); countRubyAsShopSpell(s, def, landings); }
         // Watchers that say "a spell" (Forsaken Mage) hear the Ruby too — unless Spellstone already fired them all.
-        else if (def) fireSpellCastWatchersForRuby(s, def, casts);
+        else if (def) fireSpellCastWatchersForRuby(s, def, landings);
         // Charted Skies / the Astral Refrain count EVERY spell (owner 2026-09-18) — a Ruby once per resolution, the
         // way a multiplied Shop spell notes each cast.
-        if (def) for (let n = 0; n < casts; n++) noteSpellForCountRunes(s, def.id);
+        if (def) for (let n = 0; n < landings; n++) noteSpellForCountRunes(s, def.id);
         fireOnRubyCast(s, umbrellaBefore, s.spellsCast + s.rubyCasts); // Gemgorge Fiend: every 3 → Consume a Shop minion
         return s;
       }
@@ -4556,6 +4580,9 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // Set 2 — Rubies gained IN COMBAT (Rikk's Rally, Gemline's Avenge): mint them into hand now, baked with the
   // run's live rubyBonus (identical to a shop-minted Ruby).
   if (result.playerRubyGrants) mintRubies(s, result.playerRubyGrants);
+  // RANDOM Rubies won in combat (Kobe's Pummel, owner Ruby batch 2026-09-24): the TYPE was drawn in combat (so the
+  // replay flew the real Ruby); the mint is here, one at a time, with the live Ruby strength.
+  for (const id of result.playerRubyGrantIds ?? []) mintRubies(s, 1, id);
   // Set 2 — Ruby STRENGTH gained in combat (Veinbreaker's Avenge "buff your Rubies"): raise the run's rubyBonus
   // AND grow every held Ruby — the same effect as the recruit-phase `rubyStatGain`.
   if (result.playerNextTurnSpellCopies) {
@@ -4627,7 +4654,8 @@ function settleCombat(s: RunState, result: CombatResult): void {
     for (const b of result.playerHandBuffs) {
       const card = s.hand.find((c) => c.uid === b.uid);
       if (!card) continue;
-      const srcId = b.source ? result.initial.player.find((m) => m.uid === b.source)?.cardId : undefined;
+      // A hand card that grew ITSELF (Goldilox: source = its own uid) names itself (R-PROV-01).
+      const srcId = b.source ? (b.source === b.uid ? card.cardId : result.initial.player.find((m) => m.uid === b.source)?.cardId) : undefined;
       addBuff(card, (srcId && CARD_INDEX[srcId]?.name) || 'Combat', b.attack, b.health);
     }
   }
@@ -5342,6 +5370,8 @@ function advanceCombat(s: RunState): void {
   // the start-of-turn modal so any quest offer / forge takes priority and the two Discovers stack behind it.
   // These are shop-phase Discovers, so the window opens normally (the no-window rule is END-of-turn only).
   if (s.runeLongShift) { procRuneId(s, 'rune_long_shift'); queueDiscover(s, { kind: 'spell' }); queueDiscover(s, { kind: 'spell' }); }
+  // Rune of Resonance (owner Ruby batch 2026-09-24): "Start of Turn: get a random Ruby." — one per copy held.
+  if (s.runeRubyDrip) { procRuneId(s, 'rune_resonance'); mintRandomRubies(s, runeStacksOf(s, 'rune_resonance')); }
   // Set 3 batch 2 (2026-09-16): Rune of the Astral Draft (a Shop-spell Discover that casts an additional time) and
   // Rune of the Traveling Festival (a random Reveler per copy) — the same start-of-turn slot as the Long Shift.
   if (s.runeAstralDraft) payAstralDraft(s);
@@ -6722,6 +6752,12 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       // The epic half: a CHOICE of Gift, every Start of Turn — first one immediately, like the Long Shift.
       s.runeMerryChristmas = true;
       queueDiscover(s, { kind: 'pool', ids: [...GIFT_IDS] });
+      break;
+    case 'runeRubyDrip':
+      // Rune of Resonance: a random Ruby every Start of Turn — and the first one NOW, on purchase (the owner's
+      // 2026-08-06 ask for this rune: "when you get the rune it should give you a gem immediately").
+      s.runeRubyDrip = true;
+      mintRandomRubies(s, 1);
       break;
     case 'runeLongShift':
       s.runeLongShift = true; // Rune of the Long Shift: Discover 2 Shop spells, repeated every Start of Turn

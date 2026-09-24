@@ -39,7 +39,7 @@ describe('Facetwright (renamed from "Facetwright\'s Choice", display only)', () 
 describe('Pickles: "Choose One: Get 3 Rubies or a Facetwright."', () => {
   it('prints both halves (gilded 6 Rubies / 2 Facetwrights) and declares one primitive per branch', () => {
     const c = CARD_INDEX['k3_splitpick']!;
-    expect([c.tier, c.attack, c.health]).toEqual([3, 5, 3]);
+    expect([c.tier, c.attack, c.health]).toEqual([2, 3, 3]); // T2 3/3 since the 2026-09-24 kobold/dwarf batch
     expect(c.text).toBe('**Choose One:** Get **3 Rubies** or a **Facetwright**.');
     expect(c.goldenText).toBe('**Choose One:** Get **6 Rubies** or **2 Facetwrights**.');
     expect(c.chooseOne!.map((o) => o.effects)).toEqual([
@@ -140,8 +140,9 @@ describe('Kurse: "Avenge (3): Summon a Gemheart Golem with this minion\'s Rubies
 
   it("Gemheart Carver's Echo Golem does NOT attack immediately (wording only, no behaviour change)", () => {
     const c = CARD_INDEX['k_gemheart']!;
-    expect(c.text).toBe("**Echo:** Summon a **Gemheart Golem** with this minion's Rubies.");
-    expect(c.effects[0]!.params).toEqual({ tokenId: 'gemheart-shard' });
+    // Two Golems since the owner Ruby batch 2026-09-24 (`golems: 2`); neither attacks immediately.
+    expect(c.text).toBe("**Echo:** Summon **2 Gemheart Golems** with this minion's Rubies.");
+    expect(c.effects[0]!.params).toEqual({ tokenId: 'gemheart-shard', golems: 2 });
     const r = fight([bm('k_gemheart', 'GC', 5, 1), bm('sandbag', 'f1', 0, 50)], [bag(1, 400)]);
     const { golem, next } = afterGolem(r.events);
     expect(next?.attacker).not.toBe(golem);

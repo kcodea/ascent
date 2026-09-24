@@ -173,7 +173,7 @@ describe('Ruby engine (set 2)', () => {
     const wr = s.hand.find((c) => c.cardId === 'warding-ruby')!;
     s = reduce(s, { type: 'play', uid: wr.uid, targetUid: 'm' });
     const m = s.board.find((c) => c.uid === 'm')!;
-    expect([m.attack, m.health]).toEqual([3, 3]); // +1/+1
+    expect([m.attack, m.health]).toEqual([3, 4]); // +1/+2 (owner Ruby batch 2026-09-24)
     expect(m.keywords.includes('DS')).toBe(true); // Ward
   });
 

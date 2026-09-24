@@ -259,6 +259,9 @@ export interface EffectArena {
   /** Get `count` Rubies in hand (combat: the grant channel, minted at settle with the run's live Ruby
    *  power; shop: `mintRubies` right now — the same line, same bonus). */
   grantRubies(count: number): void;
+  /** Get `count` RANDOM Rubies (each drawn separately from all six types, `RUBY_TYPE_IDS`) — combat: the
+   *  carry-back channel (`grantRandomRubies`); shop: `mintRandomRubies` on the run cursor. */
+  grantRandomRubies(count: number): void;
   /** Get `count` random SHOUT minions (a real `onPlay`) from the run's pinned pool, tier-capped. */
   grantRandomShoutMinion(count: number): void;
   /** Does this body carry an effect on `on` (optionally with a specific `do`)? Combat reads the LIVE
@@ -413,10 +416,20 @@ export const ARENA_EFFECTS = {
     const g = arena.self.golden ? 2 : 1;
     const t = arena.rubyTallyOf(arena.self);
     const id = typeof params.tokenId === 'string' && params.tokenId ? params.tokenId : 'gemheart-shard';
+    // `golems` (Gemheart Carver, owner Ruby batch 2026-09-24: "Summon 2 Gemheart Golems with this minion's Rubies"):
+    // EACH Golem carries the full tally — the Rubies are copied, not split. `keyword` (Geode Guardian, same batch:
+    // "... with this minion's Rubies and Taunt") rides every Golem. Gilded is the Carver convention for each one:
+    // a 2/2 body with double the Rubies. Board full = the rest are lost, like any summon.
+    // NOT `count`: Kurse's Avenge rides this body with `count` = its Avenge threshold (3).
+    const count = Math.max(1, num(params.golems, 1));
+    const keyword = typeof params.keyword === 'string' && params.keyword ? params.keyword : undefined;
     // `charge` (Kurse, owner 2026-09-24: "It attacks immediately."): the Golem swings the moment it lands via the
     // immediate-attack lane (combat `attackNow`; meaningless in a shop, where the adapter ignores it). Carver
     // leaves it off — its Golem waits its turn.
-    arena.summonToken(id, { attack: (1 + t.attack) * g, health: (1 + t.health) * g, rubyLabel: true, charge: params.charge === true });
+    for (let i = 0; i < count; i++) {
+      const made = arena.summonToken(id, { attack: (1 + t.attack) * g, health: (1 + t.health) * g, rubyLabel: true, charge: params.charge === true, ...(keyword ? { keyword } : {}) });
+      if (!made) break;
+    }
   },
 
   /** Geode Guardian — Echo: summon `count` Golems (default 2, NOT golden-scaled — owner: a Gilded copy still
@@ -1496,6 +1509,32 @@ export const ARENA_EFFECTS = {
   /** Boulderdash — Rally: play `count` PERMANENT Rubies on itself (× golden). */
   rallyPlayRubiesSelf(arena: EffectArena, params: Record<string, unknown>): void {
     arena.playRubiesOn(arena.self, num(params.count, 1) * gold(arena), params.permanent === true);
+  },
+
+  /** Shardluck (owner Ruby batch 2026-09-24) — "Play 3 Rubies on your Kobolds": `count` (x golden) PLAIN Rubies,
+   *  EACH on a random OTHER friendly `tribe` minion, drawn per Ruby so a spread is real. A random pick is a CHOICE,
+   *  so the source is never in the pool (R-TARGET-03: no fallback to self — alone, nothing lands). `isTribe`
+   *  counts dual tribes and All-types bodies. */
+  battlecryPlayRubiesRandomTribe(arena: EffectArena, params: Record<string, unknown>): void {
+    const named = params.tribe;
+    const tribe = typeof named === 'string' ? named : '';
+    const total = num(params.count, 1) * gold(arena);
+    const rng = arena.rng();
+    for (let i = 0; i < total; i++) {
+      const pool = arena.friends().filter((m) => m.uid !== arena.self.uid && (!tribe || arena.isTribe(m, tribe)));
+      if (pool.length === 0) return;
+      arena.playRubiesOn(pool[rng.int(pool.length)]!, 1);
+    }
+  },
+
+  /** Gemheart Legionnaire (owner Ruby batch 2026-09-24) — "When you summon a Gemheart Golem, this casts 5
+   *  permanent Rubies on itself." Any source, any phase: the watcher hears every friendly `onSummon` and checks
+   *  the arriver's card id. PERMANENT, so a combat Golem's Rubies carry back to the run card. Golden doubles. */
+  onSummonCardPlayRubiesSelf(arena: EffectArena, params: Record<string, unknown>): void {
+    const arriver = params.arriver as ArenaBody | undefined;
+    const cardId = typeof params.cardId === 'string' && params.cardId ? params.cardId : 'gemheart-shard';
+    if (!arriver || arriver.uid === arena.self.uid || arriver.cardId !== cardId) return;
+    arena.playRubiesOn(arena.self, num(params.count, 5) * gold(arena), true);
   },
 
   /** Blazer — Rally: play `count` PERMANENT Rubies on EVERY friendly minion (× golden). */

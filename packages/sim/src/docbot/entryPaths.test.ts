@@ -90,11 +90,14 @@ describe('Doc Bot — entry paths: the non-shop worklist', () => {
     expect(scan.refused, `Non-shop cast(s) the reducer refused after a real arrival: ${scan.refused.join(', ')}`).toEqual([]);
   });
 
-  it('unstaged paths are a pinned queue (1 as of 2026-09-11: warding-ruby)', () => {
-    // warding-ruby: named only by Facetbound's def (a Choose One branch mints it via a mechanism the play
-    // stager's branch sweep does not deliver into the hand under the fixture). A NEW entry here means a new
-    // non-shop cast the lane cannot reach — extend stageArrival or the card ships untested by this lane.
-    expect(Object.keys(scan.unstaged).sort(), `unstaged: ${JSON.stringify(scan.unstaged)}`).toEqual(['warding-ruby']);
+  it('unstaged paths are a pinned queue (4 as of 2026-09-24: three special Rubies + Ruby Blast)', () => {
+    // The special Rubies (owner Ruby batch 2026-09-24) arrive only through "a random Ruby" (a seeded draw over all
+    // six types) or Prismatic Pick's Discover, so the stager's single Ruby Shipment cast delivers whichever types
+    // the fixture seed draws (Warding + Golden today) and not the rest; their casts are driven directly in
+    // rubyTypes.test.ts. `rubyblast` is Blast Pump's payload: an Equipment casts it, it never reaches the hand.
+    // A NEW entry here means a new non-shop cast the lane cannot reach — extend stageArrival or the card ships
+    // untested by this lane.
+    expect(Object.keys(scan.unstaged).sort(), `unstaged: ${JSON.stringify(scan.unstaged)}`).toEqual(['dark-ruby', 'ripple-ruby', 'rubyblast', 'splintered-ruby']);
   });
 
   it('every cast-shaped, named worklist item lands in exactly one bucket (nothing is silently skipped)', () => {

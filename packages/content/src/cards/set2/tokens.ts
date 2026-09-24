@@ -60,8 +60,30 @@ export const SET2_TOKENS: CardDef[] = [
   {
     // Warding Ruby (Wardstone Jeweler): a Ruby that also grants Ward (Divine Shield). `target: 'friendly'` — Ward
     // needs a real board minion (an offer can't carry a keyword). Permanent when cast in the shop (owner ruling).
+    // Owner Ruby batch 2026-09-24: its base grant is +1/+2 ("Give a minion +1/+2. If it is a Kobold, give it
+    // Ward.") — the def's 1/2 IS the base a mint bakes the run's Ruby strength onto.
     id: 'warding-ruby',
     name: 'Warding Ruby',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 1,
+    health: 2,
+    keywords: [],
+    effects: [],
+    token: true,
+    ruby: true,
+    rubyGrantKeyword: 'DS',
+    target: 'friendly',
+    text: 'Give a minion **+1/+2**. If it is a **Kobold**, give it **Ward**.',
+  },
+  // ── THE SPECIAL RUBIES (owner batch 2026-09-24) ─────────────────────────────────────────────────────────────
+  // Four more Ruby types, each a 1/1 Ruby (base + the run's Ruby strength, baked at mint like every Ruby) with a
+  // KOBOLD rider (`rubyRider`, resolved by the reducer's play-Ruby branch — see `RubyRider` in core). Reached only
+  // through "a random Ruby" (`RUBY_TYPE_IDS`: all six types at equal odds) and Prismatic Pick's Discover.
+  {
+    // `any`, like the plain Ruby: the Gold is the Ruby's, so a Kobold in the Shop pays it too.
+    id: 'golden-ruby',
+    name: 'Golden Ruby',
     tribe: 'neutral',
     tier: 1,
     attack: 1,
@@ -70,9 +92,74 @@ export const SET2_TOKENS: CardDef[] = [
     effects: [],
     token: true,
     ruby: true,
-    rubyGrantKeyword: 'DS',
+    rubyRider: 'gold',
+    target: 'any',
+    text: 'Give a minion **+1/+1**. If it is a **Kobold**, gain **2 Gold**.',
+  },
+  {
+    // `friendly`: the bounce is Resonance Idol's hop, which leaves FROM a board minion to another one.
+    id: 'splintered-ruby',
+    name: 'Splintered Ruby',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [],
+    token: true,
+    ruby: true,
+    rubyRider: 'bounce',
     target: 'friendly',
-    text: 'Give a minion **+1/+1**. Also give it **Ward** if it is a **Kobold**.',
+    text: 'Give a minion **+1/+1**. If it is a **Kobold**, it bounces once.',
+  },
+  {
+    // `any`: a second cast on the same body works on a Shop offer as well as a warband minion.
+    id: 'ripple-ruby',
+    name: 'Ripple Ruby',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [],
+    token: true,
+    ruby: true,
+    rubyRider: 'ripple',
+    target: 'any',
+    text: 'Give a minion **+1/+1**. If it is a **Kobold**, it casts again.',
+  },
+  {
+    // `friendly`: the consume is performed BY your minion (the eaten stats become its Rubies), so it needs a body.
+    id: 'dark-ruby',
+    name: 'Dark Ruby',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [],
+    token: true,
+    ruby: true,
+    rubyRider: 'devour',
+    target: 'friendly',
+    text: 'Give a minion **+1/+1**. If it is a **Kobold**, it consumes the highest Health minion in the Shop as Rubies.',
+  },
+  {
+    // Blast Pump's payload (owner Ruby batch 2026-09-24: "Cast a Ruby on all of your minions", Gilded casts 2 on
+    // each). A TOKEN Shop spell (never drawn, like Implosion) so the Equipment keeps its Equipment-Spell
+    // classification: the activation still counts as casting a Shop spell. Gilded casts it twice.
+    id: 'rubyblast',
+    name: 'Ruby Blast',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 0,
+    token: true,
+    effects: [{ on: 'cast', do: 'spellPlayRubiesAll', params: { rubies: 1 } }],
+    text: 'Cast a **Ruby** on all of your minions.',
   },
   {
     // Gemheart Carver's Echo summons this with stats copied from the Rubies on Gemheart (via `copyStats`), so

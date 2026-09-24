@@ -657,8 +657,8 @@ hand**, so nothing ever reaches one and an enemy's watcher never fires. The even
 hand actually received the card.
 
 **How it is enforced.** Each phase supplies its own dispatcher — the shop diffs the hand by uid in `reduce`
-(so a new `hand.push` site cannot forget to fire it), combat emits from `ctx.grantToHand` / `ctx.grantRubies`
-(the only two ways a card reaches a hand mid-fight). Both run the *same* effect bodies, in
+(so a new `hand.push` site cannot forget to fire it), combat emits from `ctx.grantToHand` / `ctx.grantRubies` /
+`ctx.grantRandomRubies` (the only ways a card reaches a hand mid-fight). Both run the *same* effect bodies, in
 `ARENA_EFFECTS`, so the two phases cannot drift apart.
 
 ---
@@ -841,8 +841,8 @@ the number.
 Two wordings, two resolutions:
 
 - **LUMP** — *"give a minion +x/+y, +a/+b for every C you played"* and *"+x/+y for each C"*: **one** buff
-  instance whose magnitude is computed from the count. One tick, one beat, one ribbon per target. Striker
-  (*"+1 Attack for each card you played this turn"*) and Baby Gastrid (*"+2 Health per Gold spent"*) are this.
+  instance whose magnitude is computed from the count. One tick, one beat, one ribbon per target. Baby Gastrid
+  (*"+2 Health per Gold spent"*) is this. (Striker was too, until 2026-09-24.)
 - **REPEAT** — *"give a minion +x/+y. Repeat for every C played this turn"*: the **base** buff lands once, then
   once more per C, `1 + count` ticks in all, and **every tick is its own instance** — its own stat delta, its own
   buff signal, its own beat — so the buffs visibly land one after another and the End of Turn runs longer when
@@ -855,6 +855,8 @@ Two wordings, two resolutions:
 **Mother Moss** (*"give a random Spirit +3/+4. Repeat for every Spirit played this turn"*) and **Kringle**
 (*"give your left and right-most Dwarves +1/+2. Repeat for every card you played this turn"*) are the REPEAT
 form. Kringle moved to it on 2026-09-22 (it was the LUMP form, `n ×` the rate); its total is now `(n + 1) ×`.
+**Striker** (*"give adjacent minions +1 Attack. Repeat for every card played this turn"*) moved to it on 2026-09-24
+(R-REPEAT-03): its neighbours take +1 Attack `1 + cards played` times, one tick each, even on a turn with nothing played.
 Squirl Scout's Battlecry and Dragonflame's shop cast are REPEAT in the sim and draw one ribbon per repeat.
 Rocket Power (*"give this shop +3/+3. Repeat for every Shop spell you cast this turn"*) resolves as `1 + spells`
 ticks on the shop row (one ledger instance per tick; the total is unchanged) and its text prints the tick count;
@@ -862,6 +864,15 @@ the row itself still re-renders once, because the Shop has no per-offer buff cue
 Open (owner forks, unchanged): a per-offer, per-tick cue on the shop row; Mother Moss keeps itself in its random
 pool; Squirl Scout (*"Repeat for every Beast you own"*) fires once per Beast owned with itself as one of them, so
 the Scout is the base tick rather than `1 +` Beasts; combat-phase repeats still collapse into one buff wave.
+
+### "When you cast a Shop spell" (Goldilox) hears every Shop spell, from anywhere (owner rule 2026-09-24, R-SHOPSPELL-01)
+
+A **Shop spell** is a spell from the set's Shop-spell pool, Dwarven Ales included. Rubies, Clues and other Gifts,
+and reward or token spells are not Shop spells. **Goldilox** (*"When you cast a Shop spell, gain +3/+2. Gains 2x
+while in hand."*) grows on every Shop spell cast by any source (your hand, a rune, an Equipment, a minion, an End of
+Turn cast) in every phase: +3/+2 on the board, +6/+4 in the hand, doubled when gilded. A spell cast in combat grows it
+too, and those stats are permanent: a board Goldilox keeps them after the fight, and a hand Goldilox takes them as a
+hand buff (R-HAND-02), shown live during the replay. Only your own casts count.
 
 ### An Aura-affecting spell is permanent from any phase (owner rule 2026-09-09, R-AURA-02)
 
@@ -884,6 +895,29 @@ and its machine-checkable predicate live in the language guide as **LG-SCOPE-01*
 
 Unrelated and **reserved**: the owner's own **Rise / Reborn → Rebirth** rename is still in flight and was not
 touched here (LG-KEYWORD-02).
+
+### Ruby types (owner Ruby batch 2026-09-24; R-RUBY-02, R-RUBY-03, R-RAND-02)
+
+There are **six Ruby types**. Every one grants its printed stats plus the run's Ruby improvements; five carry a
+rider that fires only when the Ruby's **target is a Kobold** (dual-tribe and All-types bodies count):
+
+| Ruby | Grant | Kobold rider |
+| --- | --- | --- |
+| Ruby | +1/+1 | none |
+| Warding Ruby | +1/+2 | give it Ward |
+| Golden Ruby | +1/+1 | gain 2 Gold |
+| Splintered Ruby | +1/+1 | the Ruby bounces once to a random other friendly minion |
+| Ripple Ruby | +1/+1 | it casts again on the same minion (a real cast, never a third) |
+| Dark Ruby | +1/+1 | it consumes the Shop minion with the highest Health (ties: leftmost; the Starform counts) and gains its stats as Rubies; no Shop minion, no consume |
+
+- **"A random Ruby"** is any of the six at equal odds, each Ruby drawn separately (Ruby Shipment, Kobe, Gem Sage,
+  Rune of Resonance, Rune of Investment). "Get N Rubies" without "random" stays plain Rubies.
+- A rider resolves **once per cast** on the direct target; a cast multiplier repeats the whole cast (under Rune of
+  Resonance a Ripple lands four times). A **hop** (a bounce, Rune of Redirection / Distillation) carries the
+  stats and the Ward only.
+- **Gem Sage** pays a random Ruby for every Ruby that reaches your hand; a Sage's own Rubies never re-trigger a
+  Sage. A Ruby won in combat reaches the hand at settle, so the Sage pays there.
+- The special Rubies are only ever cast from the hand in the Shop today; no combat effect casts one.
 
 ---
 

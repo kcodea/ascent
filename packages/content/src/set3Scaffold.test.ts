@@ -29,20 +29,23 @@ describe('set 3 scaffold', () => {
     expect(p.buyable.map((c) => c.id)).toEqual([
       'e3_frank', 'e3_sculptor',
       // Set 3's OWN Kobolds (the 2026-08-30 roster), appended in declaration order…
-      'k3_korn', 'k3_splitpick', 'k3_forkvein', 'k3_veinchant', 'k3_jeweler', // Gem Bus (k3_forkroad) archived 2026-09-09
+      'k3_korn', 'k3_splitpick', 'k3_veinchant', 'k3_jeweler', // Gem Bus (k3_forkroad) archived 2026-09-09; Gemsmith (k3_forkvein) 2026-09-24
       'k3_blastsurveyor',
       'k3_facetbound',
       'k3_doubletrouble',
-      'k3_forksong', 'k3_forkedcrown', 'k3_rubyroach', 'k3_porkbelly', 'k3_prismpick', 'k3_runespark', 'k3_kaura',
+      'k3_forksong', 'k3_rubyroach', 'k3_porkbelly', 'k3_prismpick', 'k3_runespark', 'k3_kaura', // Double Dealer (k3_forkedcrown) archived 2026-09-24
       'k3_kurse', // appended 2026-09-19 (owner handoff 2026-09-18)
       'k3_goldvein', // appended 2026-09-19 (owner handoff)
+      'k3_legionnaire', // appended 2026-09-24 (owner Ruby batch)
+      'k3_dealski', // appended 2026-09-24 (owner Ruby batch)
       // …then the six set-2 Kobolds it keeps (Chipwick Prospector left 2026-09-19 — owner handoff; still a set-2 card).
       'k_gemheart', 'k_geode', 'k_kobabyboldies',
-      'k_kobe', 'k_boulderdash', 'k_blazer',
+      'k_kobe', 'k_boulderdash', 'k_beggy', 'k_blazer', // Beggy back in set 3 (owner 2026-09-24), at its set-2 position
       // …then the DWARVES (owner roster 2026-09-09): set 3's eight new ones, appended AFTER the Kobolds so no
       // Kobold moved, then the fourteen set-2 Dwarves it keeps (shared definitions, same as the Kobolds).
       'dw3_shiftbroker', 'dw3_striker', 'dw3_pourman', 'dw3_hankpepe', 'dw3_tromboneer', 'dw3_kneel',
       'dw3_thymes', 'dw3_tankerchief', 'dw3_hangover', // Han Gover appended 2026-09-18
+      'dw3_goldilox', // Goldilox appended 2026-09-24 (owner batch)
       'dw_brunni', 'dw_coinfire', 'dw_brakka', 'dw_dorrin', 'dw_foreman', 'dw_brewer', 'dw_tapkeeper',
       'dw_bladethrower', 'dw_thane', 'dw_pimm', 'dw_edward', 'dw_mountainbond', 'dw_billings', 'dw_gangplank',
       // …then the UNDEAD (owner roster 2026-09-09): set 3's eleven new ones (+ Bicycle Bob, 2026-09-18), then the ten set-1 Undead it keeps
@@ -88,10 +91,16 @@ describe('set 3 scaffold', () => {
       expect(CARD_INDEX[id], id + ' still resolves').toBeTruthy();
     }
     // Dropped from set 3, and the ONLY thing that changed is set membership — leaving a set is not archiving.
-    expect(p.all.some((c) => c.id === 'k_beggy'), 'Beggy left set 3').toBe(false);
+    // Beggy came BACK on 2026-09-24 (owner kobold/dwarf batch) as a shared set-2 definition; Brisbane stays out.
+    expect(p.all.some((c) => c.id === 'k_beggy'), 'Beggy is back in set 3').toBe(true);
+    expect(poolFor('set2').all.some((c) => c.id === 'k_beggy'), '…and still a set-2 card').toBe(true);
     expect(p.all.some((c) => c.id === 'k_alchemist'), 'Brisbane left set 3').toBe(false);
-    expect(CARD_INDEX['k_beggy'], 'but both still resolve by id').toBeTruthy();
-    expect(CARD_INDEX['k_alchemist']).toBeTruthy();
+    expect(CARD_INDEX['k_alchemist'], 'but still resolves by id').toBeTruthy();
+    // Gemsmith + Double Dealer ARCHIVED (owner 2026-09-24): in no set, still resolvable.
+    for (const [id, name] of [['k3_forkvein', 'Gemsmith'], ['k3_forkedcrown', 'Double Dealer']] as const) {
+      expect(p.all.some((c) => c.id === id), name + ' archived').toBe(false);
+      expect(CARD_INDEX[id]?.name).toBe(name);
+    }
     // The Kobolds must be reachable AS A TRIBE, not merely present: `selectRunTribes` reads this list, so a
     // pool full of Kobolds with an empty `tribes` could never roll a Kobold run.
     expect(SETS.set3.tribes).toEqual(['kobold', 'dwarf', 'undead', 'spirit', 'celestial']);

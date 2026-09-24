@@ -44,9 +44,10 @@ describe('Kurse — Avenge (3): a Gemheart Golem plus its Rubies', () => {
     expect([c.tribe, c.tier, c.attack, c.health]).toEqual(['kobold', 4, 7, 4]);
     // Owner 2026-09-24: the Golem attacks immediately (`charge`), Kurse only; text + behaviour in koboldCelestialDwarf0924.test.ts.
     expect(c.effects).toEqual([{ on: 'avenge', do: 'avengeSummonRubyStats', params: { count: 3, tokenId: 'gemheart-shard', charge: true } }]);
-    // The same printed Golem contract as Gemheart Carver, plus Kurse's own "It attacks immediately."
-    expect(c.text).toBe(CARD_INDEX['k_gemheart']!.text.replace('**Echo:**', '**Avenge (3):**') + ' It attacks immediately.');
-    expect(c.goldenText).toBe(CARD_INDEX['k_gemheart']!.goldenText!.replace('**Echo:**', '**Avenge (3):**') + ' It attacks immediately.');
+    // The same printed Golem contract Gemheart Carver used (Carver summons TWO since the Ruby batch 2026-09-24,
+    // Kurse still one), plus Kurse's own "It attacks immediately."
+    expect(c.text).toBe("**Avenge (3):** Summon a **Gemheart Golem** with this minion's Rubies. It attacks immediately.");
+    expect(c.goldenText).toBe("**Avenge (3):** Summon a **2/2 Gemheart Golem** with double this minion's Rubies. It attacks immediately.");
     expect(poolFor('set3').buyable.some((x) => x.id === 'k3_kurse')).toBe(true);
   });
 

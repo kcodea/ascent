@@ -7372,6 +7372,30 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
    under the Inspect overlay (500), which must keep covering everything. */
 body:has(.book-ov) .cardref { z-index: 490; }
 .book-tier:disabled { opacity: 0.35; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; transform: none; border-color: var(--line); }
+/* THE SET PICKER (owner ask 2026-09-24): the far-right cluster of the tier bar holds the keyword chip (when on)
+   and a custom dropdown that swaps which card set the book shows. Same chip grammar as the tier buttons and the
+   Gilded toggle (2px frame, bg2 face, UI font, lift on hover); the open list reads as a small dark tome page with
+   the gold Gilded face on the picked row. No bare `cursor: pointer` (the global gauntlet rule paints the button;
+   the `li` options take the gauntlet URL form). Open/close is a ONE-SHOT opacity + transform transition. */
+.book-tiers-end { margin-left: auto; display: flex; align-items: center; gap: 10px; position: relative; z-index: 30; }
+.book-tiers-end .book-kwchip { margin-left: 0; }
+.book-setpick { position: relative; }
+.book-setpick-btn { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px 0 14px; border-radius: 11px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.04em; text-transform: uppercase; box-shadow: 0 2px 0 color-mix(in srgb, var(--line) 55%, #000); transition: transform 0.1s, border-color 0.1s, box-shadow 0.1s; }
+.book-setpick-btn:hover { transform: translateY(-2px); border-color: #e7b53d; box-shadow: 0 4px 0 #c8922e; }
+.book-setpick-btn:active { transform: translateY(2px); box-shadow: 0 0 0 #c8922e; transition-duration: 0.06s; }
+.book-setpick-btn:focus-visible { outline: 2px solid #e7b53d; outline-offset: 2px; }
+.book-setpick.is-open .book-setpick-btn { border-color: #e7b53d; }
+.book-setpick-cap { font-size: 10.5px; letter-spacing: 0.1em; opacity: 0.6; }
+.book-setpick-name { white-space: nowrap; }
+.book-setpick-live { display: inline-flex; align-items: center; height: 17px; padding: 0 6px; border-radius: 6px; background: linear-gradient(180deg, #ffd85a, #e7b53d); color: #6e5008; font-family: var(--font-ui); font-weight: 800; font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; }
+.book-setpick-caret { width: 16px; height: 16px; transition: transform 0.14s ease; }
+.book-setpick.is-open .book-setpick-caret { transform: rotate(180deg); }
+.book-setpick-list { position: absolute; top: calc(100% + 8px); right: 0; min-width: 100%; width: max-content; margin: 0; padding: 6px; list-style: none; display: flex; flex-direction: column; gap: 4px; background: #1b1a21; border: 2px solid #e7b53d; border-radius: 12px; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255, 216, 90, 0.12); opacity: 0; visibility: hidden; transform: translateY(-6px) scale(0.97); transform-origin: top right; transition: opacity 0.12s ease, transform 0.12s ease, visibility 0s linear 0.12s; }
+.book-setpick.is-open .book-setpick-list { opacity: 1; visibility: visible; transform: none; transition: opacity 0.12s ease, transform 0.14s cubic-bezier(0.34, 1.2, 0.64, 1), visibility 0s; }
+.book-setpick-opt { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-width: 150px; height: 36px; padding: 0 12px; border-radius: 9px; border: 2px solid transparent; color: var(--ink); font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.04em; text-transform: uppercase; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; outline: none; transition: background 0.08s, border-color 0.08s; }
+.book-setpick-opt.is-focus { background: rgba(255, 216, 90, 0.1); border-color: color-mix(in srgb, #e7b53d 60%, transparent); }
+.book-setpick-opt.on { background: linear-gradient(180deg, #ffd85a, #e7b53d); color: #6e5008; border-color: #c8922e; }
+.book-setpick-opt.on .book-setpick-live { background: #6e5008; color: #ffd85a; }
 /* THE TIER CHART — one bar per tier, centred in the bar's spare width. `--h` (0..1) is the bar's share of the
    tallest tier; the number rides above, the tier below. A picked tier (a lit chip) reads accented; the rest dim
    while any chip is on so the selection reads in the chart too. Bars are buttons and toggle the tier chips. */

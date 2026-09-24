@@ -424,7 +424,9 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
     case 'runeBrokerage':
       return 'Your Ruby Brokers can be triggered endlessly';
     case 'runeSellRubies':
-      return `Get ${r.count === 1 ? 'a Ruby' : `${r.count} Rubies`} when you sell a minion`;
+      return `Get ${r.count === 1 ? 'a random Ruby' : `${r.count} random Rubies`} when you sell a minion`;
+    case 'runeRubyDrip':
+      return 'Start of Turn: get a random Ruby';
     case 'runeOpenMarket':
       return `The first time you Consume a Shop minion each turn, give your Shop +${r.attack}/+${r.health} permanently`;
     case 'motherlode':

@@ -55,4 +55,24 @@ export const SUMMONING_RULES: GameRule[] = [
       + 'greys the hand card off `fromHandUid`. Refined 2026-09-10 by R-HAND-03 (a locked card is never a candidate).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Spirits.test.ts'], lastVerifiedAt: '2026-09-10' },
   },
+  {
+    id: 'R-GOLEM-01',
+    title: 'Every Gemheart Golem summon is heard by Gemheart Legionnaire, in the Shop and in combat',
+    statement:
+      'Gemheart Legionnaire casts 5 permanent Rubies on itself (10 Gilded) for EACH friendly Gemheart Golem '
+      + 'summoned, from any source (Gemheart Carver\'s two, Geode Guardian\'s one, Kurse, Porkbelly, a rune) and in '
+      + 'any phase: a Shop Echo summon lands the Rubies at once, a combat summon lands them for the fight and '
+      + 'carries them back to the run card. Each Golem a Carver or Geode summons is 1/1 plus that minion\'s Rubies '
+      + '(Gilded: a 2/2 with double the Rubies), Geode\'s with Taunt.',
+    domain: 'summoning',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Ruby batch handoff, 2026-09-24', quote: 'When you summon a Gemheart Golem, this casts 5 permanent Rubies on itself.' },
+      { kind: 'owner-chat', ref: 'Ruby batch handoff, 2026-09-24', quote: 'Gilded doubles the rubies of the golem like other cards do' },
+      { kind: 'code', ref: 'packages/core/src/effects/arena.ts onSummonCardPlayRubiesSelf + deathrattleSummonRubyStats (golems / keyword params)' },
+    ],
+    contentIds: ['k3_legionnaire', 'k_gemheart', 'k_geode'],
+    currentBehaviour: 'Conforms as of 2026-09-24.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/rubyTypes.test.ts', 'packages/core/src/combat/simulate.test.ts'], lastVerifiedAt: '2026-09-24' },
+  },
 ];

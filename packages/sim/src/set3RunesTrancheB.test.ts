@@ -65,7 +65,8 @@ describe('tranche B — the roster', () => {
     }
     for (const [id, cost] of EPIC) {
       const r = RUNE_INDEX[id]!;
-      expect(EPIC_RUNES.some((x) => x.id === id), `${id} lives in EPIC_RUNES`).toBe(true);
+      // the Grave Orbit was ARCHIVED 2026-09-24 (owner rulings: "remove them") — out of EPIC_RUNES, into ARCHIVED_RUNES
+      expect(EPIC_RUNES.some((x) => x.id === id), `${id} lives in EPIC_RUNES`).toBe(id !== 'rune_grave_orbit');
       // the Grave Orbit CUT FROM SET 3 2026-09-24 (owner): offered in no set
       expect([r.cost, r.epic, r.sets], id).toEqual([cost, true, id === 'rune_grave_orbit' ? [] : ['set3']]);
     }

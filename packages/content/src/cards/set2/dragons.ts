@@ -406,8 +406,9 @@ export const SET2_DRAGONS: CardDef[] = [
     keywords: [],
     target: 'friendly',
     targetTribe: 'dragon',
-    effects: [{ on: 'onPlay', do: 'battlecryBuffTarget', params: { attack: 3, health: 4 } }],
-    text: '**Shout:** give a friendly **Dragon +3/+4**.',
-    goldenText: '**Shout:** give a friendly **Dragon +6/+8**.',
+    // Owner ruling 2026-09-24: "make humphry - Shout: Give a friendly Dragon +5/+5" (was +3/+4).
+    effects: [{ on: 'onPlay', do: 'battlecryBuffTarget', params: { attack: 5, health: 5 } }],
+    text: '**Shout:** give a friendly **Dragon +5/+5**.',
+    goldenText: '**Shout:** give a friendly **Dragon +10/+10**.',
   },
 ];

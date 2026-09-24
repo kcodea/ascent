@@ -549,7 +549,8 @@ a "your Dwarves" rune reaches a set-3 run only when Dwarf rolled.
 `RUNE_INDEX`, so saves and replays that own one keep working. Two lists: 20 runes the owner named (Kobold, Dwarf,
 Undead, Spirit and Aftershocks), and all 34 runes whose `tribes` gate names only tribes set 3 does not field
 (Dragon, Beast, Demon/Imp, Mech). Rune of the Grave Orbit and Rune of the Full Hand were set-3-only, so they are
-now `sets: []` — defined, offered in no set. Set 3's static pool is now **120 Basic / 107 Epic** (both counts
+now `sets: []` — and the owner then ARCHIVED both the same day ("remove them"; `ARCHIVED_RUNES`, still resolvable
+by id). Set 3's static pool is now **120 Basic / 107 Epic** (both counts
 include the set-3 originals). Full list: `docs/devlog/2026-09-24-set3-rune-cuts.md`; pinned by
 `packages/sim/src/set3RuneCuts.test.ts`.
 

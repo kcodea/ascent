@@ -608,4 +608,32 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-24',
     },
   },
+  {
+    id: 'R-RUNE-17',
+    title: 'Spare Forge / Runic Passage grant a random rune from the run\'s OWN pinned set only, never an archived rune',
+    statement:
+      'The hero-quest rune grant (`grantRune`: Spare Forge a Basic, Runic Passage an Epic) draws from the rarity\'s live '
+      + 'pool (`RUNES` / `EPIC_RUNES`, so archived runes never come up) filtered to runes offered in the run\'s PINNED set: '
+      + 'a rune with no `sets` field counts as every set, otherwise its `sets` must include `setIdOf(state)`. The set comes '
+      + 'from the run\'s own `setId`, never the live `activeSet()`, so flipping the live set never changes an in-flight or '
+      + 'replayed run. Owned runes are skipped, the draw uses the run\'s seeded RNG, and an empty pool is a no-op. The tribe '
+      + 'gate the Runeforge applies is NOT applied here (the ruling names the set only).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-24 (owner rulings: Spare Forge drew from every set)', quote: 'limit to the runs own set only' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts applyQuestReward case \'grantRune\' (the `setIdOf` filter)' },
+      { kind: 'test', ref: 'packages/sim/src/ownerRulings0924.test.ts' },
+    ],
+    contentIds: ['hq_spare_forge', 'hq_runic_passage'],
+    currentBehaviour:
+      'Conforms as of 2026-09-24. Before, the grant drew from the whole rarity list, so a Set 3 run could be handed a '
+      + 'Set-2-only Ruby or Ale rune. The draw order is unchanged apart from the filter, so a same-seed grant can now land a '
+      + 'different rune; a recorded run keeps the rune it was handed (`ownedRunes` is stored, replays never re-draw).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/ownerRulings0924.test.ts', 'packages/sim/src/heroQuests.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
 ];

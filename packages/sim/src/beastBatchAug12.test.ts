@@ -21,7 +21,7 @@ const riseOn = (r: ReturnType<typeof simulate>, uid: string, source?: string) =>
   (r.events.filter((e) => e.type === 'keyword') as { target: string; keyword: string; source?: string }[])
     .filter((k) => k.target === uid && k.keyword === 'R' && (!source || k.source === source));
 describe('Wolvie — Echo gives a Beast +2/+4 and Rise', () => {
-  it('a random other Beast gets +2/+4 and Rise, sourced on the fallen Wolvie (gilded: 2 Beasts, +4/+8)', () => {
+  it('a random other Beast gets +2/+4 and Rise, sourced on the fallen Wolvie (gilded: 1 Beast, +4/+8)', () => {
     // Wolvie (1 hp) dies first; the only other Beast (a tanky Alleycat) takes the grant.
     const plain = sim([bm('b2_wolvie', 'W', 3, 1), bm('alley', 'A', 1, 900)]);
     const w = uidOf(plain, 'b2_wolvie');
@@ -31,10 +31,12 @@ describe('Wolvie — Echo gives a Beast +2/+4 and Rise', () => {
     const gilded = sim([bm('b2_wolvie', 'W', 3, 1, { golden: true }), bm('alley', 'A1', 1, 900), bm('alley', 'A2', 1, 900)]);
     const gw = uidOf(gilded, 'b2_wolvie');
     const cats = gilded.initial.player.filter((m) => m.cardId === 'alley').map((m) => m.uid);
-    for (const c of cats) {
-      expect(buffsOn(gilded, c, gw).map((b) => [b.attack, b.health]), 'gilded +4/+8 on each').toContainEqual([4, 8]);
-      expect(riseOn(gilded, c, gw).length, 'Rise on 2 different Beasts').toBe(1);
-    }
+    // Owner ruling 2026-09-24: "give 1 beast +4/+8" — ONE Beast, doubled stats, plus Rise.
+    const hitCats = cats.filter((c) => riseOn(gilded, c, gw).length > 0);
+    expect(hitCats.length, 'Rise on exactly 1 Beast').toBe(1);
+    expect(buffsOn(gilded, hitCats[0]!, gw).map((b) => [b.attack, b.health]), 'gilded +4/+8').toContainEqual([4, 8]);
+    const other = cats.find((c) => c !== hitCats[0])!;
+    expect(buffsOn(gilded, other, gw).length, 'the other Beast is untouched').toBe(0);
   });
 
   it('the granted Rise is live: the Beast comes back when it dies', () => {

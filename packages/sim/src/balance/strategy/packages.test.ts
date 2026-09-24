@@ -43,7 +43,7 @@ describe('strategy packages — set-2 census', () => {
       echo: '39/13/9/6', // beast/dragon batch 2026-09-24 (Wolvie reworked off the next-summon engine) // // 7 → 6 on 2026-09-16: same Rune of Rebirth rework
       mechAttach: '2/0/0/0',
       rally: '27/10/10/6', // beast/dragon batch 2026-09-24 (Raven + Beev) // // Boulderdash gained Flurry (owner 2026-09-18)
-      tempo: '42/6/21/32', // members 39 → 42: beast/dragon batch 2026-09-24 // // runes 33 → 32: Ruby batch 2026-09-24 (Rune of Resonance's rewritten text); runes 32 → 33: Balance 9/23 combined (rune reworks A, #1669); // 37/5 → 38/6 on 2026-09-23: the balance 9/23 stat pass moved a body into the tempo package // Balance 9/23 combined (stat pass + archives + Picnic)
+      tempo: '42/5/21/32', // engines 6 → 5: owner rulings 2026-09-24 (Karwind 4/12 → 2/8 leaves the tempo engine set) // members 39 → 42: beast/dragon batch 2026-09-24 // // runes 33 → 32: Ruby batch 2026-09-24 (Rune of Resonance's rewritten text); runes 32 → 33: Balance 9/23 combined (rune reworks A, #1669); // 37/5 → 38/6 on 2026-09-23: the balance 9/23 stat pass moved a body into the tempo package // Balance 9/23 combined (stat pass + archives + Picnic)
       economy: '20/1/16/25', // 26 → 25 on 2026-09-18: rune tag pass
     });
   });

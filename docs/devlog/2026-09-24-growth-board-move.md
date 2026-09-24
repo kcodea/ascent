@@ -45,4 +45,4 @@ Fatecarver / Hoardbreaker casting Growth in combat was also checked: the only ro
 
 - `packages/ui/src/commitFlip.test.ts`: the no-row-change case fails with the old diff (checked by removing the key
   guard) and passes with it; plus sell / summon / sub-pixel cases and the `RowFlip` wiring.
-- Oracle: R-PRESENT-13 in `packages/rules/src/registry/approved/foundation.ts`.
+- Oracle: R-PRESENT-14 in `packages/rules/src/registry/approved/foundation.ts`.

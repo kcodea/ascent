@@ -1004,7 +1004,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     },
   },
   {
-    id: 'R-PRESENT-13',
+    id: 'R-PRESENT-14',
     title: 'A card only slides when its row changed: a spell cast never moves the warband',
     statement:
       'The warband and tavern cards slide (the commit FLIP) only when the rows themselves changed since the last '

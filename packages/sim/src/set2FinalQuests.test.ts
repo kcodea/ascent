@@ -65,11 +65,11 @@ describe('Candlelight Toll — your Kobolds have "Echo: get a Ruby"', () => {
     // the grant moved off `playerHandGrants` (a raw 1/1 pool copy) onto `playerRubyGrants`, the MINT channel
     // that bakes in the run's live `rubyBonus` at settle. Asserting the channel is the regression guard —
     // a hand grant can never be worth the run's Ruby strength.
-    // TWO, not one: the Carver's own Echo summons a Gemheart Golem, which is also a Kobold and also dies to the
-    // 9/9 — so the Toll fires for both bodies. The old assertion was `toContain('ruby')`, which could not tell
-    // one grant from two; pinning the count is the point of moving to a numeric channel.
+    // THREE, not one: the Carver's own Echo summons TWO Gemheart Golems (owner Ruby batch 2026-09-24; one
+    // before), each also a Kobold that dies to the 9/9 — so the Toll fires for all three bodies. The old
+    // assertion was `toContain('ruby')`, which could not tell one grant from two; pinning the count is the point.
     const withToll = sim(dying(kobold.id), enemy, { candlelightToll: true });
-    expect(withToll.playerRubyGrants ?? 0, 'a dying Kobold minted no Ruby').toBe(2);
+    expect(withToll.playerRubyGrants ?? 0, 'a dying Kobold minted no Ruby').toBe(3);
     expect(withToll.playerHandGrants ?? [], 'Rubies are minted, never conjured as a flat 1/1').not.toContain('ruby');
     const beast = sim(dying('pack'), enemy, { candlelightToll: true });
     expect(beast.playerRubyGrants ?? 0, 'a non-Kobold minted a Ruby').toBe(0);

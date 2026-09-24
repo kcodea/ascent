@@ -29,9 +29,10 @@ describe('the five defs ship as specced', () => {
       expect(rune(id).cost, `${id} cost`).toBe(cost);
       expect(rune(id).epic, `${id} should be Epic`).toBe(true);
     }
-    expect(rune('rune_ruby_shrapnel').sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
+    expect(rune('rune_ruby_shrapnel').sets).toEqual(['set2']); // CUT FROM SET 3 2026-09-24 (owner)
     for (const id of ['rune_ancestral_roar', 'rune_shared_scripture', 'rune_banquet_hall', 'rune_crucible_choir']) {
-      expect(rune(id).sets, `${id} should work in either set`).toBeUndefined();
+      // Ancestral Roar (Dragon) CUT FROM SET 3 2026-09-24 (owner): scoped to set 1 + set 2.
+      expect(rune(id).sets, `${id} should work in either set`).toEqual(id === 'rune_ancestral_roar' ? ['set1', 'set2'] : undefined);
     }
   });
 });

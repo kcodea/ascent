@@ -1,4 +1,4 @@
-import { ALE_IDS, TRIBES, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { ALE_IDS, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { runSpells } from './spellPool';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
@@ -354,6 +354,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       state.undeadHealthBonus += h;
     },
     grantRubies: (count) => { mintRubies(state, count); },
+    grantRandomRubies: (count) => { mintRandomRubies(state, count); },
     grantRandomShoutMinion: (count) => {
       const pool = poolOf(state).buyable.filter((c) => c.tier <= state.tier && c.effects.some((e) => e.on === 'onPlay'));
       conjureToHand(state, pool, count);
@@ -2512,6 +2513,25 @@ export function rubyStatBonus(state: RunState): { attack: number; health: number
  * `rubyStatGain`), so all held Rubies stay equal to base + rubyBonus; only Rubies already CAST onto a minion
  * (their buff baked in) don't grow. Respects the hand cap. Deterministic (no RNG) — same card, same Ruby.
  */
+/** Gem Sage's re-entrancy latch (see `onGetRubyRandomRuby`): true while a Sage is minting its random Ruby, so the
+ *  Rubies a Sage grants never re-trigger a Sage. Synchronous and restored in a `finally`, so a reduce can never
+ *  leave it set. */
+let gemSageMinting = false;
+
+/** "Get a random Ruby" (owner Ruby batch 2026-09-24): `count` Rubies, EACH drawn separately from all six types
+ *  (`RUBY_TYPE_IDS`) at equal odds on the run cursor, then minted through `mintRubies` one at a time so each one
+ *  bakes the run's live Ruby strength and fires the same get-a-Ruby / gain-a-card watchers a plain mint does.
+ *  The draw is made per Ruby BEFORE its mint, so two Rubies can differ (Ruby Shipment's "Get 2 random Rubies"). */
+export function mintRandomRubies(state: RunState, count: number): void {
+  for (let i = 0; i < count; i++) {
+    if (state.hand.length >= handCap(state)) return;
+    const rng = makeRng(state.rngCursor);
+    const id = RUBY_TYPE_IDS[rng.int(RUBY_TYPE_IDS.length)]!;
+    state.rngCursor = rng.state();
+    mintRubies(state, 1, id);
+  }
+}
+
 export function mintRubies(
   state: RunState,
   count: number,
@@ -3817,6 +3837,34 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // End-of-Turn twin `endOfTurnGetRubies` already took this param — the two mint through the same
     // `mintRubies` and there was no reason for the Shout half to be the one that could not name a Ruby.
     mintRubies(ctx.state, num(params.count, 1) * gold(self), str(params.rubyId) || RUBY_ID);
+  },
+
+  /** Ruby Shipment (owner Ruby batch 2026-09-24): "Get 2 random Rubies." — each drawn separately from all six
+   *  types. Gilded doubles through the same `gold(self)` convention `getRubies` uses (a spell's self is the
+   *  caster placeholder, so a cast Shipment is never gilded). */
+  getRandomRubies: (ctx, self, params) => {
+    mintRandomRubies(ctx.state, num(params.count, 1) * gold(self));
+  },
+
+  /** Shardluck (owner Ruby batch 2026-09-24): "Play 3 Rubies on your Kobolds" — the shared arena body, each Ruby
+   *  on a random friendly Kobold (shop: a real Ruby landing — `addBuff('Ruby')` + the target's on-Ruby watchers). */
+  battlecryPlayRubiesRandomTribe: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryPlayRubiesRandomTribe(shopArena(ctx.state, self), params);
+  },
+
+  /** Gemheart Legionnaire (owner Ruby batch 2026-09-24): a friendly Golem summoned in the Shop (a Carver's Echo
+   *  forced there, a rune's Golem) plays 5 permanent Rubies on this — the shared arena body. */
+  onSummonCardPlayRubiesSelf: (ctx, self, params, { minion }) => {
+    if (!minion || minion === self) return;
+    ARENA_EFFECTS.onSummonCardPlayRubiesSelf(shopArena(ctx.state, self), { ...params, arriver: minion });
+  },
+
+  /** Prismatic Pick, branch 1 (owner Ruby batch 2026-09-24): "Discover a Ruby" — a pool Discover over the five
+   *  SPECIAL Rubies (Warding, Golden, Splintered, Ripple, Dark), offering 3 of them. The pick is MINTED
+   *  (`takeDiscoverPick`'s Ruby branch), so it carries the run's live Ruby strength. `count` Discovers, queued. */
+  discoverRuby: (ctx, self, params) => {
+    void self;
+    for (let i = 0; i < num(params.count, 1); i++) queueDiscover(ctx.state, { kind: 'pool', ids: [...SPECIAL_RUBY_IDS] });
   },
 
   /** Set 2 — Gemgorge Fiend (Kobold/Demon): every 3 Rubies cast (the `rubyCast` cadence), Consume a random
@@ -9000,6 +9048,18 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  `onGetRuby` for every Ruby it makes, and this factory IS an `onGetRuby` handler — a plain mint would
    *  recurse forever (and two Sages would recurse twice as fast). The duplicate still fires `onGainCard`
    *  (Gangplank sees a card arrive), it just doesn't re-open the Ruby-gained round. */
+  /** GEM SAGE (owner Ruby batch 2026-09-24): "When you get a Ruby, also get a random Ruby." — "this grants a random
+   *  ruby from the pool of 6 whenever a player gets a ruby added to hand. recruit, shop etc all count. doesn't
+   *  trigger off itself or copies of itself." Fired by `fireOnRubyGained`, once per Ruby a mint lands (every Ruby
+   *  source mints: a shop grant, a Discover pick, a combat-won Ruby at settle). The Sage's own Rubies mint UNDER
+   *  the module latch, so neither this Sage nor any other copy hears them — the no-loop rule — while every other
+   *  get-a-Ruby watcher (Motherlode) still does, unlike the blanket `silent` mint. Gilded: 2. */
+  onGetRubyRandomRuby: (ctx, self, params) => {
+    if (gemSageMinting) return;
+    gemSageMinting = true;
+    try { mintRandomRubies(ctx.state, num(params.count, 1) * gold(self)); } finally { gemSageMinting = false; }
+  },
+
   onGetRubyDuplicate: (ctx, self, params) => {
     mintRubies(ctx.state, num(params.count, 1) * gold(self), RUBY_ID, undefined, true);
   },
@@ -9024,6 +9084,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  already bakes into every copy (board, hand, future). Nothing to do here; the stub keeps the phase map honest. */
   cardDeathScaler: () => {},
   dealtDamageAleMeter: () => {}, // Han Gover (Pummel (40)): a combat-read meter (`noteDamageDealt`); the LIFETIME tally carries shop → combat → shop (carry-over ruling 2026-09-21), one payout per combat
+  dealtDamageGetRandomRuby: () => {}, // Kobe (2026-09-24): the same combat-read meter, a random-Ruby body
   dealtDamageGrantRandomTribe: () => {}, // Maestro Lux (2026-09-24): the same combat-read meter, a random-Celestial body
   dealtDamageGoldNextTurn: () => {}, // Goldvein (2026-09-19): the same combat-read meter, a Gold-next-turn body
 
@@ -10560,6 +10621,59 @@ export function grantRubyKeyword(target: BoardCard, kw: Keyword | undefined): vo
   target.keywords = [...target.keywords, kw];
 }
 
+/** Stamp one special-Ruby rider for the shop's presentation (`rubyRiderFx`): the UI spaces the target's gems
+ *  (Ripple's second cast, Dark Ruby's Ruby → consume → Ruby) and plays the Gold cue (Golden Ruby). */
+export function recordRubyRiderFx(state: RunState, uid: string, rider: NonNullable<CardDef['rubyRider']>): void {
+  state.rubyRiderFx = [...(state.rubyRiderFx ?? []), { uid, rider }];
+  state.rubyRiderFxSeq = (state.rubyRiderFxSeq ?? 0) + 1;
+}
+
+/**
+ * The ACTION half of a special Ruby's Kobold rider (owner Ruby batch 2026-09-24), resolved ONCE per cast on the
+ * Ruby's DIRECT target, after its stats landed. (Ripple's "casts again" is not here: it is a second real landing,
+ * which the play branch counts as its own cast.) The hops a Ruby takes afterwards (a Resonance / Conduit bounce,
+ * Rune of Redirection, this Ruby's own Splinter) carry the stats and the Ward rider only, never these: a hop
+ * never re-bounces, and a hop is not a new cast.
+ *
+ *  · `gold`   — Golden Ruby: gain 2 Gold (`gainGold`, so the Golden Splinter mark and every Gold watcher hear it).
+ *  · `bounce` — Splintered Ruby: the Ruby bounces ONCE — Resonance Idol's hop (`rubyPlayedBounce`, one random
+ *               OTHER friendly minion, stats + Ward rider, recorded for the `ruby-bounce` ribbon). Never doubled
+ *               by a gilded target (`goldenReps: 1`): the bounce belongs to the Ruby, not the minion.
+ *  · `devour` — Dark Ruby: consume the Shop minion with the HIGHEST Health (ties: leftmost; the Starform counts,
+ *               exactly as it does for Gemgorge Fiend's consume) and add its stats to this minion AS RUBIES (the
+ *               'Ruby' buff source, so Carver / Geode / Kurse / Porkbelly count them as this minion's Rubies). No
+ *               Shop minion: just the stats (owner ruling).
+ */
+export function applyRubyRiderAction(state: RunState, target: BoardCard, def: CardDef, rubyAttack: number, rubyHealth: number): void {
+  const rider = def.rubyRider;
+  if (!rider || !isTribe(target, 'kobold')) return;
+  if (rider === 'gold') {
+    gainGold(state, 2);
+    recordRubyRiderFx(state, target.uid, 'gold');
+    return;
+  }
+  if (rider === 'bounce') {
+    ARENA_EFFECTS.rubyPlayedBounce(shopArena(state, target), {
+      rubyAttack, rubyHealth, random: 1, goldenReps: 1,
+      ...(def.rubyGrantKeyword ? { rubyKeyword: def.rubyGrantKeyword } : {}),
+    });
+    return;
+  }
+  if (rider === 'devour') {
+    let best = -1;
+    let bestHealth = -Infinity;
+    state.shop.forEach((o, i) => {
+      const d = CARD_INDEX[o.cardId];
+      if (!d || d.spell || d.ruby) return; // spells / Rubies in the row are never edible (the primitive's own rule)
+      const h = offerBuyStats(state, o).health;
+      if (h > bestHealth) { bestHealth = h; best = i; } // strict: a tie keeps the LEFTMOST
+    });
+    if (best < 0) return;
+    recordRubyRiderFx(state, target.uid, 'devour');
+    consumeShopOffer(state, target, best, 1, (a, h) => addBuff(target, 'Ruby', a, h));
+  }
+}
+
 /** Set 2 — fire a board minion's `onRubyPlayed` effects when a Ruby is cast ONTO it (Ruby Broker → Gold,
  *  Resonance Idol → bounce). The played Ruby's stats ride in the payload so a bounce can re-apply the same
  *  buff — and so does its keyword rider (`rubyKeyword`, a Warding Ruby's Ward), granted to THIS landing here
@@ -10695,7 +10809,8 @@ export function settleMinionSale(state: RunState, sold: BoardCard): void {
     if (state.runeSellRubiesSold >= INVESTMENT_SELLS) {
       procRune(state, 'runeSellRubies');
       improveRubies(state, 1, 1); // improve first, so the 2 Rubies arrive at the new strength
-      mintRubies(state, state.runeSellRubies);
+      // "get 2 random Rubies" (owner Ruby batch 2026-09-24): each drawn from all six types.
+      mintRandomRubies(state, state.runeSellRubies);
       state.runeSellRubiesSold -= INVESTMENT_SELLS;
     }
   }

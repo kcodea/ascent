@@ -418,6 +418,9 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
                   {c.note && (
                     <span className="tuner-note" aria-label={c.note}>†</span>
                   )}
+                  {c.preview && (
+                    <button className="tuner-preview" onClick={c.preview} aria-label={`Play ${c.group ?? c.label}`}>▶</button>
+                  )}
                   {/* The mark is also the revert control: one click puts this control back to its shipped
                       value without disturbing anything else you have dialled. */}
                   {modified && (

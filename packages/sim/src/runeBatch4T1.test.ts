@@ -38,9 +38,10 @@ describe('the nine defs ship as specced', () => {
     expect(rune('rune_hoardcalling').cost).toBe(4); // owner balance 2026-08-11 (5 → 4)
     // Gem Dividend needs Rubies and Shared Pour needs Ales, so both are Set-2 only. The rest work in either.
     expect(rune('rune_gem_dividend').sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
-    expect(rune('rune_shared_pour').sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
+    expect(rune('rune_shared_pour').sets).toEqual(['set2']); // CUT FROM SET 3 2026-09-24 (owner)
     for (const id of ['rune_empty_plate', 'rune_carrion_coin', 'rune_five_banners', 'rune_aftermarket', 'rune_hoardcalling']) {
-      expect(rune(id).sets, `${id} should not be set-scoped`).toBeUndefined();
+      // Hoardcalling (Dragon) CUT FROM SET 3 2026-09-24 (owner): scoped to set 1 + set 2.
+      expect(rune(id).sets, `${id} should not be set-scoped`).toEqual(id === 'rune_hoardcalling' ? ['set1', 'set2'] : undefined);
     }
     // All nine are Basic — none carry the Epic flag.
     for (const id of ['rune_empty_plate', 'rune_gem_dividend', 'rune_carrion_coin', 'rune_five_banners',

@@ -302,4 +302,115 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-23',
     },
   },
+  // ── Balance 9/23, tranche 5 — rune reworks, group B (summon / board / token runes; owner list 2026-09-23). ──
+  {
+    id: 'R-RUNE-06',
+    title: 'Combat-summon rune triggers pay per summon, and their "permanently" carries back into the run',
+    statement:
+      'A rune whose text begins "When you summon a minion in combat" fires once per friendly body placed in combat '
+      + '(a token, a Rise return and a resummon each count once, at the single summon chokepoint). Rune of Packcraft '
+      + 'gives THAT body the current level (starting +2/+1) and then raises the level by the printed step; the grown '
+      + 'level is written back to the run (`packcraftLevel`) so the next fight\'s first summon starts from it, and the '
+      + 'rune badge prints the current grant. Rune of Reinvestment pulses on every friendly summon and pays the Shop '
+      + '+3/+4 per summon (× copies held) ONCE at settle, on the permanent run-wide Shop channel. Rune of Beastial '
+      + 'Swarm grows the BEAST AURA (the run-wide `beastBuyAtk` / `beastBuyHp` channel) by the current per-death amount '
+      + 'on every friendly Beast death: living Beasts gain it on the spot, later Beast summons inherit it, and the '
+      + 'player\'s gain carries back at settle; Avenge (2) still raises the per-death amount permanently. The enemy '
+      + 'side runs its own copy off its snapshot and only accumulates.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Balance batch 9/23, tranche 5 (rune reworks B), owner list 2026-09-23', quote: 'Packcraft → "When you summon a minion in combat, give it +2/+1 and improve this permanently." Reinvestment → "When you summon a minion in combat, buff minions in the shop +3/+4 permanently." Bestial Swarm → "Give your Beast Aura +2/+2 when a friendly Beast dies. Avenge (2): improve this."' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts summonMinion (Packcraft level + Reinvestment pulse), the Beastial Swarm death block, carryBacksFor (packcraftLevel / beastBuyAtkGain); packages/sim/src/reducer.ts settle (packcraftLevel, grantTribeAura) + questCombatMods (packcraftLevel, runeReinvestment); packages/sim/src/state.ts PACKCRAFT_STEP / REINVESTMENT_PER_SUMMON; packages/ui/src/runeTally.ts' },
+    ],
+    contentIds: ['rune_packcraft', 'rune_reinvestment', 'rune_beastial_swarm'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Until then Packcraft was a flat +6/+6 on every combat summon, Reinvestment paid '
+      + '+1/+1 per summon with one badge pulse at settle, and Beastial Swarm buffed the living Beasts for the fight '
+      + 'only (nothing carried back but the Avenge level).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeReworksB0923.test.ts', 'packages/sim/src/runeBatch8.test.ts', 'packages/sim/src/beastBatchAug12.test.ts', 'packages/ui/src/tallyCoverage.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-RUNE-07',
+    title: 'Rune of Slaying banks kills across combats and pays every 5, with a live countdown',
+    statement:
+      'Rune of Slaying counts enemy kills (the Slaughter tally) across every combat of the run. Every '
+      + 'SLAYING_KILLS (5) kills pays ONE minion of the board\'s most common type into hand at settle, the leftover '
+      + 'kills carry to the next fight, and a fight that crosses the threshold twice pays twice. The badge prints the '
+      + 'banked count as x/5 off the same constant the settle reads, so the number the player watches is the number '
+      + 'the rune pays on.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Balance batch 9/23, tranche 5 (rune reworks B), owner list 2026-09-23', quote: 'Slaying → "when you kill 5 enemies get a minion of your most common type"' },
+      { kind: 'code', ref: 'packages/sim/src/state.ts SLAYING_KILLS; packages/sim/src/reducer.ts settle (runeSlayingKills loop, grantTopTypeMinion); packages/ui/src/runeTally.ts rune_slaying' },
+    ],
+    contentIds: ['rune_slaying'],
+    currentBehaviour: 'Conforms as of 2026-09-23. The threshold was 6 (owner change 2026-07-31) and lived as two separate literals, one in the settle and one in the badge.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeReworksB0923.test.ts', 'packages/sim/src/runes.test.ts', 'packages/ui/src/tallyCoverage.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-RUNE-08',
+    title: '"Get X. Repeat at Start of Turn" runes pay one copy on purchase and one more at every turn setup',
+    statement:
+      'A rune printed "Get X. Repeat at Start of Turn" hands over X the moment it is bought (the Runeforge opens '
+      + 'partway through a shop turn, after that turn\'s setup has run) and then one more X at every turn setup for '
+      + 'the rest of the run, one per copy held. Full Measure (Baby Gastrid), Open Appetite (Appetite Agent), the '
+      + 'Unbroken Vein (Veinbreaker), the Display Case (Market Tormentor) and the Deep (a random Tier 7 minion) all '
+      + 'follow it, each keeping its second half (the Attack grant, the any-type aim, both Choose One effects, the '
+      + 'left-most Shop enchant). The Muckbroker\'s "Get a Muckslinger. Repeat every 2 turns" is the same shape on '
+      + 'the 2-turn cadence: one now, then one every second turn setup. Rune of Copies copies at that same turn setup '
+      + 'and is printed "Start of Turn".',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Balance batch 9/23, tranche 5 (rune reworks B), owner list 2026-09-23', quote: 'Full Measure → "Get a Baby Gastrid. Repeat at Start of Turn. Baby Gastrids also grant Attack this game." … Deep → "get a random T7 minion. Repeat at Start of Turn" … Muckbroker → "get a Muck Slinger. Repeat every 2 turns."' },
+      { kind: 'code', ref: 'packages/content/src/runes.ts (the multi rewards: recurringGrant + the rune flag; the Muckbroker grant + everyTurns cadence); packages/sim/src/reducer.ts recurringGrant (immediate rune copy) / payDeep / the turn-setup grant loops' },
+    ],
+    contentIds: ['rune_full_measure', 'rune_open_appetite', 'rune_unbroken_vein', 'rune_display_case', 'rune_deep', 'rune_muckbroker', 'rune_copies'],
+    currentBehaviour: 'Conforms as of 2026-09-23. Until then the four card-keyed runes granted their minion ONCE, the Deep paid nothing until the next turn, and the Muckbroker paid nothing for two turns.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeReworksB0923.test.ts', 'packages/sim/src/runeBatchAug20.test.ts', 'packages/sim/src/runeCardKeyed.test.ts', 'packages/sim/src/runeCardKeyed2.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-RUNE-09',
+    title: 'Rune reworks B: the board and token runes (Five Banners, Living Treasure, Gem Golem, Food Chain, Banquet Hall, Lassoing, Finality, Hatchery)',
+    statement:
+      'Rune of the Five Banners is an END OF TURN grant: one friendly minion of each type gains +5/+4 (universal-'
+      + 'tribe bodies always collect; every other body claims the first type nobody has claimed), once per copy held; '
+      + 'its old Start-of-Combat flag is no longer authored but still resolves for pinned replays. Rune of Living '
+      + 'Treasure gives every friendly Gemheart Golem REBIRTH (at the bell for the ones on board, at the summon for the '
+      + 'ones that land mid-fight), so a grown Golem returns once with its full body. Rune of the Gem Golem summons a '
+      + 'real Gemheart Golem (its printed 1/1) carrying the dying Kobold\'s Rubies on top, with or without Rubies, and '
+      + 'a dying Golem itself never chains another. Rune of the Food Chain reads the left-most LIVING Demon\'s current '
+      + 'stats when the side\'s first summon lands (no Start-of-Combat capture, so it left the Start-of-Combat rune '
+      + 'pass). Rune of the Banquet Hall: the turn\'s first buy, Shop-buffed or not, hands its current stats in full to 2 '
+      + 'random other friendly board minions, once per turn. Rune of Lassoing hands over a Rope Wrangler and gives '
+      + 'your minions +2/+2 whenever Lasso is cast in the shop by anyone. Rune of Finality summons 3 Warded Imps; Rune '
+      + 'of the Hatchery gives combat summons +5/+5 and Taunt.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Balance batch 9/23, tranche 5 (rune reworks B), owner list 2026-09-23', quote: 'Five Banners → "End of Turn: give a minion of each type +5/+4" · Living Treasure → "Your Gemheart Golems gain Rebirth" · Gem Golem → "When a Kobold dies, summon a Gemheart Golem with its Rubies." · Food Chain → "the first minion you summon in combat gains the stats of your left-most Demon." · Banquet Hall → "the first minion you buy gives its stats to 2 random friendly minions." · Lassoing → "get a Rope Wrangler. When Lasso is cast, give your minions +2/+2." · Finality → "When your last minion dies, summon 3 Imps with Ward." · Hatchery → "minions summoned in combat have +5/+5 and Taunt."' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts bannerRecipientsOf / FIVE_BANNERS_GRANT / recurringEotEffects / runRecurringEndOfTurn / applyOnBuy (Banquet Hall) / castSpell (Lassoing); packages/core/src/combat/simulate.ts summonMinion (Living Treasure RB, Food Chain read), the Living Treasure Start-of-Combat grant, the Gem Golem death block; packages/sim/src/reducer.ts questCombatMods (Hatchery +5/+5)' },
+    ],
+    contentIds: ['rune_five_banners', 'rune_living_treasure', 'rune_gem_golem', 'rune_food_chain', 'rune_banquet_hall', 'rune_lassoing', 'rune_finality', 'rune_hatchery'],
+    currentBehaviour: 'Conforms as of 2026-09-23. Before: Five Banners was a Start-of-Combat +6/+6 flag; Living Treasure grafted an exact-copy Echo; the Gem Golem summoned a bare token with stats EQUAL to the Rubies, or nothing; the Food Chain captured the Demon at Start of Combat; the Banquet Hall dispersed the first Shop-buffed buy\'s bonus among one minion of each type; Lassoing cast Lasso at End of Turn; Finality summoned 7; the Hatchery gave +3/+3.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeReworksB0923.test.ts', 'packages/sim/src/runeDupStacking.test.ts', 'packages/sim/src/runeBatch7.test.ts', 'packages/sim/src/runeBatch11.test.ts', 'packages/sim/src/runeBatch4T4.test.ts', 'packages/sim/src/runeDuplication.test.ts', 'packages/sim/src/heroBatchAug22.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
 ];

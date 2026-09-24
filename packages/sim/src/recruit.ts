@@ -11110,46 +11110,27 @@ export function applyOnBuy(state: RunState, bought: BoardCard): void {
   applySecondLife(state, bought); // Rune of the Second Life: a Scavver arrives already carrying Taunt + Rise
   applyRuneGrafts(state, bought); // Set 3 batch 2: the Endless March / Last Tool grafts ride the bought body
   const ctx = makeContext(state);
-  // RUNE OF THE BANQUET HALL: the turn's first SHOP-BUFFED buy hands its bonus stats to one friendly minion of
-  // each type. "Bonus" means what the tavern put on it (the offer's `atk`/`hp`, which the buy path bakes into
-  // the body as named buffs) — a plain 3/4 body bought at printed stats is not "Shop-buffed" and doesn't arm
-  // it. The one-per-type walk is the Lapidary's: board order, first uncovered tribe wins, a dual-type body
-  // covers both, so the pick is a seating decision rather than RNG. The buyer itself can be a recipient — it
-  // is a friendly minion of its own type, and excluding it would make the rune worse the fewer types you hold.
+  // RUNE OF THE BANQUET HALL (owner rework 2026-09-23): the turn's FIRST buy — any minion, Shop-buffed or not —
+  // hands its CURRENT stats (what the body is after the buy baked in the offer's buffs) to 2 random OTHER
+  // friendly minions on the board, each in full. It used to be the first Shop-buffed buy dispersing its bonus
+  // among one minion of each type. The bought body itself is not a recipient (it "gives"), and with fewer than
+  // 2 others on board whoever is there is fed. Seeded off the run cursor like every other random pick; the
+  // pick repeats once per copy held (recurring family, owner 2026-08-27) with a fresh draw each time.
   if (state.runeBanquetHall && !state.banquetUsedThisTurn) {
-    const base = CARD_INDEX[bought.cardId];
-    const g = bought.golden ? 2 : 1;
-    // The split lands once per copy held (owner 2026-08-27, unique-engine doubling): the board gains the
-    // bought body's bonus × copies, dealt out through the same one-point-at-a-time dispersal.
-    const bh = runeStacksOf(state, 'rune_banquet_hall');
-    const bonusA = (bought.attack - (base ? base.attack * g : bought.attack)) * bh;
-    const bonusH = (bought.health - (base ? base.health * g : bought.health)) * bh;
-    if (bonusA > 0 || bonusH > 0) {
+    const others = state.board.filter((c) => c.uid !== bought.uid);
+    if (others.length > 0 && (bought.attack > 0 || bought.health > 0)) {
       state.banquetUsedThisTurn = true;
       procRuneId(state, 'rune_banquet_hall');
-      const covered = new Set<string>();
-      const recipients: BoardCard[] = [];
-      for (const c of [...state.board]) {
-        const def = CARD_INDEX[c.cardId];
-        const tribes = [def?.tribe, def?.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
-        if (tribes.length === 0 || tribes.every((t) => covered.has(t))) continue;
-        for (const t of tribes) covered.add(t);
-        recipients.push(c);
-      }
-      // DISPERSED across the recipients, not handed to each in full (owner ruling 2026-08-07, matching Rune of
-      // Ruby Shrapnel). The bonus is dealt out one point at a time, round-robin from the left, so every point
-      // lands somewhere and the total the board gains is exactly the bonus the bought body was carrying —
-      // wide type coverage spreads it thinner rather than multiplying it. Attack and Health are dealt
-      // independently, both from the left, so a +3/+3 keeps its two halves on the same minions.
-      if (recipients.length > 0) {
-        const share = recipients.map(() => ({ attack: 0, health: 0 }));
-        for (let i = 0; i < bonusA; i++) share[i % recipients.length]!.attack += 1;
-        for (let i = 0; i < bonusH; i++) share[i % recipients.length]!.health += 1;
-        for (let i = 0; i < recipients.length; i++) {
-          const sh = share[i]!;
-          if (sh.attack > 0 || sh.health > 0) addBuff(recipients[i]!, 'Rune of the Banquet Hall', sh.attack, sh.health);
+      const [giveA, giveH] = [bought.attack, bought.health];
+      const rng = makeRng(state.rngCursor);
+      for (let k = 0; k < runeStacksOf(state, 'rune_banquet_hall'); k++) {
+        const pool = [...others];
+        for (let n = 0; n < 2 && pool.length > 0; n++) {
+          const target = pool.splice(rng.int(pool.length), 1)[0]!;
+          addBuff(target, 'Rune of the Banquet Hall', giveA, giveH);
         }
       }
+      state.rngCursor = rng.state();
     }
   }
   fire(ctx, 'onBuy', { minion: bought });
@@ -11674,6 +11655,15 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   if (heldNextBonus) state.nextSpellBonus = undefined;
   applyCastEffects(ctx, spellDef, target, origin); // board-wide spells (Growth) run without a target
   if (heldNextBonus) state.nextSpellBonus = heldNextBonus;
+  // RUNE OF LASSOING (owner rework 2026-09-23): whenever LASSO is cast in the shop — from hand, by a Rope
+  // Wrangler's End of Turn, by any recast — your minions gain +2/+2, once per copy held (recurring family, owner
+  // 2026-08-27). Hooked at the ONE cast chokepoint so every Lasso caster pays, and after the cast resolves so a
+  // freshly stolen minion in hand is not on the board yet and does not collect.
+  if (spellDef.id === 'lasso' && state.runeLassoing && state.board.length > 0) {
+    const reps = runeStacksOf(state, 'rune_lassoing');
+    procRuneId(state, 'rune_lassoing', reps);
+    for (const c of state.board) addBuff(c, 'Rune of Lassoing', 2 * reps, 2 * reps);
+  }
   if (weaveBefore) {
     let wa = 0, wh = 0;
     const bodies = target && state.board.includes(target) ? [target] : state.board;
@@ -12304,27 +12294,32 @@ export interface SocRuneReplay {
   fire: (state: RunState) => void;
 }
 
+/** The Five Banners / United Front selection (combat's rule, verbatim): universal-tribe bodies always collect;
+ *  every other body claims the FIRST type nobody has claimed yet — one banner per body. Shared by the legacy
+ *  Start-of-Combat replay, United Front, and the rune's End-of-Turn grant (owner rework 2026-09-23). */
+export function bannerRecipientsOf(st: RunState): BoardCard[] {
+  const recipients = st.board.filter((m) => !!CARD_INDEX[m.cardId]?.universalTribe);
+  const taken = new Set<string>();
+  for (const m of st.board) {
+    const def = CARD_INDEX[m.cardId];
+    if (def?.universalTribe) continue;
+    for (const t of [def?.tribe, def?.tribe2]) {
+      if (!t || t === 'neutral' || taken.has(t)) continue;
+      taken.add(t);
+      if (!recipients.includes(m)) recipients.push(m);
+      break;
+    }
+  }
+  return recipients;
+}
+/** Rune of the Five Banners' End-of-Turn grant (owner 2026-09-23): +5/+4 to one friendly minion of each type. */
+export const FIVE_BANNERS_GRANT = { attack: 5, health: 4 } as const;
+
 export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
   const f = state.questFlags;
   const out: SocRuneReplay[] = [];
   const grantKw = (c: BoardCard, kw: Keyword): void => { if (!c.keywords.includes(kw)) c.keywords = [...c.keywords, kw]; };
-  // The Five Banners / United Front selection (combat's rule, verbatim): universal-tribe bodies always
-  // collect; every other body claims the FIRST type nobody has claimed yet — one banner per body.
-  const bannerRecipients = (st: RunState): BoardCard[] => {
-    const recipients = st.board.filter((m) => !!CARD_INDEX[m.cardId]?.universalTribe);
-    const taken = new Set<string>();
-    for (const m of st.board) {
-      const def = CARD_INDEX[m.cardId];
-      if (def?.universalTribe) continue;
-      for (const t of [def?.tribe, def?.tribe2]) {
-        if (!t || t === 'neutral' || taken.has(t)) continue;
-        taken.add(t);
-        if (!recipients.includes(m)) recipients.push(m);
-        break;
-      }
-    }
-    return recipients;
-  };
+  const bannerRecipients = bannerRecipientsOf;
   // Rulebreaker's Crown: the leftmost minion gains +Attack equal to its Attack (permanent here). COMPOUNDING.
   if (f?.doubleLeftmostAttack) out.push({ id: 'doubleLeftmostAttack', kind: 'quest', label: "Rulebreaker's Crown", fire: (st) => {
     const lead = st.board[0];
@@ -12396,7 +12391,9 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
       left--;
     }
   } });
-  // Rune of the Five Banners: one friendly of each type +6/+6. COMPOUNDING (per-turn permanent).
+  // Rune of the Five Banners, LEGACY Start-of-Combat flag (no longer authored — the rune is an End-of-Turn grant
+  // since 2026-09-23; kept so a pinned replay / recorded seat still carrying the flag resolves unchanged):
+  // one friendly of each type +6/+6. COMPOUNDING (per-turn permanent).
   if (f?.runeFiveBanners) out.push({ id: 'rune_five_banners', kind: 'rune', label: 'Rune of the Five Banners', fire: (st) => {
     // Once per copy held (boolean-flag family, owner 2026-08-27: "+6/+6 twice").
     const fb = Math.max(1, st.flagCopies?.runeFiveBanners ?? 1);
@@ -13074,10 +13071,12 @@ export function recurringEotEffects(state: RunState): NonNullable<RunState['ques
   // commit, projection and beat list all read this one builder, so all three agree on the count.
   const lapidary = state.runeLapidary ? runeStacksOf(state, 'rune_lapidary') : 0;
   const choir = state.runeCrucibleChoir ? runeStacksOf(state, 'rune_crucible_choir') : 0;
+  const banners = state.runeFiveBanners ? runeStacksOf(state, 'rune_five_banners') : 0; // owner rework 2026-09-23
   return [
     ...(state.questRecurringEndOfTurn ?? []),
     ...Array.from({ length: lapidary }, () => 'runeLapidary' as const),
     ...Array.from({ length: choir }, () => 'runeCrucibleChoir' as const),
+    ...Array.from({ length: banners }, () => 'runeFiveBanners' as const),
   ];
 }
 
@@ -13115,6 +13114,15 @@ function runRecurringEndOfTurn(
   if (effect === 'triggerLeftmostShout') {
     const leftmost = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
     if (leftmost) { stampQuestTendril(state, effect, leftmost.uid); replayBattlecry(state, leftmost); }
+  } else if (effect === 'runeFiveBanners') {
+    // Rune of the Five Banners (owner rework 2026-09-23): End of Turn, one friendly minion of each type gains
+    // +5/+4 — the same one-banner-per-body selection combat's legacy Start-of-Combat pass used. One `step`, so
+    // the projection replays every banner landing together. Nothing on board of a real type → no fire.
+    const recipients = bannerRecipientsOf(state);
+    if (recipients.length > 0) {
+      procRuneId(state, 'rune_five_banners');
+      step(() => { for (const m of recipients) addBuff(m, 'Rune of the Five Banners', FIVE_BANNERS_GRANT.attack, FIVE_BANNERS_GRANT.health); });
+    }
   } else if (effect === 'runeLapidary') {
     procRuneId(state, 'rune_lapidary');
     // Rune of the Lapidary (owner rework 2026-08-11): play a Ruby on a random minion for EACH card played this
@@ -13653,6 +13661,7 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
   attachClingDrones: 'Clinging On',
   runeLapidary: 'Rune of the Lapidary',
   runeCrucibleChoir: 'Rune of the Crucible Choir',
+  runeFiveBanners: 'Rune of the Five Banners',
   quickStudy: 'Rune of Quick Study',
 };
 

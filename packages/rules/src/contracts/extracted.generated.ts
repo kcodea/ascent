@@ -28275,7 +28275,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "reward:grant",
+        "kind": "reward:recurringGrant",
         "refs": [
           "dm_tormentor"
         ]
@@ -29512,7 +29512,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "amount": 7
+            "amount": 3
           }
         }
       }
@@ -29616,10 +29616,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "low",
-      "unparsed": [
-        "reward:combatFlag.flag"
-      ]
+      "confidence": "low"
     },
     "tags": [
       "runeforge:basic",
@@ -29627,7 +29624,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "reward:combatFlag"
+        "kind": "reward:runeFiveBanners"
       }
     ],
     "textContract": {
@@ -29858,7 +29855,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "reward:grant",
+        "kind": "reward:recurringGrant",
         "refs": [
           "dw_dorrin"
         ]
@@ -31073,10 +31070,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "low",
-      "unparsed": [
-        "reward:recurringEndOfTurn.effect"
-      ]
+      "confidence": "medium"
     },
     "tags": [
       "runeforge:basic",
@@ -31084,7 +31078,13 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "reward:recurringEndOfTurn"
+        "kind": "reward:grant",
+        "refs": [
+          "ropewrangler"
+        ]
+      },
+      {
+        "kind": "reward:runeLassoing"
       }
     ],
     "textContract": {
@@ -31876,6 +31876,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
+        "kind": "reward:grant",
+        "refs": [
+          "n2_muckslinger"
+        ]
+      },
+      {
         "kind": "reward:recurringGrant",
         "amount": {
           "kind": "const",
@@ -32016,7 +32022,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "reward:grant",
+        "kind": "reward:recurringGrant",
         "refs": [
           "dm_agent"
         ]
@@ -34761,7 +34767,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "reward:grant",
+        "kind": "reward:recurringGrant",
         "refs": [
           "k_veinbreaker"
         ]

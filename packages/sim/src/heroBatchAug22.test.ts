@@ -27,8 +27,9 @@ describe('Rayse — Empowering Vines', () => {
   });
 
   it('SUMS with a real Rune of the Hatchery instead of one masking the other', () => {
+    // The rune half is +5/+5 (owner balance 2026-09-23, was +3/+3) + Rayse's +2/+3.
     const s: RunState = { ...createRun(1, 'rayse'), questFlags: { runeHatchery: true } };
-    expect(questCombatMods(s).runeHatchery).toEqual({ attack: 5, health: 6 });
+    expect(questCombatMods(s).runeHatchery).toEqual({ attack: 7, health: 8 });
   });
 
   it('every other hero is untouched', () => {

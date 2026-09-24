@@ -1,4 +1,4 @@
-import { runeStacksOf, REVELER_METER, type RunState } from '@game/sim';
+import { runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, type RunState } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 
 /**
@@ -125,7 +125,15 @@ export function runeTally(run: RunState, runeId: string): string | null {
   // 2026-08-04. A cross-combat meter with nothing on screen is the worst case of all: the payout arrives
   // rounds after the kills that earned it, so without this it reads as pure randomness.
   if (runeId === 'rune_slaying' && run.questFlags?.runeSlaying) {
-    return `${Math.min(run.runeSlayingKills ?? 0, SLAYING_PER)}/${SLAYING_PER}`;
+    return `${Math.min(run.runeSlayingKills ?? 0, SLAYING_KILLS)}/${SLAYING_KILLS}`;
+  }
+  // RUNE OF PACKCRAFT (owner rework 2026-09-23): an escalating combat-summon grant — the pill prints what the
+  // NEXT summon will get (the run-persisted level × copies held), the card-text live-accuracy rule. The base
+  // step until the first fight grows it.
+  if (runeId === 'rune_packcraft' && run.questFlags?.runePackcraft) {
+    const lvl = run.packcraftLevel ?? PACKCRAFT_STEP;
+    const copies = Math.max(1, run.flagCopies?.runePackcraft ?? 1);
+    return `+${lvl.attack * copies}/+${lvl.health * copies}`;
   }
   // END-OF-TURN ACCUMULATORS (audit 2026-08-12, from the Lapidary report): "for every card you played / Gold
   // spent this turn" runes bank silently all turn — the badge shows the count they will pay out on. A plain
@@ -224,10 +232,6 @@ export function runeTally(run: RunState, runeId: string): string | null {
   return null;
 }
 
-/** Rune of Slaying's threshold. Mirrors the `>= 6` in `settleCombat` — kept beside the readout so the two are
- *  edited together; the reducer owns the behaviour and this only reports it. */
-const SLAYING_PER = 6;
-
 /**
  * COMBAT-LOCAL rune meters (audit 2026-08-06): the ten rune-granted Avenge effects — plus Blood and Coin
  * (every 4 friendly deaths) and the Remains (every 5 summons) — metered silently. A minion's Avenge hangs
@@ -251,12 +255,14 @@ const RUNE_SUMMONS_PER: Record<string, number> = { rune_remains: 5 };
 
 /** The live `x/N` combat tally for a rune, or null. `deaths` / `summons` come from the replay's per-beat
  *  quest delta, so the badge ticks in lockstep with the unit Avenge counters. Cyclic 1..N, like theirs. */
-export function runeCombatTally(runeId: string, deaths: number, summons: number, reinvestPerSummon = 1): string | null {
-  // RUNE OF REINVESTMENT: not a countdown — the Shop buff this fight has EARNED so far (+N/+N, one per friendly
-  // summon per copy held), ticking with the replay's summon delta (owner ask 2026-09-10).
+export function runeCombatTally(runeId: string, deaths: number, summons: number, reinvestCopies = 1): string | null {
+  // RUNE OF REINVESTMENT: not a countdown — the Shop buff this fight has EARNED so far (+3/+4 per friendly summon
+  // per copy held, `REINVESTMENT_PER_SUMMON` — the same constant settle pays), ticking with the replay's summon
+  // delta (owner ask 2026-09-10; amounts owner balance 2026-09-23).
   if (runeId === 'rune_reinvestment') {
-    const n = reinvestPerSummon * summons;
-    return summons > 0 ? `+${n}/+${n}` : null;
+    const a = REINVESTMENT_PER_SUMMON.attack * reinvestCopies * summons;
+    const h = REINVESTMENT_PER_SUMMON.health * reinvestCopies * summons;
+    return summons > 0 ? `+${a}/+${h}` : null;
   }
   const cyc = (v: number, per: number): string => `${v <= 0 ? 0 : ((v - 1) % per) + 1}/${per}`;
   const dp = RUNE_DEATHS_PER[runeId];

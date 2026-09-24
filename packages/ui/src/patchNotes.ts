@@ -75,6 +75,56 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-24',
+    label: 'Compendium Rubies',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The Spells section of the Compendium now lists every kind of Ruby.',
+        details: [
+          'The plain Ruby, Warding, Golden, Splintered, Ripple and Dark Rubies all show, in the sets that make Rubies.',
+          'They are Tier 1, so the Tier 1 filter and the search box find them like any spell.',
+          'During a run, a Ruby shows the grant it would give right now, your Ruby bonus included.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Ruby Types',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Four new kinds of Ruby join the Warding Ruby. Each does something extra when it lands on a Kobold. Several Kobold cards and runes now hand out random Rubies.',
+        details: [
+          'New Rubies: Golden Ruby (gain 2 Gold), Splintered Ruby (bounces once), Ripple Ruby (casts again) and Dark Ruby (eats the highest Health minion in the Shop as Rubies). Each gives +1/+1 and grows with your Ruby upgrades.',
+          'A random Ruby can be any of the six kinds, all equally likely.',
+          'Warding Ruby now gives +1/+2.',
+          'Ruby Shipment costs 2 and gets 2 random Rubies.',
+          'Kobe keeps Taunt. New ability: Pummel (15): get a random Ruby, twice per combat.',
+          'Shardluck is now Tier 6, 8/5: play 3 Rubies on your Kobolds, or cast Veinstorm 3 times.',
+          'Gemheart Carver summons 2 Golems. Geode Guardian summons 1 Golem with Taunt. Each Golem carries the Rubies.',
+          'Blast Pump casts a Ruby on all of your minions.',
+          'Prismatic Pick can now Discover a special Ruby.',
+          'New Kobolds: Gemheart Legionnaire (gets 5 Rubies whenever you summon a Gemheart Golem) and Dealski (gets 2 Rubies whenever you play a Choose One card).',
+          'Gem Sage: when you get a Ruby, also get a random Ruby.',
+          'Rune of Resonance: your Rubies always cast twice from hand, and you get a random Ruby at the start of each turn.',
+          'Rune of Investment is now an Epic rune and pays random Rubies.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Picnic effect',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Picnic now has its own cast effect. A burst of gems lands on the Shop minion it buffs, however it was cast.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Ruby Types',
     changes: [
       {
@@ -148,6 +198,24 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'The Runes tab of the Compendium has a new Neutral filter next to the tribe filters.',
         details: ['Neutral shows the runes that do not need any tribe. It combines with the tribe filters.'],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The Announcer has lots of new lines for big moments in your game.',
+        details: [
+          'Knock another player out with your fight and the Announcer calls it. This can happen twice in a game.',
+          'New lines for a big 15 damage hit, a win after three losses in a row, and a win where none of your minions died.',
+          'New lines for three golden minions on your board, your first pair, and buying four of one tribe in a turn.',
+          'New lines for starting a turn with 20 Gold, spending 20 Gold with 10 still left, and a Shop minion passing 50 Attack.',
+          'Some buys, and round 7, have a small chance to get a surprise line.',
+          'The Three Win Streak line has a second take. A wrong Top Two take was removed.',
+          'Most lines still play once per game at most, with a pause between lines. Up to 15 lines per game, plus the final result.',
+        ],
       },
     ],
   },

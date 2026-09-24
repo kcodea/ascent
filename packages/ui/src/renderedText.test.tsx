@@ -72,11 +72,14 @@ const structuralSubject = (id: string): boolean => {
 /** Does this effect actually reach a cardText.ts branch? Mirrors the guards the helpers themselves apply, so
  *  a card whose factory is referenced only under a param guard it does not meet is not a false subject:
  *   - `deathrattleSummon` / `onFriendDeathSummon` count only for the Imp token (`cardSummonsImp`'s gate);
- *   - `buffShopPermanent` counts only with an `improve` param (`shopBuffImproveText`'s gate). */
+ *   - `buffShopPermanent` counts only with an `improve` param (`shopBuffImproveText`'s gate);
+ *   - `castSpell` counts only with a `perGold` param (`castSpellPerGoldText`'s gate) — Soul Defiler's flat
+ *     "cast Staff of Guel" (2026-09-23) names the spell and carries no on-card scaler. */
 const effectReachesHelper = (e: { do: string; params?: Record<string, unknown> }): boolean => {
   if (!FACTORY_REFS.has(e.do)) return false;
   if (e.do === 'deathrattleSummon' || e.do === 'onFriendDeathSummon') return e.params?.tokenId === 'impscrap';
   if (e.do === 'buffShopPermanent') return !!e.params?.improve;
+  if (e.do === 'castSpell') return !!e.params?.perGold;
   return true;
 };
 
@@ -105,7 +108,7 @@ const richBag = (id: string): LiveTextParams => ({
   eotTick: 2, eotBonus: 2, sellBonus: 2, soldProgress: 2,
   playedThisTurn: ['alley', 'alley', 'alley'], tribesPlayed: { undead: 2 }, /* Bicycle Bob's per-tribe channel (2026-09-18) */ attackSeen: 9, permaGain: { attack: 2, health: 2 },
   squirlScoutBuff: 3, conductorBuff: 3, onBoard: true,
-  goldSpent: 6, goldSpentRun: 13, goldPouchValue: 2,
+  goldSpent: 12, /* ≥ Rope Wrangler's per-10-Gold repeat (2026-09-23) */ goldSpentRun: 13, goldPouchValue: 2,
   alesThisTurn: 2, zooSummons: 2, rallySpreadAtk: 5,
   rubyBonus: { attack: 2, health: 2 },
   lastSpellName: 'Spirit Fire', rememberedSpellNames: ['Spirit Fire', 'Growth'],

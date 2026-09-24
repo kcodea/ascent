@@ -54,6 +54,7 @@ import { ReplayDragGhost } from './replay/ReplayDragGhost';
 import { ReplayCursorGhost } from './replay/ReplayCursorGhost';
 import { RoundRail } from './replay/RoundRail';
 import { PixiFxLayer } from './PixiFxLayer';
+import { CastPreviewLayer } from './CastPreviewLayer';
 import { pixiFx, warmDiscoverFx } from './pixiFx';
 import { applyFpsCap } from './fpsCap';
 import { warmArt } from './art';
@@ -436,6 +437,9 @@ export function Game() {
           programs away with the context). */}
       {(!preRun || heroPicking) && <PixiFxLayer />}
       {!preRun && <StatusBar key={`sb:${runKey}`} />}
+      {/* The cast preview (owner ask 2026-09-23): a rune's / minion's cast spell floating above its caster — one
+          fixed, input-transparent layer serving the shop and the combat replay alike. */}
+      {!preRun && <CastPreviewLayer />}
       {showBook && <MinionBook />}
       <Inspect />
       <button className="gearbtn" onPointerDown={openSettings} title="Settings (Esc)" aria-label="Settings">

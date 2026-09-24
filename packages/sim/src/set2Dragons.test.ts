@@ -620,7 +620,7 @@ describe('set 2 — tranche of owner card changes (2026-07-25)', () => {
     const buffsOn = (uid: string) => (r.events.filter((e) => e.type === 'buff') as { target: string; attack: number }[])
       .filter((b) => b.target === uid);
     expect(buffsOn('m1').length, 'the Dragon that attacked was buffed').toBeGreaterThan(0);
-    expect(buffsOn('m1')[0]!.attack).toBe(2);
+    expect(buffsOn('m1')[0]!.attack).toBe(3); // +3/+2 since the owner's 2026-09-23 balance (was +2/+1)
     expect(buffsOn('m2'), 'the Beast that attacked was NOT').toEqual([]);
     // Owner ruling 2026-08-01: "another" — the Skald's own swings never buff itself.
     expect(buffsOn('m0'), 'the Skald buffed ITSELF on its own attack').toEqual([]);

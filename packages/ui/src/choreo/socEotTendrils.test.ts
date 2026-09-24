@@ -111,7 +111,7 @@ const spyCtx = () => ({
   statGain: vi.fn(), heroPowerGain: vi.fn(), selfBuff: vi.fn(), rubyLanded: vi.fn(), spellPower: vi.fn(), impAura: vi.fn(), rubyAura: vi.fn(),
   cardGranted: vi.fn(), cardSummoned: vi.fn(), cardDestroyed: vi.fn(), shopBuffed: vi.fn(),
   resourceChanged: vi.fn(), counterChanged: vi.fn(), cardTransformed: vi.fn(), keywordChanged: vi.fn(),
-  questTendril: vi.fn(), tavernGust: vi.fn(), weldPulse: vi.fn(), fodderEaten: vi.fn(), echoFired: vi.fn(),
+  questTendril: vi.fn(), tavernGust: vi.fn(), weldPulse: vi.fn(), fodderEaten: vi.fn(), echoFired: vi.fn(), spellCast: vi.fn(),
 }) satisfies PresenterContext;
 
 /** Resolve End of Turn, then present every `statsChanged` under its own trigger the way the live player does. */

@@ -20,6 +20,8 @@ import { PUMMEL_STACK_MS } from './choreo/channels/pummelFired';
 import type { Moment } from './choreo/compile';
 import { replayBeats, replayOrder } from './choreo/replayOrder';
 import { rallyDeliveredUids, runMomentCues } from './choreo/score';
+import { CastPreviewMemory } from './choreo/channels/castPreview';
+import { clearCastPreviews, showCastPreview } from './castPreview';
 import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, releaseSummons, subscribeSummonHolds, summonHoldVersion } from './fx/summonHold';
 import { notifyTutorialPresented } from './tutorial/presentationBus';
 import { attackSummonUids, ownStrikeAt, rallyProcsFor, strikeFollowsWindup } from './choreo/channels/rallyFired';
@@ -1501,6 +1503,10 @@ export function useCombatReplay(
   // `toHand` beat and the death beat). See `choreo/finalHold.ts`. A stale entry from an earlier fight is
   // harmless (already elapsed → 0), and `resetTo` clears it anyway.
   const lastPummelFireRef = useRef<PummelFire | null>(null);
+  // THE CAST PREVIEW's once-per-fight memory (owner detail 2026-09-23: "for card like fatecarver or warflame that
+  // casts the same spell every time, it should only do the quick pop one time in combat"). Reset with the
+  // replay (`resetTo`): a new fight, a seek, a rewatch all start it over.
+  const castPreviewMemoryRef = useRef(new CastPreviewMemory());
   // Tab visibility — pause the beat clock while backgrounded so beats/lunges don't pile up and then fire
   // all at once (a loud burst of sounds) when you tab back in.
   const [hidden, setHidden] = useState(() => typeof document !== 'undefined' && document.hidden);
@@ -1547,6 +1553,8 @@ export function useCombatReplay(
     setFramePulse(new Map());
     setFinished(false);
     lastPummelFireRef.current = null;
+    castPreviewMemoryRef.current.reset();
+    clearCastPreviews();
     setAttackUid(null);
     // (the `[data-zone] .unit` kill that stopped any lunge left mid-flight by the previous fight now runs
     //  first, at the top of this callback — see the comment there for why the ordering is load-bearing)
@@ -2274,6 +2282,16 @@ export function useCombatReplay(
       },
       // buff-OTHER casts (source ≠ target) → tendril/descend + badge flash (shared with the attack-wind-up path).
       onBuffCasts: (casts) => fireBuffCasts(casts),
+      // "X casts Y" → the spell's card preview above X (owner ask 2026-09-23), once per (caster, spell) per
+      // fight. Anchored from the SLOT reading (`rectOf`), like a float — not a mid-lunge position.
+      onSpellCastPreviews: (casts) => {
+        for (const c of casts) {
+          if (!castPreviewMemoryRef.current.claim(c.source, c.spellId)) continue;
+          const r = rectOf(c.source);
+          if (!r) continue;
+          showCastPreview({ sourceKey: c.source, spellId: c.spellId, anchor: { left: r.cx - r.w / 2, top: r.cy - r.h / 2, width: r.w, height: r.h } });
+        }
+      },
       onSelfBuffs: (selfBuffs) => fireSelfBuffs(selfBuffs),
       // An aura STRENGTHENED (Kennelmaster's Avenge bump, Mama Bear / Flowing Monk growth) → a bare in-place pulse
       // at the unit. No badge hold/flash: an `improve` grows the unit's AURA (future grants), not its own Atk/HP.

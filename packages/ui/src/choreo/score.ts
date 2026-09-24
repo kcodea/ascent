@@ -24,6 +24,7 @@ import { sfx } from '../sfx';
 import { anchorsForUnits } from '../fx/combatAnchors';
 import { claimDamageFx, damagedUidsIn, struckUidsIn, expireDamageFxClaim, isDamageFxClaimed } from './cardFx';
 import { bindingFor } from './bindings';
+import { spellCastsIn, type CombatSpellCast } from './channels/castPreview';
 
 /**
  * The Score (choreographer phase 3) — per moment KIND, the ordered cues (channels + when they fire) that a
@@ -35,7 +36,7 @@ import { bindingFor } from './bindings';
  * instead by `engine.ts`'s `runAttackExchangeCues` from a `useLayoutEffect` — this file still owns the score
  * DATA for both.
  */
-export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx' | 'rallyFx' | 'shoutFx' | 'bounceFx' | 'pummelFx' | 'startOfCombatFx' | 'avengeFx';
+export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx' | 'rallyFx' | 'shoutFx' | 'bounceFx' | 'pummelFx' | 'startOfCombatFx' | 'avengeFx' | 'castPreviewFx';
 /** When a cue fires within its moment. `start`/`contact` are used today; `landed`/`end` are reserved for
  *  phase 3c (aura bursts) and phase 4 (authoring). */
 export type Anchor = 'start' | 'contact' | 'landed' | 'end';
@@ -100,6 +101,11 @@ const BASE: Cue[] = [
   // wherever defs can't play (the runner checks `canPlayDefs()` before it allocates).
   { ch: 'startOfCombatFx', at: 'start', offset: 0 },
   { ch: 'avengeFx', at: 'start', offset: 0 },
+  // `castPreviewFx` — a minion CAST A SPELL in this moment (an `sc` event stamped with `spellId`): float the
+  // spell's card preview above the caster (owner ask 2026-09-23), once per (caster, spell) per fight. On every
+  // kind for the same reason `rallyFx` is: an on-attack cast is absorbed into the caster's wind-up, so the scan
+  // is per event, not per kind. See `channels/castPreview.ts`.
+  { ch: 'castPreviewFx', at: 'start', offset: 0 },
 ];
 const withReform = (): Cue[] => [...BASE, { ch: 'auraReform', at: 'start', offset: 460, scaled: false }];
 /** Every kind runs sfx + float + auraBurst + auraBreak + executeFx + fxDef at start (all adapters no-op for
@@ -138,6 +144,9 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
     // The kind a Rally actually arrives in — every Rally is an `onAttack` trigger, so `absorbIntoWindup` folds
     // its event into this exchange. If `rallyFx` were on only one kind, this would be the one.
     { ch: 'rallyFx', at: 'start', offset: 0 },
+    // Same for an ON-ATTACK cast (Fatecarver, Warflame): its "X casts Y" is absorbed into the wind-up, so the
+    // cast preview's per-event scan must ride the exchange too (see `channels/castPreview.ts`).
+    { ch: 'castPreviewFx', at: 'start', offset: 0 },
     // A Pummel fire cannot reach a wind-up today (it follows a `dmg`, which ends the absorb), but the
     // per-event scan is free and keeps the channel's "on every kind" contract honest.
     { ch: 'pummelFx', at: 'start', offset: 0 },
@@ -275,6 +284,9 @@ export interface CueContext {
   /** This moment's buff-OTHER casts (source !== target), grouped per (source,target). The replay fires a
    *  tendril per cast (Task 4 adds the held-value release / badge flash at the strike). */
   onBuffCasts: (casts: import('./channels/buffCast').BuffCast[]) => void;
+  /** This moment's "X casts Y" announcements (`sc` + `spellId`), in order — the cast preview above each caster
+   *  (owner ask 2026-09-23). Optional: older callers / tests build contexts without it. */
+  onSpellCastPreviews?: (casts: CombatSpellCast[]) => void;
   /** This moment's SELF-buffs (source === target), grouped per uid. The replay fires a pulse per unit and holds
    *  then flashes its badge to the new value (Task 6). */
   onSelfBuffs: (selfBuffs: import('./channels/buffSelf').SelfBuff[]) => void;
@@ -532,6 +544,10 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     else if (cue.ch === 'buffSelf') at(cue, () => {
       const selfBuffs = groupSelfBuffs(moment, ctx.events);
       if (selfBuffs.length) ctx.onSelfBuffs(selfBuffs);
+    });
+    else if (cue.ch === 'castPreviewFx') at(cue, () => {
+      const casts = spellCastsIn(moment, ctx.events);
+      if (casts.length) ctx.onSpellCastPreviews?.(casts);
     });
     else if (cue.ch === 'improveSelf') at(cue, () => {
       const uids: string[] = [];

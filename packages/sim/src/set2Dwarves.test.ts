@@ -255,32 +255,14 @@ describe('tranche B — combat-trigger Dwarves', () => {
     expect(swings.length, 'the Soldier attacked twice on arrival').toBe(1);
   });
 
-  it('Exgalloper copies the BODY, not the corpse, and cannot chain', () => {
-    // At the moment an Echo fires the parent's health is 0, so a literal copy arrives already dead. And exactly
-    // one copy: one that kept its own Echo would summon another on death, up to the board cap.
-    const s = summonsOf(fight([mine('dw_exgalloper', 4, 6)], [foe(20, 20)]), 'dw_exgalloper');
-    expect(s.length, 'the copy chained, or never happened').toBe(1);
-    expect(s[0]!.attack).toBe(4);
-    expect(s[0]!.health, 'the copy was born dead').toBeGreaterThan(0);
-  });
-
-  it('a GILDED Exgalloper summons GILDED exact copies; a plain one stays plain', () => {
-    // q-copy-gilded-badge (owner REVISE 2026-08-27): "gilded exgalloper's summons should be exact copies
-    // without the echo, so they would be gilded too" — matching Mirrorhide's scSummonCopy convention.
-    const copiesOf = (r: { events: readonly { type: string }[] }) => r.events
-      .filter((e) => e.type === 'summon')
-      .map((e) => (e as unknown as { minion?: { cardId?: string; golden?: boolean; attack: number } }).minion)
-      .filter((m): m is { cardId?: string; golden?: boolean; attack: number } => m?.cardId === 'dw_exgalloper');
-    const gilded = { ...mine('dw_exgalloper', 12, 12), golden: true } as BoardMinion;
-    const g = copiesOf(fight([gilded], [foe(20, 40)]));
-    expect(g.length, 'gilded: exactly two exact copies').toBe(2);
-    for (const c of g) {
-      expect(c.golden, 'the copy of a gilded body carries the Gilded badge').toBe(true);
-      expect(c.attack, 'the copy is exact-stat, not re-doubled').toBe(12);
-    }
-    const p = copiesOf(fight([mine('dw_exgalloper', 4, 6)], [foe(20, 20)]));
-    expect(p.length).toBe(1);
-    expect(!!p[0]!.golden, 'a plain source still summons a plain copy').toBe(false);
+  it('Exgalloper is REBIRTH (owner rework 2026-09-23): it returns once with its full body and never summons a copy', () => {
+    // It was "Echo: summon an exact copy of this without Echo" (the owner's 2026-08-27 gilded-copy ruling lived
+    // here). The keyword replaces the whole text: one return with the current body, then a real death.
+    const r = fight([{ ...mine('dw_exgalloper', 9, 9), keywords: ['RB'] } as BoardMinion], [foe(4, 500)]);
+    expect(summonsOf(r, 'dw_exgalloper'), 'no exact-copy Echo').toHaveLength(0);
+    const rb = r.events.filter((e) => e.type === 'reborn') as unknown as { attack: number; hp: number; rebirth?: true }[];
+    expect(rb, 'exactly one return').toHaveLength(1);
+    expect(rb[0]).toMatchObject({ rebirth: true, attack: 9, hp: 9 });
   });
 });
 
@@ -437,16 +419,16 @@ describe('Set 2 runes — the grant-shaped ones', () => {
     expect(grantedIds(rune!)).toContain(cardId);
   });
 
-  it('Rune of Gemcutting mints 5 Rubies at a FIXED 3/3 (owner balance 2026-08-18)', () => {
+  it('Rune of Gemcutting mints 6 Rubies at a FIXED 4/4 (balance 9/23; owner balance 2026-08-18 had 5 at 3/3)', () => {
     const rune = all.find((r) => r.name === 'Rune of Gemcutting')!;
-    expect(rune.reward).toMatchObject({ kind: 'mintRubies', count: 5, attack: 3, health: 3 });
-    // And through the reducer: five 3/3 Rubies land in hand — NOT the run's 1/1 + rubyBonus line.
+    expect(rune.reward).toMatchObject({ kind: 'mintRubies', count: 6, attack: 4, health: 4 });
+    // And through the reducer: six 4/4 Rubies land in hand — NOT the run's 1/1 + rubyBonus line.
     let st: RunState = { ...createRun(3), phase: 'recruit', hand: [], rubyBonus: { attack: 0, health: 0 } };
     st = { ...st, embers: 99, runeforgeOffer: [rune.id], runeforgeEpic: undefined };
     st = reduce(st, { type: 'buyRune', index: 0 });
     const rubies = st.hand.filter((c) => c.cardId === 'ruby');
-    expect(rubies).toHaveLength(5);
-    expect(rubies.every((c) => c.attack === 3 && c.health === 3), 'a minted Ruby was not 3/3').toBe(true);
+    expect(rubies).toHaveLength(6);
+    expect(rubies.every((c) => c.attack === 4 && c.health === 4), 'a minted Ruby was not 4/4').toBe(true);
   });
 
   it('Rune of Double Fisting grants Edward, and 2 random Ales EVERY TURN (owner rework 2026-08-11)', () => {

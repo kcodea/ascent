@@ -101,6 +101,7 @@ describe('card sets — set 2 carries set 1 spells', () => {
       // Owner add 2026-08-18: the two Dragon spells.
       'sp_dragonflame', 'sp_flutter',
       'sp_dissipate', // owner add 2026-09-18
+      'sp_picnic', // owner add 2026-09-23
     ];
     for (const id of s2) expect(s1.has(id) || SET2_OWN_SPELLS.includes(id), `${id} is in set 2 but neither carried from set 1 nor a known set-2 spell`).toBe(true);
   });

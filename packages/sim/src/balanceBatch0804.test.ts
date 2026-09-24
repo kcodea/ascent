@@ -32,10 +32,10 @@ describe('Water Dragon — Avenge (3) copies the left-most hand Spell', () => {
   });
 });
 
-describe("Rope Wrangler — End of Turn casts Lasso, scaling with Gold spent (owner rework 2026-08-18)", () => {
-  // The +2/+2 self-buff is GONE. The single End-of-Turn effect casts Lasso, plus one more cast per 6 Gold spent
-  // this turn, capped at 5 casts. Golden multiplies the cast count (then caps). Each cast bumps `spellsCast` /
-  // `spellsThisTurn`, so the cast count is read off the `spellsCast` delta.
+describe("Rope Wrangler — End of Turn casts Lasso, repeated per Gold spent (owner rework 2026-08-18 / 2026-09-23)", () => {
+  // The +2/+2 self-buff is GONE. The single End-of-Turn effect casts Lasso, then repeats once per 10 Gold spent
+  // this turn (owner 2026-09-23: the REPEAT form, no cap; it was +1 per 6 Gold capped at 5). Golden casts twice
+  // per tick. Each cast bumps `spellsCast` / `spellsThisTurn`, so the cast count is read off the `spellsCast` delta.
   const wrangler = (gold: number, golden = false): RunState => ({
     ...createRun(1), phase: 'recruit', embers: 10, shop: [],
     board: [{ ...card('rw', 'ropewrangler', 5, 4), golden }],
@@ -52,24 +52,24 @@ describe("Rope Wrangler — End of Turn casts Lasso, scaling with Gold spent (ow
     expect([rw.attack, rw.health], 'no self-buff any more').toEqual([5, 4]);
   });
 
-  it('adds one cast per 6 Gold spent this turn (12 Gold → 3 casts)', () => {
-    const s = wrangler(12);
+  it('repeats once per 10 Gold spent this turn (20 Gold → 3 casts)', () => {
+    const s = wrangler(20);
     applyEndOfTurn(s);
-    expect(s.spellsCast, '1 + floor(12/6) = 3 casts').toBe(3);
+    expect(s.spellsCast, '1 + floor(20/10) = 3 casts').toBe(3);
   });
 
-  it('caps the total at 5 casts however much Gold was spent', () => {
-    const s = wrangler(600); // 1 + 100 → capped
+  it('has no cap however much Gold was spent (600 Gold → 61 casts)', () => {
+    const s = wrangler(600);
     applyEndOfTurn(s);
-    expect(s.spellsCast, 'hard cap of 5').toBe(5);
+    expect(s.spellsCast, 'no cap').toBe(61);
   });
 
-  it('golden multiplies the cast count, then caps at 5', () => {
-    // 12 Gold → base 3 casts × golden 2 = 6 → capped at 5.
-    const s = wrangler(12, true);
+  it('golden casts twice per tick', () => {
+    // 20 Gold → 3 ticks × 2 casts = 6.
+    const s = wrangler(20, true);
     applyEndOfTurn(s);
-    expect(s.spellsCast, '(1 + 12/6) × 2 = 6, capped at 5').toBe(5);
-    // A dry golden turn: base 1 × 2 = 2 casts, under the cap.
+    expect(s.spellsCast, '(1 + 20/10) ticks × 2 casts = 6').toBe(6);
+    // A dry golden turn: one tick × 2 casts.
     const dry = wrangler(0, true);
     applyEndOfTurn(dry);
     expect(dry.spellsCast, 'golden with no Gold spent → 2 casts').toBe(2);

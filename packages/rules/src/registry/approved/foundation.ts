@@ -714,4 +714,60 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-23',
     },
   },
+  {
+    id: 'R-PRESENT-10',
+    title: 'The cast preview: a spell cast by a rune or a minion shows its card above the caster for a moment',
+    statement:
+      'Whenever a spell is CAST BY A RUNE or BY A MINION (never by the player from hand or shop), the game floats '
+      + 'that spell\x27s card preview above its caster: above the rune\x27s node on the rune rail for a rune-cast, above '
+      + 'the minion\x27s card for a minion-cast (Rune of the Gilded Ledger\x27s random stat spell, Rune of the Spell '
+      + 'Market\x27s Staff of Guel, Rope Wrangler\x27s Lasso, a Gemstorm Instigator\x27s Rubies, a Mirrorwing re-cast, an '
+      + 'End-of-Turn cast). It is the SAME plated full-size card the hover reveal shows, with its live text; it fades '
+      + 'in like a hover preview (~180 ms), lingers about two seconds (2000 ms), then fades out (~320 ms). In the shop '
+      + 'every cast previews; a second cast from the SAME source while its preview is still up REPLACES it (the card '
+      + 'swaps, a small xN count appears, the linger restarts) and casts from different sources sit side by side, '
+      + 'nudged apart rather than overlapping. IN COMBAT a source that casts the SAME spell repeatedly previews it '
+      + 'only on its FIRST cast of that spell in that fight (Fatecarver, Warflame); a different spell from the same '
+      + 'source previews once too; the memory resets at the start of every combat and on a replay seek. The player\x27s '
+      + 'own cast and an Equipment\x27s cast show no preview. Presentation only: the sim records the cast on a per-action '
+      + 'channel (`RunState.castFx`, stamped in `applyCastEffects` off the recruit cast-actor stack) and emits a '
+      + '`spellResolved` consequence under a capturing collector; nothing in gameplay reads either. The layer is fixed '
+      + 'and input-transparent, animates opacity/transform only, and reads layout once per preview.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner balance list, 2026-09-23 (Rune of the Gilded Ledger)',
+        quote: 'please have a copy of the spell that gets cast pop up above the rune when it is cast. use a hover preview and let it linger for about 2 seconds. have it fade in/out like a preview',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner balance list, 2026-09-23 (Rune of the Spell Market)',
+        quote: 'when this happens, show Staff of Guel with the same preview style we talked about. this should become the norm, when a spell or something is cast or triggered from runes and minions.',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner detail, 2026-09-23 (combat)',
+        quote: 'for the preview -> for card like fatecarver or warflame that casts the same spell every time, it should only do the quick pop one time in combat.',
+      },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts (`castActorStack`, `withCastActor`, the RECRUIT_FACTORIES wrap, the record at the top of `applyCastEffects`, `EotStepFx.casts`); packages/sim/src/state.ts (`CastFx`, `recordCastFx`, `castFx`/`castFxSeq`); packages/ui/src/castPreview.ts (the store, `placeCastPreview`); packages/ui/src/CastPreviewLayer.tsx; packages/ui/src/choreo/channels/castPreview.ts (`spellCastsIn`, `CastPreviewMemory`); packages/ui/src/choreo/score.ts (the `castPreviewFx` cue); packages/ui/src/useCombatReplay.ts (`onSpellCastPreviews`); packages/ui/src/choreographer/consequencePresenters.ts (`spellResolved`); packages/ui/src/styles.css (`.castprev`)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Verified live on port 5267: a Rune of the Gilded Ledger paying out floats the cast '
+      + 'spell above its rune node; a Rope Wrangler\x27s End-of-Turn Lasso floats above the Wrangler; sampled computed '
+      + 'opacity climbs through the fade-in, holds at 1 for the linger and falls through the fade-out; the rune rail '
+      + 'and the warband row rects are identical before and after the preview (no layout shift). Equipment casts '
+      + 'deliberately record nothing (an open question for the owner; see the devlog).',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/sim/src/castFx.test.ts',
+        'packages/ui/src/castPreview.test.ts',
+        'packages/ui/src/CastPreviewLayer.test.tsx',
+        'packages/ui/src/choreo/channels/castPreview.test.ts',
+      ],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
 ];

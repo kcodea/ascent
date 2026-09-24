@@ -678,8 +678,8 @@ describe('the silence rules', () => {
 });
 
 describe('the channel', () => {
-  it('has its own persisted volume (default 0.9) and mute', () => {
-    expect(getAnnouncerVolume()).toBe(0.9);
+  it('has its own persisted volume (default 0.7) and mute', () => {
+    expect(getAnnouncerVolume()).toBe(0.7);
     setAnnouncerVolume(0.4);
     expect(getAnnouncerVolume()).toBe(0.4);
     expect(localStorage.getItem('ascent.announcervol')).toBe('0.4');
@@ -691,6 +691,6 @@ describe('the channel', () => {
     expect(announcerDebug().level).toBe(0);
     toggleAnnouncerMute();
     expect(announcerDebug().level).toBe(1);
-    setAnnouncerVolume(0.9);
+    setAnnouncerVolume(0.7);
   });
 });

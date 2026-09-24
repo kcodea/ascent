@@ -61,15 +61,15 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod runeChef (Rune of the Chef: "Your Chef Gary Toasts gain Rally: buff another random Dwarf for the combined stats this granted last turn.") — Rune of the Chef: an attacking Chef Gary Toast buffs a random Dwarf by its banked `chefGrantedLast`.
 - combat mod solidGroundStat — Solid Ground: the per-summon grant (so the number lives with the spell, not the engine).
 - combat mod containFirstEnemySummon — Containment Rune (spell): set the FIRST enemy minion summoned next combat to 1/1.
-- combat mod runeCenterline (Rune of the Centerline: "Start of Combat: if your end minions have different types, give your middle minion Ward and Critical Strike.") — Rune of the Centerline: SoC — mismatched end types give the middle minion Ward + Critical Strike.
-- combat mod runeEmberline (Rune of Emberline: "The first Imp that dies each combat gives its stats to the next Imp you summon.") — Rune of Emberline: the first friendly Imp to die hands its stats to the next Imp summoned.
+- combat mod runeCenterline — Rune of the Centerline: SoC — mismatched end types give the middle minion Ward + Critical Strike.
+- combat mod runeEmberline — Rune of Emberline: the first friendly Imp to die hands its stats to the next Imp summoned.
 - combat mod runeAshenPayroll (Rune of Ashen Payroll: "Gain 1 Gold next turn for each Imp you summon in combat.") — Rune of Ashen Payroll: Imps-summoned threshold (3) for its once-per-combat Gold payout. Read at settle.
-- combat mod runeSpareChair (Rune of the Spare Chair: "If you begin combat with exactly 6 minions, the first minion you summon gains Ward and attacks immediately.") — Rune of the Spare Chair: on a board of exactly 6, the first minion summoned gets Ward + attacks now.
+- combat mod runeSpareChair — Rune of the Spare Chair: on a board of exactly 6, the first minion summoned gets Ward + attacks now.
 - combat mod runeAncestralRoar (Rune of Ancestral Roar: "End of Turn: give your Dragons +6/+6 for every Shout you triggered this turn.") — Rune of Ancestral Roar: a dying Dragon with a Shout fires that Shout as an Echo.
 - combat mod runeRubyShrapnel (Rune of Ruby Shrapnel: "When a Ruby-buffed minion dies, split its Ruby bonus stats among your surviving minions.") — Rune of Ruby Shrapnel: a dying Ruby-buffed body splits its Ruby stats among the survivors.
 - combat mod runeSharedScripture (Rune of Shared Scripture: "The first Shop spell cast by your warband in combat triggers your left-most Shout and Rally.") — Rune of Shared Scripture: the warband's first combat Shop-spell cast fires the left-most Shout + Rally.
 - combat mod runeBroodmaster — Rune of the Broodmaster: a Broodwright's Imp buff also lands on itself (combat half).
-- combat mod runeMoonhowl (Rune of Moonhowl: "Your Mage-Pups gain "Echo: cast the Shop spell this learned."") — Rune of Moonhowl: a dying Mage-Pup casts its taught spell (Echo).
+- combat mod runeMoonhowl — Rune of Moonhowl: a dying Mage-Pup casts its taught spell (Echo).
 - combat mod runeFloodedVault — Rune of the Flooded Vault: Water Dragon's Avenge also casts the left-most hand spell, unconsumed.
 - combat mod runeBattleRefraction — Rune of Battle Refraction: Prismcasters repeat Rubies played during combat too.
 - combat mod runeWrangler — Rune of the Wrangler: Imps summoned by your Imp Wranglers have Ward + Taunt.
@@ -84,4 +84,4 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod runeDeathtouchedApple (Rune of the Deathtouched Apple: "When a minion Rises, give it Rise. (2 uses per combat)")
 - combat mod runeStokedMenagerie (Rune of the Stoked Menagerie: "Start of Combat: if you control all 5 minion types, double the stats of 3 random minions.") — Rune of the Stoked Menagerie: SoC — controlling every active type doubles 3 random minions.
 - combat mod runeMastery (Rune of Mastery: "Whenever one of your effects Improves, it improves an additional time.") — Rune of Mastery (Epic): +1 extra "Improve" step per copy held (read via `CombatContext.improveRepsFor`; the recruit engine mirrors it off `RunState.runeMastery`). Carries the COPY COUNT since the 2026-08-27 duplicate rulings; `true` in older snapshots reads as 1 (= the classic double).
-- combat mod oldPack (Rune of the Old Pack: "The first Beast you Resummon each combat returns with its full stats.") — Rune of the Old Pack: the first Beast resummoned each combat returns with its full stats.
+- combat mod oldPack — Rune of the Old Pack: the first Beast resummoned each combat returns with its full stats.

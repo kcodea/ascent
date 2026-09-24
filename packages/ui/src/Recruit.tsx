@@ -5,7 +5,7 @@ import { normalizePresentationBatch } from './choreographer/adapters/presentatio
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
 import { presentConsequence, type PresenterContext } from './choreographer/consequencePresenters';
 import { clearCastPreviews, fireCastPreviewAt, type CastPreviewSource } from './castPreview';
-import { playRecordedCastFx, playRuneCastBuffFx, playSpellCastFx } from './fx/spellCastFx';
+import { playCastFanOutBuffFx, playGenericCastSound, playMinionSpellCastFx, playRecordedCastFx, playRuneCastBuffFx, playRuneSpellCastFx, playSpellCastFx } from './fx/spellCastFx';
 import { shippedBeatConfig } from './choreographer/beatConfig';
 import { draftToEngine } from './beatLab/labSchedule';
 import type { BeatPolicyOverrides, BeatTimingOverrides } from './beatLab/beatTiming';
@@ -35,7 +35,7 @@ if (import.meta.env.DEV) {
 }
 import { chooseBothText } from './cardText';
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
-import { type Action, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, spellCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, selectedEquipment, selectedEquipmentDef } from '@game/sim';
+import { type Action, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, nextOpponent, lossDamageCap, playerLossDamage, minionCostOf, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -279,6 +279,19 @@ const spellCastCount = (run: Parameters<typeof spellCasts>[0], def: Parameters<t
   def.id === 'implosion' ? spellCasts(run, def) * implosionCasts(run) :
   def.id === 'sp_dragonflame' ? spellCasts(run, def) * dragonflameCasts(run) : // ×N badge: 1 + your Dragons
   spellCasts(run, def, card); // `card` = the HAND instance, so an Astral Draft pick's extra cast shows on its badge
+
+/** The part of `spellCastCount` the PLAYER cast, for the cast-point burst's repeats. A REPEAT RUNE's share (Rune of
+ *  Hoardflame / Dragon Breath "they cast twice") resolves as that RUNE's cast now, flourishing and travelling from
+ *  its node on the rail (owner 2026-09-24: "the runes that repeat casts should use the rune-cast visual"), so the
+ *  release point repeats only for the player's own resolutions. The ×N badge still shows the whole count. */
+const ownCastCount = (run: Parameters<typeof spellCasts>[0], def: Parameters<typeof spellCasts>[1], card?: Parameters<typeof spellCasts>[2]): number => {
+  const n = spellCastCount(run, def, card);
+  if (def.ruby || def.gift) return n;
+  const base = spellCasts(run, def, card);
+  let byRunes = 0;
+  for (const e of runeExtraCasts(run, def, card)) byRunes += e.count;
+  return byRunes > 0 && base > byRunes ? Math.max(1, Math.round((n * (base - byRunes)) / base)) : n;
+};
 
 /** Build the floating drag-card transform with a CONSISTENT function list, so a CSS transition between the
  *  rAF lean and the snap/magslide states interpolates cleanly. tx/ty = top-left offset; rotX/rotY = 3D tilt
@@ -1523,6 +1536,8 @@ export function Recruit() {
   // it away after the first — two .map() arrays + two Sets per render, at drag frame rate. The null-guard
   // runs the construction exactly once, with the same first-render seed.
   const prevBoardUidsRef = useRef<Set<string> | null>(null);
+  /** Board uids the PLAYER just placed by a play (see the arrival watcher): their landing is `applyDrop`'s. */
+  const playerPlacedRef = useRef<Set<string>>(new Set());
   prevBoardUidsRef.current ??= new Set(run.board.map((c) => c.uid));
   // COALESCE watcher state. A card that appears in hand from nowhere gets the arcane materialise; see the
   // effect below for what's deliberately excluded (buys, gilds, Refrain bounces).
@@ -4497,6 +4512,29 @@ export function Recruit() {
     prevWardRef.current = new Map(run.board.map((c) => [c.uid, c.keywords.includes('DS')]));
   }, [run.board, inCombat]);
 
+  // A MINION ARRIVING FROM ANY SOURCE (owner 2026-09-24: "all spell animations and sfx should be wired to play whenever
+  // a spell or minion is cast/played from any source"). The player's own play lands with the landing dust
+  // (`puffOnBoard`) and a sound; a minion a rune, hero power, quest, Discover, spell or Shout put on the board only
+  // popped in, silent. Any NEW board uid in the Shop now gets the same landing dust and the summon sound. The player's
+  // play is excluded (`playerPlacedRef`, it already has both), and so is a gild (the gild owns its card). The sound is
+  // `sfx.summon`, gated per clip (a mass summon rings each clip once). End-of-Turn summons ride `cardSummoned`.
+  const arrivalPrevRef = useRef<Set<string> | null>(null);
+  const arrivalTriplesRef = useRef<number>(run.triplesMade ?? 0);
+  useEffect(() => {
+    const prev = arrivalPrevRef.current;
+    const tripled = (run.triplesMade ?? 0) > arrivalTriplesRef.current;
+    arrivalTriplesRef.current = run.triplesMade ?? 0;
+    arrivalPrevRef.current = new Set(run.board.map((c) => c.uid));
+    const placed = playerPlacedRef.current;
+    playerPlacedRef.current = new Set();
+    if (!prev || inCombat || run.phase !== 'recruit') return;
+    const fresh = run.board.filter((c) => !prev.has(c.uid) && !placed.has(c.uid) && !(tripled && c.golden));
+    for (const c of fresh) {
+      puffOnBoard(c.uid);
+      sfx.summon(c.cardId);
+    }
+  }, [run.board, inCombat]);
+
   // Replay a batch of captured buff-other events as source→target tendrils (living minion) or descends
   // (spell / Deathrattle / sourceless), using the same renderer as combat. Shared by the per-action watcher
   // below AND the End-of-Turn beat sequence (whose events come from the projection, since the real commit
@@ -4546,6 +4584,16 @@ export function Recruit() {
       // body to leave from, so it used to be routed sourceless and draw nothing; it now plays the spell's per-buff
       // row (an Ale's volley, Dragonflame's column) or, unbound, the stock trail, from the rune's node.
       if (ev.sourceRuneId && playRuneCastBuffFx({ runeId: ev.sourceRuneId, spellId: ev.spellId, target, targetUid: ev.targetUid })) return;
+      // A MINION'S CAST of a spell with a per-buff row (a Mage-Pup's taught Dragonflame, a shop Rally's Dragonflame, an
+      // Ale a minion poured) plays that row, exactly as the player's own cast does: Dragonflame's column on the minion,
+      // an Ale's volley from the caster's body (owner 2026-09-24: "all spell animations and sfx should be wired to play
+      // whenever a spell or minion is cast/played from any source"). It used to fall to the generic descend below.
+      if (ev.spellId && !ev.sourceRuneId) {
+        const casterUid = ev.castByUid ?? ev.sourceUid;
+        const casterEl = casterUid ? findEl(casterUid) : null;
+        const from = casterEl ? restingCenterOf(casterEl as HTMLElement) : null;
+        if (playCastFanOutBuffFx({ spellId: ev.spellId, from, target, targetUid: ev.targetUid })) return;
+      }
       // A FALLEN ECHO STREAMS FROM WHERE IT FELL (owner report 2026-09-16, Dawn Sentinel — `choreo/buffSource.ts`).
       // A `deathrattle` capture's body has already left the board — a shop destroy (Cage Breaker, Graverobber,
       // EMS), a Funeral on Loan return, a Reveler's sell — so `findEl` finds nothing; the departure cache still
@@ -4612,7 +4660,7 @@ export function Recruit() {
     const owned = (rubyOwned.size > 0 || aleOwned.size > 0) ? new Set<string>([...rubyOwned, ...aleOwned]) : null;
     // An Ale's claim covers only the SPELL-kind entries on its targets: a reaction the Ale caused on the same
     // body (Kneel's self-buff) is a separate cue that still plays as itself.
-    const events = owned ? run.recruitBuffFx.filter((e) => !(rubyOwned.has(e.targetUid) || (aleOwned.has(e.targetUid) && e.kind === 'spell'))) : run.recruitBuffFx;
+    const events = owned ? run.recruitBuffFx.filter((e) => !(rubyOwned.has(e.targetUid) || (aleOwned.has(e.targetUid) && e.kind === 'spell' && !e.sourceRuneId && !e.castByUid))) : run.recruitBuffFx;
     if (events.length === 0) return;
     // A BUFF CAPTURED UNDER THE ARENA WAITS FOR THE SHOP (owner report 2026-09-19: Gangplank buffed Han Gover —
     // "the stats went up but the animation didn't play"). A card a COMBAT grants to hand (Han Gover's Ale at
@@ -5264,8 +5312,10 @@ export function Recruit() {
 
   // THE BOUNCE (owner-authored `ruby-bounce` + the placeholder `spell-bounce`, 2026-09-15): a spell or Ruby was
   // RE-CAST onto a DIFFERENT body because of where the original cast landed — Star Crash's random friend, Crash
-  // Course's two Celestials, Reflector's spread, Rune of Distillation (a Shop offer → your left-most), Rune of
-  // Redirection, Rune of the Conduit. The def's ribbon travels FROM the body the original cast landed on TO the
+  // Course's two Celestials, Reflector's spread, a RUBY under Rune of Distillation (a Shop offer → your left-most),
+  // Rune of Redirection, Rune of the Conduit. (A SPELL Distillation / Shared Reflection echoes is the RUNE's cast
+  // since 2026-09-24: it travels from the rune's node, not as a hop — "the runes that repeat casts should use the
+  // rune-cast visual".) The def's ribbon travels FROM the body the original cast landed on TO the
   // bounce recipient. Keyed on `run.bounceFxSeq`, the sim's per-action channel (see `RunState.bounceFx`); one
   // play per HOP, walked as the same cascade-of-stacks the Ruby sweep uses (`gap` between distinct pairs,
   // `beat` within a doubled one) so a multiplied hop is countable. Same-target recasts never reach this channel
@@ -5349,6 +5399,10 @@ export function Recruit() {
       // WHIPLASS-O: out of the Equipment slot beside the hero power (owner 2026-09-12: "equipment can always
       // be a starting point of an effect"). Whiplass-o has no `useFxId`, so this is the slot's only cue.
       from = centre(document.querySelector('.equipslot .heropowerbtn'));
+    } else if (ev.origin.startsWith('rune:')) {
+      // ANY OTHER RUNE that casts Lasso (Recurrence, a repeat rune): out of THAT rune's badge (owner 2026-09-24).
+      from = centre(document.querySelector(`.questbadges [data-source-id="${ev.origin.slice('rune:'.length)}"]`))
+        ?? centre(document.querySelector('.questbadges .runebadge'));
     } else if (ev.origin === 'rune') {
       // RUNE OF LASSOING: out of the rune's own badge in the HUD tray — the rune is the actor, as the
       // arrival implosion already treats it (`useRuneArrivalFx`). SCOPED to `.questbadges`, and named by
@@ -5743,7 +5797,11 @@ export function Recruit() {
       spellCast: (cardId, source) => {
         // The spell's own cast effect, on the cast's beat, whatever the source (fx/spellCastFx.ts); a RUNE'S cast
         // (Rune of Recurrence) stems from its node on the rail (owner ruling 2026-09-24).
-        playSpellCastFx(cardId, { runeId: source.kind === 'rune' ? source.id : null });
+        // A rune's cast also FLOURISHES on its node first (owner 2026-09-24: the rune cast flourish).
+        if (source.kind === 'rune') playRuneSpellCastFx(cardId, source.id);
+        else if (source.kind === 'minion') playMinionSpellCastFx(cardId, source.uid);
+        else playSpellCastFx(cardId);
+        playGenericCastSound(cardId); // the cast sound, from every source (owner 2026-09-24; burst-gated per spell)
         const src: CastPreviewSource | null = source.kind === 'minion' && source.uid ? { kind: 'minion', uid: source.uid }
           : source.kind === 'rune' ? { kind: 'rune', id: source.id } : null;
         if (src) fireCastPreviewAt(src, cardId);
@@ -5762,6 +5820,24 @@ export function Recruit() {
       runeCastGain: (runeId, spellId, uid, index) => {
         const target = restingOf(uid);
         if (target) playRuneCastBuffFx({ runeId, spellId, target, targetUid: uid, index });
+      },
+      // A MINION'S End-of-Turn cast of a spell with a per-buff row: Dragonflame's column on the minion, an Ale's volley
+      // from the caster's body (owner 2026-09-24, spell effects from every source). It used to draw nothing.
+      // The RUN-WIDE shop buff (Staff of Guel, Soul Defiler's cast of it) on its beat: the same shop-wide cue the Shop and
+      // the legacy End-of-Turn path play; the authoritative path drew nothing (owner 2026-09-24, every source).
+      shopBuffAll: (attack, health, sourceCardId) => {
+        runRecruitMomentCues(
+          { kind: 'shopBuffAll', recipients: runRef.current.shop.map((o) => ({ uid: o.uid, count: 1 })), attack, health, ...(sourceCardId ? { sourceCardId } : {}) },
+          {
+            cardIdOf: () => sourceCardId ?? null,
+            measure: (u) => { const el = document.querySelector<HTMLElement>(`[data-uid="${u}"]`); return el ? restingCenterOf(el) : null; },
+          },
+        );
+      },
+      castFanOutGain: (spellId, casterUid, uid, index) => {
+        const target = restingOf(uid);
+        if (!target) return false;
+        return playCastFanOutBuffFx({ spellId, from: casterUid ? restingOf(casterUid) : null, target, targetUid: uid, index });
       },
       statGain: (uid, _zone, _attack, _health, from) => {
         if (!from || from.uid === uid) return;
@@ -5883,7 +5959,9 @@ export function Recruit() {
         const p = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
         playDef('ale-bubbles', { source: p, target: p }, { uids: { source: sourceUid, target: sourceUid } });
       },
-      cardSummoned: () => { /* board arrivals animate through the existing summon path */ },
+      // A minion an End-of-Turn beat summoned: the landing dust + summon sound every other arrival gets (owner
+      // 2026-09-24, every source). The body is injected onto the displayed board by the beat itself.
+      cardSummoned: (cardId, uid) => { puffOnBoard(uid); sfx.summon(cardId); },
       echoFired: (uid) => {
         // The skull-shatter ON ITS BEAT, on the Echo minion — the same `pixiFx.deathrattle` the shop destroy
         // and combat play. Marked pre-fired so the legacy commit-time `shopDeathFx` stamp for this uid (still
@@ -6457,7 +6535,7 @@ export function Recruit() {
   // spells only, matching `spellCasts`), staggered, so a doubled cast visibly procs more than once.
   const castSparks = (fn: () => void, cardId: string): void => {
     const def = CARD_INDEX[cardId];
-    const n = def ? spellCastCount(useGame.getState().run, def) : 1;
+    const n = def ? ownCastCount(useGame.getState().run, def) : 1;
     fn();
     for (let i = 1; i < n; i++) window.setTimeout(fn, i * 200);
   };
@@ -6479,7 +6557,8 @@ export function Recruit() {
     // his own self-buff cue (owner report 2026-09-09).
     // A RUNE'S cast in the same action (Rune of Might answering this cast) is not this cast's: it plays from its
     // own rune node (`sourceRuneId`), so it neither joins this volley nor gets claimed out of the buff replay.
-    const spellHits = st.recruitBuffFx.filter((e) => e.kind === 'spell' && !e.sourceRuneId);
+    // A MINION'S cast in the same action (`castByUid`: a Sporebat re-casting it) is the minion's, likewise.
+    const spellHits = st.recruitBuffFx.filter((e) => e.kind === 'spell' && !e.sourceRuneId && !e.castByUid);
     const targets = Array.from(new Set(spellHits.map((e) => e.targetUid)));
     if (targets.length > 0) spellCastOwnedRef.current = { seq: st.recruitFxSeq, uids: new Set(targets) };
     // `count` is how many BUFFS landed on that body this action, not just that it was hit — a multicast spell
@@ -6497,7 +6576,7 @@ export function Recruit() {
     // does (`castSparks` above). Read from the run BEFORE this action's bookkeeping cleared its one-shot
     // freebies would be wrong — this runs after the dispatch, and `spellCastCount` is the same read the
     // spark path makes at the same moment, so the two agree by construction.
-    runRecruitMomentCues(spellCastMoment(cardId, pt, recipients, def ? spellCastCount(st, def) : 1), ctx);
+    runRecruitMomentCues(spellCastMoment(cardId, pt, recipients, def ? ownCastCount(st, def) : 1), ctx);
     // EDWARD KEG-HANDS echo: Edward (`dw_edward`) makes Ales trigger twice (three times gilded) — the sim already
     // re-ran the buff, but we dedupe the targets, so the repeat would be invisible. Re-fire the SAME fan-out from
     // Edward's card: 1 extra volley for ×2, 2 for ×3 (gilded), each 80ms after the last. Gated on `recipients`
@@ -6569,6 +6648,7 @@ export function Recruit() {
   // card mounts (a post-render detection would be too late; the pop would already have played).
   const playWithSummonDelay = (action: { type: 'play'; uid: string; toIndex?: number; targetUid?: string }): void => {
     const before = new Set(run.board.map((c) => c.uid));
+    playerPlacedRef.current.add(action.uid); // the player's own play: its landing is `applyDrop`'s, not the arrival watcher's
     dispatch(action);
     const tokens = useGame.getState().run.board.filter((c) => !before.has(c.uid) && c.uid !== action.uid).map((c) => c.uid);
     if (tokens.length === 0) return;

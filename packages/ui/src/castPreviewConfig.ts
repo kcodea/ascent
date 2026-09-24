@@ -44,6 +44,29 @@ export interface CastPreviewConfig {
   combatAlpha: number;
   /** 1 = a (caster, spell) pair previews once per fight (the owner's Fatecarver/Warflame ruling); 0 = every cast. */
   combatOncePerFight: number;
+  // ── THE RUNE CAST FLOURISH (owner 2026-09-24: "can we do anything to add a bit of flair to this? like some sort of
+  //    short flash/pixi effect/make it smoother and cleaner with a bit of a 'magic' element to it? nothing crazy.")
+  //    Every spell a RUNE casts: the badge pulses + the `rune-cast-flourish` glyph flash on its node, then (for a
+  //    spell whose effect plays once) a `rune-cast-mote` travels out to where that effect lands. See
+  //    `fx/runeCastFlourish.ts`.
+  /** 1 = on, 0 = off (rune casts look exactly as they did before the flourish). */
+  runeFlourishOn: number;
+  /** How much the badge swells at its peak (0.12 = 12% larger). Transform only. */
+  runeFlourishPulse: number;
+  /** The badge pulse's whole length, ms. */
+  runeFlourishPulseMs: number;
+  /** The glyph flash's size on the node (× the authored def). */
+  runeFlourishFlashSize: number;
+  /** The mote's flight from the rune to the spell's landing point, ms. The spell's own effect waits for it. */
+  runeFlourishMoteMs: number;
+  /** The mote's size (× the authored def: its head, trail width and arrival sparkle). */
+  runeFlourishMoteSize: number;
+  /** For a spell whose visual already TRAVELS from the rune (a trail, an Ale's volley): how long after the flash
+   *  it leaves, ms, so the rune visibly "releases" it. */
+  runeFlourishLeadMs: number;
+  /** Gap between two casts by the SAME rune in one moment (Recurrence's "twice"), ms. Under the 120 ms sound gap
+   *  by default, so a doubled spell still rings once. */
+  runeFlourishRepeatMs: number;
 }
 
 /**
@@ -72,6 +95,15 @@ const DEFAULTS: CastPreviewConfig = {
   combatFadeOut: 190,
   combatAlpha: 1,
   combatOncePerFight: 1,
+  // The rune cast flourish (2026-09-24 concept values; the owner tunes these in the panel).
+  runeFlourishOn: 1,
+  runeFlourishPulse: 0.14,
+  runeFlourishPulseMs: 360,
+  runeFlourishFlashSize: 1,
+  runeFlourishMoteMs: 280,
+  runeFlourishMoteSize: 1,
+  runeFlourishLeadMs: 110,
+  runeFlourishRepeatMs: 110,
 };
 export { DEFAULTS as CAST_PREVIEW_DEFAULTS };
 
@@ -101,6 +133,14 @@ export const CAST_PREVIEW_RANGES: Record<keyof CastPreviewConfig, [number, numbe
   combatFadeOut: [0, 1500, 10],
   combatAlpha: [0, 1, 0.01],
   combatOncePerFight: [0, 1, 1],
+  runeFlourishOn: [0, 1, 1],
+  runeFlourishPulse: [0, 0.5, 0.01],
+  runeFlourishPulseMs: [80, 1200, 10],
+  runeFlourishFlashSize: [0.3, 2.5, 0.05],
+  runeFlourishMoteMs: [80, 1000, 10],
+  runeFlourishMoteSize: [0.3, 2.5, 0.05],
+  runeFlourishLeadMs: [0, 600, 10],
+  runeFlourishRepeatMs: [0, 600, 10],
 };
 
 export const CAST_PREVIEW_KEYS = Object.keys(DEFAULTS) as (keyof CastPreviewConfig)[];
@@ -185,6 +225,31 @@ export function castPreviewLook(context: CastPreviewContext, c: CastPreviewConfi
     : { scale: c.shopScale, side, offsetX: c.shopOffsetX, offsetY: c.shopOffsetY, alpha: c.shopAlpha };
 }
 
+/** The rune cast flourish's knobs, resolved (see `fx/runeCastFlourish.ts`). */
+export interface RuneCastFlourishLook {
+  on: boolean;
+  pulse: number;
+  pulseMs: number;
+  flashSize: number;
+  moteMs: number;
+  moteSize: number;
+  leadMs: number;
+  repeatMs: number;
+}
+
+export function runeCastFlourishLook(c: CastPreviewConfig = cfg): RuneCastFlourishLook {
+  return {
+    on: c.runeFlourishOn >= 0.5,
+    pulse: c.runeFlourishPulse,
+    pulseMs: c.runeFlourishPulseMs,
+    flashSize: c.runeFlourishFlashSize,
+    moteMs: c.runeFlourishMoteMs,
+    moteSize: c.runeFlourishMoteSize,
+    leadMs: c.runeFlourishLeadMs,
+    repeatMs: c.runeFlourishRepeatMs,
+  };
+}
+
 /** The combat once-per-(caster, spell) memory's switch. */
 export function castPreviewCombatOncePerFight(c: CastPreviewConfig = cfg): boolean {
   return c.combatOncePerFight >= 0.5;
@@ -230,8 +295,29 @@ export function castPreviewControlsFor(sources: CastPreviewSources): TunerContro
       min: 0, max: 1, step: 1,
     },
   ] : []),
+  ...RUNE_FLOURISH_CONTROLS,
   ];
 }
+
+const RUNE_FLOURISH_GROUP = 'Rune cast flourish';
+const flourishRow = (key: Extract<keyof CastPreviewConfig, `runeFlourish${string}`>, label: string, unit?: TunerUnit): TunerControl<Extract<keyof CastPreviewConfig, string>> => {
+  const [min, max, step] = CAST_PREVIEW_RANGES[key];
+  return { key, label, group: RUNE_FLOURISH_GROUP, min, max, step, ...(unit ? { unit } : {}) };
+};
+/** The flourish's group (owner ask 2026-09-24): on/off, the badge pulse, the flash, the mote, the release lead. */
+export const RUNE_FLOURISH_CONTROLS: TunerControl<Extract<keyof CastPreviewConfig, string>>[] = [
+  {
+    key: 'runeFlourishOn', label: 'Flourish', group: RUNE_FLOURISH_GROUP,
+    kind: 'toggle', onValue: 1, offValue: 0, onOffLabels: ['on', 'off'], min: 0, max: 1, step: 1,
+  },
+  flourishRow('runeFlourishPulse', 'Badge pulse', '×'),
+  flourishRow('runeFlourishPulseMs', 'Badge pulse length', 'ms'),
+  flourishRow('runeFlourishFlashSize', 'Glyph flash size', '×'),
+  flourishRow('runeFlourishMoteMs', 'Mote travel', 'ms'),
+  flourishRow('runeFlourishMoteSize', 'Mote size', '×'),
+  flourishRow('runeFlourishLeadMs', 'Trail release delay', 'ms'),
+  flourishRow('runeFlourishRepeatMs', 'Repeat-cast gap', 'ms'),
+];
 
 export const CAST_PREVIEW_CONTROLS = castPreviewControlsFor(CAST_PREVIEW_SOURCES);
 

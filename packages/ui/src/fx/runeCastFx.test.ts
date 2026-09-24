@@ -26,6 +26,7 @@ import { spellCastMoment } from '../choreo/recruitMoments';
 import { spellCastsIn } from '../choreo/channels/castPreview';
 import { coalesceBuffFxByTarget, getBuffFxConfig, resetBuffFxConfig, setBuffFxValue } from '../buffFxConfig';
 import type { CombatEvent } from '@game/core';
+import { resetCastPreviewConfig, setCastPreviewValue } from '../castPreviewConfig';
 
 vi.mock('./playDef', () => ({ playDef: vi.fn(() => () => {}), canPlayDefs: vi.fn(() => true) }));
 vi.mock('./combatAnchors', () => ({ anchorsForUnits: vi.fn(() => ({ source: { x: 500, y: 500 }, target: { x: 500, y: 500 } })) }));
@@ -52,11 +53,14 @@ beforeEach(() => {
   mockPlayDef.mockClear();
   resetSpellCastSoundGate();
   resetBuffFxConfig();
+  // These pin #1676's spell-effect routing on its own; the rune cast flourish (which delays the spell to its mote's
+  // arrival) is pinned in runeCastFlourish.test.ts. Off, a rune cast plays synchronously, exactly as #1676 shipped.
+  setCastPreviewValue('runeFlourishOn', 0);
   document.body.innerHTML = '';
   clock += 10_000; // every test starts far past any previous sound
   vi.spyOn(performance, 'now').mockImplementation(() => clock);
 });
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => { vi.restoreAllMocks(); resetCastPreviewConfig(); });
 
 describe('a rune cast plays the spell\'s own effect, stemming from the rune\'s node', () => {
   it('SHOP: Rune of the Gilded Ledger\'s Growth record plays growth-effect with its source on the rune node', () => {
@@ -80,7 +84,7 @@ describe('a rune cast plays the spell\'s own effect, stemming from the rune\'s n
     expect(replay.indexOf('castFxReplacesTendril(ev.spellId)')).toBeLessThan(replay.indexOf('playRuneCastBuffFx('));
     expect(replay.indexOf('playRuneCastBuffFx(')).toBeLessThan(replay.indexOf('fireBuffFx('));
     // The End-of-Turn authoritative `spellResolved` plays it from the rune too.
-    expect(recruit).toContain("playSpellCastFx(cardId, { runeId: source.kind === 'rune' ? source.id : null })");
+    expect(recruit).toContain("if (source.kind === 'rune') playRuneSpellCastFx(cardId, source.id);");
   });
 
   it('an UNBOUND spell a rune cast keeps a trail, now from the rune node (it drew nothing before)', () => {

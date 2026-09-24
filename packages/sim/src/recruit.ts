@@ -1,6 +1,6 @@
 import { ALE_IDS, TRIBES, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { runSpells } from './spellPool';
-import { REVELER_IDS, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
+import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
 import { currentCollector } from './activeCollector';
 import { alignmentOf } from './alignment';
@@ -49,6 +49,22 @@ export function withCastActor<T>(actor: CastFxSource, fn: () => T): T {
   castActorStack.push(actor);
   try { return fn(); } finally { castActorStack.pop(); }
 }
+/**
+ * THE CAST BEING RESOLVED, for the cast factories that open their OWN buff capture per repeat (Dragonflame's
+ * `spellBuffRandomPerTribe`, R-REPEAT-01) or per recipient (Great Pot, the targeted Gifts). Those nested captures
+ * claim their targets, so `applyCastEffects`' outer capture (the one stamped with the spell, the rune and the
+ * caster) skips them, and before this their records went out UNTAGGED: a Gilded Ledger Dragonflame drew a generic
+ * descend instead of Dragonflame's column and never rang its sound (owner report 2026-09-24: "dragonflame animation
+ * is not playing from the gilded ledger etc."). `captureCastBuffFx` reads the top of this stack so every buff a
+ * cast produced carries the same tag, however the factory captures it. Pushed only for a tagged cast (a rune or a
+ * minion actor; the player's own cast stays untagged, exactly as before). Presentation only.
+ */
+const castTagStack: { spellId: string; runeId?: string; casterUid?: string }[] = [];
+/** A cast factory's OWN nested `spell` capture: `captureBuffFx` with the resolving cast's tag (see `castTagStack`). */
+function captureCastBuffFx(state: RunState, run: () => void): void {
+  const tag = castTagStack[castTagStack.length - 1];
+  captureBuffFx(state, undefined, 'spell', run, tag?.spellId, tag?.runeId, tag?.casterUid);
+}
 /** > 0 while an EQUIPMENT activation resolves — its casts (the Keg's Ale) keep the Equipment's own use cue and
  *  record NO preview (the owner named runes and minions; Equipment is an open question in the devlog). */
 let equipmentCastDepth = 0;
@@ -84,7 +100,11 @@ function recordActorCast(state: RunState, spellId: string, collector: Presentati
   const actor = castActorStack[castActorStack.length - 1];
   if (!actor || equipmentCastDepth > 0) return;
   recordCastFx(state, actor, spellId, endOfTurnDepth > 0 ? 'endOfTurn' : 'recruit');
-  if (collector.enabled) collector.emit({ type: 'spellResolved', cardId: spellId });
+  // The consequence needs a beat to belong to. A repeat rune's cast inside the PLAYER's own play (Shared Pour, Astral
+  // Draft, Distillation: `castWithRuneRepeats`, 2026-09-24) runs under no trigger scope, since the player's play opens
+  // none; there the per-action `castFx` record above is the whole presentation signal (the Shop watcher plays it), and
+  // an unscoped `spellResolved` would be an orphan consequence (beat conservation).
+  if (collector.enabled && recruitTriggerFrames.length > 0) collector.emit({ type: 'spellResolved', cardId: spellId });
 }
 
 type RecruitFn = (
@@ -584,6 +604,9 @@ export function captureBuffFx(
   /** The rune that cast it, when the caster was a rune — stamped as `sourceRuneId` so the presentation can stem
    *  from the rune's node on the rail (owner ruling 2026-09-24). */
   castRuneId?: string,
+  /** The minion that cast it, when the caster was a minion — stamped as `castByUid` so a travelling per-buff row
+   *  (an Ale's volley) leaves the caster's body (owner 2026-09-24). */
+  castByUid?: string,
 ): void {
   const before = new Map(state.board.map((c) => [c.uid, { a: c.attack, h: c.health }]));
   const fxStart = state.recruitBuffFx.length; // entries pushed DURING run() are nested (deeper) captures
@@ -614,6 +637,7 @@ export function captureBuffFx(
       kind,
       ...(castSpellId ? { spellId: castSpellId } : {}),
       ...(castSpellId && castRuneId && kind === 'spell' ? { sourceRuneId: castRuneId } : {}),
+      ...(castSpellId && castByUid && kind === 'spell' ? { castByUid } : {}),
     });
   }
 }
@@ -1476,13 +1500,85 @@ export function giftCastCount(state: Pick<RunState, 'board' | 'nextSpellExtraCas
 }
 
 export function spellCasts(state: RunState, def: CardDef, card?: Pick<BoardCard, 'extraCasts'>): number {
+  return spellCastsWithout(state, def, card, NO_RUNES_OFF);
+}
+
+const NO_RUNES_OFF: ReadonlySet<string> = new Set();
+
+/** The rune that granted a `runeSpellDouble` for `spellId` (Rune of Hoardflame -> Hoardflame, Rune of Dragon Breath
+ *  -> Dragonflame), read off the run's owned runes. Undefined when no owned rune names it. */
+function spellDoubleRuneOf(state: RunState, spellId: string): string | undefined {
+  for (const id of state.ownedRunes ?? []) {
+    const r = RUNE_INDEX[id]?.reward;
+    const parts = r?.kind === 'multi' ? r.rewards : r ? [r] : [];
+    if (parts.some((p) => p.kind === 'runeSpellDouble' && p.spellId === spellId)) return id;
+  }
+  return undefined;
+}
+
+/**
+ * THE CASTS A RUNE ADDS to one play of `def` (owner 2026-09-24: "the runes that repeat casts should use the rune-cast
+ * visual"). `spellCasts` folds several REPEAT RUNES into one number: Rune of Hoardflame / Dragon Breath ("they cast
+ * twice"), the Bottomless Cask ("Ales trigger an additional time"), Shared Pour ("your first Ale each turn casts an
+ * additional time") and the Astral Draft's stamped pick ("it casts an additional time"). This splits that number
+ * back out, rune by rune, IN ORDER: `spellCasts` minus the result's total is what the PLAYER cast, and each entry
+ * is how many of the remaining casts that rune owns. Attribution is sequential (each rune's share is what turning
+ * it on adds on top of the ones before it), so the shares always sum to exactly the extra casts, even when a
+ * doubling rune multiplies another multiplier. Read-only, like `spellCasts`; presentation only (the cast-actor
+ * stack), never gameplay.
+ */
+export function runeExtraCasts(state: RunState, def: CardDef, card?: Pick<BoardCard, 'extraCasts'>): { runeId: string; count: number }[] {
+  if (def.singleCast) return [];
+  const runes: string[] = [];
+  const dbl = spellDoubleRuneOf(state, def.id);
+  if (dbl && (state.runeSpellDouble ?? []).includes(def.id)) runes.push(dbl);
+  if (ALE_IDS.includes(def.id)) {
+    if ((state.ownedRunes ?? []).includes('rune_bottomless_cask') && (state.aleExtraCasts ?? 0) > 0) runes.push('rune_bottomless_cask');
+    if (state.runeSharedPour && !state.sharedPourUsedThisTurn) runes.push('rune_shared_pour');
+  }
+  if ((card?.extraCasts ?? 0) > 0 && (state.ownedRunes ?? []).includes('rune_astral_draft')) runes.push('rune_astral_draft');
+  if (runes.length === 0) return [];
+  const off = new Set(runes);
+  let prev = spellCastsWithout(state, def, card, off);
+  const out: { runeId: string; count: number }[] = [];
+  for (const id of runes) {
+    off.delete(id);
+    const now = spellCastsWithout(state, def, card, off);
+    if (now > prev) out.push({ runeId: id, count: now - prev });
+    prev = now;
+  }
+  return out;
+}
+
+/**
+ * Run a play's `casts` resolutions of `def`: the PLAYER's first, then each repeat rune's share under that rune as the
+ * cast actor (`runeExtraCasts`), so a repeated cast records and presents as the RUNE's cast (its node on the rail,
+ * the cast preview above it, the rune flourish) while the player's own cast keeps the player's visuals (owner
+ * 2026-09-24). `extras` must be read BEFORE the loop (the same moment `casts` was), since a cast can spend a
+ * freebie a share depends on. Gameplay is identical to `for (n < casts) one()`: only the actor stack differs.
+ */
+export function castWithRuneRepeats(casts: number, extras: readonly { runeId: string; count: number }[], one: () => void): void {
+  let runeCasts = 0;
+  for (const e of extras) runeCasts += e.count;
+  const own = Math.max(0, casts - runeCasts);
+  for (let n = 0; n < own; n++) one();
+  let left = casts - own;
+  for (const e of extras) {
+    const k = Math.min(e.count, left);
+    left -= k;
+    if (k > 0) withCastActor({ kind: 'rune', id: e.runeId }, () => { for (let n = 0; n < k; n++) one(); });
+  }
+}
+
+function spellCastsWithout(state: RunState, def: CardDef, card: Pick<BoardCard, 'extraCasts'> | undefined, off: ReadonlySet<string>): number {
   if (def.singleCast) return 1; // Channeling the Devourer never multiplies
   let mult = def.target ? spellCastMult(state) : 1; // Yazzus multiplies aimed spells; untargeted = 1
   if (state.spellDoubleAlways) mult *= 2; // Ancient Runes: every spell casts twice
   // Rune of Hoardflame / Rune of Dragon Breath: THIS spell id casts an extra time. Card-scoped (the Edward
   // Keg-hands shape below, by id rather than by Ale list) and read-only, so the UI's x N badge previews the
   // real count — which is what makes the multicast modifier show while the rune is armed.
-  for (const id of state.runeSpellDouble ?? []) if (id === def.id) mult *= 2;
+  const dblRune = off.size > 0 ? spellDoubleRuneOf(state, def.id) : undefined;
+  if (!dblRune || !off.has(dblRune)) for (const id of state.runeSpellDouble ?? []) if (id === def.id) mult *= 2;
   // Spell Thesis: the FIRST spell each turn casts twice. READ-ONLY here (so the UI can preview the count without
   // side effects) — the reducer's cast sites consume the freebie by setting `spellFirstUsedThisTurn` after casting.
   if (state.spellFirstDoubleEachTurn && !state.spellFirstUsedThisTurn) mult *= 2;
@@ -1505,19 +1601,22 @@ export function spellCasts(state: RunState, def: CardDef, card?: Pick<BoardCard,
     if (edwards.length > 0) mult *= edwards.some((c) => c.golden) ? 3 : 2;
     // Run-wide Ale multiplier (Bottomless Cellar, Rune of the Bottomless Cask). ADDED rather than multiplied,
     // because both read "trigger an ADDITIONAL time" — the same distinction Nimbus makes below.
-    mult += state.aleExtraCasts ?? 0;
+    // (The Bottomless Cask's share, when `runeExtraCasts` is splitting it out: one per applied copy; the rest is
+    // the Bottomless Cellar quest's.)
+    const caskShare = off.has('rune_bottomless_cask') ? Math.min(state.aleExtraCasts ?? 0, runeStacksOf(state, 'rune_bottomless_cask')) : 0;
+    mult += (state.aleExtraCasts ?? 0) - caskShare;
     // Rune of Shared Pour: the FIRST Ale each turn casts one extra time. READ-ONLY here, like Spell Thesis
     // above — the cast site consumes the freebie by setting `sharedPourUsedThisTurn`, so previewing the count
     // in the UI can't spend it.
     // +1 extra cast per Shared Pour copy held (repeat family, owner 2026-08-27).
-    if (state.runeSharedPour && !state.sharedPourUsedThisTurn) mult += runeStacksOf(state, 'rune_shared_pour');
+    if (state.runeSharedPour && !state.sharedPourUsedThisTurn && !off.has('rune_shared_pour')) mult += runeStacksOf(state, 'rune_shared_pour');
   }
   // Nimbus is ADDED LAST, and added rather than multiplied, because it reads "casts an ADDITIONAL time"
   // (owner 2026-07-24). It also applies to untargeted spells, unlike Yazzus — the charge is a flat bonus on
   // whatever the spell would otherwise do.
   // …and a per-INSTANCE extra (Rune of the Astral Draft stamps its Discover pick `extraCasts: 1`) — added, like
   // Nimbus, because it reads "casts an additional time". Only the cast sites that hold the hand card pass it.
-  return mult + (state.nextSpellExtraCasts ?? 0) + (card?.extraCasts ?? 0);
+  return mult + (state.nextSpellExtraCasts ?? 0) + (off.has('rune_astral_draft') ? 0 : (card?.extraCasts ?? 0));
 }
 
 /** Implosion's cast count: once by default, plus one more per Demon you control (so 1 + your Demons). Shared by
@@ -3185,7 +3284,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const tribes = [def.tribe, def.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
       if (tribes.length === 0 || tribes.every((t) => seen.has(t))) continue;
       for (const t of tribes) seen.add(t);
-      captureBuffFx(ctx.state, undefined, 'spell', () => addBuff(c, 'Great Pot', a, h));
+      captureCastBuffFx(ctx.state, () => addBuff(c, 'Great Pot', a, h));
     }
   },
 
@@ -3212,7 +3311,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const t = (payload as { target?: BoardCard } | undefined)?.target;
     if (!t) return;
     if (!t.keywords.includes('T')) t.keywords.push('T');
-    captureBuffFx(ctx.state, undefined, 'spell', () => addBuff(t, 'Ironclad Favor', 0, Math.max(0, t.health)));
+    captureCastBuffFx(ctx.state, () => addBuff(t, 'Ironclad Favor', 0, Math.max(0, t.health)));
   },
 
   /** UNBRIDLED MIGHT: +2 Attack FIRST, then double the result (so a 3-Attack body ends at 10, not 8). */
@@ -3220,7 +3319,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const t = (payload as { target?: BoardCard } | undefined)?.target;
     if (!t) return;
     const plus = num(params.attack, 2);
-    captureBuffFx(ctx.state, undefined, 'spell', () => {
+    captureCastBuffFx(ctx.state, () => {
       addBuff(t, 'Unbridled Might', plus, 0);
       addBuff(t, 'Unbridled Might', Math.max(0, t.attack), 0);
     });
@@ -3316,7 +3415,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const bag = [...rest];
     for (let i = 0; i < num(params.count, 2) && bag.length > 0; i++) picks.push(bag.splice(rng.int(bag.length), 1)[0]!);
     st.rngCursor = rng.state();
-    for (const c of picks) captureBuffFx(st, undefined, 'spell', () => addBuff(c, 'Parting Gifts', atk, hp));
+    for (const c of picks) captureCastBuffFx(st, () => addBuff(c, 'Parting Gifts', atk, hp));
   },
 
   // ── RALLY FAMILY — the SHOP half (Step 3 item 4 + Step 4) ────────────────────────────────────────────
@@ -8615,7 +8714,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       // REPEAT pattern (R-REPEAT-01, owner 2026-09-22): one capture per repeat, tagged with the repeat, so the
       // shop replay lands one descend per repeat instead of one summed descend per target. Sourceless: a spell.
       const before = ctx.state.recruitBuffFx.length;
-      captureBuffFx(ctx.state, undefined, 'spell', () => addBuff(board[rng.int(board.length)]!, 'Dragonflame', attack, health));
+      captureCastBuffFx(ctx.state, () => addBuff(board[rng.int(board.length)]!, 'Dragonflame', attack, health));
       for (let k = before; k < ctx.state.recruitBuffFx.length; k++) ctx.state.recruitBuffFx[k]!.fxWave = i;
     }
     ctx.state.rngCursor = rng.state();
@@ -10149,6 +10248,15 @@ export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?
   const actor = castActorStack[castActorStack.length - 1];
   const cardCastSpellId = actor && equipmentCastDepth === 0 ? spellDef.id : undefined;
   const castRuneId = cardCastSpellId && actor?.kind === 'rune' ? actor.id : undefined;
+  const castByUid = cardCastSpellId && actor?.kind === 'minion' ? actor.uid : undefined;
+  // WHERE A TRAVELLING CAST LEAVES FROM (the Lasso beam, `_origin`): a caller that knows passes it (Rope Wrangler's
+  // `board:<uid>`, Whiplass-o's `equipment`, Lassoing's `rune`). Any other rune or minion cast defaults to its REAL
+  // caster, so a Lasso cast by Rune of Recurrence, a repeat rune or a Mage-Pup no longer throws from the hand row
+  // (owner 2026-09-24: spell effects from every source). The player's own cast (no actor) keeps the drop point.
+  if (!origin && castRuneId) origin = `rune:${castRuneId}`;
+  else if (!origin && castByUid) origin = `board:${castByUid}`;
+  if (cardCastSpellId) castTagStack.push({ spellId: cardCastSpellId, runeId: castRuneId, casterUid: castByUid });
+  try {
   for (const effect of spellDef.effects) {
     if (effect.on !== 'cast') continue;
     const fn = RECRUIT_FACTORIES_UNATTRIBUTED[effect.do]; // the spell's OWN effects: the target is not the caster (cast preview)
@@ -10175,9 +10283,10 @@ export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?
       // Gifts read `payload.target`, copying the Battlecry-target call shape, and this site never sent it —
       // so Unbridled Might / Ironclad Favor / Champion's Regalia / Parting Gifts consumed the card, counted the
       // cast, and changed nothing (Bug Board 9852e16f, 2026-09-09).
-      () => captureBuffFx(ctx.state, undefined, 'spell', () => fn(ctx, target as BoardCard, params, { minion: target as BoardCard, target: target as BoardCard }), cardCastSpellId, castRuneId),
+      () => captureBuffFx(ctx.state, undefined, 'spell', () => fn(ctx, target as BoardCard, params, { minion: target as BoardCard, target: target as BoardCard }), cardCastSpellId, castRuneId, castByUid),
     );
   }
+  } finally { if (cardCastSpellId) castTagStack.pop(); }
 }
 
 /** Fire a board-wide recruit trigger (`onBuy` / `onSummon`). */
@@ -10670,7 +10779,12 @@ export function fireOnSpellCastOnThis(state: RunState, card: BoardCard, spellDef
       const nd = CARD_INDEX[nb.cardId];
       if (nd?.tribe !== 'dragon' && nd?.tribe2 !== 'dragon') continue;
       procRuneId(state, 'rune_shared_reflection');
-      for (let r = 0; r < spellCasts(state, spellDef); r++) { recordBounceFx(state, 'spell', card.uid, nb.uid); castSpell(state, spellDef, nb); }
+      // A RUNE'S CAST (owner 2026-09-24: "the runes that repeat casts should use the rune-cast visual"): the spread
+      // runs with the rune as the cast actor, so it records, previews and flourishes from the rune's node on the
+      // rail, and its buffs stem from there (no Mirrorwing -> Dragon bounce hop on top: the rune is the source).
+      withCastActor({ kind: 'rune', id: 'rune_shared_reflection' }, () => {
+        for (let r = 0; r < spellCasts(state, spellDef); r++) castSpell(state, spellDef, nb);
+      });
     }
   }
   const def = CARD_INDEX[card.cardId];
@@ -14157,6 +14271,7 @@ function withRecruitTrigger(
     const eatenBefore = (state.fodderEaten ?? []).length;
     const shopEatenBefore = (state.shopEaten ?? []).length;
     const rb = state.rubyBonus ?? { attack: 0, health: 0 };
+    const tavernBefore = { a: state.tavernBuyBonus?.atk ?? 0, h: state.tavernBuyBonus?.hp ?? 0 };
     const castStart = (state.castFx ?? []).length; // a spell THIS beat's minion casts tags its buffs (see below)
     // A SPELL-sourced scope (`applyCastEffects` opens one per cast effect) cast BY A CARD OR A RUNE — the innermost
     // cast actor right now: its stat gains carry the spell (and the rune), exactly like the per-action buff records
@@ -14190,7 +14305,8 @@ function withRecruitTrigger(
           const castSpellId = spec.source.kind === 'minion' ? spellCastBySince(state, castStart, spec.source.uid)
             : castActor ? spec.source.id : undefined;
           const castByRune = castSpellId && castActor?.kind === 'rune' ? castActor.id : undefined;
-          collector.emit({ type: 'statsChanged', target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' }, attack: da, health: dh, permanent: true, channel: 'ordinary', ...(castSpellId ? { spellId: castSpellId } : {}), ...(castByRune ? { castByRune } : {}) });
+          const castByUid = castSpellId && castActor?.kind === 'minion' ? castActor.uid : undefined;
+          collector.emit({ type: 'statsChanged', target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' }, attack: da, health: dh, permanent: true, channel: 'ordinary', ...(castSpellId ? { spellId: castSpellId } : {}), ...(castByRune ? { castByRune } : {}), ...(castByUid ? { castByUid } : {}) });
         }
         // Cards this trigger put in hand (conjures / grants), in arrival order.
         for (const c of state.hand) {
@@ -14262,6 +14378,12 @@ function withRecruitTrigger(
         // (owner report 2026-08-14). Parallels the spellPower/impAura aura emits directly above.
         const rubyA = (state.rubyBonus?.attack ?? 0) - rb.attack, rubyH = (state.rubyBonus?.health ?? 0) - rb.health;
         if (rubyA !== 0 || rubyH !== 0) collector.emit({ type: 'auraChanged', aura: 'ruby', amount: rubyA + rubyH, attack: rubyA, health: rubyH });
+        // The RUN-WIDE shop buff channel (`tavernBuyBonus`: Staff of Guel, Soul Defiler's cast of it) rose: its own
+        // aura, so the authoritative End of Turn plays the shop-wide effect on the beat, as the Shop and the legacy
+        // End-of-Turn path already do (owner 2026-09-24: spell effects from every source). The per-offer climb stays
+        // `shopChanged` above. `sourceCardId` names the card that raised it when the sim stamped one.
+        const tvA = (state.tavernBuyBonus?.atk ?? 0) - tavernBefore.a, tvH = (state.tavernBuyBonus?.hp ?? 0) - tavernBefore.h;
+        if (tvA > 0 || tvH > 0) collector.emit({ type: 'auraChanged', aura: 'shopBuff', amount: tvA + tvH, attack: tvA, health: tvH, ...(state.shopBuffAllSource ? { sourceCardId: state.shopBuffAllSource } : {}) });
         // BEAT SYSTEM (PR 6c): welds (Attachments this trigger bolted onto a Mech) as a counter, one per host.
         for (const c of state.board) {
           const wb = attachBefore.get(c.uid);

@@ -1,6 +1,7 @@
 import { anchorOfElement, clearCastPreviews, showCastPreview, type CastPreviewAnchor } from './castPreview';
 import { CAST_PREVIEW_SOURCES, SPEC as BASE_SPEC } from './castPreviewConfig';
 import { TunerPanel } from './TunerPanel';
+import { centreOf, playRuneCastFlourishAt } from './fx/runeCastFlourish';
 import type { TunerSpec } from './tunerSchema';
 import type { CastPreviewConfig } from './castPreviewConfig';
 
@@ -47,9 +48,28 @@ export function fireCastPreviewSamples(panelEl: HTMLElement | null): void {
   });
 }
 
+/**
+ * THE RUNE CAST FLOURISH's test (owner 2026-09-24): the first rune on the rail flourishes as if it had cast a spell
+ * whose effect lands mid-board (badge pulse + glyph flash + a mote out to the viewport centre, then the cast preview
+ * above it), without playing to a trigger. With no rune on screen it plays at a stand-in spot beside this panel.
+ */
+export function fireRuneFlourishSample(panelEl: HTMLElement | null): void {
+  const rune = document.querySelector('.questbadges .runebadge');
+  const node = centreOf(rune);
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 1280;
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
+  const aim = { x: vw / 2, y: vh / 2 };
+  if (node) { playRuneCastFlourishAt(node, rune, aim); return; }
+  const spot = standIn(panelEl, 0, 64, 64);
+  playRuneCastFlourishAt({ x: spot.left + 32, y: spot.top + 32 }, null, aim);
+}
+
 export const SPEC: TunerSpec<CastPreviewConfig> = {
   ...BASE_SPEC,
-  actions: [{ label: '▶ Preview test', run: (panelEl) => fireCastPreviewSamples(panelEl) }],
+  actions: [
+    { label: '▶ Preview test', run: (panelEl) => { fireRuneFlourishSample(panelEl); fireCastPreviewSamples(panelEl); } },
+    { label: '▶ Flourish only', run: (panelEl) => fireRuneFlourishSample(panelEl) },
+  ],
 };
 
 export function CastPreviewTuner(): JSX.Element {

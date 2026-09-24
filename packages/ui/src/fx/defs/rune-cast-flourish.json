@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "id": "rune-cast-flourish",
+  "duration": 560,
+  "layers": [
+    {
+      "primitive": "burst",
+      "name": "glyph flash",
+      "anchor": "source",
+      "at": 0,
+      "params": {
+        "count": 4, "spread": 1, "speed": 20, "speedVar": 0, "drag": 0.8, "gravity": 0, "life": 300,
+        "shape": "circle", "size": 50, "sizeVar": 0.1,
+        "sizeCurve": [[0, 0.45], [0.3, 1], [1, 1.25]],
+        "alphaCurve": [[0, 1], [0.35, 0.85], [1, 0]],
+        "coreBias": 0.85, "bands": 3, "plateau": 0.4, "fade": 2,
+        "tintMode": "palette", "palette": [2046602, 5209599, 10931455, 16777215],
+        "blendMode": "add", "glow": 0.8, "erode": 0, "gain": 1.5
+      }
+    },
+    {
+      "primitive": "shockwave",
+      "name": "sigil ring",
+      "anchor": "source",
+      "at": 20,
+      "life": 400,
+      "params": {
+        "rings": 1, "speed": 2.4, "thickness": 0.09, "radius": 62, "fade": 1.6, "ease": 0.6,
+        "bands": 3, "plateau": 0.3, "alpha": 0.85, "glow": 0.5, "erode": 0.35,
+        "palette": [2046602, 5209599, 10931455, 16777215]
+      }
+    },
+    {
+      "primitive": "burst",
+      "name": "glyph sparks",
+      "anchor": "source",
+      "at": 40,
+      "params": {
+        "count": 10, "spread": 1, "speed": 150, "speedVar": 0.45, "drag": 0.86, "gravity": -40, "life": 380,
+        "emitShape": "ring", "emitRadius": 14, "orientToVelocity": true,
+        "shape": "diamond", "size": 5, "sizeVar": 0.4, "stretchX": 0.7, "stretchY": 1.4,
+        "sizeCurve": [[0, 1], [1, 0]], "alphaCurve": [[0, 1], [1, 1]],
+        "coreBias": 0.7, "bands": 3, "plateau": 0.32, "fade": 2,
+        "tintMode": "palette", "palette": [5209599, 10931455, 14085375, 16777215],
+        "blendMode": "add", "glow": 0.6, "erode": 0, "gain": 1.4
+      }
+    }
+  ]
+}

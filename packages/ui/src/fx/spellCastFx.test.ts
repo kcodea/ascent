@@ -109,7 +109,9 @@ describe.each(SPELLS)('%s plays its own effect in every phase, from every source
     const src = readRecruit();
     const at = src.indexOf('spellCast: (cardId, source) => {');
     expect(at).toBeGreaterThan(0);
-    expect(src.slice(at, at + 400)).toContain("playSpellCastFx(cardId, { runeId: source.kind === 'rune' ? source.id : null })");
+    // (A rune's cast flourishes first and plays the effect through `playRuneSpellCastFx`: runeCastFlourish.test.ts.)
+    expect(src.slice(at, at + 600)).toContain("if (source.kind === 'rune') playRuneSpellCastFx(cardId, source.id);");
+    expect(src.slice(at, at + 600)).toContain('else playSpellCastFx(cardId);');
     expect(plays(def)).toHaveLength(2);
   });
 

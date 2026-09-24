@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { CardDef, QuestReward, Tribe } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
-import { HEROES, chooseBothActive, type RunState } from '@game/sim';
+import { HEROES, chooseBothActive, rubyStatBonus, type RunState } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { chooseBothText } from './cardText';
+import { rubyLiveText } from './instView';
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
 import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
@@ -87,18 +88,35 @@ const GIFT_IDS = new Set(GIFTS.map((c) => c.id));
 /** Cards that belong in the MINION gallery: buyable minions + evolution units. A card can *also* be a quest
  *  reward (Badgington is a normal Tier-4 Beast that Apex Hunt grants) — it then shows in BOTH its tribe and the
  *  Quest Rewards category. Membership sets keep those overlaps correct instead of hiding a real minion. */
+/** THE RUBIES in a set's Spells gallery (owner ask 2026-09-24: "the ruby types should show in the spells section of
+ *  the compendium as well"). Rubies are `token: true` (minted, never drawn), so `poolFor(...).spells` drops them
+ *  with every other token. The rule that brings them back is narrow on purpose: a card is listed here only when it
+ *  is a RUBY (`ruby: true`), and only in a set whose pool can actually make one, i.e. at least one of the set's
+ *  cards previews a Ruby (`relatedCardIds`, the same link the hover previews follow). Every Ruby type is listed
+ *  once a set makes any Ruby, because "a random Ruby" draws from all of them. Hidden casts that merely TALK about
+ *  Rubies (Ruby Blast, Blast Pump's payload) carry no `ruby` flag, so they stay out, as do all other tokens. */
+const RUBY_CARDS: readonly CardDef[] = Object.values(CARD_INDEX).filter((c) => !!c.ruby);
+export function rubyCardsFor(all: readonly CardDef[]): CardDef[] {
+  const makesRubies = all.some((c) => relatedCardIds(c.id).some((id) => CARD_INDEX[id]?.ruby));
+  return makesRubies ? [...RUBY_CARDS] : [];
+}
+
 /** Which gallery a card belongs to, per SET — the Compendium shows the pool of the set the player is
- *  actually in (title screen = the live set), not a hardcoded one. Memoized; sets are immutable at runtime. */
-const poolIdsBySet = new Map<string, { minions: Set<string>; spells: Set<string>; evolutions: CardDef[] }>();
-function poolIds(setId: Parameters<typeof poolFor>[0]): { minions: Set<string>; spells: Set<string>; evolutions: CardDef[] } {
+ *  actually in (title screen = the live set), not a hardcoded one. Memoized; sets are immutable at runtime.
+ *  `spells` is the Spells gallery's membership: the set's tavern spells plus its Rubies. */
+type PoolIds = { minions: Set<string>; spells: Set<string>; evolutions: CardDef[]; rubies: CardDef[] };
+const poolIdsBySet = new Map<string, PoolIds>();
+function poolIds(setId: Parameters<typeof poolFor>[0]): PoolIds {
   const hit = poolIdsBySet.get(setId);
   if (hit) return hit;
   const p = poolFor(setId);
   const evolutions = evolutionCardsFor(p.buyable);
+  const rubies = rubyCardsFor(p.all);
   const ids = {
     minions: new Set([...p.buyable, ...evolutions].map((c) => c.id)),
-    spells: new Set(p.spells.map((c) => c.id)),
+    spells: new Set([...p.spells, ...rubies].map((c) => c.id)),
     evolutions,
+    rubies,
   };
   poolIdsBySet.set(setId, ids);
   return ids;
@@ -207,25 +225,35 @@ const ZOOM_STEP = 0.2;
  *  golden frame, and the card's golden text (Card falls back to doubling the printed numbers when a card has
  *  no explicit goldenText). */
 export function toView(c: CardDef, gilded = false, run?: RunState): CardView {
-  const mul = gilded ? 2 : 1;
+  // A Ruby is never Gilded (it is a spell-like token), so the Gilded toggle leaves it at its printed form.
+  const gild = gilded && !c.ruby;
+  const mul = gild ? 2 : 1;
   // (Both): the Compendium is run-scoped (it lists what THIS run can find), so a Choose One the run already
   // makes do both must read that way here as well — the same predicate every other surface uses.
-  const both = run && chooseBothActive(run, { golden: gilded }, c) ? chooseBothText(c.id, gilded) : null;
+  const both = run && chooseBothActive(run, { golden: gild }, c) ? chooseBothText(c.id, gild) : null;
+  // A RUBY prints the grant it would MINT at right now: its printed base plus the run's live Ruby strength (green
+  // when above the base), the same number the shop's Discover and the hand show. Printed values off-run.
+  const rb = c.ruby && run ? rubyStatBonus(run) : null;
+  const rubyUp = !!rb && (rb.attack > 0 || rb.health > 0);
+  const atk = rubyUp ? c.attack + rb.attack : c.attack * mul;
+  const hp = rubyUp ? c.health + rb.health : c.health * mul;
+  const rubyText = rubyUp ? rubyLiveText(c.text, `{{+${atk}/+${hp}}}`) : null;
   return {
     name: c.name,
     cardId: c.id,
     tribe: c.tribe,
     tribe2: c.tribe2,
-    attack: c.attack * mul,
-    health: c.health * mul,
+    attack: atk,
+    health: hp,
     keywords: c.keywords,
-    text: both ?? c.text,
-    goldenText: both ?? c.goldenText,
-    golden: gilded,
+    text: rubyText ?? both ?? c.text,
+    goldenText: rubyText ?? both ?? c.goldenText,
+    golden: gild,
     baseAttack: c.attack * mul,
     baseHealth: c.health * mul,
     tier: c.tier,
     spell: c.spell,
+    ruby: c.ruby,
     cost: c.cost,
     target: c.target === 'friendly' ? 'friendly' : undefined,
   };
@@ -260,7 +288,7 @@ export function MinionBook() {
     [liveSetId],
   );
   const pool = poolFor(setId);
-  const { minions: MINION_POOL_IDS, spells: SPELL_POOL_IDS, evolutions: EVOLUTION_CARDS } = poolIds(setId);
+  const { minions: MINION_POOL_IDS, spells: SPELL_POOL_IDS, evolutions: EVOLUTION_CARDS, rubies: RUBIES } = poolIds(setId);
 
   const [tiers, setTiers] = useState<Set<number>>(() => new Set());
   const [cats, setCats] = useState<Set<Category>>(() => new Set());
@@ -357,12 +385,13 @@ export function MinionBook() {
     // reward). The category filter below re-derives which gallery it shows in from the pool-membership sets.
     const seen = new Set<string>();
     const out: CardDef[] = [];
-    // Rune rewards are un-scoped (the Runeforge isn't tribe-bound) — added unconditionally, like spells.
-    for (const c of [...minions, ...evolutions, ...pool.spells, ...rewards, ...RUNE_REWARD_CARDS, ...GIFTS]) {
+    // Rune rewards are un-scoped (the Runeforge isn't tribe-bound) — added unconditionally, like spells. The set's
+    // Rubies ride with its spells (un-scoped too: Ruby spells are neutral, so a Ruby is findable in any run of it).
+    for (const c of [...minions, ...evolutions, ...pool.spells, ...RUBIES, ...rewards, ...RUNE_REWARD_CARDS, ...GIFTS]) {
       if (!seen.has(c.id)) { seen.add(c.id); out.push(c); }
     }
     return out;
-  }, [tribes, pool]); // `pool` changes only when the run's set does — but it IS an input now
+  }, [tribes, pool, RUBIES]); // `pool` changes only when the run's set does — but it IS an input now
 
 
   const query = search.trim().toLowerCase();
@@ -432,7 +461,7 @@ export function MinionBook() {
   const stackColour = (c: CardDef): string => {
     if (cats.has('gifts') && GIFT_IDS.has(c.id)) return '#ffd27a';
     if (cats.has('runeRewards') && RUNE_REWARD_IDS.has(c.id)) return '#c9a4ec';
-    if (c.spell) return 'var(--acc)';
+    if (c.spell || c.ruby) return 'var(--acc)';
     return `var(--t-${c.tribe})`;
   };
   const tierStacks = useMemo(() => {
@@ -452,19 +481,22 @@ export function MinionBook() {
   const chartNoun = query ? 'matches' : [cats.has('spells') && 'spells', cats.has('gifts') && 'gifts', cats.has('rewards') && 'quest rewards', cats.has('runeRewards') && 'rune rewards'].filter(Boolean).join(' & ') || 'minions';
 
   // Related-card hover previews (owner ask 2026-09-18): the same popup the shop shows — the token a card summons,
-  // the spell it casts, the Ruby it makes — at PRINTED stats, since the book is a static reference. Built once per
+  // the spell it casts, the Ruby it makes — at PRINTED stats (bar the Ruby grant below). Built once per
   // card id; `Card` opens it after the usual hover delay.
+  // While the book shows the run's own set, a preview reads the run (a Ruby preview prints the grant it would
+  // mint at now, like the shop's); browsing the title or another set, it stays printed.
+  const liveRun = browsingRun ? run : undefined;
   const refViews = useMemo(() => {
     const m = new Map<string, CardView[]>();
     for (const c of allCards) {
       const views = [
-        ...relatedCardIds(c.id).map((id) => CARD_INDEX[id]).filter((d): d is CardDef => !!d).map((d) => toView(d)),
-        ...relatedPickOneIds(c.id).map((id) => CARD_INDEX[id]).filter((d): d is CardDef => !!d).map((d) => ({ ...toView(d), refPick: true })),
+        ...relatedCardIds(c.id).map((id) => CARD_INDEX[id]).filter((d): d is CardDef => !!d).map((d) => toView(d, false, liveRun)),
+        ...relatedPickOneIds(c.id).map((id) => CARD_INDEX[id]).filter((d): d is CardDef => !!d).map((d) => ({ ...toView(d, false, liveRun), refPick: true })),
       ];
       if (views.length) m.set(c.id, views);
     }
     return m;
-  }, [allCards]);
+  }, [allCards, liveRun]);
 
   // A glossary term is a live filter only if at least one in-scope card matches it — otherwise the row
   // renders inert (no dead-end clicks). Scope-aware: a keyword absent from this run's tribes reads inert.

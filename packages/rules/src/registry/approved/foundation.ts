@@ -831,7 +831,17 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'per-buff row (an Ale, Dragonflame) plays per buff from the node; an unbound spell draws the stock trail from '
       + 'the node. SOUND (owner 2026-09-24): a spell\x27s cast effect rings ONCE per burst: a second play of the same '
       + 'def within `spellCastSfxGapMs` (Buff tuner, default 120 ms, the Undead Aura rule) plays its visuals with its '
-      + 'Sound layers dropped, in every phase and from every source.',
+      + 'Sound layers dropped, in every phase and from every source. REPEAT RUNES ARE RUNE CASTS (owner 2026-09-24): '
+      + 'a rune that repeats or multiplies a cast (Shared Pour, Astral Draft, Distillation, Shared Reflection, and the '
+      + '"they cast twice" / "an additional time" runes Hoardflame, Dragon Breath, the Bottomless Cask) runs its extra '
+      + 'resolutions with THAT RUNE as the cast actor (`runeExtraCasts` + `castWithRuneRepeats`, and the Distillation / '
+      + 'Shared Reflection echoes under `withCastActor`), so they take the rune-cast path above; the player\x27s own '
+      + 'resolution keeps the player\x27s visuals, and gameplay is unchanged. THE RUNE CAST FLOURISH (owner 2026-09-24): '
+      + 'EVERY rune cast, in every phase, first flourishes on the rune\x27s node: a transform-only badge pulse and the '
+      + '`rune-cast-flourish` glyph flash; a spell whose own effect plays once gets a `rune-cast-mote` from the node to '
+      + 'where it lands, and the effect waits for the mote; a spell whose visuals already travel from the node releases '
+      + 'them a short lead after the flash. Knobs: the Cast Preview tuner\x27s "Rune cast flourish" group (off = the '
+      + 'pre-flourish look exactly).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -860,6 +870,12 @@ export const FOUNDATION_RULES: GameRule[] = [
         ref: 'Owner ruling, 2026-09-24 (one sound per burst)',
         quote: 'make it so if 2 fatecarvers are down, or the effect is cast twice or something, that it only plays the sound effect one time. give it the same behavior as the undead aura sfx timing.',
       },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ask, 2026-09-24 (repeat runes + the rune cast flourish)',
+        quote: 'yeah the runes that repeat casts should use the rune-cast visual. can we do anything to add a bit of flair to this? like some sort of short flash/pixi effect/make it smoother and cleaner with a bit of a \x27magic\x27 element to it? nothing crazy. spin up a concept and open a server on the branch for me to play with.',
+      },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts (`runeExtraCasts`, `castWithRuneRepeats`, the Shared Reflection spread); packages/sim/src/reducer.ts (the spell cast sites, the Distillation echo); packages/ui/src/fx/runeCastFlourish.ts; packages/ui/src/fx/defs/rune-cast-flourish.json + rune-cast-mote.json; packages/ui/src/fx/spellCastFx.ts (`playRuneSpellCastFx`); packages/ui/src/castPreviewConfig.ts (the `runeFlourish*` knobs)' },
       { kind: 'code', ref: 'packages/core/src/effects/factories.ts (`withCastingSpell`, `resolveCombatSpellCast`, the combat arena `castRepeat`); packages/sim/src/recruit.ts (`recordActorCast`, the shop arena `castRepeat`); packages/ui/src/fx/spellCastFx.ts (`playSpellCastFx`, `playRecordedCastFx`, `playCombatSpellCastFx`); packages/ui/src/choreo/bindings.ts (`spellCastFxFor`, `spellCastFanOutFor`); packages/ui/src/fx/spellCastFx.ts (`playRuneCastBuffFx`, `runeNodeCentre`, `spellCastSoundAllowed`); packages/ui/src/buffFxConfig.ts (`spellCastSfxGapMs`); packages/ui/src/choreo/score.ts (the `spellCastFx` cue); packages/ui/src/Recruit.tsx (the `castFxSeq` watcher, the `spellCast` presenter context, the legacy End-of-Turn beat); packages/core/src/effects/arena.ts (`ARENA_EFFECTS`, the shared cross-phase bodies)' },
     ],
     currentBehaviour:
@@ -868,8 +884,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'emitted untagged buffs, and a shop Rally\x27s inline "cast Growth" recorded no cast; both are fixed. Rune casts '
       + 'were untagged and their buffs drew nothing (sourceless); fixed 2026-09-24, and Rune of Spellhide\x27s '
       + 'Start-of-Combat re-cast now announces itself (`sc` + `rune`). Known remaining gaps: an Equipment\x27s cast '
-      + 'deliberately records nothing (R-PRESENT-10); a rune that multiplies the PLAYER\x27s own cast (Shared Pour, '
-      + 'Astral Draft, Distillation, Shared Reflection) rides the player\x27s cast path. The mechanic half of the '
+      + 'deliberately records nothing (R-PRESENT-10). The repeat runes (Shared Pour, Astral Draft, Distillation, Shared '
+      + 'Reflection, Hoardflame, Dragon Breath, the Bottomless Cask) rode the player\x27s cast path until 2026-09-24; '
+      + 'at the player\x27s play sites they are rune casts now. Still on the old presentation: a MINION\x27s multiplied '
+      + 'cast (its extras stay the minion\x27s), a Discover spell\x27s extra Discovers (no cast visual), and a Ruby echoed '
+      + 'by Distillation / Redirection (the Ruby hop). The mechanic half of the '
       + 'default is enforced by the Doc Bot `factoryPhase` lane (every trigger/factory pair implemented in every '
       + 'phase its trigger dispatches, or a registered excuse).',
     enforcement: {
@@ -884,6 +903,8 @@ export const FOUNDATION_RULES: GameRule[] = [
         'packages/ui/src/fx/runeCastFx.test.ts',
         'packages/sim/src/runeCastFx.test.ts',
         'packages/core/src/combat/runeCastSc.test.ts',
+        'packages/sim/src/runeRepeatCastActor.test.ts',
+        'packages/ui/src/fx/runeCastFlourish.test.ts',
       ],
       lastVerifiedAt: '2026-09-24',
     },

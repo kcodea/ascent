@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "id": "rune-cast-mote",
+  "duration": 620,
+  "layers": [
+    {
+      "primitive": "ribbon",
+      "name": "mote trail",
+      "anchor": "travel",
+      "at": 0,
+      "travelMs": 280,
+      "bow": 0.18,
+      "params": {
+        "bands": 4, "plateau": 0.4, "palette": [2046602, 5209599, 10931455, 16777215], "blendMode": "add", "glow": 0.7,
+        "noiseAlong": 2.2, "noiseAcross": 5, "warp": 0.3, "scroll": 1.1, "erode": 0.8, "gain": 1.6,
+        "head": 0.04, "tail": 1.2, "soft": 2, "length": 420, "width": 11, "alpha": 1, "headPinch": 0.1, "tailFeather": 1.5,
+        "widthCurve": [[0, 1], [0.5, 0.8], [1, 0.4]],
+        "waveAmp": 0, "waveFreq": 3, "waveSpeed": 10, "drain": 1600, "segments": 32
+      }
+    },
+    {
+      "primitive": "emitter",
+      "name": "mote dust",
+      "anchor": "travel",
+      "at": 0,
+      "travelMs": 280,
+      "bow": 0.18,
+      "params": {
+        "rate": 70, "life": 300, "spread": 1, "speed": 30, "speedVar": 0.6, "gravity": -30,
+        "shape": "circle", "size": 4, "sizeVar": 0.5,
+        "sizeCurve": [[0, 1], [1, 0]], "alphaCurve": [[0, 1], [1, 0]],
+        "coreBias": 0.8, "bands": 3, "plateau": 0.3,
+        "tintMode": "palette", "palette": [5209599, 10931455, 14085375, 16777215],
+        "blendMode": "add", "glow": 0.6, "erode": 0, "gain": 1.4
+      }
+    },
+    {
+      "primitive": "burst",
+      "name": "arrival sparkle",
+      "anchor": "target",
+      "at": 270,
+      "params": {
+        "count": 12, "spread": 1, "speed": 130, "speedVar": 0.5, "drag": 0.86, "gravity": -30, "life": 320,
+        "shape": "diamond", "size": 5, "sizeVar": 0.5,
+        "sizeCurve": [[0, 1], [1, 0]], "alphaCurve": [[0, 1], [1, 1]],
+        "coreBias": 0.7, "bands": 3, "plateau": 0.32, "fade": 2,
+        "tintMode": "palette", "palette": [5209599, 10931455, 14085375, 16777215],
+        "blendMode": "add", "glow": 0.5, "erode": 0, "gain": 1.4
+      }
+    },
+    {
+      "primitive": "shockwave",
+      "name": "arrival ring",
+      "anchor": "target",
+      "at": 270,
+      "life": 320,
+      "params": {
+        "rings": 1, "speed": 2.6, "thickness": 0.1, "radius": 48, "fade": 1.6, "ease": 0.6,
+        "bands": 3, "plateau": 0.3, "alpha": 0.6, "glow": 0.4, "erode": 0.35,
+        "palette": [2046602, 5209599, 10931455, 16777215]
+      }
+    }
+  ]
+}

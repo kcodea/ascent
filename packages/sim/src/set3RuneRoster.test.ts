@@ -32,15 +32,15 @@ const originals = (epic: boolean): number => [...RUNES, ...EPIC_RUNES].filter((r
 describe('the Set 3 static rune pool (handoff 2026-09-14)', () => {
   it('resolves to 115 Basic / 97 Epic before any Set 3-original rune (98 Epic at the handoff; Frontline Glory dropped 2026-09-16)', () => {
     const pool = staticPool('set3', S3).filter((r) => !isOriginal(r));
-    expect(pool.filter((r) => !r.epic)).toHaveLength(109); // 115 at the handoff + Rune of Gambling (all sets, 2026-09-17); −4 on 2026-09-18 (tag pass: Beast/Mech-body runes now gate on tribes set 3 does not field); −2 on 2026-09-23 (Balance 9/23 archives: Centerline, Spare Chair); rune reworks A (2026-09-23) nets 0: −1 Drake Skull (now reads Dragons, gated `dragon`) +1 Hoardcalling (now any Shout, gate dropped); −1 on 2026-09-24 (owner: "hoardcalling should have a dragon tag" — Hoardcalling gated `dragon` again; set 3 fields no Dragons)
-    expect(pool.filter((r) => r.epic)).toHaveLength(87); // 97 → 90 on 2026-09-18 (tag pass: Beast/Dragon/Mech/Demon-body Epics gate on tribes set 3 does not field); 90 → 87 on 2026-09-23 (Balance 9/23 archives: Taurus, Open Market, Warpath)
+    expect(pool.filter((r) => !r.epic)).toHaveLength(100); // 109 → 100 on 2026-09-24 (owner Set 3 rune cuts: Contraband, Facetwright, Gemcutting, Unbroken Vein, Shifting Facets, Last Call, Shared Pour, Pillaging, Aftershocks); // 115 at the handoff + Rune of Gambling (all sets, 2026-09-17); −4 on 2026-09-18 (tag pass: Beast/Mech-body runes now gate on tribes set 3 does not field); −2 on 2026-09-23 (Balance 9/23 archives: Centerline, Spare Chair); rune reworks A (2026-09-23) nets 0: −1 Drake Skull (now reads Dragons, gated `dragon`) +1 Hoardcalling (now any Shout, gate dropped); −1 on 2026-09-24 (owner: "hoardcalling should have a dragon tag" — Hoardcalling gated `dragon` again; set 3 fields no Dragons)
+    expect(pool.filter((r) => r.epic)).toHaveLength(78); // 87 → 78 on 2026-09-24 (owner Set 3 rune cuts: Lapidary, Redirection, Ruby Shrapnel, Baal, Chef, Mykel, Runic Exchange, Rising Graves, Soul Taxes); // 97 → 90 on 2026-09-18 (tag pass: Beast/Dragon/Mech/Demon-body Epics gate on tribes set 3 does not field); 90 → 87 on 2026-09-23 (Balance 9/23 archives: Taurus, Open Market, Warpath)
     expect(pool.some((r) => r.id === 'rune_frontline_glory')).toBe(false);
     expect(RUNE_INDEX['rune_frontline_glory']!.sets).toEqual(['set1']);
   });
   it('the Set 3-original runes (batch 2: tranche A 11/13, B 8/11, C 2/4, D 0/2) join on top', () => {
     const own = staticPool('set3', S3).filter(isOriginal);
-    expect(own.filter((r) => !r.epic)).toHaveLength(21);
-    expect(own.filter((r) => r.epic)).toHaveLength(30);
+    expect(own.filter((r) => !r.epic)).toHaveLength(20); // 21 → 20: the Full Hand CUT FROM SET 3 2026-09-24 (owner)
+    expect(own.filter((r) => r.epic)).toHaveLength(29); // 30 → 29: the Grave Orbit CUT FROM SET 3 2026-09-24 (owner)
   });
   it('Set 1 and Set 2 pools keep their previous scoped runes — a carryover only ADDS set3', () => {
     for (const r of [...RUNES, ...EPIC_RUNES]) {
@@ -70,8 +70,9 @@ describe('a Set 3 Dwarf / Kobold run at the forge', () => {
     const s = { ...createRun(5, 'warden'), setId: 'set3', tribes: ['dwarf', 'kobold', 'undead', 'spirit', 'celestial'], runeforgeEpic: epic || undefined } as RunState;
     return runeforgePool(s);
   };
-  it('can be offered Contraband (Basic), Gemscript and Spellstone (Epic)', () => {
-    expect(forge(false)).toContain('rune_contraband');
+  it('can be offered Engraving (Basic), Gemscript and Spellstone (Epic); never Contraband (cut 2026-09-24)', () => {
+    expect(forge(false)).toContain('rune_engraving');
+    expect(forge(false)).not.toContain('rune_contraband'); // CUT FROM SET 3 2026-09-24 (owner)
     expect(forge(true)).toContain('rune_gemscript');
     expect(forge(true)).toContain('rune_spellstone');
   });
@@ -79,8 +80,8 @@ describe('a Set 3 Dwarf / Kobold run at the forge', () => {
     const basic = forge(false), epic = forge(true);
     // the Wishbone is hero-conditional (requiresDoublePower) — the Warden's power does not double, so one Basic fewer
     const wishbone = RUNE_INDEX['rune_wishbone'] ? 1 : 0;
-    expect(basic.length).toBe(109 - wishbone + originals(false)); // 112 → 110 on 2026-09-23 (Balance 9/23 archives); → 109 on 2026-09-24 (Hoardcalling gated `dragon` again)
-    expect(epic.length).toBe(87 + originals(true)); // 90 → 87 on 2026-09-23 (Balance 9/23 archives)
+    expect(basic.length).toBe(100 - wishbone + originals(false)); // → 100 on 2026-09-24 (owner Set 3 rune cuts); // 112 → 110 on 2026-09-23 (Balance 9/23 archives); → 109 on 2026-09-24 (Hoardcalling gated `dragon` again)
+    expect(epic.length).toBe(78 + originals(true)); // → 78 on 2026-09-24 (owner Set 3 rune cuts); // 90 → 87 on 2026-09-23 (Balance 9/23 archives)
   });
 });
 

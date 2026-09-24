@@ -127,7 +127,8 @@ describe('the five runes ship as specced', () => {
 
   it('all five are set-2 scoped — each names a set-2 mechanic', () => {
     for (const n of ['Rune of Resonance', 'Rune of Investment', 'Rune of Runic Exchange']) { // Open Market archived 2026-09-23
-      expect(byName(n)!.sets, `${n} leaks into set 1`).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
+      // + set3 2026-09-14 (rune roster carryover); Runic Exchange CUT FROM SET 3 2026-09-24 (owner)
+      expect(byName(n)!.sets, `${n} leaks into set 1`).toEqual(n === 'Rune of Runic Exchange' ? ['set2'] : ['set2', 'set3']);
     }
   });
 });

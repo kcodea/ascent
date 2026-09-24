@@ -17,7 +17,7 @@ const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathra
 
 describe('the def', () => {
   it('is Epic, 5 (balance 9/23, was 6), and set-2 scoped (Dwarves)', () => {
-    expect([rune().cost, rune().epic, rune().sets]).toEqual([5, true, ['set2', 'set3']]); // + set3 2026-09-14 (rune roster carryover)
+    expect([rune().cost, rune().epic, rune().sets]).toEqual([5, true, ['set2']]); // CUT FROM SET 3 2026-09-24 (owner)
   });
 });
 

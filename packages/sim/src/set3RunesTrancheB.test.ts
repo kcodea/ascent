@@ -66,7 +66,8 @@ describe('tranche B — the roster', () => {
     for (const [id, cost] of EPIC) {
       const r = RUNE_INDEX[id]!;
       expect(EPIC_RUNES.some((x) => x.id === id), `${id} lives in EPIC_RUNES`).toBe(true);
-      expect([r.cost, r.epic, r.sets], id).toEqual([cost, true, ['set3']]);
+      // the Grave Orbit CUT FROM SET 3 2026-09-24 (owner): offered in no set
+      expect([r.cost, r.epic, r.sets], id).toEqual([cost, true, id === 'rune_grave_orbit' ? [] : ['set3']]);
     }
   });
   it('tribe-gates exactly the runes whose text names a tribe on the board', () => {

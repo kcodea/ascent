@@ -89,6 +89,9 @@
     "statMilestone5": {
       "def": "rune-select-implosion",
       "sfx": "runeSelectImplosion"
+    },
+    "attackHitMilestone4": {
+      "def": "strike-impact-pink"
     }
   },
   "cards": {

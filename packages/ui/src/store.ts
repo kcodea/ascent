@@ -71,7 +71,8 @@ import { liveBoardView } from './instView';
 import { saveCapturedBoards, saveRunBoards } from './boardLibrary';
 import { type AnnouncedSlice, type AnnouncerEvent, announcedFor, emptyAnnounced, withAnnounced } from './announcerSlice';
 import { perfMonitor } from './perfMonitor';
-import { fetchRankedProfile, remoteEnabled, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
+import { fetchRankedProfile, remoteEnabled, fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchRunHistory, claimHandle, flushUploadQueue } from './remoteBoards';
+import { practiceGameOf } from './practiceGames';
 import { initIdentity, currentIdentity } from './identity';
 import { notifyTutorialActions } from './tutorial/actionBus';
 import { gateBlocks, notifyGateNudge } from './tutorial/gateBus';
@@ -1573,6 +1574,26 @@ function commitResolvedAction(
             history: next.history.map((r) => (r === 'win' ? 'W' : r === 'lose' ? 'L' : 'D')).join(''),
           });
         }
+      }, 0);
+    }
+    // PRACTICE GAMES (owner ask 2026-09-24): a finished PRACTICE run writes ONE light row to its own table
+    // (`practice_games`), for Recent Games' Practice tab. It never touches the ladder tables above (no telemetry,
+    // history, boards, fight ledger or rating), which is why it is its own block and not a relaxed gate on that
+    // one. Never a sandbox (Scene Builder / a loaded bug scenario) and never the tutorial. Deferred like the
+    // uploads above so it never hitches the end screen; best-effort, dropped quietly without a backend/session.
+    if (
+      (next.phase === 'gameover' || next.phase === 'victory') &&
+      s.run.phase !== 'gameover' &&
+      s.run.phase !== 'victory' &&
+      next.mode === 'practice' &&
+      !next.sandbox
+    ) {
+      const author = s.playerName || tempHandle(s.account.userId);
+      const frames = replayFrames;
+      setTimeout(() => {
+        try {
+          void uploadPracticeGame(practiceGameOf(next, { author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`, finalBoard: endStateBoard(next), frames }));
+        } catch { /* best-effort: a practice row must never disrupt the end screen */ }
       }, 0);
     }
     const changed = next !== s.run;

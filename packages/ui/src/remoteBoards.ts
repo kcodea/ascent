@@ -1279,6 +1279,95 @@ export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
   }
 }
 
+// ── Practice games (owner ask 2026-09-24: a Practice tab on Recent Games) ─────────────────────────────────────
+// Practice runs upload NOTHING to the ladder tables (no telemetry, no history, no boards, no rating), and that
+// stays true: the Balance Report, the Hall and the Career must never see a practice row. The Practice tab reads
+// its OWN table, `practice_games` (supabase/migrations/2026-09-24-practice-games.sql), one LIGHT row per finished
+// practice game: who, which hero, where they placed, the record, the final board, the runes, the length and the
+// practice options. No replay payload rides along (practice is played far more often than the ladder, and a
+// ~100-450 KB recording per game is not worth the storage), so a practice row offers no Watch. Until the owner
+// runs the migration, the insert fails quietly and the tab shows its empty state.
+
+/** One finished practice game, as the client uploads it. */
+export interface PracticeGameUpload {
+  author: string | null;
+  patch: string;
+  heroId: string;
+  placement: number | null;
+  wins: number;
+  record: { wins: number; losses: number; draws: number };
+  wave: number;
+  finalBoard: BoardSnapshot | null;
+  runes: string[];
+  durationMs: number | null;
+  config: PracticeGameConfig | null;
+}
+
+/** The practice options the game ran under — the facts the Practice tab prints beside the outcome. */
+export interface PracticeGameConfig {
+  opponents: 'players' | 'bots';
+  botDifficulty: number;
+  health: 'unlimited' | 'normal';
+}
+
+/** Upload one finished practice game. Fire-and-forget; never throws / blocks. Needs a session (the insert
+ *  policy checks `auth.uid() = user_id`); with none it is simply dropped — practice is not worth queueing. */
+export async function uploadPracticeGame(g: PracticeGameUpload): Promise<void> {
+  const c = client();
+  const userId = currentUserId();
+  if (!c || !userId) return;
+  try {
+    await c.from('practice_games').insert([{
+      user_id: userId, author: g.author, patch: g.patch, hero_id: g.heroId,
+      placement: g.placement, wins: g.wins, record: g.record, wave: g.wave,
+      final_board: g.finalBoard, picked_runes: g.runes, duration_ms: g.durationMs, config: g.config,
+    }]);
+  } catch {
+    /* best-effort — a practice row must never disrupt the end screen */
+  }
+}
+
+/** A Practice-tab row: the Recent Games banner's row plus the practice options it ran under. */
+export interface PracticeGameRow extends RecentGameRow {
+  practice: PracticeGameConfig | null;
+}
+
+const PRACTICE_SELECT = 'id, user_id, author, hero_id, wins, placement, created_at, picked_runes, final_board, record, wave, duration_ms, config';
+
+/** Map one raw `practice_games` row → a `PracticeGameRow` (the Recent Games mapper, then the practice-only
+ *  columns). Exported pure for tests; never throws on a sparse row. */
+export function asPracticeGameRow(r: Record<string, unknown>): PracticeGameRow {
+  const base = asRecentGameRow({ ...r, final_wave: r.wave, replay_v2_version: null });
+  const cfg = r.config && typeof r.config === 'object' ? (r.config as Record<string, unknown>) : null;
+  const duration = numOf(r.duration_ms);
+  return {
+    ...base,
+    hasReplay: false, // practice rows carry no recording
+    durationMs: duration !== null && duration >= 0 ? duration : null,
+    practice: cfg && (cfg.opponents === 'players' || cfg.opponents === 'bots')
+      ? { opponents: cfg.opponents, botDifficulty: numOf(cfg.botDifficulty) ?? 0, health: cfg.health === 'normal' ? 'normal' : 'unlimited' }
+      : null,
+  };
+}
+
+/** The last N finished practice games across ALL players — newest first. Best-effort + time-boxed; `[]` when
+ *  no backend, on any failure, and until the `practice_games` migration has been run. */
+export async function fetchPracticeGames(limit = 20): Promise<PracticeGameRow[]> {
+  const c = client();
+  if (!c) return [];
+  try {
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([
+      Promise.resolve(c.from('practice_games').select(PRACTICE_SELECT).order('created_at', { ascending: false }).limit(limit)),
+      timeout,
+    ]);
+    if (!result || result.error || !result.data) return [];
+    return (result.data as unknown as Array<Record<string, unknown>>).map(asPracticeGameRow);
+  } catch {
+    return [];
+  }
+}
+
 // ── Career (run_history) ───────────────────────────────────────────────────────────────────────────────────
 // The career moved off `localStorage` (owner call 2026-08-03) so it follows the PLAYER rather than the
 // browser. The whole `RunHistoryEntry` rides in the `entry` jsonb, so `careerStats()` consumes what comes

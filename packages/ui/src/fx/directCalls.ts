@@ -199,8 +199,8 @@ export const DYNAMIC_CALL_SITES: Readonly<Record<string, number>> = {
   'fx/statMilestone.ts': 1,
   // A SPELL'S OWN CAST EFFECT (2026-09-24, Growth's `growth-effect`). One `playDef(binding.def, …)` in
   // `playSpellCastFx`, resolving the spell's card-level `spellCast` row via `spellCastFxFor` — the one play every
-  // phase's cast path shares (the shop's rune / minion records, the End-of-Turn beats, the combat `spellCastFx` cue).
-  'fx/spellCastFx.ts': 1,
+  // phase's cast path shares (the shop's rune / minion records, the End-of-Turn beats, the combat `spellCastFx` cue) — and `playRuneCastBuffFx`, a rune cast's per-buff row (`spellCastFanOutFor`: an Ale, Dragonflame).
+  'fx/spellCastFx.ts': 2,
 };
 
 /** The files that fire `id` from code, or an empty array. Never null — callers render a list either way. */

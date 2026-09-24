@@ -1,6 +1,7 @@
 import { cascade, scheduleLands, type Land } from '../fx/land';
 import { sfx } from '../sfx';
 import { canPlayDefs, playDef } from '../fx/playDef';
+import { spellCastSoundAllowed } from '../fx/spellCastFx';
 import { bindingFor, type FxBinding } from './bindings';
 import { RUBY_BEAT_MS, RUBY_GAP_MS } from './channels/rubyLanded';
 import type { RecruitMoment } from './recruitMoments';
@@ -235,9 +236,11 @@ function runSpellCastFire(moment: RecruitMoment, ctx: RecruitCueContext): () => 
     // Only the single-fire shape. A `fanOut` def (the Ales) already models its own repetition through the
     // Edward Keg-hands echo below, and stacking a second repeat on top would double-count it.
     const repeats = Math.max(1, moment.casts ?? 1);
+    // One sound per burst of the same def (owner 2026-09-24, the Undead Aura rule: `spellCastSoundAllowed`).
     const fire = (): void => {
-      playDef(binding.def, { source: pt, target: pt, cursor: pt, camera }, { uids: { source: src, target: src }, gain: binding.gain });
-      if (binding.sfx !== undefined) sfx[binding.sfx]?.();
+      const sound = spellCastSoundAllowed(binding.def);
+      playDef(binding.def, { source: pt, target: pt, cursor: pt, camera }, { uids: { source: src, target: src }, gain: binding.gain, ...(sound ? {} : { muteSound: true }) });
+      if (sound && binding.sfx !== undefined) sfx[binding.sfx]?.();
     };
     fire();
     const timers: ReturnType<typeof setTimeout>[] = [];

@@ -12,6 +12,7 @@ import {
   fireProgress,
   loopOptionsFrom,
   PLAY_TIMEOUT_MS,
+  gainScaledDef,
   playDef,
   playableDef,
   playableLayers,
@@ -441,5 +442,19 @@ describe('playDef lifetime — the per-def ceiling', () => {
     for (const s of stops) s();
     expect(mounted, 'every wrapper unmounted').toBe(0);
     expect(finished).toBe(5);
+  });
+});
+
+describe('gainScaledDef: muteSound (one sound per burst, owner 2026-09-24)', () => {
+  const def = { id: 'd', duration: 500, layers: [
+    { primitive: 'burst', params: {} },
+    { primitive: 'sound', params: { gain: 1 } },
+  ] } as never;
+  it('drops the Sound layers and keeps every visual one', () => {
+    const out = gainScaledDef(def, undefined, true);
+    expect(out.layers.map((l) => l.primitive)).toEqual(['burst']);
+  });
+  it('is an exact no-op when not muted and the gain is 1', () => {
+    expect(gainScaledDef(def, 1, false)).toBe(def);
   });
 });

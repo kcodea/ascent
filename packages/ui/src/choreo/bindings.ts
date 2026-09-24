@@ -619,6 +619,22 @@ export function castFxReplacesTendril(spellId: string | null | undefined): boole
   return !!spellId && spellCastFxFor(spellId) !== null;
 }
 
+/**
+ * A spell's PER-BUFF cast effect — its card-level `spellCast` row when that row fans out over the buffs the cast
+ * landed (`buffed`: the Ales' volley, travelling to each minion; `buffedOn`: Dragonflame's column, on each
+ * minion). The complement of `spellCastFxFor`: those spells have no single play, so a RUNE'S cast of one plays
+ * the row once per buff record it produced, from the rune's node (owner ruling 2026-09-24: "spells cast from
+ * runes and cards should use the spell effects … they can stem from the rune if there needs to be a source
+ * position"). Null for an unbound spell and for a single-play row.
+ */
+export function spellCastFanOutFor(spellId: string | null | undefined): FxBinding | null {
+  if (!spellId) return null;
+  const overridden = patch.cards[spellId]?.spellCast;
+  const b = overridden !== undefined ? overridden : COMMITTED.cards[spellId]?.spellCast;
+  if (!b || (b.fanOut !== 'buffed' && b.fanOut !== 'buffedOn')) return null;
+  return b;
+}
+
 export function authoredBuffDefFor(spellId: string | undefined): string | null {
   if (spellId === undefined) return null;
   const b = bindingFor(spellId, 'buffWave');

@@ -98,6 +98,10 @@ export interface StatsChangedConsequence extends ConsequenceBase {
   /** The spell the beat's source MINION cast to produce this gain, when it cast exactly one (owner ruling
    *  2026-09-24): a spell with its own cast effect replaces the caster's tendril. Absent otherwise. */
   spellId?: string;
+  /** The RUNE that cast `spellId` (Rune of Recurrence re-casting the turn's first spell at End of Turn), when a
+   *  rune was the caster: its node on the rune rail is where the presentation stems from (owner ruling
+   *  2026-09-24: "they can stem from the rune if there needs to be a source position"). Absent otherwise. */
+  castByRune?: string;
 }
 export interface KeywordChangedConsequence extends ConsequenceBase {
   type: 'keywordChanged';

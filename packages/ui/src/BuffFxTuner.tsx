@@ -43,6 +43,7 @@ const SPECS: Record<keyof BuffFxConfig, [string, TunerUnit | undefined, string, 
 
   spiritSfxOffsetMs: ['Spirit cue offset', 'ms', 'When the Spirit tendril sound fires, relative to its landing BURST going off on the minion: 0 = with the burst, negative = ahead of it, positive = after. One cue per minion hit.', 'Sound'],
   undeadAuraSfxGapMs: ['Undead Aura sound gap', 'ms', 'Two Undead Aura cues closer together than this collapse into one sound; further apart they overlap. Small = bursts in the same few frames only.', 'Sound'],
+  spellCastSfxGapMs: ['Spell cast sound gap', 'ms', 'Two plays of the same spell cast effect (Growth) closer together than this keep both visuals but ring ONE sound (two Fatecarvers, a doubled cast); further apart each sounds. Every phase and source.', 'Sound'],
   spiritHitStaggerMs: ['Spirit hit stagger', 'ms', 'Gap between one Spirit ribbon and the next in the same burst — each minion hit launches this much after the previous one, and its sound and number follow its own ribbon. 0 = all at once.', 'Sound'],
 };
 
@@ -52,7 +53,7 @@ const ORDER: (keyof BuffFxConfig)[] = [
   'startHeight', 'dropMs', 'retractMs', 'baseWidth', 'tipWidth', 'coreAlpha',
   'ringCount', 'ringSize', 'ringWidth', 'ringMs', 'coreFlashSize', 'coreFlashMs',
   'sparkCount', 'sparkSpeed', 'sparkSize', 'sparkLife',
-  'spiritSfxOffsetMs', 'spiritHitStaggerMs', 'undeadAuraSfxGapMs',
+  'spiritSfxOffsetMs', 'spiritHitStaggerMs', 'undeadAuraSfxGapMs', 'spellCastSfxGapMs',
 ];
 
 const controls: TunerControl<Extract<keyof BuffFxConfig, string>>[] = ORDER.map((key) => {

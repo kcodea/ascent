@@ -822,7 +822,16 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'Mage-Pup, Sporebat), that effect REPLACES the generic buff tendril / descend for the buffs that cast produced, '
       + 'in every phase: the stat change and number still land, only the travelling ribbon is dropped. One predicate '
       + '(`castFxReplacesTendril`) reads the sim\x27s spell tag on the buff (combat `buff.spellId`, the shop '
-      + '`BuffFxEvent.spellId`, End of Turn `statsChanged.spellId`); a spell with no cast effect keeps its tendril.',
+      + '`BuffFxEvent.spellId`, End of Turn `statsChanged.spellId`); a spell with no cast effect keeps its tendril. '
+      + 'A RUNE is a caster like a card (owner ruling 2026-09-24): a spell a rune casts (Gilded Ledger, Spell Market\x27s '
+      + 'Staff of Guel, Recurrence, Lassoing, Might, Spellhide\x27s Start-of-Combat re-cast) plays its own effect and '
+      + 'its buffs carry the spell tag AND the rune (`BuffFxEvent.sourceRuneId`, `statsChanged.castByRune`, combat '
+      + '`sc.rune`), so a bound effect replaces the tendril exactly as for a card, and anything that needs a source '
+      + 'position stems from the rune\x27s node on the rune rail (player side; an enemy rune is not on screen). A '
+      + 'per-buff row (an Ale, Dragonflame) plays per buff from the node; an unbound spell draws the stock trail from '
+      + 'the node. SOUND (owner 2026-09-24): a spell\x27s cast effect rings ONCE per burst: a second play of the same '
+      + 'def within `spellCastSfxGapMs` (Buff tuner, default 120 ms, the Undead Aura rule) plays its visuals with its '
+      + 'Sound layers dropped, in every phase and from every source.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -841,14 +850,26 @@ export const FOUNDATION_RULES: GameRule[] = [
         ref: 'Owner ruling on PR #1672, 2026-09-24 (tendril)',
         quote: 'the growth and waking rift effects should replace the tendril for a card that carried those effects, like fatecarver as an example.',
       },
-      { kind: 'code', ref: 'packages/core/src/effects/factories.ts (`withCastingSpell`, `resolveCombatSpellCast`, the combat arena `castRepeat`); packages/sim/src/recruit.ts (`recordActorCast`, the shop arena `castRepeat`); packages/ui/src/fx/spellCastFx.ts (`playSpellCastFx`, `playRecordedCastFx`, `playCombatSpellCastFx`); packages/ui/src/choreo/bindings.ts (`spellCastFxFor`); packages/ui/src/choreo/score.ts (the `spellCastFx` cue); packages/ui/src/Recruit.tsx (the `castFxSeq` watcher, the `spellCast` presenter context, the legacy End-of-Turn beat); packages/core/src/effects/arena.ts (`ARENA_EFFECTS`, the shared cross-phase bodies)' },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ruling, 2026-09-24 (rune casts)',
+        quote: 'spells cast from runes and cards should use the spell effects, like gilded ledger should show the animations we build for the spells when it is cast. they can stem from the rune if there needs to be a source position.',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ruling, 2026-09-24 (one sound per burst)',
+        quote: 'make it so if 2 fatecarvers are down, or the effect is cast twice or something, that it only plays the sound effect one time. give it the same behavior as the undead aura sfx timing.',
+      },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts (`withCastingSpell`, `resolveCombatSpellCast`, the combat arena `castRepeat`); packages/sim/src/recruit.ts (`recordActorCast`, the shop arena `castRepeat`); packages/ui/src/fx/spellCastFx.ts (`playSpellCastFx`, `playRecordedCastFx`, `playCombatSpellCastFx`); packages/ui/src/choreo/bindings.ts (`spellCastFxFor`, `spellCastFanOutFor`); packages/ui/src/fx/spellCastFx.ts (`playRuneCastBuffFx`, `runeNodeCentre`, `spellCastSoundAllowed`); packages/ui/src/buffFxConfig.ts (`spellCastSfxGapMs`); packages/ui/src/choreo/score.ts (the `spellCastFx` cue); packages/ui/src/Recruit.tsx (the `castFxSeq` watcher, the `spellCast` presenter context, the legacy End-of-Turn beat); packages/core/src/effects/arena.ts (`ARENA_EFFECTS`, the shared cross-phase bodies)' },
     ],
     currentBehaviour:
       'Conforms as of 2026-09-24 for spell cast FX (Growth and Waking Rift are the first spells bound). Combat casts through the arena\x27s '
       + '`castRepeat` (Fatecarver / Taragosa / Hoardbreaker\x27s Growth) previously logged no `sc` announcement and '
-      + 'emitted untagged buffs, and a shop Rally\x27s inline "cast Growth" recorded no cast; both are fixed. Known '
-      + 'remaining gaps, not yet ruled: Rune of Spellhide\x27s Start-of-Combat re-cast resolves without an `sc` '
-      + 'announcement, and an Equipment\x27s cast deliberately records nothing (R-PRESENT-10). The mechanic half of the '
+      + 'emitted untagged buffs, and a shop Rally\x27s inline "cast Growth" recorded no cast; both are fixed. Rune casts '
+      + 'were untagged and their buffs drew nothing (sourceless); fixed 2026-09-24, and Rune of Spellhide\x27s '
+      + 'Start-of-Combat re-cast now announces itself (`sc` + `rune`). Known remaining gaps: an Equipment\x27s cast '
+      + 'deliberately records nothing (R-PRESENT-10); a rune that multiplies the PLAYER\x27s own cast (Shared Pour, '
+      + 'Astral Draft, Distillation, Shared Reflection) rides the player\x27s cast path. The mechanic half of the '
       + 'default is enforced by the Doc Bot `factoryPhase` lane (every trigger/factory pair implemented in every '
       + 'phase its trigger dispatches, or a registered excuse).',
     enforcement: {
@@ -860,6 +881,9 @@ export const FOUNDATION_RULES: GameRule[] = [
         'packages/sim/src/docbot/factoryPhase.test.ts',
         'packages/sim/src/effectArena.test.ts',
         'packages/sim/src/castFx.test.ts',
+        'packages/ui/src/fx/runeCastFx.test.ts',
+        'packages/sim/src/runeCastFx.test.ts',
+        'packages/core/src/combat/runeCastSc.test.ts',
       ],
       lastVerifiedAt: '2026-09-24',
     },

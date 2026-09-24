@@ -75,6 +75,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Spells cast by your runes now play their own effects too.',
+        details: [
+          'A spell a rune casts (Gilded Ledger, Spell Market, Recurrence and others) plays the same effect it plays from your hand.',
+          'Where the effect travels, it now starts from the rune on your rune bar.',
+          'A spell with no effect of its own now draws its trail from the rune, instead of nothing.',
+          'When the same spell effect fires several times at once (two Fatecarvers on one attack), its sound plays once.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Discover now shows your real board behind the choices, and the plain browser tooltips are gone.',
       },
     ],

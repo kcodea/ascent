@@ -58,9 +58,9 @@ describe('Fibbsy — Ruby Wealth', () => {
     expect(s.heroUsesThisTurn ?? 0, 'and the per-turn counter reset').toBe(0);
   });
 
-  it('is adoptable — it joins the Mimic / Power Shifter / Void discover pool', () => {
-    expect(powerDiscoverPool('mimic')).toContain('fibbsy');
-    expect(powerDiscoverPool('void')).toContain('fibbsy');
+  it('ARCHIVED 2026-09-24 (heroArchive.test.ts): out of the Mimic / Power Shifter / Void discover pool, like every archived hero', () => {
+    expect(powerDiscoverPool('mimic')).not.toContain('fibbsy');
+    expect(powerDiscoverPool('void')).not.toContain('fibbsy');
   });
 
   it('an ADOPTED Ruby Wealth still fires (hasPower routing, not heroId)', () => {

@@ -12281,7 +12281,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tags": [
       "activation:count-threshold",
       "power-kind:tempest",
-      "passive"
+      "passive",
+      "wip"
     ],
     "triggers": [
       {
@@ -12616,7 +12617,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tags": [
       "activation:combat-trigger",
       "power-kind:hoard",
-      "passive"
+      "passive",
+      "wip"
     ],
     "triggers": [
       {
@@ -12715,7 +12717,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tags": [
       "activation:active",
       "power-kind:devour",
-      "cost:1"
+      "cost:1",
+      "wip"
     ],
     "triggers": [
       {
@@ -12918,7 +12921,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "power-kind:rubyWealth",
       "untargeted",
       "uses-per-turn:2",
-      "cost:1"
+      "cost:1",
+      "wip"
     ],
     "triggers": [
       {
@@ -12985,7 +12989,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tags": [
       "activation:passive-pricing",
       "power-kind:companyRate",
-      "passive"
+      "passive",
+      "wip"
     ],
     "triggers": [
       {
@@ -13154,7 +13159,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tags": [
       "activation:combat-trigger",
       "power-kind:bladeMastery",
-      "passive"
+      "passive",
+      "wip"
     ],
     "triggers": [
       {
@@ -13187,7 +13193,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tags": [
       "activation:active",
       "power-kind:buyout",
-      "untargeted"
+      "untargeted",
+      "wip"
     ],
     "triggers": [
       {
@@ -13319,7 +13326,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tags": [
       "activation:active",
       "power-kind:dynamiteDig",
-      "untargeted"
+      "untargeted",
+      "wip"
     ],
     "triggers": [
       {
@@ -13453,7 +13461,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "activation:active-conditional",
       "power-kind:memory",
       "untargeted",
-      "cost:1"
+      "cost:1",
+      "wip"
     ],
     "triggers": [
       {
@@ -13652,7 +13661,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tags": [
       "activation:shop-action-trigger",
       "power-kind:exhibition",
-      "passive"
+      "passive",
+      "wip"
     ],
     "triggers": [
       {
@@ -13685,7 +13695,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tags": [
       "activation:count-threshold",
       "power-kind:contraband",
-      "passive"
+      "passive",
+      "wip"
     ],
     "triggers": [
       {
@@ -13750,7 +13761,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tags": [
       "activation:combat-trigger",
       "power-kind:empoweringVines",
-      "passive"
+      "passive",
+      "wip"
     ],
     "triggers": [
       {
@@ -13881,7 +13893,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tags": [
       "activation:start-of-run",
       "power-kind:startingReflector",
-      "passive"
+      "passive",
+      "wip"
     ],
     "triggers": [
       {
@@ -13914,7 +13927,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tags": [
       "activation:turn-number",
       "power-kind:epicRuneforge",
-      "passive"
+      "passive",
+      "wip"
     ],
     "triggers": [
       {
@@ -13948,7 +13962,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "activation:turn-number",
       "power-kind:runeforge",
       "once-per-game",
-      "passive"
+      "passive",
+      "wip"
     ],
     "triggers": [
       {
@@ -13982,7 +13997,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "activation:active",
       "power-kind:soulbind",
       "untargeted",
-      "max-uses:3"
+      "max-uses:3",
+      "wip"
     ],
     "triggers": [
       {
@@ -14047,7 +14063,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tags": [
       "activation:active",
       "power-kind:dragonTamer",
-      "untargeted"
+      "untargeted",
+      "wip"
     ],
     "triggers": [
       {
@@ -14081,7 +14098,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "activation:active-conditional",
       "power-kind:soulkeeper",
       "untargeted",
-      "cost:2"
+      "cost:2",
+      "wip"
     ],
     "triggers": [
       {
@@ -14114,7 +14132,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "tags": [
       "activation:combat-trigger",
       "power-kind:unitedFront",
-      "passive"
+      "passive",
+      "wip"
     ],
     "triggers": [
       {

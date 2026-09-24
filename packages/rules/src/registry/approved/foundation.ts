@@ -1045,4 +1045,35 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-24',
     },
   },
+  {
+    id: 'R-PRESENT-14',
+    title: 'A card only slides when its row changed: a spell cast never moves the warband',
+    statement:
+      'The warband and tavern cards slide (the commit FLIP) only when the rows themselves changed since the last '
+      + 'commit: a card was sold, bought, summoned, removed or reordered. Casting a spell (Growth or any other) '
+      + 'changes no row, so no card moves. A layout change with the same cards in the same order (a window '
+      + 'resize, a docked panel) is not a move either: the next row change settles from the current layout '
+      + 'instead of flinging the survivors in from the old one. The commit FLIP diffs through `commitFlipDeltas` '
+      + '(`packages/ui/src/commitFlip.ts`), which returns nothing unless the row key changed.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner bug report, 2026-09-24',
+        quote: 'when casting growth it randomly moves the warband, please fix that',
+      },
+      { kind: 'code', ref: 'packages/ui/src/commitFlip.ts (commitFlipDeltas); packages/ui/src/Recruit.tsx (RowFlip commit branch)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-24. Before, the FLIP key also carried the drag lift flag, so a spell dragged up and '
+      + 'released re-ran the commit branch with no row change, and it diffed against a sweep of unbounded age: '
+      + 'after any layout change the whole warband slid in from its old spot (measured live: all seven cards '
+      + 'tweened in from 147..479 px right; a 300 px row shift gave a -99 px slide on all six). Fixed: 0 moved frames.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/commitFlip.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
 ];

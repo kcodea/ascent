@@ -101,6 +101,19 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Casting a spell no longer makes your warband slide across the board.',
+        details: [
+          'Casting Growth, or any spell, could make every minion on your board slide in from the side.',
+          'It could happen after the game window changed size. Your minions now stay put when you cast.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
         text: 'The Compendium can now show any card set. Pick one from the new Set menu at the right of the tier bar.',
         details: [
           'The Compendium still opens on the set you are playing.',

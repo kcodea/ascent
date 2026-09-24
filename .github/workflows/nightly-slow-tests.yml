@@ -1,0 +1,35 @@
+# NIGHTLY SLOW TESTS — the vitest suites too slow for every PR's `verify` gate (the strategist benchmark alone is
+# ~13 min). The list lives in vitest.config.ts (`NIGHTLY_ONLY`); `npm run test:slow` runs the same thing locally.
+#
+# Deliberately NOT a required check: it can never block a PR. A regression shows up as a FAILED run of this
+# workflow in the Actions tab (and GitHub's failed-scheduled-run email to the workflow's last editor).
+name: Nightly Slow Tests
+
+on:
+  schedule:
+    # 08:43 UTC — off-peak, clear of Doc Bot Nightly (09:17); the odd minute avoids on-the-hour congestion.
+    - cron: '43 8 * * *'
+  workflow_dispatch:
+    inputs:
+      seeds:
+        description: 'BALANCE_BENCH_SEEDS for the strategist benchmark'
+        required: false
+        default: '6'
+
+jobs:
+  slow-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Run the nightly-only vitest suites
+        env:
+          BALANCE_BENCH_SEEDS: ${{ github.event.inputs.seeds || '6' }}
+        run: npm run test:slow

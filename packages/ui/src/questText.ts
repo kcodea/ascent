@@ -135,6 +135,7 @@ function keywordPhrase(kws: Keyword[]): string {
  */
 const EOT_EFFECT_TEXT: Record<Extract<QuestReward, { kind: 'recurringEndOfTurn' }>['effect'], string> = {
   lassoing: 'End of Turn: Cast Lasso and grant a random friendly minion +2/+2',
+  runeAncestralRoar: 'End of Turn: give your Dragons +6/+6 for every Shout you triggered this turn',
   triggerLeftmostShout: 'End of Turn: trigger your leftmost Shout',
   grantRandomShout: 'End of Turn: get a random Shout minion',
   grantAles3: 'End of Turn: get 3 random Dwarven Ales',
@@ -221,7 +222,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         case 'runeOverflow':
           return `Overflow: give your minions +${r.amount ?? 4}/+${r.amount ?? 4} permanently`;
         case 'runeFoodChain':
-          return "Start of Combat: the first minion you summon gains your left-most Demon's stats this combat";
+          return "The first minion you summon in combat gains the stats of your left-most Demon";
         case 'runeAttackingGems':
           return 'Cast a Ruby on all of your minions every friendly attack in combat';
         case 'runeBrood':
@@ -235,13 +236,13 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         case 'runeRemains':
           return `When you summon 5 minions in combat, give minions in the Shop +${r.amount ?? 3}/+${r.amount ?? 3}`;
         case 'runeReinvestment':
-          return `After combat, give the next Shop +${r.amount ?? 1}/+${r.amount ?? 1} for every friendly minion you summoned`;
+          return 'When you summon a minion in combat, give minions in the Shop +3/+4 permanently';
         case 'runeBloodAndCoin':
           return `Every 4 friendly deaths in combat, gain ${r.amount ?? 4} Gold next turn`;
         case 'runeWildHunt':
           return `When a Beast attacks, give your minions +${r.amount ?? 3} Health and improve this by ${r.amount ?? 3} permanently`;
         case 'runeLivingTreasure':
-          return 'Your Gemheart Golems gain Rise';
+          return 'Your Gemheart Golems gain Rebirth';
         case 'runeGemstorm':
           return `Avenge (2): play ${r.amount ?? 2} Rubies on each friendly Kobold`;
         case 'runeLastCall':
@@ -255,7 +256,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         case 'runeFinality':
           return `When your last minion dies, summon ${r.amount ?? 7} Imps with Ward`;
         case 'runeHatchery':
-          return 'Minions summoned by an Echo have +3/+3 and Taunt';
+          return 'Minions summoned in combat have +5/+5 and Taunt';
         case 'avengeFirstDouble':
           return 'Your first Avenge each combat triggers twice';
         case 'candlelightToll':
@@ -386,6 +387,12 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       for (const id of r.grantCards ?? []) parts.push(`get a ${CARD_INDEX[id]?.name ?? id}`);
       if (r.castStatSpell) parts.push(r.castStatSpell === 1 ? 'cast a random stat-granting Shop spell' : `cast ${r.castStatSpell} random stat-granting Shop spells`);
       if (r.grantGoldNextTurn) parts.push(`gain ${r.grantGoldNextTurn} Gold next turn`);
+      // Balance 9/23 payloads (rune reworks A).
+      if (r.grantGold) parts.push(`gain ${r.grantGold} Gold`);
+      if (r.improveRuby) parts.push(`improve your Rubies ${statPhrase(r.improveRuby.attack, r.improveRuby.health)}`);
+      if (r.grantOneOf?.length) parts.push(`get a ${r.grantOneOf.map((id) => CARD_INDEX[id]?.name ?? id).join(' or ')}`);
+      if (r.grantRandomTribe) parts.push(`get a random ${TRIBE_SINGULAR[r.grantRandomTribe] ?? r.grantRandomTribe}`);
+      for (const id of r.castCards ?? []) parts.push(`cast ${CARD_INDEX[id]?.name ?? id}`);
       if (r.buff) {
         const b = r.buff;
         const who = b.target === 'imps' ? 'your Imps'

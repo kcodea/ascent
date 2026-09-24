@@ -70,7 +70,7 @@ describe('rune meters know which rune armed them', () => {
     s = reduce(s, { type: 'buyRune', index: 0 });
     const meter = s.runeThresholds?.find((t) => t.sourceId === 'rune_gemspam');
     expect(meter, 'the meter must record which rune armed it').toBeTruthy();
-    expect(meter!.per).toBe(10);
+    expect(meter!.per).toBe(15); // balance 9/23: 10 → 15 Gold
     expect(meter!.tick).toBe(0);
   });
 });

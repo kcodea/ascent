@@ -249,7 +249,7 @@ describe('Runeforge — rune effects fire in play', () => {
     expect(spellDisplayText('emberpouch', 0, 0, 0, 0, 0, 0)).toBe('Gain **1 Gold**.');
   });
 
-  it('Slaying: kills BANK across combats — under 6, nothing pays yet (owner change 2026-07-31)', () => {
+  it('Slaying: kills BANK across combats — under 5, nothing pays yet (owner change 2026-07-31; threshold 5 since 2026-09-23)', () => {
     const before = createRun(1, 'runesmith').maxEmbers;
     const s = reduce({
       ...createRun(1, 'runesmith'), phase: 'combat', hand: [], questFlags: { runeSlaying: true },
@@ -258,7 +258,7 @@ describe('Runeforge — rune effects fire in play', () => {
         playerQuestTally: { attack: 0, summonCombat: 0, slaughter: 3, slaughterKeyword: 0, attackByTribe: {}, summonCombatByTribe: {}, slaughterByTribe: {}, statGainByTribe: {} },
       } as CombatResult,
     }, { type: 'settleCombat' }); // settle WITHOUT advancing, so the bank is observable on this state
-    expect(s.runeSlayingKills).toBe(3); // banked, below the 6-kill threshold
+    expect(s.runeSlayingKills).toBe(3); // banked, below the 5-kill threshold
     expect(s.hand).toHaveLength(0); // no payout yet
     expect(s.maxEmbers).toBe(before); // the old max-Gold rider is GONE
   });
@@ -637,13 +637,13 @@ describe('Runes batch 1 — grants / discovers / economy', () => {
     expect(s.bonusEmbersNextTurn ?? 0).toBe(0); // nothing banked for next shop
   });
 
-  it('Rune of Quick Study: arms a 2-TURN payout, nothing immediate', () => {
-    // Owner rebalance 2026-08-02: the payout is BOUNDED to 2 turns, so it arms the limited list rather than
-    // the run-long one (the full lifecycle is pinned in quickStudyTurns.test.ts).
+  it('Rune of Quick Study: a Quick Study + a Gold Font NOW, and the pair again next turn (balance 9/23)', () => {
+    // The full lifecycle is pinned in quickStudyTurns.test.ts; this is the buy itself.
     const s = buyRune('rune_quick_study', 10, { tier: 3, hand: [] });
-    expect(s.questRecurringLimited?.[0]).toMatchObject({ effect: 'quickStudy', turnsLeft: 2 });
+    expect(s.hand.map((c) => c.cardId).sort()).toEqual(['manafont', 'quickstudy']);
+    expect(s.pendingQuestRewards).toEqual([{ questId: 'rune_quick_study', turnsLeft: 1 }]);
+    expect(s.questRecurringLimited ?? []).toHaveLength(0);
     expect(s.questRecurringEndOfTurn ?? []).not.toContain('quickStudy');
-    expect(s.hand).toHaveLength(0);
   });
 
   it('Rune of Spare Parts: conjures 5 random Attachments to hand', () => {
@@ -756,7 +756,7 @@ describe('Runes batch 2 — Kindling / Pair / Menagerie / Reliquary + forge sche
     expect(next.epicForgeWave).toBeUndefined(); // consumed — turn 9's visit comes from the baseline, not this
   });
 
-  it('Rune of Quick Study: EVERY turn pays a Gold Font + 2 random Shop spells (owner clarification 2026-07-31)', () => {
+  it('the legacy `quickStudy` End-of-Turn effect still pays a Gold Font + 2 random Shop spells (engine branch kept; no rune arms it since balance 9/23)', () => {
     const armed: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', hand: [],
       questRecurringEndOfTurn: ['quickStudy'] };
     applyEndOfTurn(armed);
@@ -775,16 +775,16 @@ describe('Runes batch 2 — Kindling / Pair / Menagerie / Reliquary + forge sche
     expect(CARD_INDEX['b2_runebloom']!.effects.some((e) => e.do === 'scGrantSpellCastExtra')).toBe(true);
   });
 
-  it('Rune of Slaying: every 6 kills banks a minion of the dominant type (owner change 2026-07-31)', () => {
+  it('Rune of Slaying: every 5 kills banks a minion of the dominant type (owner change 2026-07-31; 5 since 2026-09-23, was 6)', () => {
     const beast = Object.values(CARD_INDEX).find((c) => c.tribe === 'beast' && !c.spell && !c.token)!;
     const mkB = (uid: string): RunState['board'][number] => ({ uid, cardId: beast.id, tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
     const armed: RunState = { ...buyRune('rune_slaying', 10), board: [mkB('b1'), mkB('b2')], hand: [], phase: 'combat',
       lastCombat: { ...win, playerQuestTally: { slaughter: 8 } } as unknown as CombatResult };
     const settled = reduce(armed, { type: 'resolveCombat' });
-    // 8 kills → one payout (6) + 2 banked for the next combat.
+    // 8 kills → one payout (5) + 3 banked for the next combat.
     const granted = settled.hand.filter((c) => { const d = CARD_INDEX[c.cardId]; return d && (d.tribe === 'beast' || d.tribe2 === 'beast' || d.universalTribe); });
-    expect(granted.length, 'no dominant-type minion was granted at 6 kills').toBeGreaterThanOrEqual(1);
-    expect(settled.runeSlayingKills).toBe(2);
+    expect(granted.length, 'no dominant-type minion was granted at 5 kills').toBeGreaterThanOrEqual(1);
+    expect(settled.runeSlayingKills).toBe(3);
   });
 });
 

@@ -36,14 +36,14 @@ describe('strategy packages — set-2 census', () => {
     expect(census).toEqual({
       ruby: '30/12/14/10', // Balance 9/23 combined (stat pass + archives + Picnic)
       ale: '31/5/4/31', // 32 → 31 on 2026-09-18: rune tag pass
-      demonConsume: '34/13/7/16', // 14 -> 13 engines: Balance 9/23 minion reworks (Soul Defiler's EoT now casts Staff of Guel) on top of the combined census; // 32 → 33 on 2026-09-18: Dissipate (a sell spell — the consume text match) // Balance 9/23 combined (stat pass + archives + Picnic)
+      demonConsume: '34/13/7/14', // runes 16 → 14: Balance 9/23 combined (rune reworks A rewrote rune texts, #1669); // 14 -> 13 engines: Balance 9/23 minion reworks (Soul Defiler's EoT now casts Staff of Guel) on top of the combined census; // 32 → 33 on 2026-09-18: Dissipate (a sell spell — the consume text match) // Balance 9/23 combined (stat pass + archives + Picnic)
       beastSummon: '30/7/5/10', // 14 → 13 on 2026-09-16: Rune of Rebirth grants the Rebirth keyword now (no longer an Echo-summon text match) // Balance 9/23 combined (stat pass + archives + Picnic)
       dragon: '33/16/10/15',
-      spellEngine: '108/16/13/23', // 22 → 23 on 2026-09-17: Rune of Gambling (recurring Gamble, every set); 106 → 107 on 2026-09-18: Dissipate // Balance 9/23 combined (stat pass + archives + Picnic)
+      spellEngine: '108/16/13/21', // runes 23 → 21: Balance 9/23 combined (rune reworks A: spell runes rewritten, #1669); // 22 → 23 on 2026-09-17: Rune of Gambling (recurring Gamble, every set); 106 → 107 on 2026-09-18: Dissipate // Balance 9/23 combined (stat pass + archives + Picnic)
       echo: '39/14/9/6', // 7 → 6 on 2026-09-16: same Rune of Rebirth rework
       mechAttach: '2/0/0/0',
       rally: '26/8/11/6', // Boulderdash gained Flurry (owner 2026-09-18)
-      tempo: '39/6/21/32', // 37/5 → 38/6 on 2026-09-23: the balance 9/23 stat pass moved a body into the tempo package // Balance 9/23 combined (stat pass + archives + Picnic)
+      tempo: '39/6/21/33', // runes 32 → 33: Balance 9/23 combined (rune reworks A, #1669); // 37/5 → 38/6 on 2026-09-23: the balance 9/23 stat pass moved a body into the tempo package // Balance 9/23 combined (stat pass + archives + Picnic)
       economy: '20/1/16/25', // 26 → 25 on 2026-09-18: rune tag pass
     });
   });

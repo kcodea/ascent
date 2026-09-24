@@ -302,4 +302,278 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-23',
     },
   },
+  // ── Balance 9/23, tranche 5 — rune reworks, group B (summon / board / token runes; owner list 2026-09-23). ──
+  {
+    id: 'R-RUNE-06',
+    title: 'Combat-summon rune triggers pay per summon, and their "permanently" carries back into the run',
+    statement:
+      'A rune whose text begins "When you summon a minion in combat" fires once per friendly body placed in combat '
+      + '(a token, a Rise return and a resummon each count once, at the single summon chokepoint). Rune of Packcraft '
+      + 'gives THAT body the current level (starting +2/+1) and then raises the level by the printed step; the grown '
+      + 'level is written back to the run (`packcraftLevel`) so the next fight\'s first summon starts from it, and the '
+      + 'rune badge prints the current grant. Rune of Reinvestment pulses on every friendly summon and pays the Shop '
+      + '+3/+4 per summon (× copies held) ONCE at settle, on the permanent run-wide Shop channel. Rune of Beastial '
+      + 'Swarm grows the BEAST AURA (the run-wide `beastBuyAtk` / `beastBuyHp` channel) by the current per-death amount '
+      + 'on every friendly Beast death: living Beasts gain it on the spot, later Beast summons inherit it, and the '
+      + 'player\'s gain carries back at settle; Avenge (2) still raises the per-death amount permanently. The enemy '
+      + 'side runs its own copy off its snapshot and only accumulates.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Balance batch 9/23, tranche 5 (rune reworks B), owner list 2026-09-23', quote: 'Packcraft → "When you summon a minion in combat, give it +2/+1 and improve this permanently." Reinvestment → "When you summon a minion in combat, buff minions in the shop +3/+4 permanently." Bestial Swarm → "Give your Beast Aura +2/+2 when a friendly Beast dies. Avenge (2): improve this."' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts summonMinion (Packcraft level + Reinvestment pulse), the Beastial Swarm death block, carryBacksFor (packcraftLevel / beastBuyAtkGain); packages/sim/src/reducer.ts settle (packcraftLevel, grantTribeAura) + questCombatMods (packcraftLevel, runeReinvestment); packages/sim/src/state.ts PACKCRAFT_STEP / REINVESTMENT_PER_SUMMON; packages/ui/src/runeTally.ts' },
+    ],
+    contentIds: ['rune_packcraft', 'rune_reinvestment', 'rune_beastial_swarm'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Until then Packcraft was a flat +6/+6 on every combat summon, Reinvestment paid '
+      + '+1/+1 per summon with one badge pulse at settle, and Beastial Swarm buffed the living Beasts for the fight '
+      + 'only (nothing carried back but the Avenge level).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeReworksB0923.test.ts', 'packages/sim/src/runeBatch8.test.ts', 'packages/sim/src/beastBatchAug12.test.ts', 'packages/ui/src/tallyCoverage.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-RUNE-07',
+    title: 'Rune of Slaying banks kills across combats and pays every 5, with a live countdown',
+    statement:
+      'Rune of Slaying counts enemy kills (the Slaughter tally) across every combat of the run. Every '
+      + 'SLAYING_KILLS (5) kills pays ONE minion of the board\'s most common type into hand at settle, the leftover '
+      + 'kills carry to the next fight, and a fight that crosses the threshold twice pays twice. The badge prints the '
+      + 'banked count as x/5 off the same constant the settle reads, so the number the player watches is the number '
+      + 'the rune pays on.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Balance batch 9/23, tranche 5 (rune reworks B), owner list 2026-09-23', quote: 'Slaying → "when you kill 5 enemies get a minion of your most common type"' },
+      { kind: 'code', ref: 'packages/sim/src/state.ts SLAYING_KILLS; packages/sim/src/reducer.ts settle (runeSlayingKills loop, grantTopTypeMinion); packages/ui/src/runeTally.ts rune_slaying' },
+    ],
+    contentIds: ['rune_slaying'],
+    currentBehaviour: 'Conforms as of 2026-09-23. The threshold was 6 (owner change 2026-07-31) and lived as two separate literals, one in the settle and one in the badge.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeReworksB0923.test.ts', 'packages/sim/src/runes.test.ts', 'packages/ui/src/tallyCoverage.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-RUNE-08',
+    title: '"Get X. Repeat at Start of Turn" runes pay one copy on purchase and one more at every turn setup',
+    statement:
+      'A rune printed "Get X. Repeat at Start of Turn" hands over X the moment it is bought (the Runeforge opens '
+      + 'partway through a shop turn, after that turn\'s setup has run) and then one more X at every turn setup for '
+      + 'the rest of the run, one per copy held. Full Measure (Baby Gastrid), Open Appetite (Appetite Agent), the '
+      + 'Unbroken Vein (Veinbreaker), the Display Case (Market Tormentor) and the Deep (a random Tier 7 minion) all '
+      + 'follow it, each keeping its second half (the Attack grant, the any-type aim, both Choose One effects, the '
+      + 'left-most Shop enchant). The Muckbroker\'s "Get a Muckslinger. Repeat every 2 turns" is the same shape on '
+      + 'the 2-turn cadence: one now, then one every second turn setup. Rune of Copies copies at that same turn setup '
+      + 'and is printed "Start of Turn".',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Balance batch 9/23, tranche 5 (rune reworks B), owner list 2026-09-23', quote: 'Full Measure → "Get a Baby Gastrid. Repeat at Start of Turn. Baby Gastrids also grant Attack this game." … Deep → "get a random T7 minion. Repeat at Start of Turn" … Muckbroker → "get a Muck Slinger. Repeat every 2 turns."' },
+      { kind: 'code', ref: 'packages/content/src/runes.ts (the multi rewards: recurringGrant + the rune flag; the Muckbroker grant + everyTurns cadence); packages/sim/src/reducer.ts recurringGrant (immediate rune copy) / payDeep / the turn-setup grant loops' },
+    ],
+    contentIds: ['rune_full_measure', 'rune_open_appetite', 'rune_unbroken_vein', 'rune_display_case', 'rune_deep', 'rune_muckbroker', 'rune_copies'],
+    currentBehaviour: 'Conforms as of 2026-09-23. Until then the four card-keyed runes granted their minion ONCE, the Deep paid nothing until the next turn, and the Muckbroker paid nothing for two turns.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeReworksB0923.test.ts', 'packages/sim/src/runeBatchAug20.test.ts', 'packages/sim/src/runeCardKeyed.test.ts', 'packages/sim/src/runeCardKeyed2.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-RUNE-09',
+    title: 'Rune reworks B: the board and token runes (Five Banners, Living Treasure, Gem Golem, Food Chain, Banquet Hall, Lassoing, Finality, Hatchery)',
+    statement:
+      'Rune of the Five Banners is an END OF TURN grant: one friendly minion of each type gains +5/+4 (universal-'
+      + 'tribe bodies always collect; every other body claims the first type nobody has claimed), once per copy held; '
+      + 'its old Start-of-Combat flag is no longer authored but still resolves for pinned replays. Rune of Living '
+      + 'Treasure gives every friendly Gemheart Golem REBIRTH (at the bell for the ones on board, at the summon for the '
+      + 'ones that land mid-fight), so a grown Golem returns once with its full body. Rune of the Gem Golem summons a '
+      + 'real Gemheart Golem (its printed 1/1) carrying the dying Kobold\'s Rubies on top, with or without Rubies, and '
+      + 'a dying Golem itself never chains another. Rune of the Food Chain reads the left-most LIVING Demon\'s current '
+      + 'stats when the side\'s first summon lands (no Start-of-Combat capture, so it left the Start-of-Combat rune '
+      + 'pass). Rune of the Banquet Hall: the turn\'s first buy, Shop-buffed or not, hands its current stats in full to 2 '
+      + 'random other friendly board minions, once per turn. Rune of Lassoing hands over a Rope Wrangler and gives '
+      + 'your minions +2/+2 whenever Lasso is cast in the shop by anyone. Rune of Finality summons 3 Warded Imps; Rune '
+      + 'of the Hatchery gives combat summons +5/+5 and Taunt.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Balance batch 9/23, tranche 5 (rune reworks B), owner list 2026-09-23', quote: 'Five Banners → "End of Turn: give a minion of each type +5/+4" · Living Treasure → "Your Gemheart Golems gain Rebirth" · Gem Golem → "When a Kobold dies, summon a Gemheart Golem with its Rubies." · Food Chain → "the first minion you summon in combat gains the stats of your left-most Demon." · Banquet Hall → "the first minion you buy gives its stats to 2 random friendly minions." · Lassoing → "get a Rope Wrangler. When Lasso is cast, give your minions +2/+2." · Finality → "When your last minion dies, summon 3 Imps with Ward." · Hatchery → "minions summoned in combat have +5/+5 and Taunt."' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts bannerRecipientsOf / FIVE_BANNERS_GRANT / recurringEotEffects / runRecurringEndOfTurn / applyOnBuy (Banquet Hall) / castSpell (Lassoing); packages/core/src/combat/simulate.ts summonMinion (Living Treasure RB, Food Chain read), the Living Treasure Start-of-Combat grant, the Gem Golem death block; packages/sim/src/reducer.ts questCombatMods (Hatchery +5/+5)' },
+    ],
+    contentIds: ['rune_five_banners', 'rune_living_treasure', 'rune_gem_golem', 'rune_food_chain', 'rune_banquet_hall', 'rune_lassoing', 'rune_finality', 'rune_hatchery'],
+    currentBehaviour: 'Conforms as of 2026-09-23. Before: Five Banners was a Start-of-Combat +6/+6 flag; Living Treasure grafted an exact-copy Echo; the Gem Golem summoned a bare token with stats EQUAL to the Rubies, or nothing; the Food Chain captured the Demon at Start of Combat; the Banquet Hall dispersed the first Shop-buffed buy\'s bonus among one minion of each type; Lassoing cast Lasso at End of Turn; Finality summoned 7; the Hatchery gave +3/+3.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeReworksB0923.test.ts', 'packages/sim/src/runeDupStacking.test.ts', 'packages/sim/src/runeBatch7.test.ts', 'packages/sim/src/runeBatch11.test.ts', 'packages/sim/src/runeBatch4T4.test.ts', 'packages/sim/src/runeDuplication.test.ts', 'packages/sim/src/heroBatchAug22.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-RUNE-10',
+    title: 'A "when you trigger N Shouts" rune meter is ONE counter across shop and combat',
+    statement:
+      'A rune whose payout is metered on Shouts triggered (Rune of the Chorus: 3 Shouts, a random Shop spell; Rune of '
+      + 'Hoardcalling: 3 Shouts, a Hoardflame or a Dragonflame) keeps ONE tick across both halves of the turn. Shop Shout '
+      + 'FIRES advance it at the reducer boundary; the fight receives the meter with its shop tick (`QuestCombatMods.shoutMeters`), '
+      + 'every combat Shout fire (`battlecryTriggered`: re-fires, parting cries, Drakko repeats, Start-of-Combat Shouts included) '
+      + 'advances the same tick, a trip pays at once through `playerHandGrants` (a random Shop spell from the run pool at or '
+      + 'below the shop tier, never an Ale, or one of the named cards) and flies to hand in the replay, and the final tick is '
+      + 'written back at settle so the next shop keeps counting from it. The settle also feeds every other Shout tracker with '
+      + 'the combat count: the Shout quest objectives, Bane\'s Presence and the Author\'s Hand Shout half. A meter whose payout '
+      + 'only a shop can deliver (the Merchant\'s Chorus\' this-turn Shop buff) stays a shop meter.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Balance batch 9/23, tranche 4 (rune reworks A)', quote: 'make sure this (and all trackers like this) work in combat too and carries count through both' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts (the battlecryTriggered subscription: shoutFires / shoutMeters, carried as playerShoutFires / playerShoutMeters); packages/sim/src/reducer.ts shoutMetersFor / questCombatMods / settleCombat (the write-back + the tracker feeds); packages/content/src/runes.ts rune_chorus, rune_hoardcalling' },
+    ],
+    contentIds: ['rune_chorus', 'rune_hoardcalling'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Until then the shout meter was shop-only: a combat Shout advanced nothing, and Hoardcalling was a per-turn first-Dragon-Shout freebie rather than a meter at all.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeReworks0923A.test.ts', 'packages/sim/src/docbot/combatModLane.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-RUNE-11',
+    title: 'Rune of Lorekeeping pays on EVERY targeted cast on a friendly minion',
+    statement:
+      'Rune of Lorekeeping ("When you cast a spell on a minion, give it an additional +3/+3") pays +3/+3 (per copy held) '
+      + 'to the friendly minion a spell is cast ON, whatever the spell is: a Shop spell, a Gift (a Clue, a Tower Shield) or a '
+      + 'Ruby, including a Ruby that lands through Redirection, Distillation, Motherlode or the Lapidary. One site pays it '
+      + '(`applyLorekeeping`), called from the Shop-spell cast, the Gift play and the Ruby landing (`fireOnRubyPlayed`). It pays '
+      + 'per resolved cast, so a doubled cast pays twice. An untargeted spell, a spell cast on a Shop offer, and a Candle '
+      + 'Conduit / Resonance stat BOUNCE (stats only, never a cast) pay nothing.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Balance batch 9/23, tranche 4 (rune reworks A)', quote: 'works with all spells, rubies, clues etc' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts applyLorekeeping / castSpell / fireOnRubyPlayed; packages/sim/src/reducer.ts (the Gift play branch)' },
+    ],
+    contentIds: ['rune_lorekeeping'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Until then only a Shop spell paid (+4/+4), and a Ruby or a Clue on a minion paid nothing.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeReworks0923A.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-RUNE-12',
+    title: 'Rune of Distillation casts a Shop-minion spell on BOTH your edge minions',
+    statement:
+      'Rune of Distillation ("Targeted spells cast on Shop minions also cast on your left and right-most minion") gives a '
+      + 'spell or Ruby cast on a Shop offer a real extra cast on your LEFT-most AND your RIGHT-most board minion (per copy '
+      + 'held), the same `castSpell` / Ruby-landing path, so each target\'s own watchers and Rune of Lorekeeping see it. A '
+      + 'one-minion board is both ends and takes ONE extra cast, never two; an empty board takes none. The offer still takes '
+      + 'its own cast.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Balance batch 9/23, tranche 4 (rune reworks A)', quote: 'targeted spells cast on shop minions cast on your left and right-most minion too' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts distillationEdges; packages/sim/src/reducer.ts (the Shop-offer spell branch and the Ruby-on-offer branch)' },
+    ],
+    contentIds: ['rune_distillation'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Until then only the left-most minion took the extra cast.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeReworks0923A.test.ts', 'packages/sim/src/fourRunes.test.ts', 'packages/sim/src/bounceFx.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-RUNE-13',
+    title: 'A Spellstone Ruby fires every per-cast Shop-spell rune',
+    statement:
+      'With Rune of the Spellstone ("Rubies you cast count as Shop spells"), every resolved Ruby cast reaches the whole '
+      + 'Shop-spell trigger surface: the cast counters and `spellCast` thresholds, the board\'s `spellCast` watchers, spell '
+      + 'power on the Ruby\'s stats, the combat spell-cast trigger (Rune of Enchantment fires on a combat Ruby), AND the '
+      + 'per-cast Shop-spell runes (Summoning, Might, Kindling, the Flagship, Scales), which live in ONE function '
+      + '(`fireShopSpellCastRunes`) called by both the Shop-spell cast and the Spellstone Ruby count. Rune of the Runic Hoard '
+      + 'fires on a Ruby with or without the Spellstone ("a spell").',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Balance batch 9/23, tranche 4 (rune reworks A)', quote: 'make sure that this works across all shop spell based triggers. this is important' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts fireShopSpellCastRunes / countRubyAsShopSpell / castSpell; packages/core/src/effects/factories.ts (spellstoneFor -> ctx.castSpell)' },
+    ],
+    contentIds: ['rune_spellstone'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Until then a Spellstone Ruby reached the counters and the board watchers but none of the per-cast runes (a Flagship / Kindling / Scales / Summoning / Might holder got nothing from a Ruby).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeReworks0923A.test.ts', 'packages/sim/src/spellstoneRubySynergy.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-RUNE-14',
+    title: 'Rune of Combat Prowess replays every rune / quest Start-of-Combat block, Held Strength included; Rune of Thrift discounts every stat granter',
+    statement:
+      'Every run-level Start-of-Combat block `simulate()` fires from a rune, quest or hero flag has an End-of-Turn shop '
+      + 'replay under Rune of Combat Prowess (`socRuneReplaysOf`), or a documented combat-only reason (an enemy-facing or '
+      + 'combat-bank effect: Weaken, the Food Chain, the Crucible, Empty Graves). Rune of Held Strength ("Start of Combat: give '
+      + 'your left and right-most minions the stats of the left-most minion card in your hand") replays: the board\'s two ends '
+      + 'gain the held card\'s live stats, permanently, per copy held; the card stays in hand; no held minion means nothing. '
+      + 'Rune of Thrift discounts every Shop spell that grants stats in any way: the `spellBuff*` family plus the extras the '
+      + 'empirical sweep found (Great Pot, Perfect Vision, Ruby Excavation, Ruby Transfer, Cupcakes).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Balance batch 9/23, tranche 4 (rune reworks A)', quote: 'make sure this works with all runes/minions' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts socRuneReplaysOf (rune_held_strength) / STAT_SPELL_EXTRAS / isStatSpell; packages/core/src/combat/simulate.ts (the rmods.* Start-of-Combat section)' },
+    ],
+    contentIds: ['rune_combat_prowess', 'rune_held_strength', 'rune_thrift'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Held Strength was reworked into a Start-of-Combat grant on 2026-08-27, a week after the replay list was built, and never joined it; the five Thrift extras were undiscounted.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeReworks0923A.test.ts', 'packages/sim/src/runeThrift.test.ts', 'packages/sim/src/socDispatch.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-RUNE-15',
+    title: 'A "cast a random stat-granting spell" effect draws from ONE category that includes targeted spells, aimed at a random legal friendly minion',
+    statement:
+      'The stat-granting spell category (`isStatGrantingSpell`) is the one pool every "cast a random stat-granting '
+      + 'Shop spell" effect reads (Rune of the Gilded Ledger). It holds every drawable Shop spell whose cast GIVES '
+      + 'your minions stats IMMEDIATELY: board-wide buffs (Growth, Might of Aeon, Great Pot, Waking Rift, '
+      + 'Dragonflame), TARGETED stat spells (Bulwark, Lantern Light, Crest of the Climb, Spirit Fire, Shatter, Patch '
+      + 'Job, Front to Back, Hoardflame, Blessing, Flutter, Beefy) and the stat Ales (Champion\'s, Defensive, '
+      + 'Bloody). A spell that redistributes, swaps or sets existing stats is a utility, not a grant, and is OUT: '
+      + 'Common Ground (averaging), Turnabout, Perfect Vision. The shop-buff spells (Apples, Staff of Guel, '
+      + 'Facetwright\'s Choice, Veinstorm, Picnic) are OUT pending an owner ruling; Rune of Thrift still discounts '
+      + 'them and Common Ground. A targeted pick is cast through the shared '
+      + 'no-aim cast (`castSpellWithoutAim`): a Choose One takes one seeded-random branch, and the spell lands on a '
+      + 'seeded-random friendly minion the player\'s aim could have chosen (the spell\'s tribe restriction honoured, '
+      + 'never a shop offer). With no legal target it FIZZLES: nothing '
+      + 'resolves and no cast is counted. Every pick comes from the run cursor, so a replay repeats it.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-23 (Gilded Ledger at Tier 1 had nothing to cast)', quote: "no this is wrong and needs to fixed for all 'stat granting spells' texts etc. all targeted spells should be castable and fit this category, just with random targets chosen. the shop based ones i'm iffy on. but definitely targeted and board wide stat buff spells" },
+      { kind: 'owner-chat', ref: 'PR #1670 review, 2026-09-23 (Common Ground out)', quote: "common ground should not be in the grouping, that's a combat related buff. it should only be stat granting spells that give stats immediately basically. i think common ground is the only one in the list that's wrong, that's more a utility thing." },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts isStatGrantingSpell / castSpellWithoutAim / pickRandomSpellTarget; payRuneThreshold castStatSpell' },
+      { kind: 'test', ref: 'packages/sim/src/statSpellCategory.test.ts' },
+    ],
+    contentIds: ['rune_gilded_ledger'],
+    currentBehaviour:
+      'Conforms as of 2026-09-23. Before, the Ledger filtered out every targeted spell and every Ale, so in Set 2 it '
+      + 'could cast only Growth, Might of Aeon, Dragonflame and Waking Rift, and at Tier 1 it had nothing at all.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/statSpellCategory.test.ts', 'packages/sim/src/runeBatchAug20.test.ts'],
+      lastVerifiedAt: '2026-09-23',
+    },
+  },
 ];

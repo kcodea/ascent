@@ -522,7 +522,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_aftershocks:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_altar:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_amplification:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
-  'rune:rune_ancestral_roar:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_ancestral_roar:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // balance 9/23: the End-of-Turn Dragon lump (the Echo-Shout combat flag left the content)
   'rune:rune_ancient_den:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_ancient_expenditure:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_appraisal:combat': { policy: 'ownBeat', family: 'avenge' },
@@ -656,7 +656,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_finality:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_first_claws:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_first_round:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
-  'rune:rune_five_banners:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  // Rune of the Five Banners moved from a Start-of-Combat flag to an End-of-Turn grant (owner rework 2026-09-23).
+  'rune:rune_five_banners:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_flagship:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   // rune_flooded_vault archived 2026-08-18 (ARCHIVED_RUNES) — entry removed so the registry carries no ghost.
   'rune:rune_food_chain:combat': { policy: 'foldedCue', family: 'combatModifier' },
@@ -695,7 +696,8 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // Rune of Combat Prowess: ONE BEAT PER Start-of-Combat effect (see `runeCombatProwessBeats`) — each fire
   // is a real trigger sourced on the acting minion, so it owns its window rather than fold into a cue.
   'rune:rune_combat_prowess:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
-  'rune:rune_lassoing:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
+  // Rune of Lassoing (owner rework 2026-09-23): a Rope Wrangler grant + a Lasso-cast board buff in the shop, no End of Turn of its own.
+  'rune:rune_lassoing:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_last_call:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_last_word:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_lazarus:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
@@ -729,7 +731,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_pillaging:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_procession:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_profit_sharing:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
-  'rune:rune_quick_study:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
+  'rune:rune_quick_study:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // balance 9/23: a grant on purchase (+ a repeat next turn), no longer an End-of-Turn recurrence
   'rune:rune_rallying:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_rebirth:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_recollection:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },

@@ -38,12 +38,11 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod passingSpears (Passing Spears: "") — Passing Spears (Undead capstone): your Spear Wardens gain "Echo: when this dies, give its stats to a friendly minion" — the sim watches Spear Warden deaths and transfers their stats to your strongest other minion.
 - combat mod runeFury (Rune of Fury: "Your Avenge effects trigger twice.") — Rune of Fury: every Avenge you trigger fires one extra time (its effect runs twice).
 - combat mod avengeFirstDouble (The Sealed Vault: "") — The Sealed Vault: the first Avenge each combat re-fires (once per side per fight).
-- combat mod runeFinality (Rune of Finality: "When your last minion dies, summon 7 Imps with Ward.") — Rune of Finality: how many WARDED Imps your last minion's death summons.
+- combat mod runeFinality (Rune of Finality: "When your last minion dies, summon 3 Imps with Ward.") — Rune of Finality: how many WARDED Imps your last minion's death summons.
 - combat mod flagCopies — How many COPIES of each rune-granted combat flag the run holds (Rune of Duplication). 1 = the normal single copy and is what an absent entry means, so every existing consumer reads correctly untouched. Only the DISPATCHERS consult it — a duplicated boolean rune fires its effect twice rather than setting the same `true` twice, which is why Duplication used to be a no-op on 23 combat-flag runes (owner report 2026-08-06: two Rune of the Procession, one trigger). Amount-carrying flags instead ACCUMULATE their amount (owner ruling: two Finality = 14 Imps), so they need no entry here.
-- combat mod runeLivingTreasure (Rune of Living Treasure: "Your Gemheart Golems gain Echo: summon an exact copy of this without Echo.") — Rune of Living Treasure: your Gemheart Golems enter with Rise.
 - combat mod runeRemains — Rune of the Remains: Shop buff per 5 friendly minions summoned in combat.
 - combat mod runeWarChorus (Rune of the War Chorus: "Your first Rally each combat triggers your left-most Shout.") — Rune of the War Chorus: your first Rally each combat also triggers your left-most Shout.
-- combat mod runeFoodChain (Rune of the Food Chain: "Start of Combat: the first minion you summon gains your left-most Demon’s stats this combat.") — Rune of the Food Chain: the first minion summoned each combat gains your left-most Demon's stats.
+- combat mod runeFoodChain (Rune of the Food Chain: "The first minion you summon in combat gains the stats of your left-most Demon.") — Rune of the Food Chain: the first minion summoned each combat gains your left-most Demon's stats.
 - combat mod runeMatriarch — Rune of the Matriarch: Runebloom Matriarchs trigger twice — threaded so the COMBAT half of her per-spell proc doubles exactly like the shop half (owner audit 2026-08-02).
 - combat mod runeMammoth — Rune of the Mammoth: Menagerie Mammoths' grant is 1:1 symmetric (+3/+3 instead of +3 Attack).
 - combat mod baneDemonWiden — Bane's Existence (quest): the Demon-widen amounts. Carried into combat since the 2026-08-04 owner ruling — the widen fires on combat-triggered Battlecries too.
@@ -56,8 +55,9 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod gemheartCharge (Heart of the Mountain: "") — Heart of the Mountain: Gemheart Golems attack immediately when summoned.
 - combat mod burningLegionUses — The Burning Legion: how many times an attacking Imp may summon a copy of itself this combat.
 - combat mod runeSpellstone (Rune of the Spellstone: "Rubies you cast count as Shop spells, and gain your Shop spell bonuses.") — Rune of the Spellstone, combat half (owner ask 2026-07-31): a Ruby played IN combat also counts as a spell cast — it fires the `spellCast` trigger, so per-spell improvers (Groveweaver) advance.
+- combat mod packcraftLevel — Rune of Packcraft — the current per-summon grant (starts +2/+1, grows by +2/+1 per summon, run-persisted). Absent = the base step.
 - combat mod runeTwilight (Rune of Twilight: "Your Start-of-Combat effects trigger an additional time.") — Rune of Twilight: your Start-of-Combat effects trigger an additional time each fight.
-- combat mod runeGemGolem (Rune of the Gem Golem: "When a friendly Kobold dies in combat, summon a token with stats equal to its Ruby bonuses.")
+- combat mod runeGemGolem (Rune of the Gem Golem: "When a friendly Kobold dies, summon a Gemheart Golem with its Rubies.")
 - combat mod runeChef (Rune of the Chef: "Your Chef Gary Toasts gain Rally: buff another random Dwarf for the combined stats this granted last turn.") — Rune of the Chef: an attacking Chef Gary Toast buffs a random Dwarf by its banked `chefGrantedLast`.
 - combat mod solidGroundStat — Solid Ground: the per-summon grant (so the number lives with the spell, not the engine).
 - combat mod containFirstEnemySummon — Containment Rune (spell): set the FIRST enemy minion summoned next combat to 1/1.
@@ -65,7 +65,7 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod runeEmberline — Rune of Emberline: the first friendly Imp to die hands its stats to the next Imp summoned.
 - combat mod runeAshenPayroll (Rune of Ashen Payroll: "Gain 1 Gold next turn for each Imp you summon in combat.") — Rune of Ashen Payroll: Imps-summoned threshold (3) for its once-per-combat Gold payout. Read at settle.
 - combat mod runeSpareChair — Rune of the Spare Chair: on a board of exactly 6, the first minion summoned gets Ward + attacks now.
-- combat mod runeAncestralRoar (Rune of Ancestral Roar: "Your Dragons with Shout gain "Echo: trigger this minion’s Shout."") — Rune of Ancestral Roar: a dying Dragon with a Shout fires that Shout as an Echo.
+- combat mod runeAncestralRoar (Rune of Ancestral Roar: "End of Turn: give your Dragons +6/+6 for every Shout you triggered this turn.") — Rune of Ancestral Roar: a dying Dragon with a Shout fires that Shout as an Echo.
 - combat mod runeRubyShrapnel (Rune of Ruby Shrapnel: "When a Ruby-buffed minion dies, split its Ruby bonus stats among your surviving minions.") — Rune of Ruby Shrapnel: a dying Ruby-buffed body splits its Ruby stats among the survivors.
 - combat mod runeSharedScripture (Rune of Shared Scripture: "The first Shop spell cast by your warband in combat triggers your left-most Shout and Rally.") — Rune of Shared Scripture: the warband's first combat Shop-spell cast fires the left-most Shout + Rally.
 - combat mod runeBroodmaster — Rune of the Broodmaster: a Broodwright's Imp buff also lands on itself (combat half).
@@ -74,7 +74,7 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod runeBattleRefraction — Rune of Battle Refraction: Prismcasters repeat Rubies played during combat too.
 - combat mod runeWrangler — Rune of the Wrangler: Imps summoned by your Imp Wranglers have Ward + Taunt.
 - combat mod runeGroveweaver — Rune of the Groveweaver: a Groveweaver's summon grant also lands on itself, in combat as well as shop.
-- combat mod runeEnchantment (Rune of Enchantment: "Whenever you cast a Shop spell, give your minions +2/+3 permanently (+4/+6 during combat).") — Rune of Enchantment (combat half): a combat cast gives your minions +4/+6. Carries the COPY COUNT since the 2026-08-27 duplicate rulings (a duplicate doubles the grant); `true` in older snapshots reads as 1.
+- combat mod runeEnchantment (Rune of Enchantment: "When you cast a Shop Spell in combat, give your minions +6/+8.") — Rune of Enchantment (combat half): a combat cast gives your minions +4/+6. Carries the COPY COUNT since the 2026-08-27 duplicate rulings (a duplicate doubles the grant); `true` in older snapshots reads as 1.
 - combat mod runeDragonscale (Rune of Dragonscale: "Whenever a friendly Dragon attacks, give it Ward. 3 times per combat.") — Rune of Dragonscale: how many Dragon attacks still earn Ward this combat (the printed 3).
 - combat mod beastialSwarmLevel — Rune of Beastial Swarm — the current per-death buff amount (starts 2, +2 per Avenge(2), run-persisted).
 - combat mod runeRuins (Rune of Ruins: "When a friendly Demon deals damage, give your minions +2/+2.")

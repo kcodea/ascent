@@ -3992,14 +3992,15 @@ describe('Combat runes batch 6 (First Claws / Packcraft / Inheritance / Salvage)
     expect(withFC.events.some((ev) => ev.type === 'attack')).toBe(true);
   });
 
-  it('Packcraft: a body summoned in combat comes in +6/+6, whatever its tribe', () => {
+  it('Packcraft: a body summoned in combat comes in with the current level (+2/+1, then +4/+2, ...), whatever its tribe', () => {
     // Owner rework 2026-08-04: was "summon a BEAST → your Beasts +2/+2"; it is now the summoned body itself,
-    // any tribe. Mama Pup dies → its Echo summons 2 Pups (base 1/1) → each must LAND at 7/7.
+    // any tribe. Owner rework 2026-09-23: ESCALATING — the Nth friendly summon lands +2N/+1N (the level grows by
+    // the printed +2/+1 after each summon). Mama Pup dies → its Echo summons 2 Pups (base 1/1) → 3/2 then 5/3.
     const p: BoardMinion[] = [{ cardId: 'gnash', attack: 8, health: 40 }, { cardId: 'pack', attack: 1, health: 1 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 60 }];
     const base = simMods(p, e, 1, {});
     const r = simMods(p, e, 1, { runePackcraft: true });
-    const summons = (res: typeof r) => res.events.filter((ev) => ev.type === 'summon');
+    const summons = (res: typeof r) => res.events.filter((ev) => ev.type === 'summon' && ev.side === 'player');
     expect(summons(base).length, 'fixture must actually summon something').toBeGreaterThan(0);
     expect(summons(r).length).toBe(summons(base).length);
     // The stats are read off the SUMMON event, not a later buff — the grant has to be in place before the
@@ -4007,8 +4008,8 @@ describe('Combat runes batch 6 (First Claws / Packcraft / Inheritance / Salvage)
     for (const [i, ev] of summons(r).entries()) {
       const was = summons(base)[i]!;
       if (ev.type !== 'summon' || was.type !== 'summon') continue;
-      expect(ev.minion.attack, 'summoned body did not enter with +6 Attack').toBe(was.minion.attack + 6);
-      expect(ev.minion.health, 'summoned body did not enter with +6 Health').toBe(was.minion.health + 6);
+      expect(ev.minion.attack, `summon #${i + 1} did not enter with +${2 * (i + 1)} Attack`).toBe(was.minion.attack + 2 * (i + 1));
+      expect(ev.minion.health, `summon #${i + 1} did not enter with +${i + 1} Health`).toBe(was.minion.health + (i + 1));
     }
 
     // A NON-Beast summon now qualifies too — Spearline's Spear Warden was excluded by the old tribe gate.
@@ -4020,7 +4021,7 @@ describe('Combat runes batch 6 (First Claws / Packcraft / Inheritance / Salvage)
     expect(sb2.length, 'Spearline fixture must summon a Spear Warden').toBeGreaterThan(0);
     const first = s2[0], firstBase = sb2[0];
     if (first?.type === 'summon' && firstBase?.type === 'summon') {
-      expect(first.minion.attack).toBe(firstBase.minion.attack + 6);
+      expect(first.minion.attack, 'the first summon of the fight gets the base +2').toBe(firstBase.minion.attack + 2);
     }
 
     // …and the board is NOT blanket-buffed: the pre-existing minions are untouched.

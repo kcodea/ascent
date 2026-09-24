@@ -55,6 +55,9 @@ const LIVE: Record<string, string> = {
   playerBeastBuyAtkGain: "the 'tribeAura' event (The Old Hunt's live aura pump)",
   playerBeastBuyHpGain: "the 'tribeAura' event (Pack Mentality's Health twin)",
   playerDamageMeters: "the 'dmg' events stamped with Han Gover as `source` — useCombatReplay sums them onto the seeded meter, so the N/40 step counter ticks per landed hit; the Ale itself flies to hand via 'toHand'",
+  // Balance 9/23 (2026-09-23) — the cross-phase Shout tally's two carry-backs:
+  playerShoutFires: "the 'shout' event — fireShout logs one per FIRE (Drakko repeats included, shoutFired.test.ts), and a parting cry is its own cast `sc` beat, so every counted Shout is watched as it happens, like playerRallies",
+  playerShoutMeters: "the trip's payout rides the 'toHand' event on the Shout beat that trips it (the card flies to hand mid-fight); each advance is itself a visible Shout beat. The rune badge's N/3 NUMBER still catches up at settle (no threshold-rune combat key yet, flagged in the 2026-09-23 rune reworks A devlog)",
 };
 
 /** Carry-backs where a real-time display is genuinely meaningless or already impossible to observe. */
@@ -65,6 +68,7 @@ const EXEMPT: Record<string, string> = {
   playerNextShopBuff: 'its subject (the next shop) does not exist until the fight ends',
   playerRightmostSlotBuff: 'its subject (the next shop right-most slot) does not exist until the fight ends (Right Hand Hank)',
   playerBeastialSwarmLevel: 'a run-persisted rune LEVEL (Rune of Beastial Swarm), not a board buff — no combat surface',
+  playerPackcraftLevel: 'a run-persisted rune LEVEL (Rune of Packcraft) — the grant itself lands on each summon as its entry stats; the level is what the NEXT summon gets, shown on the rune badge',
   playerBonusGold: 'ditto — next-shop Gold has no live surface mid-fight',
   playerFreeRolls: 'ditto — rerolls are a shop-phase affordance',
   playerMaxGoldGain: 'max-Gold has no combat surface; the maxGold event exists for the replay log only',

@@ -178,6 +178,8 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // 'gild-trail' joined on 2026-09-24: the owner's gild redesign — one play per consumed copy, from where it stood
       // into the new gilded card (`gildTrail.ts`), replacing plateGild's hand-written centre-screen fuse.
       'gild-trail',
+      // 'good-luck-intro' joined on 2026-09-24: the spark burst of the game-start "Good Luck" intro (`goodLuck/GoodLuckIntro.tsx`).
+      'good-luck-intro',
       'hand-buff', 'hero-power-spark', 'hero-power-target', 'impact-dust', 'landing-dust',
       // 'lasso' joined on 2026-09-22: the owner-authored Shop-steal rope, fired from `Recruit.tsx` for all four
       // steal sources (the Lasso spell, Rope Wrangler, Whiplass-o, Rune of Lassoing).

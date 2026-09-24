@@ -129,7 +129,8 @@ import { recordCursorSample, useGame } from './store';
 import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGateNudge } from './tutorial/gateBus';
 import { Unit } from './Unit';
 import { useCombatReplay } from './useCombatReplay';
-import { turnClock, turnClockReset, useTurnSeconds, useTurnTimeUp } from './turnClock';
+import { turnClock, turnClockMayTick, turnClockReset, useTurnSeconds, useTurnTimeUp } from './turnClock';
+import { useGoodLuckIntroActive } from './goodLuck/goodLuckIntroStore';
 import { visibleHandPreviews } from './handPreview';
 import { chargeTune, useChargePreview } from './chargeGlyphTune';
 import { ChargeMotes } from './chargeMotes';
@@ -4420,6 +4421,8 @@ export function Recruit() {
    * the divisor is 1 and nothing about the real game's timing changes.
    */
   const replaySpeed = useGame((st) => st.replaySession?.speed ?? 1);
+  // The "Good Luck" game-start intro is up: the countdown below holds until it ends or is skipped.
+  const introPlaying = useGoodLuckIntroActive();
   const tickMs = (): number => 1000 / Math.max(0.1, replaySpeed);
   // THE CLOCK-WINDOW DISCOUNT (Thymepiece, owner design 2026-09-12): the reducer never reads a clock, so the
   // tick below is what ENDS the window — it dispatches `discountWindowExpired` the moment the clock crosses
@@ -4438,7 +4441,15 @@ export function Recruit() {
     // board, exactly like a Discover — so the timer must pause for them too. It didn't for `pendingTarget`, and
     // because the UI also blocks the target pick once `timeUp`, the timer expiring mid-aim left the player
     // unable to pick AND (before the reducer fix) unable to End Turn: a hard softlock (owner report 2026-07-22).
-    if (run.phase !== 'recruit' || run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length || heroSelecting || overlayOpen) return;
+    // The "Good Luck" intro holds the clock too (owner ask 2026-09-24): the turn starts at full time the moment
+    // the intro fades or is skipped. The gate itself lives in `turnClockMayTick` so it is testable.
+    if (!turnClockMayTick({
+      recruitPhase: run.phase === 'recruit',
+      decisionOpen: !!(run.discover || run.questOffer || run.powerOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length),
+      heroSelecting,
+      overlayOpen,
+      introPlaying,
+    })) return;
     let id = 0;
     const tick = (): void => {
       const cur = turnClock.get();
@@ -4456,7 +4467,7 @@ export function Recruit() {
     };
     id = window.setTimeout(tick, tickMs());
     return () => window.clearTimeout(id);
-  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, heroSelecting, overlayOpen, run.wave, replaySpeed]);
+  }, [run.phase, run.discover, run.questOffer, run.powerOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, heroSelecting, overlayOpen, introPlaying, run.wave, replaySpeed]);
 
   // Detect a self-buff (a minion's own stats jump in the recruit phase) and fire its self-buff cue. The
   // readout itself is the badge's own job now — see the cut below.

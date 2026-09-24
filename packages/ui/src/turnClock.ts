@@ -70,3 +70,22 @@ export function turnClockReset(
   if (resumedWave === wave) return null; // already restored this turn — a second pass must not clobber it
   return { set: turnSeconds, consumeResume: false };
 }
+
+/**
+ * Whether the recruit countdown may tick right now: the pause gate behind Recruit's countdown effect,
+ * extracted so it can be tested without a DOM.
+ *
+ * It holds for every forced mid-turn decision (a Discover, quest / power / Runeforge offer, a battlecry aim,
+ * a Choose One, a scouting reveal), while the hero picker or any full-screen overlay is open, and while the
+ * "Good Luck" intro is playing (owner ask 2026-09-24: the clock begins only once the intro has faded, or the
+ * player skipped it). A held clock is not reset, so the turn is never shortened by any of these.
+ */
+export function turnClockMayTick(g: {
+  recruitPhase: boolean;
+  decisionOpen: boolean;
+  heroSelecting: boolean;
+  overlayOpen: boolean;
+  introPlaying: boolean;
+}): boolean {
+  return g.recruitPhase && !g.decisionOpen && !g.heroSelecting && !g.overlayOpen && !g.introPlaying;
+}

@@ -67,6 +67,8 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // spell-buff grow/shrink + mote blast). Fired from the one `playHandBuffOn` every surface's fan-out lands on:
   // the shop's hand diff, the End-of-Turn presenters and the combat replay's `handBuff` beat scan.
   'hand-buff': ['handBuffFx.ts'],
+  // The "Good Luck" game-start intro's spark burst (2026-09-24), off the words' centre as they fade in.
+  'good-luck-intro': ['goodLuck/GoodLuckIntro.tsx'],
   'dice-land': ['DiceRoll.tsx'],
   // The DOWN-RANK hit (owner-authored 2026-09-21): a shockwave off the crest, then a blue→orange shard fall as
   // the old crest drops — fired by the post-game rank timeline at every demotion beat (division and medal).

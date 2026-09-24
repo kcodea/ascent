@@ -67,6 +67,11 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'Minions now slide into their new spots when cards leave your warband or the shop, instead of jumping.',
         details: ['This includes the copies a triple uses up from your warband.'],
       },
+      {
+        category: 'Systems',
+        text: 'Picking a card from a Discover, a Choose One or the Runeforge has a new sound, and it plays the moment you press the card.',
+        details: ['It replaces the usual click, so you hear one sound, not two.'],
+      },
     ],
   },
   {

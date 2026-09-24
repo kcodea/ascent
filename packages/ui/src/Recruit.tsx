@@ -8466,7 +8466,7 @@ const ChooseOneOverlay = memo(function ChooseOneOverlay({ overlaysHeld, run, spe
                   const srcUid = grant?.sourceUids.find((u) => run.board.some((b) => b.uid === u));
                   const src = CARD_INDEX[run.board.find((b) => b.uid === srcUid)?.cardId ?? ''];
                   return eq.chooseOne.map((opt, i) => (
-                    <div className="disc-slot" key={i} style={{ '--c': `var(--t-${src?.tribe ?? 'neutral'})` } as CSSProperties}>
+                    <div className="disc-slot" data-pick-sfx key={i} style={{ '--c': `var(--t-${src?.tribe ?? 'neutral'})` } as CSSProperties}>
                       <Card
                         card={{
                           // Each branch wears its OWN illustration (owner 2026-08-31), passed explicitly
@@ -8499,7 +8499,7 @@ const ChooseOneOverlay = memo(function ChooseOneOverlay({ overlaysHeld, run, spe
                 const coBonusA = c.spell ? spellBonus - (c.gift ? (run.nextSpellBonus?.attack ?? 0) : 0) : 0;
                 const coBonusH = c.spell ? spellBonusH - (c.gift ? (run.nextSpellBonus?.health ?? 0) : 0) : 0;
                 return (c.chooseOne ?? []).map((opt, i) => (
-                  <div className="disc-slot" key={i} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
+                  <div className="disc-slot" data-pick-sfx key={i} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
                     <Card
                       // The option's own text IS the card's text here — the whole point of showing two cards is
                       // that each reads as the thing it would become. Stats come from the live instance when
@@ -8594,7 +8594,7 @@ const DiscoverOverlay = memo(function DiscoverOverlay({ overlaysHeld, run, disco
                   maxTier: maxTierFor(run.rift),
                 });
                 return (
-                  <div className="disc-slot" key={`${id}-${i}`} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
+                  <div className="disc-slot" data-pick-sfx key={`${id}-${i}`} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
                     <Card
                       // `spell`/`ruby` are carried so a discovered SPELL renders as a spell — the type pill in
                       // place of the Attack/Health badges (owner 2026-07-24: spells were showing a meaningless
@@ -8806,7 +8806,7 @@ export const RuneforgeOverlay = memo(function RuneforgeOverlay({ overlaysHeld, r
                 const liveCost = Math.max(0, rune.cost - (run.runeforgeDiscounts?.[i] ?? 0));
                 return (
                   <RuneCard
-                    key={id} rune={rune} cost={liveCost} affordable={run.embers >= liveCost}
+                    key={id} rune={rune} cost={liveCost} affordable={run.embers >= liveCost} pickSfx
                     duplicating={!!run.runeDuplication && !!run.runeforgeEpic}
                     onBuy={(el) => {
                       // CAPTURE BEFORE DISPATCH. The buy clears `runeforgeOffer`, so this overlay unmounts on

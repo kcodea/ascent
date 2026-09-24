@@ -35,16 +35,26 @@ jobs:
       - run: npm run lint        # eslint (incl. the Math.random ban in core/content/sim/tools)
       - run: npm run build:web   # vite build MUST succeed = the game compiles
 
-  # vitest: determinism + golden + effect tests, split across parallel runners. The single-job run took
-  # ~26 min; vitest shards BY FILE, so the floor is the slowest single test file (the balance self-play
-  # suites — see the per-file timings in the PR that introduced this). If you change SHARDS, keep the
-  # matrix list and the `--shard=N/<total>` denominator in sync.
+  # vitest: determinism + golden + effect tests, split across parallel runners. vitest shards BY FILE, so the
+  # floor is the slowest single file — the multi-minute balance self-play suites. So the groups are explicit
+  # (see `testSelection` in vitest.config.ts): each HEAVY_GROUPS entry gets its own runner (`--mode heavy-<i>`)
+  # and everything else is sharded evenly with `--mode light`. If you add/remove a heavy group, add/remove its
+  # matrix entry here; if you change the light shard count, keep the `--shard=N/<total>` denominator in sync.
+  # The strategist benchmark (~13 min) is NIGHTLY-ONLY — see nightly-slow-tests.yml / `npm run test:slow`.
   test:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false  # one red shard must not hide the others' failures
       matrix:
-        shard: [1, 2, 3, 4, 5, 6]
+        group:
+          - { name: "light 1/3", args: "--mode light --shard=1/3" }
+          - { name: "light 2/3", args: "--mode light --shard=2/3" }
+          - { name: "light 3/3", args: "--mode light --shard=3/3" }
+          - { name: "heavy 0 (production bots)", args: "--mode heavy-0" }
+          - { name: "heavy 1 (self-play lobby)", args: "--mode heavy-1" }
+          - { name: "heavy 2 (scout + generalist)", args: "--mode heavy-2" }
+          - { name: "heavy 3 (armor + lobby)", args: "--mode heavy-3" }
+    name: test (${{ matrix.group.name }})
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -52,7 +62,7 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm test -- --shard=${{ matrix.shard }}/6
+      - run: npm test -- ${{ matrix.group.args }}
 
   # THE REQUIRED CHECK. `main`'s org-level policy requires a status named exactly `verify` — do not rename
   # this job. It always runs (`if: always()`) and fails unless EVERY needed job succeeded, so a failed,

@@ -96,6 +96,7 @@ import { playPlateCoalesce } from './plateCoalesce';
 import { foldLassoHolds, lassoBeamSchedule, lassoCascadeMs, useLassoCascade, LASSO_CONTACT_MS, LASSO_STAGGER_MS, type LassoCascadeHandlers, type LassoSteal } from './lassoHolds';
 import { useEquipBeamCascade, type EquipBeamAnchors } from './equipBeamCascade';
 import { playGildTrail } from './gildTrail';
+import { commitSlidePlan } from './rowSlides';
 import { resolveGildSources, snapshotGildCandidates, type GildSnap, type Pt } from './gildTrailSources';
 import { playBuySlide, type BuyFrom } from './buySlide';
 import { fireBuffFx } from './buffFxRender';
@@ -7917,6 +7918,16 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
     shopRectsRef.current = { prev: shopRectsRef.current.cur, cur };
   }, [flipKey]);
 
+  // A RESIZE re-lays-out both rows with no commit, so the last offsetLeft sweep stops describing where any card
+  // sits — and the next commit's slide would fling every card in from its pre-resize spot (seen 2026-09-24: a
+  // viewport that grew between two commits swept the warband in from ~630px away). Forget the sweep instead:
+  // the next commit re-seeds it and simply doesn't slide.
+  useEffect(() => {
+    const forget = (): void => { commitRectsRef.current = null; };
+    window.addEventListener('resize', forget);
+    return () => window.removeEventListener('resize', forget);
+  }, [commitRectsRef]);
+
   // FLIP via GSAP. `flipStateRef` holds the layout state captured at the end of the *previous* drag commit (the
   // cards' old spots — seeded at drag START, see `startDragSession`); after React commits the new order,
   // `Flip.from` animates each card from there to its fresh spot. Newly-mounted cards (a freshly bought/played
@@ -7972,6 +7983,46 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
       );
     });
     perfMonitor.measure('layout:flip:write', () => {
+      /**
+       * Slide every card whose LAYOUT left moved since the previous commit's sweep, from its old spot home — off
+       * the offsetLeft sweeps alone, so it reads nothing new. `dropSel` is the row a drop commit already
+       * animates off its own drop-time capture; those cards are left to it (see `commitSlidePlan`). Used by the
+       * no-drag commit branch (a sell, a summon, an effect) for every card, and by the drop branch for the row
+       * the card was NOT dragged in — a drag-buy that completes a triple empties copies out of the warband, and
+       * a played minion's Shout can take a card out of the shop, in the same commit (R-SLIDE-01).
+       */
+      const slideFromSweep = (dropSel: string | null): void => {
+        const all = gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR);
+        const inDrop = (el: HTMLElement): boolean => dropSel !== null && el.matches(dropSel);
+        const plan = commitSlidePlan(
+          all.map((el) => ({ uid: el.dataset.uid ?? '', inDropRow: inDrop(el) })),
+          commitRectsRef.current,
+          commitLefts,
+          dropSel !== null,
+        );
+        if (plan.length === 0) return;
+        const deltas = new Map(plan.map((p) => [p.uid, p.delta]));
+        const pool = all.filter((el) => !inDrop(el));
+        gsap.set(pool, { transition: 'none' });
+        for (const el of pool) {
+          const delta = deltas.get(el.dataset.uid ?? '');
+          if (delta === undefined) {
+            el.style.transition = ''; // unmoved (or new) card — restore base
+            continue;
+          }
+          gsap.fromTo(
+            el,
+            { x: delta },
+            {
+              x: 0, duration: flipCfg.commitMs / 1000, ease: 'power2.out', clearProps: 'transform,transition',
+              // A DEATH holds the row still for a beat first (owner 2026-08-28) — the survivors seed at their
+              // old offsets and simply wait there, so the gap stays open under the animation playing over it.
+              // Zero for every other commit, which is `gsap`'s default and the behaviour this always had.
+              ...(shiftHold > 0 ? { delay: shiftHold / 1000 } : {}),
+            },
+          );
+        }
+      };
       if (draggingNow) {
         // The PRE-EMPTIVE slide: as the drag crosses a slot boundary, the drop slot moves and the cards glide
         // to make room (dragMs = the slide duration). The cards' CSS `transition: transform` is off for the
@@ -8027,6 +8078,10 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
           );
           if (card) playBuySlide(place.from, card, 0.7);
         }
+        // THE OTHER ROW (R-SLIDE-01). The capture above only covers the row the card was dragged in, but this
+        // commit can re-lay-out the other one too — a buy that completes a triple takes copies out of the
+        // warband. Without this its survivors jumped to their new slots (owner 2026-09-24).
+        if (flipCfg.commitMs > 0) slideFromSweep(sel);
       } else if (flipCfg.commitMs > 0) {
         // A COMMITTED move with NO drag (a SELL / buy-back, a summoned token, an effect repositioning) — opt-in
         // via commitMs > 0. We do a MANUAL per-card FLIP off the previous commit's offsetLeft sweep rather than
@@ -8039,36 +8094,7 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
         // (a roll swaps five cards into the same five slots; a buff changes no layout at all). The deltas come
         // off the sweep above; a commit with no delta touches no style, and one that DID move a card runs
         // exactly the writes it always did.
-        const targets = gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR);
-        const olds = commitRectsRef.current;
-        const moving: { el: HTMLElement; delta: number }[] = [];
-        if (olds && commitLefts) {
-          for (const el of targets) {
-            const uid = el.dataset.uid;
-            const old = uid ? olds.get(uid) : undefined;
-            const now = uid ? commitLefts.get(uid) : undefined;
-            const delta = old === undefined || now === undefined ? 0 : old - now;
-            if (Math.abs(delta) >= 0.5) moving.push({ el, delta });
-          }
-        }
-        if (moving.length > 0) {
-          gsap.set(targets, { transition: 'none' });
-          const movingEls = new Set(moving.map((m) => m.el));
-          for (const el of targets) if (!movingEls.has(el)) el.style.transition = ''; // unmoved (or new) card — restore base
-          for (const { el, delta } of moving) {
-            gsap.fromTo(
-              el,
-              { x: delta },
-              {
-                x: 0, duration: flipCfg.commitMs / 1000, ease: 'power2.out', clearProps: 'transform,transition',
-                // A DEATH holds the row still for a beat first (owner 2026-08-28) — the survivors seed at their
-                // old offsets and simply wait there, so the gap stays open under the animation playing over it.
-                // Zero for every other commit, which is `gsap`'s default and the behaviour this always had.
-                ...(shiftHold > 0 ? { delay: shiftHold / 1000 } : {}),
-              },
-            );
-          }
-        }
+        slideFromSweep(null);
       }
       // else: committed with commitMs 0 → snap (no animation); the drag preview already positioned everything.
     });

@@ -1003,4 +1003,41 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-24',
     },
   },
+
+  // ── Rows glide, they never blink (owner ruling 2026-09-24, the gild rework) ──────────────────────────────
+  {
+    id: 'R-SLIDE-01',
+    title: 'When a card leaves the warband or the shop, the cards that stay glide into their new slots',
+    statement:
+      'Whenever the warband or the shop re-lays-out because cards left it (bought, sold, played, eaten by a '
+      + 'triple, taken by an effect), every card that stays GLIDES from where it stood to its new slot, the same '
+      + 'slide a card makes when one is placed on the board from hand. This holds for BOTH rows in the same '
+      + 'action: a buy that completes a triple slides the warband as well as the shop, and a played minion whose '
+      + 'effect takes a card out of the shop slides the shop as well as the warband. A card never jumps to its '
+      + 'new slot.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Gild rework session, 2026-09-24', quote: 'currently, when the cards are removed from the board and or shop, the units do not slide into their new spots, they immediate blink. i want the same sliding effect we have when putting a card on board from hand. this should go for both the shop and warband sliding' },
+      { kind: 'fix-pr', ref: 'https://github.com/kcodea/ascent/pull/1689 (feat/gild-trail-fx)' },
+      { kind: 'code', ref: 'packages/ui/src/rowSlides.ts commitSlidePlan; packages/ui/src/Recruit.tsx RowFlip slideFromSweep (the drop branch now also slides the row it was not dragged in; the resize guard)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-24. A DROP commit (hand play, reorder, sell, buy) only animated the row it was '
+      + 'dragged in, off a drop-time capture; any other row the same commit re-laid-out snapped. Reproduced live '
+      + 'in a sandbox: dragging the third copy in to buy it gilded the two board copies, and the surviving '
+      + 'warband cards moved 51px each with no slide; after the fix the moved survivor slides in from exactly its '
+      + 'old slot (-103px on a 1280px viewport) and one that did not move does not slide. The mirror case (a hand '
+      + 'play whose effect takes a card out of the SHOP) runs the same code with the rows swapped and is covered by '
+      + 'the pin, but was not reproduced live. The no-drag commit '
+      + '(a card leaving the shop without a drag) is unchanged (verified: +/-52px slides). A viewport resize '
+      + 'between two commits now forgets the last layout sweep, so the next commit does not slide rather than '
+      + 'flinging cards in from pre-resize spots. The pin covers the slide DECISION (which cards, how far); the '
+      + 'GSAP tween itself needs real layout and is verified live, not in the test.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/rowSlides.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
 ];

@@ -81,6 +81,29 @@ would have wiped `gild-trail`'s tuning on the owner's first save. Both direction
 `arcFields()` in `fx/ui/sessionState.ts`, on the same terms as the committed-def loader (`coerceLayer`), and the
 round-trip is pinned in `sessionState.test.ts`.
 
+## Rows glide, they never blink (R-SLIDE-01)
+
+Owner: *"when the cards are removed from the board and or shop, the units do not slide into their new spots,
+they immediate blink. i want the same sliding effect we have when putting a card on board from hand."*
+
+`RowFlip` (Recruit.tsx) has three commit paths: the drag preview, a DROP settle, and a no-drag commit slide off
+the previous commit's `offsetLeft` sweep. The drop path only animated the row the card was **dragged in**, off
+a drop-time capture of that row. A drag-buy that completes a triple empties copies out of the **warband** in the
+same commit, and that row snapped. Reproduced live in a sandbox (Scene Builder, so nothing uploads) with a
+MutationObserver on the warband: the only transforms were the drag-preview nudge, and the survivors moved 51px
+with no slide.
+
+Fix: `commitSlidePlan` (`rowSlides.ts`, pure, unit-tested) decides which cards slide and how far. The drop path
+now also slides every card OUTSIDE its drop row off the sweep, exactly as a no-drag commit does. The no-drag path
+goes through the same helper, unchanged. Verified live afterwards on a stable 1280px viewport: the moved survivor
+slides in from exactly its old slot (-103px) and one that did not move does not slide; a no-drag shop removal
+still slides +/-52px.
+
+Also: a **window resize** now forgets the last sweep. The first live check swept the warband in from ~630px
+away, because the pane grew between two commits (a hidden preview pane has a tiny viewport). In play that is a
+real window resize, and it flung cards on a plain sell too. Now the first commit after a resize just doesn't
+slide.
+
 ## Tuning it
 
 Open `gild-trail` in the FX workbench. The Stage Setter previews **one** leg (one source → one target); the game

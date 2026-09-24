@@ -62,6 +62,11 @@ export const PATCH_NOTES: PatchNote[] = [
           'Your golden minion appears in its slot as the last trail arrives.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'Minions now slide into their new spots when cards leave your warband or the shop, instead of jumping.',
+        details: ['This includes the copies a triple uses up from your warband.'],
+      },
     ],
   },
   {

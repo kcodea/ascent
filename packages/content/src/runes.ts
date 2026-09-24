@@ -2226,18 +2226,6 @@ export const EPIC_RUNES: RuneDef[] = [
     sets: ['set2', 'set3'], // Dwarves // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
-    // Shares the Moonhowl Mentor's per-turn teach ceiling rather than owning its own, so holding both raises the
-    // cap instead of the two firing independently.
-    id: 'rune_white_wolf',
-    name: 'Rune of the White Wolf',
-    cost: 4,
-    epic: true,
-    text: 'Once per turn, when you **buy a Shop spell**, teach it to a **Mage-Pup**.',
-    previewCards: ['b2_magepup'], // text names it — the forge hover shows the card
-    reward: { kind: 'runeWhiteWolf' },
-    sets: ['set2'], // Mage-Pup is a set-2 Beast token
-  },
-  {
     // "Permanently" required a new carry-back channel — every other one is tribe-scoped, so an untyped
     // whole-warband buff had nowhere to land and would have vanished at settle.
     id: 'rune_overflow',
@@ -3384,6 +3372,19 @@ export const EPIC_RUNES: RuneDef[] = [
  * Brokerage went in alongside its subject: Ruby Broker was archived the same day.
  */
 export const ARCHIVED_RUNES: RuneDef[] = [
+  {
+    // ARCHIVED 2026-09-24 (owner beast/dragon batch: Moonhowl Mentor archived with its set-2 runes). Was an Epic rune.
+    // Shares the Moonhowl Mentor's per-turn teach ceiling rather than owning its own, so holding both raises the
+    // cap instead of the two firing independently.
+    id: 'rune_white_wolf',
+    name: 'Rune of the White Wolf',
+    cost: 4,
+    epic: true,
+    text: 'Once per turn, when you **buy a Shop spell**, teach it to a **Mage-Pup**.',
+    previewCards: ['b2_magepup'], // text names it — the forge hover shows the card
+    reward: { kind: 'runeWhiteWolf' },
+    sets: ['set2'], // Mage-Pup is a set-2 Beast token
+  },
   // ── 2026-09-23 owner archive batch ("Balance 9/23: archives and Picnic") — eleven runes retired from EVERY
   //    set's forge stock in one pass (owner: "archive rune of emberline from all sets", "archive centerline", …).
   //    Each def is verbatim, so a saved run or replay that holds one keeps its badge, text and reward machinery

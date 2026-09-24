@@ -1118,10 +1118,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       num(params.attack, 2) * mul(self), num(params.health, 4) * mul(self), self.uid);
   },
 
-  /** Deathrattle (Grim): buff your `tribe` by +`per`/+`per` per Deathrattle triggered this game (the
-   *  run-wide base + this combat's player Deathrattles, snapshotted now — Grim's own death is counted).
+  /** Deathrattle (Grim): give your `tribe` Aura +attack/+health per Echo triggered this game (the run-wide
+   *  base + this combat's player Echoes, snapshotted now — Grim's own death is counted, owner 2026-09-24).
    *  Registers a rest-of-combat aura at that magnitude, then buffs the friends already on the board.
-   *  Golden doubles `per`. */
+   *  Golden doubles the rate. */
   // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases (per-side tally via the adapter).
   deathrattleBuffTribeByTally: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
@@ -4101,6 +4101,42 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
         if (last) for (const m of victims) ctx.resolveEchoDeath(m, self);
       });
     }
+  },
+
+  /** Raven (owner batch 2026-09-24) — Rally: give a random other friendly `tribe` minion `keyword` (Execute).
+   *  One body in arena.ts; this minion's own attack only. */
+  rallyGrantKeywordRandomTribe: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    ARENA_EFFECTS.rallyGrantKeywordRandomTribe(combatArena(ctx, self), params);
+  },
+
+  /** Tort (owner batch 2026-09-24) — Avenge (X): give a random other friendly `tribe` minion `keyword` (Execute).
+   *  Avenge is a combat trigger, so this has no Shop twin (like every other Avenge card). */
+  avengeGrantKeywordRandomTribe: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 4));
+    const seen = avengeCountFor(self, count); // a risen body counts from its rebirth
+    if (seen <= 0 || seen % x !== 0) return;
+    ARENA_EFFECTS.rallyGrantKeywordRandomTribe(combatArena(ctx, self), params);
+  },
+
+  /** Beev (owner batch 2026-09-24) — whenever a friendly `tribe` minion attacks (itself included), buff it and
+   *  this. One body in arena.ts. */
+  onTribeAttackBuffAttackerAndSelf: (ctx, self, params, payload) => {
+    if (self.dead) return;
+    const { minion } = payload as MinionPayload;
+    if (!minion || minion.dead || minion.side !== self.side) return;
+    ARENA_EFFECTS.onTribeAttackBuffAttackerAndSelf(combatArena(ctx, self), { ...params, attacker: minion });
+  },
+
+  /** Flo Rida (owner batch 2026-09-24) — a friendly `tribe` minion summoned mid-fight buffs your whole tribe.
+   *  One body in arena.ts (the Shop half fires on plays + Shop summons). */
+  onSummonBuffTribeAll: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion === self || minion.side !== self.side || minion.dead) return;
+    ARENA_EFFECTS.onSummonBuffTribeAll(combatArena(ctx, self), { ...params, arriver: minion });
   },
 
   // ARENA-MIGRATED (Rally family): one body in arena.ts; the payload guard stays with dispatch.

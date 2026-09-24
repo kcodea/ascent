@@ -106,7 +106,12 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // location-multiplier clause the grammar has no rule for yet (its "When you cast a Shop spell, gain +3/+2" half
 // parses). Gemsmith and Double Dealer left via the archive; Striker's new repeat text parses fully.
 // Both batches together: 88 + 5 (Ruby) + 1 (Goldilox) = 94.
-const UNRESOLVED_CAP = 94;
+// 2026-09-24 (beast/dragon batch): 94 → 95, CONSCIOUSLY. The keyword lexicon learned the owner's name for V
+// ("Execute", Venomous kept as the alternate), so Raven's and Tort's "give another Beast Execute" parse fully, as do
+// Wolvie's "give a Beast +2/+4 and Rise", Flo Rida, Humphry and Grim. One new clause the grammar has no rule for
+// yet: Beev's "give it and this +2/+2" (the attacker + self pronoun pair). Dunkey, Moira, Moonhowl Mentor and
+// Embercrest left via the archive.
+const UNRESOLVED_CAP = 95;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A
@@ -484,7 +489,7 @@ describe('the Aura vocabulary — LG-SCOPE-01', () => {
   it('the rewritten cards kept their exact magnitudes (wording only — zero mechanical change)', () => {
     // The 2026-08-28 rebrand carriers, with the numbers they printed before it.
     const magnitudes: Record<string, number[]> = {
-      kennel: [1, 4], grim: [8, 8], trophystalker: [5, 5, 5, 5],
+      kennel: [1, 4], grim: [3, 2] /* owner batch 2026-09-24: per-Echo tally rework, not the rebrand */, trophystalker: [5, 5, 5, 5],
       deathswarmer: [1], forsakenweaver: [4], lanternofsouls: [5], // Lantern +3 → +5 on 2026-09-14 (owner buff, not the rebrand)
       scrapherald: [2, 2], chorusengine: [4, 4, 2], b2_armadiyo: [2, 4],
       rune_summoning: [2, 2], rune_cinder_ledger: [3, 6, 6],

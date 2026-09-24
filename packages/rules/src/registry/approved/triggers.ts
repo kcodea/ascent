@@ -537,4 +537,32 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-09-24.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/rubyTypes.test.ts'], lastVerifiedAt: '2026-09-24' },
   },
+  {
+    id: 'R-ECHOTALLY-01',
+    title: 'Grim counts every Echo triggered this GAME, its own included, in the Shop and in combat',
+    statement:
+      'Grim ("Echo: give your Beast Aura +3/+2 for every Echo triggered this game") pays N x (+3/+2), gilded N x (+6/+4), '
+      + 'where N is the run-wide Echo tally: every Echo triggered this game, in the Shop, at End of Turn and in every '
+      + 'combat so far (each extra trigger from Sylus, Zyff, Elderhorn and the like counts), PLUS this fight\'s Echoes '
+      + 'so far. The tally is bumped before an Echo fires, so Grim\'s own Echo is in its N; an extra re-fire of the '
+      + 'same death reads the tally at death. The printed text is STATIC by owner ruling (an exception to the live-value '
+      + 'default): no live total and no count on any surface.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner Beast/Dragon batch 2026-09-24', quote: 'Grim: "Echo: Give your Beast aura +3/+2 for every Echo triggered this game." Grim\'s own Echo counts, so it gives N x (+3/+2), where N includes itself.' },
+      { kind: 'owner-handoff', ref: 'Owner correction 2026-09-24 (Grim text)', quote: 'grim text doesnt need flavor. just Echo: Give your Beast Aura +3/+2 for every Echo triggered this game.' },
+      { kind: 'code', ref: 'packages/core/src/effects/arena.ts deathrattleBuffTribeByTally; packages/core/src/combat/simulate.ts deathrattleTally + bumpDeathrattles; packages/sim/src/recruit.ts deathrattlesTriggered (bumped before the shop fire); packages/content/src/cards/set1/beasts.ts grim (static text, owner ruling)' },
+    ],
+    cardText: '**Echo:** Give your **Beast Aura** **+3/+2** for every **Echo** triggered this game.',
+    contentIds: ['grim'],
+    currentBehaviour:
+      'Conforms (built with the rework, 2026-09-24). Reuses the existing run tally `deathrattlesTriggered` (carried back '
+      + 'from combat as `playerDeathrattles`). Known asymmetry kept: an ENEMY Grim reads its snapshot\'s frozen tally.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/beastDragonBatch0924.test.ts', 'packages/core/src/combat/simulate.test.ts', 'packages/ui/src/cardText.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
 ];

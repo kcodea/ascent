@@ -816,6 +816,58 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     }
   },
   {
+    "contentId": "b2_beev",
+    "contentType": "minion",
+    "revision": 1,
+    "reviewStatus": "extracted",
+    "extraction": {
+      "extractor": "contracts-extract@1",
+      "confidence": "medium",
+      "unparsed": [
+        "onTribeAttackBuffAttackerAndSelf.tribe"
+      ]
+    },
+    "setIds": [
+      "set2"
+    ],
+    "tier": 3,
+    "tribes": [
+      "beast"
+    ],
+    "tags": [
+      "tier:3"
+    ],
+    "triggers": [
+      {
+        "event": "onAttack",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "onTribeAttackBuffAttackerAndSelf",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 2,
+            "health": 2
+          }
+        }
+      }
+    ],
+    "gildedDelta": {
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
+    },
+    "textContract": {
+      "source": "index"
+    }
+  },
+  {
     "contentId": "b2_bullseye",
     "contentType": "minion",
     "revision": 1,
@@ -909,55 +961,6 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
-    },
-    "textContract": {
-      "source": "index"
-    }
-  },
-  {
-    "contentId": "b2_dunkey",
-    "contentType": "minion",
-    "revision": 1,
-    "reviewStatus": "extracted",
-    "extraction": {
-      "extractor": "contracts-extract@1",
-      "confidence": "high"
-    },
-    "setIds": [
-      "set2"
-    ],
-    "tier": 4,
-    "tribes": [
-      "beast"
-    ],
-    "tags": [
-      "tier:4"
-    ],
-    "triggers": [
-      {
-        "event": "avenge",
-        "phase": "combat",
-        "phaseBasis": "derived:phaseRegistry",
-        "threshold": 4
-      }
-    ],
-    "effects": [
-      {
-        "kind": "avengeSummon",
-        "refs": [
-          "b2_armadiyo"
-        ]
-      }
-    ],
-    "gildedDelta": {
-      "kind": "gilded-token",
-      "token": {
-        "cardId": "b2_armadiyo",
-        "count": 1
-      },
-      "basis": "derived:token-id",
-      "goldenTextSource": "index:goldenText",
-      "description": "the authored gilded text names a Gilded 'b2_armadiyo' the plain text does not — the gild changes the token's IDENTITY, not the count"
     },
     "textContract": {
       "source": "index"
@@ -1061,6 +1064,58 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
       "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+    },
+    "textContract": {
+      "source": "index"
+    }
+  },
+  {
+    "contentId": "b2_florida",
+    "contentType": "minion",
+    "revision": 1,
+    "reviewStatus": "extracted",
+    "extraction": {
+      "extractor": "contracts-extract@1",
+      "confidence": "medium",
+      "unparsed": [
+        "onSummonBuffTribeAll.tribe"
+      ]
+    },
+    "setIds": [
+      "set2"
+    ],
+    "tier": 6,
+    "tribes": [
+      "beast"
+    ],
+    "tags": [
+      "tier:6"
+    ],
+    "triggers": [
+      {
+        "event": "onSummon",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "onSummonBuffTribeAll",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 4,
+            "health": 4
+          }
+        }
+      }
+    ],
+    "gildedDelta": {
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
     },
     "textContract": {
       "source": "index"
@@ -1191,89 +1246,6 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
       "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
-    },
-    "textContract": {
-      "source": "index"
-    }
-  },
-  {
-    "contentId": "b2_moira",
-    "contentType": "minion",
-    "revision": 1,
-    "reviewStatus": "extracted",
-    "extraction": {
-      "extractor": "contracts-extract@1",
-      "confidence": "low"
-    },
-    "setIds": [
-      "set2"
-    ],
-    "tier": 6,
-    "tribes": [
-      "beast"
-    ],
-    "tags": [
-      "tier:6"
-    ],
-    "triggers": [
-      {
-        "event": "endOfTurn",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry"
-      }
-    ],
-    "effects": [
-      {
-        "kind": "endOfTurnTriggerShouts"
-      }
-    ],
-    "gildedDelta": {
-      "kind": "reshape",
-      "basis": "derived:golden-text",
-      "goldenTextSource": "index:goldenText",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
-    },
-    "textContract": {
-      "source": "index"
-    }
-  },
-  {
-    "contentId": "b2_moonhowl",
-    "contentType": "minion",
-    "revision": 1,
-    "reviewStatus": "extracted",
-    "extraction": {
-      "extractor": "contracts-extract@1",
-      "confidence": "low"
-    },
-    "setIds": [
-      "set2"
-    ],
-    "tier": 6,
-    "tribes": [
-      "beast"
-    ],
-    "tags": [
-      "tier:6"
-    ],
-    "triggers": [
-      {
-        "event": "spellBought",
-        "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry"
-      }
-    ],
-    "effects": [
-      {
-        "kind": "grantMagePupTaught"
-      }
-    ],
-    "gildedDelta": {
-      "kind": "extra-proc",
-      "extra": 1,
-      "basis": "owner-ruling",
-      "goldenTextSource": "index:goldenText",
-      "description": "owner ruling 2026-08-28 (q-conv-trigger-buy): \"Moonhowl for example adds an instance of the effect, and does not double the amount granted\" — the gild buys a SECOND teach per turn (\"Twice per turn\"), not a bigger grant; one Mage-Pup each time either way"
     },
     "textContract": {
       "source": "index"
@@ -1444,6 +1416,54 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "effects": [
       {
         "kind": "scCastLeftmostHandSpell"
+      }
+    ],
+    "gildedDelta": {
+      "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+    },
+    "textContract": {
+      "source": "index"
+    }
+  },
+  {
+    "contentId": "b2_raven",
+    "contentType": "minion",
+    "revision": 1,
+    "reviewStatus": "extracted",
+    "extraction": {
+      "extractor": "contracts-extract@1",
+      "confidence": "low",
+      "unparsed": [
+        "rallyGrantKeywordRandomTribe.keyword",
+        "rallyGrantKeywordRandomTribe.tribe"
+      ]
+    },
+    "setIds": [
+      "set2"
+    ],
+    "tier": 4,
+    "tribes": [
+      "beast"
+    ],
+    "keywords": [
+      "RL"
+    ],
+    "tags": [
+      "tier:4"
+    ],
+    "triggers": [
+      {
+        "event": "onAttack",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "rallyGrantKeywordRandomTribe"
       }
     ],
     "gildedDelta": {
@@ -1651,6 +1671,52 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     }
   },
   {
+    "contentId": "b2_tort",
+    "contentType": "minion",
+    "revision": 1,
+    "reviewStatus": "extracted",
+    "extraction": {
+      "extractor": "contracts-extract@1",
+      "confidence": "low",
+      "unparsed": [
+        "avengeGrantKeywordRandomTribe.keyword",
+        "avengeGrantKeywordRandomTribe.tribe"
+      ]
+    },
+    "setIds": [
+      "set2"
+    ],
+    "tier": 5,
+    "tribes": [
+      "beast"
+    ],
+    "tags": [
+      "tier:5"
+    ],
+    "triggers": [
+      {
+        "event": "avenge",
+        "phase": "combat",
+        "phaseBasis": "derived:phaseRegistry",
+        "threshold": 4
+      }
+    ],
+    "effects": [
+      {
+        "kind": "avengeGrantKeywordRandomTribe"
+      }
+    ],
+    "gildedDelta": {
+      "kind": "reshape",
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+    },
+    "textContract": {
+      "source": "index"
+    }
+  },
+  {
     "contentId": "b2_trex",
     "contentType": "minion",
     "revision": 1,
@@ -1806,7 +1872,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "medium",
       "unparsed": [
-        "deathrattleBuffNextSummon.tribe"
+        "deathrattleBuffRandomTribe.keyword",
+        "deathrattleBuffRandomTribe.tribe"
       ]
     },
     "setIds": [
@@ -1831,7 +1898,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "deathrattleBuffNextSummon",
+        "kind": "deathrattleBuffRandomTribe",
         "amount": {
           "kind": "const",
           "plain": {
@@ -1842,11 +1909,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
+      "kind": "reshape",
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
+      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
       "source": "index"
@@ -5377,53 +5443,6 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     }
   },
   {
-    "contentId": "d2_embercrest",
-    "contentType": "minion",
-    "revision": 1,
-    "reviewStatus": "extracted",
-    "extraction": {
-      "extractor": "contracts-extract@1",
-      "confidence": "low",
-      "unparsed": [
-        "rallyTriggerTribeShouts.tribe"
-      ]
-    },
-    "setIds": [
-      "set2"
-    ],
-    "tier": 6,
-    "tribes": [
-      "dragon"
-    ],
-    "keywords": [
-      "RL"
-    ],
-    "tags": [
-      "tier:6"
-    ],
-    "triggers": [
-      {
-        "event": "onAttack",
-        "phase": "both",
-        "phaseBasis": "derived:phaseRegistry"
-      }
-    ],
-    "effects": [
-      {
-        "kind": "rallyTriggerTribeShouts"
-      }
-    ],
-    "gildedDelta": {
-      "kind": "reshape",
-      "basis": "derived:golden-text",
-      "goldenTextSource": "index:goldenText",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
-    },
-    "textContract": {
-      "source": "index"
-    }
-  },
-  {
     "contentId": "d2_embermouth",
     "contentType": "minion",
     "revision": 1,
@@ -5582,12 +5601,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "setIds": [
       "set2"
     ],
-    "tier": 5,
+    "tier": 4,
     "tribes": [
       "dragon"
     ],
     "tags": [
-      "tier:5"
+      "tier:4"
     ],
     "triggers": [
       {
@@ -5714,6 +5733,55 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "plain": {
             "base": 2,
             "per": 4
+          }
+        }
+      }
+    ],
+    "gildedDelta": {
+      "kind": "multiply",
+      "factor": 2,
+      "basis": "derived:golden-text",
+      "goldenTextSource": "index:goldenText",
+      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
+    },
+    "textContract": {
+      "source": "index"
+    }
+  },
+  {
+    "contentId": "d2_humphry",
+    "contentType": "minion",
+    "revision": 1,
+    "reviewStatus": "extracted",
+    "extraction": {
+      "extractor": "contracts-extract@1",
+      "confidence": "high"
+    },
+    "setIds": [
+      "set2"
+    ],
+    "tier": 3,
+    "tribes": [
+      "dragon"
+    ],
+    "tags": [
+      "tier:3"
+    ],
+    "triggers": [
+      {
+        "event": "onPlay",
+        "phase": "both",
+        "phaseBasis": "derived:phaseRegistry"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "battlecryBuffTarget",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "attack": 3,
+            "health": 4
           }
         }
       }
@@ -5942,12 +6010,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "setIds": [
       "set2"
     ],
-    "tier": 4,
+    "tier": 3,
     "tribes": [
       "dragon"
     ],
     "tags": [
-      "tier:4"
+      "tier:3"
     ],
     "triggers": [
       {
@@ -5963,7 +6031,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "kind": "const",
           "plain": {
             "attack": 2,
-            "health": 3
+            "health": 1
           }
         }
       }
@@ -5991,12 +6059,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "setIds": [
       "set2"
     ],
-    "tier": 5,
+    "tier": 4,
     "tribes": [
       "dragon"
     ],
     "tags": [
-      "tier:5"
+      "tier:4"
     ],
     "triggers": [
       {
@@ -11793,19 +11861,19 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "medium",
       "unparsed": [
-        "deathrattleBuffTribe.tribe"
+        "deathrattleBuffTribeByTally.tribe"
       ]
     },
     "setIds": [
       "set1",
       "set2"
     ],
-    "tier": 6,
+    "tier": 5,
     "tribes": [
       "beast"
     ],
     "tags": [
-      "tier:6"
+      "tier:5"
     ],
     "triggers": [
       {
@@ -11816,12 +11884,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "deathrattleBuffTribe",
+        "kind": "deathrattleBuffTribeByTally",
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 8,
-            "health": 8
+            "attack": 3,
+            "health": 2
           }
         }
       }
@@ -17611,7 +17679,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "set1",
       "set2"
     ],
-    "tier": 5,
+    "tier": 4,
     "tribes": [
       "dragon"
     ],
@@ -17619,7 +17687,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "DS"
     ],
     "tags": [
-      "tier:5"
+      "tier:4"
     ],
     "triggers": [
       {
@@ -17634,8 +17702,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 3,
-            "health": 3
+            "attack": 2,
+            "health": 2
           }
         }
       }
@@ -35453,31 +35521,6 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
             "step": 2
           }
         }
-      }
-    ],
-    "textContract": {
-      "source": "index"
-    }
-  },
-  {
-    "contentId": "rune_white_wolf",
-    "contentType": "rune",
-    "revision": 1,
-    "reviewStatus": "extracted",
-    "extraction": {
-      "extractor": "contracts-extract@1",
-      "confidence": "low"
-    },
-    "setIds": [
-      "set2"
-    ],
-    "tags": [
-      "runeforge:epic",
-      "cost:4"
-    ],
-    "effects": [
-      {
-        "kind": "reward:runeWhiteWolf"
       }
     ],
     "textContract": {

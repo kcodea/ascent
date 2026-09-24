@@ -45,7 +45,7 @@ export const SET2_DWARVES: CardDef[] = [
     id: 'dw_brunni',
     name: 'Brunni',
     tribe: 'dwarf',
-    tier: 3, // owner balance 2026-08-04: T2 → T3, 2/1 → 3/1
+    tier: 2, // owner balance 2026-08-04: T2 → T3, 2/1 → 3/1; 2026-09-24: T3 → T2 (stats unchanged)
     attack: 3,
     health: 2,
     keywords: ['T'],

@@ -52,13 +52,14 @@ describe('the shared tick count — one source for the commit, the projection an
     expect(eotTickCount({ playedThisTurn: ['x', 'y'] }, { do: 'endOfTurnBuffRandomTribeRepeatPerPlayed' }), 'non-Spirits do not count for Moss').toBe(1);
     expect(eotTickCount({ playedThisTurn: [] }, { do: 'endOfTurnBuffEndsTribePerCard' })).toBe(1);
     expect(eotTickCount({ playedThisTurn: cardsPlayed(3) }, { do: 'endOfTurnBuffEndsTribePerCard' })).toBe(4);
-    expect(eotTickCount({ playedThisTurn: cardsPlayed(3) }, { do: 'endOfTurnBuffAdjacentPerCard' }), 'Striker is the LUMP form: one tick').toBe(1);
+    expect(eotTickCount({ playedThisTurn: [] }, { do: 'endOfTurnBuffAdjacentPerCard' }), 'Striker: the base tick alone').toBe(1);
+    expect(eotTickCount({ playedThisTurn: cardsPlayed(3) }, { do: 'endOfTurnBuffAdjacentPerCard' }), 'Striker is the REPEAT form since 2026-09-24').toBe(4);
     expect(eotTickCount({ playedThisTurn: cardsPlayed(3) }, { do: 'grantRandomAle' })).toBe(1);
     // Per card: the most ticks any of its End-of-Turn effects takes.
     const s = { playedThisTurn: [...spiritsPlayed(2), 'x'] };
     expect(endOfTurnTicksOf(s, { cardId: 'sp3_nurturer' })).toBe(3);
     expect(endOfTurnTicksOf(s, { cardId: 'dw_foreman' })).toBe(4);
-    expect(endOfTurnTicksOf(s, { cardId: 'dw3_striker' })).toBe(1);
+    expect(endOfTurnTicksOf(s, { cardId: 'dw3_striker' })).toBe(4);
     expect(endOfTurnTicksOf(s, { cardId: 'dw_brakka' }), 'no End-of-Turn effect at all').toBe(1);
     expect(endOfTurnTicksOf(s, { cardId: 'no-such-card' })).toBe(1);
   });
@@ -296,16 +297,34 @@ describe('the audit — every other card whose text says "Repeat"', () => {
     expect((tw.buffs ?? []).filter((b) => b.source === 'Twinning').reduce((n, b) => n + b.count, 0), 'one starformGained delta').toBe(1);
   });
 
-  it('Striker ("+1 Attack for each card you played") is the LUMP form: n itemized waves, no base tick, one trigger', () => {
+  it('Striker ("give adjacent minions +1 Attack. Repeat for every card played this turn") is the REPEAT form (owner 2026-09-24)', () => {
     const s = run('set3', { board: [body('l', 'dw_brakka'), body('st', 'dw3_striker'), body('r', 'dw_edward')], playedThisTurn: cardsPlayed(3) });
     applyEndOfTurn(s);
-    expect(from(at(s, 'l'), 'Striker'), 'n × the rate, not n + 1').toEqual({ attack: 3, health: 0, count: 3 });
-    expect([...new Set(fxOf(s, 'dw3_striker').map((e) => e.fxWave))], 'its n waves keep the 2026-09-09 itemization').toEqual([0, 1, 2]);
-    expect(s.lastEotFires).toBe(1);
-    // …and a turn with nothing played gives nothing (the lump has no base).
+    expect(from(at(s, 'l'), 'Striker'), 'base + one per card: n + 1 ticks').toEqual({ attack: 4, health: 0, count: 4 });
+    expect(from(at(s, 'r'), 'Striker')).toEqual({ attack: 4, health: 0, count: 4 });
+    expect(from(at(s, 'st'), 'Striker').count, 'never itself').toBe(0);
+    const fx = fxOf(s, 'dw3_striker');
+    expect([...new Set(fx.map((e) => e.fxWave))], 'one FX wave per tick, in order').toEqual([0, 1, 2, 3]);
+    for (const e of fx) expect([e.attack, e.health], 'the per-tick grant, not a lump').toEqual([1, 0]);
+    // …and a turn with nothing played still pays the base once.
     const t = run('set3', { board: [body('l', 'dw_brakka'), body('st', 'dw3_striker'), body('r', 'dw_edward')], playedThisTurn: [] });
     applyEndOfTurn(t);
-    expect(from(at(t, 'l'), 'Striker').count).toBe(0);
+    expect(from(at(t, 'l'), 'Striker')).toEqual({ attack: 1, health: 0, count: 1 });
+  });
+
+  it('Striker gilded doubles the per-tick grant (+2 Attack), never the tick count', () => {
+    const s = run('set3', { board: [body('l', 'dw_brakka'), body('st', 'dw3_striker', { golden: true }), body('r', 'dw_edward')], playedThisTurn: cardsPlayed(2) });
+    applyEndOfTurn(s);
+    expect(from(at(s, 'l'), 'Striker')).toEqual({ attack: 6, health: 0, count: 3 });
+  });
+
+  it('Striker projects one End-of-Turn step per tick (each tick its own beat)', () => {
+    const s = run('set3', { board: [body('l', 'dw_brakka'), body('st', 'dw3_striker'), body('r', 'dw_edward')], playedThisTurn: cardsPlayed(2) });
+    const proj = projectEndOfTurnSteps(s);
+    const base = CARD_INDEX['dw_brakka']!.attack;
+    const lefts = proj.steps.map((st) => st['l']?.attack).filter((v): v is number => v !== undefined);
+    expect(new Set(lefts).has(base + 1) && new Set(lefts).has(base + 2), 'the intermediate ticks are their own steps').toBe(true);
+    expect(lefts[lefts.length - 1]).toBe(base + 3);
   });
 
   it('Baby Gastrid ("+2 Health per Gold spent this turn") is the LUMP form: one instance of gold × the rate', () => {

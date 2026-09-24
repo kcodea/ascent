@@ -60,8 +60,9 @@ describe('Shift Broker — when you sell a minion, gain +1 Attack', () => {
   });
 });
 
-describe('Striker — End of Turn: adjacent minions +1 Attack per card played', () => {
-  it('buffs BOTH neighbours (any tribe) by the full played count, its own play included', () => {
+describe('Striker — End of Turn: adjacent minions +1 Attack. Repeat for every card played this turn', () => {
+  // Owner 2026-09-24 moved Striker from the lump form to the REPEAT form (R-REPEAT-01): base + one tick per card.
+  it('buffs BOTH neighbours (any tribe) once plus once per card played, its own play included', () => {
     let s = run({
       board: [body('l', 'e3_frank'), body('r', 'dw_brunni')],
       hand: [body('st', 'dw3_striker'), body('sp', 'growth', { tribe: 'neutral', attack: 0, health: 1 })],
@@ -72,14 +73,14 @@ describe('Striker — End of Turn: adjacent minions +1 Attack per card played', 
     const l0 = at(s, 'l').attack;
     const r0 = at(s, 'r').attack;
     s = act(s, { type: 'faceOmen' });
-    expect(at(s, 'l').attack - l0, 'left neighbour (neutral)').toBe(2);
-    expect(at(s, 'r').attack - r0, 'right neighbour (Dwarf)').toBe(2);
+    expect(at(s, 'l').attack - l0, 'left neighbour (neutral): base + 2 repeats').toBe(3);
+    expect(at(s, 'r').attack - r0, 'right neighbour (Dwarf): base + 2 repeats').toBe(3);
     expect(at(s, 'st').attack, 'never itself (Growth gave it +1, Striker gave it nothing)').toBe(3 + 1); // Striker 3/3 since 2026-09-18
     expect(at(s, 'st').buffs?.some((b) => b.source === 'Striker')).toBeFalsy();
   });
-  it('REPEATS per card played as separate instances — Kneel pays once per card (owner 2026-09-09)', () => {
-    // Kneel sits beside Striker: each of the 3 waves lifts Kneel's Attack (own gain — excluded) and Brunni's
-    // (a Dwarf gaining Attack → Kneel +2 Health). Three waves, three separate triggers: +6 Health, not +2.
+  it('REPEATS per card played as separate ticks — Kneel pays once per tick (owner 2026-09-09 / 2026-09-24)', () => {
+    // Kneel sits beside Striker: each of the 4 ticks (base + 3 cards) lifts Kneel's Attack (own gain — excluded)
+    // and Brunni's (a Dwarf gaining Attack → Kneel +2 Health). Four ticks, four separate triggers: +8 Health.
     let s = run({
       board: [body('k', 'dw3_kneel'), body('st', 'dw3_striker'), body('b', 'dw_brunni')],
       hand: [body('p1', 'wo_mine', { tribe: 'neutral', attack: 0, health: 1 }), body('p2', 'wo_mine', { tribe: 'neutral', attack: 0, health: 1 }), body('p3', 'wo_mine', { tribe: 'neutral', attack: 0, health: 1 })],
@@ -89,9 +90,9 @@ describe('Striker — End of Turn: adjacent minions +1 Attack per card played', 
     s = act(s, { type: 'play', uid: 'p3' });
     expect(s.playedThisTurn?.length).toBe(3);
     s = act(s, { type: 'faceOmen' });
-    expect(at(s, 'b').attack).toBe(3 + 3);
-    expect(at(s, 'k').attack).toBe(4 + 3);
-    expect(at(s, 'k').health, 'one Kneel trigger per wave').toBe(6 + 3 * 2);
+    expect(at(s, 'b').attack).toBe(3 + 4);
+    expect(at(s, 'k').attack).toBe(4 + 4);
+    expect(at(s, 'k').health, 'one Kneel trigger per tick').toBe(6 + 4 * 2);
     // Through Kringle: its ends are Kneel and Brunni, and Kringle is the REPEAT form (owner 2026-09-22,
     // R-REPEAT-01) — the base tick plus one per card, 2 cards → 3 ticks — so Kneel pays once per TICK.
     let t = run({
@@ -104,11 +105,11 @@ describe('Striker — End of Turn: adjacent minions +1 Attack per card played', 
     expect(at(t, 'b').attack).toBe(3 + 3);
     expect(at(t, 'k').health, 'Kringle: +2 from its own ticks ×3, +2 Kneel per tick ×3').toBe(6 + 3 * 2 + 3 * 2);
   });
-  it('does nothing when nothing was played', () => {
+  it('still pays the base +1 Attack once when nothing was played', () => {
     let s = run({ board: [body('l', 'e3_frank'), body('st', 'dw3_striker'), body('r', 'dw_brunni')] });
     const l0 = at(s, 'l').attack;
     s = act(s, { type: 'faceOmen' });
-    expect(at(s, 'l').attack).toBe(l0);
+    expect(at(s, 'l').attack).toBe(l0 + 1);
   });
 });
 

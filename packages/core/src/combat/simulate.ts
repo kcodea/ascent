@@ -21,7 +21,7 @@ import type {
 import { ALE_IDS, damageMeterOf, alignAllows, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires } from '../types';
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
-import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, SILENT_ONPLAY } from '../effects/factories';
+import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
 import { instantiate, type CardIndex } from './minion';
 import { EMPTY_SIDE } from './side';
 
@@ -1351,6 +1351,32 @@ export function simulate(
         for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, ENCHANTMENT_COMBAT.attack * en, ENCHANTMENT_COMBAT.health * en, 'Rune of Enchantment');
       }
       bus.emit('spellCast', { side, count: spellTotals[side] });
+    },
+    spellResolved: (side, spellId) => {
+      // GOLDILOX (owner 2026-09-24): "shop spells cast from anywhere count, not rubies, clues or generic spells …
+      // this should work in combat, so if spells are cast in combat, goldilox gains stats and those stats are
+      // permanent". `castInCombat` reports each finished repetition with the spell it cast; only a Shop-POOL
+      // spell of this side's set (Ales included) wakes the spell-identity watchers.
+      if (!isShopPoolSpell(cards[spellId], ctx.poolCards(side))) return;
+      // BOARD: the living bodies' own factories (permanent self-growth), in board order.
+      for (const m of living(side)) {
+        for (const eff of m.effects) {
+          if (eff.on !== 'spellCast' || eff.do !== 'shopSpellCastGrowSelf') continue;
+          FACTORIES[eff.do]?.(ctx, m, eff.params ?? {}, { side, spellId });
+        }
+      }
+      // HAND: "Gains 2x while in hand" — the hand card grows through `buffHand`, which is permanent (R-HAND-02),
+      // carried back at settle and shown live in the replay. Attributed to the card itself (source = its uid).
+      for (const h of ctx.handMinionsFor(side)) {
+        const def = cards[h.cardId];
+        if (!def || def.spell) continue;
+        const golden = !!((side === 'player' ? playerState : enemyState).handMinions ?? []).find((x) => x.uid === h.uid)?.golden;
+        for (const eff of def.effects) {
+          if (eff.on !== 'spellCast' || eff.do !== 'shopSpellCastGrowSelf') continue;
+          const g = shopSpellGrowth(eff.params, golden, true);
+          ctx.buffHand(h.uid, g.attack, g.health, side, h.uid);
+        }
+      }
     },
     spellstoneFor: (side) => !!modsFor(side).runeSpellstone,
     groveweaverSelfFor: (side) => !!modsFor(side).runeGroveweaver,

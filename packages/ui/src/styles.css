@@ -6074,6 +6074,10 @@ svg { width: 18px; height: 18px; }
 .tunerpanel .tuner-mod { width: 11px; height: 11px; border-radius: 50%; border: 1px solid #a85c0e;
   background: var(--acc); box-shadow: 0 0 6px rgba(240, 144, 46, 0.55); font-size: 0; line-height: 0; }
 .tunerpanel .tuner-mod:hover { background: #ffb771; }
+/* A row's ▶ preview (the Announcer panel plays each event's line). No cursor of its own: the global button rule paints it. */
+.tunerpanel .tuner-preview { margin-left: 6px; padding: 0 4px; border: 1px solid var(--brass-dk); border-radius: 3px;
+  background: none; color: #ffd9a3; font-size: 9px; line-height: 14px; vertical-align: middle; }
+.tunerpanel .tuner-preview:hover { background: rgba(240, 144, 46, 0.25); }
 
 /* ---- SLIDER ------------------------------------------------------------------------------------------- */
 /* A milled channel with the travelled portion LIT. `--fill` is set per render by TunerPanel; the gradient is

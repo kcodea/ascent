@@ -6,7 +6,7 @@ import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, drunkenOafText, shredderText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, herzogText, hunterText, monkProgressText, overflowPerPlayedText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, soldProgressText, summitTierText, summonScalingText, tallyBuffText, shootingStarText,
-  ancientWandererText, musterTrooperText,
+  ancientWandererText, musterTrooperText, shopSpellGrowthText,
   taughtSpellText, trailForagerText, transformProgressText, watcherText, withImpStats, spiritText } from './cardText';
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
@@ -53,6 +53,8 @@ export interface LiveTextParams {
   /** True once the card is a real body (board or combat) rather than a shop/hand offer — Conductor reads the
    *  CURRENT snowball there, not "what playing this would make it". */
   onBoard?: boolean;
+  /** True for a card sitting in the player's HAND (the hand row) — Goldilox prints its doubled in-hand gain. */
+  inHand?: boolean;
   /** Gold spent this recruit turn — Patch Job shows the current total it'll grant (steps × per-step value). */
   goldSpent?: number;
   /** Gold spent across the WHOLE RUN (`RunState.goldSpent`) — Ancient Wanderer's "+1/+1 per 3 Gold spent this
@@ -207,6 +209,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             ancientWandererText(c.id, p.goldSpentRun ?? 0, p.golden) ?? // Ancient Wanderer: the +A/+H it HAS right now
             musterTrooperText(c.id, p.summonBonus ?? 0, p.golden) ?? // Muster General: the Trooper's live stat line
             perGoldSpentText(c.id, p.goldSpent ?? 0, p.golden) ?? // Baby Gastrid: the Health it grants RIGHT NOW
+            shopSpellGrowthText(c.id, p.golden, p.inHand) ?? // Goldilox: the doubled gain it takes while in hand
             castSpellPerGoldText(c.id, p.goldSpent ?? 0, p.golden) ?? // Rope Wrangler: live Lasso cast count
             perCardPlayedText(c.id, Array.isArray(p.playedThisTurn) ? p.playedThisTurn.length : 0, p.golden) ?? // Foreman: same, per card played
             shopBuffImproveText(c.id, p.summonBonus ?? 0, p.golden) ?? // Soul Defiler: its climbing Shop buff
@@ -265,7 +268,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { nextSpellBonus?: { attack: number; health: number }; undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; starCrashBonus?: { attack: number; health: number }; revelerX?: number; spiritDiscount?: number; spiritsPlayed?: number; anySpellsThisTurn?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; unusedEquipment?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean } },
+  live?: { nextSpellBonus?: { attack: number; health: number }; undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; inHand?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; starCrashBonus?: { attack: number; health: number }; revelerX?: number; spiritDiscount?: number; spiritsPlayed?: number; anySpellsThisTurn?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; unusedEquipment?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean } },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -284,7 +287,7 @@ export function instView(
     spellProgress: inst.spellProgress, spiritTally: inst.spiritTally, ascendProgress: inst.ascendProgress, summonBonus: inst.summonBonus,
     overflowBonus: inst.overflowBonus,
     hpGrantBonus: inst.hpGrantBonus, eotTick: eotTickShown, eotBonus: inst.eotBonus, sellBonus: inst.sellBonus, soldProgress: inst.soldProgress,
-    playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff, conductorBuff: live?.conductorBuff, onBoard: live?.onBoard, alesThisTurn: live?.alesThisTurn, unusedEquipment: live?.unusedEquipment,
+    playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff, conductorBuff: live?.conductorBuff, onBoard: live?.onBoard, inHand: live?.inHand, alesThisTurn: live?.alesThisTurn, unusedEquipment: live?.unusedEquipment,
     lastSpellName: live?.lastSpellName, grantedTier: inst.grantedTier, improveReps: live?.improveReps,
     rememberedSpellNames: live?.rememberedSpellNames, impBank: live?.impBank,
     firstSpellThisTurnName: live?.firstSpellThisTurnName, lastSpellThisTurnName: live?.lastSpellThisTurnName,

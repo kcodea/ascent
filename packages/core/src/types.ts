@@ -866,6 +866,7 @@ export type EffectFactoryId =
   | 'deathrattleGoldNextTurn' // Set 3 Dwarves — Tromboneer: Echo — Gold next turn (both phases; uncapped bank)
   | 'onTribeGainAttackBuffSelf' // Set 3 Dwarves — Kneel / Tankerchief: when a friendly Dwarf gains Attack, this gains +a/+h
   | 'equipmentCardDiscountWindow' // Set 3 Dwarves — Thymepiece: all cards cost −N Gold for the next N clock-seconds
+  | 'shopSpellCastGrowSelf' // Set 3 Dwarves — Goldilox: a SHOP-POOL spell cast (any source, any phase) → this gains +a/+h permanently, `handMult`× while in hand
   | 'battlecryGainGoldNextTurn' // Set 2 Dwarves — Paymaster Pimm
   | 'cardsPlayedPlayRubies' // Set 2 Dwarves — Mountainbond
   | 'onTribeSummonedBuffTribe' // Set 2 Dwarves — Chef Gary Toast (watches OTHER plays, not its own Shout)
@@ -3174,6 +3175,18 @@ export interface CombatContext {
    * cast it, and its authored effect must replace the stock buff tendril for that wave).
    */
   castingSpellId?: string;
+  /**
+   * The identity probe of the combat cast in flight (`castInCombat` opens one per repetition; the first
+   * `withCastingSpell` inside it — or the caller's explicit id — names the spell). MUTABLE scope marker, like
+   * `castingSpellId`. Read when the repetition ends to tell `spellResolved` WHICH spell was cast.
+   */
+  castProbe?: { spellId?: string };
+  /**
+   * A combat cast repetition finished and its spell is known (Goldilox, owner 2026-09-24: "shop spells cast from
+   * anywhere count"). The simulator decides whether it was a Shop-pool spell and pays the spell-identity
+   * watchers on the board and in the hand. Optional: a context without it (tests) simply skips them.
+   */
+  spellResolved?(side: Side, spellId: string): void;
   readonly rng: Rng;
   readonly bus: CombatBus;
   readonly boards: Record<Side, Minion[]>;

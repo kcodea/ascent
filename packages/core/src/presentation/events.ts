@@ -102,6 +102,9 @@ export interface StatsChangedConsequence extends ConsequenceBase {
    *  rune was the caster: its node on the rune rail is where the presentation stems from (owner ruling
    *  2026-09-24: "they can stem from the rune if there needs to be a source position"). Absent otherwise. */
   castByRune?: string;
+  /** The MINION that cast `spellId`, when a minion was the caster (a Mage-Pup's taught spell at End of Turn): a
+   *  spell's per-buff row (an Ale's volley) leaves its body (owner 2026-09-24, spell effects from every source). */
+  castByUid?: string;
 }
 export interface KeywordChangedConsequence extends ConsequenceBase {
   type: 'keywordChanged';
@@ -185,6 +188,9 @@ export interface AuraChangedConsequence extends ConsequenceBase {
   /** Two-axis channels (spell power, imp aura) carry both parts; absent for single-axis auras. */
   attack?: number;
   health?: number;
+  /** `shopBuff` only: the card that raised the run-wide shop channel, when the sim named one (the shop-wide
+   *  effect's card-then-kind binding, `shopBuffAll`). */
+  sourceCardId?: string;
 }
 export interface CounterChangedConsequence extends ConsequenceBase {
   type: 'counterChanged';

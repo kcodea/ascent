@@ -4654,7 +4654,8 @@ function settleCombat(s: RunState, result: CombatResult): void {
     for (const b of result.playerHandBuffs) {
       const card = s.hand.find((c) => c.uid === b.uid);
       if (!card) continue;
-      const srcId = b.source ? result.initial.player.find((m) => m.uid === b.source)?.cardId : undefined;
+      // A hand card that grew ITSELF (Goldilox: source = its own uid) names itself (R-PROV-01).
+      const srcId = b.source ? (b.source === b.uid ? card.cardId : result.initial.player.find((m) => m.uid === b.source)?.cardId) : undefined;
       addBuff(card, (srcId && CARD_INDEX[srcId]?.name) || 'Combat', b.attack, b.health);
     }
   }

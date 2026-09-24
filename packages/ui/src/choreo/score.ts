@@ -973,7 +973,12 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
           // `runBuffedOnFire`, and the two must agree — a spell bound at both kinds is ONE authored effect,
           // and having it land on the caster in combat and on the target in the shop would read as a bug in
           // whichever phase the player saw second (owner 2026-09-01, Dragonflame).
-          groupBuffCasts(moment, ctx.events).forEach((c, i) => {
+          // A buff a SPELL produced (`spellId`) is the `fire*` functions' (the `buffCast` cue hands it to
+          // `fireBuffCasts`, which plays the spell's authored def: the one owner of that rule, attack wind-up and
+          // standalone wave alike). Playing it here too drew Dragonflame's column TWICE on every unit of a standalone
+          // wave (a cast not on a swing: Spellhide's re-cast), found by the 2026-09-24 every-source audit. What is left
+          // here is a caster-card `buffedOn` binding on buffs no spell produced.
+          groupBuffCasts(moment, ctx.events).filter((c) => c.spellId === undefined).forEach((c, i) => {
             const fanAnchors = anchorsForUnits(c.target, c.target);
             if (fanAnchors) playDef(binding.def, fanAnchors, { uids: { source: c.target, target: c.target }, index: i, gain: binding.gain });
           });

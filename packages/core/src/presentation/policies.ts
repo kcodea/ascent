@@ -123,6 +123,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:tribePlayedBuffRandomTribeImproving:onTribePlayed': { policy: 'ownBeat', family: 'economy' },
   'factory:tribePlayedTally:onTribePlayed': { policy: 'passive', family: 'economy' },
   'factory:spellCastBuffRandomHand:spellCast': { policy: 'foldedCue', family: 'castReact' },
+  'factory:shopSpellCastGrowSelf:spellCast': { policy: 'foldedCue', family: 'castReact' }, // Goldilox (set 3, 2026-09-24)
   // set 3 Spirits (tranche 2 — the hand-summon cards)
   'factory:deathrattleSummonHighestHealthFromHand:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:rallySummonRandomTribeFromHand:onAttack': { policy: 'ownBeat', family: 'rally' },

@@ -47,8 +47,8 @@ export const SET3_KOBOLDS: CardDef[] = [
     id: 'k3_splitpick',
     name: 'Pickles', // 'Splitpick Apprentice' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'kobold',
-    tier: 3, // owner balance 2026-09-09: T2 2/3 → T3 5/3
-    attack: 5,
+    tier: 2, // owner balance 2026-09-09: T2 2/3 → T3 5/3; 2026-09-24: T3 5/3 → T2 3/3
+    attack: 3,
     health: 3,
     keywords: [],
     effects: [],
@@ -62,27 +62,6 @@ export const SET3_KOBOLDS: CardDef[] = [
     ],
     text: '**Choose One:** Get **3 Rubies** or a **Facetwright**.',
     goldenText: '**Choose One:** Get **6 Rubies** or **2 Facetwrights**.',
-  },
-  {
-    // Both branches raise Ruby STRENGTH (`rubyBonus`) — the run-wide stat every future Ruby carries — split
-    // into the Attack half and the Health half. Deepvein Tender (set 2) is the same primitive with the
-    // health half only, so this is that card's choice made explicit.
-    id: 'k3_forkvein',
-    name: 'Gemsmith',
-    tribe: 'kobold',
-    tier: 2,
-    attack: 3,
-    health: 4,
-    keywords: [],
-    effects: [],
-    chooseOne: [
-      { text: 'Your Rubies gain **+1 Attack**.', goldenText: 'Your Rubies gain **+2 Attack**.',
-        effects: [{ on: 'onPlay', do: 'rubyStatGain', params: { attack: 1, health: 0 } }] },
-      { text: 'Your Rubies gain **+1 Health**.', goldenText: 'Your Rubies gain **+2 Health**.',
-        effects: [{ on: 'onPlay', do: 'rubyStatGain', params: { attack: 0, health: 1 } }] },
-    ],
-    text: '**Choose One:** give your Rubies **+1 Attack**, or **+1 Health**.',
-    goldenText: '**Choose One:** give your Rubies **+2 Attack**, or **+2 Health**.',
   },
   {
     // Echo (a death trigger) hands back the Veinstorm spell.
@@ -192,34 +171,13 @@ export const SET3_KOBOLDS: CardDef[] = [
     id: 'k3_forksong',
     name: 'Flagrunner',
     tribe: 'kobold',
-    tier: 4,
-    attack: 4,
-    health: 6,
+    tier: 3, // T4 4/6 → T3 5/4 (owner 2026-09-24)
+    attack: 5,
+    health: 4,
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'grantRandomChooseOne', params: { count: 1 } }],
     text: '**Rally:** get a **Choose One** card.',
     goldenText: '**Rally:** get **2 Choose One** cards.',
-  },
-  {
-    // `set` (not add) — "the FIRST Choose One card you play each turn", so the charge refreshes to exactly one
-    // per turn and is never banked. The turn boundary clears charges first, then this re-grants.
-    id: 'k3_forkedcrown',
-    name: 'Double Dealer', // 'Dealer' until 2026-09-14 (owner rename handoff; id + art unchanged)
-    tribe: 'kobold',
-    tier: 4,
-    attack: 6,
-    health: 6,
-    keywords: [],
-    // BOTH hooks, and that pairing is the card (owner ruling 2026-08-31). `onPlay` arms her the moment she
-    // arrives — a Dealer bought mid-turn used to sit inert until the next turn — and `startOfTurn` re-arms
-    // whoever is still on board. The latch is PER INSTANCE, so a second Dealer bought after this turn's
-    // first Choose One brings her own fresh one.
-    effects: [
-      { on: 'onPlay', do: 'armChooseBoth', params: { count: 1 } },
-      { on: 'startOfTurn', do: 'armChooseBoth', params: { count: 1 } },
-    ],
-    text: 'The **first Choose One** card you play each turn gains **both** effects.',
-    goldenText: 'The **first 2 Choose One** cards you play each turn gain **both** effects.',
   },
   {
     // The Choose One payoff: every fork you take pays the whole board in Rubies.
@@ -326,6 +284,7 @@ export const SET3_KOBOLDS: CardDef[] = [
     id: 'k3_kurse',
     name: 'Kurse',
     tribe: 'kobold',
+    tribe2: 'undead', // Kobold/Undead dual tribe (owner 2026-09-24) — counts as both through the shared tribe helpers
     tier: 4, // T5 10/5 → T4 7/4 (owner 2026-09-19)
     attack: 7,
     health: 4,

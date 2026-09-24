@@ -36,6 +36,8 @@ export const SET3_DWARVES: CardDef[] = [
   {
     // Kringle's shape pointed at its neighbours: the same `playedThisTurn` counter (minions AND spells), any
     // tribe on either side, and Striker's own play counts if it was played this turn (owner 2026-09-09).
+    // Owner 2026-09-24: moved from the LUMP form ("+1 Attack for each card") to the REPEAT form (R-REPEAT-01):
+    // the base +1 Attack once, then once more per card played this turn, each its own tick and beat.
     id: 'dw3_striker',
     name: 'Striker',
     tribe: 'dwarf',
@@ -44,8 +46,8 @@ export const SET3_DWARVES: CardDef[] = [
     health: 3,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffAdjacentPerCard', params: { attack: 1 } }],
-    text: '**End of Turn:** give adjacent minions **+1 Attack** for each card you played this turn.',
-    goldenText: '**End of Turn:** give adjacent minions **+2 Attack** for each card you played this turn.',
+    text: '**End of Turn:** give adjacent minions **+1 Attack**. Repeat for every card played this turn.',
+    goldenText: '**End of Turn:** give adjacent minions **+2 Attack**. Repeat for every card played this turn.',
   },
   {
     // An EQUIP Dwarf: the Keg is an Equipment (`equipment.ts`), and this card is one SOURCE of it. Every Ale
@@ -83,8 +85,8 @@ export const SET3_DWARVES: CardDef[] = [
     id: 'dw3_tromboneer',
     name: 'Tromboneer',
     tribe: 'dwarf',
-    tier: 4,
-    attack: 6,
+    tier: 3, // T4 6/3 → T3 4/3 (owner 2026-09-24)
+    attack: 4,
     health: 3,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleGoldNextTurn', params: { amount: 3 } }],
@@ -164,5 +166,26 @@ export const SET3_DWARVES: CardDef[] = [
     effects: [{ on: 'passive', do: 'dealtDamageAleMeter', params: { every: 40, count: 1, maxPerCombat: 5 } }],
     text: '**Pummel (40):** Get a **Dwarven Ale**. (Max 5 per combat.)',
     goldenText: '**Pummel (40):** Get **2 Dwarven Ales**. (Max 5 per combat.)',
+  },
+  {
+    // GOLDILOX (owner batch 2026-09-24) — Dwarf/Spirit. "When you cast a Shop Spell, gain +3/+2. Gains 2x while in
+    // hand." Owner clarification: "shop spells cast from anywhere count, not rubies, clues or generic spells. just a
+    // heads up - ales ARE shop spells. they do count. also, this should work in combat, so if spells are cast in
+    // combat, goldilox gains stats and those stats are permanent per our rules for hand granted stats in combat."
+    //  - a qualifying spell is one from the set's Shop-spell POOL (`isShopPoolSpell`), cast by ANY source;
+    //  - it listens on the board AND in the hand (`alsoInHand`), `handMult` × the gain in hand;
+    //  - shop: `noteSpellCast` (every shop cast path); combat: `castInCombat` → `ctx.spellResolved`. Every gain is
+    //    permanent: the shop's by nature, combat's through permaGain (board) / `buffHand` (hand, R-HAND-02).
+    id: 'dw3_goldilox',
+    name: 'Goldilox',
+    tribe: 'dwarf',
+    tribe2: 'spirit',
+    tier: 3,
+    attack: 2,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'spellCast', do: 'shopSpellCastGrowSelf', params: { attack: 3, health: 2, handMult: 2, alsoInHand: true } }],
+    text: 'When you cast a **Shop spell**, gain **+3/+2**. Gains **2x** while in hand.',
+    goldenText: 'When you cast a **Shop spell**, gain **+6/+4**. Gains **2x** while in hand.',
   },
 ];

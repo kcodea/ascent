@@ -35,6 +35,7 @@ import { EquipFxTuner } from './EquipFxTuner';
 import { EquipSlotTuner } from './EquipSlotTuner';
 import { MedallionTuner } from './MedallionTuner';
 import { GildedBadgeTuner } from './GildedBadgeTuner';
+import { CastPreviewTuner } from './CastPreviewTuner';
 import { EpicMedallionTuner } from './EpicMedallionTuner';
 import { MilestoneFrameTuner } from './MilestoneFrameTuner';
 import { RuneLockInTuner } from './RuneLockInTuner';
@@ -207,6 +208,7 @@ const GROUPS: Group[] = [
     items: [
       { key: 'bufffx', icon: '⬆️', label: 'Buff', C: BuffFxTuner, hint: 'What plays on a minion when something buffs it', alt: 'stat gain' },
       { key: 'spellpowerfx', icon: '✨', label: 'Spell Power', C: SpellPowerFxTuner, hint: 'The flourish when a spell resolves' },
+      { key: 'castpreview', icon: '🔮', label: 'Cast Preview', C: CastPreviewTuner, hint: 'The spell card a rune or minion casts, floated above its caster — size, side, offset, fade, linger and opacity, separately for the shop and combat. Has a Preview test button', alt: 'spell cast preview pop card rune minion fatecarver warflame linger size opacity alpha' },
       { key: 'rubypowerfx', icon: '♦️', label: 'Ruby Power', C: RubyPowerFxTuner, hint: 'The Ruby-strength flourish', alt: 'gem' },
       { key: 'herobufffx', icon: '🎆', label: 'Hero Buff Flash', C: HeroBuffFxTuner, hint: 'The shard blast and ripple over the hero portrait' },
       { key: 'aurafx', icon: '🌊', label: 'Aura Wave', C: AuraFxTuner, hint: 'The run-wide tribe-aura wave across the board' },

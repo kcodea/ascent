@@ -142,18 +142,17 @@ describe('Rune of the Empty Plate', () => {
     const s = withRune('rune_empty_plate');
     const t = (s.runeThresholds ?? []).find((x) => x.sourceId === 'rune_empty_plate');
     expect(t, 'the threshold was never armed').toBeDefined();
-    expect([t!.meter, t!.per, t!.grantSpell]).toEqual(['consume', 3, 1]);
+    expect([t!.meter, t!.per, t!.grantSpell]).toEqual(['consume', 2, 1]); // balance 9/23: 3 → 2
   });
 });
 
 describe('Rune of the Gem Dividend', () => {
-  it('arms a per-turn Ruby threshold that banks Gold into NEXT turn', () => {
+  it('arms a once-per-turn Ruby threshold that pays 3 Gold NOW (balance 9/23)', () => {
     const s = withRune('rune_gem_dividend');
     const t = (s.runeThresholds ?? []).find((x) => x.sourceId === 'rune_gem_dividend');
     expect(t, 'the threshold was never armed').toBeDefined();
-    expect([t!.meter, t!.per, t!.grantGoldNextTurn]).toEqual(['castRuby', 5, 3]);
-    // The sheet says "in a turn", so the meter must not bank a remainder across turns.
-    expect(t!.resetEachTurn, 'the window is a turn — the meter has to reset').toBe(true);
+    expect([t!.meter, t!.per, t!.grantGold, t!.oncePerTurn]).toEqual(['castRuby', 1, 3, true]);
+    expect(t!.grantGoldNextTurn, 'the Gold is paid now, not banked').toBeUndefined();
   });
 });
 
@@ -190,9 +189,10 @@ describe('Rune of the Aftermarket', () => {
 });
 
 describe('Rune of Hoardcalling', () => {
-  it('arms the once-per-turn Dragon-Shout flag', () => {
+  it('arms a `shout` threshold that pays a Hoardflame or a Dragonflame every 3 Shouts (balance 9/23)', () => {
     const s = withRune('rune_hoardcalling');
-    expect(s.runeHoardcalling).toBe(true);
-    expect(s.hoardcallingUsedThisTurn, 'the freebie starts unspent').toBeFalsy();
+    const t = (s.runeThresholds ?? []).find((x) => x.sourceId === 'rune_hoardcalling');
+    expect(t, 'the threshold was never armed').toBeDefined();
+    expect([t!.meter, t!.per, t!.grantOneOf]).toEqual(['shout', 3, ['hoardflame', 'sp_dragonflame']]);
   });
 });

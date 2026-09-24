@@ -103,9 +103,7 @@ describe('Doc Bot — a rune whose text OPENS with "Get" leaves you holding some
     rune_small_fortune: 'Gold, not a card — "Get 7 Gold immediately"',
     rune_muster: 'a Shop refresh, which fills the tavern row rather than your hand',
     rune_gemcutting: 'Rubies, which are minted to their own store rather than dealt as minions',
-    rune_investment: 'conditional — "when you sell 2 minions", so nothing is owed on purchase',
     rune_trophy: 'conditional — the copy is of a minion you have not killed yet',
-    rune_quick_study: 'explicitly deferred — "at End of Turn, for the next 2 turns"',
     rune_happy_birthday: 'a Gift Discover, which opens a choice rather than dealing a card',
   };
 

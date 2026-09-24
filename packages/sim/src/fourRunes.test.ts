@@ -8,8 +8,8 @@ import { applyGoldSpent } from './recruit'; // not re-exported from the package 
 const minion = (uid: string, cardId: string, attack = 2, health = 2, over: Partial<BoardCard> = {}): BoardCard =>
   ({ uid, cardId, tribe: CARD_INDEX[cardId]?.tribe ?? 'neutral', attack, health, keywords: [], golden: false, ...over });
 
-describe('Rune of Distillation — a shop-minion cast also hits your left-most', () => {
-  it('the left-most board minion gets the spell too', () => {
+describe('Rune of Distillation — a shop-minion cast also hits your left-most AND right-most (balance 9/23)', () => {
+  it('both edge board minions get the spell too', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 20,
       board: [minion('lead', 'drummer', 2, 2), minion('other', 'joker', 3, 3)],
@@ -21,7 +21,7 @@ describe('Rune of Distillation — a shop-minion cast also hits your left-most',
     const lead = s.board.find((c) => c.uid === 'lead')!;
     const other = s.board.find((c) => c.uid === 'other')!;
     expect(lead.attack + lead.health, 'the left-most never got the spill cast').toBeGreaterThan(4);
-    expect([other.attack, other.health], 'only the LEFT-most spills').toEqual([3, 3]);
+    expect(other.attack + other.health, 'the right-most never got the spill cast (balance 9/23: both ends)').toBeGreaterThan(6);
     expect(s.shop[0]!.atk ?? 0, 'the offer still got its own cast').toBeGreaterThan(0);
   });
 

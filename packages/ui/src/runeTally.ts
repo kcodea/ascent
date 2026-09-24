@@ -1,4 +1,4 @@
-import { runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, type RunState } from '@game/sim';
+import { runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, type RunState } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 
 /**
@@ -117,9 +117,21 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_counterrotation' && run.runeCounterrotation) {
     return `${Math.min((run.counterrotationIds ?? []).length, run.runeCounterrotation)}/${run.runeCounterrotation}`;
   }
-  // Rune of the Collector: distinct minion TYPES bought this turn, toward the 3 that fire the Discover.
+  // Rune of the Collector (balance 9/23): MINIONS bought this turn toward the 3rd that hands over a copy — every
+  // third pays, so the meter wraps.
   if (runeId === 'rune_collector' && run.runeCollector) {
-    return `${Math.min((run.typesBoughtThisTurn ?? []).length, 3)}/3`;
+    return `${(run.collectorBoughtThisTurn ?? []).length % 3}/3`;
+  }
+  // Rune of Investment (balance 9/23): minions sold toward the 4th that improves + mints Rubies.
+  if (runeId === 'rune_investment' && run.runeSellRubies) {
+    return `${Math.min(run.runeSellRubiesSold ?? 0, INVESTMENT_SELLS)}/${INVESTMENT_SELLS}`;
+  }
+  // Rune of Ancestral Roar (balance 9/23): the Shouts triggered THIS turn and the lump they will pay every Dragon
+  // at End of Turn — the card-text live-accuracy rule, on the badge (× copies held).
+  if (runeId === 'rune_ancestral_roar' && run.questRecurringEndOfTurn?.includes('runeAncestralRoar')) {
+    const n = run.shoutFiresThisTurn ?? 0;
+    const amt = ANCESTRAL_ROAR_STEP * n * runeStacksOf(run, 'rune_ancestral_roar');
+    return `${n} Shout${n === 1 ? '' : 's'} · +${amt}/+${amt}`;
   }
   // Rune of Slaying banks KILLS ACROSS COMBATS (`runeSlayingKills`) and pays every 6 — the owner's report
   // 2026-08-04. A cross-combat meter with nothing on screen is the worst case of all: the payout arrives

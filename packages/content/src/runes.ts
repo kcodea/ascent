@@ -155,19 +155,22 @@ export const RUNES: RuneDef[] = [
     sets: ['set2', 'set3'], // Ales // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
+    // Balance 9/23 (rune reworks A): 4 → 3 Shouts. The meter is CROSS-PHASE (owner: "make sure this and all
+    // trackers like this work in combat too and carries count through both"): combat Shout fires advance the
+    // same tick (`QuestCombatMods.shoutMeters`) and a trip mid-fight pays into the hand.
     id: 'rune_chorus',
     name: 'Rune of the Chorus',
     cost: 3,
-    text: 'When you trigger **4 Shouts**, get a random **Shop spell**.',
-    reward: { kind: 'runeThreshold', meter: 'shout', per: 4, grantSpell: 1 },
+    text: 'When you trigger **3 Shouts**, get a random **spell**.',
+    reward: { kind: 'runeThreshold', meter: 'shout', per: 3, grantSpell: 1 },
   },
   {
     id: 'rune_overtime',
     tribes: ['dwarf'], // TRIBE GATE (owner tag pass 2026-09-18): the text names the tribe / its Rubies, Ales, Attachments, Imps, or it grants that tribe's minion
     name: 'Rune of Overtime',
     cost: 1,
-    text: 'Every **15 Gold** you spend, get a random **Dwarven Ale**.',
-    reward: { kind: 'runeThreshold', meter: 'gold', per: 15, grantAle: 1 },
+    text: 'When you spend **12 Gold**, get a **Dwarven Ale**.', // balance 9/23: 15 → 12 (the badge counts x/12g)
+    reward: { kind: 'runeThreshold', meter: 'gold', per: 12, grantAle: 1 },
     sets: ['set2', 'set3'], // Ales // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
@@ -233,7 +236,8 @@ export const RUNES: RuneDef[] = [
     tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Investment',
     cost: 5, // balance 9/23 (was 3)
-    text: 'Get **2 Rubies** when you **sell 2 minions**.',
+    // Balance 9/23: 2 sells → 4, and the payout also IMPROVES your Rubies +1/+1 (`INVESTMENT_SELLS` in recruit.ts).
+    text: 'When you **sell 4 minions**, get **2 Rubies** and improve your **Rubies +1/+1**.',
     previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'runeSellRubies', count: 2 },
     sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
@@ -303,7 +307,8 @@ export const RUNES: RuneDef[] = [
     id: 'rune_distillation',
     name: 'Rune of Distillation',
     cost: 2,
-    text: 'Spells cast on **Shop minions** also cast on your **left-most** minion.',
+    // Balance 9/23: BOTH ends — the left-most AND the right-most (one body when the board has one).
+    text: 'Targeted spells cast on **Shop minions** also cast on your **left and right-most** minion.',
     sets: ['set2', 'set3'], // casting on shop offers is a set-2 pattern (Rubies / offer-targeted spells) // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
     reward: { kind: 'runeDistillation' },
   },
@@ -415,14 +420,15 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'gainGold', amount: 7, immediate: true },
   },
   {
-    // Owner rebalance 2026-08-02: BOUNDED to 2 turns (it recurred for the whole run). `turns` on the reward
-    // is the general mechanism — see `questRecurringLimited`.
+    // Balance 9/23 (rune reworks A): a Quick Study SPELL + a Gold Font NOW, and the same pair again next turn
+    // (`repeatInTurns` — the Gilded Spark's "get another in N turns" channel, resolved at the rollover). Was an
+    // End-of-Turn recurrence (Gold Font + 2 random spells for 2 turns). Cost 2 is tranche 3's move.
     id: 'rune_quick_study',
     name: 'Rune of Quick Study',
     cost: 2, // balance 9/23 (was 6)
-    text: 'Get a **Gold Font** and **2 random spells** at End of Turn, for the **next 2 turns**.',
-    previewCards: ['manafont'], // text names it — the forge hover shows the card
-    reward: { kind: 'recurringEndOfTurn', effect: 'quickStudy', turns: 2 },
+    text: 'Get a **Quick Study** and **Gold Font**. Repeat **next turn**.',
+    previewCards: ['quickstudy', 'manafont'], // text names them — the forge hover shows the cards
+    reward: { kind: 'grant', cards: ['quickstudy', 'manafont'], repeatInTurns: 1 },
   },
   {
     // The BASIC route to Tier 7 (Summit is parked, so no rift grants it). Every 2nd shop, Discover a Tier 7
@@ -554,7 +560,9 @@ export const RUNES: RuneDef[] = [
     id: 'rune_lorekeeping',
     name: 'Rune of Lorekeeping',
     cost: 3, // owner balance 2026-08-11
-    text: 'Whenever you cast a **Shop spell on a minion**, give it an extra **+4/+4**.',
+    // Balance 9/23: EVERY targeted cast on a friendly minion (owner: "works with all spells, rubies, clues etc"),
+    // +3/+3 (was Shop spells only, +4/+4). One site — `applyLorekeeping` — for Shop spells, Gifts and Rubies.
+    text: 'When you cast a **spell on a minion**, give it an additional **+3/+3**.',
     reward: { kind: 'runeLorekeeping' },
   },
   {
@@ -645,7 +653,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_golden_splinter',
     name: 'Rune of the Golden Splinter',
     cost: 3,
-    text: 'When you have **15 Gold**, get a random **Golden Tier 5** minion. Once per run.',
+    text: 'When you have **15 Gold**, get a random **Golden Tier 5** minion. Once per game.', // balance 9/23: "game", not "run"
     reward: { kind: 'runeGoldenSplinter', at: 15, tier: 5 },
   },
   // ── the 2026-08-07 owner batch 4 (tranche 1: the pattern-reuse nine) ──
@@ -654,19 +662,19 @@ export const RUNES: RuneDef[] = [
     id: 'rune_empty_plate',
     name: 'Rune of the Empty Plate',
     cost: 2, // owner balance 2026-08-11
-    text: 'After you **Consume 3 Shop minions**, get a random **Shop spell**.',
-    reward: { kind: 'runeThreshold', meter: 'consume', per: 3, grantSpell: 1 },
+    text: 'When you **Consume 2 minions**, get a random **Shop spell**.', // balance 9/23: 3 → 2
+    reward: { kind: 'runeThreshold', meter: 'consume', per: 2, grantSpell: 1 },
   },
   {
-    // Threshold again, with the new next-turn Gold payout. Per the sheet the window is a TURN, so the meter
-    // resets each turn rather than banking a remainder across them.
+    // Balance 9/23: the FIRST Ruby cast each turn pays 3 Gold NOW (`grantGold` + `oncePerTurn`; was 5 Rubies in a
+    // turn → 3 Gold next turn). A per-1 meter, so the badge reads 1/1 once it has paid this turn.
     id: 'rune_gem_dividend',
     tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of the Gem Dividend',
     cost: 3,
-    text: 'After you cast **5 Rubies** in a turn, gain **3 Gold** next turn.',
+    text: 'When you cast a **Ruby**, gain **3 Gold**. (Once per turn.)',
     previewCards: ['ruby'],
-    reward: { kind: 'runeThreshold', meter: 'castRuby', per: 5, grantGoldNextTurn: 3, resetEachTurn: true },
+    reward: { kind: 'runeThreshold', meter: 'castRuby', per: 1, grantGold: 3, oncePerTurn: true },
     sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
@@ -704,12 +712,17 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'runeAftermarket' },
   },
   {
+    // Balance 9/23: a `shout` THRESHOLD (was the first Dragon Shout each turn → a Shop spell). CROSS-PHASE like
+    // the Chorus: combat Shout fires advance the same tick and a mid-fight trip pays into the hand.
+    // TRIBE GATE dropped (Balance 9/23): the old text read a Dragon Shout; the new one counts ANY Shout and pays two
+    // untagged spells (Rune of Hoardflame / Rune of Dragon Breath grant the same cards and carry no tribe gate either),
+    // so nothing on the text names a tribe any more.
     id: 'rune_hoardcalling',
-    tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of Hoardcalling',
     cost: 4, // owner balance 2026-08-11
-    text: 'After your first **Dragon Shout** each turn, get a random **Shop spell**.',
-    reward: { kind: 'runeHoardcalling' },
+    text: 'When you trigger **3 Shouts**, get a **Hoardflame** or **Dragonflame**.',
+    previewCards: ['hoardflame', 'sp_dragonflame'], // text names them — the forge hover shows the cards
+    reward: { kind: 'runeThreshold', meter: 'shout', per: 3, grantOneOf: ['hoardflame', 'sp_dragonflame'] },
   },
 
   // ── the 2026-08-07 owner batch 4 (tranche 3: the contained-machinery eight) ──
@@ -732,11 +745,15 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeBackbeat' },
   },
   {
+    // Balance 9/23 ("Spell Market"): a `spellCast` threshold that CASTS a Staff of Guel every 4 Shop spells (was
+    // the turn's first stat spell feeding the right-most Shop offer). The cast rides the same rune-cast path the
+    // Gilded Ledger uses (`castCards` → `castSpell`), so the cast beat + counters see a real spell.
     id: 'rune_spellmarket',
     name: 'Rune of the Spellmarket',
     cost: 4,
-    text: 'The first stat-granting **Shop spell** you cast on a friendly minion each turn also gives its stats to the right-most **Shop** minion.',
-    reward: { kind: 'runeSpellmarket' },
+    text: 'When you cast **4 Shop Spells**, cast **Staff of Guel**.',
+    previewCards: ['staffofguel'], // text names it — the forge hover shows the card
+    reward: { kind: 'runeThreshold', meter: 'spellCast', per: 4, castCards: ['staffofguel'] },
   },
   {
     id: 'rune_last_word',
@@ -751,7 +768,9 @@ export const RUNES: RuneDef[] = [
     tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of the Runic Hoard',
     cost: 4,
-    text: 'After you add a copy of a **Shop spell** to your hand, give your **Dragons +1/+1**.',
+    // Balance 9/23: per spell CAST (every spell — Shop spells, Gifts, Rubies), 3 random Dragons +2/+3 (was: per
+    // Shop-spell copy added to hand, all Dragons +1/+1). See `fireRunicHoard`.
+    text: 'When you cast a **Spell**, give **3 random Dragons +2/+3**.',
     reward: { kind: 'runeRunicHoard' },
   },
 
@@ -886,7 +905,9 @@ export const RUNES: RuneDef[] = [
     id: 'rune_collector',
     name: 'Rune of the Collector',
     cost: 5, // balance 9/23 (was 4)
-    text: 'After you buy cards from **3 different types** in a turn, **Discover** a minion from one of those types. Once per turn.',
+    // Balance 9/23: every 3rd MINION bought in a turn → a random copy of one of those three (was: 3 different
+    // types → Discover, once per turn). The badge counts `n/3` within the turn.
+    text: 'When you buy **3 minions** in one turn, get a random **copy** of one.',
     reward: { kind: 'runeCollector' },
   },
   {
@@ -1002,16 +1023,18 @@ export const RUNES: RuneDef[] = [
     tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of the Glider',
     cost: 1,
-    text: 'Whenever you play a card, give a **Dragon +4/+4**.',
-    reward: { kind: 'runeGlider', attack: 4, health: 4 },
+    text: 'Whenever you play a card, give a **Dragon +6/+5**.', // balance 9/23: +4/+4 → +6/+5
+    reward: { kind: 'runeGlider', attack: 6, health: 5 },
   },
   {
     // `shoutEdgeBuff` already existed in the engine with no rune using it — this is its first consumer.
+    // Balance 9/23: the left- and right-most DRAGON (`tribe`), +6/+6 (was every minion at the board's ends, +5/+5).
     id: 'rune_drake_skull',
+    tribes: ['dragon'], // TRIBE GATE: the text names Dragons on the board (balance 9/23)
     name: 'Rune of the Drake Skull',
     cost: 3,
-    text: 'Whenever you trigger a **Shout**, give your **left and right-most minions +5/+5**.',
-    reward: { kind: 'shoutEdgeBuff', attack: 5, health: 5 },
+    text: 'Whenever you trigger a **Shout**, give your left and right-most **Dragon +6/+6**.',
+    reward: { kind: 'shoutEdgeBuff', attack: 6, health: 6, tribe: 'dragon' },
   },
   {
     id: 'rune_catacomb',
@@ -1162,7 +1185,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of Draconic Curiosity',
     cost: 4,
-    text: 'Whenever you **Discover** a **Dragon**, get a random **Shop spell**.',
+    text: 'When you buy a **Dragon**, get a random **spell**.', // balance 9/23: on BUY (was: on a Dragon Discover pick)
     reward: { kind: 'runeDraconicCuriosity' },
   },
   {
@@ -1172,8 +1195,9 @@ export const RUNES: RuneDef[] = [
     tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: "Rune of the Dragon's Pantry",
     cost: 4,
-    text: 'After you play **5 Dragons**, get **2 random Shop spells**. Progress carries between turns.',
-    reward: { kind: 'runeThreshold', meter: 'playDragon', per: 5, grantSpell: 2 },
+    // Balance 9/23: a random DRAGON + one random Shop spell per trip (was 2 Shop spells). Still banks across turns.
+    text: 'When you play **5 Dragons**, get a random **Dragon** and **Shop spell**.',
+    reward: { kind: 'runeThreshold', meter: 'playDragon', per: 5, grantSpell: 1, grantRandomTribe: 'dragon' },
   },
   {
     // A COMBAT meter that pays into the next shop: the Beast rides `playerHandGrants` (the carry-back every
@@ -1212,8 +1236,10 @@ export const RUNES: RuneDef[] = [
     id: 'rune_rare_goods',
     name: 'Rune of Rare Goods',
     cost: 4,
-    text: 'Every **2 turns**, get a **Traveling Salesman**.',
-    reward: { kind: 'recurringGrant', cards: ['n2_salesman'], everyTurns: 2 },
+    // Balance 9/23: the first Salesman lands NOW (the plain `grant`), then the cadence repeats every 2 turns.
+    text: 'Get a **Traveling Salesman**. Repeat every **2 turns**.',
+    previewCards: ['n2_salesman'],
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['n2_salesman'] }, { kind: 'recurringGrant', cards: ['n2_salesman'], everyTurns: 2 }] },
   },
   {
     id: 'rune_kegheart',
@@ -1872,15 +1898,16 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'runeLiquidation' },
   },
   {
-    // Owner add 2026-08-02: the Gold sink for a Ruby board — 10 Gold spent showers the whole line.
+    // Owner add 2026-08-02. Balance 9/23: every 15 Gold spent IMPROVES your Rubies +1/+2 and hands over a Ruby
+    // (was 10 Gold → a Ruby cast on every minion).
     id: 'rune_gemspam',
     tribes: ['kobold'], // TRIBE GATE (owner 2026-09-18): a Ruby rune is Kobold-related — Rubies come from Kobolds
     name: 'Rune of Gemspam',
     cost: 4, // owner balance 2026-08-11
     epic: true,
-    text: 'When you spend **10 Gold**, cast a **Ruby** on all of your minions.',
+    text: 'When you spend **15 Gold**, improve your **Rubies +1/+2** and get a **Ruby**.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
-    reward: { kind: 'runeThreshold', meter: 'gold', per: 10, rubyAll: true },
+    reward: { kind: 'runeThreshold', meter: 'gold', per: 15, grantRuby: 1, improveRuby: { attack: 1, health: 2 } },
     sets: ['set2', 'set3'], // Rubies are a set-2 mechanic // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
   },
   {
@@ -2239,7 +2266,8 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Enchantment',
     cost: 2, // balance 9/23 (was 5)
     epic: true,
-    text: 'Whenever you cast a **Shop spell**, give your minions **+2/+3** permanently (**+4/+6** during combat).', // owner 2026-08-11
+    // Balance 9/23: COMBAT casts only, +6/+8 (was +2/+3 per shop cast and +4/+6 in combat). See simulate.ts.
+    text: 'When you cast a **Shop Spell** in combat, give your minions **+6/+8**.',
     reward: { kind: 'runeEnchantment' },
   },
   {
@@ -2452,13 +2480,16 @@ export const EPIC_RUNES: RuneDef[] = [
 
   // ── batch 4, tranche 4 (2026-08-07): the five hard Epics ──
   {
+    // Balance 9/23: an End-of-Turn LUMP (R-REPEAT-01) — one +6/+6 per Shout triggered this turn, to every Dragon
+    // (was: Dragons with a Shout gain "Echo: trigger this minion's Shout"; the combat flag is retired from
+    // content but its engine branch stays for replays). The badge prints the live count and lump.
     id: 'rune_ancestral_roar',
     tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of Ancestral Roar',
     cost: 5,
-    text: 'Your **Dragons** with **Shout** gain "**Echo:** trigger this minion’s Shout."',
+    text: '**End of Turn:** give your **Dragons +6/+6** for every **Shout** you triggered this turn.',
     epic: true,
-    reward: { kind: 'combatFlag', flag: 'runeAncestralRoar' },
+    reward: { kind: 'recurringEndOfTurn', effect: 'runeAncestralRoar' },
   },
   {
     id: 'rune_ruby_shrapnel',

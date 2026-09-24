@@ -83,7 +83,7 @@ describe('bounceFx — the per-hop shop signal', () => {
     expect(hops(s)).toEqual(['ruby:b27>b4']);
   });
 
-  it('Rune of Distillation: a spell on a SHOP offer hops offer → your left-most', () => {
+  it('Rune of Distillation: a spell on a SHOP offer hops offer → your left-most AND right-most (balance 9/23)', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 20,
       board: [body('lead', 'drummer'), body('other', 'joker')],
@@ -92,10 +92,10 @@ describe('bounceFx — the per-hop shop signal', () => {
       runeDistillation: true,
     };
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'o1' });
-    expect(hops(s)).toEqual(['spell:o1>lead']);
+    expect(hops(s)).toEqual(['spell:o1>lead', 'spell:o1>other']);
   });
 
-  it('Rune of Distillation: a Ruby on a SHOP offer hops offer → your left-most (as a Ruby)', () => {
+  it('Rune of Distillation: a Ruby on a SHOP offer hops offer → your left-most AND right-most (as a Ruby)', () => {
     let s: RunState = {
       ...createRun(1), setId: 'set2', phase: 'recruit', embers: 20,
       board: [body('lead', 'drummer'), body('other', 'joker')],
@@ -104,7 +104,7 @@ describe('bounceFx — the per-hop shop signal', () => {
       runeDistillation: true,
     } as RunState;
     s = reduce(s, { type: 'play', uid: 'r', targetUid: 'o1' });
-    expect(hops(s)).toEqual(['ruby:o1>lead']);
+    expect(hops(s)).toEqual(['ruby:o1>lead', 'ruby:o1>other']);
   });
 
   it('Rune of Redirection: a Ruby on the left-most hops left-most → right-most; a one-body board hops nothing', () => {

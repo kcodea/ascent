@@ -3128,8 +3128,8 @@ export interface CombatResult {
  */
 export interface CombatContext {
   /**
-   * The spell currently being cast, if one is — set for the duration of a named-spell cast and restored after
-   * (see `castNamedSpellInCombat`). MUTABLE on purpose: it is a scope marker, not state. Every event emitted
+   * The spell currently being cast, if one is — set for the duration of EVERY combat cast and restored after
+   * (see `withCastingSpell` in effects/factories.ts: `resolveCombatSpellCast` and the arena's `castRepeat`). MUTABLE on purpose: it is a scope marker, not state. Every event emitted
    * inside that window can stamp it, which is what gives a spell's consequences the spell's identity rather
    * than only its caster's (owner ask 2026-09-01 — Dragonflame must animate as Dragonflame whichever minion
    * cast it, and its authored effect must replace the stock buff tendril for that wave).

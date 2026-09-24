@@ -5,6 +5,7 @@ import { normalizePresentationBatch } from './choreographer/adapters/presentatio
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
 import { presentConsequence, type PresenterContext } from './choreographer/consequencePresenters';
 import { clearCastPreviews, fireCastPreviewAt, type CastPreviewSource } from './castPreview';
+import { playRecordedCastFx, playSpellCastFx } from './fx/spellCastFx';
 import { shippedBeatConfig } from './choreographer/beatConfig';
 import { draftToEngine } from './beatLab/labSchedule';
 import type { BeatPolicyOverrides, BeatTimingOverrides } from './beatLab/beatTiming';
@@ -111,7 +112,7 @@ import { anchorsForUnits } from './fx/combatAnchors';
 import { rubyLandHolds, RUBY_BEAT_MS, RUBY_GAP_MS } from './choreo/channels/rubyLanded';
 import { captureRecruitSeqs, chooseOneMoment, endOfTurnMoment, minionPlayedMoment, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shieldGainMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
-import { bindingFor } from './choreo/bindings';
+import { bindingFor, castFxReplacesTendril } from './choreo/bindings';
 import { cascade, scheduleLands, waves as asWaves } from './fx/land';
 import { holdStat, releaseStat } from './fx/statHold';
 import { fodderGainHolds, type FodderGain } from './fx/fodderGains';
@@ -4525,6 +4526,12 @@ export function Recruit() {
       // Keyed on the SOURCE card and `minionBuffed` — exactly the pair `runRecruitMomentCues` resolves for
       // this event (see its `bindingCard`), so the two can never disagree about whether a def is playing.
       if (bindingFor(ev.sourceCardId, 'minionBuffed')) return;
+      // A SPELL'S OWN EFFECT REPLACES THE CASTER'S TENDRIL (owner ruling 2026-09-24: "the growth and waking rift
+      // effects should replace the tendril for a card that carried those effects, like fatecarver as an example").
+      // The sim tags a buff a minion's cast produced (`spellId`); when that spell has a card-level cast effect, the
+      // effect (played off `castFx`, `fx/spellCastFx.ts`) is the whole presentation of the cast. Unbound spells keep
+      // their tendril. Legacy End-of-Turn beats replay these same events, so they follow the same rule.
+      if (castFxReplacesTendril(ev.spellId)) return;
       const tEl = findEl(ev.targetUid);
       if (!tEl) return;
       // RESTING centres, not raw rects (owner report 2026-09-14): a minion that was JUST DROPPED is still mid-FLIP
@@ -5239,6 +5246,9 @@ export function Recruit() {
     if (seq === prevCastFxSeq.current) return;
     prevCastFxSeq.current = seq;
     if (run.phase !== 'recruit') return;
+    // The spell's OWN cast effect (Growth's `growth-effect`), once per cast — every rune / minion cast in the
+    // Shop (owner 2026-09-24: "by any means … any phase"). Independent of the preview gate. See `fx/spellCastFx.ts`.
+    playRecordedCastFx(run.castFx, 'recruit');
     const cancels = (run.castFx ?? []).filter((c) => c.phase === 'recruit').map((c) => fireCastPreviewAt(c.source, c.spellId));
     return () => { for (const cancel of cancels) cancel(); };
     // Keyed on the seq ONLY (see the fodder watcher above): the array ref changes every action.
@@ -5726,6 +5736,7 @@ export function Recruit() {
       // A spell the beat's RUNE or MINION cast (owner ask 2026-09-23): its card preview above the caster, on the
       // beat. A hero / quest / spell-sourced beat has no badge or body to hang it on and is skipped.
       spellCast: (cardId, source) => {
+        playSpellCastFx(cardId); // the spell's own cast effect, on the cast's beat, whatever the source (fx/spellCastFx.ts)
         const src: CastPreviewSource | null = source.kind === 'minion' && source.uid ? { kind: 'minion', uid: source.uid }
           : source.kind === 'rune' ? { kind: 'rune', id: source.id } : null;
         if (src) fireCastPreviewAt(src, cardId);
@@ -5737,6 +5748,7 @@ export function Recruit() {
       // source→target tendril. ON ITS BEAT now, because the End-of-Turn completion advances the legacy
       // trackers past the commit (nothing may replay after the beats — owner 2026-09-01), and until this the
       // commit replay was the ONLY place these tendrils were drawn under the authoritative path.
+      spellHasCastFx: castFxReplacesTendril,
       statGain: (uid, _zone, _attack, _health, from) => {
         if (!from || from.uid === uid) return;
         // RESTING centres at both ends (owner ask 2026-09-15, the rule #1483 set for the per-action replay): the
@@ -6303,6 +6315,7 @@ export function Recruit() {
         });
         // Spells this beat's rune / minion cast (Rope Wrangler's Lasso, Rune of Recurrence) — the cast preview
         // above the caster, on the beat, while the board is still on screen (owner ask 2026-09-23).
+        playRecordedCastFx(bfx.casts); // each cast's own spell effect (Growth's `growth-effect`), on the beat
         for (const c of bfx.casts ?? []) fireCastPreviewAt(c.source, c.spellId);
         // Auto-welds on this beat (Combinator / Cling Drones / Money Bots) — ring each host as it fuses.
         fireWeldFxBatch(bfx.welds, 'auto');

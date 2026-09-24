@@ -25,6 +25,7 @@ import { anchorsForUnits } from '../fx/combatAnchors';
 import { claimDamageFx, damagedUidsIn, struckUidsIn, expireDamageFxClaim, isDamageFxClaimed } from './cardFx';
 import { bindingFor } from './bindings';
 import { spellCastsIn, type CombatSpellCast } from './channels/castPreview';
+import { playCombatSpellCastFx } from '../fx/spellCastFx';
 
 /**
  * The Score (choreographer phase 3) — per moment KIND, the ordered cues (channels + when they fire) that a
@@ -36,7 +37,7 @@ import { spellCastsIn, type CombatSpellCast } from './channels/castPreview';
  * instead by `engine.ts`'s `runAttackExchangeCues` from a `useLayoutEffect` — this file still owns the score
  * DATA for both.
  */
-export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx' | 'rallyFx' | 'shoutFx' | 'bounceFx' | 'pummelFx' | 'startOfCombatFx' | 'avengeFx' | 'castPreviewFx';
+export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx' | 'fxDef' | 'rubyFx' | 'rallyFx' | 'shoutFx' | 'bounceFx' | 'pummelFx' | 'startOfCombatFx' | 'avengeFx' | 'castPreviewFx' | 'spellCastFx';
 /** When a cue fires within its moment. `start`/`contact` are used today; `landed`/`end` are reserved for
  *  phase 3c (aura bursts) and phase 4 (authoring). */
 export type Anchor = 'start' | 'contact' | 'landed' | 'end';
@@ -106,6 +107,11 @@ const BASE: Cue[] = [
   // kind for the same reason `rallyFx` is: an on-attack cast is absorbed into the caster's wind-up, so the scan
   // is per event, not per kind. See `channels/castPreview.ts`.
   { ch: 'castPreviewFx', at: 'start', offset: 0 },
+  // `spellCastFx` — the spell's OWN cast effect (its card-level `spellCast` binding, e.g. Growth's
+  // `growth-effect`), once per "X casts Y" `sc` event in the moment (owner 2026-09-24: a spell's effect plays
+  // wherever it is cast from, every phase). Per event on every kind for the `castPreviewFx` reason: an on-attack
+  // cast is absorbed into the caster's wind-up. Unlike the preview it plays on EVERY cast. See `fx/spellCastFx.ts`.
+  { ch: 'spellCastFx', at: 'start', offset: 0 },
 ];
 const withReform = (): Cue[] => [...BASE, { ch: 'auraReform', at: 'start', offset: 460, scaled: false }];
 /** Every kind runs sfx + float + auraBurst + auraBreak + executeFx + fxDef at start (all adapters no-op for
@@ -147,6 +153,8 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
     // Same for an ON-ATTACK cast (Fatecarver, Warflame): its "X casts Y" is absorbed into the wind-up, so the
     // cast preview's per-event scan must ride the exchange too (see `channels/castPreview.ts`).
     { ch: 'castPreviewFx', at: 'start', offset: 0 },
+    // …and the spell's own cast effect rides the exchange for the same reason (Fatecarver's Growth).
+    { ch: 'spellCastFx', at: 'start', offset: 0 },
     // A Pummel fire cannot reach a wind-up today (it follows a `dmg`, which ends the absorb), but the
     // per-event scan is free and keeps the channel's "on every kind" contract honest.
     { ch: 'pummelFx', at: 'start', offset: 0 },
@@ -549,6 +557,11 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       const casts = spellCastsIn(moment, ctx.events);
       if (casts.length) ctx.onSpellCastPreviews?.(casts);
     });
+    // Guarded before `at()` like `rubyFx`: with no defs ready this allocates nothing.
+    else if (cue.ch === 'spellCastFx') {
+      if (!canPlayDefs()) continue;
+      at(cue, () => { playCombatSpellCastFx(spellCastsIn(moment, ctx.events)); });
+    }
     else if (cue.ch === 'improveSelf') at(cue, () => {
       const uids: string[] = [];
       for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'improve') uids.push(e.target); }

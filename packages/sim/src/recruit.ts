@@ -55,6 +55,37 @@ let equipmentCastDepth = 0;
 /** > 0 while End of Turn resolves (`applyEndOfTurn`, `projectEndOfTurnSteps`) — a cast recorded then is stamped
  *  `endOfTurn`, so the action-level watcher leaves it to the End-of-Turn beats. */
 let endOfTurnDepth = 0;
+/**
+ * Record a cast by the innermost cast actor (a rune or a minion) on the presentation channel (`castFx`), plus
+ * the `spellResolved` consequence when a collector is capturing. THE one recorder, shared by `applyCastEffects`
+ * (every full shop cast) and the arena's `castRepeat` (a "cast Growth" body that resolves inline — Hoardbreaker
+ * Drake's Rally replayed in the shop), so every shop cast by a rune or minion reaches the per-spell cast FX and
+ * the cast preview. The player's own cast (no actor) and an Equipment's cast record nothing.
+ */
+/**
+ * The ONE spell a given minion cast since `start` on the `castFx` channel, or undefined (none, or several
+ * different ones). How a buff learns it was produced by a CARD's cast: `captureBuffFx` and the End-of-Turn
+ * trigger scope stamp it onto their buff records, so a spell with its own cast effect can replace the caster's
+ * tendril for that cast (owner ruling 2026-09-24: "the growth and waking rift effects should replace the tendril
+ * for a card that carried those effects, like fatecarver as an example").
+ */
+function spellCastBySince(state: RunState, start: number, uid: string | undefined): string | undefined {
+  if (!uid) return undefined;
+  const ids = new Set<string>();
+  const all = state.castFx ?? [];
+  for (let i = start; i < all.length; i++) {
+    const c = all[i]!;
+    if (c.source.kind === 'minion' && c.source.uid === uid) ids.add(c.spellId);
+  }
+  return ids.size === 1 ? [...ids][0] : undefined;
+}
+
+function recordActorCast(state: RunState, spellId: string, collector: PresentationCollector): void {
+  const actor = castActorStack[castActorStack.length - 1];
+  if (!actor || equipmentCastDepth > 0) return;
+  recordCastFx(state, actor, spellId, endOfTurnDepth > 0 ? 'endOfTurn' : 'recruit');
+  if (collector.enabled) collector.emit({ type: 'spellResolved', cardId: spellId });
+}
 
 type RecruitFn = (
   ctx: RecruitContext,
@@ -285,7 +316,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       // `castInCombat` gives the combat half. Golden = two real casts, never one doubled cast.
       const def = spellId ? CARD_INDEX[spellId] : undefined;
       for (let i = 0; i < (self.golden ? 2 : 1); i++) {
-        if (def) noteSpellCast(state, def);
+        if (def) { recordActorCast(state, def.id, currentCollector()); noteSpellCast(state, def); }
         body();
       }
     },
@@ -547,10 +578,17 @@ export function captureBuffFx(
   source: BoardCard | undefined,
   kind: BuffFxEvent['kind'],
   run: () => void,
+  /** A `spell` capture's spell, when a CARD (a minion) cast it — stamped on its records so a spell with its own
+   *  cast effect replaces the descend/tendril for that cast (owner ruling 2026-09-24). */
+  cardCastSpellId?: string,
 ): void {
   const before = new Map(state.board.map((c) => [c.uid, { a: c.attack, h: c.health }]));
   const fxStart = state.recruitBuffFx.length; // entries pushed DURING run() are nested (deeper) captures
+  const castStart = (state.castFx ?? []).length;
   run();
+  // A minion that CAST a spell in this capture (Mage-Pup's taught Growth, a shop Rally's "cast Growth"): its buffs
+  // carry the spell, so the UI can let that spell's own effect replace the tendril (owner ruling 2026-09-24).
+  const castSpellId = kind === 'minion' || kind === 'deathrattle' ? spellCastBySince(state, castStart, source?.uid) : cardCastSpellId;
   // A nested capture (e.g. a summoned token's aura, or Karwind reacting) already recorded these targets with a
   // more specific source — don't also attribute their delta to THIS (outer) source. Sibling captures (sequential,
   // not nested — e.g. a Growth spell then Guel both buffing X) are NOT skipped: they legitimately produce two events.
@@ -571,6 +609,7 @@ export function captureBuffFx(
       targetUid: c.uid, attack: da, health: dh,
       sourceCardId: source?.cardId ?? '', sourceTribe: source?.tribe ?? 'neutral',
       kind,
+      ...(castSpellId ? { spellId: castSpellId } : {}),
     });
   }
 }
@@ -10070,11 +10109,11 @@ export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?
   // parent. The player's own cast (the reducer's `play`, no actor) and an Equipment's cast record nothing. When
   // a collector is capturing (the authoritative End of Turn), the same fact is emitted as a `spellResolved`
   // consequence so the beat that owns the cast delivers the preview on its own clock.
+  recordActorCast(ctx.state, spellDef.id, ctx.collector);
+  // Cast BY A CARD (a minion is the innermost actor — Mage-Pup, Sporebat, a Rope Wrangler): its buff records carry
+  // the spell, so a spell with its own cast effect replaces the generic descend for that cast (owner 2026-09-24).
   const actor = castActorStack[castActorStack.length - 1];
-  if (actor && equipmentCastDepth === 0) {
-    recordCastFx(ctx.state, actor, spellDef.id, endOfTurnDepth > 0 ? 'endOfTurn' : 'recruit');
-    if (ctx.collector.enabled) ctx.collector.emit({ type: 'spellResolved', cardId: spellDef.id });
-  }
+  const cardCastSpellId = actor?.kind === 'minion' && equipmentCastDepth === 0 ? spellDef.id : undefined;
   for (const effect of spellDef.effects) {
     if (effect.on !== 'cast') continue;
     const fn = RECRUIT_FACTORIES_UNATTRIBUTED[effect.do]; // the spell's OWN effects: the target is not the caster (cast preview)
@@ -10101,7 +10140,7 @@ export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?
       // Gifts read `payload.target`, copying the Battlecry-target call shape, and this site never sent it —
       // so Unbridled Might / Ironclad Favor / Champion's Regalia / Parting Gifts consumed the card, counted the
       // cast, and changed nothing (Bug Board 9852e16f, 2026-09-09).
-      () => captureBuffFx(ctx.state, undefined, 'spell', () => fn(ctx, target as BoardCard, params, { minion: target as BoardCard, target: target as BoardCard })),
+      () => captureBuffFx(ctx.state, undefined, 'spell', () => fn(ctx, target as BoardCard, params, { minion: target as BoardCard, target: target as BoardCard }), cardCastSpellId),
     );
   }
 }
@@ -14082,6 +14121,7 @@ function withRecruitTrigger(
     const eatenBefore = (state.fodderEaten ?? []).length;
     const shopEatenBefore = (state.shopEaten ?? []).length;
     const rb = state.rubyBonus ?? { attack: 0, health: 0 };
+    const castStart = (state.castFx ?? []).length; // a spell THIS beat's minion casts tags its buffs (see below)
     // begin/end rather than withTrigger so the handle survives for the empty-scope discard below.
     // CHOREOGRAPHER PR 1: forward the identity fields verbatim (the primitive must not drop them).
     return (): void => {
@@ -14104,7 +14144,10 @@ function withRecruitTrigger(
           const da = now.attack - was.a - rubyN * (1 + rb.attack);
           const dh = now.health - was.h - rubyN * (1 + rb.health);
           if (da === 0 && dh === 0) continue;
-          collector.emit({ type: 'statsChanged', target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' }, attack: da, health: dh, permanent: true, channel: 'ordinary' });
+          // The spell this beat's MINION cast (Rope Wrangler-style End-of-Turn casts, a Moira-fired Mage-Pup): the
+          // presenter lets a spell with its own cast effect replace the caster's tendril (owner ruling 2026-09-24).
+          const castSpellId = spec.source.kind === 'minion' ? spellCastBySince(state, castStart, spec.source.uid) : undefined;
+          collector.emit({ type: 'statsChanged', target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' }, attack: da, health: dh, permanent: true, channel: 'ordinary', ...(castSpellId ? { spellId: castSpellId } : {}) });
         }
         // Cards this trigger put in hand (conjures / grants), in arrival order.
         for (const c of state.hand) {

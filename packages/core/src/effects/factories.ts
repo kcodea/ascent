@@ -468,15 +468,17 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     },
     spellPower: () => ctx.spellPowerFor(self.side),
     // Every combat cast ANNOUNCES itself with the spell's id (the `sc` + `spellId` rule of 2026-09-01, which
-    // `castNamedSpellInCombat` always kept). This verb dropped it: Fatecarver / Taragosa / Hoardbreaker's Growth,
-    // Watcher / Wick Mortis's Lantern of Souls and Ashen Broodlord's Staff of Guel cast for real but logged no
-    // "X casts Y" line — so the combat cast preview (owner report 2026-09-23: "why does fate carver not show
-    // the growth preview? warflame does") had nothing to key on, and the Combat Log never named the cast. One
-    // line per cast, after its body, from the CASTER (not the attacker that triggered it).
+    // `castNamedSpellInCombat` always kept) and MARKS its window (`withCastingSpell`), so its buffs carry the
+    // spell too. This verb dropped both: Fatecarver / Taragosa / Hoardbreaker's Growth, Watcher / Wick Mortis's
+    // Lantern of Souls and Ashen Broodlord's Staff of Guel cast for real but logged no "X casts Y" line and emitted
+    // untagged buffs, so neither the combat cast preview (owner 2026-09-23: "why does fate carver not show the
+    // growth preview? warflame does") nor a per-spell effect (owner 2026-09-24: Growth's effect plays wherever it
+    // is cast from) could see them, and the Combat Log never named the cast. One announcement per cast, after its
+    // body, from the CASTER (not the attacker that triggered it).
     castRepeat: (spellId, body) => {
       const def = spellId ? ctx.getCard(spellId) : undefined;
       castInCombat(ctx, self, () => {
-        body();
+        withCastingSpell(ctx, def?.spell ? def.id : undefined, body);
         if (def?.spell) ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
       });
     },
@@ -753,6 +755,26 @@ function randomStatSpellBuff(ctx: CombatContext, scale: number, side: Side): { s
  * Callers run this INSIDE `castInCombat`, once per repetition — escalating spells advance per cast.
  */
 export function resolveCombatSpellCast(ctx: CombatContext, self: Minion, def: CardDef, targets?: Minion[]): boolean {
+  // EVERY resolved combat cast marks its window with the spell's id (owner 2026-09-24: effects are wired across
+  // every phase and source by default), so each buff it produces carries `spellId` whichever caster reached this
+  // resolver — Sporebat, Quil, Mage-Pup, Badgington, the Flooded Vault — not only `castNamedSpellInCombat`.
+  return withCastingSpell(ctx, def.id, () => resolveCombatSpellCastInner(ctx, self, def, targets));
+}
+
+/**
+ * Run `fn` with `spellId` as the combat cast mark (`ctx.castingSpellId`), restoring the outer mark after — a
+ * spell cast from inside another cast must not erase its parent's identity. `undefined` leaves the mark alone.
+ * THE one choke point that stamps a combat cast's consequences with the spell that caused them, so a per-spell
+ * effect (Dragonflame's `buffedOn`, Growth's cast FX) binds to the SPELL in every combat path.
+ */
+export function withCastingSpell<T>(ctx: CombatContext, spellId: string | undefined, fn: () => T): T {
+  if (spellId === undefined) return fn();
+  const outer = ctx.castingSpellId;
+  ctx.castingSpellId = spellId;
+  try { return fn(); } finally { ctx.castingSpellId = outer; }
+}
+
+function resolveCombatSpellCastInner(ctx: CombatContext, self: Minion, def: CardDef, targets?: Minion[]): boolean {
   const side = self.side;
   // Rune of Shared Scripture listens here — every combat Shop-spell cast that RESOLVES reports itself, so the
   // rune sees real casts rather than attempts. Announced up front: the rune's Shout/Rally is a reaction to the
@@ -935,17 +957,10 @@ export function castNamedSpellInCombat(ctx: CombatContext, self: Minion, spellId
     const friends = otherFriends(ctx, self); // never the caster itself (R-TARGET-03)
     const targets = def.target ? (friends.length ? [ctx.rng.pick(friends)] : []) : undefined;
     if (def.target && (!targets || targets.length === 0)) return;
-    // Mark the cast's WHOLE window, so the buffs (and anything else) it produces carry the spell's identity —
-    // a buff wave is its own presentation moment, and without this it reads as the caster's wave. Saved and
-    // restored rather than cleared: a spell cast from inside another cast must not erase its parent's mark.
-    const outer = ctx.castingSpellId;
-    ctx.castingSpellId = def.id;
-    try {
-      if (resolveCombatSpellCast(ctx, self, def, targets)) {
-        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
-      }
-    } finally {
-      ctx.castingSpellId = outer;
+    // The cast's window is marked with the spell's identity by `resolveCombatSpellCast` itself (via
+    // `withCastingSpell`), so the buffs it produces carry `spellId` on every combat cast path, not only this one.
+    if (resolveCombatSpellCast(ctx, self, def, targets)) {
+      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
     }
   });
 }

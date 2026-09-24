@@ -232,6 +232,9 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   // the buffs are both what the def plays on and where the stock tendril it replaces lives. Every combat
   // caster is covered without naming one, because the buff events now carry the spell's `spellId`
   // (Flamebeat Drake, Warflame, and whatever casts it next). Owner 2026-09-01.
+  // Growth's and Waking Rift's own cast effects (owner 2026-09-24) — one board-wide play per cast, every phase (fx/spellCastFx.ts).
+  growth: { spellCast: { def: 'growth-effect' } },
+  sparkplug: { spellCast: { def: 'waking-rift-fx' } }, // Waking Rift (id kept from Spark Plug), same one-play binding
   sp_dragonflame: { spellCast: { def: 'dragonflame', fanOut: 'buffedOn', sfx: 'dragonflame' }, buffWave: { def: 'dragonflame', fanOut: 'buffedOn' } },
   dm_felspikes: { damage: { def: 'fel-spike', fanOut: 'struck', launchOnDeath: true } },
   dm_tormentor: { shout: { def: 'shop-buff-shout' }, scNarrate: { def: 'shop-buff-shout' } },

@@ -31,7 +31,7 @@ export interface KeywordLexeme {
 export const KEYWORD_LEXICON: Readonly<Record<Keyword, KeywordLexeme>> = {
   T: { canonical: 'Taunt', alternates: [] },
   DS: { canonical: 'Ward', alternates: ['Divine Shield'] },
-  V: { canonical: 'Venomous', alternates: [] },
+  V: { canonical: 'Execute', alternates: ['Venomous'] }, // owner 2026-09-24: "Execute is what we renamed Venom" (terms.ts displays Venomous as Execute)
   W: { canonical: 'Flurry', alternates: ['Windfury'] },
   R: { canonical: 'Rise', alternates: ['Reborn'], reserved: 'the owner\'s Rebirth rename is IN FLIGHT (their own work) — record the split, never advise or rename' },
   C: { canonical: 'Cleave', alternates: [] },

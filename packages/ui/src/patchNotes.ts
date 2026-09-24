@@ -52,6 +52,29 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-24',
+    label: 'Beasts and Dragons',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Five new Set 2 minions: Raven, Tort, Flo Rida, Beev and Humphry. Grim and Wolvie reworked. Karwind, Mushy, Flutterdrake and Earthbreaker changed. Dunkey, Moira, Moonhowl Mentor and Embercrest are retired.',
+        details: [
+          'Raven (Beast, Tier 4, 4/6): Rally: give another Beast Execute.',
+          'Tort (Beast, Tier 5, 2/9): Avenge (4): give another Beast Execute.',
+          'Flo Rida (Beast, Tier 6, 7/5): When you summon a Beast, give your Beasts +4/+4. Playing a Beast counts as summoning it.',
+          'Beev (Beast, Tier 3, 4/4): When a Beast attacks, give it and this +2/+2.',
+          'Humphry (Dragon, Tier 3, 3/5): Shout: give a friendly Dragon +3/+4.',
+          'Grim is now Tier 5. Echo: give your Beast Aura +3/+2 for every Echo triggered this game. Its own Echo counts.',
+          'Wolvie keeps Taunt. Its Echo now gives a Beast +2/+4 and Rise.',
+          'Karwind is now Tier 4, and gives +2/+2 (was +3/+3).',
+          'Mushy and Flutterdrake are now Tier 4.',
+          'Earthbreaker is now Tier 3, and gives your Dragons +2/+1 per Shop spell (was +2/+3).',
+          'Retired: Dunkey, Moira, Moonhowl Mentor, Embercrest, and the Rune of the White Wolf.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Ruby Types',
     changes: [
       {

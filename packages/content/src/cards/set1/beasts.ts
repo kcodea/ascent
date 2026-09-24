@@ -108,16 +108,23 @@ export const BEASTS: CardDef[] = [
     // per-Deathrattle tally to a flat +8/+8 Beast buff (gild +16/+16), and pulled into the Set-2 pool too
     // (see SET1_BEASTS_IN_SET2). `deathrattleBuffTribe` buffs the living Beasts and registers a rest-of-combat
     // aura, so bodies summoned later this fight inherit it — "wherever they are".
+    // Owner batch 2026-09-24: back to a PER-GAME Echo tally, T6 -> T5, stats kept. "+3/+2 for every Echo
+    // triggered this game", and Grim's OWN Echo counts (owner ruling): the run-wide `deathrattlesTriggered`
+    // tally is bumped BEFORE the rattle fires in both phases, so the N it reads already includes itself.
+    // Combat adds this fight's Echoes on top (`deathrattleTally`), so it grows across fights and mid-fight.
     id: 'grim',
     name: 'Grim',
     tribe: 'beast',
-    tier: 6,
+    tier: 5,
     attack: 7,
     health: 1,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffTribe', params: { tribe: 'beast', attack: 8, health: 8 } }],
-    text: '**Echo:** give your **Beast Aura** **+8/+8**.',
-    goldenText: '**Echo:** give your **Beast Aura** **+16/+16**.',
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffTribeByTally', params: { tribe: 'beast', attack: 3, health: 2 } }],
+    // STATIC TEXT BY OWNER RULING (2026-09-24, an exception to the live-value default): "grim text doesnt need
+    // flavor. just Echo: Give your Beast Aura +3/+2 for every Echo triggered this game." — no live total, no count,
+    // on any surface (the live tally helper was removed from cardText.ts for this; see R-ECHOTALLY-01).
+    text: '**Echo:** Give your **Beast Aura** **+3/+2** for every **Echo** triggered this game.',
+    goldenText: '**Echo:** Give your **Beast Aura** **+6/+4** for every **Echo** triggered this game.',
   },
   {
     id: 'shaper',

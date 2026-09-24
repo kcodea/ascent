@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { ALL_CARDS, CARD_INDEX } from '@game/content';
-import { abhorrentHorrorText, cadenceProgressText, drunkenOafText, cardSummonsImp, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonFlatZooText, summonImproveText, summonScalingText, shootingStarText, spellThresholdText, tallyBuffText, watcherText, shopBuffImproveText, perCardPlayedText, withImpStats } from './cardText';
+import { liveCardText } from './instView';
+import { abhorrentHorrorText, cadenceProgressText, drunkenOafText, cardSummonsImp, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonFlatZooText, summonImproveText, summonScalingText, shootingStarText, spellThresholdText, watcherText, shopBuffImproveText, perCardPlayedText, withImpStats } from './cardText';
 
 describe('stepProgress — Gemgorge Fiend’s cast meter (owner ask 2026-08-08)', () => {
   it('reads 0/3 on a fresh body and climbs with the casts IT witnessed', () => {
@@ -116,11 +117,12 @@ describe('cardText helpers', () => {
   });
 
 
-  // Grim was retext'd to a FLAT Echo buff on 2026-08-12, so no card uses `deathrattleBuffTribeByTally` any
-  // more — `tallyBuffText` returns null for every card, which the fallback test below now covers via Grim.
-  it('tallyBuffText falls back (null) on a non-tally card', () => {
-    expect(tallyBuffText('grim', 4)).toBeNull(); // Grim is no longer a tally-buff card
-    expect(tallyBuffText('sandbag', 5)).toBeNull(); // not a tally-buff card
+  // Grim is a per-game Echo tally card again (owner batch 2026-09-24), but its text is STATIC by owner ruling:
+  // "grim text doesnt need flavor. just Echo: Give your Beast Aura +3/+2 for every Echo triggered this game."
+  it('Grim prints its rate text on every surface, whatever the tally (owner ruling 2026-09-24)', () => {
+    const bag = { tier: 6, golden: false, spellBonus: 0, spellBonusH: 0, frontToBackBonus: 0, spellsThisTurn: 0, spellsCast: 0, deathrattlesTriggered: 9, undeadBuyAtk: 0, soulsmanGold: 0 };
+    expect(liveCardText('grim', bag as never).text).toBe('**Echo:** Give your **Beast Aura** **+3/+2** for every **Echo** triggered this game.');
+    expect(liveCardText('grim', { ...bag, golden: true } as never).goldenText).toBe('**Echo:** Give your **Beast Aura** **+6/+4** for every **Echo** triggered this game.');
   });
 
   it('run-wide metric helpers surface live values (Soulsman gold, Eternal Knight tally)', () => {

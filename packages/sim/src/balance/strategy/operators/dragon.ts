@@ -51,7 +51,6 @@ const ROLES: Record<string, CardRole> = {
   d2_flamebeat: R(3, 'Rally: cast Dragonflame in combat', { fromWave: 8 }),
   d2_warflame: R(3, 'Dragonflame whenever a Dragon attacks', { fromWave: 10 }),
   d2_transcendence: R(3, 'Transcendant: adjacent Dragons are Engraved — combat gains stay', { fromWave: 6 }),
-  d2_embercrest: R(2, 'Rally: trigger the Dragon Shouts', { fromWave: 10 }),
   d2_grimoire: R(2, 'the first spell each turn casts twice', { fromWave: 10 }),
   d2_orivax: R(3, 'Orivax: the first spell each turn casts 3 times', { fromWave: 12 }),
   d2_broodfire: R(1, 'Shout: +2/+2 to the Dragons', { filler: true }),
@@ -130,7 +129,7 @@ export const DRAGON_OPERATOR: LineOperator = {
     const chorus = v.board.filter((x) => x.cardId === 'd2_chorus');
     if (c.cardId === 'd2_chorus') return chorus[0]?.uid === c.uid ? 0 : 2;
     if (c.cardId === 'd2_transcendence') return 1;
-    if (c.cardId === 'd2_flamebeat' || c.cardId === 'd2_warflame' || c.cardId === 'd2_embercrest') return 3;
+    if (c.cardId === 'd2_flamebeat' || c.cardId === 'd2_warflame') return 3;
     if (c.cardId === 'd2_herzog') return 9;
     if (c.cardId === 'd2_mirrorwing') return 8;
     if (c.keywords.includes('T')) return 4;

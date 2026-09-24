@@ -567,7 +567,7 @@ describe('spell batch — tranche A (Set 2 Ruby spells)', () => {
     expect(s.hand.some((c) => c.cardId === 'rubyshipment')).toBe(false); // consumed
   });
 
-  it("Facetwright's Choice: +1 Attack raises the run's Ruby bonus and grows a held Ruby", () => {
+  it("Facetwright: +1 Attack raises the run's Ruby bonus and grows a held Ruby", () => {
     let s: RunState = { ...createRun(1), setId: 'set2', hand: [mkSpell('r', RUBY), mkSpell('sp', 'facetwright')] };
     // seed a Ruby in hand at 1/1 so we can see it grow
     const held = s.hand.find((c) => c.uid === 'r')!;

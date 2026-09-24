@@ -67,7 +67,7 @@ export function CommitPanel({
         </label>
       </div>
 
-      <label htmlFor="fxcommit-fanout" title="How many copies play, and on which units">Plays</label>
+      <label htmlFor="fxcommit-fanout" aria-description="How many copies play, and on which units">Plays</label>
       <select
         id="fxcommit-fanout"
         value={fanOut ?? 'primary'}

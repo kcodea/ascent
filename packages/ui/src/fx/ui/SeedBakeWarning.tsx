@@ -50,7 +50,7 @@ export function SeedBakeWarning({
       <button
         type="button"
         className="fxwb-def-seedwarn-unlock"
-        title="Unlock the seed — this def then rolls fresh randomness on every play, and no seed is written"
+        aria-description="Unlock the seed — this def then rolls fresh randomness on every play, and no seed is written"
         onClick={onUnlock}
       >
         Unlock

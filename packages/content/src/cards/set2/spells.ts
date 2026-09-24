@@ -38,11 +38,11 @@ export const SET2_SPELLS: CardDef[] = [
     text: 'Get **2 Rubies**.',
   },
   {
-    // Facetwright's Choice — Choose One: your Rubies gain +1 Attack, or +1 Health (`rubyStatGain` → run
+    // Facetwright ("Facetwright's Choice" until 2026-09-24; owner rename, id + art unchanged) — Choose One: your Rubies gain +1 Attack, or +1 Health (`rubyStatGain` → run
     // `rubyBonus`, which also grows Rubies already in hand). Untargeted; a flat +1 (no scaling), so the printed
     // value is always exact. Only already-cast Rubies don't grow (owner ruling 2026-07-23).
     id: 'facetwright',
-    name: "Facetwright's Choice",
+    name: 'Facetwright',
     tribe: 'kobold', // TRIBE-GATED (owner 2026-09-10): offered only when this tribe is a run tribe (`runSpells`)
     tier: 3,
     attack: 0,

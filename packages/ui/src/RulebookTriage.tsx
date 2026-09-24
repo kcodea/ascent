@@ -183,7 +183,7 @@ export function RulebookTriage({ onClose, rules: injected }: {
         <strong style={{ fontSize: 16 }}>📜 Rulebook triage</strong>
         <span style={{ opacity: 0.75, fontSize: 13 }}>{pendingCount} pending · {decidedCount} decided this backlog</span>
         {!fly && worklist.length > 0 && (
-          <button onClick={startFly} style={btn('#3d4a6b')} title="One question per screen · Y approve · N reject · E revise · S skip · U undo · Esc leave">
+          <button onClick={startFly} style={btn('#3d4a6b')} aria-description="One question per screen · Y approve · N reject · E revise · S skip · U undo · Esc leave">
             ⚡ Fly through ({worklist.length} · {estimate(worklist.length)})
           </button>
         )}
@@ -197,7 +197,7 @@ export function RulebookTriage({ onClose, rules: injected }: {
       <div style={{ display: 'flex', gap: 6, padding: '8px 16px', flexWrap: 'wrap', borderBottom: '1px solid #2a2e40' }}>
         <button onClick={() => { setQueue('all'); setFly(false); }} style={btn(queue === 'all' ? '#3d5a3d' : '#2a2e40')}>All ({pendingCount})</button>
         {queues.map(([q, n]) => (
-          <button key={q} onClick={() => { setQueue(q); setFly(false); }} style={btn(queue === q ? '#3d5a3d' : '#2a2e40')} title={`Sitting: ${n} questions, ${estimate(n)}`}>
+          <button key={q} onClick={() => { setQueue(q); setFly(false); }} style={btn(queue === q ? '#3d5a3d' : '#2a2e40')} aria-description={`Sitting: ${n} questions, ${estimate(n)}`}>
             {QUEUE_LABELS[q] ?? q} ({n})
           </button>
         ))}

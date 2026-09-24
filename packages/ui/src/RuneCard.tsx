@@ -121,7 +121,7 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating }: {
           precisely at the hand-off, on the card the eye is following. */}
       {art && <img className="runecard-art" src={art} alt="" aria-hidden decoding="sync" />}
       {/* Gold coin cost, overhanging the top-left corner (like a spell's cost). */}
-      <span className={`runecard-cost${discounted ? ' discounted' : ''}`} title={discounted ? `Pivot discount: ${shownCost} Gold, down from ${rune.cost}` : `Costs ${shownCost} Gold`}><span className="costn">{shownCost}</span></span>
+      <span className={`runecard-cost${discounted ? ' discounted gtip' : ''}`} aria-label={discounted ? `Pivot discount: ${shownCost} Gold, down from ${rune.cost}` : `Costs ${shownCost} Gold`} data-tip={discounted ? `Pivot discount: ${shownCost} Gold, down from ${rune.cost}` : undefined}><span className="costn">{shownCost}</span></span>
       <span className="runecard-emblem" aria-hidden><Icon name="sc" /></span>
       <div className="runecard-head">
         <div className="runecard-kicker">{rune.epic ? 'Epic Rune' : 'Rune'}</div>
@@ -131,8 +131,11 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating }: {
         <div className="runecard-sect">
           {duplicating && !runeStacks(rune) && (
             <div
-              className="runecard-nostack"
-              title={RUNE_DUP_UNIQUE.has(rune.id)
+              className="runecard-nostack gtip"
+              aria-description={RUNE_DUP_UNIQUE.has(rune.id)
+                ? 'Rune of Duplication will copy this, but a second copy of this rune has no additional effect.'
+                : 'This rune does not stack. The Duplication copy instead refunds half its cost in Gold plus a free refresh.'}
+              data-tip={RUNE_DUP_UNIQUE.has(rune.id)
                 ? 'Rune of Duplication will copy this, but a second copy of this rune has no additional effect.'
                 : 'This rune does not stack. The Duplication copy instead refunds half its cost in Gold plus a free refresh.'}
             >

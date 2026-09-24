@@ -2297,45 +2297,68 @@ export function simulate(
     const after = before + amount;
     dealer.damageDealt = after;
     // The crossing math (pre-#1607, restored 2026-09-21): a payout is owed only when this hit carried the
-    // lifetime tally over a multiple of X (47 → 52 owes nothing; 35 → 40 owes one; 0 → 120 owes one, not three).
-    // The latch comes FIRST so a second crossing in the same fight is spent silently.
-    if (dealer.pummelFired) return;
+    // lifetime tally over a multiple of X (47 → 52 owes nothing; 35 → 40 owes one; 0 → 120 owes three, paid up to the cap).
+    // The cap comes FIRST so a crossing past this fight's cap is spent silently.
+    //
+    // THE PER-COMBAT CAP (`params.maxPerCombat`, default 1 — the "(Once per combat)" rider; Han Gover's
+    // "(Max 5 per combat.)" is 5, owner 2026-09-24): the fire count rides the combat instance (`pummelFires`,
+    // fresh every fight, NOT reset by a Rise). A hit that crosses several multiples pays once PER multiple up to
+    // what the cap has left — the keyword is "triggers each time this minion has dealt another X damage"; under a
+    // cap of 1 that is the old "one payout, the rest spent" reading exactly. Uncredited crossings are SPENT.
+    const cap = Math.max(1, typeof p.maxPerCombat === 'number' ? p.maxPerCombat : 1);
+    const firedSoFar = dealer.pummelFires ?? 0;
+    if (firedSoFar >= cap) return;
     const crossings = Math.floor(after / every) - Math.floor(before / every);
     if (crossings <= 0) return;
-    // THE TRIGGER MOMENT (2026-09-21): a Pummel that PAYS emits one `pummelTrigger` — the presentation cue the
-    // owner authored (`pummel-trigger`) plays off it, on the body that fired, AFTER the `dmg` that did it and
-    // BEFORE the payout's own events. "After" is not "immediately after": `applyDamage` runs the victim's
+    const pays = Math.min(crossings, cap - firedSoFar);
+    // THE TRIGGER MOMENT (2026-09-21): a Pummel that PAYS emits one `pummelTrigger` PER PAYOUT — the presentation
+    // cue the owner authored (`pummel-trigger`) plays off it, on the body that fired, AFTER the `dmg` that did it
+    // and BEFORE the payout's own events. "After" is not "immediately after": `applyDamage` runs the victim's
     // `onDamaged` reactors before it reaches this meter, so a reactor's own events (a Target Dummy's `buff`, a
     // Hearth Whisperer's `handBuff`) sit between the `dmg` and the trigger — the replay's `pummelFx` scan is per
-    // event, so it finds the trigger wherever the beat compiler put it. ONLY the trigger emit is wrapped in
-    // `withEffect`, so the EVENT carries the meter's OWN identity (`factory:dealtDamage…:passive`) instead of
-    // inheriting whatever effect dealt the hit (a Fel Spikes volley, Yeti's reflection); the payout itself stays
-    // OUTSIDE the wrap, exactly as it was before the trigger existed — the Ale's `toHand` is unstamped on a plain
-    // swing, so its beat keeps the stock `toHand` hold under the Beat Lab too (a stamped `toHand` would re-pace
-    // through the meter's `foldedCue` policy when the Lab's live toggle is on). A Pummel that pays NOTHING (a
-    // set with no Ales) emits nothing and does not latch: there is no trigger to show. Emitting touches no RNG;
-    // determinism holds.
+    // event, so it finds the trigger wherever the beat compiler put it (and counts a stack). ONLY the trigger
+    // emit is wrapped in `withEffect`, so the EVENT carries the meter's OWN identity
+    // (`factory:dealtDamage…:passive`) instead of inheriting whatever effect dealt the hit; the payout itself
+    // stays OUTSIDE the wrap, exactly as it was before the trigger existed. A Pummel that pays NOTHING (a set
+    // with no Ales) emits nothing and does not count toward the cap: there is no trigger to show. Emitting
+    // touches no RNG; determinism holds.
     const fired = (): void => {
+      dealer.pummelFires = (dealer.pummelFires ?? 0) + 1;
       withEffect(dealer, eff, () => {
         emit({ type: 'pummelTrigger', source: dealer.uid, side: dealer.side, marker: eff.do });
       });
     };
+    const g = dealer.golden ? 2 : 1;
     if (eff.do === 'dealtDamageGoldNextTurn') {
-      const gold = Math.max(0, typeof p.gold === 'number' ? p.gold : 3) * (dealer.golden ? 2 : 1);
+      const gold = Math.max(0, typeof p.gold === 'number' ? p.gold : 3) * g;
       if (gold <= 0) return;
-      dealer.pummelFired = true;
-      fired();
-      ctx.grantBonusGold(gold, dealer.side);
+      for (let k = 0; k < pays; k++) {
+        fired();
+        ctx.grantBonusGold(gold, dealer.side);
+      }
       return;
     }
-    const count = Math.max(0, typeof p.count === 'number' ? p.count : 1) * (dealer.golden ? 2 : 1);
+    const count = Math.max(0, typeof p.count === 'number' ? p.count : 1) * g;
     if (count <= 0) return;
+    if (eff.do === 'dealtDamageGrantRandomTribe') {
+      // Maestro Lux (owner 2026-09-24): "Pummel (12): Get a random Celestial. (Once per combat.)" — the shared
+      // combat random-minion grant (`grantRandomMinion`: the run's pool, ≤ the side's shop tier, active tribes;
+      // Grobbus's Avenge channel), so the card flies to hand in the replay and settles via `playerHandGrants`.
+      const named = p.tribe;
+      const tribe = typeof named === 'string' && named ? named : 'celestial';
+      for (let k = 0; k < pays; k++) {
+        fired();
+        ctx.grantRandomMinion(count, tribe, dealer.side, undefined, dealer.uid);
+      }
+      return;
+    }
     const ales = ctx.poolCards(dealer.side).filter((c) => ALE_IDS.includes(c.id));
     if (ales.length === 0) return; // a set without the Ales grants nothing (same rule as Rune of Last Call)
     const draw = grantRngFor(dealer.side);
-    dealer.pummelFired = true;
-    fired();
-    for (let i = 0; i < count; i++) ctx.grantToHand(draw.pick(ales).id, dealer.side, dealer.uid);
+    for (let k = 0; k < pays; k++) {
+      fired();
+      for (let i = 0; i < count; i++) ctx.grantToHand(draw.pick(ales).id, dealer.side, dealer.uid);
+    }
   }
 
   function killOrReborn(minion: Minion, killer?: Minion): void {

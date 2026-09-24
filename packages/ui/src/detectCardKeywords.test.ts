@@ -64,10 +64,13 @@ describe('detectCardKeywords', () => {
   it('Pummel (X) pills: Han Gover (40) and Goldvein (6) raise the pill; the wording is pinned', () => {
     const gover = CARD_INDEX['dw3_hangover']!;
     const vein = CARD_INDEX['k3_goldvein']!;
-    expect(gover.text).toBe('**Pummel (40):** Get a **Dwarven Ale**. (Once per combat)');
+    expect(gover.text).toBe('**Pummel (40):** Get a **Dwarven Ale**. (Max 5 per combat.)'); // cap 5, owner 2026-09-24
     expect(vein.text).toBe('**Pummel (6):** Gain **3 Gold** next turn. (Once per combat)');
     expect(ids({ keywords: gover.keywords, text: gover.text ?? '' })).toEqual(['pummel', 'ale']);
     expect(ids({ keywords: vein.keywords, text: vein.text ?? '' })).toEqual(['pummel']);
+    // Maestro Lux (owner 2026-09-24): "Pummel (12): Get a random Celestial. (Once per combat.)" raises it too.
+    const lux = CARD_INDEX['ce3_starcharter']!;
+    expect(ids({ keywords: lux.keywords, text: lux.text ?? '' })).toContain('pummel');
     expect(ids({ keywords: gover.keywords, text: gover.goldenText ?? '' })).toEqual(['pummel', 'ale']);
     expect(KEYWORD_GLOSSARY.find((d) => d.id === 'pummel')!.def).toBe('Pummel (X): Triggers each time this minion has dealt another X damage. The damage count carries over between combats.');
     expect(KEYWORD_GLOSSARY.find((d) => d.id === 'pummel')!.section).toBe('triggers');

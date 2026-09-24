@@ -278,12 +278,12 @@ export function PerfScreen(): JSX.Element | null {
                     {r.build ? <i>{r.build}</i> : null}
                   </button>
                   <div className="perfsc-run-acts">
-                    <button title="Compare the open recording against this one"
+                    <button aria-description="Compare the open recording against this one"
                       onClick={() => { void pickCloud(r, 'prev'); }}>vs</button>
                     {/* Only your own rows offer a delete — RLS refuses anyone else's, so showing the button
                         would be offering something that cannot work. */}
                     {r.mine && (
-                      <button title="Delete this shared recording"
+                      <button aria-label="Delete this shared recording"
                         onClick={() => { void deleteCloudRun(r.id).then(refreshCloud); }}>✕</button>
                     )}
                   </div>
@@ -310,9 +310,9 @@ export function PerfScreen(): JSX.Element | null {
                   {r.build ? <i>{r.build}</i> : null}
                 </button>
                 <div className="perfsc-run-acts">
-                  <button title="Compare the open recording against this one"
+                  <button aria-description="Compare the open recording against this one"
                     onClick={() => { void pick(r.id, 'prev'); }}>vs</button>
-                  <button title="Delete" onClick={() => { void deleteRun(r.id).then(refresh); }}>✕</button>
+                  <button aria-label="Delete" onClick={() => { void deleteRun(r.id).then(refresh); }}>✕</button>
                 </div>
               </div>
             ))}
@@ -340,7 +340,7 @@ export function PerfScreen(): JSX.Element | null {
                   <div className="perfsc-stat"><b>{Math.round(cur.d.attribution * 100)}<i>%</i></b><span>time attributed</span></div>
                   <div className="perfsc-actions">
                     <button className="perfsc-copy" onClick={copy}>📋 Copy report for Claude</button>
-                    <button className="perfsc-share" onClick={share} title="Upload this recording so the other machine can read it">⬆ Share</button>
+                    <button className="perfsc-share" onClick={share} aria-description="Upload this recording so the other machine can read it">⬆ Share</button>
                     {copied ? <span className="perfsc-copied">{copied}</span> : null}
                     {busy ? <span className="perfsc-copied">{busy}</span> : null}
                   </div>
@@ -366,7 +366,7 @@ export function PerfScreen(): JSX.Element | null {
                         </thead>
                         <tbody>
                           {offenders.map((o) => (
-                            <tr key={o.label} title={o.label}>
+                            <tr key={o.label} aria-label={o.label}>
                               <td>{shortName(o.label)} <small style={{ color: '#6c5d48' }}>{o.label}</small></td>
                               <td>
                                 <span className="perfsc-bar" style={{ '--w': `${Math.round(o.share * 100)}%` } as React.CSSProperties} />

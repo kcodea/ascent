@@ -300,7 +300,7 @@ describe('Thymepiece — all cards cost 1 less Gold for the next 8 seconds (owne
   });
 });
 
-describe('Han Gover — "Pummel (40): Get a Dwarven Ale. (Once per combat)" (owner handoff 2026-09-18; Pummel keyword 2026-09-21; carry-over ruling later that day)', () => {
+describe('Han Gover — "Pummel (40): Get a Dwarven Ale. (Max 5 per combat.)" (owner handoff 2026-09-18; Pummel keyword 2026-09-21; carry-over ruling later that day; cap 5 owner 2026-09-24)', () => {
   const ALES = ['wo_mine', 'wo_reinforcement', 'wo_champion', 'wo_health', 'wo_attack'];
   const foe = (attack: number, health: number, keywords: string[] = []): BoardMinion =>
     ({ cardId: 'sandbag', attack, health, keywords } as unknown as BoardMinion);
@@ -315,12 +315,12 @@ describe('Han Gover — "Pummel (40): Get a Dwarven Ale. (Once per combat)" (own
   const toHandFromGover = (r: ReturnType<typeof fight>) =>
     r.events.filter((e) => e.type === 'toHand' && (e as { source?: string }).source === r.initial.player[0]!.uid);
 
-  it('the card: T4 4/7 Dwarf/Undead, a passive marker, both texts in the Pummel form (no dash, no cap)', () => {
+  it('the card: T4 4/7 Dwarf/Undead, a passive marker capped at 5 per combat, both texts in the Pummel form (owner 2026-09-24)', () => {
     const d = CARD_INDEX['dw3_hangover']!;
     expect([d.tier, d.attack, d.health, d.tribe, d.tribe2]).toEqual([4, 4, 7, 'dwarf', 'undead']);
-    expect(d.effects).toEqual([{ on: 'passive', do: 'dealtDamageAleMeter', params: { every: 40, count: 1 } }]);
-    expect(d.text).toBe('**Pummel (40):** Get a **Dwarven Ale**. (Once per combat)');
-    expect(d.goldenText).toBe('**Pummel (40):** Get **2 Dwarven Ales**. (Once per combat)');
+    expect(d.effects).toEqual([{ on: 'passive', do: 'dealtDamageAleMeter', params: { every: 40, count: 1, maxPerCombat: 5 } }]);
+    expect(d.text).toBe('**Pummel (40):** Get a **Dwarven Ale**. (Max 5 per combat.)');
+    expect(d.goldenText).toBe('**Pummel (40):** Get **2 Dwarven Ales**. (Max 5 per combat.)');
     expect(d.text).not.toContain('Max 2 per hit');
   });
 
@@ -357,20 +357,32 @@ describe('Han Gover — "Pummel (40): Get a Dwarven Ale. (Once per combat)" (own
     expect(alesGranted(r).length).toBe(1);
   });
 
-  it('ONCE PER COMBAT: 80 damage in one fight (40 + 40) pays ONE Ale — the latch holds after the first payout; the tally still reaches 80', () => {
+  it('MAX 5 PER COMBAT: 80 damage in one fight (40 + 40) pays TWO Ales, one per crossing; the tally reaches 80', () => {
     const r = fight([gover({ attack: 40 })], [foe(0, 40), foe(0, 40)]);
-    expect(alesGranted(r).length).toBe(1);
-    expect(toHandFromGover(r).length).toBe(1);
-    expect(r.playerDamageMeters, 'the second crossing is spent, not banked').toEqual([{ sourceUid: 'hg', total: 80 }]);
+    expect(alesGranted(r).length).toBe(2);
+    expect(toHandFromGover(r).length).toBe(2);
+    expect(r.events.filter((e) => e.type === 'pummelTrigger').length, 'one trigger per payout').toBe(2);
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 80 }]);
   });
 
-  it('ONCE PER COMBAT: one enormous hit that passes 40 twice over (85) still pays ONE Ale; 120 pays one and the next payout waits for 160', () => {
+  it('MAX 5 PER COMBAT: seven 40-damage hits pay FIVE Ales, and no 6th (the extra crossings are spent, the tally still reaches 280)', () => {
+    const r = fight([gover({ attack: 40 })], Array.from({ length: 7 }, () => foe(0, 40)));
+    expect(alesGranted(r).length).toBe(5);
+    expect(r.events.filter((e) => e.type === 'pummelTrigger').length).toBe(5);
+    expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 280 }]);
+    // One enormous hit that crosses 6 multiples (240) pays the cap, 5, not 6.
+    expect(alesGranted(fight([gover({ attack: 240 })], [foe(0, 1)])).length).toBe(5);
+    // A fresh combat re-arms the cap: seeded at 280, another 40 pays again.
+    expect(alesGranted(fight([gover({ attack: 40, damageDealt: 280 })], [foe(0, 1)])).length).toBe(1);
+  });
+
+  it('one enormous hit pays once PER multiple crossed (85 → two Ales, 120 → three); the next payout waits for 160', () => {
     const r = fight([gover({ attack: 85 })], [foe(0, 1)]);
-    expect(alesGranted(r).length).toBe(1);
+    expect(alesGranted(r).length).toBe(2);
     expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 85 }]);
     const r120 = fight([gover({ attack: 120 })], [foe(0, 1)]);
-    expect(alesGranted(r120).length).toBe(1);
-    expect(r120.playerDamageMeters, 'the meter advanced by the FULL 120 — the extra crossings are spent').toEqual([{ sourceUid: 'hg', total: 120 }]);
+    expect(alesGranted(r120).length).toBe(3);
+    expect(r120.playerDamageMeters, 'the meter advanced by the FULL 120').toEqual([{ sourceUid: 'hg', total: 120 }]);
     // Next combat, seeded at 120: 39 more (159) crosses nothing; 40 more (160) pays.
     expect(alesGranted(fight([gover({ attack: 39, damageDealt: 120 })], [foe(0, 1)]))).toEqual([]);
     const r160 = fight([gover({ attack: 40, damageDealt: 120 })], [foe(0, 1)]);
@@ -378,12 +390,12 @@ describe('Han Gover — "Pummel (40): Get a Dwarven Ale. (Once per combat)" (own
     expect(r160.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 160 }]);
   });
 
-  it('GILDED: the one Pummel pays TWO Ales, and nothing else doubles', () => {
+  it('GILDED: each Pummel pays TWO Ales, and nothing else doubles (the cap still counts payouts, not Ales)', () => {
     const r = fight([gover({ attack: 20, golden: true })], [foe(0, 20), foe(0, 20)]);
     expect(alesGranted(r).length).toBe(2);
     expect(toHandFromGover(r).length).toBe(2);
     expect(r.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 40 }]);
-    expect(fight([gover({ attack: 85, golden: true })], [foe(0, 1)]).playerHandGrants?.filter((id) => ALES.includes(id)).length, 'still 2 on one huge hit').toBe(2);
+    expect(fight([gover({ attack: 85, golden: true })], [foe(0, 1)]).playerHandGrants?.filter((id) => ALES.includes(id)).length, 'two crossings × 2 Ales').toBe(4);
   });
 
   it('CARRY-OVER: the tally persists ACROSS combats, seeded from the run card exactly as the reducer seeds it: 30 then 13 → 43 (one Ale), then 39 → 82 (a second Ale)', () => {
@@ -431,7 +443,7 @@ describe('Han Gover — "Pummel (40): Get a Dwarven Ale. (Once per combat)" (own
     expect(r2.playerDamageMeters).toEqual([{ sourceUid: 'hg', total: 80 }]);
   });
 
-  it('once per COMBAT survives a Rise: the risen body does not re-arm, and the tally rides through the Rise', () => {
+  it('the per-combat count survives a Rise: the tally rides through the Rise on the same instance', () => {
     // 40 Attack, 1 Health, Rise: the first clash lands 40 (pays) and kills it; it rises at its printed 4 Attack and
     // lands more before the second foe finishes it. No second Ale: the latch rode through the Rise.
     const r = fight([gover({ attack: 40, health: 1, keywords: ['R'] })], [foe(1, 40), foe(1, 100)]);

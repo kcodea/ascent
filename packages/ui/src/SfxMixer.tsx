@@ -66,7 +66,7 @@ export function SfxMixer() {
 
   /** A number field bound to a value; commits any parseable number (ignores mid-typing junk), clamped. */
   const numField = (value: number, min: number, max: number, apply: (n: number) => void, title: string) => (
-    <input className="numf" type="number" min={min} max={max} step="any" value={tidy(value)} title={title}
+    <input className="numf" type="number" min={min} max={max} step="any" value={tidy(value)} aria-label={title}
       onChange={(e) => { const n = parseFloat(e.target.value); if (!Number.isNaN(n)) { apply(clamp(n, min, max)); rerender(); } }} />
   );
 
@@ -90,7 +90,7 @@ export function SfxMixer() {
                 <input className="vfader tiny" type="range" min={min} max={max} step={step} value={cfg.master[k]}
                   onChange={(e) => { setMasterComp(k, Number(e.target.value)); rerender(); }} />
                 {numField(cfg.master[k], min, max, (n) => setMasterComp(k, n), `master limiter ${k}`)}
-                <span className="vdial-l" title={`master limiter ${k}`}>{k}</span>
+                <span className="vdial-l" aria-label={`master limiter ${k}`}>{k}</span>
               </div>
             ))}
           </div>
@@ -127,12 +127,12 @@ export function SfxMixer() {
                   <input className="vfader sm" type="range" min={0} max={1} step={0.01} value={c.gain}
                     onChange={(e) => { setCategory(cat, { gain: Number(e.target.value) }); rerender(); }} />
                   {numField(c.gain, 0, 1, (n) => setCategory(cat, { gain: n }), `${cat} level`)}
-                  <button className="play" onClick={() => previewSfx(cat)} title={`Play ${CATEGORY_LABEL[cat] ?? cat}`}>▶</button>
-                  <select value={c.bus} title="move this sound to another bus"
+                  <button className="play" onClick={() => previewSfx(cat)} aria-label={`Play ${CATEGORY_LABEL[cat] ?? cat}`}>▶</button>
+                  <select value={c.bus} aria-label="move this sound to another bus"
                     onChange={(e) => { setCategory(cat, { bus: e.target.value as BusName }); rerender(); }}>
                     {BUS_NAMES.map((x) => <option key={x} value={x}>{x}</option>)}
                   </select>
-                  <div className="cstrip-name" title={CATEGORY_LABEL[cat] ? `${CATEGORY_LABEL[cat]} (${cat})` : cat}>{CATEGORY_LABEL[cat] ?? cat}</div>
+                  <div className="cstrip-name" aria-label={CATEGORY_LABEL[cat] ? `${CATEGORY_LABEL[cat]} (${cat})` : cat}>{CATEGORY_LABEL[cat] ?? cat}</div>
                   {/* Per-clip CHANNEL faders — one per sound bundled under this group. Only when the group holds
                       MORE than one clip; a 1-clip category's group fader above already moves its single sound.
                       Each fader is a multiplier on top of the group (1 = untouched → the mix is unchanged). */}
@@ -140,11 +140,11 @@ export function SfxMixer() {
                     <div className="clip-faders">
                       {(clipsByCat.get(cat) ?? []).map((clip) => (
                         <div className="clipstrip" key={clip}>
-                          <button className="play" onClick={() => previewClip(clip)} title={`Play ${CLIP_LABEL[clip] ?? clip}`}>▶</button>
+                          <button className="play" onClick={() => previewClip(clip)} aria-label={`Play ${CLIP_LABEL[clip] ?? clip}`}>▶</button>
                           <input className="chfader" type="range" min={0} max={2} step={0.01} value={clipGain(clip)}
                             onChange={(e) => { setClipGain(clip, Number(e.target.value)); rerender(); }} />
                           {numField(clipGain(clip), 0, 2, (n) => setClipGain(clip, n), `${clip} channel level (× group)`)}
-                          <div className="clipstrip-name" title={clip}>{CLIP_LABEL[clip] ?? clip}</div>
+                          <div className="clipstrip-name" aria-label={clip}>{CLIP_LABEL[clip] ?? clip}</div>
                         </div>
                       ))}
                     </div>

@@ -79,7 +79,7 @@ function LungeReadout(): JSX.Element {
     <div className="lunge-read">
       <div className="lunge-read-h">
         <span>Last swing</span>
-        <button onClick={clearLungeSamples} title="Clear the sample buffer">clear</button>
+        <button onClick={clearLungeSamples} aria-description="Clear the sample buffer">clear</button>
       </div>
       {last ? (
         <>

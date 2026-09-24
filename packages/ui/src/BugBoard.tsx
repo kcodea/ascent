@@ -230,10 +230,10 @@ export function BugBoard({ onClose }: { onClose: () => void }): JSX.Element {
 
       <div style={{ display: 'flex', gap: 6, padding: '8px 16px', flexWrap: 'wrap', alignItems: 'center', borderBottom: '1px solid #2a2e40' }}>
         <span style={pillLabel}>status</span>
-        <button onClick={() => setStatusFilter(UNRESOLVED_FILTER)} style={btn(statusFilter === UNRESOLVED_FILTER ? '#3d5a3d' : '#2a2e40')} title="Every report that still needs work — the default">
+        <button onClick={() => setStatusFilter(UNRESOLVED_FILTER)} style={btn(statusFilter === UNRESOLVED_FILTER ? '#3d5a3d' : '#2a2e40')} aria-description="Every report that still needs work — the default">
           unresolved ({OPEN_STATUSES.reduce((n, st) => n + (counts[st] ?? 0), 0)})
         </button>
-        <button onClick={() => setStatusFilter('all')} style={btn(statusFilter === 'all' ? '#3d5a3d' : '#2a2e40')} title="Including fixed, closed and duplicates">all</button>
+        <button onClick={() => setStatusFilter('all')} style={btn(statusFilter === 'all' ? '#3d5a3d' : '#2a2e40')} aria-description="Including fixed, closed and duplicates">all</button>
         {BUG_BOARD_STATUSES.filter((s) => counts[s]).map((s) => (
           <button key={s} onClick={() => setStatusFilter(s)} style={btn(statusFilter === s ? '#3d5a3d' : '#2a2e40')}>{s} ({counts[s]})</button>
         ))}
@@ -280,13 +280,13 @@ export function BugBoard({ onClose }: { onClose: () => void }): JSX.Element {
                     <input type="checkbox" checked={picked} onChange={() => togglePicked(r.id)} aria-label={`pick ${r.id}`} />
                     pick
                   </label>
-                  <span title={r.issue_type} style={{ fontSize: 14 }}>{ISSUE_ICONS[r.issue_type] ?? '❓'}</span>
+                  <span aria-label={r.issue_type} style={{ fontSize: 14 }}>{ISSUE_ICONS[r.issue_type] ?? '❓'}</span>
                   <span style={{ fontSize: 12, padding: '1px 8px', borderRadius: 10, background: STATUS_COLORS[r.status] ?? '#5a5f70', color: '#14151c', fontWeight: 700 }}>
                     {r.status}
                   </span>
                   {r.priority !== null && <span style={{ fontSize: 11, color: '#e6d9a8' }}>#{r.priority}</span>}
                   {dupes > 1 && (
-                    <span title={`${dupes} reports share this fingerprint`} style={{ fontSize: 11, padding: '1px 7px', borderRadius: 10, background: '#5a5030', color: '#f0e6c0', fontWeight: 700 }}>
+                    <span aria-description={`${dupes} reports share this fingerprint`} style={{ fontSize: 11, padding: '1px 7px', borderRadius: 10, background: '#5a5030', color: '#f0e6c0', fontWeight: 700 }}>
                       ×{dupes}
                     </span>
                   )}
@@ -350,7 +350,7 @@ export function BugBoard({ onClose }: { onClose: () => void }): JSX.Element {
               return (
                 <div key={id} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6, fontSize: 12, border: '1px solid #3a3f55', borderRadius: 6, padding: '4px 8px', background: '#161a28' }}>
                   <span style={{ opacity: 0.7, minWidth: 18 }}>{i + 1}.</span>
-                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r?.description}>
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} aria-label={r?.description}>
                     {ISSUE_ICONS[r?.issue_type ?? ''] ?? '❓'} {r?.description ?? id}
                   </span>
                   <button aria-label={`move ${id} up`} onClick={() => setStack((s) => moveInStack(s, id, -1))} style={btnTiny}>▲</button>

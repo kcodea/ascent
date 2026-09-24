@@ -735,10 +735,10 @@ export function StatusBar() {
               + −X float when a wave breaks through. */}
           <div
             className={`hpbox${hit ? ' hit' : ''}`}
-            title={`Health: ${run.resolve} of ${run.maxResolve}${run.maxArmor ? ` · Armor ${run.armor} of ${run.maxArmor}` : ''}`}
+            aria-label={`Health: ${run.resolve} of ${run.maxResolve}${run.maxArmor ? ` · Armor ${run.armor} of ${run.maxArmor}` : ''}`}
           >
             <Icon name="heart" />
-            <span className="hpval">{run.resolve}{run.armor > 0 && <b className="armval" title="Armor. Absorbs damage before your Health.">+{run.armor}</b>}</span>
+            <span className="hpval">{run.resolve}{run.armor > 0 && <b className="armval" aria-description="Armor. Absorbs damage before your Health.">+{run.armor}</b>}</span>
             {hit && <span className="resfx" key={hit.key}>−{hit.amt}</span>}
           </div>
         </div>
@@ -912,10 +912,11 @@ export function StatusBar() {
           {/* HENCHMAN recruit chip — placeholder presentation (see the `henchman` derivation above). */}
           {henchman && henchmanDef && (
             <button
-              className="hmn-btn"
+              className="hmn-btn gtip"
               disabled={run.embers < henchman.cost || eotAnimating}
               onClick={() => dispatch({ type: 'buyHenchman' })}
-              title={`Recruit ${henchmanDef.name}, your hero's henchman. Costs ${henchman.cost} Gold. It gets cheaper every round: win −3, loss −2.`}
+              aria-description={`Recruit ${henchmanDef.name}, your hero's henchman. Costs ${henchman.cost} Gold. It gets cheaper every round: win −3, loss −2.`}
+              data-tip={`Recruit ${henchmanDef.name}, your hero's henchman. Costs ${henchman.cost} Gold. It gets cheaper every round: win −3, loss −2.`}
             >
               {henchmanDef.name} · {henchman.cost === 0 ? 'FREE' : `${henchman.cost}g`}
             </button>

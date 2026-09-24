@@ -593,6 +593,7 @@ export const EffectFactoryIdSchema = z.enum([
   // ── Set 3 Neutrals, owner handoff 2026-09-19 ──
   'onDamagedReflectRandomEnemies', // Yeti: the first time this takes damage each combat, deal that amount to N random enemies
   // ── Set 3 Kobolds, owner handoff 2026-09-19 ──
+  'dealtDamageGrantRandomTribe',  // Maestro Lux (2026-09-24): Pummel (N) — the same meter, a random-tribe-minion body
   'dealtDamageGoldNextTurn',      // Goldvein: Pummel (N) — Han Gover's damage-dealt meter with a Gold-next-turn body, once per combat
 ]);
 

@@ -792,7 +792,7 @@ function recNote(s: string): Rec | null {
 /** Whole-sentence limits: "Once per combat." / "3 times per combat." / "Usable twice per turn." / "(Twice per combat)". */
 function recLimitSentence(s: string): Rec | null {
   // "(Max 2 per hit)" — a payout cap per event (Han Gover, 2026-09-19): the same limit note, unit `per-hit`.
-  const cap = /^\(Max (\d+) per (hit|turn|combat)\)\.?$/.exec(s.trim());
+  const cap = /^\(Max (\d+) per (hit|turn|combat)\.?\)\.?$/.exec(s.trim()); // "(Max 5 per combat.)" (Han Gover 2026-09-24)
   if (cap) return { effect: { kind: 'note', action: 'limit', amount: { value: Number(cap[1]), unit: `per-${cap[2]}` } }, len: s.length };
   // `\.?\)?\.?` — "(Once per turn.)" keeps its full stop inside the parenthesis (Rune of the Gem Dividend, balance 9/23).
   const m = /^\(?(?:Usable )?(Once|Twice|once|twice|\d+ times|\d+ uses)(?: per (turn|combat|game|run))?\.?\)?\.?$/.exec(s.trim());
@@ -900,7 +900,7 @@ const EFFECT_TAIL = new RegExp('^\\s*(?:,\\s*)?(?:'
   + '|when summoned in combat|when summoned|when there is room|when you have room|when you first have room|at End of Turn|at Start of Combat|at the start of your next shop|at the start of next combat'
   + '|for the next \\d+ turns|every turn|each turn|per turn|\\(shop or combat\\)|\\(random\\)|\\(as room allows\\)|\\(Deathrattle\\)|\\(up to Tier \\d+\\)|\\(up to your tavern tier\\)'
   + '|\\(at least \\+\\d+\\/\\+\\d+\\)|\\(\\+\\d+\\/\\+\\d+ during combat\\)|\\(can\'t die from that attack\\)|\\(costs \\d+\\)|\\(twice as much\\)|— even in the shop —|with (?:Taunt|Ward)(?: and (?:Taunt|Ward))?'
-  + '|only in combat|if it is a (?:Kobold|Dragon)|if none are alive|if you play it this turn|with this on board|while Pack Leader is on the board|while attacking|and it attacks first|plus (?:double )?this minion\'s Rubies'
+  + '|only in combat|if it is a (?:Kobold|Dragon)|if none are alive|if you play it this turn|with this on board|while Pack Leader is on the board|while attacking|and it attacks first|plus (?:double )?this minion\'s Rubies|with (?:double )?this minion\'s Rubies'
   + '|\\(procs its Deathrattle\\)|\\(takes no damage back\\)|on your board|that has learned it|from the Shop|from the tavern|of that Tier|of the same Tier|in the Shop|on this|onto this|to them|on them'
   + ')(?=[\\s.,;)]|$)');
 
@@ -914,7 +914,9 @@ const SCALER_RE = /^\s*(?:,\s*)?(?:(?:plus|and) (\+\d+\/\+\d+|\+\d+ (?:Attack|He
  *  parser's mid-text "Taunt. Echo: …" gap — every prefix after the first sentence failed on the space). */
 function sentences(stripped: string): Array<{ text: string; start: number }> {
   const out: Array<{ text: string; start: number }> = [];
-  const re = /[^.!;]+[.!;]?/g;
+  // `\)?` — a parenthetical that keeps its full stop inside ("(Once per combat.)", "(Max 5 per combat.)",
+  // owner texts 2026-09-24) stays ONE sentence instead of stranding a lone ")".
+  const re = /[^.!;]+[.!;]?\)?/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(stripped))) {
     const lead = /^\s*/.exec(m[0])![0].length;

@@ -55,7 +55,6 @@ const RailRow = memo(function RailRow({ mark, goldSpent, actions, tierAtStart, i
         className={`roundrail-cell shop pressable${activeCell === 'shop' ? ' active' : ''}`}
         disabled={mark.shopIndex === undefined}
         onClick={() => onShop(mark.wave)}
-        title={`Round ${mark.wave}. Jump to the shop.`}
         aria-label={`Round ${mark.wave} recruit`}
         aria-current={activeCell === 'shop' ? 'step' : undefined}
       >
@@ -66,7 +65,6 @@ const RailRow = memo(function RailRow({ mark, goldSpent, actions, tierAtStart, i
         className={`roundrail-cell combat pressable${activeCell === 'combat' ? ' active' : ''}`}
         disabled={mark.combatIndex === undefined}
         onClick={() => onCombat(mark.wave)}
-        title={`Round ${mark.wave}. Play the fight from its start.`}
         aria-label={`Round ${mark.wave} combat`}
         aria-current={activeCell === 'combat' ? 'step' : undefined}
       >
@@ -80,7 +78,7 @@ const RailRow = memo(function RailRow({ mark, goldSpent, actions, tierAtStart, i
       <span className="roundrail-val">{tierAtStart ?? '—'}</span>
       <span
         className={`roundrail-val win${win === null ? '' : win >= 50 ? ' good' : ' bad'}`}
-        title={win === null
+        aria-label={win === null
           ? 'Win chance not yet computed'
           : info?.winApprox
             ? 'Estimated from the recorded boards (this recording predates stamped odds)'
@@ -233,7 +231,7 @@ export function RoundRail(): JSX.Element | null {
             {session.ended ? 'Final' : `R${session.round}`}
             <i className="roundrail-mini-phase">{session.ended ? '' : session.phase === 'combat' ? ' ⚔' : ' ⚒'}</i>
           </span>
-          <button type="button" className="roundrail-toggle pressable" onClick={toggleCollapsed} title="Expand the round rail" aria-label="Expand the round rail" aria-expanded={false}>▸</button>
+          <button type="button" className="roundrail-toggle pressable" onClick={toggleCollapsed} aria-label="Expand the round rail" aria-expanded={false}>▸</button>
         </div>
       </div>
     );
@@ -245,14 +243,14 @@ export function RoundRail(): JSX.Element | null {
         <div className="roundrail-bar">
           {grab}
           <span className="roundrail-title">Rounds</span>
-          <button type="button" className="roundrail-toggle pressable" onClick={toggleCollapsed} title="Collapse the round rail" aria-label="Collapse the round rail" aria-expanded={true}>◂</button>
+          <button type="button" className="roundrail-toggle pressable" onClick={toggleCollapsed} aria-label="Collapse the round rail" aria-expanded={true}>◂</button>
         </div>
         {/* PARTIAL recording: state the recorded range BEFORE playback rather than letting a rail that starts
             at R7 read as "rounds were filtered out". Since draft persistence shipped (2026-08-20) an ordinary
             quit-and-resume records in full, so this is the honest label for the cases that failed anyway —
             a pre-persistence recording, or storage that refused. */}
         {session.partial && (
-          <div className="roundrail-partial" title="This recording does not cover the whole run. The earlier rounds were never captured.">
+          <div className="roundrail-partial" aria-label="This recording does not cover the whole run. The earlier rounds were never captured.">
             <span className="roundrail-partial-tag">Partial replay</span>
             <span className="roundrail-partial-range">Rounds {session.partial.firstWave}–{session.partial.lastWave} recorded</span>
           </div>
@@ -260,12 +258,12 @@ export function RoundRail(): JSX.Element | null {
         <div className="roundrail-grid" role="table" aria-label="Rounds">
           <div className="roundrail-head" role="row">
             <span role="columnheader">Round</span>
-            <span role="columnheader" title="Jump to the round's shop">Recruit</span>
-            <span role="columnheader" title="Play the round's fight from its start">Combat</span>
-            <span role="columnheader" title="Gold spent this round">Gold</span>
-            <span role="columnheader" title="Actions this turn">Acts</span>
-            <span role="columnheader" title="Shop tier at the start of the turn">Tier</span>
-            <span role="columnheader" title="The game's computed chance of winning the round's fight">Win %</span>
+            <span role="columnheader" aria-description="Jump to the round's shop">Recruit</span>
+            <span role="columnheader" aria-description="Play the round's fight from its start">Combat</span>
+            <span role="columnheader" aria-description="Gold spent this round">Gold</span>
+            <span role="columnheader" aria-description="Actions this turn">Acts</span>
+            <span role="columnheader" aria-description="Shop tier at the start of the turn">Tier</span>
+            <span role="columnheader" aria-description="The game's computed chance of winning the round's fight">Win %</span>
           </div>
           {marks.map((m) => {
             const s = byWave.get(m.wave);

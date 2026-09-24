@@ -329,7 +329,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
         <span className="sb-emblem" aria-hidden>🧩</span>
         <span className="sb-title">Scene Builder</span>
         <span className="sb-status">{roundLabel} · {sbRules === 'god' ? 'god' : 'normal'}</span>
-        <button className="sb-collapse" onPointerDown={(e) => e.stopPropagation()} onClick={() => setCollapsed((c) => !c)} title={collapsed ? 'Expand' : 'Collapse'}>{collapsed ? '▸' : '▾'}</button>
+        <button className="sb-collapse" onPointerDown={(e) => e.stopPropagation()} onClick={() => setCollapsed((c) => !c)} aria-label={collapsed ? 'Expand' : 'Collapse'}>{collapsed ? '▸' : '▾'}</button>
       </div>
 
       {!collapsed && (
@@ -342,7 +342,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
                 <span className="sb-mini">hero</span>
                 <select className="sb-select" value={run?.heroId ?? 'warden'}
                   onChange={(e) => startSceneBuilder(e.target.value, setId)}
-                  title="Switch hero (restarts the sandbox so the hero's opener runs)">
+                  aria-label="Switch hero (restarts the sandbox so the hero's opener runs)">
                   {HERO_OPTIONS.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
                 </select>
               </label>
@@ -350,7 +350,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
                 <span className="sb-mini">set</span>
                 <select className="sb-select" value={setId}
                   onChange={(e) => startSceneBuilder(run?.heroId ?? 'warden', e.target.value as SetId)}
-                  title="Play an unreleased set here without flipping the global switch — real runs are unaffected">
+                  aria-label="Play an unreleased set here without flipping the global switch — real runs are unaffected">
                   {SET_OPTIONS.map((s) => (
                     <option key={s.id} value={s.id}>{s.name}{s.enabled ? ' (live)' : ''} — {s.minions}m · {s.spells}s</option>
                   ))}
@@ -367,23 +367,23 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
             <div className="sb-seg" role="radiogroup" aria-label="Sandbox rules">
               <button type="button" role="radio" aria-checked={sbRules === 'god'}
                 className={`sb-seg-btn${sbRules === 'god' ? ' on' : ''}`} onClick={() => setSbRules('god')}
-                title="Infinite time and Gold — build anything, nothing rushes you">✦ God mode</button>
+                aria-description="Infinite time and Gold — build anything, nothing rushes you">✦ God mode</button>
               <button type="button" role="radio" aria-checked={sbRules === 'normal'}
                 className={`sb-seg-btn${sbRules === 'normal' ? ' on' : ''}`} onClick={() => setSbRules('normal')}
-                title="The real shop clock and the real per-turn Gold — every authoring tool stays live">⏱ Normal</button>
+                aria-description="The real shop clock and the real per-turn Gold — every authoring tool stays live">⏱ Normal</button>
             </div>
             <div className="sb-two sb-two-tight">
               <label className="sb-field">
                 <span className="sb-mini">bots</span>
                 <select className="sb-select" value={sbBotLevel}
                   onChange={(e) => startSceneBuilder(run?.heroId ?? 'warden', setId, Number(e.target.value) as BotLevel)}
-                  title="Bot strength for the seven other seats (restarts the sandbox — the seats are built at creation)">
+                  aria-label="Bot strength for the seven other seats (restarts the sandbox — the seats are built at creation)">
                   {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const).map((n) => (
                     <option key={n} value={n}>level {n}{n === 1 ? ' — gentlest' : n === 10 ? ' — hardest' : ''}</option>
                   ))}
                 </select>
               </label>
-              <button className="sb-btn sb-btn-tall" onClick={() => startSceneBuilder(run?.heroId ?? 'warden', setId)} title="Start the sandbox over with a fresh lobby (same hero, set and rules)">↺ restart</button>
+              <button className="sb-btn sb-btn-tall" onClick={() => startSceneBuilder(run?.heroId ?? 'warden', setId)} aria-description="Start the sandbox over with a fresh lobby (same hero, set and rules)">↺ restart</button>
             </div>
             <div className="sb-mini sb-note">you can't be eliminated under either rule set</div>
           </Sec>
@@ -391,16 +391,16 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
           {/* TABLE — Gold, time, tier and the board sweeps, as one grid of same-sized tiles. */}
           <Sec id="table" title="Table" folded={folded} onFold={fold}>
             <div className="sb-tiles">
-              <button className="sb-tile" onClick={giveGold} title="Add 1000 Gold"><b>+1000</b> gold</button>
+              <button className="sb-tile" onClick={giveGold} aria-description="Add 1000 Gold"><b>+1000</b> gold</button>
               {sbRules === 'god' ? (
-                <button className={`sb-tile${refill ? ' on' : ''}`} onClick={() => setRefill((r) => !r)} title="Keep Gold topped up at 999" aria-pressed={refill}><b>∞</b> refill</button>
+                <button className={`sb-tile${refill ? ' on' : ''}`} onClick={() => setRefill((r) => !r)} aria-description="Keep Gold topped up at 999" aria-pressed={refill}><b>∞</b> refill</button>
               ) : (
-                <button className="sb-tile" onClick={freezeTime} title="Freeze the turn timer"><b>❄</b> freeze</button>
+                <button className="sb-tile" onClick={freezeTime} aria-description="Freeze the turn timer"><b>❄</b> freeze</button>
               )}
-              {sbRules === 'god' && <button className="sb-tile" onClick={freezeTime} title="Freeze the turn timer"><b>❄</b> freeze</button>}
-              <button className="sb-tile" onClick={clearShop} title="Empty the shop row"><b>⌫</b> shop</button>
-              <button className="sb-tile" onClick={clearBoard} title="Empty your board"><b>⌫</b> board</button>
-              <button className="sb-tile sb-tile-warn" onClick={clearAll} title="Empty shop, board and hand"><b>⌫</b> all</button>
+              {sbRules === 'god' && <button className="sb-tile" onClick={freezeTime} aria-description="Freeze the turn timer"><b>❄</b> freeze</button>}
+              <button className="sb-tile" onClick={clearShop} aria-description="Empty the shop row"><b>⌫</b> shop</button>
+              <button className="sb-tile" onClick={clearBoard} aria-description="Empty your board"><b>⌫</b> board</button>
+              <button className="sb-tile sb-tile-warn" onClick={clearAll} aria-description="Empty shop, board and hand"><b>⌫</b> all</button>
             </div>
             <div className="sb-row sb-tierrow">
               <span className="sb-mini">tier</span>
@@ -418,19 +418,19 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
           <Sec id="enemy" title="Enemy" folded={folded} onFold={fold}
             right={foeShown ? <span className="sb-count">{foeCount} / {MAX_BOARD}{run?.lobby && !rigAuthored ? ' · paired seat' : rigAuthored ? ' · authored' : ''}</span> : undefined}>
             <div className="sb-seg" role="radiogroup" aria-label="Top row shows">
-              <button type="button" role="radio" aria-checked={!foeShown} className={`sb-seg-btn${!foeShown ? ' on' : ''}`} onClick={() => setSbTavernShowsEnemy(false)} title="The top row shows the shop">shop row</button>
-              <button type="button" role="radio" aria-checked={foeShown} className={`sb-seg-btn${foeShown ? ' on' : ''}`} onClick={() => setSbTavernShowsEnemy(true)} title="The top row shows the opponent you are about to fight">enemy row</button>
+              <button type="button" role="radio" aria-checked={!foeShown} className={`sb-seg-btn${!foeShown ? ' on' : ''}`} onClick={() => setSbTavernShowsEnemy(false)} aria-description="The top row shows the shop">shop row</button>
+              <button type="button" role="radio" aria-checked={foeShown} className={`sb-seg-btn${foeShown ? ' on' : ''}`} onClick={() => setSbTavernShowsEnemy(true)} aria-description="The top row shows the opponent you are about to fight">enemy row</button>
             </div>
             <div className="sb-tiles sb-tiles-3">
               <button className={`sb-tile${sbEditMode ? ' on' : ''}`} onClick={() => setSbEditMode(!sbEditMode)} aria-pressed={sbEditMode}
-                title="Click a minion on either row to set its card, attack, health and keywords"><b>✎</b> {sbEditMode ? 'editing' : 'edit'}</button>
+                aria-label="Click a minion on either row to set its card, attack, health and keywords"><b>✎</b> {sbEditMode ? 'editing' : 'edit'}</button>
               <button className="sb-tile" disabled={!foeShown || foeCount >= MAX_BOARD} onClick={addEnemyFromPanel}
-                title={foeShown ? 'Add a minion to the enemy row' : 'Show the enemy row first'}><b>+</b> enemy</button>
+                aria-description={foeShown ? 'Add a minion to the enemy row' : 'Show the enemy row first'}><b>+</b> enemy</button>
               {/* Tuning an effect means watching the same moment many times. This re-mounts the replay on the
                   CombatResult already stored — same boards, same seed, same beats — and resolves nothing.
                   Recruit phase ONLY: a click DURING a live fight re-entered a phase it was already in. */}
               <button className="sb-tile" disabled={run?.lastCombat === undefined || run.phase !== 'recruit'} onClick={replayLastCombat}
-                title="Watch the last fight again — nothing advances"><b>↻</b> rewatch</button>
+                aria-description="Watch the last fight again — nothing advances"><b>↻</b> rewatch</button>
             </div>
             {/* DUMMIES — edited with the game's own stat badges (owner ask 2026-09-16): the red Attack and
                 green Health circles a card wears, typeable in place; ↑/↓ or the wheel step by 1 (Shift = 5).
@@ -442,12 +442,12 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
                 <StatBadgeField stat="atk" value={enemyAtk} min={0} onCommit={setEnemyAtk} title="Attack — click to type, ↑/↓ or wheel to step (Shift = 5)" />
                 <StatBadgeField stat="hp" value={enemyHp} min={1} onCommit={setEnemyHp} title="Health — click to type, ↑/↓ or wheel to step (Shift = 5)" />
               </span>
-              <button className="sb-btn sb-primary" onClick={() => setEnemies(enemyHp, enemyAtk, enemyN)} title="Pin these dummies as the next fight's opponent">set</button>
+              <button className="sb-btn sb-primary" onClick={() => setEnemies(enemyHp, enemyAtk, enemyN)} aria-description="Pin these dummies as the next fight's opponent">set</button>
             </div>
             <div className="sb-row">
-              <button className="sb-btn" onClick={() => setEnemies(1, 0, 7)} title="7 glass dummies (1 hp)">glass ×7</button>
-              <button className="sb-btn" onClick={() => setEnemies(300, 0, 1)} title="1 tank dummy (300 hp)">tank</button>
-              <button className="sb-btn" onClick={() => setEnemies(20, 20, 5)} title="5 bruisers (20/20)">bruisers</button>
+              <button className="sb-btn" onClick={() => setEnemies(1, 0, 7)} aria-description="7 glass dummies (1 hp)">glass ×7</button>
+              <button className="sb-btn" onClick={() => setEnemies(300, 0, 1)} aria-description="1 tank dummy (300 hp)">tank</button>
+              <button className="sb-btn" onClick={() => setEnemies(20, 20, 5)} aria-description="5 bruisers (20/20)">bruisers</button>
             </div>
           </Sec>
 
@@ -485,7 +485,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
                   first?.scrollIntoView({ block: 'nearest' });
                 }
               }}
-              title="Matches name, id, tribe, keywords, rules text and effect ids. Space-separated terms must ALL match. ↵ adds the top match (again for another copy). ↓ walks the list."
+              aria-label="Matches name, id, tribe, keywords, rules text and effect ids. Space-separated terms must ALL match. ↵ adds the top match (again for another copy). ↓ walks the list."
             />
             {/* No native `title` on rows (owner 2026-09-16): the browser tooltip popped over the preview and
                 covered the art. The hover preview is the only hover UI here. */}
@@ -518,11 +518,11 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
               (no saves / uploads / drafts — see `loadBugScenario`). QA: export this run as a QaScenarioV1,
               import one back, run it headlessly right here, or save it as a checked-in fixture. */}
           <Sec id="scenarios" title="Scenarios" folded={folded} onFold={fold} defaultFolded
-            right={bugScenario ? <span className="sb-count" title={bugScenario.reportId}>bug loaded</span> : undefined}>
+            right={bugScenario ? <span className="sb-count" aria-description={bugScenario.reportId}>bug loaded</span> : undefined}>
             <div className="sb-sub">Bug report</div>
             {bugScenario ? (
               <div className="sb-row">
-                <span className="sb-mini sb-name" title={bugScenario.reportId}>loaded: {bugScenario.reportId}</span>
+                <span className="sb-mini sb-name" aria-description={bugScenario.reportId}>loaded: {bugScenario.reportId}</span>
                 <button className="sb-btn" onClick={clearBugScenario}>clear</button>
               </div>
             ) : (
@@ -535,8 +535,8 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
                       if (!file) return;
                       void file.text().then(loadBugText).catch(() => setBugErrors(['Could not read the file.']));
                     }} />
-                  <button className="sb-btn" onClick={() => bugFileRef.current?.click()} title="Load a scenario.json exported by npm run bugs:repro">📂 load file…</button>
-                  <button className="sb-btn sb-primary" disabled={bugJson.trim() === ''} onClick={() => loadBugText(bugJson)} title="Load the pasted JSON">load JSON</button>
+                  <button className="sb-btn" onClick={() => bugFileRef.current?.click()} aria-description="Load a scenario.json exported by npm run bugs:repro">📂 load file…</button>
+                  <button className="sb-btn sb-primary" disabled={bugJson.trim() === ''} onClick={() => loadBugText(bugJson)} aria-description="Load the pasted JSON">load JSON</button>
                 </div>
                 <textarea className="sb-search sb-bugpaste" rows={2} placeholder="…or paste a scenario.json here" value={bugJson} onChange={(e) => setBugJson(e.target.value)} />
               </>
@@ -545,13 +545,13 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
 
             <div className="sb-sub">QA scenario</div>
             <div className="sb-row">
-              <button className="sb-btn" onClick={exportQa} title="Serialize this run as a QaScenarioV1 — downloads the JSON and copies it to the clipboard">⬇ export</button>
-              <button className="sb-btn" onClick={runHeadless} title="Run the current export through the headless scenario runner (real engine, no UI) and show its summary">▶ headless</button>
-              <button className="sb-btn" onClick={copyRepro} title="Copy the deterministic reproduction command for this scenario's id">⎘ repro</button>
+              <button className="sb-btn" onClick={exportQa} aria-description="Serialize this run as a QaScenarioV1 — downloads the JSON and copies it to the clipboard">⬇ export</button>
+              <button className="sb-btn" onClick={runHeadless} aria-description="Run the current export through the headless scenario runner (real engine, no UI) and show its summary">▶ headless</button>
+              <button className="sb-btn" onClick={copyRepro} aria-description="Copy the deterministic reproduction command for this scenario's id">⎘ repro</button>
             </div>
             <div className="sb-row">
-              <button className="sb-btn" onClick={saveFixture} title={`Write the export into ${QA_SCENARIO_FIXTURE_DIR} via the dev server (refuses to overwrite unless armed)`}>💾 save fixture</button>
-              <label className="sb-chk" title="Allow the save to replace an existing fixture of the same id">
+              <button className="sb-btn" onClick={saveFixture} aria-description={`Write the export into ${QA_SCENARIO_FIXTURE_DIR} via the dev server (refuses to overwrite unless armed)`}>💾 save fixture</button>
+              <label className="sb-chk" aria-description="Allow the save to replace an existing fixture of the same id">
                 <input type="checkbox" checked={qaOverwrite} onChange={(e) => setQaOverwrite(e.target.checked)} /> overwrite
               </label>
             </div>
@@ -563,8 +563,8 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
                   if (!file) return;
                   void file.text().then(importQaText).catch(() => setQaErrors(['Could not read the file.']));
                 }} />
-              <button className="sb-btn" onClick={() => qaFileRef.current?.click()} title="Load a QaScenarioV1 JSON file into the rig (validated; sandbox — nothing writes)">📂 import file…</button>
-              <button className="sb-btn sb-primary" disabled={qaJson.trim() === ''} onClick={() => importQaText(qaJson)} title="Import the pasted scenario JSON">import JSON</button>
+              <button className="sb-btn" onClick={() => qaFileRef.current?.click()} aria-description="Load a QaScenarioV1 JSON file into the rig (validated; sandbox — nothing writes)">📂 import file…</button>
+              <button className="sb-btn sb-primary" disabled={qaJson.trim() === ''} onClick={() => importQaText(qaJson)} aria-description="Import the pasted scenario JSON">import JSON</button>
             </div>
             <textarea className="sb-search sb-bugpaste" rows={2} placeholder="…or paste a QaScenarioV1 JSON here" value={qaJson} onChange={(e) => setQaJson(e.target.value)} />
             {qaStatus !== '' && <div className="sb-mini">{qaStatus}</div>}
@@ -577,7 +577,7 @@ function SceneBuilderInner({ minimized, onRestore }: { minimized: boolean; onRes
     {/* Minimized (the header ✕ hides it): a circle icon docked bottom-right, left of the 🛠️ dev-tuning button.
         Click restores + refocuses (brings the panel back to the front via the shared hook's raise). */}
     {minimized && (
-      <button className="sb-dock" title="Restore Scene Builder"
+      <button className="sb-dock" aria-label="Restore Scene Builder"
         onClick={() => { onRestore(); raise(); }}>🧩</button>
     )}
     {/* The library's floating preview — mounted ONCE here (not per row); null until a row is hovered/focused. */}
@@ -602,7 +602,7 @@ function Sec({ id, title, right, folded, onFold, defaultFolded, children }: {
   return (
     <div className={`sb-sec${closed ? ' folded' : ''}`}>
       <div className="sb-label">
-        <button type="button" className="sb-fold" onClick={() => onFold(id, !closed)} aria-expanded={!closed} title={closed ? 'Expand' : 'Fold'}>
+        <button type="button" className="sb-fold" onClick={() => onFold(id, !closed)} aria-expanded={!closed} aria-label={closed ? 'Expand' : 'Fold'}>
           <span className="sb-caret" aria-hidden>{closed ? '▸' : '▾'}</span>{title}
         </button>
         {right !== undefined && <span className="sb-label-r">{right}</span>}

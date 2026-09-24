@@ -484,7 +484,7 @@ export function EditorOverlay(): JSX.Element | null {
           onPointerDown={startMove}
         >
           {animated && (
-            <div className="uied-badge" data-ui-editor="badge" title="Transform edits may not stick during combat — edit at rest.">
+            <div className="uied-badge" data-ui-editor="badge" aria-description="Transform edits may not stick during combat — edit at rest.">
               ⚠ animated
             </div>
           )}
@@ -506,8 +506,8 @@ export function EditorOverlay(): JSX.Element | null {
           <span>🎛️ UI Edit Mode</span>
           <span className="uied-headright">
             {toast && <span className="uied-toast">{toast}</span>}
-            <button className="uied-btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)">↶ undo</button>
-            <button className="uied-btn danger" onClick={() => { deselect(); setUiEditMode(false); }} title="Exit UI Edit Mode (Esc)">✕ exit</button>
+            <button className="uied-btn" onClick={undo} disabled={!canUndo} aria-description="Undo (Ctrl+Z)">↶ undo</button>
+            <button className="uied-btn danger" onClick={() => { deselect(); setUiEditMode(false); }} aria-description="Exit UI Edit Mode (Esc)">✕ exit</button>
           </span>
         </div>
 
@@ -529,7 +529,7 @@ export function EditorOverlay(): JSX.Element | null {
               <button
                 className="uied-btn"
                 onClick={() => { const p = selectParent(selected); if (p) selectElement(p); }}
-                title="Select parent"
+                aria-description="Select parent"
               >▲ parent</button>
             </div>
 

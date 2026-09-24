@@ -314,7 +314,7 @@ export function Inspector({
             type="button"
             className={`fxwb-tierbtn${tier === 'all' ? ' on' : ''}`}
             aria-pressed={tier === 'all'}
-            title={`Every parameter this primitive has (${total}), grouped`}
+            aria-description={`Every parameter this primitive has (${total}), grouped`}
             onClick={() => setTier('all')}
           >
             All
@@ -323,7 +323,7 @@ export function Inspector({
             type="button"
             className={`fxwb-tierbtn${tier === 'changed' ? ' on' : ''}`}
             aria-pressed={tier === 'changed'}
-            title={`Only the ${changed.size} param${changed.size === 1 ? '' : 's'} you've changed from default`}
+            aria-description={`Only the ${changed.size} param${changed.size === 1 ? '' : 's'} you've changed from default`}
             onClick={() => setTier('changed')}
           >
             Changed
@@ -375,13 +375,13 @@ export function Inspector({
                     type="button"
                     className="fxwb-grphead"
                     aria-expanded={isOpen}
-                    title={isOpen ? `Collapse ${group}` : `Expand ${group}`}
+                    aria-label={isOpen ? `Collapse ${group}` : `Expand ${group}`}
                     onClick={() => toggleGroup(group)}
                   >
                     <span className="fxwb-grpcaret" aria-hidden="true">{isOpen ? '▾' : '▸'}</span>
                     <span className="fxwb-grpname">{group}</span>
                     {changedInGroup > 0 && (
-                      <span className="fxwb-grpbadge" title={`${changedInGroup} changed from default`}>
+                      <span className="fxwb-grpbadge" aria-description={`${changedInGroup} changed from default`}>
                         {changedInGroup} changed
                       </span>
                     )}
@@ -410,14 +410,14 @@ export function Inspector({
                     type="button"
                     className="fxwb-grphead"
                     aria-expanded={isOpen}
-                    title={isOpen ? 'Collapse Filters' : 'Expand Filters'}
+                    aria-label={isOpen ? 'Collapse Filters' : 'Expand Filters'}
                     onClick={() => toggleGroup(FILTERS_GROUP_KEY)}
                   >
                     <span className="fxwb-grpcaret" aria-hidden="true">{isOpen ? '▾' : '▸'}</span>
                     <span className="fxwb-grpname">Filters</span>
                     <span
                       className={`fxwb-filtersbadge${filtersOn > 0 ? ' on' : ''}`}
-                      title={`${filtersOn} of ${filterEntriesList.length} filters enabled`}
+                      aria-description={`${filtersOn} of ${filterEntriesList.length} filters enabled`}
                     >
                       {filtersOn} on · {filterEntriesList.length}
                     </span>
@@ -425,7 +425,7 @@ export function Inspector({
                   {isOpen && (
                     <div className="fxwb-grpbody fxwb-filtersbody">
                       {filtersOn > 1 && (
-                        <div className="fxwb-shape-hint" title="Pixi applies the first filter to the raw layer and each next one to that result. Use ▲ ▼ to reorder.">
+                        <div className="fxwb-shape-hint" aria-description="Pixi applies the first filter to the raw layer and each next one to that result. Use ▲ ▼ to reorder.">
                           Applied top → bottom
                         </div>
                       )}
@@ -444,7 +444,7 @@ export function Inspector({
                               {entry.id === CORE_BLUR_ID ? (
                                 // The core Blur has no toggle — it is on whenever Blur > 0 (set in Style). This
                                 // row exists so it can be ORDERED against the lab's filters.
-                                <span className="fxwb-filtername" style={{ opacity: entry.on ? 1 : 0.6 }} title="On whenever Blur > 0 — set the amount in the Style group. Here only to order it.">
+                                <span className="fxwb-filtername" style={{ opacity: entry.on ? 1 : 0.6 }} aria-label="On whenever Blur > 0 — set the amount in the Style group. Here only to order it.">
                                   {entry.on && filtersOn > 1 ? `${index + 1}. ` : ''}{entry.label}{entry.on ? '' : ' — off (Blur is 0)'}
                                 </span>
                               ) : (
@@ -463,7 +463,6 @@ export function Inspector({
                                   <button
                                     type="button"
                                     className="fxwb-shape-remove"
-                                    title="Apply earlier (move up)"
                                     aria-label={`Move ${entry.label} up`}
                                     disabled={!canUp}
                                     onClick={(e) => { e.preventDefault(); onChange(FILTER_ORDER_KEY, moveFilter(filterEntriesList, entry.id, -1)); }}
@@ -473,7 +472,6 @@ export function Inspector({
                                   <button
                                     type="button"
                                     className="fxwb-shape-remove"
-                                    title="Apply later (move down)"
                                     aria-label={`Move ${entry.label} down`}
                                     disabled={!canDown}
                                     onClick={(e) => { e.preventDefault(); onChange(FILTER_ORDER_KEY, moveFilter(filterEntriesList, entry.id, 1)); }}
@@ -530,7 +528,7 @@ function NumberField({ value, min, max, disabled, onCommit }: {
     return (
       <span
         className="fxwb-val fxwb-valedit"
-        title={disabled ? undefined : 'Double-click to type a value'}
+        aria-label={disabled ? undefined : 'Double-click to type a value'}
         onDoubleClick={() => { if (!disabled) setDraft(String(value)); }}
       >
         {String(value)}
@@ -617,7 +615,7 @@ function ParamRow({
         <label
           htmlFor={`fxwb-${key}`}
           onDoubleClick={resetToDefault}
-          title={changed ? `${spec.label} — double-click to reset to default` : undefined}
+          aria-label={changed ? `${spec.label} — double-click to reset to default` : undefined}
         >
           {spec.label}
         </label>
@@ -626,9 +624,6 @@ function ParamRow({
           <button
             type="button"
             className={`fxwb-help${helpOpen ? ' on' : ''}`}
-            // Kept as a title as well as a click target: hover is the fast path for someone already using a
-            // mouse, the click is the one that works on a trackpad, a touchscreen, or the keyboard.
-            title={spec.help}
             aria-expanded={helpOpen}
             aria-label={`What ${spec.label} does`}
             onClick={() => setHelpOpen((v) => !v)}
@@ -796,14 +791,14 @@ function SoundField({
         className="fxwb-btn"
         disabled={disabled || busy || value === ''}
         onClick={() => { if (value !== '') previewFxClip(value, startOffset, endOffset); }}
-        title="Preview the clipped window (Start→End)"
+        aria-label="Preview the clipped window (Start→End)"
       >▶</button>
       <button
         type="button"
         className="fxwb-btn"
         disabled={disabled || busy}
         onClick={() => fileRef.current?.click()}
-        title="Import a WAV or MP3"
+        aria-label="Import a WAV or MP3"
       >{busy ? '…' : 'Import'}</button>
       <input
         ref={fileRef}
@@ -915,8 +910,8 @@ function WaveformStrip({ clip, startOffset, endOffset, disabled, onTrim }: {
         : <span className="fxwb-wave-load">decoding…</span>}
       <div className="fxwb-wave-dim" style={{ left: 0, width: `${startPct}%` }} />
       <div className="fxwb-wave-dim" style={{ left: `${endPct}%`, right: 0 }} />
-      <div className="fxwb-wave-handle start" style={{ left: `${startPct}%` }} onPointerDown={startDrag('startOffset')} title="Start" />
-      <div className="fxwb-wave-handle end" style={{ left: `${endPct}%` }} onPointerDown={startDrag('endOffset')} title="End" />
+      <div className="fxwb-wave-handle start" style={{ left: `${startPct}%` }} onPointerDown={startDrag('startOffset')} aria-label="Start" />
+      <div className="fxwb-wave-handle end" style={{ left: `${endPct}%` }} onPointerDown={startDrag('endOffset')} aria-label="End" />
     </div>
   );
 }
@@ -993,7 +988,6 @@ function ShapeField({
           <button
             type="button"
             className="fxwb-shape-remove"
-            title={`Remove '${selected.label}'`}
             aria-label={`Remove ${selected.label}`}
             disabled={disabled}
             onClick={() => {
@@ -1118,7 +1112,7 @@ function ImageField({
             value={source}
             disabled={busy || disabled}
             onChange={(e) => setSource(e.target.value as 'single' | 'frames' | 'sheet')}
-            title="What the next import is: one picture, a set of individual frame files to pack into a sheet, or a file that already is a sprite-sheet grid."
+            aria-label="What the next import is: one picture, a set of individual frame files to pack into a sheet, or a file that already is a sprite-sheet grid."
           >
             <option value="single">Single image</option>
             <option value="frames">Image frames (pack)</option>
@@ -1152,7 +1146,7 @@ function ImageField({
             disabled={busy || disabled}
             style={{ width: 56 }}
             onChange={(e) => setPerRow(Math.max(0, Math.min(16, Math.floor(Number(e.target.value) || 0))))}
-            title="Leave at 0 for one animation (auto near-square grid). If your files are SEVERAL takes of the same animation (slashA_1..4, slashB_1..4 …), set the frames per take so each take packs as its own row — then turn on Variant rows to pick a take per fire."
+            aria-label="Leave at 0 for one animation (auto near-square grid). If your files are SEVERAL takes of the same animation (slashA_1..4, slashB_1..4 …), set the frames per take so each take packs as its own row — then turn on Variant rows to pick a take per fire."
           />
           <span>(0 = one animation)</span>
         </label>
@@ -1176,7 +1170,7 @@ function ImageField({
                   const next = { ...sheet, [k]: v };
                   onSheet(next.cols, next.rows, next.frames);
                 }}
-                title={`Grid ${label.toLowerCase()} of the sheet.`}
+                aria-label={`Grid ${label.toLowerCase()} of the sheet.`}
               />
             </label>
           ))}
@@ -1522,13 +1516,8 @@ export function CurveEditor({
             }}
             // A double-click that lands ON a handle must not also drop a new point beside it.
             onDoubleClick={(e) => e.stopPropagation()}
-          >
-            <title>
-              {removable(i)
-                ? 'Drag to move · alt-click or right-click to remove'
-                : 'Drag to move (pinned endpoint — cannot be removed)'}
-            </title>
-          </circle>
+            aria-label={removable(i) ? 'Curve point: drag to move, alt-click or right-click to remove' : 'Curve endpoint: drag to move (pinned, cannot be removed)'}
+          />
         ))}
       </svg>
       {/* The editor had no visible instructions at all, so the add/remove gestures were undiscoverable

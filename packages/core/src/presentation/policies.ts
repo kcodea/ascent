@@ -210,6 +210,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:endOfTurnTriggerShouts:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'factory:gainEmbers:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:gainMaxMana:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:gainMaxMana:onPlay': { policy: 'ownBeat', family: 'shout' }, // Jewel (set 3, 2026-09-24): the max-Gold Choose One branch
   'factory:getEchoAndTrigger:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:getRubies:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:getRubies:onPlay': { policy: 'ownBeat', family: 'shout' },
@@ -1090,6 +1091,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // folding through this policy); Goldvein's Gold is `playerBonusGold` at settle (there is NO `bonusGold`
   // event — an earlier comment here claimed one).
   'factory:dealtDamageAleMeter:passive': { policy: 'foldedCue', family: 'react' },                // Han Gover (Pummel (40)) — the meter reads at the damage site; the fire flashes on the hit, the Ale flies on its own `toHand` beat
+  'factory:dealtDamageGrantRandomTribe:passive': { policy: 'foldedCue', family: 'react' },        // Maestro Lux (Pummel (12), 2026-09-24) — the same meter; the fire flashes on the hit, the Celestial flies on its own `toHand` beat
   'factory:dealtDamageGoldNextTurn:passive': { policy: 'foldedCue', family: 'react' },            // Goldvein (Pummel (6), 2026-09-19) — the same meter; the fire flashes on the hit, the Gold lands at settle
   'factory:buffShopOffersThisTurn:onBuy': { policy: 'foldedCue', family: 'economyReact' },        // Night Market Horror — cf. buffBoardOnBuy
   'factory:buffShopOffersThisTurn:spellBought': { policy: 'foldedCue', family: 'economyReact' },  // …its "a spell is a card too" half

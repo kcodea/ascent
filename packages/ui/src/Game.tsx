@@ -442,11 +442,11 @@ export function Game() {
       {!preRun && <CastPreviewLayer />}
       {showBook && <MinionBook />}
       <Inspect />
-      <button className="gearbtn" onPointerDown={openSettings} title="Settings (Esc)" aria-label="Settings">
+      <button className="gearbtn" onPointerDown={openSettings} aria-label="Settings">
         <Icon name="gear" />
       </button>
       {/* Build badge above the gear — version + short git SHA, so you can tell at a glance which build is live. */}
-      <div className="version" title={`ASCENT v${__APP_VERSION__} · build ${__BUILD_SHA__}`}>
+      <div className="version" aria-description={`ASCENT v${__APP_VERSION__} · build ${__BUILD_SHA__}`}>
         v{__APP_VERSION__} <span>{__BUILD_SHA__}</span>
       </div>
       {settingsOpen && <EscMenu onClose={closeSettings} />}

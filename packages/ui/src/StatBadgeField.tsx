@@ -64,7 +64,7 @@ export function StatBadgeField({ stat, value, min, max, onCommit, title }: {
   return (
     // `data-milestone="0"` = the card's unframed tier: without it the milestone rule
     // (`.badge:not([data-milestone='0']) > .plate { display: none }`) hides the plate.
-    <span className={`badge ${stat}`} data-milestone={0} title={title} data-testid={`sb-badge-${stat}`}>
+    <span className={`badge ${stat}`} data-milestone={0} aria-label={title} data-testid={`sb-badge-${stat}`}>
       <span className="plate" aria-hidden="true" />
       <input
         ref={inputRef}
@@ -120,7 +120,7 @@ export function CountStepper({ value, min, max, onCommit, title }: {
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
   return (
-    <span className="sb-countstep" title={title} data-testid="sb-count">
+    <span className="sb-countstep" aria-label={title} data-testid="sb-count">
       <button type="button" className="sb-countstep-btn" onClick={() => step(-1)} disabled={value <= min} aria-label="Fewer" tabIndex={-1}>‹</button>
       <span className="sb-countstep-x" aria-hidden>×</span>
       <input

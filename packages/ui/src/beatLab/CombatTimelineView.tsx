@@ -54,19 +54,19 @@ function BeatRow({ b, pxPerMs, trackW }: { b: CompiledBeat; pxPerMs: number; tra
   const deliveryX = msToPx(b.deliveryMs - b.startMs, pxPerMs);
   return (
     <div className="bl-cbt-row">
-      <span className="bl-cbt-label" title={`${b.source.label ?? b.source.id} · ${b.trigger} · ${Math.round(b.startMs)}–${Math.round(b.completionMs)}ms`}>
+      <span className="bl-cbt-label" aria-label={`${b.source.label ?? b.source.id} · ${b.trigger} · ${Math.round(b.startMs)}–${Math.round(b.completionMs)}ms`}>
         {/* An aggregate moment (a buff wave with no single owner) has no name of its own — its id IS the
             kind, and printing both read as a stutter ("buffWave buff wave"). Show the kind once. */}
         <span className="bl-cbt-name">{b.lane === 'reaction' ? '↳ ' : ''}{(b.source.label ?? b.source.id) === b.trigger ? '—' : b.source.label ?? b.source.id}</span>
         <span className="bl-kind">{KIND_LABEL[b.trigger] ?? b.trigger}</span>
-        {b.policyKey && <span className="bl-cover" style={{ background: '#e0b34d' }} title={`${b.policyKey}
+        {b.policyKey && <span className="bl-cover" style={{ background: '#e0b34d' }} aria-description={`${b.policyKey}
 Keyed — tunable in the Library when the LIVE toggle is on.`}>keyed</span>}
       </span>
       <div className="bl-cbt-track" style={{ width: trackW }}>
         <div
           className="bl-cbt-bar"
           style={{ left, width, background: LANE_TINT[b.lane] ?? '#888', opacity: b.lane === 'reaction' ? 0.7 : 0.9 }}
-          title={`${b.source.label ?? b.source.id} · ${b.trigger}\nstart ${Math.round(b.startMs)}ms · delivery ${Math.round(b.deliveryMs)}ms · completion ${Math.round(b.completionMs)}ms`}
+          aria-label={`${b.source.label ?? b.source.id} · ${b.trigger}\nstart ${Math.round(b.startMs)}ms · delivery ${Math.round(b.deliveryMs)}ms · completion ${Math.round(b.completionMs)}ms`}
         >
           <i className="bl-cbt-delivery" style={{ left: deliveryX }} />
         </div>

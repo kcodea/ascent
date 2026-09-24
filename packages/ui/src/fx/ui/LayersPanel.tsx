@@ -130,7 +130,6 @@ export function LayersPanel(props: LayersPanelProps): React.ReactElement {
             className="fxwb-layer-grip"
             role="button"
             aria-label={`Drag to reorder ${l.name ?? primitiveLabel(l.primitive)}`}
-            title="Drag to reorder"
             onClick={(e) => e.stopPropagation()}
             onPointerDown={onGripPointerDown(i)}
             onPointerMove={onGripPointerMove}
@@ -157,7 +156,7 @@ export function LayersPanel(props: LayersPanelProps): React.ReactElement {
           ) : (
             <span
               className="fxwb-layer-name"
-              title={l.name === undefined ? 'Double-click to name this layer' : `${l.name} (${l.primitive}) — double-click to rename`}
+              aria-label={l.name === undefined ? 'Double-click to name this layer' : `${l.name} (${l.primitive}) — double-click to rename`}
               onDoubleClick={(e) => { e.stopPropagation(); startRename(i); }}
             >
               {l.name ?? l.primitive}
@@ -166,7 +165,7 @@ export function LayersPanel(props: LayersPanelProps): React.ReactElement {
           {/* Anchor sits in the row meta so a composition reads at a glance — "which layer is pinned to
               the target and which one rides the arc?" is the first question you ask of one. A NAMED layer
               keeps its primitive id here, so naming never costs you the "what is this?" answer. */}
-          <span className="fxwb-layer-meta" title={anchorLabel(l.anchor)}>
+          <span className="fxwb-layer-meta" aria-description={anchorLabel(l.anchor)}>
             {l.name === undefined ? '' : `${l.primitive} · `}
             {l.anchor} · @{l.at}ms · {l.life === null ? 'full' : `${l.life}ms`}{l.muted === true ? ' · muted' : ''}{l.solo === true ? ' · solo' : ''}
           </span>
@@ -174,35 +173,35 @@ export function LayersPanel(props: LayersPanelProps): React.ReactElement {
             <button
               className={`fxwb-layer-mute${l.muted === true ? ' on' : ''}`}
               onClick={(e) => { e.stopPropagation(); onToggleMute(i); }}
-              title={l.muted === true ? 'Muted — click to bring this layer back' : 'Mute this layer (isolate the others)'}
+              aria-label={l.muted === true ? 'Muted — click to bring this layer back' : 'Mute this layer (isolate the others)'}
             >{l.muted === true ? '◐' : '👁'}</button>
             <button
               className={`fxwb-layer-solo${l.solo === true ? ' on' : ''}`}
               onClick={(e) => { e.stopPropagation(); onToggleSolo(i); }}
-              title={l.solo === true ? 'Soloed — click to bring the other layers back' : 'Solo this layer (only soloed layers play)'}
+              aria-label={l.solo === true ? 'Soloed — click to bring the other layers back' : 'Solo this layer (only soloed layers play)'}
             >{l.solo === true ? '◉' : '○'}</button>
             <button
               onClick={(e) => { e.stopPropagation(); startRename(i); }}
-              title="Rename this layer (or double-click its name)"
+              aria-label="Rename this layer (or double-click its name)"
             >✎</button>
             <button
               onClick={(e) => { e.stopPropagation(); onDuplicate(i); }}
-              title="Duplicate this layer (a full copy of its tuning, inserted below)"
+              aria-label="Duplicate this layer (a full copy of its tuning, inserted below)"
             >⧉</button>
             <button
               onClick={(e) => { e.stopPropagation(); onReorder(i, i - 1); }}
               disabled={i === 0}
-              title="Move up"
+              aria-label="Move up"
             >↑</button>
             <button
               onClick={(e) => { e.stopPropagation(); onReorder(i, i + 1); }}
               disabled={i === layers.length - 1}
-              title="Move down"
+              aria-label="Move down"
             >↓</button>
             {layers.length > 1 && (
               <button
                 onClick={(e) => { e.stopPropagation(); onRemove(i); }}
-                title="Remove layer"
+                aria-label="Remove layer"
               >✕</button>
             )}
           </span>

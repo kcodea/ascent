@@ -308,8 +308,11 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     goldenText: '**Shout:** Collapse your **Starform**. Each gains its **full** stats.',
   },
   {
-    // T4: Discover a Celestial (Sea Urchin's factory: never itself via `exclude`; the Starform is a token and sits
-    // outside every draw pool, so it is never offered). Gilded: Discover twice.
+    // T4 (owner 2026-09-24, was "Shout: Discover a Celestial"): "Pummel (12): Get a random Celestial. (Once per
+    // combat.)" — the shared PUMMEL damage meter (`DAMAGE_METER_MARKERS`, `noteDamageDealt` in simulate.ts; the
+    // lifetime tally carries shop → combat → shop like Han Gover's / Goldvein's) with a random-Celestial body
+    // (`grantRandomMinion`: the run's pool, ≤ the shop tier; flies to hand in the replay, settles via
+    // `playerHandGrants`). Once per combat (`maxPerCombat` default 1). Gilded: 2 Celestials, still once.
     id: 'ce3_starcharter',
     name: 'Maestro Lux', // 'Star Charter' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'celestial',
@@ -317,9 +320,9 @@ export const SET3_CELESTIALS: readonly CardDef[] = [
     attack: 3,
     health: 4,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryDiscoverMinion', params: { tribe: 'celestial' } }],
-    text: '**Shout:** **Discover** a Celestial.',
-    goldenText: '**Shout:** **Discover** a Celestial twice.',
+    effects: [{ on: 'passive', do: 'dealtDamageGrantRandomTribe', params: { every: 12, tribe: 'celestial', count: 1 } }],
+    text: '**Pummel (12):** Get a random **Celestial**. (Once per combat.)',
+    goldenText: '**Pummel (12):** Get **2** random **Celestials**. (Once per combat.)',
   },
   {
     // T5 Equip: Stellar Lens (2 Gold) — "this shop" +10/+10 (`equipmentBuffThisShop`, Wishing Star's shape read from

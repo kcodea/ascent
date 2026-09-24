@@ -5,7 +5,7 @@ import { playDef } from './fx/playDef';
  * (BOTH) MARKER — the maximum number of `choose-one-both` loops alive at once.
  *
  * The def emits at 80/s with a 2710 ms particle life, so ONE loop settles at roughly 215 live particles. Several
- * cards can qualify at the same moment — hold the Rune of Facetwright and every Facetwright's Choice in hand
+ * cards can qualify at the same moment — hold the Rune of Facetwright and every Facetwright in hand
  * AND in the tavern lights up — so the marker is capped rather than left to scale with the board. Four is the
  * shipped cap: ~860 particles, comfortably inside what the shared overlay already carries for a combat moment,
  * and past the point where a fifth ring adds information rather than noise. Cards past the cap simply carry no

@@ -158,8 +158,9 @@ export const SET2_KOBOLDS: CardDef[] = [
     health: 3,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard' } }],
-    text: "**Echo:** Summon a **1/1 Gemheart Golem**, plus this minion's Rubies.",
-    goldenText: "**Echo:** Summon a **2/2 Gemheart Golem**, plus double this minion's Rubies.",
+    // Wording aligned with Kurse's (owner 2026-09-24, text only: "Summon a Gemheart Golem with <whose> Rubies").
+    text: "**Echo:** Summon a **Gemheart Golem** with this minion's Rubies.",
+    goldenText: "**Echo:** Summon a **2/2 Gemheart Golem** with double this minion's Rubies.",
   },
   {
     // Rubies APPLIED DURING COMBAT are worth double (triple Gilded) — owner spec 2026-07-25. Nothing happens

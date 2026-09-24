@@ -87,12 +87,12 @@ describe('a tribe-aura wash includes dual-type members', () => {
 describe('a COMBAT grant settling into hand re-fires Gangplank on the run board (the report as it happened)', () => {
   it('settleCombat captures Gangplank → Han Gover with the seq bumped while the phase is still combat', () => {
     // Han Gover at 40 Attack against a sandbag: his first landed hit reaches Pummel (40) and the real fight grants
-    // an Ale to hand. (The meter is once per combat and starts at 0 every fight since 2026-09-21, so a seeded
-    // lifetime tally would be ignored — the hit itself has to reach 40.)
+    // an Ale to hand. The sandbag has exactly 40 Health, so the fight ends on that hit: ONE crossing, one Ale
+    // (Han Gover pays up to 5 per combat since 2026-09-24, so a longer fight would bring more home).
     const r = simulate(
       [{ cardId: 'dw_gangplank', attack: 3, health: 5 } as BoardMinion,
         { cardId: 'dw3_hangover', attack: 40, health: 9 } as unknown as BoardMinion],
-      [{ cardId: 'sandbag', attack: 0, health: 300 } as BoardMinion],
+      [{ cardId: 'sandbag', attack: 0, health: 40 } as BoardMinion],
       makeRng(1), CARD_INDEX, combatSide({ tier: 4 }), combatSide({ tier: 4 }));
     expect(r.playerHandGrants?.length ?? 0, 'the fight granted an Ale to hand').toBeGreaterThan(0);
     // Gangplank already paid out DURING the fight (combat FX path: a `buff` event, m0 → m1)...

@@ -2080,7 +2080,7 @@ export function isStatSpell(def: CardDef | undefined): boolean {
 const OFF_BOARD_STAT_FACTORIES: ReadonlySet<string> = new Set([
   'spellBuffShop', 'spellBuffShopByRuby', 'spellBuffTavern', 'spellBuffNextShop',
   'spellBuffShopRightmost', // Picnic (2026-09-23): the right-most Shop slot — an offer buff, never a board grant
-  'rubyStatGain', //           Facetwright's Choice: your Rubies (future ones included) gain stats
+  'rubyStatGain', //           Facetwright: your Rubies (future ones included) gain stats
   // Common Ground (owner 2026-09-23): "common ground should not be in the grouping, that's a combat related buff.
   // it should only be stat granting spells that give stats immediately basically ... that's more a utility
   // thing." Averaging REDISTRIBUTES two minions' stats; it grants nothing new.
@@ -2105,7 +2105,7 @@ const OFF_BOARD_STAT_FACTORIES: ReadonlySet<string> = new Set([
  *         Aeon, Great Pot, Waking Rift, Dragonflame), TARGETED stat spells (Bulwark, Lantern Light, Spirit Fire,
  *         Crest of the Climb, Shatter, Patch Job, Front to Back, Hoardflame, Blessing, Flutter, Beefy) and the stat-granting Dwarven Ales (Champion's, Defensive, Bloody). Targeted members are cast
  *         through `castSpellWithoutAim`.
- *   OUT — the shop-buff family, Facetwright's Choice and Common Ground (`OFF_BOARD_STAT_FACTORIES`; a spell with
+ *   OUT — the shop-buff family, Facetwright and Common Ground (`OFF_BOARD_STAT_FACTORIES`; a spell with
  *         ANY such stat branch is out, which is what keeps Apples out), and every spell that moves or sets stats outside
  *         the stat family (Turnabout, Perfect Vision) or buffs only NEXT combat (Fleeting Vigor, Solid Ground).
  *
@@ -4159,7 +4159,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Prismatic Pick, branch 1 (owner 2026-09-09: "Discover a Choose One card" instead of a random one): a pool
    *  Discover over every Choose One card the run's set can draw — minions AND spells (Crest of the Climb,
-   *  Facetwright's Choice…), the same candidate rule `grantRandomChooseOne` uses. `count` Discovers, queued
+   *  Facetwright…), the same candidate rule `grantRandomChooseOne` uses. `count` Discovers, queued
    *  behind one another (a gilded Pick opens two). Gilding rides `gildedParams`, so `self` is not consulted. */
   discoverChooseOne: (ctx, self, params) => {
     void self;
@@ -7964,12 +7964,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Mana Font — cast: raise MAX Mana by `amount`, UNCAPPED (may push past the normal cap). Current Mana
    *  is NOT topped up — you don't gain the new Mana this turn, just a bigger pool from next turn on. */
-  gainMaxMana: (ctx, _self, params) => {
+  gainMaxMana: (ctx, self, params) => {
     // Gold Font spell — "Gain +1 max Gold permanently." Same as Nadja's Goldspring: route through
     // `maxGoldBonus` (above the cap, the natural curve keeps climbing to 10 underneath) rather than
     // `s.maxEmbers`, or reaching 10 early makes the "permanent" gain evaporate the way it did before the
     // 2026-07-22 fix (see the `gainMaxMana` hero-power branch in the reducer).
-    const amount = num(params.amount, 1);
+    // × golden: a spell is never Gilded (so Gold Font is unchanged); Jewel's Shout branch (owner 2026-09-24,
+    // "increase your max Gold by 1") reuses this body and a Gilded Jewel gives 2.
+    const amount = num(params.amount, 1) * gold(self);
     ctx.state.maxGoldBonus = (ctx.state.maxGoldBonus ?? 0) + amount;
   },
 
@@ -8895,6 +8897,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  already bakes into every copy (board, hand, future). Nothing to do here; the stub keeps the phase map honest. */
   cardDeathScaler: () => {},
   dealtDamageAleMeter: () => {}, // Han Gover (Pummel (40)): a combat-read meter (`noteDamageDealt`); the LIFETIME tally carries shop → combat → shop (carry-over ruling 2026-09-21), one payout per combat
+  dealtDamageGrantRandomTribe: () => {}, // Maestro Lux (2026-09-24): the same combat-read meter, a random-Celestial body
   dealtDamageGoldNextTurn: () => {}, // Goldvein (2026-09-19): the same combat-read meter, a Gold-next-turn body
 
   /** NIGHT MARKET HORROR — "After you buy a card, give minions in the shop +2/+2 THIS TURN."
@@ -13493,7 +13496,7 @@ function runRecurringEndOfTurn(
     const i = rightmostShopMinion(state);
     if (eater && i >= 0) step(() => consumeShopMinion(state, eater, i));
   } else if (effect === 'grantFacetwright') {
-    // Rune of Facetwright: a Facetwright's Choice every turn. Drawn from the run's pool like every other grant,
+    // Rune of Facetwright: a Facetwright every turn. Drawn from the run's pool like every other grant,
     // so a set without the card grants nothing rather than injecting something the run cannot otherwise see.
     const fw = runSpells(state).find((c) => c.id === 'facetwright');
     if (fw) { procRuneId(state, 'rune_facetwright'); step(() => conjureToHand(state, [fw], 1, true)); }

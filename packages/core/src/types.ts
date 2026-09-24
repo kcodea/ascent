@@ -17,16 +17,18 @@ export const ALE_IDS: readonly string[] = ['wo_mine', 'wo_reinforcement', 'wo_ch
  *     by every landed hit, carried back whole at settle (`playerDamageMeters`), snapshotted with the served
  *     board, kept by a Rise / Rebirth body (same combat instance), merged as the max on a triple;
  *   · a payout happens each time the tally crosses a MULTIPLE of X (`floor(after/X) - floor(before/X) > 0`);
- *   · but at most ONE payout per combat — the "(Once per combat)" rider is the `pummelFired` latch on the combat
- *     Minion, fresh every fight. One enormous hit that crosses several multiples still pays once, and the
- *     uncredited crossings are SPENT, not banked: the next multiple pays next combat (120 in one hit → the next
- *     payout is at 160). A second crossing in the same fight pays nothing; the tally still advanced.
+ *   · but at most `params.maxPerCombat` payouts per combat (default 1 — the "(Once per combat)" rider; Han
+ *     Gover's "(Max 5 per combat.)" is 5, owner 2026-09-24), counted by `pummelFires` on the combat Minion,
+ *     fresh every fight. One hit that crosses several multiples pays once per multiple up to the cap left, and
+ *     the uncredited crossings are SPENT, not banked (under a cap of 1: 120 in one hit pays once and the next
+ *     payout is at 160). A crossing past the cap pays nothing; the tally still advanced.
  *  There is deliberately NO per-marker reset flag any more (the 2026-09-19 `resetEachCombat` was retired with
  *  this ruling): every consumer seeds, carries and prints the same way, so a flag would be a switch with no
  *  reader. The rider means one PAYOUT per combat, never a fresh tally. */
 export const DAMAGE_METER_MARKERS: Readonly<Record<string, true>> = {
   dealtDamageAleMeter: true,     // Han Gover — "Pummel (40): Get a Dwarven Ale. (Once per combat)"
   dealtDamageGoldNextTurn: true, // Goldvein — "Pummel (6): Gain 3 Gold next turn. (Once per combat)"
+  dealtDamageGrantRandomTribe: true, // Maestro Lux (2026-09-24) — "Pummel (12): Get a random Celestial. (Once per combat.)"
 };
 export const DAMAGE_METER_DOS: readonly string[] = Object.keys(DAMAGE_METER_MARKERS);
 
@@ -889,6 +891,7 @@ export type EffectFactoryId =
   // ── Set 3 Neutrals, owner handoff 2026-09-19 ──
   | 'onDamagedReflectRandomEnemies' // Yeti: the FIRST time this takes damage each combat, deal that amount to N distinct random enemies (combat)
   // ── Set 3 Kobolds, owner handoff 2026-09-19 ──
+  | 'dealtDamageGrantRandomTribe' // Maestro Lux (Set 3 Celestial, owner 2026-09-24): "Pummel (12): Get a random Celestial. (Once per combat.)" — the shared damage meter (`noteDamageDealt`) with a random-`params.tribe`-minion body (`grantRandomMinion`, ×2 gilded), capped by `params.maxPerCombat` (default 1)
   | 'dealtDamageGoldNextTurn'; // Goldvein: "Pummel (6): Gain 3 Gold next turn. (Once per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body (`grantBonusGold`), latched once per combat on the instance (`pummelFired`); the tally is LIFETIME (seeded from the run card, carried back whole — carry-over ruling 2026-09-21), a payout per multiple of 6 crossed, one per combat; gilded doubles G (combat)
 
 export interface EffectDef {
@@ -1352,7 +1355,7 @@ export type QuestReward =
   | { kind: 'runeDistillation' }
   /** Rune of Liquidation: selling a minion gives its BONUS stats to the right-most Shop minion. */
   | { kind: 'runeLiquidation' }
-  /** Rune of Facetwright: your Facetwright's Choice casts give BOTH halves instead of one. */
+  /** Rune of Facetwright: your Facetwright casts give BOTH halves instead of one. */
   | { kind: 'runeFacetwright' }
   /** Rune of Duplication: after you forge your Epic Rune, this becomes a copy of it — its reward applies a
    *  second time. */
@@ -2468,11 +2471,12 @@ export interface Minion {
    *  `grantedRefresh` / Candleback's `rubyRecvTick`, and deliberately NOT on the Rise / Rebirth reset list — a
    *  returned body is the same combat instance, so "once per combat" stays spent. A fresh Minion per fight. */
   reflectFired?: boolean;
-  /** PUMMEL (X) — this body's once-per-combat damage-meter payout has fired (Goldvein's Gold, Han Gover's Ale;
-   *  `DAMAGE_METER_MARKERS`). THE "(Once per combat)" rider: the tally itself is lifetime and keeps growing; only
-   *  the payout is latched. Same convention as `reflectFired`: on the instance, NOT reset by Rise / Rebirth (a
-   *  returned body is the same combat instance). A fresh Minion per fight re-arms it. */
-  pummelFired?: boolean;
+  /** PUMMEL (X) — how many damage-meter payouts this body has made THIS combat (Goldvein's Gold, Han Gover's
+   *  Ale, Maestro Lux's Celestial; `DAMAGE_METER_MARKERS`), checked against the marker's `maxPerCombat` (default
+   *  1 = "(Once per combat)"; Han Gover 5, owner 2026-09-24). The tally itself is lifetime and keeps growing;
+   *  only the payouts are counted. Same convention as `reflectFired`: on the instance, NOT reset by Rise /
+   *  Rebirth (a returned body is the same combat instance). A fresh Minion per fight re-arms it. */
+  pummelFires?: number;
   /** Sergeant: accumulated HP bonus on its Deathrattle (grows each time Sergeant gains Attack in
    *  combat). Applied on top of the base params.health when the Deathrattle fires. Absent = 0. */
   hpGrantBonus?: number;
@@ -2590,7 +2594,7 @@ export type CombatEvent = (
   | { type: 'spellProgress'; target: string; amount: number } // Archmagus Guel: on-board spell tally after a combat cast (live countdown)
   | { type: 'questTrigger'; flag: string; side: Side } // a completed quest / owned rune's COMBAT effect fired — `flag` maps to its badge id so the UI can pulse the node
   | { type: 'questComplete'; questId: string; side: Side } // a quest completed MID-COMBAT (its objective crossed): the UI lights its node + its reward activates from this beat (see PendingCombatQuest)
-  | { type: 'pummelTrigger'; source: string; side: Side; marker: string } // PUMMEL (X) fired (2026-09-21, `DAMAGE_METER_MARKERS`): the body's lifetime damage meter crossed a multiple of X and PAID OUT. `source` = the body whose meter fired, `marker` = the meter's `do` (`dealtDamageAleMeter` / `dealtDamageGoldNextTurn`). ONE event per body per combat — every Pummel pays once per combat (Han Gover's Ale, Goldvein's Gold), however many multiples one hit crossed and however many crossings the fight holds; a meter that pays nothing (a set with no Ales) emits nothing. Emitted AFTER the `dmg` that reached X (and after the victim's `onDamaged` reactors, which `applyDamage` runs before the meter — a Target Dummy's `buff` or a Hearth Whisperer's `handBuff` can sit between) and BEFORE the payout's own events (`toHand`), so the replay plays the trigger flash on the hit and the Ale's flight follows. Presentation only — the payout is already carried by `toHand` / `playerBonusGold`.
+  | { type: 'pummelTrigger'; source: string; side: Side; marker: string } // PUMMEL (X) fired (2026-09-21, `DAMAGE_METER_MARKERS`): the body's lifetime damage meter crossed a multiple of X and PAID OUT. `source` = the body whose meter fired, `marker` = the meter's `do` (`dealtDamageAleMeter` / `dealtDamageGoldNextTurn` / `dealtDamageGrantRandomTribe`). ONE event per PAYOUT, at most the marker's `maxPerCombat` per body per combat (default 1 — Goldvein, Maestro Lux; Han Gover 5, owner 2026-09-24): a hit crossing several multiples emits one per multiple paid, up to the cap; a meter that pays nothing (a set with no Ales) emits nothing. Emitted AFTER the `dmg` that reached X (and after the victim's `onDamaged` reactors, which `applyDamage` runs before the meter — a Target Dummy's `buff` or a Hearth Whisperer's `handBuff` can sit between) and BEFORE the payout's own events (`toHand`), so the replay plays the trigger flash on the hit and the Ale's flight follows. Presentation only — the payout is already carried by `toHand` / `playerBonusGold`.
 ) & { step?: number; avenge?: true; key?: string; srcCard?: string; wave?: number };
 // `wave` (Fel Spikes / multi-pass echo pacing): a stable presentation tag marking which AoE PASS ("wave") an
 // event belongs to. Unlike `step` — which deaths bump mid-pass (`killOrReborn` calls `nextStep`) — a wave id

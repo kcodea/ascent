@@ -1193,7 +1193,7 @@ export function stepProgress(
   // on 0/40, and nothing clamps at X/X (the count keeps growing past this fight's one payout). Han Gover (40) +
   // Goldvein (6): the `DAMAGE_METER_DOS` family, spelled out as literals here so the rendered-text lanes (which
   // scrape `e.do === '…'` from this file) list both bodies as subjects.
-  const dmgMeter = def.effects.find((e) => e.do === 'dealtDamageAleMeter' || e.do === 'dealtDamageGoldNextTurn');
+  const dmgMeter = def.effects.find((e) => e.do === 'dealtDamageAleMeter' || e.do === 'dealtDamageGoldNextTurn' || e.do === 'dealtDamageGrantRandomTribe');
   if (dmgMeter) return damageMeterReading(p.damageDealt ?? 0, damageMeterOf(def)!);
   // Astral Spellcore: every N Shop spells cast while on the board — the same per-copy `spellProgress` meter as
   // Guel, counting up; Avenge-style N/3 (owner 2026-09-11: the counter, never the text). Keyed on the effect's

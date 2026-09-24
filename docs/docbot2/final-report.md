@@ -120,7 +120,7 @@ The one standing disagreement the full sweep prints is `shaper` (`effects.1.summ
 | parsed-equivalent | 956 |
 | verified-mismatch | 0 |
 | approved-exception | 0 |
-| **unresolved-parse** | 91 |
+| **unresolved-parse** | {{text.unresolvedParse}} |
 
 0 mismatches stand today (0 unpinned, 0 stale pins — both gated). The 2026-09-11 parser coverage pass
 (`docs/devlog/2026-09-11-docbot-text-parser-coverage.md`) took the unresolved queue from 582 (59%) to 55
@@ -147,7 +147,7 @@ rule-per-sentence would not honestly cover.
   channel, keyword, multiplier, copy-mode, counter, zone, phase-boundary nodes).
 - Applicability: **{{interactions.candidatePairs}}** candidate pairs against 551775 naive all-pairs (26%) — the producer → channel →
   consumer join is what makes pairwise tractable at all.
-- Sweep (full pairwise + §10.4 triples): 154 rows — {{interactions.covered}} covered, 0 failed, 12 inapplicable, 30 blocked.
+- Sweep (full pairwise + §10.4 triples): 154 rows — {{interactions.covered}} covered, 0 failed, 12 inapplicable, {{interactions.blocked}} blocked.
 - Families with at least one covered row: 12 of 23.
 - §10.5 semantic-combination keys recorded: 12.
 - Anomaly oracle: 0 questions above the confidence floor; 24 suppressed below it. The three §9.7 questions

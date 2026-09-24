@@ -45,4 +45,5 @@ export const RENDER_EXCUSED: Readonly<Record<string, RenderExcuse>> = {
   // Goldvein (2026-09-19): the same Pummel meter with a Gold-next-turn body — "Pummel (6): Gain 3 Gold next turn.
   // (Once per combat)"; the printed threshold never scales, the tally is the N/6 step counter.
   k3_goldvein: { kind: 'accurate-at-any-value', why: 'no scaling number in the text; the damage meter is the damageDealt step counter (stepProgress)' },
+  ce3_starcharter: { kind: 'accurate-at-any-value', why: 'Maestro Lux (Pummel (12), 2026-09-24): no scaling number in the text; the damage meter is the damageDealt step counter (stepProgress)' },
 };

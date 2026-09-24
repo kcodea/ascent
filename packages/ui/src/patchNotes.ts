@@ -69,6 +69,40 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-24',
+    label: 'Good Luck',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Starting a game now opens with a short "Good Luck" over a dimmed board. Your shop timer starts only once it fades.',
+        details: [
+          'Plays after Start Game in the hero ceremony, for Play and Practice games.',
+          'Gold lettering with sparks and a sweep of light, then a fade to the board. About two seconds.',
+          'Your first turn keeps its full time. The clock waits until the intro is gone.',
+          'Press Esc or click anywhere to skip it.',
+          'Not shown in the tutorial, the Scene Builder, replays, or when you continue a saved game.',
+          'With reduced motion turned on in your system settings, it is a simple fade with no sparks.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Minion Casts',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Fix: a spell a minion casts in the Shop or at End of Turn now counts exactly like a spell you cast yourself.',
+        details: [
+          'Rope Wrangler, Soul Defiler and Arnold cast their spells at End of Turn. Those casts now trigger every rune and minion that reacts to a spell cast.',
+          'Rune of Lassoing now gives your minions +2/+2 when a Rope Wrangler casts Lasso.',
+          'Runes that count spells cast, and cards that copy the last spell you cast, now see these casts too.',
+          'A minion that casts Growth in the Shop now also feeds Rune of Spellweaving.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Heroes Retired',
     changes: [
       {

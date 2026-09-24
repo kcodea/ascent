@@ -130,14 +130,14 @@ describe('the run-wide shop buff on the authoritative End of Turn', () => {
   });
 });
 
-describe('KNOWN GAP, report only: Rune of Lassoing does not pay for a Rope Wrangler Lasso', () => {
-  // Rope Wrangler's `castSpell` recruit factory calls `applyCastEffects` directly, and Lassoing's +2/+2 lives in the
-  // `castSpell()` FUNCTION, so the Wrangler's End-of-Turn Lasso steals but pays nothing. Gameplay, not presentation:
-  // left for an owner ruling (devlog 2026-09-24-spell-fx-every-source.md). When it is fixed, flip this expectation.
-  it('pins today\'s behaviour: the steal happens, the board gains nothing', () => {
+describe('Rune of Lassoing pays for a Rope Wrangler Lasso (was a KNOWN GAP, fixed 2026-09-24)', () => {
+  // Rope Wrangler's `castSpell` recruit factory used to call `applyCastEffects` directly, so Lassoing's +2/+2 (which
+  // lives in the `castSpell()` FUNCTION) never paid for its End-of-Turn Lasso. Owner ruling 2026-09-24: "fix that
+  // for all" — every minion cast is a full `castSpell()` now (minionCastsFullPath.test.ts).
+  it('the steal happens, it still presents as the Wrangler cast, and the board gains +2/+2', () => {
     const s = run({ runeLassoing: true, ownedRunes: ['rune_lassoing'], board: [card('w', 'ropewrangler'), card('a', 'stray')] } as Partial<RunState>);
     applyEndOfTurn(s);
     expect((s.castFx ?? []).some((c) => c.spellId === 'lasso' && c.source.kind === 'minion')).toBe(true);
-    expect(s.board.find((c) => c.uid === 'a')).toMatchObject({ attack: 2, health: 2 });
+    expect(s.board.find((c) => c.uid === 'a')).toMatchObject({ attack: 4, health: 4 });
   });
 });

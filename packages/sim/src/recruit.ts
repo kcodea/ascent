@@ -337,7 +337,11 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       const def = spellId ? CARD_INDEX[spellId] : undefined;
       for (let i = 0; i < (self.golden ? 2 : 1); i++) {
         if (def) { recordActorCast(state, def.id, currentCollector()); noteSpellCast(state, def); }
+        // Rune of Spellweaving measures the inline body the way `castSpell()` measures a spell's effects (owner
+        // ruling 2026-09-24: a minion's shop cast pays every rune a hand cast pays).
+        const weaveBefore = def ? spellweaveSnapshot(state, def) : undefined;
         body();
+        if (weaveBefore) settleSpellweave(state, weaveBefore);
       }
     },
     castNamedSpell: (spellId) => {
@@ -8843,8 +8847,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** A minion casts a named spell from an event, auto-targeting the carry (the
-   *  highest-attack friend). Counts the cast but doesn't re-fire spellCast (no recursion).
+  /** A minion casts a named spell from an event. A TARGETED spell auto-aims at the carry (the highest-attack
+   *  friend); an untargeted one (Lasso, Staff of Guel) is cast with no target, exactly as from hand.
+   *
+   *  THE ONE CAST PATH (owner ruling 2026-09-24, "fix that for all"): every repetition is a full `castSpell()`,
+   *  the same function the player's own cast runs, so the rune payouts that live there (Rune of Lassoing's
+   *  +2/+2, Spellweaving, Lorekeeping, Spellhide), the tallies, the copy memory, every `spellCast` watcher (card
+   *  or rune, board or hand: Goldilox, Guel, Runebloom) and the per-cast Shop-spell runes all hear it. This
+   *  factory used to call `applyCastEffects` and bump the two tallies by hand, which skipped all of that. Cast
+   *  MULTIPLIERS (Yazzus, Spell Thesis, Orivax) stay with the hand play, as for every other no-aim cast
+   *  (`castSpellWithoutAim`): a minion's cast is one genuine cast per repetition.
    *
    *  A GILDED caster casts twice (owner 2026-07-21, Rope Wrangler) — each cast re-picks its target and counts
    *  as a real cast, so spell-cast payoffs (Guel, Spirit Pup, Forsaken Weaver) see both.
@@ -8860,16 +8872,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const spellDef = CARD_INDEX[str(params.spellId)];
     if (!spellDef || spellDef.singleCast) return; // singleCast spells (Devourer) never multi-fire
     const castOnce = (): void => {
-      for (let i = 0; i < gold(self); i++) {
-        const friends = ctx.state.board.filter((c) => c !== self);
-        const target = friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
-        // The CASTER is the origin of a lasso beam (Rope Wrangler), not the carry the untargeted spell was
-        // handed — `applyCastEffects` passes `target` down as `self`, so the factory cannot tell them apart.
-        applyCastEffects(ctx, spellDef, target, self ? `board:${self.uid}` : undefined);
-        ctx.state.spellsCast += 1;
-        ctx.state.spellsThisTurn += 1;
-        fireShopSpellGrowers(ctx.state, spellDef); // Goldilox hears an End-of-Turn minion cast too
-      }
+      for (let i = 0; i < gold(self); i++) castSpell(ctx.state, spellDef, minionCastTarget(ctx.state, self, spellDef), self ? `board:${self.uid}` : undefined);
     };
     if (num(params.perGold, 0) > 0) {
       forEachTick(payload as { tick?: number } | undefined, eotTickCount(ctx.state, { do: 'castSpell', params }), castOnce);
@@ -8888,12 +8891,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const spellDef = CARD_INDEX[str(params.spellId)];
     if (!spellDef || spellDef.singleCast) return;
     const times = num(params.times, 1) * gold(self);
-    for (let i = 0; i < times; i++) {
-      applyCastEffects(ctx, spellDef, self, self ? `board:${self.uid}` : undefined);
-      ctx.state.spellsCast += 1;
-      ctx.state.spellsThisTurn += 1;
-      fireShopSpellGrowers(ctx.state, spellDef); // Goldilox hears an End-of-Turn minion cast too
-    }
+    // A full `castSpell()` per cast (owner ruling 2026-09-24): Beefy lands on Arnold as a real spell cast ON a
+    // minion, so Lorekeeping, Spellhide, the tallies and every `spellCast` watcher see it like a hand cast.
+    for (let i = 0; i < times; i++) castSpell(ctx.state, spellDef, self, self ? `board:${self.uid}` : undefined);
   },
 
   endOfTurnCastSpellEscalating: (ctx, self, params, payload) => {
@@ -8902,16 +8902,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const replay = payload.replay === true;
     if (!replay && num(payload.proc, 0) === 0) self.eotTick = (self.eotTick ?? 0) + 1; // count this turn once
     const times = Math.max(1, self.eotTick ?? 1) * gold(self); // Nth End of Turn → N casts (golden doubles)
-    for (let i = 0; i < times; i++) {
-      const friends = ctx.state.board.filter((c) => c !== self);
-      const target = friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
-      // The CASTER is the origin of a lasso beam (Rope Wrangler), not the carry the untargeted spell was
-      // handed — `applyCastEffects` passes `target` down as `self`, so the factory cannot tell them apart.
-      applyCastEffects(ctx, spellDef, target, self ? `board:${self.uid}` : undefined);
-      ctx.state.spellsCast += 1;
-      ctx.state.spellsThisTurn += 1;
-      fireShopSpellGrowers(ctx.state, spellDef); // Goldilox hears an End-of-Turn minion cast too
-    }
+    // A full `castSpell()` per cast (owner ruling 2026-09-24) — see `castSpell` above.
+    for (let i = 0; i < times; i++) castSpell(ctx.state, spellDef, minionCastTarget(ctx.state, self, spellDef), self ? `board:${self.uid}` : undefined);
   },
 
   /** Crypt Scribe — End of Turn: conjure `count` random spells (from the buyable spell pool) into your hand.
@@ -12171,6 +12163,33 @@ export function fireShopSpellCastRunes(state: RunState): void {
   }
 }
 
+/**
+ * RUNE OF SPELLWEAVING's measurement, split in two so every shop cast path can run it around the cast's
+ * resolution: `castSpell()` (hand casts, rune casts, a minion's End-of-Turn cast) and the shop arena's
+ * `castRepeat` (a Rally replayed in the Shop that casts Growth inline — Fatecarver, Hoardbreaker Drake), which
+ * resolves its body without `castSpell()` (owner ruling 2026-09-24: a minion's cast pays what a hand cast pays).
+ * `spellweaveSnapshot` returns undefined unless the rune is live and still has a cast left this turn.
+ */
+function spellweaveSnapshot(state: RunState, spellDef: CardDef): Map<string, readonly [number, number]> | undefined {
+  const weave = !!state.runeSpellweaving && (state.spellweavingCastsThisTurn ?? 0) < state.runeSpellweaving
+    && !spellDef.ruby && !spellDef.gift && isStatSpell(spellDef) && hasStarform(state);
+  return weave ? new Map(state.board.map((c) => [c.uid, [c.attack, c.health] as const])) : undefined;
+}
+function settleSpellweave(state: RunState, before: ReadonlyMap<string, readonly [number, number]>, target?: BoardCard): void {
+  let wa = 0, wh = 0;
+  const bodies = target && state.board.includes(target) ? [target] : state.board;
+  for (const c of bodies) {
+    const b = before.get(c.uid);
+    if (!b) continue;
+    wa = Math.max(wa, c.attack - b[0]); wh = Math.max(wh, c.health - b[1]);
+  }
+  if (wa > 0 || wh > 0) {
+    state.spellweavingCastsThisTurn = (state.spellweavingCastsThisTurn ?? 0) + 1;
+    procRuneId(state, 'rune_spellweaving');
+    buffStarform(state, wa, wh, 'Rune of Spellweaving');
+  }
+}
+
 export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard, origin?: string): void {
   const ctx = makeContext(state);
   // SPELLHIDE + SPELLMARKET both key off "the first STAT-GRANTING Shop spell you cast on a minion this turn",
@@ -12181,9 +12200,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   // RUNE OF SPELLWEAVING (Set 3 batch 2): the first N stat-granting Shop spells each turn also feed the Starform
   // what they ACTUALLY granted — a targeted spell's delta on its target, an untargeted one's biggest per-minion
   // delta (its printed per-minion grant, spell power included). Snapshot only while the rune is live.
-  const weave = !!state.runeSpellweaving && (state.spellweavingCastsThisTurn ?? 0) < state.runeSpellweaving
-    && !spellDef.ruby && !spellDef.gift && isStatSpell(spellDef) && hasStarform(state);
-  const weaveBefore = weave ? new Map(state.board.map((c) => [c.uid, [c.attack, c.health] as const])) : undefined;
+  const weaveBefore = spellweaveSnapshot(state, spellDef);
   // Starpath Vendor's next-SHOP-spell bonus: a Gift (Tower Shield, Clue) neither reads it nor spends it, so it
   // is lifted out for the duration of a Gift's cast and put back after.
   const heldNextBonus = spellDef.gift ? state.nextSpellBonus : undefined;
@@ -12199,20 +12216,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
     procRuneId(state, 'rune_lassoing', reps);
     for (const c of state.board) addBuff(c, 'Rune of Lassoing', 2 * reps, 2 * reps);
   }
-  if (weaveBefore) {
-    let wa = 0, wh = 0;
-    const bodies = target && state.board.includes(target) ? [target] : state.board;
-    for (const c of bodies) {
-      const b = weaveBefore.get(c.uid);
-      if (!b) continue;
-      wa = Math.max(wa, c.attack - b[0]); wh = Math.max(wh, c.health - b[1]);
-    }
-    if (wa > 0 || wh > 0) {
-      state.spellweavingCastsThisTurn = (state.spellweavingCastsThisTurn ?? 0) + 1;
-      procRuneId(state, 'rune_spellweaving');
-      buffStarform(state, wa, wh, 'Rune of Spellweaving');
-    }
-  }
+  if (weaveBefore) settleSpellweave(state, weaveBefore, target);
   if (target && state.board.includes(target)) {
     const dAtk = target.attack - preAtk;
     const dHp = target.health - preHp;
@@ -12332,23 +12336,15 @@ export function noteSpellForCountRunes(state: RunState, spellId: string): void {
 }
 
 /**
- * The spell-IDENTITY growers (Goldilox, owner 2026-09-24: "shop spells cast from anywhere count") for a cast
- * that bypasses `noteSpellCast`: the legacy End-of-Turn minion casts (Soul Defiler, Rope Wrangler, Arnold, the
- * escalating caster) resolve the spell and bump the tallies by hand, so the generic `spellCast` watchers never
- * hear them. Routing those casts through `noteSpellCast` would change every watcher, rune and copy memory at
- * once, so this pays ONLY Goldilox (board + hand) — the factory itself decides whether the spell qualifies.
+ * WHERE A MINION'S CAST LANDS (the End-of-Turn casters: Rope Wrangler, Soul Defiler, the escalating caster). A
+ * TARGETED spell aims at the carry, the highest-Attack OTHER friend (the caster itself on a lone board); an
+ * untargeted one (Lasso, Staff of Guel) gets no target at all, so `castSpell()` treats it exactly as the same
+ * spell cast from hand: nothing is "cast on" the carry (no Lorekeeping, no Mirrorwing re-cast for a Lasso).
  */
-function fireShopSpellGrowers(state: RunState, spellDef: CardDef): void {
-  const ctx = makeContext(state);
-  for (const card of [...state.board, ...state.hand]) {
-    const def = CARD_INDEX[card.cardId];
-    if (!def || def.spell) continue;
-    for (const effect of def.effects) {
-      if (effect.on !== 'spellCast' || effect.do !== 'shopSpellCastGrowSelf') continue;
-      const fn = RECRUIT_FACTORIES[effect.do];
-      if (fn) captureBuffFx(state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, spellDef }));
-    }
-  }
+function minionCastTarget(state: RunState, self: BoardCard | undefined, spellDef: CardDef): BoardCard | undefined {
+  if (!spellDef.target) return undefined;
+  const friends = state.board.filter((c) => c !== self);
+  return friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
 }
 
 export function noteSpellCast(state: RunState, spellDef: CardDef): void {

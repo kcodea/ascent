@@ -471,16 +471,15 @@ export const TRIGGERS_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-handoff', ref: 'Owner card batch 2026-09-24 (Kobold / Dwarf batch) — Goldilox', quote: 'shop spells cast from anywhere count, not rubies, clues or generic spells. just a heads up - ales ARE shop spells. they do count. also, this should work in combat, so if spells are cast in combat, goldilox gains stats and those stats are permanent per our rules for hand granted stats in combat.' },
-      { kind: 'code', ref: 'packages/core/src/effects/factories.ts castInCombat (the per-repetition identity probe) / withCastingSpell / isShopPoolSpell / shopSpellGrowth / shopSpellCastGrowSelf; packages/core/src/combat/simulate.ts ctx.spellResolved; packages/sim/src/recruit.ts shopSpellCastGrowSelf, noteSpellCast (hand watchers) and fireShopSpellGrowers (the End-of-Turn minion casts)' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts castInCombat (the per-repetition identity probe) / withCastingSpell / isShopPoolSpell / shopSpellGrowth / shopSpellCastGrowSelf; packages/core/src/combat/simulate.ts ctx.spellResolved; packages/sim/src/recruit.ts shopSpellCastGrowSelf, noteSpellCast (board + hand watchers; every minion cast reaches it through castSpell since R-MINIONCAST-01)' },
     ],
     cardText: 'When you cast a **Shop spell**, gain **+3/+2**. Gains **2x** while in hand.',
     contentIds: ['dw3_goldilox'],
     currentBehaviour:
       'Conforms (built with the card, 2026-09-24). The shop pays through `noteSpellCast` (board and `alsoInHand` hand '
-      + 'watchers), plus the three legacy End-of-Turn minion casts that bypass it; combat pays after each cast '
-      + 'repetition resolves, once its spell is known. The legacy End-of-Turn minion casts (Soul Defiler, Rope Wrangler, '
-      + 'Arnold) still skip the OTHER `spellCast` watchers and runes; routing them through `noteSpellCast` is a separate, '
-      + 'wider change.',
+      + 'watchers); combat pays after each cast repetition resolves, once its spell is known. The End-of-Turn minion '
+      + 'casts (Soul Defiler, Rope Wrangler, Arnold) used to need a Goldilox-only hook; they are full `castSpell()` casts '
+      + 'now (R-MINIONCAST-01), so the hook is gone and Goldilox hears them like any other cast.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/goldilox.test.ts', 'packages/ui/src/instView.test.ts'],
@@ -562,6 +561,39 @@ export const TRIGGERS_RULES: GameRule[] = [
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/beastDragonBatch0924.test.ts', 'packages/core/src/combat/simulate.test.ts', 'packages/ui/src/cardText.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
+  {
+    id: 'R-MINIONCAST-01',
+    title: 'A spell a minion casts in the Shop or at End of Turn is a full cast: every rune, watcher and tally hears it',
+    statement:
+      'When a minion casts a spell outside combat (Rope Wrangler\x27s Lasso, Soul Defiler\x27s Staff of Guel, Arnold\x27s '
+      + 'Beefy, any End-of-Turn or Shop caster), the cast behaves exactly like the same spell cast from hand, once per '
+      + 'repetition: it counts for every spell tally and quest, updates the first/last-spell memory the copy effects read, '
+      + 'wakes every "when you cast a spell" card and rune (board and hand watchers alike), pays the per-cast spell runes '
+      + '(Kindling, Scales, Flagship, Summoning, Might) and the cast-specific runes (Rune of Lassoing\x27s +2/+2 on a Lasso, '
+      + 'Rune of Spellweaving, and for a spell cast ON a minion Lorekeeping and Spellhide). Each cast is counted exactly '
+      + 'once. A targeted spell lands on the caster\x27s chosen friend (Arnold: itself; the others: the highest-Attack other '
+      + 'friend); an untargeted spell (Lasso, Staff of Guel) is cast on nobody. Cast multipliers that belong to the hand '
+      + 'play (Yazzus, Spell Thesis, Orivax) do not multiply a minion\x27s cast, as for every other no-aim cast.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-09-24 on the End-of-Turn minion-cast gap (Rune of Lassoing not paying for a Rope Wrangler Lasso)', quote: 'fix that for all' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts RECRUIT_FACTORIES castSpell / endOfTurnCastSpellOnSelf / endOfTurnCastSpellEscalating (each repetition calls castSpell(); minionCastTarget picks the target), the shop arena castRepeat (spellweaveSnapshot / settleSpellweave around the inline body); fireShopSpellGrowers (the Goldilox-only hook from #1682) removed' },
+    ],
+    contentIds: ['ropewrangler', 'dm_curator', 'dw_arnold', 'rune_lassoing', 'rune_spellweaving', 'dw3_goldilox'],
+    currentBehaviour:
+      'Conforms — FIXED 2026-09-24 (fix/minion-casts-full-path). Before, the three End-of-Turn cast factories called '
+      + '`applyCastEffects` and bumped `spellsCast` / `spellsThisTurn` by hand, so Rune of Lassoing never paid for a '
+      + 'Rope Wrangler Lasso and no `spellCast` watcher or per-cast rune heard these casts (only Goldilox, via a narrow '
+      + 'hook). The shop `castRepeat` path already counted through `noteSpellCast` but skipped Spellweaving. Combat '
+      + 'minion casts were audited and already funnel through `castInCombat` (ctx.castSpell + spellResolved). Rune of '
+      + 'Might\x27s own Might of Aeon cast deliberately stays a bare `applyCastEffects` behind its recursion guard.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/minionCastsFullPath.test.ts', 'packages/sim/src/spellFxEverySource.test.ts', 'packages/sim/src/goldilox.test.ts'],
       lastVerifiedAt: '2026-09-24',
     },
   },

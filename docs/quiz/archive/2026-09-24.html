@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent Quiz #43 — 2026-09-24</title>
+<style>
+  :root {
+    --bg: #12141c;
+    --panel: #1b1f2c;
+    --panel-border: #2c3244;
+    --text: #e8eaf2;
+    --muted: #9096ab;
+    --accent: #7c9cff;
+    --accent-dim: #4a5a8f;
+    --good: #4ade80;
+    --good-bg: rgba(74, 222, 128, 0.12);
+    --bad: #f87171;
+    --bad-bg: rgba(248, 113, 113, 0.12);
+    --choice-bg: #232838;
+    --choice-hover: #2a3040;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f4f5fa;
+      --panel: #ffffff;
+      --panel-border: #dfe2ee;
+      --text: #1c2030;
+      --muted: #5c6178;
+      --accent: #3d5cd6;
+      --accent-dim: #b9c4f0;
+      --good: #16a34a;
+      --good-bg: rgba(22, 163, 74, 0.1);
+      --bad: #dc2626;
+      --bad-bg: rgba(220, 38, 38, 0.1);
+      --choice-bg: #f0f1f8;
+      --choice-hover: #e4e7f5;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f5fa;
+    --panel: #ffffff;
+    --panel-border: #dfe2ee;
+    --text: #1c2030;
+    --muted: #5c6178;
+    --accent: #3d5cd6;
+    --accent-dim: #b9c4f0;
+    --good: #16a34a;
+    --good-bg: rgba(22, 163, 74, 0.1);
+    --bad: #dc2626;
+    --bad-bg: rgba(220, 38, 38, 0.1);
+    --choice-bg: #f0f1f8;
+    --choice-hover: #e4e7f5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+  }
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  header .emoji { font-size: 34px; line-height: 1; }
+  h1 {
+    font-size: 20px;
+    margin: 8px 0 4px;
+    font-weight: 700;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 18px 0 14px;
+  }
+  .progress-track {
+    flex: 1;
+    height: 6px;
+    background: var(--panel-border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 4px;
+    transition: width 0.25s ease;
+    width: 0%;
+  }
+  .progress-label {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    min-width: 62px;
+    text-align: right;
+  }
+  .score-label {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 18px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 22px 20px;
+    margin-bottom: 16px;
+  }
+  .topic-tag {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-dim);
+    opacity: 0.9;
+    padding: 3px 9px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+  }
+  .question {
+    font-size: 16px;
+    line-height: 1.5;
+    margin: 0 0 16px;
+    font-weight: 600;
+  }
+  .question code {
+    background: var(--choice-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  .choices {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
+    background: var(--choice-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14.5px;
+    line-height: 1.45;
+    cursor: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%221%22 height=%221%22%3E%3C/svg%3E') 0 0, pointer;
+    font-family: inherit;
+  }
+  .choice:hover:not(.locked) {
+    background: var(--choice-hover);
+    border-color: var(--accent-dim);
+  }
+  .choice .letter {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--panel-border);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .choice.correct {
+    background: var(--good-bg);
+    border-color: var(--good);
+  }
+  .choice.correct .letter { background: var(--good); color: #08240f; }
+  .choice.incorrect {
+    background: var(--bad-bg);
+    border-color: var(--bad);
+  }
+  .choice.incorrect .letter { background: var(--bad); color: #2a0808; }
+  .choice.locked { cursor: default; }
+  .choice.dim { opacity: 0.55; }
+  .explanation {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: var(--choice-bg);
+    border: 1px solid var(--panel-border);
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--text);
+    display: none;
+  }
+  .explanation.show { display: block; }
+  .explanation .verdict {
+    font-weight: 700;
+    margin-bottom: 6px;
+    display: block;
+  }
+  .explanation .verdict.good { color: var(--good); }
+  .explanation .verdict.bad { color: var(--bad); }
+  .nav-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 4px;
+  }
+  .btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 9px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%221%22 height=%221%22%3E%3C/svg%3E') 0 0, pointer;
+    font-family: inherit;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .btn.show { opacity: 1; pointer-events: auto; }
+  .btn:active { transform: translateY(1px); }
+  .summary {
+    text-align: center;
+    padding: 30px 20px;
+  }
+  .summary .big {
+    font-size: 42px;
+    font-weight: 800;
+    margin: 6px 0 4px;
+  }
+  .summary .line {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 18px;
+  }
+  .summary .encourage {
+    font-size: 15px;
+    line-height: 1.5;
+    max-width: 440px;
+    margin: 0 auto;
+  }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="emoji">🎓</div>
+    <h1>Ascent Quiz #43</h1>
+    <div class="subtitle">2026-09-24 · how the game is coded, not how it plays</div>
+  </header>
+
+  <div id="quizArea">
+    <div class="progress-row">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">Q1 / 10</div>
+    </div>
+    <div class="score-label" id="scoreLabel">Score: 0 / 0 answered</div>
+
+    <div class="card" id="questionCard">
+      <div class="topic-tag" id="topicTag"></div>
+      <p class="question" id="questionText"></p>
+      <div class="choices" id="choicesArea"></div>
+      <div class="explanation" id="explanationArea">
+        <span class="verdict" id="verdictText"></span>
+        <span id="explanationText"></span>
+      </div>
+      <div class="nav-row">
+        <button class="btn" id="nextBtn">Next question →</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="summaryArea" class="card summary hidden">
+    <div class="topic-tag">Final score</div>
+    <div class="big" id="summaryScore">0 / 10</div>
+    <div class="line" id="summaryPct"></div>
+    <div class="encourage" id="summaryEncourage"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var QUESTIONS = [
+    {
+      topicId: "types-basics",
+      topicLabel: "TypeScript types",
+      question: "In packages/core/src/types.ts: <code>export type QuestRewardKind = QuestReward['kind'];</code> — what does this indexed-access type do?",
+      choices: [
+        "Pulls out just the `kind` member from the `QuestReward` union type, so the alias automatically stays in sync whenever a reward variant is added, removed, or renamed.",
+        "Creates a brand-new union type by manually re-listing every quest reward's `kind` string value.",
+        "Restricts `QuestReward` itself to only ever have a `kind` field, dropping its other fields.",
+        "Runs at runtime, looking up a reward's kind from an object literally named `QuestReward`."
+      ],
+      answer: 0,
+      explanation: "<code>Type['prop']</code> is TypeScript's \"indexed access\" syntax — it reads the type of a property off another type, here every <code>kind</code> literal across the <code>QuestReward</code> union. Because it's derived rather than hand-typed, adding a new reward variant to <code>QuestReward</code> automatically widens <code>QuestRewardKind</code> too, so the two can never quietly drift apart. Types are erased at compile time, so this produces zero runtime code — nothing is \"looked up\" when the game actually runs."
+    },
+    {
+      topicId: "immutability",
+      topicLabel: "Immutability",
+      question: "packages/core/src/combat/minion.ts's <code>instantiate()</code> copies keywords with <code>[...board.keywords]</code> instead of writing <code>keywords: board.keywords</code> directly. Why the spread?",
+      choices: [
+        "It's purely stylistic — `[...board.keywords]` and `board.keywords` behave identically at runtime.",
+        "It makes a fresh copy of the array so this combat Minion owns its own keyword list — adding/removing a keyword during the fight can never leak back and mutate the shared board or CardDef data.",
+        "Arrays can't be assigned directly to object properties in TypeScript, so a spread is mandatory syntax.",
+        "It's required so the array can later be passed to `Object.freeze()`."
+      ],
+      answer: 1,
+      explanation: "Without the spread, the Minion's <code>keywords</code> would be the <em>same array object</em> as the board card's. Since combat freely adds/removes keywords mid-fight (e.g. losing Divine Shield), sharing that array would corrupt board state or bleed into another minion's list. Copying it is the same instinct as the file's own comment: \"the CardDef is never mutated.\" Plain assignment (option A) would in fact share the reference — that's exactly the bug this line avoids."
+    },
+    {
+      topicId: "reducer-run-state",
+      topicLabel: "Reducer & run state",
+      question: "packages/sim/src/reducer.ts's <code>reduceWithPresentation(state, action, capture)</code> opens with <code>if (!capture) return { state: reduce(state, action), batch: null };</code>. What's that line for?",
+      choices: [
+        "Validating that the action is legal before running it.",
+        "Preventing the reducer from accidentally running twice in development mode.",
+        "Skipping the extra work of building a `PresentationCollector` entirely when nothing needs to watch/animate this dispatch — the plain reducer call is all that's needed.",
+        "Catching and swallowing any error the reducer throws."
+      ],
+      answer: 2,
+      explanation: "<code>reduceWithPresentation</code> wraps the plain <code>reduce()</code> to also record presentation events for the Choreographer to animate later. Most dispatches don't need that recording, so the function bails to the cheap path immediately rather than building a collector object it would just throw away. It's a \"don't pay for what you don't use\" pattern, in line with the project's performance-first stance — not validation or error handling."
+    },
+    {
+      topicId: "zustand-store",
+      topicLabel: "Zustand store",
+      question: "packages/ui/src/store.ts creates the store with <code>create&lt;GameStore&gt;((set, get) =&gt; ({ ... }))</code>. Actions like <code>openTitle</code> call <code>get()</code> before calling <code>set()</code>. What is `get()` for?",
+      choices: [
+        "It's a typo — only `set` is actually needed to update Zustand state.",
+        "It fetches data from a server before performing the action.",
+        "It undoes the most recent `set()` call, like a manual undo stack.",
+        "It reads the CURRENT store state/actions from inside an action, rather than relying on a stale value captured back when the store was first created."
+      ],
+      answer: 3,
+      explanation: "The function passed to <code>create()</code> runs once, so any state it closed over at creation time would go stale as the store changes. <code>get()</code> lets an action reach back into the live store and read fresh state (or call a sibling action) at the moment it actually runs — a standard Zustand pattern for anything that depends on the CURRENT state rather than the state that existed when the store was built."
+    },
+    {
+      topicId: "event-bus",
+      topicLabel: "Event bus",
+      question: "packages/core/src/events.ts's <code>CombatBus.emit()</code> does <code>for (const handler of [...list]) handler(payload);</code> instead of looping over `list` directly. Why the copy?",
+      choices: [
+        "A handler running mid-loop might itself register a NEW handler for the same event (e.g. a Deathrattle summon triggers `onSummon`) — looping over a snapshot means that addition can't corrupt or extend the iteration already in progress.",
+        "It sorts the handlers into a consistent order before running them.",
+        "Arrays in JavaScript can only be iterated once, so a copy is required to loop a second time.",
+        "It's a performance optimization that avoids allocating memory on every emit."
+      ],
+      answer: 0,
+      explanation: "The file's own doc-comment says handlers \"may themselves cause emits\" — a Deathrattle summoning a minion fires `onSummon`, which can register more handlers mid-emit. Looping over the live array while it's being mutated is exactly the kind of bug that's hard to reproduce; copying it into `[...list]` first freezes the set of handlers THIS emit will call. It's an extra allocation traded deliberately for correctness, not a speed-up."
+    },
+    {
+      topicId: "cards-in-sets",
+      topicLabel: "Cards in sets",
+      question: "packages/content/src/sets.ts: Set 2 reuses Set 1's spells via `SET2_DROPPED_SPELLS` (ids to REMOVE), while Set 3 builds its shared spell pool via `SET3_SHARED_SPELL_IDS` (ids to ADD IN). What's this contrast an example of?",
+      choices: [
+        "It's a bug — both sets should use the same list style.",
+        "Allow-list vs deny-list: the same underlying goal (reusing a shared spell pool) implemented two different ways, chosen by whichever list is shorter/clearer to maintain for that particular set.",
+        "Set 2's spells resolve at combat time while Set 3's resolve at recruit time.",
+        "`SET3_SHARED_SPELL_IDS` is dead code left over from an earlier design."
+      ],
+      answer: 1,
+      explanation: "Set 2 wants \"almost everything, minus a few\", so a deny-list (drop these) is the shorter list. Set 3 wants \"just this curated subset\", so an allow-list (keep only these) is clearer. Both filter a shared pool the same way underneath — the list style is just picked per-case for legibility. Timing (option C) has nothing to do with it; that's a real project term used as a distractor here."
+    },
+    {
+      topicId: "package-boundaries",
+      topicLabel: "Package boundaries",
+      question: "CLAUDE.md says `ui` may only import other packages through their public entrypoints — importing an internal file \"leaks the boundary.\" Is this actually enforced by an ESLint rule, like the Math.random ban is?",
+      choices: [
+        "Yes — a custom `no-restricted-imports` ESLint rule, the same mechanism as the Math.random ban.",
+        "Yes — TypeScript's compiler rejects the import as a type error automatically.",
+        "No — only by discipline/convention. There's no ESLint rule for it; it's in the same category as the repo's other collaboration rules (PR review, ownership map) rather than a machine-checked one.",
+        "Yes — a pre-commit git hook scans and blocks disallowed import paths."
+      ],
+      answer: 2,
+      explanation: "Not every architecture rule in this codebase is machine-enforced. The <code>Math.random</code> ban in core/content/sim IS an ESLint rule that fails the build — but searching `eslint.config.mjs` turns up no rule blocking a deep package import today. Knowing which rules a linter/compiler catches for you, versus which ones only a human reviewer is currently holding the line on, is a useful distinction in any codebase."
+    },
+    {
+      topicId: "effects-as-subscriptions",
+      topicLabel: "Effects as subscriptions",
+      question: "packages/core/src/effects/factories.ts: <code>export const COMBAT_REPLAYABLE_BATTLECRIES = new Set(Object.keys(FACTORIES));</code> — a comment calls this \"DERIVED, no longer hand-kept... so this set can never drift from the dispatcher again.\" What problem does deriving it from `FACTORIES` solve?",
+      choices: [
+        "`new Set(...)` executes faster at runtime than writing an array literal.",
+        "It hides FACTORIES' implementation details from files that import the set.",
+        "It lets other files modify the set's contents at runtime.",
+        "It guarantees the two lists agree by construction: since a Battlecry resolves live in combat exactly when `FACTORIES` has an entry for it, building this set FROM `FACTORIES`'s own keys means there's no second, separately-maintained list that could fall out of sync."
+      ],
+      answer: 3,
+      explanation: "Before this was derived, something presumably had to hand-maintain a matching list alongside `FACTORIES` — every time a factory was added or removed, both places needed updating, and forgetting one would silently desync effect dispatch from whatever consumed the list. Computing it straight from `FACTORIES`'s own keys makes that whole class of bug structurally impossible: general lesson — when two pieces of data must always agree, derive one from the other instead of keeping both in sync by hand."
+    },
+    {
+      topicId: "effect-timing-pipeline",
+      topicLabel: "Effect timing",
+      question: "CLAUDE.md splits effects: Battlecry/Shout/buff-on-summon 'bake into stats before combat', while Deathrattle/Start-of-Combat/on-kill run live inside `simulate()`. What's the underlying reason a Battlecry can bake early but a Deathrattle can't?",
+      choices: [
+        "A Battlecry only needs information that already exists in the shop/board before the fight starts, so its result can be baked in as a stat; a Deathrattle needs facts (who's adjacent when it dies, what's already happened this fight) that only exist once combat is actually being resolved.",
+        "Deathrattles are always weaker, so they're deliberately saved for last to keep the game fair.",
+        "It's alphabetical: 'Battlecry' sorts before 'Deathrattle'.",
+        "It's an arbitrary historical choice with no technical reason behind it."
+      ],
+      answer: 0,
+      explanation: "The recruit phase can fully resolve a Battlecry and just store the outcome as a number, because everything the effect needs already exists at that point. A Deathrattle depends on the state of the fight AT THE MOMENT the minion dies — something `simulate()` is still computing — so it has to run live and emit a `CombatEvent` instead of being pre-baked. General principle: an effect runs at the earliest point where all the information it needs actually exists."
+    },
+    {
+      topicId: "testing-vitest",
+      topicLabel: "Testing with Vitest",
+      question: "Root `vitest.config.ts` includes <code>define: { __APP_VERSION__: JSON.stringify('0.0.0-test'), ... }</code>, with a comment noting a test reaching `store.ts` otherwise fails with \"`__APP_VERSION__` is not defined\". Why does a TEST need this?",
+      choices: [
+        "Tests need to check the app's real deployed version number to pass.",
+        "`__APP_VERSION__`/`__BUILD_SHA__` are normally substituted by Vite's bundler at production build time — they aren't real variables at runtime unless something provides one. Vitest doesn't run that same build step, so any test that transitively imports code referencing them needs a stand-in value or it crashes on an undefined variable.",
+        "It speeds up test runs by skipping version-check logic.",
+        "It's required so tests can be versioned independently from the app itself."
+      ],
+      answer: 1,
+      explanation: "`apps/web/vite.config.ts` defines `__APP_VERSION__` as a compile-time constant Vite's bundler literally replaces with a string wherever it appears in the source — it isn't a real variable unless something declares one. `vitest.config.ts` mirrors that same `define` with placeholder test values so any test importing `store.ts` (even indirectly) doesn't crash on a name nothing ever declared. Reminder: a test runner is a different execution environment from the real bundler, and anything the bundler injects has to be reproduced for tests too."
+    }
+  ];
+
+  var current = 0;
+  var score = 0;
+  var answered = 0;
+  var letters = ["A", "B", "C", "D"];
+
+  var progressFill = document.getElementById("progressFill");
+  var progressLabel = document.getElementById("progressLabel");
+  var scoreLabel = document.getElementById("scoreLabel");
+  var topicTag = document.getElementById("topicTag");
+  var questionText = document.getElementById("questionText");
+  var choicesArea = document.getElementById("choicesArea");
+  var explanationArea = document.getElementById("explanationArea");
+  var verdictText = document.getElementById("verdictText");
+  var explanationText = document.getElementById("explanationText");
+  var nextBtn = document.getElementById("nextBtn");
+  var quizArea = document.getElementById("quizArea");
+  var summaryArea = document.getElementById("summaryArea");
+
+  function renderQuestion() {
+    var q = QUESTIONS[current];
+    topicTag.textContent = q.topicLabel;
+    questionText.innerHTML = q.question;
+    choicesArea.innerHTML = "";
+    explanationArea.classList.remove("show");
+    nextBtn.classList.remove("show");
+    progressFill.style.width = ((current) / QUESTIONS.length * 100) + "%";
+    progressLabel.textContent = "Q" + (current + 1) + " / " + QUESTIONS.length;
+    scoreLabel.textContent = "Score: " + score + " / " + answered + " answered";
+
+    q.choices.forEach(function (choiceHtml, idx) {
+      var btn = document.createElement("button");
+      btn.className = "choice";
+      btn.innerHTML = '<span class="letter">' + letters[idx] + '</span><span>' + choiceHtml + '</span>';
+      btn.addEventListener("click", function () { handleAnswer(idx, btn); });
+      choicesArea.appendChild(btn);
+    });
+  }
+
+  function handleAnswer(idx, btnEl) {
+    var q = QUESTIONS[current];
+    var allBtns = choicesArea.querySelectorAll(".choice");
+    allBtns.forEach(function (b, i) {
+      b.classList.add("locked");
+      if (i === q.answer) b.classList.add("correct");
+      else if (i === idx) b.classList.add("incorrect");
+      else b.classList.add("dim");
+      b.onclick = null;
+    });
+
+    var correct = idx === q.answer;
+    if (correct) score++;
+    answered++;
+    scoreLabel.textContent = "Score: " + score + " / " + answered + " answered";
+
+    verdictText.textContent = correct ? "✓ Correct!" : "✗ Not quite — correct answer is " + letters[q.answer] + ".";
+    verdictText.className = "verdict " + (correct ? "good" : "bad");
+    explanationText.innerHTML = q.explanation;
+    explanationArea.classList.add("show");
+    nextBtn.classList.add("show");
+    nextBtn.textContent = (current === QUESTIONS.length - 1) ? "See final score →" : "Next question →";
+  }
+
+  nextBtn.addEventListener("click", function () {
+    current++;
+    if (current >= QUESTIONS.length) {
+      showSummary();
+    } else {
+      renderQuestion();
+    }
+  });
+
+  function showSummary() {
+    quizArea.classList.add("hidden");
+    summaryArea.classList.remove("hidden");
+    document.getElementById("summaryScore").textContent = score + " / " + QUESTIONS.length;
+    var pct = Math.round((score / QUESTIONS.length) * 100);
+    document.getElementById("summaryPct").textContent = pct + "%";
+    var msg;
+    if (score === QUESTIONS.length) {
+      msg = "Perfect score! You're reading this codebase like it's your own — because it is. 🎉";
+    } else if (score >= 8) {
+      msg = "Great run — you clearly know your way around this engine. A couple of these were genuinely tricky.";
+    } else if (score >= 6) {
+      msg = "Solid! You're picking up the architecture steadily — reply with your score and which ones tripped you up, and tomorrow's quiz will circle back to them.";
+    } else if (score >= 4) {
+      msg = "Good effort — this is how learning a codebase actually feels. Tell me your score and we'll re-teach the tricky spots from a fresh angle.";
+    } else {
+      msg = "That's alright — these were dense ones today. Reply with your score and we'll slow down and revisit these topics soon.";
+    }
+    document.getElementById("summaryEncourage").textContent = msg;
+  }
+
+  renderQuestion();
+})();
+</script>
+</body>
+</html>

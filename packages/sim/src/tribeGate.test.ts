@@ -25,9 +25,11 @@ const WORD: Record<Exclude<Tribe, 'neutral'>, RegExp> = {
 const BODY_GRANT_ONLY = new Set<string>([]);
 /** OWNER-RULED tags whose text names the tribe by its KEYWORD rather than by name. Rune of the Deathtouched Apple
  *  ("When a minion Rises, give it Rise") is Undead (owner 2026-09-23, Balance 9/23: "make deathtouched apple an
- *  undead rune, so it is not in set 2") — Rise is the Undead keyword, the way Imps are Demon content. Adding an id
+ *  undead rune, so it is not in set 2") — Rise is the Undead keyword, the way Imps are Demon content. Rune of
+ *  Hoardcalling ("get a Hoardflame or Dragonflame") is Dragon (owner 2026-09-24: "hoardcalling should have a dragon
+ *  tag") — its rewards are Dragon spells, which the name-matcher does not read as naming Dragons. Adding an id
  *  here needs an owner call. */
-const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = { rune_deathtouched_apple: 'undead' };
+const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = { rune_deathtouched_apple: 'undead', rune_hoardcalling: 'dragon' };
 
 /** The tribes of the bodies a reward GRANTS (Rune of Lazarus → Lazarus is Undead) — the 2026-09-10 ruling's
  *  "only grants a tribe body" case, resolved through the card index rather than a hand list. */

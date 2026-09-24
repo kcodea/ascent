@@ -718,6 +718,9 @@ export const RUNES: RuneDef[] = [
     // untagged spells (Rune of Hoardflame / Rune of Dragon Breath grant the same cards and carry no tribe gate either),
     // so nothing on the text names a tribe any more.
     id: 'rune_hoardcalling',
+    // TRIBE GATE (owner 2026-09-24: "hoardcalling should have a dragon tag"): Hoardflame + Dragonflame are Dragon
+    // spells, so the rune is offered only in a run that rolled Dragons. Recorded in tribeGate.test.ts OWNER_TRIBE_RULINGS.
+    tribes: ['dragon'],
     name: 'Rune of Hoardcalling',
     cost: 4, // owner balance 2026-08-11
     text: 'When you trigger **3 Shouts**, get a **Hoardflame** or **Dragonflame**.',

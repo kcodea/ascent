@@ -52,6 +52,26 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Effects are no longer cut off by a hard edge. They now play over their full area.',
+        details: [
+          'Soft, blurred effects could stop at an invisible line on wide screens.',
+          'This was most visible around a lone minion in the middle of the board.',
+          'Effects now reach the edge of your screen in the shop, at End of Turn and in combat.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      { category: 'Balance', text: 'Rune of Hoardcalling only appears in runs with Dragons again.' },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Kobolds, Celestials and Dwarves',
     changes: [
       {

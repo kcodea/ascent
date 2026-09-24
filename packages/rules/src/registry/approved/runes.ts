@@ -252,7 +252,9 @@ export const RUNES_RULES: GameRule[] = [
       + 'tagging a rune with a tribe a set does not field is a complete exclusion from that set — no `sets` edit '
       + 'needed. Rune of the Deathtouched Apple ("When a minion Rises, give it Rise") is tagged Undead (Rise is the '
       + 'Undead keyword): it can never appear in a Set 2 run (Set 2 fields no Undead) and still appears in a Set 1 or '
-      + 'Set 3 run that rolled Undead. A tag is honest only when the text names the tribe or its keyword / content '
+      + 'Set 3 run that rolled Undead. Rune of Hoardcalling ("get a Hoardflame or Dragonflame") is tagged Dragon by '
+      + 'owner ruling (its rewards are Dragon spells): it is offered only in a run that rolled Dragons, never in Set 3. '
+      + 'A tag is honest only when the text names the tribe or its keyword / content '
       + '(`tribeGate.test.ts` audits every tag; a keyword-only naming needs an owner ruling recorded there). '
       + 'Archiving is the other exclusion: an archived rune (`ARCHIVED_RUNES`) is in neither forge stock in ANY set '
       + 'but stays in `RUNE_INDEX`, so a saved run or replay that holds it keeps its badge, text and reward.',
@@ -261,18 +263,20 @@ export const RUNES_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-23 (Balance 9/23, archives and Picnic)', quote: 'make deathtouched apple an undead rune, so it is not in set 2' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-23 (Balance 9/23, archives and Picnic)', quote: 'archive rune of emberline from all sets' },
-      { kind: 'code', ref: 'packages/sim/src/reducer.ts runeforgePool (the `sets` + `tribes` filters); packages/content/src/sets.ts SETS[*].tribes + selectRunTribes; packages/content/src/runes.ts rune_deathtouched_apple tribes / ARCHIVED_RUNES / RUNE_INDEX' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-24 (Hoardcalling tag)', quote: 'hoardcalling should have a dragon tag' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts runeforgePool (the `sets` + `tribes` filters); packages/content/src/sets.ts SETS[*].tribes + selectRunTribes; packages/content/src/runes.ts rune_deathtouched_apple + rune_hoardcalling tribes / ARCHIVED_RUNES / RUNE_INDEX' },
     ],
-    contentIds: ['rune_deathtouched_apple'],
+    contentIds: ['rune_deathtouched_apple', 'rune_hoardcalling'],
     currentBehaviour:
       'Conforms as of 2026-09-23. Until then the Apple carried no tribe tag and was offered in every set, Set 2 '
       + 'included, where Rise has almost nothing to act on. Eleven runes were archived the same day (Emberline, '
       + 'Centerline, Cindergem, Second Litter, Spare Chair, Moonhowl, Taurus, Ashen Heir, Old Pack, Open Market, '
-      + 'Warpath) — out of every forge, still resolvable by id.',
+      + 'Warpath) — out of every forge, still resolvable by id. Hoardcalling lost its Dragon tag in the 2026-09-23 '
+      + 'rework (#1669) and got it back 2026-09-24.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/tribeGate.test.ts', 'packages/sim/src/set3RuneRoster.test.ts', 'packages/sim/src/runes.test.ts'],
-      lastVerifiedAt: '2026-09-23',
+      lastVerifiedAt: '2026-09-24',
     },
   },
   {

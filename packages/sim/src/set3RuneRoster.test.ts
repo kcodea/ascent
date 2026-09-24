@@ -32,7 +32,7 @@ const originals = (epic: boolean): number => [...RUNES, ...EPIC_RUNES].filter((r
 describe('the Set 3 static rune pool (handoff 2026-09-14)', () => {
   it('resolves to 115 Basic / 97 Epic before any Set 3-original rune (98 Epic at the handoff; Frontline Glory dropped 2026-09-16)', () => {
     const pool = staticPool('set3', S3).filter((r) => !isOriginal(r));
-    expect(pool.filter((r) => !r.epic)).toHaveLength(110); // 115 at the handoff + Rune of Gambling (all sets, 2026-09-17); −4 on 2026-09-18 (tag pass: Beast/Mech-body runes now gate on tribes set 3 does not field); −2 on 2026-09-23 (Balance 9/23 archives: Centerline, Spare Chair); rune reworks A (2026-09-23) nets 0: −1 Drake Skull (now reads Dragons, gated `dragon`) +1 Hoardcalling (now any Shout, gate dropped)
+    expect(pool.filter((r) => !r.epic)).toHaveLength(109); // 115 at the handoff + Rune of Gambling (all sets, 2026-09-17); −4 on 2026-09-18 (tag pass: Beast/Mech-body runes now gate on tribes set 3 does not field); −2 on 2026-09-23 (Balance 9/23 archives: Centerline, Spare Chair); rune reworks A (2026-09-23) nets 0: −1 Drake Skull (now reads Dragons, gated `dragon`) +1 Hoardcalling (now any Shout, gate dropped); −1 on 2026-09-24 (owner: "hoardcalling should have a dragon tag" — Hoardcalling gated `dragon` again; set 3 fields no Dragons)
     expect(pool.filter((r) => r.epic)).toHaveLength(87); // 97 → 90 on 2026-09-18 (tag pass: Beast/Dragon/Mech/Demon-body Epics gate on tribes set 3 does not field); 90 → 87 on 2026-09-23 (Balance 9/23 archives: Taurus, Open Market, Warpath)
     expect(pool.some((r) => r.id === 'rune_frontline_glory')).toBe(false);
     expect(RUNE_INDEX['rune_frontline_glory']!.sets).toEqual(['set1']);
@@ -79,7 +79,7 @@ describe('a Set 3 Dwarf / Kobold run at the forge', () => {
     const basic = forge(false), epic = forge(true);
     // the Wishbone is hero-conditional (requiresDoublePower) — the Warden's power does not double, so one Basic fewer
     const wishbone = RUNE_INDEX['rune_wishbone'] ? 1 : 0;
-    expect(basic.length).toBe(110 - wishbone + originals(false)); // 112 → 110 on 2026-09-23 (Balance 9/23 archives)
+    expect(basic.length).toBe(109 - wishbone + originals(false)); // 112 → 110 on 2026-09-23 (Balance 9/23 archives); → 109 on 2026-09-24 (Hoardcalling gated `dragon` again)
     expect(epic.length).toBe(87 + originals(true)); // 90 → 87 on 2026-09-23 (Balance 9/23 archives)
   });
 });

@@ -552,26 +552,31 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PRESENT-07',
-    title: 'The announcer speaks each game moment at most once per run, never back to back, through a priority queue with a 12 s cooldown and an eight-line cap; its own audio channel sits behind the Settings Audio panel',
+    title: 'The announcer speaks each game moment at most once per run, never back to back, through a priority queue with a 12 s cooldown and a fifteen-line cap; its own audio channel sits behind the Settings Audio panel',
     statement:
       'The announcer (announcer.ts) is a set of one-shot voice lines on game moments, spoken ONLY inside a lobby or '
       + 'Practice run on screen (the music gate: never the title, a tutorial, a sandbox rig or a replay). Each event '
       + 'speaks at most ONCE per run, recorded in the store\x27s `announced` slice, which is persisted with the '
       + 'autosave and keyed by the run seed, so a Save & Continue never replays a line and a new run starts fresh; '
-      + 'BackToShop and Triple may speak twice, at least ANNOUNCER_REPEAT_GAP_WAVES (5) waves apart. The variant '
-      + '(1 / 2 / 3) is drawn from the run seed. One global cooldown, ANNOUNCER_COOLDOWN_MS (12 s from the previous '
+      + 'BackToShop and Triple may speak twice, at least ANNOUNCER_REPEAT_GAP_WAVES (5) waves apart, and Knockout twice, '
+      + 'at least ANNOUNCER_KNOCKOUT_GAP_WAVES (1) apart. The variant (1 to 4) is drawn from the run seed (`announcerVariant`, '
+      + 'which hashes the event\x27s index in ANNOUNCER_LINES, so the table is append-only). The RARE lines (the four random '
+      + 'buy lines, Round7) roll a seeded ANNOUNCER_RARE_CHANCE (10%) per qualifying moment from the run seed, the wave and '
+      + 'the buy index (`announcerRoll`), so a replay rolls the same way; never Math.random. One global cooldown, ANNOUNCER_COOLDOWN_MS (12 s from the previous '
       + 'line ending), and never while a line plays: an event landing inside it is DROPPED, not queued, and stays '
       + 'unfired (it may speak later if its moment recurs and is still valid); the two forge lines and this round\x27s '
       + 'SurviveUnder10hp BYPASS the cooldown (never a playing line: they wait for it to end). Pending events are weighed together by '
-      + 'priority (GameWon = GameLoss > TopTwo > TopFour > SurviveUnder10hp > LosingLowOdds = WinningLowOdds > '
-      + 'ThreeWinStreak > StartCombatUnder10hp > EnteringCombatAfterLoss > MinionHits100Stats > TierSix > '
-      + 'EpicRuneforge > Runeforge > Triple > Equipment > EnteringCombat > GameStart > BackToShop): the highest speaks, '
+      + 'priority (GameWon = GameLoss 100 > TopTwo 90 > Knockout 88 > TopFour 85 > SurviveUnder10hp 80 > LosingLowOdds = '
+      + 'WinningLowOdds 70 > ComebackWin 66 > ThreeWinStreak 65 > StartCombatUnder10hp 60 > FlawlessVictory 58 > BigHit 57 > '
+      + 'EnteringCombatAfterLoss 55 > MinionHits100Stats 50 > GoldenArmy 48 > ShopBigBuff 46 > TierSix 45 > EpicRuneforge 40 > '
+      + 'Runeforge 35 > Triple 30 > TribeFour 28 > Equipment 25 > BigSpender 24 > RichTurn 22 > EnteringCombat 20 > Pair 18 > '
+      + 'GameStart 15 > Round7 14 > the four random buy lines 12 > BackToShop 10): the highest speaks, '
       + 'the rest are dropped. Shelf life: combat lines expire when the next shop opens, shop lines when combat starts, '
       + 'GameWon / GameLoss never expire (they wait out the cooldown). Silence: nothing in the first '
       + 'ANNOUNCER_COMBAT_SILENCE_MS (3 s) of a combat resolution; nothing over the music\x27s turn-1 fade-in (GameStart '
       + 'plays ANNOUNCER_GAME_START_DELAY_MS, 4 s, after the first shop); a Skip (`stopAllAudio`) or leaving the run '
       + 'cancels the queue and the playing line with an ANNOUNCER_STOP_FADE_MS (100 ms) fade. At most '
-      + 'ANNOUNCER_LINE_CAP (8) lines per game, GameWon / GameLoss allowed on top. Timing: the Face Omen lines play '
+      + 'ANNOUNCER_LINE_CAP (15; 8 until 2026-09-24) lines per game, GameWon / GameLoss allowed on top. Timing: the Face Omen lines play '
       + 'ANNOUNCER_FACE_OMEN_DELAY_MS (1.6 s) after the flip; the return lines (BackToShop, TopFour / TopTwo, a forge '
       + 'opening with the return) ANNOUNCER_BACK_TO_SHOP_DELAY_MS (1 s) after resolveCombat. Triggers: GameStart (wave 1\x27s '
       + 'first shop), BackToShop (a return from combat, twice per game at most, first no earlier than wave 2), '
@@ -584,7 +589,18 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'odds from the rail\x27s real probe, skipped when absent), WinningLowOddsFight (a win at 35% or less), '
       + 'ThreeWinStreak (the third consecutive win), MinionHits100Stats (a player minion at 100+ Attack or Health, in '
       + 'the shop or the fight, never the enemy side), TopFour / TopTwo (four / two seats standing when the rail shows '
-      + 'it, the player among them), GameWon (1st place) and GameLoss (2nd to 8th) 1 s into the end screen. The '
+      + 'it, the player among them), GameWon (1st place) and GameLoss (2nd to 8th) 1 s into the end screen. The second '
+      + 'batch (2026-09-24): Knockout (the return update: this round\x27s encounter where seat 0 dealt damage and its foe '
+      + 'went from standing to out; the table settles on resolveCombat, so the line lands with the rail\x27s elimination, '
+      + 'shop shelf, 1 s), BigHit (a verdict win whose enemyDamage, capped by lossDamageCap for the wave, is 15+), '
+      + 'ComebackWin (a verdict win right after 3+ losses in a row; a draw breaks the run), FlawlessVictory (a verdict win '
+      + 'from wave 5 with lastCombat.playerDeaths exactly 0), GoldenArmy (3+ gilded minions on the board, the hand not '
+      + 'counted), RichTurn (a return to the shop with 20+ Gold), BigSpender (20+ Gold spent this turn with 10+ still held), '
+      + 'ShopBigBuff (a Shop minion offer over 50 Attack by offerBuyStats), Pair (the first two copies of one non-golden '
+      + 'minion across board and hand), TribeFour (4 minions of one tribe bought in one Shop turn, a dual-tribe minion '
+      + 'counting for both, an All-tribe one for every tribe), RandomSpellBuy / RandomCardBuy / RandomBeastBuy / '
+      + 'RandomDwarfBuy (a 10% seeded roll on a spell / any / a Beast / a Dwarf buy, each once per game) and Round7 (a 10% '
+      + 'seeded roll when wave 7\x27s Shop opens). The '
       + 'announcer is its own channel: a third gain on the SFX AudioContext with its own volume and mute '
       + '(`ascent.announcervol.v2`, see R-PRESENT-13; `ascent.announcermuted`), not ducked by the Game-sounds mute; the clips '
       + 'load lazily on first need. Settings shows one "Audio" button (aria-expanded, collapsed by default, its state '
@@ -603,6 +619,8 @@ export const FOUNDATION_RULES: GameRule[] = [
         quote: 'with this we\x27ll need an announcer toggle and audio channel as well, similar to music. i think it\x27s best we put an "audio" button in the settings window that expands/collapses these 3 channels with mute toggles for each.',
       },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-23 (the announcer, on the queue logic)', quote: 'i like your logic you\x27ve shared here' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-24 (announcer lines, second batch)', quote: 'the gamewon is correct. there was a toptwo2 that was wrong which i removed.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-24 (announcer lines, second batch: the random buy lines)', quote: 'Rare: ~10% per buy' },
       {
         kind: 'owner-chat',
         ref: 'Claude Code session, 2026-09-23 (the announcer follow-up: the forge lines + the delays)',
@@ -611,7 +629,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/ui/src/announcer.ts (the queue, the detectors, the channel); packages/ui/src/announcerSlice.ts (the persisted slice); packages/ui/src/store.ts (announced, markAnnounced, combatOdds, the save round-trip); packages/ui/src/Game.tsx (the subscription + the stopAllAudio hook); packages/ui/src/Recruit.tsx (observeCombatBoard); packages/ui/src/EscMenu.tsx (the Audio panel)' },
     ],
     currentBehaviour:
-      'Conforms as of 2026-09-23 (same-day follow-up). Owner report after #1653: "i dont think the runeforge '
+      'Conforms as of 2026-09-24 (the second batch of lines, see the end). Owner report after #1653: "i dont think the runeforge '
       + 'voicelines are playing? and can you slightly delay the combat and return to shop ones? they play too quickly '
       + 'and should be offset by about 1s." Root cause: the scheduled forges (turn 6 Basic / turn 9 Epic, a hero\x27s '
       + 'turn 5 / 8, a booked Clock forge) set runeforgeOffer inside the same reducer step as the combat -> recruit '
@@ -621,12 +639,13 @@ export const FOUNDATION_RULES: GameRule[] = [
       + '-> 1600 ms; ANNOUNCER_BACK_TO_SHOP_DELAY_MS 1000 ms added (BackToShop, TopFour / TopTwo, a forge opening with '
       + 'the return); ANNOUNCER_COMBAT_SILENCE_MS stays 3000 ms and applies to the lines detected during the fight, not '
       + 'the Face Omen lines. Before this there was no announcer and the Settings Audio section was two flat '
-      + 'rows (Game sounds, Music). Known asset issue: the delivered GameWon.mp3 is byte-identical to TopTwo2.mp3 '
-      + '(a mis-export the owner will replace under the same name); GameWon therefore has one variant today.',
+      + 'rows (Game sounds, Music). 2026-09-24 (second batch): fifteen new events wired, ThreeWinStreak gained a second '
+      + 'variant, the cap went 8 -> 15, and the TopTwo2 clip was removed (the owner: it was the wrong take; GameWon.mp3 was '
+      + 'correct all along), so TopTwo has one variant.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/ui/src/announcer.test.ts', 'packages/ui/src/escMenuAudioPanel.test.tsx'],
-      lastVerifiedAt: '2026-09-23',
+      lastVerifiedAt: '2026-09-24',
     },
   },
   {

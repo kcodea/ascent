@@ -4,8 +4,8 @@
  * A LEAF module on purpose: no imports, so the store can hold and serialize this slice (next to the telemetry
  * and derivation slices) without a load-order cycle with `announcer.ts`, which imports the store's gate.
  *
- * `fired` is, per event, the WAVES it has spoken at (an array because two events may speak twice per game:
- * BackToShop and Triple, see `announcer.ts`); `count` is how many lines the cap counts (every line except the
+ * `fired` is, per event, the WAVES it has spoken at (an array because three events may speak twice per game:
+ * BackToShop, Triple and Knockout, see `announcer.ts`); `count` is how many lines the cap counts (every line except the
  * two end-of-game lines). `seed` pins it to one run: a slice restored against another seed is discarded.
  */
 
@@ -28,7 +28,23 @@ export type AnnouncerEvent =
   | 'topFour'
   | 'topTwo'
   | 'gameWon'
-  | 'gameLoss';
+  | 'gameLoss'
+  // The second batch (owner 2026-09-24).
+  | 'knockout'
+  | 'bigHit'
+  | 'comebackWin'
+  | 'flawlessVictory'
+  | 'goldenArmy'
+  | 'richTurn'
+  | 'bigSpender'
+  | 'shopBigBuff'
+  | 'pair'
+  | 'tribeFour'
+  | 'randomSpellBuy'
+  | 'randomCardBuy'
+  | 'randomBeastBuy'
+  | 'randomDwarfBuy'
+  | 'round7';
 
 export interface AnnouncedSlice {
   seed: number;

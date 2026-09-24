@@ -65,7 +65,7 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod runeEmberline — Rune of Emberline: the first friendly Imp to die hands its stats to the next Imp summoned.
 - combat mod runeAshenPayroll (Rune of Ashen Payroll: "Gain 1 Gold next turn for each Imp you summon in combat.") — Rune of Ashen Payroll: Imps-summoned threshold (3) for its once-per-combat Gold payout. Read at settle.
 - combat mod runeSpareChair — Rune of the Spare Chair: on a board of exactly 6, the first minion summoned gets Ward + attacks now.
-- combat mod runeAncestralRoar (Rune of Ancestral Roar: "Your Dragons with Shout gain "Echo: trigger this minion’s Shout."") — Rune of Ancestral Roar: a dying Dragon with a Shout fires that Shout as an Echo.
+- combat mod runeAncestralRoar (Rune of Ancestral Roar: "End of Turn: give your Dragons +6/+6 for every Shout you triggered this turn.") — Rune of Ancestral Roar: a dying Dragon with a Shout fires that Shout as an Echo.
 - combat mod runeRubyShrapnel (Rune of Ruby Shrapnel: "When a Ruby-buffed minion dies, split its Ruby bonus stats among your surviving minions.") — Rune of Ruby Shrapnel: a dying Ruby-buffed body splits its Ruby stats among the survivors.
 - combat mod runeSharedScripture (Rune of Shared Scripture: "The first Shop spell cast by your warband in combat triggers your left-most Shout and Rally.") — Rune of Shared Scripture: the warband's first combat Shop-spell cast fires the left-most Shout + Rally.
 - combat mod runeBroodmaster — Rune of the Broodmaster: a Broodwright's Imp buff also lands on itself (combat half).
@@ -74,7 +74,7 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod runeBattleRefraction — Rune of Battle Refraction: Prismcasters repeat Rubies played during combat too.
 - combat mod runeWrangler — Rune of the Wrangler: Imps summoned by your Imp Wranglers have Ward + Taunt.
 - combat mod runeGroveweaver — Rune of the Groveweaver: a Groveweaver's summon grant also lands on itself, in combat as well as shop.
-- combat mod runeEnchantment (Rune of Enchantment: "Whenever you cast a Shop spell, give your minions +2/+3 permanently (+4/+6 during combat).") — Rune of Enchantment (combat half): a combat cast gives your minions +4/+6. Carries the COPY COUNT since the 2026-08-27 duplicate rulings (a duplicate doubles the grant); `true` in older snapshots reads as 1.
+- combat mod runeEnchantment (Rune of Enchantment: "When you cast a Shop Spell in combat, give your minions +6/+8.") — Rune of Enchantment (combat half): a combat cast gives your minions +4/+6. Carries the COPY COUNT since the 2026-08-27 duplicate rulings (a duplicate doubles the grant); `true` in older snapshots reads as 1.
 - combat mod runeDragonscale (Rune of Dragonscale: "Whenever a friendly Dragon attacks, give it Ward. 3 times per combat.") — Rune of Dragonscale: how many Dragon attacks still earn Ward this combat (the printed 3).
 - combat mod beastialSwarmLevel — Rune of Beastial Swarm — the current per-death buff amount (starts 2, +2 per Avenge(2), run-persisted).
 - combat mod runeRuins (Rune of Ruins: "When a friendly Demon deals damage, give your minions +2/+2.")

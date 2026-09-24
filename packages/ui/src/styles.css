@@ -2887,7 +2887,9 @@ body.modalup .app { z-index: auto; }
   animation: castprevin 0.18s ease-out both;
 }
 .castprev.leaving { animation: castprevout 0.32s ease-in both; }
-.castprev-inner { zoom: calc(var(--inspect-zoom, 1) * var(--z-inspect-s, 1.52)); }
+/* `--cp-scale` = the Cast Preview tuner's Size (× the hover reveal's plated card), set inline per preview. The
+   entrance/exit durations and the max opacity are inline too (castPreviewConfig.ts) — no hard-coded look here. */
+.castprev-inner { zoom: calc(var(--inspect-zoom, 1) * var(--z-inspect-s, 1.52) * var(--cp-scale, 0.42)); }
 .castprev .card.plated { margin-inline: calc(var(--ccw) * (var(--plate-scale, 1.5) - 1) / 2); }
 /* the ×N chip: a same-caster recast refreshed this preview (Rubies in a burst, a gilded double cast) */
 .castprev-count { position: absolute; top: -6px; right: -6px; font-family: var(--font-ui); font-weight: 800; font-size: 12px; line-height: 1; padding: 4px 6px; border-radius: 9px; color: #f4ecdb; background: #241a13; border: 1.5px solid color-mix(in srgb, var(--gold) 55%, #000); }

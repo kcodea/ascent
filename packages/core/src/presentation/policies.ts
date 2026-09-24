@@ -522,7 +522,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_aftershocks:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_altar:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_amplification:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
-  'rune:rune_ancestral_roar:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  'rune:rune_ancestral_roar:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // balance 9/23: the End-of-Turn Dragon lump (the Echo-Shout combat flag left the content)
   'rune:rune_ancient_den:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_ancient_expenditure:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },
   'rune:rune_appraisal:combat': { policy: 'ownBeat', family: 'avenge' },
@@ -731,7 +731,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_pillaging:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_procession:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_profit_sharing:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
-  'rune:rune_quick_study:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
+  'rune:rune_quick_study:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' }, // balance 9/23: a grant on purchase (+ a repeat next turn), no longer an End-of-Turn recurrence
   'rune:rune_rallying:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_rebirth:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_recollection:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },

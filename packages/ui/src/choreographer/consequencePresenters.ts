@@ -31,6 +31,10 @@ export interface PresenterContext {
    *  tendril from the hero-power button to the recipient, one per recipient (owner ask 2026-09-15). A hero
    *  beat has no body to pulse and no rune rail to ribbon from, so without this the gain landed unannounced. */
   heroPowerGain: (uid: string, heroId: string) => void;
+  /** Does `spellId` have its OWN cast effect (a card-level `spellCast` binding — Growth, Waking Rift)? When it
+   *  does, a buff that spell produced for a casting minion draws NO tendril: the spell's effect replaces it
+   *  (owner ruling 2026-09-24). Optional: a context without it keeps every tendril. */
+  spellHasCastFx?: (spellId: string) => boolean;
   /** A minion buffed ITSELF this beat — the authored self-buff def (`self-buff-gold`), the richer twin of the
    *  green `statGain` burst. Matches the per-action path so a self-buff looks the same on any beat. */
   selfBuff: (uid: string) => void;
@@ -129,6 +133,11 @@ export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], Consequenc
       ctx.heroPowerGain(c.target.uid, beat.source.id);
       return;
     }
+    // A CARD'S CAST of a spell with its own effect (a Mage-Pup's Growth at End of Turn): the spell's effect plays
+    // on the cast's beat (`spellResolved`) and REPLACES the caster's tendril (owner ruling 2026-09-24: "the growth
+    // and waking rift effects should replace the tendril for a card that carried those effects, like fatecarver
+    // as an example"). The stat change itself still lands through the projection; only the ribbon is dropped.
+    if (c.spellId && ctx.spellHasCastFx?.(c.spellId)) return;
     ctx.statGain(c.target.uid, c.target.zone, c.attack, c.health,
       beat.source.kind === 'minion' && beat.source.uid ? { uid: beat.source.uid, cardId: beat.source.id } : undefined);
   },

@@ -722,8 +722,15 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'that spell\x27s card preview above its caster: above the rune\x27s node on the rune rail for a rune-cast, above '
       + 'the minion\x27s card for a minion-cast (Rune of the Gilded Ledger\x27s random stat spell, Rune of the Spell '
       + 'Market\x27s Staff of Guel, Rope Wrangler\x27s Lasso, a Gemstorm Instigator\x27s Rubies, a Mirrorwing re-cast, an '
-      + 'End-of-Turn cast). It is the SAME plated full-size card the hover reveal shows, with its live text; it fades '
-      + 'in like a hover preview (~180 ms), lingers about two seconds (2000 ms), then fades out (~320 ms). In the shop '
+      + 'End-of-Turn cast). NOTE 2026-09-24: ONLY THE RUNE CASE IS ON for now; minion casts (shop, End of Turn and '
+      + 'combat) are gated off by `CAST_PREVIEW_SOURCES` (owner: hide/disable the combat/minion side), with their code '
+      + 'kept wired so re-enabling is one line. It is the plated card the hover reveal shows, with its live text, at '
+      + 'the owner-baked size (0.6 of the full plated card, 32 px higher than flush above its source); it fades in '
+      + '(150 ms), lingers (500 ms), then fades out (190 ms). Size, side of the source, X/Y offset, fade-in, linger, '
+      + 'fade-out and max opacity are '
+      + 'owner-tunable per context (shop / combat) on the DEV Cast Preview tuner, which also carries the combat '
+      + 'once-per-fight switch and a Preview test button (the combat knobs are hidden while combat is gated off); '
+      + 'prod ships the baked defaults. In the shop '
       + 'every cast previews; a second cast from the SAME source while its preview is still up REPLACES it (the card '
       + 'swaps, a small xN count appears, the linger restarts) and casts from different sources sit side by side, '
       + 'nudged apart rather than overlapping. IN COMBAT a source that casts the SAME spell repeatedly previews it '
@@ -751,14 +758,38 @@ export const FOUNDATION_RULES: GameRule[] = [
         ref: 'Owner detail, 2026-09-23 (combat)',
         quote: 'for the preview -> for card like fatecarver or warflame that casts the same spell every time, it should only do the quick pop one time in combat.',
       },
-      { kind: 'code', ref: 'packages/sim/src/recruit.ts (`castActorStack`, `withCastActor`, the RECRUIT_FACTORIES wrap, the record at the top of `applyCastEffects`, `EotStepFx.casts`); packages/sim/src/state.ts (`CastFx`, `recordCastFx`, `castFx`/`castFxSeq`); packages/ui/src/castPreview.ts (the store, `placeCastPreview`); packages/ui/src/CastPreviewLayer.tsx; packages/ui/src/choreo/channels/castPreview.ts (`spellCastsIn`, `CastPreviewMemory`); packages/ui/src/choreo/score.ts (the `castPreviewFx` cue); packages/ui/src/useCombatReplay.ts (`onSpellCastPreviews`); packages/ui/src/choreographer/consequencePresenters.ts (`spellResolved`); packages/ui/src/styles.css (`.castprev`)' },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner feedback, 2026-09-23 (cast preview follow-up, with screenshots)',
+        quote: 'this is far too large. can you build a tuner for me to adjust size, positioning, and linger duration? also, why does fate carver not show the growth preview? warflame does. it is also massive. make sure to add all of the details to the tuner so i can tune both. add an alpha/opacity lever as well.',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner follow-up on PR #1671, 2026-09-24',
+        quote: 'use the values below for the rune triggering one, but let\x27s hide/disable the combat/minion side for now, because it isn\x27t what i want right now.',
+      },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts (`castActorStack`, `withCastActor`, the RECRUIT_FACTORIES wrap, the record at the top of `applyCastEffects`, `EotStepFx.casts`); packages/sim/src/state.ts (`CastFx`, `recordCastFx`, `castFx`/`castFxSeq`); packages/ui/src/castPreview.ts (the store, `placeCastPreview`); packages/ui/src/CastPreviewLayer.tsx; packages/ui/src/choreo/channels/castPreview.ts (`spellCastsIn`, `CastPreviewMemory`); packages/ui/src/choreo/score.ts (the `castPreviewFx` cue); packages/ui/src/useCombatReplay.ts (`onSpellCastPreviews`); packages/ui/src/choreographer/consequencePresenters.ts (`spellResolved`); packages/ui/src/styles.css (`.castprev`); packages/ui/src/castPreviewConfig.ts (the tuner\x27s one config accessor: `castPreviewLook`, `castPreviewTimings`, `castPreviewCombatOncePerFight`); packages/ui/src/CastPreviewTuner.tsx (the panel + Preview test); packages/core/src/effects/factories.ts (the combat `castRepeat` verb now logs the `sc` + `spellId` announcement from the caster; `castTribeAttackSpell` stamps `spellId`)' },
     ],
     currentBehaviour:
       'Conforms as of 2026-09-23. Verified live on port 5267: a Rune of the Gilded Ledger paying out floats the cast '
       + 'spell above its rune node; a Rope Wrangler\x27s End-of-Turn Lasso floats above the Wrangler; sampled computed '
       + 'opacity climbs through the fade-in, holds at 1 for the linger and falls through the fade-out; the rune rail '
       + 'and the warband row rects are identical before and after the preview (no layout shift). Equipment casts '
-      + 'deliberately record nothing (an open question for the owner; see the devlog).',
+      + 'deliberately record nothing (an open question for the owner; see the devlog). FOLLOW-UP 2026-09-24: the '
+      + 'preview is smaller by default and fully tunable (Cast Preview tuner, shop + combat knob groups, live). '
+      + 'Fatecarver previewed nothing in combat because its Growth cast through the arena\x27s `castRepeat` verb, whose '
+      + 'combat half ignored the spell id and logged no "X casts Y" `sc` event, so the preview scan had nothing to '
+      + 'find (Warflame / Flamebeat cast through `castNamedSpellInCombat`, which always logged it). The verb now logs '
+      + 'one announcement per cast from the CASTER, so Fatecarver, Taragosa and Hoardbreaker (Growth), Watcher and '
+      + 'Wick Mortis (Lantern of Souls) and Ashen Broodlord (Staff of Guel) preview once per fight above themselves; '
+      + 'Anubis\x27s Echo Lantern line now carries its spell id. The combat memory is claimed only once the caster has '
+      + 'an on-screen rect. GATED 2026-09-24 (owner follow-up on PR #1671): the owner-tuned values are baked as the '
+      + 'defaults (rune/shop: 0.6 size, above, offset 0 / -32 px, 150 / 500 / 190 ms, opacity 1; the combat set is '
+      + 'baked too for when it returns) and `CAST_PREVIEW_SOURCES = { rune: true, minion: false, combat: false }` '
+      + 'turns the minion and combat previews off: `fireCastPreviewAt` is a no-op for a minion source, '
+      + '`showCombatCastPreviews` (the combat feeder) returns without showing or claiming, and the tuner shows only '
+      + 'the "Rune casts" group. The engine fix stays: combat casts still log their `sc` + `spellId` events (the '
+      + 'Combat Log names them), they simply preview nothing while the gate is off.',
     enforcement: {
       kind: 'scenario',
       refs: [
@@ -766,8 +797,71 @@ export const FOUNDATION_RULES: GameRule[] = [
         'packages/ui/src/castPreview.test.ts',
         'packages/ui/src/CastPreviewLayer.test.tsx',
         'packages/ui/src/choreo/channels/castPreview.test.ts',
+        'packages/ui/src/castPreviewConfig.test.ts',
+        'packages/core/src/combat/combatCastAnnounce.test.ts',
+        'packages/ui/src/castPreviewGate.test.ts',
       ],
-      lastVerifiedAt: '2026-09-23',
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
+  {
+    id: 'R-PHASE-01',
+    title: 'Effects, mechanics and FX work in every phase and from every source by default',
+    statement:
+      'An effect, mechanic, trigger, tally or FX is wired to work in EVERY phase it can occur in (recruit / Shop, End '
+      + 'of Turn, combat) and from EVERY source (the player, a rune, a minion, a hero, a quest) by default. A '
+      + 'phase-limited or source-limited behaviour needs an explicit owner ruling; when unsure, ask the owner. '
+      + 'Concretely for FX: a spell\x27s own cast effect (its card-level `spellCast` row in bindings.json: Growth '
+      + '-> `growth-effect`, Waking Rift (`sparkplug`) -> `waking-rift-fx`) plays on EVERY cast of that spell: the player\x27s cast from hand, a rune\x27s or a '
+      + 'minion\x27s cast in the Shop, an End-of-Turn cast, and a combat cast (Fatecarver, Taragosa, Hoardbreaker '
+      + 'Drake, Sporebat). Every combat cast announces itself (`sc` + `spellId`) and stamps its buffs with `spellId` '
+      + '(`withCastingSpell` at `resolveCombatSpellCast` and the arena\x27s `castRepeat`), and every Shop / End-of-Turn '
+      + 'cast by a rune or minion is recorded on `castFx` (`recordActorCast`, shared by `applyCastEffects` and the '
+      + 'arena\x27s `castRepeat`), so a per-spell effect binds to the SPELL in every phase. PRESENTATION (owner ruling '
+      + '2026-09-24): when a CARD casts a spell that has its own cast effect (Fatecarver, Taragosa, Hoardbreaker, a '
+      + 'Mage-Pup, Sporebat), that effect REPLACES the generic buff tendril / descend for the buffs that cast produced, '
+      + 'in every phase: the stat change and number still land, only the travelling ribbon is dropped. One predicate '
+      + '(`castFxReplacesTendril`) reads the sim\x27s spell tag on the buff (combat `buff.spellId`, the shop '
+      + '`BuffFxEvent.spellId`, End of Turn `statsChanged.spellId`); a spell with no cast effect keeps its tendril.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ask, 2026-09-24 (Growth effect)',
+        quote: 'i added a growth effect for whenever growth is cast, by any means. player,rune,minion etc and any phase. recruit, combat, end of turn whatever it may be. (this should be default by now anyways and if it isnt, please write into the oracle that our effects and mechanics should be wired to work across phases by default. always ask if unsure)',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ask, 2026-09-24 (Waking Rift effect, same PR)',
+        quote: 'i added a waking rift effect',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ruling on PR #1672, 2026-09-24 (tendril)',
+        quote: 'the growth and waking rift effects should replace the tendril for a card that carried those effects, like fatecarver as an example.',
+      },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts (`withCastingSpell`, `resolveCombatSpellCast`, the combat arena `castRepeat`); packages/sim/src/recruit.ts (`recordActorCast`, the shop arena `castRepeat`); packages/ui/src/fx/spellCastFx.ts (`playSpellCastFx`, `playRecordedCastFx`, `playCombatSpellCastFx`); packages/ui/src/choreo/bindings.ts (`spellCastFxFor`); packages/ui/src/choreo/score.ts (the `spellCastFx` cue); packages/ui/src/Recruit.tsx (the `castFxSeq` watcher, the `spellCast` presenter context, the legacy End-of-Turn beat); packages/core/src/effects/arena.ts (`ARENA_EFFECTS`, the shared cross-phase bodies)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-24 for spell cast FX (Growth and Waking Rift are the first spells bound). Combat casts through the arena\x27s '
+      + '`castRepeat` (Fatecarver / Taragosa / Hoardbreaker\x27s Growth) previously logged no `sc` announcement and '
+      + 'emitted untagged buffs, and a shop Rally\x27s inline "cast Growth" recorded no cast; both are fixed. Known '
+      + 'remaining gaps, not yet ruled: Rune of Spellhide\x27s Start-of-Combat re-cast resolves without an `sc` '
+      + 'announcement, and an Equipment\x27s cast deliberately records nothing (R-PRESENT-10). The mechanic half of the '
+      + 'default is enforced by the Doc Bot `factoryPhase` lane (every trigger/factory pair implemented in every '
+      + 'phase its trigger dispatches, or a registered excuse).',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/ui/src/fx/spellCastFx.test.ts',
+        'packages/sim/src/growthCastFx.test.ts',
+        'packages/core/src/combat/growthCastTag.test.ts',
+        'packages/sim/src/docbot/factoryPhase.test.ts',
+        'packages/sim/src/effectArena.test.ts',
+        'packages/sim/src/castFx.test.ts',
+      ],
+      lastVerifiedAt: '2026-09-24',
     },
   },
   {

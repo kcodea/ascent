@@ -55,6 +55,37 @@ let equipmentCastDepth = 0;
 /** > 0 while End of Turn resolves (`applyEndOfTurn`, `projectEndOfTurnSteps`) — a cast recorded then is stamped
  *  `endOfTurn`, so the action-level watcher leaves it to the End-of-Turn beats. */
 let endOfTurnDepth = 0;
+/**
+ * Record a cast by the innermost cast actor (a rune or a minion) on the presentation channel (`castFx`), plus
+ * the `spellResolved` consequence when a collector is capturing. THE one recorder, shared by `applyCastEffects`
+ * (every full shop cast) and the arena's `castRepeat` (a "cast Growth" body that resolves inline — Hoardbreaker
+ * Drake's Rally replayed in the shop), so every shop cast by a rune or minion reaches the per-spell cast FX and
+ * the cast preview. The player's own cast (no actor) and an Equipment's cast record nothing.
+ */
+/**
+ * The ONE spell a given minion cast since `start` on the `castFx` channel, or undefined (none, or several
+ * different ones). How a buff learns it was produced by a CARD's cast: `captureBuffFx` and the End-of-Turn
+ * trigger scope stamp it onto their buff records, so a spell with its own cast effect can replace the caster's
+ * tendril for that cast (owner ruling 2026-09-24: "the growth and waking rift effects should replace the tendril
+ * for a card that carried those effects, like fatecarver as an example").
+ */
+function spellCastBySince(state: RunState, start: number, uid: string | undefined): string | undefined {
+  if (!uid) return undefined;
+  const ids = new Set<string>();
+  const all = state.castFx ?? [];
+  for (let i = start; i < all.length; i++) {
+    const c = all[i]!;
+    if (c.source.kind === 'minion' && c.source.uid === uid) ids.add(c.spellId);
+  }
+  return ids.size === 1 ? [...ids][0] : undefined;
+}
+
+function recordActorCast(state: RunState, spellId: string, collector: PresentationCollector): void {
+  const actor = castActorStack[castActorStack.length - 1];
+  if (!actor || equipmentCastDepth > 0) return;
+  recordCastFx(state, actor, spellId, endOfTurnDepth > 0 ? 'endOfTurn' : 'recruit');
+  if (collector.enabled) collector.emit({ type: 'spellResolved', cardId: spellId });
+}
 
 type RecruitFn = (
   ctx: RecruitContext,
@@ -285,7 +316,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       // `castInCombat` gives the combat half. Golden = two real casts, never one doubled cast.
       const def = spellId ? CARD_INDEX[spellId] : undefined;
       for (let i = 0; i < (self.golden ? 2 : 1); i++) {
-        if (def) noteSpellCast(state, def);
+        if (def) { recordActorCast(state, def.id, currentCollector()); noteSpellCast(state, def); }
         body();
       }
     },
@@ -547,10 +578,17 @@ export function captureBuffFx(
   source: BoardCard | undefined,
   kind: BuffFxEvent['kind'],
   run: () => void,
+  /** A `spell` capture's spell, when a CARD (a minion) cast it — stamped on its records so a spell with its own
+   *  cast effect replaces the descend/tendril for that cast (owner ruling 2026-09-24). */
+  cardCastSpellId?: string,
 ): void {
   const before = new Map(state.board.map((c) => [c.uid, { a: c.attack, h: c.health }]));
   const fxStart = state.recruitBuffFx.length; // entries pushed DURING run() are nested (deeper) captures
+  const castStart = (state.castFx ?? []).length;
   run();
+  // A minion that CAST a spell in this capture (Mage-Pup's taught Growth, a shop Rally's "cast Growth"): its buffs
+  // carry the spell, so the UI can let that spell's own effect replace the tendril (owner ruling 2026-09-24).
+  const castSpellId = kind === 'minion' || kind === 'deathrattle' ? spellCastBySince(state, castStart, source?.uid) : cardCastSpellId;
   // A nested capture (e.g. a summoned token's aura, or Karwind reacting) already recorded these targets with a
   // more specific source — don't also attribute their delta to THIS (outer) source. Sibling captures (sequential,
   // not nested — e.g. a Growth spell then Guel both buffing X) are NOT skipped: they legitimately produce two events.
@@ -571,6 +609,7 @@ export function captureBuffFx(
       targetUid: c.uid, attack: da, health: dh,
       sourceCardId: source?.cardId ?? '', sourceTribe: source?.tribe ?? 'neutral',
       kind,
+      ...(castSpellId ? { spellId: castSpellId } : {}),
     });
   }
 }
@@ -1635,20 +1674,50 @@ function payRuneThresholdInner(state: RunState, t: NonNullable<RunState['runeThr
     if (def) grantMinionToHandOrBoard(state, def, false, true);
   }
   // Rune of the Gilded Ledger: CAST a random stat-granting Shop spell — a real cast, so spell power, the cast
-  // counters and every on-cast watcher see it. Untargeted spells only: the meter trips with no player around
-  // to aim, and `castSpell` with no target is exactly what an untargeted cast is.
+  // counters and every on-cast watcher see it. The pool is THE stat-granting category (`isStatGrantingSpell`,
+  // owner ruling 2026-09-23): board-wide buffs, TARGETED stat spells and the stat Ales alike. Nobody is there to
+  // aim when the meter trips, so a targeted pick lands on a seeded-random legal friendly minion
+  // (`castSpellWithoutAim`), and fizzles cleanly when there is none.
   if (t.castStatSpell) {
-    const pool = runSpells(state).filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id) && !c.token && isBoardStatSpell(c) && c.target !== 'friendly' && c.target !== 'any');
+    const pool = runSpells(state).filter((c) => c.tier <= state.tier && isStatGrantingSpell(c));
     for (let i = 0; i < t.castStatSpell && pool.length > 0; i++) {
       const rng = makeRng(state.rngCursor);
       const pick = pool[rng.int(pool.length)]!;
       state.rngCursor = rng.state();
-      castSpell(state, pick, undefined);
+      castSpellWithoutAim(state, pick);
     }
   }
   // Rune of the Gem Dividend: Gold banked into NEXT turn's opening rather than paid now — the sheet's
   // "gain 3 Gold next turn". Rides the same channel Bounty Bot's next-shop Gold uses.
   if (t.grantGoldNextTurn) state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + t.grantGoldNextTurn;
+  // ── balance 9/23 (rune reworks A) payloads ──
+  // Rune of the Gem Dividend: Gold paid NOW ("When you cast a Ruby, gain 3 Gold. Once per turn.").
+  if (t.grantGold) gainGold(state, t.grantGold);
+  // Rune of Gemspam: IMPROVE the run's Rubies (`rubyBonus` — held Rubies grow with it, like every "Your Rubies
+  // gain +X/+Y"), then the Ruby it also hands over is minted at the improved strength (`grantRuby` above runs
+  // first, so the Ruby in hand is grown here rather than double-counted).
+  if (t.improveRuby) improveRubies(state, t.improveRuby.attack, t.improveRuby.health);
+  // Rune of Hoardcalling: ONE of the named cards, rolled off the run cursor (a Hoardflame or a Dragonflame).
+  if (t.grantOneOf?.length) {
+    const rng = makeRng(state.rngCursor);
+    const id = t.grantOneOf[rng.int(t.grantOneOf.length)]!;
+    state.rngCursor = rng.state();
+    const def = CARD_INDEX[id];
+    if (def) conjureToHand(state, [def], 1, true);
+  }
+  // Rune of the Dragon's Pantry: a random buyable minion of the tribe at or below the shop tier.
+  if (t.grantRandomTribe) {
+    const tribe = t.grantRandomTribe;
+    const pool = poolOf(state).buyable.filter((c) => (c.tribe === tribe || c.tribe2 === tribe) && c.tier <= state.tier);
+    conjureToHand(state, pool, 1, true);
+  }
+  // Rune of the Spellmarket: CAST the named spells (untargeted) — a real `castSpell`, the same rune-cast path
+  // the Gilded Ledger uses, so the cast beat / spell-power / cast counters all see it. The cast itself ticks
+  // this very meter (a Shop spell was cast): fine, it needs `per` more to trip again.
+  for (const id of t.castCards ?? []) {
+    const def = CARD_INDEX[id];
+    if (def?.spell) castSpell(state, def, undefined);
+  }
   // Rune of Gemspam: a Ruby PLAYED on every friendly minion (not minted to hand) — the same live 1/1 + the
   // run's Ruby strength a hand-cast Ruby lands, and it fires each target's on-Ruby watchers so the play is
   // real (Ruby Broker's Gold, Resonance's bounce) rather than a silent stat bump.
@@ -1799,6 +1868,7 @@ export function countRubyAsShopSpell(state: RunState, rubyDef: CardDef, casts: n
   advanceRuneThresholds(state, 'spellCastNonAle', casts); // a Ruby is not an Ale
   const ctx = makeContext(state);
   for (let i = 0; i < casts; i++) {
+    fireShopSpellCastRunes(state); // Spellstone audit 2026-09-23: the per-cast Shop-spell RUNES hear the Ruby too
     for (const card of [...state.board]) {
       const def = CARD_INDEX[card.cardId];
       if (!def) continue;
@@ -1853,6 +1923,69 @@ export function gainGold(state: RunState, amount: number): void {
   }
 }
 
+/** Rune of Investment's sell threshold (balance 9/23: 2 → 4). The badge (`runeTally`) prints `sold/4` off it. */
+export const INVESTMENT_SELLS = 4;
+
+/**
+ * "Improve your Rubies +A/+H" — the run's Ruby power (`rubyBonus`) rises and every Ruby already in HAND grows
+ * with it (the `rubyStatGain` / `grantRubyPower` rule: it is about every Ruby you have, not only future mints).
+ * Rubies already CAST stay as they landed. The reducer boundary diffs `rubyBonus` for the power-up FX.
+ */
+export function improveRubies(state: RunState, attack: number, health: number): void {
+  if (attack <= 0 && health <= 0) return;
+  const b = state.rubyBonus ?? { attack: 0, health: 0 };
+  state.rubyBonus = { attack: b.attack + attack, health: b.health + health };
+  for (const card of state.hand) {
+    if (CARD_INDEX[card.cardId]?.ruby) { card.attack += attack; card.health += health; }
+  }
+}
+
+/** Rune of Lorekeeping's per-cast grant (balance 9/23: 4 → 3). */
+export const LOREKEEPING_STEP = 3;
+
+/**
+ * Rune of Lorekeeping: `target` just had a spell cast ON it — give it an additional +3/+3 (× copies held).
+ * ONE site for every kind of targeted cast (Shop spell, Gift / Clue, Ruby), so the rule cannot drift between them.
+ */
+export function applyLorekeeping(state: RunState, target: BoardCard): void {
+  if (!state.runeLorekeeping || !state.board.includes(target)) return;
+  procRune(state, 'runeLorekeeping');
+  // +3/+3 per copy held (recurring family, owner 2026-08-27).
+  const lk = LOREKEEPING_STEP * runeStacksOf(state, 'rune_lorekeeping');
+  captureBuffFx(state, undefined, 'spell', () => addBuff(target, 'Rune of Lorekeeping', lk, lk));
+}
+
+/**
+ * Rune of the Runic Hoard (balance 9/23: "When you cast a Spell, give 3 random Dragons +2/+3"): per cast, up to
+ * three DISTINCT friendly Dragons (fewer when fewer are out), drawn off the run cursor. Shop spells and Gifts
+ * pay from `castSpell`'s tail; a Ruby pays from the reducer's Ruby path — "a spell" means every spell (Forsaken
+ * Mage ruling 2026-09-09). +2/+3 per copy held (recurring family, owner 2026-08-27).
+ */
+export function fireRunicHoard(state: RunState, casts: number): void {
+  if (!state.runeRunicHoard || casts <= 0) return;
+  const rh = runeStacksOf(state, 'rune_runic_hoard');
+  for (let n = 0; n < casts; n++) {
+    const dragons = state.board.filter((c) => isTribe(c, 'dragon'));
+    if (dragons.length === 0) return;
+    procRune(state, 'runeRunicHoard');
+    const rng = makeRng(state.rngCursor);
+    const picks: BoardCard[] = [];
+    const pool = [...dragons];
+    while (picks.length < 3 && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
+    state.rngCursor = rng.state();
+    captureBuffFx(state, undefined, 'spell', () => { for (const d of picks) addBuff(d, 'Rune of the Runic Hoard', 2 * rh, 3 * rh); });
+  }
+}
+
+/** Rune of Distillation's extra targets: your left-most AND right-most minion — one body when the board has
+ *  one (it is both ends), none on an empty board. */
+export function distillationEdges(state: RunState): BoardCard[] {
+  const lead = state.board[0];
+  if (!lead) return [];
+  const tail = state.board[state.board.length - 1]!;
+  return tail === lead ? [lead] : [lead, tail];
+}
+
 /** Total shop-spell cost reduction: the stored `spellCostMod` plus 1 per Lazarus on the board (golden → 2).
  *  Serves BOTH ways a spell is bought — the right-hand slot and a spell offer in the minion row (Spell Cart). */
 export function spellCostReduction(state: RunState, def?: CardDef): number {
@@ -1890,12 +2023,19 @@ export function effectFoldsSpellPower(e: EffectDef): boolean {
     && (e.params as { flat?: boolean } | undefined)?.flat !== true;
 }
 
+/** Stat granters OUTSIDE the `isStatSpellFactory` family that Rune of Thrift still discounts. Kept apart from that
+ *  family on purpose: `isStatSpellFactory` is also the spell-power folding set, and these do not fold spell power.
+ *  Thrift audit 2026-09-23 (owner: "make sure every shop spell that grants stats in any way works correctly"): an
+ *  EMPIRICAL sweep (cast every Shop spell on a mixed board and diff the stats) found these granting stats outside
+ *  the `spellBuff` prefix; each is pinned in runeReworks0923A.test.ts. Great Pot (`buffOnePerTribe`) was the fifth
+ *  and is already a stat factory. They stay OUT of the stat-granting CATEGORY below (`isStatGrantingSpell`,
+ *  what the Gilded Ledger casts), which reads `isStatSpellFactory` only: #1670 checked Perfect Vision, Ruby
+ *  Excavation / Transfer and Cupcakes and left them out. */
 const STAT_SPELL_EXTRAS: ReadonlySet<string> = new Set([
-  'spellAverageStats', // Equalize: every friendly ends at the average — it changes stats
-  'rubyStatGain',      // Facetwright's Choice: your Rubies gain +1 Attack / +1 Health
-  // Deliberately NOT here, having been checked rather than assumed: `spellAttackFirst` only sets an initiative
-  // flag, `spellBloodlust` marks an out-of-turn attack, and `spellGainSpellPower` raises FUTURE spells' power.
-  // None of the three puts stats on anything, so none is a "spell that gives stats".
+  'spellSetStats',            // Perfect Vision: set a minion's stats to 20/20
+  'spellPlayRubiesAll',       // Ruby Excavation: cast 2 Rubies on all of your minions
+  'spellStealAdjacentRubies', // Ruby Transfer: cast 2 Rubies on a minion (then it steals its neighbours' Ruby buffs)
+  'spellTargetConsumesShop',  // Cupcakes: the targeted Demon Consumes 4 Shop minions, gaining their stats
 ]);
 
 /** "Gives stats" — Rune of Thrift discounts these, and Rune of the Gilded Ledger casts one, so the two can
@@ -1906,7 +2046,10 @@ const STAT_SPELL_EXTRAS: ReadonlySet<string> = new Set([
  *  since — `spellBuffTargetAndNeighbours`, `spellBuffByTier`, `spellBuffPerDragonPlayed`,
  *  `spellBuffTargetPerGold`, `spellBuffRandomPerTribe`, the shop-buff family, and more. The `spellBuff`
  *  PREFIX is the naming convention the whole buff family already follows, so new members are covered the day
- *  they are authored; `STAT_SPELL_EXTRAS` carries the few stat granters that sit outside that convention. */
+ *  they are authored; `isStatSpellFactory` carries the few stat granters that sit outside that convention
+ *  (Equalize, Facetwright's Ruby gain, Great Pot's one-per-type buff). Deliberately NOT stat granters, having
+ *  been checked rather than assumed: `spellAttackFirst` only sets an initiative flag, `spellBloodlust` marks an
+ *  out-of-turn attack, and `spellGainSpellPower` raises FUTURE spells' power. */
 /**
  * EVERY effect a card can fire, INCLUDING its Choose One branches.
  *
@@ -1926,21 +2069,83 @@ export function allEffectsOf(def: CardDef | undefined): EffectDef[] {
 export function isStatSpell(def: CardDef | undefined): boolean {
   // Branch effects included: a Choose One spell that gives stats down one fork is a stat spell (it is exactly
   // as discountable, and Rune of the Gilded Ledger can cast it). Apples was silently neither.
-  return allEffectsOf(def).some((e) => e.on === 'cast' && (e.do.startsWith('spellBuff') || STAT_SPELL_EXTRAS.has(e.do)));
+  return allEffectsOf(def).some((e) => e.on === 'cast' && (isStatSpellFactory(e.do) || STAT_SPELL_EXTRAS.has(e.do)));
 }
 
-/** Stat spells that put their stats on YOUR BOARD. The shop-buff family gives stats too — so Rune of Thrift
- *  rightly discounts them — but "CAST a stat spell" (Rune of the Gilded Ledger) means a payout the player can
- *  see on their minions, not a buff to offers they may never buy. Splitting the two predicates is deliberate:
- *  they were one function, and broadening the discount silently changed what the Ledger casts. */
-const SHOP_TARGETED_STAT_SPELLS: ReadonlySet<string> = new Set([
+/** Stat factories that do NOT grant stats to your minions immediately: the shop-buff family (stats on offers you
+ *  may never buy), Facetwright's Ruby gain (it raises FUTURE Rubies) and Common Ground's averaging (a utility
+ *  that moves existing stats around, not a grant). Rune of Thrift still discounts them (they are
+ *  `isStatSpell`), but they sit OUTSIDE the stat-granting category below: the owner is "iffy on the shop based
+ *  ones" (2026-09-23), so they stay out until he rules them in. */
+const OFF_BOARD_STAT_FACTORIES: ReadonlySet<string> = new Set([
   'spellBuffShop', 'spellBuffShopByRuby', 'spellBuffTavern', 'spellBuffNextShop',
   'spellBuffShopRightmost', // Picnic (2026-09-23): the right-most Shop slot — an offer buff, never a board grant
+  'rubyStatGain', //           Facetwright's Choice: your Rubies (future ones included) gain stats
+  // Common Ground (owner 2026-09-23): "common ground should not be in the grouping, that's a combat related buff.
+  // it should only be stat granting spells that give stats immediately basically ... that's more a utility
+  // thing." Averaging REDISTRIBUTES two minions' stats; it grants nothing new.
+  'spellAverageStats',
 ]);
-export function isBoardStatSpell(def: CardDef | undefined): boolean {
-  return isStatSpell(def)
-    && !!def?.effects.some((e) => e.on === 'cast' && !SHOP_TARGETED_STAT_SPELLS.has(e.do)
-      && (e.do.startsWith('spellBuff') || STAT_SPELL_EXTRAS.has(e.do)));
+
+/**
+ * THE STAT-GRANTING SPELL CATEGORY — the ONE predicate every "cast / pick a random stat-granting spell" reads.
+ *
+ * OWNER RULING 2026-09-23: "all targeted spells should be castable and fit this category, just with random
+ * targets chosen. the shop based ones i'm iffy on. but definitely targeted and board wide stat buff spells".
+ * Refined the same day: "it should only be stat granting spells that give stats immediately basically" (Common
+ * Ground out: "that's more a utility thing").
+ *
+ * THE TEST for a new spell: does casting it GIVE your minions stats they did not have, right now? A spell that
+ * redistributes, swaps or sets existing stats (Common Ground, Turnabout, Perfect Vision), buffs a later combat
+ * (Fleeting Vigor, Solid Ground), or buffs the Shop / future cards is NOT in the category, even when its factory
+ * is in the `isStatSpellFactory` family (list such a factory in `OFF_BOARD_STAT_FACTORIES`).
+ *
+ *   IN  — a drawable Shop spell (not a reward token, Gift or Ruby) whose cast effects include a stat factory
+ *         (`isStatSpellFactory`) and none of whose stat effects is off-board: board-wide buffs (Growth, Might of
+ *         Aeon, Great Pot, Waking Rift, Dragonflame), TARGETED stat spells (Bulwark, Lantern Light, Spirit Fire,
+ *         Crest of the Climb, Shatter, Patch Job, Front to Back, Hoardflame, Blessing, Flutter, Beefy) and the stat-granting Dwarven Ales (Champion's, Defensive, Bloody). Targeted members are cast
+ *         through `castSpellWithoutAim`.
+ *   OUT — the shop-buff family, Facetwright's Choice and Common Ground (`OFF_BOARD_STAT_FACTORIES`; a spell with
+ *         ANY such stat branch is out, which is what keeps Apples out), and every spell that moves or sets stats outside
+ *         the stat family (Turnabout, Perfect Vision) or buffs only NEXT combat (Fleeting Vigor, Solid Ground).
+ *
+ * Replaces `isBoardStatSpell`, which read `def.effects` alone (blind to Choose One branches) and was paired at
+ * its one call site with a `target` filter that shut every targeted spell out.
+ */
+export function isStatGrantingSpell(def: CardDef | undefined): boolean {
+  if (!def?.spell || def.token || def.gift || def.ruby) return false;
+  const stat = allEffectsOf(def).filter((e) => e.on === 'cast' && isStatSpellFactory(e.do));
+  return stat.length > 0 && !stat.some((e) => OFF_BOARD_STAT_FACTORIES.has(e.do));
+}
+
+/**
+ * CAST a spell nobody is aiming (a rune's meter, a minion's trigger): THE shared no-aim cast.
+ *
+ *   · A Choose One resolves ONE seeded-random branch (there is no window to open).
+ *   · An untargeted spell casts as it is.
+ *   · A TARGETED spell lands on a seeded-random LEGAL friendly minion (`pickRandomSpellTarget`: the tribe the
+ *     aim would require, never a golden for a `targetNoGolden` spell). One target only: a two-target spell
+ *     (Common Ground) is outside the category and has no no-aim path. A shop offer is never picked: an `any` spell's shop half
+ *     is the one aim the owner is "iffy" on, and a Ledger payout is meant for your board.
+ *   · No legal target: the cast FIZZLES. Nothing resolves, nothing is counted, and it returns false.
+ *
+ * Every branch goes through `castSpell` → `applyCastEffects`, the normal cast choke point, so spell power, the
+ * cast counters, every on-cast watcher and any cast preview see it exactly as a hand cast. Seeded from the run
+ * cursor (spell pick, then branch, then target), so a replay repeats it.
+ */
+export function castSpellWithoutAim(state: RunState, def: CardDef): boolean {
+  let cast = def;
+  if (def.chooseOne?.length) {
+    const rng = makeRng(state.rngCursor);
+    const branch = def.chooseOne[rng.int(def.chooseOne.length)]!;
+    state.rngCursor = rng.state();
+    cast = { ...def, effects: branch.effects ?? [] };
+  }
+  if (!def.target) { castSpell(state, cast); return true; }
+  const target = pickRandomSpellTarget(state, def);
+  if (!target) return false;
+  castSpell(state, cast, target);
+  return true;
 }
 
 /**
@@ -2129,20 +2334,8 @@ export function grantMinionToHandOrBoard(state: RunState, def: CardDef, golden: 
 
 export function conjureToHand(state: RunState, pool: CardDef[], reps: number, overflow = false): void {
   if (pool.length === 0) return;
-  // RUNE OF THE RUNIC HOARD: every Shop spell copied into your hand gives your Dragons +1/+1. Hooked at the
-  // shared conjure chokepoint, so it pays for a Steward copy, a Recaller copy and a rune grant alike. Gated on
-  // the pool being spells: `conjureToHand` also hands over minions, which the rune says nothing about.
-  if (state.runeRunicHoard && pool.every((c) => c.spell)) {
-    procRune(state, 'runeRunicHoard');
-    // +1/+1 per copy held (recurring family, owner 2026-08-27).
-    const rh = runeStacksOf(state, 'rune_runic_hoard');
-    for (let i = 0; i < reps; i++) {
-      for (const c of state.board) {
-        const d = CARD_INDEX[c.cardId];
-        if (d?.tribe === 'dragon' || d?.tribe2 === 'dragon') addBuff(c, 'Rune of the Runic Hoard', rh, rh);
-      }
-    }
-  }
+  // (Rune of the Runic Hoard paid here per COPIED Shop spell until balance 9/23; it now pays per spell CAST —
+  // see `fireRunicHoard`.)
   const rng = makeRng(state.rngCursor);
   // `overflow` (quest / rune reward grants) bypasses the hand cap so an earned reward is never dropped.
   //
@@ -4780,12 +4973,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       } else if (def.chooseOne?.length) {
         // See the note above: cast the first option rather than stranding the play on a modal we can't open.
         const synthetic = { ...def, effects: def.chooseOne[0]!.effects };
-        for (let n = 0; n < casts; n++) castSpell(st, synthetic, pickTaughtTarget(st, def, self));
+        for (let n = 0; n < casts; n++) castSpell(st, synthetic, pickRandomSpellTarget(st, def, self));
       } else {
         for (let n = 0; n < casts; n++) {
           // The PLAYER's pick when the Pup was played through the aim picker; otherwise a seeded-random
           // friendly (the Pup was re-fired by something that can't prompt, e.g. a Shout-repeater).
-          const target = payload.target ?? pickTaughtTarget(st, def, self);
+          const target = payload.target ?? pickRandomSpellTarget(st, def, self);
           if (def.target && !target) break; // aimed with nothing to aim at → fizzle, like the hand path
           castSpell(st, def, target);
         }
@@ -9392,12 +9585,17 @@ export function taughtAimSpell(card: BoardCard): CardDef | undefined {
   return spell.target === 'friendly' || spell.target === 'any' ? spell : undefined;
 }
 
-/** The friendly a TAUGHT aimed spell lands on: a seeded-random board minion (deterministic — it advances the
- *  run's RNG cursor), or `undefined` when the board is empty so the caller can fizzle. Untargeted spells get
- *  `undefined` and cast normally. Same rule as Rune of Recurrence / Runic Archivist. */
-function pickTaughtTarget(state: RunState, def: CardDef, self: { uid: string }): BoardCard | undefined {
+/** The friendly an UNAIMED spell lands on (a TAUGHT spell from Mage-Pup, a rune's `castSpellWithoutAim`): a
+ *  seeded-random board minion (deterministic: it advances the run's RNG cursor) drawn from the targets the
+ *  player's aim would allow (the spell's tribe restriction after runes, never a golden for `targetNoGolden`),
+ *  never `exclude` (the casting body, R-TARGET-03). `undefined` when nothing is
+ *  legal, so the caller can fizzle; untargeted spells get `undefined` and cast normally. Same rule as Rune of
+ *  Recurrence / Runic Archivist. */
+function pickRandomSpellTarget(state: RunState, def: CardDef, exclude?: { uid: string }): BoardCard | undefined {
   if (!def.target) return undefined;
-  const pool = othersOnBoard(state, self); // never the Pup itself (R-TARGET-03)
+  const tribe = effectiveTargetTribe(state, def);
+  const pool = state.board.filter((c) => c.uid !== exclude?.uid
+    && (!tribe || isTribe(c, tribe)) && !(def.targetNoGolden && c.golden));
   if (pool.length === 0) return undefined;
   const rng = makeRng(state.rngCursor);
   const pick = pool[rng.int(pool.length)]!;
@@ -9911,11 +10109,11 @@ export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?
   // parent. The player's own cast (the reducer's `play`, no actor) and an Equipment's cast record nothing. When
   // a collector is capturing (the authoritative End of Turn), the same fact is emitted as a `spellResolved`
   // consequence so the beat that owns the cast delivers the preview on its own clock.
+  recordActorCast(ctx.state, spellDef.id, ctx.collector);
+  // Cast BY A CARD (a minion is the innermost actor — Mage-Pup, Sporebat, a Rope Wrangler): its buff records carry
+  // the spell, so a spell with its own cast effect replaces the generic descend for that cast (owner 2026-09-24).
   const actor = castActorStack[castActorStack.length - 1];
-  if (actor && equipmentCastDepth === 0) {
-    recordCastFx(ctx.state, actor, spellDef.id, endOfTurnDepth > 0 ? 'endOfTurn' : 'recruit');
-    if (ctx.collector.enabled) ctx.collector.emit({ type: 'spellResolved', cardId: spellDef.id });
-  }
+  const cardCastSpellId = actor?.kind === 'minion' && equipmentCastDepth === 0 ? spellDef.id : undefined;
   for (const effect of spellDef.effects) {
     if (effect.on !== 'cast') continue;
     const fn = RECRUIT_FACTORIES_UNATTRIBUTED[effect.do]; // the spell's OWN effects: the target is not the caster (cast preview)
@@ -9942,7 +10140,7 @@ export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?
       // Gifts read `payload.target`, copying the Battlecry-target call shape, and this site never sent it —
       // so Unbridled Might / Ironclad Favor / Champion's Regalia / Parting Gifts consumed the card, counted the
       // cast, and changed nothing (Bug Board 9852e16f, 2026-09-09).
-      () => captureBuffFx(ctx.state, undefined, 'spell', () => fn(ctx, target as BoardCard, params, { minion: target as BoardCard, target: target as BoardCard })),
+      () => captureBuffFx(ctx.state, undefined, 'spell', () => fn(ctx, target as BoardCard, params, { minion: target as BoardCard, target: target as BoardCard }), cardCastSpellId),
     );
   }
 }
@@ -10228,6 +10426,10 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
   // Counted BEFORE the effects run, mirroring `fireOnSpellCastOnThis` — a spread/recast that lands another Ruby
   // on this body must see a count past 1 or a "first each turn" card recurses.
   card.rubiesOnThisTurn = (card.rubiesOnThisTurn ?? 0) + 1;
+  // Rune of Lorekeeping (balance 9/23): a Ruby cast on a friendly minion is "a spell cast on a minion" — every
+  // landing site routes through here (hand-cast, Redirection, Distillation, Motherlode, the Lapidary), and a
+  // Candle Conduit / Resonance BOUNCE deliberately does not (stats only, never a cast), so it pays nothing.
+  if (state.board.includes(card)) applyLorekeeping(state, card);
   // CANDLE CONDUIT (rework 2026-08-07): every Ruby played on your side bounces its stats to 1 more random
   // friendly minion per Conduit (golden 2). Stats only — addBuff('Ruby') directly, never back through this
   // function — which is the same no-rebounce guard Resonance Idol's bounce relies on.
@@ -10340,12 +10542,18 @@ export function settleMinionSale(state: RunState, sold: BoardCard): void {
     // Stats land once per copy held (owner 2026-08-27, unique-engine doubling).
     if (target && (sold.attack > 0 || sold.health > 0)) { procRuneId(state, 'rune_liquidation'); const lq = runeStacksOf(state, 'rune_liquidation'); addOfferBuff(target, 'Rune of Liquidation', sold.attack * lq, sold.health * lq); }
   }
-  // Rune of Investment (owner 2026-08-18): every 2 minions sold mints Rubies at the run's live strength.
+  // Rune of Investment (balance 9/23: "When you sell 4 minions, get 2 Rubies and improve your Rubies +1/+1."):
+  // every INVESTMENT_SELLS minions sold improves the run's Rubies, then mints the payout at the improved strength.
   if (state.runeSellRubies) {
     state.runeSellRubiesSold = (state.runeSellRubiesSold ?? 0) + 1;
-    // The badge bursts on the MINT, not on every sale — the first sale of a pair banks toward the
-    // threshold and is not the rune firing (same contract as Bulk Order's `per`).
-    if (state.runeSellRubiesSold >= 2) { procRune(state, 'runeSellRubies'); mintRubies(state, state.runeSellRubies); state.runeSellRubiesSold -= 2; }
+    // The badge bursts on the MINT, not on every sale — the earlier sales bank toward the threshold and are
+    // not the rune firing (same contract as Bulk Order's `per`).
+    if (state.runeSellRubiesSold >= INVESTMENT_SELLS) {
+      procRune(state, 'runeSellRubies');
+      improveRubies(state, 1, 1); // improve first, so the 2 Rubies arrive at the new strength
+      mintRubies(state, state.runeSellRubies);
+      state.runeSellRubiesSold -= INVESTMENT_SELLS;
+    }
   }
   // Rune of the Aftermarket: the FIRST sale each turn gives HALF the sold minion's (live) stats to the
   // RIGHT-MOST Shop minion (owner 2026-08-11; was full BASE stats to every Shop minion).
@@ -10568,11 +10776,25 @@ function fireBattlecryTriggered(state: RunState): void {
   // board minion is both edges → buffed once (deduped), not twice.
   const edge = state.shoutEdgeBuff;
   if (edge && state.board.length > 0) {
-    procRuneId(state, 'rune_drake_skull');
     const left = state.board[0]!;
     const right = state.board[state.board.length - 1]!;
     addBuff(left, 'Twin Sun Oath', edge.attack, edge.health);
     if (right !== left) addBuff(right, 'Twin Sun Oath', edge.attack, edge.health);
+  }
+  // Rune of the Drake Skull (balance 9/23): "whenever you trigger a Shout, give your left and right-most Dragon
+  // +6/+6" — the ends of the DRAGONS on the board, not of the board. One Dragon out is both ends → buffed once.
+  const tribeEdge = state.shoutEdgeTribeBuff;
+  if (tribeEdge) {
+    const members = state.board.filter((c) => isTribe(c, tribeEdge.tribe));
+    if (members.length > 0) {
+      procRuneId(state, 'rune_drake_skull');
+      const left = members[0]!;
+      const right = members[members.length - 1]!;
+      captureBuffFx(state, undefined, 'spell', () => {
+        addBuff(left, 'Rune of the Drake Skull', tribeEdge.attack, tribeEdge.health);
+        if (right !== left) addBuff(right, 'Rune of the Drake Skull', tribeEdge.attack, tribeEdge.health);
+      });
+    }
   }
 }
 
@@ -11636,6 +11858,70 @@ export function fireRecruitDeathrattlesForTest(state: RunState, minion: BoardCar
   fireRecruitDeathrattles(makeContext(state), minion);
 }
 
+/**
+ * THE PER-CAST SHOP-SPELL RUNES — everything a single Shop-spell cast pays that is not a counter or a board
+ * watcher: Rune of Summoning, Rune of Might, Rune of Kindling, Rune of the Flagship, Rune of Scales. Called
+ * once per cast from `castSpell`'s tail, and once per Ruby cast from `countRubyAsShopSpell` (Rune of the
+ * Spellstone: "Rubies you cast count as Shop spells" — Spellstone audit 2026-09-23, owner: "make sure that this
+ * works across all shop spell based triggers"). One function, so the two can never disagree about the set.
+ * (Rune of Enchantment's shop half was retired by balance 9/23 — it is combat-only now.)
+ */
+export function fireShopSpellCastRunes(state: RunState): void {
+  // Rune of Summoning: each spell cast permanently improves your Imps +1/+1 (run-wide, via the Imp enchant —
+  // "improve your Imps" applies twice under Rune of Mastery).
+  if (state.runeSummoning) {
+    procRune(state, 'runeSummoning');
+    // The printed step is +2/+2 (owner fix 2026-08-28): the code paid +1/+1 while the card promised +2/+2 —
+    // a text/code drift the text oracle caught. The owner's duplicate ruling settles the direction: "rune of
+    // summoning = your imps get +4/+4" for a SECOND copy, which is 2x the printed step, so the TEXT was right.
+    // Copies multiply it (2 copies = +4/+4) and Rune of Mastery's extra Improve step multiplies it again.
+    const sr = RUNE_SUMMONING_STEP * improveReps(state) * runeStacksOf(state, 'rune_summoning');
+    buffImpsRunWide(state, sr, sr, 'Rune of Summoning');
+  }
+  // Rune of Kindling: each spell cast gives your LEFT and RIGHT-most board minions +4/+6 (owner balance
+  // 2026-08-19; was +2/+2, and before that left-most only at +3/+3). Wrapped for FX so the gain descends onto
+  // the minion instead of the number jumping. On a one-minion board the two ends are the same body, so buff it
+  // once (not twice).
+  // RUNE OF MIGHT: every Shop spell you cast ALSO casts Might of Aeon. A real cast through `applyCastEffects`,
+  // so it picks up spell power and the spell counters see it — but guarded against recursion, since the cast it
+  // triggers would otherwise re-enter this same hook forever.
+  if (state.runeMight && !state.runeMightCasting) {
+    procRune(state, 'runeMight');
+    const might = CARD_INDEX['mightofaeon'];
+    if (might) {
+      state.runeMightCasting = true;
+      // One Might of Aeon per copy held (recurring family, owner 2026-08-27); the guard still blocks recursion.
+      // The RUNE is the caster (cast preview, owner ask 2026-09-23): Might of Aeon previews above Rune of Might's badge.
+      try { withCastActor({ kind: 'rune', id: 'rune_might' }, () => { for (let k = 0; k < runeStacksOf(state, 'rune_might'); k++) applyCastEffects(makeContext(state), might, undefined); }); }
+      finally { state.runeMightCasting = false; }
+    }
+  }
+  if (state.runeKindling && state.board.length > 0) {
+    procRune(state, 'runeKindling');
+    const ends = state.board.length === 1
+      ? [state.board[0]!]
+      : [state.board[0]!, state.board[state.board.length - 1]!];
+    const kd = runeStacksOf(state, 'rune_kindling'); // fires once per copy held (recurring family, owner 2026-08-27)
+    captureBuffFx(state, undefined, 'spell', () => { for (const t of ends) addBuff(t, 'Rune of Kindling', 4 * kd, 6 * kd); });
+  }
+  // Rune of the Flagship: each spell cast gives your Dwarves +2/+2 (board + hand), the Scales shape tribe-swapped.
+  if (state.runeFlagship) {
+    procRune(state, 'runeFlagship');
+    const fs = runeStacksOf(state, 'rune_flagship'); // fires once per copy held (recurring family, owner 2026-08-27: "+4/+4 per Shop spell" with two)
+    captureBuffFx(state, undefined, 'spell', () => {
+      for (const c of [...state.board, ...state.hand]) if (isTribe(c, 'dwarf')) addBuff(c, 'Rune of the Flagship', 2 * fs, 2 * fs);
+    });
+  }
+  // Rune of Scales: each spell cast gives your Dragons +4/+5 (board + hand) — descends onto each affected board Dragon.
+  if (state.runeScales) {
+    const sc = runeStacksOf(state, 'rune_scales'); // fires once per copy held (recurring family, owner 2026-08-27)
+    captureBuffFx(state, undefined, 'spell', () => {
+      procRuneId(state, 'rune_scales');
+      for (const c of [...state.board, ...state.hand]) if (isTribe(c, 'dragon')) addBuff(c, 'Rune of Scales', 4 * sc, 5 * sc); // owner 2026-08-11 (was +2/+2)
+    });
+  }
+}
+
 export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard, origin?: string): void {
   const ctx = makeContext(state);
   // SPELLHIDE + SPELLMARKET both key off "the first STAT-GRANTING Shop spell you cast on a minion this turn",
@@ -11690,30 +11976,18 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
         state.spellhideUsedThisTurn = true;
         (state.spellhidePending ??= []).push({ spellId: spellDef.id, uid: target.uid });
       }
-      // RUNE OF THE SPELLMARKET: the turn's first stat spell on ANY friendly minion also hands the same stats
-      // to the RIGHT-MOST Shop offer. The DELTA is what moves, so a spell that scales with run state feeds the
-      // Shop exactly what it just granted rather than its printed number.
-      if (state.runeSpellmarket && !state.spellmarketUsedThisTurn && state.shop.length > 0) {
-        procRune(state, 'runeSpellmarket');
-        state.spellmarketUsedThisTurn = true;
-        // The delta lands once per copy held (owner 2026-08-27, unique-engine doubling).
-        const sm = runeStacksOf(state, 'rune_spellmarket');
-        addOfferBuff(state.shop[state.shop.length - 1]!, 'Rune of the Spellmarket', dAtk * sm, dHp * sm);
-      }
+      // (Rune of the Spellmarket fed the right-most Shop offer from here until balance 9/23; it is a `spellCast`
+      // threshold now — "When you cast 4 Shop Spells, cast Staff of Guel" — paid by `payRuneThreshold`.)
     }
   }
   // Set 2 — tell the TARGET a spell landed on it (Mirrorwing re-casts, Runefire spreads). Fired after the
   // spell's own effects so the minion reacts to a resolved cast, and only for a real board target: an
   // untargeted spell has no "this" to be cast on. The re-entrancy guard lives in `fireOnSpellCastOnThis`.
   if (target && state.board.includes(target)) fireOnSpellCastOnThis(state, target, spellDef);
-  // Rune of Lorekeeping: a Shop spell cast ON a minion gives that minion an extra +4/+4 — any targeted spell,
-  // not just stat ones (the sheet says "on a minion", so a targeted Gild or Runefire counts too).
-  if (target && state.runeLorekeeping && state.board.includes(target) && !spellDef.ruby) {
-    procRune(state, 'runeLorekeeping');
-    // +4/+4 per copy held (recurring family, owner 2026-08-27).
-    const lk = 4 * runeStacksOf(state, 'rune_lorekeeping');
-    captureBuffFx(state, undefined, 'spell', () => addBuff(target, 'Rune of Lorekeeping', lk, lk));
-  }
+  // Rune of Lorekeeping (balance 9/23: "when you cast a spell on a minion, give it an additional +3/+3" — owner:
+  // "works with all spells, rubies, clues etc"): ANY spell cast ON a friendly minion — Shop spells and Gifts
+  // (a Clue is a Gift) here; a Ruby is not a `castSpell` and pays from its landing site (`fireOnRubyPlayed`).
+  if (target && !spellDef.ruby) applyLorekeeping(state, target);
   // Untargeted "run" cast effects (e.g. Ember Pouch) act on the run, not a minion.
   // Embers are uncapped within a turn (like selling), so no max-embers clamp here.
   for (const effect of spellDef.effects) {
@@ -11906,68 +12180,12 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
     (state.rememberedSpellIds ??= []).push(spellDef.id);
   }
   state.lastSpellThisTurnId = spellDef.id; // Recaller copies the last Shop spell cast THIS TURN
-  // Rune of Summoning: each spell cast permanently improves your Imps +1/+1 (run-wide, via the Imp enchant —
-  // "improve your Imps" applies twice under Rune of Mastery).
-  if (state.runeSummoning) {
-    procRune(state, 'runeSummoning');
-    // The printed step is +2/+2 (owner fix 2026-08-28): the code paid +1/+1 while the card promised +2/+2 —
-    // a text/code drift the text oracle caught. The owner's duplicate ruling settles the direction: "rune of
-    // summoning = your imps get +4/+4" for a SECOND copy, which is 2x the printed step, so the TEXT was right.
-    // Copies multiply it (2 copies = +4/+4) and Rune of Mastery's extra Improve step multiplies it again.
-    const sr = RUNE_SUMMONING_STEP * improveReps(state) * runeStacksOf(state, 'rune_summoning');
-    buffImpsRunWide(state, sr, sr, 'Rune of Summoning');
-  }
-  // Rune of Kindling: each spell cast gives your LEFT and RIGHT-most board minions +4/+6 (owner balance
-  // 2026-08-19; was +2/+2, and before that left-most only at +3/+3). Wrapped for FX so the gain descends onto
-  // the minion instead of the number jumping. On a one-minion board the two ends are the same body, so buff it
-  // once (not twice).
-  // RUNE OF MIGHT: every Shop spell you cast ALSO casts Might of Aeon. A real cast through `applyCastEffects`,
-  // so it picks up spell power and the spell counters see it — but guarded against recursion, since the cast it
-  // triggers would otherwise re-enter this same hook forever.
-  if (state.runeMight && !state.runeMightCasting) {
-    procRune(state, 'runeMight');
-    const might = CARD_INDEX['mightofaeon'];
-    if (might) {
-      state.runeMightCasting = true;
-      // One Might of Aeon per copy held (recurring family, owner 2026-08-27); the guard still blocks recursion.
-      // The RUNE is the caster (cast preview, owner ask 2026-09-23): Might of Aeon previews above Rune of Might's badge.
-      try { withCastActor({ kind: 'rune', id: 'rune_might' }, () => { for (let k = 0; k < runeStacksOf(state, 'rune_might'); k++) applyCastEffects(makeContext(state), might, undefined); }); }
-      finally { state.runeMightCasting = false; }
-    }
-  }
-  if (state.runeKindling && state.board.length > 0) {
-    procRune(state, 'runeKindling');
-    const ends = state.board.length === 1
-      ? [state.board[0]!]
-      : [state.board[0]!, state.board[state.board.length - 1]!];
-    const kd = runeStacksOf(state, 'rune_kindling'); // fires once per copy held (recurring family, owner 2026-08-27)
-    captureBuffFx(state, undefined, 'spell', () => { for (const t of ends) addBuff(t, 'Rune of Kindling', 4 * kd, 6 * kd); });
-  }
-  // Rune of Enchantment: each spell cast gives your minions +2/+3, permanently (owner 2026-08-11; was +1/+1).
-  // The +4/+6 half is the COMBAT cast — see `runeEnchantment` in simulate.ts; a shop cast is the printed +2/+3.
-  if (state.runeEnchantment) {
-    procRune(state, 'runeEnchantment');
-    const en = runeStacksOf(state, 'rune_enchantment'); // fires once per copy held (recurring family, owner 2026-08-27)
-    captureBuffFx(state, undefined, 'spell', () => {
-      for (const c of state.board) addBuff(c, 'Rune of Enchantment', 2 * en, 3 * en);
-    });
-  }
-  // Rune of the Flagship: each spell cast gives your Dwarves +2/+2 (board + hand), the Scales shape tribe-swapped.
-  if (state.runeFlagship) {
-    procRune(state, 'runeFlagship');
-    const fs = runeStacksOf(state, 'rune_flagship'); // fires once per copy held (recurring family, owner 2026-08-27: "+4/+4 per Shop spell" with two)
-    captureBuffFx(state, undefined, 'spell', () => {
-      for (const c of [...state.board, ...state.hand]) if (isTribe(c, 'dwarf')) addBuff(c, 'Rune of the Flagship', 2 * fs, 2 * fs);
-    });
-  }
-  // Rune of Scales: each spell cast gives your Dragons +4/+5 (board + hand) — descends onto each affected board Dragon.
-  if (state.runeScales) {
-    const sc = runeStacksOf(state, 'rune_scales'); // fires once per copy held (recurring family, owner 2026-08-27)
-    captureBuffFx(state, undefined, 'spell', () => {
-      procRuneId(state, 'rune_scales');
-      for (const c of [...state.board, ...state.hand]) if (isTribe(c, 'dragon')) addBuff(c, 'Rune of Scales', 4 * sc, 5 * sc); // owner 2026-08-11 (was +2/+2)
-    });
-  }
+  // The per-cast SHOP-SPELL RUNES (Summoning / Might / Kindling / Flagship / Scales) — ONE shared function, so a
+  // Spellstone Ruby ("counts as a Shop spell") fires exactly the same set (audit 2026-09-23: it used to reach
+  // the counters and the board watchers but none of these). The Runic Hoard is fired beside it, not inside:
+  // it pays on EVERY spell (a Ruby with or without the Spellstone) from the Ruby path directly.
+  fireShopSpellCastRunes(state);
+  fireRunicHoard(state, 1);
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def) continue;
@@ -12512,6 +12730,18 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
       grantKw(m, 'R');
       given++;
     }
+  } });
+  // Rune of Held Strength (Combat Prowess audit 2026-09-23 — the rune was reworked into a standing Start-of-Combat
+  // grant on 2026-08-27, a week AFTER this list was built, and never joined it): the board's two ends gain the
+  // stats of the LEFT-MOST minion card in hand, read live, × copies held — the same read `questCombatMods`
+  // makes for the fight. Permanent here (the family's shop-permanence rule); no held minion → nothing.
+  if (state.runeHeldStrength) out.push({ id: 'rune_held_strength', kind: 'rune', label: 'Rune of Held Strength', fire: (st) => {
+    const held = st.hand[0];
+    const hd = held ? CARD_INDEX[held.cardId] : undefined;
+    if (!held || !hd || hd.spell || hd.ruby || st.board.length === 0) return;
+    const reps = runeStacksOf(st, 'rune_held_strength');
+    const ends = st.board.length === 1 ? [st.board[0]!] : [st.board[0]!, st.board[st.board.length - 1]!];
+    for (const m of ends) addBuff(m, 'Rune of Held Strength', held.attack * reps, held.health * reps);
   } });
   return out;
 }
@@ -13193,6 +13423,17 @@ function runRecurringEndOfTurn(
     if (n > 0) {
       for (let i = 0; i < n; i++) step(() => { for (const c of state.board.slice(0, 3)) addBuff(c, 'Rune of Action', 1, 1); });
     }
+  } else if (effect === 'runeAncestralRoar') {
+    // Rune of Ancestral Roar (balance 9/23): "End of Turn: give your Dragons +6/+6 for every Shout you triggered
+    // this turn." LUMP form (R-REPEAT-01): ONE buff instance per Dragon sized by the count — 3 Shouts = one +18/+18.
+    // `shoutFiresThisTurn` counts FIRES (a Drakko repeat is a second Shout), the same count the Shout quest
+    // objective and the Chorus meter read. Nothing triggered → nothing to give, no beat.
+    const n = state.shoutFiresThisTurn ?? 0;
+    if (n > 0) {
+      procRuneId(state, 'rune_ancestral_roar');
+      const amt = ANCESTRAL_ROAR_STEP * n * runeStacksOf(state, 'rune_ancestral_roar'); // × copies held (recurring family, owner 2026-08-27)
+      step(() => { for (const c of state.board) if (isTribe(c, 'dragon')) addBuff(c, 'Rune of Ancestral Roar', amt, amt); });
+    }
   } else if (effect === 'quickStudy') {
     // Rune of Quick Study: a Gold Font (`manafont`) + 2 random Shop spells, every turn.
     procRuneId(state, 'rune_quick_study');
@@ -13663,7 +13904,12 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
   runeCrucibleChoir: 'Rune of the Crucible Choir',
   runeFiveBanners: 'Rune of the Five Banners',
   quickStudy: 'Rune of Quick Study',
+  runeAncestralRoar: 'Rune of Ancestral Roar',
 };
+
+/** Rune of Ancestral Roar's per-Shout step (balance 9/23): +6/+6 to every Dragon per Shout triggered this turn.
+ *  The badge (`runeTally`) prints the live lump off it. */
+export const ANCESTRAL_ROAR_STEP = 6;
 
 /**
  * Resolve a card's play-time effects, mutating the board in place. Call after the
@@ -13875,6 +14121,7 @@ function withRecruitTrigger(
     const eatenBefore = (state.fodderEaten ?? []).length;
     const shopEatenBefore = (state.shopEaten ?? []).length;
     const rb = state.rubyBonus ?? { attack: 0, health: 0 };
+    const castStart = (state.castFx ?? []).length; // a spell THIS beat's minion casts tags its buffs (see below)
     // begin/end rather than withTrigger so the handle survives for the empty-scope discard below.
     // CHOREOGRAPHER PR 1: forward the identity fields verbatim (the primitive must not drop them).
     return (): void => {
@@ -13897,7 +14144,10 @@ function withRecruitTrigger(
           const da = now.attack - was.a - rubyN * (1 + rb.attack);
           const dh = now.health - was.h - rubyN * (1 + rb.health);
           if (da === 0 && dh === 0) continue;
-          collector.emit({ type: 'statsChanged', target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' }, attack: da, health: dh, permanent: true, channel: 'ordinary' });
+          // The spell this beat's MINION cast (Rope Wrangler-style End-of-Turn casts, a Moira-fired Mage-Pup): the
+          // presenter lets a spell with its own cast effect replace the caster's tendril (owner ruling 2026-09-24).
+          const castSpellId = spec.source.kind === 'minion' ? spellCastBySince(state, castStart, spec.source.uid) : undefined;
+          collector.emit({ type: 'statsChanged', target: { zone: was.zone, uid, cardId: now.cardId, side: 'player' }, attack: da, health: dh, permanent: true, channel: 'ordinary', ...(castSpellId ? { spellId: castSpellId } : {}) });
         }
         // Cards this trigger put in hand (conjures / grants), in arrival order.
         for (const c of state.hand) {

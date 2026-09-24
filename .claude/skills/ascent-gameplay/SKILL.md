@@ -62,6 +62,8 @@ scope, event log complete, and identical final state at normal / accelerated / s
 
 A mechanic that can run in both phases must be tested in both. Passing one proves nothing about the other.
 
+**Cross-phase is the DEFAULT** (owner 2026-09-24, oracle rule `R-PHASE-01`): An effect, mechanic, trigger, tally or FX is wired to work in EVERY phase it can occur in (recruit / Shop, End of Turn, combat) and from EVERY source (player, rune, minion, hero, quest) by default; a phase-limited behaviour needs an explicit owner ruling; when unsure, ask the owner. That includes FX: a spell's own cast effect is its card-level `spellCast` row in `bindings.json`, played on every cast by `packages/ui/src/fx/spellCastFx.ts` (shop records, End-of-Turn beats, the combat `spellCastFx` cue); every combat cast must announce itself (`sc` + `spellId`) and run under `withCastingSpell`, and every shop cast by a rune or minion must reach `recordActorCast`.
+
 ## Multipliers follow the trigger
 
 An "extra trigger" effect applies wherever its trigger fires, not only in the phase it was written for. Fold

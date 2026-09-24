@@ -70,6 +70,10 @@ The game is a **deterministic simulation, fully decoupled from the UI.**
 - **Combat is a pure function** → event log → replay: `simulate(playerSide, enemySide, rng, cards)` returns
   `{ events, result, playerDamage, initial }` (each side is a `CombatSideState`). The UI animates the event
   log on its own clock; it **never computes outcomes**.
+- **Cross-phase by default** (owner 2026-09-24, oracle rule `R-PHASE-01`): an effect, mechanic, trigger, tally or FX
+  is wired to work in EVERY phase it can occur in (recruit / Shop, End of Turn, combat) and from EVERY source
+  (player, rune, minion, hero, quest) by default. A phase-limited behaviour needs an explicit owner ruling; when
+  unsure, ask the owner.
 - **One seeded RNG** (mulberry32) threaded through everything via `fork()`. **`Math.random` is banned** in
   `core`/`content`/`sim` (ESLint-enforced). This buys replays, shareable seeds, daily runs, and cheap exact
   balance sims.

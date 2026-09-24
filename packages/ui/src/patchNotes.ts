@@ -60,6 +60,33 @@ export const PATCH_NOTES: PatchNote[] = [
     ],
   },
   {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Growth and Waking Rift have their own effects now, wherever they are cast from.',
+        details: [
+          'The effect plays every time the spell is cast: from your hand, by a rune, by a minion in the Shop, at End of Turn, and in combat.',
+          'Minions that cast Growth in combat (Fatecarver, Taragosa, Hoardbreaker Drake) now show it on every cast.',
+          'When a minion casts one of these spells, its own effect replaces the usual buff trail from that minion.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Spell previews are smaller and only appear for spells cast by your runes for now.',
+        details: [
+          'The spell card that pops up when a rune casts a spell is smaller and quicker, sitting just above the rune.',
+          'Spells cast by minions, in the shop or in combat, no longer show a preview for now.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-23',
     label: 'Balance 9/23: minion reworks',
     changes: [
@@ -87,6 +114,22 @@ export const PATCH_NOTES: PatchNote[] = [
         "The spell's card fades in above the rune's node or the minion's card, stays about two seconds, then fades out, in the shop and in combat.",
         'In combat a minion that casts the same spell again and again shows it once per fight.',
       ] },
+    ],
+  },
+  {
+    date: '2026-09-23',
+    label: 'Stat-granting spells',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Stat-granting spell effects (like Rune of the Gilded Ledger) can now cast targeted spells, aimed at a random minion.',
+        details: [
+          'Rune of the Gilded Ledger now picks from every stat-granting Shop spell up to your Tier: board-wide buffs, targeted spells like Bulwark, Lantern Light, Spirit Fire and Shatter, and the stat Ales.',
+          'At Tier 1 it can now cast Bulwark, Lantern Light or Crest of the Climb. Before, it had nothing to cast.',
+          'A targeted spell lands on a random friendly minion it could legally target. If there is none, the cast does nothing.',
+          'Great Pot now counts as a stat-granting spell, so Rune of Thrift makes it cheaper.',
+        ],
+      },
     ],
   },
   {
@@ -268,6 +311,42 @@ export const PATCH_NOTES: PatchNote[] = [
           'Rune of the Gem Golem: when a friendly Kobold dies, summon a Gemheart Golem carrying its Rubies. Rubies are no longer required.',
           'Rune of Lassoing: get a Rope Wrangler. Whenever Lasso is cast, give your minions +2/+2.',
           'New art for Rune of Full Measure and Rune of the Gem Golem.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-23',
+    label: 'Balance 9/23: rune reworks A',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Twenty-one spell, Shout, Dragon and economy runes reworked. Shout-counting runes now count Shouts you trigger in combat too, with one counter that carries through both halves of the turn.',
+        details: [
+          'Rune of the Chorus: when you trigger 3 Shouts (was 4), get a random spell. Combat Shouts count, and a trip mid-fight sends the spell to your hand.',
+          'Rune of Hoardcalling: when you trigger 3 Shouts, get a Hoardflame or a Dragonflame. Same shared counter, combat included.',
+          'Rune of the Drake Skull: whenever you trigger a Shout, your left and right-most Dragon get +6/+6 (was every minion at the ends of the board, +5/+5).',
+          'Rune of Ancestral Roar: End of Turn, your Dragons get +6/+6 for every Shout you triggered this turn, as one lump. The badge shows the count and the lump.',
+          'Rune of the Runic Hoard: when you cast a spell (any spell, Rubies included), 3 random Dragons get +2/+3.',
+          'Rune of the Glider: a Dragon gets +6/+5 per card played (was +4/+4).',
+          'Rune of Draconic Curiosity: pays a random spell when you buy a Dragon (was on a Dragon Discover pick).',
+          'Rune of the Dragon\'s Pantry: every 5 Dragons played, get a random Dragon and a Shop spell.',
+          'Rune of Distillation: a spell cast on a Shop minion also casts on your left-most and right-most minion.',
+          'Rune of Lorekeeping: any spell cast on a minion (Shop spells, Rubies, Clues) gives it +3/+3 more.',
+          'Rune of Enchantment: when you cast a Shop Spell in combat, your minions get +6/+8. The shop half is gone.',
+          'Rune of the Spellmarket: every 4 Shop Spells cast, it casts a Staff of Guel for you.',
+          'Rune of Quick Study: get a Quick Study and a Gold Font now, and again next turn.',
+          'Rune of Rare Goods: get a Traveling Salesman now, and one every 2 turns.',
+          'Rune of Overtime: every 12 Gold spent (was 15), get a Dwarven Ale.',
+          'Rune of Gemspam: every 15 Gold spent, improve your Rubies +1/+2 and get a Ruby.',
+          'Rune of the Gem Dividend: the first Ruby you cast each turn pays 3 Gold right away.',
+          'Rune of Investment: every 4 minions sold, get 2 Rubies and improve your Rubies +1/+1.',
+          'Rune of the Empty Plate: every 2 minions Consumed (was 3), get a random Shop spell.',
+          'Rune of the Collector: every 3rd minion you buy in a turn hands you a copy of one of those three.',
+          'Rune of the Golden Splinter now says once per game.',
+          'Rune of the Spellstone: a Ruby now also fires your per-spell runes (Flagship, Kindling, Scales, Summoning, Might).',
+          'Rune of Thrift now discounts Great Pot, Perfect Vision, Ruby Excavation, Ruby Transfer and Cupcakes too.',
+          'Rune of Combat Prowess now replays Rune of Held Strength at End of Turn.',
         ],
       },
     ],

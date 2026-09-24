@@ -44,7 +44,10 @@ const NOT_A_METER: Record<string, string> = {
   q_the_old_hunt: 'fires on every Beast attack — no threshold to be part-way toward',
   q_feeding_line: 'fires on every Beast Slaughter',
   q_motherlode: 'the 2 is how many Kobolds a Ruby copies onto',
-  rune_glider: 'fires on EVERY card played; the digits are the +4/+4 grant, not a count-up',
+  rune_glider: 'fires on EVERY card played; the digits are the +6/+5 grant, not a count-up',
+  rune_lorekeeping: 'fires on EVERY targeted cast; the digits are the +3/+3 grant, not a count-up (balance 9/23)',
+  rune_runic_hoard: 'fires on EVERY spell cast; the 3 is how many Dragons take the +2/+3, not a count-up (balance 9/23)',
+  rune_drake_skull: 'fires on EVERY Shout; the digits are the +6/+6 grant, not a count-up (balance 9/23)',
   rune_baller: 'fires on EVERY sell — it ESCALATES rather than filling a threshold, so there is nothing to be part-way toward',
   rune_scales: 'fires on EVERY Shop spell; the digits are the +2/+2 grant',
   rune_profit_sharing: 'fires on EVERY Gold gain; the digits are the +3/+3 grant',
@@ -53,7 +56,7 @@ const NOT_A_METER: Record<string, string> = {
   rune_flagship: 'fires on EVERY Shop spell; the digits are the +2/+2 grant',
   rune_brew: 'fires on EVERY Gold spend; the digits are the +4/+3 grant',
   rune_golden_splinter: 'a one-shot latch (reach 15 Gold) — the Gold counter IS the meter',
-  rune_enchantment: 'fires on EVERY Shop spell; the digits are the +1/+1 grant and its combat +2/+2',
+  rune_enchantment: 'fires on EVERY combat Shop-spell cast; the digits are the +6/+8 grant (balance 9/23)',
   // ── the 2026-08-20 batch ──
   rune_returning_pack: 'combat-local — the Beast-summon count ticks during the replay, not across turns',
   rune_grave_refreshment: 'combat-local — the Echo count ticks during the replay, not across turns',
@@ -82,7 +85,11 @@ const armedRun = (): RunState => ({
   spellDripTick: 3,
   runeSummitTick: 1,
   runeCollector: true,
-  typesBoughtThisTurn: [],
+  collectorBoughtThisTurn: [],
+  runeSellRubies: 2, // Rune of Investment (balance 9/23): sells toward the 4th
+  runeSellRubiesSold: 1,
+  questRecurringEndOfTurn: ['runeAncestralRoar'], // Rune of Ancestral Roar (balance 9/23): the turn's Shout count + lump
+  shoutFiresThisTurn: 2,
   // The 2026-08-20 batch keeps three meters outside `runeThresholds` too — the cadenced grants (a per-rune
   // turn countdown), the Seasoned Ledger's escalating grant and Echoed Arrival's Echo count.
   runeCadenceGrants: [
@@ -233,8 +240,9 @@ describe('per-turn ACCUMULATOR runes show a live count (audit 2026-08-12)', () =
   it('every per-turn accumulator rune reports a live count', () => {
     // A run mid-turn with every accumulator armed and non-zero, so a wired tally must return non-null.
     const run = {
+      shoutFiresThisTurn: 2, // Rune of Ancestral Roar (balance 9/23) — armed in the list below
       runeLapidary: true,
-      questRecurringEndOfTurn: ['runeAction', 'runeSpending'],
+      questRecurringEndOfTurn: ['runeAction', 'runeSpending', 'runeAncestralRoar'],
       playedThisTurn: ['a', 'b'],
       goldSpentThisTurn: 3,
     } as unknown as RunState;

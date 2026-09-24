@@ -41,9 +41,10 @@ describe('Grim buffs itself when its Echo fires without dying (owner report 2026
   it('SHOP: a shop-fired Echo trigger buffs Grim too, not just the other Beasts', () => {
     const s = run([bc('g', 'grim'), bc('t', 'b2_trex')]);
     fireRecruitDeathrattlesForTest(s, on(s, 'g')); // an Ossuary-class proc: the body stays alive
-    expect(on(s, 'g').attack, 'Grim gained its own +8').toBe(CARD_INDEX['grim']!.attack + 8);
-    expect(on(s, 'g').health, 'Grim gained its own +8').toBe(CARD_INDEX['grim']!.health + 8);
-    expect(on(s, 't').attack, 'the other Beast still gains').toBe(CARD_INDEX['b2_trex']!.attack + 8);
+    // Grim reworked 2026-09-24: +3/+2 per Echo this game, its own included — this is the game's first Echo.
+    expect(on(s, 'g').attack, 'Grim gained its own +3').toBe(CARD_INDEX['grim']!.attack + 3);
+    expect(on(s, 'g').health, 'Grim gained its own +2').toBe(CARD_INDEX['grim']!.health + 2);
+    expect(on(s, 't').attack, 'the other Beast still gains').toBe(CARD_INDEX['b2_trex']!.attack + 3);
   });
 
   it("SHOP end-to-end (the owner's scenario): Spots under Combat Prowess procs Grim at End of Turn", () => {
@@ -51,16 +52,16 @@ describe('Grim buffs itself when its Echo fires without dying (owner report 2026
     const s = run([bc('g', 'grim'), bc('sp', 'b2_spots')], { runeCombatProwess: true } as Partial<RunState>);
     const out = reduce(s, { type: 'faceOmen' }) as RunState;
     const grim = out.board.find((c) => c.uid === 'g')!;
-    expect(grim.buffs?.some((b) => b.source === 'Grim' && b.attack >= 8), 'Grim carries its OWN buff').toBe(true);
-    expect(grim.attack).toBeGreaterThanOrEqual(CARD_INDEX['grim']!.attack + 8);
+    expect(grim.buffs?.some((b) => b.source === 'Grim' && b.attack >= 3), 'Grim carries its OWN buff').toBe(true);
+    expect(grim.attack).toBeGreaterThanOrEqual(CARD_INDEX['grim']!.attack + 3);
   });
 
-  it('COMBAT (parity pin): Echoing Coop procs Grim without a death — Grim gains its own +8/+8', () => {
+  it('COMBAT (parity pin): Echoing Coop procs Grim without a death — Grim gains its own +3/+2 per Echo', () => {
     const r = csim([bm('grim', 'G', 7, 9999), bm('b2_trex', 'T', 2, 9999)], { echoingCoop: true });
     const grimUid = r.initial.player.find((m) => m.cardId === 'grim')!.uid;
     const own = (r.events.filter((e) => e.type === 'buff') as { target: string; source: string; attack: number; health: number }[])
       .filter((b) => b.target === grimUid && b.source === grimUid);
-    expect(own.some((b) => b.attack === 8 && b.health === 8), 'the living Grim buffed itself').toBe(true);
+    expect(own.some((b) => b.attack > 0 && b.attack % 3 === 0 && b.health === (b.attack / 3) * 2), 'the living Grim buffed itself').toBe(true);
   });
 
   it('a genuinely DYING shop Grim still never buffs a corpse (it leaves the board before the rattle)', () => {
@@ -69,7 +70,7 @@ describe('Grim buffs itself when its Echo fires without dying (owner report 2026
     s.board = s.board.filter((c) => c.uid !== 'g'); // every shop death path splices first (Graverobber, damageAll)
     fireRecruitDeathrattlesForTest(s, grim);
     expect(grim.buffs ?? [], 'no posthumous self-buff').toHaveLength(0);
-    expect(on(s, 't').attack).toBe(CARD_INDEX['b2_trex']!.attack + 8);
+    expect(on(s, 't').attack).toBe(CARD_INDEX['b2_trex']!.attack + 3);
   });
 });
 

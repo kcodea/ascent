@@ -155,9 +155,9 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:deathrattleBuffShopPermanent:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleBuffCelestials:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleBuffImps:onDeath': { policy: 'ownBeat', family: 'echo' },
-  'factory:deathrattleBuffNextSummon:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleBuffRightmostSlot:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleBuffTribe:onDeath': { policy: 'ownBeat', family: 'echo' },
+  'factory:deathrattleBuffTribeByTally:onDeath': { policy: 'ownBeat', family: 'echo' }, // Grim, per-game Echo tally (2026-09-24)
   'factory:deathrattleCastLastSpell:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleCastTribeAttack:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleDamageAll:onDeath': { policy: 'ownBeat', family: 'echo' },
@@ -297,6 +297,10 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onSummonTribeBuffFlat:onSummon': { policy: 'foldedCue', family: 'summonReact' },
   'factory:onSummonTribeBuffThenDouble:onSummon': { policy: 'foldedCue', family: 'summonReact' },
   'factory:onTribeAttackBuffAttacker:onAttack': { policy: 'ownBeat', family: 'rally' },
+  'factory:onTribeAttackBuffAttackerAndSelf:onAttack': { policy: 'ownBeat', family: 'rally' }, // Beev (2026-09-24)
+  'factory:rallyGrantKeywordRandomTribe:onAttack': { policy: 'ownBeat', family: 'rally' }, // Raven (2026-09-24)
+  'factory:avengeGrantKeywordRandomTribe:avenge': { policy: 'ownBeat', family: 'avenge' }, // Tort (2026-09-24)
+  'factory:onSummonBuffTribeAll:onSummon': { policy: 'foldedCue', family: 'summonReact' }, // Flo Rida (2026-09-24)
   'factory:onTribePlayedBuffSelfPerSpell:onSummon': { policy: 'foldedCue', family: 'summonReact' },
   'factory:onTribePlayedConsumeShop:onSummon': { policy: 'foldedCue', family: 'summonReact' },
   'factory:onTribeSummonedBuffTribe:onSummon': { policy: 'foldedCue', family: 'summonReact' },
@@ -831,7 +835,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_last_tool:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_endless_march:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_grave_orbit:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
-  'rune:rune_white_wolf:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_wild_hunt:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_window_shopping:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_yazzus:onAcquire': { policy: 'ownBeat', family: 'rewardGrant' },

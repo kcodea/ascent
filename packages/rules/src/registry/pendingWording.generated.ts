@@ -11,17 +11,17 @@ import type { GameRule } from '../schema';
 export const WORDING_PENDING: GameRule[] = [
   {
     "id": "q-word-lg-duration-01",
-    "title": "Wording: run vs game · 8 vs 15",
+    "title": "Wording: run vs game · 8 vs 17",
     "statement": "Run-long effects say \"this run\" / \"for the rest of the run\" — never \"game\". — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"this run\" in 8 printed texts, \"this game\" in 15. Approving picks \"this run\"; the LG-DURATION-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"this run\" in 8 printed texts, \"this game\" in 17. Approving picks \"this run\"; the LG-DURATION-01 guide predicate then watches new text.",
     "cardText": "\"this run\" — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · \"this game\" — Vaultkeeper: \"Gain +2/+2 whenever you play a Dragon. Improves +2/+2 for every 4 spells cast this game.\"",
     "example": "Vaultkeeper would be re-worded to the \"this run\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-DURATION-01 (corpus survey: 8 vs 15)"
+        "ref": "textParse.wording · LG-DURATION-01 (corpus survey: 8 vs 17)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -36,6 +36,7 @@ export const WORDING_PENDING: GameRule[] = [
       "dm_shepherd",
       "dm_todd",
       "gift_premium_stock",
+      "grim",
       "impoverseer",
       "knit",
       "rune_first_light",
@@ -44,17 +45,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-gild-01",
-    "title": "Wording: Gilded vs Golden · 8 vs 7",
+    "title": "Wording: Gilded vs Golden · 7 vs 7",
     "statement": "Upgraded cards are called \"Gilded\" in text; every \"Golden\"/\"golden\" is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Gilded\" in 8 printed texts, \"Golden\" in 7. Approving picks \"Gilded\"; the LG-GILD-01 guide predicate then watches new text.",
-    "cardText": "\"Gilded\" — Dunkey: \"Avenge (4): summon a Gilded Armadiyo.\" · \"Golden\" — Eyes of Aresmar: \"Make a Tier 4 or lower minion Golden.\"",
+    "currentBehaviour": "Both spellings are live: \"Gilded\" in 7 printed texts, \"Golden\" in 7. Approving picks \"Gilded\"; the LG-GILD-01 guide predicate then watches new text.",
+    "cardText": "\"Gilded\" — T-Rex: \"Echo: summon a Gilded T-Rex Baby with Taunt.\" · \"Golden\" — Eyes of Aresmar: \"Make a Tier 4 or lower minion Golden.\"",
     "example": "Eyes of Aresmar would be re-worded to the \"Gilded\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-GILD-01 (corpus survey: 8 vs 7)"
+        "ref": "textParse.wording · LG-GILD-01 (corpus survey: 7 vs 7)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -128,17 +129,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-trigger-01",
-    "title": "Wording: Shout vs Battlecry · 142 vs 40",
+    "title": "Wording: Shout vs Battlecry · 140 vs 40",
     "statement": "On-play triggers print \"Shout\" everywhere; every \"Battlecry\" in card text is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Shout\" in 142 printed texts, \"Battlecry\" in 40. Approving picks \"Shout\"; the LG-TRIGGER-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Shout\" in 140 printed texts, \"Battlecry\" in 40. Approving picks \"Shout\"; the LG-TRIGGER-01 guide predicate then watches new text.",
     "cardText": "\"Shout\" — Dawnclaw: \"Taunt. Echo: trigger an adjacent minion's Shout.\" · \"Battlecry\" — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\"",
     "example": "Pennycat would be re-worded to the \"Shout\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-TRIGGER-01 (corpus survey: 142 vs 40)"
+        "ref": "textParse.wording · LG-TRIGGER-01 (corpus survey: 140 vs 40)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -222,17 +223,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-verb-01",
-    "title": "Wording: trigger vs fire/proc · 96 vs 2",
+    "title": "Wording: trigger vs fire/proc · 92 vs 2",
     "statement": "Effects \"trigger\" — never \"fire\" or \"proc\". The three straggler texts are updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"trigger\" in 96 printed texts, \"fire/proc\" in 2. Approving picks \"trigger\"; the LG-VERB-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"trigger\" in 92 printed texts, \"fire/proc\" in 2. Approving picks \"trigger\"; the LG-VERB-01 guide predicate then watches new text.",
     "cardText": "\"trigger\" — Dawnclaw: \"Taunt. Echo: trigger an adjacent minion's Shout.\" · \"fire/proc\" — Graverobber: \"Battlecry: Destroy a friendly minion (procs its Deathrattle), then add a random Shop spell of its tier to your hand.\"",
     "example": "Graverobber would be re-worded to the \"trigger\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-VERB-01 (corpus survey: 96 vs 2)"
+        "ref": "textParse.wording · LG-VERB-01 (corpus survey: 92 vs 2)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -275,17 +276,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-zone-01",
-    "title": "Wording: Shop vs tavern · 214 vs 9",
+    "title": "Wording: Shop vs tavern · 211 vs 9",
     "statement": "The buy row is always \"the Shop\" in text; every remaining \"tavern\" is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Shop\" in 214 printed texts, \"tavern\" in 9. Approving picks \"Shop\"; the LG-ZONE-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Shop\" in 211 printed texts, \"tavern\" in 9. Approving picks \"Shop\"; the LG-ZONE-01 guide predicate then watches new text.",
     "cardText": "\"Shop\" — Black Hole: \"Your Starform consumes 3 random Shop minions.\" · \"tavern\" — Korok, the Hungerer: \"When you buy 4 cards, give your Fodder +1/+1 and add 1 Fodder to your next tavern.\"",
     "example": "Korok, the Hungerer would be re-worded to the \"Shop\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-ZONE-01 (corpus survey: 214 vs 9)"
+        "ref": "textParse.wording · LG-ZONE-01 (corpus survey: 211 vs 9)"
       }
     ],
     "sourceQueue": "textParse.wording",

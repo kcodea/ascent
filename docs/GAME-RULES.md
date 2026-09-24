@@ -634,7 +634,7 @@ data are unchanged) via `packages/ui/src/terms.ts`:
 | Deathrattle | **Echo** |
 | Divine Shield | **Ward** |
 | Windfury | **Flurry** |
-| Venomous | **Execute** |
+| Venomous | **Execute** (owner 2026-09-24: the same mechanic, renamed; Raven and Tort grant it) |
 | Reborn | **Rise** |
 | Magnetize | **Attach** |
 | Magnetic | **Attachment** |
@@ -893,7 +893,7 @@ combat (a Rally, an Avenge, an Echo). Combat casts carry the gain back at settle
 ### Aura — the run-wide scope noun (owner ruling 2026-08-28)
 
 A grant that reaches a whole tribe/class **wherever its members sit** — the board, your hand, the Shop, and
-copies you acquire later — prints as an **Aura**: *"give your **Beast Aura** +8/+8"*, *"improve your **Imp
+copies you acquire later — prints as an **Aura**: *"give your **Beast Aura** +2/+4"*, *"improve your **Imp
 Aura** by +2/+2"*. The shape is `your <Tribe-singular> Aura`.
 
 This replaced the older scope tails **"wherever they are"** and **"everywhere"**, which no longer appear in

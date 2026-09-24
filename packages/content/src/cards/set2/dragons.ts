@@ -85,7 +85,7 @@ export const SET2_DRAGONS: CardDef[] = [
     id: 'd2_scalefeather',
     name: 'Mushy',
     tribe: 'dragon',
-    tier: 5, // owner balance 2026-08-18: T4 → T5
+    tier: 4, // owner balance 2026-08-18: T4 → T5; owner batch 2026-09-24: back to T4
     attack: 4,
     health: 6,
     keywords: [],
@@ -146,17 +146,17 @@ export const SET2_DRAGONS: CardDef[] = [
     id: 'd2_scalechanter',
     name: 'Earthbreaker',
     tribe: 'dragon',
-    tier: 4, // owner balance 2026-08-18: T3 → T4
+    tier: 3, // owner balance 2026-08-18: T3 → T4; owner batch 2026-09-24: back to T3
     attack: 4,
     health: 3,
     keywords: [],
     // Owner rework 2026-08-18: the buff is now Dragon-scoped and grants Health too (+2/+3), via the `tribe`
-    // filter on `spellCastBuffAll`.
+    // filter on `spellCastBuffAll`. Owner batch 2026-09-24: +2/+3 → +2/+1.
     effects: [
-      { on: 'spellCast', do: 'spellCastBuffAll', params: { tribe: 'dragon', attack: 2, health: 3 } },
+      { on: 'spellCast', do: 'spellCastBuffAll', params: { tribe: 'dragon', attack: 2, health: 1 } },
     ],
-    text: 'Whenever you cast a **Shop spell**, give your **Dragons +2/+3**.',
-    goldenText: 'Whenever you cast a **Shop spell**, give your **Dragons +4/+6**.',
+    text: 'Whenever you cast a **Shop spell**, give your **Dragons +2/+1**.',
+    goldenText: 'Whenever you cast a **Shop spell**, give your **Dragons +4/+2**.',
   },
   {
     // Seeds BOTH halves of the tribe at once — a body to buff and a spell to recur (owner re-spec 2026-07-24:
@@ -264,21 +264,6 @@ export const SET2_DRAGONS: CardDef[] = [
 
   // ── Owner add 2026-08-18: eight new Dragons (Shout-trigger + spell-cast lines) ────────────────────────────
   {
-    // The Shout-tribe capstone on a Rally: every swing re-fires your OTHER Dragons' Shouts through the shared
-    // combat re-trigger (so every "after you trigger a Shout" watcher — Karwind, Bane, Embermouth — procs).
-    // Golden re-triggers each Shout twice.
-    id: 'd2_embercrest',
-    name: 'Embercrest',
-    tribe: 'dragon',
-    tier: 6,
-    attack: 8,
-    health: 9,
-    keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallyTriggerTribeShouts', params: { tribe: 'dragon' } }],
-    text: '**Rally:** trigger your **Dragon** Shouts.',
-    goldenText: '**Rally:** trigger your **Dragon** Shouts **twice**.',
-  },
-  {
     // A cheap early Shout that pushes the flight — includes itself (owner default for "your Dragons").
     id: 'd2_broodfire',
     name: 'Broodfire',
@@ -381,7 +366,7 @@ export const SET2_DRAGONS: CardDef[] = [
     id: 'd2_flutterdrake',
     name: 'Flutterdrake',
     tribe: 'dragon',
-    tier: 5,
+    tier: 4, // owner batch 2026-09-24: T5 → T4
     attack: 4,
     health: 3,
     keywords: [],
@@ -407,5 +392,22 @@ export const SET2_DRAGONS: CardDef[] = [
     effects: [{ on: 'endOfTurn', do: 'endOfTurnTransformLeftTierUp' }],
     text: '**End of Turn:** transform the minion to the **left** into a random minion **one Tier higher** (up to **Tier 7**).',
     goldenText: '**End of Turn:** transform the **2 minions** to the **left** into random minions **one Tier higher** (up to **Tier 7**).',
+  },
+  {
+    // Owner batch 2026-09-24. A targeted Dragon Shout on the Twilight Emissary / Brood Whelp convention:
+    // `target: 'friendly'` + `targetTribe: 'dragon'` drive the pick, `battlecryBuffTarget` applies it; a
+    // re-fire with no target auto-picks the highest-Attack other Dragon. Golden doubles the grant.
+    id: 'd2_humphry',
+    name: 'Humphry',
+    tribe: 'dragon',
+    tier: 3,
+    attack: 3,
+    health: 5,
+    keywords: [],
+    target: 'friendly',
+    targetTribe: 'dragon',
+    effects: [{ on: 'onPlay', do: 'battlecryBuffTarget', params: { attack: 3, health: 4 } }],
+    text: '**Shout:** give a friendly **Dragon +3/+4**.',
+    goldenText: '**Shout:** give a friendly **Dragon +6/+8**.',
   },
 ];

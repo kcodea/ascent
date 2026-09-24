@@ -495,6 +495,10 @@ export type EffectFactoryId =
   | 'spellCastBuffAll' // Set 2 — Scalechanter: each Shop spell gives your whole board +Attack
   | 'battlecryGrantShoutDragon' // Set 2 — Commander Warpath: get a random Dragon that has a Shout
   | 'onTribeAttackBuffAttacker' // Set 2 — Traveling Skald: a friendly Dragon that attacks gets +2/+1
+  | 'rallyGrantKeywordRandomTribe' // Raven: Rally — give a random other friendly Beast a keyword (Execute)
+  | 'avengeGrantKeywordRandomTribe' // Tort: Avenge (X) — give a random other friendly Beast a keyword (Execute)
+  | 'onTribeAttackBuffAttackerAndSelf' // Beev: when a friendly Beast attacks, buff it and this
+  | 'onSummonBuffTribeAll' // Flo Rida: when you summon a Beast, buff your Beasts
   | 'onFriendlyDemonDamageBuffSelf' // Set 2 — Impossible Todd / Leech / Axeman: buff self (and maybe Imps) when a friendly Demon deals damage
   | 'scPlayRubiesSelfAndAdjacentTribe' // Set 2 — (Kobe's pre-2026-09-18 Start of Combat form): play N permanent Rubies on self + adjacent same-tribe
   | 'onDamagedPlayRubiesSelfAndAdjacentTribe' // Set 2 — Kobe (owner rework 2026-09-18): when THIS takes damage, play N permanent Rubies on self + adjacent same-tribe

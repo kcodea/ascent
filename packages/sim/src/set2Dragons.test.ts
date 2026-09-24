@@ -33,9 +33,9 @@ describe('set 2 — the Dragon tribe is wired into the set', () => {
     expect(run).toBeTruthy();
   });
 
-  it('Karwind carries into set 2 and keeps its re-spec (Tier 5, 4/12)', () => {
+  it('Karwind carries into set 2 and keeps its re-spec (Tier 4 since 2026-09-24, 4/12)', () => {
     const k = CARD_INDEX['karwind']!;
-    expect([k.tier, k.attack, k.health]).toEqual([5, 4, 12]);
+    expect([k.tier, k.attack, k.health]).toEqual([4, 4, 12]);
   });
 });
 
@@ -503,8 +503,9 @@ describe('set 2 — spells cast ON a minion (Mirrorwing / Runefire)', () => {
 });
 
 describe('set 2 — Earthbreaker/Scalechanter (owner rework 2026-08-18)', () => {
-  it('every Shop spell cast gives your Dragons +2/+3 (Dragons only, and Health too)', () => {
-    // Owner rework 2026-08-18: Tier 4, and the buff is now Dragons-only +2/+3 (was whole-board +1 Attack).
+  it('every Shop spell cast gives your Dragons +2/+1 (Dragons only, and Health too)', () => {
+    // Owner rework 2026-08-18: the buff is Dragons-only (was whole-board +1 Attack). Owner batch 2026-09-24:
+    // Tier 3, and +2/+3 → +2/+1.
     // A non-Dragon on the board gains NOTHING.
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 60,
@@ -514,7 +515,7 @@ describe('set 2 — Earthbreaker/Scalechanter (owner rework 2026-08-18)', () => 
     s = reduce(s, { type: 'play', uid: 'sp' });
     const sc = s.board.find((c) => c.uid === 'sc')!;
     const beast = s.board.find((c) => c.uid === 'b')!;
-    expect([sc.attack, sc.health], 'the Dragon (incl. itself) gains +2/+3').toEqual([6, 6]);
+    expect([sc.attack, sc.health], 'the Dragon (incl. itself) gains +2/+1').toEqual([6, 4]);
     expect([beast.attack, beast.health], 'the non-Dragon gains nothing').toEqual([2, 2]);
   });
 

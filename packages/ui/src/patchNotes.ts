@@ -67,6 +67,69 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-24',
+    label: 'Beasts and Dragons',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Five new Set 2 minions: Raven, Tort, Flo Rida, Beev and Humphry. Grim and Wolvie reworked. Karwind, Mushy, Flutterdrake and Earthbreaker changed. Dunkey, Moira, Moonhowl Mentor and Embercrest are retired.',
+        details: [
+          'Raven (Beast, Tier 4, 4/6): Rally: give another Beast Execute.',
+          'Tort (Beast, Tier 5, 2/9): Avenge (4): give another Beast Execute.',
+          'Flo Rida (Beast, Tier 6, 7/5): When you summon a Beast, give your Beasts +4/+4. Playing a Beast counts as summoning it.',
+          'Beev (Beast, Tier 3, 4/4): When a Beast attacks, give it and this +2/+2.',
+          'Humphry (Dragon, Tier 3, 3/5): Shout: give a friendly Dragon +3/+4.',
+          'Grim is now Tier 5. Echo: give your Beast Aura +3/+2 for every Echo triggered this game. Its own Echo counts.',
+          'Wolvie keeps Taunt. Its Echo now gives a Beast +2/+4 and Rise.',
+          'Karwind is now Tier 4, and gives +2/+2 (was +3/+3).',
+          'Mushy and Flutterdrake are now Tier 4.',
+          'Earthbreaker is now Tier 3, and gives your Dragons +2/+1 per Shop spell (was +2/+3).',
+          'Retired: Dunkey, Moira, Moonhowl Mentor, Embercrest, and the Rune of the White Wolf.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Compendium Rubies',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The Spells section of the Compendium now lists every kind of Ruby.',
+        details: [
+          'The plain Ruby, Warding, Golden, Splintered, Ripple and Dark Rubies all show, in the sets that make Rubies.',
+          'They are Tier 1, so the Tier 1 filter and the search box find them like any spell.',
+          'During a run, a Ruby shows the grant it would give right now, your Ruby bonus included.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Ruby Types',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Four new kinds of Ruby join the Warding Ruby. Each does something extra when it lands on a Kobold. Several Kobold cards and runes now hand out random Rubies.',
+        details: [
+          'New Rubies: Golden Ruby (gain 2 Gold), Splintered Ruby (bounces once), Ripple Ruby (casts again) and Dark Ruby (eats the highest Health minion in the Shop as Rubies). Each gives +1/+1 and grows with your Ruby upgrades.',
+          'A random Ruby can be any of the six kinds, all equally likely.',
+          'Warding Ruby now gives +1/+2.',
+          'Ruby Shipment costs 2 and gets 2 random Rubies.',
+          'Kobe keeps Taunt. New ability: Pummel (15): get a random Ruby, twice per combat.',
+          'Shardluck is now Tier 6, 8/5: play 3 Rubies on your Kobolds, or cast Veinstorm 3 times.',
+          'Gemheart Carver summons 2 Golems. Geode Guardian summons 1 Golem with Taunt. Each Golem carries the Rubies.',
+          'Blast Pump casts a Ruby on all of your minions.',
+          'Prismatic Pick can now Discover a special Ruby.',
+          'New Kobolds: Gemheart Legionnaire (gets 5 Rubies whenever you summon a Gemheart Golem) and Dealski (gets 2 Rubies whenever you play a Choose One card).',
+          'Gem Sage: when you get a Ruby, also get a random Ruby.',
+          'Rune of Resonance: your Rubies always cast twice from hand, and you get a random Ruby at the start of each turn.',
+          'Rune of Investment is now an Epic rune and pays random Rubies.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Picnic effect',
     changes: [
       {

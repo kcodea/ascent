@@ -84,7 +84,7 @@ const CURRICULA: Curriculum[] = [
   { pkg: 'echo', ready: { board: ['dm_knocked', 'sylus', 'b2_trex'], hand: 'n2_lastlight' }, engine: 'dm_knocked', forge: { affine: 'rune_aftershocks', off: 'rune_transcription' } /* both 4 Gold; Epic Forge dropped to 3 in balance 9/23 */ },
   { pkg: 'rally', ready: { board: ['b2_packstrider', 'n2_standardbearer', 'k_blazer'], hand: 'rallyoffensive' }, engine: 'b2_packstrider', forge: { affine: 'rune_rallying', off: 'rune_transcription' } /* both 4 Gold since balance 9/23 */ },
   { pkg: 'tempo', ready: { board: ['dw_brakka', 'venom', 'dw_orin'], hand: 'spiritfire' }, engine: 'dw_brakka', forge: { affine: 'rune_warding', off: 'rune_window_shopping' } },
-  { pkg: 'economy', ready: { board: ['dw_pimm', 'k_pouchpincher', 'buddy'], hand: 'emberpouch' }, engine: 'dw_pimm', forge: { affine: 'rune_vault', off: 'rune_strange_caravan' } /* both 2 Gold; Trade-In dropped to 1 in balance 9/23 */ },
+  { pkg: 'economy', ready: { board: ['dw_pimm', 'k_pouchpincher', 'buddy'], hand: 'emberpouch' }, engine: 'dw_pimm', forge: { affine: 'rune_vault', off: 'rune_fury' } /* both 2 Gold; Trade-In dropped to 1 in balance 9/23. Off-package was Strange Caravan until 2026-09-24: its random-minion grant reads the set-2 pool, and the beast/dragon batch made the pool-probe value it above Vault */ },
 ];
 
 describe.each(CURRICULA)('curriculum — $pkg', ({ pkg, ready, engine, forge }) => {

@@ -112,11 +112,11 @@ describe('gilded shapes — the encoding (R-GILD-01)', () => {
 
 describe('gilded shapes — the owner\'s exemplars, measured (§4.1)', () => {
   it('Dunkey: the gild changes the token\'s IDENTITY, not the count (gilded-token)', () => {
-    const g = gildOf('b2_dunkey');
+    const g = gildOf('steadfast');
     expect(g.kind).toBe('gilded-token');
-    expect(g.kind === 'gilded-token' && g.token.cardId).toBe('b2_armadiyo');
-    const plain = summons('b2_dunkey', false, 'b2_armadiyo', 'avenge');
-    const gilded = summons('b2_dunkey', true, 'b2_armadiyo', 'avenge');
+    expect(g.kind === 'gilded-token' && g.token.cardId).toBe('knit');
+    const plain = summons('steadfast', false, 'knit', 'avenge');
+    const gilded = summons('steadfast', true, 'knit', 'avenge');
     expect(plain.length, 'the fixture must actually fire').toBeGreaterThan(0);
     expect(gilded.length, 'a gilded-token gild must not change the count').toBe(plain.length);
     expect(plain.every((m) => m.golden !== true)).toBe(true);
@@ -233,31 +233,31 @@ describe('gilded shapes — sabotage', () => {
   });
 
   it('a gilded-token claim naming the WRONG token is recorded unobserved, never passed', () => {
-    const doctored = doctor('b2_dunkey', {
+    const doctored = doctor('steadfast', {
       kind: 'gilded-token', token: { cardId: 'cryptwolf', count: 1 }, basis: 'authored',
-      description: 'SABOTAGE: Dunkey summons an Armadiyo, not a Crypt Wolf',
+      description: 'SABOTAGE: Steadfast summons a Spear Warden, not a Crypt Wolf',
     });
-    const report = sweepOf(doctored, 'b2_dunkey');
-    const ran = report.executed.find((e) => e.contractId === 'b2_dunkey' && e.driver === 'gilded-shape');
+    const report = sweepOf(doctored, 'steadfast');
+    const ran = report.executed.find((e) => e.contractId === 'steadfast' && e.driver === 'gilded-shape');
     expect(ran, 'the driver must have run').toBeTruthy();
     expect(ran!.unobserved, 'a claim nothing fired against is RECORDED, not silently passed').toMatch(/RECORDED unverified/);
-    expect(report.limitChecks.some((l) => l.contractId === 'b2_dunkey' && l.limit === 'gilded-token-identity'),
+    expect(report.limitChecks.some((l) => l.contractId === 'steadfast' && l.limit === 'gilded-token-identity'),
       'an unobserved claim must not produce a passing identity verdict').toBe(false);
   });
 
   it('a gilded-token claim whose declared count relation is doctored is detected', () => {
-    // Dunkey is a genuine gilded-token card. Declaring 'multiply' ×2 over it asserts the count doubles —
+    // Steadfast Champion is a genuine gilded-token card. Declaring 'multiply' ×2 over it asserts the count doubles —
     // it does not (1 → 1), so the metamorphic gilded-delta law must flip.
-    const doctored = doctor('b2_dunkey', {
-      kind: 'multiply', factor: 2, basis: 'authored', description: 'SABOTAGE: Dunkey gilds its Armadiyo, it does not summon two',
+    const doctored = doctor('steadfast', {
+      kind: 'multiply', factor: 2, basis: 'authored', description: 'SABOTAGE: Steadfast gilds its Spear Warden, it does not summon two',
     });
-    const report = sweepOf(doctored, 'b2_dunkey');
+    const report = sweepOf(doctored, 'steadfast');
     // With 'multiply' declared, the gilded-token driver no longer plans — the claim goes unchecked, which
     // is itself the honest outcome: the case is planned as a countable gild and the count law is what fails.
     const clean = runContractSweep({ contracts: CONTRACTS, sampleMod: 1 });
-    const cleanCheck = clean.limitChecks.find((l) => l.contractId === 'b2_dunkey' && l.limit === 'gilded-token-identity');
+    const cleanCheck = clean.limitChecks.find((l) => l.contractId === 'steadfast' && l.limit === 'gilded-token-identity');
     expect(cleanCheck?.ok, 'the true contract passes').toBe(true);
-    expect(report.limitChecks.some((l) => l.contractId === 'b2_dunkey' && l.limit === 'gilded-token-identity'),
+    expect(report.limitChecks.some((l) => l.contractId === 'steadfast' && l.limit === 'gilded-token-identity'),
       'a doctored multiply claim drops the gilded-token check — the disagreement moves to the count law, not to silence').toBe(false);
   });
 
@@ -296,7 +296,7 @@ describe('gilded shapes — sabotage', () => {
   });
 
   it('gildedTokenClaim only fires on a drivable gilded-token contract', () => {
-    expect(gildedTokenClaim(byId.get('b2_dunkey')!)?.via).toBe('avenge');
+    expect(gildedTokenClaim(byId.get('steadfast')!)?.via).toBe('avenge');
     expect(gildedTokenClaim(byId.get('manasaber')!)?.via).toBe('onDeath');
     expect(gildedTokenClaim(byId.get('wolvesden')!)).toBeNull();
   });

@@ -182,9 +182,10 @@ describe('Void — Twin Voids', () => {
   it("respects Void's own exclusion list", () => {
     const banned = new Set(['discodan', 'runesmith', 'coran', 'fi', 'vale', 'voidhero', 'mimic', 'aster']);
     for (const id of powerDiscoverPool('void')) expect(banned.has(id), `${id} must not be offerable`).toBe(false);
-    // …and Yirin/Drakko/Cassen etc. ARE offerable for Void (only Mimic bans them).
+    // …and Drakko/Cassen etc. ARE offerable for Void (only Mimic bans them). Yirin (`rohan`) was too, until the
+    // owner ARCHIVED him 2026-09-24 (heroArchive.test.ts) — archived heroes leave every power pool.
     const pool = new Set(powerDiscoverPool('void'));
-    for (const allowed of ['rohan', 'drakko', 'cassen', 'quillen', 'keshi']) {
+    for (const allowed of ['drakko', 'cassen', 'quillen', 'keshi']) {
       expect(pool.has(allowed), `${allowed} is legal for Void`).toBe(true);
     }
   });

@@ -1,4 +1,4 @@
-import { BOW_LIMIT } from './anchors';
+import { BOW_LIMIT, MIN_ARC_LIMIT } from './anchors';
 import { isAnchorPart } from './anchorParts';
 import type { FxAnchorId, FxLayer, FxSlot } from './def';
 import { coerceParams } from './params';
@@ -194,6 +194,12 @@ function coerceLayer(raw: unknown): StoredFxLayer | null {
   // rejected: a hand-edited 50 is a typo, not an instruction to fling the head off-screen.
   const bow = finite(raw.bow);
   if (bow !== null) layer.bow = Math.max(-BOW_LIMIT, Math.min(BOW_LIMIT, bow));
+  // The fountain (`bowUp` / `minArc`). Both omit-unless-meaningful, so a def that never asks keeps its exact
+  // JSON: `bowUp` only when literally `true`, `minArc` only when positive — clamped like `bow`, so a
+  // hand-edited typo can't throw the head off the screen.
+  if (raw.bowUp === true) layer.bowUp = true;
+  const minArc = finite(raw.minArc);
+  if (minArc !== null && minArc > 0) layer.minArc = Math.min(MIN_ARC_LIMIT, minArc);
   // Per-recipient stagger. Positive-only: 0 IS the default (fire with your copy), so a 0 must serialise as
   // an omission rather than as an explicit "no stagger" — otherwise every def written before this field
   // existed would gain a meaningless key on its next save. Negative is rejected the same way: a layer that

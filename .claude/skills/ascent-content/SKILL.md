@@ -43,6 +43,9 @@ Excluding is one id in `MIMIC_EXCLUDED` / `VOID_EXCLUDED`; the shared kind-level
 - **`sets: [...]` gates a rune/quest to particular sets — and set 1 is disabled.** A def gated to a disabled
   set silently never appears; omit the field for "every set". This is the difference between "archived" and
   "invisible", and it has fooled us before.
+- **Archiving a hero = `wip: true`** on its def (`isArchivedHero`). Every picker (Play, Practice, lobby seats,
+  Practice bots, Compendium, Mimic / Void / Power Shifter) filters it; `getHero` still resolves it; only the Scene
+  Builder lists it, marked "(archived)". Rule R-HERO-01; pinned by `heroArchive.test.ts`.
 - `token: true` = resolves but is never drawable (reward-only, generated, forge-only minions). `CARD_INDEX` is
   global, so an out-of-set granted card still resolves — that is why a rune may safely hand out a card the
   current set does not sell.

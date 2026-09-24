@@ -142,4 +142,75 @@ export const KEYWORDS_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-24',
     },
   },
+  {
+    id: 'R-EXECUTE-01',
+    title: 'Execute is the Venom keyword (V), renamed: one mechanic, one name everywhere a player reads it',
+    statement:
+      'Execute is the player-facing name of the keyword coded `V` (formerly Venomous): any damage the minion deals to a '
+      + 'minion destroys it, and the keyword is lost after use. Every surface a player reads (card text, keyword pills, '
+      + 'the glossary, combat floats, the Compendium) prints "Execute". The minion Venom carries it. Every card that '
+      + '"gives Execute" grants this same keyword; there is no second mechanic.',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner Beast/Dragon batch 2026-09-24', quote: 'Execute is what we renamed Venom. it\'s the same mechanic as that but reworded. to this effect, make sure the minion Venom has the keyword Execute.' },
+      { kind: 'code', ref: 'packages/content/src/cards/set1/neutral.ts venom (keywords [\'V\']); packages/ui/src/keywordGlossary.ts execute; packages/ui/src/terms.ts; packages/sim/src/docbot/textParse/lexicon.ts KEYWORD_LEXICON.V' },
+    ],
+    contentIds: ['venom', 'b2_raven', 'b2_tort'],
+    currentBehaviour:
+      'Conforms. The display name was already Execute (terms.ts, the glossary, floats, quest text); Venom already carried '
+      + '`V`. The Doc Bot text lexicon now reads "Execute" as the canonical name (Venomous kept as the alternate).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/beastDragonBatch0924.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
+  {
+    id: 'R-EXECUTE-02',
+    title: '"Give another Beast Execute": Raven and Tort pick a random other Beast that lacks it',
+    statement:
+      'Raven ("Rally: give another Beast Execute.") and Tort ("Avenge (4): give another Beast Execute.") grant Execute to a '
+      + 'RANDOM other friendly Beast that does not already have it (seeded, never the source, never wasted); gilded grants '
+      + 'it to 2 different Beasts; with no legal Beast nothing happens. Raven\'s Rally fires in combat and on every Shop Rally '
+      + 'replay; Tort\'s Avenge is a combat trigger like every Avenge. A Shop grant is permanent; a combat grant lasts the '
+      + 'fight and is spent on use like any Execute.',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner Beast/Dragon batch 2026-09-24', quote: 'Raven: "Rally: give another Beast Execute." Tort: "Avenge (4): give another Beast Execute."' },
+      { kind: 'code', ref: 'packages/core/src/effects/arena.ts rallyGrantKeywordRandomTribe; packages/core/src/effects/factories.ts rallyGrantKeywordRandomTribe / avengeGrantKeywordRandomTribe; packages/sim/src/recruit.ts rallyGrantKeywordRandomTribe' },
+    ],
+    contentIds: ['b2_raven', 'b2_tort'],
+    currentBehaviour: 'Conforms (built with the cards, 2026-09-24).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/beastDragonBatch0924.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
+  {
+    id: 'R-ECHOKW-01',
+    title: 'Wolvie: "Echo: Give a Beast +2/+4 and Rise" lands both on ONE random other Beast; gilded picks 2',
+    statement:
+      'Wolvie\'s Echo gives a RANDOM other friendly Beast +2/+4 and Rise, in combat and wherever an Echo fires (the Shop, '
+      + 'End of Turn, borrowed plays, proc\'d Echoes). A Beast that lacks Rise is preferred so the keyword is not wasted; the '
+      + 'stats still land when every Beast already has it. No other Beast means nothing happens. Gilded: +4/+8, and the grant '
+      + 'goes to 2 different Beasts (each takes the doubled stats and Rise). A combat Rise is live that fight; a Shop Rise is '
+      + 'the permanent keyword.',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner Beast/Dragon batch 2026-09-24 (Wolvie correction)', quote: 'Wolvie becomes: "Taunt. Echo: Give a Beast +2/+4 and Rise."' },
+      { kind: 'code', ref: 'packages/core/src/effects/arena.ts deathrattleBuffRandomTribe (keyword rider); packages/core/src/effects/factories.ts + packages/sim/src/recruit.ts deathrattleBuffRandomTribe wrappers' },
+    ],
+    cardText: '**Taunt. Echo:** give a **Beast** **+2/+4** and **Rise**.',
+    contentIds: ['b2_wolvie'],
+    currentBehaviour: 'Conforms (built with the rework, 2026-09-24). Replaced the next-summon +2/+4 version.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/beastDragonBatch0924.test.ts', 'packages/sim/src/beastBatchAug12.test.ts', 'packages/sim/src/borrowedEcho.test.ts', 'packages/ui/src/choreo/echoTendrils.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
 ];

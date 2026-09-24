@@ -15,6 +15,7 @@
     "typecheck": "npm run typecheck:pkgs && npm run typecheck:web",
     "typecheck:pkgs": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "test:slow": "vitest run --mode nightly",
     "test:watch": "vitest",
     "harness": "tsx packages/tools/src/combat-harness.ts",
     "bot": "tsx packages/tools/src/run-harness.ts",

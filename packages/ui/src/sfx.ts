@@ -23,6 +23,7 @@ import {
   type CategoryConfig,
 } from './audio/config';
 import { familyOf } from './audio/clipFamily';
+import { createPickPressLatch } from './pickPressLatch';
 import { SCENES } from './audio/scenes';
 import { slugify, isValidSlug, saveSound } from './fx/defStore';
 import { getBuffFxConfig } from './buffFxConfig';
@@ -471,6 +472,15 @@ const SUMMON_VOICE_LEAD = 0.3;
 let lastConsumeAt = -Infinity;
 const CONSUME_SFX_COOLDOWN_MS = 140;
 
+// THE PICK CUE plays on the PRESS of an offer's option (a Discover card, a Choose One option, a Rune), in place of
+// the generic click thock (owner 2026-09-24: "i want the click sound replaced by this new sound"). The press arms
+// this latch and the pick it leads to consumes it, so the cue never plays twice (see `pickPressLatch.ts`).
+const pickLatch = createPickPressLatch();
+function playPickSelect(): void {
+  if (playSample('discover-select', 'discoverSelect')) return;
+  chord([659, 988, 1319], { dur: 0.14, type: 'triangle', vol: 0.09, category: 'discoverSelect' }, 0.04);
+}
+
 export const sfx = {
   buy: () => {
     // One of the 2 sourced buy clips at random (buy1/buy2); synth blip until they decode / if absent.
@@ -582,10 +592,17 @@ export const sfx = {
     chord([523, 784, 1046], { dur: 0.16, type: 'triangle', vol: 0.1, category: 'discover' }, 0.05);
   },
   // A choice is COMMITTED from any offer — a Discover pick, a Rune bought, a Choose One option (owner ask
-  // 2026-08-19). Sourced `discover-select` clip; a soft synth confirm chord falls back until it decodes.
+  // 2026-08-19). Sourced `discover-select` clip; a soft synth confirm chord falls back until it decodes. Silent
+  // when the option's press already played it (see `pickPress`).
   discoverSelect: () => {
-    if (playSample('discover-select', 'discoverSelect')) return;
-    chord([659, 988, 1319], { dur: 0.14, type: 'triangle', vol: 0.09, category: 'discoverSelect' }, 0.04);
+    if (pickLatch.consume()) return;
+    playPickSelect();
+  },
+  /** An offer's option was PRESSED: play the pick cue now, instead of the click thock, and arm the pick that
+   *  follows to stay silent. Fired by Game.tsx's press listener for `[data-pick-sfx]` elements. */
+  pickPress: () => {
+    playPickSelect();
+    pickLatch.arm();
   },
   // A friendly minion is GIVEN Taunt — the sourced "taunt" clip; synth thunk until it decodes / if absent.
   taunt: () => {

@@ -1,5 +1,6 @@
 import type { FxAnchorId, FxLayer, FxSlot } from '../def';
 import { isAnchorPart } from '../anchorParts';
+import { BOW_LIMIT, MIN_ARC_LIMIT } from '../anchors';
 // TYPE-ONLY (erased at build time): this module stays free of `defStore`'s storage/fetch machinery, it just
 // borrows the stored-layer shape so "what a save writes" has exactly one definition.
 import type { StoredFxLayer } from '../defStore';
@@ -100,6 +101,23 @@ function coerceTravel(raw: unknown): number | null {
   return typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? raw : null;
 }
 
+/**
+ * The arc + cascade fields, on the SAME terms as `coerceLayer` in `defStore.ts` (the committed-def loader), so
+ * the workbench and the game can never disagree about a def. `bow` keeps a meaningful 0 (the straight laser);
+ * `stagger` and `minArc` only when positive; `bowUp` only when literally `true`. Anything else is omitted.
+ *
+ * These were missing from both directions until 2026-09-24, so loading a def and saving it again wiped its
+ * arc and its cascade (`heavy-beam`'s 120ms stagger, any authored laser) — found building the gild.
+ */
+function arcFields(l: Record<string, unknown>): Pick<EditorLayer, 'bow' | 'bowUp' | 'minArc' | 'stagger'> {
+  const out: Pick<EditorLayer, 'bow' | 'bowUp' | 'minArc' | 'stagger'> = {};
+  if (typeof l.bow === 'number' && Number.isFinite(l.bow)) out.bow = Math.max(-BOW_LIMIT, Math.min(BOW_LIMIT, l.bow));
+  if (l.bowUp === true) out.bowUp = true;
+  if (typeof l.minArc === 'number' && Number.isFinite(l.minArc) && l.minArc > 0) out.minArc = Math.min(MIN_ARC_LIMIT, l.minArc);
+  if (typeof l.stagger === 'number' && Number.isFinite(l.stagger) && l.stagger > 0) out.stagger = l.stagger;
+  return out;
+}
+
 /** Coerce one untrusted layer-ish value into an `EditorLayer`. Returns null when it has no usable primitive
  *  id — the one field nothing can be invented for. */
 export function toEditorLayer(raw: unknown): EditorLayer | null {
@@ -118,6 +136,8 @@ export function toEditorLayer(raw: unknown): EditorLayer | null {
     // Omitted unless genuinely set, on the same terms as `muted`/`name` below: absent means "the arc takes
     // the layer's whole life", the behaviour every composition had before `travelMs` existed.
     ...(coerceTravel(l.travelMs) === null ? {} : { travelMs: coerceTravel(l.travelMs) }),
+    // The arc (bow, arc upward, minimum height) and the per-recipient cascade — omitted unless set.
+    ...arcFields(l),
     // Kept only when literally `true`, and OMITTED otherwise (never `muted: false`) so an untouched
     // composition is byte-for-byte what it was before mute existed — the default is an exact no-op.
     ...(l.muted === true ? { muted: true as const } : {}),
@@ -288,6 +308,8 @@ export function toStoredLayers(
       at: l.at,
       ...(l.life === null ? {} : { life: l.life }),
       ...(l.travelMs === null || l.travelMs === undefined ? {} : { travelMs: l.travelMs }),
+      // The arc + cascade, re-validated on the way out exactly as they were on the way in (see `arcFields`).
+      ...arcFields(l as unknown as Record<string, unknown>),
       // A muted layer is PERSISTED as muted rather than dropped or silently un-muted: the author's working
       // state (which layer they had isolated) is more useful to round-trip than either alternative, and a
       // dropped layer would lose its tuning outright. Omitted unless muted — the default stays an omission.

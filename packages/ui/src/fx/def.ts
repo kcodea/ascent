@@ -70,6 +70,24 @@ export interface FxLayer {
    */
   bow?: number;
   /**
+   * `travel`-anchored layers only: arc toward the TOP of the screen, whichever way the layer travels.
+   *
+   * A bow's side follows the direction of travel, so along a row one direction arcs up and the other arcs
+   * down, under the row — for the gild, under the hand and off the bottom of the screen (owner 2026-09-24:
+   * copies already in hand should leap UP and drop into the new card, like a fountain). Diagonal trails bulge
+   * outward and up, so a fan of them sprays symmetrically. Omitted (or anything but `true`) = as before.
+   */
+  bowUp?: boolean;
+  /**
+   * `travel`-anchored layers only: the arc's PEAK sits at least this many px off the straight line.
+   *
+   * `bow` is a fraction of the span, so two cards side by side get a flat hump and a trail that starts where it
+   * lands gets none at all; this is the floor that keeps a short hop reading as a leap. It only ever RAISES an
+   * arc — a long trail already taller than this is untouched. Two coincident anchors hop straight up. Omitted
+   * or 0 = no minimum (as before). Clamped to `MIN_ARC_LIMIT`.
+   */
+  minArc?: number;
+  /**
    * Milliseconds this layer's `at` shifts PER RECIPIENT, when a moment plays the def on several units.
    *
    * This is the axis that lets ONE effect move at two rhythms. Traversal used to live only above the def —

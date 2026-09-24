@@ -10,23 +10,6 @@ import type { CardDef } from '@game/core';
  */
 export const SET2_BEASTS: CardDef[] = [
   {
-    // Turns spell purchases into bodies: a bought Shop spell is taught to a Mage-Pup, and at End of Turn that
-    // Pup joins your hand — a 2/2 Beast whose Shout casts the spell it learned (owner ruling 2026-07-24). So
-    // the spell is effectively duplicated onto a body you can also buff. Golden teaches twice each turn.
-    id: 'b2_moonhowl',
-    name: 'Moonhowl Mentor',
-    tribe: 'beast',
-    tier: 6, // T6 -> T5 (2026-08-07 batch) -> back to T6 (owner, same day)
-    attack: 4,
-    health: 9,
-    keywords: [],
-    // Fires the moment the spell is BOUGHT (owner 2026-07-24) — the Pup lands in hand right away, so you can
-    // play it the same turn. It used to queue and mint at End of Turn, which put the payoff a turn away.
-    effects: [{ on: 'spellBought', do: 'grantMagePupTaught' }],
-    text: 'Once per turn, when you buy a Shop spell, get a **Mage-Pup** that has learned it.',
-    goldenText: 'Twice per turn, when you buy a Shop spell, get a **Mage-Pup** that has learned it.',
-  },
-  {
     // The tribe capstone: a Choose-One that permanently multiplies one HALF of the Beast trigger suite. Hunt
     // pumps the aggressive line (Rally + Slaughter), Ritual the Echo line — so it rewards whichever build you
     // actually assembled. Gilded doubles the chosen mode (2 additional triggers), NOT gain-both (owner
@@ -203,23 +186,6 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: '**Rally:** gain **+2 Attack** for every Beast you control.',
   },
   {
-    // Owner add 2026-07-28; owner rework 2026-09-23: "End of Turn: trigger your Shout minions." A Shout ENGINE
-    // that pays in the shop rather than in combat: every friendly Shout minion on the board re-fires at End of
-    // Turn, wherever it stands (was: the two neighbours only). Each re-fire rides `replayBattlecry`, so it is a
-    // real Shout for quests, Spell Drummer and every `battlecryTriggered` watcher (Embermouth Whelp counts each).
-    // Gilded fires the whole thing twice (not "twice as big"), so a golden Moira really does double the bodies.
-    id: 'b2_moira',
-    name: 'Moira',
-    tribe: 'beast',
-    tier: 6,
-    attack: 6,
-    health: 8,
-    keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnTriggerShouts', params: {} }],
-    text: '**End of Turn:** trigger your **Shout** minions.',
-    goldenText: '**End of Turn:** trigger your **Shout** minions **twice**.',
-  },
-  {
     // Owner add 2026-08-12. Echo: summon a random Beast from the run pool and STAMP it 7/7 — a fixed body
     // whatever it rolls (`deathrattleSummonRandomTribeSetStats`). Golden doubles the STATLINE (one 14/14),
     // not the count.
@@ -250,8 +216,10 @@ export const SET2_BEASTS: CardDef[] = [
     goldenText: '**Ward.** Whenever you summon a **Beast**, give it **+6/+6**. Improves **+6/+6** every **3 Beasts** summoned.',
   },
   {
-    // Owner add 2026-08-12. A one-shot pending buff: on death, the NEXT Beast summoned (this combat) gets
-    // +2/+4 (`deathrattleBuffNextSummon` queues it; the summon chokepoint consumes it). Golden +4/+8.
+    // Owner add 2026-08-12 (was: the next Beast summoned gets +2/+4). Owner batch 2026-09-24: "Taunt. Echo: Give a
+    // Beast +2/+4 and Rise." A RANDOM other friendly Beast takes both (`deathrattleBuffRandomTribe`'s keyword
+    // rider, one arena body for the Shop and combat). Golden: +4/+8, and the Rise grant goes to 2 Beasts (the
+    // house keyword-grant gild), each taking the doubled stats.
     id: 'b2_wolvie',
     name: 'Wolvie',
     tribe: 'beast',
@@ -259,9 +227,9 @@ export const SET2_BEASTS: CardDef[] = [
     attack: 3,
     health: 2,
     keywords: ['T'],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffNextSummon', params: { tribe: 'beast', attack: 2, health: 4 } }],
-    text: '**Taunt. Echo:** give the next **Beast** you summon **+2/+4**.',
-    goldenText: '**Taunt. Echo:** give the next **Beast** you summon **+4/+8**.',
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffRandomTribe', params: { tribe: 'beast', attack: 2, health: 4, keyword: 'R' } }],
+    text: '**Taunt. Echo:** give a **Beast** **+2/+4** and **Rise**.',
+    goldenText: '**Taunt. Echo:** give **2** **Beasts** **+4/+8** and **Rise**.',
   },
   {
     // Owner add 2026-08-12. Echo: buff your Beasts "wherever they are" — `deathrattleBuffTribe` buffs the living
@@ -276,20 +244,6 @@ export const SET2_BEASTS: CardDef[] = [
     effects: [{ on: 'onDeath', do: 'deathrattleBuffTribe', params: { tribe: 'beast', attack: 2, health: 4 } }],
     text: '**Taunt. Echo:** give your **Beast Aura** **+2/+4**.',
     goldenText: '**Taunt. Echo:** give your **Beast Aura** **+4/+8**.',
-  },
-  {
-    // Owner add 2026-08-12. Avenge (4): summon an Armadiyo (`avengeSummon`; a gilded Dunkey summons a gilded
-    // Armadiyo). No keyword pill, matching the other Avenge cards.
-    id: 'b2_dunkey',
-    name: 'Dunkey',
-    tribe: 'beast',
-    tier: 4,
-    attack: 5, // owner balance 2026-09-23: 4/6 → 5/6
-    health: 6,
-    keywords: [],
-    effects: [{ on: 'avenge', do: 'avengeSummon', params: { count: 4, cardId: 'b2_armadiyo' } }],
-    text: '**Avenge (4):** summon an **Armadiyo**.',
-    goldenText: '**Avenge (4):** summon a **Gilded Armadiyo**.',
   },
   {
     // Owner add 2026-08-12. Rune-only (Rune of the Voidmother grants it) — `token: true` keeps it out of the
@@ -353,5 +307,62 @@ export const SET2_BEASTS: CardDef[] = [
     effects: [{ on: 'endOfTurn', do: 'endOfTurnCopyLeftmostHandCard', params: { every: 2 } }],
     text: '**Every 2 turns:** get a plain copy of the **left-most** card in your hand.',
     goldenText: '**Every 2 turns:** get a plain copy of the **2 left-most** cards in your hand.',
+  },
+
+  // ── Owner batch 2026-09-24: the Execute Beasts + two Beast payoffs ─────────────────────────────────────────
+  // "Another Beast" = a RANDOM other friendly Beast that does not already have Execute (never wasted, never
+  // itself), from the shared `rallyGrantKeywordRandomTribe` arena body. Golden grants it to 2 Beasts.
+  {
+    id: 'b2_raven',
+    name: 'Raven',
+    tribe: 'beast',
+    tier: 4,
+    attack: 4,
+    health: 6,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyGrantKeywordRandomTribe', params: { tribe: 'beast', keyword: 'V' } }],
+    text: '**Rally:** give another **Beast** **Execute**.',
+    goldenText: '**Rally:** give **2** other **Beasts** **Execute**.',
+  },
+  {
+    // Avenge is a combat trigger, so Tort only acts in combat (like every other Avenge card).
+    id: 'b2_tort',
+    name: 'Tort',
+    tribe: 'beast',
+    tier: 5,
+    attack: 2,
+    health: 9,
+    keywords: [],
+    effects: [{ on: 'avenge', do: 'avengeGrantKeywordRandomTribe', params: { count: 4, tribe: 'beast', keyword: 'V' } }],
+    text: '**Avenge (4):** give another **Beast** **Execute**.',
+    goldenText: '**Avenge (4):** give **2** other **Beasts** **Execute**.',
+  },
+  {
+    // A summon payoff that pumps the whole pack, this one and the new arrival included. Its own arrival does
+    // not trigger it. Shop plays and combat summons both count (`onSummonBuffTribeAll`, one arena body).
+    id: 'b2_florida',
+    name: 'Flo Rida',
+    tribe: 'beast',
+    tier: 6,
+    attack: 7,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'onSummon', do: 'onSummonBuffTribeAll', params: { tribe: 'beast', attack: 4, health: 4 } }],
+    text: 'When you summon a **Beast**, give your **Beasts +4/+4**.',
+    goldenText: 'When you summon a **Beast**, give your **Beasts +8/+8**.',
+  },
+  {
+    // Any friendly Beast attacking (Beev itself included) buffs the attacker AND Beev. When Beev is the attacker
+    // it is one body, so it gains the grant once.
+    id: 'b2_beev',
+    name: 'Beev',
+    tribe: 'beast',
+    tier: 3,
+    attack: 4,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'onAttack', do: 'onTribeAttackBuffAttackerAndSelf', params: { tribe: 'beast', attack: 2, health: 2 } }],
+    text: 'When a **Beast** attacks, give it and this **+2/+2**.',
+    goldenText: 'When a **Beast** attacks, give it and this **+4/+4**.',
   },
 ];

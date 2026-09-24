@@ -174,7 +174,11 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // (replacing the CSS spell-buff grow/shrink + mote blast, which never reached the def pipeline).
       // 'ruby-bounce' + 'spell-bounce' joined on 2026-09-15: the cross-target re-cast ribbon, fired from the `bounceFx`
       // watcher in `Recruit.tsx` (shop) and the `bounceFx` channel in `choreo/score.ts` (combat).
-      'freeze-blast', 'hand-buff', 'hero-power-spark', 'hero-power-target', 'impact-dust', 'landing-dust',
+      'freeze-blast',
+      // 'gild-trail' joined on 2026-09-24: the owner's gild redesign — one play per consumed copy, from where it stood
+      // into the new gilded card (`gildTrail.ts`), replacing plateGild's hand-written centre-screen fuse.
+      'gild-trail',
+      'hand-buff', 'hero-power-spark', 'hero-power-target', 'impact-dust', 'landing-dust',
       // 'lasso' joined on 2026-09-22: the owner-authored Shop-steal rope, fired from `Recruit.tsx` for all four
       // steal sources (the Lasso spell, Rope Wrangler, Whiplass-o, Rune of Lassoing).
       'lasso',

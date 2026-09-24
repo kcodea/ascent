@@ -436,6 +436,23 @@ playable hero, that placeholder was reachable in real games until this ruling.
 
 ---
 
+## Heroes: archived (owner ruling 2026-09-24, R-HERO-01)
+
+> *"Archive these heroes. (remove them from all modes but keep them in the game. they should only show in scene
+> builder)"*
+
+An **archived** hero (`HeroDef.wip`, tested by `isArchivedHero`) is offered nowhere a new run gets a hero: not
+the Play picker, not Practice, not a generated rival seat or a Practice bot portrait, not a synthesized pool
+board, not the Compendium Heroes tab, and not the Mimic / Void / Power Shifter power Discovers. Its def stays in
+`HEROES`, so every stored reference (saved runs, replays, a real player's recorded snapshot seat, baked pool
+boards, Career history, leaderboards) still resolves its name, portrait and power. The **Scene Builder** lists
+every hero, archived ones marked "(archived)".
+
+Archived today: Fi, Coran (2026-08-28), Void (2026-09-16), and the 2026-09-24 batch: Aevor, Cindara, Devourer,
+Emissary, Fibbsy, Foreman Flint, Gorun, Guardian, Harlan, Jensen, Membrance, Odelle, Pete, Rayse, Runesmith,
+Sable, Tiff, Underdweller, Yirin. (Djinni, Chronos, Chaos and the tutorial-only Aster carry the same flag.)
+With Tiff and Foreman Flint archived, no live hero carries a tribe gate (`HeroDef.tribes`); the gate stays.
+
 ## Runes (the Runeforge)
 
 Runes are run-long permanent buffs bought at a **Runeforge** (never in the regular shop / Discover /
@@ -453,6 +470,8 @@ card's kicker.
 **The schedule** (`CONFIG.runeforgeEnabled`, the set-2 default):
 - **Every hero**: a Basic forge on **turn 6** and an Epic forge on **turn 9**.
 - **Runesmith** (Forgemaster): an extra Basic forge on **turn 5**, one turn ahead of the universal one.
+  (Runesmith and Guardian are ARCHIVED heroes since 2026-09-24, see *Heroes: archived*; their forges still run
+  for a stored run or a Scene Builder sandbox on them.)
 - **Guardian** (Runeguard): an extra Epic forge on **turn 8**, booked at run creation (`epicForgeWave`).
 - **Rune of the Epic Forge** (Basic 4): books an extra Epic forge for **turn 8** (next turn, if 8 has
   passed). A Guardian holding it gets **TWO Epic forges on turn 8**, opened one after the other — the second
@@ -634,7 +653,7 @@ data are unchanged) via `packages/ui/src/terms.ts`:
 | Deathrattle | **Echo** |
 | Divine Shield | **Ward** |
 | Windfury | **Flurry** |
-| Venomous | **Execute** |
+| Venomous | **Execute** (owner 2026-09-24: the same mechanic, renamed; Raven and Tort grant it) |
 | Reborn | **Rise** |
 | Magnetize | **Attach** |
 | Magnetic | **Attachment** |
@@ -893,7 +912,7 @@ combat (a Rally, an Avenge, an Echo). Combat casts carry the gain back at settle
 ### Aura — the run-wide scope noun (owner ruling 2026-08-28)
 
 A grant that reaches a whole tribe/class **wherever its members sit** — the board, your hand, the Shop, and
-copies you acquire later — prints as an **Aura**: *"give your **Beast Aura** +8/+8"*, *"improve your **Imp
+copies you acquire later — prints as an **Aura**: *"give your **Beast Aura** +2/+4"*, *"improve your **Imp
 Aura** by +2/+2"*. The shape is `your <Tribe-singular> Aura`.
 
 This replaced the older scope tails **"wherever they are"** and **"everywhere"**, which no longer appear in

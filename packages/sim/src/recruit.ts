@@ -3613,6 +3613,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   onTribeAttackCastNamedSpell: (ctx, self, params, payload) => {
     ARENA_EFFECTS.onTribeAttackCastNamedSpell(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
   },
+  /** Raven (owner batch 2026-09-24): its own Rally (an End-of-Turn Rally replay in the Shop) gives a random other
+   *  Beast Execute, the same arena body as combat. */
+  rallyGrantKeywordRandomTribe: (ctx, self, params, payload) => {
+    if (payload.minion !== self) return;
+    ARENA_EFFECTS.rallyGrantKeywordRandomTribe(shopArena(ctx.state, self), params);
+  },
+  /** Beev (owner batch 2026-09-24): a friendly Beast's attack (a Shop Rally replay) buffs it and this. */
+  onTribeAttackBuffAttackerAndSelf: (ctx, self, params, payload) => {
+    ARENA_EFFECTS.onTribeAttackBuffAttackerAndSelf(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
+  },
   onTribeAttackBuffAttacker: (ctx, self, params, payload) => {
     if (payload.minion === self) return; // "another friendly" — the combat guard, mirrored
     ARENA_EFFECTS.onTribeAttackBuffAttacker(shopArena(ctx.state, self), { ...params, attacker: payload.minion });
@@ -5212,6 +5222,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const h = (num(params.health, 6) + improve * step) * g;
     if (a > 0 || h > 0) addBuff(minion, nameOf(self), a, h);
     if (improve > 0) self.summonBonus = (self.summonBonus ?? 0) + 1;
+  },
+
+  /** Flo Rida (owner batch 2026-09-24): a Beast played or summoned in the Shop buffs your whole Beast board. */
+  onSummonBuffTribeAll: (ctx, self, params, { minion }) => {
+    if (!minion || minion === self) return;
+    ARENA_EFFECTS.onSummonBuffTribeAll(shopArena(ctx.state, self), { ...params, arriver: minion });
   },
 
   summonBuffTribeAsym: (ctx, self, params, { minion }) => {

@@ -131,6 +131,11 @@
         "def": "growth-effect"
       }
     },
+    "sp_picnic": {
+      "spellCast": {
+        "def": "shop-buff-shout"
+      }
+    },
     "greatpot": {
       "spellCast": {
         "def": "greatpot",

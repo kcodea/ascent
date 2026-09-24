@@ -20,6 +20,7 @@ import {
   undo,
   type DurationBounds,
   type HistoryMark,
+  type StoredEditorLayer,
 } from './sessionState';
 import { setLayerParam, setLayerPrimitive, type EditorLayer } from './layerModel';
 import type { FxParamSpec } from '../params';
@@ -33,6 +34,66 @@ const layer = (primitive: string, over: Partial<EditorLayer> = {}): EditorLayer 
   life: null,
   params: {},
   ...over,
+});
+
+/* LOAD → SAVE must keep the arc and the cascade (found 2026-09-24 building the gild). `toEditorLayer` and
+   `toStoredLayers` copy fields one by one, and neither copied `bow` or `stagger`, so loading a def in the
+   workbench and saving it again silently wiped them: `heavy-beam`'s 120ms cascade, any authored laser. */
+describe('workbench load → save keeps the arc, the cascade and the fountain', () => {
+  const roundTrip = (raw: Record<string, unknown>): Record<string, unknown> =>
+    toStoredLayers(editorLayersFromDef([raw as never]), new Map())[0] as unknown as Record<string, unknown>;
+  const base = { primitive: 'ribbon', anchor: 'travel', at: 0, params: {} };
+
+  it('keeps bow — including the meaningful 0 (a straight laser) — and stagger', () => {
+    expect(roundTrip({ ...base, bow: 0.3 }).bow).toBe(0.3);
+    expect(roundTrip({ ...base, bow: 0 }).bow).toBe(0);
+    expect(roundTrip({ ...base, bow: -0.4 }).bow).toBe(-0.4);
+    expect(roundTrip({ ...base, stagger: 120 }).stagger).toBe(120);
+  });
+
+  it('keeps bowUp and minArc', () => {
+    const out = roundTrip({ ...base, bowUp: true, minArc: 120 });
+    expect(out.bowUp).toBe(true);
+    expect(out.minArc).toBe(120);
+  });
+
+  it('keeps every one of them together (the gild ribbon)', () => {
+    const out = roundTrip({ ...base, travelMs: 360, bow: 0.3, bowUp: true, minArc: 120, stagger: 70 });
+    expect(out).toMatchObject({ travelMs: 360, bow: 0.3, bowUp: true, minArc: 120, stagger: 70 });
+  });
+
+  // R-FXSAVE-01. `Required<StoredEditorLayer>` makes the TYPECHECK fail the moment a new layer field is added
+  // and not put here — and once it is here, this round-trip fails unless load AND save both carry it. That is
+  // what keeps "every setting survives" true for fields nobody has thought of yet.
+  it('keeps EVERY layer setting through load → save, exactly', () => {
+    const every = {
+      primitive: 'ribbon',
+      name: 'gold trail',
+      anchor: 'travel',
+      anchorPart: 'medallion',
+      anchorPartTo: 'badge.attack',
+      at: 40,
+      life: 900,
+      travelMs: 360,
+      bow: 0.3,
+      bowUp: true,
+      minArc: 100,
+      stagger: 70,
+      muted: true,
+      solo: true,
+      params: { size: 4, palette: [1, 2, 3, 4] },
+    } satisfies Required<StoredEditorLayer>;
+    expect(roundTrip(every)).toEqual(every);
+  });
+
+  it('an untouched layer gains no new keys', () => {
+    expect(Object.keys(roundTrip(base)).sort()).toEqual(['anchor', 'at', 'params', 'primitive']);
+  });
+
+  it('drops junk the same way the def loader does', () => {
+    const out = roundTrip({ ...base, bow: 'curvy', stagger: -5, bowUp: 'yes', minArc: 0 });
+    for (const k of ['bow', 'stagger', 'bowUp', 'minArc']) expect(k in out, k).toBe(false);
+  });
 });
 
 describe('toEditorLayer', () => {

@@ -4,7 +4,7 @@ import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame } from './store';
-import { fetchRecentGames, fetchPlayerById, fetchReplayPayload, remoteEnabled, type RecentGameRow } from './remoteBoards';
+import { fetchPracticeGames, fetchRecentGames, fetchPlayerById, fetchReplayPayload, remoteEnabled, type PracticeGameConfig, type PracticeGameRow, type RecentGameRow } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
 import { LbHeroFrame, LbLabel, LbRunes, LbTeam } from './LadderBits';
 import { outcomeOf, partialText, playedAtText, recordText, runLengthText } from './leaderboardData';
@@ -19,34 +19,65 @@ import { outcomeOf, partialText, playedAtText, recordText, runLengthText } from 
  * list pulls light JSON-path facts only; the Watch click fetches THAT row's full payload
  * (`fetchReplayPayload`) and hands it to the viewer — `startReplay` closes this overlay, and exiting the
  * replay restores it. Clicking the banner itself opens that player's Career.
+ *
+ * TWO TABS (owner ask 2026-09-24: "can we add a practice tab to recent games, which shows the latest practice
+ * mode games played?"), in the Career page's tab style: RANKED (the feed above, unchanged) and PRACTICE, the
+ * last 20 finished practice games, read from their own `practice_games` table (`fetchPracticeGames`) so a
+ * practice row can never reach the ladder's tables. A practice row is the same banner with the practice options
+ * as facts (opponents, health) and no Watch (practice uploads no recording); its banner opens the player's
+ * Career on its default view (practice runs are not in the Career's match history, so there is no run to focus).
+ * Each tab fetches when it is first shown and keeps its rows while the page stays open.
  */
 const FEED_ROWS = 20;
+
+export type RecentGamesTab = 'ranked' | 'practice';
+
+/** "Bots Lv 5" / "Players": the practice row's Opponents fact. */
+export function practiceOpponentsText(cfg: PracticeGameConfig): string {
+  return cfg.opponents === 'bots' ? `Bots Lv ${cfg.botDifficulty}` : 'Players';
+}
 
 export function RecentGames(): JSX.Element | null {
   const show = useGame((s) => s.showRecentGames);
   const close = useGame((s) => s.closeRecentGames);
   const openCareer = useGame((s) => s.openCareer);
+  const [tab, setTab] = useState<RecentGamesTab>('ranked');
   const [rows, setRows] = useState<RecentGameRow[] | null>(null);
+  const [practiceRows, setPracticeRows] = useState<PracticeGameRow[] | null>(null);
   const [opening, setOpening] = useState<string | null>(null); // row key currently being opened
   const [watching, setWatching] = useState<string | null>(null); // row key whose replay payload is loading
   const [noReplay, setNoReplay] = useState<string | null>(null); // row key whose payload came back unplayable
 
+  // Every open starts on RANKED with both lists cleared (a fresh read each visit, as before).
   useEffect(() => {
     if (!show) return;
+    setTab('ranked');
     setRows(null);
-    let alive = true;
-    void fetchRecentGames(FEED_ROWS).then((r) => { if (alive) setRows(r); });
-    return () => { alive = false; };
+    setPracticeRows(null);
   }, [show]);
+
+  // Each tab reads its list the first time it is shown during this open, then keeps it (switching back and
+  // forth never refetches or flashes the loading state).
+  const loaded = tab === 'ranked' ? rows !== null : practiceRows !== null;
+  useEffect(() => {
+    if (!show || loaded) return;
+    let alive = true;
+    if (tab === 'ranked') void fetchRecentGames(FEED_ROWS).then((r) => { if (alive) setRows(r); });
+    else void fetchPracticeGames(FEED_ROWS).then((r) => { if (alive) setPracticeRows(r); });
+    return () => { alive = false; };
+  }, [show, tab, loaded]);
 
   if (!show) return null;
   const back = (): void => { sfx.pulse(); close(); };
+  const pickTab = (t: RecentGamesTab): void => { if (t === tab) return; sfx.pulse(); setTab(t); };
+  const practice = tab === 'practice';
+  const shown: Array<RecentGameRow | PracticeGameRow> | null = practice ? practiceRows : rows;
 
   // Open the clicked game inside the player's Career, expanded to that run. The Career header wants a
   // rating / games-played that the feed row doesn't carry, so pull the player's profile first (best-effort —
   // an absent profile just opens with the name we have). The same fetch brings their medal rank, so the
   // Seasonal Ranked card paints the crest + bar at once. `focus` pins WHICH run to expand + scroll to.
-  const openGame = async (r: RecentGameRow, key: string): Promise<void> => {
+  const openGame = async (r: RecentGameRow, key: string, focusRun = true): Promise<void> => {
     if (!r.userId || opening) return;
     sfx.pulse();
     setOpening(key);
@@ -58,7 +89,7 @@ export function RecentGames(): JSX.Element | null {
       gamesPlayed: p?.gamesPlayed ?? 0,
       favoriteHero: p?.favoriteHero,
       ...(p?.rank ? { rank: p.rank } : {}),
-      focus: { heroId: r.heroId, wins: r.wins, placement: r.placement, createdAt: r.createdAt },
+      ...(focusRun ? { focus: { heroId: r.heroId, wins: r.wins, placement: r.placement, createdAt: r.createdAt } } : {}),
     });
     setOpening(null);
   };
@@ -88,24 +119,35 @@ export function RecentGames(): JSX.Element | null {
           <Icon name="clock" />
           <div>
             <div className="esch disp">Recent Games</div>
-            <div className="lbsub">The last {FEED_ROWS} games across every player</div>
+            <div className="lbsub">{practice ? `The last ${FEED_ROWS} practice games across every player` : `The last ${FEED_ROWS} games across every player`}</div>
           </div>
+        </div>
+        <div className="cv2-tabs rg-tabs" role="tablist" aria-label="Recent games view">
+          <button type="button" role="tab" className={`cv2-tab${tab === 'ranked' ? ' on' : ''}`} aria-selected={tab === 'ranked'} onClick={() => pickTab('ranked')}>
+            <Icon name="crown" />Ranked
+          </button>
+          <button type="button" role="tab" className={`cv2-tab${practice ? ' on' : ''}`} aria-selected={practice} onClick={() => pickTab('practice')}>
+            <Icon name="target" />Practice
+          </button>
         </div>
       </div>
 
       <div className="lbscroll">
         {!remoteEnabled() ? (
           <div className="lbempty lb-state"><Icon name="gear" /><div>Recent games unavailable. No backend configured.</div></div>
-        ) : rows === null ? (
-          <div className="lbempty lb-state loading"><span className="lb-spin" aria-hidden /><div>Gathering the latest climbs…</div></div>
-        ) : rows.length === 0 ? (
-          <div className="lbempty lb-state"><Icon name="clock" /><div>No recordings yet. Finish a run to seed the feed.</div></div>
+        ) : shown === null ? (
+          <div className="lbempty lb-state loading"><span className="lb-spin" aria-hidden /><div>{practice ? 'Gathering the latest practice games…' : 'Gathering the latest climbs…'}</div></div>
+        ) : shown.length === 0 ? (
+          practice
+            ? <div className="lbempty lb-state"><Icon name="target" /><div>No practice games yet. Finish a practice game to see it here.</div></div>
+            : <div className="lbempty lb-state"><Icon name="clock" /><div>No recordings yet. Finish a run to seed the feed.</div></div>
         ) : (
-          <div className="lb-rows rg-list">
-            {rows.map((r, i) => {
+          <div className={`lb-rows rg-list${practice ? ' rg-practice' : ''}`}>
+            {shown.map((r, i) => {
+              const cfg = 'practice' in r ? r.practice : null;
               const hero = r.heroId ? getHero(r.heroId) : null;
               const o = outcomeOf(r.placement);
-              const key = `${r.rowId ?? r.author ?? '?'}-${r.createdAt ?? ''}-${i}`;
+              const key = `${tab}-${r.rowId ?? r.author ?? '?'}-${r.createdAt ?? ''}-${i}`;
               const watchable = r.hasReplay && r.rowId != null;
               const busy = watching === key;
               const unplayable = noReplay === key;
@@ -133,10 +175,12 @@ export function RecentGames(): JSX.Element | null {
                     <div className="lb-facts">
                       <span className="lb-fact"><span className="lb-fact-l">Length</span><span className="lb-fact-v">{length}</span></span>
                       {r.wave !== null && <span className="lb-fact"><span className="lb-fact-l">Rounds</span><span className="lb-fact-v">{r.wave}</span></span>}
+                      {cfg && <span className="lb-fact"><span className="lb-fact-l">Opponents</span><span className="lb-fact-v">{practiceOpponentsText(cfg)}</span></span>}
+                      {cfg && <span className="lb-fact"><span className="lb-fact-l">Health</span><span className="lb-fact-v">{cfg.health === 'normal' ? 'Normal' : 'Unlimited'}</span></span>}
                       {r.lobbyStrength && <span className="lb-fact"><span className="lb-fact-l">Lobby</span><span className="lb-fact-v lb-fact-lobby" aria-label={`Lobby strength ${r.lobbyStrength.value} percent`}>{strengthText(r.lobbyStrength)}</span></span>}
                     </div>
                     {r.partial && <div className="lb-partial"><Icon name="clock" />{partialText(r.firstRecordedWave)}</div>}
-                    <button
+                    {!practice && <button
                       type="button"
                       className="lb-btn lb-watch pressable"
                       onClick={(e) => watchGame(e, r, key)}
@@ -144,7 +188,7 @@ export function RecentGames(): JSX.Element | null {
                       aria-label={watchable ? `Watch ${r.author || 'this player'}'s game` : 'No replay stored for this game'}
                     >
                       {busy ? 'Loading…' : unplayable ? 'No replay' : watchable ? 'Watch replay' : 'No replay'}
-                    </button>
+                    </button>}
                   </div>
                 </>
               );
@@ -157,8 +201,8 @@ export function RecentGames(): JSX.Element | null {
                   tabIndex={0}
                   className={`lb-row lb-row-btn${r.partial ? ' partial' : ''}`}
                   key={key}
-                  onClick={() => void openGame(r, key)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') void openGame(r, key); }}
+                  onClick={() => void openGame(r, key, !practice)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') void openGame(r, key, !practice); }}
                   aria-disabled={opening === key}
                   aria-label={`View ${r.author || 'this player'}'s Career`}
                 >

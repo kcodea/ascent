@@ -55,7 +55,7 @@ describe('the Set 3 static rune pool (handoff 2026-09-14)', () => {
     // Old Pack, Warpath); set 2 −5 Basic (those four + Cindergem) / −7 Epic (those four + Moonhowl, Open Market, and the Deathtouched
     // Apple, now Undead-gated — a tribe set 2 does not field).
     expect([s1.filter((r) => !r.epic).length, s1.filter((r) => r.epic).length]).toEqual([102, 85]);
-    expect([s2.filter((r) => !r.epic).length, s2.filter((r) => r.epic).length]).toEqual([129, 118]); // set 2: Rune of Investment Basic → Epic (owner Ruby batch 2026-09-24); −1 Basic / −2 Epic on 2026-09-18 (tag pass: Undead/Spirit-body runes gate on tribes set 2 does not field)
+    expect([s2.filter((r) => !r.epic).length, s2.filter((r) => r.epic).length]).toEqual([129, 117]); // set 2: −1 Epic on 2026-09-24 (Rune of the White Wolf archived with Moonhowl Mentor); set 2: Rune of Investment Basic → Epic (owner Ruby batch 2026-09-24); −1 Basic / −2 Epic on 2026-09-18 (tag pass: Undead/Spirit-body runes gate on tribes set 2 does not field)
   });
   it('never offers an Attachment / Fodder-only rune (their `sets` stay off set3)', () => {
     const banned = /attachment|fodder/i;

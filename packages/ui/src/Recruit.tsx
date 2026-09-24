@@ -95,7 +95,9 @@ import { playPlateCoalesce } from './plateCoalesce';
    rope gets there. The hold state machine and its escape hatches live in `lassoHolds.ts`, pinned by a test. */
 import { foldLassoHolds, lassoBeamSchedule, lassoCascadeMs, useLassoCascade, LASSO_CONTACT_MS, LASSO_STAGGER_MS, type LassoCascadeHandlers, type LassoSteal } from './lassoHolds';
 import { useEquipBeamCascade, type EquipBeamAnchors } from './equipBeamCascade';
-import { playPlateGild } from './plateGild';
+import { playGildTrail } from './gildTrail';
+import { commitSlidePlan } from './rowSlides';
+import { resolveGildSources, snapshotGildCandidates, type GildSnap, type Pt } from './gildTrailSources';
 import { playBuySlide, type BuyFrom } from './buySlide';
 import { fireBuffFx } from './buffFxRender';
 import { resolveBuffSource } from './choreo/buffSource';
@@ -103,6 +105,7 @@ import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { getDragFeel } from './dragFeel';
 import { getLayout } from './layoutConfig';
 import { getFlipConfig } from './flipConfig';
+import { commitFlipDeltas, type CommitSweep } from './commitFlip';
 import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef, canPlayDefs } from './fx/playDef';
@@ -184,6 +187,15 @@ function playsRubyAim(def: (typeof CARD_INDEX)[string] | undefined): boolean {
 const FLIP_SEL_TAVERN = '[data-zone="tavern"] .row .card[data-uid]';
 const FLIP_SEL_WARBAND = '[data-zone="warband"] .row .card[data-uid]';
 const FLIP_SELECTOR = `${FLIP_SEL_TAVERN}, ${FLIP_SEL_WARBAND}`;
+
+/** A hand or warband card's on-screen centre, for the gild's trail sources — null when it isn't laid out. */
+function measureGildCentre(uid: string): Pt | null {
+  const el = document.querySelector<HTMLElement>(
+    `[data-zone="hand"] .card[data-uid="${uid}"], [data-zone="warband"] .row .card[data-uid="${uid}"]`,
+  );
+  const r = el?.getBoundingClientRect();
+  return r && r.width > 0 ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+}
 
 // SANDBOX ONLY: excludes the pinned-opponent cards (`sbfoe-N`, rendered in the tavern row when
 // `sbTavernShowsEnemy` is on) from any selector that resolves an arbitrary DOM point/rect to a `data-uid`
@@ -1595,6 +1607,9 @@ export function Recruit() {
   const playedPrevHandRef = useRef<Set<string> | null>(null);
   playedPrevHandRef.current ??= new Set(run.hand.map((c) => c.uid));
   const prevTriplesRef = useRef<number>(run.triplesMade ?? 0);
+  /** Where each would-be triple copy stood on the LAST commit — the gild's trails start there, because the sim
+   *  consumes the copies inside the commit that reports the triple (see `gildTrailSources.ts`). */
+  const gildSnapRef = useRef<Map<string, GildSnap>>(new Map());
   /* Set at the `buy` dispatch: a bought card was already visible in the tavern, so it is acquired rather
      than conjured. It gets its own shop→hand slide (`buySlide`) instead of the arcane coalesce, so this
      carries the release point the slide starts from (owner ruling 2026-07-22).
@@ -2996,28 +3011,37 @@ export function Recruit() {
     /* ---- GILD: three become one ----------------------------------------------------------------
        Fires on the same `triplesMade` tick the coalesce uses to EXCLUDE gilds, so the two can never both
        claim a card. The new gilded card is normally in hand, but lands on the BOARD when the hand is full,
-       so both are searched. */
-    if (tripled && run.phase === 'recruit') {
-      const goldUid = [...run.hand, ...run.board]
-        .find((c) => c.golden && !prevHand.has(c.uid) && !prevBoard.has(c.uid))?.uid;
-      const el = goldUid
-        ? document.querySelector<HTMLElement>(`.row .card[data-uid="${goldUid}"]`)
-        : null;
-      if (el) {
-        /* The effect opens with the copies already gathered centre screen, so all it needs is HOW MANY were
-           consumed and where the gilded card lives. Take that from the SIM'S OWN RULE — `checkTriples` pulls
-           `runeTwinGilding ? 2 : 3` — rather than counting the uids that disappeared this commit.
+       so both are searched.
 
-           Counting them undercounts by exactly one, every time you complete a triple by BUYING the third
-           copy: that copy arrived and was consumed inside the same commit, so it was never in a previous
-           render's uid set and never shows up as "gone". Three cards became two, and the right-hand flyer
-           was missing (owner report 2026-07-23). */
-        const dest = el.getBoundingClientRect();
-        // Two-copy gilds (Twin-Gilding rune OR Midas) fly 2 copies, not 3 — mirror the sim's `need` rule at
-        // reducer.ts (`runeTwinGilding || midasTouch`), or Midas showed a phantom third flyer.
-        const twoCopyGild = run.runeTwinGilding || getHero(run.heroId).power.kind === 'midasTouch';
-        if (dest.width > 0) playPlateGild(dest, el, twoCopyGild ? 2 : 3);
+       Each consumed copy throws a golden trail from where it stood into the new card (owner redesign
+       2026-09-24). How MANY copies comes from the SIM'S OWN RULE — two-copy gilds (the Twin-Gilding rune OR
+       Midas) mirror `need` at reducer.ts (`runeTwinGilding || midasTouch`) — never from counting the uids
+       that vanished: a third copy you BUY is minted and consumed inside one commit, so it never shows up as
+       "gone" (owner report 2026-07-23). `resolveGildSources` launches that one from the buy's release point. */
+    const gildNeed = run.runeTwinGilding || getHero(run.heroId).power.kind === 'midasTouch' ? 2 : 3;
+    const onScreen = [...run.hand, ...run.board];
+    if (tripled && run.phase === 'recruit') {
+      const gold = onScreen.find((c) => c.golden && !prevHand.has(c.uid) && !prevBoard.has(c.uid));
+      const el = gold ? document.querySelector<HTMLElement>(`.row .card[data-uid="${gold.uid}"]`) : null;
+      if (gold && el) {
+        const sources = resolveGildSources({
+          prev: gildSnapRef.current,
+          present: new Set(onScreen.map((c) => c.uid)),
+          cardId: gold.cardId,
+          need: gildNeed,
+          bought: bought
+            ? { uid: bought.uid, at: { x: bought.from.x + bought.from.w / 2, y: bought.from.y + bought.from.h / 2 } }
+            : null,
+          fallback: { x: window.innerWidth / 2, y: window.innerHeight * 0.46 },
+        });
+        playGildTrail(sources, el, gold.uid);
       }
+    }
+    /* Remember where every would-be triple copy stands NOW, for the next commit's gild above. Refreshed AFTER
+       the read, so the read always sees the previous layout. Skipped mid-drag (renders are frequent there and
+       the settled pre-drag layout is the one worth launching from), and outside the recruit phase. */
+    if (run.phase === 'recruit' && !dragStore.get().drag?.active) {
+      gildSnapRef.current = snapshotGildCandidates(onScreen, gildNeed, measureGildCentre);
     }
 
     if (!fresh.length) return;
@@ -3118,7 +3142,9 @@ export function Recruit() {
   const handLeftsRef = useRef<Map<string, number>>(new Map());
   // Prior-frame left edges (uid → x) of every flipping card, for the commit-branch manual FLIP (a SELL /
   // effect reposition glides survivors from here → their new slot; symmetric where GSAP Flip was not).
-  const commitRectsRef = useRef<Map<string, number> | null>(null);
+  // Keyed by the row composition it was taken under (`CommitSweep`), so a commit that changed no row never diffs
+  // against it (owner 2026-09-24: casting Growth slid the whole warband, `commitFlip.ts`).
+  const commitRectsRef = useRef<CommitSweep | null>(null);
   // Set true when a hand card is just PLAYED onto the board, so the next FLIP commit SNAPS instead of running
   // GSAP. A played card is a NEW element entering the flex row: GSAP Flip doesn't take it out of flow, so it
   // fights the reflow (siblings close, then the new card shoves them back open = a jolt). The neighbours are
@@ -7850,7 +7876,7 @@ const RenderMark = memo(function RenderMark({ start, phase }: { start: number; p
  *  drop handlers and the End-of-Turn presenters write into it) and handed to `RowFlip` as one stable object. */
 interface FlipRefs {
   flipStateRef: { current: ReturnType<typeof Flip.getState> | null };
-  commitRectsRef: { current: Map<string, number> | null };
+  commitRectsRef: { current: CommitSweep | null };
   handPlaySnapRef: { current: boolean };
   handFlipRef: { current: Map<string, number> | null };
   handFlipSelRef: { current: string | null };
@@ -7884,6 +7910,14 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
 }) {
   const { dragActive, gapIndex, shopGapIndex, collapsedLift } = useDragSlice(selectFlipDrag);
   const { flipStateRef, commitRectsRef, handPlaySnapRef, handFlipRef, handFlipSelRef, placePendingRef, shiftHoldRef, shopRectsRef, lastCentreRef, departedCentreRef, prevShopFxSeq, preFiredEchoRef } = refs;
+  // A RESIZE re-lays both rows out under cards that did not move, so the last commit sweep no longer describes the
+  // screen: drop it, and the next row change snaps instead of flinging every survivor in from the old layout (the
+  // same stale-baseline fault as the Growth report, `commitFlip.ts`). One listener, no layout read.
+  useEffect(() => {
+    const drop = (): void => { commitRectsRef.current = null; };
+    window.addEventListener('resize', drop);
+    return () => window.removeEventListener('resize', drop);
+  }, [commitRectsRef]);
   /**
    * THE SHOP'S DEATH CUES (owner 2026-08-28) — see the block comment above `FlipRefs`' owner in `Recruit`.
    *   · an Echo TRIGGERED    → `pixiFx.deathrattle` — the painted skull-shatter.
@@ -8006,6 +8040,47 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
       );
     });
     perfMonitor.measure('layout:flip:write', () => {
+      /**
+       * Slide every card that MOVED since the previous commit's sweep, from its old spot home — off the offsetLeft
+       * sweeps alone, so it reads nothing new. HOW FAR, and whether anything moved at all, is `commitFlipDeltas`
+       * (R-PRESENT-14): a delta only when the rows themselves changed, so a spell cast or a resize slides nothing.
+       * `dropSel` is the row a drop commit already animates off its own drop-time capture; those cards are left to
+       * it (`commitSlidePlan`, R-SLIDE-01). Used by the no-drag commit branch (a sell, a summon, an effect) for
+       * every card, and by the drop branch for the row the card was NOT dragged in — a drag-buy that completes a
+       * triple empties copies out of the warband, and a played minion's Shout can take a card out of the shop.
+       */
+      const slideFromSweep = (dropSel: string | null): void => {
+        const all = gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR);
+        const inDrop = (el: HTMLElement): boolean => dropSel !== null && el.matches(dropSel);
+        const moved = commitLefts ? commitFlipDeltas(commitRectsRef.current, { key: rowsKey, lefts: commitLefts }) : new Map<string, number>();
+        const plan = commitSlidePlan(
+          all.map((el) => ({ uid: el.dataset.uid ?? '', inDropRow: inDrop(el) })),
+          moved,
+          dropSel !== null,
+        );
+        if (plan.length === 0) return;
+        const deltas = new Map(plan.map((p) => [p.uid, p.delta]));
+        const pool = all.filter((el) => !inDrop(el));
+        gsap.set(pool, { transition: 'none' });
+        for (const el of pool) {
+          const delta = deltas.get(el.dataset.uid ?? '');
+          if (delta === undefined) {
+            el.style.transition = ''; // unmoved (or new) card — restore base
+            continue;
+          }
+          gsap.fromTo(
+            el,
+            { x: delta },
+            {
+              x: 0, duration: flipCfg.commitMs / 1000, ease: 'power2.out', clearProps: 'transform,transition',
+              // A DEATH holds the row still for a beat first (owner 2026-08-28) — the survivors seed at their
+              // old offsets and simply wait there, so the gap stays open under the animation playing over it.
+              // Zero for every other commit, which is `gsap`'s default and the behaviour this always had.
+              ...(shiftHold > 0 ? { delay: shiftHold / 1000 } : {}),
+            },
+          );
+        }
+      };
       if (draggingNow) {
         // The PRE-EMPTIVE slide: as the drag crosses a slot boundary, the drop slot moves and the cards glide
         // to make room (dragMs = the slide duration). The cards' CSS `transition: transform` is off for the
@@ -8061,6 +8136,10 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
           );
           if (card) playBuySlide(place.from, card, 0.7);
         }
+        // THE OTHER ROW (R-SLIDE-01). The capture above only covers the row the card was dragged in, but this
+        // commit can re-lay-out the other one too — a buy that completes a triple takes copies out of the
+        // warband. Without this its survivors jumped to their new slots (owner 2026-09-24).
+        if (flipCfg.commitMs > 0) slideFromSweep(sel);
       } else if (flipCfg.commitMs > 0) {
         // A COMMITTED move with NO drag (a SELL / buy-back, a summoned token, an effect repositioning) — opt-in
         // via commitMs > 0. We do a MANUAL per-card FLIP off the previous commit's offsetLeft sweep rather than
@@ -8073,36 +8152,12 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
         // (a roll swaps five cards into the same five slots; a buff changes no layout at all). The deltas come
         // off the sweep above; a commit with no delta touches no style, and one that DID move a card runs
         // exactly the writes it always did.
-        const targets = gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR);
-        const olds = commitRectsRef.current;
-        const moving: { el: HTMLElement; delta: number }[] = [];
-        if (olds && commitLefts) {
-          for (const el of targets) {
-            const uid = el.dataset.uid;
-            const old = uid ? olds.get(uid) : undefined;
-            const now = uid ? commitLefts.get(uid) : undefined;
-            const delta = old === undefined || now === undefined ? 0 : old - now;
-            if (Math.abs(delta) >= 0.5) moving.push({ el, delta });
-          }
-        }
-        if (moving.length > 0) {
-          gsap.set(targets, { transition: 'none' });
-          const movingEls = new Set(moving.map((m) => m.el));
-          for (const el of targets) if (!movingEls.has(el)) el.style.transition = ''; // unmoved (or new) card — restore base
-          for (const { el, delta } of moving) {
-            gsap.fromTo(
-              el,
-              { x: delta },
-              {
-                x: 0, duration: flipCfg.commitMs / 1000, ease: 'power2.out', clearProps: 'transform,transition',
-                // A DEATH holds the row still for a beat first (owner 2026-08-28) — the survivors seed at their
-                // old offsets and simply wait there, so the gap stays open under the animation playing over it.
-                // Zero for every other commit, which is `gsap`'s default and the behaviour this always had.
-                ...(shiftHold > 0 ? { delay: shiftHold / 1000 } : {}),
-              },
-            );
-          }
-        }
+        //
+        // ONLY A ROW CHANGE MOVES A CARD (owner 2026-09-24: "when casting growth it randomly moves the warband").
+        // The key also flips on a spell drag's lift and release, which changes no row; diffing that release against
+        // an old sweep replayed any layout change since (a resize, a docked panel) as the whole warband sliding in.
+        // `commitFlipDeltas` (inside `slideFromSweep`) returns nothing unless the rows changed since the sweep.
+        slideFromSweep(null);
       }
       // else: committed with commitMs 0 → snap (no animation); the drag preview already positioned everything.
     });
@@ -8117,7 +8172,7 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
       // from the last commit could predate a viewport resize.
       flipStateRef.current = Flip.getState(flipSel, { simple: true });
     });
-    if (commitLefts) commitRectsRef.current = commitLefts;
+    if (commitLefts) commitRectsRef.current = { key: rowsKey, lefts: commitLefts };
    });
   }, [flipKey]);
 
@@ -8474,7 +8529,7 @@ const ChooseOneOverlay = memo(function ChooseOneOverlay({ overlaysHeld, run, spe
                   const srcUid = grant?.sourceUids.find((u) => run.board.some((b) => b.uid === u));
                   const src = CARD_INDEX[run.board.find((b) => b.uid === srcUid)?.cardId ?? ''];
                   return eq.chooseOne.map((opt, i) => (
-                    <div className="disc-slot" key={i} style={{ '--c': `var(--t-${src?.tribe ?? 'neutral'})` } as CSSProperties}>
+                    <div className="disc-slot" data-pick-sfx key={i} style={{ '--c': `var(--t-${src?.tribe ?? 'neutral'})` } as CSSProperties}>
                       <Card
                         card={{
                           // Each branch wears its OWN illustration (owner 2026-08-31), passed explicitly
@@ -8507,7 +8562,7 @@ const ChooseOneOverlay = memo(function ChooseOneOverlay({ overlaysHeld, run, spe
                 const coBonusA = c.spell ? spellBonus - (c.gift ? (run.nextSpellBonus?.attack ?? 0) : 0) : 0;
                 const coBonusH = c.spell ? spellBonusH - (c.gift ? (run.nextSpellBonus?.health ?? 0) : 0) : 0;
                 return (c.chooseOne ?? []).map((opt, i) => (
-                  <div className="disc-slot" key={i} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
+                  <div className="disc-slot" data-pick-sfx key={i} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
                     <Card
                       // The option's own text IS the card's text here — the whole point of showing two cards is
                       // that each reads as the thing it would become. Stats come from the live instance when
@@ -8602,7 +8657,7 @@ const DiscoverOverlay = memo(function DiscoverOverlay({ overlaysHeld, run, disco
                   maxTier: maxTierFor(run.rift),
                 });
                 return (
-                  <div className="disc-slot" key={`${id}-${i}`} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
+                  <div className="disc-slot" data-pick-sfx key={`${id}-${i}`} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
                     <Card
                       // `spell`/`ruby` are carried so a discovered SPELL renders as a spell — the type pill in
                       // place of the Attack/Health badges (owner 2026-07-24: spells were showing a meaningless
@@ -8814,7 +8869,7 @@ export const RuneforgeOverlay = memo(function RuneforgeOverlay({ overlaysHeld, r
                 const liveCost = Math.max(0, rune.cost - (run.runeforgeDiscounts?.[i] ?? 0));
                 return (
                   <RuneCard
-                    key={id} rune={rune} cost={liveCost} affordable={run.embers >= liveCost}
+                    key={id} rune={rune} cost={liveCost} affordable={run.embers >= liveCost} pickSfx
                     duplicating={!!run.runeDuplication && !!run.runeforgeEpic}
                     onBuy={(el) => {
                       // CAPTURE BEFORE DISPATCH. The buy clears `runeforgeOffer`, so this overlay unmounts on

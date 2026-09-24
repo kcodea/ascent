@@ -22,9 +22,12 @@ import type { TunerControl, TunerSpec } from './tunerSchema';
  *  `ANNOUNCER_LINES` by `announcerConfig.test.ts`. */
 export const ANNOUNCER_TUNER_EVENTS = [
   'gameStart', 'equipment', 'triple', 'tierSix', 'runeforge', 'epicRuneforge', 'minionHits100Stats',
+  'goldenArmy', 'bigSpender', 'shopBigBuff', 'pair', 'tribeFour',
+  'randomCardBuy', 'randomSpellBuy', 'randomBeastBuy', 'randomDwarfBuy',
   'enteringCombat', 'enteringCombatAfterLoss', 'startCombatUnder10hp',
-  'surviveUnder10hp', 'losingLowOddsFight', 'winningLowOddsFight', 'threeWinStreak',
-  'backToShop', 'topFour', 'topTwo', 'gameWon', 'gameLoss',
+  'surviveUnder10hp', 'losingLowOddsFight', 'winningLowOddsFight', 'comebackWin', 'threeWinStreak',
+  'flawlessVictory', 'bigHit',
+  'backToShop', 'richTurn', 'round7', 'knockout', 'topFour', 'topTwo', 'gameWon', 'gameLoss',
 ] as const satisfies readonly AnnouncerEvent[];
 
 type VolKey = `${AnnouncerEvent}Vol`;
@@ -53,6 +56,21 @@ const EVENT_LABEL: Record<AnnouncerEvent, string> = {
   topTwo: 'Top two (1000 ms)',
   gameWon: 'Game won (1000 ms)',
   gameLoss: 'Game lost (1000 ms)',
+  knockout: 'Knockout (1000 ms after the return)',
+  bigHit: 'Big hit, 15+ to a hero (verdict)',
+  comebackWin: 'Comeback win after 3+ losses (verdict)',
+  flawlessVictory: 'Flawless victory, no deaths (verdict)',
+  goldenArmy: 'Golden army, 3 gilded on board (0 ms)',
+  richTurn: 'Rich turn, 20+ Gold (1000 ms after the return)',
+  bigSpender: 'Big spender, 20 spent with 10 left (0 ms)',
+  shopBigBuff: 'Shop minion over 50 Attack (0 ms)',
+  pair: 'First pair (0 ms)',
+  tribeFour: 'Four of a tribe bought this turn (0 ms)',
+  randomSpellBuy: 'Random spell buy, 10% (0 ms)',
+  randomCardBuy: 'Random card buy, 10% (0 ms)',
+  randomBeastBuy: 'Random Beast buy, 10% (0 ms)',
+  randomDwarfBuy: 'Random Dwarf buy, 10% (0 ms)',
+  round7: 'Round 7, 10% (1000 ms after the return)',
 };
 
 export const ANNOUNCER_VOL_RANGE: [number, number, number] = [0, 200, 5];

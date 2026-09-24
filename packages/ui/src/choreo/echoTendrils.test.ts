@@ -128,12 +128,13 @@ describe('RALLY + WATCHERS (combat) — grants attributed to a body, never to it
     expect(r.events.some((e) => e.type === 'buff' && e.source === 'Ashen Heir'), 'no label-sourced grant').toBe(false);
   });
 
-  it("Wolvie (Echo → the next Beast summoned): the gift is sourced on the fallen Wolvie's UID", () => {
-    const { r, uidOf } = fight([bm('b2_wolvie', { keywords: ['T'], health: 1 }), bm('pack', { health: 1 })], [foe(5, 200)]);
+  it("Wolvie (Echo → a Beast gets +2/+4 and Rise): the gift is sourced on the fallen Wolvie's UID", () => {
+    const { r, uidOf } = fight([bm('b2_wolvie', { keywords: ['T'], health: 1 }), bm('pack', { health: 200 })], [foe(5, 200)]);
     const wolvie = uidOf('b2_wolvie');
-    const pup = r.events.find((e): e is Extract<CombatEvent, { type: 'summon' }> => e.type === 'summon' && e.minion.cardId === 'pup');
-    expect(pup, 'Pack Leader died and summoned a Pup').toBeDefined();
-    expect(r.events.some((e) => e.type === 'buff' && e.source === wolvie && e.target === pup!.minion.uid)).toBe(true);
+    const pack = uidOf('pack');
+    // Owner batch 2026-09-24: the grant lands on a random other Beast at once (was: the next Beast summoned).
+    expect(r.events.some((e) => e.type === 'buff' && e.source === wolvie && e.target === pack)).toBe(true);
+    expect(r.events.some((e) => e.type === 'keyword' && e.keyword === 'R' && e.source === wolvie && e.target === pack)).toBe(true);
     expect(r.events.some((e) => e.type === 'buff' && e.source === 'Wolvie'), 'no label-sourced grant').toBe(false);
   });
 });

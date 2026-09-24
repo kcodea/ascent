@@ -68,15 +68,16 @@ export const DRAGONS: CardDef[] = [
     id: 'karwind',
     name: 'Karwind',
     tribe: 'dragon',
-    tier: 5, // owner balance 2026-08-18: T6 → T5
+    tier: 4, // owner balance 2026-08-18: T6 → T5; owner batch 2026-09-24: T5 → T4
     attack: 4,
     health: 12,
     keywords: ['DS'],
     // Owner rework 2026-08-07: the adjacency clause is GONE — a flat grant to every Dragon.
     // Owner balance 2026-08-18: +4/+4 then dialled back to +3/+3, and dropped the 20%-chance-of-double clause.
-    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 3, health: 3 } }],
-    text: '**Ward.** Whenever a **Shout** triggers, give your Dragons **+3/+3**.',
-    goldenText: '**Ward.** Whenever a **Shout** triggers, give your Dragons **+3/+3** twice.',
+    // Owner batch 2026-09-24: +3/+3 → +2/+2.
+    effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 2, health: 2 } }],
+    text: '**Ward.** Whenever a **Shout** triggers, give your Dragons **+2/+2**.',
+    goldenText: '**Ward.** Whenever a **Shout** triggers, give your Dragons **+2/+2** twice.',
   },
   {
     // Dual-type Dragon/Demon payoff. Every Shout *fire* on your board permanently enchants your IMPS +3/+3

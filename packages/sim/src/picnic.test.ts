@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX, SETS } from '@game/content';
 import { createRun, reduce, spellDisplayText, isStatSpell, type BoardCard, type RunState } from './index';
-import { isBoardStatSpell } from './recruit';
+import { isStatGrantingSpell } from './recruit';
 import { spellFizzles } from './spellFizzle';
 
 /**
@@ -34,7 +34,7 @@ describe('Picnic', () => {
     expect(SETS.set3.own.some((c) => c.id === 'sp_picnic')).toBe(true);
     // Rune of Thrift discounts it (a stat spell); the Gilded Ledger never casts it (an offer buff, not a board grant).
     expect(isStatSpell(def)).toBe(true);
-    expect(isBoardStatSpell(def)).toBe(false);
+    expect(isStatGrantingSpell(def)).toBe(false);
   });
 
   it('gives the right-most MINION offer +8/+8 now, skipping a spell offer, and enchants the slot for the run', () => {

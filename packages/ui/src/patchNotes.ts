@@ -82,6 +82,22 @@ export const PATCH_NOTES: PatchNote[] = [
   },
   {
     date: '2026-09-23',
+    label: 'Stat-granting spells',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Stat-granting spell effects (like Rune of the Gilded Ledger) can now cast targeted spells, aimed at a random minion.',
+        details: [
+          'Rune of the Gilded Ledger now picks from every stat-granting Shop spell up to your Tier: board-wide buffs, targeted spells like Bulwark, Lantern Light, Spirit Fire and Shatter, and the stat Ales.',
+          'At Tier 1 it can now cast Bulwark, Lantern Light or Crest of the Climb. Before, it had nothing to cast.',
+          'A targeted spell lands on a random friendly minion it could legally target. If there is none, the cast does nothing.',
+          'Great Pot now counts as a stat-granting spell, so Rune of Thrift makes it cheaper.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-23',
     label: 'Balance 9/23: archives and Picnic',
     changes: [
       {

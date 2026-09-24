@@ -14,6 +14,7 @@ import {
   unbindJson,
   HUD_BINDING_KINDS,
   STAT_MILESTONE_BINDING_KINDS,
+  ATTACK_HIT_MILESTONE_BINDING_KINDS,
   WATCHER_BINDING_KINDS,
   COMBAT_MECHANIC_BINDING_KINDS,
 } from './bindings';
@@ -344,7 +345,7 @@ describe('binding integrity', () => {
     // design (see `HudBindingKind` / `StatMilestoneBindingKind`).
     const kinds = new Set<string>([
       ...Object.keys(SCORE_DEFAULTS), ...RECRUIT_MOMENT_KINDS, ...HUD_BINDING_KINDS, ...STAT_MILESTONE_BINDING_KINDS,
-      ...WATCHER_BINDING_KINDS, ...COMBAT_MECHANIC_BINDING_KINDS,
+      ...ATTACK_HIT_MILESTONE_BINDING_KINDS, ...WATCHER_BINDING_KINDS, ...COMBAT_MECHANIC_BINDING_KINDS,
     ]);
     const t = effectiveTables();
     const bad: string[] = [];

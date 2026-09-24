@@ -68,6 +68,13 @@ export interface AttackCueCtx {
  *  flare + release before the strike (a longer beat than a normal swing — the Rally is worth reading). */
 const RALLY_PAUSE_MS = 440;
 
+/** The milestone tier the attacker's Attack badge SHOWS at contact (0..6, its `data-milestone`; see
+ *  `choreo/statMilestones.ts`). Read from the DOM at impact time on purpose: the hit escalates with the badge
+ *  the player is looking at, including an on-attack buff that just rolled it into a new frame (owner 2026-09-24). */
+function attackBadgeTier(attacker: Element): number {
+  return Number(attacker.querySelector('.badge.atk')?.getAttribute('data-milestone')) || 0;
+}
+
 /**
  * The choreo playback engine (phase 3b) — runs an `attackExchange` moment's cues: score-driven (reads
  * `getScore()['attackExchange']`), it composes the lunge motion + the contact-anchored impact channel + the
@@ -176,7 +183,7 @@ export function runAttackExchangeCues(
     holdAfterWindup: ctx.holdAfterWindup === true,
     onWindupHeld: ctx.onWindupHeld,
     onContact: ctx.holdAfterWindup === true ? () => ctx.onParkedContact?.() : () => ctx.advance(),
-    onImpact: impact ? () => { playContactImpact(defender, ldx, ldy, power, ctx.combatSpeed, liveImpactAt(), spinDeg, crit, hasFlurry, flurrySlash, ctx.execute === true, hasCleave); if (crit) ctx.onCritImpact?.(); } : undefined,
+    onImpact: impact ? () => { playContactImpact(defender, ldx, ldy, power, ctx.combatSpeed, liveImpactAt(), spinDeg, crit, hasFlurry, flurrySlash, ctx.execute === true, hasCleave, false, attackBadgeTier(attacker), attacker.getAttribute('data-card')); if (crit) ctx.onCritImpact?.(); } : undefined,
     impactOffsetMs: impact?.offset ?? 0,
     hitStopMs: hasCleave ? getCleaveFxConfig().hitStopMs : 0,
     returnDelayMs: hasCleave ? getCleaveFxConfig().returnDelayMs : 0,

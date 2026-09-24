@@ -55,6 +55,25 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'The Compendium can now show any card set. Pick one from the new Set menu at the right of the tier bar.',
+        details: [
+          'The Compendium still opens on the set you are playing.',
+          'Choosing another set shows its minions, spells, tribes and runes.',
+          'Browsing a set never changes your run or the set new games use.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Runes tab of the Compendium has a new Neutral filter next to the tribe filters.',
+        details: ['Neutral shows the runes that do not need any tribe. It combines with the tribe filters.'],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
         text: 'Effects are no longer cut off by a hard edge. They now play over their full area.',
         details: [
           'Soft, blurred effects could stop at an invisible line on wide screens.',

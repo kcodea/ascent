@@ -3978,13 +3978,16 @@ export function simulate(
     }
     // RUNE OF SPELLHIDE: re-cast the turn's remembered stat spell onto the very Beast it was cast on in the
     // shop. The spell RUNS again rather than its stats being copied, so anything that scales with run state
-    // pays its live value here. The uid is the run board card's, which `instantiate` carries onto the combat
-    // body, so the same Beast is found; if it isn't on the board any more, the re-cast is simply skipped.
+    // pays its live value here. The recorded uid is the RUN board card's; combat bodies get fresh uids
+    // (`mkUid`: m0, m1, ...) and carry the run uid on `sourceUid` (the reducer bridge sets it), so the Beast is
+    // matched by `sourceUid`, with `uid` kept as a fallback for a hand-built side that names the combat uid.
+    // If it isn't on the board any more, the re-cast is simply skipped.
     // Base pass only: its text is "cast on it again at Start of Combat", a spell replay, not a Start-of-Combat rune.
     const hide = base ? ((rside === 'player' ? playerState : enemyState).spellhide ?? []) : [];
     for (const rec of hide) {
       const def = cards[rec.spellId];
-      const onto = boards[rside].find((m) => m.uid === rec.uid && !m.dead);
+      const onto = boards[rside].find((m) => !m.dead && m.sourceUid === rec.uid)
+        ?? boards[rside].find((m) => !m.dead && m.uid === rec.uid);
       if (!def?.spell || !onto || !combatCastable(def)) continue;
       nextStep();
       fireTrigger('runeSpellhide', rside);

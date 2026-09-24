@@ -82,6 +82,12 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-24',
     changes: [
+      { category: 'Balance', text: 'Rune of Spellhide now recasts its spell at Start of Combat as printed.' },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
       {
         category: 'Systems',
         text: 'Growth and Waking Rift have their own effects now, wherever they are cast from.',

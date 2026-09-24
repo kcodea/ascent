@@ -76,41 +76,65 @@ sound; the Ales have none anywhere.
 | Dragonflame | A S | **descend, silent -> A S** | **descend, silent -> A S** | rune A S; minion **nothing -> A S** / legacy **descend -> A S** | A S |
 | Great Pot (new) | **sparks + descend -> A S** | **descend -> A S** | **descend -> A S** | **-> A S** | n/a (no combat factory) |
 | Bloody / Champion's / Defensive Ale | A | A (node) | **descend -> A (from the caster)** | rune A; minion **nothing -> A** | **tendril -> A** |
-| Golden / Reinforcing Ale (no buffs) | A (single play) | flourish only | nothing | nothing | nothing |
+| Golden / Reinforcing Ale (no buffs) | A (single play) | **flourish only -> A on the node** | **nothing -> A on the caster** | **nothing -> A (node / caster)** | **nothing -> A on the caster** |
 | Rubies | A S | A S | A S | A S | A S |
-| Lasso | A S | Lassoing: A S from its badge; any other rune: A S from the hand row | Rope Wrangler A S from its body; other minion casts from the hand row | A S | n/a |
-| Staff of Guel (`shop-buff-purple`) | A | A | A | authoritative: nothing; legacy A | A |
+| Lasso | A S | Lassoing: A S from its badge; any other rune: **hand row -> that rune's badge** | Rope Wrangler A S from its body; other minion casts **hand row -> the caster** | A S | n/a |
+| Staff of Guel (`shop-buff-purple`) | A | A | A | authoritative: **nothing -> A**; legacy A | A |
 | Unbound spells | sparks + `castSpell` | flourish + stock trail from the node | cast preview + descend | same | tendril |
 
-Generic cast sound: the player's hand cast plays `sfx.castSpell`. A rune cast (flourish) and a minion cast (cast
-preview) play NO generic sound in any phase.
+Generic cast sound (`sfx.castSpell`): BEFORE, only the player's hand cast rang it; a rune cast (flourish) and a
+minion cast (cast preview) were silent in every phase. AFTER: every cast rings it (Shop records, both End-of-Turn
+paths, combat `sc`), through one per-spell burst gate (`playGenericCastSound`, 120 ms) that the player's own cast
+uses too, so a repeat rune's share of the player's cast, two Fatecarvers, or a rune's "twice" ring once.
 
-## Minion arrival (audit only, no change)
+Combat Dragonflame: BEFORE, a cast NOT on a swing (Spellhide's re-cast, any standalone buff wave) played the column
+TWICE per unit (the `fxDef` `buffedOn` branch and `fireBuffCasts`). AFTER: once (`fireBuffCasts` owns it). A cast on
+a swing (Flamebeat Drake, Warflame) was already once.
+
+## Minion arrival, BEFORE -> AFTER
 
 | Path | Animation | Sound |
 |---|---|---|
 | Player plays from hand | plate dissolve, `landing-dust`, `cardpop`, `minionPlayed` def, Ward blast | `play`, `cardVoice`, `cardEffect` (Battlecry), `summon(token)`, `taunt`, `shield` |
-| Battlecry token (same action) | `cardpop` (delayed), no dust | `summon(tokenId)` |
-| Rune / hero power / quest / Discover-to-board / spell summon (Shop) | `cardpop` only | none |
-| End of Turn summon | `cardpop` | beat glow / pulse only |
+| Battlecry token (same action) | `cardpop` (delayed) **+ `landing-dust`** | `summon(tokenId)` |
+| Rune / hero power / quest / Discover-to-board / spell summon (Shop) | `cardpop` **+ `landing-dust`** | **none -> `summon` (+ token voice)** |
+| End of Turn summon (authoritative `cardSummoned`) | `cardpop` **+ `landing-dust`** | beat glow / pulse **+ `summon`** |
 | Combat summon | `summonpop` + `landing-dust` | `summon(cardId)` once per moment |
 
-## Open for the owner (not changed: each is a design call)
+The summon sound is gated PER CLIP (`summonClipAllowed` in sfx.ts, the 120 ms burst gap): a mass summon rings the
+general `summon` pop once and each token's own voiceline once. The player's own play is excluded from the Shop arrival
+watcher (`playerPlacedRef`), since it already lands with dust and its play sound; a gild keeps its own animation.
 
-1. Should a rune's or minion's cast play the generic cast sound (`sfx.castSpell`)? Today only the player's hand cast
-   does; the flourish and the cast preview are silent.
-2. Golden / Reinforcing Ale buff nobody, so a rune or minion cast of them shows only the flourish. Play the Ale's row
-   once on the node / caster?
-3. Lasso cast by a rune other than Lassoing (Recurrence, a repeat rune) or by a minion through the plain cast path
-   throws from the hand row, not the caster.
-4. Staff of Guel on the authoritative End-of-Turn path plays no `shop-buff-purple`.
-5. Minions a rune / hero power / quest / Discover / spell summons in the Shop get no summon sound and no landing
-   dust (the player's play does). Should they match the player's play?
-6. Equipment casts stay excluded (R-PRESENT-10). No change proposed: the Equipment's own use cue is the presentation.
-7. Possible double Dragonflame column in combat when its buffs are their own `buffWave` moment (the `fxDef` cue and
-   `fireBuffCasts` may both play it). Pre-existing; unconfirmed.
+## Follow-up (same day): the owner's answers, relayed
+
+The coordinator relayed the owner's answers to the open items: the ask ("all spell animations and sfx should be wired
+to play whenever a spell or minion is cast/played from any source") and the cross-phase default already decide them.
+
+1. Rune and minion casts ring the generic cast sound. Done (`playGenericCastSound`).
+2. Golden / Reinforcing Ale from a rune or minion play the Ale's row once at the source. Done (`sourceOnlyCastRow`,
+   `playCastAtSource`, `playMinionSpellCastFx`): the rune node, the caster's body, or the combat caster.
+3. Lasso from any rune or minion leaves the real caster. Done in the sim: `applyCastEffects` defaults `_origin` to
+   `rune:<id>` / `board:<uid>` from the cast actor; `fireLassoBeam` reads `rune:<id>`.
+4. Staff of Guel on the authoritative End of Turn. Done: the trigger scope emits `auraChanged` `shopBuff` when
+   `tavernBuyBonus` rises, and the new `shopBuffAll` presenter hook plays the `shopBuffAll` cue.
+5. Minion arrival from any source. Done (table above).
+6. Equipment stays excluded (R-PRESENT-10).
+7. Combat Dragonflame double play. Real, fixed (`score.ts`, the `fxDef` `buffedOn` branch skips a buff whose spell
+   has an authored per-buff def).
+8. Rune of Lassoing + Rope Wrangler: REPORT ONLY. Confirmed a gameplay gap: Rope Wrangler's `castSpell` recruit
+   factory (recruit.ts, `castSpell: (ctx, self, params, payload)`) calls `applyCastEffects` directly, while
+   Lassoing's +2/+2 lives in the `castSpell()` FUNCTION, so the Wrangler's End-of-Turn Lasso steals but the board
+   gains nothing (probe: stray stays 2/2). The same bypass skips Spellweaving and the rest of `castSpell()`'s
+   bookkeeping for every minion using that factory (Soul Defiler's Staff of Guel too). Pinned as a known-gap test;
+   needs an owner go-ahead to change.
 
 ## Tests
+
+Follow-up: `packages/sim/src/spellFxEverySource.test.ts` gains the Lasso origin (Mage-Pup, Rune of Recurrence, the
+player), the `shopBuff` aura (Soul Defiler at End of Turn) and the Lassoing + Wrangler known gap;
+`packages/ui/src/fx/spellFxEverySource2.test.ts` covers items 1-5 and 7; `packages/ui/src/fx/summonSfxGate.test.ts`
+the per-clip summon gate.
+
 
 - `packages/sim/src/spellFxEverySource.test.ts`: Gilded Ledger -> Dragonflame (every repeat tagged with spell +
   rune) and -> Great Pot; a Mage-Pup's Dragonflame / Great Pot / Bloody Ale name the caster; Flamebeat Drake's shop
@@ -126,6 +150,14 @@ preview) play NO generic sound in any phase.
 Ledger at 6/7 Gold, Refresh: `rune-cast-flourish`, then `dragonflame` x3 on the buffed Dragon, and three 1.2 s
 sample starts (the Dragonflame clip, one per repeat wave). Great Pot from the Ledger: `greatpot` x2 (one per type),
 one `bloodpot` start. No console errors.
+
+## Live check, follow-up (port 5287, throwaway run)
+
+- Gilded Ledger rolling Dragonflame: flourish, 3 `dragonflame` plays, the Dragonflame clip per wave, and now the
+  cast clip once.
+- A Mage-Pup taught Golden Ale, played from hand: `coin-ale` on the Pup, plus the cast clip.
+- Two Strays put on the board by a non-player source: `landing-dust` on each, the summon pop and the Stray's voice
+  once each (the per-clip gate).
 
 ## Oracle
 

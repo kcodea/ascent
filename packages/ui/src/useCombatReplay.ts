@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { playCastFanOutBuffFx } from './fx/spellCastFx';
+import { playCastFanOutBuffFx, playGenericCastSound } from './fx/spellCastFx';
 import { perfMonitor } from './perfMonitor';
 import gsap from 'gsap';
 import { damageMeterOf, type CombatEvent, type CombatResult, type Keyword, type MinionBuff, type MinionSnapshot, type Tribe } from '@game/core';
@@ -2165,7 +2165,12 @@ export function useCombatReplay(
     // spell in one beat are two casts, and the owner asked for every one of them to be shown.
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
-      if (e?.type === 'sc' && e.spellId) sfx.cardEffect(e.spellId);
+      if (e?.type === 'sc' && e.spellId) {
+        sfx.cardEffect(e.spellId);
+        // …and the generic cast sound, as a Shop cast rings (owner 2026-09-24: every source; burst-gated per spell,
+        // so two Fatecarvers casting Growth in one beat ring once).
+        playGenericCastSound(e.spellId);
+      }
     }
     if (trig.size === 0 && beatWatchers.length === 0) return;
     sfx.triggerPulse(); // once per beat regardless of how many units pulse (the dedupe is built in too)

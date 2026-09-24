@@ -10225,6 +10225,12 @@ export function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?
   const cardCastSpellId = actor && equipmentCastDepth === 0 ? spellDef.id : undefined;
   const castRuneId = cardCastSpellId && actor?.kind === 'rune' ? actor.id : undefined;
   const castByUid = cardCastSpellId && actor?.kind === 'minion' ? actor.uid : undefined;
+  // WHERE A TRAVELLING CAST LEAVES FROM (the Lasso beam, `_origin`): a caller that knows passes it (Rope Wrangler's
+  // `board:<uid>`, Whiplass-o's `equipment`, Lassoing's `rune`). Any other rune or minion cast defaults to its REAL
+  // caster, so a Lasso cast by Rune of Recurrence, a repeat rune or a Mage-Pup no longer throws from the hand row
+  // (owner 2026-09-24: spell effects from every source). The player's own cast (no actor) keeps the drop point.
+  if (!origin && castRuneId) origin = `rune:${castRuneId}`;
+  else if (!origin && castByUid) origin = `board:${castByUid}`;
   if (cardCastSpellId) castTagStack.push({ spellId: cardCastSpellId, runeId: castRuneId, casterUid: castByUid });
   try {
   for (const effect of spellDef.effects) {
@@ -14240,6 +14246,7 @@ function withRecruitTrigger(
     const eatenBefore = (state.fodderEaten ?? []).length;
     const shopEatenBefore = (state.shopEaten ?? []).length;
     const rb = state.rubyBonus ?? { attack: 0, health: 0 };
+    const tavernBefore = { a: state.tavernBuyBonus?.atk ?? 0, h: state.tavernBuyBonus?.hp ?? 0 };
     const castStart = (state.castFx ?? []).length; // a spell THIS beat's minion casts tags its buffs (see below)
     // A SPELL-sourced scope (`applyCastEffects` opens one per cast effect) cast BY A CARD OR A RUNE — the innermost
     // cast actor right now: its stat gains carry the spell (and the rune), exactly like the per-action buff records
@@ -14346,6 +14353,12 @@ function withRecruitTrigger(
         // (owner report 2026-08-14). Parallels the spellPower/impAura aura emits directly above.
         const rubyA = (state.rubyBonus?.attack ?? 0) - rb.attack, rubyH = (state.rubyBonus?.health ?? 0) - rb.health;
         if (rubyA !== 0 || rubyH !== 0) collector.emit({ type: 'auraChanged', aura: 'ruby', amount: rubyA + rubyH, attack: rubyA, health: rubyH });
+        // The RUN-WIDE shop buff channel (`tavernBuyBonus`: Staff of Guel, Soul Defiler's cast of it) rose: its own
+        // aura, so the authoritative End of Turn plays the shop-wide effect on the beat, as the Shop and the legacy
+        // End-of-Turn path already do (owner 2026-09-24: spell effects from every source). The per-offer climb stays
+        // `shopChanged` above. `sourceCardId` names the card that raised it when the sim stamped one.
+        const tvA = (state.tavernBuyBonus?.atk ?? 0) - tavernBefore.a, tvH = (state.tavernBuyBonus?.hp ?? 0) - tavernBefore.h;
+        if (tvA > 0 || tvH > 0) collector.emit({ type: 'auraChanged', aura: 'shopBuff', amount: tvA + tvH, attack: tvA, health: tvH, ...(state.shopBuffAllSource ? { sourceCardId: state.shopBuffAllSource } : {}) });
         // BEAT SYSTEM (PR 6c): welds (Attachments this trigger bolted onto a Mech) as a counter, one per host.
         for (const c of state.board) {
           const wb = attachBefore.get(c.uid);

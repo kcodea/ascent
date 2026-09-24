@@ -45,6 +45,9 @@ export interface PresenterContext {
    *  wired to play whenever a spell or minion is cast/played from any source"). Returns whether it drew; false keeps
    *  the ordinary path. Optional. */
   castFanOutGain?: (spellId: string, casterUid: string | undefined, uid: string, index: number) => boolean;
+  /** The run-wide shop buff rose this beat (Staff of Guel, however it was cast): the shop-wide effect
+   *  (`shopBuffAll`, the same cue the Shop and the legacy End of Turn play). Optional. */
+  shopBuffAll?: (attack: number, health: number, sourceCardId: string | undefined) => void;
   /** A minion buffed ITSELF this beat — the authored self-buff def (`self-buff-gold`), the richer twin of the
    *  green `statGain` burst. Matches the per-action path so a self-buff looks the same on any beat. */
   selfBuff: (uid: string) => void;
@@ -175,6 +178,7 @@ export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], Consequenc
     if (c.aura === 'spellPower') ctx.spellPower(beat.source.uid, c.attack ?? c.amount, c.health ?? 0);
     else if (c.aura === 'impAura') ctx.impAura();
     else if (c.aura === 'ruby') ctx.rubyAura(beat.source.uid, c.attack ?? c.amount, c.health ?? 0);
+    else if (c.aura === 'shopBuff') ctx.shopBuffAll?.(c.attack ?? c.amount, c.health ?? 0, c.sourceCardId);
   },
   cardGranted: ({ consequence: c, beat, ctx }) => {
     if (c.type !== 'cardGranted') return;

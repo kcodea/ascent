@@ -903,10 +903,14 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'by Distillation / Redirection (the Ruby hop). Until 2026-09-24 a rune\x27s or a minion\x27s Dragonflame / Great Pot / '
       + 'targeted Gift went out UNTAGGED (the factory\x27s nested capture hid its targets from the tagged outer one), so a '
       + 'Gilded Ledger Dragonflame drew a generic descend with no sound, and a minion\x27s Ale / Dragonflame drew a descend '
-      + 'in the Shop and nothing at End of Turn; fixed. Audit (devlog 2026-09-24-spell-fx-every-source.md) leaves open, '
-      + 'pending owner rulings: rune / minion casts play no generic cast sound; Golden / Reinforcing Ale (no buffs) '
-      + 'show nothing specific from a rune or minion; Lasso cast by a rune other than Lassoing throws from the hand '
-      + 'row; minions a rune / hero / quest / Discover / spell summons in the Shop get no summon sound or landing dust. '
+      + 'in the Shop and nothing at End of Turn; fixed. Follow-up (owner answers relayed 2026-09-24, same PR): every '
+      + 'rune / minion / combat cast rings the generic cast sound through one per-spell burst gate (`playGenericCastSound`, '
+      + 'the player cast included); Golden / Reinforcing Ale (no buffs) play their row once at the source; a Lasso cast '
+      + 'by any rune or minion leaves the real caster (`_origin` defaults to `rune:<id>` / `board:<uid>`); Staff of Guel '
+      + 'plays its shop-wide effect on the authoritative End of Turn (`auraChanged` `shopBuff`); a minion arriving in the '
+      + 'Shop or at End of Turn from any source gets the landing dust and the summon sound, the summon clips gated per '
+      + 'clip; a standalone combat Dragonflame wave no longer plays its column twice. Known gameplay gap, report only: '
+      + 'Rune of Lassoing does not pay for a Rope Wrangler Lasso (the Wrangler factory bypasses `castSpell()`). '
       + 'The mechanic half of the '
       + 'default is enforced by the Doc Bot `factoryPhase` lane (every trigger/factory pair implemented in every '
       + 'phase its trigger dispatches, or a registered excuse).',
@@ -926,6 +930,8 @@ export const FOUNDATION_RULES: GameRule[] = [
         'packages/ui/src/fx/runeCastFlourish.test.ts',
         'packages/sim/src/spellFxEverySource.test.ts',
         'packages/ui/src/fx/spellFxEverySource.test.ts',
+        'packages/ui/src/fx/spellFxEverySource2.test.ts',
+        'packages/ui/src/fx/summonSfxGate.test.ts',
       ],
       lastVerifiedAt: '2026-09-24',
     },

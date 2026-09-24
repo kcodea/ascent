@@ -64,6 +64,7 @@ export interface CombatQuestDelta {
 }
 import { sfx } from './sfx';
 import { releaseAllStats } from './fx/statHold';
+import { playGenericCastSound } from './fx/spellCastFx';
 import { resetMilestoneLatches } from './fx/milestoneBadgeFx';
 import { clearAllHandBuffs } from './handBuffFx';
 import { liveBoardView } from './instView';
@@ -187,7 +188,9 @@ export function actionSfx(action: Action, prev: RunState, next: RunState): void 
       // sound: `sfx.gemApply` fires when the gem lands on its target, and for a hand-played Ruby the cast IS
       // the land (owner ruling 2026-08-02). One event, one sound.
       if (def?.ruby) { /* silent here — the gem's own land carries it */ }
-      else if (def?.spell) sfx.castSpell();
+      // Through the per-spell burst gate (`playGenericCastSound`), which every other caster uses too, so a repeat
+      // rune's share of THIS cast (Shared Pour, Hoardflame) does not ring the same cast sound a second time.
+      else if (def?.spell && card) playGenericCastSound(card.cardId);
       else sfx.play();
       // Layer the card's own unique voiceline/SFX (if it has one) over the general landing/cast sound.
       if (card) {

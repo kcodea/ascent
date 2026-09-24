@@ -5,7 +5,7 @@ import { normalizePresentationBatch } from './choreographer/adapters/presentatio
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
 import { presentConsequence, type PresenterContext } from './choreographer/consequencePresenters';
 import { clearCastPreviews, fireCastPreviewAt, type CastPreviewSource } from './castPreview';
-import { playCastFanOutBuffFx, playRecordedCastFx, playRuneCastBuffFx, playRuneSpellCastFx, playSpellCastFx } from './fx/spellCastFx';
+import { playCastFanOutBuffFx, playGenericCastSound, playMinionSpellCastFx, playRecordedCastFx, playRuneCastBuffFx, playRuneSpellCastFx, playSpellCastFx } from './fx/spellCastFx';
 import { shippedBeatConfig } from './choreographer/beatConfig';
 import { draftToEngine } from './beatLab/labSchedule';
 import type { BeatPolicyOverrides, BeatTimingOverrides } from './beatLab/beatTiming';
@@ -1536,6 +1536,8 @@ export function Recruit() {
   // it away after the first — two .map() arrays + two Sets per render, at drag frame rate. The null-guard
   // runs the construction exactly once, with the same first-render seed.
   const prevBoardUidsRef = useRef<Set<string> | null>(null);
+  /** Board uids the PLAYER just placed by a play (see the arrival watcher): their landing is `applyDrop`'s. */
+  const playerPlacedRef = useRef<Set<string>>(new Set());
   prevBoardUidsRef.current ??= new Set(run.board.map((c) => c.uid));
   // COALESCE watcher state. A card that appears in hand from nowhere gets the arcane materialise; see the
   // effect below for what's deliberately excluded (buys, gilds, Refrain bounces).
@@ -4510,6 +4512,29 @@ export function Recruit() {
     prevWardRef.current = new Map(run.board.map((c) => [c.uid, c.keywords.includes('DS')]));
   }, [run.board, inCombat]);
 
+  // A MINION ARRIVING FROM ANY SOURCE (owner 2026-09-24: "all spell animations and sfx should be wired to play whenever
+  // a spell or minion is cast/played from any source"). The player's own play lands with the landing dust
+  // (`puffOnBoard`) and a sound; a minion a rune, hero power, quest, Discover, spell or Shout put on the board only
+  // popped in, silent. Any NEW board uid in the Shop now gets the same landing dust and the summon sound. The player's
+  // play is excluded (`playerPlacedRef`, it already has both), and so is a gild (the gild owns its card). The sound is
+  // `sfx.summon`, gated per clip (a mass summon rings each clip once). End-of-Turn summons ride `cardSummoned`.
+  const arrivalPrevRef = useRef<Set<string> | null>(null);
+  const arrivalTriplesRef = useRef<number>(run.triplesMade ?? 0);
+  useEffect(() => {
+    const prev = arrivalPrevRef.current;
+    const tripled = (run.triplesMade ?? 0) > arrivalTriplesRef.current;
+    arrivalTriplesRef.current = run.triplesMade ?? 0;
+    arrivalPrevRef.current = new Set(run.board.map((c) => c.uid));
+    const placed = playerPlacedRef.current;
+    playerPlacedRef.current = new Set();
+    if (!prev || inCombat || run.phase !== 'recruit') return;
+    const fresh = run.board.filter((c) => !prev.has(c.uid) && !placed.has(c.uid) && !(tripled && c.golden));
+    for (const c of fresh) {
+      puffOnBoard(c.uid);
+      sfx.summon(c.cardId);
+    }
+  }, [run.board, inCombat]);
+
   // Replay a batch of captured buff-other events as source→target tendrils (living minion) or descends
   // (spell / Deathrattle / sourceless), using the same renderer as combat. Shared by the per-action watcher
   // below AND the End-of-Turn beat sequence (whose events come from the projection, since the real commit
@@ -5374,6 +5399,10 @@ export function Recruit() {
       // WHIPLASS-O: out of the Equipment slot beside the hero power (owner 2026-09-12: "equipment can always
       // be a starting point of an effect"). Whiplass-o has no `useFxId`, so this is the slot's only cue.
       from = centre(document.querySelector('.equipslot .heropowerbtn'));
+    } else if (ev.origin.startsWith('rune:')) {
+      // ANY OTHER RUNE that casts Lasso (Recurrence, a repeat rune): out of THAT rune's badge (owner 2026-09-24).
+      from = centre(document.querySelector(`.questbadges [data-source-id="${ev.origin.slice('rune:'.length)}"]`))
+        ?? centre(document.querySelector('.questbadges .runebadge'));
     } else if (ev.origin === 'rune') {
       // RUNE OF LASSOING: out of the rune's own badge in the HUD tray — the rune is the actor, as the
       // arrival implosion already treats it (`useRuneArrivalFx`). SCOPED to `.questbadges`, and named by
@@ -5770,7 +5799,9 @@ export function Recruit() {
         // (Rune of Recurrence) stems from its node on the rail (owner ruling 2026-09-24).
         // A rune's cast also FLOURISHES on its node first (owner 2026-09-24: the rune cast flourish).
         if (source.kind === 'rune') playRuneSpellCastFx(cardId, source.id);
+        else if (source.kind === 'minion') playMinionSpellCastFx(cardId, source.uid);
         else playSpellCastFx(cardId);
+        playGenericCastSound(cardId); // the cast sound, from every source (owner 2026-09-24; burst-gated per spell)
         const src: CastPreviewSource | null = source.kind === 'minion' && source.uid ? { kind: 'minion', uid: source.uid }
           : source.kind === 'rune' ? { kind: 'rune', id: source.id } : null;
         if (src) fireCastPreviewAt(src, cardId);
@@ -5792,6 +5823,17 @@ export function Recruit() {
       },
       // A MINION'S End-of-Turn cast of a spell with a per-buff row: Dragonflame's column on the minion, an Ale's volley
       // from the caster's body (owner 2026-09-24, spell effects from every source). It used to draw nothing.
+      // The RUN-WIDE shop buff (Staff of Guel, Soul Defiler's cast of it) on its beat: the same shop-wide cue the Shop and
+      // the legacy End-of-Turn path play; the authoritative path drew nothing (owner 2026-09-24, every source).
+      shopBuffAll: (attack, health, sourceCardId) => {
+        runRecruitMomentCues(
+          { kind: 'shopBuffAll', recipients: runRef.current.shop.map((o) => ({ uid: o.uid, count: 1 })), attack, health, ...(sourceCardId ? { sourceCardId } : {}) },
+          {
+            cardIdOf: () => sourceCardId ?? null,
+            measure: (u) => { const el = document.querySelector<HTMLElement>(`[data-uid="${u}"]`); return el ? restingCenterOf(el) : null; },
+          },
+        );
+      },
       castFanOutGain: (spellId, casterUid, uid, index) => {
         const target = restingOf(uid);
         if (!target) return false;
@@ -5917,7 +5959,9 @@ export function Recruit() {
         const p = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
         playDef('ale-bubbles', { source: p, target: p }, { uids: { source: sourceUid, target: sourceUid } });
       },
-      cardSummoned: () => { /* board arrivals animate through the existing summon path */ },
+      // A minion an End-of-Turn beat summoned: the landing dust + summon sound every other arrival gets (owner
+      // 2026-09-24, every source). The body is injected onto the displayed board by the beat itself.
+      cardSummoned: (cardId, uid) => { puffOnBoard(uid); sfx.summon(cardId); },
       echoFired: (uid) => {
         // The skull-shatter ON ITS BEAT, on the Echo minion — the same `pixiFx.deathrattle` the shop destroy
         // and combat play. Marked pre-fired so the legacy commit-time `shopDeathFx` stamp for this uid (still
@@ -6604,6 +6648,7 @@ export function Recruit() {
   // card mounts (a post-render detection would be too late; the pop would already have played).
   const playWithSummonDelay = (action: { type: 'play'; uid: string; toIndex?: number; targetUid?: string }): void => {
     const before = new Set(run.board.map((c) => c.uid));
+    playerPlacedRef.current.add(action.uid); // the player's own play: its landing is `applyDrop`'s, not the arrival watcher's
     dispatch(action);
     const tokens = useGame.getState().run.board.filter((c) => !before.has(c.uid) && c.uid !== action.uid).map((c) => c.uid);
     if (tokens.length === 0) return;

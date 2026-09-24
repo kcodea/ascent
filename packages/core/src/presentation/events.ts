@@ -188,6 +188,9 @@ export interface AuraChangedConsequence extends ConsequenceBase {
   /** Two-axis channels (spell power, imp aura) carry both parts; absent for single-axis auras. */
   attack?: number;
   health?: number;
+  /** `shopBuff` only: the card that raised the run-wide shop channel, when the sim named one (the shop-wide
+   *  effect's card-then-kind binding, `shopBuffAll`). */
+  sourceCardId?: string;
 }
 export interface CounterChangedConsequence extends ConsequenceBase {
   type: 'counterChanged';

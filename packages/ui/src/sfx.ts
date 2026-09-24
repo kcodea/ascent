@@ -372,6 +372,20 @@ let turnChargeNodes: PlayNodes | null = null;
  *  not stacked and not restarted. Cleared on the clip's natural end. */
 /** When the last Undead Aura cue STARTED (performance.now ms) — the overlap guard is a short gap, not exclusivity. */
 let undeadAuraLastAt = -Infinity;
+/** When each SUMMON clip last rang (the general `summon` pop, and each token's own voiceline). A mass summon (a
+ *  rune filling the board, a Discover plus its Shout token, a combat Echo spray) rings each clip ONCE per burst:
+ *  the Undead Aura rule, keyed per clip (owner 2026-09-24: "a mass summon should not stack sounds, so apply the
+ *  same gap idea per clip"). The gap is the spell-cast burst gap (`spellCastSfxGapMs`, 120 ms). */
+const summonClipLastAt = new Map<string, number>();
+export function summonClipAllowed(clip: string): boolean {
+  const now = typeof performance === 'undefined' ? Date.now() : performance.now();
+  const last = summonClipLastAt.get(clip);
+  if (last !== undefined && now - last < getBuffFxConfig().spellCastSfxGapMs) return false;
+  summonClipLastAt.set(clip, now);
+  return true;
+}
+/** Forget the summon clip times (tests). */
+export function resetSummonSfxGate(): void { summonClipLastAt.clear(); }
 /** Fade out + stop the currently-playing turn-charge build (if any) over `ms`. No-op if none is playing. */
 export function stopTurnCharge(ms = 300): void {
   const a = ctx;                    // never CREATE a context just to stop
@@ -531,9 +545,9 @@ export const sfx = {
   // with the summoned token's own cards/<tokenId>.mp3 voiceline if present. Fires on battlecry summons
   // (recruit, from store.ts) and combat summons (deathrattles etc., from useCombatReplay.ts).
   summon: (tokenId?: string) => {
-    if (!playSample('summon', 'summon')) tone({ freq: 300, dur: 0.12, type: 'triangle', vol: 0.1, slideTo: 520, category: 'summon' });
+    if (summonClipAllowed('summon') && !playSample('summon', 'summon')) tone({ freq: 300, dur: 0.12, type: 'triangle', vol: 0.1, slideTo: 520, category: 'summon' });
     // Let the summon cue land first, THEN the summoned token's own voiceline (slight overlap is fine).
-    if (tokenId) playSample(`cards/${tokenId}`, 'cardVoice', SUMMON_VOICE_LEAD);
+    if (tokenId && summonClipAllowed(`cards/${tokenId}`)) playSample(`cards/${tokenId}`, 'cardVoice', SUMMON_VOICE_LEAD);
   },
   // A Discover choice opens — the sourced "discover" clip; synth shimmer until it decodes / if absent.
   discover: () => {

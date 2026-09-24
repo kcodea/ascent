@@ -127,9 +127,9 @@ function recStatBuff(s: string): Rec | null {
   const tp = targetPhrase(s.slice(pos));
   // "improve your Imp Aura BY +2/+2" — the Improve verb takes a "by" between target and amount;
   // "give it an extra +4/+4" / "give it a permanent …" — article fillers.
-  if (tp) pos += tp.len + (/^\s*(?:by |an extra |a permanent |permanent |permanently )?/.exec(s.slice(pos + tp.len))?.[0].length ?? 0);
+  if (tp) pos += tp.len + (/^\s*(?:by |an extra |an additional |a permanent |permanent |permanently )?/.exec(s.slice(pos + tp.len))?.[0].length ?? 0); // + "an additional" (Rune of Lorekeeping, balance 9/23)
   else {
-    const filler = /^(?:this by |by |an extra |permanently |double the )/.exec(s.slice(pos));
+    const filler = /^(?:this by |by |an extra |an additional |permanently |double the )/.exec(s.slice(pos));
     if (filler) pos += filler[0].length;
   }
   const rest = s.slice(pos);
@@ -493,7 +493,7 @@ function recMultiplierPrint(s: string): Rec | null {
 
 /** "It also casts on a random friendly minion" / "also casts on adjacent Dragons" / "also cast on your left-most minion". */
 function recAlsoCast(s: string): Rec | null {
-  const m = /^(?:It |They |Spells and Rubies cast on this |Rubies played on your left-most minion |Spells cast on Shop minions )?also casts?(?: (twice|\d+ times))? on /.exec(s);
+  const m = /^(?:It |They |Spells and Rubies cast on this |Rubies played on your left-most minion |(?:Targeted )?[Ss]pells cast on Shop minions )?also casts?(?: (twice|\d+ times))? on /.exec(s); // + "Targeted spells …" (Rune of Distillation, balance 9/23)
   if (!m) return null;
   const tp = targetPhrase(s.slice(m[0].length));
   if (!tp) return null;
@@ -700,11 +700,13 @@ function recImprove(s: string): Rec | null {
 /** "Repeat every Start of Turn" / "Repeat at Start of Turn" / "Repeats every 3 turns" / "Repeat for every Dragon you
  *  control" / "End of Turn: repeat this" / "recast for every Demon you control". */
 function recRepeat(s: string): Rec | null {
-  const m = /^(?:[Rr]epeats?|recast)(?: this)?(?: (?:every|at) (Start of Turn|end of turn|(\d+) turns)| for (?:every|each) ([^.,;]+))?(?=[.,;]|$)/.exec(s);
+  // + "Repeat next turn" (Rune of Quick Study, balance 9/23): a one-shot repeat at the next turn's setup.
+  const m = /^(?:[Rr]epeats?|recast)(?: this)?(?: (?:every|at) (Start of Turn|end of turn|(\d+) turns)|( next turn)| for (?:every|each) ([^.,;]+))?(?=[.,;]|$)/.exec(s);
   if (!m || m[0].length < 6) return null;
   const eff: Omit<ParsedEffect, 'span'> = { kind: 'repeat', verb: 'repeat' };
   if (m[1]) eff.cadence = { ...(m[2] ? { every: Number(m[2]) } : {}), of: m[1].replace(/^\d+ /, '') };
-  if (m[3]) eff.scaler = { per: m[3], span: { start: 0, end: 0, text: '' } };
+  if (m[3]) eff.cadence = { every: 1, of: 'next turn' };
+  if (m[4]) eff.scaler = { per: m[4], span: { start: 0, end: 0, text: '' } };
   return { effect: eff, len: m[0].length };
 }
 
@@ -792,7 +794,8 @@ function recLimitSentence(s: string): Rec | null {
   // "(Max 2 per hit)" — a payout cap per event (Han Gover, 2026-09-19): the same limit note, unit `per-hit`.
   const cap = /^\(Max (\d+) per (hit|turn|combat)\)\.?$/.exec(s.trim());
   if (cap) return { effect: { kind: 'note', action: 'limit', amount: { value: Number(cap[1]), unit: `per-${cap[2]}` } }, len: s.length };
-  const m = /^\(?(?:Usable )?(Once|Twice|once|twice|\d+ times|\d+ uses)(?: per (turn|combat|game|run))?\)?\.?$/.exec(s.trim());
+  // `\.?\)?\.?` — "(Once per turn.)" keeps its full stop inside the parenthesis (Rune of the Gem Dividend, balance 9/23).
+  const m = /^\(?(?:Usable )?(Once|Twice|once|twice|\d+ times|\d+ uses)(?: per (turn|combat|game|run))?\.?\)?\.?$/.exec(s.trim());
   if (!m) return null;
   return { effect: { kind: 'note', action: 'limit', amount: { value: /^once$/i.test(m[1]!) ? 1 : /^twice$/i.test(m[1]!) ? 2 : Number(/\d+/.exec(m[1]!)![0]), unit: m[2] ? `per-${m[2]}` : 'total' } }, len: s.length };
 }

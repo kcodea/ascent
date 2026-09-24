@@ -67,6 +67,7 @@ import { HeroFxTuner } from './HeroFxTuner';
 import { BuffDrawerTuner } from './BuffDrawerTuner';
 import { ReplayRailTuner } from './ReplayRailTuner';
 import { HeroCeremonyTuner } from './HeroCeremonyTuner';
+import { GoodLuckIntroTuner } from './GoodLuckIntroTuner';
 import { ChargeGlyphTuner } from './ChargeGlyphTuner';
 import { RuneforgeBgTuner } from './RuneforgeBgTuner';
 import { RuneforgeLookTuner } from './RuneforgeLookTuner';
@@ -154,6 +155,7 @@ const GROUPS: Group[] = [
       { key: 'buffdrawer', icon: '🧪', label: 'Buffs Panel', C: BuffDrawerTuner, hint: 'The run-buffs pop-out' },
       { key: 'replayrail', icon: '🎞️', label: 'Replay Rail', C: ReplayRailTuner, hint: 'The replay round rail + metrics dock' },
       { key: 'heroceremony', icon: '🎭', label: 'Hero Ceremony', C: HeroCeremonyTuner, hint: 'The hero-select ceremony timeline — every delay and duration from click to Start Game', alt: 'hero select ceremony timing' },
+      { key: 'goodluckintro', icon: '🍀', label: 'Good Luck intro', C: GoodLuckIntroTuner, hint: 'The game-start intro after Start Game: the dim, the Good Luck words, the sparks and the shine, and how long each lasts. Has a ▶ replay button', alt: 'good luck intro game start dim text sparks shine clock' },
       { key: 'book', icon: '📖', label: 'Compendium Palette', C: BookTuner, hint: 'Colours and scale of the card browser' },
       { key: 'runeforgebg', icon: '🪨', label: 'Runeforge Backdrop', C: RuneforgeBgTuner, hint: 'Size and position of the art behind the forge menus', alt: 'rune forge background' },
       { key: 'runeforgelook', icon: '🔨', label: 'Runeforge Look', C: RuneforgeLookTuner, hint: 'The title plaque, Gold pill, rune tablets, footer buttons and minimize toggle — placement, size, and every colour, including the Epic variant', alt: 'rune forge tablet card kicker cost coin medallion epic' },

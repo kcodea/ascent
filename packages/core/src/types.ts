@@ -1328,6 +1328,19 @@ export type QuestReward =
       grantGoldNextTurn?: number;
       /** The meter is a per-TURN window (no remainder carries across the rollover). */
       resetEachTurn?: boolean;
+      /** Balance 9/23 (rune reworks A): Gold paid NOW when the meter trips (Rune of the Gem Dividend). */
+      grantGold?: number;
+      /** Balance 9/23: IMPROVE the run's Rubies by this much when the meter trips (Rune of Gemspam) — the same
+       *  `rubyBonus` channel "Your Rubies gain +X/+Y" uses, so held and future Rubies grow with it. */
+      improveRuby?: { attack: number; health: number };
+      /** Balance 9/23: hand over ONE of these card ids, chosen at random off the run cursor (Rune of Hoardcalling:
+       *  "a Hoardflame or Dragonflame"). Overflow-safe like every other earned reward. */
+      grantOneOf?: string[];
+      /** Balance 9/23: a random buyable minion of this tribe at or below the shop tier (the Dragon's Pantry). */
+      grantRandomTribe?: Tribe;
+      /** Balance 9/23: CAST these exact spells (untargeted) when the meter trips — Rune of the Spellmarket's Staff
+       *  of Guel. A real `castSpell`, so it emits the same cast beat the Gilded Ledger's rune-cast does. */
+      castCards?: string[];
       oncePerTurn?: boolean }
   /** Rune of the Brokerage: your Ruby Brokers lose their per-turn cap. */
   | { kind: 'runeBrokerage' }
@@ -1376,7 +1389,7 @@ export type QuestReward =
   // `attachClingDrones` (Clinging On): End of Turn — weld a Cling Drone onto up to 3 random friendly Mechs.
   /** `turns` (optional) BOUNDS the recurrence: it fires that many End-of-Turns and then stops, instead of
    *  lasting the run. Absent = forever, which is what every effect but Quick Study wants. */
-  | { kind: 'recurringEndOfTurn'; turns?: number; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' }
+  | { kind: 'recurringEndOfTurn'; turns?: number; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeAncestralRoar' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }
@@ -1444,7 +1457,6 @@ export type QuestReward =
   | { kind: 'runeSharedPour' } // the first Ale each turn casts an extra time
   | { kind: 'runeAftermarket' } // the first sell each turn feeds the current Shop
   | { kind: 'runeSpellhide' } // the turn's first stat spell on a Beast re-casts at Start of Combat
-  | { kind: 'runeSpellmarket' } // …and also feeds the right-most Shop minion
   | { kind: 'runeLastWord' } // selling a Dragon with a Shout triggers it first
   | { kind: 'runeRunicHoard' } // a copied Shop spell gives your Dragons +1/+1
   | { kind: 'runeBanquetHall' } // the turn's first buy hands its stats to 2 random friendly minions (owner 2026-09-23)
@@ -1482,7 +1494,6 @@ export type QuestReward =
   | { kind: 'runeSharedReflection' } // Mirrorwing's first spell each turn also casts on adjacent Dragons
   | { kind: 'runeUnbrokenVein' } // Veinbreaker applies both Choose One options
   | { kind: 'runeLivingGrowth' } // each Growth Mushy creates improves Growth permanently
-  | { kind: 'runeHoardcalling' } // the first Dragon Shout each turn grants a Shop spell
   | { kind: 'runeConduit' } // every Ruby played bounces one extra time
   | { kind: 'runeVault' } // 10 Gold at shop tier 5
   | { kind: 'runeAltar'; goldPer: number } // sell the whole board, +goldPer each
@@ -1592,7 +1603,7 @@ export type QuestReward =
   | { kind: 'minionCost'; cost: number }
   | { kind: 'slaughterRepeat'; scope: 'firstEachCombat' }
   // Twin Sun Oath (Dragon capstone): every Shout you TRIGGER buffs your leftmost + rightmost board minion +atk/+hp.
-  | { kind: 'shoutEdgeBuff'; attack: number; health: number }
+  | { kind: 'shoutEdgeBuff'; attack: number; health: number; /** Balance 9/23 (Rune of the Drake Skull): only the left- and right-most minion OF THIS TRIBE take the buff. */ tribe?: Tribe }
   // Food for Gold (Demon greater): every `per` Gold spent adds a Fodder to your next shop AND bumps the run-wide
   // Fodder aura by +attack/+health.
   | { kind: 'goldFodder'; per: number; attack: number; health: number }
@@ -1748,6 +1759,12 @@ export interface QuestCombatMods {
    *  `playerBeastBuyAtkGain` / `playerBeastBuyHpGain` (+ leftover `progress` via `playerBeastScaleProgress`).
    *  Player-side only (a served enemy has no run to grow); absent when no such quest is armed. */
   beastSummonScale?: { per: number; stepAttack: number; stepHealth: number; progress: number };
+  /** Balance 9/23 (owner: "make sure this and all trackers like this work in combat too and carries count
+   *  through both"): the side's "when you trigger N Shouts" rune meters, carried INTO the fight with their shop
+   *  ticks. Every combat Shout fire (`battlecryTriggered`) advances them; a trip pays through `handGrants`
+   *  (a random Shop spell, never an Ale — `grantSpell`; or one of `grantOneOf`) and the fight reports the final
+   *  ticks back (`CombatCarryBacks.shoutMeters`) so the run's ONE counter continues into the next shop. */
+  shoutMeters?: { sourceId: string; per: number; tick: number; grantSpell?: number; grantOneOf?: string[] }[];
   /** Gorun's Blade Mastery: a friendly attack grants the ATTACKER +3 Attack for the rest of the fight, and the
    *  grant improves by +3 for every 8 attacks made. `attacks` is the run-lifetime count BEFORE this fight, so
    *  the grant keeps stepping up mid-combat as the count rises past each multiple of 8 — the same total the
@@ -2791,6 +2808,12 @@ export interface CombatCarryBacks {
   deathrattles: number;
   /** Rally triggers this side fired, doubler re-fires included — `playerRallies`. */
   rallies?: number;
+  /** Shout (Battlecry) fires this side triggered in combat — one per `battlecryTriggered` emit, so Drakko repeats,
+   *  Ryme / Dawnclaw / Sovereign re-fires and parting cries each count — `playerShoutFires`. */
+  shoutFires?: number;
+  /** The "when you trigger N Shouts" rune meters after this fight (`QuestCombatMods.shoutMeters` advanced by the
+   *  side's Shout fires, payouts already in `handGrants`) — `playerShoutMeters`. Settle writes the ticks back. */
+  shoutMeters?: { sourceId: string; tick: number }[];
   /** Imps this side summoned — `playerImpsSummoned`. */
   impsSummoned?: number;
   /** This side's minions that DIED (raw entity deaths; a Rise re-slot does not count) — `playerDeaths`. */
@@ -2980,6 +3003,10 @@ export interface CombatResult {
   playerPermaBuffs?: { sourceUid: string; attack: number; health: number; engraved: boolean; ruby?: boolean; /** The ledger line the run card should print (Kindled Sprite's own permanent Rally); absent = the legacy Engraved / Flowing Monk label. */ label?: string }[];
   /** Card ids the player's combat deathrattles grant to the hand after combat (Arcane Weaver). */
   playerHandGrants?: string[];
+  /** Balance 9/23: combat Shout fires (see `CombatCarryBacks.shoutFires`) — the cross-phase Shout tally's combat half. */
+  playerShoutFires?: number;
+  /** Balance 9/23: the Shout-tally rune meters' ticks after this fight (see `CombatCarryBacks.shoutMeters`). */
+  playerShoutMeters?: { sourceId: string; tick: number }[];
   /** R-HAND-02: buffs a combat effect gave cards IN THE HAND — applied to the run hand at settle, permanently.
    *  `source` is the combat uid of the granting body (for the inspect label). */
   playerHandBuffs?: { uid: string; attack: number; health: number; source?: string }[];

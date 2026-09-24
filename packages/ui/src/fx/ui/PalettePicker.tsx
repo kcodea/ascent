@@ -28,7 +28,7 @@ export function PalettePicker({ value, onChange, disabled }: { value: Quad; onCh
             <div className="fxwb-pal-gname">{group}</div>
             <div className="fxwb-pal-grid">
               {Object.entries(pals).map(([name, cols]) => (
-                <button key={name} className="fxwb-pal-chip" title={name} onClick={() => { if (!disabled) onChange([...cols] as Quad); }}>
+                <button key={name} className="fxwb-pal-chip" aria-label={name} onClick={() => { if (!disabled) onChange([...cols] as Quad); }}>
                   {cols.map((c, i) => <span key={i} style={{ background: numToHex(c) }} />)}
                 </button>
               ))}

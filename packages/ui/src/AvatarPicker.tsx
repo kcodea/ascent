@@ -44,7 +44,7 @@ export function AvatarPicker() {
           <div className="avatarpick-group">
             <div className="avatarpick-grouplabel">Default</div>
             <div className="avatarpick-grid">
-              <button className={`avatarpick-opt default${!current ? ' active' : ''}`} title="Default (initial)" onClick={() => pick(null)}>
+              <button className={`avatarpick-opt default${!current ? ' active' : ''}`} aria-label="Default (initial)" onClick={() => pick(null)}>
                 <span className="avatarpick-default">—</span>
               </button>
             </div>
@@ -57,7 +57,7 @@ export function AvatarPicker() {
                 <div className="avatarpick-grouplabel">{label}</div>
                 <div className="avatarpick-grid">
                   {rows.map((a) => (
-                    <button key={a.id} className={`avatarpick-opt${current === a.id ? ' active' : ''}`} title={nameOf(a)} onClick={() => pick(a.id)}>
+                    <button key={a.id} className={`avatarpick-opt${current === a.id ? ' active' : ''}`} aria-label={nameOf(a)} onClick={() => pick(a.id)}>
                       <img src={a.src} alt={nameOf(a)} draggable={false} loading="lazy" />
                     </button>
                   ))}

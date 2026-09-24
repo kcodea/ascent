@@ -222,7 +222,6 @@ export function Timeline({
                 className="fxwb-timeline-reorder-grip"
                 role="button"
                 aria-label={`Drag to reorder ${label}`}
-                title="Drag to reorder"
                 onPointerDown={onGripPointerDown(i)}
                 onPointerMove={onGripPointerMove}
                 onPointerUp={endGripDrag}
@@ -231,7 +230,7 @@ export function Timeline({
               <div
                 className={`fxwb-timeline-bar${i === selected ? ' on' : ''}${mutes[i] ? ' muted' : ''}`}
                 style={{ left: `${left * 100}%`, width: `${width * 100}%` }}
-                title={`${label} — starts at ${span.startMs}ms, ${span.full ? 'runs to the end' : `lasts ${l.life}ms`}`}
+                aria-label={`${label} — starts at ${span.startMs}ms, ${span.full ? 'runs to the end' : `lasts ${l.life}ms`}`}
                 onPointerDown={(e) => beginDrag(e, i, 'move')}
                 onPointerMove={onPointerMove}
                 onPointerUp={endDrag}
@@ -245,14 +244,14 @@ export function Timeline({
                   <span
                     className="fxwb-timeline-arrival"
                     style={{ left: `${arrivalFrac * 100}%` }}
-                    title={`Arrives after ${l.travelMs}ms, then holds for the rest of the layer`}
+                    aria-label={`Arrives after ${l.travelMs}ms, then holds for the rest of the layer`}
                   />
                 )}
                 {/* The resize grip. Its own pointerdown (stopped from reaching the bar) is what makes edge
                     vs body two different gestures rather than one ambiguous one. */}
                 <span
                   className="fxwb-timeline-grip"
-                  title="Drag to set how long this layer lasts"
+                  aria-label="Drag to set how long this layer lasts"
                   onPointerDown={(e) => beginDrag(e, i, 'resize')}
                   onPointerMove={onPointerMove}
                   onPointerUp={endDrag}

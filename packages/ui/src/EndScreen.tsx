@@ -285,11 +285,11 @@ export function EndScreen({ won }: { won: boolean }) {
               const label = `Round ${wave}: ${r}${cal ? '. Calibration round, not scored' : ''}${hasBoard ? ' · click to view this round’s board' : ''}`;
               const glyph = r === 'win' ? 'W' : r === 'lose' ? 'L' : 'D';
               return hasBoard ? (
-                <button key={i} type="button" className={`endpip ${r}${cal ? ' cal' : ''} clickable${viewWave === wave ? ' active' : ''}`} title={label} onClick={() => setViewWave(viewWave === wave ? null : wave)}>
+                <button key={i} type="button" className={`endpip ${r}${cal ? ' cal' : ''} clickable${viewWave === wave ? ' active' : ''}`} aria-label={label} onClick={() => setViewWave(viewWave === wave ? null : wave)}>
                   {glyph}
                 </button>
               ) : (
-                <span key={i} className={`endpip ${r}${cal ? ' cal' : ''}`} title={label}>{glyph}</span>
+                <span key={i} className={`endpip ${r}${cal ? ' cal' : ''}`} aria-label={label}>{glyph}</span>
               );
             })}
           </div>

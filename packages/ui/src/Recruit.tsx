@@ -447,7 +447,7 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
   if (!lit && !mounted) return null;
   return (
     <>
-      <div className={`chargeglyph${fading ? ' fading' : ''}`} ref={boxRef} title={`${seconds}s left`} aria-hidden="true">
+      <div className={`chargeglyph${fading ? ' fading' : ''}`} ref={boxRef} aria-label={`${seconds}s left`} aria-hidden="true">
         <div className="masked charge-base" />
         <div className="masked charge-fill" />
         <div className="masked charge-core" ref={coreRef} />
@@ -7301,7 +7301,7 @@ const ShopControls = memo(function ShopControls({
       {/* Skip the combat replay — pinned ABOVE the End Turn / End Combat diamond (owner move 2026-08-11; it was
           a top-centre HUD, and the replay-speed slider moved to the Esc menu's Combat section). */}
       {inCombat && !replayDone && (
-        <button className="combathud-skip" onClick={onSkip} title="Skip the combat replay">
+        <button className="combathud-skip" onClick={onSkip} aria-description="Skip the combat replay">
           <Icon name="sword" /> Skip
         </button>
       )}
@@ -8202,9 +8202,9 @@ const CombatLogOverlay = memo(function CombatLogOverlay({ showLog, result, comba
             {combatOdds && (
               <div
                 className="logodds"
-                title="Estimated from repeated simulations of this matchup. The actual result was one roll of these odds."
+                aria-label="Estimated from repeated simulations of this matchup. The actual result was one roll of these odds."
               >
-                <div className="oddscap">Outcome odds</div>
+                <div className="oddscap gtip" data-tip="Estimated from repeated simulations of this matchup. The actual result was one roll of these odds.">Outcome odds</div>
                 <div className="oddsbar">
                   <span className="ob win" style={{ width: `${combatOdds.win * 100}%` }} />
                   <span className="ob draw" style={{ width: `${combatOdds.draw * 100}%` }} />
@@ -8216,7 +8216,7 @@ const CombatLogOverlay = memo(function CombatLogOverlay({ showLog, result, comba
                   <span className="ol lose">{Math.round(combatOdds.lose * 100)}% loss</span>
                 </div>
                 {combatOdds.lose > 0 && (
-                  <div className="oddsavg" title="Average Health lost across the losing simulations, capped by the round. This is what a typical loss of this matchup costs.">
+                  <div className="oddsavg gtip" aria-description="Average Health lost across the losing simulations, capped by the round. This is what a typical loss of this matchup costs." data-tip="Average Health lost across the losing simulations, capped by the round. This is what a typical loss of this matchup costs.">
                     Avg damage on loss: <b>{Math.round(combatOdds.avgLossDamage * 10) / 10}</b>
                   </div>
                 )}
@@ -8403,7 +8403,7 @@ const DiscoverOverlay = memo(function DiscoverOverlay({ overlaysHeld, run, disco
         <button
           className="disc-toggle"
           onClick={() => setDiscoverMin((m) => !m)}
-          title={discoverMin ? 'Return to your Discover' : 'Inspect your board, then return to choose'}
+          aria-description={discoverMin ? 'Return to your Discover' : 'Inspect your board, then return to choose'}
         >
           {discoverMin
             ? <><Icon name="up" /> Return to Discover · {run.discover.length} options</>
@@ -8470,7 +8470,7 @@ const ScoutOverlay = memo(function ScoutOverlay({ overlaysHeld, scouted, dispatc
           actual stats (green above the printed base; golden treatment for a triple). No pick; the Close button
           sits where the Discover MINIMIZE toggle usually is (`.disc-toggle`, fixed). Reuses the `.discover-ov` chrome. */}
       {!overlaysHeld && scouted && scouted.length > 0 && (
-        <button className="disc-toggle" onClick={() => dispatch({ type: 'closeScout' })} title="Close the scout">
+        <button className="disc-toggle" onClick={() => dispatch({ type: 'closeScout' })} aria-description="Close the scout">
           <Icon name="eye" /> Close
         </button>
       )}
@@ -8514,7 +8514,7 @@ const QuestOverlay = memo(function QuestOverlay({ overlaysHeld, questOffer, ques
         <button
           className="disc-toggle quest-toggle"
           onClick={() => setQuestMin((m) => !m)}
-          title={questMin ? 'Return to the quest offer' : 'Inspect the shop, then return to choose a quest'}
+          aria-description={questMin ? 'Return to the quest offer' : 'Inspect the shop, then return to choose a quest'}
         >
           {questMin
             ? <><Icon name="up" /> Return to Quests · {questOffer.length} options</>
@@ -8605,7 +8605,7 @@ export const RuneforgeOverlay = memo(function RuneforgeOverlay({ overlaysHeld, r
         <button
           className="disc-toggle forge-toggle"
           onClick={() => setForgeMin((m) => !m)}
-          title={forgeMin ? 'Return to the Runeforge' : 'Inspect the board, then return to the forge'}
+          aria-description={forgeMin ? 'Return to the Runeforge' : 'Inspect the board, then return to the forge'}
         >
           {forgeMin
             ? <><Icon name="up" /> Return to the {run.runeforgeEpic ? 'Epic Runeforge' : 'Runeforge'} · {run.runeforgeOffer.length} runes</>
@@ -8639,7 +8639,7 @@ export const RuneforgeOverlay = memo(function RuneforgeOverlay({ overlaysHeld, r
             <div className="disc-banner forge-banner"><span className="disp">{run.runeforgeEpic ? 'Epic Runeforge' : 'Runeforge'}</span></div>
             {/* The player's CURRENT Gold — the runes charge Gold, so the panel must say what's in the purse
                 (owner ask 2026-07-16). Re-renders with every buy/re-roll (run.embers). */}
-            <div className="forge-gold" title="Your Gold right now"><Icon name="mana" /><b>{run.embers}</b> Gold</div>
+            <div className="forge-gold" aria-description="Your Gold right now"><Icon name="mana" /><b>{run.embers}</b> Gold</div>
             <div className="disc-cards forge-cards">
               {run.runeforgeOffer.map((id, i) => {
                 const rune = RUNE_INDEX[id];
@@ -8672,12 +8672,13 @@ export const RuneforgeOverlay = memo(function RuneforgeOverlay({ overlaysHeld, r
                 const spent = !!run.runeforgeRerolled || !!run.runeforgeRerollUsed;
                 return (
                   <button
-                    className={`forge-reroll${spent ? ' forge-reroll-spent' : ''}`}
+                    className={`forge-reroll gtip${spent ? ' forge-reroll-spent' : ''}`}
                     onClick={() => dispatch({ type: 'rerollRuneforge' })}
                     disabled={spent}
                     aria-hidden={spent || undefined}
                     tabIndex={spent ? -1 : undefined}
-                    title={spent ? undefined : "Re-roll the offered Runes for free, once per game. Spending it here forfeits the other forge's re-roll."}
+                    aria-description={spent ? undefined : "Re-roll the offered Runes for free, once per game. Spending it here forfeits the other forge's re-roll."}
+                    data-tip={spent ? undefined : "Re-roll the offered Runes for free, once per game. Spending it here forfeits the other forge's re-roll."}
                   >
                     <Icon name="refresh" /> Re-roll · <b className="forge-reroll-cost">Free</b>
                   </button>

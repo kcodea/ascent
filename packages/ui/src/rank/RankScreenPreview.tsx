@@ -66,7 +66,7 @@ export function RankScreenPreview(): JSX.Element {
                   key={f.id}
                   type="button"
                   className={`sfxmix-copy rankpreview-btn${fixture?.id === f.id ? ' on' : ''}`}
-                  title={`${f.expect}${ms ? ` · ~${(ms / 1000).toFixed(1)} s` : ''}`}
+                  aria-label={`${f.expect}${ms ? ` · ~${(ms / 1000).toFixed(1)} s` : ''}`}
                   onClick={() => open(f)}
                 >
                   <span className="rankpreview-btn-l">{f.label}</span>
@@ -76,13 +76,13 @@ export function RankScreenPreview(): JSX.Element {
             })}
           </div>
           <div className="lunge-btns">
-            <button type="button" className="sfxmix-copy" onClick={() => open(RANK_FIXTURES[0]!, true)} title="Mount as pending, then confirm the gain result after 1.5 s — the arrival path">
+            <button type="button" className="sfxmix-copy" onClick={() => open(RANK_FIXTURES[0]!, true)} aria-description="Mount as pending, then confirm the gain result after 1.5 s — the arrival path">
               Pending → confirmed
             </button>
-            <button type="button" className="sfxmix-copy" onClick={() => fixture && open(fixture, arrival)} disabled={!fixture} title="Play the open fixture again from the top">
+            <button type="button" className="sfxmix-copy" onClick={() => fixture && open(fixture, arrival)} disabled={!fixture} aria-description="Play the open fixture again from the top">
               Replay
             </button>
-            <button type="button" className="sfxmix-copy" onClick={close} disabled={!fixture} title="Hard-close the overlay. CONTINUE on the screen itself plays the real cross-fade exit.">Close screen</button>
+            <button type="button" className="sfxmix-copy" onClick={close} disabled={!fixture} aria-description="Hard-close the overlay. CONTINUE on the screen itself plays the real cross-fade exit.">Close screen</button>
           </div>
           <div className="lunge-btns rankpreview-cues">
             <button type="button" className="sfxmix-copy" onClick={() => sfx.rankProgress()}>♪ progress</button>

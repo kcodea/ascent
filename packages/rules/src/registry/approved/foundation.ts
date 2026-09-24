@@ -770,4 +770,40 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-23',
     },
   },
+  {
+    id: 'R-PRESENT-11',
+    title: 'The Discover overlay sits over the live board, and nothing shows a native browser tooltip',
+    statement:
+      'While a Discover (or any overlay on the shared `.discover-ov` chrome: Choose One, quest and hero-power offers, '
+      + 'the scout reveal, commissions) is open, the player sees their REAL game behind the choices: the shop row, the '
+      + 'warband, the hero, the hand and the lobby rail, dimmed by a translucent scrim. No opaque stand-in image of an '
+      + 'empty board may replace it, and no per-frame blur may run over the live board (perf). No rendered element '
+      + 'carries a native `title` tooltip (a `title` attribute on a DOM element, an SVG `<title>` child, or an '
+      + 'imperative `el.title` / `setAttribute(\x27title\x27)`); screen readers get `aria-label` / `aria-description`, and '
+      + 'hover text the player needs uses the game\x27s own bubble (`.gtip[data-tip]`).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner report with screenshots, 2026-09-24 (Discover backdrop)',
+        quote: 'why does the discover not have the actual live board',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner report with screenshots, 2026-09-24 (native tooltips)',
+        quote: 'also remove the window tooltips on these buttons (and every button they break immersion so badly)',
+      },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (`.discover-ov`, `.gtip[data-tip]`); eslint.config.mjs (`banTitleTooltips`); packages/ui/src/useDraggablePanel.ts' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-24. Verified live on port 5279: with a Discover open the shop minions, warband, hero '
+      + 'portrait, Health pill and lobby rail all show through the scrim; `document.querySelectorAll(\x27[title]\x27)` is 0 '
+      + 'on the title screen, the shop, an open and a minimized Discover, the Esc menu, Career and the Ladder page.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/discoverBackdropNoTitle.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
 ];

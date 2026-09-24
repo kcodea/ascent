@@ -195,7 +195,7 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
       {(spec.toggles ?? []).length > 0 && (
         <div className="tuner-previews">
           {(spec.toggles ?? []).map((t) => (
-            <label className="tuner-preview" key={t.id} title={t.hint}>
+            <label className="tuner-preview" key={t.id} aria-label={t.hint}>
               <input
                 type="checkbox"
                 checked={!!previewOn[t.id]}
@@ -225,7 +225,6 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
             <button
               className="tuner-foldall"
               onClick={foldAll}
-              title={allFolded ? 'Open every section' : 'Fold every section away'}
               aria-label={allFolded ? 'Expand all sections' : 'Collapse all sections'}
             >{allFolded ? '⌄' : '⌃'}</button>
           )}
@@ -234,7 +233,7 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
               className={`tuner-cmp${comparing ? ' on' : ''}`}
               disabled={!comparing && changedFromShipped.length === 0}
               aria-pressed={comparing}
-              title={
+              aria-label={
                 changedFromShipped.length === 0 && !comparing
                   ? 'Nothing is changed from the shipped values yet'
                   : 'Hold to see the shipped values, release for yours. Tap to keep it on — the FX panels need that, '
@@ -272,7 +271,7 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
               className={`tuner-gh tuner-gh-btn${open ? '' : ' folded'}`}
               onClick={() => toggleFold(groupTitle)}
               aria-expanded={open}
-              title={open ? `Fold “${groupTitle}” away` : `Open “${groupTitle}”`}
+              aria-label={open ? `Fold “${groupTitle}” away` : `Open “${groupTitle}”`}
             >
               <span className="tuner-caret" aria-hidden="true">{open ? '▾' : '▸'}</span>
               {groupTitle}
@@ -289,14 +288,13 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
               const modTxt = shippedTxt !== undefined && current !== shippedTxt;
               return (
                 <div className={`sfxmix-row tuner-row tuner-row-text${modTxt ? ' tuner-row-mod' : ''}`} key={c.key}>
-                  <span className="sfxmix-name" title={c.hint}>
+                  <span className="sfxmix-name" aria-label={c.hint}>
                     {c.label}
-                    {c.note && <span className="tuner-note" title={c.note} aria-label={c.note}>†</span>}
+                    {c.note && <span className="tuner-note" aria-label={c.note}>†</span>}
                     {modTxt && shippedTxt !== undefined && (
                       <button
                         className="tuner-mod"
                         onClick={() => spec.writeColor?.(c.key, shippedTxt)}
-                        title="Changed from the shipped value — click to put it back"
                         aria-label={`Revert ${c.label}`}
                       >●</button>
                     )}
@@ -324,13 +322,12 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
                     shippedSel !== undefined && current !== shippedSel ? ' tuner-row-mod' : ''}`}
                   key={c.key}
                 >
-                  <span className="sfxmix-name" title={c.hint}>
+                  <span className="sfxmix-name" aria-label={c.hint}>
                     {c.label}
                     {shippedSel !== undefined && current !== shippedSel && (
                       <button
                         className="tuner-mod"
                         onClick={() => { spec.writeColor?.(c.key, shippedSel); rerender(); }}
-                        title={`Changed from the shipped “${shippedSel}” — click to put it back`}
                         aria-label={`Revert ${c.label} to ${shippedSel}`}
                       >●</button>
                     )}
@@ -356,13 +353,12 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
                     shippedHex !== undefined && hex !== shippedHex ? ' tuner-row-mod' : ''}`}
                   key={c.key}
                 >
-                  <span className="sfxmix-name" title={c.hint}>
+                  <span className="sfxmix-name" aria-label={c.hint}>
                     {c.label}
                     {shippedHex !== undefined && hex !== shippedHex && (
                       <button
                         className="tuner-mod"
                         onClick={() => { spec.writeColor?.(c.key, shippedHex); rerender(); }}
-                        title={`Changed from the shipped ${shippedHex} — click to put it back`}
                         aria-label={`Revert ${c.label} to ${shippedHex}`}
                       >●</button>
                     )}
@@ -387,14 +383,13 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
               const isOn = value >= on;
               return (
                 <div className={`sfxmix-row tuner-row tuner-row-toggle${modified ? ' tuner-row-mod' : ''}`} key={c.key}>
-                  <span className="sfxmix-name" title={c.hint}>
+                  <span className="sfxmix-name" aria-label={c.hint}>
                     {c.label}
-                    {c.note && <span className="tuner-note" title={c.note} aria-label={c.note}>†</span>}
+                    {c.note && <span className="tuner-note" aria-label={c.note}>†</span>}
                     {modified && shipped !== undefined && (
                       <button
                         className="tuner-mod"
                         onClick={() => set(c.key, shipped)}
-                        title={`Changed from the shipped value — click to put it back`}
                         aria-label={`Revert ${c.label}`}
                       >●</button>
                     )}
@@ -416,12 +411,12 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
               // A modified row carries the flag itself, so "what have I changed?" is a scan down the left
               // edge rather than a hunt for dots.
               <div className={`sfxmix-row tuner-row${modified ? ' tuner-row-mod' : ''}`} key={c.key}>
-                <span className="sfxmix-name" title={c.hint}>
+                <span className="sfxmix-name" aria-label={c.hint}>
                   {c.label}
                   {/* A per-control caveat sits ON the control it applies to, rather than as a blanket line at
                       the foot of the panel that never says which controls it means. */}
                   {c.note && (
-                    <span className="tuner-note" title={c.note} aria-label={c.note}>†</span>
+                    <span className="tuner-note" aria-label={c.note}>†</span>
                   )}
                   {/* The mark is also the revert control: one click puts this control back to its shipped
                       value without disturbing anything else you have dialled. */}
@@ -429,7 +424,6 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
                     <button
                       className="tuner-mod"
                       onClick={() => set(c.key, shipped)}
-                      title={`Changed from the shipped ${formatValue(shipped, c.unit)} — click to put it back`}
                       aria-label={`Revert ${c.label} to ${formatValue(shipped, c.unit)}`}
                     >
                       ●
@@ -484,7 +478,7 @@ export function TunerPanel<C extends object>({ spec }: { spec: TunerSpec<C> }): 
         <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : (spec.copyLabel ?? 'Copy values')}</button>
         <button className="sfxmix-copy" onClick={resetAll}>Reset</button>
         {spec.actions?.map((a) => (
-          <button className="sfxmix-copy" key={a.label} onClick={() => a.run(panelElRef.current)} title={a.hint}>{a.label}</button>
+          <button className="sfxmix-copy" key={a.label} onClick={() => a.run(panelElRef.current)} aria-label={a.hint}>{a.label}</button>
         ))}
       </div>
     </div>

@@ -46,7 +46,7 @@ const click = (el: Element | null | undefined): void => {
 };
 /** Let the panel's `queueMicrotask` refill and React's follow-up render settle. */
 const settle = async (): Promise<void> => { await act(async () => { await Promise.resolve(); await Promise.resolve(); }); };
-const byTitle = (root: ParentNode, title: string): HTMLButtonElement | null => root.querySelector<HTMLButtonElement>(`button[title="${title}"]`);
+const byTitle = (root: ParentNode, title: string): HTMLButtonElement | null => root.querySelector<HTMLButtonElement>(`button[aria-description="${title}"]`);
 
 beforeEach(() => {
   localStorage.clear();

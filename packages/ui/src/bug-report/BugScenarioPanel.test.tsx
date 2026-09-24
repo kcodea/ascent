@@ -112,10 +112,10 @@ describe('BugScenarioPanel', () => {
     expect(sections.length).toBeGreaterThanOrEqual(2);
     const rows = [...sections[1]!.querySelectorAll('.bsc-event')];
     expect(rows).toHaveLength(2); // one row per combat event, adapted — not the narration lines
-    expect(rows[0]!.getAttribute('title')).toBe('combat:r-panel-test:0');
+    expect(rows[0]!.getAttribute('aria-label')).toBe('combat:r-panel-test:0');
     expect(rows[0]!.textContent).toContain('attack');
     expect(rows[0]!.textContent).toContain('p0');
-    expect(rows[1]!.getAttribute('title')).toBe('combat:r-panel-test:1');
+    expect(rows[1]!.getAttribute('aria-label')).toBe('combat:r-panel-test:1');
     expect(rows[1]!.textContent).toContain('death');
   });
 

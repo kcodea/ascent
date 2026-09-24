@@ -51,6 +51,15 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Discover now shows your real board behind the choices, and the plain browser tooltips are gone.',
+      },
+    ],
+  },
+  {
     date: '2026-09-23',
     label: 'Balance 9/23: minion reworks',
     changes: [

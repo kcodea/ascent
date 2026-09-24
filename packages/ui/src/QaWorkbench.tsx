@@ -260,7 +260,7 @@ export function QaWorkbench({ onClose }: { onClose: () => void }): JSX.Element {
 
       <div style={tabBar}>
         {TABS.map((t) => (
-          <button key={t.id} onClick={() => setTab(t.id)} title={t.note}
+          <button key={t.id} onClick={() => setTab(t.id)} aria-label={t.note}
             style={{ ...btn(tab === t.id ? '#3d4a6b' : '#2a2e40'), fontSize: 13 }} data-tab={t.id}>
             {t.label}
           </button>

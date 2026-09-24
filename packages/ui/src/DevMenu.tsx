@@ -416,7 +416,6 @@ export function DevMenu() {
           ? `Dev tuning menu, ${shown.size} panel${shown.size === 1 ? '' : 's'} open`
           : 'Dev tuning menu'}
         aria-expanded={open}
-        title={shown.size ? `Dev tuning menu — ${shown.size} panel${shown.size === 1 ? '' : 's'} open` : 'Dev tuning menu'}
       >
         <span aria-hidden>🛠️</span>
         {shown.size > 0 && <span className="devmenu-count" aria-hidden>{shown.size}</span>}
@@ -433,7 +432,7 @@ export function DevMenu() {
               spellCheck={false}
             />
             {shown.size > 0 && (
-              <button className="devmenu-closeall" onClick={() => setShown(new Set())} title="Close every open tuner panel">
+              <button className="devmenu-closeall" onClick={() => setShown(new Set())} aria-description="Close every open tuner panel">
                 Close all ({shown.size})
               </button>
             )}
@@ -447,7 +446,7 @@ export function DevMenu() {
                   className={`devmenu-item action pinned${cursor === 0 ? ' cursor' : ''}${pinnedAction.live?.() ? ' on' : ''}`}
                   onPointerEnter={() => setCursor(0)}
                   onClick={pinnedAction.run}
-                  title={pinnedAction.hint}
+                  aria-label={pinnedAction.hint}
                 >
                   <span className="devmenu-ic" aria-hidden>{pinnedAction.icon}</span>
                   <span className="devmenu-lb">{pinnedAction.label}</span>
@@ -467,7 +466,7 @@ export function DevMenu() {
                       className={`devmenu-item${shown.has(t.key) ? ' on' : ''}${i === cursor ? ' cursor' : ''}`}
                       onPointerEnter={() => setCursor(i)}
                       onClick={() => toggle(t.key)}
-                      title={t.hint}
+                      aria-label={t.hint}
                       aria-pressed={shown.has(t.key)}
                     >
                       <span className="devmenu-ic" aria-hidden>{t.icon}</span>
@@ -491,7 +490,7 @@ export function DevMenu() {
                       className={`devmenu-item action${i === cursor ? ' cursor' : ''}${a.live?.() ? ' on' : ''}`}
                       onPointerEnter={() => setCursor(i)}
                       onClick={a.run}
-                      title={a.hint}
+                      aria-label={a.hint}
                     >
                       <span className="devmenu-ic" aria-hidden>{a.icon}</span>
                       <span className="devmenu-lb">{a.label}</span>
@@ -550,7 +549,7 @@ function BeatDraftBanner(): React.ReactElement | null {
   return (
     <button
       onClick={() => setLive(false)}
-      title="Uncommitted Beat Lab draft is pacing End of Turn. Click to disable."
+      aria-description="Uncommitted Beat Lab draft is pacing End of Turn. Click to disable."
       style={{
         position: 'fixed', top: 8, left: '50%', transform: 'translateX(-50%)', zIndex: 100001,
         background: 'rgba(224,179,77,0.92)', color: '#1a1408', border: '1px solid #8a6d1f', borderRadius: 6,

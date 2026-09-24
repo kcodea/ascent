@@ -32,7 +32,7 @@ export const HudBar = memo(function HudBar() {
           {/* The most Health a loss this wave can cost — the round damage cap (see lossDamageCap). Hidden in
               Practice, where Health is unlimited and losses deal no damage. */}
           {!practice && (
-            <span className="maxdmg" title="Most Health you can lose if you lose this combat">
+            <span className="maxdmg gtip" aria-label="Most Health you can lose if you lose this combat" data-tip="Most Health you can lose if you lose this combat">
               <Icon name="heart" />{Number.isFinite(lossDamageCap(run.wave)) ? `Max −${lossDamageCap(run.wave)}` : 'No cap'}
             </span>
           )}
@@ -54,7 +54,7 @@ export const HudBar = memo(function HudBar() {
                 <span
                   key={round}
                   className={`rd rd-${state}${calib ? ' rd-calib' : ''}${round === CONFIG.calibrationRounds ? ' rd-edge' : ''}`}
-                  title={`Round ${round}${calib ? ' · Setup' : ''}: ${label}`}
+                  aria-label={`Round ${round}${calib ? ' · Setup' : ''}: ${label}`}
                 >
                   {state === 'win' ? '✓' : state === 'lose' ? '✕' : ''}
                 </span>
@@ -63,13 +63,13 @@ export const HudBar = memo(function HudBar() {
           </span>
         )}
         {calibration ? (
-          <span className="lbl calib" title="Setup rounds (1–2) don't count toward your record">Setup</span>
+          <span className="lbl calib" aria-description="Setup rounds (1–2) don't count toward your record">Setup</span>
         ) : (
-          <span className="lbl record" title="Your record over the scored rounds (calibration rounds 1–2 don't count)">
+          <span className="lbl record" aria-label="Your record over the scored rounds (calibration rounds 1–2 don't count)">
             <Icon name="crown" />{recordText(record)}
           </span>
         )}
-        <span className="lbl line" title={`Your Oath for this run. Fulfill it with ${run.line} wins.`}>Oath {run.line}</span>
+        <span className="lbl line" aria-description={`Your Oath for this run. Fulfill it with ${run.line} wins.`}>Oath {run.line}</span>
       </div>
       )}
       {/* Run-buffs window — floats top-left just under the round plaque. Absolutely positioned (NOT an in-flow

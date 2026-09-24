@@ -110,7 +110,6 @@ export function useDraggablePanel(key: string): {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'devpanel-close';
-      btn.title = 'Close panel';
       btn.setAttribute('aria-label', 'Close panel');
       btn.textContent = '✕';
       btn.addEventListener('pointerdown', (ev) => ev.stopPropagation()); // don't start a header drag

@@ -167,7 +167,7 @@ function GlyphPreview(): JSX.Element {
   return (
     <div className="tuner-previews tuner-harness">
       <div className="sfxmix-row tuner-row">
-        <span className="sfxmix-name" title="Holds the glyph on screen at this fill, so the look can be judged at any point in the charge.">
+        <span className="sfxmix-name" aria-description="Holds the glyph on screen at this fill, so the look can be judged at any point in the charge.">
           Hold charge at
         </span>
         <input
@@ -178,7 +178,7 @@ function GlyphPreview(): JSX.Element {
         <span className="sfxmix-val tuner-unit">{Math.round(scrub * 100)}%</span>
       </div>
       <div className="lunge-btns">
-        <button className="sfxmix-copy" onClick={play} title="Runs the real twenty-second fill once.">▶ Play 20s</button>
+        <button className="sfxmix-copy" onClick={play} aria-description="Runs the real twenty-second fill once.">▶ Play 20s</button>
         <button className="sfxmix-copy" onClick={() => { stopPlay(); setShowing((s) => !s); }}>
           {showing ? 'Release to turn clock' : 'Force on screen'}
         </button>

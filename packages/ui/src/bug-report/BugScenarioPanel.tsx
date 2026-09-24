@@ -81,7 +81,7 @@ function BugScenarioPanelInner() {
     <div className={`sfxmix lunge bugscenario${collapsed ? ' collapsed' : ''}`} ref={panelRef} style={panelStyle}>
       <div className="sfxmix-h drag sb-head" onPointerDown={headerPointerDown}>
         <span>🐞 Bug report</span>
-        <button className="sb-collapse" onPointerDown={(e) => e.stopPropagation()} onClick={() => setCollapsed((c) => !c)} title={collapsed ? 'Expand' : 'Collapse'}>{collapsed ? '▸' : '▾'}</button>
+        <button className="sb-collapse" onPointerDown={(e) => e.stopPropagation()} onClick={() => setCollapsed((c) => !c)} aria-label={collapsed ? 'Expand' : 'Collapse'}>{collapsed ? '▸' : '▾'}</button>
       </div>
 
       {!collapsed && (
@@ -97,7 +97,7 @@ function BugScenarioPanelInner() {
 
           <div className="sb-sec">
             <div className="sb-label">Report</div>
-            <div className="sb-mini bsc-id" title={scenario.reportId}>{scenario.reportId}</div>
+            <div className="sb-mini bsc-id" aria-label={scenario.reportId}>{scenario.reportId}</div>
             <div className="sb-row bsc-badges">
               <span className="bsc-badge">{issueLabel}</span>
               <span className="bsc-badge">{capsule.phase === 'combat' ? 'COMBAT' : 'SHOP'} · wave {capsule.wave}</span>
@@ -125,7 +125,7 @@ function BugScenarioPanelInner() {
             {capsule.combat ? (
               <div className="sb-results bsc-events">
                 {eventLines.map((l) => (
-                  <div key={l.index} className="bsc-event" title={`event #${l.index}`}>
+                  <div key={l.index} className="bsc-event" aria-label={`event #${l.index}`}>
                     <span className="bsc-etype">{l.type}</span>
                     <span className="bsc-etext">{l.text}</span>
                   </div>
@@ -140,16 +140,16 @@ function BugScenarioPanelInner() {
             <div className="sb-sec">
               <div className="sb-label">
                 Semantic trace <span className="sb-count">{trace.length}</span>{' '}
-                <button className="sb-collapse" onClick={() => setTraceStep((i) => Math.max(0, i - 1))} title="Previous event">◂</button>
+                <button className="sb-collapse" onClick={() => setTraceStep((i) => Math.max(0, i - 1))} aria-label="Previous event">◂</button>
                 <span className="sb-mini"> {Math.min(traceStep, trace.length - 1) + 1}/{trace.length} </span>
-                <button className="sb-collapse" onClick={() => setTraceStep((i) => Math.min(trace.length - 1, i + 1))} title="Next event">▸</button>
+                <button className="sb-collapse" onClick={() => setTraceStep((i) => Math.min(trace.length - 1, i + 1))} aria-label="Next event">▸</button>
               </div>
               <div className="sb-results bsc-events">
                 {trace.map((e, i) => (
                   <div
                     key={e.eventId}
                     className="bsc-event"
-                    title={e.eventId}
+                    aria-label={e.eventId}
                     style={i === Math.min(traceStep, trace.length - 1) ? { outline: '1px solid currentColor' } : undefined}
                   >
                     <span className="bsc-etype">{e.seq}</span>
@@ -166,7 +166,7 @@ function BugScenarioPanelInner() {
                 Action window <span className="sb-count">{capsule.recentActions.length}</span>{' '}
                 <button
                   className="sb-collapse"
-                  title="Replay the recorded window through the real reducer and verify every rail"
+                  aria-description="Replay the recorded window through the real reducer and verify every rail"
                   onClick={() => setVerify(exactWindowReplay(capsule))}
                 >
                   ⟳ verify
@@ -180,7 +180,7 @@ function BugScenarioPanelInner() {
                     <div
                       key={abs}
                       className="bsc-event"
-                      title={`action #${abs} · rng ${w.rngCursorBefore ?? '?'} · after ${w.stateHashAfter ?? '?'}`}
+                      aria-label={`action #${abs} · rng ${w.rngCursorBefore ?? '?'} · after ${w.stateHashAfter ?? '?'}`}
                       style={diverged ? { outline: '1px solid #d66', fontWeight: 600 } : undefined}
                     >
                       <span className="bsc-etype">{abs}</span>

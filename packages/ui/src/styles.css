@@ -2573,20 +2573,19 @@ img.tierbadge.tierstars,
 /* Discover overlay (triple reward) */
 /* z160: discover / choose-one must sit above ALL effects — the FX overlay (.pixifx z110), a freshly-placed
    card's z111 lift, and the Fodder swirl (z120) — so a unit that triggers Discover can't cover its own menu. */
-/* Dim, NOT `backdrop-filter` blur (perf): `backdrop-filter: blur` is a full-viewport GPU pass sampling the
-   whole framebuffer EVERY composited frame — a heavy cost on the Discover-open frame, worst at the exe's
-   native fullscreen res (owner report: "discovers are a big one"). The blur+darkening the owner asked to
-   match from the hero-select screen (2026-08-31) is therefore reproduced the way HERO SELECT itself does it
-   (`.heroselect::before`): a STATIC layer — the board art under the same dark gradient, blurred ONCE at
-   paint — not a live backdrop pass. Same recipe, same values, no per-frame cost. */
-.discover-ov { position: fixed; inset: 0; background: rgba(30, 20, 8, 0.74); display: grid; place-items: center; z-index: 160; animation: fadein 0.2s ease; }
-.discover-ov::before { content: ''; position: absolute; inset: -60px; z-index: -1; pointer-events: none;
-  background: linear-gradient(rgba(22, 15, 9, 0.62), rgba(22, 15, 9, 0.7)), var(--board) center / cover no-repeat, var(--bg);
-  filter: blur(16px); }
-/* NOT on the Runeforge: the forge rides the same `.discover-ov` chrome but paints its own illustrated
-   backdrop on the element background, and a ::before out-paints an element's background — the frosted layer
-   was covering the forge art (owner report 2026-09-01). */
-.discover-ov.forge-ov::before { content: none; }
+/* THE LIVE BOARD SHOWS THROUGH (owner 2026-09-24: "why does the discover not have the actual live board").
+   The 2026-08-31 recipe (#1344) painted a `::before` of the STATIC board art (`var(--board)`) blurred at paint:
+   an OPAQUE full-viewport layer, so the player saw an empty table (frame + felt, no shop row, warband, hero,
+   hand or lobby rail) behind the choices instead of their own game. The overlay now paints only a translucent
+   scrim over the real, untouched board (`body.modalup` below already sorts the hero panel + rail under it).
+   NO BLUR, on purpose (perf, measured 2026-09-24, see that day's devlog): a blur over the LIVE board has to be
+   recomputed every frame something under it moves, and things do (the End Turn / Refresh / Tavern sheens, the
+   charge pulse, the lobby foe pulse, the FX canvases). On a GPU that is invisible; on software raster (the
+   stand-in for a weak integrated GPU) a 5px `backdrop-filter` produced 2.5-7 s frames with a Discover open,
+   while this plain scrim measured the same as the old static layer. Do not add `backdrop-filter` or a
+   `filter` on the board back here without re-measuring. The fade-in is opacity only (compositor). */
+.discover-ov { position: fixed; inset: 0; background: rgba(22, 15, 9, 0.72); display: grid; place-items: center; z-index: 160; animation: fadein 0.2s ease; }
+
 /* While a Discover / quest / Runeforge overlay covers the board, the hero panel + power diamond + quest badges
    are parked — they are behind the modal now (see the stacking-context fix below) and must not take clicks.
    The hand-rolled dim they used to carry here (`filter: brightness(0.5) saturate(0.85)`) is GONE as of the
@@ -10895,6 +10894,34 @@ body.fxlib-previewing .pixifx-above { z-index: 1150 !important; }
 .pntoggle-btn:hover { color: var(--ink2); }
 .pntoggle-btn.on { color: var(--bg); background: var(--acc); }
 @media (max-width: 620px) { .pnbar { flex-wrap: wrap; } }
+
+/* ── IN-GAME HOVER BUBBLE (`.gtip[data-tip]`, owner ask 2026-09-24: "remove the window tooltips on these buttons
+   (and every button)"). Native `title=` tooltips are banned (ESLint `no-restricted-syntax`, see CLAUDE.md); a hover
+   whose text the player actually needs opts into this bubble with `className="… gtip" data-tip="…"`. Opens ABOVE
+   its element (most in-game surfaces sit low on the screen); `.gtip-down` flips it below. `:where()` keeps the
+   `position: relative` at zero specificity so an element that is already absolute (the henchman chip, the rune
+   cost gem) keeps its own positioning. Compositor-only (opacity/transform), one-shot on hover, never looping. ── */
+:where(.gtip[data-tip]) { position: relative; }
+.gtip[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute; left: 50%; bottom: calc(100% + 9px); transform: translateX(-50%) translateY(4px);
+  width: max-content; max-width: 280px; white-space: normal; text-align: center;
+  font-family: var(--font-ui); font-weight: 700; font-size: 12px; line-height: 1.35; letter-spacing: 0.02em; text-transform: none;
+  color: var(--ink); background: color-mix(in srgb, var(--bg2) 92%, #000); border: 1.5px solid var(--line);
+  padding: 6px 11px; border-radius: 10px; box-shadow: 0 10px 26px -10px rgba(0, 0, 0, 0.7);
+  opacity: 0; pointer-events: none; z-index: 600;
+  transition: opacity 0.12s ease, transform 0.12s ease; transition-delay: 0s;
+}
+.gtip.gtip-down[data-tip]::after { bottom: auto; top: calc(100% + 9px); transform: translateX(-50%) translateY(-4px); }
+.gtip[data-tip]:hover::after, .gtip[data-tip]:focus-visible::after { opacity: 1; transform: translateX(-50%) translateY(0); transition-delay: 0.25s; }
+/* `.gtip-end`: anchored to the element's RIGHT edge (opening leftward) for chips pinned to the right of the screen
+   (the lobby rail's max-loss chip), where a centred bubble would run off the edge. */
+.gtip.gtip-end[data-tip]::after { left: auto; right: 0; transform: translateY(4px); }
+.gtip.gtip-end.gtip-down[data-tip]::after { transform: translateY(-4px); }
+.gtip.gtip-end[data-tip]:hover::after, .gtip.gtip-end[data-tip]:focus-visible::after { transform: translateY(0); }
+/* The lobby rail clips its overflow (it scrolls), so a bubble inside it must fit its ~125px left of the chip. */
+.lobbyrail .gtip[data-tip]::after { max-width: 118px; font-size: 11px; padding: 5px 8px; }
+@media (prefers-reduced-motion: reduce) { .gtip[data-tip]::after { transition: none; } }
 
 /* ── TITLE-SCREEN TOOLTIPS (owner ask 2026-08-24) — a styled bubble in the game's own language, replacing the
    native `title=` OS tooltip on the menu buttons. Driven by `data-tip` (set in Title.tsx); scoped to `.titlescreen` and EXCLUDING `.menubtn` — the big

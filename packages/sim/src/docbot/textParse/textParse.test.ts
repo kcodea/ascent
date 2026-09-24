@@ -98,7 +98,10 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // its own full stop ("(Once per combat.)", "(Max 5 per combat.)") as ONE sentence instead of stranding a ")", and
 // "with (double) this minion's Rubies" (the new Gemheart Golem wording) is a tolerated tail; Maestro Lux, Han
 // Gover, Kurse, Carver and Porkbelly parse fully, and two older ".)" texts stop stranding a ")". Nothing regressed.
-const UNRESOLVED_CAP = 88;
+// 2026-09-24 (kobold/dwarf batch): 88 → 89, CONSCIOUSLY — Goldilox's "Gains 2x while in hand." is a new
+// location-multiplier clause the grammar has no rule for yet (its "When you cast a Shop spell, gain +3/+2" half
+// parses). Gemsmith and Double Dealer left via the archive; Striker's new repeat text parses fully.
+const UNRESOLVED_CAP = 89;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

@@ -235,6 +235,8 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   // Growth's and Waking Rift's own cast effects (owner 2026-09-24) — one board-wide play per cast, every phase (fx/spellCastFx.ts).
   growth: { spellCast: { def: 'growth-effect' } },
   sparkplug: { spellCast: { def: 'waking-rift-fx' } }, // Waking Rift (id kept from Spark Plug), same one-play binding
+  // Great Pot's own cast effect (owner def 2026-09-24): a per-buff travelling row like the Ales (cursor / travel / target).
+  greatpot: { spellCast: { def: 'greatpot', fanOut: 'buffed' } },
   sp_dragonflame: { spellCast: { def: 'dragonflame', fanOut: 'buffedOn', sfx: 'dragonflame' }, buffWave: { def: 'dragonflame', fanOut: 'buffedOn' } },
   dm_felspikes: { damage: { def: 'fel-spike', fanOut: 'struck', launchOnDeath: true } },
   dm_tormentor: { shout: { def: 'shop-buff-shout' }, scNarrate: { def: 'shop-buff-shout' } },

@@ -46,4 +46,8 @@ export const RENDER_EXCUSED: Readonly<Record<string, RenderExcuse>> = {
   // (Once per combat)"; the printed threshold never scales, the tally is the N/6 step counter.
   k3_goldvein: { kind: 'accurate-at-any-value', why: 'no scaling number in the text; the damage meter is the damageDealt step counter (stepProgress)' },
   ce3_starcharter: { kind: 'accurate-at-any-value', why: 'Maestro Lux (Pummel (12), 2026-09-24): no scaling number in the text; the damage meter is the damageDealt step counter (stepProgress)' },
+  // Goldilox (2026-09-24): the only live value is WHERE the card sits — in the HAND it prints the doubled gain
+  // (`inHand`, the hand row). A board body (this harness mounts board/combat Units) prints the exact printed text
+  // at every value, so no bag can move it; the hand half is pinned in instView.test.ts and docbotLiveText.test.ts.
+  dw3_goldilox: { kind: 'accurate-at-any-value', why: 'board/combat text is exact at any value; the hand-only doubled gain (inHand) is pinned in instView.test.ts' },
 };

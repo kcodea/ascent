@@ -39,7 +39,7 @@ describe('Facetwright (renamed from "Facetwright\'s Choice", display only)', () 
 describe('Pickles: "Choose One: Get 3 Rubies or a Facetwright."', () => {
   it('prints both halves (gilded 6 Rubies / 2 Facetwrights) and declares one primitive per branch', () => {
     const c = CARD_INDEX['k3_splitpick']!;
-    expect([c.tier, c.attack, c.health]).toEqual([3, 5, 3]);
+    expect([c.tier, c.attack, c.health]).toEqual([2, 3, 3]); // T2 3/3 since the 2026-09-24 kobold/dwarf batch
     expect(c.text).toBe('**Choose One:** Get **3 Rubies** or a **Facetwright**.');
     expect(c.goldenText).toBe('**Choose One:** Get **6 Rubies** or **2 Facetwrights**.');
     expect(c.chooseOne!.map((o) => o.effects)).toEqual([

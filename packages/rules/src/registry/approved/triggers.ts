@@ -283,7 +283,7 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'with a fresh pick per Moss tick. Kringle\'s text moved to the repeat form and its magnitude from n to n + 1 '
       + 'ticks (a balance change, stated in the patch note). Squirl Scout and Dragonflame (shop cast) were already '
       + 'per-repeat in the sim and now emit one tagged buff-FX event per repeat, paced apart on the play path. '
-      + 'Striker keeps its LUMP text and its n itemized waves inside one beat; Baby Gastrid is one instance. Rocket '
+      + 'Striker kept its LUMP text until 2026-09-24, when the owner moved it to the REPEAT form too (R-REPEAT-03); Baby Gastrid is one instance. Rocket '
       + 'Power ("give this shop +3/+3. Repeat for every Shop spell you cast this turn") resolves as 1 + spells ticks '
       + 'in the sim (review fix 2026-09-22): one buffThisShopOffers call per tick at the per-tick rate, so the offer '
       + 'ledger counts the ticks (Inspect prints "Rocket Power x3") and the bought body inherits that count; the '
@@ -426,6 +426,65 @@ export const TRIGGERS_RULES: GameRule[] = [
       kind: 'scenario',
       refs: ['packages/sim/src/balance923MinionReworks.test.ts', 'packages/sim/src/set2NewMinionsAug18.test.ts'],
       lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-REPEAT-03',
+    title: 'Striker is the REPEAT form: +1 Attack to its neighbours once, then once more per card played, each its own tick',
+    statement:
+      'Striker reads "End of Turn: give adjacent minions +1 Attack. Repeat for every card played this turn" and resolves '
+      + 'by R-REPEAT-01: the base +1 Attack lands on both neighbours once, then once more for every card played this '
+      + 'turn (minions and spells, Striker\'s own play included), 1 + count ticks, each its own state delta, buff-FX wave '
+      + 'and beat. A turn with nothing played still pays the base once. The neighbours are read per tick. Gilding '
+      + 'doubles the per-tick grant (+2 Attack), never the tick count. "When a Dwarf gains Attack" watchers react once '
+      + 'per tick. The live text prints the per-tick grant as written and the number of ticks it will land right now.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner card batch 2026-09-24 (Kobold / Dwarf batch)', quote: 'Striker: "End of Turn: Give adjacent minions +1 attack. Repeat for every card played this turn."' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts endOfTurnBuffAdjacentPerCard (forEachTick + eotRepeatTick) and eotTickCount; packages/ui/src/cardText.ts perCardPlayedText' },
+    ],
+    cardText: '**End of Turn:** give adjacent minions **+1 Attack**. Repeat for every card played this turn.',
+    contentIds: ['dw3_striker'],
+    currentBehaviour:
+      'Conforms (built with the change, 2026-09-24). Striker was the LUMP form (n waves of +1, no base tick, one beat); '
+      + 'it now shares Kringle\'s per-tick path, so the commit, the projection and the beat list agree on 1 + cards '
+      + 'played ticks through the one `eotTickCount`.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/repeatPerTick.test.ts', 'packages/sim/src/set3Dwarves.test.ts', 'packages/ui/src/cardText.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
+  {
+    id: 'R-SHOPSPELL-01',
+    title: '"When you cast a Shop spell" (Goldilox) hears a Shop-pool spell from any source, in any phase, on the board and in the hand',
+    statement:
+      'A Shop spell is a spell from the set\'s Shop-spell pool, Dwarven Ales included. A Ruby, a Clue or other Gift, and '
+      + 'a reward or token spell are not Shop spells and never count. Goldilox ("When you cast a Shop Spell, gain +3/+2. '
+      + 'Gains 2x while in hand.") grows on EVERY such cast, whoever casts it (the player from hand, a rune, an Equipment, '
+      + 'a minion, an End-of-Turn cast, a repeat) and in every phase (Shop, End of Turn, combat). On the board it gains '
+      + '+3/+2 per cast, in the hand +6/+4; gilding doubles both. Every gain is permanent: a combat gain on the board '
+      + 'carries back to the run card, and a combat gain in the hand is a hand buff (R-HAND-02), shown live in the replay. '
+      + 'Only the caster\'s own side counts. The live text in the hand prints the doubled gain.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner card batch 2026-09-24 (Kobold / Dwarf batch) — Goldilox', quote: 'shop spells cast from anywhere count, not rubies, clues or generic spells. just a heads up - ales ARE shop spells. they do count. also, this should work in combat, so if spells are cast in combat, goldilox gains stats and those stats are permanent per our rules for hand granted stats in combat.' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts castInCombat (the per-repetition identity probe) / withCastingSpell / isShopPoolSpell / shopSpellGrowth / shopSpellCastGrowSelf; packages/core/src/combat/simulate.ts ctx.spellResolved; packages/sim/src/recruit.ts shopSpellCastGrowSelf, noteSpellCast (hand watchers) and fireShopSpellGrowers (the End-of-Turn minion casts)' },
+    ],
+    cardText: 'When you cast a **Shop spell**, gain **+3/+2**. Gains **2x** while in hand.',
+    contentIds: ['dw3_goldilox'],
+    currentBehaviour:
+      'Conforms (built with the card, 2026-09-24). The shop pays through `noteSpellCast` (board and `alsoInHand` hand '
+      + 'watchers), plus the three legacy End-of-Turn minion casts that bypass it; combat pays after each cast '
+      + 'repetition resolves, once its spell is known. The legacy End-of-Turn minion casts (Soul Defiler, Rope Wrangler, '
+      + 'Arnold) still skip the OTHER `spellCast` watchers and runes; routing them through `noteSpellCast` is a separate, '
+      + 'wider change.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/goldilox.test.ts', 'packages/ui/src/instView.test.ts'],
+      lastVerifiedAt: '2026-09-24',
     },
   },
 ];

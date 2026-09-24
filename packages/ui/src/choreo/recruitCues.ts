@@ -253,7 +253,10 @@ function runSpellCastFire(moment: RecruitMoment, ctx: RecruitCueContext): () => 
     for (const r of moment.recipients) {
       const c = ctx.measure(r.uid);
       if (!c) continue; // minion left the DOM (sold/tripled) before paint — skip it cleanly
-      playDef(binding.def, { source: pt, target: c, cursor: pt, camera }, { uids: { source: src, target: r.uid }, gain: binding.gain });
+      // ONE SOUND PER VOLLEY (the 120 ms burst gap, `spellCastSoundAllowed`): a def that carries its own Sound layer
+      // (Great Pot's `bloodpot`, owner 2026-09-24) rings on the first target and plays muted on the rest.
+      const sound = spellCastSoundAllowed(binding.def);
+      playDef(binding.def, { source: pt, target: c, cursor: pt, camera }, { uids: { source: src, target: r.uid }, gain: binding.gain, ...(sound ? {} : { muteSound: true }) });
     }
     if (binding.sfx !== undefined) sfx[binding.sfx]?.(); // one sound for the volley, not one per target
   });
@@ -293,7 +296,8 @@ function runBuffedOnFire(
           if (r.count <= wave) continue; // this body was not buffed on this pass
           const c = ctx.measure(r.uid);
           if (!c) continue; // minion left the DOM (sold/tripled) before paint — skip it cleanly
-          playDef(binding.def, { source: c, target: c, cursor: c, camera }, { uids: { source: src, target: r.uid }, index: wave });
+          const sound = spellCastSoundAllowed(binding.def); // one Sound layer per wave (the 120 ms burst gap)
+          playDef(binding.def, { source: c, target: c, cursor: c, camera }, { uids: { source: src, target: r.uid }, index: wave, ...(sound ? {} : { muteSound: true }) });
         }
         if (binding.sfx !== undefined) sfx[binding.sfx]?.();
       };

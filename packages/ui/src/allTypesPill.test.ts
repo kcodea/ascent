@@ -74,6 +74,9 @@ const ART_PENDING = new Set<string>([
   // SET 3 SPIRITS — the Handy Flame rune token (Set 3 batch 2, 2026-09-16): authored ahead of its art (owner: wire none yet).
   // Set 3 batch 2 (2026-09-16): the Skeleton token Rune of the Endless March summons — art owed.
   'u3_skeleton',
+  // Ruby batch 2026-09-24: Ruby Blast, Blast Pump's token payload spell — the Equipment casts it, it never sits in
+  // a hand or the Shop, and no master was named for it (owner rule: wire only the art named in the batch).
+  'rubyblast',
   // SET 3 NEUTRALS (2026-09-18): Rig shipped with no master (Shredder + Calibration Master landed with theirs).
 ]);
 

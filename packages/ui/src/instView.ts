@@ -114,6 +114,12 @@ export interface LiveTextParams {
   zooSummons?: number | null;
 }
 
+/** A Ruby's printed sentence with its "+A/+H" grant swapped for `grant` (already `{{…}}`-wrapped when it is above
+ *  the printed base). Keeps each Ruby type's own Kobold-rider wording (owner Ruby batch 2026-09-24). */
+export function rubyLiveText(printed: string, grant: string): string {
+  return /\*\*\+\d+\/\+\d+\*\*/.test(printed) ? printed.replace(/\*\*\+\d+\/\+\d+\*\*/, `**${grant}**`) : printed;
+}
+
 /**
  * Compose a card's LIVE rule text (scaling values folded in — Guel's current grant, Grim's tally, Taragosa,
  * Sergeant, …, each green via `{{…}}`) plus its golden variant. The single source of truth used by the recruit
@@ -127,6 +133,12 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
   // currently carries a live-scaling value; when one does, its helper must be threaded through here too.
   const picked = p.chosenOption !== undefined ? c.chooseOne?.[p.chosenOption] : undefined;
   if (picked) return { text: picked.text, goldenText: picked.goldenText ?? picked.text };
+  // A RUBY offered as a card (Prismatic Pick's Ruby Discover, a forge preview) prints the grant it will MINT at:
+  // its printed base plus the run's live Ruby strength — the same number the minted card will carry in hand.
+  if (c.ruby && p.rubyBonus && (p.rubyBonus.attack > 0 || p.rubyBonus.health > 0)) {
+    const t = rubyLiveText(c.text, `{{+${c.attack + p.rubyBonus.attack}/+${c.health + p.rubyBonus.health}}}`);
+    return { text: t, goldenText: t };
+  }
   // (BOTH) — the branches are all enabled, so there is no choice to print. Deliberately AFTER `picked`: a body
   // that already resolved one branch keeps doing only that branch even if a rune arrives afterwards.
   // Spell power threads through (minus the Gift's own pending bonus, as the plain spell chain below does), so a
@@ -311,9 +323,9 @@ export function instView(
   const shownKeywords = inst.tempGrants?.length
     ? [...inst.keywords, ...inst.tempGrants.map((g) => g.keyword as Keyword).filter((k) => !inst.keywords.includes(k))]
     : inst.keywords;
-  const shownText = c.ruby
-    ? `Give a minion **${shownAtk > c.attack || shownHp > c.health ? `{{${rubyVal}}}` : rubyVal}**${c.rubyGrantKeyword === 'DS' ? '. Also give it **Ward** if it is a **Kobold**' : ''}.`
-    : text;
+  // Every Ruby type prints its own authored sentence (the Kobold rider — Ward, Gold, bounce, ripple, devour —
+  // owner Ruby batch 2026-09-24) with its printed "+A/+H" swapped for the live grant.
+  const shownText = c.ruby ? rubyLiveText(c.text, shownAtk > c.attack || shownHp > c.health ? `{{${rubyVal}}}` : rubyVal) : text;
   return {
     name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2,
     chosenOption: inst.chosenOption, // a resolved Choose One also wears the ART of the branch it became

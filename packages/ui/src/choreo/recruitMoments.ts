@@ -201,6 +201,10 @@ export function spellCastMoment(
 export interface RecruitRecipient {
   uid: string;
   count: number;
+  /** `rubyLanded` only: a special Ruby's rider SPACED this recipient's gems (owner Ruby batch 2026-09-24) —
+   *  `ripple` (its second cast) or `devour` (Dark Ruby: Ruby -> consume -> Ruby). The cue runner turns it into
+   *  a spacing (`spaceLands`); absent = the ordinary stack. */
+  rider?: 'ripple' | 'devour';
 }
 
 export interface RecruitMoment {
@@ -274,7 +278,7 @@ export function captureRecruitSeqs(
  * always play in the same order, rather than in whatever order the fields happen to be read.
  */
 export function recruitMomentsSince(
-  run: Pick<RunState, 'rubyLandedFxSeq' | 'rubyLandedFx' | 'recruitFxSeq' | 'recruitBuffFx' | 'karwindCritUid' | 'veinstormFxSeq' | 'veinstormFx' | 'shopBuffAllFxSeq' | 'shopBuffAllFx'>,
+  run: Pick<RunState, 'rubyLandedFxSeq' | 'rubyLandedFx' | 'recruitFxSeq' | 'recruitBuffFx' | 'karwindCritUid' | 'veinstormFxSeq' | 'veinstormFx' | 'shopBuffAllFxSeq' | 'shopBuffAllFx'> & Partial<Pick<RunState, 'rubyRiderFx'>>,
   prev: RecruitSeqs,
 ): RecruitMoment[] {
   const out: RecruitMoment[] = [];
@@ -283,9 +287,15 @@ export function recruitMomentsSince(
   // pulled Veinstorm-gemmed offers OUT of this list (they are the span below), so everything here cascades on
   // its own card. A Ruby carries its own per-uid count, so a 2-stack arrives as one recipient with count 2.
   if (run.rubyLandedFxSeq !== undefined && run.rubyLandedFxSeq !== prev.rubyLanded) {
+    // A special Ruby's rider rides the SAME action's `rubyRiderFx` (both are per-action), so the recipient it
+    // fired on is tagged here and the cue runner spaces its gems (Ripple's second cast, Dark Ruby's sequence).
+    const riderOf = (uid: string): 'ripple' | 'devour' | undefined => {
+      for (const r of run.rubyRiderFx ?? []) if (r.uid === uid && (r.rider === 'ripple' || r.rider === 'devour')) return r.rider;
+      return undefined;
+    };
     const recipients = (run.rubyLandedFx ?? [])
       .filter((r) => r.count > 0)
-      .map((r) => ({ uid: r.uid, count: r.count }));
+      .map((r) => { const rider = riderOf(r.uid); return rider ? { uid: r.uid, count: r.count, rider } : { uid: r.uid, count: r.count }; });
     if (recipients.length > 0) out.push({ kind: 'rubyLanded', recipients });
   }
 

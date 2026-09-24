@@ -52,6 +52,31 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-24',
+    label: 'Ruby Types',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Four new kinds of Ruby join the Warding Ruby. Each does something extra when it lands on a Kobold. Several Kobold cards and runes now hand out random Rubies.',
+        details: [
+          'New Rubies: Golden Ruby (gain 2 Gold), Splintered Ruby (bounces once), Ripple Ruby (casts again) and Dark Ruby (eats the highest Health minion in the Shop as Rubies). Each gives +1/+1 and grows with your Ruby upgrades.',
+          'A random Ruby can be any of the six kinds, all equally likely.',
+          'Warding Ruby now gives +1/+2.',
+          'Ruby Shipment costs 2 and gets 2 random Rubies.',
+          'Kobe keeps Taunt. New ability: Pummel (15): get a random Ruby, twice per combat.',
+          'Shardluck is now Tier 6, 8/5: play 3 Rubies on your Kobolds, or cast Veinstorm 3 times.',
+          'Gemheart Carver summons 2 Golems. Geode Guardian summons 1 Golem with Taunt. Each Golem carries the Rubies.',
+          'Blast Pump casts a Ruby on all of your minions.',
+          'Prismatic Pick can now Discover a special Ruby.',
+          'New Kobolds: Gemheart Legionnaire (gets 5 Rubies whenever you summon a Gemheart Golem) and Dealski (gets 2 Rubies whenever you play a Choose One card).',
+          'Gem Sage: when you get a Ruby, also get a random Ruby.',
+          'Rune of Resonance: your Rubies always cast twice from hand, and you get a random Ruby at the start of each turn.',
+          'Rune of Investment is now an Epic rune and pays random Rubies.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Kobolds and Dwarves',
     changes: [
       {

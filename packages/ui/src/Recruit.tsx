@@ -109,7 +109,7 @@ import { playDef, canPlayDefs } from './fx/playDef';
 import { getShopDeathFxConfig } from './shopDeathFxConfig';
 import { getEquipFxConfig } from './equipFxConfig';
 import { anchorsForUnits } from './fx/combatAnchors';
-import { rubyLandHolds, RUBY_BEAT_MS, RUBY_GAP_MS } from './choreo/channels/rubyLanded';
+import { rubyLandHolds, RUBY_BEAT_MS, RUBY_GAP_MS, DARK_RUBY_CONSUME_DELAY_MS } from './choreo/channels/rubyLanded';
 import { captureRecruitSeqs, chooseOneMoment, endOfTurnMoment, minionPlayedMoment, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shieldGainMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
 import { bindingFor, castFxReplacesTendril } from './choreo/bindings';
@@ -131,6 +131,19 @@ import { visibleHandPreviews } from './handPreview';
 import { chargeTune, useChargePreview } from './chargeGlyphTune';
 import { ChargeMotes } from './chargeMotes';
 import { wipeFx } from './wipeFx';
+
+/** Golden Ruby's coin cue: a beat after its gem (so the two read as "Ruby, then Gold"), and spaced when a
+ *  multi-cast Golden Ruby pays several times in one action. */
+const GOLDEN_RUBY_COIN_DELAY_MS = 180;
+const GOLDEN_RUBY_COIN_GAP_MS = 220;
+
+/** The bodies a DARK RUBY made eat this action (owner Ruby batch 2026-09-24) — their consume is sequenced after
+ *  the first gem (see the `shopEaten` watcher and `holdFodderGains`). */
+function darkRubyEaters(run: Pick<RunState, 'rubyRiderFx'>): ReadonlySet<string> {
+  const out = new Set<string>();
+  for (const r of run.rubyRiderFx ?? []) if (r.rider === 'devour') out.add(r.uid);
+  return out;
+}
 
 gsap.registerPlugin(Flip);
 
@@ -1312,7 +1325,11 @@ export function Recruit() {
     // the sim routes them to the span, whose own hold effect below withholds them on volley timing.
     const buffOf = (uid: string): CardBuff | undefined =>
       run.board.find((c) => c.uid === uid)?.buffs?.find((b) => b.source === 'Ruby');
-    for (const hold of rubyLandHolds(lands, buffOf)) {
+    // A DARK RUBY target's gain is split across two deliveries (owner Ruby batch 2026-09-24): the eaten stats are
+    // withheld by the consume's own hold (`holdFodderGains`, exact, released as the ghost is pulled in), so the
+    // Ruby cascade does not withhold that body too — two holds on one badge would over-withhold and dip it.
+    const devoured = new Set((run.rubyRiderFx ?? []).filter((r) => r.rider === 'devour').map((r) => r.uid));
+    for (const hold of rubyLandHolds(devoured.size > 0 ? lands.filter((l) => !devoured.has(l.uid)) : lands, buffOf)) {
       holdStat(hold.uid, { attack: hold.attack, health: hold.health },
         { origin: 'cue', startAt: hold.at + RUBY_DELIVER_OFFSET_MS });
     }
@@ -1383,6 +1400,33 @@ export function Recruit() {
     // `shopBuffAllFxSeq` likewise: the run-wide shop buff has its own counter (diffed off `tavernBuyBonus`),
     // so without it here the shop-wide aura would never fire.
   }, [run.rubyLandedFxSeq, run.recruitFxSeq, run.veinstormFxSeq, run.shopBuffAllFxSeq]);
+  // GOLDEN RUBY (owner Ruby batch 2026-09-24): "Show the Ruby-played animation AND the Gold-gain animation Paymaster
+  // Pim uses." The gem is the ordinary `rubyLanded` cascade above; the Gold cue is Pimm's own `shout` binding
+  // (`coin-shout` + its `maxGold` sound), resolved through the binding table rather than a hardcoded def so a
+  // re-bind of Pimm carries over. It fires on the Ruby's target a beat after the gem, once per Gold payout.
+  const prevRubyRiderSeq = useRef(run.rubyRiderFxSeq);
+  useEffect(() => {
+    const seq = run.rubyRiderFxSeq;
+    if (seq === undefined || seq === prevRubyRiderSeq.current) return;
+    prevRubyRiderSeq.current = seq;
+    const golds = (run.rubyRiderFx ?? []).filter((r) => r.rider === 'gold');
+    if (golds.length === 0) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const stops: (() => void)[] = [];
+    golds.forEach((g, i) => {
+      timers.push(setTimeout(() => {
+        stops.push(runRecruitMomentCues({ kind: 'shout', sourceCardId: 'dw_pimm', recipients: [{ uid: g.uid, count: 1 }] }, {
+          cardIdOf: () => 'dw_pimm',
+          measure: (uid) => {
+            const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
+            return el ? restingCenterOf(el) : null;
+          },
+        }));
+      }, GOLDEN_RUBY_COIN_DELAY_MS + i * GOLDEN_RUBY_COIN_GAP_MS));
+    });
+    return () => { for (const t of timers) clearTimeout(t); for (const s of stops) s(); };
+    // Keyed on the seq only — the payload is read at the moment it moved (the `bounceFx` watcher's contract).
+  }, [run.rubyRiderFxSeq]);
   // RUNE-BUFF-UNIT: any minion a rune buffed this SHOP action gets the `rune-buff-unit` sparkle, on the unit
   // (owner ask 2026-08-19). The sim diffs each minion's rune-buff total (`runeBuffFxUnits`), so this fires for
   // every rune that buffs a unit with no per-rune wiring. Measured on the next frame — a stat change re-renders
@@ -4976,7 +5020,10 @@ export function Recruit() {
   // Shared by the per-action watcher below AND the End-of-Turn beat sequence (Abyssal Feeder / Feasting
   // Bogrot consume during `faceOmen`, after the phase flips — the beats replay the projection's events
   // while the shop is still up). Returns a cancel fn (the watcher's effect cleanup).
-  const playFodderEat = useCallback((events: NonNullable<RunState['fodderEaten']>, key: number): (() => void) => {
+  const playFodderEat = useCallback((events: NonNullable<RunState['fodderEaten']>, key: number, startDelayMs = 0): (() => void) => {
+    // `startDelayMs` (Dark Ruby, owner Ruby batch 2026-09-24): the ghost appears in its slot at once, but its
+    // shake + pull (and the gulp) wait — so the eaten minion stays visible while the Ruby's first gem lands.
+    const delayTimers: number[] = [];
     let raf = 0;
     let startRaf = 0;
     let tries = 0;
@@ -5015,7 +5062,8 @@ export function Recruit() {
       setFodderAnim({ key: seq, ghosts });
       // The consume "gulp" — fired ONCE per consume action (not per ghost), and `sfx.consume` itself de-dupes
       // across actions on one beat via a short cooldown, so several simultaneous consumes play a single gulp.
-      sfx.consume();
+      if (startDelayMs > 0) delayTimers.push(window.setTimeout(() => sfx.consume(), startDelayMs));
+      else sfx.consume();
       // The consume (owner redesign 2026-08-16): each ghost SHAKES in place, then TAFFY-stretches toward its
       // eater and is PULLED in as it collapses + fades — a GSAP timeline driving `consumeTransform` + a
       // decaying shake (transform/opacity only). The old Pixi `buffTendril` is replaced by the workshop-
@@ -5124,13 +5172,15 @@ export function Recruit() {
           }
         }
       };
-      startRaf = requestAnimationFrame(startConsume);
-      t = window.setTimeout(() => setFodderAnim(null), cfg.durationMs + 150); // the ghost is gone by here
+      if (startDelayMs > 0) delayTimers.push(window.setTimeout(() => { startRaf = requestAnimationFrame(startConsume); }, startDelayMs));
+      else startRaf = requestAnimationFrame(startConsume);
+      t = window.setTimeout(() => setFodderAnim(null), cfg.durationMs + 150 + startDelayMs); // the ghost is gone by here
     };
     tryShow();
     return () => {
       if (raf) cancelAnimationFrame(raf);
       if (startRaf) cancelAnimationFrame(startRaf);
+      for (const d of delayTimers) window.clearTimeout(d);
       window.clearTimeout(t);
       for (const tw of tweens) tw.kill();
       for (const a of eaterAnims) { try { a.cancel(); } catch { /* already finished */ } }
@@ -5155,13 +5205,14 @@ export function Recruit() {
    * the number keeps its own honest schedule and the ribbon arrives after it. Losing the sync is the
    * acceptable half of that trade — printing a wrong number is not.
    */
-  const holdFodderGains = useCallback((gains: readonly FodderGain[]): void => {
+  const holdFodderGains = useCallback((gains: readonly FodderGain[], delayed?: ReadonlySet<string>): void => {
     // Release each eater's gain PART-WAY through the consume pull. The old timing was the infuse-tendril's
     // arrival (~0.9s) — decoupled from the shorter taffy eat, so the badge lagged well behind the animation
     // (owner report 2026-08-18). At 0.8 of the consume's `durationMs` the number climbs into place as the ghost
     // is drawn in and the eater gulps, instead of popping after it's all over.
     const startAt = getConsumeFxConfig().durationMs * 0.8;
-    for (const g of gains) holdStat(g.uid, { attack: g.attack, health: g.health }, { origin: 'cue', startAt });
+    // A Dark Ruby eater's consume waits for its first gem (`DARK_RUBY_CONSUME_DELAY_MS`), so its release waits too.
+    for (const g of gains) holdStat(g.uid, { attack: g.attack, health: g.health }, { origin: 'cue', startAt: startAt + (delayed?.has(g.uid) ? DARK_RUBY_CONSUME_DELAY_MS : 0) });
   }, []);
 
   // The mid-shop consume's raise arrives on `run.board` in the same commit as the seq bump, so the hold goes
@@ -5178,7 +5229,7 @@ export function Recruit() {
   useLayoutEffect(() => {
     if (run.shopEatenSeq === prevShopEatHoldSeq.current) return;
     prevShopEatHoldSeq.current = run.shopEatenSeq;
-    holdFodderGains(fodderGainHolds(run.shopEaten ?? []));
+    holdFodderGains(fodderGainHolds(run.shopEaten ?? []), darkRubyEaters(run));
   }, [run.shopEatenSeq, run.shopEaten, holdFodderGains]);
 
   /**
@@ -5219,7 +5270,12 @@ export function Recruit() {
     // A creation's `silent` meal draws nothing here — the `starform-create` cue (the starformFx watcher) is it.
     const events = (run.shopEaten ?? []).filter((e) => !e.silent).map((e) => ({ ...e, fodderId: e.cardId }));
     if (events.length === 0) return;
-    return playFodderEat(events, run.shopEatenSeq);
+    // DARK RUBY (owner Ruby batch 2026-09-24): "Ruby played -> consume effect -> Ruby played" — its consume waits
+    // for the first gem to land, then the second gem lands as the ghost is pulled in (`spaceLands` in the cue).
+    // The ghost is placed NOW (its slot is measured this commit) and only its pull waits.
+    const dark = darkRubyEaters(run);
+    const delay = dark.size > 0 && events.some((e) => dark.has(e.eaterUid)) ? DARK_RUBY_CONSUME_DELAY_MS : 0;
+    return playFodderEat(events, run.shopEatenSeq, delay);
   }, [run.shopEatenSeq]);
 
   // THE STARFORM PULL (owner-authored `starform-pull`, 2026-09-12): a warband minion CONSUMES the token (Corona

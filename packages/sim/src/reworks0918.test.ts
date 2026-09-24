@@ -93,39 +93,8 @@ describe('Korn — Rally: Cast a permanent Ruby on this', () => {
 });
 
 // ── 3. Kobe — Taunt. When this takes damage, play 1 permanent Rubies on this and adjacent Kobolds ─────────
-describe('Kobe — Taunt. When this takes damage, play 1 permanent Rubies on this and adjacent Kobolds', () => {
-  it('has Taunt and no Start of Combat any more', () => {
-    const d = CARD_INDEX['k_kobe']!;
-    expect(d.keywords).toContain('T');
-    expect(d.effects.map((e) => e.on)).toEqual(['onDamaged']);
-    expect(d.text).toBe('**Taunt.** When this takes damage, play a **permanent Ruby** on this and adjacent **Kobolds**.'); // 3 → 1 (owner nerf 2026-09-20)
-  });
-
-  it('every landed hit plays 1 Ruby on Kobe and its adjacent Kobold — not the non-Kobold on the other side (3 → 1, owner nerf 2026-09-20)', () => {
-    // A 1-Attack foe that swings into the Taunt each turn; Kobe's own retaliation never kills it.
-    const r = fight([bm('k3_korn', 'L', 0, 60), bm('k_kobe', 'K', 0, 60), bm('venom', 'V', 0, 60)], [foe('omen', 1, 400)]);
-    const kobe = uidOf(r, 'k_kobe');
-    const hits = r.events.filter((e) => e.type === 'dmg' && (e as { target: string }).target === kobe).length;
-    expect(hits, 'Kobe took hits').toBeGreaterThan(0);
-    expect(rubyAttackOn(r, kobe, kobe), '1 Ruby (1 Attack at base strength) on itself per hit').toBe(hits * 1);
-    expect(rubyAttackOn(r, uidOf(r, 'k3_korn'), kobe), '1 on the adjacent Kobold per hit').toBe(hits * 1);
-    const onVenom = r.events.some((e) => e.type === 'buff' && (e as { target: string }).target === uidOf(r, 'venom') && (e as { source: string }).source === kobe);
-    expect(onVenom, 'the adjacent non-Kobold gets none').toBe(false);
-  });
-
-  it('the Rubies are PERMANENT — they carry back for Kobe AND its Kobold neighbour', () => {
-    const r = fight([bm('k3_korn', 'L', 0, 60), bm('k_kobe', 'K', 0, 60)], [foe('omen', 1, 400)]);
-    expect(permaRubies(r, 'K').length, 'Kobe').toBeGreaterThan(0);
-    expect(permaRubies(r, 'L').length, 'the neighbour').toBeGreaterThan(0);
-  });
-
-  it('a Ward-absorbed hit (0 damage landed) plays nothing', () => {
-    const r = fight([bm('k_kobe', 'K', 5, 60, { keywords: ['T', 'DS'] })], [foe('omen', 1, 1)]);
-    // Whoever swings first, the single exchange pops the Ward (0 landed) and kills the 1-Health foe: no hit lands.
-    expect(r.events.some((e) => e.type === 'shield')).toBe(true);
-    expect(r.events.some((e) => e.type === 'buff' && (e as { ruby?: boolean }).ruby)).toBe(false);
-  });
-});
+// Kobe's 2026-09-18 "when this takes damage" Rubies were REPLACED by a Pummel (owner Ruby batch 2026-09-24): see
+// rubyTypes.test.ts ("Kobe — Pummel (15): Get a random Ruby. (Twice per combat)").
 
 // ── 4. Boulderdash — Flurry. Rally: Cast 3 permanent Rubies on this ──────────────────────────────────────
 describe('Boulderdash — Flurry. Rally: Cast 3 permanent Rubies on this', () => {

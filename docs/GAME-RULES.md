@@ -657,8 +657,8 @@ hand**, so nothing ever reaches one and an enemy's watcher never fires. The even
 hand actually received the card.
 
 **How it is enforced.** Each phase supplies its own dispatcher — the shop diffs the hand by uid in `reduce`
-(so a new `hand.push` site cannot forget to fire it), combat emits from `ctx.grantToHand` / `ctx.grantRubies`
-(the only two ways a card reaches a hand mid-fight). Both run the *same* effect bodies, in
+(so a new `hand.push` site cannot forget to fire it), combat emits from `ctx.grantToHand` / `ctx.grantRubies` /
+`ctx.grantRandomRubies` (the only ways a card reaches a hand mid-fight). Both run the *same* effect bodies, in
 `ARENA_EFFECTS`, so the two phases cannot drift apart.
 
 ---
@@ -895,6 +895,29 @@ and its machine-checkable predicate live in the language guide as **LG-SCOPE-01*
 
 Unrelated and **reserved**: the owner's own **Rise / Reborn → Rebirth** rename is still in flight and was not
 touched here (LG-KEYWORD-02).
+
+### Ruby types (owner Ruby batch 2026-09-24; R-RUBY-02, R-RUBY-03, R-RAND-02)
+
+There are **six Ruby types**. Every one grants its printed stats plus the run's Ruby improvements; five carry a
+rider that fires only when the Ruby's **target is a Kobold** (dual-tribe and All-types bodies count):
+
+| Ruby | Grant | Kobold rider |
+| --- | --- | --- |
+| Ruby | +1/+1 | none |
+| Warding Ruby | +1/+2 | give it Ward |
+| Golden Ruby | +1/+1 | gain 2 Gold |
+| Splintered Ruby | +1/+1 | the Ruby bounces once to a random other friendly minion |
+| Ripple Ruby | +1/+1 | it casts again on the same minion (a real cast, never a third) |
+| Dark Ruby | +1/+1 | it consumes the Shop minion with the highest Health (ties: leftmost; the Starform counts) and gains its stats as Rubies; no Shop minion, no consume |
+
+- **"A random Ruby"** is any of the six at equal odds, each Ruby drawn separately (Ruby Shipment, Kobe, Gem Sage,
+  Rune of Resonance, Rune of Investment). "Get N Rubies" without "random" stays plain Rubies.
+- A rider resolves **once per cast** on the direct target; a cast multiplier repeats the whole cast (under Rune of
+  Resonance a Ripple lands four times). A **hop** (a bounce, Rune of Redirection / Distillation) carries the
+  stats and the Ward only.
+- **Gem Sage** pays a random Ruby for every Ruby that reaches your hand; a Sage's own Rubies never re-trigger a
+  Sage. A Ruby won in combat reaches the hand at settle, so the Sage pays there.
+- The special Rubies are only ever cast from the hand in the Shop today; no combat effect casts one.
 
 ---
 

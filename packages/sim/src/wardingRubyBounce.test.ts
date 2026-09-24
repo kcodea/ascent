@@ -10,6 +10,7 @@ import { mintRubies, RUBY_ID } from './recruit';
  * The keyword now rides the one landing primitive (`fireOnRubyPlayed` → the `onRubyPlayed` payload → the
  * arena's `rubyPlayedBounce` → `gainRubyStats`), so every hop off a Ruby carries the Ruby's whole payload.
  * Ward stays a KOBOLD payoff on every landing (owner spec 2026-07-31: "give it Ward if it is a Kobold").
+ * The Warding Ruby's base grant is +1/+2 since the owner Ruby batch 2026-09-24 — the hops carry that whole line.
  */
 const mk = (uid: string, cardId: string, tribe: BoardCard['tribe'] = 'kobold', golden = false): BoardCard =>
   ({ uid, cardId, tribe, attack: 2, health: 2, keywords: cardId === 'k_resonance' ? ['DS'] : [], golden });
@@ -26,13 +27,13 @@ describe('a Ruby bounced by Resonance Idol carries its whole payload (owner repo
     let s: RunState = { ...createRun(1), board: [mk('idol', 'k_resonance'), mk('kob', 'sandbag'), mk('neu', 'sandbag', 'neutral')], hand: [] };
     s = castOn(s, 'warding-ruby', 'idol');
     // The Idol's own landing is unchanged: its stats, its printed Ward.
-    expect(rubyBuff(at(s, 'idol'))).toMatchObject({ attack: 1, health: 1 });
+    expect(rubyBuff(at(s, 'idol'))).toMatchObject({ attack: 1, health: 2 });
     expect(at(s, 'idol').keywords).toContain('DS');
     // Both random friends were hit (a pool of exactly two): the Kobold gets the stats AND the Ward …
-    expect(rubyBuff(at(s, 'kob'))).toMatchObject({ attack: 1, health: 1 });
+    expect(rubyBuff(at(s, 'kob'))).toMatchObject({ attack: 1, health: 2 });
     expect(at(s, 'kob').keywords, 'the bounced Warding Ruby left the Kobold without Ward').toContain('DS');
     // … while the neutral gets the stats only — Ward is the Kobold payoff on every landing, direct or bounced.
-    expect(rubyBuff(at(s, 'neu'))).toMatchObject({ attack: 1, health: 1 });
+    expect(rubyBuff(at(s, 'neu'))).toMatchObject({ attack: 1, health: 2 });
     expect(at(s, 'neu').keywords).not.toContain('DS');
   });
 
@@ -48,24 +49,24 @@ describe('a Ruby bounced by Resonance Idol carries its whole payload (owner repo
     s = castOn(s, 'warding-ruby', 'i1');
     // i1's bounce reaches BOTH friends (pool of two). i2's hop is stats only — it never re-bounces, so the
     // Kobold receives exactly ONE hop and i1 gets nothing reflected back.
-    expect(rubyBuff(at(s, 'i1'))).toMatchObject({ attack: 1, health: 1 });
-    expect(rubyBuff(at(s, 'i2'))).toMatchObject({ attack: 1, health: 1 });
-    expect(rubyBuff(at(s, 'kob'))).toMatchObject({ attack: 1, health: 1 });
+    expect(rubyBuff(at(s, 'i1'))).toMatchObject({ attack: 1, health: 2 });
+    expect(rubyBuff(at(s, 'i2'))).toMatchObject({ attack: 1, health: 2 });
+    expect(rubyBuff(at(s, 'kob'))).toMatchObject({ attack: 1, health: 2 });
     expect(at(s, 'kob').keywords).toContain('DS');
     expect(s.bounceFx?.length ?? 0, 'exactly two hops: i1 → i2 and i1 → kob').toBe(2);
   });
 
-  it('a Ruby improvement rides the bounce: a 1/2 Warding Ruby lands 1/2 + Ward on the Kobold', () => {
+  it('a Ruby improvement rides the bounce: a 1/3 Warding Ruby (its 1/2 base + 0/1) lands 1/3 + Ward on the Kobold', () => {
     let s: RunState = { ...createRun(1), rubyBonus: { attack: 0, health: 1 }, board: [mk('idol', 'k_resonance'), mk('kob', 'sandbag')], hand: [] };
     s = castOn(s, 'warding-ruby', 'idol');
-    expect(rubyBuff(at(s, 'kob'))).toMatchObject({ attack: 1, health: 2 });
+    expect(rubyBuff(at(s, 'kob'))).toMatchObject({ attack: 1, health: 3 });
     expect(at(s, 'kob').keywords).toContain('DS');
   });
 
   it('a Gilded Idol bounces twice per target — the stats stack, the Ward lands once', () => {
     let s: RunState = { ...createRun(1), board: [mk('idol', 'k_resonance', 'kobold', true), mk('kob', 'sandbag')], hand: [] };
     s = castOn(s, 'warding-ruby', 'idol');
-    expect(rubyBuff(at(s, 'kob'))).toMatchObject({ attack: 2, health: 2 });
+    expect(rubyBuff(at(s, 'kob'))).toMatchObject({ attack: 2, health: 4 });
     expect(at(s, 'kob').keywords.filter((k) => k === 'DS')).toEqual(['DS']);
   });
 
@@ -73,7 +74,7 @@ describe('a Ruby bounced by Resonance Idol carries its whole payload (owner repo
     let s: RunState = { ...createRun(1), runeRedirection: true, board: [mk('left', 'sandbag'), mk('mid', 'sandbag'), mk('right', 'sandbag')], hand: [] };
     s = castOn(s, 'warding-ruby', 'left');
     expect(at(s, 'left').keywords).toContain('DS');
-    expect(rubyBuff(at(s, 'right'))).toMatchObject({ attack: 1, health: 1 });
+    expect(rubyBuff(at(s, 'right'))).toMatchObject({ attack: 1, health: 2 });
     expect(at(s, 'right').keywords, 'the redirected landing is a real Ruby cast — it carries the Ward too').toContain('DS');
     expect(at(s, 'mid').keywords).not.toContain('DS');
   });

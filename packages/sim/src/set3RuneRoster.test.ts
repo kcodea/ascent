@@ -32,8 +32,8 @@ const originals = (epic: boolean): number => [...RUNES, ...EPIC_RUNES].filter((r
 describe('the Set 3 static rune pool (handoff 2026-09-14)', () => {
   it('resolves to 115 Basic / 97 Epic before any Set 3-original rune (98 Epic at the handoff; Frontline Glory dropped 2026-09-16)', () => {
     const pool = staticPool('set3', S3).filter((r) => !isOriginal(r));
-    expect(pool.filter((r) => !r.epic)).toHaveLength(109); // 115 at the handoff + Rune of Gambling (all sets, 2026-09-17); −4 on 2026-09-18 (tag pass: Beast/Mech-body runes now gate on tribes set 3 does not field); −2 on 2026-09-23 (Balance 9/23 archives: Centerline, Spare Chair); rune reworks A (2026-09-23) nets 0: −1 Drake Skull (now reads Dragons, gated `dragon`) +1 Hoardcalling (now any Shout, gate dropped); −1 on 2026-09-24 (owner: "hoardcalling should have a dragon tag" — Hoardcalling gated `dragon` again; set 3 fields no Dragons)
-    expect(pool.filter((r) => r.epic)).toHaveLength(87); // 97 → 90 on 2026-09-18 (tag pass: Beast/Dragon/Mech/Demon-body Epics gate on tribes set 3 does not field); 90 → 87 on 2026-09-23 (Balance 9/23 archives: Taurus, Open Market, Warpath)
+    expect(pool.filter((r) => !r.epic)).toHaveLength(108); // −1 on 2026-09-24 (owner Ruby batch: Rune of Investment moved Basic → Epic); 115 at the handoff + Rune of Gambling (all sets, 2026-09-17); −4 on 2026-09-18 (tag pass: Beast/Mech-body runes now gate on tribes set 3 does not field); −2 on 2026-09-23 (Balance 9/23 archives: Centerline, Spare Chair); rune reworks A (2026-09-23) nets 0: −1 Drake Skull (now reads Dragons, gated `dragon`) +1 Hoardcalling (now any Shout, gate dropped); −1 on 2026-09-24 (owner: "hoardcalling should have a dragon tag" — Hoardcalling gated `dragon` again; set 3 fields no Dragons)
+    expect(pool.filter((r) => r.epic)).toHaveLength(88); // 87 → 88 on 2026-09-24 (Rune of Investment moved Basic → Epic); 97 → 90 on 2026-09-18 (tag pass: Beast/Dragon/Mech/Demon-body Epics gate on tribes set 3 does not field); 90 → 87 on 2026-09-23 (Balance 9/23 archives: Taurus, Open Market, Warpath)
     expect(pool.some((r) => r.id === 'rune_frontline_glory')).toBe(false);
     expect(RUNE_INDEX['rune_frontline_glory']!.sets).toEqual(['set1']);
   });
@@ -55,7 +55,7 @@ describe('the Set 3 static rune pool (handoff 2026-09-14)', () => {
     // Old Pack, Warpath); set 2 −5 Basic (those four + Cindergem) / −7 Epic (those four + Moonhowl, Open Market, and the Deathtouched
     // Apple, now Undead-gated — a tribe set 2 does not field).
     expect([s1.filter((r) => !r.epic).length, s1.filter((r) => r.epic).length]).toEqual([102, 85]);
-    expect([s2.filter((r) => !r.epic).length, s2.filter((r) => r.epic).length]).toEqual([130, 117]); // set 2: −1 Basic / −2 Epic on 2026-09-18 (tag pass: Undead/Spirit-body runes gate on tribes set 2 does not field)
+    expect([s2.filter((r) => !r.epic).length, s2.filter((r) => r.epic).length]).toEqual([129, 118]); // set 2: Rune of Investment Basic → Epic (owner Ruby batch 2026-09-24); −1 Basic / −2 Epic on 2026-09-18 (tag pass: Undead/Spirit-body runes gate on tribes set 2 does not field)
   });
   it('never offers an Attachment / Fodder-only rune (their `sets` stay off set3)', () => {
     const banned = /attachment|fodder/i;
@@ -79,8 +79,8 @@ describe('a Set 3 Dwarf / Kobold run at the forge', () => {
     const basic = forge(false), epic = forge(true);
     // the Wishbone is hero-conditional (requiresDoublePower) — the Warden's power does not double, so one Basic fewer
     const wishbone = RUNE_INDEX['rune_wishbone'] ? 1 : 0;
-    expect(basic.length).toBe(109 - wishbone + originals(false)); // 112 → 110 on 2026-09-23 (Balance 9/23 archives); → 109 on 2026-09-24 (Hoardcalling gated `dragon` again)
-    expect(epic.length).toBe(87 + originals(true)); // 90 → 87 on 2026-09-23 (Balance 9/23 archives)
+    expect(basic.length).toBe(108 - wishbone + originals(false)); // → 108 on 2026-09-24 (Rune of Investment → Epic); 112 → 110 on 2026-09-23 (Balance 9/23 archives); → 109 on 2026-09-24 (Hoardcalling gated `dragon` again)
+    expect(epic.length).toBe(88 + originals(true)); // 87 → 88 on 2026-09-24 (Rune of Investment → Epic); 90 → 87 on 2026-09-23 (Balance 9/23 archives)
   });
 });
 

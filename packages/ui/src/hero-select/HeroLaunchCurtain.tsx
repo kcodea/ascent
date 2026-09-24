@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useGame } from '../store';
 import { ceremonyTiming } from './heroCeremonyTiming';
 import { registerLaunchController, type HeroLaunchRequest } from './heroLaunchController';
+import { goodLuckIntro, shouldPlayGoodLuckIntro } from '../goodLuck/goodLuckIntroStore';
 
 /**
  * HERO SELECT CEREMONY — the launch curtain (hero-select-ceremony-blueprint.md §7).
@@ -70,6 +71,11 @@ export function HeroLaunchCurtain() {
       // warmLobbyDrivers + writeSave) and it also unmounts HeroSelect behind us.
       try {
         useGame.getState().pickHero(req.heroId);
+        // THE "GOOD LUCK" INTRO (owner ask 2026-09-24): a real lobby / Practice start comes up on a DIMMED
+        // board with the words over it, and the shop clock holds until they fade. Begun here, while the cover
+        // is still opaque, so the overlay is already dimming the board by the time the reveal below lifts.
+        const st = useGame.getState();
+        if (shouldPlayGoodLuckIntro(st.run, { replaying: st.replaySession != null })) goodLuckIntro.begin();
       } catch (err) {
         // §19 "run construction throws": don't strand the player on a black screen. We log and reveal —
         // heroChoices is untouched on a throw, so the picker is still there underneath. (The blueprint's

@@ -7,6 +7,7 @@ import { EndScreen } from './EndScreen';
 import { HeroSelect } from './HeroSelect';
 import { PracticeOptions } from './PracticeOptions';
 import { HeroLaunchCurtain } from './hero-select/HeroLaunchCurtain';
+import { GoodLuckIntro } from './goodLuck/GoodLuckIntro';
 import { Title } from './Title';
 import { Leaderboard } from './Leaderboard';
 import { Rankings } from './Rankings';
@@ -490,6 +491,10 @@ export function Game() {
       <PracticeOptions />
       {/* The hero-select launch curtain: mounted in Game (NOT in HeroSelect) so it survives the unmount
           pickHero causes, and after HeroSelect so it z-orders above it (blueprint §7). */}
+      {/* The "Good Luck" game-start intro (owner ask 2026-09-24): a dimmed board with the words over it, begun by
+          the curtain right after pickHero on a lobby / Practice start. Self-gates on its own store; it holds the
+          shop clock while it plays. Mounted just before the curtain, which lifts off it. */}
+      <GoodLuckIntro />
       <HeroLaunchCurtain />
       <Title onSettings={openSettings} />
       <Leaderboard />

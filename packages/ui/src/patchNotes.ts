@@ -52,6 +52,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-24',
+    label: 'Picnic effect',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Picnic now has its own cast effect. A burst of gems lands on the Shop minion it buffs, however it was cast.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Ruby Types',
     changes: [
       {
@@ -92,6 +102,19 @@ export const PATCH_NOTES: PatchNote[] = [
           'Kurse is now a Kobold and an Undead.',
           'Beggy is back in the Kobold pool.',
           'Gemsmith and Double Dealer are no longer in the game.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Casting a spell no longer makes your warband slide across the board.',
+        details: [
+          'Casting Growth, or any spell, could make every minion on your board slide in from the side.',
+          'It could happen after the game window changed size. Your minions now stay put when you cast.',
         ],
       },
     ],
@@ -143,6 +166,24 @@ export const PATCH_NOTES: PatchNote[] = [
           'Music sits lower and the Announcer a little higher at 50 than the game sounds, so the three blend well out of the box.',
           '100 is still full volume on every channel, and 0 is still silent.',
           'Your volume sliders reset to 50 once with this update. Your mute choices are kept.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Set 3 has a leaner Runeforge. 54 runes no longer appear there. The other sets keep them.',
+        details: [
+          'Kobold runes cut from Set 3: Contraband, Facetwright, Gemcutting, the Lapidary, Redirection, Ruby Shrapnel, the Unbroken Vein and Shifting Facets.',
+          'Dwarf runes cut from Set 3: Last Call, Shared Pour, Baal, the Chef, Mykel and Runic Exchange.',
+          'Undead runes cut from Set 3: Pillaging, Rising Graves, Soul Taxes and the Grave Orbit.',
+          'Spirit rune cut from Set 3: the Full Hand. Other rune cut from Set 3: Aftershocks.',
+          'Every Dragon, Beast, Demon and Mech rune is now out of Set 3, since Set 3 has none of those types.',
+          'The Grave Orbit and the Full Hand were only in Set 3, so no Runeforge offers them for now.',
+          'Set 3 now forges 120 Basic runes and 107 Epic runes.',
         ],
       },
     ],

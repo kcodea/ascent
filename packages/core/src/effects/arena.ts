@@ -816,11 +816,13 @@ export const ARENA_EFFECTS = {
     // keyword land on the same random other friend. Golden doubles the stats and, by the house keyword-grant
     // convention, picks 2 DIFFERENT bodies. A body that already has the keyword (for Rise: `hasReborn`, which
     // folds a spent combat Rise) is picked only when no body lacks it, so the keyword is never wasted while a
-    // fresh target exists; the stats still land either way.
+    // fresh target exists; the stats still land either way. `goldenTargets` overrides the gilded body count
+    // (Wolvie, owner ruling 2026-09-24: "give 1 beast +4/+8" — one Beast, doubled stats).
+    const count = arena.self.golden && typeof params.goldenTargets === 'number' ? Math.max(1, params.goldenTargets) : g;
     const has = (f: ArenaBody): boolean => (kw === 'R' ? arena.hasReborn(f) : f.keywords.includes(kw));
     const rng = arena.rng();
     const picked = new Set<string>();
-    for (let i = 0; i < g; i++) {
+    for (let i = 0; i < count; i++) {
       const left = pool.filter((f) => !picked.has(f.uid));
       if (left.length === 0) return;
       const fresh = left.filter((f) => !has(f));

@@ -92,18 +92,23 @@ describe('Wolvie: "Taunt. Echo: Give a Beast +2/+4 and Rise." (SHOP)', () => {
     }
   });
 
-  it('GILDED: 2 different Beasts, each +4/+8 and Rise', () => {
-    const s = shop([bc('w', 'b2_wolvie', { golden: true }), bc('a', 'alley'), bc('b', 'alley'), bc('c', 'alley')]);
-    fireRecruitDeathrattlesForTest(s, on(s, 'w'));
-    const hit = ['a', 'b', 'c'].filter((u) => on(s, u).keywords.includes('R'));
-    expect(hit.length).toBe(2);
-    for (const u of hit) expect([on(s, u).attack - CARD_INDEX['alley']!.attack, on(s, u).health - CARD_INDEX['alley']!.health]).toEqual([4, 8]);
+  it('GILDED (owner ruling 2026-09-24, "give 1 beast +4/+8"): ONE Beast takes +4/+8 and Rise', () => {
+    for (let seed = 1; seed <= 6; seed++) {
+      const s = shop([bc('w', 'b2_wolvie', { golden: true }), bc('a', 'alley'), bc('b', 'alley'), bc('c', 'alley')], { rngCursor: seed } as Partial<RunState>);
+      fireRecruitDeathrattlesForTest(s, on(s, 'w'));
+      const hit = ['a', 'b', 'c'].filter((u) => on(s, u).keywords.includes('R'));
+      expect(hit.length, `seed ${seed}: one Beast`).toBe(1);
+      expect([on(s, hit[0]!).attack - CARD_INDEX['alley']!.attack, on(s, hit[0]!).health - CARD_INDEX['alley']!.health]).toEqual([4, 8]);
+      const missed = ['a', 'b', 'c'].filter((u) => u !== hit[0]);
+      for (const u of missed) expect(on(s, u).attack, `seed ${seed}: ${u} untouched`).toBe(CARD_INDEX['alley']!.attack);
+    }
   });
 
   it('keeps Taunt and prints the owner text', () => {
     const w = CARD_INDEX['b2_wolvie']!;
     expect(w.keywords).toEqual(['T']);
     expect(w.text).toBe('**Taunt. Echo:** give a **Beast** **+2/+4** and **Rise**.');
+    expect(w.goldenText).toBe('**Taunt. Echo:** give a **Beast** **+4/+8** and **Rise**.');
   });
 });
 
@@ -301,19 +306,25 @@ describe('Beev: when a Beast attacks, give it and this +2/+2', () => {
 });
 
 // ── 14. Humphry ───────────────────────────────────────────────────────────────────────────────────────────
-describe('Humphry: Shout: give a friendly Dragon +3/+4', () => {
+describe('Humphry: Shout: give a friendly Dragon +5/+5 (owner ruling 2026-09-24)', () => {
   it('is a set-2 T3 3/5 Dragon, targeted at Dragons', () => {
     const d = CARD_INDEX['d2_humphry']!;
     expect([d.tribe, d.tier, d.attack, d.health, d.target, d.targetTribe]).toEqual(['dragon', 3, 3, 5, 'friendly', 'dragon']);
     expect(set2Pool.has('d2_humphry')).toBe(true);
   });
 
-  it('SHOP: the aimed Shout lands +3/+4 on the chosen Dragon (gilded +6/+8)', () => {
+  it('SHOP: the aimed Shout lands +5/+5 on the chosen Dragon (gilded +10/+10)', () => {
     for (const golden of [false, true]) {
       let s = shop([bc('d', 'd2_broodfire')], { hand: [bc('h', 'd2_humphry', { golden })] });
       s = reduce(reduce(s, { type: 'play', uid: 'h' }), { type: 'battlecryTarget', targetUid: 'd' });
       const g = golden ? 2 : 1;
-      expect([on(s, 'd').attack, on(s, 'd').health]).toEqual([CARD_INDEX['d2_broodfire']!.attack + 3 * g, CARD_INDEX['d2_broodfire']!.health + 4 * g]);
+      expect([on(s, 'd').attack, on(s, 'd').health]).toEqual([CARD_INDEX['d2_broodfire']!.attack + 5 * g, CARD_INDEX['d2_broodfire']!.health + 5 * g]);
     }
+  });
+
+  it('prints the owner text, plain and gilded', () => {
+    const d = CARD_INDEX['d2_humphry']!;
+    expect(d.text).toBe('**Shout:** give a friendly **Dragon +5/+5**.');
+    expect(d.goldenText).toBe('**Shout:** give a friendly **Dragon +10/+10**.');
   });
 });

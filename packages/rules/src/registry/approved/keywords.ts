@@ -191,22 +191,23 @@ export const KEYWORDS_RULES: GameRule[] = [
   },
   {
     id: 'R-ECHOKW-01',
-    title: 'Wolvie: "Echo: Give a Beast +2/+4 and Rise" lands both on ONE random other Beast; gilded picks 2',
+    title: 'Wolvie: "Echo: Give a Beast +2/+4 and Rise" lands both on ONE random other Beast; gilded gives 1 Beast +4/+8',
     statement:
       'Wolvie\'s Echo gives a RANDOM other friendly Beast +2/+4 and Rise, in combat and wherever an Echo fires (the Shop, '
       + 'End of Turn, borrowed plays, proc\'d Echoes). A Beast that lacks Rise is preferred so the keyword is not wasted; the '
-      + 'stats still land when every Beast already has it. No other Beast means nothing happens. Gilded: +4/+8, and the grant '
-      + 'goes to 2 different Beasts (each takes the doubled stats and Rise). A combat Rise is live that fight; a Shop Rise is '
+      + 'stats still land when every Beast already has it. No other Beast means nothing happens. Gilded: ONE Beast takes '
+      + '+4/+8 and Rise (owner ruling 2026-09-24; it used to pick 2). A combat Rise is live that fight; a Shop Rise is '
       + 'the permanent keyword.',
     domain: 'keywords',
     status: 'approved',
     evidence: [
       { kind: 'owner-handoff', ref: 'Owner Beast/Dragon batch 2026-09-24 (Wolvie correction)', quote: 'Wolvie becomes: "Taunt. Echo: Give a Beast +2/+4 and Rise."' },
+      { kind: 'owner-handoff', ref: 'Owner rulings 2026-09-24 (Gilded Wolvie)', quote: 'give 1 beast +4/+8' },
       { kind: 'code', ref: 'packages/core/src/effects/arena.ts deathrattleBuffRandomTribe (keyword rider); packages/core/src/effects/factories.ts + packages/sim/src/recruit.ts deathrattleBuffRandomTribe wrappers' },
     ],
     cardText: '**Taunt. Echo:** give a **Beast** **+2/+4** and **Rise**.',
     contentIds: ['b2_wolvie'],
-    currentBehaviour: 'Conforms (built with the rework, 2026-09-24). Replaced the next-summon +2/+4 version.',
+    currentBehaviour: 'Conforms (built with the rework, 2026-09-24). Replaced the next-summon +2/+4 version. Gilded narrowed from 2 Beasts to 1 via `goldenTargets: 1` (owner rulings 2026-09-24).',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/beastDragonBatch0924.test.ts', 'packages/sim/src/beastBatchAug12.test.ts', 'packages/sim/src/borrowedEcho.test.ts', 'packages/ui/src/choreo/echoTendrils.test.ts'],

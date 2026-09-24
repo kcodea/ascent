@@ -6642,8 +6642,14 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       // Spare Forge / Runic Passage: a random rune of that rarity, handed over outright — no forge, no pick,
       // no Gold. It goes through the SAME apply-then-own path a BOUGHT rune takes (`case 'buyRune'`), so a
       // granted rune is indistinguishable from a forged one downstream: badge row, tallies, saves, replays.
+      // SET SCOPING (owner ruling 2026-09-24, "limit to the runs own set only"): draw only runes offered in the
+      // run's PINNED set (`setIdOf`, never the live registry) — `sets` absent means every set, the same test the
+      // Runeforge applies. Archived runes live in neither array, so they never come up.
       const owned = new Set(s.ownedRunes ?? []);
-      const pool = (r.rarity === 'epic' ? EPIC_RUNES : RUNES).filter((rn) => !owned.has(rn.id));
+      const runSet = setIdOf(s);
+      const pool = (r.rarity === 'epic' ? EPIC_RUNES : RUNES)
+        .filter((rn) => !rn.sets || rn.sets.includes(runSet))
+        .filter((rn) => !owned.has(rn.id));
       if (pool.length === 0) break; // owns every rune of the rarity — a no-op beats granting a duplicate
       const rng = makeRng(s.rngCursor);
       const rune = pool[rng.int(pool.length)]!;

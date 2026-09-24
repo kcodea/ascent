@@ -52,6 +52,23 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-24',
+    label: 'Owner Rulings',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Gilded Wolvie, Humphry and Karwind are retuned, two runes are retired, and the Spare Forge rune reward now stays in your set.',
+        details: [
+          'Wolvie (Gilded): its Echo now gives 1 Beast +4/+8 and Rise, instead of 2 Beasts.',
+          'Humphry: its Shout now gives a friendly Dragon +5/+5 (was +3/+4). Gilded: +10/+10.',
+          'Karwind: now a 2/8 (was 4/12). Its effect is unchanged.',
+          'Rune of the Grave Orbit and Rune of the Full Hand are retired. No Runeforge offers them.',
+          'Spare Forge and Runic Passage now hand you a random rune from your own card set only.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Good Luck',
     changes: [
       {

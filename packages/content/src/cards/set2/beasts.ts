@@ -218,8 +218,8 @@ export const SET2_BEASTS: CardDef[] = [
   {
     // Owner add 2026-08-12 (was: the next Beast summoned gets +2/+4). Owner batch 2026-09-24: "Taunt. Echo: Give a
     // Beast +2/+4 and Rise." A RANDOM other friendly Beast takes both (`deathrattleBuffRandomTribe`'s keyword
-    // rider, one arena body for the Shop and combat). Golden: +4/+8, and the Rise grant goes to 2 Beasts (the
-    // house keyword-grant gild), each taking the doubled stats.
+    // rider, one arena body for the Shop and combat). Golden (owner ruling 2026-09-24, "give 1 beast +4/+8"):
+    // ONE Beast takes +4/+8 and Rise — `goldenTargets: 1` opts out of the house 2-body keyword-grant gild.
     id: 'b2_wolvie',
     name: 'Wolvie',
     tribe: 'beast',
@@ -227,9 +227,9 @@ export const SET2_BEASTS: CardDef[] = [
     attack: 3,
     health: 2,
     keywords: ['T'],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffRandomTribe', params: { tribe: 'beast', attack: 2, health: 4, keyword: 'R' } }],
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffRandomTribe', params: { tribe: 'beast', attack: 2, health: 4, keyword: 'R', goldenTargets: 1 } }],
     text: '**Taunt. Echo:** give a **Beast** **+2/+4** and **Rise**.',
-    goldenText: '**Taunt. Echo:** give **2** **Beasts** **+4/+8** and **Rise**.',
+    goldenText: '**Taunt. Echo:** give a **Beast** **+4/+8** and **Rise**.',
   },
   {
     // Owner add 2026-08-12. Echo: buff your Beasts "wherever they are" — `deathrattleBuffTribe` buffs the living

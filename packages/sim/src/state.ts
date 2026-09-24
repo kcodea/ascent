@@ -866,7 +866,7 @@ export interface RunState {
   /** Rune of Liquidation: selling a minion hands its BONUS stats (everything above its printed base) to the
    *  right-most Shop minion. */
   runeLiquidation?: boolean;
-  /** Rune of Facetwright: a Facetwright's Choice cast resolves BOTH branches, not the picked one. */
+  /** Rune of Facetwright: a Facetwright cast resolves BOTH branches, not the picked one. */
   runeFacetwright?: boolean;
   /** Rune of Duplication: the next Epic rune bought also applies its reward a second time. */
   runeDuplication?: boolean;

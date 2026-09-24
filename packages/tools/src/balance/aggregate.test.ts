@@ -30,16 +30,18 @@ describe('aggregate (synthetic fixture)', () => {
 
   it('headline numbers snapshot (regenerate deliberately when the fixture changes)', () => {
     const heroes = agg.heroes.filter((h) => h.assigned > 0).map((h) => `${h.heroId}:${h.assigned}:${h.placement.est?.toFixed(2)}`);
+    // Regenerated 2026-09-24: the Kobold/Celestial/Dwarf batch (Pickles, Jewel, Delver, Kurse, Maestro Lux, Han Gover)
+    // plays through the synthetic set-3 lobbies, so the per-hero placements move.
     expect(heroes).toMatchInlineSnapshot(`
       [
-        "drakko:30:4.93",
-        "fibbsy:30:4.83",
-        "gorr:30:4.70",
-        "harlan:30:4.63",
-        "midas:30:4.13",
-        "nadja:30:4.33",
+        "drakko:30:5.07",
+        "fibbsy:30:4.53",
+        "gorr:30:4.73",
+        "harlan:30:4.77",
+        "midas:30:3.97",
+        "nadja:30:4.30",
         "pete:30:4.03",
-        "warden:30:4.40",
+        "warden:30:4.60",
       ]
     `);
     expect(agg.minions.length).toBeGreaterThan(50);

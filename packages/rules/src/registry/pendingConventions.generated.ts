@@ -421,11 +421,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-shout",
-    "title": "'shout' family · 68 cards",
-    "statement": "All 68 'shout' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'shout' family · 67 cards",
+    "statement": "All 67 'shout' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "62 effect factories across 68 cards dispatch through the 'shout' presentation family, all on the single trigger 'onPlay' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\" · Members: Pennycat · Mage-Pup · Black Belt Brian · Buddy Buddy · The Great Attractor · Constellation Prime · Solburn · Plummet · Rocket Power · Maestro Lux · Star Seed · Sugarnova · … and 56 more",
+    "currentBehaviour": "63 effect factories across 67 cards dispatch through the 'shout' presentation family, all on the single trigger 'onPlay' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Pennycat: \"Battlecry: summon a 1/1 Stray next to it.\" · Members: Pennycat · Mage-Pup · Black Belt Brian · Buddy Buddy · The Great Attractor · Constellation Prime · Solburn · Plummet · Rocket Power · Star Seed · Sugarnova · Wishing Star · … and 55 more",
     "example": "Pennycat follows the 'shout' convention — its trigger fires on onPlay. its printed numbers double when the card is gilded.",
     "contentIds": [
       "alley",
@@ -437,7 +437,6 @@ export const CONVENTION_PENDING: GameRule[] = [
       "ce3_coronadevotee",
       "ce3_herald",
       "ce3_shootingstar",
-      "ce3_starcharter",
       "ce3_starseed",
       "ce3_vendor",
       "ce3_wishingstar",

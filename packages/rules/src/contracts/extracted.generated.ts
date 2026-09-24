@@ -3713,9 +3713,9 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "low",
+      "confidence": "medium",
       "unparsed": [
-        "battlecryDiscoverMinion.tribe"
+        "dealtDamageGrantRandomTribe.tribe"
       ]
     },
     "setIds": [
@@ -3730,14 +3730,21 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "triggers": [
       {
-        "event": "onPlay",
+        "event": "passive",
         "phase": "both",
         "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
       {
-        "kind": "battlecryDiscoverMinion"
+        "kind": "dealtDamageGrantRandomTribe",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "count": 1,
+            "every": 12
+          }
+        }
       }
     ],
     "gildedDelta": {
@@ -7771,7 +7778,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "kind": "const",
           "plain": {
             "count": 1,
-            "every": 40
+            "every": 40,
+            "maxPerCombat": 5
           }
         }
       }
@@ -15757,9 +15765,9 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "low",
+      "confidence": "medium",
       "unparsed": [
-        "battlecryDiscoverMinion.tribe"
+        "battlecryGainRandomMinion.tribe"
       ]
     },
     "setIds": [
@@ -15782,12 +15790,24 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "battlecryDiscoverMinion",
-        "note": "Choose One branch 1: \"Discover a Kobold.\""
+        "kind": "battlecryGainRandomMinion",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "count": 1
+          }
+        },
+        "note": "Choose One branch 1: \"Get a random Kobold.\""
       },
       {
-        "kind": "battlecryDiscoverSpell",
-        "note": "Choose One branch 2: \"Discover a Shop spell.\""
+        "kind": "gainMaxMana",
+        "amount": {
+          "kind": "const",
+          "plain": {
+            "amount": 1
+          }
+        },
+        "note": "Choose One branch 2: \"Increase your max Gold by 1.\""
       }
     ],
     "gildedDelta": {
@@ -15904,7 +15924,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "reviewStatus": "extracted",
     "extraction": {
       "extractor": "contracts-extract@1",
-      "confidence": "high"
+      "confidence": "medium",
+      "unparsed": [
+        "avengeSummonRubyStats.charge"
+      ]
     },
     "setIds": [
       "set3"
@@ -16113,16 +16136,6 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "battlecryGrantRandomSpell",
-        "amount": {
-          "kind": "const",
-          "plain": {
-            "count": 1
-          }
-        },
-        "note": "Choose One branch 1: \"Get a random Shop spell.\""
-      },
-      {
         "kind": "battlecryGetRubies",
         "amount": {
           "kind": "const",
@@ -16130,7 +16143,14 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
             "count": 3
           }
         },
-        "note": "Choose One branch 2: \"Get 3 Rubies.\""
+        "note": "Choose One branch 1: \"Get 3 Rubies.\""
+      },
+      {
+        "kind": "battlecryGrantSpell",
+        "refs": [
+          "facetwright"
+        ],
+        "note": "Choose One branch 2: \"Get a Facetwright.\""
       }
     ],
     "gildedDelta": {
@@ -16155,12 +16175,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "setIds": [
       "set3"
     ],
-    "tier": 3,
+    "tier": 2,
     "tribes": [
       "kobold"
     ],
     "tags": [
-      "tier:3"
+      "tier:2"
     ],
     "triggers": [
       {

@@ -52,15 +52,16 @@ export const SET3_KOBOLDS: CardDef[] = [
     health: 3,
     keywords: [],
     effects: [],
+    // Owner 2026-09-24: the random-Shop-spell branch becomes a Facetwright (the set-2 Ruby spell, granted by
+    // id through `battlecryGrantSpell`, ×2 gilded); the Ruby branch still pays 3 (owner 2026-09-18), gilded 6.
     chooseOne: [
-      { text: 'Get a random **Shop spell**.', goldenText: 'Get **2** random **Shop spells**.',
-        effects: [{ on: 'onPlay', do: 'battlecryGrantRandomSpell', params: { count: 1 } }] },
-      // Owner handoff 2026-09-18: the Ruby branch pays 3 (was 2); gilded 6.
       { text: 'Get **3 Rubies**.', goldenText: 'Get **6 Rubies**.',
         effects: [{ on: 'onPlay', do: 'battlecryGetRubies', params: { count: 3 } }] },
+      { text: 'Get a **Facetwright**.', goldenText: 'Get **2 Facetwrights**.',
+        effects: [{ on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'facetwright' } }] },
     ],
-    text: '**Choose One:** get a random **Shop spell**, or get **3 Rubies**.',
-    goldenText: '**Choose One:** get **2** random **Shop spells**, or get **6 Rubies**.',
+    text: '**Choose One:** Get **3 Rubies** or a **Facetwright**.',
+    goldenText: '**Choose One:** Get **6 Rubies** or **2 Facetwrights**.',
   },
   {
     // Both branches raise Ruby STRENGTH (`rubyBonus`) — the run-wide stat every future Ruby carries — split
@@ -93,8 +94,8 @@ export const SET3_KOBOLDS: CardDef[] = [
     id: 'k3_veinchant',
     name: 'Delver', // 'Veinchant Delver' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'kobold',
-    tier: 3,
-    attack: 5,
+    tier: 2, // T3 5/3 → T2 4/3 (owner 2026-09-24)
+    attack: 4,
     health: 3,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'veinstorm' } }],
@@ -102,8 +103,9 @@ export const SET3_KOBOLDS: CardDef[] = [
     goldenText: '**Echo:** get **2 Veinstorms**.',
   },
   {
-    // The tribe's Discover fork. `battlecryDiscoverMinion` takes a tribe, so the left branch is a true
-    // three-card Kobold peek rather than a random grant; the right is the shared Shop-spell Discover.
+    // Owner 2026-09-24: a random Kobold (the shared `battlecryGainRandomMinion` pick — the run's pool, ≤ the
+    // shop tier, ×2 gilded) against +1 max Gold (`gainMaxMana` — Gold Font's permanent `maxGoldBonus` route,
+    // above the natural cap, ×2 gilded). Was a Kobold Discover / Shop-spell Discover fork.
     id: 'k3_jeweler',
     name: 'Jewel',
     tribe: 'kobold',
@@ -113,13 +115,13 @@ export const SET3_KOBOLDS: CardDef[] = [
     keywords: [],
     effects: [],
     chooseOne: [
-      { text: 'Discover a **Kobold**.', goldenText: 'Discover **2 Kobolds**.',
-        effects: [{ on: 'onPlay', do: 'battlecryDiscoverMinion', params: { tribe: 'kobold' } }] },
-      { text: 'Discover a **Shop spell**.', goldenText: 'Discover **2 Shop spells**.',
-        effects: [{ on: 'onPlay', do: 'battlecryDiscoverSpell', params: {} }] },
+      { text: 'Get a random **Kobold**.', goldenText: 'Get **2** random **Kobolds**.',
+        effects: [{ on: 'onPlay', do: 'battlecryGainRandomMinion', params: { tribe: 'kobold', count: 1 } }] },
+      { text: 'Increase your max **Gold** by **1**.', goldenText: 'Increase your max **Gold** by **2**.',
+        effects: [{ on: 'onPlay', do: 'gainMaxMana', params: { amount: 1 } }] },
     ],
-    text: '**Choose One:** Discover a **Kobold**, or a **Shop spell**.',
-    goldenText: '**Choose One:** Discover **2 Kobolds**, or **2 Shop spells**.',
+    text: '**Choose One:** Get a random **Kobold** or increase your max **Gold** by **1**.',
+    goldenText: '**Choose One:** Get **2** random **Kobolds** or increase your max **Gold** by **2**.',
   },
   {
     // The roster's Equip minion. Blast Pump is an EQUIPMENT SPELL — it casts `rubyexcavation`, the shipped
@@ -254,8 +256,8 @@ export const SET3_KOBOLDS: CardDef[] = [
     keywords: [],
     vanguardGolem: true,
     effects: [],
-    text: "Before this attacks, summon a **1/1 Gemheart Golem** plus this minion's Rubies, and it attacks first.",
-    goldenText: "Before this attacks, summon a **2/2 Gemheart Golem** plus double this minion's Rubies, and it attacks first.",
+    text: "Before this attacks, summon a **Gemheart Golem** with this minion's Rubies, and it attacks first.",
+    goldenText: "Before this attacks, summon a **2/2 Gemheart Golem** with double this minion's Rubies, and it attacks first.",
   },
   {
     // The roster's SECOND Equip minion, and the first Equipment anywhere to open the Choose One window (owner
@@ -328,9 +330,12 @@ export const SET3_KOBOLDS: CardDef[] = [
     attack: 7,
     health: 4,
     keywords: [],
-    effects: [{ on: 'avenge', do: 'avengeSummonRubyStats', params: { count: 3, tokenId: 'gemheart-shard' } }],
-    text: "**Avenge (3):** Summon a **1/1 Gemheart Golem**, plus this minion's Rubies.",
-    goldenText: "**Avenge (3):** Summon a **2/2 Gemheart Golem**, plus double this minion's Rubies.",
+    // Owner 2026-09-24: "It attacks immediately." — a MECHANIC change specific to Kurse (`charge: true` → the
+    // arena body's immediate-attack lane, `attackNow`); Carver / Porkbelly / Rune of the Gem Golem keep their own
+    // timing and only share the "Summon a Gemheart Golem with <whose> Rubies" wording.
+    effects: [{ on: 'avenge', do: 'avengeSummonRubyStats', params: { count: 3, tokenId: 'gemheart-shard', charge: true } }],
+    text: "**Avenge (3):** Summon a **Gemheart Golem** with this minion's Rubies. It attacks immediately.",
+    goldenText: "**Avenge (3):** Summon a **2/2 Gemheart Golem** with double this minion's Rubies. It attacks immediately.",
   },
   {
     // GOLDVEIN (owner handoff 2026-09-19; PUMMEL keyword 2026-09-21; carry-over ruling later that day). "Pummel

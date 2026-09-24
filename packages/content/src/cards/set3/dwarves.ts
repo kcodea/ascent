@@ -159,8 +159,10 @@ export const SET3_DWARVES: CardDef[] = [
     attack: 4,
     health: 7,
     keywords: [],
-    effects: [{ on: 'passive', do: 'dealtDamageAleMeter', params: { every: 40, count: 1 } }],
-    text: '**Pummel (40):** Get a **Dwarven Ale**. (Once per combat)',
-    goldenText: '**Pummel (40):** Get **2 Dwarven Ales**. (Once per combat)',
+    // Owner 2026-09-24: "(Max 5 per combat.)" replaces "(Once per combat)" — `maxPerCombat: 5`, the per-combat
+    // payout cap `noteDamageDealt` counts on the instance (`pummelFires`).
+    effects: [{ on: 'passive', do: 'dealtDamageAleMeter', params: { every: 40, count: 1, maxPerCombat: 5 } }],
+    text: '**Pummel (40):** Get a **Dwarven Ale**. (Max 5 per combat.)',
+    goldenText: '**Pummel (40):** Get **2 Dwarven Ales**. (Max 5 per combat.)',
   },
 ];

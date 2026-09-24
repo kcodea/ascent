@@ -27,7 +27,7 @@ import { descTextOf, mount, plainOf } from './renderedText.mount';
 /** The three live (Both) sources, each as {run flags, instance, card}. */
 const SOURCES = [
   { what: 'a golden Orivax (chooseBothWhenGolden)', id: 'd2_orivax', run: {} as Partial<RunState>, golden: true },
-  { what: "Facetwright's Choice under its rune", id: 'facetwright', run: { runeFacetwright: true } as Partial<RunState>, golden: false },
+  { what: "Facetwright under its rune", id: 'facetwright', run: { runeFacetwright: true } as Partial<RunState>, golden: false },
   { what: 'Veinbreaker under the Rune of the Unbroken Vein', id: 'k_veinbreaker', run: { runeUnbrokenVein: true } as Partial<RunState>, golden: false },
 ] as const;
 

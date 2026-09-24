@@ -94,7 +94,11 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // sentences and taught the grammar the sentence forms (NOTES for the Engraved / All-types / copy-exact / refresh-
 // spells glosses, "Start of Combat (Bleed):", "Choose One.", ", up to N hits a combat"). Moe's "That shop has a
 // guaranteed Attachment (costs 2)" is a note now, so Moe parses fully and the queue nets -1. Nothing regressed.
-const UNRESOLVED_CAP = 90;
+// 90 → 88 on 2026-09-24: the Kobold/Celestial/Dwarf batch. The sentence splitter keeps a parenthetical that holds
+// its own full stop ("(Once per combat.)", "(Max 5 per combat.)") as ONE sentence instead of stranding a ")", and
+// "with (double) this minion's Rubies" (the new Gemheart Golem wording) is a tolerated tail; Maestro Lux, Han
+// Gover, Kurse, Carver and Porkbelly parse fully, and two older ".)" texts stop stranding a ")". Nothing regressed.
+const UNRESOLVED_CAP = 88;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

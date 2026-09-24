@@ -767,7 +767,7 @@ export function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView { //
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, attack: 0, health: 0,
       // A shop SPELL renders from `spellDisplayText`, not `liveCardText` — so the (Both) rendering has to be
-      // applied here too, or a Facetwright's Choice under its rune would read "Choose One:" in the tavern and
+      // applied here too, or a Facetwright under its rune would read "Choose One:" in the tavern and
       // (Both) everywhere else. Same predicate, same helper.
       keywords: c.keywords, text: (offerChoosesBoth(c.id, false, opts) ? chooseBothText(c.id, false, opts.spellBonus ?? 0, opts.spellBonusH ?? opts.spellBonus ?? 0) : null) ?? spellDisplayText(c.id, opts.spellBonus ?? 0, opts.frontToBackBonus ?? 0, opts.spellBonusH ?? opts.spellBonus ?? 0, opts.goldSpent ?? 0, opts.frontToBackBonusH ?? opts.frontToBackBonus ?? 0, opts.goldPouchValue ?? 0, { rubyBonus: opts.rubyBonus, playedThisTurn: opts.playedThisTurn, topTribe: opts.topTribe as never, tier: opts.tier, growthBonus: opts.growthBonus, juggler: opts.juggler, clueBonus: opts.clueBonus, anySpellsThisTurn: opts.anySpellsThisTurn /* the SHOP chain dropped these two while carrying them in `opts`, so a Stellar Chorus in the tavern read its base +2/+2 after spells were cast (owner report 2026-09-13) — pinned by shopSpellLiveText.test.ts */ }),
       cost, costChanged: cost < base, spell: true,

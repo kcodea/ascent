@@ -52,9 +52,9 @@ describe('Doc Bot — run-state carry-over (recruit→combat bridge)', () => {
     expect(naked.map((f) => `${f}: arming its sentinel broke faceOmen — add a type-correct value to SENTINELS, or excuse it in CARRY_OVER_EXCUSED with why the resolve refuses it`)).toEqual([]);
   });
 
-  it('the needs-triage backlog can only shrink (ratchet: 2 as of 2026-08-26)', () => {
+  it('the needs-triage backlog can only shrink (ratchet: 0 as of 2026-09-24, spellhidePending resolved by the sourceUid match)', () => {
     const triage = Object.entries(CARRY_OVER_EXCUSED).filter(([, e]) => e.kind === 'needs-triage');
-    expect(triage.length, `needs-triage entries: ${triage.map(([f]) => f).join(', ')} — resolving one? lower this ratchet. Adding one? that needs an owner ruling, not a bigger number.`).toBeLessThanOrEqual(2);
+    expect(triage.length, `needs-triage entries: ${triage.map(([f]) => f).join(', ')} — resolving one? lower this ratchet. Adding one? that needs an owner ruling, not a bigger number.`).toBeLessThanOrEqual(0);
   });
 
   // ── the sabotage guard: if the Part-A threading were removed (simulate called WITHOUT the mods), this

@@ -360,8 +360,9 @@ pinned in `packages/sim/src/set3CelestialRoster.test.ts`):
 - **Sugarnova** (2026-09-18, 4/2): **Shout: give your next Shop spell +4/+4** (gilded +8/+8). The bonus is a run
   field: it **survives End Turn → combat → the next shop** if unspent, every Shop spell offer / hand spell prints
   it live in place, and exactly the next Shop-spell cast consumes it (Gifts and Rubies neither read nor spend it).
-- **Maestro Lux** Discovers a Celestial from the run's pool — never itself, and never the Starform (a token, outside
-  every draw pool).
+- **Maestro Lux** (owner 2026-09-24): **Pummel (12): Get a random Celestial. (Once per combat.)** (gilded: 2). The
+  pick is the shared combat random-minion grant (the run's pool, at or below the shop tier; All-types cards count),
+  flown to hand in the replay and landed at settle. The Starform is a token and is never picked.
 
 The **combat event vocabulary** is a union of **22 distinct event types** in
 `packages/core/src/types.ts` (`CombatEvent`): `sc, attack, dmg, shield, shieldUp, poison, reborn,
@@ -789,10 +790,11 @@ resetting to 0/X after combat. It needs to carry over from turn to turn and comb
   by a Rise / Rebirth body (the same combat instance), and merged as the higher of the copies on a triple. It
   never resets.
 - A payout happens **each time the tally crosses a multiple of X** (35 → 40 pays; 47 → 52 does not).
-- But **at most one payout per combat**: the "(Once per combat)" rider is a latch on the combat body, fresh
-  every fight. A second crossing in the same fight pays nothing, and one enormous hit that crosses several
-  multiples still pays once; the uncredited crossings are **spent, not banked** (a 120 hit from 0 pays once and
-  the next payout waits for 160). Gilded doubles the payout, never the fire count.
+- But **at most the card's per-combat cap** (`maxPerCombat`, default 1 = "(Once per combat.)"; Han Gover prints
+  "(Max 5 per combat.)", owner 2026-09-24). The payout count lives on the combat body, fresh every fight (a Rise
+  does not re-arm it). Within the cap every multiple crossed pays, including several crossed by one hit; past
+  the cap the crossings are **spent, not banked** (under a cap of 1, a 120 hit from 0 pays once and the next
+  payout waits for 160). Gilded doubles the payout, never the fire count.
 - The readout on every surface (shop, board, hand, combat) is progress toward the **next** payout: `total mod
   X`. Han Gover at 47 damage reads **7/40** in the shop and in combat; a crossing lands on 0/40; nothing clamps
   at X/X, so after this fight's payout the combat badge keeps showing live progress toward the multiple that
@@ -800,13 +802,15 @@ resetting to 0/X after combat. It needs to carry over from turn to turn and comb
 
 Bodies today:
 
-- **Han Gover** (T4 Dwarf/Undead): *"Pummel (40): Get a Dwarven Ale. (Once per combat)"* (gilded: 2 Dwarven
-  Ales). The 2026-09-19 "(Max 2 per hit)" cap stays retired (one payout per combat makes a cap moot); the
-  2026-09-21 per-combat reset that briefly shipped with the keyword was reversed the same day.
+- **Han Gover** (T4 Dwarf/Undead): *"Pummel (40): Get a Dwarven Ale. (Max 5 per combat.)"* (gilded: 2 Dwarven
+  Ales per payout). Up to 5 payouts a fight, never a 6th (owner 2026-09-24; was once per combat). The 2026-09-19
+  "(Max 2 per hit)" cap stays retired; the 2026-09-21 per-combat reset that briefly shipped with the keyword was
+  reversed the same day.
+- **Maestro Lux** (T4 Celestial): *"Pummel (12): Get a random Celestial. (Once per combat.)"* (gilded: 2).
 - **Goldvein** (T1 Kobold): *"Pummel (6): Gain 3 Gold next turn. (Once per combat)"* (gilded: 6 Gold). Its
   tally carries over now too (it reset each combat from 2026-09-19 until the carry-over ruling).
 
-The fire is a combat event (`pummelTrigger`, one per body per combat, emitted after the `dmg` that crossed
+The fire is a combat event (`pummelTrigger`, one per payout, emitted after the `dmg` that crossed
 the multiple and before the payout's own events), which the replay presents with the owner-authored
 `pummel-trigger` FX on the body's medallion (see `docs/combat-events.md`).
 

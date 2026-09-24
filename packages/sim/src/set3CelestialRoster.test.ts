@@ -370,24 +370,8 @@ describe('Corona Devotee — Collapse your Starform: 3 unique random friendly Ce
   });
 });
 
-describe('Star Charter — Discover a Celestial', () => {
-  it('offers three Celestials, never itself and never the Starform token; gilded queues a second Discover', () => {
-    for (let seed = 1; seed <= 8; seed++) {
-      let s = run({ hand: [body('c', 'ce3_starcharter')], rngCursor: seed * 7919 });
-      s = play(s, 'c', { toIndex: 0 });
-      expect(s.discover, `seed ${seed}`).toHaveLength(3);
-      for (const id of s.discover!) {
-        expect(CARD_INDEX[id]!.tribe, id).toBe('celestial');
-        expect(id).not.toBe('ce3_starcharter');
-        expect(id).not.toBe(STARFORM_ID);
-      }
-    }
-    let g = run({ hand: [body('c', 'ce3_starcharter', { golden: true })] });
-    g = play(g, 'c', { toIndex: 0 });
-    expect(g.discover).toHaveLength(3);
-    expect(g.discoverQueue, 'the second Discover waits behind the first').toHaveLength(1);
-  });
-});
+// Star Charter / Maestro Lux's Shout Discover was replaced by "Pummel (12): Get a random Celestial. (Once per combat.)"
+// (owner 2026-09-24): pinned in koboldCelestialDwarf0924.test.ts.
 
 describe('Lens Grinder (T4 4/6) — Equip Stellar Lens (2): create a Starform, then this shop +7/+7 (owner 2026-09-14)', () => {
   it('the play grants the Lens; activating costs 2, keeps a held token, and buffs every current offer +7/+7 (the Starform keeps it past a refresh); one charge per turn', () => {

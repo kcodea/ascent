@@ -52,6 +52,21 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-24',
+    label: 'Leaderboard and Recent Games',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Recent Games has a new Practice tab with the latest practice games. The Leaderboard\'s Rank heading now lines up with the ranks.',
+        details: [
+          'The Rank heading on the Leaderboard now sits centred over the rank medal, name and bar.',
+          'Recent Games now has two tabs: Ranked (the games you saw before) and Practice.',
+          'Practice rows show the hero, final team, runes, placement and record, plus the opponents and Health you picked. Practice games have no replay to watch.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Beasts and Dragons',
     changes: [
       {

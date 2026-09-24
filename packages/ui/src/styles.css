@@ -6894,7 +6894,11 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .lb-trow > * { min-width: 0; }
 .lb-thead { padding: 4px 24px 10px; border-bottom: 2px solid rgba(196, 160, 92, 0.35); border-radius: 0; font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(232, 200, 119, 0.85); }
 .lb-thead .lb-c-rank { text-align: center; }
-.lb-thead .lb-c-rating, .lb-thead .lb-c-games { text-align: right; justify-content: flex-end; }
+.lb-thead .lb-c-games { text-align: right; justify-content: flex-end; }
+/* RANK is centred over its cell, and the cell's content (crest + label + bar, or the legacy MMR) is centred
+   under it as one block (owner 2026-09-24: "better center the rank text over the rank column"). Both centre on
+   the same grid track, so they line up at every width. */
+.lb-thead .lb-c-rating { text-align: center; justify-content: center; }
 /* A row is a plate that opens the player's Career (a div[role=button]); hover warms the frame, YOUR row
    carries the accent ring. */
 .lb-trow-btn { background: linear-gradient(90deg, rgba(13, 22, 40, 0.82), rgba(9, 15, 29, 0.86)); border: 2px solid rgba(196, 160, 92, 0.28); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.08); transition: border-color 0.12s ease, background 0.12s ease; }
@@ -6915,7 +6919,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .lb-herosub { font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: rgba(255, 255, 255, 0.62); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The rating — the big gold number with its unit trailing. ONE element (`.lb-c-rating`, aliased `.rk-rating`)
    so a medal crest can be slotted into it without re-laying the row. */
-.lb-c-rating { display: flex; align-items: baseline; justify-content: flex-end; gap: 8px; }
+.lb-c-rating { display: flex; align-items: baseline; justify-content: center; gap: 8px; }
 .lb-rating { font-family: var(--font-ui); font-weight: 900; font-size: 40px; line-height: 1; color: #ffd76a; font-variant-numeric: tabular-nums; }
 .lb-unit { font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
 /* Games — the value with its small-caps caption under it, right-aligned under the GAMES header. */
@@ -7002,6 +7006,9 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 /* Narrower viewports: the tiles step down before the columns would overflow. The thresholds carry the menu
    sidebar's 240px (owner ask 2026-09-21): the rows have `viewport − 240` to work with, so 1400/1180 of page
    width are 1640/1420 of viewport. */
+/* Recent Games: the Ranked | Practice tabs (owner 2026-09-24) wear the Career page's `.cv2-tabs` pill and sit where
+   the Hall's sort toggle sits, at the right of the top bar. */
+.rg-tabs { margin-left: auto; flex: none; }
 @media (max-width: 1640px) { .lb-team { --tile-s: 0.62; } }
 @media (max-width: 1420px) {
   .lb-team { --tile-s: 0.5; }
@@ -11764,7 +11771,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 .cv2-heroframe.small { --ring: 84px; }
 
 /* Rankings rows: the rank cell holds the row-size bar instead of the bare MMR. */
-.lb-c-rating .rankbar-row { justify-content: flex-end; }
+.lb-c-rating .rankbar-row { justify-content: center; }
 
 /* ── THE POST-GAME RANK SCREEN ──
    Same overlay chrome as the lobby end screen (`.heroselect.endscreen.lobbyend`), with the dim-in stretched

@@ -614,18 +614,24 @@ export function ancientWandererText(cardId: string, goldSpentRun: number, golden
 }
 
 /**
- * MUSTER GENERAL — its Trooper is a 1/1 only until the first Avenge fires; after that the printed "1/1" is a
- * stale number, which the live-text rule calls a defect. `summonBonus` is the permanent per-instance accrual
- * (carried back after each combat), so fold it into BOTH the summoned line and the improve step.
+ * MUSTER GENERAL — its Trooper is the token's printed line (3/3 since the owner's 2026-09-23 balance; 1/1
+ * before) only until the first Avenge fires; after that the printed line is a stale number, which the
+ * live-text rule calls a defect. `summonBonus` is the permanent per-instance accrual (carried back after each
+ * combat), so fold it into the summoned line. The base is read off the TOKEN the effect names, so a reprice
+ * of the Trooper needs no edit here.
  */
 export function musterTrooperText(cardId: string, summonBonus: number, golden = false): string | null {
-  if (summonBonus <= 0) return null; // no Avenge has fired — the printed 1/1 is accurate
+  if (summonBonus <= 0) return null; // no Avenge has fired — the printed line is accurate
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'avengeSummonAttackImproving');
   if (!def || !eff) return null;
-  const n = 1 + summonBonus;
+  const token = CARD_INDEX[String((eff.params as { cardId?: string } | undefined)?.cardId ?? '')];
+  const baseA = token?.attack ?? 1;
+  const baseH = token?.health ?? 1;
   const src = golden ? (def.goldenText ?? def.text) : def.text;
-  return src.replace('**1/1 Trooper**', `**{{${n}/${n}}} Trooper**`);
+  // Without the leading `**`, so the gilded "**Gilded 3/3 Trooper**" is rewritten too (the old `**1/1 Trooper**`
+  // pattern never matched the gilded line, which therefore printed a stale 1/1 all along).
+  return src.replace(`${baseA}/${baseH} Trooper`, `{{${baseA + summonBonus}/${baseH + summonBonus}}} Trooper`);
 }
 
 export function spellThresholdText(cardId: string, golden: boolean, spellProgress: number): string | null {
@@ -996,34 +1002,24 @@ export function squirlScoutText(cardId: string, golden: boolean, squirlScoutBuff
 }
 
 /**
- * Conductor's grant snowballs like Squirl Scout's, positionally: `conductorBuff` counts weighted Shouts
- * (×2 gilded, ×2 Mastery) and the grant is +(2×N)/+(3×N). Surface what a play NOW would give — (buff + this
- * play's step) — green, in place of the FIRST printed "+A/+B"; the per-play improve clause stays printed.
- * Null before any accrual (the printed base is accurate).
+ * Conductor (owner rework 2026-09-23: "give adjacent minions +2/+3 and improve this") — the grant is
+ * (base + this copy's accrued `summonBonus`) × golden, and it is the SAME number in every framing: a shop offer,
+ * a hand card, a board body and a combat body all print what the NEXT fire of this copy grants, because the
+ * arena body grants first and improves after. Surface it green in place of the FIRST printed "+A/+B"; null
+ * before any accrual (the printed base is accurate). The old run-wide `conductorBuff` framing split
+ * (shop = next step, board = current N) is gone with the snowball.
  */
-export function conductorText(cardId: string, golden: boolean, conductorBuff: number, improveReps = 1, onBoard = false): string | null {
-  if (cardId !== 'n2_conductor' || conductorBuff <= 0) return null;
+export function conductorText(cardId: string, golden: boolean, summonBonus: number): string | null {
+  if (cardId !== 'n2_conductor' || summonBonus <= 0) return null;
   const def = CARD_INDEX[cardId];
   if (!def) return null;
   const params = (def.effects.find((e) => e.do === 'battlecryConductorAdjacent')?.params ?? {}) as { attack?: number; health?: number };
-  const stepA = Number(params.attack ?? 2);
-  const stepH = Number(params.health ?? 3);
-  // TWO FRAMINGS, and using the wrong one misprints the card by a full step.
-  //
-  //   In the SHOP / hand, this Conductor has NOT been played yet, so the number that matters is what playing
-  //   it right now would grant — N advances first, then the Shout fires. Hence the +1 (+2 golden, ×improves).
-  //
-  //   ON THE BOARD (and therefore all through COMBAT) it has already been played: N already counts it. The
-  //   grant of any re-fire — a Parting Cry, Ryme, Dawnclaw, Rune of Shared Scripture — is the CURRENT N,
-  //   which is exactly what the arena body applies. Adding a step there printed one increment too many
-  //   (owner report 2026-08-26: the combat text doesn't track what it actually does).
-  //
-  // Floored at 1 to match the arena body, so a body that never went through the shop's play path (summoned,
-  // Discovered straight onto the board) prints the printed +2/+3 it really pays rather than nothing.
-  const next = onBoard ? Math.max(1, conductorBuff) : conductorBuff + (golden ? 2 : 1) * improveReps;
+  const g = golden ? 2 : 1;
+  const a = (Number(params.attack ?? 2) + summonBonus) * g;
+  const h = (Number(params.health ?? 3) + summonBonus) * g;
   const src = golden ? (def.goldenText ?? def.text) : def.text;
   let done = false;
-  return src.replace(/\+\d+\/\+\d+/g, (m) => (done ? m : ((done = true), `{{+${stepA * next}/+${stepH * next}}}`)));
+  return src.replace(/\+\d+\/\+\d+/g, (m) => (done ? m : ((done = true), `{{+${a}/+${h}}}`)));
 }
 
 export function soulsmanText(cardId: string, goldGained: number): string | null {
@@ -1129,21 +1125,23 @@ export function perGoldSpentText(cardId: string, goldSpentThisTurn: number, gold
 }
 
 /**
- * Rope Wrangler: End of Turn casts its spell 1 + ⌊Gold spent this turn / perGold⌋ times (× golden), capped at
- * `maxCasts`. The count depends on live turn state (Gold spent this turn is on the text-rule list), so append
- * the current cast count in green. Generic over the `castSpell` effect with a `perGold` param.
+ * Rope Wrangler (owner rework 2026-09-23): "cast Lasso. Repeat for every 10 Gold spent this turn" — the REPEAT
+ * form (R-REPEAT-01), so the live text keeps the per-tick cast as printed (gilded: "twice") and appends how
+ * many ticks land right now, `(×N)` with N = 1 + ⌊Gold spent this turn / perGold⌋ — Mother Moss's, Kringle's
+ * and Rocket Power's house style — folded into the "Repeat …" sentence. Null while no repeat is owed (the
+ * printed base is the whole truth). Generic over the `castSpell` effect with a `perGold` param.
  */
 export function castSpellPerGoldText(cardId: string, goldSpentThisTurn: number, golden = false): string | null {
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'castSpell' && (e.params as { perGold?: number } | undefined)?.perGold);
   if (!def || !eff) return null;
-  const p = eff.params as { perGold?: number; maxCasts?: number } | undefined;
-  const perGold = Math.max(1, Number(p?.perGold ?? 6));
-  const maxCasts = Number(p?.maxCasts ?? 0);
-  let n = (1 + Math.floor(Math.max(0, goldSpentThisTurn) / perGold)) * (golden ? 2 : 1);
-  if (maxCasts > 0) n = Math.min(maxCasts, n);
+  const perGold = Math.max(1, Number((eff.params as { perGold?: number } | undefined)?.perGold ?? 10));
+  const ticks = 1 + Math.floor(Math.max(0, goldSpentThisTurn) / perGold);
+  if (ticks <= 1) return null;
   const src = golden ? (def.goldenText ?? def.text) : def.text;
-  return `${src} {{Casts ${n}× now.}}`;
+  const live = `{{(×${ticks})}}`;
+  const m = /(Repeat for every [^.]*?)(\.)(?!.*Repeat for every)/.exec(src);
+  return m ? src.replace(m[0], `${m[1]} ${live}${m[2]}`) : `${src} ${live}`;
 }
 
 export interface StepProgress {

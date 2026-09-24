@@ -77,7 +77,11 @@ export const SET2_DEMONS: CardDef[] = [
     goldenText: '**Shout:** give the **right-most Shop minion +8/+10** permanently.',
   },
   {
-    // An escalating shop buff: the longer it lives, the bigger every offer gets.
+    // Owner rework 2026-09-23: "End of Turn: Cast Staff of Guel." — the shared "minion casts a named spell"
+    // primitive (`castSpell`, Rope Wrangler's), so it does whatever the Staff does today (the permanent buy-buff
+    // channel) and the spell's own hover preview carries the live value (the sanctioned named-spell exception).
+    // Gilded casts twice. Replaces the 2026-08-18 escalating, alternating shop buff (`buffShopPermanent` +
+    // `improve`), which no live card uses any more.
     id: 'dm_curator',
     name: 'Soul Defiler',
     tribe: 'demon',
@@ -85,9 +89,9 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 5,
     health: 5,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'buffShopPermanent', params: { attack: 1, improve: 1, alternate: true } }],
-    text: '**End of Turn:** give minions in the Shop **+1 Attack**. Improves **+1** each time, and swaps between **Attack** and **Health** each round.',
-    goldenText: '**End of Turn:** give minions in the Shop **+2 Attack**. Improves **+2** each time, and swaps between **Attack** and **Health** each round.',
+    effects: [{ on: 'endOfTurn', do: 'castSpell', params: { spellId: 'staffofguel' } }],
+    text: '**End of Turn:** cast **Staff of Guel**.',
+    goldenText: '**End of Turn:** cast **Staff of Guel twice**.',
   },
   {
     // A Demon eats every time you play a Demon — the tribe's engine card.
@@ -219,6 +223,8 @@ export const SET2_DEMONS: CardDef[] = [
   {
     // Set 2 — Impossible Todd (owner add 2026-08-18): the demon-damage capstone. Every time a friendly Demon
     // deals combat damage he swells AND showers your Imps. Reacts even to his own hits. Golden doubles.
+    // Owner balance 2026-09-23: +1/+2 to himself (was +4/+4) and +2/+1 to the Imps (was +2/+2) per instance;
+    // the Ward keyword is untouched (the owner restated the ability line only).
     id: 'dm_todd',
     name: 'Impossible Todd',
     tribe: 'demon',
@@ -226,9 +232,9 @@ export const SET2_DEMONS: CardDef[] = [
     attack: 7,
     health: 8,
     keywords: ['DS'],
-    effects: [{ on: 'friendlyDemonDealtDamage', do: 'onFriendlyDemonDamageBuffSelf', params: { attack: 4, health: 4, impAttack: 2, impHealth: 2 } }],
-    text: '**Ward.** When a friendly **Demon** deals damage, gain **+4/+4** permanently and give your **Imps +2/+2** this game.',
-    goldenText: '**Ward.** When a friendly **Demon** deals damage, gain **+8/+8** permanently and give your **Imps +4/+4** this game.',
+    effects: [{ on: 'friendlyDemonDealtDamage', do: 'onFriendlyDemonDamageBuffSelf', params: { attack: 1, health: 2, impAttack: 2, impHealth: 1 } }],
+    text: '**Ward.** When a friendly **Demon** deals damage, gain **+1/+2** permanently and give your **Imps +2/+1** this game.',
+    goldenText: '**Ward.** When a friendly **Demon** deals damage, gain **+2/+4** permanently and give your **Imps +4/+2** this game.',
   },
   {
     // Set 2 — Knocked (owner add 2026-08-18): a cheap Echo Imp-maker. Golden summons 2.

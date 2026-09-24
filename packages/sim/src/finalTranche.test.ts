@@ -15,10 +15,10 @@ const minion = (uid: string, cardId: string, tribe: string, attack: number, heal
 const bm = (cardId: string, uid: string, attack = 5, health = 40, keywords: string[] = []): BoardMinion =>
   ({ cardId, attack, health, sourceUid: uid, keywords }) as unknown as BoardMinion;
 
-describe('Moira — End of Turn: trigger adjacent Shouts', () => {
-  it('fires BOTH neighbours, and nothing further out', () => {
+describe('Moira — End of Turn: trigger your Shout minions (owner rework 2026-09-23; was adjacent only)', () => {
+  it('fires EVERY friendly Shout minion, the far one included', () => {
     // Hoard Chronicler is "Shout: get a random Shop spell", so the hand size IS the trigger count. Three of
-    // them in a row with Moira in the middle: the two ADJACENT fire, the far one must not.
+    // them with Moira in the middle: all three fire — position no longer matters.
     const s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 40,
       board: [
@@ -30,7 +30,7 @@ describe('Moira — End of Turn: trigger adjacent Shouts', () => {
       hand: [],
     };
     const after = reduce(s, { type: 'faceOmen' });
-    expect(after.hand.length, 'exactly the two neighbours should have fired').toBe(2);
+    expect(after.hand.length, 'all three Shouts fired').toBe(3);
   });
 
   it('gilded fires the whole thing twice', () => {

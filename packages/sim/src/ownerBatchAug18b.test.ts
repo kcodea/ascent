@@ -8,7 +8,8 @@ import { applyEndOfTurn } from './recruit';
  * Owner batch 2026-08-18 (part B) — new coverage for the three reworked cards in this PR:
  *   • Vaultkeeper (d2_herzog): per-Dragon-play self-buff = base × (1 + ⌊spells/4⌋) × golden.
  *   • Beardsley  (b2_beardsley): escalating summon buff, +3/+3 improving +3/+3 every 3 Beasts.
- *   • Rope Wrangler (ropewrangler): End-of-Turn Lasso multicast, +1 cast per 6 Gold spent (5 max).
+ *   • Rope Wrangler (ropewrangler): End-of-Turn Lasso, repeated per 10 Gold spent (owner rework 2026-09-23; was
+ *     +1 cast per 6 Gold, 5 max).
  */
 
 const card = (uid: string, cardId: string, attack?: number, health?: number, extra?: Partial<BoardCard>): BoardCard => ({
@@ -68,34 +69,34 @@ describe('Beardsley — escalating summon buff (+3/+3, improves +3/+3 every 3 Be
   });
 });
 
-describe('Rope Wrangler — End-of-Turn Lasso multicast (+1 cast per 6 Gold spent, 5 max)', () => {
+describe('Rope Wrangler — End-of-Turn Lasso, repeated per 10 Gold spent (owner rework 2026-09-23, no cap)', () => {
   const wrangler = (gold: number, golden = false): RunState => ({
     ...createRun(1), phase: 'recruit', embers: 10, shop: [],
     board: [{ ...card('rw', 'ropewrangler', 5, 4), golden }],
     goldSpentThisTurn: gold, spellsCast: 0, spellsThisTurn: 0,
   });
 
-  it('casts once with no Gold spent (min 1)', () => {
+  it('casts once with no Gold spent (the base cast)', () => {
     const s = wrangler(0);
     applyEndOfTurn(s);
     expect(s.spellsCast).toBe(1);
   });
 
-  it('12 Gold spent → 3 casts (1 + ⌊12/6⌋)', () => {
-    const s = wrangler(12);
+  it('20 Gold spent → 3 casts (1 + ⌊20/10⌋)', () => {
+    const s = wrangler(20);
     applyEndOfTurn(s);
     expect(s.spellsCast).toBe(3);
   });
 
-  it('a huge Gold spend is capped at 5 casts', () => {
+  it('a huge Gold spend is NOT capped (600 Gold → 61 casts)', () => {
     const s = wrangler(600);
     applyEndOfTurn(s);
-    expect(s.spellsCast).toBe(5);
+    expect(s.spellsCast).toBe(61);
   });
 
-  it('golden multiplies then caps (12 Gold → 6 → 5)', () => {
-    const s = wrangler(12, true);
+  it('golden casts twice per tick (20 Gold → 3 ticks → 6 casts)', () => {
+    const s = wrangler(20, true);
     applyEndOfTurn(s);
-    expect(s.spellsCast).toBe(5);
+    expect(s.spellsCast).toBe(6);
   });
 });

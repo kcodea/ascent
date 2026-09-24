@@ -122,11 +122,6 @@ export interface EffectArena {
   impAura(): { attack: number; health: number };
   /** Echoes (Deathrattles) triggered so far — combat: the side's run-wide base + this fight's; shop: the
    *  run tally. Grim scales off this. */
-  /** CONDUCTOR's run-wide snowball, N. Its Shout gives adjacent bodies +(2N)/+(3N) and N grows by one per
-   *  Conductor PLAYED. Read-only from the arena: a combat RE-FIRE (Ryme, a parting cry, Dawnclaw) is a
-   *  trigger, not a play, so it applies the current N without advancing it — the shop's play path owns the
-   *  increment. Combat carries the value on `CombatSideState.conductorBuff`; the shop reads `RunState`. */
-  conductorTally(): number;
   deathrattleTally(): number;
   /** Register a rest-of-combat tribe aura (friends of `tribe` summoned LATER also gain it). A shop no-op:
    *  there is no rest-of-combat in a shop, and the legacy shop half never registered one. */
@@ -1218,11 +1213,22 @@ export const ARENA_EFFECTS = {
     for (const adj of arena.neighboursOf(arena.self)) arena.buff(adj, a, h);
   },
 
+  /** Conductor — Shout: give the two ADJACENT minions +(base + accrual) and then IMPROVE THIS COPY (owner
+   *  rework 2026-09-23: "give adjacent minions +2/+3 and improve this"). The accrual rides `summonBonus`, the
+   *  per-instance permanent channel (carried back at settle, kept through a gild, served in a snapshot), so
+   *  EVERY fire of the Shout — the play, a shop re-fire (Moira, Ryme, Dawnclaw), a combat re-fire (Parting Cry,
+   *  Rune of Shared Scripture) — grants the current value and steps the accrual by `step` (× Rune of Mastery).
+   *  Grant first, then improve: the first fire pays the printed +2/+3. Gilded doubles the applied grant, not
+   *  the accrual (the Pack Leader convention). Replaces the run-wide `conductorBuff` snowball, now dormant. */
   battlecryConductorAdjacent(arena: EffectArena, params: Record<string, unknown>): void {
-    const n = Math.max(1, arena.conductorTally());
-    const a = (typeof params.attack === 'number' ? params.attack : 2) * n;
-    const h = (typeof params.health === 'number' ? params.health : 3) * n;
+    const bonus = arena.self.summonBonus ?? 0;
+    const g = gold(arena);
+    const a = ((typeof params.attack === 'number' ? params.attack : 2) + bonus) * g;
+    const h = ((typeof params.health === 'number' ? params.health : 3) + bonus) * g;
     for (const adj of arena.neighboursOf(arena.self)) arena.buff(adj, a, h);
+    const step = (typeof params.step === 'number' ? params.step : 1) * arena.improveReps();
+    arena.self.summonBonus = bonus + step;
+    arena.logImprove(step); // the live text climbs mid-fight, like Hunter / Thundeer
   },
 
   battlecryBuffMagnetics(arena: EffectArena, params: Record<string, unknown>): void {

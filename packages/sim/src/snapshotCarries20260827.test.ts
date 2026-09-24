@@ -78,10 +78,11 @@ describe("a served board's one-combat marks fire (q-snap-one-combat-marks)", () 
   });
 
   it('Soren: the EXACT player-marked instance is served — the heuristic no longer re-picks a stronger body', () => {
-    // The player marked the WEAKER Exgalloper. The legacy heuristic would pick the strongest Echo body.
+    // The player marked the WEAKER Knocked (an Echo body — Exgalloper was the fixture until it became Rebirth
+    // on 2026-09-23). The legacy heuristic would pick the strongest Echo body.
     const s = run([
-      mk('big', 'dw_exgalloper', { attack: 10, health: 10 }),
-      mk('weak', 'dw_exgalloper', { attack: 2, health: 2, resummon: true }),
+      mk('big', 'dm_knocked', { attack: 10, health: 10 }),
+      mk('weak', 'dm_knocked', { attack: 2, health: 2, resummon: true }),
     ], 'soren');
     const board = opponentBoard(snapshotBoard(s));
     expect(board[1]!.resummon, 'the marked instance keeps its mark').toBe(true);
@@ -90,8 +91,8 @@ describe("a served board's one-combat marks fire (q-snap-one-combat-marks)", () 
 
   it('Soren legacy fallback: a pre-carry snapshot (no marksCarried) still reconstructs a mark heuristically', () => {
     const s = run([
-      mk('big', 'dw_exgalloper', { attack: 10, health: 10 }),
-      mk('weak', 'dw_exgalloper', { attack: 2, health: 2 }),
+      mk('big', 'dm_knocked', { attack: 10, health: 10 }),
+      mk('weak', 'dm_knocked', { attack: 2, health: 2 }),
     ], 'soren');
     const snap = snapshotBoard(s);
     delete snap.marksCarried; // simulate a board recorded before this change
@@ -129,23 +130,24 @@ describe('runtime-grafted Deathrattles fire in combat (q-snap-granted-effects)',
 });
 
 describe('the echoStripped mark silences the Echo in combat (q-snap-echostripped)', () => {
-  it('a shop-stripped Exgalloper copy does NOT summon another copy when killed in combat', () => {
-    const p: BoardMinion[] = [{ cardId: 'dw_exgalloper', attack: 6, health: 1, echoStripped: true }];
+  // Knocked ("Echo: summon an Imp") is the Echo body here — Exgalloper was, until it became Rebirth (2026-09-23).
+  it('a shop-stripped Echo body does NOT summon when killed in combat', () => {
+    const p: BoardMinion[] = [{ cardId: 'dm_knocked', attack: 6, health: 1, echoStripped: true }];
     const r = sim(p, [{ cardId: 'sandbag', attack: 30, health: 60 }]);
-    expect(r.events.some((ev) => ev.type === 'summon' && ev.minion.cardId === 'dw_exgalloper'),
-      'the printed "without Echo" now holds in combat too (owner wording: the cleansed version must NOT summon itself)').toBe(false);
+    expect(r.events.some((ev) => ev.type === 'summon' && ev.minion.cardId === 'impscrap'),
+      'the printed "without Echo" holds in combat too (owner wording: the cleansed version must NOT summon)').toBe(false);
   });
 
-  it('control: an UNstripped Exgalloper summons its copy on death', () => {
-    const p: BoardMinion[] = [{ cardId: 'dw_exgalloper', attack: 6, health: 1 }];
+  it('control: an UNstripped Knocked summons its Imp on death', () => {
+    const p: BoardMinion[] = [{ cardId: 'dm_knocked', attack: 6, health: 1 }];
     const r = sim(p, [{ cardId: 'sandbag', attack: 30, health: 60 }]);
-    expect(r.events.some((ev) => ev.type === 'summon' && ev.minion.cardId === 'dw_exgalloper')).toBe(true);
+    expect(r.events.some((ev) => ev.type === 'summon' && ev.minion.cardId === 'impscrap')).toBe(true);
   });
 
   it('a served stripped copy stays silent as well (capture carries the mark)', () => {
-    const snap = snapshotBoard(run([mk('x', 'dw_exgalloper', { attack: 6, health: 1, echoStripped: true })]));
+    const snap = snapshotBoard(run([mk('x', 'dm_knocked', { attack: 6, health: 1, echoStripped: true })]));
     const r = sim([{ cardId: 'sandbag', attack: 30, health: 60 }], opponentBoard(snap));
-    expect(r.events.some((ev) => ev.type === 'summon' && ev.minion.cardId === 'dw_exgalloper')).toBe(false);
+    expect(r.events.some((ev) => ev.type === 'summon' && ev.minion.cardId === 'impscrap')).toBe(false);
   });
 });
 

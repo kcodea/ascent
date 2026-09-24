@@ -60,10 +60,11 @@ describe('liveCardText — the single source of truth shared by shop + combat', 
   });
 
   it('Muster General prints its Trooper’s CURRENT stat line, and Skybound Ascendant the tier it can reach', () => {
-    // Two more from the same batch whose printed numbers move with state: the General's token is 1/1 only until
-    // its first Avenge (the improve rides `summonBonus`), and the Ascendant's ceiling is the RUN's.
-    expect(liveCardText('n2_muster', { ...base, summonBonus: 3 }).text).toContain('{{4/4}} Trooper');
-    expect(liveCardText('n2_muster', base).text, 'no Avenge yet → the printed 1/1 is accurate').toBe(CARD_INDEX['n2_muster']!.text);
+    // Two more from the same batch whose printed numbers move with state: the General's token is 3/3 (owner
+    // balance 2026-09-23) only until its first Avenge (the improve rides `summonBonus`), and the Ascendant's
+    // ceiling is the RUN's.
+    expect(liveCardText('n2_muster', { ...base, summonBonus: 3 }).text).toContain('{{6/6}} Trooper');
+    expect(liveCardText('n2_muster', base).text, 'no Avenge yet → the printed 3/3 is accurate').toBe(CARD_INDEX['n2_muster']!.text);
     // Without Tier-7 access the printed promise is a lie — it prints the honest six instead.
     // Skybound reaches Tier 7 on EVERY run (owner ruling 2026-09-09, Bug Board cb45dc41) — the printed 7 is
     // always true, so the text is never rewritten to 6, with or without Tier-7 access.

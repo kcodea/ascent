@@ -8,7 +8,9 @@ import { spellCasts } from './recruit';
  *
  * `checkTriples` preserves a card's grown magnitude through a gild, but it did so via three per-card
  * whitelists — and any accruing effect on NONE of those lists fell through to `undefined`, so the golden
- * started from base. A Soul Defiler grown to +4/+4 gilded into +2/+2.
+ * started from base. A Soul Defiler grown to +4/+4 gilded into +2/+2. (Soul Defiler casts a Staff of Guel since
+ * the 2026-09-23 rework and accrues nothing, so the example body below is Muster General, whose Trooper
+ * improvement rides the same `summonBonus` channel.)
  *
  * The lists are opt-in, which is the actual defect: every new accruing effect inherited the bug, and it only
  * ever hurt the cards a player had invested in growing.
@@ -27,21 +29,21 @@ const tripleOf = (cardId: string, bonuses: (number | undefined)[]): BoardCard | 
 };
 
 describe('gilding a grown minion', () => {
-  it('Soul Defiler keeps its accrual instead of resetting to base', () => {
-    // The reported case: one copy grown by +3 (its shop grant sitting at +4/+4), two fresh.
-    const golden = tripleOf('dm_curator', [3, undefined, undefined]);
+  it('a grown minion keeps its accrual instead of resetting to base', () => {
+    // The reported case: one copy grown by +3, two fresh.
+    const golden = tripleOf('n2_muster', [3, undefined, undefined]);
     expect(golden, 'the triple never produced a golden').toBeDefined();
     expect(golden!.summonBonus ?? 0, 'the accrual was thrown away — this is the reported bug').toBeGreaterThan(0);
   });
 
   it('combines the two highest copies, matching the rule already used elsewhere', () => {
-    const golden = tripleOf('dm_curator', [3, 2, 1]);
+    const golden = tripleOf('n2_muster', [3, 2, 1]);
     expect(golden!.summonBonus).toBe(5); // 3 + 2, the top two — same as Karthus / Crypt Drake
   });
 
   it('three fresh copies still gild to a plain golden', () => {
     // No accrual to carry: the golden's own doubling comes from `gold(self)` in the factory, not from here.
-    const golden = tripleOf('dm_curator', [undefined, undefined, undefined]);
+    const golden = tripleOf('n2_muster', [undefined, undefined, undefined]);
     expect(golden!.summonBonus ?? 0).toBe(0);
   });
 });

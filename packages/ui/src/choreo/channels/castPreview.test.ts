@@ -5,8 +5,9 @@
  * different spell from the same caster previews once too, and a new fight (or a seek) starts the memory over.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { CombatEvent } from '@game/core';
-import type { Moment } from '../compile';
+import { CARD_INDEX } from '@game/content';
+import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent } from '@game/core';
+import { compileMoments, type Moment } from '../compile';
 import { CastPreviewMemory, spellCastsIn } from './castPreview';
 import { SCORE_DEFAULTS, runMomentCues } from '../score';
 import { canPlayDefs, playDef } from '../../fx/playDef';
@@ -97,5 +98,41 @@ describe('the castPreviewFx cue', () => {
     mem.reset(); // the next fight
     const c = ctx([cast('fc', 'fate')], { onSpellCastPreviews }); runMomentCues(moment('scNarrate', c.events), c);
     expect(shown).toEqual(['fc:fate', 'fc:fate']);
+  });
+});
+
+/**
+ * FATECARVER, END TO END (owner report 2026-09-23: *"why does fate carver not show the growth preview? warflame
+ * does."*). Fatecarver's Growth rode the arena's `castRepeat`, whose combat half logged no "X casts Y" — so the
+ * scan found nothing. Real simulator → the real moment compiler → the scan every moment's `castPreviewFx` cue
+ * runs → the replay's once-per-fight memory: Growth previews ONCE, anchored to FATECARVER (the caster), never
+ * to the ally whose attack triggered it.
+ */
+describe('Fatecarver previews Growth in a real fight', () => {
+  const bm = (cardId: string, uid: string, attack: number, health: number, extra: Partial<BoardMinion> = {}): BoardMinion =>
+    ({ cardId, attack, health, sourceUid: uid, keywords: [...(CARD_INDEX[cardId]?.keywords ?? [])], ...extra } as unknown as BoardMinion);
+  const previewsOf = (player: BoardMinion[]) => {
+    const r = simulate(player, [{ cardId: 'sandbag', attack: 0, health: 90000 } as BoardMinion], makeRng(7), CARD_INDEX,
+      combatSide({ tier: 6 }), combatSide({ tier: 1 }));
+    const mem = new CastPreviewMemory();
+    const shown: { source: string; spellId: string }[] = [];
+    let seen = 0;
+    for (const m of compileMoments(r.events)) {
+      for (const c of spellCastsIn(m, r.events)) { seen++; if (mem.claim(c.source, c.spellId)) shown.push(c); }
+    }
+    return { shown, seen, r };
+  };
+
+  it('many Growth casts in the fight → exactly ONE preview, from Fatecarver (m1), not the attacker (m0)', () => {
+    const { shown, seen, r } = previewsOf([bm('sandbag', 'ATK', 3, 900), bm('n2_fatecarver', 'FC', 0, 900, { chosenOption: 1 })]);
+    expect(r.events.filter((e) => e.type === 'attack' && e.attacker === 'm0').length, 'the ally attacked').toBeGreaterThan(1);
+    expect(seen, 'every Growth cast reached the scan').toBeGreaterThan(1);
+    expect(shown).toEqual([{ source: 'm1', spellId: 'growth' }]);
+  });
+
+  it('Warflame beside it previews Dragonflame once too — two casters, one preview each', () => {
+    const { shown } = previewsOf([bm('hoardbreaker', 'HB', 3, 900), bm('n2_fatecarver', 'FC', 0, 900, { chosenOption: 1 }), bm('d2_warflame', 'WF', 0, 900)]);
+    const key = (c: { source: string; spellId: string }) => `${c.source}:${c.spellId}`;
+    expect(shown.map(key).sort()).toEqual(['m0:growth', 'm1:growth', 'm2:sp_dragonflame'].sort());
   });
 });

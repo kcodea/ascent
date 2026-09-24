@@ -9,7 +9,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, useSyncExternalStore } from 'react';
 import { CastPreviewLayerView } from './CastPreviewLayer';
 import type { CardView } from './Card';
-import { CAST_PREVIEW_MS, clearCastPreviews, getCastPreviews, showCastPreview, subscribeCastPreviews } from './castPreview';
+import { clearCastPreviews, getCastPreviews, showCastPreview, subscribeCastPreviews } from './castPreview';
+import { castPreviewTimings, resetCastPreviewConfig, setCastPreviewValue } from './castPreviewConfig';
+
+const CAST_PREVIEW_MS = castPreviewTimings('shop');
 import { mount, type Mounted } from './renderedText.mount';
 
 const VIEWS: Record<string, CardView> = {
@@ -25,8 +28,8 @@ function Bound() {
 
 const anchor = { left: 100, top: 300, width: 80, height: 120 };
 let m: Mounted;
-beforeEach(() => { vi.useFakeTimers(); clearCastPreviews(); m = mount(<Bound />); });
-afterEach(() => { m.unmount(); clearCastPreviews(); vi.useRealTimers(); });
+beforeEach(() => { vi.useFakeTimers(); clearCastPreviews(); resetCastPreviewConfig(); m = mount(<Bound />); });
+afterEach(() => { m.unmount(); clearCastPreviews(); resetCastPreviewConfig(); vi.useRealTimers(); });
 
 const previews = (): HTMLElement[] => [...m.container.querySelectorAll<HTMLElement>('.castprev')];
 
@@ -72,5 +75,30 @@ describe('CastPreviewLayer', () => {
   it('skips a spell the view builder cannot render rather than crashing', () => {
     act(() => { showCastPreview({ sourceKey: 'x', spellId: 'not-a-card', anchor }); });
     expect(previews()).toEqual([]);
+  });
+
+  // THE TUNER, LIVE (owner 2026-09-23: size / alpha / fade "so i can tune both"): the preview reads its context's
+  // knobs, and a knob change re-renders a preview ALREADY on screen — no reload, no re-cast.
+  it('applies the tuned size, max opacity and fade to a live preview, per context', () => {
+    act(() => {
+      showCastPreview({ sourceKey: 'rw', spellId: 'lasso', anchor });
+      showCastPreview({ sourceKey: 'fc', spellId: 'staffofguel', anchor: { ...anchor, left: 500 }, context: 'combat' });
+    });
+    const [shop, combat] = previews();
+    expect(shop!.dataset.context).toBe('shop');
+    expect(combat!.dataset.context).toBe('combat');
+    expect(shop!.style.getPropertyValue('--cp-scale')).toBe('0.42');
+    expect(combat!.style.getPropertyValue('--cp-scale')).toBe('0.38');
+    expect(shop!.style.animationDuration).toBe(`${CAST_PREVIEW_MS.fadeIn}ms`);
+    act(() => {
+      setCastPreviewValue('shopScale', 0.3);
+      setCastPreviewValue('shopAlpha', 0.6);
+      setCastPreviewValue('combatScale', 0.9);
+    });
+    const [shop2, combat2] = previews();
+    expect(shop2!.style.getPropertyValue('--cp-scale')).toBe('0.3');
+    expect((shop2!.querySelector('.castprev-inner') as HTMLElement).style.opacity).toBe('0.6');
+    expect(combat2!.style.getPropertyValue('--cp-scale')).toBe('0.9');
+    expect((combat2!.querySelector('.castprev-inner') as HTMLElement).style.opacity).toBe('1');
   });
 });

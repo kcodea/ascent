@@ -25,8 +25,11 @@
  * at mount (the clamp), never per frame; a fixed, pointer-events:none layer that never shifts layout.
  */
 
-/** Timings, ms. Fade in like the hover reveal, linger the owner's "about 2 seconds", fade out a touch slower. */
-export const CAST_PREVIEW_MS = { fadeIn: 180, linger: 2000, fadeOut: 320 } as const;
+import { castPreviewTimings, type CastPreviewContext, type CastPreviewSide } from './castPreviewConfig';
+
+/** Timings, size, side, offset and opacity are TUNED (the Cast Preview tuner, owner ask 2026-09-23 "far too
+ *  large … build a tuner"): read through `castPreviewConfig.ts`, per context (shop / combat). No number here. */
+export type { CastPreviewContext } from './castPreviewConfig';
 
 /** Where the caster sits (viewport px) — measured ONCE by the feeder, never re-read. */
 export interface CastPreviewAnchor { left: number; top: number; width: number; height: number }
@@ -41,6 +44,8 @@ export interface CastPreviewEntry {
   count: number;
   /** The fade-out has begun; the entry leaves after `fadeOut`. */
   leaving: boolean;
+  /** Which knob group sizes and times it — the shop's or the combat replay's. */
+  context: CastPreviewContext;
 }
 
 let entries: readonly CastPreviewEntry[] = [];
@@ -53,30 +58,33 @@ function commit(next: readonly CastPreviewEntry[]): void {
   for (const l of listeners) l();
 }
 
-function scheduleLeave(id: number): void {
+function scheduleLeave(id: number, context: CastPreviewContext): void {
   const prior = timers.get(id);
   if (prior) clearTimeout(prior);
+  // Read at schedule time, so a tuner change applies to the next preview (and to a refresh of a live one).
+  const ms = castPreviewTimings(context);
   timers.set(id, setTimeout(() => {
     commit(entries.map((e) => (e.id === id ? { ...e, leaving: true } : e)));
     timers.set(id, setTimeout(() => {
       timers.delete(id);
       commit(entries.filter((e) => e.id !== id));
-    }, CAST_PREVIEW_MS.fadeOut));
-  }, CAST_PREVIEW_MS.fadeIn + CAST_PREVIEW_MS.linger));
+    }, ms.fadeOut));
+  }, ms.fadeIn + ms.linger));
 }
 
-/** Show (or refresh) the preview of `spellId` above `anchor`. Returns the entry id. */
-export function showCastPreview(input: { sourceKey: string; spellId: string; anchor: CastPreviewAnchor }): number {
+/** Show (or refresh) the preview of `spellId` beside `anchor`. `context` picks the knob group (default shop). */
+export function showCastPreview(input: { sourceKey: string; spellId: string; anchor: CastPreviewAnchor; context?: CastPreviewContext }): number {
+  const context = input.context ?? 'shop';
   const live = entries.find((e) => e.sourceKey === input.sourceKey && !e.leaving);
   if (live) {
     // REPLACE, not stack: same caster, its preview still up → swap the card, count it, restart the linger.
-    commit(entries.map((e) => (e.id === live.id ? { ...e, spellId: input.spellId, anchor: input.anchor, count: e.count + 1 } : e)));
-    scheduleLeave(live.id);
+    commit(entries.map((e) => (e.id === live.id ? { ...e, spellId: input.spellId, anchor: input.anchor, count: e.count + 1, context } : e)));
+    scheduleLeave(live.id, context);
     return live.id;
   }
   const id = nextId++;
-  commit([...entries, { id, sourceKey: input.sourceKey, spellId: input.spellId, anchor: input.anchor, count: 1, leaving: false }]);
-  scheduleLeave(id);
+  commit([...entries, { id, sourceKey: input.sourceKey, spellId: input.spellId, anchor: input.anchor, count: 1, leaving: false, context }]);
+  scheduleLeave(id, context);
   return id;
 }
 
@@ -141,9 +149,11 @@ export function fireCastPreviewAt(source: CastPreviewSource, spellId: string, tr
 export interface OccupiedSpan { left: number; right: number }
 
 /**
- * WHERE A PREVIEW SITS — centred above its anchor, clamped on-screen, nudged sideways off any live preview it
- * would lap. `w`/`h` are the preview's own rendered size (measured once at mount). Falls BELOW the anchor when
- * there is no room above (a top-row unit on a short window). Pure, so it is testable without a browser.
+ * WHERE A PREVIEW SITS — on the tuned `side` of its anchor (default above, centred), shifted by the tuned
+ * `offsetX`/`offsetY`, clamped on-screen, nudged sideways off any live preview it would lap. `w`/`h` are the
+ * preview's own rendered size (measured once at mount, AFTER the tuned scale). Flips to the opposite side when
+ * the chosen one has no room (a top-row unit on a short window falls below). Pure, so it is testable without a
+ * browser.
  */
 export function placeCastPreview(args: {
   anchor: CastPreviewAnchor;
@@ -152,23 +162,42 @@ export function placeCastPreview(args: {
   viewportW: number;
   viewportH: number;
   occupied: readonly OccupiedSpan[];
+  side?: CastPreviewSide;
+  offsetX?: number;
+  offsetY?: number;
   gap?: number;
   edge?: number;
 }): { left: number; top: number } {
-  const { anchor, w, h, viewportW, viewportH, occupied, gap = 8, edge = 6 } = args;
+  const { anchor, w, h, viewportW, viewportH, occupied, side = 'above', offsetX = 0, offsetY = 0, gap = 8, edge = 6 } = args;
   const clampX = (x: number): number => Math.max(edge, Math.min(x, viewportW - w - edge));
-  let left = clampX(anchor.left + anchor.width / 2 - w / 2);
+  const clampY = (y: number): number => Math.max(edge, Math.min(y, viewportH - h - edge));
+  const cx = anchor.left + anchor.width / 2 - w / 2;
+  const cy = anchor.top + anchor.height / 2 - h / 2;
+  const above = anchor.top - gap - h + offsetY;
+  const below = anchor.top + anchor.height + gap + offsetY;
+  const leftOf = anchor.left - gap - w + offsetX;
+  const rightOf = anchor.left + anchor.width + gap + offsetX;
+  let left: number;
+  let top: number;
+  if (side === 'above' || side === 'below') {
+    left = clampX(cx + offsetX);
+    if (side === 'above') top = above >= edge ? above : below;
+    else top = below + h <= viewportH - edge ? below : above;
+  } else {
+    top = clampY(cy + offsetY);
+    if (side === 'left') left = leftOf >= edge ? leftOf : rightOf;
+    else left = rightOf + w <= viewportW - edge ? rightOf : leftOf;
+    left = clampX(left);
+  }
   const laps = (x: number): OccupiedSpan | undefined => occupied.find((o) => x < o.right && x + w > o.left);
   // Nudge RIGHT past whatever it laps; if that runs off the edge, try LEFT of the leftmost lapped span.
   let hit = laps(left);
   for (let n = 0; hit && n < 8; n++) {
     const right = hit.right + gap;
     if (right + w <= viewportW - edge) { left = right; hit = laps(left); continue; }
-    const leftOf = hit.left - gap - w;
-    if (leftOf >= edge) { left = leftOf; hit = laps(left); continue; }
+    const leftSpan = hit.left - gap - w;
+    if (leftSpan >= edge) { left = leftSpan; hit = laps(left); continue; }
     break; // no free x at all — overlap beats vanishing
   }
-  let top = anchor.top - gap - h;
-  if (top < edge) top = Math.min(anchor.top + anchor.height + gap, viewportH - h - edge);
-  return { left, top: Math.max(edge, top) };
+  return { left, top: clampY(top) };
 }

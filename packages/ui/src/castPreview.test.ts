@@ -4,13 +4,14 @@
  * newcomer is nudged off a live neighbour and clamped on-screen.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CAST_PREVIEW_MS, castSourceKey, clearCastPreviews, getCastPreviews, placeCastPreview, showCastPreview, subscribeCastPreviews } from './castPreview';
+import { castSourceKey, clearCastPreviews, getCastPreviews, placeCastPreview, showCastPreview, subscribeCastPreviews } from './castPreview';
+import { castPreviewTimings, resetCastPreviewConfig, setCastPreviewValue } from './castPreviewConfig';
 
 const anchor = { left: 100, top: 300, width: 80, height: 120 };
-const { fadeIn, linger, fadeOut } = CAST_PREVIEW_MS;
+const { fadeIn, linger, fadeOut } = castPreviewTimings('shop');
 
-beforeEach(() => { vi.useFakeTimers(); clearCastPreviews(); });
-afterEach(() => { clearCastPreviews(); vi.useRealTimers(); });
+beforeEach(() => { vi.useFakeTimers(); clearCastPreviews(); resetCastPreviewConfig(); });
+afterEach(() => { clearCastPreviews(); resetCastPreviewConfig(); vi.useRealTimers(); });
 
 describe('showCastPreview — the clock', () => {
   it('a cast shows its spell, lingers ~2 s, then fades out and leaves', () => {
@@ -70,6 +71,19 @@ describe('showCastPreview — the clock', () => {
     off();
   });
 
+  it('the clock reads the TUNED timings per context (shop vs combat), applied to the next preview', () => {
+    setCastPreviewValue('combatFadeIn', 100);
+    setCastPreviewValue('combatLinger', 500);
+    setCastPreviewValue('combatFadeOut', 50);
+    showCastPreview({ sourceKey: 'fc', spellId: 'growth', anchor, context: 'combat' });
+    showCastPreview({ sourceKey: 'rw', spellId: 'lasso', anchor });
+    expect(getCastPreviews().map((e) => e.context)).toEqual(['combat', 'shop']);
+    vi.advanceTimersByTime(600);
+    expect(getCastPreviews().map((e) => [e.sourceKey, e.leaving])).toEqual([['fc', true], ['rw', false]]);
+    vi.advanceTimersByTime(50);
+    expect(getCastPreviews().map((e) => e.sourceKey)).toEqual(['rw']);
+  });
+
   it('keys a minion by uid and a rune by id', () => {
     expect(castSourceKey({ kind: 'minion', uid: 'u1' })).toBe('u1');
     expect(castSourceKey({ kind: 'rune', id: 'rune_gilded_ledger' })).toBe('rune:rune_gilded_ledger');
@@ -96,5 +110,26 @@ describe('placeCastPreview — where it sits', () => {
   it('falls BELOW the anchor when there is no room above', () => {
     const p = placeCastPreview({ anchor: { ...anchor, top: 20 }, w: 200, h: 300, ...vp, occupied: [] });
     expect(p.top).toBe(20 + 120 + 8);
+  });
+
+  // THE TUNER'S KNOBS (owner 2026-09-23: "adjust size, positioning …"). Size arrives as the measured w/h (the
+  // scale is a layout zoom), so a smaller scale → a smaller footprint that still centres over the source.
+  it('a smaller measured size (the Size knob) stays centred just above the source', () => {
+    const small = placeCastPreview({ anchor, w: 120, h: 240, ...vp, occupied: [] });
+    expect(small).toEqual({ left: 100 + 40 - 60, top: 300 - 8 - 240 });
+  });
+  it('Offset X / Offset Y shift the seat', () => {
+    expect(placeCastPreview({ anchor, w: 120, h: 240, ...vp, occupied: [], offsetX: 30, offsetY: -20 }))
+      .toEqual({ left: 80 + 30, top: 300 - 8 - 240 - 20 });
+  });
+  it('Side: below / left / right seat the preview on that side of the source (centred on the other axis)', () => {
+    const a = { left: 400, top: 300, width: 80, height: 120 };
+    expect(placeCastPreview({ anchor: a, w: 120, h: 240, ...vp, occupied: [], side: 'below' })).toEqual({ left: 380, top: 428 });
+    expect(placeCastPreview({ anchor: a, w: 120, h: 240, ...vp, occupied: [], side: 'left' })).toEqual({ left: 400 - 8 - 120, top: 360 - 120 });
+    expect(placeCastPreview({ anchor: a, w: 120, h: 240, ...vp, occupied: [], side: 'right' })).toEqual({ left: 488, top: 240 });
+  });
+  it('a side with no room flips to the opposite side', () => {
+    expect(placeCastPreview({ anchor: { left: 10, top: 300, width: 80, height: 120 }, w: 120, h: 240, ...vp, occupied: [], side: 'left' }).left).toBe(98);
+    expect(placeCastPreview({ anchor: { left: 400, top: 700, width: 80, height: 90 }, w: 120, h: 240, ...vp, occupied: [], side: 'below' }).top).toBe(700 - 8 - 240);
   });
 });

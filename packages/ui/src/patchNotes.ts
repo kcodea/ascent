@@ -51,6 +51,19 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
+        text: "Spell previews are smaller, and Fatecarver's Growth now shows its preview in combat.",
+        details: [
+          'The spell card that pops up when a rune or minion casts a spell is now about the size of a minion, sitting just above its caster.',
+          'More combat casters now show their spell once per fight, like Warflame: Fatecarver and Hoardbreaker Drake (Growth), and Watcher and Wick Mortis (Lantern of Souls).',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-09-23',
     label: 'Balance 9/23: minion reworks',
     changes: [

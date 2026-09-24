@@ -722,8 +722,12 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'that spell\x27s card preview above its caster: above the rune\x27s node on the rune rail for a rune-cast, above '
       + 'the minion\x27s card for a minion-cast (Rune of the Gilded Ledger\x27s random stat spell, Rune of the Spell '
       + 'Market\x27s Staff of Guel, Rope Wrangler\x27s Lasso, a Gemstorm Instigator\x27s Rubies, a Mirrorwing re-cast, an '
-      + 'End-of-Turn cast). It is the SAME plated full-size card the hover reveal shows, with its live text; it fades '
-      + 'in like a hover preview (~180 ms), lingers about two seconds (2000 ms), then fades out (~320 ms). In the shop '
+      + 'End-of-Turn cast). It is the plated card the hover reveal shows, with its live text, drawn SMALL (about a '
+      + 'board minion\x27s width by default: 0.42 of the full plated card in the shop, 0.38 in combat) just above its '
+      + 'source; it fades in like a hover preview (~180 ms), lingers (2000 ms in the shop, 1600 ms in combat), then '
+      + 'fades out (~320 ms). Size, side of the source, X/Y offset, fade-in, linger, fade-out and max opacity are '
+      + 'owner-tunable per context (shop / combat) on the DEV Cast Preview tuner, which also carries the combat '
+      + 'once-per-fight switch and a Preview test button; prod ships the baked defaults. In the shop '
       + 'every cast previews; a second cast from the SAME source while its preview is still up REPLACES it (the card '
       + 'swaps, a small xN count appears, the linger restarts) and casts from different sources sit side by side, '
       + 'nudged apart rather than overlapping. IN COMBAT a source that casts the SAME spell repeatedly previews it '
@@ -751,14 +755,27 @@ export const FOUNDATION_RULES: GameRule[] = [
         ref: 'Owner detail, 2026-09-23 (combat)',
         quote: 'for the preview -> for card like fatecarver or warflame that casts the same spell every time, it should only do the quick pop one time in combat.',
       },
-      { kind: 'code', ref: 'packages/sim/src/recruit.ts (`castActorStack`, `withCastActor`, the RECRUIT_FACTORIES wrap, the record at the top of `applyCastEffects`, `EotStepFx.casts`); packages/sim/src/state.ts (`CastFx`, `recordCastFx`, `castFx`/`castFxSeq`); packages/ui/src/castPreview.ts (the store, `placeCastPreview`); packages/ui/src/CastPreviewLayer.tsx; packages/ui/src/choreo/channels/castPreview.ts (`spellCastsIn`, `CastPreviewMemory`); packages/ui/src/choreo/score.ts (the `castPreviewFx` cue); packages/ui/src/useCombatReplay.ts (`onSpellCastPreviews`); packages/ui/src/choreographer/consequencePresenters.ts (`spellResolved`); packages/ui/src/styles.css (`.castprev`)' },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner feedback, 2026-09-23 (cast preview follow-up, with screenshots)',
+        quote: 'this is far too large. can you build a tuner for me to adjust size, positioning, and linger duration? also, why does fate carver not show the growth preview? warflame does. it is also massive. make sure to add all of the details to the tuner so i can tune both. add an alpha/opacity lever as well.',
+      },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts (`castActorStack`, `withCastActor`, the RECRUIT_FACTORIES wrap, the record at the top of `applyCastEffects`, `EotStepFx.casts`); packages/sim/src/state.ts (`CastFx`, `recordCastFx`, `castFx`/`castFxSeq`); packages/ui/src/castPreview.ts (the store, `placeCastPreview`); packages/ui/src/CastPreviewLayer.tsx; packages/ui/src/choreo/channels/castPreview.ts (`spellCastsIn`, `CastPreviewMemory`); packages/ui/src/choreo/score.ts (the `castPreviewFx` cue); packages/ui/src/useCombatReplay.ts (`onSpellCastPreviews`); packages/ui/src/choreographer/consequencePresenters.ts (`spellResolved`); packages/ui/src/styles.css (`.castprev`); packages/ui/src/castPreviewConfig.ts (the tuner\x27s one config accessor: `castPreviewLook`, `castPreviewTimings`, `castPreviewCombatOncePerFight`); packages/ui/src/CastPreviewTuner.tsx (the panel + Preview test); packages/core/src/effects/factories.ts (the combat `castRepeat` verb now logs the `sc` + `spellId` announcement from the caster; `castTribeAttackSpell` stamps `spellId`)' },
     ],
     currentBehaviour:
       'Conforms as of 2026-09-23. Verified live on port 5267: a Rune of the Gilded Ledger paying out floats the cast '
       + 'spell above its rune node; a Rope Wrangler\x27s End-of-Turn Lasso floats above the Wrangler; sampled computed '
       + 'opacity climbs through the fade-in, holds at 1 for the linger and falls through the fade-out; the rune rail '
       + 'and the warband row rects are identical before and after the preview (no layout shift). Equipment casts '
-      + 'deliberately record nothing (an open question for the owner; see the devlog).',
+      + 'deliberately record nothing (an open question for the owner; see the devlog). FOLLOW-UP 2026-09-24: the '
+      + 'preview is smaller by default and fully tunable (Cast Preview tuner, shop + combat knob groups, live). '
+      + 'Fatecarver previewed nothing in combat because its Growth cast through the arena\x27s `castRepeat` verb, whose '
+      + 'combat half ignored the spell id and logged no "X casts Y" `sc` event, so the preview scan had nothing to '
+      + 'find (Warflame / Flamebeat cast through `castNamedSpellInCombat`, which always logged it). The verb now logs '
+      + 'one announcement per cast from the CASTER, so Fatecarver, Taragosa and Hoardbreaker (Growth), Watcher and '
+      + 'Wick Mortis (Lantern of Souls) and Ashen Broodlord (Staff of Guel) preview once per fight above themselves; '
+      + 'Anubis\x27s Echo Lantern line now carries its spell id. The combat memory is claimed only once the caster has '
+      + 'an on-screen rect.',
     enforcement: {
       kind: 'scenario',
       refs: [
@@ -766,8 +783,10 @@ export const FOUNDATION_RULES: GameRule[] = [
         'packages/ui/src/castPreview.test.ts',
         'packages/ui/src/CastPreviewLayer.test.tsx',
         'packages/ui/src/choreo/channels/castPreview.test.ts',
+        'packages/ui/src/castPreviewConfig.test.ts',
+        'packages/core/src/combat/combatCastAnnounce.test.ts',
       ],
-      lastVerifiedAt: '2026-09-23',
+      lastVerifiedAt: '2026-09-24',
     },
   },
 ];

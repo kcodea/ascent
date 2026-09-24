@@ -416,14 +416,15 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     nameOf: (t) => (t as Minion).name,
     narrate: (text, cast) => ctx.log({ type: 'sc', source: self.uid, text, ...(cast ? { cast: true } : {}) }),
     activeTribes: () => ctx.activeTribesFor(self.side),
-    castTribeAttackSpell: (tribe, amount) => {
+    castTribeAttackSpell: (tribe, amount, spellId) => {
       // One cast per repetition, so an extra-cast grant stacks the aura again rather than doubling one grant.
       castInCombat(ctx, { ...self, golden: false } as Minion, () => {
         const sp = ctx.spellPowerFor(self.side);
         const a = amount + sp.attack;
         const h = sp.health;
         ctx.addTribeAura(self.side, tribe as Tribe | 'any', a, h, self.uid);
-        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts Lantern of Souls (+${a}/+${h} to your ${tribe})` });
+        // `spellId` stamped (2026-09-24) so Anubis's Echo cast previews Lantern of Souls like every other cast.
+        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts Lantern of Souls (+${a}/+${h} to your ${tribe})`, ...(spellId ? { spellId } : {}) });
       });
     },
     damageAll: (amount) => {
@@ -466,7 +467,19 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       ctx.log({ type: 'keywordLost', target: m.uid, keyword: kw as Keyword, source: self.uid });
     },
     spellPower: () => ctx.spellPowerFor(self.side),
-    castRepeat: (_spellId, body) => castInCombat(ctx, self, body),
+    // Every combat cast ANNOUNCES itself with the spell's id (the `sc` + `spellId` rule of 2026-09-01, which
+    // `castNamedSpellInCombat` always kept). This verb dropped it: Fatecarver / Taragosa / Hoardbreaker's Growth,
+    // Watcher / Wick Mortis's Lantern of Souls and Ashen Broodlord's Staff of Guel cast for real but logged no
+    // "X casts Y" line — so the combat cast preview (owner report 2026-09-23: "why does fate carver not show
+    // the growth preview? warflame does") had nothing to key on, and the Combat Log never named the cast. One
+    // line per cast, after its body, from the CASTER (not the attacker that triggered it).
+    castRepeat: (spellId, body) => {
+      const def = spellId ? ctx.getCard(spellId) : undefined;
+      castInCombat(ctx, self, () => {
+        body();
+        if (def?.spell) ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${def.name}`, spellId: def.id });
+      });
+    },
     castNamedSpell: (spellId) => castNamedSpellInCombat(ctx, self, spellId),
     cardDef: (id) => ctx.getCard(id),
     gainShopBuff: (a, h, source) => ctx.gainTavernBuy(a, h, self.side, self.uid, source),

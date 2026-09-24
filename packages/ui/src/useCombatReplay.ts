@@ -22,6 +22,7 @@ import { replayBeats, replayOrder } from './choreo/replayOrder';
 import { rallyDeliveredUids, runMomentCues } from './choreo/score';
 import { CastPreviewMemory } from './choreo/channels/castPreview';
 import { clearCastPreviews, showCastPreview } from './castPreview';
+import { castPreviewCombatOncePerFight } from './castPreviewConfig';
 import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, releaseSummons, subscribeSummonHolds, summonHoldVersion } from './fx/summonHold';
 import { notifyTutorialPresented } from './tutorial/presentationBus';
 import { attackSummonUids, ownStrikeAt, rallyProcsFor, strikeFollowsWindup } from './choreo/channels/rallyFired';
@@ -2284,12 +2285,14 @@ export function useCombatReplay(
       onBuffCasts: (casts) => fireBuffCasts(casts),
       // "X casts Y" → the spell's card preview above X (owner ask 2026-09-23), once per (caster, spell) per
       // fight. Anchored from the SLOT reading (`rectOf`), like a float — not a mid-lunge position.
+      // The memory is CLAIMED only once the caster has a rect: a cast whose body is not on screen yet must not
+      // burn its one preview for the fight. `Once per fight` is a Cast Preview tuner switch (default on).
       onSpellCastPreviews: (casts) => {
         for (const c of casts) {
-          if (!castPreviewMemoryRef.current.claim(c.source, c.spellId)) continue;
           const r = rectOf(c.source);
           if (!r) continue;
-          showCastPreview({ sourceKey: c.source, spellId: c.spellId, anchor: { left: r.cx - r.w / 2, top: r.cy - r.h / 2, width: r.w, height: r.h } });
+          if (castPreviewCombatOncePerFight() && !castPreviewMemoryRef.current.claim(c.source, c.spellId)) continue;
+          showCastPreview({ sourceKey: c.source, spellId: c.spellId, context: 'combat', anchor: { left: r.cx - r.w / 2, top: r.cy - r.h / 2, width: r.w, height: r.h } });
         }
       },
       onSelfBuffs: (selfBuffs) => fireSelfBuffs(selfBuffs),

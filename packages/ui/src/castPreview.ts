@@ -25,7 +25,7 @@
  * at mount (the clamp), never per frame; a fixed, pointer-events:none layer that never shifts layout.
  */
 
-import { castPreviewTimings, type CastPreviewContext, type CastPreviewSide } from './castPreviewConfig';
+import { CAST_PREVIEW_SOURCES, castPreviewCombatOncePerFight, castPreviewTimings, type CastPreviewContext, type CastPreviewSide } from './castPreviewConfig';
 
 /** Timings, size, side, offset and opacity are TUNED (the Cast Preview tuner, owner ask 2026-09-23 "far too
  *  large … build a tuner"): read through `castPreviewConfig.ts`, per context (shop / combat). No number here. */
@@ -131,6 +131,7 @@ export function anchorOfElement(el: Element): CastPreviewAnchor {
  * the Starform watcher retries, rather than dropped. Returns a cancel for the retry.
  */
 export function fireCastPreviewAt(source: CastPreviewSource, spellId: string, tries = 20): () => void {
+  if (source.kind === 'minion' ? !CAST_PREVIEW_SOURCES.minion : !CAST_PREVIEW_SOURCES.rune) return () => {}; // owner 2026-09-24: runes only for now
   let raf = 0;
   let left = tries;
   const attempt = (): void => {
@@ -143,6 +144,30 @@ export function fireCastPreviewAt(source: CastPreviewSource, spellId: string, tr
   };
   attempt();
   return () => { if (raf) cancelAnimationFrame(raf); };
+}
+
+/**
+ * THE COMBAT FEEDER — what `useCombatReplay`'s `onSpellCastPreviews` does with a moment's "X casts Y" events.
+ * Pure over its inputs (the slot reader + the fight's memory), so the gate and the once-per-fight rule are
+ * testable without a replay. OFF while `CAST_PREVIEW_SOURCES.combat` is off (owner 2026-09-24: runes only for
+ * now) — the casts still reach here, they just preview nothing. The memory is claimed only once the caster has a
+ * rect, so a body not yet on screen does not burn its one preview. Returns how many previews it showed.
+ */
+export function showCombatCastPreviews(
+  casts: readonly { source: string; spellId: string }[],
+  rectOf: (uid: string) => { cx: number; cy: number; w: number; h: number } | null,
+  memory: { claim(source: string, spellId: string): boolean },
+): number {
+  if (!CAST_PREVIEW_SOURCES.combat) return 0;
+  let shown = 0;
+  for (const c of casts) {
+    const r = rectOf(c.source);
+    if (!r) continue;
+    if (castPreviewCombatOncePerFight() && !memory.claim(c.source, c.spellId)) continue;
+    showCastPreview({ sourceKey: c.source, spellId: c.spellId, context: 'combat', anchor: { left: r.cx - r.w / 2, top: r.cy - r.h / 2, width: r.w, height: r.h } });
+    shown++;
+  }
+  return shown;
 }
 
 /** A live preview's horizontal footprint, for the de-overlap pass. */

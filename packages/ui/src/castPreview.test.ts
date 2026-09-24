@@ -1,5 +1,5 @@
 /**
- * THE CAST PREVIEW store + placement (owner ask 2026-09-23): fade in, linger ~2 s, fade out; a same-source
+ * THE CAST PREVIEW store + placement (owner ask 2026-09-23): fade in, linger, fade out; a same-source
  * recast REPLACES its live preview (and restarts the linger), different sources stack side by side; a
  * newcomer is nudged off a live neighbour and clamped on-screen.
  */
@@ -14,7 +14,7 @@ beforeEach(() => { vi.useFakeTimers(); clearCastPreviews(); resetCastPreviewConf
 afterEach(() => { clearCastPreviews(); resetCastPreviewConfig(); vi.useRealTimers(); });
 
 describe('showCastPreview — the clock', () => {
-  it('a cast shows its spell, lingers ~2 s, then fades out and leaves', () => {
+  it('a cast shows its spell, lingers, then fades out and leaves', () => {
     showCastPreview({ sourceKey: 'rw', spellId: 'lasso', anchor });
     expect(getCastPreviews()).toMatchObject([{ sourceKey: 'rw', spellId: 'lasso', count: 1, leaving: false }]);
     vi.advanceTimersByTime(fadeIn + linger - 1);
@@ -25,8 +25,10 @@ describe('showCastPreview — the clock', () => {
     expect(getCastPreviews()).toEqual([]);
   });
 
-  it('the linger is about two seconds (the owner\x27s number), with a hover-style fade either side', () => {
-    expect(linger).toBe(2000);
+  // Owner-baked 2026-09-24 (from the Cast Preview tuner): a quick 150 / 500 / 190 ms pop, replacing the first
+  // cut's ~2 s linger.
+  it('ships the owner\x27s baked clock: 150 ms in, 500 ms linger, 190 ms out', () => {
+    expect([fadeIn, linger, fadeOut]).toEqual([150, 500, 190]);
     expect(fadeIn).toBeGreaterThan(0);
     expect(fadeOut).toBeGreaterThan(0);
   });
@@ -39,12 +41,13 @@ describe('showCastPreview — the clock', () => {
 
   it('a second cast from the SAME source REPLACES its live preview: card swaps, count ticks, linger restarts', () => {
     const id = showCastPreview({ sourceKey: 'gi', spellId: 'ruby', anchor });
-    vi.advanceTimersByTime(1000);
+    const half = Math.floor((fadeIn + linger) / 2);
+    vi.advanceTimersByTime(half);
     expect(showCastPreview({ sourceKey: 'gi', spellId: 'ruby', anchor })).toBe(id);
     expect(getCastPreviews()).toMatchObject([{ id, spellId: 'ruby', count: 2, leaving: false }]);
-    vi.advanceTimersByTime(fadeIn + linger - 1000 + 1); // where the FIRST linger would have ended
+    vi.advanceTimersByTime(fadeIn + linger - half + 1); // where the FIRST linger would have ended
     expect(getCastPreviews()[0]!.leaving, 'the linger restarted at the second cast').toBe(false);
-    vi.advanceTimersByTime(1000 - 1);
+    vi.advanceTimersByTime(half - 1);
     expect(getCastPreviews()[0]!.leaving).toBe(true);
   });
 

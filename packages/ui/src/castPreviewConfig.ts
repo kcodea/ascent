@@ -54,25 +54,34 @@ export interface CastPreviewConfig {
  * the next exchange piles up behind it.
  */
 const DEFAULTS: CastPreviewConfig = {
-  shopScale: 0.42,
+  // Owner-tuned 2026-09-24 (baked from the panel's Copy values).
+  shopScale: 0.6,
   shopSide: 0,
   shopOffsetX: 0,
-  shopOffsetY: 0,
-  shopFadeIn: 180,
-  shopLinger: 2000,
-  shopFadeOut: 320,
+  shopOffsetY: -32,
+  shopFadeIn: 150,
+  shopLinger: 500,
+  shopFadeOut: 190,
   shopAlpha: 1,
-  combatScale: 0.38,
-  combatSide: 0,
-  combatOffsetX: 0,
-  combatOffsetY: 0,
-  combatFadeIn: 180,
-  combatLinger: 1600,
-  combatFadeOut: 320,
+  combatScale: 0.6,
+  combatSide: 3,
+  combatOffsetX: -74,
+  combatOffsetY: 28,
+  combatFadeIn: 150,
+  combatLinger: 500,
+  combatFadeOut: 190,
   combatAlpha: 1,
   combatOncePerFight: 1,
 };
 export { DEFAULTS as CAST_PREVIEW_DEFAULTS };
+
+/** WHICH SOURCES PREVIEW (owner 2026-09-24: "use the values below for the rune triggering one, but let's hide/
+ *  disable the combat/minion side for now, because it isn't what i want right now"). Only a spell cast BY A RUNE
+ *  previews; a minion's cast (shop, End of Turn or combat) shows nothing. The combat + minion code stays wired so
+ *  flipping these back on is one line; the combat knobs are hidden from the tuner while it is off. */
+export interface CastPreviewSources { rune: boolean; minion: boolean; combat: boolean }
+// Deliberately a plain (mutable) object: tests flip it to prove re-enabling is one line. Never flipped at runtime.
+export const CAST_PREVIEW_SOURCES: CastPreviewSources = { rune: true, minion: false, combat: false };
 
 export const CAST_PREVIEW_RANGES: Record<keyof CastPreviewConfig, [number, number, number]> = {
   shopScale: [0.2, 1.5, 0.01],
@@ -207,20 +216,29 @@ function controlsFor(prefix: CastPreviewContext, group: string): TunerControl<Ex
   });
 }
 
-export const CAST_PREVIEW_CONTROLS: TunerControl<Extract<keyof CastPreviewConfig, string>>[] = [
-  ...controlsFor('shop', 'Shop (runes + minions, End of Turn)'),
-  ...controlsFor('combat', 'Combat (minion casts on the replay)'),
-  {
-    key: 'combatOncePerFight', label: 'Once per fight', group: 'Combat (minion casts on the replay)',
-    kind: 'toggle', onValue: 1, offValue: 0, onOffLabels: ['once per caster + spell', 'every cast'],
-    min: 0, max: 1, step: 1,
-  },
-];
+/** The panel's controls for a given gate: the shop group always (named for what it serves), the combat group
+ *  only while combat previews are on. */
+export function castPreviewControlsFor(sources: CastPreviewSources): TunerControl<Extract<keyof CastPreviewConfig, string>>[] {
+  return [
+  ...controlsFor('shop', sources.minion ? 'Shop (runes + minions, End of Turn)' : 'Rune casts'),
+  // The combat / minion previews are OFF for now (CAST_PREVIEW_SOURCES); their knobs come back with them.
+  ...(sources.combat ? [
+    ...controlsFor('combat', 'Combat (minion casts on the replay)'),
+    {
+      key: 'combatOncePerFight' as const, label: 'Once per fight', group: 'Combat (minion casts on the replay)',
+      kind: 'toggle' as const, onValue: 1, offValue: 0, onOffLabels: ['once per caster + spell', 'every cast'] as [string, string],
+      min: 0, max: 1, step: 1,
+    },
+  ] : []),
+  ];
+}
+
+export const CAST_PREVIEW_CONTROLS = castPreviewControlsFor(CAST_PREVIEW_SOURCES);
 
 export const SPEC: TunerSpec<CastPreviewConfig> = {
   id: 'castpreview',               // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Cast Preview',
-  note: 'dev · live · shop + combat',
+  note: 'dev · live · rune casts',
   read: getCastPreviewConfig,
   write: (key, value) => setCastPreviewValue(key, value),
   reset: resetCastPreviewConfig,

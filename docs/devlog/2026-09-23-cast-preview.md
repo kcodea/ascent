@@ -160,3 +160,23 @@ new size; dragging Size / Offset Y / Max opacity wrote and persisted the values,
 re-sized live (combat 294 → 157 px wide, shop opacity 1 → 0.5); a fight with Fatecarver (branch B) + an attacker
 (7 Growth casts) showed exactly ONE Growth preview, above Fatecarver's slot (preview 820 to 920 px, Fatecarver 812
 to 927 px, attacker 658 to 811 px).
+
+### Gated to runes only (2026-09-24, owner follow-up on PR #1671)
+
+> "use the values below for the rune triggering one, but let's hide/disable the combat/minion side for now,
+> because it isn't what i want right now."
+
+- **Defaults are the owner's baked values.** Rune/shop: size 0.6, above, offset 0 / -32 px, 150 / 500 / 190 ms,
+  opacity 1. Combat: size 0.6, right, offset -74 / 28 px, 150 / 500 / 190 ms, opacity 1, once per fight. The combat
+  set is baked so it comes back as tuned.
+- **`CAST_PREVIEW_SOURCES = { rune: true, minion: false, combat: false }`** in `castPreviewConfig.ts` is the gate:
+  - `fireCastPreviewAt` is a no-op for a minion source (shop and End of Turn).
+  - The combat feeder, now the pure `showCombatCastPreviews` in `castPreview.ts`, returns without showing anything
+    or claiming the once-per-fight memory.
+  - The tuner shows only a "Rune casts" group.
+  - Preview test fires the rune sample alone.
+- **Re-enabling is one line** (flip the flags); `castPreviewGate.test.ts` flips them and proves the minion and combat
+  previews return.
+- **The engine fix stays.** Fatecarver and the other combat casters still log their `sc` + `spellId` cast events,
+  and the Combat Log names them. The channel test asserts that the cue still carries every Growth cast while the
+  gate shows no preview.

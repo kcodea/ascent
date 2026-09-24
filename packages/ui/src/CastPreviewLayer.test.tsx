@@ -10,7 +10,7 @@ import { act, useSyncExternalStore } from 'react';
 import { CastPreviewLayerView } from './CastPreviewLayer';
 import type { CardView } from './Card';
 import { clearCastPreviews, getCastPreviews, showCastPreview, subscribeCastPreviews } from './castPreview';
-import { castPreviewTimings, resetCastPreviewConfig, setCastPreviewValue } from './castPreviewConfig';
+import { CAST_PREVIEW_DEFAULTS, castPreviewTimings, resetCastPreviewConfig, setCastPreviewValue } from './castPreviewConfig';
 
 const CAST_PREVIEW_MS = castPreviewTimings('shop');
 import { mount, type Mounted } from './renderedText.mount';
@@ -87,11 +87,12 @@ describe('CastPreviewLayer', () => {
     const [shop, combat] = previews();
     expect(shop!.dataset.context).toBe('shop');
     expect(combat!.dataset.context).toBe('combat');
-    expect(shop!.style.getPropertyValue('--cp-scale')).toBe('0.42');
-    expect(combat!.style.getPropertyValue('--cp-scale')).toBe('0.38');
+    expect(shop!.style.getPropertyValue('--cp-scale')).toBe(String(CAST_PREVIEW_DEFAULTS.shopScale));
+    expect(combat!.style.getPropertyValue('--cp-scale')).toBe(String(CAST_PREVIEW_DEFAULTS.combatScale));
     expect(shop!.style.animationDuration).toBe(`${CAST_PREVIEW_MS.fadeIn}ms`);
     act(() => {
       setCastPreviewValue('shopScale', 0.3);
+      setCastPreviewValue('combatAlpha', 1);
       setCastPreviewValue('shopAlpha', 0.6);
       setCastPreviewValue('combatScale', 0.9);
     });

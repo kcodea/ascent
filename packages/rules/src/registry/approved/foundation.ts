@@ -722,12 +722,15 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'that spell\x27s card preview above its caster: above the rune\x27s node on the rune rail for a rune-cast, above '
       + 'the minion\x27s card for a minion-cast (Rune of the Gilded Ledger\x27s random stat spell, Rune of the Spell '
       + 'Market\x27s Staff of Guel, Rope Wrangler\x27s Lasso, a Gemstorm Instigator\x27s Rubies, a Mirrorwing re-cast, an '
-      + 'End-of-Turn cast). It is the plated card the hover reveal shows, with its live text, drawn SMALL (about a '
-      + 'board minion\x27s width by default: 0.42 of the full plated card in the shop, 0.38 in combat) just above its '
-      + 'source; it fades in like a hover preview (~180 ms), lingers (2000 ms in the shop, 1600 ms in combat), then '
-      + 'fades out (~320 ms). Size, side of the source, X/Y offset, fade-in, linger, fade-out and max opacity are '
+      + 'End-of-Turn cast). NOTE 2026-09-24: ONLY THE RUNE CASE IS ON for now; minion casts (shop, End of Turn and '
+      + 'combat) are gated off by `CAST_PREVIEW_SOURCES` (owner: hide/disable the combat/minion side), with their code '
+      + 'kept wired so re-enabling is one line. It is the plated card the hover reveal shows, with its live text, at '
+      + 'the owner-baked size (0.6 of the full plated card, 32 px higher than flush above its source); it fades in '
+      + '(150 ms), lingers (500 ms), then fades out (190 ms). Size, side of the source, X/Y offset, fade-in, linger, '
+      + 'fade-out and max opacity are '
       + 'owner-tunable per context (shop / combat) on the DEV Cast Preview tuner, which also carries the combat '
-      + 'once-per-fight switch and a Preview test button; prod ships the baked defaults. In the shop '
+      + 'once-per-fight switch and a Preview test button (the combat knobs are hidden while combat is gated off); '
+      + 'prod ships the baked defaults. In the shop '
       + 'every cast previews; a second cast from the SAME source while its preview is still up REPLACES it (the card '
       + 'swaps, a small xN count appears, the linger restarts) and casts from different sources sit side by side, '
       + 'nudged apart rather than overlapping. IN COMBAT a source that casts the SAME spell repeatedly previews it '
@@ -760,6 +763,11 @@ export const FOUNDATION_RULES: GameRule[] = [
         ref: 'Owner feedback, 2026-09-23 (cast preview follow-up, with screenshots)',
         quote: 'this is far too large. can you build a tuner for me to adjust size, positioning, and linger duration? also, why does fate carver not show the growth preview? warflame does. it is also massive. make sure to add all of the details to the tuner so i can tune both. add an alpha/opacity lever as well.',
       },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner follow-up on PR #1671, 2026-09-24',
+        quote: 'use the values below for the rune triggering one, but let\x27s hide/disable the combat/minion side for now, because it isn\x27t what i want right now.',
+      },
       { kind: 'code', ref: 'packages/sim/src/recruit.ts (`castActorStack`, `withCastActor`, the RECRUIT_FACTORIES wrap, the record at the top of `applyCastEffects`, `EotStepFx.casts`); packages/sim/src/state.ts (`CastFx`, `recordCastFx`, `castFx`/`castFxSeq`); packages/ui/src/castPreview.ts (the store, `placeCastPreview`); packages/ui/src/CastPreviewLayer.tsx; packages/ui/src/choreo/channels/castPreview.ts (`spellCastsIn`, `CastPreviewMemory`); packages/ui/src/choreo/score.ts (the `castPreviewFx` cue); packages/ui/src/useCombatReplay.ts (`onSpellCastPreviews`); packages/ui/src/choreographer/consequencePresenters.ts (`spellResolved`); packages/ui/src/styles.css (`.castprev`); packages/ui/src/castPreviewConfig.ts (the tuner\x27s one config accessor: `castPreviewLook`, `castPreviewTimings`, `castPreviewCombatOncePerFight`); packages/ui/src/CastPreviewTuner.tsx (the panel + Preview test); packages/core/src/effects/factories.ts (the combat `castRepeat` verb now logs the `sc` + `spellId` announcement from the caster; `castTribeAttackSpell` stamps `spellId`)' },
     ],
     currentBehaviour:
@@ -775,7 +783,13 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'one announcement per cast from the CASTER, so Fatecarver, Taragosa and Hoardbreaker (Growth), Watcher and '
       + 'Wick Mortis (Lantern of Souls) and Ashen Broodlord (Staff of Guel) preview once per fight above themselves; '
       + 'Anubis\x27s Echo Lantern line now carries its spell id. The combat memory is claimed only once the caster has '
-      + 'an on-screen rect.',
+      + 'an on-screen rect. GATED 2026-09-24 (owner follow-up on PR #1671): the owner-tuned values are baked as the '
+      + 'defaults (rune/shop: 0.6 size, above, offset 0 / -32 px, 150 / 500 / 190 ms, opacity 1; the combat set is '
+      + 'baked too for when it returns) and `CAST_PREVIEW_SOURCES = { rune: true, minion: false, combat: false }` '
+      + 'turns the minion and combat previews off: `fireCastPreviewAt` is a no-op for a minion source, '
+      + '`showCombatCastPreviews` (the combat feeder) returns without showing or claiming, and the tuner shows only '
+      + 'the "Rune casts" group. The engine fix stays: combat casts still log their `sc` + `spellId` events (the '
+      + 'Combat Log names them), they simply preview nothing while the gate is off.',
     enforcement: {
       kind: 'scenario',
       refs: [
@@ -785,6 +799,7 @@ export const FOUNDATION_RULES: GameRule[] = [
         'packages/ui/src/choreo/channels/castPreview.test.ts',
         'packages/ui/src/castPreviewConfig.test.ts',
         'packages/core/src/combat/combatCastAnnounce.test.ts',
+        'packages/ui/src/castPreviewGate.test.ts',
       ],
       lastVerifiedAt: '2026-09-24',
     },

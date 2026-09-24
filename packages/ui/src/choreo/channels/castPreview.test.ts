@@ -9,6 +9,8 @@ import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent } from '@game/core';
 import { compileMoments, type Moment } from '../compile';
 import { CastPreviewMemory, spellCastsIn } from './castPreview';
+import { clearCastPreviews, getCastPreviews, showCombatCastPreviews } from '../../castPreview';
+import { CAST_PREVIEW_SOURCES } from '../../castPreviewConfig';
 import { SCORE_DEFAULTS, runMomentCues } from '../score';
 import { canPlayDefs, playDef } from '../../fx/playDef';
 import { anchorsForUnits } from '../../fx/combatAnchors';
@@ -122,6 +124,27 @@ describe('Fatecarver previews Growth in a real fight', () => {
     }
     return { shown, seen, r };
   };
+
+  // THE GATE (owner 2026-09-24: "hide/disable the combat/minion side for now"): the cue still hands every Growth
+  // cast to the feeder, the feeder shows nothing. Flipped back on, the rest of this block is the behaviour.
+  it('with combat previews OFF: the cue still carries every Growth cast EVENT, but no preview shows', () => {
+    const r = simulate([bm('sandbag', 'ATK', 3, 900), bm('n2_fatecarver', 'FC', 0, 900, { chosenOption: 1 })],
+      [{ cardId: 'sandbag', attack: 0, health: 90000 } as BoardMinion], makeRng(7), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
+    clearCastPreviews();
+    const mem = new CastPreviewMemory();
+    const reached: { source: string; spellId: string }[] = [];
+    let shown = 0;
+    const rectOf = () => ({ cx: 500, cy: 400, w: 115, h: 115 });
+    for (const m of compileMoments(r.events)) {
+      const c = ctx(r.events, { onSpellCastPreviews: (casts: { source: string; spellId: string }[]) => { reached.push(...casts); shown += showCombatCastPreviews(casts, rectOf, mem); } });
+      runMomentCues(m, c);
+    }
+    expect(CAST_PREVIEW_SOURCES.combat).toBe(false);
+    expect(reached.length, 'the Growth cast events reached the cue').toBeGreaterThan(1);
+    expect(reached.every((c) => c.source === 'm1' && c.spellId === 'growth')).toBe(true);
+    expect(shown).toBe(0);
+    expect(getCastPreviews()).toEqual([]);
+  });
 
   it('many Growth casts in the fight → exactly ONE preview, from Fatecarver (m1), not the attacker (m0)', () => {
     const { shown, seen, r } = previewsOf([bm('sandbag', 'ATK', 3, 900), bm('n2_fatecarver', 'FC', 0, 900, { chosenOption: 1 })]);

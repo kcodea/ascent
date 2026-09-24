@@ -1,5 +1,5 @@
 import { anchorOfElement, clearCastPreviews, showCastPreview, type CastPreviewAnchor } from './castPreview';
-import { SPEC as BASE_SPEC } from './castPreviewConfig';
+import { CAST_PREVIEW_SOURCES, SPEC as BASE_SPEC } from './castPreviewConfig';
 import { TunerPanel } from './TunerPanel';
 import type { TunerSpec } from './tunerSchema';
 import type { CastPreviewConfig } from './castPreviewConfig';
@@ -11,7 +11,8 @@ import type { CastPreviewConfig } from './castPreviewConfig';
  *
  * "▶ Preview test" fires one of each without playing to the trigger: a SHOP preview above a rune badge (the
  * first on the rail) and a COMBAT-style preview above a minion (the first warband card, or a combat unit), each
- * falling back to a stand-in spot beside this panel when that source is not on screen.
+ * falling back to a stand-in spot beside this panel when that source is not on screen. While combat previews are
+ * off (`CAST_PREVIEW_SOURCES`, owner 2026-09-24: runes only for now) it fires the rune sample alone.
  */
 const SAMPLE_SHOP_SPELL = 'mightofaeon'; // Gilded Ledger's cast in the owner's screenshot
 const SAMPLE_COMBAT_SPELL = 'growth';    // Fatecarver's cast
@@ -35,6 +36,7 @@ export function fireCastPreviewSamples(panelEl: HTMLElement | null): void {
     sourceKey: 'tuner:rune', spellId: SAMPLE_SHOP_SPELL, context: 'shop',
     anchor: runeAnchor && runeAnchor.width > 0 ? runeAnchor : standIn(panelEl, 0, 64, 64),
   });
+  if (!CAST_PREVIEW_SOURCES.combat) return; // combat previews are off for now (owner 2026-09-24): rune sample only
   const minion = document.querySelector('[data-zone="warband"] .row .card[data-uid]')
     ?? document.querySelector('.unit[data-uid]')
     ?? document.querySelector('[data-uid]');

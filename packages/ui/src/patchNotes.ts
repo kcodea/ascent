@@ -55,10 +55,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: "Spell previews are smaller, and Fatecarver's Growth now shows its preview in combat.",
+        text: 'Spell previews are smaller and only appear for spells cast by your runes for now.',
         details: [
-          'The spell card that pops up when a rune or minion casts a spell is now about the size of a minion, sitting just above its caster.',
-          'More combat casters now show their spell once per fight, like Warflame: Fatecarver and Hoardbreaker Drake (Growth), and Watcher and Wick Mortis (Lantern of Souls).',
+          'The spell card that pops up when a rune casts a spell is smaller and quicker, sitting just above the rune.',
+          'Spells cast by minions, in the shop or in combat, no longer show a preview for now.',
         ],
       },
     ],

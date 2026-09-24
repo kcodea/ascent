@@ -52,6 +52,16 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-24',
+    label: 'Picnic effect',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Picnic now has its own cast effect. A burst of gems lands on the Shop minion it buffs, however it was cast.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Kobolds and Dwarves',
     changes: [
       {

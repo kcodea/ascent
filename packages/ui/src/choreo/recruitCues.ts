@@ -1,7 +1,7 @@
 import { cascade, scheduleLands, type Land } from '../fx/land';
 import { sfx } from '../sfx';
 import { canPlayDefs, playDef } from '../fx/playDef';
-import { spellCastSoundAllowed } from '../fx/spellCastFx';
+import { spellCastShopTarget, spellCastSoundAllowed } from '../fx/spellCastFx';
 import { bindingFor, type FxBinding } from './bindings';
 import { RUBY_BEAT_MS, RUBY_GAP_MS } from './channels/rubyLanded';
 import type { RecruitMoment } from './recruitMoments';
@@ -239,7 +239,9 @@ function runSpellCastFire(moment: RecruitMoment, ctx: RecruitCueContext): () => 
     // One sound per burst of the same def (owner 2026-09-24, the Undead Aura rule: `spellCastSoundAllowed`).
     const fire = (): void => {
       const sound = spellCastSoundAllowed(binding.def);
-      playDef(binding.def, { source: pt, target: pt, cursor: pt, camera }, { uids: { source: src, target: src }, gain: binding.gain, ...(sound ? {} : { muteSound: true }) });
+      // A Shop-targeted spell (Picnic) lands ON the Shop minion it buffed, not at the release point.
+      const shop = spellCastShopTarget(src);
+      playDef(binding.def, { source: pt, target: shop?.point ?? pt, cursor: pt, camera }, { uids: { source: src, target: shop?.uid ?? src }, gain: binding.gain, ...(sound ? {} : { muteSound: true }) });
       if (sound && binding.sfx !== undefined) sfx[binding.sfx]?.();
     };
     fire();

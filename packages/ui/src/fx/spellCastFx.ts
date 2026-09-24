@@ -112,6 +112,31 @@ export function runeNodeCentre(runeId: string | null | undefined): Point | null 
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 }
 
+/** The Shop selector for a MINION offer: not a spell / Ruby card, not a scouted foe's ghost row. */
+const SHOP_MINION_SEL = '[data-zone="tavern"] .row .card[data-uid]:not(.spellcard):not(.rubycard):not([data-uid^="sbfoe-"])';
+
+/**
+ * WHERE A SHOP-TARGETED SPELL LANDS (owner 2026-09-24: *"picnic should get the "shop buff shout" animation"*).
+ * Picnic buffs the RIGHT-most Shop minion (`spellBuffShopRightmost`, the sim's `rightmostShopMinion`: the last
+ * offer that is neither a spell nor a Ruby), so its cast effect's `target` is that card, not the release point or
+ * the viewport centre. Keyed on the EFFECT, so any spell that shares it lands the same way. Null for every other
+ * spell, and when no Shop minion is on screen (combat): the caller keeps its own anchor.
+ */
+export function spellCastShopTarget(spellId: string | null | undefined): { point: Point; uid: string } | null {
+  if (!spellId || typeof document === 'undefined') return null;
+  const def = CARD_INDEX[spellId];
+  if (!def?.effects?.some((e) => e.do === 'spellBuffShopRightmost')) return null;
+  let best: { point: Point; uid: string } | null = null;
+  let bestX = -Infinity;
+  for (const el of document.querySelectorAll<HTMLElement>(SHOP_MINION_SEL)) {
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 && r.height === 0) continue;
+    const x = r.left + r.width / 2;
+    if (x >= bestX) { bestX = x; best = { point: { x, y: r.top + r.height / 2 }, uid: el.getAttribute('data-uid') ?? '' }; }
+  }
+  return best;
+}
+
 /** Play `spellId`'s own cast effect once. False when the spell has no card-level cast binding (or defs can't
  *  play yet), the common case, and free: one map read. `runeId` names the rune that cast it: its node becomes
  *  the effect's `source` / `cursor` when it is on screen. */
@@ -123,8 +148,11 @@ export function playSpellCastFx(spellId: string, where: { anchors?: FxAnchors | 
   const node = runeNodeCentre(where.runeId);
   if (node) base = { ...base, source: node, cursor: node };
   const uid = where.uid ?? null;
+  // A Shop-targeted spell (Picnic) lands ON the Shop minion it buffed, whoever cast it.
+  const shop = spellCastShopTarget(spellId);
+  if (shop) base = { ...base, target: shop.point };
   const sound = spellCastSoundAllowed(binding.def);
-  playDef(binding.def, { ...base, camera }, { uids: { source: uid, target: uid }, gain: binding.gain, ...(sound ? {} : { muteSound: true }) });
+  playDef(binding.def, { ...base, camera }, { uids: { source: uid, target: shop?.uid ?? uid }, gain: binding.gain, ...(sound ? {} : { muteSound: true }) });
   if (sound && binding.sfx !== undefined) sfx[binding.sfx]?.();
   return true;
 }
@@ -188,7 +216,7 @@ export function playRuneSpellCastFx(
   const atSource = single ? null : sourceOnlyCastRow(spellId);
   const willPlay = (single !== null || atSource !== null) && canPlayDefs();
   afterMs(delayMs, () => {
-    const aim = single ? (where.anchors?.target ?? viewportCentre()) : null;
+    const aim = single ? (spellCastShopTarget(spellId)?.point ?? where.anchors?.target ?? viewportCentre()) : null;
     const f = playRuneCastFlourish(runeId, aim);
     if (single) afterMs(f.mote ? f.leadMs : 0, () => { playSpellCastFx(spellId, { ...where, runeId }); });
     // A no-buff row (Golden / Reinforcing Ale) plays once ON the node, released a lead after the flash like a trail.

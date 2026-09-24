@@ -103,6 +103,7 @@ import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { getDragFeel } from './dragFeel';
 import { getLayout } from './layoutConfig';
 import { getFlipConfig } from './flipConfig';
+import { commitFlipDeltas, type CommitSweep } from './commitFlip';
 import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef, canPlayDefs } from './fx/playDef';
@@ -3118,7 +3119,9 @@ export function Recruit() {
   const handLeftsRef = useRef<Map<string, number>>(new Map());
   // Prior-frame left edges (uid → x) of every flipping card, for the commit-branch manual FLIP (a SELL /
   // effect reposition glides survivors from here → their new slot; symmetric where GSAP Flip was not).
-  const commitRectsRef = useRef<Map<string, number> | null>(null);
+  // Keyed by the row composition it was taken under (`CommitSweep`), so a commit that changed no row never diffs
+  // against it (owner 2026-09-24: casting Growth slid the whole warband, `commitFlip.ts`).
+  const commitRectsRef = useRef<CommitSweep | null>(null);
   // Set true when a hand card is just PLAYED onto the board, so the next FLIP commit SNAPS instead of running
   // GSAP. A played card is a NEW element entering the flex row: GSAP Flip doesn't take it out of flow, so it
   // fights the reflow (siblings close, then the new card shoves them back open = a jolt). The neighbours are
@@ -7850,7 +7853,7 @@ const RenderMark = memo(function RenderMark({ start, phase }: { start: number; p
  *  drop handlers and the End-of-Turn presenters write into it) and handed to `RowFlip` as one stable object. */
 interface FlipRefs {
   flipStateRef: { current: ReturnType<typeof Flip.getState> | null };
-  commitRectsRef: { current: Map<string, number> | null };
+  commitRectsRef: { current: CommitSweep | null };
   handPlaySnapRef: { current: boolean };
   handFlipRef: { current: Map<string, number> | null };
   handFlipSelRef: { current: string | null };
@@ -7884,6 +7887,14 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
 }) {
   const { dragActive, gapIndex, shopGapIndex, collapsedLift } = useDragSlice(selectFlipDrag);
   const { flipStateRef, commitRectsRef, handPlaySnapRef, handFlipRef, handFlipSelRef, placePendingRef, shiftHoldRef, shopRectsRef, lastCentreRef, departedCentreRef, prevShopFxSeq, preFiredEchoRef } = refs;
+  // A RESIZE re-lays both rows out under cards that did not move, so the last commit sweep no longer describes the
+  // screen: drop it, and the next row change snaps instead of flinging every survivor in from the old layout (the
+  // same stale-baseline fault as the Growth report, `commitFlip.ts`). One listener, no layout read.
+  useEffect(() => {
+    const drop = (): void => { commitRectsRef.current = null; };
+    window.addEventListener('resize', drop);
+    return () => window.removeEventListener('resize', drop);
+  }, [commitRectsRef]);
   /**
    * THE SHOP'S DEATH CUES (owner 2026-08-28) — see the block comment above `FlipRefs`' owner in `Recruit`.
    *   · an Echo TRIGGERED    → `pixiFx.deathrattle` — the painted skull-shatter.
@@ -8073,16 +8084,18 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
         // (a roll swaps five cards into the same five slots; a buff changes no layout at all). The deltas come
         // off the sweep above; a commit with no delta touches no style, and one that DID move a card runs
         // exactly the writes it always did.
+        //
+        // ONLY A ROW CHANGE MOVES A CARD (owner 2026-09-24: "when casting growth it randomly moves the warband").
+        // The key also flips on a spell drag's lift and release, which changes no row; diffing that release against
+        // an old sweep replayed any layout change since (a resize, a docked panel) as the whole warband sliding in.
+        // `commitFlipDeltas` returns nothing unless the rows changed since the sweep it diffs against.
         const targets = gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR);
-        const olds = commitRectsRef.current;
+        const deltas = commitLefts ? commitFlipDeltas(commitRectsRef.current, { key: rowsKey, lefts: commitLefts }) : null;
         const moving: { el: HTMLElement; delta: number }[] = [];
-        if (olds && commitLefts) {
+        if (deltas && deltas.size > 0) {
           for (const el of targets) {
-            const uid = el.dataset.uid;
-            const old = uid ? olds.get(uid) : undefined;
-            const now = uid ? commitLefts.get(uid) : undefined;
-            const delta = old === undefined || now === undefined ? 0 : old - now;
-            if (Math.abs(delta) >= 0.5) moving.push({ el, delta });
+            const delta = el.dataset.uid ? deltas.get(el.dataset.uid) : undefined;
+            if (delta !== undefined) moving.push({ el, delta });
           }
         }
         if (moving.length > 0) {
@@ -8117,7 +8130,7 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
       // from the last commit could predate a viewport resize.
       flipStateRef.current = Flip.getState(flipSel, { simple: true });
     });
-    if (commitLefts) commitRectsRef.current = commitLefts;
+    if (commitLefts) commitRectsRef.current = { key: rowsKey, lefts: commitLefts };
    });
   }, [flipKey]);
 

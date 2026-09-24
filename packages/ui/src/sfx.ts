@@ -52,6 +52,33 @@ const analysers = new Map<string, AnalyserNode>();
  *  the first time (before `ascent.audiocfg` exists). Returns a partial config to merge over the defaults. */
 function readSavedConfig(): Partial<AudioConfig> | null {
   try {
+    return resetMasterOnce(readSavedConfigRaw());
+  } catch {
+    return null;
+  }
+}
+/** THE DEFAULT MIX, once (owner ask 2026-09-24: every Audio slider starts at the 50 mark). The Game-sounds slider IS
+ *  `masterGain` (identity curve, see audio/volumeCurve.ts), stored inside the whole mixer config, so instead of a new
+ *  key the first load after the change drops a saved `masterGain` (the default, 0.5, applies) and writes the cleaned
+ *  config back; `MIX_RESET_KEY` records that it ran, so a player's later choice sticks. Nothing else in the config is
+ *  touched (the mixing desk's per-category levels stay as tuned). A function-local key, not a module const: this
+ *  runs while `cfg` initialises at the top of the module, before a later `const` would exist. */
+function resetMasterOnce(saved: Partial<AudioConfig> | null): Partial<AudioConfig> | null {
+  const MIX_RESET_KEY = 'ascent.audiomix.v2';
+  try {
+    if (localStorage.getItem(MIX_RESET_KEY) === '1') return saved;
+    localStorage.setItem(MIX_RESET_KEY, '1');
+    if (!saved || !('masterGain' in saved)) return saved;
+    const rest: Partial<AudioConfig> = { ...saved };
+    delete rest.masterGain;
+    if (localStorage.getItem('ascent.audiocfg')) localStorage.setItem('ascent.audiocfg', JSON.stringify(rest));
+    return rest;
+  } catch {
+    return saved;
+  }
+}
+function readSavedConfigRaw(): Partial<AudioConfig> | null {
+  try {
     const raw = localStorage.getItem('ascent.audiocfg');
     if (raw) return JSON.parse(raw) as Partial<AudioConfig>;
     const gains = JSON.parse(localStorage.getItem('ascent.sfxvol') ?? 'null');

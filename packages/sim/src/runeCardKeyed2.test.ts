@@ -21,7 +21,7 @@ function withRune(id: string, extra: Partial<RunState> = {}): RunState {
 
 /** Carried into set 3 by the 2026-09-14 rune roster handoff (Veinbreaker becomes rune-exclusive there); the rest
  *  name Beast / Dragon / Growth packages set 3 does not have. */
-const SET3_CARRY = new Set(['rune_unbroken_vein']);
+const SET3_CARRY = new Set<string>([]); // the Unbroken Vein was CUT FROM SET 3 2026-09-24 (owner)
 
 describe('the six defs ship as specced', () => {
   it('costs, rarity, all Set-2 scoped', () => {

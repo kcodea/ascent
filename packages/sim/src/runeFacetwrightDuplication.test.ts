@@ -95,7 +95,7 @@ describe('the two runes ship as specced', () => {
   });
 
   it("only Facetwright is set-2 scoped — its spell is a set-2 card", () => {
-    expect(byName('Rune of Facetwright')!.sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
+    expect(byName('Rune of Facetwright')!.sets).toEqual(['set2']); // CUT FROM SET 3 2026-09-24 (owner)
     expect(byName('Rune of Duplication')!.sets).toBeUndefined();
   });
 });

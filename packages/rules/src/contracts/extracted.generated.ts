@@ -25971,6 +25971,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:combatFlag.flag"
       ]
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tags": [
       "runeforge:basic",
       "cost:4"
@@ -26049,6 +26053,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:recurringEndOfTurn.effect"
       ]
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "dragon"
     ],
@@ -26074,6 +26082,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "high"
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "beast"
     ],
@@ -26102,6 +26114,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "high"
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "mech"
     ],
@@ -26192,6 +26208,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "high"
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "dragon"
     ],
@@ -26223,6 +26243,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:combatFlag.flag"
       ]
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "demon"
     ],
@@ -26389,8 +26413,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set2",
-      "set3"
+      "set2"
     ],
     "tribes": [
       "dwarf"
@@ -27052,6 +27075,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "high"
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "demon"
     ],
@@ -27110,8 +27137,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set2",
-      "set3"
+      "set2"
     ],
     "tribes": [
       "dwarf"
@@ -27144,6 +27170,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:combatFlag.flag"
       ]
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "demon"
     ],
@@ -27178,6 +27208,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:combatFlag.flag"
       ]
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "demon"
     ],
@@ -27271,6 +27305,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:combatFlag.flag"
       ]
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "beast"
     ],
@@ -27435,8 +27473,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2",
-      "set3"
+      "set2"
     ],
     "tribes": [
       "dwarf"
@@ -27463,6 +27500,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "high"
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "dragon"
     ],
@@ -27618,6 +27659,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:combatFlag.flag"
       ]
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "demon"
     ],
@@ -27649,6 +27694,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "high"
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "mech"
     ],
@@ -27875,8 +27924,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "low"
     },
     "setIds": [
-      "set2",
-      "set3"
+      "set2"
     ],
     "tribes": [
       "kobold"
@@ -28351,6 +28399,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "high"
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "beast"
     ],
@@ -28536,6 +28588,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "low"
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "dragon"
     ],
@@ -28599,6 +28655,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:runeThreshold.meter"
       ]
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "dragon"
     ],
@@ -28634,6 +28694,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:combatFlag.flag"
       ]
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "dragon"
     ],
@@ -28668,6 +28732,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:shoutEdgeBuff.tribe"
       ]
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "dragon"
     ],
@@ -29475,8 +29543,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2",
-      "set3"
+      "set2"
     ],
     "tribes": [
       "kobold"
@@ -29681,6 +29748,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:combatFlag.flag"
       ]
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "demon"
     ],
@@ -29715,6 +29786,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:combatFlag.flag"
       ]
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "beast"
     ],
@@ -29854,6 +29929,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:combatFlag.flag"
       ]
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "demon"
     ],
@@ -29904,6 +29983,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "high"
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "dragon"
     ],
@@ -29990,9 +30073,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:runeThreshold.meter"
       ]
     },
-    "setIds": [
-      "set3"
-    ],
+    "setIds": [],
     "tribes": [
       "spirit"
     ],
@@ -30192,8 +30273,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set2",
-      "set3"
+      "set2"
     ],
     "tribes": [
       "kobold"
@@ -30398,6 +30478,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "high"
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "dragon"
     ],
@@ -30518,9 +30602,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "high"
     },
-    "setIds": [
-      "set3"
-    ],
+    "setIds": [],
     "tribes": [
       "undead",
       "celestial"
@@ -30905,6 +30987,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:runeThreshold.meter"
       ]
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "dragon"
     ],
@@ -31240,8 +31326,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "low"
     },
     "setIds": [
-      "set2",
-      "set3"
+      "set2"
     ],
     "tribes": [
       "kobold"
@@ -31300,8 +31385,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2",
-      "set3"
+      "set2"
     ],
     "tribes": [
       "dwarf"
@@ -31381,6 +31465,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "low"
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "dragon"
     ],
@@ -32063,6 +32151,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "high"
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "beast"
     ],
@@ -32153,6 +32245,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "high"
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "demon"
     ],
@@ -32554,6 +32650,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "high"
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "undead"
     ],
@@ -32913,8 +33013,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "low"
     },
     "setIds": [
-      "set2",
-      "set3"
+      "set2"
     ],
     "tribes": [
       "kobold"
@@ -32992,6 +33091,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "low"
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "demon"
     ],
@@ -33200,6 +33303,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:combatFlag.flag"
       ]
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "beast"
     ],
@@ -33265,8 +33372,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set1",
-      "set3"
+      "set1"
     ],
     "tribes": [
       "undead"
@@ -33329,8 +33435,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2",
-      "set3"
+      "set2"
     ],
     "tribes": [
       "kobold"
@@ -33392,8 +33497,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2",
-      "set3"
+      "set2"
     ],
     "tribes": [
       "dwarf"
@@ -33427,6 +33531,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "low"
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "dragon"
     ],
@@ -33486,6 +33594,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:combatFlag.flag"
       ]
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "beast"
     ],
@@ -33542,6 +33654,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "low"
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "dragon"
     ],
@@ -33670,8 +33786,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "low"
     },
     "setIds": [
-      "set2",
-      "set3"
+      "set2"
     ],
     "tribes": [
       "dwarf"
@@ -33854,8 +33969,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2",
-      "set3"
+      "set2"
     ],
     "tribes": [
       "kobold"
@@ -34024,6 +34138,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:combatFlag.flag"
       ]
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "undead"
     ],
@@ -34390,6 +34508,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:grant.randomFilter"
       ]
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "dragon"
     ],
@@ -34496,6 +34618,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "low"
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "demon"
     ],
@@ -34968,8 +35094,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "medium"
     },
     "setIds": [
-      "set2",
-      "set3"
+      "set2"
     ],
     "tribes": [
       "kobold"
@@ -35371,6 +35496,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "reward:combatFlag.flag"
       ]
     },
+    "setIds": [
+      "set1",
+      "set2"
+    ],
     "tribes": [
       "beast"
     ],

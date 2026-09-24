@@ -5,21 +5,26 @@
  * approved queue logic: once per event per run (persisted, seed-keyed variant), one global cooldown, a priority
  * queue with a shelf life (highest pending speaks, the rest are dropped), the silence rules (title / tutorial /
  * sandbox / replay, the first 3 s of a combat, the turn-1 music fade-in, a Skip cancels), and the per-game cap
- * of eight with GameWon / GameLoss on top.
+ * of fifteen (eight until the second batch, owner 2026-09-24) with GameWon / GameLoss on top.
  *
  * Driven with fake timers and a stub player through the module's injected seams; the store is hand-built
  * structural state (`AnnouncerStateLike`), so every detector is exercised on exactly the fields it reads.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CARD_INDEX } from '@game/content';
+import type { CardDef, Tribe } from '@game/core';
 import {
   __setAnnouncerDepsForTests, ANNOUNCER_BACK_TO_SHOP_DELAY_MS, ANNOUNCER_BIG_STAT, ANNOUNCER_COMBAT_SILENCE_MS, ANNOUNCER_COOLDOWN_MS,
   ANNOUNCER_END_DELAY_MS, ANNOUNCER_EQUIPMENT_DELAY_MS, ANNOUNCER_FACE_OMEN_DELAY_MS, ANNOUNCER_GAME_START_DELAY_MS,
-  ANNOUNCER_LINE_CAP, ANNOUNCER_LINES, ANNOUNCER_PRIORITY, ANNOUNCER_STOP_FADE_MS, ANNOUNCER_TURN_ONE_QUIET_MS,
-  announcerDebug, announcerVariant, cancelAnnouncer, getAnnouncerVolume, isAnnouncerMuted, observeCombatBoard,
-  setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
+  ANNOUNCER_LINE_CAP, ANNOUNCER_LINES, ANNOUNCER_PRIORITY, ANNOUNCER_RARE_CHANCE, ANNOUNCER_STOP_FADE_MS, ANNOUNCER_TURN_ONE_QUIET_MS,
+  announcerDebug, announcerRoll, announcerVariant, hasPair, cancelAnnouncer, getAnnouncerVolume, isAnnouncerMuted, observeCombatBoard,
+  previewAnnouncerEvent, setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
   type AnnouncerStateLike,
 } from './announcer';
 import { announcedFor, emptyAnnounced, withAnnounced, type AnnouncedSlice } from './announcerSlice';
+import {
+  ANNOUNCER_TUNER_DEFAULTS, ANNOUNCER_TUNER_EVENTS, announcerLineGain, resetAnnouncerTunerConfig, setAnnouncerTunerValue,
+} from './announcerConfig';
 
 const SEED = 4242;
 const LINE_MS = 1000;
@@ -30,7 +35,7 @@ class StubHandle {
   stopped: number | null = null;
   stop(ms: number): void { this.stopped = ms; }
 }
-interface Play { file: string; t: number; handle: StubHandle }
+interface Play { file: string; t: number; handle: StubHandle; gain: number }
 let plays: Play[] = [];
 let failNext = false;
 
@@ -39,6 +44,21 @@ const mark = (event: AnnouncerEvent, wave: number): void => { announced = withAn
 
 const seats = (alive: number, placement?: number) =>
   Array.from({ length: 8 }, (_, i) => ({ alive: i < alive, ...(i === 0 && placement ? { placement } : {}) }));
+
+/** Real card defs, found by shape so the tests never pin a card that a balance pass may move. */
+const plainMinion = (tribe: Tribe): CardDef | undefined =>
+  Object.values(CARD_INDEX).find((d) => d.tribe === tribe && !d.tribe2 && !d.universalTribe && !d.spell && !d.ruby && !d.token);
+const BEAST = plainMinion('beast')!;
+const DWARF = plainMinion('dwarf')!;
+const MECH = plainMinion('mech')!;
+const SPELL = Object.values(CARD_INDEX).find((d) => d.spell && !d.ruby)!;
+/** A dual-tribe minion, and a plain minion of its SECOND tribe. */
+const DUAL = Object.values(CARD_INDEX).find((d) => d.tribe2 && d.tribe2 !== 'neutral' && !d.universalTribe && !d.spell && !d.token && plainMinion(d.tribe2))!;
+
+/** A gilded board minion. */
+const g = (): AnnouncerRunLike['board'][number] => ({ attack: 2, health: 2, golden: true });
+/** A plain board / hand minion with a card id. */
+const m = (cardId: string, golden = false): AnnouncerRunLike['board'][number] => ({ attack: 2, health: 2, golden, cardId });
 
 function run(patch: Partial<AnnouncerRunLike> = {}): AnnouncerRunLike {
   return {
@@ -71,11 +91,14 @@ function openShop(patch: Partial<AnnouncerRunLike> = {}): AnnouncerRunLike {
   return go(run(patch));
 }
 /** Face Omen from `r`, then the verdict `settle` ms later; returns the settled run. */
-async function fight(r: AnnouncerRunLike, outcome: 'win' | 'lose' | 'draw', opts: { settleAfter?: number; resolveAfter?: number; odds?: number } = {}): Promise<AnnouncerRunLike> {
+async function fight(
+  r: AnnouncerRunLike, outcome: 'win' | 'lose' | 'draw',
+  opts: { settleAfter?: number; resolveAfter?: number; odds?: number; combat?: { enemyDamage?: number; playerDeaths?: number } } = {},
+): Promise<AnnouncerRunLike> {
   const fighting = go({ ...r, phase: 'combat' });
   await tick(opts.settleAfter ?? FIGHT_MS);
   const settled = go(
-    { ...fighting, combatSettled: true, history: [...r.history, outcome], resolve: opts.resolveAfter ?? r.resolve, lastCombat: { result: outcome } },
+    { ...fighting, combatSettled: true, history: [...r.history, outcome], resolve: opts.resolveAfter ?? r.resolve, lastCombat: { result: outcome, ...opts.combat } },
     opts.odds !== undefined ? { combatOdds: { wave: r.wave, odds: { win: opts.odds, draw: 0, lose: 1 - opts.odds } } } : {},
   );
   return settled;
@@ -96,16 +119,17 @@ beforeEach(() => {
     now: () => Date.now(),
     setTimeout: (cb, ms) => setTimeout(cb, ms) as unknown as number,
     clearTimeout: (id) => clearTimeout(id),
-    play: (url, onEnded) => {
+    play: (url, onEnded, gain) => {
       if (failNext) { failNext = false; return Promise.resolve(null); }
       const handle = new StubHandle();
-      plays.push({ file: url.replace(/^.*\/announcer\//, '').replace(/\.mp3$/, ''), t: Date.now(), handle });
+      plays.push({ file: url.replace(/^.*\/announcer\//, '').replace(/\.mp3$/, ''), t: Date.now(), handle, gain });
       setTimeout(() => { if (handle.stopped === null) onEnded(); }, LINE_MS);
       return Promise.resolve(handle);
     },
   });
 });
 afterEach(() => {
+  resetAnnouncerTunerConfig();
   __setAnnouncerDepsForTests(null);
   vi.useRealTimers();
 });
@@ -278,30 +302,39 @@ describe('the queue', () => {
     await tick(0);
     expect(events()).toEqual(['runeforge', 'epic-runeforge']);
   });
-  it('the cap: after ANNOUNCER_LINE_CAP lines nothing else speaks, except GameWon / GameLoss', async () => {
+  it('the cap: after ANNOUNCER_LINE_CAP (15) lines nothing else speaks, except GameWon / GameLoss', async () => {
+    expect(ANNOUNCER_LINE_CAP).toBe(15); // owner ruling 2026-09-24 (was 8)
     let r = openShop({ wave: 2 });
-    // Six capped shop lines, each a fresh moment, each past the cooldown.
+    // Ten capped shop lines, each a fresh moment, each past the cooldown.
     const moments: Partial<AnnouncerRunLike>[] = [
       { equipment: { available: [1] } }, { tier: 6 }, { runeforgeOffer: ['a'] }, { runeforgeOffer: ['b'], runeforgeEpic: true },
-      { board: [{ attack: 1, health: 1, golden: true }] }, { board: [{ attack: ANNOUNCER_BIG_STAT, health: 1, golden: false }] },
+      { hand: [{ golden: true }] }, { board: [{ attack: ANNOUNCER_BIG_STAT, health: 1, golden: false }] },
+      { board: [g(), g(), g()] }, { goldSpentThisTurn: 20, embers: 10 },
+      { shop: [{ uid: 'o1', cardId: MECH.id, atk: 51 }] }, { board: [m('twin'), m('twin')] },
     ];
-    for (const m of moments) {
-      r = go({ ...r, ...m });
+    for (const mo of moments) {
+      r = go({ ...r, ...mo });
       await tick(ANNOUNCER_EQUIPMENT_DELAY_MS + LINE_MS + ANNOUNCER_COOLDOWN_MS);
-      r = go({ ...r, runeforgeOffer: undefined, runeforgeEpic: false, board: [] });
+      r = go({ ...r, runeforgeOffer: undefined, runeforgeEpic: false, board: [], hand: [], shop: [] });
     }
-    expect(plays).toHaveLength(6);
-    r = await fight(r, 'lose'); // wave 2's Face Omen: EnteringCombat, #7
+    expect(plays).toHaveLength(10);
+    r = await fight(r, 'lose'); // wave 2's Face Omen: EnteringCombat, #11
     await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
-    r = backToShop(r); // wave 3: BackToShop, #8
+    r = backToShop(r); // wave 3: BackToShop, #12
     await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
-    expect(events()).toEqual(['equipment', 'tier-six', 'runeforge', 'epic-runeforge', 'triple', 'minion-hits-100-stats', 'entering-combat', 'back-to-shop']);
+    r = await fight({ ...r, resolve: 9 }, 'win', { resolveAfter: 9 }); // StartCombatUnder10hp #13 + SurviveUnder10hp #14
+    await tick(ANNOUNCER_COMBAT_SILENCE_MS + LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    r = backToShop(r, { lobby: { seats: seats(4) } }); // wave 4: TopFour, #15
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    expect(events()).toEqual([
+      'equipment', 'tier-six', 'runeforge', 'epic-runeforge', 'triple', 'minion-hits-100-stats', 'golden-army', 'big-spender',
+      'shop-big-buff', 'pair', 'entering-combat', 'back-to-shop', 'start-combat-under-10hp', 'survive-under-10hp', 'top-four',
+    ]);
     expect(announced.count).toBe(ANNOUNCER_LINE_CAP);
-    r = await fight({ ...r, resolve: 9 }, 'win', { resolveAfter: 9 }); // StartCombatUnder10hp + SurviveUnder10hp: capped out
+    r = await fight(r, 'win', { odds: 0.2 }); // WinningLowOddsFight: capped out
     await tick(ANNOUNCER_COMBAT_SILENCE_MS + LINE_MS + ANNOUNCER_COOLDOWN_MS);
     expect(plays).toHaveLength(ANNOUNCER_LINE_CAP);
-    expect(dropped('startCombatUnder10hp')).toBe(true);
-    expect(dropped('surviveUnder10hp')).toBe(true);
+    expect(dropped('winningLowOddsFight')).toBe(true);
     r = backToShop(r, { wave: 20, lobby: { seats: seats(2) } }); // TopTwo: capped out
     await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
     expect(plays).toHaveLength(ANNOUNCER_LINE_CAP);
@@ -634,6 +667,339 @@ describe('the detectors', () => {
   });
 });
 
+describe('the second batch (owner 2026-09-24)', () => {
+  /** A buy: the offer `uid` leaves the row (or the spell slot) and the turn's buy count rises. */
+  const buy = (r: AnnouncerRunLike, uid: string): AnnouncerRunLike => go({
+    ...r,
+    shop: (r.shop ?? []).filter((o) => o.uid !== uid),
+    spell: r.spell?.uid === uid ? null : r.spell,
+    cardsBoughtThisTurn: (r.cardsBoughtThisTurn ?? 0) + 1,
+  });
+  const offers = (...ids: string[]): { uid: string; cardId: string }[] => ids.map((cardId, i) => ({ uid: `o${i}`, cardId }));
+  const RARE: AnnouncerEvent[] = ['randomSpellBuy', 'randomCardBuy', 'randomBeastBuy', 'randomDwarfBuy', 'round7'];
+  /** Mark the rare lines spoken, so a test about something else never hears a lucky roll. */
+  const silenceRare = (): void => { for (const e of RARE) announced = withAnnounced(announced, e, 1); };
+  const seedWhere = (pred: (seed: number) => boolean): number => {
+    for (let s = 1; s < 200_000; s++) if (pred(s)) return s;
+    throw new Error('no seed');
+  };
+  const hit = (seed: number, e: AnnouncerEvent, wave: number, i: number): boolean => announcerRoll(seed, e, wave, i) < ANNOUNCER_RARE_CHANCE;
+  /** Start a run on `seed` (its own slice). */
+  const onSeed = (seed: number, patch: Partial<AnnouncerRunLike> = {}): AnnouncerRunLike => {
+    announced = emptyAnnounced(seed);
+    return openShop({ seed, ...patch });
+  };
+  const idSeats = (dead: string[] = []) => Array.from({ length: 8 }, (_, i) => ({ id: `s${i}`, alive: !dead.includes(`s${i}`) }));
+
+  it('the card fixtures exist (a Beast, a Dwarf, a Mech, a spell, a dual-tribe minion)', () => {
+    for (const d of [BEAST, DWARF, MECH, SPELL, DUAL]) expect(d).toBeDefined();
+  });
+
+  it('the clip fixes: TopTwo has ONE variant (TopTwo2 removed), ThreeWinStreak has two, GameWon one', () => {
+    expect(ANNOUNCER_LINES.topTwo).toEqual(['top-two-1']);
+    expect(ANNOUNCER_LINES.threeWinStreak).toEqual(['three-win-streak-1', 'three-win-streak-2']);
+    expect(ANNOUNCER_LINES.gameWon).toEqual(['game-won']);
+    expect(ANNOUNCER_LINES.knockout).toHaveLength(4);
+    expect(ANNOUNCER_LINES.pair).toHaveLength(2);
+    expect(ANNOUNCER_LINES.randomSpellBuy).toHaveLength(2);
+    // The variant table is append-only: the first-batch events keep their hash index (and so their variants).
+    expect(Object.keys(ANNOUNCER_LINES).indexOf('gameLoss')).toBe(18);
+    const seen = new Set<number>();
+    for (let s = 1; s < 60; s++) seen.add(announcerVariant(s, 'threeWinStreak', 0, 2));
+    expect(seen).toEqual(new Set([0, 1]));
+  });
+
+  it('Knockout: your fight knocks your foe out; it lands with the return (the table settles there), twice at most, 1+ wave apart', async () => {
+    let r = openShop({ wave: 8, lobby: { round: 8, seats: idSeats(), encounters: [] } });
+    r = await fight(r, 'win');
+    const e8 = { round: 8, a: 's0', b: 's3', damageToA: 0, damageToB: 12 };
+    r = backToShop(r, { lobby: { round: 9, seats: idSeats(['s3']), encounters: [e8] } });
+    await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS);
+    expect(events()).toEqual(['knockout']);
+    expect(ANNOUNCER_LINES.knockout).toContain(files()[0]);
+    expect(dropped('backToShop')).toBe(true); // outranked
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    r = await fight(r, 'win');
+    const e9 = { round: 9, a: 's5', b: 's0', damageToA: 9, damageToB: 0 }; // seat 0 on the B side this time
+    r = backToShop(r, { lobby: { round: 10, seats: idSeats(['s3', 's5']), encounters: [e8, e9] } });
+    await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS);
+    expect(announced.fired.knockout).toEqual([9, 10]);
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    r = await fight(r, 'win');
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    const e10 = { round: 10, a: 's0', b: 's6', damageToA: 0, damageToB: 20 };
+    backToShop(r, { lobby: { round: 11, seats: idSeats(['s3', 's5', 's6']), encounters: [e8, e9, e10] } });
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    expect(announced.fired.knockout).toEqual([9, 10]); // never a third
+  });
+
+  it('Knockout is not heard when your foe survives, or when another pair\'s fight knocks a seat out', async () => {
+    let r = openShop({ wave: 8, lobby: { round: 8, seats: idSeats(), encounters: [] } });
+    r = await fight(r, 'win');
+    const mine = { round: 8, a: 's0', b: 's3', damageToA: 0, damageToB: 12 };
+    const theirs = { round: 8, a: 's2', b: 's5', damageToA: 0, damageToB: 30 };
+    backToShop(r, { lobby: { round: 9, seats: idSeats(['s5']), encounters: [mine, theirs] } });
+    await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS);
+    expect(events()).toEqual(['back-to-shop']);
+    expect(announced.fired.knockout ?? []).toEqual([]);
+  });
+
+  it('BigHit: a win that deals 15+ to the opposing hero, capped as the table charges it (no line on a loss)', async () => {
+    let r = openShop({ wave: 9 }); // the round cap is 15 on waves 8 to 11
+    r = await fight(r, 'win', { combat: { enemyDamage: 22 } });
+    await tick(ANNOUNCER_COMBAT_SILENCE_MS);
+    expect(events()).toEqual(['big-hit']);
+  });
+  it('BigHit negatives: capped below 15 (wave 5 caps at 10), 14 damage, or a loss', async () => {
+    let r = openShop({ wave: 5 });
+    r = await fight(r, 'win', { combat: { enemyDamage: 22 } });
+    r = backToShop(r, { wave: 9 });
+    r = await fight(r, 'win', { combat: { enemyDamage: 14 } });
+    r = backToShop(r);
+    await fight(r, 'lose', { combat: { enemyDamage: 30 } });
+    await tick(ANNOUNCER_COMBAT_SILENCE_MS + LINE_MS);
+    expect(files().filter((f) => f === 'big-hit')).toEqual([]);
+  });
+
+  it('ComebackWin: a win right after 3+ losses in a row', async () => {
+    const r = openShop({ history: ['win', 'lose', 'lose', 'lose'] });
+    await fight(r, 'win');
+    await tick(ANNOUNCER_COMBAT_SILENCE_MS);
+    expect(events()).toEqual(['entering-combat-after-loss', 'comeback-win']);
+  });
+  it('ComebackWin negatives: two losses, or a draw breaking the run', async () => {
+    let r = openShop({ history: ['lose', 'lose', 'draw', 'lose', 'lose'] });
+    r = await fight(r, 'win');
+    await tick(ANNOUNCER_COMBAT_SILENCE_MS + LINE_MS);
+    expect(files()).not.toContain('comeback-win');
+    expect(announced.fired.comebackWin ?? []).toEqual([]);
+  });
+
+  it('FlawlessVictory: a win with no friendly deaths, from wave 5', async () => {
+    const r = openShop({ wave: 5 });
+    await fight(r, 'win', { combat: { playerDeaths: 0 } });
+    await tick(ANNOUNCER_COMBAT_SILENCE_MS);
+    expect(events()).toEqual(['flawless-victory']);
+  });
+  it('FlawlessVictory negatives: wave 4, a death, or no death count at all', async () => {
+    let r = openShop({ wave: 4 });
+    r = await fight(r, 'win', { combat: { playerDeaths: 0 } });
+    r = backToShop(r, { wave: 5 });
+    r = await fight(r, 'win', { combat: { playerDeaths: 1 } });
+    r = backToShop(r, { wave: 6 });
+    await fight(r, 'win');
+    await tick(ANNOUNCER_COMBAT_SILENCE_MS + LINE_MS);
+    expect(files()).not.toContain('flawless-victory');
+  });
+
+  it('GoldenArmy: the third gilded minion on the board outranks that Triple', async () => {
+    const r = openShop({ board: [g(), g()] });
+    go({ ...r, board: [g(), g(), g()] });
+    await tick(0);
+    expect(events()).toEqual(['golden-army']);
+    expect(dropped('triple')).toBe(true);
+  });
+  it('GoldenArmy negative: three gilded split between board and hand is only a Triple', async () => {
+    const r = openShop({ board: [g(), g()] });
+    go({ ...r, hand: [{ golden: true }] });
+    await tick(0);
+    expect(events()).toEqual(['triple']);
+  });
+
+  it('RichTurn: a Shop turn that opens with 20+ Gold (with the return), outranking BackToShop', async () => {
+    const r = await fight(openShop(), 'lose');
+    backToShop(r, { embers: 20 });
+    await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS);
+    expect(events()).toEqual(['rich-turn']);
+  });
+  it('RichTurn negatives: 19 Gold at the open, or reaching 20 mid-turn', async () => {
+    const r = await fight(openShop(), 'lose');
+    const s = backToShop(r, { embers: 19 });
+    await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS + LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    go({ ...s, embers: 25 });
+    await tick(1000);
+    expect(events()).toEqual(['back-to-shop']);
+  });
+
+  it('BigSpender: 20+ Gold spent this turn while still holding 10+', async () => {
+    const r = openShop({ goldSpentThisTurn: 12, embers: 18 });
+    go({ ...r, goldSpentThisTurn: 20, embers: 10 });
+    await tick(0);
+    expect(events()).toEqual(['big-spender']);
+  });
+  it('BigSpender negatives: 20 spent with 9 left, 19 spent with plenty left', async () => {
+    const r = openShop({ goldSpentThisTurn: 0, embers: 40 });
+    go({ ...r, goldSpentThisTurn: 20, embers: 9 });
+    go({ ...r, goldSpentThisTurn: 19, embers: 30 });
+    await tick(1000);
+    expect(plays).toEqual([]);
+  });
+
+  it('ShopBigBuff: a Shop minion offer passing 50 Attack (exactly 50 is not over)', async () => {
+    const base = MECH.attack;
+    const r = openShop({ shop: [{ uid: 'o1', cardId: MECH.id, atk: 0 }] });
+    const at50 = go({ ...r, shop: [{ uid: 'o1', cardId: MECH.id, atk: 50 - base }] });
+    await tick(1000);
+    expect(plays).toEqual([]);
+    go({ ...at50, shop: [{ uid: 'o1', cardId: MECH.id, atk: 51 - base }] });
+    await tick(0);
+    expect(events()).toEqual(['shop-big-buff']);
+  });
+  it('ShopBigBuff negative: a big board minion is not a Shop offer', async () => {
+    const r = openShop();
+    go({ ...r, board: [{ attack: 60, health: 5, golden: false }] });
+    await tick(1000);
+    expect(plays).toEqual([]);
+  });
+
+  it('Pair: the first two copies of one non-golden minion across board and hand', async () => {
+    const r = openShop({ board: [m(BEAST.id)] });
+    go({ ...r, hand: [m(BEAST.id)] });
+    await tick(0);
+    expect(events()).toEqual(['pair']);
+    expect(ANNOUNCER_LINES.pair).toContain(files()[0]);
+  });
+  it('Pair negatives: a golden copy, two spells, two different minions', () => {
+    expect(hasPair(run({ board: [m(BEAST.id)], hand: [m(BEAST.id, true)] }))).toBe(false);
+    expect(hasPair(run({ hand: [m(SPELL.id), m(SPELL.id)] }))).toBe(false);
+    expect(hasPair(run({ board: [m(BEAST.id), m(DWARF.id)] }))).toBe(false);
+    expect(hasPair(run({ board: [m(DWARF.id)], hand: [m(DWARF.id)] }))).toBe(true);
+  });
+
+  it('TribeFour: four of one tribe bought in one Shop turn; a dual-tribe minion counts for its second tribe too', async () => {
+    silenceRare();
+    const second = plainMinion(DUAL.tribe2!)!;
+    let r = openShop({ shop: offers(second.id, second.id, second.id, DUAL.id), cardsBoughtThisTurn: 0 });
+    for (const uid of ['o0', 'o1', 'o2']) r = buy(r, uid);
+    await tick(1000);
+    expect(plays).toEqual([]);
+    buy(r, 'o3');
+    await tick(0);
+    expect(events()).toEqual(['tribe-four']);
+  });
+  it('TribeFour negatives: three Beasts and a spell; four Beasts split over two turns', async () => {
+    silenceRare();
+    let r = openShop({ shop: offers(BEAST.id, BEAST.id, BEAST.id), spell: { uid: 'sp', cardId: SPELL.id }, cardsBoughtThisTurn: 0 });
+    for (const uid of ['o0', 'o1', 'o2', 'sp']) r = buy(r, uid);
+    r = await fight(r, 'lose');
+    r = backToShop(r, { shop: offers(BEAST.id), cardsBoughtThisTurn: 0 });
+    buy(r, 'o0');
+    await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS + 1000);
+    expect(files()).not.toContain('tribe-four');
+  });
+
+  describe('the rare lines (owner ruling: "Rare: ~10% per buy")', () => {
+    it('announcerRoll is deterministic, in [0, 1), and passes about 10% of the time', () => {
+      expect(announcerRoll(SEED, 'randomCardBuy', 5, 1)).toBe(announcerRoll(SEED, 'randomCardBuy', 5, 1));
+      let passed = 0;
+      for (let s = 1; s <= 5000; s++) {
+        const v = announcerRoll(s, 'randomCardBuy', 5, 1);
+        expect(v).toBeGreaterThanOrEqual(0);
+        expect(v).toBeLessThan(1);
+        if (v < ANNOUNCER_RARE_CHANCE) passed++;
+      }
+      expect(passed / 5000).toBeGreaterThan(0.08);
+      expect(passed / 5000).toBeLessThan(0.12);
+      // The wave and the buy index each change the roll (a second buy is its own chance).
+      const vs = new Set([announcerRoll(SEED, 'randomCardBuy', 5, 1), announcerRoll(SEED, 'randomCardBuy', 5, 2), announcerRoll(SEED, 'randomCardBuy', 6, 1)]);
+      expect(vs.size).toBe(3);
+    });
+    it('RandomCardBuy: a buy on a passing roll speaks; the same buy on a failing roll does not; a replay hears the same', async () => {
+      const lucky = seedWhere((s) => hit(s, 'randomCardBuy', 5, 1));
+      const r = onSeed(lucky, { shop: offers(MECH.id), cardsBoughtThisTurn: 0 });
+      buy(r, 'o0');
+      await tick(0);
+      expect(events()).toEqual(['random-card-buy']);
+      // A replay of the same run (same seed, fresh slice) rolls the same way.
+      await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+      cur = null;
+      const again = onSeed(lucky, { shop: offers(MECH.id), cardsBoughtThisTurn: 0 });
+      buy(again, 'o0');
+      await tick(0);
+      expect(events()).toEqual(['random-card-buy', 'random-card-buy']);
+    });
+    it('RandomCardBuy negative: a failing roll stays silent', async () => {
+      const unlucky = seedWhere((s) => !hit(s, 'randomCardBuy', 5, 1));
+      const r = onSeed(unlucky, { shop: offers(MECH.id), cardsBoughtThisTurn: 0 });
+      buy(r, 'o0');
+      await tick(1000);
+      expect(plays).toEqual([]);
+    });
+    it('RandomSpellBuy: a spell bought from the spell slot', async () => {
+      const seed = seedWhere((s) => hit(s, 'randomSpellBuy', 5, 1) && !hit(s, 'randomCardBuy', 5, 1));
+      const r = onSeed(seed, { spell: { uid: 'sp', cardId: SPELL.id }, cardsBoughtThisTurn: 0 });
+      buy(r, 'sp');
+      await tick(0);
+      expect(events()).toEqual(['random-spell-buy']);
+    });
+    it('RandomBeastBuy / RandomDwarfBuy: their tribe only (a Mech never rolls them)', async () => {
+      const seed = seedWhere((s) => hit(s, 'randomBeastBuy', 5, 1) && hit(s, 'randomDwarfBuy', 5, 1) && !hit(s, 'randomCardBuy', 5, 1));
+      const r = onSeed(seed, { shop: offers(MECH.id), cardsBoughtThisTurn: 0 });
+      buy(r, 'o0'); // buy 1: a Mech (the Beast roll would pass at index 1, but a Mech is no Beast)
+      await tick(1000);
+      expect(plays).toEqual([]);
+      const seed2 = seedWhere((s) => hit(s, 'randomBeastBuy', 5, 1) && !hit(s, 'randomCardBuy', 5, 1));
+      cur = null;
+      const b = onSeed(seed2, { shop: offers(BEAST.id), cardsBoughtThisTurn: 0 });
+      buy(b, 'o0');
+      await tick(0);
+      expect(events()).toEqual(['random-beast-buy']);
+      const seed3 = seedWhere((s) => hit(s, 'randomDwarfBuy', 5, 1) && !hit(s, 'randomCardBuy', 5, 1));
+      cur = null;
+      const d = onSeed(seed3, { shop: offers(DWARF.id), cardsBoughtThisTurn: 0 });
+      buy(d, 'o0');
+      await tick(0);
+      expect(events()).toEqual(['random-beast-buy', 'random-dwarf-buy']);
+    });
+    it('one buy qualifying for several rare lines speaks ONE (the specific line first on the tie)', async () => {
+      const seed = seedWhere((s) => hit(s, 'randomBeastBuy', 5, 1) && hit(s, 'randomCardBuy', 5, 1));
+      const r = onSeed(seed, { shop: offers(BEAST.id), cardsBoughtThisTurn: 0 });
+      buy(r, 'o0');
+      await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+      expect(events()).toEqual(['random-beast-buy']);
+      expect(dropped('randomCardBuy')).toBe(true);
+      expect(ANNOUNCER_PRIORITY.randomBeastBuy).toBe(ANNOUNCER_PRIORITY.randomCardBuy);
+    });
+    it('Round7: wave 7\'s Shop on a passing roll; not on a failing one; never another wave', async () => {
+      const lucky = seedWhere((s) => hit(s, 'round7', 7, 0));
+      let r = await fight(onSeed(lucky, { wave: 6 }), 'lose');
+      backToShop(r);
+      await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS);
+      expect(files()).toEqual(['round-7']);
+      const unlucky = seedWhere((s) => !hit(s, 'round7', 7, 0));
+      cur = null;
+      plays = [];
+      r = await fight(onSeed(unlucky, { wave: 6 }), 'lose');
+      backToShop(r);
+      await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS);
+      expect(events()).toEqual(['back-to-shop']);
+      cur = null;
+      plays = [];
+      r = await fight(onSeed(lucky, { wave: 7 }), 'lose');
+      backToShop(r); // wave 8
+      await tick(ANNOUNCER_BACK_TO_SHOP_DELAY_MS);
+      expect(events()).toEqual(['back-to-shop']);
+    });
+  });
+
+  it('the new lines stay silent in the tutorial and a sandbox rig', async () => {
+    for (const rp of [{ mode: 'tutorial' }, { sandbox: true }] as Partial<AnnouncerRunLike>[]) {
+      cur = null;
+      const r = openShop({ ...rp, goldSpentThisTurn: 0, embers: 40, board: [g(), g()] });
+      go({ ...r, goldSpentThisTurn: 25, embers: 15, board: [g(), g(), g()] });
+      await tick(1000);
+    }
+    expect(plays).toEqual([]);
+  });
+
+  it('every new event has a priority, and the brief\'s numbers', () => {
+    expect(ANNOUNCER_PRIORITY).toMatchObject({
+      knockout: 88, bigHit: 57, comebackWin: 66, flawlessVictory: 58, goldenArmy: 48, richTurn: 22, bigSpender: 24,
+      shopBigBuff: 46, pair: 18, tribeFour: 28, randomSpellBuy: 12, randomCardBuy: 12, randomBeastBuy: 12, randomDwarfBuy: 12, round7: 14,
+    });
+  });
+});
+
 describe('the silence rules', () => {
   it('nothing in the first ANNOUNCER_COMBAT_SILENCE_MS of a combat resolution: a verdict at 1 s speaks at 3 s', async () => {
     const r = openShop({ history: ['win', 'win'] });
@@ -678,11 +1044,13 @@ describe('the silence rules', () => {
 });
 
 describe('the channel', () => {
-  it('has its own persisted volume (default 0.7) and mute', () => {
-    expect(getAnnouncerVolume()).toBe(0.7);
+  it('has its own persisted volume (slider default 50, which plays the owner mix gain 0.7) and mute', () => {
+    expect(getAnnouncerVolume()).toBe(0.5);
+    expect(announcerDebug().level).toBeCloseTo(0.7, 10);
     setAnnouncerVolume(0.4);
     expect(getAnnouncerVolume()).toBe(0.4);
-    expect(localStorage.getItem('ascent.announcervol')).toBe('0.4');
+    expect(localStorage.getItem('ascent.announcervol.v2')).toBe('0.4');
+    expect(announcerDebug().level).toBeCloseTo(0.56, 10); // 0.4 of the way to 50 = 0.8 x 0.7
     setAnnouncerVolume(7);
     expect(getAnnouncerVolume()).toBe(1);
     expect(isAnnouncerMuted()).toBe(false);
@@ -691,6 +1059,83 @@ describe('the channel', () => {
     expect(announcerDebug().level).toBe(0);
     toggleAnnouncerMute();
     expect(announcerDebug().level).toBe(1);
-    setAnnouncerVolume(0.7);
+    setAnnouncerVolume(0.5);
+  });
+});
+
+describe('the dev tuner (owner 2026-09-24): per-event volume + timing offset', () => {
+  it('covers every event exactly once, and the shipped defaults are 100% and 0 ms', () => {
+    expect([...ANNOUNCER_TUNER_EVENTS].sort()).toEqual(Object.keys(ANNOUNCER_LINES).sort());
+    for (const e of ANNOUNCER_TUNER_EVENTS) {
+      expect(ANNOUNCER_TUNER_DEFAULTS[`${e}Vol`]).toBe(100);
+      expect(ANNOUNCER_TUNER_DEFAULTS[`${e}Offset`]).toBe(0);
+    }
+  });
+  it('the event volume multiplies into the line gain, and the final gain is clamped at 1', async () => {
+    const r = openShop();
+    go({ ...r, tier: 6 });
+    await tick(0);
+    expect(plays[0]!.gain).toBe(1); // untuned: as recorded
+    setAnnouncerTunerValue('equipmentVol', 150);
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    go({ ...r, tier: 6, equipment: { available: [1] } });
+    await tick(ANNOUNCER_EQUIPMENT_DELAY_MS);
+    expect(events()).toEqual(['tier-six', 'equipment']);
+    expect(plays[1]!.gain).toBe(1.5);
+    expect(announcerLineGain(0.5, 1.5)).toBeCloseTo(0.75, 10);
+    expect(announcerLineGain(0.7, 1.5)).toBe(1); // 1.05 clamps
+    expect(announcerLineGain(0.7, 0)).toBe(0);
+    setAnnouncerTunerValue('equipmentVol', 999);
+    expect(ANNOUNCER_TUNER_DEFAULTS.equipmentVol).toBe(100);
+  });
+  it('a positive offset delays the line by exactly that much', async () => {
+    setAnnouncerTunerValue('equipmentOffset', 700);
+    const r = openShop();
+    go({ ...r, equipment: { available: [1] } });
+    await tick(ANNOUNCER_EQUIPMENT_DELAY_MS + 700 - 1);
+    expect(plays).toEqual([]);
+    await tick(1);
+    expect(events()).toEqual(['equipment']);
+  });
+  it('a negative offset fires earlier, but never before the moment is detected', async () => {
+    setAnnouncerTunerValue('enteringCombatOffset', -600);
+    const r = openShop({ wave: 1, tier: 1 });
+    await tick(ANNOUNCER_GAME_START_DELAY_MS + LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    go({ ...r, phase: 'combat' });
+    await tick(ANNOUNCER_FACE_OMEN_DELAY_MS - 600 - 1);
+    expect(events()).toEqual(['game-start']);
+    await tick(1);
+    expect(events()).toEqual(['game-start', 'entering-combat']);
+    // Past the built-in delay: clamped to the detection moment, never scheduled in the past.
+    setAnnouncerTunerValue('equipmentOffset', -2000);
+    const s = openShop();
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    const t0 = Date.now();
+    go({ ...s, equipment: { available: [1] } });
+    expect(announcerDebug().pending[0]!.notBefore).toBe(t0);
+    await tick(0);
+    expect(events()).toEqual(['game-start', 'entering-combat', 'equipment']);
+  });
+  it('the offset leaves the cooldown alone: it still counts from the previous line ending', async () => {
+    setAnnouncerTunerValue('equipmentOffset', -400);
+    const r = openShop();
+    go({ ...r, tier: 6 });
+    await tick(0);
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS - 10);
+    go({ ...r, tier: 6, equipment: { available: [1] } }); // -400 cancels the 400 ms delay: due now, 10 ms inside the cooldown
+    await tick(0);
+    expect(events()).toEqual(['tier-six']);
+    expect(dropped('equipment')).toBe(true);
+  });
+  it('the ▶ preview plays the event line now at its tuned volume, cycling variants, outside the queue', async () => {
+    setAnnouncerTunerValue('backToShopVol', 60);
+    expect(previewAnnouncerEvent('backToShop')).toBe('back-to-shop-1');
+    await tick(0);
+    expect(previewAnnouncerEvent('backToShop')).toBe('back-to-shop-2');
+    await tick(0);
+    expect(files()).toEqual(['back-to-shop-1', 'back-to-shop-2']);
+    expect(plays.map((p) => p.gain)).toEqual([0.6, 0.6]);
+    expect(plays[0]!.handle.stopped).toBe(ANNOUNCER_STOP_FADE_MS); // the second press cut the first
+    expect(announced.fired.backToShop ?? []).toEqual([]); // nothing marked
   });
 });

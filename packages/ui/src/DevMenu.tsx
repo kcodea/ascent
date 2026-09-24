@@ -36,6 +36,7 @@ import { EquipSlotTuner } from './EquipSlotTuner';
 import { MedallionTuner } from './MedallionTuner';
 import { GildedBadgeTuner } from './GildedBadgeTuner';
 import { CastPreviewTuner } from './CastPreviewTuner';
+import { AnnouncerTuner } from './AnnouncerTuner';
 import { EpicMedallionTuner } from './EpicMedallionTuner';
 import { MilestoneFrameTuner } from './MilestoneFrameTuner';
 import { RuneLockInTuner } from './RuneLockInTuner';
@@ -259,7 +260,10 @@ const GROUPS: Group[] = [
   {
     id: 'audio',
     title: 'Audio',
-    items: [{ key: 'sfx', icon: '🎛️', label: 'Mixing Desk', C: SfxMixer, hint: 'Per-sample volumes, buses and compression', alt: 'sfx sound volume' }],
+    items: [
+      { key: 'sfx', icon: '🎛️', label: 'Mixing Desk', C: SfxMixer, hint: 'Per-sample volumes, buses and compression', alt: 'sfx sound volume' },
+      { key: 'announcer', icon: '📣', label: 'Announcer', C: AnnouncerTuner, hint: 'Per-event voice line volume and timing offset, with a ▶ to hear each line', alt: 'announcer voice line volume timing offset delay vo' },
+    ],
   },
 ];
 

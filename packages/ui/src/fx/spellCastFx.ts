@@ -51,6 +51,8 @@ import { sfx } from '../sfx';
 import { anchorsForUnits } from './combatAnchors';
 import type { FxAnchors } from './anchors';
 import { canPlayDefs, playDef } from './playDef';
+import { afterMs, playRuneCastFlourish, runeCastRepeatGapMs, runeCastTrailLeadMs } from './runeCastFlourish';
+import { getCastPreviewConfig, runeCastFlourishLook } from '../castPreviewConfig';
 
 type Point = { x: number; y: number };
 
@@ -111,16 +113,53 @@ export function playSpellCastFx(spellId: string, where: { anchors?: FxAnchors | 
   return true;
 }
 
+/**
+ * ONE CAST BY A RUNE, the whole presentation (owner 2026-09-24: "the runes that repeat casts should use the rune-cast
+ * visual. can we do anything to add a bit of flair to this? … nothing crazy"): the rune flourish on its node
+ * (`fx/runeCastFlourish.ts`: badge pulse + glyph flash, and a mote out to where a single-play effect lands), then the
+ * spell's own effect once the mote arrives, stemming from the node. Fires the flourish for EVERY rune cast, bound
+ * spell or not (an unbound spell's trails leave the node on their own, a short lead after the flash). `delayMs`
+ * staggers a second cast by the same rune in one moment. Returns whether a spell effect will play (the
+ * `playSpellCastFx` contract); with the flourish off it plays synchronously, exactly as before.
+ */
+export function playRuneSpellCastFx(
+  spellId: string,
+  runeId: string,
+  where: { anchors?: FxAnchors | null; uid?: string | null } = {},
+  delayMs = 0,
+): boolean {
+  const single = spellCastFxFor(spellId);
+  const willPlay = single !== null && canPlayDefs();
+  afterMs(delayMs, () => {
+    const aim = single ? (where.anchors?.target ?? viewportCentre()) : null;
+    const f = playRuneCastFlourish(runeId, aim);
+    if (single) afterMs(f.mote ? f.leadMs : 0, () => { playSpellCastFx(spellId, { ...where, runeId }); });
+  });
+  return willPlay;
+}
+
+/** The gap between two casts by the SAME rune in one moment (0 while the flourish is off: they land together). */
+function repeatGap(): number {
+  return runeCastFlourishLook(getCastPreviewConfig()).on ? runeCastRepeatGapMs() : 0;
+}
+
 /** The sim's per-action cast records (`RunState.castFx` / `EotStepFx.casts`) for one phase, each one cast. A
- *  rune's record stems its effect from the rune's node. */
+ *  rune's record flourishes on the rune's node and stems its effect from there (`playRuneSpellCastFx`). */
 export function playRecordedCastFx(
   records: readonly { spellId: string; phase?: 'recruit' | 'endOfTurn'; source?: { kind: string; id?: string } }[] | undefined,
   phase?: 'recruit' | 'endOfTurn',
 ): number {
   let played = 0;
+  const perRune = new Map<string, number>();
+  const gap = repeatGap();
   for (const r of records ?? []) {
     if (phase !== undefined && r.phase !== undefined && r.phase !== phase) continue;
-    if (playSpellCastFx(r.spellId, { runeId: r.source?.kind === 'rune' ? r.source.id : null })) played++;
+    const runeId = r.source?.kind === 'rune' ? r.source.id : undefined;
+    if (runeId) {
+      const k = perRune.get(runeId) ?? 0;
+      perRune.set(runeId, k + 1);
+      if (playRuneSpellCastFx(r.spellId, runeId, {}, k * gap)) played++;
+    } else if (playSpellCastFx(r.spellId)) played++;
   }
   return played;
 }
@@ -129,10 +168,20 @@ export function playRecordedCastFx(
  *  stemming from the rune's node when a PLAYER rune cast it (Rune of Spellhide). */
 export function playCombatSpellCastFx(casts: readonly CombatSpellCast[]): number {
   let played = 0;
+  const perRune = new Map<string, number>();
+  const gap = repeatGap();
   for (const c of casts) {
-    if (spellCastFxFor(c.spellId) === null) continue; // skip the DOM read for the (usual) unbound spell
     const runeId = c.rune && c.side !== 'enemy' ? c.rune : null;
-    if (playSpellCastFx(c.spellId, { anchors: anchorsForUnits(c.source, c.source), uid: c.source, runeId })) played++;
+    if (runeId) {
+      // A PLAYER rune's cast flourishes on its node whether or not the spell is bound (owner 2026-09-24).
+      const k = perRune.get(runeId) ?? 0;
+      perRune.set(runeId, k + 1);
+      const bound = spellCastFxFor(c.spellId) !== null;
+      if (playRuneSpellCastFx(c.spellId, runeId, bound ? { anchors: anchorsForUnits(c.source, c.source), uid: c.source } : {}, k * gap)) played++;
+      continue;
+    }
+    if (spellCastFxFor(c.spellId) === null) continue; // skip the DOM read for the (usual) unbound spell
+    if (playSpellCastFx(c.spellId, { anchors: anchorsForUnits(c.source, c.source), uid: c.source })) played++;
   }
   return played;
 }
@@ -150,18 +199,25 @@ export function playCombatSpellCastFx(casts: readonly CombatSpellCast[]): number
 export function playRuneCastBuffFx(o: { runeId: string; spellId?: string; target: Point; targetUid: string; index?: number }): boolean {
   const node = runeNodeCentre(o.runeId);
   const fan = spellCastFanOutFor(o.spellId);
+  // The rune RELEASES the spell (owner 2026-09-24, the rune cast flourish): its trails leave a short lead after the
+  // glyph flash on the node (`runeFlourishLeadMs`; 0 while the flourish is off, i.e. right away as before).
+  const lead = runeCastTrailLeadMs();
   if (fan) {
     if (!canPlayDefs()) return false;
     const camera = viewportCentre();
     const from = fan.fanOut === 'buffedOn' ? o.target : (node ?? o.target);
-    const sound = spellCastSoundAllowed(fan.def);
-    playDef(fan.def, { source: from, target: o.target, cursor: from, camera }, {
-      uids: { source: null, target: o.targetUid }, index: o.index ?? 0, gain: fan.gain, ...(sound ? {} : { muteSound: true }),
+    afterMs(lead, () => {
+      const sound = spellCastSoundAllowed(fan.def);
+      playDef(fan.def, { source: from, target: o.target, cursor: from, camera }, {
+        uids: { source: null, target: o.targetUid }, index: o.index ?? 0, gain: fan.gain, ...(sound ? {} : { muteSound: true }),
+      });
+      if (sound && fan.sfx !== undefined) sfx[fan.sfx]?.();
     });
-    if (sound && fan.sfx !== undefined) sfx[fan.sfx]?.();
     return true;
   }
   if (!node) return false;
-  fireBuffFx({ source: node, target: o.target, cardId: o.spellId ?? '', tribe: 'neutral', sourceless: false, uids: { source: null, target: o.targetUid } });
+  afterMs(lead, () => {
+    fireBuffFx({ source: node, target: o.target, cardId: o.spellId ?? '', tribe: 'neutral', sourceless: false, uids: { source: null, target: o.targetUid } });
+  });
   return true;
 }

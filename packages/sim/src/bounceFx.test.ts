@@ -83,7 +83,10 @@ describe('bounceFx — the per-hop shop signal', () => {
     expect(hops(s)).toEqual(['ruby:b27>b4']);
   });
 
-  it('Rune of Distillation: a spell on a SHOP offer hops offer → your left-most AND right-most (balance 9/23)', () => {
+  // Since 2026-09-24 a SPELL's Distillation echo is the RUNE's cast (owner: "the runes that repeat casts should use the
+  // rune-cast visual"): it records against the rune and travels from the rune's node, so it records NO hop. The Ruby
+  // echo below keeps its hop (Rubies speak the Ruby language). See runeRepeatCastActor.test.ts.
+  it('Rune of Distillation: a spell on a SHOP offer echoes onto your left-most AND right-most AS THE RUNE — no spell hop', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 20,
       board: [body('lead', 'drummer'), body('other', 'joker')],
@@ -92,7 +95,8 @@ describe('bounceFx — the per-hop shop signal', () => {
       runeDistillation: true,
     };
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'o1' });
-    expect(hops(s)).toEqual(['spell:o1>lead', 'spell:o1>other']);
+    expect(hops(s)).toEqual([]);
+    expect((s.castFx ?? []).map((c) => (c.source.kind === 'rune' ? c.source.id : c.source.kind))).toEqual(['rune_distillation', 'rune_distillation']);
   });
 
   it('Rune of Distillation: a Ruby on a SHOP offer hops offer → your left-most AND right-most (as a Ruby)', () => {

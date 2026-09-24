@@ -75,6 +75,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Runes that cast spells now flash as they cast, and the spell travels out from the rune.',
+        details: [
+          'The rune on your rune bar pulses and glows the moment it casts a spell.',
+          'A spell that lands in one place sends a small spark out from the rune first.',
+          'Runes that repeat your spells (Shared Pour, Astral Draft, Distillation, Shared Reflection, Hoardflame, Dragon Breath, Bottomless Cask) now show their extra cast coming from the rune.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Spells cast by your runes now play their own effects too.',
         details: [
           'A spell a rune casts (Gilded Ledger, Spell Market, Recurrence and others) plays the same effect it plays from your hand.',

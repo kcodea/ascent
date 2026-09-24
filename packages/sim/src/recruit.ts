@@ -1,6 +1,6 @@
 import { ALE_IDS, TRIBES, alignAllows, makeRng, SILENT_ONPLAY, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, foldEchoExtraFires, socTwilightExtraFires, ARENA_EFFECTS, beatIdentity, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { runSpells } from './spellPool';
-import { REVELER_IDS, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
+import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
 import { currentCollector } from './activeCollector';
 import { alignmentOf } from './alignment';
@@ -84,7 +84,11 @@ function recordActorCast(state: RunState, spellId: string, collector: Presentati
   const actor = castActorStack[castActorStack.length - 1];
   if (!actor || equipmentCastDepth > 0) return;
   recordCastFx(state, actor, spellId, endOfTurnDepth > 0 ? 'endOfTurn' : 'recruit');
-  if (collector.enabled) collector.emit({ type: 'spellResolved', cardId: spellId });
+  // The consequence needs a beat to belong to. A repeat rune's cast inside the PLAYER's own play (Shared Pour, Astral
+  // Draft, Distillation: `castWithRuneRepeats`, 2026-09-24) runs under no trigger scope, since the player's play opens
+  // none; there the per-action `castFx` record above is the whole presentation signal (the Shop watcher plays it), and
+  // an unscoped `spellResolved` would be an orphan consequence (beat conservation).
+  if (collector.enabled && recruitTriggerFrames.length > 0) collector.emit({ type: 'spellResolved', cardId: spellId });
 }
 
 type RecruitFn = (
@@ -1476,13 +1480,85 @@ export function giftCastCount(state: Pick<RunState, 'board' | 'nextSpellExtraCas
 }
 
 export function spellCasts(state: RunState, def: CardDef, card?: Pick<BoardCard, 'extraCasts'>): number {
+  return spellCastsWithout(state, def, card, NO_RUNES_OFF);
+}
+
+const NO_RUNES_OFF: ReadonlySet<string> = new Set();
+
+/** The rune that granted a `runeSpellDouble` for `spellId` (Rune of Hoardflame -> Hoardflame, Rune of Dragon Breath
+ *  -> Dragonflame), read off the run's owned runes. Undefined when no owned rune names it. */
+function spellDoubleRuneOf(state: RunState, spellId: string): string | undefined {
+  for (const id of state.ownedRunes ?? []) {
+    const r = RUNE_INDEX[id]?.reward;
+    const parts = r?.kind === 'multi' ? r.rewards : r ? [r] : [];
+    if (parts.some((p) => p.kind === 'runeSpellDouble' && p.spellId === spellId)) return id;
+  }
+  return undefined;
+}
+
+/**
+ * THE CASTS A RUNE ADDS to one play of `def` (owner 2026-09-24: "the runes that repeat casts should use the rune-cast
+ * visual"). `spellCasts` folds several REPEAT RUNES into one number: Rune of Hoardflame / Dragon Breath ("they cast
+ * twice"), the Bottomless Cask ("Ales trigger an additional time"), Shared Pour ("your first Ale each turn casts an
+ * additional time") and the Astral Draft's stamped pick ("it casts an additional time"). This splits that number
+ * back out, rune by rune, IN ORDER: `spellCasts` minus the result's total is what the PLAYER cast, and each entry
+ * is how many of the remaining casts that rune owns. Attribution is sequential (each rune's share is what turning
+ * it on adds on top of the ones before it), so the shares always sum to exactly the extra casts, even when a
+ * doubling rune multiplies another multiplier. Read-only, like `spellCasts`; presentation only (the cast-actor
+ * stack), never gameplay.
+ */
+export function runeExtraCasts(state: RunState, def: CardDef, card?: Pick<BoardCard, 'extraCasts'>): { runeId: string; count: number }[] {
+  if (def.singleCast) return [];
+  const runes: string[] = [];
+  const dbl = spellDoubleRuneOf(state, def.id);
+  if (dbl && (state.runeSpellDouble ?? []).includes(def.id)) runes.push(dbl);
+  if (ALE_IDS.includes(def.id)) {
+    if ((state.ownedRunes ?? []).includes('rune_bottomless_cask') && (state.aleExtraCasts ?? 0) > 0) runes.push('rune_bottomless_cask');
+    if (state.runeSharedPour && !state.sharedPourUsedThisTurn) runes.push('rune_shared_pour');
+  }
+  if ((card?.extraCasts ?? 0) > 0 && (state.ownedRunes ?? []).includes('rune_astral_draft')) runes.push('rune_astral_draft');
+  if (runes.length === 0) return [];
+  const off = new Set(runes);
+  let prev = spellCastsWithout(state, def, card, off);
+  const out: { runeId: string; count: number }[] = [];
+  for (const id of runes) {
+    off.delete(id);
+    const now = spellCastsWithout(state, def, card, off);
+    if (now > prev) out.push({ runeId: id, count: now - prev });
+    prev = now;
+  }
+  return out;
+}
+
+/**
+ * Run a play's `casts` resolutions of `def`: the PLAYER's first, then each repeat rune's share under that rune as the
+ * cast actor (`runeExtraCasts`), so a repeated cast records and presents as the RUNE's cast (its node on the rail,
+ * the cast preview above it, the rune flourish) while the player's own cast keeps the player's visuals (owner
+ * 2026-09-24). `extras` must be read BEFORE the loop (the same moment `casts` was), since a cast can spend a
+ * freebie a share depends on. Gameplay is identical to `for (n < casts) one()`: only the actor stack differs.
+ */
+export function castWithRuneRepeats(casts: number, extras: readonly { runeId: string; count: number }[], one: () => void): void {
+  let runeCasts = 0;
+  for (const e of extras) runeCasts += e.count;
+  const own = Math.max(0, casts - runeCasts);
+  for (let n = 0; n < own; n++) one();
+  let left = casts - own;
+  for (const e of extras) {
+    const k = Math.min(e.count, left);
+    left -= k;
+    if (k > 0) withCastActor({ kind: 'rune', id: e.runeId }, () => { for (let n = 0; n < k; n++) one(); });
+  }
+}
+
+function spellCastsWithout(state: RunState, def: CardDef, card: Pick<BoardCard, 'extraCasts'> | undefined, off: ReadonlySet<string>): number {
   if (def.singleCast) return 1; // Channeling the Devourer never multiplies
   let mult = def.target ? spellCastMult(state) : 1; // Yazzus multiplies aimed spells; untargeted = 1
   if (state.spellDoubleAlways) mult *= 2; // Ancient Runes: every spell casts twice
   // Rune of Hoardflame / Rune of Dragon Breath: THIS spell id casts an extra time. Card-scoped (the Edward
   // Keg-hands shape below, by id rather than by Ale list) and read-only, so the UI's x N badge previews the
   // real count — which is what makes the multicast modifier show while the rune is armed.
-  for (const id of state.runeSpellDouble ?? []) if (id === def.id) mult *= 2;
+  const dblRune = off.size > 0 ? spellDoubleRuneOf(state, def.id) : undefined;
+  if (!dblRune || !off.has(dblRune)) for (const id of state.runeSpellDouble ?? []) if (id === def.id) mult *= 2;
   // Spell Thesis: the FIRST spell each turn casts twice. READ-ONLY here (so the UI can preview the count without
   // side effects) — the reducer's cast sites consume the freebie by setting `spellFirstUsedThisTurn` after casting.
   if (state.spellFirstDoubleEachTurn && !state.spellFirstUsedThisTurn) mult *= 2;
@@ -1505,19 +1581,22 @@ export function spellCasts(state: RunState, def: CardDef, card?: Pick<BoardCard,
     if (edwards.length > 0) mult *= edwards.some((c) => c.golden) ? 3 : 2;
     // Run-wide Ale multiplier (Bottomless Cellar, Rune of the Bottomless Cask). ADDED rather than multiplied,
     // because both read "trigger an ADDITIONAL time" — the same distinction Nimbus makes below.
-    mult += state.aleExtraCasts ?? 0;
+    // (The Bottomless Cask's share, when `runeExtraCasts` is splitting it out: one per applied copy; the rest is
+    // the Bottomless Cellar quest's.)
+    const caskShare = off.has('rune_bottomless_cask') ? Math.min(state.aleExtraCasts ?? 0, runeStacksOf(state, 'rune_bottomless_cask')) : 0;
+    mult += (state.aleExtraCasts ?? 0) - caskShare;
     // Rune of Shared Pour: the FIRST Ale each turn casts one extra time. READ-ONLY here, like Spell Thesis
     // above — the cast site consumes the freebie by setting `sharedPourUsedThisTurn`, so previewing the count
     // in the UI can't spend it.
     // +1 extra cast per Shared Pour copy held (repeat family, owner 2026-08-27).
-    if (state.runeSharedPour && !state.sharedPourUsedThisTurn) mult += runeStacksOf(state, 'rune_shared_pour');
+    if (state.runeSharedPour && !state.sharedPourUsedThisTurn && !off.has('rune_shared_pour')) mult += runeStacksOf(state, 'rune_shared_pour');
   }
   // Nimbus is ADDED LAST, and added rather than multiplied, because it reads "casts an ADDITIONAL time"
   // (owner 2026-07-24). It also applies to untargeted spells, unlike Yazzus — the charge is a flat bonus on
   // whatever the spell would otherwise do.
   // …and a per-INSTANCE extra (Rune of the Astral Draft stamps its Discover pick `extraCasts: 1`) — added, like
   // Nimbus, because it reads "casts an additional time". Only the cast sites that hold the hand card pass it.
-  return mult + (state.nextSpellExtraCasts ?? 0) + (card?.extraCasts ?? 0);
+  return mult + (state.nextSpellExtraCasts ?? 0) + (off.has('rune_astral_draft') ? 0 : (card?.extraCasts ?? 0));
 }
 
 /** Implosion's cast count: once by default, plus one more per Demon you control (so 1 + your Demons). Shared by
@@ -10646,7 +10725,12 @@ export function fireOnSpellCastOnThis(state: RunState, card: BoardCard, spellDef
       const nd = CARD_INDEX[nb.cardId];
       if (nd?.tribe !== 'dragon' && nd?.tribe2 !== 'dragon') continue;
       procRuneId(state, 'rune_shared_reflection');
-      for (let r = 0; r < spellCasts(state, spellDef); r++) { recordBounceFx(state, 'spell', card.uid, nb.uid); castSpell(state, spellDef, nb); }
+      // A RUNE'S CAST (owner 2026-09-24: "the runes that repeat casts should use the rune-cast visual"): the spread
+      // runs with the rune as the cast actor, so it records, previews and flourishes from the rune's node on the
+      // rail, and its buffs stem from there (no Mirrorwing -> Dragon bounce hop on top: the rune is the source).
+      withCastActor({ kind: 'rune', id: 'rune_shared_reflection' }, () => {
+        for (let r = 0; r < spellCasts(state, spellDef); r++) castSpell(state, spellDef, nb);
+      });
     }
   }
   const def = CARD_INDEX[card.cardId];

@@ -90,6 +90,11 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // the new crest lands — fired by the post-game rank timeline at the promotion beat (division and medal).
   'rank-up': ['rank/rankTimeline.ts'],
   'rune-buff-unit': ['Recruit.tsx', 'useCombatReplay.ts'],
+  // THE RUNE CAST FLOURISH (2026-09-24, owner: "a bit of flair … a 'magic' element to it? nothing crazy"): the glyph
+  // flash on a casting rune's node, and the mote it sends to where a single-play spell effect lands. Every rune
+  // cast in every phase reaches these through `fx/spellCastFx.ts` (`playRuneSpellCastFx`).
+  'rune-cast-flourish': ['fx/runeCastFlourish.ts'],
+  'rune-cast-mote': ['fx/runeCastFlourish.ts'],
   // The implosion on a rune's BADGE as the lock-in ceremony hands it over (owner ask 2026-08-31).
   'rune-select-implosion': ['useRuneArrivalFx.ts'],
   'rune-slot-break': ['QuestBadges.tsx'],

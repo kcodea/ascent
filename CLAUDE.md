@@ -139,6 +139,9 @@ a rule in a skill stops being true, fix it in the same PR as the behaviour chang
   then `typecheck:web` (presentation: `@game/ui` + `apps/web`, which need the DOM/JSX lib). Both are gated in
   CI as separate steps. `build:web` is a Vite/esbuild transpile and does **not** typecheck — this is the gate.
 - `npm test` — Vitest (determinism + golden + effect tests)
+- `npm run test:slow` — the NIGHTLY-ONLY vitest suites (`NIGHTLY_ONLY` in `vitest.config.ts`; today the ~13 min
+  strategist benchmark). `npm test` and PR CI skip them; `.github/workflows/nightly-slow-tests.yml` runs them nightly +
+  on manual dispatch (a failed run = a regression). CI gives each `HEAVY_GROUPS` suite its own runner (`--mode heavy-<i>`).
 - `npm run harness` — headless combat: prints a narrated event log + proves determinism
 - `npm run lint` — ESLint (incl. the `Math.random` ban)
 - `npm run docbot` — Doc Bot's correctness report (phase gaps, live-text + tribe-predicate + derivation tripwires) — see [`docs/docbot.md`](docs/docbot.md)

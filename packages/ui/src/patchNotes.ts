@@ -52,6 +52,12 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-24',
+    changes: [
+      { category: 'Balance', text: 'Rune of Hoardcalling only appears in runs with Dragons again.' },
+    ],
+  },
+  {
+    date: '2026-09-24',
     label: 'Kobolds, Celestials and Dwarves',
     changes: [
       {

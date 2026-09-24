@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "id": "sfx-mirrorwing",
+  "duration": 1000,
+  "layers": [
+    {
+      "primitive": "sound",
+      "anchor": "travel",
+      "at": 0,
+      "params": {
+        "clip": "fx/mirrorwing"
+      }
+    }
+  ]
+}

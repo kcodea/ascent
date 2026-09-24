@@ -39,7 +39,7 @@ describe('the category: Set 2 membership, pinned per tier', () => {
   const SET2: Record<number, string[]> = {
     1: ['bulwark', 'crestclimb', 'lanternlight'],
     2: ['growth', 'spiritfire'],
-    3: ['commonground', 'mightofaeon', 'patchjob', 'shatter', 'wo_attack', 'wo_champion', 'wo_health'],
+    3: ['mightofaeon', 'patchjob', 'shatter', 'wo_attack', 'wo_champion', 'wo_health'],
     4: ['fronttoback', 'greatpot', 'hoardflame', 'sp_blessing', 'sp_flutter'],
     5: ['sp_dragonflame'],
     6: ['sp_beefy', 'sparkplug'],
@@ -53,7 +53,7 @@ describe('the category: Set 2 membership, pinned per tier', () => {
   });
 
   it('TARGETED stat spells are IN (the ruling), with their aim intact', () => {
-    for (const id of ['bulwark', 'lanternlight', 'crestclimb', 'spiritfire', 'shatter', 'patchjob', 'commonground', 'fronttoback', 'hoardflame', 'sp_blessing', 'sp_flutter', 'sp_beefy']) {
+    for (const id of ['bulwark', 'lanternlight', 'crestclimb', 'spiritfire', 'shatter', 'patchjob', 'fronttoback', 'hoardflame', 'sp_blessing', 'sp_flutter', 'sp_beefy']) {
       expect(isStatGrantingSpell(CARD_INDEX[id]), id).toBe(true);
       expect(CARD_INDEX[id]!.target, `${id} is aimed`).toBeTruthy();
     }
@@ -69,6 +69,14 @@ describe('the category: Set 2 membership, pinned per tier', () => {
       expect(isStatGrantingSpell(CARD_INDEX[id]), `${id} is not in the category`).toBe(false);
       expect(isStatSpell(CARD_INDEX[id]), `${id} is still a Thrift stat spell`).toBe(true);
     }
+  });
+
+  it('Common Ground is NOT in the category: it averages, it grants nothing immediately (owner 2026-09-23)', () => {
+    // "common ground should not be in the grouping ... it should only be stat granting spells that give stats
+    // immediately basically ... that's more a utility thing."
+    const cg = CARD_INDEX['commonground']!;
+    expect(isStatGrantingSpell(cg)).toBe(false);
+    expect(isStatSpell(cg), 'Rune of Thrift still discounts it (unchanged)').toBe(true);
   });
 
   it('stat MOVERS / setters / next-combat buffs are OUT', () => {
@@ -174,16 +182,6 @@ describe('castSpellWithoutAim: the shared random-target cast', () => {
     expect(castSpellWithoutAim(s, CARD_INDEX['crestclimb']!)).toBe(true);
     const [a, h] = [s.board[0]!.attack, s.board[0]!.health];
     expect([[5, 1], [1, 5]]).toContainEqual([a, h]);
-  });
-
-  it('Common Ground averages two DISTINCT random friendlies, and fizzles with only one', () => {
-    const s = bare([minion('a', 'sandbag', 10, 2), minion('b', 'sandbag', 2, 10)]);
-    expect(castSpellWithoutAim(s, CARD_INDEX['commonground']!)).toBe(true);
-    expect(s.board.map((c) => [c.attack, c.health])).toEqual([[6, 6], [6, 6]]);
-    expect(s.pendingTarget, 'no pending aim leaks out of the borrowed pair').toBeUndefined();
-    const one = bare([minion('a', 'sandbag', 10, 2)]);
-    expect(castSpellWithoutAim(one, CARD_INDEX['commonground']!)).toBe(false);
-    expect(one.board[0]!.attack).toBe(10);
   });
 
   it('an untargeted member casts as it is (Growth buffs the whole board)', () => {

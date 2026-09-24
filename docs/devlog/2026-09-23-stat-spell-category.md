@@ -4,6 +4,13 @@ Owner ruling (verbatim): *"no this is wrong and needs to fixed for all 'stat gra
 targeted spells should be castable and fit this category, just with random targets chosen. the shop based ones
 i'm iffy on. but definitely targeted and board wide stat buff spells"*
 
+Refined on the PR the same day (verbatim): *"common ground should not be in the grouping, that's a combat related
+buff. it should only be stat granting spells that give stats immediately basically. i think common ground is the
+only one in the list that's wrong, that's more a utility thing."*
+
+**The test for any future spell:** does casting it GIVE your minions stats they did not have, right now? A spell
+that redistributes, swaps or sets existing stats, buffs a later combat, or buffs the Shop / future cards is out.
+
 ## What was wrong
 
 Rune of the Gilded Ledger ("Every 7 Gold spent, cast a random stat-granting Shop spell") filtered its pool to
@@ -20,13 +27,12 @@ Shop spells (`runSpells`), so they are back in.
 
 - **`isStatGrantingSpell(def)`** is THE category. In: a drawable Shop spell (not a token, Gift or Ruby) with a
   stat-factory cast effect (`isStatSpellFactory`) and no off-board stat effect. Out: `OFF_BOARD_STAT_FACTORIES`
-  (the shop-buff family + Facetwright's Ruby gain). Replaces `isBoardStatSpell`.
+  (the shop-buff family, Facetwright's Ruby gain, and Common Ground's `spellAverageStats`). Replaces `isBoardStatSpell`.
 - **`isStatSpell(def)`** (Rune of Thrift's discount) now reads the same `isStatSpellFactory`, so the category is
   always a subset of it. The old `STAT_SPELL_EXTRAS` list is gone; the one difference it hid was Great Pot's
   `buffOnePerTribe`, which Thrift now discounts.
 - **`castSpellWithoutAim(state, def)`** is the shared no-aim cast. A Choose One takes one seeded branch; a
-  targeted spell lands on a seeded-random legal friendly (`pickRandomSpellTarget`); Common Ground draws two
-  distinct friendlies; no legal target fizzles (returns false, no cast counted, no Gold moved). Every path
+  targeted spell lands on a seeded-random legal friendly (`pickRandomSpellTarget`); no legal target fizzles (returns false, no cast counted, no Gold moved). Every path
   goes through `castSpell` → `applyCastEffects`, so the cast preview (#1665) sees it once it lands.
 - **`pickRandomSpellTarget`** is the old `pickTaughtTarget` (Mage-Pup), extended with the aim's legality: the
   spell's tribe restriction after runes (`effectiveTargetTribe`) and `targetNoGolden`. Side effect: a Pup that
@@ -41,7 +47,7 @@ Ledger's payout is for the board.
 | --- | --- | --- |
 | 1 | none | Bulwark, Lantern Light, Crest of the Climb |
 | 2 | Growth | Growth, Spirit Fire |
-| 3 | Might of Aeon | Might of Aeon, Shatter, Patch Job, Common Ground, Champion's Ale, Defensive Ale, Bloody Ale |
+| 3 | Might of Aeon | Might of Aeon, Shatter, Patch Job, Champion's Ale, Defensive Ale, Bloody Ale |
 | 4 | none | Front to Back, Hoardflame, Great Pot, Blessing, Flutter |
 | 5 | Dragonflame | Dragonflame |
 | 6 | Waking Rift | Waking Rift, Beefy |
@@ -49,7 +55,7 @@ Ledger's payout is for the board.
 Set 3 (not live): Bulwark, Aspect's Blessing (T1); Growth, Shared Spirit (T2); Shatter, the three stat Ales,
 Star Crash (T3, Celestial-only aim); Front to Back, Stellar Chorus, Hand Soap (T4); Waking Rift, Crescendo (T6).
 
-Checked and left out: Turnabout (swaps), Perfect Vision (sets 20/20), Fleeting Vigor and Solid Ground (next
+Checked and left out: Common Ground (averages: "more a utility thing", owner), Turnabout (swaps), Perfect Vision (sets 20/20), Fleeting Vigor and Solid Ground (next
 combat only), Ruby Excavation / Ruby Transfer (Ruby channel), Cupcakes (consume). None is a stat-family factory.
 
 ## Consumers

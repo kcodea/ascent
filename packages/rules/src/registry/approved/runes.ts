@@ -307,20 +307,23 @@ export const RUNES_RULES: GameRule[] = [
     title: 'A "cast a random stat-granting spell" effect draws from ONE category that includes targeted spells, aimed at a random legal friendly minion',
     statement:
       'The stat-granting spell category (`isStatGrantingSpell`) is the one pool every "cast a random stat-granting '
-      + 'Shop spell" effect reads (Rune of the Gilded Ledger). It holds every drawable Shop spell whose cast gives '
-      + 'stats to YOUR minions: board-wide buffs (Growth, Might of Aeon, Great Pot, Waking Rift, Dragonflame), '
-      + 'TARGETED stat spells (Bulwark, Lantern Light, Crest of the Climb, Spirit Fire, Shatter, Patch Job, Common '
-      + 'Ground, Front to Back, Hoardflame, Blessing, Flutter, Beefy) and the stat Ales (Champion\'s, Defensive, '
-      + 'Bloody). The shop-buff spells (Apples, Staff of Guel, Facetwright\'s Choice, Veinstorm, Picnic) are OUT '
-      + 'pending an owner ruling; Rune of Thrift still discounts them. A targeted pick is cast through the shared '
+      + 'Shop spell" effect reads (Rune of the Gilded Ledger). It holds every drawable Shop spell whose cast GIVES '
+      + 'your minions stats IMMEDIATELY: board-wide buffs (Growth, Might of Aeon, Great Pot, Waking Rift, '
+      + 'Dragonflame), TARGETED stat spells (Bulwark, Lantern Light, Crest of the Climb, Spirit Fire, Shatter, Patch '
+      + 'Job, Front to Back, Hoardflame, Blessing, Flutter, Beefy) and the stat Ales (Champion\'s, Defensive, '
+      + 'Bloody). A spell that redistributes, swaps or sets existing stats is a utility, not a grant, and is OUT: '
+      + 'Common Ground (averaging), Turnabout, Perfect Vision. The shop-buff spells (Apples, Staff of Guel, '
+      + 'Facetwright\'s Choice, Veinstorm, Picnic) are OUT pending an owner ruling; Rune of Thrift still discounts '
+      + 'them and Common Ground. A targeted pick is cast through the shared '
       + 'no-aim cast (`castSpellWithoutAim`): a Choose One takes one seeded-random branch, and the spell lands on a '
       + 'seeded-random friendly minion the player\'s aim could have chosen (the spell\'s tribe restriction honoured, '
-      + 'never a shop offer; Common Ground takes two distinct friendlies). With no legal target it FIZZLES: nothing '
+      + 'never a shop offer). With no legal target it FIZZLES: nothing '
       + 'resolves and no cast is counted. Every pick comes from the run cursor, so a replay repeats it.',
     domain: 'runes',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-23 (Gilded Ledger at Tier 1 had nothing to cast)', quote: "no this is wrong and needs to fixed for all 'stat granting spells' texts etc. all targeted spells should be castable and fit this category, just with random targets chosen. the shop based ones i'm iffy on. but definitely targeted and board wide stat buff spells" },
+      { kind: 'owner-chat', ref: 'PR #1670 review, 2026-09-23 (Common Ground out)', quote: "common ground should not be in the grouping, that's a combat related buff. it should only be stat granting spells that give stats immediately basically. i think common ground is the only one in the list that's wrong, that's more a utility thing." },
       { kind: 'code', ref: 'packages/sim/src/recruit.ts isStatGrantingSpell / castSpellWithoutAim / pickRandomSpellTarget; payRuneThreshold castStatSpell' },
       { kind: 'test', ref: 'packages/sim/src/statSpellCategory.test.ts' },
     ],

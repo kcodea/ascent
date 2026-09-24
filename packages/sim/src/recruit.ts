@@ -1899,14 +1899,19 @@ export function isStatSpell(def: CardDef | undefined): boolean {
   return allEffectsOf(def).some((e) => e.on === 'cast' && isStatSpellFactory(e.do));
 }
 
-/** Stat factories whose grant never reaches YOUR BOARD: the shop-buff family (stats on offers you may never
- *  buy) and Facetwright's Ruby gain (it raises FUTURE Rubies). Rune of Thrift still discounts them (they are
+/** Stat factories that do NOT grant stats to your minions immediately: the shop-buff family (stats on offers you
+ *  may never buy), Facetwright's Ruby gain (it raises FUTURE Rubies) and Common Ground's averaging (a utility
+ *  that moves existing stats around, not a grant). Rune of Thrift still discounts them (they are
  *  `isStatSpell`), but they sit OUTSIDE the stat-granting category below: the owner is "iffy on the shop based
  *  ones" (2026-09-23), so they stay out until he rules them in. */
 const OFF_BOARD_STAT_FACTORIES: ReadonlySet<string> = new Set([
   'spellBuffShop', 'spellBuffShopByRuby', 'spellBuffTavern', 'spellBuffNextShop',
   'spellBuffShopRightmost', // Picnic (2026-09-23): the right-most Shop slot — an offer buff, never a board grant
   'rubyStatGain', //           Facetwright's Choice: your Rubies (future ones included) gain stats
+  // Common Ground (owner 2026-09-23): "common ground should not be in the grouping, that's a combat related buff.
+  // it should only be stat granting spells that give stats immediately basically ... that's more a utility
+  // thing." Averaging REDISTRIBUTES two minions' stats; it grants nothing new.
+  'spellAverageStats',
 ]);
 
 /**
@@ -1914,15 +1919,21 @@ const OFF_BOARD_STAT_FACTORIES: ReadonlySet<string> = new Set([
  *
  * OWNER RULING 2026-09-23: "all targeted spells should be castable and fit this category, just with random
  * targets chosen. the shop based ones i'm iffy on. but definitely targeted and board wide stat buff spells".
+ * Refined the same day: "it should only be stat granting spells that give stats immediately basically" (Common
+ * Ground out: "that's more a utility thing").
+ *
+ * THE TEST for a new spell: does casting it GIVE your minions stats they did not have, right now? A spell that
+ * redistributes, swaps or sets existing stats (Common Ground, Turnabout, Perfect Vision), buffs a later combat
+ * (Fleeting Vigor, Solid Ground), or buffs the Shop / future cards is NOT in the category, even when its factory
+ * is in the `isStatSpellFactory` family (list such a factory in `OFF_BOARD_STAT_FACTORIES`).
  *
  *   IN  — a drawable Shop spell (not a reward token, Gift or Ruby) whose cast effects include a stat factory
  *         (`isStatSpellFactory`) and none of whose stat effects is off-board: board-wide buffs (Growth, Might of
  *         Aeon, Great Pot, Waking Rift, Dragonflame), TARGETED stat spells (Bulwark, Lantern Light, Spirit Fire,
- *         Crest of the Climb, Shatter, Patch Job, Common Ground, Front to Back, Hoardflame, Blessing, Flutter,
- *         Beefy) and the stat-granting Dwarven Ales (Champion's, Defensive, Bloody). Targeted members are cast
+ *         Crest of the Climb, Shatter, Patch Job, Front to Back, Hoardflame, Blessing, Flutter, Beefy) and the stat-granting Dwarven Ales (Champion's, Defensive, Bloody). Targeted members are cast
  *         through `castSpellWithoutAim`.
- *   OUT — the shop-buff family and Facetwright's Choice (`OFF_BOARD_STAT_FACTORIES`; a spell with ANY off-board
- *         stat branch is out, which is what keeps Apples out), and every spell that moves or sets stats outside
+ *   OUT — the shop-buff family, Facetwright's Choice and Common Ground (`OFF_BOARD_STAT_FACTORIES`; a spell with
+ *         ANY such stat branch is out, which is what keeps Apples out), and every spell that moves or sets stats outside
  *         the stat family (Turnabout, Perfect Vision) or buffs only NEXT combat (Fleeting Vigor, Solid Ground).
  *
  * Replaces `isBoardStatSpell`, which read `def.effects` alone (blind to Choose One branches) and was paired at
@@ -1940,8 +1951,8 @@ export function isStatGrantingSpell(def: CardDef | undefined): boolean {
  *   · A Choose One resolves ONE seeded-random branch (there is no window to open).
  *   · An untargeted spell casts as it is.
  *   · A TARGETED spell lands on a seeded-random LEGAL friendly minion (`pickRandomSpellTarget`: the tribe the
- *     aim would require, never a golden for a `targetNoGolden` spell). Common Ground needs TWO, so it draws a
- *     second distinct friendly and averages the pair. A shop offer is never picked: an `any` spell's shop half
+ *     aim would require, never a golden for a `targetNoGolden` spell). One target only: a two-target spell
+ *     (Common Ground) is outside the category and has no no-aim path. A shop offer is never picked: an `any` spell's shop half
  *     is the one aim the owner is "iffy" on, and a Ledger payout is meant for your board.
  *   · No legal target: the cast FIZZLES. Nothing resolves, nothing is counted, and it returns false.
  *
@@ -1960,16 +1971,6 @@ export function castSpellWithoutAim(state: RunState, def: CardDef): boolean {
   if (!def.target) { castSpell(state, cast); return true; }
   const target = pickRandomSpellTarget(state, def);
   if (!target) return false;
-  if (cast.effects.some((e) => e.do === 'spellAverageStats')) {
-    // Common Ground averages a PAIR: the factory reads the first from `pendingTarget.spellFirstUid`, exactly as
-    // the aim picker's second step leaves it. Borrowed for the cast and put back, so no pending aim leaks.
-    const second = pickRandomSpellTarget(state, def, target);
-    if (!second) return false;
-    const held = state.pendingTarget;
-    state.pendingTarget = { uid: '', cardId: def.id, spell: true, spellFirstUid: target.uid };
-    try { castSpell(state, cast, second); } finally { state.pendingTarget = held; }
-    return true;
-  }
   castSpell(state, cast, target);
   return true;
 }
@@ -9390,7 +9391,7 @@ export function taughtAimSpell(card: BoardCard): CardDef | undefined {
 /** The friendly an UNAIMED spell lands on (a TAUGHT spell from Mage-Pup, a rune's `castSpellWithoutAim`): a
  *  seeded-random board minion (deterministic: it advances the run's RNG cursor) drawn from the targets the
  *  player's aim would allow (the spell's tribe restriction after runes, never a golden for `targetNoGolden`),
- *  never `exclude` (the casting body, R-TARGET-03, or Common Ground's first pick). `undefined` when nothing is
+ *  never `exclude` (the casting body, R-TARGET-03). `undefined` when nothing is
  *  legal, so the caller can fizzle; untargeted spells get `undefined` and cast normally. Same rule as Rune of
  *  Recurrence / Runic Archivist. */
 function pickRandomSpellTarget(state: RunState, def: CardDef, exclude?: { uid: string }): BoardCard | undefined {

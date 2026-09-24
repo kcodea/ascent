@@ -6074,6 +6074,10 @@ svg { width: 18px; height: 18px; }
 .tunerpanel .tuner-mod { width: 11px; height: 11px; border-radius: 50%; border: 1px solid #a85c0e;
   background: var(--acc); box-shadow: 0 0 6px rgba(240, 144, 46, 0.55); font-size: 0; line-height: 0; }
 .tunerpanel .tuner-mod:hover { background: #ffb771; }
+/* A row's ▶ preview (the Announcer panel plays each event's line). No cursor of its own: the global button rule paints it. */
+.tunerpanel .tuner-preview { margin-left: 6px; padding: 0 4px; border: 1px solid var(--brass-dk); border-radius: 3px;
+  background: none; color: #ffd9a3; font-size: 9px; line-height: 14px; vertical-align: middle; }
+.tunerpanel .tuner-preview:hover { background: rgba(240, 144, 46, 0.25); }
 
 /* ---- SLIDER ------------------------------------------------------------------------------------------- */
 /* A milled channel with the travelled portion LIT. `--fill` is set per render by TunerPanel; the gradient is
@@ -6890,7 +6894,11 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .lb-trow > * { min-width: 0; }
 .lb-thead { padding: 4px 24px 10px; border-bottom: 2px solid rgba(196, 160, 92, 0.35); border-radius: 0; font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(232, 200, 119, 0.85); }
 .lb-thead .lb-c-rank { text-align: center; }
-.lb-thead .lb-c-rating, .lb-thead .lb-c-games { text-align: right; justify-content: flex-end; }
+.lb-thead .lb-c-games { text-align: right; justify-content: flex-end; }
+/* RANK is centred over its cell, and the cell's content (crest + label + bar, or the legacy MMR) is centred
+   under it as one block (owner 2026-09-24: "better center the rank text over the rank column"). Both centre on
+   the same grid track, so they line up at every width. */
+.lb-thead .lb-c-rating { text-align: center; justify-content: center; }
 /* A row is a plate that opens the player's Career (a div[role=button]); hover warms the frame, YOUR row
    carries the accent ring. */
 .lb-trow-btn { background: linear-gradient(90deg, rgba(13, 22, 40, 0.82), rgba(9, 15, 29, 0.86)); border: 2px solid rgba(196, 160, 92, 0.28); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.08); transition: border-color 0.12s ease, background 0.12s ease; }
@@ -6911,7 +6919,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .lb-herosub { font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: rgba(255, 255, 255, 0.62); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The rating — the big gold number with its unit trailing. ONE element (`.lb-c-rating`, aliased `.rk-rating`)
    so a medal crest can be slotted into it without re-laying the row. */
-.lb-c-rating { display: flex; align-items: baseline; justify-content: flex-end; gap: 8px; }
+.lb-c-rating { display: flex; align-items: baseline; justify-content: center; gap: 8px; }
 .lb-rating { font-family: var(--font-ui); font-weight: 900; font-size: 40px; line-height: 1; color: #ffd76a; font-variant-numeric: tabular-nums; }
 .lb-unit { font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
 /* Games — the value with its small-caps caption under it, right-aligned under the GAMES header. */
@@ -6998,6 +7006,9 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 /* Narrower viewports: the tiles step down before the columns would overflow. The thresholds carry the menu
    sidebar's 240px (owner ask 2026-09-21): the rows have `viewport − 240` to work with, so 1400/1180 of page
    width are 1640/1420 of viewport. */
+/* Recent Games: the Ranked | Practice tabs (owner 2026-09-24) wear the Career page's `.cv2-tabs` pill and sit where
+   the Hall's sort toggle sits, at the right of the top bar. */
+.rg-tabs { margin-left: auto; flex: none; }
 @media (max-width: 1640px) { .lb-team { --tile-s: 0.62; } }
 @media (max-width: 1420px) {
   .lb-team { --tile-s: 0.5; }
@@ -7368,6 +7379,30 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
    under the Inspect overlay (500), which must keep covering everything. */
 body:has(.book-ov) .cardref { z-index: 490; }
 .book-tier:disabled { opacity: 0.35; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; transform: none; border-color: var(--line); }
+/* THE SET PICKER (owner ask 2026-09-24): the far-right cluster of the tier bar holds the keyword chip (when on)
+   and a custom dropdown that swaps which card set the book shows. Same chip grammar as the tier buttons and the
+   Gilded toggle (2px frame, bg2 face, UI font, lift on hover); the open list reads as a small dark tome page with
+   the gold Gilded face on the picked row. No bare `cursor: pointer` (the global gauntlet rule paints the button;
+   the `li` options take the gauntlet URL form). Open/close is a ONE-SHOT opacity + transform transition. */
+.book-tiers-end { margin-left: auto; display: flex; align-items: center; gap: 10px; position: relative; z-index: 30; }
+.book-tiers-end .book-kwchip { margin-left: 0; }
+.book-setpick { position: relative; }
+.book-setpick-btn { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px 0 14px; border-radius: 11px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.04em; text-transform: uppercase; box-shadow: 0 2px 0 color-mix(in srgb, var(--line) 55%, #000); transition: transform 0.1s, border-color 0.1s, box-shadow 0.1s; }
+.book-setpick-btn:hover { transform: translateY(-2px); border-color: #e7b53d; box-shadow: 0 4px 0 #c8922e; }
+.book-setpick-btn:active { transform: translateY(2px); box-shadow: 0 0 0 #c8922e; transition-duration: 0.06s; }
+.book-setpick-btn:focus-visible { outline: 2px solid #e7b53d; outline-offset: 2px; }
+.book-setpick.is-open .book-setpick-btn { border-color: #e7b53d; }
+.book-setpick-cap { font-size: 10.5px; letter-spacing: 0.1em; opacity: 0.6; }
+.book-setpick-name { white-space: nowrap; }
+.book-setpick-live { display: inline-flex; align-items: center; height: 17px; padding: 0 6px; border-radius: 6px; background: linear-gradient(180deg, #ffd85a, #e7b53d); color: #6e5008; font-family: var(--font-ui); font-weight: 800; font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; }
+.book-setpick-caret { width: 16px; height: 16px; transition: transform 0.14s ease; }
+.book-setpick.is-open .book-setpick-caret { transform: rotate(180deg); }
+.book-setpick-list { position: absolute; top: calc(100% + 8px); right: 0; min-width: 100%; width: max-content; margin: 0; padding: 6px; list-style: none; display: flex; flex-direction: column; gap: 4px; background: #1b1a21; border: 2px solid #e7b53d; border-radius: 12px; box-shadow: 0 14px 34px -10px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255, 216, 90, 0.12); opacity: 0; visibility: hidden; transform: translateY(-6px) scale(0.97); transform-origin: top right; transition: opacity 0.12s ease, transform 0.12s ease, visibility 0s linear 0.12s; }
+.book-setpick.is-open .book-setpick-list { opacity: 1; visibility: visible; transform: none; transition: opacity 0.12s ease, transform 0.14s cubic-bezier(0.34, 1.2, 0.64, 1), visibility 0s; }
+.book-setpick-opt { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-width: 150px; height: 36px; padding: 0 12px; border-radius: 9px; border: 2px solid transparent; color: var(--ink); font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.04em; text-transform: uppercase; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; outline: none; transition: background 0.08s, border-color 0.08s; }
+.book-setpick-opt.is-focus { background: rgba(255, 216, 90, 0.1); border-color: color-mix(in srgb, #e7b53d 60%, transparent); }
+.book-setpick-opt.on { background: linear-gradient(180deg, #ffd85a, #e7b53d); color: #6e5008; border-color: #c8922e; }
+.book-setpick-opt.on .book-setpick-live { background: #6e5008; color: #ffd85a; }
 /* THE TIER CHART — one bar per tier, centred in the bar's spare width. `--h` (0..1) is the bar's share of the
    tallest tier; the number rides above, the tier below. A picked tier (a lit chip) reads accented; the rest dim
    while any chip is on so the selection reads in the chart too. Bars are buttons and toggle the tier chips. */
@@ -11736,7 +11771,7 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
 .cv2-heroframe.small { --ring: 84px; }
 
 /* Rankings rows: the rank cell holds the row-size bar instead of the bare MMR. */
-.lb-c-rating .rankbar-row { justify-content: flex-end; }
+.lb-c-rating .rankbar-row { justify-content: center; }
 
 /* ── THE POST-GAME RANK SCREEN ──
    Same overlay chrome as the lobby end screen (`.heroselect.endscreen.lobbyend`), with the dim-in stretched

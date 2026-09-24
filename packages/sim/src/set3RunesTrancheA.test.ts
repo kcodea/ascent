@@ -68,7 +68,7 @@ describe('tranche A — pool membership, cost, scope and tribe gates', () => {
     expect(EPIC_RUNES.some((x) => x.id === id)).toBe(false);
     expect(r.epic).toBeFalsy();
     expect(r.cost).toBe(cost);
-    expect(r.sets).toEqual(['set3']);
+    expect(r.sets).toEqual(id === 'rune_full_hand' ? [] : ['set3']); // the Full Hand CUT FROM SET 3 2026-09-24 (owner): offered in no set
     expect(r.tribes).toEqual(tribes);
     expect(CARD_INDEX[id]).toBeUndefined();
   });

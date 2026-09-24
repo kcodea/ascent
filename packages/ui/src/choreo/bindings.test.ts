@@ -237,6 +237,8 @@ const CARD_BINDINGS: Record<string, Record<string, { def: string; fanOut?: strin
   sparkplug: { spellCast: { def: 'waking-rift-fx' } }, // Waking Rift (id kept from Spark Plug), same one-play binding
   // Great Pot's own cast effect (owner def 2026-09-24): a per-buff travelling row like the Ales (cursor / travel / target).
   greatpot: { spellCast: { def: 'greatpot', fanOut: 'buffed' } },
+  // Picnic's cast plays the Butcher's shop-buff def ON the right-most Shop minion it buffed, every source (owner 2026-09-24).
+  sp_picnic: { spellCast: { def: 'shop-buff-shout' } },
   sp_dragonflame: { spellCast: { def: 'dragonflame', fanOut: 'buffedOn', sfx: 'dragonflame' }, buffWave: { def: 'dragonflame', fanOut: 'buffedOn' } },
   dm_felspikes: { damage: { def: 'fel-spike', fanOut: 'struck', launchOnDeath: true } },
   dm_tormentor: { shout: { def: 'shop-buff-shout' }, scNarrate: { def: 'shop-buff-shout' } },

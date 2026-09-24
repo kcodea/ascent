@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { ALL_CARDS, CARD_INDEX } from '@game/content';
-import { abhorrentHorrorText, cadenceProgressText, drunkenOafText, cardSummonsImp, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonFlatZooText, summonImproveText, summonScalingText, shootingStarText, spellThresholdText, tallyBuffText, watcherText, shopBuffImproveText, perCardPlayedText, withImpStats } from './cardText';
+import { liveCardText } from './instView';
+import { abhorrentHorrorText, cadenceProgressText, drunkenOafText, cardSummonsImp, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonFlatZooText, summonImproveText, summonScalingText, shootingStarText, spellThresholdText, watcherText, shopBuffImproveText, perCardPlayedText, withImpStats } from './cardText';
 
 describe('stepProgress — Gemgorge Fiend’s cast meter (owner ask 2026-08-08)', () => {
   it('reads 0/3 on a fresh body and climbs with the casts IT witnessed', () => {
@@ -116,11 +117,12 @@ describe('cardText helpers', () => {
   });
 
 
-  // Grim was retext'd to a FLAT Echo buff on 2026-08-12, so no card uses `deathrattleBuffTribeByTally` any
-  // more — `tallyBuffText` returns null for every card, which the fallback test below now covers via Grim.
-  it('tallyBuffText falls back (null) on a non-tally card', () => {
-    expect(tallyBuffText('grim', 4)).toBeNull(); // Grim is no longer a tally-buff card
-    expect(tallyBuffText('sandbag', 5)).toBeNull(); // not a tally-buff card
+  // Grim is a per-game Echo tally card again (owner batch 2026-09-24), but its text is STATIC by owner ruling:
+  // "grim text doesnt need flavor. just Echo: Give your Beast Aura +3/+2 for every Echo triggered this game."
+  it('Grim prints its rate text on every surface, whatever the tally (owner ruling 2026-09-24)', () => {
+    const bag = { tier: 6, golden: false, spellBonus: 0, spellBonusH: 0, frontToBackBonus: 0, spellsThisTurn: 0, spellsCast: 0, deathrattlesTriggered: 9, undeadBuyAtk: 0, soulsmanGold: 0 };
+    expect(liveCardText('grim', bag as never).text).toBe('**Echo:** Give your **Beast Aura** **+3/+2** for every **Echo** triggered this game.');
+    expect(liveCardText('grim', { ...bag, golden: true } as never).goldenText).toBe('**Echo:** Give your **Beast Aura** **+6/+4** for every **Echo** triggered this game.');
   });
 
   it('run-wide metric helpers surface live values (Soulsman gold, Eternal Knight tally)', () => {
@@ -300,9 +302,10 @@ describe('live values on climbing / per-turn cards (owner ask 2026-07-29)', () =
     expect(perCardPlayedText('dw_foreman', 0), 'nothing played yet — printed rate stands').toBeNull();
     expect(perCardPlayedText('dw_foreman', 4, false)!).toContain('+1/+2**. Repeat for every card you played this turn {{(×5)}}');
     expect(perCardPlayedText('dw_foreman', 4, true)!).toContain('+2/+4**. Repeat for every card you played this turn {{(×5)}}');
-    // Striker stays the LUMP form: the total folded in place, the rate in the parenthetical.
-    expect(perCardPlayedText('dw3_striker', 4, false)!).toContain('{{+4 Attack}}');
-    expect(perCardPlayedText('dw3_striker', 4, false)!).toContain('(+1 Attack for each card you played this turn)');
+    // Striker moved to the REPEAT form too (owner 2026-09-24): per-tick rate printed, the live tick count appended.
+    expect(perCardPlayedText('dw3_striker', 0), 'nothing played yet — printed text stands').toBeNull();
+    expect(perCardPlayedText('dw3_striker', 4, false)!).toBe('**End of Turn:** give adjacent minions **+1 Attack**. Repeat for every card played this turn {{(×5)}}.');
+    expect(perCardPlayedText('dw3_striker', 2, true)!).toContain('**+2 Attack**. Repeat for every card played this turn {{(×3)}}');
   });
 });
 

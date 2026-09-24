@@ -481,7 +481,7 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'u')?.keywords).toContain('R'); // the highest-Attack friendly Undead got Rise
   });
 
-  it('Graverobber on Grim fires its Deathrattle out of combat (Grim buffs your Beasts +8/+8)', () => {
+  it('Graverobber on Grim fires its Deathrattle out of combat (Grim buffs your Beasts +3/+2 per Echo)', () => {
     let s: RunState = {
       ...createRun(1),
       board: [
@@ -493,12 +493,13 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'g' });
     s = reduce(reduce(s, { type: 'battlecryTarget', targetUid: 'grim' }), { type: 'resolveShopDeath' });
     expect(s.board.find((c) => c.uid === 'grim')).toBeUndefined(); // destroyed
-    // Grim's new Echo (2026-08-12): a flat +8/+8 to your Beasts → the surviving Beast gets +8/+8.
-    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 8);
+    // Grim's Echo (2026-09-24): +3/+2 per Echo this game, its own included → the first Echo pays +3/+2.
+    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 3);
+    expect(s.board.find((c) => c.uid === 'b')!.health).toBe(1 + 2);
   });
 
   it('Sylus the Reaper doubles a Graverobber-fired Deathrattle in the shop', () => {
-    // Grim's Echo (+8/+8 to Beasts) fires once + once per Sylus → the Beast gets +16/+16 with one Sylus.
+    // Grim's Echo fires once + once per Sylus; each fire reads the tally at death (1 Echo) → +3/+2 twice.
     let s: RunState = {
       ...createRun(1),
       board: [
@@ -510,7 +511,7 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'g' });
     s = reduce(reduce(s, { type: 'battlecryTarget', targetUid: 'grim' }), { type: 'resolveShopDeath' });
-    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 16); // +8/+8 fired twice (once + one Sylus)
+    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 6); // +3/+2 fired twice (once + one Sylus)
   });
 
   it("Graverobber's out-of-combat Echo counts toward a deathrattle (Echo) quest", () => {
@@ -1365,8 +1366,8 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'c' });
     const k = s.board.find((c) => c.uid === 'k')!;
-    // 2/12 + 3/3 (Cleric) + 3/3 (Karwind flat proc) = 8/18
-    expect([k.attack, k.health], 'Karwind flat +3/+3 proc').toEqual([8, 18]);
+    // 2/12 + 3/3 (Cleric) + 2/2 (Karwind flat proc, owner batch 2026-09-24: +3/+3 → +2/+2) = 7/17
+    expect([k.attack, k.health], 'Karwind flat +2/+2 proc').toEqual([7, 17]);
   });
 
   it('Karwind procs once per Battlecry fire — Drakko doubling triggers it twice', () => {
@@ -1385,7 +1386,7 @@ describe('run loop (@game/sim)', () => {
     // Cleric Battlecry fires 2× (+6/+6) and Karwind procs 2×, each proc paying a flat +3/+3.
     // What this test PINS is the proc COUNT (two fires, not one), so assert the gain is 2 procs' worth.
     const gain = k.attack - 2 - 6; // strip the base and the Cleric's own +6
-    expect(gain, 'two Karwind procs at flat +3 each').toBe(6);
+    expect(gain, 'two Karwind procs at flat +2 each').toBe(4);
     expect(k.health - 12 - 6).toBe(gain); // symmetric grant
   });
 

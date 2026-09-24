@@ -157,10 +157,11 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 5,
     health: 3,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard' } }],
-    // Wording aligned with Kurse's (owner 2026-09-24, text only: "Summon a Gemheart Golem with <whose> Rubies").
-    text: "**Echo:** Summon a **Gemheart Golem** with this minion's Rubies.",
-    goldenText: "**Echo:** Summon a **2/2 Gemheart Golem** with double this minion's Rubies.",
+    // Owner Ruby batch 2026-09-24: TWO Golems, EACH carrying this minion's Rubies (`golems: 2` on the shared body).
+    // Gilded: each is a 2/2 with double the Rubies (Carver's convention, per Golem).
+    effects: [{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard', golems: 2 } }],
+    text: "**Echo:** Summon **2 Gemheart Golems** with this minion's Rubies.",
+    goldenText: "**Echo:** Summon **2 2/2 Gemheart Golems** with double this minion's Rubies.",
   },
   {
     // Rubies APPLIED DURING COMBAT are worth double (triple Gilded) — owner spec 2026-07-25. Nothing happens
@@ -200,11 +201,12 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 4, // owner balance 2026-09-23: 3/3 → 4/3
     health: 3,
     keywords: ['T'],
-    // Owner rework 2026-07-31 (from "play a Ruby on adjacent"). The COUNT is fixed — a Gilded copy still
-    // summons 2 (the owner was explicit); gilding doubles the Rubies played on them instead.
-    effects: [{ on: 'onDeath', do: 'deathrattleSummonGolemsWithRuby', params: { count: 2, rubies: 1 } }],
-    text: '**Taunt.** **Echo:** summon **two** 1/1 **Gemheart Golems** with **Taunt**, and cast a **Ruby** on them.',
-    goldenText: '**Taunt.** **Echo:** summon **two** 1/1 **Gemheart Golems** with **Taunt**, and cast **2 Rubies** on them.',
+    // Owner Ruby batch 2026-09-24 (was two 1/1 Taunt Golems with a Ruby each): ONE Golem built like Carver's —
+    // a 1/1 plus THIS minion's Rubies — with Taunt. "Gilded doubles the rubies of the golem like other cards do":
+    // Carver's golden form, a 2/2 with double the Rubies. Geode keeps its own Taunt and stats.
+    effects: [{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard', keyword: 'T' } }],
+    text: "**Taunt.** **Echo:** Summon a **Gemheart Golem** with this minion's Rubies and **Taunt**.",
+    goldenText: "**Taunt.** **Echo:** Summon a **2/2 Gemheart Golem** with double this minion's Rubies and **Taunt**.",
   },
   {
     // Owner add 2026-08-11. A Ruby payoff that pays the whole Kobold line on death — the more Kobolds you
@@ -298,9 +300,12 @@ export const SET2_KOBOLDS: CardDef[] = [
     attack: 5,
     health: 6,
     keywords: ['T'],
-    effects: [{ on: 'onDamaged', do: 'onDamagedPlayRubiesSelfAndAdjacentTribe', params: { tribe: 'kobold', count: 1, permanent: true } }], // 3 → 1 (owner nerf 2026-09-20)
-    text: '**Taunt.** When this takes damage, play a **permanent Ruby** on this and adjacent **Kobolds**.',
-    goldenText: '**Taunt.** When this takes damage, play **2 permanent Rubies** on this and adjacent **Kobolds**.',
+    // Owner Ruby batch 2026-09-24: keeps Taunt and 5/6; the ability is now a PUMMEL (the damage-dealt meter Han
+    // Gover / Goldvein use): every 15 damage this deals gets a random Ruby (any of the six types), at most TWICE
+    // per combat. Gilded: 2 random Rubies per payout, still twice. The Rubies ride the combat carry-back to hand.
+    effects: [{ on: 'passive', do: 'dealtDamageGetRandomRuby', params: { every: 15, count: 1, maxPerCombat: 2 } }],
+    text: '**Taunt.** **Pummel (15):** Get a random **Ruby**. (Twice per combat)',
+    goldenText: '**Taunt.** **Pummel (15):** Get **2** random **Rubies**. (Twice per combat)',
   },
   {
     // Rally: each attack plays PERMANENT Rubies on itself. Golden doubles the count.
@@ -359,8 +364,12 @@ export const SET2_KOBOLDS: CardDef[] = [
     health: 7,
     keywords: [],
     token: true, // forge-only: Source = Rune
-    effects: [{ on: 'spellCastOnThis', do: 'getRubies', params: { count: 3 } }],
-    text: 'When you cast a **Shop spell** on this, get **3 Rubies**.',
-    goldenText: 'When you cast a **Shop spell** on this, get **6 Rubies**.',
+    // Owner Ruby batch 2026-09-24: "When you get a Ruby, also get a random Ruby" — every Ruby that reaches your
+    // hand, from any source in any phase (a combat-won Ruby lands at settle through the same mint), pays one
+    // random Ruby (all six types). A Ruby a Gem Sage granted never re-triggers a Gem Sage (the factory's own
+    // re-entrancy latch). Gilded: 2 random Rubies (judgement call, flagged in the PR).
+    effects: [{ on: 'onGetRuby', do: 'onGetRubyRandomRuby', params: { count: 1 } }],
+    text: 'When you get a **Ruby**, also get a random **Ruby**.',
+    goldenText: 'When you get a **Ruby**, also get **2** random **Rubies**.',
   },
 ];

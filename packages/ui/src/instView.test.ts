@@ -82,3 +82,16 @@ describe('liveCardText — the single source of truth shared by shop + combat', 
     expect(liveCardText('knit', { ...base, cardBuffs: { knit: { attack: 12, health: 6 } } }).text).toContain('{{3}} so far');
   });
 });
+
+describe('Goldilox — live text shows the gain it takes RIGHT NOW (owner 2026-09-24)', () => {
+  it('in hand it prints the doubled gain; on the board, in the shop and in combat the printed text is already exact', () => {
+    const printed = CARD_INDEX['dw3_goldilox']!.text;
+    expect(liveCardText('dw3_goldilox', base).text, 'shop offer / Discover').toBe(printed);
+    expect(liveCardText('dw3_goldilox', { ...base, onBoard: true }).text, 'board + combat').toBe(printed);
+    expect(liveCardText('dw3_goldilox', { ...base, inHand: true }).text).toBe('When you cast a **Shop spell**, gain **{{+6/+4}}** (2x while in hand).');
+  });
+  it('gilded: +6/+4 printed, +12/+8 live in hand', () => {
+    expect(liveCardText('dw3_goldilox', { ...base, golden: true }).goldenText).toBe(CARD_INDEX['dw3_goldilox']!.goldenText);
+    expect(liveCardText('dw3_goldilox', { ...base, golden: true, inHand: true }).goldenText).toContain('{{+12/+8}}');
+  });
+});

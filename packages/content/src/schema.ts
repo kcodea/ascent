@@ -233,6 +233,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellCastBuffAll',
   'battlecryGrantShoutDragon',
   'onTribeAttackBuffAttacker',
+  'rallyGrantKeywordRandomTribe', 'avengeGrantKeywordRandomTribe', 'onTribeAttackBuffAttackerAndSelf', 'onSummonBuffTribeAll', // owner beast/dragon batch 2026-09-24
   'onFriendlyDemonDamageBuffSelf',
   'scPlayRubiesSelfAndAdjacentTribe',
   'onDamagedPlayRubiesSelfAndAdjacentTribe', // Kobe (2026-09-18)
@@ -282,6 +283,11 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecryCastNamedSpell',
   'grantRandomChooseOne',
   'discoverChooseOne',
+  'discoverRuby',                    // Prismatic Pick (2026-09-24): Discover one of the special Rubies
+  'onGetRubyRandomRuby',             // Gem Sage (2026-09-24): when you get a Ruby, also get a random Ruby
+  'getRandomRubies',                 // Ruby Shipment (2026-09-24): get N random Rubies (all six types)
+  'battlecryPlayRubiesRandomTribe',  // Shardluck (2026-09-24): N Rubies, each on a random friendly Kobold
+  'onSummonCardPlayRubiesSelf',      // Gemheart Legionnaire (2026-09-24): a Golem summon plays permanent Rubies on this
   'armChooseBoth',
   'grantChooseBothCharges',
   'chooseOnePlayedPlayRubies',
@@ -540,6 +546,7 @@ export const EffectFactoryIdSchema = z.enum([
   // Set 3 Dwarves (2026-09-09)
   'minionSoldBuffSelf', 'endOfTurnBuffAdjacentPerCard', 'equipmentCastRandomAle', 'onTribeSummonedBuffRandomOthers',
   'deathrattleGoldNextTurn', 'onTribeGainAttackBuffSelf', 'equipmentCardDiscountWindow',
+  'shopSpellCastGrowSelf', // Goldilox (2026-09-24): Shop-pool spell cast → grows itself, 2× in hand, every phase
   'deathrattleBuffHandTribe', // R-HAND-02 (2026-09-09): buff hand minions of a tribe — permanent in both phases
   // Set 3 Undead (2026-09-09)
   'onRiseBuffSelfWard', 'onRiseBuffBoardAndHand', 'overflowBuffAllPermanent', 'deathrattleBuffRandomTribe',
@@ -593,6 +600,7 @@ export const EffectFactoryIdSchema = z.enum([
   // ── Set 3 Neutrals, owner handoff 2026-09-19 ──
   'onDamagedReflectRandomEnemies', // Yeti: the first time this takes damage each combat, deal that amount to N random enemies
   // ── Set 3 Kobolds, owner handoff 2026-09-19 ──
+  'dealtDamageGetRandomRuby',     // Kobe (2026-09-24): Pummel (15) — the same meter, a random-Ruby body
   'dealtDamageGrantRandomTribe',  // Maestro Lux (2026-09-24): Pummel (N) — the same meter, a random-tribe-minion body
   'dealtDamageGoldNextTurn',      // Goldvein: Pummel (N) — Han Gover's damage-dealt meter with a Gold-next-turn body, once per combat
 ]);
@@ -665,6 +673,7 @@ export const CardDefSchema = z.object({
   giftMulticast: z.boolean().optional(),
   ruby: z.boolean().optional(),
   rubyGrantKeyword: KeywordSchema.optional(),
+  rubyRider: z.enum(['gold', 'bounce', 'ripple', 'devour']).optional(),
   singleCast: z.boolean().optional(),
   cost: z.number().int().nonnegative().optional(),
   target: z.enum(['friendly', 'any']).optional(),
@@ -922,6 +931,7 @@ z.object({ kind: z.literal('consumeDoubleFirstEachTurn') }).strict(),
   z.object({ kind: z.literal('runeKindling') }).strict(),
   z.object({ kind: z.literal('runeScales') }).strict(),
   z.object({ kind: z.literal('runeLongShift') }).strict(),
+  z.object({ kind: z.literal('runeRubyDrip') }).strict(),
   z.object({ kind: z.literal('runeHappyBirthday') }).strict(),
   z.object({ kind: z.literal('runeMerryChristmas') }).strict(),
   z.object({ kind: z.literal('runeBartering') }).strict(),

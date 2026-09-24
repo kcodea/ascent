@@ -117,7 +117,7 @@ describe('the Audio panel', () => {
       slider.dispatchEvent(new Event('input', { bubbles: true }));
     });
     expect(getAnnouncerVolume()).toBeCloseTo(0.35);
-    expect(localStorage.getItem('ascent.announcervol')).toBe('0.35');
+    expect(localStorage.getItem('ascent.announcervol.v2')).toBe('0.35');
     expect(rows(ui.container)[2]!.querySelector('.evv')!.textContent).toBe('35');
     setAnnouncerVolume(0.9);
   });

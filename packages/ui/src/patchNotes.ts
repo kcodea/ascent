@@ -52,6 +52,222 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-24',
+    label: 'Leaderboard and Recent Games',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Recent Games has a new Practice tab with the latest practice games. The Leaderboard\'s Rank heading now lines up with the ranks.',
+        details: [
+          'The Rank heading on the Leaderboard now sits centred over the rank medal, name and bar.',
+          'Recent Games now has two tabs: Ranked (the games you saw before) and Practice.',
+          'Practice rows show the hero, final team, runes, placement and record, plus the opponents and Health you picked. Practice games have no replay to watch.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Beasts and Dragons',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Five new Set 2 minions: Raven, Tort, Flo Rida, Beev and Humphry. Grim and Wolvie reworked. Karwind, Mushy, Flutterdrake and Earthbreaker changed. Dunkey, Moira, Moonhowl Mentor and Embercrest are retired.',
+        details: [
+          'Raven (Beast, Tier 4, 4/6): Rally: give another Beast Execute.',
+          'Tort (Beast, Tier 5, 2/9): Avenge (4): give another Beast Execute.',
+          'Flo Rida (Beast, Tier 6, 7/5): When you summon a Beast, give your Beasts +4/+4. Playing a Beast counts as summoning it.',
+          'Beev (Beast, Tier 3, 4/4): When a Beast attacks, give it and this +2/+2.',
+          'Humphry (Dragon, Tier 3, 3/5): Shout: give a friendly Dragon +3/+4.',
+          'Grim is now Tier 5. Echo: give your Beast Aura +3/+2 for every Echo triggered this game. Its own Echo counts.',
+          'Wolvie keeps Taunt. Its Echo now gives a Beast +2/+4 and Rise.',
+          'Karwind is now Tier 4, and gives +2/+2 (was +3/+3).',
+          'Mushy and Flutterdrake are now Tier 4.',
+          'Earthbreaker is now Tier 3, and gives your Dragons +2/+1 per Shop spell (was +2/+3).',
+          'Retired: Dunkey, Moira, Moonhowl Mentor, Embercrest, and the Rune of the White Wolf.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Compendium Rubies',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The Spells section of the Compendium now lists every kind of Ruby.',
+        details: [
+          'The plain Ruby, Warding, Golden, Splintered, Ripple and Dark Rubies all show, in the sets that make Rubies.',
+          'They are Tier 1, so the Tier 1 filter and the search box find them like any spell.',
+          'During a run, a Ruby shows the grant it would give right now, your Ruby bonus included.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Ruby Types',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Four new kinds of Ruby join the Warding Ruby. Each does something extra when it lands on a Kobold. Several Kobold cards and runes now hand out random Rubies.',
+        details: [
+          'New Rubies: Golden Ruby (gain 2 Gold), Splintered Ruby (bounces once), Ripple Ruby (casts again) and Dark Ruby (eats the highest Health minion in the Shop as Rubies). Each gives +1/+1 and grows with your Ruby upgrades.',
+          'A random Ruby can be any of the six kinds, all equally likely.',
+          'Warding Ruby now gives +1/+2.',
+          'Ruby Shipment costs 2 and gets 2 random Rubies.',
+          'Kobe keeps Taunt. New ability: Pummel (15): get a random Ruby, twice per combat.',
+          'Shardluck is now Tier 6, 8/5: play 3 Rubies on your Kobolds, or cast Veinstorm 3 times.',
+          'Gemheart Carver summons 2 Golems. Geode Guardian summons 1 Golem with Taunt. Each Golem carries the Rubies.',
+          'Blast Pump casts a Ruby on all of your minions.',
+          'Prismatic Pick can now Discover a special Ruby.',
+          'New Kobolds: Gemheart Legionnaire (gets 5 Rubies whenever you summon a Gemheart Golem) and Dealski (gets 2 Rubies whenever you play a Choose One card).',
+          'Gem Sage: when you get a Ruby, also get a random Ruby.',
+          'Rune of Resonance: your Rubies always cast twice from hand, and you get a random Ruby at the start of each turn.',
+          'Rune of Investment is now an Epic rune and pays random Rubies.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Picnic effect',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Picnic now has its own cast effect. A burst of gems lands on the Shop minion it buffs, however it was cast.',
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Ruby Types',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Four new kinds of Ruby join the Warding Ruby. Each does something extra when it lands on a Kobold. Several Kobold cards and runes now hand out random Rubies.',
+        details: [
+          'New Rubies: Golden Ruby (gain 2 Gold), Splintered Ruby (bounces once), Ripple Ruby (casts again) and Dark Ruby (eats the highest Health minion in the Shop as Rubies). Each gives +1/+1 and grows with your Ruby upgrades.',
+          'A random Ruby can be any of the six kinds, all equally likely.',
+          'Warding Ruby now gives +1/+2.',
+          'Ruby Shipment costs 2 and gets 2 random Rubies.',
+          'Kobe keeps Taunt. New ability: Pummel (15): get a random Ruby, twice per combat.',
+          'Shardluck is now Tier 6, 8/5: play 3 Rubies on your Kobolds, or cast Veinstorm 3 times.',
+          'Gemheart Carver summons 2 Golems. Geode Guardian summons 1 Golem with Taunt. Each Golem carries the Rubies.',
+          'Blast Pump casts a Ruby on all of your minions.',
+          'Prismatic Pick can now Discover a special Ruby.',
+          'New Kobolds: Gemheart Legionnaire (gets 5 Rubies whenever you summon a Gemheart Golem) and Dealski (gets 2 Rubies whenever you play a Choose One card).',
+          'Gem Sage: when you get a Ruby, also get a random Ruby.',
+          'Rune of Resonance: your Rubies always cast twice from hand, and you get a random Ruby at the start of each turn.',
+          'Rune of Investment is now an Epic rune and pays random Rubies.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Kobolds and Dwarves',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'New Dwarf/Spirit Goldilox. Striker now repeats its buff. Pickles, Flagrunner, Tromboneer, Brunni and Kurse changed. Beggy is back, Gemsmith and Double Dealer are retired.',
+        details: [
+          'New: Goldilox, a Tier 3 Dwarf/Spirit 2/2. "When you cast a Shop spell, gain +3/+2. Gains 2x while in hand." Ales count. Rubies and Clues do not. It also grows from spells cast in combat, and those stats stay.',
+          'Striker now reads "End of Turn: give adjacent minions +1 Attack. Repeat for every card played this turn." It gives +1 even if you played nothing, then +1 more for each card.',
+          'Pickles is now Tier 2 and a 3/3 (was Tier 3, 5/3).',
+          'Flagrunner is now Tier 3 and a 5/4 (was Tier 4, 4/6).',
+          'Tromboneer is now Tier 3 and a 4/3 (was Tier 4, 6/3).',
+          'Brunni is now Tier 2 (was Tier 3). Same stats.',
+          'Kurse is now a Kobold and an Undead.',
+          'Beggy is back in the Kobold pool.',
+          'Gemsmith and Double Dealer are no longer in the game.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Casting a spell no longer makes your warband slide across the board.',
+        details: [
+          'Casting Growth, or any spell, could make every minion on your board slide in from the side.',
+          'It could happen after the game window changed size. Your minions now stay put when you cast.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The Compendium can now show any card set. Pick one from the new Set menu at the right of the tier bar.',
+        details: [
+          'The Compendium still opens on the set you are playing.',
+          'Choosing another set shows its minions, spells, tribes and runes.',
+          'Browsing a set never changes your run or the set new games use.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Runes tab of the Compendium has a new Neutral filter next to the tribe filters.',
+        details: ['Neutral shows the runes that do not need any tribe. It combines with the tribe filters.'],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The Announcer has lots of new lines for big moments in your game.',
+        details: [
+          'Knock another player out with your fight and the Announcer calls it. This can happen twice in a game.',
+          'New lines for a big 15 damage hit, a win after three losses in a row, and a win where none of your minions died.',
+          'New lines for three golden minions on your board, your first pair, and buying four of one tribe in a turn.',
+          'New lines for starting a turn with 20 Gold, spending 20 Gold with 10 still left, and a Shop minion passing 50 Attack.',
+          'Some buys, and round 7, have a small chance to get a surprise line.',
+          'The Three Win Streak line has a second take. A wrong Top Two take was removed.',
+          'Most lines still play once per game at most, with a pause between lines. Up to 15 lines per game, plus the final result.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'New default audio mix. Game sounds, Music and Announcer all start at 50, and 50 is now a balanced mix.',
+        details: [
+          'Music sits lower and the Announcer a little higher at 50 than the game sounds, so the three blend well out of the box.',
+          '100 is still full volume on every channel, and 0 is still silent.',
+          'Your volume sliders reset to 50 once with this update. Your mute choices are kept.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Set 3 has a leaner Runeforge. 54 runes no longer appear there. The other sets keep them.',
+        details: [
+          'Kobold runes cut from Set 3: Contraband, Facetwright, Gemcutting, the Lapidary, Redirection, Ruby Shrapnel, the Unbroken Vein and Shifting Facets.',
+          'Dwarf runes cut from Set 3: Last Call, Shared Pour, Baal, the Chef, Mykel and Runic Exchange.',
+          'Undead runes cut from Set 3: Pillaging, Rising Graves, Soul Taxes and the Grave Orbit.',
+          'Spirit rune cut from Set 3: the Full Hand. Other rune cut from Set 3: Aftershocks.',
+          'Every Dragon, Beast, Demon and Mech rune is now out of Set 3, since Set 3 has none of those types.',
+          'The Grave Orbit and the Full Hand were only in Set 3, so no Runeforge offers them for now.',
+          'Set 3 now forges 120 Basic runes and 107 Epic runes.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     changes: [
       {
         category: 'Systems',

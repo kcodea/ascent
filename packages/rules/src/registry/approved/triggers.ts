@@ -283,7 +283,7 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'with a fresh pick per Moss tick. Kringle\'s text moved to the repeat form and its magnitude from n to n + 1 '
       + 'ticks (a balance change, stated in the patch note). Squirl Scout and Dragonflame (shop cast) were already '
       + 'per-repeat in the sim and now emit one tagged buff-FX event per repeat, paced apart on the play path. '
-      + 'Striker keeps its LUMP text and its n itemized waves inside one beat; Baby Gastrid is one instance. Rocket '
+      + 'Striker kept its LUMP text until 2026-09-24, when the owner moved it to the REPEAT form too (R-REPEAT-03); Baby Gastrid is one instance. Rocket '
       + 'Power ("give this shop +3/+3. Repeat for every Shop spell you cast this turn") resolves as 1 + spells ticks '
       + 'in the sim (review fix 2026-09-22): one buffThisShopOffers call per tick at the per-tick rate, so the offer '
       + 'ledger counts the ticks (Inspect prints "Rocket Power x3") and the bought body inherits that count; the '
@@ -426,6 +426,143 @@ export const TRIGGERS_RULES: GameRule[] = [
       kind: 'scenario',
       refs: ['packages/sim/src/balance923MinionReworks.test.ts', 'packages/sim/src/set2NewMinionsAug18.test.ts'],
       lastVerifiedAt: '2026-09-23',
+    },
+  },
+  {
+    id: 'R-REPEAT-03',
+    title: 'Striker is the REPEAT form: +1 Attack to its neighbours once, then once more per card played, each its own tick',
+    statement:
+      'Striker reads "End of Turn: give adjacent minions +1 Attack. Repeat for every card played this turn" and resolves '
+      + 'by R-REPEAT-01: the base +1 Attack lands on both neighbours once, then once more for every card played this '
+      + 'turn (minions and spells, Striker\'s own play included), 1 + count ticks, each its own state delta, buff-FX wave '
+      + 'and beat. A turn with nothing played still pays the base once. The neighbours are read per tick. Gilding '
+      + 'doubles the per-tick grant (+2 Attack), never the tick count. "When a Dwarf gains Attack" watchers react once '
+      + 'per tick. The live text prints the per-tick grant as written and the number of ticks it will land right now.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner card batch 2026-09-24 (Kobold / Dwarf batch)', quote: 'Striker: "End of Turn: Give adjacent minions +1 attack. Repeat for every card played this turn."' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts endOfTurnBuffAdjacentPerCard (forEachTick + eotRepeatTick) and eotTickCount; packages/ui/src/cardText.ts perCardPlayedText' },
+    ],
+    cardText: '**End of Turn:** give adjacent minions **+1 Attack**. Repeat for every card played this turn.',
+    contentIds: ['dw3_striker'],
+    currentBehaviour:
+      'Conforms (built with the change, 2026-09-24). Striker was the LUMP form (n waves of +1, no base tick, one beat); '
+      + 'it now shares Kringle\'s per-tick path, so the commit, the projection and the beat list agree on 1 + cards '
+      + 'played ticks through the one `eotTickCount`.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/repeatPerTick.test.ts', 'packages/sim/src/set3Dwarves.test.ts', 'packages/ui/src/cardText.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
+  {
+    id: 'R-SHOPSPELL-01',
+    title: '"When you cast a Shop spell" (Goldilox) hears a Shop-pool spell from any source, in any phase, on the board and in the hand',
+    statement:
+      'A Shop spell is a spell from the set\'s Shop-spell pool, Dwarven Ales included. A Ruby, a Clue or other Gift, and '
+      + 'a reward or token spell are not Shop spells and never count. Goldilox ("When you cast a Shop Spell, gain +3/+2. '
+      + 'Gains 2x while in hand.") grows on EVERY such cast, whoever casts it (the player from hand, a rune, an Equipment, '
+      + 'a minion, an End-of-Turn cast, a repeat) and in every phase (Shop, End of Turn, combat). On the board it gains '
+      + '+3/+2 per cast, in the hand +6/+4; gilding doubles both. Every gain is permanent: a combat gain on the board '
+      + 'carries back to the run card, and a combat gain in the hand is a hand buff (R-HAND-02), shown live in the replay. '
+      + 'Only the caster\'s own side counts. The live text in the hand prints the doubled gain.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner card batch 2026-09-24 (Kobold / Dwarf batch) — Goldilox', quote: 'shop spells cast from anywhere count, not rubies, clues or generic spells. just a heads up - ales ARE shop spells. they do count. also, this should work in combat, so if spells are cast in combat, goldilox gains stats and those stats are permanent per our rules for hand granted stats in combat.' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts castInCombat (the per-repetition identity probe) / withCastingSpell / isShopPoolSpell / shopSpellGrowth / shopSpellCastGrowSelf; packages/core/src/combat/simulate.ts ctx.spellResolved; packages/sim/src/recruit.ts shopSpellCastGrowSelf, noteSpellCast (hand watchers) and fireShopSpellGrowers (the End-of-Turn minion casts)' },
+    ],
+    cardText: 'When you cast a **Shop spell**, gain **+3/+2**. Gains **2x** while in hand.',
+    contentIds: ['dw3_goldilox'],
+    currentBehaviour:
+      'Conforms (built with the card, 2026-09-24). The shop pays through `noteSpellCast` (board and `alsoInHand` hand '
+      + 'watchers), plus the three legacy End-of-Turn minion casts that bypass it; combat pays after each cast '
+      + 'repetition resolves, once its spell is known. The legacy End-of-Turn minion casts (Soul Defiler, Rope Wrangler, '
+      + 'Arnold) still skip the OTHER `spellCast` watchers and runes; routing them through `noteSpellCast` is a separate, '
+      + 'wider change.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/goldilox.test.ts', 'packages/ui/src/instView.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
+  {
+    id: 'R-RUBY-02',
+    title: 'A special Ruby\'s Kobold rider resolves once per cast on its target; hops carry only stats and Ward',
+    statement:
+      'Golden, Splintered, Ripple and Dark Rubies are ordinary Rubies (their grant is the printed base plus every '
+      + 'Ruby improvement in force) with a rider that fires only when the Ruby\'s TARGET is a Kobold (a dual-tribe or '
+      + 'All-types body counts). The rider resolves once per cast, after the stats land: Golden gains 2 Gold; '
+      + 'Splintered bounces the Ruby once to a random other friendly minion (Resonance Idol\'s hop, never doubled '
+      + 'by a Gilded target); Dark consumes the Shop minion with the highest Health (ties: the leftmost; the '
+      + 'Starform counts, as it does for every Shop consume) and adds its stats to the target as Rubies, or does '
+      + 'nothing more with no Shop minion; Ripple casts the Ruby again on the same target, a real second cast that '
+      + 'counts for every Ruby and spell tally but never ripples a third time. A cast multiplier (Rune of '
+      + 'Resonance, Prismcaster, Yazzus, a Comet charge) repeats the whole cast, rider included: under Resonance a '
+      + 'Ripple lands four times, a Golden pays 4 Gold, a Splintered bounces twice, a Dark eats twice. A HOP (a '
+      + 'Splintered bounce, a Resonance Idol or Candle Conduit hop, Rune of Redirection / Distillation) carries '
+      + 'the stats and the Ward rider only, never the Gold, bounce, ripple or consume.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Ruby batch handoff, 2026-09-24', quote: 'Give a minion +1/+1. If it is a Kobold, it casts again.' },
+      { kind: 'owner-chat', ref: 'Ruby batch handoff, 2026-09-24', quote: 'Give a minion +1/+1. If it is a Kobold, it consumes the highest health minion in the shop as Rubies.' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts play-Ruby branch (riderKobold / ripple landings); packages/sim/src/recruit.ts applyRubyRiderAction (gold / bounce / devour) + recordRubyRiderFx' },
+    ],
+    contentIds: ['golden-ruby', 'splintered-ruby', 'ripple-ruby', 'dark-ruby', 'rune_resonance'],
+    currentBehaviour:
+      'Conforms as of 2026-09-24 (new content). No combat source casts a special Ruby today: they only reach play '
+      + 'from the hand in the Shop, so the riders live on the Shop cast path.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/rubyTypes.test.ts', 'packages/sim/src/wardingRubyBounce.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
+  {
+    id: 'R-RUBY-03',
+    title: 'Gem Sage pays a random Ruby for every Ruby you get, from any source, and never for its own',
+    statement:
+      'Whenever a Ruby reaches your hand (a Shop mint, a Discover pick, a Rune, a Ruby won in combat and minted at '
+      + 'settle), each Gem Sage on your board gets you a random Ruby (two if Gilded). A Ruby granted by any Gem Sage '
+      + 'never triggers a Gem Sage, so two Sages turn one Ruby into three, never a loop.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Ruby batch follow-up, 2026-09-24', quote: 'this grants a random ruby from the pool of 6 whenever a player gets a ruby added to hand. recruit, shop etc all count. doesn\'t trigger off itself or copies of itself.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts onGetRubyRandomRuby (the gemSageMinting latch) via fireOnRubyGained / mintRubies' },
+    ],
+    contentIds: ['k_gemsage'],
+    currentBehaviour: 'Conforms as of 2026-09-24.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/rubyTypes.test.ts'], lastVerifiedAt: '2026-09-24' },
+  },
+  {
+    id: 'R-ECHOTALLY-01',
+    title: 'Grim counts every Echo triggered this GAME, its own included, in the Shop and in combat',
+    statement:
+      'Grim ("Echo: give your Beast Aura +3/+2 for every Echo triggered this game") pays N x (+3/+2), gilded N x (+6/+4), '
+      + 'where N is the run-wide Echo tally: every Echo triggered this game, in the Shop, at End of Turn and in every '
+      + 'combat so far (each extra trigger from Sylus, Zyff, Elderhorn and the like counts), PLUS this fight\'s Echoes '
+      + 'so far. The tally is bumped before an Echo fires, so Grim\'s own Echo is in its N; an extra re-fire of the '
+      + 'same death reads the tally at death. The printed text is STATIC by owner ruling (an exception to the live-value '
+      + 'default): no live total and no count on any surface.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner Beast/Dragon batch 2026-09-24', quote: 'Grim: "Echo: Give your Beast aura +3/+2 for every Echo triggered this game." Grim\'s own Echo counts, so it gives N x (+3/+2), where N includes itself.' },
+      { kind: 'owner-handoff', ref: 'Owner correction 2026-09-24 (Grim text)', quote: 'grim text doesnt need flavor. just Echo: Give your Beast Aura +3/+2 for every Echo triggered this game.' },
+      { kind: 'code', ref: 'packages/core/src/effects/arena.ts deathrattleBuffTribeByTally; packages/core/src/combat/simulate.ts deathrattleTally + bumpDeathrattles; packages/sim/src/recruit.ts deathrattlesTriggered (bumped before the shop fire); packages/content/src/cards/set1/beasts.ts grim (static text, owner ruling)' },
+    ],
+    cardText: '**Echo:** Give your **Beast Aura** **+3/+2** for every **Echo** triggered this game.',
+    contentIds: ['grim'],
+    currentBehaviour:
+      'Conforms (built with the rework, 2026-09-24). Reuses the existing run tally `deathrattlesTriggered` (carried back '
+      + 'from combat as `playerDeathrattles`). Known asymmetry kept: an ENEMY Grim reads its snapshot\'s frozen tally.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/beastDragonBatch0924.test.ts', 'packages/core/src/combat/simulate.test.ts', 'packages/ui/src/cardText.test.ts'],
+      lastVerifiedAt: '2026-09-24',
     },
   },
 ];

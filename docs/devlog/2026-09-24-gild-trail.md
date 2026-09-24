@@ -99,10 +99,16 @@ goes through the same helper, unchanged. Verified live afterwards on a stable 12
 slides in from exactly its old slot (-103px) and one that did not move does not slide; a no-drag shop removal
 still slides +/-52px.
 
-Also: a **window resize** now forgets the last sweep. The first live check swept the warband in from ~630px
-away, because the pane grew between two commits (a hidden preview pane has a tiny viewport). In play that is a
-real window resize, and it flung cards on a plain sell too. Now the first commit after a resize just doesn't
-slide.
+Also: a **window resize** flung cards. The first live check swept the warband in from ~630px away, because the
+pane grew between two commits (a hidden preview pane has a tiny viewport). In play that is a real window resize,
+and it flung cards on a plain sell too.
+
+**Merged with R-PRESENT-14** (landed on main the same day, on the same RowFlip branch, for "casting Growth moves
+the warband"). That fix made the sweep carry the row KEY, so `commitFlipDeltas` (`commitFlip.ts`) returns deltas
+only when the rows changed, and it added its own resize listener that drops the sweep. The merge keeps both rules:
+`commitFlipDeltas` decides HOW FAR (and whether anything moved), and `commitSlidePlan` now only decides WHICH ROW
+(the drop's other row). My duplicate resize listener was removed in favour of R-PRESENT-14's. `rowSlides.test.ts`
+composes the two.
 
 ## Tuning it
 

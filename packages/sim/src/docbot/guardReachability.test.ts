@@ -125,6 +125,7 @@ const FIXTURES: Record<string, Fixture> = {
     make: () => ({ s: base({ setId: 'set3', board: [onBoard(anyMinion(), 'm1')], playedThisTurn: [findMinion('a Spirit', (d) => d.tribe === 'spirit').id] }) }),
   },
   rubyexcavation: { arms: 'spellPlayRubiesAll: a minion on the board', make: () => ({ s: base({ setId: 'set2', board: [onBoard(anyMinion(), 'm1')] }) }) },
+  rubyblast: { arms: 'spellPlayRubiesAll (Blast Pump payload, 1 Ruby each): a minion on the board', make: () => ({ s: base({ setId: 'set3', board: [onBoard(anyMinion(), 'm1')] }) }) },
 
   // ── fizzle-table: shop-facing ───────────────────────────────────────────────────────────────────────
   lasso: {

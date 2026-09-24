@@ -133,6 +133,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // → 1262 (2026-09-20, the six MEDAL CRESTS for the ranked ladder — Bronze, Silver, Gold, Platinum, Diamond,
     // Ascendant — in a NEW `art/ranks/` dir the walk picks up automatically. +6, no PNG masters committed; the
     // masters stay under `C:\Game Assets\Ascent Art\Ranks\`.)
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1262);
+    // → 1268 (2026-09-24, the beast/dragon batch: +5 minion art — Raven, Tort, Flo Rida, Beev, Humphry — measured
+    // against origin/main's 1258 after the Ruby batch.)
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1268);
   });
 });

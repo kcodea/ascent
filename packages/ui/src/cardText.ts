@@ -1,4 +1,4 @@
-import { damageMeterOf, damageMeterReading, type Tribe } from '@game/core';
+import { damageMeterOf, damageMeterReading, shopSpellGrowth, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { chooseOneBranchText } from '@game/sim';
 
@@ -1051,25 +1051,6 @@ export function cardTypeTallyText(cardId: string, enchant: { attack: number; hea
 }
 
 /**
- * Grim's Deathrattle ("+2/+2 per Deathrattle triggered this game") shows its *current* magnitude from
- * the live run tally — the printed "+2/+2" becomes the real "+N/+N" (N = tally × per × golden), highlighted
- * green. Returns null for non-tally cards or a zero tally (falls back to the printed value).
- *
- * `golden` matters because the factory multiplies by `mul(self)` — a Gilded Grim really does grant double,
- * and rewriting the GOLDEN text keeps the live number honest on a gilded copy (the hard live-text rule).
- */
-export function tallyBuffText(cardId: string, deathrattlesTriggered: number, golden = false): string | null {
-  if (deathrattlesTriggered <= 0) return null;
-  const def = CARD_INDEX[cardId];
-  const eff = def?.effects.find((e) => e.do === 'deathrattleBuffTribeByTally');
-  if (!def || !eff) return null;
-  const per = Number((eff.params as { per?: number })?.per ?? 1);
-  const n = deathrattlesTriggered * per * (golden ? 2 : 1);
-  const base = (golden && def.goldenText) || def.text;
-  return base.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${n}/+${n}}}`);
-}
-
-/**
  * Baby Gastrid (ex-Quartermaster Dorrin) — "+N Health per Gold spent this turn" folded into the ACTUAL Health it will grant now.
  *
  * The hard rule (CLAUDE.md): a card whose magnitude depends on live run state prints the number it will really
@@ -1078,14 +1059,11 @@ export function tallyBuffText(cardId: string, deathrattlesTriggered: number, gol
  * itself.
  */
 /**
- * Kringle (ex-Closing-Time Foreman) and Striker — the "cards played this turn" End-of-Turn pair, two PATTERNS
- * (owner ruling 2026-09-22, R-REPEAT-01):
- *
- *   - Striker is the LUMP form ("+1 Attack for each card you played this turn"): one instance whose magnitude is
- *     the count × the rate, so the live text folds the TOTAL in place and keeps the rate in the parenthetical.
- *   - Kringle is the REPEAT form ("give … +1/+2. Repeat for every card you played this turn"): the base +1/+2
- *     lands once, then once more per card, each its own tick — so the per-tick rate IS the printed number and
- *     the live count is how many times it lands: `(×N)`, N = 1 + cards played, Mother Moss's house style.
+ * Kringle (ex-Closing-Time Foreman) and Striker — the "cards played this turn" End-of-Turn pair, both the REPEAT
+ * form (owner ruling 2026-09-22, R-REPEAT-01; Striker moved from the lump form 2026-09-24): "give … +1/+2. Repeat
+ * for every card you played this turn" — the base lands once, then once more per card, each its own tick — so
+ * the per-tick rate IS the printed number and the live count is how many times it lands: `(×N)`, N = 1 + cards
+ * played, Mother Moss's house style.
  *
  * Same rule as `perGoldSpentText` underneath: a live magnitude prints what it will really produce. Nothing
  * played yet means the printed text is already exact, so it stands.
@@ -1106,12 +1084,27 @@ export function perCardPlayedText(cardId: string, cardsPlayedThisTurn: number, g
   const rate = perH > 0 ? `+${perA}/+${perH}` : `+${perA} Attack`;
   // Plain parentheses, no `_italics_` — the Card renderer only knows **bold**, so underscores print literally.
   if (eff.do === 'endOfTurnBuffAdjacentPerCard') {
-    const grant = perH > 0 ? `+${perA * cardsPlayedThisTurn}/+${perH * cardsPlayedThisTurn}` : `+${perA * cardsPlayedThisTurn} Attack`;
-    return `**End of Turn:** give adjacent minions **{{${grant}}}** (${rate} for each card you played this turn).`;
+    // Striker, the REPEAT form (owner 2026-09-24): the per-tick grant as printed, the live tick count appended.
+    return `**End of Turn:** give adjacent minions **${rate}**. Repeat for every card played this turn {{(×${1 + cardsPlayedThisTurn})}}.`;
   }
   // Kringle, the REPEAT form: the per-tick grant stays as printed and the live count says how many ticks land
   // right now (the base plus one per card played). Both ENDS of the Dwarf line (owner change 2026-08-28).
   return `**End of Turn:** give your **left and right-most Dwarves ${rate}**. Repeat for every card you played this turn {{(×${1 + cardsPlayedThisTurn})}}.`;
+}
+
+/**
+ * Goldilox (owner 2026-09-24): "When you cast a Shop spell, gain +3/+2. Gains 2x while in hand." The live value is
+ * WHERE the card sits: in the hand every cast pays double, so the hand copy prints the doubled gain it will really
+ * take (`{{+6/+4}}`, gilded `{{+12/+8}}`). On the board, in the shop and in combat the printed text is already
+ * exact, so it stands (null). The number comes from `shopSpellGrowth`, the same function the sim pays with.
+ */
+export function shopSpellGrowthText(cardId: string, golden: boolean, inHand: boolean | undefined): string | null {
+  if (!inHand) return null;
+  const eff = CARD_INDEX[cardId]?.effects.find((e) => e.do === 'shopSpellCastGrowSelf');
+  if (!eff) return null;
+  const g = shopSpellGrowth(eff.params, golden, true);
+  const hm = Number(eff.params?.handMult ?? 1);
+  return `When you cast a **Shop spell**, gain **{{+${g.attack}/+${g.health}}}** (${hm}x while in hand).`;
 }
 
 export function perGoldSpentText(cardId: string, goldSpentThisTurn: number, golden = false): string | null {

@@ -259,6 +259,9 @@ export interface EffectArena {
   /** Get `count` Rubies in hand (combat: the grant channel, minted at settle with the run's live Ruby
    *  power; shop: `mintRubies` right now — the same line, same bonus). */
   grantRubies(count: number): void;
+  /** Get `count` RANDOM Rubies (each drawn separately from all six types, `RUBY_TYPE_IDS`) — combat: the
+   *  carry-back channel (`grantRandomRubies`); shop: `mintRandomRubies` on the run cursor. */
+  grantRandomRubies(count: number): void;
   /** Get `count` random SHOUT minions (a real `onPlay`) from the run's pinned pool, tier-capped. */
   grantRandomShoutMinion(count: number): void;
   /** Does this body carry an effect on `on` (optionally with a specific `do`)? Combat reads the LIVE
@@ -413,10 +416,20 @@ export const ARENA_EFFECTS = {
     const g = arena.self.golden ? 2 : 1;
     const t = arena.rubyTallyOf(arena.self);
     const id = typeof params.tokenId === 'string' && params.tokenId ? params.tokenId : 'gemheart-shard';
+    // `golems` (Gemheart Carver, owner Ruby batch 2026-09-24: "Summon 2 Gemheart Golems with this minion's Rubies"):
+    // EACH Golem carries the full tally — the Rubies are copied, not split. `keyword` (Geode Guardian, same batch:
+    // "... with this minion's Rubies and Taunt") rides every Golem. Gilded is the Carver convention for each one:
+    // a 2/2 body with double the Rubies. Board full = the rest are lost, like any summon.
+    // NOT `count`: Kurse's Avenge rides this body with `count` = its Avenge threshold (3).
+    const count = Math.max(1, num(params.golems, 1));
+    const keyword = typeof params.keyword === 'string' && params.keyword ? params.keyword : undefined;
     // `charge` (Kurse, owner 2026-09-24: "It attacks immediately."): the Golem swings the moment it lands via the
     // immediate-attack lane (combat `attackNow`; meaningless in a shop, where the adapter ignores it). Carver
     // leaves it off — its Golem waits its turn.
-    arena.summonToken(id, { attack: (1 + t.attack) * g, health: (1 + t.health) * g, rubyLabel: true, charge: params.charge === true });
+    for (let i = 0; i < count; i++) {
+      const made = arena.summonToken(id, { attack: (1 + t.attack) * g, health: (1 + t.health) * g, rubyLabel: true, charge: params.charge === true, ...(keyword ? { keyword } : {}) });
+      if (!made) break;
+    }
   },
 
   /** Geode Guardian — Echo: summon `count` Golems (default 2, NOT golden-scaled — owner: a Gilded copy still
@@ -531,17 +544,21 @@ export const ARENA_EFFECTS = {
     for (const f of arena.friends()) arena.buff(f, a, h);
   },
 
-  /** Grim — Echo: your minions of `tribe` gain +N/+N where N = Echoes triggered × `per` (golden doubles),
-   *  plus a rest-of-combat aura so later summons inherit it (a shop no-op by design). */
+  /** Grim — Echo: give your `tribe` Aura +A/+H for every Echo triggered this game (golden doubles). The rate is
+   *  `attack`/`health` (or the legacy symmetric `per`); the tally is the run-wide `deathrattlesTriggered` (plus
+   *  this fight's Echoes in combat), bumped BEFORE the rattle fires, so Grim's own Echo counts (owner ruling
+   *  2026-09-24). Buffs the living tribe INCLUDING a still-living self (a proc'd Echo, the `deathrattleBuffTribe`
+   *  membership rule) and registers a rest-of-combat aura (a shop no-op by design). */
   deathrattleBuffTribeByTally(arena: EffectArena, params: Record<string, unknown>): void {
     const tribe = typeof params.tribe === 'string' && params.tribe ? params.tribe : 'any';
-    const amount = arena.deathrattleTally()
-      * (typeof params.per === 'number' ? params.per : 1)
-      * (arena.self.golden ? 2 : 1);
-    if (amount <= 0) return;
-    arena.addTribeAura(tribe, amount, amount);
+    const per = typeof params.per === 'number' ? params.per : 1;
+    const n = arena.deathrattleTally() * (arena.self.golden ? 2 : 1);
+    const a = n * (typeof params.attack === 'number' ? params.attack : per);
+    const h = n * (typeof params.health === 'number' ? params.health : per);
+    if (a <= 0 && h <= 0) return;
+    arena.addTribeAura(tribe, a, h);
     for (const f of arena.friends()) {
-      if (f.uid !== arena.self.uid && (tribe === 'any' || arena.isTribe(f, tribe))) arena.buff(f, amount, amount);
+      if (tribe === 'any' || arena.isTribe(f, tribe)) arena.buff(f, a, h);
     }
   },
 
@@ -788,9 +805,34 @@ export const ARENA_EFFECTS = {
     const g = arena.self.golden ? 2 : 1;
     const a = (typeof params.attack === 'number' ? params.attack : 2) * g;
     const h = (typeof params.health === 'number' ? params.health : 2) * g;
+    const kw = typeof params.keyword === 'string' ? params.keyword : '';
     const pool = arena.friends().filter((f) => f.uid !== arena.self.uid && (!tribe || arena.isTribe(f, tribe)));
     if (pool.length === 0) return;
-    arena.buff(pool[arena.rng().int(pool.length)]!, a, h);
+    if (!kw) {
+      arena.buff(pool[arena.rng().int(pool.length)]!, a, h);
+      return;
+    }
+    // KEYWORD RIDER (Wolvie, owner batch 2026-09-24: "Echo: Give a Beast +2/+4 and Rise"): the stats AND the
+    // keyword land on the same random other friend. Golden doubles the stats and, by the house keyword-grant
+    // convention, picks 2 DIFFERENT bodies. A body that already has the keyword (for Rise: `hasReborn`, which
+    // folds a spent combat Rise) is picked only when no body lacks it, so the keyword is never wasted while a
+    // fresh target exists; the stats still land either way.
+    const has = (f: ArenaBody): boolean => (kw === 'R' ? arena.hasReborn(f) : f.keywords.includes(kw));
+    const rng = arena.rng();
+    const picked = new Set<string>();
+    for (let i = 0; i < g; i++) {
+      const left = pool.filter((f) => !picked.has(f.uid));
+      if (left.length === 0) return;
+      const fresh = left.filter((f) => !has(f));
+      const from = fresh.length > 0 ? fresh : left;
+      const t = from[rng.int(from.length)]!;
+      picked.add(t.uid);
+      arena.buff(t, a, h);
+      if (!has(t)) {
+        if (kw === 'R') arena.grantReborn(t);
+        else arena.grantKeywordTo(t, kw);
+      }
+    }
   },
 
   /** Lodestar (set 3 Celestials, 2026-09-12) — Echo: a RANDOM friendly minion of `tribe` gains this body's MAX
@@ -1498,6 +1540,32 @@ export const ARENA_EFFECTS = {
     arena.playRubiesOn(arena.self, num(params.count, 1) * gold(arena), params.permanent === true);
   },
 
+  /** Shardluck (owner Ruby batch 2026-09-24) — "Play 3 Rubies on your Kobolds": `count` (x golden) PLAIN Rubies,
+   *  EACH on a random OTHER friendly `tribe` minion, drawn per Ruby so a spread is real. A random pick is a CHOICE,
+   *  so the source is never in the pool (R-TARGET-03: no fallback to self — alone, nothing lands). `isTribe`
+   *  counts dual tribes and All-types bodies. */
+  battlecryPlayRubiesRandomTribe(arena: EffectArena, params: Record<string, unknown>): void {
+    const named = params.tribe;
+    const tribe = typeof named === 'string' ? named : '';
+    const total = num(params.count, 1) * gold(arena);
+    const rng = arena.rng();
+    for (let i = 0; i < total; i++) {
+      const pool = arena.friends().filter((m) => m.uid !== arena.self.uid && (!tribe || arena.isTribe(m, tribe)));
+      if (pool.length === 0) return;
+      arena.playRubiesOn(pool[rng.int(pool.length)]!, 1);
+    }
+  },
+
+  /** Gemheart Legionnaire (owner Ruby batch 2026-09-24) — "When you summon a Gemheart Golem, this casts 5
+   *  permanent Rubies on itself." Any source, any phase: the watcher hears every friendly `onSummon` and checks
+   *  the arriver's card id. PERMANENT, so a combat Golem's Rubies carry back to the run card. Golden doubles. */
+  onSummonCardPlayRubiesSelf(arena: EffectArena, params: Record<string, unknown>): void {
+    const arriver = params.arriver as ArenaBody | undefined;
+    const cardId = typeof params.cardId === 'string' && params.cardId ? params.cardId : 'gemheart-shard';
+    if (!arriver || arriver.uid === arena.self.uid || arriver.cardId !== cardId) return;
+    arena.playRubiesOn(arena.self, num(params.count, 5) * gold(arena), true);
+  },
+
   /** Blazer — Rally: play `count` PERMANENT Rubies on EVERY friendly minion (× golden). */
   rallyPlayRubiesAll(arena: EffectArena, params: Record<string, unknown>): void {
     const per = num(params.count, 1) * gold(arena);
@@ -1661,6 +1729,54 @@ export const ARENA_EFFECTS = {
     const tribe = str(params.tribe);
     if (tribe && !arena.isTribe(attacker, tribe)) return;
     arena.castNamedSpell(str(params.spellId));
+  },
+
+  /** Raven (Rally) / Tort (Avenge) — "give another Beast Execute" (owner batch 2026-09-24): grant `keyword` to a
+   *  RANDOM other friendly `tribe` minion that still LACKS it (the Toxin Tender / Gravewarden rule: never wasted
+   *  on a body that already has it, never itself). Golden grants it to 2 different bodies. Seeded RNG in both
+   *  phases; no legal target is a quiet no-op. */
+  rallyGrantKeywordRandomTribe(arena: EffectArena, params: Record<string, unknown>): void {
+    const kw = str(params.keyword);
+    if (!kw) return;
+    const tribe = str(params.tribe);
+    const rng = arena.rng();
+    for (let i = 0; i < gold(arena); i++) {
+      const pool = others(arena, (m) => !m.keywords.includes(kw) && (!tribe || arena.isTribe(m, tribe)));
+      if (pool.length === 0) return;
+      arena.grantKeywordTo(rng.pick(pool), kw);
+    }
+  },
+
+  /** Beev (owner batch 2026-09-24) — "When a Beast attacks, give it and this +2/+2": whenever a friendly `tribe`
+   *  minion attacks (this one included), buff THE ATTACKER and THIS body (golden doubles). When Beev is the
+   *  attacker, "it" and "this" are one body, so it gains the grant once. */
+  onTribeAttackBuffAttackerAndSelf(arena: EffectArena, params: Record<string, unknown>): void {
+    const attacker = params.attacker as ArenaBody | undefined;
+    if (!attacker || !arena.isTribe(attacker, str(params.tribe))) return;
+    const g = gold(arena);
+    const a = num(params.attack, 2) * g;
+    const h = num(params.health, 2) * g;
+    arena.buff(attacker, a, h);
+    if (attacker.uid !== arena.self.uid) arena.buff(arena.self, a, h);
+  },
+
+  /** Flo Rida (owner batch 2026-09-24) — "When you summon a Beast, give your Beasts +4/+4": another friendly
+   *  `tribe` minion arriving (played in the Shop or summoned in combat) buffs every friendly `tribe` minion,
+   *  this one and the arriver included (golden doubles). Its own arrival does not trigger it. */
+  onSummonBuffTribeAll(arena: EffectArena, params: Record<string, unknown>): void {
+    const arriver = params.arriver as ArenaBody | undefined;
+    const tribe = str(params.tribe);
+    if (!arriver || arriver.uid === arena.self.uid || (tribe && !arena.isTribe(arriver, tribe))) return;
+    const g = gold(arena);
+    const a = num(params.attack, 4) * g;
+    const h = num(params.health, 4) * g;
+    let hitArriver = false;
+    for (const f of arena.friends()) {
+      if (tribe && !arena.isTribe(f, tribe)) continue;
+      if (f.uid === arriver.uid) hitArriver = true;
+      arena.buff(f, a, h);
+    }
+    if (!hitArriver) arena.buff(arriver, a, h); // a Shop play can fire before the body is seated
   },
 
   /** Whenever ANOTHER friendly `tribe` minion attacks, buff THE ATTACKER (+atk/+hp, golden doubles). */

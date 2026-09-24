@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
+import { SPECIAL_RUBY_IDS } from '@game/core';
 import { createRun, reduce, equipmentUsesLeft, type Action, type BoardCard, type RunState } from './index';
 
 /**
@@ -45,13 +46,13 @@ describe('Prismatic Pick', () => {
     expect(cancelled.chooseOnePick, 'no pick left behind to poison the next activation').toBeUndefined();
   });
 
-  it('branch 1 opens a Discover of Choose One cards (owner 2026-09-09), paying Gold and the allowance exactly once', () => {
+  it('branch 1 opens a Discover of special Rubies (owner Ruby batch 2026-09-24), paying Gold and the allowance exactly once', () => {
     const s = armed();
     const asked = act(s, { type: 'activateEquipment' });
     const done = act(asked, { type: 'chooseOne', index: 0 });
     expect(done.hand.length, 'nothing is handed over — you choose').toBe(0);
-    expect(done.discover?.length, 'three Choose One cards to pick from').toBe(3);
-    for (const id of done.discover ?? []) expect(CARD_INDEX[id]?.chooseOne?.length, `${id} is a Choose One card`).toBeGreaterThan(0);
+    expect(done.discover?.length, 'three Rubies to pick from').toBe(3);
+    for (const id of done.discover ?? []) expect(SPECIAL_RUBY_IDS, `${id} is a special Ruby`).toContain(id);
     expect(s.embers - done.embers, 'the Pick costs 1, charged once').toBe(1); // 2 → 1, owner balance pass 2026-09-18
     expect(equipmentUsesLeft(done), 'one allowance, not two').toBe(equipmentUsesLeft(s) - 1);
     expect(done.chooseOnePick, 'the pick was consumed').toBeUndefined();

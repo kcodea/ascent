@@ -37,7 +37,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ARCHIVED_CARDS, CARD_INDEX, ENEMY, EPIC_RUNES, EQUIPMENT, GIFT_IDS, QUEST_DEFS, RUNES, SETS } from '@game/content';
-import type { CardDef, RuneDef } from '@game/core';
+import { RUBY_TYPE_IDS, type CardDef, type RuneDef } from '@game/core';
 import { HEROES } from '../heroes';
 import { reduce } from '../reducer';
 import type { BoardCard, RunState } from '../state';
@@ -227,6 +227,8 @@ export function entryWorklist(): EntryWorkItem[] {
     for (const q of QUEST_DEFS) if (deepMentions(q, def.id)) paths.push({ via: 'quest', questId: q.id });
     for (const eq of EQUIPMENT) if (deepMentions(eq, def.id)) paths.push({ via: 'equipment', equipmentId: eq.id });
     const isGift = GIFT_IDS.includes(def.id);
+    // "A random Ruby" (owner Ruby batch 2026-09-24) names every Ruby type through the shared lists, never by id.
+    const isRubyType = RUBY_TYPE_IDS.includes(def.id);
     for (const { rel, lines } of sources) {
       const seen = new Set<string>();
       const file = rel.split('/').pop()!;
@@ -234,7 +236,7 @@ export function entryWorklist(): EntryWorkItem[] {
       const isCode = (t: string): boolean => !/^\s*(\/\/|\*|\/\*|import\b)/.test(t);
       lines.forEach((t, i) => {
         if (!isCode(t)) return;
-        if (!t.includes(`'${def.id}'`) && !(isGift && /\bGIFT_IDS\b/.test(t))) return;
+        if (!t.includes(`'${def.id}'`) && !(isGift && /\bGIFT_IDS\b/.test(t)) && !(isRubyType && /\b(RUBY_TYPE_IDS|SPECIAL_RUBY_IDS)\b/.test(t))) return;
         add(enclosingScope(lines, i));
       });
       // ONE caller hop: a helper that mints the card (`grantRandomGift`) is reached from the rune / schedule

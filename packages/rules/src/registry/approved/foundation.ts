@@ -530,7 +530,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'silent without ever throwing or blocking the game. Leaving the run (Save & Quit, Play Again, the run cleared, '
       + 'a non-lobby run starting) stops it IMMEDIATELY: a MUSIC_STOP_FADE_MS (150 ms) click-guard fade, then pause and '
       + 'rewind. Settings carry a Music mute and a Music volume separate from the Game-sounds mix (`ascent.musicmuted`, '
-      + '`ascent.musicvol`), applied live and persisted. The round won / round lost verdict chimes are removed.',
+      + '`ascent.musicvol.v2`, see R-PRESENT-13), applied live and persisted. The round won / round lost verdict chimes are removed.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -552,26 +552,31 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PRESENT-07',
-    title: 'The announcer speaks each game moment at most once per run, never back to back, through a priority queue with a 12 s cooldown and an eight-line cap; its own audio channel sits behind the Settings Audio panel',
+    title: 'The announcer speaks each game moment at most once per run, never back to back, through a priority queue with a 12 s cooldown and a fifteen-line cap; its own audio channel sits behind the Settings Audio panel',
     statement:
       'The announcer (announcer.ts) is a set of one-shot voice lines on game moments, spoken ONLY inside a lobby or '
       + 'Practice run on screen (the music gate: never the title, a tutorial, a sandbox rig or a replay). Each event '
       + 'speaks at most ONCE per run, recorded in the store\x27s `announced` slice, which is persisted with the '
       + 'autosave and keyed by the run seed, so a Save & Continue never replays a line and a new run starts fresh; '
-      + 'BackToShop and Triple may speak twice, at least ANNOUNCER_REPEAT_GAP_WAVES (5) waves apart. The variant '
-      + '(1 / 2 / 3) is drawn from the run seed. One global cooldown, ANNOUNCER_COOLDOWN_MS (12 s from the previous '
+      + 'BackToShop and Triple may speak twice, at least ANNOUNCER_REPEAT_GAP_WAVES (5) waves apart, and Knockout twice, '
+      + 'at least ANNOUNCER_KNOCKOUT_GAP_WAVES (1) apart. The variant (1 to 4) is drawn from the run seed (`announcerVariant`, '
+      + 'which hashes the event\x27s index in ANNOUNCER_LINES, so the table is append-only). The RARE lines (the four random '
+      + 'buy lines, Round7) roll a seeded ANNOUNCER_RARE_CHANCE (10%) per qualifying moment from the run seed, the wave and '
+      + 'the buy index (`announcerRoll`), so a replay rolls the same way; never Math.random. One global cooldown, ANNOUNCER_COOLDOWN_MS (12 s from the previous '
       + 'line ending), and never while a line plays: an event landing inside it is DROPPED, not queued, and stays '
       + 'unfired (it may speak later if its moment recurs and is still valid); the two forge lines and this round\x27s '
       + 'SurviveUnder10hp BYPASS the cooldown (never a playing line: they wait for it to end). Pending events are weighed together by '
-      + 'priority (GameWon = GameLoss > TopTwo > TopFour > SurviveUnder10hp > LosingLowOdds = WinningLowOdds > '
-      + 'ThreeWinStreak > StartCombatUnder10hp > EnteringCombatAfterLoss > MinionHits100Stats > TierSix > '
-      + 'EpicRuneforge > Runeforge > Triple > Equipment > EnteringCombat > GameStart > BackToShop): the highest speaks, '
+      + 'priority (GameWon = GameLoss 100 > TopTwo 90 > Knockout 88 > TopFour 85 > SurviveUnder10hp 80 > LosingLowOdds = '
+      + 'WinningLowOdds 70 > ComebackWin 66 > ThreeWinStreak 65 > StartCombatUnder10hp 60 > FlawlessVictory 58 > BigHit 57 > '
+      + 'EnteringCombatAfterLoss 55 > MinionHits100Stats 50 > GoldenArmy 48 > ShopBigBuff 46 > TierSix 45 > EpicRuneforge 40 > '
+      + 'Runeforge 35 > Triple 30 > TribeFour 28 > Equipment 25 > BigSpender 24 > RichTurn 22 > EnteringCombat 20 > Pair 18 > '
+      + 'GameStart 15 > Round7 14 > the four random buy lines 12 > BackToShop 10): the highest speaks, '
       + 'the rest are dropped. Shelf life: combat lines expire when the next shop opens, shop lines when combat starts, '
       + 'GameWon / GameLoss never expire (they wait out the cooldown). Silence: nothing in the first '
       + 'ANNOUNCER_COMBAT_SILENCE_MS (3 s) of a combat resolution; nothing over the music\x27s turn-1 fade-in (GameStart '
       + 'plays ANNOUNCER_GAME_START_DELAY_MS, 4 s, after the first shop); a Skip (`stopAllAudio`) or leaving the run '
       + 'cancels the queue and the playing line with an ANNOUNCER_STOP_FADE_MS (100 ms) fade. At most '
-      + 'ANNOUNCER_LINE_CAP (8) lines per game, GameWon / GameLoss allowed on top. Timing: the Face Omen lines play '
+      + 'ANNOUNCER_LINE_CAP (15; 8 until 2026-09-24) lines per game, GameWon / GameLoss allowed on top. Timing: the Face Omen lines play '
       + 'ANNOUNCER_FACE_OMEN_DELAY_MS (1.6 s) after the flip; the return lines (BackToShop, TopFour / TopTwo, a forge '
       + 'opening with the return) ANNOUNCER_BACK_TO_SHOP_DELAY_MS (1 s) after resolveCombat. Triggers: GameStart (wave 1\x27s '
       + 'first shop), BackToShop (a return from combat, twice per game at most, first no earlier than wave 2), '
@@ -584,9 +589,20 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'odds from the rail\x27s real probe, skipped when absent), WinningLowOddsFight (a win at 35% or less), '
       + 'ThreeWinStreak (the third consecutive win), MinionHits100Stats (a player minion at 100+ Attack or Health, in '
       + 'the shop or the fight, never the enemy side), TopFour / TopTwo (four / two seats standing when the rail shows '
-      + 'it, the player among them), GameWon (1st place) and GameLoss (2nd to 8th) 1 s into the end screen. The '
+      + 'it, the player among them), GameWon (1st place) and GameLoss (2nd to 8th) 1 s into the end screen. The second '
+      + 'batch (2026-09-24): Knockout (the return update: this round\x27s encounter where seat 0 dealt damage and its foe '
+      + 'went from standing to out; the table settles on resolveCombat, so the line lands with the rail\x27s elimination, '
+      + 'shop shelf, 1 s), BigHit (a verdict win whose enemyDamage, capped by lossDamageCap for the wave, is 15+), '
+      + 'ComebackWin (a verdict win right after 3+ losses in a row; a draw breaks the run), FlawlessVictory (a verdict win '
+      + 'from wave 5 with lastCombat.playerDeaths exactly 0), GoldenArmy (3+ gilded minions on the board, the hand not '
+      + 'counted), RichTurn (a return to the shop with 20+ Gold), BigSpender (20+ Gold spent this turn with 10+ still held), '
+      + 'ShopBigBuff (a Shop minion offer over 50 Attack by offerBuyStats), Pair (the first two copies of one non-golden '
+      + 'minion across board and hand), TribeFour (4 minions of one tribe bought in one Shop turn, a dual-tribe minion '
+      + 'counting for both, an All-tribe one for every tribe), RandomSpellBuy / RandomCardBuy / RandomBeastBuy / '
+      + 'RandomDwarfBuy (a 10% seeded roll on a spell / any / a Beast / a Dwarf buy, each once per game) and Round7 (a 10% '
+      + 'seeded roll when wave 7\x27s Shop opens). The '
       + 'announcer is its own channel: a third gain on the SFX AudioContext with its own volume and mute '
-      + '(`ascent.announcervol` default 0.9, `ascent.announcermuted`), not ducked by the Game-sounds mute; the clips '
+      + '(`ascent.announcervol.v2`, see R-PRESENT-13; `ascent.announcermuted`), not ducked by the Game-sounds mute; the clips '
       + 'load lazily on first need. Settings shows one "Audio" button (aria-expanded, collapsed by default, its state '
       + 'remembered) that expands three channel rows, Game sounds / Music / Announcer, each a slider and a mute.',
     domain: 'foundation',
@@ -603,6 +619,8 @@ export const FOUNDATION_RULES: GameRule[] = [
         quote: 'with this we\x27ll need an announcer toggle and audio channel as well, similar to music. i think it\x27s best we put an "audio" button in the settings window that expands/collapses these 3 channels with mute toggles for each.',
       },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-23 (the announcer, on the queue logic)', quote: 'i like your logic you\x27ve shared here' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-24 (announcer lines, second batch)', quote: 'the gamewon is correct. there was a toptwo2 that was wrong which i removed.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-24 (announcer lines, second batch: the random buy lines)', quote: 'Rare: ~10% per buy' },
       {
         kind: 'owner-chat',
         ref: 'Claude Code session, 2026-09-23 (the announcer follow-up: the forge lines + the delays)',
@@ -611,7 +629,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/ui/src/announcer.ts (the queue, the detectors, the channel); packages/ui/src/announcerSlice.ts (the persisted slice); packages/ui/src/store.ts (announced, markAnnounced, combatOdds, the save round-trip); packages/ui/src/Game.tsx (the subscription + the stopAllAudio hook); packages/ui/src/Recruit.tsx (observeCombatBoard); packages/ui/src/EscMenu.tsx (the Audio panel)' },
     ],
     currentBehaviour:
-      'Conforms as of 2026-09-23 (same-day follow-up). Owner report after #1653: "i dont think the runeforge '
+      'Conforms as of 2026-09-24 (the second batch of lines, see the end). Owner report after #1653: "i dont think the runeforge '
       + 'voicelines are playing? and can you slightly delay the combat and return to shop ones? they play too quickly '
       + 'and should be offset by about 1s." Root cause: the scheduled forges (turn 6 Basic / turn 9 Epic, a hero\x27s '
       + 'turn 5 / 8, a booked Clock forge) set runeforgeOffer inside the same reducer step as the combat -> recruit '
@@ -621,12 +639,13 @@ export const FOUNDATION_RULES: GameRule[] = [
       + '-> 1600 ms; ANNOUNCER_BACK_TO_SHOP_DELAY_MS 1000 ms added (BackToShop, TopFour / TopTwo, a forge opening with '
       + 'the return); ANNOUNCER_COMBAT_SILENCE_MS stays 3000 ms and applies to the lines detected during the fight, not '
       + 'the Face Omen lines. Before this there was no announcer and the Settings Audio section was two flat '
-      + 'rows (Game sounds, Music). Known asset issue: the delivered GameWon.mp3 is byte-identical to TopTwo2.mp3 '
-      + '(a mis-export the owner will replace under the same name); GameWon therefore has one variant today.',
+      + 'rows (Game sounds, Music). 2026-09-24 (second batch): fifteen new events wired, ThreeWinStreak gained a second '
+      + 'variant, the cap went 8 -> 15, and the TopTwo2 clip was removed (the owner: it was the wrong take; GameWon.mp3 was '
+      + 'correct all along), so TopTwo has one variant.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/ui/src/announcer.test.ts', 'packages/ui/src/escMenuAudioPanel.test.tsx'],
-      lastVerifiedAt: '2026-09-23',
+      lastVerifiedAt: '2026-09-24',
     },
   },
   {
@@ -1003,6 +1022,79 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-24',
     },
   },
+  {
+    id: 'R-PRESENT-13',
+    title: 'Every Settings Audio slider defaults to 50, and 50 plays the owner mix; the Announcer dev tuner shapes each line',
+    statement:
+      'The three Settings Audio sliders (Game sounds, Music, Announcer) all DEFAULT to 50. A slider position is not the '
+      + 'gain: `sliderToGain` (packages/ui/src/audio/volumeCurve.ts) maps it piecewise linearly per channel, 0..50 onto '
+      + '0..ref and 50..100 onto ref..1, with ref = the owner\x27s 2026-09-23 mix (Game sounds 0.5, Music 0.2, Announcer '
+      + '0.7). So 50 plays that mix, 100 plays full gain exactly as before, 0 is silent, and nothing exceeds the old '
+      + 'maximum; Game sounds is the identity line. The curve runs at the one place each channel turns its slider into a '
+      + 'gain (`level()` in music.ts / announcer.ts; the SFX master gain IS the Game-sounds slider). Saved values from '
+      + 'before the curve are not read: Music and Announcer moved to `ascent.musicvol.v2` / `ascent.announcervol.v2`, and '
+      + 'the saved Game-sounds master gain is dropped ONCE (`ascent.audiomix.v2` records it), leaving the mixing desk\x27s '
+      + 'per-category levels and every mute as they were. A choice made after that persists. Every storage read is '
+      + 'guarded, falling back to the defaults. The Announcer DEV tuner (announcerConfig.ts; prod ships its baked '
+      + 'DEFAULTS) gives each event a Volume (0 to 200 percent, multiplied into that line\x27s gain, the final gain '
+      + 'clamped at 1) and a Timing offset (-2000 to +3000 ms added to the event\x27s built-in delay, never earlier '
+      + 'than the moment the event was detected). The offset only moves when a pending line becomes due: the cooldown '
+      + 'still counts from when the previous line actually ended, and the cap and shelf life are unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ask with a screenshot of the Settings Audio panel (Game sounds 50, Music 20, Announcer 70), 2026-09-24',
+        quote: 'bake these audio values as the default volumes, but all at the 50 mark for volume.',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ask, 2026-09-24 (the Announcer tuner)',
+        quote: 'add an announcer tuner to the dev panel that has volume for each event, and a timing adjust that allows me to offset timing of the event earlier or later',
+      },
+      { kind: 'code', ref: 'packages/ui/src/audio/volumeCurve.ts; packages/ui/src/music.ts, announcer.ts (`level()`); packages/ui/src/sfx.ts (`resetMasterOnce`); packages/ui/src/announcerConfig.ts' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-24. Before, each slider value WAS the gain, defaulting to Game sounds 0.5, Music 0.2 and '
+      + 'Announcer 0.7, so the three sliders opened at 50 / 20 / 70.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/audio/volumeCurve.test.ts', 'packages/ui/src/audioDefaultMix.test.ts', 'packages/ui/src/announcer.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
+  {
+    id: 'R-PRESENT-14',
+    title: 'A card only slides when its row changed: a spell cast never moves the warband',
+    statement:
+      'The warband and tavern cards slide (the commit FLIP) only when the rows themselves changed since the last '
+      + 'commit: a card was sold, bought, summoned, removed or reordered. Casting a spell (Growth or any other) '
+      + 'changes no row, so no card moves. A layout change with the same cards in the same order (a window '
+      + 'resize, a docked panel) is not a move either: the next row change settles from the current layout '
+      + 'instead of flinging the survivors in from the old one. The commit FLIP diffs through `commitFlipDeltas` '
+      + '(`packages/ui/src/commitFlip.ts`), which returns nothing unless the row key changed.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner bug report, 2026-09-24',
+        quote: 'when casting growth it randomly moves the warband, please fix that',
+      },
+      { kind: 'code', ref: 'packages/ui/src/commitFlip.ts (commitFlipDeltas); packages/ui/src/Recruit.tsx (RowFlip commit branch)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-24. Before, the FLIP key also carried the drag lift flag, so a spell dragged up and '
+      + 'released re-ran the commit branch with no row change, and it diffed against a sweep of unbounded age: '
+      + 'after any layout change the whole warband slid in from its old spot (measured live: all seven cards '
+      + 'tweened in from 147..479 px right; a 300 px row shift gave a -99 px slide on all six). Fixed: 0 moved frames.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/commitFlip.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
 
   // ── Rows glide, they never blink (owner ruling 2026-09-24, the gild rework) ──────────────────────────────
   {
@@ -1014,13 +1106,13 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'slide a card makes when one is placed on the board from hand. This holds for BOTH rows in the same '
       + 'action: a buy that completes a triple slides the warband as well as the shop, and a played minion whose '
       + 'effect takes a card out of the shop slides the shop as well as the warband. A card never jumps to its '
-      + 'new slot.',
+      + 'new slot. (Which cards count as having moved at all is R-PRESENT-14: only a row change moves a card.)',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Gild rework session, 2026-09-24', quote: 'currently, when the cards are removed from the board and or shop, the units do not slide into their new spots, they immediate blink. i want the same sliding effect we have when putting a card on board from hand. this should go for both the shop and warband sliding' },
       { kind: 'fix-pr', ref: 'https://github.com/kcodea/ascent/pull/1689 (feat/gild-trail-fx)' },
-      { kind: 'code', ref: 'packages/ui/src/rowSlides.ts commitSlidePlan; packages/ui/src/Recruit.tsx RowFlip slideFromSweep (the drop branch now also slides the row it was not dragged in; the resize guard)' },
+      { kind: 'code', ref: 'packages/ui/src/rowSlides.ts commitSlidePlan (which row); packages/ui/src/commitFlip.ts commitFlipDeltas (how far, R-PRESENT-14); packages/ui/src/Recruit.tsx RowFlip slideFromSweep (the drop branch also slides the row it was not dragged in)' },
     ],
     currentBehaviour:
       'Conforms as of 2026-09-24. A DROP commit (hand play, reorder, sell, buy) only animated the row it was '
@@ -1029,11 +1121,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'warband cards moved 51px each with no slide; after the fix the moved survivor slides in from exactly its '
       + 'old slot (-103px on a 1280px viewport) and one that did not move does not slide. The mirror case (a hand '
       + 'play whose effect takes a card out of the SHOP) runs the same code with the rows swapped and is covered by '
-      + 'the pin, but was not reproduced live. The no-drag commit '
-      + '(a card leaving the shop without a drag) is unchanged (verified: +/-52px slides). A viewport resize '
-      + 'between two commits now forgets the last layout sweep, so the next commit does not slide rather than '
-      + 'flinging cards in from pre-resize spots. The pin covers the slide DECISION (which cards, how far); the '
-      + 'GSAP tween itself needs real layout and is verified live, not in the test.',
+      + 'the pin, but was not reproduced live. Merged with R-PRESENT-14 (landed on main the same day, on the same '
+      + 'RowFlip branch): the deltas now come from `commitFlipDeltas`, so a drop whose rows did not change slides '
+      + 'nothing, and the one resize listener that drops the sweep is R-PRESENT-14\x27s. The pin composes both: '
+      + 'which row (this rule) over how far (that one). The GSAP tween itself needs real layout and was verified '
+      + 'live, not in the test.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/ui/src/rowSlides.test.ts'],

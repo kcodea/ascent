@@ -124,6 +124,6 @@ describe('the two runes ship as specced', () => {
 
   it('only Attacking Gems is set-2 scoped — Rubies are a set-2 mechanic', () => {
     expect(byName('Rune of Attacking Gems')!.sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
-    expect(byName('Rune of the Food Chain')!.sets).toBeUndefined();
+    expect(byName('Rune of the Food Chain')!.sets).toEqual(['set1', 'set2']); // CUT FROM SET 3 2026-09-24 (owner) (Demon rune)
   });
 });

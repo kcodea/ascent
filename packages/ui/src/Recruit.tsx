@@ -105,13 +105,14 @@ import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { getDragFeel } from './dragFeel';
 import { getLayout } from './layoutConfig';
 import { getFlipConfig } from './flipConfig';
+import { commitFlipDeltas, type CommitSweep } from './commitFlip';
 import { getTrailConfig } from './trailConfig';
 import { cardFxScale } from './fx/cardScale';
 import { playDef, canPlayDefs } from './fx/playDef';
 import { getShopDeathFxConfig } from './shopDeathFxConfig';
 import { getEquipFxConfig } from './equipFxConfig';
 import { anchorsForUnits } from './fx/combatAnchors';
-import { rubyLandHolds, RUBY_BEAT_MS, RUBY_GAP_MS } from './choreo/channels/rubyLanded';
+import { rubyLandHolds, RUBY_BEAT_MS, RUBY_GAP_MS, DARK_RUBY_CONSUME_DELAY_MS } from './choreo/channels/rubyLanded';
 import { captureRecruitSeqs, chooseOneMoment, endOfTurnMoment, minionPlayedMoment, recruitMomentsSince, recruitSeqsOf, selfBuffMoment, shieldGainMoment, shoutMoment, spellCastMoment } from './choreo/recruitMoments';
 import { runRecruitMomentCues } from './choreo/recruitCues';
 import { bindingFor, castFxReplacesTendril } from './choreo/bindings';
@@ -133,6 +134,19 @@ import { visibleHandPreviews } from './handPreview';
 import { chargeTune, useChargePreview } from './chargeGlyphTune';
 import { ChargeMotes } from './chargeMotes';
 import { wipeFx } from './wipeFx';
+
+/** Golden Ruby's coin cue: a beat after its gem (so the two read as "Ruby, then Gold"), and spaced when a
+ *  multi-cast Golden Ruby pays several times in one action. */
+const GOLDEN_RUBY_COIN_DELAY_MS = 180;
+const GOLDEN_RUBY_COIN_GAP_MS = 220;
+
+/** The bodies a DARK RUBY made eat this action (owner Ruby batch 2026-09-24) — their consume is sequenced after
+ *  the first gem (see the `shopEaten` watcher and `holdFodderGains`). */
+function darkRubyEaters(run: Pick<RunState, 'rubyRiderFx'>): ReadonlySet<string> {
+  const out = new Set<string>();
+  for (const r of run.rubyRiderFx ?? []) if (r.rider === 'devour') out.add(r.uid);
+  return out;
+}
 
 gsap.registerPlugin(Flip);
 
@@ -1323,7 +1337,11 @@ export function Recruit() {
     // the sim routes them to the span, whose own hold effect below withholds them on volley timing.
     const buffOf = (uid: string): CardBuff | undefined =>
       run.board.find((c) => c.uid === uid)?.buffs?.find((b) => b.source === 'Ruby');
-    for (const hold of rubyLandHolds(lands, buffOf)) {
+    // A DARK RUBY target's gain is split across two deliveries (owner Ruby batch 2026-09-24): the eaten stats are
+    // withheld by the consume's own hold (`holdFodderGains`, exact, released as the ghost is pulled in), so the
+    // Ruby cascade does not withhold that body too — two holds on one badge would over-withhold and dip it.
+    const devoured = new Set((run.rubyRiderFx ?? []).filter((r) => r.rider === 'devour').map((r) => r.uid));
+    for (const hold of rubyLandHolds(devoured.size > 0 ? lands.filter((l) => !devoured.has(l.uid)) : lands, buffOf)) {
       holdStat(hold.uid, { attack: hold.attack, health: hold.health },
         { origin: 'cue', startAt: hold.at + RUBY_DELIVER_OFFSET_MS });
     }
@@ -1394,6 +1412,33 @@ export function Recruit() {
     // `shopBuffAllFxSeq` likewise: the run-wide shop buff has its own counter (diffed off `tavernBuyBonus`),
     // so without it here the shop-wide aura would never fire.
   }, [run.rubyLandedFxSeq, run.recruitFxSeq, run.veinstormFxSeq, run.shopBuffAllFxSeq]);
+  // GOLDEN RUBY (owner Ruby batch 2026-09-24): "Show the Ruby-played animation AND the Gold-gain animation Paymaster
+  // Pim uses." The gem is the ordinary `rubyLanded` cascade above; the Gold cue is Pimm's own `shout` binding
+  // (`coin-shout` + its `maxGold` sound), resolved through the binding table rather than a hardcoded def so a
+  // re-bind of Pimm carries over. It fires on the Ruby's target a beat after the gem, once per Gold payout.
+  const prevRubyRiderSeq = useRef(run.rubyRiderFxSeq);
+  useEffect(() => {
+    const seq = run.rubyRiderFxSeq;
+    if (seq === undefined || seq === prevRubyRiderSeq.current) return;
+    prevRubyRiderSeq.current = seq;
+    const golds = (run.rubyRiderFx ?? []).filter((r) => r.rider === 'gold');
+    if (golds.length === 0) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const stops: (() => void)[] = [];
+    golds.forEach((g, i) => {
+      timers.push(setTimeout(() => {
+        stops.push(runRecruitMomentCues({ kind: 'shout', sourceCardId: 'dw_pimm', recipients: [{ uid: g.uid, count: 1 }] }, {
+          cardIdOf: () => 'dw_pimm',
+          measure: (uid) => {
+            const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
+            return el ? restingCenterOf(el) : null;
+          },
+        }));
+      }, GOLDEN_RUBY_COIN_DELAY_MS + i * GOLDEN_RUBY_COIN_GAP_MS));
+    });
+    return () => { for (const t of timers) clearTimeout(t); for (const s of stops) s(); };
+    // Keyed on the seq only — the payload is read at the moment it moved (the `bounceFx` watcher's contract).
+  }, [run.rubyRiderFxSeq]);
   // RUNE-BUFF-UNIT: any minion a rune buffed this SHOP action gets the `rune-buff-unit` sparkle, on the unit
   // (owner ask 2026-08-19). The sim diffs each minion's rune-buff total (`runeBuffFxUnits`), so this fires for
   // every rune that buffs a unit with no per-rune wiring. Measured on the next frame — a stat change re-renders
@@ -3097,7 +3142,9 @@ export function Recruit() {
   const handLeftsRef = useRef<Map<string, number>>(new Map());
   // Prior-frame left edges (uid → x) of every flipping card, for the commit-branch manual FLIP (a SELL /
   // effect reposition glides survivors from here → their new slot; symmetric where GSAP Flip was not).
-  const commitRectsRef = useRef<Map<string, number> | null>(null);
+  // Keyed by the row composition it was taken under (`CommitSweep`), so a commit that changed no row never diffs
+  // against it (owner 2026-09-24: casting Growth slid the whole warband, `commitFlip.ts`).
+  const commitRectsRef = useRef<CommitSweep | null>(null);
   // Set true when a hand card is just PLAYED onto the board, so the next FLIP commit SNAPS instead of running
   // GSAP. A played card is a NEW element entering the flex row: GSAP Flip doesn't take it out of flow, so it
   // fights the reflow (siblings close, then the new card shoves them back open = a jolt). The neighbours are
@@ -3525,7 +3572,7 @@ export function Recruit() {
   };
   const handViews = useMemo(
     () => perfMonitor.measure('view:hand', () => {
-      const fresh = new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, handStatOverride(m), spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, ftbBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, CARD_INDEX[m.cardId]?.spell || CARD_INDEX[m.cardId]?.ruby ? { ...live, castMult: spellCastCount(run, CARD_INDEX[m.cardId]!, m) } : live)] as const));
+      const fresh = new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, handStatOverride(m), spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, ftbBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, CARD_INDEX[m.cardId]?.spell || CARD_INDEX[m.cardId]?.ruby ? { ...live, castMult: spellCastCount(run, CARD_INDEX[m.cardId]!, m) } : { ...live, inHand: true })] as const));
       handViewCache.current = stabilizeViewMap(fresh, handViewCache.current);
       return handViewCache.current;
     }),
@@ -4999,7 +5046,10 @@ export function Recruit() {
   // Shared by the per-action watcher below AND the End-of-Turn beat sequence (Abyssal Feeder / Feasting
   // Bogrot consume during `faceOmen`, after the phase flips — the beats replay the projection's events
   // while the shop is still up). Returns a cancel fn (the watcher's effect cleanup).
-  const playFodderEat = useCallback((events: NonNullable<RunState['fodderEaten']>, key: number): (() => void) => {
+  const playFodderEat = useCallback((events: NonNullable<RunState['fodderEaten']>, key: number, startDelayMs = 0): (() => void) => {
+    // `startDelayMs` (Dark Ruby, owner Ruby batch 2026-09-24): the ghost appears in its slot at once, but its
+    // shake + pull (and the gulp) wait — so the eaten minion stays visible while the Ruby's first gem lands.
+    const delayTimers: number[] = [];
     let raf = 0;
     let startRaf = 0;
     let tries = 0;
@@ -5038,7 +5088,8 @@ export function Recruit() {
       setFodderAnim({ key: seq, ghosts });
       // The consume "gulp" — fired ONCE per consume action (not per ghost), and `sfx.consume` itself de-dupes
       // across actions on one beat via a short cooldown, so several simultaneous consumes play a single gulp.
-      sfx.consume();
+      if (startDelayMs > 0) delayTimers.push(window.setTimeout(() => sfx.consume(), startDelayMs));
+      else sfx.consume();
       // The consume (owner redesign 2026-08-16): each ghost SHAKES in place, then TAFFY-stretches toward its
       // eater and is PULLED in as it collapses + fades — a GSAP timeline driving `consumeTransform` + a
       // decaying shake (transform/opacity only). The old Pixi `buffTendril` is replaced by the workshop-
@@ -5147,13 +5198,15 @@ export function Recruit() {
           }
         }
       };
-      startRaf = requestAnimationFrame(startConsume);
-      t = window.setTimeout(() => setFodderAnim(null), cfg.durationMs + 150); // the ghost is gone by here
+      if (startDelayMs > 0) delayTimers.push(window.setTimeout(() => { startRaf = requestAnimationFrame(startConsume); }, startDelayMs));
+      else startRaf = requestAnimationFrame(startConsume);
+      t = window.setTimeout(() => setFodderAnim(null), cfg.durationMs + 150 + startDelayMs); // the ghost is gone by here
     };
     tryShow();
     return () => {
       if (raf) cancelAnimationFrame(raf);
       if (startRaf) cancelAnimationFrame(startRaf);
+      for (const d of delayTimers) window.clearTimeout(d);
       window.clearTimeout(t);
       for (const tw of tweens) tw.kill();
       for (const a of eaterAnims) { try { a.cancel(); } catch { /* already finished */ } }
@@ -5178,13 +5231,14 @@ export function Recruit() {
    * the number keeps its own honest schedule and the ribbon arrives after it. Losing the sync is the
    * acceptable half of that trade — printing a wrong number is not.
    */
-  const holdFodderGains = useCallback((gains: readonly FodderGain[]): void => {
+  const holdFodderGains = useCallback((gains: readonly FodderGain[], delayed?: ReadonlySet<string>): void => {
     // Release each eater's gain PART-WAY through the consume pull. The old timing was the infuse-tendril's
     // arrival (~0.9s) — decoupled from the shorter taffy eat, so the badge lagged well behind the animation
     // (owner report 2026-08-18). At 0.8 of the consume's `durationMs` the number climbs into place as the ghost
     // is drawn in and the eater gulps, instead of popping after it's all over.
     const startAt = getConsumeFxConfig().durationMs * 0.8;
-    for (const g of gains) holdStat(g.uid, { attack: g.attack, health: g.health }, { origin: 'cue', startAt });
+    // A Dark Ruby eater's consume waits for its first gem (`DARK_RUBY_CONSUME_DELAY_MS`), so its release waits too.
+    for (const g of gains) holdStat(g.uid, { attack: g.attack, health: g.health }, { origin: 'cue', startAt: startAt + (delayed?.has(g.uid) ? DARK_RUBY_CONSUME_DELAY_MS : 0) });
   }, []);
 
   // The mid-shop consume's raise arrives on `run.board` in the same commit as the seq bump, so the hold goes
@@ -5201,7 +5255,7 @@ export function Recruit() {
   useLayoutEffect(() => {
     if (run.shopEatenSeq === prevShopEatHoldSeq.current) return;
     prevShopEatHoldSeq.current = run.shopEatenSeq;
-    holdFodderGains(fodderGainHolds(run.shopEaten ?? []));
+    holdFodderGains(fodderGainHolds(run.shopEaten ?? []), darkRubyEaters(run));
   }, [run.shopEatenSeq, run.shopEaten, holdFodderGains]);
 
   /**
@@ -5242,7 +5296,12 @@ export function Recruit() {
     // A creation's `silent` meal draws nothing here — the `starform-create` cue (the starformFx watcher) is it.
     const events = (run.shopEaten ?? []).filter((e) => !e.silent).map((e) => ({ ...e, fodderId: e.cardId }));
     if (events.length === 0) return;
-    return playFodderEat(events, run.shopEatenSeq);
+    // DARK RUBY (owner Ruby batch 2026-09-24): "Ruby played -> consume effect -> Ruby played" — its consume waits
+    // for the first gem to land, then the second gem lands as the ghost is pulled in (`spaceLands` in the cue).
+    // The ghost is placed NOW (its slot is measured this commit) and only its pull waits.
+    const dark = darkRubyEaters(run);
+    const delay = dark.size > 0 && events.some((e) => dark.has(e.eaterUid)) ? DARK_RUBY_CONSUME_DELAY_MS : 0;
+    return playFodderEat(events, run.shopEatenSeq, delay);
   }, [run.shopEatenSeq]);
 
   // THE STARFORM PULL (owner-authored `starform-pull`, 2026-09-12): a warband minion CONSUMES the token (Corona
@@ -7817,7 +7876,7 @@ const RenderMark = memo(function RenderMark({ start, phase }: { start: number; p
  *  drop handlers and the End-of-Turn presenters write into it) and handed to `RowFlip` as one stable object. */
 interface FlipRefs {
   flipStateRef: { current: ReturnType<typeof Flip.getState> | null };
-  commitRectsRef: { current: Map<string, number> | null };
+  commitRectsRef: { current: CommitSweep | null };
   handPlaySnapRef: { current: boolean };
   handFlipRef: { current: Map<string, number> | null };
   handFlipSelRef: { current: string | null };
@@ -7851,6 +7910,14 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
 }) {
   const { dragActive, gapIndex, shopGapIndex, collapsedLift } = useDragSlice(selectFlipDrag);
   const { flipStateRef, commitRectsRef, handPlaySnapRef, handFlipRef, handFlipSelRef, placePendingRef, shiftHoldRef, shopRectsRef, lastCentreRef, departedCentreRef, prevShopFxSeq, preFiredEchoRef } = refs;
+  // A RESIZE re-lays both rows out under cards that did not move, so the last commit sweep no longer describes the
+  // screen: drop it, and the next row change snaps instead of flinging every survivor in from the old layout (the
+  // same stale-baseline fault as the Growth report, `commitFlip.ts`). One listener, no layout read.
+  useEffect(() => {
+    const drop = (): void => { commitRectsRef.current = null; };
+    window.addEventListener('resize', drop);
+    return () => window.removeEventListener('resize', drop);
+  }, [commitRectsRef]);
   /**
    * THE SHOP'S DEATH CUES (owner 2026-08-28) — see the block comment above `FlipRefs`' owner in `Recruit`.
    *   · an Echo TRIGGERED    → `pixiFx.deathrattle` — the painted skull-shatter.
@@ -7918,16 +7985,6 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
     shopRectsRef.current = { prev: shopRectsRef.current.cur, cur };
   }, [flipKey]);
 
-  // A RESIZE re-lays-out both rows with no commit, so the last offsetLeft sweep stops describing where any card
-  // sits — and the next commit's slide would fling every card in from its pre-resize spot (seen 2026-09-24: a
-  // viewport that grew between two commits swept the warband in from ~630px away). Forget the sweep instead:
-  // the next commit re-seeds it and simply doesn't slide.
-  useEffect(() => {
-    const forget = (): void => { commitRectsRef.current = null; };
-    window.addEventListener('resize', forget);
-    return () => window.removeEventListener('resize', forget);
-  }, [commitRectsRef]);
-
   // FLIP via GSAP. `flipStateRef` holds the layout state captured at the end of the *previous* drag commit (the
   // cards' old spots — seeded at drag START, see `startDragSession`); after React commits the new order,
   // `Flip.from` animates each card from there to its fresh spot. Newly-mounted cards (a freshly bought/played
@@ -7984,20 +8041,21 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
     });
     perfMonitor.measure('layout:flip:write', () => {
       /**
-       * Slide every card whose LAYOUT left moved since the previous commit's sweep, from its old spot home — off
-       * the offsetLeft sweeps alone, so it reads nothing new. `dropSel` is the row a drop commit already
-       * animates off its own drop-time capture; those cards are left to it (see `commitSlidePlan`). Used by the
-       * no-drag commit branch (a sell, a summon, an effect) for every card, and by the drop branch for the row
-       * the card was NOT dragged in — a drag-buy that completes a triple empties copies out of the warband, and
-       * a played minion's Shout can take a card out of the shop, in the same commit (R-SLIDE-01).
+       * Slide every card that MOVED since the previous commit's sweep, from its old spot home — off the offsetLeft
+       * sweeps alone, so it reads nothing new. HOW FAR, and whether anything moved at all, is `commitFlipDeltas`
+       * (R-PRESENT-14): a delta only when the rows themselves changed, so a spell cast or a resize slides nothing.
+       * `dropSel` is the row a drop commit already animates off its own drop-time capture; those cards are left to
+       * it (`commitSlidePlan`, R-SLIDE-01). Used by the no-drag commit branch (a sell, a summon, an effect) for
+       * every card, and by the drop branch for the row the card was NOT dragged in — a drag-buy that completes a
+       * triple empties copies out of the warband, and a played minion's Shout can take a card out of the shop.
        */
       const slideFromSweep = (dropSel: string | null): void => {
         const all = gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR);
         const inDrop = (el: HTMLElement): boolean => dropSel !== null && el.matches(dropSel);
+        const moved = commitLefts ? commitFlipDeltas(commitRectsRef.current, { key: rowsKey, lefts: commitLefts }) : new Map<string, number>();
         const plan = commitSlidePlan(
           all.map((el) => ({ uid: el.dataset.uid ?? '', inDropRow: inDrop(el) })),
-          commitRectsRef.current,
-          commitLefts,
+          moved,
           dropSel !== null,
         );
         if (plan.length === 0) return;
@@ -8094,6 +8152,11 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
         // (a roll swaps five cards into the same five slots; a buff changes no layout at all). The deltas come
         // off the sweep above; a commit with no delta touches no style, and one that DID move a card runs
         // exactly the writes it always did.
+        //
+        // ONLY A ROW CHANGE MOVES A CARD (owner 2026-09-24: "when casting growth it randomly moves the warband").
+        // The key also flips on a spell drag's lift and release, which changes no row; diffing that release against
+        // an old sweep replayed any layout change since (a resize, a docked panel) as the whole warband sliding in.
+        // `commitFlipDeltas` (inside `slideFromSweep`) returns nothing unless the rows changed since the sweep.
         slideFromSweep(null);
       }
       // else: committed with commitMs 0 → snap (no animation); the drag preview already positioned everything.
@@ -8109,7 +8172,7 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
       // from the last commit could predate a viewport resize.
       flipStateRef.current = Flip.getState(flipSel, { simple: true });
     });
-    if (commitLefts) commitRectsRef.current = commitLefts;
+    if (commitLefts) commitRectsRef.current = { key: rowsKey, lefts: commitLefts };
    });
   }, [flipKey]);
 

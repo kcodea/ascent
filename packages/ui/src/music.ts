@@ -28,11 +28,12 @@
  * context the element's own `volume` carries fade × level, stepped by one ~50 ms interval that exists only
  * during a fade.
  *
- * SETTINGS: the Music slider + mute persist in localStorage (`ascent.musicvol`, `ascent.musicmuted`) and apply
+ * SETTINGS: the Music slider + mute persist in localStorage (`ascent.musicvol.v2`, `ascent.musicmuted`) and apply
  * live; see EscMenu.tsx. `isMusicWanted` is the pure gate (tested with structural states), `syncMusic` the
  * transition; `Game.tsx` wires `syncMusic` to `useGame.subscribe`.
  */
 import { isPreRun } from './store';
+import { DEFAULT_SLIDER, sliderToGain } from './audio/volumeCurve';
 
 export const MUSIC_START_DELAY_MS = 3000;
 export const MUSIC_GAP_MS = 3000;
@@ -41,7 +42,10 @@ export const MUSIC_STOP_FADE_MS = 150;
 /** The chain, in play order; the index wraps. Files live at `<BASE_URL>music/<name>.mp3`. */
 export const MUSIC_TRACKS = ['bg', 'bg2'] as const;
 export type MusicTrack = (typeof MUSIC_TRACKS)[number];
-const DEFAULT_MUSIC_VOLUME = 0.2; // owner's 2026-09-23 mix (music sits low under sfx + announcer)
+/** The Music slider's storage key. `.v2` since the default-mix curve (owner 2026-09-24): the stored value is a SLIDER
+ *  position that `sliderToGain('music', …)` turns into the gain, so the old `ascent.musicvol` (a raw gain) is no
+ *  longer read and every player starts once on the new default, the 50 mark (= the owner's 0.2 gain). */
+const MUSIC_VOLUME_KEY = 'ascent.musicvol.v2';
 
 export type MusicPhase =
   | 'idle'     // not inside a lobby run (or stopped); nothing scheduled
@@ -135,10 +139,10 @@ export function setMusicAudioContextProvider(provider: () => AudioContext | null
 // ── Level (the Settings slider + mute), persisted ────────────────────────────────────────────────────────────
 let volume = (() => {
   try {
-    const v = parseFloat(localStorage.getItem('ascent.musicvol') ?? '');
-    return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : DEFAULT_MUSIC_VOLUME;
+    const v = parseFloat(localStorage.getItem(MUSIC_VOLUME_KEY) ?? '');
+    return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : DEFAULT_SLIDER;
   } catch {
-    return DEFAULT_MUSIC_VOLUME;
+    return DEFAULT_SLIDER;
   }
 })();
 let muted = (() => {
@@ -148,14 +152,15 @@ let muted = (() => {
     return false;
   }
 })();
-const level = (): number => (muted ? 0 : volume);
+/** The ONE place the Music slider becomes a gain (the default-mix curve: 50 plays the owner's 0.2, 100 plays 1). */
+const level = (): number => (muted ? 0 : sliderToGain('music', volume));
 
 export function getMusicVolume(): number {
   return volume;
 }
 export function setMusicVolume(v: number): void {
   volume = Math.min(1, Math.max(0, v));
-  try { localStorage.setItem('ascent.musicvol', String(volume)); } catch { /* ignore */ }
+  try { localStorage.setItem(MUSIC_VOLUME_KEY, String(volume)); } catch { /* ignore */ }
   applyLevel();
 }
 export function isMusicMuted(): boolean {

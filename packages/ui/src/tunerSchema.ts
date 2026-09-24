@@ -101,6 +101,7 @@ export const PANEL_EMBLEMS: Record<string, string> = {
   float: '🔢',
   aimfx: '🎯',
   sfx: '🎛️',
+  announcer: '📣',
 };
 
 /** The complete unit vocabulary. A control that renders a bare number declares no unit at all. */
@@ -170,6 +171,9 @@ export interface TunerControl<K extends string = string> {
   /** Display text per option value, when the value is an id rather than something readable (the Card Art
    *  picker stores cardIds but must show the card's actual NAME). Absent => the value is shown as-is. */
   optionLabels?: Readonly<Record<string, string>>;
+  /** `range` only: a small ▶ drawn beside the label that plays what this row tunes (the Announcer panel previews
+   *  each event's line at its tuned volume). Fires something; writes nothing. */
+  preview?: () => void;
 }
 
 /**

@@ -8,9 +8,12 @@
  * on every store update, React-free) and spoken through a PRIORITY QUEUE, not a FIFO:
  *
  *  · ONCE PER EVENT PER RUN, tracked in the store's `announced` slice (persisted with the autosave, keyed by the
- *    run seed, reset by every new run) so a Save & Continue never replays a line. Two events may speak twice
- *    (BackToShop, Triple) — at least ANNOUNCER_REPEAT_GAP_WAVES waves apart, still against the cap.
- *  · The VARIANT (1 / 2 / 3) is picked from the run seed, so a replayed run hears the same line.
+ *    run seed, reset by every new run) so a Save & Continue never replays a line. Three events may speak twice
+ *    (BackToShop and Triple at least ANNOUNCER_REPEAT_GAP_WAVES waves apart, Knockout at least
+ *    ANNOUNCER_KNOCKOUT_GAP_WAVES apart), still against the cap.
+ *  · The VARIANT (1 / 2 / 3 / 4) is picked from the run seed, so a replayed run hears the same line. The RARE lines
+ *    (the random buy lines, Round 7) roll a SEEDED ANNOUNCER_RARE_CHANCE from the run seed + wave + buy index
+ *    (`announcerRoll`), so a replay rolls the same way; never `Math.random`.
  *  · A GLOBAL COOLDOWN: no line within ANNOUNCER_COOLDOWN_MS of the previous one, and never while a line is
  *    playing. An event that lands inside the cooldown is DROPPED, not queued (that is what stops the Equipment →
  *    Triple → TierSix chatter on one turn). A dropped event stays unfired: it may speak later if its moment
@@ -28,11 +31,16 @@
  *  · A per-game CAP of ANNOUNCER_LINE_CAP lines; GameWon / GameLoss are allowed on top of it.
  *
  * AUDIO: its OWN channel — a third gain on the SFX AudioContext (like the music's), with its own volume + mute
- * (`ascent.announcervol`, `ascent.announcermuted`, default 0.7), NOT ducked by the Game-sounds mute or slider.
- * The 34 clips are PUBLIC files (`apps/web/public/announcer/`), fetched + decoded LAZILY on first need into a
+ * (`ascent.announcervol.v2`, `ascent.announcermuted`; the slider defaults to 50, which plays gain 0.7), NOT ducked by the Game-sounds mute or slider.
+ * The 54 clips are PUBLIC files (`apps/web/public/announcer/`), fetched + decoded LAZILY on first need into a
  * cached buffer (never the eager `import.meta.glob` bank in sfx.ts). Without Web Audio an HTMLAudioElement per
  * line carries the level. Lines never overlap each other.
  */
+import { CARD_INDEX } from '@game/content';
+import type { Tribe } from '@game/core';
+import { defIsTribe, lossDamageCap, offerBuyStats, type RunState, type ShopCard } from '@game/sim';
+import { DEFAULT_SLIDER, sliderToGain } from './audio/volumeCurve';
+import { announcerEventOffset, announcerEventVolume, announcerLineGain } from './announcerConfig';
 import { isMusicWanted, MUSIC_FADE_MS, MUSIC_START_DELAY_MS, type MusicStateLike } from './music';
 import {
   type AnnouncedSlice, type AnnouncerEvent, announcedFor, firedWaves, hasFired, UNCAPPED_EVENTS,
@@ -43,8 +51,9 @@ export type { AnnouncerEvent } from './announcerSlice';
 // ── The constants (one name each; the tests and the devlog read these) ──────────────────────────────────────
 /** No line within this of the previous one ending. THE cooldown. */
 export const ANNOUNCER_COOLDOWN_MS = 12_000;
-/** Lines per game, GameWon / GameLoss excepted. */
-export const ANNOUNCER_LINE_CAP = 8;
+/** Lines per game, GameWon / GameLoss excepted. 8 at first; the owner raised it to 15 with the second batch of
+ *  lines (2026-09-24). */
+export const ANNOUNCER_LINE_CAP = 15;
 /** GameStart: after the first shop lands, past the music's 3 s start + its fade-in. */
 export const ANNOUNCER_GAME_START_DELAY_MS = MUSIC_START_DELAY_MS + 1000;
 /** No line over the music's turn-1 fade-in: the quiet window after a wave-1 run lands. */
@@ -79,13 +88,40 @@ export const ANNOUNCER_BACK_TO_SHOP_MIN_WAVE = 2;
 export const ANNOUNCER_TRIPLE_MAX = 2;
 /** A repeatable event's second line comes at least this many waves after its first. */
 export const ANNOUNCER_REPEAT_GAP_WAVES = 5;
+/** Knockout: at most this many per game, the second at least this many waves after the first. */
+export const ANNOUNCER_KNOCKOUT_MAX = 2;
+export const ANNOUNCER_KNOCKOUT_GAP_WAVES = 1;
+/** BigHit: the damage your win deals the opposing hero (round-capped, what the hero actually takes) at or above this. */
+export const ANNOUNCER_BIG_HIT = 15;
+/** ComebackWin: a win right after at least this many losses in a row. */
+export const ANNOUNCER_COMEBACK_LOSSES = 3;
+/** FlawlessVictory: a win with no friendly minion dying, from this wave on. */
+export const ANNOUNCER_FLAWLESS_MIN_WAVE = 5;
+/** GoldenArmy: this many gilded minions on the board at once. */
+export const ANNOUNCER_GOLDEN_ARMY = 3;
+/** RichTurn: a Shop turn that opens with at least this much Gold. */
+export const ANNOUNCER_RICH_GOLD = 20;
+/** BigSpender: at least this much Gold spent this turn while still holding at least ANNOUNCER_BIG_SPENDER_LEFT. */
+export const ANNOUNCER_BIG_SPENDER_SPENT = 20;
+export const ANNOUNCER_BIG_SPENDER_LEFT = 10;
+/** ShopBigBuff: a Shop minion offer at MORE than this Attack. */
+export const ANNOUNCER_SHOP_BIG_ATTACK = 50;
+/** TribeFour: this many minions of one tribe bought in one Shop turn. */
+export const ANNOUNCER_TRIBE_BUYS = 4;
+/** The rare lines' chance per qualifying moment (owner ruling 2026-09-24: "Rare: ~10% per buy"). */
+export const ANNOUNCER_RARE_CHANCE = 0.1;
+/** Round7: the wave whose Shop may (rarely) say it. */
+export const ANNOUNCER_ROUND_SEVEN = 7;
 /** EnteringCombat is "the first Face Omen": if the first one is dropped it may still speak up to this wave. */
 export const ANNOUNCER_ENTERING_COMBAT_MAX_WAVE = 3;
-const DEFAULT_ANNOUNCER_VOLUME = 0.7; // owner's 2026-09-23 mix
+/** The Announcer slider's storage key. `.v2` since the default-mix curve (owner 2026-09-24): the stored value is a
+ *  SLIDER position that `sliderToGain('announcer', …)` turns into the gain, so the old `ascent.announcervol` (a raw
+ *  gain) is no longer read and every player starts once on the new default, the 50 mark (= the owner's 0.7 gain). */
+const ANNOUNCER_VOLUME_KEY = 'ascent.announcervol.v2';
 
-/** The clips, per event, in variant order. Files live at `<BASE_URL>announcer/<name>.mp3`. GameWon has one
- *  variant today: the delivered `GameWon.mp3` is byte-identical to `TopTwo2.mp3` (a mis-export the owner will
- *  replace); the corrected file drops in under the same name. */
+/** The clips, per event, in variant order. Files live at `<BASE_URL>announcer/<name>.mp3`. NEW EVENTS GO AT THE
+ *  END: `announcerVariant` hashes an event's index in this table, so reordering would re-pick every existing
+ *  run's variants. */
 export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   gameStart: ['game-start-1', 'game-start-2'],
   backToShop: ['back-to-shop-1', 'back-to-shop-2', 'back-to-shop-3'],
@@ -100,12 +136,28 @@ export const ANNOUNCER_LINES: Record<AnnouncerEvent, readonly string[]> = {
   surviveUnder10hp: ['survive-under-10hp'],
   losingLowOddsFight: ['losing-low-odds-fight-1', 'losing-low-odds-fight-2'],
   winningLowOddsFight: ['winning-low-odds-fight-1', 'winning-low-odds-fight-2'],
-  threeWinStreak: ['three-win-streak'],
+  threeWinStreak: ['three-win-streak-1', 'three-win-streak-2'],
   minionHits100Stats: ['minion-hits-100-stats'],
   topFour: ['top-four-1', 'top-four-2'],
-  topTwo: ['top-two-1', 'top-two-2'],
+  topTwo: ['top-two-1'],
   gameWon: ['game-won'],
   gameLoss: ['game-loss-1', 'game-loss-2', 'game-loss-3'],
+  // The second batch (owner 2026-09-24).
+  knockout: ['knockout-1', 'knockout-2', 'knockout-3', 'knockout-4'],
+  bigHit: ['big-hit'],
+  comebackWin: ['comeback-win'],
+  flawlessVictory: ['flawless-victory'],
+  goldenArmy: ['golden-army'],
+  richTurn: ['rich-turn'],
+  bigSpender: ['big-spender'],
+  shopBigBuff: ['shop-big-buff'],
+  pair: ['pair-1', 'pair-2'],
+  tribeFour: ['tribe-four'],
+  randomSpellBuy: ['random-spell-buy-1', 'random-spell-buy-2'],
+  randomCardBuy: ['random-card-buy'],
+  randomBeastBuy: ['random-beast-buy'],
+  randomDwarfBuy: ['random-dwarf-buy'],
+  round7: ['round-7'],
 };
 
 /** Higher speaks first when several are pending at once. */
@@ -113,21 +165,36 @@ export const ANNOUNCER_PRIORITY: Record<AnnouncerEvent, number> = {
   gameWon: 100,
   gameLoss: 100,
   topTwo: 90,
+  knockout: 88,
   topFour: 85,
   surviveUnder10hp: 80,
   losingLowOddsFight: 70,
   winningLowOddsFight: 70,
+  comebackWin: 66,
   threeWinStreak: 65,
   startCombatUnder10hp: 60,
+  flawlessVictory: 58,
+  bigHit: 57,
   enteringCombatAfterLoss: 55,
   minionHits100Stats: 50,
+  goldenArmy: 48,
+  shopBigBuff: 46,
   tierSix: 45,
   epicRuneforge: 40,
   runeforge: 35,
   triple: 30,
+  tribeFour: 28,
   equipment: 25,
+  bigSpender: 24,
+  richTurn: 22,
   enteringCombat: 20,
+  pair: 18,
   gameStart: 15,
+  round7: 14,
+  randomSpellBuy: 12,
+  randomCardBuy: 12,
+  randomBeastBuy: 12,
+  randomDwarfBuy: 12,
   backToShop: 10,
 };
 
@@ -144,14 +211,27 @@ export interface AnnouncerRunLike {
   resolve: number;
   tier: number;
   history: readonly string[];
-  board: readonly { attack: number; health: number; golden: boolean }[];
-  hand: readonly { golden: boolean }[];
+  board: readonly { attack: number; health: number; golden: boolean; cardId?: string }[];
+  hand: readonly { golden: boolean; cardId?: string }[];
+  /** Gold in hand (RichTurn, BigSpender). */
+  embers?: number | undefined;
+  goldSpentThisTurn?: number | undefined;
+  /** Bumped by every buy (the reducer's post-action tally): the buy detectors key on it. */
+  cardsBoughtThisTurn?: number | undefined;
+  /** The Shop row and the spell slot: the bought offer is the one that left them (a buy's card id), and the row's
+   *  Attack is read for ShopBigBuff. */
+  shop?: readonly { uid: string; cardId: string; atk?: number | undefined }[] | undefined;
+  spell?: { uid: string; cardId: string } | null | undefined;
   equipment?: { available: readonly unknown[] } | undefined;
   runeforgeOffer?: readonly string[] | undefined;
   runeforgeEpic?: boolean | undefined;
   combatSettled: boolean;
-  lastCombat?: { result: string } | undefined;
-  lobby?: { seats: readonly { alive: boolean; placement?: number | undefined }[] } | undefined;
+  lastCombat?: { result: string; enemyDamage?: number | undefined; playerDeaths?: number | undefined } | undefined;
+  lobby?: {
+    round?: number | undefined;
+    seats: readonly { id?: string | undefined; alive: boolean; placement?: number | undefined; eliminatedRound?: number | undefined }[];
+    encounters?: readonly { round: number; a: string; b: string; damageToA: number; damageToB: number; bye?: string | undefined }[] | undefined;
+  } | undefined;
 }
 export interface AnnouncerStateLike extends MusicStateLike {
   run: AnnouncerRunLike;
@@ -173,17 +253,19 @@ export interface AnnouncerDeps {
   now: () => number;
   setTimeout: (cb: () => void, ms: number) => number;
   clearTimeout: (id: number) => void;
-  /** Start `url` playing; `onEnded` fires once when it finishes on its own. Null = could not play. */
-  play: (url: string, onEnded: () => void) => Promise<AnnouncerHandle | null>;
+  /** Start `url` playing; `onEnded` fires once when it finishes on its own. Null = could not play. `gain` is the
+   *  event's tuned multiplier (the Announcer dev tuner, 1 = as recorded), applied on top of the channel level with
+   *  the final gain clamped at 1 (`announcerLineGain`). */
+  play: (url: string, onEnded: () => void, gain: number) => Promise<AnnouncerHandle | null>;
 }
 
 // ── Level (the Settings slider + mute), persisted ────────────────────────────────────────────────────────────
 let volume = (() => {
   try {
-    const v = parseFloat(localStorage.getItem('ascent.announcervol') ?? '');
-    return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : DEFAULT_ANNOUNCER_VOLUME;
+    const v = parseFloat(localStorage.getItem(ANNOUNCER_VOLUME_KEY) ?? '');
+    return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : DEFAULT_SLIDER;
   } catch {
-    return DEFAULT_ANNOUNCER_VOLUME;
+    return DEFAULT_SLIDER;
   }
 })();
 let muted = (() => {
@@ -193,14 +275,15 @@ let muted = (() => {
     return false;
   }
 })();
-const level = (): number => (muted ? 0 : volume);
+/** The ONE place the Announcer slider becomes a gain (the default-mix curve: 50 plays the owner's 0.7, 100 plays 1). */
+const level = (): number => (muted ? 0 : sliderToGain('announcer', volume));
 
 export function getAnnouncerVolume(): number {
   return volume;
 }
 export function setAnnouncerVolume(v: number): void {
   volume = Math.min(1, Math.max(0, v));
-  try { localStorage.setItem('ascent.announcervol', String(volume)); } catch { /* ignore */ }
+  try { localStorage.setItem(ANNOUNCER_VOLUME_KEY, String(volume)); } catch { /* ignore */ }
   applyLevel();
 }
 export function isAnnouncerMuted(): boolean {
@@ -221,8 +304,9 @@ export function setAnnouncerAudioContextProvider(provider: () => AudioContext | 
 }
 let graph: { ctx: AudioContext; level: GainNode } | null = null;
 const buffers = new Map<string, Promise<AudioBuffer | null>>();
-/** Elements on the no-context path that are currently sounding (their `volume` follows the level). */
-const liveElements = new Set<HTMLAudioElement>();
+/** Elements on the no-context path that are currently sounding, each with its event multiplier (their `volume`
+ *  follows the level). */
+const liveElements = new Map<HTMLAudioElement, number>();
 
 function ensureGraph(ctx: AudioContext): GainNode {
   if (graph && graph.ctx === ctx) return graph.level;
@@ -239,7 +323,7 @@ function applyLevel(): void {
     graph.level.gain.cancelScheduledValues(now);
     graph.level.gain.setTargetAtTime(level(), now, 0.01);
   }
-  for (const el of liveElements) el.volume = level();
+  for (const [el, gain] of liveElements) el.volume = announcerLineGain(level(), gain);
 }
 
 function loadBuffer(ctx: AudioContext, url: string): Promise<AudioBuffer | null> {
@@ -254,7 +338,7 @@ function loadBuffer(ctx: AudioContext, url: string): Promise<AudioBuffer | null>
   return p;
 }
 
-async function playDefault(url: string, onEnded: () => void): Promise<AnnouncerHandle | null> {
+async function playDefault(url: string, onEnded: () => void, gain = 1): Promise<AnnouncerHandle | null> {
   const ctx = ctxProvider();
   if (ctx) {
     const out = ensureGraph(ctx);
@@ -263,7 +347,9 @@ async function playDefault(url: string, onEnded: () => void): Promise<AnnouncerH
     const src = ctx.createBufferSource();
     src.buffer = buf;
     const g = ctx.createGain();
-    g.gain.value = 1;
+    // The event's tuned multiplier rides on the line's own gain, capped so line x channel never passes 1.
+    const lvl = level();
+    g.gain.value = lvl > 0 ? announcerLineGain(lvl, gain) / lvl : Math.max(0, gain);
     src.connect(g);
     g.connect(out);
     let live = true;
@@ -287,12 +373,12 @@ async function playDefault(url: string, onEnded: () => void): Promise<AnnouncerH
   try {
     if (typeof Audio === 'undefined') return null;
     const el = new Audio(url);
-    el.volume = level();
+    el.volume = announcerLineGain(level(), gain);
     let live = true;
     const done = (): void => { if (live) { live = false; liveElements.delete(el); onEnded(); } };
     el.addEventListener('ended', done);
     el.addEventListener('error', done);
-    liveElements.add(el);
+    liveElements.set(el, gain);
     await el.play();
     return {
       stop(fadeMs) {
@@ -358,6 +444,9 @@ let enteredAtWaveOne = false;
 let combatStartedAt: number | null = null;
 /** MinionHits100Stats in combat is checked per frame; report it once per fight. */
 let bigStatSeenThisCombat = false;
+/** TribeFour: this Shop turn's minion buys per tribe (dual tribes count for both, an All-tribe minion for every
+ *  tribe). In memory only, reset each wave: a Save & Continue mid-turn starts the count again. */
+let tribeBuys: { wave: number; byTribe: Map<Tribe, number>; all: number } = { wave: -1, byTribe: new Map(), all: 0 };
 const log: AnnouncerLogEntry[] = [];
 
 function note(kind: AnnouncerLogKind, event: AnnouncerEvent, extra: { file?: string; why?: string } = {}): void {
@@ -393,6 +482,20 @@ export function announcerVariant(seed: number, event: AnnouncerEvent, occurrence
   return h % variants;
 }
 
+/** A deterministic roll in [0, 1) for the RARE lines, from the run seed, the event, the wave and an index (the
+ *  buy's count this turn; 0 for Round 7). A replay of the same run rolls the same way. */
+export function announcerRoll(seed: number, event: AnnouncerEvent, wave: number, index: number): number {
+  const events = Object.keys(ANNOUNCER_LINES) as AnnouncerEvent[];
+  let h = (seed ^ 0x5bd1e995) >>> 0;
+  h = Math.imul(h ^ (events.indexOf(event) + 1), 0xcc9e2d51) >>> 0;
+  h = Math.imul(h ^ (wave + 1), 0x1b873593) >>> 0;
+  h = Math.imul(h ^ (index + 1), 0x85ebca6b) >>> 0;
+  h = (h ^ (h >>> 15)) >>> 0;
+  h = Math.imul(h, 0xc2b2ae35) >>> 0;
+  h = (h ^ (h >>> 16)) >>> 0;
+  return h / 0x1_0000_0000;
+}
+
 function clipUrl(file: string): string {
   const base = (import.meta.env?.BASE_URL as string | undefined) ?? '/';
   return `${base}announcer/${file}.mp3`;
@@ -403,6 +506,10 @@ const isTerminal = (e: AnnouncerEvent): boolean => UNCAPPED_EVENTS.includes(e);
 function enqueue(line: PendingLine): void {
   if (!active) return;
   if (pending.some((p) => p.event === line.event)) return;
+  // The Announcer dev tuner's per-event TIMING OFFSET (owner 2026-09-24; 0 in prod unless baked). Added to the
+  // event's built-in delay; a negative one fires earlier but never before the moment was detected (now). Only
+  // `notBefore` moves: the cooldown (from the previous line's real end), the cap and the shelf life are untouched.
+  line.notBefore = Math.max(deps.now(), line.notBefore + announcerEventOffset(line.event));
   // The turn-1 quiet window: nothing over the music's fade-in.
   if (enteredAtWaveOne) line.notBefore = Math.max(line.notBefore, runEnteredAt + ANNOUNCER_TURN_ONE_QUIET_MS);
   pending.push(line);
@@ -480,7 +587,7 @@ function speak(line: PendingLine): void {
   };
   let p: Promise<AnnouncerHandle | null>;
   try {
-    p = deps.play(clipUrl(file), ended);
+    p = deps.play(clipUrl(file), ended, announcerEventVolume(line.event));
   } catch {
     p = Promise.resolve(null);
   }
@@ -523,12 +630,100 @@ export function finalPlacement(r: AnnouncerRunLike): number {
 }
 const tail = (h: readonly string[], n: number): readonly string[] => h.slice(Math.max(0, h.length - n));
 
-/** A repeatable event (BackToShop, Triple) may speak again `gap` waves after its last line, up to `max`. */
-function repeatAllowed(s: AnnouncedSlice, event: AnnouncerEvent, wave: number, max: number): boolean {
+/** A repeatable event (BackToShop, Triple, Knockout) may speak again `gap` waves after its last line, up to `max`. */
+function repeatAllowed(s: AnnouncedSlice, event: AnnouncerEvent, wave: number, max: number, gap = ANNOUNCER_REPEAT_GAP_WAVES): boolean {
   const waves = firedWaves(s, event);
   if (waves.length >= max) return false;
   const last = waves[waves.length - 1];
-  return last === undefined || wave - last >= ANNOUNCER_REPEAT_GAP_WAVES;
+  return last === undefined || wave - last >= gap;
+}
+
+// ── The second batch's detectors (owner 2026-09-24) ─────────────────────────────────────────────────────────
+/** A minion (not a spell or a Ruby). An id the card index does not know counts as a minion (hand-built states). */
+const isMinionId = (cardId: string | undefined): boolean => {
+  const def = cardId ? CARD_INDEX[cardId] : undefined;
+  return !def || (!def.spell && !def.ruby);
+};
+const boardGolden = (r: AnnouncerRunLike): number => r.board.filter((c) => c.golden).length;
+/** Pair: two copies of one non-golden minion across the board and the hand. */
+export function hasPair(r: AnnouncerRunLike): boolean {
+  const seen = new Set<string>();
+  for (const c of [...r.board, ...r.hand]) {
+    if (c.golden || !c.cardId || !isMinionId(c.cardId)) continue;
+    if (seen.has(c.cardId)) return true;
+    seen.add(c.cardId);
+  }
+  return false;
+}
+const isBigSpender = (r: AnnouncerRunLike): boolean =>
+  (r.goldSpentThisTurn ?? 0) >= ANNOUNCER_BIG_SPENDER_SPENT && (r.embers ?? 0) >= ANNOUNCER_BIG_SPENDER_LEFT;
+/** A Shop offer's Attack as it would buy in (`offerBuyStats`, the sim's single source of truth for an offer). */
+function offerAttack(r: AnnouncerRunLike, offer: { cardId: string; atk?: number | undefined }): number {
+  try {
+    return offerBuyStats(r as unknown as RunState, offer as unknown as ShopCard).attack;
+  } catch {
+    return (CARD_INDEX[offer.cardId]?.attack ?? 0) + (offer.atk ?? 0); // a partial (test) run: base + the offer's own buffs
+  }
+}
+const shopHasBigAttack = (r: AnnouncerRunLike): boolean =>
+  (r.shop ?? []).some((o) => isMinionId(o.cardId) && offerAttack(r, o) > ANNOUNCER_SHOP_BIG_ATTACK);
+/** The card a buy took: the offer that left the Shop row or the spell slot on the update the buy count rose. */
+function boughtCardId(p: AnnouncerRunLike, run: AnnouncerRunLike): string | null {
+  const now = new Set<string>((run.shop ?? []).map((o) => o.uid));
+  if (run.spell) now.add(run.spell.uid);
+  const before = [...(p.shop ?? []), ...(p.spell ? [p.spell] : [])];
+  return before.find((o) => !now.has(o.uid))?.cardId ?? null;
+}
+/** Knockout: the round the player just fought knocked their foe out. The lobby settles on `resolveCombat` (the
+ *  return to the shop), so this reads the return update: the round's encounter with seat 0, where seat 0 dealt
+ *  damage and the foe went from standing to out. A ghost (the bye's foe) was already out, so it never counts. */
+function knockedOutFoe(p: AnnouncerRunLike, run: AnnouncerRunLike): boolean {
+  const lobby = run.lobby;
+  const round = p.lobby?.round;
+  if (!lobby?.encounters || round === undefined) return false;
+  for (const e of lobby.encounters) {
+    if (e.round !== round || e.bye) continue;
+    const foe = e.a === 's0' ? e.b : e.b === 's0' ? e.a : null;
+    if (!foe) continue;
+    const dealt = e.a === 's0' ? e.damageToB : e.damageToA;
+    const seat = lobby.seats.find((x) => x.id === foe);
+    const wasAlive = p.lobby?.seats.find((x) => x.id === foe)?.alive ?? true;
+    if (dealt > 0 && seat && !seat.alive && wasAlive) return true;
+  }
+  return false;
+}
+
+/** The buy lines: TribeFour and the four RARE lines, on the update a buy landed. */
+function detectBuy(s: AnnouncedSlice, p: AnnouncerRunLike, run: AnnouncerRunLike, now: number): void {
+  const bought = run.cardsBoughtThisTurn ?? 0;
+  if (bought <= (p.cardsBoughtThisTurn ?? 0)) return;
+  const cardId = boughtCardId(p, run);
+  const def = cardId ? CARD_INDEX[cardId] : undefined;
+  const isSpell = !!def && (!!def.spell || !!def.ruby);
+  if (tribeBuys.wave !== run.wave) tribeBuys = { wave: run.wave, byTribe: new Map(), all: 0 };
+  if (def && !isSpell) {
+    if (def.universalTribe) tribeBuys.all++;
+    for (const t of [def.tribe, def.tribe2]) {
+      if (t && t !== 'neutral') tribeBuys.byTribe.set(t, (tribeBuys.byTribe.get(t) ?? 0) + 1);
+    }
+    const best = Math.max(0, ...tribeBuys.byTribe.values()) + tribeBuys.all;
+    if (best >= ANNOUNCER_TRIBE_BUYS && !hasFired(s, 'tribeFour')) {
+      enqueue({ event: 'tribeFour', shelf: 'shop', notBefore: now, wave: run.wave });
+    }
+  }
+  // The rare lines: each qualifying event rolls its own seeded chance. The specific ones enqueue first, so when two
+  // pass on one buy (the same priority) the more specific line is the one that speaks.
+  const candidates: AnnouncerEvent[] = [];
+  if (isSpell) candidates.push('randomSpellBuy');
+  if (def && !isSpell && defIsTribe(def, 'beast')) candidates.push('randomBeastBuy');
+  if (def && !isSpell && defIsTribe(def, 'dwarf')) candidates.push('randomDwarfBuy');
+  candidates.push('randomCardBuy');
+  for (const event of candidates) {
+    if (hasFired(s, event)) continue;
+    if (announcerRoll(s.seed, event, run.wave, bought) < ANNOUNCER_RARE_CHANCE) {
+      enqueue({ event, shelf: 'shop', notBefore: now, wave: run.wave });
+    }
+  }
 }
 
 /** THE FORGE OPENING: `runeforgeOffer` appeared (`runeforgeEpic` picks the Epic line). The scheduled forges (turn
@@ -557,6 +752,7 @@ function enterRun(s: AnnouncerStateLike): void {
   enteredAtWaveOne = s.run.wave === 1 && s.run.phase === 'recruit';
   combatStartedAt = s.run.phase === 'combat' ? runEnteredAt : null;
   bigStatSeenThisCombat = false;
+  tribeBuys = { wave: -1, byTribe: new Map(), all: 0 };
   if (enteredAtWaveOne && !hasFired(slice!, 'gameStart')) {
     enqueue({ event: 'gameStart', shelf: 'shop', notBefore: runEnteredAt + ANNOUNCER_GAME_START_DELAY_MS, wave: 1 });
   }
@@ -628,6 +824,25 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
     if (last3.length === 3 && last3.every((r) => r === 'win') && !hasFired(slice, 'threeWinStreak')) {
       enqueue({ event: 'threeWinStreak', shelf: 'combat', notBefore: at, wave: run.wave });
     }
+    if (result === 'win') {
+      // ComebackWin: this win ends a run of ANNOUNCER_COMEBACK_LOSSES+ losses in a row (a draw breaks the run).
+      const before = run.history.slice(0, -1);
+      let losses = 0;
+      for (let i = before.length - 1; i >= 0 && before[i] === 'lose'; i--) losses++;
+      if (losses >= ANNOUNCER_COMEBACK_LOSSES && !hasFired(slice, 'comebackWin')) {
+        enqueue({ event: 'comebackWin', shelf: 'combat', notBefore: at, wave: run.wave });
+      }
+      // FlawlessVictory: no friendly minion died (the sim's raw death count; absent = unknown, never assumed 0).
+      if (run.wave >= ANNOUNCER_FLAWLESS_MIN_WAVE && run.lastCombat?.playerDeaths === 0 && !hasFired(slice, 'flawlessVictory')) {
+        enqueue({ event: 'flawlessVictory', shelf: 'combat', notBefore: at, wave: run.wave });
+      }
+      // BigHit: the damage the opposing hero takes, round-capped exactly as the lobby charges it and the fight's
+      // damage readout shows it (`lossDamageCap`).
+      const dealt = Math.min(run.lastCombat?.enemyDamage ?? 0, lossDamageCap(run.wave));
+      if (dealt >= ANNOUNCER_BIG_HIT && !hasFired(slice, 'bigHit')) {
+        enqueue({ event: 'bigHit', shelf: 'combat', notBefore: at, wave: run.wave });
+      }
+    }
     return;
   }
   if (p.phase === 'combat' && run.phase === 'recruit') {
@@ -640,6 +855,17 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
     if (run.lobby && playerAlive(run)) {
       if (alive <= 2 && !hasFired(slice, 'topTwo')) enqueue({ event: 'topTwo', shelf: 'shop', notBefore: at, wave: run.wave });
       else if (alive <= 4 && !hasFired(slice, 'topFour')) enqueue({ event: 'topFour', shelf: 'shop', notBefore: at, wave: run.wave });
+      // KNOCKOUT: the round the player just fought knocked their foe out. The table settles HERE (resolveCombat), not
+      // at the verdict, so the line lands with the rail's elimination instead of announcing it mid-fight.
+      if (knockedOutFoe(p, run) && repeatAllowed(slice, 'knockout', run.wave, ANNOUNCER_KNOCKOUT_MAX, ANNOUNCER_KNOCKOUT_GAP_WAVES)) {
+        enqueue({ event: 'knockout', shelf: 'shop', notBefore: at, wave: run.wave });
+      }
+    }
+    if ((run.embers ?? 0) >= ANNOUNCER_RICH_GOLD && !hasFired(slice, 'richTurn')) {
+      enqueue({ event: 'richTurn', shelf: 'shop', notBefore: at, wave: run.wave });
+    }
+    if (run.wave === ANNOUNCER_ROUND_SEVEN && !hasFired(slice, 'round7') && announcerRoll(slice.seed, 'round7', run.wave, 0) < ANNOUNCER_RARE_CHANCE) {
+      enqueue({ event: 'round7', shelf: 'shop', notBefore: at, wave: run.wave });
     }
     // A forge that opens WITH the return (the turn-6 / turn-9 forges, a hero's turn-5 / turn-8 one, a booked
     // Clock forge) arrives in this same update: it outranks BackToShop, which is then dropped as outranked
@@ -677,6 +903,19 @@ export function syncAnnouncer(s: AnnouncerStateLike, prev: AnnouncerStateLike | 
     if (!hasBigStat(p.board) && hasBigStat(run.board) && !hasFired(slice, 'minionHits100Stats')) {
       enqueue({ event: 'minionHits100Stats', shelf: 'shop', notBefore: now, wave: run.wave });
     }
+    if (p.board !== run.board && boardGolden(p) < ANNOUNCER_GOLDEN_ARMY && boardGolden(run) >= ANNOUNCER_GOLDEN_ARMY && !hasFired(slice, 'goldenArmy')) {
+      enqueue({ event: 'goldenArmy', shelf: 'shop', notBefore: now, wave: run.wave });
+    }
+    if (!hasFired(slice, 'bigSpender') && !isBigSpender(p) && isBigSpender(run)) {
+      enqueue({ event: 'bigSpender', shelf: 'shop', notBefore: now, wave: run.wave });
+    }
+    if (!hasFired(slice, 'shopBigBuff') && p.shop !== run.shop && !shopHasBigAttack(p) && shopHasBigAttack(run)) {
+      enqueue({ event: 'shopBigBuff', shelf: 'shop', notBefore: now, wave: run.wave });
+    }
+    if (!hasFired(slice, 'pair') && (p.board !== run.board || p.hand !== run.hand) && !hasPair(p) && hasPair(run)) {
+      enqueue({ event: 'pair', shelf: 'shop', notBefore: now, wave: run.wave });
+    }
+    detectBuy(slice, p, run, now);
   }
 }
 
@@ -687,6 +926,32 @@ export function observeCombatBoard(units: readonly { attack: number; health: num
   if (hasFired(slice, 'minionHits100Stats') || !hasBigStat(units)) return;
   bigStatSeenThisCombat = true;
   enqueue({ event: 'minionHits100Stats', shelf: 'combat', notBefore: Math.max(deps.now(), combatStartedAt + ANNOUNCER_COMBAT_SILENCE_MS), wave });
+}
+
+// ── The Announcer dev tuner's ▶ (owner 2026-09-24) ──────────────────────────────────────────────────────────
+let previewHandle: AnnouncerHandle | null = null;
+let previewToken = 0;
+const previewNext = new Map<AnnouncerEvent, number>();
+/** Play one of `event`'s lines NOW at its tuned volume, outside the queue (no cooldown, no cap, nothing marked).
+ *  Each press moves to the next variant; a new press cuts the previous preview. Through the Announcer channel, so
+ *  the Settings slider and mute apply. Returns the file it played (for the panel and the tests). */
+export function previewAnnouncerEvent(event: AnnouncerEvent): string {
+  const variants = ANNOUNCER_LINES[event];
+  const i = (previewNext.get(event) ?? 0) % variants.length;
+  previewNext.set(event, i + 1);
+  const file = variants[i]!;
+  previewHandle?.stop(ANNOUNCER_STOP_FADE_MS);
+  previewHandle = null;
+  const token = ++previewToken;
+  const done = (): void => { if (token === previewToken) previewHandle = null; };
+  let p: Promise<AnnouncerHandle | null>;
+  try {
+    p = deps.play(clipUrl(file), done, announcerEventVolume(event));
+  } catch {
+    p = Promise.resolve(null);
+  }
+  p.then((h) => { if (token === previewToken) previewHandle = h; else h?.stop(0); }, () => {});
+  return file;
 }
 
 /** Read-only view for the DEV surface (`window.__announcer`) and the tests. */
@@ -716,6 +981,7 @@ export function resetAnnouncerForTests(): void {
   enteredAtWaveOne = false;
   combatStartedAt = null;
   bigStatSeenThisCombat = false;
+  tribeBuys = { wave: -1, byTribe: new Map(), all: 0 };
   log.length = 0;
 }
 

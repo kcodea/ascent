@@ -13,6 +13,117 @@ import type { CardDef } from '@game/core';
  */
 export const ARCHIVED_CARDS: CardDef[] = [
   {
+    // ARCHIVED 2026-09-24 (owner beast/dragon batch). Moved verbatim from set2/beasts.ts; belongs to no set now.
+    // Turns spell purchases into bodies: a bought Shop spell is taught to a Mage-Pup, and at End of Turn that
+    // Pup joins your hand — a 2/2 Beast whose Shout casts the spell it learned (owner ruling 2026-07-24). So
+    // the spell is effectively duplicated onto a body you can also buff. Golden teaches twice each turn.
+    id: 'b2_moonhowl',
+    name: 'Moonhowl Mentor',
+    tribe: 'beast',
+    tier: 6, // T6 -> T5 (2026-08-07 batch) -> back to T6 (owner, same day)
+    attack: 4,
+    health: 9,
+    keywords: [],
+    // Fires the moment the spell is BOUGHT (owner 2026-07-24) — the Pup lands in hand right away, so you can
+    // play it the same turn. It used to queue and mint at End of Turn, which put the payoff a turn away.
+    effects: [{ on: 'spellBought', do: 'grantMagePupTaught' }],
+    text: 'Once per turn, when you buy a Shop spell, get a **Mage-Pup** that has learned it.',
+    goldenText: 'Twice per turn, when you buy a Shop spell, get a **Mage-Pup** that has learned it.',
+  },
+  {
+    // ARCHIVED 2026-09-24 (owner beast/dragon batch). Moved verbatim from set2/beasts.ts; belongs to no set now.
+    // Owner add 2026-07-28; owner rework 2026-09-23: "End of Turn: trigger your Shout minions." A Shout ENGINE
+    // that pays in the shop rather than in combat: every friendly Shout minion on the board re-fires at End of
+    // Turn, wherever it stands (was: the two neighbours only). Each re-fire rides `replayBattlecry`, so it is a
+    // real Shout for quests, Spell Drummer and every `battlecryTriggered` watcher (Embermouth Whelp counts each).
+    // Gilded fires the whole thing twice (not "twice as big"), so a golden Moira really does double the bodies.
+    id: 'b2_moira',
+    name: 'Moira',
+    tribe: 'beast',
+    tier: 6,
+    attack: 6,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnTriggerShouts', params: {} }],
+    text: '**End of Turn:** trigger your **Shout** minions.',
+    goldenText: '**End of Turn:** trigger your **Shout** minions **twice**.',
+  },
+  {
+    // ARCHIVED 2026-09-24 (owner beast/dragon batch). Moved verbatim from set2/beasts.ts; belongs to no set now.
+    // Owner add 2026-08-12. Avenge (4): summon an Armadiyo (`avengeSummon`; a gilded Dunkey summons a gilded
+    // Armadiyo). No keyword pill, matching the other Avenge cards.
+    id: 'b2_dunkey',
+    name: 'Dunkey',
+    tribe: 'beast',
+    tier: 4,
+    attack: 5, // owner balance 2026-09-23: 4/6 → 5/6
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'avenge', do: 'avengeSummon', params: { count: 4, cardId: 'b2_armadiyo' } }],
+    text: '**Avenge (4):** summon an **Armadiyo**.',
+    goldenText: '**Avenge (4):** summon a **Gilded Armadiyo**.',
+  },
+  {
+    // ARCHIVED 2026-09-24 (owner beast/dragon batch). Moved verbatim from set2/dragons.ts; belongs to no set now.
+    // The Shout-tribe capstone on a Rally: every swing re-fires your OTHER Dragons' Shouts through the shared
+    // combat re-trigger (so every "after you trigger a Shout" watcher — Karwind, Bane, Embermouth — procs).
+    // Golden re-triggers each Shout twice.
+    id: 'd2_embercrest',
+    name: 'Embercrest',
+    tribe: 'dragon',
+    tier: 6,
+    attack: 8,
+    health: 9,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyTriggerTribeShouts', params: { tribe: 'dragon' } }],
+    text: '**Rally:** trigger your **Dragon** Shouts.',
+    goldenText: '**Rally:** trigger your **Dragon** Shouts **twice**.',
+  },
+  {
+    // ARCHIVED 2026-09-24 (owner kobold/dwarf batch). Moved verbatim from set3/kobolds.ts — belongs to no set now.
+    // `set` (not add) — "the FIRST Choose One card you play each turn", so the charge refreshes to exactly one
+    // per turn and is never banked. The turn boundary clears charges first, then this re-grants.
+    id: 'k3_forkedcrown',
+    name: 'Double Dealer', // 'Dealer' until 2026-09-14 (owner rename handoff; id + art unchanged)
+    tribe: 'kobold',
+    tier: 4,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    // BOTH hooks, and that pairing is the card (owner ruling 2026-08-31). `onPlay` arms her the moment she
+    // arrives — a Dealer bought mid-turn used to sit inert until the next turn — and `startOfTurn` re-arms
+    // whoever is still on board. The latch is PER INSTANCE, so a second Dealer bought after this turn's
+    // first Choose One brings her own fresh one.
+    effects: [
+      { on: 'onPlay', do: 'armChooseBoth', params: { count: 1 } },
+      { on: 'startOfTurn', do: 'armChooseBoth', params: { count: 1 } },
+    ],
+    text: 'The **first Choose One** card you play each turn gains **both** effects.',
+    goldenText: 'The **first 2 Choose One** cards you play each turn gain **both** effects.',
+  },
+  {
+    // ARCHIVED 2026-09-24 (owner kobold/dwarf batch). Moved verbatim from set3/kobolds.ts — belongs to no set now.
+    // Both branches raise Ruby STRENGTH (`rubyBonus`) — the run-wide stat every future Ruby carries — split
+    // into the Attack half and the Health half. Deepvein Tender (set 2) is the same primitive with the
+    // health half only, so this is that card's choice made explicit.
+    id: 'k3_forkvein',
+    name: 'Gemsmith',
+    tribe: 'kobold',
+    tier: 2,
+    attack: 3,
+    health: 4,
+    keywords: [],
+    effects: [],
+    chooseOne: [
+      { text: 'Your Rubies gain **+1 Attack**.', goldenText: 'Your Rubies gain **+2 Attack**.',
+        effects: [{ on: 'onPlay', do: 'rubyStatGain', params: { attack: 1, health: 0 } }] },
+      { text: 'Your Rubies gain **+1 Health**.', goldenText: 'Your Rubies gain **+2 Health**.',
+        effects: [{ on: 'onPlay', do: 'rubyStatGain', params: { attack: 0, health: 1 } }] },
+    ],
+    text: '**Choose One:** give your Rubies **+1 Attack**, or **+1 Health**.',
+    goldenText: '**Choose One:** give your Rubies **+2 Attack**, or **+2 Health**.',
+  },
+  {
     // ARCHIVED 2026-09-16 (owner: "archive Second Calling gift from all sets" — the second-hero-power mechanic is
     // off for now, with Void). Moved verbatim from gifts.ts; `gift: true` kept so a held copy still resolves and casts.
     // Owner clarification 2026-08-26: REPLACES an existing second power rather than being skipped.

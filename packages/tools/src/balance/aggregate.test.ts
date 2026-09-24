@@ -34,14 +34,14 @@ describe('aggregate (synthetic fixture)', () => {
     // plays through the synthetic set-3 lobbies, so the per-hero placements move.
     expect(heroes).toMatchInlineSnapshot(`
       [
-        "drakko:30:5.07",
-        "fibbsy:30:4.53",
-        "gorr:30:4.73",
-        "harlan:30:4.77",
-        "midas:30:3.97",
-        "nadja:30:4.30",
-        "pete:30:4.03",
-        "warden:30:4.60",
+        "drakko:30:4.83",
+        "fibbsy:30:4.57",
+        "gorr:30:4.53",
+        "harlan:30:4.63",
+        "midas:30:4.50",
+        "nadja:30:3.97",
+        "pete:30:4.53",
+        "warden:30:4.43",
       ]
     `);
     expect(agg.minions.length).toBeGreaterThan(50);

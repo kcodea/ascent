@@ -14,37 +14,41 @@ const buffsOn = (r: ReturnType<typeof simulate>, uid: string, source?: string) =
 const summonsBy = (r: ReturnType<typeof simulate>, uid: string) =>
   (r.events.filter((e) => e.type === 'summon' && (e as { source?: string }).source === uid) as { minion: { cardId: string; golden?: boolean } }[]);
 
-// ── Wolvie (T2 Beast, Echo: the next Beast you summon gets +2/+4) ──────────────────────────────────────────
-describe('Wolvie — Echo buffs the next summoned Beast', () => {
-  it('the next Beast summoned after Wolvie dies gets +2/+4 (gilded +4/+8)', () => {
-    // Wolvie (Taunt, 1 hp) dies first; then a Pack Leader dies and its Echo summons a Pup — the Pup takes the
-    // queued buff. Asserted via the buff on the summoned Pup sourced by the fallen Wolvie's uid (2026-09-16:
-    // was the 'Wolvie' label — a uid lets the replay stream the tendril from the slot it fell in).
-    const run = (golden: boolean) => sim([bm('b2_wolvie', 'W', 3, 1, golden ? { golden: true } : {}), bm('pack', 'P', 2, 1)]);
-    const pupBuff = (r: ReturnType<typeof simulate>) => {
-      const pup = (r.events.filter((e) => e.type === 'summon') as { minion: { uid: string; cardId: string } }[]).find((e) => e.minion.cardId === 'pup');
-      return pup ? buffsOn(r, pup.minion.uid, uidOf(r, 'b2_wolvie')).map((b) => [b.attack, b.health]) : [];
-    };
-    expect(pupBuff(run(false)), 'the next Beast got +2/+4').toContainEqual([2, 4]);
-    expect(pupBuff(run(true)), 'gilded Wolvie +4/+8').toContainEqual([4, 8]);
+// ── Wolvie (T2 Beast, "Taunt. Echo: Give a Beast +2/+4 and Rise." — owner batch 2026-09-24) ─────────────────
+// Was "the next Beast you summon gets +2/+4" (a queued next-summon buff). Now a RANDOM other friendly Beast takes
+// +2/+4 AND Rise at once. Golden: +4/+8, and the grant goes to 2 different Beasts (the house keyword-grant gild).
+const riseOn = (r: ReturnType<typeof simulate>, uid: string, source?: string) =>
+  (r.events.filter((e) => e.type === 'keyword') as { target: string; keyword: string; source?: string }[])
+    .filter((k) => k.target === uid && k.keyword === 'R' && (!source || k.source === source));
+describe('Wolvie — Echo gives a Beast +2/+4 and Rise', () => {
+  it('a random other Beast gets +2/+4 and Rise, sourced on the fallen Wolvie (gilded: 2 Beasts, +4/+8)', () => {
+    // Wolvie (1 hp) dies first; the only other Beast (a tanky Alleycat) takes the grant.
+    const plain = sim([bm('b2_wolvie', 'W', 3, 1), bm('alley', 'A', 1, 900)]);
+    const w = uidOf(plain, 'b2_wolvie');
+    const a = uidOf(plain, 'alley');
+    expect(buffsOn(plain, a, w).map((b) => [b.attack, b.health]), 'the Beast got +2/+4').toContainEqual([2, 4]);
+    expect(riseOn(plain, a, w).length, 'and Rise').toBe(1);
+    const gilded = sim([bm('b2_wolvie', 'W', 3, 1, { golden: true }), bm('alley', 'A1', 1, 900), bm('alley', 'A2', 1, 900)]);
+    const gw = uidOf(gilded, 'b2_wolvie');
+    const cats = gilded.initial.player.filter((m) => m.cardId === 'alley').map((m) => m.uid);
+    for (const c of cats) {
+      expect(buffsOn(gilded, c, gw).map((b) => [b.attack, b.health]), 'gilded +4/+8 on each').toContainEqual([4, 8]);
+      expect(riseOn(gilded, c, gw).length, 'Rise on 2 different Beasts').toBe(1);
+    }
   });
 
-  it('a Wolvie that RISES consumes its own queued buff (a Rise is a summon)', () => {
-    // Regression (owner report 2026-08-12): Wolvie with Rise dies → its Echo queues +2/+4 → the risen body IS
-    // the next Beast summoned, so it must take the buff. The Rise re-slot used to bypass the summon chokepoint.
-    const r = sim([bm('b2_wolvie', 'W', 3, 2, { keywords: ['R'] })]);
-    expect(buffsOn(r, uidOf(r, 'b2_wolvie'), uidOf(r, 'b2_wolvie')).map((b) => [b.attack, b.health]), 'the risen Wolvie got +2/+4')
-      .toContainEqual([2, 4]);
+  it('the granted Rise is live: the Beast comes back when it dies', () => {
+    const r = simulate([bm('b2_wolvie', 'W', 3, 1), bm('alley', 'A', 1, 1)], [{ cardId: 'sandbag', attack: 1, health: 40000 }],
+      makeRng(3), CARD_INDEX, combatSide({ tier: 6, tribes: ['beast'] }), combatSide({ tier: 1 }));
+    const a = uidOf(r, 'alley');
+    expect(riseOn(r, a).length, 'the cat took Rise').toBe(1);
+    expect(r.events.some((e) => e.type === 'reborn' && (e as { target: string }).target === a), 'and it Rose').toBe(true);
   });
 
-  it('multiple Wolvie Echoes STACK onto the next single summon (owner 2026-08-12)', () => {
-    // Two Taunt Wolvies die first (each queues +2/+4); then Pack Leader dies and summons a Pup — the Pup takes
-    // BOTH at once (+4/+8), and the queue is then spent (still the next summon only, just summed).
-    const r = sim([bm('b2_wolvie', 'W1', 3, 1, { keywords: ['T'] }), bm('b2_wolvie', 'W2', 3, 1, { keywords: ['T'] }), bm('pack', 'P', 2, 1)]);
-    const pup = (r.events.filter((e) => e.type === 'summon') as { minion: { uid: string; cardId: string } }[]).find((e) => e.minion.cardId === 'pup');
-    expect(pup, 'a Pup spawned').toBeDefined();
-    // ONE summed buff, attributed to the FIRST Wolvie that queued (W1).
-    expect(buffsOn(r, pup!.minion.uid, r.initial.player[0]!.uid).map((b) => [b.attack, b.health]), 'both Echoes on one Pup').toContainEqual([4, 8]);
+  it('a non-Beast is never chosen, and no Beast means nothing happens', () => {
+    const r = sim([bm('b2_wolvie', 'W', 3, 1), bm('d2_broodfire', 'D', 1, 900)]);
+    const w = uidOf(r, 'b2_wolvie');
+    expect(r.events.some((e) => e.type === 'buff' && (e as { source?: string }).source === w), 'no Beast, no grant').toBe(false);
   });
 });
 
@@ -227,8 +231,10 @@ describe('summon-entry order — auras land before the augmenting triggers', () 
     const cubBuffs = buffsOn(r, cub!.minion.uid);
     const grimUid = uidOf(r, 'grim');
     const oonaUid = uidOf(r, 'b2_oona');
-    expect(cubBuffs.some((b) => b.source === grimUid && b.attack === 8 && b.health === 8), 'Grim aura +8/+8').toBe(true);
-    expect(cubBuffs.some((b) => b.source === oonaUid && b.attack === 8 && b.health === 10), 'Oona doubled the POST-aura 8/10').toBe(true);
+    // Grim reworked 2026-09-24: +3/+2 per Echo this game, its own included — Grim is the first Echo, so +3/+2.
+    // Cub 0/2 → aura 3/4 → Oona doubles the POST-aura body: +3/+4.
+    expect(cubBuffs.some((b) => b.source === grimUid && b.attack === 3 && b.health === 2), 'Grim aura +3/+2 (1 Echo)').toBe(true);
+    expect(cubBuffs.some((b) => b.source === oonaUid && b.attack === 3 && b.health === 4), 'Oona doubled the POST-aura 3/4').toBe(true);
   });
 
   it('Rune of the Jungle doubles the POST-aura Health too', () => {
@@ -236,8 +242,8 @@ describe('summon-entry order — auras land before the augmenting triggers', () 
     const cub = (r.events.filter((e) => e.type === 'summon') as { minion: { uid: string; cardId: string } }[])
       .find((e) => e.minion.cardId === 'sabercub');
     expect(cub).toBeDefined();
-    // Cub 0/2 + Grim aura 8/8 → 8/10 → the Jungle doubles the post-aura 10 Health, not the printed 2.
-    expect(buffsOn(r, cub!.minion.uid, 'Rune of the Jungle').some((b) => b.health === 10), 'doubled 10, not 2').toBe(true);
+    // Cub 0/2 + Grim aura 3/2 (one Echo, Grim's own) → 3/4 → the Jungle doubles the post-aura 4 Health, not the 2.
+    expect(buffsOn(r, cub!.minion.uid, 'Rune of the Jungle').some((b) => b.health === 4), 'doubled 4, not 2').toBe(true);
   });
 
   it('onSummon watchers fire in CURRENT board order, left→right (Beardsley vs Oona)', () => {

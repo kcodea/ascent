@@ -347,7 +347,7 @@ export function carryBackOf(r: CombatResult, v: BotVisibleState): number {
   const channel = (x: { attack: number; health: number } | undefined): number => (x ? (x.attack + x.health) * CHANNEL_USES : 0);
   n += channel(r.playerTavernBuyGain) + channel(r.playerSpellPower) + channel(r.playerRubyBonusGain) + channel(r.playerNextShopBuff) + channel(r.playerSpellEscalationGain);
   n += ((r.playerBeastBuyAtkGain ?? 0) + (r.playerBeastBuyHpGain ?? 0) + (r.playerUndeadBuyAtkGain ?? 0)) * CHANNEL_USES;
-  n += ((r.playerRubyGrants ?? 0) + (r.playerHandGrants?.length ?? 0) + (r.playerSlaughterCopy ? 1 : 0)) * GENERATED_CARD_STATS;
+  n += ((r.playerRubyGrants ?? 0) + (r.playerRubyGrantIds?.length ?? 0) + (r.playerHandGrants?.length ?? 0) + (r.playerSlaughterCopy ? 1 : 0)) * GENERATED_CARD_STATS;
   return n;
 }
 

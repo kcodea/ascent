@@ -85,6 +85,8 @@ const SELF_EXCLUDING: Record<string, Exclusion> = {
   onTribeSummonedBuffRandomOthers: 'recruit builds `avail` as `board.filter(c => c.uid !== self.uid …)` before the seeded draw (Hank Pepe, set 3; also declines its own arrival)',
   scBuffAlliesPctSelf: 'arena buffs `arena.friends()` filtered to `m.uid !== arena.self.uid`',
   onTribeAttackBuffAttacker: 'returns early on `minion === self` — the attacker must be someone else',
+  rallyGrantKeywordRandomTribe: 'arena draws from `others(arena, …)`, the R-TARGET-03 pool that never holds the source (Raven, 2026-09-24)',
+  avengeGrantKeywordRandomTribe: 'runs the `rallyGrantKeywordRandomTribe` arena body, drawing from `others(arena, …)` (Tort, 2026-09-24)',
   avengeGiveAttack: 'the recipient walk skips `self`',
   impInheritOnDeath: 'the dying Imp is the payload; the inheritor is chosen from the others',
   impInheritOnSummon: 'the newborn is the payload; the source is not a candidate',

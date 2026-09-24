@@ -1815,8 +1815,8 @@ describe('simulate (handoff A.3)', () => {
       1,
     );
     expect(r.events.filter((e) => e.type === 'shout').length).toBe(1); // 1 trigger — one counted shout event
-    // Flat +3/+3 (owner balance 2026-08-18: +4/+4 → +3/+3, and the 20% double clause was removed) — proves Karwind procced.
-    const proc = r.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 3);
+    // Flat +2/+2 (owner batch 2026-09-24: +3/+3 → +2/+2; the 20% double clause is long gone) — proves Karwind procced.
+    const proc = r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2);
     expect(proc, 'Karwind never procced').toBe(true);
   });
 
@@ -1841,7 +1841,7 @@ describe('simulate (handoff A.3)', () => {
     // (Drakko is NEUTRAL and is passed over, as before). Owner balance 2026-08-18: +4/+4 → +3/+3 and the 20%
     // double-trigger clause was removed, so every grant is a flat +3/+3 and there are no crits — 8 × 2 = 16 grants.
     const dragons = 2; // Karwind + the Cleric
-    const plain = r.events.filter((e) => e.type === 'buff' && e.attack === 3 && e.health === 3).length;
+    const plain = r.events.filter((e) => e.type === 'buff' && e.attack === 2 && e.health === 2).length; // +2/+2 since 2026-09-24
     const crits = r.events.filter((e) => e.type === 'proccrit' && e.mult === 2).length;
     expect(plain).toBe(8 * dragons);
     expect(crits).toBe(0);
@@ -2058,13 +2058,13 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('a golden Sylus procs a Deathrattle two extra times, and Sylus stacks', () => {
-    // Use a buff Deathrattle (Grim: Beasts +8/+8, flat) so the proc count is the number of buff events — no
-    // board-cap interference. Only the Alleycat is a living Beast to buff.
+    // Use a buff Deathrattle (Grim: Beasts +3/+2 per Echo; every re-fire reads the tally at death = 1) so the
+    // proc count is the number of buff events — no board-cap interference. Only the Alleycat is a living Beast.
     const procs = (board: BoardMinion[]): number =>
       run(board, [{ cardId: 'omen', attack: 1, health: 200 }], 1).events.filter(
-        (e) => e.type === 'buff' && e.attack === 8,
+        (e) => e.type === 'buff' && e.attack === 3 && e.health === 2,
       ).length;
-    const grim = { cardId: 'grim', attack: 1, health: 1 }; // Echo: give your Beasts +8/+8
+    const grim = { cardId: 'grim', attack: 1, health: 1 }; // Echo: give your Beast Aura +3/+2 per Echo
     const carry = { cardId: 'alley', attack: 2, health: 50 }; // surviving Beast
     expect(procs([grim, carry, { cardId: 'sylus', attack: 1, health: 50, golden: true }])).toBe(3); // 1 + 2 golden
     expect(
@@ -2098,7 +2098,7 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('Grim buffs Beasts summoned *after* it dies — a persistent aura, not a one-time buff', () => {
-    // Grim dies on its first swing (1 HP → retaliation) and registers a +8/+8 Beast aura (its flat Echo). Mama
+    // Grim dies on its first swing (1 HP → retaliation) and registers a +3/+2 Beast aura (1 Echo so far). Mama
     // Pup outlives it, then dies and summons 2 Pups — and though they're summoned *after* Grim is gone, the
     // aura still catches them. Isolates the aura: a one-time "buff living Beasts" could never reach a minion
     // that didn't exist yet.
@@ -2117,13 +2117,14 @@ describe('simulate (handoff A.3)', () => {
     expect(latePups.length).toBeGreaterThan(0); // Pups summoned strictly after Grim died
     for (const { ev } of latePups) {
       const uid = ev.type === 'summon' ? ev.minion.uid : '';
-      const gotAura = a.events.some((b) => b.type === 'buff' && b.target === uid && b.attack === 8 && b.health === 8);
+      const gotAura = a.events.some((b) => b.type === 'buff' && b.target === uid && b.attack === 3 && b.health === 2);
       expect(gotAura).toBe(true);
     }
   });
 
-  it('Grim gives a FLAT +8/+8 regardless of the run Deathrattle tally (rework 2026-08-12)', () => {
-    // A run that has already seen 5 Deathrattles must NOT scale Grim's grant any more — it is flat now.
+  it('Grim scales with the per-GAME Echo tally, its own Echo included (owner batch 2026-09-24)', () => {
+    // A run that has already seen 5 Echoes: Grim's own makes 6 → +18/+12 (6 × +3/+2). The run-wide base
+    // carries across fights, so the tally is per game, not per combat.
     const p: BoardMinion[] = [
       { cardId: 'grim', attack: 1, health: 1, sourceUid: 'G' },
       { cardId: 'alley', attack: 2, health: 80, sourceUid: 'C' }, // surviving Beast (no Deathrattle)
@@ -2131,7 +2132,10 @@ describe('simulate (handoff A.3)', () => {
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 300 }];
     const a = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ deathrattles: 5 })); // deathrattles = run-wide Deathrattle base
     const allyUid = a.initial.player.find((m) => m.cardId === 'alley')!.uid;
-    expect(a.events.some((ev) => ev.type === 'buff' && ev.target === allyUid && ev.attack === 8 && ev.health === 8)).toBe(true);
+    expect(a.events.some((ev) => ev.type === 'buff' && ev.target === allyUid && ev.attack === 18 && ev.health === 12)).toBe(true);
+    const golden = simulate([{ ...p[0]!, golden: true }, p[1]!], e, makeRng(3), CARD_INDEX, combatSide({ deathrattles: 5 }));
+    const gAlly = golden.initial.player.find((m) => m.cardId === 'alley')!.uid;
+    expect(golden.events.some((ev) => ev.type === 'buff' && ev.target === gAlly && ev.attack === 36 && ev.health === 24), 'gilded doubles the rate').toBe(true);
   });
 
   it('Gnasher: each kill permanently raises run-wide spell power (+1/+1)', () => {
@@ -3015,8 +3019,8 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'karwind', attack: 4, health: 60, sourceUid: 'KW' },
     ], [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), { ...CARD_INDEX, tsshout2: shouter, tssov2: sov },
       combatSide({ tier: 6, tribes: ['dragon'] }), combatSide({ tier: 1 }));
-    // Karwind answers a triggered Battlecry with a flat +3/+3 to your Dragons (owner balance 2026-08-18).
-    expect(r.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 3)).toBe(true);
+    // Karwind answers a triggered Battlecry with a flat +2/+2 to your Dragons (owner batch 2026-09-24).
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true);
   });
 
   it('set 2 — Mushy: its Echo carries back a next-turn spell-copy count', () => {
@@ -3143,23 +3147,20 @@ describe('simulate (handoff A.3)', () => {
     expect(fromParagon, 'the Paragon grants nothing itself — it only scales Rubies as they land').toEqual([]);
   });
 
-  it('set 2 — Geode Guardian (2026-07-31 rework): Echo summons 2 Taunt Golems with a Ruby each — Gilded still 2', () => {
+  it("set 2 — Geode Guardian (owner Ruby batch 2026-09-24): Echo summons ONE Golem with this minion's Rubies and Taunt — Gilded is a 2/2 with double", () => {
+    // Carver's Golem body: 1/1 + the Rubies on Geode (+2/+3 here), with Taunt. Gilded: (1 + Rubies) x 2.
     const run = (golden: boolean) => simulate([
-      { cardId: 'k_geode', attack: golden ? 2 : 1, health: 1, sourceUid: 'GD', golden },
+      { cardId: 'k_geode', attack: 6, health: 1, sourceUid: 'GD', golden, buffs: [{ source: 'Ruby', attack: 2, health: 3, count: 2 }] },
     ], [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), CARD_INDEX,
       combatSide({ tier: 2, tribes: ['kobold'] }), combatSide({ tier: 1 }));
-    const r = run(false);
-    const golems = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'gemheart-shard');
-    expect(golems.length).toBe(2);
-    for (const g of golems) expect((g as { minion: { keywords: string[] } }).minion.keywords).toContain('T');
-    // Each golem got a Ruby (a 1/1 buff at base strength), and nothing persists (not Engraved).
-    expect(r.events.filter((e) => e.type === 'buff' && e.attack === 1 && e.health === 1).length).toBeGreaterThanOrEqual(2);
-    expect(r.playerPermaBuffs?.length ?? 0).toBe(0);
-    // Gilded: the COUNT stays 2 (owner's explicit call); the Rubies double instead.
-    const g = run(true);
-    const gGolems = g.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'gemheart-shard');
-    expect(gGolems.length, 'a Gilded Guardian must still summon exactly 2').toBe(2);
-    expect(g.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2), 'the Gilded Rubies should be doubled').toBe(true);
+    const golemsOf = (r: ReturnType<typeof run>) => r.events.flatMap((e) => (e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'gemheart-shard' ? [(e as unknown as { minion: { attack: number; health: number; keywords: string[] } }).minion] : []));
+    const golems = golemsOf(run(false));
+    expect(golems.length).toBe(1);
+    expect(golems[0]!.keywords).toContain('T');
+    expect([golems[0]!.attack, golems[0]!.health]).toEqual([3, 4]);
+    const g = golemsOf(run(true));
+    expect(g.length, 'a Gilded Guardian still summons one Golem').toBe(1);
+    expect([g[0]!.attack, g[0]!.health], 'Gilded: a 2/2 with double the Rubies').toEqual([6, 8]);
   });
 
   it('set 2 — Crownvein Vanguard: Rally buffs your Rubies AND plays Rubies on Kobolds', () => {
@@ -4528,7 +4529,7 @@ describe('Uron / Zyff — the split trigger multipliers', () => {
   });
 
   it('ZYFF doubles Deathrattles — and STACKS additively with Sylus', () => {
-    // Grim's Echo buffs Beasts +8/+8; count its buff events as the proc count.
+    // Grim's Echo buffs Beasts +3/+2 per Echo (each re-fire reads the tally at death = 1); count its buff events.
     const procs = (extra: { cardId: string; attack: number; health: number }[]): number =>
       run(
         [
@@ -4538,7 +4539,7 @@ describe('Uron / Zyff — the split trigger multipliers', () => {
         ],
         [{ cardId: 'omen', attack: 1, health: 300 }],
         6,
-      ).events.filter((e) => e.type === 'buff' && e.attack === 8).length;
+      ).events.filter((e) => e.type === 'buff' && e.attack === 3 && e.health === 2).length;
     const none = procs([]);
     const zyff = procs([{ cardId: 'zyff', attack: 6, health: 80 }]);
     const both = procs([{ cardId: 'zyff', attack: 6, health: 80 }, { cardId: 'sylus', attack: 1, health: 80 }]);

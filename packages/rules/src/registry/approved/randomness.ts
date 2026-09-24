@@ -53,4 +53,22 @@ export const RANDOMNESS_RULES: GameRule[] = [
       + 'produce different shops; no golden pinned specific offers.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/shopDrawWeight.test.ts'], lastVerifiedAt: '2026-09-10' },
   },
+  {
+    id: 'R-RAND-02',
+    title: '"A random Ruby" is one of all six Ruby types at equal odds, drawn per Ruby from the seeded RNG',
+    statement:
+      'Every "get a random Ruby" (Ruby Shipment, Kobe\'s Pummel, Gem Sage, Rune of Resonance, Rune of Investment) '
+      + 'draws each Ruby SEPARATELY and uniformly from the six types: Ruby, Warding, Golden, Splintered, Ripple and '
+      + 'Dark, on the run cursor in the Shop and the fight RNG in combat, so a replay draws the same Rubies. Each '
+      + 'is minted at its own printed base plus the run\'s Ruby strength. A plain "get N Rubies" stays plain Rubies.',
+    domain: 'randomness',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Ruby batch handoff, 2026-09-24', quote: 'the pool is all 6 types (plain, Warding, Golden, Splintered, Ripple, Dark) at equal odds' },
+      { kind: 'code', ref: 'packages/core/src/types.ts RUBY_TYPE_IDS; packages/sim/src/recruit.ts mintRandomRubies; packages/core/src/combat/simulate.ts ctx.grantRandomRubies (playerRubyGrantIds)' },
+    ],
+    contentIds: ['rubyshipment', 'k_kobe', 'k_gemsage', 'rune_resonance', 'rune_investment'],
+    currentBehaviour: 'Conforms as of 2026-09-24.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/rubyTypes.test.ts'], lastVerifiedAt: '2026-09-24' },
+  },
 ];

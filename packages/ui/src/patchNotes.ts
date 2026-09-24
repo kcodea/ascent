@@ -67,7 +67,47 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-24',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Spell effects and sounds now play however the spell is cast, including from runes.',
+        details: [
+          'Dragonflame shows its flames and plays its sound when a rune or a minion casts it, not only when you do.',
+          'Great Pot has its own cast effect. It flies to each minion it buffs, from your hand, a rune or the minion that cast it.',
+          'Dwarven Ales a minion pours now fly from that minion.',
+          'Spells cast by runes and minions now make the spell cast sound, in the Shop, at End of Turn and in combat.',
+          'Golden Ale and Reinforcing Ale show their effect when a rune or a minion casts them.',
+          'A Lasso cast by a rune or a minion is thrown from that rune or minion.',
+          'Staff of Guel shows its Shop effect when it is cast at End of Turn.',
+          'Minions put on your board by runes, hero powers, quests, Discovers or spells now land with dust and a summon sound.',
+          'Dragonflame no longer plays twice on the same minion in some combats.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
       { category: 'Balance', text: 'Rune of Hoardcalling only appears in runs with Dragons again.' },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Kobolds, Celestials and Dwarves',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Pickles, Jewel, Delver, Kurse, Maestro Lux and Han Gover changed, and Facetwright\'s Choice is now just Facetwright.',
+        details: [
+          'Facetwright\'s Choice is renamed Facetwright. It works the same.',
+          'Pickles now reads "Choose One: Get 3 Rubies or a Facetwright." (Gilded: 6 Rubies or 2 Facetwrights). The random Shop spell option is gone.',
+          'Jewel now reads "Choose One: Get a random Kobold or increase your max Gold by 1." (Gilded: 2 Kobolds or +2 max Gold). It no longer Discovers.',
+          'Delver is now Tier 2 and a 4/3 (was Tier 3, 5/3).',
+          'Kurse now reads "Avenge (3): Summon a Gemheart Golem with this minion\'s Rubies. It attacks immediately." The Golem now attacks the moment it lands. That part is new.',
+          'Gemheart Carver and Porkbelly now say "Summon a Gemheart Golem with this minion\'s Rubies". Same effect, clearer words.',
+          'Maestro Lux now reads "Pummel (12): Get a random Celestial. (Once per combat.)" It no longer has a Shout.',
+          'Han Gover can now trigger up to 5 times per combat (was once). Every 40 damage it deals gets a Dwarven Ale, up to 5 each fight.',
+        ],
+      },
     ],
   },
   {

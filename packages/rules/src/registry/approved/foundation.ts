@@ -841,7 +841,13 @@ export const FOUNDATION_RULES: GameRule[] = [
       + '`rune-cast-flourish` glyph flash; a spell whose own effect plays once gets a `rune-cast-mote` from the node to '
       + 'where it lands, and the effect waits for the mote; a spell whose visuals already travel from the node releases '
       + 'them a short lead after the flash. Knobs: the Cast Preview tuner\x27s "Rune cast flourish" group (off = the '
-      + 'pre-flourish look exactly).',
+      + 'pre-flourish look exactly). EVERY BUFF A CAST PRODUCES CARRIES THE CAST (owner 2026-09-24): a cast factory that '
+      + 'opens its own nested buff capture (Dragonflame per repeat, Great Pot per type, the targeted Gifts) captures '
+      + 'through `captureCastBuffFx`, so its records keep the spell, the rune (`sourceRuneId`) and the casting minion '
+      + '(`castByUid`, End of Turn `statsChanged.castByUid`); a spell\x27s PER-BUFF row (Dragonflame\x27s column, an Ale\x27s '
+      + 'or Great Pot\x27s volley) plays through ONE helper (`playCastFanOutBuffFx`) for every non-player caster in every '
+      + 'phase: from the rune node, from the casting minion\x27s body, or on the minion when there is no source; it '
+      + 'replaces the tendril / descend and keeps the 120 ms sound gap (the player\x27s own volley included).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -875,6 +881,12 @@ export const FOUNDATION_RULES: GameRule[] = [
         ref: 'Owner ask, 2026-09-24 (repeat runes + the rune cast flourish)',
         quote: 'yeah the runes that repeat casts should use the rune-cast visual. can we do anything to add a bit of flair to this? like some sort of short flash/pixi effect/make it smoother and cleaner with a bit of a \x27magic\x27 element to it? nothing crazy. spin up a concept and open a server on the branch for me to play with.',
       },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner report, 2026-09-24 (spell FX from every source)',
+        quote: 'dragonflame animation is not playing from the gilded ledger etc. why? all spell animations and sfx should be wired to play whenever a spell or minion is cast/played from any source. can you find the disconnect?',
+      },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts (`castTagStack`, `captureCastBuffFx`, `captureBuffFx` castByUid); packages/ui/src/fx/spellCastFx.ts (`playCastFanOutBuffFx`); packages/ui/src/Recruit.tsx (`replayBuffFxEvents`, `castFanOutGain`); packages/ui/src/useCombatReplay.ts (`fireBuffCasts`); packages/ui/src/choreo/bindings.json (`greatpot`)' },
       { kind: 'code', ref: 'packages/sim/src/recruit.ts (`runeExtraCasts`, `castWithRuneRepeats`, the Shared Reflection spread); packages/sim/src/reducer.ts (the spell cast sites, the Distillation echo); packages/ui/src/fx/runeCastFlourish.ts; packages/ui/src/fx/defs/rune-cast-flourish.json + rune-cast-mote.json; packages/ui/src/fx/spellCastFx.ts (`playRuneSpellCastFx`); packages/ui/src/castPreviewConfig.ts (the `runeFlourish*` knobs)' },
       { kind: 'code', ref: 'packages/core/src/effects/factories.ts (`withCastingSpell`, `resolveCombatSpellCast`, the combat arena `castRepeat`); packages/sim/src/recruit.ts (`recordActorCast`, the shop arena `castRepeat`); packages/ui/src/fx/spellCastFx.ts (`playSpellCastFx`, `playRecordedCastFx`, `playCombatSpellCastFx`); packages/ui/src/choreo/bindings.ts (`spellCastFxFor`, `spellCastFanOutFor`); packages/ui/src/fx/spellCastFx.ts (`playRuneCastBuffFx`, `runeNodeCentre`, `spellCastSoundAllowed`); packages/ui/src/buffFxConfig.ts (`spellCastSfxGapMs`); packages/ui/src/choreo/score.ts (the `spellCastFx` cue); packages/ui/src/Recruit.tsx (the `castFxSeq` watcher, the `spellCast` presenter context, the legacy End-of-Turn beat); packages/core/src/effects/arena.ts (`ARENA_EFFECTS`, the shared cross-phase bodies)' },
     ],
@@ -888,7 +900,18 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'Reflection, Hoardflame, Dragon Breath, the Bottomless Cask) rode the player\x27s cast path until 2026-09-24; '
       + 'at the player\x27s play sites they are rune casts now. Still on the old presentation: a MINION\x27s multiplied '
       + 'cast (its extras stay the minion\x27s), a Discover spell\x27s extra Discovers (no cast visual), and a Ruby echoed '
-      + 'by Distillation / Redirection (the Ruby hop). The mechanic half of the '
+      + 'by Distillation / Redirection (the Ruby hop). Until 2026-09-24 a rune\x27s or a minion\x27s Dragonflame / Great Pot / '
+      + 'targeted Gift went out UNTAGGED (the factory\x27s nested capture hid its targets from the tagged outer one), so a '
+      + 'Gilded Ledger Dragonflame drew a generic descend with no sound, and a minion\x27s Ale / Dragonflame drew a descend '
+      + 'in the Shop and nothing at End of Turn; fixed. Follow-up (owner answers relayed 2026-09-24, same PR): every '
+      + 'rune / minion / combat cast rings the generic cast sound through one per-spell burst gate (`playGenericCastSound`, '
+      + 'the player cast included); Golden / Reinforcing Ale (no buffs) play their row once at the source; a Lasso cast '
+      + 'by any rune or minion leaves the real caster (`_origin` defaults to `rune:<id>` / `board:<uid>`); Staff of Guel '
+      + 'plays its shop-wide effect on the authoritative End of Turn (`auraChanged` `shopBuff`); a minion arriving in the '
+      + 'Shop or at End of Turn from any source gets the landing dust and the summon sound, the summon clips gated per '
+      + 'clip; a standalone combat Dragonflame wave no longer plays its column twice. Known gameplay gap, report only: '
+      + 'Rune of Lassoing does not pay for a Rope Wrangler Lasso (the Wrangler factory bypasses `castSpell()`). '
+      + 'The mechanic half of the '
       + 'default is enforced by the Doc Bot `factoryPhase` lane (every trigger/factory pair implemented in every '
       + 'phase its trigger dispatches, or a registered excuse).',
     enforcement: {
@@ -905,6 +928,10 @@ export const FOUNDATION_RULES: GameRule[] = [
         'packages/core/src/combat/runeCastSc.test.ts',
         'packages/sim/src/runeRepeatCastActor.test.ts',
         'packages/ui/src/fx/runeCastFlourish.test.ts',
+        'packages/sim/src/spellFxEverySource.test.ts',
+        'packages/ui/src/fx/spellFxEverySource.test.ts',
+        'packages/ui/src/fx/spellFxEverySource2.test.ts',
+        'packages/ui/src/fx/summonSfxGate.test.ts',
       ],
       lastVerifiedAt: '2026-09-24',
     },

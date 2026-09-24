@@ -22,12 +22,25 @@ describe('Rune of the Food Chain', () => {
     return ev && 'minion' in ev ? ev.minion : undefined;
   };
 
-  it("the first summon inherits the left-most Demon's stats", () => {
+  it("the first summon inherits the left-most Demon's stats, read WHEN it lands (owner rework 2026-09-23)", () => {
     const base = firstSummon({});
     const fed = firstSummon({ runeFoodChain: true });
     expect(base, 'the test board never summoned anything').toBeDefined();
     expect(fed!.attack, 'the summon did not inherit Attack').toBe(base!.attack + 20);
-    expect(fed!.health).toBe(base!.health + 30);
+    // Health is the Demon's CURRENT Health at that moment (it may have taken a hit before the summoner died), so
+    // the gain is somewhere in (0, 30] rather than exactly the printed 30 the old Start-of-Combat capture paid.
+    expect(fed!.health).toBeGreaterThan(base!.health);
+    expect(fed!.health).toBeLessThanOrEqual(base!.health + 30);
+  });
+
+  it("no longer runs in the Start-of-Combat rune pass (its text dropped 'Start of Combat:')", () => {
+    // Twilight repeats Start-of-Combat runes by printed text; the Food Chain reads at the summon instead, so its
+    // one pulse sits beside the first summon rather than at the bell.
+    const r = sim(board, killer, { runeFoodChain: true });
+    const firstSummonIdx = r.events.findIndex((e) => e.type === 'summon' && e.side === 'player');
+    const pulses = r.events.map((e, i) => [e, i] as const).filter(([e]) => e.type === 'questTrigger' && (e as { flag?: string }).flag === 'runeFoodChain');
+    expect(pulses.length, 'one pulse, on the summon that was fed').toBe(1);
+    expect(pulses[0]![1], 'the pulse lands with the first summon, not at the bell').toBeGreaterThanOrEqual(firstSummonIdx - 3);
   });
 
   it('only the FIRST summon is fed', () => {

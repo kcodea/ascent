@@ -249,7 +249,7 @@ describe('Runeforge — rune effects fire in play', () => {
     expect(spellDisplayText('emberpouch', 0, 0, 0, 0, 0, 0)).toBe('Gain **1 Gold**.');
   });
 
-  it('Slaying: kills BANK across combats — under 6, nothing pays yet (owner change 2026-07-31)', () => {
+  it('Slaying: kills BANK across combats — under 5, nothing pays yet (owner change 2026-07-31; threshold 5 since 2026-09-23)', () => {
     const before = createRun(1, 'runesmith').maxEmbers;
     const s = reduce({
       ...createRun(1, 'runesmith'), phase: 'combat', hand: [], questFlags: { runeSlaying: true },
@@ -258,7 +258,7 @@ describe('Runeforge — rune effects fire in play', () => {
         playerQuestTally: { attack: 0, summonCombat: 0, slaughter: 3, slaughterKeyword: 0, attackByTribe: {}, summonCombatByTribe: {}, slaughterByTribe: {}, statGainByTribe: {} },
       } as CombatResult,
     }, { type: 'settleCombat' }); // settle WITHOUT advancing, so the bank is observable on this state
-    expect(s.runeSlayingKills).toBe(3); // banked, below the 6-kill threshold
+    expect(s.runeSlayingKills).toBe(3); // banked, below the 5-kill threshold
     expect(s.hand).toHaveLength(0); // no payout yet
     expect(s.maxEmbers).toBe(before); // the old max-Gold rider is GONE
   });
@@ -775,16 +775,16 @@ describe('Runes batch 2 — Kindling / Pair / Menagerie / Reliquary + forge sche
     expect(CARD_INDEX['b2_runebloom']!.effects.some((e) => e.do === 'scGrantSpellCastExtra')).toBe(true);
   });
 
-  it('Rune of Slaying: every 6 kills banks a minion of the dominant type (owner change 2026-07-31)', () => {
+  it('Rune of Slaying: every 5 kills banks a minion of the dominant type (owner change 2026-07-31; 5 since 2026-09-23, was 6)', () => {
     const beast = Object.values(CARD_INDEX).find((c) => c.tribe === 'beast' && !c.spell && !c.token)!;
     const mkB = (uid: string): RunState['board'][number] => ({ uid, cardId: beast.id, tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
     const armed: RunState = { ...buyRune('rune_slaying', 10), board: [mkB('b1'), mkB('b2')], hand: [], phase: 'combat',
       lastCombat: { ...win, playerQuestTally: { slaughter: 8 } } as unknown as CombatResult };
     const settled = reduce(armed, { type: 'resolveCombat' });
-    // 8 kills → one payout (6) + 2 banked for the next combat.
+    // 8 kills → one payout (5) + 3 banked for the next combat.
     const granted = settled.hand.filter((c) => { const d = CARD_INDEX[c.cardId]; return d && (d.tribe === 'beast' || d.tribe2 === 'beast' || d.universalTribe); });
-    expect(granted.length, 'no dominant-type minion was granted at 6 kills').toBeGreaterThanOrEqual(1);
-    expect(settled.runeSlayingKills).toBe(2);
+    expect(granted.length, 'no dominant-type minion was granted at 5 kills').toBeGreaterThanOrEqual(1);
+    expect(settled.runeSlayingKills).toBe(3);
   });
 });
 

@@ -10,7 +10,7 @@ describe('runeModifiedNote — the audit set', () => {
   it('covers every rune-modified card, and only when the rune is owned', () => {
     expect(runeModifiedNote('b2_runebloom', { matriarch: true })).toContain('twice');
     expect(runeModifiedNote('k_rubybroker', { brokerage: true })).toContain('No per-turn limit');
-    expect(runeModifiedNote('gemheart-shard', { livingTreasure: true })).toContain('Echo');
+    expect(runeModifiedNote('gemheart-shard', { livingTreasure: true })).toContain('Rebirth'); // Rebirth since the owner rework 2026-09-23 (was the exact-copy Echo)
     // Facetwright is no longer a NOTE: since 2026-08-28 the rune makes the card skip its prompt entirely, and
     // the card prints a coloured (Both) with both branches (see `chooseBothText`) instead of a footnote under a
     // "Choose One:" label that is no longer true.

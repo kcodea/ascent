@@ -222,7 +222,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         case 'runeOverflow':
           return `Overflow: give your minions +${r.amount ?? 4}/+${r.amount ?? 4} permanently`;
         case 'runeFoodChain':
-          return "Start of Combat: the first minion you summon gains your left-most Demon's stats this combat";
+          return "The first minion you summon in combat gains the stats of your left-most Demon";
         case 'runeAttackingGems':
           return 'Cast a Ruby on all of your minions every friendly attack in combat';
         case 'runeBrood':
@@ -236,13 +236,13 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         case 'runeRemains':
           return `When you summon 5 minions in combat, give minions in the Shop +${r.amount ?? 3}/+${r.amount ?? 3}`;
         case 'runeReinvestment':
-          return `After combat, give the next Shop +${r.amount ?? 1}/+${r.amount ?? 1} for every friendly minion you summoned`;
+          return 'When you summon a minion in combat, give minions in the Shop +3/+4 permanently';
         case 'runeBloodAndCoin':
           return `Every 4 friendly deaths in combat, gain ${r.amount ?? 4} Gold next turn`;
         case 'runeWildHunt':
           return `When a Beast attacks, give your minions +${r.amount ?? 3} Health and improve this by ${r.amount ?? 3} permanently`;
         case 'runeLivingTreasure':
-          return 'Your Gemheart Golems gain Rise';
+          return 'Your Gemheart Golems gain Rebirth';
         case 'runeGemstorm':
           return `Avenge (2): play ${r.amount ?? 2} Rubies on each friendly Kobold`;
         case 'runeLastCall':
@@ -256,7 +256,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         case 'runeFinality':
           return `When your last minion dies, summon ${r.amount ?? 7} Imps with Ward`;
         case 'runeHatchery':
-          return 'Minions summoned by an Echo have +3/+3 and Taunt';
+          return 'Minions summoned in combat have +5/+5 and Taunt';
         case 'avengeFirstDouble':
           return 'Your first Avenge each combat triggers twice';
         case 'candlelightToll':

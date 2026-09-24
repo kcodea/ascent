@@ -35,7 +35,7 @@ const THRESHOLD = /(?:Every|every|When you|Whenever you|After you|After every|im
 const NOT_A_METER: Record<string, string> = {
   rune_happy_birthday: 'a fixed turn CADENCE (every 2 turns), not a meter the player fills — nothing to count toward',
   rune_motherlode: 'the 2 is how many minions a Ruby copies onto, not a count-up',
-  rune_finality: 'the 7 is how many Imps arrive; the trigger is "your last minion dies"',
+  rune_finality: 'the 3 is how many Imps arrive; the trigger is "your last minion dies"',
   rune_ashen_payroll: 'combat-local — the Imps-summoned count ticks during the replay, not across turns',
   rune_blood_and_coin: 'combat-local — covered by runeCombatTally (the badge ticks during the replay)',
   rune_remains: 'combat-local — covered by runeCombatTally',
@@ -77,7 +77,7 @@ const armedRun = (): RunState => ({
   questGoldTribeBuff: { tribe: 'dwarf', per: 5, attack: 3, health: 3, tick: 3 },
   questScalingAuras: [{ tribe: 'beast', per: 5, event: 'summon', stepAttack: 4, stepHealth: 4, progress: 2 }],
   runeSlayingKills: 4,
-  questFlags: { runeSlaying: true },
+  questFlags: { runeSlaying: true, runePackcraft: true }, // Packcraft prints its live per-summon grant (owner rework 2026-09-23)
   runeScale: { count: 3, attack: 3, health: 3, per: 5, tick: 2 },
   // Spellslinging and Summit keep their own meters outside `runeThresholds`; unarmed, they correctly report
   // nothing, so the sweep needs them armed or it reads their silence as a missing counter.
@@ -129,7 +129,7 @@ describe('runes with a threshold show a tally', () => {
   });
 
   it('Rune of Slaying specifically — the reported case', () => {
-    expect(runeTally(armedRun(), 'rune_slaying')).toBe('4/6');
+    expect(runeTally(armedRun(), 'rune_slaying')).toBe('4/5'); // threshold 5 since the owner balance 2026-09-23
   });
 
   it('Rune of Bulk Order counts Gold', () => {
@@ -218,9 +218,10 @@ describe('rune AVENGE / combat-local meters have a combat tally (audit 2026-08-0
 
 describe('Rune of Reinvestment shows its own contribution (owner ask 2026-09-10)', () => {
   it('in combat: the buff earned so far this fight, per summon per copy held', () => {
+    // +3/+4 per summon per copy since the owner balance 2026-09-23 (was +1/+1).
     expect(runeCombatTally('rune_reinvestment', 0, 0, 1)).toBeNull();
-    expect(runeCombatTally('rune_reinvestment', 0, 3, 1)).toBe('+3/+3');
-    expect(runeCombatTally('rune_reinvestment', 2, 3, 2), 'two copies pay two per summon').toBe('+6/+6');
+    expect(runeCombatTally('rune_reinvestment', 0, 3, 1)).toBe('+9/+12');
+    expect(runeCombatTally('rune_reinvestment', 2, 3, 2), 'two copies pay double per summon').toBe('+18/+24');
   });
   it('in the shop: what the rune alone has given, off the provenance ledger', () => {
     const run = { tavernBuyBonusSources: { 'Rune of Reinvestment': { atk: 4, hp: 4 }, 'Staff of Guel': { atk: 2, hp: 2 } } } as unknown as RunState;

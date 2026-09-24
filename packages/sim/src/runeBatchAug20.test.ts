@@ -255,17 +255,21 @@ describe('the every-2-turns runes — one shared `everyTurns` cadence, not three
   it.each(CADENCE)('%s pays on the SECOND turn, not the first', (id, cardId) => {
     const tank: BoardCard = { uid: 't', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 50, keywords: ['T'], golden: false };
     let s = armed(id, { wave: 1, tier: 6, resolve: 999, maxResolve: 999, armor: 999, board: [tank], hand: [] });
-    // Rare Goods also pays its FIRST Salesman on purchase since balance 9/23 ("Get a Traveling Salesman. Repeat
-    // every 2 turns.") — clear it so the cadence alone is under test here.
-    s = { ...s, hand: s.hand.filter((c) => c.cardId !== cardId) };
+    // The Muckbroker ALSO hands over its first Muckslinger on purchase (owner 2026-09-23: "Get a Muckslinger.
+    // Repeat every 2 turns"), and Rare Goods its first Salesman (balance 9/23 rune reworks A: "Get a Traveling
+    // Salesman. Repeat every 2 turns."), so the cadence is measured as copies GAINED from the purchase count, not
+    // from zero. (Balance 9/23 combined: #1668 + #1669.)
+    const count = (): number => held(s).filter((c) => c === cardId).length;
+    const start = count();
+    expect(start, `${id}: immediate copy on purchase`).toBe(id === 'rune_muckbroker' || id === 'rune_rare_goods' ? 1 : 0);
     const turn = (): void => {
       s = reduce(s, { type: 'faceOmen' }) as RunState;
       s = reduce(s, { type: 'resolveCombat' }) as RunState;
     };
     turn();
-    expect(held(s), 'turn 1 is the countdown, not the payout').not.toContain(cardId);
+    expect(count(), 'turn 1 is the countdown, not the payout').toBe(start);
     turn();
-    expect(held(s), 'turn 2 pays').toContain(cardId);
+    expect(count(), 'turn 2 pays').toBe(start + 1);
   });
 
   it('the badge counts the turns down', () => {

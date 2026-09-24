@@ -66,6 +66,8 @@ const OBJECT_ARMS: Record<string, unknown> = {
   flagCopies: { runeGemstorm: 2 },
   solidGroundStat: 2,
   beastialSwarmLevel: 1,
+  packcraftLevel: { attack: 2, health: 1 },       // Rune of Packcraft's live per-summon grant (owner rework 2026-09-23)
+  runeReinvestment: { attack: 3, health: 4 },    // the per-summon Shop buff (owner balance 2026-09-23; was a number)
   warDrumExtra: 2,       // the unspent War Drum charge's multiplier (a count, not a flag)
   shoutDoubleCharges: 2, // remaining Warm Embers charges (a count, not a flag)
   encoreExtra: 1,        // Demand an Encore's turn-long Shout extras (R-TURN-01; a count, not a flag)

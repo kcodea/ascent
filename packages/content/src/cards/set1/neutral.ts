@@ -303,14 +303,16 @@ export const NEUTRAL: CardDef[] = [
     attack: 6,
     health: 5,
     keywords: [],
-    // Owner rework 2026-08-18: the +2/+2 self-buff is gone; End of Turn now casts Lasso, plus one more cast per
-    // 6 Gold spent this turn, capped at 5 casts (`perGold` / `maxCasts` on the shared castSpell factory). The
-    // live cast count is folded into the printed text (see `castSpellPerGoldText`).
+    // Owner rework 2026-08-18: the +2/+2 self-buff is gone; End of Turn casts Lasso. Owner rework 2026-09-23:
+    // the REPEAT form (R-REPEAT-01) — "Cast Lasso. Repeat for every 10 gold spent this turn": the base cast plus
+    // one repeat per 10 Gold, no cap, and every repeat is its OWN End-of-Turn tick / beat (`perGold` on the
+    // shared castSpell factory drives `eotTickCount`). Gilded casts twice per tick, never more ticks. The live
+    // tick count is folded into the printed text (see `castSpellPerGoldText`).
     effects: [
-      { on: 'endOfTurn', do: 'castSpell', params: { spellId: 'lasso', perGold: 6, maxCasts: 5 } },
+      { on: 'endOfTurn', do: 'castSpell', params: { spellId: 'lasso', perGold: 10 } },
     ],
-    text: '**End of Turn:** Cast **Lasso**. Casts an additional time per **6 Gold** spent this turn (**5 max**).',
-    goldenText: '**End of Turn:** Cast **Lasso twice**. Casts an additional time per **6 Gold** spent this turn (**5 max**).',
+    text: '**End of Turn:** cast **Lasso**. Repeat for every **10 Gold** spent this turn.',
+    goldenText: '**End of Turn:** cast **Lasso twice**. Repeat for every **10 Gold** spent this turn.',
   },
   {
     // Avenge (4): every 4 friendly deaths, permanently raise your spell power +1 Attack (stat spells give +1

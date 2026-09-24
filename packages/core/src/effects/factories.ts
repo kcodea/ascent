@@ -359,7 +359,6 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     isImp: (t) => !!ctx.getCard(t.cardId)?.imp,
     isFodder: (t) => !!ctx.getCard(t.cardId)?.keywords.includes('FD'),
     impAura: () => ctx.impAura(self.side),
-    conductorTally: () => ctx.conductorTally(self.side),
     deathrattleTally: () => ctx.deathrattleTally(self.side),
     addTribeAura: (tribe, a, h) => ctx.addTribeAura(self.side, tribe as Tribe | 'any', a, h, self.uid),
     tribesOf: (t) => {
@@ -1666,7 +1665,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
 
   /**
-   * Exgalloper — Echo: summon an exact copy of itself WITHOUT the Echo, so it can't chain forever.
+   * The exact-copy Echo — summon an exact copy of itself WITHOUT the Echo, so it can't chain forever. Rune of
+   * Living Treasure's graft on the Gemheart Shard (it was Exgalloper's printed Echo until the owner moved that
+   * card to the Rebirth keyword on 2026-09-23).
    *
    * "Exact" means its current buffed stats, not the printed card: the copy inherits what this minion had grown
    * to. Stripping `onDeath` is what makes it terminate — a copy that kept its own Echo would summon another on

@@ -181,7 +181,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             trailForagerText(c.id, p.golden, p.sellBonus ?? 0) ??
             thundeerText(c.id, p.summonBonus ?? 0, p.golden) ??
             squirlScoutText(c.id, p.golden, p.squirlScoutBuff ?? 0) ??
-            conductorText(c.id, p.golden, p.conductorBuff ?? 0, p.improveReps, p.onBoard) ??
+            conductorText(c.id, p.golden, p.summonBonus ?? 0) ?? // Conductor: (base + this copy's accrual) × golden, every surface
             sergeantText(c.id, p.golden, p.hpGrantBonus ?? 0) ??
             ritualistText(c.id, p.golden, p.eotBonus ?? 0) ?? // Ritualist: live per-tick Fodder/Imp grant (climbs each End of Turn)
             stewardText(c.id, p.golden, p.lastSpellName) ??

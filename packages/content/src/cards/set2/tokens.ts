@@ -134,18 +134,18 @@ export const SET2_TOKENS: CardDef[] = [
   // and was silently dead: ALL_CARDS de-dupes by id keeping the FIRST occurrence, and a set's own cards are
   // concatenated ahead of the token lists — so the game only ever saw the dwarves.ts body.
   {
-    // MUSTER GENERAL's Trooper (owner batch 2026-08-20). A plain 1/1 body: the attack-immediately behaviour
+    // MUSTER GENERAL's Trooper (owner batch 2026-08-20; 1/1 → 3/3 owner balance 2026-09-23). A plain body: the attack-immediately behaviour
     // and the permanent improvement both live in the GENERAL's effect (`avengeSummonAttackImproving`), not
     // here - the same division `b2_ninjapal` uses, so the token stays a stat line and one card owns the rule.
     id: 'n2_trooper',
     name: 'Trooper',
     tribe: 'neutral',
     tier: 1,
-    attack: 1,
-    health: 1,
+    attack: 3,
+    health: 3,
     keywords: [],
     effects: [],
     token: true,
-    text: 'A 1/1 that attacks immediately when summoned.',
+    text: 'A 3/3 that attacks immediately when summoned.',
   },
 ];

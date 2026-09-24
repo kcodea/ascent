@@ -357,7 +357,7 @@ export type EffectFactoryId =
   | 'onBattlecryRearmGrimoire' // Living Grimoire: every 3 Shouts, recharge it
   | 'onMinionSoldCopyFirstOfTribe' // Voicekeeper: copy the first tribe minion sold each turn
   | 'minionSoldGrantSpell'         // Set 2 — Runic Archivist: every N minions sold, get a Shop spell
-  | 'endOfTurnTriggerAdjacentShouts' // Set 2 — Moira: End of Turn, trigger both neighbours' Shouts
+  | 'endOfTurnTriggerShouts'       // Set 2 — Moira (owner rework 2026-09-23): End of Turn, trigger every friendly Shout minion's Shout (was the two neighbours only)
   | 'onRallyPlayRubiesTribe'       // Set 2 — Mineral Master: any friendly Rally plays Rubies on your tribe
   | 'onRallyBuffOnePerTribe'       // Paragon: any friendly Rally buffs one minion of every type, permanently (`permanent: false` → for the fight only, and `selfOnly: true` → own Rally only, not a watcher: Standard Bearer)
   | 'onSpellCastOnThisRecast' // Mirrorwing Hatchling: the first spell on this each turn casts again

@@ -135,11 +135,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-echo",
-    "title": "'echo' family · 67 cards",
-    "statement": "All 67 'echo' cards trigger the same way. Gilding doubles their output; a few summon a gilded token instead. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'echo' family · 66 cards",
+    "statement": "All 66 'echo' cards trigger the same way. Gilding doubles their output; a few summon a gilded token instead. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "49 effect factories across 67 cards dispatch through the 'echo' presentation family, all on the single trigger 'onDeath' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline is the safe reading, with Void Panther / T-Rex / Chicken Brawl gilding the token they summon instead of doubling the count (owner ruling 2026-08-28).",
-    "cardText": "Exemplar — Amun Rab: \"Deathrattle: Summon 7 Imps and give your Imps +5/+5.\" · Members: Amun Rab · Anubis, Last Gate · Ashen Heir · Armadiyo · Bullseye · Dawnclaw · Menagerie Mammoth · T-Rex · Voidmother · Wolvie · Blaster · Bone Taxer · … and 55 more",
+    "currentBehaviour": "48 effect factories across 66 cards dispatch through the 'echo' presentation family, all on the single trigger 'onDeath' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline is the safe reading, with Void Panther / T-Rex / Chicken Brawl gilding the token they summon instead of doubling the count (owner ruling 2026-08-28).",
+    "cardText": "Exemplar — Amun Rab: \"Deathrattle: Summon 7 Imps and give your Imps +5/+5.\" · Members: Amun Rab · Anubis, Last Gate · Ashen Heir · Armadiyo · Bullseye · Dawnclaw · Menagerie Mammoth · T-Rex · Voidmother · Wolvie · Blaster · Bone Taxer · … and 54 more",
     "example": "Amun Rab follows the 'echo' convention — its trigger fires on onDeath. Gilded T-Rex summons one GILDED T-Rex Baby, while gilded Wolves Den summons 6 Crypt Wolves instead of 3.",
     "contentIds": [
       "amunrab",
@@ -174,7 +174,6 @@ export const CONVENTION_PENDING: GameRule[] = [
       "dw_anvilshade",
       "dw_brewer",
       "dw_chickenbrawl",
-      "dw_exgalloper",
       "grim",
       "impking",
       "impoverseer",
@@ -230,7 +229,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "'endOfTurn' family · 29 cards",
     "statement": "All 29 'endOfTurn' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "35 effect factories across 29 cards dispatch through the 'endOfTurn' presentation family, all on the single trigger 'endOfTurn' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "currentBehaviour": "34 effect factories across 29 cards dispatch through the 'endOfTurn' presentation family, all on the single trigger 'endOfTurn' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
     "cardText": "Exemplar — Abyssal Feeder: \"End of Turn: adjacent minions each Consume a Fodder.\" · Members: Abyssal Feeder · Aeon Guard · Moira · Stonehorn Archivist · Roundabout · Combinator · Crypt Scribe · Skybound Ascendant · Soul Defiler · Bob Blart · Striker · Arnold · … and 17 more",
     "example": "Abyssal Feeder follows the 'endOfTurn' convention — its trigger fires on endOfTurn. its printed numbers double when the card is gilded.",
     "contentIds": [
@@ -911,7 +910,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Gilding default: ×2",
     "statement": "A gilded card doubles its printed numbers. Outliers instead gild the summoned token, reshape the effect, or add a proc; spells never gild. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "gilding",
-    "currentBehaviour": "366 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
+    "currentBehaviour": "365 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
     "cardText": "Exemplar — Wolves Den: \"Deathrattle: Summon 3 Crypt Wolves.\" → gilded: \"Deathrattle: Summon 6 Crypt Wolves.\"",
     "example": "Wolves Den's gilded text just writes the ×2 out in full — while gilded Dunkey instead summons ONE gilded Armadiyo."
   },
@@ -1318,12 +1317,15 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-keyword-rb",
-    "title": "Rebirth [RB] · 0 carriers",
+    "title": "Rebirth [RB] · 1 carriers",
     "statement": "Rebirth means: when this dies it returns once with its FULL current body — stats, buffs, keywords and effects (Rise returns the printed body at 1 Health); resolved before Rise, spent on the return — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "keywords",
-    "currentBehaviour": "One shared engine path implements Rebirth for all 0 carriers.",
-    "cardText": "(no current carrier of Rebirth)",
-    "example": "any future Rebirth card inherits this meaning."
+    "currentBehaviour": "One shared engine path implements Rebirth for all 1 carriers.",
+    "cardText": "Exemplar — Exgalloper: \"Rebirth.\" · Carriers: Exgalloper",
+    "example": "Exgalloper carries Rebirth — in play, when this dies it returns once with its FULL current body — stats, buffs, keywords and effects (Rise returns the printed body at 1 Health); resolved before Rise, spent on the return.",
+    "contentIds": [
+      "dw_exgalloper"
+    ]
   },
   {
     "status": "needs-ruling",

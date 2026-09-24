@@ -103,7 +103,7 @@ describe('the seven runes', () => {
   it('ship at the sheet\'s costs', () => {
     const want: [string, number][] = [
       ['Rune of the Chorus', 3], ['Rune of Overtime', 1], ['Rune of Infernal Ink', 3], // Ink 4 -> 3 (owner 2026-08-07)
-      ['Rune of the Cindergem', 4], ['Rune of the Showcase', 3], ["Rune of the Merchant's Chorus", 3],
+      ['Rune of the Showcase', 3], ["Rune of the Merchant's Chorus", 3], // Cindergem archived 2026-09-23 (Balance 9/23)
       ['Rune of the Long Shift', 2],
     ];
     for (const [name, cost] of want) {
@@ -116,6 +116,6 @@ describe('the seven runes', () => {
   it('Ale and Ruby runes are set-2 scoped', () => {
     // An Ale/Ruby payout is unreachable in set 1 — offering the rune there is a dead Runeforge slot.
     expect(byName('Rune of Overtime')!.sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
-    expect(byName('Rune of the Cindergem')!.sets).toEqual(['set2']);
+    // Rune of the Cindergem archived 2026-09-23 (Balance 9/23) — out of the forge, so no longer asserted here.
   });
 });

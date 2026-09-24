@@ -42,6 +42,7 @@ const SET3_SHARED_SPELL_IDS: readonly string[] = [
   'rubyshipment', 'facetwright', 'veinstorm', 'rubytransfer', 'lanternofsouls', 'undeadarmy', 'onthehouse',
   // Appended AFTER the tribe spells so no existing position moves (owner add 2026-09-18):
   'sp_dissipate', // owner add 2026-09-18: sell a minion, its stats go to the right-most Shop minion (set 2's own spell, shared here)
+  'sp_picnic', // owner add 2026-09-23: right-most Shop minion +8/+8 permanently (set 2's own spell, shared here)
 ];
 const SET3_SPELL_SOURCES: readonly CardDef[] = [...SPELLS, ...SET2_SPELLS];
 const SET3_SHARED_SPELLS: readonly CardDef[] = SET3_SHARED_SPELL_IDS.map((id) => {

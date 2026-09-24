@@ -601,11 +601,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-spellCast",
-    "title": "'spellCast' family · 108 cards",
-    "statement": "All 108 'spellCast' cards trigger the same way. These are the spells themselves, and spells are never gilded. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'spellCast' family · 109 cards",
+    "statement": "All 109 'spellCast' cards trigger the same way. These are the spells themselves, and spells are never gilded. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "102 effect factories across 108 cards dispatch through the 'spellCast' presentation family, all on the single trigger 'cast' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: INAPPLICABLE — checkTriples skips spells and Rubies, so no member of this family can ever BE gilded (R-GILD-02, owner ruling 2026-08-28).",
-    "cardText": "Exemplar — Black Hole: \"Your Starform consumes 3 random Shop minions.\" · Members: Black Hole · Anomaly Reactor · Eyes of Aresmar · Bloodlust · Bulwark · Carnival Coin · Chrono Staff · Clue · Common Ground · Consume · Copycat · Crescendo · … and 96 more",
+    "currentBehaviour": "103 effect factories across 109 cards dispatch through the 'spellCast' presentation family, all on the single trigger 'cast' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: INAPPLICABLE — checkTriples skips spells and Rubies, so no member of this family can ever BE gilded (R-GILD-02, owner ruling 2026-08-28).",
+    "cardText": "Exemplar — Black Hole: \"Your Starform consumes 3 random Shop minions.\" · Members: Black Hole · Anomaly Reactor · Eyes of Aresmar · Bloodlust · Bulwark · Carnival Coin · Chrono Staff · Clue · Common Ground · Consume · Copycat · Crescendo · … and 97 more",
     "example": "Black Hole follows the 'spellCast' convention — its trigger fires on cast. three copies of it never combine into a golden one, so it has no gilded form at all.",
     "contentIds": [
       "accretion",
@@ -694,6 +694,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "sp_flutter",
       "sp_gamble",
       "sp_partingcry",
+      "sp_picnic",
       "sp_solidground",
       "sp_stoleninitiative",
       "sparkplug",
@@ -2389,16 +2390,15 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-ruby",
-    "title": "Trigger: a Ruby is gained or cast · 4 cards",
-    "statement": "All 4 of these fire on one trigger: a Ruby is gained or cast. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: a Ruby is gained or cast · 3 cards",
+    "statement": "All 3 of these fire on one trigger: a Ruby is gained or cast. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "7 effect factories across 4 cards dispatch on 'onGetRuby', 'onRubyPlayed', 'rubyCast', 'rubyPlayedAnywhere' (both/combat/recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Trouble: \"When a Ruby is cast on another minion in combat, cast a Ruby on this.\" · Members: Trouble · Gemgorge Fiend · Gem Sage · Reflector",
+    "currentBehaviour": "6 effect factories across 3 cards dispatch on 'onGetRuby', 'onRubyPlayed', 'rubyCast', 'rubyPlayedAnywhere' (both/combat/recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Trouble: \"When a Ruby is cast on another minion in combat, cast a Ruby on this.\" · Members: Trouble · Gemgorge Fiend · Reflector",
     "example": "Trouble fires when a Ruby is gained or cast, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "k3_doubletrouble",
       "k_gemgorge",
-      "k_gemsage",
       "n2_reflector"
     ]
   },
@@ -2462,7 +2462,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "The 1 card here fires on one trigger: you refresh the Shop. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "1 effect factories across 1 card dispatch on 'shopRefreshed' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Hellrider: \"Ward. Every 4 refreshes, gain the right-most Shop minion's stats.\" · Members: Hellrider",
+    "cardText": "Exemplar — Hellrider: \"Ward. Every 3 refreshes, gain the right-most Shop minion's stats.\" · Members: Hellrider",
     "example": "Hellrider fires when you refresh the Shop, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "dm_maw"
@@ -2484,15 +2484,16 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-spellTargeted",
-    "title": "Trigger: a spell targets this minion · 3 cards",
-    "statement": "All 3 of these fire on one trigger: a spell targets this minion. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: a spell targets this minion · 4 cards",
+    "statement": "All 4 of these fire on one trigger: a spell targets this minion. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "3 effect factories across 3 cards dispatch on 'spellCastOnThis' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Crash Course: \"The first Star Crash you cast on this each turn casts an additional time.\" · Members: Crash Course · Mirrorwing · Reflector",
+    "currentBehaviour": "4 effect factories across 4 cards dispatch on 'spellCastOnThis' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Crash Course: \"The first Star Crash you cast on this each turn casts an additional time.\" · Members: Crash Course · Mirrorwing · Gem Sage · Reflector",
     "example": "Crash Course fires when a spell targets this minion, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_adept",
       "d2_mirrorwing",
+      "k_gemsage",
       "n2_reflector"
     ]
   },

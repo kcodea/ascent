@@ -53,6 +53,15 @@ export const KNOWN_TEXT_MISMATCH: Readonly<Record<string, KnownTextMismatch>> = 
   // its Start of Combat leg, and the Choose One family + Better Bot's weld-carried Rally left when the extractor
   // learned `chooseOne[].effects` and the `rallyMechAtk` claim. A new mismatch gets investigated and pinned here
   // with its verdict before it may stand.
+  // 2026-09-23 (owner balance 9/23): Gem Sage became "When you cast a Shop spell on this, get 3 Rubies." The
+  // extracted contract is RIGHT (spellCastOnThis → getRubies 3); the grammar reads a leading "When you cast a
+  // Shop spell" as the generic spellCast trigger and does not yet see the "on this" qualifier that makes it
+  // the targeted one (Mirrorwing / Runefire print the same qualifier). Tolerated until the grammar grows.
+  k_gemsage: {
+    taxonomy: 'wrong-trigger',
+    kind: 'parser-limitation',
+    why: 'the parser reads "When you cast a Shop spell on this" as the generic spellCast trigger; the contract\'s spellCastOnThis (a targeted spell resolving ON this body) is the correct one and the text is the owner\'s wording',
+  },
 };
 
 // ── comparison helpers ───────────────────────────────────────────────────────────────────────────────────

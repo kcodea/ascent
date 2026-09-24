@@ -18,10 +18,10 @@ function withRune(id: string, extra: Partial<RunState> = {}): RunState {
 describe('the 15 remaining defs exist at sheet costs', () => {
   const want: [string, number][] = [
     // rune_tip_jar left the sheet on 2026-08-19 — promoted to a 0-Gold EPIC (asserted in runeBatchAug19).
-    ['rune_coffers', 5], ['rune_vault', 2], ['rune_altar', 1], ['rune_lorekeeping', 3],
-    ['rune_thrift', 3], ['rune_engraving', 3], ['rune_wheel', 4], ['rune_flagship', 3], ['rune_brew', 4],
-    ['rune_underdog', 4], ['rune_top_hat', 3], ['rune_evolution', 3], ['rune_transcription', 4],
-    ['rune_treasure_map', 2], ['rune_golden_splinter', 3],
+    ['rune_coffers', 4], ['rune_vault', 2], ['rune_altar', 3], ['rune_lorekeeping', 3], // Coffers 5 → 4, Altar 1 → 3 (balance 9/23)
+    ['rune_thrift', 3], ['rune_engraving', 3], ['rune_wheel', 4], ['rune_flagship', 4], ['rune_brew', 4], // Flagship 3 → 4 (balance 9/23)
+    ['rune_underdog', 4], ['rune_top_hat', 6], ['rune_evolution', 3], ['rune_transcription', 4], // Top Hat 3 → 6 (balance 9/23)
+    ['rune_treasure_map', 3], ['rune_golden_splinter', 3], // Treasure Map 2 → 3 (balance 9/23)
   ];
   it('all present, all Basic, at the sheet costs', () => {
     for (const [id, cost] of want) {
@@ -43,7 +43,7 @@ describe('the 15 remaining defs exist at sheet costs', () => {
 describe('the shop-side machinery', () => {
   it('Altar sells the whole board at +3 each, through the real sell rituals', () => {
     // embers: exactly the rune's cost, so the final Gold is purely what the Altar paid out.
-    const s = withRune('rune_altar', { board: [bm('a', 'pack', 3, 2), bm('b', 'stray', 1, 1)], embers: 1 });
+    const s = withRune('rune_altar', { board: [bm('a', 'pack', 3, 2), bm('b', 'stray', 1, 1)], embers: 3 });
     expect(s.board.length, 'the board was not emptied').toBe(0);
     expect(s.embers).toBe(8); // 2 sells × (sell value 1 + premium 3)
     expect(s.soldThisTurn?.length).toBe(2); // the minion-sold ritual ran per body

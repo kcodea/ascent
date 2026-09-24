@@ -145,10 +145,10 @@ export const SET2_DEMONS: CardDef[] = [
     keywords: [],
     effects: [
       { on: 'onDeath', do: 'deathrattleBuffImps', params: { attack: 5, health: 5 } },
-      { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 1 } },
+      { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 2 } }, // owner balance 2026-09-23: 1 Imp → 2 (gilded 4)
     ],
-    text: '**Echo:** your Imps gain **+5/+5** this game. Summon an **Imp**.',
-    goldenText: '**Echo:** your Imps gain **+10/+10** this game. Summon **2 Imps**.',
+    text: '**Echo:** your Imps gain **+5/+5** this game. Summon **2 Imps**.',
+    goldenText: '**Echo:** your Imps gain **+10/+10** this game. Summon **4 Imps**.',
   },
   {
     id: 'dm_maw',
@@ -161,9 +161,10 @@ export const SET2_DEMONS: CardDef[] = [
     // Owner rework 2026-08-14: Hellrider no longer EATS — it COPIES the right-most offer's stats and leaves it
     // buyable (Bob Blart's old shape, now on a refresh meter). The two Demons traded jobs deliberately: the
     // cheap one eats the row, the Tier-6 one farms it without shrinking your options.
-    effects: [{ on: 'shopRefreshed', do: 'onShopRefreshGainRightmostShopStats', params: { every: 4, times: 1 } }],
-    text: "**Ward.** Every **4 refreshes**, gain the **right-most** Shop minion's stats.",
-    goldenText: "**Ward.** Every **4 refreshes**, gain the **right-most** Shop minion's stats **twice**.",
+    // Owner balance 2026-09-23: every 4 refreshes → every 3 (same payoff).
+    effects: [{ on: 'shopRefreshed', do: 'onShopRefreshGainRightmostShopStats', params: { every: 3, times: 1 } }],
+    text: "**Ward.** Every **3 refreshes**, gain the **right-most** Shop minion's stats.",
+    goldenText: "**Ward.** Every **3 refreshes**, gain the **right-most** Shop minion's stats **twice**.",
   },
   {
     // The tribe capstone: a Choose One splitting the two halves of the tribe — Feast is the Consume line,
@@ -192,7 +193,7 @@ export const SET2_DEMONS: CardDef[] = [
     name: 'Right Hand Hank',
     tribe: 'demon',
     tier: 2,
-    attack: 3,
+    attack: 4, // owner balance 2026-09-23: 3/1 → 4/1
     health: 1,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleBuffRightmostSlot', params: { attack: 3, health: 2 } }],
@@ -208,8 +209,8 @@ export const SET2_DEMONS: CardDef[] = [
     name: 'Grobbus',
     tribe: 'demon',
     tier: 4,
-    attack: 3,
-    health: 6,
+    attack: 3, // owner balance 2026-09-23: 3/6 → 3/7
+    health: 7,
     keywords: [],
     effects: [{ on: 'avenge', do: 'avengeGrantRandomTribeMinion', params: { count: 3, tribe: 'demon', grant: 1 } }],
     text: '**Avenge (3):** get a random **Demon**.',
@@ -304,8 +305,8 @@ export const SET2_DEMONS: CardDef[] = [
     name: 'Axeman',
     tribe: 'demon',
     tier: 4,
-    attack: 4,
-    health: 4,
+    attack: 2, // owner balance 2026-09-23: 4/4 → 2/2
+    health: 2,
     keywords: ['CR'],
     critChance: 0.5,
     effects: [{ on: 'friendlyDemonDealtDamage', do: 'onFriendlyDemonDamageBuffSelf', params: { attack: 3, health: 3 } }],

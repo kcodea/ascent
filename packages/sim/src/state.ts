@@ -510,6 +510,28 @@ export function recordBounceFx(s: RunState, kind: BounceKind, fromUid: string, t
   s.bounceFxSeq = (s.bounceFxSeq ?? 0) + 1;
 }
 
+/**
+ * THE CAST-PREVIEW CHANNEL (owner ask 2026-09-23): a spell CAST BY A RUNE OR BY A MINION — never by the player
+ * from hand or shop — so the UI can float that spell's own card preview above its caster for a moment ("have a
+ * copy of the spell that gets cast pop up above the rune when it is cast … this should become the norm, when a
+ * spell or something is cast or triggered from runes and minions"). Presentation only: nothing in the sim reads
+ * it back. Modelled on `bounceFx`: appended by `castSpell` when an actor is on the recruit cast-actor stack,
+ * cleared per action at the top of `reduce`, seq-bumped per record so the watcher can dedupe. `phase` says which
+ * player the record belongs to: `recruit` records ride the action-level watcher; `endOfTurn` records commit inside
+ * `faceOmen` after the phase has flipped, so they ride the End-of-Turn beats (`EotStepFx.casts` / the
+ * `spellResolved` consequence) instead — the same split `lassoFx` makes.
+ */
+export type CastFxSource =
+  | { kind: 'minion'; uid: string; cardId: string }
+  | { kind: 'rune'; id: string };
+export interface CastFx { source: CastFxSource; spellId: string; phase: 'recruit' | 'endOfTurn' }
+
+/** Record one rune-/minion-cast spell on the per-action `castFx` channel. */
+export function recordCastFx(s: RunState, source: CastFxSource, spellId: string, phase: CastFx['phase']): void {
+  s.castFx = [...(s.castFx ?? []), { source, spellId, phase }];
+  s.castFxSeq = (s.castFxSeq ?? 0) + 1;
+}
+
 /** Which tavern offers VEINSTORM gemmed this action, and whether it was the cast or a refresh re-stamp.
  *  Distinct from `rubyLandedFx` on purpose: Veinstorm gems the whole shop as ONE event (a spanning volley, a
  *  single sound), where a lone Ruby dragged onto an offer is a per-card gem — and only Veinstorm's chokepoint
@@ -799,7 +821,7 @@ export interface RunState {
      *  specific badge — several threshold runes can be held at once, so a flat list alone can't say which
      *  belongs to which (owner ask 2026-08-03: "runes/quests should all have tally trackers"). */
     sourceId?: string;
-    meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit'; per: number; tick: number;
+    meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit'; per: number; tick: number;
     grantGoldNextTurn?: number; resetEachTurn?: boolean;
     grantSpell?: number; grantAle?: number; grantRuby?: number;
     /** Rune of the Deep Feast: exact card ids handed over when the meter trips. */
@@ -1350,6 +1372,12 @@ export interface RunState {
   /** Bumps once per recorded steal — the UI keys the `lasso` cascade off this. Optional: a save from before
    *  the field existed restores without it (`?? 0` at every read). */
   lassoFxSeq?: number;
+  /** THE CAST-PREVIEW CHANNEL (owner ask 2026-09-23) — every spell a RUNE or a MINION cast this action, in
+   *  resolution order (see `CastFx`). Presentation only; cleared per action at the top of `reduce`. */
+  castFx?: CastFx[];
+  /** Bumps once per recorded cast — the UI keys the cast preview off this. Optional: a save from before the
+   *  field existed restores without it (`?? 0` at every read). */
+  castFxSeq?: number;
   /** Wolvie's borrowed Echo (`deathrattleBuffNextSummon`): buff the NEXT minion summoned in the shop of this
    *  tribe, then clear. One-shot; also cleared at End of Turn so it never leaks into the next shop. */
   pendingSummonBuff?: { tribe: Tribe; attack: number; health: number; source: string };

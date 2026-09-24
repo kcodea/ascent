@@ -1405,6 +1405,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   s.starformFx = []; // Set 3's Starform pulls (consume-shop / consumed / collapse) — same per-action contract
   s.bounceFx = []; // the cross-target re-cast hops (spell-bounce / ruby-bounce) — same per-action contract
   s.lassoFx = []; // the Shop steals this action (the `lasso` beam cascade) — same per-action contract
+  s.castFx = []; // the rune-/minion-cast spells this action (the cast preview) — same per-action contract
   s.gainCardFiredUids = []; // per-action: which hand arrivals already fired onGainCard (see the hand diff in `reduce`)
   s.gainAttackFiredUids = []; // per-action: Attack gains already dispatched inside the action (per-card EoT waves)
   s.starformGainFired = undefined; // per-action: Starform growth already dispatched as `starformGained` (see the diff in `reduce`)
@@ -1803,11 +1804,17 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Shared with the UI's ×N badge (`rubyCastCount`), so the number shown and the number resolved can't drift.
         const casts = rubyCastCount(s);
         s.nextSpellExtraCasts = undefined; // Comet / Nimbus "next spell" charge spent on this Ruby (folded into `casts`, owner 2026-09-18)
+        // Warding Ruby: its keyword rider (Ward = DS) rides EVERY landing through `fireOnRubyPlayed` — the direct
+        // target, the Redirection tail, and every bounce off it — granted only to a KOBOLD (owner spec 2026-07-31:
+        // "give it Ward if it is a Kobold"; the stat half lands on anyone). It used to be a trailing grant on the
+        // direct target alone, which is why a Ruby bounced by Resonance Idol landed without its Ward (owner
+        // report 2026-09-23).
+        const kw = def.rubyGrantKeyword;
         if (boardTarget) {
           for (let n = 0; n < casts; n++) {
             addBuff(boardTarget, 'Ruby', card.attack, card.health);
             // Set 2 — the target's "when a Ruby is played on this" effects (Ruby Broker → Gold, Resonance → bounce).
-            fireOnRubyPlayed(s, boardTarget, card.attack, card.health);
+            fireOnRubyPlayed(s, boardTarget, card.attack, card.health, kw);
           }
           // Rune of Redirection: a Ruby landing on your LEFT-most minion also casts on your right-most. Fires
           // the target's own on-Ruby watchers too, so the second landing is a real Ruby cast rather than a
@@ -1819,13 +1826,9 @@ function reduceCore(state: RunState, action: Action): RunState {
             for (let n = 0; n < casts * runeStacksOf(s, 'rune_redirection'); n++) {
               addBuff(tail, 'Ruby', card.attack, card.health);
               recordBounceFx(s, 'ruby', boardTarget.uid, tail.uid); // the hop: left-most → right-most
-              fireOnRubyPlayed(s, tail, card.attack, card.health);
+              fireOnRubyPlayed(s, tail, card.attack, card.health, kw);
             }
           }
-          // Warding Ruby: grant its keyword (Ward = DS) — but only to a KOBOLD (owner spec 2026-07-31: "give it
-          // Ward if it is a Kobold"). The stat half lands on anyone; the keyword is the tribe payoff.
-          const kw = def.rubyGrantKeyword;
-          if (kw && isTribe(boardTarget, 'kobold') && !boardTarget.keywords.includes(kw)) boardTarget.keywords.push(kw);
         } else if (offer) {
           for (let n = 0; n < casts; n++) addOfferBuff(offer, 'Ruby', card.attack, card.health);
           // Rune of Distillation says "Spells", not "Shop Spells" (owner 2026-08-04) — a RUBY cast on a Shop
@@ -5455,13 +5458,13 @@ function advanceCombat(s: RunState): void {
   // toward "Trigger N End of Turn effects" quests like real ones.
   // (Rune of the Conductor's old start-of-shop EoT re-trigger lived here; the 2026-07-31 rework moved it to
   // `endOfTurnExtra` — the rune now simply repeats your End of Turn twice more, like Parliament of Flame.)
-  // Rune of the Summit: every 2nd shop opens a Tier 7 Discover. `exactTier: 7` is a FIXED-tier offer, so it
+  // Rune of the Summit: every 2nd shop opens a Tier 7 Discover (balance 9/23; was every 3rd). `exactTier: 7` is a FIXED-tier offer, so it
   // resolves with no rift active — which is the entire point (Tier 7 is otherwise unreachable outside one).
   if (s.runeSummit) {
     s.runeSummitTick = (s.runeSummitTick ?? 0) + 1;
-    // Only the 3rd shop pays; the two in between are the countdown, not the rune firing.
-    // Same 3-turn cadence, one Discover per copy held (recurring family, owner 2026-08-27) — they queue in sequence.
-    if (s.runeSummitTick % 3 === 0) { procRune(s, 'runeSummit'); for (let k = 0; k < runeStacksOf(s, 'rune_summit'); k++) queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7 }); } // every 3rd shop (owner sheet 2026-07-31)
+    // Only the 2nd shop pays; the one in between is the countdown, not the rune firing (balance 9/23: every 2nd,
+    // was every 3rd). Same cadence, one Discover per copy held (recurring family, owner 2026-08-27) — they queue in sequence.
+    if (s.runeSummitTick % 2 === 0) { procRune(s, 'runeSummit'); for (let k = 0; k < runeStacksOf(s, 'rune_summit'); k++) queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7 }); } // every 2nd shop
   }
   // Set 2 — the warband's own Start-of-Turn effects (Gemline Martyr), the symmetric twin of End of Turn. Fired
   // here as the shop opens, alongside the Start-of-Turn rune rewards below.
@@ -6351,13 +6354,13 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       else if (r.flag === 'runeLivingEchoes') s.questFlags.runeLivingEchoes = add(s.questFlags.runeLivingEchoes, r.amount ?? 3); // amount = Heralds per combat
       else if (r.flag === 'runeAttackingGems') s.questFlags.runeAttackingGems = add(s.questFlags.runeAttackingGems, r.amount ?? 1); // amount = Rubies per attack
       else if (r.flag === 'runeOverflow') s.questFlags.runeOverflow = add(s.questFlags.runeOverflow, r.amount ?? 4);           // amount = the permanent board buff
-      else if (r.flag === 'runeCarrionCoin') s.questFlags.runeCarrionCoin = add(s.questFlags.runeCarrionCoin, r.amount ?? 4); // amount = the Avenge threshold
+      else if (r.flag === 'runeCarrionCoin') s.questFlags.runeCarrionCoin = add(s.questFlags.runeCarrionCoin, r.amount ?? 3); // amount = the Avenge threshold (3, balance 9/23)
       else if (r.flag === 'runeUndertow') s.questFlags.runeUndertow = add(typeof s.questFlags.runeUndertow === 'number' ? s.questFlags.runeUndertow : 0, r.amount ?? 4); // amount = the Ward budget
       else if (r.flag === 'runeAshenPayroll') s.questFlags.runeAshenPayroll = add(s.questFlags.runeAshenPayroll, r.amount ?? 3); // amount = Imps needed
       // The 2026-08-20 pair: `amount` is a THRESHOLD, not a magnitude, so a second copy must NOT accumulate it
       // (two Returning Packs would mean "every 12 Beasts" — strictly worse than one). Assigned, and the copy
       // count below is what makes the dispatcher pay twice per trip.
-      else if (r.flag === 'runeReturningPack') s.questFlags.runeReturningPack = r.amount ?? 6;   // amount = Beasts per payout
+      else if (r.flag === 'runeReturningPack') s.questFlags.runeReturningPack = r.amount ?? 5;   // amount = Beasts per payout (5, balance 9/23)
       else if (r.flag === 'runeGraveRefreshment') s.questFlags.runeGraveRefreshment = r.amount ?? 2; // amount = Echoes per free refresh
       else s.questFlags[r.flag] = true;
       // Every flag records how many copies are held; the boolean ones are the reason it exists (a second

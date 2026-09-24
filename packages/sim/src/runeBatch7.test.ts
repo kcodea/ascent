@@ -15,13 +15,13 @@ describe("Rune of Blood and Coin — deaths bank Gold", () => {
   ];
   const killer: BoardMinion[] = [{ cardId: 'sandbag', attack: 9, health: 400 }];
 
-  it("banks 3 Gold per 5 friendly deaths, carried back to the run (owner rework 2026-08-11)", () => {
+  it("banks 3 Gold per 4 friendly deaths, carried back to the run (Avenge (4) since balance 9/23; owner rework 2026-08-11 had 5)", () => {
     // Derived from the deaths the fight actually produced — assuming a count silently tests the wrong threshold.
-    // The def now banks 3 Gold on every 5th friendly death (was 4 Gold every 4th), so the mod carries 3.
+    // The def banks 3 Gold on every 4th friendly death (balance 9/23; 2026-08-11 had every 5th), so the mod carries 3.
     const r = sim(fodder(8), killer, { runeBloodAndCoin: 3 });
     const deaths = r.events.filter((e) => e.type === 'death' && e.side === 'player').length;
-    expect(r.playerBonusGold ?? 0, `${deaths} deaths should bank ${Math.floor(deaths / 5) * 3} Gold`)
-      .toBe(Math.floor(deaths / 5) * 3);
+    expect(r.playerBonusGold ?? 0, `${deaths} deaths should bank ${Math.floor(deaths / 4) * 3} Gold`)
+      .toBe(Math.floor(deaths / 4) * 3);
   });
 
   it("banks nothing without the rune", () => {

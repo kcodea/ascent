@@ -644,6 +644,7 @@ export type EffectFactoryId =
   | 'summonBuffSelfTribe' // onSummon: buff self when a friendly minion of a given tribe is summoned (Spirit Worgen)
   // Spells (batch): tavern + run-level effects
   | 'spellBuffShop' // cast: buff every tavern offer +atk/+hp (Staff of Guel)
+  | 'spellBuffShopRightmost' // cast: the right-most Shop SLOT is buffed +atk/+hp for the run, spell power folded (Picnic) — Market Tormentor's channel
   | 'gainMaxMana' // cast: raise max Mana permanently (Mana Font)
   | 'grantFreeRolls' // cast: bank N free rerolls (Refreshing Texts)
   | 'spellTauntNextSummons' // cast: the first N minions summoned in the NEXT combat gain Taunt (Summoning Bulwark)
@@ -1309,7 +1310,7 @@ export type QuestReward =
    * The remainder BANKS across transactions, like every other threshold in the game. `oncePerTurn` caps payouts
    * at one per turn (the Merchant's Chorus).
    */
-  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit'; per: number;
+  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit'; per: number;
       grantSpell?: number; grantAle?: number; grantRuby?: number;
       /** Rune of the Deep Feast: hand over these exact card ids when the meter trips (the `grant` reward's
        *  `cards`, on a meter). Overflow-safe like every other earned reward. */

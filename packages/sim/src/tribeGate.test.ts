@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
+import { CARD_INDEX, EPIC_RUNES, RUNES, SETS } from '@game/content';
 import type { QuestReward } from '@game/core';
 import type { Tribe } from '@game/core';
 import { runeforgePool } from './reducer';
@@ -23,6 +23,11 @@ const WORD: Record<Exclude<Tribe, 'neutral'>, RegExp> = {
 /** Owner ruling 2026-09-10: a rune that only GRANTS a tribe body (Kegheart, High King) is gated like one that reads
  *  the board — so this allowlist is empty on purpose. Adding an id here needs an owner call. */
 const BODY_GRANT_ONLY = new Set<string>([]);
+/** OWNER-RULED tags whose text names the tribe by its KEYWORD rather than by name. Rune of the Deathtouched Apple
+ *  ("When a minion Rises, give it Rise") is Undead (owner 2026-09-23, Balance 9/23: "make deathtouched apple an
+ *  undead rune, so it is not in set 2") — Rise is the Undead keyword, the way Imps are Demon content. Adding an id
+ *  here needs an owner call. */
+const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = { rune_deathtouched_apple: 'undead' };
 
 /** The tribes of the bodies a reward GRANTS (Rune of Lazarus → Lazarus is Undead) — the 2026-09-10 ruling's
  *  "only grants a tribe body" case, resolved through the card index rather than a hand list. */
@@ -33,8 +38,8 @@ const grantedTribes = (r: QuestReward | undefined): Tribe[] => {
   if (r.kind === 'multi') return r.rewards.flatMap(grantedTribes);
   return [];
 };
-const namesTribe = (rune: { text: string; reward?: QuestReward }, tribe: Tribe): boolean =>
-  WORD[tribe as Exclude<Tribe, 'neutral'>].test(rune.text) || JSON.stringify(rune).includes(`"tribe":"${tribe}"`) || JSON.stringify(rune).includes(`"randomTribe":"${tribe}"`) || grantedTribes(rune.reward).includes(tribe);
+const namesTribe = (rune: { id?: string; text: string; reward?: QuestReward }, tribe: Tribe): boolean =>
+  (!!rune.id && OWNER_TRIBE_RULINGS[rune.id] === tribe) || WORD[tribe as Exclude<Tribe, 'neutral'>].test(rune.text) || JSON.stringify(rune).includes(`"tribe":"${tribe}"`) || JSON.stringify(rune).includes(`"randomTribe":"${tribe}"`) || grantedTribes(rune.reward).includes(tribe);
 
 describe('rune tribe tags agree with the printed text', () => {
   it('every tagged tribe is named by the text (or the reward params)', () => {
@@ -64,6 +69,22 @@ describe('runeforgePool honours the run tribes', () => {
   it('the same run WITH Dragons is offered them', () => {
     expect(runeforgePool(withTribes(['kobold', 'beast', 'demon', 'dwarf', 'dragon']))).toContain('rune_glider');
     expect(runeforgePool(withTribes(['kobold', 'beast', 'demon', 'dwarf', 'dragon'], true))).toContain('rune_scales');
+  });
+  it('Rune of the Deathtouched Apple is Undead-gated: never in a Set 2 run (no Undead there), still in a Set 1 / Set 3 run that rolled Undead', () => {
+    // Owner 2026-09-23 (Balance 9/23): "make deathtouched apple an undead rune, so it is not in set 2".
+    expect(EPIC_RUNES.find((r) => r.id === 'rune_deathtouched_apple')?.tribes).toEqual(['undead']);
+    expect(SETS.set2.tribes).not.toContain('undead'); // the set fields no Undead, so no Set 2 run can roll them
+    for (const seed of [1, 2, 3, 77, 9001]) {
+      const s2 = { ...createRun(seed, 'runesmith', 'ascent', undefined, 'set2'), runeforgeEpic: true } as RunState;
+      expect(s2.tribes).not.toContain('undead');
+      expect(runeforgePool(s2)).not.toContain('rune_deathtouched_apple');
+    }
+    for (const setId of ['set1', 'set3'] as const) {
+      const withUndead = { ...createRun(4, 'runesmith', 'ascent', undefined, setId), tribes: ['undead', 'kobold'] as Tribe[], runeforgeEpic: true } as RunState;
+      expect(runeforgePool(withUndead), `${setId} with Undead`).toContain('rune_deathtouched_apple');
+      const without = { ...withUndead, tribes: ['kobold', 'dwarf'] as Tribe[] } as RunState;
+      expect(runeforgePool(without), `${setId} without Undead`).not.toContain('rune_deathtouched_apple');
+    }
   });
   it('an untagged rune is unaffected by the roll', () => {
     const ids = runeforgePool(withTribes(['spirit']));

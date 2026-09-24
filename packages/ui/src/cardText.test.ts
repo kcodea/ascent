@@ -374,11 +374,12 @@ describe('withImpStats — live summoned-Imp X/Y (owner ask 2026-08-11)', () => 
     expect(t.match(/\{\{\(2\/2\)\}\}/g)?.length, 'exactly one annotation').toBe(1);
   });
 
-  it('handles plural summons ("Summon 2 Imps")', () => {
-    // dm_shepherd's rework (2026-08-18) made its base text summon a single Imp; the plural lives on the golden
-    // text ("Summon 2 Imps"), which is what exercises the plural branch of the annotation regex.
+  it('handles plural summons ("Summon 2 Imps" / "Summon 4 Imps")', () => {
+    // dm_shepherd summons 2 Imps since the owner's 2026-09-23 balance pass (gilded 4), so BOTH its texts now
+    // exercise the plural branch of the annotation regex.
+    expect(withImpStats('dm_shepherd', CARD_INDEX['dm_shepherd']!.text, aura)).toContain('Summon **2 Imps {{(2/2)}}**');
     const t = withImpStats('dm_shepherd', CARD_INDEX['dm_shepherd']!.goldenText!, aura);
-    expect(t).toContain('Summon **2 Imps {{(2/2)}}**');
+    expect(t).toContain('Summon **4 Imps {{(2/2)}}**');
   });
 
   it('shows the 1/1 base with no Imp Aura, and leaves non-summoners alone', () => {

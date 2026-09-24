@@ -28,7 +28,7 @@
  *  · A per-game CAP of ANNOUNCER_LINE_CAP lines; GameWon / GameLoss are allowed on top of it.
  *
  * AUDIO: its OWN channel — a third gain on the SFX AudioContext (like the music's), with its own volume + mute
- * (`ascent.announcervol`, `ascent.announcermuted`, default 0.9), NOT ducked by the Game-sounds mute or slider.
+ * (`ascent.announcervol`, `ascent.announcermuted`, default 0.7), NOT ducked by the Game-sounds mute or slider.
  * The 34 clips are PUBLIC files (`apps/web/public/announcer/`), fetched + decoded LAZILY on first need into a
  * cached buffer (never the eager `import.meta.glob` bank in sfx.ts). Without Web Audio an HTMLAudioElement per
  * line carries the level. Lines never overlap each other.
@@ -81,7 +81,7 @@ export const ANNOUNCER_TRIPLE_MAX = 2;
 export const ANNOUNCER_REPEAT_GAP_WAVES = 5;
 /** EnteringCombat is "the first Face Omen": if the first one is dropped it may still speak up to this wave. */
 export const ANNOUNCER_ENTERING_COMBAT_MAX_WAVE = 3;
-const DEFAULT_ANNOUNCER_VOLUME = 0.9;
+const DEFAULT_ANNOUNCER_VOLUME = 0.7; // owner's 2026-09-23 mix
 
 /** The clips, per event, in variant order. Files live at `<BASE_URL>announcer/<name>.mp3`. GameWon has one
  *  variant today: the delivered `GameWon.mp3` is byte-identical to `TopTwo2.mp3` (a mis-export the owner will

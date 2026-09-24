@@ -138,7 +138,8 @@ The five buckets below are ordered by when we intend to act, not by size:
   Gem Dividend, Carrion Coin, Five Banners, Centerline, Second Litter, Shared Pour, Aftermarket, Hoardcalling)
   and tranche 2 (the three T6 bodies + their Epic grant runes) both shipped 2026-08-07. Still queued, in order:
   - **Art for tranche 2** — the three new bodies (Ashen Heir, Runesnout Archivist, Mossmemory Colossus) and
-    their three runes ship without art; nothing matching those names exists in the art folder yet.
+    their three runes ship without art; nothing matching those names exists in the art folder yet. (Rune of the
+    Ashen Heir was archived 2026-09-23 — Balance 9/23 — so only the body's art is still owed.)
   - **Tranche 3** — 8 contained-machinery Basics: Spellhide, Spellmarket, Last Word, Runic Hoard, Backbeat,
     Spare Chair, Ashen Payroll, Emberline.
   - **Tranche 4** — 5 hard Epics: Ancestral Roar, Ruby Shrapnel, Shared Scripture, Banquet Hall, Crucible Choir.

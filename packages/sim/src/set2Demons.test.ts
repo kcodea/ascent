@@ -248,7 +248,7 @@ describe('set 2 — consume hygiene (the 2026-07-25 report)', () => {
     expect(s.shopEaten?.length ?? 0, 'Hellrider must not consume anything now').toBe(0);
     expect(s.shop.length, 'the row keeps every offer').toBe(3);
     const m = s.board.find((c) => c.uid === 'm')!;
-    expect(m.attack + m.health, 'it still copied the right-most on the 4th refresh').toBeGreaterThan(16);
+    expect(m.attack + m.health, 'it still copied the right-most on the 3rd refresh (every 3 since 2026-09-23)').toBeGreaterThan(16);
   });
 });
 
@@ -341,22 +341,23 @@ describe('set 2 — the Imp line (combat)', () => {
     expect(grants.length).toBeGreaterThan(0);
   });
 
-  it('Legion Shepherd (owner rework 2026-08-18): Echo buffs your Imps +5/+5 (carried back) and summons an Imp', () => {
+  it('Legion Shepherd (owner rework 2026-08-18): Echo buffs your Imps +5/+5 (carried back) and summons 2 Imps', () => {
     // The old "summon 4 Imps, only OVERFLOW pays" design is gone. Now both halves are onDeath: a flat +5/+5 Imp
-    // aura (via `deathrattleBuffImps`, carried back to RunState.impBuff through `playerImpBuffGain`) and a single
-    // Imp token summoned. The buff is UNCONDITIONAL — board occupancy no longer gates it.
+    // aura (via `deathrattleBuffImps`, carried back to RunState.impBuff through `playerImpBuffGain`) and the Imp
+    // tokens summoned (one until the owner's 2026-09-23 balance pass made it two). The buff is UNCONDITIONAL —
+    // board occupancy no longer gates it.
     const r = simulate([bm('dm_shepherd', 'S', 3, 1)], [{ cardId: 'sandbag', attack: 50, health: 300 }],
       makeRng(3), CARD_INDEX, combatSide({ tier: 5 }), combatSide({ tier: 1 }));
     const imps = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'impscrap');
-    expect(imps.length, 'exactly one Imp summoned').toBe(1);
+    expect(imps.length, 'exactly two Imps summoned').toBe(2);
     expect(r.playerImpBuffGain, 'the +5/+5 must reach the permanent Imp-buff carry-back channel').toEqual({ attack: 5, health: 5 });
   });
 
-  it('…and a GILDED Shepherd doubles both halves: +10/+10 and 2 Imps', () => {
+  it('…and a GILDED Shepherd doubles both halves: +10/+10 and 4 Imps', () => {
     const r = simulate([{ ...bm('dm_shepherd', 'S', 6, 1), golden: true }], [{ cardId: 'sandbag', attack: 50, health: 300 }],
       makeRng(3), CARD_INDEX, combatSide({ tier: 5 }), combatSide({ tier: 1 }));
     const imps = r.events.filter((e) => e.type === 'summon' && (e as { minion: { cardId: string } }).minion.cardId === 'impscrap');
-    expect(imps.length, 'gilded summons 2 Imps').toBe(2);
+    expect(imps.length, 'gilded summons 4 Imps').toBe(4);
     expect(r.playerImpBuffGain, 'gilded buffs Imps +10/+10').toEqual({ attack: 10, health: 10 });
   });
 });
@@ -380,16 +381,16 @@ describe('set 2 — the last three (Overseer / Maw / Malphas)', () => {
     expect(CARD_INDEX['dm_chancellor'], 'archived — still resolvable by id').toBeTruthy();
   });
 
-  it('Hellrider copies on every 4th REFRESH, counting from its own arrival', () => {
+  it('Hellrider copies on every 3rd REFRESH (every 4th until 2026-09-23), counting from its own arrival', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 99, freeRolls: 99,
       board: [minion('m', 'dm_maw', 8, 8)], hand: [],
       shop: shop('sandbag', 'alley', 'stray'),
     };
-    for (let i = 0; i < 3; i++) s = reduce(s, { type: 'roll' });
+    for (let i = 0; i < 2; i++) s = reduce(s, { type: 'roll' });
     const m3 = s.board.find((c) => c.uid === 'm')!;
-    expect([m3.attack, m3.health]).toEqual([8, 8]); // nothing yet — three refreshes
-    s = reduce(s, { type: 'roll' });                // the fourth
+    expect([m3.attack, m3.health]).toEqual([8, 8]); // nothing yet — two refreshes
+    s = reduce(s, { type: 'roll' });                // the third
     const m4 = s.board.find((c) => c.uid === 'm')!;
     expect(m4.attack + m4.health).toBeGreaterThan(16); // copied something
   });
@@ -589,7 +590,7 @@ describe('set 2 — Market Tormentor (permanent right-most SLOT buff)', () => {
     // has to include the +7/+6, and the offer has to still be sitting in the row afterwards.
     let s: RunState = {
       ...base(), hand: [minion('T', 'dm_tormentor', 4, 4)],
-      board: [{ ...minion('H', 'dm_maw', 4, 6), eotTick: 3 }], // one refresh from firing
+      board: [{ ...minion('H', 'dm_maw', 4, 6), eotTick: 2 }], // one refresh from firing (every 3 since 2026-09-23)
     };
     const shopUids = s.shop.map((offer) => offer.uid);
     s = reduce(s, { type: 'play', uid: 'T' });

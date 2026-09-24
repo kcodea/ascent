@@ -11,10 +11,12 @@ const bc = (uid: string, cardId: string, tribe: string, attack: number, health: 
 describe('Aug-11 rune + minion batch — new content ships', () => {
   it('the 20 new runes exist at their owner costs', () => {
     const want: [string, number][] = [
-      ['rune_display_case', 4], ['rune_wrangler', 3], ['rune_living_geode', 4], ['rune_open_enrollment', 5],
-      ['rune_strange_caravan', 3], ['rune_lassoing', 2], ['rune_restocking', 3], ['rune_trade_in', 2],
-      ['rune_window_shopping', 3], ['rune_fresh_pages', 3], ['rune_collector', 4], ['rune_shopkeep', 5],
-      ['rune_dawnclaw', 5], ['rune_blart', 4], ['rune_bargain_bin', 7], ['rune_sylus', 5], ['rune_kobold_bebes', 6],
+      // balance 9/23: Living Geode 4 → 1, Open Enrollment 5 → 3, Strange Caravan 3 → 2, Restocking 3 → 2, Trade-In 2 → 1,
+      // Collector 4 → 5, Bargain Bin 7 → 6, Kobold Bebes 6 → 4.
+      ['rune_display_case', 4], ['rune_wrangler', 3], ['rune_living_geode', 1], ['rune_open_enrollment', 3],
+      ['rune_strange_caravan', 2], ['rune_lassoing', 2], ['rune_restocking', 2], ['rune_trade_in', 1],
+      ['rune_window_shopping', 3], ['rune_fresh_pages', 3], ['rune_collector', 5], ['rune_shopkeep', 5],
+      ['rune_dawnclaw', 5], ['rune_blart', 4], ['rune_bargain_bin', 6], ['rune_sylus', 5], ['rune_kobold_bebes', 4],
       ['rune_sellers_market', 3], ['rune_old_pack', 6], ['rune_herzog', 5],
     ];
     for (const [id, cost] of want) {
@@ -102,14 +104,14 @@ describe('Rune of the Old Pack — first Beast resummoned returns at full stats'
 });
 
 describe('economy runes — reducer behaviour', () => {
-  it("Seller's Market: selling a minion pumps the whole board +4/+3", () => {
+  it("Seller's Market: selling a minion pumps the whole board +6/+8 (balance 9/23, was +4/+3)", () => {
     let s: RunState = {
       ...createRun(1, 'warden'), phase: 'recruit', runeSellersMarket: true,
       board: [bc('a', 'stray', 'beast', 2, 2), bc('b', 'stray', 'beast', 3, 3)],
     };
     s = reduce(s, { type: 'sell', uid: 'a' });
     const b = s.board.find((c) => c.uid === 'b')!;
-    expect([b.attack, b.health]).toEqual([7, 6]); // 3/3 + 4/3
+    expect([b.attack, b.health]).toEqual([9, 11]); // 3/3 + 6/8
   });
 
   it('Window Shopping: the first 3 Refreshes each turn are free (owner balance 2026-08-18)', () => {

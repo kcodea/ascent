@@ -576,4 +576,32 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-23',
     },
   },
+  {
+    id: 'R-RUNE-16',
+    title: 'Rune of Spellhide\'s Start-of-Combat re-cast finds its Beast by the RUN uid (combat `sourceUid`), through the real pipeline',
+    statement:
+      'Rune of Spellhide ("The first stat-granting Shop spell you cast on a Beast each turn is cast on it again at Start '
+      + 'of Combat") records `{ spellId, uid }` with the RUN board card\'s uid. Combat bodies get fresh uids (`m0`, `m1`, ...) '
+      + 'and carry the run uid on `sourceUid`, so the Start-of-Combat re-cast matches the Beast by `sourceUid` (with the '
+      + 'combat `uid` only as a fallback for a hand-built side). Through the reducer bridge (buy the rune, cast on a Beast, '
+      + 'face the fight) the rune fires once and the recorded spell lands on that Beast again; only the turn\'s first such '
+      + 'cast is recorded. Any lookup of a run-side uid carried into combat must go through `sourceUid`.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-24 (Rune of Spellhide never finds its Beast)', quote: 'Fix Rune of Spellhide never finding its Beast in combat.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts (RUNE OF SPELLHIDE, the Start-of-Combat pass); packages/sim/src/recruit.ts spellhidePending; packages/sim/src/reducer.ts combat side `spellhide` + `sourceUid: b.uid`' },
+      { kind: 'test', ref: 'packages/sim/src/spellhideCombatUid.test.ts' },
+    ],
+    contentIds: ['rune_spellhide'],
+    currentBehaviour:
+      'Conforms as of 2026-09-24. Before, the lookup matched the combat `uid` against the run uid, so through the real '
+      + 'bridge the Beast was never found and the re-cast was silently skipped (the Doc Bot carry-over scan had flagged it '
+      + 'needs-triage on 2026-08-26). The rune is archived (2026-08-12) and lives on only in saved runs that hold it.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/spellhideCombatUid.test.ts', 'packages/sim/src/docbot/carryOver.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
 ];

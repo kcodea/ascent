@@ -212,7 +212,6 @@ export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   lastSpellThisTurnId: { kind: 'combat-covered', why: 'Recaller\'s shop-side record; the combat stored-spell lane reads combatSide.lastSpellCastId (s.lastSpellCastId), a different field, threaded at build' },
   rememberedThisTurn: { kind: 'no-combat-meaning', why: 'Runesnout Archivist\'s once-per-turn journal latch; recording happens in the shop, the JOURNAL itself is threaded (rememberedSpellIds)' },
   spellhideUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of Spellhide\'s per-turn RECORD latch; recording happens on the shop cast, the recorded re-casts ride spellhidePending' },
-  spellhidePending: { kind: 'needs-triage', why: 'threaded (combatSide.spellhide) but the SoC consumer matches combat `m.uid` against the RUN uid, which the reducer bridge carries on sourceUid — the re-cast can never land through the real bridge (scan finding 2026-08-26). Rune archived 2026-08-12, so no live impact; fix the match or retire the lane, with a ruling' },
   lastWordUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of the Last Word\'s per-turn sold-Dragon latch; selling is a shop action' },
   // ── Set 3 batch 2 (2026-09-16) — tranche A per-turn gates: every one is a SHOP latch (sells, buys, casts, plays) ──
   revelersSoldThisTurn: { kind: 'no-combat-meaning', why: 'Festival Wages / the Festival Circuit\'s per-turn Revelers-sold meter ("after you sell 3 Revelers"); selling is a shop action' },

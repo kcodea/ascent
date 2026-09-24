@@ -198,26 +198,40 @@ export function playCombatSpellCastFx(casts: readonly CombatSpellCast[]): number
  */
 export function playRuneCastBuffFx(o: { runeId: string; spellId?: string; target: Point; targetUid: string; index?: number }): boolean {
   const node = runeNodeCentre(o.runeId);
-  const fan = spellCastFanOutFor(o.spellId);
   // The rune RELEASES the spell (owner 2026-09-24, the rune cast flourish): its trails leave a short lead after the
   // glyph flash on the node (`runeFlourishLeadMs`; 0 while the flourish is off, i.e. right away as before).
   const lead = runeCastTrailLeadMs();
-  if (fan) {
-    if (!canPlayDefs()) return false;
-    const camera = viewportCentre();
-    const from = fan.fanOut === 'buffedOn' ? o.target : (node ?? o.target);
-    afterMs(lead, () => {
-      const sound = spellCastSoundAllowed(fan.def);
-      playDef(fan.def, { source: from, target: o.target, cursor: from, camera }, {
-        uids: { source: null, target: o.targetUid }, index: o.index ?? 0, gain: fan.gain, ...(sound ? {} : { muteSound: true }),
-      });
-      if (sound && fan.sfx !== undefined) sfx[fan.sfx]?.();
-    });
-    return true;
-  }
+  if (playCastFanOutBuffFx({ spellId: o.spellId, from: node, target: o.target, targetUid: o.targetUid, index: o.index, delayMs: lead })) return true;
+  if (spellCastFanOutFor(o.spellId)) return false; // a fan-out spell whose defs cannot play yet: nothing to draw
   if (!node) return false;
   afterMs(lead, () => {
     fireBuffFx({ source: node, target: o.target, cardId: o.spellId ?? '', tribe: 'neutral', sourceless: false, uids: { source: null, target: o.targetUid } });
+  });
+  return true;
+}
+
+/**
+ * ONE BUFF A SPELL'S PER-BUFF ROW DRAWS, whoever cast it (owner 2026-09-24: *"all spell animations and sfx should be
+ * wired to play whenever a spell or minion is cast/played from any source"*). THE shared per-buff play for every
+ * non-player caster: a rune (`playRuneCastBuffFx`, `from` = its node), a minion in the Shop or at End of Turn
+ * (`from` = the caster's body, the Mage-Pup that poured the Ale), and a caster that has left the board (`from` null:
+ * a `buffed` volley then lands on the minion itself). `buffedOn` (Dragonflame's column) plays ON the minion whatever
+ * the source. The row's sound rings once per burst (`spellCastSoundAllowed`, the 120 ms gap), so Dragonflame's many
+ * buffs from one cast ring once and each repeat wave rings again, as the player's own cast does. Returns false when
+ * the spell has no per-buff row (the caller keeps its own path: a rune's stock trail, a minion's descend) or defs
+ * cannot play yet.
+ */
+export function playCastFanOutBuffFx(o: { spellId?: string; from: Point | null; target: Point; targetUid: string; index?: number; delayMs?: number }): boolean {
+  const fan = spellCastFanOutFor(o.spellId);
+  if (!fan || !canPlayDefs()) return false;
+  const camera = viewportCentre();
+  const from = fan.fanOut === 'buffedOn' ? o.target : (o.from ?? o.target);
+  afterMs(o.delayMs ?? 0, () => {
+    const sound = spellCastSoundAllowed(fan.def);
+    playDef(fan.def, { source: from, target: o.target, cursor: from, camera }, {
+      uids: { source: null, target: o.targetUid }, index: o.index ?? 0, gain: fan.gain, ...(sound ? {} : { muteSound: true }),
+    });
+    if (sound && fan.sfx !== undefined) sfx[fan.sfx]?.();
   });
   return true;
 }

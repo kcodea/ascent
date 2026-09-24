@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { playCastFanOutBuffFx } from './fx/spellCastFx';
 import { perfMonitor } from './perfMonitor';
 import gsap from 'gsap';
 import { damageMeterOf, type CombatEvent, type CombatResult, type Keyword, type MinionBuff, type MinionSnapshot, type Tribe } from '@game/core';
@@ -1628,6 +1629,17 @@ export function useCombatReplay(
         if (!perTarget.has(c.target)) perTarget.set(c.target, AUTHORED_BUFF_ROLL_MS);
         continue;
       }
+      // A SPELL'S PER-BUFF ROW, cast in combat (an Ale a minion pours, a rune's re-cast): the row the player's own cast
+      // plays in the Shop, from the caster to this unit, INSTEAD of the tendril (owner 2026-09-24: "all spell
+      // animations and sfx should be wired to play whenever a spell or minion is cast/played from any source"). The
+      // same helper every other phase uses (`playCastFanOutBuffFx`), so the sound keeps its 120 ms burst gap.
+      const casterEl = c.spellId && cardIds.has(c.source) ? findEl(c.source) : null;
+      const casterRect = casterEl?.getBoundingClientRect();
+      const casterAt = casterRect ? { x: casterRect.left + casterRect.width / 2, y: casterRect.top + casterRect.height / 2 } : null;
+      if (playCastFanOutBuffFx({ spellId: c.spellId, from: casterAt, target: tc, targetUid: c.target })) {
+        if (!perTarget.has(c.target)) perTarget.set(c.target, AUTHORED_BUFF_ROLL_MS);
+        continue;
+      }
       // A SPELL WITH ITS OWN CAST EFFECT REPLACES THE TENDRIL (owner ruling 2026-09-24: "the growth and waking rift
       // effects should replace the tendril for a card that carried those effects, like fatecarver as an example").
       // The effect itself plays once per cast off the `sc` announcement (`spellCastFx` cue); each buff this cast
@@ -1780,6 +1792,11 @@ export function useCombatReplay(
         const at = { x: cx, y: cy };
         playDef(authored, { source: at, target: at, cursor: at, camera: { x: window.innerWidth / 2, y: window.innerHeight / 2 } },
           { uids: { source: s.uid, target: s.uid } });
+        if (unitOf(s.uid)) scheduleRoll(s.uid, AUTHORED_BUFF_ROLL_MS);
+        continue;
+      }
+      // …and a per-buff spell row (an Ale) that rolled its own caster plays on it too (see `fireBuffCasts`).
+      if (playCastFanOutBuffFx({ spellId: s.spellId, from: null, target: { x: cx, y: cy }, targetUid: s.uid })) {
         if (unitOf(s.uid)) scheduleRoll(s.uid, AUTHORED_BUFF_ROLL_MS);
         continue;
       }

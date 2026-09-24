@@ -40,6 +40,11 @@ export interface PresenterContext {
    *  2026-09-24: "spells cast from runes and cards should use the spell effects … they can stem from the rune".
    *  Optional: a context without it keeps the old (silent) path. */
   runeCastGain?: (runeId: string, spellId: string | undefined, uid: string, index: number) => void;
+  /** A gain a MINION'S cast of a spell with a per-buff row produced (a Mage-Pup's Dragonflame or Ale at End of Turn):
+   *  the row plays exactly as the player's cast plays it (owner 2026-09-24: "all spell animations and sfx should be
+   *  wired to play whenever a spell or minion is cast/played from any source"). Returns whether it drew; false keeps
+   *  the ordinary path. Optional. */
+  castFanOutGain?: (spellId: string, casterUid: string | undefined, uid: string, index: number) => boolean;
   /** A minion buffed ITSELF this beat — the authored self-buff def (`self-buff-gold`), the richer twin of the
    *  green `statGain` burst. Matches the per-action path so a self-buff looks the same on any beat. */
   selfBuff: (uid: string) => void;
@@ -127,6 +132,8 @@ export const CONSEQUENCE_PRESENTERS: Record<ConsequenceEvent['type'], Consequenc
       ctx.runeCastGain(c.castByRune, c.spellId, c.target.uid, index);
       return;
     }
+    // A MINION'S cast of a spell with a per-buff row (Dragonflame's column, an Ale's volley from the caster).
+    if (c.spellId && c.target.zone === 'board' && ctx.castFanOutGain?.(c.spellId, c.castByUid, c.target.uid, index)) return;
     // A rune/quest reward that lands on a unit draws its ribbon from the rail to that unit.
     if ((beat.source.kind === 'rune' || beat.source.kind === 'quest') && c.target.zone === 'board') {
       ctx.questTendril(beat.source.kind, beat.source.id, c.target.uid, index);

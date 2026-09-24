@@ -5,7 +5,7 @@ import { normalizePresentationBatch } from './choreographer/adapters/presentatio
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
 import { presentConsequence, type PresenterContext } from './choreographer/consequencePresenters';
 import { clearCastPreviews, fireCastPreviewAt, type CastPreviewSource } from './castPreview';
-import { playRecordedCastFx, playRuneCastBuffFx, playRuneSpellCastFx, playSpellCastFx } from './fx/spellCastFx';
+import { playCastFanOutBuffFx, playRecordedCastFx, playRuneCastBuffFx, playRuneSpellCastFx, playSpellCastFx } from './fx/spellCastFx';
 import { shippedBeatConfig } from './choreographer/beatConfig';
 import { draftToEngine } from './beatLab/labSchedule';
 import type { BeatPolicyOverrides, BeatTimingOverrides } from './beatLab/beatTiming';
@@ -4559,6 +4559,16 @@ export function Recruit() {
       // body to leave from, so it used to be routed sourceless and draw nothing; it now plays the spell's per-buff
       // row (an Ale's volley, Dragonflame's column) or, unbound, the stock trail, from the rune's node.
       if (ev.sourceRuneId && playRuneCastBuffFx({ runeId: ev.sourceRuneId, spellId: ev.spellId, target, targetUid: ev.targetUid })) return;
+      // A MINION'S CAST of a spell with a per-buff row (a Mage-Pup's taught Dragonflame, a shop Rally's Dragonflame, an
+      // Ale a minion poured) plays that row, exactly as the player's own cast does: Dragonflame's column on the minion,
+      // an Ale's volley from the caster's body (owner 2026-09-24: "all spell animations and sfx should be wired to play
+      // whenever a spell or minion is cast/played from any source"). It used to fall to the generic descend below.
+      if (ev.spellId && !ev.sourceRuneId) {
+        const casterUid = ev.castByUid ?? ev.sourceUid;
+        const casterEl = casterUid ? findEl(casterUid) : null;
+        const from = casterEl ? restingCenterOf(casterEl as HTMLElement) : null;
+        if (playCastFanOutBuffFx({ spellId: ev.spellId, from, target, targetUid: ev.targetUid })) return;
+      }
       // A FALLEN ECHO STREAMS FROM WHERE IT FELL (owner report 2026-09-16, Dawn Sentinel — `choreo/buffSource.ts`).
       // A `deathrattle` capture's body has already left the board — a shop destroy (Cage Breaker, Graverobber,
       // EMS), a Funeral on Loan return, a Reveler's sell — so `findEl` finds nothing; the departure cache still
@@ -4625,7 +4635,7 @@ export function Recruit() {
     const owned = (rubyOwned.size > 0 || aleOwned.size > 0) ? new Set<string>([...rubyOwned, ...aleOwned]) : null;
     // An Ale's claim covers only the SPELL-kind entries on its targets: a reaction the Ale caused on the same
     // body (Kneel's self-buff) is a separate cue that still plays as itself.
-    const events = owned ? run.recruitBuffFx.filter((e) => !(rubyOwned.has(e.targetUid) || (aleOwned.has(e.targetUid) && e.kind === 'spell' && !e.sourceRuneId))) : run.recruitBuffFx;
+    const events = owned ? run.recruitBuffFx.filter((e) => !(rubyOwned.has(e.targetUid) || (aleOwned.has(e.targetUid) && e.kind === 'spell' && !e.sourceRuneId && !e.castByUid))) : run.recruitBuffFx;
     if (events.length === 0) return;
     // A BUFF CAPTURED UNDER THE ARENA WAITS FOR THE SHOP (owner report 2026-09-19: Gangplank buffed Han Gover —
     // "the stats went up but the animation didn't play"). A card a COMBAT grants to hand (Han Gover's Ale at
@@ -5780,6 +5790,13 @@ export function Recruit() {
         const target = restingOf(uid);
         if (target) playRuneCastBuffFx({ runeId, spellId, target, targetUid: uid, index });
       },
+      // A MINION'S End-of-Turn cast of a spell with a per-buff row: Dragonflame's column on the minion, an Ale's volley
+      // from the caster's body (owner 2026-09-24, spell effects from every source). It used to draw nothing.
+      castFanOutGain: (spellId, casterUid, uid, index) => {
+        const target = restingOf(uid);
+        if (!target) return false;
+        return playCastFanOutBuffFx({ spellId, from: casterUid ? restingOf(casterUid) : null, target, targetUid: uid, index });
+      },
       statGain: (uid, _zone, _attack, _health, from) => {
         if (!from || from.uid === uid) return;
         // RESTING centres at both ends (owner ask 2026-09-15, the rule #1483 set for the per-action replay): the
@@ -6496,7 +6513,8 @@ export function Recruit() {
     // his own self-buff cue (owner report 2026-09-09).
     // A RUNE'S cast in the same action (Rune of Might answering this cast) is not this cast's: it plays from its
     // own rune node (`sourceRuneId`), so it neither joins this volley nor gets claimed out of the buff replay.
-    const spellHits = st.recruitBuffFx.filter((e) => e.kind === 'spell' && !e.sourceRuneId);
+    // A MINION'S cast in the same action (`castByUid`: a Sporebat re-casting it) is the minion's, likewise.
+    const spellHits = st.recruitBuffFx.filter((e) => e.kind === 'spell' && !e.sourceRuneId && !e.castByUid);
     const targets = Array.from(new Set(spellHits.map((e) => e.targetUid)));
     if (targets.length > 0) spellCastOwnedRef.current = { seq: st.recruitFxSeq, uids: new Set(targets) };
     // `count` is how many BUFFS landed on that body this action, not just that it was hit — a multicast spell

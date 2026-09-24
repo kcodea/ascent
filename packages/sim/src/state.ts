@@ -454,6 +454,11 @@ export interface BuffFxEvent {
    *  (owner ruling 2026-09-24: "spells cast from runes and cards should use the spell effects … they can stem
    *  from the rune if there needs to be a source position"). Absent for every other buff. */
   sourceRuneId?: string;
+  /** The MINION that cast `spellId`, when a minion was the innermost caster of a `spell`-kind capture (a Mage-Pup's
+   *  taught Dragonflame, an Ale a minion poured). Lets a spell's per-buff row (an Ale's volley) leave the caster's
+   *  body, the minion twin of `sourceRuneId` (owner 2026-09-24: "all spell animations and sfx should be wired to play
+   *  whenever a spell or minion is cast/played from any source"). Absent for every other buff. */
+  castByUid?: string;
 }
 
 /** One card a Ruby landed on this action, and HOW MANY landed on it. The count is the information: a gilded

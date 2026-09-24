@@ -122,6 +122,12 @@
         "def": "growth-effect"
       }
     },
+    "greatpot": {
+      "spellCast": {
+        "def": "greatpot",
+        "fanOut": "buffed"
+      }
+    },
     "sparkplug": {
       "spellCast": {
         "def": "waking-rift-fx"

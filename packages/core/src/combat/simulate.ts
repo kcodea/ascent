@@ -349,6 +349,16 @@ export function simulate(
     enemy: enemyState.questMods?.beastialSwarmLevel ?? 2,
   };
   const beastialStart = { player: beastialLevel.player, enemy: beastialLevel.enemy };
+  /** Rune of Packcraft (owner rework 2026-09-23): the current per-summon grant, per side — starts at the run's
+   *  persisted level (default the printed +2/+1), grows by that base step on every friendly summon, and the
+   *  player side's grown value carries back. `PACKCRAFT_BASE` mirrors `PACKCRAFT_STEP` in @game/sim state
+   *  (core cannot import sim); the reducer seeds an ungrown run with the same numbers. */
+  const PACKCRAFT_BASE = { attack: 2, health: 1 } as const;
+  const packcraftLevel: Record<Side, { attack: number; health: number }> = {
+    player: { ...(playerState.questMods?.packcraftLevel ?? PACKCRAFT_BASE) },
+    enemy: { ...(enemyState.questMods?.packcraftLevel ?? PACKCRAFT_BASE) },
+  };
+  const packcraftStart = { player: { ...packcraftLevel.player }, enemy: { ...packcraftLevel.enemy } };
   /** Rune of Dragonscale: Ward grants still owed this combat, per side. */
   const runeDragonscaleLeft: Record<Side, number> = {
     player: playerState.questMods.runeDragonscale ?? 0,
@@ -1464,13 +1474,20 @@ export function simulate(
     // It USED to be an `onSummon` bus listener that buffed your whole Beast line whenever a Beast was summoned.
     // That shape can't express "the minion you summoned gets +6/+6": by the time `onSummon` fires the body is
     // already on the board and already snapshotted, and the old version was tribe-gated besides.
+    //
+    // OWNER REWORK 2026-09-23: ESCALATING. The body gains the CURRENT level (starts +2/+1), then the level grows
+    // by the printed step — "improve this permanently": the grown level rides back into the run
+    // (`packcraftLevel` carry-back) so the next fight's first summon starts from it. Both the grant and the step
+    // land once per copy held (boolean-flag family, owner 2026-08-27). The enemy side runs its own level off
+    // its snapshot and only accumulates (no run to persist to).
     if (modsFor(side).runePackcraft) {
       fireTrigger('runePackcraft', side); // as Hatchery — owning both pops both badges on the same summon, which is true
-      // +6/+6 per copy held (boolean-flag family, owner 2026-08-27).
-      const pk = 6 * flagCopiesOf(side, 'runePackcraft');
-      minion.attack += pk;
-      minion.health += pk;
+      const copies = flagCopiesOf(side, 'runePackcraft');
+      const lvl = packcraftLevel[side];
+      minion.attack += lvl.attack * copies;
+      minion.health += lvl.health * copies;
       minion.maxHealth = Math.max(minion.maxHealth ?? minion.health, minion.health);
+      packcraftLevel[side] = { attack: lvl.attack + PACKCRAFT_BASE.attack * copies, health: lvl.health + PACKCRAFT_BASE.health * copies };
     }
     // Heart of the Mountain: Gemheart Golems attack the instant they land, riding the same `attackNow` queue
     // the Whelp and Rune of the Undertow use — so the summon and its strike land as one beat.
@@ -1487,13 +1504,20 @@ export function simulate(
     }
     // Rune of Living Treasure: your Gemheart Golems enter with Rise — the keyword IS "summon an exact copy of
     // this without Echo", so this reuses Rise rather than stamping a bespoke Deathrattle onto the token.
-    // Rune of the Food Chain: the FIRST body summoned this combat inherits the captured Demon stats.
-    const fc = foodChainStats[side];
-    if (fc) {
-      foodChainStats[side] = undefined; // spent — first summon only
-      minion.attack += fc.attack;
-      minion.health += fc.health;
-      minion.maxHealth = Math.max(minion.maxHealth ?? minion.health, minion.health);
+    // Rune of the Food Chain (owner rework 2026-09-23): the FIRST body summoned this combat gains the stats of
+    // the side's left-most LIVING Demon, read at this moment (its current Attack/Health) — no longer captured
+    // at Start of Combat. First summon only: a summon with no living Demon spends the one chance and pays
+    // nothing, which is what the text says. The captured stats land × copies held (boolean-flag family).
+    if (modsFor(side).runeFoodChain && !foodChainUsed[side]) {
+      foodChainUsed[side] = true;
+      const demon = boards[side].find((m) => !m.dead && m.health > 0 && (m.tribe === 'demon' || m.tribe2 === 'demon' || !!m.universalTribe));
+      if (demon) {
+        const fcN = flagCopiesOf(side, 'runeFoodChain');
+        fireTrigger('runeFoodChain', side);
+        minion.attack += demon.attack * fcN;
+        minion.health += demon.health * fcN;
+        minion.maxHealth = Math.max(minion.maxHealth ?? minion.health, minion.health);
+      }
     }
     // Rune of the Undertow (owner sheet 2026-07-31): minions summoned in combat arrive with Ward. Granted
     // BEFORE the summon event is emitted, so the snapshot carries the shield from the first frame.
@@ -1507,20 +1531,16 @@ export function simulate(
       minion.divineShield = true;
       if (!minion.keywords.includes('DS')) minion.keywords.push('DS');
     }
-    if (modsFor(side).runeLivingTreasure && card.id === 'gemheart-shard') {
+    // Rune of Living Treasure (owner rework 2026-09-23): your Gemheart Golems gain REBIRTH — the keyword that
+    // returns a body ONCE with its full current stats, which is exactly what the 2026-07-31 exact-copy Echo graft
+    // was hand-building (Rise was rejected then because it resummons the PRINTED body: a 7/3 shard came back a
+    // 1/1). Granted here, before the summon snapshot, to every shard that lands mid-fight; the shards already on
+    // the board get theirs in the Start-of-Combat pass. A Rebirth RETURN never comes back through this site (it
+    // re-slots the same instance and runs `summonEntryEffects` only), so the chain terminates at one return, as
+    // the keyword says.
+    if (modsFor(side).runeLivingTreasure && card.id === 'gemheart-shard' && !minion.keywords.includes('RB')) {
       fireTrigger('runeLivingTreasure', side);
-      // Rune of Living Treasure grafts the EXACT-COPY Echo (Exgalloper's), not Rise. It shipped as Rise on the
-      // theory that "Rise IS summon an exact copy" — but Rise resummons the PRINTED body, so a 7/3 shard came
-      // back a 1/1 (owner report 2026-07-31); the Echo copies current stats. Being a real `onDeath` effect
-      // also means every Echo-amplifier (Sylus, Echohorn Stag) now applies. The chain terminates the same way
-      // Exgalloper's does: the factory strips ALL onDeath effects from the copy it summons — including this
-      // graft, which lands first (this line runs during the copy's summon) — and a stripped effect
-      // self-disables via the `minion.effects.includes` guard in `registerEffect`.
-      // Push ONLY — no explicit registerEffect: `registerEffects(minion)` below registers everything in
-      // `minion.effects`, and registering here too subscribed the Echo TWICE (it summoned two copies per death,
-      // caught by the chain-termination test).
-      const eff: EffectDef = { on: 'onDeath', do: 'echoSummonCopyNoEcho', params: {} };
-      minion.effects = [...minion.effects, eff];
+      minion.keywords.push('RB');
     }
     // Aug-11 minion-grant runes — Ward/Taunt on a specific summoner's token. `nearUid` is the summoner's uid
     // (combatArena.summonToken passes self.uid), so these scope to "summoned by your Imp Wranglers / Geode
@@ -1708,6 +1728,9 @@ export function simulate(
       // entry chokepoint, so a token, a Rise and a resummon all count exactly once each.
       if (minion.side === side) {
         summonCount[side] += 1;
+        // Rune of Reinvestment (owner text 2026-09-23: "When you summon a minion in combat…"): the badge pulses
+        // on EACH friendly summon; the Shop buff itself is still paid once at settle (× summons), see below.
+        if (modsFor(side).runeReinvestment) fireTrigger('runeReinvestment', side);
         const remains = modsFor(side).runeRemains ?? 0;
         if (remains > 0 && summonCount[side] % 5 === 0) {
           if (side === 'player') fireTrigger('runeRemains', 'player');
@@ -1897,10 +1920,9 @@ export function simulate(
   /** Rune of the Warpath re-entrancy latch: the chained attack must not chain again (the right-most could
    *  BE the left-most on a one-minion board, and a chain-of-chains is an infinite loop). */
   const warpathChaining: Record<Side, boolean> = { player: false, enemy: false };
-  /** Rune of the Food Chain: the left-most Demon's stats, captured at Start of Combat and spent on the first
-   *  summon. Captured rather than read live, so a Demon that dies before the summon still pays out — the rune
-   *  reads as a Start-of-Combat promise, not a lookup at an arbitrary later moment. */
-  const foodChainStats: Record<Side, { attack: number; health: number } | undefined> = { player: undefined, enemy: undefined };
+  /** Rune of the Food Chain: has this side's FIRST summon already happened? The rune reads the left-most living
+   *  Demon's stats at that moment (owner rework 2026-09-23; it used to capture them at Start of Combat). */
+  const foodChainUsed: Record<Side, boolean> = { player: false, enemy: false };
   /**
    * Rune of the Brood / Rune of Living Echoes: while a side has an empty board slot, fill it.
    *
@@ -2590,14 +2612,22 @@ export function simulate(
     const dyingIsBeast = minion.tribe === 'beast' || minion.tribe2 === 'beast' || !!cards[minion.cardId]?.universalTribe;
     // RUNE OF BEASTIAL SWARM: a friendly Beast dying pumps your living Beasts by the current per-death amount
     // (starts 2, raised by the Avenge(2) improvement below). A combat stat-gain; only the LEVEL persists.
+    //
+    // OWNER REWORK 2026-09-23: the death grows the side's BEAST AURA by +N/+N — the run-wide `beastBuyAtk` /
+    // `beastBuyHp` channel The Old Hunt pumps — permanently: both aura halves rise for the rest of the fight
+    // (later Beast summons inherit the grown value) and the player's gain carries back at settle through the
+    // same `beastBuyAtkGain` / `beastBuyHpGain` channel. Living Beasts gain it on the spot, exactly as the Old
+    // Hunt does on an attack. Once per copy held (boolean-flag family, owner 2026-08-27).
     if (dyingIsBeast && modsFor(minion.side).runeBeastialSwarm) {
       const n = beastialLevel[minion.side];
-      const beasts = living(minion.side).filter((m) => m.tribe === 'beast' || m.tribe2 === 'beast' || !!cards[m.cardId]?.universalTribe);
-      if (n > 0 && beasts.length > 0) {
-        nextStep(); fireTrigger('runeBeastialSwarm', minion.side);
-        // The per-death buff lands once per copy held (boolean-flag family, owner 2026-08-27).
-        const bs = n * flagCopiesOf(minion.side, 'runeBeastialSwarm');
-        for (const m of beasts) ctx.buff(m, bs, bs, 'Rune of Beastial Swarm');
+      if (n > 0) {
+        const side = minion.side;
+        nextStep(); fireTrigger('runeBeastialSwarm', side);
+        const bs = n * flagCopiesOf(side, 'runeBeastialSwarm');
+        beastAtkAuraFor[side] += bs;
+        beastHpAuraFor[side] += bs;
+        beastBuyAtkGain[side] += bs; beastBuyHpGain[side] += bs;
+        for (const m of living(side)) if (m.tribe === 'beast' || m.tribe2 === 'beast' || !!cards[m.cardId]?.universalTribe) ctx.buff(m, bs, bs, 'Rune of Beastial Swarm');
       }
     }
     // Candlelight Toll: your Kobolds have "Echo: get a Ruby". Implemented as a run-wide rule rather than by
@@ -2613,23 +2643,26 @@ export function simulate(
     if (modsFor(minion.side).candlelightToll && (minion.tribe === 'kobold' || minion.tribe2 === 'kobold')) {
       ctx.grantRubies(1, minion.side, minion.uid);
     }
-    // Rune of the Gem Golem: a dying Kobold leaves a token with stats equal to the RUBIES it was carrying.
-    // `rubyTallyOf` is the same read the Gemheart line uses (the carried 'Ruby' snapshot + this fight's gains),
-    // so a body with no Rubies leaves nothing rather than a 0/0.
-    if (modsFor(minion.side).runeGemGolem && (minion.tribe === 'kobold' || minion.tribe2 === 'kobold')) {
-      // The same read the arena's `rubyTallyOf` does: the carried shop 'Ruby' buff plus this fight's gains.
+    // Rune of the Gem Golem (owner rework 2026-09-23): a dying Kobold summons a GEMHEART GOLEM — the printed 1/1
+    // token — carrying the Kobold's Rubies on top (the carried shop 'Ruby' buff plus this fight's gains, the same
+    // read the arena's `rubyTallyOf` does). It lands whether or not the Kobold held any Rubies: the text no
+    // longer gates on them (it used to summon a bare token with stats EQUAL to the Ruby bonuses, or nothing).
+    // The Golem is itself a Kobold, so a dying Golem is EXCLUDED — otherwise every Golem death would summon the
+    // next one and the chain would never end (the old Ruby gate was what stopped it at one link).
+    if (modsFor(minion.side).runeGemGolem && minion.cardId !== 'gemheart-shard'
+        && (minion.tribe === 'kobold' || minion.tribe2 === 'kobold' || !!cards[minion.cardId]?.universalTribe)) {
       const carried = minion.buffs?.find((b) => b.source === 'Ruby');
       const tally = {
         attack: (carried?.attack ?? 0) + (minion.rubyGain?.attack ?? 0),
         health: (carried?.health ?? 0) + (minion.rubyGain?.health ?? 0),
       };
       const golemDef = cards['gemheart-shard'];
-      if (golemDef && (tally.attack > 0 || tally.health > 0)) {
+      if (golemDef) {
         fireTrigger('runeGemGolem', minion.side);
         // One token per copy held (boolean-flag family, owner 2026-08-27) — board room permitting.
         for (let k = 0; k < flagCopiesOf(minion.side, 'runeGemGolem'); k++) {
           summonMinion(minion.side, golemDef, minion.uid, undefined, false, false,
-            { attack: tally.attack, health: tally.health, maxHealth: tally.health });
+            { attack: golemDef.attack + tally.attack, health: golemDef.health + tally.health, maxHealth: golemDef.health + tally.health });
         }
       }
     }
@@ -3838,16 +3871,9 @@ export function simulate(
     // doubling is why it wants a big body rather than a spare one.
     // Rune of the Vanguard: give your three LEFT-most living minions Critical Strike and Ward. Left-most (not
     // right) because these are the bodies that swing first — the Crit wants to land early.
-    // Rune of the Food Chain arms here: capture the left-most living Demon's CURRENT stats.
-    if (rmods.runeFoodChain) {
-      const demon = boards[rside].find((m) => !m.dead && m.health > 0 && (m.tribe === 'demon' || m.tribe2 === 'demon'));
-      if (demon) {
-        // The captured stats land × copies held on the first summon (boolean-flag family, owner 2026-08-27).
-        const fcN = flagCopiesOf(rside, 'runeFoodChain');
-        foodChainStats[rside] = { attack: demon.attack * fcN, health: demon.health * fcN };
-        nextStep(); twilightPulse(rside, pass); fireTrigger('runeFoodChain', rside);
-      }
-    }
+    // (Rune of the Food Chain's Start-of-Combat capture lived here until 2026-09-23; the rune now reads the
+    // left-most living Demon WHEN the first summon lands — see `summonMinion` — and its text no longer begins
+    // "Start of Combat:", so it left this pass and Twilight no longer repeats it.)
     // Weaken (next-combat spell): set N random living ENEMIES (from this side's view) to 1 Health. Base pass only.
     const weaken = base ? (rmods.weakenTargets ?? 0) : 0;
     if (weaken > 0) {
@@ -4167,6 +4193,21 @@ export function simulate(
     // RUNE OF REBIRTH (owner 2026-09-16, replacing the 2026-07-31 exact-copy Echo): Start of Combat — ONE random
     // friendly minion gains REBIRTH (`RB`, the new keyword: it returns once with its full body). A foldable
     // `keyword` grant on its own beat; the id is unchanged.
+    // RUNE OF LIVING TREASURE (owner rework 2026-09-23): every Gemheart Golem already on the board gains REBIRTH
+    // at the bell (the ones summoned mid-fight get it at the summon site). Base pass only — its text is "Your
+    // Gemheart Golems gain Rebirth", a standing grant, not a "Start of Combat:" rune, so Twilight does not repeat
+    // it (there is nothing to repeat: a body holds one Rebirth). One beat, one badge pulse, however many shards.
+    if (base && rmods.runeLivingTreasure) {
+      const shards = boards[rside].filter((m) => !m.dead && m.health > 0 && m.cardId === 'gemheart-shard' && !m.keywords.includes('RB'));
+      if (shards.length > 0) {
+        nextStep();
+        fireTrigger('runeLivingTreasure', rside);
+        for (const m of shards) {
+          m.keywords.push('RB');
+          emit({ type: 'keyword', target: m.uid, keyword: 'RB' });
+        }
+      }
+    }
     if (rmods.runeRebirth) {
       // One grant per copy held (boolean-flag family, owner 2026-08-27) — each lands on a fresh eligible body.
       for (let k = 0; k < flagCopiesOf(rside, 'runeRebirth'); k++) {
@@ -4558,13 +4599,16 @@ export function simulate(
   // Rune of Reinvestment: pays ONCE when the fight settles, scaled by how many bodies you put on the board.
   // Paid here rather than per summon so the Shop sees a single combined buff instead of a drip. Both sides
   // bank it; only the player's payout pulses the badge (the enemy half is a silent carry-back).
+  // (The badge pulses per SUMMON at the summon chokepoint since 2026-09-23 — "When you summon a minion in
+  // combat…" — so nothing fires here; this is the silent settle payout.)
   for (const side of ['player', 'enemy'] as const) {
-    const reinvest = modsFor(side).runeReinvestment ?? 0;
-    if (reinvest > 0 && summonCount[side] > 0) {
-      if (side === 'player') fireTrigger('runeReinvestment', 'player'); // pulse the badge on the settle payout (once, not per summon)
-      tavernBuyGain[side].attack += reinvest * summonCount[side];
-      tavernBuyGain[side].health += reinvest * summonCount[side];
-      creditTavern(side, 'Rune of Reinvestment', reinvest * summonCount[side], reinvest * summonCount[side]);
+    const reinvest = modsFor(side).runeReinvestment;
+    if (reinvest && summonCount[side] > 0) {
+      const a = reinvest.attack * summonCount[side];
+      const h = reinvest.health * summonCount[side];
+      tavernBuyGain[side].attack += a;
+      tavernBuyGain[side].health += h;
+      creditTavern(side, 'Rune of Reinvestment', a, h);
     }
   }
   // Flash's LAST claim: only knowable now the fight is over. Granted here rather than at settle so it still
@@ -4704,6 +4748,9 @@ export function simulate(
         : undefined,
       rightmostSlotBuff: rsg.attack > 0 || rsg.health > 0 ? { ...rsg } : undefined,
       beastialSwarmLevel: beastialLevel[side] > beastialStart[side] ? beastialLevel[side] : undefined,
+      // Packcraft: the grown level, only when a summon actually grew it (an unchanged level carries nothing, so a
+      // re-simulated fight cannot re-persist what it started with).
+      packcraftLevel: packcraftLevel[side].attack > packcraftStart[side].attack ? { ...packcraftLevel[side] } : undefined,
       boardBuffGain: bbg.attack > 0 || bbg.health > 0 ? { ...bbg } : undefined,
       magneticBuffGain: magneticBuffGain[side].attack > 0 || magneticBuffGain[side].health > 0 ? magneticBuffGain[side] : undefined,
       fodderBuffGain: fodderBuffGain[side].attack > 0 || fodderBuffGain[side].health > 0 ? fodderBuffGain[side] : undefined,
@@ -4768,6 +4815,7 @@ export function simulate(
     playerHoardGain: pc.hoardGain,
     playerRightmostSlotBuff: pc.rightmostSlotBuff,
     playerBeastialSwarmLevel: pc.beastialSwarmLevel,
+    playerPackcraftLevel: pc.packcraftLevel,
     playerBoardBuffGain: pc.boardBuffGain,
     playerMagneticBuffGain: pc.magneticBuffGain,
     playerFodderBuffGain: pc.fodderBuffGain,

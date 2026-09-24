@@ -65,6 +65,7 @@ const EXEMPT: Record<string, string> = {
   playerNextShopBuff: 'its subject (the next shop) does not exist until the fight ends',
   playerRightmostSlotBuff: 'its subject (the next shop right-most slot) does not exist until the fight ends (Right Hand Hank)',
   playerBeastialSwarmLevel: 'a run-persisted rune LEVEL (Rune of Beastial Swarm), not a board buff — no combat surface',
+  playerPackcraftLevel: 'a run-persisted rune LEVEL (Rune of Packcraft) — the grant itself lands on each summon as its entry stats; the level is what the NEXT summon gets, shown on the rune badge',
   playerBonusGold: 'ditto — next-shop Gold has no live surface mid-fight',
   playerFreeRolls: 'ditto — rerolls are a shop-phase affordance',
   playerMaxGoldGain: 'max-Gold has no combat surface; the maxGold event exists for the replay log only',

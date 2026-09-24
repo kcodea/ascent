@@ -579,6 +579,16 @@ export interface Commission { kind: CommissionKind; dueWave: number; }
  * A no-op when the kind was never installed, so calling it unconditionally at a trigger site is safe.
  * Display only: nothing in the sim branches on `runeProcs`.
  */
+/** Rune of Slaying's kill threshold (owner balance 2026-09-23: 5, was 6). ONE number for the settle payout and
+ *  the badge's `x/N` countdown, so the two cannot drift. */
+export const SLAYING_KILLS = 5;
+/** Rune of Reinvestment's per-friendly-combat-summon Shop buff (owner balance 2026-09-23: +3/+4, was +1/+1).
+ *  Read by the combat-mods builder AND the badge's live readout, so the pill prints what settle will pay. */
+export const REINVESTMENT_PER_SUMMON = { attack: 3, health: 4 } as const;
+/** Rune of Packcraft's starting grant and its per-summon improvement step (owner rework 2026-09-23). The combat
+ *  builder seeds an ungrown run with this; the badge prints the live level. */
+export const PACKCRAFT_STEP = { attack: 2, health: 1 } as const;
+
 export function procRune(s: RunState, kind: string, times = 1): void {
   const id = s.runeIdByKind?.[kind];
   if (!id) return;
@@ -871,6 +881,10 @@ export interface RunState {
   /** Rune of Beastial Swarm: the current per-Beast-death buff amount (starts 2; Avenge(2) raises it +2 each,
    *  carried across combats). Undefined until the rune is held; the combat builder defaults it to 2. */
   beastialSwarmLevel?: number;
+  /** Rune of Packcraft (owner rework 2026-09-23): the current per-combat-summon grant (starts +2/+1, grows by
+   *  the step on every friendly summon, carried across combats). Undefined until it first grows; the combat
+   *  builder defaults it to `PACKCRAFT_STEP`. */
+  packcraftLevel?: { attack: number; health: number };
   /** Rune of the Display Case: the accumulated LEFT-most-slot enchant (Market Tormentor's mirror of
    *  `rightmostSlotBuff`), re-landed on the left offer each roll by `applyShopRefreshed`. */
   leftmostSlotBuff?: { attack: number; health: number };
@@ -1759,9 +1773,15 @@ export interface RunState {
   lastWordUsedThisTurn?: boolean;
   /** Rune of the Runic Hoard: a Shop spell copied to hand gives your Dragons +1/+1. */
   runeRunicHoard?: boolean;
-  /** Rune of the Banquet Hall: the turn's first Shop-buffed buy feeds one friendly minion of each type. */
+  /** Rune of the Banquet Hall (owner 2026-09-23): the turn's first buy hands its stats to 2 random friendly minions. */
   runeBanquetHall?: boolean;
   banquetUsedThisTurn?: boolean;
+  /** Rune of the Five Banners (owner rework 2026-09-23): End of Turn, one friendly minion of each type +5/+4.
+   *  Runs as a VIRTUAL recurring-EoT entry like the Lapidary (see `recurringEotEffects`). The old Start-of-
+   *  Combat flag `questFlags.runeFiveBanners` is no longer authored but still resolves for pinned replays. */
+  runeFiveBanners?: boolean;
+  /** Rune of Lassoing (owner rework 2026-09-23): whenever Lasso is cast in the shop, your minions gain +2/+2. */
+  runeLassoing?: boolean;
   /** Rune of the Crucible Choir: End of Turn, the left-most Shout then the left-most Echo. */
   runeCrucibleChoir?: boolean;
   /** Rune of Full Measure: Baby Gastrid's grant also pays Attack, 1:1 with the Health. */
@@ -2192,7 +2212,7 @@ export interface RunState {
    *  than folded into it: every other recurrence is unbounded, and giving them all a counter would mean
    *  touching every read. Each entry ticks down at End of Turn and drops out at 0. */
   questRecurringLimited?: { effect: NonNullable<RunState['questRecurringEndOfTurn']>[number]; turnsLeft: number }[];
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeLapidary' | 'runeCrucibleChoir')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' | 'grantAles' | 'grantAles3' | 'quickStudy' | 'copyFirstSpell' | 'grantRuby' | 'grantRuby2' | 'demonEatsRightmostShop' | 'grantFacetwright' | 'lassoing' | 'runeLapidary' | 'runeCrucibleChoir' | 'runeFiveBanners')[];
   /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
    *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */
   baneBuffsDemons?: { attack: number; health: number };

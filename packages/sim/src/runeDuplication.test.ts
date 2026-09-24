@@ -52,7 +52,7 @@ describe("the owner's case: two Rune of the Procession trigger twice", () => {
 
 describe('amount-carrying flags ACCUMULATE when duplicated (owner ruling)', () => {
   it.each([
-    ['rune_finality', 'runeFinality', 7],
+    ['rune_finality', 'runeFinality', 3], // 3 Imps since the owner balance 2026-09-23 (was 7)
     ['rune_living_echoes', 'runeLivingEchoes', 3],
     ['rune_overflow', 'runeOverflow', 4],
     ['rune_gemstorm', 'runeGemstorm', 2],

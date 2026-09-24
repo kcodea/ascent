@@ -63,7 +63,7 @@ export const RUNES: RuneDef[] = [
     text: 'The first **Ruby** you cast each turn gives you a random **Dwarven Ale**. The first **Dwarven Ale** you cast gives you a **Ruby**.',
     previewCards: ['ruby'], // text names it — the forge hover shows the card
     reward: { kind: 'runeContraband' },
-    sets: ['set2', 'set3'], // Rubies + Ales are set-2 currencies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   {
     id: 'rune_spending',
@@ -93,6 +93,7 @@ export const RUNES: RuneDef[] = [
     text: 'Get a **Pillager**. Your **Gold Pouches** are worth **2 Gold** for the rest of the run.',
     previewCards: ['emberpouch'], // text names it — the forge hover shows the card
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['pillager'] }, { kind: 'goldPouchValue', value: 2 }] },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   {
     id: 'rune_fury',
@@ -109,6 +110,7 @@ export const RUNES: RuneDef[] = [
     text: 'Whenever you cast a Shop spell, improve your **Imp Aura** by **+2/+2**.',
     previewCards: ['impscrap'], // text names it — the forge hover shows the card
     reward: { kind: 'runeSummoning' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     id: 'rune_forthcoming',
@@ -241,7 +243,7 @@ export const RUNES: RuneDef[] = [
     cost: 2, // owner balance 2026-08-11 (1 → 2)
     text: '**Avenge (4):** get **2 random Dwarven Ales**.', // owner 2026-08-11 (was Avenge 3 / 1 Ale)
     reward: { kind: 'combatFlag', flag: 'runeLastCall' },
-    sets: ['set2', 'set3'], // Ales // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   {
     id: 'rune_hunger',
@@ -286,6 +288,7 @@ export const RUNES: RuneDef[] = [
     text: 'When you have **space** in combat, summon an **Imp** with **Ward** and **Taunt**. **2 times** per combat.',
     previewCards: ['impscrap'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeBrood', amount: 2 }, // owner balance 2026-08-11 (3 → 2)
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     id: 'rune_war_chorus',
@@ -315,7 +318,7 @@ export const RUNES: RuneDef[] = [
     text: 'Get a **Facetwright**. Repeats at **end of turn**. They give **both** effects.',
     previewCards: ['facetwright'], // text names it — the forge hover shows the card
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['facetwright'] }, { kind: 'runeFacetwright' }, { kind: 'recurringEndOfTurn', effect: 'grantFacetwright' }] },
-    sets: ['set2', 'set3'], // Facetwright is a set-2 spell // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   {
     // Owner ruling 2026-07-30: only offered when the rune system is on, and an Epic forge is then guaranteed —
@@ -401,7 +404,7 @@ export const RUNES: RuneDef[] = [
     text: 'Get **6 Rubies** that give **+4/+4**.',
     previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'mintRubies', count: 6, attack: 4, health: 4 },
-    sets: ['set2', 'set3'], // Rubies / Ales / set-2 cards // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   // ── Batch 1 additions (grants / discovers / economy — no new combat mechanics) ──
   {
@@ -509,6 +512,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: 'Triggering an **Echo** gives your minions **+4/+4** this combat.',
     reward: { kind: 'combatFlag', flag: 'runeAftershocks' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   {
     id: 'rune_refrain',
@@ -694,7 +698,7 @@ export const RUNES: RuneDef[] = [
     cost: 2, // balance 9/23 (was 3)
     text: 'Your first **Dwarven Ale** each turn casts an **additional time**.',
     reward: { kind: 'runeSharedPour' },
-    sets: ['set2', 'set3'], // Ales // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   {
     id: 'rune_aftermarket',
@@ -718,6 +722,7 @@ export const RUNES: RuneDef[] = [
     text: 'When you trigger **3 Shouts**, get a **Hoardflame** or **Dragonflame**.',
     previewCards: ['hoardflame', 'sp_dragonflame'], // text names them — the forge hover shows the cards
     reward: { kind: 'runeThreshold', meter: 'shout', per: 3, grantOneOf: ['hoardflame', 'sp_dragonflame'] },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
 
   // ── the 2026-08-07 owner batch 4 (tranche 3: the contained-machinery eight) ──
@@ -731,6 +736,7 @@ export const RUNES: RuneDef[] = [
     text: 'Gain **1 Gold** next turn for each **Imp** you summon in combat.',
     previewCards: ['impscrap'],
     reward: { kind: 'combatFlag', flag: 'runeAshenPayroll', amount: 1 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     id: 'rune_backbeat',
@@ -757,6 +763,7 @@ export const RUNES: RuneDef[] = [
     cost: 2, // balance 9/23 (was 4)
     text: 'The first **Dragon** with a **Shout** you sell each turn triggers its Shout before being sold.',
     reward: { kind: 'runeLastWord' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     id: 'rune_runic_hoard',
@@ -767,6 +774,7 @@ export const RUNES: RuneDef[] = [
     // Shop-spell copy added to hand, all Dragons +1/+1). See `fireRunicHoard`.
     text: 'When you cast a **Spell**, give **3 random Dragons +2/+3**.',
     reward: { kind: 'runeRunicHoard' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
 
   // ── the 2026-08-07 owner card-keyed batch (all Set 2 — each names a Set-2 card) ──
@@ -818,7 +826,7 @@ export const RUNES: RuneDef[] = [
     text: 'Get a **Veinbreaker**. Repeat at **Start of Turn**. They grant **both** effects.',
     previewCards: ['k_veinbreaker'],
     reward: { kind: 'multi', rewards: [{ kind: 'recurringGrant', cards: ['k_veinbreaker'] }, { kind: 'runeUnbrokenVein' }] },
-    sets: ['set2', 'set3'], // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   // ── Aug-11 minion-grant runes (Basic) ──
   {
@@ -921,6 +929,7 @@ export const RUNES: RuneDef[] = [
     cost: 1, // owner rework 2026-08-19
     text: "Whenever you trigger a **Beast's Echo**, get a **free refresh**.",
     reward: { kind: 'combatFlag', flag: 'runeBurrow' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
 
   // ── 2026-08-19 owner rune batch: BASIC ────────────────────────────────────────────────────────────────
@@ -1020,6 +1029,7 @@ export const RUNES: RuneDef[] = [
     cost: 1,
     text: 'Whenever you play a card, give a **Dragon +6/+5**.', // balance 9/23: +4/+4 → +6/+5
     reward: { kind: 'runeGlider', attack: 6, health: 5 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     // `shoutEdgeBuff` already existed in the engine with no rune using it — this is its first consumer.
@@ -1030,6 +1040,7 @@ export const RUNES: RuneDef[] = [
     cost: 3,
     text: 'Whenever you trigger a **Shout**, give your left and right-most **Dragon +6/+6**.',
     reward: { kind: 'shoutEdgeBuff', attack: 6, health: 6, tribe: 'dragon' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     id: 'rune_catacomb',
@@ -1136,6 +1147,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: 'Get an **Ancient Wanderer**.',
     reward: { kind: 'grant', cards: ['n2_wanderer'] },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     // The CADENCE rune: `everyTurns` on the existing `recurringGrant`, not a bespoke flag. Three runes in this
@@ -1146,6 +1158,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: 'Every **2 turns**, get a **Clockwork Assistant**.',
     reward: { kind: 'recurringGrant', cards: ['n2_clockwork'], everyTurns: 2 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     id: 'rune_night_market',
@@ -1154,6 +1167,7 @@ export const RUNES: RuneDef[] = [
     cost: 4, // balance 9/23 (was 5)
     text: 'Get a **Night Market Horror**.',
     reward: { kind: 'grant', cards: ['dm_nightmarket'] },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     id: 'rune_muckbroker',
@@ -1165,6 +1179,7 @@ export const RUNES: RuneDef[] = [
     text: 'Get a **Muckslinger**. Repeat every **2 turns**.',
     previewCards: ['n2_muckslinger'],
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['n2_muckslinger'] }, { kind: 'recurringGrant', cards: ['n2_muckslinger'], everyTurns: 2 }] },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     // Living Magic and Perfect Recall (Epic) are the SAME mechanism at 1 vs 2 uses - one parameterised budget
@@ -1182,6 +1197,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: 'When you buy a **Dragon**, get a random **spell**.', // balance 9/23: on BUY (was: on a Dragon Discover pick)
     reward: { kind: 'runeDraconicCuriosity' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     // A `cardsPlayed`-shaped threshold on a new `playDragon` meter, so the remainder BANKS across turns
@@ -1193,6 +1209,7 @@ export const RUNES: RuneDef[] = [
     // Balance 9/23: a random DRAGON + one random Shop spell per trip (was 2 Shop spells). Still banks across turns.
     text: 'When you play **5 Dragons**, get a random **Dragon** and **Shop spell**.',
     reward: { kind: 'runeThreshold', meter: 'playDragon', per: 5, grantSpell: 1, grantRandomTribe: 'dragon' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     // A COMBAT meter that pays into the next shop: the Beast rides `playerHandGrants` (the carry-back every
@@ -1203,6 +1220,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: 'After you summon **5 Beasts** in combat, get a random **Beast**.', // balance 9/23 (was 6)
     reward: { kind: 'combatFlag', flag: 'runeReturningPack', amount: 5 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     // The other combat meter, paying the OTHER carry-back: `ctx.grantFreeRolls` -> `playerFreeRolls`, the same
@@ -1256,7 +1274,7 @@ export const RUNES: RuneDef[] = [
     text: '**Avenge (3):** improve your **Rubies** by **+1 Health**. Each turn this **alternates** between Health and Attack.',
     previewCards: ['ruby'],
     reward: { kind: 'combatFlag', flag: 'runeShiftingFacets' },
-    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   {
     // Rides the SAME stateless `addBuff` hook Sable's Soulbind uses - the one chokepoint every recruit-phase
@@ -1365,7 +1383,7 @@ export const RUNES: RuneDef[] = [
     cost: 4,
     text: 'After every **3rd** Spirit you play, give the minions in your hand **+4/+4**.',
     reward: { kind: 'runeThreshold', meter: 'playSpirit', per: 3, buff: { target: 'hand', attack: 4, health: 4 } },
-    sets: ['set3'],
+    sets: [], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list) — it was Set-3-only, so it is offered nowhere now; still resolves via RUNE_INDEX
   },
   {
     id: 'rune_chosen_vessel',
@@ -1591,7 +1609,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: '**Start of Combat:** give two friendly **Undead Rise**.',
     reward: { kind: 'combatFlag', flag: 'runeRisingGraves' },
-    sets: ['set1', 'set3'], // Fodder/Attachment/Mech/Undead mechanics — absent from set 2 // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set1'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   {
     id: 'rune_broodpit',
@@ -1602,6 +1620,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: '**Avenge (4):** summon **2 Imps with Taunt**.', // owner rebalance 2026-08-03 (was 3)
     previewCards: ['impscrap'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeBroodpit' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     id: 'rune_spearline',
@@ -1662,6 +1681,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Get a **Karwind** and a random **Shout** minion.',
     // Ungilded (owner sheet 2026-07-31 — it granted a Gilded copy before).
     reward: { kind: 'grant', cards: ['karwind'], randomFilter: 'shout', randomFilterCount: 1 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     id: 'rune_frontline_glory',
@@ -1682,6 +1702,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: '**Avenge (4):** gain **+1 max Gold**. Get **Souls Man**.',
     reward: { kind: 'multi', rewards: [{ kind: 'combatFlag', flag: 'runeSoulTaxes' }, { kind: 'grant', cards: ['soulsman'] }] },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   // ── Batch 5: recruit-phase runes ──
   {
@@ -1692,6 +1713,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Whenever you cast a **Shop spell**, give your **Dragons +4/+5**.', // owner 2026-08-11 (was +2/+2)
     reward: { kind: 'runeScales' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     id: 'rune_twin_gilding',
@@ -1731,6 +1753,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: '**Start of Combat:** your left-most and right-most **Beasts** attack immediately.',
     reward: { kind: 'combatFlag', flag: 'runeFirstClaws' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     id: 'rune_inheritance',
@@ -1969,7 +1992,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Get a **Baal**.',
     previewCards: ['dw_baal'], // text names it — the forge hover shows the card
     reward: { kind: 'grant', cards: ['dw_baal'] },
-    sets: ['set2', 'set3'], // Dwarf/Demon + Ales — set-2 mechanics // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   {
     id: 'rune_brisbane',
@@ -1979,7 +2002,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get a **High King Mykel**.',
     reward: { kind: 'grant', cards: ['dw_brisbane'] },
-    sets: ['set2', 'set3'], // Rubies / Ales / set-2 cards // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   {
     // 3 RANDOM Ales (owner 2026-07-29), not a fixed trio — the variety is the point.
@@ -2062,6 +2085,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'When your **last minion dies**, summon **3 Imps** with **Ward**.', // owner balance 2026-09-23 (was 7)
     previewCards: ['impscrap'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeFinality', amount: 3 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     // The meter excludes Ales — the payout IS an Ale, so counting them would let the rune feed itself.
@@ -2072,7 +2096,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Every **3 Shop spells** you cast, get a random **Dwarven Ale**. Dwarven Ales do not count.',
     reward: { kind: 'runeThreshold', meter: 'spellCastNonAle', per: 3, grantAle: 1 },
-    sets: ['set2', 'set3'], // Ales // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   {
     id: 'rune_cinder_ledger',
@@ -2083,6 +2107,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: '**Avenge (3):** improve your **Imp Aura** by **+6/+6**.',
     previewCards: ['impscrap'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeCinderLedger', amount: 6 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     id: 'rune_procession',
@@ -2122,7 +2147,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Rubies played on your **left-most** minion also cast on your **right-most** minion.',
     previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'runeRedirection' },
-    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   {
     // The single-body Attack snowball next to The Old Hunt's board-wide aura — and its step GROWS, where the
@@ -2137,6 +2162,7 @@ export const EPIC_RUNES: RuneDef[] = [
     // number moves both halves together.
     text: 'When a **Beast** attacks, give it **+2 Attack** and improve this by **2** permanently.',
     reward: { kind: 'combatFlag', flag: 'runeWildHunt', amount: 2 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     // Owner rework 2026-09-23: the Golems gain REBIRTH — the keyword that returns a body ONCE with its full
@@ -2174,6 +2200,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'The **first minion you summon** in combat gains the stats of your **left-most Demon**.',
     reward: { kind: 'combatFlag', flag: 'runeFoodChain' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     id: 'rune_attacking_gems',
@@ -2254,6 +2281,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get a **Chimerus**.',
     reward: { kind: 'grant', cards: ['chimerus'] },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   // ── the 2026-08-07 owner Epic batch (14 runes) ──
   {
@@ -2282,7 +2310,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: '**End of Turn:** cast a **Ruby** on a random minion for every card you played this turn.', // owner 2026-08-11
     previewCards: ['ruby'],
     reward: { kind: 'runeLapidary' },
-    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   {
     id: 'rune_gem_golem',
@@ -2307,6 +2335,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'When you play a **Demon**, gain a **free refresh**.',
     reward: { kind: 'runeRefreshments' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     // Owner add 2026-08-19. A refresh-paced Health faucet on the slot the Shop's eaters and copiers already
@@ -2348,6 +2377,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Whenever a friendly **Dragon** attacks, give it **Ward**. **3 times** per combat.',
     reward: { kind: 'combatFlag', flag: 'runeDragonscale', amount: 3 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     id: 'rune_tempered_time',
@@ -2365,6 +2395,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'After you summon a **Beast** in combat, **double its Attack**.',
     reward: { kind: 'combatFlag', flag: 'runeSavagery' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     id: 'rune_crucible',
@@ -2416,6 +2447,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'After you sell **5 minions**, get a random **Dragon**.',
     reward: { kind: 'runeFoundry', per: 5 },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     id: 'rune_corrupted_tome',
@@ -2448,7 +2480,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Your **Chef Gary Toasts** gain **Rally:** buff **another** random Dwarf for the combined stats this granted last turn.',
     previewCards: ['dw_chef'], // text names it — the forge hover shows the card
     reward: { kind: 'combatFlag', flag: 'runeChef' },
-    sets: ['set2', 'set3'], // Dwarves // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   {
     id: 'rune_bucky',
@@ -2471,6 +2503,7 @@ export const EPIC_RUNES: RuneDef[] = [
     previewCards: ['mossmemory_colossus'],
     epic: true,
     reward: { kind: 'grant', cards: ['mossmemory_colossus'] },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
 
   // ── batch 4, tranche 4 (2026-08-07): the five hard Epics ──
@@ -2485,6 +2518,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: '**End of Turn:** give your **Dragons +6/+6** for every **Shout** you triggered this turn.',
     epic: true,
     reward: { kind: 'recurringEndOfTurn', effect: 'runeAncestralRoar' },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     id: 'rune_ruby_shrapnel',
@@ -2495,7 +2529,7 @@ export const EPIC_RUNES: RuneDef[] = [
     previewCards: ['ruby'],
     epic: true,
     reward: { kind: 'combatFlag', flag: 'runeRubyShrapnel' },
-    sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    sets: ['set2'], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list)
   },
   {
     id: 'rune_shared_scripture',
@@ -2876,6 +2910,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get a **Stonehorn Archivist**.',
     reward: { kind: 'grant', cards: ['b2_stonehorn'] },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     id: 'rune_ascension',
@@ -2885,6 +2920,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get a **Skybound Ascendant**.',
     reward: { kind: 'grant', cards: ['d2_ascendant'] },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   {
     // END OF TURN, as the owner's sheet always said. It shipped as Start of Combat only because there was no
@@ -2942,6 +2978,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get an **Arcane Behemoth**.',
     reward: { kind: 'grant', cards: ['dm_behemoth'] },
+    sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
   // ── Set 3 batch 2 (2026-09-16) — tranche C ──
   {
@@ -3289,7 +3326,7 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'After combat, give your Starform **+15/+15** for each friendly **Undead** that Rose.',
     previewCards: ['ce3_starform'], // the text names the token — the forge hover shows it
     reward: { kind: 'runeGraveOrbit', attack: 15, health: 15 },
-    sets: ['set3'],
+    sets: [], // CUT FROM SET 3 (owner 2026-09-24: named in the Set 3 rune cut list) — it was Set-3-only, so it is offered nowhere now; still resolves via RUNE_INDEX
   },
 
   // ── Set 3 batch 2 (2026-09-16) — tranche D: the two combat-side runes tranche A deferred ────────────────

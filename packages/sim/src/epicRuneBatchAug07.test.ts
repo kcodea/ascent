@@ -34,7 +34,9 @@ describe('the 14 defs ship as specced', () => {
   it('only the Lapidary and the Gem Golem are set-2 scoped (both carried into set 3, 2026-09-14)', () => {
     for (const [id] of want) {
       const scoped = ['rune_lapidary', 'rune_gem_golem'].includes(id);
-      expect(rune(id).sets, id).toEqual(scoped ? ['set2', 'set3'] : undefined);
+      // CUT FROM SET 3 2026-09-24 (owner): the Lapidary (named) and the Dragon/Beast runes (tribe not in set 3).
+      const cutTribal = ['rune_dragonscale', 'rune_savagery', 'rune_foundry'].includes(id);
+      expect(rune(id).sets, id).toEqual(id === 'rune_lapidary' ? ['set2'] : scoped ? ['set2', 'set3'] : cutTribal ? ['set1', 'set2'] : undefined);
     }
   });
 });

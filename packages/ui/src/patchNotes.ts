@@ -133,6 +133,24 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-09-24',
     changes: [
       {
+        category: 'Balance',
+        text: 'Set 3 has a leaner Runeforge. 54 runes no longer appear there. The other sets keep them.',
+        details: [
+          'Kobold runes cut from Set 3: Contraband, Facetwright, Gemcutting, the Lapidary, Redirection, Ruby Shrapnel, the Unbroken Vein and Shifting Facets.',
+          'Dwarf runes cut from Set 3: Last Call, Shared Pour, Baal, the Chef, Mykel and Runic Exchange.',
+          'Undead runes cut from Set 3: Pillaging, Rising Graves, Soul Taxes and the Grave Orbit.',
+          'Spirit rune cut from Set 3: the Full Hand. Other rune cut from Set 3: Aftershocks.',
+          'Every Dragon, Beast, Demon and Mech rune is now out of Set 3, since Set 3 has none of those types.',
+          'The Grave Orbit and the Full Hand were only in Set 3, so no Runeforge offers them for now.',
+          'Set 3 now forges 120 Basic runes and 107 Epic runes.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      {
         category: 'Systems',
         text: 'Effects are no longer cut off by a hard edge. They now play over their full area.',
         details: [

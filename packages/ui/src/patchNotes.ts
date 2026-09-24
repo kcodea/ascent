@@ -52,6 +52,85 @@ export interface PatchNote {
 export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-09-24',
+    label: 'Ruby Types',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Four new kinds of Ruby join the Warding Ruby. Each does something extra when it lands on a Kobold. Several Kobold cards and runes now hand out random Rubies.',
+        details: [
+          'New Rubies: Golden Ruby (gain 2 Gold), Splintered Ruby (bounces once), Ripple Ruby (casts again) and Dark Ruby (eats the highest Health minion in the Shop as Rubies). Each gives +1/+1 and grows with your Ruby upgrades.',
+          'A random Ruby can be any of the six kinds, all equally likely.',
+          'Warding Ruby now gives +1/+2.',
+          'Ruby Shipment costs 2 and gets 2 random Rubies.',
+          'Kobe keeps Taunt. New ability: Pummel (15): get a random Ruby, twice per combat.',
+          'Shardluck is now Tier 6, 8/5: play 3 Rubies on your Kobolds, or cast Veinstorm 3 times.',
+          'Gemheart Carver summons 2 Golems. Geode Guardian summons 1 Golem with Taunt. Each Golem carries the Rubies.',
+          'Blast Pump casts a Ruby on all of your minions.',
+          'Prismatic Pick can now Discover a special Ruby.',
+          'New Kobolds: Gemheart Legionnaire (gets 5 Rubies whenever you summon a Gemheart Golem) and Dealski (gets 2 Rubies whenever you play a Choose One card).',
+          'Gem Sage: when you get a Ruby, also get a random Ruby.',
+          'Rune of Resonance: your Rubies always cast twice from hand, and you get a random Ruby at the start of each turn.',
+          'Rune of Investment is now an Epic rune and pays random Rubies.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    label: 'Kobolds and Dwarves',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'New Dwarf/Spirit Goldilox. Striker now repeats its buff. Pickles, Flagrunner, Tromboneer, Brunni and Kurse changed. Beggy is back, Gemsmith and Double Dealer are retired.',
+        details: [
+          'New: Goldilox, a Tier 3 Dwarf/Spirit 2/2. "When you cast a Shop spell, gain +3/+2. Gains 2x while in hand." Ales count. Rubies and Clues do not. It also grows from spells cast in combat, and those stats stay.',
+          'Striker now reads "End of Turn: give adjacent minions +1 Attack. Repeat for every card played this turn." It gives +1 even if you played nothing, then +1 more for each card.',
+          'Pickles is now Tier 2 and a 3/3 (was Tier 3, 5/3).',
+          'Flagrunner is now Tier 3 and a 5/4 (was Tier 4, 4/6).',
+          'Tromboneer is now Tier 3 and a 4/3 (was Tier 4, 6/3).',
+          'Brunni is now Tier 2 (was Tier 3). Same stats.',
+          'Kurse is now a Kobold and an Undead.',
+          'Beggy is back in the Kobold pool.',
+          'Gemsmith and Double Dealer are no longer in the game.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'The Compendium can now show any card set. Pick one from the new Set menu at the right of the tier bar.',
+        details: [
+          'The Compendium still opens on the set you are playing.',
+          'Choosing another set shows its minions, spells, tribes and runes.',
+          'Browsing a set never changes your run or the set new games use.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Runes tab of the Compendium has a new Neutral filter next to the tribe filters.',
+        details: ['Neutral shows the runes that do not need any tribe. It combines with the tribe filters.'],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'New default audio mix. Game sounds, Music and Announcer all start at 50, and 50 is now a balanced mix.',
+        details: [
+          'Music sits lower and the Announcer a little higher at 50 than the game sounds, so the three blend well out of the box.',
+          '100 is still full volume on every channel, and 0 is still silent.',
+          'Your volume sliders reset to 50 once with this update. Your mute choices are kept.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-09-24',
     changes: [
       {
         category: 'Balance',

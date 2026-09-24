@@ -109,10 +109,10 @@ describe('Set 3 rune cuts (owner 2026-09-24)', () => {
     }
   });
 
-  it('the Set 3 static pool counts after the cut: 120 Basic / 107 Epic', () => {
+  it('the Set 3 static pool counts after the cut: 119 Basic / 108 Epic (Rune of Investment moved Basic to Epic in the Ruby batch)', () => {
     const inS3 = (arr: typeof RUNES) => arr.filter((r) => !r.sets || r.sets.includes('set3'));
-    expect(inS3(RUNES)).toHaveLength(120);
-    expect(inS3(EPIC_RUNES)).toHaveLength(107);
+    expect(inS3(RUNES)).toHaveLength(119);
+    expect(inS3(EPIC_RUNES)).toHaveLength(108);
     expect(CUT.filter((id) => !isEpic(id))).toHaveLength(26);
     expect(CUT.filter(isEpic)).toHaveLength(28);
   });

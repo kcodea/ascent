@@ -123,6 +123,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:tribePlayedBuffRandomTribeImproving:onTribePlayed': { policy: 'ownBeat', family: 'economy' },
   'factory:tribePlayedTally:onTribePlayed': { policy: 'passive', family: 'economy' },
   'factory:spellCastBuffRandomHand:spellCast': { policy: 'foldedCue', family: 'castReact' },
+  'factory:shopSpellCastGrowSelf:spellCast': { policy: 'foldedCue', family: 'castReact' }, // Goldilox (set 3, 2026-09-24)
   // set 3 Spirits (tranche 2 — the hand-summon cards)
   'factory:deathrattleSummonHighestHealthFromHand:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:rallySummonRandomTribeFromHand:onAttack': { policy: 'ownBeat', family: 'rally' },
@@ -179,7 +180,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:deathrattleSummon:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleBuffRandomTribe:onDeath': { policy: 'ownBeat', family: 'echo' }, // Noggin (set 3)
   'factory:deathrattleBuffSpellPower:onDeath': { policy: 'ownBeat', family: 'echo' }, // Adeptus (set 3) / Skullblade
-  'factory:deathrattleSummonGolemsWithRuby:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleSummonOverflowBuff:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleSummonRandomTribe:onDeath': { policy: 'ownBeat', family: 'echo' },
   'factory:deathrattleSummonRandomTribeSetStats:onDeath': { policy: 'ownBeat', family: 'echo' },
@@ -212,7 +212,11 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:gainMaxMana:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:gainMaxMana:onPlay': { policy: 'ownBeat', family: 'shout' }, // Jewel (set 3, 2026-09-24): the max-Gold Choose One branch
   'factory:getEchoAndTrigger:onPlay': { policy: 'ownBeat', family: 'shout' },
-  'factory:getRubies:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:getRandomRubies:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:onGetRubyRandomRuby:onGetRuby': { policy: 'foldedCue', family: 'economyReact' }, // Gem Sage (2026-09-24)
+  'factory:getRubies:chooseOnePlayed': { policy: 'foldedCue', family: 'economyReact' },    // Dealski (2026-09-24): Ruby Roach's trigger, a plain mint   // Ruby Shipment (2026-09-24): the same mint, random types
+  'factory:battlecryPlayRubiesRandomTribe:onPlay': { policy: 'ownBeat', family: 'shout' }, // Shardluck (2026-09-24)
+  'factory:onSummonCardPlayRubiesSelf:onSummon': { policy: 'foldedCue', family: 'summonReact' }, // Gemheart Legionnaire (2026-09-24)
   'factory:getRubies:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:goldSpentBuffFodder:cardsBought': { policy: 'foldedCue', family: 'economyReact' },
   'factory:goldSpentGetRubiesPlayOnTribe:goldSpent': { policy: 'ownBeat', family: 'economy' }, // Mountainbond (2026-08-14)
@@ -261,7 +265,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onFriendlyDemonDamageBuffSelf:friendlyDemonDealtDamage': { policy: 'foldedCue', family: 'react' }, // Impossible Todd / Leech / Axeman
   // Kobe (owner rework 2026-09-18): "when this takes damage" — the Rubies land through the standard Ruby-landed
   // cue inside the hit that caused them, the Target Dummy / Faultline Scrapper shape (a damage reaction, not a beat).
-  'factory:onDamagedPlayRubiesSelfAndAdjacentTribe:onDamaged': { policy: 'foldedCue', family: 'react' },
   'factory:rallyPlayRubiesSelf:onAttack': { policy: 'ownBeat', family: 'rally' }, // Boulderdash
   'factory:rallyPlayRubiesAll:onAttack': { policy: 'ownBeat', family: 'rally' }, // Blazer
   'factory:onSellGetRubies:onSell': { policy: 'ownBeat', family: 'economy' }, // Beggy
@@ -744,7 +747,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_reinvestment:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_reliquary:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_replication:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
-  'rune:rune_resonance:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
+  'rune:rune_resonance:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // the Start-of-Turn random Ruby (Ruby batch 2026-09-24)
   'rune:rune_restocking:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
   'rune:rune_rising_graves:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_ruby_shrapnel:combat': { policy: 'foldedCue', family: 'combatModifier' },
@@ -1080,7 +1083,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'hero:aster:preparation': { policy: 'ownBeat', family: 'heroPower' },
 
   // ── RUNE-ONLY MINION BATCH (2026-08-20). Each entry copies the bucket its closest sibling already sits in. ──
-  'factory:getRubies:spellCastOnThis': { policy: 'ownBeat', family: 'economy' },                  // Gem Sage (owner balance 2026-09-23: pays 3 Rubies per Shop spell cast on it) — the bucket its spellCastOnThis siblings sit in
   'factory:goldSpentScaleSelf:passive': { policy: 'passive', family: 'passive' },                 // Ancient Wanderer — a synced stat, never a beat
   'factory:cardDeathScaler:passive': { policy: 'passive', family: 'passive' },                    // Spear Warden — a death-count enchant read at the death site, never a beat
   // PUMMEL (X) — the damage meters. A Pummel that pays emits `pummelTrigger` (2026-09-21, once per body per
@@ -1092,6 +1094,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // event — an earlier comment here claimed one).
   'factory:dealtDamageAleMeter:passive': { policy: 'foldedCue', family: 'react' },                // Han Gover (Pummel (40)) — the meter reads at the damage site; the fire flashes on the hit, the Ale flies on its own `toHand` beat
   'factory:dealtDamageGrantRandomTribe:passive': { policy: 'foldedCue', family: 'react' },        // Maestro Lux (Pummel (12), 2026-09-24) — the same meter; the fire flashes on the hit, the Celestial flies on its own `toHand` beat
+  'factory:dealtDamageGetRandomRuby:passive': { policy: 'foldedCue', family: 'react' },            // Kobe (Pummel (15), 2026-09-24) — the same meter; the fire flashes on the hit, each Ruby flies on its own `toHand` beat
   'factory:dealtDamageGoldNextTurn:passive': { policy: 'foldedCue', family: 'react' },            // Goldvein (Pummel (6), 2026-09-19) — the same meter; the fire flashes on the hit, the Gold lands at settle
   'factory:buffShopOffersThisTurn:onBuy': { policy: 'foldedCue', family: 'economyReact' },        // Night Market Horror — cf. buffBoardOnBuy
   'factory:buffShopOffersThisTurn:spellBought': { policy: 'foldedCue', family: 'economyReact' },  // …its "a spell is a card too" half

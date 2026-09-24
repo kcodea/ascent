@@ -28,11 +28,13 @@
  *  · A per-game CAP of ANNOUNCER_LINE_CAP lines; GameWon / GameLoss are allowed on top of it.
  *
  * AUDIO: its OWN channel — a third gain on the SFX AudioContext (like the music's), with its own volume + mute
- * (`ascent.announcervol`, `ascent.announcermuted`, default 0.7), NOT ducked by the Game-sounds mute or slider.
+ * (`ascent.announcervol.v2`, `ascent.announcermuted`; the slider defaults to 50, which plays gain 0.7), NOT ducked by the Game-sounds mute or slider.
  * The 34 clips are PUBLIC files (`apps/web/public/announcer/`), fetched + decoded LAZILY on first need into a
  * cached buffer (never the eager `import.meta.glob` bank in sfx.ts). Without Web Audio an HTMLAudioElement per
  * line carries the level. Lines never overlap each other.
  */
+import { DEFAULT_SLIDER, sliderToGain } from './audio/volumeCurve';
+import { announcerEventOffset, announcerEventVolume, announcerLineGain } from './announcerConfig';
 import { isMusicWanted, MUSIC_FADE_MS, MUSIC_START_DELAY_MS, type MusicStateLike } from './music';
 import {
   type AnnouncedSlice, type AnnouncerEvent, announcedFor, firedWaves, hasFired, UNCAPPED_EVENTS,
@@ -81,7 +83,10 @@ export const ANNOUNCER_TRIPLE_MAX = 2;
 export const ANNOUNCER_REPEAT_GAP_WAVES = 5;
 /** EnteringCombat is "the first Face Omen": if the first one is dropped it may still speak up to this wave. */
 export const ANNOUNCER_ENTERING_COMBAT_MAX_WAVE = 3;
-const DEFAULT_ANNOUNCER_VOLUME = 0.7; // owner's 2026-09-23 mix
+/** The Announcer slider's storage key. `.v2` since the default-mix curve (owner 2026-09-24): the stored value is a
+ *  SLIDER position that `sliderToGain('announcer', …)` turns into the gain, so the old `ascent.announcervol` (a raw
+ *  gain) is no longer read and every player starts once on the new default, the 50 mark (= the owner's 0.7 gain). */
+const ANNOUNCER_VOLUME_KEY = 'ascent.announcervol.v2';
 
 /** The clips, per event, in variant order. Files live at `<BASE_URL>announcer/<name>.mp3`. GameWon has one
  *  variant today: the delivered `GameWon.mp3` is byte-identical to `TopTwo2.mp3` (a mis-export the owner will
@@ -173,17 +178,19 @@ export interface AnnouncerDeps {
   now: () => number;
   setTimeout: (cb: () => void, ms: number) => number;
   clearTimeout: (id: number) => void;
-  /** Start `url` playing; `onEnded` fires once when it finishes on its own. Null = could not play. */
-  play: (url: string, onEnded: () => void) => Promise<AnnouncerHandle | null>;
+  /** Start `url` playing; `onEnded` fires once when it finishes on its own. Null = could not play. `gain` is the
+   *  event's tuned multiplier (the Announcer dev tuner, 1 = as recorded), applied on top of the channel level with
+   *  the final gain clamped at 1 (`announcerLineGain`). */
+  play: (url: string, onEnded: () => void, gain: number) => Promise<AnnouncerHandle | null>;
 }
 
 // ── Level (the Settings slider + mute), persisted ────────────────────────────────────────────────────────────
 let volume = (() => {
   try {
-    const v = parseFloat(localStorage.getItem('ascent.announcervol') ?? '');
-    return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : DEFAULT_ANNOUNCER_VOLUME;
+    const v = parseFloat(localStorage.getItem(ANNOUNCER_VOLUME_KEY) ?? '');
+    return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : DEFAULT_SLIDER;
   } catch {
-    return DEFAULT_ANNOUNCER_VOLUME;
+    return DEFAULT_SLIDER;
   }
 })();
 let muted = (() => {
@@ -193,14 +200,15 @@ let muted = (() => {
     return false;
   }
 })();
-const level = (): number => (muted ? 0 : volume);
+/** The ONE place the Announcer slider becomes a gain (the default-mix curve: 50 plays the owner's 0.7, 100 plays 1). */
+const level = (): number => (muted ? 0 : sliderToGain('announcer', volume));
 
 export function getAnnouncerVolume(): number {
   return volume;
 }
 export function setAnnouncerVolume(v: number): void {
   volume = Math.min(1, Math.max(0, v));
-  try { localStorage.setItem('ascent.announcervol', String(volume)); } catch { /* ignore */ }
+  try { localStorage.setItem(ANNOUNCER_VOLUME_KEY, String(volume)); } catch { /* ignore */ }
   applyLevel();
 }
 export function isAnnouncerMuted(): boolean {
@@ -221,8 +229,9 @@ export function setAnnouncerAudioContextProvider(provider: () => AudioContext | 
 }
 let graph: { ctx: AudioContext; level: GainNode } | null = null;
 const buffers = new Map<string, Promise<AudioBuffer | null>>();
-/** Elements on the no-context path that are currently sounding (their `volume` follows the level). */
-const liveElements = new Set<HTMLAudioElement>();
+/** Elements on the no-context path that are currently sounding, each with its event multiplier (their `volume`
+ *  follows the level). */
+const liveElements = new Map<HTMLAudioElement, number>();
 
 function ensureGraph(ctx: AudioContext): GainNode {
   if (graph && graph.ctx === ctx) return graph.level;
@@ -239,7 +248,7 @@ function applyLevel(): void {
     graph.level.gain.cancelScheduledValues(now);
     graph.level.gain.setTargetAtTime(level(), now, 0.01);
   }
-  for (const el of liveElements) el.volume = level();
+  for (const [el, gain] of liveElements) el.volume = announcerLineGain(level(), gain);
 }
 
 function loadBuffer(ctx: AudioContext, url: string): Promise<AudioBuffer | null> {
@@ -254,7 +263,7 @@ function loadBuffer(ctx: AudioContext, url: string): Promise<AudioBuffer | null>
   return p;
 }
 
-async function playDefault(url: string, onEnded: () => void): Promise<AnnouncerHandle | null> {
+async function playDefault(url: string, onEnded: () => void, gain = 1): Promise<AnnouncerHandle | null> {
   const ctx = ctxProvider();
   if (ctx) {
     const out = ensureGraph(ctx);
@@ -263,7 +272,9 @@ async function playDefault(url: string, onEnded: () => void): Promise<AnnouncerH
     const src = ctx.createBufferSource();
     src.buffer = buf;
     const g = ctx.createGain();
-    g.gain.value = 1;
+    // The event's tuned multiplier rides on the line's own gain, capped so line x channel never passes 1.
+    const lvl = level();
+    g.gain.value = lvl > 0 ? announcerLineGain(lvl, gain) / lvl : Math.max(0, gain);
     src.connect(g);
     g.connect(out);
     let live = true;
@@ -287,12 +298,12 @@ async function playDefault(url: string, onEnded: () => void): Promise<AnnouncerH
   try {
     if (typeof Audio === 'undefined') return null;
     const el = new Audio(url);
-    el.volume = level();
+    el.volume = announcerLineGain(level(), gain);
     let live = true;
     const done = (): void => { if (live) { live = false; liveElements.delete(el); onEnded(); } };
     el.addEventListener('ended', done);
     el.addEventListener('error', done);
-    liveElements.add(el);
+    liveElements.set(el, gain);
     await el.play();
     return {
       stop(fadeMs) {
@@ -403,6 +414,10 @@ const isTerminal = (e: AnnouncerEvent): boolean => UNCAPPED_EVENTS.includes(e);
 function enqueue(line: PendingLine): void {
   if (!active) return;
   if (pending.some((p) => p.event === line.event)) return;
+  // The Announcer dev tuner's per-event TIMING OFFSET (owner 2026-09-24; 0 in prod unless baked). Added to the
+  // event's built-in delay; a negative one fires earlier but never before the moment was detected (now). Only
+  // `notBefore` moves: the cooldown (from the previous line's real end), the cap and the shelf life are untouched.
+  line.notBefore = Math.max(deps.now(), line.notBefore + announcerEventOffset(line.event));
   // The turn-1 quiet window: nothing over the music's fade-in.
   if (enteredAtWaveOne) line.notBefore = Math.max(line.notBefore, runEnteredAt + ANNOUNCER_TURN_ONE_QUIET_MS);
   pending.push(line);
@@ -480,7 +495,7 @@ function speak(line: PendingLine): void {
   };
   let p: Promise<AnnouncerHandle | null>;
   try {
-    p = deps.play(clipUrl(file), ended);
+    p = deps.play(clipUrl(file), ended, announcerEventVolume(line.event));
   } catch {
     p = Promise.resolve(null);
   }
@@ -687,6 +702,32 @@ export function observeCombatBoard(units: readonly { attack: number; health: num
   if (hasFired(slice, 'minionHits100Stats') || !hasBigStat(units)) return;
   bigStatSeenThisCombat = true;
   enqueue({ event: 'minionHits100Stats', shelf: 'combat', notBefore: Math.max(deps.now(), combatStartedAt + ANNOUNCER_COMBAT_SILENCE_MS), wave });
+}
+
+// ── The Announcer dev tuner's ▶ (owner 2026-09-24) ──────────────────────────────────────────────────────────
+let previewHandle: AnnouncerHandle | null = null;
+let previewToken = 0;
+const previewNext = new Map<AnnouncerEvent, number>();
+/** Play one of `event`'s lines NOW at its tuned volume, outside the queue (no cooldown, no cap, nothing marked).
+ *  Each press moves to the next variant; a new press cuts the previous preview. Through the Announcer channel, so
+ *  the Settings slider and mute apply. Returns the file it played (for the panel and the tests). */
+export function previewAnnouncerEvent(event: AnnouncerEvent): string {
+  const variants = ANNOUNCER_LINES[event];
+  const i = (previewNext.get(event) ?? 0) % variants.length;
+  previewNext.set(event, i + 1);
+  const file = variants[i]!;
+  previewHandle?.stop(ANNOUNCER_STOP_FADE_MS);
+  previewHandle = null;
+  const token = ++previewToken;
+  const done = (): void => { if (token === previewToken) previewHandle = null; };
+  let p: Promise<AnnouncerHandle | null>;
+  try {
+    p = deps.play(clipUrl(file), done, announcerEventVolume(event));
+  } catch {
+    p = Promise.resolve(null);
+  }
+  p.then((h) => { if (token === previewToken) previewHandle = h; else h?.stop(0); }, () => {});
+  return file;
 }
 
 /** Read-only view for the DEV surface (`window.__announcer`) and the tests. */

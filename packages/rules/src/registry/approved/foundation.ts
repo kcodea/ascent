@@ -530,7 +530,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'silent without ever throwing or blocking the game. Leaving the run (Save & Quit, Play Again, the run cleared, '
       + 'a non-lobby run starting) stops it IMMEDIATELY: a MUSIC_STOP_FADE_MS (150 ms) click-guard fade, then pause and '
       + 'rewind. Settings carry a Music mute and a Music volume separate from the Game-sounds mix (`ascent.musicmuted`, '
-      + '`ascent.musicvol`), applied live and persisted. The round won / round lost verdict chimes are removed.',
+      + '`ascent.musicvol.v2`, see R-PRESENT-13), applied live and persisted. The round won / round lost verdict chimes are removed.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -586,7 +586,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'the shop or the fight, never the enemy side), TopFour / TopTwo (four / two seats standing when the rail shows '
       + 'it, the player among them), GameWon (1st place) and GameLoss (2nd to 8th) 1 s into the end screen. The '
       + 'announcer is its own channel: a third gain on the SFX AudioContext with its own volume and mute '
-      + '(`ascent.announcervol` default 0.9, `ascent.announcermuted`), not ducked by the Game-sounds mute; the clips '
+      + '(`ascent.announcervol.v2`, see R-PRESENT-13; `ascent.announcermuted`), not ducked by the Game-sounds mute; the clips '
       + 'load lazily on first need. Settings shows one "Audio" button (aria-expanded, collapsed by default, its state '
       + 'remembered) that expands three channel rows, Game sounds / Music / Announcer, each a slider and a mute.',
     domain: 'foundation',
@@ -1000,6 +1000,48 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: {
       kind: 'scenario',
       refs: ['packages/ui/src/fx/particleLayerPool.test.ts'],
+      lastVerifiedAt: '2026-09-24',
+    },
+  },
+  {
+    id: 'R-PRESENT-13',
+    title: 'Every Settings Audio slider defaults to 50, and 50 plays the owner mix; the Announcer dev tuner shapes each line',
+    statement:
+      'The three Settings Audio sliders (Game sounds, Music, Announcer) all DEFAULT to 50. A slider position is not the '
+      + 'gain: `sliderToGain` (packages/ui/src/audio/volumeCurve.ts) maps it piecewise linearly per channel, 0..50 onto '
+      + '0..ref and 50..100 onto ref..1, with ref = the owner\x27s 2026-09-23 mix (Game sounds 0.5, Music 0.2, Announcer '
+      + '0.7). So 50 plays that mix, 100 plays full gain exactly as before, 0 is silent, and nothing exceeds the old '
+      + 'maximum; Game sounds is the identity line. The curve runs at the one place each channel turns its slider into a '
+      + 'gain (`level()` in music.ts / announcer.ts; the SFX master gain IS the Game-sounds slider). Saved values from '
+      + 'before the curve are not read: Music and Announcer moved to `ascent.musicvol.v2` / `ascent.announcervol.v2`, and '
+      + 'the saved Game-sounds master gain is dropped ONCE (`ascent.audiomix.v2` records it), leaving the mixing desk\x27s '
+      + 'per-category levels and every mute as they were. A choice made after that persists. Every storage read is '
+      + 'guarded, falling back to the defaults. The Announcer DEV tuner (announcerConfig.ts; prod ships its baked '
+      + 'DEFAULTS) gives each event a Volume (0 to 200 percent, multiplied into that line\x27s gain, the final gain '
+      + 'clamped at 1) and a Timing offset (-2000 to +3000 ms added to the event\x27s built-in delay, never earlier '
+      + 'than the moment the event was detected). The offset only moves when a pending line becomes due: the cooldown '
+      + 'still counts from when the previous line actually ended, and the cap and shelf life are unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ask with a screenshot of the Settings Audio panel (Game sounds 50, Music 20, Announcer 70), 2026-09-24',
+        quote: 'bake these audio values as the default volumes, but all at the 50 mark for volume.',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ask, 2026-09-24 (the Announcer tuner)',
+        quote: 'add an announcer tuner to the dev panel that has volume for each event, and a timing adjust that allows me to offset timing of the event earlier or later',
+      },
+      { kind: 'code', ref: 'packages/ui/src/audio/volumeCurve.ts; packages/ui/src/music.ts, announcer.ts (`level()`); packages/ui/src/sfx.ts (`resetMasterOnce`); packages/ui/src/announcerConfig.ts' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-09-24. Before, each slider value WAS the gain, defaulting to Game sounds 0.5, Music 0.2 and '
+      + 'Announcer 0.7, so the three sliders opened at 50 / 20 / 70.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/audio/volumeCurve.test.ts', 'packages/ui/src/audioDefaultMix.test.ts', 'packages/ui/src/announcer.test.ts'],
       lastVerifiedAt: '2026-09-24',
     },
   },

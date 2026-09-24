@@ -115,12 +115,44 @@ export function avengeCountFor(self: Minion, count: number): number {
   return seen;
 }
 
-export function castInCombat(ctx: CombatContext, self: Minion, body: () => void): void {
+export function castInCombat(ctx: CombatContext, self: Minion, body: () => void, spellId?: string): void {
   const reps = mul(self) * Math.max(1, ctx.spellCastRepsFor?.(self.side) ?? 1);
   for (let i = 0; i < reps; i++) {
     ctx.castSpell(self.side);
-    body();
+    // THE CAST'S IDENTITY (Goldilox, owner 2026-09-24: "shop spells cast from anywhere count … this should work
+    // in combat"). The `spellCast` trigger above fires before the body and knows only THAT a spell was cast; a
+    // watcher that cares WHICH spell (a Shop-pool spell, not a Ruby, Clue or token) needs the id, which many
+    // callers only settle inside the body (a random pick, a taught spell). So each repetition opens a probe:
+    // the caller's explicit `spellId`, else the first `withCastingSpell` mark inside the body, names it. A
+    // nested cast opens its own probe, so an inner cast never renames the outer one.
+    const outer = ctx.castProbe;
+    const probe: { spellId?: string } = { spellId };
+    ctx.castProbe = probe;
+    try { body(); } finally { ctx.castProbe = outer; }
+    if (probe.spellId) ctx.spellResolved?.(self.side, probe.spellId);
   }
+}
+
+/**
+ * Is `def` a SHOP SPELL for the purposes of "when you cast a Shop spell" (Goldilox, owner 2026-09-24): a spell
+ * drawn from the set's Shop-spell pool — Dwarven Ales included — and never a Ruby, a Clue / other Gift, or a
+ * reward/token spell ("not rubies, clues or generic spells"). `pool` is the side's set pool (`poolOf(state).all`
+ * in the shop, `ctx.poolCards(side)` in combat); membership is what separates a Shop spell from a generic one.
+ */
+export function isShopPoolSpell(def: CardDef | undefined, pool: readonly CardDef[]): boolean {
+  if (!def?.spell || def.token || def.gift || def.ruby) return false;
+  return pool.some((c) => c.id === def.id);
+}
+
+/**
+ * Goldilox's growth per Shop-spell cast: the printed +a/+h, ×2 gilded, × `handMult` (the printed "Gains 2x while
+ * in hand") when the card is in the HAND. ONE function for the shop factory, the combat board factory, the
+ * combat hand dispatch and the live text, so no surface can disagree about the number.
+ */
+export function shopSpellGrowth(params: Record<string, unknown> | undefined, golden: boolean, inHand: boolean): { attack: number; health: number } {
+  const g = golden ? 2 : 1;
+  const hm = inHand ? Math.max(1, num(params?.handMult, 1)) : 1;
+  return { attack: num(params?.attack, 0) * g * hm, health: num(params?.health, 0) * g * hm };
 }
 
 /** Exported for the Rune of Gemstorm handler in simulate.ts — the ONE Ruby-play primitive. Anything that
@@ -425,7 +457,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
         ctx.addTribeAura(self.side, tribe as Tribe | 'any', a, h, self.uid);
         // `spellId` stamped (2026-09-24) so Anubis's Echo cast previews Lantern of Souls like every other cast.
         ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts Lantern of Souls (+${a}/+${h} to your ${tribe})`, ...(spellId ? { spellId } : {}) });
-      });
+      }, spellId || undefined);
     },
     damageAll: (amount) => {
       for (const sideKey of ['player', 'enemy'] as Side[]) {
@@ -494,6 +526,7 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
       ctx.grantUndeadAura(a, h, self.side);
     },
     grantRubies: (count) => ctx.grantRubies(count, self.side, self.uid),
+    grantRandomRubies: (count) => ctx.grantRandomRubies(count, self.side, self.uid),
     grantRandomShoutMinion: (count) => ctx.grantRandomMinion(count, undefined, self.side, undefined, self.uid, undefined, true),
     hasEffect: (t, on, doId) => (t as Minion).effects.some((e) => e.on === on && (!doId || e.do === doId)),
     replayShout: (t) => {
@@ -769,6 +802,8 @@ export function resolveCombatSpellCast(ctx: CombatContext, self: Minion, def: Ca
  */
 export function withCastingSpell<T>(ctx: CombatContext, spellId: string | undefined, fn: () => T): T {
   if (spellId === undefined) return fn();
+  // Name the cast in flight (`castInCombat`'s identity probe) if nothing has named it yet.
+  if (ctx.castProbe && ctx.castProbe.spellId === undefined) ctx.castProbe.spellId = spellId;
   const outer = ctx.castingSpellId;
   ctx.castingSpellId = spellId;
   try { return fn(); } finally { ctx.castingSpellId = outer; }
@@ -907,6 +942,7 @@ function resolveCombatSpellCastInner(ctx: CombatContext, self: Minion, def: Card
         ctx.gainNextShopBuff?.(num(eff.params?.attack, 2), num(eff.params?.health, 2), side); did = true; break;
       // ── cards + Rubies ──
       case 'getRubies': ctx.mintRubies(num(eff.params?.count, 1), side, self.uid); did = true; break;
+      case 'getRandomRubies': ctx.grantRandomRubies(num(eff.params?.count, 1), side, self.uid); did = true; break;
       case 'rubyStatGain': {
         for (const t of chosen()) playRubyOn(ctx, self, t, 1);
         did = true; break;
@@ -933,7 +969,7 @@ const COMBAT_TARGETED_SPELL_DOS = new Set(['spellBuffTarget', 'spellBuffTargetEs
 const COMBAT_CASTABLE_SPELL_DOS = new Set([
   'spellBuffTarget', 'spellBuffAll', 'spellBuffRandomFriendlies', 'spellBuffLeftmost', 'spellBuffTargetEscalating',
   'spellGainSpellPower', 'gainEmbers', 'grantFreeRolls', 'spellRefreshToSpells', 'spellRefreshToTribe',
-  'spellRefreshTierUp', 'spellBuffShop', 'spellBuffTavern', 'spellBuffNextShop', 'getRubies', 'rubyStatGain',
+  'spellRefreshTierUp', 'spellBuffShop', 'spellBuffTavern', 'spellBuffNextShop', 'getRubies', 'getRandomRubies', 'rubyStatGain',
   'spellGainRandomMinion', 'spellGrantTopTypeMinion', 'spellBuffRandomPerTribe', 'spellBuffHealthGrantFlurryDragon',
   'spellBuffTargetAndNeighbours', 'spellBuffByTier', // Beefy + Lantern Light (2026-08-19)
 ]);
@@ -1177,7 +1213,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     castInCombat(ctx, self, () => {
       const targets = eff.do === 'spellBuffAll' ? ctx.living(self.side) : ctx.living(self.side).filter((m) => m !== self);
       for (const t of targets) ctx.buff(t, a, h, self.uid);
-    });
+    }, spell!.id);
   },
 
   /** Hoardbreaker Drake (Rally): on its OWN attack, "cast Growth" — the Slaughter twin (onKillCastSpell) on the
@@ -1252,7 +1288,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     // apply it a second time — pass a non-golden self and let it own only the extra-cast repetitions.
     castInCombat(ctx, { ...self, golden: false } as Minion, () => {
       ctx.buff(ctx.rng.pick(friends), pick.attack, pick.health, self.uid); // the stat spell on a random friend
-    });
+    }, pick.spellId);
     ctx.grantToHand(pick.spellId, self.side, self.uid); // add a copy of THAT spell to your hand
   },
 
@@ -1274,7 +1310,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     // As above: `pick` already carries the golden scaling.
     castInCombat(ctx, { ...self, golden: false } as Minion, () => {
       ctx.buff(target, pick.attack, pick.health, self.uid);
-    });
+    }, pick.spellId);
   },
 
   /** Deathrattle (Blaster): deal `amount` to every living minion on BOTH sides (friendly included).
@@ -1382,6 +1418,22 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (!self.keywords.includes('EG')) {
       self.permaGain = { attack: (self.permaGain?.attack ?? 0) + n, health: self.permaGain?.health ?? 0 };
       self.permaLabel = self.name; // the run card's ledger names the Sprite, not Flowing Monk
+    }
+  },
+  /** GOLDILOX (set 3 Dwarf/Spirit, owner 2026-09-24) — COMBAT board half: "When you cast a Shop Spell, gain
+   *  +3/+2." Reached ONLY through `ctx.spellResolved` (the payload carries the resolved `spellId`); the plain
+   *  pre-body `spellCast` broadcast carries no identity and is ignored, so one cast pays exactly once. The gain
+   *  is PERMANENT (owner: "those stats are permanent"): Kindled's permaGain carry-back, labelled with the card.
+   *  The simulator already checked the spell is a Shop-pool spell; the hand half lives in `spellResolved`. */
+  shopSpellCastGrowSelf: (ctx, self, params, payload) => {
+    const p = payload as { side?: Side; spellId?: string };
+    if (self.dead || p.side !== self.side || !p.spellId) return;
+    const g = shopSpellGrowth(params, !!self.golden, false);
+    if (g.attack <= 0 && g.health <= 0) return;
+    ctx.buff(self, g.attack, g.health, self.uid);
+    if (!self.keywords.includes('EG')) {
+      self.permaGain = { attack: (self.permaGain?.attack ?? 0) + g.attack, health: (self.permaGain?.health ?? 0) + g.health };
+      self.permaLabel = self.name;
     }
   },
   /** Set 3 Spirits — Old Timber (Start of Combat): your `tribe` minions +atk/+hp per step — `base` steps (its
@@ -1512,6 +1564,22 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   },
   getRubies: (ctx, self, params) => {
     ctx.mintRubies(num(params.count, 1) * mul(self), self.side, self.uid);
+  },
+  /** Ruby Shipment's body in combat (a combat-cast spell, a Shout replay): `count` RANDOM Rubies, each drawn
+   *  separately — the random-type twin of `getRubies`, through the combat carry-back. */
+  getRandomRubies: (ctx, self, params) => {
+    ctx.grantRandomRubies(num(params.count, 1) * mul(self), self.side, self.uid);
+  },
+  /** Shardluck's Ruby branch in combat (a Shout replay): the shared arena body — each Ruby on a random Kobold. */
+  battlecryPlayRubiesRandomTribe: (ctx, self, params) => {
+    ARENA_EFFECTS.battlecryPlayRubiesRandomTribe(combatArena(ctx, self), params);
+  },
+  /** Gemheart Legionnaire in combat: a friendly Golem summoned mid-fight plays PERMANENT Rubies on this body
+   *  (carried back at settle through `playRubyOn`'s permanent channel). */
+  onSummonCardPlayRubiesSelf: (ctx, self, params, payload) => {
+    const { minion, side } = payload as MinionPayload;
+    if (self.dead || side !== self.side || minion === self || !minion) return;
+    ARENA_EFFECTS.onSummonCardPlayRubiesSelf(combatArena(ctx, self), { ...params, arriver: minion });
   },
   addFodderNextShops: (ctx, self, params) => {
     // Soulfeeder — `count` Fodder into each of the next `shops` shops, through Pit Supplier's schedule
@@ -2625,6 +2693,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Spear Warden's passive marker — never dispatched; `noteCardDeath` (simulate.ts) reads it at the death site. */
   cardDeathScaler: () => {},
   dealtDamageAleMeter: () => {}, // Han Gover: a passive marker — the damage site (`noteDamageDealt`) does the work
+  dealtDamageGetRandomRuby: () => {}, // Kobe (2026-09-24): the same meter, a random-Ruby body — `noteDamageDealt` pays it
   dealtDamageGrantRandomTribe: () => {}, // Maestro Lux (2026-09-24): the same meter, a random-Celestial body — `noteDamageDealt` pays it
   dealtDamageGoldNextTurn: () => {}, // Goldvein (2026-09-19): the same meter, a Gold-next-turn body — `noteDamageDealt` pays it
 

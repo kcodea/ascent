@@ -16,10 +16,13 @@ import {
   ANNOUNCER_END_DELAY_MS, ANNOUNCER_EQUIPMENT_DELAY_MS, ANNOUNCER_FACE_OMEN_DELAY_MS, ANNOUNCER_GAME_START_DELAY_MS,
   ANNOUNCER_LINE_CAP, ANNOUNCER_LINES, ANNOUNCER_PRIORITY, ANNOUNCER_STOP_FADE_MS, ANNOUNCER_TURN_ONE_QUIET_MS,
   announcerDebug, announcerVariant, cancelAnnouncer, getAnnouncerVolume, isAnnouncerMuted, observeCombatBoard,
-  setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
+  previewAnnouncerEvent, setAnnouncerVolume, syncAnnouncer, toggleAnnouncerMute, type AnnouncerEvent, type AnnouncerRunLike,
   type AnnouncerStateLike,
 } from './announcer';
 import { announcedFor, emptyAnnounced, withAnnounced, type AnnouncedSlice } from './announcerSlice';
+import {
+  ANNOUNCER_TUNER_DEFAULTS, ANNOUNCER_TUNER_EVENTS, announcerLineGain, resetAnnouncerTunerConfig, setAnnouncerTunerValue,
+} from './announcerConfig';
 
 const SEED = 4242;
 const LINE_MS = 1000;
@@ -30,7 +33,7 @@ class StubHandle {
   stopped: number | null = null;
   stop(ms: number): void { this.stopped = ms; }
 }
-interface Play { file: string; t: number; handle: StubHandle }
+interface Play { file: string; t: number; handle: StubHandle; gain: number }
 let plays: Play[] = [];
 let failNext = false;
 
@@ -96,16 +99,17 @@ beforeEach(() => {
     now: () => Date.now(),
     setTimeout: (cb, ms) => setTimeout(cb, ms) as unknown as number,
     clearTimeout: (id) => clearTimeout(id),
-    play: (url, onEnded) => {
+    play: (url, onEnded, gain) => {
       if (failNext) { failNext = false; return Promise.resolve(null); }
       const handle = new StubHandle();
-      plays.push({ file: url.replace(/^.*\/announcer\//, '').replace(/\.mp3$/, ''), t: Date.now(), handle });
+      plays.push({ file: url.replace(/^.*\/announcer\//, '').replace(/\.mp3$/, ''), t: Date.now(), handle, gain });
       setTimeout(() => { if (handle.stopped === null) onEnded(); }, LINE_MS);
       return Promise.resolve(handle);
     },
   });
 });
 afterEach(() => {
+  resetAnnouncerTunerConfig();
   __setAnnouncerDepsForTests(null);
   vi.useRealTimers();
 });
@@ -678,11 +682,13 @@ describe('the silence rules', () => {
 });
 
 describe('the channel', () => {
-  it('has its own persisted volume (default 0.7) and mute', () => {
-    expect(getAnnouncerVolume()).toBe(0.7);
+  it('has its own persisted volume (slider default 50, which plays the owner mix gain 0.7) and mute', () => {
+    expect(getAnnouncerVolume()).toBe(0.5);
+    expect(announcerDebug().level).toBeCloseTo(0.7, 10);
     setAnnouncerVolume(0.4);
     expect(getAnnouncerVolume()).toBe(0.4);
-    expect(localStorage.getItem('ascent.announcervol')).toBe('0.4');
+    expect(localStorage.getItem('ascent.announcervol.v2')).toBe('0.4');
+    expect(announcerDebug().level).toBeCloseTo(0.56, 10); // 0.4 of the way to 50 = 0.8 x 0.7
     setAnnouncerVolume(7);
     expect(getAnnouncerVolume()).toBe(1);
     expect(isAnnouncerMuted()).toBe(false);
@@ -691,6 +697,83 @@ describe('the channel', () => {
     expect(announcerDebug().level).toBe(0);
     toggleAnnouncerMute();
     expect(announcerDebug().level).toBe(1);
-    setAnnouncerVolume(0.7);
+    setAnnouncerVolume(0.5);
+  });
+});
+
+describe('the dev tuner (owner 2026-09-24): per-event volume + timing offset', () => {
+  it('covers every event exactly once, and the shipped defaults are 100% and 0 ms', () => {
+    expect([...ANNOUNCER_TUNER_EVENTS].sort()).toEqual(Object.keys(ANNOUNCER_LINES).sort());
+    for (const e of ANNOUNCER_TUNER_EVENTS) {
+      expect(ANNOUNCER_TUNER_DEFAULTS[`${e}Vol`]).toBe(100);
+      expect(ANNOUNCER_TUNER_DEFAULTS[`${e}Offset`]).toBe(0);
+    }
+  });
+  it('the event volume multiplies into the line gain, and the final gain is clamped at 1', async () => {
+    const r = openShop();
+    go({ ...r, tier: 6 });
+    await tick(0);
+    expect(plays[0]!.gain).toBe(1); // untuned: as recorded
+    setAnnouncerTunerValue('equipmentVol', 150);
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    go({ ...r, tier: 6, equipment: { available: [1] } });
+    await tick(ANNOUNCER_EQUIPMENT_DELAY_MS);
+    expect(events()).toEqual(['tier-six', 'equipment']);
+    expect(plays[1]!.gain).toBe(1.5);
+    expect(announcerLineGain(0.5, 1.5)).toBeCloseTo(0.75, 10);
+    expect(announcerLineGain(0.7, 1.5)).toBe(1); // 1.05 clamps
+    expect(announcerLineGain(0.7, 0)).toBe(0);
+    setAnnouncerTunerValue('equipmentVol', 999);
+    expect(ANNOUNCER_TUNER_DEFAULTS.equipmentVol).toBe(100);
+  });
+  it('a positive offset delays the line by exactly that much', async () => {
+    setAnnouncerTunerValue('equipmentOffset', 700);
+    const r = openShop();
+    go({ ...r, equipment: { available: [1] } });
+    await tick(ANNOUNCER_EQUIPMENT_DELAY_MS + 700 - 1);
+    expect(plays).toEqual([]);
+    await tick(1);
+    expect(events()).toEqual(['equipment']);
+  });
+  it('a negative offset fires earlier, but never before the moment is detected', async () => {
+    setAnnouncerTunerValue('enteringCombatOffset', -600);
+    const r = openShop({ wave: 1, tier: 1 });
+    await tick(ANNOUNCER_GAME_START_DELAY_MS + LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    go({ ...r, phase: 'combat' });
+    await tick(ANNOUNCER_FACE_OMEN_DELAY_MS - 600 - 1);
+    expect(events()).toEqual(['game-start']);
+    await tick(1);
+    expect(events()).toEqual(['game-start', 'entering-combat']);
+    // Past the built-in delay: clamped to the detection moment, never scheduled in the past.
+    setAnnouncerTunerValue('equipmentOffset', -2000);
+    const s = openShop();
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS);
+    const t0 = Date.now();
+    go({ ...s, equipment: { available: [1] } });
+    expect(announcerDebug().pending[0]!.notBefore).toBe(t0);
+    await tick(0);
+    expect(events()).toEqual(['game-start', 'entering-combat', 'equipment']);
+  });
+  it('the offset leaves the cooldown alone: it still counts from the previous line ending', async () => {
+    setAnnouncerTunerValue('equipmentOffset', -400);
+    const r = openShop();
+    go({ ...r, tier: 6 });
+    await tick(0);
+    await tick(LINE_MS + ANNOUNCER_COOLDOWN_MS - 10);
+    go({ ...r, tier: 6, equipment: { available: [1] } }); // -400 cancels the 400 ms delay: due now, 10 ms inside the cooldown
+    await tick(0);
+    expect(events()).toEqual(['tier-six']);
+    expect(dropped('equipment')).toBe(true);
+  });
+  it('the ▶ preview plays the event line now at its tuned volume, cycling variants, outside the queue', async () => {
+    setAnnouncerTunerValue('backToShopVol', 60);
+    expect(previewAnnouncerEvent('backToShop')).toBe('back-to-shop-1');
+    await tick(0);
+    expect(previewAnnouncerEvent('backToShop')).toBe('back-to-shop-2');
+    await tick(0);
+    expect(files()).toEqual(['back-to-shop-1', 'back-to-shop-2']);
+    expect(plays.map((p) => p.gain)).toEqual([0.6, 0.6]);
+    expect(plays[0]!.handle.stopped).toBe(ANNOUNCER_STOP_FADE_MS); // the second press cut the first
+    expect(announced.fired.backToShop ?? []).toEqual([]); // nothing marked
   });
 });

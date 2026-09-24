@@ -99,7 +99,8 @@ describe('Rune of Battle Refraction', () => {
     // its summons. Simpler probe: Candle Conduit… — use the Ruby-buff EVENTS as the measure instead: the
     // same board with and without the flag, Ruby stats granted must grow with a Prismcaster present.
     const board: BoardMinion[] = [
-      { cardId: 'k_geode', attack: 2, health: 1 },
+      // Blazer's Rally casts a Ruby on your minions (Geode's Echo stopped casting Rubies in the Ruby batch 2026-09-24).
+      { cardId: 'k_blazer', attack: 2, health: 60 },
       { cardId: 'k_prismcaster', attack: 3, health: 60 },
     ];
     const killer: BoardMinion[] = [{ cardId: 'sandbag', attack: 9, health: 400 }];

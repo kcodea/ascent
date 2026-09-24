@@ -3,7 +3,8 @@ import { sfx } from '../sfx';
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { spellCastSoundAllowed } from '../fx/spellCastFx';
 import { bindingFor, type FxBinding } from './bindings';
-import { RUBY_BEAT_MS, RUBY_GAP_MS } from './channels/rubyLanded';
+import { RUBY_BEAT_MS, RUBY_GAP_MS, RIPPLE_GEM_SPACING_MS, darkRubyGemSpacingMs, spaceLands } from './channels/rubyLanded';
+import { getConsumeFxConfig } from '../consumeFxConfig';
 import type { RecruitMoment } from './recruitMoments';
 
 /**
@@ -77,7 +78,17 @@ export function runRecruitMomentCues(moment: RecruitMoment, ctx: RecruitCueConte
   // before the browser has laid them out reads the PREVIOUS geometry — the bug every hand-written shop
   // effect had to learn about individually.
   const raf = requestAnimationFrame(() => {
-    for (const land of scheduleLands(cascade(moment.recipients), { gap: RUBY_GAP_MS, beat: RUBY_BEAT_MS })) {
+    // A special Ruby's rider spaces its target's gems (owner Ruby batch 2026-09-24): Ripple's second cast a clear
+    // beat later, Dark Ruby's second gem as the consume ghost is pulled in. Everything else keeps the stack beat.
+    const spacingOf = (uid: string): number | undefined => {
+      const rider = moment.recipients.find((r) => r.uid === uid)?.rider;
+      if (rider === 'ripple') return RIPPLE_GEM_SPACING_MS;
+      if (rider === 'devour') return darkRubyGemSpacingMs(getConsumeFxConfig().durationMs);
+      return undefined;
+    };
+    const base = scheduleLands(cascade(moment.recipients), { gap: RUBY_GAP_MS, beat: RUBY_BEAT_MS });
+    const lands = moment.kind === 'rubyLanded' && moment.recipients.some((r) => r.rider) ? spaceLands(base, spacingOf) : base;
+    for (const land of lands) {
       const fire = (): void => fireLand(land, binding, ctx);
       if (land.at <= 0) fire();
       else timers.push(setTimeout(fire, land.at));

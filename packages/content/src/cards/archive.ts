@@ -13,6 +13,50 @@ import type { CardDef } from '@game/core';
  */
 export const ARCHIVED_CARDS: CardDef[] = [
   {
+    // ARCHIVED 2026-09-24 (owner kobold/dwarf batch). Moved verbatim from set3/kobolds.ts — belongs to no set now.
+    // `set` (not add) — "the FIRST Choose One card you play each turn", so the charge refreshes to exactly one
+    // per turn and is never banked. The turn boundary clears charges first, then this re-grants.
+    id: 'k3_forkedcrown',
+    name: 'Double Dealer', // 'Dealer' until 2026-09-14 (owner rename handoff; id + art unchanged)
+    tribe: 'kobold',
+    tier: 4,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    // BOTH hooks, and that pairing is the card (owner ruling 2026-08-31). `onPlay` arms her the moment she
+    // arrives — a Dealer bought mid-turn used to sit inert until the next turn — and `startOfTurn` re-arms
+    // whoever is still on board. The latch is PER INSTANCE, so a second Dealer bought after this turn's
+    // first Choose One brings her own fresh one.
+    effects: [
+      { on: 'onPlay', do: 'armChooseBoth', params: { count: 1 } },
+      { on: 'startOfTurn', do: 'armChooseBoth', params: { count: 1 } },
+    ],
+    text: 'The **first Choose One** card you play each turn gains **both** effects.',
+    goldenText: 'The **first 2 Choose One** cards you play each turn gain **both** effects.',
+  },
+  {
+    // ARCHIVED 2026-09-24 (owner kobold/dwarf batch). Moved verbatim from set3/kobolds.ts — belongs to no set now.
+    // Both branches raise Ruby STRENGTH (`rubyBonus`) — the run-wide stat every future Ruby carries — split
+    // into the Attack half and the Health half. Deepvein Tender (set 2) is the same primitive with the
+    // health half only, so this is that card's choice made explicit.
+    id: 'k3_forkvein',
+    name: 'Gemsmith',
+    tribe: 'kobold',
+    tier: 2,
+    attack: 3,
+    health: 4,
+    keywords: [],
+    effects: [],
+    chooseOne: [
+      { text: 'Your Rubies gain **+1 Attack**.', goldenText: 'Your Rubies gain **+2 Attack**.',
+        effects: [{ on: 'onPlay', do: 'rubyStatGain', params: { attack: 1, health: 0 } }] },
+      { text: 'Your Rubies gain **+1 Health**.', goldenText: 'Your Rubies gain **+2 Health**.',
+        effects: [{ on: 'onPlay', do: 'rubyStatGain', params: { attack: 0, health: 1 } }] },
+    ],
+    text: '**Choose One:** give your Rubies **+1 Attack**, or **+1 Health**.',
+    goldenText: '**Choose One:** give your Rubies **+2 Attack**, or **+2 Health**.',
+  },
+  {
     // ARCHIVED 2026-09-16 (owner: "archive Second Calling gift from all sets" — the second-hero-power mechanic is
     // off for now, with Void). Moved verbatim from gifts.ts; `gift: true` kept so a held copy still resolves and casts.
     // Owner clarification 2026-08-26: REPLACES an existing second power rather than being skipped.

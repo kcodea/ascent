@@ -300,9 +300,10 @@ describe('live values on climbing / per-turn cards (owner ask 2026-07-29)', () =
     expect(perCardPlayedText('dw_foreman', 0), 'nothing played yet — printed rate stands').toBeNull();
     expect(perCardPlayedText('dw_foreman', 4, false)!).toContain('+1/+2**. Repeat for every card you played this turn {{(×5)}}');
     expect(perCardPlayedText('dw_foreman', 4, true)!).toContain('+2/+4**. Repeat for every card you played this turn {{(×5)}}');
-    // Striker stays the LUMP form: the total folded in place, the rate in the parenthetical.
-    expect(perCardPlayedText('dw3_striker', 4, false)!).toContain('{{+4 Attack}}');
-    expect(perCardPlayedText('dw3_striker', 4, false)!).toContain('(+1 Attack for each card you played this turn)');
+    // Striker moved to the REPEAT form too (owner 2026-09-24): per-tick rate printed, the live tick count appended.
+    expect(perCardPlayedText('dw3_striker', 0), 'nothing played yet — printed text stands').toBeNull();
+    expect(perCardPlayedText('dw3_striker', 4, false)!).toBe('**End of Turn:** give adjacent minions **+1 Attack**. Repeat for every card played this turn {{(×5)}}.');
+    expect(perCardPlayedText('dw3_striker', 2, true)!).toContain('**+2 Attack**. Repeat for every card played this turn {{(×3)}}');
   });
 });
 

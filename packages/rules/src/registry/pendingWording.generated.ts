@@ -76,17 +76,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-numeral-01",
-    "title": "Wording: Gold vs g · 74 vs 2",
+    "title": "Wording: Gold vs g · 75 vs 2",
     "statement": "Money always prints as \"N Gold\" — never the \"Ng\" abbreviation. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"N Gold\" in 74 printed texts, \"Ng\" in 2. Approving picks \"N Gold\"; the LG-NUMERAL-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"N Gold\" in 75 printed texts, \"Ng\" in 2. Approving picks \"N Gold\"; the LG-NUMERAL-01 guide predicate then watches new text.",
     "cardText": "\"N Gold\" — Bone Taxer: \"Avenge (4): get 2 Gold next shop. Deathrattle: raise your maximum Gold by 1.\" · \"Ng\" — Trail Forager: \"Sells for 3g, plus 1g for every Beast you play.\"",
     "example": "Trail Forager would be re-worded to the \"N Gold\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-NUMERAL-01 (corpus survey: 74 vs 2)"
+        "ref": "textParse.wording · LG-NUMERAL-01 (corpus survey: 75 vs 2)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -275,17 +275,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-zone-01",
-    "title": "Wording: Shop vs tavern · 213 vs 9",
+    "title": "Wording: Shop vs tavern · 214 vs 9",
     "statement": "The buy row is always \"the Shop\" in text; every remaining \"tavern\" is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Shop\" in 213 printed texts, \"tavern\" in 9. Approving picks \"Shop\"; the LG-ZONE-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Shop\" in 214 printed texts, \"tavern\" in 9. Approving picks \"Shop\"; the LG-ZONE-01 guide predicate then watches new text.",
     "cardText": "\"Shop\" — Black Hole: \"Your Starform consumes 3 random Shop minions.\" · \"tavern\" — Korok, the Hungerer: \"When you buy 4 cards, give your Fodder +1/+1 and add 1 Fodder to your next tavern.\"",
     "example": "Korok, the Hungerer would be re-worded to the \"Shop\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-ZONE-01 (corpus survey: 213 vs 9)"
+        "ref": "textParse.wording · LG-ZONE-01 (corpus survey: 214 vs 9)"
       }
     ],
     "sourceQueue": "textParse.wording",

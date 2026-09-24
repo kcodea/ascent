@@ -122,7 +122,8 @@ const SET1_SPELLS_IN_SET2: readonly CardDef[] = SPELLS.filter((s) => !s.token &&
  */
 /**
  * The set-2 Kobolds set 3 keeps. SIX, down from the original eleven: the owner's full set-3 Kobold roster
- * (2026-08-30) named nine of them — `k_beggy` and `k_alchemist` (Brisbane) left on that basis — then
+ * (2026-08-30) named nine of them — `k_beggy` and `k_alchemist` (Brisbane) left on that basis (Beggy came back
+ * 2026-09-24, owner kobold/dwarf batch) — then
  * `k_deepdelve` (Deepdelve Paragon) and `k_veinbreaker` (Veinbreaker) were each pulled by a later owner call
  * (2026-08-31, 2026-09-01), and `k_chipwick` (Chipwick Prospector) on 2026-09-19 (owner handoff).
  *
@@ -133,6 +134,7 @@ const SET2_KOBOLDS_IN_SET3: readonly CardDef[] = SET2_KOBOLDS.filter((c) =>
   [
     'k_geode', 'k_blazer', 'k_gemheart', 'k_kobe',
     'k_boulderdash', 'k_kobabyboldies', // Chipwick Prospector left 2026-09-19 (owner handoff); it stays in set 2
+    'k_beggy', // back in set 3 (owner 2026-09-24); still a set-2 card too — shared, not forked
   ].includes(c.id),
 );
 
